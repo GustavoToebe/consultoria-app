@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: treinos-api
+  threads:
+    virtual:
+      enabled: true
+  # Segredos e banco sem valor padrão: faltando a variável, a API não sobe (ConfiguracaoProducaoTest).
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USUARIO}
+    password: ${DB_SENHA}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+  servlet:
+    multipart:
+      # Logo da consultoria: até 512 KiB (seção 5.5 do plano).
+      max-file-size: 512KB
+      max-request-size: 1MB
+
+treinos:
+  security:
+    jwt:
+      access-token-ttl: PT15M
+      secret: ${TREINOS_JWT_SEGREDO}
+    refresh-token-ttl: P30D
+    # Atrás do Caddy a API fica em /api, então o cookie vai em /api/auth (docker-compose.yml).
+    refresh-cookie-path: ${REFRESH_COOKIE_PATH:/auth}
+    # false só no ambiente local por IP da rede (http). Em produção sempre true.
+    refresh-cookie-secure: ${REFRESH_COOKIE_SECURE:true}
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081}
+  app-url: ${APP_URL:http://localhost:8088}
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: none
+  tomcat:
+    max-swallow-size: 1MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

@@ -1,0 +1,4 @@
+# No Docker o Caddy é o único proxy e fica na rede interna: só aqui a API confia no X-Forwarded-For
+# (o Tomcat aceita o cabeçalho apenas de endereços internos). Sem isso, o limite de login veria o IP do Caddy.
+server:
+  forward-headers-strategy: native

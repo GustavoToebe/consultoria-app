@@ -1,0 +1,12 @@
+# Segredo só desta suíte. O valor decodifica para 37 bytes; não serve fora do teste.
+treinos:
+  security:
+    jwt:
+      secret: dGVzdGUtdHJlaW5vcy1qd3Qtc2VjcmV0LTMyLWJ5dGVzLW9rIQ==
+  # Toda a suíte sai de 127.0.0.1: os limites por IP ficam altos para um teste não bloquear o outro.
+  # O limite por conta (10) continua o de produção e é testado no AuthIntegrationTest.
+  limites:
+    login-ip: 100000
+    cadastro-ip: 100000
+    convite-ip: 100000
+    refresh-ip: 100000
