@@ -1,26 +1,51 @@
-# Log de Treino - Metodologia Saraiva Team
+# Plataforma de treinos e dieta
 
-## Visão Geral
-Aplicativo mobile focado em hipertrofia e Progressive Overload baseado na metodologia Saraiva Team.
-Plataforma alvo inicial: **Android** (Offline-First).
+Plataforma para vários treinadores (cada um com a sua consultoria isolada) montarem treino e dieta dos alunos.
+O aluno vê o plano no celular ou na web e registra cargas e repetições, inclusive sem internet. O Saraiva
+(Saraiva Team) é o primeiro treinador.
 
-## Estrutura do Repositório
-- `/mobile`: Aplicação React Native (Expo) + TypeScript + NativeWind + WatermelonDB.
-- `/backend`: API Java 21 + Spring Boot + Spring Security + PostgreSQL.
-- `/docs`: Documentação técnica, especificações de negócio e referências CSV.
+- Plano de execução: [PLANO-IMPLEMENTACAO.md](PLANO-IMPLEMENTACAO.md). Regras para quem mexe no código: [AGENTS.md](AGENTS.md).
+- `api/` — backend (Java 21, Spring Boot 4.1.1, PostgreSQL 17). `app/` — app Expo (web, Android e iOS).
+- `backend/` e `mobile/` — protótipo antigo, só como referência.
 
-## Design System (Premium Bodybuilding)
-- Background: `#0B0B0D`
-- Surface: `#161619`
-- Surface 2: `#202024`
-- Primary: `#C62828` / `#D32F2F` (Uso moderado em CTAs, checks e destaques de carga)
-- Text Primary: `#F5F5F5`
-- Text Secondary: `#9E9EA4`
+## Como rodar (local, Docker)
 
-## Lógica Matemática (Offline-First Engine)
-- **Aquecimento**: 30% (`0.3`) do Working Set (10-15 reps)
-- **Feeder Set 1**: 50% (`0.5`) do Working Set (3-5 reps)
-- **Feeder Set 2**: 70% (`0.7`) do Working Set (3 reps)
-- **Feeder Set 3**: 85% (`0.85`) do Working Set (3 reps)
-- **Working Set**: 100% (`1.0`) do Working Set (Livre = 1 RIR / Máquina = Falha)
-- **Back-off Set**: 85% (`0.85`) ou 90% (`0.90`) do Working Set (aumento de reps)
+```bash
+cp .env.example .env    # preencher POSTGRES_PASSWORD, TREINOS_JWT_SEGREDO (openssl rand -base64 48) e DEMO_SENHA
+docker compose up -d --build
+# Web (treinador e aluno): http://localhost:8088   (na rede: http://IP-DO-PC:8088)
+```
+
+No Windows: Docker Desktop; `ipconfig` mostra o IP do PC; liberar a porta 8088 no firewall para o celular.
+O banco começa com os dados de demonstração (só quando está vazio). Para recomeçar do zero:
+`docker compose down -v && docker compose up -d --build`.
+
+Testes da API: `cd api && mvn verify` (precisa do Docker ligado, para o Testcontainers).
+
+## Contas de demonstração
+
+Senha de todas: o valor de `DEMO_SENHA` no `.env`. Todos os dados são fictícios.
+
+| Conta | Papel | Consultoria |
+|---|---|---|
+| `saraiva@demo.local` | Treinador | Saraiva Team (fonte Metal, tema escuro) |
+| `aluno@demo.local` | Aluno | Saraiva Team (Plano 16 publicado, dieta, histórico de 2 semanas) |
+| `exemplo@demo.local` | Treinador | Consultoria Exemplo (tema claro) |
+| `aluno2@demo.local` | Aluno | Consultoria Exemplo (plano ABC) |
+
+## Pendências e decisões
+
+Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Saraiva.
+
+- **Dieta de demonstração reconstruída.** O PDF da dieta do Saraiva não está no repositório: a dieta do seed usa os
+  9 alimentos e valores por 100 g da seção 13.1 do plano, com quantidades de exemplo (5 refeições, opções A/B no
+  almoço e no jantar). Ajustar no editor quando houver o PDF. O `mobile/src/database/seed_diet.ts` antigo não foi usado:
+  não bate com o PDF descrito e traz medicamentos, que não podem ir para o seed.
+- **Instruções do PDF do treino** vêm de `docs/Instruções e Regras.csv` (FS, cálculo, WS) mais as regras citadas no
+  plano; o texto completo do PDF do Plano 16 pode substituir na tela Marca.
+- `login_tentativa` segue a V016 real da Central (uma linha por chave), não o esboço da seção 6 do plano.
+- `execucao_serie.serie_trabalho` (não está no esboço): marca a série de trabalho, vinda da versão do plano.
+- Ambiguidades dos PDFs para mostrar ao Saraiva (seção 19 do plano): Off ativo na quarta ou na quinta (o seed usa
+  quinta); back off sobre "carga da WS" ou "maior peso do exercício" (o app usa o maior peso registrado na WS do dia);
+  cardio todo dia ou só nos dias Off; "Refeição 2 — ALMOÇO" com frutas; ovo 3 un/180 g com 133 kcal; legumes com
+  45 kcal e macros zerados; variação de peso −1 onde a conta dá −1,5.

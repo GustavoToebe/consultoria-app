@@ -99,7 +99,7 @@ public class ConviteService {
         return usuario;
     }
 
-    static String hash(String codigo) {
+    public static String hash(String codigo) {
         return OpaqueTokenGenerator.hash(codigo == null ? "" : codigo.trim().toUpperCase(Locale.ROOT));
     }
 

@@ -1,0 +1,48 @@
+# Caddy local (seção 14.1 do plano): serve a web (Expo exportado em /srv) e publica a API em /api.
+# Cabeçalhos iguais aos do ecossistema (deploy/Caddyfile da Central), sem HSTS: aqui não há HTTPS.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; worker-src 'self' blob:"
+		-Server
+	}
+
+	request_body {
+		max_size 6MB
+	}
+
+	handle_path /api/* {
+		# Do actuator, só o health sai para fora. Fica aqui dentro (caminho já sem /api): um respond fora do
+		# handle_path nunca seria alcançado, porque o Caddy roda o handle antes.
+		@actuatorPrivado {
+			path /actuator/*
+			not path /actuator/health
+		}
+		respond @actuatorPrivado 404
+
+		# Sobrescreve o X-Forwarded-For com o IP de quem conectou (não repassa o que o navegador mandou):
+		# é o IP que o limite de login conta.
+		reverse_proxy api:8080 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	handle {
+		root * /srv
+		encode zstd gzip
+		try_files {path} /index.html
+		file_server
+		# Arquivos com hash no nome podem ficar em cache; o index.html nunca.
+		@hash path *.js *.css *.woff2 *.ttf
+		@resto not path *.js *.css *.woff2 *.ttf
+		header @hash Cache-Control "public, max-age=31536000, immutable"
+		header @resto Cache-Control "no-cache"
+	}
+}

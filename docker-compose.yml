@@ -1,0 +1,63 @@
+# Ambiente local da demonstração (seção 14 do plano): Postgres + API + web (Caddy).
+#   cp .env.example .env    (preencher as obrigatórias)
+#   docker compose up -d --build
+#   Web: http://localhost:8088  (na rede: http://IP-DO-PC:8088). A API fica em /api.
+# Banco e API não publicam porta: só o Caddy é exposto.
+name: treinos
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: treinos
+      POSTGRES_USER: ${POSTGRES_USER:-treinos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - dados-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d treinos"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker,demo
+      DB_URL: jdbc:postgresql://db:5432/treinos
+      DB_USUARIO: ${POSTGRES_USER:-treinos}
+      DB_SENHA: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      TREINOS_JWT_SEGREDO: ${TREINOS_JWT_SEGREDO:?defina TREINOS_JWT_SEGREDO no .env}
+      DEMO_SENHA: ${DEMO_SENHA:?defina DEMO_SENHA no .env}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081}
+      APP_URL: ${APP_URL:-http://localhost:8088}
+      # Atrás do Caddy a API fica em /api: o cookie de refresh vai em /api/auth.
+      REFRESH_COOKIE_PATH: ${REFRESH_COOKIE_PATH:-/api/auth}
+      # Só neste ambiente local: o celular acessa por http://IP-DO-PC (sem HTTPS) e o navegador recusaria cookie
+      # Secure. Em produção (com HTTPS) fica true.
+      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 3s
+      start_period: 60s
+      retries: 12
+
+  web:
+    build: ./app
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    volumes:
+      - ./deploy-local/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  dados-db:
