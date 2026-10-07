@@ -3,7 +3,6 @@ package br.com.treinos.api.auth;
 import br.com.treinos.api.auth.dto.EuResponse;
 import br.com.treinos.api.auth.dto.LoginResponse;
 import br.com.treinos.api.auth.dto.TrocaSenhaRequest;
-import br.com.treinos.api.security.CookieDeRefresh;
 import br.com.treinos.api.security.DestinoCliente;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,11 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class EuController {
 
     private final AuthService authService;
-    private final CookieDeRefresh cookie;
+    private final SessaoHttp sessaoHttp;
 
-    public EuController(AuthService authService, CookieDeRefresh cookie) {
+    public EuController(AuthService authService, SessaoHttp sessaoHttp) {
         this.authService = authService;
-        this.cookie = cookie;
+        this.sessaoHttp = sessaoHttp;
     }
 
     @PreAuthorize("hasAnyRole('TREINADOR', 'ALUNO')")
@@ -43,6 +42,6 @@ public class EuController {
                                      HttpServletRequest http, HttpServletResponse resposta) {
         DestinoCliente cliente = DestinoCliente.de(http);
         AuthService.Sessao sessao = authService.trocarSenha(eu, request.senhaAtual(), request.senhaNova(), cliente);
-        return AuthController.responder(sessao, cliente, resposta, cookie);
+        return sessaoHttp.responder(sessao, cliente, resposta);
     }
 }

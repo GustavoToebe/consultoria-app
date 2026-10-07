@@ -29,13 +29,15 @@ public class AuthController {
     private final CadastroTreinadorService cadastroTreinador;
     private final LimiteTentativas limite;
     private final CookieDeRefresh cookie;
+    private final SessaoHttp sessaoHttp;
 
     public AuthController(AuthService authService, CadastroTreinadorService cadastroTreinador,
-                          LimiteTentativas limite, CookieDeRefresh cookie) {
+                          LimiteTentativas limite, CookieDeRefresh cookie, SessaoHttp sessaoHttp) {
         this.authService = authService;
         this.cadastroTreinador = cadastroTreinador;
         this.limite = limite;
         this.cookie = cookie;
+        this.sessaoHttp = sessaoHttp;
     }
 
     @PostMapping("/login")
@@ -43,7 +45,7 @@ public class AuthController {
                                HttpServletResponse resposta) {
         limite.login(http.getRemoteAddr(), request.email());
         DestinoCliente cliente = DestinoCliente.de(http);
-        return responder(authService.entrar(request.email(), request.senha(), cliente), cliente, resposta);
+        return sessaoHttp.responder(authService.entrar(request.email(), request.senha(), cliente), cliente, resposta);
     }
 
     @PostMapping("/cadastro-treinador")
@@ -51,7 +53,7 @@ public class AuthController {
                                            HttpServletRequest http, HttpServletResponse resposta) {
         limite.cadastro(http.getRemoteAddr());
         DestinoCliente cliente = DestinoCliente.de(http);
-        return responder(cadastroTreinador.cadastrar(request, cliente), cliente, resposta);
+        return sessaoHttp.responder(cadastroTreinador.cadastrar(request, cliente), cliente, resposta);
     }
 
     @PostMapping("/refresh")
@@ -64,7 +66,7 @@ public class AuthController {
         if (bruto == null || bruto.isBlank()) {
             throw new NaoAutorizadoException("Sessão inválida ou expirada. Entre de novo.", "SESSAO_EXPIRADA");
         }
-        return responder(authService.renovar(bruto), cliente, resposta);
+        return sessaoHttp.responder(authService.renovar(bruto), cliente, resposta);
     }
 
     @PostMapping("/logout")
@@ -84,22 +86,5 @@ public class AuthController {
             return corpo == null ? null : corpo.refreshToken();
         }
         return doCookie;
-    }
-
-    /** Também usado na troca de senha ({@code EuController}), que devolve uma sessão nova. */
-    static LoginResponse responder(AuthService.Sessao sessao, DestinoCliente cliente, HttpServletResponse resposta,
-                                   CookieDeRefresh cookie) {
-        String refreshNoCorpo = null;
-        if (cliente == DestinoCliente.NATIVO) {
-            refreshNoCorpo = sessao.refreshTokenBruto();
-        } else {
-            cookie.gravar(resposta, sessao.refreshTokenBruto());
-        }
-        return new LoginResponse(sessao.accessToken(), sessao.expiresIn(), refreshNoCorpo, sessao.usuario(),
-                sessao.marca());
-    }
-
-    private LoginResponse responder(AuthService.Sessao sessao, DestinoCliente cliente, HttpServletResponse resposta) {
-        return responder(sessao, cliente, resposta, cookie);
     }
 }

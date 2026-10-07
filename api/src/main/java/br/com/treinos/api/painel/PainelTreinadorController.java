@@ -1,0 +1,22 @@
+package br.com.treinos.api.painel;
+
+import br.com.treinos.api.painel.PainelService.PainelTreinador;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class PainelTreinadorController {
+
+    private final PainelService painel;
+
+    public PainelTreinadorController(PainelService painel) {
+        this.painel = painel;
+    }
+
+    @PreAuthorize("hasRole('TREINADOR')")
+    @GetMapping("/painel")
+    public PainelTreinador painel() {
+        return painel.painel();
+    }
+}

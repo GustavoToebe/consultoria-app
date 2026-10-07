@@ -40,7 +40,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         if (ex instanceof MuitasRequisicoesException limite) {
             resposta.header(HttpHeaders.RETRY_AFTER, Long.toString(limite.segundos()));
         }
-        return resposta.body(corpo(ex.getStatus(), ex.getMessage(), ex.getCodigo(), request, null));
+        List<ApiError.FieldError> problemas = ex instanceof ValidacaoException v ? v.getProblemas() : null;
+        return resposta.body(corpo(ex.getStatus(), ex.getMessage(), ex.getCodigo(), request, problemas));
     }
 
     /** Outra aba ou pessoa salvou antes: o app mostra "Recarregar" (seção 10.4 do plano). */

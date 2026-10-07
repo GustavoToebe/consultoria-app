@@ -41,18 +41,27 @@ class ArquiteturaTest {
 
     private static JavaClasses codigo;
 
-    /** SQL nativo: só o contador de login ({@code ON CONFLICT} atômico). O upsert de execuções entra na fase 2. */
-    private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of("ContadorBanco");
+    /**
+     * SQL nativo, sempre com consultoria/aluno explícitos:
+     * {@code ContadorBanco} (contador de login com {@code ON CONFLICT} atômico);
+     * {@code ExecucaoUpsert} (registro idempotente do aluno, {@code ON CONFLICT ... WHERE} mais novo);
+     * {@code LogoRepositorio} (bytes da logo fora da entidade, filtrado pelo id da consultoria);
+     * {@code ConviteBusca} (convite público: descobre só a consultoria do convite antes de abrir a sessão nela).
+     */
+    private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of("ContadorBanco", "ExecucaoUpsert",
+            "LogoRepositorio", "ConviteBusca");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario} e
-     * {@code RefreshToken} são do login, que acontece antes de saber a consultoria. Os catálogos públicos
-     * ({@code CatalogoExercicio}, {@code CatalogoAlimento}) entram aqui na fase 2.
+     * {@code RefreshToken} são do login, que acontece antes de saber a consultoria; {@code CatalogoExercicio} e
+     * {@code CatalogoAlimento} são o catálogo público, igual para todos e só leitura.
      */
-    private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario", "RefreshToken");
+    private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario", "RefreshToken",
+            "CatalogoExercicio", "CatalogoAlimento");
 
     /** Controllers das rotas públicas da seção 5.4 (login, refresh, cadastro, convite, logo). */
-    private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController");
+    private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
+            "MarcaPublicaController");
 
     @BeforeAll
     static void importar() {
