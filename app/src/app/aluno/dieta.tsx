@@ -103,7 +103,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           <Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
         </View>
         {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
-        <Texto numerico cor="suave">
+        <Texto numerico variante="suave">
           {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
         </Texto>
       </Cartao>
@@ -119,7 +119,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           {c.orientacoes.map((o, i) => (
             <View key={i} style={estilos.orientacao}>
               {o.titulo ? <Texto numerico style={estilos.forte}>{o.titulo}</Texto> : null}
-              <Texto numerico cor="suave">{o.texto}</Texto>
+              <Texto numerico variante="suave">{o.texto}</Texto>
             </View>
           ))}
         </Cartao>
@@ -134,7 +134,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           {c.suplementacao.map((s) => (
             <View key={s.uid} style={[estilos.item, { borderColor: cores.borda }]}>
               <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
-              <Texto numerico cor="suave">{[s.dose, s.horario, s.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
+              <Texto numerico variante="suave">{[s.dose, s.horario, s.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
             </View>
           ))}
         </Cartao>
@@ -149,7 +149,7 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
   const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
   return (
     <Cartao titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`}>
-      {refeicao.observacao ? <Texto numerico cor="suave">{refeicao.observacao}</Texto> : null}
+      {refeicao.observacao ? <Texto numerico variante="suave">{refeicao.observacao}</Texto> : null}
       {refeicao.opcoes.length > 1 ? (
         <Abas
           abas={refeicao.opcoes.map((o, i) => ({ valor: String(i), rotulo: `Opção ${o.rotulo}` }))}
@@ -162,7 +162,7 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
           <Texto numerico style={estilos.forte}>
             {i.nome} — {numeroParaTela(i.quantidade)} {i.unidade}
           </Texto>
-          <Texto numerico cor="suave">{textoTotais(somar([i]))}</Texto>
+          <Texto numerico variante="suave">{textoTotais(somar([i]))}</Texto>
         </View>
       ))}
       {opcao ? <Texto numerico style={estilos.forte}>Total: {textoTotais(somar(opcao.itens))}</Texto> : null}
@@ -174,7 +174,7 @@ const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   cresce: { flex: 1 },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
-  textoTotal: { fontFamily: fontes.semi, fontSize: 17 },
+  textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
   orientacao: { gap: 2 },
   forte: { fontFamily: fontes.semi },
   item: { borderTopWidth: 1, paddingTop: espaco(1), gap: 2 },

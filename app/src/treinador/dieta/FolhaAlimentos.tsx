@@ -28,7 +28,7 @@ export function FolhaAlimentos({
     <Folha visivel titulo="Escolher alimento" aoFechar={aoFechar}>
       <Campo rotulo="Buscar alimento" valor={busca} aoMudar={setBusca} autoFocus />
       {alimentos.length === 0 ? (
-        <Texto cor="suave">Nenhum alimento na biblioteca. Use “Item manual” ou importe alimentos na Biblioteca.</Texto>
+        <Texto variante="suave">Nenhum alimento na biblioteca. Use “Item manual” ou importe alimentos na Biblioteca.</Texto>
       ) : null}
       {lista.slice(0, 80).map((a) => (
         <Pressable

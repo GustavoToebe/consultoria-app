@@ -92,7 +92,7 @@ function Linha({ titulo, detalhe, aoTocar, rotulo }: { titulo: string; detalhe: 
       onPress={aoTocar}
       style={({ pressed }) => [estilos.linha, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : 'transparent' }]}>
       <Texto style={estilos.tituloLinha}>{titulo}</Texto>
-      <Texto cor="suave">{detalhe}</Texto>
+      <Texto variante="suave">{detalhe}</Texto>
     </Pressable>
   );
 }
@@ -101,6 +101,7 @@ const estilos = StyleSheet.create({
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   // Duas colunas no PC; no celular cada cartão ocupa a largura (encolhe abaixo da base).
   metade: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
+  numero: { fontFamily: fontes.negrito, fontSize: 40, lineHeight: 48 },
   linha: { borderTopWidth: 1, paddingVertical: espaco(1), gap: 2, borderRadius: RAIO, minHeight: 44 },
   tituloLinha: { fontFamily: fontes.semi },
 });

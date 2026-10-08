@@ -74,9 +74,9 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
   um novo. Sem conexão na abertura, a sessão abre offline com o último perfil salvo.
 - Design: tokens em `tema/tokens.ts`; status com `Selo` (nunca a cor da marca); confirmação com `PainelConfirmacao`;
   aviso com `useAviso()`; link de texto com `LinkTexto`. Fontes importadas por subcaminho (só os pesos usados).
-- Tipografia em `ui/tipografia.ts` (5 tamanhos); `Texto numerico` e campos numéricos usam números tabulares.
-  `cor="suave"` é cor, não variante. Cartão escuro sem borda; pressionado = `superficie3`, separador = `divisor`.
-  Movimento usa Reanimated 4 e `useMovimentoReduzido`; vibração só pelo `ui/vibrar` (sem chamadas na web).
+- Tipografia em `ui/tipografia.ts` (escala original + destaque); `Texto numerico` e campos numéricos usam números tabulares.
+  `suave` mantém a escala original; cartões têm borda nos dois temas; pressionado = `superficie3`.
+  Movimento usa Reanimated 4 com `sv.get()`/`sv.set()` (React Compiler) e `useMovimentoReduzido`; vibração só pelo `ui/vibrar` (sem chamadas na web).
 - Lint do React 19 recusa `setState` síncrono dentro de `useEffect`: atualizar estado só em callback de promessa.
   Dados de tela com `ui/useCarregar` (chave → busca; `definir` depois de alterar). Painel lateral/folha: `ui/Folha`.
 - Pastas: `src/app/` só rotas; peças das telas do treinador em `src/treinador/`; regras puras (com teste) em

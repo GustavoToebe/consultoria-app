@@ -42,7 +42,7 @@ export function FolhaSalvarReceita({
           <Botao rotulo="Salvar receita" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim()} />
         </>
       }>
-      <Texto cor="suave">{explicacao}</Texto>
+      <Texto variante="suave">{explicacao}</Texto>
       <Campo rotulo="Nome da receita" valor={nome} aoMudar={setNome} maxLength={120} />
       <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={2} maxLength={400} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}

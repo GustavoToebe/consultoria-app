@@ -196,7 +196,7 @@ function ItemProblema({ conteudo, problema, tipo }: { conteudo: unknown; problem
       <Selo texto={tipo === 'perigo' ? 'Erro' : 'Aviso'} tipo={tipo} />
       <View style={estilos.textoProblema}>
         {onde ? <Texto style={estilos.onde}>{onde}</Texto> : null}
-        <Texto cor="suave">{problema.mensagem}</Texto>
+        <Texto variante="suave">{problema.mensagem}</Texto>
       </View>
     </View>
   );
@@ -217,5 +217,5 @@ const estilos = StyleSheet.create({
     paddingVertical: 2,
   },
   textoProblema: { flex: 1, gap: 2 },
-  onde: { fontFamily: fontes.semi, fontSize: 15 },
+  onde: { fontFamily: fontes.semi, fontSize: 14 },
 });

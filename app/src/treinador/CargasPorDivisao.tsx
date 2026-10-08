@@ -45,11 +45,11 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
                     <Texto numerico style={[estilos.colData, estilos.forte]}>{dataParaTela(l.data)}</Texto>
                     <Texto numerico style={[estilos.colCarga, estilos.carga, l.carga !== null && { color: marca }]}>{textoCarga(l)}</Texto>
                     <Texto numerico style={estilos.col}>{l.repeticoes ?? '—'}</Texto>
-                    <Texto numerico cor="suave" style={estilos.col}>{l.series}</Texto>
+                    <Texto numerico variante="suave" style={estilos.col}>{l.series}</Texto>
                   </View>
                   {l.observacoes.length ? (
                     <View style={[estilos.obs, { borderLeftColor: cores.atencao }]}>
-                      <Texto numerico cor="suave" style={estilos.obsTexto}>{l.observacoes.join(' · ')}</Texto>
+                      <Texto numerico variante="suave" style={estilos.obsTexto}>{l.observacoes.join(' · ')}</Texto>
                     </View>
                   ) : null}
                 </View>

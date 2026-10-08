@@ -177,7 +177,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
         </View>
       </Cartao>
       <Cartao titulo="Logo">
-        <Texto cor="suave">PNG ou JPEG de até 512 KB. Com logo, ela aparece no lugar do nome.</Texto>
+        <Texto variante="suave">PNG ou JPEG de até 512 KB. Com logo, ela aparece no lugar do nome.</Texto>
         <View style={estilos.botoesEsquerda}>
           <Botao rotulo={logoUrl ? 'Trocar logo' : 'Enviar logo'} tipo="secundario" Icone={ImagePlus} carregando={enviando} aoTocar={() => void escolherLogo()} />
           {logoUrl ? <Botao rotulo="Remover logo" tipo="fantasma" Icone={Trash2} aoTocar={() => setConfirmarRemocao(true)} /> : null}

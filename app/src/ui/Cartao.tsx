@@ -13,11 +13,11 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Cartão flat: superfície, borda só no tema claro, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
+/** Cartão flat: superfície, borda nos dois temas, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
 export function Cartao({ children, titulo, acoes, style }: Props) {
-  const { cores, modo } = useTema();
+  const { cores } = useTema();
   return (
-    <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, borderWidth: modo === 'CLARO' ? 1 : 0 }, style]}>
+    <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }, style]}>
       {titulo || acoes ? (
         <View style={estilos.topo}>
           {titulo ? <Texto variante="secao" style={estilos.titulo}>{titulo}</Texto> : <View />}

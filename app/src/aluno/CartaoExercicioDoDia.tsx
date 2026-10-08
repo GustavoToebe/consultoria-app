@@ -54,17 +54,17 @@ export function CartaoExercicioDoDia({
           <Texto numerico style={estilos.nome}>
             {posicao + 1}. {e.nome}
           </Texto>
-          {e.modalidade ? <Texto numerico cor="suave">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
+          {e.modalidade ? <Texto numerico variante="suave">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
         </View>
         {completo ? <CheckCircle2 size={22} color={cores.sucesso} /> : <ChevronRight size={22} color={cores.textoSuave} />}
       </View>
       <View style={[estilos.rodape, { borderTopColor: cores.borda }]}>
         {carga ? (
-          <Texto numerico cor="suave" style={estilos.carga}>
+          <Texto numerico variante="suave" style={estilos.carga}>
             {carga.rotulo}: <Texto numerico style={estilos.valor}>{carga.valor}</Texto>
           </Texto>
         ) : (
-          <Texto numerico cor="suave" style={estilos.carga}>
+          <Texto numerico variante="suave" style={estilos.carga}>
             {total} {total === 1 ? 'série planejada' : 'séries planejadas'}
           </Texto>
         )}
@@ -78,7 +78,7 @@ const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
   topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   nomes: { flex: 1, gap: 2 },
-  nome: { fontFamily: fontes.semi, fontSize: 17, lineHeight: 22 },
+  nome: { fontFamily: fontes.semi, fontSize: 17, lineHeight: 23 },
   rodape: {
     flexDirection: 'row',
     alignItems: 'center',

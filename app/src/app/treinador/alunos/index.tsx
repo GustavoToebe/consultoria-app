@@ -90,7 +90,7 @@ export default function Alunos() {
       {dados && paginas > 1 ? (
         <View style={estilos.paginacao}>
           <Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina === 0} aoTocar={() => setPagina(pagina - 1)} />
-          <Texto cor="suave">
+          <Texto variante="suave">
             Página {pagina + 1} de {paginas} · {dados.total} alunos
           </Texto>
           <Botao
@@ -122,7 +122,7 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} />
           <Selo texto={aluno.temAcesso ? 'Com acesso' : 'Sem acesso'} tipo={aluno.temAcesso ? 'sucesso' : 'neutro'} />
         </View>
-        <Texto cor="suave">
+        <Texto variante="suave">
           Treino: {aluno.planoAtivo?.titulo ?? '—'} · Último registro: {dataParaTela(aluno.ultimoRegistro) || '—'}
         </Texto>
       </View>

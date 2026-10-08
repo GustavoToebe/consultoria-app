@@ -70,6 +70,6 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco(1.5),
     paddingVertical: espaco(1),
     fontFamily: fontes.normal,
-    fontSize: 15,
+    fontSize: 16,
   },
 });

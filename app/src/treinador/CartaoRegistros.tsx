@@ -101,7 +101,7 @@ export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
           {s.exercicios.map((e) => (
             <View key={e.exercicioUid} style={estilos.exercicio}>
               <Texto numerico style={estilos.nomeExercicio}>{e.nome}</Texto>
-              <Texto numerico cor="suave">{e.series.map(textoSerie).join(' · ')}</Texto>
+              <Texto numerico variante="suave">{e.series.map(textoSerie).join(' · ')}</Texto>
             </View>
           ))}
         </View>
@@ -158,7 +158,7 @@ const estilos = StyleSheet.create({
   dataDia: { fontFamily: fontes.semi },
   sessao: { gap: espaco(0.75) },
   exercicio: { gap: 2 },
-  nomeExercicio: { fontFamily: fontes.semi, fontSize: 15 },
+  nomeExercicio: { fontFamily: fontes.semi, fontSize: 14 },
   tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   linhaTabela: { flexDirection: 'row', paddingHorizontal: espaco(1.5), paddingVertical: espaco(1), borderTopWidth: StyleSheet.hairlineWidth },
   col: { flex: 1 },

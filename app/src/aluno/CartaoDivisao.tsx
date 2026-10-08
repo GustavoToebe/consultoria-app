@@ -42,7 +42,7 @@ export function CartaoDivisao({
     <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
       <View style={estilos.textos}>
         <Texto numerico style={estilos.titulo}>{titulo}</Texto>
-        <Texto numerico cor="suave">{detalhe.join(' · ')}</Texto>
+        <Texto numerico variante="suave">{detalhe.join(' · ')}</Texto>
       </View>
       {temExercicios ? (
         <View style={estilos.chips}>
@@ -108,7 +108,7 @@ function ChipData({
 const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
   textos: { gap: 2 },
-  titulo: { fontFamily: fontes.negrito, fontSize: 17, lineHeight: 22 },
+  titulo: { fontFamily: fontes.negrito, fontSize: 17, lineHeight: 23 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   chip: {
     flexDirection: 'row',

@@ -12,7 +12,7 @@ export function Carregando({ texto }: { texto?: string }) {
   return (
     <View style={estilos.centro} accessibilityLabel={texto ?? 'Carregando'}>
       <ActivityIndicator color={cores.textoSuave} />
-      {texto ? <Texto cor="suave">{texto}</Texto> : null}
+      {texto ? <Texto variante="suave">{texto}</Texto> : null}
     </View>
   );
 }
@@ -28,7 +28,7 @@ export function Vazio({ titulo, texto, Icone = Inbox, acao }: {
     <View style={estilos.centro}>
       <Icone size={32} color={cores.textoSuave} accessible={false} />
       {titulo ? <Texto variante="subtitulo" style={estilos.textoCentro}>{titulo}</Texto> : null}
-      <Texto cor="suave" style={estilos.textoCentro}>{texto}</Texto>
+      <Texto variante="suave" style={estilos.textoCentro}>{texto}</Texto>
       {acao ? <Botao rotulo={acao.rotulo} tipo="secundario" aoTocar={acao.aoTocar} /> : null}
     </View>
   );

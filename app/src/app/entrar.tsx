@@ -46,7 +46,7 @@ export default function Entrar() {
     <Tela largura={440}>
       <View style={estilos.topo}>
         <Texto variante="titulo">Entrar</Texto>
-        <Texto cor="suave">Treinos e dieta da sua consultoria.</Texto>
+        <Texto variante="suave">Treinos e dieta da sua consultoria.</Texto>
       </View>
       <Cartao>
         <Campo rotulo="E-mail" valor={email} aoMudar={setEmail} autoCapitalize="none" autoComplete="email"

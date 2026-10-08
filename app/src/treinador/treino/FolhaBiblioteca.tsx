@@ -59,7 +59,7 @@ export function FolhaBiblioteca({
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && filtrados.length === 0 ? (
-        <Texto cor="suave">
+        <Texto variante="suave">
           {dados.length === 0
             ? 'A biblioteca está vazia. Importe exercícios do catálogo na tela Biblioteca.'
             : 'Nenhum exercício encontrado.'}

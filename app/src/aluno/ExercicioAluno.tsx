@@ -14,7 +14,6 @@ import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
-import { vibrar } from '../ui/vibrar';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Texto } from '../ui/Texto';
 
@@ -62,7 +61,7 @@ export function ExercicioAluno(p: Props) {
     <View style={estilos.exercicio}>
       {e.observacao ? (
         <View style={[estilos.obs, { backgroundColor: cores.superficie, borderLeftColor: cores.atencao }]}>
-          <Texto numerico cor="suave" style={estilos.obsTexto}>{e.observacao}</Texto>
+          <Texto numerico variante="suave" style={estilos.obsTexto}>{e.observacao}</Texto>
         </View>
       ) : null}
       {!e.progressao ? <Texto numerico style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
@@ -98,13 +97,8 @@ export function ExercicioAluno(p: Props) {
           indice={i}
           semCarga={e.unidade === 'nenhuma'}
           registro={p.registroDe(c.serie.uid)}
-          aoRegistrar={(d) => {
-            p.aoRegistrar(c.serie.uid, d);
-            if (d.concluida && !p.registroDe(c.serie.uid)?.concluida) {
-              if (feitas === e.series.length - 1) vibrar.sucesso();
-              else vibrar.leve();
-            }
-          }}
+          ultimaDoExercicio={feitas === e.series.length - 1}
+          aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
         />
       ))}
     </View>
@@ -117,12 +111,14 @@ function CartaoSerie({
   semCarga,
   registro,
   aoRegistrar,
+  ultimaDoExercicio,
 }: {
   calculada: SerieCalculada;
   indice: number;
   semCarga: boolean;
   registro: RegistroLocal | undefined;
   aoRegistrar: (d: DadosSerie) => void;
+  ultimaDoExercicio: boolean;
 }) {
   const { cores, marca, sobreMarca } = useTema();
   // Antes de gravar, a carga acompanha a sugestão até o aluno mexer; as repetições começam vazias.
@@ -134,9 +130,9 @@ function CartaoSerie({
   const reduzido = useMovimentoReduzido();
   const progresso = useSharedValue(feita ? 1 : 0);
   useEffect(() => {
-    progresso.value = reduzido ? (feita ? 1 : 0) : withTiming(feita ? 1 : 0, { duration: feita ? 200 : 150 });
+    progresso.set(reduzido ? (feita ? 1 : 0) : withTiming(feita ? 1 : 0, { duration: feita ? 200 : 150 }));
   }, [feita, reduzido, progresso]);
-  const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.value, [0, 1], [cores.superficie, `${cores.sucesso}29`]) }));
+  const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie, `${cores.sucesso}29`]) }));
   const s = calculada.serie;
   const trabalho = s.intensidade?.modo === 'CARGA_TRABALHO';
 
@@ -188,7 +184,7 @@ function CartaoSerie({
           valor={reps}
           aoMudar={(v) => mudar({ repeticoes: v })}
         />
-        <BotaoMarcar feito={feita} rotulo={`Série ${indice + 1} ${s.tipo} feita`}
+        <BotaoMarcar feito={feita} ultimaDoExercicio={ultimaDoExercicio} rotulo={`Série ${indice + 1} ${s.tipo} feita`}
           aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })} />
       </View>
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
@@ -206,8 +202,8 @@ const estilos = StyleSheet.create({
   serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.75), gap: espaco(1.25) },
   cabecaSerie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   etiqueta: { borderRadius: 4, paddingHorizontal: espaco(0.75), paddingVertical: 3 },
-  etiquetaTexto: { fontFamily: fontes.negrito, fontSize: 12, lineHeight: 16, letterSpacing: 0.4, textTransform: 'uppercase' },
-  nomeSerie: { fontFamily: fontes.semi, fontSize: 17, flexShrink: 1 },
+  etiquetaTexto: { fontFamily: fontes.negrito, fontSize: 11, lineHeight: 14, letterSpacing: 0.4, textTransform: 'uppercase' },
+  nomeSerie: { fontFamily: fontes.semi, fontSize: 16, flexShrink: 1 },
   meta: { flexGrow: 1, flexShrink: 1, textAlign: 'right' },
   campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1) },
   check: {

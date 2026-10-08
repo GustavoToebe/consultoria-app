@@ -58,7 +58,7 @@ export default function Cadastro() {
     <Tela largura={480}>
       <View style={estilos.topo}>
         <Texto variante="titulo">Criar conta de treinador</Texto>
-        <Texto cor="suave">Sua consultoria nasce com receitas de séries, semanas de treino e dieta prontas para editar.</Texto>
+        <Texto variante="suave">Sua consultoria nasce com receitas de séries, semanas de treino e dieta prontas para editar.</Texto>
       </View>
       <Cartao>
         <Campo rotulo="Nome da consultoria" valor={dados.nomeConsultoria} aoMudar={mudar('nomeConsultoria')}

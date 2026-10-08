@@ -11,6 +11,6 @@ interface Props extends TextProps {
 
 export function Texto({ variante = 'corpo', cor, numerico, style, ...resto }: Props) {
   const { cores } = useTema();
-  const padrao = variante === 'secao' || variante === 'pequeno' ? cores.textoSuave : cores.texto;
+  const padrao = variante === 'suave' || variante === 'secao' || variante === 'pequeno' ? cores.textoSuave : cores.texto;
   return <Text {...resto} style={[ESTILOS_TEXTO[variante], numerico && NUMERICO, { color: cor === 'suave' ? cores.textoSuave : cor ?? padrao }, style]} />;
 }

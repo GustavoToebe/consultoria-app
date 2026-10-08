@@ -66,7 +66,7 @@ export default function Receitas() {
   return (
     <Tela bordas={['top']} largura={960}>
       <Cabecalho titulo="Receitas" mostrarMarca="celular" />
-      <Texto cor="suave">
+      <Texto variante="suave">
         Pontos de partida para montar planos mais rápido. Aplicar uma receita copia o conteúdo; editar o plano depois
         não muda a receita.
       </Texto>
@@ -76,14 +76,14 @@ export default function Receitas() {
         ? GRUPOS.map((g) => (
             <Cartao key={g.tipo} titulo={g.titulo}>
               <Texto variante="pequeno">{g.dica}</Texto>
-              {dados.filter((r) => r.tipo === g.tipo).length === 0 ? <Texto cor="suave">Nenhuma.</Texto> : null}
+              {dados.filter((r) => r.tipo === g.tipo).length === 0 ? <Texto variante="suave">Nenhuma.</Texto> : null}
               {dados
                 .filter((r) => r.tipo === g.tipo)
                 .map((r) => (
                   <View key={r.id} style={[estilos.linha, { borderColor: cores.borda }]}>
                     <View style={estilos.dados}>
                       <Texto>{r.nome}</Texto>
-                      {r.descricao ? <Texto cor="suave">{r.descricao}</Texto> : null}
+                      {r.descricao ? <Texto variante="suave">{r.descricao}</Texto> : null}
                       <Texto variante="pequeno">{resumo(r) || '—'}</Texto>
                     </View>
                     <IconeBotao Icone={Pencil} rotulo={`Renomear ${r.nome}`} aoTocar={() => setEditando(r)} />

@@ -71,11 +71,11 @@ export function PainelConta({ avisoAoSair, children }: Props) {
     <View style={estilos.coluna}>
       <Cartao titulo="Conta">
         <Texto variante="subtitulo">{sessao.usuario?.nome}</Texto>
-        <Texto cor="suave">{sessao.usuario?.email}</Texto>
+        <Texto variante="suave">{sessao.usuario?.email}</Texto>
       </Cartao>
       {children}
       <Cartao titulo="Tema">
-        <Texto cor="suave">Agora: {modo === 'ESCURO' ? 'escuro' : 'claro'}.</Texto>
+        <Texto variante="suave">Agora: {modo === 'ESCURO' ? 'escuro' : 'claro'}.</Texto>
         <View style={estilos.linha}>
           {opcoes.map((o) => (
             <Botao key={o.rotulo} rotulo={o.rotulo} tipo={escolha === o.valor ? 'primario' : 'secundario'}

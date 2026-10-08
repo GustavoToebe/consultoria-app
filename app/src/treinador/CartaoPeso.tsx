@@ -70,13 +70,13 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
     <Cartao titulo="Peso">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
-      {dados && dados.length === 0 ? <Texto cor="suave">Nenhum registro de peso.</Texto> : null}
+      {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}
       {lista.slice(0, 12).map((p) => (
         <View key={p.id} style={[estilos.linha, { borderColor: cores.borda }]}>
           <Texto style={estilos.data}>{dataParaTela(p.data)}</Texto>
           <Texto style={estilos.peso}>{numeroParaTela(p.pesoKg)} kg</Texto>
-          <Texto cor="suave" style={estilos.variacao}>{variacao(p.variacao)}</Texto>
-          <Texto cor="suave" style={estilos.obs} numberOfLines={2}>{p.observacao ?? ''}</Texto>
+          <Texto variante="suave" style={estilos.variacao}>{variacao(p.variacao)}</Texto>
+          <Texto variante="suave" style={estilos.obs} numberOfLines={2}>{p.observacao ?? ''}</Texto>
           <IconeBotao Icone={Trash2} rotulo={`Excluir peso de ${dataParaTela(p.data)}`} cor={cores.perigo} aoTocar={() => setExcluir(p)} />
         </View>
       ))}

@@ -256,7 +256,7 @@ function CartaoCabecalhoDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; 
 const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
-  textoTotal: { fontFamily: fontes.semi, fontSize: 17 },
+  textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
   orientacao: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), borderTopWidth: 1, paddingTop: espaco(1) },
   cresce: { flex: 1, gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },

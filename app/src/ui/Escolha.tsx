@@ -65,5 +65,5 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  texto: { fontFamily: fontes.semi, fontSize: 15, flexShrink: 1, paddingVertical: 4 },
+  texto: { fontFamily: fontes.semi, fontSize: 14, flexShrink: 1, paddingVertical: 4 },
 });

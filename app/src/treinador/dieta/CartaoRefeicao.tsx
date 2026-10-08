@@ -58,7 +58,7 @@ export function CartaoRefeicao(p: Props) {
             {r.horario ? `${r.horario} · ` : ''}
             {r.nome || `Refeição ${p.posicao + 1}`}
           </Texto>
-          <Texto cor="suave">
+          <Texto variante="suave">
             {r.opcoes.length} {r.opcoes.length === 1 ? 'opção' : 'opções'} · Opção {r.opcoes[0]?.rotulo ?? '—'}: {textoTotais(somar(r.opcoes[0]?.itens ?? []))}
           </Texto>
           {p.comProblema.has(r.uid) ? <Selo texto="Corrigir" tipo="perigo" /> : null}
@@ -87,7 +87,7 @@ export function CartaoRefeicao(p: Props) {
           />
           {opcao ? (
             <View style={estilos.opcao}>
-              {opcao.itens.length === 0 ? <Texto cor="suave">Nenhum item nesta opção.</Texto> : null}
+              {opcao.itens.length === 0 ? <Texto variante="suave">Nenhum item nesta opção.</Texto> : null}
               {opcao.itens.map((item, ii) => (
                 <LinhaItem
                   key={item.uid}
@@ -187,7 +187,7 @@ function LinhaItem({
           </View>
         </View>
       ) : (
-        <Texto cor="suave">{textoTotais(somar([item]))}</Texto>
+        <Texto variante="suave">{textoTotais(somar([item]))}</Texto>
       )}
     </View>
   );

@@ -41,7 +41,7 @@ export function Cabecalho({ titulo, subtitulo, acoes, mostrarMarca, voltar }: Pr
         <View style={estilos.esquerda}>
           {comMarca ? <MarcaTitulo marca={marca} /> : null}
           {titulo ? <Texto variante="titulo">{titulo}</Texto> : null}
-          {subtitulo ? <Texto cor="suave">{subtitulo}</Texto> : null}
+          {subtitulo ? <Texto variante="suave">{subtitulo}</Texto> : null}
           {/* O aluno já vê o selo de sincronização, que diz se está sem conexão. */}
           {offline && usuario?.papel !== 'ALUNO' ? <Selo texto="Sem conexão" tipo="neutro" /> : null}
         </View>

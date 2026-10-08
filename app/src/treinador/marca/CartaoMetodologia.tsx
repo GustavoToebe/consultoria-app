@@ -179,7 +179,7 @@ const estilos = StyleSheet.create({
     paddingLeft: espaco(1.25),
     minHeight: 36,
   },
-  textoChip: { fontFamily: fontes.semi, fontSize: 15, paddingRight: espaco(1.25) },
+  textoChip: { fontFamily: fontes.semi, fontSize: 14, paddingRight: espaco(1.25) },
   xChip: { width: 32, height: 36, alignItems: 'center', justifyContent: 'center', marginLeft: -espaco(1) },
   novoTipo: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
   campoTipo: { width: 220 },

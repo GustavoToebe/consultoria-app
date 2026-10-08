@@ -138,7 +138,7 @@ export function CampoNumericoGrande({
           selectTextOnFocus
           style={[estilos.numero, destaque && estilos.numeroDestaque, { color: cores.texto }]}
         />
-        {sufixo ? <Texto cor="suave" style={estilos.sufixo}>{sufixo}</Texto> : null}
+        {sufixo ? <Texto variante="suave" style={estilos.sufixo}>{sufixo}</Texto> : null}
       </View>
       {lido === undefined ? (
         <Texto variante="pequeno" cor={cores.perigo}>{inteiro ? 'Só números inteiros.' : 'Número inválido.'}</Texto>

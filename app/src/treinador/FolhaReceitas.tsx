@@ -32,14 +32,14 @@ export function FolhaReceitas({
   const { dados, erro, carregando, recarregar } = useCarregar(`receitas:${tipo}`, () => listarReceitas(tipo));
   return (
     <Folha visivel titulo={titulo} aoFechar={aoFechar}>
-      <Texto cor="suave">{explicacao}</Texto>
+      <Texto variante="suave">{explicacao}</Texto>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && dados.length === 0 ? <Vazio titulo="Sem receitas deste tipo" texto="Cadastre uma receita na tela Receitas para reutilizá-la nos planos." /> : null}
       {dados?.map((r) => (
         <View key={r.id} style={[estilos.receita, { borderColor: cores.borda }]}>
           <Texto variante="subtitulo">{r.nome}</Texto>
-          {r.descricao ? <Texto cor="suave">{r.descricao}</Texto> : null}
+          {r.descricao ? <Texto variante="suave">{r.descricao}</Texto> : null}
           <View style={estilos.botoes}>
             <Botao rotulo="Usar esta receita" tipo="secundario" aoTocar={() => aoUsar(r)} />
           </View>

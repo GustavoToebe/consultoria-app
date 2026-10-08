@@ -75,7 +75,7 @@ export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: stri
         <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
           <View style={estilos.dadosPlano}>
             <Texto variante="subtitulo">{p.titulo}</Texto>
-            <Texto cor="suave">{periodo(p)}</Texto>
+            <Texto variante="suave">{periodo(p)}</Texto>
             <SelosDoPlano plano={p} />
           </View>
           <View style={estilos.botoes}>
@@ -268,7 +268,7 @@ function FolhaReplicar({ tipo, plano, aoFechar }: { tipo: TipoPlano; plano: Plan
           <Botao rotulo="Replicar e abrir" aoTocar={replicar} carregando={salvando} desabilitado={!valido} />
         </>
       }>
-      <Texto cor="suave">
+      <Texto variante="suave">
         Cria um plano novo com o conteúdo publicado (v{plano.versaoPublicada}) de “{plano.titulo}”, como rascunho. O
         plano atual continua valendo até você publicar o novo.
       </Texto>

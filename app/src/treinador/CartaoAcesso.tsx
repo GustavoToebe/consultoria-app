@@ -55,7 +55,7 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
     return (
       <Cartao titulo="Acesso ao app">
         <Selo texto="Com acesso" tipo="sucesso" />
-        <Texto cor="suave">O aluno já criou a conta e entra com o e-mail e a senha dele.</Texto>
+        <Texto variante="suave">O aluno já criou a conta e entra com o e-mail e a senha dele.</Texto>
       </Cartao>
     );
   }
@@ -66,7 +66,7 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
       <Selo texto="Sem acesso" tipo="neutro" />
       {convite ? (
         <View style={estilos.convite}>
-          <Texto cor="suave">
+          <Texto variante="suave">
             Envie o link ou o código para o aluno. Válido até {dataHoraParaTela(convite.expiraEm)}. O código não
             aparece de novo depois que você sair desta tela.
           </Texto>
@@ -74,7 +74,7 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
           <Destaque rotulo="Link" texto={convite.link} aoCopiar={() => copiar(convite.link, 'Link')} />
         </View>
       ) : (
-        <Texto cor="suave">
+        <Texto variante="suave">
           {conviteAnterior
             ? `Há um convite válido até ${dataHoraParaTela(aluno.conviteExpiraEm)}. Gerar outro invalida o anterior.`
             : 'Gere um convite para o aluno criar a conta dele no app.'}
@@ -127,6 +127,6 @@ const estilos = StyleSheet.create({
     flexWrap: 'wrap',
   },
   textoDestaque: { flex: 1, minWidth: 180, gap: 2 },
-  codigo: { fontFamily: fontes.negrito, fontSize: 28, letterSpacing: 3 },
-  link: { fontFamily: fontes.normal, fontSize: 15 },
+  codigo: { fontFamily: fontes.negrito, fontSize: 24, letterSpacing: 3 },
+  link: { fontFamily: fontes.normal, fontSize: 14 },
 });
