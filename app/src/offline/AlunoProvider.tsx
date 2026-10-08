@@ -6,8 +6,8 @@ import { ErroApi } from '../api/cliente';
 import { enviarRegistros, painelAluno } from '../api/rotas';
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
-import { asyncStorage } from './armazenamento';
-import { RepositorioLocal, type DadosRegistro, type PacoteSalvo, type RegistroLocal } from './repositorioLocal';
+import { abrirRepositorio } from './abrirRepositorio';
+import type { DadosRegistro, PacoteSalvo, RegistroLocal, RepositorioLocal } from './repositorioLocal';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
 
 export type EstadoEnvio = 'ocioso' | 'enviando' | 'semConexao' | 'erro';
@@ -47,7 +47,7 @@ const INTERVALO_COM_PENDENCIA_MS = 60_000;
 export function AlunoProvider({ usuarioId, children }: { usuarioId: string; children: ReactNode }) {
   const sessao = useSessao();
   const { atualizarMarca, offline: sessaoOffline } = sessao;
-  const repositorio = useMemo(() => new RepositorioLocal(asyncStorage, usuarioId, novoUid), [usuarioId]);
+  const repositorio = useMemo(() => abrirRepositorio(usuarioId, novoUid), [usuarioId]);
   const sincronizador = useMemo(() => new Sincronizador(repositorio, enviarRegistros), [repositorio]);
 
   const [pacote, setPacote] = useState<PacoteSalvo | null>(null);
@@ -168,7 +168,14 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   );
 
   // Ao sair da conta, os dados deste aluno saem do aparelho (o painel de sair avisa se havia pendência).
-  useEffect(() => sessao.aoSair((id) => new RepositorioLocal(asyncStorage, id, novoUid).apagarTudo()), [sessao]);
+  useEffect(
+    () =>
+      sessao.aoSair((id) => (id === repositorio.usuarioId ? repositorio : abrirRepositorio(id, novoUid)).apagarTudo()),
+    [sessao, repositorio],
+  );
+
+  // Trocou de usuário ou saiu da área do aluno: fecha a conexão do banco (reabre sozinho se voltar a ser usado).
+  useEffect(() => () => void repositorio.fechar(), [repositorio]);
 
   const envioAgendado = useRef<ReturnType<typeof setTimeout> | null>(null);
   const registrar = useCallback(

@@ -80,8 +80,12 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
 - Atrás do Caddy o Tomcat recebe `X-Forwarded-Port` (porta do `Host`): sem isso a web em `:8088` parecia outra origem
   e o CORS recusava o login.
 
-- Aluno offline: `offline/AlunoProvider` (pacote salvo, registros, gatilhos de envio) sobre `RepositorioLocal`
-  (prefixo `treinos:<usuarioId>:`, uma operação por vez) e `Sincronizador`. Série marcada grava no aparelho na hora;
+- Aluno offline: `offline/AlunoProvider` (pacote salvo, registros, gatilhos de envio) sobre a interface
+  `RepositorioLocal` (uma operação por vez) e `Sincronizador`. `abrirRepositorio` escolhe: celular =
+  `RepositorioSqlite` (expo-sqlite, um banco `treinos-<usuarioId>.db` por usuário, esquema versionado por
+  `user_version` em `offline/banco.ts`: versão nova = bloco novo, nunca editar o v1; migra o AsyncStorage antigo);
+  web = `RepositorioChaveValor` (prefixo `treinos:<usuarioId>:`). Mudou o contrato? A bateria do `offline.test.ts`
+  roda nas duas (SQLite do Node em `bancoNode.apoioTeste.ts`, nunca importado pelo app). Série marcada grava no aparelho na hora;
   a carga sugerida vem de `dominio/cargas.ts` (seção 8) e o que o aluno digita é gravado como digitou.
 - Telas do aluno no estilo do protótipo: "Treino de hoje" na cor da marca, divisões com chips de data do período
   (`datasDaSessao`; registro só até hoje e 60 dias para trás, `podeRegistrarEm`), dia em `sessao/[uid]?data=` e um

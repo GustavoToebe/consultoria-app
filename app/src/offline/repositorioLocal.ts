@@ -2,8 +2,13 @@ import type { ConteudoDieta, PainelAluno, RegistroEnvio, VersaoDetalhe } from '.
 import type { ChaveValor } from './armazenamento';
 
 /**
- * Dados do aluno no aparelho (seção 11.1), separados por usuário (`treinos:<usuarioId>:`): trocar de conta não
- * mistura nada. Plano = só leitura (pacote baixado); registro de série = escrito aqui e enviado depois.
+ * Dados do aluno no aparelho (seção 11.1), separados por usuário: trocar de conta não mistura nada.
+ * Plano = só leitura (pacote baixado); registro de série = escrito aqui e enviado depois.
+ *
+ * Duas implementações com o mesmo contrato (os testes rodam a mesma bateria nas duas):
+ * - `RepositorioSqlite` (celular): um banco SQLite por usuário, registro em tabela com chave única.
+ * - `RepositorioChaveValor` (web): AsyncStorage/localStorage com prefixo `treinos:<usuarioId>:`. O SQLite na web
+ *   exige cabeçalhos COOP/COEP e WASM (seção 20 do plano), por isso fica só no celular.
  */
 
 /** LOCAL = no aparelho, aguardando envio; ENVIADO = o servidor aceitou; FALHOU = recusado (com motivo). */
@@ -38,13 +43,63 @@ export interface PacoteSalvo {
 }
 
 /** Registros enviados há mais de 60 dias saem do aparelho (o servidor também não aceita mais tão antigos). */
-const DIAS_GUARDADOS = 60;
+export const DIAS_GUARDADOS = 60;
+
+export interface ResultadoEnvio {
+  id: string;
+  situacao: 'ACEITO' | 'IGNORADO_ANTIGO' | 'RECUSADO';
+  motivo: string | null;
+}
+
+export interface RepositorioLocal {
+  readonly usuarioId: string;
+  lerPacote(): Promise<PacoteSalvo | null>;
+  salvarPacote(pacote: PainelAluno): Promise<void>;
+  lerDieta(): Promise<VersaoDetalhe<ConteudoDieta> | null>;
+  salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void>;
+  /** Por `exercicioUid|data`. */
+  lerCargasDeTrabalho(): Promise<Record<string, number>>;
+  salvarCargaDeTrabalho(exercicioUid: string, data: string, carga: number | null): Promise<Record<string, number>>;
+  /** Na ordem em que foram criados. */
+  listar(): Promise<RegistroLocal[]>;
+  /**
+   * Grava a série no aparelho na hora. Mesma série no mesmo dia (mesma versão) mantém o mesmo id e só atualiza os
+   * valores: reenviar não duplica no servidor.
+   */
+  registrar(dados: DadosRegistro): Promise<RegistroLocal>;
+  /** Até `limite` pendentes (LOCAL), os mais antigos primeiro. */
+  pendentes(limite?: number): Promise<RegistroLocal[]>;
+  /**
+   * Aplica a resposta do servidor. Se o registro mudou no aparelho depois de enviado (`alteradoEm` diferente),
+   * continua LOCAL para ir de novo com o valor novo. Enviados há mais de 60 dias saem do aparelho.
+   */
+  aplicarResultados(enviados: Pick<RegistroLocal, 'id' | 'alteradoEm'>[], resultados: ResultadoEnvio[]): Promise<void>;
+  /** "Tentar de novo": os que falharam voltam para a fila de envio. Devolve quantos. */
+  reenviarFalhas(): Promise<number>;
+  /** Ao sair da conta: apaga tudo deste usuário no aparelho. Depois disso o repositório não grava mais nada. */
+  apagarTudo(): Promise<void>;
+  /** Libera recursos (conexão do banco). Pode voltar a ser usado depois: reabre sozinho. */
+  fechar(): Promise<void>;
+}
+
+/** Instante da nova mudança: o relógio, mas sempre depois da mudança anterior (mesmo milissegundo ainda fica em ordem). */
+export function proximoInstante(agora: Date, anterior: string | null | undefined): string {
+  let instante = agora.getTime();
+  if (anterior && instante <= Date.parse(anterior)) instante = Date.parse(anterior) + 1;
+  return new Date(instante).toISOString();
+}
+
+/** Data (AAAA-MM-DD) a partir da qual registros já enviados ainda ficam no aparelho. */
+export function limiteGuardados(agora: Date): string {
+  return new Date(agora.getTime() - DIAS_GUARDADOS * 86_400_000).toISOString().slice(0, 10);
+}
 
 const chaveDoRegistro = (r: Pick<RegistroLocal, 'planoVersaoId' | 'serieUid' | 'data'>) =>
   `${r.planoVersaoId}|${r.serieUid}|${r.data}`;
 
-export class RepositorioLocal {
+export class RepositorioChaveValor implements RepositorioLocal {
   private fila: Promise<unknown> = Promise.resolve();
+  private encerrado = false;
 
   constructor(
     private readonly kv: ChaveValor,
@@ -54,10 +109,13 @@ export class RepositorioLocal {
   ) {}
 
   private chave(nome: string) {
-    return `treinos:${this.usuarioId}:${nome}`;
+    return `${prefixoDoUsuario(this.usuarioId)}${nome}`;
   }
 
-  /** Uma operação por vez: ler-alterar-gravar sem pisar em outra (registro durante a sincronização). */
+  /**
+   * Uma operação por vez: ler-alterar-gravar sem pisar em outra (registro durante a sincronização). Depois de
+   * `apagarTudo` (sair da conta) não grava mais: `lerJson` devolve vazio e `gravarJson` ignora.
+   */
   private emFila<T>(op: () => Promise<T>): Promise<T> {
     const resultado = this.fila.then(op, op);
     this.fila = resultado.catch(() => undefined);
@@ -65,6 +123,7 @@ export class RepositorioLocal {
   }
 
   private async lerJson<T>(nome: string, padrao: T): Promise<T> {
+    if (this.encerrado) return padrao;
     const texto = await this.kv.ler(this.chave(nome));
     if (!texto) return padrao;
     try {
@@ -74,8 +133,9 @@ export class RepositorioLocal {
     }
   }
 
-  private gravarJson(nome: string, valor: unknown) {
-    return this.kv.gravar(this.chave(nome), JSON.stringify(valor));
+  private async gravarJson(nome: string, valor: unknown) {
+    if (this.encerrado) return;
+    await this.kv.gravar(this.chave(nome), JSON.stringify(valor));
   }
 
   // ---- Pacote (plano publicado, marca, últimas cargas) ----
@@ -121,23 +181,16 @@ export class RepositorioLocal {
     return this.emFila(() => this.lerJson<RegistroLocal[]>('registros', []));
   }
 
-  /**
-   * Grava a série no aparelho na hora. Mesma série no mesmo dia (mesma versão) mantém o mesmo id e só atualiza os
-   * valores: reenviar não duplica no servidor.
-   */
   registrar(dados: DadosRegistro): Promise<RegistroLocal> {
     return this.emFila(async () => {
       const lista = await this.lerJson<RegistroLocal[]>('registros', []);
       const chave = chaveDoRegistro(dados);
       const i = lista.findIndex((r) => chaveDoRegistro(r) === chave);
       const anterior = i >= 0 ? lista[i] : null;
-      let instante = this.agora().getTime();
-      // Duas mudanças no mesmo milissegundo ainda precisam ficar em ordem.
-      if (anterior && instante <= Date.parse(anterior.alteradoEm)) instante = Date.parse(anterior.alteradoEm) + 1;
       const registro: RegistroLocal = {
         ...dados,
         id: anterior?.id ?? this.novoId(),
-        alteradoEm: new Date(instante).toISOString(),
+        alteradoEm: proximoInstante(this.agora(), anterior?.alteradoEm),
         situacao: 'LOCAL',
         motivo: null,
       };
@@ -148,7 +201,6 @@ export class RepositorioLocal {
     });
   }
 
-  /** Até `limite` pendentes, os mais antigos primeiro. */
   pendentes(limite = 300): Promise<RegistroLocal[]> {
     return this.emFila(async () => {
       const lista = await this.lerJson<RegistroLocal[]>('registros', []);
@@ -159,13 +211,9 @@ export class RepositorioLocal {
     });
   }
 
-  /**
-   * Aplica a resposta do servidor. Se o registro mudou no aparelho depois de enviado (`alteradoEm` diferente),
-   * continua LOCAL para ir de novo com o valor novo.
-   */
   aplicarResultados(
     enviados: Pick<RegistroLocal, 'id' | 'alteradoEm'>[],
-    resultados: { id: string; situacao: 'ACEITO' | 'IGNORADO_ANTIGO' | 'RECUSADO'; motivo: string | null }[],
+    resultados: ResultadoEnvio[],
   ): Promise<void> {
     return this.emFila(async () => {
       const lista = await this.lerJson<RegistroLocal[]>('registros', []);
@@ -182,7 +230,7 @@ export class RepositorioLocal {
           r.motivo = null;
         }
       }
-      const limite = new Date(this.agora().getTime() - DIAS_GUARDADOS * 86_400_000).toISOString().slice(0, 10);
+      const limite = limiteGuardados(this.agora());
       await this.gravarJson(
         'registros',
         lista.filter((r) => r.situacao !== 'ENVIADO' || r.data >= limite),
@@ -190,7 +238,6 @@ export class RepositorioLocal {
     });
   }
 
-  /** "Tentar de novo": os que falharam voltam para a fila de envio. */
   reenviarFalhas(): Promise<number> {
     return this.emFila(async () => {
       const lista = await this.lerJson<RegistroLocal[]>('registros', []);
@@ -207,13 +254,24 @@ export class RepositorioLocal {
     });
   }
 
-  /** Ao sair da conta: apaga tudo deste usuário no aparelho. */
   apagarTudo(): Promise<void> {
-    return this.emFila(async () => {
-      const prefixo = `treinos:${this.usuarioId}:`;
-      await this.kv.apagar((await this.kv.chaves()).filter((c) => c.startsWith(prefixo)));
+    return this.emFila(() => {
+      this.encerrado = true;
+      return apagarChavesDoUsuario(this.kv, this.usuarioId);
     });
   }
+
+  async fechar(): Promise<void> {
+    // Nada aberto: o AsyncStorage não tem conexão.
+  }
+}
+
+/** Chaves que o repositório chave-valor usa para um usuário (também lidas na migração para o SQLite). */
+export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
+
+export async function apagarChavesDoUsuario(kv: ChaveValor, usuarioId: string): Promise<void> {
+  const prefixo = prefixoDoUsuario(usuarioId);
+  await kv.apagar((await kv.chaves()).filter((c) => c.startsWith(prefixo)));
 }
 
 export function paraEnvio(r: RegistroLocal): RegistroEnvio {

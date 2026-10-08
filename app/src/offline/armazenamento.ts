@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
- * Chave-valor por trás do repositório offline. No app é o AsyncStorage (SQLite no Android, arquivo no iOS,
- * localStorage na web); nos testes, a versão em memória. Trocar por expo-sqlite não muda o repositório.
+ * Chave-valor do `RepositorioChaveValor` (web: AsyncStorage = localStorage) e de onde o `RepositorioSqlite` migra o
+ * que a versão anterior do app guardou no celular. Nos testes, a versão em memória.
  */
 export interface ChaveValor {
   ler(chave: string): Promise<string | null>;

@@ -96,8 +96,8 @@ Senha de todas: o valor de `DEMO_SENHA` no `.env`. Todos os dados são fictício
 - [ ] Variação de peso −1 onde a conta dá −1,5: qual vale?
 
 **Para depois da demonstração** (seção 19 do plano): preço por aluno “cadastrado” ou “ativo”; o que o Saraiva
-controla hoje na planilha sobre os clientes; cobrança pela Central; MFA do treinador; RLS no Postgres; offline em
-expo-sqlite no celular e service worker na web; importar plano da planilha; app próprio nas lojas.
+controla hoje na planilha sobre os clientes; cobrança pela Central; MFA do treinador; RLS no Postgres; service
+worker na web (abrir sem internet); importar plano da planilha; app próprio nas lojas.
 
 ## Pendências e decisões
 
@@ -110,9 +110,13 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
 - **Instruções do PDF do treino** vêm de `docs/Instruções e Regras.csv` (FS, cálculo, WS) mais as regras citadas no
   plano; o texto completo do PDF do Plano 16 pode substituir na tela Marca.
 - `login_tentativa` segue a V016 real da Central (uma linha por chave), não o esboço da seção 6 do plano.
-- **Offline do aluno em AsyncStorage**, no celular e na web (o plano prevê expo-sqlite no nativo e aceita
-  AsyncStorage para a demonstração). A interface `offline/armazenamento.ts` permite trocar sem mexer no resto.
-  Na web o app não abre sem servidor (não há service worker); sem internet no meio do uso, continua funcionando.
+- **Offline do aluno: SQLite no celular, AsyncStorage na web.** No Android/iOS cada usuário tem um banco
+  `treinos-<usuarioId>.db` (expo-sqlite), com os registros numa tabela de chave única igual à do servidor e cada
+  gravação numa transação; sair da conta apaga o arquivo. Na abertura, o app traz o que a versão anterior guardou no
+  AsyncStorage (inclusive registros ainda não enviados) e apaga de lá. Na web continua o AsyncStorage (localStorage):
+  o SQLite na web exige cabeçalhos COOP/COEP e WASM. Os testes rodam a mesma bateria nas duas implementações, com o
+  SQLite do próprio Node. Na web o app não abre sem servidor (não há service worker); sem internet no meio do uso,
+  continua funcionando.
 - **PDF na web sem iframe.** A CSP do Caddy tem `frame-src 'none'`; o PDF entra num bloco só de impressão da própria
   página e abre o “Imprimir / Salvar como PDF” do navegador. No celular gera o arquivo e abre o compartilhar.
 - **Item “Ovo inteiro, 3 un” do seed só tem kcal (133).** Sem proteína, carboidrato e gordura, os totais de macros do
