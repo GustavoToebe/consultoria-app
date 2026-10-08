@@ -14,6 +14,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -87,7 +88,7 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(feijao.get("itens")).hasSize(5);
         assertThat(feijao.get("total").asInt()).isGreaterThan(5);
         assertThat(feijao.get("itens").valueStream().map(a -> a.get("nome").asString()))
-                .allMatch(n -> n.toLowerCase().contains("feij"));
+                .allMatch(n -> n.toLowerCase(Locale.ROOT).contains("feij"));
         // Com ou sem acento, maiúsculas ou espaços sobrando: mesmo resultado.
         assertThat(api.get("/catalogo/alimentos?busca= FEIJÃO ", treinador, 200).get("total").asInt())
                 .isEqualTo(api.get("/catalogo/alimentos?busca=feijao", treinador, 200).get("total").asInt());
