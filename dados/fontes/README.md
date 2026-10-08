@@ -15,8 +15,9 @@ Baixados em 08/10/2026 pelo Gustavo.
   (consulta a `taco@unicamp.br` pendente).
 - Citação: NEPA/UNICAMP. Tabela Brasileira de Composição de Alimentos – TACO. 4. ed. rev. e ampl. Campinas:
   NEPA/UNICAMP, 2011.
-- **Conferência:** não há segundo arquivo (PDF oficial ou dado da comunidade) para a conferência da seção 5.4 do plano;
-  o relatório da importação registra que ela não foi feita.
+- Conferência: `taco/taco_4_edicao_ampliada_e_revisada.pdf` (SHA-256 `2002aec5615b5b1395aaa8fa675635bbb7f712c33f278af5e332f1cac8f108c8`),
+  PDF da mesma edição, baixado em 08/10/2026. **Não vai para o git** (`*.pdf` é ignorado): quem rodar o script sem o
+  arquivo recebe no relatório "conferência não feita". Serve só para comparar valores, nunca como fonte.
 
 ## exercicios-bd-ptbr — exercícios
 
