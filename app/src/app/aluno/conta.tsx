@@ -18,7 +18,7 @@ export default function ContaAluno() {
   const naoEnviados = pendentes + falhas.length;
   return (
     <Tela bordas={['top']} largura={720}>
-      <Cabecalho titulo="Conta" />
+      <Cabecalho titulo="Conta e preferências" />
       <PainelConta
         avisoAoSair={
           naoEnviados

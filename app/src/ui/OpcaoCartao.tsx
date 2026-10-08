@@ -16,14 +16,22 @@ interface Props {
   amostra?: ReactNode;
   /** Título escrito em outra fonte (ex.: a fonte do nome da consultoria). */
   fonteDoTitulo?: string;
+  /** Tamanho final do título em px, já com o tamanho de texto da pessoa descontado (opção "Grande" escrita grande). */
+  tamanhoDoTitulo?: number;
 }
 
 /**
  * Opção em cartão (nível 3): amostra opcional, título e descrição. Selecionada = borda de 2 px na cor do texto (não da
  * marca) e o ícone ✓. Tem papel de `radio`; o `GradeDeOpcoes` junta várias num grupo.
  */
-export function OpcaoCartao({ titulo, descricao, selecionada, aoEscolher, amostra, fonteDoTitulo }: Props) {
-  const { cores } = useTema();
+export function OpcaoCartao({ titulo, descricao, selecionada, aoEscolher, amostra, fonteDoTitulo, tamanhoDoTitulo }: Props) {
+  const { cores, fatorTexto } = useTema();
+  // O `Texto` multiplica pelo fator da pessoa; dividimos antes para o título sair exatamente no tamanho pedido.
+  const estiloDoTitulo = tamanhoDoTitulo
+    ? { fontSize: tamanhoDoTitulo / fatorTexto, lineHeight: (tamanhoDoTitulo * 1.4) / fatorTexto }
+    : fonteDoTitulo
+      ? { fontFamily: fonteDoTitulo, fontSize: 20, lineHeight: 26 }
+      : undefined;
   return (
     <Pressable
       accessibilityRole="radio"
@@ -42,7 +50,7 @@ export function OpcaoCartao({ titulo, descricao, selecionada, aoEscolher, amostr
       ]}>
       {amostra ? <View style={estilos.amostra}>{amostra}</View> : null}
       <View style={estilos.textos}>
-        <Texto variante="bloco" style={fonteDoTitulo ? { fontFamily: fonteDoTitulo, fontSize: 20, lineHeight: 26 } : undefined}>{titulo}</Texto>
+        <Texto variante="bloco" style={estiloDoTitulo}>{titulo}</Texto>
         {descricao ? <Texto variante="suave">{descricao}</Texto> : null}
       </View>
       {selecionada ? <Check size={20} color={cores.texto} strokeWidth={3} /> : null}
