@@ -1,15 +1,17 @@
 import { Card } from '../components/ui/card';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
 interface Props {
   children: ReactNode;
   titulo?: string;
+  /** Uma linha `suave` abaixo do título, no lugar de texto solto de explicação. */
+  descricao?: string;
   /** Botões do cartão, à direita do título. */
   acoes?: ReactNode;
   /** O título vira botão que recolhe e expande o conteúdo (as `acoes` ficam sempre visíveis). */
@@ -20,25 +22,29 @@ interface Props {
 }
 
 /** Cartão flat: superfície, borda nos dois temas, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
-export function Cartao({ children, titulo, acoes, recolhivel, recolhido = false, style }: Props) {
+export function Cartao({ children, titulo, descricao, acoes, recolhivel, recolhido = false, style }: Props) {
   const { cores } = useTema();
+  const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
   const Seta = fechado ? ChevronDown : ChevronUp;
   return (
-    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }, style]}>
+    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2) }, style]}>
       {titulo || acoes ? (
         <View style={estilos.topo}>
-          {titulo && recolhivel ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${titulo}, ${fechado ? 'recolhido' : 'expandido'}`}
-              accessibilityState={{ expanded: !fechado }}
-              onPress={() => setFechado((v) => !v)}
-              style={({ pressed }) => [estilos.tituloBotao, { opacity: pressed ? 0.7 : 1 }]}>
-              <Texto variante="secao" style={estilos.titulo}>{titulo}</Texto>
-              <Seta size={18} color={cores.textoSuave} />
-            </Pressable>
-          ) : titulo ? <Texto variante="secao" style={estilos.titulo}>{titulo}</Texto> : <View />}
+          <View style={estilos.tituloEDescricao}>
+            {titulo && recolhivel ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${titulo}, ${fechado ? 'recolhido' : 'expandido'}`}
+                accessibilityState={{ expanded: !fechado }}
+                onPress={() => setFechado((v) => !v)}
+                style={({ pressed }) => [estilos.tituloBotao, { opacity: pressed ? 0.7 : 1 }]}>
+                <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto>
+                <Seta size={18} color={cores.textoSuave} />
+              </Pressable>
+            ) : titulo ? <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto> : null}
+            {descricao && !fechado ? <Texto variante="suave">{descricao}</Texto> : null}
+          </View>
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
         </View>
       ) : null}
@@ -48,8 +54,9 @@ export function Cartao({ children, titulo, acoes, recolhivel, recolhido = false,
 }
 
 const estilos = StyleSheet.create({
-  cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
-  topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  cartao: { borderWidth: 1, borderRadius: RAIO, gap: espaco(2) },
+  topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
+  tituloEDescricao: { flexShrink: 1, flexGrow: 1, flexBasis: 200, gap: 2 },
   titulo: { flexShrink: 1 },
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap' },
