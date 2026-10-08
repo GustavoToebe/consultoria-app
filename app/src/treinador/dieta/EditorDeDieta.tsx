@@ -274,5 +274,5 @@ const estilos = StyleSheet.create({
   orientacao: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), borderTopWidth: 1, paddingTop: espaco(1) },
   cresce: { flex: 1, gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  campoSup: { minWidth: 160, flex: 1 },
+  campoSup: { minWidth: 190, flex: 1 },
 });

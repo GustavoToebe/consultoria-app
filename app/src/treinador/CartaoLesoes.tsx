@@ -166,5 +166,5 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
   acoes: { flexDirection: 'row' },
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
-  data: { flex: 1, minWidth: 150 },
+  data: { flex: 1, minWidth: 190 },
 });

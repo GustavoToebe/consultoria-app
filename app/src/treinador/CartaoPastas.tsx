@@ -273,7 +273,7 @@ function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; 
 
 const estilos = StyleSheet.create({
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
-  data: { flex: 1, minWidth: 150 },
+  data: { flex: 1, minWidth: 190 },
   resumo: { gap: espaco(0.75) },
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   linha: {

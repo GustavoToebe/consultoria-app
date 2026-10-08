@@ -318,5 +318,5 @@ const estilos = StyleSheet.create({
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap', flexShrink: 1, maxWidth: '100%' },
   botoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap' },
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
-  data: { flex: 1, minWidth: 150 },
+  data: { flex: 1, minWidth: 190 },
 });

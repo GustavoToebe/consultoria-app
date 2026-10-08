@@ -124,7 +124,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
         <Botao rotulo={todos ? 'Mostrar só os últimos' : `Mostrar todos (${lista.length})`} tipo="fantasma" aoTocar={() => setTodos((v) => !v)} />
       ) : null}
       <View style={estilos.form}>
-        <View style={estilos.campo}>
+        <View style={estilos.campoData}>
           <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={campos.data} />
         </View>
         <View style={estilos.campo}>
@@ -164,6 +164,7 @@ const estilos = StyleSheet.create({
   centro: { textAlign: 'center' },
   negrito: { fontFamily: fontes.negrito },
   form: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
+  campoData: { width: 190 },
   campo: { width: 150 },
   campoLargo: { flex: 1, minWidth: 200 },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end' },
