@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { Badge } from '../components/ui/badge';
+import { StyleSheet } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
@@ -14,11 +15,11 @@ export function Selo({ texto, tipo }: { texto: string; tipo: TipoSelo }) {
   const { cores } = useTema();
   const cor = cores[tipo];
   return (
-    <View
+    <Badge variant="outline"
       accessibilityRole="text"
       style={[estilos.selo, { borderColor: cor, backgroundColor: `${cor}22` }]}>
       <Texto style={[estilos.texto, { color: cor }]}>{texto}</Texto>
-    </View>
+    </Badge>
   );
 }
 
@@ -27,7 +28,7 @@ const estilos = StyleSheet.create({
     alignSelf: 'flex-start',
     maxWidth: '100%',
     borderWidth: 1,
-    borderRadius: 3,
+    borderRadius: 8,
     paddingHorizontal: espaco(0.75),
     paddingVertical: 2,
   },
