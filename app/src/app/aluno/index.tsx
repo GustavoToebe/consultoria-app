@@ -1,3 +1,4 @@
+import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 
 import { CartaoDivisao } from '../../aluno/CartaoDivisao';
@@ -22,6 +23,7 @@ import { Texto } from '../../ui/Texto';
  */
 export default function TreinoAluno() {
   const { pacote, carregando, erroPacote, registros } = useAluno();
+  const animar = usePrimeiraLista(!!pacote);
   const hoje = hojeIso();
   const treino = pacote?.pacote.treino ?? null;
 
@@ -63,9 +65,9 @@ export default function TreinoAluno() {
             aoAbrir={() => deHoje && router.push(caminhoDaSessao(deHoje.uid, hoje))}
           />
           <Texto variante="secao">Divisões da semana</Texto>
-          {sessoesDaSemana(conteudo).map((s) => (
+          {sessoesDaSemana(conteudo).map((s, i) => (
+            <EntradaEmCascata key={s.uid} indice={i} animar={animar}>
             <CartaoDivisao
-              key={s.uid}
               sessao={s}
               inicio={treino.inicio}
               fim={treino.fim}
@@ -73,6 +75,7 @@ export default function TreinoAluno() {
               treinouEm={(d) => registrosDe(s, d).length > 0}
               aoAbrir={(d) => router.push(caminhoDaSessao(s.uid, d))}
             />
+            </EntradaEmCascata>
           ))}
           {conteudo.objetivo || conteudo.orientacoes ? (
             <Cartao titulo="Orientações do treinador">

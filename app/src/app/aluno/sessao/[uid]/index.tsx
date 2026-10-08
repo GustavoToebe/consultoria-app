@@ -1,3 +1,4 @@
+import { EntradaEmCascata, usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Play } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
@@ -22,6 +23,7 @@ export default function SessaoAluno() {
   const { uid, data: dataDaRota } = useLocalSearchParams<{ uid: string; data?: string }>();
   const dia = useSessaoDoDia(uid, dataDaRota);
   const { sessao, data, hoje } = dia;
+  const animar = usePrimeiraLista(dia.carregado);
 
   if (!dia.carregado) {
     return (
@@ -73,8 +75,8 @@ export default function SessaoAluno() {
         <Botao rotulo={feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'} Icone={Play} cheio aoTocar={() => abrir(pendente.uid)} />
       ) : null}
       {sessao.exercicios.map((e, i) => (
+        <EntradaEmCascata key={e.uid} indice={i} animar={animar}>
         <CartaoExercicioDoDia
-          key={e.uid}
           exercicio={e}
           posicao={i}
           feitas={dia.feitas(e)}
@@ -83,6 +85,7 @@ export default function SessaoAluno() {
           tipoTrabalho={dia.config.tipoTrabalho}
           aoAbrir={() => abrir(e.uid)}
         />
+        </EntradaEmCascata>
       ))}
       <Texto variante="pequeno">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>

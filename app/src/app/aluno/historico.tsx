@@ -1,3 +1,4 @@
+import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -35,6 +36,7 @@ const DIAS = 30;
 export default function HistoricoAluno() {
   const { registros, pacote, falhas, tentarDeNovo } = useAluno();
   const { avisar } = useAviso();
+  const animar = usePrimeiraLista(true);
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
   const [gerando, setGerando] = useState(false);
   const hoje = hojeIso();
@@ -115,7 +117,7 @@ export default function HistoricoAluno() {
         {historico.dados && historico.dados.length === 0 ? <Vazio titulo="Sem treinos no período" texto="Os treinos registrados aparecem aqui." /> : null}
         {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {historico.dados && visao === 'dia'
-          ? [...historico.dados].sort((a, b) => b.data.localeCompare(a.data)).map((d) => <DiaRegistros key={d.data} dia={d} />)
+          ? [...historico.dados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)
           : null}
       </Cartao>
 

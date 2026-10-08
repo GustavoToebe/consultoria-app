@@ -1,3 +1,4 @@
+import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { ChevronRight, Plus } from 'lucide-react-native';
 import { useState } from 'react';
@@ -35,6 +36,7 @@ export default function Alunos() {
   const { dados, erro, carregando, recarregar } = useCarregar(`${termo}|${situacao}|${pagina}`, () =>
     listarAlunos({ busca: termo, situacao, pagina }),
   );
+  const animar = usePrimeiraLista(!!dados, `${termo}|${situacao}|${pagina}`);
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
 
   return (
@@ -83,7 +85,7 @@ export default function Alunos() {
         />
       ) : null}
       <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]}>
-        {dados?.itens.map((a) => <LinhaAluno key={a.id} aluno={a} />)}
+        {dados?.itens.map((a, i) => <EntradaEmCascata key={a.id} indice={i} animar={animar}><LinhaAluno aluno={a} /></EntradaEmCascata>)}
       </View>
       {dados && paginas > 1 ? (
         <View style={estilos.paginacao}>

@@ -198,8 +198,8 @@ const estilos = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: espaco(1.5),
   },
-  caixaDestaque: { minHeight: 64, alignSelf: 'flex-start', minWidth: 160 },
-  numero: { flex: 1, minWidth: 0, fontFamily: fontes.negrito, fontSize: 22, fontVariant: ['tabular-nums'], paddingVertical: espaco(1) },
+  caixaDestaque: { minHeight: 64, alignSelf: 'stretch', minWidth: 0, maxWidth: '100%' },
+  numero: { flex: 1, width: 0, minWidth: 0, fontFamily: fontes.negrito, fontSize: 22, fontVariant: ['tabular-nums'], paddingVertical: espaco(1) },
   numeroDestaque: { fontSize: 28 },
   sufixo: { fontFamily: fontes.semi, marginLeft: espaco(0.5) },
 });

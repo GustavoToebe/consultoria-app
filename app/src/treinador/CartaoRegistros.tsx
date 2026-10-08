@@ -1,3 +1,4 @@
+import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -52,6 +53,7 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
   const { dados, erro, carregando, recarregar } = useCarregar(`exec:${aluno.id}:${de}`, () =>
     execucoesDoAluno(aluno.id, de, hoje),
   );
+  const animar = usePrimeiraLista(!!dados, de);
   const sessoes = useCarregar(`sessoes:${aluno.id}`, () => sessoesDosTreinos(aluno.id));
   const divisoes = dados ? cargasPorDivisao(dados, sessoes.dados ?? undefined) : [];
 
@@ -80,7 +82,7 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
         ) : null}
         {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {dados && visao === 'dia'
-          ? [...dados].sort((a, b) => b.data.localeCompare(a.data)).map((d) => <DiaRegistros key={d.data} dia={d} />)
+          ? [...dados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)
           : null}
       </Cartao>
       {dados && dados.length > 0 ? <CartaoProgresso alunoId={aluno.id} dias={dados} /> : null}

@@ -1,3 +1,4 @@
+import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { Copy, FileDown, Pencil, Plus } from 'lucide-react-native';
 import { useState } from 'react';
@@ -57,6 +58,7 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
 export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: string }) {
   const { cores } = useTema();
   const { dados, erro, carregando, recarregar } = useCarregar(`${tipo}:${alunoId}`, () => listarPlanos(tipo, alunoId));
+  const animar = usePrimeiraLista(!!dados);
   const [novo, setNovo] = useState(false);
   const [replicando, setReplicando] = useState<PlanoResumo | null>(null);
 
@@ -69,8 +71,8 @@ export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: stri
       {dados && dados.length === 0 ? (
         <Vazio titulo={`Sem plano de ${NOMES[tipo].titulo.toLowerCase()}`} texto="Comece em branco, de uma receita ou copiando um plano." acao={{ rotulo: 'Criar plano', aoTocar: () => setNovo(true) }} />
       ) : null}
-      {dados?.map((p) => (
-        <View key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
+      {dados?.map((p, i) => (
+        <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
           <View style={estilos.dadosPlano}>
             <Texto variante="subtitulo">{p.titulo}</Texto>
             <Texto cor="suave">{periodo(p)}</Texto>
@@ -83,7 +85,7 @@ export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: stri
             ) : null}
             <Botao rotulo="Abrir" Icone={Pencil} aoTocar={() => router.push(rotaDoEditor(tipo, p.id))} />
           </View>
-        </View>
+        </EntradaEmCascata>
       ))}
       {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} planos={dados ?? []} aoFechar={() => setNovo(false)} /> : null}
       {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} /> : null}

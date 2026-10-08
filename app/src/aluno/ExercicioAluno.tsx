@@ -1,6 +1,7 @@
-import { Check, PlayCircle } from 'lucide-react-native';
-import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { PlayCircle } from 'lucide-react-native';
+import { useEffect, useState } from 'react';
+import { Linking, StyleSheet, View } from 'react-native';
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { calcularCargasDoExercicio, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
@@ -11,6 +12,9 @@ import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
+import { BotaoMarcar } from '../ui/BotaoMarcar';
+import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
+import { vibrar } from '../ui/vibrar';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Texto } from '../ui/Texto';
 
@@ -94,7 +98,13 @@ export function ExercicioAluno(p: Props) {
           indice={i}
           semCarga={e.unidade === 'nenhuma'}
           registro={p.registroDe(c.serie.uid)}
-          aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
+          aoRegistrar={(d) => {
+            p.aoRegistrar(c.serie.uid, d);
+            if (d.concluida && !p.registroDe(c.serie.uid)?.concluida) {
+              if (feitas === e.series.length - 1) vibrar.sucesso();
+              else vibrar.leve();
+            }
+          }}
         />
       ))}
     </View>
@@ -121,6 +131,12 @@ function CartaoSerie({
   const carga = registro ? registro.carga : cargaDigitada !== undefined ? cargaDigitada : calculada.sugestao;
   const reps = registro ? registro.repeticoes : repsDigitadas;
   const feita = !!registro?.concluida;
+  const reduzido = useMovimentoReduzido();
+  const progresso = useSharedValue(feita ? 1 : 0);
+  useEffect(() => {
+    progresso.value = reduzido ? (feita ? 1 : 0) : withTiming(feita ? 1 : 0, { duration: feita ? 200 : 150 });
+  }, [feita, reduzido, progresso]);
+  const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.value, [0, 1], [cores.superficie, `${cores.sucesso}29`]) }));
   const s = calculada.serie;
   const trabalho = s.intensidade?.modo === 'CARGA_TRABALHO';
 
@@ -134,10 +150,10 @@ function CartaoSerie({
   };
 
   return (
-    <View
+    <Animated.View
       style={[
         estilos.serie,
-        { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? `${cores.sucesso}1A` : cores.superficie },
+        { borderColor: feita ? cores.sucesso : cores.borda }, fundo,
       ]}>
       <View style={estilos.cabecaSerie}>
         <View style={[estilos.etiqueta, { backgroundColor: trabalho ? marca : cores.superficie2 }]}>
@@ -172,20 +188,11 @@ function CartaoSerie({
           valor={reps}
           aoMudar={(v) => mudar({ repeticoes: v })}
         />
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityLabel={`Série ${indice + 1} ${s.tipo} feita`}
-          accessibilityState={{ checked: feita }}
-          onPress={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })}
-          style={({ pressed }) => [
-            estilos.check,
-            { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? cores.sucesso : 'transparent', opacity: pressed ? 0.7 : 1 },
-          ]}>
-          <Check size={26} color={feita ? '#FFFFFF' : cores.textoSuave} strokeWidth={3} />
-        </Pressable>
+        <BotaoMarcar feito={feita} rotulo={`Série ${indice + 1} ${s.tipo} feita`}
+          aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })} />
       </View>
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
-    </View>
+    </Animated.View>
   );
 }
 

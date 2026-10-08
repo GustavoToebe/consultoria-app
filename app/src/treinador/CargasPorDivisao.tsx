@@ -1,3 +1,4 @@
+import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { StyleSheet, View } from 'react-native';
 
 import { dataParaTela } from '../dominio/formatos';
@@ -13,10 +14,11 @@ import { Texto } from '../ui/Texto';
  */
 export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] }) {
   const { cores, marca } = useTema();
+  const animar = usePrimeiraLista(divisoes.length > 0, divisoes.map((d) => d.chave).join('|'));
   return (
     <View style={estilos.lista}>
-      {divisoes.map((d) => (
-        <View key={d.chave} style={estilos.divisao}>
+      {divisoes.map((d, i) => (
+        <EntradaEmCascata indice={i} animar={animar} key={d.chave} style={estilos.divisao}>
           <View style={[estilos.faixa, { backgroundColor: cores.superficie2, borderLeftColor: marca }]}>
             <Texto numerico style={estilos.nomeDivisao}>{d.nome}</Texto>
             <Texto numerico variante="pequeno">
@@ -54,7 +56,7 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
               ))}
             </View>
           ))}
-        </View>
+        </EntradaEmCascata>
       ))}
     </View>
   );
