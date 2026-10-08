@@ -22,9 +22,9 @@ class FlywayMigrationIntegrationTest extends AbstractIntegrationTest {
         List<String> descricoes = jdbcTemplate.queryForList(
                 "select description from flyway_schema_history where type = 'SQL' order by installed_rank",
                 String.class);
-        assertThat(total).isEqualTo(7);
+        assertThat(total).isEqualTo(8);
         assertThat(descricoes).containsExactly("identidade", "alunos", "biblioteca", "planos", "execucoes",
-                "catalogo publico", "catalogo taco");
+                "catalogo publico", "catalogo taco", "catalogo exercicios ptbr");
     }
 
     @Test
@@ -48,10 +48,36 @@ class FlywayMigrationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void catalogoDeExerciciosTemOsPropriosEOsDoExerciciosBdPtbr() {
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from catalogo_exercicio where fonte = 'Catálogo próprio'", Integer.class)).isEqualTo(52);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from catalogo_exercicio where fonte like 'exercicios-bd-ptbr%'", Integer.class))
+                .isEqualTo(825);
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from catalogo_exercicio where nome_busca is null or nome_busca = ''"
+                        + " or nome_busca <> lower(nome_busca) or nome_busca like '%ã%' or char_length(nome) > 120",
+                Integer.class)).isZero();
+        // Nenhum exercício do dataset pode repetir um nome (sem acento) do catálogo.
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from (select nome_busca from catalogo_exercicio group by nome_busca having count(*) > 1) d",
+                Integer.class)).isZero();
+        // Exercício dos 52 continua com o mesmo id e ganha nome de busca.
+        assertThat(jdbcTemplate.queryForObject(
+                "select nome_busca from catalogo_exercicio where nome = 'Leg press 45º'", String.class))
+                .isEqualTo("leg press 45º");
+        // Nome do dataset e instruções vieram em português.
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from catalogo_exercicio where id = md5('catalogo-exercicio:fedb:' || 'Wide-Grip_Barbell_Bench_Press')::uuid"
+                        + " and instrucoes is not null and modalidade = 'LIVRE' and grupo_muscular = 'Peito'",
+                Integer.class)).isEqualTo(1);
+    }
+
+    @Test
     void catalogoPublicoTemIdsFixos() {
         Integer exercicios = jdbcTemplate.queryForObject("select count(*) from catalogo_exercicio", Integer.class);
         Integer alimentos = jdbcTemplate.queryForObject("select count(*) from catalogo_alimento", Integer.class);
-        assertThat(exercicios).isEqualTo(52);
+        assertThat(exercicios).isEqualTo(877); // 52 próprios + 825 do exercicios-bd-ptbr (dados/relatorios/exercicios-importacao.md)
         assertThat(alimentos).isEqualTo(591); // alimentos no relatório dados/relatorios/taco-importacao.md
         String id = jdbcTemplate.queryForObject("select id::text from catalogo_exercicio where nome = 'Prancha'",
                 String.class);
