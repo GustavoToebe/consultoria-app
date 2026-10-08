@@ -1,6 +1,6 @@
 import { Card } from '../components/ui/card';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { Children, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
@@ -51,7 +51,7 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, recolhiv
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
         </View>
       ) : null}
-      {fechado ? null : cabecalho ? <View style={[estilos.corpo, { padding: espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2) }]}>{children}</View> : children}
+      {fechado || (cabecalho && Children.toArray(children).length === 0) ? null : cabecalho ? <View style={[estilos.corpo, { padding: espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2) }]}>{children}</View> : children}
     </Card>
   );
 }

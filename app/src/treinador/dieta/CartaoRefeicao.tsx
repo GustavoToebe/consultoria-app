@@ -1,6 +1,6 @@
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, PencilLine, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, PencilLine, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { Alimento, ItemDieta, Refeicao, UnidadeAlimento } from '../../api/tipos';
 import { novaOpcao, novoItem, recalcularItem, somar, type Totais } from '../../dominio/dieta';
@@ -10,11 +10,12 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
+import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
+import { Cartao } from '../../ui/Cartao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 
@@ -49,28 +50,29 @@ export function CartaoRefeicao(p: Props) {
   const indice = Math.min(opcaoAtiva, Math.max(0, r.opcoes.length - 1));
   const opcao = r.opcoes[indice];
   const mudar = (parcial: Partial<Refeicao>) => p.aoMudar({ ...r, ...parcial });
+  const totalA = somar(r.opcoes[0]?.itens ?? []);
+  const nItens = r.opcoes[0]?.itens.length ?? 0;
   const mudarItens = (fn: (itens: ItemDieta[]) => ItemDieta[]) =>
     mudar({ opcoes: substituir(r.opcoes, indice, { ...opcao, itens: fn(opcao.itens) }) });
 
   return (
-    <View style={[estilos.cartao, { borderColor: p.comProblema.has(r.uid) ? cores.perigo : cores.borda, backgroundColor: cores.superficie }]}>
-      <View style={estilos.topo}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${p.aberta ? 'Fechar' : 'Abrir'} refeição ${r.nome || p.posicao + 1}`} accessibilityState={{ expanded: p.aberta }} onPress={p.aoAbrir} style={estilos.titulo}>
-          <Texto variante="subtitulo">
-            {r.horario ? `${r.horario} · ` : ''}
-            {r.nome || `Refeição ${p.posicao + 1}`}
-          </Texto>
-          <Texto variante="suave">
-            {r.opcoes.length} {r.opcoes.length === 1 ? 'opção' : 'opções'} · Opção {r.opcoes[0]?.rotulo ?? '—'}: {textoTotais(somar(r.opcoes[0]?.itens ?? []))}
-          </Texto>
-          {p.comProblema.has(r.uid) ? <Selo texto="Corrigir" tipo="perigo" /> : null}
-        </Pressable>
-        <View style={estilos.acoes}>
-          <IconeBotao Icone={ArrowUp} rotulo="Subir refeição" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-          <IconeBotao Icone={ArrowDown} rotulo="Descer refeição" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
-          <IconeBotao Icone={p.aberta ? ChevronUp : ChevronDown} rotulo={p.aberta ? 'Fechar refeição' : 'Abrir refeição'} aoTocar={p.aoAbrir} />
-        </View>
-      </View>
+    <Cartao
+      style={p.comProblema.has(r.uid) ? { borderColor: cores.perigo } : undefined}
+      cabecalho={
+        <CabecalhoDeGrupo
+          titulo={`${r.horario ? `${r.horario} · ` : ''}${r.nome || `Refeição ${p.posicao + 1}`}`}
+          resumo={`${totalA.kcal === null ? '—' : numeroParaTela(totalA.kcal, 0)} kcal · ${nItens} ${nItens === 1 ? 'item' : 'itens'}${r.opcoes.length > 1 ? ` · ${r.opcoes.length} opções` : ''}`}
+          selo={p.comProblema.has(r.uid) ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
+          aberto={p.aberta}
+          aoAlternar={p.aoAbrir}
+          acoes={
+            <>
+              <IconeBotao Icone={ArrowUp} rotulo="Subir refeição" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
+              <IconeBotao Icone={ArrowDown} rotulo="Descer refeição" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+            </>
+          }
+        />
+      }>
       {p.aberta ? (
         <View style={estilos.corpo}>
           <View style={estilos.linha}>
@@ -135,7 +137,7 @@ export function CartaoRefeicao(p: Props) {
           </View>
         </View>
       ) : null}
-    </View>
+    </Cartao>
   );
 }
 
