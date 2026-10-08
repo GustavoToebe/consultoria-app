@@ -196,7 +196,7 @@ function ItemProblema({ conteudo, problema, tipo }: { conteudo: unknown; problem
       <Selo texto={tipo === 'perigo' ? 'Erro' : 'Aviso'} tipo={tipo} />
       <View style={estilos.textoProblema}>
         {onde ? <Texto style={estilos.onde}>{onde}</Texto> : null}
-        <Texto variante="suave">{problema.mensagem}</Texto>
+        <Texto cor="suave">{problema.mensagem}</Texto>
       </View>
     </View>
   );

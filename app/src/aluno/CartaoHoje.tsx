@@ -23,7 +23,7 @@ export function CartaoHoje({ sessao, hoje, feitas, aoAbrir }: { sessao: Sessao |
           <Texto variante="secao" style={estilos.rotulo}>Treino de hoje</Texto>
           <Texto variante="secao">{dataCurta(hoje)}</Texto>
         </View>
-        <Texto variante="suave">Nenhuma sessão marcada para hoje. Escolha um dia nas divisões abaixo.</Texto>
+        <Texto cor="suave">Nenhuma sessão marcada para hoje. Escolha um dia nas divisões abaixo.</Texto>
       </View>
     );
   }

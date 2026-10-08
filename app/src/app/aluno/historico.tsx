@@ -82,15 +82,15 @@ export default function HistoricoAluno() {
       <Cabecalho titulo="Histórico" acoes={<SeloSincronizacao />} />
       {naoEnviados.length ? (
         <Cartao titulo="Ainda não enviados">
-          <Texto variante="pequeno">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>
+          <Texto numerico variante="pequeno">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>
           {agrupar(naoEnviados).map(([chave, lista]) => {
             const info = nomes.get(lista[0].exercicioUid);
             return (
               <View key={chave} style={estilos.linha}>
-                <Texto style={estilos.forte}>
+                <Texto numerico style={estilos.forte}>
                   {dataParaTela(lista[0].data)} · {info?.exercicio.nome ?? 'Exercício de outra versão do plano'}
                 </Texto>
-                <Texto variante="suave">
+                <Texto numerico cor="suave">
                   {lista
                     .map((r) => {
                       const serie = info?.exercicio.series.find((s) => s.uid === r.serieUid);
@@ -109,10 +109,10 @@ export default function HistoricoAluno() {
         titulo={`Treinos dos últimos ${DIAS} dias`}
         acoes={divisoes.length ? <Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /> : null}>
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
-        {semConexao ? <Texto variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
+        {semConexao ? <Texto numerico cor="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
         {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
         {!historico.dados && historico.carregando ? <Carregando /> : null}
-        {historico.dados && historico.dados.length === 0 ? <Texto variante="suave">Nenhum treino registrado no período.</Texto> : null}
+        {historico.dados && historico.dados.length === 0 ? <Texto numerico cor="suave">Nenhum treino registrado no período.</Texto> : null}
         {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {historico.dados && visao === 'dia'
           ? [...historico.dados].sort((a, b) => b.data.localeCompare(a.data)).map((d) => <DiaRegistros key={d.data} dia={d} />)
@@ -125,7 +125,7 @@ export default function HistoricoAluno() {
             <LinhaPeso key={p.id} data={p.data} peso={p.pesoKg} variacao={p.variacao} />
           ))
         ) : (
-          <Texto variante="suave">{pesos.carregando ? 'Carregando…' : pesos.erro ? 'Sem conexão.' : 'Nenhum registro de peso.'}</Texto>
+          <Texto numerico cor="suave">{pesos.carregando ? 'Carregando…' : pesos.erro ? 'Sem conexão.' : 'Nenhum registro de peso.'}</Texto>
         )}
       </Cartao>
     </Tela>
@@ -145,9 +145,9 @@ function LinhaPeso({ data, peso, variacao }: { data: string; peso: number; varia
   const { cores } = useTema();
   return (
     <View style={[estilos.peso, { borderColor: cores.borda }]}>
-      <Texto>{dataParaTela(data)}</Texto>
-      <Texto style={estilos.forte}>{numeroParaTela(peso)} kg</Texto>
-      <Texto variante="suave">
+      <Texto numerico>{dataParaTela(data)}</Texto>
+      <Texto numerico style={estilos.forte}>{numeroParaTela(peso)} kg</Texto>
+      <Texto numerico cor="suave">
         {variacao === null ? '—' : `${variacao > 0 ? '+' : variacao < 0 ? '−' : ''}${numeroParaTela(Math.abs(variacao))} kg`}
       </Texto>
     </View>

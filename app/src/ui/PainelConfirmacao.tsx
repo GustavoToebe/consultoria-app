@@ -32,7 +32,7 @@ export function PainelConfirmacao(props: Props) {
           accessibilityViewIsModal
           style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           <Texto variante="subtitulo">{props.titulo}</Texto>
-          {props.mensagem ? <Texto variante="suave">{props.mensagem}</Texto> : null}
+          {props.mensagem ? <Texto cor="suave">{props.mensagem}</Texto> : null}
           {props.children}
           <View style={estilos.botoes}>
             <Botao rotulo={props.rotuloCancelar ?? 'Cancelar'} tipo="secundario" aoTocar={props.aoCancelar} />

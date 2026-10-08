@@ -66,7 +66,7 @@ export default function SessaoAluno() {
       {sessao.cardio || sessao.observacao ? (
         <Cartao>
           {sessao.cardio ? <Texto>Cardio: {sessao.cardio}</Texto> : null}
-          {sessao.observacao ? <Texto variante="suave">{sessao.observacao}</Texto> : null}
+          {sessao.observacao ? <Texto cor="suave">{sessao.observacao}</Texto> : null}
         </Cartao>
       ) : null}
       {pendente ? (

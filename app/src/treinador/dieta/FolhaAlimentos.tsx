@@ -28,7 +28,7 @@ export function FolhaAlimentos({
     <Folha visivel titulo="Escolher alimento" aoFechar={aoFechar}>
       <Campo rotulo="Buscar alimento" valor={busca} aoMudar={setBusca} autoFocus />
       {alimentos.length === 0 ? (
-        <Texto variante="suave">Nenhum alimento na biblioteca. Use “Item manual” ou importe alimentos na Biblioteca.</Texto>
+        <Texto cor="suave">Nenhum alimento na biblioteca. Use “Item manual” ou importe alimentos na Biblioteca.</Texto>
       ) : null}
       {lista.slice(0, 80).map((a) => (
         <Pressable
@@ -36,7 +36,7 @@ export function FolhaAlimentos({
           accessibilityRole="button"
           accessibilityLabel={`Escolher ${a.nome}`}
           onPress={() => aoEscolher(a)}
-          style={({ pressed }) => [estilos.item, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie2 : cores.superficie }]}>
+          style={({ pressed }) => [estilos.item, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : cores.superficie }]}>
           <Texto>{a.nome}</Texto>
           <Texto variante="pequeno">{resumoAlimento(a)}</Texto>
         </Pressable>

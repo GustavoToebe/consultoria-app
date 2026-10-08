@@ -94,7 +94,7 @@ export default function Convite() {
         <>
           <View style={estilos.topo}>
             <Texto variante="titulo">Convite</Texto>
-            <Texto variante="suave">Digite o código que seu treinador enviou.</Texto>
+            <Texto cor="suave">Digite o código que seu treinador enviou.</Texto>
           </View>
           <Cartao>
             <Campo rotulo="Código do convite" valor={codigo} aoMudar={setCodigo} autoCapitalize="characters"
@@ -108,7 +108,7 @@ export default function Convite() {
           <View style={estilos.topo}>
             <MarcaTitulo marca={convite.consultoria} tamanho="grande" />
             <Texto variante="subtitulo">Olá, {convite.primeiroNomeAluno}!</Texto>
-            <Texto variante="suave">Crie seu acesso para ver seus treinos e registrar suas cargas.</Texto>
+            <Texto cor="suave">Crie seu acesso para ver seus treinos e registrar suas cargas.</Texto>
           </View>
           <Cartao>
             <Campo rotulo="Seu e-mail" valor={email} aoMudar={setEmail} autoCapitalize="none"

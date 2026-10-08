@@ -58,10 +58,10 @@ export function ExercicioAluno(p: Props) {
     <View style={estilos.exercicio}>
       {e.observacao ? (
         <View style={[estilos.obs, { backgroundColor: cores.superficie, borderLeftColor: cores.atencao }]}>
-          <Texto variante="suave" style={estilos.obsTexto}>{e.observacao}</Texto>
+          <Texto numerico cor="suave" style={estilos.obsTexto}>{e.observacao}</Texto>
         </View>
       ) : null}
-      {!e.progressao ? <Texto style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
+      {!e.progressao ? <Texto numerico style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
       {videoValido(e.videoUrl) ? (
         <Botao rotulo="Assistir vídeo de execução" tipo="secundario" Icone={PlayCircle} cheio aoTocar={abrirVideo} />
       ) : null}
@@ -74,7 +74,7 @@ export function ExercicioAluno(p: Props) {
             valor={base}
             aoMudar={p.aoMudarCargaDoDia}
           />
-          <Texto variante="pequeno">
+          <Texto numerico variante="pequeno">
             {p.ultima?.carga != null
               ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}`
               : 'Sem registro anterior: digite a carga que vai usar.'}
@@ -82,8 +82,8 @@ export function ExercicioAluno(p: Props) {
         </View>
       ) : null}
       <View style={estilos.tituloSeries}>
-        <Texto variante="secao">Séries do plano</Texto>
-        <Texto variante="pequeno">
+        <Texto numerico variante="secao">Séries do plano</Texto>
+        <Texto numerico variante="pequeno">
           {feitas} de {e.series.length} feitas
         </Texto>
       </View>
@@ -141,7 +141,7 @@ function CartaoSerie({
       ]}>
       <View style={estilos.cabecaSerie}>
         <View style={[estilos.etiqueta, { backgroundColor: trabalho ? marca : cores.superficie2 }]}>
-          <Texto style={[estilos.etiquetaTexto, { color: trabalho ? sobreMarca : cores.textoSuave }]}>
+          <Texto numerico style={[estilos.etiquetaTexto, { color: trabalho ? sobreMarca : cores.textoSuave }]}>
             {trabalho ? s.tipo : `Série ${indice + 1}`}
           </Texto>
         </View>
@@ -150,7 +150,7 @@ function CartaoSerie({
           numberOfLines={1}>
           {trabalho ? `Série ${indice + 1}` : s.tipo}
         </Texto>
-        <Texto variante="pequeno" style={estilos.meta}>
+        <Texto numerico variante="pequeno" style={estilos.meta}>
           {calculada.meta}
         </Texto>
       </View>
@@ -184,7 +184,7 @@ function CartaoSerie({
           <Check size={26} color={feita ? '#FFFFFF' : cores.textoSuave} strokeWidth={3} />
         </Pressable>
       </View>
-      {registro?.situacao === 'FALHOU' ? <Texto variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
+      {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </View>
   );
 }

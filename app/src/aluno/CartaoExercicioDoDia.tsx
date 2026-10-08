@@ -47,24 +47,24 @@ export function CartaoExercicioDoDia({
       onPress={aoAbrir}
       style={({ pressed }) => [
         estilos.cartao,
-        { backgroundColor: cores.superficie, borderColor: completo ? cores.sucesso : cores.borda, opacity: pressed ? 0.8 : 1 },
+        { backgroundColor: pressed ? cores.superficie3 : cores.superficie, borderColor: completo ? cores.sucesso : cores.borda },
       ]}>
       <View style={estilos.topo}>
         <View style={estilos.nomes}>
-          <Texto style={estilos.nome}>
+          <Texto numerico style={estilos.nome}>
             {posicao + 1}. {e.nome}
           </Texto>
-          {e.modalidade ? <Texto variante="suave">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
+          {e.modalidade ? <Texto numerico cor="suave">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
         </View>
         {completo ? <CheckCircle2 size={22} color={cores.sucesso} /> : <ChevronRight size={22} color={cores.textoSuave} />}
       </View>
       <View style={[estilos.rodape, { borderTopColor: cores.borda }]}>
         {carga ? (
-          <Texto variante="suave" style={estilos.carga}>
-            {carga.rotulo}: <Texto style={estilos.valor}>{carga.valor}</Texto>
+          <Texto numerico cor="suave" style={estilos.carga}>
+            {carga.rotulo}: <Texto numerico style={estilos.valor}>{carga.valor}</Texto>
           </Texto>
         ) : (
-          <Texto variante="suave" style={estilos.carga}>
+          <Texto numerico cor="suave" style={estilos.carga}>
             {total} {total === 1 ? 'série planejada' : 'séries planejadas'}
           </Texto>
         )}

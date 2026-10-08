@@ -76,7 +76,7 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Carregando /> : null}
         {dados && dados.length === 0 ? (
-          <Texto variante="suave">Nenhum registro no período. O aluno pode ter treinado sem registrar.</Texto>
+          <Texto numerico cor="suave">Nenhum registro no período. O aluno pode ter treinado sem registrar.</Texto>
         ) : null}
         {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {dados && visao === 'dia'
@@ -92,14 +92,14 @@ export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
   const { cores } = useTema();
   return (
     <View style={[estilos.dia, { borderColor: cores.borda }]}>
-      <Texto style={estilos.dataDia}>{dataParaTela(dia.data)}</Texto>
+      <Texto numerico style={estilos.dataDia}>{dataParaTela(dia.data)}</Texto>
       {dia.sessoes.map((s) => (
         <View key={`${s.planoVersaoId}:${s.sessaoUid}`} style={estilos.sessao}>
-          <Texto variante="secao">{s.sessao}</Texto>
+          <Texto numerico variante="secao">{s.sessao}</Texto>
           {s.exercicios.map((e) => (
             <View key={e.exercicioUid} style={estilos.exercicio}>
-              <Texto style={estilos.nomeExercicio}>{e.nome}</Texto>
-              <Texto variante="suave">{e.series.map(textoSerie).join(' · ')}</Texto>
+              <Texto numerico style={estilos.nomeExercicio}>{e.nome}</Texto>
+              <Texto numerico cor="suave">{e.series.map(textoSerie).join(' · ')}</Texto>
             </View>
           ))}
         </View>
@@ -133,15 +133,15 @@ function CartaoProgresso({ alunoId, dias }: { alunoId: string; dias: DiaDeTreino
       {dados?.length ? (
         <View style={[estilos.tabela, { borderColor: cores.borda }]}>
           <View style={[estilos.linhaTabela, { backgroundColor: cores.superficie2 }]}>
-            <Texto variante="pequeno" style={estilos.col}>Data</Texto>
-            <Texto variante="pequeno" style={estilos.col}>Maior carga de trabalho</Texto>
-            <Texto variante="pequeno" style={estilos.col}>Repetições</Texto>
+            <Texto numerico variante="pequeno" style={estilos.col}>Data</Texto>
+            <Texto numerico variante="pequeno" style={estilos.col}>Maior carga de trabalho</Texto>
+            <Texto numerico variante="pequeno" style={estilos.col}>Repetições</Texto>
           </View>
           {[...dados].reverse().map((p) => (
             <View key={p.data} style={[estilos.linhaTabela, { borderColor: cores.borda }]}>
-              <Texto style={estilos.col}>{dataParaTela(p.data)}</Texto>
-              <Texto style={estilos.col}>{p.maiorCargaTrabalho === null ? '—' : `${numeroParaTela(p.maiorCargaTrabalho)} kg`}</Texto>
-              <Texto style={estilos.col}>{p.repeticoes ?? '—'}</Texto>
+              <Texto numerico style={estilos.col}>{dataParaTela(p.data)}</Texto>
+              <Texto numerico style={estilos.col}>{p.maiorCargaTrabalho === null ? '—' : `${numeroParaTela(p.maiorCargaTrabalho)} kg`}</Texto>
+              <Texto numerico style={estilos.col}>{p.repeticoes ?? '—'}</Texto>
             </View>
           ))}
         </View>

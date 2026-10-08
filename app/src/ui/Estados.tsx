@@ -11,7 +11,7 @@ export function Carregando({ texto }: { texto?: string }) {
   return (
     <View style={estilos.centro} accessibilityLabel={texto ?? 'Carregando'}>
       <ActivityIndicator color={cores.textoSuave} />
-      {texto ? <Texto variante="suave">{texto}</Texto> : null}
+      {texto ? <Texto cor="suave">{texto}</Texto> : null}
     </View>
   );
 }
@@ -19,7 +19,7 @@ export function Carregando({ texto }: { texto?: string }) {
 export function Vazio({ texto, acao }: { texto: string; acao?: { rotulo: string; aoTocar: () => void } }) {
   return (
     <View style={estilos.centro}>
-      <Texto variante="suave" style={estilos.textoCentro}>{texto}</Texto>
+      <Texto cor="suave" style={estilos.textoCentro}>{texto}</Texto>
       {acao ? <Botao rotulo={acao.rotulo} tipo="secundario" aoTocar={acao.aoTocar} /> : null}
     </View>
   );

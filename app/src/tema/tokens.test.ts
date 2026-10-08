@@ -1,4 +1,10 @@
-import { contraste, textoSobre } from './tokens';
+import { CLARO, ESCURO, contraste, textoSobre } from './tokens';
+
+it.each([CLARO, ESCURO])('preserva contraste AA nos detalhes de todas as superfícies', (cores) => {
+  for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
+    expect(contraste(cores.textoSuave, superficie)).toBeGreaterThanOrEqual(4.5);
+  }
+});
 
 describe('contraste do texto sobre a cor da marca', () => {
   it('usa branco em cores escuras e preto em cores claras', () => {

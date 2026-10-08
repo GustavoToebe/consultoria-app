@@ -6,6 +6,7 @@ import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
 interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'> {
+  numerico?: boolean;
   rotulo: string;
   valor: string;
   aoMudar: (texto: string) => void;
@@ -15,7 +16,7 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   linhas?: number;
 }
 
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, ...resto }: Props) {
   const { cores, marca } = useTema();
   const [foco, setFoco] = useState(false);
   const corBorda = erro ? cores.perigo : foco ? marca : cores.borda;
@@ -40,6 +41,7 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, ...resto }:
         placeholderTextColor={cores.textoSuave}
         style={[
           estilos.entrada,
+          numerico ? { fontVariant: ['tabular-nums'] } : null,
           linhas ? { minHeight: linhas * 22 + 20, textAlignVertical: 'top' } : null,
           { color: cores.texto, backgroundColor: cores.superficie2, borderColor: corBorda },
         ]}
@@ -55,7 +57,7 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, ...resto }:
  * só para sugestão; o valor do aluno nunca é arredondado).
  */
 export function CampoNumero(props: Omit<Props, 'keyboardType'>) {
-  return <Campo {...props} keyboardType="decimal-pad" inputMode="decimal" />;
+  return <Campo {...props} numerico keyboardType="decimal-pad" inputMode="decimal" />;
 }
 
 const estilos = StyleSheet.create({
@@ -68,6 +70,6 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco(1.5),
     paddingVertical: espaco(1),
     fontFamily: fontes.normal,
-    fontSize: 16,
+    fontSize: 15,
   },
 });

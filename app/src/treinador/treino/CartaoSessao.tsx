@@ -52,7 +52,7 @@ export function CartaoSessao(p: Props) {
           onPress={p.aoAbrir}
           style={estilos.titulo}>
           <Texto variante="subtitulo">{s.nome || `Sessão ${p.posicao + 1}`}</Texto>
-          <Texto variante="suave">
+          <Texto cor="suave">
             {dia} · {tipo} · {s.exercicios.length} {s.exercicios.length === 1 ? 'exercício' : 'exercícios'}
           </Texto>
           {p.comProblema ? <Selo texto="Corrigir" tipo="perigo" /> : null}

@@ -58,12 +58,12 @@ export function CartaoExercicio(p: Props) {
           {!p.aberto ? (
             resumo.length ? (
               resumo.map((r, i) => (
-                <Texto key={i} variante="suave">
+                <Texto key={i} cor="suave">
                   {r}
                 </Texto>
               ))
             ) : (
-              <Texto variante="suave">Sem séries</Texto>
+              <Texto cor="suave">Sem séries</Texto>
             )
           ) : null}
           <View style={estilos.selos}>

@@ -106,7 +106,7 @@ export function AbaCsv() {
           setPrevia(null);
         }}
       />
-      <Texto variante="suave">Primeira linha com o cabeçalho, separado por ; ou , (até 1.000 linhas):</Texto>
+      <Texto cor="suave">Primeira linha com o cabeçalho, separado por ; ou , (até 1.000 linhas):</Texto>
       <Texto selectable style={[estilos.codigo, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
         {CABECALHOS[tipo]}
       </Texto>
@@ -124,7 +124,7 @@ export function AbaCsv() {
             {previa.erros.length ? <Selo texto={`${previa.erros.length} com erro`} tipo="perigo" /> : null}
           </View>
           {previa.validas.slice(0, 10).map((v) => (
-            <Texto key={v.linha} variante="suave">
+            <Texto key={v.linha} cor="suave">
               Linha {v.linha}: {v.nome}
             </Texto>
           ))}

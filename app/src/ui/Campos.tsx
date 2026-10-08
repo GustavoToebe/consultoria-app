@@ -25,6 +25,7 @@ export function CampoData({
   const invalida = valor.length === 10 && dataDaTela(valor) === undefined;
   return (
     <Campo
+      numerico
       rotulo={rotulo}
       valor={valor}
       aoMudar={(t) => aoMudar(mascaraData(t))}
@@ -61,6 +62,7 @@ export function CampoNumerico({
   const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro);
   return (
     <Campo
+      numerico
       rotulo={sufixo ? `${rotulo} (${sufixo})` : rotulo}
       valor={texto}
       aoMudar={mudar}
@@ -136,7 +138,7 @@ export function CampoNumericoGrande({
           selectTextOnFocus
           style={[estilos.numero, destaque && estilos.numeroDestaque, { color: cores.texto }]}
         />
-        {sufixo ? <Texto variante="suave" style={estilos.sufixo}>{sufixo}</Texto> : null}
+        {sufixo ? <Texto cor="suave" style={estilos.sufixo}>{sufixo}</Texto> : null}
       </View>
       {lido === undefined ? (
         <Texto variante="pequeno" cor={cores.perigo}>{inteiro ? 'Só números inteiros.' : 'Número inválido.'}</Texto>
@@ -197,7 +199,7 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco(1.5),
   },
   caixaDestaque: { minHeight: 64, alignSelf: 'flex-start', minWidth: 160 },
-  numero: { flex: 1, minWidth: 0, fontFamily: fontes.negrito, fontSize: 20, paddingVertical: espaco(1) },
+  numero: { flex: 1, minWidth: 0, fontFamily: fontes.negrito, fontSize: 22, fontVariant: ['tabular-nums'], paddingVertical: espaco(1) },
   numeroDestaque: { fontSize: 28 },
   sufixo: { fontFamily: fontes.semi, marginLeft: espaco(0.5) },
 });

@@ -87,7 +87,7 @@ export default function Alunos() {
       {dados && paginas > 1 ? (
         <View style={estilos.paginacao}>
           <Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina === 0} aoTocar={() => setPagina(pagina - 1)} />
-          <Texto variante="suave">
+          <Texto cor="suave">
             Página {pagina + 1} de {paginas} · {dados.total} alunos
           </Texto>
           <Botao
@@ -111,7 +111,7 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
       onPress={() => router.push(`/treinador/alunos/${aluno.id}`)}
       style={({ pressed }) => [
         estilos.linha,
-        { backgroundColor: cores.superficie, borderColor: cores.borda, opacity: pressed ? 0.8 : 1 },
+        { backgroundColor: pressed ? cores.superficie3 : cores.superficie, borderColor: cores.borda },
       ]}>
       <View style={estilos.dados}>
         <Texto variante="subtitulo">{aluno.nome}</Texto>
@@ -119,7 +119,7 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} />
           <Selo texto={aluno.temAcesso ? 'Com acesso' : 'Sem acesso'} tipo={aluno.temAcesso ? 'sucesso' : 'neutro'} />
         </View>
-        <Texto variante="suave">
+        <Texto cor="suave">
           Treino: {aluno.planoAtivo?.titulo ?? '—'} · Último registro: {dataParaTela(aluno.ultimoRegistro) || '—'}
         </Texto>
       </View>

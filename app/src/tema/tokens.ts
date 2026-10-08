@@ -7,6 +7,8 @@ export interface Cores {
   fundo: string;
   superficie: string;
   superficie2: string;
+  superficie3: string;
+  divisor: string;
   borda: string;
   texto: string;
   textoSuave: string;
@@ -20,6 +22,8 @@ export const ESCURO: Cores = {
   fundo: '#0E0E10',
   superficie: '#17171A',
   superficie2: '#1F1F23',
+  superficie3: '#27272C',
+  divisor: '#2A2A2F',
   borda: '#2A2A2F',
   texto: '#F2F2F3',
   textoSuave: '#9A9AA2',
@@ -33,6 +37,8 @@ export const CLARO: Cores = {
   fundo: '#F4F4F5',
   superficie: '#FFFFFF',
   superficie2: '#F0F0F2',
+  superficie3: '#E7E7EA',
+  divisor: '#E4E4E7',
   borda: '#DCDCE0',
   texto: '#111114',
   textoSuave: '#5F5F67',

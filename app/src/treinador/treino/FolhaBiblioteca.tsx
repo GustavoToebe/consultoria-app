@@ -59,7 +59,7 @@ export function FolhaBiblioteca({
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && filtrados.length === 0 ? (
-        <Texto variante="suave">
+        <Texto cor="suave">
           {dados.length === 0
             ? 'A biblioteca está vazia. Importe exercícios do catálogo na tela Biblioteca.'
             : 'Nenhum exercício encontrado.'}
@@ -73,7 +73,7 @@ export function FolhaBiblioteca({
           onPress={() => aoEscolher(e)}
           style={({ pressed }) => [
             estilos.item,
-            { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie2 : cores.superficie },
+            { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : cores.superficie },
           ]}>
           <Texto>{e.nome}</Texto>
           <Texto variante="pequeno">

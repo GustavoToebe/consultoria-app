@@ -55,7 +55,7 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
     return (
       <Cartao titulo="Acesso ao app">
         <Selo texto="Com acesso" tipo="sucesso" />
-        <Texto variante="suave">O aluno já criou a conta e entra com o e-mail e a senha dele.</Texto>
+        <Texto cor="suave">O aluno já criou a conta e entra com o e-mail e a senha dele.</Texto>
       </Cartao>
     );
   }
@@ -66,7 +66,7 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
       <Selo texto="Sem acesso" tipo="neutro" />
       {convite ? (
         <View style={estilos.convite}>
-          <Texto variante="suave">
+          <Texto cor="suave">
             Envie o link ou o código para o aluno. Válido até {dataHoraParaTela(convite.expiraEm)}. O código não
             aparece de novo depois que você sair desta tela.
           </Texto>
@@ -74,7 +74,7 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
           <Destaque rotulo="Link" texto={convite.link} aoCopiar={() => copiar(convite.link, 'Link')} />
         </View>
       ) : (
-        <Texto variante="suave">
+        <Texto cor="suave">
           {conviteAnterior
             ? `Há um convite válido até ${dataHoraParaTela(aluno.conviteExpiraEm)}. Gerar outro invalida o anterior.`
             : 'Gere um convite para o aluno criar a conta dele no app.'}

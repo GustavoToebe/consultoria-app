@@ -41,8 +41,8 @@ export function CartaoDivisao({
   return (
     <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
       <View style={estilos.textos}>
-        <Texto style={estilos.titulo}>{titulo}</Texto>
-        <Texto variante="suave">{detalhe.join(' · ')}</Texto>
+        <Texto numerico style={estilos.titulo}>{titulo}</Texto>
+        <Texto numerico cor="suave">{detalhe.join(' · ')}</Texto>
       </View>
       {temExercicios ? (
         <View style={estilos.chips}>
@@ -99,7 +99,7 @@ function ChipData({
         },
       ]}>
       <Icone size={16} color={corIcone} strokeWidth={2.5} />
-      <Texto style={[estilos.chipTexto, { color: texto }]}>{rotulo}</Texto>
+      <Texto numerico style={[estilos.chipTexto, { color: texto }]}>{rotulo}</Texto>
       {ativo ? <ChevronRight size={16} color={hoje ? sobreMarca : cores.textoSuave} /> : null}
     </Pressable>
   );

@@ -68,6 +68,7 @@ export function documentoCargas(d: DadosPdfCargas): Documento {
 .doc .exercicio .cab { display: flex; justify-content: space-between; align-items: center; padding: 5pt 8pt; background: #fafafa; border-bottom: 1px solid #ddd; }
 .doc .exercicio table { margin: 0; }
 .doc .exercicio th { background: #fff; color: #666; border-bottom: 1px solid #ddd; }
+.doc table, .doc .resumo { font-variant-numeric: tabular-nums; }
 .doc .carga { color: ${marca}; font-weight: 700; }
 .doc .obs { display: inline-block; border-left: 3px solid #d4a017; padding-left: 5pt; font-style: italic; }
 `;

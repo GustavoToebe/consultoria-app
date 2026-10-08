@@ -52,7 +52,7 @@ export default function TreinoAluno() {
         <Vazio texto="Seu treinador ainda não publicou um treino para você." />
       ) : (
         <>
-          <Texto variante="suave">
+          <Texto cor="suave">
             {treino.titulo}
             {periodo ? ` · ${periodo}` : ''}
           </Texto>
@@ -77,7 +77,7 @@ export default function TreinoAluno() {
           {conteudo.objetivo || conteudo.orientacoes ? (
             <Cartao titulo="Orientações do treinador">
               {conteudo.objetivo ? <Texto>Objetivo: {conteudo.objetivo}</Texto> : null}
-              {conteudo.orientacoes ? <Texto variante="suave">{conteudo.orientacoes}</Texto> : null}
+              {conteudo.orientacoes ? <Texto cor="suave">{conteudo.orientacoes}</Texto> : null}
             </Cartao>
           ) : null}
           <Texto variante="pequeno">

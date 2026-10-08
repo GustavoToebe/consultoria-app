@@ -125,8 +125,8 @@ export default function EditorDeDieta() {
         />
       ))}
       <View style={[estilos.total, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
-        <Texto variante="secao">Total do dia (opção A de cada refeição)</Texto>
-        <Texto style={estilos.textoTotal}>{textoTotais(totalDoDia(c))}</Texto>
+        <Texto numerico variante="secao">Total do dia (opção A de cada refeição)</Texto>
+        <Texto numerico style={estilos.textoTotal}>{textoTotais(totalDoDia(c))}</Texto>
       </View>
 
       <Cartao titulo="Orientações">
@@ -149,7 +149,7 @@ export default function EditorDeDieta() {
       </Cartao>
 
       <Cartao titulo="Suplementação">
-        <Texto variante="pequeno">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui.</Texto>
+        <Texto numerico variante="pequeno">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
           return (

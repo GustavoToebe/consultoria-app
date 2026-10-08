@@ -27,7 +27,7 @@ export default function ContaAluno() {
         }>
         <Cartao titulo="Sincronização">
           <SeloSincronizacao />
-          <Texto variante="suave">
+          <Texto cor="suave">
             {naoEnviados
               ? `${pendentes} aguardando envio${falhas.length ? `, ${falhas.length} com falha` : ''}.`
               : 'Tudo o que você registrou já está com o seu treinador.'}

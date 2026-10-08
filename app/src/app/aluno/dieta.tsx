@@ -99,11 +99,11 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
       {salva ? <Selo texto="Sem conexão — mostrando a última versão salva" tipo="neutro" /> : null}
       <Cartao>
         <View style={estilos.topo}>
-          <Texto variante="subtitulo" style={estilos.cresce}>{versao.titulo}</Texto>
+          <Texto numerico variante="subtitulo" style={estilos.cresce}>{versao.titulo}</Texto>
           <Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
         </View>
-        {c.objetivo ? <Texto>Objetivo: {c.objetivo}</Texto> : null}
-        <Texto variante="suave">
+        {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
+        <Texto numerico cor="suave">
           {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
         </Texto>
       </Cartao>
@@ -111,30 +111,30 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
         <CartaoRefeicaoAluno key={r.uid} refeicao={r} />
       ))}
       <View style={[estilos.total, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
-        <Texto variante="secao">Total do dia (opção A de cada refeição)</Texto>
-        <Texto style={estilos.textoTotal}>{textoTotais(totalDoDia(c))}</Texto>
+        <Texto numerico variante="secao">Total do dia (opção A de cada refeição)</Texto>
+        <Texto numerico style={estilos.textoTotal}>{textoTotais(totalDoDia(c))}</Texto>
       </View>
       {c.orientacoes.length ? (
         <Cartao titulo="Orientações">
           {c.orientacoes.map((o, i) => (
             <View key={i} style={estilos.orientacao}>
-              {o.titulo ? <Texto style={estilos.forte}>{o.titulo}</Texto> : null}
-              <Texto variante="suave">{o.texto}</Texto>
+              {o.titulo ? <Texto numerico style={estilos.forte}>{o.titulo}</Texto> : null}
+              <Texto numerico cor="suave">{o.texto}</Texto>
             </View>
           ))}
         </Cartao>
       ) : null}
       {c.observacoes ? (
         <Cartao titulo="Observações">
-          <Texto>{c.observacoes}</Texto>
+          <Texto numerico>{c.observacoes}</Texto>
         </Cartao>
       ) : null}
       {c.suplementacao.length ? (
         <Cartao titulo="Suplementação">
           {c.suplementacao.map((s) => (
             <View key={s.uid} style={[estilos.item, { borderColor: cores.borda }]}>
-              <Texto style={estilos.forte}>{s.nome || '—'}</Texto>
-              <Texto variante="suave">{[s.dose, s.horario, s.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
+              <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
+              <Texto numerico cor="suave">{[s.dose, s.horario, s.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
             </View>
           ))}
         </Cartao>
@@ -149,7 +149,7 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
   const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
   return (
     <Cartao titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`}>
-      {refeicao.observacao ? <Texto variante="suave">{refeicao.observacao}</Texto> : null}
+      {refeicao.observacao ? <Texto numerico cor="suave">{refeicao.observacao}</Texto> : null}
       {refeicao.opcoes.length > 1 ? (
         <Abas
           abas={refeicao.opcoes.map((o, i) => ({ valor: String(i), rotulo: `Opção ${o.rotulo}` }))}
@@ -159,13 +159,13 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
       ) : null}
       {opcao?.itens.map((i) => (
         <View key={i.uid} style={[estilos.item, { borderColor: cores.borda }]}>
-          <Texto style={estilos.forte}>
+          <Texto numerico style={estilos.forte}>
             {i.nome} — {numeroParaTela(i.quantidade)} {i.unidade}
           </Texto>
-          <Texto variante="suave">{textoTotais(somar([i]))}</Texto>
+          <Texto numerico cor="suave">{textoTotais(somar([i]))}</Texto>
         </View>
       ))}
-      {opcao ? <Texto style={estilos.forte}>Total: {textoTotais(somar(opcao.itens))}</Texto> : null}
+      {opcao ? <Texto numerico style={estilos.forte}>Total: {textoTotais(somar(opcao.itens))}</Texto> : null}
     </Cartao>
   );
 }

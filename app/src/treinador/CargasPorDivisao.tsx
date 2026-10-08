@@ -18,36 +18,36 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
       {divisoes.map((d) => (
         <View key={d.chave} style={estilos.divisao}>
           <View style={[estilos.faixa, { backgroundColor: cores.superficie2, borderLeftColor: marca }]}>
-            <Texto style={estilos.nomeDivisao}>{d.nome}</Texto>
-            <Texto variante="pequeno">
+            <Texto numerico style={estilos.nomeDivisao}>{d.nome}</Texto>
+            <Texto numerico variante="pequeno">
               {d.exercicios.length} {d.exercicios.length === 1 ? 'exercício' : 'exercícios'}
             </Texto>
           </View>
           {d.exercicios.map((e) => (
             <View key={e.chave} style={[estilos.exercicio, { borderColor: cores.borda }]}>
               <View style={[estilos.cabecalho, { backgroundColor: cores.superficie2 }]}>
-                <Texto style={estilos.nomeExercicio}>{e.nome}</Texto>
-                <Texto variante="pequeno">
+                <Texto numerico style={estilos.nomeExercicio}>{e.nome}</Texto>
+                <Texto numerico variante="pequeno">
                   {e.linhas.length} {e.linhas.length === 1 ? 'sessão' : 'sessões'}
                 </Texto>
               </View>
               <View style={[estilos.linha, { borderColor: cores.borda }]}>
-                <Texto variante="secao" style={estilos.colData}>Data</Texto>
-                <Texto variante="secao" style={estilos.colCarga}>Carga</Texto>
-                <Texto variante="secao" style={estilos.col}>Reps</Texto>
-                <Texto variante="secao" style={estilos.col}>Séries</Texto>
+                <Texto numerico variante="secao" style={estilos.colData}>Data</Texto>
+                <Texto numerico variante="secao" style={estilos.colCarga}>Carga</Texto>
+                <Texto numerico variante="secao" style={estilos.col}>Reps</Texto>
+                <Texto numerico variante="secao" style={estilos.col}>Séries</Texto>
               </View>
               {[...e.linhas].reverse().map((l, i) => (
                 <View key={`${l.data}-${i}`} style={[estilos.linha, { borderColor: cores.borda }]}>
                   <View style={estilos.celulas}>
-                    <Texto style={[estilos.colData, estilos.forte]}>{dataParaTela(l.data)}</Texto>
-                    <Texto style={[estilos.colCarga, estilos.carga, l.carga !== null && { color: marca }]}>{textoCarga(l)}</Texto>
-                    <Texto style={estilos.col}>{l.repeticoes ?? '—'}</Texto>
-                    <Texto variante="suave" style={estilos.col}>{l.series}</Texto>
+                    <Texto numerico style={[estilos.colData, estilos.forte]}>{dataParaTela(l.data)}</Texto>
+                    <Texto numerico style={[estilos.colCarga, estilos.carga, l.carga !== null && { color: marca }]}>{textoCarga(l)}</Texto>
+                    <Texto numerico style={estilos.col}>{l.repeticoes ?? '—'}</Texto>
+                    <Texto numerico cor="suave" style={estilos.col}>{l.series}</Texto>
                   </View>
                   {l.observacoes.length ? (
                     <View style={[estilos.obs, { borderLeftColor: cores.atencao }]}>
-                      <Texto variante="suave" style={estilos.obsTexto}>{l.observacoes.join(' · ')}</Texto>
+                      <Texto numerico cor="suave" style={estilos.obsTexto}>{l.observacoes.join(' · ')}</Texto>
                     </View>
                   ) : null}
                 </View>

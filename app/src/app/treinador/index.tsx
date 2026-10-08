@@ -37,11 +37,11 @@ export default function InicioTreinador() {
       {dados ? (
         <View style={estilos.grade}>
           <Cartao titulo="Alunos ativos" style={estilos.metade}>
-            <Texto style={estilos.numero}>{dados.alunosAtivos}</Texto>
+            <Texto variante="destaque" numerico>{dados.alunosAtivos}</Texto>
             <Botao rotulo="Ver alunos" tipo="secundario" aoTocar={() => router.push('/treinador/alunos')} />
           </Cartao>
           <Cartao titulo="Planos terminando em 7 dias" style={estilos.metade}>
-            {dados.planosTerminando.length === 0 ? <Texto variante="suave">Nenhum.</Texto> : null}
+            {dados.planosTerminando.length === 0 ? <Texto cor="suave">Nenhum.</Texto> : null}
             {dados.planosTerminando.map((p) => (
               <Linha
                 key={p.plano.id}
@@ -54,7 +54,7 @@ export default function InicioTreinador() {
           </Cartao>
           <Cartao titulo="Sem registro há 7 dias" style={estilos.metade}>
             <Texto variante="pequeno">Pode ter treinado sem registrar no app.</Texto>
-            {dados.alunosSemRegistro7Dias.length === 0 ? <Texto variante="suave">Ninguém.</Texto> : null}
+            {dados.alunosSemRegistro7Dias.length === 0 ? <Texto cor="suave">Ninguém.</Texto> : null}
             {dados.alunosSemRegistro7Dias.map((a) => (
               <Linha
                 key={a.id}
@@ -66,7 +66,7 @@ export default function InicioTreinador() {
             ))}
           </Cartao>
           <Cartao titulo="Últimos registros" style={estilos.metade}>
-            {dados.ultimasExecucoes.length === 0 ? <Texto variante="suave">Nenhum registro ainda.</Texto> : null}
+            {dados.ultimasExecucoes.length === 0 ? <Texto cor="suave">Nenhum registro ainda.</Texto> : null}
             {[...dados.ultimasExecucoes].sort((a, b) => b.data.localeCompare(a.data)).map((e, i) => (
               <Linha
                 key={`${e.aluno.id}:${e.data}:${i}`}
@@ -90,9 +90,9 @@ function Linha({ titulo, detalhe, aoTocar, rotulo }: { titulo: string; detalhe: 
       accessibilityRole="link"
       accessibilityLabel={rotulo}
       onPress={aoTocar}
-      style={({ pressed }) => [estilos.linha, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie2 : 'transparent' }]}>
+      style={({ pressed }) => [estilos.linha, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : 'transparent' }]}>
       <Texto style={estilos.tituloLinha}>{titulo}</Texto>
-      <Texto variante="suave">{detalhe}</Texto>
+      <Texto cor="suave">{detalhe}</Texto>
     </Pressable>
   );
 }
@@ -101,7 +101,6 @@ const estilos = StyleSheet.create({
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   // Duas colunas no PC; no celular cada cartão ocupa a largura (encolhe abaixo da base).
   metade: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
-  numero: { fontFamily: fontes.negrito, fontSize: 40, lineHeight: 48 },
   linha: { borderTopWidth: 1, paddingVertical: espaco(1), gap: 2, borderRadius: RAIO, minHeight: 44 },
   tituloLinha: { fontFamily: fontes.semi },
 });
