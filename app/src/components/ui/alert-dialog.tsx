@@ -59,7 +59,7 @@ function AlertDialogContent({
   return (
     <AlertDialogPortal hostName={portalHost}>
       <AlertDialogOverlay>
-        <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Fechar confirmaÃ§Ã£o" onPress={aoFechar} />
+        <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Fechar confirmação" onPress={aoFechar} />
         <AlertDialogPrimitive.Content
           className={cn(
             'bg-background border-border z-50 flex flex-col gap-4 rounded-md border p-6 sm:max-w-lg',
