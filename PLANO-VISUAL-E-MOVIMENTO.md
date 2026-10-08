@@ -17,11 +17,16 @@ Documento de trabalho para quem for implementar (pessoa ou agente de IA, por exe
 | Parte | Quando | O quê | Risco |
 |---|---|---|---|
 | **A** | **Antes da demonstração de domingo (11/10)** | Acabamento visual sem trocar a base de estilo + 3 micro-animações (marcar série, lista em cascata, selo de sincronização) + vibração | Baixo |
-| **B** | **Depois da demonstração** | Teste de compatibilidade e adoção do **React Native Reusables** (shadcn/ui para React Native) com NativeWind, de forma gradual | Médio |
+| **B** | **Logo depois da A, também antes de domingo** (decisão do Gustavo, 08/10) | Teste de compatibilidade e adoção do **React Native Reusables** (shadcn/ui para React Native) com NativeWind, de forma gradual | Médio |
 | **C** | Depois da B | Movimentos restantes: cronômetro de descanso, transição do "Treino de hoje", números que rolam, esqueleto, folha com arraste, anel da semana | Médio |
 
-**Regra de ouro: nada da Parte B entra na branch antes da demonstração.** Trocar a base de estilo do app inteiro
-dois dias antes de mostrar ao Saraiva é o tipo de risco que não compensa. A Parte A já dá a cara "fluida" que se quer.
+**Regra de ouro: a demonstração de domingo não pode quebrar.** Por isso:
+1. Terminada a Parte A (verificada e enviada), criar a etiqueta `git tag demo-parte-a` e enviar (`git push origin
+   demo-parte-a`). É o ponto seguro: se a B não ficar pronta ou der problema, o Gustavo faz a demonstração a partir dela.
+2. A Parte B é feita numa branch separada (`visual/rnr`, saída da branch de trabalho) e só é juntada na branch de
+   trabalho quando **todos** os critérios da B1 e da B5 passarem, incluindo o ensaio do roteiro da demonstração (B5).
+3. Se até sábado 18h a B não estiver completa e aprovada, **não juntar**: deixar a `visual/rnr` enviada para continuar
+   depois e avisar o Gustavo. Parte pronta pela metade não entra.
 
 ---
 
@@ -158,7 +163,7 @@ No botão ✓ de `ExercicioAluno`:
 
 ---
 
-## 4. Parte B — React Native Reusables (depois da demonstração)
+## 4. Parte B — React Native Reusables (logo depois da A; ver a regra de ouro na seção 0)
 
 React Native Reusables (RNR, `founded-labs/react-native-reusables`, documentação em reactnativereusables.com) é o
 shadcn/ui para React Native: componentes **copiados para dentro do repositório** (não é dependência fechada), sobre
@@ -171,7 +176,7 @@ Tailwind 3); NativeWind **v5** está em release candidate, feita para exatamente
 React 19.2.3, Reanimated 4.5.1, Worklets 0.10.1) e exige Tailwind 4; **Uniwind** (Tailwind 4, sem preset do Babel)
 também é suportado pelo RNR. Não presumir: testar.
 
-1. Criar branch temporária `teste/rnr-nativewind` a partir da branch de trabalho.
+1. Criar a branch `visual/rnr` a partir da branch de trabalho, **depois** da etiqueta `demo-parte-a`.
 2. Conferir no npm e na documentação do RNR qual base ele recomenda **hoje** para Expo 57 e qual a versão estável de
    cada uma (`npm view nativewind dist-tags`, `npm view uniwind dist-tags`).
 3. Ordem de tentativa: (a) **NativeWind estável** (se suportar Reanimated 4 + RN 0.86); (b) **Uniwind** estável;
@@ -233,6 +238,9 @@ Uma troca por commit, com verificação completa e prints antes/depois (Playwrig
 ### B5. Pronto quando
 
 Todos os `ui/` da tabela trocados; nenhuma tela mudou de comportamento; testes, lint, typecheck, exports e CSP ok;
+**roteiro da demonstração do `README.md` ensaiado do zero** (`docker compose down -v && docker compose up -d --build`,
+web nos dois temas e com as duas consultorias, e o Gustavo conferindo no celular pelo Expo Go); só então juntar a
+`visual/rnr` na branch de trabalho;
 marca e tema mudam em tempo de execução; `AGENTS.md` atualizado (base de estilo escolhida, onde ficam os componentes do
 RNR, regra "tokens.ts é a fonte; global.css espelha").
 
