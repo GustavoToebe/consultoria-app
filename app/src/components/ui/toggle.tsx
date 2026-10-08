@@ -1,3 +1,4 @@
+import { estiloPrimitivo } from '@/lib/estiloPrimitivo';
 import { Icon } from '@/components/ui/icon';
 import { TextClassContext } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
@@ -59,7 +60,7 @@ function Toggle({
           props.pressed && 'bg-accent',
           className
         )}
-        {...props}
+        {...props} style={estiloPrimitivo(props.style)}
       />
     </TextClassContext.Provider>
   );
@@ -67,7 +68,7 @@ function Toggle({
 
 function ToggleIcon({ className, ...props }: React.ComponentProps<typeof Icon>) {
   const textClass = React.useContext(TextClassContext);
-  return <Icon className={cn('size-4 shrink-0', textClass, className)} {...props} />;
+  return <Icon className={cn('size-4 shrink-0', textClass, className)} {...props} style={estiloPrimitivo(props.style)} />;
 }
 
 export { Toggle, ToggleIcon, toggleVariants };

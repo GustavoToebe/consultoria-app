@@ -1,3 +1,4 @@
+import { estiloPrimitivo } from '@/lib/estiloPrimitivo';
 import { TextClassContext } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
 import * as TabsPrimitive from '@rn-primitives/tabs';
@@ -7,7 +8,7 @@ function Tabs({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Root>) {
-  return <TabsPrimitive.Root className={cn('flex flex-col gap-2', className)} {...props} />;
+  return <TabsPrimitive.Root className={cn('flex flex-col gap-2', className)} {...props} style={estiloPrimitivo(props.style)} />;
 }
 
 function TabsList({
@@ -21,7 +22,7 @@ function TabsList({
         Platform.select({ web: 'inline-flex w-fit', native: 'mr-auto' }),
         className
       )}
-      {...props}
+      {...props} style={estiloPrimitivo(props.style)}
     />
   );
 }
@@ -47,7 +48,7 @@ function TabsTrigger({
           props.value === value && 'bg-background dark:border-foreground/10 dark:bg-input/30',
           className
         )}
-        {...props}
+        {...props} style={estiloPrimitivo(props.style)}
       />
     </TextClassContext.Provider>
   );
@@ -60,7 +61,7 @@ function TabsContent({
   return (
     <TabsPrimitive.Content
       className={cn(Platform.select({ web: 'flex-1 outline-none' }), className)}
-      {...props}
+      {...props} style={estiloPrimitivo(props.style)}
     />
   );
 }

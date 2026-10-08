@@ -1,3 +1,4 @@
+import { estiloPrimitivo } from '@/lib/estiloPrimitivo';
 import { buttonTextVariants, buttonVariants } from '@/components/ui/button';
 import { NativeOnlyAnimatedView } from '@/components/ui/native-only-animated-view';
 import { TextClassContext } from '@/components/ui/text';
@@ -33,7 +34,7 @@ function AlertDialogOverlay({
           }),
           className
         )}
-        {...props}
+        {...props} style={estiloPrimitivo(props.style)}
         asChild={Platform.OS !== 'web'}>
         <NativeOnlyAnimatedView
           entering={FadeIn.duration(200).delay(50).reduceMotion(ReduceMotion.System)}
@@ -67,7 +68,7 @@ function AlertDialogContent({
             }),
             className
           )}
-          {...props}
+          {...props} style={estiloPrimitivo(props.style)}
         />
       </AlertDialogOverlay>
     </AlertDialogPortal>
@@ -77,7 +78,7 @@ function AlertDialogContent({
 function AlertDialogHeader({ className, ...props }: ViewProps) {
   return (
     <TextClassContext.Provider value="text-center sm:text-left">
-      <View className={cn('flex flex-col gap-2', className)} {...props} />
+      <View className={cn('flex flex-col gap-2', className)} {...props} style={estiloPrimitivo(props.style)} />
     </TextClassContext.Provider>
   );
 }
@@ -86,7 +87,7 @@ function AlertDialogFooter({ className, ...props }: ViewProps) {
   return (
     <View
       className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
-      {...props}
+      {...props} style={estiloPrimitivo(props.style)}
     />
   );
 }
@@ -98,7 +99,7 @@ function AlertDialogTitle({
   return (
     <AlertDialogPrimitive.Title
       className={cn('text-foreground text-lg font-semibold', className)}
-      {...props}
+      {...props} style={estiloPrimitivo(props.style)}
     />
   );
 }
@@ -110,7 +111,7 @@ function AlertDialogDescription({
   return (
     <AlertDialogPrimitive.Description
       className={cn('text-muted-foreground text-sm', className)}
-      {...props}
+      {...props} style={estiloPrimitivo(props.style)}
     />
   );
 }
@@ -121,7 +122,7 @@ function AlertDialogAction({
 }: React.ComponentProps<typeof AlertDialogPrimitive.Action>) {
   return (
     <TextClassContext.Provider value={buttonTextVariants({ className })}>
-      <AlertDialogPrimitive.Action className={cn(buttonVariants(), className)} {...props} />
+      <AlertDialogPrimitive.Action className={cn(buttonVariants(), className)} {...props} style={estiloPrimitivo(props.style)} />
     </TextClassContext.Provider>
   );
 }
@@ -134,7 +135,7 @@ function AlertDialogCancel({
     <TextClassContext.Provider value={buttonTextVariants({ className, variant: 'outline' })}>
       <AlertDialogPrimitive.Cancel
         className={cn(buttonVariants({ variant: 'outline' }), className)}
-        {...props}
+        {...props} style={estiloPrimitivo(props.style)}
       />
     </TextClassContext.Provider>
   );

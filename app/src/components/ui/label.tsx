@@ -1,3 +1,4 @@
+import { estiloPrimitivo } from '@/lib/estiloPrimitivo';
 import { cn } from '@/lib/utils';
 import * as LabelPrimitive from '@rn-primitives/label';
 import { Platform } from 'react-native';
@@ -31,7 +32,7 @@ function Label({
           Platform.select({ web: 'leading-none' }),
           className
         )}
-        {...props}
+        {...props} style={estiloPrimitivo(props.style)}
       />
     </LabelPrimitive.Root>
   );

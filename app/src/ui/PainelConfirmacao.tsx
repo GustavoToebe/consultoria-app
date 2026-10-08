@@ -1,11 +1,12 @@
-import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { ESTILOS_TEXTO } from './tipografia';
-import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useRef, type ReactNode } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from './Botao';
+import { Texto } from './Texto';
 
 interface Props {
   visivel: boolean;
@@ -25,14 +26,17 @@ interface Props {
  */
 export function PainelConfirmacao(props: Props) {
   const { cores } = useTema();
+  const focoAnterior = useRef<HTMLElement | null>(null);
   return (
-    <AlertDialog open={props.visivel} onOpenChange={(aberto) => { if (!aberto) props.aoCancelar(); }}>
-      <AlertDialogContent aoFechar={props.aoCancelar} style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+    <AlertDialog style={{position:'absolute'}} open={props.visivel} onOpenChange={(aberto) => { if (!aberto) props.aoCancelar(); }}>
+      <AlertDialogContent aoFechar={props.aoCancelar}
+        onOpenAutoFocus={() => { if (Platform.OS === 'web') focoAnterior.current = document.activeElement as HTMLElement; }}
+        onCloseAutoFocus={evento => { if (Platform.OS === 'web' && focoAnterior.current?.isConnected) { evento.preventDefault(); focoAnterior.current.focus(); } }} style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           <AlertDialogTitle style={[ESTILOS_TEXTO.subtitulo, {color:cores.texto}]}>{props.titulo}</AlertDialogTitle>
           {props.mensagem ? <AlertDialogDescription style={[ESTILOS_TEXTO.suave, {color:cores.textoSuave}]}>{props.mensagem}</AlertDialogDescription> : null}
           {props.children}
           <View style={estilos.botoes}>
-            <Botao rotulo={props.rotuloCancelar ?? 'Cancelar'} tipo="secundario" aoTocar={props.aoCancelar} />
+            <AlertDialogCancel style={{minHeight:44,borderRadius:8,borderWidth:1,borderColor:cores.borda,paddingHorizontal:16,alignItems:'center',justifyContent:'center'}}><Texto style={{fontFamily:'Inter_600SemiBold'}}>{props.rotuloCancelar ?? 'Cancelar'}</Texto></AlertDialogCancel>
             <Botao
               rotulo={props.rotuloConfirmar}
               tipo={props.perigo ? 'perigo' : 'primario'}

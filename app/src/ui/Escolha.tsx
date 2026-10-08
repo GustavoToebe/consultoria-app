@@ -25,7 +25,7 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
   return (
     <View style={estilos.campo}>
       {rotulo ? <Texto variante="pequeno" style={estilos.rotulo}>{rotulo}</Texto> : null}
-      <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { const opcao = v === undefined ? undefined : opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={estilos.linha} accessibilityLabel={rotulo ?? descricao}>
+      <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { const opcao = v === undefined || v === '' ? undefined : opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={estilos.linha} accessibilityLabel={rotulo ?? descricao}>
         {opcoes.map((o, indice) => {
           const ativo = o.valor === valor;
           return (
@@ -33,12 +33,11 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
               key={String(o.valor)}
               accessibilityLabel={o.rotulo}
               accessibilityState={{ checked: ativo }}
-              style={({ pressed }) => [
+              style={[
                 estilos.opcao,
                 {
                   backgroundColor: ativo ? marca : cores.superficie2,
                   borderColor: ativo ? marca : cores.borda,
-                  opacity: pressed ? 0.8 : 1,
                 },
               ]}>
               <Texto style={[estilos.texto, { color: ativo ? sobreMarca : cores.texto }]}>{o.rotulo}</Texto>
