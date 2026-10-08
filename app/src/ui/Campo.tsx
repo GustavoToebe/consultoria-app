@@ -1,5 +1,8 @@
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { ESTILOS_TEXTO } from './tipografia';
 import { useState } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { StyleSheet, View, type TextInputProps } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
@@ -22,8 +25,8 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, .
   const corBorda = erro ? cores.perigo : foco ? marca : cores.borda;
   return (
     <View style={estilos.campo}>
-      <Texto variante="pequeno" style={estilos.rotulo}>{rotulo}</Texto>
-      <TextInput
+      <Label style={[ESTILOS_TEXTO.pequeno, estilos.rotulo, { color: cores.textoSuave }]}>{rotulo}</Label>
+      <Input
         {...resto}
         accessibilityLabel={rotulo}
         value={valor}
@@ -73,3 +76,4 @@ const estilos = StyleSheet.create({
     fontSize: 16,
   },
 });
+
