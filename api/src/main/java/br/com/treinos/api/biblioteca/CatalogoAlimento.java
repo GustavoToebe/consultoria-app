@@ -43,6 +43,17 @@ public class CatalogoAlimento {
     @Column(nullable = false)
     private String fonte;
 
+    private String grupo;
+
+    @Column(name = "codigo_fonte")
+    private String codigoFonte;
+
+    /** Nutrientes que a fonte marca como traço ({@code Tr}), gravados como 0: ex. {@code gordura,carboidrato}. */
+    private String tracos;
+
+    @Column(name = "nome_busca", nullable = false)
+    private String nomeBusca;
+
     protected CatalogoAlimento() {
     }
 
@@ -84,5 +95,21 @@ public class CatalogoAlimento {
 
     public String getFonte() {
         return fonte;
+    }
+
+    public String getGrupo() {
+        return grupo;
+    }
+
+    public String getCodigoFonte() {
+        return codigoFonte;
+    }
+
+    public String getTracos() {
+        return tracos;
+    }
+
+    public String getNomeBusca() {
+        return nomeBusca;
     }
 }

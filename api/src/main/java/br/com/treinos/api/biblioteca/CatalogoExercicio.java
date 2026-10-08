@@ -26,6 +26,13 @@ public class CatalogoExercicio {
     @Column(nullable = false)
     private String modalidade;
 
+    private String instrucoes;
+
+    private String fonte;
+
+    @Column(name = "nome_busca", nullable = false)
+    private String nomeBusca;
+
     protected CatalogoExercicio() {
     }
 
@@ -47,5 +54,17 @@ public class CatalogoExercicio {
 
     public String getModalidade() {
         return modalidade;
+    }
+
+    public String getInstrucoes() {
+        return instrucoes;
+    }
+
+    public String getFonte() {
+        return fonte;
+    }
+
+    public String getNomeBusca() {
+        return nomeBusca;
     }
 }

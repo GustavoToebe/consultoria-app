@@ -64,8 +64,8 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void importarDoCatalogoIgnoraOQueJaExiste() throws Exception {
-        JsonNode catalogo = api.get("/catalogo/exercicios?busca=remada", treinador, 200);
-        assertThat(catalogo.size()).isGreaterThanOrEqualTo(4);
+        JsonNode catalogo = api.get("/catalogo/exercicios?busca=remada&limite=6", treinador, 200).get("itens");
+        assertThat(catalogo.size()).isEqualTo(6);
         List<String> ids = catalogo.valueStream().map(c -> c.get("id").asString()).toList();
         JsonNode primeiro = api.post("/exercicios/importar-catalogo", treinador, Map.of("ids", ids), 200);
         assertThat(primeiro.get("importados").asInt()).isEqualTo(ids.size());
@@ -73,12 +73,67 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(segundo.get("importados").asInt()).isZero();
         assertThat(segundo.get("ignorados").asInt()).isEqualTo(ids.size());
 
-        JsonNode alimentos = api.get("/catalogo/alimentos?busca=arroz", treinador, 200);
+        JsonNode alimentos = api.get("/catalogo/alimentos?busca=arroz", treinador, 200).get("itens");
         assertThat(alimentos.size()).isGreaterThanOrEqualTo(6);
         assertThat(alimentos.get(0).get("fonte").asString()).contains("TACO");
         api.post("/alimentos/importar-catalogo", treinador,
                 Map.of("ids", List.of(alimentos.get(0).get("id").asString())), 200);
         assertThat(api.get("/alimentos", treinador, 200)).hasSize(1);
+    }
+
+    @Test
+    void buscaDoCatalogoIgnoraAcentoEMostraOTotal() throws Exception {
+        JsonNode feijao = api.get("/catalogo/alimentos?busca=feijao&limite=5", treinador, 200);
+        assertThat(feijao.get("itens")).hasSize(5);
+        assertThat(feijao.get("total").asInt()).isGreaterThan(5);
+        assertThat(feijao.get("itens").valueStream().map(a -> a.get("nome").asString()))
+                .allMatch(n -> n.toLowerCase().contains("feij"));
+        // Com ou sem acento, maiúsculas ou espaços sobrando: mesmo resultado.
+        assertThat(api.get("/catalogo/alimentos?busca= FEIJÃO ", treinador, 200).get("total").asInt())
+                .isEqualTo(api.get("/catalogo/alimentos?busca=feijao", treinador, 200).get("total").asInt());
+        assertThat(api.get("/catalogo/exercicios?busca=triceps", treinador, 200).get("total").asInt())
+                .isEqualTo(api.get("/catalogo/exercicios?busca=tríceps", treinador, 200).get("total").asInt())
+                .isGreaterThan(5);
+        // Curinga digitado é texto, não padrão; limite fora da faixa vira o mínimo/máximo.
+        assertThat(api.get("/catalogo/alimentos?busca=%25", treinador, 200).get("total").asInt()).isZero();
+        assertThat(api.get("/catalogo/alimentos?limite=0", treinador, 200).get("itens")).hasSize(1);
+        assertThat(api.get("/catalogo/alimentos?limite=5000", treinador, 200).get("itens")).hasSize(200);
+        assertThat(api.get("/catalogo/alimentos", treinador, 200).get("itens")).hasSize(50);
+    }
+
+    @Test
+    void catalogoFiltraPorGrupoEExpoeFonteETracos() throws Exception {
+        JsonNode grupos = api.get("/catalogo/alimentos/grupos", treinador, 200);
+        assertThat(grupos.valueStream().map(JsonNode::asString)).contains("Cereais e derivados", "Carnes e derivados");
+        JsonNode cereais = api.get("/catalogo/alimentos?grupo=Cereais e derivados&limite=200", treinador, 200);
+        assertThat(cereais.get("itens").valueStream().map(a -> a.get("grupo").asString()))
+                .containsOnly("Cereais e derivados");
+        JsonNode arroz = api.get("/catalogo/alimentos?busca=arroz&grupo=Cereais e derivados", treinador, 200);
+        assertThat(arroz.get("total").asInt()).isLessThanOrEqualTo(cereais.get("total").asInt());
+        assertThat(api.get("/catalogo/alimentos?grupo=Inexistente", treinador, 200).get("total").asInt()).isZero();
+
+        JsonNode comTraco = api.get("/catalogo/alimentos?busca=cerveja&limite=200", treinador, 200).get("itens");
+        assertThat(comTraco.valueStream().anyMatch(a -> a.get("tracos").size() > 0)).isTrue();
+        assertThat(comTraco.get(0).get("codigoFonte").asString()).isNotBlank();
+
+        assertThat(api.get("/catalogo/exercicios/grupos", treinador, 200).valueStream().map(JsonNode::asString))
+                .contains("Peito", "Costas", "Quadríceps");
+        JsonNode peito = api.get("/catalogo/exercicios?grupo=Peito&modalidade=MAQUINA&limite=200", treinador, 200);
+        assertThat(peito.get("total").asInt()).isGreaterThan(0);
+        assertThat(peito.get("itens").valueStream().map(e -> e.get("modalidade").asString()))
+                .containsOnly("MAQUINA");
+        JsonNode agachamento = api.get("/catalogo/exercicios?busca=agachamento bulgaro", treinador, 200).get("itens");
+        assertThat(agachamento.size()).isGreaterThan(0);
+        assertThat(agachamento.get(0).get("instrucoes").asString()).isNotBlank();
+        assertThat(agachamento.get(0).get("fonte").asString()).contains("exercicios-bd-ptbr");
+    }
+
+    @Test
+    void catalogoExigeTreinador() throws Exception {
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/catalogo/alimentos"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/catalogo/exercicios/grupos"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

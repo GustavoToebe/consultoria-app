@@ -61,20 +61,29 @@ public final class BibliotecaDtos {
     }
 
     public record CatalogoExercicioResponse(UUID id, String nome, String grupoMuscular, String equipamento,
-                                            String modalidade) {
+                                            String modalidade, String instrucoes, String fonte) {
         public static CatalogoExercicioResponse de(CatalogoExercicio c) {
             return new CatalogoExercicioResponse(c.getId(), c.getNome(), c.getGrupoMuscular(), c.getEquipamento(),
-                    c.getModalidade());
+                    c.getModalidade(), c.getInstrucoes(), c.getFonte());
         }
     }
 
+    /** {@code tracos}: nutrientes que a fonte marca como traço ({@code Tr}); o valor vem 0 e a tela mostra "Tr". */
     public record CatalogoAlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                            BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato,
-                                           BigDecimal gordura, String fonte) {
+                                           BigDecimal gordura, String fonte, String grupo, String codigoFonte,
+                                           List<String> tracos) {
         public static CatalogoAlimentoResponse de(CatalogoAlimento c) {
+            List<String> tracos = c.getTracos() == null || c.getTracos().isBlank()
+                    ? List.of() : List.of(c.getTracos().split(","));
             return new CatalogoAlimentoResponse(c.getId(), c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
-                    c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFonte());
+                    c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFonte(), c.getGrupo(),
+                    c.getCodigoFonte(), tracos);
         }
+    }
+
+    /** Uma página do catálogo: {@code total} é quantos itens casaram com a busca, não só os de {@code itens}. */
+    public record CatalogoPagina<T>(List<T> itens, long total) {
     }
 
     public record ImportarCatalogoRequest(@NotNull @Size(min = 1, max = 200) List<@NotNull UUID> ids) {

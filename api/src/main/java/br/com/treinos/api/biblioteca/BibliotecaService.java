@@ -4,6 +4,7 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.AlimentoRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.AlimentoResponse;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.CatalogoAlimentoResponse;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.CatalogoExercicioResponse;
+import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.CatalogoPagina;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioResponse;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
@@ -11,6 +12,9 @@ import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.VideoUrls;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +29,8 @@ import java.util.UUID;
 public class BibliotecaService {
 
     private static final UUID NENHUM = new UUID(0L, 0L);
+    private static final int LIMITE_PADRAO = 50;
+    private static final int LIMITE_MAXIMO = 200;
 
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
@@ -75,8 +81,22 @@ public class BibliotecaService {
     }
 
     @Transactional(readOnly = true)
-    public List<CatalogoExercicioResponse> catalogoExercicios(String busca) {
-        return catalogoExercicios.buscar(Buscas.padrao(busca)).stream().map(CatalogoExercicioResponse::de).toList();
+    public CatalogoPagina<CatalogoExercicioResponse> catalogoExercicios(String busca, String grupo,
+                                                                         String modalidade, Integer limite) {
+        Page<CatalogoExercicio> pagina = catalogoExercicios.buscar(Buscas.padraoSemAcento(busca),
+                Buscas.opcional(grupo), Buscas.opcional(modalidade), primeiraPagina(limite));
+        return new CatalogoPagina<>(pagina.map(CatalogoExercicioResponse::de).getContent(), pagina.getTotalElements());
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> gruposDoCatalogoDeExercicios() {
+        return catalogoExercicios.grupos();
+    }
+
+    /** Limite padrão 50 e máximo 200 (o catálogo tem mais de mil itens). */
+    private static Pageable primeiraPagina(Integer limite) {
+        int tamanho = limite == null ? LIMITE_PADRAO : Math.max(1, Math.min(limite, LIMITE_MAXIMO));
+        return PageRequest.of(0, tamanho);
     }
 
     /** Copia do catálogo para a biblioteca; nome que já existe (ignorando maiúsculas) fica de fora. */
@@ -126,8 +146,15 @@ public class BibliotecaService {
     }
 
     @Transactional(readOnly = true)
-    public List<CatalogoAlimentoResponse> catalogoAlimentos(String busca) {
-        return catalogoAlimentos.buscar(Buscas.padrao(busca)).stream().map(CatalogoAlimentoResponse::de).toList();
+    public CatalogoPagina<CatalogoAlimentoResponse> catalogoAlimentos(String busca, String grupo, Integer limite) {
+        Page<CatalogoAlimento> pagina = catalogoAlimentos.buscar(Buscas.padraoSemAcento(busca),
+                Buscas.opcional(grupo), primeiraPagina(limite));
+        return new CatalogoPagina<>(pagina.map(CatalogoAlimentoResponse::de).getContent(), pagina.getTotalElements());
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> gruposDoCatalogoDeAlimentos() {
+        return catalogoAlimentos.grupos();
     }
 
     @Transactional
