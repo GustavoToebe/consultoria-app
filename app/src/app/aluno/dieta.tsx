@@ -21,6 +21,7 @@ import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
+import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
@@ -115,13 +116,12 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
         </Texto>
       </Cartao>
+      <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+        <TotaisAnimados totais={totalDoDia(c)} />
+      </Cartao>
       {c.refeicoes.map((r) => (
         <CartaoRefeicaoAluno key={r.uid} refeicao={r} />
       ))}
-      <View style={[estilos.total, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
-        <Texto numerico variante="secao">Total do dia (opção A de cada refeição)</Texto>
-        <TotaisAnimados totais={totalDoDia(c)} />
-      </View>
       {c.orientacoes.length ? (
         <Cartao titulo="Orientações">
           {c.orientacoes.map((o, i) => (
@@ -160,7 +160,13 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
   const [ativa, setAtiva] = useState(0);
   const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
   return (
-    <Cartao titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`}>
+    <Cartao
+      cabecalho={
+        <CabecalhoDeGrupo
+          titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`}
+          acoes={<Texto numerico style={estilos.forte}>{somarKcal(refeicao)}</Texto>}
+        />
+      }>
       {refeicao.observacao ? <Texto numerico variante="suave">{refeicao.observacao}</Texto> : null}
       {refeicao.opcoes.length > 1 ? (
         <Abas
@@ -180,6 +186,12 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
       {opcao ? <Texto numerico style={estilos.forte}>Total: {textoTotais(somar(opcao.itens))}</Texto> : null}
     </Cartao>
   );
+}
+
+/** Kcal da opção A da refeição ("—" quando falta valor; nada é inventado). */
+function somarKcal(r: Refeicao): string {
+  const kcal = somar(r.opcoes[0]?.itens ?? []).kcal;
+  return `${kcal === null ? '—' : numeroParaTela(kcal, 0)} kcal`;
 }
 
 const estilos = StyleSheet.create({

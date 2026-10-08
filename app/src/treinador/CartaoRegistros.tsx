@@ -12,6 +12,7 @@ import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
+import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -101,10 +102,9 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
 export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.dia, { borderColor: cores.borda }]}>
-      <Texto numerico style={estilos.dataDia}>{dataParaTela(dia.data)}</Texto>
+    <Cartao cabecalho={<CabecalhoDeGrupo titulo={dataParaTela(dia.data)} resumo={`${dia.sessoes.length} ${dia.sessoes.length === 1 ? 'sessão' : 'sessões'}`} />}>
       {dia.sessoes.map((s) => (
-        <View key={`${s.planoVersaoId}:${s.sessaoUid}`} style={estilos.sessao}>
+        <View key={`${s.planoVersaoId}:${s.sessaoUid}`} style={[estilos.sessao, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
           <Texto numerico variante="secao">{s.sessao}</Texto>
           {s.exercicios.map((e) => (
             <View key={e.exercicioUid} style={estilos.exercicio}>
@@ -114,7 +114,7 @@ export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
           ))}
         </View>
       ))}
-    </View>
+    </Cartao>
   );
 }
 
@@ -164,7 +164,7 @@ const estilos = StyleSheet.create({
   filtros: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   dia: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(1) },
   dataDia: { fontFamily: fontes.semi },
-  sessao: { gap: espaco(0.75) },
+  sessao: { gap: espaco(0.75), borderWidth: 1, borderRadius: 8, padding: espaco(1.5) },
   exercicio: { gap: 2 },
   nomeExercicio: { fontFamily: fontes.semi, fontSize: 14 },
   tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },

@@ -61,7 +61,7 @@ export default function SessaoAluno() {
         acoes={<SeloSincronizacao />}
       />
       </Animated.View>
-      <View style={estilos.resumo}>
+      <Cartao>
         <View style={estilos.linhaResumo}>
           <Selo texto={data === hoje ? `Hoje · ${dataParaTela(data)}` : dataParaTela(data)} tipo="neutro" />
           <Texto variante="pequeno">
@@ -70,7 +70,7 @@ export default function SessaoAluno() {
         </View>
         <BarraProgresso feitas={feitas} total={total} />
         {data !== hoje ? <Texto variante="pequeno">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
-      </View>
+      </Cartao>
       {sessao.cardio || sessao.observacao ? (
         <Cartao>
           {sessao.cardio ? <Texto>Cardio: {sessao.cardio}</Texto> : null}
@@ -101,6 +101,5 @@ export default function SessaoAluno() {
 }
 
 const estilos = StyleSheet.create({
-  resumo: { gap: espaco(1) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

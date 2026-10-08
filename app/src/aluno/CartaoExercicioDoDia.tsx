@@ -47,7 +47,7 @@ export function CartaoExercicioDoDia({
       onPress={aoAbrir}
       style={({ pressed }) => [
         estilos.cartao,
-        { backgroundColor: pressed ? cores.superficie3 : cores.superficie, borderColor: completo ? cores.sucesso : cores.borda },
+        { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: completo ? cores.sucesso : cores.borda },
       ]}>
       <View style={estilos.topo}>
         <View style={estilos.nomes}>

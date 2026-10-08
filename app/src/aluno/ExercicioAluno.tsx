@@ -1,6 +1,6 @@
-import { NumeroAnimado } from '../ui/NumeroAnimado';
+import { Cartao } from '../ui/Cartao';
 import { PlayCircle } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -36,6 +36,8 @@ interface Props {
   config: { arredondamentoKg: number; tipoTrabalho: string };
   aoMudarCargaDoDia: (carga: number | null) => void;
   aoRegistrar: (serieUid: string, dados: DadosSerie) => void;
+  /** Ao lado do botão de vídeo, cada um com metade da largura (o descanso). */
+  acaoAoLadoDoVideo?: ReactNode;
 }
 
 /**
@@ -61,16 +63,23 @@ export function ExercicioAluno(p: Props) {
   return (
     <View style={estilos.exercicio}>
       {e.observacao ? (
-        <View style={[estilos.obs, { backgroundColor: cores.superficie, borderLeftColor: cores.atencao }]}>
+        <Cartao style={{ borderColor: cores.atencao }}>
           <Texto numerico variante="suave" style={estilos.obsTexto}>{e.observacao}</Texto>
-        </View>
+        </Cartao>
       ) : null}
       {!e.progressao ? <Texto numerico style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
-      {videoValido(e.videoUrl) ? (
-        <Botao rotulo="Assistir vídeo de execução" tipo="secundario" Icone={PlayCircle} cheio aoTocar={abrirVideo} />
+      {videoValido(e.videoUrl) || p.acaoAoLadoDoVideo ? (
+        <View style={estilos.acoesRapidas}>
+          {videoValido(e.videoUrl) ? (
+            <View style={estilos.metade}>
+              <Botao rotulo="Vídeo" tipo="secundario" Icone={PlayCircle} cheio aoTocar={abrirVideo} />
+            </View>
+          ) : null}
+          {p.acaoAoLadoDoVideo ? <View style={estilos.metade}>{p.acaoAoLadoDoVideo}</View> : null}
+        </View>
       ) : null}
       {usaCargaDeTrabalho(e) ? (
-        <View style={[estilos.base, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+        <Cartao>
           <CampoNumericoGrande
             rotulo={`Carga de trabalho (${p.config.tipoTrabalho}) · ${dataCurta(p.data)}`}
             sufixo="kg"
@@ -83,7 +92,7 @@ export function ExercicioAluno(p: Props) {
               ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}`
               : 'Sem registro anterior: digite a carga que vai usar.'}
           </Texto>
-        </View>
+        </Cartao>
       ) : null}
       <View style={estilos.tituloSeries}>
         <Texto numerico variante="secao">Séries do plano</Texto>
@@ -133,7 +142,7 @@ function CartaoSerie({
   useEffect(() => {
     progresso.set(reduzido ? (feita ? 1 : 0) : withTiming(feita ? 1 : 0, { duration: feita ? 200 : 150 }));
   }, [feita, reduzido, progresso]);
-  const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie, `${cores.sucesso}29`]) }));
+  const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie2, `${cores.sucesso}29`]) }));
   const s = calculada.serie;
   const trabalho = s.intensidade?.modo === 'CARGA_TRABALHO';
 
@@ -173,6 +182,7 @@ function CartaoSerie({
             rotulo="Peso"
             rotuloAcessivel={`Peso da série ${indice + 1}`}
             sufixo="kg"
+            ajuda={!registro && cargaDigitada === undefined && calculada.sugestao !== null ? 'Sugerida pelo plano' : undefined}
             valor={carga}
             aoMudar={(v) => mudar({ carga: v })}
           />
@@ -188,7 +198,6 @@ function CartaoSerie({
         <BotaoMarcar feito={feita} ultimaDoExercicio={ultimaDoExercicio} rotulo={`Série ${indice + 1} ${s.tipo} feita`}
           aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })} />
       </View>
-      {!semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <View style={{flexDirection:'row',gap:8}}><Texto variante="pequeno">Carga sugerida:</Texto><NumeroAnimado valor={calculada.sugestao} casas={1} variante="pequeno" sufixo=" kg" /></View> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </Animated.View>
   );
@@ -196,10 +205,10 @@ function CartaoSerie({
 
 const estilos = StyleSheet.create({
   exercicio: { gap: espaco(1.5) },
-  obs: { borderLeftWidth: 3, borderRadius: RAIO, paddingVertical: espaco(1.25), paddingHorizontal: espaco(1.5) },
   obsTexto: { fontStyle: 'italic' },
   destaque: { fontFamily: fontes.semi },
-  base: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1) },
+  acoesRapidas: { flexDirection: 'row', gap: espaco(1) },
+  metade: { flex: 1, minWidth: 0 },
   tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: espaco(1), gap: espaco(1) },
   serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.75), gap: espaco(1.25) },
   cabecaSerie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },

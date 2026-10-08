@@ -133,6 +133,7 @@ export function CampoNumericoGrande({
   sufixo,
   rotuloAcessivel,
   destaque,
+  ajuda,
 }: {
   rotulo: string;
   valor: number | null;
@@ -143,6 +144,8 @@ export function CampoNumericoGrande({
   rotuloAcessivel?: string;
   /** Caixa maior (carga de trabalho do dia). */
   destaque?: boolean;
+  /** Linha pequena abaixo da caixa (ex.: "Sugerida pelo plano"). */
+  ajuda?: string;
 }) {
   const { cores, marca } = useTema();
   const [foco, setFoco] = useState(false);
@@ -170,6 +173,8 @@ export function CampoNumericoGrande({
       </View>
       {lido === undefined ? (
         <Texto variante="pequeno" cor={cores.perigo}>{inteiro ? 'Só números inteiros.' : 'Número inválido.'}</Texto>
+      ) : ajuda ? (
+        <Texto variante="pequeno">{ajuda}</Texto>
       ) : null}
     </View>
   );

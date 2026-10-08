@@ -21,7 +21,7 @@ export function BarraDescanso() {
  if (!descanso) return null;
  const ms=Math.min(descanso.duracaoMs,restante(descanso,agora)), segundos=Math.ceil(ms/1000);
  const tempo=`${Math.floor(segundos/60)}:${String(segundos%60).padStart(2,'0')}`;
- return <View style={[estilos.barra,{backgroundColor:cores.superficie,borderColor:cores.borda}]}>
+ return <View style={[estilos.barra,{backgroundColor:cores.superficie,borderColor:cores.bordaCampo}]}>
   <View style={estilos.linha}>
    <AnelProgresso tamanho={48} proporcao={descanso.duracaoMs ? ms/descanso.duracaoMs : 0} rotulo="Tempo de descanso restante" duracao={250} />
    <View style={{flex:1}}><Texto variante="pequeno">{ms===0?'Descanso terminado':'Descanso'}</Texto><Texto variante="destaque" accessibilityLabel={`${segundos} segundos restantes`}>{tempo}</Texto></View>

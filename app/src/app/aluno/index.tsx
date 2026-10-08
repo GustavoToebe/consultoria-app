@@ -104,16 +104,16 @@ export default function TreinoAluno() {
             <Texto variante="pequeno">Você está consultando outro plano. Para registrar séries, volte ao plano em uso.</Texto>
           ) : (
             <>
-              <ProgressoSemana hoje={hoje} />
               <CartaoHoje
                 sessao={deHoje}
                 hoje={hoje}
                 feitas={deHoje ? registrosDe(deHoje, hoje).length : 0}
                 aoAbrir={() => deHoje && router.push(caminhoDaSessao(deHoje.uid, hoje))}
               />
+              <ProgressoSemana hoje={hoje} />
             </>
           )}
-          <Texto variante="secao">Divisões da semana</Texto>
+          <Texto variante="bloco">Divisões da semana</Texto>
           {sessoesDaSemana(conteudo).map((s, i) => (
             <EntradaEmCascata key={s.uid} indice={i} animar={animar}>
             {somenteLeitura ? <CartaoDivisaoLeitura sessao={s} /> : <CartaoDivisao

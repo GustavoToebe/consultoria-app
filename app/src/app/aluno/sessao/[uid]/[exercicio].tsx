@@ -51,7 +51,7 @@ export default function ExercicioDaSessao() {
     <Tela bordas={['top']} largura={720}>
       <Cabecalho
         titulo={e.nome}
-        subtitulo={`${nomeDoDia} (${dataCurta(data)}) · exercício ${posicao + 1} de ${sessao.exercicios.length}`}
+        subtitulo={`Exercício ${posicao + 1} de ${sessao.exercicios.length} · ${nomeDoDia} (${dataCurta(data)})`}
         voltar={voltar}
         acoes={<SeloSincronizacao />}
       />
@@ -60,8 +60,8 @@ export default function ExercicioDaSessao() {
           <Selo texto={MODALIDADES[e.modalidade] ?? e.modalidade} tipo="neutro" />
         </View>
       ) : null}
-      <DescansoManual />
       <ExercicioAluno
+        acaoAoLadoDoVideo={<DescansoManual />}
         key={`${e.uid}|${data}`}
         exercicio={e}
         data={data}
