@@ -9,6 +9,9 @@ import {
   normalizarTreino,
   seriesDaReceita,
   seriesParaReceita,
+  resumoDaSessao,
+  rotuloDaSessao,
+  sessaoSelecionadaDepois,
 } from './editorTreino';
 
 let mockContador = 0;
@@ -127,5 +130,47 @@ describe('caminhos do validador', () => {
     });
     expect(localizar(conteudo, 'sessoes').texto).toBe('Sessões');
     expect(uidsComProblema(conteudo, ['sessoes[0].nome'])).toEqual(new Set(['s1']));
+  });
+});
+
+describe('sessão selecionada do editor', () => {
+  const sessao = (uid: string, nome = '', diaSemana: number | null = null, uidsEx: string[] = []) => ({
+    uid, nome, diaSemana, tipo: 'TREINO' as const, frequenciaSemanal: null, observacao: null, cardio: null,
+    exercicios: uidsEx.map((u) => ({ uid: u }) as never),
+  });
+  const lista = [sessao('a'), sessao('b'), sessao('c')];
+
+  it('ao remover a selecionada vai para a seguinte, ou para a anterior se era a última', () => {
+    expect(sessaoSelecionadaDepois(lista, 'a', { tipo: 'remover', uid: 'a' })).toBe('b');
+    expect(sessaoSelecionadaDepois(lista, 'b', { tipo: 'remover', uid: 'b' })).toBe('c');
+    expect(sessaoSelecionadaDepois(lista, 'c', { tipo: 'remover', uid: 'c' })).toBe('b');
+    expect(sessaoSelecionadaDepois([sessao('x')], 'x', { tipo: 'remover', uid: 'x' })).toBeNull();
+  });
+
+  it('remover outra sessão não muda a seleção', () => {
+    expect(sessaoSelecionadaDepois(lista, 'b', { tipo: 'remover', uid: 'a' })).toBe('b');
+  });
+
+  it('ao desfazer mantém a seleção se o uid ainda existe, senão a primeira', () => {
+    expect(sessaoSelecionadaDepois(lista, 'c', { tipo: 'conteudo' })).toBe('c');
+    expect(sessaoSelecionadaDepois(lista, 'sumiu', { tipo: 'conteudo' })).toBe('a');
+    expect(sessaoSelecionadaDepois([], 'a', { tipo: 'conteudo' })).toBeNull();
+    expect(sessaoSelecionadaDepois(lista, null, { tipo: 'conteudo' })).toBe('a');
+  });
+
+  it('validar com erro abre a primeira sessão com problema, inclusive por exercício', () => {
+    const com = [sessao('a'), sessao('b', '', null, ['e1']), sessao('c', '', null, ['e2'])];
+    expect(sessaoSelecionadaDepois(com, 'a', { tipo: 'erros', uidsComErro: new Set(['e2', 'e1']) })).toBe('b');
+    expect(sessaoSelecionadaDepois(com, 'a', { tipo: 'erros', uidsComErro: new Set(['c']) })).toBe('c');
+    expect(sessaoSelecionadaDepois(com, 'c', { tipo: 'erros', uidsComErro: new Set() })).toBe('c');
+  });
+
+  it('rótulo do chip e resumo da sessão', () => {
+    expect(rotuloDaSessao(sessao('a', 'Segunda - Costas', 1), 0)).toBe('Seg · Costas');
+    expect(rotuloDaSessao(sessao('a', 'Terça', 2), 1)).toBe('Ter');
+    expect(rotuloDaSessao(sessao('a', 'Pernas', null), 2)).toBe('Pernas');
+    expect(rotuloDaSessao(sessao('a', '', null), 3)).toBe('Sessão 4');
+    expect(resumoDaSessao({ ...sessao('a', '', 1, ['e1']) })).toBe('Segunda · Treino · 1 exercício');
+    expect(resumoDaSessao(sessao('a'))).toBe('Sem dia fixo · Treino · 0 exercícios');
   });
 });

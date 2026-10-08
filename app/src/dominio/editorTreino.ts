@@ -266,3 +266,53 @@ export function normalizarTreino(conteudo: unknown): ConteudoTreino {
 export function unidadeDaModalidade(modalidade: string | null): 'kg' | 'nenhuma' {
   return modalidade === 'ELASTICO' || modalidade === 'PESO_CORPORAL' || modalidade === 'CARDIO' ? 'nenhuma' : 'kg';
 }
+
+// ---- Sessão selecionada do editor (uma sessão aparece por vez) ----
+
+/** O que aconteceu e pode mudar qual sessão está aberta no editor. */
+export type AcaoDeSelecao =
+  /** Sessão removida; `sessoes` é a lista de ANTES da remoção. */
+  | { tipo: 'remover'; uid: string }
+  /** Conteúdo trocado (desfazer, recarregar, modelo): `sessoes` é a lista de DEPOIS. */
+  | { tipo: 'conteudo' }
+  /** Validação com erro: abre a primeira sessão (ou exercício dela) com problema. */
+  | { tipo: 'erros'; uidsComErro: ReadonlySet<string> };
+
+/**
+ * Uid da sessão que fica selecionada depois de uma ação. Remover seleciona a vizinha (a seguinte; sem seguinte, a
+ * anterior); trocar o conteúdo mantém a seleção se o uid ainda existir; validar com erro vai para a primeira sessão
+ * com problema. Sem sessões, `null`.
+ */
+export function sessaoSelecionadaDepois(sessoes: Sessao[], selecionada: string | null, acao: AcaoDeSelecao): string | null {
+  const manter = () => (sessoes.some((s) => s.uid === selecionada) ? selecionada : (sessoes[0]?.uid ?? null));
+  if (acao.tipo === 'remover') {
+    const i = sessoes.findIndex((s) => s.uid === acao.uid);
+    if (i < 0) return manter();
+    if (selecionada !== acao.uid) return manter();
+    return (sessoes[i + 1] ?? sessoes[i - 1])?.uid ?? null;
+  }
+  if (acao.tipo === 'erros') {
+    const com = sessoes.find((s) => acao.uidsComErro.has(s.uid) || s.exercicios.some((e) => acao.uidsComErro.has(e.uid)));
+    return com ? com.uid : manter();
+  }
+  return manter();
+}
+
+/** Texto do chip da sessão: "Seg · Costas" (dia curto e o que vem depois de " - " no nome). */
+export function rotuloDaSessao(s: Sessao, posicao: number): string {
+  const nome = s.nome.trim();
+  const parte = nome.includes(' - ') ? nome.slice(nome.indexOf(' - ') + 3).trim() : nome;
+  const dia = s.diaSemana ? DIAS_CURTOS[s.diaSemana - 1] : null;
+  const grupo = parte && parte.toLowerCase() !== (s.diaSemana ? DIAS_SEMANA[s.diaSemana - 1].toLowerCase() : '') ? parte : '';
+  if (dia && grupo) return `${dia} · ${grupo}`;
+  if (dia) return dia;
+  return grupo || `Sessão ${posicao + 1}`;
+}
+
+/** Linha de resumo do cabeçalho da sessão: "Segunda · Treino · 5 exercícios". */
+export function resumoDaSessao(s: Sessao): string {
+  const dia = s.diaSemana ? DIAS_SEMANA[s.diaSemana - 1] : 'Sem dia fixo';
+  const tipo = TIPOS_SESSAO.find((t) => t.valor === s.tipo)?.rotulo ?? s.tipo;
+  const n = s.exercicios.length;
+  return `${dia} · ${tipo} · ${n} ${n === 1 ? 'exercício' : 'exercícios'}`;
+}

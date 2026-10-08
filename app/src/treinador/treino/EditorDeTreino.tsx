@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
-import { NotebookTabs, Plus, Save } from 'lucide-react-native';
+import { NotebookTabs } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { consultoria, criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
 import type { Configuracao, ConteudoTreino, ResultadoValidacao } from '../../api/tipos';
@@ -14,6 +14,7 @@ import {
   novaSessao,
   novoExercicio,
   remover,
+  sessaoSelecionadaDepois,
   seriesDaReceita,
   seriesParaReceita,
   substituir,
@@ -29,11 +30,14 @@ import { useAviso } from '../../ui/Aviso';
 import { CartaoExercicio } from '../../treinador/treino/CartaoExercicio';
 import { CartaoSessao } from '../../treinador/treino/CartaoSessao';
 import { FolhaBiblioteca } from '../../treinador/treino/FolhaBiblioteca';
-import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
+import { useTema } from '../../tema/TemaProvider';
+import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
+import { SeletorDeSessoes } from './SeletorDeSessoes';
+import { Folha } from '../../ui/Folha';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
-import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -61,6 +65,9 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
   const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
   const [folha, setFolha] = useState<FolhaAberta | null>(null);
   const [desfazer, setDesfazer] = useState<Desfazer<ConteudoTreino> | null>(null);
+  // Uma sessão aparece por vez. Se o uid sumiu (desfazer, recarregar), vale a primeira.
+  const [selecionadaUid, setSelecionadaUid] = useState<string | null>(null);
+  const [modelos, setModelos] = useState(false);
 
   const estado = editor.estado;
   if (!estado) {
@@ -82,6 +89,17 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
       return novo;
     });
   const abrir = (uid: string) => setAbertos((a) => new Set(a).add(uid));
+  const indiceSelecionado = Math.max(0, c.sessoes.findIndex((x) => x.uid === selecionadaUid));
+  const sessaoAtual = c.sessoes[indiceSelecionado] ?? null;
+  const sessoesComProblema = new Set(c.sessoes.filter((x) => comErro.has(x.uid) || x.exercicios.some((e) => comErro.has(e.uid))).map((x) => x.uid));
+  /** Resultado da validação: com erro, abre a primeira sessão que precisa de correção. */
+  const aoProblemas = (r: ResultadoValidacao | null) => {
+    setProblemas(r);
+    if (r?.erros.length) {
+      const uids = uidsComProblema(c, r.erros.map((p) => p.caminho));
+      setSelecionadaUid(sessaoSelecionadaDepois(c.sessoes, sessaoAtual?.uid ?? null, { tipo: 'erros', uidsComErro: uids }));
+    }
+  };
 
   /** Mudança grande (receita, remoção): guarda o conteúdo anterior para o "Desfazer". */
   const comDesfazer = (rotulo: string, mudanca: (c: ConteudoTreino) => ConteudoTreino) => {
@@ -100,7 +118,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
     const dia = [1, 2, 3, 4, 5, 6, 7].find((d) => !usados.has(d)) ?? null;
     const nova = novaSessao(dia);
     mudarSessoes((s) => [...s, nova]);
-    abrir(nova.uid);
+    setSelecionadaUid(nova.uid);
   };
 
   const adicionarExercicio = (si: number) => {
@@ -113,7 +131,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo="Plano de treino" trilha={trilhaDoPlano(modelo, estado.plano.alunoId, 'Plano de treino')} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
-      {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={setProblemas} />}
+      {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={aoProblemas} />}
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}
@@ -125,11 +143,16 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
           aoFechar={() => setDesfazer(null)}
         />
       ) : null}
-      <Cartao titulo="Metodologia da semana">
-        <Botao rotulo={c.metodologia ? `Metodologia: ${c.metodologia.nome}` : 'Vincular metodologia'} tipo="secundario" aoTocar={() => setFolha({ tipo: 'metodologia' })} />
-        <Texto variante="suave">Uma cópia das regras acompanha este treino. Vincular outra metodologia orienta as novas séries; as séries existentes continuam editáveis.</Texto>
-      </Cartao>
-      <Cartao titulo="Objetivo e orientações">
+      <ConfiguracaoDoPlano
+        editor={editor}
+        modelo={modelo}
+        recolhido={c.sessoes.length > 0 && estado.titulo.trim() !== ''}
+        descricao="Título, período, metodologia e orientações gerais do plano.">
+        <View style={estilos.metodologia}>
+          <Texto style={estilos.metodologiaTexto}>{c.metodologia ? `Metodologia: ${c.metodologia.nome}` : 'Metodologia: nenhuma vinculada'}</Texto>
+          <Botao rotulo={c.metodologia ? 'Trocar' : 'Vincular'} tipo="secundario" aoTocar={() => setFolha({ tipo: 'metodologia' })} />
+        </View>
+        <Texto variante="pequeno">Uma cópia das regras acompanha este treino. Vincular outra metodologia orienta as novas séries; as séries existentes continuam editáveis.</Texto>
         <Campo
           rotulo="Objetivo (opcional)"
           valor={c.objetivo ?? ''}
@@ -143,58 +166,85 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
           linhas={4}
           maxLength={8000}
         />
-      </Cartao>
-      <View style={estilos.acoes}>
-        <Botao rotulo="Usar modelo de treino" tipo="secundario" desabilitado={unica} aoTocar={() => setFolha({ tipo: 'sessao' })} />
-        <Botao rotulo="Adicionar sessão" desabilitado={unica && c.sessoes.length >= 1} Icone={Plus} tipo="secundario" aoTocar={adicionarSessao} />
-        <Botao rotulo="Usar modelo de semana" desabilitado={unica} Icone={NotebookTabs} tipo="secundario" aoTocar={() => setFolha({ tipo: 'receitaPlano' })} />
-        {!modelo && c.sessoes.length ? (
-          <Botao rotulo="Salvar como modelo" Icone={Save} tipo="fantasma" aoTocar={() => setFolha({ tipo: 'salvarPlano' })} />
-        ) : null}
-      </View>
+      </ConfiguracaoDoPlano>
+      <SeletorDeSessoes
+        sessoes={c.sessoes}
+        selecionada={sessaoAtual?.uid ?? null}
+        comProblema={sessoesComProblema}
+        aoSelecionar={setSelecionadaUid}
+        aoAdicionar={adicionarSessao}
+        adicionarDesabilitado={unica && c.sessoes.length >= 1}
+        acao={<Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />}
+      />
       {c.sessoes.length === 0 ? (
-        <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma modelo de semana." />
+        <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de um modelo de semana (botão Modelos)." />
       ) : null}
-      {c.sessoes.map((s, si) => (
+      {sessaoAtual ? (
         <CartaoSessao
-          key={s.uid}
-          sessao={s}
-          posicao={si}
+          key={sessaoAtual.uid}
+          sessao={sessaoAtual}
+          posicao={indiceSelecionado}
           total={c.sessoes.length}
-          aberta={abertos.has(s.uid)}
-          comProblema={comErro.has(s.uid)}
-          aoAbrir={() => alternar(s.uid)}
-          aoMudar={(nova) => mudarSessoes((lista) => substituir(lista, si, nova))}
-          aoMover={(d) => mudarSessoes((lista) => mover(lista, si, d))}
+          comProblema={sessoesComProblema.has(sessaoAtual.uid)}
+          aoMudar={(nova) => mudarSessoes((lista) => substituir(lista, indiceSelecionado, nova))}
+          aoMover={(d) => mudarSessoes((lista) => mover(lista, indiceSelecionado, d))}
           removivel={!unica}
-          aoRemover={() => comDesfazer(`Sessão “${s.nome || si + 1}” removida.`, (a) => ({ ...a, sessoes: remover(a.sessoes, si) }))}
-          aoSalvarModelo={() => setFolha({ tipo: 'salvarSessao', indice: si })}
-          aoNovoExercicio={() => adicionarExercicio(si)}>
-          {s.exercicios.map((e, ei) => (
+          aoRemover={() => {
+            const removida = sessaoAtual;
+            setSelecionadaUid(sessaoSelecionadaDepois(c.sessoes, removida.uid, { tipo: 'remover', uid: removida.uid }));
+            comDesfazer(`Sessão “${removida.nome || indiceSelecionado + 1}” removida.`, (a) => ({ ...a, sessoes: a.sessoes.filter((x) => x.uid !== removida.uid) }));
+          }}
+          aoSalvarModelo={() => setFolha({ tipo: 'salvarSessao', indice: indiceSelecionado })}
+          aoNovoExercicio={() => adicionarExercicio(indiceSelecionado)}>
+          {sessaoAtual.exercicios.map((e, ei) => (
             <CartaoExercicio
               key={e.uid}
               exercicio={e}
               posicao={ei}
-              total={s.exercicios.length}
+              total={sessaoAtual.exercicios.length}
               aberto={abertos.has(e.uid)}
               comProblema={comErro.has(e.uid)}
               config={config}
               aoAbrir={() => alternar(e.uid)}
-              aoMudar={(novo) => mudarExercicios(si, (lista) => substituir(lista, ei, novo))}
-              aoMover={(d) => mudarExercicios(si, (lista) => mover(lista, ei, d))}
+              aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
+              aoMover={(d) => mudarExercicios(indiceSelecionado, (lista) => mover(lista, ei, d))}
               aoRemover={() =>
                 comDesfazer(`Exercício “${e.nome || ei + 1}” removido.`, (a) => ({
                   ...a,
-                  sessoes: substituir(a.sessoes, si, { ...a.sessoes[si], exercicios: remover(a.sessoes[si].exercicios, ei) }),
+                  sessoes: substituir(a.sessoes, indiceSelecionado, { ...a.sessoes[indiceSelecionado], exercicios: remover(a.sessoes[indiceSelecionado].exercicios, ei) }),
                 }))
               }
-              aoEscolherDaBiblioteca={() => setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: ei } })}
-              aoUsarReceita={() => setFolha({ tipo: 'receitaSeries', alvo: { sessao: si, exercicio: ei } })}
-              aoSalvarReceita={() => setFolha({ tipo: 'salvarSeries', alvo: { sessao: si, exercicio: ei } })}
+              aoEscolherDaBiblioteca={() => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
+              aoUsarReceita={() => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
+              aoSalvarReceita={() => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
             />
           ))}
         </CartaoSessao>
-      ))}
+      ) : null}
+
+      {modelos ? (
+        <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>
+          <OpcaoDeModelo
+            titulo="Usar modelo de semana"
+            descricao="Troca as sessões do plano pelas do modelo (objetivo e orientações ficam). Dá para desfazer."
+            desabilitado={unica}
+            aoEscolher={() => { setModelos(false); setFolha({ tipo: 'receitaPlano' }); }}
+          />
+          <OpcaoDeModelo
+            titulo="Adicionar treino de um modelo"
+            descricao="Acrescenta ao plano as sessões de um modelo de treino."
+            desabilitado={unica}
+            aoEscolher={() => { setModelos(false); setFolha({ tipo: 'sessao' }); }}
+          />
+          {!modelo && c.sessoes.length ? (
+            <OpcaoDeModelo
+              titulo="Salvar a semana como modelo"
+              descricao="Guarda as sessões, os exercícios e as séries deste rascunho para reutilizar. O plano continua igual."
+              aoEscolher={() => { setModelos(false); setFolha({ tipo: 'salvarPlano' }); }}
+            />
+          ) : null}
+        </Folha>
+      ) : null}
 
       {folha?.tipo === 'metodologia' ? <FolhaReceitas tipo="METODOLOGIA" titulo="Vincular metodologia" aoFechar={() => setFolha(null)} aoUsar={(r) => {
         setFolha(null); comDesfazer('Metodologia vinculada.', (a) => ({ ...a, metodologia: { id: r.id, nome: r.nome, configuracao: JSON.parse(JSON.stringify(r.conteudo)) as Configuracao } }));
@@ -292,6 +342,27 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
   );
 }
 
+/** Linha de ação da folha "Modelos": título, o que faz e um toque para escolher. */
+function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado?: boolean; aoEscolher: () => void }) {
+  const { cores } = useTema();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={titulo}
+      disabled={desabilitado}
+      onPress={aoEscolher}
+      style={({ pressed }) => [
+        estilos.opcaoModelo,
+        { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda, opacity: desabilitado ? 0.45 : 1 },
+      ]}>
+      <Texto variante="bloco">{titulo}</Texto>
+      <Texto variante="suave">{descricao}</Texto>
+    </Pressable>
+  );
+}
+
 const estilos = StyleSheet.create({
-  acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  metodologia: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  metodologiaTexto: { flexShrink: 1 },
+  opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
 });

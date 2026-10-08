@@ -1,17 +1,18 @@
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Sessao } from '../../api/tipos';
-import { DIAS_CURTOS, DIAS_SEMANA, TIPOS_SESSAO } from '../../dominio/editorTreino';
+import { DIAS_CURTOS, resumoDaSessao, TIPOS_SESSAO } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
+import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
+import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 
 const DIAS = [
@@ -23,9 +24,7 @@ interface Props {
   sessao: Sessao;
   posicao: number;
   total: number;
-  aberta: boolean;
   comProblema: boolean;
-  aoAbrir: () => void;
   aoMudar: (s: Sessao) => void;
   aoMover: (delta: -1 | 1) => void;
   aoRemover: () => void;
@@ -36,45 +35,39 @@ interface Props {
   children: ReactNode;
 }
 
-/** Sessão do plano (um dia): nome, dia da semana, tipo, cardio, observação e os exercícios. */
+/**
+ * A sessão selecionada do plano (um dia): faixa de grupo com nome, resumo e ordem; campos da sessão; os exercícios
+ * (nível 3) e, no rodapé, adicionar exercício à esquerda e as ações da sessão à direita.
+ */
 export function CartaoSessao(p: Props) {
   const { cores } = useTema();
+  const { width } = useWindowDimensions();
+  const duasColunas = width >= LARGURA_MENU_LATERAL;
   const s = p.sessao;
   const mudar = (parcial: Partial<Sessao>) => p.aoMudar({ ...s, ...parcial });
-  const tipo = TIPOS_SESSAO.find((t) => t.valor === s.tipo)?.rotulo ?? s.tipo;
-  const dia = s.diaSemana ? DIAS_SEMANA[s.diaSemana - 1] : 'Sem dia fixo';
 
   return (
-    <View style={[estilos.cartao, { borderColor: p.comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie }]}>
-      <View style={estilos.topo}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${p.aberta ? 'Fechar' : 'Abrir'} sessão ${s.nome || p.posicao + 1}`}
-          accessibilityState={{ expanded: p.aberta }}
-          onPress={p.aoAbrir}
-          style={estilos.titulo}>
-          <Texto variante="subtitulo">{s.nome || `Sessão ${p.posicao + 1}`}</Texto>
-          <Texto variante="suave">
-            {dia} · {tipo} · {s.exercicios.length} {s.exercicios.length === 1 ? 'exercício' : 'exercícios'}
-          </Texto>
-          {p.comProblema ? <Selo texto="Corrigir" tipo="perigo" /> : null}
-        </Pressable>
-        <View style={estilos.acoes}>
-          <IconeBotao Icone={ArrowUp} rotulo="Subir sessão" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-          <IconeBotao Icone={ArrowDown} rotulo="Descer sessão" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
-          <IconeBotao Icone={p.aberta ? ChevronUp : ChevronDown} rotulo={p.aberta ? 'Fechar sessão' : 'Abrir sessão'} aoTocar={p.aoAbrir} />
-        </View>
-      </View>
-      {p.aberta ? (
-        <View style={estilos.corpo}>
+    <Cartao
+      style={p.comProblema ? { borderColor: cores.perigo } : undefined}
+      cabecalho={
+        <CabecalhoDeGrupo
+          titulo={s.nome || `Sessão ${p.posicao + 1}`}
+          resumo={resumoDaSessao(s)}
+          selo={p.comProblema ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
+          acoes={
+            <>
+              <Texto variante="pequeno" numerico>{p.posicao + 1} de {p.total}</Texto>
+              <IconeBotao Icone={ArrowLeft} rotulo="Mover sessão para antes" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
+              <IconeBotao Icone={ArrowRight} rotulo="Mover sessão para depois" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+            </>
+          }
+        />
+      }>
+      <View style={duasColunas ? estilos.linhaDupla : estilos.coluna}>
+        <View style={duasColunas ? estilos.metade : undefined}>
           <Campo rotulo="Nome da sessão" valor={s.nome} aoMudar={(nome) => mudar({ nome })} maxLength={80} placeholder="Ex.: Segunda - Costas" />
-          <Escolha rotulo="Dia da semana" opcoes={DIAS} valor={s.diaSemana} aoMudar={(diaSemana) => mudar({ diaSemana })} />
-          <Escolha rotulo="Tipo" opcoes={TIPOS_SESSAO} valor={s.tipo} aoMudar={(t) => mudar({ tipo: t, frequenciaSemanal: t === 'ACESSORIOS' ? s.frequenciaSemanal : null })} />
-          {s.tipo === 'ACESSORIOS' ? (
-            <View style={estilos.campoCurto}>
-              <CampoNumerico rotulo="Vezes por semana" inteiro valor={s.frequenciaSemanal} aoMudar={(frequenciaSemanal) => mudar({ frequenciaSemanal })} />
-            </View>
-          ) : null}
+        </View>
+        <View style={duasColunas ? estilos.metade : undefined}>
           <Campo
             rotulo="Cardio (opcional)"
             valor={s.cardio ?? ''}
@@ -82,33 +75,41 @@ export function CartaoSessao(p: Props) {
             placeholder="Ex.: Cardio 50 min ou HIIT de 25 min"
             maxLength={500}
           />
-          <Campo
-            rotulo="Observação da sessão (opcional)"
-            valor={s.observacao ?? ''}
-            aoMudar={(t) => mudar({ observacao: t || null })}
-            linhas={2}
-            maxLength={1000}
-          />
-          <Texto variante="secao">Exercícios</Texto>
-          <View style={estilos.exercicios}>{p.children}</View>
-          <View style={estilos.botoes}>
-            <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-            {p.aoSalvarModelo ? <Botao rotulo="Salvar como modelo" tipo="secundario" aoTocar={p.aoSalvarModelo} /> : null}
-          {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
-          </View>
+        </View>
+      </View>
+      <Escolha rotulo="Dia da semana" opcoes={DIAS} valor={s.diaSemana} aoMudar={(diaSemana) => mudar({ diaSemana })} />
+      <Escolha rotulo="Tipo" opcoes={TIPOS_SESSAO} valor={s.tipo} aoMudar={(t) => mudar({ tipo: t, frequenciaSemanal: t === 'ACESSORIOS' ? s.frequenciaSemanal : null })} />
+      {s.tipo === 'ACESSORIOS' ? (
+        <View style={estilos.campoCurto}>
+          <CampoNumerico rotulo="Vezes por semana" inteiro valor={s.frequenciaSemanal} aoMudar={(frequenciaSemanal) => mudar({ frequenciaSemanal })} />
         </View>
       ) : null}
-    </View>
+      <Campo
+        rotulo="Observação da sessão (opcional)"
+        valor={s.observacao ?? ''}
+        aoMudar={(t) => mudar({ observacao: t || null })}
+        linhas={2}
+        maxLength={1000}
+      />
+      <Texto variante="secao">Exercícios ({s.exercicios.length})</Texto>
+      <View style={estilos.exercicios}>{p.children}</View>
+      <View style={estilos.rodape}>
+        <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+        <View style={estilos.direita}>
+          {p.aoSalvarModelo ? <Botao rotulo="Salvar esta sessão como modelo" tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : null}
+          {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
+        </View>
+      </View>
+    </Cartao>
   );
 }
 
 const estilos = StyleSheet.create({
-  cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
-  topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
-  titulo: { flex: 1, gap: espaco(0.5), minHeight: 44 },
-  acoes: { flexDirection: 'row' },
-  corpo: { gap: espaco(1.5) },
+  linhaDupla: { flexDirection: 'row', gap: espaco(2) },
+  metade: { flex: 1 },
+  coluna: { gap: espaco(2) },
   campoCurto: { width: 180 },
   exercicios: { gap: espaco(1) },
-  botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), justifyContent: 'space-between' },
+  rodape: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  direita: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
 });

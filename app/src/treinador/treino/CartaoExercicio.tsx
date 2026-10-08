@@ -43,7 +43,7 @@ export function CartaoExercicio(p: Props) {
     <View
       style={[
         estilos.cartao,
-        { borderColor: p.comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
+        { borderColor: p.comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie2 },
       ]}>
       <View style={estilos.topo}>
         <Pressable
@@ -135,7 +135,7 @@ const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
   titulo: { flex: 1, gap: 2, minHeight: 44, justifyContent: 'center' },
-  nome: { fontFamily: fontes.semi, fontSize: 15 },
+  nome: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5), marginTop: 2 },
   acoes: { flexDirection: 'row' },
   corpo: { gap: espaco(1.5) },

@@ -9,8 +9,6 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
-import { CampoData } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { textoDoErro } from '../../ui/erros';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -104,11 +102,32 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
 
   return (
     <>
-      <Cartao titulo="Plano">
+      <Cartao
+        titulo={e.titulo.trim() || 'Plano sem título'}
+        acoes={
+          <>
+            {editor.situacao === 'erro' ? (
+              <Botao rotulo="Tentar salvar de novo" tipo="secundario" aoTocar={() => void editor.salvar()} />
+            ) : null}
+            <Botao
+              rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
+              tipo="secundario"
+              Icone={FileDown}
+              carregando={gerandoPdf}
+              aoTocar={() => void pdf()}
+            />
+            <Botao rotulo="Validar" tipo="secundario" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />
+            <Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} />
+          </>
+        }>
         <View style={estilos.selos}>
           <Selo texto={situacao.texto} tipo={situacao.tipo} />
           <SelosDoPlano plano={e.plano} />
         </View>
+        <Texto variante="suave" numerico>
+          Período: {e.inicio || '—'} a {e.fim || '—'}
+          {e.plano.pastaId ? ' (da pasta)' : ''}
+        </Texto>
         {ultima ? (
           <Texto variante="pequeno">
             Última publicação: v{ultima.numero} em {dataHoraParaTela(ultima.publicadoEm)}. Editar aqui mexe só no
@@ -117,41 +136,6 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
         ) : (
           <Texto variante="pequeno">Ainda não publicado: o aluno não vê este plano.</Texto>
         )}
-        <Campo
-          rotulo="Título"
-          valor={e.titulo}
-          aoMudar={(titulo) => editor.alterar(() => ({ titulo }))}
-          maxLength={120}
-          erro={e.titulo.trim() ? null : 'Informe o título.'}
-        />
-        {e.plano.pastaId ? (
-          <Texto variante="suave">
-            Período da pasta: {e.inicio || '—'} a {e.fim || '—'}. Para mudar, edite a pasta na ficha do aluno.
-          </Texto>
-        ) : (
-          <View style={estilos.datas}>
-            <View style={estilos.data}>
-              <CampoData rotulo="Início" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
-            </View>
-            <View style={estilos.data}>
-              <CampoData rotulo="Fim" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
-            </View>
-          </View>
-        )}
-        <View style={estilos.botoes}>
-          {editor.situacao === 'erro' ? (
-            <Botao rotulo="Tentar salvar de novo" tipo="secundario" aoTocar={() => void editor.salvar()} />
-          ) : null}
-          <Botao
-            rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
-            tipo="secundario"
-            Icone={FileDown}
-            carregando={gerandoPdf}
-            aoTocar={() => void pdf()}
-          />
-          <Botao rotulo="Validar" tipo="secundario" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />
-          <Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} />
-        </View>
       </Cartao>
       {problemas ? <ListaProblemas conteudo={e.conteudo} resultado={problemas} aoFechar={() => aoProblemas(null)} /> : null}
       <PainelConfirmacao
@@ -210,9 +194,6 @@ function ItemProblema({ conteudo, problema, tipo }: { conteudo: unknown; problem
 
 const estilos = StyleSheet.create({
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
-  datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
-  data: { flex: 1, minWidth: 150 },
-  botoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
   problema: {
     flexDirection: 'row',
     gap: espaco(1),
