@@ -89,7 +89,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   Dados de tela com `ui/useCarregar` (chave → busca; `definir` depois de alterar). Painel lateral/folha: `ui/Folha`.
 - Pastas: `src/app/` só rotas; peças das telas do treinador em `src/treinador/`; regras puras (com teste) em
   `src/dominio/` (formatos BR, agrupamento "3x3 - FS", operações do editor, contas da dieta). `novoUid()` em todo item novo.
-- Editores de plano: `treinador/plano/usePlanoEditor` (rascunho salvo 1,5 s depois, 409 → recarregar, validar e
+- Editores de plano: `treinador/plano/usePlanoEditor` (rascunho do aluno salvo 1,5 s depois; modelo só salva no botão e descarta ao sair; 409 → recarregar, validar e
   publicar com erros/avisos da API) + `TopoPlano`. Mudança grande (receita, remoção) passa pelo `BarraDesfazer`.
 - Verificar: `npm run typecheck && npm run lint && npm test`; bundle nativo com `npx expo export --platform android`.
 - Atrás do Caddy o Tomcat recebe `X-Forwarded-Port` (porta do `Host`): sem isso a web em `:8088` parecia outra origem

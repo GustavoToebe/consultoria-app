@@ -33,7 +33,7 @@ function problemas(erro: ErroApi): Problema[] {
 }
 
 /**
- * Rascunho de um plano (treino ou dieta): carrega, salva sozinho 1,5 s depois da última mudança, trata a edição em
+ * Rascunho de um plano (treino ou dieta): carrega, salva sozinho 1,5 s depois da última mudança (menos modelo, que só salva no botão), trata a edição em
  * outra aba (409 `CONFLITO_EDICAO` → "recarregar") e publica com erros/avisos do validador da API. O publicado nunca
  * muda: publicar cria a versão seguinte.
  */
@@ -128,19 +128,22 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     return tentar();
   }, [tipo, id, modelo]);
 
-  // Salvamento automático: 1,5 s depois da última mudança.
+  // Salvamento automático do rascunho do aluno: 1,5 s depois da última mudança. Modelo só salva no botão "Salvar modelo"
+  // e, se sair sem salvar, as alterações são descartadas.
   const revisao = estado?.revisao ?? 0;
   const salvoEm = estado?.salvoEm ?? 0;
   useEffect(() => {
-    if (revisao === salvoEm || erroSalvar === 'conflito') return;
+    if (modelo || revisao === salvoEm || erroSalvar === 'conflito') return;
     const relogio = setTimeout(() => {
       void salvar();
     }, ESPERA_MS);
     return () => clearTimeout(relogio);
-  }, [revisao, salvoEm, erroSalvar, salvar]);
+  }, [revisao, salvoEm, erroSalvar, salvar, modelo]);
 
-  // Saiu da tela com mudança pendente: envia na hora.
-  useEffect(() => () => void salvar(), [salvar]);
+  // Saiu da tela com mudança pendente: envia na hora (rascunho de aluno). Modelo descarta.
+  useEffect(() => () => {
+    if (!modelo) void salvar();
+  }, [salvar, modelo]);
 
   const alterar = useCallback((mudanca: (e: Estado<C>) => Partial<Estado<C>>) => {
     setEstado((e) => (e ? { ...e, ...mudanca(e), revisao: e.revisao + 1 } : e));
