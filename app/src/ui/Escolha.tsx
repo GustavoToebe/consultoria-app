@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ToggleGroup, ToggleGroupItem } from '../components/ui/toggle-group';
+import { StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
@@ -24,16 +25,14 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
   return (
     <View style={estilos.campo}>
       {rotulo ? <Texto variante="pequeno" style={estilos.rotulo}>{rotulo}</Texto> : null}
-      <View style={estilos.linha} accessibilityRole="radiogroup" accessibilityLabel={rotulo ?? descricao}>
-        {opcoes.map((o) => {
+      <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { const opcao = v === undefined ? undefined : opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={estilos.linha} accessibilityLabel={rotulo ?? descricao}>
+        {opcoes.map((o, indice) => {
           const ativo = o.valor === valor;
           return (
-            <Pressable
+            <ToggleGroupItem value={String(indice)}
               key={String(o.valor)}
-              accessibilityRole="radio"
               accessibilityLabel={o.rotulo}
               accessibilityState={{ checked: ativo }}
-              onPress={() => aoMudar(o.valor)}
               style={({ pressed }) => [
                 estilos.opcao,
                 {
@@ -43,10 +42,10 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
                 },
               ]}>
               <Texto style={[estilos.texto, { color: ativo ? sobreMarca : cores.texto }]}>{o.rotulo}</Texto>
-            </Pressable>
+            </ToggleGroupItem>
           );
         })}
-      </View>
+      </ToggleGroup>
     </View>
   );
 }
@@ -57,7 +56,7 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
   opcao: {
     maxWidth: '100%',
-    minHeight: 40,
+    minHeight: 44,
     minWidth: 44,
     paddingHorizontal: espaco(1.5),
     borderRadius: RAIO,

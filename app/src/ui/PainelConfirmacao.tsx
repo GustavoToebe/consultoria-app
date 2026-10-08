@@ -21,7 +21,7 @@ interface Props {
 }
 
 /**
- * ConfirmaÃ§Ã£o na prÃ³pria tela. Nada de `alert()`/`confirm()` do navegador nem `Alert.alert` (nÃ£o funciona na web).
+ * Confirmação na própria tela. Nada de `alert()`/`confirm()` do navegador nem `Alert.alert` (não funciona na web).
  */
 export function PainelConfirmacao(props: Props) {
   const { cores } = useTema();
