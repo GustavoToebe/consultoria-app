@@ -38,3 +38,9 @@ export function textoMostrando(mostrados: number, total: number): string | null 
 export function passosDasInstrucoes(instrucoes: string | null | undefined): string[] {
   return (instrucoes ?? '').split('\n').map((p) => p.trim()).filter(Boolean);
 }
+
+/** Grupos musculares distintos da lista, em ordem alfabética (sem acento), para o filtro; sem grupo fica de fora. */
+export function gruposDosExercicios(exercicios: { grupoMuscular: string | null }[]): string[] {
+  const grupos = new Set(exercicios.map((e) => e.grupoMuscular?.trim()).filter((g): g is string => !!g));
+  return [...grupos].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}

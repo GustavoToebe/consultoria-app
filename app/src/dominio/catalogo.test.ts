@@ -1,4 +1,4 @@
-import { passosDasInstrucoes, resumoNutrientes, textoMostrando } from './catalogo';
+import { passosDasInstrucoes, resumoNutrientes, textoMostrando, gruposDosExercicios } from './catalogo';
 
 const arroz = { baseQuantidade: 100, baseUnidade: 'g', kcal: 128.26, proteina: 2.52, carboidrato: 28.06, gordura: 0.23 };
 
@@ -23,4 +23,9 @@ describe('catálogo: exibição', () => {
     expect(passosDasInstrucoes('Passo 1.\n\n Passo 2. \n')).toEqual(['Passo 1.', 'Passo 2.']);
     expect(passosDasInstrucoes(null)).toEqual([]);
   });
+});
+
+it('lista os grupos musculares distintos em ordem alfabética, ignorando vazios', () => {
+  const lista = [{ grupoMuscular: 'Costas' }, { grupoMuscular: 'Abdômen' }, { grupoMuscular: null }, { grupoMuscular: ' Costas ' }, { grupoMuscular: '' }];
+  expect(gruposDosExercicios(lista)).toEqual(['Abdômen', 'Costas']);
 });

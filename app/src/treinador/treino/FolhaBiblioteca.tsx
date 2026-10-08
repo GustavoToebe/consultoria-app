@@ -3,10 +3,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { listarExercicios } from '../../api/rotas';
 import type { Exercicio } from '../../api/tipos';
+import { gruposDosExercicios } from '../../dominio/catalogo';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -43,17 +45,29 @@ export function FolhaBiblioteca({
 }) {
   const { cores } = useTema();
   const [busca, setBusca] = useState('');
+  const [grupo, setGrupo] = useState('');
   const { dados, erro, carregando, recarregar } = useCarregar(visivel ? 'biblioteca-exercicios' : null, () =>
     listarExercicios(),
   );
   const termo = normalizar(busca.trim());
+  const grupos = gruposDosExercicios(dados ?? []);
   const filtrados = (dados ?? []).filter(
-    (e) => !termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''} ${e.equipamento ?? ''}`).includes(termo),
+    (e) =>
+      (!grupo || e.grupoMuscular?.trim() === grupo) &&
+      (!termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''} ${e.equipamento ?? ''}`).includes(termo)),
   );
 
   return (
     <Folha visivel={visivel} titulo="Escolher exercício" aoFechar={aoFechar}>
       <Campo rotulo="Buscar na biblioteca" valor={busca} aoMudar={setBusca} placeholder="Nome, grupo ou equipamento" autoFocus />
+      {grupos.length ? (
+        <Escolha
+          descricao="Grupo muscular"
+          opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]}
+          valor={grupo}
+          aoMudar={setGrupo}
+        />
+      ) : null}
       {busca.trim() ? (
         <Botao rotulo={`Usar só o nome “${busca.trim()}”`} tipo="secundario" aoTocar={() => aoEscolher({ nome: busca.trim() })} />
       ) : null}
@@ -63,7 +77,7 @@ export function FolhaBiblioteca({
         <Texto variante="suave">
           {dados.length === 0
             ? 'A biblioteca está vazia. Importe exercícios do catálogo na tela Biblioteca.'
-            : 'Nenhum exercício encontrado.'}
+            : grupo ? 'Nenhum exercício neste grupo com essa busca.' : 'Nenhum exercício encontrado.'}
         </Texto>
       ) : null}
       {filtrados.slice(0, 80).map((e) => (
