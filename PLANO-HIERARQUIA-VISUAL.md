@@ -1,7 +1,7 @@
 # Plano: hierarquia visual e personalização (web e app)
 
-> Para o Sonnet ou o Codex executar **hoje**, as três partes. Vale para **a web e o app** (celular), para o
-> **treinador e o aluno**: os componentes são os mesmos (`app/src/ui/`), então a mudança aparece nos dois.
+> Para o Sonnet ou o Codex executar **hoje**, as três partes. Vale para o **app inteiro, em todas as telas** (lista
+> completa na seção 6.1), na **web e no celular**, para o **treinador e o aluno**: os componentes são os mesmos (`app/src/ui/`), então a mudança aparece nos dois.
 > Leia o `AGENTS.md` antes de começar. Nada aqui muda regra de negócio, API de planos, offline ou segurança.
 
 ## 0. Como trabalhar
@@ -466,6 +466,42 @@ e para a sua conta". Cartões nesta ordem, cada um com título `bloco` e descri�
 **Fora de propósito:** não há cor pessoal. A cor é a marca do treinador, e o aluno vê a marca dele. Também não
 aparece aqui nada que o app não faz (por exemplo, notificações).
 
+## 6.1 Inventário: **todas** as telas (web e celular)
+
+O padrão vale para o app inteiro. A H1 muda tudo sozinha, mas **cada tela abaixo precisa ser aberta, ajustada e
+marcada** na verificação: um primário por área, títulos com `bloco`, faixas de grupo onde houver grupos, níveis certos
+e largura certa. Nenhuma tela fica de fora. Folhas (`ui/Folha`) e painéis de confirmação também seguem o padrão:
+título `bloco` e rodapé com Cancelar à esquerda e a ação principal à direita.
+
+| # | Tela (rota) | Largura | O que conferir além da H1 |
+|---|---|---|---|
+| 1 | `/entrar` | 440 | Marca neutra, "Entrar" `cheio` e único primário, links com `LinkTexto` |
+| 2 | `/cadastro` (treinador novo) | 640 | Campos com `rotulo`, um primário |
+| 3 | `/convite` (aluno aceita) | 640 | Igual ao cadastro |
+| 4 | `/treinador` (início) | lista | Números em `destaque`, cartões com `bloco`, "+ Novo aluno" único primário (H2.6) |
+| 5 | `/treinador/alunos` | lista | Busca + linhas nível 3 + hover (H2.6), trilha |
+| 6 | `/treinador/alunos/novo` | editor | Seções em `Cartao`, rodapé Cancelar/Salvar, trilha |
+| 7 | `/treinador/alunos/[id]` (ficha) | lista | H2.5 (duas colunas, pastas com faixa, lesões, registros, peso) |
+| 8 | `/treinador/treinos/[id]` | editor | H2.3 |
+| 9 | `/treinador/dietas/[id]` | editor | H2.4 |
+| 10 | `/treinador/planejamento` | lista | Um cartão por tipo de modelo, linhas nível 3, "Aplicar ao aluno" (H2.6) |
+| 11 | `/treinador/planejamento/modelo/[id]` | editor | Mesmo editor de treino/dieta (H2.3/H2.4) com `TopoModelo` |
+| 12 | `/treinador/biblioteca` (Exercícios, Alimentos, Catálogo, Importar CSV) | lista | Abas com sublinhado, linhas nível 3, "Tirar da biblioteca" com `perigoTexto`, créditos das fontes legíveis |
+| 13 | `/treinador/receitas` | lista | Igual ao planejamento |
+| 14 | `/treinador/marca` | editor | P1 |
+| 15 | `/treinador/perfil` | editor | P2 + senha + sair |
+| 16 | `/aluno` (início) | 720 | H3.1 |
+| 17 | `/aluno/sessao/[uid]` | 720 | H3.2 |
+| 18 | `/aluno/sessao/[uid]/[exercicio]` | 720 | H3.3 + `BarraDescanso` (H3.7) |
+| 19 | `/aluno/dieta` | 720 | H3.4 |
+| 20 | `/aluno/historico` | 720 | H3.5 |
+| 21 | `/aluno/conta` | 720 | P2 + sincronização + senha + sair |
+| 22 | Menu lateral (PC) e barra inferior (celular) | — | Item ativo com fundo `superficie2` + ícone da marca; rótulos legíveis no texto grande |
+| 23 | Folhas: biblioteca, modelos, salvar modelo, metodologia, alimentos, descanso, aplicar ao aluno | — | Título `bloco`, rodapé padrão, campos `campo` |
+| 24 | Estados: carregando (`Esqueleto`), vazio (`Vazio`), erro (`MensagemErro`), aviso (`useAviso`), sem conexão | — | Cores novas, um primário ("Tentar de novo") |
+
+Se surgir uma tela nova que não está aqui (o código muda rápido), ela entra na mesma regra e na lista do relatório.
+
 ## 7. O que não fazer
 
 - Não mexer em API de planos, sincronização, offline, segurança, CSP ou PDFs, fora o ajuste de fonte do P1.3.
@@ -516,6 +552,7 @@ Trocar ou acrescentar em "App: convenções":
      celular).
    - [ ] Sair e entrar com outra conta: as preferências são as da outra conta.
    - [ ] O roteiro da demonstração do README continua funcionando do começo ao fim.
+   - [ ] As 24 linhas do inventário (seção 6.1) foram abertas e conferidas nos dois temas, em 1280 e 390 px.
 6. **No celular** (Expo Go): os itens 5 que dependem de aparelho (vibração, texto grande, movimento) e o fluxo de
    marcar séries offline.
 
