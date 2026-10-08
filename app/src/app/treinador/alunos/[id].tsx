@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno } from '../../../api/rotas';
 import type { AlunoDetalhe } from '../../../api/tipos';
-import { espaco } from '../../../tema/tokens';
+import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
@@ -33,7 +33,7 @@ export default function FichaAluno() {
   const [geracaoPeso, setGeracaoPeso] = useState(0);
 
   return (
-    <Tela bordas={['top']} largura={960}>
+    <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo={aluno?.nome ?? 'Aluno'} voltar="/treinador/alunos" />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}

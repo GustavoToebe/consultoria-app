@@ -12,7 +12,7 @@ import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { novoUid } from '../../dominio/uid';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../../tema/tokens';
+import { espaco, fontes, RAIO, LARGURA_EDITOR } from '../../tema/tokens';
 import { CartaoRefeicao } from '../../treinador/dieta/CartaoRefeicao';
 import { FolhaAlimentos } from '../../treinador/dieta/FolhaAlimentos';
 import { FolhaReceitas } from '../../treinador/FolhaReceitas';
@@ -56,7 +56,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
   const estado = editor.estado;
   if (!estado) {
     return (
-      <Tela bordas={['top']} largura={960}>
+      <Tela bordas={['top']} largura={LARGURA_EDITOR}>
         <Cabecalho titulo="Plano de dieta" voltar="/treinador/alunos" />
         {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
       </Tela>
@@ -81,7 +81,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
     });
 
   return (
-    <Tela bordas={['top']} largura={960}>
+    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo="Plano de dieta" subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
       {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="dieta" editor={editor} problemas={problemas} aoProblemas={setProblemas} />}
       {desfazer ? (

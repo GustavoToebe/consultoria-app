@@ -29,7 +29,7 @@ import { useAviso } from '../../ui/Aviso';
 import { CartaoExercicio } from '../../treinador/treino/CartaoExercicio';
 import { CartaoSessao } from '../../treinador/treino/CartaoSessao';
 import { FolhaBiblioteca } from '../../treinador/treino/FolhaBiblioteca';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
@@ -64,7 +64,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
   const estado = editor.estado;
   if (!estado) {
     return (
-      <Tela bordas={['top']} largura={960}>
+      <Tela bordas={['top']} largura={LARGURA_EDITOR}>
         <Cabecalho titulo="Plano de treino" voltar="/treinador/alunos" />
         {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
       </Tela>
@@ -110,7 +110,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
   };
 
   return (
-    <Tela bordas={['top']} largura={960}>
+    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo="Plano de treino" subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
       {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={setProblemas} />}
       {desfazer ? (

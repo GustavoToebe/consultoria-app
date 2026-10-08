@@ -8,7 +8,7 @@ import { listarAlunos } from '../../../api/rotas';
 import type { AlunoResumo, SituacaoFiltro } from '../../../api/tipos';
 import { dataParaTela } from '../../../dominio/formatos';
 import { useTema } from '../../../tema/TemaProvider';
-import { espaco, RAIO } from '../../../tema/tokens';
+import { espaco, RAIO, LARGURA_LISTA } from '../../../tema/tokens';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Campo } from '../../../ui/Campo';
@@ -41,7 +41,7 @@ export default function Alunos() {
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
 
   return (
-    <Tela bordas={['top']}>
+    <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho
         titulo="Alunos"
         mostrarMarca="celular"

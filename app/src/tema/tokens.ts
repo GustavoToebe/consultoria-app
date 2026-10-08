@@ -70,6 +70,10 @@ export const LARGURA_MAXIMA = 1800;
 /** Telas declaradas até esta largura são formulários curtos e não esticam. */
 export const LARGURA_FORMULARIO = 640;
 export const LARGURA_MENU_LATERAL = 900;
+/** Editores e formulários longos (treino, dieta, modelo, marca, perfil). */
+export const LARGURA_EDITOR = 1040;
+/** Listas e painéis (ficha do aluno, início, alunos, biblioteca, planejamento). */
+export const LARGURA_LISTA = 1280;
 
 export const fontes = {
   normal: 'Inter_400Regular',

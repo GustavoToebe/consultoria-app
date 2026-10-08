@@ -1,3 +1,4 @@
+import { LARGURA_LISTA } from '../../../../tema/tokens';
 import { useLocalSearchParams } from 'expo-router';
 import { receita } from '../../../../api/rotas';
 import EditorDeDieta from '../../../../treinador/dieta/EditorDeDieta';
@@ -13,7 +14,7 @@ import { useCarregar } from '../../../../ui/useCarregar';
 export default function Modelo() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const carga = useCarregar(`modelo:${id}`, () => receita(id));
-  if (!carga.dados) return <Tela bordas={['top']}><Cabecalho titulo="Modelo" voltar="/treinador/planejamento" />{carga.erro ? <MensagemErro texto={textoDoErro(carga.erro)} tentarDeNovo={carga.recarregar} /> : <Esqueleto />}</Tela>;
+  if (!carga.dados) return <Tela bordas={['top']} largura={LARGURA_LISTA}><Cabecalho titulo="Modelo" voltar="/treinador/planejamento" />{carga.erro ? <MensagemErro texto={textoDoErro(carga.erro)} tentarDeNovo={carga.recarregar} /> : <Esqueleto />}</Tela>;
   if (carga.dados.tipo === 'PLANO_TREINO' || carga.dados.tipo === 'SESSAO_TREINO') return <EditorDeTreino key={id} modelo unica={carga.dados.tipo === 'SESSAO_TREINO'} />;
   if (carga.dados.tipo === 'PLANO_DIETA' || carga.dados.tipo === 'REFEICAO') return <EditorDeDieta key={id} modelo unica={carga.dados.tipo === 'REFEICAO'} />;
   return <EditorModelo key={`${id}:${carga.dados.versao}`} receita={carga.dados} aoRecarregar={carga.recarregar} />;

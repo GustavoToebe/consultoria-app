@@ -1,3 +1,4 @@
+import { LARGURA_EDITOR } from '../../tema/tokens';
 import { useState } from 'react';
 import { alterarReceita, consultoria } from '../../api/rotas';
 import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos';
@@ -37,7 +38,7 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   const alterarMob = (mudanca: (c: ConteudoMobilidade) => ConteudoMobilidade) => setConteudo(mudanca(conteudo as ConteudoMobilidade));
   const alterarSecao = (si: number, mudanca: (x: SecaoMobilidade) => SecaoMobilidade) => alterarMob((c) => ({ ...c, secoes: c.secoes.map((x, n) => (n === si ? mudanca(x) : x)) }));
   const alterarItem = (si: number, ii: number, parcial: Partial<ItemMobilidade>) => alterarSecao(si, (x) => ({ ...x, itens: x.itens.map((y, m) => (m === ii ? { ...y, ...parcial } : y)) }));
-  return <Tela bordas={['top']} largura={960}>
+  return <Tela bordas={['top']} largura={LARGURA_EDITOR}>
     <Cabecalho titulo={r.nome} subtitulo="Modelo reutilizável" voltar="/treinador/planejamento" />
     <Texto variante="suave">Salve as alterações antes de sair. Os planos dos alunos permanecem iguais.</Texto>
     <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />

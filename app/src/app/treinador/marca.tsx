@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { consultoria } from '../../api/rotas';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { FormMarca } from '../../treinador/marca/FormMarca';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -17,7 +17,7 @@ export default function Marca() {
   // Conflito (outra aba salvou): recarrega e recria o formulário com os valores atuais.
   const [conflitos, setConflitos] = useState(0);
   return (
-    <Tela bordas={['top']} largura={960}>
+    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo="Marca" mostrarMarca="celular" />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}

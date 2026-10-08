@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 
-import { LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { LARGURA_MENU_LATERAL, LARGURA_LISTA } from '../../tema/tokens';
 import { AbaAlimentos } from '../../treinador/biblioteca/AbaAlimentos';
 import { AbaCatalogo } from '../../treinador/biblioteca/AbaCatalogo';
 import { AbaCsv } from '../../treinador/biblioteca/AbaCsv';
@@ -25,7 +25,7 @@ export default function Biblioteca() {
   const [aba, setAba] = useState<Aba>('exercicios');
   const { width } = useWindowDimensions();
   return (
-    <Tela bordas={['top']}>
+    <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho
         titulo="Biblioteca"
         mostrarMarca="celular"

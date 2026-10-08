@@ -7,7 +7,7 @@ import { painelTreinador } from '../../api/rotas';
 import { dataParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../../tema/tokens';
+import { espaco, fontes, RAIO, LARGURA_LISTA } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
@@ -28,7 +28,7 @@ export default function InicioTreinador() {
   const abrirAluno = (id: string) => router.push(`/treinador/alunos/${id}`);
 
   return (
-    <Tela bordas={['top']}>
+    <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho
         titulo={`Olá, ${usuario?.nome ?? ''}`}
         mostrarMarca="celular"

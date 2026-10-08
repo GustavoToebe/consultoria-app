@@ -3,13 +3,13 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, LARGURA_FORMULARIO, LARGURA_MAXIMA } from '../tema/tokens';
+import { espaco, LARGURA_MAXIMA } from '../tema/tokens';
 
 interface Props {
   children: ReactNode;
   /** Rolagem própria (padrão). Telas com lista virtualizada passam `false`. */
   rolar?: boolean;
-  /** Largura do conteúdo: formulários curtos (até 640) ficam estreitos; as demais telas usam a largura toda até o máximo. */
+  /** Largura máxima do conteúdo (`LARGURA_EDITOR`, `LARGURA_LISTA`, 720 no aluno); nunca passa de `LARGURA_MAXIMA`. */
   largura?: number;
   bordas?: Edge[];
 }
@@ -20,7 +20,7 @@ interface Props {
  */
 export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas = ['top', 'bottom'] }: Props) {
   const { cores } = useTema();
-  const larguraUtil = largura <= LARGURA_FORMULARIO ? largura : LARGURA_MAXIMA;
+  const larguraUtil = Math.min(largura, LARGURA_MAXIMA);
   const conteudo = <View style={[estilos.conteudo, { maxWidth: larguraUtil }]}>{children}</View>;
   return (
     <SafeAreaView edges={bordas} style={[estilos.raiz, { backgroundColor: cores.fundo }]}>
@@ -40,5 +40,5 @@ export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas 
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   rolagem: { flexGrow: 1, padding: espaco(2) },
-  conteudo: { width: '100%', alignSelf: 'center', gap: espaco(2) },
+  conteudo: { width: '100%', alignSelf: 'center', gap: espaco(3) },
 });

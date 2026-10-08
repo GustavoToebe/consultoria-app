@@ -1,3 +1,4 @@
+import { LARGURA_LISTA } from '../../../tema/tokens';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
@@ -35,7 +36,7 @@ export default function Planejamento() {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const atualizar = () => { modelos.recarregar(); pastas.recarregar(); };
   const filtrados = modelos.dados?.filter((r) => r.tipo === tipo && (pasta === '*' || (r.pastaId ?? '') === pasta) && `${r.nome} ${r.descricao ?? ''}`.toLocaleLowerCase().includes(busca.toLocaleLowerCase()));
-  return <Tela bordas={['top']} largura={1100}>
+  return <Tela bordas={['top']} largura={LARGURA_LISTA}>
     <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
     <Texto variante="suave">Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.</Texto>
     <Escolha rotulo="Modelos" valor={tipo} aoMudar={setTipo} opcoes={CATEGORIAS} />
