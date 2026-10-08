@@ -57,7 +57,7 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
                 },
               ]}>
               <Icone size={16} color={corTexto} strokeWidth={2} />
-              <Texto numerico style={[estilos.texto, { color: corTexto }]} numberOfLines={1}>{rotulo}</Texto>
+              <Texto numerico style={[estilos.texto, { color: corTexto }]}>{rotulo}</Texto>
               {erro ? <View style={[estilos.ponto, { backgroundColor: cores.perigo, borderColor: ativo ? cores.texto : cores.superficie2 }]} /> : null}
             </Pressable>
           );

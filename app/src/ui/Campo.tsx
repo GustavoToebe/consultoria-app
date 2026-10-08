@@ -4,6 +4,7 @@ import { ESTILOS_TEXTO } from './tipografia';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, View, type TextInputProps } from 'react-native';
 
+import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
@@ -22,7 +23,7 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
 }
 
 export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, ...resto }: Props) {
-  const { cores, marca } = useTema();
+  const { cores, marca, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const corBorda = erro ? cores.perigo : foco ? marca : cores.bordaCampo;
   // Foco e erro têm borda de 2 px; o padding cede 1 px para a altura e o texto não mexerem.
@@ -51,9 +52,9 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
           estilos.entrada,
           { borderWidth: 1 + destaque, paddingHorizontal: espaco(1.5) - destaque, paddingVertical: espaco(1) - destaque },
           numerico ? { fontVariant: ['tabular-nums'] } : null,
-          linhas ? { minHeight: linhas * 22 + 20, textAlignVertical: 'top' } : null,
+          linhas ? { minHeight: linhas * escalar(22, fatorTexto) + 20, textAlignVertical: 'top' } : null,
           acao ? { paddingRight: ALVO_TOQUE } : null,
-          { color: cores.texto, backgroundColor: cores.campo, borderColor: corBorda },
+          { color: cores.texto, backgroundColor: cores.campo, borderColor: corBorda, fontSize: escalar(16, fatorTexto) },
         ]}
       />
       {acao ? <View style={estilos.acao}>{acao}</View> : null}

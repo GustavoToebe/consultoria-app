@@ -168,8 +168,7 @@ function CartaoSerie({
           </Texto>
         </View>
         <Texto
-          style={[estilos.nomeSerie, feita && { textDecorationLine: 'line-through', color: cores.textoSuave }]}
-          numberOfLines={1}>
+          style={[estilos.nomeSerie, feita && { textDecorationLine: 'line-through', color: cores.textoSuave }]}>
           {trabalho ? `Série ${indice + 1}` : s.tipo}
         </Texto>
         <Texto numerico variante="pequeno" style={estilos.meta}>

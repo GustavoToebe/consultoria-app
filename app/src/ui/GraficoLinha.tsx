@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgTexto } from 'react-native-svg';
 
+import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
 import { caminhoSuave, marcasDoEixo } from '../dominio/grafico';
@@ -12,15 +13,19 @@ export interface PontoGrafico {
   valor: number;
 }
 
-const ALTURA = 240;
-const MARGEM = { topo: 14, base: 24, esq: 58, dir: 18 };
+const ALTURA_BASE = 240;
+const MARGEM_BASE = { topo: 14, base: 24, esq: 58, dir: 18 };
 
 /**
  * Gráfico de linha (SVG): curva suave com a área abaixo preenchida, pontos nos registros e eixo vertical com a
  * unidade ("82 kg"). Pontos já na ordem do eixo horizontal; só desenha o que foi registrado.
  */
 export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGrafico[]; unidade: string; descricao: string }) {
-  const { cores, marca } = useTema();
+  const { cores, marca, fatorTexto } = useTema();
+  // Os rótulos do eixo acompanham o tamanho do texto; margens e altura crescem junto para não cortar.
+  const fonte = escalar(11, fatorTexto);
+  const MARGEM = { ...MARGEM_BASE, base: escalar(MARGEM_BASE.base, fatorTexto), esq: escalar(MARGEM_BASE.esq, fatorTexto) };
+  const ALTURA = ALTURA_BASE + (MARGEM.base - MARGEM_BASE.base);
   const [largura, setLargura] = useState(0);
   const aoMedir = (e: LayoutChangeEvent) => setLargura(e.nativeEvent.layout.width);
   if (pontos.length === 0) return null;
@@ -47,7 +52,7 @@ export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGraf
             <Line key={m} x1={MARGEM.esq} x2={w - MARGEM.dir} y1={y(m)} y2={y(m)} stroke={cores.borda} strokeWidth={1} />
           ))}
           {marcas.map((m) => (
-            <SvgTexto key={`t${m}`} x={MARGEM.esq - 6} y={y(m) + 4} fontSize={11} fill={cores.textoSuave} textAnchor="end">
+            <SvgTexto key={`t${m}`} x={MARGEM.esq - 6} y={y(m) + 4} fontSize={fonte} fill={cores.textoSuave} textAnchor="end">
               {formato(m)} {unidade}
             </SvgTexto>
           ))}
@@ -58,7 +63,7 @@ export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGraf
           ))}
           {pontos.map((p, i) =>
             i % passoRotulo === 0 || i === pontos.length - 1 ? (
-              <SvgTexto key={`r${i}`} x={x(i)} y={ALTURA - 6} fontSize={11} fill={cores.textoSuave} textAnchor="middle">
+              <SvgTexto key={`r${i}`} x={x(i)} y={ALTURA - 6} fontSize={fonte} fill={cores.textoSuave} textAnchor="middle">
                 {p.rotulo}
               </SvgTexto>
             ) : null,

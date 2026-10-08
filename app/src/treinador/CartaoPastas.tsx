@@ -141,7 +141,7 @@ function LinhaPasta({ pasta, aoAbrir }: { pasta: PastaResumo; aoAbrir: () => voi
         <Icone size={22} color={concluida ? cores.textoSuave : marca} />
       </View>
       <View style={estilos.linhaTextos}>
-        <Texto numerico style={estilos.linhaTitulo} numberOfLines={1}>{pasta.titulo}</Texto>
+        <Texto numerico style={estilos.linhaTitulo}>{pasta.titulo}</Texto>
         <Texto numerico variante="suave">{periodo(pasta)}</Texto>
       </View>
       {concluida ? <Selo texto="Concluída" tipo="neutro" /> : <Selo texto="Ativa" tipo="sucesso" />}

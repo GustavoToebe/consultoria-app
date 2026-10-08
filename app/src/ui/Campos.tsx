@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from '../dominio/formatos';
+import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { type Ancora, BotaoCalendario, Calendario } from './Calendario';
@@ -147,7 +148,7 @@ export function CampoNumericoGrande({
   /** Linha pequena abaixo da caixa (ex.: "Sugerida pelo plano"). */
   ajuda?: string;
 }) {
-  const { cores, marca } = useTema();
+  const { cores, marca, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro);
   const corBorda = lido === undefined ? cores.perigo : foco ? marca : cores.bordaCampo;
@@ -167,7 +168,7 @@ export function CampoNumericoGrande({
           keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}
           inputMode={inteiro ? 'numeric' : 'decimal'}
           selectTextOnFocus
-          style={[estilos.numero, destaque && estilos.numeroDestaque, { color: cores.texto }]}
+          style={[estilos.numero, destaque && estilos.numeroDestaque, { color: cores.texto, fontSize: escalar(destaque ? 28 : 22, fatorTexto) }]}
         />
         {sufixo ? <Texto variante="suave" style={estilos.sufixo}>{sufixo}</Texto> : null}
       </View>

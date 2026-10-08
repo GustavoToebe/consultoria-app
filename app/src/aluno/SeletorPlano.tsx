@@ -67,7 +67,7 @@ export function SeletorPlano({ rotulo }: { rotulo: string | null }) {
           { backgroundColor: cores.superficie, borderColor: cores.borda, opacity: pressed ? 0.75 : 1 },
         ]}>
         <View style={estilos.textos}>
-          <Texto numerico variante="suave" numberOfLines={2}>{texto}</Texto>
+          <Texto numerico variante="suave">{texto}</Texto>
           {emUso ? <SeloStatus pasta={emUso} /> : null}
         </View>
         {podeTrocar ? <ChevronDown size={20} color={cores.textoSuave} /> : null}
