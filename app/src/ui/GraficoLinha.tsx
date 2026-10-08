@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
-import Svg, { Circle, Line, Polyline, Text as SvgTexto } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Text as SvgTexto } from 'react-native-svg';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
-import { marcasDoEixo } from '../dominio/grafico';
+import { caminhoSuave, marcasDoEixo } from '../dominio/grafico';
 import { Texto } from './Texto';
 
 export interface PontoGrafico {
@@ -12,10 +12,13 @@ export interface PontoGrafico {
   valor: number;
 }
 
-const ALTURA = 180;
-const MARGEM = { topo: 14, base: 24, esq: 40, dir: 14 };
+const ALTURA = 240;
+const MARGEM = { topo: 14, base: 24, esq: 58, dir: 18 };
 
-/** Gráfico de linha simples (SVG). Pontos já na ordem do eixo horizontal; só desenha o que foi registrado. */
+/**
+ * Gráfico de linha (SVG): curva suave com a área abaixo preenchida, pontos nos registros e eixo vertical com a
+ * unidade ("82 kg"). Pontos já na ordem do eixo horizontal; só desenha o que foi registrado.
+ */
 export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGrafico[]; unidade: string; descricao: string }) {
   const { cores, marca } = useTema();
   const [largura, setLargura] = useState(0);
@@ -32,7 +35,8 @@ export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGraf
   const x = (i: number) => MARGEM.esq + (pontos.length === 1 ? areaW / 2 : (i / (pontos.length - 1)) * areaW);
   const y = (v: number) => MARGEM.topo + (1 - (v - min) / (max - min)) * areaH;
   const marcas = marcasDoEixo(min, max);
-  const passoRotulo = Math.max(1, Math.ceil(pontos.length / Math.max(Math.floor(areaW / 64), 1)));
+  const passoRotulo = Math.max(1, Math.ceil(pontos.length / Math.max(Math.floor(areaW / 72), 1)));
+  const curva = caminhoSuave(pontos.map((p, i) => ({ x: x(i), y: y(p.valor) })));
   const formato = (v: number) => String(Math.round(v * 10) / 10).replace('.', ',');
 
   return (
@@ -44,10 +48,11 @@ export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGraf
           ))}
           {marcas.map((m) => (
             <SvgTexto key={`t${m}`} x={MARGEM.esq - 6} y={y(m) + 4} fontSize={11} fill={cores.textoSuave} textAnchor="end">
-              {formato(m)}
+              {formato(m)} {unidade}
             </SvgTexto>
           ))}
-          <Polyline points={pontos.map((p, i) => `${x(i)},${y(p.valor)}`).join(' ')} fill="none" stroke={marca} strokeWidth={2.5} strokeLinejoin="round" />
+          <Path d={`${curva}L${x(pontos.length - 1)},${y(min)}L${x(0)},${y(min)}Z`} fill={marca} fillOpacity={0.12} />
+          <Path d={curva} fill="none" stroke={marca} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
           {pontos.map((p, i) => (
             <Circle key={`${p.rotulo}${i}`} cx={x(i)} cy={y(p.valor)} r={4} fill={marca} stroke={cores.superficie} strokeWidth={1.5} />
           ))}

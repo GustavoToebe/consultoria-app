@@ -4,9 +4,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { excluirPeso, pesosDoAluno, registrarPeso } from '../api/rotas';
 import type { RegistroPeso } from '../api/tipos';
-import { dataCurta, dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { espaco } from '../tema/tokens';
+import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -27,6 +27,8 @@ function variacao(v: number | null): string {
   if (v === 0) return '0 kg';
   return `${v > 0 ? '+' : '−'}${numeroParaTela(Math.abs(v))} kg`;
 }
+
+const LINHAS_INICIAIS = 12;
 
 /** Registros de peso do aluno (dado sensível: só na tela, nunca em log). */
 export function CartaoPeso({ alunoId }: { alunoId: string }) {
@@ -67,8 +69,13 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
     excluirPeso(alunoId, alvo.id).then(recarregar, (e: unknown) => setErroSalvar(e));
   };
 
-  // A API devolve em ordem de data; a tela mostra o mais recente primeiro.
-  const lista = [...(dados ?? [])].reverse();
+  // Não depende da ordem da API (hoje, do mais novo para o mais antigo): `cronologico` é do mais antigo ao mais novo
+  // (gráfico e numeração "Atual. N"); a tabela mostra o mais recente primeiro.
+  const cronologico = [...(dados ?? [])].sort((a, b) => a.data.localeCompare(b.data));
+  const lista = cronologico.map((p, i) => ({ ...p, numero: i + 1 })).reverse();
+  const [todos, setTodos] = useState(false);
+  const comTabela = visao === 'lista' || !dados || dados.length < 2;
+  const visiveis = todos ? lista : lista.slice(0, LINHAS_INICIAIS);
 
   return (
     <Cartao titulo="Peso">
@@ -80,20 +87,42 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
       ) : null}
       {visao === 'grafico' && dados && dados.length > 1 ? (
         <GraficoLinha
-          pontos={dados.map((p) => ({ rotulo: dataCurta(p.data), valor: p.pesoKg }))}
+          pontos={cronologico.map((p, i) => ({ rotulo: `Atual. ${i + 1}`, valor: p.pesoKg }))}
           unidade="kg"
           descricao={`Gráfico de peso com ${dados.length} registros`}
         />
       ) : null}
-      {(visao === 'lista' || !dados || dados.length < 2 ? lista.slice(0, 12) : []).map((p) => (
-        <View key={p.id} style={[estilos.linha, { borderColor: cores.borda }]}>
-          <Texto style={estilos.data}>{dataParaTela(p.data)}</Texto>
-          <Texto style={estilos.peso}>{numeroParaTela(p.pesoKg)} kg</Texto>
-          <Texto variante="suave" style={estilos.variacao}>{variacao(p.variacao)}</Texto>
-          <Texto variante="suave" style={estilos.obs} numberOfLines={2}>{p.observacao ?? ''}</Texto>
-          <IconeBotao Icone={Trash2} rotulo={`Excluir peso de ${dataParaTela(p.data)}`} cor={cores.perigo} aoTocar={() => setExcluir(p)} />
+      {comTabela && lista.length > 0 ? (
+        <View style={[estilos.tabela, { borderColor: cores.borda }]}>
+          <View style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+            <Texto variante="secao" style={[estilos.cNumero, estilos.centro]}>Atual.</Texto>
+            <Texto variante="secao" style={estilos.cData}>Data</Texto>
+            <Texto variante="secao" style={estilos.cPeso}>Peso</Texto>
+            <Texto variante="secao" style={estilos.cVariacao}>Variação</Texto>
+            <Texto variante="secao" style={estilos.cObs}>Obs</Texto>
+            <View style={estilos.cAcao} />
+          </View>
+          {visiveis.map((p, i) => (
+            <View key={p.id} style={[estilos.linha, i < visiveis.length - 1 && { borderColor: cores.borda, borderBottomWidth: 1 }]}>
+              <Texto numerico style={[estilos.cNumero, estilos.centro]}>{p.numero}</Texto>
+              <Texto numerico style={estilos.cData}>{dataParaTela(p.data)}</Texto>
+              <Texto numerico style={[estilos.cPeso, estilos.negrito]}>{numeroParaTela(p.pesoKg)} kg</Texto>
+              <Texto
+                numerico
+                style={[estilos.cVariacao, estilos.negrito, { color: p.variacao === null || p.variacao === 0 ? cores.textoSuave : p.variacao > 0 ? cores.perigo : cores.sucesso }]}>
+                {variacao(p.variacao)}
+              </Texto>
+              <Texto variante="suave" style={estilos.cObs} numberOfLines={2}>{p.observacao || '—'}</Texto>
+              <View style={estilos.cAcao}>
+                <IconeBotao Icone={Trash2} rotulo={`Excluir peso de ${dataParaTela(p.data)}`} cor={cores.perigo} aoTocar={() => setExcluir(p)} />
+              </View>
+            </View>
+          ))}
         </View>
-      ))}
+      ) : null}
+      {comTabela && lista.length > LINHAS_INICIAIS ? (
+        <Botao rotulo={todos ? 'Mostrar só os últimos' : `Mostrar todos (${lista.length})`} tipo="fantasma" aoTocar={() => setTodos((v) => !v)} />
+      ) : null}
       <View style={estilos.form}>
         <View style={estilos.campo}>
           <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={campos.data} />
@@ -123,11 +152,17 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
 }
 
 const estilos = StyleSheet.create({
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), borderBottomWidth: 1, paddingVertical: 2 },
-  data: { width: 92 },
-  peso: { width: 80 },
-  variacao: { width: 72 },
-  obs: { flex: 1 },
+  tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), minHeight: 48 },
+  cabecalho: { borderBottomWidth: 1, minHeight: 40 },
+  cNumero: { width: 52 },
+  cData: { flex: 1.2, minWidth: 84 },
+  cPeso: { flex: 1, minWidth: 70 },
+  cVariacao: { flex: 1, minWidth: 70 },
+  cObs: { flex: 1.4, minWidth: 40 },
+  cAcao: { width: 44, alignItems: 'center' },
+  centro: { textAlign: 'center' },
+  negrito: { fontFamily: fontes.negrito },
   form: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   campo: { width: 150 },
   campoLargo: { flex: 1, minWidth: 200 },
