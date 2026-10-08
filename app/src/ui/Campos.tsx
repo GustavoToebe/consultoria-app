@@ -1,5 +1,6 @@
+import { Switch } from '../components/ui/switch';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { dataDaTela, mascaraData, numeroDaTela, numeroParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
@@ -159,29 +160,15 @@ export function Interruptor({
   aoMudar: (valor: boolean) => void;
   ajuda?: string;
 }) {
-  const { cores, marca } = useTema();
   return (
-    <Pressable
-      accessibilityRole="switch"
-      accessibilityLabel={rotulo}
-      accessibilityState={{ checked: valor }}
-      onPress={() => aoMudar(!valor)}
+    <View
       style={estilos.interruptor}>
-      <View style={estilos.textos}>
+      <Pressable accessibilityLabel={rotulo} accessibilityRole="switch" accessibilityState={{ checked: valor }} aria-checked={valor} onPress={() => aoMudar(!valor)} style={estilos.textos}>
         <Texto style={estilos.rotulo}>{rotulo}</Texto>
         {ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
-      </View>
-      <Switch
-        value={valor}
-        onValueChange={aoMudar}
-        trackColor={{ true: marca, false: cores.borda }}
-        thumbColor="#FFFFFF"
-        // Na web o react-native-web pinta o botão ligado de verde-água se não receber esta cor.
-        {...({ activeThumbColor: '#FFFFFF' } as object)}
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-      />
-    </Pressable>
+      </Pressable>
+      <Switch checked={valor} onCheckedChange={aoMudar} accessibilityLabel={rotulo} />
+    </View>
   );
 }
 
