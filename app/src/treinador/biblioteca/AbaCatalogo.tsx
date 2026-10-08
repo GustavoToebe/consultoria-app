@@ -32,7 +32,7 @@ interface ListaCatalogo {
 
 /** Catálogo público (só leitura): marcar vários e importar para a biblioteca da consultoria. */
 export function AbaCatalogo() {
-  const { cores, marca, sobreMarca } = useTema();
+  const { cores, marca } = useTema();
   const { avisar } = useAviso();
   const [tipo, setTipo] = useState<TipoBiblioteca>('exercicios');
   const [busca, setBusca] = useState('');
@@ -137,15 +137,15 @@ export function AbaCatalogo() {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;
         return (
-          <View key={item.id} style={[estilos.item, { borderColor: sel ? marca : cores.borda, backgroundColor: cores.superficie }]}>
+          <View key={item.id} style={[estilos.item, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: cores.superficie }]}>
             <Pressable
               accessibilityRole="checkbox"
               accessibilityState={{ checked: sel }}
               accessibilityLabel={item.nome}
               onPress={() => alternar(item.id)}
               style={estilos.linha}>
-              <View style={[estilos.caixa, { borderColor: sel ? marca : cores.borda, backgroundColor: sel ? marca : 'transparent' }]}>
-                {sel ? <Check size={16} color={sobreMarca} strokeWidth={3} /> : null}
+              <View style={[estilos.caixa, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: sel ? cores.texto : 'transparent' }]}>
+                {sel ? <Check size={16} color={cores.fundo} strokeWidth={3} /> : null}
               </View>
               <View style={estilos.dados}>
                 <Texto>{item.nome}</Texto>

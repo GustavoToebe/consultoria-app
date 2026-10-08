@@ -21,10 +21,10 @@ interface Props<T> {
 
 /** Escolha entre poucas opções (dia da semana, tipo de série, tema): botões lado a lado que quebram linha. */
 export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao }: Props<T>) {
-  const { cores, marca, sobreMarca } = useTema();
+  const { cores } = useTema();
   return (
     <View style={estilos.campo}>
-      {rotulo ? <Texto variante="pequeno" style={estilos.rotulo}>{rotulo}</Texto> : null}
+      {rotulo ? <Texto variante="rotulo">{rotulo}</Texto> : null}
       <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { const opcao = v === undefined || v === '' ? undefined : opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={estilos.linha} accessibilityLabel={rotulo ?? descricao}>
         {opcoes.map((o, indice) => {
           const ativo = o.valor === valor;
@@ -36,11 +36,11 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
               style={[
                 estilos.opcao,
                 {
-                  backgroundColor: ativo ? marca : cores.superficie2,
-                  borderColor: ativo ? marca : cores.borda,
+                  backgroundColor: ativo ? cores.texto : cores.superficie2,
+                  borderColor: ativo ? cores.texto : cores.borda,
                 },
               ]}>
-              <Texto style={[estilos.texto, { color: ativo ? sobreMarca : cores.texto }]}>{o.rotulo}</Texto>
+              <Texto style={[estilos.texto, { color: ativo ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>
             </ToggleGroupItem>
           );
         })}
@@ -51,7 +51,6 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
 
 const estilos = StyleSheet.create({
   campo: { gap: espaco(0.5) },
-  rotulo: { fontFamily: fontes.semi },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
   opcao: {
     maxWidth: '100%',

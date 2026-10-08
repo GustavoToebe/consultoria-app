@@ -36,7 +36,7 @@ const CELULA = 36;
  * anterior/próximo, dias dos meses vizinhos esmaecidos, "Hoje" e "Limpar". Tocar fora fecha.
  */
 export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Props) {
-  const { cores, marca, sobreMarca } = useTema();
+  const { cores, marca } = useTema();
   const { width, height } = useWindowDimensions();
   const hoje = hojeIso();
   const [visto, setVisto] = useState(() => mesDeIso(valor, hoje));
@@ -70,7 +70,7 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
           <View key={si} style={estilos.linha}>
             {semana.map((d) => {
               const escolhido = d.iso === valor;
-              const cor = escolhido ? sobreMarca : d.doMes ? (d.iso === hoje ? marca : cores.texto) : cores.textoSuave;
+              const cor = escolhido ? cores.fundo : d.doMes ? (d.iso === hoje ? marca : cores.texto) : cores.textoSuave;
               return (
                 <Pressable
                   key={d.iso}
@@ -78,7 +78,7 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
                   accessibilityLabel={d.iso.split('-').reverse().join('/')}
                   accessibilityState={{ selected: escolhido }}
                   onPress={() => aoEscolher(d.iso)}
-                  style={({ pressed }) => [estilos.dia, escolhido && { backgroundColor: marca }, { opacity: pressed ? 0.7 : d.doMes ? 1 : 0.6 }]}>
+                  style={({ pressed }) => [estilos.dia, escolhido && { backgroundColor: cores.texto }, { opacity: pressed ? 0.7 : d.doMes ? 1 : 0.6 }]}>
                   <Texto numerico style={[estilos.numeroDia, { color: cor }]}>{d.dia}</Texto>
                 </Pressable>
               );
