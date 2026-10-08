@@ -80,7 +80,7 @@ export default function EditorDeDieta() {
   return (
     <Tela bordas={['top']} largura={960}>
       <Cabecalho titulo="Plano de dieta" subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />
-      <TopoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas} />
+      <TopoPlano tipo="dieta" editor={editor} problemas={problemas} aoProblemas={setProblemas} />
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}

@@ -1,9 +1,10 @@
+import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { ErroApi } from '../../api/cliente';
-import { dietaAluno } from '../../api/rotas';
+import { dietaAluno, pesosAluno } from '../../api/rotas';
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
 import { normalizarDieta, somar, totalDoDia } from '../../dominio/dieta';
 import { dataParaTela, numeroParaTela } from '../../dominio/formatos';
@@ -11,7 +12,12 @@ import { useAluno } from '../../offline/AlunoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { textoTotais } from '../../treinador/dieta/CartaoRefeicao';
+import { imprimir } from '../../pdf/imprimir';
+import { logoComoDataUri } from '../../pdf/logo';
+import { documentoDieta } from '../../pdf/pdfDieta';
 import { Abas } from '../../ui/Abas';
+import { useAviso } from '../../ui/Aviso';
+import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
@@ -57,12 +63,45 @@ export default function DietaAluno() {
 
 function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean }) {
   const { cores } = useTema();
+  const { pacote } = useAluno();
+  const { avisar } = useAviso();
+  const [gerando, setGerando] = useState(false);
   const c = normalizarDieta(versao.conteudo);
+
+  const pdf = async () => {
+    if (!pacote) return;
+    setGerando(true);
+    try {
+      const marca = pacote.pacote.marca;
+      // Sem internet o PDF sai sem o acompanhamento de peso (que vem do servidor).
+      const pesos = await pesosAluno().catch(() => []);
+      await imprimir(
+        documentoDieta({
+          marca,
+          logoDataUri: await logoComoDataUri(marca),
+          aluno: pacote.pacote.aluno.nome,
+          titulo: versao.titulo,
+          versao: versao.numero,
+          conteudo: c,
+          pesos,
+          rodapePdf: null,
+          emitidoEm: new Date(),
+        }),
+      );
+    } catch (e) {
+      avisar(textoDoErro(e), 'perigo');
+    } finally {
+      setGerando(false);
+    }
+  };
   return (
     <>
       {salva ? <Selo texto="Sem conexão — mostrando a última versão salva" tipo="neutro" /> : null}
       <Cartao>
-        <Texto variante="subtitulo">{versao.titulo}</Texto>
+        <View style={estilos.topo}>
+          <Texto variante="subtitulo" style={estilos.cresce}>{versao.titulo}</Texto>
+          <Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
+        </View>
         {c.objetivo ? <Texto>Objetivo: {c.objetivo}</Texto> : null}
         <Texto variante="suave">
           {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
@@ -132,6 +171,8 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
 }
 
 const estilos = StyleSheet.create({
+  topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  cresce: { flex: 1 },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
   textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
   orientacao: { gap: 2 },

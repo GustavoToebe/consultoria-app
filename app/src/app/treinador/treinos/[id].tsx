@@ -107,7 +107,7 @@ export default function EditorDeTreino() {
   return (
     <Tela bordas={['top']} largura={960}>
       <Cabecalho titulo="Plano de treino" subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />
-      <TopoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas} />
+      <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={setProblemas} />
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Copy, Pencil, Plus } from 'lucide-react-native';
+import { Copy, FileDown, Pencil, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -19,6 +19,7 @@ import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
+import { gerarPdfDoPlano } from './gerarPdf';
 import { useCarregar } from '../ui/useCarregar';
 
 const NOMES: Record<TipoPlano, { titulo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA'; rota: string }> = {
@@ -76,6 +77,7 @@ export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: stri
             <SelosDoPlano plano={p} />
           </View>
           <View style={estilos.botoes}>
+            {p.versaoPublicada > 0 ? <BotaoPdf tipo={tipo} plano={p} /> : null}
             {p.versaoPublicada > 0 ? (
               <Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} />
             ) : null}
@@ -86,6 +88,26 @@ export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: stri
       {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} planos={dados ?? []} aoFechar={() => setNovo(false)} /> : null}
       {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} /> : null}
     </Cartao>
+  );
+}
+
+/** PDF da versão publicada, direto da ficha. */
+function BotaoPdf({ tipo, plano }: { tipo: TipoPlano; plano: PlanoResumo }) {
+  const { avisar } = useAviso();
+  const [gerando, setGerando] = useState(false);
+  return (
+    <Botao
+      rotulo="PDF"
+      tipo="secundario"
+      Icone={FileDown}
+      carregando={gerando}
+      aoTocar={() => {
+        setGerando(true);
+        gerarPdfDoPlano(tipo, plano)
+          .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'))
+          .finally(() => setGerando(false));
+      }}
+    />
   );
 }
 

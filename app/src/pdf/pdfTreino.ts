@@ -1,0 +1,97 @@
+import type { ConteudoTreino, ExercicioPlano, Marca, Sessao } from '../api/tipos';
+import { agrupar, faixa, textoIntensidade, type GrupoDeSeries } from '../dominio/agrupamento';
+import { DIAS_SEMANA } from '../dominio/editorTreino';
+import { dataHoraParaTela, dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { rotuloDoDia, rotuloDoTipo, sessoesDaSemana } from '../dominio/semana';
+import { cssBase, esc, escLinhas, link, topo, type Documento } from './html';
+
+export interface DadosPdfTreino {
+  marca: Marca;
+  logoDataUri: string | null;
+  aluno: string;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+  /** Número da versão publicada; `null` = rascunho (sai marcado). */
+  versao: number | null;
+  conteudo: ConteudoTreino;
+  tipoTrabalho: string;
+  instrucoesTreino: string | null;
+  rodapePdf: string | null;
+  emitidoEm: Date;
+}
+
+/** Coluna "Séries x reps": "3x3 - FS", "1x3 a 6 - WS", "1x - Cardio (50 min)". */
+export function linhaDoGrupo(g: GrupoDeSeries): string {
+  const s = g.series[0];
+  return `${g.series.length}x${faixa(s)} - ${s.tipo || 'Série'}${s.alvoTexto ? ` (${s.alvoTexto})` : ''}`;
+}
+
+/** Intensidade escrita na coluna OBS: "Back off - 85% da WS", "FS - 50/70/85% da WS", "Série - 2 RIR". */
+export function obsDoGrupo(g: GrupoDeSeries, tipoTrabalho: string): string | null {
+  const s = g.series[0];
+  const modo = s.intensidade?.modo ?? 'NENHUMA';
+  if (modo === 'PERCENTUAL_WS') {
+    const valores = [...new Set(g.series.map((x) => (x.intensidade?.percentual == null ? '?' : numeroParaTela(x.intensidade.percentual))))];
+    const lista = g.series.length > 1 && valores.length > 1 ? g.series.map((x) => numeroParaTela(x.intensidade?.percentual ?? null)).join('/') : valores[0];
+    return `${s.tipo} - ${lista}% da ${tipoTrabalho}`;
+  }
+  const t = textoIntensidade(s.intensidade);
+  return t ? `${s.tipo} - ${t}` : null;
+}
+
+function linhaExercicio(e: ExercicioPlano, tipoTrabalho: string): string {
+  const grupos = agrupar(e.series);
+  const obs = [e.observacao, ...grupos.map((g) => obsDoGrupo(g, tipoTrabalho)), e.progressao ? null : 'Foco em controle, não em carga']
+    .filter((x): x is string => !!x);
+  return `<tr>
+<td><strong>${esc(e.nome)}</strong></td>
+<td>${grupos.map((g) => esc(linhaDoGrupo(g))).join('<br>') || '—'}</td>
+<td>${obs.map(esc).join('<br>') || '—'}</td>
+<td>${link(e.videoUrl, 'Vídeo')}</td>
+</tr>`;
+}
+
+function blocoSessao(s: Sessao, tipoTrabalho: string): string {
+  // Sem dia fixo: acrescenta "2x na semana" só se o nome ainda não diz.
+  const dia = rotuloDoDia(s);
+  const titulo = s.diaSemana || s.nome.toLowerCase().includes(dia.toLowerCase()) ? s.nome : `${s.nome} (${dia})`;
+  const extras = [s.cardio ? `<div><strong>Cardio:</strong> ${esc(s.cardio)}</div>` : '', s.observacao ? `<div class="suave">${escLinhas(s.observacao)}</div>` : ''].join('');
+  if (!s.exercicios.length) {
+    return `<div class="bloco"><h2>${esc(titulo)}</h2><div class="suave">${esc(rotuloDoTipo(s))}</div>${extras}</div>`;
+  }
+  // Título preso à tabela: sessão curta vai inteira para a página seguinte em vez de deixar o título sozinho.
+  return `<section class="${s.exercicios.length <= 8 ? 'bloco' : ''}">
+<h2>${esc(titulo)}</h2>${extras}
+<table><thead><tr><th style="width:34%">Exercício</th><th style="width:24%">Séries x reps</th><th>Obs</th><th style="width:9%">Vídeo</th></tr></thead>
+<tbody>${s.exercicios.map((e) => linhaExercicio(e, tipoTrabalho)).join('')}</tbody></table>
+</section>`;
+}
+
+/** PDF do treino no formato do Saraiva (seção 12): semana, sessões com tabela e, no fim, as instruções. */
+export function documentoTreino(d: DadosPdfTreino): Documento {
+  const c = d.conteudo;
+  const periodo = d.inicio || d.fim ? `${dataParaTela(d.inicio) || '—'} a ${dataParaTela(d.fim) || '—'}` : null;
+  const semana = DIAS_SEMANA.map((dia, i) => {
+    const nomes = c.sessoes.filter((s) => s.diaSemana === i + 1).map((s) => esc(s.nome));
+    return `<tr><td><strong>${dia}</strong></td><td>${nomes.join('<br>') || '—'}</td></tr>`;
+  }).join('');
+  const semDia = c.sessoes.filter((s) => !s.diaSemana);
+  const corpo = [
+    topo(d.marca, d.logoDataUri, [
+      `Aluno: ${d.aluno}`,
+      `${d.titulo}${d.versao ? ` (v${d.versao})` : ' (RASCUNHO, não publicado)'}`,
+      ...(periodo ? [`Período: ${periodo}`] : []),
+      `Emitido em ${dataHoraParaTela(d.emitidoEm.toISOString())}`,
+    ]),
+    c.objetivo ? `<div><strong>Objetivo:</strong> ${esc(c.objetivo)}</div>` : '',
+    c.orientacoes ? `<div class="suave">${escLinhas(c.orientacoes)}</div>` : '',
+    `<div class="bloco"><h2>Semana</h2><table><thead><tr><th style="width:25%">Dia</th><th>Treino</th></tr></thead><tbody>${semana}${semDia
+      .map((s) => `<tr><td><strong>${esc(rotuloDoDia(s))}</strong></td><td>${esc(s.nome)}</td></tr>`)
+      .join('')}</tbody></table></div>`,
+    ...sessoesDaSemana(c).map((s) => blocoSessao(s, d.tipoTrabalho)),
+    d.instrucoesTreino?.trim() ? `<div><h2>Instruções</h2><div class="texto">${escLinhas(d.instrucoesTreino)}</div></div>` : '',
+    d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
+  ].join('\n');
+  return { titulo: `Treino - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria), corpo };
+}

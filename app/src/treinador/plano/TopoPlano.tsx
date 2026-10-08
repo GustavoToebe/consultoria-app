@@ -1,8 +1,8 @@
-import { CheckCircle2, Send } from 'lucide-react-native';
+import { CheckCircle2, FileDown, Send } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { Problema, ResultadoValidacao } from '../../api/tipos';
+import type { Problema, ResultadoValidacao, TipoPlano } from '../../api/tipos';
 import { localizar } from '../../dominio/caminhos';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
@@ -17,6 +17,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo, type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { SelosDoPlano } from '../CartaoPlanos';
+import { gerarPdfDoPlano } from '../gerarPdf';
 import type { SituacaoRascunho, usePlanoEditor } from './usePlanoEditor';
 
 const SITUACOES: Record<SituacaoRascunho, { texto: string; tipo: TipoSelo }> = {
@@ -31,6 +32,7 @@ const SITUACOES: Record<SituacaoRascunho, { texto: string; tipo: TipoSelo }> = {
 type Editor<C> = ReturnType<typeof usePlanoEditor<C>>;
 
 interface Props<C> {
+  tipo: TipoPlano;
   editor: Editor<C>;
   /** Problemas da última validação/publicação (o editor destaca os cartões). */
   problemas: ResultadoValidacao | null;
@@ -38,10 +40,11 @@ interface Props<C> {
 }
 
 /** Título, período, estado do rascunho e as ações Validar e Publicar, com o resultado do validador da API. */
-export function TopoPlano<C>({ editor, problemas, aoProblemas }: Props<C>) {
+export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>) {
   const { avisar } = useAviso();
   const [validando, setValidando] = useState(false);
   const [publicando, setPublicando] = useState(false);
+  const [gerandoPdf, setGerandoPdf] = useState(false);
   const [avisos, setAvisos] = useState<Problema[] | null>(null);
   const e = editor.estado;
   if (!e) return null;
@@ -65,6 +68,19 @@ export function TopoPlano<C>({ editor, problemas, aoProblemas }: Props<C>) {
         avisar(textoDoErro(erro), 'perigo');
       },
     );
+  };
+
+  // PDF da última versão publicada (o que o aluno vê); nunca publicado, sai do rascunho marcado como tal.
+  const pdf = async () => {
+    setGerandoPdf(true);
+    try {
+      if (e.plano.versaoPublicada === 0) await editor.salvar();
+      await gerarPdfDoPlano(tipo, e.plano, e.conteudo);
+    } catch (erro) {
+      avisar(textoDoErro(erro), 'perigo');
+    } finally {
+      setGerandoPdf(false);
+    }
   };
 
   const publicar = (confirmarAvisos: boolean) => {
@@ -120,6 +136,13 @@ export function TopoPlano<C>({ editor, problemas, aoProblemas }: Props<C>) {
           {editor.situacao === 'erro' ? (
             <Botao rotulo="Tentar salvar de novo" tipo="secundario" aoTocar={() => void editor.salvar()} />
           ) : null}
+          <Botao
+            rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
+            tipo="secundario"
+            Icone={FileDown}
+            carregando={gerandoPdf}
+            aoTocar={() => void pdf()}
+          />
           <Botao rotulo="Validar" tipo="secundario" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />
           <Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} />
         </View>

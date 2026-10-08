@@ -84,6 +84,10 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
   (prefixo `treinos:<usuarioId>:`, uma operação por vez) e `Sincronizador`. Série marcada grava no aparelho na hora;
   a carga sugerida vem de `dominio/cargas.ts` (seção 8) e o que o aluno digita é gravado como digitou.
 
+- PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
+  arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`
+  (a CSP tem `frame-src 'none'`, então nada de iframe). Logo entra como data URI (`pdf/logo.ts`).
+
 ## Onde está cada coisa
 - `api/` — backend novo. `app/` — app Expo novo.
 - `backend/` e `mobile/` — protótipo antigo: **não mexer, não apagar**. `mobile/src/database/pdf_plan_parser.ts` e
