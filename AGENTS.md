@@ -83,13 +83,26 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   um novo. Sem conexão na abertura, a sessão abre offline com o último perfil salvo.
 - Design: tokens em `tema/tokens.ts`; status com `Selo` (nunca a cor da marca); confirmação com `PainelConfirmacao`;
   aviso com `useAviso()`; link de texto com `LinkTexto`. Fontes importadas por subcaminho (só os pesos usados).
-- Tipografia em `ui/tipografia.ts` (escala original + destaque); `Texto numerico` e campos numéricos usam números tabulares.
-  `suave` mantém a escala original; cartões têm borda nos dois temas; pressionado = `superficie3`.
+- **Níveis:** fundo → `Cartao` (`superficie` + borda) → faixa `CabecalhoDeGrupo` (`superficie2`) → item (`superficie2` + borda); campo
+  = `campo` + `bordaCampo`; pressionado ou hover = `superficie3` (`ui/sobre`). 24 px entre blocos. `Tela` respeita `largura`
+  (`LARGURA_EDITOR` 1040, `LARGURA_LISTA` 1280, aluno 720).
+- **Tipografia** (`ui/tipografia.ts`, escala 12/13/14/15/16/24/28): `titulo` 24/30, `bloco` (título de cartão e folha), `rotulo`
+  (campo); `secao` só subtítulo dentro de bloco. `Texto numerico` e campos numéricos usam números tabulares.
+- **Botões:** um `primario` por área; botão não estica sem `cheio`; destrutivo = `perigoTexto` + `PainelConfirmacao`.
+- **Seleção** é invertida (`texto`/`fundo`: `Escolha`, chips, calendário); a marca só em ação principal, menu e aba ativos,
+  "Treino de hoje" e título.
+- **Preferências pessoais** em `dominio/preferencias.ts` (AsyncStorage `treinos:<usuarioId>:preferencias`, um JSON; migra a
+  chave antiga `...:tema`): tema (consultoria/escuro/claro/sistema), contraste, tamanho do texto (o `Texto` e os campos
+  multiplicam a fonte), animações e vibração. `useTema()` expõe `preferencias`, `fatorTexto` e `escolherPreferencia`. A marca
+  da consultoria usa as paletas de `dominio/paletas.ts` (`avaliarMarca` bloqueia cor que não segura texto branco com 4,5:1).
+  Fontes do nome: PADRAO, METAL, ESPORTIVA, CONDENSADA (migration V016).
   Movimento usa Reanimated 4 com `sv.get()`/`sv.set()` (React Compiler) e `useMovimentoReduzido`; vibração só pelo `ui/vibrar` (sem chamadas na web).
 - Lint do React 19 recusa `setState` síncrono dentro de `useEffect`: atualizar estado só em callback de promessa.
   Dados de tela com `ui/useCarregar` (chave → busca; `definir` depois de alterar). Painel lateral/folha: `ui/Folha`.
 - Pastas: `src/app/` só rotas; peças das telas do treinador em `src/treinador/`; regras puras (com teste) em
   `src/dominio/` (formatos BR, agrupamento "3x3 - FS", operações do editor, contas da dieta). `novoUid()` em todo item novo.
+- Editor de treino: uma sessão por vez (`SeletorDeSessoes`, chips) e os modelos numa `Folha` "Modelos"; dieta: refeições em
+  `CabecalhoDeGrupo`, recolhidas por padrão. Configuração do plano (título, período, metodologia) é um cartão recolhível.
 - Editores de plano: `treinador/plano/usePlanoEditor` (rascunho do aluno salvo 1,5 s depois; modelo só salva no botão e descarta ao sair; 409 → recarregar, validar e
   publicar com erros/avisos da API) + `TopoPlano`. Mudança grande (receita, remoção) passa pelo `BarraDesfazer`.
 - Verificar: `npm run typecheck && npm run lint && npm test`; bundle nativo com `npx expo export --platform android`.

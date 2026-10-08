@@ -57,12 +57,13 @@ Antes do ensaio, recomeçar do zero: `docker compose down -v && docker compose u
 Depois, para trazer os vídeos, as semanas de treino (Wellness, Torso & Limbs, Planos 10, 2.1 e 16) e a mobilidade:
 `set -a; . ./.env; set +a; node scripts/importacao/importar.mjs` (pode repetir, não duplica).
 
-1. PC, `http://IP:8088`: entrar como `saraiva@demo.local` → marca SARAIVA TEAM (fonte Metal); Perfil → tema claro e
-   voltar.
-2. Marca: enviar a logo do Saraiva (PNG/JPEG até 512 KB) e ver a prévia nos dois temas.
-3. Alunos → Aluno Demonstração → Treino “Plano 16” → Abrir → Segunda - Costas → Remada baixa → “Usar receita de
+1. PC, `http://IP:8088`: entrar como `saraiva@demo.local` → marca SARAIVA TEAM (fonte Metal); Perfil → Preferências →
+   Tema “Claro” e voltar para “Padrão da consultoria”.
+2. Marca: enviar a logo do Saraiva (PNG/JPEG até 512 KB, em “Identidade”) e ver a prévia nos dois temas; trocar a cor
+   por uma das paletas e a fonte do nome (Padrão, Metal, Esportiva, Condensada) e voltar ao que estava.
+3. Alunos → Aluno Demonstração → pasta “Plano 16” → Abrir o treino → chip “Seg · Costas” → Remada baixa → “Usar receita de
    séries” → mudar FS de 3 para 2 (os percentuais viram 70/85) → Validar → Publicar (confirmar os avisos) → v2.
-4. Ficha → Replicar (o próximo ciclo já vem sugerido) → o plano novo abre como rascunho, igual ao anterior.
+4. Ficha → tocar na pasta → Replicar pasta (o próximo ciclo já vem sugerido) → o plano novo abre como rascunho, igual ao anterior.
 5. PDF do treino e da dieta (botão PDF na ficha ou no editor; na web abre “Salvar como PDF”).
 6. Celular (Expo Go), `aluno@demo.local`: tocar no “Treino de hoje” (ou num chip de data das divisões) → abrir um
    exercício → marcar séries → modo avião → marcar mais → fechar e abrir o app (“salvo no aparelho”) → tirar do
