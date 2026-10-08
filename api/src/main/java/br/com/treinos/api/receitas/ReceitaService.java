@@ -8,6 +8,7 @@ import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.VideoUrls;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import jakarta.validation.constraints.NotBlank;
@@ -43,12 +44,15 @@ public class ReceitaService {
     private final JsonMapper json;
     private final Validator validator;
     private final PastaModeloRepository pastas;
+    private final VideoUrls videoUrls;
 
-    public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator, PastaModeloRepository pastas) {
+    public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator, PastaModeloRepository pastas,
+                          VideoUrls videoUrls) {
         this.receitas = receitas;
         this.json = json;
         this.validator = validator;
         this.pastas = pastas;
+        this.videoUrls = videoUrls;
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +128,7 @@ public class ReceitaService {
             case SESSAO_TREINO -> ConteudoTreino.class;
             case METODOLOGIA -> ConfiguracaoConsultoria.class;
             case PASTA_PLANO -> ConteudoPastaModelo.class;
+            case MOBILIDADE -> ConteudoMobilidade.class;
         };
         Object valor;
         try {
@@ -153,6 +158,9 @@ public class ReceitaService {
                     throw new BadRequestException("Cada plano da pasta precisa ser treino ou dieta.");
                 if (p.treino() != null) validarMetodologia(p.treino());
             }
+        }
+        if (valor instanceof ConteudoMobilidade m) {
+            m.secoes().forEach(sec -> sec.itens().forEach(i -> videoUrls.normalizar(i.videoUrl())));
         }
         return json.writeValueAsString(valor);
     }

@@ -57,7 +57,7 @@ export default function Planejamento() {
         <Botao rotulo="Duplicar" tipo="secundario" carregando={ocupado === r.id} desabilitado={ocupado !== null} aoTocar={() => {
           setOcupado(r.id); duplicarReceita(r.id).then(() => { modelos.recarregar(); avisar('Modelo duplicado.', 'sucesso'); }, (e: unknown) => avisar(textoDoErro(e), 'perigo')).finally(() => setOcupado(null));
         }} />
-        {!['SERIES', 'METODOLOGIA'].includes(r.tipo) ? <Botao rotulo="Aplicar ao aluno" tipo="secundario" aoTocar={() => setAplicar(r)} /> : null}
+        {!['SERIES', 'METODOLOGIA', 'MOBILIDADE'].includes(r.tipo) ? <Botao rotulo="Aplicar ao aluno" tipo="secundario" aoTocar={() => setAplicar(r)} /> : null}
         <Botao rotulo="Excluir" tipo="fantasma" aoTocar={() => setExcluir(r)} />
       </View>
     </Cartao>)}

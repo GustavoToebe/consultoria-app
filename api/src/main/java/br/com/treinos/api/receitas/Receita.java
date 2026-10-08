@@ -24,7 +24,7 @@ import java.util.UUID;
 @Table(name = "receita")
 public class Receita {
 
-    public enum Tipo { SERIES, PLANO_TREINO, PLANO_DIETA, METODOLOGIA, SESSAO_TREINO, REFEICAO, PASTA_PLANO }
+    public enum Tipo { SERIES, PLANO_TREINO, PLANO_DIETA, METODOLOGIA, SESSAO_TREINO, REFEICAO, PASTA_PLANO, MOBILIDADE }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

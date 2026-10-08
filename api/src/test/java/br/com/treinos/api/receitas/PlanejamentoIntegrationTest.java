@@ -138,6 +138,22 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         api.get("/receitas", login, 403);
     }
 
+    @Test void modeloDeMobilidadeGuardaItensComVideoValidadoEFicaForaDeAplicar() throws Exception {
+        var item = Map.of("nome", "Lunge Stretch", "prescricao", "2 x 20s cada lado", "videoUrl", "https://www.youtube.com/watch?v=tsGPYSQbZx4");
+        var conteudo = Map.of("orientacoes", "Podem ser feitos todos os dias.", "secoes", List.of(Map.of("titulo", "Alongamentos", "itens", List.of(item))));
+        var criado = modelo("MOBILIDADE", conteudo);
+        assertThat(criado.get("conteudo").get("secoes").get(0).get("itens").get(0).get("nome").asString()).isEqualTo("Lunge Stretch");
+        assertThat(api.get("/receitas?tipo=MOBILIDADE", treinador, 200)).hasSize(1);
+        api.post("/receitas/" + criado.get("id").asString() + "/aplicar", treinador,
+                Map.of("alunoId", aluno, "titulo", "Cópia fictícia"), 400);
+        var semVideo = Map.of("secoes", List.of(Map.of("titulo", "Mobilidade", "itens", List.of(Map.of("nome", "Item sem vídeo")))));
+        modelo("MOBILIDADE", semVideo);
+        var videoRuim = Map.of("secoes", List.of(Map.of("titulo", "X", "itens", List.of(Map.of("nome", "Item", "videoUrl", "https://exemplo.com/v")))));
+        api.post("/receitas", treinador, Map.of("tipo", "MOBILIDADE", "nome", "Inválido", "conteudo", videoRuim), 400);
+        api.post("/receitas", treinador, Map.of("tipo", "MOBILIDADE", "nome", "Inválido", "conteudo", Map.of("secoes", List.of())), 400);
+        api.get("/receitas?tipo=MOBILIDADE", api.novoTreinador(), 200);
+    }
+
     @Test void aplicarRejeitaDestinoDeOutroAlunoOuConsultoriaSemCriarPlanos() throws Exception {
         var m = modelo("PLANO_TREINO", ApiDeTeste.treino().conteudo());
         var outroAluno = api.criarAluno(treinador, "Aluno fictício destino");
