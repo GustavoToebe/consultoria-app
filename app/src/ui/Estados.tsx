@@ -1,5 +1,6 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { ErroApi } from '../api/cliente';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from './Botao';
@@ -24,15 +25,16 @@ export function Vazio({ texto, acao }: { texto: string; acao?: { rotulo: string;
   );
 }
 
-/** Erro na própria tela, com o texto da API e, se der, um "tentar de novo". */
-export function MensagemErro({ texto, tentarDeNovo }: { texto: string; tentarDeNovo?: () => void }) {
+/** Erro na própria tela, com o texto da API e, se der, um "tentar de novo" (nunca para "não encontrado"). */
+export function MensagemErro({ texto, tentarDeNovo, erro }: { texto: string; tentarDeNovo?: () => void; erro?: unknown }) {
+  const definitivo = erro instanceof ErroApi && erro.status === 404;
   const { cores } = useTema();
   return (
     <View
       accessibilityRole="alert"
       style={[estilos.erro, { borderColor: cores.perigo, backgroundColor: `${cores.perigo}18` }]}>
       <Texto cor={cores.perigo}>{texto}</Texto>
-      {tentarDeNovo ? <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={tentarDeNovo} /> : null}
+      {tentarDeNovo && !definitivo ? <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={tentarDeNovo} /> : null}
     </View>
   );
 }

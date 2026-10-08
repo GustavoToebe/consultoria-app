@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
 import { descreverSeries } from '../../dominio/agrupamento';
+import { erroDoVideo } from '../../dominio/video';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -96,6 +97,7 @@ export function CartaoExercicio(p: Props) {
             rotulo="Vídeo (link do YouTube, opcional)"
             valor={e.videoUrl ?? ''}
             aoMudar={(t) => mudar({ videoUrl: t.trim() || null })}
+            erro={erroDoVideo(e.videoUrl)}
             autoCapitalize="none"
             keyboardType="url"
             maxLength={500}

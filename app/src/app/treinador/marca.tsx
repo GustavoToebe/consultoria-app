@@ -19,7 +19,7 @@ export default function Marca() {
   return (
     <Tela bordas={['top']} largura={960}>
       <Cabecalho titulo="Marca" mostrarMarca="celular" />
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados ? (
         <View style={estilos.coluna}>

@@ -1,4 +1,5 @@
 import type { Marca } from '../api/tipos';
+import { videoValido } from '../dominio/video';
 
 /**
  * Peças comuns dos PDFs: HTML + CSS de impressão gerados a partir dos dados (nunca imagem da tela). Fundo branco,
@@ -24,9 +25,9 @@ export function escLinhas(texto: string | null | undefined): string {
   return esc(texto).replace(/\r?\n/g, '<br>');
 }
 
-/** Só links https entram como link; o resto vira texto. */
+/** Só link de vídeo aceito (https do YouTube) vira link; o resto vira "—". */
 export function link(url: string | null | undefined, rotulo: string): string {
-  if (!url || !/^https:\/\//i.test(url)) return '—';
+  if (!url || !videoValido(url)) return '—';
   return `<a href="${esc(url)}">${esc(rotulo)}</a>`;
 }
 

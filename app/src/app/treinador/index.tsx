@@ -32,7 +32,7 @@ export default function InicioTreinador() {
         mostrarMarca="celular"
         acoes={<Botao rotulo="Novo aluno" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} />}
       />
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados ? (
         <View style={estilos.grade}>

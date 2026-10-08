@@ -69,7 +69,7 @@ export default function HistoricoAluno() {
 
       <Cartao titulo={`Treinos dos últimos ${DIAS} dias`}>
         {semConexao ? <Texto variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
-        {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} tentarDeNovo={historico.recarregar} /> : null}
+        {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
         {!historico.dados && historico.carregando ? <Carregando /> : null}
         {historico.dados && historico.dados.length === 0 ? <Texto variante="suave">Nenhum treino registrado no período.</Texto> : null}
         {[...(historico.dados ?? [])].sort((a, b) => b.data.localeCompare(a.data)).map((d) => (

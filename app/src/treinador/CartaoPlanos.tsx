@@ -64,7 +64,7 @@ export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: stri
     <Cartao
       titulo={NOMES[tipo].titulo}
       acoes={<Botao rotulo="Novo plano" tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} />}>
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && dados.length === 0 ? (
         <Texto variante="suave">Nenhum plano de {NOMES[tipo].titulo.toLowerCase()} ainda.</Texto>

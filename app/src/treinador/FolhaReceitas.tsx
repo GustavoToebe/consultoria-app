@@ -33,7 +33,7 @@ export function FolhaReceitas({
   return (
     <Folha visivel titulo={titulo} aoFechar={aoFechar}>
       <Texto variante="suave">{explicacao}</Texto>
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhuma receita deste tipo.</Texto> : null}
       {dados?.map((r) => (

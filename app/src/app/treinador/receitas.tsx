@@ -70,7 +70,7 @@ export default function Receitas() {
         Pontos de partida para montar planos mais rápido. Aplicar uma receita copia o conteúdo; editar o plano depois
         não muda a receita.
       </Texto>
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados
         ? GRUPOS.map((g) => (

@@ -31,7 +31,7 @@ export default function FichaAluno() {
   return (
     <Tela bordas={['top']} largura={960}>
       <Cabecalho titulo={aluno?.nome ?? 'Aluno'} voltar="/treinador/alunos" />
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!aluno && carregando ? <Carregando /> : null}
       {aluno ? (
         <>

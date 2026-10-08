@@ -64,7 +64,7 @@ export function AbaAlimentos() {
         </View>
         <Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} />
       </View>
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && lista.length === 0 ? (
         <Vazio texto={dados.length ? 'Nenhum alimento encontrado.' : 'Nenhum alimento ainda. Importe do catálogo ou cadastre.'} />

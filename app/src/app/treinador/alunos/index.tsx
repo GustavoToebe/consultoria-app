@@ -73,7 +73,7 @@ export default function Alunos() {
           }}
         />
       </View>
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && dados.itens.length === 0 ? (
         <Vazio

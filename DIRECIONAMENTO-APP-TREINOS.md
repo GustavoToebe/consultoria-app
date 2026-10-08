@@ -127,6 +127,20 @@ A ordem é proposta de trabalho, não autorização para implementar ou fazer de
 5. Regra comercial baseada em alunos ativos.
 6. Parceria ainda não definida; o usuário precisa de orientação e conversará melhor com Saraiva.
 
+### 9.1 Atualização (documento "Saraiva 1", 07/10/2026)
+
+As decisões da seção 1.2 do [PLANO-IMPLEMENTACAO.md](PLANO-IMPLEMENTACAO.md) substituem as desta seção onde conflitam:
+
+- **Item 1 (white label):** agora é **app único**. A marca do treinador (logo, cor, nome, fonte Metal) entra depois do
+  login ou ao abrir o convite. App próprio de cada treinador nas lojas fica para depois, como adicional, e a seção 10
+  abaixo continua valendo para essa etapa.
+- **Item 4 (offline):** além de consultar o plano baixado, o aluno registra carga e repetições sem internet e o app
+  envia ao reconectar (implementado na fase 6).
+- **Item 5 (regra comercial):** a cobrança fica para depois. Não há integração com a Central, gateway ou split nesta
+  entrega; a definição de "aluno ativo" para cobrança continua na seção 12.
+- Arquitetura: monolito modular (uma API Spring Boot + um PostgreSQL), isolamento por consultoria como no Servirea e
+  um único app Expo (web, Android e iOS) para treinador e aluno.
+
 ## 10. Publicação white label e operação
 
 Manter uma base de código e infraestrutura do produto, com isolamento dos dados de cada treinador. Configurações de marca geram os aplicativos correspondentes; cada publicação exige controle de versão, certificados, identificadores, materiais das lojas e manutenção. O painel web pode compartilhar a mesma aplicação com a identidade definida após o acesso. A Central controla a assinatura do treinador e consumo agregado; a API do produto controla alunos e dados.

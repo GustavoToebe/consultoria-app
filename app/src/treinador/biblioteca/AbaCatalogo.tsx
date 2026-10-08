@@ -95,7 +95,7 @@ export function AbaCatalogo() {
         />
       </View>
       <Texto variante="pequeno">Os que já estão na sua biblioteca (mesmo nome) são ignorados.</Texto>
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && dados.length === 0 ? <Vazio texto="Nada encontrado no catálogo." /> : null}
       {dados?.map((item) => {

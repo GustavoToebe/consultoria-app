@@ -17,6 +17,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES, normalizar } from '../treino/FolhaBiblioteca';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
@@ -53,7 +54,7 @@ export function AbaExercicios() {
         </View>
         <Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} />
       </View>
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && lista.length === 0 ? (
         <Vazio texto={dados.length ? 'Nenhum exercício encontrado.' : 'Biblioteca vazia. Importe do catálogo ou cadastre um exercício.'} />
@@ -130,7 +131,7 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar }: { inicial: Exercicio | 
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim()} />
+          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !!erroDoVideo(video)} />
         </>
       }>
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
@@ -141,7 +142,7 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar }: { inicial: Exercicio | 
         rotulo="Vídeo (link do YouTube, opcional)"
         valor={video}
         aoMudar={setVideo}
-        erro={campos.videoUrl}
+        erro={campos.videoUrl ?? erroDoVideo(video)}
         autoCapitalize="none"
         keyboardType="url"
         maxLength={500}

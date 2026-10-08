@@ -72,3 +72,4 @@ describe('cargas do aluno', () => {
     expect(metaDaSerie(serie('c', 'Cardio', { repsMin: null, repsMax: null, alvoTexto: '50 min' }), 'WS')).toBe('Meta: 50 min');
   });
 });
+

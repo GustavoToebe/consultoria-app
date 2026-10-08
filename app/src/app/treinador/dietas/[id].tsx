@@ -55,7 +55,7 @@ export default function EditorDeDieta() {
     return (
       <Tela bordas={['top']} largura={960}>
         <Cabecalho titulo="Plano de dieta" voltar="/treinador/alunos" />
-        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} tentarDeNovo={editor.recarregar} /> : <Carregando />}
+        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Carregando />}
       </Tela>
     );
   }

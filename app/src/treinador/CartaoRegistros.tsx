@@ -31,7 +31,7 @@ export function CartaoRegistros({ alunoId }: { alunoId: string }) {
   return (
     <>
       <Cartao titulo={`Registros dos últimos ${DIAS} dias`}>
-        {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+        {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Carregando /> : null}
         {dados && dados.length === 0 ? (
           <Texto variante="suave">Nenhum registro no período. O aluno pode ter treinado sem registrar.</Texto>

@@ -76,9 +76,32 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {
-        log.error("Erro não tratado ao processar requisição", ex);
+        log.error("Erro não tratado ao processar requisição: {}", semDados(ex));
         return ResponseEntity.internalServerError().body(corpo(HttpStatus.INTERNAL_SERVER_ERROR,
                 "Ocorreu um erro inesperado. Tente novamente ou informe o requestId ao suporte.", null, request, null));
+    }
+
+    /**
+     * Resumo do erro para o log sem a mensagem: erro de banco traz os valores da linha ("Key (email)=(...)",
+     * "Failing row contains (...)", que pode ter peso ou dieta). Vão só as classes da cadeia de causas e os pontos do
+     * nosso código por onde o erro passou, o que basta para achar o problema junto com o requestId.
+     */
+    static String semDados(Throwable erro) {
+        StringBuilder texto = new StringBuilder();
+        Throwable atual = erro;
+        for (int i = 0; atual != null && i < 6; i++, atual = atual.getCause()) {
+            if (i > 0) {
+                texto.append(" <- ");
+            }
+            texto.append(atual.getClass().getName());
+        }
+        int pontos = 0;
+        for (StackTraceElement e : erro.getStackTrace()) {
+            if (e.getClassName().startsWith("br.com.treinos.") && pontos++ < 5) {
+                texto.append(" | em ").append(e);
+            }
+        }
+        return texto.toString();
     }
 
     @Override

@@ -68,7 +68,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
 
   return (
     <Cartao titulo="Peso">
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}
       {lista.slice(0, 12).map((p) => (

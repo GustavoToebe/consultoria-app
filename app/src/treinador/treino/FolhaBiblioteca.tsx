@@ -56,7 +56,7 @@ export function FolhaBiblioteca({
       {busca.trim() ? (
         <Botao rotulo={`Usar só o nome “${busca.trim()}”`} tipo="secundario" aoTocar={() => aoEscolher({ nome: busca.trim() })} />
       ) : null}
-      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && filtrados.length === 0 ? (
         <Texto variante="suave">

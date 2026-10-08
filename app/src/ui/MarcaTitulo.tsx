@@ -35,7 +35,7 @@ export function MarcaTitulo({ marca, tamanho = 'medio' }: { marca: Marca | null;
   return (
     <Texto
       accessibilityRole="header"
-      numberOfLines={1}
+      numberOfLines={2}
       style={[
         { color: cor, fontFamily: metal ? fontes.metal : fontes.negrito },
         grande ? estilos.nomeGrande : estilos.nome,

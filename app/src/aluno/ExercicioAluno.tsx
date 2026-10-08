@@ -5,6 +5,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { calcularCargasDoExercicio, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { videoValido } from '../dominio/video';
 import { MODALIDADES } from '../treinador/treino/FolhaBiblioteca';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
@@ -51,7 +52,7 @@ export function ExercicioAluno(p: Props) {
   const feitas = e.series.filter((s) => p.registroDe(s.uid)?.concluida).length;
 
   const abrirVideo = () => {
-    if (!e.videoUrl) return;
+    if (!e.videoUrl || !videoValido(e.videoUrl)) return;
     // Abre fora do app (navegador ou app do YouTube), sem token nem cookie.
     Linking.openURL(e.videoUrl).catch(() => avisar('Não foi possível abrir o vídeo.', 'perigo'));
   };
@@ -79,7 +80,7 @@ export function ExercicioAluno(p: Props) {
         <View style={estilos.corpo}>
           {e.observacao ? <Texto variante="suave">{e.observacao}</Texto> : null}
           {!e.progressao ? <Texto style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
-          {e.videoUrl ? <Botao rotulo="Vídeo" tipo="secundario" Icone={PlayCircle} aoTocar={abrirVideo} /> : null}
+          {videoValido(e.videoUrl) ? <Botao rotulo="Vídeo" tipo="secundario" Icone={PlayCircle} aoTocar={abrirVideo} /> : null}
           {usaCargaDeTrabalho(e) ? (
             <View style={estilos.base}>
               <CampoNumerico

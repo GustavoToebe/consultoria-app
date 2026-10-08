@@ -61,7 +61,7 @@ export default function EditorDeTreino() {
     return (
       <Tela bordas={['top']} largura={960}>
         <Cabecalho titulo="Plano de treino" voltar="/treinador/alunos" />
-        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} tentarDeNovo={editor.recarregar} /> : <Carregando />}
+        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Carregando />}
       </Tela>
     );
   }
