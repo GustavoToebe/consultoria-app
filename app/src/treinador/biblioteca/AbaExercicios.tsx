@@ -57,7 +57,7 @@ export function AbaExercicios() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && lista.length === 0 ? (
-        <Vazio texto={dados.length ? 'Nenhum exercício encontrado.' : 'Biblioteca vazia. Importe do catálogo ou cadastre um exercício.'} />
+        <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca.' : 'Importe do catálogo ou cadastre um exercício.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') }} />
       ) : null}
       {lista.map((e) => (
         <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>

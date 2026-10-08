@@ -49,7 +49,7 @@ export default function TreinoAluno() {
       <Cabecalho mostrarMarca="sempre" acoes={<SeloSincronizacao />} />
       <Texto variante="titulo">Olá, {pacote.pacote.aluno.nome.split(' ')[0]}</Texto>
       {!treino || !conteudo ? (
-        <Vazio texto="Seu treinador ainda não publicou um treino para você." />
+        <Vazio titulo="Sem plano de treino" texto="Seu treinador ainda não publicou um treino para você." />
       ) : (
         <>
           <Texto cor="suave">

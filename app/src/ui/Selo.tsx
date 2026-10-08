@@ -31,5 +31,5 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco(0.75),
     paddingVertical: 2,
   },
-  texto: { fontFamily: fontes.semi, fontSize: 11, lineHeight: 14, letterSpacing: 0.5, textTransform: 'uppercase' },
+  texto: { fontFamily: fontes.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.5, textTransform: 'uppercase' },
 });

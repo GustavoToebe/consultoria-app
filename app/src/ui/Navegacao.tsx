@@ -103,5 +103,5 @@ const estilos = StyleSheet.create({
   rotuloLateral: { fontFamily: fontes.semi, fontSize: 15 },
   inferior: { flexDirection: 'row', borderTopWidth: 1 },
   itemInferior: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 56, gap: 2, paddingVertical: espaco(0.5) },
-  rotuloInferior: { fontFamily: fontes.semi, fontSize: 11 },
+  rotuloInferior: { fontFamily: fontes.semi, fontSize: 12 },
 });

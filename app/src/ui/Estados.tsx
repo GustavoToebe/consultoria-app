@@ -1,3 +1,4 @@
+import { Inbox, type LucideIcon } from 'lucide-react-native';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
@@ -16,9 +17,17 @@ export function Carregando({ texto }: { texto?: string }) {
   );
 }
 
-export function Vazio({ texto, acao }: { texto: string; acao?: { rotulo: string; aoTocar: () => void } }) {
+export function Vazio({ titulo, texto, Icone = Inbox, acao }: {
+  titulo?: string;
+  texto: string;
+  Icone?: LucideIcon;
+  acao?: { rotulo: string; aoTocar: () => void };
+}) {
+  const { cores } = useTema();
   return (
     <View style={estilos.centro}>
+      <Icone size={32} color={cores.textoSuave} accessible={false} />
+      {titulo ? <Texto variante="subtitulo" style={estilos.textoCentro}>{titulo}</Texto> : null}
       <Texto cor="suave" style={estilos.textoCentro}>{texto}</Texto>
       {acao ? <Botao rotulo={acao.rotulo} tipo="secundario" aoTocar={acao.aoTocar} /> : null}
     </View>

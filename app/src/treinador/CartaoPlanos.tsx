@@ -14,7 +14,7 @@ import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
-import { Carregando, MensagemErro } from '../ui/Estados';
+import { Carregando, MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { Selo } from '../ui/Selo';
@@ -67,7 +67,7 @@ export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: stri
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && dados.length === 0 ? (
-        <Texto cor="suave">Nenhum plano de {NOMES[tipo].titulo.toLowerCase()} ainda.</Texto>
+        <Vazio titulo={`Sem plano de ${NOMES[tipo].titulo.toLowerCase()}`} texto="Comece em branco, de uma receita ou copiando um plano." acao={{ rotulo: 'Criar plano', aoTocar: () => setNovo(true) }} />
       ) : null}
       {dados?.map((p) => (
         <View key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>

@@ -5,7 +5,7 @@ import type { Receita, TipoReceita } from '../api/tipos';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
-import { Carregando, MensagemErro } from '../ui/Estados';
+import { Carregando, MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { Texto } from '../ui/Texto';
@@ -35,7 +35,7 @@ export function FolhaReceitas({
       <Texto cor="suave">{explicacao}</Texto>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
-      {dados && dados.length === 0 ? <Texto cor="suave">Nenhuma receita deste tipo.</Texto> : null}
+      {dados && dados.length === 0 ? <Vazio titulo="Sem receitas deste tipo" texto="Cadastre uma receita na tela Receitas para reutilizá-la nos planos." /> : null}
       {dados?.map((r) => (
         <View key={r.id} style={[estilos.receita, { borderColor: cores.borda }]}>
           <Texto variante="subtitulo">{r.nome}</Texto>

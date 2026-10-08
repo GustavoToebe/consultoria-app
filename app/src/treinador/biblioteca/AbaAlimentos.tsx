@@ -67,7 +67,7 @@ export function AbaAlimentos() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
       {dados && lista.length === 0 ? (
-        <Vazio texto={dados.length ? 'Nenhum alimento encontrado.' : 'Nenhum alimento ainda. Importe do catálogo ou cadastre.'} />
+        <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca.' : 'Importe do catálogo ou cadastre um alimento.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') }} />
       ) : null}
       {lista.map((a) => (
         <View key={a.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>

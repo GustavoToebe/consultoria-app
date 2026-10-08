@@ -78,7 +78,7 @@ const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
   topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   nomes: { flex: 1, gap: 2 },
-  nome: { fontFamily: fontes.semi, fontSize: 17, lineHeight: 23 },
+  nome: { fontFamily: fontes.semi, fontSize: 17, lineHeight: 22 },
   rodape: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -75,7 +75,7 @@ const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2.5), gap: espaco(1) },
   topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   rotulo: { flex: 1, fontFamily: fontes.negrito, letterSpacing: 1 },
-  nome: { fontFamily: fontes.negrito, fontSize: 24, lineHeight: 30 },
+  nome: { fontFamily: fontes.negrito, fontSize: 28, lineHeight: 34 },
   detalhe: { opacity: 0.9 },
   progresso: { gap: espaco(0.75), marginTop: espaco(0.5) },
 });

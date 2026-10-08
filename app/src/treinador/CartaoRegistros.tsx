@@ -13,7 +13,7 @@ import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
-import { Carregando, MensagemErro } from '../ui/Estados';
+import { Carregando, MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
@@ -76,7 +76,7 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Carregando /> : null}
         {dados && dados.length === 0 ? (
-          <Texto numerico cor="suave">Nenhum registro no período. O aluno pode ter treinado sem registrar.</Texto>
+          <Vazio titulo="Sem registros no período" texto="Os treinos registrados aparecem aqui. O aluno pode ter treinado sem registrar." />
         ) : null}
         {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {dados && visao === 'dia'
@@ -156,7 +156,7 @@ const estilos = StyleSheet.create({
   dataDia: { fontFamily: fontes.semi },
   sessao: { gap: espaco(0.75) },
   exercicio: { gap: 2 },
-  nomeExercicio: { fontFamily: fontes.semi, fontSize: 14 },
+  nomeExercicio: { fontFamily: fontes.semi, fontSize: 15 },
   tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   linhaTabela: { flexDirection: 'row', paddingHorizontal: espaco(1.5), paddingVertical: espaco(1), borderTopWidth: StyleSheet.hairlineWidth },
   col: { flex: 1 },

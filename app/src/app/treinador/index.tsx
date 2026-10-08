@@ -10,7 +10,7 @@ import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Carregando, MensagemErro } from '../../ui/Estados';
+import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -41,7 +41,7 @@ export default function InicioTreinador() {
             <Botao rotulo="Ver alunos" tipo="secundario" aoTocar={() => router.push('/treinador/alunos')} />
           </Cartao>
           <Cartao titulo="Planos terminando em 7 dias" style={estilos.metade}>
-            {dados.planosTerminando.length === 0 ? <Texto cor="suave">Nenhum.</Texto> : null}
+            {dados.planosTerminando.length === 0 ? <Vazio titulo="Nenhum plano terminando" texto="Veja os planos e períodos nas fichas dos alunos." acao={{ rotulo: 'Ver alunos', aoTocar: () => router.push('/treinador/alunos') }} /> : null}
             {dados.planosTerminando.map((p) => (
               <Linha
                 key={p.plano.id}
@@ -54,7 +54,7 @@ export default function InicioTreinador() {
           </Cartao>
           <Cartao titulo="Sem registro há 7 dias" style={estilos.metade}>
             <Texto variante="pequeno">Pode ter treinado sem registrar no app.</Texto>
-            {dados.alunosSemRegistro7Dias.length === 0 ? <Texto cor="suave">Ninguém.</Texto> : null}
+            {dados.alunosSemRegistro7Dias.length === 0 ? <Vazio titulo="Nenhum aluno nesta lista" texto="Os alunos sem registros recentes aparecerão aqui." /> : null}
             {dados.alunosSemRegistro7Dias.map((a) => (
               <Linha
                 key={a.id}
@@ -66,7 +66,7 @@ export default function InicioTreinador() {
             ))}
           </Cartao>
           <Cartao titulo="Últimos registros" style={estilos.metade}>
-            {dados.ultimasExecucoes.length === 0 ? <Texto cor="suave">Nenhum registro ainda.</Texto> : null}
+            {dados.ultimasExecucoes.length === 0 ? <Vazio titulo="Sem registros ainda" texto="Os treinos registrados pelos alunos aparecem aqui." /> : null}
             {[...dados.ultimasExecucoes].sort((a, b) => b.data.localeCompare(a.data)).map((e, i) => (
               <Linha
                 key={`${e.aluno.id}:${e.data}:${i}`}

@@ -131,7 +131,7 @@ export function AbaCatalogo() {
       <Texto variante="pequeno">Os que já estão na sua biblioteca (mesmo nome) são ignorados.</Texto>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Carregando /> : null}
-      {dados && dados.itens.length === 0 ? <Vazio texto="Nada encontrado no catálogo." /> : null}
+      {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo." /> : null}
       {dados?.itens.map((item) => {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;

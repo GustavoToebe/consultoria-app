@@ -55,7 +55,7 @@ export default function DietaAluno() {
         />
       ) : null}
       {!dados && carregando ? <Carregando /> : null}
-      {dados && !dados.dieta ? <Vazio texto="Seu treinador ainda não publicou uma dieta para você." /> : null}
+      {dados && !dados.dieta ? <Vazio titulo="Sem plano de dieta" texto="Seu treinador ainda não publicou a dieta." /> : null}
       {dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} /> : null}
     </Tela>
   );
@@ -174,7 +174,7 @@ const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   cresce: { flex: 1 },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
-  textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
+  textoTotal: { fontFamily: fontes.semi, fontSize: 17 },
   orientacao: { gap: 2 },
   forte: { fontFamily: fontes.semi },
   item: { borderTopWidth: 1, paddingTop: espaco(1), gap: 2 },

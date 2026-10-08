@@ -108,7 +108,7 @@ function ChipData({
 const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
   textos: { gap: 2 },
-  titulo: { fontFamily: fontes.negrito, fontSize: 17, lineHeight: 23 },
+  titulo: { fontFamily: fontes.negrito, fontSize: 17, lineHeight: 22 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   chip: {
     flexDirection: 'row',

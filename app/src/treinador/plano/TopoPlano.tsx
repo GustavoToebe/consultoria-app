@@ -217,5 +217,5 @@ const estilos = StyleSheet.create({
     paddingVertical: 2,
   },
   textoProblema: { flex: 1, gap: 2 },
-  onde: { fontFamily: fontes.semi, fontSize: 14 },
+  onde: { fontFamily: fontes.semi, fontSize: 15 },
 });

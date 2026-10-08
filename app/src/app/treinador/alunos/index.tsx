@@ -77,7 +77,8 @@ export default function Alunos() {
       {!dados && carregando ? <Carregando /> : null}
       {dados && dados.itens.length === 0 ? (
         <Vazio
-          texto={termo ? 'Nenhum aluno com esse nome.' : 'Nenhum aluno aqui ainda.'}
+          titulo={termo ? 'Nenhum aluno encontrado' : 'Nenhum aluno ainda'}
+          texto={termo ? 'Tente buscar por outro nome.' : 'Cadastre seu primeiro aluno para montar os planos.'}
           acao={termo ? undefined : { rotulo: 'Cadastrar aluno', aoTocar: () => router.push('/treinador/alunos/novo') }}
         />
       ) : null}

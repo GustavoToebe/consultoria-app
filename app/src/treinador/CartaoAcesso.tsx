@@ -127,6 +127,6 @@ const estilos = StyleSheet.create({
     flexWrap: 'wrap',
   },
   textoDestaque: { flex: 1, minWidth: 180, gap: 2 },
-  codigo: { fontFamily: fontes.negrito, fontSize: 24, letterSpacing: 3 },
-  link: { fontFamily: fontes.normal, fontSize: 14 },
+  codigo: { fontFamily: fontes.negrito, fontSize: 28, letterSpacing: 3 },
+  link: { fontFamily: fontes.normal, fontSize: 15 },
 });
