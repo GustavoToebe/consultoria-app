@@ -1,7 +1,8 @@
-import { LARGURA_LISTA } from '../../../tema/tokens';
+import { useTema } from '../../../tema/TemaProvider';
+import { espaco, LARGURA_LISTA, RAIO } from '../../../tema/tokens';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { alterarPastaModelo, alterarReceita, consultoria, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
 import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
@@ -26,6 +27,7 @@ export default function Planejamento() {
   const pastas = useCarregar('pastas-modelos', listarPastasModelos);
   const config = useCarregar('consultoria-planejamento', consultoria);
   const { avisar } = useAviso();
+  const { cores } = useTema();
   const [tipo, setTipo] = useState<TipoReceita>('PLANO_TREINO');
   const [pasta, setPasta] = useState('*');
   const [busca, setBusca] = useState('');
@@ -35,21 +37,26 @@ export default function Planejamento() {
   const [aplicar, setAplicar] = useState<Receita | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const atualizar = () => { modelos.recarregar(); pastas.recarregar(); };
+  const categoria = CATEGORIAS.find((c) => c.valor === tipo) ?? CATEGORIAS[0];
   const filtrados = modelos.dados?.filter((r) => r.tipo === tipo && (pasta === '*' || (r.pastaId ?? '') === pasta) && `${r.nome} ${r.descricao ?? ''}`.toLocaleLowerCase().includes(busca.toLocaleLowerCase()));
   return <Tela bordas={['top']} largura={LARGURA_LISTA}>
     <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
     <Texto variante="suave">Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.</Texto>
     <Escolha rotulo="Modelos" valor={tipo} aoMudar={setTipo} opcoes={CATEGORIAS} />
-    <Escolha rotulo="Organização" valor={pasta} aoMudar={setPasta} opcoes={[{ valor: '*', rotulo: 'Todas as pastas' }, { valor: '', rotulo: 'Sem pasta' }, ...(pastas.dados ?? []).map((p) => ({ valor: p.id, rotulo: p.nome }))]} />
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-      <Botao rotulo="Novo modelo" aoTocar={() => setFormulario('novo')} desabilitado={!config.dados} />
-      <Botao rotulo="Organizar pastas" tipo="secundario" aoTocar={() => setOrganizar(true)} />
-    </View>
-    <Campo rotulo="Buscar modelo" valor={busca} aoMudar={setBusca} />
-    {modelos.erro || pastas.erro || config.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? pastas.erro ?? config.erro)} tentarDeNovo={() => { atualizar(); config.recarregar(); }} /> : null}
-    {!modelos.dados && modelos.carregando ? <Esqueleto /> : null}
-    {filtrados?.length === 0 ? <Vazio texto="Nenhum modelo encontrado. Crie um modelo para começar." /> : null}
-    {filtrados?.map((r) => <Cartao key={r.id} titulo={r.nome}>
+    <Cartao
+      titulo={categoria.rotulo}
+      descricao={categoria.descricao}
+      acoes={<Botao rotulo="Novo modelo" aoTocar={() => setFormulario('novo')} desabilitado={!config.dados} />}>
+      <Escolha rotulo="Organização" valor={pasta} aoMudar={setPasta} opcoes={[{ valor: '*', rotulo: 'Todas as pastas' }, { valor: '', rotulo: 'Sem pasta' }, ...(pastas.dados ?? []).map((p) => ({ valor: p.id, rotulo: p.nome }))]} />
+      <View style={estilos.barra}>
+        <Botao rotulo="Organizar pastas" tipo="secundario" aoTocar={() => setOrganizar(true)} />
+      </View>
+      <Campo rotulo="Buscar modelo" valor={busca} aoMudar={setBusca} />
+      {modelos.erro || pastas.erro || config.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? pastas.erro ?? config.erro)} tentarDeNovo={() => { atualizar(); config.recarregar(); }} /> : null}
+      {!modelos.dados && modelos.carregando ? <Esqueleto /> : null}
+      {filtrados?.length === 0 ? <Vazio texto="Nenhum modelo encontrado. Crie um modelo para começar." /> : null}
+      {filtrados?.map((r) => <View key={r.id} style={[estilos.modelo, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+      <Texto variante="bloco">{r.nome}</Texto>
       {r.descricao ? <Texto variante="suave">{r.descricao}</Texto> : null}
       {r.pastaId ? <Texto variante="pequeno">{pastas.dados?.find((p) => p.id === r.pastaId)?.nome}</Texto> : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -61,7 +68,8 @@ export default function Planejamento() {
         {!['SERIES', 'METODOLOGIA', 'MOBILIDADE'].includes(r.tipo) ? <Botao rotulo="Aplicar ao aluno" tipo="secundario" aoTocar={() => setAplicar(r)} /> : null}
         <Botao rotulo="Excluir" tipo="perigoTexto" aoTocar={() => setExcluir(r)} />
       </View>
-    </Cartao>)}
+      </View>)}
+    </Cartao>
     {formulario && config.dados ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} pastaInicial={pasta === '*' ? '' : pasta} pastas={pastas.dados ?? []} aoFechar={() => setFormulario(null)} aoSalvar={async (nome, descricao, pastaId) => {
       if (formulario === 'novo') {
         const novo = await criarReceita({ tipo, nome, descricao, pastaId, conteudo: conteudoInicial(tipo, config.dados!.configuracao) });
@@ -109,3 +117,8 @@ function OrganizarPastas({ pastas, aoFechar, atualizar }: { pastas: PastaModelo[
     <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.nome ?? ''}”?`} mensagem="Os modelos serão movidos para Sem pasta." rotuloConfirmar="Excluir pasta" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => { if (!excluir) return; const id = excluir.id; setExcluir(null); void executar(() => excluirPastaModelo(id)); }} />
   </Folha>;
 }
+
+const estilos = StyleSheet.create({
+  barra: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  modelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1), minHeight: 56 },
+});

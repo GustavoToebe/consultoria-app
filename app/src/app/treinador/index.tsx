@@ -1,4 +1,5 @@
 import { NumeroAnimado } from '../../ui/NumeroAnimado';
+import { sobre } from '../../ui/sobre';
 import { router } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -92,7 +93,7 @@ function Linha({ titulo, detalhe, aoTocar, rotulo }: { titulo: string; detalhe: 
       accessibilityRole="link"
       accessibilityLabel={rotulo}
       onPress={aoTocar}
-      style={({ pressed }) => [estilos.linha, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : 'transparent' }]}>
+      style={(estado) => [estilos.linha, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
       <Texto style={estilos.tituloLinha}>{titulo}</Texto>
       <Texto variante="suave">{detalhe}</Texto>
     </Pressable>
@@ -104,6 +105,6 @@ const estilos = StyleSheet.create({
   // Duas colunas no PC; no celular cada cartão ocupa a largura (encolhe abaixo da base).
   metade: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
   numero: { fontFamily: fontes.negrito, fontSize: 40, lineHeight: 48 },
-  linha: { borderTopWidth: 1, paddingVertical: espaco(1), gap: 2, borderRadius: RAIO, minHeight: 44 },
+  linha: { borderTopWidth: 1, paddingVertical: espaco(1), gap: 2, borderRadius: RAIO, minHeight: 56 },
   tituloLinha: { fontFamily: fontes.semi },
 });

@@ -1,4 +1,5 @@
 import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Folder, FolderCheck, FolderPlus, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
+import { sobre } from '../ui/sobre';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -132,9 +133,9 @@ function LinhaPasta({ pasta, aoAbrir }: { pasta: PastaResumo; aoAbrir: () => voi
       accessibilityRole="button"
       accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'ativa'}, ${periodo(pasta)}. Abrir.`}
       onPress={aoAbrir}
-      style={({ pressed }) => [
+      style={(estado) => [
         estilos.linha,
-        { backgroundColor: pressed ? cores.superficie3 : cores.superficie, borderColor: cores.borda },
+        { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
       ]}>
       <View style={[estilos.icone, { backgroundColor: concluida ? cores.superficie2 : `${marca}22` }]}>
         <Icone size={22} color={concluida ? cores.textoSuave : marca} />

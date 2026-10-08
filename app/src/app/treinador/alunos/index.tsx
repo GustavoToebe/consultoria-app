@@ -1,4 +1,5 @@
 import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata';
+import { sobre } from '../../../ui/sobre';
 import { router } from 'expo-router';
 import { ChevronRight, Plus } from 'lucide-react-native';
 import { useState } from 'react';
@@ -113,9 +114,9 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
       accessibilityRole="link"
       accessibilityLabel={`Abrir ${aluno.nome}`}
       onPress={() => router.push(`/treinador/alunos/${aluno.id}`)}
-      style={({ pressed }) => [
+      style={(estado) => [
         estilos.linha,
-        { backgroundColor: pressed ? cores.superficie3 : cores.superficie, borderColor: cores.borda },
+        { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie, borderColor: cores.borda },
       ]}>
       <View style={estilos.dados}>
         <Texto variante="subtitulo">{aluno.nome}</Texto>
@@ -144,6 +145,7 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RAIO,
     padding: espaco(2),
+    minHeight: 56,
   },
   dados: { flex: 1, gap: espaco(0.75) },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap' },
