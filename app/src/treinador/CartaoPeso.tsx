@@ -4,9 +4,10 @@ import { StyleSheet, View } from 'react-native';
 
 import { excluirPeso, pesosDoAluno, registrarPeso } from '../api/rotas';
 import type { RegistroPeso } from '../api/tipos';
-import { dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { dataCurta, dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
+import { Abas } from '../ui/Abas';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
@@ -14,6 +15,7 @@ import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../ui/erros';
+import { GraficoLinha } from '../ui/GraficoLinha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
@@ -36,6 +38,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
   const [salvando, setSalvando] = useState(false);
   const [erroSalvar, setErroSalvar] = useState<unknown>(null);
   const [excluir, setExcluir] = useState<RegistroPeso | null>(null);
+  const [visao, setVisao] = useState<'lista' | 'grafico'>('lista');
   const campos = errosPorCampo(erroSalvar);
   const dataIso = dataDaTela(data);
 
@@ -72,7 +75,17 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}
-      {lista.slice(0, 12).map((p) => (
+      {dados && dados.length > 1 ? (
+        <Abas abas={[{ valor: 'lista', rotulo: 'Lista' }, { valor: 'grafico', rotulo: 'Gráfico' }]} ativa={visao} aoMudar={setVisao} />
+      ) : null}
+      {visao === 'grafico' && dados && dados.length > 1 ? (
+        <GraficoLinha
+          pontos={dados.map((p) => ({ rotulo: dataCurta(p.data), valor: p.pesoKg }))}
+          unidade="kg"
+          descricao={`Gráfico de peso com ${dados.length} registros`}
+        />
+      ) : null}
+      {(visao === 'lista' || !dados || dados.length < 2 ? lista.slice(0, 12) : []).map((p) => (
         <View key={p.id} style={[estilos.linha, { borderColor: cores.borda }]}>
           <Texto style={estilos.data}>{dataParaTela(p.data)}</Texto>
           <Texto style={estilos.peso}>{numeroParaTela(p.pesoKg)} kg</Texto>

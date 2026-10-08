@@ -68,6 +68,38 @@ function blocoSessao(s: Sessao, tipoTrabalho: string): string {
 </section>`;
 }
 
+const CSS_INSTRUCOES = `
+.doc table.instrucoes td { border-bottom: 1px solid #e3e3e3; padding: 5pt 6pt; }
+.doc table.instrucoes td.termo { width: 26%; font-weight: 700; white-space: nowrap; }
+.doc table.instrucoes .sub { color: #333; padding-left: 8pt; }
+`;
+
+/**
+ * Instruções do treinador em bloco organizado: cada linha "Termo: explicação" vira uma linha de tabela (termo à
+ * esquerda, texto à direita); linhas seguintes sem "Termo:" (cálculo de FS, exemplos) ficam sob o termo anterior;
+ * linha solta sem termo vira nota de largura inteira. Tudo passa por `esc()`.
+ */
+export function blocoInstrucoes(texto: string): string {
+  const itens: { termo: string | null; linhas: string[] }[] = [];
+  for (const bruta of texto.split(/\r?\n/)) {
+    const linha = bruta.trim();
+    if (!linha) continue;
+    const m = /^([^:]{2,60}):\s*(.*)$/.exec(linha);
+    if (m) itens.push({ termo: m[1], linhas: m[2] ? [m[2]] : [] });
+    else if (itens.length && itens[itens.length - 1].termo) itens[itens.length - 1].linhas.push(linha);
+    else itens.push({ termo: null, linhas: [linha] });
+  }
+  if (!itens.length) return '';
+  const linhas = itens
+    .map((i) =>
+      i.termo
+        ? `<tr><td class="termo">${esc(i.termo)}</td><td>${i.linhas.map((l, n) => (n === 0 ? esc(l) : `<div class="sub">${esc(l)}</div>`)).join('')}</td></tr>`
+        : `<tr><td colspan="2" class="suave">${esc(i.linhas.join(' '))}</td></tr>`,
+    )
+    .join('');
+  return `<section><h2>Instruções</h2><table class="instrucoes"><tbody>${linhas}</tbody></table></section>`;
+}
+
 /** PDF do treino no formato do Saraiva (seção 12): semana, sessões com tabela e, no fim, as instruções. */
 export function documentoTreino(d: DadosPdfTreino): Documento {
   const c = d.conteudo;
@@ -90,8 +122,8 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
       .map((s) => `<tr><td><strong>${esc(rotuloDoDia(s))}</strong></td><td>${esc(s.nome)}</td></tr>`)
       .join('')}</tbody></table></div>`,
     ...sessoesDaSemana(c).map((s) => blocoSessao(s, d.tipoTrabalho)),
-    d.instrucoesTreino?.trim() ? `<div><h2>Instruções</h2><div class="texto">${escLinhas(d.instrucoesTreino)}</div></div>` : '',
+    d.instrucoesTreino?.trim() ? blocoInstrucoes(d.instrucoesTreino) : '',
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
   ].join('\n');
-  return { titulo: `Treino - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria), corpo };
+  return { titulo: `Treino - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria) + CSS_INSTRUCOES, corpo };
 }

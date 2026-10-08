@@ -25,6 +25,9 @@ import type {
   PainelAluno,
   PainelTreinador,
   PlanoDetalhe,
+  DadosLesao,
+  Lesao,
+  PastaResumo,
   PlanoResumo,
   PreviaCsv,
   ProgressoPonto,
@@ -132,6 +135,17 @@ export const pesosDoAluno = (id: string) => requisicao<RegistroPeso[]>(`/alunos/
 export const registrarPeso = (id: string, dados: { data: string; pesoKg: number; observacao: string | null }) =>
   requisicao<RegistroPeso[]>(`/alunos/${id}/pesos`, { metodo: 'POST', corpo: dados });
 
+export const listarLesoes = (alunoId: string) => requisicao<Lesao[]>(`/alunos/${alunoId}/lesoes`);
+
+export const registrarLesao = (alunoId: string, dados: DadosLesao) =>
+  requisicao<Lesao>(`/alunos/${alunoId}/lesoes`, { metodo: 'POST', corpo: dados });
+
+export const alterarLesao = (alunoId: string, id: string, dados: DadosLesao) =>
+  requisicao<Lesao>(`/alunos/${alunoId}/lesoes/${id}`, { metodo: 'PUT', corpo: dados });
+
+export const excluirLesao = (alunoId: string, id: string) =>
+  requisicao<void>(`/alunos/${alunoId}/lesoes/${id}`, { metodo: 'DELETE' });
+
 export const excluirPeso = (id: string, pesoId: string) =>
   requisicao<void>(`/alunos/${id}/pesos/${pesoId}`, { metodo: 'DELETE' });
 
@@ -202,13 +216,32 @@ export const excluirReceita = (id: string) => requisicao<void>(`/receitas/${id}`
 
 const prefixo = (tipo: TipoPlano) => (tipo === 'treino' ? 'planos-treino' : 'planos-dieta');
 
+export interface DadosPasta {
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+}
+
 export interface NovoPlano {
   titulo: string;
   inicio: string | null;
   fim: string | null;
   receitaId?: string;
   copiarDoPlanoId?: string;
+  /** Cria dentro da pasta: o período dela vale (inicio/fim daqui são ignorados). */
+  pastaId?: string;
 }
+
+export const listarPastas = (alunoId: string) => requisicao<PastaResumo[]>(`/alunos/${alunoId}/pastas`);
+
+export const criarPasta = (alunoId: string, dados: DadosPasta) =>
+  requisicao<PastaResumo>(`/alunos/${alunoId}/pastas`, { metodo: 'POST', corpo: dados });
+
+export const atualizarPasta = (id: string, dados: DadosPasta) =>
+  requisicao<PastaResumo>(`/pastas/${id}`, { metodo: 'PUT', corpo: dados });
+
+export const replicarPasta = (id: string, dados: DadosPasta) =>
+  requisicao<PastaResumo>(`/pastas/${id}/replicar`, { metodo: 'POST', corpo: dados });
 
 export const listarPlanos = (tipo: TipoPlano, alunoId: string) =>
   requisicao<PlanoResumo[]>(`/alunos/${alunoId}/${prefixo(tipo)}`);

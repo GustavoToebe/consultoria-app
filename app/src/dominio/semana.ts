@@ -27,12 +27,12 @@ export function totalDeSeries(s: Sessao): number {
   return s.exercicios.reduce((n, e) => n + e.series.length, 0);
 }
 
-/** Quantos dias para trás a API aceita registro (igual a `SincronizacaoService.DIAS_PARA_TRAS`). */
+/** Quantos dias para trás e para frente a API aceita registro (igual a `SincronizacaoService.DIAS_PARA_TRAS`). */
 export const DIAS_PARA_TRAS = 60;
 
-/** O aluno pode registrar nesta data? Hoje ou antes (até 60 dias); dia que ainda não chegou, não. */
+/** O aluno pode registrar nesta data? Até 60 dias para trás ou para frente de hoje. */
 export function podeRegistrarEm(data: string, hoje: string): boolean {
-  return data <= hoje && data >= somarDias(hoje, -DIAS_PARA_TRAS);
+  return data <= somarDias(hoje, DIAS_PARA_TRAS) && data >= somarDias(hoje, -DIAS_PARA_TRAS);
 }
 
 /**

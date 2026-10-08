@@ -1,6 +1,7 @@
 package br.com.treinos.api.treino;
 
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.planos.PlanoServiceBase;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.treinos.api.receitas.ReceitaService;
@@ -18,9 +19,9 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
     private final ValidadorTreino validador;
 
     public PlanoTreinoService(PlanoTreinoRepository planos, PlanoTreinoVersaoRepository versoes,
-                              AlunoRepository alunos, JsonMapper json, ReceitaService receitas,
+                              AlunoRepository alunos, PastaRepository pastas, JsonMapper json, ReceitaService receitas,
                               ValidadorTreino validador) {
-        super(planos, versoes, alunos, json, ConteudoTreino.class, "Plano de treino");
+        super(planos, versoes, alunos, pastas, json, ConteudoTreino.class, "Plano de treino");
         this.receitas = receitas;
         this.validador = validador;
     }

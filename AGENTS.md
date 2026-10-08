@@ -61,6 +61,10 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
 - Planos: treino e dieta compartilham `planos/PlanoServiceBase` (rascunho com lock otimista, validar, publicar versão
   imutável, replicar com uids novos). Erro de validação = 422 `PLANO_INVALIDO`/`CONFIRMAR_AVISOS` com a lista em
   `fieldErrors` (`field` = caminho no conteúdo).
+- Pastas (`pastas/`): agrupam treinos e dietas do aluno e dão o período a todos. Plano criado/replicado com `pastaId`
+  usa o período da pasta (o do corpo é ignorado); mudar a pasta altera o **rascunho** dos planos (publicado segue imutável);
+  replicar a pasta copia todos. Pasta de outro aluno/consultoria = 404. Plano sem pasta (anterior à V009) ainda existe.
+- Lesões (`lesoes/`): histórico estruturado do aluno, dado sensível (LGPD), só treinador; o sistema não interpreta.
 - Execuções: `execucao_serie.serie_trabalho` (fora do esboço do plano) e `exercicio_id` vêm da versão publicada, nunca
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.
 
@@ -95,11 +99,13 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
   roda nas duas (SQLite do Node em `bancoNode.apoioTeste.ts`, nunca importado pelo app). Série marcada grava no aparelho na hora;
   a carga sugerida vem de `dominio/cargas.ts` (seção 8) e o que o aluno digita é gravado como digitou.
 - Telas do aluno no estilo do protótipo: "Treino de hoje" na cor da marca, divisões com chips de data do período
-  (`datasDaSessao`; registro só até hoje e 60 dias para trás, `podeRegistrarEm`), dia em `sessao/[uid]?data=` e um
+  (`datasDaSessao`; registro até 60 dias para trás ou para frente, `podeRegistrarEm`), dia em `sessao/[uid]?data=` e um
   exercício por tela em `sessao/[uid]/[exercicio]` (`aluno/useSessaoDoDia`). Nome da sessão com `nomeComDia`.
 - Cargas por divisão (`dominio/relatorio.ts` + `treinador/CargasPorDivisao`) no histórico do aluno e na ficha do
   treinador; o mesmo dado sai no PDF de cargas (`pdf/pdfCargas.ts`).
 
+- Ficha do aluno (treinador): `CartaoPastas` (pastas → `CartaoPlanos` por tipo), `CartaoLesoes`, `CartaoRegistros` (filtro por
+  plano via `filtrarPorSessoes`; `Cartao recolhivel`) e `CartaoPeso` (lista ou `GraficoLinha`, SVG sem biblioteca).
 - PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
   arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`
   (a CSP tem `frame-src 'none'`, então nada de iframe). Logo entra como data URI (`pdf/logo.ts`).

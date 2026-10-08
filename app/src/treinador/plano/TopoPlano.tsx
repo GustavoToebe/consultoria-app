@@ -124,14 +124,20 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
           maxLength={120}
           erro={e.titulo.trim() ? null : 'Informe o título.'}
         />
-        <View style={estilos.datas}>
-          <View style={estilos.data}>
-            <CampoData rotulo="Início" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
+        {e.plano.pastaId ? (
+          <Texto variante="suave">
+            Período da pasta: {e.inicio || '—'} a {e.fim || '—'}. Para mudar, edite a pasta na ficha do aluno.
+          </Texto>
+        ) : (
+          <View style={estilos.datas}>
+            <View style={estilos.data}>
+              <CampoData rotulo="Início" valor={e.inicio} aoMudar={(inicio) => editor.alterar(() => ({ inicio }))} />
+            </View>
+            <View style={estilos.data}>
+              <CampoData rotulo="Fim" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
+            </View>
           </View>
-          <View style={estilos.data}>
-            <CampoData rotulo="Fim" valor={e.fim} aoMudar={(fim) => editor.alterar(() => ({ fim }))} />
-          </View>
-        </View>
+        )}
         <View style={estilos.botoes}>
           {editor.situacao === 'erro' ? (
             <Botao rotulo="Tentar salvar de novo" tipo="secundario" aoTocar={() => void editor.salvar()} />

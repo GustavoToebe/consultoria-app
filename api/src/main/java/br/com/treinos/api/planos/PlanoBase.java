@@ -40,6 +40,9 @@ public abstract class PlanoBase {
 
     private LocalDate fim;
 
+    @Column(name = "pasta_id")
+    private UUID pastaId;
+
     @Column(nullable = false)
     private boolean ativo;
 
@@ -82,6 +85,18 @@ public abstract class PlanoBase {
         this.rascunhoAlteradoEm = Instant.now();
     }
 
+    /** Liga o plano a uma pasta (quem chama já conferiu que a pasta é do mesmo aluno). */
+    public void definirPasta(UUID pastaId) {
+        this.pastaId = pastaId;
+    }
+
+    /** Período vindo da pasta; conta como alteração do rascunho (o publicado não muda até publicar de novo). */
+    public void definirPeriodo(LocalDate inicio, LocalDate fim) {
+        this.inicio = inicio;
+        this.fim = fim;
+        this.rascunhoAlteradoEm = Instant.now();
+    }
+
     /** Publicou a versão {@code numero}: este passa a ser o plano vigente do aluno. */
     public void publicar(int numero, Instant quando) {
         this.versaoPublicada = numero;
@@ -116,6 +131,10 @@ public abstract class PlanoBase {
 
     public LocalDate getFim() {
         return fim;
+    }
+
+    public UUID getPastaId() {
+        return pastaId;
     }
 
     public boolean isAtivo() {

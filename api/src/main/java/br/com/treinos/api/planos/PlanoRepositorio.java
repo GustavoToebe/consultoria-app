@@ -17,6 +17,8 @@ public interface PlanoRepositorio<P extends PlanoBase> extends JpaRepository<P, 
 
     List<P> findByAlunoIdOrderByCriadoEmDesc(UUID alunoId);
 
+    List<P> findByPastaId(UUID pastaId);
+
     Optional<P> findByAlunoIdAndAtivoTrue(UUID alunoId);
 
     List<P> findByAlunoIdInAndAtivoTrue(Collection<UUID> alunoIds);

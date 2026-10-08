@@ -1,6 +1,8 @@
 package br.com.treinos.api.planos;
 
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.pastas.PastaPlano;
+import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.planos.dto.PlanoDtos.CriarPlanoRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoResumo;
@@ -42,15 +44,17 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
     private final PlanoRepositorio<P> planos;
     private final VersaoRepositorio<V> versoes;
     private final AlunoRepository alunos;
+    private final PastaRepository pastas;
     protected final JsonMapper json;
     private final Class<C> classe;
     private final String nomeDoPlano;
 
     protected PlanoServiceBase(PlanoRepositorio<P> planos, VersaoRepositorio<V> versoes, AlunoRepository alunos,
-                               JsonMapper json, Class<C> classe, String nomeDoPlano) {
+                               PastaRepository pastas, JsonMapper json, Class<C> classe, String nomeDoPlano) {
         this.planos = planos;
         this.versoes = versoes;
         this.alunos = alunos;
+        this.pastas = pastas;
         this.json = json;
         this.classe = classe;
         this.nomeDoPlano = nomeDoPlano;
@@ -88,8 +92,13 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         } else {
             conteudo = vazio();
         }
-        P plano = planos.saveAndFlush(novoPlano(alunoId, r.titulo().trim(), r.inicio(), r.fim(), escrever(conteudo)));
-        return detalhe(plano);
+        PastaPlano pasta = pastaDoAluno(r.pastaId(), alunoId);
+        P novo = novoPlano(alunoId, r.titulo().trim(), pasta != null ? pasta.getInicio() : r.inicio(),
+                pasta != null ? pasta.getFim() : r.fim(), escrever(conteudo));
+        if (pasta != null) {
+            novo.definirPasta(pasta.getId());
+        }
+        return detalhe(planos.saveAndFlush(novo));
     }
 
     @Transactional(readOnly = true)
@@ -146,9 +155,13 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         P origem = buscar(id);
         String base = origem.getVersaoPublicada() == 0 ? origem.getRascunho()
                 : versao(origem, origem.getVersaoPublicada()).getConteudo();
-        P novo = planos.saveAndFlush(novoPlano(origem.getAlunoId(), r.titulo().trim(), r.inicio(), r.fim(),
-                escrever(comUidsNovos(ler(base)))));
-        return detalhe(novo);
+        PastaPlano pasta = pastaDoAluno(r.pastaId(), origem.getAlunoId());
+        P novo = novoPlano(origem.getAlunoId(), r.titulo().trim(), pasta != null ? pasta.getInicio() : r.inicio(),
+                pasta != null ? pasta.getFim() : r.fim(), escrever(comUidsNovos(ler(base))));
+        if (pasta != null) {
+            novo.definirPasta(pasta.getId());
+        }
+        return detalhe(planos.saveAndFlush(novo));
     }
 
     @Transactional(readOnly = true)
@@ -196,6 +209,15 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
 
     private P buscar(UUID id) {
         return planos.findById(id).orElseThrow(() -> new NaoEncontradoException(nomeDoPlano + " não encontrado."));
+    }
+
+    /** Pasta pedida, que precisa ser do mesmo aluno; sem pasta, {@code null}. Outra pasta ou aluno → 404. */
+    private PastaPlano pastaDoAluno(UUID pastaId, UUID alunoId) {
+        if (pastaId == null) {
+            return null;
+        }
+        return pastas.findById(pastaId).filter(p -> p.getAlunoId().equals(alunoId))
+                .orElseThrow(() -> new NaoEncontradoException("Pasta não encontrada."));
     }
 
     private void exigirAluno(UUID alunoId) {

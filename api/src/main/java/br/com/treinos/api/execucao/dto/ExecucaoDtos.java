@@ -84,7 +84,7 @@ public final class ExecucaoDtos {
                               Instant publicadoEm, ConteudoTreino conteudo) {
     }
 
-    public record ConfiguracaoAluno(BigDecimal arredondamentoKg, String tipoTrabalho) {
+    public record ConfiguracaoAluno(BigDecimal arredondamentoKg, String tipoTrabalho, String instrucoesTreino) {
     }
 
     public record AlunoNome(String nome) {

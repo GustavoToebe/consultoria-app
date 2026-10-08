@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { execucoesDoAluno, progressoDoAluno } from '../api/rotas';
 import type { DiaDeTreino, SerieFeita } from '../api/tipos';
 import { dataParaTela, hojeIso, numeroParaTela, somarDias } from '../dominio/formatos';
-import { cargasPorDivisao } from '../dominio/relatorio';
+import { cargasPorDivisao, filtrarPorSessoes } from '../dominio/relatorio';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
@@ -20,7 +20,7 @@ import { textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { CargasPorDivisao } from './CargasPorDivisao';
-import { gerarPdfDeCargas, sessoesDosTreinos } from './gerarPdf';
+import { gerarPdfDeCargas, sessoesPorUid, treinosDoAluno } from './gerarPdf';
 
 /** "WS 32 kg × 5"; o que o aluno não informou aparece como "—" (nunca presumido). */
 export function textoSerie(s: SerieFeita): string {
@@ -55,8 +55,13 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
     execucoesDoAluno(aluno.id, de, hoje),
   );
   const animar = usePrimeiraLista(!!dados, de);
-  const sessoes = useCarregar(`sessoes:${aluno.id}`, () => sessoesDosTreinos(aluno.id));
-  const divisoes = dados ? cargasPorDivisao(dados, sessoes.dados ?? undefined) : [];
+  const treinos = useCarregar(`treinos:${aluno.id}`, () => treinosDoAluno(aluno.id));
+  const [planoId, setPlanoId] = useState('todos');
+  const planos = treinos.dados ?? [];
+  const planoEscolhido = planos.find((t) => t.plano.id === planoId);
+  const filtrados = dados ? filtrarPorSessoes(dados, planoEscolhido ? new Set(planoEscolhido.sessoes.map((s) => s.uid)) : null) : null;
+  const divisoes = filtrados ? cargasPorDivisao(filtrados, sessoesPorUid(planos)) : [];
+  const opcoesPlano = [{ valor: 'todos', rotulo: 'Todos os planos' }, ...planos.map((t) => ({ valor: t.plano.id, rotulo: t.plano.titulo }))];
 
   const pdf = () => {
     setGerando(true);
@@ -69,24 +74,26 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
     <>
       <Cartao
         titulo="Registros e cargas"
+        recolhivel
         acoes={
           divisoes.length ? <Botao rotulo="PDF das cargas" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /> : null
         }>
         <View style={estilos.filtros}>
           <Escolha descricao="Período" opcoes={PERIODOS} valor={dias} aoMudar={setDias} />
+          {planos.length > 1 ? <Escolha descricao="Plano" opcoes={opcoesPlano} valor={planoId} aoMudar={setPlanoId} /> : null}
         </View>
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Esqueleto /> : null}
-        {dados && dados.length === 0 ? (
+        {dados && filtrados && filtrados.length === 0 ? (
           <Vazio titulo="Sem registros no período" texto="Os treinos registrados aparecem aqui. O aluno pode ter treinado sem registrar." />
         ) : null}
         {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
-        {dados && visao === 'dia'
-          ? [...dados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)
+        {filtrados && visao === 'dia'
+          ? [...filtrados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)
           : null}
       </Cartao>
-      {dados && dados.length > 0 ? <CartaoProgresso alunoId={aluno.id} dias={dados} /> : null}
+      {filtrados && filtrados.length > 0 ? <CartaoProgresso alunoId={aluno.id} dias={filtrados} /> : null}
     </>
   );
 }
@@ -129,7 +136,7 @@ function CartaoProgresso({ alunoId, dias }: { alunoId: string; dias: DiaDeTreino
   );
   if (opcoes.length === 0) return null;
   return (
-    <Cartao titulo="Progresso por exercício">
+    <Cartao titulo="Progresso por exercício" recolhivel recolhido>
       <Escolha descricao="Exercício" opcoes={opcoes} valor={atual} aoMudar={setEscolhido} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {carregando && !dados ? <Esqueleto /> : null}

@@ -62,7 +62,7 @@ public class AlunoAppService {
                 : historico.ultimasCargas(alunoId, exerciciosDaBiblioteca(treino.conteudo()));
         ConfiguracaoConsultoria config = marcas.configuracao(eu.consultoriaId());
         return new PainelAluno(marcas.marca(eu.consultoriaId()), new AlunoNome(aluno.getNome()), treino, ultimas,
-                new ConfiguracaoAluno(config.arredondamentoKg(), config.tipoTrabalho()), Instant.now());
+                new ConfiguracaoAluno(config.arredondamentoKg(), config.tipoTrabalho(), config.instrucoesTreino()), Instant.now());
     }
 
     @Transactional(readOnly = true)

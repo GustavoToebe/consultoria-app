@@ -4,7 +4,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { esc, link } from './html';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
-import { documentoTreino } from './pdfTreino';
+import { blocoInstrucoes, documentoTreino } from './pdfTreino';
 
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
@@ -81,9 +81,10 @@ describe('PDF do treino', () => {
     expect(html).not.toContain('"onmouseover="');
   });
 
-  it('dia de descanso mostra o cardio; instruções no fim com as quebras de linha', () => {
+  it('dia de descanso mostra o cardio; instruções no fim, uma linha por item', () => {
     expect(html).toContain('Cardio 50 min');
-    expect(html).toContain('Linha 1<br>Linha 2');
+    expect(html).toContain('Linha 1');
+    expect(html).toContain('Linha 2');
     expect(html.indexOf('Instruções')).toBeGreaterThan(html.indexOf('Remada baixa'));
   });
 
@@ -162,5 +163,18 @@ describe('PDF de cargas', () => {
     expect(d.corpo).toContain('&lt;b&gt;forte&lt;/b&gt;');
     expect(d.corpo).not.toContain('<b>forte</b>');
     expect(d.corpo).toContain('<td class="carga">—</td>');
+  });
+});
+
+describe('instruções do PDF do treino', () => {
+  it('separa termo e explicação, mantém linhas seguintes sob o termo e escapa HTML', () => {
+    const html = blocoInstrucoes('Feeder Set (FS): série <b>de</b> reconhecimento\n1º FS - 50%\n2º FS - 70%\nAnote a carga');
+    expect(html).toContain('<td class="termo">Feeder Set (FS)</td>');
+    expect(html).toContain('série &lt;b&gt;de&lt;/b&gt; reconhecimento');
+    expect(html).toContain('<div class="sub">1º FS - 50%</div>');
+    expect(html).toContain('<div class="sub">Anote a carga</div>');
+  });
+  it('texto vazio não gera bloco', () => {
+    expect(blocoInstrucoes('  \n ')).toBe('');
   });
 });

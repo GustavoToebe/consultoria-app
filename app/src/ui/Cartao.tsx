@@ -1,6 +1,7 @@
 import { Card } from '../components/ui/card';
-import type { ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
@@ -11,21 +12,37 @@ interface Props {
   titulo?: string;
   /** Botões do cartão, à direita do título. */
   acoes?: ReactNode;
+  /** O título vira botão que recolhe e expande o conteúdo (as `acoes` ficam sempre visíveis). */
+  recolhivel?: boolean;
+  /** Só vale com `recolhivel`: começa fechado. */
+  recolhido?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Cartão flat: superfície, borda nos dois temas, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
-export function Cartao({ children, titulo, acoes, style }: Props) {
+export function Cartao({ children, titulo, acoes, recolhivel, recolhido = false, style }: Props) {
   const { cores } = useTema();
+  const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
+  const Seta = fechado ? ChevronDown : ChevronUp;
   return (
     <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }, style]}>
       {titulo || acoes ? (
         <View style={estilos.topo}>
-          {titulo ? <Texto variante="secao" style={estilos.titulo}>{titulo}</Texto> : <View />}
+          {titulo && recolhivel ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${titulo}, ${fechado ? 'recolhido' : 'expandido'}`}
+              accessibilityState={{ expanded: !fechado }}
+              onPress={() => setFechado((v) => !v)}
+              style={({ pressed }) => [estilos.tituloBotao, { opacity: pressed ? 0.7 : 1 }]}>
+              <Texto variante="secao" style={estilos.titulo}>{titulo}</Texto>
+              <Seta size={18} color={cores.textoSuave} />
+            </Pressable>
+          ) : titulo ? <Texto variante="secao" style={estilos.titulo}>{titulo}</Texto> : <View />}
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
         </View>
       ) : null}
-      {children}
+      {fechado ? null : children}
     </Card>
   );
 }
@@ -34,5 +51,6 @@ const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5) },
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   titulo: { flexShrink: 1 },
+  tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap' },
 });

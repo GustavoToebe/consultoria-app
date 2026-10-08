@@ -31,6 +31,14 @@ export interface DivisaoRelatorio {
   exercicios: ExercicioRelatorio[];
 }
 
+/** Só as sessões com `uid` no conjunto (plano escolhido); dias que ficam sem sessão saem. `null` = todos os planos. */
+export function filtrarPorSessoes(dias: DiaDeTreino[], uids: Set<string> | null): DiaDeTreino[] {
+  if (!uids) return dias;
+  return dias
+    .map((d) => ({ ...d, sessoes: d.sessoes.filter((s) => uids.has(s.sessaoUid)) }))
+    .filter((d) => d.sessoes.length > 0);
+}
+
 const chaveDoNome = (nome: string) => nome.trim().toLowerCase();
 
 /**

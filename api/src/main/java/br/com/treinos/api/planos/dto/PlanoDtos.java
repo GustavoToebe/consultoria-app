@@ -23,7 +23,11 @@ public final class PlanoDtos {
             LocalDate inicio,
             LocalDate fim,
             UUID receitaId,
-            UUID copiarDoPlanoId) {
+            UUID copiarDoPlanoId,
+            UUID pastaId) {
+        public CriarPlanoRequest(String titulo, LocalDate inicio, LocalDate fim, UUID receitaId, UUID copiarDoPlanoId) {
+            this(titulo, inicio, fim, receitaId, copiarDoPlanoId, null);
+        }
     }
 
     /** {@code versao} é o lock otimista: outra aba que salvou antes faz este voltar 409 {@code CONFLITO_EDICAO}. */
@@ -38,17 +42,22 @@ public final class PlanoDtos {
     public record PublicarRequest(@NotNull Long versao, boolean confirmarAvisos) {
     }
 
-    public record ReplicarRequest(@NotBlank @Size(max = 120) String titulo, LocalDate inicio, LocalDate fim) {
+    /** {@code pastaId}: replica para dentro dessa pasta (o período dela vale); sem ele, vale o período informado. */
+    public record ReplicarRequest(@NotBlank @Size(max = 120) String titulo, LocalDate inicio, LocalDate fim,
+                                  UUID pastaId) {
+        public ReplicarRequest(String titulo, LocalDate inicio, LocalDate fim) {
+            this(titulo, inicio, fim, null);
+        }
     }
 
     public record SalvarComoReceitaRequest(@NotBlank @Size(max = 120) String nome, @Size(max = 400) String descricao) {
     }
 
-    public record PlanoResumo(UUID id, UUID alunoId, String titulo, LocalDate inicio, LocalDate fim, boolean ativo,
-                              int versaoPublicada, Instant publicadoEm, boolean rascunhoAlteradoDepoisDePublicar,
-                              Long versao) {
+    public record PlanoResumo(UUID id, UUID alunoId, UUID pastaId, String titulo, LocalDate inicio, LocalDate fim,
+                              boolean ativo, int versaoPublicada, Instant publicadoEm,
+                              boolean rascunhoAlteradoDepoisDePublicar, Long versao) {
         public static PlanoResumo de(PlanoBase p) {
-            return new PlanoResumo(p.getId(), p.getAlunoId(), p.getTitulo(), p.getInicio(), p.getFim(), p.isAtivo(),
+            return new PlanoResumo(p.getId(), p.getAlunoId(), p.getPastaId(), p.getTitulo(), p.getInicio(), p.getFim(), p.isAtivo(),
                     p.getVersaoPublicada(), p.getPublicadoEm(), p.rascunhoAlteradoDepoisDePublicar(), p.getVersao());
         }
     }

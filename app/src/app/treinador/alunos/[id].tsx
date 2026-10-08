@@ -8,7 +8,8 @@ import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
-import { CartaoPlanos } from '../../../treinador/CartaoPlanos';
+import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
+import { CartaoPastas } from '../../../treinador/CartaoPastas';
 import { CartaoRegistros } from '../../../treinador/CartaoRegistros';
 import { FormAluno } from '../../../treinador/FormAluno';
 import { useAviso } from '../../../ui/Aviso';
@@ -38,8 +39,8 @@ export default function FichaAluno() {
         <>
           <CartaoDados aluno={aluno} aoAlterar={definir} />
           <CartaoAcesso aluno={aluno} />
-          <CartaoPlanos tipo="treino" alunoId={aluno.id} />
-          <CartaoPlanos tipo="dieta" alunoId={aluno.id} />
+          <CartaoLesoes alunoId={aluno.id} />
+          <CartaoPastas alunoId={aluno.id} />
           <CartaoRegistros aluno={aluno} />
           <CartaoPeso alunoId={aluno.id} />
         </>

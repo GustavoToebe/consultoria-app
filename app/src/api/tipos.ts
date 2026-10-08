@@ -321,9 +321,19 @@ export interface ConteudoDieta {
 
 export type TipoPlano = 'treino' | 'dieta';
 
+export interface PastaResumo {
+  id: string;
+  alunoId: string;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+}
+
 export interface PlanoResumo {
   id: string;
   alunoId: string;
+  /** Pasta do plano; `null` em plano criado antes das pastas. */
+  pastaId: string | null;
   titulo: string;
   inicio: string | null;
   fim: string | null;
@@ -395,6 +405,21 @@ export interface ProgressoPonto {
   repeticoes: number | null;
 }
 
+export type SituacaoLesao = 'ATIVA' | 'EM_RECUPERACAO' | 'RECUPERADA';
+
+/** Lesão do histórico do aluno (dado sensível: só na tela, nunca em log). */
+export interface Lesao {
+  id: string;
+  regiao: string;
+  descricao: string | null;
+  dataInicio: string | null;
+  dataFim: string | null;
+  situacao: SituacaoLesao;
+  observacao: string | null;
+}
+
+export type DadosLesao = Omit<Lesao, 'id'>;
+
 export interface RegistroPeso {
   id: string;
   data: string;
@@ -429,7 +454,8 @@ export interface PainelAluno {
   treino: TreinoAtual | null;
   /** Por `exercicioId` da biblioteca: última carga em série de trabalho. */
   ultimasCargas: Record<string, UltimaCarga>;
-  configuracao: { arredondamentoKg: number; tipoTrabalho: string };
+  /** `instrucoesTreino` falta em pacote salvo antes desta versão. */
+  configuracao: { arredondamentoKg: number; tipoTrabalho: string; instrucoesTreino?: string | null };
   geradoEm: string;
 }
 

@@ -18,11 +18,14 @@ function EstadoDoSelo({ texto, tipo, pulsar, reduzido }: { texto: string; tipo: 
     return () => { cancelAnimation(opacidade); cancelAnimation(escala); };
   }, [pulsar, reduzido, opacidade, escala]);
   const estilo = useAnimatedStyle(() => ({ opacity: opacidade.get(), transform: [{ scale: escala.get() }] }));
+  // Entrada/saída no invólucro e opacidade/escala no filho: a mesma View não pode ter as duas coisas.
   return (
-    <Animated.View accessibilityLiveRegion="polite" style={estilo}
+    <Animated.View
       entering={reduzido ? undefined : FadeIn.duration(180).reduceMotion(ReduceMotion.System)}
       exiting={reduzido ? undefined : FadeOut.duration(120).reduceMotion(ReduceMotion.System)}>
-      <Selo texto={texto} tipo={tipo} />
+      <Animated.View accessibilityLiveRegion="polite" style={estilo}>
+        <Selo texto={texto} tipo={tipo} />
+      </Animated.View>
     </Animated.View>
   );
 }

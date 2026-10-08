@@ -20,6 +20,8 @@ import br.com.treinos.api.execucao.PesoService;
 import br.com.treinos.api.execucao.SincronizacaoService;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoRequest;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.RegistroExecucao;
+import br.com.treinos.api.pastas.PastaDtos.PastaRequest;
+import br.com.treinos.api.pastas.PastaService;
 import br.com.treinos.api.planos.dto.PlanoDtos.CriarPlanoRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe;
 import br.com.treinos.api.planos.dto.PlanoDtos.PublicarRequest;
@@ -111,11 +113,13 @@ public class SeedDemo {
     private final PlanoDietaService dietas;
     private final SincronizacaoService sincronizacao;
     private final PesoService pesos;
+    private final PastaService pastas;
 
     public SeedDemo(CriacaoDeConta criacaoDeConta, ReceitaService receitas, MarcaService marcas,
                     BibliotecaService biblioteca, AlunoService alunos, ConviteService convites,
                     PlanoTreinoService treinos, PlanoDietaService dietas, SincronizacaoService sincronizacao,
-                    PesoService pesos) {
+                    PesoService pesos, PastaService pastas) {
+        this.pastas = pastas;
         this.criacaoDeConta = criacaoDeConta;
         this.receitas = receitas;
         this.marcas = marcas;
@@ -164,11 +168,12 @@ public class SeedDemo {
 
             LocalDate segunda = LocalDate.now(Fuso.BRASILIA).with(DayOfWeek.MONDAY);
             ConteudoTreino plano16 = plano16(exercicios);
-            PlanoDetalhe<ConteudoTreino> publicado = publicarTreino(aluno, "Plano 16", segunda, segunda.plusDays(15),
-                    plano16, treinador.getId());
+            UUID pasta = pastas.criar(aluno, new PastaRequest("Plano 16", segunda, segunda.plusDays(15))).id();
+            PlanoDetalhe<ConteudoTreino> publicado = publicarTreino(aluno, pasta, "Plano 16", segunda,
+                    segunda.plusDays(15), plano16, treinador.getId());
             execucoesFicticias(consultoria, aluno, publicado.versoes().get(0).id(), plano16, segunda);
 
-            publicarDieta(aluno, dieta(alimentos), treinador.getId());
+            publicarDieta(aluno, pasta, dieta(alimentos), treinador.getId());
 
             LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
             String[] kg = {"82.0", "81.4", "81.1", "81.3"};
@@ -394,7 +399,7 @@ public class SeedDemo {
                     sessaoSimples("Treino C", 5, ids, nomes.subList(4, 6)),
                     new Sessao(UUID.randomUUID(), "Descanso", 7, "DESCANSO", null, null, null, List.of())));
             LocalDate segunda = LocalDate.now(Fuso.BRASILIA).with(DayOfWeek.MONDAY);
-            publicarTreino(aluno, "ABC", segunda, segunda.plusDays(27), abc, treinador.getId());
+            publicarTreino(aluno, null, "ABC", segunda, segunda.plusDays(27), abc, treinador.getId());
             return null;
         });
     }
@@ -424,21 +429,21 @@ public class SeedDemo {
         convites.aceitar(ConviteService.hash(codigo), email, senha);
     }
 
-    private PlanoDetalhe<ConteudoTreino> publicarTreino(UUID aluno, String titulo, LocalDate inicio, LocalDate fim,
+    private PlanoDetalhe<ConteudoTreino> publicarTreino(UUID aluno, UUID pasta, String titulo, LocalDate inicio, LocalDate fim,
                                                         ConteudoTreino conteudo, UUID treinador) {
-        PlanoDetalhe<ConteudoTreino> criado = treinos.criar(aluno, new CriarPlanoRequest(titulo, inicio, fim, null, null));
+        PlanoDetalhe<ConteudoTreino> criado = treinos.criar(aluno, new CriarPlanoRequest(titulo, inicio, fim, null, null, pasta));
         PlanoDetalhe<ConteudoTreino> salvo = treinos.salvarRascunho(criado.plano().id(),
                 new SalvarRascunhoRequest<>(titulo, inicio, fim, conteudo, criado.plano().versao()));
         return treinos.publicar(salvo.plano().id(), new PublicarRequest(salvo.plano().versao(), true), treinador);
     }
 
-    private void publicarDieta(UUID aluno, ConteudoDieta conteudo, UUID treinador) {
+    private void publicarDieta(UUID aluno, UUID pasta, ConteudoDieta conteudo, UUID treinador) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         ConteudoDieta comData = new ConteudoDieta(conteudo.objetivo(), hoje.with(DayOfWeek.MONDAY).toString(),
                 conteudo.profissional(), conteudo.refeicoes(), conteudo.orientacoes(), conteudo.observacoes(),
                 conteudo.suplementacao());
         PlanoDetalhe<ConteudoDieta> criado = dietas.criar(aluno, new CriarPlanoRequest("Plano alimentar", null, null,
-                null, null));
+                null, null, pasta));
         PlanoDetalhe<ConteudoDieta> salvo = dietas.salvarRascunho(criado.plano().id(),
                 new SalvarRascunhoRequest<>("Plano alimentar", null, null, comData, criado.plano().versao()));
         dietas.publicar(salvo.plano().id(), new PublicarRequest(salvo.plano().versao(), true), treinador);

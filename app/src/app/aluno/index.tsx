@@ -1,6 +1,8 @@
 import { ProgressoSemana } from '../../aluno/ProgressoSemana';
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { router } from 'expo-router';
+import { FileDown } from 'lucide-react-native';
+import { useState } from 'react';
 
 import { CartaoDivisao } from '../../aluno/CartaoDivisao';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
@@ -11,6 +13,11 @@ import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataHoraParaTela, dataParaTela, diaDaSemana, hojeIso } from '../../dominio/formatos';
 import { sessaoDoDia, sessoesDaSemana } from '../../dominio/semana';
 import { useAluno } from '../../offline/AlunoProvider';
+import { imprimir } from '../../pdf/imprimir';
+import { logoComoDataUri } from '../../pdf/logo';
+import { documentoTreino } from '../../pdf/pdfTreino';
+import { useAviso } from '../../ui/Aviso';
+import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -26,6 +33,8 @@ import { Texto } from '../../ui/Texto';
 export default function TreinoAluno() {
   const { pacote, carregando, erroPacote, registros } = useAluno();
   const animar = usePrimeiraLista(!!pacote);
+  const { avisar } = useAviso();
+  const [gerandoPdf, setGerandoPdf] = useState(false);
   const hoje = hojeIso();
   const treino = pacote?.pacote.treino ?? null;
 
@@ -40,6 +49,34 @@ export default function TreinoAluno() {
       </Tela>
     );
   }
+
+  const pdf = async () => {
+    if (!treino) return;
+    setGerandoPdf(true);
+    try {
+      const marca = pacote.pacote.marca;
+      await imprimir(
+        documentoTreino({
+          marca,
+          logoDataUri: await logoComoDataUri(marca),
+          aluno: pacote.pacote.aluno.nome,
+          titulo: treino.titulo,
+          inicio: treino.inicio,
+          fim: treino.fim,
+          versao: treino.numero,
+          conteudo: normalizarTreino(treino.conteudo),
+          tipoTrabalho: pacote.pacote.configuracao.tipoTrabalho,
+          instrucoesTreino: pacote.pacote.configuracao.instrucoesTreino ?? null,
+          rodapePdf: null,
+          emitidoEm: new Date(),
+        }),
+      );
+    } catch (e) {
+      avisar(textoDoErro(e), 'perigo');
+    } finally {
+      setGerandoPdf(false);
+    }
+  };
 
   const conteudo = treino ? normalizarTreino(treino.conteudo) : null;
   const deHoje = conteudo ? sessaoDoDia(conteudo, diaDaSemana()) : null;
@@ -86,6 +123,7 @@ export default function TreinoAluno() {
               {conteudo.orientacoes ? <Texto variante="suave">{conteudo.orientacoes}</Texto> : null}
             </Cartao>
           ) : null}
+          <Botao rotulo="Baixar PDF do treino" tipo="secundario" Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />
           <Texto variante="pequeno">
             {treino.titulo} (v{treino.numero}) · atualizado em {dataHoraParaTela(pacote.salvoEm)}
           </Texto>

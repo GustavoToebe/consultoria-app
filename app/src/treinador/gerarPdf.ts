@@ -44,14 +44,17 @@ export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascu
   }
 }
 
-/** Sessões dos treinos publicados do aluno (por uid), para o relatório mostrar "Quarta - Pernas" e a ordem da semana. */
-export async function sessoesDosTreinos(alunoId: string): Promise<Map<string, Sessao>> {
+/** Treinos publicados do aluno com as sessões de cada um (para filtrar o relatório por plano). */
+export async function treinosDoAluno(alunoId: string): Promise<{ plano: PlanoResumo; sessoes: Sessao[] }[]> {
   const planos = (await listarPlanos('treino', alunoId)).filter((p) => p.versaoPublicada > 0);
   const versoes = await Promise.all(planos.map((p) => versaoPlano<unknown>('treino', p.id, p.versaoPublicada).catch(() => null)));
+  return planos.map((plano, i) => ({ plano, sessoes: versoes[i] ? normalizarTreino(versoes[i].conteudo).sessoes : [] }));
+}
+
+/** Sessões dos treinos publicados do aluno (por uid), para o relatório mostrar "Quarta - Pernas" e a ordem da semana. */
+export function sessoesPorUid(treinos: { sessoes: Sessao[] }[]): Map<string, Sessao> {
   const mapa = new Map<string, Sessao>();
-  for (const v of versoes) {
-    if (v) for (const s of normalizarTreino(v.conteudo).sessoes) mapa.set(s.uid, s);
-  }
+  for (const t of treinos) for (const s of t.sessoes) mapa.set(s.uid, s);
   return mapa;
 }
 

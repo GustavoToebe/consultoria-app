@@ -10,7 +10,7 @@ import { Texto } from '../ui/Texto';
 
 /**
  * Uma divisão do plano ("Quarta · Pernas") com as datas dela no período em chips: hoje na cor da marca, dia com
- * série registrada com ✓ verde, dia que ainda não chegou apagado (não dá para registrar o futuro).
+ * série registrada com ✓ verde, dia fora da janela de 60 dias apagado.
  */
 export function CartaoDivisao({
   sessao,
@@ -86,7 +86,7 @@ function ChipData({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${descricao}${hoje ? ', hoje' : ''}${feito ? ', com registro' : ''}${ativo ? '' : ', ainda não chegou'}`}
+      accessibilityLabel={`${descricao}${hoje ? ', hoje' : ''}${feito ? ', com registro' : ''}${ativo ? '' : ', fora do período aceito'}`}
       accessibilityState={{ disabled: !ativo }}
       disabled={!ativo}
       onPress={aoTocar}

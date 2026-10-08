@@ -80,8 +80,8 @@ public class SincronizacaoService {
                 || !serie.get().exercicioUid().equals(r.exercicioUid())) {
             return "Série não existe nesta versão do plano.";
         }
-        if (r.data().isBefore(hoje.minusDays(DIAS_PARA_TRAS)) || r.data().isAfter(hoje.plusDays(1))) {
-            return "Data fora do período aceito (últimos 60 dias).";
+        if (r.data().isBefore(hoje.minusDays(DIAS_PARA_TRAS)) || r.data().isAfter(hoje.plusDays(DIAS_PARA_TRAS))) {
+            return "Data fora do período aceito (60 dias para trás ou para frente).";
         }
         if (r.alteradoNoAparelhoEm().isAfter(limiteFuturo)) {
             return "Horário do aparelho inválido.";

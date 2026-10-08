@@ -1,6 +1,7 @@
 import type { DiaDeTreino, SerieFeita, Sessao } from '../api/tipos';
 import { dataCurta, diaDaSemanaIso } from './formatos';
-import { cargasPorDivisao, totalDeRegistros } from './relatorio';
+import { cargasPorDivisao, filtrarPorSessoes, totalDeRegistros } from './relatorio';
+import { marcasDoEixo } from './grafico';
 import { datasDaSessao, nomeComDia, podeRegistrarEm } from './semana';
 
 const serie = (extra: Partial<SerieFeita>): SerieFeita => ({
@@ -60,7 +61,8 @@ describe('datas da semana', () => {
   it('registra hoje e no passado (até 60 dias), nunca no futuro', () => {
     expect(podeRegistrarEm('2026-10-07', '2026-10-07')).toBe(true);
     expect(podeRegistrarEm('2026-10-05', '2026-10-07')).toBe(true);
-    expect(podeRegistrarEm('2026-10-08', '2026-10-07')).toBe(false);
+    expect(podeRegistrarEm('2026-10-08', '2026-10-07')).toBe(true);
+    expect(podeRegistrarEm('2026-12-07', '2026-10-07')).toBe(false);
     expect(podeRegistrarEm('2026-07-01', '2026-10-07')).toBe(false);
   });
 });
@@ -114,5 +116,25 @@ describe('nome com o dia', () => {
     expect(nomeComDia(sessao('a', 'Terca - Peito', 2))).toBe('Terca - Peito');
     expect(nomeComDia(sessao('a', 'Pernas', 3))).toBe('Quarta · Pernas');
     expect(nomeComDia(sessao('a', 'Acessórios', null))).toBe('Acessórios');
+  });
+});
+
+describe('filtro por plano e eixo do gráfico', () => {
+  const dia = (data: string, ...uids: string[]): DiaDeTreino => ({
+    data,
+    sessoes: uids.map((u) => ({ sessaoUid: u, sessao: u, planoVersaoId: 'v', exercicios: [] })),
+  });
+  it('mantém só as sessões do plano e descarta dias vazios', () => {
+    const dias = [dia('2026-10-01', 'a', 'b'), dia('2026-10-02', 'b')];
+    const r = filtrarPorSessoes(dias, new Set(['a']));
+    expect(r).toHaveLength(1);
+    expect(r[0].sessoes.map((x) => x.sessaoUid)).toEqual(['a']);
+    expect(filtrarPorSessoes(dias, null)).toBe(dias);
+  });
+  it('marcas do eixo ficam dentro da faixa', () => {
+    const m = marcasDoEixo(80.2, 82.6);
+    expect(m.length).toBeGreaterThan(1);
+    expect(Math.min(...m)).toBeGreaterThanOrEqual(80.2);
+    expect(Math.max(...m)).toBeLessThanOrEqual(82.6);
   });
 });
