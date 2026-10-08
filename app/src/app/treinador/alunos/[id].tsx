@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Pencil } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno } from '../../../api/rotas';
 import type { AlunoDetalhe } from '../../../api/tipos';
@@ -31,6 +31,9 @@ export default function FichaAluno() {
   const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
   // Finalizar uma pasta pode gravar peso: o cartão de peso é remontado para buscar de novo.
   const [geracaoPeso, setGeracaoPeso] = useState(0);
+  // A partir de 1.100 px: Dados à esquerda; Acesso e Lesões à direita. O resto vem em largura cheia.
+  const { width } = useWindowDimensions();
+  const duasColunas = width >= 1100;
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
@@ -39,9 +42,23 @@ export default function FichaAluno() {
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
         <>
-          <CartaoDados aluno={aluno} aoAlterar={definir} />
-          <CartaoAcesso aluno={aluno} />
-          <CartaoLesoes alunoId={aluno.id} />
+          {duasColunas ? (
+            <View style={estilos.colunas}>
+              <View style={estilos.coluna}>
+                <CartaoDados aluno={aluno} aoAlterar={definir} />
+              </View>
+              <View style={estilos.coluna}>
+                <CartaoAcesso aluno={aluno} />
+                <CartaoLesoes alunoId={aluno.id} />
+              </View>
+            </View>
+          ) : (
+            <>
+              <CartaoDados aluno={aluno} aoAlterar={definir} />
+              <CartaoAcesso aluno={aluno} />
+              <CartaoLesoes alunoId={aluno.id} />
+            </>
+          )}
           <CartaoPastas alunoId={aluno.id} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           <CartaoRegistros aluno={aluno} />
           <CartaoPeso key={geracaoPeso} alunoId={aluno.id} />
@@ -136,6 +153,8 @@ function Linha({ rotulo, valor }: { rotulo: string; valor: string | null }) {
 }
 
 const estilos = StyleSheet.create({
+  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
+  coluna: { flex: 1, gap: espaco(3) },
   dados: { gap: espaco(1.25) },
   linha: { gap: 2 },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end' },
