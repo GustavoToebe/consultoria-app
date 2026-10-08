@@ -1,7 +1,11 @@
 /**
  * Design flat utilitário (seção 10.3 do plano): cores sólidas, sem sombra nem gradiente, cantos de 8 px, bordas de
- * 1 px, grade de 8 px. A cor da marca só aparece em ação principal, menu ativo e título da marca; status nunca usa a
- * cor da marca (verde ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto.
+ * 1 px, grade de 8 px. A cor da marca só aparece em ação principal, menu e aba ativos, "Treino de hoje" e título da
+ * marca; seleção (chips, escolhas) é invertida (fundo `texto`, letra `fundo`); status nunca usa a cor da marca (verde
+ * ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto.
+ *
+ * Níveis: fundo → cartão (`superficie` + `borda`) → faixa de grupo (`superficie2`) → item (`superficie2` + `borda`).
+ * Campo de digitar = `campo` + `bordaCampo` (mais escuro que o cartão, um "buraco" onde se escreve).
  */
 export interface Cores {
   fundo: string;
@@ -10,6 +14,10 @@ export interface Cores {
   superficie3: string;
   divisor: string;
   borda: string;
+  /** Fundo de campo de digitar. */
+  campo: string;
+  /** Borda de campo de digitar (≥ 3:1 sobre `campo`, WCAG 1.4.11). */
+  bordaCampo: string;
   texto: string;
   textoSuave: string;
   sucesso: string;
@@ -19,14 +27,16 @@ export interface Cores {
 }
 
 export const ESCURO: Cores = {
-  fundo: '#0E0E10',
-  superficie: '#17171A',
-  superficie2: '#1F1F23',
-  superficie3: '#27272C',
+  fundo: '#0A0A0C',
+  superficie: '#18181B',
+  superficie2: '#222226',
+  superficie3: '#2C2C31',
   divisor: '#2A2A2F',
-  borda: '#2A2A2F',
-  texto: '#F2F2F3',
-  textoSuave: '#9A9AA2',
+  borda: '#3A3A41',
+  campo: '#0F0F12',
+  bordaCampo: '#63636B',
+  texto: '#F4F4F5',
+  textoSuave: '#A1A1AA',
   sucesso: '#1F9D55',
   atencao: '#B7791F',
   perigo: '#E5484D',
@@ -34,14 +44,16 @@ export const ESCURO: Cores = {
 };
 
 export const CLARO: Cores = {
-  fundo: '#F4F4F5',
+  fundo: '#EAEAED',
   superficie: '#FFFFFF',
-  superficie2: '#F0F0F2',
+  superficie2: '#F4F4F5',
   superficie3: '#E7E7EA',
   divisor: '#E4E4E7',
-  borda: '#DCDCE0',
+  borda: '#D4D4D8',
+  campo: '#FFFFFF',
+  bordaCampo: '#8A8A93',
   texto: '#111114',
-  textoSuave: '#5F5F67',
+  textoSuave: '#52525B',
   sucesso: '#1A7F45',
   atencao: '#9A6412',
   perigo: '#C62828',
