@@ -20,6 +20,19 @@ No Windows: Docker Desktop; `ipconfig` mostra o IP do PC; liberar a porta 8088 n
 O banco começa com os dados de demonstração (só quando está vazio). Para recomeçar do zero:
 `docker compose down -v && docker compose up -d --build`.
 
+### Em outro computador
+
+1. Instalar o **Git** e o **Docker Desktop** (pede administrador no Windows). Para o celular, também o **Node 24.21.0**
+   (`app/.nvmrc`). JDK 21 e Maven só para rodar os testes da API.
+2. Pegar o código: `git clone https://github.com/GustavoToebe/Saraiva-api.git` (a `main` tem tudo). Se o PC usa o
+   mesmo OneDrive, a pasta `Documents/Saraiva-api` já vem sincronizada, com o `.env`.
+3. O `.env` **não está no git** (tem as senhas). Num clone novo: `cp .env.example .env` e preencher
+   `POSTGRES_PASSWORD`, `TREINOS_JWT_SEGREDO` (`openssl rand -base64 48`) e `DEMO_SENHA` (senha das contas de
+   demonstração). Nunca mandar o `.env` por e-mail, chat ou commit.
+4. `docker compose up -d --build` e abrir `http://localhost:8088`. O banco começa limpo, com a demonstração.
+5. Celular: o IP muda de rede para rede (`ipconfig`). Rede de empresa costuma bloquear um aparelho de falar com o
+   outro; nesse caso, `npx expo start --tunnel`.
+
 ### Celular (Android/iOS) pelo Expo Go
 
 Com o Docker rodando, no mesmo Wi-Fi do PC:
@@ -49,9 +62,10 @@ Antes do ensaio, recomeçar do zero: `docker compose down -v && docker compose u
    séries” → mudar FS de 3 para 2 (os percentuais viram 70/85) → Validar → Publicar (confirmar os avisos) → v2.
 4. Ficha → Replicar (o próximo ciclo já vem sugerido) → o plano novo abre como rascunho, igual ao anterior.
 5. PDF do treino e da dieta (botão PDF na ficha ou no editor; na web abre “Salvar como PDF”).
-6. Celular (Expo Go), `aluno@demo.local`: Começar treino → marcar séries → modo avião → marcar mais → fechar e abrir
-   o app (“salvo no aparelho”) → tirar do modo avião → “Sincronizado”.
-7. PC: ficha do aluno → Registros dos últimos 14 dias e Progresso mostram o que foi feito.
+6. Celular (Expo Go), `aluno@demo.local`: tocar no “Treino de hoje” (ou num chip de data das divisões) → abrir um
+   exercício → marcar séries → modo avião → marcar mais → fechar e abrir o app (“salvo no aparelho”) → tirar do
+   modo avião → “Sincronizado”. Na quinta o seed tem Off ativo: usar o chip da quarta.
+7. PC: ficha do aluno → “Registros e cargas” (por divisão ou por dia, 14/30/60 dias), PDF das cargas e Progresso.
 8. `exemplo@demo.local`: outra marca e tema claro; nada do Saraiva aparece.
 9. Sair → “Sou treinador, criar conta” → consultoria nova, já com as receitas prontas.
 
@@ -65,6 +79,25 @@ Senha de todas: o valor de `DEMO_SENHA` no `.env`. Todos os dados são fictício
 | `aluno@demo.local` | Aluno | Saraiva Team (Plano 16 publicado, dieta, histórico de 2 semanas) |
 | `exemplo@demo.local` | Treinador | Consultoria Exemplo (tema claro) |
 | `aluno2@demo.local` | Aluno | Consultoria Exemplo (plano ABC) |
+
+## Em aberto
+
+**Perguntas para o Saraiva** (o app não corrige nada sozinho; mostra o que o treinador passar):
+
+- [ ] Off ativo na **quarta** ou na **quinta**? (o seed usa quinta)
+- [ ] Back off sobre a **carga da WS do dia** ou o **maior peso feito no exercício**? (o app usa a maior carga da WS
+      do dia)
+- [ ] Cardio **todo dia** ou **só nos dias Off**?
+- [ ] Texto completo das **instruções do PDF do Plano 16** (hoje vem da planilha; trocar na tela Marca).
+- [ ] **PDF da dieta** (a do seed tem quantidades de exemplo).
+- [ ] “Refeição 2 — Almoço” só com frutas: nome certo?
+- [ ] Ovo inteiro 3 un / 180 g = 133 kcal: confere? Faltam proteína, carboidrato e gordura.
+- [ ] Legumes com 45 kcal e macros zerados: valores certos?
+- [ ] Variação de peso −1 onde a conta dá −1,5: qual vale?
+
+**Para depois da demonstração** (seção 19 do plano): preço por aluno “cadastrado” ou “ativo”; o que o Saraiva
+controla hoje na planilha sobre os clientes; cobrança pela Central; MFA do treinador; RLS no Postgres; offline em
+expo-sqlite no celular e service worker na web; importar plano da planilha; app próprio nas lojas.
 
 ## Pendências e decisões
 
