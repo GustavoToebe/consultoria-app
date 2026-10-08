@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+/* Espelho de tema/tokens.ts. Não editar uma cor sem atualizar os tokens. */
+@theme {
+ --font-normal: 'Inter_400Regular';
+ --font-semi: 'Inter_600SemiBold';
+ --font-negrito: 'Inter_700Bold';
+ --font-metal: 'MetalMania_400Regular';
+ --radius-md: 8px;
+}
+@layer theme {
+ :root {
+  @variant light {
+   --color-background: #F4F4F5;
+   --color-foreground: #111114;
+   --color-card: #FFFFFF;
+   --color-card-foreground: #111114;
+   --color-muted: #F0F0F2;
+   --color-muted-foreground: #5F5F67;
+   --color-accent: #E7E7EA;
+   --color-accent-foreground: #111114;
+   --color-secondary: #F0F0F2;
+   --color-secondary-foreground: #111114;
+   --color-border: #DCDCE0;
+   --color-input: #DCDCE0;
+   --color-destructive: #C62828;
+   --color-sucesso: #1A7F45;
+   --color-atencao: #9A6412;
+   --color-perigo: #C62828;
+   --color-neutro: #8A8A92;
+   --color-primary: #52525B;
+   --color-primary-foreground: #FFFFFF;
+   --color-ring: #52525B;
+  }
+  @variant dark {
+   --color-background: #0E0E10;
+   --color-foreground: #F2F2F3;
+   --color-card: #17171A;
+   --color-card-foreground: #F2F2F3;
+   --color-muted: #1F1F23;
+   --color-muted-foreground: #9A9AA2;
+   --color-accent: #27272C;
+   --color-accent-foreground: #F2F2F3;
+   --color-secondary: #1F1F23;
+   --color-secondary-foreground: #F2F2F3;
+   --color-border: #2A2A2F;
+   --color-input: #2A2A2F;
+   --color-destructive: #E5484D;
+   --color-sucesso: #1F9D55;
+   --color-atencao: #B7791F;
+   --color-perigo: #E5484D;
+   --color-neutro: #6B6B73;
+   --color-primary: #52525B;
+   --color-primary-foreground: #FFFFFF;
+   --color-ring: #52525B;
+  }
+ }
+}

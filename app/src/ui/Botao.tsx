@@ -1,5 +1,6 @@
+import { Button } from '../components/ui/button';
 import type { LucideIcon } from 'lucide-react-native';
-import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
@@ -28,7 +29,8 @@ export function Botao({ rotulo, aoTocar, tipo = 'primario', Icone, desabilitado,
   const texto = tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? '#FFFFFF' : cores.texto;
   const borda = tipo === 'secundario' ? cores.borda : fundo;
   return (
-    <Pressable
+    <Button
+      variant={tipo === 'primario' ? 'default' : tipo === 'perigo' ? 'destructive' : tipo === 'secundario' ? 'outline' : 'ghost'}
       accessibilityRole="button"
       accessibilityLabel={rotulo}
       accessibilityState={{ disabled: !!inativo, busy: !!carregando }}
@@ -44,7 +46,7 @@ export function Botao({ rotulo, aoTocar, tipo = 'primario', Icone, desabilitado,
         {carregando ? <ActivityIndicator size="small" color={texto} /> : Icone ? <Icone size={18} color={texto} strokeWidth={2} /> : null}
         <Texto style={[estilos.rotulo, { color: texto }]}>{rotulo}</Texto>
       </View>
-    </Pressable>
+    </Button>
   );
 }
 

@@ -1,3 +1,5 @@
+import '../../global.css';
+import { PortalHost } from '@rn-primitives/portal';
 // Só os pesos usados (o import pela raiz do pacote levaria os 18 pesos da Inter para o bundle).
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
@@ -45,6 +47,7 @@ export default function Raiz() {
         <TemaProvider>
           <AvisoProvider>
             <Conteudo />
+            <PortalHost />
           </AvisoProvider>
         </TemaProvider>
       </SessaoProvider>

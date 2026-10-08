@@ -1,3 +1,5 @@
+import { Uniwind } from 'uniwind';
+import { variaveisDoTema } from './variaveis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
@@ -63,6 +65,12 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       },
     };
   }, [escolha, sessao.marca, usuarioId]);
+
+  useEffect(() => {
+    const tema = valor.modo === 'CLARO' ? 'light' : 'dark';
+    Uniwind.setTheme(tema);
+    Uniwind.updateCSSVariables(tema, variaveisDoTema(valor.cores, valor.marca));
+  }, [valor.modo, valor.cores, valor.marca]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

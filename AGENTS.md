@@ -114,3 +114,6 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
 - API: `cd api && mvn verify` (precisa de Docker para o Testcontainers). Maven usa o JDK do `JAVA_HOME` (21).
 - App: `cd app && npm run typecheck && npm run lint && npm test`; `npx expo install --check` e `npx expo-doctor`.
 - Tudo local: `cp .env.example .env` (preencher), `docker compose up -d --build`, abrir `http://localhost:8088`.
+- Base de estilo: Uniwind 1.12.2 + Tailwind 4, sem preset de Babel; Metro estende `getDefaultConfig` do Expo.
+  RNR copiado em `app/src/components/ui/`, adaptadores compatíveis em `app/src/ui/`. `tokens.ts` é a fonte;
+  `global.css` espelha os tokens (teste obrigatório). Marca/tema mudam via `Uniwind.updateCSSVariables` no TemaProvider.

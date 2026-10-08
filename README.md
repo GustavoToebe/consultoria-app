@@ -146,3 +146,9 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
   quinta); back off sobre "carga da WS" ou "maior peso do exercício" (o app usa o maior peso registrado na WS do dia);
   cardio todo dia ou só nos dias Off; "Refeição 2 — ALMOÇO" com frutas; ovo 3 un/180 g com 133 kcal; legumes com
   45 kcal e macros zerados; variação de peso −1 onde a conta dá −1,5.
+
+### Visual e movimento — verificação de 08/10/2026
+
+Parte A preservada na etiqueta `demo-parte-a`. Parte B em `visual/rnr`: Uniwind estável 1.12.2 com Tailwind 4, sem configuração de Babel; Metro estende a configuração do Expo. O Button foi adicionado pelo CLI do React Native Reusables e adaptado para o desenho flat, cantos de 8 px e alvo mínimo de 44 px. `src/components/ui/` guarda as bases copiadas; os adaptadores em `src/ui/` preservam as props.
+
+Prova B1: tipos, lint, 99 testes e exports web/Android/iOS passaram. O Docker fez `npm ci` limpo e publicou atrás da CSP atual do Caddy; tema claro/escuro e registro offline/reconexão passaram no navegador sem erro de execução. Expo Go, vibração e ensaio físico no celular continuam pendentes: Gustavo autorizou continuar sem esse teste em 08/10. Isso não equivale a uma validação nativa concluída. A Parte B não é juntada automaticamente à branch da demonstração.
