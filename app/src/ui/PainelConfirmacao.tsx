@@ -1,10 +1,11 @@
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '../components/ui/alert-dialog';
+import { ESTILOS_TEXTO } from './tipografia';
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from './Botao';
-import { Texto } from './Texto';
 
 interface Props {
   visivel: boolean;
@@ -20,19 +21,15 @@ interface Props {
 }
 
 /**
- * Confirmação na própria tela. Nada de `alert()`/`confirm()` do navegador nem `Alert.alert` (não funciona na web).
+ * ConfirmaÃ§Ã£o na prÃ³pria tela. Nada de `alert()`/`confirm()` do navegador nem `Alert.alert` (nÃ£o funciona na web).
  */
 export function PainelConfirmacao(props: Props) {
   const { cores } = useTema();
   return (
-    <Modal transparent visible={props.visivel} animationType="fade" onRequestClose={props.aoCancelar}>
-      <Pressable style={estilos.fundo} onPress={props.aoCancelar} accessibilityLabel="Fechar">
-        <Pressable
-          onPress={() => undefined}
-          accessibilityViewIsModal
-          style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
-          <Texto variante="subtitulo">{props.titulo}</Texto>
-          {props.mensagem ? <Texto variante="suave">{props.mensagem}</Texto> : null}
+    <AlertDialog open={props.visivel} onOpenChange={(aberto) => { if (!aberto) props.aoCancelar(); }}>
+      <AlertDialogContent aoFechar={props.aoCancelar} style={[estilos.painel, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+          <AlertDialogTitle style={[ESTILOS_TEXTO.subtitulo, {color:cores.texto}]}>{props.titulo}</AlertDialogTitle>
+          {props.mensagem ? <AlertDialogDescription style={[ESTILOS_TEXTO.suave, {color:cores.textoSuave}]}>{props.mensagem}</AlertDialogDescription> : null}
           {props.children}
           <View style={estilos.botoes}>
             <Botao rotulo={props.rotuloCancelar ?? 'Cancelar'} tipo="secundario" aoTocar={props.aoCancelar} />
@@ -43,9 +40,8 @@ export function PainelConfirmacao(props: Props) {
               aoTocar={props.aoConfirmar}
             />
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
