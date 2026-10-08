@@ -14,7 +14,6 @@ import { Escolha } from '../../ui/Escolha';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { IconeBotao } from '../../ui/IconeBotao';
-import { useAutosalvar } from '../plano/useAutosalvar';
 import { Texto } from '../../ui/Texto';
 
 const ARREDONDAMENTOS = [0.25, 0.5, 1, 2.5].map((v) => ({ valor: v, rotulo: `${String(v).replace('.', ',')} kg` }));
@@ -26,7 +25,7 @@ type Regra = Record<string, (number | null)[]>;
  * que preenche os percentuais de FS no editor, o arredondamento da sugestão de carga do aluno e os textos do PDF.
  * O sistema só guarda e aplica o que o treinador definiu.
  */
-export function CartaoMetodologia({ configuracao, aoSalvar, autosalvar = false }: { configuracao: Configuracao; aoSalvar: (c: Configuracao) => Promise<void>; autosalvar?: boolean }) {
+export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Configuracao; aoSalvar: (c: Configuracao) => Promise<void> }) {
   const { cores } = useTema();
   const { avisar } = useAviso();
   const c = configuracao;
@@ -56,22 +55,18 @@ export function CartaoMetodologia({ configuracao, aoSalvar, autosalvar = false }
     setNovoTipo('');
   };
 
-  const atual: Configuracao = {
-    tiposSerie: tipos,
-    tipoTrabalho: trabalho,
-    tipoPreparacao: preparacao,
-    regraPreparacao: regra as Record<string, number[]>,
-    arredondamentoKg: arredondamento,
-    instrucoesTreino: instrucoes,
-    rodapePdf: rodape,
-  };
-  // No editor de modelo a metodologia salva sozinha (e ao sair da tela); na tela Marca continua o botão.
-  const auto = useAutosalvar(atual, autosalvar && regraCompleta, aoSalvar);
-
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    aoSalvar(atual).then(
+    aoSalvar({
+      tiposSerie: tipos,
+      tipoTrabalho: trabalho,
+      tipoPreparacao: preparacao,
+      regraPreparacao: regra as Record<string, number[]>,
+      arredondamentoKg: arredondamento,
+      instrucoesTreino: instrucoes,
+      rodapePdf: rodape,
+    }).then(
       () => {
         setSalvando(false);
         avisar('Metodologia salva.', 'sucesso');
@@ -168,9 +163,9 @@ export function CartaoMetodologia({ configuracao, aoSalvar, autosalvar = false }
         maxLength={20000}
       />
       <Campo rotulo="Rodapé do PDF (opcional)" valor={rodape} aoMudar={setRodape} maxLength={500} />
-      {erro ?? auto.erro ? <MensagemErro texto={textoDoErro(erro ?? auto.erro)} /> : null}
+      {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
-        {autosalvar ? <Texto variante="pequeno">{auto.salvando ? 'Salvando…' : 'Salva sozinha ao editar.'}</Texto> : <Botao rotulo="Salvar metodologia" aoTocar={salvar} carregando={salvando} desabilitado={!regraCompleta} />}
+        <Botao rotulo="Salvar metodologia" aoTocar={salvar} carregando={salvando} desabilitado={!regraCompleta} />
       </View>
     </Cartao>
   );

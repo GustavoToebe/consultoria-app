@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useState } from 'react';
 import { alterarReceita, consultoria } from '../../api/rotas';
 import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos';
 import { normalizarDieta } from '../../dominio/dieta';
@@ -15,7 +15,6 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { CartaoMetodologia } from '../marca/CartaoMetodologia';
-import { useAutosalvar } from '../plano/useAutosalvar';
 import { EditorSeries } from '../treino/EditorSeries';
 
 export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; aoRecarregar: () => void }) {
@@ -25,43 +24,19 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   const [adicionar, setAdicionar] = useState<'PLANO_TREINO' | 'PLANO_DIETA' | null>(null);
   const { avisar } = useAviso();
   const consultoriaAtual = useCarregar('config-modelo', consultoria);
-  const seriesAtuais = r.tipo === 'SERIES' ? (conteudo as { series: ReturnType<typeof seriesDaReceita> }).series : null;
-  // O modelo tem controle de versão: cada gravação devolve a nova versão, e as gravações saem uma de cada vez.
-  const versao = useRef(r.versao);
-  const gravado = useRef<{ nome: string; descricao: string | null; conteudo: unknown }>({ nome: r.nome, descricao: r.descricao ?? null, conteudo: r.conteudo });
-  const fila = useRef<Promise<unknown>>(Promise.resolve());
-  const gravar = useCallback((parcial: { nome?: string; descricao?: string | null; conteudo?: unknown }) => {
-    const proxima = fila.current.then(async () => {
-      const dados = { ...gravado.current, ...parcial };
-      const resposta = await alterarReceita(r.id, { ...r, nome: dados.nome, descricao: dados.descricao, conteudo: dados.conteudo, versao: versao.current });
-      versao.current = resposta.versao;
-      gravado.current = dados;
-    });
-    fila.current = proxima.catch(() => undefined);
-    return proxima;
-  }, [r]);
-  const conteudoParaGravar = (c = conteudo) => (r.tipo === 'SERIES' ? seriesParaReceita((c as { series: ReturnType<typeof seriesDaReceita> }).series) : c);
-  const valido = !!nome.trim() && (seriesAtuais === null || seriesAtuais.length > 0);
-  // Metodologia grava o conteúdo pelo próprio cartão; aqui só nome e descrição.
-  const auto = useAutosalvar(
-    { nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'METODOLOGIA' ? null : conteudoParaGravar() },
-    valido,
-    ({ conteudo: c, ...resto }) => gravar(c === null ? resto : { ...resto, conteudo: c }),
-  );
-  const salvar = async () => {
+  const salvar = async (novoConteudo = conteudo) => {
+    if (!nome.trim()) throw new Error('Preencha o nome do modelo.');
     setSalvando(true); setErro(null);
-    try { await gravar({ nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'METODOLOGIA' ? undefined : conteudoParaGravar() }); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
-    catch (e) { setErro(e); } finally { setSalvando(false); }
+    try { await alterarReceita(r.id, { ...r, nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'SERIES' ? seriesParaReceita((novoConteudo as { series: ReturnType<typeof seriesDaReceita> }).series) : novoConteudo }); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
+    catch (e) { setErro(e); throw e; } finally { setSalvando(false); }
   };
   const pasta = conteudo as ConteudoPastaModelo;
   return <Tela bordas={['top']} largura={960}>
     <Cabecalho titulo={r.nome} subtitulo="Modelo reutilizável" voltar="/treinador/planejamento" />
-    <Texto variante="suave">As alterações são salvas sozinhas. Os planos dos alunos permanecem iguais.</Texto>
-    {auto.salvando ? <Texto variante="pequeno">Salvando…</Texto> : null}
-    {auto.erro ? <MensagemErro texto={textoDoErro(auto.erro)} tentarDeNovo={() => { void auto.salvarAgora(); }} /> : null}
+    <Texto variante="suave">Salve as alterações antes de sair. Os planos dos alunos permanecem iguais.</Texto>
     <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
     <Campo rotulo="Descrição" valor={descricao} aoMudar={setDescricao} linhas={2} maxLength={400} />
-    {r.tipo === 'METODOLOGIA' ? <CartaoMetodologia configuracao={conteudo as Configuracao} aoSalvar={(c) => gravar({ conteudo: c })} autosalvar /> : null}
+    {r.tipo === 'METODOLOGIA' ? <CartaoMetodologia configuracao={conteudo as Configuracao} aoSalvar={salvar} /> : null}
     {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={consultoriaAtual.dados?.configuracao ?? null} aoMudar={(series) => setConteudo({ series })} /> : null}
     {r.tipo === 'PASTA_PLANO' ? <>
       <Texto variante="suave">Adicione cópias dos modelos de semana e dieta. Alterar o modelo original depois não modifica esta pasta. Para atualizar um item, remova e adicione a versão desejada.</Texto>
@@ -79,6 +54,6 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
       }} /> : null}
     </> : null}
     {erro ? <><MensagemErro texto={textoDoErro(erro)} /><Botao rotulo="Recarregar modelo (descartar alterações)" tipo="secundario" aoTocar={aoRecarregar} /></> : null}
-    {r.tipo !== 'METODOLOGIA' ? <Botao rotulo="Salvar modelo" carregando={salvando} desabilitado={!nome.trim() || (r.tipo === 'SERIES' && !(conteudo as { series: unknown[] }).series.length)} aoTocar={() => { void salvar(); }} /> : null}
+    {r.tipo !== 'METODOLOGIA' ? <Botao rotulo="Salvar modelo" carregando={salvando} desabilitado={!nome.trim() || (r.tipo === 'SERIES' && !(conteudo as { series: unknown[] }).series.length)} aoTocar={() => { void salvar().catch(() => {}); }} /> : null}
   </Tela>;
 }
