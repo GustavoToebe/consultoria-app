@@ -1,4 +1,9 @@
-# No Docker o Caddy é o único proxy e fica na rede interna: só aqui a API confia no X-Forwarded-For
-# (o Tomcat aceita o cabeçalho apenas de endereços internos). Sem isso, o limite de login veria o IP do Caddy.
+# No Docker o Caddy é o único proxy e fica na rede interna: só aqui a API confia nos cabeçalhos X-Forwarded-*
+# (o Tomcat aceita apenas de endereços internos). Sem isso, o limite de login veria o IP do Caddy.
 server:
   forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      # Porta que o navegador usou (8088). Sem ela, com X-Forwarded-Proto: http o Tomcat assume 80 e a web servida
+      # pelo próprio Caddy vira "outra origem" para o CORS.
+      port-header: X-Forwarded-Port

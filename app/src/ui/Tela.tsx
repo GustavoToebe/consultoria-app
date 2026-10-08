@@ -1,0 +1,43 @@
+import type { ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+
+import { useTema } from '../tema/TemaProvider';
+import { espaco, LARGURA_MAXIMA } from '../tema/tokens';
+
+interface Props {
+  children: ReactNode;
+  /** Rolagem própria (padrão). Telas com lista virtualizada passam `false`. */
+  rolar?: boolean;
+  /** Largura do conteúdo (formulários curtos ficam estreitos). */
+  largura?: number;
+  bordas?: Edge[];
+}
+
+/**
+ * Base de toda tela: SafeAreaView do react-native-safe-area-context (o do react-native está obsoleto e quebrou o
+ * topo no protótipo), fundo do tema e conteúdo centralizado até 1100 px.
+ */
+export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas = ['top', 'bottom'] }: Props) {
+  const { cores } = useTema();
+  const conteudo = <View style={[estilos.conteudo, { maxWidth: largura }]}>{children}</View>;
+  return (
+    <SafeAreaView edges={bordas} style={[estilos.raiz, { backgroundColor: cores.fundo }]}>
+      <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {rolar ? (
+          <ScrollView contentContainerStyle={estilos.rolagem} keyboardShouldPersistTaps="handled">
+            {conteudo}
+          </ScrollView>
+        ) : (
+          <View style={[estilos.raiz, estilos.rolagem]}>{conteudo}</View>
+        )}
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const estilos = StyleSheet.create({
+  raiz: { flex: 1 },
+  rolagem: { flexGrow: 1, padding: espaco(2) },
+  conteudo: { width: '100%', alignSelf: 'center', gap: espaco(2) },
+});

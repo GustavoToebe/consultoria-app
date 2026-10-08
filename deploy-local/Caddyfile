@@ -29,8 +29,11 @@
 
 		# Sobrescreve o X-Forwarded-For com o IP de quem conectou (não repassa o que o navegador mandou):
 		# é o IP que o limite de login conta.
+		# X-Forwarded-Port: a porta que o navegador usou (do Host, ex.: 8088). Sem ela o Tomcat assume 80 e a página
+		# em http://localhost:8088 parece outra origem para a API (CORS recusava o login com 403).
 		reverse_proxy api:8080 {
 			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Port {http.request.port}
 		}
 	}
 
