@@ -43,7 +43,11 @@ const estilos = StyleSheet.create({
     minHeight: ALVO_TOQUE,
     paddingHorizontal: espaco(1.5),
     justifyContent: 'center',
+    // O gatilho do RNR traz borda nos quatro lados, cantos e fundo na aba ativa; aqui a aba ativa é só o sublinhado.
+    borderWidth: 0,
     borderBottomWidth: 2,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
     marginBottom: -1,
   },
   texto: { fontFamily: fontes.semi, fontSize: 15 },

@@ -39,7 +39,8 @@ function Painel({titulo,aoFechar,children,rodape}:Omit<Props,'visivel'>) {
   const margem = useSafeAreaInsets();
   const lateral = width >= LARGURA_MENU_LATERAL;
   const reduzido = useMovimentoReduzido();
-  const deslocamento = useSharedValue(reduzido ? 0 : lateral ? width : height);
+  // Entra a partir da largura do painel (460), não da janela inteira: no PC a mola fica tão curta quanto no celular.
+  const deslocamento = useSharedValue(reduzido ? 0 : lateral ? Math.min(width, 460) : height);
   const altura = useSharedValue(height * 0.88);
   useEffect(() => { deslocamento.set(reduzido ? 0 : withSpring(0,{damping:18,stiffness:260})); },[reduzido,deslocamento]);
   const movimento=useAnimatedStyle(()=>({transform:[lateral?{translateX:deslocamento.get()}:{translateY:deslocamento.get()}]}));
