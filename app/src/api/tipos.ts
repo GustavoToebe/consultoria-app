@@ -211,7 +211,7 @@ export interface PreviaCsv {
 
 // ---- Receitas ----
 
-export type TipoReceita = 'SERIES' | 'PLANO_TREINO' | 'PLANO_DIETA';
+export type TipoReceita = 'SERIES' | 'PLANO_TREINO' | 'PLANO_DIETA' | 'METODOLOGIA' | 'SESSAO_TREINO' | 'REFEICAO' | 'PASTA_PLANO';
 
 export interface Receita {
   id: string;
@@ -220,6 +220,8 @@ export interface Receita {
   descricao: string | null;
   conteudo: unknown;
   ordem: number;
+  pastaId: string | null;
+  versao: number;
 }
 
 // ---- Planos (seção 7) ----
@@ -269,6 +271,7 @@ export interface Sessao {
 }
 
 export interface ConteudoTreino {
+  metodologia?: { id: string; nome: string; configuracao: Configuracao } | null;
   objetivo: string | null;
   orientacoes: string | null;
   sessoes: Sessao[];
@@ -489,3 +492,6 @@ export type SituacaoEnvio = 'ACEITO' | 'IGNORADO_ANTIGO' | 'RECUSADO';
 export interface LoteResponse {
   resultados: { id: string; situacao: SituacaoEnvio; motivo: string | null }[];
 }
+
+export interface PastaModelo { id: string; nome: string; versao: number }
+export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null }[] }

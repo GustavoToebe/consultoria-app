@@ -1,7 +1,7 @@
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { ESTILOS_TEXTO } from './tipografia';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, View, type TextInputProps } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
@@ -17,15 +17,18 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   ajuda?: string;
   /** Campo de várias linhas (observações). */
   linhas?: number;
+  /** Botão dentro do campo, à direita (ex.: calendário). */
+  acao?: ReactNode;
 }
 
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, ...resto }: Props) {
   const { cores, marca } = useTema();
   const [foco, setFoco] = useState(false);
   const corBorda = erro ? cores.perigo : foco ? marca : cores.borda;
   return (
     <View style={estilos.campo}>
       <Label style={[ESTILOS_TEXTO.pequeno, estilos.rotulo, { color: cores.textoSuave }]}>{rotulo}</Label>
+      <View>
       <Input
         {...resto}
         accessibilityLabel={rotulo}
@@ -46,9 +49,12 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, .
           estilos.entrada,
           numerico ? { fontVariant: ['tabular-nums'] } : null,
           linhas ? { minHeight: linhas * 22 + 20, textAlignVertical: 'top' } : null,
+          acao ? { paddingRight: ALVO_TOQUE } : null,
           { color: cores.texto, backgroundColor: cores.superficie2, borderColor: corBorda },
         ]}
       />
+      {acao ? <View style={estilos.acao}>{acao}</View> : null}
+      </View>
       {erro ? <Texto variante="pequeno" cor={cores.perigo}>{erro}</Texto> : null}
       {!erro && ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
     </View>
@@ -66,6 +72,7 @@ export function CampoNumero(props: Omit<Props, 'keyboardType'>) {
 const estilos = StyleSheet.create({
   campo: { gap: espaco(0.5) },
   rotulo: { fontFamily: fontes.semi },
+  acao: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
   entrada: {
     minHeight: ALVO_TOQUE,
     borderWidth: 1,

@@ -54,6 +54,17 @@ const treino: ConteudoTreino = normalizarTreino({
 
 const base = { marca, logoDataUri: null, aluno: 'Aluno Demonstração', titulo: 'Plano 16', rodapePdf: null, emitidoEm: new Date('2026-10-11T19:30:00Z') };
 
+test('PDF usa a metodologia copiada para o treino, mesmo quando a configuração global muda', () => {
+  const conteudo = { ...treino, metodologia: { id: 'metodo', nome: 'Método fictício', configuracao: {
+    tiposSerie: ['Trabalho', 'FS'], tipoTrabalho: 'Trabalho', tipoPreparacao: 'FS', regraPreparacao: {},
+    arredondamentoKg: 1, instrucoesTreino: 'Instrução da versão', rodapePdf: 'Rodapé da versão',
+  } } };
+  const doc = documentoTreino({ ...base, inicio: null, fim: null, versao: 1, conteudo, tipoTrabalho: 'GLOBAL', instrucoesTreino: 'Global alterada' });
+  expect(doc.corpo).toContain('85% da Trabalho');
+  expect(doc.corpo).toContain('Instrução da versão');
+  expect(doc.corpo).not.toContain('Global alterada');
+});
+
 describe('PDF do treino', () => {
   const html = documentoTreino({
     ...base,

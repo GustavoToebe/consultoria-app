@@ -54,7 +54,9 @@ export const MARCA_NEUTRA = '#52525B';
 export const espaco = (n: number) => n * 8;
 export const RAIO = 8;
 export const ALVO_TOQUE = 44;
-export const LARGURA_MAXIMA = 1100;
+export const LARGURA_MAXIMA = 1800;
+/** Telas declaradas até esta largura são formulários curtos e não esticam. */
+export const LARGURA_FORMULARIO = 640;
 export const LARGURA_MENU_LATERAL = 900;
 
 export const fontes = {

@@ -29,6 +29,8 @@ interface Props {
   aoMudar: (s: Sessao) => void;
   aoMover: (delta: -1 | 1) => void;
   aoRemover: () => void;
+  removivel?: boolean;
+  aoSalvarModelo?: () => void;
   aoNovoExercicio: () => void;
   /** Os exercícios (cartões) já montados pela tela do editor. */
   children: ReactNode;
@@ -91,7 +93,8 @@ export function CartaoSessao(p: Props) {
           <View style={estilos.exercicios}>{p.children}</View>
           <View style={estilos.botoes}>
             <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-            <Botao rotulo="Remover sessão" tipo="fantasma" Icone={Trash2} aoTocar={p.aoRemover} />
+            {p.aoSalvarModelo ? <Botao rotulo="Salvar como modelo" tipo="secundario" aoTocar={p.aoSalvarModelo} /> : null}
+          {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="fantasma" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
           </View>
         </View>
       ) : null}

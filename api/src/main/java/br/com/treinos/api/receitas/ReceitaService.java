@@ -1,6 +1,9 @@
 package br.com.treinos.api.receitas;
 
 import br.com.treinos.api.dieta.ConteudoDieta;
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
+import br.com.treinos.api.consultoria.MarcaService;
+import br.com.treinos.api.web.ConflitoException;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
@@ -27,20 +30,25 @@ public class ReceitaService {
             @NotNull Receita.Tipo tipo,
             @NotBlank @Size(max = 120) String nome,
             @Size(max = 400) String descricao,
-            @NotNull JsonNode conteudo) {
+            @NotNull JsonNode conteudo, UUID pastaId, Long versao) {
+        public ReceitaRequest(Receita.Tipo tipo, String nome, String descricao, JsonNode conteudo) {
+            this(tipo, nome, descricao, conteudo, null, null);
+        }
     }
 
-    public record ReceitaResponse(UUID id, String tipo, String nome, String descricao, JsonNode conteudo, int ordem) {
+    public record ReceitaResponse(UUID id, String tipo, String nome, String descricao, JsonNode conteudo, int ordem, UUID pastaId, Long versao) {
     }
 
     private final ReceitaRepository receitas;
     private final JsonMapper json;
     private final Validator validator;
+    private final PastaModeloRepository pastas;
 
-    public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator) {
+    public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator, PastaModeloRepository pastas) {
         this.receitas = receitas;
         this.json = json;
         this.validator = validator;
+        this.pastas = pastas;
     }
 
     @Transactional(readOnly = true)
@@ -55,16 +63,19 @@ public class ReceitaService {
         String conteudo = conteudoValidado(r.tipo(), r.conteudo());
         Receita receita = new Receita(r.tipo(), r.nome().trim(), Buscas.opcional(r.descricao()), conteudo,
                 receitas.maiorOrdem(r.tipo()) + 1);
+        receita.definirPasta(exigirPasta(r.pastaId()));
         return resposta(receitas.saveAndFlush(receita));
     }
 
     @Transactional
     public ReceitaResponse alterar(UUID id, ReceitaRequest r) {
         Receita receita = buscar(id);
+        exigirVersao(receita, r.versao());
         if (receita.getTipo() != r.tipo()) {
             throw new BadRequestException("O tipo da receita não pode mudar.");
         }
         receita.alterar(r.nome().trim(), Buscas.opcional(r.descricao()), conteudoValidado(r.tipo(), r.conteudo()));
+        receita.definirPasta(exigirPasta(r.pastaId()));
         return resposta(receitas.saveAndFlush(receita));
     }
 
@@ -85,13 +96,17 @@ public class ReceitaService {
     /** Conteúdo de uma receita de plano, já com uids novos (aplicar não reaproveita uid). */
     @Transactional(readOnly = true)
     public ConteudoTreino conteudoTreino(UUID id) {
-        Receita receita = buscarDoTipo(id, Receita.Tipo.PLANO_TREINO);
+        Receita receita = buscar(id);
+        if (receita.getTipo() != Receita.Tipo.PLANO_TREINO && receita.getTipo() != Receita.Tipo.SESSAO_TREINO)
+            throw new BadRequestException("Escolha um modelo de semana ou treino.");
         return json.readValue(receita.getConteudo(), ConteudoTreino.class).comUidsNovos();
     }
 
     @Transactional(readOnly = true)
     public ConteudoDieta conteudoDieta(UUID id) {
-        Receita receita = buscarDoTipo(id, Receita.Tipo.PLANO_DIETA);
+        Receita receita = buscar(id);
+        if (receita.getTipo() != Receita.Tipo.PLANO_DIETA && receita.getTipo() != Receita.Tipo.REFEICAO)
+            throw new BadRequestException("Escolha um modelo de dieta ou refeição.");
         return json.readValue(receita.getConteudo(), ConteudoDieta.class).comUidsNovos();
     }
 
@@ -105,7 +120,10 @@ public class ReceitaService {
         Class<?> classe = switch (tipo) {
             case SERIES -> ReceitaSeries.class;
             case PLANO_TREINO -> ConteudoTreino.class;
-            case PLANO_DIETA -> ConteudoDieta.class;
+            case PLANO_DIETA, REFEICAO -> ConteudoDieta.class;
+            case SESSAO_TREINO -> ConteudoTreino.class;
+            case METODOLOGIA -> ConfiguracaoConsultoria.class;
+            case PASTA_PLANO -> ConteudoPastaModelo.class;
         };
         Object valor;
         try {
@@ -121,23 +139,64 @@ public class ReceitaService {
             throw new BadRequestException("Conteúdo da receita inválido: " + violacoes.iterator().next().getPropertyPath()
                     + " " + violacoes.iterator().next().getMessage());
         }
+        if (valor instanceof ConfiguracaoConsultoria c) MarcaService.validar(c);
+        if (valor instanceof ConteudoTreino t) {
+            validarMetodologia(t);
+            if (tipo == Receita.Tipo.SESSAO_TREINO && t.sessoes().size() != 1)
+                throw new BadRequestException("Modelo de treino precisa de uma sessão.");
+        }
+        if (tipo == Receita.Tipo.REFEICAO && ((ConteudoDieta) valor).refeicoes().size() != 1)
+            throw new BadRequestException("Modelo de refeição precisa de uma refeição.");
+        if (valor instanceof ConteudoPastaModelo pasta) {
+            for (ConteudoPastaModelo.Plano p : pasta.planos()) {
+                if ((p.treino() == null) == (p.dieta() == null))
+                    throw new BadRequestException("Cada plano da pasta precisa ser treino ou dieta.");
+                if (p.treino() != null) validarMetodologia(p.treino());
+            }
+        }
         return json.writeValueAsString(valor);
+    }
+
+    public static void validarMetodologia(ConteudoTreino t) {
+        if (t.metodologia() != null) MarcaService.validar(t.metodologia().configuracao());
+    }
+
+    @Transactional(readOnly = true)
+    public ReceitaResponse detalhe(UUID id) { return resposta(buscar(id)); }
+
+    public record ConteudoRequest(@NotBlank @Size(max = 120) String nome,
+                                  @NotNull JsonNode conteudo, @NotNull Long versao) { }
+
+    @Transactional
+    public ReceitaResponse salvarConteudo(UUID id, ConteudoRequest r) {
+        Receita atual = buscar(id);
+        return alterar(id, new ReceitaRequest(atual.getTipo(), r.nome(), atual.getDescricao(),
+                r.conteudo(), atual.getPastaId(), r.versao()));
+    }
+
+    @Transactional
+    public ReceitaResponse duplicar(UUID id) {
+        Receita r = buscar(id);
+        String nome = r.getNome().substring(0, Math.min(110, r.getNome().length())) + " (cópia)";
+        return criar(new ReceitaRequest(r.getTipo(), nome, r.getDescricao(), json.readTree(r.getConteudo()), r.getPastaId(), null));
+    }
+
+    private UUID exigirPasta(UUID id) {
+        if (id != null && pastas.findById(id).isEmpty()) throw new NaoEncontradoException("Pasta não encontrada.");
+        return id;
+    }
+
+    private static void exigirVersao(Receita r, Long versao) {
+        if (versao != null && !versao.equals(r.getVersao()))
+            throw new ConflitoException("O modelo mudou em outra aba. Recarregue antes de salvar.", "CONFLITO_EDICAO");
     }
 
     private Receita buscar(UUID id) {
         return receitas.findById(id).orElseThrow(() -> new NaoEncontradoException("Receita não encontrada."));
     }
 
-    private Receita buscarDoTipo(UUID id, Receita.Tipo tipo) {
-        Receita receita = buscar(id);
-        if (receita.getTipo() != tipo) {
-            throw new BadRequestException("Esta receita não é do tipo " + tipo.name() + ".");
-        }
-        return receita;
-    }
-
     private ReceitaResponse resposta(Receita r) {
         return new ReceitaResponse(r.getId(), r.getTipo().name(), r.getNome(), r.getDescricao(),
-                json.readTree(r.getConteudo()), r.getOrdem());
+                json.readTree(r.getConteudo()), r.getOrdem(), r.getPastaId(), r.getVersao());
     }
 }

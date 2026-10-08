@@ -221,13 +221,14 @@ export function comUidsNovos(conteudo: ConteudoTreino): ConteudoTreino {
 /** Receita de semana: troca as sessões do plano pelas da receita (o objetivo e as orientações ficam). */
 export function aplicarReceitaDePlano(atual: ConteudoTreino, receita: unknown): ConteudoTreino {
   const daReceita = comUidsNovos(normalizarTreino(receita));
-  return { ...atual, sessoes: daReceita.sessoes };
+  return { ...atual, sessoes: daReceita.sessoes, ...(daReceita.metodologia ? { metodologia: daReceita.metodologia } : {}) };
 }
 
 /** Garante listas e campos que o editor espera (rascunho antigo, receita parcial). */
 export function normalizarTreino(conteudo: unknown): ConteudoTreino {
   const c = (conteudo ?? {}) as Partial<ConteudoTreino>;
   return {
+    ...(c.metodologia ? { metodologia: JSON.parse(JSON.stringify(c.metodologia)) } : {}),
     objetivo: c.objetivo ?? null,
     orientacoes: c.orientacoes ?? null,
     sessoes: (c.sessoes ?? []).map((s) => ({

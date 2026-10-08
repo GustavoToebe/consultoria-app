@@ -1,16 +1,17 @@
 import { Switch } from '../components/ui/switch';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { dataDaTela, mascaraData, numeroDaTela, numeroParaTela } from '../dominio/formatos';
+import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { type Ancora, BotaoCalendario, Calendario } from './Calendario';
 import { Campo } from './Campo';
 import { Texto } from './Texto';
 
 /**
- * Data digitada como DD/MM/AAAA (nunca o seletor nativo da web). O texto fica com a tela; quem usa converte com
- * `dataDaTela` (ISO, `null` se vazio, `undefined` se inválida).
+ * Data digitada como DD/MM/AAAA ou escolhida no calendário do ícone (nunca o seletor nativo da web). O texto fica
+ * com a tela; quem usa converte com `dataDaTela` (ISO, `null` se vazio, `undefined` se inválida).
  */
 export function CampoData({
   rotulo,
@@ -24,7 +25,11 @@ export function CampoData({
   erro?: string | null;
 }) {
   const invalida = valor.length === 10 && dataDaTela(valor) === undefined;
+  const [ancora, setAncora] = useState<Ancora | null>(null);
+  const botao = useRef<View>(null);
+  const iso = dataDaTela(valor);
   return (
+    <>
     <Campo
       numerico
       rotulo={rotulo}
@@ -35,7 +40,28 @@ export function CampoData({
       inputMode="numeric"
       maxLength={10}
       erro={erro ?? (invalida ? 'Data inválida.' : null)}
+      acao={
+        <View ref={botao} collapsable={false}>
+          <BotaoCalendario aoTocar={() => botao.current?.measureInWindow((x, y, w, h) => setAncora({ x, y, w, h }))} />
+        </View>
+      }
     />
+    {ancora ? (
+      <Calendario
+        ancora={ancora}
+        valor={iso ?? null}
+        aoFechar={() => setAncora(null)}
+        aoEscolher={(escolhida) => {
+          setAncora(null);
+          aoMudar(dataParaTela(escolhida));
+        }}
+        aoLimpar={() => {
+          setAncora(null);
+          aoMudar('');
+        }}
+      />
+    ) : null}
+    </>
   );
 }
 

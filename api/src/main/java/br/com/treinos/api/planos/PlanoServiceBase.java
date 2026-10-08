@@ -75,7 +75,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
     @Transactional(readOnly = true)
     public List<PlanoResumo> listar(UUID alunoId) {
         exigirAluno(alunoId);
-        return planos.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream().map(PlanoResumo::de).toList();
+        return planos.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream().filter(p -> !p.isArquivado()).map(PlanoResumo::de).toList();
     }
 
     @Transactional
@@ -100,6 +100,9 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         }
         return detalhe(planos.saveAndFlush(novo));
     }
+
+    @Transactional
+    public void excluir(UUID id) { P plano = buscar(id); plano.arquivar(); planos.saveAndFlush(plano); }
 
     @Transactional(readOnly = true)
     public PlanoDetalhe<C> detalhe(UUID id) {
@@ -131,6 +134,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         if (plano.getAlunoId() == null) {
             throw new BadRequestException("Modelo sem aluno não é publicado; crie um plano para o aluno a partir dele.");
         }
+        if (plano.isArquivado()) throw new BadRequestException("Este plano foi removido da lista.");
         C conteudo = ler(plano.getRascunho());
         ResultadoValidacao resultado = validar(conteudo, plano.getInicio(), plano.getFim());
         if (resultado.temErros()) {
@@ -216,7 +220,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         if (pastaId == null) {
             return null;
         }
-        return pastas.findById(pastaId).filter(p -> p.getAlunoId().equals(alunoId))
+        return pastas.findById(pastaId).filter(p -> !p.isArquivado() && p.getAlunoId().equals(alunoId))
                 .orElseThrow(() -> new NaoEncontradoException("Pasta não encontrada."));
     }
 

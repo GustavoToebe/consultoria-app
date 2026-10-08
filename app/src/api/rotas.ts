@@ -201,7 +201,7 @@ export const confirmarCsv = (tipo: TipoBiblioteca, texto: string, hash: string) 
 
 // ---- Treinador: receitas ----
 
-type ReceitaRequest = { tipo: TipoReceita; nome: string; descricao: string | null; conteudo: unknown };
+type ReceitaRequest = { tipo: TipoReceita; nome: string; descricao: string | null; conteudo: unknown; pastaId?: string | null; versao?: number };
 
 export const listarReceitas = (tipo?: TipoReceita) => requisicao<Receita[]>(`/receitas${tipo ? `?tipo=${tipo}` : ''}`);
 
@@ -287,3 +287,17 @@ export const pesosAluno = () => requisicao<RegistroPeso[]>('/aluno/pesos');
 
 export const versaoPlano = <C>(tipo: TipoPlano, id: string, numero: number) =>
   requisicao<VersaoDetalhe<C>>(`/${prefixo(tipo)}/${id}/versoes/${numero}`);
+
+export const receita = (id: string) => requisicao<Receita>(`/receitas/${id}`);
+export const salvarConteudoReceita = (id: string, dados: { nome: string; conteudo: unknown; versao: number }) =>
+  requisicao<Receita>(`/receitas/${id}/conteudo`, { metodo: 'PUT', corpo: dados });
+export const duplicarReceita = (id: string) => requisicao<Receita>(`/receitas/${id}/duplicar`, { metodo: 'POST' });
+export const listarPastasModelos = () => requisicao<import('./tipos').PastaModelo[]>('/pastas-modelos');
+export const criarPastaModelo = (nome: string) => requisicao<import('./tipos').PastaModelo>('/pastas-modelos', { metodo: 'POST', corpo: { nome } });
+export const alterarPastaModelo = (id: string, nome: string, versao: number) => requisicao<import('./tipos').PastaModelo>(`/pastas-modelos/${id}`, { metodo: 'PUT', corpo: { nome, versao } });
+export const excluirPastaModelo = (id: string) => requisicao<void>(`/pastas-modelos/${id}`, { metodo: 'DELETE' });
+export const aplicarModelo = (id: string, dados: { alunoId: string; pastaId: string | null; titulo: string; inicio: string | null; fim: string | null }) =>
+  requisicao<{ pastaId: string; planoId: string | null; tipo: string }>(`/receitas/${id}/aplicar`, { metodo: 'POST', corpo: dados });
+export const salvarPastaComoModelo = (id: string, nome: string, descricao: string | null) => requisicao<Receita>(`/pastas/${id}/salvar-como-modelo`, { metodo: 'POST', corpo: { nome, descricao } });
+export const excluirPasta = (id: string) => requisicao<void>(`/pastas/${id}`, { metodo: 'DELETE' });
+export const excluirPlano = (tipo: TipoPlano, id: string) => requisicao<void>(`/${prefixo(tipo)}/${id}`, { metodo: 'DELETE' });

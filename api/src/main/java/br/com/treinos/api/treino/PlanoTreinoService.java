@@ -53,6 +53,12 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
     }
 
     @Override
+    protected String escrever(ConteudoTreino conteudo) {
+        ReceitaService.validarMetodologia(conteudo);
+        return super.escrever(conteudo);
+    }
+
+    @Override
     protected ResultadoValidacao validar(ConteudoTreino conteudo, LocalDate inicio, LocalDate fim) {
         return validador.validar(conteudo, inicio, fim);
     }

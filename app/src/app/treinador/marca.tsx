@@ -3,7 +3,6 @@ import { StyleSheet, View } from 'react-native';
 
 import { consultoria } from '../../api/rotas';
 import { espaco } from '../../tema/tokens';
-import { CartaoMetodologia } from '../../treinador/marca/CartaoMetodologia';
 import { FormMarca } from '../../treinador/marca/FormMarca';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -33,7 +32,6 @@ export default function Marca() {
               setConflitos((n) => n + 1);
             }}
           />
-          <CartaoMetodologia consultoria={dados} aoSalvar={definir} />
         </View>
       ) : null}
     </Tela>

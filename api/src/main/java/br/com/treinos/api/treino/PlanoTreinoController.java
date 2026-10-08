@@ -17,6 +17,8 @@ import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -49,6 +51,10 @@ public class PlanoTreinoController {
     public PlanoDetalhe<ConteudoTreino> criar(@PathVariable UUID alunoId, @RequestBody @Valid CriarPlanoRequest request) {
         return planos.criar(alunoId, request);
     }
+
+    @PreAuthorize("hasRole('TREINADOR')")
+    @DeleteMapping("/planos-treino/{id}")
+    public ResponseEntity<Void> excluir(@PathVariable UUID id) { planos.excluir(id); return ResponseEntity.noContent().build(); }
 
     @PreAuthorize("hasRole('TREINADOR')")
     @GetMapping("/planos-treino/{id}")

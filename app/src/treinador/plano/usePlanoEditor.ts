@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ErroApi } from '../../api/cliente';
-import { plano as buscarPlano, publicarPlano, salvarRascunho, validarPlano } from '../../api/rotas';
+import { plano as buscarPlano, publicarPlano, salvarRascunho, validarPlano, receita, salvarConteudoReceita } from '../../api/rotas';
 import type { PlanoDetalhe, PlanoResumo, Problema, TipoPlano, VersaoResumo } from '../../api/tipos';
+import { detalheDoModelo } from '../../dominio/modelos';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
 
 export type SituacaoRascunho = 'salvo' | 'pendente' | 'salvando' | 'erro' | 'conflito' | 'dataInvalida';
@@ -36,7 +37,7 @@ function problemas(erro: ErroApi): Problema[] {
  * outra aba (409 `CONFLITO_EDICAO` → "recarregar") e publica com erros/avisos do validador da API. O publicado nunca
  * muda: publicar cria a versão seguinte.
  */
-export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, normalizar: (c: unknown) => C) {
+export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, normalizar: (c: unknown) => C, modelo = false) {
   const [estado, setEstado] = useState<Estado<C> | null>(null);
   const [erroCarga, setErroCarga] = useState<unknown>(null);
   const [rodada, setRodada] = useState(0);
@@ -70,7 +71,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
   useEffect(() => {
     if (!id) return;
     let vivo = true;
-    buscarPlano<unknown>(tipo, id).then(
+    (modelo ? receita(id).then(detalheDoModelo) : buscarPlano<unknown>(tipo, id)).then(
       (d) => {
         if (!vivo) return;
         setErroCarga(null);
@@ -82,7 +83,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     return () => {
       vivo = false;
     };
-  }, [tipo, id, rodada, aplicarDetalhe]);
+  }, [tipo, id, rodada, aplicarDetalhe, modelo]);
 
   /** Envia o que está na tela. Devolve `true` se o servidor ficou com a última revisão. */
   const salvar = useCallback((): Promise<boolean> => {
@@ -99,13 +100,13 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
       if (inicio === undefined || fim === undefined || !e.titulo.trim()) return Promise.resolve(false);
       const enviada = e.revisao;
       setSalvando(true);
-      const envio = salvarRascunho<C>(tipo, id, {
+      const envio = (modelo ? salvarConteudoReceita(id, { nome: e.titulo.trim(), conteudo: e.conteudo, versao: versao.current }).then(detalheDoModelo) : salvarRascunho<C>(tipo, id, {
         titulo: e.titulo.trim(),
         inicio,
         fim,
         conteudo: e.conteudo,
         versao: versao.current,
-      }).then(
+      })).then(
         (d) => {
           versao.current = d.plano.versao;
           setErroSalvar(null);
@@ -125,7 +126,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
       return emVoo.current;
     };
     return tentar();
-  }, [tipo, id]);
+  }, [tipo, id, modelo]);
 
   // Salvamento automático: 1,5 s depois da última mudança.
   const revisao = estado?.revisao ?? 0;
@@ -148,13 +149,13 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
   const alterarConteudo = useCallback((mudanca: (c: C) => C) => alterar((e) => ({ conteudo: mudanca(e.conteudo) })), [alterar]);
 
   const validar = useCallback(async () => {
-    if (!id || !(await salvar())) return null;
+    if (modelo || !id || !(await salvar())) return null;
     return validarPlano(tipo, id);
-  }, [tipo, id, salvar]);
+  }, [tipo, id, salvar, modelo]);
 
   const publicar = useCallback(
     async (confirmarAvisos: boolean): Promise<ResultadoPublicacao> => {
-      if (!id) return { tipo: 'falha', mensagem: 'Plano não encontrado.' };
+      if (modelo || !id) return { tipo: 'falha', mensagem: 'Plano não encontrado.' };
       if (!(await salvar())) {
         return { tipo: 'falha', mensagem: 'Corrija o título e as datas e espere o rascunho salvar antes de publicar.' };
       }
@@ -172,7 +173,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
         return { tipo: 'falha', mensagem: erro instanceof Error ? erro.message : 'Não foi possível publicar.' };
       }
     },
-    [tipo, id, salvar],
+    [tipo, id, salvar, modelo],
   );
 
   let situacao: SituacaoRascunho = 'salvo';

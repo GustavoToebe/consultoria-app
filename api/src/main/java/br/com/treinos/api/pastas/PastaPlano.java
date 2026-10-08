@@ -33,6 +33,10 @@ public class PastaPlano {
 
     @Column(nullable = false)
     private String titulo;
+    @Column(nullable = false) private boolean arquivado;
+    public boolean isArquivado() { return arquivado; }
+    public void arquivar() { this.arquivado = true;  }
+
 
     private LocalDate inicio;
 

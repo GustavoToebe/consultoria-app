@@ -20,7 +20,7 @@ const ABAS: { valor: Aba; rotulo: string }[] = [
   { valor: 'csv', rotulo: 'Importar CSV' },
 ];
 
-/** Biblioteca da consultoria (seção 10.4, item 6). No celular, o acesso às Receitas fica aqui. */
+/** Biblioteca da consultoria (seção 10.4, item 6). No celular, o acesso às Planejamento fica aqui. */
 export default function Biblioteca() {
   const [aba, setAba] = useState<Aba>('exercicios');
   const { width } = useWindowDimensions();
@@ -29,7 +29,7 @@ export default function Biblioteca() {
       <Cabecalho
         titulo="Biblioteca"
         mostrarMarca="celular"
-        acoes={width < LARGURA_MENU_LATERAL ? <LinkTexto href="/treinador/receitas" texto="Receitas" /> : null}
+        acoes={width < LARGURA_MENU_LATERAL ? <LinkTexto href="/treinador/planejamento" texto="Planejamento" /> : null}
       />
       <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
       {aba === 'exercicios' ? <AbaExercicios /> : null}

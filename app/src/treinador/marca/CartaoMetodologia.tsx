@@ -2,8 +2,7 @@ import { Plus, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { alterarConfiguracao } from '../../api/rotas';
-import type { ConsultoriaResponse } from '../../api/tipos';
+import type { Configuracao } from '../../api/tipos';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -26,12 +25,13 @@ type Regra = Record<string, (number | null)[]>;
  * que preenche os percentuais de FS no editor, o arredondamento da sugestão de carga do aluno e os textos do PDF.
  * O sistema só guarda e aplica o que o treinador definiu.
  */
-export function CartaoMetodologia({ consultoria, aoSalvar }: { consultoria: ConsultoriaResponse; aoSalvar: (c: ConsultoriaResponse) => void }) {
+export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Configuracao; aoSalvar: (c: Configuracao) => Promise<void> }) {
   const { cores } = useTema();
   const { avisar } = useAviso();
-  const c = consultoria.configuracao;
+  const c = configuracao;
   const [tipos, setTipos] = useState<string[]>(c.tiposSerie);
   const [novoTipo, setNovoTipo] = useState('');
+  const [renomeando, setRenomeando] = useState<string | null>(null);
   const [trabalho, setTrabalho] = useState(c.tipoTrabalho);
   const [preparacao, setPreparacao] = useState(c.tipoPreparacao);
   const [regra, setRegra] = useState<Regra>(c.regraPreparacao);
@@ -47,15 +47,18 @@ export function CartaoMetodologia({ consultoria, aoSalvar }: { consultoria: Cons
 
   const adicionarTipo = () => {
     const t = novoTipo.trim();
-    if (!t || tipos.includes(t) || tipos.length >= 20) return;
-    setTipos([...tipos, t]);
+    if (!t || (tipos.includes(t) && t !== renomeando) || (!renomeando && tipos.length >= 20)) return;
+    setTipos(renomeando ? tipos.map((x) => x === renomeando ? t : x) : [...tipos, t]);
+    if (trabalho === renomeando) setTrabalho(t);
+    if (preparacao === renomeando) setPreparacao(t);
+    setRenomeando(null);
     setNovoTipo('');
   };
 
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    alterarConfiguracao({
+    aoSalvar({
       tiposSerie: tipos,
       tipoTrabalho: trabalho,
       tipoPreparacao: preparacao,
@@ -64,9 +67,8 @@ export function CartaoMetodologia({ consultoria, aoSalvar }: { consultoria: Cons
       instrucoesTreino: instrucoes,
       rodapePdf: rodape,
     }).then(
-      (r) => {
+      () => {
         setSalvando(false);
-        aoSalvar(r);
         avisar('Metodologia salva.', 'sucesso');
       },
       (e: unknown) => {
@@ -84,7 +86,7 @@ export function CartaoMetodologia({ consultoria, aoSalvar }: { consultoria: Cons
           const emUso = t === trabalho || t === preparacao;
           return (
             <View key={t} style={[estilos.chip, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-              <Texto style={estilos.textoChip}>{t}</Texto>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Renomear tipo ${t}`} onPress={() => { setRenomeando(t); setNovoTipo(t); }}><Texto style={estilos.textoChip}>{t} ✎</Texto></Pressable>
               {emUso ? null : (
                 <Pressable accessibilityRole="button" accessibilityLabel={`Remover ${t}`} onPress={() => setTipos(tipos.filter((x) => x !== t))} style={estilos.xChip}>
                   <X size={16} color={cores.textoSuave} />
@@ -96,9 +98,9 @@ export function CartaoMetodologia({ consultoria, aoSalvar }: { consultoria: Cons
       </View>
       <View style={estilos.novoTipo}>
         <View style={estilos.campoTipo}>
-          <Campo rotulo="Novo tipo" valor={novoTipo} aoMudar={setNovoTipo} maxLength={30} onSubmitEditing={adicionarTipo} />
+          <Campo rotulo={renomeando ? "Renomear tipo" : "Novo tipo"} valor={novoTipo} aoMudar={setNovoTipo} maxLength={30} onSubmitEditing={adicionarTipo} />
         </View>
-        <Botao rotulo="Adicionar" tipo="secundario" Icone={Plus} aoTocar={adicionarTipo} desabilitado={!novoTipo.trim()} />
+        <Botao rotulo={renomeando ? "Renomear" : "Adicionar"} tipo="secundario" Icone={Plus} aoTocar={adicionarTipo} desabilitado={!novoTipo.trim()} />
       </View>
       <Escolha rotulo="Série de trabalho (carga do dia)" opcoes={opcoesTipo} valor={trabalho} aoMudar={setTrabalho} />
       <Escolha rotulo="Série de preparação (em % da trabalho)" opcoes={opcoesTipo} valor={preparacao} aoMudar={setPreparacao} />
@@ -141,11 +143,11 @@ export function CartaoMetodologia({ consultoria, aoSalvar }: { consultoria: Cons
       {chaves.length < 10 ? (
         <View style={estilos.novoTipo}>
           <Botao
-            rotulo={`Regra para ${(chaves[chaves.length - 1] ?? 0) + 1} séries`}
+            rotulo={`Regra para ${Array.from({ length: 10 }, (_, i) => i + 1).find((n) => !chaves.includes(n))!} séries`}
             tipo="secundario"
             Icone={Plus}
             aoTocar={() => {
-              const n = (chaves[chaves.length - 1] ?? 0) + 1;
+              const n = Array.from({ length: 10 }, (_, i) => i + 1).find((n) => !chaves.includes(n))!;
               setRegra({ ...regra, [String(n)]: Array.from({ length: n }, () => null) });
             }}
           />

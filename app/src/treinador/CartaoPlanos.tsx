@@ -4,7 +4,7 @@ import { Copy, FileDown, Pencil, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { criarPlano, listarPlanos, listarReceitas, replicarPlano } from '../api/rotas';
+import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano } from '../api/rotas';
 import type { PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
 import { dataDaTela, dataParaTela, somarDias } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
@@ -19,6 +19,7 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { gerarPdfDoPlano } from './gerarPdf';
@@ -56,27 +57,28 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
 }
 
 /**
- * Treinos ou dietas do aluno dentro de uma pasta (o período é o da pasta), ou, com `pasta="sem"`, os planos antigos
- * sem pasta. Criar (em branco, receita ou cópia), abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
+ * Treinos ou dietas do aluno dentro de uma pasta (o período é o da pasta). Criar (em branco, receita ou cópia),
+ * abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
  */
-export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0 }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo | 'sem'; geracao?: number }) {
+export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0 }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number }) {
   const { cores } = useTema();
   const todos = useCarregar(`${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
   const { erro, carregando, recarregar } = todos;
-  const dados = todos.dados ? todos.dados.filter((p) => (pasta === 'sem' ? !p.pastaId : p.pastaId === pasta.id)) : null;
+  const dados = todos.dados ? todos.dados.filter((p) => p.pastaId === pasta.id) : null;
   const animar = usePrimeiraLista(!!dados);
+  const { avisar } = useAviso();
+  const [excluir, setExcluir] = useState<PlanoResumo | null>(null);
   const [novo, setNovo] = useState(false);
   const [replicando, setReplicando] = useState<PlanoResumo | null>(null);
-  if (pasta === 'sem' && dados && dados.length === 0) return null;
 
   return (
     <Cartao
-      titulo={pasta === 'sem' ? `${NOMES[tipo].plural} sem pasta` : NOMES[tipo].plural}
-      acoes={pasta === 'sem' ? null : <Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} />}>
+      titulo={NOMES[tipo].plural}
+      acoes={<Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} />}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (
-        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Comece em branco, de uma receita ou copiando um plano." acao={pasta === 'sem' ? undefined : { rotulo: NOMES[tipo].novo, aoTocar: () => setNovo(true) }} />
+        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Comece em branco, de um modelo ou copiando um plano." acao={{ rotulo: NOMES[tipo].novo, aoTocar: () => setNovo(true) }} />
       ) : null}
       {dados?.map((p, i) => (
         <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
@@ -90,11 +92,16 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0 }: { tipo: Tipo
             {p.versaoPublicada > 0 ? (
               <Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} />
             ) : null}
+            <Botao rotulo="Excluir plano" tipo="fantasma" aoTocar={() => setExcluir(p)} />
             <Botao rotulo="Abrir" Icone={Pencil} aoTocar={() => router.push(rotaDoEditor(tipo, p.id))} />
           </View>
         </EntradaEmCascata>
       ))}
-      {novo && pasta !== 'sem' ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} /> : null}
+      <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.titulo ?? ''}”?`} mensagem="O plano sai da lista e deixa de estar ativo. As versões publicadas e o histórico de registros são preservados." rotuloConfirmar="Excluir plano" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
+        if (!excluir) return; const id = excluir.id; setExcluir(null);
+        excluirPlano(tipo, id).then(recarregar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
+      }} />
+      {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} /> : null}
       {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} /> : null}
     </Cartao>
   );
@@ -173,7 +180,7 @@ function FolhaNovoPlano({
 
   const origens: { valor: Origem; rotulo: string }[] = [
     { valor: 'branco', rotulo: 'Em branco' },
-    { valor: 'receita', rotulo: 'De uma receita' },
+    { valor: 'receita', rotulo: 'De um modelo' },
     ...(planos.length ? [{ valor: 'copia' as Origem, rotulo: 'Copiar outro plano' }] : []),
   ];
 

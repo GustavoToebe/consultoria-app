@@ -102,6 +102,8 @@ export function blocoInstrucoes(texto: string): string {
 
 /** PDF do treino no formato do Saraiva (seção 12): semana, sessões com tabela e, no fim, as instruções. */
 export function documentoTreino(d: DadosPdfTreino): Documento {
+  const metodologia = d.conteudo.metodologia?.configuracao;
+  if (metodologia) d = { ...d, tipoTrabalho: metodologia.tipoTrabalho, instrucoesTreino: metodologia.instrucoesTreino, rodapePdf: metodologia.rodapePdf };
   const c = d.conteudo;
   const periodo = d.inicio || d.fim ? `${dataParaTela(d.inicio) || '—'} a ${dataParaTela(d.fim) || '—'}` : null;
   const semana = DIAS_SEMANA.map((dia, i) => {

@@ -15,7 +15,7 @@ export function FolhaSalvarReceita({
   aoFechar,
 }: {
   titulo: string;
-  explicacao: string;
+  explicacao?: string;
   aoSalvar: (nome: string, descricao: string | null) => Promise<void>;
   aoFechar: () => void;
 }) {
@@ -39,11 +39,11 @@ export function FolhaSalvarReceita({
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo="Salvar receita" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim()} />
+          <Botao rotulo="Salvar modelo" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim()} />
         </>
       }>
       <Texto variante="suave">{explicacao}</Texto>
-      <Campo rotulo="Nome da receita" valor={nome} aoMudar={setNome} maxLength={120} />
+      <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
       <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={2} maxLength={400} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>

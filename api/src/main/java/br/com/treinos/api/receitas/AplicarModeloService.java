@@ -1,0 +1,85 @@
+package br.com.treinos.api.receitas;
+
+import br.com.treinos.api.dieta.*;
+import br.com.treinos.api.treino.*;
+import br.com.treinos.api.pastas.*;
+import br.com.treinos.api.planos.dto.PlanoDtos.*;
+import br.com.treinos.api.web.BadRequestException;
+import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.Exigir;
+import jakarta.validation.constraints.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.UUID;
+
+/** Aplicação transacional: só cria rascunhos independentes; nunca publica ou modifica o modelo. */
+@Service
+public class AplicarModeloService {
+    public record Request(@NotNull UUID alunoId, UUID pastaId, @NotBlank @Size(max = 120) String titulo,
+                          LocalDate inicio, LocalDate fim) { }
+    public record Response(UUID pastaId, UUID planoId, String tipo) { }
+    private final ReceitaService receitas;
+    private final PastaService pastas;
+    private final PastaRepository repositorioPastas;
+    private final PlanoTreinoService treinos;
+    private final PlanoDietaService dietas;
+    private final PlanoTreinoRepository repositorioTreinos;
+    private final PlanoDietaRepository repositorioDietas;
+    private final JsonMapper json;
+    public AplicarModeloService(ReceitaService receitas, PastaService pastas, PastaRepository repositorioPastas,
+            PlanoTreinoService treinos, PlanoDietaService dietas, PlanoTreinoRepository repositorioTreinos,
+            PlanoDietaRepository repositorioDietas, JsonMapper json) {
+        this.receitas=receitas; this.pastas=pastas; this.repositorioPastas=repositorioPastas;
+        this.treinos=treinos; this.dietas=dietas; this.repositorioTreinos=repositorioTreinos;
+        this.repositorioDietas=repositorioDietas; this.json=json;
+    }
+    @Transactional
+    public Response aplicar(UUID id, Request r) {
+        var modelo=receitas.detalhe(id);
+        var tipo=Receita.Tipo.valueOf(modelo.tipo());
+        if (tipo != Receita.Tipo.PLANO_TREINO && tipo != Receita.Tipo.SESSAO_TREINO
+                && tipo != Receita.Tipo.PLANO_DIETA && tipo != Receita.Tipo.REFEICAO && tipo != Receita.Tipo.PASTA_PLANO)
+            throw new BadRequestException("Este modelo é aplicado dentro do editor.");
+        UUID pastaId=r.pastaId();
+        if (pastaId == null) pastaId=pastas.criar(r.alunoId(), new PastaDtos.PastaRequest(r.titulo(),r.inicio(),r.fim())).id();
+        else Exigir.existe(repositorioPastas.findById(pastaId).filter(p -> !p.isArquivado() && p.getAlunoId().equals(r.alunoId())),
+                () -> new NaoEncontradoException("Pasta não encontrada."));
+        if (tipo == Receita.Tipo.PASTA_PLANO) {
+            var conteudo=json.treeToValue(modelo.conteudo(), ConteudoPastaModelo.class);
+            for (var p:conteudo.planos()) {
+                var pedido=new CriarPlanoRequest(p.titulo(),r.inicio(),r.fim(),null,null,pastaId);
+                if (p.treino()!=null) {
+                    var novo=treinos.criar(r.alunoId(),pedido);
+                    treinos.salvarRascunho(novo.plano().id(),new SalvarRascunhoRequest<>(p.titulo(),novo.plano().inicio(),
+                            novo.plano().fim(),p.treino().comUidsNovos(),novo.plano().versao()));
+                } else {
+                    var novo=dietas.criar(r.alunoId(),pedido);
+                    dietas.salvarRascunho(novo.plano().id(),new SalvarRascunhoRequest<>(p.titulo(),novo.plano().inicio(),
+                            novo.plano().fim(),p.dieta().comUidsNovos(),novo.plano().versao()));
+                }
+            }
+            return new Response(pastaId,null,"pasta");
+        }
+        var pedido=new CriarPlanoRequest(r.titulo(),r.inicio(),r.fim(),id,null,pastaId);
+        if (tipo==Receita.Tipo.PLANO_TREINO || tipo==Receita.Tipo.SESSAO_TREINO) {
+            var novo=treinos.criar(r.alunoId(),pedido);
+            return new Response(pastaId,novo.plano().id(),"treino");
+        }
+        var novo=dietas.criar(r.alunoId(),pedido);
+        return new Response(pastaId,novo.plano().id(),"dieta");
+    }
+    @Transactional
+    public ReceitaService.ReceitaResponse salvarPasta(UUID id, SalvarComoReceitaRequest r) {
+        Exigir.existe(repositorioPastas.findById(id).filter(p -> !p.isArquivado()),
+                () -> new NaoEncontradoException("Pasta não encontrada."));
+        var conteudos=new ArrayList<ConteudoPastaModelo.Plano>();
+        for(var p:repositorioTreinos.findByPastaId(id)) if(!p.isArquivado())
+            conteudos.add(new ConteudoPastaModelo.Plano(p.getTitulo(),treinos.rascunho(p.getId()),null));
+        for(var p:repositorioDietas.findByPastaId(id)) if(!p.isArquivado())
+            conteudos.add(new ConteudoPastaModelo.Plano(p.getTitulo(),null,dietas.rascunho(p.getId())));
+        return receitas.salvarConteudo(Receita.Tipo.PASTA_PLANO,r.nome(),r.descricao(),new ConteudoPastaModelo(conteudos));
+    }
+}

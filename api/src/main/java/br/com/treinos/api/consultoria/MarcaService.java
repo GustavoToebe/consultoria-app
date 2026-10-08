@@ -130,8 +130,8 @@ public class MarcaService {
         return Optional.empty();
     }
 
-    private static void validar(ConfiguracaoConsultoria c) {
-        if (c.tiposSerie() == null || c.tiposSerie().isEmpty() || c.tiposSerie().size() > 20) {
+    public static void validar(ConfiguracaoConsultoria c) {
+        if (c == null || c.tiposSerie() == null || c.tiposSerie().isEmpty() || c.tiposSerie().size() > 20) {
             throw new BadRequestException("Informe de 1 a 20 tipos de série.");
         }
         Set<String> tipos = new HashSet<>();

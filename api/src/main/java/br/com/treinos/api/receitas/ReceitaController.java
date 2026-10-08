@@ -35,6 +35,20 @@ public class ReceitaController {
     }
 
     @PreAuthorize("hasRole('TREINADOR')")
+    @GetMapping("/{id}")
+    public ReceitaResponse detalhe(@PathVariable UUID id) { return receitas.detalhe(id); }
+
+    @PreAuthorize("hasRole('TREINADOR')")
+    @PutMapping("/{id}/conteudo")
+    public ReceitaResponse conteudo(@PathVariable UUID id, @RequestBody @Valid ReceitaService.ConteudoRequest request) {
+        return receitas.salvarConteudo(id, request);
+    }
+
+    @PreAuthorize("hasRole('TREINADOR')")
+    @PostMapping("/{id}/duplicar")
+    public ReceitaResponse duplicar(@PathVariable UUID id) { return receitas.duplicar(id); }
+
+    @PreAuthorize("hasRole('TREINADOR')")
     @PostMapping
     public ReceitaResponse criar(@RequestBody @Valid ReceitaRequest request) {
         return receitas.criar(request);

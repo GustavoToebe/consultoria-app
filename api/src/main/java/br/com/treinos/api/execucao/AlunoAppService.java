@@ -60,7 +60,8 @@ public class AlunoAppService {
                 .orElse(null);
         Map<UUID, UltimaCarga> ultimas = treino == null ? Map.of()
                 : historico.ultimasCargas(alunoId, exerciciosDaBiblioteca(treino.conteudo()));
-        ConfiguracaoConsultoria config = marcas.configuracao(eu.consultoriaId());
+        ConfiguracaoConsultoria config = treino != null && treino.conteudo().metodologia() != null
+                ? treino.conteudo().metodologia().configuracao() : marcas.configuracao(eu.consultoriaId());
         return new PainelAluno(marcas.marca(eu.consultoriaId()), new AlunoNome(aluno.getNome()), treino, ultimas,
                 new ConfiguracaoAluno(config.arredondamentoKg(), config.tipoTrabalho(), config.instrucoesTreino()), Instant.now());
     }

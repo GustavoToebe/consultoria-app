@@ -35,6 +35,10 @@ public abstract class PlanoBase {
 
     @Column(nullable = false)
     private String titulo;
+    @Column(nullable = false) private boolean arquivado;
+    public boolean isArquivado() { return arquivado; }
+    public void arquivar() { this.arquivado = true; this.ativo = false; }
+
 
     private LocalDate inicio;
 

@@ -47,7 +47,7 @@ public class PastaService {
     @Transactional(readOnly = true)
     public List<PastaResumo> listar(UUID alunoId) {
         exigirAluno(alunoId);
-        return pastas.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream().map(PastaResumo::de).toList();
+        return pastas.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream().filter(p -> !p.isArquivado()).map(PastaResumo::de).toList();
     }
 
     @Transactional
@@ -74,14 +74,24 @@ public class PastaService {
         PastaPlano origem = buscar(id);
         PastaPlano nova = pastas.saveAndFlush(new PastaPlano(origem.getAlunoId(), r.titulo().trim(), r.inicio(), r.fim()));
         for (PlanoBase p : treinos.findByPastaId(id)) {
+            if (p.isArquivado()) continue;
             servicoTreino.replicar(p.getId(),
                     new ReplicarRequest(tituloDaCopia(p, origem, nova), r.inicio(), r.fim(), nova.getId()));
         }
         for (PlanoBase p : dietas.findByPastaId(id)) {
+            if (p.isArquivado()) continue;
             servicoDieta.replicar(p.getId(),
                     new ReplicarRequest(tituloDaCopia(p, origem, nova), r.inicio(), r.fim(), nova.getId()));
         }
         return PastaResumo.de(nova);
+    }
+
+    @Transactional
+    public void excluir(UUID id) {
+        PastaPlano p = buscar(id);
+        treinos.findByPastaId(id).forEach(PlanoBase::arquivar);
+        dietas.findByPastaId(id).forEach(PlanoBase::arquivar);
+        p.arquivar(); pastas.saveAndFlush(p);
     }
 
     private static String tituloDaCopia(PlanoBase plano, PastaPlano origem, PastaPlano nova) {

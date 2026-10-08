@@ -2,8 +2,8 @@ import { Copy, FolderPlus, Pencil } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { atualizarPasta, criarPasta, listarPastas, replicarPasta } from '../api/rotas';
-import type { PastaResumo } from '../api/tipos';
+import { excluirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, listarPastas, replicarPasta } from '../api/rotas';
+import type { PastaResumo, Receita } from '../api/tipos';
 import { dataDaTela, dataParaTela } from '../dominio/formatos';
 import { espaco } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
@@ -15,6 +15,10 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { PainelConfirmacao } from '../ui/PainelConfirmacao';
+import { AplicarAoAluno } from './planejamento/AplicarAoAluno';
+import { FolhaReceitas } from './FolhaReceitas';
+import { FolhaSalvarReceita } from './FolhaSalvarReceita';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { CartaoPlanos, periodo, proximoPeriodo } from './CartaoPlanos';
@@ -28,6 +32,11 @@ type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 
 export function CartaoPastas({ alunoId }: { alunoId: string }) {
   const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
+  const { avisar } = useAviso();
+  const [excluir, setExcluir] = useState<PastaResumo | null>(null);
+  const [salvarModelo, setSalvarModelo] = useState<PastaResumo | null>(null);
+  const [escolher, setEscolher] = useState(false);
+  const [modelo, setModelo] = useState<Receita | null>(null);
   const [geracao, setGeracao] = useState(0);
 
   const aoSalvar = () => {
@@ -50,6 +59,7 @@ export function CartaoPastas({ alunoId }: { alunoId: string }) {
           <Vazio titulo="Sem pastas" texto="Crie uma pasta para montar o treino e a dieta do período." acao={{ rotulo: 'Nova pasta', aoTocar: () => setModo({ tipo: 'nova' }) }} />
         ) : null}
       </Cartao>
+<Botao rotulo="Usar modelo de pasta" tipo="secundario" aoTocar={() => setEscolher(true)} />
       {dados?.map((p) => (
         <Cartao
           key={p.id}
@@ -57,6 +67,8 @@ export function CartaoPastas({ alunoId }: { alunoId: string }) {
           acoes={
             <>
               <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setModo({ tipo: 'editar', pasta: p })} />
+              <Botao rotulo="Salvar pasta como modelo" tipo="secundario" aoTocar={() => setSalvarModelo(p)} />
+              <Botao rotulo="Excluir pasta" tipo="fantasma" aoTocar={() => setExcluir(p)} />
               <Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => setModo({ tipo: 'replicar', pasta: p })} />
             </>
           }>
@@ -65,8 +77,15 @@ export function CartaoPastas({ alunoId }: { alunoId: string }) {
           <CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={p} geracao={geracao} />
         </Cartao>
       ))}
-      <CartaoPlanos tipo="treino" alunoId={alunoId} pasta="sem" geracao={geracao} />
-      <CartaoPlanos tipo="dieta" alunoId={alunoId} pasta="sem" geracao={geracao} />
+      {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Modelo de pasta de plano" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
+      {modelo ? <AplicarAoAluno modelo={modelo} alunoInicial={alunoId} aoFechar={() => setModelo(null)} aoAplicar={() => { setModelo(null); aoSalvar(); avisar('Pasta copiada como rascunho.', 'sucesso'); }} /> : null}
+      {salvarModelo ? <FolhaSalvarReceita titulo="Salvar pasta como modelo" explicacao="Copia os rascunhos de treino e dieta desta pasta para reutilizar em outros alunos." aoFechar={() => setSalvarModelo(null)} aoSalvar={async (nome, descricao) => {
+        await salvarPastaComoModelo(salvarModelo.id, nome, descricao); setSalvarModelo(null); avisar('Modelo de pasta salvo.', 'sucesso');
+      }} /> : null}
+      <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.titulo ?? ''}”?`} mensagem="A pasta e seus planos saem da lista. Os planos deixam de estar ativos; versões publicadas e registros dos alunos são preservados." rotuloConfirmar="Excluir pasta e planos" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
+        if (!excluir) return; const id = excluir.id; setExcluir(null);
+        excluirPasta(id).then(aoSalvar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
+      }} />
       {modo ? <FolhaPasta alunoId={alunoId} modo={modo} aoFechar={() => setModo(null)} aoSalvar={aoSalvar} /> : null}
     </>
   );

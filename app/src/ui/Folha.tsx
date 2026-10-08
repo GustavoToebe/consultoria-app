@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -37,14 +36,13 @@ function Painel({titulo,aoFechar,children,rodape}:Omit<Props,'visivel'>) {
   const { cores } = useTema();
   const { width, height } = useWindowDimensions();
   const margem = useSafeAreaInsets();
-  const lateral = width >= LARGURA_MENU_LATERAL;
+  const centralizado = width >= LARGURA_MENU_LATERAL;
   const reduzido = useMovimentoReduzido();
-  // Entra a partir da largura do painel (460), não da janela inteira: no PC a mola fica tão curta quanto no celular.
-  const deslocamento = useSharedValue(reduzido ? 0 : lateral ? Math.min(width, 460) : height);
+  // Sem animação de entrada: o painel aparece pronto. O deslocamento só existe para o arrastar-para-fechar no celular.
+  const deslocamento = useSharedValue(0);
   const altura = useSharedValue(height * 0.88);
-  useEffect(() => { deslocamento.set(reduzido ? 0 : withSpring(0,{damping:18,stiffness:260})); },[reduzido,deslocamento]);
-  const movimento=useAnimatedStyle(()=>({transform:[lateral?{translateX:deslocamento.get()}:{translateY:deslocamento.get()}]}));
-  const gesto=Gesture.Pan().enabled(Platform.OS !== 'web' && !lateral)
+  const movimento=useAnimatedStyle(()=>({transform:[{translateY:deslocamento.get()}]}));
+  const gesto=Gesture.Pan().enabled(Platform.OS !== 'web' && !centralizado)
     .activeOffsetY(10)
     .onUpdate(evento=>{deslocamento.set(Math.max(0,evento.translationY));})
     .onEnd(evento=>{
@@ -54,15 +52,15 @@ function Painel({titulo,aoFechar,children,rodape}:Omit<Props,'visivel'>) {
     });
   return (
     <GestureHandlerRootView style={{flex:1}}>
-      <View style={[estilos.fundo, lateral ? estilos.fundoLateral : estilos.fundoInferior]}>
+      <View style={[estilos.fundo, centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar painel" />
         <Animated.View
           onLayout={evento => altura.set(evento.nativeEvent.layout.height)}
           accessibilityViewIsModal
           style={[
             estilos.painel, movimento,
-            lateral
-              ? [estilos.painelLateral, { paddingTop: margem.top + espaco(1) }]
+            centralizado
+              ? estilos.painelCentral
               : [estilos.painelInferior, { paddingBottom: margem.bottom }],
             { backgroundColor: cores.superficie, borderColor: cores.borda },
           ]}>
@@ -82,10 +80,10 @@ function Painel({titulo,aoFechar,children,rodape}:Omit<Props,'visivel'>) {
 
 const estilos = StyleSheet.create({
   fundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
-  fundoLateral: { alignItems: 'flex-end' },
+  fundoCentral: { alignItems: 'center', justifyContent: 'center', padding: espaco(2) },
   fundoInferior: { justifyContent: 'flex-end' },
   painel: { borderWidth: 1 },
-  painelLateral: { width: 460, maxWidth: '100%', height: '100%' },
+  painelCentral: { width: 600, maxWidth: '100%', maxHeight: '90%', borderRadius: RAIO, overflow: 'hidden' },
   painelInferior: { maxHeight: '88%', borderTopLeftRadius: RAIO, borderTopRightRadius: RAIO },
   topo: {
     flexDirection: 'row',

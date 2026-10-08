@@ -63,7 +63,7 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
   `fieldErrors` (`field` = caminho no conteúdo).
 - Pastas (`pastas/`): agrupam treinos e dietas do aluno e dão o período a todos. Plano criado/replicado com `pastaId`
   usa o período da pasta (o do corpo é ignorado); mudar a pasta altera o **rascunho** dos planos (publicado segue imutável);
-  replicar a pasta copia todos. Pasta de outro aluno/consultoria = 404. Plano sem pasta (anterior à V009) ainda existe.
+  replicar a pasta copia todos. Pasta de outro aluno/consultoria = 404. A V011 moveu os planos anteriores à V009 para pastas (por aluno e período); a ficha não mostra mais “sem pasta”.
 - Lesões (`lesoes/`): histórico estruturado do aluno, dado sensível (LGPD), só treinador; o sistema não interpreta.
 - Execuções: `execucao_serie.serie_trabalho` (fora do esboço do plano) e `exercicio_id` vêm da versão publicada, nunca
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.

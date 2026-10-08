@@ -1,5 +1,6 @@
 package br.com.treinos.api.treino;
 
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -17,7 +18,15 @@ import java.util.function.Supplier;
 public record ConteudoTreino(
         @Size(max = 200) String objetivo,
         @Size(max = 8000) String orientacoes,
-        @NotNull @Size(max = 20) List<@Valid @NotNull Sessao> sessoes) {
+        @NotNull @Size(max = 20) List<@Valid @NotNull Sessao> sessoes,
+        @Valid Metodologia metodologia) {
+
+    public record Metodologia(UUID id, @Size(max = 120) String nome,
+                              @NotNull ConfiguracaoConsultoria configuracao) { }
+
+    public ConteudoTreino(String objetivo, String orientacoes, List<Sessao> sessoes) {
+        this(objetivo, orientacoes, sessoes, null);
+    }
 
     public static final String TREINO = "TREINO";
     public static final String DESCANSO_ATIVO = "DESCANSO_ATIVO";
@@ -106,6 +115,6 @@ public record ConteudoTreino(
                         e.modalidade(), e.videoUrl(), e.observacao(), e.progressao(), e.unidade(),
                         e.seriesOuVazio().stream().map(x -> new Serie(novo.get(), x.tipo(), x.repsMin(), x.repsMax(),
                                 x.alvoTexto(), x.intensidade(), x.descansoSegundos())).toList())).toList())).toList();
-        return new ConteudoTreino(objetivo, orientacoes, novas);
+        return new ConteudoTreino(objetivo, orientacoes, novas, metodologia);
     }
 }

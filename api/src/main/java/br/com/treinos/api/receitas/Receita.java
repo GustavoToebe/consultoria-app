@@ -24,7 +24,7 @@ import java.util.UUID;
 @Table(name = "receita")
 public class Receita {
 
-    public enum Tipo { SERIES, PLANO_TREINO, PLANO_DIETA }
+    public enum Tipo { SERIES, PLANO_TREINO, PLANO_DIETA, METODOLOGIA, SESSAO_TREINO, REFEICAO, PASTA_PLANO }
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -42,6 +42,12 @@ public class Receita {
     private String nome;
 
     private String descricao;
+
+    @Column(name = "pasta_id")
+    private UUID pastaId;
+
+    public UUID getPastaId() { return pastaId; }
+    public void definirPasta(UUID id) { this.pastaId = id; }
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)

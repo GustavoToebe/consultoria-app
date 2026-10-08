@@ -55,6 +55,11 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
   opcao: {
     maxWidth: '100%',
+    height: 'auto',
+    // O componente base usa `flex-1` (largura base 0): sem isto os botões se espremem numa linha e o texto quebra.
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
     minHeight: 44,
     minWidth: 44,
     paddingHorizontal: espaco(1.5),

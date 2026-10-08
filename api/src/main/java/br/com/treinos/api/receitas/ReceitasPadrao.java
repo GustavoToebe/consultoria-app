@@ -24,6 +24,8 @@ final class ReceitasPadrao {
 
     static List<Padrao> todas() {
         List<Padrao> lista = new ArrayList<>();
+        lista.add(new Padrao(Receita.Tipo.METODOLOGIA, "Metodologia da consultoria", "Regras para novos modelos.",
+                br.com.treinos.api.consultoria.ConfiguracaoConsultoria.padrao()));
         lista.add(series("Aquecimento + 3 FS + WS + 2 Back off 85%",
                 "Aquecimento 1x10-15, FS 3x3 (50/70/85%), WS 1x3-6, Back off 2x6-8 (85%).",
                 junta(List.of(aquecimento()), fs(50, 70, 85), List.of(ws()), backOff(2))));

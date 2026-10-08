@@ -1,6 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { router, Slot, usePathname, type Href } from 'expo-router';
-import type { LucideIcon } from 'lucide-react-native';
+import { PanelLeftClose, PanelLeftOpen, type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,18 +33,37 @@ export function Navegacao({ itens, sempreInferior, rodape }: { itens: ItemMenu[]
   const { cores } = useTema();
   const { marca } = useSessao();
   const lateral = !sempreInferior && width >= LARGURA_MENU_LATERAL;
+  const [recolhido, setRecolhido] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(CHAVE_MENU_RECOLHIDO).then((v) => setRecolhido(v === '1'), () => undefined);
+  }, []);
+  const alternar = () => {
+    const proximo = !recolhido;
+    setRecolhido(proximo);
+    AsyncStorage.setItem(CHAVE_MENU_RECOLHIDO, proximo ? '1' : '0').catch(() => undefined);
+  };
 
   if (lateral) {
     return (
       <View style={[estilos.linha, { backgroundColor: cores.fundo }]}>
         <SafeAreaView edges={['top', 'bottom', 'left']}
-          style={[estilos.lateral, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
-          <View style={estilos.marca}>
-            <MarcaTitulo marca={marca} />
-          </View>
+          style={[estilos.lateral, recolhido && estilos.lateralRecolhido, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+          {recolhido ? null : (
+            <View style={estilos.marca}>
+              <MarcaTitulo marca={marca} />
+            </View>
+          )}
           {itens.map((item) => (
-            <ItemNavegacao key={item.caminho} item={item} lateral />
+            <ItemNavegacao key={item.caminho} item={item} lateral recolhido={recolhido} />
           ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={recolhido ? 'Expandir menu' : 'Minimizar menu'}
+            onPress={alternar}
+            style={({ pressed }) => [estilos.itemLateral, estilos.alternar, recolhido && estilos.itemRecolhido, { opacity: pressed ? 0.7 : 1 }]}>
+            {recolhido ? <PanelLeftOpen size={20} color={cores.textoSuave} strokeWidth={2} /> : <PanelLeftClose size={20} color={cores.textoSuave} strokeWidth={2} />}
+            {recolhido ? null : <Texto style={[estilos.rotuloLateral, { color: cores.textoSuave }]}>Minimizar</Texto>}
+          </Pressable>
         </SafeAreaView>
         <View style={estilos.conteudo}>
           <Slot />
@@ -66,7 +87,7 @@ export function Navegacao({ itens, sempreInferior, rodape }: { itens: ItemMenu[]
   );
 }
 
-function ItemNavegacao({ item, lateral }: { item: ItemMenu; lateral?: boolean }) {
+function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?: boolean; recolhido?: boolean }) {
   const caminho = usePathname();
   const { cores, marca } = useTema();
   const ativo = item.exato ? caminho === item.caminho : caminho === item.caminho || caminho.startsWith(`${item.caminho}/`);
@@ -79,20 +100,26 @@ function ItemNavegacao({ item, lateral }: { item: ItemMenu; lateral?: boolean })
       onPress={() => router.navigate(item.href)}
       style={({ pressed }) => [
         lateral ? estilos.itemLateral : estilos.itemInferior,
+        lateral && recolhido && estilos.itemRecolhido,
         lateral && ativo && { backgroundColor: cores.superficie2 },
         { opacity: pressed ? 0.7 : 1 },
       ]}>
       <item.Icone size={20} color={cor} strokeWidth={2} />
-      <Texto style={[lateral ? estilos.rotuloLateral : estilos.rotuloInferior, { color: cor }]}>{item.rotulo}</Texto>
+      {recolhido ? null : <Texto style={[lateral ? estilos.rotuloLateral : estilos.rotuloInferior, { color: cor }]}>{item.rotulo}</Texto>}
     </Pressable>
   );
 }
+
+const CHAVE_MENU_RECOLHIDO = 'menu-lateral-recolhido';
 
 const estilos = StyleSheet.create({
   linha: { flex: 1, flexDirection: 'row' },
   coluna: { flex: 1 },
   conteudo: { flex: 1 },
   lateral: { width: 240, borderRightWidth: 1, paddingHorizontal: espaco(1.5), gap: espaco(0.5) },
+  lateralRecolhido: { width: 72, paddingTop: espaco(2) },
+  itemRecolhido: { justifyContent: 'center', paddingHorizontal: 0 },
+  alternar: { marginTop: 'auto', marginBottom: espaco(1) },
   marca: { paddingVertical: espaco(2), paddingHorizontal: espaco(1) },
   itemLateral: {
     flexDirection: 'row',

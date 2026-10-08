@@ -35,6 +35,8 @@ interface Props {
   aoMudar: (r: Refeicao) => void;
   aoMover: (delta: -1 | 1) => void;
   aoRemover: () => void;
+  removivel?: boolean;
+  aoSalvarModelo?: () => void;
   /** Abre a escolha de alimento; o item entra na opção indicada. */
   aoEscolherAlimento: (opcao: number) => void;
 }
@@ -128,7 +130,8 @@ export function CartaoRefeicao(p: Props) {
                 }}
               />
             ) : null}
-            <Botao rotulo="Remover refeição" tipo="fantasma" Icone={Trash2} aoTocar={p.aoRemover} />
+            {p.aoSalvarModelo ? <Botao rotulo="Salvar como modelo" tipo="secundario" aoTocar={p.aoSalvarModelo} /> : null}
+          {p.removivel !== false ? <Botao rotulo="Remover refeição" tipo="fantasma" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
           </View>
         </View>
       ) : null}
@@ -147,6 +150,8 @@ function LinhaItem({
   comProblema: boolean;
   aoMudar: (i: ItemDieta) => void;
   aoRemover: () => void;
+  removivel?: boolean;
+  aoSalvarModelo?: () => void;
   aoMover: (d: -1 | 1) => void;
 }) {
   const { cores } = useTema();
