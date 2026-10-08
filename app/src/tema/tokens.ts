@@ -1,5 +1,5 @@
 /**
- * Design flat utilitário (seção 10.3 do plano): cores sólidas, sem sombra nem gradiente, cantos de 4 px, bordas de
+ * Design flat utilitário (seção 10.3 do plano): cores sólidas, sem sombra nem gradiente, cantos de 8 px, bordas de
  * 1 px, grade de 8 px. A cor da marca só aparece em ação principal, menu ativo e título da marca; status nunca usa a
  * cor da marca (verde ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto.
  */
@@ -46,7 +46,7 @@ export const CLARO: Cores = {
 export const MARCA_NEUTRA = '#52525B';
 
 export const espaco = (n: number) => n * 8;
-export const RAIO = 4;
+export const RAIO = 8;
 export const ALVO_TOQUE = 44;
 export const LARGURA_MAXIMA = 1100;
 export const LARGURA_MENU_LATERAL = 900;

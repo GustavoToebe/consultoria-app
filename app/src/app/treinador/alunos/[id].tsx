@@ -39,7 +39,7 @@ export default function FichaAluno() {
           <CartaoAcesso aluno={aluno} />
           <CartaoPlanos tipo="treino" alunoId={aluno.id} />
           <CartaoPlanos tipo="dieta" alunoId={aluno.id} />
-          <CartaoRegistros alunoId={aluno.id} />
+          <CartaoRegistros aluno={aluno} />
           <CartaoPeso alunoId={aluno.id} />
         </>
       ) : null}

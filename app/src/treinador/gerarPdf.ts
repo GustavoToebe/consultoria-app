@@ -1,9 +1,11 @@
-import { aluno as buscarAluno, consultoria, pesosDoAluno, versaoPlano } from '../api/rotas';
-import type { ConteudoDieta, ConteudoTreino, PlanoResumo, TipoPlano } from '../api/tipos';
+import { aluno as buscarAluno, consultoria, listarPlanos, pesosDoAluno, versaoPlano } from '../api/rotas';
+import type { ConteudoDieta, ConteudoTreino, PlanoResumo, Sessao, TipoPlano } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
+import type { DivisaoRelatorio } from '../dominio/relatorio';
 import { imprimir } from '../pdf/imprimir';
 import { logoComoDataUri } from '../pdf/logo';
+import { documentoCargas } from '../pdf/pdfCargas';
 import { documentoDieta } from '../pdf/pdfDieta';
 import { documentoTreino } from '../pdf/pdfTreino';
 
@@ -40,4 +42,32 @@ export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascu
     const pesos = await pesosDoAluno(plano.alunoId).catch(() => []);
     await imprimir(documentoDieta({ ...comum, conteudo: normalizarDieta(conteudo) as ConteudoDieta, pesos }));
   }
+}
+
+/** Sessões dos treinos publicados do aluno (por uid), para o relatório mostrar "Quarta - Pernas" e a ordem da semana. */
+export async function sessoesDosTreinos(alunoId: string): Promise<Map<string, Sessao>> {
+  const planos = (await listarPlanos('treino', alunoId)).filter((p) => p.versaoPublicada > 0);
+  const versoes = await Promise.all(planos.map((p) => versaoPlano<unknown>('treino', p.id, p.versaoPublicada).catch(() => null)));
+  const mapa = new Map<string, Sessao>();
+  for (const v of versoes) {
+    if (v) for (const s of normalizarTreino(v.conteudo).sessoes) mapa.set(s.uid, s);
+  }
+  return mapa;
+}
+
+/** PDF das cargas do aluno no período (treinador), agrupadas por divisão. */
+export async function gerarPdfDeCargas(aluno: { id: string; nome: string }, de: string, ate: string, divisoes: DivisaoRelatorio[]) {
+  const c = await consultoria();
+  await imprimir(
+    documentoCargas({
+      marca: c.marca,
+      logoDataUri: await logoComoDataUri(c.marca),
+      aluno: aluno.nome,
+      de,
+      ate,
+      divisoes,
+      rodapePdf: c.configuracao.rodapePdf,
+      emitidoEm: new Date(),
+    }),
+  );
 }

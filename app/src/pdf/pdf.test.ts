@@ -2,6 +2,7 @@ import type { ConteudoDieta, ConteudoTreino, Marca, Serie } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { esc, link } from './html';
+import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
 import { documentoTreino } from './pdfTreino';
 
@@ -125,5 +126,41 @@ describe('html', () => {
   it('esc e link', () => {
     expect(esc(`<a href="x">'&`)).toBe('&lt;a href=&quot;x&quot;&gt;&#39;&amp;');
     expect(link('javascript:alert(1)', 'Vídeo')).toBe('—');
+  });
+});
+
+describe('PDF de cargas', () => {
+  it('agrupa por divisão, escapa texto do aluno e mostra "—" para o que não foi registrado', () => {
+    const d = documentoCargas({
+      marca,
+      logoDataUri: null,
+      aluno: 'Aluno Demo',
+      de: '2026-10-01',
+      ate: '2026-10-14',
+      divisoes: [
+        {
+          chave: 'quarta - pernas',
+          nome: 'Quarta - Pernas',
+          exercicios: [
+            {
+              chave: 'mesa',
+              nome: 'Mesa flexora',
+              linhas: [
+                { data: '2026-10-07', carga: 90, repeticoes: 6, series: 5, semCarga: false, observacoes: ['<b>forte</b>'] },
+                { data: '2026-10-14', carga: null, repeticoes: null, series: 2, semCarga: false, observacoes: [] },
+              ],
+            },
+          ],
+        },
+      ],
+      rodapePdf: null,
+      emitidoEm: new Date('2026-10-14T12:00:00Z'),
+    });
+    expect(d.corpo).toContain('Quarta - Pernas');
+    expect(d.corpo).toContain('90 kg');
+    expect(d.corpo).toContain('2 registros');
+    expect(d.corpo).toContain('&lt;b&gt;forte&lt;/b&gt;');
+    expect(d.corpo).not.toContain('<b>forte</b>');
+    expect(d.corpo).toContain('<td class="carga">—</td>');
   });
 });

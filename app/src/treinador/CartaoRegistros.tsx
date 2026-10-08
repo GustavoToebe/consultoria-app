@@ -1,19 +1,24 @@
+import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { execucoesDoAluno, progressoDoAluno } from '../api/rotas';
 import type { DiaDeTreino, SerieFeita } from '../api/tipos';
 import { dataParaTela, hojeIso, numeroParaTela, somarDias } from '../dominio/formatos';
+import { cargasPorDivisao } from '../dominio/relatorio';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
+import { Abas } from '../ui/Abas';
+import { useAviso } from '../ui/Aviso';
+import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { Carregando, MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
-
-const DIAS = 14;
+import { CargasPorDivisao } from './CargasPorDivisao';
+import { gerarPdfDeCargas, sessoesDosTreinos } from './gerarPdf';
 
 /** "WS 32 kg × 5"; o que o aluno não informou aparece como "—" (nunca presumido). */
 export function textoSerie(s: SerieFeita): string {
@@ -21,24 +26,64 @@ export function textoSerie(s: SerieFeita): string {
   return `${s.tipo} ${carga}${s.repeticoes ?? '—'}`;
 }
 
-/** Registros dos últimos 14 dias agrupados por data, sessão e exercício, e o progresso por exercício. */
-export function CartaoRegistros({ alunoId }: { alunoId: string }) {
+export const PERIODOS = [
+  { valor: '14', rotulo: '14 dias' },
+  { valor: '30', rotulo: '30 dias' },
+  { valor: '60', rotulo: '60 dias' },
+];
+
+export type VisaoRegistros = 'divisao' | 'dia';
+export const VISOES: { valor: VisaoRegistros; rotulo: string }[] = [
+  { valor: 'divisao', rotulo: 'Por divisão' },
+  { valor: 'dia', rotulo: 'Por dia' },
+];
+
+/**
+ * Registros do aluno no período: por divisão do plano (carga de trabalho de cada dia, como o relatório em PDF) ou
+ * por dia, e o progresso por exercício.
+ */
+export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string } }) {
+  const { avisar } = useAviso();
+  const [dias, setDias] = useState('14');
+  const [visao, setVisao] = useState<VisaoRegistros>('divisao');
+  const [gerando, setGerando] = useState(false);
   const hoje = hojeIso();
-  const de = somarDias(hoje, -(DIAS - 1));
-  const { dados, erro, carregando, recarregar } = useCarregar(`exec:${alunoId}:${de}`, () =>
-    execucoesDoAluno(alunoId, de, hoje),
+  const de = somarDias(hoje, -(Number(dias) - 1));
+  const { dados, erro, carregando, recarregar } = useCarregar(`exec:${aluno.id}:${de}`, () =>
+    execucoesDoAluno(aluno.id, de, hoje),
   );
+  const sessoes = useCarregar(`sessoes:${aluno.id}`, () => sessoesDosTreinos(aluno.id));
+  const divisoes = dados ? cargasPorDivisao(dados, sessoes.dados ?? undefined) : [];
+
+  const pdf = () => {
+    setGerando(true);
+    gerarPdfDeCargas(aluno, de, hoje, divisoes)
+      .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'))
+      .finally(() => setGerando(false));
+  };
+
   return (
     <>
-      <Cartao titulo={`Registros dos últimos ${DIAS} dias`}>
+      <Cartao
+        titulo="Registros e cargas"
+        acoes={
+          divisoes.length ? <Botao rotulo="PDF das cargas" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /> : null
+        }>
+        <View style={estilos.filtros}>
+          <Escolha descricao="Período" opcoes={PERIODOS} valor={dias} aoMudar={setDias} />
+        </View>
+        <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Carregando /> : null}
         {dados && dados.length === 0 ? (
           <Texto variante="suave">Nenhum registro no período. O aluno pode ter treinado sem registrar.</Texto>
         ) : null}
-        {[...(dados ?? [])].sort((a, b) => b.data.localeCompare(a.data)).map((d) => <DiaRegistros key={d.data} dia={d} />)}
+        {dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
+        {dados && visao === 'dia'
+          ? [...dados].sort((a, b) => b.data.localeCompare(a.data)).map((d) => <DiaRegistros key={d.data} dia={d} />)
+          : null}
       </Cartao>
-      {dados && dados.length > 0 ? <CartaoProgresso alunoId={alunoId} dias={dados} /> : null}
+      {dados && dados.length > 0 ? <CartaoProgresso alunoId={aluno.id} dias={dados} /> : null}
     </>
   );
 }
@@ -106,6 +151,7 @@ function CartaoProgresso({ alunoId, dias }: { alunoId: string; dias: DiaDeTreino
 }
 
 const estilos = StyleSheet.create({
+  filtros: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   dia: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(1) },
   dataDia: { fontFamily: fontes.semi },
   sessao: { gap: espaco(0.75) },

@@ -83,6 +83,11 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
 - Aluno offline: `offline/AlunoProvider` (pacote salvo, registros, gatilhos de envio) sobre `RepositorioLocal`
   (prefixo `treinos:<usuarioId>:`, uma operação por vez) e `Sincronizador`. Série marcada grava no aparelho na hora;
   a carga sugerida vem de `dominio/cargas.ts` (seção 8) e o que o aluno digita é gravado como digitou.
+- Telas do aluno no estilo do protótipo: "Treino de hoje" na cor da marca, divisões com chips de data do período
+  (`datasDaSessao`; registro só até hoje e 60 dias para trás, `podeRegistrarEm`), dia em `sessao/[uid]?data=` e um
+  exercício por tela em `sessao/[uid]/[exercicio]` (`aluno/useSessaoDoDia`). Nome da sessão com `nomeComDia`.
+- Cargas por divisão (`dominio/relatorio.ts` + `treinador/CargasPorDivisao`) no histórico do aluno e na ficha do
+  treinador; o mesmo dado sai no PDF de cargas (`pdf/pdfCargas.ts`).
 
 - PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
   arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`

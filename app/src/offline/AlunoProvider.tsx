@@ -4,7 +4,6 @@ import { AppState } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { enviarRegistros, painelAluno } from '../api/rotas';
-import { hojeIso } from '../dominio/formatos';
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
 import { asyncStorage } from './armazenamento';
@@ -31,7 +30,7 @@ interface ValorAluno {
   mensagemEnvio: string | null;
   online: boolean;
   registrar: (dados: DadosRegistro) => Promise<void>;
-  salvarCargaDeTrabalho: (exercicioUid: string, carga: number | null) => Promise<void>;
+  salvarCargaDeTrabalho: (exercicioUid: string, data: string, carga: number | null) => Promise<void>;
   sincronizarAgora: () => Promise<void>;
   tentarDeNovo: () => Promise<void>;
 }
@@ -183,8 +182,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   );
 
   const salvarCargaDeTrabalho = useCallback(
-    async (exercicioUid: string, carga: number | null) => {
-      setCargas(await repositorio.salvarCargaDeTrabalho(exercicioUid, hojeIso(), carga));
+    async (exercicioUid: string, data: string, carga: number | null) => {
+      setCargas(await repositorio.salvarCargaDeTrabalho(exercicioUid, data, carga));
     },
     [repositorio],
   );

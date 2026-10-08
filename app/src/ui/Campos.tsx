@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 
 import { dataDaTela, mascaraData, numeroDaTela, numeroParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Campo } from './Campo';
 import { Texto } from './Texto';
 
@@ -58,6 +58,22 @@ export function CampoNumerico({
   ajuda?: string;
   erro?: string | null;
 }) {
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro);
+  return (
+    <Campo
+      rotulo={sufixo ? `${rotulo} (${sufixo})` : rotulo}
+      valor={texto}
+      aoMudar={mudar}
+      keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}
+      inputMode={inteiro ? 'numeric' : 'decimal'}
+      ajuda={ajuda}
+      erro={erro ?? (lido === undefined ? (inteiro ? 'Use só números inteiros.' : 'Número inválido.') : null)}
+    />
+  );
+}
+
+/** Texto do campo numérico: guarda o que foi digitado e só repassa quando é número (ou vazio = `null`). */
+function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean) {
   const [texto, setTexto] = useState(valor === null ? '' : numeroParaTela(valor, 3));
   const [anterior, setAnterior] = useState(valor);
   if (valor !== anterior) {
@@ -65,24 +81,67 @@ export function CampoNumerico({
     setAnterior(valor);
     if (numeroDaTela(texto, inteiro) !== valor) setTexto(valor === null ? '' : numeroParaTela(valor, 3));
   }
-  const lido = numeroDaTela(texto, inteiro);
+  const mudar = (t: string) => {
+    setTexto(t);
+    const n = numeroDaTela(t, inteiro);
+    if (n !== undefined) {
+      setAnterior(n);
+      aoMudar(n);
+    }
+  };
+  return { texto, lido: numeroDaTela(texto, inteiro), mudar };
+}
+
+/**
+ * Número grande para registrar a série no celular: rótulo em caixa alta, valor em destaque e a unidade dentro da
+ * caixa. Mesma regra do `CampoNumerico`: grava exatamente o que foi digitado.
+ */
+export function CampoNumericoGrande({
+  rotulo,
+  valor,
+  aoMudar,
+  inteiro,
+  sufixo,
+  rotuloAcessivel,
+  destaque,
+}: {
+  rotulo: string;
+  valor: number | null;
+  aoMudar: (valor: number | null) => void;
+  inteiro?: boolean;
+  sufixo?: string;
+  /** Rótulo completo para o leitor de tela ("Peso da série 2"). */
+  rotuloAcessivel?: string;
+  /** Caixa maior (carga de trabalho do dia). */
+  destaque?: boolean;
+}) {
+  const { cores, marca } = useTema();
+  const [foco, setFoco] = useState(false);
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro);
+  const corBorda = lido === undefined ? cores.perigo : foco ? marca : cores.borda;
   return (
-    <Campo
-      rotulo={sufixo ? `${rotulo} (${sufixo})` : rotulo}
-      valor={texto}
-      aoMudar={(t) => {
-        setTexto(t);
-        const n = numeroDaTela(t, inteiro);
-        if (n !== undefined) {
-          setAnterior(n);
-          aoMudar(n);
-        }
-      }}
-      keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}
-      inputMode={inteiro ? 'numeric' : 'decimal'}
-      ajuda={ajuda}
-      erro={erro ?? (lido === undefined ? (inteiro ? 'Use só números inteiros.' : 'Número inválido.') : null)}
-    />
+    <View style={estilos.grande}>
+      <Texto variante="secao">{rotulo}</Texto>
+      <View style={[estilos.caixa, destaque && estilos.caixaDestaque, { backgroundColor: cores.fundo, borderColor: corBorda }]}>
+        <TextInput
+          accessibilityLabel={rotuloAcessivel ?? rotulo}
+          value={texto}
+          onChangeText={mudar}
+          onFocus={() => setFoco(true)}
+          onBlur={() => setFoco(false)}
+          placeholder="—"
+          placeholderTextColor={cores.textoSuave}
+          keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}
+          inputMode={inteiro ? 'numeric' : 'decimal'}
+          selectTextOnFocus
+          style={[estilos.numero, destaque && estilos.numeroDestaque, { color: cores.texto }]}
+        />
+        {sufixo ? <Texto variante="suave" style={estilos.sufixo}>{sufixo}</Texto> : null}
+      </View>
+      {lido === undefined ? (
+        <Texto variante="pequeno" cor={cores.perigo}>{inteiro ? 'Só números inteiros.' : 'Número inválido.'}</Texto>
+      ) : null}
+    </View>
   );
 }
 
@@ -128,4 +187,17 @@ const estilos = StyleSheet.create({
   interruptor: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE },
   textos: { flex: 1, gap: 2 },
   rotulo: { fontFamily: fontes.semi },
+  grande: { flex: 1, minWidth: 0, gap: espaco(0.75) },
+  caixa: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: RAIO,
+    minHeight: 52,
+    paddingHorizontal: espaco(1.5),
+  },
+  caixaDestaque: { minHeight: 64, alignSelf: 'flex-start', minWidth: 160 },
+  numero: { flex: 1, minWidth: 0, fontFamily: fontes.negrito, fontSize: 20, paddingVertical: espaco(1) },
+  numeroDestaque: { fontSize: 28 },
+  sufixo: { fontFamily: fontes.semi, marginLeft: espaco(0.5) },
 });

@@ -87,3 +87,15 @@ export function numeroDaTela(texto: string, inteiro = false): number | null | un
 export function diaDaSemana(agora: Date = new Date()): number {
   return ((agora.getDay() + 6) % 7) + 1;
 }
+
+/** Dia da semana de uma data ISO (1 = segunda ... 7 = domingo), sem depender do fuso do aparelho. */
+export function diaDaSemanaIso(iso: string): number {
+  const [a, m, d] = iso.split('-').map(Number);
+  return ((new Date(Date.UTC(a, m - 1, d)).getUTCDay() + 6) % 7) + 1;
+}
+
+/** `2026-10-07` → `07/10` (chips de data). */
+export function dataCurta(iso: string): string {
+  const [, m, d] = iso.slice(0, 10).split('-');
+  return m && d ? `${d}/${m}` : '';
+}

@@ -1,19 +1,17 @@
-import { Check, ChevronDown, ChevronUp, PlayCircle } from 'lucide-react-native';
+import { Check, PlayCircle } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { calcularCargasDoExercicio, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
-import { dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { videoValido } from '../dominio/video';
-import { MODALIDADES } from '../treinador/treino/FolhaBiblioteca';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { espaco, fontes, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
-import { CampoNumerico } from '../ui/Campos';
-import { Selo } from '../ui/Selo';
+import { CampoNumericoGrande } from '../ui/Campos';
 import { Texto } from '../ui/Texto';
 
 export interface DadosSerie {
@@ -24,9 +22,8 @@ export interface DadosSerie {
 
 interface Props {
   exercicio: ExercicioPlano;
-  posicao: number;
-  aberto: boolean;
-  aoAbrir: () => void;
+  /** Data do registro (ISO). */
+  data: string;
   /** Carga de trabalho do dia que o aluno digitou (ou `null`). */
   cargaDoDia: number | null;
   /** Última carga de trabalho registrada (servidor ou aparelho) para sugerir a base. */
@@ -38,8 +35,8 @@ interface Props {
 }
 
 /**
- * Exercício na sessão do aluno: meta de cada série, sugestão de carga (editável) e repetições vazias até o aluno
- * digitar. O ✓ grava no aparelho na hora. O plano não é editável aqui.
+ * Exercício na tela do aluno: observação do treinador, vídeo, carga de trabalho do dia e um cartão por série com a
+ * meta, a carga sugerida (editável) e as repetições vazias até o aluno digitar. O ✓ grava no aparelho na hora.
  */
 export function ExercicioAluno(p: Props) {
   const { cores } = useTema();
@@ -58,61 +55,53 @@ export function ExercicioAluno(p: Props) {
   };
 
   return (
-    <View style={[estilos.cartao, { borderColor: feitas === e.series.length && feitas ? cores.sucesso : cores.borda, backgroundColor: cores.superficie }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${p.aberto ? 'Fechar' : 'Abrir'} ${e.nome}`}
-        accessibilityState={{ expanded: p.aberto }}
-        onPress={p.aoAbrir}
-        style={estilos.topo}>
-        <View style={estilos.titulo}>
-          <Texto style={estilos.nome}>
-            {p.posicao + 1}. {e.nome}
-          </Texto>
-          <View style={estilos.selos}>
-            <Selo texto={`${feitas}/${e.series.length} séries`} tipo={feitas === e.series.length && feitas ? 'sucesso' : feitas ? 'atencao' : 'neutro'} />
-            {e.modalidade ? <Texto variante="pequeno">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
-          </View>
-        </View>
-        {p.aberto ? <ChevronUp size={20} color={cores.textoSuave} /> : <ChevronDown size={20} color={cores.textoSuave} />}
-      </Pressable>
-      {p.aberto ? (
-        <View style={estilos.corpo}>
-          {e.observacao ? <Texto variante="suave">{e.observacao}</Texto> : null}
-          {!e.progressao ? <Texto style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
-          {videoValido(e.videoUrl) ? <Botao rotulo="Vídeo" tipo="secundario" Icone={PlayCircle} aoTocar={abrirVideo} /> : null}
-          {usaCargaDeTrabalho(e) ? (
-            <View style={estilos.base}>
-              <CampoNumerico
-                rotulo={`Carga de trabalho de hoje (${p.config.tipoTrabalho})`}
-                sufixo="kg"
-                valor={base}
-                aoMudar={p.aoMudarCargaDoDia}
-                ajuda={
-                  p.ultima?.carga != null
-                    ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}`
-                    : 'Sem registro anterior: digite a carga que vai usar.'
-                }
-              />
-            </View>
-          ) : null}
-          {calculadas.map((c, i) => (
-            <LinhaSerie
-              key={c.serie.uid}
-              calculada={c}
-              indice={i}
-              semCarga={e.unidade === 'nenhuma'}
-              registro={p.registroDe(c.serie.uid)}
-              aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
-            />
-          ))}
+    <View style={estilos.exercicio}>
+      {e.observacao ? (
+        <View style={[estilos.obs, { backgroundColor: cores.superficie, borderLeftColor: cores.atencao }]}>
+          <Texto variante="suave" style={estilos.obsTexto}>{e.observacao}</Texto>
         </View>
       ) : null}
+      {!e.progressao ? <Texto style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
+      {videoValido(e.videoUrl) ? (
+        <Botao rotulo="Assistir vídeo de execução" tipo="secundario" Icone={PlayCircle} cheio aoTocar={abrirVideo} />
+      ) : null}
+      {usaCargaDeTrabalho(e) ? (
+        <View style={[estilos.base, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+          <CampoNumericoGrande
+            rotulo={`Carga de trabalho (${p.config.tipoTrabalho}) · ${dataCurta(p.data)}`}
+            sufixo="kg"
+            destaque
+            valor={base}
+            aoMudar={p.aoMudarCargaDoDia}
+          />
+          <Texto variante="pequeno">
+            {p.ultima?.carga != null
+              ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}`
+              : 'Sem registro anterior: digite a carga que vai usar.'}
+          </Texto>
+        </View>
+      ) : null}
+      <View style={estilos.tituloSeries}>
+        <Texto variante="secao">Séries do plano</Texto>
+        <Texto variante="pequeno">
+          {feitas} de {e.series.length} feitas
+        </Texto>
+      </View>
+      {calculadas.map((c, i) => (
+        <CartaoSerie
+          key={c.serie.uid}
+          calculada={c}
+          indice={i}
+          semCarga={e.unidade === 'nenhuma'}
+          registro={p.registroDe(c.serie.uid)}
+          aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
+        />
+      ))}
     </View>
   );
 }
 
-function LinhaSerie({
+function CartaoSerie({
   calculada,
   indice,
   semCarga,
@@ -125,7 +114,7 @@ function LinhaSerie({
   registro: RegistroLocal | undefined;
   aoRegistrar: (d: DadosSerie) => void;
 }) {
-  const { cores } = useTema();
+  const { cores, marca, sobreMarca } = useTema();
   // Antes de gravar, a carga acompanha a sugestão até o aluno mexer; as repetições começam vazias.
   const [cargaDigitada, setCargaDigitada] = useState<number | null | undefined>(undefined);
   const [repsDigitadas, setRepsDigitadas] = useState<number | null>(null);
@@ -133,6 +122,7 @@ function LinhaSerie({
   const reps = registro ? registro.repeticoes : repsDigitadas;
   const feita = !!registro?.concluida;
   const s = calculada.serie;
+  const trabalho = s.intensidade?.modo === 'CARGA_TRABALHO';
 
   const mudar = (parcial: Partial<DadosSerie>) => {
     if (registro) {
@@ -144,10 +134,21 @@ function LinhaSerie({
   };
 
   return (
-    <View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: cores.superficie2 }]}>
+    <View
+      style={[
+        estilos.serie,
+        { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? `${cores.sucesso}1A` : cores.superficie },
+      ]}>
       <View style={estilos.cabecaSerie}>
-        <Texto style={estilos.nomeSerie}>
-          {indice + 1}. {s.tipo}
+        <View style={[estilos.etiqueta, { backgroundColor: trabalho ? marca : cores.superficie2 }]}>
+          <Texto style={[estilos.etiquetaTexto, { color: trabalho ? sobreMarca : cores.textoSuave }]}>
+            {trabalho ? s.tipo : `Série ${indice + 1}`}
+          </Texto>
+        </View>
+        <Texto
+          style={[estilos.nomeSerie, feita && { textDecorationLine: 'line-through', color: cores.textoSuave }]}
+          numberOfLines={1}>
+          {trabalho ? `Série ${indice + 1}` : s.tipo}
         </Texto>
         <Texto variante="pequeno" style={estilos.meta}>
           {calculada.meta}
@@ -155,13 +156,22 @@ function LinhaSerie({
       </View>
       <View style={estilos.campos}>
         {semCarga ? null : (
-          <View style={estilos.campo}>
-            <CampoNumerico rotulo="Carga" sufixo="kg" valor={carga} aoMudar={(v) => mudar({ carga: v })} />
-          </View>
+          <CampoNumericoGrande
+            rotulo="Peso"
+            rotuloAcessivel={`Peso da série ${indice + 1}`}
+            sufixo="kg"
+            valor={carga}
+            aoMudar={(v) => mudar({ carga: v })}
+          />
         )}
-        <View style={estilos.campo}>
-          <CampoNumerico rotulo="Reps" inteiro valor={reps} aoMudar={(v) => mudar({ repeticoes: v })} />
-        </View>
+        <CampoNumericoGrande
+          rotulo="Reps feitas"
+          rotuloAcessivel={`Repetições da série ${indice + 1}`}
+          sufixo="reps"
+          inteiro
+          valor={reps}
+          aoMudar={(v) => mudar({ repeticoes: v })}
+        />
         <Pressable
           accessibilityRole="checkbox"
           accessibilityLabel={`Série ${indice + 1} ${s.tipo} feita`}
@@ -171,7 +181,7 @@ function LinhaSerie({
             estilos.check,
             { borderColor: feita ? cores.sucesso : cores.borda, backgroundColor: feita ? cores.sucesso : 'transparent', opacity: pressed ? 0.7 : 1 },
           ]}>
-          <Check size={24} color={feita ? '#FFFFFF' : cores.textoSuave} strokeWidth={3} />
+          <Check size={26} color={feita ? '#FFFFFF' : cores.textoSuave} strokeWidth={3} />
         </Pressable>
       </View>
       {registro?.situacao === 'FALHOU' ? <Texto variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
@@ -180,23 +190,22 @@ function LinhaSerie({
 }
 
 const estilos = StyleSheet.create({
-  cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
-  topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), minHeight: ALVO_TOQUE },
-  titulo: { flex: 1, gap: espaco(0.5) },
-  nome: { fontFamily: fontes.semi, fontSize: 16 },
-  selos: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
-  corpo: { gap: espaco(1.25) },
+  exercicio: { gap: espaco(1.5) },
+  obs: { borderLeftWidth: 3, borderRadius: RAIO, paddingVertical: espaco(1.25), paddingHorizontal: espaco(1.5) },
+  obsTexto: { fontStyle: 'italic' },
   destaque: { fontFamily: fontes.semi },
-  base: { maxWidth: 320 },
-  serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
-  cabecaSerie: { gap: 2 },
-  nomeSerie: { fontFamily: fontes.semi },
-  meta: { flexShrink: 1 },
+  base: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1) },
+  tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: espaco(1), gap: espaco(1) },
+  serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.75), gap: espaco(1.25) },
+  cabecaSerie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
+  etiqueta: { borderRadius: 4, paddingHorizontal: espaco(0.75), paddingVertical: 3 },
+  etiquetaTexto: { fontFamily: fontes.negrito, fontSize: 11, lineHeight: 14, letterSpacing: 0.4, textTransform: 'uppercase' },
+  nomeSerie: { fontFamily: fontes.semi, fontSize: 16, flexShrink: 1 },
+  meta: { flexGrow: 1, flexShrink: 1, textAlign: 'right' },
   campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1) },
-  campo: { flex: 1, maxWidth: 140 },
   check: {
-    width: 52,
-    height: ALVO_TOQUE,
+    width: 56,
+    height: 52,
     borderWidth: 2,
     borderRadius: RAIO,
     alignItems: 'center',
