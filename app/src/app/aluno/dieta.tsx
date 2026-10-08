@@ -100,10 +100,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
     <>
       {salva ? <Selo texto="Sem conexão — mostrando a última versão salva" tipo="neutro" /> : null}
       <Cartao>
-        <View style={estilos.topo}>
-          <Texto numerico variante="subtitulo" style={estilos.cresce}>{versao.titulo}</Texto>
-          <Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
-        </View>
+        <Texto numerico variante="subtitulo">{versao.titulo}</Texto>
         {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
         <Texto numerico variante="suave">
           {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
@@ -141,6 +138,10 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
+      <Botao rotulo="Baixar PDF da dieta" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
+      <Texto variante="pequeno">
+        {versao.titulo} (v{versao.numero})
+      </Texto>
     </>
   );
 }
@@ -173,8 +174,6 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
 }
 
 const estilos = StyleSheet.create({
-  topo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
-  cresce: { flex: 1 },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
   textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
   orientacao: { gap: 2 },

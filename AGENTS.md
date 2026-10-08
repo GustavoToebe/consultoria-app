@@ -14,7 +14,7 @@ O aluno vê o plano e registra carga e repetições no celular ou na web, inclus
 Arquivo de instruções compartilhado entre ferramentas de IA; o `CLAUDE.md` só importa este (`@AGENTS.md`).
 Edite **só aqui**. Mudança que invalida algo daqui atualiza este arquivo junto com a funcionalidade. Manter curto.
 
-Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a demonstração; nunca commitar na `main`.
+Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele pedir. A tag `demo-parte-a` é o plano B da demonstração.
 
 ## Regras que não podem ser quebradas
 - Um treinador **nunca** vê nem altera dado de outra consultoria; um aluno só vê os **próprios** dados. Toda leitura e
