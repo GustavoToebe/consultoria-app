@@ -12,6 +12,8 @@ interface Props {
   titulo?: string;
   /** Uma linha `suave` abaixo do título, no lugar de texto solto de explicação. */
   descricao?: string;
+  /** Faixa de grupo (`CabecalhoDeGrupo`) rente às bordas, no lugar do título: o conteúdo ganha o padding só embaixo. */
+  cabecalho?: ReactNode;
   /** Botões do cartão, à direita do título. */
   acoes?: ReactNode;
   /** O título vira botão que recolhe e expande o conteúdo (as `acoes` ficam sempre visíveis). */
@@ -22,13 +24,14 @@ interface Props {
 }
 
 /** Cartão flat: superfície, borda nos dois temas, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
-export function Cartao({ children, titulo, descricao, acoes, recolhivel, recolhido = false, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, acoes, recolhivel, recolhido = false, style }: Props) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
   const Seta = fechado ? ChevronDown : ChevronUp;
   return (
-    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2) }, style]}>
+    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: cabecalho ? 0 : espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2) }, cabecalho ? estilos.comCabecalho : null, style]}>
+      {cabecalho ?? null}
       {titulo || acoes ? (
         <View style={estilos.topo}>
           <View style={estilos.tituloEDescricao}>
@@ -48,13 +51,15 @@ export function Cartao({ children, titulo, descricao, acoes, recolhivel, recolhi
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
         </View>
       ) : null}
-      {fechado ? null : children}
+      {fechado ? null : cabecalho ? <View style={[estilos.corpo, { padding: espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2) }]}>{children}</View> : children}
     </Card>
   );
 }
 
 const estilos = StyleSheet.create({
   cartao: { borderWidth: 1, borderRadius: RAIO, gap: espaco(2) },
+  comCabecalho: { overflow: 'hidden', gap: 0 },
+  corpo: { gap: espaco(2) },
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   tituloEDescricao: { flexShrink: 1, flexGrow: 1, flexBasis: 200, gap: 2 },
   titulo: { flexShrink: 1 },
