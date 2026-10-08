@@ -390,3 +390,64 @@ export interface RegistroPeso {
   variacao: number | null;
   observacao: string | null;
 }
+
+// ---- Aluno (seção 9.4) ----
+
+export interface TreinoAtual {
+  planoId: string;
+  versaoId: string;
+  numero: number;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+  publicadoEm: string;
+  conteudo: ConteudoTreino;
+}
+
+export interface UltimaCarga {
+  carga: number | null;
+  repeticoes: number | null;
+  data: string;
+}
+
+/** Tudo o que o app guarda para o aluno treinar sem internet. `treino` nulo = sem plano publicado. */
+export interface PainelAluno {
+  marca: Marca;
+  aluno: { nome: string };
+  treino: TreinoAtual | null;
+  /** Por `exercicioId` da biblioteca: última carga em série de trabalho. */
+  ultimasCargas: Record<string, UltimaCarga>;
+  configuracao: { arredondamentoKg: number; tipoTrabalho: string };
+  geradoEm: string;
+}
+
+export interface VersaoDetalhe<C> {
+  id: string;
+  planoId: string;
+  numero: number;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+  publicadoEm: string;
+  conteudo: C;
+}
+
+export interface RegistroEnvio {
+  id: string;
+  planoVersaoId: string;
+  sessaoUid: string;
+  exercicioUid: string;
+  serieUid: string;
+  data: string;
+  carga: number | null;
+  repeticoes: number | null;
+  concluida: boolean;
+  observacao: string | null;
+  alteradoNoAparelhoEm: string;
+}
+
+export type SituacaoEnvio = 'ACEITO' | 'IGNORADO_ANTIGO' | 'RECUSADO';
+
+export interface LoteResponse {
+  resultados: { id: string; situacao: SituacaoEnvio; motivo: string | null }[];
+}

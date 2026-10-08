@@ -82,3 +82,8 @@ export function numeroDaTela(texto: string, inteiro = false): number | null | un
   const valido = inteiro ? /^-?\d+$/.test(t) : /^-?\d+(\.\d+)?$/.test(t);
   return valido ? Number(t) : undefined;
 }
+
+/** Dia da semana como no plano: 1 = segunda ... 7 = domingo. */
+export function diaDaSemana(agora: Date = new Date()): number {
+  return ((agora.getDay() + 6) % 7) + 1;
+}

@@ -8,6 +8,7 @@ import type {
   CatalogoExercicio,
   Configuracao,
   ConsultoriaResponse,
+  ConteudoDieta,
   ConviteGerado,
   ConvitePublico,
   DiaDeTreino,
@@ -17,20 +18,24 @@ import type {
   Fonte,
   ImportacaoResultado,
   LoginResponse,
+  LoteResponse,
   Marca,
   PaginaAlunos,
+  PainelAluno,
   PainelTreinador,
   PlanoDetalhe,
   PlanoResumo,
   PreviaCsv,
   ProgressoPonto,
   Receita,
+  RegistroEnvio,
   RegistroPeso,
   ResultadoValidacao,
   SituacaoFiltro,
   Tema,
   TipoPlano,
   TipoReceita,
+  VersaoDetalhe,
 } from './tipos';
 
 /** Uma função por rota da API. As telas não montam URL nem método. */
@@ -224,3 +229,16 @@ export const replicarPlano = <C>(tipo: TipoPlano, id: string, dados: Omit<NovoPl
 
 export const salvarPlanoComoReceita = (tipo: TipoPlano, id: string, nome: string, descricao: string | null) =>
   requisicao<Receita>(`/${prefixo(tipo)}/${id}/salvar-como-receita`, { metodo: 'POST', corpo: { nome, descricao } });
+
+// ---- Aluno (sempre o aluno do token) ----
+
+export const painelAluno = () => requisicao<PainelAluno>('/aluno/painel');
+
+export const dietaAluno = () => requisicao<{ dieta: VersaoDetalhe<ConteudoDieta> | null }>('/aluno/dieta');
+
+export const enviarRegistros = (registros: RegistroEnvio[]) =>
+  requisicao<LoteResponse>('/aluno/execucoes/lote', { metodo: 'POST', corpo: { registros } });
+
+export const historicoAluno = (de: string, ate: string) => requisicao<DiaDeTreino[]>(`/aluno/execucoes?de=${de}&ate=${ate}`);
+
+export const pesosAluno = () => requisicao<RegistroPeso[]>('/aluno/pesos');

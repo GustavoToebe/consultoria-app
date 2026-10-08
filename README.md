@@ -44,6 +44,9 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
 - **Instruções do PDF do treino** vêm de `docs/Instruções e Regras.csv` (FS, cálculo, WS) mais as regras citadas no
   plano; o texto completo do PDF do Plano 16 pode substituir na tela Marca.
 - `login_tentativa` segue a V016 real da Central (uma linha por chave), não o esboço da seção 6 do plano.
+- **Offline do aluno em AsyncStorage**, no celular e na web (o plano prevê expo-sqlite no nativo e aceita
+  AsyncStorage para a demonstração). A interface `offline/armazenamento.ts` permite trocar sem mexer no resto.
+  Na web o app não abre sem servidor (não há service worker); sem internet no meio do uso, continua funcionando.
 - `execucao_serie.serie_trabalho` (não está no esboço): marca a série de trabalho, vinda da versão do plano.
 - Ambiguidades dos PDFs para mostrar ao Saraiva (seção 19 do plano): Off ativo na quarta ou na quinta (o seed usa
   quinta); back off sobre "carga da WS" ou "maior peso do exercício" (o app usa o maior peso registrado na WS do dia);

@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { aoEncerrar, ErroApi, guardarSessao, limparSessaoLocal, renovarSessao } from '../api/cliente';
@@ -107,6 +108,37 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       aoEncerrar(null);
     };
   }, [abrir]);
+
+  // Aberta sem internet: tenta renovar quando a rede volta (e a cada 30 s). Recusada no servidor, volta para
+  // "Entrar" sem apagar os registros do aparelho (o mesmo aluno, ao entrar de novo, envia o que ficou).
+  useEffect(() => {
+    if (!offline) return;
+    let ativo = true;
+    const tentar = () => {
+      renovarSessao().then(
+        (sessao) => {
+          if (!ativo) return;
+          if (sessao) {
+            void abrir(sessao);
+          } else {
+            setPerfil(null);
+            setOffline(false);
+            setSituacao('anonimo');
+          }
+        },
+        () => undefined,
+      );
+    };
+    const cancelarRede = NetInfo.addEventListener((estado) => {
+      if (estado.isConnected) tentar();
+    });
+    const relogio = setInterval(tentar, 30_000);
+    return () => {
+      ativo = false;
+      cancelarRede();
+      clearInterval(relogio);
+    };
+  }, [offline, abrir]);
 
   const valor = useMemo<ValorSessao>(
     () => ({

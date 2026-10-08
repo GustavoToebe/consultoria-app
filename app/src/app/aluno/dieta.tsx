@@ -1,0 +1,140 @@
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
+import { ErroApi } from '../../api/cliente';
+import { dietaAluno } from '../../api/rotas';
+import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
+import { normalizarDieta, somar, totalDoDia } from '../../dominio/dieta';
+import { dataParaTela, numeroParaTela } from '../../dominio/formatos';
+import { useAluno } from '../../offline/AlunoProvider';
+import { useTema } from '../../tema/TemaProvider';
+import { espaco, fontes, RAIO } from '../../tema/tokens';
+import { textoTotais } from '../../treinador/dieta/CartaoRefeicao';
+import { Abas } from '../../ui/Abas';
+import { Cabecalho } from '../../ui/Cabecalho';
+import { Cartao } from '../../ui/Cartao';
+import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { textoDoErro } from '../../ui/erros';
+import { Selo } from '../../ui/Selo';
+import { Tela } from '../../ui/Tela';
+import { Texto } from '../../ui/Texto';
+import { useCarregar } from '../../ui/useCarregar';
+
+/**
+ * Dieta publicada (só leitura). Busca online; sem conexão mostra a última vista neste aparelho, avisando que pode
+ * estar desatualizada.
+ */
+export default function DietaAluno() {
+  const { repositorio } = useAluno();
+  const { dados, erro, carregando, recarregar } = useCarregar('dieta-aluno', async () => {
+    try {
+      const { dieta } = await dietaAluno();
+      await repositorio.salvarDieta(dieta);
+      return { dieta, salva: false };
+    } catch (e) {
+      const salva = e instanceof ErroApi && e.semConexao ? await repositorio.lerDieta() : null;
+      if (salva) return { dieta: salva, salva: true };
+      throw e;
+    }
+  });
+
+  return (
+    <Tela bordas={['top']} largura={720}>
+      <Cabecalho titulo="Dieta" acoes={<SeloSincronizacao />} />
+      {erro ? (
+        <MensagemErro
+          texto={erro instanceof ErroApi && erro.semConexao ? 'Sem conexão e a dieta ainda não foi aberta neste aparelho.' : textoDoErro(erro)}
+          tentarDeNovo={recarregar}
+        />
+      ) : null}
+      {!dados && carregando ? <Carregando /> : null}
+      {dados && !dados.dieta ? <Vazio texto="Seu treinador ainda não publicou uma dieta para você." /> : null}
+      {dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} /> : null}
+    </Tela>
+  );
+}
+
+function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean }) {
+  const { cores } = useTema();
+  const c = normalizarDieta(versao.conteudo);
+  return (
+    <>
+      {salva ? <Selo texto="Sem conexão — mostrando a última versão salva" tipo="neutro" /> : null}
+      <Cartao>
+        <Texto variante="subtitulo">{versao.titulo}</Texto>
+        {c.objetivo ? <Texto>Objetivo: {c.objetivo}</Texto> : null}
+        <Texto variante="suave">
+          {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
+        </Texto>
+      </Cartao>
+      {c.refeicoes.map((r) => (
+        <CartaoRefeicaoAluno key={r.uid} refeicao={r} />
+      ))}
+      <View style={[estilos.total, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
+        <Texto variante="secao">Total do dia (opção A de cada refeição)</Texto>
+        <Texto style={estilos.textoTotal}>{textoTotais(totalDoDia(c))}</Texto>
+      </View>
+      {c.orientacoes.length ? (
+        <Cartao titulo="Orientações">
+          {c.orientacoes.map((o, i) => (
+            <View key={i} style={estilos.orientacao}>
+              {o.titulo ? <Texto style={estilos.forte}>{o.titulo}</Texto> : null}
+              <Texto variante="suave">{o.texto}</Texto>
+            </View>
+          ))}
+        </Cartao>
+      ) : null}
+      {c.observacoes ? (
+        <Cartao titulo="Observações">
+          <Texto>{c.observacoes}</Texto>
+        </Cartao>
+      ) : null}
+      {c.suplementacao.length ? (
+        <Cartao titulo="Suplementação">
+          {c.suplementacao.map((s) => (
+            <View key={s.uid} style={[estilos.item, { borderColor: cores.borda }]}>
+              <Texto style={estilos.forte}>{s.nome || '—'}</Texto>
+              <Texto variante="suave">{[s.dose, s.horario, s.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
+            </View>
+          ))}
+        </Cartao>
+      ) : null}
+    </>
+  );
+}
+
+function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
+  const { cores } = useTema();
+  const [ativa, setAtiva] = useState(0);
+  const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
+  return (
+    <Cartao titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`}>
+      {refeicao.observacao ? <Texto variante="suave">{refeicao.observacao}</Texto> : null}
+      {refeicao.opcoes.length > 1 ? (
+        <Abas
+          abas={refeicao.opcoes.map((o, i) => ({ valor: String(i), rotulo: `Opção ${o.rotulo}` }))}
+          ativa={String(Math.min(ativa, refeicao.opcoes.length - 1))}
+          aoMudar={(v) => setAtiva(Number(v))}
+        />
+      ) : null}
+      {opcao?.itens.map((i) => (
+        <View key={i.uid} style={[estilos.item, { borderColor: cores.borda }]}>
+          <Texto style={estilos.forte}>
+            {i.nome} — {numeroParaTela(i.quantidade)} {i.unidade}
+          </Texto>
+          <Texto variante="suave">{textoTotais(somar([i]))}</Texto>
+        </View>
+      ))}
+      {opcao ? <Texto style={estilos.forte}>Total: {textoTotais(somar(opcao.itens))}</Texto> : null}
+    </Cartao>
+  );
+}
+
+const estilos = StyleSheet.create({
+  total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
+  textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
+  orientacao: { gap: 2 },
+  forte: { fontFamily: fontes.semi },
+  item: { borderTopWidth: 1, paddingTop: espaco(1), gap: 2 },
+});

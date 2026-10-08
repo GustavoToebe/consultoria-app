@@ -98,7 +98,8 @@ export interface Opcoes {
 
 export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promise<T> {
   const resposta = await enviar(caminho, opcoes);
-  if (resposta.status === 401 && !opcoes.semRenovar && accessToken) {
+  // Também sem access em memória: a sessão pode ter aberto sem internet e ter refresh guardado.
+  if (resposta.status === 401 && !opcoes.semRenovar) {
     const corpo = await lerErro(resposta.clone());
     if (!CODIGOS_SEM_REPETICAO.has(corpo.codigo ?? '')) {
       const renovada = await renovarSessao();

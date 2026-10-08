@@ -36,14 +36,14 @@ export function CartaoRegistros({ alunoId }: { alunoId: string }) {
         {dados && dados.length === 0 ? (
           <Texto variante="suave">Nenhum registro no período. O aluno pode ter treinado sem registrar.</Texto>
         ) : null}
-        {[...(dados ?? [])].sort((a, b) => b.data.localeCompare(a.data)).map((d) => <Dia key={d.data} dia={d} />)}
+        {[...(dados ?? [])].sort((a, b) => b.data.localeCompare(a.data)).map((d) => <DiaRegistros key={d.data} dia={d} />)}
       </Cartao>
       {dados && dados.length > 0 ? <CartaoProgresso alunoId={alunoId} dias={dados} /> : null}
     </>
   );
 }
 
-function Dia({ dia }: { dia: DiaDeTreino }) {
+export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
   const { cores } = useTema();
   return (
     <View style={[estilos.dia, { borderColor: cores.borda }]}>

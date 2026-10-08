@@ -23,7 +23,7 @@ interface Props {
 
 /** Topo das telas: marca do treinador (ou título da página), selo de "sem conexão" e ações à direita. */
 export function Cabecalho({ titulo, subtitulo, acoes, mostrarMarca, voltar }: Props) {
-  const { marca, offline } = useSessao();
+  const { marca, offline, usuario } = useSessao();
   const { width } = useWindowDimensions();
   const comMarca = mostrarMarca === 'sempre' || (mostrarMarca === 'celular' && width < LARGURA_MENU_LATERAL);
   return (
@@ -42,7 +42,8 @@ export function Cabecalho({ titulo, subtitulo, acoes, mostrarMarca, voltar }: Pr
           {comMarca ? <MarcaTitulo marca={marca} /> : null}
           {titulo ? <Texto variante="titulo">{titulo}</Texto> : null}
           {subtitulo ? <Texto variante="suave">{subtitulo}</Texto> : null}
-          {offline ? <Selo texto="Sem conexão" tipo="neutro" /> : null}
+          {/* O aluno já vê o selo de sincronização, que diz se está sem conexão. */}
+          {offline && usuario?.papel !== 'ALUNO' ? <Selo texto="Sem conexão" tipo="neutro" /> : null}
         </View>
       </View>
       {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
