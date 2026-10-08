@@ -76,7 +76,7 @@ public class AlunoService {
     @Transactional
     public AlunoDetalhe criar(AlunoRequest r) {
         Aluno aluno = new Aluno(r.nome().trim(), email(r.email()), Buscas.opcional(r.objetivo()),
-                Buscas.opcional(r.observacoes()));
+                Buscas.opcional(r.observacoes()), r.diasAtualizacao());
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
     }
 
@@ -93,7 +93,7 @@ public class AlunoService {
                     "CONFLITO_EDICAO");
         }
         aluno.alterarDados(r.nome().trim(), email(r.email()), Buscas.opcional(r.objetivo()),
-                Buscas.opcional(r.observacoes()));
+                Buscas.opcional(r.observacoes()), r.diasAtualizacao());
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
     }
 

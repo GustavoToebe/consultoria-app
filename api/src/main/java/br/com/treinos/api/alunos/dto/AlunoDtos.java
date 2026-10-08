@@ -3,6 +3,8 @@ package br.com.treinos.api.alunos.dto;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.consultoria.MarcaPublica;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -23,7 +25,12 @@ public final class AlunoDtos {
             @Email @Size(max = 254) String email,
             @Size(max = 200) String objetivo,
             @Size(max = 4000) String observacoes,
-            Long versao) {
+            Long versao,
+            @Min(1) @Max(365) Integer diasAtualizacao) {
+
+        public AlunoRequest(String nome, String email, String objetivo, String observacoes, Long versao) {
+            this(nome, email, objetivo, observacoes, versao, null);
+        }
     }
 
     public record PlanoAtivoResumo(UUID id, String titulo) {
@@ -37,12 +44,13 @@ public final class AlunoDtos {
     }
 
     public record AlunoDetalhe(UUID id, String nome, String email, String objetivo, String observacoes, boolean ativo,
-                               boolean temAcesso, Instant conviteExpiraEm, Long versao) {
+                               boolean temAcesso, Instant conviteExpiraEm, Long versao,
+                               Integer diasAtualizacao) {
         public static AlunoDetalhe de(Aluno a) {
             boolean conviteValido = a.getConviteExpiraEm() != null && a.getConviteExpiraEm().isAfter(Instant.now());
             return new AlunoDetalhe(a.getId(), a.getNome(), a.getEmail(), a.getObjetivo(), a.getObservacoes(),
                     a.isAtivo(), a.getUsuarioId() != null, conviteValido ? a.getConviteExpiraEm() : null,
-                    a.getVersao());
+                    a.getVersao(), a.getDiasAtualizacao());
         }
     }
 

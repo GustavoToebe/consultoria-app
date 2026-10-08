@@ -66,6 +66,25 @@ class ConviteEAlunosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void diasDeAtualizacaoSaoOpcionaisEFicamEntre1e365() throws Exception {
+        assertThat(api.get("/alunos/" + aluno, treinador, 200).get("diasAtualizacao").isNull()).isTrue();
+        JsonNode detalhe = api.get("/alunos/" + aluno, treinador, 200);
+        var edicao = new java.util.HashMap<String, Object>();
+        edicao.put("nome", "Maria Fictícia Souza");
+        edicao.put("versao", detalhe.get("versao").asLong());
+        edicao.put("diasAtualizacao", 30);
+        JsonNode salvo = api.put("/alunos/" + aluno, treinador, edicao, 200);
+        assertThat(salvo.get("diasAtualizacao").asInt()).isEqualTo(30);
+        edicao.put("versao", salvo.get("versao").asLong());
+        edicao.put("diasAtualizacao", 0);
+        api.put("/alunos/" + aluno, treinador, edicao, 400);
+        edicao.put("diasAtualizacao", 366);
+        api.put("/alunos/" + aluno, treinador, edicao, 400);
+        edicao.put("diasAtualizacao", null);
+        assertThat(api.put("/alunos/" + aluno, treinador, edicao, 200).get("diasAtualizacao").isNull()).isTrue();
+    }
+
+    @Test
     void conviteExpiradoOuSubstituidoNaoVale() throws Exception {
         String primeiro = api.post("/alunos/" + aluno + "/convite", treinador, null, 200).get("codigo").asString();
         String segundo = api.post("/alunos/" + aluno + "/convite", treinador, null, 200).get("codigo").asString();

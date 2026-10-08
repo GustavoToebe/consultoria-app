@@ -54,6 +54,8 @@ O app acha a API sozinho em `http://IP-DO-PC:8088/api` (pelo endereço do Metro)
 ## Roteiro da demonstração
 
 Antes do ensaio, recomeçar do zero: `docker compose down -v && docker compose up -d --build`.
+Depois, para trazer os vídeos, as semanas de treino (Wellness, Torso & Limbs, Planos 10, 2.1 e 16) e a mobilidade:
+`set -a; . ./.env; set +a; node scripts/importacao/importar.mjs` (pode repetir, não duplica).
 
 1. PC, `http://IP:8088`: entrar como `saraiva@demo.local` → marca SARAIVA TEAM (fonte Metal); Perfil → tema claro e
    voltar.

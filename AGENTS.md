@@ -58,6 +58,10 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   (`V007`, `V008`) não se edita à mão, e fonte nova ou corrigida = migration nova. Valor ausente nunca vira zero
   (`Tr`/`NA` → 0 com marca em `tracos`). A busca usa `nome_busca` (sem acento), calculada igual no Python e em
   `Buscas.semAcento`; teste: `python -m unittest scripts/catalogo/test_catalogo.py`.
+- Modelos do Planejamento (`receitas/`): tipo `MOBILIDADE` (alongamento/mobilidade: seções com itens nome, prescrição em texto e
+  vídeo) é só modelo reutilizável, fora de "Aplicar ao aluno". Pasta de plano pode ser finalizada
+  (`POST /pastas/{id}/finalizar`, `concluida_em`); peso e observação opcionais vão para o registro de peso na mesma
+  transação. Aluno tem `dias_atualizacao` (1 a 365): "Nova pasta" sugere início hoje e fim = início + dias - 1.
 - Planos: treino e dieta compartilham `planos/PlanoServiceBase` (rascunho com lock otimista, validar, publicar versão
   imutável, replicar com uids novos). Erro de validação = 422 `PLANO_INVALIDO`/`CONFIRMAR_AVISOS` com a lista em
   `fieldErrors` (`field` = caminho no conteúdo).
@@ -129,3 +133,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   `dominio/progressoSemana.ts` combina histórico e registros locais da versão ativa; cache de uma semana no
   repositório isolado por usuário, apagado no logout. Não adicionar notificações com o app fechado neste escopo.
   `Folha` usa mola e arraste no cabeçalho; web mantém Esc e clique fora. Bases RNR incluem licença MIT local.
+
+- Importação de conteúdo do Saraiva (vídeos, semanas de treino e mobilidade): `node scripts/importacao/importar.mjs`
+  (`--simular` só lê; `--substituir` troca modelos que já existem; `--trocar-videos` troca vídeo já gravado). Usa a API
+  como treinador (`DEMO_SENHA` do ambiente, sem imprimir) e é idempotente. Dados em `scripts/importacao/dados/`, sem
+  dado de aluno. Depois de `docker compose down -v`, rodar de novo.

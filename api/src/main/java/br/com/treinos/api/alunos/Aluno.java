@@ -39,6 +39,9 @@ public class Aluno {
 
     private String observacoes;
 
+    @Column(name = "dias_atualizacao")
+    private Integer diasAtualizacao;
+
     @Column(nullable = false)
     private boolean ativo = true;
 
@@ -68,10 +71,19 @@ public class Aluno {
     }
 
     public Aluno(String nome, String email, String objetivo, String observacoes) {
+        this(nome, email, objetivo, observacoes, null);
+    }
+
+    public Aluno(String nome, String email, String objetivo, String observacoes, Integer diasAtualizacao) {
         this.nome = nome;
         this.email = email;
         this.objetivo = objetivo;
         this.observacoes = observacoes;
+        this.diasAtualizacao = diasAtualizacao;
+    }
+
+    public Integer getDiasAtualizacao() {
+        return diasAtualizacao;
     }
 
     public UUID getId() {
@@ -130,11 +142,12 @@ public class Aluno {
         return versao;
     }
 
-    public void alterarDados(String nome, String email, String objetivo, String observacoes) {
+    public void alterarDados(String nome, String email, String objetivo, String observacoes, Integer diasAtualizacao) {
         this.nome = nome;
         this.email = email;
         this.objetivo = objetivo;
         this.observacoes = observacoes;
+        this.diasAtualizacao = diasAtualizacao;
         this.atualizadoEm = Instant.now();
     }
 

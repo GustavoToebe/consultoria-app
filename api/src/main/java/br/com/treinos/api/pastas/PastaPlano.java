@@ -37,6 +37,12 @@ public class PastaPlano {
     public boolean isArquivado() { return arquivado; }
     public void arquivar() { this.arquivado = true;  }
 
+    @Column(name = "concluida_em")
+    private Instant concluidaEm;
+    public Instant getConcluidaEm() { return concluidaEm; }
+    public void concluir(Instant quando) { this.concluidaEm = quando; }
+    public void reabrir() { this.concluidaEm = null; }
+
 
     private LocalDate inicio;
 

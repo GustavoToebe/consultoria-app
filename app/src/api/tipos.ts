@@ -108,6 +108,7 @@ export interface AlunoDetalhe {
   temAcesso: boolean;
   conviteExpiraEm: string | null;
   versao: number;
+  diasAtualizacao: number | null;
 }
 
 export interface AlunoRequest {
@@ -116,6 +117,8 @@ export interface AlunoRequest {
   objetivo: string | null;
   observacoes: string | null;
   versao?: number | null;
+  /** Dias do ciclo do aluno (1 a 365): sugere o fim do período ao criar uma pasta. */
+  diasAtualizacao?: number | null;
 }
 
 export interface ConviteGerado {
@@ -330,6 +333,15 @@ export interface PastaResumo {
   titulo: string;
   inicio: string | null;
   fim: string | null;
+  /** Instante em que o treinador finalizou a pasta; nulo = aberta. */
+  concluidaEm: string | null;
+}
+
+/** Peso e observação são opcionais e vão para o registro de peso do aluno (a observação só com o peso). */
+export interface FinalizarPastaRequest {
+  data: string | null;
+  pesoKg: number | null;
+  observacao: string | null;
 }
 
 export interface PlanoResumo {

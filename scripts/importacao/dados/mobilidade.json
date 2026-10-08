@@ -1,0 +1,53 @@
+{
+  "modelos": [
+    {
+      "nome": "Mobilidade e alongamentos",
+      "descricao": "Planilha de mobilidade e alongamentos do Saraiva Team (versão simples).",
+      "orientacoes": "Os alongamentos a seguir podem ser feitos todos os dias. Podem ser realizados ao acordar ou outro horário do seu dia.",
+      "secoes": [
+        {
+          "titulo": "Alongamentos",
+          "itens": [
+            ["Lunge Stretch", "2 x 20s cada lado", "https://www.youtube.com/watch?v=tsGPYSQbZx4"],
+            ["Alongamento de Illio Psoas", "2 x 20s cada lado", "https://www.youtube.com/shorts/3c7_-yyZcn4"],
+            ["Alongamento glúteo médio e dorsal", "2 x 30s cada lado", "https://www.youtube.com/shorts/zkm0vxyIBXo"],
+            ["Alongamento para lower back com joelho", "2 x 20s", "https://www.youtube.com/watch?v=mZkTt1pgZLs"],
+            ["Piriformis Pigeon Stretch", "2 x 15s cada lado", "https://www.youtube.com/watch?v=op-eDU9eNqM"],
+            ["Posterior de coxa com toalha", "2 x 20s cada lado", "https://www.youtube.com/shorts/hKj-l5dEvfg"],
+            ["Mobilidade torácica", "", "https://www.youtube.com/shorts/ItUNZR8I3bg"]
+          ]
+        }
+      ]
+    },
+    {
+      "nome": "Mobilidade e alongamentos (completo)",
+      "descricao": "Planilha de mobilidade e alongamentos do Saraiva Team com as seções Alongamentos e Mobilidade.",
+      "orientacoes": "Alongamentos diários: podem ser feitos todos os dias, ao acordar ou em outro horário do seu dia. Evite fazer antes do treino; deixe esse papel para a mobilidade.",
+      "secoes": [
+        {
+          "titulo": "Alongamentos",
+          "itens": [
+            ["Lunge Stretch", "2 x 20s cada lado", "https://www.youtube.com/watch?v=tsGPYSQbZx4"],
+            ["Alongamento de Illio Psoas", "2 x 20s cada lado", "https://www.youtube.com/shorts/3c7_-yyZcn4"],
+            ["Alongamento de peito com bandagem alta", "2 x 20s cada lado", ""],
+            ["Alongamento para lower back com joelho", "2 x 20s", "https://www.youtube.com/watch?v=mZkTt1pgZLs"],
+            ["Sphinx stretch", "2 x 20s", "https://www.youtube.com/watch?v=beQs5ChCZ0U"],
+            ["Piriformis Pigeon Stretch", "2 x 15s cada lado", "https://www.youtube.com/watch?v=op-eDU9eNqM"],
+            ["Tornozelo no solo", "2 x 15s", "https://www.youtube.com/shorts/_3dMj5JYqQw"]
+          ]
+        },
+        {
+          "titulo": "Mobilidade",
+          "itens": [
+            ["Mobilidade de ombro com cabo de madeira ou barra", "2 x 10s", "https://www.youtube.com/watch?v=Q8qPBYVjk_8"],
+            ["Mobilidade de quadril no solo", "2 x 10s", "https://www.youtube.com/watch?v=EqT_XhsbiCY"],
+            ["Mobilidade de tornozelo com anilha", "2 x 10s", "https://www.youtube.com/watch?v=2p-0jUllD4s"],
+            ["Mobilidade tornozelo com barra (faça sem peso na barra)", "2 x 10s", "https://www.youtube.com/watch?v=w8rNl_65d80"],
+            ["Shoulder Mobility com cabo de madeira", "2 x 10s", "https://www.youtube.com/watch?v=5AuywgN08v4"],
+            ["YTW - mobilidade para escápulas", "Veja o vídeo", "https://www.youtube.com/watch?v=A0FzBIoqppg"]
+          ]
+        }
+      ]
+    }
+  ]
+}

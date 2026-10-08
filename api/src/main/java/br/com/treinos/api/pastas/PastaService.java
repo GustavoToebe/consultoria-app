@@ -3,6 +3,9 @@ package br.com.treinos.api.pastas;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.dieta.PlanoDietaService;
+import br.com.treinos.api.execucao.PesoService;
+import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoRequest;
+import br.com.treinos.api.pastas.PastaDtos.FinalizarRequest;
 import br.com.treinos.api.pastas.PastaDtos.PastaRequest;
 import br.com.treinos.api.pastas.PastaDtos.PastaResumo;
 import br.com.treinos.api.planos.PlanoBase;
@@ -10,11 +13,14 @@ import br.com.treinos.api.planos.dto.PlanoDtos.ReplicarRequest;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
 import br.com.treinos.api.treino.PlanoTreinoService;
 import br.com.treinos.api.web.BadRequestException;
+import br.com.treinos.api.web.ConflitoException;
 import br.com.treinos.api.web.Exigir;
+import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -33,15 +39,18 @@ public class PastaService {
     private final PlanoDietaRepository dietas;
     private final PlanoTreinoService servicoTreino;
     private final PlanoDietaService servicoDieta;
+    private final PesoService pesos;
 
     public PastaService(PastaRepository pastas, AlunoRepository alunos, PlanoTreinoRepository treinos,
-                        PlanoDietaRepository dietas, PlanoTreinoService servicoTreino, PlanoDietaService servicoDieta) {
+                        PlanoDietaRepository dietas, PlanoTreinoService servicoTreino, PlanoDietaService servicoDieta,
+                        PesoService pesos) {
         this.pastas = pastas;
         this.alunos = alunos;
         this.treinos = treinos;
         this.dietas = dietas;
         this.servicoTreino = servicoTreino;
         this.servicoDieta = servicoDieta;
+        this.pesos = pesos;
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +93,34 @@ public class PastaService {
                     new ReplicarRequest(tituloDaCopia(p, origem, nova), r.inicio(), r.fim(), nova.getId()));
         }
         return PastaResumo.de(nova);
+    }
+
+    /**
+     * Dá a pasta como concluída. Com peso informado, grava (ou substitui, na mesma data) o registro de peso do aluno
+     * na mesma transação: se o peso for recusado, a pasta continua aberta.
+     */
+    @Transactional
+    public PastaResumo finalizar(UUID id, FinalizarRequest r, UUID usuarioId) {
+        PastaPlano pasta = buscar(id);
+        if (pasta.getConcluidaEm() != null) {
+            throw new ConflitoException("Esta pasta já foi finalizada.", "PASTA_JA_FINALIZADA");
+        }
+        if (r.pesoKg() == null && r.observacao() != null && !r.observacao().isBlank()) {
+            throw new BadRequestException("Informe o peso para gravar a observação.");
+        }
+        if (r.pesoKg() != null) {
+            LocalDate data = r.data() != null ? r.data() : LocalDate.now(Fuso.BRASILIA);
+            pesos.registrar(pasta.getAlunoId(), new PesoRequest(data, r.pesoKg(), r.observacao()), usuarioId);
+        }
+        pasta.concluir(Instant.now());
+        return PastaResumo.de(pastas.saveAndFlush(pasta));
+    }
+
+    @Transactional
+    public PastaResumo reabrir(UUID id) {
+        PastaPlano pasta = buscar(id);
+        pasta.reabrir();
+        return PastaResumo.de(pastas.saveAndFlush(pasta));
     }
 
     @Transactional

@@ -41,6 +41,34 @@ class PastasIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void finalizarPastaGravaPesoEObservacaoNoRegistroDePeso() throws Exception {
+        String pasta = novaPasta("Plano 17", "2026-09-01", "2026-09-30").get("id").asString();
+        assertThat(api.get("/alunos/" + aluno + "/pastas", treinador, 200).get(0).get("concluidaEm").isNull()).isTrue();
+
+        // Observação sem peso e peso no futuro são recusados e a pasta continua aberta.
+        api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of("observacao", "sem peso"), 400);
+        api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of("pesoKg", 80.5, "data", "2999-01-01"), 400);
+        assertThat(api.get("/alunos/" + aluno + "/pastas", treinador, 200).get(0).get("concluidaEm").isNull()).isTrue();
+
+        JsonNode finalizada = api.post("/pastas/" + pasta + "/finalizar", treinador,
+                Map.of("pesoKg", 80.5, "data", "2026-09-30", "observacao", "Fim do ciclo"), 200);
+        assertThat(finalizada.get("concluidaEm").isNull()).isFalse();
+        JsonNode pesos = api.get("/alunos/" + aluno + "/pesos", treinador, 200);
+        assertThat(pesos).hasSize(1);
+        assertThat(pesos.get(0).get("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
+        assertThat(pesos.get(0).get("observacao").asString()).isEqualTo("Fim do ciclo");
+
+        assertThat(api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of(), 409).get("codigo").asString())
+                .isEqualTo("PASTA_JA_FINALIZADA");
+        api.post("/pastas/" + pasta + "/finalizar", api.novoTreinador(), Map.of(), 404);
+
+        assertThat(api.post("/pastas/" + pasta + "/reabrir", treinador, null, 200).get("concluidaEm").isNull()).isTrue();
+        // Sem peso, finaliza só a pasta e não mexe no registro de peso.
+        api.post("/pastas/" + pasta + "/finalizar", treinador, Map.of(), 200);
+        assertThat(api.get("/alunos/" + aluno + "/pesos", treinador, 200)).hasSize(1);
+    }
+
+    @Test
     void planosDaPastaNascemComOPeriodoDela() throws Exception {
         String pasta = novaPasta("Plano 16", "2026-10-05", "2026-10-20").get("id").asString();
         JsonNode treino = api.post("/alunos/" + aluno + "/planos-treino", treinador,

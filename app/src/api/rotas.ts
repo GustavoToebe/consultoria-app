@@ -243,6 +243,11 @@ export const atualizarPasta = (id: string, dados: DadosPasta) =>
 export const replicarPasta = (id: string, dados: DadosPasta) =>
   requisicao<PastaResumo>(`/pastas/${id}/replicar`, { metodo: 'POST', corpo: dados });
 
+export const finalizarPasta = (id: string, dados: import('./tipos').FinalizarPastaRequest) =>
+  requisicao<PastaResumo>(`/pastas/${id}/finalizar`, { metodo: 'POST', corpo: dados });
+
+export const reabrirPasta = (id: string) => requisicao<PastaResumo>(`/pastas/${id}/reabrir`, { metodo: 'POST' });
+
 export const listarPlanos = (tipo: TipoPlano, alunoId: string) =>
   requisicao<PlanoResumo[]>(`/alunos/${alunoId}/${prefixo(tipo)}`);
 

@@ -1,0 +1,2749 @@
+{
+ "fonte": "PDFs do Saraiva Team (planilha wellness, Torso & Limbs, Planos 10, 2.1 e 16). Sem dados de aluno.",
+ "modelos": [
+  {
+   "nome": "Wellness - semanas 1 e 2",
+   "descricao": "Pernas e glúteos + superiores (Seg: pernas, Ter: superiores, Qua: pernas, Qui: superiores, Sáb: pernas). Planilha Wellness do Saraiva Team.",
+   "objetivo": "Pernas e glúteos fortes, definidos e funcionais",
+   "orientacoes": "Planilha Wellness do Saraiva Team, pensada para construir pernas e glúteos fortes, definidos e funcionais sem deixar os superiores de lado.\nProgressão de carga: pequenos aumentos (0,25 kg a 1 kg) por treino ou +1 repetição em relação ao treino anterior. Respeite o corpo e nunca perca a técnica.\nFeeder Set (FS): séries preparatórias, respeitando as repetições da planilha sem chegar perto da fadiga (3 FS: 50%, 70%, 85~90%; 2 FS: 70%, 85~90%; 1 FS: 85%).\nWorking Set (WS): série de trabalho, base para FS, Top set e Back off. Top set: série mais pesada que a WS (ex.: +10%). Back off: série com carga menor (ex.: 75% da WS) para aumentar o volume.\nAmplitude total em todos os exercícios, anote a carga da WS e faça o cardio indicado.",
+   "sessoes": [
+    {
+     "nome": "Segunda - Pernas e glúteos",
+     "diaSemana": 1,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=wqVoX6lbYf8"
+      },
+      {
+       "nome": "Agachamento livre ou no smith",
+       "series": [
+        "3x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/XdhgIoVdyJ8"
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=m0FOpMEgero"
+      },
+      {
+       "nome": "Agachamento búlgaro c/ 1 halter",
+       "series": [
+        "1x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS O halter fica na mesma direção do pé que está no banco",
+       "url": "https://www.youtube.com/shorts/JhJDKw-mVKY"
+      },
+      {
+       "nome": "Extensão de quadril na polia",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=di-naWKmeIo"
+      }
+     ]
+    },
+    {
+     "nome": "Terça - Superiores",
+     "diaSemana": 2,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Supino inclinado na máquina",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "3x3 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Caso não seja possível, faça o supino inclinado com halteres no banco em 30º Top set - Faça com +10% da carga usada na WS Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=TrTSvn5-MTk"
+      },
+      {
+       "nome": "Elevação lateral com halteres sentada no banco",
+       "series": [
+        "2x3 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Deixe os braços esticados e levemente a frente do tronco",
+       "url": "https://www.youtube.com/shorts/Qy-zXcgZHWU"
+      },
+      {
+       "nome": "Remada articulada unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=gnKmUlTOaCw"
+      },
+      {
+       "nome": "Puxada alta na polia com pegada neutra ou triângulo",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/UqTGI9SMVUI"
+      },
+      {
+       "nome": "Desenvolvimento na máquina articulada",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 - WS"
+       ],
+       "obs": "Caso não seja possível, faça o desenvolvimento no smith com banco em 75º",
+       "url": "https://www.youtube.com/watch?si=ztY_PX-u_GUjYjy8&v=MleuQl3OPgo&feature=youtu.be"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=9cmeOVHOjck"
+      }
+     ]
+    },
+    {
+     "nome": "Quarta - Pernas e glúteos",
+     "diaSemana": 3,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15 -",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Elevação pélvica no smith, na máquina ou livre",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Use band no joelho Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/taUhr2s8Sf0"
+      },
+      {
+       "nome": "Leg press 45º",
+       "series": [
+        "3x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=hYKoCUczAY4"
+      },
+      {
+       "nome": "Stiff unilateral",
+       "series": [
+        "1x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "1 pé de apoio no chão",
+       "url": "https://www.youtube.com/shorts/U3prDlAbJDw"
+      },
+      {
+       "nome": "Step up no smith",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "Use um step alto para realizar",
+       "url": "https://www.youtube.com/watch?v=_HX6CoRDnPI"
+      }
+     ]
+    },
+    {
+     "nome": "Quinta - Superiores",
+     "diaSemana": 4,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Elevação lateral com halteres sentada no banco em 90º",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/N_K2ZSCvl84"
+      },
+      {
+       "nome": "Remada baixa na polia com barra reta",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Pegada pronada Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=yVGjnrMeSyU"
+      },
+      {
+       "nome": "Remada articulada unilateral",
+       "series": [
+        "1x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=gnKmUlTOaCw"
+      },
+      {
+       "nome": "Elevação lateral na polia",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Deixe os braços levemente a frente do tronco e esticados",
+       "url": "https://www.youtube.com/watch?v=BH9jVp2cx3w"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=9cmeOVHOjck"
+      }
+     ]
+    },
+    {
+     "nome": "Sexta - Off ativo",
+     "diaSemana": 5,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "50 minutos de cardio",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Sábado - Pernas e glúteos",
+     "diaSemana": 6,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15 -",
+        "Aquecimento",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/sLaKNzkH4DY"
+      },
+      {
+       "nome": "Terra sumô",
+       "series": [
+        "3x3 - FS",
+        "2x5 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=pfSMst14EFk"
+      },
+      {
+       "nome": "Elevação pélvica no smith, na máquina ou livre",
+       "series": [
+        "2x3 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "Use band no joelho",
+       "url": "https://www.youtube.com/shorts/taUhr2s8Sf0"
+      },
+      {
+       "nome": "Abdução de quadril na polia",
+       "series": [
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=hQOfjxHnRvg"
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=m0FOpMEgero"
+      }
+     ]
+    },
+    {
+     "nome": "Domingo - Off ativo",
+     "diaSemana": 7,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "50 minutos de cardio",
+     "observacao": null,
+     "exercicios": []
+    }
+   ]
+  },
+  {
+   "nome": "Wellness - semanas 3 e 4",
+   "descricao": "Pernas e glúteos + superiores (Seg: pernas, Ter: superiores, Qua: pernas, Qui: superiores, Sáb: pernas). Planilha Wellness do Saraiva Team.",
+   "objetivo": "Pernas e glúteos fortes, definidos e funcionais",
+   "orientacoes": "Planilha Wellness do Saraiva Team, pensada para construir pernas e glúteos fortes, definidos e funcionais sem deixar os superiores de lado.\nProgressão de carga: pequenos aumentos (0,25 kg a 1 kg) por treino ou +1 repetição em relação ao treino anterior. Respeite o corpo e nunca perca a técnica.\nFeeder Set (FS): séries preparatórias, respeitando as repetições da planilha sem chegar perto da fadiga (3 FS: 50%, 70%, 85~90%; 2 FS: 70%, 85~90%; 1 FS: 85%).\nWorking Set (WS): série de trabalho, base para FS, Top set e Back off. Top set: série mais pesada que a WS (ex.: +10%). Back off: série com carga menor (ex.: 75% da WS) para aumentar o volume.\nAmplitude total em todos os exercícios, anote a carga da WS e faça o cardio indicado.",
+   "sessoes": [
+    {
+     "nome": "Segunda - Pernas e glúteos",
+     "diaSemana": 1,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=wqVoX6lbYf8"
+      },
+      {
+       "nome": "Agachamento livre ou no smith",
+       "series": [
+        "3x3 a 5 - FS",
+        "1x8 - WS",
+        "1x8 a 12 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/XdhgIoVdyJ8"
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=m0FOpMEgero"
+      },
+      {
+       "nome": "Agachamento búlgaro c/ 1 halter",
+       "series": [
+        "1x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS O halter fica na mesma direção do pé que está no banco",
+       "url": "https://www.youtube.com/shorts/JhJDKw-mVKY"
+      },
+      {
+       "nome": "Extensão de quadril na polia",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=di-naWKmeIo"
+      }
+     ]
+    },
+    {
+     "nome": "Terça - Superiores",
+     "diaSemana": 2,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Supino inclinado na máquina",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "3x3 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Caso não seja possível, faça o supino inclinado com halteres no banco em 30º Top set - Faça com +10% da carga usada na WS Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=TrTSvn5-MTk"
+      },
+      {
+       "nome": "Elevação lateral com halteres sentada no banco",
+       "series": [
+        "2x3 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Deixe os braços esticados e levemente a frente do tronco",
+       "url": "https://www.youtube.com/shorts/Qy-zXcgZHWU"
+      },
+      {
+       "nome": "Remada articulada unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=gnKmUlTOaCw"
+      },
+      {
+       "nome": "Puxada alta na polia com pegada neutra ou triângulo",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/UqTGI9SMVUI"
+      },
+      {
+       "nome": "Desenvolvimento na máquina articulada",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 - WS"
+       ],
+       "obs": "Caso não seja possível, faça o desenvolvimento no smith com banco em 75º",
+       "url": "https://www.youtube.com/watch?si=ztY_PX-u_GUjYjy8&v=MleuQl3OPgo&feature=youtu.be"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=9cmeOVHOjck"
+      }
+     ]
+    },
+    {
+     "nome": "Quarta - Pernas e glúteos",
+     "diaSemana": 3,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15 -",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Elevação pélvica no smith, na máquina ou livre",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Use band no joelho Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/taUhr2s8Sf0"
+      },
+      {
+       "nome": "Leg press 45º",
+       "series": [
+        "3x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=hYKoCUczAY4"
+      },
+      {
+       "nome": "Stiff unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "1 pé de apoio no chão Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/U3prDlAbJDw"
+      },
+      {
+       "nome": "Step up no smith",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "Use um step alto para realizar",
+       "url": "https://www.youtube.com/watch?v=_HX6CoRDnPI"
+      }
+     ]
+    },
+    {
+     "nome": "Quinta - Superiores",
+     "diaSemana": 4,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Elevação lateral com halteres sentada no banco em 90º",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/N_K2ZSCvl84"
+      },
+      {
+       "nome": "Remada baixa na polia com barra reta",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Pegada pronada Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=yVGjnrMeSyU"
+      },
+      {
+       "nome": "Remada articulada unilateral",
+       "series": [
+        "1x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=gnKmUlTOaCw"
+      },
+      {
+       "nome": "Elevação lateral na polia",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Deixe os braços levemente a frente do tronco e esticados",
+       "url": "https://www.youtube.com/watch?v=BH9jVp2cx3w"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=9cmeOVHOjck"
+      }
+     ]
+    },
+    {
+     "nome": "Sexta - Off ativo",
+     "diaSemana": 5,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "50 minutos de cardio",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Sábado - Pernas e glúteos",
+     "diaSemana": 6,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15 -",
+        "Aquecimento",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/sLaKNzkH4DY"
+      },
+      {
+       "nome": "Terra sumô",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x5 - WS",
+        "1x3 a 5 - Top set"
+       ],
+       "obs": "Top set - Faça com +8% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=pfSMst14EFk"
+      },
+      {
+       "nome": "Elevação pélvica no smith, na máquina ou livre",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Use band no joelho Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/taUhr2s8Sf0"
+      },
+      {
+       "nome": "Abdução de quadril na polia",
+       "series": [
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=hQOfjxHnRvg"
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=m0FOpMEgero"
+      }
+     ]
+    },
+    {
+     "nome": "Domingo - Off ativo",
+     "diaSemana": 7,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "50 minutos de cardio",
+     "observacao": null,
+     "exercicios": []
+    }
+   ]
+  },
+  {
+   "nome": "Wellness - semanas 5 e 6",
+   "descricao": "Pernas e glúteos + superiores (Seg: pernas, Ter: superiores, Qua: pernas, Qui: superiores, Sáb: pernas). Planilha Wellness do Saraiva Team.",
+   "objetivo": "Pernas e glúteos fortes, definidos e funcionais",
+   "orientacoes": "Planilha Wellness do Saraiva Team, pensada para construir pernas e glúteos fortes, definidos e funcionais sem deixar os superiores de lado.\nProgressão de carga: pequenos aumentos (0,25 kg a 1 kg) por treino ou +1 repetição em relação ao treino anterior. Respeite o corpo e nunca perca a técnica.\nFeeder Set (FS): séries preparatórias, respeitando as repetições da planilha sem chegar perto da fadiga (3 FS: 50%, 70%, 85~90%; 2 FS: 70%, 85~90%; 1 FS: 85%).\nWorking Set (WS): série de trabalho, base para FS, Top set e Back off. Top set: série mais pesada que a WS (ex.: +10%). Back off: série com carga menor (ex.: 75% da WS) para aumentar o volume.\nAmplitude total em todos os exercícios, anote a carga da WS e faça o cardio indicado.",
+   "sessoes": [
+    {
+     "nome": "Segunda - Pernas e glúteos",
+     "diaSemana": 1,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=wqVoX6lbYf8"
+      },
+      {
+       "nome": "Agachamento livre ou no smith",
+       "series": [
+        "3x3 a 5 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/shorts/XdhgIoVdyJ8"
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "3x3 a 5 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=m0FOpMEgero"
+      },
+      {
+       "nome": "Agachamento búlgaro c/ 1 halter",
+       "series": [
+        "1x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "O halter fica na mesma direção do pé que está no banco",
+       "url": "https://www.youtube.com/shorts/JhJDKw-mVKY"
+      },
+      {
+       "nome": "Extensão de quadril na polia",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=di-naWKmeIo"
+      }
+     ]
+    },
+    {
+     "nome": "Terça - Superiores",
+     "diaSemana": 2,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Supino inclinado na máquina",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "3x3 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Caso não seja possível, faça o supino inclinado com halteres no banco em 30º Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=TrTSvn5-MTk"
+      },
+      {
+       "nome": "Elevação lateral com halteres sentada no banco",
+       "series": [
+        "2x3 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Deixe os braços esticados e levemente a frente do tronco",
+       "url": "https://www.youtube.com/shorts/Qy-zXcgZHWU"
+      },
+      {
+       "nome": "Remada articulada unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=gnKmUlTOaCw"
+      },
+      {
+       "nome": "Puxada alta na polia com pegada neutra ou triângulo",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/UqTGI9SMVUI"
+      },
+      {
+       "nome": "Desenvolvimento na máquina articulada",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 - WS"
+       ],
+       "obs": "Caso não seja possível, faça o desenvolvimento no smith com banco em 75º",
+       "url": "https://www.youtube.com/watch?si=ztY_PX-u_GUjYjy8&v=MleuQl3OPgo&feature=youtu.be"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=9cmeOVHOjck"
+      }
+     ]
+    },
+    {
+     "nome": "Quarta - Pernas e glúteos",
+     "diaSemana": 3,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15 -",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Elevação pélvica no smith, na máquina ou livre",
+       "series": [
+        "3x3 a 5 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Use band no joelho Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/shorts/taUhr2s8Sf0"
+      },
+      {
+       "nome": "Leg press 45º",
+       "series": [
+        "3x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=hYKoCUczAY4"
+      },
+      {
+       "nome": "Stiff unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "1 pé de apoio no chão",
+       "url": "https://www.youtube.com/shorts/U3prDlAbJDw"
+      },
+      {
+       "nome": "Step up no smith",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "Use um step alto para realizar",
+       "url": "https://www.youtube.com/watch?v=_HX6CoRDnPI"
+      }
+     ]
+    },
+    {
+     "nome": "Quinta - Superiores",
+     "diaSemana": 4,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Elevação lateral com halteres sentada no banco em 90º",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/N_K2ZSCvl84"
+      },
+      {
+       "nome": "Remada baixa na polia com barra reta",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Pegada pronada Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=yVGjnrMeSyU"
+      },
+      {
+       "nome": "Remada articulada unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=gnKmUlTOaCw"
+      },
+      {
+       "nome": "Elevação lateral na polia",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Deixe os braços levemente a frente do tronco e esticados",
+       "url": "https://www.youtube.com/watch?v=BH9jVp2cx3w"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=9cmeOVHOjck"
+      }
+     ]
+    },
+    {
+     "nome": "Sexta - Off ativo",
+     "diaSemana": 5,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "50 minutos de cardio",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Sábado - Pernas e glúteos",
+     "diaSemana": 6,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15 -",
+        "Aquecimento",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/sLaKNzkH4DY"
+      },
+      {
+       "nome": "Terra sumô",
+       "series": [
+        "3x3 a 5 - FS",
+        "2x5 - WS",
+        "1x5 a 8 - Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=pfSMst14EFk"
+      },
+      {
+       "nome": "Elevação pélvica no smith, na máquina ou livre",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "Use band no joelho",
+       "url": "https://www.youtube.com/shorts/taUhr2s8Sf0"
+      },
+      {
+       "nome": "Abdução de quadril na polia",
+       "series": [
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=hQOfjxHnRvg"
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=m0FOpMEgero"
+      }
+     ]
+    },
+    {
+     "nome": "Domingo - Off ativo",
+     "diaSemana": 7,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "50 minutos de cardio",
+     "observacao": null,
+     "exercicios": []
+    }
+   ]
+  },
+  {
+   "nome": "Wellness - semanas 7 e 8",
+   "descricao": "Pernas e glúteos + superiores (Seg: pernas, Ter: superiores, Qua: pernas, Qui: superiores, Sáb: pernas). Planilha Wellness do Saraiva Team.",
+   "objetivo": "Pernas e glúteos fortes, definidos e funcionais",
+   "orientacoes": "Planilha Wellness do Saraiva Team, pensada para construir pernas e glúteos fortes, definidos e funcionais sem deixar os superiores de lado.\nProgressão de carga: pequenos aumentos (0,25 kg a 1 kg) por treino ou +1 repetição em relação ao treino anterior. Respeite o corpo e nunca perca a técnica.\nFeeder Set (FS): séries preparatórias, respeitando as repetições da planilha sem chegar perto da fadiga (3 FS: 50%, 70%, 85~90%; 2 FS: 70%, 85~90%; 1 FS: 85%).\nWorking Set (WS): série de trabalho, base para FS, Top set e Back off. Top set: série mais pesada que a WS (ex.: +10%). Back off: série com carga menor (ex.: 75% da WS) para aumentar o volume.\nAmplitude total em todos os exercícios, anote a carga da WS e faça o cardio indicado.",
+   "sessoes": [
+    {
+     "nome": "Segunda - Pernas e glúteos",
+     "diaSemana": 1,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=wqVoX6lbYf8"
+      },
+      {
+       "nome": "Agachamento livre ou no smith",
+       "series": [
+        "3x3 a 5 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/shorts/XdhgIoVdyJ8"
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=m0FOpMEgero"
+      },
+      {
+       "nome": "Agachamento búlgaro c/ 1 halter",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/JhJDKw-mVKY"
+      },
+      {
+       "nome": "Extensão de quadril na polia",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=di-naWKmeIo"
+      }
+     ]
+    },
+    {
+     "nome": "Terça - Superiores",
+     "diaSemana": 2,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Supino inclinado na máquina",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "3x3 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Caso não seja possível, faça o supino inclinado com halteres no banco em 30º Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=TrTSvn5-MTk"
+      },
+      {
+       "nome": "Elevação lateral com halteres sentada no banco",
+       "series": [
+        "2x3 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Deixe os braços esticados e levemente a frente do tronco",
+       "url": "https://www.youtube.com/shorts/Qy-zXcgZHWU"
+      },
+      {
+       "nome": "Remada articulada unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=gnKmUlTOaCw"
+      },
+      {
+       "nome": "Puxada alta na polia com pegada neutra ou triângulo",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/UqTGI9SMVUI"
+      },
+      {
+       "nome": "Desenvolvimento na máquina articulada",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 - WS"
+       ],
+       "obs": "Caso não seja possível, faça o desenvolvimento no smith com banco em 75º",
+       "url": "https://www.youtube.com/watch?si=ztY_PX-u_GUjYjy8&v=MleuQl3OPgo&feature=youtu.be"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=9cmeOVHOjck"
+      }
+     ]
+    },
+    {
+     "nome": "Quarta - Pernas e glúteos",
+     "diaSemana": 3,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15 -",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Elevação pélvica no smith, na máquina ou livre",
+       "series": [
+        "3x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Use band no joelho Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/taUhr2s8Sf0"
+      },
+      {
+       "nome": "Leg press 45º",
+       "series": [
+        "3x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=hYKoCUczAY4"
+      },
+      {
+       "nome": "Stiff unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "1 pé de apoio no chão Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/U3prDlAbJDw"
+      },
+      {
+       "nome": "Step up no smith",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS"
+       ],
+       "obs": "Use um step alto para realizar",
+       "url": "https://www.youtube.com/watch?v=_HX6CoRDnPI"
+      }
+     ]
+    },
+    {
+     "nome": "Quinta - Superiores",
+     "diaSemana": 4,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Elevação lateral com halteres sentada no banco em 90º",
+       "series": [
+        "1x10 a 15",
+        "Aquecimento",
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/N_K2ZSCvl84"
+      },
+      {
+       "nome": "Remada baixa na polia com barra reta",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS",
+        "1x8 a 12 - Back off"
+       ],
+       "obs": "Pegada pronada Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=yVGjnrMeSyU"
+      },
+      {
+       "nome": "Remada articulada unilateral",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=gnKmUlTOaCw"
+      },
+      {
+       "nome": "Elevação lateral na polia",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Deixe os braços levemente a frente do tronco e esticados",
+       "url": "https://www.youtube.com/watch?v=BH9jVp2cx3w"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "1x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=9cmeOVHOjck"
+      }
+     ]
+    },
+    {
+     "nome": "Sexta - Off ativo",
+     "diaSemana": 5,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "50 minutos de cardio",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Sábado - Pernas e glúteos",
+     "diaSemana": 6,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira abdutora",
+       "series": [
+        "1x10 a 15 -",
+        "Aquecimento",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "Fique com o tronco levemente inclinado para frente",
+       "url": "https://www.youtube.com/shorts/S9OtoSJdMWo"
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "2x3 a 5 - FS",
+        "2x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/sLaKNzkH4DY"
+      },
+      {
+       "nome": "Terra sumô",
+       "series": [
+        "3x3 a 5 - FS",
+        "2x5 - WS",
+        "1x5 a 8 - Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=pfSMst14EFk"
+      },
+      {
+       "nome": "Elevação pélvica no smith, na máquina ou livre",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Use band no joelho Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/shorts/taUhr2s8Sf0"
+      },
+      {
+       "nome": "Abdução de quadril na polia",
+       "series": [
+        "2x3 a 5 - FS",
+        "3x8 a 12 - WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=hQOfjxHnRvg"
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "2x3 a 5 - FS",
+        "1x8 - WS",
+        "1x6 a 8 - Top set"
+       ],
+       "obs": "Top set - Faça com +10% da carga usada na WS",
+       "url": "https://www.youtube.com/watch?v=m0FOpMEgero"
+      }
+     ]
+    },
+    {
+     "nome": "Domingo - Off ativo",
+     "diaSemana": 7,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "50 minutos de cardio",
+     "observacao": null,
+     "exercicios": []
+    }
+   ]
+  },
+  {
+   "nome": "Torso & Limbs",
+   "descricao": "Método Torso/Limbs em 4 dias por semana (Torso 1, Limbs 1, Torso 2, Limbs 2). Saraiva Team.",
+   "objetivo": "Treino de 4 dias na semana, crescendo tanto inferiores quanto superiores",
+   "orientacoes": "Torso: foca no tronco (peito, costas, abdômen e parte dos ombros) e trabalha os braços indiretamente. Limbs: une pernas e braços (bíceps e tríceps) e deltoides laterais, com os braços direto no começo da sessão. Sequência sugerida: Torso | Limbs | Off | Torso | Limbs | Off | Off.\nRealize os treinos indo até a falha, ou o mais próximo dela, anotando as cargas e progredindo a cada treino. Só faça RIR quando for ordenado ou em exercícios livres (1 a 2 RIR).\nPequenos aumentos de carga a cada sessão (0,25 kg até 1 kg). Ao chegar no teto de repetições da WS (ou passar dele), suba de 1% a 5% da carga no próximo treino.\nAmplitude total em todos os exercícios e anote a carga da última série (WS).",
+   "sessoes": [
+    {
+     "nome": "Segunda - Torso 1",
+     "diaSemana": 1,
+     "tipo": "TREINO",
+     "cardio": "30 min de bike, esteira ou caminhando ao ar livre em ritmo moderado, ou HIIT de 15 min (1 min leve + 1 min em alta intensidade)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Supino reto com barra livre",
+       "series": [
+        "1x5-10 Aquecimento",
+        "3x3 FS",
+        "1x6-8 WS",
+        "2x8-10 Back off"
+       ],
+       "obs": "Back off com 85% da carga da WS Alternativas: Supino reto na máquina; Supino reto no Smith.",
+       "url": ""
+      },
+      {
+       "nome": "Supino inclinado com halteres (30°)",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Supino inclinado no Smith (30°); Supino inclinado na máquina.",
+       "url": ""
+      },
+      {
+       "nome": "Remada curvada com barra livre",
+       "series": [
+        "2x3 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Remada curvada no Smith; Remada na máquina (pronada); Remada na polia baixa (barra reta pronada).",
+       "url": ""
+      },
+      {
+       "nome": "Remada unilateral na máquina (neutra)",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "2x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Remada curvada unilateral com halter.",
+       "url": ""
+      },
+      {
+       "nome": "Puxada alta com pegada neutra",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Alternativas: Puxada alta com triângulo.",
+       "url": ""
+      },
+      {
+       "nome": "Elevação lateral na polia baixa",
+       "series": [
+        "1x3 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Elevação lateral com halteres (sentado).",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Terça - Limbs 1",
+     "diaSemana": 2,
+     "tipo": "TREINO",
+     "cardio": "30 min de bike, esteira ou caminhando ao ar livre em ritmo moderado, ou HIIT de 15 min (1 min leve + 1 min em alta intensidade)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Bíceps rosca na polia baixa (Bayesian)",
+       "series": [
+        "1x5-10 Aquecimento",
+        "3x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Bíceps rosca com halter no banco 45°.",
+       "url": ""
+      },
+      {
+       "nome": "Tríceps na polia alta com corda",
+       "series": [
+        "2x3 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Tríceps na polia alta com barra reta ou V.",
+       "url": ""
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "3x3-5 FS",
+        "1x6-8 WS",
+        "2x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "3x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      },
+      {
+       "nome": "Leg press 45°",
+       "series": [
+        "2x3 FS",
+        "1x3-5 WS",
+        "1x5-10 Back off"
+       ],
+       "obs": "Back off com 85% da carga da WS Alternativas: Hack Squat.",
+       "url": ""
+      },
+      {
+       "nome": "RDL",
+       "series": [
+        "2x3-5 FS",
+        "1x3-5 WS",
+        "1x5-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: SLDL.",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Quarta - Off ativo",
+     "diaSemana": 3,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "40 min de bike, esteira ou caminhando ao ar livre em ritmo moderado, ou HIIT de 20 min (1 min leve + 1 min em alta intensidade)",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Quinta - Torso 2",
+     "diaSemana": 4,
+     "tipo": "TREINO",
+     "cardio": "30 min de bike, esteira ou caminhando ao ar livre em ritmo moderado, ou HIIT de 15 min (1 min leve + 1 min em alta intensidade)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Remada na máquina (pronada simultâneo)",
+       "series": [
+        "1x5-10 Aquecimento",
+        "3x3 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Remada na polia baixa c/ barra reta (pronada).",
+       "url": ""
+      },
+      {
+       "nome": "Remada neutra na máquina (simultâneo)",
+       "series": [
+        "3x3 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      },
+      {
+       "nome": "Puxada alta na polia c/ barra reta (pronada)",
+       "series": [
+        "3x3 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      },
+      {
+       "nome": "Supino reto com barra livre",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Supino reto na máquina; Supino reto no Smith.",
+       "url": ""
+      },
+      {
+       "nome": "Supino inclinado com halteres (30°)",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Supino inclinado no Smith (30°); Supino inclinado na máquina.",
+       "url": ""
+      },
+      {
+       "nome": "Desenvolvimento na máquina",
+       "series": [
+        "2x3 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Desenvolvimento no Smith (75°); Desenvolvimento com halteres (sentado).",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Sexta - Limbs 2",
+     "diaSemana": 5,
+     "tipo": "TREINO",
+     "cardio": "30 min de bike, esteira ou caminhando ao ar livre em ritmo moderado, ou HIIT de 15 min (1 min leve + 1 min em alta intensidade)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Bíceps rosca com barra reta ou W",
+       "series": [
+        "1x5-10 Aquecimento",
+        "3x3 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Bíceps rosca na polia baixa c/ barra reta.",
+       "url": ""
+      },
+      {
+       "nome": "Bíceps martelo com halter (alternado)",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      },
+      {
+       "nome": "Tríceps na polia alta com corda",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      },
+      {
+       "nome": "Tríceps testa unilateral",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      },
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      },
+      {
+       "nome": "Agachamento livre",
+       "series": [
+        "3x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS Alternativas: Agachamento no Smith; Leg press 45° / Hack Squat.",
+       "url": ""
+      },
+      {
+       "nome": "Cadeira extensora",
+       "series": [
+        "2x3-5 FS",
+        "1x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off com 90% da carga da WS",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Sábado - Off ativo",
+     "diaSemana": 6,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "40 min de bike, esteira ou caminhando ao ar livre em ritmo moderado, ou HIIT de 20 min (1 min leve + 1 min em alta intensidade)",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Domingo - Off ativo",
+     "diaSemana": 7,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "40 min de bike, esteira ou caminhando ao ar livre em ritmo moderado, ou HIIT de 20 min (1 min leve + 1 min em alta intensidade)",
+     "observacao": null,
+     "exercicios": []
+    }
+   ]
+  },
+  {
+   "nome": "Plano 10",
+   "descricao": "Pernas, costas, peito + ombros, pernas, superiores. Plano do Saraiva Team.",
+   "objetivo": null,
+   "orientacoes": "FS - Respeite a faixa de repetições sem falhar.\nWS - Só suba a carga após passar o número de repetições propostos e quando a carga estiver consolidada (todas as repetições iguais).\nExercícios livres - Todos eles devem ser feitos deixando 1RIR nas séries válidas (ws, back off, rest pause e cluster), ou seja, 1 repetição antes da falha.\nDica: Compre uma joelheira boa (repmax por exemplo) e use nos exercícios de quadríceps como afundo e cadeira extensora.\nCardio: dia de pernas 50 min de bike; dia de superior 50 min livre; off ativo 50 min livre. Intensidade: média.",
+   "sessoes": [
+    {
+     "nome": "Segunda - Pernas",
+     "diaSemana": 1,
+     "tipo": "TREINO",
+     "cardio": "50 min de bike (intensidade média)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "1x8-10 Aquecimento",
+        "3x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Leg press horizontal (unilateral)",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/OvSPTgq99tU"
+      },
+      {
+       "nome": "Stiff",
+       "series": [
+        "2x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Panturrilha gêmeos sentado",
+       "series": [
+        "2x3 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Terça - Costas",
+     "diaSemana": 2,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Retração escapular na polia",
+       "series": [
+        "1x10-15 Aquecimento",
+        "1x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "Segure 1 segundo no pico da contração e não flexione os cotovelos",
+       "url": "https://www.youtube.com/shorts/TBYxHWqZ5hE"
+      },
+      {
+       "nome": "Remada baixa na polia com pegada pronada na barra reta",
+       "series": [
+        "3x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Remada curvada com halteres",
+       "series": [
+        "2x3 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Puxada alta na polia com pegada neutra ou triângulo",
+       "series": [
+        "2x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Bíceps rosca na polia baixa com barra reta",
+       "series": [
+        "2x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Quarta - Peito + Ombros",
+     "diaSemana": 3,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Supino reto máquina (sentado ou deitado)",
+       "series": [
+        "1x8-10 Aquecimento",
+        "3x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=6Cpf8SBfHqs"
+      },
+      {
+       "nome": "Supino inclinado máquina",
+       "series": [
+        "2x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=ZTOyEEwBdRM"
+      },
+      {
+       "nome": "Peck deck",
+       "series": [
+        "2x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Elevação lateral com halteres sentado no banco",
+       "series": [
+        "1x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Tríceps cruzado na polia",
+       "series": [
+        "2x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/IIQMw5Up1Ws"
+      },
+      {
+       "nome": "Tríceps na polia alta com barra V",
+       "series": [
+        "1x3-5 FS",
+        "2x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Quinta - Off ativo",
+     "diaSemana": 4,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "Cardio 50 min livre (intensidade média)",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Sexta - Pernas",
+     "diaSemana": 5,
+     "tipo": "TREINO",
+     "cardio": "50 min de bike (intensidade média)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Flexora em pé unilateral",
+       "series": [
+        "1x8-10 Aquecimento",
+        "3x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS A WS é com 2 RIR.",
+       "url": ""
+      },
+      {
+       "nome": "Leg press horizontal (unilateral)",
+       "series": [
+        "2x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/OvSPTgq99tU"
+      },
+      {
+       "nome": "RDL",
+       "series": [
+        "2x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Elevação pélvica na máquina ou smith",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Sábado - Superiores",
+     "diaSemana": 6,
+     "tipo": "TREINO",
+     "cardio": "50 min livre (intensidade média)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Retração escapular na polia",
+       "series": [
+        "1x10-15 Aquecimento",
+        "3x8-12 WS"
+       ],
+       "obs": "Segure 1 segundo no pico da contração e não flexione os cotovelos",
+       "url": "https://www.youtube.com/shorts/TBYxHWqZ5hE"
+      },
+      {
+       "nome": "Chinese row",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=Qt4ljv3bhCE"
+      },
+      {
+       "nome": "Puxada alta na polia com pegada neutra ou triângulo",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Supino reto máquina (sentado ou deitado)",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 75% da carga realizada na WS",
+       "url": "https://www.youtube.com/watch?v=6Cpf8SBfHqs"
+      },
+      {
+       "nome": "Tríceps cruzado na polia",
+       "series": [
+        "1x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/IIQMw5Up1Ws"
+      },
+      {
+       "nome": "Bíceps rosca na polia baixa com barra reta",
+       "series": [
+        "2x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Elevação lateral com halter sentado no banco em 90º",
+       "series": [
+        "1x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Domingo - Off ativo",
+     "diaSemana": 7,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "Cardio 50 min livre (intensidade média)",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Acessórios (2x a 3x na semana)",
+     "diaSemana": null,
+     "tipo": "ACESSORIOS",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Prancha isométrica",
+       "series": [
+        {
+         "count": 5,
+         "tipo": "WS",
+         "alvoTexto": "1 min"
+        }
+       ],
+       "obs": "",
+       "url": "",
+       "unidade": "nenhuma",
+       "progressao": true
+      },
+      {
+       "nome": "Abs infra",
+       "series": [
+        "3x8-12 WS"
+       ],
+       "obs": "Pode fazer na paralela ou no chão subindo e descendo as pernas, use caneleira nos dois",
+       "url": ""
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "nome": "Plano 2.1",
+   "descricao": "Pernas, costas, peito + ombros, pernas, superiores, com rest pause. Plano do Saraiva Team.",
+   "objetivo": null,
+   "orientacoes": "FS - Respeite a faixa de repetições sem falhar.\nWS - Só suba a carga após passar o número de repetições propostos e quando a carga estiver consolidada (todas as repetições iguais).\nExercícios livres - Todos eles devem ser feitos deixando 1RIR nas séries válidas (ws, back off, rest pause e cluster), ou seja, 1 repetição antes da falha.\nCardio: dia de pernas 30 min de bike; dia de superior 30 min livre; off ativo 50 min livre. Intensidade: média.",
+   "sessoes": [
+    {
+     "nome": "Segunda - Pernas",
+     "diaSemana": 1,
+     "tipo": "TREINO",
+     "cardio": "Cardio 60 min",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "1x8-10 Aquecimento",
+        "3x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 80% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Stiff",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Panturrilha gêmeos sentado",
+       "series": [
+        "2x3 FS",
+        "2x8-12 WS",
+        "1x8-12 Rest pause"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Terça - Costas",
+     "diaSemana": 2,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Retração escapular na polia",
+       "series": [
+        "1x10-15 Aquecimento",
+        "1x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "Segure 1 segundo no pico da contração e não flexione os cotovelos",
+       "url": "https://www.youtube.com/shorts/TBYxHWqZ5hE"
+      },
+      {
+       "nome": "Remada baixa na polia com pegada pronada na barra reta",
+       "series": [
+        "3x3-5 FS",
+        "2x8 WS",
+        "1x8 Rest pause"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/yVGjnrMeSyU"
+      },
+      {
+       "nome": "Remada unilateral na máquina articulada com pegada neutra",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "Deixe o tronco levemente inclinado para o lado",
+       "url": "https://www.youtube.com/shorts/gnKmUlTOaCw"
+      },
+      {
+       "nome": "Puxada alta na polia com pegada neutra ou triângulo",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS",
+        "1x8 Rest pause"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Bíceps rosca na polia baixa com barra reta",
+       "series": [
+        "2x3-5 FS",
+        "2x8-12 WS",
+        "1x8-12 Rest pause"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Quarta - Peito + Ombros",
+     "diaSemana": 3,
+     "tipo": "TREINO",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Supino reto máquina",
+       "series": [
+        "1x8-10 Aquecimento",
+        "3x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 80% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Supino inclinado máquina",
+       "series": [
+        "2x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 80% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Crucifixo supinado na polia alta",
+       "series": [
+        "2x3-5 FS",
+        "3x8 WS"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/shorts/z_Hsovhiy48"
+      },
+      {
+       "nome": "Elevação lateral com halteres sentado no banco",
+       "series": [
+        "1x3-5 FS",
+        "2x8-12 WS",
+        "1x8-12 Rest pause"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta",
+       "series": [
+        "2x3-5 FS",
+        "2x8-12 WS",
+        "1x8-12 Rest pause"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Tríceps testa na polia alta com corda",
+       "series": [
+        "1x3-5 FS",
+        "2x8-12 WS",
+        "1x8-12 Rest pause"
+       ],
+       "obs": "",
+       "url": "https://www.youtube.com/watch?v=-bPNFre0hv0"
+      }
+     ]
+    },
+    {
+     "nome": "Quinta - Off ativo",
+     "diaSemana": 4,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "Cardio 50 min livre (intensidade média)",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Sexta - Pernas",
+     "diaSemana": 5,
+     "tipo": "TREINO",
+     "cardio": "30 min de bike (intensidade média)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira flexora em pé unilateral",
+       "series": [
+        "1x8-10 Aquecimento",
+        "2x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 80% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "RDL",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Elevação pélvica na máquina ou smith",
+       "series": [
+        "2x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Panturrilha gêmeos sentado",
+       "series": [
+        "2x3 FS",
+        "2x8-12 WS",
+        "1x8-12 Rest pause"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Sábado - Superiores",
+     "diaSemana": 6,
+     "tipo": "TREINO",
+     "cardio": "30 min livre (intensidade média)",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Retração escapular na polia",
+       "series": [
+        "1x10-15 Aquecimento",
+        "3x8-12 WS"
+       ],
+       "obs": "Segure 1 segundo no pico da contração e não flexione os cotovelos",
+       "url": "https://www.youtube.com/shorts/TBYxHWqZ5hE"
+      },
+      {
+       "nome": "Chinese row",
+       "series": [
+        "1x8-10 Aquecimento",
+        "2x3-5 FS",
+        "2x8 WS",
+        "1x8-12 Back off"
+       ],
+       "obs": "Back off - Faça com 80% da carga realizada na WS",
+       "url": "https://www.youtube.com/shorts/Z6YBO7eAEOA"
+      },
+      {
+       "nome": "Puxada alta na polia com pegada neutra ou triângulo",
+       "series": [
+        "2x3-5 FS",
+        "2x8 WS",
+        "1x8 Rest pause"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Supino inclinado na máquina articulada",
+       "series": [
+        "3x3-5 FS",
+        "1x8 WS",
+        "1x6-8 Top set"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Tríceps na polia alta com barra reta ou V",
+       "series": [
+        "2x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Bíceps rosca na polia baixa com barra reta",
+       "series": [
+        "2x3-5 FS",
+        "3x8-12 WS"
+       ],
+       "obs": "",
+       "url": ""
+      },
+      {
+       "nome": "Elevação lateral com halter sentado no banco em 90º",
+       "series": [
+        "1x3-5 FS",
+        "2x8-12 WS",
+        "1x8-12 Rest pause"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Domingo - Off ativo",
+     "diaSemana": 7,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "Cardio 50 min livre (intensidade média)",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Acessórios (2x a 3x na semana)",
+     "diaSemana": null,
+     "tipo": "ACESSORIOS",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Prancha isométrica",
+       "series": [
+        {
+         "count": 5,
+         "tipo": "WS",
+         "alvoTexto": "1 min"
+        }
+       ],
+       "obs": "",
+       "url": "",
+       "unidade": "nenhuma",
+       "progressao": true
+      },
+      {
+       "nome": "Abs infra",
+       "series": [
+        "3x8-12 WS"
+       ],
+       "obs": "Pode fazer na paralela ou no chão subindo e descendo as pernas, use caneleira nos dois",
+       "url": ""
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "nome": "Plano 16",
+   "descricao": "Costas, peito + ombros, pernas, upper, pernas. Plano do Saraiva Team.",
+   "objetivo": "Melhorar o físico (secar e crescer) + melhorar mentalmente",
+   "orientacoes": "Nota: faça todos os treinos sem errar e, caso sinta dificuldade, avise o treinador.\nFS - Respeite a faixa de repetições sem falhar.\nWS - Só suba a carga após passar o número de repetições propostos e quando a carga estiver consolidada (todas as repetições iguais).\nExercícios livres - Todos eles devem ser feitos deixando 1RIR nas séries válidas (ws, back off, rest pause e cluster), ou seja, 1 repetição antes da falha.\nCardio: 50 min livre (caminhada rápida, natação ou outra atividade cardiorrespiratória) ou HIIT de 25 min (corra ou pedale rápido por 1 min + 1 min andando ou pedalando lento). BPM: 140 a 150.",
+   "sessoes": [
+    {
+     "nome": "Segunda - Costas",
+     "diaSemana": 1,
+     "tipo": "TREINO",
+     "cardio": "50 min livre ou HIIT de 25 min, BPM 140 a 150",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Remada baixa na polia unilateral",
+       "series": [
+        "1x10-15 Aquecimento",
+        "3x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS Faça igual o vídeo, com o tronco levemente inclinado para o lado.",
+       "url": "https://www.youtube.com/watch?v=vOmSaZeqA84"
+      },
+      {
+       "nome": "Puxada alta com pegada romana (neutra)",
+       "series": [
+        "3x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS",
+       "url": "https://youtu.be/AQmHe1vjs-A"
+      },
+      {
+       "nome": "Remada na máquina com pegada neutra (unilateral)",
+       "series": [
+        "2x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS",
+       "url": "https://youtu.be/n_fzARmJChM"
+      },
+      {
+       "nome": "Elevação lateral com halteres",
+       "series": [
+        "2x3 FS",
+        "3x6-8 WS"
+       ],
+       "obs": "",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Terça - Peito + Ombros",
+     "diaSemana": 2,
+     "tipo": "TREINO",
+     "cardio": "50 min livre ou HIIT de 25 min, BPM 140 a 150",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Supino reto na máquina (sentado)",
+       "series": [
+        "1x10-15 Aquecimento",
+        "3x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Supino inclinado na máquina",
+       "series": [
+        "2x3-5 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Desenvolvimento na máquina articulada",
+       "series": [
+        "3x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS Prefira escolher com pegada neutra.",
+       "url": "https://youtu.be/pzZye13XXng"
+      },
+      {
+       "nome": "Tríceps na polia com corda",
+       "series": [
+        "2x3 FS",
+        "2x6-8 WS",
+        "1x8-10 Back off"
+       ],
+       "obs": "Back off - Faça com 90% da carga realizada na WS",
+       "url": "https://youtu.be/pi9N20ZtCFY"
+      },
+      {
+       "nome": "Tríceps cruzado na polia (unilateral)",
+       "series": [
+        "1x3 FS",
+        "2x6-8 WS"
+       ],
+       "obs": "",
+       "url": "https://youtu.be/CB4-_3eeXCI"
+      }
+     ]
+    },
+    {
+     "nome": "Quarta - Pernas",
+     "diaSemana": 3,
+     "tipo": "TREINO",
+     "cardio": "50 min livre ou HIIT de 25 min, BPM 140 a 150",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Clamshell (com band)",
+       "series": [
+        "3x8-10 WS"
+       ],
+       "obs": "O movimento é realizado com band, veja o vídeo",
+       "url": "https://www.youtube.com/shorts/XoxHNiqtVPM"
+      },
+      {
+       "nome": "Mesa flexora",
+       "series": [
+        "3x3-5 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 90% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "3x3 FS",
+        "1x3-6 WS",
+        "1x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 90% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Leg press horizontal",
+       "series": [
+        "3x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Elevação pélvica na máquina ou livre com barra",
+       "series": [
+        "2x3-5 FS",
+        "2x6-8 WS"
+       ],
+       "obs": "Deve realizar com carga baixa, controlando muito bem o movimento. O objetivo agora não é progressão de carga.",
+       "url": ""
+      }
+     ]
+    },
+    {
+     "nome": "Quinta - Off ativo",
+     "diaSemana": 4,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "Cardio 50 min ou HIIT de 25 min",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Sexta - Upper",
+     "diaSemana": 5,
+     "tipo": "TREINO",
+     "cardio": "50 min livre ou HIIT de 25 min, BPM 140 a 150",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Remada na máquina articulada com pegada pronada (simultâneo)",
+       "series": [
+        "1x5-10 Aquecimento",
+        "3x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS",
+       "url": "https://youtu.be/BaE3KOOybVU"
+      },
+      {
+       "nome": "Supino inclinado no smith (banco em 30º)",
+       "series": [
+        "3x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS",
+       "url": "https://youtu.be/-kqeSi8iHBs"
+      },
+      {
+       "nome": "High row (unilateral)",
+       "series": [
+        "2x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS Caso a pegada seja ruim, utilize o pegador do crossover.",
+       "url": "https://youtu.be/zsXE0esXI1s"
+      },
+      {
+       "nome": "Tríceps na polia com corda",
+       "series": [
+        "2x3 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 85% da carga realizada na WS",
+       "url": "https://youtu.be/pi9N20ZtCFY"
+      },
+      {
+       "nome": "Elevação lateral na máquina",
+       "series": [
+        "1x3-5 FS",
+        "3x6-8 WS"
+       ],
+       "obs": "Mantenha os braços esticados",
+       "url": "https://youtu.be/DKFBUWarNeE"
+      }
+     ]
+    },
+    {
+     "nome": "Sábado - Pernas",
+     "diaSemana": 6,
+     "tipo": "TREINO",
+     "cardio": "50 min livre ou HIIT de 25 min, BPM 140 a 150",
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Cadeira flexora",
+       "series": [
+        "1x5-10 Aquecimento",
+        "3x3-5 FS",
+        "1x3-6 WS",
+        "2x6-8 Back off"
+       ],
+       "obs": "Back off - Faça com 90% da carga realizada na WS",
+       "url": ""
+      },
+      {
+       "nome": "Stiff com barra livre",
+       "series": [
+        "3x3-5 FS",
+        "2x6-8 WS"
+       ],
+       "obs": "Faça o movimento controlando a carga durante as transições dos movimentos durante a flexão e extensão do quadril",
+       "url": ""
+      },
+      {
+       "nome": "Leg press 45º",
+       "series": [
+        "2x3-5 FS",
+        "2x6-8 WS"
+       ],
+       "obs": "Faça o movimento extremamente controlado, sem colocar muita sobrecarga. Assim como a elevação pélvica, o objetivo é controlar o peso",
+       "url": ""
+      },
+      {
+       "nome": "Abdução de quadril na polia",
+       "series": [
+        "1x3-5 FS",
+        "2x6-8 WS"
+       ],
+       "obs": "Faça o movimento bem curto, não precisa subir muito a perna a ponto de sentir uma fisgada",
+       "url": "https://www.youtube.com/shorts/O_7OMisYxT0"
+      }
+     ]
+    },
+    {
+     "nome": "Domingo - Off ativo",
+     "diaSemana": 7,
+     "tipo": "DESCANSO_ATIVO",
+     "cardio": "Cardio 50 min ou HIIT de 25 min",
+     "observacao": null,
+     "exercicios": []
+    },
+    {
+     "nome": "Acessórios (2x na semana, no final do treino)",
+     "diaSemana": null,
+     "tipo": "ACESSORIOS",
+     "cardio": null,
+     "observacao": null,
+     "exercicios": [
+      {
+       "nome": "Abdominal supra",
+       "series": [
+        "2x6-8 WS"
+       ],
+       "obs": "Faça em alguma máquina de sua preferência ou na polia alta com corda. Comece com carga alta desde a primeira série.",
+       "url": ""
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
