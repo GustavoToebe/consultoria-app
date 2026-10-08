@@ -87,6 +87,16 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
                 "fonteTitulo", "METAL", "temaPadrao", "ESCURO", "versao", versao), 200);
         assertThat(nova.get("marca").get("corPrimaria").asString()).isEqualTo("#C62828");
         assertThat(nova.get("marca").get("fonteTitulo").asString()).isEqualTo("METAL");
+        // As quatro fontes do nome gravam e voltam; valor desconhecido é 400, não 500.
+        for (String fonte : List.of("PADRAO", "ESPORTIVA", "CONDENSADA", "METAL")) {
+            JsonNode salva = api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828",
+                    "fonteTitulo", fonte, "temaPadrao", "ESCURO", "versao", nova.get("versao").asLong()), 200);
+            assertThat(salva.get("marca").get("fonteTitulo").asString()).isEqualTo(fonte);
+            assertThat(api.get("/consultoria", treinador, 200).get("marca").get("fonteTitulo").asString()).isEqualTo(fonte);
+            nova = salva;
+        }
+        api.put("/consultoria/marca", treinador, Map.of("nome", "Fonte inexistente", "corPrimaria", "#C62828",
+                "fonteTitulo", "COMIC", "temaPadrao", "ESCURO", "versao", nova.get("versao").asLong()), 400);
         api.put("/consultoria/marca", treinador, Map.of("nome", "Outra aba", "corPrimaria", "#000000",
                 "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "versao", versao), 409);
         api.put("/consultoria/marca", treinador, Map.of("nome", "Cor inválida", "corPrimaria", "vermelho",

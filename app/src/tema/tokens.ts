@@ -80,6 +80,8 @@ export const fontes = {
   semi: 'Inter_600SemiBold',
   negrito: 'Inter_700Bold',
   metal: 'MetalMania_400Regular',
+  esportiva: 'BebasNeue_400Regular',
+  condensada: 'Oswald_700Bold',
 };
 
 /** Luminância relativa (WCAG 2.x) de uma cor #RRGGBB. */

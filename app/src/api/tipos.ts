@@ -3,7 +3,7 @@
  */
 
 export type Papel = 'TREINADOR' | 'ALUNO';
-export type Fonte = 'PADRAO' | 'METAL';
+export type Fonte = 'PADRAO' | 'METAL' | 'ESPORTIVA' | 'CONDENSADA';
 export type Tema = 'ESCURO' | 'CLARO';
 
 export interface Marca {

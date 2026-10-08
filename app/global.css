@@ -7,6 +7,8 @@
  --font-semi: 'Inter_600SemiBold';
  --font-negrito: 'Inter_700Bold';
  --font-metal: 'MetalMania_400Regular';
+ --font-esportiva: 'BebasNeue_400Regular';
+ --font-condensada: 'Oswald_700Bold';
  --radius-md: 8px;
 }
 @layer theme {

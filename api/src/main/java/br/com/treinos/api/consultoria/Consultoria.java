@@ -27,7 +27,7 @@ import java.util.UUID;
 @Table(name = "consultoria")
 public class Consultoria {
 
-    public enum Fonte { PADRAO, METAL }
+    public enum Fonte { PADRAO, METAL, ESPORTIVA, CONDENSADA }
 
     public enum Tema { ESCURO, CLARO }
 

@@ -5,7 +5,9 @@ import { PortalHost } from '@rn-primitives/portal';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue/400Regular';
 import { MetalMania_400Regular } from '@expo-google-fonts/metal-mania/400Regular';
+import { Oswald_700Bold } from '@expo-google-fonts/oswald/700Bold';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -31,6 +33,8 @@ export default function Raiz() {
     Inter_600SemiBold,
     Inter_700Bold,
     MetalMania_400Regular,
+    BebasNeue_400Regular,
+    Oswald_700Bold,
   });
 
   useEffect(() => {

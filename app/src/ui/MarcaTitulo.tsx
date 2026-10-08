@@ -31,13 +31,14 @@ export function MarcaTitulo({ marca, tamanho = 'medio' }: { marca: Marca | null;
       </View>
     );
   }
+  const familia = FAMILIAS[marca.fonteTitulo] ?? fontes.negrito;
   const metal = marca.fonteTitulo === 'METAL';
   return (
     <Texto
       accessibilityRole="header"
       numberOfLines={2}
       style={[
-        { color: cor, fontFamily: metal ? fontes.metal : fontes.negrito },
+        { color: cor, fontFamily: familia },
         grande ? estilos.nomeGrande : estilos.nome,
         metal && estilos.nomeMetal,
       ]}>
@@ -45,6 +46,14 @@ export function MarcaTitulo({ marca, tamanho = 'medio' }: { marca: Marca | null;
     </Texto>
   );
 }
+
+/** Família de cada fonte do nome da consultoria (a Padrão é a Inter em negrito). */
+export const FAMILIAS: Record<string, string> = {
+  PADRAO: fontes.negrito,
+  METAL: fontes.metal,
+  ESPORTIVA: fontes.esportiva,
+  CONDENSADA: fontes.condensada,
+};
 
 const estilos = StyleSheet.create({
   logo: { height: 36, width: 160 },
