@@ -99,7 +99,7 @@ def montar(alimentos):
     for a in alimentos:
         valores, tracos, nas, motivos, residuos = {}, [], [], [], []
         if len(re.sub(r"[^\w]", "", a["nome"])) < 3:
-            motivos.append(f"nome inválido na planilha ('{a['nome']}'); conferir o PDF")
+            motivos.append(f"nome inválido na planilha ('{a['nome']}'); fica de fora")
         for nome_nutriente, bruto in a["brutos"].items():
             lido = normalizar_marcador(bruto)
             tipo = lido[0]

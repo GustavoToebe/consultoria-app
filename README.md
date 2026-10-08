@@ -107,10 +107,10 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
   2011), de 597 na planilha. Exercícios: **877** (52 próprios + 825 do exercicios-bd-ptbr, CC0), com nomes revisados em
   `dados/curadoria/exercicios-nomes.csv`. O SQL (`V007`, `V008`) é gerado por `scripts/catalogo/` a partir de
   `dados/fontes/`; relatórios em `dados/relatorios/`. Pontos para o Gustavo/Saraiva olharem:
-  - **TACO, uso comercial:** a publicação permite reproduzir citando a fonte e não fala de uso comercial; o e-mail
-    para `taco@unicamp.br` ainda não foi respondido (`dados/fontes/README.md`).
-  - **Feijoada (nº 540) ficou de fora:** a planilha traz o nome `L` e o PDF diz "Feijoada". Entra se alguém autorizar
-    usar o nome do PDF. Os outros 5 descartados estão marcados `*` (análise reavaliada) ou com valor em branco.
+  - **TACO, uso comercial:** a publicação permite reproduzir citando a fonte e não fala de uso comercial. Decisão do
+    Gustavo: não consultar a UNICAMP; a fonte é citada em cada alimento e na tela (`dados/fontes/README.md`).
+  - **Descartados (6):** Feijoada (nº 540, nome `L` na planilha) fica de fora por decisão do Gustavo; os outros 5 estão
+    marcados `*` (análise reavaliada) ou com valor em branco (`dados/relatorios/taco-importacao.md`).
   - **Carboidrato negativo por diferença** (−0,007 a −0,045 g em 4 alimentos) foi gravado como 0, e `Tr`/`NA` viram 0
     (o `Tr` aparece como "Tr" na tela). Valores com 2 casas, como na planilha (o PDF imprime menos casas).
   - **Conferência com o PDF da TACO:** 578 alimentos comparados, 0 divergências; 19 sem como conferir (linhas

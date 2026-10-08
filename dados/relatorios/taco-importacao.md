@@ -40,7 +40,7 @@ Valor sem análise, em branco ou impossível: o alimento fica fora do catálogo 
 | 457 | Leite, de vaca, desnatado, UHT | Leite e derivados | kcal: '*' (análise sendo reavaliada, segundo a legenda); proteina: '*' (análise sendo reavaliada, segundo a legenda); gordura: '*' (análise sendo reavaliada, segundo a legenda); carboidrato: '*' (análise sendo reavaliada, segundo a legenda) |
 | 458 | Leite, de vaca, integral | Leite e derivados | kcal: '*' (análise sendo reavaliada, segundo a legenda); proteina: '*' (análise sendo reavaliada, segundo a legenda); gordura: '*' (análise sendo reavaliada, segundo a legenda); carboidrato: '*' (análise sendo reavaliada, segundo a legenda) |
 | 472 | Cana, aguardente | Bebidas (alcoólicas e não alcoólicas) | proteina: campo vazio na planilha (análise não solicitada); gordura: campo vazio na planilha (análise não solicitada); carboidrato: campo vazio na planilha (análise não solicitada) |
-| 540 | L | Outros alimentos industrializados | nome inválido na planilha ('L'); conferir o PDF |
+| 540 | L | Outros alimentos industrializados | nome inválido na planilha ('L'); fica de fora |
 | 591 | Coco, verde, cru | Nozes e sementes | kcal: '*' (análise sendo reavaliada, segundo a legenda); proteina: '*' (análise sendo reavaliada, segundo a legenda); gordura: '*' (análise sendo reavaliada, segundo a legenda); carboidrato: '*' (análise sendo reavaliada, segundo a legenda) |
 
 ## Conferência com o PDF oficial

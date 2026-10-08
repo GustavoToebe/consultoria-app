@@ -11,8 +11,8 @@ Baixados em 08/10/2026 pelo Gustavo.
   Só a primeira aba é usada.
 - Legenda da própria planilha: `NA` = não aplicável; `Tr` = traço (valor arredondado entre 0 e o limite, ou abaixo do
   limite de quantificação).
-- Licença: a publicação permite reprodução total ou parcial **citando a fonte**. A licença não menciona uso comercial
-  (consulta a `taco@unicamp.br` pendente).
+- Licença: a publicação permite reprodução total ou parcial **citando a fonte**. A licença não menciona uso comercial.
+  Decisão do Gustavo (08/10/2026): não consultar a UNICAMP; seguir com a citação da fonte em cada alimento e na tela.
 - Citação: NEPA/UNICAMP. Tabela Brasileira de Composição de Alimentos – TACO. 4. ed. rev. e ampl. Campinas:
   NEPA/UNICAMP, 2011.
 - Conferência: `taco/taco_4_edicao_ampliada_e_revisada.pdf` (SHA-256 `2002aec5615b5b1395aaa8fa675635bbb7f712c33f278af5e332f1cac8f108c8`),
