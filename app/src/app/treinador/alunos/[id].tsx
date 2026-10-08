@@ -97,6 +97,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} />
           <Linha rotulo="E-mail" valor={aluno.email} />
           <Linha rotulo="Objetivo" valor={aluno.objetivo} />
+          <Linha rotulo="Nova atualização a cada" valor={aluno.diasAtualizacao ? `${aluno.diasAtualizacao} dias` : null} />
           <Linha rotulo="Observações" valor={aluno.observacoes} />
           <View style={estilos.botoes}>
             <Botao

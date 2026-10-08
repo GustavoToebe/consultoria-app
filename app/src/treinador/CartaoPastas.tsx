@@ -90,7 +90,7 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso }: 
               <Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => setModo({ tipo: 'replicar', pasta: p })} />
             </>
           }>
-          {p.concluidaEm ? <Selo texto={`Concluída em ${dataParaTela(p.concluidaEm.slice(0, 10))}`} tipo="sucesso" /> : null}
+          {p.concluidaEm ? <Selo texto={`Concluída em ${dataParaTela(hojeIso(new Date(p.concluidaEm)))}`} tipo="sucesso" /> : null}
           <Texto numerico variante="suave">Período: {periodo(p)}</Texto>
           <CartaoPlanos tipo="treino" alunoId={alunoId} pasta={p} geracao={geracao} />
           <CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={p} geracao={geracao} />

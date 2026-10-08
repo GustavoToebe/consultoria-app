@@ -199,6 +199,8 @@ const falar = (...a) => console.log(...a);
 // ---------------------------------------------------------------- biblioteca
 const biblioteca = new Map(); // chave -> exercício
 const donoDoVideo = new Map(); // id do vídeo -> chave
+const comVideoNoInicio = new Set(); // exercícios que já tinham vídeo quando a biblioteca foi lida: só esses podem ter o vídeo trocado
+const jaTrocados = new Set(); // cada exercício troca de vídeo no máximo uma vez por execução
 const donosDaLista = new Set(); // exercícios cujo vídeo veio da lista de vídeos (valem mais que os dos planos)
 let seq = 0;
 
@@ -228,11 +230,12 @@ async function ligarVideo(entrada, url, origem, daLista = false) {
   const k = chave(entrada.nome);
   const dono = donoDoVideo.get(id);
   if (entrada.videoUrl) {
-    if (idDoVideo(entrada.videoUrl) === id) return entrada;
-    if (!(TROCAR_VIDEOS && (daLista || !donosDaLista.has(k)))) {
+    if (idDoVideo(entrada.videoUrl) === id) { if (daLista) donosDaLista.add(k); return entrada; }
+    if (!(TROCAR_VIDEOS && comVideoNoInicio.has(k) && !jaTrocados.has(k) && (daLista || (!donosDaLista.has(k) && !(dono && dono !== k))))) {
       rel.conflitos.add(`${entrada.nome}: fica ${entrada.videoUrl} (${origem} trazia ${limpa})`);
       return entrada;
     }
+    jaTrocados.add(k);
     rel.trocados.add(`${entrada.nome}: ${entrada.videoUrl} -> ${limpa}`);
   } else if (!daLista && dono && dono !== k) {
     rel.linksIgnorados.add(`${entrada.nome}: ${limpa} já é do exercício "${biblioteca.get(dono)?.nome ?? dono}" (${origem})`);
@@ -249,7 +252,7 @@ async function carregarBiblioteca() {
   for (const e of await chamar('GET', '/exercicios')) {
     biblioteca.set(chave(e.nome), e);
     const id = e.videoUrl ? idDoVideo(e.videoUrl) : null;
-    if (id) donoDoVideo.set(id, chave(e.nome));
+    if (id) { donoDoVideo.set(id, chave(e.nome)); comVideoNoInicio.add(chave(e.nome)); }
   }
   falar(`Biblioteca: ${biblioteca.size} exercícios.`);
 }
