@@ -34,6 +34,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { trilhaDoPlano } from '../plano/trilha';
 
 type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number };
 
@@ -82,7 +83,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
 
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Plano de dieta" subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
+      <Cabecalho titulo="Plano de dieta" trilha={trilhaDoPlano(modelo, estado.plano.alunoId, 'Plano de dieta')} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
       {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="dieta" editor={editor} problemas={problemas} aoProblemas={setProblemas} />}
       {desfazer ? (
         <BarraDesfazer

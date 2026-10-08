@@ -40,6 +40,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { Tela } from '../../ui/Tela';
 import { useCarregar } from '../../ui/useCarregar';
+import { trilhaDoPlano } from '../plano/trilha';
 
 type Alvo = { sessao: number; exercicio: number };
 type FolhaAberta =
@@ -111,7 +112,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
 
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Plano de treino" subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
+      <Cabecalho titulo="Plano de treino" trilha={trilhaDoPlano(modelo, estado.plano.alunoId, 'Plano de treino')} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
       {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={setProblemas} />}
       {desfazer ? (
         <BarraDesfazer

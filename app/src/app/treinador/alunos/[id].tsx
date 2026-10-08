@@ -34,7 +34,7 @@ export default function FichaAluno() {
 
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
-      <Cabecalho titulo={aluno?.nome ?? 'Aluno'} voltar="/treinador/alunos" />
+      <Cabecalho titulo={aluno?.nome ?? 'Aluno'} trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: aluno?.nome ?? 'Aluno' }]} voltar="/treinador/alunos" />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
