@@ -1,3 +1,4 @@
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../../global.css';
 import { PortalHost } from '@rn-primitives/portal';
 // Só os pesos usados (o import pela raiz do pacote levaria os 18 pesos da Inter para o bundle).
@@ -42,7 +43,7 @@ export default function Raiz() {
     return null;
   }
   return (
-    <SafeAreaProvider>
+    <GestureHandlerRootView style={{flex:1}}><SafeAreaProvider>
       <SessaoProvider>
         <TemaProvider>
           <AvisoProvider>
@@ -51,7 +52,7 @@ export default function Raiz() {
           </AvisoProvider>
         </TemaProvider>
       </SessaoProvider>
-    </SafeAreaProvider>
+    </SafeAreaProvider></GestureHandlerRootView>
   );
 }
 

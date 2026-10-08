@@ -1,3 +1,4 @@
+import { BarraDescanso } from '../../aluno/BarraDescanso';
 import { CalendarDays, Dumbbell, Salad, UserRound } from 'lucide-react-native';
 
 import { AlunoProvider } from '../../offline/AlunoProvider';
@@ -20,7 +21,7 @@ export default function LayoutAluno() {
       {usuario ? (
         // Um provedor por usuário: trocar de conta nunca mistura registros.
         <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
-          <Navegacao itens={ITENS} sempreInferior />
+          <Navegacao itens={ITENS} sempreInferior rodape={<BarraDescanso />} />
         </AlunoProvider>
       ) : null}
     </GuardaDePapel>

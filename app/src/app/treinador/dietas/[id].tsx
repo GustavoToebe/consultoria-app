@@ -1,3 +1,4 @@
+import { TotaisAnimados } from '../../../ui/TotaisAnimados';
 import { useLocalSearchParams } from 'expo-router';
 import { NotebookTabs, Plus, Save, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
@@ -12,7 +13,7 @@ import { dataDaTela, dataParaTela } from '../../../dominio/formatos';
 import { novoUid } from '../../../dominio/uid';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../../tema/tokens';
-import { CartaoRefeicao, textoTotais } from '../../../treinador/dieta/CartaoRefeicao';
+import { CartaoRefeicao } from '../../../treinador/dieta/CartaoRefeicao';
 import { FolhaAlimentos } from '../../../treinador/dieta/FolhaAlimentos';
 import { FolhaReceitas } from '../../../treinador/FolhaReceitas';
 import { FolhaSalvarReceita } from '../../../treinador/FolhaSalvarReceita';
@@ -25,7 +26,8 @@ import { Cabecalho } from '../../../ui/Cabecalho';
 import { Campo } from '../../../ui/Campo';
 import { CampoData } from '../../../ui/Campos';
 import { Cartao } from '../../../ui/Cartao';
-import { Carregando, MensagemErro, Vazio } from '../../../ui/Estados';
+import { Esqueleto } from '../../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
 import { IconeBotao } from '../../../ui/IconeBotao';
 import { Tela } from '../../../ui/Tela';
@@ -55,7 +57,7 @@ export default function EditorDeDieta() {
     return (
       <Tela bordas={['top']} largura={960}>
         <Cabecalho titulo="Plano de dieta" voltar="/treinador/alunos" />
-        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Carregando />}
+        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
       </Tela>
     );
   }
@@ -126,7 +128,7 @@ export default function EditorDeDieta() {
       ))}
       <View style={[estilos.total, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
         <Texto numerico variante="secao">Total do dia (opção A de cada refeição)</Texto>
-        <Texto numerico style={estilos.textoTotal}>{textoTotais(totalDoDia(c))}</Texto>
+        <TotaisAnimados totais={totalDoDia(c)} />
       </View>
 
       <Cartao titulo="Orientações">

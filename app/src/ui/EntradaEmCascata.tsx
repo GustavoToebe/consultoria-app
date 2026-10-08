@@ -5,15 +5,15 @@ import { useMovimentoReduzido } from './useMovimentoReduzido';
 
 /** Guarda a primeira lista pronta; filtros, paginação e retorno à tela não repetem a cascata. */
 export function usePrimeiraLista(pronta: boolean, chave: string = '') {
-  const [primeira, definir] = useState<string | null>(null);
+  const [primeira, definir] = useState(true);
   const jaAnimou = useRef(false);
   useEffect(() => {
     if (!pronta || jaAnimou.current) return;
     jaAnimou.current = true;
     // Callback assíncrono: mantém os itens iniciais animados e exclui chaves de filtros posteriores.
-    void Promise.resolve().then(() => definir(chave));
+    void Promise.resolve().then(() => definir(false));
   }, [pronta, chave]);
-  return primeira === null || primeira === chave;
+  return primeira;
 }
 
 export function EntradaEmCascata({ indice, animar = true, children, style }: {

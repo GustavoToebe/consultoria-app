@@ -67,6 +67,17 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     aparelho = criarAparelho();
   });
 
+  it('histórico da semana fica isolado, sobrevive à reabertura e sai ao desconectar a conta', async () => {
+    const repo = aparelho('u1');
+    const salvo = {versaoId:'v1',inicio:'2026-10-05',dias:[{data:'2026-10-05',sessoes:[]}]};
+    await repo.salvarHistoricoSemana(salvo);
+    expect(await aparelho('u2').lerHistoricoSemana()).toBeNull();
+    expect(await aparelho('u1').lerHistoricoSemana()).toEqual(salvo);
+    await repo.apagarTudo();
+    await repo.salvarHistoricoSemana(salvo);
+    expect(await aparelho('u1').lerHistoricoSemana()).toBeNull();
+  });
+
   it('registrar de novo a mesma série no mesmo dia mantém o id e atualiza', async () => {
     const repo = aparelho('u1');
     const a = await repo.registrar(serie('x'));

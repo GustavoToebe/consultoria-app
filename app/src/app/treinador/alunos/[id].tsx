@@ -15,7 +15,8 @@ import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Cartao } from '../../../ui/Cartao';
-import { Carregando, MensagemErro } from '../../../ui/Estados';
+import { Esqueleto } from '../../../ui/Esqueleto';
+import { MensagemErro } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Selo } from '../../../ui/Selo';
@@ -32,7 +33,7 @@ export default function FichaAluno() {
     <Tela bordas={['top']} largura={960}>
       <Cabecalho titulo={aluno?.nome ?? 'Aluno'} voltar="/treinador/alunos" />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!aluno && carregando ? <Carregando /> : null}
+      {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
         <>
           <CartaoDados aluno={aluno} aoAlterar={definir} />

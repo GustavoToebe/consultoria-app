@@ -1,3 +1,5 @@
+import { useAviso } from '../ui/Aviso';
+import { textoDoErro } from '../ui/erros';
 import type { Href } from 'expo-router';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
@@ -15,6 +17,7 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
  */
 export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | undefined) {
   const aluno = useAluno();
+  const { avisar } = useAviso();
   const hoje = hojeIso();
   const data = dataDaRota && ISO.test(dataDaRota) && podeRegistrarEm(dataDaRota, hoje) ? dataDaRota : hoje;
   const treino = aluno.pacote?.pacote.treino ?? null;
@@ -41,6 +44,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const registrar = (e: ExercicioPlano, serieUid: string, d: DadosSerie) => {
     if (!treino || !sessao) return;
     const serie = e.series.find((s) => s.uid === serieUid);
+    const iniciar = d.concluida && !registroDe(serieUid)?.concluida && (serie?.descansoSegundos ?? 0) > 0;
     void aluno.registrar({
       planoVersaoId: treino.versaoId,
       sessaoUid: sessao.uid,
@@ -53,7 +57,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
       repeticoes: d.repeticoes,
       concluida: d.concluida,
       observacao: null,
-    });
+    }).then(() => { if (iniciar) aluno.iniciarDescanso(serie!.descansoSegundos!); }).catch(erro => avisar(textoDoErro(erro), 'perigo'));
   };
 
   return {

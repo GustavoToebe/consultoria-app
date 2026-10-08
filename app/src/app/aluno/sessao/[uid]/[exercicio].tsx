@@ -1,3 +1,4 @@
+import { DescansoManual } from '../../../../aluno/DescansoManual';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowRight, Check } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
@@ -11,7 +12,8 @@ import { MODALIDADES } from '../../../../treinador/treino/FolhaBiblioteca';
 import { espaco } from '../../../../tema/tokens';
 import { Botao } from '../../../../ui/Botao';
 import { Cabecalho } from '../../../../ui/Cabecalho';
-import { Carregando, Vazio } from '../../../../ui/Estados';
+import { Esqueleto } from '../../../../ui/Esqueleto';
+import { Vazio } from '../../../../ui/Estados';
 import { Selo } from '../../../../ui/Selo';
 import { Tela } from '../../../../ui/Tela';
 import { Texto } from '../../../../ui/Texto';
@@ -27,7 +29,7 @@ export default function ExercicioDaSessao() {
     return (
       <Tela bordas={['top']} largura={720}>
         <Cabecalho titulo="Exercício" voltar={voltar} />
-        <Carregando />
+        <Esqueleto />
       </Tela>
     );
   }
@@ -58,6 +60,7 @@ export default function ExercicioDaSessao() {
           <Selo texto={MODALIDADES[e.modalidade] ?? e.modalidade} tipo="neutro" />
         </View>
       ) : null}
+      <DescansoManual />
       <ExercicioAluno
         key={`${e.uid}|${data}`}
         exercicio={e}

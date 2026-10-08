@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { router, Slot, usePathname, type Href } from 'expo-router';
 import type { LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -25,7 +26,7 @@ export interface ItemMenu {
  * Casca das áreas logadas: menu lateral fixo no PC (largura ≥ 900) e barra inferior no celular. Item ativo com a
  * cor da marca (o único uso de cor de marca na navegação).
  */
-export function Navegacao({ itens, sempreInferior }: { itens: ItemMenu[]; sempreInferior?: boolean }) {
+export function Navegacao({ itens, sempreInferior, rodape }: { itens: ItemMenu[]; sempreInferior?: boolean; rodape?: ReactNode }) {
   const { width } = useWindowDimensions();
   const { cores } = useTema();
   const { marca } = useSessao();
@@ -54,6 +55,7 @@ export function Navegacao({ itens, sempreInferior }: { itens: ItemMenu[]; sempre
       <View style={estilos.conteudo}>
         <Slot />
       </View>
+      {rodape}
       <SafeAreaView edges={['bottom']}
         style={[estilos.inferior, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
         {itens.filter((item) => !item.soLateral).map((item) => (

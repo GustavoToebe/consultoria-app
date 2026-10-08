@@ -24,7 +24,8 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -113,7 +114,7 @@ export default function HistoricoAluno() {
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
         {semConexao ? <Texto numerico variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
         {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
-        {!historico.dados && historico.carregando ? <Carregando /> : null}
+        {!historico.dados && historico.carregando ? <Esqueleto /> : null}
         {historico.dados && historico.dados.length === 0 ? <Vazio titulo="Sem treinos no período" texto="Os treinos registrados aparecem aqui." /> : null}
         {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {historico.dados && visao === 'dia'

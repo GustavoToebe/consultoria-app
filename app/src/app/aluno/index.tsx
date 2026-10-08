@@ -1,3 +1,4 @@
+import { ProgressoSemana } from '../../aluno/ProgressoSemana';
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 
@@ -12,7 +13,8 @@ import { sessaoDoDia, sessoesDaSemana } from '../../dominio/semana';
 import { useAluno } from '../../offline/AlunoProvider';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -31,7 +33,7 @@ export default function TreinoAluno() {
     return (
       <Tela bordas={['top']} largura={720}>
         <Cabecalho mostrarMarca="sempre" />
-        {carregando ? <Carregando texto="Carregando seu treino" /> : null}
+        {carregando ? <Esqueleto texto="Carregando seu treino" /> : null}
         {!carregando && erroPacote ? (
           <MensagemErro texto={`${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`} />
         ) : null}
@@ -58,6 +60,7 @@ export default function TreinoAluno() {
             {treino.titulo}
             {periodo ? ` · ${periodo}` : ''}
           </Texto>
+          <ProgressoSemana hoje={hoje} />
           <CartaoHoje
             sessao={deHoje}
             hoje={hoje}

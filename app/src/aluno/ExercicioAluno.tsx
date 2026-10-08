@@ -1,3 +1,4 @@
+import { NumeroAnimado } from '../ui/NumeroAnimado';
 import { PlayCircle } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
@@ -187,6 +188,7 @@ function CartaoSerie({
         <BotaoMarcar feito={feita} ultimaDoExercicio={ultimaDoExercicio} rotulo={`Série ${indice + 1} ${s.tipo} feita`}
           aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })} />
       </View>
+      {!semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <View style={{flexDirection:'row',gap:8}}><Texto variante="pequeno">Carga sugerida:</Texto><NumeroAnimado valor={calculada.sugestao} casas={1} variante="pequeno" sufixo=" kg" /></View> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </Animated.View>
   );

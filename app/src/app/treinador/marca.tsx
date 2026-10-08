@@ -6,7 +6,8 @@ import { espaco } from '../../tema/tokens';
 import { CartaoMetodologia } from '../../treinador/marca/CartaoMetodologia';
 import { FormMarca } from '../../treinador/marca/FormMarca';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { Carregando, MensagemErro } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { useCarregar } from '../../ui/useCarregar';
@@ -20,7 +21,7 @@ export default function Marca() {
     <Tela bordas={['top']} largura={960}>
       <Cabecalho titulo="Marca" mostrarMarca="celular" />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (
         <View style={estilos.coluna}>
           <FormMarca

@@ -1,4 +1,4 @@
-import type { ConteudoDieta, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
+import type { ConteudoDieta, DiaDeTreino, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 
 /**
@@ -51,7 +51,11 @@ export interface ResultadoEnvio {
   motivo: string | null;
 }
 
+export interface HistoricoSemanaSalvo { versaoId: string; inicio: string; dias: DiaDeTreino[] }
+
 export interface RepositorioLocal {
+  lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null>;
+  salvarHistoricoSemana(historico: HistoricoSemanaSalvo): Promise<void>;
   readonly usuarioId: string;
   lerPacote(): Promise<PacoteSalvo | null>;
   salvarPacote(pacote: PainelAluno): Promise<void>;
@@ -156,6 +160,13 @@ export class RepositorioChaveValor implements RepositorioLocal {
 
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void> {
     return this.emFila(() => this.gravarJson('dieta', dieta));
+  }
+
+  lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null> {
+    return this.emFila(() => this.lerJson<HistoricoSemanaSalvo | null>('historicoSemana', null));
+  }
+  salvarHistoricoSemana(historico: HistoricoSemanaSalvo): Promise<void> {
+    return this.emFila(() => this.gravarJson('historicoSemana', historico));
   }
 
   // ---- Carga de trabalho do dia, por exercício do plano ----

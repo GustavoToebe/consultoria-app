@@ -32,7 +32,8 @@ import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Campo } from '../../../ui/Campo';
 import { Cartao } from '../../../ui/Cartao';
-import { Carregando, MensagemErro, Vazio } from '../../../ui/Estados';
+import { Esqueleto } from '../../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
 import { Tela } from '../../../ui/Tela';
 import { useCarregar } from '../../../ui/useCarregar';
@@ -61,7 +62,7 @@ export default function EditorDeTreino() {
     return (
       <Tela bordas={['top']} largura={960}>
         <Cabecalho titulo="Plano de treino" voltar="/treinador/alunos" />
-        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Carregando />}
+        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
       </Tela>
     );
   }

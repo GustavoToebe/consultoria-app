@@ -13,7 +13,8 @@ import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
-import { Carregando, MensagemErro } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
@@ -71,7 +72,7 @@ export default function Receitas() {
         não muda a receita.
       </Texto>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados
         ? GRUPOS.map((g) => (
             <Cartao key={g.tipo} titulo={g.titulo}>

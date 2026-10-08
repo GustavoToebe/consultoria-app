@@ -163,7 +163,7 @@ export function Interruptor({
   return (
     <View
       style={estilos.interruptor}>
-      <Pressable accessibilityLabel={rotulo} accessibilityRole="switch" accessibilityState={{ checked: valor }} aria-checked={valor} onPress={() => aoMudar(!valor)} style={estilos.textos}>
+      <Pressable accessible={false} tabIndex={-1} onPress={() => aoMudar(!valor)} style={estilos.textos}>
         <Texto style={estilos.rotulo}>{rotulo}</Texto>
         {ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
       </Pressable>

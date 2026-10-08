@@ -14,7 +14,8 @@ import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
-import { Carregando, MensagemErro, Vazio } from '../ui/Estados';
+import { Esqueleto } from '../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
@@ -76,7 +77,7 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
         </View>
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-        {!dados && carregando ? <Carregando /> : null}
+        {!dados && carregando ? <Esqueleto /> : null}
         {dados && dados.length === 0 ? (
           <Vazio titulo="Sem registros no período" texto="Os treinos registrados aparecem aqui. O aluno pode ter treinado sem registrar." />
         ) : null}
@@ -131,7 +132,7 @@ function CartaoProgresso({ alunoId, dias }: { alunoId: string; dias: DiaDeTreino
     <Cartao titulo="Progresso por exercício">
       <Escolha descricao="Exercício" opcoes={opcoes} valor={atual} aoMudar={setEscolhido} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-      {carregando && !dados ? <Carregando /> : null}
+      {carregando && !dados ? <Esqueleto /> : null}
       {dados?.length ? (
         <View style={[estilos.tabela, { borderColor: cores.borda }]}>
           <View style={[estilos.linhaTabela, { backgroundColor: cores.superficie2 }]}>

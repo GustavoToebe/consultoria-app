@@ -12,7 +12,8 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
-import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
@@ -65,7 +66,7 @@ export function AbaAlimentos() {
         <Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} />
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
         <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca.' : 'Importe do catálogo ou cadastre um alimento.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') }} />
       ) : null}

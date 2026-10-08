@@ -1,3 +1,5 @@
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 import { CalendarDays, CirclePlay } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -15,6 +17,9 @@ import { Texto } from '../ui/Texto';
  */
 export function CartaoHoje({ sessao, hoje, feitas, aoAbrir }: { sessao: Sessao | null; hoje: string; feitas: number; aoAbrir: () => void }) {
   const { cores, marca, sobreMarca } = useTema();
+  const reduzido = useMovimentoReduzido();
+  const escala = useSharedValue(1);
+  const movimento = useAnimatedStyle(() => ({transform:[{scale:escala.get()}]}));
   if (!sessao) {
     return (
       <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
@@ -61,13 +66,15 @@ export function CartaoHoje({ sessao, hoje, feitas, aoAbrir }: { sessao: Sessao |
     return <View style={[estilos.cartao, { backgroundColor: marca, borderColor: marca }]}>{conteudo}</View>;
   }
   return (
-    <Pressable
+    <Animated.View style={movimento}><Pressable
+      onPressIn={() => escala.set(reduzido ? 1 : withTiming(0.98,{duration:100}))}
+      onPressOut={() => escala.set(reduzido ? 1 : withTiming(1,{duration:150}))}
       accessibilityRole="button"
       accessibilityLabel={`${feitas ? 'Continuar' : 'Começar'} o treino de hoje: ${sessao.nome}`}
       onPress={aoAbrir}
-      style={({ pressed }) => [estilos.cartao, { backgroundColor: marca, borderColor: marca, opacity: pressed ? 0.85 : 1 }]}>
+      style={[estilos.cartao, { backgroundColor: marca, borderColor: marca }]}>
       {conteudo}
-    </Pressable>
+    </Pressable></Animated.View>
   );
 }
 

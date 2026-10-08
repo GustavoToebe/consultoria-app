@@ -15,7 +15,8 @@ import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
-import { Carregando, MensagemErro, Vazio } from '../ui/Estados';
+import { Esqueleto } from '../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { Selo } from '../ui/Selo';
@@ -67,7 +68,7 @@ export function CartaoPlanos({ tipo, alunoId }: { tipo: TipoPlano; alunoId: stri
       titulo={NOMES[tipo].titulo}
       acoes={<Botao rotulo="Novo plano" tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} />}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (
         <Vazio titulo={`Sem plano de ${NOMES[tipo].titulo.toLowerCase()}`} texto="Comece em branco, de uma receita ou copiando um plano." acao={{ rotulo: 'Criar plano', aoTocar: () => setNovo(true) }} />
       ) : null}
@@ -203,7 +204,7 @@ function FolhaNovoPlano({
             aoMudar={setReceitaId}
           />
         ) : (
-          <Carregando />
+          <Esqueleto />
         )
       ) : null}
       {origem === 'copia' ? (

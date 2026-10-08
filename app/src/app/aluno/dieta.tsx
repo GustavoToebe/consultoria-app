@@ -1,3 +1,4 @@
+import { TotaisAnimados } from '../../ui/TotaisAnimados';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -20,7 +21,8 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
@@ -54,7 +56,7 @@ export default function DietaAluno() {
           tentarDeNovo={recarregar}
         />
       ) : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados && !dados.dieta ? <Vazio titulo="Sem plano de dieta" texto="Seu treinador ainda não publicou a dieta." /> : null}
       {dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} /> : null}
     </Tela>
@@ -112,7 +114,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
       ))}
       <View style={[estilos.total, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
         <Texto numerico variante="secao">Total do dia (opção A de cada refeição)</Texto>
-        <Texto numerico style={estilos.textoTotal}>{textoTotais(totalDoDia(c))}</Texto>
+        <TotaisAnimados totais={totalDoDia(c)} />
       </View>
       {c.orientacoes.length ? (
         <Cartao titulo="Orientações">

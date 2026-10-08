@@ -117,3 +117,9 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
 - Base de estilo: Uniwind 1.12.2 + Tailwind 4, sem preset de Babel; Metro estende `getDefaultConfig` do Expo.
   RNR copiado em `app/src/components/ui/`, adaptadores compatíveis em `app/src/ui/`. `tokens.ts` é a fonte;
   `global.css` espelha os tokens (teste obrigatório). Marca/tema mudam via `Uniwind.updateCSSVariables` no TemaProvider.
+- Movimento: respeitar `ui/useMovimentoReduzido`; Reanimated usa `.get()`/`.set()` para manter o React Compiler.
+  Descanso pertence ao `AlunoProvider` e guarda instante de término, nunca contador decrementado; só inicia
+  automaticamente ao marcar uma série cujo plano define descanso. `dominio/descanso.ts` contém as contas testáveis.
+  `dominio/progressoSemana.ts` combina histórico e registros locais da versão ativa; cache de uma semana no
+  repositório isolado por usuário, apagado no logout. Não adicionar notificações com o app fechado neste escopo.
+  `Folha` usa mola e arraste no cabeçalho; web mantém Esc e clique fora. Bases RNR incluem licença MIT local.

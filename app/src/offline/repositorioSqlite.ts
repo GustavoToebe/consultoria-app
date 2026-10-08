@@ -7,6 +7,7 @@ import {
   prefixoDoUsuario,
   proximoInstante,
   type DadosRegistro,
+  type HistoricoSemanaSalvo,
   type PacoteSalvo,
   type RegistroLocal,
   type RepositorioLocal,
@@ -168,6 +169,13 @@ export class RepositorioSqlite implements RepositorioLocal {
 
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void> {
     return this.emFila(undefined, (b) => this.gravarDocumento(b, 'dieta', dieta));
+  }
+
+  lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null> {
+    return this.emFila(null, b => this.lerDocumento<HistoricoSemanaSalvo>(b, 'historicoSemana'));
+  }
+  salvarHistoricoSemana(historico: HistoricoSemanaSalvo): Promise<void> {
+    return this.emFila(undefined, b => this.gravarDocumento(b, 'historicoSemana', historico));
   }
 
   // ---- Carga de trabalho do dia ----

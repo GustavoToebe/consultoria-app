@@ -10,7 +10,8 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Escolha } from '../../ui/Escolha';
-import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
@@ -55,7 +56,7 @@ export function AbaExercicios() {
         <Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} />
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
         <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca.' : 'Importe do catálogo ou cadastre um exercício.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') }} />
       ) : null}

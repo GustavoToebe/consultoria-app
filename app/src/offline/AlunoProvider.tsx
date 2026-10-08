@@ -1,3 +1,5 @@
+import { iniciarDescanso as novoDescanso, ajustarDescanso as ajustar, terminado, type Descanso } from '../dominio/descanso';
+import { vibrar } from '../ui/vibrar';
 import NetInfo from '@react-native-community/netinfo';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
@@ -13,6 +15,10 @@ import { ESPERAS_MS, Sincronizador } from './sincronizacao';
 export type EstadoEnvio = 'ocioso' | 'enviando' | 'semConexao' | 'erro';
 
 interface ValorAluno {
+  descanso: Descanso | null;
+  iniciarDescanso: (segundos: number) => void;
+  ajustarDescanso: (segundos: number) => void;
+  pularDescanso: () => void;
   repositorio: RepositorioLocal;
   /** Pacote salvo no aparelho (plano publicado, marca, últimas cargas). */
   pacote: PacoteSalvo | null;
@@ -49,6 +55,24 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const { atualizarMarca, offline: sessaoOffline } = sessao;
   const repositorio = useMemo(() => abrirRepositorio(usuarioId, novoUid), [usuarioId]);
   const sincronizador = useMemo(() => new Sincronizador(repositorio, enviarRegistros), [repositorio]);
+
+  const [descanso, definirDescanso] = useState<Descanso | null>(null);
+  const notificado = useRef<number | null>(null);
+  const iniciarDescanso = useCallback((segundos: number) => definirDescanso(novoDescanso(segundos, Date.now())), []);
+  const ajustarDescanso = useCallback((segundos: number) => definirDescanso(atual => atual ? ajustar(atual, segundos, Date.now()) : null), []);
+  const pularDescanso = useCallback(() => definirDescanso(null), []);
+  useEffect(() => {
+    if (!descanso) return;
+    const verificar = () => {
+      if (terminado(descanso, Date.now()) && AppState.currentState === 'active' && notificado.current !== descanso.terminaEm) {
+        notificado.current = descanso.terminaEm;
+        vibrar.sucesso();
+      }
+    };
+    const intervalo = setInterval(verificar, 250);
+    const app = AppState.addEventListener('change', verificar);
+    return () => { clearInterval(intervalo); app.remove(); };
+  }, [descanso]);
 
   const [pacote, setPacote] = useState<PacoteSalvo | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -203,6 +227,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const valor = useMemo<ValorAluno>(() => {
     const indice = new Map(registros.map((r) => [`${r.planoVersaoId}|${r.serieUid}|${r.data}`, r]));
     return {
+      descanso, iniciarDescanso, ajustarDescanso, pularDescanso,
       repositorio,
       pacote,
       carregando,
@@ -220,7 +245,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [repositorio, pacote, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, pacote, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

@@ -11,7 +11,8 @@ import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
-import { Carregando, MensagemErro } from '../ui/Estados';
+import { Esqueleto } from '../ui/Esqueleto';
+import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../ui/erros';
 import { IconeBotao } from '../ui/IconeBotao';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
@@ -69,7 +70,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
   return (
     <Cartao titulo="Peso">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}
       {lista.slice(0, 12).map((p) => (
         <View key={p.id} style={[estilos.linha, { borderColor: cores.borda }]}>

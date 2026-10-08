@@ -7,7 +7,8 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
-import { Carregando, MensagemErro } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { Texto } from '../../ui/Texto';
@@ -57,7 +58,7 @@ export function FolhaBiblioteca({
         <Botao rotulo={`Usar só o nome “${busca.trim()}”`} tipo="secundario" aoTocar={() => aoEscolher({ nome: busca.trim() })} />
       ) : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados && filtrados.length === 0 ? (
         <Texto variante="suave">
           {dados.length === 0

@@ -1,3 +1,4 @@
+import { NumeroAnimado } from '../../ui/NumeroAnimado';
 import { router } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -10,7 +11,8 @@ import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
-import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -33,11 +35,11 @@ export default function InicioTreinador() {
         acoes={<Botao rotulo="Novo aluno" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} />}
       />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
-      {!dados && carregando ? <Carregando /> : null}
+      {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (
         <View style={estilos.grade}>
           <Cartao titulo="Alunos ativos" style={estilos.metade}>
-            <Texto variante="destaque" numerico>{dados.alunosAtivos}</Texto>
+            <NumeroAnimado valor={dados.alunosAtivos} variante="destaque" />
             <Botao rotulo="Ver alunos" tipo="secundario" aoTocar={() => router.push('/treinador/alunos')} />
           </Cartao>
           <Cartao titulo="Planos terminando em 7 dias" style={estilos.metade}>
