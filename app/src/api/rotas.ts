@@ -6,6 +6,7 @@ import type {
   AlunoRequest,
   CatalogoAlimento,
   CatalogoExercicio,
+  PaginaCatalogo,
   Configuracao,
   ConsultoriaResponse,
   ConteudoDieta,
@@ -152,10 +153,18 @@ export const alterarAlimento = (id: string, dados: AlimentoRequest) =>
   requisicao<Alimento>(`/alimentos/${id}`, { metodo: 'PUT', corpo: dados });
 export const inativarAlimento = (id: string) => requisicao<void>(`/alimentos/${id}`, { metodo: 'DELETE' });
 
-export const catalogoExercicios = (texto?: string) =>
-  requisicao<CatalogoExercicio[]>(`/catalogo/exercicios${busca(texto)}`);
-export const catalogoAlimentos = (texto?: string) =>
-  requisicao<CatalogoAlimento[]>(`/catalogo/alimentos${busca(texto)}`);
+const consulta = (filtros: Record<string, string | undefined>) => {
+  const partes = Object.entries(filtros)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`);
+  return partes.length ? `?${partes.join('&')}` : '';
+};
+
+export const catalogoExercicios = (texto?: string, grupo?: string) =>
+  requisicao<PaginaCatalogo<CatalogoExercicio>>(`/catalogo/exercicios${consulta({ busca: texto, grupo })}`);
+export const catalogoAlimentos = (texto?: string, grupo?: string) =>
+  requisicao<PaginaCatalogo<CatalogoAlimento>>(`/catalogo/alimentos${consulta({ busca: texto, grupo })}`);
+export const gruposDoCatalogo = (tipo: TipoBiblioteca) => requisicao<string[]>(`/catalogo/${tipo}/grupos`);
 
 export type TipoBiblioteca = 'exercicios' | 'alimentos';
 

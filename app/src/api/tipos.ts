@@ -172,6 +172,8 @@ export interface CatalogoExercicio {
   grupoMuscular: string | null;
   equipamento: string | null;
   modalidade: string;
+  instrucoes: string | null;
+  fonte: string | null;
 }
 
 export interface CatalogoAlimento {
@@ -184,6 +186,16 @@ export interface CatalogoAlimento {
   carboidrato: number;
   gordura: number;
   fonte: string | null;
+  grupo: string | null;
+  codigoFonte: string | null;
+  /** Nutrientes que a fonte marca como traço (`Tr`); o valor vem 0 e a tela mostra "Tr". */
+  tracos: string[];
+}
+
+/** `total` é quantos itens casaram com a busca; `itens` vem limitado. */
+export interface PaginaCatalogo<T> {
+  itens: T[];
+  total: number;
 }
 
 export interface ImportacaoResultado {
