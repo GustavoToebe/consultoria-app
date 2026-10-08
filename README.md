@@ -103,6 +103,23 @@ worker na web (abrir sem internet); importar plano da planilha; app próprio nas
 
 Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Saraiva.
 
+- **Catálogo público real** (plano em `PLANO-CATALOGO-PUBLICO.md`). Alimentos: **591** da TACO 4ª ed. (NEPA/UNICAMP,
+  2011), de 597 na planilha. Exercícios: **877** (52 próprios + 825 do exercicios-bd-ptbr, CC0), com nomes revisados em
+  `dados/curadoria/exercicios-nomes.csv`. O SQL (`V007`, `V008`) é gerado por `scripts/catalogo/` a partir de
+  `dados/fontes/`; relatórios em `dados/relatorios/`. Pontos para o Gustavo/Saraiva olharem:
+  - **TACO, uso comercial:** a publicação permite reproduzir citando a fonte e não fala de uso comercial; o e-mail
+    para `taco@unicamp.br` ainda não foi respondido (`dados/fontes/README.md`).
+  - **Feijoada (nº 540) ficou de fora:** a planilha traz o nome `L` e o PDF diz "Feijoada". Entra se alguém autorizar
+    usar o nome do PDF. Os outros 5 descartados estão marcados `*` (análise reavaliada) ou com valor em branco.
+  - **Carboidrato negativo por diferença** (−0,007 a −0,045 g em 4 alimentos) foi gravado como 0, e `Tr`/`NA` viram 0
+    (o `Tr` aparece como "Tr" na tela). Valores com 2 casas, como na planilha (o PDF imprime menos casas).
+  - **Conferência com o PDF da TACO:** 578 alimentos comparados, 0 divergências; 19 sem como conferir (linhas
+    incompletas no PDF). O PDF não vai para o git.
+  - **Nomes de exercício:** a revisão manteve alguns em inglês (por exemplo "Bent press com kettlebell", "Press com
+    pinos", "Press no pescoço"); trocar no CSV e rodar o gerador se o Saraiva preferir "desenvolvimento". 27
+    exercícios do dataset repetem um dos 52 próprios e não entram; 21 de strongman ficaram de fora.
+  - A busca do catálogo ignora acento e olha só o nome; o grupo é um filtro à parte.
+
 - **Dieta de demonstração reconstruída.** O PDF da dieta do Saraiva não está no repositório: a dieta do seed usa os
   9 alimentos e valores por 100 g da seção 13.1 do plano, com quantidades de exemplo (5 refeições, opções A/B no
   almoço e no jantar). Ajustar no editor quando houver o PDF. O `mobile/src/database/seed_diet.ts` antigo não foi usado:

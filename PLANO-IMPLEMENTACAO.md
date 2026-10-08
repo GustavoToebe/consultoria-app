@@ -78,7 +78,7 @@ internet. O Saraiva é o primeiro treinador (piloto) e quer algo "estilo Treino.
 | 2 | Isolamento entre treinadores | Igual ao Servirea: `consultoria_id` em toda tabela de negócio, aplicado pelo framework (`@TenantId`). |
 | 3 | Metodologia | Saraiva vem **todo configurado**. Igual ao Servirea (layouts de escala): **receitas** prontas (pontos de partida editáveis), **importar**, e **replicar o plano para o próximo ciclo** editando só o necessário. Meio-termo: série genérica com tipo nomeado pelo treinador, poucas formas de intensidade, nada de linguagem de fórmulas. |
 | 4 | White label | **App único**; a marca do treinador (logo, cor, nome, fonte) é carregada **depois do login** (ou ao abrir o convite). App próprio nas lojas fica para depois. |
-| 5 | Base pré-cadastrada | Catálogo **público** de exercícios e alimentos; o treinador **importa** o que quiser para a biblioteca dele. Base oficial (ex.: TACO) depois, com licença verificada. |
+| 5 | Base pré-cadastrada | Catálogo **público** de exercícios e alimentos; o treinador **importa** o que quiser para a biblioteca dele. Base oficial: TACO e exercicios-bd-ptbr já importadas (ver `PLANO-CATALOGO-PUBLICO.md`). |
 | 6 | Offline | O aluno vê o plano **só leitura**, mas registra/edita a carga e as repetições para o cálculo; ao voltar Wi-Fi/4G, sincroniza e salva. |
 | 7 | Cobrança / Central | **Fica para depois.** Nada de Central, gateway ou split agora. |
 | — | Front | **Um único app Expo** (web + Android + iOS) para treinador e aluno; o papel vem do login. O treinador usa no PC e no celular. |
@@ -1161,7 +1161,11 @@ Prancha; Abdômen; Peso corporal; PESO_CORPORAL · Elevação de pernas; Abdôme
 Esteira; Cardio; Esteira; CARDIO · Bicicleta ergométrica; Cardio; Bicicleta; CARDIO · Elíptico; Cardio; Elíptico; CARDIO ·
 Clamshell com elástico; Glúteos; Elástico; ELASTICO.
 
-### 13.5 Catálogo público de alimentos (V006)
+### 13.5 Catálogo público de alimentos (V006, depois V007)
+
+> **Atualizado:** o catálogo real (TACO 4ª ed. com 591 alimentos e 825 exercícios novos em português) entrou nas
+> migrations V007/V008. Ver `PLANO-CATALOGO-PUBLICO.md`, `dados/fontes/README.md` e `dados/relatorios/`. O texto abaixo
+> descreve só o que a V006 trouxe para a demonstração; os 9 alimentos de exemplo foram retirados do catálogo na V007.
 
 Para a demo, os 9 alimentos da tabela 13.1 com `fonte = 'Valores de demonstração (plano de exemplo). Não usar como
 referência nutricional.'`. **Não** digitar valores de memória como se fossem da TACO. A base oficial (TACO/IBGE)
@@ -1344,7 +1348,7 @@ Nunca cortar segurança (seção 5) nem testes de isolamento/idempotência para 
 - App próprio nas lojas por treinador (adicional pago futuro; regras 4.2.6/4.3 da Apple).
 - MFA do treinador (a Central tem; o Servirea ainda não) — próxima fase de segurança.
 - Row Level Security no Postgres como segunda trava do isolamento.
-- Base oficial de alimentos (TACO/IBGE) com licença verificada; vídeos próprios hospedados.
+- IBGE (POF) como segunda base de alimentos e resposta da UNICAMP sobre uso comercial da TACO; vídeos próprios hospedados.
 - Importar plano a partir da planilha do Saraiva (hoje só biblioteca via CSV).
 - Ambiguidades dos PDFs: Off ativo na quarta ou quinta; back off sobre "carga da WS" ou "maior peso do exercício"
   (o app usa o maior peso registrado na WS do dia); cardio todo dia ou só nos dias Off; "Refeição 2 — ALMOÇO" com

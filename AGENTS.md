@@ -54,6 +54,10 @@ Trabalhar na branch `claude/saraiva-api-direcionamento-treinos-dv10io` até a de
 - Rota pública que grava em tabela com `@TenantId` (cadastro de treinador, aceitar convite, seed) não abre transação no
   topo: cria o global numa transação e roda o resto em `TenantContext.executarComo(...)`, com a transação **dentro**.
   O convite descobre a consultoria pelo hash (`ConviteBusca`, SQL nativo mínimo) antes de entrar nela.
+- Catálogo público (exercícios e alimentos) vem de `dados/fontes/` pelos scripts de `scripts/catalogo/`; o SQL gerado
+  (`V007`, `V008`) não se edita à mão, e fonte nova ou corrigida = migration nova. Valor ausente nunca vira zero
+  (`Tr`/`NA` → 0 com marca em `tracos`). A busca usa `nome_busca` (sem acento), calculada igual no Python e em
+  `Buscas.semAcento`; teste: `python -m unittest scripts/catalogo/test_catalogo.py`.
 - Planos: treino e dieta compartilham `planos/PlanoServiceBase` (rascunho com lock otimista, validar, publicar versão
   imutável, replicar com uids novos). Erro de validação = 422 `PLANO_INVALIDO`/`CONFIRMAR_AVISOS` com a lista em
   `fieldErrors` (`field` = caminho no conteúdo).
