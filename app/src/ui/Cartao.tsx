@@ -1,3 +1,4 @@
+import { Card } from '../components/ui/card';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -17,7 +18,7 @@ interface Props {
 export function Cartao({ children, titulo, acoes, style }: Props) {
   const { cores } = useTema();
   return (
-    <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }, style]}>
+    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }, style]}>
       {titulo || acoes ? (
         <View style={estilos.topo}>
           {titulo ? <Texto variante="secao" style={estilos.titulo}>{titulo}</Texto> : <View />}
@@ -25,7 +26,7 @@ export function Cartao({ children, titulo, acoes, style }: Props) {
         </View>
       ) : null}
       {children}
-    </View>
+    </Card>
   );
 }
 
