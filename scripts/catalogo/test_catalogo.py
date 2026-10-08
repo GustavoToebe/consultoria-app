@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comum  # noqa: E402
+import gerar_exercicios  # noqa: E402
 import gerar_taco  # noqa: E402
 
 
@@ -183,6 +184,107 @@ class PlanilhaTest(unittest.TestCase):
             destino = Path(tmp) / "x.sql"
             comum.escrever(destino, "a\nb\n")
             self.assertEqual(destino.read_bytes(), b"a\nb\n")
+
+
+def exercicio(id_, nome, categoria="strength", equipamento="barbell", musculo="chest", instrucoes=("Passo 1.", "Passo 2.")):
+    return {"id": id_, "name": nome, "category": categoria, "equipment": equipamento,
+            "primaryMuscles": [musculo] if musculo else [], "instructions": list(instrucoes)}
+
+
+class ExerciciosTest(unittest.TestCase):
+    def montar(self, exercicios, curados=None, existentes=()):
+        return gerar_exercicios.montar(exercicios, curados or {}, list(existentes))
+
+    def test_frase_ajusta_caixa_e_preserva_nome_proprio(self):
+        self.assertEqual(gerar_exercicios.frase("Supino Reto com Barra"), "Supino reto com barra")
+        self.assertEqual(gerar_exercicios.frase("Rosca Scott com Barra W"), "Rosca Scott com barra W")
+        self.assertEqual(gerar_exercicios.frase("Agachamento   no  Smith"), "Agachamento no Smith")
+
+    def test_mapeia_modalidade_equipamento_e_grupo(self):
+        aceitos, _, _ = self.montar([
+            exercicio("A", "Supino"), exercicio("B", "Puxada", equipamento="cable", musculo="lats"),
+            exercicio("C", "Flexao", equipamento="body only", musculo="chest"),
+            exercicio("D", "Corrida", categoria="cardio", equipamento=None, musculo="quadriceps"),
+            exercicio("E", "Rolo", equipamento="foam roll", musculo="calves")])
+        por = {a["id"]: a for a in aceitos}
+        self.assertEqual((por["A"]["modalidade"], por["A"]["equipamento"], por["A"]["grupo"]), ("LIVRE", "Barra", "Peito"))
+        self.assertEqual((por["B"]["modalidade"], por["B"]["grupo"]), ("MAQUINA", "Costas"))
+        self.assertEqual(por["C"]["modalidade"], "PESO_CORPORAL")
+        self.assertEqual((por["D"]["modalidade"], por["D"]["grupo"], por["D"]["equipamento"]), ("CARDIO", "Cardio", None))
+        self.assertEqual((por["E"]["modalidade"], por["E"]["equipamento"]), ("OUTRO", "Rolo de liberação"))
+
+    def test_strongman_fica_de_fora(self):
+        aceitos, descartados, _ = self.montar([exercicio("A", "Pedras Atlas", categoria="strongman")])
+        self.assertEqual(aceitos, [])
+        self.assertIn("strongman", descartados[0][2])
+
+    def test_nome_revisado_vale_mais_que_o_do_dataset(self):
+        aceitos, _, _ = self.montar([exercicio("A", "Supino Reto Com Barra")], {"A": "Supino reto"})
+        self.assertEqual((aceitos[0]["nome"], aceitos[0]["origem"]), ("Supino reto", "revisado"))
+
+    def test_nome_repetido_entre_si_e_com_o_catalogo_proprio_nao_entra(self):
+        aceitos, descartados, _ = self.montar(
+            [exercicio("A", "Prancha"), exercicio("B", "Rosca"), exercicio("C", "ROSCA")], existentes=["Prancha"])
+        self.assertEqual([a["id"] for a in aceitos], ["B"])
+        self.assertEqual(sorted(d[0] for d in descartados), ["A", "C"])
+        self.assertTrue(all("repetido" in d[2] for d in descartados))
+
+    def test_revisao_com_id_inexistente_ou_nome_comprido_e_recusada(self):
+        with self.assertRaises(ValueError):
+            self.montar([exercicio("A", "Supino")], {"X": "Outro"})
+        aceitos, descartados, _ = self.montar([exercicio("A", "Supino")], {"A": "x" * 121})
+        self.assertEqual(aceitos, [])
+        self.assertIn("120", descartados[0][2])
+
+    def test_instrucoes_unidas_por_quebra_e_cortadas_no_ultimo_item_inteiro(self):
+        texto, cortado = gerar_exercicios.instrucoes_de(exercicio("A", "Supino"))
+        self.assertEqual((texto, cortado), ("Passo 1.\nPasso 2.", False))
+        longo = exercicio("A", "Supino", instrucoes=["a" * 2500, "b" * 2500])
+        texto, cortado = gerar_exercicios.instrucoes_de(longo)
+        self.assertEqual((texto, cortado), ("a" * 2500, True))
+        self.assertEqual(gerar_exercicios.instrucoes_de(exercicio("A", "Supino", instrucoes=[])), (None, False))
+
+    def test_csv_da_revisao_valida_formato(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            def grava(texto):
+                caminho = Path(tmp) / "nomes.csv"
+                caminho.write_text(texto, encoding="utf-8")
+                return caminho
+            ok = gerar_exercicios.ler_nomes_curados(grava("id;nome_final\nA;Supino  reto\n\nB;Remada\n"))
+            self.assertEqual(ok, {"A": "Supino reto", "B": "Remada"})
+            for ruim in ("id;nome\nA;x\n", "id;nome_final\nA;\n", "id;nome_final\nA;x\nA;y\n",
+                         "id;nome_final\nA;x;y\n"):
+                with self.assertRaises(ValueError, msg=ruim):
+                    gerar_exercicios.ler_nomes_curados(grava(ruim))
+        self.assertEqual(gerar_exercicios.ler_nomes_curados(Path(tmp) / "nao-existe.csv"), {})
+
+    def test_sql_escapa_aspas_tem_id_estavel_e_atualiza_os_52(self):
+        aceitos, _, _ = self.montar([exercicio("Farmer's_Walk", "Caminhada d'água", instrucoes=["Não é d'água."])])
+        sql = gerar_exercicios.gerar_sql(aceitos, "abc")
+        self.assertIn("md5('catalogo-exercicio:fedb:' || 'Farmer''s_Walk')::uuid", sql)
+        self.assertIn("'Caminhada d''água'", sql)
+        self.assertIn("update catalogo_exercicio set fonte = 'Catálogo próprio'", sql)
+        self.assertEqual(sql, gerar_exercicios.gerar_sql(aceitos, "abc"))
+
+    def test_nomes_do_v006_sao_os_52(self):
+        nomes = gerar_exercicios.nomes_do_v006()
+        self.assertEqual(len(nomes), 52)
+        self.assertIn("Supino reto com barra", nomes)
+
+    def test_dataset_real_e_sql_commitado(self):
+        if not gerar_exercicios.JSON.exists():
+            self.skipTest("dataset não está no repositório")
+        exercicios = gerar_exercicios.ler_exercicios()
+        self.assertEqual(len(exercicios), 873)
+        if not gerar_exercicios.SQL.exists():
+            self.skipTest("V008 ainda não foi gerada")
+        curados = gerar_exercicios.ler_nomes_curados(gerar_exercicios.CURADORIA)
+        aceitos, _, _ = gerar_exercicios.montar(exercicios, curados, gerar_exercicios.nomes_do_v006())
+        self.assertEqual(gerar_exercicios.gerar_sql(aceitos, comum.sha256(gerar_exercicios.JSON)),
+                         gerar_exercicios.SQL.read_text(encoding="utf-8"))
+        nomes = [comum.normalizar(a["nome"]) for a in aceitos]
+        self.assertEqual(len(nomes), len(set(nomes)))
+        self.assertTrue(all(len(a["nome"]) <= 120 for a in aceitos))
 
 
 if __name__ == "__main__":
