@@ -1,4 +1,5 @@
-import { Text, type TextProps } from 'react-native';
+import { type TextProps } from 'react-native';
+import { Text } from '../components/ui/text';
 import { useTema } from '../tema/TemaProvider';
 import { ESTILOS_TEXTO, NUMERICO, type Variante } from './tipografia';
 export type { Variante } from './tipografia';
