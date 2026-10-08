@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, BookOpen, ChevronDown, ChevronUp, NotebookTabs, Trash2 } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, BookOpen, ChevronDown, ChevronUp, NotebookTabs, Save, Trash2 } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
@@ -28,6 +28,7 @@ interface Props {
   aoRemover: () => void;
   aoEscolherDaBiblioteca: () => void;
   aoUsarReceita: () => void;
+  aoSalvarReceita: () => void;
 }
 
 /** Exercício da sessão: fechado mostra o resumo das séries; aberto edita tudo. */
@@ -116,7 +117,10 @@ export function CartaoExercicio(p: Props) {
           />
           <Texto variante="secao">Séries</Texto>
           <EditorSeries series={e.series} config={p.config} aoMudar={(series) => mudar({ series })} />
-          <View style={estilos.remover}>
+          <View style={estilos.rodape}>
+            {e.series.length ? (
+              <Botao rotulo="Salvar séries como receita" tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
+            ) : null}
             <Botao rotulo="Remover exercício" tipo="fantasma" Icone={Trash2} aoTocar={p.aoRemover} />
           </View>
         </View>
@@ -134,5 +138,5 @@ const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row' },
   corpo: { gap: espaco(1.5) },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  remover: { flexDirection: 'row', justifyContent: 'flex-end' },
+  rodape: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: espaco(1) },
 });

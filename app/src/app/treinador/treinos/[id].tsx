@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
-import { NotebookTabs, Plus } from 'lucide-react-native';
+import { NotebookTabs, Plus, Save } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { consultoria } from '../../../api/rotas';
+import { consultoria, criarReceita, salvarPlanoComoReceita } from '../../../api/rotas';
 import type { ConteudoTreino, ResultadoValidacao } from '../../../api/tipos';
 import { uidsComProblema } from '../../../dominio/caminhos';
 import {
@@ -14,6 +14,7 @@ import {
   novoExercicio,
   remover,
   seriesDaReceita,
+  seriesParaReceita,
   substituir,
   unidadeDaModalidade,
 } from '../../../dominio/editorTreino';
@@ -21,6 +22,8 @@ import { BarraDesfazer, type Desfazer } from '../../../treinador/plano/BarraDesf
 import { TopoPlano } from '../../../treinador/plano/TopoPlano';
 import { usePlanoEditor } from '../../../treinador/plano/usePlanoEditor';
 import { FolhaReceitas } from '../../../treinador/FolhaReceitas';
+import { FolhaSalvarReceita } from '../../../treinador/FolhaSalvarReceita';
+import { useAviso } from '../../../ui/Aviso';
 import { CartaoExercicio } from '../../../treinador/treino/CartaoExercicio';
 import { CartaoSessao } from '../../../treinador/treino/CartaoSessao';
 import { FolhaBiblioteca } from '../../../treinador/treino/FolhaBiblioteca';
@@ -35,11 +38,17 @@ import { Tela } from '../../../ui/Tela';
 import { useCarregar } from '../../../ui/useCarregar';
 
 type Alvo = { sessao: number; exercicio: number };
-type FolhaAberta = { tipo: 'biblioteca'; alvo: Alvo } | { tipo: 'receitaSeries'; alvo: Alvo } | { tipo: 'receitaPlano' };
+type FolhaAberta =
+  | { tipo: 'biblioteca'; alvo: Alvo }
+  | { tipo: 'receitaSeries'; alvo: Alvo }
+  | { tipo: 'salvarSeries'; alvo: Alvo }
+  | { tipo: 'receitaPlano' }
+  | { tipo: 'salvarPlano' };
 
 /** Editor do plano de treino (seção 10.4, item 4): a tela mais importante do treinador. */
 export default function EditorDeTreino() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { avisar } = useAviso();
   const editor = usePlanoEditor<ConteudoTreino>('treino', id, normalizarTreino);
   const config = useCarregar('consultoria', () => consultoria()).dados?.configuracao ?? null;
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
@@ -128,6 +137,9 @@ export default function EditorDeTreino() {
       <View style={estilos.acoes}>
         <Botao rotulo="Adicionar sessão" Icone={Plus} tipo="secundario" aoTocar={adicionarSessao} />
         <Botao rotulo="Usar receita de semana" Icone={NotebookTabs} tipo="secundario" aoTocar={() => setFolha({ tipo: 'receitaPlano' })} />
+        {c.sessoes.length ? (
+          <Botao rotulo="Salvar como receita" Icone={Save} tipo="fantasma" aoTocar={() => setFolha({ tipo: 'salvarPlano' })} />
+        ) : null}
       </View>
       {c.sessoes.length === 0 ? (
         <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma receita de semana." />
@@ -165,6 +177,7 @@ export default function EditorDeTreino() {
               }
               aoEscolherDaBiblioteca={() => setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: ei } })}
               aoUsarReceita={() => setFolha({ tipo: 'receitaSeries', alvo: { sessao: si, exercicio: ei } })}
+              aoSalvarReceita={() => setFolha({ tipo: 'salvarSeries', alvo: { sessao: si, exercicio: ei } })}
             />
           ))}
         </CartaoSessao>
@@ -222,6 +235,33 @@ export default function EditorDeTreino() {
           aoUsar={(r) => {
             setFolha(null);
             comDesfazer(`Receita “${r.nome}” aplicada.`, (a) => aplicarReceitaDePlano(a, r.conteudo));
+          }}
+        />
+      ) : null}
+      {folha?.tipo === 'salvarSeries' ? (
+        <FolhaSalvarReceita
+          titulo="Salvar séries como receita"
+          explicacao="Guarda a estrutura das séries deste exercício (tipos, quantidades, faixas e intensidade) para usar em outros exercícios e planos."
+          aoFechar={() => setFolha(null)}
+          aoSalvar={async (nome, descricao) => {
+            const exercicio = c.sessoes[folha.alvo.sessao]?.exercicios[folha.alvo.exercicio];
+            if (!exercicio) return;
+            await criarReceita({ tipo: 'SERIES', nome, descricao, conteudo: seriesParaReceita(exercicio.series) });
+            setFolha(null);
+            avisar('Receita de séries salva.', 'sucesso');
+          }}
+        />
+      ) : null}
+      {folha?.tipo === 'salvarPlano' && id ? (
+        <FolhaSalvarReceita
+          titulo="Salvar plano como receita"
+          explicacao="Guarda as sessões, os exercícios e as séries do rascunho como receita de semana. O plano continua igual."
+          aoFechar={() => setFolha(null)}
+          aoSalvar={async (nome, descricao) => {
+            if (!(await editor.salvar())) throw new Error('Não deu para salvar o rascunho antes.');
+            await salvarPlanoComoReceita('treino', id, nome, descricao);
+            setFolha(null);
+            avisar('Receita de semana salva.', 'sucesso');
           }}
         />
       ) : null}

@@ -1,0 +1,264 @@
+import { useLocalSearchParams } from 'expo-router';
+import { NotebookTabs, Plus, Save, Trash2 } from 'lucide-react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { listarAlimentos, salvarPlanoComoReceita } from '../../../api/rotas';
+import type { Alimento, ConteudoDieta, ResultadoValidacao } from '../../../api/tipos';
+import { uidsComProblema } from '../../../dominio/caminhos';
+import { aplicarReceitaDeDieta, novaRefeicao, novoItem, normalizarDieta, totalDoDia } from '../../../dominio/dieta';
+import { mover, remover, substituir } from '../../../dominio/editorTreino';
+import { dataDaTela, dataParaTela } from '../../../dominio/formatos';
+import { novoUid } from '../../../dominio/uid';
+import { useTema } from '../../../tema/TemaProvider';
+import { espaco, fontes, RAIO } from '../../../tema/tokens';
+import { CartaoRefeicao, textoTotais } from '../../../treinador/dieta/CartaoRefeicao';
+import { FolhaAlimentos } from '../../../treinador/dieta/FolhaAlimentos';
+import { FolhaReceitas } from '../../../treinador/FolhaReceitas';
+import { FolhaSalvarReceita } from '../../../treinador/FolhaSalvarReceita';
+import { BarraDesfazer, type Desfazer } from '../../../treinador/plano/BarraDesfazer';
+import { TopoPlano } from '../../../treinador/plano/TopoPlano';
+import { usePlanoEditor } from '../../../treinador/plano/usePlanoEditor';
+import { useAviso } from '../../../ui/Aviso';
+import { Botao } from '../../../ui/Botao';
+import { Cabecalho } from '../../../ui/Cabecalho';
+import { Campo } from '../../../ui/Campo';
+import { CampoData } from '../../../ui/Campos';
+import { Cartao } from '../../../ui/Cartao';
+import { Carregando, MensagemErro, Vazio } from '../../../ui/Estados';
+import { textoDoErro } from '../../../ui/erros';
+import { IconeBotao } from '../../../ui/IconeBotao';
+import { Tela } from '../../../ui/Tela';
+import { Texto } from '../../../ui/Texto';
+import { useCarregar } from '../../../ui/useCarregar';
+
+type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'salvar' };
+
+/**
+ * Editor do plano de dieta (seção 10.4, item 5), no formato dos PDFs do Saraiva. Os valores dos itens vêm da
+ * biblioteca e são gravados no item; o total do dia soma só a opção A de cada refeição. Suplementação é texto livre.
+ */
+export default function EditorDeDieta() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { cores } = useTema();
+  const { avisar } = useAviso();
+  const editor = usePlanoEditor<ConteudoDieta>('dieta', id, normalizarDieta);
+  const alimentos = useCarregar('biblioteca-alimentos', () => listarAlimentos()).dados ?? [];
+  const porId = new Map<string, Alimento>(alimentos.map((a) => [a.id, a]));
+  const [abertas, setAbertas] = useState<Set<string>>(new Set());
+  const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
+  const [folha, setFolha] = useState<FolhaAberta | null>(null);
+  const [desfazer, setDesfazer] = useState<Desfazer<ConteudoDieta> | null>(null);
+
+  const estado = editor.estado;
+  if (!estado) {
+    return (
+      <Tela bordas={['top']} largura={960}>
+        <Cabecalho titulo="Plano de dieta" voltar="/treinador/alunos" />
+        {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} tentarDeNovo={editor.recarregar} /> : <Carregando />}
+      </Tela>
+    );
+  }
+
+  const c = estado.conteudo;
+  const comErro = uidsComProblema(c, (problemas?.erros ?? []).map((p) => p.caminho));
+  const mudar = (parcial: Partial<ConteudoDieta>) => editor.alterarConteudo((a) => ({ ...a, ...parcial }));
+  const mudarRefeicoes = (fn: (r: ConteudoDieta['refeicoes']) => ConteudoDieta['refeicoes']) =>
+    editor.alterarConteudo((a) => ({ ...a, refeicoes: fn(a.refeicoes) }));
+  const comDesfazer = (rotulo: string, mudanca: (a: ConteudoDieta) => ConteudoDieta) => {
+    setDesfazer({ rotulo, conteudo: c });
+    editor.alterarConteudo(mudanca);
+  };
+  const alternar = (uid: string) =>
+    setAbertas((a) => {
+      const novo = new Set(a);
+      if (novo.has(uid)) novo.delete(uid);
+      else novo.add(uid);
+      return novo;
+    });
+
+  return (
+    <Tela bordas={['top']} largura={960}>
+      <Cabecalho titulo="Plano de dieta" subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />
+      <TopoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas} />
+      {desfazer ? (
+        <BarraDesfazer
+          desfazer={desfazer}
+          aoDesfazer={() => {
+            const anterior = desfazer.conteudo;
+            setDesfazer(null);
+            editor.alterarConteudo(() => anterior);
+          }}
+          aoFechar={() => setDesfazer(null)}
+        />
+      ) : null}
+      <CartaoCabecalhoDieta conteudo={c} aoMudar={mudar} />
+      <View style={estilos.acoes}>
+        <Botao
+          rotulo="Adicionar refeição"
+          tipo="secundario"
+          Icone={Plus}
+          aoTocar={() => {
+            const nova = novaRefeicao();
+            mudarRefeicoes((r) => [...r, nova]);
+            setAbertas((a) => new Set(a).add(nova.uid));
+          }}
+        />
+        <Botao rotulo="Usar receita de dieta" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setFolha({ tipo: 'receita' })} />
+        {c.refeicoes.length ? <Botao rotulo="Salvar como receita" tipo="fantasma" Icone={Save} aoTocar={() => setFolha({ tipo: 'salvar' })} /> : null}
+      </View>
+      {c.refeicoes.length === 0 ? <Vazio texto="Nenhuma refeição ainda. Adicione uma ou comece de uma receita." /> : null}
+      {c.refeicoes.map((r, ri) => (
+        <CartaoRefeicao
+          key={r.uid}
+          refeicao={r}
+          posicao={ri}
+          total={c.refeicoes.length}
+          aberta={abertas.has(r.uid)}
+          comProblema={comErro}
+          alimentos={porId}
+          aoAbrir={() => alternar(r.uid)}
+          aoMudar={(nova) => mudarRefeicoes((lista) => substituir(lista, ri, nova))}
+          aoMover={(d) => mudarRefeicoes((lista) => mover(lista, ri, d))}
+          aoRemover={() => comDesfazer(`Refeição “${r.nome || ri + 1}” removida.`, (a) => ({ ...a, refeicoes: remover(a.refeicoes, ri) }))}
+          aoEscolherAlimento={(opcao) => setFolha({ tipo: 'alimento', refeicao: ri, opcao })}
+        />
+      ))}
+      <View style={[estilos.total, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
+        <Texto variante="secao">Total do dia (opção A de cada refeição)</Texto>
+        <Texto style={estilos.textoTotal}>{textoTotais(totalDoDia(c))}</Texto>
+      </View>
+
+      <Cartao titulo="Orientações">
+        {c.orientacoes.map((o, oi) => (
+          <View key={oi} style={[estilos.orientacao, { borderColor: cores.borda }]}>
+            <View style={estilos.cresce}>
+              <Campo rotulo="Título" valor={o.titulo} aoMudar={(titulo) => mudar({ orientacoes: substituir(c.orientacoes, oi, { ...o, titulo }) })} maxLength={80} />
+              <Campo rotulo="Texto" valor={o.texto} aoMudar={(texto) => mudar({ orientacoes: substituir(c.orientacoes, oi, { ...o, texto }) })} linhas={2} maxLength={2000} />
+            </View>
+            <IconeBotao Icone={Trash2} rotulo={`Remover orientação ${o.titulo || oi + 1}`} cor={cores.perigo} aoTocar={() => mudar({ orientacoes: remover(c.orientacoes, oi) })} />
+          </View>
+        ))}
+        <View style={estilos.acoes}>
+          <Botao rotulo="Adicionar orientação" tipo="secundario" Icone={Plus} aoTocar={() => mudar({ orientacoes: [...c.orientacoes, { titulo: '', texto: '' }] })} />
+        </View>
+      </Cartao>
+
+      <Cartao titulo="Observações">
+        <Campo rotulo="Observações (opcional)" valor={c.observacoes ?? ''} aoMudar={(t) => mudar({ observacoes: t || null })} linhas={4} maxLength={8000} />
+      </Cartao>
+
+      <Cartao titulo="Suplementação">
+        <Texto variante="pequeno">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui.</Texto>
+        {c.suplementacao.map((s, si) => {
+          const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
+          return (
+            <View key={s.uid} style={[estilos.orientacao, { borderColor: cores.borda }]}>
+              <View style={[estilos.cresce, estilos.grade]}>
+                <View style={estilos.campoSup}>
+                  <Campo rotulo="Nome" valor={s.nome} aoMudar={(nome) => mudarS({ nome })} maxLength={120} />
+                </View>
+                <View style={estilos.campoSup}>
+                  <Campo rotulo="Dose" valor={s.dose} aoMudar={(dose) => mudarS({ dose })} maxLength={120} />
+                </View>
+                <View style={estilos.campoSup}>
+                  <Campo rotulo="Horário" valor={s.horario} aoMudar={(horario) => mudarS({ horario })} maxLength={120} />
+                </View>
+                <View style={estilos.campoSup}>
+                  <Campo rotulo="Observação" valor={s.observacao} aoMudar={(observacao) => mudarS({ observacao })} maxLength={500} />
+                </View>
+              </View>
+              <IconeBotao Icone={Trash2} rotulo={`Remover ${s.nome || 'linha'}`} cor={cores.perigo} aoTocar={() => mudar({ suplementacao: remover(c.suplementacao, si) })} />
+            </View>
+          );
+        })}
+        <View style={estilos.acoes}>
+          <Botao
+            rotulo="Adicionar linha"
+            tipo="secundario"
+            Icone={Plus}
+            aoTocar={() => mudar({ suplementacao: [...c.suplementacao, { uid: novoUid(), nome: '', dose: '', horario: '', observacao: '' }] })}
+          />
+        </View>
+      </Cartao>
+
+      {folha?.tipo === 'alimento' ? (
+        <FolhaAlimentos
+          alimentos={alimentos}
+          aoFechar={() => setFolha(null)}
+          aoEscolher={(alimento) => {
+            const { refeicao: ri, opcao: oi } = folha;
+            setFolha(null);
+            mudarRefeicoes((lista) => {
+              const r = lista[ri];
+              const o = r?.opcoes[oi];
+              if (!o) return lista;
+              return substituir(lista, ri, { ...r, opcoes: substituir(r.opcoes, oi, { ...o, itens: [...o.itens, novoItem(alimento)] }) });
+            });
+          }}
+        />
+      ) : null}
+      {folha?.tipo === 'receita' ? (
+        <FolhaReceitas
+          tipo="PLANO_DIETA"
+          titulo="Receita de dieta"
+          explicacao="As refeições do plano são trocadas pelas da receita (orientações, observações e suplementação ficam). Dá para desfazer logo depois."
+          aoFechar={() => setFolha(null)}
+          aoUsar={(r) => {
+            setFolha(null);
+            comDesfazer(`Receita “${r.nome}” aplicada.`, (a) => aplicarReceitaDeDieta(a, r.conteudo));
+          }}
+        />
+      ) : null}
+      {folha?.tipo === 'salvar' && id ? (
+        <FolhaSalvarReceita
+          titulo="Salvar dieta como receita"
+          explicacao="Guarda as refeições, opções e itens do rascunho como receita de dieta. O plano continua igual."
+          aoFechar={() => setFolha(null)}
+          aoSalvar={async (nome, descricao) => {
+            if (!(await editor.salvar())) throw new Error('Não deu para salvar o rascunho antes.');
+            await salvarPlanoComoReceita('dieta', id, nome, descricao);
+            setFolha(null);
+            avisar('Receita de dieta salva.', 'sucesso');
+          }}
+        />
+      ) : null}
+    </Tela>
+  );
+}
+
+/** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). */
+function CartaoCabecalhoDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar: (p: Partial<ConteudoDieta>) => void }) {
+  const [inicio, setInicio] = useState(dataParaTela(conteudo.dataInicio));
+  return (
+    <Cartao titulo="Cabeçalho da dieta">
+      <Campo rotulo="Objetivo (opcional)" valor={conteudo.objetivo ?? ''} aoMudar={(t) => aoMudar({ objetivo: t || null })} maxLength={200} />
+      <View style={estilos.grade}>
+        <View style={estilos.campoSup}>
+          <CampoData
+            rotulo="Data de início (opcional)"
+            valor={inicio}
+            aoMudar={(t) => {
+              setInicio(t);
+              const iso = dataDaTela(t);
+              if (iso !== undefined) aoMudar({ dataInicio: iso });
+            }}
+          />
+        </View>
+        <View style={estilos.cresce}>
+          <Campo rotulo="Profissional (opcional)" valor={conteudo.profissional ?? ''} aoMudar={(t) => aoMudar({ profissional: t || null })} maxLength={120} />
+        </View>
+      </View>
+    </Cartao>
+  );
+}
+
+const estilos = StyleSheet.create({
+  acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
+  textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
+  orientacao: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), borderTopWidth: 1, paddingTop: espaco(1) },
+  cresce: { flex: 1, gap: espaco(1) },
+  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
+  campoSup: { minWidth: 160, flex: 1 },
+});

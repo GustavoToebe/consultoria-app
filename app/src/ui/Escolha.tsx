@@ -56,6 +56,7 @@ const estilos = StyleSheet.create({
   rotulo: { fontFamily: fontes.semi },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
   opcao: {
+    maxWidth: '100%',
     minHeight: 40,
     minWidth: 44,
     paddingHorizontal: espaco(1.5),
@@ -64,5 +65,5 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  texto: { fontFamily: fontes.semi, fontSize: 14 },
+  texto: { fontFamily: fontes.semi, fontSize: 14, flexShrink: 1, paddingVertical: 4 },
 });

@@ -25,6 +25,7 @@ export function Selo({ texto, tipo }: { texto: string; tipo: TipoSelo }) {
 const estilos = StyleSheet.create({
   selo: {
     alignSelf: 'flex-start',
+    maxWidth: '100%',
     borderWidth: 1,
     borderRadius: 3,
     paddingHorizontal: espaco(0.75),
