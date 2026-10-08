@@ -24,10 +24,12 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
 export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, ...resto }: Props) {
   const { cores, marca } = useTema();
   const [foco, setFoco] = useState(false);
-  const corBorda = erro ? cores.perigo : foco ? marca : cores.borda;
+  const corBorda = erro ? cores.perigo : foco ? marca : cores.bordaCampo;
+  // Foco e erro têm borda de 2 px; o padding cede 1 px para a altura e o texto não mexerem.
+  const destaque = foco || !!erro ? 1 : 0;
   return (
     <View style={estilos.campo}>
-      <Label style={[ESTILOS_TEXTO.pequeno, estilos.rotulo, { color: cores.textoSuave }]}>{rotulo}</Label>
+      <Label style={[ESTILOS_TEXTO.rotulo, { color: cores.textoSuave }]}>{rotulo}</Label>
       <View>
       <Input
         {...resto}
@@ -47,10 +49,11 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
         placeholderTextColor={cores.textoSuave}
         style={[
           estilos.entrada,
+          { borderWidth: 1 + destaque, paddingHorizontal: espaco(1.5) - destaque, paddingVertical: espaco(1) - destaque },
           numerico ? { fontVariant: ['tabular-nums'] } : null,
           linhas ? { minHeight: linhas * 22 + 20, textAlignVertical: 'top' } : null,
           acao ? { paddingRight: ALVO_TOQUE } : null,
-          { color: cores.texto, backgroundColor: cores.superficie2, borderColor: corBorda },
+          { color: cores.texto, backgroundColor: cores.campo, borderColor: corBorda },
         ]}
       />
       {acao ? <View style={estilos.acao}>{acao}</View> : null}
@@ -71,14 +74,10 @@ export function CampoNumero(props: Omit<Props, 'keyboardType'>) {
 
 const estilos = StyleSheet.create({
   campo: { gap: espaco(0.5) },
-  rotulo: { fontFamily: fontes.semi },
   acao: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
   entrada: {
     minHeight: ALVO_TOQUE,
-    borderWidth: 1,
     borderRadius: RAIO,
-    paddingHorizontal: espaco(1.5),
-    paddingVertical: espaco(1),
     fontFamily: fontes.normal,
     fontSize: 16,
   },

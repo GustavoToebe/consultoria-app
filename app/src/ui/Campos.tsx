@@ -147,11 +147,12 @@ export function CampoNumericoGrande({
   const { cores, marca } = useTema();
   const [foco, setFoco] = useState(false);
   const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro);
-  const corBorda = lido === undefined ? cores.perigo : foco ? marca : cores.borda;
+  const corBorda = lido === undefined ? cores.perigo : foco ? marca : cores.bordaCampo;
+  const destaqueBorda = foco || lido === undefined ? 1 : 0;
   return (
     <View style={estilos.grande}>
-      <Texto variante="secao">{rotulo}</Texto>
-      <View style={[estilos.caixa, destaque && estilos.caixaDestaque, { backgroundColor: cores.fundo, borderColor: corBorda }]}>
+      <Texto variante="rotulo">{rotulo}</Texto>
+      <View style={[estilos.caixa, destaque && estilos.caixaDestaque, { backgroundColor: cores.campo, borderColor: corBorda, borderWidth: 1 + destaqueBorda, paddingHorizontal: espaco(1.5) - destaqueBorda }]}>
         <TextInput
           accessibilityLabel={rotuloAcessivel ?? rotulo}
           value={texto}
@@ -186,11 +187,12 @@ export function Interruptor({
   aoMudar: (valor: boolean) => void;
   ajuda?: string;
 }) {
+  const { cores } = useTema();
   return (
     <View
       style={estilos.interruptor}>
       <Pressable accessible={false} tabIndex={-1} onPress={() => aoMudar(!valor)} style={estilos.textos}>
-        <Texto style={estilos.rotulo}>{rotulo}</Texto>
+        <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
         {ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
       </Pressable>
       <Switch checked={valor} onCheckedChange={aoMudar} accessibilityLabel={rotulo} />
@@ -201,15 +203,12 @@ export function Interruptor({
 const estilos = StyleSheet.create({
   interruptor: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE },
   textos: { flex: 1, gap: 2 },
-  rotulo: { fontFamily: fontes.semi },
   grande: { flex: 1, minWidth: 0, gap: espaco(0.75) },
   caixa: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
     borderRadius: RAIO,
     minHeight: 52,
-    paddingHorizontal: espaco(1.5),
   },
   caixaDestaque: { minHeight: 64, alignSelf: 'stretch', minWidth: 0, maxWidth: '100%' },
   numero: { flex: 1, width: 0, minWidth: 0, fontFamily: fontes.negrito, fontSize: 22, fontVariant: ['tabular-nums'], paddingVertical: espaco(1) },
