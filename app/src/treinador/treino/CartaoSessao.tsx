@@ -94,7 +94,7 @@ export function CartaoSessao(p: Props) {
           <View style={estilos.botoes}>
             <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
             {p.aoSalvarModelo ? <Botao rotulo="Salvar como modelo" tipo="secundario" aoTocar={p.aoSalvarModelo} /> : null}
-          {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="fantasma" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
+          {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
           </View>
         </View>
       ) : null}

@@ -91,12 +91,12 @@ export function PainelConta({ avisoAoSair, children }: Props) {
             autoComplete="new-password" ajuda="Mínimo de 8 caracteres. As outras sessões são encerradas." />
           {erroSenha ? <MensagemErro texto={erroSenha} /> : null}
           <View style={estilos.linha}>
-            <Botao rotulo="Trocar senha" tipo="secundario" aoTocar={trocarSenha} carregando={trocando}
+            <Botao rotulo="Trocar senha" tipo="secundario" cheio aoTocar={trocarSenha} carregando={trocando}
               desabilitado={!senhaAtual || !senhaNova} />
           </View>
         </Cartao>
       ) : null}
-      <Botao rotulo="Sair" tipo="secundario" aoTocar={() => setConfirmandoSaida(true)} />
+      <Botao rotulo="Sair" tipo="secundario" cheio aoTocar={() => setConfirmandoSaida(true)} />
       <PainelConfirmacao
         visivel={confirmandoSaida}
         titulo="Sair da conta?"

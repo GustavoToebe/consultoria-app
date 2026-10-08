@@ -53,13 +53,13 @@ export default function Planejamento() {
       {r.descricao ? <Texto variante="suave">{r.descricao}</Texto> : null}
       {r.pastaId ? <Texto variante="pequeno">{pastas.dados?.find((p) => p.id === r.pastaId)?.nome}</Texto> : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        <Botao rotulo="Editar conteúdo" aoTocar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)} />
+        <Botao rotulo="Editar conteúdo" tipo="secundario" aoTocar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)} />
         <Botao rotulo="Nome e pasta" tipo="secundario" aoTocar={() => setFormulario(r)} />
         <Botao rotulo="Duplicar" tipo="secundario" carregando={ocupado === r.id} desabilitado={ocupado !== null} aoTocar={() => {
           setOcupado(r.id); duplicarReceita(r.id).then(() => { modelos.recarregar(); avisar('Modelo duplicado.', 'sucesso'); }, (e: unknown) => avisar(textoDoErro(e), 'perigo')).finally(() => setOcupado(null));
         }} />
         {!['SERIES', 'METODOLOGIA', 'MOBILIDADE'].includes(r.tipo) ? <Botao rotulo="Aplicar ao aluno" tipo="secundario" aoTocar={() => setAplicar(r)} /> : null}
-        <Botao rotulo="Excluir" tipo="fantasma" aoTocar={() => setExcluir(r)} />
+        <Botao rotulo="Excluir" tipo="perigoTexto" aoTocar={() => setExcluir(r)} />
       </View>
     </Cartao>)}
     {formulario && config.dados ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} pastaInicial={pasta === '*' ? '' : pasta} pastas={pastas.dados ?? []} aoFechar={() => setFormulario(null)} aoSalvar={async (nome, descricao, pastaId) => {
@@ -104,7 +104,7 @@ function OrganizarPastas({ pastas, aoFechar, atualizar }: { pastas: PastaModelo[
     <Campo rotulo={editando ? 'Renomear pasta' : 'Nova pasta'} valor={nome} aoMudar={setNome} maxLength={120} />
     <Botao rotulo={editando ? 'Salvar nome' : 'Criar pasta'} carregando={salvando} desabilitado={!nome.trim()} aoTocar={() => void executar(() => editando ? alterarPastaModelo(editando.id, nome.trim(), editando.versao) : criarPastaModelo(nome.trim()))} />
     {editando ? <Botao rotulo="Cancelar edição" tipo="fantasma" aoTocar={() => { setEditando(null); setNome(''); }} /> : null}
-    {pastas.map((p) => <Cartao key={p.id} titulo={p.nome}><Botao rotulo="Renomear pasta" tipo="secundario" desabilitado={salvando} aoTocar={() => { setEditando(p); setNome(p.nome); }} /><Botao rotulo="Excluir pasta" tipo="fantasma" desabilitado={salvando} aoTocar={() => setExcluir(p)} /></Cartao>)}
+    {pastas.map((p) => <Cartao key={p.id} titulo={p.nome}><Botao rotulo="Renomear pasta" tipo="secundario" desabilitado={salvando} aoTocar={() => { setEditando(p); setNome(p.nome); }} /><Botao rotulo="Excluir pasta" tipo="perigoTexto" desabilitado={salvando} aoTocar={() => setExcluir(p)} /></Cartao>)}
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.nome ?? ''}”?`} mensagem="Os modelos serão movidos para Sem pasta." rotuloConfirmar="Excluir pasta" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => { if (!excluir) return; const id = excluir.id; setExcluir(null); void executar(() => excluirPastaModelo(id)); }} />
   </Folha>;

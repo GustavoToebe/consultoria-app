@@ -65,7 +65,7 @@ function Painel({titulo,aoFechar,children,rodape}:Omit<Props,'visivel'>) {
             { backgroundColor: cores.superficie, borderColor: cores.borda },
           ]}>
           <GestureDetector gesture={gesto}><View style={estilos.topo}>
-            <Texto variante="subtitulo" style={estilos.titulo}>{titulo}</Texto>
+            <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto>
             <IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} />
           </View></GestureDetector>
           <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">

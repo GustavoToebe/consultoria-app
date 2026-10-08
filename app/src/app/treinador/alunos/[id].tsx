@@ -102,7 +102,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
           <View style={estilos.botoes}>
             <Botao
               rotulo={aluno.ativo ? 'Inativar aluno' : 'Reativar aluno'}
-              tipo={aluno.ativo ? 'fantasma' : 'secundario'}
+              tipo={aluno.ativo ? 'perigoTexto' : 'secundario'}
               aoTocar={() => setConfirmar(true)}
             />
           </View>

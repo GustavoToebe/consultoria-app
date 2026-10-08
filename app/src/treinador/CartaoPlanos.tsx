@@ -92,8 +92,8 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
             {p.versaoPublicada > 0 ? (
               <Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} />
             ) : null}
-            <Botao rotulo="Excluir plano" tipo="fantasma" aoTocar={() => setExcluir(p)} />
-            <Botao rotulo="Abrir" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} />
+            <Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} />
+            <Botao rotulo="Abrir" tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} />
           </View>
         </EntradaEmCascata>
       ))}

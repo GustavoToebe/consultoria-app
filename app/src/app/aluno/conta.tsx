@@ -39,8 +39,8 @@ export default function ContaAluno() {
             </Texto>
           ))}
           <View style={estilos.botoes}>
-            {falhas.length ? <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={() => void tentarDeNovo()} /> : null}
-            <Botao rotulo="Sincronizar agora" Icone={RefreshCw} carregando={envio === 'enviando'} aoTocar={() => void sincronizarAgora()} />
+            {falhas.length ? <Botao rotulo="Tentar de novo" tipo="secundario" cheio aoTocar={() => void tentarDeNovo()} /> : null}
+            <Botao rotulo="Sincronizar agora" cheio Icone={RefreshCw} carregando={envio === 'enviando'} aoTocar={() => void sincronizarAgora()} />
           </View>
         </Cartao>
       </PainelConta>

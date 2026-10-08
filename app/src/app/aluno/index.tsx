@@ -132,7 +132,7 @@ export default function TreinoAluno() {
               {conteudo.orientacoes ? <Texto variante="suave">{conteudo.orientacoes}</Texto> : null}
             </Cartao>
           ) : null}
-          <Botao rotulo="Baixar PDF do treino" tipo="secundario" Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />
+          <Botao rotulo="Baixar PDF do treino" tipo="secundario" cheio Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />
           <Texto variante="pequeno">
             {treino.titulo} (v{treino.numero}) · atualizado em {dataHoraParaTela(pacote.salvoEm)}
           </Texto>

@@ -147,7 +147,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
-      <Botao rotulo="Baixar PDF da dieta" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
+      <Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
       <Texto variante="pequeno">
         {versao.titulo} (v{versao.numero})
       </Texto>

@@ -123,7 +123,7 @@ export function CartaoExercicio(p: Props) {
             {e.series.length ? (
               <Botao rotulo="Salvar séries como receita" tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
             ) : null}
-            <Botao rotulo="Remover exercício" tipo="fantasma" Icone={Trash2} aoTocar={p.aoRemover} />
+            <Botao rotulo="Remover exercício" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} />
           </View>
         </View>
       ) : null}

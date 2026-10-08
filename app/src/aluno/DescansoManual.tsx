@@ -18,7 +18,7 @@ export function DescansoManual() {
  const iniciar=(total:number)=>{iniciarDescanso(total);mudarMinutos('');mudarSegundos('');abrir(false);};
  const soDigitos=(texto:string)=>texto.replace(/\D/g,'').slice(0,2);
  const linhas=Array.from({length:Math.ceil(DESCANSOS_PRONTOS.length/COLUNAS)},(_,i)=>DESCANSOS_PRONTOS.slice(i*COLUNAS,(i+1)*COLUNAS));
- return <><Botao rotulo="Descanso" tipo="secundario" aoTocar={()=>abrir(true)} />
+ return <><Botao rotulo="Descanso" tipo="secundario" cheio aoTocar={()=>abrir(true)} />
   <Folha visivel={aberto} titulo="Iniciar descanso" aoFechar={()=>abrir(false)}>
    <View style={{gap:16}}>
     <View style={{gap:8}}>

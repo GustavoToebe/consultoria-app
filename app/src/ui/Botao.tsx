@@ -6,7 +6,7 @@ import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
-type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma';
+type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto';
 
 interface Props {
   rotulo: string;
@@ -16,17 +16,22 @@ interface Props {
   Icone?: LucideIcon;
   desabilitado?: boolean;
   carregando?: boolean;
-  /** Ocupa a largura toda (formulários no celular). */
+  /** Ocupa a largura toda (entrar, ação única da tela no celular). Sem isto o botão tem o tamanho do texto. */
   cheio?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
-/** Ação principal com a cor da marca; secundária com borda; perigo em vermelho (status, nunca a marca). */
+/**
+ * Ação principal com a cor da marca (no máximo uma por área); secundária com contorno; fantasma só texto, para ação
+ * rara ou de baixo risco; `perigoTexto` é o fantasma com texto vermelho (remover, inativar), sempre com confirmação.
+ * `perigo` (preenchido) é só para o botão de confirmação do painel.
+ */
 export function Botao({ rotulo, aoTocar, tipo = 'primario', Icone, desabilitado, carregando, cheio, style }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const inativo = desabilitado || carregando;
+  const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
   const fundo = tipo === 'primario' ? marca : tipo === 'perigo' ? cores.perigo : 'transparent';
-  const texto = tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? '#FFFFFF' : cores.texto;
+  const texto = tipo === 'primario' ? sobreMarca : tipo === 'perigo' ? '#FFFFFF' : tipo === 'perigoTexto' ? cores.perigo : cores.texto;
   const borda = tipo === 'secundario' ? cores.borda : fundo;
   return (
     <Button
@@ -38,7 +43,11 @@ export function Botao({ rotulo, aoTocar, tipo = 'primario', Icone, desabilitado,
       onPress={aoTocar}
       style={({ pressed }) => [
         estilos.botao,
-        { backgroundColor: fundo, borderColor: borda, opacity: inativo ? 0.5 : pressed ? 0.8 : 1 },
+        {
+          backgroundColor: semFundo && pressed ? cores.superficie3 : fundo,
+          borderColor: semFundo && pressed ? cores.superficie3 : borda,
+          opacity: inativo ? 0.5 : pressed && !semFundo ? 0.8 : 1,
+        },
         cheio && estilos.cheio,
         style,
       ]}>
@@ -52,6 +61,7 @@ export function Botao({ rotulo, aoTocar, tipo = 'primario', Icone, desabilitado,
 
 const estilos = StyleSheet.create({
   botao: {
+    alignSelf: 'flex-start',
     minHeight: ALVO_TOQUE,
     paddingHorizontal: espaco(2),
     borderRadius: RAIO,

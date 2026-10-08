@@ -107,7 +107,7 @@ export function CartaoRefeicao(p: Props) {
                 {r.opcoes.length > 1 ? (
                   <Botao
                     rotulo={`Remover opção ${opcao.rotulo}`}
-                    tipo="fantasma"
+                    tipo="perigoTexto"
                     Icone={Trash2}
                     aoTocar={() => {
                       setOpcaoAtiva(0);
@@ -131,7 +131,7 @@ export function CartaoRefeicao(p: Props) {
               />
             ) : null}
             {p.aoSalvarModelo ? <Botao rotulo="Salvar como modelo" tipo="secundario" aoTocar={p.aoSalvarModelo} /> : null}
-          {p.removivel !== false ? <Botao rotulo="Remover refeição" tipo="fantasma" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
+          {p.removivel !== false ? <Botao rotulo="Remover refeição" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
           </View>
         </View>
       ) : null}

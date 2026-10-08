@@ -95,12 +95,12 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso }: 
                 reabrirPasta(aberta.id).then(() => { avisar('Pasta reaberta.', 'sucesso'); recarregar(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
               }} />
             ) : (
-              <Botao rotulo="Finalizar pasta" Icone={CheckCircle2} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} />
+              <Botao rotulo="Finalizar pasta" tipo="secundario" Icone={CheckCircle2} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} />
             )}
             <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} />
             <Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} />
             <Botao rotulo="Salvar como modelo" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { setAbertaId(null); setSalvarModelo(aberta); }} />
-            <Botao rotulo="Excluir pasta" tipo="fantasma" Icone={Trash2} aoTocar={() => { setAbertaId(null); setExcluir(aberta); }} />
+            <Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setAbertaId(null); setExcluir(aberta); }} />
           </View>
           <Texto variante="secao">Planos desta pasta</Texto>
           <CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} />

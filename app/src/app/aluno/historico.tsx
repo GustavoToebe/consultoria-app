@@ -104,7 +104,7 @@ export default function HistoricoAluno() {
               </View>
             );
           })}
-          {falhas.length ? <Botao rotulo="Tentar enviar de novo" tipo="secundario" aoTocar={() => void tentarDeNovo()} /> : null}
+          {falhas.length ? <Botao rotulo="Tentar enviar de novo" tipo="secundario" cheio aoTocar={() => void tentarDeNovo()} /> : null}
         </Cartao>
       ) : null}
 

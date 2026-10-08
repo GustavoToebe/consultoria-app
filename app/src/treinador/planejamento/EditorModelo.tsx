@@ -55,10 +55,10 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
           <Campo rotulo="Link do vídeo (YouTube)" valor={it.videoUrl} maxLength={500} autoCapitalize="none" erro={erroDoVideo(it.videoUrl)} aoMudar={(videoUrl) => alterarItem(si, ii, { videoUrl })} />
           <Botao rotulo="Subir item" tipo="secundario" desabilitado={ii === 0} aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: mover(x.itens, ii, -1) }))} />
           <Botao rotulo="Descer item" tipo="secundario" desabilitado={ii === sec.itens.length - 1} aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: mover(x.itens, ii, 1) }))} />
-          <Botao rotulo="Remover item" tipo="fantasma" aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: x.itens.filter((_, m) => m !== ii) }))} />
+          <Botao rotulo="Remover item" tipo="perigoTexto" aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: x.itens.filter((_, m) => m !== ii) }))} />
         </Cartao>)}
         <Botao rotulo="Adicionar item" tipo="secundario" desabilitado={sec.itens.length >= 40} aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: [...x.itens, novoItemMobilidade()] }))} />
-        <Botao rotulo="Remover seção" tipo="fantasma" desabilitado={mob.secoes.length <= 1} aoTocar={() => alterarMob((c) => ({ ...c, secoes: c.secoes.filter((_, n) => n !== si) }))} />
+        <Botao rotulo="Remover seção" tipo="perigoTexto" desabilitado={mob.secoes.length <= 1} aoTocar={() => alterarMob((c) => ({ ...c, secoes: c.secoes.filter((_, n) => n !== si) }))} />
       </Cartao>)}
       <Botao rotulo="Adicionar seção" tipo="secundario" desabilitado={mob.secoes.length >= 10} aoTocar={() => alterarMob((c) => ({ ...c, secoes: [...c.secoes, novaSecaoMobilidade()] }))} />
     </> : null}
@@ -69,7 +69,7 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
         <Texto variante="pequeno">{p.treino ? p.treino.sessoes.map((s) => s.nome || 'Sessão').join(' · ') : p.dieta?.refeicoes.map((ref) => ref.nome || 'Refeição').join(' · ')}</Texto>
         <Botao rotulo="Subir plano" tipo="secundario" desabilitado={i === 0} aoTocar={() => setConteudo({ planos: mover(pasta.planos, i, -1) })} />
         <Botao rotulo="Descer plano" tipo="secundario" desabilitado={i === pasta.planos.length - 1} aoTocar={() => setConteudo({ planos: mover(pasta.planos, i, 1) })} />
-        <Botao rotulo="Remover da pasta" tipo="fantasma" aoTocar={() => setConteudo({ planos: pasta.planos.filter((_, n) => n !== i) })} />
+        <Botao rotulo="Remover da pasta" tipo="perigoTexto" aoTocar={() => setConteudo({ planos: pasta.planos.filter((_, n) => n !== i) })} />
       </Cartao>)}
       <Botao rotulo="Adicionar semana de treino" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('PLANO_TREINO')} />
       <Botao rotulo="Adicionar dieta" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('PLANO_DIETA')} />
