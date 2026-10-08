@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes } from '../tema/tokens';
@@ -14,25 +15,24 @@ interface Props<T extends string> {
 export function Abas<T extends string>({ abas, ativa, aoMudar }: Props<T>) {
   const { cores, marca } = useTema();
   return (
-    <View style={[estilos.borda, { borderColor: cores.borda }]}>
+    <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} style={[estilos.borda, { borderColor: cores.borda }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.linha}>
-        <View style={estilos.linha} accessibilityRole="tablist">
+        <TabsList style={estilos.linha}>
           {abas.map((a) => {
             const sel = a.valor === ativa;
             return (
-              <Pressable
+              <TabsTrigger value={a.valor}
                 key={a.valor}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: sel }}
-                onPress={() => aoMudar(a.valor)}
                 style={[estilos.aba, { borderColor: sel ? marca : 'transparent' }]}>
                 <Texto style={[estilos.texto, { color: sel ? cores.texto : cores.textoSuave }]}>{a.rotulo}</Texto>
-              </Pressable>
+              </TabsTrigger>
             );
           })}
-        </View>
+        </TabsList>
       </ScrollView>
-    </View>
+    </Tabs>
   );
 }
 
