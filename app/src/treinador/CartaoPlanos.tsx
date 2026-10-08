@@ -60,7 +60,7 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
  * Treinos ou dietas do aluno dentro de uma pasta (o período é o da pasta). Criar (em branco, receita ou cópia),
  * abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
  */
-export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0 }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number }) {
+export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void }) {
   const { cores } = useTema();
   const todos = useCarregar(`${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
   const { erro, carregando, recarregar } = todos;
@@ -93,7 +93,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0 }: { tipo: Tipo
               <Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} />
             ) : null}
             <Botao rotulo="Excluir plano" tipo="fantasma" aoTocar={() => setExcluir(p)} />
-            <Botao rotulo="Abrir" Icone={Pencil} aoTocar={() => router.push(rotaDoEditor(tipo, p.id))} />
+            <Botao rotulo="Abrir" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} />
           </View>
         </EntradaEmCascata>
       ))}
@@ -101,8 +101,8 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0 }: { tipo: Tipo
         if (!excluir) return; const id = excluir.id; setExcluir(null);
         excluirPlano(tipo, id).then(recarregar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
       }} />
-      {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} /> : null}
-      {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} /> : null}
+      {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} aoNavegar={aoNavegar} /> : null}
+      {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} aoNavegar={aoNavegar} /> : null}
     </Cartao>
   );
 }
@@ -135,12 +135,14 @@ function FolhaNovoPlano({
   pasta,
   planos,
   aoFechar,
+  aoNavegar,
 }: {
   tipo: TipoPlano;
   alunoId: string;
   pasta: PastaResumo;
   planos: PlanoResumo[];
   aoFechar: () => void;
+  aoNavegar?: () => void;
 }) {
   const receitas = useCarregar(NOMES[tipo].receita, () => listarReceitas(NOMES[tipo].receita));
   const [titulo, setTitulo] = useState(pasta.titulo);
@@ -169,6 +171,7 @@ function FolhaNovoPlano({
     }).then(
       (d) => {
         aoFechar();
+        aoNavegar?.();
         router.push(rotaDoEditor(tipo, d.plano.id));
       },
       (e: unknown) => {
@@ -232,7 +235,7 @@ export function proximoPeriodo(p: { inicio: string | null; fim: string | null })
   return { inicio: dataParaTela(inicio), fim: dataParaTela(somarDias(inicio, dias)) };
 }
 
-function FolhaReplicar({ tipo, plano, aoFechar }: { tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void }) {
+function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoNavegar?: () => void }) {
   const { avisar } = useAviso();
   const naPasta = plano.pastaId !== null;
   const sugestao = proximoPeriodo(plano);
@@ -258,6 +261,7 @@ function FolhaReplicar({ tipo, plano, aoFechar }: { tipo: TipoPlano; plano: Plan
       (d) => {
         aoFechar();
         avisar('Plano replicado. Edite só o que mudar e publique.', 'sucesso');
+        aoNavegar?.();
         router.push(rotaDoEditor(tipo, d.plano.id));
       },
       (e: unknown) => {

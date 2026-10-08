@@ -21,6 +21,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -183,6 +184,24 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
     public Optional<VersaoAtiva<P, V, C>> versaoAtiva(UUID alunoId) {
         return planos.findByAlunoIdAndAtivoTrue(alunoId)
                 .filter(p -> p.getVersaoPublicada() > 0)
+                .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoPublicada())
+                        .map(v -> new VersaoAtiva<>(p, v, ler(v.getConteudo()))));
+    }
+
+    /** Planos publicados e não arquivados do aluno que estão em alguma pasta (rascunho nunca entra). */
+    @Transactional(readOnly = true)
+    public List<P> publicadosEmPastas(UUID alunoId) {
+        return planos.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream()
+                .filter(p -> !p.isArquivado() && p.getVersaoPublicada() > 0 && p.getPastaId() != null)
+                .toList();
+    }
+
+    /** Versão publicada mais recente entre os planos do aluno na pasta; sem plano publicado, vazio. */
+    @Transactional(readOnly = true)
+    public Optional<VersaoAtiva<P, V, C>> versaoPublicadaDaPasta(UUID alunoId, UUID pastaId) {
+        return planos.findByPastaId(pastaId).stream()
+                .filter(p -> !p.isArquivado() && p.getVersaoPublicada() > 0 && alunoId.equals(p.getAlunoId()))
+                .max(Comparator.comparing(PlanoBase::getPublicadoEm))
                 .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoPublicada())
                         .map(v -> new VersaoAtiva<>(p, v, ler(v.getConteudo()))));
     }

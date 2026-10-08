@@ -5,12 +5,19 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import { enviarRegistros, painelAluno } from '../api/rotas';
+import { enviarRegistros, painelAluno, planosDaPastaAluno } from '../api/rotas';
+import type { PastaDoAluno, PlanosDaPasta } from '../api/tipos';
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
 import type { DadosRegistro, PacoteSalvo, RegistroLocal, RepositorioLocal } from './repositorioLocal';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
+
+/** Plano que o aluno escolheu só para consultar (não é o vigente). */
+export interface PlanoEscolhido {
+  pasta: PastaDoAluno;
+  planos: PlanosDaPasta;
+}
 
 export type EstadoEnvio = 'ocioso' | 'enviando' | 'semConexao' | 'erro';
 
@@ -20,6 +27,10 @@ interface ValorAluno {
   ajustarDescanso: (segundos: number) => void;
   pularDescanso: () => void;
   repositorio: RepositorioLocal;
+  /** Plano de outra pasta aberto para consulta (treino e dieta juntos); nulo = o plano vigente do pacote. */
+  escolhida: PlanoEscolhido | null;
+  /** Escolher a pasta vigente volta ao pacote salvo; outra pasta precisa de conexão. */
+  escolherPasta: (pasta: PastaDoAluno) => Promise<void>;
   /** Pacote salvo no aparelho (plano publicado, marca, últimas cargas). */
   pacote: PacoteSalvo | null;
   /** Ainda lendo o aparelho na abertura. */
@@ -75,6 +86,10 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   }, [descanso]);
 
   const [pacote, setPacote] = useState<PacoteSalvo | null>(null);
+  const [escolhida, setEscolhida] = useState<PlanoEscolhido | null>(null);
+  const escolherPasta = useCallback(async (pasta: PastaDoAluno) => {
+    setEscolhida(pasta.atual ? null : { pasta, planos: await planosDaPastaAluno(pasta.id) });
+  }, []);
   const [carregando, setCarregando] = useState(true);
   const [erroPacote, setErroPacote] = useState<unknown>(null);
   const [registros, setRegistros] = useState<RegistroLocal[]>([]);
@@ -229,6 +244,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     return {
       descanso, iniciarDescanso, ajustarDescanso, pularDescanso,
       repositorio,
+      escolhida,
+      escolherPasta,
       pacote,
       carregando,
       erroPacote,
@@ -245,7 +262,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, pacote, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

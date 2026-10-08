@@ -3,6 +3,7 @@ import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { SeletorPlano } from '../../aluno/SeletorPlano';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { ErroApi } from '../../api/cliente';
 import { dietaAluno, pesosAluno } from '../../api/rotas';
@@ -34,7 +35,7 @@ import { useCarregar } from '../../ui/useCarregar';
  * estar desatualizada.
  */
 export default function DietaAluno() {
-  const { repositorio } = useAluno();
+  const { repositorio, escolhida } = useAluno();
   const { dados, erro, carregando, recarregar } = useCarregar('dieta-aluno', async () => {
     try {
       const { dieta } = await dietaAluno();
@@ -50,15 +51,23 @@ export default function DietaAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Dieta" acoes={<SeloSincronizacao />} />
-      {erro ? (
+      <SeletorPlano rotulo={null} />
+      {escolhida ? (
+        escolhida.planos.dieta ? (
+          <Dieta versao={escolhida.planos.dieta} salva={false} />
+        ) : (
+          <Vazio titulo="Sem dieta neste plano" texto="Este plano só tem treino publicado." />
+        )
+      ) : null}
+      {escolhida ? null : erro ? (
         <MensagemErro
           texto={erro instanceof ErroApi && erro.semConexao ? 'Sem conexão e a dieta ainda não foi aberta neste aparelho.' : textoDoErro(erro)}
           tentarDeNovo={recarregar}
         />
       ) : null}
-      {!dados && carregando ? <Esqueleto /> : null}
-      {dados && !dados.dieta ? <Vazio titulo="Sem plano de dieta" texto="Seu treinador ainda não publicou a dieta." /> : null}
-      {dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} /> : null}
+      {escolhida ? null : !dados && carregando ? <Esqueleto /> : null}
+      {escolhida ? null : dados && !dados.dieta ? <Vazio titulo="Sem plano de dieta" texto="Seu treinador ainda não publicou a dieta." /> : null}
+      {!escolhida && dados?.dieta ? <Dieta versao={dados.dieta} salva={dados.salva} /> : null}
     </Tela>
   );
 }

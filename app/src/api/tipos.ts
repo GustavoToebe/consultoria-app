@@ -462,6 +462,25 @@ export interface UltimaCarga {
   data: string;
 }
 
+/** Pasta do aluno com plano publicado. `concluidaEm` nulo = ativa; `atual` = a do plano vigente (o do pacote offline). */
+export interface PastaDoAluno {
+  id: string;
+  titulo: string;
+  inicio: string | null;
+  fim: string | null;
+  concluidaEm: string | null;
+  atual: boolean;
+  temTreino: boolean;
+  temDieta: boolean;
+}
+
+/** Treino e dieta publicados de uma pasta; cada um é nulo se a pasta não tem aquele tipo publicado. */
+export interface PlanosDaPasta {
+  pastaId: string;
+  treino: TreinoAtual | null;
+  dieta: VersaoDetalhe<ConteudoDieta> | null;
+}
+
 /** Tudo o que o app guarda para o aluno treinar sem internet. `treino` nulo = sem plano publicado. */
 export interface PainelAluno {
   marca: Marca;

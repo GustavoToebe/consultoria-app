@@ -23,6 +23,8 @@ import type {
   Marca,
   PaginaAlunos,
   PainelAluno,
+  PastaDoAluno,
+  PlanosDaPasta,
   PainelTreinador,
   PlanoDetalhe,
   DadosLesao,
@@ -280,6 +282,10 @@ export const salvarPlanoComoReceita = (tipo: TipoPlano, id: string, nome: string
 // ---- Aluno (sempre o aluno do token) ----
 
 export const painelAluno = () => requisicao<PainelAluno>('/aluno/painel');
+
+export const pastasDoAluno = () => requisicao<PastaDoAluno[]>('/aluno/pastas');
+
+export const planosDaPastaAluno = (id: string) => requisicao<PlanosDaPasta>(`/aluno/pastas/${id}`);
 
 export const dietaAluno = () => requisicao<{ dieta: VersaoDetalhe<ConteudoDieta> | null }>('/aluno/dieta');
 

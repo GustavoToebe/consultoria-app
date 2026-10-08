@@ -63,6 +63,26 @@ export function CartaoDivisao({
   );
 }
 
+/** Divisão de um plano que não é o vigente: só os exercícios, sem datas nem registro. */
+export function CartaoDivisaoLeitura({ sessao }: { sessao: Sessao }) {
+  const { cores } = useTema();
+  return (
+    <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+      <View style={estilos.textos}>
+        <Texto numerico style={estilos.titulo}>{nomeComDia(sessao)}</Texto>
+        <Texto numerico variante="suave">
+          {[sessao.exercicios.length ? `${sessao.exercicios.length} exercícios` : rotuloDoTipo(sessao), sessao.cardio].filter(Boolean).join(' · ')}
+        </Texto>
+      </View>
+      {sessao.exercicios.map((e) => (
+        <Texto key={e.uid} numerico variante="suave">
+          {e.nome} · {e.series.length} {e.series.length === 1 ? 'série' : 'séries'}
+        </Texto>
+      ))}
+    </View>
+  );
+}
+
 function ChipData({
   rotulo,
   descricao,

@@ -95,6 +95,18 @@ public final class ExecucaoDtos {
                               Map<UUID, UltimaCarga> ultimasCargas, ConfiguracaoAluno configuracao, Instant geradoEm) {
     }
 
+    /**
+     * Pasta do aluno com ao menos um plano publicado. {@code concluidaEm} nulo = ativa; {@code atual} = a pasta do
+     * plano vigente (o que o pacote offline traz).
+     */
+    public record PastaDoAluno(UUID id, String titulo, LocalDate inicio, LocalDate fim, Instant concluidaEm,
+                               boolean atual, boolean temTreino, boolean temDieta) {
+    }
+
+    /** Planos publicados de uma pasta; cada um é nulo quando a pasta não tem aquele tipo publicado. */
+    public record PlanosDaPasta(UUID pastaId, TreinoAtual treino, VersaoDetalhe<ConteudoDieta> dieta) {
+    }
+
     /** {@code dieta} nula = sem plano de dieta publicado. */
     public record DietaAtual(VersaoDetalhe<ConteudoDieta> dieta) {
     }

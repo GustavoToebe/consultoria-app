@@ -5,13 +5,16 @@ import br.com.treinos.api.execucao.dto.ExecucaoDtos.DietaAtual;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.LoteRequest;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.LoteResponse;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PainelAluno;
+import br.com.treinos.api.execucao.dto.ExecucaoDtos.PastaDoAluno;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoResponse;
+import br.com.treinos.api.execucao.dto.ExecucaoDtos.PlanosDaPasta;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /** Rotas do aluno (seção 9.4). O aluno é sempre o da sessão. */
 @RestController
@@ -49,6 +53,18 @@ public class AlunoAppController {
     @GetMapping("/dieta")
     public DietaAtual dieta(@AuthenticationPrincipal UsuarioAutenticado eu) {
         return alunoApp.dieta(eu);
+    }
+
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/pastas")
+    public List<PastaDoAluno> pastas(@AuthenticationPrincipal UsuarioAutenticado eu) {
+        return alunoApp.pastas(eu);
+    }
+
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/pastas/{id}")
+    public PlanosDaPasta planosDaPasta(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) {
+        return alunoApp.planosDaPasta(eu, id);
     }
 
     @PreAuthorize("hasRole('ALUNO')")

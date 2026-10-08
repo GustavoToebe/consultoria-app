@@ -68,6 +68,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Pastas (`pastas/`): agrupam treinos e dietas do aluno e dão o período a todos. Plano criado/replicado com `pastaId`
   usa o período da pasta (o do corpo é ignorado); mudar a pasta altera o **rascunho** dos planos (publicado segue imutável);
   replicar a pasta copia todos. Pasta de outro aluno/consultoria = 404. A V011 moveu os planos anteriores à V009 para pastas (por aluno e período); a ficha não mostra mais “sem pasta”.
+- Troca de plano do aluno: `GET /aluno/pastas` (pastas com plano **publicado**; status Ativa/Concluída vem de `concluida_em`; `atual` = pasta do plano vigente) e `GET /aluno/pastas/{id}` (treino e dieta publicados da pasta, 404 se de outro aluno ou só rascunho). Trocar só muda o que o aluno consulta, nunca o `ativo`; plano de outra pasta é só leitura no app (`AlunoProvider.escolhida`, `aluno/SeletorPlano`).
 - Lesões (`lesoes/`): histórico estruturado do aluno, dado sensível (LGPD), só treinador; o sistema não interpreta.
 - Execuções: `execucao_serie.serie_trabalho` (fora do esboço do plano) e `exercicio_id` vêm da versão publicada, nunca
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.
@@ -108,7 +109,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Cargas por divisão (`dominio/relatorio.ts` + `treinador/CargasPorDivisao`) no histórico do aluno e na ficha do
   treinador; o mesmo dado sai no PDF de cargas (`pdf/pdfCargas.ts`).
 
-- Ficha do aluno (treinador): `CartaoPastas` (pastas → `CartaoPlanos` por tipo), `CartaoLesoes`, `CartaoRegistros` (filtro por
+- Ficha do aluno (treinador): `CartaoPastas` (lista de pastas; tocar abre a folha com ações e `CartaoPlanos` de treino e dieta), `CartaoLesoes`, `CartaoRegistros` (filtro por
   plano via `filtrarPorSessoes`; `Cartao recolhivel`) e `CartaoPeso` (lista ou `GraficoLinha`, SVG sem biblioteca).
 - PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
   arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`

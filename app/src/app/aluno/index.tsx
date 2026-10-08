@@ -4,8 +4,9 @@ import { router } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 
-import { CartaoDivisao } from '../../aluno/CartaoDivisao';
+import { CartaoDivisao, CartaoDivisaoLeitura } from '../../aluno/CartaoDivisao';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
+import { SeletorPlano } from '../../aluno/SeletorPlano';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { caminhoDaSessao } from '../../aluno/useSessaoDoDia';
 import type { Sessao } from '../../api/tipos';
@@ -31,12 +32,14 @@ import { Texto } from '../../ui/Texto';
  * salvo, sem internet.
  */
 export default function TreinoAluno() {
-  const { pacote, carregando, erroPacote, registros } = useAluno();
+  const { pacote, carregando, erroPacote, registros, escolhida } = useAluno();
   const animar = usePrimeiraLista(!!pacote);
   const { avisar } = useAviso();
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const hoje = hojeIso();
-  const treino = pacote?.pacote.treino ?? null;
+  // Outro plano escolhido no seletor: só consulta (o registro das séries é do plano vigente).
+  const somenteLeitura = !!escolhida;
+  const treino = (escolhida ? escolhida.planos.treino : pacote?.pacote.treino) ?? null;
 
   if (!pacote) {
     return (
@@ -89,32 +92,38 @@ export default function TreinoAluno() {
     <Tela bordas={['top']} largura={720}>
       <Cabecalho mostrarMarca="sempre" acoes={<SeloSincronizacao />} />
       <Texto variante="titulo">Olá, {pacote.pacote.aluno.nome.split(' ')[0]}</Texto>
+      <SeletorPlano rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} />
       {!treino || !conteudo ? (
-        <Vazio titulo="Sem plano de treino" texto="Seu treinador ainda não publicou um treino para você." />
+        <Vazio
+          titulo={escolhida ? 'Sem treino neste plano' : 'Sem plano de treino'}
+          texto={escolhida ? 'Este plano só tem dieta publicada.' : 'Seu treinador ainda não publicou um treino para você.'}
+        />
       ) : (
         <>
-          <Texto variante="suave">
-            {treino.titulo}
-            {periodo ? ` · ${periodo}` : ''}
-          </Texto>
-          <ProgressoSemana hoje={hoje} />
-          <CartaoHoje
-            sessao={deHoje}
-            hoje={hoje}
-            feitas={deHoje ? registrosDe(deHoje, hoje).length : 0}
-            aoAbrir={() => deHoje && router.push(caminhoDaSessao(deHoje.uid, hoje))}
-          />
+          {somenteLeitura ? (
+            <Texto variante="pequeno">Você está consultando outro plano. Para registrar séries, volte ao plano em uso.</Texto>
+          ) : (
+            <>
+              <ProgressoSemana hoje={hoje} />
+              <CartaoHoje
+                sessao={deHoje}
+                hoje={hoje}
+                feitas={deHoje ? registrosDe(deHoje, hoje).length : 0}
+                aoAbrir={() => deHoje && router.push(caminhoDaSessao(deHoje.uid, hoje))}
+              />
+            </>
+          )}
           <Texto variante="secao">Divisões da semana</Texto>
           {sessoesDaSemana(conteudo).map((s, i) => (
             <EntradaEmCascata key={s.uid} indice={i} animar={animar}>
-            <CartaoDivisao
+            {somenteLeitura ? <CartaoDivisaoLeitura sessao={s} /> : <CartaoDivisao
               sessao={s}
               inicio={treino.inicio}
               fim={treino.fim}
               hoje={hoje}
               treinouEm={(d) => registrosDe(s, d).length > 0}
               aoAbrir={(d) => router.push(caminhoDaSessao(s.uid, d))}
-            />
+            />}
             </EntradaEmCascata>
           ))}
           {conteudo.objetivo || conteudo.orientacoes ? (
