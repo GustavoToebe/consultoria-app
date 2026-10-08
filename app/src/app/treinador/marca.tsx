@@ -1,0 +1,44 @@
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import { consultoria } from '../../api/rotas';
+import { espaco } from '../../tema/tokens';
+import { CartaoMetodologia } from '../../treinador/marca/CartaoMetodologia';
+import { FormMarca } from '../../treinador/marca/FormMarca';
+import { Cabecalho } from '../../ui/Cabecalho';
+import { Carregando, MensagemErro } from '../../ui/Estados';
+import { textoDoErro } from '../../ui/erros';
+import { Tela } from '../../ui/Tela';
+import { useCarregar } from '../../ui/useCarregar';
+
+/** Marca (nome, cor, fonte, tema, logo) com prévia ao vivo, e a metodologia da consultoria (seção 10.4, item 8). */
+export default function Marca() {
+  const { dados, erro, carregando, recarregar, definir } = useCarregar('consultoria', () => consultoria());
+  // Conflito (outra aba salvou): recarrega e recria o formulário com os valores atuais.
+  const [conflitos, setConflitos] = useState(0);
+  return (
+    <Tela bordas={['top']} largura={960}>
+      <Cabecalho titulo="Marca" mostrarMarca="celular" />
+      {erro ? <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} /> : null}
+      {!dados && carregando ? <Carregando /> : null}
+      {dados ? (
+        <View style={estilos.coluna}>
+          <FormMarca
+            key={conflitos ? `${conflitos}:${dados.versao}` : 0}
+            consultoria={dados}
+            aoSalvar={definir}
+            aoConflito={() => {
+              recarregar();
+              setConflitos((n) => n + 1);
+            }}
+          />
+          <CartaoMetodologia consultoria={dados} aoSalvar={definir} />
+        </View>
+      ) : null}
+    </Tela>
+  );
+}
+
+const estilos = StyleSheet.create({
+  coluna: { gap: espaco(2) },
+});

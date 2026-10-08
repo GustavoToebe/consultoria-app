@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react-native';
 import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
@@ -11,7 +11,8 @@ interface Props {
   rotulo: string;
   aoTocar: () => void;
   tipo?: Tipo;
-  icone?: ReactNode;
+  /** Ícone lucide; pintado com a cor do texto do botão. */
+  Icone?: LucideIcon;
   desabilitado?: boolean;
   carregando?: boolean;
   /** Ocupa a largura toda (formulários no celular). */
@@ -20,7 +21,7 @@ interface Props {
 }
 
 /** Ação principal com a cor da marca; secundária com borda; perigo em vermelho (status, nunca a marca). */
-export function Botao({ rotulo, aoTocar, tipo = 'primario', icone, desabilitado, carregando, cheio, style }: Props) {
+export function Botao({ rotulo, aoTocar, tipo = 'primario', Icone, desabilitado, carregando, cheio, style }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const inativo = desabilitado || carregando;
   const fundo = tipo === 'primario' ? marca : tipo === 'perigo' ? cores.perigo : 'transparent';
@@ -40,7 +41,7 @@ export function Botao({ rotulo, aoTocar, tipo = 'primario', icone, desabilitado,
         style,
       ]}>
       <View style={estilos.linha}>
-        {carregando ? <ActivityIndicator size="small" color={texto} /> : icone}
+        {carregando ? <ActivityIndicator size="small" color={texto} /> : Icone ? <Icone size={18} color={texto} strokeWidth={2} /> : null}
         <Texto style={[estilos.rotulo, { color: texto }]}>{rotulo}</Texto>
       </View>
     </Pressable>

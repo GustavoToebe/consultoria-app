@@ -17,6 +17,8 @@ export interface ItemMenu {
   Icone: LucideIcon;
   /** Só a raiz da área: ativo apenas no caminho exato. */
   exato?: boolean;
+  /** Só no menu lateral do PC (a barra do celular tem espaço para poucos itens). */
+  soLateral?: boolean;
 }
 
 /**
@@ -54,7 +56,7 @@ export function Navegacao({ itens, sempreInferior }: { itens: ItemMenu[]; sempre
       </View>
       <SafeAreaView edges={['bottom']}
         style={[estilos.inferior, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
-        {itens.map((item) => (
+        {itens.filter((item) => !item.soLateral).map((item) => (
           <ItemNavegacao key={item.caminho} item={item} />
         ))}
       </SafeAreaView>

@@ -1,0 +1,197 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { ErroApi } from '../../api/cliente';
+import { plano as buscarPlano, publicarPlano, salvarRascunho, validarPlano } from '../../api/rotas';
+import type { PlanoDetalhe, PlanoResumo, Problema, TipoPlano, VersaoResumo } from '../../api/tipos';
+import { dataDaTela, dataParaTela } from '../../dominio/formatos';
+
+export type SituacaoRascunho = 'salvo' | 'pendente' | 'salvando' | 'erro' | 'conflito' | 'dataInvalida';
+
+interface Estado<C> {
+  plano: PlanoResumo;
+  versoes: VersaoResumo[];
+  titulo: string;
+  inicio: string;
+  fim: string;
+  conteudo: C;
+  /** Cada alteração soma 1; `salvoEm` é a revisão que o servidor já tem. */
+  revisao: number;
+  salvoEm: number;
+}
+
+export type ResultadoPublicacao =
+  | { tipo: 'publicado'; numero: number }
+  | { tipo: 'erros'; erros: Problema[] }
+  | { tipo: 'avisos'; avisos: Problema[] }
+  | { tipo: 'falha'; mensagem: string };
+
+const ESPERA_MS = 1500;
+
+function problemas(erro: ErroApi): Problema[] {
+  return erro.campos.map((c) => ({ caminho: c.field, mensagem: c.message }));
+}
+
+/**
+ * Rascunho de um plano (treino ou dieta): carrega, salva sozinho 1,5 s depois da última mudança, trata a edição em
+ * outra aba (409 `CONFLITO_EDICAO` → "recarregar") e publica com erros/avisos do validador da API. O publicado nunca
+ * muda: publicar cria a versão seguinte.
+ */
+export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, normalizar: (c: unknown) => C) {
+  const [estado, setEstado] = useState<Estado<C> | null>(null);
+  const [erroCarga, setErroCarga] = useState<unknown>(null);
+  const [rodada, setRodada] = useState(0);
+  const [salvando, setSalvando] = useState(false);
+  const [erroSalvar, setErroSalvar] = useState<'erro' | 'conflito' | null>(null);
+
+  const atual = useRef<Estado<C> | null>(null);
+  const versao = useRef(0);
+  const emVoo = useRef<Promise<boolean> | null>(null);
+  const normalizarAtual = useRef(normalizar);
+
+  useEffect(() => {
+    atual.current = estado;
+    normalizarAtual.current = normalizar;
+  });
+
+  const aplicarDetalhe = useCallback((d: PlanoDetalhe<unknown>) => {
+    versao.current = d.plano.versao;
+    setEstado({
+      plano: d.plano,
+      versoes: d.versoes,
+      titulo: d.plano.titulo,
+      inicio: dataParaTela(d.plano.inicio),
+      fim: dataParaTela(d.plano.fim),
+      conteudo: normalizarAtual.current(d.rascunho),
+      revisao: 0,
+      salvoEm: 0,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!id) return;
+    let vivo = true;
+    buscarPlano<unknown>(tipo, id).then(
+      (d) => {
+        if (!vivo) return;
+        setErroCarga(null);
+        setErroSalvar(null);
+        aplicarDetalhe(d);
+      },
+      (e: unknown) => vivo && setErroCarga(e),
+    );
+    return () => {
+      vivo = false;
+    };
+  }, [tipo, id, rodada, aplicarDetalhe]);
+
+  /** Envia o que está na tela. Devolve `true` se o servidor ficou com a última revisão. */
+  const salvar = useCallback((): Promise<boolean> => {
+    const tentar = (): Promise<boolean> => {
+      if (emVoo.current) {
+        // Espera o envio em andamento e manda de novo se mudou algo no meio.
+        return emVoo.current.then((ok) => (ok ? tentar() : false));
+      }
+      const e = atual.current;
+      if (!e || !id) return Promise.resolve(false);
+      if (e.revisao === e.salvoEm) return Promise.resolve(true);
+      const inicio = dataDaTela(e.inicio);
+      const fim = dataDaTela(e.fim);
+      if (inicio === undefined || fim === undefined || !e.titulo.trim()) return Promise.resolve(false);
+      const enviada = e.revisao;
+      setSalvando(true);
+      const envio = salvarRascunho<C>(tipo, id, {
+        titulo: e.titulo.trim(),
+        inicio,
+        fim,
+        conteudo: e.conteudo,
+        versao: versao.current,
+      }).then(
+        (d) => {
+          versao.current = d.plano.versao;
+          setErroSalvar(null);
+          setEstado((s) => (s ? { ...s, plano: d.plano, versoes: d.versoes, salvoEm: Math.max(s.salvoEm, enviada) } : s));
+          if (atual.current) atual.current = { ...atual.current, salvoEm: enviada };
+          return true;
+        },
+        (erro: unknown) => {
+          setErroSalvar(erro instanceof ErroApi && erro.codigo === 'CONFLITO_EDICAO' ? 'conflito' : 'erro');
+          return false;
+        },
+      );
+      emVoo.current = envio.finally(() => {
+        emVoo.current = null;
+        setSalvando(false);
+      });
+      return emVoo.current;
+    };
+    return tentar();
+  }, [tipo, id]);
+
+  // Salvamento automático: 1,5 s depois da última mudança.
+  const revisao = estado?.revisao ?? 0;
+  const salvoEm = estado?.salvoEm ?? 0;
+  useEffect(() => {
+    if (revisao === salvoEm || erroSalvar === 'conflito') return;
+    const relogio = setTimeout(() => {
+      void salvar();
+    }, ESPERA_MS);
+    return () => clearTimeout(relogio);
+  }, [revisao, salvoEm, erroSalvar, salvar]);
+
+  // Saiu da tela com mudança pendente: envia na hora.
+  useEffect(() => () => void salvar(), [salvar]);
+
+  const alterar = useCallback((mudanca: (e: Estado<C>) => Partial<Estado<C>>) => {
+    setEstado((e) => (e ? { ...e, ...mudanca(e), revisao: e.revisao + 1 } : e));
+  }, []);
+
+  const alterarConteudo = useCallback((mudanca: (c: C) => C) => alterar((e) => ({ conteudo: mudanca(e.conteudo) })), [alterar]);
+
+  const validar = useCallback(async () => {
+    if (!id || !(await salvar())) return null;
+    return validarPlano(tipo, id);
+  }, [tipo, id, salvar]);
+
+  const publicar = useCallback(
+    async (confirmarAvisos: boolean): Promise<ResultadoPublicacao> => {
+      if (!id) return { tipo: 'falha', mensagem: 'Plano não encontrado.' };
+      if (!(await salvar())) {
+        return { tipo: 'falha', mensagem: 'Corrija o título e as datas e espere o rascunho salvar antes de publicar.' };
+      }
+      try {
+        const d = await publicarPlano<unknown>(tipo, id, versao.current, confirmarAvisos);
+        versao.current = d.plano.versao;
+        setEstado((s) => (s ? { ...s, plano: d.plano, versoes: d.versoes } : s));
+        return { tipo: 'publicado', numero: d.plano.versaoPublicada };
+      } catch (erro) {
+        if (erro instanceof ErroApi && erro.codigo === 'PLANO_INVALIDO') return { tipo: 'erros', erros: problemas(erro) };
+        if (erro instanceof ErroApi && erro.codigo === 'CONFIRMAR_AVISOS') {
+          return { tipo: 'avisos', avisos: problemas(erro) };
+        }
+        if (erro instanceof ErroApi && erro.codigo === 'CONFLITO_EDICAO') setErroSalvar('conflito');
+        return { tipo: 'falha', mensagem: erro instanceof Error ? erro.message : 'Não foi possível publicar.' };
+      }
+    },
+    [tipo, id, salvar],
+  );
+
+  let situacao: SituacaoRascunho = 'salvo';
+  if (erroSalvar) situacao = erroSalvar;
+  else if (salvando) situacao = 'salvando';
+  else if (estado && (dataDaTela(estado.inicio) === undefined || dataDaTela(estado.fim) === undefined)) {
+    situacao = 'dataInvalida';
+  } else if (estado && estado.revisao !== estado.salvoEm) situacao = 'pendente';
+
+  return {
+    estado,
+    erroCarga,
+    situacao,
+    alterar,
+    alterarConteudo,
+    salvar,
+    validar,
+    publicar,
+    /** Descarta o que está na tela e busca o rascunho do servidor (depois de um conflito). */
+    recarregar: () => setRodada((r) => r + 1),
+  };
+}
