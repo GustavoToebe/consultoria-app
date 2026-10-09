@@ -17,6 +17,13 @@ autorizando, relatório com ✅/❌.
 4. **Permissões:** as **mesmas do treino** (`TREINO_LER`, `TREINO_ALTERAR`, `TREINO_PUBLICAR`). Nenhum código novo no
    catálogo; perfis existentes não mudam (a Nutricionista não vê mobilidade, o Assistente vê como vê o treino).
 
+## Andamento (09/10/2026)
+
+M1 a M5 feitos e enviados; M6 (roteiro e documentação) no fim desta sessão. Correções em relação ao texto abaixo:
+a Nutricionista **tem** `TREINO_LER` (V018), então lê a mobilidade como o treino (só não cria nem publica); a aba Dieta do
+aluno não era condicional, então a condição da aba Mobilidade foi escrita do zero (`temAbaMobilidade`); `GET /aluno/mobilidade`
+devolve `{ mobilidade }` e 404 sem plano.
+
 ## Regras que não podem quebrar
 
 - Mesmo isolamento do resto: `@TenantId` nas duas entidades; plano/versão de outra consultoria ou de outro aluno = 404.

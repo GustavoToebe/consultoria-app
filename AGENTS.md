@@ -76,13 +76,14 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   (`Tr`/`NA` → 0 com marca em `tracos`). A busca usa `nome_busca` (sem acento), calculada igual no Python e em
   `Buscas.semAcento`; teste: `python -m unittest scripts/catalogo/test_catalogo.py`.
 - Modelos do Planejamento (`receitas/`): tipo `MOBILIDADE` (alongamento/mobilidade: seções com itens nome, prescrição em texto e
-  vídeo) é só modelo reutilizável, fora de "Aplicar ao aluno". Pasta de plano pode ser finalizada
+  vídeo) é modelo reutilizável e também "Aplicar ao aluno" (cria o plano de mobilidade na pasta). Pasta de plano pode ser finalizada
   (`POST /pastas/{id}/finalizar`, `concluida_em`); peso e observação opcionais vão para o registro de peso na mesma
   transação. Aluno tem `dias_atualizacao` (1 a 365): "Nova pasta" sugere início hoje e fim = início + dias - 1.
 - Planos: treino e dieta compartilham `planos/PlanoServiceBase` (rascunho com lock otimista, validar, publicar versão
   imutável, replicar com uids novos). Erro de validação = 422 `PLANO_INVALIDO`/`CONFIRMAR_AVISOS` com a lista em
   `fieldErrors` (`field` = caminho no conteúdo).
-- Pastas (`pastas/`): agrupam treinos e dietas do aluno e dão o período a todos. Plano criado/replicado com `pastaId`
+- Mobilidade (`mobilidade/`): plano de mobilidade da pasta no padrão da dieta (`PlanoServiceBase`, rascunho + versão imutável, um ativo por aluno), em `/planos-mobilidade`, com as permissões do **treino** (`TREINO_LER/ALTERAR/PUBLICAR`; a Nutricionista também lê, pois tem `TREINO_LER`). Conteúdo = `receitas/ConteudoMobilidade` (mesmo do modelo `MOBILIDADE`); regras de publicação no `ValidadorMobilidade`. Auditoria: `MOBILIDADE_PUBLICADA`. Aluno: `GET /aluno/mobilidade` (404 sem plano publicado). Sem registro de execução e sem PDF.
+- Pastas (`pastas/`): agrupam treinos, dietas e mobilidades do aluno e dão o período a todos. Plano criado/replicado com `pastaId`
   usa o período da pasta (o do corpo é ignorado); mudar a pasta altera o **rascunho** dos planos (publicado segue imutável);
   replicar a pasta copia todos. Pasta de outro aluno/consultoria = 404. A V011 moveu os planos anteriores à V009 para pastas (por aluno e período); a ficha não mostra mais “sem pasta”.
 - Troca de plano do aluno: `GET /aluno/pastas` (pastas com plano **publicado**; status Ativa/Concluída vem de `concluida_em`; `atual` = pasta do plano vigente) e `GET /aluno/pastas/{id}` (treino e dieta publicados da pasta, 404 se de outro aluno ou só rascunho). Trocar só muda o que o aluno consulta, nunca o `ativo`; plano de outra pasta é só leitura no app (`AlunoProvider.escolhida`, `aluno/SeletorPlano`).
@@ -144,6 +145,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   web = `RepositorioChaveValor` (prefixo `treinos:<usuarioId>:`). Mudou o contrato? A bateria do `offline.test.ts`
   roda nas duas (SQLite do Node em `bancoNode.apoioTeste.ts`, nunca importado pelo app). Série marcada grava no aparelho na hora;
   a carga sugerida vem de `dominio/cargas.ts` (seção 8) e o que o aluno digita é gravado como digitou.
+- Mobilidade do aluno: aba "Mobilidade" (antes do Histórico) só com mobilidade publicada; o `AlunoProvider` guarda a última vista no `RepositorioLocal` (documento `kv` `mobilidade`, sem mudar `VERSAO_ESQUEMA`) e limpa no 404. Tela só de consulta; vídeo abre fora do app.
 - Telas do aluno no estilo do protótipo: "Treino de hoje" na cor da marca, divisões com chips de data do período
   (`datasDaSessao`; registro até 60 dias para trás ou para frente, `podeRegistrarEm`), dia em `sessao/[uid]?data=` e um
   exercício por tela em `sessao/[uid]/[exercicio]` (`aluno/useSessaoDoDia`). Nome da sessão com `nomeComDia`.
