@@ -1,4 +1,4 @@
-import { Minus, Plus, Trash2 } from 'lucide-react-native';
+import { Minus, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ModoIntensidade, Serie } from '../../api/tipos';
@@ -25,6 +25,8 @@ interface Props {
   series: Serie[];
   config: Configuracao | null;
   aoMudar: (series: Serie[]) => void;
+  /** Com isto, "Usar receita" fica na mesma linha de "Adicionar série", com o mesmo tamanho. */
+  aoUsarReceita?: () => void;
 }
 
 /**
@@ -32,7 +34,7 @@ interface Props {
  * intensidade. Em "% da trabalho" cada série tem o próprio percentual. Mudar a quantidade de FS reaplica a regra da
  * consultoria.
  */
-export function EditorSeries({ series, config, aoMudar }: Props) {
+export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) {
   const grupos = agrupar(series);
   return (
     <View style={estilos.lista}>
@@ -48,7 +50,12 @@ export function EditorSeries({ series, config, aoMudar }: Props) {
         />
       ))}
       <View style={estilos.adicionar}>
-        <Botao rotulo="Adicionar séries" tipo="secundario" Icone={Plus} aoTocar={() => aoMudar([...series, novaSerie(config)])} />
+        <View style={aoUsarReceita ? estilos.metade : null}>
+          <Botao rotulo="Adicionar série" tipo="secundario" Icone={Plus} cheio={!!aoUsarReceita} aoTocar={() => aoMudar([...series, novaSerie(config)])} />
+        </View>
+        {aoUsarReceita ? <View style={estilos.metade}>
+          <Botao rotulo="Usar receita" tipo="secundario" Icone={NotebookTabs} cheio aoTocar={aoUsarReceita} />
+        </View> : null}
       </View>
     </View>
   );
@@ -154,5 +161,6 @@ const estilos = StyleSheet.create({
   contador: { flexDirection: 'row', alignItems: 'center' },
   numero: { fontFamily: fontes.negrito, fontSize: 18, minWidth: 28, textAlign: 'center' },
   reps: { width: 110 },
-  adicionar: { flexDirection: 'row' },
+  adicionar: { flexDirection: 'row', gap: espaco(1) },
+  metade: { flex: 1 },
 });

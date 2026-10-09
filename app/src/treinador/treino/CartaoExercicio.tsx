@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, BookOpen, ChevronDown, ChevronUp, NotebookTabs, Save, Trash2 } from 'lucide-react-native';
+import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, Save, Trash2 } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
@@ -7,6 +8,7 @@ import { erroDoVideo } from '../../dominio/video';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
+import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
@@ -38,6 +40,8 @@ export function CartaoExercicio(p: Props) {
   const e = p.exercicio;
   const resumo = descreverSeries(e.series);
   const mudar = (parcial: Partial<ExercicioPlano>) => p.aoMudar({ ...e, ...parcial });
+  // "Observação e vídeo" começa aberto quando algum dos dois já está preenchido.
+  const [extrasAbertos, setExtrasAbertos] = useState(!!(e.observacao || e.videoUrl));
 
   return (
     <View
@@ -80,34 +84,14 @@ export function CartaoExercicio(p: Props) {
       </View>
       {p.aberto ? (
         <View style={estilos.corpo}>
-          <View style={estilos.botoes}>
-            <Botao rotulo="Escolher da biblioteca" tipo="secundario" Icone={BookOpen} aoTocar={p.aoEscolherDaBiblioteca} />
-            <Botao rotulo="Usar receita de séries" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoUsarReceita} />
+          <View style={estilos.linhaNome}>
+            <View style={estilos.campoNome}>
+              <Campo rotulo="Nome" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} />
+            </View>
+            <Botao rotulo="Trocar" tipo="secundario" Icone={ArrowLeftRight} style={estilos.trocar} aoTocar={p.aoEscolherDaBiblioteca} />
           </View>
-          <Campo rotulo="Nome" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} />
           {e.modalidade ? <Texto variante="pequeno">Modalidade: {MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
-          <Campo
-            rotulo="Observação para o aluno"
-            valor={e.observacao ?? ''}
-            aoMudar={(t) => mudar({ observacao: t || null })}
-            linhas={2}
-            maxLength={1000}
-          />
-          <Campo
-            rotulo="Vídeo (link do YouTube, opcional)"
-            valor={e.videoUrl ?? ''}
-            aoMudar={(t) => mudar({ videoUrl: t.trim() || null })}
-            erro={erroDoVideo(e.videoUrl)}
-            autoCapitalize="none"
-            keyboardType="url"
-            maxLength={500}
-          />
-          <Interruptor
-            rotulo="Progressão de carga"
-            ajuda={e.progressao ? 'O aluno busca subir a carga.' : 'O aluno vê "Foco em controle, não em carga".'}
-            valor={e.progressao}
-            aoMudar={(progressao) => mudar({ progressao })}
-          />
+          <Texto variante="secao">Séries</Texto>
           <Escolha
             rotulo="Carga"
             opcoes={[
@@ -117,8 +101,34 @@ export function CartaoExercicio(p: Props) {
             valor={e.unidade}
             aoMudar={(unidade) => mudar({ unidade })}
           />
-          <Texto variante="secao">Séries</Texto>
-          <EditorSeries series={e.series} config={p.config} aoMudar={(series) => mudar({ series })} />
+          <EditorSeries series={e.series} config={p.config} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
+          <Interruptor
+            rotulo="Progressão de carga"
+            ajuda={e.progressao ? 'O aluno busca subir a carga.' : 'O aluno vê "Foco em controle, não em carga".'}
+            valor={e.progressao}
+            aoMudar={(progressao) => mudar({ progressao })}
+          />
+          <CabecalhoDeGrupo titulo="Observação e vídeo" aberto={extrasAbertos} aoAlternar={() => setExtrasAbertos((v) => !v)} />
+          {extrasAbertos ? (
+            <>
+              <Campo
+                rotulo="Observação para o aluno"
+                valor={e.observacao ?? ''}
+                aoMudar={(t) => mudar({ observacao: t || null })}
+                linhas={2}
+                maxLength={1000}
+              />
+              <Campo
+                rotulo="Vídeo (link do YouTube, opcional)"
+                valor={e.videoUrl ?? ''}
+                aoMudar={(t) => mudar({ videoUrl: t.trim() || null })}
+                erro={erroDoVideo(e.videoUrl)}
+                autoCapitalize="none"
+                keyboardType="url"
+                maxLength={500}
+              />
+            </>
+          ) : null}
           <View style={estilos.rodape}>
             {e.series.length ? (
               <Botao rotulo="Salvar séries como receita" tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
@@ -139,6 +149,9 @@ const estilos = StyleSheet.create({
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5), marginTop: 2 },
   acoes: { flexDirection: 'row' },
   corpo: { gap: espaco(1.5) },
-  botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  linhaNome: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1) },
+  campoNome: { flex: 1 },
+  // O Botao se alinha ao topo por padrão; aqui fica na base, rente ao campo.
+  trocar: { alignSelf: 'flex-end' },
   rodape: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: espaco(1) },
 });
