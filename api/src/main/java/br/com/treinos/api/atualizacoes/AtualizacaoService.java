@@ -65,10 +65,16 @@ public class AtualizacaoService {
     @Transactional
     public Detalhe enviar(UsuarioAutenticado eu, EnviarRequest r) {
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
+        // Reenvio do que já foi gravado (rede caiu depois do commit) devolve o estado sem alterar nada,
+        // mesmo que a pasta já tenha mudado; por isso vem antes da checagem de pasta vigente.
+        var jaEnviada = atualizacoes.findByPastaId(r.pastaId())
+                .filter(a -> a.getAlunoId().equals(alunoId) && !"ABERTA".equals(a.getEstado()));
+        if (jaEnviada.isPresent()) return detalhe(jaEnviada.get());
         PastaPlano pasta = exigirPastaAtiva(alunoId);
         exigirAtual(pasta, r.pastaId());
         Atualizacao atual = atualizacoes.findByPastaId(pasta.getId()).orElse(null);
-        exigirNaoEnviada(atual);
+        // Dois envios simultâneos: o segundo espera a trava da pasta e encontra o primeiro já gravado.
+        if (atual != null && !"ABERTA".equals(atual.getEstado())) return detalhe(pasta, atual);
         LocalDate data = atual == null ? pasta.getFim() : atual.getDataAtualizacao();
         if (LocalDate.now(Fuso.BRASILIA).isBefore(data.minusDays(1)))
             throw invalidos("data", "O formulário libera um dia antes da atualização.");

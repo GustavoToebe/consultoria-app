@@ -89,7 +89,11 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Lesões (`lesoes/`): histórico estruturado do aluno, dado sensível (LGPD), só treinador; o sistema não interpreta.
 - Atualização (`atualizacoes/`): uma por pasta, data no `fim`, sem agendador; modelo global versionado e respostas
   validadas pela versão. Estados ABERTA/ENVIADA/REVISADA; atraso calculado e "vou atrasar" só avisa. Envio grava peso
-  na mesma transação; feedback editável. Dado sensível, sem log, 404 fora do dono e da consultoria. Fotos ainda não implementadas.
+  na mesma transação; feedback editável.
+  `RegrasAtualizacao` (igual a `dominio/atualizacao.ts`): abre pela data original, "atrasada" só após
+  max(data, atrasoAte); nova data entre a data e +15 dias. Enviar/atraso levam `pastaId` (fora da vigente = 409
+  `ATUALIZACAO_NAO_ATUAL`); reenvio do já enviado = 200 sem alterar (checado antes da pasta). Envio mantém a observação
+  do peso; corrida no peso do dia = 409. "Visto" do feedback é UPDATE sem `versioned`. Dado sensível, sem log, 404 fora do dono e da consultoria. Fotos ainda não implementadas.
 - Execuções: `execucao_serie.serie_trabalho` (fora do esboço do plano) e `exercicio_id` vêm da versão publicada, nunca
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.
 

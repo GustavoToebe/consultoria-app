@@ -80,7 +80,14 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode enviada = enviar(r,200);
         assertThat(enviada.path("fase").asString()).isEqualTo("ENVIADA");
         assertThat(enviada.path("respostas").has("campo_desconhecido")).isFalse();
-        assertThat(enviar(r,409).path("codigo").asString()).isEqualTo("ATUALIZACAO_JA_ENVIADA");
+        // Reenvio (rede caiu depois de gravar) é idempotente: 200 com o estado atual, sem alterar nada.
+        Map<String,Object> outra = respostas(); outra.put("peso",90);
+        JsonNode gravada = api.get("/aluno/atualizacoes",loginAluno,200).get(0);
+        JsonNode reenvio = enviar(outra,200);
+        assertThat(reenvio.path("fase").asString()).isEqualTo("ENVIADA");
+        assertThat(reenvio.path("enviadaEm").asString()).isEqualTo(gravada.path("enviadaEm").asString());
+        assertThat(reenvio.path("versao").asLong()).isEqualTo(gravada.path("versao").asLong());
+        assertThat(reenvio.path("respostas").path("peso").decimalValue()).isEqualByComparingTo("80.5");
         assertThat(api.get("/aluno/atualizacoes",loginAluno,200)).hasSize(1);
         JsonNode pesos = api.get("/alunos/"+aluno+"/pesos",treinador,200);
         assertThat(pesos).hasSize(1);
@@ -189,6 +196,22 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(vigente.path("atrasoAte").isNull()).isTrue();
         assertThat(api.get("/alunos/"+aluno+"/pesos",treinador,200)).isEmpty();
         assertThat(enviarNa(atual,respostas(),200).path("fase").asString()).isEqualTo("ENVIADA");
+    }
+    @Test void reenvioDeAtualizacaoRevisadaOuDePastaAnteriorDevolveOEstadoSemAlterar() throws Exception {
+        String antiga = publicarPasta(hoje);
+        JsonNode enviada = enviarNa(antiga,respostas(),200);
+        String id = enviada.path("id").asString();
+        api.put("/atualizacoes/"+id+"/feedback",treinador,Map.of("texto","Feedback fictício","versao",enviada.path("versao").asLong()),200);
+        JsonNode revisada = enviarNa(antiga,respostas(),200);
+        assertThat(revisada.path("fase").asString()).isEqualTo("REVISADA");
+        assertThat(revisada.path("feedback").path("texto").asString()).isEqualTo("Feedback fictício");
+        // Mesmo depois de a pasta mudar, o reenvio da que já foi enviada não vira 409.
+        publicarPasta(hoje.plusDays(1));
+        assertThat(enviarNa(antiga,respostas(),200).path("id").asString()).isEqualTo(id);
+        assertThat(api.get("/aluno/atualizacoes",loginAluno,200)).hasSize(1);
+        // Outro aluno não reaproveita a atualização alheia.
+        JsonNode outroAluno = api.convidarEEntrar(treinador,api.criarAluno(treinador,"Outro aluno fictício"));
+        api.post("/aluno/atualizacao/enviar",outroAluno,Map.of("pastaId",antiga,"modeloVersao",1,"respostas",respostas()),404);
     }
     @Test void feedbackTemVersaoEditadoEVisto() throws Exception {
         publicarPasta(hoje);
