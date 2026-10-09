@@ -12,7 +12,7 @@ import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTrein
 import { dataDaTela, dataParaTela, hojeIso } from '../dominio/formatos';
 import { periodoInicial } from '../dominio/periodo';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -99,7 +99,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} />
       ))}
       {aberta ? (
-        <Folha visivel titulo={aberta.titulo} aoFechar={() => setAbertaId(null)}>
+        <Folha visivel titulo={aberta.titulo} largura={LARGURA_EDITOR} aoFechar={() => setAbertaId(null)}>
           <View style={estilos.resumo}>
             {aberta.concluidaEm ? (
               <Selo texto={`Concluída em ${dataParaTela(hojeIso(new Date(aberta.concluidaEm)))}`} tipo="neutro" />

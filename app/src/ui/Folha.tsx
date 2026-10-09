@@ -19,20 +19,22 @@ interface Props {
   children: ReactNode;
   /** Botões fixos no rodapé (fora da rolagem). */
   rodape?: ReactNode;
+  /** Largura no PC (centralizada); padrão 600. Conteúdo grande (ex.: pasta com planos e registros) usa `LARGURA_EDITOR`. */
+  largura?: number;
 }
 
 /**
  * Painel por cima da tela: lateral à direita no PC, folha que sobe de baixo no celular. Usado para escolher da
  * biblioteca, aplicar receita e formulários curtos. Fecha no X, tocando fora ou no voltar do Android.
  */
-export function Folha({ visivel, titulo, aoFechar, children, rodape }: Props) {
+export function Folha({ visivel, titulo, aoFechar, children, rodape, largura }: Props) {
   return <Modal transparent visible={visivel} animationType="none" onRequestClose={aoFechar}>
-    {visivel ? <Painel titulo={titulo} aoFechar={aoFechar} rodape={rodape}>{children}</Painel> : null}
+    {visivel ? <Painel titulo={titulo} aoFechar={aoFechar} rodape={rodape} largura={largura}>{children}</Painel> : null}
   </Modal>;
 }
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo. */
-function Painel({titulo,aoFechar,children,rodape}:Omit<Props,'visivel'>) {
+function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>) {
   const { cores } = useTema();
   const { width, height } = useWindowDimensions();
   const margem = useSafeAreaInsets();
@@ -60,7 +62,7 @@ function Painel({titulo,aoFechar,children,rodape}:Omit<Props,'visivel'>) {
           style={[
             estilos.painel, movimento,
             centralizado
-              ? estilos.painelCentral
+              ? [estilos.painelCentral, largura ? { width: largura, height: '90%' as const } : null]
               : [estilos.painelInferior, { paddingBottom: margem.bottom }],
             { backgroundColor: cores.superficie, borderColor: cores.borda },
           ]}>
