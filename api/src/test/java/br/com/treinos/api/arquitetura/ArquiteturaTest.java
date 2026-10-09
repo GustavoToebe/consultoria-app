@@ -54,10 +54,10 @@ class ArquiteturaTest {
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario} e
      * {@code RefreshToken} são do login, que acontece antes de saber a consultoria; {@code CatalogoExercicio} e
-     * {@code CatalogoAlimento} são o catálogo público, igual para todos e só leitura.
+     * {@code CatalogoAlimento} são o catálogo público, igual para todos e só leitura. AtualizacaoModelo é o questionário global versionado, sem respostas.
      */
     private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario", "RefreshToken",
-            "CatalogoExercicio", "CatalogoAlimento");
+            "CatalogoExercicio", "CatalogoAlimento", "AtualizacaoModelo");
 
     /** Controllers das rotas públicas da seção 5.4 (login, refresh, cadastro, convite, logo). */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
