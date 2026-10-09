@@ -1,0 +1,69 @@
+{
+  "metodologias": [
+    {
+      "nome": "Séries tradicionais",
+      "descricao": "Número fixo de séries e repetições, com descanso padronizado.",
+      "configuracao": {
+        "tiposSerie": ["Aquecimento", "Série"],
+        "tipoTrabalho": "Série",
+        "tipoPreparacao": "Aquecimento",
+        "regraPreparacao": {},
+        "arredondamentoKg": 1,
+        "instrucoesTreino": "Séries tradicionais: número fixo de séries e de repetições, com descanso padronizado (por exemplo, 3x10 com 90 segundos).\nA carga sobe de forma gradual, de uma semana para outra.\nCadência controlada: de 2 a 3 segundos na descida.\nAnote a carga de cada série no app.",
+        "rodapePdf": null
+      }
+    },
+    {
+      "nome": "Feeder + Working sets",
+      "descricao": "Séries preparatórias com carga crescente e uma ou duas séries principais pesadas.",
+      "configuracao": {
+        "tiposSerie": ["Aquecimento", "FS", "WS"],
+        "tipoTrabalho": "WS",
+        "tipoPreparacao": "FS",
+        "regraPreparacao": { "1": [85], "2": [70, 85], "3": [50, 70, 85] },
+        "arredondamentoKg": 0.5,
+        "instrucoesTreino": "Feeder Set (FS): séries preparatórias com carga crescente, sem chegar à falha.\nWorking Set (WS): uma ou duas séries principais, pesadas, com a carga de trabalho do dia.\nCálculo FS: se 3 FS, 1º 50% | 2º 70% | 3º 85% da WS. Se 2 FS, 1º 70% | 2º 85%. Se 1 FS, 85% da WS.\nAnote a carga de cada série no app.",
+        "rodapePdf": null
+      }
+    },
+    {
+      "nome": "Rest-pause",
+      "descricao": "Série pesada até a falha, pausa curta e mais repetições até a falha.",
+      "configuracao": {
+        "tiposSerie": ["Aquecimento", "FS", "WS", "Rest pause"],
+        "tipoTrabalho": "WS",
+        "tipoPreparacao": "FS",
+        "regraPreparacao": { "1": [85], "2": [70, 85] },
+        "arredondamentoKg": 0.5,
+        "instrucoesTreino": "Rest-pause: faça a série pesada até a falha.\nDescanse de 10 a 20 segundos e faça mais repetições, até a falha de novo.\nAnote a carga e as repetições de cada parte da série no app.",
+        "rodapePdf": null
+      }
+    },
+    {
+      "nome": "Back-off sets",
+      "descricao": "Depois das séries principais, uma ou duas séries com carga menor e mais repetições.",
+      "configuracao": {
+        "tiposSerie": ["Aquecimento", "FS", "WS", "Back off"],
+        "tipoTrabalho": "WS",
+        "tipoPreparacao": "FS",
+        "regraPreparacao": { "1": [85], "2": [70, 85], "3": [50, 70, 85] },
+        "arredondamentoKg": 0.5,
+        "instrucoesTreino": "Back-off sets: depois das séries principais (WS), reduza de 10 a 20% da carga e faça uma ou duas séries com mais repetições.\nO percentual do Back off é sobre a maior carga feita na WS.\nAnote a carga de cada série no app.",
+        "rodapePdf": null
+      }
+    },
+    {
+      "nome": "Drop-set e Cluster",
+      "descricao": "Drop-set, cluster e bi-set como técnicas de intensificação.",
+      "configuracao": {
+        "tiposSerie": ["Aquecimento", "FS", "WS", "Drop set", "Cluster", "Bi-set"],
+        "tipoTrabalho": "WS",
+        "tipoPreparacao": "FS",
+        "regraPreparacao": { "1": [85], "2": [70, 85] },
+        "arredondamentoKg": 0.5,
+        "instrucoesTreino": "Drop-set: faça a série até a falha, reduza de 20 a 30% da carga e continue; repita de 2 a 3 vezes.\nCluster: carga alta, com pausas de cerca de 15 segundos dentro da série.\nBi-set: dois exercícios seguidos, sem pausa entre eles.\nAnote a carga de cada série no app.",
+        "rodapePdf": null
+      }
+    }
+  ]
+}

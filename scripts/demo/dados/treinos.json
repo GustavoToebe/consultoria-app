@@ -1,0 +1,55 @@
+{
+  "dias": {
+    "Full Body T1": { "obs": "Full Body, treino 1", "ex": ["Agachamento livre", "Supino reto com barra", "Remada curvada", "Desenvolvimento com halteres", "Rosca direta", "Tríceps no pulley"] },
+    "Full Body T2": { "obs": "Full Body, treino 2", "ex": ["Levantamento terra", "Leg press 45º", "Puxada alta", "Supino inclinado com halteres", "Elevação lateral", "Panturrilha em pé"] },
+    "Full Body T3": { "obs": "Full Body, treino 3", "ex": ["Afundo com halteres", "Barra fixa", "Paralelas", "Remada serrote unilateral", "Rosca martelo", "Tríceps testa"] },
+    "Full Body T4": { "obs": "Full Body, treino 4", "ex": ["Agachamento búlgaro", "Supino declinado", "Remada sentada com triângulo", "Desenvolvimento na máquina", "Encolhimento com halteres", "Panturrilha sentado"] },
+    "Full Body T5": { "obs": "Full Body, treino 5", "ex": ["Stiff", "Cadeira extensora", "Crucifixo reto com halteres", "Puxada alta supinada", "Elevação frontal", "Rosca concentrada"] },
+
+    "Superiores A1": { "obs": "Superiores, foco em força", "ex": ["Supino reto com barra", "Remada curvada", "Desenvolvimento com halteres", "Puxada alta", "Rosca alternada", "Tríceps corda"] },
+    "Inferiores B1": { "obs": "Inferiores, foco em quadríceps", "ex": ["Agachamento livre", "Leg press", "Cadeira extensora", "Cadeira flexora", "Panturrilha no leg press"] },
+    "Superiores A2": { "obs": "Superiores, foco em hipertrofia", "ex": ["Supino inclinado com halteres", "Barra fixa", "Elevação lateral", "Remada serrote", "Tríceps testa", "Rosca scott"] },
+    "Inferiores B2": { "obs": "Inferiores, foco em posterior", "ex": ["Levantamento terra romeno", "Afundo com halteres", "Mesa flexora", "Elevação pélvica", "Panturrilha em pé"] },
+    "Cabos e máquinas A3": { "obs": "Superiores, cabos e máquinas", "ex": ["Cross over", "Remada sentada baixa", "Desenvolvimento na máquina", "Crucifixo inverso no cabo", "Rosca martelo com corda", "Tríceps francês na polia"] },
+
+    "Empurrar A1": { "obs": "Empurrar", "ex": ["Supino reto", "Supino inclinado com halteres", "Desenvolvimento militar", "Elevação lateral com halteres", "Tríceps pulley", "Tríceps corda"] },
+    "Puxar B1": { "obs": "Puxar", "ex": ["Puxada alta aberta", "Remada curvada supinada", "Pulldown com corda", "Encolhimento", "Rosca direta barra W", "Rosca scott"] },
+    "Pernas C1": { "obs": "Pernas", "ex": ["Agachamento livre", "Leg press", "Cadeira extensora", "Mesa flexora", "Panturrilha sentado", "Panturrilha em pé"] },
+    "Empurrar A2": { "obs": "Empurrar", "ex": ["Voador", "Supino máquina", "Desenvolvimento com halteres", "Elevação frontal no cabo", "Paralelas", "Tríceps testa unilateral"] },
+    "Puxar B2": { "obs": "Puxar", "ex": ["Barra fixa", "Remada serrote", "Remada máquina pegada neutra", "Crucifixo inverso no voador", "Rosca alternada", "Rosca martelo"] },
+
+    "Peito (A)": { "obs": "Peito", "ex": ["Supino reto", "Supino inclinado com halteres", "Crucifixo inclinado", "Cross over polia média", "Voador"] },
+    "Costas (B)": { "obs": "Costas", "ex": ["Barra fixa", "Levantamento terra", "Puxada alta neutra", "Remada curvada", "Remada serrote", "Pulldown"] },
+    "Pernas (C)": { "obs": "Pernas", "ex": ["Agachamento livre", "Leg press 45º", "Agachamento búlgaro", "Cadeira extensora", "Mesa flexora", "Stiff"] },
+    "Ombros e trapézio (D)": { "obs": "Ombros e trapézio", "ex": ["Desenvolvimento com halteres", "Elevação lateral com halteres", "Elevação lateral na polia", "Crucifixo inverso", "Encolhimento com barra", "Encolhimento com halteres"] },
+    "Braços (E)": { "obs": "Braços", "ex": ["Tríceps pulley", "Tríceps testa W", "Tríceps francês unilateral", "Rosca direta", "Rosca scott máquina", "Rosca martelo"] },
+
+    "Empurrar 1": { "obs": "Empurrar, variação 1", "ex": ["Supino reto", "Desenvolvimento militar", "Paralelas", "Crucifixo reto", "Elevação lateral", "Tríceps testa W"] },
+    "Empurrar 2": { "obs": "Empurrar, variação 2", "ex": ["Supino vertical máquina", "Desenvolvimento máquina", "Cross-over alta", "Elevação lateral cabo", "Tríceps pulley", "Tríceps corda"] },
+    "Empurrar 3": { "obs": "Empurrar, variação 3", "ex": ["Supino inclinado halteres", "Supino reto halteres", "Desenvolvimento halteres", "Elevação frontal", "Tríceps francês", "Mergulho"] },
+    "Empurrar 4": { "obs": "Empurrar, variação 4", "ex": ["Voador", "Supino declinado", "Arnold press", "Elevação lateral máquina", "Tríceps coice polia", "Supino fechado"] },
+    "Empurrar 5": { "obs": "Empurrar, variação 5", "ex": ["Cross-over polia baixa", "Supino inclinado Smith", "Desenvolvimento barra", "Crucifixo máquina", "Tríceps corda unilateral", "Elevação lateral"] },
+    "Puxar 1": { "obs": "Puxar, variação 1", "ex": ["Remada curvada", "Remada serrote", "Puxada alta triângulo", "Encolhimento barra", "Rosca direta", "Rosca martelo"] },
+    "Puxar 2": { "obs": "Puxar, variação 2", "ex": ["Barra fixa", "Puxada alta aberta", "Pulldown corda", "Encolhimento halteres", "Rosca alternada", "Rosca concentrada"] },
+    "Puxar 3": { "obs": "Puxar, variação 3", "ex": ["Remada sentada neutra", "Puxada articulada", "Remada baixa corda", "Crucifixo inverso voador", "Rosca scott máquina", "Rosca polia baixa"] },
+    "Puxar 4": { "obs": "Puxar, variação 4", "ex": ["Levantamento terra", "Remada cavalinho", "Puxada supinada", "Crucifixo inverso curvado", "Rosca aranha", "Rosca inversa"] },
+    "Puxar 5": { "obs": "Puxar, variação 5", "ex": ["Barra fixa supinada", "Remada curvada halteres", "Pulldown barra", "Encolhimento Smith", "Rosca inclinada 45º", "Rosca martelo corda"] },
+    "Pernas 1": { "obs": "Pernas, variação 1", "ex": ["Agachamento livre", "Leg press 45º", "Cadeira extensora", "Mesa flexora", "Panturrilha em pé", "Panturrilha sentado"] },
+    "Pernas 2": { "obs": "Pernas, variação 2", "ex": ["Stiff", "Cadeira flexora", "Elevação pélvica", "Leg press pés altos", "Afundo", "Panturrilha no leg press"] },
+    "Pernas 3": { "obs": "Pernas, variação 3", "ex": ["Agachamento búlgaro", "Extensora unilateral", "Flexora unilateral", "Passada", "Panturrilha unilateral"] },
+    "Pernas 4": { "obs": "Pernas, variação 4", "ex": ["Hack squat", "Leg press horizontal", "Extensora", "Flexora", "Máquina de glúteo", "Panturrilha máquina"] },
+    "Pernas 5": { "obs": "Pernas, variação 5", "ex": ["Agachamento frontal", "Sissy squat", "Leg press unilateral", "Stiff com halteres", "Panturrilha sentado", "Tibial anterior"] }
+  },
+  "semanas": [
+    { "nome": "Full Body (5 treinos)", "descricao": "Cinco treinos de corpo inteiro, de segunda a sexta.", "dias": ["Full Body T1", "Full Body T2", "Full Body T3", "Full Body T4", "Full Body T5"] },
+    { "nome": "AB Superior/Inferior", "descricao": "Cinco treinos alternando superiores e inferiores.", "dias": ["Superiores A1", "Inferiores B1", "Superiores A2", "Inferiores B2", "Cabos e máquinas A3"] },
+    { "nome": "ABC Empurrar/Puxar/Pernas", "descricao": "Cinco treinos: empurrar, puxar e pernas, com variações na segunda rodada.", "dias": ["Empurrar A1", "Puxar B1", "Pernas C1", "Empurrar A2", "Puxar B2"] },
+    { "nome": "ABCDE", "descricao": "Cinco treinos, um grupo muscular por dia.", "dias": ["Peito (A)", "Costas (B)", "Pernas (C)", "Ombros e trapézio (D)", "Braços (E)"] },
+    { "nome": "PPL 1", "descricao": "Empurrar, puxar e pernas, variação 1.", "dias": ["Empurrar 1", "Puxar 1", "Pernas 1"] },
+    { "nome": "PPL 2", "descricao": "Empurrar, puxar e pernas, variação 2.", "dias": ["Empurrar 2", "Puxar 2", "Pernas 2"] },
+    { "nome": "PPL 3", "descricao": "Empurrar, puxar e pernas, variação 3.", "dias": ["Empurrar 3", "Puxar 3", "Pernas 3"] },
+    { "nome": "PPL 4", "descricao": "Empurrar, puxar e pernas, variação 4.", "dias": ["Empurrar 4", "Puxar 4", "Pernas 4"] },
+    { "nome": "PPL 5", "descricao": "Empurrar, puxar e pernas, variação 5.", "dias": ["Empurrar 5", "Puxar 5", "Pernas 5"] }
+  ],
+  "avulsos": ["Empurrar 1", "Puxar 1", "Pernas 1", "Superiores A1", "Inferiores B1", "Full Body T1"]
+}

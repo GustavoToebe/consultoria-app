@@ -1,0 +1,33 @@
+{
+  "mobilidades": [
+    { "nome": "Mobilidade matinal", "descricao": "Sequência curta para começar o dia.", "itens": [
+      ["Gato-vaca", "2x10"], ["Rotação de tronco deitado", "10 cada lado"], ["Cócoras sustentada", "1 a 2 min"],
+      ["Rotação de ombros", "15 cada sentido"], ["Balanço de pernas", "15 frente/trás e 15 lado/lado, cada perna"] ] },
+    { "nome": "Pré-treino de pernas", "descricao": "Preparação antes de treinar pernas.", "itens": [
+      ["Mobilidade de tornozelo na parede", "2x15 cada lado"], ["90/90 de quadril", "2x10 transições"], ["Monster walk com elástico", "2x15 passos"],
+      ["Couch stretch dinâmico", "10 cada lado"], ["Agachamento com rotação torácica", "5 cada lado"] ] },
+    { "nome": "Pré-treino de superiores", "descricao": "Preparação antes de treinar superiores.", "itens": [
+      ["Dislocates com bastão", "2x15"], ["Thread the needle", "2x10 cada lado"], ["Peitoral na parede dinâmico", "10 cada lado"],
+      ["Wall slides", "2x12"], ["Scapular push-up", "2x10 a 15"] ] },
+    { "nome": "Pós-treino global", "descricao": "Alongamentos para depois do treino, de 30 a 45 segundos cada.", "itens": [
+      ["Isquiotibiais", "30 a 45 s"], ["Quadríceps em pé", "30 a 45 s"], ["Peitoral e bíceps na parede", "30 a 45 s"],
+      ["Tríceps", "30 a 45 s"], ["Postura da criança", "30 a 45 s"] ] },
+    { "nome": "Lombar e cadeia posterior", "descricao": "Sequência para a região lombar e a parte de trás do corpo.", "itens": [
+      ["Joelhos ao peito", "60 s"], ["Torção deitado", "45 s cada lado"], ["Cachorro olhando para baixo", "2x30 s"],
+      ["Figura 4", "45 s cada lado"], ["Esfinge", "30 s"] ] },
+    { "nome": "Agachamento profundo", "descricao": "Posições para ganhar conforto no agachamento profundo.", "itens": [
+      ["Goblet squat sustentado", "60 s"], ["Tornozelo ajoelhado", "2x15 cada perna"],
+      ["Elevação pélvica unilateral", "2x15 cada lado"], ["Sapo", "60 s"] ] },
+    { "nome": "Abertura de quadril", "descricao": "Sequência para o quadril.", "itens": [
+      ["Borboleta", "60 s"], ["Pombo", "60 s cada perna"], ["Cossack squat", "2x8 cada lado"],
+      ["Flexor de quadril ajoelhado", "45 s cada lado"] ] },
+    { "nome": "Coluna torácica", "descricao": "Sequência para a parte média das costas.", "itens": [
+      ["Extensão no rolo", "10 a 15"], ["Gato-vaca", "15"], ["Anjos no chão", "15"], ["Open book", "12 cada lado"] ] },
+    { "nome": "Recuperação ativa", "descricao": "Circuito de 3 voltas para dias de descanso ativo.", "orientacoes": "Faça o circuito 3 vezes.", "itens": [
+      ["Inchworm até prancha", "10"], ["Cachorro olhando para baixo", null], ["World's greatest stretch", "5 cada lado"],
+      ["Agachamento com bastão acima da cabeça", "10"] ] },
+    { "nome": "Flexibilidade profunda", "descricao": "Alongamentos longos, de 2 minutos cada.", "orientacoes": "Cada posição fica cerca de 2 minutos.", "itens": [
+      ["Isquiotibiais com faixa", "2 min"], ["Couch stretch", "2 min"], ["Abertura frontal e lateral no limite", "2 min"],
+      ["Peitoral no batente", "2 min"], ["Dead hang", "até a falha da pegada"] ] }
+  ]
+}

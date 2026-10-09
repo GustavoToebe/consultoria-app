@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
  * nenhuma consultoria. {@code DEMO_SENHA} é obrigatória nesse profile (sem valor padrão): faltando, a API não sobe.
  */
 @Component
+@Order(10)
 @ConditionalOnProperty(name = "treinos.demo.seed", havingValue = "true")
 public class SeedDemoRunner implements ApplicationRunner {
 

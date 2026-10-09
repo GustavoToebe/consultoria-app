@@ -19,14 +19,16 @@ import java.util.UUID;
  *
  * <p>Upsert pela chave {@code (aluno, versão, série, dia)}: mesmo registro reenviado não duplica; só atualiza se o
  * {@code alterado_no_aparelho_em} recebido for mais novo (o aparelho é o único autor).</p>
+ *
+ * <p>Público só para o {@code SeedHistoricoDemo} (dados de demonstração com datas passadas, que a API recusa); nenhuma rota usa.</p>
  */
 @Component
-class ExecucaoUpsert {
+public class ExecucaoUpsert {
 
     record Chave(UUID alunoId, UUID planoVersaoId, UUID serieUid, LocalDate data) {
     }
 
-    record Linha(UUID id, UUID consultoriaId, UUID alunoId, UUID planoVersaoId, UUID sessaoUid, UUID exercicioUid,
+    public record Linha(UUID id, UUID consultoriaId, UUID alunoId, UUID planoVersaoId, UUID sessaoUid, UUID exercicioUid,
                  UUID serieUid, UUID exercicioId, boolean serieTrabalho, LocalDate data, BigDecimal carga,
                  String unidade, Integer repeticoes, boolean concluida, String observacao,
                  Instant alteradoNoAparelhoEm) {
@@ -57,7 +59,7 @@ class ExecucaoUpsert {
     }
 
     /** @return {@code true} se gravou (novo ou mais recente); {@code false} se o registro recebido era antigo. */
-    boolean gravar(Linha l) {
+    public boolean gravar(Linha l) {
         List<UUID> gravados = jdbc.query(SQL, (rs, n) -> rs.getObject(1, UUID.class),
                 l.id(), l.consultoriaId(), l.alunoId(), l.planoVersaoId(), l.sessaoUid(), l.exercicioUid(),
                 l.serieUid(), l.exercicioId(), l.serieTrabalho(), l.data(), l.carga(), l.unidade(), l.repeticoes(),

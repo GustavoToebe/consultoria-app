@@ -1,0 +1,62 @@
+{
+  "observacaoDaDieta": "Acrescentar ao menos 100 g de legumes nas refeições principais; salada verde à vontade; água ao longo do dia.",
+  "alimentos": {
+    "pao": { "nome": "Pão de forma", "candidatos": [{ "biblioteca": "Pão de forma branco" }, { "taco": "Pão, trigo, forma, integral" }] },
+    "tapioca": { "nome": "Tapioca", "candidatos": [{ "taco": "Tapioca, com manteiga" }] },
+    "ovo": { "nome": "Ovo", "unidade": "un", "candidatos": [{ "taco": "Ovo, de galinha, inteiro, cozido/10minutos" }] },
+    "chia": { "nome": "Chia", "candidatos": [{ "biblioteca": "Semente de chia" }] },
+    "iogurte": { "nome": "Iogurte desnatado", "candidatos": [{ "taco": "Iogurte, natural, desnatado" }, { "biblioteca": "Iogurte desnatado" }] },
+    "aveia": { "nome": "Aveia", "candidatos": [{ "taco": "Aveia, flocos, crua" }, { "biblioteca": "Aveia em flocos" }] },
+    "maca": { "nome": "Maçã", "candidatos": [{ "taco": "Maçã, Fuji, com casca, crua" }] },
+    "abacaxi": { "nome": "Abacaxi", "candidatos": [{ "taco": "Abacaxi, cru" }] },
+    "kiwi": { "nome": "Kiwi", "candidatos": [{ "taco": "Kiwi, cru" }] },
+    "mamao": { "nome": "Mamão", "candidatos": [{ "taco": "Mamão, Formosa, cru" }] },
+    "arroz": { "nome": "Arroz branco cozido", "candidatos": [{ "taco": "Arroz, tipo 1, cozido" }, { "biblioteca": "Arroz branco cozido" }] },
+    "frango": { "nome": "Peito de frango grelhado", "candidatos": [{ "taco": "Frango, peito, sem pele, grelhado" }, { "biblioteca": "Peito de frango grelhado" }] },
+    "frangoDesfiado": { "nome": "Frango desfiado", "candidatos": [{ "taco": "Frango, peito, sem pele, cozido" }] },
+    "batataInglesa": { "nome": "Batata inglesa cozida", "candidatos": [{ "taco": "Batata, inglesa, cozida" }, { "biblioteca": "Batata inglesa cozida" }] },
+    "patinho": { "nome": "Patinho", "candidatos": [{ "taco": "Carne, bovina, patinho, sem gordura, grelhado" }] },
+    "tilapia": { "nome": "Tilápia", "candidatos": [] },
+    "batataDoce": { "nome": "Batata-doce cozida", "candidatos": [{ "taco": "Batata, doce, cozida" }] },
+    "lombo": { "nome": "Lombo suíno", "candidatos": [{ "taco": "Porco, lombo, assado" }] },
+    "macarrao": { "nome": "Macarrão cozido", "candidatos": [] },
+    "mandioca": { "nome": "Mandioca cozida", "candidatos": [{ "taco": "Mandioca, cozida" }] },
+    "figado": { "nome": "Fígado bovino", "candidatos": [{ "taco": "Carne, bovina, fígado, grelhado" }] },
+    "pure": { "nome": "Purê de batata", "candidatos": [] },
+    "musculo": { "nome": "Músculo bovino cozido", "candidatos": [{ "taco": "Carne, bovina, músculo, sem gordura, cozido" }] },
+    "batataAssada": { "nome": "Batata assada", "candidatos": [] }
+  },
+  "dietas": [
+    { "nome": "1. Base clássica", "fruta": "maca",
+      "almoco": [["arroz", 160], ["frango", 180]], "lanche": [["maca", 150], ["pao", 50], ["frango", 150]], "jantar": [["arroz", 160], ["frango", 180], ["maca", 150]] },
+    { "nome": "2. Carne bovina magra", "fruta": "abacaxi",
+      "almoco": [["batataInglesa", 350], ["patinho", 180]], "lanche": [["abacaxi", 150], ["pao", 50], ["patinho", 150]], "jantar": [["batataInglesa", 350], ["patinho", 180], ["abacaxi", 150]] },
+    { "nome": "3. Peixe branco", "fruta": "kiwi",
+      "almoco": [["arroz", 160], ["tilapia", 200]], "lanche": [["kiwi", 150], ["pao", 50], ["tilapia", 170]], "jantar": [["arroz", 160], ["tilapia", 200], ["kiwi", 150]] },
+    { "nome": "4. Suíno e batata-doce", "fruta": "mamao",
+      "almoco": [["batataDoce", 220], ["lombo", 180]], "lanche": [["mamao", 150], ["pao", 50], ["lombo", 150]], "jantar": [["batataDoce", 220], ["lombo", 180], ["mamao", 150]] },
+    { "nome": "5. Massa e frango", "fruta": "maca", "cafeSemPao": "tapioca",
+      "almoco": [["macarrao", 160], ["frangoDesfiado", 180]], "lanche": [["maca", 150], ["pao", 50], ["frangoDesfiado", 150]], "jantar": [["macarrao", 160], ["frangoDesfiado", 180], ["maca", 150]] },
+    { "nome": "6. Mandioca e carne", "fruta": "abacaxi",
+      "almoco": [["mandioca", 150], ["patinho", 180]], "lanche": [["abacaxi", 150], ["pao", 50], ["patinho", 150]], "jantar": [["mandioca", 150], ["patinho", 180], ["abacaxi", 150]] },
+    { "nome": "7. Fígado bovino", "fruta": "mamao",
+      "almoco": [["arroz", 160], ["figado", 180]], "lanche": [["mamao", 150], ["pao", 50], ["frango", 150]], "jantar": [["arroz", 160], ["figado", 180], ["mamao", 150]] },
+    { "nome": "8. Purê e tilápia", "fruta": "kiwi",
+      "almoco": [["pure", 350], ["tilapia", 200]], "lanche": [["kiwi", 150], ["pao", 50], ["frango", 150]], "jantar": [["pure", 350], ["tilapia", 200], ["kiwi", 150]] },
+    { "nome": "9. Frango e boi", "fruta": "maca",
+      "almoco": [["arroz", 160], ["patinho", 180]], "lanche": [["maca", 150], ["pao", 50], ["frango", 150]], "jantar": [["batataDoce", 220], ["frango", 180], ["maca", 150]] },
+    { "nome": "10. Músculo e batata", "fruta": "abacaxi",
+      "almoco": [["batataAssada", 350], ["musculo", 180]], "lanche": [["abacaxi", 150], ["pao", 50], ["frango", 150]], "jantar": [["macarrao", 160], ["musculo", 180], ["abacaxi", 150]] }
+  ],
+  "refeicoes": [
+    { "nome": "Café padrão (maçã)", "dieta": 0, "refeicao": "Café" },
+    { "nome": "Almoço frango e arroz", "dieta": 0, "refeicao": "Almoço" },
+    { "nome": "Lanche pão e frango", "dieta": 0, "refeicao": "Lanche" },
+    { "nome": "Jantar tilápia e arroz", "dieta": 2, "refeicao": "Jantar" }
+  ],
+  "pacotes": [
+    { "nome": "ABC + Base clássica", "semana": "ABC Empurrar/Puxar/Pernas", "dieta": "1. Base clássica" },
+    { "nome": "Full Body + Peixe branco", "semana": "Full Body (5 treinos)", "dieta": "3. Peixe branco" },
+    { "nome": "PPL 1 + Carne bovina magra", "semana": "PPL 1", "dieta": "2. Carne bovina magra" }
+  ]
+}
