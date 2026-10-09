@@ -109,6 +109,7 @@ public class PastaService {
             throw new BadRequestException("Informe o peso para gravar a observação.");
         }
         if (r.pesoKg() != null) {
+            br.com.treinos.api.equipe.AcessoAtual.exigir("ALUNO_SENSIVEL_ALTERAR");
             LocalDate data = r.data() != null ? r.data() : LocalDate.now(Fuso.BRASILIA);
             pesos.registrar(pasta.getAlunoId(), new PesoRequest(data, r.pesoKg(), r.observacao()), usuarioId);
         }

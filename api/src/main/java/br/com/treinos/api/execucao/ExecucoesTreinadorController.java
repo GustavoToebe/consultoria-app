@@ -36,7 +36,7 @@ public class ExecucoesTreinadorController {
         this.pesos = pesos;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_REGISTRO_LER')")
     @GetMapping("/execucoes")
     public List<DiaDeTreino> execucoes(@PathVariable UUID alunoId,
                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
@@ -44,26 +44,26 @@ public class ExecucoesTreinadorController {
         return historico.doAluno(alunoId, de, ate);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_REGISTRO_LER')")
     @GetMapping("/progresso")
     public List<ProgressoPonto> progresso(@PathVariable UUID alunoId, @RequestParam UUID exercicioId) {
         return historico.progresso(alunoId, exercicioId);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_SENSIVEL_LER')")
     @GetMapping("/pesos")
     public List<PesoResponse> pesos(@PathVariable UUID alunoId) {
         return pesos.listar(alunoId);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_SENSIVEL_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_ALTERAR')")
     @PostMapping("/pesos")
     public List<PesoResponse> registrarPeso(@PathVariable UUID alunoId, @RequestBody @Valid PesoRequest request,
                                             @AuthenticationPrincipal UsuarioAutenticado eu) {
         return pesos.registrar(alunoId, request, eu.usuarioId());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_SENSIVEL_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_ALTERAR')")
     @DeleteMapping("/pesos/{pesoId}")
     public ResponseEntity<Void> excluirPeso(@PathVariable UUID alunoId, @PathVariable UUID pesoId) {
         pesos.excluir(alunoId, pesoId);

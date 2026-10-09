@@ -14,7 +14,7 @@ public class PainelTreinadorController {
         this.painel = painel;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_PAINEL_VER')")
     @GetMapping("/painel")
     public PainelTreinador painel() {
         return painel.painel();

@@ -25,7 +25,7 @@ public class CatalogoController {
         this.biblioteca = biblioteca;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping("/exercicios")
     public CatalogoPagina<CatalogoExercicioResponse> exercicios(@RequestParam(required = false) String busca,
                                                                 @RequestParam(required = false) String grupo,
@@ -34,13 +34,13 @@ public class CatalogoController {
         return biblioteca.catalogoExercicios(busca, grupo, modalidade, limite);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping("/exercicios/grupos")
     public List<String> gruposDeExercicios() {
         return biblioteca.gruposDoCatalogoDeExercicios();
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping("/alimentos")
     public CatalogoPagina<CatalogoAlimentoResponse> alimentos(@RequestParam(required = false) String busca,
                                                               @RequestParam(required = false) String grupo,
@@ -48,7 +48,7 @@ public class CatalogoController {
         return biblioteca.catalogoAlimentos(busca, grupo, limite);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping("/alimentos/grupos")
     public List<String> gruposDeAlimentos() {
         return biblioteca.gruposDoCatalogoDeAlimentos();

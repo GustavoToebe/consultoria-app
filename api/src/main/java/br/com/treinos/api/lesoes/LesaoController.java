@@ -28,27 +28,27 @@ public class LesaoController {
         this.lesoes = lesoes;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_SENSIVEL_LER')")
     @GetMapping("/alunos/{alunoId}/lesoes")
     public List<LesaoResponse> listar(@PathVariable UUID alunoId) {
         return lesoes.listar(alunoId);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_SENSIVEL_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_ALTERAR')")
     @PostMapping("/alunos/{alunoId}/lesoes")
     public LesaoResponse criar(@PathVariable UUID alunoId, @RequestBody @Valid LesaoRequest request,
                                @AuthenticationPrincipal UsuarioAutenticado eu) {
         return lesoes.criar(alunoId, request, eu.usuarioId());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_SENSIVEL_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_ALTERAR')")
     @PutMapping("/alunos/{alunoId}/lesoes/{id}")
     public LesaoResponse alterar(@PathVariable UUID alunoId, @PathVariable UUID id,
                                  @RequestBody @Valid LesaoRequest request) {
         return lesoes.alterar(alunoId, id, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_SENSIVEL_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_ALTERAR')")
     @DeleteMapping("/alunos/{alunoId}/lesoes/{id}")
     public ResponseEntity<Void> excluir(@PathVariable UUID alunoId, @PathVariable UUID id) {
         lesoes.excluir(alunoId, id);

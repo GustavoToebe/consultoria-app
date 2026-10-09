@@ -10,13 +10,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
+import br.com.treinos.api.equipe.PermissoesDoUsuario;
 
 /**
  * Valida o Bearer, carrega o usuário ativo com a mesma versão de credenciais e preenche o {@link TenantContext} com a
@@ -29,7 +29,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UsuarioRepository usuarioRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository) {
+    private final PermissoesDoUsuario permissoes;
+
+    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository, PermissoesDoUsuario permissoes) {
+        this.permissoes=permissoes;
         this.jwtService = jwtService;
         this.usuarioRepository = usuarioRepository;
     }
@@ -62,10 +65,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (usuario == null) {
             return;
         }
+        TenantContext.set(usuario.getConsultoriaId());
         var autenticado = new UsuarioAutenticado(usuario.getId(), usuario.getConsultoriaId(),
                 usuario.getPapel().name(), usuario.getAlunoId());
         var autenticacao = new UsernamePasswordAuthenticationToken(
-                autenticado, null, List.of(new SimpleGrantedAuthority(usuario.getPapel().autoridade())));
+                autenticado, null, permissoes.autoridades(usuario));
         SecurityContextHolder.getContext().setAuthentication(autenticacao);
         TenantContext.set(usuario.getConsultoriaId());
     }

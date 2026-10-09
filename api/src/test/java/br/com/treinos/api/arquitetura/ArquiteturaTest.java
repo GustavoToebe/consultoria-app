@@ -115,6 +115,23 @@ class ArquiteturaTest {
     }
 
     @Test
+    void rotaDaEquipeDeclaraPermissao() {
+        classes().that().areAnnotatedWith(RestController.class)
+                .and(DescribedPredicate.describe("rotas da equipe (exceto /eu compartilhado e rotas públicas/aluno)",
+                        (JavaClass c) -> !CONTROLLERS_PUBLICOS.contains(c.getSimpleName())
+                                && !Set.of("EuController", "AlunoAppController", "AtualizacaoAlunoController").contains(c.getSimpleName())))
+                .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
+                    @Override public void check(JavaClass c, ConditionEvents eventos) {
+                        c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {
+                            if (!m.isAnnotatedWith(PreAuthorize.class)
+                                    || !m.getAnnotationOfType(PreAuthorize.class).value().contains("hasAuthority('PERM_"))
+                                eventos.add(SimpleConditionEvent.violated(m, m.getFullName()+" não declara permissão"));
+                        });
+                    }
+                }).check(codigo);
+    }
+
+    @Test
     void sqlNativoSoNasClassesPermitidas() {
         DescribedPredicate<JavaClass> foraDaLista = DescribedPredicate.describe("não estão em SQL_NATIVO_PERMITIDO",
                 (JavaClass c) -> !SQL_NATIVO_PERMITIDO.contains(c.getSimpleName()));

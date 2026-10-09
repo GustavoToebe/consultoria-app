@@ -43,12 +43,15 @@ public final class AlunoDtos {
     public record PaginaAlunos(List<AlunoResumo> itens, long total) {
     }
 
-    public record AlunoDetalhe(UUID id, String nome, String email, String objetivo, String observacoes, boolean ativo,
+    public record AlunoDetalhe(UUID id, String nome, String email,
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String objetivo,
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String observacoes, boolean ativo,
                                boolean temAcesso, Instant conviteExpiraEm, Long versao,
                                Integer diasAtualizacao) {
         public static AlunoDetalhe de(Aluno a) {
             boolean conviteValido = a.getConviteExpiraEm() != null && a.getConviteExpiraEm().isAfter(Instant.now());
-            return new AlunoDetalhe(a.getId(), a.getNome(), a.getEmail(), a.getObjetivo(), a.getObservacoes(),
+            return new AlunoDetalhe(a.getId(), a.getNome(), a.getEmail(), br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER") ? a.getObjetivo() : null,
+                    br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER") ? a.getObservacoes() : null,
                     a.isAtivo(), a.getUsuarioId() != null, conviteValido ? a.getConviteExpiraEm() : null,
                     a.getVersao(), a.getDiasAtualizacao());
         }

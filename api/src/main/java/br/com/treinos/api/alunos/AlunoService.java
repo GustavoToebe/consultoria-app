@@ -68,13 +68,14 @@ public class AlunoService {
         List<AlunoResumo> itens = page.getContent().stream().map(a -> {
             PlanoTreino p = planoAtivo.get(a.getId());
             return new AlunoResumo(a.getId(), a.getNome(), a.isAtivo(), a.getUsuarioId() != null,
-                    p == null ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), ultimo.get(a.getId()));
+                    (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null);
         }).toList();
         return new PaginaAlunos(itens, page.getTotalElements());
     }
 
     @Transactional
     public AlunoDetalhe criar(AlunoRequest r) {
+        exigirEscritaSensivel(r);
         Aluno aluno = new Aluno(r.nome().trim(), email(r.email()), Buscas.opcional(r.objetivo()),
                 Buscas.opcional(r.observacoes()), r.diasAtualizacao());
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
@@ -92,8 +93,10 @@ public class AlunoService {
             throw new ConflitoException("Outra pessoa ou aba alterou este aluno. Recarregue para ver a versão atual.",
                     "CONFLITO_EDICAO");
         }
-        aluno.alterarDados(r.nome().trim(), email(r.email()), Buscas.opcional(r.objetivo()),
-                Buscas.opcional(r.observacoes()), r.diasAtualizacao());
+        exigirEscritaSensivel(r);
+        boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR");
+        aluno.alterarDados(r.nome().trim(), email(r.email()), sensivel ? Buscas.opcional(r.objetivo()) : aluno.getObjetivo(),
+                sensivel ? Buscas.opcional(r.observacoes()) : aluno.getObservacoes(), r.diasAtualizacao());
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
     }
 
@@ -112,6 +115,11 @@ public class AlunoService {
             }
         }
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
+    }
+
+    private static void exigirEscritaSensivel(AlunoRequest r) {
+        if (r.objetivo() != null || r.observacoes() != null)
+            br.com.treinos.api.equipe.AcessoAtual.exigir("ALUNO_SENSIVEL_ALTERAR");
     }
 
     private Aluno buscar(UUID id) {

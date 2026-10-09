@@ -31,7 +31,7 @@ public class AlunoController {
         this.convites = convites;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_LER')")
     @GetMapping
     public PaginaAlunos listar(@RequestParam(required = false) String busca,
                                @RequestParam(required = false) String situacao,
@@ -40,31 +40,31 @@ public class AlunoController {
         return alunos.listar(busca, situacao, pagina, tamanho);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
     @PostMapping
     public AlunoDetalhe criar(@RequestBody @Valid AlunoRequest request) {
         return alunos.criar(request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_LER')")
     @GetMapping("/{id}")
     public AlunoDetalhe detalhe(@PathVariable UUID id) {
         return alunos.detalhe(id);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
     @PutMapping("/{id}")
     public AlunoDetalhe alterar(@PathVariable UUID id, @RequestBody @Valid AlunoRequest request) {
         return alunos.alterar(id, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")
     @PatchMapping("/{id}/situacao")
     public AlunoDetalhe situacao(@PathVariable UUID id, @RequestBody @Valid SituacaoRequest request) {
         return alunos.alterarSituacao(id, request.ativo());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
     @PostMapping("/{id}/convite")
     public ConviteResponse convite(@PathVariable UUID id) {
         return convites.gerar(id);

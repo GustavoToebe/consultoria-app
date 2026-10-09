@@ -29,43 +29,43 @@ public class PastaController {
         this.pastas = pastas;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_ALUNO_LER')")
     @GetMapping("/alunos/{alunoId}/pastas")
     public List<PastaResumo> listar(@PathVariable UUID alunoId) {
         return pastas.listar(alunoId);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_PASTA_ALTERAR')")
     @PostMapping("/alunos/{alunoId}/pastas")
     public PastaResumo criar(@PathVariable UUID alunoId, @RequestBody @Valid PastaRequest request) {
         return pastas.criar(alunoId, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_PASTA_ALTERAR')")
     @PutMapping("/pastas/{id}")
     public PastaResumo atualizar(@PathVariable UUID id, @RequestBody @Valid PastaRequest request) {
         return pastas.atualizar(id, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_PASTA_ALTERAR')")
     @PostMapping("/pastas/{id}/replicar")
     public PastaResumo replicar(@PathVariable UUID id, @RequestBody @Valid PastaRequest request) {
         return pastas.replicar(id, request);
     }
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_PASTA_ALTERAR')")
     @PostMapping("/pastas/{id}/finalizar")
     public PastaResumo finalizar(@PathVariable UUID id, @RequestBody @Valid FinalizarRequest request,
                                  @AuthenticationPrincipal UsuarioAutenticado eu) {
         return pastas.finalizar(id, request, eu.usuarioId());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_PASTA_ALTERAR')")
     @PostMapping("/pastas/{id}/reabrir")
     public PastaResumo reabrir(@PathVariable UUID id) {
         return pastas.reabrir(id);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_PASTA_ALTERAR')")
     @DeleteMapping("/pastas/{id}")
     public ResponseEntity<Void> excluir(@PathVariable UUID id) { pastas.excluir(id); return ResponseEntity.noContent().build(); }
 }

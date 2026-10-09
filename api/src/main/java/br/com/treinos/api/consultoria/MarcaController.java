@@ -30,20 +30,20 @@ public class MarcaController {
         this.marcas = marcas;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_TREINO_LER') or hasAuthority('PERM_DIETA_LER') or hasAuthority('PERM_MODELO_LER') or hasAuthority('PERM_MARCA_ALTERAR') or hasAuthority('PERM_METODOLOGIA_ALTERAR')")
     @GetMapping
     public ConsultoriaResponse consultoria(@AuthenticationPrincipal UsuarioAutenticado eu) {
         return marcas.consultoria(eu.consultoriaId());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MARCA_ALTERAR')")
     @PutMapping("/marca")
     public ConsultoriaResponse alterarMarca(@AuthenticationPrincipal UsuarioAutenticado eu,
                                            @RequestBody @Valid MarcaRequest request) {
         return marcas.alterarMarca(eu.consultoriaId(), request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MARCA_ALTERAR')")
     @PutMapping(value = "/marca/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public MarcaPublica enviarLogo(@AuthenticationPrincipal UsuarioAutenticado eu,
                                    @RequestPart("arquivo") MultipartFile arquivo) {
@@ -54,13 +54,13 @@ public class MarcaController {
         }
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MARCA_ALTERAR')")
     @DeleteMapping("/marca/logo")
     public MarcaPublica removerLogo(@AuthenticationPrincipal UsuarioAutenticado eu) {
         return marcas.removerLogo(eu.consultoriaId());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_METODOLOGIA_ALTERAR')")
     @PutMapping("/configuracao")
     public ConsultoriaResponse alterarConfiguracao(@AuthenticationPrincipal UsuarioAutenticado eu,
                                                   @RequestBody ConfiguracaoConsultoria configuracao) {

@@ -9,11 +9,11 @@ import java.util.UUID;
 public class AplicarModeloController {
     private final AplicarModeloService modelos;
     public AplicarModeloController(AplicarModeloService modelos) { this.modelos = modelos; }
-    @PreAuthorize("hasRole('TREINADOR')") @PostMapping("/receitas/{id}/aplicar")
+    @PreAuthorize("hasAuthority('PERM_MODELO_APLICAR')") @PostMapping("/receitas/{id}/aplicar")
     public AplicarModeloService.Response aplicar(@PathVariable UUID id, @RequestBody @Valid AplicarModeloService.Request r) {
         return modelos.aplicar(id,r);
     }
-    @PreAuthorize("hasRole('TREINADOR')") @PostMapping("/pastas/{id}/salvar-como-modelo")
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR') and hasAuthority('PERM_ALUNO_LER')") @PostMapping("/pastas/{id}/salvar-como-modelo")
     public ReceitaService.ReceitaResponse salvarPasta(@PathVariable UUID id, @RequestBody @Valid SalvarComoReceitaRequest r) {
         return modelos.salvarPasta(id,r);
     }

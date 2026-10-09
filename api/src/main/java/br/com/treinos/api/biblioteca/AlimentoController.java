@@ -33,44 +33,44 @@ public class AlimentoController {
         this.csv = csv;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping
     public List<AlimentoResponse> listar(@RequestParam(required = false) String busca) {
         return biblioteca.listarAlimentos(busca);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping
     public AlimentoResponse criar(@RequestBody @Valid AlimentoRequest request) {
         return biblioteca.criarAlimento(request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PutMapping("/{id}")
     public AlimentoResponse alterar(@PathVariable UUID id, @RequestBody @Valid AlimentoRequest request) {
         return biblioteca.alterarAlimento(id, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> inativar(@PathVariable UUID id) {
         biblioteca.inativarAlimento(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping("/importar-catalogo")
     public ImportacaoResultado importarCatalogo(@RequestBody @Valid ImportarCatalogoRequest request) {
         return biblioteca.importarCatalogoAlimentos(request.ids());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping(value = "/importar-csv", consumes = {"text/plain", "text/csv"})
     public PreviaCsv<ImportacaoCsvService.AlimentoCsv> previaCsv(@RequestBody String texto) {
         return csv.previaAlimentos(texto);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping(value = "/importar-csv", params = "confirmar=true", consumes = {"text/plain", "text/csv"})
     public ImportacaoResultado confirmarCsv(@RequestBody String texto, @RequestParam String hash) {
         return csv.confirmarAlimentos(texto, hash);

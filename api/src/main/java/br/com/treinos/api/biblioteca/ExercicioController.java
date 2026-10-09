@@ -33,45 +33,45 @@ public class ExercicioController {
         this.csv = csv;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
     @GetMapping
     public List<ExercicioResponse> listar(@RequestParam(required = false) String busca) {
         return biblioteca.listarExercicios(busca);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping
     public ExercicioResponse criar(@RequestBody @Valid ExercicioRequest request) {
         return biblioteca.criarExercicio(request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PutMapping("/{id}")
     public ExercicioResponse alterar(@PathVariable UUID id, @RequestBody @Valid ExercicioRequest request) {
         return biblioteca.alterarExercicio(id, request);
     }
 
     /** Inativa: planos já montados continuam com a cópia do nome. */
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> inativar(@PathVariable UUID id) {
         biblioteca.inativarExercicio(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping("/importar-catalogo")
     public ImportacaoResultado importarCatalogo(@RequestBody @Valid ImportarCatalogoRequest request) {
         return biblioteca.importarCatalogoExercicios(request.ids());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping(value = "/importar-csv", consumes = {"text/plain", "text/csv"})
     public PreviaCsv<ImportacaoCsvService.ExercicioCsv> previaCsv(@RequestBody String texto) {
         return csv.previaExercicios(texto);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping(value = "/importar-csv", params = "confirmar=true", consumes = {"text/plain", "text/csv"})
     public ImportacaoResultado confirmarCsv(@RequestBody String texto, @RequestParam String hash) {
         return csv.confirmarExercicios(texto, hash);

@@ -28,39 +28,39 @@ public class ReceitaController {
         this.receitas = receitas;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MODELO_LER')")
     @GetMapping
     public List<ReceitaResponse> listar(@RequestParam(required = false) Receita.Tipo tipo) {
         return receitas.listar(tipo);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MODELO_LER')")
     @GetMapping("/{id}")
     public ReceitaResponse detalhe(@PathVariable UUID id) { return receitas.detalhe(id); }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR')")
     @PutMapping("/{id}/conteudo")
     public ReceitaResponse conteudo(@PathVariable UUID id, @RequestBody @Valid ReceitaService.ConteudoRequest request) {
         return receitas.salvarConteudo(id, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR')")
     @PostMapping("/{id}/duplicar")
     public ReceitaResponse duplicar(@PathVariable UUID id) { return receitas.duplicar(id); }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR')")
     @PostMapping
     public ReceitaResponse criar(@RequestBody @Valid ReceitaRequest request) {
         return receitas.criar(request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR')")
     @PutMapping("/{id}")
     public ReceitaResponse alterar(@PathVariable UUID id, @RequestBody @Valid ReceitaRequest request) {
         return receitas.alterar(id, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> excluir(@PathVariable UUID id) {
         receitas.excluir(id);

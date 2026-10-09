@@ -11,12 +11,12 @@ import java.util.UUID;
 public class PastaModeloController {
     private final PastaModeloService pastas;
     public PastaModeloController(PastaModeloService pastas) { this.pastas = pastas; }
-    @PreAuthorize("hasRole('TREINADOR')") @GetMapping
+    @PreAuthorize("hasAuthority('PERM_MODELO_LER')") @GetMapping
     public List<PastaModeloService.Response> listar() { return pastas.listar(); }
-    @PreAuthorize("hasRole('TREINADOR')") @PostMapping
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR')") @PostMapping
     public PastaModeloService.Response criar(@RequestBody @Valid PastaModeloService.Request r) { return pastas.criar(r); }
-    @PreAuthorize("hasRole('TREINADOR')") @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR')") @PutMapping("/{id}")
     public PastaModeloService.Response alterar(@PathVariable UUID id, @RequestBody @Valid PastaModeloService.Request r) { return pastas.alterar(id, r); }
-    @PreAuthorize("hasRole('TREINADOR')") @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('PERM_MODELO_ALTERAR')") @DeleteMapping("/{id}")
     public ResponseEntity<Void> excluir(@PathVariable UUID id) { pastas.excluir(id); return ResponseEntity.noContent().build(); }
 }

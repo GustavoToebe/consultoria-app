@@ -46,6 +46,11 @@ public class Usuario {
     @Column(name = "aluno_id", updatable = false)
     private UUID alunoId;
 
+    @Column(name="perfil_id")
+    private UUID perfilId;
+
+    private String telefone;
+
     @Column(nullable = false)
     private boolean ativo = true;
 
@@ -101,6 +106,9 @@ public class Usuario {
     public Papel getPapel() {
         return papel;
     }
+
+    public UUID getPerfilId() { return perfilId; }
+    public String getTelefone() { return telefone; }
 
     public UUID getAlunoId() {
         return alunoId;

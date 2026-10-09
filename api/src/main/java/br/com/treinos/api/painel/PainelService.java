@@ -93,9 +93,13 @@ public class PainelService {
                         new AlunoRef(a.getId(), a.getNome()), p.getFim()));
             }
         }
-        return new PainelTreinador(ativos.size(), semRegistro, ultimasExecucoes(porId), terminando,
-                atualizacoes.listar("PARA_REVISAR").size(), atualizacoes.listar("ATRASADAS").size(),
-                atualizacoes.listar("AVISARAM_ATRASO").size(), atualizacoes.listar("PROXIMAS").size());
+        boolean registros = br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER");
+        boolean checkin = br.com.treinos.api.equipe.AcessoAtual.pode("ATUALIZACAO_LER")
+                && br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
+        return new PainelTreinador(ativos.size(), registros ? semRegistro : List.of(), registros ? ultimasExecucoes(porId) : List.of(),
+                br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER") ? terminando : List.of(),
+                checkin ? atualizacoes.listar("PARA_REVISAR").size() : 0, checkin ? atualizacoes.listar("ATRASADAS").size() : 0,
+                checkin ? atualizacoes.listar("AVISARAM_ATRASO").size() : 0, checkin ? atualizacoes.listar("PROXIMAS").size() : 0);
     }
 
     /** Agrupa os registros mais recentes por aluno, dia e sessão. Nomes de aluno só de alunos ativos. */

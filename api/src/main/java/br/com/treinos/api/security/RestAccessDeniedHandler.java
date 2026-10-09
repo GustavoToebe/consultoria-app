@@ -24,6 +24,6 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException {
-        RespostaDeErro.escrever(response, request, HttpStatus.FORBIDDEN, "Acesso negado.", null, jsonMapper);
+        RespostaDeErro.escrever(response, request, HttpStatus.FORBIDDEN, "Seu perfil não permite esta ação.", "PERMISSAO_NEGADA", jsonMapper);
     }
 }

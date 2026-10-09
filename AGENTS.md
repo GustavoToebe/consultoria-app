@@ -41,6 +41,11 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Local: `docker-compose.yml` (Postgres + API + Caddy servindo a web em `:8088`, API em `/api`).
 
 ## API: convenções
+- Equipe: `TREINADOR` é membro com perfil; autoridades `PERM_...` vêm do banco a cada requisição
+  (`equipe/PermissoesDoUsuario`), nunca do JWT. Rotas de equipe declaram `hasAuthority` (ArchUnit).
+  Dado sensível exige `ALUNO_SENSIVEL_LER`; a ficha omite objetivo e observações sem acesso. Escrita
+  desses campos exige `ALUNO_SENSIVEL_ALTERAR`. O cadastro cria os quatro perfis na mesma transação
+  por trigger da V018; o usuário nasce com Administrador obrigatório. Aluno continua sem perfil.
 - `web/` erros (`ApiError` com `codigo`), `RequestIdFilter`, corpo até 1 MiB (`LimiteCorpoFilter`, 413 `CORPO_EXCEDIDO`).
 - `security/` JWT de 15 min com `cv`; refresh opaco com rotação (reuso derruba todas as sessões); web = cookie
   `TREINOS_REFRESH` + CSRF `TREINOS-XSRF-TOKEN`, nativo = refresh no corpo (`X-Treinos-Cliente: nativo`).

@@ -40,61 +40,61 @@ public class PlanoDietaController {
         this.receitas = receitas;
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_LER')")
     @GetMapping("/alunos/{alunoId}/planos-dieta")
     public List<PlanoResumo> listar(@PathVariable UUID alunoId) {
         return planos.listar(alunoId);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_ALTERAR')")
     @PostMapping("/alunos/{alunoId}/planos-dieta")
     public PlanoDetalhe<ConteudoDieta> criar(@PathVariable UUID alunoId, @RequestBody @Valid CriarPlanoRequest request) {
         return planos.criar(alunoId, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_ALTERAR')")
     @DeleteMapping("/planos-dieta/{id}")
     public ResponseEntity<Void> excluir(@PathVariable UUID id) { planos.excluir(id); return ResponseEntity.noContent().build(); }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_LER')")
     @GetMapping("/planos-dieta/{id}")
     public PlanoDetalhe<ConteudoDieta> detalhe(@PathVariable UUID id) {
         return planos.detalhe(id);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_ALTERAR')")
     @PutMapping("/planos-dieta/{id}/rascunho")
     public PlanoDetalhe<ConteudoDieta> salvarRascunho(@PathVariable UUID id,
                                                       @RequestBody @Valid SalvarRascunhoRequest<ConteudoDieta> request) {
         return planos.salvarRascunho(id, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_LER')")
     @PostMapping("/planos-dieta/{id}/validar")
     public ResultadoValidacao validar(@PathVariable UUID id) {
         return planos.validar(id);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_PUBLICAR')")
     @PostMapping("/planos-dieta/{id}/publicar")
     public PlanoDetalhe<ConteudoDieta> publicar(@PathVariable UUID id, @RequestBody @Valid PublicarRequest request,
                                                 @AuthenticationPrincipal UsuarioAutenticado eu) {
         return planos.publicar(id, request, eu.usuarioId());
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_ALTERAR')")
     @PostMapping("/planos-dieta/{id}/replicar")
     public PlanoDetalhe<ConteudoDieta> replicar(@PathVariable UUID id, @RequestBody @Valid ReplicarRequest request) {
         return planos.replicar(id, request);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_LER')")
     @GetMapping("/planos-dieta/{id}/versoes/{numero}")
     public VersaoDetalhe<ConteudoDieta> versao(@PathVariable UUID id, @PathVariable int numero) {
         return planos.versao(id, numero);
     }
 
-    @PreAuthorize("hasRole('TREINADOR')")
+    @PreAuthorize("hasAuthority('PERM_DIETA_LER') and hasAuthority('PERM_MODELO_ALTERAR')")
     @PostMapping("/planos-dieta/{id}/salvar-como-receita")
     public ReceitaResponse salvarComoReceita(@PathVariable UUID id, @RequestBody @Valid SalvarComoReceitaRequest request) {
         return receitas.salvarConteudo(Receita.Tipo.PLANO_DIETA, request.nome(), request.descricao(),
