@@ -107,6 +107,12 @@ public class Usuario {
         return papel;
     }
 
+    public void alterarNome(String nome) { this.nome=nome; }
+    public void alterarTelefone(String telefone) { this.telefone=telefone; }
+    public void alterarPerfil(UUID perfilId) {
+        if (!java.util.Objects.equals(this.perfilId,perfilId)) { this.perfilId=perfilId; this.credenciaisVersao++; }
+    }
+
     public UUID getPerfilId() { return perfilId; }
     public String getTelefone() { return telefone; }
 

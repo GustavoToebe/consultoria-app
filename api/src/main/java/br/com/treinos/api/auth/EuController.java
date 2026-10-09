@@ -23,8 +23,10 @@ public class EuController {
 
     private final AuthService authService;
     private final SessaoHttp sessaoHttp;
+    private final br.com.treinos.api.equipe.EquipeService equipe;
 
-    public EuController(AuthService authService, SessaoHttp sessaoHttp) {
+    public EuController(AuthService authService, SessaoHttp sessaoHttp,br.com.treinos.api.equipe.EquipeService equipe) {
+        this.equipe=equipe;
         this.authService = authService;
         this.sessaoHttp = sessaoHttp;
     }
@@ -33,6 +35,13 @@ public class EuController {
     @GetMapping
     public EuResponse eu(@AuthenticationPrincipal UsuarioAutenticado eu) {
         return authService.eu(eu);
+    }
+
+    @PreAuthorize("hasRole('TREINADOR')")
+    @PutMapping
+    public EuResponse alterar(@AuthenticationPrincipal UsuarioAutenticado eu,
+                             @RequestBody @Valid br.com.treinos.api.equipe.EquipeDtos.MeuPerfilRequest r) {
+        equipe.meuPerfil(eu.usuarioId(),r);return authService.eu(eu);
     }
 
     @PreAuthorize("hasAnyRole('TREINADOR', 'ALUNO')")

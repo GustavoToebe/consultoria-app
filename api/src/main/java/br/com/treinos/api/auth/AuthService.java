@@ -28,6 +28,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokens;
+    private final br.com.treinos.api.equipe.PerfilRepository perfis;
+    private final br.com.treinos.api.equipe.PermissoesDoUsuario permissoes;
 
     /**
      * Hash de uma senha aleatória, calculado uma vez. Com e-mail inexistente o BCrypt roda contra ele: a resposta
@@ -36,7 +38,9 @@ public class AuthService {
     private final String hashFicticio;
 
     public AuthService(UsuarioRepository usuarios, ConsultoriaRepository consultorias, AlunoRepository alunos,
-                       PasswordEncoder passwordEncoder, JwtService jwtService, RefreshTokenService refreshTokens) {
+                       PasswordEncoder passwordEncoder, JwtService jwtService, RefreshTokenService refreshTokens,br.com.treinos.api.equipe.PerfilRepository perfis,
+                       br.com.treinos.api.equipe.PermissoesDoUsuario permissoes) {
+        this.perfis=perfis;this.permissoes=permissoes;
         this.usuarios = usuarios;
         this.consultorias = consultorias;
         this.alunos = alunos;
@@ -89,7 +93,10 @@ public class AuthService {
                     .map(a -> new EuResponse.AlunoResumo(a.getId(), a.getNome()))
                     .orElse(null);
         }
-        return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno);
+        var perfil=usuario.getPerfilId()==null ? null : perfis.buscar(usuario.getPerfilId(),usuario.getConsultoriaId())
+                .map(p -> new EuResponse.PerfilResumo(p.getId(),p.getNome(),p.isAcessoTotal())).orElse(null);
+        return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno,perfil,
+                usuario.getPapel()==Papel.TREINADOR ? permissoes.codigos(usuario) : null);
     }
 
     /**

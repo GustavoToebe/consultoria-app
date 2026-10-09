@@ -42,6 +42,8 @@ public class Aluno {
     @Column(name = "dias_atualizacao")
     private Integer diasAtualizacao;
 
+    @Column(name="responsavel_id") private UUID responsavelId;
+
     @Column(nullable = false)
     private boolean ativo = true;
 
@@ -81,6 +83,9 @@ public class Aluno {
         this.observacoes = observacoes;
         this.diasAtualizacao = diasAtualizacao;
     }
+
+    public UUID getResponsavelId() { return responsavelId; }
+    public void alterarResponsavel(UUID id) { responsavelId=id; atualizadoEm=Instant.now(); }
 
     public Integer getDiasAtualizacao() {
         return diasAtualizacao;

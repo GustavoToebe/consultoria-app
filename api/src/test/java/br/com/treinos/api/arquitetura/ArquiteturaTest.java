@@ -46,10 +46,11 @@ class ArquiteturaTest {
      * {@code ContadorBanco} (contador de login com {@code ON CONFLICT} atômico);
      * {@code ExecucaoUpsert} (registro idempotente do aluno, {@code ON CONFLICT ... WHERE} mais novo);
      * {@code LogoRepositorio} (bytes da logo fora da entidade, filtrado pelo id da consultoria);
+     * {@code ConviteEquipeBusca} (descobre apenas o tenant pelo hash para o aceite público da equipe);
      * {@code ConviteBusca} (convite público: descobre só a consultoria do convite antes de abrir a sessão nela).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of("ContadorBanco", "ExecucaoUpsert",
-            "LogoRepositorio", "ConviteBusca");
+            "LogoRepositorio", "ConviteBusca", "ConviteEquipeBusca");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario} e
@@ -61,7 +62,7 @@ class ArquiteturaTest {
 
     /** Controllers das rotas públicas da seção 5.4 (login, refresh, cadastro, convite, logo). */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
-            "MarcaPublicaController");
+            "MarcaPublicaController", "ConviteEquipePublicoController");
 
     @BeforeAll
     static void importar() {
