@@ -820,7 +820,7 @@ item, item com quantidade ≤ 0, item manual sem kcal; aviso: nomes de refeiçã
 6. "Séries simples 3x8-12" (tipo "Série", RIR 2) — para treinadores que não usam FS/WS.
 7. "Cardio" (tipo "Cardio", alvoTexto "50 min ou HIIT 25 min", NENHUMA).
 
-`PLANO_TREINO`: "Semana Saraiva (Seg Costas, Ter Peito+Ombros, Qua Pernas, Qui Off ativo, Sex Upper, Sáb Pernas,
+`PLANO_TREINO`: "Semana 5 treinos + 2 off ativos (Seg Costas, Ter Peito+Ombros, Qua Pernas, Qui Off ativo, Sex Upper, Sáb Pernas,
 Dom Off ativo)" — só as sessões vazias com nome, dia e tipo; "Semana ABC" e "Semana ABCD" (sessões vazias).
 
 `PLANO_DIETA`: "5 refeições (café, lanche, almoço, lanche/ceia, janta)", "3 refeições + 2 lanches".

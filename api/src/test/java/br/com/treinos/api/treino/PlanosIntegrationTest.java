@@ -139,7 +139,8 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
     @Test
     void planoDaReceitaPadraoNasceComSessoesEUidsNovos() throws Exception {
         JsonNode receitas = api.get("/receitas?tipo=PLANO_TREINO", treinador, 200);
-        String semana = receitas.valueStream().filter(r -> r.get("nome").asString().equals("Semana Saraiva"))
+        String semana = receitas.valueStream()
+                .filter(r -> r.get("nome").asString().equals("Semana 5 treinos + 2 off ativos"))
                 .findFirst().orElseThrow().get("id").asString();
         JsonNode plano = api.post("/alunos/" + aluno + "/planos-treino", treinador,
                 Map.of("titulo", "Da receita", "receitaId", semana), 200);

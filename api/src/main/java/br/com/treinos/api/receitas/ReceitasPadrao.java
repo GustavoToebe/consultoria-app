@@ -11,8 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Receitas criadas em toda consultoria nova (seção 9.6): o Saraiva já entra configurado e outros treinadores têm um
- * ponto de partida. São só estrutura (séries, dias, refeições); nenhuma carga nem alimento é sugerido.
+ * Receitas criadas em toda consultoria nova (seção 9.6): ponto de partida genérico, com nomes neutros (nada que
+ * identifique outra consultoria). São só estrutura (séries, dias, refeições); nenhuma carga nem alimento é sugerido.
  */
 final class ReceitasPadrao {
 
@@ -42,7 +42,7 @@ final class ReceitasPadrao {
         lista.add(series("Cardio", "Cardio por tempo, sem carga.",
                 List.of(new Serie(null, "Cardio", null, null, "50 min ou HIIT 25 min", nenhuma(), null))));
 
-        lista.add(new Padrao(Receita.Tipo.PLANO_TREINO, "Semana Saraiva",
+        lista.add(new Padrao(Receita.Tipo.PLANO_TREINO, "Semana 5 treinos + 2 off ativos",
                 "Seg Costas, Ter Peito+Ombros, Qua Pernas, Qui Off ativo, Sex Upper, Sáb Pernas, Dom Off ativo.",
                 semana(List.of(
                         sessao("Segunda - Costas", 1, ConteudoTreino.TREINO),
