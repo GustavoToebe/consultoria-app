@@ -1,3 +1,4 @@
+import { Permitido } from '../../../ui/Permitido';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -89,13 +90,13 @@ function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
   };
   if(!editando)return <>
     <FeedbackAtualizacao feedback={a.feedback} />
-    <Botao rotulo="Editar feedback" tipo="secundario" aoTocar={()=>setEditando(true)} />
+    <Permitido codigo="ATUALIZACAO_RESPONDER"><Botao rotulo="Editar feedback" tipo="secundario" aoTocar={()=>setEditando(true)} /></Permitido>
   </>;
   return <Cartao titulo="Feedback para o aluno">
     <Campo rotulo="Seu feedback para o aluno" valor={texto} aoMudar={setTexto} linhas={7} maxLength={4000} editable={!ocupado}
       ajuda={`${texto.length}/4.000 caracteres`} />
     {conflito?<MensagemErro texto="Outra pessoa alterou; recarregue." tentarDeNovo={recarregar} />:null}
-    <Botao rotulo="Enviar feedback" carregando={ocupado} desabilitado={!texto.trim()||conflito} aoTocar={()=>void salvar()} />
+    <Permitido codigo="ATUALIZACAO_RESPONDER"><Botao rotulo="Enviar feedback" carregando={ocupado} desabilitado={!texto.trim()||conflito} aoTocar={()=>void salvar()} /></Permitido>
     {a.feedback?<Botao rotulo="Cancelar edição" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setEditando(false)} />:null}
   </Cartao>;
 }

@@ -1,3 +1,4 @@
+import { Permitido } from '../../ui/Permitido';
 import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -53,7 +54,7 @@ export function AbaExercicios() {
         <View style={estilos.busca}>
           <Campo rotulo="Buscar exercício" valor={busca} aoMudar={setBusca} placeholder="Nome ou grupo" />
         </View>
-        <Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} />
+        <Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
@@ -68,7 +69,7 @@ export function AbaExercicios() {
               {[MODALIDADES[e.modalidade], e.grupoMuscular, e.equipamento, e.videoUrl ? 'com vídeo' : null].filter(Boolean).join(' · ')}
             </Texto>
           </View>
-          <IconeBotao Icone={Pencil} rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} />
+          <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>
           <IconeBotao Icone={Trash2} rotulo={`Tirar ${e.nome} da biblioteca`} cor={cores.perigo} aoTocar={() => setInativar(e)} />
         </View>
       ))}

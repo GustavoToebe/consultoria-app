@@ -1,3 +1,4 @@
+import { Permitido } from '../../ui/Permitido';
 import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -63,7 +64,7 @@ export function AbaAlimentos() {
         <View style={estilos.busca}>
           <Campo rotulo="Buscar alimento" valor={busca} aoMudar={setBusca} />
         </View>
-        <Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} />
+        <Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
@@ -76,7 +77,7 @@ export function AbaAlimentos() {
             <Texto>{a.nome}</Texto>
             <Texto variante="pequeno">{resumoAlimento(a)}</Texto>
           </View>
-          <IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} />
+          <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>
           <IconeBotao Icone={Trash2} rotulo={`Tirar ${a.nome} da biblioteca`} cor={cores.perigo} aoTocar={() => setInativar(a)} />
         </View>
       ))}

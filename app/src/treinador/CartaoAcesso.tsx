@@ -1,3 +1,4 @@
+import { Permitido } from '../ui/Permitido';
 import * as Clipboard from 'expo-clipboard';
 import { Copy } from 'lucide-react-native';
 import { useState } from 'react';
@@ -82,12 +83,12 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
       )}
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
-        <Botao
+        <Permitido codigo="ALUNO_CONVITE"><Botao
           rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'}
           tipo={convite ? 'secundario' : 'primario'}
           carregando={gerando}
           aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())}
-        />
+        /></Permitido>
       </View>
       <PainelConfirmacao
         visivel={confirmar}

@@ -1,3 +1,5 @@
+import { useSessao } from '../sessao/SessaoProvider';
+import { Permitido } from '../ui/Permitido';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -26,6 +28,7 @@ function diasDoCampo(texto: string): number | null {
  * ficam só no banco, nunca em log.
  */
 export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props) {
+  const {pode}=useSessao();
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [email, setEmail] = useState(inicial?.email ?? '');
   const [objetivo, setObjetivo] = useState(inicial?.objetivo ?? '');
@@ -46,8 +49,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
     aoSalvar({
       nome: nome.trim(),
       email: email.trim() || null,
-      objetivo: objetivo.trim() || null,
-      observacoes: observacoes.trim() || null,
+      ...(pode("ALUNO_SENSIVEL_ALTERAR") ? {objetivo:objetivo.trim()||null,observacoes:observacoes.trim()||null} : {}),
       versao: inicial?.versao ?? null,
       diasAtualizacao: diasDoCampo(dias),
     }).then(
@@ -72,7 +74,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
         autoComplete="off"
         maxLength={254}
       />
-      <Campo rotulo="Objetivo (opcional)" valor={objetivo} aoMudar={setObjetivo} erro={campos.objetivo} maxLength={200} />
+      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo rotulo="Objetivo (opcional)" valor={objetivo} aoMudar={setObjetivo} erro={campos.objetivo} maxLength={200} /></Permitido>
       <Campo
         numerico
         rotulo="Dias para nova atualização (opcional)"
@@ -84,15 +86,15 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
         inputMode="numeric"
         maxLength={3}
       />
-      <Campo
+      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo
         rotulo="Observações (opcional)"
         valor={observacoes}
         aoMudar={setObservacoes}
         erro={campos.observacoes}
         linhas={4}
         maxLength={4000}
-        ajuda="Visível só para você."
-      />
+        ajuda="Visível para membros com permissão de dados sensíveis."
+      /></Permitido>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
         {aoCancelar ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} /> : null}

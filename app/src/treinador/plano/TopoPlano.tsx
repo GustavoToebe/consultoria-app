@@ -1,3 +1,4 @@
+import { Permitido } from '../../ui/Permitido';
 import { CheckCircle2, FileDown, Send } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -117,7 +118,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
               aoTocar={() => void pdf()}
             />
             <Botao rotulo="Validar" tipo="secundario" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />
-            <Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} />
+            <Permitido codigo={tipo==='treino'?'TREINO_PUBLICAR':'DIETA_PUBLICAR'}><Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} /></Permitido>
           </>
         }>
         <View style={estilos.selos}>

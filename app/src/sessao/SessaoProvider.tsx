@@ -4,7 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { aoEncerrar, ErroApi, guardarSessao, limparSessaoLocal, renovarSessao } from '../api/cliente';
 import * as rotas from '../api/rotas';
-import type { LoginResponse, Marca, UsuarioResumo } from '../api/tipos';
+import type { LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
+import { pode as conferirPermissao } from '../dominio/permissoes';
 import { lerRefresh } from './armazenamentoSeguro';
 
 /**
@@ -17,11 +18,16 @@ import { lerRefresh } from './armazenamentoSeguro';
 export type Situacao = 'carregando' | 'anonimo' | 'autenticado';
 
 interface Perfil {
+  perfil?: PerfilDaEquipe;
+  permissoes?: string[];
   usuario: UsuarioResumo;
   marca: Marca;
 }
 
 interface ValorSessao {
+  perfilEquipe: PerfilDaEquipe | null;
+  pode: (codigo:string) => boolean;
+  recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
   marca: Marca | null;
@@ -53,7 +59,9 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
 
   const abrir = useCallback(async (resposta: LoginResponse) => {
     await guardarSessao(resposta);
-    const novo = { usuario: resposta.usuario, marca: resposta.marca };
+    const eu = resposta.usuario.papel === 'TREINADOR' ? await rotas.eu() : null;
+    const novo: Perfil = eu ? {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes} : {usuario:resposta.usuario,marca:resposta.marca};
+    perfilAtual.current=novo;
     setPerfil(novo);
     setOffline(false);
     setSituacao('autenticado');
@@ -140,8 +148,19 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     };
   }, [offline, abrir]);
 
+  const recarregarPerfil=useCallback(async()=>{
+    const atual=perfilAtual.current;if(!atual || atual.usuario.papel!=='TREINADOR') return;
+    const eu=await rotas.eu();
+    if(perfilAtual.current?.usuario.id!==eu.usuario.id) return;
+    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes};
+    perfilAtual.current=novo;setPerfil(novo);
+    await AsyncStorage.setItem(CHAVE_PERFIL,JSON.stringify(novo)).catch(()=>undefined);
+  },[]);
   const valor = useMemo<ValorSessao>(
     () => ({
+      perfilEquipe:perfil?.perfil??null,
+      pode:(codigo)=>conferirPermissao(perfil?.permissoes,codigo),
+      recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,
       marca: perfil?.marca ?? null,
@@ -173,7 +192,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         };
       },
     }),
-    [situacao, perfil, offline, abrir, encerrarLocal],
+    [situacao, perfil, offline, abrir, encerrarLocal,recarregarPerfil],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

@@ -1,3 +1,5 @@
+import { Permitido } from '../ui/Permitido';
+import { useSessao } from '../sessao/SessaoProvider';
 import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Folder, FolderCheck, FolderPlus, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
 import { sobre } from '../ui/sobre';
 import { useState } from 'react';
@@ -43,6 +45,7 @@ interface PropsPastas {
  * período da pasta acompanha os rascunhos dos planos dela; replicar a pasta copia todos para o próximo ciclo.
  */
 export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pastaInicialId }: PropsPastas) {
+  const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
   const { avisar } = useAviso();
@@ -66,17 +69,17 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pa
     <>
       <Cartao
         titulo="Pastas de plano"
-        acoes={<Botao rotulo="Nova pasta" tipo="secundario" Icone={FolderPlus} aoTocar={() => setModo({ tipo: 'nova' })} />}>
+        acoes={<Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Nova pasta" tipo="secundario" Icone={FolderPlus} aoTocar={() => setModo({ tipo: 'nova' })} /></Permitido>}>
         <Texto variante="suave">
           Cada pasta junta o treino e a dieta de um período. O período da pasta vale para os dois.
         </Texto>
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Esqueleto /> : null}
         {dados && dados.length === 0 ? (
-          <Vazio titulo="Sem pastas" texto="Crie uma pasta para montar o treino e a dieta do período." acao={{ rotulo: 'Nova pasta', aoTocar: () => setModo({ tipo: 'nova' }) }} />
+          <Vazio titulo="Sem pastas" texto="As pastas reúnem o treino e a dieta do período." acao={pode('PASTA_ALTERAR') ? { rotulo: 'Nova pasta', aoTocar: () => setModo({ tipo: 'nova' }) } : undefined} />
         ) : null}
       </Cartao>
-<Botao rotulo="Usar modelo de pasta" tipo="secundario" aoTocar={() => setEscolher(true)} />
+<Permitido codigo="MODELO_APLICAR"><Botao rotulo="Usar modelo de pasta" tipo="secundario" aoTocar={() => setEscolher(true)} /></Permitido>
       {dados?.map((p) => (
         <LinhaPasta key={p.id} pasta={p} aoAbrir={() => setAbertaId(p.id)} />
       ))}
@@ -93,20 +96,20 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pa
           <Texto variante="secao">Ações da pasta</Texto>
           <View style={estilos.acoes}>
             {aberta.concluidaEm ? (
-              <Botao rotulo="Reabrir pasta" tipo="secundario" Icone={RotateCcw} aoTocar={() => {
+              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Reabrir pasta" tipo="secundario" Icone={RotateCcw} aoTocar={() => {
                 reabrirPasta(aberta.id).then(() => { avisar('Pasta reaberta.', 'sucesso'); recarregar(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
-              }} />
+              }} /></Permitido>
             ) : (
-              <Botao rotulo="Finalizar pasta" tipo="secundario" Icone={CheckCircle2} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} />
+              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" tipo="secundario" Icone={CheckCircle2} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} /></Permitido>
             )}
-            <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} />
-            <Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} />
-            <Botao rotulo="Salvar como modelo" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { setAbertaId(null); setSalvarModelo(aberta); }} />
-            <Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setAbertaId(null); setExcluir(aberta); }} />
+            <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} /></Permitido>
+            <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} /></Permitido>
+            <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Salvar como modelo" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { setAbertaId(null); setSalvarModelo(aberta); }} /></Permitido>
+            <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setAbertaId(null); setExcluir(aberta); }} /></Permitido>
           </View>
           <Texto variante="secao">Planos desta pasta</Texto>
-          <CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} />
-          <CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} />
+          <Permitido codigo="TREINO_LER"><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          <Permitido codigo="DIETA_LER"><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
         </Folha>
       ) : null}
       {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Modelo de pasta de plano" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
@@ -225,6 +228,7 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
 }
 
 function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; aoFechar: () => void; aoFinalizar: (comPeso: boolean) => void }) {
+  const { pode } = useSessao();
   const { avisar } = useAviso();
   const [data, setData] = useState(dataParaTela(hojeIso()));
   const [peso, setPeso] = useState<number | null>(null);
@@ -238,10 +242,11 @@ function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; 
     if (!valido) return;
     setSalvando(true);
     setErro(null);
-    finalizarPasta(pasta.id, { data: peso !== null ? dataIso ?? null : null, pesoKg: peso, observacao: observacao.trim() || null }).then(
+    const comPeso = pode('ALUNO_SENSIVEL_ALTERAR') && peso !== null;
+    finalizarPasta(pasta.id, { data: comPeso ? dataIso ?? null : null, pesoKg: comPeso ? peso : null, observacao: comPeso ? observacao.trim() || null : null }).then(
       () => {
-        avisar(peso !== null ? 'Pasta finalizada e peso registrado.' : 'Pasta finalizada.', 'sucesso');
-        aoFinalizar(peso !== null);
+        avisar(comPeso ? 'Pasta finalizada e peso registrado.' : 'Pasta finalizada.', 'sucesso');
+        aoFinalizar(comPeso);
       },
       (e: unknown) => {
         setSalvando(false);
@@ -258,16 +263,18 @@ function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; 
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo="Finalizar pasta" aoTocar={salvar} carregando={salvando} desabilitado={!valido} />
+          <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" aoTocar={salvar} carregando={salvando} desabilitado={!valido} /></Permitido>
         </>
       }>
       <Texto variante="suave">
-        Dá a pasta como concluída. Se informar o peso, ele entra direto no registro de peso do aluno (e no gráfico) com
-        a data e a observação abaixo. Você pode reabrir a pasta depois.
+        Dá a pasta como concluída. Você pode reabrir a pasta depois.
       </Texto>
+      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
+      <Texto variante="suave">O peso opcional entra no registro do aluno com a data e a observação abaixo.</Texto>
       <CampoData rotulo="Data do peso" valor={data} aoMudar={setData} />
       <CampoNumerico rotulo="Peso (opcional)" sufixo="kg" valor={peso} aoMudar={setPeso} />
       <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} ajuda="Só é gravada junto com o peso." />
+      </Permitido>
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>
   );

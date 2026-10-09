@@ -1,3 +1,4 @@
+import { Permitido } from '../../ui/Permitido';
 import { Check, Download } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -121,13 +122,13 @@ export function AbaCatalogo() {
         <View style={estilos.busca}>
           <Campo rotulo="Buscar no catálogo" valor={busca} aoMudar={setBusca} />
         </View>
-        <Botao
+        <Permitido codigo="BIBLIOTECA_ALTERAR"><Botao
           rotulo={`Importar selecionados (${marcados.size})`}
           Icone={Download}
           carregando={importando}
           desabilitado={marcados.size === 0}
           aoTocar={importar}
-        />
+        /></Permitido>
       </View>
       <Texto variante="pequeno">Os que já estão na sua biblioteca (mesmo nome) são ignorados.</Texto>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}

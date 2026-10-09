@@ -1,3 +1,5 @@
+import { useSessao } from '../../../sessao/SessaoProvider';
+import { Permitido } from '../../../ui/Permitido';
 import { useLocalSearchParams } from 'expo-router';
 import { Pencil } from 'lucide-react-native';
 import { useState } from 'react';
@@ -50,20 +52,20 @@ export default function FichaAluno() {
               </View>
               <View style={estilos.coluna}>
                 <CartaoAcesso aluno={aluno} />
-                <CartaoLesoes alunoId={aluno.id} />
+                <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
               </View>
             </View>
           ) : (
             <>
               <CartaoDados aluno={aluno} aoAlterar={definir} />
               <CartaoAcesso aluno={aluno} />
-              <CartaoLesoes alunoId={aluno.id} />
+              <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
             </>
           )}
           <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
-          <CartaoRegistros aluno={aluno} />
-          <CartaoAtualizacoes alunoId={aluno.id} />
-          <CartaoPeso key={geracaoPeso} alunoId={aluno.id} />
+          <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={aluno} /></Permitido>
+          <Permitido codigo="ATUALIZACAO_LER"><CartaoAtualizacoes alunoId={aluno.id} /></Permitido>
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
         </>
       ) : null}
     </Tela>
@@ -71,6 +73,7 @@ export default function FichaAluno() {
 }
 
 function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a: AlunoDetalhe) => void }) {
+  const {pode}=useSessao();
   const { avisar } = useAviso();
   const [editando, setEditando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
@@ -97,7 +100,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
     <Cartao
       titulo="Dados"
       acoes={
-        editando ? null : <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />
+        editando || !pode("ALUNO_ALTERAR") ? null : <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} /></Permitido>
       }>
       {editando ? (
         <FormAluno
@@ -115,15 +118,15 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
         <View style={estilos.dados}>
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} />
           <Linha rotulo="E-mail" valor={aluno.email} />
-          <Linha rotulo="Objetivo" valor={aluno.objetivo} />
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><Linha rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
           <Linha rotulo="Nova atualização a cada" valor={aluno.diasAtualizacao ? `${aluno.diasAtualizacao} dias` : null} />
-          <Linha rotulo="Observações" valor={aluno.observacoes} />
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><Linha rotulo="Observações" valor={aluno.observacoes} /></Permitido>
           <View style={estilos.botoes}>
-            <Botao
+            <Permitido codigo="ALUNO_ALTERAR"><Botao
               rotulo={aluno.ativo ? 'Inativar aluno' : 'Reativar aluno'}
               tipo={aluno.ativo ? 'perigoTexto' : 'secundario'}
               aoTocar={() => setConfirmar(true)}
-            />
+            /></Permitido>
           </View>
         </View>
       )}
@@ -145,7 +148,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
   );
 }
 
-function Linha({ rotulo, valor }: { rotulo: string; valor: string | null }) {
+function Linha({ rotulo, valor }: { rotulo: string; valor: string | null | undefined }) {
   return (
     <View style={estilos.linha}>
       <Texto variante="pequeno">{rotulo}</Texto>

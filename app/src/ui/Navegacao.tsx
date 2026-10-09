@@ -29,7 +29,7 @@ export interface ItemMenu {
  * Casca das áreas logadas: menu lateral fixo no PC (largura ≥ 900) e barra inferior no celular. Item ativo com a
  * cor da marca (o único uso de cor de marca na navegação).
  */
-export function Navegacao({ itens, sempreInferior, rodape }: { itens: ItemMenu[]; sempreInferior?: boolean; rodape?: ReactNode }) {
+export function Navegacao({ itens, sempreInferior, rodape, conteudo }: { itens: ItemMenu[]; sempreInferior?: boolean; rodape?: ReactNode; conteudo?:ReactNode }) {
   const { width } = useWindowDimensions();
   const { cores } = useTema();
   const { marca } = useSessao();
@@ -67,7 +67,7 @@ export function Navegacao({ itens, sempreInferior, rodape }: { itens: ItemMenu[]
           </Pressable>
         </SafeAreaView>
         <View style={estilos.conteudo}>
-          <Slot />
+          {conteudo??<Slot />}
         </View>
       </View>
     );
@@ -75,7 +75,7 @@ export function Navegacao({ itens, sempreInferior, rodape }: { itens: ItemMenu[]
   return (
     <View style={[estilos.coluna, { backgroundColor: cores.fundo }]}>
       <View style={estilos.conteudo}>
-        <Slot />
+        {conteudo??<Slot />}
       </View>
       {rodape}
       <SafeAreaView edges={['bottom']}

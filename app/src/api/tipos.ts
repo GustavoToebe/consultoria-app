@@ -22,6 +22,7 @@ export interface UsuarioResumo {
   nome: string;
   email: string;
   papel: Papel;
+  telefone?: string | null;
 }
 
 export interface LoginResponse {
@@ -33,7 +34,11 @@ export interface LoginResponse {
   marca: Marca;
 }
 
+export interface PerfilDaEquipe { id:string; nome:string; acessoTotal:boolean }
+
 export interface EuResponse {
+  perfil?: PerfilDaEquipe;
+  permissoes?: string[];
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string };
@@ -91,6 +96,7 @@ export interface AlunoResumo {
   temAcesso: boolean;
   planoAtivo: { id: string; titulo: string } | null;
   ultimoRegistro: string | null;
+  responsavelId?: string | null;
 }
 
 export interface PaginaAlunos {
@@ -102,20 +108,21 @@ export interface AlunoDetalhe {
   id: string;
   nome: string;
   email: string | null;
-  objetivo: string | null;
-  observacoes: string | null;
+  objetivo?: string | null;
+  observacoes?: string | null;
   ativo: boolean;
   temAcesso: boolean;
   conviteExpiraEm: string | null;
   versao: number;
   diasAtualizacao: number | null;
+  responsavelId?: string | null;
 }
 
 export interface AlunoRequest {
   nome: string;
   email: string | null;
-  objetivo: string | null;
-  observacoes: string | null;
+  objetivo?: string | null;
+  observacoes?: string | null;
   versao?: number | null;
   /** Dias do ciclo do aluno (1 a 365): sugere o fim do período ao criar uma pasta. */
   diasAtualizacao?: number | null;

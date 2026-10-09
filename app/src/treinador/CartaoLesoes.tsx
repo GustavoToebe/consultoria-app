@@ -1,3 +1,4 @@
+import { Permitido } from '../ui/Permitido';
 import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -52,7 +53,7 @@ export function CartaoLesoes({ alunoId }: { alunoId: string }) {
     <Cartao
       titulo="Histórico de lesões"
       recolhivel
-      acoes={<Botao rotulo="Registrar lesão" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} />}>
+      acoes={<Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Botao rotulo="Registrar lesão" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} /></Permitido>}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {erroExcluir ? <MensagemErro texto={textoDoErro(erroExcluir)} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
@@ -71,8 +72,8 @@ export function CartaoLesoes({ alunoId }: { alunoId: string }) {
               {l.observacao ? <Texto variante="suave">{l.observacao}</Texto> : null}
             </View>
             <View style={estilos.acoes}>
-              <IconeBotao Icone={Pencil} rotulo={`Editar lesão em ${l.regiao}`} aoTocar={() => setEditando(l)} />
-              <IconeBotao Icone={Trash2} rotulo={`Excluir lesão em ${l.regiao}`} cor={cores.perigo} aoTocar={() => setExcluir(l)} />
+              <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar lesão em ${l.regiao}`} aoTocar={() => setEditando(l)} /></Permitido>
+              <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Trash2} rotulo={`Excluir lesão em ${l.regiao}`} cor={cores.perigo} aoTocar={() => setExcluir(l)} /></Permitido>
             </View>
           </View>
         );

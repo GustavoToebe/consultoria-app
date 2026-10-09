@@ -1,3 +1,5 @@
+import { Permitido } from '../../../ui/Permitido';
+import { useSessao } from '../../../sessao/SessaoProvider';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata';
 import { sobre } from '../../../ui/sobre';
 import { router } from 'expo-router';
@@ -31,6 +33,7 @@ const SITUACOES: { valor: SituacaoFiltro; rotulo: string }[] = [
 const TAMANHO_PAGINA = 30;
 
 export default function Alunos() {
+  const { pode } = useSessao();
   const [busca, setBusca] = useState('');
   const [situacao, setSituacao] = useState<SituacaoFiltro>('ATIVO');
   const [pagina, setPagina] = useState(0);
@@ -47,11 +50,11 @@ export default function Alunos() {
         titulo="Alunos"
         mostrarMarca="celular"
         acoes={
-          <Botao
+          <Permitido codigo="ALUNO_ALTERAR"><Botao
             rotulo="Novo aluno"
             Icone={Plus}
             aoTocar={() => router.push('/treinador/alunos/novo')}
-          />
+          /></Permitido>
         }
       />
       <View style={estilos.filtros}>
@@ -83,7 +86,7 @@ export default function Alunos() {
         <Vazio
           titulo={termo ? 'Nenhum aluno encontrado' : 'Nenhum aluno ainda'}
           texto={termo ? 'Tente buscar por outro nome.' : 'Cadastre seu primeiro aluno para montar os planos.'}
-          acao={termo ? undefined : { rotulo: 'Cadastrar aluno', aoTocar: () => router.push('/treinador/alunos/novo') }}
+          acao={termo || !pode('ALUNO_ALTERAR') ? undefined : { rotulo: 'Cadastrar aluno', aoTocar: () => router.push('/treinador/alunos/novo') }}
         />
       ) : null}
       <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]}>

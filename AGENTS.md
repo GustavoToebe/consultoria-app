@@ -90,6 +90,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.
 
 ## App: convenções
+- Equipe: `useSessao().pode(codigo)` usa `/eu` só para apresentação; menu, ações e cartões seguem
+  as permissões. `GuardaDePermissao` não monta telas sem acesso. A API continua autorizando pelo banco.
 - Rotas em `app/src/app/` (Expo Router). Áreas em pastas reais `treinador/` e `aluno/` (URLs `/treinador` e `/aluno`):
   grupos `(treinador)`/`(aluno)` do esboço do plano colidiriam os dois `index` em `/`.
 - `api/cliente.ts` é o único lugar que fala HTTP; `api/rotas.ts` tem uma função por rota. Credencial só vai para a

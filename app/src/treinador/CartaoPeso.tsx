@@ -1,3 +1,4 @@
+import { Permitido } from '../ui/Permitido';
 import { Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -114,7 +115,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
               </Texto>
               <Texto variante="suave" style={estilos.cObs} numberOfLines={2}>{p.observacao || '—'}</Texto>
               <View style={estilos.cAcao}>
-                <IconeBotao Icone={Trash2} rotulo={`Excluir peso de ${dataParaTela(p.data)}`} cor={cores.perigo} aoTocar={() => setExcluir(p)} />
+                <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Trash2} rotulo={`Excluir peso de ${dataParaTela(p.data)}`} cor={cores.perigo} aoTocar={() => setExcluir(p)} /></Permitido>
               </View>
             </View>
           ))}
@@ -136,7 +137,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
       </View>
       {erroSalvar && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erroSalvar)} /> : null}
       <View style={estilos.botoes}>
-        <Botao rotulo="Adicionar peso" tipo="secundario" carregando={salvando} desabilitado={!dataIso || peso === null} aoTocar={adicionar} />
+        <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Botao rotulo="Adicionar peso" tipo="secundario" carregando={salvando} desabilitado={!dataIso || peso === null} aoTocar={adicionar} /></Permitido>
       </View>
       <PainelConfirmacao
         visivel={excluir !== null}

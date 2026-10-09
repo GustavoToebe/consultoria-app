@@ -1,3 +1,4 @@
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 
@@ -22,6 +23,7 @@ const ABAS: { valor: Aba; rotulo: string }[] = [
 
 /** Biblioteca da consultoria (seção 10.4, item 6). No celular, o acesso às Planejamento fica aqui. */
 export default function Biblioteca() {
+  const {pode}=useSessao();
   const [aba, setAba] = useState<Aba>('exercicios');
   const { width } = useWindowDimensions();
   return (
@@ -29,13 +31,13 @@ export default function Biblioteca() {
       <Cabecalho
         titulo="Biblioteca"
         mostrarMarca="celular"
-        acoes={width < LARGURA_MENU_LATERAL ? <LinkTexto href="/treinador/planejamento" texto="Planejamento" /> : null}
+        acoes={width < LARGURA_MENU_LATERAL && pode('MODELO_LER') ? <LinkTexto href="/treinador/planejamento" texto="Planejamento" /> : null}
       />
-      <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
+      <Abas abas={ABAS.filter(a=>a.valor!=='csv'||pode('BIBLIOTECA_ALTERAR'))} ativa={aba} aoMudar={setAba} />
       {aba === 'exercicios' ? <AbaExercicios /> : null}
       {aba === 'alimentos' ? <AbaAlimentos /> : null}
       {aba === 'catalogo' ? <AbaCatalogo /> : null}
-      {aba === 'csv' ? <AbaCsv /> : null}
+      {aba === 'csv' && pode('BIBLIOTECA_ALTERAR') ? <AbaCsv /> : null}
     </Tela>
   );
 }

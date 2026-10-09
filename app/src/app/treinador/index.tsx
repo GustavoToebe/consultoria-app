@@ -1,4 +1,5 @@
 import { NumeroAnimado } from '../../ui/NumeroAnimado';
+import { Permitido } from '../../ui/Permitido';
 import { sobre } from '../../ui/sobre';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
@@ -36,13 +37,13 @@ export default function InicioTreinador() {
       <Cabecalho
         titulo={`Olá, ${usuario?.nome ?? ''}`}
         mostrarMarca="celular"
-        acoes={<Botao rotulo="Novo aluno" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} />}
+        acoes={<Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>}
       />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (
         <View style={estilos.grade}>
-          {([
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><Permitido codigo="ATUALIZACAO_LER">{([
             ['Atualizações para revisar',dados.atualizacoesParaRevisar,'PARA_REVISAR'],
             ['Atrasadas',dados.atualizacoesAtrasadas,'ATRASADAS'],
             ['Avisaram atraso',dados.atualizacoesAvisaramAtraso,'AVISARAM_ATRASO'],
@@ -51,12 +52,13 @@ export default function InicioTreinador() {
             <NumeroAnimado valor={numero??0} variante="destaque" />
             <Botao rotulo={`Ver ${titulo.toLocaleLowerCase('pt-BR')}`} tipo="secundario"
               aoTocar={()=>router.push(`/treinador/atualizacoes?situacao=${situacao}`)} />
-          </Cartao>)}
+          </Cartao>)}</Permitido></Permitido>
+          <Permitido codigo="ALUNO_LER">
           <Cartao titulo="Alunos ativos" style={estilos.metade}>
             <NumeroAnimado valor={dados.alunosAtivos} variante="destaque" />
             <Botao rotulo="Ver alunos" tipo="secundario" aoTocar={() => router.push('/treinador/alunos')} />
           </Cartao>
-          <Cartao titulo="Planos terminando em 7 dias" style={estilos.metade}>
+          <Permitido codigo="TREINO_LER"><Cartao titulo="Planos terminando em 7 dias" style={estilos.metade}>
             {dados.planosTerminando.length === 0 ? <Vazio titulo="Nenhum plano terminando" texto="Veja os planos e períodos nas fichas dos alunos." acao={{ rotulo: 'Ver alunos', aoTocar: () => router.push('/treinador/alunos') }} /> : null}
             {dados.planosTerminando.map((p) => (
               <Linha
@@ -68,7 +70,7 @@ export default function InicioTreinador() {
               />
             ))}
           </Cartao>
-          <Cartao titulo="Sem registro há 7 dias" style={estilos.metade}>
+          </Permitido><Permitido codigo="REGISTRO_LER"><Cartao titulo="Sem registro há 7 dias" style={estilos.metade}>
             <Texto variante="pequeno">Pode ter treinado sem registrar no app.</Texto>
             {dados.alunosSemRegistro7Dias.length === 0 ? <Vazio titulo="Nenhum aluno nesta lista" texto="Os alunos sem registros recentes aparecerão aqui." /> : null}
             {dados.alunosSemRegistro7Dias.map((a) => (
@@ -93,6 +95,7 @@ export default function InicioTreinador() {
               />
             ))}
           </Cartao>
+          </Permitido></Permitido>
         </View>
       ) : null}
     </Tela>

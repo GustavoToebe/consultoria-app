@@ -1,3 +1,5 @@
+import { Permitido } from '../ui/Permitido';
+import { useSessao } from '../sessao/SessaoProvider';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { Copy, FileDown, Pencil, Plus } from 'lucide-react-native';
@@ -61,6 +63,7 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
  * abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
  */
 export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void }) {
+  const { pode } = useSessao();
   const { cores } = useTema();
   const todos = useCarregar(`${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
   const { erro, carregando, recarregar } = todos;
@@ -74,11 +77,11 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
   return (
     <Cartao
       titulo={NOMES[tipo].plural}
-      acoes={<Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} />}>
+      acoes={<Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido>}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (
-        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Comece em branco, de um modelo ou copiando um plano." acao={{ rotulo: NOMES[tipo].novo, aoTocar: () => setNovo(true) }} />
+        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Os planos deste período aparecerão aqui." acao={pode(tipo === 'treino' ? 'TREINO_ALTERAR' : 'DIETA_ALTERAR') ? { rotulo: NOMES[tipo].novo, aoTocar: () => setNovo(true) } : undefined} />
       ) : null}
       {dados?.map((p, i) => (
         <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
@@ -90,10 +93,10 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
           <View style={estilos.botoes}>
             {p.versaoPublicada > 0 ? <BotaoPdf tipo={tipo} plano={p} /> : null}
             {p.versaoPublicada > 0 ? (
-              <Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} />
+              <Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
             ) : null}
-            <Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} />
-            <Botao rotulo="Abrir" tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} />
+            <Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
+            <Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo="Abrir" tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
           </View>
         </EntradaEmCascata>
       ))}
@@ -279,7 +282,7 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo="Replicar e abrir" aoTocar={replicar} carregando={salvando} desabilitado={!valido} />
+          <Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo="Replicar e abrir" aoTocar={replicar} carregando={salvando} desabilitado={!valido} /></Permitido>
         </>
       }>
       <Texto variante="suave">
