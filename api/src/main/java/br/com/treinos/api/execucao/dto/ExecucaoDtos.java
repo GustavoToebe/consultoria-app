@@ -2,6 +2,7 @@ package br.com.treinos.api.execucao.dto;
 
 import br.com.treinos.api.consultoria.MarcaPublica;
 import br.com.treinos.api.dieta.ConteudoDieta;
+import br.com.treinos.api.receitas.ConteudoMobilidade;
 import br.com.treinos.api.planos.dto.PlanoDtos.VersaoDetalhe;
 import br.com.treinos.api.treino.ConteudoTreino;
 import jakarta.validation.constraints.DecimalMax;
@@ -102,11 +103,16 @@ public final class ExecucaoDtos {
      * plano vigente (o que o pacote offline traz).
      */
     public record PastaDoAluno(UUID id, String titulo, LocalDate inicio, LocalDate fim, Instant concluidaEm,
-                               boolean atual, boolean temTreino, boolean temDieta) {
+                               boolean atual, boolean temTreino, boolean temDieta, boolean temMobilidade) {
     }
 
     /** Planos publicados de uma pasta; cada um é nulo quando a pasta não tem aquele tipo publicado. */
-    public record PlanosDaPasta(UUID pastaId, TreinoAtual treino, VersaoDetalhe<ConteudoDieta> dieta) {
+    public record PlanosDaPasta(UUID pastaId, TreinoAtual treino, VersaoDetalhe<ConteudoDieta> dieta,
+                                VersaoDetalhe<ConteudoMobilidade> mobilidade) {
+    }
+
+    /** Versão publicada da mobilidade vigente; a rota responde 404 quando não há. */
+    public record MobilidadeAtual(VersaoDetalhe<ConteudoMobilidade> mobilidade) {
     }
 
     /** {@code dieta} nula = sem plano de dieta publicado. */

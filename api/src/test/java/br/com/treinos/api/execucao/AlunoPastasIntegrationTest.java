@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -55,6 +56,85 @@ class AlunoPastasIntegrationTest extends AbstractIntegrationTest {
                 Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
     }
 
+    private static Map<String, Object> mobilidade(String prescricao) {
+        return Map.of("secoes", List.of(Map.of("uid", "11111111-1111-4111-8111-111111111111", "titulo", "Alongamentos",
+                "itens", List.of(Map.of("uid", "22222222-2222-4222-8222-222222222222", "nome", "Gato e vaca",
+                        "prescricao", prescricao)))));
+    }
+
+    /** Cria o plano de mobilidade na pasta com o rascunho dado e devolve o id; só publica se pedido. */
+    private String mobilidadeNaPasta(UUID doAluno, String pasta, String prescricao, boolean publicar) throws Exception {
+        JsonNode plano = api.post("/alunos/" + doAluno + "/planos-mobilidade", treinador,
+                Map.of("titulo", "Mobilidade", "pastaId", pasta), 200);
+        String id = plano.get("plano").get("id").asString();
+        JsonNode salvo = api.put("/planos-mobilidade/" + id + "/rascunho", treinador,
+                ApiDeTeste.rascunho("Mobilidade", mobilidade(prescricao), plano.get("plano").get("versao").asLong()), 200);
+        if (publicar) {
+            api.post("/planos-mobilidade/" + id + "/publicar", treinador,
+                    Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+        }
+        return id;
+    }
+
+    @Test
+    void mobilidadePublicadaChegaAoAlunoRascunhoNaoEVersaoNovaAparece() throws Exception {
+        api.get("/aluno/mobilidade", aluno, 404);
+        String pasta = novaPasta(alunoId, "Plano 1");
+        String plano = mobilidadeNaPasta(alunoId, pasta, "2 x 20s", false);
+        // Só rascunho: nem a rota própria nem a lista de pastas mostram.
+        api.get("/aluno/mobilidade", aluno, 404);
+        assertThat(api.get("/aluno/pastas", aluno, 200)).isEmpty();
+        api.get("/aluno/pastas/" + pasta, aluno, 404);
+
+        JsonNode rascunho = api.get("/planos-mobilidade/" + plano, treinador, 200);
+        api.post("/planos-mobilidade/" + plano + "/publicar", treinador,
+                Map.of("versao", rascunho.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+        JsonNode v1 = api.get("/aluno/mobilidade", aluno, 200).get("mobilidade");
+        assertThat(v1.get("numero").asInt()).isEqualTo(1);
+        assertThat(v1.get("conteudo").at("/secoes/0/itens/0/prescricao").asString()).isEqualTo("2 x 20s");
+
+        JsonNode pastas = api.get("/aluno/pastas", aluno, 200);
+        assertThat(pastas).hasSize(1);
+        assertThat(pastas.get(0).get("temMobilidade").asBoolean()).isTrue();
+        assertThat(pastas.get(0).get("temTreino").asBoolean()).isFalse();
+        assertThat(pastas.get(0).get("atual").asBoolean()).isTrue();
+        JsonNode daPasta = api.get("/aluno/pastas/" + pasta, aluno, 200);
+        assertThat(daPasta.get("treino").isNull()).isTrue();
+        assertThat(daPasta.get("dieta").isNull()).isTrue();
+        assertThat(daPasta.at("/mobilidade/numero").asInt()).isEqualTo(1);
+
+        // Editar o rascunho não muda o que o aluno vê; publicar de novo troca para a versão 2.
+        long versao = api.get("/planos-mobilidade/" + plano, treinador, 200).get("plano").get("versao").asLong();
+        JsonNode editado = api.put("/planos-mobilidade/" + plano + "/rascunho", treinador,
+                ApiDeTeste.rascunho("Mobilidade", mobilidade("3 x 30s"), versao), 200);
+        assertThat(api.get("/aluno/mobilidade", aluno, 200).at("/mobilidade/conteudo/secoes/0/itens/0/prescricao")
+                .asString()).isEqualTo("2 x 20s");
+        api.post("/planos-mobilidade/" + plano + "/publicar", treinador,
+                Map.of("versao", editado.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+        JsonNode v2 = api.get("/aluno/mobilidade", aluno, 200).get("mobilidade");
+        assertThat(v2.get("numero").asInt()).isEqualTo(2);
+        assertThat(v2.at("/conteudo/secoes/0/itens/0/prescricao").asString()).isEqualTo("3 x 30s");
+    }
+
+    @Test
+    void mobilidadeDeOutroAlunoOuConsultoriaNaoAparece() throws Exception {
+        UUID outroAluno = api.criarAluno(treinador, "Outro Aluno Fictício");
+        String doOutro = novaPasta(outroAluno, "Plano do outro");
+        mobilidadeNaPasta(outroAluno, doOutro, "2 x 20s", true);
+
+        JsonNode outroTreinador = api.novoTreinador();
+        UUID alunoDeFora = api.criarAluno(outroTreinador, "Aluno de fora");
+        JsonNode loginDeFora = api.convidarEEntrar(outroTreinador, alunoDeFora);
+
+        api.get("/aluno/mobilidade", aluno, 404);
+        api.get("/aluno/mobilidade", loginDeFora, 404);
+        assertThat(api.get("/aluno/pastas", aluno, 200)).isEmpty();
+        api.get("/aluno/pastas/" + doOutro, aluno, 404);
+        api.get("/aluno/pastas/" + doOutro, loginDeFora, 404);
+        // Treinador não usa a rota do aluno.
+        api.get("/aluno/mobilidade", treinador, 403);
+    }
+
     @Test
     void listaSoPastasComPlanoPublicadoEMostraOStatus() throws Exception {
         String antiga = novaPasta(alunoId, "Plano 1");
@@ -75,6 +155,8 @@ class AlunoPastasIntegrationTest extends AbstractIntegrationTest {
         assertThat(pastas.get(0).get("atual").asBoolean()).isTrue();
         assertThat(pastas.get(0).get("temTreino").asBoolean()).isTrue();
         assertThat(pastas.get(0).get("temDieta").asBoolean()).isFalse();
+        assertThat(pastas.get(0).get("temMobilidade").asBoolean()).isFalse();
+        assertThat(api.get("/aluno/pastas/" + atual, aluno, 200).get("mobilidade").isNull()).isTrue();
         assertThat(pastas.get(1).get("id").asString()).isEqualTo(antiga);
         assertThat(pastas.get(1).get("concluidaEm").isNull()).isFalse();
         assertThat(pastas.get(1).get("atual").asBoolean()).isFalse();

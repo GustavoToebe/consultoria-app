@@ -4,6 +4,7 @@ import br.com.treinos.api.execucao.dto.ExecucaoDtos.DiaDeTreino;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.DietaAtual;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.LoteRequest;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.LoteResponse;
+import br.com.treinos.api.execucao.dto.ExecucaoDtos.MobilidadeAtual;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PainelAluno;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PastaDoAluno;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoResponse;
@@ -53,6 +54,12 @@ public class AlunoAppController {
     @GetMapping("/dieta")
     public DietaAtual dieta(@AuthenticationPrincipal UsuarioAutenticado eu) {
         return alunoApp.dieta(eu);
+    }
+
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/mobilidade")
+    public MobilidadeAtual mobilidade(@AuthenticationPrincipal UsuarioAutenticado eu) {
+        return alunoApp.mobilidade(eu);
     }
 
     @PreAuthorize("hasRole('ALUNO')")

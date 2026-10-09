@@ -6,10 +6,13 @@ import br.com.treinos.api.atualizacoes.AtualizacaoService;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.consultoria.MarcaService;
 import br.com.treinos.api.dieta.PlanoDietaService;
+import br.com.treinos.api.mobilidade.PlanoMobilidadeService;
+import br.com.treinos.api.receitas.ConteudoMobilidade;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.AlunoNome;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.ConfiguracaoAluno;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.DietaAtual;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PainelAluno;
+import br.com.treinos.api.execucao.dto.ExecucaoDtos.MobilidadeAtual;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PastaDoAluno;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PlanosDaPasta;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.TreinoAtual;
@@ -47,17 +50,19 @@ public class AlunoAppService {
     private final AlunoRepository alunos;
     private final PlanoTreinoService treinos;
     private final PlanoDietaService dietas;
+    private final PlanoMobilidadeService mobilidades;
     private final HistoricoService historico;
     private final MarcaService marcas;
     private final PastaRepository pastas;
     private final AtualizacaoService atualizacoes;
 
     public AlunoAppService(AlunoRepository alunos, PlanoTreinoService treinos, PlanoDietaService dietas,
-                           HistoricoService historico, MarcaService marcas, PastaRepository pastas,
+                           PlanoMobilidadeService mobilidades, HistoricoService historico, MarcaService marcas, PastaRepository pastas,
                            AtualizacaoService atualizacoes) {
         this.alunos = alunos;
         this.treinos = treinos;
         this.dietas = dietas;
+        this.mobilidades = mobilidades;
         this.historico = historico;
         this.marcas = marcas;
         this.pastas = pastas;
@@ -84,26 +89,38 @@ public class AlunoAppService {
         return new DietaAtual(dietas.versaoAtiva(alunoId).map(AlunoAppService::dietaDe).orElse(null));
     }
 
+    /** Versão publicada da mobilidade vigente do aluno; sem plano publicado, 404 (o app não mostra a aba). */
+    @Transactional(readOnly = true)
+    public MobilidadeAtual mobilidade(UsuarioAutenticado eu) {
+        UUID alunoId = alunoDaSessao(eu);
+        return mobilidades.versaoAtiva(alunoId).map(AlunoAppService::mobilidadeDe).map(MobilidadeAtual::new)
+                .orElseThrow(() -> new NaoEncontradoException("Mobilidade não encontrada."));
+    }
+
     /**
      * Pastas do aluno com plano publicado, ativas primeiro (rascunho nunca conta). A {@code atual} é a do treino
-     * vigente (ou da dieta vigente, sem treino): é o que o pacote offline traz.
+     * vigente (ou da dieta, ou da mobilidade vigente, nessa ordem): é o que o pacote offline traz.
      */
     @Transactional(readOnly = true)
     public List<PastaDoAluno> pastas(UsuarioAutenticado eu) {
         UUID alunoId = alunoDaSessao(eu);
         Set<UUID> comTreino = pastasDe(treinos.publicadosEmPastas(alunoId));
         Set<UUID> comDieta = pastasDe(dietas.publicadosEmPastas(alunoId));
+        Set<UUID> comMobilidade = pastasDe(mobilidades.publicadosEmPastas(alunoId));
         UUID atual = treinos.versaoAtiva(alunoId).map(a -> a.plano().getPastaId())
-                .or(() -> dietas.versaoAtiva(alunoId).map(a -> a.plano().getPastaId())).orElse(null);
+                .or(() -> dietas.versaoAtiva(alunoId).map(a -> a.plano().getPastaId()))
+                .or(() -> mobilidades.versaoAtiva(alunoId).map(a -> a.plano().getPastaId())).orElse(null);
         return pastas.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream()
-                .filter(p -> !p.isArquivado() && (comTreino.contains(p.getId()) || comDieta.contains(p.getId())))
+                .filter(p -> !p.isArquivado() && (comTreino.contains(p.getId()) || comDieta.contains(p.getId())
+                        || comMobilidade.contains(p.getId())))
                 .map(p -> new PastaDoAluno(p.getId(), p.getTitulo(), p.getInicio(), p.getFim(), p.getConcluidaEm(),
-                        p.getId().equals(atual), comTreino.contains(p.getId()), comDieta.contains(p.getId())))
+                        p.getId().equals(atual), comTreino.contains(p.getId()), comDieta.contains(p.getId()),
+                        comMobilidade.contains(p.getId())))
                 .sorted(Comparator.comparing(p -> p.concluidaEm() != null))
                 .toList();
     }
 
-    /** Treino e dieta publicados de uma pasta do aluno. Pasta de outro aluno, arquivada ou sem publicado: 404. */
+    /** Treino, dieta e mobilidade publicados de uma pasta do aluno. Pasta de outro aluno, arquivada ou sem publicado: 404. */
     @Transactional(readOnly = true)
     public PlanosDaPasta planosDaPasta(UsuarioAutenticado eu, UUID pastaId) {
         UUID alunoId = alunoDaSessao(eu);
@@ -113,10 +130,12 @@ public class AlunoAppService {
         TreinoAtual treino = treinos.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::treinoDe).orElse(null);
         VersaoDetalhe<br.com.treinos.api.dieta.ConteudoDieta> dieta =
                 dietas.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::dietaDe).orElse(null);
-        if (treino == null && dieta == null) {
+        VersaoDetalhe<ConteudoMobilidade> mobilidade =
+                mobilidades.versaoPublicadaDaPasta(alunoId, pasta.getId()).map(AlunoAppService::mobilidadeDe).orElse(null);
+        if (treino == null && dieta == null && mobilidade == null) {
             throw new NaoEncontradoException("Pasta não encontrada.");
         }
-        return new PlanosDaPasta(pasta.getId(), treino, dieta);
+        return new PlanosDaPasta(pasta.getId(), treino, dieta, mobilidade);
     }
 
     private static TreinoAtual treinoDe(VersaoAtiva<? extends PlanoBase, ? extends VersaoBase, ConteudoTreino> a) {
@@ -126,6 +145,13 @@ public class AlunoAppService {
 
     private static VersaoDetalhe<br.com.treinos.api.dieta.ConteudoDieta> dietaDe(
             VersaoAtiva<? extends PlanoBase, ? extends VersaoBase, br.com.treinos.api.dieta.ConteudoDieta> a) {
+        return new VersaoDetalhe<>(a.versao().getId(), a.plano().getId(), a.versao().getNumero(),
+                a.versao().getTitulo(), a.versao().getInicio(), a.versao().getFim(), a.versao().getPublicadoEm(),
+                a.conteudo());
+    }
+
+    private static VersaoDetalhe<ConteudoMobilidade> mobilidadeDe(
+            VersaoAtiva<? extends PlanoBase, ? extends VersaoBase, ConteudoMobilidade> a) {
         return new VersaoDetalhe<>(a.versao().getId(), a.plano().getId(), a.versao().getNumero(),
                 a.versao().getTitulo(), a.versao().getInicio(), a.versao().getFim(), a.versao().getPublicadoEm(),
                 a.conteudo());
