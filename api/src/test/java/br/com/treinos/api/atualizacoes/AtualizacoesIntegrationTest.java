@@ -1,0 +1,153 @@
+package br.com.treinos.api.atualizacoes;
+
+import br.com.treinos.api.AbstractIntegrationTest;
+import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.web.Fuso;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+import static org.assertj.core.api.Assertions.assertThat;
+
+/** Dados fictícios: testa autorização, transação, contrato do formulário e revisão. */
+@AutoConfigureMockMvc
+class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
+    @Autowired private MockMvc mvc;
+    @Autowired private JsonMapper json;
+    private ApiDeTeste api;
+    private JsonNode treinador;
+    private JsonNode loginAluno;
+    private UUID aluno;
+    private LocalDate hoje;
+
+    @BeforeEach void preparar() throws Exception {
+        api = new ApiDeTeste(mvc,json);
+        treinador = api.novoTreinador();
+        aluno = api.criarAluno(treinador,"Aluno Fictício Check-in");
+        loginAluno = api.convidarEEntrar(treinador,aluno);
+        hoje = LocalDate.now(Fuso.BRASILIA);
+    }
+    private void publicarPasta(LocalDate fim) throws Exception {
+        String pasta = api.post("/alunos/"+aluno+"/pastas",treinador,
+                Map.of("titulo","Período fictício","inicio",fim.minusDays(27),"fim",fim),200).path("id").asString();
+        JsonNode criado = api.post("/alunos/"+aluno+"/planos-treino",treinador,
+                Map.of("titulo","Treino fictício","pastaId",pasta),200);
+        String id = criado.path("plano").path("id").asString();
+        JsonNode salvo = api.put("/planos-treino/"+id+"/rascunho",treinador,
+                ApiDeTeste.rascunho("Treino fictício",ApiDeTeste.treino().conteudo(),criado.path("plano").path("versao").asLong()),200);
+        api.post("/planos-treino/"+id+"/publicar",treinador,
+                Map.of("versao",salvo.path("plano").path("versao").asLong(),"confirmarAvisos",true),200);
+    }
+    private Map<String,Object> respostas() {
+        return new LinkedHashMap<>(Map.of("peso",80.5,"sono",7,"alim_desempenho",8,"treino_desempenho",6));
+    }
+    private JsonNode enviar(Map<String,Object> respostas,int status) throws Exception {
+        return api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("modeloVersao",1,"respostas",respostas),status);
+    }
+    @Test void semPastaNaoExisteAtualizacaoENaoAceitaEnvio() throws Exception {
+        assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("NENHUMA");
+        enviar(respostas(),404);
+    }
+    @Test void envioNaVesperaGravaPesoNaDataDaAtualizacaoSemDuplicar() throws Exception {
+        publicarPasta(hoje.plusDays(1));
+        assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("ABERTA");
+        Map<String,Object> r = respostas(); r.put("campo_desconhecido","texto fictício");
+        JsonNode enviada = enviar(r,200);
+        assertThat(enviada.path("fase").asString()).isEqualTo("ENVIADA");
+        assertThat(enviada.path("respostas").has("campo_desconhecido")).isFalse();
+        assertThat(enviar(r,409).path("codigo").asString()).isEqualTo("ATUALIZACAO_JA_ENVIADA");
+        assertThat(api.get("/aluno/atualizacoes",loginAluno,200)).hasSize(1);
+        JsonNode pesos = api.get("/alunos/"+aluno+"/pesos",treinador,200);
+        assertThat(pesos).hasSize(1);
+        assertThat(pesos.get(0).path("data").asString()).isEqualTo(hoje.plusDays(1).toString());
+        assertThat(pesos.get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
+        assertThat(api.get("/painel",treinador,200).path("atualizacoesParaRevisar").asLong()).isEqualTo(1);
+    }
+    @Test void envioAtualizaPesoExistenteENaoAbreAntesDaVespera() throws Exception {
+        publicarPasta(hoje.plusDays(3));
+        assertThat(enviar(respostas(),422).path("fieldErrors").get(0).path("field").asString()).isEqualTo("data");
+        // Outra pasta publicada vira a vigente; as antigas continuam imutáveis.
+        publicarPasta(hoje);
+        api.post("/alunos/"+aluno+"/pesos",treinador,Map.of("data",hoje,"pesoKg",79.0),200);
+        enviar(respostas(),200);
+        JsonNode pesos = api.get("/alunos/"+aluno+"/pesos",treinador,200);
+        assertThat(pesos).hasSize(1);
+        assertThat(pesos.get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
+    }
+    @Test void validacaoApontaCampoSemGravarRespostasOuPeso() throws Exception {
+        publicarPasta(hoje);
+        Map<String,Object> r = respostas(); r.remove("peso"); conferirCampo(r,"peso");
+        r = respostas(); r.put("sono",11); conferirCampo(r,"sono");
+        r = respostas(); r.put("peso",0); conferirCampo(r,"peso");
+        r = respostas(); r.put("alim_digestao","x".repeat(501)); conferirCampo(r,"alim_digestao");
+        r = respostas(); r.put("fb_pos_treino",Map.of("7",5)); conferirCampo(r,"fb_pos_treino");
+        api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("modeloVersao",2,"respostas",respostas()),409);
+        assertThat(api.get("/aluno/atualizacoes",loginAluno,200)).isEmpty();
+        assertThat(api.get("/alunos/"+aluno+"/pesos",treinador,200)).isEmpty();
+    }
+    private void conferirCampo(Map<String,Object> r,String campo) throws Exception {
+        JsonNode erro = enviar(r,422);
+        assertThat(erro.path("codigo").asString()).isEqualTo("ATUALIZACAO_INVALIDA");
+        assertThat(erro.path("fieldErrors").get(0).path("field").asString()).isEqualTo(campo);
+    }
+    @Test void atrasoAlteraPrazoMasNaoBloqueiaAlunoNemAceitaForaDaFaixa() throws Exception {
+        publicarPasta(hoje.minusDays(1));
+        assertThat(api.get("/atualizacoes?situacao=ATRASADAS",treinador,200)).hasSize(1);
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.minusDays(1)),422);
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.plusDays(15)),422);
+        JsonNode aviso = api.post("/aluno/atualizacao/atraso",loginAluno,
+                Map.of("novaData",hoje.plusDays(2),"motivo","Motivo fictício"),200);
+        assertThat(aviso.path("fase").asString()).isEqualTo("AVISO");
+        assertThat(api.get("/atualizacoes?situacao=AVISARAM_ATRASO",treinador,200)).hasSize(1);
+        assertThat(api.get("/atualizacoes?situacao=ATRASADAS",treinador,200)).isEmpty();
+        assertThat(api.get("/atualizacoes?situacao=PROXIMAS",treinador,200)).hasSize(1);
+        enviar(respostas(),200);
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.plusDays(2)),409);
+    }
+    @Test void feedbackTemVersaoEditadoEVisto() throws Exception {
+        publicarPasta(hoje);
+        JsonNode enviada = enviar(respostas(),200);
+        String id = enviada.path("id").asString();
+        long primeiraVersao = enviada.path("versao").asLong();
+        JsonNode revisada = api.put("/atualizacoes/"+id+"/feedback",treinador,
+                Map.of("texto","Feedback fictício","versao",primeiraVersao),200);
+        assertThat(revisada.path("fase").asString()).isEqualTo("REVISADA");
+        assertThat(revisada.path("feedback").path("naoLido").asBoolean()).isTrue();
+        assertThat(revisada.path("feedback").path("editadoEm").isNull()).isTrue();
+        api.put("/atualizacoes/"+id+"/feedback",treinador,Map.of("texto","Conflito fictício","versao",primeiraVersao),409);
+        api.post("/aluno/atualizacoes/"+id+"/feedback-visto",loginAluno,null,204);
+        JsonNode vista = api.get("/atualizacoes/"+id,treinador,200);
+        assertThat(vista.path("feedback").path("naoLido").asBoolean()).isFalse();
+        JsonNode editada = api.put("/atualizacoes/"+id+"/feedback",treinador,
+                Map.of("texto","Feedback fictício editado","versao",vista.path("versao").asLong()),200);
+        assertThat(editada.path("feedback").path("editadoEm").isNull()).isFalse();
+        assertThat(editada.path("feedback").path("naoLido").asBoolean()).isTrue();
+        assertThat(api.get("/atualizacoes?situacao=PARA_REVISAR",treinador,200)).isEmpty();
+    }
+    @Test void outroAlunoEOutraConsultoriaRecebem404EmTodasAsLeiturasEEscritas() throws Exception {
+        publicarPasta(hoje);
+        JsonNode enviada = enviar(respostas(),200);
+        String id = enviada.path("id").asString();
+        JsonNode outroAluno = api.convidarEEntrar(treinador,api.criarAluno(treinador,"Outro aluno fictício"));
+        api.get("/aluno/atualizacoes/"+id,outroAluno,404);
+        api.post("/aluno/atualizacoes/"+id+"/feedback-visto",outroAluno,null,404);
+        assertThat(api.get("/aluno/atualizacoes",outroAluno,200)).isEmpty();
+        JsonNode outroTreinador = api.novoTreinador();
+        api.get("/atualizacoes/"+id,outroTreinador,404);
+        api.get("/alunos/"+aluno+"/atualizacoes",outroTreinador,404);
+        api.get("/alunos/"+aluno+"/atualizacao",outroTreinador,404);
+        api.put("/atualizacoes/"+id+"/feedback",outroTreinador,Map.of("texto","Fictício","versao",enviada.path("versao").asLong()),404);
+        for (String filtro : new String[]{"PARA_REVISAR","ATRASADAS","AVISARAM_ATRASO","PROXIMAS"})
+            assertThat(api.get("/atualizacoes?situacao="+filtro,outroTreinador,200)).isEmpty();
+        api.get("/atualizacoes",loginAluno,403);
+        api.get("/aluno/atualizacao",treinador,403);
+        api.get("/atualizacoes?situacao=DESCONHECIDA",treinador,400);
+    }
+}
