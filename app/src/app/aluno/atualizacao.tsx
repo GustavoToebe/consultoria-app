@@ -14,9 +14,9 @@ import { useCarregar } from '../../ui/useCarregar';
 export default function AtualizacaoAluno() {
   const {id,atraso}=useLocalSearchParams<{id?:string;atraso?:string}>();
   const resultado=useAtualizacao(id);
-  const {repositorio}=useAluno();
+  const {repositorio,online}=useAluno();
   const pasta=resultado.dados?.pastaId;
-  const rascunho=useCarregar(pasta??null,()=>repositorio.lerRascunhoAtualizacao(pasta!));
+  const rascunho=useCarregar(pasta?`${pasta}:${online}`:null,async()=>({pastaId:pasta!,valor:await repositorio.lerRascunhoAtualizacao(pasta!)}));
   return <Tela largura={720} rolar={false} bordas={['top']}>
     <Cabecalho titulo={`Atualização${resultado.dados?.dataAtualizacao?` · ${dataParaTela(resultado.dados.dataAtualizacao)}`:''}`}
       voltar="/aluno" acoes={<SeloSincronizacao />} />
@@ -24,8 +24,8 @@ export default function AtualizacaoAluno() {
     {resultado.erro?<MensagemErro texto={textoDoErro(resultado.erro)} />:null}
     {rascunho.erro?<MensagemErro texto="Não foi possível ler o rascunho. Volte e tente novamente." />:null}
     {resultado.dados && !resultado.dados.modelo?<Vazio titulo="Sem atualização" texto="Seu treinador ainda não publicou uma pasta com período." />:null}
-    {resultado.dados?.modelo && !resultado.carregando && !rascunho.carregando && !rascunho.erro?<FormularioAtualizacao
+    {resultado.dados?.modelo && (!id || resultado.dados.id===id) && rascunho.dados && rascunho.dados.pastaId===pasta && !rascunho.erro?<FormularioAtualizacao
       key={`${pasta}:${resultado.dados.versao}:${resultado.dados.modeloVersao}`}
-      atualizacao={resultado.dados} rascunho={rascunho.dados??null} abrirAtraso={atraso==='sim'} recarregar={resultado.recarregar} />:null}
+      atualizacao={resultado.dados} rascunho={rascunho.dados.valor} abrirAtraso={atraso==='sim'} recarregar={resultado.recarregar} />:null}
   </Tela>;
 }
