@@ -59,7 +59,6 @@ export default function Alunos() {
         }
       />
       <View style={estilos.filtros}>
-        <Escolha rotulo="Responsabilidade" opcoes={[{valor:'meus',rotulo:'Meus alunos'},{valor:'todos',rotulo:'Todos os alunos'}]} valor={escopo} aoMudar={v=>{setEscopo(v);setPagina(0);}}/>
         <View style={estilos.busca}>
           <Campo
             rotulo="Buscar"
@@ -72,15 +71,19 @@ export default function Alunos() {
             autoCapitalize="none"
           />
         </View>
-        <Escolha
-          rotulo="Situação"
-          opcoes={SITUACOES}
-          valor={situacao}
-          aoMudar={(s) => {
-            setSituacao(s);
-            setPagina(0);
-          }}
-        />
+        {/* Os dois recortes da lista lado a lado; no celular o segundo desce. */}
+        <View style={estilos.recortes}>
+          <Escolha rotulo="Responsabilidade" opcoes={[{ valor: 'meus', rotulo: 'Meus alunos' }, { valor: 'todos', rotulo: 'Todos os alunos' }]} valor={escopo} aoMudar={(v) => { setEscopo(v); setPagina(0); }} />
+          <Escolha
+            rotulo="Situação"
+            opcoes={SITUACOES}
+            valor={situacao}
+            aoMudar={(s) => {
+              setSituacao(s);
+              setPagina(0);
+            }}
+          />
+        </View>
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
@@ -144,6 +147,7 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
 const estilos = StyleSheet.create({
   filtros: { gap: espaco(1.5) },
   busca: { maxWidth: 480 },
+  recortes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5) },
   lista: { gap: espaco(1) },
   esmaecido: { opacity: 0.6 },
   linha: {
