@@ -1,7 +1,7 @@
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import { Permitido } from '../ui/Permitido';
 import { useSessao } from '../sessao/SessaoProvider';
-import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Folder, FolderCheck, FolderPlus, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
+import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
 import { sobre } from '../ui/sobre';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -23,6 +23,7 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { IconeBotao } from '../ui/IconeBotao';
 import { Selo } from '../ui/Selo';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { AplicarAoAluno } from './planejamento/AplicarAoAluno';
@@ -61,6 +62,8 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [finalizar, setFinalizar] = useState<PastaResumo | null>(null);
   // Pasta aberta na folha com as ações e os planos; guarda só o id para refletir o que a lista recarrega.
   const [abertaId, setAbertaId] = useState<string | null>(pastaInicialId??null);
+  // "Mais ações" da pasta (salvar como pacote, excluir): menu à parte, para a folha ter uma ação principal só.
+  const [menuPasta, setMenuPasta] = useState<PastaResumo | null>(null);
   const aberta = dados?.find((p) => p.id === abertaId) ?? null;
   const [escolher, setEscolher] = useState(false);
   const [modelo, setModelo] = useState<Receita | null>(null);
@@ -85,20 +88,20 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
     <>
       <Cartao
         titulo="Pastas de plano"
-        acoes={<Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Nova pasta" tipo="secundario" Icone={FolderPlus} aoTocar={() => setModo({ tipo: 'nova' })} /></Permitido>}>
-        <Texto variante="suave">
-          Cada pasta junta o treino e a dieta de um período. O período da pasta vale para os dois.
-        </Texto>
+        descricao="Cada pasta junta o treino, a dieta e a mobilidade de um período. O período da pasta vale para todos."
+        acoes={<>
+          <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Usar pacote" tipo="secundario" Icone={Package} aoTocar={() => setEscolher(true)} /></Permitido>
+          <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Nova pasta" Icone={FolderPlus} aoTocar={() => setModo({ tipo: 'nova' })} /></Permitido>
+        </>}>
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Esqueleto /> : null}
         {dados && dados.length === 0 ? (
-          <Vazio titulo="Sem pastas" texto="As pastas reúnem o treino e a dieta do período." acao={pode('PASTA_ALTERAR') ? { rotulo: 'Nova pasta', aoTocar: () => setModo({ tipo: 'nova' }) } : undefined} />
+          <Vazio titulo="Sem pastas" texto="As pastas reúnem o treino, a dieta e a mobilidade do período." />
         ) : null}
+        {dados?.map((p) => (
+          <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} />
+        ))}
       </Cartao>
-<Permitido codigo="MODELO_APLICAR"><Botao rotulo="Usar pacote" tipo="secundario" aoTocar={() => setEscolher(true)} /></Permitido>
-      {dados?.map((p) => (
-        <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} />
-      ))}
       {aberta ? (
         <Folha visivel titulo={aberta.titulo} largura={LARGURA_EDITOR} aoFechar={() => setAbertaId(null)}>
           <View style={estilos.resumo}>
@@ -109,19 +112,17 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             )}
             <Texto numerico variante="suave">Período: {periodo(aberta)}</Texto>
           </View>
-          <Texto variante="secao">Ações da pasta</Texto>
           <View style={estilos.acoes}>
             {aberta.concluidaEm ? (
-              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Reabrir pasta" tipo="secundario" Icone={RotateCcw} aoTocar={() => {
+              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Reabrir pasta" Icone={RotateCcw} aoTocar={() => {
                 reabrirPasta(aberta.id).then(() => { avisar('Pasta reaberta.', 'sucesso'); recarregar(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
               }} /></Permitido>
             ) : (
-              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" tipo="secundario" Icone={CheckCircle2} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} /></Permitido>
+              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" Icone={CheckCircle2} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} /></Permitido>
             )}
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} /></Permitido>
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} /></Permitido>
-            <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Salvar como pacote" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { setAbertaId(null); setSalvarModelo(aberta); }} /></Permitido>
-            <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setAbertaId(null); setExcluir(aberta); }} /></Permitido>
+            {pode('PASTA_ALTERAR') || pode('MODELO_ALTERAR') ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : null}
           </View>
           <Texto variante="secao">Planos desta pasta</Texto>
           <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
@@ -132,6 +133,10 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}
         </Folha>
       ) : null}
+      {menuPasta ? <Folha visivel titulo={menuPasta.titulo} aoFechar={() => setMenuPasta(null)}>
+        <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Salvar como pacote" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setSalvarModelo(p); }} /></Permitido>
+        <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setExcluir(p); }} /></Permitido>
+      </Folha> : null}
       {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Pacote (treino, dieta e mobilidade)" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
       {modelo ? <AplicarAoAluno modelo={modelo} alunoInicial={alunoId} aoFechar={() => setModelo(null)} aoAplicar={() => { setModelo(null); aoSalvar(); avisar('Pasta copiada como rascunho.', 'sucesso'); }} /> : null}
       {salvarModelo ? <FolhaSalvarReceita titulo="Salvar pasta como pacote" explicacao="Copia os rascunhos de treino e dieta desta pasta para reutilizar em outros alunos." aoFechar={() => setSalvarModelo(null)} aoSalvar={async (nome, descricao) => {
