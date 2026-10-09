@@ -5,7 +5,7 @@ Leia o `AGENTS.md` antes de tudo. Este arquivo diz **onde o projeto está** e **
 
 ## 1. Onde está
 
-- **`main` no GitHub:** commit `1d73bbd` ou mais novo. Tem tudo de antes, e agora também:
+- **`main` no GitHub:** commit `864efbe` ou mais novo. Tem tudo de antes, e agora também:
   - **check-in** (`PLANO-CHECKIN.md`, C1–C11): atualização do aluno, feedback do treinador e lembretes locais;
   - **equipe** (`PLANO-EQUIPE.md`, E1–E7): usuários, perfis, permissões, convite de equipe, auditoria, responsável e
     filtro "Meus alunos";
@@ -19,9 +19,18 @@ Leia o `AGENTS.md` antes de tudo. Este arquivo diz **onde o projeto está** e **
   espera 18. Migration nova é a `V019`, e as antigas nunca se editam.
 - **Testes em 09/10:**
   - API: `mvn verify` com 131 testes, cobertura de 91,9%;
-  - app: typecheck, lint e 201 testes em 34 suítes.
+  - app: typecheck, lint e 205 testes em 34 suítes.
 - **`CORRECOES-CHECKIN-EQUIPE.md`, Parte A: feita** (A1–A6, mais as telas da equipe com o mesmo teto da API). O ambiente
   local já foi recompilado (`up -d --build`, sem `down -v`) e o banco local está na V018.
+- **Depois da Parte A (09/10):** a folha da pasta (mais larga) traz "Registros e cargas" do período da pasta e a
+  "Atualização do período"; registros saíram da ficha; "Progresso por exercício" filtra por grupo muscular; editor de
+  treino reorganizado ("Trocar" ao lado do nome, observação e vídeo recolhível).
+- **`PLANO-MOBILIDADE.md` (M1–M6): aprovado pelo Gustavo, não começou.** Um bloco por sessão.
+- **Banco local da demonstração (sem `down -v`):** pasta "Plano 16" do `aluno@demo.local` vai de 05/10 a **12/10** (o
+  formulário de atualização abre no domingo); treino e dieta dela republicados como **v2**. Existe um segundo treino
+  "Plano 16" em **rascunho** na pasta, criado pela tela (não pela sessão): perguntar ao Gustavo se exclui. Ainda em aberto:
+  criar no `aluno2@demo.local` uma pasta de teste com fim em 10/10 para testar envio, "vou atrasar" e reenvio sem gastar
+  a atualização de domingo.
 - **`PLANO-ACOMPANHAMENTO.md`: ainda não começou.** Só começa depois da Parte A de `CORRECOES-CHECKIN-EQUIPE.md`, um
   bloco por sessão (Q, depois P…), e só com o Gustavo pedindo.
 - **Etiquetas de plano B:**
@@ -36,7 +45,7 @@ Leia o `AGENTS.md` antes de tudo. Este arquivo diz **onde o projeto está** e **
 git status                          # se houver alteração local, pare e mostre ao Gustavo
 git switch main
 git pull --ff-only origin main
-git log --oneline -1                # 1d73bbd ou mais novo
+git log --oneline -1                # 864efbe ou mais novo
 ```
 
 Trabalha-se direto na `main` (decisão do Gustavo, está no `AGENTS.md`). Codex e Claude **nunca** trabalham na mesma pasta

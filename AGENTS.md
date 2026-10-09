@@ -150,8 +150,11 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Cargas por divisão (`dominio/relatorio.ts` + `treinador/CargasPorDivisao`) no histórico do aluno e na ficha do
   treinador; o mesmo dado sai no PDF de cargas (`pdf/pdfCargas.ts`).
 
-- Ficha do aluno (treinador): `CartaoPastas` (lista de pastas; tocar abre a folha com ações e `CartaoPlanos` de treino e dieta), `CartaoLesoes`, `CartaoRegistros` (filtro por
-  plano via `filtrarPorSessoes`; `Cartao recolhivel`) e `CartaoPeso` (lista ou `GraficoLinha`, SVG sem biblioteca).
+- Ficha do aluno (treinador): `CartaoPastas` (lista com a situação da atualização de cada pasta; tocar abre a `Folha` larga
+  — `largura={LARGURA_EDITOR}` — com ações, `CartaoPlanos` de treino e dieta, `CartaoRegistros` só com o período e os treinos
+  da pasta e `AtualizacaoDaPasta`), `CartaoLesoes` e `CartaoPeso` (lista ou `GraficoLinha`, SVG sem biblioteca). Registros
+  não ficam mais soltos na ficha. "Progresso por exercício" filtra por grupo muscular (`ExercicioFeito.grupoMuscular`, da
+  biblioteca; nulo fora dela = "Sem grupo") e exercício (`dominio/relatorio.opcoesDeProgresso`).
 - PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
   arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`
   (a CSP tem `frame-src 'none'`, então nada de iframe). Logo entra como data URI (`pdf/logo.ts`).
