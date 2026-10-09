@@ -107,6 +107,9 @@ export default function Alunos() {
   );
 }
 
+/** Os dois selos da linha têm a mesma largura (o maior texto, "Sem acesso", define). */
+const LARGURA_SELO = 96;
+
 function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
   const { cores } = useTema();
   return (
@@ -121,8 +124,8 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
       <View style={estilos.dados}>
         <Texto variante="subtitulo">{aluno.nome}</Texto>
         <View style={estilos.selos}>
-          <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} />
-          <Selo texto={aluno.temAcesso ? 'Com acesso' : 'Sem acesso'} tipo={aluno.temAcesso ? 'sucesso' : 'neutro'} />
+          <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} larguraMinima={LARGURA_SELO} />
+          <Selo texto={aluno.temAcesso ? 'Com acesso' : 'Sem acesso'} tipo={aluno.temAcesso ? 'sucesso' : 'neutro'} larguraMinima={LARGURA_SELO} />
         </View>
         <Texto variante="suave">
           Treino: {aluno.planoAtivo?.titulo ?? '—'} · Último registro: {dataParaTela(aluno.ultimoRegistro) || '—'}

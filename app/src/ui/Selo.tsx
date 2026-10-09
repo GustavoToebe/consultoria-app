@@ -11,13 +11,13 @@ export type TipoSelo = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
  * Status sempre com texto (selo de 11 px, caixa alta, fundo translúcido e borda fina). Nunca usa a cor da marca:
  * verde = feito/sincronizado/ativo; âmbar = pendente/rascunho; vermelho = erro; cinza = inativo/encerrado.
  */
-export function Selo({ texto, tipo }: { texto: string; tipo: TipoSelo }) {
+export function Selo({ texto, tipo, larguraMinima }: { texto: string; tipo: TipoSelo; larguraMinima?: number }) {
   const { cores } = useTema();
   const cor = cores[tipo];
   return (
     <Badge variant="outline"
       accessibilityRole="text"
-      style={[estilos.selo, { borderColor: cor, backgroundColor: `${cor}22` }]}>
+      style={[estilos.selo, larguraMinima ? { minWidth: larguraMinima, justifyContent: 'center' } : null, { borderColor: cor, backgroundColor: `${cor}22` }]}>
       <Texto style={[estilos.texto, { color: cor }]}>{texto}</Texto>
     </Badge>
   );
