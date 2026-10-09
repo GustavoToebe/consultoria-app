@@ -40,9 +40,14 @@ public class Auditoria {
         if(entidadeId==null && argumentos.length>0 && argumentos[0] instanceof UUID id) entidadeId=id;
         String acao=evento.acao();String entidade=evento.entidade();String resumo=evento.resumo();
         if(acao.equals("PLANO_PUBLICADO") && resultado instanceof br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe<?> p) {
-            boolean treino=p.rascunho() instanceof br.com.treinos.api.treino.ConteudoTreino;
-            acao=treino?"TREINO_PUBLICADO":"DIETA_PUBLICADA";entidade=treino?"TREINO":"DIETA";
-            resumo="Publicou uma versão de "+(treino?"treino":"dieta")+" (v"+p.plano().versaoPublicada()+").";
+            String tipo=switch(p.rascunho()) {
+                case br.com.treinos.api.treino.ConteudoTreino t -> "TREINO";
+                case br.com.treinos.api.dieta.ConteudoDieta d -> "DIETA";
+                case br.com.treinos.api.receitas.ConteudoMobilidade m -> "MOBILIDADE";
+                default -> throw new IllegalStateException("Tipo de plano sem evento de auditoria.");
+            };
+            acao=tipo+(tipo.equals("TREINO")?"_PUBLICADO":"_PUBLICADA");entidade=tipo;
+            resumo="Publicou uma versão de "+tipo.toLowerCase(java.util.Locale.ROOT)+" (v"+p.plano().versaoPublicada()+").";
         }
         gravar(usuario,acao,entidade,entidadeId,resumo);
     }

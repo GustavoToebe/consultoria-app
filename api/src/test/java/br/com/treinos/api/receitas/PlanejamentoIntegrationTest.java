@@ -154,6 +154,18 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         api.get("/receitas?tipo=MOBILIDADE", api.novoTreinador(), 200);
     }
 
+    @Test void modeloDeMobilidadeGravaVideoLimpoEVazioComoNulo() throws Exception {
+        var itens = List.of(Map.of("nome", "Com espaços", "videoUrl", "  https://youtu.be/tsGPYSQbZx4  "),
+                Map.of("nome", "Vazio", "videoUrl", ""));
+        var criado = modelo("MOBILIDADE", Map.of("secoes", List.of(Map.of("titulo", "Alongamentos", "itens", itens))));
+        var gravados = criado.get("conteudo").get("secoes").get(0).get("itens");
+        assertThat(gravados.get(0).get("videoUrl").asString()).isEqualTo("https://youtu.be/tsGPYSQbZx4");
+        assertThat(gravados.get(1).get("videoUrl").isNull()).isTrue();
+        var lido = api.get("/receitas/" + criado.get("id").asString(), treinador, 200);
+        assertThat(lido.get("conteudo").get("secoes").get(0).get("itens").get(0).get("videoUrl").asString())
+                .isEqualTo("https://youtu.be/tsGPYSQbZx4");
+    }
+
     @Test void aplicarRejeitaDestinoDeOutroAlunoOuConsultoriaSemCriarPlanos() throws Exception {
         var m = modelo("PLANO_TREINO", ApiDeTeste.treino().conteudo());
         var outroAluno = api.criarAluno(treinador, "Aluno fictício destino");

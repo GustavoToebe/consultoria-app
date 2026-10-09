@@ -114,6 +114,14 @@ public class ReceitaService {
         return json.readValue(receita.getConteudo(), ConteudoDieta.class).comUidsNovos();
     }
 
+    @Transactional(readOnly = true)
+    public ConteudoMobilidade conteudoMobilidade(UUID id) {
+        Receita receita = buscar(id);
+        if (receita.getTipo() != Receita.Tipo.MOBILIDADE)
+            throw new BadRequestException("Escolha um modelo de mobilidade.");
+        return json.readValue(receita.getConteudo(), ConteudoMobilidade.class).comUidsNovos();
+    }
+
     /** "Salvar como receita" a partir do rascunho de um plano. */
     @Transactional
     public ReceitaResponse salvarConteudo(Receita.Tipo tipo, String nome, String descricao, Object conteudo) {
@@ -160,7 +168,12 @@ public class ReceitaService {
             }
         }
         if (valor instanceof ConteudoMobilidade m) {
-            m.secoes().forEach(sec -> sec.itens().forEach(i -> videoUrls.normalizar(i.videoUrl())));
+            // Modelo é gravado completo; o rascunho do plano é que aceita conteúdo em construção.
+            if (m.secoes().isEmpty()) throw new BadRequestException("O modelo de mobilidade precisa de uma seção.");
+            if (m.secoes().stream().flatMap(sec -> sec.itens().stream())
+                    .anyMatch(i -> i.nome() == null || i.nome().isBlank()))
+                throw new BadRequestException("Todo item de mobilidade precisa de nome.");
+            valor = m.comVideos(videoUrls::normalizar);
         }
         return json.writeValueAsString(valor);
     }
