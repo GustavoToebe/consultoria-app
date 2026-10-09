@@ -94,7 +94,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <Vazio titulo="Sem pastas" texto="As pastas reúnem o treino e a dieta do período." acao={pode('PASTA_ALTERAR') ? { rotulo: 'Nova pasta', aoTocar: () => setModo({ tipo: 'nova' }) } : undefined} />
         ) : null}
       </Cartao>
-<Permitido codigo="MODELO_APLICAR"><Botao rotulo="Usar modelo de pasta" tipo="secundario" aoTocar={() => setEscolher(true)} /></Permitido>
+<Permitido codigo="MODELO_APLICAR"><Botao rotulo="Usar pacote" tipo="secundario" aoTocar={() => setEscolher(true)} /></Permitido>
       {dados?.map((p) => (
         <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} />
       ))}
@@ -119,7 +119,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             )}
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} /></Permitido>
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} /></Permitido>
-            <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Salvar como modelo" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { setAbertaId(null); setSalvarModelo(aberta); }} /></Permitido>
+            <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Salvar como pacote" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { setAbertaId(null); setSalvarModelo(aberta); }} /></Permitido>
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setAbertaId(null); setExcluir(aberta); }} /></Permitido>
           </View>
           <Texto variante="secao">Planos desta pasta</Texto>
@@ -130,10 +130,10 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}
         </Folha>
       ) : null}
-      {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Modelo de pasta de plano" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
+      {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Pacote (treino + dieta)" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
       {modelo ? <AplicarAoAluno modelo={modelo} alunoInicial={alunoId} aoFechar={() => setModelo(null)} aoAplicar={() => { setModelo(null); aoSalvar(); avisar('Pasta copiada como rascunho.', 'sucesso'); }} /> : null}
-      {salvarModelo ? <FolhaSalvarReceita titulo="Salvar pasta como modelo" explicacao="Copia os rascunhos de treino e dieta desta pasta para reutilizar em outros alunos." aoFechar={() => setSalvarModelo(null)} aoSalvar={async (nome, descricao) => {
-        await salvarPastaComoModelo(salvarModelo.id, nome, descricao); setSalvarModelo(null); avisar('Modelo de pasta salvo.', 'sucesso');
+      {salvarModelo ? <FolhaSalvarReceita titulo="Salvar pasta como pacote" explicacao="Copia os rascunhos de treino e dieta desta pasta para reutilizar em outros alunos." aoFechar={() => setSalvarModelo(null)} aoSalvar={async (nome, descricao) => {
+        await salvarPastaComoModelo(salvarModelo.id, nome, descricao); setSalvarModelo(null); avisar('Pacote salvo.', 'sucesso');
       }} /> : null}
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.titulo ?? ''}”?`} mensagem="A pasta e seus planos saem da lista. Os planos deixam de estar ativos; versões publicadas e registros dos alunos são preservados." rotuloConfirmar="Excluir pasta e planos" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
         if (!excluir) return; const id = excluir.id; setExcluir(null);

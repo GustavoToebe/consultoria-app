@@ -3,16 +3,46 @@ import { normalizarDieta, novaRefeicao } from '../../dominio/dieta';
 import { normalizarTreino, novaSerie, novaSessao } from '../../dominio/editorTreino';
 import { mobilidadeParaApi, normalizarMobilidade } from '../../dominio/mobilidade';
 
-export const CATEGORIAS: { valor: TipoReceita; rotulo: string; descricao: string }[] = [
-  { valor: 'METODOLOGIA', rotulo: 'Metodologias', descricao: 'Regras de séries e preparação que acompanham uma semana de treino.' },
-  { valor: 'SERIES', rotulo: 'Séries', descricao: 'Estrutura de séries (tipos, faixas e intensidade) para reutilizar em exercícios.' },
-  { valor: 'SESSAO_TREINO', rotulo: 'Treinos / sessões', descricao: 'Um dia de treino pronto para acrescentar a qualquer plano.' },
-  { valor: 'PLANO_TREINO', rotulo: 'Semanas de treino', descricao: 'A semana inteira de treino, com sessões, exercícios e séries.' },
-  { valor: 'PLANO_DIETA', rotulo: 'Dietas', descricao: 'A dieta inteira, com refeições, opções e itens.' },
-  { valor: 'REFEICAO', rotulo: 'Refeições / seções', descricao: 'Uma refeição ou seção pronta para acrescentar a uma dieta.' },
-  { valor: 'PASTA_PLANO', rotulo: 'Pastas de plano', descricao: 'Treinos e dietas de um período, para aplicar de uma vez a um aluno.' },
-  { valor: 'MOBILIDADE', rotulo: 'Mobilidade / alongamento', descricao: 'Sequências de alongamento e mobilidade, com vídeo.' },
+/**
+ * Tipos de modelo do Planejamento (só apresentação; o enum `TipoReceita` e a API não mudam). A descrição diz onde a peça
+ * é usada. Mapas por tipo são `Record<TipoReceita, …>` para o compilador apontar tipo novo esquecido.
+ */
+const INFORMACOES: Record<TipoReceita, { rotulo: string; descricao: string }> = {
+  PLANO_TREINO: { rotulo: 'Semanas de treino', descricao: 'A semana inteira de treino. Aplicada ao aluno, vira o treino de uma pasta dele.' },
+  SESSAO_TREINO: { rotulo: 'Dias de treino', descricao: 'Um dia de treino pronto, com exercícios e séries. Entra numa semana pelo editor de treino.' },
+  SERIES: { rotulo: 'Receitas de séries', descricao: 'Estrutura de séries (tipos, faixas e intensidade). Entra num exercício pelo editor de treino.' },
+  METODOLOGIA: { rotulo: 'Metodologias', descricao: 'Regras de séries e preparação. É vinculada à semana na configuração do editor de treino.' },
+  PLANO_DIETA: { rotulo: 'Dietas', descricao: 'A dieta inteira, com refeições, opções e itens. Aplicada ao aluno, vira a dieta de uma pasta dele.' },
+  REFEICAO: { rotulo: 'Refeições', descricao: 'Uma refeição pronta. Entra numa dieta pelo editor de dieta.' },
+  PASTA_PLANO: { rotulo: 'Pacotes (treino + dieta)', descricao: 'Treinos e dietas de um período. Aplicado ao aluno, cria a pasta dele com tudo de uma vez.' },
+  MOBILIDADE: { rotulo: 'Mobilidade', descricao: 'Sequências de alongamento e mobilidade, com vídeo, para reutilizar.' },
+};
+
+/** Abas agrupadas: Treino, Dieta, Pacotes e Mobilidade (no celular, cada grupo rola na horizontal). */
+export const GRUPOS_DE_MODELOS: { rotulo: string; tipos: TipoReceita[] }[] = [
+  { rotulo: 'Treino', tipos: ['PLANO_TREINO', 'SESSAO_TREINO', 'SERIES', 'METODOLOGIA'] },
+  { rotulo: 'Dieta', tipos: ['PLANO_DIETA', 'REFEICAO'] },
+  { rotulo: 'Pacotes', tipos: ['PASTA_PLANO'] },
+  { rotulo: 'Mobilidade', tipos: ['MOBILIDADE'] },
 ];
+
+export const CATEGORIAS: { valor: TipoReceita; rotulo: string; descricao: string }[] =
+  GRUPOS_DE_MODELOS.flatMap((g) => g.tipos.map((valor) => ({ valor, ...INFORMACOES[valor] })));
+
+const USO: Record<TipoReceita, { aplicavel: boolean; linha: string | null }> = {
+  PLANO_TREINO: { aplicavel: true, linha: null },
+  PLANO_DIETA: { aplicavel: true, linha: null },
+  PASTA_PLANO: { aplicavel: true, linha: null },
+  SESSAO_TREINO: { aplicavel: false, linha: 'Use dentro do editor de treino: "Adicionar treino do modelo".' },
+  SERIES: { aplicavel: false, linha: 'Use dentro do editor de treino: "Usar receita" em cada exercício.' },
+  METODOLOGIA: { aplicavel: false, linha: 'Use dentro do editor de treino: "Vincular" na configuração do plano.' },
+  REFEICAO: { aplicavel: false, linha: 'Use dentro do editor de dieta, ao acrescentar uma refeição.' },
+  // Ainda não há editor que use mobilidade (vem com o PLANO-MOBILIDADE): a linha não promete uso que não existe.
+  MOBILIDADE: { aplicavel: false, linha: 'Modelo para consulta e reutilização.' },
+};
+
+/** Semanas, dietas e pacotes são aplicados ao aluno; as peças entram dentro dos editores. */
+export const usoDoModelo = (tipo: TipoReceita) => USO[tipo];
 
 export function conteudoInicial(tipo: TipoReceita, config: Configuracao): unknown {
   switch (tipo) {
