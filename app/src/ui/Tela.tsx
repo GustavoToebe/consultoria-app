@@ -21,7 +21,7 @@ interface Props {
 export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas = ['top', 'bottom'] }: Props) {
   const { cores } = useTema();
   const larguraUtil = Math.min(largura, LARGURA_MAXIMA);
-  const conteudo = <View style={[estilos.conteudo, { maxWidth: larguraUtil }]}>{children}</View>;
+  const conteudo = <View style={[estilos.conteudo, { maxWidth: larguraUtil }, !rolar && { flex: 1, minHeight: 0 }]}>{children}</View>;
   return (
     <SafeAreaView edges={bordas} style={[estilos.raiz, { backgroundColor: cores.fundo }]}>
       <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

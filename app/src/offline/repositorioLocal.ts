@@ -1,4 +1,4 @@
-import type { ConteudoDieta, DiaDeTreino, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
+import type { Atualizacao, RespostasAtualizacao, ConteudoDieta, DiaDeTreino, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 
 /**
@@ -54,6 +54,11 @@ export interface ResultadoEnvio {
 export interface HistoricoSemanaSalvo { versaoId: string; inicio: string; dias: DiaDeTreino[] }
 
 export interface RepositorioLocal {
+  lerAtualizacao(): Promise<Atualizacao | null>;
+  salvarAtualizacao(atualizacao: Atualizacao): Promise<void>;
+  lerRascunhoAtualizacao(pastaId: string): Promise<RascunhoAtualizacao | null>;
+  salvarRascunhoAtualizacao(pastaId: string, rascunho: RascunhoAtualizacao): Promise<void>;
+  apagarRascunhoAtualizacao(pastaId: string): Promise<void>;
   lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null>;
   salvarHistoricoSemana(historico: HistoricoSemanaSalvo): Promise<void>;
   readonly usuarioId: string;
@@ -102,6 +107,17 @@ const chaveDoRegistro = (r: Pick<RegistroLocal, 'planoVersaoId' | 'serieUid' | '
   `${r.planoVersaoId}|${r.serieUid}|${r.data}`;
 
 export class RepositorioChaveValor implements RepositorioLocal {
+  lerAtualizacao(): Promise<Atualizacao | null> { return this.emFila(() => this.lerJson('atualizacao', null)); }
+  salvarAtualizacao(atualizacao: Atualizacao): Promise<void> { return this.emFila(() => this.gravarJson('atualizacao', atualizacao)); }
+  lerRascunhoAtualizacao(pastaId: string): Promise<RascunhoAtualizacao | null> {
+    return this.emFila(() => this.lerJson(`atualizacao:rascunho:${pastaId}`,null));
+  }
+  salvarRascunhoAtualizacao(pastaId: string, rascunho: RascunhoAtualizacao): Promise<void> {
+    return this.emFila(() => this.gravarJson(`atualizacao:rascunho:${pastaId}`,rascunho));
+  }
+  apagarRascunhoAtualizacao(pastaId: string): Promise<void> {
+    return this.emFila(async () => { if (!this.encerrado) await this.kv.apagar([this.chave(`atualizacao:rascunho:${pastaId}`)]); });
+  }
   private fila: Promise<unknown> = Promise.resolve();
   private encerrado = false;
 
@@ -276,6 +292,8 @@ export class RepositorioChaveValor implements RepositorioLocal {
     // Nada aberto: o AsyncStorage não tem conexão.
   }
 }
+
+export interface RascunhoAtualizacao { modeloVersao: number; respostas: RespostasAtualizacao }
 
 /** Chaves que o repositório chave-valor usa para um usuário (também lidas na migração para o SQLite). */
 export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;

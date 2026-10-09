@@ -67,6 +67,23 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     aparelho = criarAparelho();
   });
 
+  it('rascunho da atualização persiste por pasta, fica isolado e some ao enviar ou sair', async () => {
+    const repo = aparelho('u1');
+    const salvo = {modeloVersao:1,respostas:{peso:80.5,sono:7}};
+    await repo.salvarRascunhoAtualizacao('p1',salvo);
+    expect(await aparelho('u2').lerRascunhoAtualizacao('p1')).toBeNull();
+    expect(await repo.lerRascunhoAtualizacao('p2')).toBeNull();
+    await repo.fechar();
+    expect(await aparelho('u1').lerRascunhoAtualizacao('p1')).toEqual(salvo);
+    await repo.apagarRascunhoAtualizacao('p1');
+    expect(await repo.lerRascunhoAtualizacao('p1')).toBeNull();
+    await repo.salvarRascunhoAtualizacao('p2',salvo);
+    await repo.apagarTudo();
+    await repo.salvarRascunhoAtualizacao('p1',salvo);
+    expect(await aparelho('u1').lerRascunhoAtualizacao('p1')).toBeNull();
+    expect(await aparelho('u1').lerRascunhoAtualizacao('p2')).toBeNull();
+  });
+
   it('histórico da semana fica isolado, sobrevive à reabertura e sai ao desconectar a conta', async () => {
     const repo = aparelho('u1');
     const salvo = {versaoId:'v1',inicio:'2026-10-05',dias:[{data:'2026-10-05',sessoes:[]}]};

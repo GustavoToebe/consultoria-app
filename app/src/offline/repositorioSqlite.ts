@@ -1,4 +1,4 @@
-import type { ConteudoDieta, PainelAluno, VersaoDetalhe } from '../api/tipos';
+import type { Atualizacao, ConteudoDieta, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
 import {
@@ -11,6 +11,7 @@ import {
   type PacoteSalvo,
   type RegistroLocal,
   type RepositorioLocal,
+  type RascunhoAtualizacao,
   type ResultadoEnvio,
 } from './repositorioLocal';
 
@@ -135,6 +136,17 @@ export class RepositorioSqlite implements RepositorioLocal {
   }
 
   // ---- Documentos (pacote e dieta) ----
+  lerAtualizacao(): Promise<Atualizacao | null> { return this.emFila(null,b => this.lerDocumento(b,'atualizacao')); }
+  salvarAtualizacao(atualizacao: Atualizacao): Promise<void> { return this.emFila(undefined,b => this.gravarDocumento(b,'atualizacao',atualizacao)); }
+  lerRascunhoAtualizacao(pastaId: string): Promise<RascunhoAtualizacao | null> {
+    return this.emFila(null,b => this.lerDocumento(b,`atualizacao:rascunho:${pastaId}`));
+  }
+  salvarRascunhoAtualizacao(pastaId: string, rascunho: RascunhoAtualizacao): Promise<void> {
+    return this.emFila(undefined,b => this.gravarDocumento(b,`atualizacao:rascunho:${pastaId}`,rascunho));
+  }
+  apagarRascunhoAtualizacao(pastaId: string): Promise<void> {
+    return this.emFila(undefined, async b => { await b.rodar('delete from kv where chave = ?',[`atualizacao:rascunho:${pastaId}`]); });
+  }
 
   private async lerDocumento<T>(banco: BancoSql, chave: string): Promise<T | null> {
     const linha = await banco.primeiro<{ valor: string }>('select valor from kv where chave = ?', [chave]);
