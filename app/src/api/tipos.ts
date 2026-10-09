@@ -386,6 +386,10 @@ export interface ResultadoValidacao {
 // ---- Início e acompanhamento ----
 
 export interface PainelTreinador {
+  atualizacoesParaRevisar: number;
+  atualizacoesAtrasadas: number;
+  atualizacoesAvisaramAtraso: number;
+  atualizacoesProximas: number;
   alunosAtivos: number;
   alunosSemRegistro7Dias: { id: string; nome: string; ultimoRegistro: string | null }[];
   ultimasExecucoes: { aluno: { id: string; nome: string }; data: string; sessao: string; series: number }[];

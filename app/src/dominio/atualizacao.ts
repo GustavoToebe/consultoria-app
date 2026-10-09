@@ -19,5 +19,14 @@ export function statusAtualizacao(a: Atualizacao) {
   return { texto: `Sua atualização é em ${a.diasParaData} dias (${data})`, tipo: 'neutro' as const };
 }
 export const temAcaoAtualizacao = (a: Atualizacao) => a.fase === 'ABERTA' || a.fase === 'ATRASADA' || !!a.feedback?.naoLido;
+export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>) => a.id
+  ? `/treinador/atualizacoes/${a.id}` : `/treinador/atualizacoes/previa?alunoId=${a.alunoId}`;
+export function statusAtualizacaoTreinador(a:Atualizacao) {
+  if(a.fase==='ENVIADA')return {texto:'Para revisar',tipo:'atencao' as const};
+  if(a.fase==='REVISADA')return {texto:'Revisada',tipo:'sucesso' as const};
+  if(a.fase==='ATRASADA')return {texto:`Atrasada há ${a.diasDeAtraso} ${a.diasDeAtraso===1?'dia':'dias'}`,tipo:'perigo' as const};
+  if(a.atrasoAte)return {texto:`Avisou: nova data ${dataParaTela(a.atrasoAte)}`,tipo:'atencao' as const};
+  return {texto:a.fase==='ABERTA'?'Aguardando envio':`Em ${a.diasParaData} dias`,tipo:'neutro' as const};
+}
 export const podeResponderAtualizacao = (a: Atualizacao, hoje: string) =>
   !!a.dataAtualizacao && a.fase !== 'ENVIADA' && a.fase !== 'REVISADA' && hoje >= somarDias(a.dataAtualizacao, -1);

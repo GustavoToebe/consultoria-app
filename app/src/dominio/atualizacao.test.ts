@@ -1,4 +1,4 @@
-import { faseAtualizacao } from './atualizacao';
+import { caminhoAtualizacaoTreinador, faseAtualizacao } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -12,4 +12,9 @@ describe('datas da atualização iguais às do servidor', () => {
     expect(faseAtualizacao('2026-10-20','2026-10-09',null,'REVISADA').fase).toBe('REVISADA');
     expect(faseAtualizacao('2026-10-20',null,null).fase).toBe('NENHUMA');
   });
+});
+
+it('próxima atualização sem linha abre a prévia do aluno em vez de um id nulo',()=>{
+  expect(caminhoAtualizacaoTreinador({id:null,alunoId:'a1'})).toBe('/treinador/atualizacoes/previa?alunoId=a1');
+  expect(caminhoAtualizacaoTreinador({id:'c1',alunoId:'a1'})).toBe('/treinador/atualizacoes/c1');
 });

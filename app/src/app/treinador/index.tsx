@@ -1,6 +1,8 @@
 import { NumeroAnimado } from '../../ui/NumeroAnimado';
 import { sobre } from '../../ui/sobre';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+import type { SituacaoAtualizacao } from '../../api/tipos';
 import { Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -26,6 +28,7 @@ import { useCarregar } from '../../ui/useCarregar';
 export default function InicioTreinador() {
   const { usuario } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('painel', () => painelTreinador());
+  useFocusEffect(useCallback(()=>{recarregar();},[recarregar]));
   const abrirAluno = (id: string) => router.push(`/treinador/alunos/${id}`);
 
   return (
@@ -39,6 +42,16 @@ export default function InicioTreinador() {
       {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (
         <View style={estilos.grade}>
+          {([
+            ['Atualizações para revisar',dados.atualizacoesParaRevisar,'PARA_REVISAR'],
+            ['Atrasadas',dados.atualizacoesAtrasadas,'ATRASADAS'],
+            ['Avisaram atraso',dados.atualizacoesAvisaramAtraso,'AVISARAM_ATRASO'],
+            ['Próximas 7 dias',dados.atualizacoesProximas,'PROXIMAS'],
+          ] as [string,number,SituacaoAtualizacao][]).map(([titulo,numero,situacao])=><Cartao key={situacao} titulo={titulo} style={estilos.metade}>
+            <NumeroAnimado valor={numero??0} variante="destaque" />
+            <Botao rotulo={`Ver ${titulo.toLocaleLowerCase('pt-BR')}`} tipo="secundario"
+              aoTocar={()=>router.push(`/treinador/atualizacoes?situacao=${situacao}`)} />
+          </Cartao>)}
           <Cartao titulo="Alunos ativos" style={estilos.metade}>
             <NumeroAnimado valor={dados.alunosAtivos} variante="destaque" />
             <Botao rotulo="Ver alunos" tipo="secundario" aoTocar={() => router.push('/treinador/alunos')} />
