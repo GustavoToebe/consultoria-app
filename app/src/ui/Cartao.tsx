@@ -64,5 +64,5 @@ const estilos = StyleSheet.create({
   tituloEDescricao: { flexShrink: 1, flexGrow: 1, flexBasis: 200, gap: 2 },
   titulo: { flexShrink: 1 },
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },
-  acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap' },
+  acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', maxWidth: '100%' },
 });

@@ -27,7 +27,7 @@ export function ProgressoSemana({hoje}:{hoje:string}) {
  const rotulo=`${progresso.feitas} de ${progresso.total} treinos`;
  return <Cartao titulo="Sua semana"><View style={{flexDirection:'row',alignItems:'center',gap:16}}>
   <AnelProgresso proporcao={progresso.total?progresso.feitas/progresso.total:0} rotulo={`${rotulo} nesta semana`} />
-  <View><Texto variante="subtitulo" numerico>{rotulo}</Texto><Texto variante="pequeno">Semana atual · segunda a domingo</Texto>
+  <View style={{flex:1}}><Texto variante="subtitulo" numerico>{rotulo}</Texto><Texto variante="pequeno">Semana atual · segunda a domingo</Texto>
    {!online || historico.erro ? <Texto variante="pequeno">Mostrando os registros salvos no aparelho.</Texto> : null}
   </View>
  </View></Cartao>;

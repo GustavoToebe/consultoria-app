@@ -71,6 +71,6 @@ const estilos = StyleSheet.create({
   identificacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 1, flexGrow: 1, minHeight: ALVO_TOQUE },
   textos: { flexShrink: 1, flexGrow: 1, gap: 1 },
   titulo: { fontSize: 17, lineHeight: 22 },
-  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },
+  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap', maxWidth: '100%' },
   acoesEstreitas: { paddingBottom: espaco(0.5) },
 });

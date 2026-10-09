@@ -91,5 +91,5 @@ const estilos = StyleSheet.create({
   trilha: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.5) },
   passo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   link: { textDecorationLine: 'underline' },
-  acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', justifyContent: 'flex-end' },
+  acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '100%' },
 });
