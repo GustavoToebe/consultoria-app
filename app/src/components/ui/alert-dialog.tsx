@@ -7,6 +7,7 @@ import * as AlertDialogPrimitive from '@rn-primitives/alert-dialog';
 import * as React from 'react';
 import { Platform, Pressable, StyleSheet, View, type ViewProps } from 'react-native';
 import { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
+import { useMovimentoReduzido } from '@/ui/useMovimentoReduzido';
 import { FullWindowOverlay as RNFullWindowOverlay } from 'react-native-screens';
 
 const AlertDialog = AlertDialogPrimitive.Root;
@@ -24,6 +25,7 @@ function AlertDialogOverlay({
 }: Omit<React.ComponentProps<typeof AlertDialogPrimitive.Overlay>, 'asChild'> & {
     children?: React.ReactNode;
   }) {
+  const reduzido = useMovimentoReduzido();
   return (
     <FullWindowOverlay>
       <AlertDialogPrimitive.Overlay
@@ -37,8 +39,8 @@ function AlertDialogOverlay({
         {...props} style={estiloPrimitivo(props.style)}
         asChild={Platform.OS !== 'web'}>
         <NativeOnlyAnimatedView
-          entering={FadeIn.duration(200).delay(50).reduceMotion(ReduceMotion.System)}
-          exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}
+          entering={reduzido ? undefined : FadeIn.duration(200).delay(50).reduceMotion(ReduceMotion.System)}
+          exiting={reduzido ? undefined : FadeOut.duration(150).reduceMotion(ReduceMotion.System)}
           as="Pressable">
           <>{children}</>
         </NativeOnlyAnimatedView>
