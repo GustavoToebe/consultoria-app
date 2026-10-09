@@ -58,6 +58,9 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
     @Test void envioNaVesperaGravaPesoNaDataDaAtualizacaoSemDuplicar() throws Exception {
         publicarPasta(hoje.plusDays(1));
         assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("ABERTA");
+        JsonNode pacote = api.get("/aluno/painel",loginAluno,200).path("atualizacao");
+        assertThat(pacote.path("dataAtualizacao").asString()).isEqualTo(hoje.plusDays(1).toString());
+        assertThat(pacote.path("modelo").path("secoes")).hasSize(4);
         Map<String,Object> r = respostas(); r.put("campo_desconhecido","texto fictício");
         JsonNode enviada = enviar(r,200);
         assertThat(enviada.path("fase").asString()).isEqualTo("ENVIADA");

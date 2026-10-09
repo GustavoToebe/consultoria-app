@@ -28,7 +28,7 @@ const SEM_CONEXAO='Sem conexão: suas respostas ficam salvas no aparelho. Envie 
 export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarregar}: {
   atualizacao:Atualizacao;rascunho:RascunhoAtualizacao|null;abrirAtraso:boolean;recarregar:()=>void;
 }) {
-  const {repositorio,online}=useAluno();
+  const {repositorio,online,atualizarAtualizacao}=useAluno();
   const {avisar}=useAviso();
   const {cores}=useTema();
   const reduzido=useMovimentoReduzido();
@@ -53,10 +53,10 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
     marcarFeedbackVisto(id).then(async()=>{
       setAtual(a=>({...a,feedback:a.feedback?{...a.feedback,naoLido:false}:null}));
       const salva=await repositorio.lerAtualizacao();
-      if(salva?.id===id && salva.feedback) await repositorio.salvarAtualizacao({...salva,feedback:{...salva.feedback,naoLido:false}});
+      if(salva?.id===id && salva.feedback) await atualizarAtualizacao({...salva,feedback:{...salva.feedback,naoLido:false}});
     })
       .catch(()=>undefined);
-  },[atual.id,atual.feedback?.naoLido,online,repositorio]);
+  },[atual.id,atual.feedback?.naoLido,online,repositorio,atualizarAtualizacao]);
   const mudar=(id:string,valor:RespostaAtualizacao)=>{
     const novas={...respostas,[id]:valor};
     setRespostas(novas);
@@ -81,7 +81,7 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
     setOcupado(true);
     try {
       const resultado=await enviarAtualizacao(atual.modeloVersao,respostas);
-      await repositorio.salvarAtualizacao(resultado);
+      await atualizarAtualizacao(resultado);
       await repositorio.apagarRascunhoAtualizacao(atual.pastaId);
       setAtual(resultado);setEnviada(true);
     } catch(erro) {
@@ -99,7 +99,7 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
     setOcupado(true);
     try {
       const resultado=await avisarAtrasoAtualizacao(nova,motivo);
-      await repositorio.salvarAtualizacao(resultado);
+      await atualizarAtualizacao(resultado);
       setAtual(resultado);setAtraso(false);avisar('Atraso avisado.');
     }catch(erro){avisar(textoDoErro(erro),'perigo');}finally{setOcupado(false);}
   };

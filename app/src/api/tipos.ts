@@ -483,6 +483,8 @@ export interface PlanosDaPasta {
 
 /** Tudo o que o app guarda para o aluno treinar sem internet. `treino` nulo = sem plano publicado. */
 export interface PainelAluno {
+  /** Ausente nos pacotes anteriores ao check-in. */
+  atualizacao?: Atualizacao | null;
   marca: Marca;
   aluno: { nome: string };
   treino: TreinoAtual | null;

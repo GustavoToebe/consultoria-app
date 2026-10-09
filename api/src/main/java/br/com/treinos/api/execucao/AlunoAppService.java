@@ -2,6 +2,7 @@ package br.com.treinos.api.execucao;
 
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.atualizacoes.AtualizacaoService;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.consultoria.MarcaService;
 import br.com.treinos.api.dieta.PlanoDietaService;
@@ -49,15 +50,18 @@ public class AlunoAppService {
     private final HistoricoService historico;
     private final MarcaService marcas;
     private final PastaRepository pastas;
+    private final AtualizacaoService atualizacoes;
 
     public AlunoAppService(AlunoRepository alunos, PlanoTreinoService treinos, PlanoDietaService dietas,
-                           HistoricoService historico, MarcaService marcas, PastaRepository pastas) {
+                           HistoricoService historico, MarcaService marcas, PastaRepository pastas,
+                           AtualizacaoService atualizacoes) {
         this.alunos = alunos;
         this.treinos = treinos;
         this.dietas = dietas;
         this.historico = historico;
         this.marcas = marcas;
         this.pastas = pastas;
+        this.atualizacoes = atualizacoes;
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +74,8 @@ public class AlunoAppService {
         ConfiguracaoConsultoria config = treino != null && treino.conteudo().metodologia() != null
                 ? treino.conteudo().metodologia().configuracao() : marcas.configuracao(eu.consultoriaId());
         return new PainelAluno(marcas.marca(eu.consultoriaId()), new AlunoNome(aluno.getNome()), treino, ultimas,
-                new ConfiguracaoAluno(config.arredondamentoKg(), config.tipoTrabalho(), config.instrucoesTreino()), Instant.now());
+                new ConfiguracaoAluno(config.arredondamentoKg(), config.tipoTrabalho(), config.instrucoesTreino()), Instant.now(),
+                atualizacoes.atualDoAluno(alunoId));
     }
 
     @Transactional(readOnly = true)

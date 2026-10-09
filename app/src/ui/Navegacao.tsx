@@ -13,6 +13,7 @@ import { MarcaTitulo } from './MarcaTitulo';
 import { Texto } from './Texto';
 
 export interface ItemMenu {
+  ponto?: boolean;
   rotulo: string;
   href: Href;
   /** Caminho que marca o item como ativo (o item fica ativo também nas subpáginas). */
@@ -95,7 +96,7 @@ function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?:
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={item.rotulo}
+      accessibilityLabel={item.ponto ? `${item.rotulo}, atualização pendente` : item.rotulo}
       accessibilityState={{ selected: ativo }}
       onPress={() => router.navigate(item.href)}
       style={({ pressed }) => [
@@ -104,7 +105,10 @@ function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?:
         lateral && ativo && { backgroundColor: cores.superficie2 },
         { opacity: pressed ? 0.7 : 1 },
       ]}>
-      <item.Icone size={20} color={cor} strokeWidth={2} />
+      <View>
+        <item.Icone size={20} color={cor} strokeWidth={2} />
+        {item.ponto ? <View style={{position:'absolute',right:-5,top:-3,width:8,height:8,borderRadius:4,backgroundColor:cores.atencao}} /> : null}
+      </View>
       {recolhido ? null : <Texto style={[lateral ? estilos.rotuloLateral : estilos.rotuloInferior, { color: cor }]}>{item.rotulo}</Texto>}
     </Pressable>
   );

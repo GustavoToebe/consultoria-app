@@ -70,6 +70,9 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   replicar a pasta copia todos. Pasta de outro aluno/consultoria = 404. A V011 moveu os planos anteriores à V009 para pastas (por aluno e período); a ficha não mostra mais “sem pasta”.
 - Troca de plano do aluno: `GET /aluno/pastas` (pastas com plano **publicado**; status Ativa/Concluída vem de `concluida_em`; `atual` = pasta do plano vigente) e `GET /aluno/pastas/{id}` (treino e dieta publicados da pasta, 404 se de outro aluno ou só rascunho). Trocar só muda o que o aluno consulta, nunca o `ativo`; plano de outra pasta é só leitura no app (`AlunoProvider.escolhida`, `aluno/SeletorPlano`).
 - Lesões (`lesoes/`): histórico estruturado do aluno, dado sensível (LGPD), só treinador; o sistema não interpreta.
+- Atualização (`atualizacoes/`): uma por pasta, data no `fim`, sem agendador; modelo global versionado e respostas
+  validadas pela versão. Estados ABERTA/ENVIADA/REVISADA; atraso calculado e "vou atrasar" só avisa. Envio grava peso
+  na mesma transação; feedback editável. Dado sensível, sem log, 404 fora do dono e da consultoria. Fotos ainda não implementadas.
 - Execuções: `execucao_serie.serie_trabalho` (fora do esboço do plano) e `exercicio_id` vêm da versão publicada, nunca
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.
 
@@ -145,7 +148,9 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   Descanso pertence ao `AlunoProvider` e guarda instante de término, nunca contador decrementado; só inicia
   automaticamente ao marcar uma série cujo plano define descanso. `dominio/descanso.ts` contém as contas testáveis.
   `dominio/progressoSemana.ts` combina histórico e registros locais da versão ativa; cache de uma semana no
-  repositório isolado por usuário, apagado no logout. Não adicionar notificações com o app fechado neste escopo.
+  repositório isolado por usuário, apagado no logout. Descanso não usa notificações com o app fechado.
+  Atualização usa lembretes locais (3 dias antes, no dia e 1 dia depois, às 9h), sem respostas nem medidas,
+  cancelados ao enviar e sair; web usa só cartão e ponto na aba. O rascunho por pasta fica no `RepositorioLocal`.
   `Folha` usa mola e arraste no cabeçalho; web mantém Esc e clique fora. Bases RNR incluem licença MIT local.
 
 - Importação de conteúdo do Saraiva (vídeos, semanas de treino e mobilidade): `node scripts/importacao/importar.mjs`

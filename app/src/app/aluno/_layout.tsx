@@ -1,7 +1,9 @@
 import { BarraDescanso } from '../../aluno/BarraDescanso';
 import { CalendarDays, Dumbbell, Salad, UserRound } from 'lucide-react-native';
 
-import { AlunoProvider } from '../../offline/AlunoProvider';
+import { AlunoProvider, useAluno } from '../../offline/AlunoProvider';
+import { faseAtualizacao, temAcaoAtualizacao } from '../../dominio/atualizacao';
+import { hojeIso } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { GuardaDePapel } from '../../ui/GuardaDePapel';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
@@ -21,9 +23,15 @@ export default function LayoutAluno() {
       {usuario ? (
         // Um provedor por usuário: trocar de conta nunca mistura registros.
         <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
-          <Navegacao itens={ITENS} sempreInferior rodape={<BarraDescanso />} />
+          <MenuAluno />
         </AlunoProvider>
       ) : null}
     </GuardaDePapel>
   );
+}
+
+function MenuAluno() {
+  const {atualizacao}=useAluno();
+  const ponto=!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)});
+  return <Navegacao itens={ITENS.map(item=>item.caminho==='/aluno'?{...item,ponto}:item)} sempreInferior rodape={<BarraDescanso />} />;
 }

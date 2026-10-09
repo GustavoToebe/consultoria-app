@@ -92,7 +92,8 @@ public final class ExecucaoDtos {
 
     /** Tudo o que o app guarda para funcionar sem internet (seção 11). {@code treino} nulo = sem plano publicado. */
     public record PainelAluno(MarcaPublica marca, AlunoNome aluno, TreinoAtual treino,
-                              Map<UUID, UltimaCarga> ultimasCargas, ConfiguracaoAluno configuracao, Instant geradoEm) {
+                              Map<UUID, UltimaCarga> ultimasCargas, ConfiguracaoAluno configuracao, Instant geradoEm,
+                              br.com.treinos.api.atualizacoes.AtualizacaoService.Detalhe atualizacao) {
     }
 
     /**

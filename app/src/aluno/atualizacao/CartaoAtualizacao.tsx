@@ -6,6 +6,7 @@ import { LinkTexto } from '../../ui/LinkTexto';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAtualizacao } from './useAtualizacao';
+import { PermissaoLembrete } from './PermissaoLembrete';
 
 export function CartaoAtualizacao() {
   const { dados } = useAtualizacao();
@@ -19,5 +20,6 @@ export function CartaoAtualizacao() {
     {aberta ? <Botao rotulo="Responder" aoTocar={abrir} /> :
       <LinkTexto texto={dados.fase === 'AVISO' ? 'Ver o que vou responder' : dados.feedback ? 'Ler' : 'Ver respostas'} href="/aluno/atualizacao" />}
     {aberta ? <LinkTexto texto="Vou atrasar" href="/aluno/atualizacao?atraso=sim" /> : null}
+    <PermissaoLembrete atualizacao={dados} />
   </Cartao>;
 }

@@ -1,12 +1,13 @@
 import { iniciarDescanso as novoDescanso, ajustarDescanso as ajustar, terminado, type Descanso } from '../dominio/descanso';
 import { vibrar } from '../ui/vibrar';
+import { cancelarLembretesAtualizacao, iniciarLembretesAtualizacao, reagendarLembretesAtualizacao } from '../aluno/atualizacao/lembretes';
 import NetInfo from '@react-native-community/netinfo';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { enviarRegistros, painelAluno, planosDaPastaAluno } from '../api/rotas';
-import type { PastaDoAluno, PlanosDaPasta } from '../api/tipos';
+import type { Atualizacao, PastaDoAluno, PlanosDaPasta } from '../api/tipos';
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
@@ -22,6 +23,8 @@ export interface PlanoEscolhido {
 export type EstadoEnvio = 'ocioso' | 'enviando' | 'semConexao' | 'erro';
 
 interface ValorAluno {
+  atualizacao: Atualizacao | null;
+  atualizarAtualizacao: (atualizacao: Atualizacao) => Promise<void>;
   descanso: Descanso | null;
   iniciarDescanso: (segundos: number) => void;
   ajustarDescanso: (segundos: number) => void;
@@ -65,6 +68,13 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const sessao = useSessao();
   const { atualizarMarca, offline: sessaoOffline } = sessao;
   const repositorio = useMemo(() => abrirRepositorio(usuarioId, novoUid), [usuarioId]);
+  const [atualizacao,setAtualizacao]=useState<Atualizacao|null>(null);
+  useEffect(()=>{iniciarLembretesAtualizacao(usuarioId);},[usuarioId]);
+  const atualizarAtualizacao=useCallback(async (atual:Atualizacao)=>{
+    await repositorio.salvarAtualizacao(atual);
+    setAtualizacao(atual);
+    await reagendarLembretesAtualizacao(usuarioId,atual).catch(()=>undefined);
+  },[repositorio,usuarioId]);
   const sincronizador = useMemo(() => new Sincronizador(repositorio, enviarRegistros), [repositorio]);
 
   const [descanso, definirDescanso] = useState<Descanso | null>(null);
@@ -106,6 +116,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     try {
       const novo = await painelAluno();
       await repositorio.salvarPacote(novo);
+      if(novo.atualizacao)await atualizarAtualizacao(novo.atualizacao);
       setPacote(await repositorio.lerPacote());
       setErroPacote(null);
       atualizarMarca(novo.marca);
@@ -114,7 +125,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       if (!(erro instanceof ErroApi && erro.semConexao)) setErroPacote(erro);
       else setErroPacote((atual: unknown) => atual ?? erro);
     }
-  }, [repositorio, atualizarMarca]);
+  }, [repositorio, atualizarMarca, atualizarAtualizacao]);
 
   const sincronizar = useCallback(async () => {
     if (espera.current) {
@@ -147,12 +158,15 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   // Abertura: lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
   useEffect(() => {
     let vivo = true;
-    Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho()]).then(
-      ([p, r, c]) => {
+    Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao()]).then(
+      ([p, r, c, a]) => {
         if (!vivo) return;
         setPacote(p);
         setRegistros(r);
         setCargas(c);
+        const atual=a??p?.pacote.atualizacao??null;
+        setAtualizacao(atual);
+        void reagendarLembretesAtualizacao(usuarioId,atual).catch(()=>undefined);
         void baixarPacote().finally(() => vivo && setCarregando(false));
         void sincronizar();
       },
@@ -161,7 +175,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     return () => {
       vivo = false;
     };
-  }, [repositorio, baixarPacote, sincronizar]);
+  }, [repositorio, baixarPacote, sincronizar,usuarioId]);
 
   // Rede voltou, app voltou para a frente, sessão renovada depois de abrir sem internet.
   useEffect(() => {
@@ -209,7 +223,10 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   // Ao sair da conta, os dados deste aluno saem do aparelho (o painel de sair avisa se havia pendência).
   useEffect(
     () =>
-      sessao.aoSair((id) => (id === repositorio.usuarioId ? repositorio : abrirRepositorio(id, novoUid)).apagarTudo()),
+      sessao.aoSair(async (id) => {
+        await cancelarLembretesAtualizacao(id).catch(()=>undefined);
+        await (id === repositorio.usuarioId ? repositorio : abrirRepositorio(id, novoUid)).apagarTudo();
+      }),
     [sessao, repositorio],
   );
 
@@ -242,6 +259,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const valor = useMemo<ValorAluno>(() => {
     const indice = new Map(registros.map((r) => [`${r.planoVersaoId}|${r.serieUid}|${r.data}`, r]));
     return {
+      atualizacao,atualizarAtualizacao,
       descanso, iniciarDescanso, ajustarDescanso, pularDescanso,
       repositorio,
       escolhida,
@@ -262,7 +280,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

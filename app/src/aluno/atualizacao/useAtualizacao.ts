@@ -9,14 +9,14 @@ import { useCarregar } from '../../ui/useCarregar';
 
 /** Uma cópia do próprio aluno permite ler o modelo e continuar o rascunho sem rede. */
 export function useAtualizacao(id?: string) {
-  const {repositorio,online}=useAluno();
+  const {repositorio,online,atualizarAtualizacao}=useAluno();
   const resultado=useCarregar(`atualizacao:${id??'atual'}:${online}:${hojeIso()}`,async()=>{
     const salva=await repositorio.lerAtualizacao();
     let atual=salva && (!id || salva.id===id) ? salva : null;
     if (online) {
       try {
         atual=id ? await detalheAtualizacaoAluno(id) : await atualizacaoAluno();
-        if (!id) await repositorio.salvarAtualizacao(atual);
+        if (!id) await atualizarAtualizacao(atual);
       } catch (erro) { if (!(erro instanceof ErroApi && erro.semConexao && atual)) throw erro; }
     }
     if (!atual) throw new Error('Conecte-se uma vez para baixar sua atualização.');
