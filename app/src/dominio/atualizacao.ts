@@ -1,14 +1,32 @@
 import type { Atualizacao, FaseAtualizacao } from '../api/tipos';
 import { dataParaTela, somarDias } from './formatos';
 
-/** Usa dias de calendário, sem arredondamento por hora ou horário de verão. Igual à API. */
+export const DIAS_MAXIMOS_DE_ATRASO = 15;
+const diasEntre = (de: string, ate: string) => Math.round((Date.parse(ate) - Date.parse(de)) / 86_400_000);
+export const prazoAtualizacao = (data: string, atrasoAte: string | null) => atrasoAte && atrasoAte > data ? atrasoAte : data;
+
+/**
+ * Usa dias de calendário, sem arredondamento por hora ou horário de verão. Igual à API (RegrasAtualizacao):
+ * o formulário abre pela data original; o aviso de atraso só adia o "atrasada" até max(data, atrasoAte).
+ */
 export function faseAtualizacao(hoje: string, data: string | null, atrasoAte: string | null, estado?: FaseAtualizacao) {
   if (!data) return { fase: 'NENHUMA' as FaseAtualizacao, diasParaData: 0, diasDeAtraso: 0 };
-  const dias = Math.round((Date.parse(atrasoAte ?? data) - Date.parse(hoje)) / 86_400_000);
+  const diasParaData = diasEntre(hoje, data);
+  const diasParaPrazo = diasEntre(hoje, prazoAtualizacao(data, atrasoAte));
   const fase: FaseAtualizacao = estado === 'ENVIADA' || estado === 'REVISADA' ? estado
-    : dias < 0 ? 'ATRASADA' : dias <= 1 ? 'ABERTA' : dias <= 3 ? 'AVISO' : 'NENHUMA';
-  return { fase, diasParaData: dias, diasDeAtraso: Math.max(0, -dias) };
+    : diasParaPrazo < 0 ? 'ATRASADA' : diasParaData <= 1 ? 'ABERTA' : diasParaData <= 3 ? 'AVISO' : 'NENHUMA';
+  return { fase, diasParaData: diasParaPrazo, diasDeAtraso: Math.max(0, -diasParaPrazo) };
 }
+export function limitesNovaDataAtraso(hoje: string, data: string) {
+  return { minimo: hoje > data ? hoje : data, maximo: somarDias(data, DIAS_MAXIMOS_DE_ATRASO) };
+}
+export function novaDataAtrasoValida(hoje: string, data: string, nova: string) {
+  const { minimo, maximo } = limitesNovaDataAtraso(hoje, data);
+  return nova >= minimo && nova <= maximo;
+}
+/** Com o aviso de atraso dado, o cartão segue na tela inicial até o envio. */
+export const mostrarCartaoAtualizacao = (a: Atualizacao) =>
+  a.fase === 'REVISADA' ? !!a.feedback?.naoLido : a.fase !== 'NENHUMA' || !!a.atrasoAte;
 export function statusAtualizacao(a: Atualizacao) {
   const data = dataParaTela(a.atrasoAte ?? a.dataAtualizacao);
   if (a.fase === 'REVISADA') return { texto: a.feedback?.naoLido ? 'Seu treinador respondeu sua atualização' : 'Revisada', tipo: 'sucesso' as const };

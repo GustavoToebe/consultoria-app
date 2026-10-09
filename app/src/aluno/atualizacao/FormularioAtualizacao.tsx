@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { ErroApi } from '../../api/cliente';
 import { avisarAtrasoAtualizacao, enviarAtualizacao, marcarFeedbackVisto } from '../../api/rotas';
 import type { Atualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
-import { podeResponderAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
+import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
 import { dataDaTela, dataParaTela, hojeIso, somarDias } from '../../dominio/formatos';
 import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -47,6 +47,8 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
   const deslocamento=useRef(0);
   const leitura=atual.fase==='ENVIADA'||atual.fase==='REVISADA';
   const liberada=podeResponderAtualizacao(atual,hojeIso());
+  const dataOriginal=atual.dataAtualizacao??hojeIso();
+  const limites=limitesNovaDataAtraso(hojeIso(),dataOriginal);
   useEffect(()=>{
     if (!atual.id || !atual.feedback?.naoLido || !online) return;
     const id=atual.id;
@@ -71,7 +73,8 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
     campos.current.get(primeiro)?.measureInWindow((_x,y)=>moldura.current?.measureInWindow((_sx,sy)=>{
       scroll.current?.scrollTo({y:Math.max(0,deslocamento.current+y-sy-16),animated:!reduzido});
     }));
-    avisar(novos.respostas??'Confira os campos indicados.');
+    // Erro geral da API (ex.: campo `data`, "libera um dia antes") aparece com a mensagem dela.
+    avisar(novos.respostas??novos.data??'Confira os campos indicados.');
   };
   const enviar=async()=>{
     if(!atual.modelo || !atual.pastaId)return;
@@ -92,8 +95,8 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
   };
   const salvarAtraso=async()=>{
     const nova=dataDaTela(data);
-    if(!nova || nova<hojeIso() || nova>somarDias(atual.dataAtualizacao??hojeIso(),15)){
-      setErroData('Informe uma data entre hoje e quinze dias após a atualização.');return;
+    if(!nova || !novaDataAtrasoValida(hojeIso(),dataOriginal,nova)){
+      setErroData(`Escolha uma data de ${dataParaTela(limites.minimo)} até ${dataParaTela(limites.maximo)}.`);return;
     }
     if(!online){avisar('Conecte-se para avisar o atraso. Seu rascunho continua salvo.');return;}
     setOcupado(true);
@@ -101,7 +104,11 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
       const resultado=await avisarAtrasoAtualizacao(nova,motivo);
       await atualizarAtualizacao(resultado);
       setAtual(resultado);setAtraso(false);avisar('Atraso avisado.');
-    }catch(erro){avisar(textoDoErro(erro),'perigo');}finally{setOcupado(false);}
+    }catch(erro){
+      const campo=erro instanceof ErroApi ? erro.campos.find(c=>c.field==='novaData') : undefined;
+      if(campo)setErroData(campo.message);
+      else avisar(textoDoErro(erro),'perigo');
+    }finally{setOcupado(false);}
   };
   if(enviada)return <Cartao titulo="Atualização enviada">
     <Selo texto="Enviada" tipo="sucesso" /><Texto>Aguardando o treinador.</Texto>
@@ -121,12 +128,12 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
       {!leitura&&!liberada?<Texto>O formulário libera um dia antes da atualização. Você pode consultar as perguntas.</Texto>:null}
       {!leitura&&liberada?<Botao rotulo="Enviar atualização" carregando={ocupado} aoTocar={()=>void enviar()} />:null}
       {!leitura?<Botao rotulo="Vou atrasar" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setAtraso(true)} />:null}
-      {erros.respostas?<Texto cor={cores.perigo}>{erros.respostas}</Texto>:null}
+      {erros.respostas??erros.data?<Texto cor={cores.perigo}>{erros.respostas??erros.data}</Texto>:null}
     </ScrollView>
     </View>
     <Folha titulo="Vou atrasar" visivel={atraso} aoFechar={()=>setAtraso(false)}
       rodape={<Botao rotulo="Avisar treinador" carregando={ocupado} aoTocar={()=>void salvarAtraso()} />}>
-      <Texto>Seu treinador receberá o aviso. A data pode ir até {dataParaTela(somarDias(atual.dataAtualizacao??hojeIso(),15))}.</Texto>
+      <Texto>Seu treinador receberá o aviso. Escolha uma data de {dataParaTela(limites.minimo)} até {dataParaTela(limites.maximo)}.</Texto>
       <CampoData rotulo="Nova data" valor={data} aoMudar={valor=>{setData(valor);setErroData(null);}} erro={erroData} />
       <Campo rotulo="Motivo (opcional)" valor={motivo} aoMudar={setMotivo} maxLength={300} linhas={3} />
     </Folha>

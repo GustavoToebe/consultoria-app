@@ -107,12 +107,23 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.plusDays(15)),422);
         JsonNode aviso = api.post("/aluno/atualizacao/atraso",loginAluno,
                 Map.of("novaData",hoje.plusDays(2),"motivo","Motivo fictício"),200);
-        assertThat(aviso.path("fase").asString()).isEqualTo("AVISO");
+        assertThat(aviso.path("fase").asString()).isEqualTo("ABERTA");
+        assertThat(aviso.path("diasDeAtraso").asLong()).isZero();
         assertThat(api.get("/atualizacoes?situacao=AVISARAM_ATRASO",treinador,200)).hasSize(1);
         assertThat(api.get("/atualizacoes?situacao=ATRASADAS",treinador,200)).isEmpty();
         assertThat(api.get("/atualizacoes?situacao=PROXIMAS",treinador,200)).hasSize(1);
         enviar(respostas(),200);
         api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.plusDays(2)),409);
+    }
+    @Test void atrasoNaoAceitaDataAntesDaOriginalEMantemFormularioAberto() throws Exception {
+        publicarPasta(hoje.plusDays(1));
+        JsonNode erro = api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje),422);
+        assertThat(erro.path("fieldErrors").get(0).path("field").asString()).isEqualTo("novaData");
+        assertThat(erro.path("fieldErrors").get(0).path("message").asString()).contains("até");
+        JsonNode aviso = api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.plusDays(5)),200);
+        assertThat(aviso.path("fase").asString()).isEqualTo("ABERTA");
+        assertThat(aviso.path("atrasoAte").asString()).isEqualTo(hoje.plusDays(5).toString());
+        assertThat(enviar(respostas(),200).path("fase").asString()).isEqualTo("ENVIADA");
     }
     @Test void feedbackTemVersaoEditadoEVisto() throws Exception {
         publicarPasta(hoje);

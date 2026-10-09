@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { statusAtualizacao } from '../../dominio/atualizacao';
+import { mostrarCartaoAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { LinkTexto } from '../../ui/LinkTexto';
@@ -10,7 +10,7 @@ import { PermissaoLembrete } from './PermissaoLembrete';
 
 export function CartaoAtualizacao() {
   const { dados } = useAtualizacao();
-  if (!dados || dados.fase === 'NENHUMA' || (dados.fase === 'REVISADA' && !dados.feedback?.naoLido)) return null;
+  if (!dados || !mostrarCartaoAtualizacao(dados)) return null;
   const status = statusAtualizacao(dados);
   const aberta = dados.fase === 'ABERTA' || dados.fase === 'ATRASADA';
   const abrir = () => router.push('/aluno/atualizacao');

@@ -90,8 +90,12 @@ public class AtualizacaoService {
         Atualizacao atual = atualizacoes.findByPastaId(pasta.getId()).orElse(null);
         exigirNaoEnviada(atual);
         LocalDate data = atual == null ? pasta.getFim() : atual.getDataAtualizacao();
-        if (r.novaData().isBefore(LocalDate.now(Fuso.BRASILIA)) || r.novaData().isAfter(data.plusDays(15)))
-            throw invalidos("novaData", "Informe uma data entre hoje e quinze dias após a atualização.");
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        if (!RegrasAtualizacao.novaDataValida(hoje, data, r.novaData())) {
+            LocalDate minimo = hoje.isAfter(data) ? hoje : data;
+            throw invalidos("novaData", "Escolha uma data de " + DATA_BR.format(minimo) + " até "
+                    + DATA_BR.format(data.plusDays(RegrasAtualizacao.DIAS_MAXIMOS_DE_ATRASO)) + ".");
+        }
         if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data,modelo(null).getVersao());
         atual.avisarAtraso(r.novaData(),Buscas.opcional(r.motivo()),Instant.now());
         return detalhe(pasta,atualizacoes.saveAndFlush(atual));
@@ -158,6 +162,7 @@ public class AtualizacaoService {
     private static void exigirNaoEnviada(Atualizacao a) {
         if (a != null && !"ABERTA".equals(a.getEstado())) throw new ConflitoException("Esta atualização já foi enviada.", "ATUALIZACAO_JA_ENVIADA");
     }
+    private static final java.time.format.DateTimeFormatter DATA_BR = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static ValidacaoException invalidos(String campo, String mensagem) {
         return new ValidacaoException("Confira os campos.", "ATUALIZACAO_INVALIDA", List.of(new ApiError.FieldError(campo,mensagem)));
     }
