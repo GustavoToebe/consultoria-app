@@ -1,3 +1,4 @@
+import type { ConteudoMobilidadeApi, VersaoDetalhe } from '../api/tipos';
 import { novoUid } from './uid';
 import { videoValido } from './video';
 
@@ -51,4 +52,21 @@ export function mobilidadeParaApi(c: ConteudoMobilidade) {
 /** Pode salvar: toda seção tem item, todo item tem nome e o link (se houver) é do YouTube. */
 export function mobilidadeValida(c: ConteudoMobilidade): boolean {
   return c.secoes.length > 0 && c.secoes.every((s) => s.itens.every((i) => i.nome.trim() && (!i.videoUrl.trim() || videoValido(i.videoUrl))));
+}
+
+type VersaoMobilidade = VersaoDetalhe<ConteudoMobilidadeApi>;
+
+/** O que a tela mostra: com pasta escolhida, a mobilidade dela (ou nada); senão, a vigente do aparelho. */
+export function mobilidadeParaExibir(vigente: VersaoMobilidade | null, escolhida: { mobilidade?: VersaoMobilidade | null } | null): VersaoMobilidade | null {
+  return escolhida ? escolhida.mobilidade ?? null : vigente;
+}
+
+/** Recurso que não existe não aparece: a aba só entra quando há mobilidade publicada para mostrar. */
+export function temAbaMobilidade(vigente: VersaoMobilidade | null, escolhida: { mobilidade?: VersaoMobilidade | null } | null): boolean {
+  return !!vigente || !!escolhida?.mobilidade;
+}
+
+/** Item como a tela mostra: prescrição ausente é "—" e o vídeo só existe se o link for do YouTube. */
+export function itemParaTela(i: ConteudoMobilidadeApi['secoes'][number]['itens'][number]): { nome: string; prescricao: string; video: string | null } {
+  return { nome: i.nome, prescricao: i.prescricao?.trim() || '—', video: videoValido(i.videoUrl) ? i.videoUrl!.trim() : null };
 }

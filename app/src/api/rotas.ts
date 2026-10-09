@@ -14,6 +14,7 @@ import type {
   Configuracao,
   ConsultoriaResponse,
   ConteudoDieta,
+  ConteudoMobilidadeApi,
   ConviteGerado,
   ConvitePublico,
   DiaDeTreino,
@@ -328,6 +329,8 @@ export const painelAluno = () => requisicao<PainelAluno>('/aluno/painel');
 export const pastasDoAluno = () => requisicao<PastaDoAluno[]>('/aluno/pastas');
 
 export const planosDaPastaAluno = (id: string) => requisicao<PlanosDaPasta>(`/aluno/pastas/${id}`);
+
+export const mobilidadeAluno = () => requisicao<{ mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> }>('/aluno/mobilidade');
 
 export const dietaAluno = () => requisicao<{ dieta: VersaoDetalhe<ConteudoDieta> | null }>('/aluno/dieta');
 

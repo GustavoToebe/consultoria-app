@@ -74,7 +74,7 @@ export function SeletorPlano({ rotulo }: { rotulo: string | null }) {
       </Pressable>
       {aberto ? (
         <Folha visivel titulo="Trocar de plano" aoFechar={() => setAberto(false)}>
-          <Texto variante="suave">A troca vale para o treino e para a dieta. Planos antigos abrem só para consulta.</Texto>
+          <Texto variante="suave">A troca vale para o treino, a dieta e a mobilidade. Planos antigos abrem só para consulta.</Texto>
           {pastas.map((p) => {
             const selecionada = p.id === emUso?.id;
             return (
@@ -97,7 +97,7 @@ export function SeletorPlano({ rotulo }: { rotulo: string | null }) {
                   <Texto numerico style={estilos.titulo}>{p.titulo}</Texto>
                   {periodoDa(p) ? <Texto numerico variante="suave">{periodoDa(p)}</Texto> : null}
                   <Texto variante="pequeno">
-                    {[p.temTreino ? 'Treino' : null, p.temDieta ? 'Dieta' : null].filter(Boolean).join(' · ')}
+                    {[p.temTreino ? 'Treino' : null, p.temDieta ? 'Dieta' : null, p.temMobilidade ? 'Mobilidade' : null].filter(Boolean).join(' · ')}
                   </Texto>
                 </View>
                 <View style={estilos.lado}>

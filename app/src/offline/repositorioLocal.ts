@@ -1,4 +1,4 @@
-import type { Atualizacao, RespostasAtualizacao, ConteudoDieta, DiaDeTreino, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
+import type { Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DiaDeTreino, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 
 /**
@@ -66,6 +66,9 @@ export interface RepositorioLocal {
   salvarPacote(pacote: PainelAluno): Promise<void>;
   lerDieta(): Promise<VersaoDetalhe<ConteudoDieta> | null>;
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void>;
+  /** Última mobilidade publicada vista online (só leitura); nulo = o aluno não tem. */
+  lerMobilidade(): Promise<VersaoDetalhe<ConteudoMobilidadeApi> | null>;
+  salvarMobilidade(mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null): Promise<void>;
   /** Por `exercicioUid|data`. */
   lerCargasDeTrabalho(): Promise<Record<string, number>>;
   salvarCargaDeTrabalho(exercicioUid: string, data: string, carga: number | null): Promise<Record<string, number>>;
@@ -176,6 +179,14 @@ export class RepositorioChaveValor implements RepositorioLocal {
 
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void> {
     return this.emFila(() => this.gravarJson('dieta', dieta));
+  }
+
+  lerMobilidade(): Promise<VersaoDetalhe<ConteudoMobilidadeApi> | null> {
+    return this.emFila(() => this.lerJson<VersaoDetalhe<ConteudoMobilidadeApi> | null>('mobilidade', null));
+  }
+
+  salvarMobilidade(mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null): Promise<void> {
+    return this.emFila(() => this.gravarJson('mobilidade', mobilidade));
   }
 
   lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null> {

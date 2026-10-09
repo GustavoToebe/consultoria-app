@@ -192,6 +192,22 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect(await repo.lerCargasDeTrabalho()).toEqual({ 'e1|2026-10-08': 32.5 });
   });
 
+  it('mobilidade volta igual, não se mistura entre alunos e some quando o aluno sai da conta', async () => {
+    const versao = {
+      id: 'v1', planoId: 'p1', numero: 2, titulo: 'Mobilidade', inicio: '2026-10-01', fim: '2026-10-14', publicadoEm: '2026-10-01T10:00:00Z',
+      conteudo: { orientacoes: null, secoes: [{ uid: 's1', titulo: 'Alongamentos', itens: [{ uid: 'i1', nome: 'Gato e vaca', prescricao: null, videoUrl: 'https://youtu.be/x' }] }] },
+    };
+    const ana = aparelho('ana');
+    expect(await ana.lerMobilidade()).toBeNull();
+    await ana.salvarMobilidade(versao);
+    expect(await ana.lerMobilidade()).toEqual(versao);
+    expect(await aparelho('bia').lerMobilidade()).toBeNull();
+    await ana.apagarTudo();
+    expect(await aparelho('ana').lerMobilidade()).toBeNull();
+    await ana.salvarMobilidade(null);
+    expect(await aparelho('ana').lerMobilidade()).toBeNull();
+  });
+
   it('valores voltam com o tipo certo (carga decimal, repetições vazias, booleanos)', async () => {
     const repo = aparelho('u1');
     await repo.registrar(serie('x', { carga: 25.5, repeticoes: null, trabalho: true, concluida: false }));

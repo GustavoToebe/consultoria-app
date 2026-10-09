@@ -1,4 +1,4 @@
-import type { Atualizacao, ConteudoDieta, PainelAluno, VersaoDetalhe } from '../api/tipos';
+import type { Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
 import {
@@ -181,6 +181,15 @@ export class RepositorioSqlite implements RepositorioLocal {
 
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void> {
     return this.emFila(undefined, (b) => this.gravarDocumento(b, 'dieta', dieta));
+  }
+
+  // Mesma tabela kv da dieta: documento novo, sem mudar o esquema (VERSAO_ESQUEMA fica como está).
+  lerMobilidade(): Promise<VersaoDetalhe<ConteudoMobilidadeApi> | null> {
+    return this.emFila(null, (b) => this.lerDocumento<VersaoDetalhe<ConteudoMobilidadeApi>>(b, 'mobilidade'));
+  }
+
+  salvarMobilidade(mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null): Promise<void> {
+    return this.emFila(undefined, (b) => this.gravarDocumento(b, 'mobilidade', mobilidade));
   }
 
   lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null> {

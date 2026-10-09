@@ -6,8 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import { enviarRegistros, painelAluno, planosDaPastaAluno } from '../api/rotas';
-import type { Atualizacao, PastaDoAluno, PlanosDaPasta } from '../api/tipos';
+import { enviarRegistros, mobilidadeAluno, painelAluno, planosDaPastaAluno } from '../api/rotas';
+import type { Atualizacao, ConteudoMobilidadeApi, PastaDoAluno, PlanosDaPasta, VersaoDetalhe } from '../api/tipos';
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
@@ -36,6 +36,8 @@ interface ValorAluno {
   escolherPasta: (pasta: PastaDoAluno) => Promise<void>;
   /** Pacote salvo no aparelho (plano publicado, marca, últimas cargas). */
   pacote: PacoteSalvo | null;
+  /** Mobilidade publicada vigente (última vista neste aparelho); nulo = o aluno não tem e a aba não aparece. */
+  mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null;
   /** Ainda lendo o aparelho na abertura. */
   carregando: boolean;
   /** Não deu para baixar o pacote e não há nada salvo. */
@@ -96,6 +98,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   }, [descanso]);
 
   const [pacote, setPacote] = useState<PacoteSalvo | null>(null);
+  const [mobilidade, setMobilidade] = useState<VersaoDetalhe<ConteudoMobilidadeApi> | null>(null);
   const [escolhida, setEscolhida] = useState<PlanoEscolhido | null>(null);
   const escolherPasta = useCallback(async (pasta: PastaDoAluno) => {
     setEscolhida(pasta.atual ? null : { pasta, planos: await planosDaPastaAluno(pasta.id) });
@@ -112,6 +115,20 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
 
   const recarregarRegistros = useCallback(() => repositorio.listar().then(setRegistros), [repositorio]);
 
+  // Mobilidade vigente: 404 = o aluno não tem (some do aparelho); sem conexão ou erro = segue com a última salva.
+  const baixarMobilidade = useCallback(async () => {
+    try {
+      const { mobilidade: nova } = await mobilidadeAluno();
+      await repositorio.salvarMobilidade(nova);
+      setMobilidade(nova);
+    } catch (erro) {
+      if (erro instanceof ErroApi && erro.status === 404) {
+        await repositorio.salvarMobilidade(null);
+        setMobilidade(null);
+      }
+    }
+  }, [repositorio]);
+
   const baixarPacote = useCallback(async () => {
     try {
       const novo = await painelAluno();
@@ -120,12 +137,13 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       setPacote(await repositorio.lerPacote());
       setErroPacote(null);
       atualizarMarca(novo.marca);
+      await baixarMobilidade();
     } catch (erro) {
       // Sem conexão: segue com o pacote salvo. Sem pacote salvo, a tela explica.
       if (!(erro instanceof ErroApi && erro.semConexao)) setErroPacote(erro);
       else setErroPacote((atual: unknown) => atual ?? erro);
     }
-  }, [repositorio, atualizarMarca, atualizarAtualizacao]);
+  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade]);
 
   const sincronizar = useCallback(async () => {
     if (espera.current) {
@@ -158,10 +176,11 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   // Abertura: lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
   useEffect(() => {
     let vivo = true;
-    Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao()]).then(
-      ([p, r, c, a]) => {
+    Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade()]).then(
+      ([p, r, c, a, m]) => {
         if (!vivo) return;
         setPacote(p);
+        setMobilidade(m);
         setRegistros(r);
         setCargas(c);
         const atual=a??p?.pacote.atualizacao??null;
@@ -265,6 +284,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       escolhida,
       escolherPasta,
       pacote,
+      mobilidade,
       carregando,
       erroPacote,
       registros,
@@ -280,7 +300,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
