@@ -50,6 +50,10 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   para manter ao menos um administrador ativo. Trocar perfil ou desativar encerra sessões e sobe `cv`.
   Convite de equipe tem hash, 7 dias e aceite único, com a transação dentro de `TenantContext.executarComo`.
   `/responsaveis` só lista id/nome dos membros ativos com `ALUNO_LER`; gestão completa exige `EQUIPE_LER`.
+- Auditoria: `auditoria/Auditoria.registrar` usa resumos fixos, sem valores clínicos ou códigos.
+  `@Auditar` roda dentro da transação (advisor 1, transação 0); `AuditoriaGravacao` usa JDBC com
+  consultoria explícita porque o login começa global. A ação e seu evento sofrem o mesmo rollback.
+  Retenção de um ano, limpeza diária; leitura paginada exige `AUDITORIA_LER`.
 - `web/` erros (`ApiError` com `codigo`), `RequestIdFilter`, corpo até 1 MiB (`LimiteCorpoFilter`, 413 `CORPO_EXCEDIDO`).
 - `security/` JWT de 15 min com `cv`; refresh opaco com rotação (reuso derruba todas as sessões); web = cookie
   `TREINOS_REFRESH` + CSRF `TREINOS-XSRF-TOKEN`, nativo = refresh no corpo (`X-Treinos-Cliente: nativo`).

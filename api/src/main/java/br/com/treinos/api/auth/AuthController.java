@@ -30,9 +30,11 @@ public class AuthController {
     private final LimiteTentativas limite;
     private final CookieDeRefresh cookie;
     private final SessaoHttp sessaoHttp;
+    private final br.com.treinos.api.auditoria.Auditoria auditoria;
 
     public AuthController(AuthService authService, CadastroTreinadorService cadastroTreinador,
-                          LimiteTentativas limite, CookieDeRefresh cookie, SessaoHttp sessaoHttp) {
+                          LimiteTentativas limite, CookieDeRefresh cookie, SessaoHttp sessaoHttp,br.com.treinos.api.auditoria.Auditoria auditoria) {
+        this.auditoria=auditoria;
         this.authService = authService;
         this.cadastroTreinador = cadastroTreinador;
         this.limite = limite;
@@ -43,7 +45,10 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@RequestBody @Valid LoginRequest request, HttpServletRequest http,
                                HttpServletResponse resposta) {
-        limite.login(http.getRemoteAddr(), request.email());
+        try { limite.login(http.getRemoteAddr(), request.email()); }
+        catch(br.com.treinos.api.web.MuitasRequisicoesException bloqueado) {
+            auditoria.bloqueioLogin(request.email());throw bloqueado;
+        }
         DestinoCliente cliente = DestinoCliente.de(http);
         return sessaoHttp.responder(authService.entrar(request.email(), request.senha(), cliente), cliente, resposta);
     }

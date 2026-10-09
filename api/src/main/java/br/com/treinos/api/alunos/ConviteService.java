@@ -53,6 +53,7 @@ public class ConviteService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_CONVIDADO",entidade="ALUNO",resumo="Gerou um convite de aluno.")
     public ConviteResponse gerar(UUID alunoId) {
         Aluno aluno = alunos.buscarParaAlterar(alunoId)
                 .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));

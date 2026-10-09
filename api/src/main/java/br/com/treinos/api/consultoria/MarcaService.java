@@ -69,6 +69,7 @@ public class MarcaService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="MARCA_ALTERADA",entidade="CONSULTORIA",resumo="Alterou a marca da consultoria.")
     public ConsultoriaResponse alterarMarca(UUID consultoriaId, MarcaRequest r) {
         Consultoria c = buscar(consultoriaId);
         exigirMesmaVersao(c, r.versao());
@@ -79,6 +80,7 @@ public class MarcaService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="METODOLOGIA_ALTERADA",entidade="CONSULTORIA",resumo="Alterou a metodologia da consultoria.")
     public ConsultoriaResponse alterarConfiguracao(UUID consultoriaId, ConfiguracaoConsultoria nova) {
         validar(nova);
         Consultoria c = buscar(consultoriaId);
@@ -91,6 +93,7 @@ public class MarcaService {
      * Aceita só PNG e JPEG conferindo os bytes (o Content-Type declarado não conta). SVG é recusado: pode levar script.
      */
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="LOGO_ALTERADA",entidade="CONSULTORIA",resumo="Alterou a logo da consultoria.")
     public MarcaPublica enviarLogo(UUID consultoriaId, byte[] bytes) {
         if (bytes == null || bytes.length == 0) {
             throw arquivoInvalido("Envie um arquivo PNG ou JPEG.");
@@ -105,6 +108,7 @@ public class MarcaService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="LOGO_REMOVIDA",entidade="CONSULTORIA",resumo="Removeu a logo da consultoria.")
     public MarcaPublica removerLogo(UUID consultoriaId) {
         exigirExiste(consultoriaId);
         logos.remover(consultoriaId);

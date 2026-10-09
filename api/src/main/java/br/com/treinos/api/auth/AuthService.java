@@ -51,6 +51,7 @@ public class AuthService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="LOGIN_SUCESSO",entidade="USUARIO",resumo="Entrou no aplicativo.")
     public Sessao entrar(String email, String senha, DestinoCliente cliente) {
         Usuario usuario = usuarios.buscarPorEmail(Emails.normalizar(email)).orElse(null);
         if (usuario == null) {
@@ -79,6 +80,7 @@ public class AuthService {
 
     /** Sessão para um usuário recém-criado (cadastro de treinador, convite aceito) ou que acabou de entrar. */
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="LOGIN_SUCESSO",entidade="USUARIO",resumo="Abriu uma sessão no aplicativo.")
     public Sessao sessaoNova(Usuario usuario, DestinoCliente cliente) {
         return sessao(usuario, refreshTokens.emitir(usuario, cliente));
     }

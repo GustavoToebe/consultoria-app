@@ -46,11 +46,12 @@ class ArquiteturaTest {
      * {@code ContadorBanco} (contador de login com {@code ON CONFLICT} atômico);
      * {@code ExecucaoUpsert} (registro idempotente do aluno, {@code ON CONFLICT ... WHERE} mais novo);
      * {@code LogoRepositorio} (bytes da logo fora da entidade, filtrado pelo id da consultoria);
+     * {@code AuditoriaGravacao} (insert na transação global do login e limpeza diária, sempre com consultoria explícita);
      * {@code ConviteEquipeBusca} (descobre apenas o tenant pelo hash para o aceite público da equipe);
      * {@code ConviteBusca} (convite público: descobre só a consultoria do convite antes de abrir a sessão nela).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of("ContadorBanco", "ExecucaoUpsert",
-            "LogoRepositorio", "ConviteBusca", "ConviteEquipeBusca");
+            "LogoRepositorio", "ConviteBusca", "ConviteEquipeBusca", "AuditoriaGravacao");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario} e

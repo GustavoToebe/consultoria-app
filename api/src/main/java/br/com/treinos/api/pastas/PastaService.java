@@ -60,6 +60,7 @@ public class PastaService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PASTA_CRIADA",entidade="PASTA",resumo="Criou uma pasta de plano.")
     public PastaResumo criar(UUID alunoId, PastaRequest r) {
         exigirAluno(alunoId);
         exigirPeriodo(r.inicio(), r.fim());
@@ -78,6 +79,7 @@ public class PastaService {
 
     /** Nova pasta com cópia dos treinos e das dietas da origem; plano com título próprio mantém o título. */
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PASTA_REPLICADA",entidade="PASTA",resumo="Replicou uma pasta de plano.")
     public PastaResumo replicar(UUID id, PastaRequest r) {
         exigirPeriodo(r.inicio(), r.fim());
         PastaPlano origem = buscar(id);
@@ -100,6 +102,7 @@ public class PastaService {
      * na mesma transação: se o peso for recusado, a pasta continua aberta.
      */
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PASTA_FINALIZADA",entidade="PASTA",resumo="Finalizou uma pasta de plano.")
     public PastaResumo finalizar(UUID id, FinalizarRequest r, UUID usuarioId) {
         PastaPlano pasta = buscar(id);
         if (pasta.getConcluidaEm() != null) {

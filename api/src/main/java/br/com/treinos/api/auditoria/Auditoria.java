@@ -1,0 +1,98 @@
+package br.com.treinos.api.auditoria;
+import br.com.treinos.api.auth.*;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.security.UsuarioAutenticado;
+import br.com.treinos.api.tenant.TenantContext;
+import br.com.treinos.api.web.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.data.domain.PageRequest;
+import java.time.*;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class Auditoria {
+    private final AuditoriaGravacao gravacao;
+    private final AuditoriaRepository eventos;
+    private final UsuarioRepository usuarios;
+    private final ConsultoriaRepository consultorias;
+    public Auditoria(AuditoriaGravacao gravacao,AuditoriaRepository eventos,UsuarioRepository usuarios,ConsultoriaRepository consultorias) {
+        this.gravacao=gravacao;this.eventos=eventos;this.usuarios=usuarios;this.consultorias=consultorias;
+    }
+    /** Não lê texto de argumentos nem DTOs: resumo é literal fixo da anotação. */
+    public void registrar(Auditar evento,Object resultado,Object[] argumentos) {
+        var auth=SecurityContextHolder.getContext().getAuthentication();
+        UUID uid=null;
+        if(auth!=null && auth.getPrincipal() instanceof UsuarioAutenticado eu) uid=eu.usuarioId();
+        else if(resultado instanceof Usuario u) uid=u.getId();
+        else if(resultado instanceof AuthService.Sessao s) uid=s.usuario().id();
+        if(uid==null) return; // Seed e tarefas internas não representam uma ação de usuário.
+        var usuario=usuarios.findById(uid).orElseThrow(() -> new IllegalStateException("Autor da ação não encontrado."));
+        if(TenantContext.get()!=null && !TenantContext.get().equals(usuario.getConsultoriaId()))
+            throw new IllegalStateException("Autor da ação fora da consultoria.");
+        UUID entidadeId=idDoResultado(resultado);
+        if(entidadeId==null && argumentos.length>0 && argumentos[0] instanceof UUID id) entidadeId=id;
+        String acao=evento.acao();String entidade=evento.entidade();String resumo=evento.resumo();
+        if(acao.equals("PLANO_PUBLICADO") && resultado instanceof br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe<?> p) {
+            boolean treino=p.rascunho() instanceof br.com.treinos.api.treino.ConteudoTreino;
+            acao=treino?"TREINO_PUBLICADO":"DIETA_PUBLICADA";entidade=treino?"TREINO":"DIETA";
+            resumo="Publicou uma versão de "+(treino?"treino":"dieta")+" (v"+p.plano().versaoPublicada()+").";
+        }
+        gravar(usuario,acao,entidade,entidadeId,resumo);
+    }
+    public void registrarEvento(String acao,String entidade,UUID id,String resumo) {
+        var auth=SecurityContextHolder.getContext().getAuthentication();
+        if(auth!=null && auth.getPrincipal() instanceof UsuarioAutenticado eu) {
+            var autor=usuarios.findById(eu.usuarioId()).filter(u -> u.getConsultoriaId().equals(TenantContext.get()))
+                    .orElseThrow(() -> new IllegalStateException("Autor da ação não encontrado."));
+            gravar(autor,acao,entidade,id,resumo);
+        }
+    }
+    @Transactional
+    public void bloqueioLogin(String email) {
+        usuarios.buscarPorEmail(Emails.normalizar(email)).ifPresent(u -> gravar(u,"LOGIN_BLOQUEADO","USUARIO",u.getId(),"Login bloqueado por excesso de tentativas."));
+    }
+    private void gravar(Usuario u,String acao,String entidade,UUID id,String resumo) {
+        String ip=null;String agente=null;
+        if(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
+            ip=limitar(attrs.getRequest().getRemoteAddr(),45);agente=limitar(attrs.getRequest().getHeader("User-Agent"),200);
+        }
+        gravacao.gravar(u.getConsultoriaId(),u.getId(),acao,entidade,id,resumo,ip,agente);
+    }
+    private static String limitar(String texto,int tamanho) {
+        if(texto==null) return null;String limpo=texto.replaceAll("[\\p{Cntrl}]","");return limpo.substring(0,Math.min(tamanho,limpo.length()));
+    }
+    private static UUID idDoResultado(Object resultado) {
+        if(resultado instanceof Usuario u) return u.getId();
+        if(resultado instanceof br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe<?> p) return p.plano().id();
+        if(resultado!=null && resultado.getClass().isRecord()) {
+            try { Object valor=resultado.getClass().getMethod("id").invoke(resultado);return valor instanceof UUID id?id:null; }
+            catch(ReflectiveOperationException semId) { return null; }
+        }
+        return null;
+    }
+    public record Evento(UUID id,UUID usuarioId,String nomeUsuario,String acao,String entidade,UUID entidadeId,String resumo,Instant criadoEm) { }
+    public record Pagina(List<Evento> itens,long total,int pagina) { }
+    @Transactional(readOnly=true)
+    public Pagina listar(LocalDate de,LocalDate ate,UUID usuarioId,String acao,int pagina) {
+        if(de!=null && ate!=null && ate.isBefore(de)) throw new BadRequestException("Período inválido.");
+        if(usuarioId!=null) Exigir.existe(usuarios.findById(usuarioId).filter(u -> u.getConsultoriaId().equals(TenantContext.get())),() -> new NaoEncontradoException("Usuário não encontrado."));
+        Instant inicio=de==null?Instant.EPOCH:de.atStartOfDay(Fuso.BRASILIA).toInstant();
+        Instant fim=ate==null?Instant.now().plus(1,ChronoUnit.DAYS):ate.plusDays(1).atStartOfDay(Fuso.BRASILIA).toInstant();
+        var lista=eventos.buscar(inicio,fim,usuarioId,Buscas.opcional(acao),PageRequest.of(Math.max(0,pagina),50));
+        return new Pagina(lista.stream().map(a -> new Evento(a.getId(),a.getUsuarioId(),usuarios.findById(a.getUsuarioId())
+                .filter(u -> u.getConsultoriaId().equals(TenantContext.get())).map(Usuario::getNome).orElse("—"),
+                a.getAcao(),a.getEntidade(),a.getEntidadeId(),a.getResumo(),a.getCriadoEm())).toList(),lista.getTotalElements(),Math.max(0,pagina));
+    }
+    @Scheduled(cron="0 20 3 * * *",zone="America/Sao_Paulo") @Transactional
+    public void limparAntigos() {
+        Instant limite=LocalDate.now(Fuso.BRASILIA).minusYears(1).atStartOfDay(Fuso.BRASILIA).toInstant();
+        consultorias.findAll().forEach(c -> gravacao.limpar(c.getId(),limite));
+    }
+}

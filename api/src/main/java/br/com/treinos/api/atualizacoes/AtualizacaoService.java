@@ -26,7 +26,7 @@ public class AtualizacaoService {
     public record EnviarRequest(@NotNull Integer modeloVersao, @NotNull JsonNode respostas) { }
     public record AtrasoRequest(@NotNull LocalDate novaData, @Size(max = 300) String motivo) { }
     public record FeedbackRequest(@NotBlank @Size(max = 4000) String texto, @NotNull Long versao) { }
-    public record Feedback(String texto, Instant em, Instant editadoEm, boolean naoLido) { }
+    public record Feedback(String texto, Instant em, Instant editadoEm, boolean naoLido, String nomeAutor) { }
     public record Detalhe(UUID id, UUID pastaId, UUID alunoId, String nomeAluno, LocalDate dataAtualizacao,
             String fase, long diasParaData, long diasDeAtraso, LocalDate atrasoAte, String atrasoMotivo,
             int modeloVersao, JsonNode modelo, JsonNode respostas, Instant enviadaEm,
@@ -41,9 +41,12 @@ public class AtualizacaoService {
     private final ResumoPeriodoService resumos;
     private final ValidadorAtualizacao validador;
     private final JsonMapper json;
+    private final br.com.treinos.api.auth.UsuarioRepository usuarios;
     public AtualizacaoService(AtualizacaoRepository atualizacoes, AtualizacaoModeloRepository modelos,
             PastaRepository pastas, PlanoTreinoRepository treinos, PlanoDietaRepository dietas, AlunoRepository alunos,
-            RegistroPesoRepository pesos, ResumoPeriodoService resumos, ValidadorAtualizacao validador, JsonMapper json) {
+            RegistroPesoRepository pesos, ResumoPeriodoService resumos, ValidadorAtualizacao validador, JsonMapper json,
+            br.com.treinos.api.auth.UsuarioRepository usuarios) {
+        this.usuarios=usuarios;
         this.atualizacoes = atualizacoes; this.modelos = modelos; this.pastas = pastas;
         this.treinos = treinos; this.dietas = dietas; this.alunos = alunos; this.pesos = pesos;
         this.resumos = resumos; this.validador = validador; this.json = json;
@@ -116,6 +119,7 @@ public class AtualizacaoService {
     @Transactional(readOnly = true)
     public Detalhe detalheTreinador(UUID id) { return detalhe(buscar(id)); }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="ATUALIZACAO_FEEDBACK",entidade="ATUALIZACAO",resumo="Enviou ou editou feedback de atualização.")
     public Detalhe responder(UUID id, FeedbackRequest r, UUID usuarioId) {
         Atualizacao a = buscar(id);
         if (!a.getVersao().equals(r.versao())) throw new ConflitoException("Outra pessoa alterou a atualização. Recarregue.", "CONFLITO_EDICAO");
@@ -163,7 +167,9 @@ public class AtualizacaoService {
         var regras = RegrasAtualizacao.calcular(LocalDate.now(Fuso.BRASILIA),data,a == null ? null : a.getAtrasoAte(),a == null ? null : a.getEstado());
         var modelo = modelo(a);
         var aluno = alunos.findById(pasta.getAlunoId()).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
-        var feedback = a == null || a.getFeedbackEm() == null ? null : new Feedback(a.getFeedback(),a.getFeedbackEm(),a.getFeedbackEditadoEm(),a.getFeedbackVistoEm() == null);
+        String autor=a==null || a.getFeedbackPor()==null ? null : usuarios.findById(a.getFeedbackPor())
+                .filter(u -> u.getConsultoriaId().equals(aluno.getConsultoriaId())).map(br.com.treinos.api.auth.Usuario::getNome).orElse(null);
+        var feedback = a == null || a.getFeedbackEm() == null ? null : new Feedback(a.getFeedback(),a.getFeedbackEm(),a.getFeedbackEditadoEm(),a.getFeedbackVistoEm() == null,autor);
         return new Detalhe(a == null ? null : a.getId(),pasta.getId(),aluno.getId(),aluno.getNome(),data,regras.fase(),regras.diasParaData(),regras.diasDeAtraso(),
             a == null ? null : a.getAtrasoAte(),a == null ? null : a.getAtrasoMotivo(),modelo.getVersao(),json.readTree(modelo.getConteudo()),
             a == null ? json.createObjectNode() : json.readTree(a.getRespostas()),a == null ? null : a.getEnviadaEm(),feedback,a == null ? null : a.getVersao(),resumos.calcular(aluno.getId(),pasta.getInicio(),data));

@@ -129,6 +129,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
      * Senão grava a versão n+1 (cópia do rascunho), liga este plano e desliga o anterior do aluno.
      */
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PLANO_PUBLICADO",entidade="PLANO",resumo="Publicou uma nova versão de plano.")
     public PlanoDetalhe<C> publicar(UUID id, PublicarRequest r, UUID usuarioId) {
         P plano = buscar(id);
         exigirMesmaVersao(plano, r.versao());

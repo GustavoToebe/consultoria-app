@@ -52,6 +52,7 @@ public class ImportacaoCsvService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="CSV_EXERCICIOS_IMPORTADO",entidade="BIBLIOTECA",resumo="Importou exercícios por CSV.")
     public ImportacaoResultado confirmarExercicios(String texto, String hash) {
         PreviaCsv<ExercicioCsv> previa = lerExercicios(texto);
         exigirMesmoHash(previa.hash(), hash);
@@ -68,6 +69,7 @@ public class ImportacaoCsvService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="CSV_ALIMENTOS_IMPORTADO",entidade="BIBLIOTECA",resumo="Importou alimentos por CSV.")
     public ImportacaoResultado confirmarAlimentos(String texto, String hash) {
         PreviaCsv<AlimentoCsv> previa = lerAlimentos(texto);
         exigirMesmoHash(previa.hash(), hash);

@@ -28,15 +28,18 @@ public class EquipeService {
     private final RefreshTokenService refresh;
     private final PasswordEncoder senhas;
     private final String appUrl;
+    private final br.com.treinos.api.auditoria.Auditoria auditoria;
     public EquipeService(PerfilRepository perfis,UsuarioRepository usuarios,UsuarioConviteRepository convites,
                         ConsultoriaRepository consultorias,AlunoRepository alunos,RefreshTokenService refresh,
-                        PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl) {
+                        PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl,br.com.treinos.api.auditoria.Auditoria auditoria) {
+        this.auditoria=auditoria;
         this.perfis=perfis;this.usuarios=usuarios;this.convites=convites;this.consultorias=consultorias;
         this.alunos=alunos;this.refresh=refresh;this.senhas=senhas;this.appUrl=appUrl.replaceAll("/+$","");
     }
     @Transactional(readOnly=true)
     public List<PerfilResponse> perfis() { return perfis.findAllByOrderByNomeAsc().stream().map(this::perfilResponse).toList(); }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_CRIADO",entidade="PERFIL",resumo="Criou um perfil.")
     public PerfilResponse criarPerfil(PerfilRequest r) {
         travar();var permissoes=CatalogoPermissoes.validar(r.permissoes());nomeDisponivel(r.nome(),null);
         var p=new Perfil(r.nome().trim(),Buscas.opcional(r.descricao()),permissoes);
@@ -44,6 +47,7 @@ public class EquipeService {
         return perfilResponse(perfis.saveAndFlush(p));
     }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_ALTERADO",entidade="PERFIL",resumo="Editou um perfil.")
     public PerfilResponse alterarPerfil(UUID id,PerfilRequest r) {
         travar();var p=perfil(id);exigirEditavel(p);
         if(r.versao()==null || !r.versao().equals(p.getVersao())) throw new ConflitoException("Outra pessoa alterou; recarregue.","CONFLITO_EDICAO");
@@ -52,6 +56,7 @@ public class EquipeService {
         return perfilResponse(perfis.saveAndFlush(p));
     }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_DUPLICADO",entidade="PERFIL",resumo="Duplicou um perfil.")
     public PerfilResponse duplicarPerfil(UUID id) {
         travar();var original=perfil(id);String base=original.getNome();if(base.length()>100) base=base.substring(0,100);
         String nome=base+" (cópia)";for(int n=2;nomeExiste(nome,null);n++) nome=base+" (cópia "+n+")";
@@ -59,6 +64,7 @@ public class EquipeService {
         return perfilResponse(perfis.saveAndFlush(p));
     }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_APAGADO",entidade="PERFIL",resumo="Apagou um perfil.")
     public void apagarPerfil(UUID id) {
         travar();var p=perfil(id);exigirEditavel(p);
         if(usuarios.countByConsultoriaIdAndPerfilId(TenantContext.get(),id)>0 || convites.countByPerfilIdAndUsadoEmIsNull(id)>0)
@@ -82,6 +88,7 @@ public class EquipeService {
                 .filter(Usuario::isAtivo).map(u -> new Responsavel(u.getId(),u.getNome())).toList();
     }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="USUARIO_CONVIDADO",entidade="USUARIO",resumo="Gerou um convite de equipe.")
     public ConviteResponse convidar(ConviteRequest r,UUID criadoPor) {
         travar();var p=perfil(r.perfilId());if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
         String email=Emails.normalizar(r.email());if(usuarios.existeEmail(email)) throw new ConflitoException("Este e-mail já tem uma conta.","EMAIL_EM_USO");
@@ -91,6 +98,7 @@ public class EquipeService {
         return new ConviteResponse(codigo,appUrl+"/convite-equipe#"+codigo,expira);
     }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="USUARIO_ALTERADO",entidade="USUARIO",resumo="Editou nome, perfil ou situação de um membro.")
     public UsuarioResponse alterarUsuario(UUID id,UsuarioRequest r) {
         travar();var u=usuario(id);var p=perfil(r.perfilId());
         if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
@@ -100,15 +108,19 @@ public class EquipeService {
         boolean troca=!u.getPerfilId().equals(p.getId());boolean desativar=u.isAtivo() && !r.ativo();
         u.alterarNome(r.nome().trim());u.alterarPerfil(p.getId());u.alterarAtivo(r.ativo());
         if(troca || desativar) refresh.encerrarTodas(u.getId());
+        if(troca) auditoria.registrarEvento("USUARIO_PERFIL_ALTERADO","USUARIO",u.getId(),"Trocou o perfil de um membro.");
+        if(desativar) auditoria.registrarEvento("USUARIO_DESATIVADO","USUARIO",u.getId(),"Desativou um membro.");
         usuarios.saveAndFlush(u);return usuarioResponse(u);
     }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="RESPONSAVEL_ALTERADO",entidade="ALUNO",resumo="Trocou o responsável do aluno.")
     public AlunoDetalhe responsavel(UUID alunoId,UUID usuarioId) {
         var a=alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         var u=usuario(usuarioId);if(!u.isAtivo()) throw naoEncontrado();
         a.alterarResponsavel(u.getId());return AlunoDetalhe.de(alunos.saveAndFlush(a));
     }
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="CONVITE_EQUIPE_ACEITO",entidade="USUARIO",resumo="Aceitou um convite de equipe.")
     public Usuario aceitar(String hash,String senha) {
         travar();var c=convites.travarPorHash(hash).filter(v -> v.getUsadoEm()==null && v.getExpiraEm().isAfter(Instant.now())).orElseThrow(EquipeService::conviteInvalido);
         var p=perfil(c.getPerfilId());if(!p.isAtivo() || usuarios.existeEmail(c.getEmail())) throw conviteInvalido();

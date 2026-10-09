@@ -74,6 +74,7 @@ public class AlunoService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_CRIADO",entidade="ALUNO",resumo="Cadastrou um aluno.")
     public AlunoDetalhe criar(AlunoRequest r) {
         exigirEscritaSensivel(r);
         Aluno aluno = new Aluno(r.nome().trim(), email(r.email()), Buscas.opcional(r.objetivo()),
@@ -90,6 +91,7 @@ public class AlunoService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_ALTERADO",entidade="ALUNO",resumo="Editou o cadastro do aluno.")
     public AlunoDetalhe alterar(UUID id, AlunoRequest r) {
         Aluno aluno = buscar(id);
         if (r.versao() == null || !r.versao().equals(aluno.getVersao())) {
@@ -108,6 +110,7 @@ public class AlunoService {
      * aluno na hora (versão das credenciais nova, refresh apagados) e bloqueia o login até reativar.
      */
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_SITUACAO",entidade="ALUNO",resumo="Alterou a situação do aluno.")
     public AlunoDetalhe alterarSituacao(UUID id, boolean ativo) {
         Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
         aluno.alterarSituacao(ativo, Instant.now());

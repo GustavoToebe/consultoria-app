@@ -563,7 +563,7 @@ export interface Atualizacao {
   modelo: ModeloAtualizacao | null;
   respostas: RespostasAtualizacao | null;
   enviadaEm: string | null;
-  feedback: { texto: string; em: string; editadoEm: string | null; naoLido: boolean } | null;
+  feedback: { texto: string; em: string; editadoEm: string | null; naoLido: boolean; nomeAutor?: string | null } | null;
   versao: number | null;
   resumo: { diasComTreino: number; mediaDiasPorSemana: number | null; pesoAnterior: number | null } | null;
 }

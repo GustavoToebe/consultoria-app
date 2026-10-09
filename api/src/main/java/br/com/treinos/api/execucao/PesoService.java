@@ -50,6 +50,7 @@ public class PesoService {
 
     /** Uma medida por dia: registrar de novo na mesma data substitui. */
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PESO_REGISTRADO",entidade="PESO",resumo="Registrou ou alterou um peso.")
     public List<PesoResponse> registrar(UUID alunoId, PesoRequest r, UUID usuarioId) {
         exigirAluno(alunoId);
         if (r.data().isAfter(LocalDate.now(Fuso.BRASILIA))) {

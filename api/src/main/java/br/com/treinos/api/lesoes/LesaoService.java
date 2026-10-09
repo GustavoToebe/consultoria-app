@@ -35,6 +35,7 @@ public class LesaoService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="LESAO_REGISTRADA",entidade="LESAO",resumo="Registrou uma lesão.")
     public LesaoResponse criar(UUID alunoId, LesaoRequest r, UUID usuarioId) {
         exigirAluno(alunoId);
         LesaoAluno l = new LesaoAluno(alunoId, usuarioId);
@@ -43,6 +44,7 @@ public class LesaoService {
     }
 
     @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="LESAO_ALTERADA",entidade="LESAO",resumo="Alterou um registro de lesão.")
     public LesaoResponse alterar(UUID alunoId, UUID id, LesaoRequest r) {
         LesaoAluno l = buscar(alunoId, id);
         preencher(l, r);
