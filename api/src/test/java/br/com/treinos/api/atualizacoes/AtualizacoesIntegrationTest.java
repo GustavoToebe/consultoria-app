@@ -122,6 +122,7 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode revisada = api.put("/atualizacoes/"+id+"/feedback",treinador,
                 Map.of("texto","Feedback fictício","versao",primeiraVersao),200);
         assertThat(revisada.path("fase").asString()).isEqualTo("REVISADA");
+        assertThat(revisada.path("feedback").path("nomeAutor").asString()).isEqualTo("Treinador Teste");
         assertThat(revisada.path("feedback").path("naoLido").asBoolean()).isTrue();
         assertThat(revisada.path("feedback").path("editadoEm").isNull()).isTrue();
         api.put("/atualizacoes/"+id+"/feedback",treinador,Map.of("texto","Conflito fictício","versao",primeiraVersao),409);
