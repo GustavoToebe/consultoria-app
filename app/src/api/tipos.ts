@@ -422,7 +422,7 @@ export interface DiaDeTreino {
     sessaoUid: string;
     sessao: string;
     planoVersaoId: string;
-    exercicios: { exercicioUid: string; exercicioId: string | null; nome: string; series: SerieFeita[] }[];
+    exercicios: { exercicioUid: string; exercicioId: string | null; nome: string; grupoMuscular?: string | null; series: SerieFeita[] }[];
   }[];
 }
 

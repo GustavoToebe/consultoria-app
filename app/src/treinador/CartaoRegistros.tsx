@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { execucoesDoAluno, progressoDoAluno } from '../api/rotas';
-import type { DiaDeTreino, SerieFeita } from '../api/tipos';
-import { dataParaTela, hojeIso, numeroParaTela, somarDias } from '../dominio/formatos';
-import { cargasPorDivisao, filtrarPorSessoes } from '../dominio/relatorio';
+import type { DiaDeTreino, PastaResumo, SerieFeita } from '../api/tipos';
+import { dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso } from '../dominio/relatorio';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
@@ -45,20 +45,21 @@ export const VISOES: { valor: VisaoRegistros; rotulo: string }[] = [
  * Registros do aluno no período: por divisão do plano (carga de trabalho de cada dia, como o relatório em PDF) ou
  * por dia, e o progresso por exercício.
  */
-export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string } }) {
+export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: string }; pasta?: PastaResumo }) {
   const { avisar } = useAviso();
   const [dias, setDias] = useState('14');
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
   const [gerando, setGerando] = useState(false);
-  const hoje = hojeIso();
-  const de = somarDias(hoje, -(Number(dias) - 1));
-  const { dados, erro, carregando, recarregar } = useCarregar(`exec:${aluno.id}:${de}`, () =>
-    execucoesDoAluno(aluno.id, de, hoje),
+  // Dentro da pasta, o período é o dela (sem os filtros de 14/30/60 dias) e só entram os treinos dela.
+  const daPasta = !!pasta?.inicio && !!pasta.fim;
+  const { de, ate } = intervaloDeRegistros(hojeIso(), Number(dias), pasta);
+  const { dados, erro, carregando, recarregar } = useCarregar(`exec:${aluno.id}:${de}:${ate}`, () =>
+    execucoesDoAluno(aluno.id, de, ate),
   );
   const animar = usePrimeiraLista(!!dados, de);
   const treinos = useCarregar(`treinos:${aluno.id}`, () => treinosDoAluno(aluno.id));
   const [planoId, setPlanoId] = useState('todos');
-  const planos = treinos.dados ?? [];
+  const planos = (treinos.dados ?? []).filter((t) => !daPasta || t.plano.pastaId === pasta?.id);
   const planoEscolhido = planos.find((t) => t.plano.id === planoId);
   const filtrados = dados ? filtrarPorSessoes(dados, planoEscolhido ? new Set(planoEscolhido.sessoes.map((s) => s.uid)) : null) : null;
   const divisoes = filtrados ? cargasPorDivisao(filtrados, sessoesPorUid(planos)) : [];
@@ -66,7 +67,7 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
 
   const pdf = () => {
     setGerando(true);
-    gerarPdfDeCargas(aluno, de, hoje, divisoes)
+    gerarPdfDeCargas(aluno, de, ate, divisoes)
       .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'))
       .finally(() => setGerando(false));
   };
@@ -80,7 +81,8 @@ export function CartaoRegistros({ aluno }: { aluno: { id: string; nome: string }
           divisoes.length ? <Botao rotulo="PDF das cargas" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /> : null
         }>
         <View style={estilos.filtros}>
-          <Escolha descricao="Período" opcoes={PERIODOS} valor={dias} aoMudar={setDias} />
+          {daPasta ? <Texto numerico variante="suave">Período da pasta: {dataParaTela(de)} a {dataParaTela(ate)}</Texto>
+            : <Escolha descricao="Período" opcoes={PERIODOS} valor={dias} aoMudar={setDias} />}
           {planos.length > 1 ? <Escolha descricao="Plano" opcoes={opcoesPlano} valor={planoId} aoMudar={setPlanoId} /> : null}
         </View>
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
@@ -120,24 +122,19 @@ export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
 
 function CartaoProgresso({ alunoId, dias }: { alunoId: string; dias: DiaDeTreino[] }) {
   const { cores } = useTema();
-  const exercicios = new Map<string, string>();
-  for (const d of dias) {
-    for (const s of d.sessoes) {
-      for (const e of s.exercicios) {
-        if (e.exercicioId && e.series.some((x) => x.trabalho)) exercicios.set(e.exercicioId, e.nome);
-      }
-    }
-  }
-  const opcoes = [...exercicios].map(([valor, rotulo]) => ({ valor, rotulo }));
+  const [grupo, setGrupo] = useState('todos');
+  const { grupos, exercicios: opcoes } = opcoesDeProgresso(dias, grupo === 'todos' ? null : grupo);
   const [escolhido, setEscolhido] = useState<string | null>(null);
-  const atual = escolhido ?? opcoes[0]?.valor ?? null;
+  // Trocar o grupo leva ao primeiro exercício dele quando o escolhido não pertence ao grupo.
+  const atual = (escolhido && opcoes.some((o) => o.valor === escolhido) ? escolhido : null) ?? opcoes[0]?.valor ?? null;
   const { dados, erro, carregando } = useCarregar(atual ? `prog:${alunoId}:${atual}` : null, () =>
     progressoDoAluno(alunoId, atual as string),
   );
-  if (opcoes.length === 0) return null;
+  if (grupos.length === 0) return null;
   return (
     <Cartao titulo="Progresso por exercício" recolhivel recolhido>
-      <Escolha descricao="Exercício" opcoes={opcoes} valor={atual} aoMudar={setEscolhido} />
+      {grupos.length > 1 ? <Escolha descricao="Grupo muscular" opcoes={[{ valor: 'todos', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={setGrupo} /> : null}
+      <Escolha descricao="Exercício" opcoes={opcoes.map(({ valor, rotulo }) => ({ valor, rotulo }))} valor={atual} aoMudar={setEscolhido} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {carregando && !dados ? <Esqueleto /> : null}
       {dados?.length ? (

@@ -1,6 +1,7 @@
 package br.com.treinos.api.execucao;
 
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.biblioteca.ExercicioRepository;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.DiaDeTreino;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.ExercicioFeito;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.ProgressoPonto;
@@ -38,8 +39,11 @@ public class HistoricoService {
     private final ExecucaoSerieRepository execucoes;
     private final IndicesDeVersao indices;
     private final AlunoRepository alunos;
+    private final ExercicioRepository biblioteca;
 
-    public HistoricoService(ExecucaoSerieRepository execucoes, IndicesDeVersao indices, AlunoRepository alunos) {
+    public HistoricoService(ExecucaoSerieRepository execucoes, IndicesDeVersao indices, AlunoRepository alunos,
+                            ExercicioRepository biblioteca) {
+        this.biblioteca = biblioteca;
         this.execucoes = execucoes;
         this.indices = indices;
         this.alunos = alunos;
@@ -60,7 +64,11 @@ public class HistoricoService {
             throw new BadRequestException("Período inválido (até 1 ano).");
         }
         List<ExecucaoSerie> lista = execucoes.findByAlunoIdAndDataBetweenOrderByDataDesc(alunoId, inicio, fim);
-        return agrupar(lista, indices.carregar(lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList()));
+        // Biblioteca filtrada pela consultoria da sessão (@TenantId).
+        Map<UUID, String> grupos = new HashMap<>();
+        biblioteca.findAllById(lista.stream().map(ExecucaoSerie::getExercicioId).filter(java.util.Objects::nonNull).distinct().toList())
+                .forEach(e -> { if (e.getGrupoMuscular() != null) grupos.put(e.getId(), e.getGrupoMuscular()); });
+        return agrupar(lista, indices.carregar(lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList()), grupos);
     }
 
     @Transactional(readOnly = true)
@@ -96,7 +104,7 @@ public class HistoricoService {
         return mapa;
     }
 
-    static List<DiaDeTreino> agrupar(List<ExecucaoSerie> lista, Map<UUID, IndiceVersao> indices) {
+    static List<DiaDeTreino> agrupar(List<ExecucaoSerie> lista, Map<UUID, IndiceVersao> indices, Map<UUID, String> grupos) {
         Map<LocalDate, Map<UUID, List<ExecucaoSerie>>> porDia = new LinkedHashMap<>();
         for (ExecucaoSerie e : lista) {
             porDia.computeIfAbsent(e.getData(), d -> new LinkedHashMap<>())
@@ -121,7 +129,8 @@ public class HistoricoService {
                 List<ExercicioFeito> exercicios = new ArrayList<>();
                 porExercicio.forEach((exercicioUid, feitas2) -> exercicios.add(new ExercicioFeito(exercicioUid,
                         exercicioIds.get(exercicioUid),
-                        indice == null ? "Exercício" : indice.nomeExercicio(exercicioUid), feitas2)));
+                        indice == null ? "Exercício" : indice.nomeExercicio(exercicioUid),
+                        grupos.get(exercicioIds.get(exercicioUid)), feitas2)));
                 feitas.add(new SessaoFeita(sessaoUid, indice == null ? "Sessão" : indice.nomeSessao(sessaoUid),
                         series.get(0).getPlanoVersaoId(), exercicios));
             });

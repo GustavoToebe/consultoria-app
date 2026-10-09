@@ -63,7 +63,7 @@ export default function FichaAluno() {
               <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
             </>
           )}
-          <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
+          <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={aluno} /></Permitido>
           <Permitido codigo="ATUALIZACAO_LER"><CartaoAtualizacoes alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>

@@ -1,5 +1,5 @@
 import type { DiaDeTreino, Sessao } from '../api/tipos';
-import { diaDaSemanaIso } from './formatos';
+import { diaDaSemanaIso, somarDias } from './formatos';
 import { nomeComDia } from './semana';
 
 /**
@@ -32,6 +32,29 @@ export interface DivisaoRelatorio {
 }
 
 /** Só as sessões com `uid` no conjunto (plano escolhido); dias que ficam sem sessão saem. `null` = todos os planos. */
+/** Ficha do aluno: últimos N dias até hoje. Dentro da pasta: exatamente o período cadastrado nela. */
+export function intervaloDeRegistros(hoje: string, dias: number, pasta?: { inicio: string | null; fim: string | null }) {
+  if (pasta?.inicio && pasta.fim) return { de: pasta.inicio, ate: pasta.fim };
+  return { de: somarDias(hoje, -(dias - 1)), ate: hoje };
+}
+
+export const SEM_GRUPO = 'Sem grupo';
+/**
+ * Opções do "Progresso por exercício": grupos musculares (da biblioteca, em ordem alfabética; sem grupo por último) e
+ * os exercícios com série de trabalho registrada, filtrados pelo grupo escolhido.
+ */
+export function opcoesDeProgresso(dias: DiaDeTreino[], grupo: string | null) {
+  const exercicios = new Map<string, { valor: string; rotulo: string; grupo: string }>();
+  for (const d of dias) for (const s of d.sessoes) for (const e of s.exercicios) {
+    if (e.exercicioId && !exercicios.has(e.exercicioId) && e.series.some((x) => x.trabalho))
+      exercicios.set(e.exercicioId, { valor: e.exercicioId, rotulo: e.nome, grupo: e.grupoMuscular || SEM_GRUPO });
+  }
+  const todos = [...exercicios.values()];
+  const grupos = [...new Set(todos.map((e) => e.grupo))]
+    .sort((a, b) => (a === SEM_GRUPO ? 1 : b === SEM_GRUPO ? -1 : a.localeCompare(b, 'pt-BR')));
+  return { grupos, exercicios: grupo ? todos.filter((e) => e.grupo === grupo) : todos };
+}
+
 export function filtrarPorSessoes(dias: DiaDeTreino[], uids: Set<string> | null): DiaDeTreino[] {
   if (!uids) return dias;
   return dias

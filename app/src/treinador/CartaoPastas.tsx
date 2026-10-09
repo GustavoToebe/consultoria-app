@@ -2,11 +2,13 @@ import { Permitido } from '../ui/Permitido';
 import { useSessao } from '../sessao/SessaoProvider';
 import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Folder, FolderCheck, FolderPlus, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
 import { sobre } from '../ui/sobre';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, listarPastas, replicarPasta } from '../api/rotas';
-import type { PastaResumo, Receita } from '../api/tipos';
+import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, listarPastas, replicarPasta } from '../api/rotas';
+import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
+import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { dataDaTela, dataParaTela, hojeIso } from '../dominio/formatos';
 import { periodoInicial } from '../dominio/periodo';
 import { useTema } from '../tema/TemaProvider';
@@ -27,6 +29,8 @@ import { FolhaReceitas } from './FolhaReceitas';
 import { FolhaSalvarReceita } from './FolhaSalvarReceita';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
+import { AtualizacaoDaPasta } from './AtualizacaoDaPasta';
+import { CartaoRegistros } from './CartaoRegistros';
 import { CartaoPlanos, periodo, proximoPeriodo } from './CartaoPlanos';
 
 type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 'replicar'; pasta: PastaResumo };
@@ -34,6 +38,8 @@ type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 
 interface PropsPastas {
   pastaInicialId?: string;
   alunoId: string;
+  /** Nome do aluno (título do PDF de cargas da pasta). */
+  alunoNome?: string;
   /** Dias do ciclo do aluno: sugere o fim do período numa pasta nova. */
   diasAtualizacao?: number | null;
   /** Chamado depois de gravar um peso (ao finalizar a pasta) para o cartão de peso recarregar. */
@@ -44,7 +50,7 @@ interface PropsPastas {
  * Pastas do aluno (ex.: "Plano 16"): cada uma agrupa treinos e dietas e tem o período que vale para todos. Mudar o
  * período da pasta acompanha os rascunhos dos planos dela; replicar a pasta copia todos para o próximo ciclo.
  */
-export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pastaInicialId }: PropsPastas) {
+export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, aoGravarPeso, pastaInicialId }: PropsPastas) {
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
@@ -58,11 +64,20 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pa
   const [escolher, setEscolher] = useState(false);
   const [modelo, setModelo] = useState<Receita | null>(null);
   const [geracao, setGeracao] = useState(0);
+  // A atualização fecha o período da pasta: vem junto na lista e na folha (dado sensível, só com ATUALIZACAO_LER).
+  const verAtualizacoes = pode('ATUALIZACAO_LER');
+  const { dados: atualizacoes, recarregar: recarregarAtualizacoes } = useCarregar(verAtualizacoes ? `atualizacoes-pastas:${alunoId}` : null, async () => {
+    const [atual, historico] = await Promise.all([atualizacaoDoAluno(alunoId), atualizacoesDoAluno(alunoId)]);
+    return { atual, historico };
+  });
+  useFocusEffect(useCallback(() => { recarregarAtualizacoes(); }, [recarregarAtualizacoes]));
+  const daPasta = (id: string) => atualizacoes ? atualizacaoDaPasta(id, atualizacoes.atual, atualizacoes.historico) : null;
 
   const aoSalvar = () => {
     setModo(null);
     setGeracao((g) => g + 1);
     recarregar();
+    recarregarAtualizacoes();
   };
 
   return (
@@ -81,7 +96,7 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pa
       </Cartao>
 <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Usar modelo de pasta" tipo="secundario" aoTocar={() => setEscolher(true)} /></Permitido>
       {dados?.map((p) => (
-        <LinhaPasta key={p.id} pasta={p} aoAbrir={() => setAbertaId(p.id)} />
+        <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} />
       ))}
       {aberta ? (
         <Folha visivel titulo={aberta.titulo} aoFechar={() => setAbertaId(null)}>
@@ -110,6 +125,9 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pa
           <Texto variante="secao">Planos desta pasta</Texto>
           <Permitido codigo="TREINO_LER"><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo="DIETA_LER"><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={{ id: alunoId, nome: alunoNome }} pasta={aberta} /></Permitido>
+          {verAtualizacoes ? <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes}
+            aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}
         </Folha>
       ) : null}
       {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Modelo de pasta de plano" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
@@ -128,14 +146,15 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pa
 }
 
 /** Uma pasta na lista: nome, período e status. Tocar abre a folha com as ações e os planos de treino e dieta. */
-function LinhaPasta({ pasta, aoAbrir }: { pasta: PastaResumo; aoAbrir: () => void }) {
+function LinhaPasta({ pasta, atualizacao, aoAbrir }: { pasta: PastaResumo; atualizacao: Atualizacao | null; aoAbrir: () => void }) {
   const { cores, marca } = useTema();
   const concluida = !!pasta.concluidaEm;
+  const situacao = atualizacao?.dataAtualizacao ? statusAtualizacaoTreinador(atualizacao) : null;
   const Icone = concluida ? FolderCheck : Folder;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'ativa'}, ${periodo(pasta)}. Abrir.`}
+      accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'ativa'}, ${periodo(pasta)}${situacao ? `, atualização: ${situacao.texto}` : ''}. Abrir.`}
       onPress={aoAbrir}
       style={(estado) => [
         estilos.linha,
@@ -147,6 +166,7 @@ function LinhaPasta({ pasta, aoAbrir }: { pasta: PastaResumo; aoAbrir: () => voi
       <View style={estilos.linhaTextos}>
         <Texto numerico style={estilos.linhaTitulo}>{pasta.titulo}</Texto>
         <Texto numerico variante="suave">{periodo(pasta)}</Texto>
+        {situacao ? <View style={estilos.linhaAtualizacao}><Texto variante="pequeno">Atualização:</Texto><Selo {...situacao} /></View> : null}
       </View>
       {concluida ? <Selo texto="Concluída" tipo="neutro" /> : <Selo texto="Ativa" tipo="sucesso" />}
       <ChevronRight size={20} color={cores.textoSuave} />
@@ -285,6 +305,7 @@ const estilos = StyleSheet.create({
   data: { flex: 1, minWidth: 190 },
   resumo: { gap: espaco(0.75) },
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  linhaAtualizacao: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.75), marginTop: espaco(0.5) },
   linha: {
     flexDirection: 'row',
     alignItems: 'center',

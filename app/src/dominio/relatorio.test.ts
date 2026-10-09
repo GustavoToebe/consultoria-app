@@ -1,6 +1,6 @@
 import type { DiaDeTreino, SerieFeita, Sessao } from '../api/tipos';
 import { dataCurta, diaDaSemanaIso } from './formatos';
-import { cargasPorDivisao, filtrarPorSessoes, totalDeRegistros } from './relatorio';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, totalDeRegistros } from './relatorio';
 import { marcasDoEixo } from './grafico';
 import { datasDaSessao, nomeComDia, podeRegistrarEm } from './semana';
 
@@ -136,5 +136,30 @@ describe('filtro por plano e eixo do gráfico', () => {
     expect(m.length).toBeGreaterThan(1);
     expect(Math.min(...m)).toBeGreaterThanOrEqual(80.2);
     expect(Math.max(...m)).toBeLessThanOrEqual(82.6);
+  });
+});
+
+describe('intervalo dos registros', () => {
+  it('na ficha usa os últimos N dias; dentro da pasta, exatamente o período da pasta', () => {
+    expect(intervaloDeRegistros('2026-10-09', 14)).toEqual({ de: '2026-09-26', ate: '2026-10-09' });
+    expect(intervaloDeRegistros('2026-10-09', 14, { inicio: '2026-10-05', fim: '2026-10-12' })).toEqual({ de: '2026-10-05', ate: '2026-10-12' });
+  });
+});
+
+describe('progresso: grupo muscular e exercício', () => {
+  const serie = (trabalho: boolean) => ({ trabalho } as unknown as SerieFeita);
+  const ex = (id: string, nome: string, grupoMuscular: string | null, trabalho = true) =>
+    ({ exercicioUid: id, exercicioId: id, nome, grupoMuscular, series: [serie(trabalho)] });
+  const dias = [{ data: '2026-10-01', sessoes: [{ sessaoUid: 's', sessao: 'S', planoVersaoId: 'v', exercicios: [
+    ex('e1', 'Remada', 'Costas'), ex('e2', 'Puxada', 'Costas'), ex('e3', 'Supino', 'Peito'),
+    ex('e4', 'Prancha', null), ex('e5', 'Só aquecimento', 'Peito', false)] }] }] as unknown as DiaDeTreino[];
+  it('lista os grupos (em ordem) e os exercícios com série de trabalho', () => {
+    const o = opcoesDeProgresso(dias, null);
+    expect(o.grupos).toEqual(['Costas', 'Peito', 'Sem grupo']);
+    expect(o.exercicios.map(e => e.valor)).toEqual(['e1', 'e2', 'e3', 'e4']);
+  });
+  it('escolher um grupo mostra só os exercícios dele', () => {
+    expect(opcoesDeProgresso(dias, 'Costas').exercicios.map(e => e.rotulo)).toEqual(['Remada', 'Puxada']);
+    expect(opcoesDeProgresso(dias, 'Sem grupo').exercicios.map(e => e.rotulo)).toEqual(['Prancha']);
   });
 });

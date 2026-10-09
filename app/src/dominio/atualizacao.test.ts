@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { caminhoAtualizacaoTreinador, faseAtualizacao, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
+import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, faseAtualizacao, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -57,4 +57,14 @@ it('antes da véspera o cartão convida a ver o que vai responder, inclusive com
   expect(linkCartaoAtualizacao({...base,fase:'AVISO'})).toBe('Ver o que vou responder');
   expect(linkCartaoAtualizacao({...base,fase:'ENVIADA'})).toBe('Ver respostas');
   expect(linkCartaoAtualizacao({...base,fase:'REVISADA',feedback:{texto:'x',em:'',editadoEm:null,naoLido:true,nomeAutor:null}})).toBe('Ler');
+});
+
+it('cada pasta mostra a própria atualização: a vigente (mesmo sem linha gravada) ou a do histórico', () => {
+  const a = (id: string | null, pastaId: string) => ({id,pastaId}) as unknown as Atualizacao;
+  const atual = a(null,'p2');
+  const historico = [a('h1','p1'), a('h0','p0')];
+  expect(atualizacaoDaPasta('p2',atual,historico)).toBe(atual);
+  expect(atualizacaoDaPasta('p1',atual,historico)?.id).toBe('h1');
+  expect(atualizacaoDaPasta('p9',atual,historico)).toBeNull();
+  expect(atualizacaoDaPasta('p1',null,historico)?.id).toBe('h1');
 });

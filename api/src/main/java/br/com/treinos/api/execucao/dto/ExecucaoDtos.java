@@ -50,7 +50,8 @@ public final class ExecucaoDtos {
                              Integer repeticoes, boolean concluida, String observacao) {
     }
 
-    public record ExercicioFeito(UUID exercicioUid, UUID exercicioId, String nome, List<SerieFeita> series) {
+    /** {@code grupoMuscular} vem da biblioteca da consultoria; nulo quando o exercício não está nela. */
+    public record ExercicioFeito(UUID exercicioUid, UUID exercicioId, String nome, String grupoMuscular, List<SerieFeita> series) {
     }
 
     public record SessaoFeita(UUID sessaoUid, String sessao, UUID planoVersaoId, List<ExercicioFeito> exercicios) {

@@ -43,6 +43,11 @@ export function statusAtualizacao(a: Atualizacao) {
   return { texto: `Sua atualização é em ${a.diasParaData} dias (${data})`, tipo: 'neutro' as const };
 }
 export const temAcaoAtualizacao = (a: Atualizacao) => a.fase === 'ABERTA' || a.fase === 'ATRASADA' || !!a.feedback?.naoLido;
+/** Atualização de uma pasta: a vigente (pode ainda não ter linha gravada) ou a do histórico; null se nunca houve. */
+export function atualizacaoDaPasta(pastaId: string, atual: Atualizacao | null | undefined, historico: readonly Atualizacao[]) {
+  if (atual?.pastaId === pastaId) return atual;
+  return historico.find(a => a.pastaId === pastaId) ?? null;
+}
 export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>) => a.id
   ? `/treinador/atualizacoes/${a.id}` : `/treinador/atualizacoes/previa?alunoId=${a.alunoId}`;
 export function statusAtualizacaoTreinador(a:Atualizacao) {
