@@ -162,20 +162,25 @@ public class ReceitaService {
             throw new BadRequestException("Modelo de refeição precisa de uma refeição.");
         if (valor instanceof ConteudoPastaModelo pasta) {
             for (ConteudoPastaModelo.Plano p : pasta.planos()) {
-                if ((p.treino() == null) == (p.dieta() == null))
-                    throw new BadRequestException("Cada plano da pasta precisa ser treino ou dieta.");
+                if (p.tipos() != 1)
+                    throw new BadRequestException("Cada plano da pasta precisa ser treino, dieta ou mobilidade.");
                 if (p.treino() != null) validarMetodologia(p.treino());
+                if (p.mobilidade() != null) exigirMobilidadeCompleta(p.mobilidade());
             }
         }
         if (valor instanceof ConteudoMobilidade m) {
-            // Modelo é gravado completo; o rascunho do plano é que aceita conteúdo em construção.
-            if (m.secoes().isEmpty()) throw new BadRequestException("O modelo de mobilidade precisa de uma seção.");
-            if (m.secoes().stream().flatMap(sec -> sec.itens().stream())
-                    .anyMatch(i -> i.nome() == null || i.nome().isBlank()))
-                throw new BadRequestException("Todo item de mobilidade precisa de nome.");
-            valor = m.comVideos(videoUrls::normalizar);
+            valor = exigirMobilidadeCompleta(m);
         }
         return json.writeValueAsString(valor);
+    }
+
+    /** Modelo é gravado completo (o rascunho do plano é que aceita conteúdo em construção); vídeo sai normalizado. */
+    private ConteudoMobilidade exigirMobilidadeCompleta(ConteudoMobilidade m) {
+        if (m.secoes().isEmpty()) throw new BadRequestException("O modelo de mobilidade precisa de uma seção.");
+        if (m.secoes().stream().flatMap(sec -> sec.itens().stream())
+                .anyMatch(i -> i.nome() == null || i.nome().isBlank()))
+            throw new BadRequestException("Todo item de mobilidade precisa de nome.");
+        return m.comVideos(videoUrls::normalizar);
     }
 
     public static void validarMetodologia(ConteudoTreino t) {

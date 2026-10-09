@@ -18,11 +18,11 @@ describe('organização da tela Planejamento', () => {
     expect(rotulo('PASTA_PLANO')).toBe('Pacotes (treino + dieta)');
     expect(rotulo('REFEICAO')).toBe('Refeições');
   });
-  it('só semanas, dietas e pacotes são aplicados ao aluno; peças dizem onde usar, sem inventar uso', () => {
-    expect(CATEGORIAS.filter((c) => usoDoModelo(c.valor).aplicavel).map((c) => c.valor)).toEqual(['PLANO_TREINO', 'PLANO_DIETA', 'PASTA_PLANO']);
+  it('semanas, dietas, pacotes e mobilidade são aplicados ao aluno; peças dizem onde usar, sem inventar uso', () => {
+    expect(CATEGORIAS.filter((c) => usoDoModelo(c.valor).aplicavel).map((c) => c.valor)).toEqual(['PLANO_TREINO', 'PLANO_DIETA', 'PASTA_PLANO', 'MOBILIDADE']);
     expect(usoDoModelo('SERIES').linha).toMatch(/^Use dentro do editor/);
     expect(usoDoModelo('REFEICAO').linha).toMatch(/^Use dentro do editor de dieta/);
-    expect(usoDoModelo('MOBILIDADE').linha).not.toMatch(/Use dentro do editor/);
+    expect(usoDoModelo('MOBILIDADE').linha).toBeNull();
     expect(usoDoModelo('PLANO_TREINO').linha).toBeNull();
   });
 });

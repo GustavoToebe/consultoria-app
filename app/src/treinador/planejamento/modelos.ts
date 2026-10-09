@@ -15,7 +15,7 @@ const INFORMACOES: Record<TipoReceita, { rotulo: string; descricao: string }> = 
   PLANO_DIETA: { rotulo: 'Dietas', descricao: 'A dieta inteira, com refeições, opções e itens. Aplicada ao aluno, vira a dieta de uma pasta dele.' },
   REFEICAO: { rotulo: 'Refeições', descricao: 'Uma refeição pronta. Entra numa dieta pelo editor de dieta.' },
   PASTA_PLANO: { rotulo: 'Pacotes (treino + dieta)', descricao: 'Treinos e dietas de um período. Aplicado ao aluno, cria a pasta dele com tudo de uma vez.' },
-  MOBILIDADE: { rotulo: 'Mobilidade', descricao: 'Sequências de alongamento e mobilidade, com vídeo, para reutilizar.' },
+  MOBILIDADE: { rotulo: 'Mobilidade', descricao: 'Sequências de alongamento e mobilidade, com vídeo. Aplicada ao aluno, vira a mobilidade de uma pasta dele.' },
 };
 
 /** Abas agrupadas: Treino, Dieta, Pacotes e Mobilidade (no celular, cada grupo rola na horizontal). */
@@ -37,8 +37,7 @@ const USO: Record<TipoReceita, { aplicavel: boolean; linha: string | null }> = {
   SERIES: { aplicavel: false, linha: 'Use dentro do editor de treino: "Usar receita" em cada exercício.' },
   METODOLOGIA: { aplicavel: false, linha: 'Use dentro do editor de treino: "Vincular" na configuração do plano.' },
   REFEICAO: { aplicavel: false, linha: 'Use dentro do editor de dieta, ao acrescentar uma refeição.' },
-  // Ainda não há editor que use mobilidade (vem com o PLANO-MOBILIDADE): a linha não promete uso que não existe.
-  MOBILIDADE: { aplicavel: false, linha: 'Modelo para consulta e reutilização.' },
+  MOBILIDADE: { aplicavel: true, linha: null },
 };
 
 /** Semanas, dietas e pacotes são aplicados ao aluno; as peças entram dentro dos editores. */

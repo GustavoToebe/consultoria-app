@@ -129,6 +129,34 @@ class PastasIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void mobilidadeAcompanhaPeriodoReplicacaoEExclusaoDaPasta() throws Exception {
+        String pasta = novaPasta("Plano 16", "2026-10-05", "2026-10-20").get("id").asString();
+        String mob = api.post("/alunos/" + aluno + "/planos-mobilidade", treinador,
+                Map.of("titulo", "Mobilidade própria", "pastaId", pasta), 200).get("plano").get("id").asString();
+
+        // Período: o rascunho da mobilidade acompanha a pasta.
+        api.put("/pastas/" + pasta, treinador, Map.of("titulo", "Plano 16", "inicio", "2026-10-12", "fim", "2026-10-27"), 200);
+        JsonNode mudou = api.get("/planos-mobilidade/" + mob, treinador, 200).get("plano");
+        assertThat(mudou.get("inicio").asString()).isEqualTo("2026-10-12");
+        assertThat(mudou.get("fim").asString()).isEqualTo("2026-10-27");
+
+        // Replicar: cópia na pasta nova, com o período novo e o título próprio.
+        JsonNode nova = api.post("/pastas/" + pasta + "/replicar", treinador,
+                Map.of("titulo", "Plano 17", "inicio", "2026-10-28", "fim", "2026-11-12"), 200);
+        JsonNode lista = api.get("/alunos/" + aluno + "/planos-mobilidade", treinador, 200);
+        assertThat(lista).hasSize(2);
+        assertThat(lista).anyMatch(m -> "Mobilidade própria".equals(m.get("titulo").asString())
+                && nova.get("id").asString().equals(m.path("pastaId").asString(null))
+                && "2026-10-28".equals(m.get("inicio").asString()));
+
+        // Excluir a pasta arquiva a mobilidade dela e preserva a da outra pasta.
+        api.delete("/pastas/" + pasta, treinador, 204);
+        JsonNode resto = api.get("/alunos/" + aluno + "/planos-mobilidade", treinador, 200);
+        assertThat(resto).hasSize(1);
+        assertThat(resto.get(0).get("pastaId").asString()).isEqualTo(nova.get("id").asString());
+    }
+
+    @Test
     void periodoInvalidoEPastaDeOutraConsultoriaOuAlunoSaoRecusados() throws Exception {
         api.post("/alunos/" + aluno + "/pastas", treinador,
                 Map.of("titulo", "X", "inicio", "2026-10-20", "fim", "2026-10-05"), 400);

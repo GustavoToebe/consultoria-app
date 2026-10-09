@@ -105,6 +105,30 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/receitas/" + salvo.get("id").asString(), treinador, 200).at("/conteudo/planos")).hasSize(2);
     }
 
+    @Test void pastaModeloComMobilidadeAplicaSalvaEExigeExatamenteUmTipo() throws Exception {
+        var mob = Map.of("secoes", List.of(Map.of("titulo", "Alongamentos", "itens", List.of(Map.of("nome", "Gato e vaca")))));
+        var m = modelo("PASTA_PLANO", Map.of("planos", List.of(Map.of("titulo", "Mobilidade fictícia", "mobilidade", mob))));
+        var aplicada = aplicar(m, aluno);
+        var lista = api.get("/alunos/" + aluno + "/planos-mobilidade", treinador, 200);
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).get("pastaId")).isEqualTo(aplicada.get("pastaId"));
+        var rascunho = api.get("/planos-mobilidade/" + lista.get(0).get("id").asString(), treinador, 200);
+        assertThat(rascunho.at("/rascunho/secoes/0/itens/0/uid").asString()).isNotBlank();
+        var salvo = api.post("/pastas/" + aplicada.get("pastaId").asString() + "/salvar-como-modelo", treinador,
+                Map.of("nome", "Pacote com mobilidade"), 200);
+        assertThat(salvo.at("/conteudo/planos")).hasSize(1);
+        assertThat(salvo.at("/conteudo/planos/0/mobilidade/secoes/0/itens/0/nome").asString()).isEqualTo("Gato e vaca");
+        // Dois tipos no mesmo plano, ou nenhum, são recusados.
+        var treino = ApiDeTeste.treino().conteudo();
+        api.post("/receitas", treinador, Map.of("tipo", "PASTA_PLANO", "nome", "Inválido", "conteudo",
+                Map.of("planos", List.of(Map.of("titulo", "Dois", "treino", treino, "mobilidade", mob)))), 400);
+        api.post("/receitas", treinador, Map.of("tipo", "PASTA_PLANO", "nome", "Inválido", "conteudo",
+                Map.of("planos", List.of(Map.of("titulo", "Nenhum")))), 400);
+        // Mobilidade sem seção não entra no pacote.
+        api.post("/receitas", treinador, Map.of("tipo", "PASTA_PLANO", "nome", "Inválido", "conteudo",
+                Map.of("planos", List.of(Map.of("titulo", "Vazia", "mobilidade", Map.of("secoes", List.of()))))), 400);
+    }
+
     @Test void excluirPlanoPreservaPublicacaoEDesativaSemExporAOutros() throws Exception {
         var treino = ApiDeTeste.treino();
         var publicado = api.publicarTreino(treinador, aluno, treino.conteudo());
@@ -138,14 +162,18 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         api.get("/receitas", login, 403);
     }
 
-    @Test void modeloDeMobilidadeGuardaItensComVideoValidadoEFicaForaDeAplicar() throws Exception {
+    @Test void modeloDeMobilidadeGuardaItensComVideoValidadoEAplicaComoRascunho() throws Exception {
         var item = Map.of("nome", "Lunge Stretch", "prescricao", "2 x 20s cada lado", "videoUrl", "https://www.youtube.com/watch?v=tsGPYSQbZx4");
         var conteudo = Map.of("orientacoes", "Podem ser feitos todos os dias.", "secoes", List.of(Map.of("titulo", "Alongamentos", "itens", List.of(item))));
         var criado = modelo("MOBILIDADE", conteudo);
         assertThat(criado.get("conteudo").get("secoes").get(0).get("itens").get(0).get("nome").asString()).isEqualTo("Lunge Stretch");
         assertThat(api.get("/receitas?tipo=MOBILIDADE", treinador, 200)).hasSize(1);
-        api.post("/receitas/" + criado.get("id").asString() + "/aplicar", treinador,
-                Map.of("alunoId", aluno, "titulo", "Cópia fictícia"), 400);
+        var aplicada = aplicar(criado, aluno);
+        assertThat(aplicada.get("tipo").asString()).isEqualTo("mobilidade");
+        var plano = api.get("/planos-mobilidade/" + aplicada.get("planoId").asString(), treinador, 200);
+        assertThat(plano.at("/plano/pastaId").asString()).isEqualTo(aplicada.get("pastaId").asString());
+        assertThat(plano.at("/rascunho/secoes/0/itens/0/uid").asString()).isNotBlank();
+        assertThat(plano.at("/plano/ativo").asBoolean()).isFalse();
         var semVideo = Map.of("secoes", List.of(Map.of("titulo", "Mobilidade", "itens", List.of(Map.of("nome", "Item sem vídeo")))));
         modelo("MOBILIDADE", semVideo);
         var videoRuim = Map.of("secoes", List.of(Map.of("titulo", "X", "itens", List.of(Map.of("nome", "Item", "videoUrl", "https://exemplo.com/v")))));

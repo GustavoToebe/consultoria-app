@@ -4,6 +4,8 @@ import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.dieta.PlanoDietaService;
 import br.com.treinos.api.execucao.PesoService;
+import br.com.treinos.api.mobilidade.PlanoMobilidadeRepository;
+import br.com.treinos.api.mobilidade.PlanoMobilidadeService;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoRequest;
 import br.com.treinos.api.pastas.PastaDtos.FinalizarRequest;
 import br.com.treinos.api.pastas.PastaDtos.PastaRequest;
@@ -26,7 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Pastas de plano do aluno. O período da pasta vale para os treinos e dietas dentro dela: ao mudar, o rascunho de cada
+ * Pastas de plano do aluno. O período da pasta vale para os treinos, dietas e mobilidades dentro dela: ao mudar, o rascunho de cada
  * plano acompanha (versão publicada é imutável, então o plano aparece como "alterado desde a publicação"). Replicar a
  * pasta cria outra com cópia de todos os planos (conteúdo da última publicação, uids novos).
  */
@@ -37,19 +39,24 @@ public class PastaService {
     private final AlunoRepository alunos;
     private final PlanoTreinoRepository treinos;
     private final PlanoDietaRepository dietas;
+    private final PlanoMobilidadeRepository mobilidades;
     private final PlanoTreinoService servicoTreino;
     private final PlanoDietaService servicoDieta;
+    private final PlanoMobilidadeService servicoMobilidade;
     private final PesoService pesos;
 
     public PastaService(PastaRepository pastas, AlunoRepository alunos, PlanoTreinoRepository treinos,
-                        PlanoDietaRepository dietas, PlanoTreinoService servicoTreino, PlanoDietaService servicoDieta,
-                        PesoService pesos) {
+                        PlanoDietaRepository dietas, PlanoMobilidadeRepository mobilidades,
+                        PlanoTreinoService servicoTreino, PlanoDietaService servicoDieta,
+                        PlanoMobilidadeService servicoMobilidade, PesoService pesos) {
         this.pastas = pastas;
         this.alunos = alunos;
         this.treinos = treinos;
         this.dietas = dietas;
+        this.mobilidades = mobilidades;
         this.servicoTreino = servicoTreino;
         this.servicoDieta = servicoDieta;
+        this.servicoMobilidade = servicoMobilidade;
         this.pesos = pesos;
     }
 
@@ -74,10 +81,11 @@ public class PastaService {
         pasta.atualizar(r.titulo().trim(), r.inicio(), r.fim());
         treinos.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
         dietas.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
+        mobilidades.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
         return PastaResumo.de(pastas.saveAndFlush(pasta));
     }
 
-    /** Nova pasta com cópia dos treinos e das dietas da origem; plano com título próprio mantém o título. */
+    /** Nova pasta com cópia dos treinos, dietas e mobilidades da origem; plano com título próprio mantém o título. */
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="PASTA_REPLICADA",entidade="PASTA",resumo="Replicou uma pasta de plano.")
     public PastaResumo replicar(UUID id, PastaRequest r) {
@@ -92,6 +100,11 @@ public class PastaService {
         for (PlanoBase p : dietas.findByPastaId(id)) {
             if (p.isArquivado()) continue;
             servicoDieta.replicar(p.getId(),
+                    new ReplicarRequest(tituloDaCopia(p, origem, nova), r.inicio(), r.fim(), nova.getId()));
+        }
+        for (PlanoBase p : mobilidades.findByPastaId(id)) {
+            if (p.isArquivado()) continue;
+            servicoMobilidade.replicar(p.getId(),
                     new ReplicarRequest(tituloDaCopia(p, origem, nova), r.inicio(), r.fim(), nova.getId()));
         }
         return PastaResumo.de(nova);
@@ -132,6 +145,7 @@ public class PastaService {
         PastaPlano p = buscar(id);
         treinos.findByPastaId(id).forEach(PlanoBase::arquivar);
         dietas.findByPastaId(id).forEach(PlanoBase::arquivar);
+        mobilidades.findByPastaId(id).forEach(PlanoBase::arquivar);
         p.arquivar(); pastas.saveAndFlush(p);
     }
 
