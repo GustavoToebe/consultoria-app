@@ -48,6 +48,9 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   por trigger da V018; o usuário nasce com Administrador obrigatório. Aluno continua sem perfil.
   Administrador do sistema não pode ser editado/apagado; mutações de membros travam a consultoria
   para manter ao menos um administrador ativo. Trocar perfil ou desativar encerra sessões e sobe `cv`.
+  Teto de permissões (`EquipeService.ator`/`exigirPodeAtribuir`, lido do banco): perfil criado, editado, duplicado ou
+  atribuído cabe nas permissões de quem age; Administrador só administrador atribui; não administrador não mexe em
+  administrador, no próprio perfil nem no perfil que usa (403 `PERMISSAO_NEGADA`).
   Convite de equipe tem hash, 7 dias e aceite único, com a transação dentro de `TenantContext.executarComo`.
   `/responsaveis` só lista id/nome dos membros ativos com `ALUNO_LER`; gestão completa exige `EQUIPE_LER`.
 - Auditoria: `auditoria/Auditoria.registrar` usa resumos fixos, sem valores clínicos ou códigos.

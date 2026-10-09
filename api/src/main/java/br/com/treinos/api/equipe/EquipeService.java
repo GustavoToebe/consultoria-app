@@ -5,16 +5,19 @@ import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.EquipeDtos.*;
 import br.com.treinos.api.security.OpaqueTokenGenerator;
+import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Value;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /** Toda mutação da equipe trava a consultoria: dois administradores não conseguem remover ambos ao mesmo tempo. */
@@ -29,10 +32,11 @@ public class EquipeService {
     private final PasswordEncoder senhas;
     private final String appUrl;
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
+    private final PermissoesDoUsuario permissoesDoUsuario;
     public EquipeService(PerfilRepository perfis,UsuarioRepository usuarios,UsuarioConviteRepository convites,
                         ConsultoriaRepository consultorias,AlunoRepository alunos,RefreshTokenService refresh,
-                        PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl,br.com.treinos.api.auditoria.Auditoria auditoria) {
-        this.auditoria=auditoria;
+                        PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl,br.com.treinos.api.auditoria.Auditoria auditoria,PermissoesDoUsuario permissoesDoUsuario) {
+        this.auditoria=auditoria;this.permissoesDoUsuario=permissoesDoUsuario;
         this.perfis=perfis;this.usuarios=usuarios;this.convites=convites;this.consultorias=consultorias;
         this.alunos=alunos;this.refresh=refresh;this.senhas=senhas;this.appUrl=appUrl.replaceAll("/+$","");
     }
@@ -41,7 +45,9 @@ public class EquipeService {
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_CRIADO",entidade="PERFIL",resumo="Criou um perfil.")
     public PerfilResponse criarPerfil(PerfilRequest r) {
-        travar();var permissoes=CatalogoPermissoes.validar(r.permissoes());nomeDisponivel(r.nome(),null);
+        travar();var permissoes=CatalogoPermissoes.validar(r.permissoes());
+        exigirDentroDoTeto(ator(),permissoes);
+        nomeDisponivel(r.nome(),null);
         var p=new Perfil(r.nome().trim(),Buscas.opcional(r.descricao()),permissoes);
         p.alterar(p.getNome(),p.getDescricao(),r.ativo()==null || r.ativo(),permissoes);
         return perfilResponse(perfis.saveAndFlush(p));
@@ -50,15 +56,22 @@ public class EquipeService {
     @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_ALTERADO",entidade="PERFIL",resumo="Editou um perfil.")
     public PerfilResponse alterarPerfil(UUID id,PerfilRequest r) {
         travar();var p=perfil(id);exigirEditavel(p);
+        var permissoes=CatalogoPermissoes.validar(r.permissoes());
+        var ator=ator();
+        exigirDentroDoTeto(ator,permissoes);
+        exigirDentroDoTeto(ator,permissoesDoPerfil(p));
+        if(!ator.administrador() && p.getId().equals(ator.perfilId())) throw negada("Você não pode editar o perfil que você mesmo usa.");
         if(r.versao()==null || !r.versao().equals(p.getVersao())) throw new ConflitoException("Outra pessoa alterou; recarregue.","CONFLITO_EDICAO");
         nomeDisponivel(r.nome(),id);
-        p.alterar(r.nome().trim(),Buscas.opcional(r.descricao()),r.ativo()==null || r.ativo(),CatalogoPermissoes.validar(r.permissoes()));
+        p.alterar(r.nome().trim(),Buscas.opcional(r.descricao()),r.ativo()==null || r.ativo(),permissoes);
         return perfilResponse(perfis.saveAndFlush(p));
     }
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_DUPLICADO",entidade="PERFIL",resumo="Duplicou um perfil.")
     public PerfilResponse duplicarPerfil(UUID id) {
-        travar();var original=perfil(id);String base=original.getNome();if(base.length()>100) base=base.substring(0,100);
+        travar();var original=perfil(id);
+        exigirDentroDoTeto(ator(),permissoesDoPerfil(original));
+        String base=original.getNome();if(base.length()>100) base=base.substring(0,100);
         String nome=base+" (cópia)";for(int n=2;nomeExiste(nome,null);n++) nome=base+" (cópia "+n+")";
         var p=new Perfil(nome,original.getDescricao(),original.isAcessoTotal()?CatalogoPermissoes.CODIGOS:original.getPermissoes());
         return perfilResponse(perfis.saveAndFlush(p));
@@ -90,7 +103,9 @@ public class EquipeService {
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="USUARIO_CONVIDADO",entidade="USUARIO",resumo="Gerou um convite de equipe.")
     public ConviteResponse convidar(ConviteRequest r,UUID criadoPor) {
-        travar();var p=perfil(r.perfilId());if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
+        travar();var p=perfil(r.perfilId());
+        exigirPodeAtribuir(ator(),p);
+        if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
         String email=Emails.normalizar(r.email());if(usuarios.existeEmail(email)) throw new ConflitoException("Este e-mail já tem uma conta.","EMAIL_EM_USO");
         convites.deleteByEmailAndUsadoEmIsNull(email);convites.flush();
         String codigo=OpaqueTokenGenerator.gerar();Instant expira=Instant.now().plus(7,ChronoUnit.DAYS);
@@ -101,8 +116,16 @@ public class EquipeService {
     @br.com.treinos.api.auditoria.Auditar(acao="USUARIO_ALTERADO",entidade="USUARIO",resumo="Editou nome, perfil ou situação de um membro.")
     public UsuarioResponse alterarUsuario(UUID id,UsuarioRequest r) {
         travar();var u=usuario(id);var p=perfil(r.perfilId());
-        if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
         var anterior=perfil(u.getPerfilId());
+        var ator=ator();
+        if(!ator.administrador()) {
+            if(anterior.isAcessoTotal()) throw negada("Somente administradores podem alterar administradores.");
+            if(!u.getPerfilId().equals(p.getId())) {
+                exigirPodeAtribuir(ator,p);
+                if(u.getId().equals(ator.usuarioId())) throw negada("Você não pode trocar o seu próprio perfil.");
+            }
+        }
+        if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
         if(u.isAtivo() && anterior.isAcessoTotal() && (!r.ativo() || !p.isAcessoTotal()) && administradoresAtivos()<=1)
             throw new ConflitoException("A consultoria precisa de pelo menos um administrador ativo.","ULTIMO_ADMINISTRADOR");
         boolean troca=!u.getPerfilId().equals(p.getId());boolean desativar=u.isAtivo() && !r.ativo();
@@ -133,6 +156,28 @@ public class EquipeService {
         var u=usuarios.buscarParaAlterar(id).filter(v -> v.getConsultoriaId().equals(TenantContext.get())).orElseThrow(EquipeService::naoEncontrado);
         u.alterarNome(r.nome().trim());u.alterarTelefone(Formatos.telefone(r.telefone()));usuarios.saveAndFlush(u);
     }
+    /** Quem age: lido do banco a cada chamada, nunca do token. Sem usuário autenticado nada é permitido. */
+    private record Ator(UUID usuarioId,UUID perfilId,boolean administrador,Set<String> permissoes) { }
+    private Ator ator() {
+        var auth=SecurityContextHolder.getContext().getAuthentication();
+        if(auth==null || !(auth.getPrincipal() instanceof UsuarioAutenticado eu)) throw negada(MENSAGEM_TETO);
+        var u=usuarios.findById(eu.usuarioId()).filter(v -> v.getConsultoriaId().equals(TenantContext.get())).orElseThrow(() -> negada(MENSAGEM_TETO));
+        var p=u.getPerfilId()==null?null:perfis.buscar(u.getPerfilId(),TenantContext.get()).filter(Perfil::isAtivo).orElse(null);
+        if(p==null) throw negada(MENSAGEM_TETO);
+        return new Ator(u.getId(),p.getId(),p.isAcessoTotal(),permissoesDoUsuario.codigos(u));
+    }
+    private static Set<String> permissoesDoPerfil(Perfil p) { return p.isAcessoTotal()?CatalogoPermissoes.CODIGOS:p.getPermissoes(); }
+    private static void exigirDentroDoTeto(Ator ator,Set<String> permissoes) {
+        if(!ator.administrador() && !ator.permissoes().containsAll(permissoes)) throw negada(MENSAGEM_TETO);
+    }
+    /** Perfil de acesso total só um administrador atribui; os demais só os que cabem nas permissões de quem atribui. */
+    private static void exigirPodeAtribuir(Ator ator,Perfil perfil) {
+        if(ator.administrador()) return;
+        if(perfil.isAcessoTotal()) throw negada(MENSAGEM_TETO);
+        exigirDentroDoTeto(ator,permissoesDoPerfil(perfil));
+    }
+    private static final String MENSAGEM_TETO="Você não pode dar permissões que não tem.";
+    private static ProibidoException negada(String mensagem) { return new ProibidoException(mensagem,"PERMISSAO_NEGADA"); }
     private long administradoresAtivos() {
         return usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(TenantContext.get(),Papel.TREINADOR).stream()
             .filter(Usuario::isAtivo).filter(u -> { var p=perfil(u.getPerfilId());return p.isAtivo() && p.isAcessoTotal(); }).count();

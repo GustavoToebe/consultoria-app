@@ -123,4 +123,91 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/auditoria/pessoas",auditor,200)).hasSize(2);
         assertThat(api.get("/auditoria/pessoas",auditor,200).toString()).doesNotContain(externo);
     }
+
+    private static final String MSG_ADMIN = "Somente administradores podem alterar administradores.";
+    private static final String NEGADA = "Você não pode dar permissões que não tem.";
+
+    private JsonNode criarPerfilComPermissoes(String nome, String... permissoes) throws Exception {
+        return api.post("/perfis", admin, Map.of("nome", nome, "permissoes", Set.of(permissoes)), 200);
+    }
+
+    private JsonNode membroComPerfil(JsonNode perfil) throws Exception {
+        var c = convite("Membro fictício", ApiDeTeste.emailUnico("membro"), perfil.path("id").asString());
+        return aceitar(c, 200);
+    }
+
+    private void assertNegada(JsonNode resposta) {
+        assertNegada(resposta, NEGADA);
+    }
+
+    /** A mensagem distingue a regra nova do 403 genérico do @PreAuthorize ("Seu perfil não permite esta ação."). */
+    private void assertNegada(JsonNode resposta, String mensagem) {
+        assertThat(resposta.path("codigo").asString()).isEqualTo("PERMISSAO_NEGADA");
+        assertThat(resposta.path("message").asString()).isEqualTo(mensagem);
+    }
+
+    @Test void membroComUsuarioAlterarNaoSobeDePrivilegioNemMexeEmAdministrador() throws Exception {
+        String adminPerfil = perfil("Administrador").path("id").asString();
+        String adminId = admin.path("usuario").path("id").asString();
+        var gestor = criarPerfilComPermissoes("Gestor fictício", "EQUIPE_LER", "USUARIO_ALTERAR");
+        var membro = membroComPerfil(gestor);
+        String membroId = membro.path("usuario").path("id").asString();
+
+        assertNegada(api.put("/usuarios/" + membroId, membro,
+                Map.of("nome", "Gestor", "perfilId", adminPerfil, "ativo", true), 403));
+        assertNegada(api.post("/usuarios/convites", membro,
+                Map.of("nome", "Outra pessoa", "email", ApiDeTeste.emailUnico("promovido"), "perfilId", adminPerfil), 403));
+        assertNegada(api.put("/usuarios/" + adminId, membro,
+                Map.of("nome", "Admin", "perfilId", adminPerfil, "ativo", false), 403), MSG_ADMIN);
+        assertNegada(api.put("/usuarios/" + adminId, membro,
+                Map.of("nome", "Admin", "perfilId", gestor.path("id").asString(), "ativo", true), 403), MSG_ADMIN);
+        // perfil que ele não possui por inteiro (Nutricionista tem permissões que o Gestor não tem)
+        assertNegada(api.post("/usuarios/convites", membro,
+                Map.of("nome", "Outra pessoa", "email", ApiDeTeste.emailUnico("nutri"),
+                        "perfilId", perfil("Nutricionista").path("id").asString()), 403));
+        // nem trocar o próprio perfil
+        var menor = criarPerfilComPermissoes("Menor fictício", "EQUIPE_LER");
+        assertNegada(api.put("/usuarios/" + membroId, membro,
+                Map.of("nome", "Gestor", "perfilId", menor.path("id").asString(), "ativo", true), 403),
+                "Você não pode trocar o seu próprio perfil.");
+
+        var eu = api.get("/eu", admin, 200);
+        assertThat(eu.path("perfil").path("nome").asString()).isEqualTo("Administrador");
+        assertThat(api.get("/eu", membro, 200).path("perfil").path("nome").asString()).isEqualTo("Gestor fictício");
+        assertThat(api.get("/usuarios", admin, 200)).hasSize(2);
+    }
+
+    @Test void membroComPerfilAlterarNaoAmpliaOProprioPerfilNemDuplicaOAdministrador() throws Exception {
+        var editor = criarPerfilComPermissoes("Editor fictício", "EQUIPE_LER", "PERFIL_ALTERAR");
+        var membro = membroComPerfil(editor);
+        String editorId = editor.path("id").asString();
+
+        assertNegada(api.put("/perfis/" + editorId, membro, Map.of("nome", "Editor fictício",
+                "permissoes", Set.of("EQUIPE_LER", "PERFIL_ALTERAR", "ALUNO_LER", "ALUNO_SENSIVEL_LER"),
+                "versao", editor.path("versao").asLong()), 403));
+        assertNegada(api.post("/perfis", membro,
+                Map.of("nome", "Com sensível", "permissoes", Set.of("EQUIPE_LER", "ALUNO_LER", "ALUNO_SENSIVEL_LER")), 403));
+        assertNegada(api.post("/perfis/" + perfil("Administrador").path("id").asString() + "/duplicar", membro, null, 403));
+
+        var perfisDepois = api.get("/perfis", admin, 200);
+        for (var p : perfisDepois) {
+            assertThat(p.path("nome").asString()).doesNotContain("(cópia");
+            if (p.path("id").asString().equals(editorId)) {
+                assertThat(p.path("permissoes").toString()).doesNotContain("SENSIVEL");
+            }
+        }
+        // dentro do próprio teto continua funcionando
+        api.post("/perfis", membro, Map.of("nome", "Leitura fictícia", "permissoes", Set.of("EQUIPE_LER")), 200);
+        api.post("/perfis/" + editorId + "/duplicar", membro, null, 200);
+    }
+
+    @Test void administradorContinuaPromovendoConvidandoEDuplicandoAdministrador() throws Exception {
+        String adminPerfil = perfil("Administrador").path("id").asString();
+        var membro = membroComPerfil(perfil("Assistente"));
+        String membroId = membro.path("usuario").path("id").asString();
+        api.put("/usuarios/" + membroId, admin, Map.of("nome", "Promovido", "perfilId", adminPerfil, "ativo", true), 200);
+        convite("Outro administrador", ApiDeTeste.emailUnico("admin2"), adminPerfil);
+        var copia = api.post("/perfis/" + adminPerfil + "/duplicar", admin, null, 200);
+        assertThat(copia.path("permissoes")).isNotEmpty();
+    }
 }
