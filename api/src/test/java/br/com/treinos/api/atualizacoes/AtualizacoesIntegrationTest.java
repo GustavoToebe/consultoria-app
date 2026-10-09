@@ -7,10 +7,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import java.time.LocalDate;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import javax.sql.DataSource;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -21,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
+    @Autowired private DataSource dataSource;
+    @Autowired private JdbcTemplate banco;
     private ApiDeTeste api;
     private JsonNode treinador;
     private JsonNode loginAluno;
@@ -83,6 +89,41 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode pesos = api.get("/alunos/"+aluno+"/pesos",treinador,200);
         assertThat(pesos).hasSize(1);
         assertThat(pesos.get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
+    }
+    @Test void envioMantemObservacaoDoPesoDoDia() throws Exception {
+        publicarPasta(hoje);
+        api.post("/alunos/"+aluno+"/pesos",treinador,Map.of("data",hoje,"pesoKg",79.0,"observacao","Observação fictícia"),200);
+        enviar(respostas(),200);
+        JsonNode pesos = api.get("/alunos/"+aluno+"/pesos",treinador,200);
+        assertThat(pesos).hasSize(1);
+        assertThat(pesos.get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
+        assertThat(pesos.get(0).path("observacao").asString()).isEqualTo("Observação fictícia");
+    }
+    /** Outra transação grava o peso do mesmo dia entre a leitura e o insert do envio: 409, nunca 500, e nada fica gravado. */
+    @Test void pesoDoMesmoDiaGravadoAoMesmoTempoDa409ENaoGravaOEnvio() throws Exception {
+        publicarPasta(hoje);
+        UUID consultoria = banco.queryForObject("select consultoria_id from aluno where id=?",UUID.class,aluno);
+        UUID autor = UUID.fromString(treinador.path("usuario").path("id").asString());
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor(); var conexao = dataSource.getConnection()) {
+            conexao.setAutoCommit(false);
+            try (var insert = conexao.prepareStatement("insert into registro_peso (id,consultoria_id,aluno_id,data,peso_kg,registrado_por) "
+                    + "values (gen_random_uuid(),?,?,?,79,?)")) {
+                insert.setObject(1,consultoria); insert.setObject(2,aluno); insert.setObject(3,hoje); insert.setObject(4,autor);
+                insert.executeUpdate();
+            }
+            var envio = executor.submit(() -> enviar(respostas(),409));
+            long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+            while (banco.queryForObject("select count(*) from pg_stat_activity where wait_event_type='Lock' and query like '%registro_peso%'",Integer.class) == 0) {
+                assertThat(System.nanoTime()).as("o envio precisa esperar a outra transação").isLessThan(limite);
+                Thread.sleep(50);
+            }
+            conexao.commit();
+            assertThat(envio.get(30,TimeUnit.SECONDS).path("codigo").asString()).isEqualTo("PESO_JA_REGISTRADO");
+        }
+        assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("ABERTA");
+        assertThat(api.get("/alunos/"+aluno+"/pesos",treinador,200).get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("79");
+        enviar(respostas(),200);
+        assertThat(api.get("/alunos/"+aluno+"/pesos",treinador,200).get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
     }
     @Test void validacaoApontaCampoSemGravarRespostasOuPeso() throws Exception {
         publicarPasta(hoje);

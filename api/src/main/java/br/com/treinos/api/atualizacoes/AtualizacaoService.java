@@ -11,6 +11,7 @@ import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.web.*;
 import jakarta.validation.constraints.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -77,10 +78,17 @@ public class AtualizacaoService {
         atualizacoes.saveAndFlush(atual);
         // A data é a da atualização, inclusive no envio liberado na véspera (não usar validação de peso futuro).
         var peso = respostas.path("peso").decimalValue();
-        pesos.findByAlunoIdAndData(alunoId,data).ifPresentOrElse(
-            p -> p.alterar(peso, null, eu.usuarioId()),
-            () -> pesos.save(new RegistroPeso(alunoId,data,peso,null,eu.usuarioId())));
-        pesos.flush();
+        try {
+            // Mantém a observação já registrada no peso do dia.
+            pesos.findByAlunoIdAndData(alunoId,data).ifPresentOrElse(
+                p -> p.alterar(peso, p.getObservacao(), eu.usuarioId()),
+                () -> pesos.save(new RegistroPeso(alunoId,data,peso,null,eu.usuarioId())));
+            pesos.flush();
+        } catch (DataIntegrityViolationException corrida) {
+            if (!violou(corrida, "registro_peso_aluno_id_data_key")) throw corrida;
+            // Outro peso do mesmo dia entrou ao mesmo tempo; a transação inteira volta e o aluno reenvia.
+            throw new ConflitoException("O peso deste dia acabou de ser registrado. Envie de novo.", "PESO_JA_REGISTRADO");
+        }
         return detalhe(pasta,atual);
     }
     @Transactional
@@ -161,6 +169,11 @@ public class AtualizacaoService {
     private void exigirAluno(UUID id) { Exigir.existe(alunos.findById(id), () -> new NaoEncontradoException("Aluno não encontrado.")); }
     private static void exigirNaoEnviada(Atualizacao a) {
         if (a != null && !"ABERTA".equals(a.getEstado())) throw new ConflitoException("Esta atualização já foi enviada.", "ATUALIZACAO_JA_ENVIADA");
+    }
+    private static boolean violou(DataIntegrityViolationException e, String restricao) {
+        for (Throwable t = e; t != null; t = t.getCause())
+            if (t instanceof org.hibernate.exception.ConstraintViolationException c && restricao.equals(c.getConstraintName())) return true;
+        return false;
     }
     private static final java.time.format.DateTimeFormatter DATA_BR = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static ValidacaoException invalidos(String campo, String mensagem) {
