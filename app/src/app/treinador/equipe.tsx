@@ -13,7 +13,7 @@ export default function Equipe() {
   const [aba,setAba]=useState<'usuarios'|'perfis'>('usuarios');
   const {dados,erro,carregando,recarregar}=useCarregar('equipe',async()=>{const [membros,perfis,catalogo]=await Promise.all([membrosEquipe(),perfisEquipe(),catalogoPermissoes()]);return {membros,perfis,catalogo};});
   return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Equipe"/>
-    <Escolha rotulo="Equipe" opcoes={[{valor:'usuarios',rotulo:'Usuários'},{valor:'perfis',rotulo:'Perfis'}]} valor={aba} aoMudar={setAba}/>
+    <Escolha descricao="Seção da equipe" opcoes={[{valor:'usuarios',rotulo:'Usuários'},{valor:'perfis',rotulo:'Perfis'}]} valor={aba} aoMudar={setAba}/>
     {erro?<MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar}/>:null}
     {!dados&&carregando?<Carregando/>:null}
     {dados?aba==='usuarios'?<UsuariosEquipe {...dados} recarregar={recarregar}/>:<PerfisEquipe {...dados} recarregar={recarregar}/>:null}

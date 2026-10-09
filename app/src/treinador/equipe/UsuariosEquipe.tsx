@@ -26,9 +26,8 @@ export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe
   const ator=useAtorEquipe();
   return <>
     <Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Convidar membro" aoTocar={()=>setEditar('novo')}/></Permitido>
-    {membros.map(m=><Cartao key={m.id} titulo={m.nome}>
-      <Texto variante="suave">{m.email}</Texto><Texto>{m.perfilNome}</Texto>
-      <Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={m.convitePendente?'atencao':m.ativo?'sucesso':'neutro'}/>
+    {membros.map(m=><Cartao key={m.id} titulo={m.nome} acoes={<Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={m.convitePendente?'atencao':m.ativo?'sucesso':'neutro'}/>}>
+      <Texto variante="suave">{m.email} · {m.perfilNome}</Texto>
       <Texto variante="pequeno">{m.convitePendente?`Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'}`}</Texto>
       {podeEditarMembro(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
     </Cartao>)}

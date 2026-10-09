@@ -29,10 +29,11 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
   return <>
     <Permitido codigo="PERFIL_ALTERAR"><Botao rotulo="Novo perfil" aoTocar={()=>setEditar('novo')}/></Permitido>
     {erro?<MensagemErro texto={textoDoErro(erro)}/>:null}
-    {perfis.map(p=><Cartao key={p.id} titulo={p.nome}>
+    {perfis.map(p=><Cartao key={p.id} titulo={p.nome} acoes={<>
       {p.sistema?<Selo texto="Acesso total · perfil do sistema" tipo="neutro"/>:null}
       {!p.ativo?<Selo texto="Inativo" tipo="neutro"/>:null}
-      <Texto variante="suave">{p.descricao||'—'}</Texto><Texto>{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
+    </>}>
+      <Texto variante="suave">{p.descricao||'—'}</Texto><Texto variante="pequeno">{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
       <Permitido codigo="PERFIL_ALTERAR"><View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap'}}>
         {podeEditarPerfil(ator,p)?<Botao rotulo={`Editar ${p.nome}`} tipo="secundario" aoTocar={()=>setEditar(p)}/>:null}
         {podeDuplicarPerfil(ator,p)?<Botao rotulo={`Duplicar ${p.nome}`} tipo="secundario" aoTocar={()=>void duplicar(p)}/>:null}
