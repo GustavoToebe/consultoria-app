@@ -40,7 +40,7 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         loginAluno = api.convidarEEntrar(treinador,aluno);
         hoje = LocalDate.now(Fuso.BRASILIA);
     }
-    private void publicarPasta(LocalDate fim) throws Exception {
+    private String publicarPasta(LocalDate fim) throws Exception {
         String pasta = api.post("/alunos/"+aluno+"/pastas",treinador,
                 Map.of("titulo","Período fictício","inicio",fim.minusDays(27),"fim",fim),200).path("id").asString();
         JsonNode criado = api.post("/alunos/"+aluno+"/planos-treino",treinador,
@@ -50,12 +50,21 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
                 ApiDeTeste.rascunho("Treino fictício",ApiDeTeste.treino().conteudo(),criado.path("plano").path("versao").asLong()),200);
         api.post("/planos-treino/"+id+"/publicar",treinador,
                 Map.of("versao",salvo.path("plano").path("versao").asLong(),"confirmarAvisos",true),200);
+        return pasta;
     }
     private Map<String,Object> respostas() {
         return new LinkedHashMap<>(Map.of("peso",80.5,"sono",7,"alim_desempenho",8,"treino_desempenho",6));
     }
+    /** Pasta da atualização vigente (ou um id qualquer quando não há pasta). */
+    private String pastaAtual() throws Exception {
+        String pasta = api.get("/aluno/atualizacao",loginAluno,200).path("pastaId").asString();
+        return pasta.isEmpty() ? UUID.randomUUID().toString() : pasta;
+    }
     private JsonNode enviar(Map<String,Object> respostas,int status) throws Exception {
-        return api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("modeloVersao",1,"respostas",respostas),status);
+        return enviarNa(pastaAtual(),respostas,status);
+    }
+    private JsonNode enviarNa(String pasta,Map<String,Object> respostas,int status) throws Exception {
+        return api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("pastaId",pasta,"modeloVersao",1,"respostas",respostas),status);
     }
     @Test void semPastaNaoExisteAtualizacaoENaoAceitaEnvio() throws Exception {
         assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("NENHUMA");
@@ -132,7 +141,7 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         r = respostas(); r.put("peso",0); conferirCampo(r,"peso");
         r = respostas(); r.put("alim_digestao","x".repeat(501)); conferirCampo(r,"alim_digestao");
         r = respostas(); r.put("fb_pos_treino",Map.of("7",5)); conferirCampo(r,"fb_pos_treino");
-        api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("modeloVersao",2,"respostas",respostas()),409);
+        api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("pastaId",pastaAtual(),"modeloVersao",2,"respostas",respostas()),409);
         assertThat(api.get("/aluno/atualizacoes",loginAluno,200)).isEmpty();
         assertThat(api.get("/alunos/"+aluno+"/pesos",treinador,200)).isEmpty();
     }
@@ -144,27 +153,42 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
     @Test void atrasoAlteraPrazoMasNaoBloqueiaAlunoNemAceitaForaDaFaixa() throws Exception {
         publicarPasta(hoje.minusDays(1));
         assertThat(api.get("/atualizacoes?situacao=ATRASADAS",treinador,200)).hasSize(1);
-        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.minusDays(1)),422);
-        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.plusDays(15)),422);
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",hoje.minusDays(1)),422);
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",hoje.plusDays(15)),422);
         JsonNode aviso = api.post("/aluno/atualizacao/atraso",loginAluno,
-                Map.of("novaData",hoje.plusDays(2),"motivo","Motivo fictício"),200);
+                Map.of("pastaId",pastaAtual(),"novaData",hoje.plusDays(2),"motivo","Motivo fictício"),200);
         assertThat(aviso.path("fase").asString()).isEqualTo("ABERTA");
         assertThat(aviso.path("diasDeAtraso").asLong()).isZero();
         assertThat(api.get("/atualizacoes?situacao=AVISARAM_ATRASO",treinador,200)).hasSize(1);
         assertThat(api.get("/atualizacoes?situacao=ATRASADAS",treinador,200)).isEmpty();
         assertThat(api.get("/atualizacoes?situacao=PROXIMAS",treinador,200)).hasSize(1);
         enviar(respostas(),200);
-        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.plusDays(2)),409);
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",hoje.plusDays(2)),409);
     }
     @Test void atrasoNaoAceitaDataAntesDaOriginalEMantemFormularioAberto() throws Exception {
         publicarPasta(hoje.plusDays(1));
-        JsonNode erro = api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje),422);
+        JsonNode erro = api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",hoje),422);
         assertThat(erro.path("fieldErrors").get(0).path("field").asString()).isEqualTo("novaData");
         assertThat(erro.path("fieldErrors").get(0).path("message").asString()).contains("até");
-        JsonNode aviso = api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("novaData",hoje.plusDays(5)),200);
+        JsonNode aviso = api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pastaAtual(),"novaData",hoje.plusDays(5)),200);
         assertThat(aviso.path("fase").asString()).isEqualTo("ABERTA");
         assertThat(aviso.path("atrasoAte").asString()).isEqualTo(hoje.plusDays(5).toString());
         assertThat(enviar(respostas(),200).path("fase").asString()).isEqualTo("ENVIADA");
+    }
+    /** Atualização antiga aberta pelo histórico não grava respostas, peso nem aviso na pasta atual. */
+    @Test void enviarOuAvisarAtrasoDePastaQueNaoEAAtualDa409() throws Exception {
+        String antiga = publicarPasta(hoje);
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",antiga,"novaData",hoje.plusDays(2)),200);
+        String atual = publicarPasta(hoje.plusDays(1));
+        assertThat(pastaAtual()).isEqualTo(atual);
+        assertThat(enviarNa(antiga,respostas(),409).path("codigo").asString()).isEqualTo("ATUALIZACAO_NAO_ATUAL");
+        assertThat(api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",antiga,"novaData",hoje.plusDays(3)),409)
+                .path("codigo").asString()).isEqualTo("ATUALIZACAO_NAO_ATUAL");
+        JsonNode vigente = api.get("/aluno/atualizacao",loginAluno,200);
+        assertThat(vigente.path("fase").asString()).isEqualTo("ABERTA");
+        assertThat(vigente.path("atrasoAte").isNull()).isTrue();
+        assertThat(api.get("/alunos/"+aluno+"/pesos",treinador,200)).isEmpty();
+        assertThat(enviarNa(atual,respostas(),200).path("fase").asString()).isEqualTo("ENVIADA");
     }
     @Test void feedbackTemVersaoEditadoEVisto() throws Exception {
         publicarPasta(hoje);

@@ -26,6 +26,6 @@ export default function AtualizacaoAluno() {
     {resultado.dados && !resultado.dados.modelo?<Vazio titulo="Sem atualização" texto="Seu treinador ainda não publicou uma pasta com período." />:null}
     {resultado.dados?.modelo && (!id || resultado.dados.id===id) && rascunho.dados && rascunho.dados.pastaId===pasta && !rascunho.erro?<FormularioAtualizacao
       key={`${pasta}:${resultado.dados.versao}:${resultado.dados.modeloVersao}`}
-      atualizacao={resultado.dados} rascunho={rascunho.dados.valor} abrirAtraso={atraso==='sim'} recarregar={resultado.recarregar} />:null}
+      atualizacao={resultado.dados} somenteLeitura={resultado.dados.somenteLeitura} rascunho={rascunho.dados.valor} abrirAtraso={atraso==='sim'} recarregar={resultado.recarregar} />:null}
   </Tela>;
 }

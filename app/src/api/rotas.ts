@@ -71,10 +71,10 @@ export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:string
 export const atualizacaoAluno = () => requisicao<Atualizacao>('/aluno/atualizacao');
 export const atualizacoesAluno = () => requisicao<Atualizacao[]>('/aluno/atualizacoes');
 export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`/aluno/atualizacoes/${id}`);
-export const enviarAtualizacao = (modeloVersao: number, respostas: RespostasAtualizacao) =>
-  requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { modeloVersao, respostas } });
-export const avisarAtrasoAtualizacao = (novaData: string, motivo?: string) =>
-  requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { novaData, motivo } });
+export const enviarAtualizacao = (pastaId: string, modeloVersao: number, respostas: RespostasAtualizacao) =>
+  requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, modeloVersao, respostas } });
+export const avisarAtrasoAtualizacao = (pastaId: string, novaData: string, motivo?: string) =>
+  requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { pastaId, novaData, motivo } });
 export const marcarFeedbackVisto = (id: string) =>
   requisicao<void>(`/aluno/atualizacoes/${id}/feedback-visto`, { metodo: 'POST' });
 export const listarAtualizacoes = (situacao: SituacaoAtualizacao) => requisicao<Atualizacao[]>(`/atualizacoes?situacao=${situacao}`);

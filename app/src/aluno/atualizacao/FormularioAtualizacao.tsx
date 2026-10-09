@@ -25,8 +25,8 @@ import { FeedbackAtualizacao } from './FeedbackAtualizacao';
 import { QuestionarioAtualizacao } from './QuestionarioAtualizacao';
 
 const SEM_CONEXAO='Sem conexão: suas respostas ficam salvas no aparelho. Envie quando conectar.';
-export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarregar}: {
-  atualizacao:Atualizacao;rascunho:RascunhoAtualizacao|null;abrirAtraso:boolean;recarregar:()=>void;
+export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho,abrirAtraso,recarregar}: {
+  atualizacao:Atualizacao;somenteLeitura?:boolean;rascunho:RascunhoAtualizacao|null;abrirAtraso:boolean;recarregar:()=>void;
 }) {
   const {repositorio,online,atualizarAtualizacao}=useAluno();
   const {avisar}=useAviso();
@@ -37,7 +37,7 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
   const [erros,setErros]=useState<Record<string,string>>({});
   const [ocupado,setOcupado]=useState(false);
   const [enviada,setEnviada]=useState(false);
-  const [atraso,setAtraso]=useState(abrirAtraso);
+  const [atraso,setAtraso]=useState(abrirAtraso&&!somenteLeitura);
   const [data,setData]=useState(dataParaTela(atual.atrasoAte??somarDias(atual.dataAtualizacao??hojeIso(),2)));
   const [motivo,setMotivo]=useState(atual.atrasoMotivo??'');
   const [erroData,setErroData]=useState<string|null>(null);
@@ -45,7 +45,7 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
   const moldura=useRef<View>(null);
   const campos=useRef(new Map<string,View>());
   const deslocamento=useRef(0);
-  const leitura=atual.fase==='ENVIADA'||atual.fase==='REVISADA';
+  const leitura=somenteLeitura||atual.fase==='ENVIADA'||atual.fase==='REVISADA';
   const liberada=podeResponderAtualizacao(atual,hojeIso());
   const dataOriginal=atual.dataAtualizacao??hojeIso();
   const limites=limitesNovaDataAtraso(hojeIso(),dataOriginal);
@@ -83,7 +83,7 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
     if(!online){avisar(SEM_CONEXAO);return;}
     setOcupado(true);
     try {
-      const resultado=await enviarAtualizacao(atual.modeloVersao,respostas);
+      const resultado=await enviarAtualizacao(atual.pastaId,atual.modeloVersao,respostas);
       await atualizarAtualizacao(resultado);
       await repositorio.apagarRascunhoAtualizacao(atual.pastaId);
       setAtual(resultado);setEnviada(true);
@@ -94,6 +94,7 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
     } finally {setOcupado(false);}
   };
   const salvarAtraso=async()=>{
+    if(!atual.pastaId)return;
     const nova=dataDaTela(data);
     if(!nova || !novaDataAtrasoValida(hojeIso(),dataOriginal,nova)){
       setErroData(`Escolha uma data de ${dataParaTela(limites.minimo)} até ${dataParaTela(limites.maximo)}.`);return;
@@ -101,7 +102,7 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
     if(!online){avisar('Conecte-se para avisar o atraso. Seu rascunho continua salvo.');return;}
     setOcupado(true);
     try {
-      const resultado=await avisarAtrasoAtualizacao(nova,motivo);
+      const resultado=await avisarAtrasoAtualizacao(atual.pastaId,nova,motivo);
       await atualizarAtualizacao(resultado);
       setAtual(resultado);setAtraso(false);avisar('Atraso avisado.');
     }catch(erro){
@@ -120,6 +121,7 @@ export function FormularioAtualizacao({atualizacao,rascunho,abrirAtraso,recarreg
       scrollEventThrottle={16} keyboardShouldPersistTaps="handled" contentContainerStyle={estilos.conteudo}>
       <FeedbackAtualizacao feedback={atual.feedback} />
       <Selo {...statusAtualizacao(atual)} />
+      {somenteLeitura&&!atual.enviadaEm?<Texto>Esta atualização é de um período anterior. Só é possível consultar.</Texto>:null}
       <Cartao titulo="Instruções">
         {atual.modelo?.instrucoes.map((texto,i)=><Texto key={i}>{texto}</Texto>)}
         {!leitura?<Texto variante="pequeno">* Campos obrigatórios. O rascunho fica salvo neste aparelho.</Texto>:null}

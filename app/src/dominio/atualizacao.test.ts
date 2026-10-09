@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { caminhoAtualizacaoTreinador, faseAtualizacao, limitesNovaDataAtraso, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
+import { caminhoAtualizacaoTreinador, faseAtualizacao, formularioSomenteLeitura, limitesNovaDataAtraso, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -42,4 +42,11 @@ describe('nova data do "vou atrasar" igual à API', () => {
     expect(mostrarCartaoAtualizacao({...base,fase:'ABERTA'})).toBe(true);
     expect(mostrarCartaoAtualizacao({...base,fase:'REVISADA'})).toBe(false);
   });
+});
+
+it('atualização aberta pelo histórico que não é a atual fica só leitura', () => {
+  expect(formularioSomenteLeitura(undefined,'atual')).toBe(false);
+  expect(formularioSomenteLeitura('atual','atual')).toBe(false);
+  expect(formularioSomenteLeitura('antiga','atual')).toBe(true);
+  expect(formularioSomenteLeitura('antiga',null)).toBe(true);
 });

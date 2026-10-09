@@ -24,8 +24,9 @@ import java.util.UUID;
 /** Um check-in por pasta; travar a pasta serializa o primeiro envio e o aviso de atraso. */
 @Service
 public class AtualizacaoService {
-    public record EnviarRequest(@NotNull Integer modeloVersao, @NotNull JsonNode respostas) { }
-    public record AtrasoRequest(@NotNull LocalDate novaData, @Size(max = 300) String motivo) { }
+    /** {@code pastaId} diz qual atualização o aluno está respondendo; só a da pasta vigente aceita escrita. */
+    public record EnviarRequest(@NotNull UUID pastaId, @NotNull Integer modeloVersao, @NotNull JsonNode respostas) { }
+    public record AtrasoRequest(@NotNull UUID pastaId, @NotNull LocalDate novaData, @Size(max = 300) String motivo) { }
     public record FeedbackRequest(@NotBlank @Size(max = 4000) String texto, @NotNull Long versao) { }
     public record Feedback(String texto, Instant em, Instant editadoEm, boolean naoLido, String nomeAutor) { }
     public record Detalhe(UUID id, UUID pastaId, UUID alunoId, String nomeAluno, LocalDate dataAtualizacao,
@@ -65,6 +66,7 @@ public class AtualizacaoService {
     public Detalhe enviar(UsuarioAutenticado eu, EnviarRequest r) {
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
         PastaPlano pasta = exigirPastaAtiva(alunoId);
+        exigirAtual(pasta, r.pastaId());
         Atualizacao atual = atualizacoes.findByPastaId(pasta.getId()).orElse(null);
         exigirNaoEnviada(atual);
         LocalDate data = atual == null ? pasta.getFim() : atual.getDataAtualizacao();
@@ -95,6 +97,7 @@ public class AtualizacaoService {
     public Detalhe avisarAtraso(UsuarioAutenticado eu, AtrasoRequest r) {
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
         PastaPlano pasta = exigirPastaAtiva(alunoId);
+        exigirAtual(pasta, r.pastaId());
         Atualizacao atual = atualizacoes.findByPastaId(pasta.getId()).orElse(null);
         exigirNaoEnviada(atual);
         LocalDate data = atual == null ? pasta.getFim() : atual.getDataAtualizacao();
@@ -168,6 +171,10 @@ public class AtualizacaoService {
     }
     private Atualizacao buscar(UUID id) { return atualizacoes.findById(id).orElseThrow(() -> new NaoEncontradoException("Atualização não encontrada.")); }
     private void exigirAluno(UUID id) { Exigir.existe(alunos.findById(id), () -> new NaoEncontradoException("Aluno não encontrado.")); }
+    private static void exigirAtual(PastaPlano pasta, UUID pastaId) {
+        if (!pasta.getId().equals(pastaId))
+            throw new ConflitoException("Esta atualização não é mais a atual. Recarregue.", "ATUALIZACAO_NAO_ATUAL");
+    }
     private static void exigirNaoEnviada(Atualizacao a) {
         if (a != null && !"ABERTA".equals(a.getEstado())) throw new ConflitoException("Esta atualização já foi enviada.", "ATUALIZACAO_JA_ENVIADA");
     }
