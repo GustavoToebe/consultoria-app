@@ -30,6 +30,7 @@ import { CartaoPlanos, periodo, proximoPeriodo } from './CartaoPlanos';
 type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 'replicar'; pasta: PastaResumo };
 
 interface PropsPastas {
+  pastaInicialId?: string;
   alunoId: string;
   /** Dias do ciclo do aluno: sugere o fim do período numa pasta nova. */
   diasAtualizacao?: number | null;
@@ -41,7 +42,7 @@ interface PropsPastas {
  * Pastas do aluno (ex.: "Plano 16"): cada uma agrupa treinos e dietas e tem o período que vale para todos. Mudar o
  * período da pasta acompanha os rascunhos dos planos dela; replicar a pasta copia todos para o próximo ciclo.
  */
-export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso }: PropsPastas) {
+export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso, pastaInicialId }: PropsPastas) {
   const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
   const { avisar } = useAviso();
@@ -49,7 +50,7 @@ export function CartaoPastas({ alunoId, diasAtualizacao = null, aoGravarPeso }: 
   const [salvarModelo, setSalvarModelo] = useState<PastaResumo | null>(null);
   const [finalizar, setFinalizar] = useState<PastaResumo | null>(null);
   // Pasta aberta na folha com as ações e os planos; guarda só o id para refletir o que a lista recarrega.
-  const [abertaId, setAbertaId] = useState<string | null>(null);
+  const [abertaId, setAbertaId] = useState<string | null>(pastaInicialId??null);
   const aberta = dados?.find((p) => p.id === abertaId) ?? null;
   const [escolher, setEscolher] = useState(false);
   const [modelo, setModelo] = useState<Receita | null>(null);

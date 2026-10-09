@@ -27,7 +27,7 @@ import { useCarregar } from '../../../ui/useCarregar';
 
 /** Ficha do aluno: cada bloco em um cartão com os próprios botões (seção 10.4). */
 export default function FichaAluno() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, pastaId } = useLocalSearchParams<{ id: string; pastaId?: string }>();
   const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
   // Finalizar uma pasta pode gravar peso: o cartão de peso é remontado para buscar de novo.
   const [geracaoPeso, setGeracaoPeso] = useState(0);
@@ -59,7 +59,7 @@ export default function FichaAluno() {
               <CartaoLesoes alunoId={aluno.id} />
             </>
           )}
-          <CartaoPastas alunoId={aluno.id} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
+          <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           <CartaoRegistros aluno={aluno} />
           <CartaoPeso key={geracaoPeso} alunoId={aluno.id} />
         </>
