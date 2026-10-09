@@ -2,6 +2,7 @@ package br.com.treinos.api.painel;
 
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.atualizacoes.AtualizacaoService;
 import br.com.treinos.api.execucao.ExecucaoSerie;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.execucao.IndiceVersao;
@@ -48,20 +49,24 @@ public class PainelService {
     }
 
     public record PainelTreinador(long alunosAtivos, List<AlunoSemRegistro> alunosSemRegistro7Dias,
-                                  List<ExecucaoRecente> ultimasExecucoes, List<PlanoTerminando> planosTerminando) {
+                                  List<ExecucaoRecente> ultimasExecucoes, List<PlanoTerminando> planosTerminando,
+                                  long atualizacoesParaRevisar, long atualizacoesAtrasadas,
+                                  long atualizacoesAvisaramAtraso, long atualizacoesProximas) {
     }
 
     private final AlunoRepository alunos;
     private final ExecucaoSerieRepository execucoes;
     private final PlanoTreinoRepository planos;
     private final IndicesDeVersao indices;
+    private final AtualizacaoService atualizacoes;
 
     public PainelService(AlunoRepository alunos, ExecucaoSerieRepository execucoes, PlanoTreinoRepository planos,
-                         IndicesDeVersao indices) {
+                         IndicesDeVersao indices, AtualizacaoService atualizacoes) {
         this.alunos = alunos;
         this.execucoes = execucoes;
         this.planos = planos;
         this.indices = indices;
+        this.atualizacoes = atualizacoes;
     }
 
     @Transactional(readOnly = true)
@@ -88,7 +93,9 @@ public class PainelService {
                         new AlunoRef(a.getId(), a.getNome()), p.getFim()));
             }
         }
-        return new PainelTreinador(ativos.size(), semRegistro, ultimasExecucoes(porId), terminando);
+        return new PainelTreinador(ativos.size(), semRegistro, ultimasExecucoes(porId), terminando,
+                atualizacoes.listar("PARA_REVISAR").size(), atualizacoes.listar("ATRASADAS").size(),
+                atualizacoes.listar("AVISARAM_ATRASO").size(), atualizacoes.listar("PROXIMAS").size());
     }
 
     /** Agrupa os registros mais recentes por aluno, dia e sessão. Nomes de aluno só de alunos ativos. */

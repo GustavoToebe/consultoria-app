@@ -50,6 +50,7 @@ public class AtualizacaoService {
     }
     @Transactional(readOnly = true)
     public Detalhe atual(UsuarioAutenticado eu) { return atualDoAluno(AlunoAppService.alunoDaSessao(eu)); }
+    @Transactional(readOnly = true)
     public Detalhe atualDoAluno(UUID alunoId) {
         exigirAluno(alunoId);
         PastaPlano pasta = pastaAtiva(alunoId);
