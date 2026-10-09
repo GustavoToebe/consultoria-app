@@ -59,7 +59,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
@@ -119,34 +121,34 @@ public class SeedHistoricoDemo {
      * Um aluno: nome, divisão/dieta/metodologia de cada uma das cinco pastas, situação da pasta atual e quantos dias
      * faltam para o fim dela (negativo = já passou).
      */
-    private record Perfil(String nome, List<String> semanas, int[] dietas, int[] metodologias, Situacao5 situacao,
+    private record Perfil(String nome, List<String> semanas, List<Integer> dietas, List<Integer> metodologias, Situacao5 situacao,
                           int fimEmDias, String mobilidade, Lesao lesao) {
     }
 
     private static final List<Perfil> PERFIS = List.of(
-            new Perfil("Ana Ribeiro", List.of(FB, FB, FB, ABC, ABC), new int[]{1, 1, 2, 2, 2}, new int[]{0, 0, 1, 1, 1},
+            new Perfil("Ana Ribeiro", List.of(FB, FB, FB, ABC, ABC), List.of(1, 1, 2, 2, 2), List.of(0, 0, 1, 1, 1),
                     Situacao5.MEIO, 12, "Mobilidade matinal", null),
-            new Perfil("Bruno Costa", List.of(AB, AB, AB, AB, ABCDE), new int[]{2, 2, 3, 3, 3}, new int[]{1, 1, 1, 3, 3},
+            new Perfil("Bruno Costa", List.of(AB, AB, AB, AB, ABCDE), List.of(2, 2, 3, 3, 3), List.of(1, 1, 1, 3, 3),
                     Situacao5.ABERTA, 1, null, new Lesao("Ombro direito",
                     "Desconforto leve ao elevar o braço acima da cabeça.", 40, null, Situacao.EM_RECUPERACAO,
                     "Evitar desenvolvimento pesado até melhorar.")),
-            new Perfil("Carla Mendes", List.of(PPL1, PPL1, PPL2, PPL2, PPL3), new int[]{3, 4, 4, 4, 5}, new int[]{0, 0, 0, 2, 2},
+            new Perfil("Carla Mendes", List.of(PPL1, PPL1, PPL2, PPL2, PPL3), List.of(3, 4, 4, 4, 5), List.of(0, 0, 0, 2, 2),
                     Situacao5.AVISO, 3, null, null),
-            new Perfil("Diego Alves", List.of(ABCDE, ABCDE, ABCDE, PPL4, PPL4), new int[]{4, 5, 5, 6, 6}, new int[]{1, 1, 3, 3, 3},
+            new Perfil("Diego Alves", List.of(ABCDE, ABCDE, ABCDE, PPL4, PPL4), List.of(4, 5, 5, 6, 6), List.of(1, 1, 3, 3, 3),
                     Situacao5.ATRASADA, -2, "Pré-treino de pernas", null),
-            new Perfil("Eduarda Lima", List.of(FB, AB, AB, AB, AB), new int[]{5, 6, 6, 7, 7}, new int[]{0, 0, 1, 1, 1},
+            new Perfil("Eduarda Lima", List.of(FB, AB, AB, AB, AB), List.of(5, 6, 6, 7, 7), List.of(0, 0, 1, 1, 1),
                     Situacao5.ENVIADA_ONTEM, 0, null, new Lesao("Joelho esquerdo",
                     "Dor ao agachar fundo, já resolvida.", 150, 90, Situacao.RECUPERADA, "Liberada para treinar normalmente.")),
-            new Perfil("Felipe Rocha", List.of(ABC, ABC, ABC, ABC, ABCDE), new int[]{6, 7, 7, 8, 8}, new int[]{2, 2, 2, 4, 4},
+            new Perfil("Felipe Rocha", List.of(ABC, ABC, ABC, ABC, ABCDE), List.of(6, 7, 7, 8, 8), List.of(2, 2, 2, 4, 4),
                     Situacao5.MEIO, 20, "Lombar e cadeia posterior", null),
-            new Perfil("Gabriela Nunes", List.of(PPL2, PPL2, PPL2, FB, FB), new int[]{7, 8, 8, 9, 9}, new int[]{0, 1, 1, 1, 1},
-                    Situacao5.ABERTA, 0, null, null),
-            new Perfil("Henrique Souza", List.of(AB, ABC, ABC, ABC, ABC), new int[]{8, 9, 9, 10, 10}, new int[]{3, 3, 3, 3, 4},
-                    Situacao5.MEIO, 9, null, new Lesao("Lombar", "Incômodo ao fazer terra.", 20, null, Situacao.ATIVA,
+            new Perfil("Gabriela Nunes", List.of(PPL2, PPL2, PPL2, FB, FB), List.of(7, 8, 8, 9, 9), List.of(0, 1, 1, 1, 1),
+                    Situacao5.ABERTA, 1, null, null),
+            new Perfil("Henrique Souza", List.of(AB, ABC, ABC, ABC, ABC), List.of(8, 9, 9, 10, 10), List.of(3, 3, 3, 3, 4),
+                    Situacao5.MEIO, 10, null, new Lesao("Lombar", "Incômodo ao fazer terra.", 20, null, Situacao.ATIVA,
                     "Carga reduzida nos exercícios de dobradiça.")),
-            new Perfil("Isabela Martins", List.of(FB, FB, PPL5, PPL5, PPL5), new int[]{9, 10, 10, 1, 1}, new int[]{0, 0, 0, 1, 1},
+            new Perfil("Isabela Martins", List.of(FB, FB, PPL5, PPL5, PPL5), List.of(9, 10, 10, 1, 1), List.of(0, 0, 0, 1, 1),
                     Situacao5.MEIO, 16, "Pós-treino global", null),
-            new Perfil("João Pereira", List.of(ABCDE, ABCDE, ABC, ABC, ABC), new int[]{10, 1, 1, 2, 2}, new int[]{1, 1, 4, 4, 4},
+            new Perfil("João Pereira", List.of(ABCDE, ABCDE, ABC, ABC, ABC), List.of(10, 1, 1, 2, 2), List.of(1, 1, 4, 4, 4),
                     Situacao5.MEIO, 25, null, null));
 
     private static final double[] ESCALA = {0.8, 1.1, 0.7, 1.2, 0.65, 1.0, 0.75, 1.15, 0.7, 0.95};
@@ -224,7 +226,7 @@ public class SeedHistoricoDemo {
         if (senha == null || senha.length() < 8) {
             throw new IllegalStateException("A senha dos alunos de demonstração precisa ter pelo menos 8 caracteres.");
         }
-        Usuario treinador = usuarios.buscarPorEmail(emailDoTreinador.toLowerCase())
+        Usuario treinador = usuarios.buscarPorEmail(emailDoTreinador.toLowerCase(Locale.ROOT))
                 .orElseThrow(() -> new IllegalStateException("Treinador " + emailDoTreinador + " não existe."));
         if (usuarios.buscarPorEmail(PRIMEIRO_ALUNO).filter(u -> treinador.getConsultoriaId().equals(u.getConsultoriaId())).isPresent()) {
             log.info("Histórico de demonstração já existe; nada a fazer.");
@@ -299,10 +301,10 @@ public class SeedHistoricoDemo {
             UUID pasta = pastas.criar(aluno, new PastaRequest("Ciclo " + (k + 1), inicio, fim)).id();
             pastasIds.add(pasta);
             ReceitaResponse semana = modelos.de(Receita.Tipo.PLANO_TREINO, p.semanas().get(k));
-            ReceitaResponse met = modelos.de(Receita.Tipo.METODOLOGIA, METODOLOGIAS.get(p.metodologias()[k]));
+            ReceitaResponse met = modelos.de(Receita.Tipo.METODOLOGIA, METODOLOGIAS.get(p.metodologias().get(k)));
             PlanoDetalhe<ConteudoTreino> treino = publicarTreino(aluno, pasta, "Treino " + p.semanas().get(k), inicio,
                     fim, semana, met, treinador);
-            ReceitaResponse dieta = modelos.de(Receita.Tipo.PLANO_DIETA, DIETAS.get(p.dietas()[k] - 1));
+            ReceitaResponse dieta = modelos.de(Receita.Tipo.PLANO_DIETA, DIETAS.get(p.dietas().get(k) - 1));
             publicarDieta(aluno, pasta, dieta, inicio, treinador);
             if (k == 4 && p.mobilidade() != null) {
                 publicarMobilidade(aluno, pasta, modelos.de(Receita.Tipo.MOBILIDADE, p.mobilidade()), treinador);
@@ -316,7 +318,7 @@ public class SeedHistoricoDemo {
             lesoes.criar(aluno, new LesaoRequest(l.regiao(), l.descricao(), hoje.minusDays(l.inicioHaDias()),
                     l.fimHaDias() == null ? null : hoje.minusDays(l.fimHaDias()), l.situacao(), l.observacao()), treinador);
         }
-        TreeMap<LocalDate, BigDecimal> pesos = pesoSemanal(idx, fins.get(0).minusDays(29), hoje, fins);
+        NavigableMap<LocalDate, BigDecimal> pesos = pesoSemanal(idx, fins.get(0).minusDays(29), hoje, fins);
         int atualizacoes = fecharPastas(idx, p, aluno, pastasIds, fins, hoje, pesos, treinador, modeloAtualizacao);
         for (Map.Entry<LocalDate, BigDecimal> e : pesos.entrySet()) {
             String obs = fins.subList(0, 4).contains(e.getKey()) ? "Peso de fechamento do ciclo." : null;
@@ -448,7 +450,7 @@ public class SeedHistoricoDemo {
     }
 
     private static double base(String nome) {
-        String n = nome.toLowerCase();
+        String n = nome.toLowerCase(Locale.ROOT);
         if (n.contains("leg press") || n.contains("hack")) return 140;
         if (n.contains("terra") || n.contains("agachamento")) return 80;
         if (n.contains("stiff") || n.contains("rdl")) return 60;
@@ -468,9 +470,9 @@ public class SeedHistoricoDemo {
     // ---- Peso e atualizações ----
 
     /** Peso semanal desde o começo do primeiro ciclo, mais o do fechamento de cada ciclo concluído. */
-    private static TreeMap<LocalDate, BigDecimal> pesoSemanal(int idx, LocalDate inicio, LocalDate hoje,
+    private static NavigableMap<LocalDate, BigDecimal> pesoSemanal(int idx, LocalDate inicio, LocalDate hoje,
                                                           List<LocalDate> fins) {
-        TreeMap<LocalDate, BigDecimal> mapa = new TreeMap<>();
+        NavigableMap<LocalDate, BigDecimal> mapa = new TreeMap<>();
         double inclinacao = (idx % 2 == 0 ? -1 : 1) * (0.12 + 0.013 * idx);
         for (LocalDate d = inicio; d.isBefore(hoje); d = d.plusDays(7)) {
             mapa.put(d, pesoEm(idx, inclinacao, ChronoUnit.WEEKS.between(inicio, d)));
@@ -491,7 +493,7 @@ public class SeedHistoricoDemo {
      * na situação do perfil.
      */
     private int fecharPastas(int idx, Perfil p, UUID aluno, List<UUID> pastasIds, List<LocalDate> fins, LocalDate hoje,
-                             TreeMap<LocalDate, BigDecimal> pesos, UUID treinador, AtualizacaoModelo modelo) {
+                             NavigableMap<LocalDate, BigDecimal> pesos, UUID treinador, AtualizacaoModelo modelo) {
         JsonNode modeloJson = json.readTree(modelo.getConteudo());
         int criadas = 0;
         for (int k = 0; k < 5; k++) {

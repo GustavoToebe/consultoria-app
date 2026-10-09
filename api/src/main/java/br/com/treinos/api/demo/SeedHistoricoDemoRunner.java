@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Roda o {@link SeedHistoricoDemo} na subida, só com {@code treinos.demo.historico=true} (desligado por padrão) e
- * nunca no profile {@code prod}. Vem depois do {@link SeedDemoRunner}. Se faltarem os modelos do guia, registra o erro e
+ * nunca no profile {@code prod}. Vem depois do {@link SeedDemoRunner}. Se faltarem os modelos do guia (ou qualquer passo falhar), registra o erro e
  * segue: a API sobe do mesmo jeito, sem o histórico.
  */
 @Component
@@ -43,8 +43,9 @@ public class SeedHistoricoDemoRunner implements ApplicationRunner {
                 log.info("Histórico de demonstração criado: {} alunos, {} pastas, {} execuções, {} pesos, {} atualizações.",
                         r.alunos(), r.pastas(), r.execucoes(), r.pesos(), r.atualizacoes());
             }
-        } catch (IllegalStateException e) {
-            log.error("Histórico de demonstração NÃO criado: {}", e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("Histórico de demonstração NÃO criado (pode ter ficado parcial; nesse caso só zerar o banco repara): {}",
+                    e.getMessage(), e);
         }
     }
 }
