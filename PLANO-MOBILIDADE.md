@@ -15,7 +15,7 @@ autorizando, relatório com ✅/❌.
 2. **Aluno:** tela própria **"Mobilidade"** no menu do aluno (ao lado de Treino e Dieta), funciona **sem internet**.
 3. **Sem registro:** o aluno só consulta (nome, prescrição, vídeo). Nada de marcar como feito nesta versão.
 4. **Permissões:** as **mesmas do treino** (`TREINO_LER`, `TREINO_ALTERAR`, `TREINO_PUBLICAR`). Nenhum código novo no
-   catálogo; perfis existentes não mudam (a Nutricionista não vê mobilidade, o Assistente vê como vê o treino).
+   catálogo; perfis existentes não mudam (a Nutricionista e o Assistente leem a mobilidade como leem o treino, porque têm `TREINO_LER`; nenhum dos dois cria nem publica).
 
 ## Andamento (09/10/2026)
 
@@ -55,8 +55,8 @@ devolve `{ mobilidade }` e 404 sem plano.
   `MOBILIDADE_PUBLICADA` / entidade `MOBILIDADE`, resumo fixo.
 - Testes (`MobilidadeIntegrationTest`, no molde do `DietaIntegrationTest`): criar a partir de modelo `MOBILIDADE` com
   `pastaId` (herda período), salvar rascunho com lock (409), validar (422 com `fieldErrors`), publicar v1 e v2 (v1
-  imutável), outra consultoria 404, membro com perfil Nutricionista 403 e Assistente (`TREINO_LER`) 200 na leitura e 403
-  ao publicar, auditoria grava `MOBILIDADE_PUBLICADA`.
+  imutável), outra consultoria 404, Assistente e Nutricionista (`TREINO_LER`) 200 na leitura e 403
+  ao criar, salvar rascunho e publicar, auditoria grava `MOBILIDADE_PUBLICADA`.
 
 ## M2 — Pasta e modelos
 
@@ -110,7 +110,7 @@ devolve `{ mobilidade }` e 404 sem plano.
 - `AGENTS.md`: uma linha em API (plano de mobilidade = padrão da dieta, permissões do treino, `MOBILIDADE_PUBLICADA`) e
   uma em App (aba do aluno, cache `kv`).
 - Roteiro no navegador: criar mobilidade na pasta a partir de modelo, publicar, aluno vê na aba (online e em modo
-  avião), replicar a pasta, Assistente lê e não publica, Nutricionista não vê.
+  avião), replicar a pasta, Assistente e Nutricionista leem e não publicam.
 - Opcional: `SeedDemo` com um plano de mobilidade fictício para o `aluno@demo.local`.
 
 ## Fora do escopo (anotar, não fazer)
