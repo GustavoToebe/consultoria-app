@@ -8,6 +8,8 @@ import java.util.UUID;
 public class AuditoriaController {
     private final Auditoria auditoria;
     public AuditoriaController(Auditoria auditoria) { this.auditoria=auditoria; }
+    @PreAuthorize("hasAuthority('PERM_AUDITORIA_LER')") @GetMapping("/auditoria/pessoas")
+    public java.util.List<Auditoria.Pessoa> pessoas() { return auditoria.pessoas(); }
     @PreAuthorize("hasAuthority('PERM_AUDITORIA_LER')") @GetMapping("/auditoria")
     public Auditoria.Pagina listar(@RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate de,
                                   @RequestParam(required=false) @DateTimeFormat(iso=DateTimeFormat.ISO.DATE) LocalDate ate,

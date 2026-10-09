@@ -2,7 +2,8 @@ import { NumeroAnimado } from '../../ui/NumeroAnimado';
 import { Permitido } from '../../ui/Permitido';
 import { sobre } from '../../ui/sobre';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { Escolha } from '../../ui/Escolha';
 import type { SituacaoAtualizacao } from '../../api/tipos';
 import { Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -27,8 +28,9 @@ import { useCarregar } from '../../ui/useCarregar';
  * e planos que terminam nos próximos 7 dias (atalho para a ficha, onde está o "Replicar").
  */
 export default function InicioTreinador() {
-  const { usuario } = useSessao();
-  const { dados, erro, carregando, recarregar } = useCarregar('painel', () => painelTreinador());
+  const { usuario,perfilEquipe } = useSessao();
+  const [escopo,setEscopo]=useState<'meus'|'todos'>(perfilEquipe?.acessoTotal?'todos':'meus');
+  const { dados, erro, carregando, recarregar } = useCarregar(`painel:${escopo}`, () => painelTreinador(escopo==='meus'));
   useFocusEffect(useCallback(()=>{recarregar();},[recarregar]));
   const abrirAluno = (id: string) => router.push(`/treinador/alunos/${id}`);
 
@@ -39,6 +41,7 @@ export default function InicioTreinador() {
         mostrarMarca="celular"
         acoes={<Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>}
       />
+      <Escolha rotulo="Responsabilidade" opcoes={[{valor:'meus',rotulo:'Meus alunos'},{valor:'todos',rotulo:'Todos os alunos'}]} valor={escopo} aoMudar={setEscopo}/>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (

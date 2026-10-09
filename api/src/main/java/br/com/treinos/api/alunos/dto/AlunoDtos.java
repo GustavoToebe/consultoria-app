@@ -26,7 +26,11 @@ public final class AlunoDtos {
             @Size(max = 200) String objetivo,
             @Size(max = 4000) String observacoes,
             Long versao,
-            @Min(1) @Max(365) Integer diasAtualizacao) {
+            @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId) {
+
+        public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao) {
+            this(nome,email,objetivo,observacoes,versao,diasAtualizacao,null);
+        }
 
         public AlunoRequest(String nome, String email, String objetivo, String observacoes, Long versao) {
             this(nome, email, objetivo, observacoes, versao, null);

@@ -124,7 +124,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
       {comTabela && lista.length > LINHAS_INICIAIS ? (
         <Botao rotulo={todos ? 'Mostrar só os últimos' : `Mostrar todos (${lista.length})`} tipo="fantasma" aoTocar={() => setTodos((v) => !v)} />
       ) : null}
-      <View style={estilos.form}>
+      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><View style={estilos.form}>
         <View style={estilos.campoData}>
           <CampoData rotulo="Data" valor={data} aoMudar={setData} erro={campos.data} />
         </View>
@@ -135,6 +135,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
           <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} maxLength={300} />
         </View>
       </View>
+      </Permitido>
       {erroSalvar && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erroSalvar)} /> : null}
       <View style={estilos.botoes}>
         <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Botao rotulo="Adicionar peso" tipo="secundario" carregando={salvando} desabilitado={!dataIso || peso === null} aoTocar={adicionar} /></Permitido>

@@ -71,8 +71,16 @@ public class PainelService {
 
     @Transactional(readOnly = true)
     public PainelTreinador painel() {
+        return painel(false);
+    }
+
+    @Transactional(readOnly = true)
+    public PainelTreinador painel(boolean meus) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-        List<Aluno> ativos = alunos.findByAtivoTrueOrderByNomeAsc();
+        UUID responsavelId = meus ? ((br.com.treinos.api.security.UsuarioAutenticado)
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).usuarioId() : null;
+        List<Aluno> ativos = alunos.findByAtivoTrueOrderByNomeAsc().stream()
+                .filter(a -> responsavelId == null || responsavelId.equals(a.getResponsavelId())).toList();
         Map<UUID, Aluno> porId = ativos.stream().collect(Collectors.toMap(Aluno::getId, Function.identity()));
 
         Map<UUID, LocalDate> ultimo = new HashMap<>();
@@ -98,8 +106,12 @@ public class PainelService {
                 && br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
         return new PainelTreinador(ativos.size(), registros ? semRegistro : List.of(), registros ? ultimasExecucoes(porId) : List.of(),
                 br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER") ? terminando : List.of(),
-                checkin ? atualizacoes.listar("PARA_REVISAR").size() : 0, checkin ? atualizacoes.listar("ATRASADAS").size() : 0,
-                checkin ? atualizacoes.listar("AVISARAM_ATRASO").size() : 0, checkin ? atualizacoes.listar("PROXIMAS").size() : 0);
+                checkin ? contarAtualizacoes("PARA_REVISAR",porId) : 0, checkin ? contarAtualizacoes("ATRASADAS",porId) : 0,
+                checkin ? contarAtualizacoes("AVISARAM_ATRASO",porId) : 0, checkin ? contarAtualizacoes("PROXIMAS",porId) : 0);
+    }
+
+    private long contarAtualizacoes(String situacao,Map<UUID,Aluno> alunosDoFiltro) {
+        return atualizacoes.listar(situacao).stream().filter(a -> alunosDoFiltro.containsKey(a.alunoId())).count();
     }
 
     /** Agrupa os registros mais recentes por aluno, dia e sessão. Nomes de aluno só de alunos ativos. */

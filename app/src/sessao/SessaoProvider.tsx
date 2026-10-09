@@ -36,6 +36,7 @@ interface ValorSessao {
   entrar: (email: string, senha: string) => Promise<void>;
   cadastrarTreinador: (dados: { nomeConsultoria: string; nome: string; email: string; senha: string }) => Promise<void>;
   aceitarConvite: (codigo: string, email: string, senha: string) => Promise<void>;
+  aceitarConviteEquipe: (codigo:string,senha:string) => Promise<void>;
   trocarSenha: (atual: string, nova: string) => Promise<void>;
   atualizarMarca: (marca: Marca) => void;
   sair: () => Promise<void>;
@@ -159,6 +160,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const valor = useMemo<ValorSessao>(
     () => ({
       perfilEquipe:perfil?.perfil??null,
+      aceitarConviteEquipe:async(codigo,senha)=>abrir(await rotas.aceitarConviteEquipe(codigo,senha)),
       pode:(codigo)=>conferirPermissao(perfil?.permissoes,codigo),
       recarregarPerfil,
       situacao,

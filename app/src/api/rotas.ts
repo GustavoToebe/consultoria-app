@@ -1,4 +1,5 @@
 import { requisicao } from './cliente';
+import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
   Atualizacao,
   RespostasAtualizacao,
@@ -46,6 +47,25 @@ import type {
   TipoReceita,
   VersaoDetalhe,
 } from './tipos';
+
+export const perfisEquipe = () => requisicao<PerfilEquipe[]>('/perfis');
+export const catalogoPermissoes = () => requisicao<PermissaoEquipe[]>('/permissoes/catalogo');
+export const criarPerfilEquipe = (corpo:PerfilEquipeRequest) => requisicao<PerfilEquipe>('/perfis',{metodo:'POST',corpo});
+export const alterarPerfilEquipe = (id:string,corpo:PerfilEquipeRequest) => requisicao<PerfilEquipe>(`/perfis/${id}`,{metodo:'PUT',corpo});
+export const duplicarPerfilEquipe = (id:string) => requisicao<PerfilEquipe>(`/perfis/${id}/duplicar`,{metodo:'POST'});
+export const excluirPerfilEquipe = (id:string) => requisicao<void>(`/perfis/${id}`,{metodo:'DELETE'});
+export const membrosEquipe = () => requisicao<MembroEquipe[]>('/usuarios');
+export const pessoasAuditoria = () => requisicao<ResponsavelEquipe[]>('/auditoria/pessoas');
+export const convidarMembro = (corpo:{nome:string;email:string;perfilId:string}) => requisicao<ConviteEquipe>('/usuarios/convites',{metodo:'POST',corpo});
+export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${id}`,{metodo:'PUT',corpo});
+export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>(`/publico/convites-equipe/${encodeURIComponent(codigo)}`,{metodo:'POST',corpo:{senha},semRenovar:true});
+export const responsaveisEquipe = () => requisicao<ResponsavelEquipe[]>('/responsaveis');
+export const alterarResponsavel = (id:string,usuarioId:string) => requisicao<AlunoDetalhe>(`/alunos/${id}/responsavel`,{metodo:'PUT',corpo:{usuarioId}});
+export const alterarMeuPerfil = (nome:string,telefone:string|null) => requisicao<EuResponse>('/eu',{metodo:'PUT',corpo:{nome,telefone}});
+export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:string;acao?:string;pagina:number}) => {
+  const q=new URLSearchParams();for(const [campo,valor] of Object.entries(filtro)) if(valor!==undefined&&valor!=='') q.set(campo,String(valor));
+  return requisicao<PaginaAuditoria>(`/auditoria?${q.toString()}`);
+};
 
 // ---- Atualizações ----
 export const atualizacaoAluno = () => requisicao<Atualizacao>('/aluno/atualizacao');
@@ -122,15 +142,16 @@ export const alterarConfiguracao = (configuracao: Configuracao) =>
 
 // ---- Treinador: início ----
 
-export const painelTreinador = () => requisicao<PainelTreinador>('/painel');
+export const painelTreinador = (meus=false) => requisicao<PainelTreinador>(`/painel?meus=${meus}`);
 
 // ---- Treinador: alunos ----
 
-export const listarAlunos = (filtro: { busca?: string; situacao?: SituacaoFiltro; pagina?: number }) => {
+export const listarAlunos = (filtro: { busca?: string; situacao?: SituacaoFiltro; pagina?: number; meus?:boolean }) => {
   const q = new URLSearchParams();
   if (filtro.busca) q.set('busca', filtro.busca);
   q.set('situacao', filtro.situacao ?? 'ATIVO');
   q.set('pagina', String(filtro.pagina ?? 0));
+  q.set('meus', String(filtro.meus ?? false));
   return requisicao<PaginaAlunos>(`/alunos?${q.toString()}`);
 };
 

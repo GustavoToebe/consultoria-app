@@ -16,8 +16,9 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID> {
 
     @Query("select a from Aluno a where lower(a.nome) like :padrao escape '\\' and "
             + "(:situacao = 'TODOS' or (:situacao = 'ATIVO' and a.ativo = true) "
-            + "or (:situacao = 'INATIVO' and a.ativo = false)) order by lower(a.nome)")
-    Page<Aluno> buscar(String padrao, String situacao, Pageable pagina);
+            + "or (:situacao = 'INATIVO' and a.ativo = false)) "
+            + "and (:responsavelId is null or a.responsavelId = :responsavelId) order by lower(a.nome)")
+    Page<Aluno> buscar(String padrao, String situacao, UUID responsavelId, Pageable pagina);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Aluno a where a.id = :id")

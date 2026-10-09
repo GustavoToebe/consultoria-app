@@ -80,6 +80,26 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         assertThat(expirado.path("message").asString()).isEqualTo(errado.path("message").asString());
         api.post("/usuarios/convites",admin,Map.of("nome","Duplicado","email",admin.path("usuario").path("email").asString(),"perfilId",pid),409);
     }
+    @Test void filtroMeusAlunosSegueResponsavelSemRestringirLeituraEAtualizaCadastroAtomicamente() throws Exception {
+        var c=convite("Responsável fictício",ApiDeTeste.emailUnico("responsavel"),perfil("Assistente").path("id").asString());
+        var membro=aceitar(c,200);String uid=membro.path("usuario").path("id").asString();
+        UUID antigo=api.criarAluno(admin,"Aluno do administrador");
+        var novo=api.post("/alunos",admin,Map.of("nome","Aluno do responsável","responsavelId",uid),200);
+        assertThat(api.get("/alunos?meus=true",membro,200).path("total").asLong()).isEqualTo(1);
+        assertThat(api.get("/alunos?meus=false",membro,200).path("total").asLong()).isEqualTo(2);
+        assertThat(api.get("/painel?meus=true",membro,200).path("alunosAtivos").asLong()).isEqualTo(1);
+        assertThat(api.get("/painel?meus=false",membro,200).path("alunosAtivos").asLong()).isEqualTo(2);
+        api.get("/alunos/"+antigo,membro,200); // Filtro é uma preferência, não uma restrição de escopo.
+        var outro=api.novoTreinador();String externo=outro.path("usuario").path("id").asString();
+        api.post("/alunos",admin,Map.of("nome","Não deve gravar","responsavelId",externo),404);
+        assertThat(api.get("/alunos?meus=false",admin,200).path("total").asLong()).isEqualTo(2);
+        String id=novo.path("id").asString();
+        api.put("/alunos/"+id,admin,Map.of("nome","Nome não deve mudar","responsavelId",externo,"versao",novo.path("versao").asLong()),404);
+        assertThat(api.get("/alunos/"+id,admin,200).path("nome").asString()).isEqualTo("Aluno do responsável");
+        api.put("/alunos/"+id,admin,Map.of("nome","Aluno reatribuído","responsavelId",admin.path("usuario").path("id").asString(),"versao",novo.path("versao").asLong()),200);
+        assertThat(api.get("/painel?meus=true",membro,200).path("alunosAtivos").asLong()).isZero();
+        assertThat(api.get("/auditoria?acao=ALUNO_RESPONSAVEL_ALTERADO",admin,200).path("total").asLong()).isEqualTo(1);
+    }
     @Test void outroTenantNaoEditaPerfilUsuarioOuResponsavelEMeuPerfilGuardaTelefone() throws Exception {
         var outro=api.novoTreinador();String uid=outro.path("usuario").path("id").asString();
         String pid=api.get("/eu",outro,200).path("perfil").path("id").asString();
@@ -94,5 +114,13 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         assertThat(eu.path("usuario").path("telefone").asString()).isEqualTo("(45) 99999-8888");
         api.put("/eu",admin,Map.of("nome","Meu nome fictício","telefone","123"),400);
         assertThat(api.get("/responsaveis",admin,200)).hasSize(1);
+    }
+    @Test void auditorSemGestaoDaEquipeConsegueFiltrarPessoasSomenteDaConsultoria() throws Exception {
+        var p=api.post("/perfis",admin,Map.of("nome","Auditor fictício","permissoes",Set.of("AUDITORIA_LER")),200);
+        var c=convite("Auditor Teste",ApiDeTeste.emailUnico("auditor"),p.path("id").asString());var auditor=aceitar(c,200);
+        var outro=api.novoTreinador();String externo=outro.path("usuario").path("id").asString();
+        api.get("/usuarios",auditor,403);api.get("/auditoria",auditor,200);
+        assertThat(api.get("/auditoria/pessoas",auditor,200)).hasSize(2);
+        assertThat(api.get("/auditoria/pessoas",auditor,200).toString()).doesNotContain(externo);
     }
 }

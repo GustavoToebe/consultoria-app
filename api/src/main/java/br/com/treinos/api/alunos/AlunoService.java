@@ -40,23 +40,32 @@ public class AlunoService {
     private final RefreshTokenService refreshTokens;
     private final PlanoTreinoRepository planos;
     private final ExecucaoSerieRepository execucoes;
+    private final br.com.treinos.api.auditoria.Auditoria auditoria;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, RefreshTokenService refreshTokens,
-                        PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes) {
+                        PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria) {
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.refreshTokens = refreshTokens;
         this.planos = planos;
         this.execucoes = execucoes;
+        this.auditoria = auditoria;
     }
 
     @Transactional(readOnly = true)
     public PaginaAlunos listar(String busca, String situacao, int pagina, int tamanho) {
+        return listar(busca,situacao,pagina,tamanho,false);
+    }
+
+    @Transactional(readOnly = true)
+    public PaginaAlunos listar(String busca, String situacao, int pagina, int tamanho, boolean meus) {
         String filtro = situacao == null ? "ATIVO" : situacao.toUpperCase(Locale.ROOT);
         if (!SITUACOES.contains(filtro)) {
             throw new BadRequestException("Situação precisa ser ATIVO, INATIVO ou TODOS.");
         }
-        Page<Aluno> page = alunos.buscar(Buscas.padrao(busca), filtro,
+        UUID responsavelId = meus ? ((br.com.treinos.api.security.UsuarioAutenticado)
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).usuarioId() : null;
+        Page<Aluno> page = alunos.buscar(Buscas.padrao(busca), filtro, responsavelId,
                 PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 100)));
         List<UUID> ids = page.getContent().stream().map(Aluno::getId).toList();
         Map<UUID, PlanoTreino> planoAtivo = ids.isEmpty() ? Map.of() : planos.findByAlunoIdInAndAtivoTrue(ids).stream()
@@ -82,6 +91,7 @@ public class AlunoService {
         var auth=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if(auth!=null && auth.getPrincipal() instanceof br.com.treinos.api.security.UsuarioAutenticado eu) aluno.alterarResponsavel(eu.usuarioId());
         else usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(br.com.treinos.api.tenant.TenantContext.get(),br.com.treinos.api.auth.Papel.TREINADOR).stream().findFirst().ifPresent(u -> aluno.alterarResponsavel(u.getId()));
+        definirResponsavel(aluno,r.responsavelId());
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
     }
 
@@ -102,6 +112,10 @@ public class AlunoService {
         boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR");
         aluno.alterarDados(r.nome().trim(), email(r.email()), sensivel ? Buscas.opcional(r.objetivo()) : aluno.getObjetivo(),
                 sensivel ? Buscas.opcional(r.observacoes()) : aluno.getObservacoes(), r.diasAtualizacao());
+        UUID anterior=aluno.getResponsavelId();
+        definirResponsavel(aluno,r.responsavelId());
+        if(!java.util.Objects.equals(anterior,aluno.getResponsavelId()))
+            auditoria.registrarEvento("ALUNO_RESPONSAVEL_ALTERADO","ALUNO",aluno.getId(),"Alterou o responsável do aluno.");
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
     }
 
@@ -121,6 +135,14 @@ public class AlunoService {
             }
         }
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
+    }
+
+    private void definirResponsavel(Aluno aluno,UUID id) {
+        if(id==null) return;
+        var u=usuarios.findById(id).filter(v -> v.getConsultoriaId().equals(br.com.treinos.api.tenant.TenantContext.get())
+                && v.isAtivo() && v.getPapel()==br.com.treinos.api.auth.Papel.TREINADOR)
+                .orElseThrow(() -> new NaoEncontradoException("Responsável não encontrado."));
+        aluno.alterarResponsavel(u.getId());
     }
 
     private static void exigirEscritaSensivel(AlunoRequest r) {

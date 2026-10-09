@@ -33,13 +33,14 @@ const SITUACOES: { valor: SituacaoFiltro; rotulo: string }[] = [
 const TAMANHO_PAGINA = 30;
 
 export default function Alunos() {
-  const { pode } = useSessao();
+  const { pode,perfilEquipe } = useSessao();
+  const [escopo,setEscopo]=useState<'meus'|'todos'>(perfilEquipe?.acessoTotal?'todos':'meus');
   const [busca, setBusca] = useState('');
   const [situacao, setSituacao] = useState<SituacaoFiltro>('ATIVO');
   const [pagina, setPagina] = useState(0);
   const termo = useAtrasado(busca.trim(), 300);
-  const { dados, erro, carregando, recarregar } = useCarregar(`${termo}|${situacao}|${pagina}`, () =>
-    listarAlunos({ busca: termo, situacao, pagina }),
+  const { dados, erro, carregando, recarregar } = useCarregar(`${termo}|${situacao}|${pagina}|${escopo}`, () =>
+    listarAlunos({ busca: termo, situacao, pagina,meus:escopo==='meus' }),
   );
   const animar = usePrimeiraLista(!!dados, `${termo}|${situacao}|${pagina}`);
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
@@ -58,6 +59,7 @@ export default function Alunos() {
         }
       />
       <View style={estilos.filtros}>
+        <Escolha rotulo="Responsabilidade" opcoes={[{valor:'meus',rotulo:'Meus alunos'},{valor:'todos',rotulo:'Todos os alunos'}]} valor={escopo} aoMudar={v=>{setEscopo(v);setPagina(0);}}/>
         <View style={estilos.busca}>
           <Campo
             rotulo="Buscar"

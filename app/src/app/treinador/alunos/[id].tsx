@@ -15,6 +15,7 @@ import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
 import { CartaoPastas } from '../../../treinador/CartaoPastas';
 import { CartaoRegistros } from '../../../treinador/CartaoRegistros';
 import { FormAluno } from '../../../treinador/FormAluno';
+import { ResponsavelAluno } from '../../../treinador/equipe/ResponsavelAluno';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
@@ -118,6 +119,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
         <View style={estilos.dados}>
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} />
           <Linha rotulo="E-mail" valor={aluno.email} />
+          <ResponsavelAluno id={aluno.responsavelId}/>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><Linha rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
           <Linha rotulo="Nova atualização a cada" valor={aluno.diasAtualizacao ? `${aluno.diasAtualizacao} dias` : null} />
           <Permitido codigo="ALUNO_SENSIVEL_LER"><Linha rotulo="Observações" valor={aluno.observacoes} /></Permitido>

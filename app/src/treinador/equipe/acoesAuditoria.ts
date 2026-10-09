@@ -1,0 +1,13 @@
+export const ACOES_AUDITORIA:Record<string,string>={
+  LOGIN_SUCESSO:'Login realizado',LOGIN_BLOQUEADO:'Login bloqueado',
+  USUARIO_CONVIDADO:'Convite de equipe criado',CONVITE_EQUIPE_ACEITO:'Convite de equipe aceito',
+  USUARIO_ALTERADO:'Membro editado',USUARIO_PERFIL_ALTERADO:'Perfil do membro alterado',USUARIO_DESATIVADO:'Membro desativado',
+  PERFIL_CRIADO:'Perfil criado',PERFIL_ALTERADO:'Perfil editado',PERFIL_APAGADO:'Perfil excluído',PERFIL_DUPLICADO:'Perfil duplicado',
+  ALUNO_CRIADO:'Aluno cadastrado',ALUNO_ALTERADO:'Aluno editado',ALUNO_SITUACAO:'Situação do aluno alterada',ALUNO_CONVIDADO:'Convite de aluno criado',ALUNO_RESPONSAVEL_ALTERADO:'Responsável alterado no cadastro',RESPONSAVEL_ALTERADO:'Responsável alterado',
+  TREINO_PUBLICADO:'Treino publicado',DIETA_PUBLICADA:'Dieta publicada',
+  PASTA_CRIADA:'Pasta criada',PASTA_REPLICADA:'Pasta replicada',PASTA_FINALIZADA:'Pasta finalizada',
+  LESAO_REGISTRADA:'Lesão registrada',LESAO_ALTERADA:'Lesão editada',PESO_REGISTRADO:'Peso registrado',
+  ATUALIZACAO_FEEDBACK:'Feedback de atualização enviado ou editado',MARCA_ALTERADA:'Marca alterada',METODOLOGIA_ALTERADA:'Metodologia alterada',
+  LOGO_ALTERADA:'Logo alterada',LOGO_REMOVIDA:'Logo removida',
+  CSV_EXERCICIOS_IMPORTADO:'CSV de exercícios importado',CSV_ALIMENTOS_IMPORTADO:'CSV de alimentos importado',
+};

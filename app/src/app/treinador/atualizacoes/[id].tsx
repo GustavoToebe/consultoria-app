@@ -1,4 +1,5 @@
 import { Permitido } from '../../../ui/Permitido';
+import { useSessao } from '../../../sessao/SessaoProvider';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -25,6 +26,7 @@ import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
 export default function AtualizacaoTreinador() {
+  const {pode}=useSessao();
   const {id,alunoId}=useLocalSearchParams<{id:string;alunoId?:string}>();
   const detalhe=useCarregar(id==='previa'?alunoId??null:id??null,()=>
     id==='previa' ? atualizacaoDoAluno(alunoId!) : detalheAtualizacao(id));
@@ -46,7 +48,7 @@ export default function AtualizacaoTreinador() {
         <Texto>{a.atrasoMotivo??'Sem motivo informado.'}</Texto>
       </Cartao>:null}
       <QuestionarioAtualizacao atualizacao={a} respostas={a.respostas??{}} />
-      {a.enviadaEm?<EditorFeedback key={`${a.id}:${a.versao}`} atualizacao={a} aoSalvar={detalhe.definir} recarregar={detalhe.recarregar} />:null}
+      {a.enviadaEm?pode('ATUALIZACAO_RESPONDER')?<EditorFeedback key={`${a.id}:${a.versao}`} atualizacao={a} aoSalvar={detalhe.definir} recarregar={detalhe.recarregar} />:<FeedbackAtualizacao feedback={a.feedback}/>:null}
       <LinkTexto texto="Abrir pasta do aluno" href={`/treinador/alunos/${a.alunoId}?pastaId=${a.pastaId}`} />
     </>:a && !detalhe.carregando?<Vazio titulo="Sem atualização" texto="Não há pasta vigente com data de atualização." />:null}
   </Tela>;

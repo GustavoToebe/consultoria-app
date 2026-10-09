@@ -1,6 +1,6 @@
-import { BookOpen, House, NotebookTabs, Palette, UserRound, Users } from 'lucide-react-native';
+import { BookOpen, House, NotebookTabs, Palette, UserRound, Users, UsersRound, History } from 'lucide-react-native';
 
-import { Slot, usePathname } from 'expo-router';
+import { Navigator, Slot, usePathname } from 'expo-router';
 import { useEffect } from 'react';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { podeAcessarTela } from '../../dominio/permissoes';
@@ -16,14 +16,16 @@ const ITENS: ItemMenu[] = [
   { rotulo: 'Planejamento', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs, soLateral: true },
   { rotulo: 'Marca', href: '/treinador/marca', caminho: '/treinador/marca', Icone: Palette },
   { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: UserRound },
+  { rotulo: 'Equipe', href: '/treinador/equipe', caminho: '/treinador/equipe', Icone: UsersRound, soLateral:true },
+  { rotulo: 'Auditoria', href: '/treinador/auditoria', caminho: '/treinador/auditoria', Icone: History, soLateral:true },
 ];
 
 export default function LayoutTreinador() {
   const {pode,recarregarPerfil}=useSessao();const caminho=usePathname();
   useEffect(()=>{if(caminho.startsWith('/treinador')) void recarregarPerfil().catch(()=>undefined);},[recarregarPerfil,caminho]);
   return (
-    <GuardaDePapel papel="TREINADOR">
+    <Navigator><GuardaDePapel papel="TREINADOR">
       <Navegacao itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode))} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
-    </GuardaDePapel>
+    </GuardaDePapel></Navigator>
   );
 }

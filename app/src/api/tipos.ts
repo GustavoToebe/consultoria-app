@@ -119,6 +119,7 @@ export interface AlunoDetalhe {
 }
 
 export interface AlunoRequest {
+  responsavelId?:string|null;
   nome: string;
   email: string | null;
   objetivo?: string | null;

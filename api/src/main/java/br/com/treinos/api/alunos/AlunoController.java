@@ -36,8 +36,9 @@ public class AlunoController {
     public PaginaAlunos listar(@RequestParam(required = false) String busca,
                                @RequestParam(required = false) String situacao,
                                @RequestParam(defaultValue = "0") int pagina,
-                               @RequestParam(defaultValue = "30") int tamanho) {
-        return alunos.listar(busca, situacao, pagina, tamanho);
+                               @RequestParam(defaultValue = "30") int tamanho,
+                               @RequestParam(defaultValue = "false") boolean meus) {
+        return alunos.listar(busca, situacao, pagina, tamanho, meus);
     }
 
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')")

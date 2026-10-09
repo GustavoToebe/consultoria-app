@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { AlunoDetalhe, AlunoRequest } from '../api/tipos';
+import { responsaveisEquipe } from '../api/rotas';
+import { Escolha } from '../ui/Escolha';
+import { useCarregar } from '../ui/useCarregar';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -28,7 +31,9 @@ function diasDoCampo(texto: string): number | null {
  * ficam só no banco, nunca em log.
  */
 export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props) {
-  const {pode}=useSessao();
+  const {pode,usuario}=useSessao();
+  const [responsavelId,setResponsavelId]=useState(inicial?.responsavelId??usuario?.id??'');
+  const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [email, setEmail] = useState(inicial?.email ?? '');
   const [objetivo, setObjetivo] = useState(inicial?.objetivo ?? '');
@@ -52,6 +57,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
       ...(pode("ALUNO_SENSIVEL_ALTERAR") ? {objetivo:objetivo.trim()||null,observacoes:observacoes.trim()||null} : {}),
       versao: inicial?.versao ?? null,
       diasAtualizacao: diasDoCampo(dias),
+      responsavelId:responsavelId||null,
     }).then(
       () => setSalvando(false),
       (e: unknown) => {
@@ -64,6 +70,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
   return (
     <View style={estilos.form}>
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} autoComplete="off" maxLength={120} />
+      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
+      {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
       <Campo
         rotulo="E-mail (opcional)"
         valor={email}

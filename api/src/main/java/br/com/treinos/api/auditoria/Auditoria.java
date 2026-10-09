@@ -79,6 +79,12 @@ public class Auditoria {
     }
     public record Evento(UUID id,UUID usuarioId,String nomeUsuario,String acao,String entidade,UUID entidadeId,String resumo,Instant criadoEm) { }
     public record Pagina(List<Evento> itens,long total,int pagina) { }
+    public record Pessoa(UUID id,String nome) { }
+    @Transactional(readOnly=true)
+    public List<Pessoa> pessoas() {
+        return usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(TenantContext.get(),Papel.TREINADOR)
+                .stream().map(u -> new Pessoa(u.getId(),u.getNome())).toList();
+    }
     @Transactional(readOnly=true)
     public Pagina listar(LocalDate de,LocalDate ate,UUID usuarioId,String acao,int pagina) {
         if(de!=null && ate!=null && ate.isBefore(de)) throw new BadRequestException("Período inválido.");

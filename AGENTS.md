@@ -54,6 +54,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   `@Auditar` roda dentro da transação (advisor 1, transação 0); `AuditoriaGravacao` usa JDBC com
   consultoria explícita porque o login começa global. A ação e seu evento sofrem o mesmo rollback.
   Retenção de um ano, limpeza diária; leitura paginada exige `AUDITORIA_LER`.
+  `/auditoria/pessoas` traz só id/nome para o filtro, com a mesma permissão, sem exigir gestão da equipe.
 - `web/` erros (`ApiError` com `codigo`), `RequestIdFilter`, corpo até 1 MiB (`LimiteCorpoFilter`, 413 `CORPO_EXCEDIDO`).
 - `security/` JWT de 15 min com `cv`; refresh opaco com rotação (reuso derruba todas as sessões); web = cookie
   `TREINOS_REFRESH` + CSRF `TREINOS-XSRF-TOKEN`, nativo = refresh no corpo (`X-Treinos-Cliente: nativo`).
@@ -92,6 +93,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 ## App: convenções
 - Equipe: `useSessao().pode(codigo)` usa `/eu` só para apresentação; menu, ações e cartões seguem
   as permissões. `GuardaDePermissao` não monta telas sem acesso. A API continua autorizando pelo banco.
+  Responsável é salvo junto ao cadastro (mesma transação); `meus=true` em `/alunos` e `/painel`
+  filtra pelo usuário autenticado. É preferência de listagem, sem restringir acesso a outros alunos da consultoria.
 - Rotas em `app/src/app/` (Expo Router). Áreas em pastas reais `treinador/` e `aluno/` (URLs `/treinador` e `/aluno`):
   grupos `(treinador)`/`(aluno)` do esboço do plano colidiriam os dois `index` em `/`.
 - `api/cliente.ts` é o único lugar que fala HTTP; `api/rotas.ts` tem uma função por rota. Credencial só vai para a
