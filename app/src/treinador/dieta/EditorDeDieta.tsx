@@ -113,15 +113,6 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
       <View style={estilos.barra}>
         <Texto variante="secao">Refeições ({c.refeicoes.length})</Texto>
         <View style={estilos.acoes}>
-          {c.refeicoes.length > 1 ? (
-            <Botao
-              rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'}
-              tipo="fantasma"
-              Icone={todasAbertas ? ChevronsDownUp : ChevronsUpDown}
-              aoTocar={() => setAbertas(todasAbertas ? new Set() : new Set(c.refeicoes.map((r) => r.uid)))}
-            />
-          ) : null}
-          <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />
           <Botao
             rotulo="Adicionar refeição"
             desabilitado={unica && c.refeicoes.length >= 1}
@@ -133,6 +124,15 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
               setAbertas((a) => new Set(a).add(nova.uid));
             }}
           />
+          <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />
+          {c.refeicoes.length > 1 ? (
+            <Botao
+              rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'}
+              tipo="fantasma"
+              Icone={todasAbertas ? ChevronsDownUp : ChevronsUpDown}
+              aoTocar={() => setAbertas(todasAbertas ? new Set() : new Set(c.refeicoes.map((r) => r.uid)))}
+            />
+          ) : null}
         </View>
       </View>
       {c.refeicoes.length === 0 ? <Vazio texto="Nenhuma refeição ainda. Adicione uma ou comece de um modelo." /> : null}
