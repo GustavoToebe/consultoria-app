@@ -59,7 +59,7 @@ export default function InicioTreinador() {
           <Permitido codigo="ALUNO_LER">
           <View style={estilos.grupo}>
             <Texto variante="secao">Alunos</Texto>
-            <View style={estilos.contadores}><Contador titulo="Ativos" numero={dados.alunosAtivos} aoTocar={() => router.push('/treinador/alunos')} /></View>
+            <View style={estilos.contadores}><Contador unico titulo="Ativos" numero={dados.alunosAtivos} aoTocar={() => router.push('/treinador/alunos')} /></View>
           </View>
           <Permitido codigo="TREINO_LER"><Cartao titulo="Planos terminando em 7 dias" style={estilos.metade}>
             {dados.planosTerminando.length === 0 ? <Vazio titulo="Nenhum plano terminando" texto="Veja os planos e períodos nas fichas dos alunos." acao={{ rotulo: 'Ver alunos', aoTocar: () => router.push('/treinador/alunos') }} /> : null}
@@ -106,14 +106,14 @@ export default function InicioTreinador() {
 }
 
 /** Número do painel que leva à lista: o cartão inteiro é o toque, sem botão "Ver ..." repetido. */
-function Contador({ titulo, numero, aoTocar }: { titulo: string; numero: number; aoTocar: () => void }) {
+function Contador({ titulo, numero, aoTocar, unico }: { titulo: string; numero: number; aoTocar: () => void; unico?: boolean }) {
   const { cores } = useTema();
   return (
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={`${titulo}: ${numero}. Ver lista.`}
       onPress={aoTocar}
-      style={(estado) => [estilos.contador, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
+      style={(estado) => [estilos.contador, unico ? estilos.contadorUnico : null, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
       <View style={estilos.contadorTextos}>
         <Texto variante="suave">{titulo}</Texto>
         <NumeroAnimado valor={numero} variante="destaque" />
@@ -142,6 +142,8 @@ const estilos = StyleSheet.create({
   grupo: { flexBasis: '100%', gap: espaco(1) },
   contadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   contador: { flexGrow: 1, flexShrink: 1, flexBasis: 200, minWidth: 0, minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: espaco(1), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
+  // Sozinho no grupo, o contador não estica pela largura toda.
+  contadorUnico: { flexGrow: 0, flexBasis: 280, maxWidth: '100%' },
   contadorTextos: { flex: 1, gap: espaco(0.5) },
   // Duas colunas no PC; no celular cada cartão ocupa a largura (encolhe abaixo da base).
   metade: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
