@@ -255,9 +255,10 @@ export const alterarReceita = (id: string, dados: ReceitaRequest) =>
 
 export const excluirReceita = (id: string) => requisicao<void>(`/receitas/${id}`, { metodo: 'DELETE' });
 
-// ---- Treinador: planos de treino e de dieta (mesmas rotas, trocando o prefixo) ----
+// ---- Treinador: planos de treino, dieta e mobilidade (mesmas rotas, trocando o prefixo) ----
 
-const prefixo = (tipo: TipoPlano) => (tipo === 'treino' ? 'planos-treino' : 'planos-dieta');
+const PREFIXOS: Record<TipoPlano, string> = { treino: 'planos-treino', dieta: 'planos-dieta', mobilidade: 'planos-mobilidade' };
+const prefixo = (tipo: TipoPlano) => PREFIXOS[tipo];
 
 export interface DadosPasta {
   titulo: string;

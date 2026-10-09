@@ -1,3 +1,12 @@
+import type { TipoPlano } from '../api/tipos';
+
+/** Permissão de cada ação por tipo de plano. Mobilidade usa as do treino (decisão do produto). Mapa exaustivo: tipo novo não compila sem entrada. */
+export const PERMISSOES_DO_PLANO: Record<TipoPlano, { ler: string; alterar: string; publicar: string }> = {
+  treino: { ler: 'TREINO_LER', alterar: 'TREINO_ALTERAR', publicar: 'TREINO_PUBLICAR' },
+  dieta: { ler: 'DIETA_LER', alterar: 'DIETA_ALTERAR', publicar: 'DIETA_PUBLICAR' },
+  mobilidade: { ler: 'TREINO_LER', alterar: 'TREINO_ALTERAR', publicar: 'TREINO_PUBLICAR' },
+};
+
 /** Preferências de apresentação; a API autoriza cada operação pelo banco. */
 export function pode(permissoes:readonly string[]|undefined,codigo:string):boolean {
   return permissoes?.includes(codigo)??false;
@@ -10,6 +19,7 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean):boo
   if(caminho.startsWith('/treinador/alunos')) return tem('ALUNO_LER');
   if(caminho.startsWith('/treinador/treinos')) return tem('TREINO_LER')&&tem('TREINO_ALTERAR');
   if(caminho.startsWith('/treinador/dietas')) return tem('DIETA_LER')&&tem('DIETA_ALTERAR');
+  if(caminho.startsWith('/treinador/mobilidades')) return tem('TREINO_LER')&&tem('TREINO_ALTERAR');
   if(caminho==='/treinador/biblioteca') return tem('BIBLIOTECA_LER');
   if(caminho.startsWith('/treinador/planejamento/modelo')) return tem('MODELO_LER')&&tem('MODELO_ALTERAR');
   if(caminho.startsWith('/treinador/planejamento')||caminho==='/treinador/receitas') return tem('MODELO_LER');

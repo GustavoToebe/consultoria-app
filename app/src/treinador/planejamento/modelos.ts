@@ -14,7 +14,7 @@ const INFORMACOES: Record<TipoReceita, { rotulo: string; descricao: string }> = 
   METODOLOGIA: { rotulo: 'Metodologias', descricao: 'Regras de séries e preparação. É vinculada à semana na configuração do editor de treino.' },
   PLANO_DIETA: { rotulo: 'Dietas', descricao: 'A dieta inteira, com refeições, opções e itens. Aplicada ao aluno, vira a dieta de uma pasta dele.' },
   REFEICAO: { rotulo: 'Refeições', descricao: 'Uma refeição pronta. Entra numa dieta pelo editor de dieta.' },
-  PASTA_PLANO: { rotulo: 'Pacotes (treino + dieta)', descricao: 'Treinos e dietas de um período. Aplicado ao aluno, cria a pasta dele com tudo de uma vez.' },
+  PASTA_PLANO: { rotulo: 'Pacotes (treino, dieta e mobilidade)', descricao: 'Treinos, dietas e mobilidade de um período. Aplicado ao aluno, cria a pasta dele com tudo de uma vez.' },
   MOBILIDADE: { rotulo: 'Mobilidade', descricao: 'Sequências de alongamento e mobilidade, com vídeo. Aplicada ao aluno, vira a mobilidade de uma pasta dele.' },
 };
 

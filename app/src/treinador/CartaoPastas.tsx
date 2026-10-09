@@ -1,3 +1,4 @@
+import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import { Permitido } from '../ui/Permitido';
 import { useSessao } from '../sessao/SessaoProvider';
 import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Folder, FolderCheck, FolderPlus, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
@@ -123,14 +124,15 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setAbertaId(null); setExcluir(aberta); }} /></Permitido>
           </View>
           <Texto variante="secao">Planos desta pasta</Texto>
-          <Permitido codigo="TREINO_LER"><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
-          <Permitido codigo="DIETA_LER"><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO.mobilidade.ler}><CartaoPlanos tipo="mobilidade" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={{ id: alunoId, nome: alunoNome }} pasta={aberta} /></Permitido>
           {verAtualizacoes ? <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes}
             aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}
         </Folha>
       ) : null}
-      {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Pacote (treino + dieta)" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
+      {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Pacote (treino, dieta e mobilidade)" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
       {modelo ? <AplicarAoAluno modelo={modelo} alunoInicial={alunoId} aoFechar={() => setModelo(null)} aoAplicar={() => { setModelo(null); aoSalvar(); avisar('Pasta copiada como rascunho.', 'sucesso'); }} /> : null}
       {salvarModelo ? <FolhaSalvarReceita titulo="Salvar pasta como pacote" explicacao="Copia os rascunhos de treino e dieta desta pasta para reutilizar em outros alunos." aoFechar={() => setSalvarModelo(null)} aoSalvar={async (nome, descricao) => {
         await salvarPastaComoModelo(salvarModelo.id, nome, descricao); setSalvarModelo(null); avisar('Pacote salvo.', 'sucesso');

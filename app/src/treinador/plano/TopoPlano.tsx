@@ -17,6 +17,7 @@ import { Selo, type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { SelosDoPlano } from '../CartaoPlanos';
 import { gerarPdfDoPlano } from '../gerarPdf';
+import { PERMISSOES_DO_PLANO } from '../../dominio/permissoes';
 import type { SituacaoRascunho, usePlanoEditor } from './usePlanoEditor';
 
 const SITUACOES: Record<SituacaoRascunho, { texto: string; tipo: TipoSelo }> = {
@@ -71,6 +72,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
 
   // PDF da última versão publicada (o que o aluno vê); nunca publicado, sai do rascunho marcado como tal.
   const pdf = async () => {
+    if (tipo === 'mobilidade') return; // sem PDF de mobilidade; o botão nem aparece
     setGerandoPdf(true);
     try {
       if (e.plano.versaoPublicada === 0) await editor.salvar();
@@ -110,15 +112,17 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
             {editor.situacao === 'erro' ? (
               <Botao rotulo="Tentar salvar de novo" tipo="secundario" aoTocar={() => void editor.salvar()} />
             ) : null}
-            <Botao
-              rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
-              tipo="secundario"
-              Icone={FileDown}
-              carregando={gerandoPdf}
-              aoTocar={() => void pdf()}
-            />
+            {tipo !== 'mobilidade' ? (
+              <Botao
+                rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
+                tipo="secundario"
+                Icone={FileDown}
+                carregando={gerandoPdf}
+                aoTocar={() => void pdf()}
+              />
+            ) : null}
             <Botao rotulo="Validar" tipo="secundario" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />
-            <Permitido codigo={tipo==='treino'?'TREINO_PUBLICAR':'DIETA_PUBLICAR'}><Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} /></Permitido>
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}><Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} /></Permitido>
           </>
         }>
         <View style={estilos.selos}>

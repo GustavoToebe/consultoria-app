@@ -4,8 +4,7 @@ import { alterarReceita, consultoria } from '../../api/rotas';
 import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos';
 import { normalizarDieta } from '../../dominio/dieta';
 import { mover, normalizarTreino, seriesDaReceita, seriesParaReceita } from '../../dominio/editorTreino';
-import { type ConteudoMobilidade, type ItemMobilidade, type SecaoMobilidade, mobilidadeParaApi, mobilidadeValida, normalizarMobilidade, novaSecaoMobilidade, novoItemMobilidade } from '../../dominio/mobilidade';
-import { erroDoVideo } from '../../dominio/video';
+import { type ConteudoMobilidade, mobilidadeParaApi, mobilidadeValida, normalizarMobilidade } from '../../dominio/mobilidade';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -18,13 +17,14 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { CartaoMetodologia } from '../marca/CartaoMetodologia';
+import { SecoesDeMobilidade } from '../mobilidade/SecoesDeMobilidade';
 import { EditorSeries } from '../treino/EditorSeries';
 
 export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; aoRecarregar: () => void }) {
   const [nome, setNome] = useState(r.nome); const [descricao, setDescricao] = useState(r.descricao ?? '');
   const [conteudo, setConteudo] = useState(r.tipo === 'SERIES' ? { series: seriesDaReceita(r.conteudo) } : r.tipo === 'MOBILIDADE' ? normalizarMobilidade(r.conteudo) : r.conteudo);
   const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState<unknown>(null);
-  const [adicionar, setAdicionar] = useState<'PLANO_TREINO' | 'PLANO_DIETA' | null>(null);
+  const [adicionar, setAdicionar] = useState<'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE' | null>(null);
   const { avisar } = useAviso();
   const consultoriaAtual = useCarregar('config-modelo', consultoria);
   const salvar = async (novoConteudo = conteudo) => {
@@ -35,9 +35,6 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   };
   const pasta = conteudo as ConteudoPastaModelo;
   const mob = r.tipo === 'MOBILIDADE' ? (conteudo as ConteudoMobilidade) : null;
-  const alterarMob = (mudanca: (c: ConteudoMobilidade) => ConteudoMobilidade) => setConteudo(mudanca(conteudo as ConteudoMobilidade));
-  const alterarSecao = (si: number, mudanca: (x: SecaoMobilidade) => SecaoMobilidade) => alterarMob((c) => ({ ...c, secoes: c.secoes.map((x, n) => (n === si ? mudanca(x) : x)) }));
-  const alterarItem = (si: number, ii: number, parcial: Partial<ItemMobilidade>) => alterarSecao(si, (x) => ({ ...x, itens: x.itens.map((y, m) => (m === ii ? { ...y, ...parcial } : y)) }));
   return <Tela bordas={['top']} largura={LARGURA_EDITOR}>
     <Cabecalho titulo={r.nome} trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: r.nome }]} subtitulo="Modelo reutilizável" voltar="/treinador/planejamento" />
     <Texto variante="suave">Salve as alterações antes de sair. Os planos dos alunos permanecem iguais.</Texto>
@@ -45,36 +42,21 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
     <Campo rotulo="Descrição" valor={descricao} aoMudar={setDescricao} linhas={2} maxLength={400} />
     {r.tipo === 'METODOLOGIA' ? <CartaoMetodologia configuracao={conteudo as Configuracao} aoSalvar={salvar} /> : null}
     {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={consultoriaAtual.dados?.configuracao ?? null} aoMudar={(series) => setConteudo({ series })} /> : null}
-    {mob ? <>
-      <Campo rotulo="Orientações (opcional)" valor={mob.orientacoes} aoMudar={(orientacoes) => alterarMob((c) => ({ ...c, orientacoes }))} linhas={3} maxLength={2000} />
-      {mob.secoes.map((sec, si) => <Cartao key={sec.uid} titulo={sec.titulo || `Seção ${si + 1}`}>
-        <Campo rotulo="Título da seção" valor={sec.titulo} maxLength={80} aoMudar={(titulo) => alterarSecao(si, (x) => ({ ...x, titulo }))} />
-        {sec.itens.map((it, ii) => <Cartao key={it.uid} titulo={`${ii + 1}. ${it.nome || 'Item sem nome'}`}>
-          <Campo rotulo="Nome do exercício" valor={it.nome} maxLength={120} aoMudar={(nomeItem) => alterarItem(si, ii, { nome: nomeItem })} />
-          <Campo rotulo="Prescrição (ex.: 2 x 20s cada lado)" valor={it.prescricao} maxLength={120} aoMudar={(prescricao) => alterarItem(si, ii, { prescricao })} />
-          <Campo rotulo="Link do vídeo (YouTube)" valor={it.videoUrl} maxLength={500} autoCapitalize="none" erro={erroDoVideo(it.videoUrl)} aoMudar={(videoUrl) => alterarItem(si, ii, { videoUrl })} />
-          <Botao rotulo="Subir item" tipo="secundario" desabilitado={ii === 0} aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: mover(x.itens, ii, -1) }))} />
-          <Botao rotulo="Descer item" tipo="secundario" desabilitado={ii === sec.itens.length - 1} aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: mover(x.itens, ii, 1) }))} />
-          <Botao rotulo="Remover item" tipo="perigoTexto" aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: x.itens.filter((_, m) => m !== ii) }))} />
-        </Cartao>)}
-        <Botao rotulo="Adicionar item" tipo="secundario" desabilitado={sec.itens.length >= 40} aoTocar={() => alterarSecao(si, (x) => ({ ...x, itens: [...x.itens, novoItemMobilidade()] }))} />
-        <Botao rotulo="Remover seção" tipo="perigoTexto" desabilitado={mob.secoes.length <= 1} aoTocar={() => alterarMob((c) => ({ ...c, secoes: c.secoes.filter((_, n) => n !== si) }))} />
-      </Cartao>)}
-      <Botao rotulo="Adicionar seção" tipo="secundario" desabilitado={mob.secoes.length >= 10} aoTocar={() => alterarMob((c) => ({ ...c, secoes: [...c.secoes, novaSecaoMobilidade()] }))} />
-    </> : null}
+    {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={setConteudo} /> : null}
     {r.tipo === 'PASTA_PLANO' ? <>
-      <Texto variante="suave">Adicione cópias dos modelos de semana e dieta. Alterar o modelo original depois não modifica este pacote. Para atualizar um item, remova e adicione a versão desejada.</Texto>
-      {pasta.planos.map((p, i) => <Cartao key={i} titulo={`${i + 1}. ${p.treino ? 'Semana de treino' : 'Dieta'}`}>
+      <Texto variante="suave">Adicione cópias dos modelos de semana, dieta e mobilidade. Alterar o modelo original depois não modifica este pacote. Para atualizar um item, remova e adicione a versão desejada.</Texto>
+      {pasta.planos.map((p, i) => <Cartao key={i} titulo={`${i + 1}. ${p.treino ? 'Semana de treino' : p.mobilidade ? 'Mobilidade' : 'Dieta'}`}>
         <Campo rotulo="Título do plano" valor={p.titulo} maxLength={120} aoMudar={(titulo) => setConteudo({ planos: pasta.planos.map((x, n) => n === i ? { ...x, titulo } : x) })} />
-        <Texto variante="pequeno">{p.treino ? p.treino.sessoes.map((s) => s.nome || 'Sessão').join(' · ') : p.dieta?.refeicoes.map((ref) => ref.nome || 'Refeição').join(' · ')}</Texto>
+        <Texto variante="pequeno">{p.treino ? p.treino.sessoes.map((s) => s.nome || 'Sessão').join(' · ') : p.mobilidade ? p.mobilidade.secoes.map((sec) => sec.titulo || 'Seção').join(' · ') : p.dieta?.refeicoes.map((ref) => ref.nome || 'Refeição').join(' · ')}</Texto>
         <Botao rotulo="Subir plano" tipo="secundario" desabilitado={i === 0} aoTocar={() => setConteudo({ planos: mover(pasta.planos, i, -1) })} />
         <Botao rotulo="Descer plano" tipo="secundario" desabilitado={i === pasta.planos.length - 1} aoTocar={() => setConteudo({ planos: mover(pasta.planos, i, 1) })} />
         <Botao rotulo="Remover do pacote" tipo="perigoTexto" aoTocar={() => setConteudo({ planos: pasta.planos.filter((_, n) => n !== i) })} />
       </Cartao>)}
       <Botao rotulo="Adicionar semana de treino" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('PLANO_TREINO')} />
       <Botao rotulo="Adicionar dieta" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('PLANO_DIETA')} />
+      <Botao rotulo="Adicionar mobilidade" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('MOBILIDADE')} />
       {adicionar ? <FolhaReceitas tipo={adicionar} titulo="Adicionar modelo ao pacote" aoFechar={() => setAdicionar(null)} aoUsar={(modelo) => {
-        setConteudo({ planos: [...pasta.planos, { titulo: modelo.nome, treino: adicionar === 'PLANO_TREINO' ? normalizarTreino(modelo.conteudo) : null, dieta: adicionar === 'PLANO_DIETA' ? normalizarDieta(modelo.conteudo) : null }] }); setAdicionar(null);
+        setConteudo({ planos: [...pasta.planos, { titulo: modelo.nome, treino: adicionar === 'PLANO_TREINO' ? normalizarTreino(modelo.conteudo) : null, dieta: adicionar === 'PLANO_DIETA' ? normalizarDieta(modelo.conteudo) : null, mobilidade: adicionar === 'MOBILIDADE' ? mobilidadeParaApi(normalizarMobilidade(modelo.conteudo)) : null }] }); setAdicionar(null);
       }} /> : null}
     </> : null}
     {erro ? <><MensagemErro texto={textoDoErro(erro)} /><Botao rotulo="Recarregar modelo (descartar alterações)" tipo="secundario" aoTocar={aoRecarregar} /></> : null}

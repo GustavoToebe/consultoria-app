@@ -24,12 +24,14 @@ import { Folha } from '../ui/Folha';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
-import { gerarPdfDoPlano } from './gerarPdf';
+import { gerarPdfDoPlano, type TipoPlanoComPdf } from './gerarPdf';
+import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import { useCarregar } from '../ui/useCarregar';
 
-const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA'; rota: string }> = {
+const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
   treino: { titulo: 'Treino', plural: 'Treinos', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
   dieta: { titulo: 'Dieta', plural: 'Dietas', novo: 'Nova dieta', receita: 'PLANO_DIETA', rota: '/treinador/dietas' },
+  mobilidade: { titulo: 'Mobilidade', plural: 'Mobilidade', novo: 'Nova mobilidade', receita: 'MOBILIDADE', rota: '/treinador/mobilidades' },
 };
 
 export function rotaDoEditor(tipo: TipoPlano, id: string) {
@@ -77,11 +79,11 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
   return (
     <Cartao
       titulo={NOMES[tipo].plural}
-      acoes={<Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido>}>
+      acoes={<Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido>}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (
-        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Os planos deste período aparecerão aqui." acao={pode(tipo === 'treino' ? 'TREINO_ALTERAR' : 'DIETA_ALTERAR') ? { rotulo: NOMES[tipo].novo, aoTocar: () => setNovo(true) } : undefined} />
+        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Os planos deste período aparecerão aqui." acao={pode(PERMISSOES_DO_PLANO[tipo].alterar) ? { rotulo: NOMES[tipo].novo, aoTocar: () => setNovo(true) } : undefined} />
       ) : null}
       {dados?.map((p, i) => (
         <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
@@ -91,12 +93,12 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
             <SelosDoPlano plano={p} />
           </View>
           <View style={estilos.botoes}>
-            {p.versaoPublicada > 0 ? <BotaoPdf tipo={tipo} plano={p} /> : null}
+            {p.versaoPublicada > 0 && tipo !== 'mobilidade' ? <BotaoPdf tipo={tipo} plano={p} /> : null}
             {p.versaoPublicada > 0 ? (
-              <Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
+              <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
             ) : null}
-            <Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
-            <Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo="Abrir" tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Abrir" tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
           </View>
         </EntradaEmCascata>
       ))}
@@ -111,7 +113,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
 }
 
 /** PDF da versão publicada, direto da ficha. */
-function BotaoPdf({ tipo, plano }: { tipo: TipoPlano; plano: PlanoResumo }) {
+function BotaoPdf({ tipo, plano }: { tipo: TipoPlanoComPdf; plano: PlanoResumo }) {
   const { avisar } = useAviso();
   const [gerando, setGerando] = useState(false);
   return (
@@ -282,7 +284,7 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Permitido codigo={tipo==='treino'?'TREINO_ALTERAR':'DIETA_ALTERAR'}><Botao rotulo="Replicar e abrir" aoTocar={replicar} carregando={salvando} desabilitado={!valido} /></Permitido>
+          <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar e abrir" aoTocar={replicar} carregando={salvando} desabilitado={!valido} /></Permitido>
         </>
       }>
       <Texto variante="suave">

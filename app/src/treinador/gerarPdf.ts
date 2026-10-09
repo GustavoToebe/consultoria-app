@@ -13,7 +13,10 @@ import { documentoTreino } from '../pdf/pdfTreino';
  * PDF de um plano para o treinador: a versão publicada mais recente (o que o aluno vê). Plano nunca publicado sai
  * do rascunho, marcado como RASCUNHO.
  */
-export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascunho?: unknown): Promise<void> {
+/** Mobilidade ainda não tem PDF: o tipo a deixa de fora para o compilador barrar quem tentar. */
+export type TipoPlanoComPdf = Exclude<TipoPlano, 'mobilidade'>;
+
+export async function gerarPdfDoPlano(tipo: TipoPlanoComPdf, plano: PlanoResumo, rascunho?: unknown): Promise<void> {
   const [c, a] = await Promise.all([consultoria(), buscarAluno(plano.alunoId)]);
   const publicado = plano.versaoPublicada > 0;
   const versao = publicado ? await versaoPlano<unknown>(tipo, plano.id, plano.versaoPublicada) : null;

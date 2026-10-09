@@ -1,4 +1,4 @@
-import { pode, podeAcessarTela } from './permissoes';
+import { PERMISSOES_DO_PLANO, pode, podeAcessarTela } from './permissoes';
 
 describe('navegação de membros da equipe', () => {
   const assistente = ['PAINEL_VER','ALUNO_LER','ALUNO_ALTERAR','TREINO_LER','DIETA_LER','BIBLIOTECA_LER','MODELO_LER'];
@@ -7,7 +7,7 @@ describe('navegação de membros da equipe', () => {
     const tem = acesso(assistente);
     expect(podeAcessarTela('/treinador/alunos/um-id', tem)).toBe(true);
     expect(podeAcessarTela('/treinador/biblioteca', tem)).toBe(true);
-    for (const caminho of ['/treinador/treinos/um-id','/treinador/dietas/um-id','/treinador/marca','/treinador/equipe','/treinador/auditoria','/treinador/atualizacoes/um-id']) {
+    for (const caminho of ['/treinador/treinos/um-id','/treinador/dietas/um-id','/treinador/mobilidades/um-id','/treinador/marca','/treinador/equipe','/treinador/auditoria','/treinador/atualizacoes/um-id']) {
       expect(podeAcessarTela(caminho, tem)).toBe(false);
     }
   });
@@ -22,5 +22,12 @@ describe('navegação de membros da equipe', () => {
     expect(pode(undefined,'ALUNO_LER')).toBe(false);
     expect(podeAcessarTela('/treinador/desconhecido', () => true)).toBe(false);
     expect(podeAcessarTela('/treinador/perfil', acesso([]))).toBe(true);
+  });
+  it('mobilidade usa as permissões do treino, não as da dieta', () => {
+    expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['TREINO_LER','TREINO_ALTERAR']))).toBe(true);
+    expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['TREINO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['DIETA_LER','DIETA_ALTERAR']))).toBe(false);
+    expect(PERMISSOES_DO_PLANO.mobilidade).toEqual(PERMISSOES_DO_PLANO.treino);
+    expect(PERMISSOES_DO_PLANO.dieta).toEqual({ ler: 'DIETA_LER', alterar: 'DIETA_ALTERAR', publicar: 'DIETA_PUBLICAR' });
   });
 });

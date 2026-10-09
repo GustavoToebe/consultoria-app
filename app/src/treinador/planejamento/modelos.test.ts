@@ -15,7 +15,7 @@ describe('organização da tela Planejamento', () => {
     const rotulo = (t: TipoReceita) => CATEGORIAS.find((c) => c.valor === t)?.rotulo;
     expect(rotulo('SERIES')).toBe('Receitas de séries');
     expect(rotulo('SESSAO_TREINO')).toBe('Dias de treino');
-    expect(rotulo('PASTA_PLANO')).toBe('Pacotes (treino + dieta)');
+    expect(rotulo('PASTA_PLANO')).toBe('Pacotes (treino, dieta e mobilidade)');
     expect(rotulo('REFEICAO')).toBe('Refeições');
   });
   it('semanas, dietas, pacotes e mobilidade são aplicados ao aluno; peças dizem onde usar, sem inventar uso', () => {

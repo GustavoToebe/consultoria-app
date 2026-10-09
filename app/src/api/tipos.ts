@@ -333,7 +333,13 @@ export interface ConteudoDieta {
   suplementacao: Suplemento[];
 }
 
-export type TipoPlano = 'treino' | 'dieta';
+/** Mobilidade como a API entrega (campos de texto opcionais vêm nulos); o editor usa `dominio/mobilidade`. */
+export interface ConteudoMobilidadeApi {
+  orientacoes: string | null;
+  secoes: { uid: string; titulo: string | null; itens: { uid: string; nome: string; prescricao: string | null; videoUrl: string | null }[] }[];
+}
+
+export type TipoPlano = 'treino' | 'dieta' | 'mobilidade';
 
 export interface PastaResumo {
   id: string;
@@ -484,13 +490,17 @@ export interface PastaDoAluno {
   atual: boolean;
   temTreino: boolean;
   temDieta: boolean;
+  /** Ausente em servidor anterior à mobilidade. */
+  temMobilidade?: boolean;
 }
 
-/** Treino e dieta publicados de uma pasta; cada um é nulo se a pasta não tem aquele tipo publicado. */
+/** Treino, dieta e mobilidade publicados de uma pasta; cada um é nulo se a pasta não tem aquele tipo publicado. */
 export interface PlanosDaPasta {
   pastaId: string;
   treino: TreinoAtual | null;
   dieta: VersaoDetalhe<ConteudoDieta> | null;
+  /** Ausente em servidor anterior à mobilidade. */
+  mobilidade?: VersaoDetalhe<ConteudoMobilidadeApi> | null;
 }
 
 /** Tudo o que o app guarda para o aluno treinar sem internet. `treino` nulo = sem plano publicado. */
@@ -575,4 +585,4 @@ export interface Atualizacao {
   versao: number | null;
   resumo: { diasComTreino: number; mediaDiasPorSemana: number | null; pesoAnterior: number | null } | null;
 }
-export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null }[] }
+export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null; mobilidade?: ConteudoMobilidadeApi | null }[] }
