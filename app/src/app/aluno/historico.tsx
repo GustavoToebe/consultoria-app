@@ -1,4 +1,5 @@
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
+import { HistoricoAtualizacoes } from '../../aluno/atualizacao/HistoricoAtualizacoes';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -83,6 +84,7 @@ export default function HistoricoAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Histórico" acoes={<SeloSincronizacao />} />
+      <HistoricoAtualizacoes />
       {naoEnviados.length ? (
         <Cartao titulo="Ainda não enviados">
           <Texto numerico variante="pequeno">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>

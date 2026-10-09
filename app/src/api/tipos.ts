@@ -525,4 +525,40 @@ export interface LoteResponse {
 }
 
 export interface PastaModelo { id: string; nome: string; versao: number }
+export type FaseAtualizacao = 'NENHUMA' | 'AVISO' | 'ABERTA' | 'ATRASADA' | 'ENVIADA' | 'REVISADA';
+export type SituacaoAtualizacao = 'PARA_REVISAR' | 'ATRASADAS' | 'AVISARAM_ATRASO' | 'PROXIMAS';
+export type RespostaAtualizacao = string | number | null | Record<string, number | null>;
+export type RespostasAtualizacao = Record<string, RespostaAtualizacao>;
+export interface PerguntaAtualizacao {
+  id: string;
+  tipo: 'DATA_AUTOMATICA' | 'PESO' | 'NOTA' | 'TEXTO' | 'TEXTO_LONGO' | 'NOTAS_POR_DIA' | 'FOTOS';
+  rotulo: string;
+  obrigatoria: boolean;
+  dias?: number[];
+  ajuda?: string;
+}
+export interface ModeloAtualizacao {
+  versao: number;
+  instrucoes: string[];
+  secoes: { titulo: string; perguntas: PerguntaAtualizacao[] }[];
+}
+export interface Atualizacao {
+  id: string | null;
+  pastaId: string | null;
+  alunoId: string;
+  nomeAluno: string | null;
+  dataAtualizacao: string | null;
+  fase: FaseAtualizacao;
+  diasParaData: number;
+  diasDeAtraso: number;
+  atrasoAte: string | null;
+  atrasoMotivo: string | null;
+  modeloVersao: number;
+  modelo: ModeloAtualizacao | null;
+  respostas: RespostasAtualizacao | null;
+  enviadaEm: string | null;
+  feedback: { texto: string; em: string; editadoEm: string | null; naoLido: boolean } | null;
+  versao: number | null;
+  resumo: { diasComTreino: number; mediaDiasPorSemana: number | null; pesoAnterior: number | null } | null;
+}
 export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null }[] }

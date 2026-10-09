@@ -1,4 +1,5 @@
 import { ProgressoSemana } from '../../aluno/ProgressoSemana';
+import { CartaoAtualizacao } from '../../aluno/atualizacao/CartaoAtualizacao';
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
@@ -93,6 +94,7 @@ export default function TreinoAluno() {
       <Cabecalho mostrarMarca="sempre" acoes={<SeloSincronizacao />} />
       <Texto variante="titulo">Olá, {pacote.pacote.aluno.nome.split(' ')[0]}</Texto>
       <SeletorPlano rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} />
+      <CartaoAtualizacao />
       {!treino || !conteudo ? (
         <Vazio
           titulo={escolhida ? 'Sem treino neste plano' : 'Sem plano de treino'}

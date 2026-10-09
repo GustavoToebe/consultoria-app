@@ -1,5 +1,8 @@
 import { requisicao } from './cliente';
 import type {
+  Atualizacao,
+  RespostasAtualizacao,
+  SituacaoAtualizacao,
   Alimento,
   AlimentoRequest,
   AlunoDetalhe,
@@ -43,6 +46,23 @@ import type {
   TipoReceita,
   VersaoDetalhe,
 } from './tipos';
+
+// ---- Atualizações ----
+export const atualizacaoAluno = () => requisicao<Atualizacao>('/aluno/atualizacao');
+export const atualizacoesAluno = () => requisicao<Atualizacao[]>('/aluno/atualizacoes');
+export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`/aluno/atualizacoes/${id}`);
+export const enviarAtualizacao = (modeloVersao: number, respostas: RespostasAtualizacao) =>
+  requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { modeloVersao, respostas } });
+export const avisarAtrasoAtualizacao = (novaData: string, motivo?: string) =>
+  requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { novaData, motivo } });
+export const marcarFeedbackVisto = (id: string) =>
+  requisicao<void>(`/aluno/atualizacoes/${id}/feedback-visto`, { metodo: 'POST' });
+export const listarAtualizacoes = (situacao: SituacaoAtualizacao) => requisicao<Atualizacao[]>(`/atualizacoes?situacao=${situacao}`);
+export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${id}/atualizacoes`);
+export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${id}/atualizacao`);
+export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${id}`);
+export const responderAtualizacao = (id: string, texto: string, versao: number) =>
+  requisicao<Atualizacao>(`/atualizacoes/${id}/feedback`, { metodo: 'PUT', corpo: { texto, versao } });
 
 /** Uma função por rota da API. As telas não montam URL nem método. */
 
