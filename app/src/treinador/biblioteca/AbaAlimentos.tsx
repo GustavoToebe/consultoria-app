@@ -78,12 +78,12 @@ export function AbaAlimentos() {
             <Texto variante="pequeno">{resumoAlimento(a)}</Texto>
           </View>
           <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>
-          <IconeBotao Icone={Trash2} rotulo={`Tirar ${a.nome} da biblioteca`} cor={cores.perigo} aoTocar={() => setInativar(a)} />
         </View>
       ))}
       {editando ? (
         <FolhaAlimento
           inicial={editando === 'novo' ? null : editando}
+          aoTirar={editando === 'novo' ? undefined : () => { const alvo = editando; setEditando(null); setInativar(alvo); }}
           aoFechar={() => setEditando(null)}
           aoSalvar={() => {
             setEditando(null);
@@ -105,7 +105,7 @@ export function AbaAlimentos() {
   );
 }
 
-function FolhaAlimento({ inicial, aoFechar, aoSalvar }: { inicial: Alimento | null; aoFechar: () => void; aoSalvar: () => void }) {
+function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () => void; inicial: Alimento | null; aoFechar: () => void; aoSalvar: () => void }) {
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [base, setBase] = useState<number | null>(inicial?.baseQuantidade ?? 100);
   const [unidade, setUnidade] = useState<UnidadeAlimento>(inicial?.baseUnidade ?? 'g');
@@ -185,6 +185,7 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar }: { inicial: Alimento | nu
       </View>
       <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} />
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+      {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
     </Folha>
   );
 }

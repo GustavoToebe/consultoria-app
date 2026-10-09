@@ -70,12 +70,12 @@ export function AbaExercicios() {
             </Texto>
           </View>
           <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>
-          <IconeBotao Icone={Trash2} rotulo={`Tirar ${e.nome} da biblioteca`} cor={cores.perigo} aoTocar={() => setInativar(e)} />
         </View>
       ))}
       {editando ? (
         <FolhaExercicio
           inicial={editando === 'novo' ? null : editando}
+          aoTirar={editando === 'novo' ? undefined : () => { const alvo = editando; setEditando(null); setInativar(alvo); }}
           aoFechar={() => setEditando(null)}
           aoSalvar={() => {
             setEditando(null);
@@ -97,7 +97,7 @@ export function AbaExercicios() {
   );
 }
 
-function FolhaExercicio({ inicial, aoFechar, aoSalvar }: { inicial: Exercicio | null; aoFechar: () => void; aoSalvar: () => void }) {
+function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () => void; inicial: Exercicio | null; aoFechar: () => void; aoSalvar: () => void }) {
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [grupo, setGrupo] = useState(inicial?.grupoMuscular ?? '');
   const [equipamento, setEquipamento] = useState(inicial?.equipamento ?? '');
@@ -151,6 +151,7 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar }: { inicial: Exercicio | 
       />
       <Campo rotulo="Observações (opcional)" valor={observacoes} aoMudar={setObservacoes} linhas={3} maxLength={4000} />
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+      {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
     </Folha>
   );
 }
