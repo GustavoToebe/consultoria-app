@@ -161,12 +161,15 @@ public class ReceitaService {
         if (tipo == Receita.Tipo.REFEICAO && ((ConteudoDieta) valor).refeicoes().size() != 1)
             throw new BadRequestException("Modelo de refeição precisa de uma refeição.");
         if (valor instanceof ConteudoPastaModelo pasta) {
+            List<ConteudoPastaModelo.Plano> planos = new java.util.ArrayList<>();
             for (ConteudoPastaModelo.Plano p : pasta.planos()) {
                 if (p.tipos() != 1)
                     throw new BadRequestException("Cada plano da pasta precisa ser treino, dieta ou mobilidade.");
                 if (p.treino() != null) validarMetodologia(p.treino());
-                if (p.mobilidade() != null) exigirMobilidadeCompleta(p.mobilidade());
+                planos.add(p.mobilidade() == null ? p : new ConteudoPastaModelo.Plano(p.titulo(), p.treino(), p.dieta(),
+                        exigirMobilidadeCompleta(p.mobilidade())));
             }
+            valor = new ConteudoPastaModelo(planos);
         }
         if (valor instanceof ConteudoMobilidade m) {
             valor = exigirMobilidadeCompleta(m);

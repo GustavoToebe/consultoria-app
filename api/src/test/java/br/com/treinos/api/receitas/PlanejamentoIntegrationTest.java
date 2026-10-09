@@ -106,8 +106,10 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test void pastaModeloComMobilidadeAplicaSalvaEExigeExatamenteUmTipo() throws Exception {
-        var mob = Map.of("secoes", List.of(Map.of("titulo", "Alongamentos", "itens", List.of(Map.of("nome", "Gato e vaca")))));
+        var mob = Map.of("secoes", List.of(Map.of("titulo", "Alongamentos", "itens", List.of(Map.of("nome", "Gato e vaca", "videoUrl", "  https://youtu.be/tsGPYSQbZx4  ")))));
         var m = modelo("PASTA_PLANO", Map.of("planos", List.of(Map.of("titulo", "Mobilidade fictícia", "mobilidade", mob))));
+        // O pacote grava o link já limpo, como o modelo de mobilidade avulso.
+        assertThat(m.at("/conteudo/planos/0/mobilidade/secoes/0/itens/0/videoUrl").asString()).isEqualTo("https://youtu.be/tsGPYSQbZx4");
         var aplicada = aplicar(m, aluno);
         var lista = api.get("/alunos/" + aluno + "/planos-mobilidade", treinador, 200);
         assertThat(lista).hasSize(1);
