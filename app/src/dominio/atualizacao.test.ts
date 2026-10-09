@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { caminhoAtualizacaoTreinador, faseAtualizacao, formularioSomenteLeitura, limitesNovaDataAtraso, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
+import { caminhoAtualizacaoTreinador, faseAtualizacao, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -49,4 +49,12 @@ it('atualização aberta pelo histórico que não é a atual fica só leitura', 
   expect(formularioSomenteLeitura('atual','atual')).toBe(false);
   expect(formularioSomenteLeitura('antiga','atual')).toBe(true);
   expect(formularioSomenteLeitura('antiga',null)).toBe(true);
+});
+
+it('antes da véspera o cartão convida a ver o que vai responder, inclusive com atraso avisado', () => {
+  const base = {fase:'NENHUMA',atrasoAte:'2026-10-20',feedback:null} as unknown as Atualizacao;
+  expect(linkCartaoAtualizacao(base)).toBe('Ver o que vou responder');
+  expect(linkCartaoAtualizacao({...base,fase:'AVISO'})).toBe('Ver o que vou responder');
+  expect(linkCartaoAtualizacao({...base,fase:'ENVIADA'})).toBe('Ver respostas');
+  expect(linkCartaoAtualizacao({...base,fase:'REVISADA',feedback:{texto:'x',em:'',editadoEm:null,naoLido:true,nomeAutor:null}})).toBe('Ler');
 });

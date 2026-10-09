@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { mostrarCartaoAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
+import { linkCartaoAtualizacao, mostrarCartaoAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { LinkTexto } from '../../ui/LinkTexto';
@@ -18,7 +18,7 @@ export function CartaoAtualizacao() {
     <Selo {...status} />
     <Texto>{status.texto}</Texto>
     {aberta ? <Botao rotulo="Responder" aoTocar={abrir} /> :
-      <LinkTexto texto={dados.fase === 'AVISO' ? 'Ver o que vou responder' : dados.feedback ? 'Ler' : 'Ver respostas'} href="/aluno/atualizacao" />}
+      <LinkTexto texto={linkCartaoAtualizacao(dados)} href="/aluno/atualizacao" />}
     {aberta ? <LinkTexto texto="Vou atrasar" href="/aluno/atualizacao?atraso=sim" /> : null}
     <PermissaoLembrete atualizacao={dados} />
   </Cartao>;

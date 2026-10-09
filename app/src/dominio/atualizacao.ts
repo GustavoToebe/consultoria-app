@@ -27,6 +27,9 @@ export function novaDataAtrasoValida(hoje: string, data: string, nova: string) {
 /** Atualização antiga aberta pelo histórico (`?id=`) só se lê: enviar ou avisar atraso vale só para a atual. */
 export const formularioSomenteLeitura = (idPedido: string | undefined, idAtual: string | null | undefined) =>
   !!idPedido && idPedido !== idAtual;
+/** Link do cartão quando ainda não dá para responder (antes da véspera, com ou sem atraso avisado). */
+export const linkCartaoAtualizacao = (a: Atualizacao) =>
+  a.fase === 'AVISO' || a.fase === 'NENHUMA' ? 'Ver o que vou responder' : a.feedback ? 'Ler' : 'Ver respostas';
 /** Com o aviso de atraso dado, o cartão segue na tela inicial até o envio. */
 export const mostrarCartaoAtualizacao = (a: Atualizacao) =>
   a.fase === 'REVISADA' ? !!a.feedback?.naoLido : a.fase !== 'NENHUMA' || !!a.atrasoAte;
