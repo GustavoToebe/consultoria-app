@@ -1,4 +1,4 @@
-import Animated, { FadeInUp, Keyframe, ReduceMotion } from 'react-native-reanimated';
+import Animated, { FadeInUp, ReduceMotion } from 'react-native-reanimated';
 import { useMovimentoReduzido } from '../../../../ui/useMovimentoReduzido';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -82,7 +82,6 @@ export default function SessaoAluno() {
       ) : null}
       {sessao.exercicios.map((e, i) => (
         <EntradaEmCascata key={e.uid} indice={i} animar={animar}>
-        <Animated.View entering={!reduzido && animar && i === 0 ? new Keyframe({0:{transform:[{scale:0.96}]},100:{transform:[{scale:1}]}}).duration(220).reduceMotion(ReduceMotion.System) : undefined}>
         <CartaoExercicioDoDia
           exercicio={e}
           posicao={i}
@@ -92,7 +91,6 @@ export default function SessaoAluno() {
           tipoTrabalho={dia.config.tipoTrabalho}
           aoAbrir={() => abrir(e.uid)}
         />
-        </Animated.View>
         </EntradaEmCascata>
       ))}
       <Texto variante="pequeno">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
