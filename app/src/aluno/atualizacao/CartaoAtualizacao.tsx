@@ -4,7 +4,6 @@ import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Selo } from '../../ui/Selo';
-import { Texto } from '../../ui/Texto';
 import { useAtualizacao } from './useAtualizacao';
 import { PermissaoLembrete } from './PermissaoLembrete';
 
@@ -16,7 +15,6 @@ export function CartaoAtualizacao() {
   const abrir = () => router.push('/aluno/atualizacao');
   return <Cartao titulo="Sua atualização">
     <Selo {...status} />
-    <Texto>{status.texto}</Texto>
     {aberta ? <Botao rotulo="Responder" aoTocar={abrir} /> :
       <LinkTexto texto={linkCartaoAtualizacao(dados)} href="/aluno/atualizacao" />}
     {aberta ? <LinkTexto texto="Vou atrasar" href="/aluno/atualizacao?atraso=sim" /> : null}
