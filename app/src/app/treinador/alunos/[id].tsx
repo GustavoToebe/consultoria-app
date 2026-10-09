@@ -7,6 +7,7 @@ import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno } from '../../
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
+import { CartaoAtualizacoes } from '../../../treinador/CartaoAtualizacoes';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
 import { CartaoPastas } from '../../../treinador/CartaoPastas';
@@ -61,6 +62,7 @@ export default function FichaAluno() {
           )}
           <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           <CartaoRegistros aluno={aluno} />
+          <CartaoAtualizacoes alunoId={aluno.id} />
           <CartaoPeso key={geracaoPeso} alunoId={aluno.id} />
         </>
       ) : null}
