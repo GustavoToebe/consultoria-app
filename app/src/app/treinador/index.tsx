@@ -141,7 +141,7 @@ const estilos = StyleSheet.create({
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   grupo: { flexBasis: '100%', gap: espaco(1) },
   contadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
-  contador: { flexGrow: 1, flexShrink: 1, flexBasis: 200, minWidth: 0, minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: espaco(1), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
+  contador: { flexGrow: 1, flexShrink: 1, flexBasis: 150, minWidth: 0, minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: espaco(1), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
   // Sozinho no grupo, o contador não estica pela largura toda.
   contadorUnico: { flexGrow: 0, flexBasis: 280, maxWidth: '100%' },
   contadorTextos: { flex: 1, gap: espaco(0.5) },
