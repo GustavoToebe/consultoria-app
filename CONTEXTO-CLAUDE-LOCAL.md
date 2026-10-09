@@ -5,7 +5,7 @@ Leia o `AGENTS.md` antes de tudo. Este arquivo diz **onde o projeto está** e **
 
 ## 1. Onde está
 
-- **`main` no GitHub:** commit `d300af9` ou mais novo. Tem tudo de antes, e agora também:
+- **`main` no GitHub:** commit `1d73bbd` ou mais novo. Tem tudo de antes, e agora também:
   - **check-in** (`PLANO-CHECKIN.md`, C1–C11): atualização do aluno, feedback do treinador e lembretes locais;
   - **equipe** (`PLANO-EQUIPE.md`, E1–E7): usuários, perfis, permissões, convite de equipe, auditoria, responsável e
     filtro "Meus alunos";
@@ -18,8 +18,10 @@ Leia o `AGENTS.md` antes de tudo. Este arquivo diz **onde o projeto está** e **
 - **Migrations até a `V018`** (`V017__atualizacoes.sql`, `V018__equipe.sql`). O `FlywayMigrationIntegrationTest`
   espera 18. Migration nova é a `V019`, e as antigas nunca se editam.
 - **Testes em 09/10:**
-  - API: `mvn verify` com 121 testes, cobertura de 91,7%;
-  - app: typecheck, lint e 193 testes em 34 suítes.
+  - API: `mvn verify` com 131 testes, cobertura de 91,9%;
+  - app: typecheck, lint e 201 testes em 34 suítes.
+- **`CORRECOES-CHECKIN-EQUIPE.md`, Parte A: feita** (A1–A6, mais as telas da equipe com o mesmo teto da API). O ambiente
+  local já foi recompilado (`up -d --build`, sem `down -v`) e o banco local está na V018.
 - **`PLANO-ACOMPANHAMENTO.md`: ainda não começou.** Só começa depois da Parte A de `CORRECOES-CHECKIN-EQUIPE.md`, um
   bloco por sessão (Q, depois P…), e só com o Gustavo pedindo.
 - **Etiquetas de plano B:**
@@ -34,7 +36,7 @@ Leia o `AGENTS.md` antes de tudo. Este arquivo diz **onde o projeto está** e **
 git status                          # se houver alteração local, pare e mostre ao Gustavo
 git switch main
 git pull --ff-only origin main
-git log --oneline -1                # d300af9 ou mais novo
+git log --oneline -1                # 1d73bbd ou mais novo
 ```
 
 Trabalha-se direto na `main` (decisão do Gustavo, está no `AGENTS.md`). Codex e Claude **nunca** trabalham na mesma pasta
@@ -56,8 +58,11 @@ A senha vem de `DEMO_SENHA` (ou `IMPORT_SENHA`) do ambiente. **Nunca** imprima n
 
 ## 4. Pendências (por prioridade)
 
-1. **`CORRECOES-CHECKIN-EQUIPE.md`, Parte A (A1 a A6), antes de domingo.** A A1 é falha de segurança: um membro sem
-   ser administrador consegue se dar acesso total. Uma sessão só para a Parte A, com teste em cada item, e relatório.
+1. **Preparar a demonstração (só com o Gustavo pedindo):**
+   - conferir se a conta do treinador aparece como **Administrador** em Equipe;
+   - ajustar o fim da pasta do `aluno@demo.local` para **segunda, 12/10**, para o formulário de atualização estar aberto
+     no domingo;
+   - não zerar o banco sem ele pedir.
 2. **Teste no celular (Expo Go, SDK 57), sábado.** Com `aluno@demo.local`:
    - [ ] **passo 6 do roteiro:** abrir um dia pelos chips → marcar séries → modo avião → marcar mais → fechar e abrir o
      app ("salvo no aparelho") → tirar do modo avião → "Sincronizado";
@@ -76,6 +81,11 @@ A senha vem de `DEMO_SENHA` (ou `IMPORT_SENHA`) do ambiente. **Nunca** imprima n
      - campo de foto mostra "ainda não implementado";
      - **lembrete local** chega (pedir a permissão pelo painel);
    - [ ] **feedback:** o treinador escreve na web e o aluno vê no celular;
+   - [ ] **correções da Parte A:**
+     - "Vou atrasar": o cartão continua e depois aparece Responder;
+     - enviar em modo avião e reenviar;
+     - atualização antiga pelo histórico abre só para leitura;
+     - membro que não é administrador não vê o perfil Administrador nas opções;
    - [ ] **equipe:**
      - convidar um membro (Treinador e Assistente);
      - aceitar o convite;
