@@ -40,7 +40,6 @@ public class Atualizacao {
         else feedbackEm = quando;
         feedback = texto; feedbackPor = usuarioId; feedbackVistoEm = null; estado = "REVISADA";
     }
-    public void marcarVisto(Instant quando) { if (feedbackEm != null && feedbackVistoEm == null) feedbackVistoEm = quando; }
     public UUID getId() { return id; }
     public UUID getConsultoriaId() { return consultoriaId; }
     public UUID getAlunoId() { return alunoId; }

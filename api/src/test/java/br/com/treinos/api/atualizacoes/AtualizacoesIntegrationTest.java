@@ -187,6 +187,19 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(editada.path("feedback").path("naoLido").asBoolean()).isTrue();
         assertThat(api.get("/atualizacoes?situacao=PARA_REVISAR",treinador,200)).isEmpty();
     }
+    @Test void alunoVerOFeedbackNaoInvalidaAVersaoDoTreinador() throws Exception {
+        publicarPasta(hoje);
+        String id = enviar(respostas(),200).path("id").asString();
+        JsonNode revisada = api.put("/atualizacoes/"+id+"/feedback",treinador,
+                Map.of("texto","Feedback fictício",
+                        "versao",api.get("/atualizacoes/"+id,treinador,200).path("versao").asLong()),200);
+        long versaoDoTreinador = revisada.path("versao").asLong();
+        api.post("/aluno/atualizacoes/"+id+"/feedback-visto",loginAluno,null,204);
+        assertThat(api.get("/atualizacoes/"+id,treinador,200).path("feedback").path("naoLido").asBoolean()).isFalse();
+        JsonNode editada = api.put("/atualizacoes/"+id+"/feedback",treinador,
+                Map.of("texto","Feedback fictício revisto","versao",versaoDoTreinador),200);
+        assertThat(editada.path("feedback").path("texto").asString()).isEqualTo("Feedback fictício revisto");
+    }
     @Test void outroAlunoEOutraConsultoriaRecebem404EmTodasAsLeiturasEEscritas() throws Exception {
         publicarPasta(hoje);
         JsonNode enviada = enviar(respostas(),200);

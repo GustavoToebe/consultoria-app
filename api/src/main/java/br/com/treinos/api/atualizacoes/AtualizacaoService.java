@@ -124,9 +124,10 @@ public class AtualizacaoService {
     }
     @Transactional
     public void feedbackVisto(UsuarioAutenticado eu, UUID id) {
+        UUID alunoId = AlunoAppService.alunoDaSessao(eu);
         Atualizacao a = buscar(id);
-        if (!a.getAlunoId().equals(AlunoAppService.alunoDaSessao(eu))) throw new NaoEncontradoException("Atualização não encontrada.");
-        a.marcarVisto(Instant.now());
+        if (!a.getAlunoId().equals(alunoId)) throw new NaoEncontradoException("Atualização não encontrada.");
+        atualizacoes.marcarFeedbackVisto(a.getId(), alunoId, Instant.now());
     }
     @Transactional(readOnly = true)
     public Detalhe detalheTreinador(UUID id) { return detalhe(buscar(id)); }
