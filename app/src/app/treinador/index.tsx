@@ -5,7 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Escolha } from '../../ui/Escolha';
 import type { SituacaoAtualizacao } from '../../api/tipos';
-import { Plus } from 'lucide-react-native';
+import { ChevronRight, Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { painelTreinador } from '../../api/rotas';
@@ -46,21 +46,21 @@ export default function InicioTreinador() {
       {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (
         <View style={estilos.grade}>
-          <Permitido codigo="ALUNO_SENSIVEL_LER"><Permitido codigo="ATUALIZACAO_LER">{([
-            ['Atualizações para revisar',dados.atualizacoesParaRevisar,'PARA_REVISAR'],
-            ['Atrasadas',dados.atualizacoesAtrasadas,'ATRASADAS'],
-            ['Avisaram atraso',dados.atualizacoesAvisaramAtraso,'AVISARAM_ATRASO'],
-            ['Próximas 7 dias',dados.atualizacoesProximas,'PROXIMAS'],
-          ] as [string,number,SituacaoAtualizacao][]).map(([titulo,numero,situacao])=><Cartao key={situacao} titulo={titulo} style={estilos.metade}>
-            <NumeroAnimado valor={numero??0} variante="destaque" />
-            <Botao rotulo={`Ver ${titulo.toLocaleLowerCase('pt-BR')}`} tipo="secundario"
-              aoTocar={()=>router.push(`/treinador/atualizacoes?situacao=${situacao}`)} />
-          </Cartao>)}</Permitido></Permitido>
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><Permitido codigo="ATUALIZACAO_LER"><View style={estilos.grupo}>
+            <Texto variante="secao">Atualizações</Texto>
+            <View style={estilos.contadores}>{([
+              ['Para revisar',dados.atualizacoesParaRevisar,'PARA_REVISAR'],
+              ['Atrasadas',dados.atualizacoesAtrasadas,'ATRASADAS'],
+              ['Avisaram atraso',dados.atualizacoesAvisaramAtraso,'AVISARAM_ATRASO'],
+              ['Próximas 7 dias',dados.atualizacoesProximas,'PROXIMAS'],
+            ] as [string,number,SituacaoAtualizacao][]).map(([titulo,numero,situacao])=><Contador key={situacao} titulo={titulo} numero={numero??0}
+              aoTocar={()=>router.push(`/treinador/atualizacoes?situacao=${situacao}`)} />)}</View>
+          </View></Permitido></Permitido>
           <Permitido codigo="ALUNO_LER">
-          <Cartao titulo="Alunos ativos" style={estilos.metade}>
-            <NumeroAnimado valor={dados.alunosAtivos} variante="destaque" />
-            <Botao rotulo="Ver alunos" tipo="secundario" aoTocar={() => router.push('/treinador/alunos')} />
-          </Cartao>
+          <View style={estilos.grupo}>
+            <Texto variante="secao">Alunos</Texto>
+            <View style={estilos.contadores}><Contador titulo="Ativos" numero={dados.alunosAtivos} aoTocar={() => router.push('/treinador/alunos')} /></View>
+          </View>
           <Permitido codigo="TREINO_LER"><Cartao titulo="Planos terminando em 7 dias" style={estilos.metade}>
             {dados.planosTerminando.length === 0 ? <Vazio titulo="Nenhum plano terminando" texto="Veja os planos e períodos nas fichas dos alunos." acao={{ rotulo: 'Ver alunos', aoTocar: () => router.push('/treinador/alunos') }} /> : null}
             {dados.planosTerminando.map((p) => (
@@ -105,6 +105,24 @@ export default function InicioTreinador() {
   );
 }
 
+/** Número do painel que leva à lista: o cartão inteiro é o toque, sem botão "Ver ..." repetido. */
+function Contador({ titulo, numero, aoTocar }: { titulo: string; numero: number; aoTocar: () => void }) {
+  const { cores } = useTema();
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`${titulo}: ${numero}. Ver lista.`}
+      onPress={aoTocar}
+      style={(estado) => [estilos.contador, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
+      <View style={estilos.contadorTextos}>
+        <Texto variante="suave">{titulo}</Texto>
+        <NumeroAnimado valor={numero} variante="destaque" />
+      </View>
+      <ChevronRight size={20} color={cores.textoSuave} />
+    </Pressable>
+  );
+}
+
 function Linha({ titulo, detalhe, aoTocar, rotulo }: { titulo: string; detalhe: string; aoTocar: () => void; rotulo: string }) {
   const { cores } = useTema();
   return (
@@ -121,6 +139,10 @@ function Linha({ titulo, detalhe, aoTocar, rotulo }: { titulo: string; detalhe: 
 
 const estilos = StyleSheet.create({
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
+  grupo: { flexBasis: '100%', gap: espaco(1) },
+  contadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
+  contador: { flexGrow: 1, flexShrink: 1, flexBasis: 200, minWidth: 0, minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: espaco(1), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
+  contadorTextos: { flex: 1, gap: espaco(0.5) },
   // Duas colunas no PC; no celular cada cartão ocupa a largura (encolhe abaixo da base).
   metade: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
   numero: { fontFamily: fontes.negrito, fontSize: 40, lineHeight: 48 },
