@@ -5,6 +5,7 @@ import * as api from '../../api/rotas';
 import type { ConviteEquipe, MembroEquipe, PerfilEquipe } from '../../api/equipeTipos';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { perfisAtribuiveis, podeEditarMembro } from '../../dominio/perfilEquipe';
+import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -24,13 +25,15 @@ import { useAtorEquipe } from './useAtorEquipe';
 export function UsuariosEquipe({membros,perfis,recarregar}:{membros:MembroEquipe[];perfis:PerfilEquipe[];recarregar:()=>void}) {
   const [editar,setEditar]=useState<MembroEquipe|'novo'|null>(null);
   const ator=useAtorEquipe();
+  const {cores}=useTema();
   return <>
-    <Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Convidar membro" aoTocar={()=>setEditar('novo')}/></Permitido>
-    {membros.map(m=><Cartao key={m.id} titulo={m.nome} acoes={<Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={m.convitePendente?'atencao':m.ativo?'sucesso':'neutro'}/>}>
+    <Cartao titulo="Membros da equipe" descricao="Convide pessoas por e-mail e escolha o perfil de cada uma." acoes={<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo="Convidar membro" aoTocar={()=>setEditar('novo')}/></Permitido>}>
+    {membros.map(m=><Cartao key={m.id} titulo={m.nome} style={{backgroundColor:cores.superficie2}} acoes={<Selo texto={m.convitePendente?'Convite pendente':m.ativo?'Ativo':'Inativo'} tipo={m.convitePendente?'atencao':m.ativo?'sucesso':'neutro'}/>}>
       <Texto variante="suave">{m.email} · {m.perfilNome}</Texto>
-      <Texto variante="pequeno">{m.convitePendente?`Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'}`}</Texto>
+      <Texto variante="suave">{m.convitePendente?`Convite até ${dataHoraParaTela(m.conviteExpiraEm)}`:`Último acesso: ${dataHoraParaTela(m.ultimoAcesso)||'—'}`}</Texto>
       {podeEditarMembro(ator,m,perfis)?<Permitido codigo="USUARIO_ALTERAR"><Botao rotulo={m.convitePendente?`Renovar convite de ${m.nome}`:`Editar ${m.nome}`} tipo="secundario" aoTocar={()=>setEditar(m)}/></Permitido>:null}
     </Cartao>)}
+    </Cartao>
     {editar?<EditorUsuario membro={editar==='novo'?null:editar} perfis={perfis} aoFechar={()=>setEditar(null)} recarregar={recarregar}/>:null}
   </>;
 }

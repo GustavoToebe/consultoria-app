@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import * as api from '../../api/rotas';
 import type { PerfilEquipe, PermissaoEquipe } from '../../api/equipeTipos';
 import { completarPermissoes, desmarcarPermissoes, permissaoMarcavel, podeDuplicarPerfil, podeEditarPerfil } from '../../dominio/perfilEquipe';
+import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -24,22 +25,24 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
   const [excluir,setExcluir]=useState<PerfilEquipe|null>(null);
   const [ocupado,setOcupado]=useState(false);const [erro,setErro]=useState<unknown>(null);const {avisar}=useAviso();
   const ator=useAtorEquipe();
+  const {cores}=useTema();
   const duplicar=async(p:PerfilEquipe)=>{setErro(null);try{await api.duplicarPerfilEquipe(p.id);recarregar();avisar('Perfil duplicado.','sucesso');}catch(e){setErro(e);}};
   const apagar=async()=>{if(!excluir)return;setOcupado(true);setErro(null);try{await api.excluirPerfilEquipe(excluir.id);setExcluir(null);recarregar();avisar('Perfil excluído.','sucesso');}catch(e){setExcluir(null);setErro(e);}finally{setOcupado(false);}};
   return <>
-    <Permitido codigo="PERFIL_ALTERAR"><Botao rotulo="Novo perfil" aoTocar={()=>setEditar('novo')}/></Permitido>
+    <Cartao titulo="Perfis de acesso" descricao="Cada perfil define o que a pessoa vê e altera." acoes={<Permitido codigo="PERFIL_ALTERAR"><Botao rotulo="Novo perfil" aoTocar={()=>setEditar('novo')}/></Permitido>}>
     {erro?<MensagemErro texto={textoDoErro(erro)}/>:null}
-    {perfis.map(p=><Cartao key={p.id} titulo={p.nome} acoes={<>
+    {perfis.map(p=><Cartao key={p.id} titulo={p.nome} style={{backgroundColor:cores.superficie2}} acoes={<>
       {p.sistema?<Selo texto="Acesso total · perfil do sistema" tipo="neutro"/>:null}
       {!p.ativo?<Selo texto="Inativo" tipo="neutro"/>:null}
     </>}>
-      <Texto variante="suave">{p.descricao||'—'}</Texto><Texto variante="pequeno">{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
+      <Texto variante="suave">{p.descricao||'—'}</Texto><Texto variante="suave">{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
       <Permitido codigo="PERFIL_ALTERAR"><View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap'}}>
         {podeEditarPerfil(ator,p)?<Botao rotulo={`Editar ${p.nome}`} tipo="secundario" aoTocar={()=>setEditar(p)}/>:null}
         {podeDuplicarPerfil(ator,p)?<Botao rotulo={`Duplicar ${p.nome}`} tipo="secundario" aoTocar={()=>void duplicar(p)}/>:null}
         {!p.sistema?<Botao rotulo={`Excluir ${p.nome}`} tipo="perigoTexto" aoTocar={()=>setExcluir(p)}/>:null}
       </View></Permitido>
     </Cartao>)}
+    </Cartao>
     {editar?<EditorPerfil inicial={editar==='novo'?null:editar} catalogo={catalogo} aoFechar={()=>setEditar(null)} aoSalvar={()=>{setEditar(null);recarregar();avisar('Perfil salvo.','sucesso');}}/>:null}
     <PainelConfirmacao visivel={!!excluir} titulo={`Excluir ${excluir?.nome??'perfil'}?`} mensagem="Só é possível excluir perfis sem usuários nem convites pendentes." perigo rotuloConfirmar="Excluir perfil" carregando={ocupado} aoCancelar={()=>setExcluir(null)} aoConfirmar={()=>void apagar()}/>
   </>;

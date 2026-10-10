@@ -8,11 +8,13 @@ import { Escolha } from '../../ui/Escolha';
 import { Carregando,MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
+import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 export default function Equipe() {
   const [aba,setAba]=useState<'usuarios'|'perfis'>('usuarios');
   const {dados,erro,carregando,recarregar}=useCarregar('equipe',async()=>{const [membros,perfis,catalogo]=await Promise.all([membrosEquipe(),perfisEquipe(),catalogoPermissoes()]);return {membros,perfis,catalogo};});
   return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Equipe"/>
+    <Texto variante="suave">Quem trabalha com você e o que cada perfil pode fazer no app.</Texto>
     <Escolha descricao="Seção da equipe" opcoes={[{valor:'usuarios',rotulo:'Usuários'},{valor:'perfis',rotulo:'Perfis'}]} valor={aba} aoMudar={setAba}/>
     {erro?<MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar}/>:null}
     {!dados&&carregando?<Carregando/>:null}
