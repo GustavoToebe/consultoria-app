@@ -22,7 +22,7 @@ export default function ConviteEquipe() {
     <Cartao><Campo rotulo="Código do convite de equipe" valor={codigo} aoMudar={setCodigo} autoCapitalize="none" autoCorrect={false} maxLength={43}/>
       <Campo rotulo="Crie uma senha" valor={senha} aoMudar={setSenha} secureTextEntry autoComplete="new-password" ajuda="Mínimo de 8 caracteres."/>
       <Campo rotulo="Confirmar senha" valor={confirmacao} aoMudar={setConfirmacao} secureTextEntry autoComplete="new-password"/>
-      {erro?<MensagemErro texto={erro}/>:null}<Botao rotulo="Criar meu acesso à equipe" carregando={ocupado} aoTocar={()=>void aceitar()}/>
+      {erro?<MensagemErro texto={erro}/>:null}<Botao rotulo="Criar meu acesso à equipe" carregando={ocupado} aoTocar={()=>void aceitar()} cheio/>
     </Cartao><LinkTexto href="/entrar" texto="Já tenho conta"/>
   </Tela>;
 }
