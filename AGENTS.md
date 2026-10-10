@@ -115,7 +115,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   aviso com `useAviso()`; link de texto com `LinkTexto`. Fontes importadas por subcaminho (só os pesos usados).
 - **Níveis:** fundo → `Cartao` (`superficie` + borda) → faixa `CabecalhoDeGrupo` (`superficie2`) → item (`superficie2` + borda); campo
   = `campo` + `bordaCampo`; pressionado ou hover = `superficie3` (`ui/sobre`). 24 px entre blocos. `Tela` respeita `largura`
-  (`LARGURA_EDITOR` 1040, `LARGURA_LISTA` 1280, aluno 720).
+  (`LARGURA_EDITOR` 1040, `LARGURA_LISTA` 1800 = `LARGURA_MAXIMA`, aluno 720). Listas de itens usam `ui/Grade` (1 coluna abaixo de 760 px, 2 a partir de 760, 3 a partir de 1240, pela largura da própria grade; regra em `dominio/grade.ts`).
 - **Tipografia** (`ui/tipografia.ts`, escala 12/13/14/15/16/24/28): `titulo` 24/30, `bloco` (título de cartão e folha), `rotulo`
   (campo); `secao` só subtítulo dentro de bloco. `Texto numerico` e campos numéricos usam números tabulares.
 - **Botões:** um `primario` por área; botão não estica sem `cheio`; destrutivo = `perigoTexto` + `PainelConfirmacao`.
