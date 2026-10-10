@@ -12,6 +12,7 @@ import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { dataDaTela, dataParaTela, hojeIso } from '../dominio/formatos';
 import { periodoInicial } from '../dominio/periodo';
+import { FILTROS_PASTAS, filtrarPastas, type FiltroPastas } from '../dominio/pastas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
@@ -35,13 +36,6 @@ import { useCarregar } from '../ui/useCarregar';
 import { AtualizacaoDaPasta } from './AtualizacaoDaPasta';
 import { CartaoRegistros } from './CartaoRegistros';
 import { CartaoPlanos, periodo, proximoPeriodo } from './CartaoPlanos';
-
-type FiltroPastas = 'todas' | 'ativas' | 'concluidas';
-const FILTROS_PASTAS: { valor: FiltroPastas; rotulo: string }[] = [
-  { valor: 'todas', rotulo: 'Todas' },
-  { valor: 'ativas', rotulo: 'Ativas' },
-  { valor: 'concluidas', rotulo: 'Concluídas' },
-];
 
 type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 'replicar'; pasta: PastaResumo };
 
@@ -73,7 +67,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [abertaId, setAbertaId] = useState<string | null>(pastaInicialId??null);
   // "Mais ações" da pasta (salvar como pacote, excluir): menu à parte, para a folha ter uma ação principal só.
   const [menuPasta, setMenuPasta] = useState<PastaResumo | null>(null);
-  const visiveis = (dados ?? []).filter((p) => filtro === 'todas' || (filtro === 'concluidas') === !!p.concluidaEm);
+  const visiveis = filtrarPastas(dados ?? [], filtro);
   const aberta = dados?.find((p) => p.id === abertaId) ?? null;
   const [escolher, setEscolher] = useState(false);
   const [modelo, setModelo] = useState<Receita | null>(null);
