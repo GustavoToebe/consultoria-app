@@ -38,11 +38,12 @@ export default function AtualizacaoTreinador() {
         {rotulo:a?.nomeAluno??'Aluno',href:a?`/treinador/alunos/${a.alunoId}`:undefined},
         {rotulo:`Atualização ${dataParaTela(a?.dataAtualizacao??null)}`},
       ]} />
+    <Texto variante="suave">Respostas do aluno nesta pasta e o seu feedback.</Texto>
     {detalhe.erro?<MensagemErro texto={textoDoErro(detalhe.erro)} tentarDeNovo={detalhe.recarregar} />:null}
     {detalhe.carregando?<Esqueleto />:null}
     {a?.modelo?<>
       <Selo {...statusAtualizacaoTreinador(a)} />
-      {a.enviadaEm?<Resumo atualizacao={a} />:<Cartao titulo="Aguardando envio"><Texto>O aluno ainda não enviou suas respostas.</Texto></Cartao>}
+      {a.enviadaEm?<Resumo atualizacao={a} />:<Cartao titulo="Aguardando envio" descricao="As respostas aparecem aqui quando o aluno enviar."><Texto>O aluno ainda não enviou suas respostas.</Texto></Cartao>}
       {a.atrasoAte?<Cartao titulo="Atraso avisado">
         <Texto>Nova data: {dataParaTela(a.atrasoAte)}</Texto>
         <Texto>{a.atrasoMotivo??'Sem motivo informado.'}</Texto>
@@ -94,7 +95,7 @@ function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
     <FeedbackAtualizacao feedback={a.feedback} />
     <Permitido codigo="ATUALIZACAO_RESPONDER"><Botao rotulo="Editar feedback" tipo="secundario" aoTocar={()=>setEditando(true)} /></Permitido>
   </>;
-  return <Cartao titulo="Feedback para o aluno">
+  return <Cartao titulo="Feedback para o aluno" descricao="O aluno vê o texto na tela de atualização.">
     <Campo rotulo="Seu feedback para o aluno" valor={texto} aoMudar={setTexto} linhas={7} maxLength={4000} editable={!ocupado}
       ajuda={`${texto.length}/4.000 caracteres`} />
     {conflito?<MensagemErro texto="Outra pessoa alterou; recarregue." tentarDeNovo={recarregar} />:null}

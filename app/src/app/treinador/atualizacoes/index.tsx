@@ -32,14 +32,15 @@ export default function ListaAtualizacoes() {
   useFocusEffect(useCallback(()=>{recarregar();},[recarregar]));
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
     <Cabecalho titulo="Atualizações" voltar="/treinador" />
+    <Texto variante="suave">Atualizações enviadas pelos alunos em cada pasta: revise, acompanhe os atrasos e responda com feedback.</Texto>
     <Abas abas={ABAS} ativa={filtro} aoMudar={valor=>router.setParams({situacao:valor})} />
     {lista.erro?<MensagemErro texto={textoDoErro(lista.erro)} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}
     {!lista.carregando && lista.dados?.length===0?<Vazio titulo="Nenhuma atualização nesta lista" texto="As atualizações aparecem conforme o período da pasta e o envio do aluno." />:null}
-    {lista.dados?.length?<Cartao titulo={ABAS.find(a=>a.valor===filtro)?.rotulo}>
+    {lista.dados?.length?<Cartao titulo={ABAS.find(a=>a.valor===filtro)?.rotulo} descricao={`${lista.dados.length} ${lista.dados.length===1?'atualização':'atualizações'} nesta lista.`}>
       {lista.dados.map(a=><View key={a.pastaId} style={[estilos.linha,{backgroundColor:cores.superficie2,borderColor:cores.borda}]}>
         <LinkTexto texto={a.nomeAluno??'Aluno'} href={caminhoAtualizacaoTreinador(a)} />
-        <Texto numerico>Atualização · {dataParaTela(a.dataAtualizacao)}</Texto>
+        <Texto numerico variante="suave">Atualização · {dataParaTela(a.dataAtualizacao)}</Texto>
         <Selo {...statusAtualizacaoTreinador(a)} />
       </View>)}
     </Cartao>:null}
