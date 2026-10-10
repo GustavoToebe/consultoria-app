@@ -41,6 +41,7 @@ export function CartaoProgresso({ alunoId }: { alunoId: string }) {
   const mostrados = todos.filter((o) => marcados.has(o.valor));
   if (!dias || grupos.length === 0) return null;
   return (
+    <>
     <Cartao
       titulo="Progresso por exercício"
       descricao="Histórico completo de cada exercício, somando todas as pastas."
@@ -49,22 +50,23 @@ export function CartaoProgresso({ alunoId }: { alunoId: string }) {
       acoes={<Botao rotulo={`Escolher exercícios (${mostrados.length})`} tipo="secundario" aoTocar={() => setEscolhendo(true)} />}>
       {mostrados.length === 0 ? <Vazio titulo="Nenhum exercício marcado" texto="Escolha os exercícios que quer comparar." acao={{ rotulo: 'Escolher exercícios', aoTocar: () => setEscolhendo(true) }} /> : null}
       {mostrados.map((o) => <ProgressoDoExercicio key={o.valor} alunoId={alunoId} exercicioId={o.valor} nome={o.rotulo} />)}
-      <Folha
-        visivel={escolhendo}
-        titulo="Escolher exercícios"
-        aoFechar={() => setEscolhendo(false)}
-        rodape={<Botao rotulo="Concluir" cheio aoTocar={() => setEscolhendo(false)} />}>
-        {grupos.length > 1 ? <Escolha descricao="Grupo muscular" opcoes={[{ valor: 'todos', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={setGrupo} /> : null}
-        <SelecaoMultipla
-          rotulo="Exercícios"
-          opcoes={visiveis.map(({ valor, rotulo }) => ({ valor, rotulo }))}
-          marcados={marcados}
-          aoMudar={setEscolhidos}
-          limite={LIMITE_PROGRESSO}
-          aoPassarDoLimite={() => avisar(`Dá para comparar até ${LIMITE_PROGRESSO} exercícios de uma vez. Desmarque algum para incluir outro.`, 'perigo')}
-        />
-      </Folha>
     </Cartao>
+    <Folha
+      visivel={escolhendo}
+      titulo="Escolher exercícios"
+      aoFechar={() => setEscolhendo(false)}
+      rodape={<Botao rotulo="Concluir" cheio aoTocar={() => setEscolhendo(false)} />}>
+      {grupos.length > 1 ? <Escolha descricao="Grupo muscular" opcoes={[{ valor: 'todos', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={setGrupo} /> : null}
+      <SelecaoMultipla
+        rotulo="Exercícios"
+        opcoes={visiveis.map(({ valor, rotulo }) => ({ valor, rotulo }))}
+        marcados={marcados}
+        aoMudar={setEscolhidos}
+        limite={LIMITE_PROGRESSO}
+        aoPassarDoLimite={() => avisar(`Dá para comparar até ${LIMITE_PROGRESSO} exercícios de uma vez. Desmarque algum para incluir outro.`, 'perigo')}
+      />
+    </Folha>
+    </>
   );
 }
 
