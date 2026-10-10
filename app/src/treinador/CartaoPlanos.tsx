@@ -4,7 +4,7 @@ import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { Copy, FileDown, Pencil, Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano } from '../api/rotas';
 import type { PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
@@ -34,6 +34,9 @@ const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; r
   dieta: { titulo: 'Dieta', plural: 'Dietas', novo: 'Nova dieta', receita: 'PLANO_DIETA', rota: '/treinador/dietas' },
   mobilidade: { titulo: 'Mobilidade', plural: 'Mobilidade', novo: 'Nova mobilidade', receita: 'MOBILIDADE', rota: '/treinador/mobilidades' },
 };
+
+/** Abaixo desta largura o botão de editar mostra só "Editar" (o rótulo completo fica para o leitor de tela). */
+const LARGURA_ROTULO_CURTO = 480;
 
 export function rotaDoEditor(tipo: TipoPlano, id: string) {
   return `${NOMES[tipo].rota}/${id}` as const;
@@ -67,6 +70,8 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
  */
 export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void }) {
   const { pode } = useSessao();
+  const { width } = useWindowDimensions();
+  const rotuloCurto = width < LARGURA_ROTULO_CURTO;
   const { cores } = useTema();
   const todos = useCarregar(`${tipo}:${alunoId}:${geracao}`, () => listarPlanos(tipo, alunoId));
   const { erro, carregando, recarregar } = todos;
@@ -99,7 +104,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
               <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
             ) : null}
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
-            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={rotuloEditarPlano(tipo)} tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
           </View>
         </EntradaEmCascata>
       ))}

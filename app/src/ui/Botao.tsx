@@ -10,6 +10,8 @@ type Tipo = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'perigoTexto';
 
 interface Props {
   rotulo: string;
+  /** Texto lido pelo leitor de tela quando o rótulo na tela é mais curto que a ação ("Editar" → "Editar treino do aluno"). */
+  rotuloAcessivel?: string;
   aoTocar: () => void;
   tipo?: Tipo;
   /** Ícone lucide; pintado com a cor do texto do botão. */
@@ -26,7 +28,7 @@ interface Props {
  * rara ou de baixo risco; `perigoTexto` é o fantasma com texto vermelho (remover, inativar), sempre com confirmação.
  * `perigo` (preenchido) é só para o botão de confirmação do painel.
  */
-export function Botao({ rotulo, aoTocar, tipo = 'primario', Icone, desabilitado, carregando, cheio, style }: Props) {
+export function Botao({ rotulo, rotuloAcessivel, aoTocar, tipo = 'primario', Icone, desabilitado, carregando, cheio, style }: Props) {
   const { cores, marca, sobreMarca } = useTema();
   const inativo = desabilitado || carregando;
   const semFundo = tipo === 'fantasma' || tipo === 'perigoTexto';
@@ -37,7 +39,7 @@ export function Botao({ rotulo, aoTocar, tipo = 'primario', Icone, desabilitado,
     <Button
       variant={tipo === 'primario' ? 'default' : tipo === 'perigo' ? 'destructive' : tipo === 'secundario' ? 'outline' : 'ghost'}
       accessibilityRole="button"
-      accessibilityLabel={rotulo}
+      accessibilityLabel={rotuloAcessivel ?? rotulo}
       accessibilityState={{ disabled: !!inativo, busy: !!carregando }}
       disabled={inativo}
       onPress={aoTocar}
