@@ -241,7 +241,7 @@ function PreviaDoTexto({ nome, fator }: { nome: string; fator: number }) {
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       style={[estilos.previa, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-      <Texto variante="pequeno">Prévia ({Math.round(fator * 100)}%)</Texto>
+      <Texto variante="suave">Prévia ({Math.round(fator * 100)}%)</Texto>
       <Texto variante="bloco">{nome}</Texto>
       <Texto>Segunda - Costas</Texto>
       <Texto variante="suave">5 exercícios · 2 dias no período</Texto>

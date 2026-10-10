@@ -254,7 +254,7 @@ function Previa({ marca, cores, rotulo }: { marca: Marca; cores: Cores; rotulo: 
   const { cores: atuais } = useTema();
   return (
     <View style={estilos.previa}>
-      <Texto variante="pequeno">{rotulo}</Texto>
+      <Texto variante="suave">{rotulo}</Texto>
       <View style={[estilos.telaPrevia, { backgroundColor: cores.fundo, borderColor: atuais.borda }]}>
         <MarcaTitulo marca={marca} />
         <View style={[estilos.cartaoPrevia, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>

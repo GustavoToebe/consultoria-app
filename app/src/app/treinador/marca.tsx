@@ -9,6 +9,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
+import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 /** Marca (nome, cor, fonte, tema, logo) com prévia ao vivo, e a metodologia da consultoria (seção 10.4, item 8). */
@@ -19,6 +20,7 @@ export default function Marca() {
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo="Marca" mostrarMarca="celular" />
+      <Texto variante="suave">Nome, logo, cor e tema que os seus alunos veem no app.</Texto>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (
