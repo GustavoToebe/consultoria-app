@@ -83,7 +83,7 @@ const TREINADOR: Guia = {
       titulo: 'Registros e cargas',
       itens: [
         { titulo: 'Por divisão e por dia', texto: 'As duas visões têm um botão para minimizar cada divisão ou cada dia, para achar o que procura mais rápido.' },
-        { titulo: 'Progresso por exercício', texto: 'Fica na ficha do aluno, fora das pastas, e soma o histórico de todas elas. Escolha o grupo muscular e marque quantos exercícios quiser; cada um mostra a data, a maior carga de trabalho e as repetições.' },
+        { titulo: 'Progresso por exercício', texto: 'Fica na ficha do aluno, fora das pastas, e soma o histórico de todas elas. Toque em "Escolher exercícios", filtre pelo grupo muscular e marque até 10 de uma vez; cada um mostra a data, a maior carga de trabalho e as repetições.' },
         { titulo: 'PDF das cargas', texto: 'Gera o relatório de cargas do período da pasta. Dado ausente aparece como "—", nunca como zero.' },
       ],
     },

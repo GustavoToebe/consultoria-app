@@ -156,7 +156,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   — `largura={LARGURA_EDITOR}` — com ações, `CartaoPlanos` de treino e dieta, `CartaoRegistros` só com o período e os treinos
   da pasta e `AtualizacaoDaPasta`), `CartaoLesoes`, `CartaoProgresso` e `CartaoPeso` (lista ou `GraficoLinha`, SVG sem biblioteca). Registros
   não ficam mais soltos na ficha. "Progresso por exercício" fica na ficha (fora da pasta), com o histórico de todas as
-  pastas e seleção múltipla de exercícios (a lista vem do último ano); filtra por grupo muscular (`ExercicioFeito.grupoMuscular`, da
+  pastas e seleção múltipla de exercícios numa `Folha` (a lista vem do último ano; no máximo `LIMITE_PROGRESSO` = 10 marcados, regra em `dominio/selecaoMultipla.ts`); filtra por grupo muscular (`ExercicioFeito.grupoMuscular`, da
   biblioteca; nulo fora dela = "Sem grupo") e exercício (`dominio/relatorio.opcoesDeProgresso`).
 - PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
   arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`
