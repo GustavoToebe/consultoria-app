@@ -18,6 +18,7 @@ import { Selo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
+import { Grade } from '../../../ui/Grade';
 
 const ABAS:{valor:SituacaoAtualizacao;rotulo:string}[]=[
   {valor:'PARA_REVISAR',rotulo:'Para revisar'},{valor:'ATRASADAS',rotulo:'Atrasadas'},
@@ -38,12 +39,12 @@ export default function ListaAtualizacoes() {
     {lista.carregando?<Esqueleto />:null}
     {!lista.carregando && lista.dados?.length===0?<Vazio titulo="Nenhuma atualização nesta lista" texto="As atualizações aparecem conforme o período da pasta e o envio do aluno." />:null}
     {lista.dados?.length?<Cartao titulo={ABAS.find(a=>a.valor===filtro)?.rotulo} descricao={`${lista.dados.length} ${lista.dados.length===1?'atualização':'atualizações'} nesta lista.`}>
-      {lista.dados.map(a=><View key={a.pastaId} style={[estilos.linha,{backgroundColor:cores.superficie2,borderColor:cores.borda}]}>
+      <Grade gap={espaco(2)}>{lista.dados.map(a=><View key={a.pastaId} style={[estilos.linha,{backgroundColor:cores.superficie2,borderColor:cores.borda}]}>
         <LinkTexto texto={a.nomeAluno??'Aluno'} href={caminhoAtualizacaoTreinador(a)} />
         <Texto numerico variante="suave">Atualização · {dataParaTela(a.dataAtualizacao)}</Texto>
         <Selo {...statusAtualizacaoTreinador(a)} />
-      </View>)}
+      </View>)}</Grade>
     </Cartao>:null}
   </Tela>;
 }
-const estilos=StyleSheet.create({linha:{gap:espaco(1),padding:espaco(2),borderWidth:1,borderRadius:RAIO}});
+const estilos=StyleSheet.create({linha:{flexGrow:1,gap:espaco(1),padding:espaco(2),borderWidth:1,borderRadius:RAIO}});
