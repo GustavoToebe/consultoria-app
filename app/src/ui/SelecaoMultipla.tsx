@@ -1,14 +1,23 @@
 import { StyleSheet, View } from 'react-native';
 
 import { alternarComLimite, marcarVisiveis } from '../dominio/selecaoMultipla';
-import { espaco } from '../tema/tokens';
+import { useTema } from '../tema/TemaProvider';
+import { espaco, RAIO } from '../tema/tokens';
 import { Botao } from './Botao';
+import { CabecalhoDeGrupo } from './CabecalhoDeGrupo';
 import { CaixaSelecao } from './CaixaSelecao';
 import { Texto } from './Texto';
 
 export interface OpcaoMultipla {
   valor: string;
   rotulo: string;
+}
+
+export interface GrupoDeOpcoes {
+  titulo: string;
+  /** Linha `suave` da faixa ("3 exercícios"). */
+  resumo?: string;
+  opcoes: OpcaoMultipla[];
 }
 
 interface Props {
@@ -20,13 +29,16 @@ interface Props {
   limite?: number;
   /** Chamado quando o limite barra uma marcação ou deixa itens sem marca (para avisar o usuário). */
   aoPassarDoLimite?: () => void;
+  /** Mostra a lista separada em faixas de grupo. As ações e a contagem seguem usando `opcoes` (os visíveis). */
+  grupos?: GrupoDeOpcoes[];
 }
 
 /**
  * Lista de opções com caixa de seleção (várias de uma vez), com "Marcar" e "Limpar". Sem rolagem própria: o pai
  * rola (na `Folha` ou na tela).
  */
-export function SelecaoMultipla({ rotulo, opcoes, marcados, aoMudar, limite, aoPassarDoLimite }: Props) {
+export function SelecaoMultipla({ rotulo, opcoes, marcados, aoMudar, limite, aoPassarDoLimite, grupos }: Props) {
+  const { cores } = useTema();
   const alternar = (valor: string, marcar: boolean) => {
     if (limite === undefined) {
       const novo = new Set(marcados);
@@ -46,6 +58,9 @@ export function SelecaoMultipla({ rotulo, opcoes, marcados, aoMudar, limite, aoP
     if (r.deixados > 0) aoPassarDoLimite?.();
   };
   const quantos = opcoes.filter((o) => marcados.has(o.valor)).length;
+  const caixa = (o: OpcaoMultipla) => (
+    <CaixaSelecao key={o.valor} rotulo={o.rotulo} marcado={marcados.has(o.valor)} aoMudar={(m) => alternar(o.valor, m)} />
+  );
   return (
     <View style={estilos.campo}>
       <Texto variante="rotulo">{rotulo}</Texto>
@@ -56,11 +71,18 @@ export function SelecaoMultipla({ rotulo, opcoes, marcados, aoMudar, limite, aoP
         <Botao rotulo={limite === undefined ? 'Marcar todos' : `Marcar os visíveis (até ${limite})`} tipo="secundario" aoTocar={marcarTodos} />
         <Botao rotulo="Limpar" tipo="secundario" aoTocar={() => aoMudar(new Set())} />
       </View>
-      <View style={estilos.lista}>
-        {opcoes.map((o) => (
-          <CaixaSelecao key={o.valor} rotulo={o.rotulo} marcado={marcados.has(o.valor)} aoMudar={(m) => alternar(o.valor, m)} />
-        ))}
-      </View>
+      {grupos ? (
+        <View style={estilos.grupos}>
+          {grupos.map((g) => (
+            <View key={g.titulo} style={[estilos.grupo, { borderColor: cores.borda }]}>
+              <CabecalhoDeGrupo titulo={g.titulo} resumo={g.resumo} />
+              <View style={estilos.itensDoGrupo}>{g.opcoes.map(caixa)}</View>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <View style={estilos.lista}>{opcoes.map(caixa)}</View>
+      )}
     </View>
   );
 }
@@ -70,4 +92,7 @@ const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   contagem: { flexGrow: 1 },
   lista: { gap: espaco(0.75) },
+  grupos: { gap: espaco(2) },
+  grupo: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  itensDoGrupo: { gap: espaco(0.75), padding: espaco(1.5) },
 });

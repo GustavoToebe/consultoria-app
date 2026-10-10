@@ -79,6 +79,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   vídeo) é modelo reutilizável e também "Aplicar ao aluno" (cria o plano de mobilidade na pasta). Pasta de plano pode ser finalizada
   (`POST /pastas/{id}/finalizar`, `concluida_em`); peso e observação opcionais vão para o registro de peso na mesma
   transação. Aluno tem `dias_atualizacao` (1 a 365): "Nova pasta" sugere início hoje e fim = início + dias - 1.
+- Plano do aluno × modelo do Planejamento: o modelo é só o molde e aplicar cria uma cópia sem ligação. Os editores avisam isso (`plano/FaixaDoPlano`, textos em `dominio/planoDoAluno.ts`): título "Treino de <nome>" no aluno, "Modelo: <tipo>" no molde.
 - Planos: treino e dieta compartilham `planos/PlanoServiceBase` (rascunho com lock otimista, validar, publicar versão
   imutável, replicar com uids novos). Erro de validação = 422 `PLANO_INVALIDO`/`CONFIRMAR_AVISOS` com a lista em
   `fieldErrors` (`field` = caminho no conteúdo).
@@ -157,7 +158,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   da pasta e `AtualizacaoDaPasta`), `CartaoLesoes`, `CartaoProgresso` e `CartaoPeso` (lista ou `GraficoLinha`, SVG sem biblioteca). Registros
   não ficam mais soltos na ficha. "Progresso por exercício" fica na ficha (fora da pasta), com o histórico de todas as
   pastas e seleção múltipla de exercícios numa `Folha` (a lista vem do último ano; no máximo `LIMITE_PROGRESSO` = 10 marcados, regra em `dominio/selecaoMultipla.ts`); filtra por grupo muscular (`ExercicioFeito.grupoMuscular`, da
-  biblioteca; nulo fora dela = "Sem grupo") e exercício (`dominio/relatorio.opcoesDeProgresso`).
+  biblioteca; nulo fora dela = "Sem grupo") e exercício (`dominio/relatorio.opcoesDeProgresso`), com busca sem acento na folha. Cada exercício marcado é um bloco
+  (`ProgressoDoExercicio`: resumo do primeiro e do último registro com carga, `GraficoLinha` com 2 pontos ou mais, 5 datas mais recentes e "Ver todos"); regras em `dominio/progresso.ts`, sem cálculo novo.
 - PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
   arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`
   (a CSP tem `frame-src 'none'`, então nada de iframe). Logo entra como data URI (`pdf/logo.ts`).
@@ -166,7 +168,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   `/treinador/ajuda` e `/aluno/ajuda` e dos PDFs `app/public/guias/*.pdf` (web serve em `/guias/`). Mudou funcionalidade
   que o guia descreve? Edite o `conteudo.ts` e rode `node scripts/guias/gerar.mjs` (precisa de Edge/Chrome), versionando os PDFs.
 - `ui/RolagemComTopo` (usado por `Tela` e `Folha`) mostra o botão "voltar ao início da página" depois de 400 px de rolagem. Lema da marca saiu da interface e do PDF
-  (a coluna `lema` continua na API/banco, sempre gravada como nulo). Marca aparece a quem tem `MARCA_ALTERAR` (nos perfis
+  (o campo saiu da tela; salvar a Marca mantém o lema que já estava gravado). Marca aparece a quem tem `MARCA_ALTERAR` (nos perfis
   padrão, só o Administrador); tema claro/escuro é preferência pessoal em Perfil, para qualquer um.
 
 ## Onde está cada coisa
