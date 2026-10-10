@@ -50,12 +50,12 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const campos = errosPorCampo(erro);
   const corValida = HEX.test(cor);
   const avaliacao = avaliarMarca(cor);
-  const previa: Marca = { ...inicial, nome: nome || inicial.nome, lema: null, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
+  const previa: Marca = { ...inicial, nome: nome || inicial.nome, lema: inicial.lema, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    alterarMarca({ nome: nome.trim(), lema: null, corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao }).then(
+    alterarMarca({ nome: nome.trim(), lema: inicial.lema, corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao }).then(
       (c) => {
         setSalvando(false);
         aoSalvar(c);
