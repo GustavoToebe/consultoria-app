@@ -152,7 +152,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
           <Texto style={estilos.metodologiaTexto}>{c.metodologia ? `Metodologia: ${c.metodologia.nome}` : 'Metodologia: nenhuma vinculada'}</Texto>
           <Botao rotulo={c.metodologia ? 'Trocar' : 'Vincular'} tipo="secundario" aoTocar={() => setFolha({ tipo: 'metodologia' })} />
         </View>
-        <Texto variante="pequeno">Uma cópia das regras acompanha este treino. Vincular outra metodologia orienta as novas séries; as séries existentes continuam editáveis.</Texto>
+        <Texto variante="suave">Uma cópia das regras acompanha este treino. Vincular outra metodologia orienta as novas séries; as séries existentes continuam editáveis.</Texto>
         <Campo
           rotulo="Objetivo (opcional)"
           valor={c.objetivo ?? ''}

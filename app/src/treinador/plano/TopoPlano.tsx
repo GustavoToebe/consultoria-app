@@ -107,6 +107,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
     <>
       <Cartao
         titulo={e.titulo.trim() || 'Plano sem título'}
+        descricao="Monte o plano, valide e publique para o aluno ver."
         acoes={
           <>
             {editor.situacao === 'erro' ? (
@@ -134,12 +135,12 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
           {e.plano.pastaId ? ' (da pasta)' : ''}
         </Texto>
         {ultima ? (
-          <Texto variante="pequeno">
+          <Texto variante="suave">
             Última publicação: v{ultima.numero} em {dataHoraParaTela(ultima.publicadoEm)}. Editar aqui mexe só no
             rascunho; o aluno continua vendo a versão publicada até você publicar de novo.
           </Texto>
         ) : (
-          <Texto variante="pequeno">Ainda não publicado: o aluno não vê este plano.</Texto>
+          <Texto variante="suave">Ainda não publicado: o aluno não vê este plano.</Texto>
         )}
       </Cartao>
       {problemas ? <ListaProblemas conteudo={e.conteudo} resultado={problemas} aoFechar={() => aoProblemas(null)} /> : null}
