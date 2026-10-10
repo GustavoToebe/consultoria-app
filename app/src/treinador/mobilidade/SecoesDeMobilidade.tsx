@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { mover } from '../../dominio/editorTreino';
 import { type ConteudoMobilidade, type ItemMobilidade, type SecaoMobilidade, novaSecaoMobilidade, novoItemMobilidade } from '../../dominio/mobilidade';
 import { erroDoVideo } from '../../dominio/video';
+import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
@@ -25,7 +26,9 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar }: { conteudo: Conte
     alterarSecao(si, (x) => ({ ...x, itens: x.itens.map((y, m) => (m === ii ? { ...y, ...parcial } : y)) }));
   const secaoAremover = removerSecao === null ? null : mob.secoes[removerSecao];
   return <>
-    <Campo rotulo="Orientações (opcional)" valor={mob.orientacoes} aoMudar={(orientacoes) => aoMudar({ ...mob, orientacoes })} linhas={3} maxLength={2000} />
+    <Cartao titulo="Orientações" descricao="Texto geral que o aluno lê antes das seções (opcional).">
+      <Campo rotulo="Orientações (opcional)" valor={mob.orientacoes} aoMudar={(orientacoes) => aoMudar({ ...mob, orientacoes })} linhas={3} maxLength={2000} />
+    </Cartao>
     {mob.secoes.map((sec, si) => <Cartao key={sec.uid} titulo={sec.titulo || `Seção ${si + 1}`}
       acoes={<Botao rotulo="Remover seção" tipo="perigoTexto" Icone={Trash2} desabilitado={mob.secoes.length <= 1} aoTocar={() => setRemoverSecao(si)} />}>
       <Campo rotulo="Título da seção" valor={sec.titulo} maxLength={80} aoMudar={(titulo) => alterarSecao(si, (x) => ({ ...x, titulo }))} />
@@ -51,8 +54,10 @@ export function SecoesDeMobilidade({ conteudo: mob, aoMudar }: { conteudo: Conte
 function ItemDaSecao({ item: it, posicao, total, aoMudar, aoMover, aoRemover }: {
   item: ItemMobilidade; posicao: number; total: number; aoMudar: (parcial: Partial<ItemMobilidade>) => void; aoMover: (d: -1 | 1) => void; aoRemover: () => void;
 }) {
+  const { cores } = useTema();
   const [videoAberto, setVideoAberto] = useState(!!it.videoUrl);
-  return <Cartao titulo={`${posicao + 1}. ${it.nome || 'Item sem nome'}`}
+  const [removendo, setRemovendo] = useState(false);
+  return <Cartao titulo={`${posicao + 1}. ${it.nome || 'Item sem nome'}`} style={{ backgroundColor: cores.superficie2 }}
     acoes={<View style={estilos.setas}>
       <IconeBotao Icone={ArrowUp} rotulo="Subir item" desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
       <IconeBotao Icone={ArrowDown} rotulo="Descer item" desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />
@@ -62,8 +67,10 @@ function ItemDaSecao({ item: it, posicao, total, aoMudar, aoMover, aoRemover }: 
     <CabecalhoDeGrupo titulo="Vídeo" aberto={videoAberto} aoAlternar={() => setVideoAberto((v) => !v)} />
     {videoAberto ? <Campo rotulo="Link do vídeo (YouTube)" valor={it.videoUrl} maxLength={500} autoCapitalize="none" erro={erroDoVideo(it.videoUrl)} aoMudar={(videoUrl) => aoMudar({ videoUrl })} /> : null}
     <View style={estilos.linha}>
-      <Botao rotulo="Remover item" tipo="perigoTexto" Icone={Trash2} aoTocar={aoRemover} />
+      <Botao rotulo="Remover item" tipo="perigoTexto" Icone={Trash2} aoTocar={() => setRemovendo(true)} />
     </View>
+    <PainelConfirmacao visivel={removendo} titulo={`Remover o item “${it.nome || posicao + 1}”?`} mensagem="O item sai da seção. Nada é salvo até você publicar."
+      rotuloConfirmar="Remover item" perigo aoCancelar={() => setRemovendo(false)} aoConfirmar={() => { setRemovendo(false); aoRemover(); }} />
   </Cartao>;
 }
 
