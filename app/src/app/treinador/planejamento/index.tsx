@@ -20,6 +20,7 @@ import { Escolha } from '../../../ui/Escolha';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { textoDoErro } from '../../../ui/erros';
+import { Grade } from '../../../ui/Grade';
 import { Folha } from '../../../ui/Folha';
 import { IconeBotao } from '../../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
@@ -77,9 +78,9 @@ export default function Planejamento() {
       {modelos.erro || colecoes.erro || config.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? colecoes.erro ?? config.erro)} tentarDeNovo={() => { atualizar(); config.recarregar(); }} /> : null}
       {!modelos.dados && modelos.carregando ? <Esqueleto /> : null}
       {filtrados?.length === 0 ? <Vazio texto="Nenhum modelo encontrado. Crie um modelo para começar." /> : null}
-      {filtrados?.map((r) => <CartaoModelo key={r.id} modelo={r} colecao={nomeDaColecao(r.pastaId)} aplicavel={uso.aplicavel} linhaDeUso={uso.linha}
+      {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((r) => <CartaoModelo key={r.id} modelo={r} colecao={nomeDaColecao(r.pastaId)} aplicavel={uso.aplicavel} linhaDeUso={uso.linha}
         ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
-        aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}
+        aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</Grade> : null}
     </Cartao>
     {escolherColecao ? <Folha visivel titulo="Coleção" aoFechar={() => setEscolherColecao(false)}>
       <Texto variante="suave">Coleções só organizam os modelos desta tela.</Texto>
@@ -175,7 +176,7 @@ const estilos = StyleSheet.create({
   campoBusca: { flexGrow: 1, flexBasis: 240 },
   // O Botao se alinha ao topo por padrão; aqui fica na base, rente ao campo de busca.
   seletor: { alignSelf: 'flex-end' },
-  modelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), minHeight: 56 },
+  modelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), minHeight: 56, flexGrow: 1 },
   topoModelo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
   textosModelo: { flex: 1, gap: espaco(0.5) },
   acoesModelo: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
