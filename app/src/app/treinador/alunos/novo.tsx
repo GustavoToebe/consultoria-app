@@ -6,12 +6,14 @@ import { useAviso } from '../../../ui/Aviso';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Cartao } from '../../../ui/Cartao';
 import { Tela } from '../../../ui/Tela';
+import { Texto } from '../../../ui/Texto';
 
 export default function NovoAluno() {
   const { avisar } = useAviso();
   return (
     <Tela bordas={['top']} largura={640}>
       <Cabecalho titulo="Novo aluno" voltar="/treinador/alunos" />
+      <Texto variante="suave">Cadastre o aluno; depois gere o convite para ele entrar no app.</Texto>
       <Cartao>
         <FormAluno
           rotuloSalvar="Cadastrar"

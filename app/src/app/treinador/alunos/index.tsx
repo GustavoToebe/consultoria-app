@@ -14,6 +14,7 @@ import { useTema } from '../../../tema/TemaProvider';
 import { espaco, RAIO, LARGURA_LISTA } from '../../../tema/tokens';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
+import { Cartao } from '../../../ui/Cartao';
 import { Campo } from '../../../ui/Campo';
 import { Escolha } from '../../../ui/Escolha';
 import { Esqueleto } from '../../../ui/Esqueleto';
@@ -58,6 +59,8 @@ export default function Alunos() {
           /></Permitido>
         }
       />
+      <Texto variante="suave">Busque pelo nome e abra a ficha para ver planos, registros e atualizações.</Texto>
+      <Cartao titulo="Filtros">
       <View style={estilos.filtros}>
         <View style={estilos.busca}>
           <Campo
@@ -85,6 +88,7 @@ export default function Alunos() {
           />
         </View>
       </View>
+      </Cartao>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
@@ -127,10 +131,10 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
       onPress={() => router.push(`/treinador/alunos/${aluno.id}`)}
       style={(estado) => [
         estilos.linha,
-        { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie, borderColor: cores.borda },
+        { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
       ]}>
       <View style={estilos.dados}>
-        <Texto variante="subtitulo">{aluno.nome}</Texto>
+        <Texto variante="bloco">{aluno.nome}</Texto>
         <View style={estilos.selos}>
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} larguraMinima={LARGURA_SELO} />
           <Selo texto={aluno.temAcesso ? 'Com acesso' : 'Sem acesso'} tipo={aluno.temAcesso ? 'sucesso' : 'neutro'} larguraMinima={LARGURA_SELO} />
