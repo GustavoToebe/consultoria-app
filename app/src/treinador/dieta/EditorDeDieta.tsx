@@ -111,7 +111,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
         <CamposDaDieta conteudo={c} aoMudar={mudar} />
       </ConfiguracaoDoPlano>
       <View style={estilos.barra}>
-        <Texto variante="secao">Refeições ({c.refeicoes.length})</Texto>
+        <Texto variante="bloco">Refeições ({c.refeicoes.length})</Texto>
         <View style={estilos.acoes}>
           <Botao
             rotulo="Adicionar refeição"
@@ -155,14 +155,14 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
         />
       ))}
       <Cartao titulo="Complementos" descricao="Orientações, observações e suplementação que acompanham a dieta.">
-      <Cartao titulo="Orientações" recolhivel recolhido={c.orientacoes.length === 0}>
+      <Cartao titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={c.orientacoes.length === 0}>
         {c.orientacoes.map((o, oi) => (
           <View key={oi} style={[estilos.orientacao, { borderColor: cores.borda }]}>
             <View style={estilos.cresce}>
               <Campo rotulo="Título" valor={o.titulo} aoMudar={(titulo) => mudar({ orientacoes: substituir(c.orientacoes, oi, { ...o, titulo }) })} maxLength={80} />
               <Campo rotulo="Texto" valor={o.texto} aoMudar={(texto) => mudar({ orientacoes: substituir(c.orientacoes, oi, { ...o, texto }) })} linhas={2} maxLength={2000} />
             </View>
-            <IconeBotao Icone={Trash2} rotulo={`Remover orientação ${o.titulo || oi + 1}`} cor={cores.perigo} aoTocar={() => mudar({ orientacoes: remover(c.orientacoes, oi) })} />
+            <IconeBotao Icone={Trash2} rotulo={`Remover orientação ${o.titulo || oi + 1}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Orientação “${o.titulo || oi + 1}” removida.`, (a) => ({ ...a, orientacoes: remover(a.orientacoes, oi) }))} />
           </View>
         ))}
         <View style={estilos.acoes}>
@@ -170,12 +170,12 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
         </View>
       </Cartao>
 
-      <Cartao titulo="Observações" recolhivel recolhido={!c.observacoes}>
+      <Cartao titulo="Observações" style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={!c.observacoes}>
         <Campo rotulo="Observações (opcional)" valor={c.observacoes ?? ''} aoMudar={(t) => mudar({ observacoes: t || null })} linhas={4} maxLength={8000} />
       </Cartao>
 
-      <Cartao titulo="Suplementação" recolhivel recolhido={c.suplementacao.length === 0}>
-        <Texto numerico variante="pequeno">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui.</Texto>
+      <Cartao titulo="Suplementação" style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={c.suplementacao.length === 0}>
+        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
           return (
@@ -194,7 +194,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
                   <Campo rotulo="Observação" valor={s.observacao} aoMudar={(observacao) => mudarS({ observacao })} maxLength={500} />
                 </View>
               </View>
-              <IconeBotao Icone={Trash2} rotulo={`Remover ${s.nome || 'linha'}`} cor={cores.perigo} aoTocar={() => mudar({ suplementacao: remover(c.suplementacao, si) })} />
+              <IconeBotao Icone={Trash2} rotulo={`Remover ${s.nome || 'linha'}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Suplementação “${s.nome || si + 1}” removida.`, (a) => ({ ...a, suplementacao: remover(a.suplementacao, si) }))} />
             </View>
           );
         })}
