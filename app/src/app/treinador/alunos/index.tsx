@@ -24,6 +24,7 @@ import { Selo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
+import { Grade } from '../../../ui/Grade';
 
 const SITUACOES: { valor: SituacaoFiltro; rotulo: string }[] = [
   { valor: 'ATIVO', rotulo: 'Ativos' },
@@ -99,7 +100,7 @@ export default function Alunos() {
         />
       ) : null}
       <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]}>
-        {dados?.itens.map((a, i) => <EntradaEmCascata key={a.id} indice={i} animar={animar}><LinhaAluno aluno={a} /></EntradaEmCascata>)}
+        <Grade gap={espaco(1)}>{(dados?.itens ?? []).map((a, i) => <EntradaEmCascata key={a.id} indice={i} animar={animar} style={estilos.crescer}><LinhaAluno aluno={a} /></EntradaEmCascata>)}</Grade>
       </View>
       {dados && paginas > 1 ? (
         <View style={estilos.paginacao}>
@@ -153,8 +154,10 @@ const estilos = StyleSheet.create({
   busca: { maxWidth: 480 },
   recortes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5) },
   lista: { gap: espaco(1) },
+  crescer: { flexGrow: 1 },
   esmaecido: { opacity: 0.6 },
   linha: {
+    flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco(1),
