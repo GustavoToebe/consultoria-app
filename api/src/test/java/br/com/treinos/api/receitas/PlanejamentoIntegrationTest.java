@@ -11,6 +11,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -85,6 +86,39 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/planos-treino/" + id + "/versoes/1", treinador, 200).at("/conteudo/metodologia/nome").asString()).isEqualTo("Método fictício");
         var loginAluno = api.convidarEEntrar(treinador, aluno);
         assertThat(api.get("/aluno/painel", loginAluno, 200).at("/configuracao/tipoTrabalho").asString()).isEqualTo("WS");
+    }
+
+    /** Planejamento é o molde: a cópia do aluno e o modelo não se afetam, em nenhum dos dois sentidos. */
+    @Test void mudarACopiaDoAlunoNaoAlteraOModeloEMudarOModeloNaoAlteraACopia() throws Exception {
+        var modelo = modelo("PLANO_TREINO", ApiDeTeste.treino().conteudo());
+        String modeloId = modelo.get("id").asString();
+        String nomeOriginal = modelo.at("/conteudo/sessoes/0/exercicios/0/nome").asString();
+        var aplicado = aplicar(modelo, aluno);
+        String planoId = aplicado.get("planoId").asString();
+        var copia = plano(aplicado);
+        assertThat(copia.at("/rascunho/sessoes/0/exercicios/0/nome").asString()).isEqualTo(nomeOriginal);
+
+        // 1) Muda o nome do exercício na cópia do aluno e publica: o modelo continua igual.
+        var conteudoDoAluno = copia.get("rascunho").deepCopy();
+        ((ObjectNode) conteudoDoAluno.at("/sessoes/0/exercicios/0")).put("nome", "Exercício só deste aluno");
+        var salvo = api.put("/planos-treino/" + planoId + "/rascunho", treinador,
+                ApiDeTeste.rascunho("Cópia do aluno", conteudoDoAluno, copia.at("/plano/versao").asLong()), 200);
+        api.post("/planos-treino/" + planoId + "/publicar", treinador,
+                Map.of("versao", salvo.at("/plano/versao").asLong(), "confirmarAvisos", true), 200);
+        var modeloDepois = api.get("/receitas/" + modeloId, treinador, 200);
+        assertThat(modeloDepois.get("conteudo")).isEqualTo(modelo.get("conteudo"));
+        assertThat(modeloDepois.at("/conteudo/sessoes/0/exercicios/0/nome").asString()).isEqualTo(nomeOriginal);
+
+        // 2) Inverso: muda o modelo e a cópia do aluno (rascunho e versão publicada) não muda.
+        var conteudoDoModelo = modeloDepois.get("conteudo").deepCopy();
+        ((ObjectNode) conteudoDoModelo.at("/sessoes/0/exercicios/0")).put("nome", "Exercício só do modelo");
+        api.put("/receitas/" + modeloId + "/conteudo", treinador,
+                Map.of("nome", "Modelo fictício", "conteudo", conteudoDoModelo, "versao", modeloDepois.get("versao").asLong()), 200);
+        var alunoDepois = api.get("/planos-treino/" + planoId, treinador, 200);
+        assertThat(alunoDepois.at("/rascunho/sessoes/0/exercicios/0/nome").asString()).isEqualTo("Exercício só deste aluno");
+        assertThat(alunoDepois.get("rascunho")).isEqualTo(conteudoDoAluno);
+        assertThat(api.get("/planos-treino/" + planoId + "/versoes/1", treinador, 200)
+                .at("/conteudo/sessoes/0/exercicios/0/nome").asString()).isEqualTo("Exercício só deste aluno");
     }
 
     @Test void pastaModeloAplicaTreinoEDietaComoRascunhosIndependentes() throws Exception {
