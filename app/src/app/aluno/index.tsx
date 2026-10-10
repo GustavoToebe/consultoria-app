@@ -93,6 +93,7 @@ export default function TreinoAluno() {
     <Tela bordas={['top']} largura={720}>
       <Cabecalho mostrarMarca="sempre" acoes={<SeloSincronizacao />} />
       <Texto variante="titulo">Olá, {pacote.pacote.aluno.nome.split(' ')[0]}</Texto>
+      <Texto variante="suave">Seu treino da semana: abra o de hoje e registre carga e repetições. Funciona sem internet.</Texto>
       <SeletorPlano rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} />
       <CartaoAtualizacao />
       {!treino || !conteudo ? (
@@ -103,7 +104,7 @@ export default function TreinoAluno() {
       ) : (
         <>
           {somenteLeitura ? (
-            <Texto variante="pequeno">Você está consultando outro plano. Para registrar séries, volte ao plano em uso.</Texto>
+            <Texto variante="suave">Você está consultando outro plano. Para registrar séries, volte ao plano em uso.</Texto>
           ) : (
             <>
               <CartaoHoje
@@ -135,7 +136,7 @@ export default function TreinoAluno() {
             </Cartao>
           ) : null}
           <Botao rotulo="Baixar PDF do treino" tipo="secundario" cheio Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />
-          <Texto variante="pequeno">
+          <Texto variante="suave">
             {treino.titulo} (v{treino.numero}) · atualizado em {dataHoraParaTela(pacote.salvoEm)}
           </Texto>
         </>

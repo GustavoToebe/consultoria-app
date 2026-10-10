@@ -84,7 +84,7 @@ export default function ExercicioDaSessao() {
           <Botao rotulo="Voltar para o dia" Icone={Check} cheio tipo="secundario" aoTocar={() => router.replace(voltar)} />
         )}
       </View>
-      <Texto variante="pequeno">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
+      <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>
   );
 }

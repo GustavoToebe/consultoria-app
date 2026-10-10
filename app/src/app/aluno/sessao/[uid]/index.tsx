@@ -64,12 +64,12 @@ export default function SessaoAluno() {
       <Cartao>
         <View style={estilos.linhaResumo}>
           <Selo texto={data === hoje ? `Hoje · ${dataParaTela(data)}` : dataParaTela(data)} tipo="neutro" />
-          <Texto variante="pequeno">
+          <Texto variante="suave">
             {feitas} de {total} séries feitas
           </Texto>
         </View>
         <BarraProgresso feitas={feitas} total={total} />
-        {data !== hoje ? <Texto variante="pequeno">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
+        {data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
       </Cartao>
       {sessao.cardio || sessao.observacao ? (
         <Cartao>
@@ -93,7 +93,7 @@ export default function SessaoAluno() {
         />
         </EntradaEmCascata>
       ))}
-      <Texto variante="pequeno">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
+      <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>
   );
 }
