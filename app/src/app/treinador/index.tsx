@@ -41,6 +41,7 @@ export default function InicioTreinador() {
         mostrarMarca="celular"
         acoes={<Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Novo aluno" Icone={Plus} aoTocar={() => router.push('/treinador/alunos/novo')} /></Permitido>}
       />
+      <Texto variante="suave">O que pede sua atenção: atualizações para revisar, planos que terminam e alunos sem registro.</Texto>
       <Escolha rotulo="Responsabilidade" opcoes={[{valor:'meus',rotulo:'Meus alunos'},{valor:'todos',rotulo:'Todos os alunos'}]} valor={escopo} aoMudar={setEscopo}/>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
@@ -61,7 +62,7 @@ export default function InicioTreinador() {
             <Texto variante="secao">Alunos</Texto>
             <View style={estilos.contadores}><Contador unico titulo="Ativos" numero={dados.alunosAtivos} aoTocar={() => router.push('/treinador/alunos')} /></View>
           </View>
-          <Permitido codigo="TREINO_LER"><Cartao titulo="Planos terminando em 7 dias" style={estilos.metade}>
+          <Permitido codigo="TREINO_LER"><Cartao titulo="Planos terminando em 7 dias" descricao="Abra o aluno para replicar a pasta no próximo ciclo." style={estilos.metade}>
             {dados.planosTerminando.length === 0 ? <Vazio titulo="Nenhum plano terminando" texto="Veja os planos e períodos nas fichas dos alunos." acao={{ rotulo: 'Ver alunos', aoTocar: () => router.push('/treinador/alunos') }} /> : null}
             {dados.planosTerminando.map((p) => (
               <Linha
@@ -73,8 +74,7 @@ export default function InicioTreinador() {
               />
             ))}
           </Cartao>
-          </Permitido><Permitido codigo="REGISTRO_LER"><Cartao titulo="Sem registro há 7 dias" style={estilos.metade}>
-            <Texto variante="pequeno">Pode ter treinado sem registrar no app.</Texto>
+          </Permitido><Permitido codigo="REGISTRO_LER"><Cartao titulo="Sem registro há 7 dias" descricao="Pode ter treinado sem registrar no app." style={estilos.metade}>
             {dados.alunosSemRegistro7Dias.length === 0 ? <Vazio titulo="Nenhum aluno nesta lista" texto="Os alunos sem registros recentes aparecerão aqui." /> : null}
             {dados.alunosSemRegistro7Dias.map((a) => (
               <Linha
@@ -86,7 +86,7 @@ export default function InicioTreinador() {
               />
             ))}
           </Cartao>
-          <Cartao titulo="Últimos registros" style={estilos.metade}>
+          <Cartao titulo="Últimos registros" descricao="O que os alunos registraram por último." style={estilos.metade}>
             {dados.ultimasExecucoes.length === 0 ? <Vazio titulo="Sem registros ainda" texto="Os treinos registrados pelos alunos aparecem aqui." /> : null}
             {[...dados.ultimasExecucoes].sort((a, b) => b.data.localeCompare(a.data)).map((e, i) => (
               <Linha
@@ -130,8 +130,8 @@ function Linha({ titulo, detalhe, aoTocar, rotulo }: { titulo: string; detalhe: 
       accessibilityRole="link"
       accessibilityLabel={rotulo}
       onPress={aoTocar}
-      style={(estado) => [estilos.linha, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
-      <Texto style={estilos.tituloLinha}>{titulo}</Texto>
+      style={(estado) => [estilos.linha, { borderColor: cores.borda, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2 }]}>
+      <Texto variante="bloco">{titulo}</Texto>
       <Texto variante="suave">{detalhe}</Texto>
     </Pressable>
   );
@@ -148,6 +148,5 @@ const estilos = StyleSheet.create({
   // Duas colunas no PC; no celular cada cartão ocupa a largura (encolhe abaixo da base).
   metade: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
   numero: { fontFamily: fontes.negrito, fontSize: 40, lineHeight: 48 },
-  linha: { borderTopWidth: 1, paddingVertical: espaco(1), gap: 2, borderRadius: RAIO, minHeight: 56 },
-  tituloLinha: { fontFamily: fontes.semi },
+  linha: { borderWidth: 1, padding: espaco(1.5), gap: 2, borderRadius: RAIO, minHeight: 56 },
 });
