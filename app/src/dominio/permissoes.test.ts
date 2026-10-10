@@ -22,6 +22,7 @@ describe('navegação de membros da equipe', () => {
     expect(pode(undefined,'ALUNO_LER')).toBe(false);
     expect(podeAcessarTela('/treinador/desconhecido', () => true)).toBe(false);
     expect(podeAcessarTela('/treinador/perfil', acesso([]))).toBe(true);
+    expect(podeAcessarTela('/treinador/ajuda', acesso([]))).toBe(true);
   });
   it('mobilidade usa as permissões do treino, não as da dieta', () => {
     expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['TREINO_LER','TREINO_ALTERAR']))).toBe(true);

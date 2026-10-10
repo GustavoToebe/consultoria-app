@@ -19,6 +19,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { gruposDosExercicios } from '../../dominio/catalogo';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES, normalizar } from '../treino/FolhaBiblioteca';
 
@@ -32,8 +33,13 @@ export function AbaExercicios() {
   const [busca, setBusca] = useState('');
   const [editando, setEditando] = useState<Exercicio | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Exercicio | null>(null);
+  const [grupo, setGrupo] = useState('todos');
   const termo = normalizar(busca.trim());
-  const lista = (dados ?? []).filter((e) => !termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''}`).includes(termo));
+  const grupos = gruposDosExercicios(dados ?? []);
+  const grupoAtivo = grupo === 'todos' || grupos.includes(grupo) ? grupo : 'todos';
+  const lista = (dados ?? []).filter(
+    (e) => (grupoAtivo === 'todos' || e.grupoMuscular?.trim() === grupoAtivo) && (!termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''}`).includes(termo)),
+  );
 
   const confirmarInativar = () => {
     const alvo = inativar;
@@ -56,10 +62,11 @@ export function AbaExercicios() {
         </View>
         <Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>
       </View>
+      {grupos.length > 0 ? <Escolha descricao="Grupo muscular" opcoes={[{ valor: 'todos', rotulo: 'Todos os grupos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupoAtivo} aoMudar={setGrupo} /> : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
-        <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca.' : 'Importe do catálogo ou cadastre um exercício.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') }} />
+        <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : 'Importe do catálogo ou cadastre um exercício.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGrupo('todos'); } } : { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') }} />
       ) : null}
       {lista.map((e) => (
         <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>

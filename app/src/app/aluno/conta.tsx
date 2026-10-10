@@ -8,6 +8,7 @@ import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
+import { LinkTexto } from '../../ui/LinkTexto';
 import { PainelConta } from '../../ui/PainelConta';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -19,6 +20,7 @@ export default function ContaAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Conta e preferências" />
+      <LinkTexto href="/aluno/ajuda" texto="Ajuda, primeiros passos e tutorial" />
       <PainelConta
         avisoAoSair={
           naoEnviados

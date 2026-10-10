@@ -3,12 +3,12 @@ import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { execucoesDoAluno, progressoDoAluno } from '../api/rotas';
+import { execucoesDoAluno } from '../api/rotas';
 import type { DiaDeTreino, PastaResumo, SerieFeita } from '../api/tipos';
 import { dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
-import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso } from '../dominio/relatorio';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros } from '../dominio/relatorio';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { espaco, fontes } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
@@ -73,7 +73,6 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
   };
 
   return (
-    <>
       <Cartao
         titulo="Registros e cargas"
         recolhivel
@@ -96,16 +95,15 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
           ? [...filtrados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)
           : null}
       </Cartao>
-      {filtrados && filtrados.length > 0 ? <CartaoProgresso alunoId={aluno.id} dias={filtrados} /> : null}
-    </>
   );
 }
 
 export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
   const { cores } = useTema();
+  const [aberto, setAberto] = useState(true);
   return (
-    <Cartao cabecalho={<CabecalhoDeGrupo titulo={dataParaTela(dia.data)} resumo={`${dia.sessoes.length} ${dia.sessoes.length === 1 ? 'sessão' : 'sessões'}`} />}>
-      {dia.sessoes.map((s) => (
+    <Cartao cabecalho={<CabecalhoDeGrupo titulo={dataParaTela(dia.data)} resumo={`${dia.sessoes.length} ${dia.sessoes.length === 1 ? 'sessão' : 'sessões'}`} aberto={aberto} aoAlternar={() => setAberto((a) => !a)} />}>
+      {!aberto ? null : dia.sessoes.map((s) => (
         <View key={`${s.planoVersaoId}:${s.sessaoUid}`} style={[estilos.sessao, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
           <Texto numerico variante="secao">{s.sessao}</Texto>
           {s.exercicios.map((e) => (
@@ -120,43 +118,6 @@ export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
   );
 }
 
-function CartaoProgresso({ alunoId, dias }: { alunoId: string; dias: DiaDeTreino[] }) {
-  const { cores } = useTema();
-  const [grupo, setGrupo] = useState('todos');
-  const { grupos, exercicios: opcoes } = opcoesDeProgresso(dias, grupo === 'todos' ? null : grupo);
-  const [escolhido, setEscolhido] = useState<string | null>(null);
-  // Trocar o grupo leva ao primeiro exercício dele quando o escolhido não pertence ao grupo.
-  const atual = (escolhido && opcoes.some((o) => o.valor === escolhido) ? escolhido : null) ?? opcoes[0]?.valor ?? null;
-  const { dados, erro, carregando } = useCarregar(atual ? `prog:${alunoId}:${atual}` : null, () =>
-    progressoDoAluno(alunoId, atual as string),
-  );
-  if (grupos.length === 0) return null;
-  return (
-    <Cartao titulo="Progresso por exercício" recolhivel recolhido>
-      {grupos.length > 1 ? <Escolha descricao="Grupo muscular" opcoes={[{ valor: 'todos', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={setGrupo} /> : null}
-      <Escolha descricao="Exercício" opcoes={opcoes.map(({ valor, rotulo }) => ({ valor, rotulo }))} valor={atual} aoMudar={setEscolhido} />
-      {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-      {carregando && !dados ? <Esqueleto /> : null}
-      {dados?.length ? (
-        <View style={[estilos.tabela, { borderColor: cores.borda }]}>
-          <View style={[estilos.linhaTabela, { backgroundColor: cores.superficie2 }]}>
-            <Texto numerico variante="pequeno" style={estilos.col}>Data</Texto>
-            <Texto numerico variante="pequeno" style={estilos.col}>Maior carga de trabalho</Texto>
-            <Texto numerico variante="pequeno" style={estilos.col}>Repetições</Texto>
-          </View>
-          {[...dados].reverse().map((p) => (
-            <View key={p.data} style={[estilos.linhaTabela, { borderColor: cores.borda }]}>
-              <Texto numerico style={estilos.col}>{dataParaTela(p.data)}</Texto>
-              <Texto numerico style={estilos.col}>{p.maiorCargaTrabalho === null ? '—' : `${numeroParaTela(p.maiorCargaTrabalho)} kg`}</Texto>
-              <Texto numerico style={estilos.col}>{p.repeticoes ?? '—'}</Texto>
-            </View>
-          ))}
-        </View>
-      ) : null}
-    </Cartao>
-  );
-}
-
 const estilos = StyleSheet.create({
   filtros: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   dia: { borderTopWidth: 1, paddingTop: espaco(1), gap: espaco(1) },
@@ -164,7 +125,6 @@ const estilos = StyleSheet.create({
   sessao: { gap: espaco(0.75), borderWidth: 1, borderRadius: 8, padding: espaco(1.5) },
   exercicio: { gap: 2 },
   nomeExercicio: { fontFamily: fontes.semi, fontSize: 14 },
-  tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
-  linhaTabela: { flexDirection: 'row', paddingHorizontal: espaco(1.5), paddingVertical: espaco(1), borderTopWidth: StyleSheet.hairlineWidth },
   col: { flex: 1 },
+  progresso: { gap: espaco(0.75) },
 });

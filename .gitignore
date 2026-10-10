@@ -4,4 +4,5 @@ __pycache__/
 .env
 .expo/
 *.pdf
+!app/public/guias/*.pdf
 docs/Aux.csv

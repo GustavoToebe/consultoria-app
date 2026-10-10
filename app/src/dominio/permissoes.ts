@@ -12,7 +12,7 @@ export function pode(permissoes:readonly string[]|undefined,codigo:string):boole
   return permissoes?.includes(codigo)??false;
 }
 export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean):boolean {
-  if(caminho==='/treinador/perfil') return true;
+  if(caminho==='/treinador/perfil'||caminho==='/treinador/ajuda') return true;
   if(caminho==='/treinador') return tem('PAINEL_VER');
   if(caminho.startsWith('/treinador/atualizacoes')) return tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER');
   if(caminho==='/treinador/alunos/novo') return tem('ALUNO_ALTERAR');

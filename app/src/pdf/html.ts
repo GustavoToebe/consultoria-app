@@ -62,7 +62,7 @@ html, body { background: #fff; color: #111; margin: 0; }
 /** Topo: logo (data URI) ou o nome da consultoria em caixa alta, e as linhas de identificação à direita. */
 export function topo(marca: Marca, logoDataUri: string | null, linhas: string[]): string {
   const esquerda = logoDataUri ? `<img src="${esc(logoDataUri)}" alt="${esc(marca.nome)}">` : `<h1>${esc(marca.nome)}</h1>`;
-  return `<div class="topo"><div>${esquerda}${marca.lema ? `<div class="pequeno">${esc(marca.lema)}</div>` : ''}</div><div class="pequeno" style="text-align:right">${linhas.map(esc).join('<br>')}</div></div>`;
+  return `<div class="topo"><div>${esquerda}</div><div class="pequeno" style="text-align:right">${linhas.map(esc).join('<br>')}</div></div>`;
 }
 
 /** Documento completo (celular: vira arquivo PDF). */

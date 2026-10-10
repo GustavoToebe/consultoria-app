@@ -1,5 +1,7 @@
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
-import { StyleSheet, View } from 'react-native';
+import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { dataParaTela } from '../dominio/formatos';
 import type { DivisaoRelatorio } from '../dominio/relatorio';
@@ -15,17 +17,32 @@ import { Texto } from '../ui/Texto';
 export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] }) {
   const { cores, marca } = useTema();
   const animar = usePrimeiraLista(divisoes.length > 0, divisoes.map((d) => d.chave).join('|'));
+  const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
+  const alternar = (chave: string) =>
+    setRecolhidas((atual) => {
+      const novo = new Set(atual);
+      if (!novo.delete(chave)) novo.add(chave);
+      return novo;
+    });
   return (
     <View style={estilos.lista}>
       {divisoes.map((d, i) => (
         <EntradaEmCascata indice={i} animar={animar} key={d.chave} style={estilos.divisao}>
-          <View style={[estilos.faixa, { backgroundColor: cores.superficie2, borderLeftColor: marca }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${d.nome}, ${recolhidas.has(d.chave) ? 'recolhida' : 'aberta'}`}
+            accessibilityState={{ expanded: !recolhidas.has(d.chave) }}
+            onPress={() => alternar(d.chave)}
+            style={({ pressed }) => [estilos.faixa, { backgroundColor: cores.superficie2, borderLeftColor: marca, opacity: pressed ? 0.7 : 1 }]}>
             <Texto numerico style={estilos.nomeDivisao}>{d.nome}</Texto>
-            <Texto numerico variante="pequeno">
-              {d.exercicios.length} {d.exercicios.length === 1 ? 'exercício' : 'exercícios'}
-            </Texto>
-          </View>
-          {d.exercicios.map((e) => (
+            <View style={estilos.resumoFaixa}>
+              <Texto numerico variante="pequeno">
+                {d.exercicios.length} {d.exercicios.length === 1 ? 'exercício' : 'exercícios'}
+              </Texto>
+              {recolhidas.has(d.chave) ? <ChevronDown size={18} color={cores.textoSuave} /> : <ChevronUp size={18} color={cores.textoSuave} />}
+            </View>
+          </Pressable>
+          {recolhidas.has(d.chave) ? null : d.exercicios.map((e) => (
             <View key={e.chave} style={[estilos.exercicio, { borderColor: cores.borda }]}>
               <View style={[estilos.cabecalho, { backgroundColor: cores.superficie2 }]}>
                 <Texto numerico style={estilos.nomeExercicio}>{e.nome}</Texto>
@@ -76,6 +93,7 @@ const estilos = StyleSheet.create({
     paddingVertical: espaco(1.25),
     paddingHorizontal: espaco(1.5),
   },
+  resumoFaixa: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   nomeDivisao: { fontFamily: fontes.negrito, fontSize: 15, letterSpacing: 0.8, textTransform: 'uppercase', flexShrink: 1 },
   exercicio: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   cabecalho: {

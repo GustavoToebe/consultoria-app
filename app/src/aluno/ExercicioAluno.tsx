@@ -187,7 +187,7 @@ function CartaoSerie({
           />
         )}
         <CampoNumericoGrande
-          rotulo="Reps feitas"
+          rotulo="Reps"
           rotuloAcessivel={`Repetições da série ${indice + 1}`}
           sufixo="reps"
           inteiro

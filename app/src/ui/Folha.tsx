@@ -4,12 +4,13 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { X } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import { IconeBotao } from './IconeBotao';
+import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
 
 interface Props {
@@ -70,9 +71,7 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
             <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto>
             <IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} />
           </View></GestureDetector>
-          <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
-            {children}
-          </ScrollView>
+          <RolagemComTopo contentContainerStyle={estilos.conteudo}>{children}</RolagemComTopo>
           {rodape ? <View style={[estilos.rodape, { borderColor: cores.borda }]}>{rodape}</View> : null}
         </Animated.View>
       </View>

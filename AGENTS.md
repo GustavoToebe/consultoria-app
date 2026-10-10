@@ -154,12 +154,20 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 
 - Ficha do aluno (treinador): `CartaoPastas` (lista com a situação da atualização de cada pasta; tocar abre a `Folha` larga
   — `largura={LARGURA_EDITOR}` — com ações, `CartaoPlanos` de treino e dieta, `CartaoRegistros` só com o período e os treinos
-  da pasta e `AtualizacaoDaPasta`), `CartaoLesoes` e `CartaoPeso` (lista ou `GraficoLinha`, SVG sem biblioteca). Registros
-  não ficam mais soltos na ficha. "Progresso por exercício" filtra por grupo muscular (`ExercicioFeito.grupoMuscular`, da
+  da pasta e `AtualizacaoDaPasta`), `CartaoLesoes`, `CartaoProgresso` e `CartaoPeso` (lista ou `GraficoLinha`, SVG sem biblioteca). Registros
+  não ficam mais soltos na ficha. "Progresso por exercício" fica na ficha (fora da pasta), com o histórico de todas as
+  pastas e seleção múltipla de exercícios (a lista vem do último ano); filtra por grupo muscular (`ExercicioFeito.grupoMuscular`, da
   biblioteca; nulo fora dela = "Sem grupo") e exercício (`dominio/relatorio.opcoesDeProgresso`).
 - PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
   arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`
   (a CSP tem `frame-src 'none'`, então nada de iframe). Logo entra como data URI (`pdf/logo.ts`).
+
+- Ajuda: `app/src/ajuda/conteudo.ts` é o texto único (primeiros passos, tutorial guiado, seções, perguntas) das telas
+  `/treinador/ajuda` e `/aluno/ajuda` e dos PDFs `app/public/guias/*.pdf` (web serve em `/guias/`). Mudou funcionalidade
+  que o guia descreve? Edite o `conteudo.ts` e rode `node scripts/guias/gerar.mjs` (precisa de Edge/Chrome), versionando os PDFs.
+- `ui/RolagemComTopo` (usado por `Tela` e `Folha`) mostra o botão "voltar ao início da página" depois de 400 px de rolagem. Lema da marca saiu da interface e do PDF
+  (a coluna `lema` continua na API/banco, sempre gravada como nulo). Marca aparece a quem tem `MARCA_ALTERAR` (nos perfis
+  padrão, só o Administrador); tema claro/escuro é preferência pessoal em Perfil, para qualquer um.
 
 ## Onde está cada coisa
 - `api/` — backend novo. `app/` — app Expo novo.

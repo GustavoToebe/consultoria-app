@@ -19,6 +19,7 @@ import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
+import { Escolha } from '../ui/Escolha';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
@@ -34,6 +35,13 @@ import { useCarregar } from '../ui/useCarregar';
 import { AtualizacaoDaPasta } from './AtualizacaoDaPasta';
 import { CartaoRegistros } from './CartaoRegistros';
 import { CartaoPlanos, periodo, proximoPeriodo } from './CartaoPlanos';
+
+type FiltroPastas = 'todas' | 'ativas' | 'concluidas';
+const FILTROS_PASTAS: { valor: FiltroPastas; rotulo: string }[] = [
+  { valor: 'todas', rotulo: 'Todas' },
+  { valor: 'ativas', rotulo: 'Ativas' },
+  { valor: 'concluidas', rotulo: 'Concluídas' },
+];
 
 type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 'replicar'; pasta: PastaResumo };
 
@@ -56,6 +64,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
+  const [filtro, setFiltro] = useState<FiltroPastas>('todas');
   const { avisar } = useAviso();
   const [excluir, setExcluir] = useState<PastaResumo | null>(null);
   const [salvarModelo, setSalvarModelo] = useState<PastaResumo | null>(null);
@@ -64,6 +73,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [abertaId, setAbertaId] = useState<string | null>(pastaInicialId??null);
   // "Mais ações" da pasta (salvar como pacote, excluir): menu à parte, para a folha ter uma ação principal só.
   const [menuPasta, setMenuPasta] = useState<PastaResumo | null>(null);
+  const visiveis = (dados ?? []).filter((p) => filtro === 'todas' || (filtro === 'concluidas') === !!p.concluidaEm);
   const aberta = dados?.find((p) => p.id === abertaId) ?? null;
   const [escolher, setEscolher] = useState(false);
   const [modelo, setModelo] = useState<Receita | null>(null);
@@ -98,7 +108,11 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         {dados && dados.length === 0 ? (
           <Vazio titulo="Sem pastas" texto="As pastas reúnem o treino, a dieta e a mobilidade do período." />
         ) : null}
-        {dados?.map((p) => (
+        {dados && dados.length > 0 ? <Escolha descricao="Situação da pasta" opcoes={FILTROS_PASTAS} valor={filtro} aoMudar={setFiltro} /> : null}
+        {dados && dados.length > 0 && visiveis.length === 0 ? (
+          <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'ativas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'} />
+        ) : null}
+        {visiveis.map((p) => (
           <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} />
         ))}
       </Cartao>

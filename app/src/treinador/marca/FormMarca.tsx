@@ -31,13 +31,12 @@ interface Props {
   aoConflito: () => void;
 }
 
-/** Nome, lema, cor, fonte do título, tema padrão e logo, com prévia do topo do app do aluno nos dois temas. */
+/** Nome, cor, fonte do título, tema padrão e logo, com prévia do topo do app do aluno nos dois temas. */
 export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const { atualizarMarca } = useSessao();
   const { avisar } = useAviso();
   const inicial = consultoria.marca;
   const [nome, setNome] = useState(inicial.nome);
-  const [lema, setLema] = useState(inicial.lema ?? '');
   const [cor, setCor] = useState(inicial.corPrimaria);
   // Cor que não é de nenhuma paleta (ou escolhida como tal) mostra o campo #RRGGBB.
   const [personalizada, setPersonalizada] = useState(!paletaDaCor(inicial.corPrimaria));
@@ -51,12 +50,12 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const campos = errosPorCampo(erro);
   const corValida = HEX.test(cor);
   const avaliacao = avaliarMarca(cor);
-  const previa: Marca = { ...inicial, nome: nome || inicial.nome, lema: lema || null, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
+  const previa: Marca = { ...inicial, nome: nome || inicial.nome, lema: null, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    alterarMarca({ nome: nome.trim(), lema: lema.trim() || null, corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao }).then(
+    alterarMarca({ nome: nome.trim(), lema: null, corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao }).then(
       (c) => {
         setSalvando(false);
         aoSalvar(c);
@@ -138,9 +137,8 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
           <Previa marca={previa} cores={CLARO} rotulo="Tema claro" />
         </View>
       </Cartao>
-      <Cartao titulo="Identidade" descricao="Nome, lema e logo que os alunos veem no topo do app.">
+      <Cartao titulo="Identidade" descricao="Nome e logo que os alunos veem no topo do app.">
         <Campo rotulo="Nome da consultoria" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
-        <Campo rotulo="Lema (opcional)" valor={lema} aoMudar={setLema} erro={campos.lema} maxLength={160} />
         <View style={estilos.logo}>
           <Texto variante="rotulo">Logo</Texto>
           <Texto variante="suave">PNG ou JPEG de até 512 KB. Com logo, ela aparece no lugar do nome.</Texto>
@@ -259,7 +257,6 @@ function Previa({ marca, cores, rotulo }: { marca: Marca; cores: Cores; rotulo: 
       <Texto variante="pequeno">{rotulo}</Texto>
       <View style={[estilos.telaPrevia, { backgroundColor: cores.fundo, borderColor: atuais.borda }]}>
         <MarcaTitulo marca={marca} />
-        {marca.lema ? <Texto style={{ color: cores.textoSuave }}>{marca.lema}</Texto> : null}
         <View style={[estilos.cartaoPrevia, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           <Texto style={[estilos.tituloPrevia, { color: cores.texto }]}>Treino de hoje</Texto>
           <Texto style={{ color: cores.textoSuave }}>Segunda - Costas</Texto>
