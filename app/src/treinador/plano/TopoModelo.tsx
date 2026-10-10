@@ -1,16 +1,24 @@
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
-import { Texto } from '../../ui/Texto';
-import type { usePlanoEditor } from './usePlanoEditor';
+import { Selo, type TipoSelo } from '../../ui/Selo';
+import type { SituacaoRascunho, usePlanoEditor } from './usePlanoEditor';
+
+const SITUACOES: Record<SituacaoRascunho, { texto: string; tipo: TipoSelo }> = {
+  salvo: { texto: 'Salvo', tipo: 'sucesso' },
+  pendente: { texto: 'Alterações não salvas', tipo: 'atencao' },
+  salvando: { texto: 'Salvando…', tipo: 'neutro' },
+  erro: { texto: 'Não foi possível salvar. Tente novamente.', tipo: 'perigo' },
+  conflito: { texto: 'Este modelo mudou em outra tela. Recarregue antes de editar.', tipo: 'perigo' },
+  dataInvalida: { texto: 'Confira os campos.', tipo: 'perigo' },
+};
 
 export function TopoModelo<C>({ editor }: { editor: ReturnType<typeof usePlanoEditor<C>> }) {
   const e = editor.estado;
   if (!e) return null;
-  return <Cartao titulo="Modelo reutilizável">
+  return <Cartao titulo="Modelo reutilizável" descricao="As alterações só valem depois de Salvar modelo; se sair sem salvar, elas são descartadas. As cópias já aplicadas aos alunos permanecem iguais.">
     <Campo rotulo="Nome do modelo" valor={e.titulo} aoMudar={(titulo) => editor.alterar(() => ({ titulo }))} maxLength={120} />
-    <Texto variante="suave">As alterações só valem depois de Salvar modelo; se sair sem salvar, elas são descartadas. As cópias já aplicadas aos alunos permanecem iguais.</Texto>
-    <Texto>{({ salvo: 'Salvo', pendente: 'Alterações não salvas', salvando: 'Salvando…', erro: 'Não foi possível salvar. Tente novamente.', conflito: 'Este modelo mudou em outra tela. Recarregue antes de editar.', dataInvalida: 'Confira os campos.' })[editor.situacao]}</Texto>
+    <Selo texto={SITUACOES[editor.situacao].texto} tipo={SITUACOES[editor.situacao].tipo} />
     {editor.situacao === 'conflito' ? <Botao rotulo="Recarregar modelo" aoTocar={editor.recarregar} /> : <Botao rotulo="Salvar modelo" aoTocar={() => void editor.salvar()} carregando={editor.situacao === 'salvando'} desabilitado={!e.titulo.trim()} />}
   </Cartao>;
 }
