@@ -93,6 +93,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
       <Cartao
         titulo="Pastas de plano"
         descricao="Cada pasta junta o treino, a dieta e a mobilidade de um período. O período da pasta vale para todos."
+        recolhivel
         acoes={<>
           <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Usar pacote" tipo="secundario" Icone={Package} aoTocar={() => setEscolher(true)} /></Permitido>
           <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Nova pasta" Icone={FolderPlus} aoTocar={() => setModo({ tipo: 'nova' })} /></Permitido>
