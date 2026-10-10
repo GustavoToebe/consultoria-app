@@ -11,6 +11,7 @@ import { espaco, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { Cartao } from '../../ui/Cartao';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -59,12 +60,12 @@ export function AbaAlimentos() {
   };
 
   return (
-    <View style={estilos.aba}>
-      <View style={estilos.topo}>
-        <View style={estilos.busca}>
-          <Campo rotulo="Buscar alimento" valor={busca} aoMudar={setBusca} />
-        </View>
-        <Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>
+    <Cartao
+      titulo="Alimentos da biblioteca"
+      descricao="Os alimentos que você escolhe ao montar a dieta, com os valores por quantidade-base."
+      acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
+      <View style={estilos.busca}>
+        <Campo rotulo="Buscar alimento" valor={busca} aoMudar={setBusca} />
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
@@ -72,10 +73,10 @@ export function AbaAlimentos() {
         <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca.' : 'Importe do catálogo ou cadastre um alimento.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') }} />
       ) : null}
       {lista.map((a) => (
-        <View key={a.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
+        <View key={a.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
           <View style={estilos.dados}>
-            <Texto>{a.nome}</Texto>
-            <Texto variante="pequeno">{resumoAlimento(a)}</Texto>
+            <Texto variante="bloco">{a.nome}</Texto>
+            <Texto variante="suave">{resumoAlimento(a)}</Texto>
           </View>
           <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>
         </View>
@@ -101,7 +102,7 @@ export function AbaAlimentos() {
         aoConfirmar={confirmarInativar}
         aoCancelar={() => setInativar(null)}
       />
-    </View>
+    </Cartao>
   );
 }
 
@@ -159,7 +160,7 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
         </View>
         <Escolha rotulo="Unidade" opcoes={UNIDADES} valor={unidade} aoMudar={setUnidade} />
       </View>
-      <Texto variante="pequeno">Valores para a quantidade-base, como no rótulo ou na tabela que você usa.</Texto>
+      <Texto variante="suave">Valores para a quantidade-base, como no rótulo ou na tabela que você usa.</Texto>
       <View style={estilos.grade}>
         <View style={estilos.campo}>
           <CampoNumerico rotulo="Kcal" valor={kcal} aoMudar={setKcal} erro={campos.kcal} />
@@ -191,8 +192,6 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
 }
 
 const estilos = StyleSheet.create({
-  aba: { gap: espaco(1) },
-  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5), marginBottom: espaco(1) },
   busca: { flex: 1, minWidth: 220, maxWidth: 480 },
   linha: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
   dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },

@@ -11,6 +11,7 @@ import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -93,7 +94,7 @@ export function AbaCsv() {
   };
 
   return (
-    <View style={estilos.aba}>
+    <Cartao titulo="Importar por CSV" descricao="Cole o texto ou escolha o arquivo, confira a prévia com os erros por linha e confirme.">
       <Escolha
         rotulo="Importar"
         opcoes={[
@@ -118,7 +119,7 @@ export function AbaCsv() {
       {erroArquivo ? <MensagemErro texto={erroArquivo} /> : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {previa ? (
-        <View style={[estilos.previa, { borderColor: cores.borda }]}>
+        <View style={[estilos.previa, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
           <View style={estilos.botoes}>
             <Selo texto={`${previa.validas.length} prontas`} tipo="sucesso" />
             {previa.erros.length ? <Selo texto={`${previa.erros.length} com erro`} tipo="perigo" /> : null}
@@ -128,13 +129,13 @@ export function AbaCsv() {
               Linha {v.linha}: {v.nome}
             </Texto>
           ))}
-          {previa.validas.length > 10 ? <Texto variante="pequeno">… e mais {previa.validas.length - 10}.</Texto> : null}
+          {previa.validas.length > 10 ? <Texto variante="suave">… e mais {previa.validas.length - 10}.</Texto> : null}
           {previa.erros.map((e) => (
             <Texto key={`e${e.linha}`} cor={cores.perigo}>
               Linha {e.linha}: {e.motivo}
             </Texto>
           ))}
-          <Texto variante="pequeno">As linhas com erro ficam de fora. Corrija o texto e veja a prévia de novo, se quiser.</Texto>
+          <Texto variante="suave">As linhas com erro ficam de fora. Corrija o texto e veja a prévia de novo, se quiser.</Texto>
           <View style={estilos.botoes}>
             <Botao
               rotulo={`Importar ${previa.validas.length} linha(s)`}
@@ -145,12 +146,11 @@ export function AbaCsv() {
           </View>
         </View>
       ) : null}
-    </View>
+    </Cartao>
   );
 }
 
 const estilos = StyleSheet.create({
-  aba: { gap: espaco(1.5) },
   codigo: { fontFamily: fontes.semi, fontSize: 13, borderWidth: 1, borderRadius: RAIO, padding: espaco(1) },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   previa: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },

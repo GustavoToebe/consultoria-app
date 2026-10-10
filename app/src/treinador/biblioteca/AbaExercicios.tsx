@@ -10,6 +10,7 @@ import { espaco, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
@@ -55,12 +56,12 @@ export function AbaExercicios() {
   };
 
   return (
-    <View style={estilos.aba}>
-      <View style={estilos.topo}>
-        <View style={estilos.busca}>
-          <Campo rotulo="Buscar exercício" valor={busca} aoMudar={setBusca} placeholder="Nome ou grupo" />
-        </View>
-        <Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>
+    <Cartao
+      titulo="Exercícios da biblioteca"
+      descricao="Os exercícios que você escolhe ao montar o treino, com vídeo quando houver."
+      acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo exercício" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
+      <View style={estilos.busca}>
+        <Campo rotulo="Buscar exercício" valor={busca} aoMudar={setBusca} placeholder="Nome ou grupo" />
       </View>
       {grupos.length > 0 ? <Escolha descricao="Grupo muscular" opcoes={[{ valor: 'todos', rotulo: 'Todos os grupos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupoAtivo} aoMudar={setGrupo} /> : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
@@ -69,10 +70,10 @@ export function AbaExercicios() {
         <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : 'Importe do catálogo ou cadastre um exercício.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGrupo('todos'); } } : { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') }} />
       ) : null}
       {lista.map((e) => (
-        <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
+        <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
           <View style={estilos.dados}>
-            <Texto>{e.nome}</Texto>
-            <Texto variante="pequeno">
+            <Texto variante="bloco">{e.nome}</Texto>
+            <Texto variante="suave">
               {[MODALIDADES[e.modalidade], e.grupoMuscular, e.equipamento, e.videoUrl ? 'com vídeo' : null].filter(Boolean).join(' · ')}
             </Texto>
           </View>
@@ -100,7 +101,7 @@ export function AbaExercicios() {
         aoConfirmar={confirmarInativar}
         aoCancelar={() => setInativar(null)}
       />
-    </View>
+    </Cartao>
   );
 }
 
@@ -164,8 +165,6 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: ()
 }
 
 const estilos = StyleSheet.create({
-  aba: { gap: espaco(1) },
-  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5), marginBottom: espaco(1) },
   busca: { flex: 1, minWidth: 220, maxWidth: 480 },
   linha: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
   dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },

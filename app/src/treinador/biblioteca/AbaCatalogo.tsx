@@ -10,6 +10,7 @@ import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
@@ -95,7 +96,16 @@ export function AbaCatalogo() {
   };
 
   return (
-    <View style={estilos.aba}>
+    <Cartao
+      titulo="Catálogo público"
+      descricao="Só leitura. Marque o que quer e importe para a sua biblioteca; os que já estão nela (mesmo nome) são ignorados."
+      acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao
+        rotulo={`Importar selecionados (${marcados.size})`}
+        Icone={Download}
+        carregando={importando}
+        desabilitado={marcados.size === 0}
+        aoTocar={importar}
+      /></Permitido>}>
       <Escolha
         descricao="Catálogo"
         opcoes={[
@@ -118,19 +128,9 @@ export function AbaCatalogo() {
           aoMudar={setGrupo}
         />
       ) : null}
-      <View style={estilos.topo}>
-        <View style={estilos.busca}>
-          <Campo rotulo="Buscar no catálogo" valor={busca} aoMudar={setBusca} />
-        </View>
-        <Permitido codigo="BIBLIOTECA_ALTERAR"><Botao
-          rotulo={`Importar selecionados (${marcados.size})`}
-          Icone={Download}
-          carregando={importando}
-          desabilitado={marcados.size === 0}
-          aoTocar={importar}
-        /></Permitido>
+      <View style={estilos.busca}>
+        <Campo rotulo="Buscar no catálogo" valor={busca} aoMudar={setBusca} />
       </View>
-      <Texto variante="pequeno">Os que já estão na sua biblioteca (mesmo nome) são ignorados.</Texto>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo." /> : null}
@@ -138,7 +138,7 @@ export function AbaCatalogo() {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;
         return (
-          <View key={item.id} style={[estilos.item, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: cores.superficie }]}>
+          <View key={item.id} style={[estilos.item, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: cores.superficie2 }]}>
             <Pressable
               accessibilityRole="checkbox"
               accessibilityState={{ checked: sel }}
@@ -149,8 +149,8 @@ export function AbaCatalogo() {
                 {sel ? <Check size={16} color={cores.fundo} strokeWidth={3} /> : null}
               </View>
               <View style={estilos.dados}>
-                <Texto>{item.nome}</Texto>
-                <Texto variante="pequeno">{item.detalhe}</Texto>
+                <Texto variante="bloco">{item.nome}</Texto>
+                <Texto variante="suave">{item.detalhe}</Texto>
               </View>
             </Pressable>
             {item.passos.length ? (
@@ -177,15 +177,13 @@ export function AbaCatalogo() {
         <Texto variante="pequeno" accessibilityLiveRegion="polite">{textoMostrando(dados.itens.length, dados.total)}</Texto>
       ) : null}
       <View style={estilos.creditos}>
-        <Texto variante="pequeno">{tipo === 'alimentos' ? CREDITOS_CATALOGO.alimentos : CREDITOS_CATALOGO.exercicios}</Texto>
+        <Texto variante="suave">{tipo === 'alimentos' ? CREDITOS_CATALOGO.alimentos : CREDITOS_CATALOGO.exercicios}</Texto>
       </View>
-    </View>
+    </Cartao>
   );
 }
 
 const estilos = StyleSheet.create({
-  aba: { gap: espaco(1) },
-  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5) },
   busca: { flex: 1, minWidth: 220, maxWidth: 480 },
   item: { borderWidth: 1, borderRadius: RAIO },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), padding: espaco(1.25) },
