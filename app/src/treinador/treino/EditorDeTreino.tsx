@@ -44,6 +44,8 @@ import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { Tela } from '../../ui/Tela';
 import { useCarregar } from '../../ui/useCarregar';
+import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
+import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 
 type Alvo = { sessao: number; exercicio: number };
@@ -59,6 +61,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
   const { id } = useLocalSearchParams<{ id: string }>();
   const { avisar } = useAviso();
   const editor = usePlanoEditor<ConteudoTreino>('treino', id, normalizarTreino, modelo);
+  const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const global = useCarregar('consultoria', () => consultoria()).dados?.configuracao ?? null;
   const config = editor.estado?.conteudo.metodologia?.configuracao ?? global;
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
@@ -128,9 +131,12 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
     setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: c.sessoes[si].exercicios.length } });
   };
 
+  const titulo = modelo ? tituloDoModelo(unica ? 'SESSAO_TREINO' : 'PLANO_TREINO') : tituloDoPlanoDoAluno('treino', nomeDoAluno);
+
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Plano de treino" trilha={trilhaDoPlano(modelo, estado.plano.alunoId, 'Plano de treino')} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
+      <Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
+      {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
       {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={aoProblemas} />}
       {desfazer ? (
         <BarraDesfazer

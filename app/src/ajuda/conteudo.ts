@@ -106,6 +106,7 @@ const TREINADOR: Guia = {
   ],
   perguntas: [
     { pergunta: 'Editei um plano e o aluno ainda vê o antigo.', resposta: 'O aluno só vê o que está publicado. Toque em Publicar para gerar a versão nova.' },
+    { pergunta: 'Se eu mudar o treino de um aluno, o modelo muda?', resposta: 'Não. Aplicar um modelo cria uma cópia só daquele aluno. Mudar a cópia não altera o modelo, e mudar o modelo não altera quem já recebeu.' },
     { pergunta: 'Não vejo o menu Marca.', resposta: 'Marca aparece só para quem tem permissão de alterar a marca da consultoria. Peça a um administrador.' },
     { pergunta: 'O aluno não consegue entrar.', resposta: 'Gere um convite novo na ficha dele (cartão Acesso ao app) e confirme que o aluno está ativo.' },
     { pergunta: 'Aparece "Alterado em outra aba" no plano.', resposta: 'O mesmo plano foi alterado em outro lugar. Use a opção de recarregar, confira o que mudou e edite de novo.' },

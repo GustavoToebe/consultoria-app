@@ -34,6 +34,8 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
+import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { Folha } from '../../ui/Folha';
@@ -49,6 +51,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
   const { cores } = useTema();
   const { avisar } = useAviso();
   const editor = usePlanoEditor<ConteudoDieta>('dieta', id, normalizarDieta, modelo);
+  const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const alimentos = useCarregar('biblioteca-alimentos', () => listarAlimentos()).dados ?? [];
   const porId = new Map<string, Alimento>(alimentos.map((a) => [a.id, a]));
   const [abertas, setAbertas] = useState<Set<string>>(new Set());
@@ -85,9 +88,12 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
       return novo;
     });
 
+  const titulo = modelo ? tituloDoModelo(unica ? 'REFEICAO' : 'PLANO_DIETA') : tituloDoPlanoDoAluno('dieta', nomeDoAluno);
+
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Plano de dieta" trilha={trilhaDoPlano(modelo, estado.plano.alunoId, 'Plano de dieta')} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
+      <Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
+      {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="dieta" />}
       {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="dieta" editor={editor} problemas={problemas} aoProblemas={setProblemas} />}
       {desfazer ? (
         <BarraDesfazer

@@ -8,6 +8,7 @@ import { Copy, Ellipsis, Library, Pencil, Trash2 } from 'lucide-react-native';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { alterarPastaModelo, alterarReceita, consultoria, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
 import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
+import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
 import { CATEGORIAS, conteudoInicial, GRUPOS_DE_MODELOS, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { useAviso } from '../../../ui/Aviso';
@@ -98,7 +99,7 @@ export default function Planejamento() {
       } else { await alterarReceita(formulario.id, { ...formulario, nome, descricao, pastaId }); setFormulario(null); modelos.recarregar(); }
     }} /> : null}
     {organizar ? <OrganizarColecoes colecoes={colecoes.dados ?? []} aoFechar={() => setOrganizar(false)} atualizar={atualizar} /> : null}
-    {aplicar ? <AplicarAoAluno modelo={aplicar} aoFechar={() => setAplicar(null)} aoAplicar={(id) => { setAplicar(null); avisar('Cópia criada como rascunho.', 'sucesso'); router.push(`/treinador/alunos/${id}`); }} /> : null}
+    {aplicar ? <AplicarAoAluno modelo={aplicar} aoFechar={() => setAplicar(null)} aoAplicar={(id, nome) => { setAplicar(null); avisar(mensagemCopiaCriada(nome), 'sucesso'); router.push(`/treinador/alunos/${id}`); }} /> : null}
     <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.nome ?? ''}”?`} mensagem="As cópias dos alunos e as metodologias já vinculadas permanecem iguais." rotuloConfirmar="Excluir modelo" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
       if (!excluir) return; const id = excluir.id; setExcluir(null);
       excluirReceita(id).then(modelos.recarregar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));

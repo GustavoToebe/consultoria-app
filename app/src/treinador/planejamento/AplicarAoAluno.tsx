@@ -13,7 +13,7 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 export function AplicarAoAluno({ modelo, alunoInicial, aoFechar, aoAplicar }: {
-  modelo: Receita; alunoInicial?: string; aoFechar: () => void; aoAplicar: (alunoId: string) => void;
+  modelo: Receita; alunoInicial?: string; aoFechar: () => void; aoAplicar: (alunoId: string, nomeDoAluno: string | null) => void;
 }) {
   const [busca, setBusca] = useState('');
   const [alunoId, setAlunoId] = useState(alunoInicial ?? '');
@@ -31,7 +31,7 @@ export function AplicarAoAluno({ modelo, alunoInicial, aoFechar, aoAplicar }: {
     setErro(null); setSalvando(true);
     try {
       await aplicarModelo(modelo.id, { alunoId, pastaId: pastaId || null, titulo: titulo.trim(), inicio: ini ?? null, fim: fi ?? null });
-      aoAplicar(alunoId);
+      aoAplicar(alunoId, alunos.dados?.itens.find((a) => a.id === alunoId)?.nome ?? null);
     } catch (e) { setErro(e); setSalvando(false); }
   };
   return <Folha visivel titulo={`Aplicar: ${modelo.nome}`} aoFechar={aoFechar} rodape={<Botao rotulo="Criar cópia para o aluno" aoTocar={() => void salvar()} carregando={salvando} desabilitado={!alunoId || !titulo.trim() || ini === undefined || fi === undefined || (!!ini && !!fi && ini > fi)} />}>

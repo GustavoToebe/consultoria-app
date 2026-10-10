@@ -26,6 +26,7 @@ import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { gerarPdfDoPlano, type TipoPlanoComPdf } from './gerarPdf';
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
+import { rotuloEditarPlano } from '../dominio/planoDoAluno';
 import { useCarregar } from '../ui/useCarregar';
 
 const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
@@ -98,7 +99,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
               <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
             ) : null}
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
-            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Abrir" tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={rotuloEditarPlano(tipo)} tipo={p.ativo ? 'primario' : 'secundario'} Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
           </View>
         </EntradaEmCascata>
       ))}

@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { alterarReceita, consultoria } from '../../api/rotas';
 import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos';
 import { normalizarDieta } from '../../dominio/dieta';
+import { tituloDoModelo } from '../../dominio/planoDoAluno';
 import { mover, normalizarTreino, seriesDaReceita, seriesParaReceita } from '../../dominio/editorTreino';
 import { type ConteudoMobilidade, mobilidadeParaApi, mobilidadeValida, normalizarMobilidade } from '../../dominio/mobilidade';
 import { useAviso } from '../../ui/Aviso';
@@ -20,6 +21,7 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { CartaoMetodologia } from '../marca/CartaoMetodologia';
+import { FaixaDoModelo } from '../plano/FaixaDoPlano';
 import { SecoesDeMobilidade } from '../mobilidade/SecoesDeMobilidade';
 import { EditorSeries } from '../treino/EditorSeries';
 
@@ -39,7 +41,8 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   const pasta = conteudo as ConteudoPastaModelo;
   const mob = r.tipo === 'MOBILIDADE' ? (conteudo as ConteudoMobilidade) : null;
   return <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-    <Cabecalho titulo={r.nome} trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: r.nome }]} subtitulo="Modelo reutilizável" voltar="/treinador/planejamento" />
+    <Cabecalho titulo={tituloDoModelo(r.tipo)} trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: tituloDoModelo(r.tipo) }]} subtitulo={r.nome} voltar="/treinador/planejamento" />
+    <FaixaDoModelo />
     <Cartao titulo="Modelo reutilizável" descricao="Salve as alterações antes de sair. Os planos dos alunos permanecem iguais.">
       <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
       <Campo rotulo="Descrição" valor={descricao} aoMudar={setDescricao} linhas={2} maxLength={400} />
