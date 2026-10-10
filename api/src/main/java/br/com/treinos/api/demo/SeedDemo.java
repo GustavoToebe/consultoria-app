@@ -173,7 +173,7 @@ public class SeedDemo {
                     segunda.plusDays(15), plano16, treinador.getId());
             execucoesFicticias(consultoria, aluno, publicado.versoes().get(0).id(), plano16, segunda);
 
-            publicarDieta(aluno, pasta, dieta(alimentos), treinador.getId());
+            publicarDieta(aluno, pasta, segunda, segunda.plusDays(15), dieta(alimentos), treinador.getId());
 
             LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
             String[] kg = {"82.0", "81.4", "81.1", "81.3"};
@@ -437,15 +437,16 @@ public class SeedDemo {
         return treinos.publicar(salvo.plano().id(), new PublicarRequest(salvo.plano().versao(), true), treinador);
     }
 
-    private void publicarDieta(UUID aluno, UUID pasta, ConteudoDieta conteudo, UUID treinador) {
+    private void publicarDieta(UUID aluno, UUID pasta, LocalDate inicio, LocalDate fim, ConteudoDieta conteudo,
+                               UUID treinador) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         ConteudoDieta comData = new ConteudoDieta(conteudo.objetivo(), hoje.with(DayOfWeek.MONDAY).toString(),
                 conteudo.profissional(), conteudo.refeicoes(), conteudo.orientacoes(), conteudo.observacoes(),
                 conteudo.suplementacao());
-        PlanoDetalhe<ConteudoDieta> criado = dietas.criar(aluno, new CriarPlanoRequest("Plano alimentar", null, null,
+        PlanoDetalhe<ConteudoDieta> criado = dietas.criar(aluno, new CriarPlanoRequest("Plano alimentar", inicio, fim,
                 null, null, pasta));
         PlanoDetalhe<ConteudoDieta> salvo = dietas.salvarRascunho(criado.plano().id(),
-                new SalvarRascunhoRequest<>("Plano alimentar", null, null, comData, criado.plano().versao()));
+                new SalvarRascunhoRequest<>("Plano alimentar", inicio, fim, comData, criado.plano().versao()));
         dietas.publicar(salvo.plano().id(), new PublicarRequest(salvo.plano().versao(), true), treinador);
     }
 }

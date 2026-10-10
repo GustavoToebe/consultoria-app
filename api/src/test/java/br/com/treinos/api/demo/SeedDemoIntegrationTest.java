@@ -47,6 +47,18 @@ class SeedDemoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/consultoria", saraiva, 200).get("configuracao").get("instrucoesTreino").asString())
                 .contains("Feeder Set");
 
+        // Treino e dieta da pasta "Plano 16" têm o período dela (a dieta já saiu "Sem período").
+        String alunoId = aluno.get("id").asString();
+        JsonNode pasta = api.get("/alunos/" + alunoId + "/pastas", saraiva, 200).get(0);
+        for (String rota : new String[]{"planos-treino", "planos-dieta"}) {
+            JsonNode planos = api.get("/alunos/" + alunoId + "/" + rota, saraiva, 200);
+            assertThat(planos).isNotEmpty();
+            for (JsonNode plano : planos) {
+                assertThat(plano.get("inicio").asString()).as(rota + " início").isEqualTo(pasta.get("inicio").asString());
+                assertThat(plano.get("fim").asString()).as(rota + " fim").isEqualTo(pasta.get("fim").asString());
+            }
+        }
+
         JsonNode alunoLogado = entrar(SeedDemo.ALUNO);
         JsonNode painel = api.get("/aluno/painel", alunoLogado, 200);
         JsonNode sessoes = painel.get("treino").get("conteudo").get("sessoes");
