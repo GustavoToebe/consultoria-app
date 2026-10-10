@@ -20,6 +20,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { Grade } from '../../ui/Grade';
 import { gruposDosExercicios } from '../../dominio/catalogo';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES, normalizar } from '../treino/FolhaBiblioteca';
@@ -69,7 +70,7 @@ export function AbaExercicios() {
       {dados && lista.length === 0 ? (
         <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : 'Importe do catálogo ou cadastre um exercício.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGrupo('todos'); } } : { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') }} />
       ) : null}
-      {lista.map((e) => (
+      <Grade gap={espaco(2)}>{lista.map((e) => (
         <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
           <View style={estilos.dados}>
             <Texto variante="bloco">{e.nome}</Texto>
@@ -79,7 +80,7 @@ export function AbaExercicios() {
           </View>
           <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>
         </View>
-      ))}
+      ))}</Grade>
       {editando ? (
         <FolhaExercicio
           inicial={editando === 'novo' ? null : editando}
@@ -166,6 +167,6 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: ()
 
 const estilos = StyleSheet.create({
   busca: { flex: 1, minWidth: 220, maxWidth: 480 },
-  linha: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
+  linha: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
   dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },
 });

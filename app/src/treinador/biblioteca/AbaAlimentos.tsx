@@ -22,6 +22,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { Grade } from '../../ui/Grade';
 import { normalizar } from '../treino/FolhaBiblioteca';
 
 export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
@@ -72,7 +73,7 @@ export function AbaAlimentos() {
       {dados && lista.length === 0 ? (
         <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca.' : 'Importe do catálogo ou cadastre um alimento.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') }} />
       ) : null}
-      {lista.map((a) => (
+      <Grade gap={espaco(2)}>{lista.map((a) => (
         <View key={a.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
           <View style={estilos.dados}>
             <Texto variante="bloco">{a.nome}</Texto>
@@ -80,7 +81,7 @@ export function AbaAlimentos() {
           </View>
           <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>
         </View>
-      ))}
+      ))}</Grade>
       {editando ? (
         <FolhaAlimento
           inicial={editando === 'novo' ? null : editando}
@@ -193,7 +194,7 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
 
 const estilos = StyleSheet.create({
   busca: { flex: 1, minWidth: 220, maxWidth: 480 },
-  linha: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
+  linha: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
   dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-end' },
   campo: { minWidth: 140, flex: 1 },
