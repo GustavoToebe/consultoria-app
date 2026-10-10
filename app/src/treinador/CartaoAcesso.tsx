@@ -54,7 +54,7 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
 
   if (aluno.temAcesso) {
     return (
-      <Cartao titulo="Acesso ao app">
+      <Cartao titulo="Acesso ao app" descricao="Como o aluno entra no app com o e-mail cadastrado.">
         <Selo texto="Com acesso" tipo="sucesso" />
         <Texto variante="suave">O aluno já criou a conta e entra com o e-mail e a senha dele.</Texto>
       </Cartao>
@@ -63,7 +63,7 @@ export function CartaoAcesso({ aluno }: { aluno: AlunoDetalhe }) {
 
   const conviteAnterior = !convite && aluno.conviteExpiraEm;
   return (
-    <Cartao titulo="Acesso ao app">
+    <Cartao titulo="Acesso ao app" descricao="Como o aluno entra no app com o e-mail cadastrado.">
       <Selo texto="Sem acesso" tipo="neutro" />
       {convite ? (
         <View style={estilos.convite}>

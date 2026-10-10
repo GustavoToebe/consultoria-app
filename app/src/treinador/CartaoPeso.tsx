@@ -79,7 +79,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
   const visiveis = todos ? lista : lista.slice(0, LINHAS_INICIAIS);
 
   return (
-    <Cartao titulo="Peso">
+    <Cartao titulo="Peso" descricao="Evolução do peso ao longo do tempo.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}

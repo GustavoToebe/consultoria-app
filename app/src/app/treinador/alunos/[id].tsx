@@ -41,6 +41,7 @@ export default function FichaAluno() {
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo={aluno?.nome ?? 'Aluno'} trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: aluno?.nome ?? 'Aluno' }]} voltar="/treinador/alunos" />
+      <Texto variante="suave">Dados, acesso, pastas de plano e evolução do aluno em um só lugar.</Texto>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
@@ -98,6 +99,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
   return (
     <Cartao
       titulo="Dados"
+      descricao="Cadastro do aluno e responsável pelo acompanhamento."
       acoes={
         editando || !pode("ALUNO_ALTERAR") ? null : <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} /></Permitido>
       }>
