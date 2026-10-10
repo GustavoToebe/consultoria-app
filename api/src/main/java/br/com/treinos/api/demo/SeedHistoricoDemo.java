@@ -305,7 +305,7 @@ public class SeedHistoricoDemo {
             PlanoDetalhe<ConteudoTreino> treino = publicarTreino(aluno, pasta, "Treino " + p.semanas().get(k), inicio,
                     fim, semana, met, treinador);
             ReceitaResponse dieta = modelos.de(Receita.Tipo.PLANO_DIETA, DIETAS.get(p.dietas().get(k) - 1));
-            publicarDieta(aluno, pasta, dieta, inicio, treinador);
+            publicarDieta(aluno, pasta, dieta, inicio, fim, treinador);
             if (k == 4 && p.mobilidade() != null) {
                 publicarMobilidade(aluno, pasta, modelos.de(Receita.Tipo.MOBILIDADE, p.mobilidade()), treinador);
             }
@@ -352,14 +352,15 @@ public class SeedHistoricoDemo {
         return treinos.publicar(salvo.plano().id(), new PublicarRequest(salvo.plano().versao(), true), treinador);
     }
 
-    private void publicarDieta(UUID aluno, UUID pasta, ReceitaResponse modelo, LocalDate inicio, UUID treinador) {
+    private void publicarDieta(UUID aluno, UUID pasta, ReceitaResponse modelo, LocalDate inicio, LocalDate fim,
+                               UUID treinador) {
         PlanoDetalhe<ConteudoDieta> criado = dietas.criar(aluno,
-                new CriarPlanoRequest("Dieta " + modelo.nome(), null, null, modelo.id(), null, pasta));
+                new CriarPlanoRequest("Dieta " + modelo.nome(), inicio, fim, modelo.id(), null, pasta));
         ConteudoDieta c = criado.rascunho();
         ConteudoDieta comData = new ConteudoDieta(c.objetivo(), inicio.toString(), c.profissional(), c.refeicoes(),
                 c.orientacoes(), c.observacoes(), c.suplementacao());
         PlanoDetalhe<ConteudoDieta> salvo = dietas.salvarRascunho(criado.plano().id(),
-                new SalvarRascunhoRequest<>("Dieta " + modelo.nome(), null, null, comData, criado.plano().versao()));
+                new SalvarRascunhoRequest<>("Dieta " + modelo.nome(), inicio, fim, comData, criado.plano().versao()));
         dietas.publicar(salvo.plano().id(), new PublicarRequest(salvo.plano().versao(), true), treinador);
     }
 

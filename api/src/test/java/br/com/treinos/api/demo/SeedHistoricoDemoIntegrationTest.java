@@ -81,6 +81,7 @@ class SeedHistoricoDemoIntegrationTest extends AbstractIntegrationTest {
             assertThat(a.get("planoAtivo").get("titulo").asString()).startsWith("Treino ");
             JsonNode pastas = api.get("/alunos/" + id + "/pastas", treinador, 200);
             assertThat(pastas).hasSize(5);
+            confereTodosOsPlanosNoPeriodoDaPasta(api, treinador, id, pastas);
             long concluidas = pastas.valueStream().filter(p -> !p.path("concluidaEm").isNull()).count();
             assertThat(concluidas).isEqualTo(4);
             assertThat(api.get("/alunos/" + id + "/pesos", treinador, 200).size()).isGreaterThan(20);
@@ -115,6 +116,22 @@ class SeedHistoricoDemoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/alunos", outro, 200).get("total").asLong()).isZero();
         String idDeOutra = alunos.get("itens").get(0).get("id").asString();
         api.get("/alunos/" + idDeOutra, outro, 404);
+    }
+
+    /** Treino, dieta e mobilidade de uma pasta têm o mesmo período dela (a dieta já saiu "Sem período" na demonstração). */
+    private static void confereTodosOsPlanosNoPeriodoDaPasta(ApiDeTeste api, JsonNode treinador, String alunoId,
+                                                             JsonNode pastas) throws Exception {
+        for (String rota : List.of("planos-treino", "planos-dieta", "planos-mobilidade")) {
+            for (JsonNode plano : api.get("/alunos/" + alunoId + "/" + rota, treinador, 200)) {
+                JsonNode pasta = pastas.valueStream()
+                        .filter(p -> p.get("id").asString().equals(plano.path("pastaId").asString()))
+                        .findFirst().orElseThrow(() -> new AssertionError(rota + " sem pasta: " + plano.get("titulo")));
+                assertThat(plano.get("inicio").asString()).as("%s %s: início", rota, plano.get("titulo"))
+                        .isEqualTo(pasta.get("inicio").asString());
+                assertThat(plano.get("fim").asString()).as("%s %s: fim", rota, plano.get("titulo"))
+                        .isEqualTo(pasta.get("fim").asString());
+            }
+        }
     }
 
     private JsonNode entrar(String email) throws Exception {
