@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
 import { execucoesDoAluno } from '../api/rotas';
 import { hojeIso, somarDias } from '../dominio/formatos';
 import { agruparPorGrupo } from '../dominio/progresso';
 import { opcoesDeProgresso } from '../dominio/relatorio';
 import { LIMITE_PROGRESSO } from '../dominio/selecaoMultipla';
-import { espaco, LARGURA_EDITOR } from '../tema/tokens';
+import { espaco } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -20,18 +20,22 @@ import { useCarregar } from '../ui/useCarregar';
 import { ProgressoDoExercicio } from './ProgressoDoExercicio';
 import { normalizar } from './treino/FolhaBiblioteca';
 
+/** Largura do cartão a partir da qual os blocos ficam em duas colunas (abaixo disso o gráfico fica apertado). */
+const LARGURA_DUAS_COLUNAS = 760;
+
 /** A API aceita até 366 dias por consulta; os exercícios listados são os registrados no último ano. */
 const DIAS_DA_LISTA = 364;
 
 /**
  * Progresso por exercício na ficha do aluno (fora das pastas): os exercícios se escolhem numa folha (busca, grupo
  * muscular e caixas de seleção, até `LIMITE_PROGRESSO` de uma vez); cada marcado vira um bloco com o histórico
- * completo do aluno, de todas as pastas. Na web larga os blocos ficam em duas colunas.
+ * completo do aluno, de todas as pastas. Com o cartão largo (a partir de 760 px, medido nele e não na janela) os blocos ficam em duas colunas.
  */
 export function CartaoProgresso({ alunoId }: { alunoId: string }) {
   const { avisar } = useAviso();
-  const { width } = useWindowDimensions();
-  const duasColunas = Platform.OS === 'web' && width >= LARGURA_EDITOR;
+  const [larguraDoCartao, setLarguraDoCartao] = useState(0);
+  const duasColunas = larguraDoCartao >= LARGURA_DUAS_COLUNAS;
+  const aoMedir = (e: LayoutChangeEvent) => setLarguraDoCartao(e.nativeEvent.layout.width);
   const hoje = hojeIso();
   const de = somarDias(hoje, -DIAS_DA_LISTA);
   const { dados: dias } = useCarregar(`exec-progresso:${alunoId}:${de}:${hoje}`, () => execucoesDoAluno(alunoId, de, hoje));
@@ -57,6 +61,7 @@ export function CartaoProgresso({ alunoId }: { alunoId: string }) {
   );
   return (
     <>
+    <View onLayout={aoMedir}>
     <Cartao
       titulo="Progresso por exercício"
       descricao="Histórico completo de cada exercício, somando todas as pastas."
@@ -73,6 +78,7 @@ export function CartaoProgresso({ alunoId }: { alunoId: string }) {
         <View style={estilos.coluna}>{mostrados.map(bloco)}</View>
       )}
     </Cartao>
+    </View>
     <Folha
       visivel={escolhendo}
       titulo="Escolher exercícios"
