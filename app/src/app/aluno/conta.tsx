@@ -27,16 +27,16 @@ export default function ContaAluno() {
             ? `Há ${naoEnviados} registro(s) ainda não enviado(s). Se sair agora, eles serão apagados deste aparelho. Conecte-se e sincronize antes, se puder.`
             : null
         }>
-        <Cartao titulo="Sincronização">
+        <Cartao titulo="Sincronização" descricao="Os registros ficam salvos neste aparelho e vão para o seu treinador quando houver internet.">
           <SeloSincronizacao />
           <Texto variante="suave">
             {naoEnviados
               ? `${pendentes} aguardando envio${falhas.length ? `, ${falhas.length} com falha` : ''}.`
               : 'Tudo o que você registrou já está com o seu treinador.'}
           </Texto>
-          {mensagemEnvio ? <Texto variante="pequeno">{mensagemEnvio}</Texto> : null}
+          {mensagemEnvio ? <Texto variante="suave">{mensagemEnvio}</Texto> : null}
           {falhas.map((f) => (
-            <Texto key={f.id} variante="pequeno">
+            <Texto key={f.id} variante="suave">
               {dataParaTela(f.data)}: {f.motivo}
             </Texto>
           ))}

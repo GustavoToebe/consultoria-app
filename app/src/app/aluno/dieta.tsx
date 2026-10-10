@@ -52,6 +52,7 @@ export default function DietaAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Dieta" acoes={<SeloSincronizacao />} />
+      <Texto variante="suave">A dieta que o seu treinador publicou, só para consulta.</Texto>
       <SeletorPlano rotulo={null} />
       {escolhida ? (
         escolhida.planos.dieta ? (
@@ -148,7 +149,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
         </Cartao>
       ) : null}
       <Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
-      <Texto variante="pequeno">
+      <Texto variante="suave">
         {versao.titulo} (v{versao.numero})
       </Texto>
     </>

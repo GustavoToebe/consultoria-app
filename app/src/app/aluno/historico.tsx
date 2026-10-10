@@ -87,7 +87,7 @@ export default function HistoricoAluno() {
       <HistoricoAtualizacoes />
       {naoEnviados.length ? (
         <Cartao titulo="Ainda não enviados">
-          <Texto numerico variante="pequeno">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>
+          <Texto numerico variante="suave">Salvos neste aparelho. Vão para o seu treinador quando houver internet.</Texto>
           {agrupar(naoEnviados).map(([chave, lista]) => {
             const info = nomes.get(lista[0].exercicioUid);
             return (

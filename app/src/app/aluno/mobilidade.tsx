@@ -26,6 +26,7 @@ export default function MobilidadeAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Mobilidade" acoes={<SeloSincronizacao />} />
+      <Texto variante="suave">Mobilidade e alongamentos do seu treinador, com vídeo quando houver.</Texto>
       <SeletorPlano rotulo={null} />
       {versao ? <Mobilidade versao={versao} /> : <Vazio titulo="Sem mobilidade" texto={escolhida ? 'Este plano não tem mobilidade publicada.' : 'Seu treinador ainda não publicou a mobilidade.'} />}
     </Tela>
@@ -60,7 +61,7 @@ function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }
           })}
         </Cartao>
       ))}
-      <Texto variante="pequeno">
+      <Texto variante="suave">
         {versao.titulo} (v{versao.numero})
       </Texto>
     </>
