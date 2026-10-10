@@ -26,7 +26,7 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
     <View style={[estilos.area, preencher && estilos.preencher]}>
       <ScrollView
         ref={rolagem}
-        contentContainerStyle={contentContainerStyle}
+        contentContainerStyle={[contentContainerStyle, estilos.fim]}
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={100}
         onScroll={(e) => setLonge(e.nativeEvent.contentOffset.y > LIMITE_TOPO)}>
@@ -48,5 +48,7 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
 const estilos = StyleSheet.create({
   area: { flexShrink: 1, minHeight: 0 },
   preencher: { flex: 1 },
+  // Espaço no fim da rolagem: o botão flutuante nunca cobre o último botão ou item da tela.
+  fim: { paddingBottom: espaco(2) + ALVO_TOQUE + espaco(1) },
   botao: { position: 'absolute', right: espaco(2), bottom: espaco(2), width: ALVO_TOQUE, height: ALVO_TOQUE, borderRadius: RAIO, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 });
