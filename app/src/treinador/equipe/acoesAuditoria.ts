@@ -1,6 +1,6 @@
 export const ACOES_AUDITORIA:Record<string,string>={
   LOGIN_SUCESSO:'Login realizado',LOGIN_BLOQUEADO:'Login bloqueado',
-  USUARIO_CONVIDADO:'Convite de equipe criado',CONVITE_EQUIPE_ACEITO:'Convite de equipe aceito',
+  USUARIO_CONVIDADO:'Convite de equipe criado',CONVITE_EQUIPE_ACEITO:'Convite de equipe aceito',CONVITE_EQUIPE_CANCELADO:'Convite de equipe cancelado',
   USUARIO_ALTERADO:'Membro editado',USUARIO_PERFIL_ALTERADO:'Perfil do membro alterado',USUARIO_DESATIVADO:'Membro desativado',
   PERFIL_CRIADO:'Perfil criado',PERFIL_ALTERADO:'Perfil editado',PERFIL_APAGADO:'Perfil excluído',PERFIL_DUPLICADO:'Perfil duplicado',
   ALUNO_CRIADO:'Aluno cadastrado',ALUNO_ALTERADO:'Aluno editado',ALUNO_SITUACAO:'Situação do aluno alterada',ALUNO_CONVIDADO:'Convite de aluno criado',ALUNO_RESPONSAVEL_ALTERADO:'Responsável alterado no cadastro',RESPONSAVEL_ALTERADO:'Responsável alterado',
