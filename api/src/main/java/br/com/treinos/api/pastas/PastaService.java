@@ -1,6 +1,7 @@
 package br.com.treinos.api.pastas;
 
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.dieta.PlanoDietaService;
 import br.com.treinos.api.execucao.PesoService;
@@ -44,11 +45,14 @@ public class PastaService {
     private final PlanoDietaService servicoDieta;
     private final PlanoMobilidadeService servicoMobilidade;
     private final PesoService pesos;
+    private final AtualizacaoRepository atualizacoes;
 
     public PastaService(PastaRepository pastas, AlunoRepository alunos, PlanoTreinoRepository treinos,
                         PlanoDietaRepository dietas, PlanoMobilidadeRepository mobilidades,
                         PlanoTreinoService servicoTreino, PlanoDietaService servicoDieta,
-                        PlanoMobilidadeService servicoMobilidade, PesoService pesos) {
+                        PlanoMobilidadeService servicoMobilidade, PesoService pesos,
+                        AtualizacaoRepository atualizacoes) {
+        this.atualizacoes = atualizacoes;
         this.pastas = pastas;
         this.alunos = alunos;
         this.treinos = treinos;
@@ -82,7 +86,12 @@ public class PastaService {
         treinos.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
         dietas.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
         mobilidades.findByPastaId(id).forEach(p -> p.definirPeriodo(r.inicio(), r.fim()));
-        return PastaResumo.de(pastas.saveAndFlush(pasta));
+        PastaResumo resumo = PastaResumo.de(pastas.saveAndFlush(pasta));
+        // A linha da atualização guarda a data; enquanto ABERTA ela acompanha o fim da pasta.
+        if (r.fim() != null) {
+            atualizacoes.moverDataDaAberta(id, r.fim());
+        }
+        return resumo;
     }
 
     /** Nova pasta com cópia dos treinos, dietas e mobilidades da origem; plano com título próprio mantém o título. */

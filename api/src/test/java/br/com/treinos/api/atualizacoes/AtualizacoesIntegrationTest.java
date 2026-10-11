@@ -234,6 +234,26 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(editada.path("feedback").path("naoLido").asBoolean()).isTrue();
         assertThat(api.get("/atualizacoes?situacao=PARA_REVISAR",treinador,200)).isEmpty();
     }
+    @Test void mudarOFimDaPastaMoveADataSoDaAtualizacaoAberta() throws Exception {
+        String pasta = publicarPasta(hoje.plusDays(5));
+        // "Vou atrasar" grava a linha, que fica ABERTA com a data da pasta.
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pasta,"novaData",hoje.plusDays(7)),200);
+        assertThat(dataDaAtualizacao()).isEqualTo(hoje.plusDays(5).toString());
+        alterarFimDaPasta(pasta,hoje.plusDays(1));
+        assertThat(dataDaAtualizacao()).isEqualTo(hoje.plusDays(1).toString());
+        // Enviada fica como está, mesmo que a pasta mude depois.
+        enviar(respostas(),200);
+        alterarFimDaPasta(pasta,hoje.plusDays(9));
+        assertThat(dataDaAtualizacao()).isEqualTo(hoje.plusDays(1).toString());
+        assertThat(api.get("/alunos/"+aluno+"/atualizacoes",treinador,200).get(0).path("dataAtualizacao").asString())
+                .isEqualTo(hoje.plusDays(1).toString());
+    }
+    private String dataDaAtualizacao() throws Exception {
+        return api.get("/aluno/atualizacao",loginAluno,200).path("dataAtualizacao").asString();
+    }
+    private void alterarFimDaPasta(String pasta,LocalDate fim) throws Exception {
+        api.put("/pastas/"+pasta,treinador,Map.of("titulo","Período fictício","inicio",fim.minusDays(27),"fim",fim),200);
+    }
     @Test void alunoVerOFeedbackNaoInvalidaAVersaoDoTreinador() throws Exception {
         publicarPasta(hoje);
         String id = enviar(respostas(),200).path("id").asString();
