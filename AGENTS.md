@@ -191,6 +191,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   repositório isolado por usuário, apagado no logout. Descanso não usa notificações com o app fechado.
   Atualização usa lembretes locais (3 dias antes, no dia e 1 dia depois, às 9h), sem respostas nem medidas,
   cancelados ao enviar e sair; web usa só cartão e ponto na aba. O rascunho por pasta fica no `RepositorioLocal`.
+  No Expo Go do Android o `expo-notifications` lança ao importar: `aluno/atualizacao/lembretes.ts` o carrega sob demanda e lá os lembretes ficam desligados.
   `Folha` usa mola e arraste no cabeçalho; web mantém Esc e clique fora. Bases RNR incluem licença MIT local.
 
 - Importação de conteúdo do Saraiva (vídeos, semanas de treino e mobilidade): `node scripts/importacao/importar.mjs`

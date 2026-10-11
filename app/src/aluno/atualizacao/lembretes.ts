@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import type { Atualizacao } from '../../api/tipos';
 import { lembretesDaAtualizacao } from '../../dominio/lembretesAtualizacao';
@@ -10,16 +10,35 @@ let fila:Promise<unknown>=Promise.resolve();
 function emFila<T>(acao:()=>Promise<T>):Promise<T> {const resultado=fila.then(acao,acao);fila=resultado.catch(()=>undefined);return resultado;}
 const prefixo=(id:string)=>`treinos:atualizacao:${id}:`;
 const chaveExplicacao=(id:string)=>`treinos:${id}:lembreteAtualizacaoPerguntado`;
-async function prepararCanal() {
+type Notificacoes=typeof import('expo-notifications');
+// No Expo Go do Android o módulo lança ao ser importado (push remoto saiu no SDK 53) e derrubaria a área do aluno:
+// lá os lembretes ficam desligados; em build próprio e na web nada muda.
+const semSuporte=Platform.OS==='android' && Constants.executionEnvironment===ExecutionEnvironment.StoreClient;
+let carregado:Promise<Notificacoes|null>|null=null;
+function notificacoes():Promise<Notificacoes|null> {
+  carregado??=new Promise<Notificacoes|null>(resolver=>{
+    if(semSuporte){resolver(null);return;}
+    try {
+      // require sob demanda: o import estático avalia o módulo (e o erro do Expo Go) ao carregar a área do aluno.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const modulo=require('expo-notifications') as Notificacoes;
+      modulo.setNotificationHandler({handleNotification:async()=>({
+        shouldShowBanner:true,shouldShowList:true,shouldPlaySound:false,shouldSetBadge:false,
+      })});
+      resolver(modulo);
+    } catch {resolver(null);}
+  });
+  return carregado;
+}
+async function prepararCanal(Notifications:Notificacoes) {
   if(Platform.OS==='android')await Notifications.setNotificationChannelAsync(CANAL,{
     name:'Atualizações',importance:Notifications.AndroidImportance.DEFAULT,
   });
 }
-Notifications.setNotificationHandler({handleNotification:async()=>({
-  shouldShowBanner:true,shouldShowList:true,shouldPlaySound:false,shouldSetBadge:false,
-})});
 export function iniciarLembretesAtualizacao(usuarioId:string) {encerrados.delete(usuarioId);}
 async function limpar(usuarioId:string) {
+  const Notifications=await notificacoes();
+  if(!Notifications)return;
   const pendentes=await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(pendentes.filter(n=>n.identifier.startsWith(prefixo(usuarioId)))
     .map(n=>Notifications.cancelScheduledNotificationAsync(n.identifier)));
@@ -32,8 +51,9 @@ export function reagendarLembretesAtualizacao(usuarioId:string,atualizacao:Atual
   return emFila(async()=>{
     if(encerrados.has(usuarioId))return;
     await limpar(usuarioId);
-    if(!(await Notifications.getPermissionsAsync()).granted || encerrados.has(usuarioId))return;
-    await prepararCanal();
+    const Notifications=await notificacoes();
+    if(!Notifications || !(await Notifications.getPermissionsAsync()).granted || encerrados.has(usuarioId))return;
+    await prepararCanal(Notifications);
     for(const lembrete of lembretesDaAtualizacao(atualizacao)) {
       if(encerrados.has(usuarioId))return;
       await Notifications.scheduleNotificationAsync({
@@ -46,13 +66,17 @@ export function reagendarLembretesAtualizacao(usuarioId:string,atualizacao:Atual
 }
 export async function precisaExplicacaoLembrete(usuarioId:string) {
   if(await AsyncStorage.getItem(chaveExplicacao(usuarioId)))return false;
+  const Notifications=await notificacoes();
+  if(!Notifications)return false;
   const permissao=await Notifications.getPermissionsAsync();
   return !permissao.granted && permissao.canAskAgain;
 }
 export const dispensarExplicacaoLembrete=(usuarioId:string)=>AsyncStorage.setItem(chaveExplicacao(usuarioId),'1');
 export async function permitirLembretesAtualizacao(usuarioId:string,atualizacao:Atualizacao) {
+  const Notifications=await notificacoes();
+  if(!Notifications)return false;
   await dispensarExplicacaoLembrete(usuarioId);
-  await prepararCanal();
+  await prepararCanal(Notifications);
   const permissao=await Notifications.requestPermissionsAsync();
   if(permissao.granted)await reagendarLembretesAtualizacao(usuarioId,atualizacao);
   return permissao.granted;
