@@ -85,17 +85,18 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   `fieldErrors` (`field` = caminho no conteúdo).
 - Mobilidade (`mobilidade/`): plano de mobilidade da pasta no padrão da dieta (`PlanoServiceBase`, rascunho + versão imutável, um ativo por aluno), em `/planos-mobilidade`, com as permissões do **treino** (`TREINO_LER/ALTERAR/PUBLICAR`; a Nutricionista também lê, pois tem `TREINO_LER`). Conteúdo = `receitas/ConteudoMobilidade` (mesmo do modelo `MOBILIDADE`); regras de publicação no `ValidadorMobilidade`. Auditoria: `MOBILIDADE_PUBLICADA`. Aluno: `GET /aluno/mobilidade` (404 sem plano publicado). Sem registro de execução e sem PDF.
 - Pastas (`pastas/`): agrupam treinos, dietas e mobilidades do aluno e dão o período a todos. Plano criado/replicado com `pastaId`
-  usa o período da pasta (o do corpo é ignorado); mudar a pasta altera o **rascunho** dos planos (publicado segue imutável);
+  usa o período da pasta (o do corpo é ignorado, também ao salvar o rascunho); mudar a pasta altera o **rascunho** dos planos (publicado segue imutável);
   replicar a pasta copia todos. Pasta de outro aluno/consultoria = 404. A V011 moveu os planos anteriores à V009 para pastas (por aluno e período); a ficha não mostra mais “sem pasta”.
 - Troca de plano do aluno: `GET /aluno/pastas` (pastas com plano **publicado**; status Ativa/Concluída vem de `concluida_em`; `atual` = pasta do plano vigente) e `GET /aluno/pastas/{id}` (treino e dieta publicados da pasta, 404 se de outro aluno ou só rascunho). Trocar só muda o que o aluno consulta, nunca o `ativo`; plano de outra pasta é só leitura no app (`AlunoProvider.escolhida`, `aluno/SeletorPlano`).
 - Lesões (`lesoes/`): histórico estruturado do aluno, dado sensível (LGPD), só treinador; o sistema não interpreta.
-- Atualização (`atualizacoes/`): uma por pasta, data no `fim`, sem agendador; modelo global versionado e respostas
+- Atualização (`atualizacoes/`): uma por pasta, data no `fim` (a linha já gravada acompanha o `fim` da pasta enquanto ABERTA; enviada/revisada não muda), sem agendador; modelo global versionado e respostas
   validadas pela versão. Estados ABERTA/ENVIADA/REVISADA; atraso calculado e "vou atrasar" só avisa. Envio grava peso
   na mesma transação; feedback editável.
   `RegrasAtualizacao` (igual a `dominio/atualizacao.ts`): abre pela data original, "atrasada" só após
   max(data, atrasoAte); nova data entre a data e +15 dias. Enviar/atraso levam `pastaId` (fora da vigente = 409
   `ATUALIZACAO_NAO_ATUAL`); reenvio do já enviado = 200 sem alterar (checado antes da pasta). Envio mantém a observação
   do peso; corrida no peso do dia = 409. "Visto" do feedback é UPDATE sem `versioned`. Dado sensível, sem log, 404 fora do dono e da consultoria. Fotos ainda não implementadas.
+  Painel e listas (`GET /atualizacoes?situacao=&meus=`) saem de `AtualizacaoService.listar/contar` (uma consulta JPQL, `linhasDoPainel`; a fase vem de `RegrasAtualizacao`, não de SQL), com o mesmo filtro "Meus alunos" (`AlunoRepository.ativosDoEscopo`); o item da lista não leva modelo, respostas nem resumo (só o detalhe).
 - Execuções: `execucao_serie.serie_trabalho` (fora do esboço do plano) e `exercicio_id` vêm da versão publicada, nunca
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.
 
