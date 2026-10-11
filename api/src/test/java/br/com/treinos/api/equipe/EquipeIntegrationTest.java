@@ -60,8 +60,8 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
     }
     @Test void conviteVencidoNaoTravaOPerfilECancelarLiberaOPerfil() throws Exception {
         String perfil=api.post("/perfis",admin,Map.of("nome","Perfil temporário","permissoes",Set.of("ALUNO_LER")),200).path("id").asString();
-        var vencido=convite("Convidada vencida","vencida@exemplo.test",perfil);
-        var vigente=convite("Convidado vigente","vigente@exemplo.test",perfil);
+        convite("Convidada vencida","vencida@exemplo.test",perfil);
+        convite("Convidado vigente","vigente@exemplo.test",perfil);
         banco.update("update usuario_convite set expira_em=now()-interval '1 day' where email=?","vencida@exemplo.test");
         String idVencido=null,idVigente=null;
         for(var u:api.get("/usuarios",admin,200)) {
