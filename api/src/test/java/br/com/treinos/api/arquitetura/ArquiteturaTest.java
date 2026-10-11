@@ -48,10 +48,12 @@ class ArquiteturaTest {
      * {@code LogoRepositorio} (bytes da logo fora da entidade, filtrado pelo id da consultoria);
      * {@code AuditoriaGravacao} (insert na transação global do login e limpeza diária, sempre com consultoria explícita);
      * {@code ConviteEquipeBusca} (descobre apenas o tenant pelo hash para o aceite público da equipe);
-     * {@code ConviteBusca} (convite público: descobre só a consultoria do convite antes de abrir a sessão nela).
+     * {@code ConviteBusca} (convite público: descobre só a consultoria do convite antes de abrir a sessão nela);
+     * {@code ContaLocalRepositorio} (tabelas globais da Minha conta, lidas também fora do tenant pela integração futura:
+     * todo método recebe e filtra {@code consultoria_id}).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of("ContadorBanco", "ExecucaoUpsert",
-            "LogoRepositorio", "ConviteBusca", "ConviteEquipeBusca", "AuditoriaGravacao");
+            "LogoRepositorio", "ConviteBusca", "ConviteEquipeBusca", "AuditoriaGravacao", "ContaLocalRepositorio");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario} e
