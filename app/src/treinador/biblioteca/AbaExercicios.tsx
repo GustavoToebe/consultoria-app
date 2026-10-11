@@ -74,7 +74,7 @@ export function AbaExercicios() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
-        <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : 'Importe do catálogo ou cadastre um exercício.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGrupo('todos'); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
+        <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGrupo('todos'); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
       <Grade gap={espaco(2)}>{lista.map((e) => (
         <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>

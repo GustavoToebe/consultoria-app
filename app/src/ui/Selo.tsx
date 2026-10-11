@@ -8,9 +8,10 @@ import { Texto } from './Texto';
 export type TipoSelo = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
 
 /**
- * Status sempre com texto (selo de 12 px, caixa alta, fundo translúcido e borda fina). Nunca usa a cor da marca:
+ * Status sempre com texto (selo de 12 px, caixa alta, sem fundo e borda fina). Nunca usa a cor da marca:
  * verde = feito/sincronizado/ativo; âmbar = pendente/rascunho; vermelho = erro; cinza = inativo/encerrado. As
- * cores de status dos tokens dão ≥ 4,5:1 sobre qualquer superfície (teste em `tema/tokens.test.ts`).
+ * cores de status dos tokens dão ≥ 4,5:1 sobre qualquer superfície (teste em `tema/tokens.test.ts`); fundo tingido
+ * derrubaria esse contraste em `superficie3`, por isso o selo é só contorno.
  */
 export function Selo({ texto, tipo, larguraMinima }: { texto: string; tipo: TipoSelo; larguraMinima?: number }) {
   const { cores } = useTema();
@@ -18,7 +19,7 @@ export function Selo({ texto, tipo, larguraMinima }: { texto: string; tipo: Tipo
   return (
     <Badge variant="outline"
       accessibilityRole="text"
-      style={[estilos.selo, larguraMinima ? { minWidth: larguraMinima, justifyContent: 'center' } : null, { borderColor: cor, backgroundColor: `${cor}1A` }]}>
+      style={[estilos.selo, larguraMinima ? { minWidth: larguraMinima, justifyContent: 'center' } : null, { borderColor: cor }]}>
       <Texto style={[estilos.texto, { color: cor }]}>{texto}</Texto>
     </Badge>
   );

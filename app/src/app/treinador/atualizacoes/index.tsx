@@ -15,6 +15,7 @@ import { ItemDeLista } from '../../../ui/ItemDeLista';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
+import { useSessao } from '../../../sessao/SessaoProvider';
 import { Grade } from '../../../ui/Grade';
 
 const ABAS:{valor:SituacaoAtualizacao;rotulo:string}[]=[
@@ -28,7 +29,9 @@ export default function ListaAtualizacoes() {
   const lista=useCarregar(`${filtro}:${meus}`,()=>listarAtualizacoes(filtro,meus));
   const {recarregar}=lista;
   // Contagem de cada aba vem do painel (mesmo filtro "Meus alunos"); se falhar, as abas ficam sem número.
-  const painel=useCarregar(`painel-atualizacoes:${meus}`,()=>painelTreinador(meus));
+  const {pode}=useSessao();
+  // `/painel` exige PAINEL_VER: sem ela as abas ficam sem número, sem chamar a API à toa.
+  const painel=useCarregar(pode('PAINEL_VER')?`painel-atualizacoes:${meus}`:null,()=>painelTreinador(meus));
   const contagens:Partial<Record<SituacaoAtualizacao,number>>=painel.dados?{PARA_REVISAR:painel.dados.atualizacoesParaRevisar,ATRASADAS:painel.dados.atualizacoesAtrasadas,AVISARAM_ATRASO:painel.dados.atualizacoesAvisaramAtraso,PROXIMAS:painel.dados.atualizacoesProximas}:{};
   const recarregarPainel=painel.recarregar;
   useFocusEffect(useCallback(()=>{recarregar();recarregarPainel();},[recarregar,recarregarPainel]));
