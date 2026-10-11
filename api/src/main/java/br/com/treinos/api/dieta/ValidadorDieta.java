@@ -72,6 +72,14 @@ public class ValidadorDieta {
                 c.erro("suplementacao[" + s + "].link", LinksExternos.MENSAGEM);
             }
         }
+        List<ConteudoDieta.Ergogenico> ergogenicos = conteudo.ergogenicos() == null ? List.of() : conteudo.ergogenicos();
+        for (int e = 0; e < ergogenicos.size(); e++) {
+            String ce = "ergogenicos[" + e + "]";
+            uid(c, uids, ergogenicos.get(e).uid(), ce);
+            if (ergogenicos.get(e).nome() == null || ergogenicos.get(e).nome().isBlank()) {
+                c.erro(ce + ".nome", "Item de medicação sem nome.");
+            }
+        }
         if (!refeicoes.isEmpty() && kcalDoDia.signum() == 0) {
             c.aviso("refeicoes", "O total do dia (opção A de cada refeição) está com 0 kcal.");
         }

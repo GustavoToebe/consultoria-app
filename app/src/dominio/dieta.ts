@@ -139,6 +139,19 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
       observacao: s.observacao ?? '',
       link: s.link ?? null,
     })),
+    // Nulo é "sem acesso" (a API não manda): continua nulo, para o editor não criar uma lista que apagaria a real.
+    ergogenicos: c.ergogenicos
+      ? c.ergogenicos.map((e) => ({
+          uid: e.uid ?? novoUid(),
+          nome: e.nome ?? '',
+          principioAtivo: e.principioAtivo ?? '',
+          concentracao: e.concentracao ?? '',
+          dose: e.dose ?? '',
+          horario: e.horario ?? '',
+          observacao: e.observacao ?? '',
+          prescricao: e.prescricao ?? '',
+        }))
+      : null,
   };
 }
 

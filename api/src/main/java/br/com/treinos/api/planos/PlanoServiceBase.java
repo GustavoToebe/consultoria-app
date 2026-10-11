@@ -73,6 +73,24 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
 
     protected abstract ResultadoValidacao validar(C conteudo, LocalDate inicio, LocalDate fim);
 
+    /**
+     * Conteúdo como sai nas respostas do treinador (detalhe, versão): o plano pode esconder o que o perfil não vê.
+     * Nunca vale para o que vai ao aluno ({@code versaoAtiva}, {@code versaoPublicadaDaPasta}). Padrão: igual.
+     */
+    protected C paraLeitura(C conteudo) {
+        return conteudo;
+    }
+
+    /** Conteúdo que de fato vai para o rascunho, dado o que já estava nele (ex.: parte que o perfil não pode alterar). */
+    protected C paraGravarRascunho(C novo, C atual, P plano) {
+        return novo;
+    }
+
+    /** Cópia do conteúdo de um plano de OUTRO aluno: o plano pode deixar de levar o que é pessoal. Padrão: igual. */
+    protected C paraCopiaDeOutroAluno(C conteudo) {
+        return conteudo;
+    }
+
     @Transactional(readOnly = true)
     public List<PlanoResumo> listar(UUID alunoId) {
         exigirAluno(alunoId);
@@ -89,7 +107,11 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         if (r.receitaId() != null) {
             conteudo = daReceita(r.receitaId());
         } else if (r.copiarDoPlanoId() != null) {
-            conteudo = comUidsNovos(ler(buscar(r.copiarDoPlanoId()).getRascunho()));
+            P origem = buscar(r.copiarDoPlanoId());
+            conteudo = comUidsNovos(ler(origem.getRascunho()));
+            if (!alunoId.equals(origem.getAlunoId())) {
+                conteudo = paraCopiaDeOutroAluno(conteudo);
+            }
         } else {
             conteudo = vazio();
         }
@@ -117,7 +139,8 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         // Plano em pasta: a pasta dá o período (como no criar); início e fim do corpo são ignorados.
         PastaPlano pasta = plano.getPastaId() == null ? null : pastas.findById(plano.getPastaId()).orElse(null);
         plano.salvarRascunho(r.titulo().trim(), pasta != null ? pasta.getInicio() : r.inicio(),
-                pasta != null ? pasta.getFim() : r.fim(), escrever(r.conteudo()));
+                pasta != null ? pasta.getFim() : r.fim(),
+                escrever(paraGravarRascunho(r.conteudo(), ler(plano.getRascunho()), plano)));
         return detalhe(planos.saveAndFlush(plano));
     }
 
@@ -220,13 +243,13 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
 
     protected VersaoDetalhe<C> detalheVersao(V v) {
         return new VersaoDetalhe<>(v.getId(), v.getPlanoId(), v.getNumero(), v.getTitulo(), v.getInicio(), v.getFim(),
-                v.getPublicadoEm(), ler(v.getConteudo()));
+                v.getPublicadoEm(), paraLeitura(ler(v.getConteudo())));
     }
 
     private PlanoDetalhe<C> detalhe(P plano) {
         List<VersaoResumo> lista = versoes.findByPlanoIdOrderByNumeroAsc(plano.getId()).stream()
                 .map(VersaoResumo::de).toList();
-        return new PlanoDetalhe<>(PlanoResumo.de(plano), ler(plano.getRascunho()), lista);
+        return new PlanoDetalhe<>(PlanoResumo.de(plano), paraLeitura(ler(plano.getRascunho())), lista);
     }
 
     private V versao(P plano, int numero) {

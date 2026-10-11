@@ -1,4 +1,4 @@
-import type { CategoriaErgogenico, ErgogenicoDaBiblioteca } from '../api/tipos';
+import type { CategoriaErgogenico, ErgogenicoDaBiblioteca, ItemErgogenico } from '../api/tipos';
 import { SEM_DADO } from './formatos';
 
 /**
@@ -34,6 +34,23 @@ export function agruparErgogenicos(lista: ErgogenicoDaBiblioteca[]): GrupoDeErgo
 /** "1 item" / "13 itens". */
 export function resumoDoGrupo(quantidade: number): string {
   return quantidade === 1 ? '1 item' : `${quantidade} itens`;
+}
+
+/**
+ * Linha da dieta a partir de um item da biblioteca: copia nome, princípio ativo e concentração (o que está no rótulo);
+ * dose, horário, observação e prescrição ficam vazios para o treinador escrever. Nada é sugerido.
+ */
+export function linhaDeErgogenico(e: Pick<ErgogenicoDaBiblioteca, 'nome' | 'principioAtivo' | 'concentracao'>, uid: string): ItemErgogenico {
+  return {
+    uid,
+    nome: e.nome,
+    principioAtivo: e.principioAtivo?.trim() ?? '',
+    concentracao: e.concentracao?.trim() ?? '',
+    dose: '',
+    horario: '',
+    observacao: '',
+    prescricao: '',
+  };
 }
 
 /** Campo de texto do rótulo (concentração, apresentação…): o que faltar vira "—". */

@@ -1,6 +1,7 @@
 import type { CategoriaErgogenico, ErgogenicoDaBiblioteca } from '../api/tipos';
 import {
   agruparErgogenicos,
+  linhaDeErgogenico,
   CATEGORIAS_ERGOGENICO,
   filtrarErgogenicos,
   nomeEPrincipio,
@@ -60,5 +61,20 @@ describe('busca', () => {
   it('filtra por categoria e junta com a busca', () => {
     expect(filtrarErgogenicos(lista, '', 'PEPTIDEO').map((x) => x.nome)).toEqual(['Peptídeo Teste']);
     expect(filtrarErgogenicos(lista, 'omega', 'PEPTIDEO')).toEqual([]);
+  });
+});
+
+describe('linha da dieta', () => {
+  it('copia só o que está no rótulo e deixa dose, horário, observação e prescrição vazios', () => {
+    expect(linhaDeErgogenico({ nome: 'Item de teste A', principioAtivo: ' Princípio de Teste ', concentracao: '200 mg/ml' }, 'u1')).toEqual({
+      uid: 'u1', nome: 'Item de teste A', principioAtivo: 'Princípio de Teste', concentracao: '200 mg/ml',
+      dose: '', horario: '', observacao: '', prescricao: '',
+    });
+  });
+
+  it('rótulo ausente vira texto vazio, nunca valor inventado', () => {
+    const l = linhaDeErgogenico({ nome: 'Item de teste B', principioAtivo: null, concentracao: null }, 'u2');
+    expect(l.principioAtivo).toBe('');
+    expect(l.concentracao).toBe('');
   });
 });

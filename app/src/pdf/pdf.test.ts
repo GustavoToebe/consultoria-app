@@ -170,6 +170,40 @@ describe('PDF da dieta', () => {
   });
 });
 
+describe('PDF da dieta: medicação e ergogênicos', () => {
+  const base2 = normalizarDieta({ refeicoes: [] });
+  const gerar = (ergogenicos: unknown) =>
+    documentoDieta({ ...base, versao: 1, pesos: [], conteudo: { ...base2, ergogenicos: normalizarDieta({ ergogenicos }).ergogenicos } }).corpo;
+
+  it('lista nula ou vazia não cria a seção', () => {
+    expect(gerar(null)).not.toContain('Medicação e ergogênicos');
+    expect(gerar([])).not.toContain('Medicação e ergogênicos');
+  });
+
+  it('seção entra com os campos e sem a coluna Prescrição quando nenhum item tem', () => {
+    const h = gerar([{ uid: 'e1', nome: 'Item de teste A', principioAtivo: 'Princípio de Teste', concentracao: '200 mg/ml', dose: 'Dose de teste' }]);
+    expect(h).toContain('Medicação e ergogênicos');
+    expect(h).toContain('Item de teste A');
+    expect(h).toContain('Princípio de Teste');
+    expect(h).toContain('<td>200 mg/ml</td>');
+    expect(h).toContain('<td>Dose de teste</td>');
+    expect(h).toContain('<td>—</td>');
+    expect(h).not.toContain('<th>Prescrição</th>');
+  });
+
+  it('coluna Prescrição aparece se algum item tem, e todo texto sai escapado', () => {
+    const h = gerar([
+      { uid: 'e1', nome: '<img src=x onerror=alert(1)>', prescricao: 'Prescrição <b>de teste</b>' },
+      { uid: 'e2', nome: 'Item de teste B' },
+    ]);
+    expect(h).toContain('<th>Prescrição</th>');
+    expect(h).not.toContain('<img');
+    expect(h).not.toContain('<b>');
+    expect(h).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(h).toContain('Prescrição &lt;b&gt;de teste&lt;/b&gt;');
+  });
+});
+
 describe('html', () => {
   it('esc e link', () => {
     expect(esc(`<a href="x">'&`)).toBe('&lt;a href=&quot;x&quot;&gt;&#39;&amp;');

@@ -325,6 +325,18 @@ export interface Suplemento {
   link: string | null;
 }
 
+/** Medicação ou ergogênico da dieta do aluno (dado sensível). Dose, horário e prescrição são texto do treinador. */
+export interface ItemErgogenico {
+  uid: string;
+  nome: string;
+  principioAtivo: string;
+  concentracao: string;
+  dose: string;
+  horario: string;
+  observacao: string;
+  prescricao: string;
+}
+
 export interface ConteudoDieta {
   objetivo: string | null;
   dataInicio: string | null;
@@ -333,6 +345,8 @@ export interface ConteudoDieta {
   orientacoes: { titulo: string; texto: string }[];
   observacoes: string | null;
   suplementacao: Suplemento[];
+  /** Nulo para quem não tem ERGOGENICO_LER (a API não envia) e em modelos; lista para quem vê. */
+  ergogenicos: ItemErgogenico[] | null;
 }
 
 /** Mobilidade como a API entrega (campos de texto opcionais vêm nulos); o editor usa `dominio/mobilidade`. */

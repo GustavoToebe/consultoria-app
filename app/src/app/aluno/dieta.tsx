@@ -151,6 +151,20 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
+      {c.ergogenicos?.length ? (
+        <Cartao titulo="Medicação e ergogênicos">
+          {c.ergogenicos.map((e) => (
+            <View key={e.uid} style={[estilos.item, { borderColor: cores.borda }]}>
+              <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
+              {e.principioAtivo || e.concentracao ? (
+                <Texto numerico variante="suave">{[e.principioAtivo, e.concentracao].filter(Boolean).join(' · ')}</Texto>
+              ) : null}
+              <Texto numerico variante="suave">{[e.dose, e.horario, e.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
+              {e.prescricao ? <Texto numerico variante="suave">Prescrição: {e.prescricao}</Texto> : null}
+            </View>
+          ))}
+        </Cartao>
+      ) : null}
       <Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
       <Texto variante="suave">
         {versao.titulo} (v{versao.numero})

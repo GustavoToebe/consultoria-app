@@ -4,18 +4,21 @@ import { ChevronsDownUp, ChevronsUpDown, ExternalLink, Link2Off, Library, Notebo
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { listarAlimentos, listarSuplementos, salvarPlanoComoReceita, criarReceita } from '../../api/rotas';
+import { listarAlimentos, listarErgogenicos, listarSuplementos, salvarPlanoComoReceita, criarReceita } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import { aplicarReceitaDeDieta, novaRefeicao, novoItem, normalizarDieta, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
+import { linhaDeErgogenico } from '../../dominio/ergogenicos';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { linhaDeSuplementacao } from '../../dominio/suplementos';
 import { novoUid } from '../../dominio/uid';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO, LARGURA_EDITOR } from '../../tema/tokens';
 import { CartaoRefeicao } from '../../treinador/dieta/CartaoRefeicao';
 import { FolhaAlimentos } from '../../treinador/dieta/FolhaAlimentos';
+import { FolhaErgogenicos } from '../../treinador/dieta/FolhaErgogenicos';
 import { FolhaSuplementos } from '../../treinador/dieta/FolhaSuplementos';
 import { FolhaReceitas } from '../../treinador/FolhaReceitas';
 import { FolhaSalvarReceita } from '../../treinador/FolhaSalvarReceita';
@@ -43,7 +46,7 @@ import { trilhaDoPlano } from '../plano/trilha';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { Folha } from '../../ui/Folha';
 
-type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'suplemento' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number };
+type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'suplemento' } | { tipo: 'ergogenico' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number };
 
 /**
  * Editor do plano de dieta (seção 10.4, item 5), no formato dos PDFs do Saraiva. Os valores dos itens vêm da
@@ -57,6 +60,11 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const alimentos = useCarregar('biblioteca-alimentos', () => listarAlimentos()).dados ?? [];
   const suplementosDaBiblioteca = useCarregar('biblioteca-suplementos', () => listarSuplementos()).dados ?? [];
+  const { pode } = useSessao();
+  // Medicação e ergogênicos é dado sensível: sem ERGOGENICO_LER a lista nem é pedida; modelos nunca a levam.
+  const veErgogenicos = !modelo && pode('ERGOGENICO_LER');
+  const editaErgogenicos = veErgogenicos && pode('ERGOGENICO_ALTERAR');
+  const ergogenicosDaBiblioteca = useCarregar(veErgogenicos && editaErgogenicos ? 'biblioteca-ergogenicos' : null, () => listarErgogenicos()).dados ?? [];
   const porId = new Map<string, Alimento>(alimentos.map((a) => [a.id, a]));
   const [abertas, setAbertas] = useState<Set<string>>(new Set());
   const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
@@ -224,6 +232,59 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
           />
         </View>
       </Cartao>
+      {veErgogenicos ? (
+        <Cartao titulo="Medicação e ergogênicos" style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={(c.ergogenicos ?? []).length === 0}>
+          <Texto variante="suave">
+            Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só nome, princípio ativo e concentração.
+            {editaErgogenicos ? '' : ' Seu perfil só pode ler esta lista.'}
+          </Texto>
+          {(c.ergogenicos ?? []).map((e, ei) => {
+            const lista = c.ergogenicos ?? [];
+            const mudarE = (parcial: Partial<typeof e>) => mudar({ ergogenicos: substituir(lista, ei, { ...e, ...parcial }) });
+            return (
+              <View key={e.uid} style={[estilos.orientacao, { borderColor: cores.borda }]}>
+                <View style={[estilos.cresce, estilos.grade]}>
+                  <View style={estilos.campoSup}>
+                    <Campo rotulo="Nome" valor={e.nome} aoMudar={(nome) => mudarE({ nome })} maxLength={120} editable={editaErgogenicos} />
+                  </View>
+                  <View style={estilos.campoSup}>
+                    <Campo rotulo="Princípio ativo" valor={e.principioAtivo} aoMudar={(principioAtivo) => mudarE({ principioAtivo })} maxLength={160} editable={editaErgogenicos} />
+                  </View>
+                  <View style={estilos.campoSup}>
+                    <Campo rotulo="Concentração" valor={e.concentracao} aoMudar={(concentracao) => mudarE({ concentracao })} maxLength={40} editable={editaErgogenicos} />
+                  </View>
+                  <View style={estilos.campoSup}>
+                    <Campo rotulo="Dose" valor={e.dose} aoMudar={(dose) => mudarE({ dose })} maxLength={120} editable={editaErgogenicos} />
+                  </View>
+                  <View style={estilos.campoSup}>
+                    <Campo rotulo="Horário" valor={e.horario} aoMudar={(horario) => mudarE({ horario })} maxLength={120} editable={editaErgogenicos} />
+                  </View>
+                  <View style={estilos.campoSup}>
+                    <Campo rotulo="Prescrição (opcional)" valor={e.prescricao} aoMudar={(prescricao) => mudarE({ prescricao })} maxLength={200} editable={editaErgogenicos} />
+                  </View>
+                  <View style={estilos.campoLargo}>
+                    <Campo rotulo="Observação" valor={e.observacao} aoMudar={(observacao) => mudarE({ observacao })} maxLength={500} editable={editaErgogenicos} />
+                  </View>
+                </View>
+                {editaErgogenicos ? (
+                  <IconeBotao Icone={Trash2} rotulo={`Remover ${e.nome || 'item'}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Item “${e.nome || ei + 1}” removido.`, (a) => ({ ...a, ergogenicos: remover(a.ergogenicos ?? [], ei) }))} />
+                ) : null}
+              </View>
+            );
+          })}
+          {editaErgogenicos ? (
+            <View style={estilos.acoes}>
+              <Botao rotulo="Escolher da biblioteca" tipo="secundario" Icone={Library} aoTocar={() => setFolha({ tipo: 'ergogenico' })} />
+              <Botao
+                rotulo="Adicionar linha"
+                tipo="secundario"
+                Icone={Plus}
+                aoTocar={() => mudar({ ergogenicos: [...(c.ergogenicos ?? []), linhaDeErgogenico({ nome: '', principioAtivo: null, concentracao: null }, novoUid())] })}
+              />
+            </View>
+          ) : null}
+        </Cartao>
+      ) : null}
       </Cartao>
 
       {modelos ? (
@@ -264,6 +325,16 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
           aoEscolher={(s) => {
             setFolha(null);
             mudar({ suplementacao: [...c.suplementacao, linhaDeSuplementacao(s, novoUid())] });
+          }}
+        />
+      ) : null}
+      {folha?.tipo === 'ergogenico' ? (
+        <FolhaErgogenicos
+          itens={ergogenicosDaBiblioteca}
+          aoFechar={() => setFolha(null)}
+          aoEscolher={(e) => {
+            setFolha(null);
+            mudar({ ergogenicos: [...(c.ergogenicos ?? []), linhaDeErgogenico(e, novoUid())] });
           }}
         />
       ) : null}
@@ -349,4 +420,5 @@ const estilos = StyleSheet.create({
   cresce: { flex: 1, gap: espaco(1) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   campoSup: { minWidth: 190, flex: 1 },
+  campoLargo: { minWidth: 190, flexBasis: '100%' },
 });

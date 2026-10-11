@@ -1,6 +1,7 @@
 package br.com.treinos.api.dieta;
 
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.planos.PlanoServiceBase;
 import br.com.treinos.api.planos.ResultadoValidacao;
@@ -43,6 +44,30 @@ public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVe
     @Override
     protected ConteudoDieta comUidsNovos(ConteudoDieta conteudo) {
         return conteudo.comUidsNovos();
+    }
+
+    /** Sem ERGOGENICO_LER a lista de medicação e ergogênicos sai nula (rascunho e versão publicada). */
+    @Override
+    protected ConteudoDieta paraLeitura(ConteudoDieta conteudo) {
+        return AcessoAtual.pode("ERGOGENICO_LER") ? conteudo : conteudo.semErgogenicos();
+    }
+
+    /**
+     * Sem ERGOGENICO_ALTERAR o que veio no corpo é ignorado e a lista que já está no rascunho fica como está (quem não
+     * vê não apaga sem querer). Plano sem aluno (modelo) nunca guarda a lista.
+     */
+    @Override
+    protected ConteudoDieta paraGravarRascunho(ConteudoDieta novo, ConteudoDieta atual, PlanoDieta plano) {
+        if (plano.getAlunoId() == null) {
+            return novo.semErgogenicos();
+        }
+        return AcessoAtual.pode("ERGOGENICO_ALTERAR") ? novo : novo.comErgogenicos(atual.ergogenicos());
+    }
+
+    /** O que o aluno usa é pessoal: copiar a dieta de outro aluno leva só o plano alimentar. */
+    @Override
+    protected ConteudoDieta paraCopiaDeOutroAluno(ConteudoDieta conteudo) {
+        return conteudo.semErgogenicos();
     }
 
     @Override

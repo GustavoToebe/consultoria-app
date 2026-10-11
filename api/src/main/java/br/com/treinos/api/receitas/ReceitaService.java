@@ -111,7 +111,7 @@ public class ReceitaService {
         Receita receita = buscar(id);
         if (receita.getTipo() != Receita.Tipo.PLANO_DIETA && receita.getTipo() != Receita.Tipo.REFEICAO)
             throw new BadRequestException("Escolha um modelo de dieta ou refeição.");
-        return json.readValue(receita.getConteudo(), ConteudoDieta.class).comUidsNovos();
+        return json.readValue(receita.getConteudo(), ConteudoDieta.class).semErgogenicos().comUidsNovos();
     }
 
     @Transactional(readOnly = true)
@@ -158,6 +158,8 @@ public class ReceitaService {
             if (tipo == Receita.Tipo.SESSAO_TREINO && t.sessoes().size() != 1)
                 throw new BadRequestException("Modelo de treino precisa de uma sessão.");
         }
+        // Modelo nunca leva medicação e ergogênicos (dado pessoal de aluno): sai antes de gravar.
+        if (valor instanceof ConteudoDieta d) valor = d.semErgogenicos();
         if (tipo == Receita.Tipo.REFEICAO && ((ConteudoDieta) valor).refeicoes().size() != 1)
             throw new BadRequestException("Modelo de refeição precisa de uma refeição.");
         if (valor instanceof ConteudoPastaModelo pasta) {
@@ -166,8 +168,9 @@ public class ReceitaService {
                 if (p.tipos() != 1)
                     throw new BadRequestException("Cada plano da pasta precisa ser treino, dieta ou mobilidade.");
                 if (p.treino() != null) validarMetodologia(p.treino());
-                planos.add(p.mobilidade() == null ? p : new ConteudoPastaModelo.Plano(p.titulo(), p.treino(), p.dieta(),
-                        exigirMobilidadeCompleta(p.mobilidade())));
+                planos.add(new ConteudoPastaModelo.Plano(p.titulo(), p.treino(),
+                        p.dieta() == null ? null : p.dieta().semErgogenicos(),
+                        p.mobilidade() == null ? null : exigirMobilidadeCompleta(p.mobilidade())));
             }
             valor = new ConteudoPastaModelo(planos);
         }

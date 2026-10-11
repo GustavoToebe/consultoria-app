@@ -68,7 +68,7 @@ public class AplicarModeloService {
                 } else if (p.dieta()!=null) {
                     var novo=dietas.criar(r.alunoId(),pedido);
                     dietas.salvarRascunho(novo.plano().id(),new SalvarRascunhoRequest<>(p.titulo(),novo.plano().inicio(),
-                            novo.plano().fim(),p.dieta().comUidsNovos(),novo.plano().versao()));
+                            novo.plano().fim(),p.dieta().semErgogenicos().comUidsNovos(),novo.plano().versao()));
                 } else {
                     var novo=mobilidades.criar(r.alunoId(),pedido);
                     mobilidades.salvarRascunho(novo.plano().id(),new SalvarRascunhoRequest<>(p.titulo(),novo.plano().inicio(),

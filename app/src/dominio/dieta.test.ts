@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta } from '../api/tipos';
-import { novoItem, recalcularItem, somar, totalDoDia } from './dieta';
+import { normalizarDieta, novoItem, recalcularItem, somar, totalDoDia } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -53,6 +53,18 @@ describe('dieta', () => {
 
   it('item sem valor deixa aquele total vazio', () => {
     expect(somar([{ ...novoItem(), kcal: null }]).kcal).toBeNull();
+  });
+});
+
+describe('normalizarDieta: ergogenicos', () => {
+  it('nulo continua nulo (sem acesso) e lista vira itens completos', () => {
+    expect(normalizarDieta({}).ergogenicos).toBeNull();
+    expect(normalizarDieta({ ergogenicos: null }).ergogenicos).toBeNull();
+    expect(normalizarDieta({ ergogenicos: [] }).ergogenicos).toEqual([]);
+    const [item] = normalizarDieta({ ergogenicos: [{ uid: 'u1', nome: 'Item de teste A' }] }).ergogenicos ?? [];
+    expect(item).toEqual({
+      uid: 'u1', nome: 'Item de teste A', principioAtivo: '', concentracao: '', dose: '', horario: '', observacao: '', prescricao: '',
+    });
   });
 });
 
