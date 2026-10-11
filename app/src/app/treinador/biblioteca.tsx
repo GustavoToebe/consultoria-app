@@ -7,17 +7,19 @@ import { AbaAlimentos } from '../../treinador/biblioteca/AbaAlimentos';
 import { AbaCatalogo } from '../../treinador/biblioteca/AbaCatalogo';
 import { AbaCsv } from '../../treinador/biblioteca/AbaCsv';
 import { AbaExercicios } from '../../treinador/biblioteca/AbaExercicios';
+import { AbaSuplementos } from '../../treinador/biblioteca/AbaSuplementos';
 import { Abas } from '../../ui/Abas';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
-type Aba = 'exercicios' | 'alimentos' | 'catalogo' | 'csv';
+type Aba = 'exercicios' | 'alimentos' | 'suplementos' | 'catalogo' | 'csv';
 
 const ABAS: { valor: Aba; rotulo: string }[] = [
   { valor: 'exercicios', rotulo: 'Exercícios' },
   { valor: 'alimentos', rotulo: 'Alimentos' },
+  { valor: 'suplementos', rotulo: 'Suplementos' },
   { valor: 'catalogo', rotulo: 'Catálogo' },
   { valor: 'csv', rotulo: 'Importar CSV' },
 ];
@@ -34,10 +36,11 @@ export default function Biblioteca() {
         mostrarMarca="celular"
         acoes={width < LARGURA_MENU_LATERAL && pode('MODELO_LER') ? <LinkTexto href="/treinador/planejamento" texto="Planejamento" /> : null}
       />
-      <Texto variante="suave">Exercícios e alimentos que você usa nos planos: cadastre, importe do catálogo ou por CSV.</Texto>
+      <Texto variante="suave">Exercícios, alimentos e suplementos que você usa nos planos: cadastre, importe do catálogo ou por CSV.</Texto>
       <Abas abas={ABAS.filter(a=>a.valor!=='csv'||pode('BIBLIOTECA_ALTERAR'))} ativa={aba} aoMudar={setAba} />
       {aba === 'exercicios' ? <AbaExercicios /> : null}
       {aba === 'alimentos' ? <AbaAlimentos /> : null}
+      {aba === 'suplementos' ? <AbaSuplementos /> : null}
       {aba === 'catalogo' ? <AbaCatalogo /> : null}
       {aba === 'csv' && pode('BIBLIOTECA_ALTERAR') ? <AbaCsv /> : null}
     </Tela>

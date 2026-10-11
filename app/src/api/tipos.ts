@@ -622,3 +622,16 @@ export interface ConsumoDoPlano {
   planoNome: string | null; versaoDireitos: number | null; direitosConfirmadosEm: string | null; consultadoEm: string;
   itens: ItemDoConsumo[];
 }
+
+/** Suplemento da biblioteca: só nome, marca, categoria, porção, sabores e link. Sem valor nutricional nem dose. */
+export interface SuplementoDaBiblioteca {
+  id: string;
+  nome: string;
+  marca: string | null;
+  categoria: string | null;
+  porcao: string | null;
+  porcoesPorEmbalagem: string | null;
+  sabores: string[];
+  link: string | null;
+}
+export type SuplementoDaBibliotecaRequest = Omit<SuplementoDaBiblioteca, 'id'>;

@@ -1,0 +1,171 @@
+{
+  "fonte": "heavysuppz.com, páginas públicas de produto",
+  "coletadoEm": "2026-10-11",
+  "aviso": "Só nome, marca, categoria, porção (como no rótulo publicado), sabores e link. Sem preço, descrição ou tabela nutricional.",
+  "itens": [
+    {
+      "nome": "Pré Treino - Fofista Crusher 450g - 30 doses",
+      "marca": "Heavy Suppz",
+      "categoria": "Pré-treino",
+      "porcao": "2 dosadores (15g)",
+      "porcoesPorEmbalagem": "30",
+      "sabores": [
+        "Pink Lemonade",
+        "Maracujá"
+      ],
+      "link": "https://heavysuppz.com/produtos/pre-treino-fofista-crusher-450g-30-doses/"
+    },
+    {
+      "nome": "Creatina Monohidratada - CREABLOOD 300g",
+      "marca": "Heavy Suppz",
+      "categoria": "Creatina",
+      "porcao": "1 dosador (3g)",
+      "porcoesPorEmbalagem": "100",
+      "sabores": [],
+      "link": "https://heavysuppz.com/produtos/creatina-monohidratada-creablood-300g/"
+    },
+    {
+      "nome": "Intra Treino - Intensity Hunter 600g",
+      "marca": "Heavy Suppz",
+      "categoria": "Intra-treino",
+      "porcao": "1 dosador (20g)",
+      "porcoesPorEmbalagem": "30",
+      "sabores": [
+        "Pink Lemonade",
+        "Maça Verde"
+      ],
+      "link": "https://heavysuppz.com/produtos/intra-treino-intensity-hunter-600g/"
+    },
+    {
+      "nome": "Whey Protein Concentrado - Killer Whey 900g",
+      "marca": "Heavy Suppz",
+      "categoria": "Whey",
+      "porcao": "35g (1 dosador)",
+      "porcoesPorEmbalagem": "cerca de 26",
+      "sabores": [
+        "Chocotine (Chocolate Maltado)",
+        "Creme",
+        "Tutti-Frutti",
+        "Açaí com Banana"
+      ],
+      "link": "https://heavysuppz.com/produtos/whey-protein-concentrado-killer-whey-900g/"
+    },
+    {
+      "nome": "Super Multivitamínico - 100 Caps",
+      "marca": "Heavy Suppz",
+      "categoria": "Vitaminas e minerais",
+      "porcao": "500mg (1 cápsula)",
+      "porcoesPorEmbalagem": "100",
+      "sabores": [],
+      "link": "https://heavysuppz.com/produtos/super-multivitaminico-100-caps/"
+    },
+    {
+      "nome": "Vitamina D3 - 5.000UI - 100 cápsulas",
+      "marca": "Heavy Suppz",
+      "categoria": "Vitaminas e minerais",
+      "porcao": "200mg (1 cápsula)",
+      "porcoesPorEmbalagem": "100",
+      "sabores": [],
+      "link": "https://heavysuppz.com/produtos/vitamina-d3-5-000ui-100-capsulas/"
+    },
+    {
+      "nome": "Cafeína - 100mg - 100 cápsulas",
+      "marca": "Heavy Suppz",
+      "categoria": "Vitaminas e minerais",
+      "porcao": "500mg (1 cápsula)",
+      "porcoesPorEmbalagem": "100",
+      "sabores": [],
+      "link": "https://heavysuppz.com/produtos/cafeina-100mg-100-capsulas/"
+    },
+    {
+      "nome": "Vitamina C - 500mg - 100 cápsulas",
+      "marca": "Heavy Suppz",
+      "categoria": "Vitaminas e minerais",
+      "porcao": "620mg (1 cápsula)",
+      "porcoesPorEmbalagem": "100",
+      "sabores": [],
+      "link": "https://heavysuppz.com/produtos/vitamina-c-500mg-100-capsulas/"
+    },
+    {
+      "nome": "Creme de Amendoim - Assassin's Cream 200g",
+      "marca": "Heavy Suppz",
+      "categoria": "Alimentos",
+      "porcao": "15g (1 colher de sopa)",
+      "porcoesPorEmbalagem": null,
+      "sabores": [
+        "Ninho",
+        "Dulce de Leche"
+      ],
+      "link": "https://heavysuppz.com/produtos/creme-de-amendoim-assassins-cream-200g/"
+    },
+    {
+      "nome": "Pré Sono - Rest In Peace 300g",
+      "marca": "Heavy Suppz",
+      "categoria": "Sono",
+      "porcao": "1 dosador (10g)",
+      "porcoesPorEmbalagem": "30",
+      "sabores": [
+        "Abacaxi com Hortelã",
+        "Maracujá"
+      ],
+      "link": "https://heavysuppz.com/produtos/pre-sono-rest-in-peace-300g/"
+    },
+    {
+      "nome": "Ômega 3 - 1.200mg - 100 cápsulas",
+      "marca": "Heavy Suppz",
+      "categoria": "Vitaminas e minerais",
+      "porcao": "4,35g (3 cápsulas)",
+      "porcoesPorEmbalagem": "cerca de 33",
+      "sabores": [],
+      "link": "https://heavysuppz.com/produtos/omega-3-1-200mg-100-capsulas/"
+    },
+    {
+      "nome": "Pré Treino - Fofista Beater 750g (30 doses)",
+      "marca": "Heavy Suppz",
+      "categoria": "Pré-treino",
+      "porcao": "25g (1 dosador)",
+      "porcoesPorEmbalagem": "30",
+      "sabores": [
+        "Fruit Mix",
+        "Morango c/ Maracujá"
+      ],
+      "link": "https://heavysuppz.com/produtos/pre-treino-fofista-beater-750g-30-doses/"
+    },
+    {
+      "nome": "Whey Protein Concentrado - Killer Whey (Limited Edition) 450g",
+      "marca": "Heavy Suppz",
+      "categoria": "Whey",
+      "porcao": "35g (1 dosador)",
+      "porcoesPorEmbalagem": "cerca de 13",
+      "sabores": [
+        "Mousse de Maracujá",
+        "Cappuccino"
+      ],
+      "link": "https://heavysuppz.com/produtos/whey-protein-concentrado-killer-whey-limited-edition-450g/"
+    },
+    {
+      "nome": "Panqueca Proteica - Deadly Punkakes 600g",
+      "marca": "Heavy Suppz",
+      "categoria": "Alimentos",
+      "porcao": "50g (2 dosadores)",
+      "porcoesPorEmbalagem": "12",
+      "sabores": [
+        "Coco",
+        "Banana com Canela"
+      ],
+      "link": "https://heavysuppz.com/produtos/panqueca-proteica-deadly-punkakes-600g-svf89/"
+    },
+    {
+      "nome": "Fofista Nightmare (Stim Free) - 450g - 30 doses",
+      "marca": "Heavy Suppz",
+      "categoria": "Pré-treino",
+      "porcao": "15g (3 dosadores)",
+      "porcoesPorEmbalagem": "30",
+      "sabores": [
+        "Pink Lemonade",
+        "Frutas Vermelhas"
+      ],
+      "link": "https://heavysuppz.com/produtos/fofista-nightmare-450g-30-doses-18oqz/"
+    }
+  ]
+}

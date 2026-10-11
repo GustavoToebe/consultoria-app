@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Importa para a consultoria do Saraiva (pela API, como treinador) os vídeos da biblioteca de exercícios, os modelos
- * de semana de treino e os modelos de mobilidade que estão em ./dados. Pode rodar de novo à vontade: só cria o que
+ * de semana de treino, os modelos de mobilidade e os suplementos que estão em ./dados. Pode rodar de novo à vontade: só cria o que
  * ainda não existe e nunca troca um vídeo que já está na biblioteca.
  *
  *   node scripts/importacao/importar.mjs --simular     (só lê; mostra o que faria)
@@ -193,7 +193,7 @@ export function obsLimpa(obs) {
 }
 
 // ---------------------------------------------------------------- relatório
-const rel = { criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set() };
+const rel = { suplementos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set() };
 const falar = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------- biblioteca
@@ -368,6 +368,29 @@ async function importarMobilidade() {
   }
 }
 
+// ---------------------------------------------------------------- suplementos
+/** Mesmo cálculo do `nome_busca` da API (`Buscas.semAcento`): sem acento, minúsculas, espaços simples. */
+export function nomeBusca(texto) {
+  return String(texto ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+/** Suplementos de dados/suplementos-heavysuppz.json: criados pelo nome; com --substituir atualiza os que já existem. */
+async function importarSuplementos() {
+  const existentes = new Map((await chamar('GET', '/suplementos')).map((s) => [nomeBusca(s.nome), s]));
+  for (const item of lerJson('suplementos-heavysuppz.json').itens) {
+    const corpo = {
+      nome: item.nome, marca: item.marca ?? null, categoria: item.categoria ?? null, porcao: item.porcao ?? null,
+      porcoesPorEmbalagem: item.porcoesPorEmbalagem ?? null, sabores: item.sabores ?? [], link: item.link ?? null,
+    };
+    const ja = existentes.get(nomeBusca(item.nome));
+    if (ja && !SUBSTITUIR) { rel.suplementos.push(`${item.nome}: já existe, mantido`); continue; }
+    if (SIMULAR) { rel.suplementos.push(`${item.nome}: ${ja ? 'seria atualizado' : 'seria criado'}`); continue; }
+    if (ja) await chamar('PUT', `/suplementos/${ja.id}`, corpo);
+    else await chamar('POST', '/suplementos', corpo);
+    rel.suplementos.push(`${item.nome}: ${ja ? 'atualizado' : 'criado'}`);
+  }
+}
+
 // ---------------------------------------------------------------- principal
 async function principal() {
   await entrar();
@@ -378,6 +401,7 @@ async function principal() {
   await importarVideos();
   await importarModelos(regra);
   await importarMobilidade();
+  await importarSuplementos();
   await completarGrupos();
   quaseDuplicados();
   const lista = (titulo, itens) => { if (itens.length) { falar(`\n${titulo} (${itens.length}):`); itens.forEach((i) => falar(`  - ${i}`)); } };
@@ -390,6 +414,7 @@ async function principal() {
   lista('Nomes parecidos na biblioteca (conferir se são o mesmo exercício)', rel.quase);
   lista('Modelos de treino', rel.modelos);
   lista('Modelos de mobilidade', rel.mobilidade);
+  lista('Suplementos', rel.suplementos);
 }
 
 if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || process.argv[1].endsWith('importar.mjs')) {

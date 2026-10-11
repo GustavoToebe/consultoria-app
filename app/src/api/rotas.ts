@@ -46,6 +46,8 @@ import type {
   RegistroPeso,
   ResultadoValidacao,
   SituacaoFiltro,
+  SuplementoDaBiblioteca,
+  SuplementoDaBibliotecaRequest,
   Tema,
   TipoPlano,
   TipoReceita,
@@ -365,3 +367,11 @@ export const excluirPlano = (tipo: TipoPlano, id: string) => requisicao<void>(`/
 
 export const minhaConta = () => requisicao<MinhaConta>('/minha-conta');
 export const consumoDoPlano = () => requisicao<ConsumoDoPlano>('/minha-conta/consumo');
+
+export const listarSuplementos = () => requisicao<SuplementoDaBiblioteca[]>('/suplementos');
+export const categoriasDeSuplementos = () => requisicao<string[]>('/suplementos/categorias');
+export const criarSuplemento = (dados: SuplementoDaBibliotecaRequest) =>
+  requisicao<SuplementoDaBiblioteca>('/suplementos', { metodo: 'POST', corpo: dados });
+export const alterarSuplemento = (id: string, dados: SuplementoDaBibliotecaRequest) =>
+  requisicao<SuplementoDaBiblioteca>(`/suplementos/${id}`, { metodo: 'PUT', corpo: dados });
+export const inativarSuplemento = (id: string) => requisicao<void>(`/suplementos/${id}`, { metodo: 'DELETE' });
