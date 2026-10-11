@@ -53,6 +53,7 @@ public class AplicarModeloService {
         // Antes de qualquer efeito: o modelo cria treino, dieta ou mobilidade, então exige a permissão de alterar o que cria.
         ConteudoPastaModelo pacote=tipo == Receita.Tipo.PASTA_PLANO ? json.treeToValue(modelo.conteudo(), ConteudoPastaModelo.class) : null;
         exigirPermissoes(tipo, pacote);
+        if (r.pastaId() == null) AcessoAtual.exigir("PASTA_ALTERAR"); // vai criar uma pasta nova
         UUID pastaId=r.pastaId();
         if (pastaId == null) pastaId=pastas.criar(r.alunoId(), new PastaDtos.PastaRequest(r.titulo(),r.inicio(),r.fim())).id();
         else Exigir.existe(repositorioPastas.findById(pastaId).filter(p -> !p.isArquivado() && p.getAlunoId().equals(r.alunoId())),

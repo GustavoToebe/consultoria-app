@@ -77,7 +77,7 @@ class AplicarModeloPermissoesIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void semAPermissaoDoQueOModeloCriaRecusaSemCriarNada() throws Exception {
-        JsonNode soTreino = membro(Set.of("MODELO_LER", "MODELO_APLICAR", "ALUNO_LER", "TREINO_LER", "TREINO_ALTERAR"));
+        JsonNode soTreino = membro(Set.of("MODELO_LER", "MODELO_APLICAR", "ALUNO_LER", "PASTA_ALTERAR", "TREINO_LER", "TREINO_ALTERAR"));
         aplicar(soTreino, dieta, 403);
         aplicar(soTreino, pacote, 403);
         assertThat(criados()).isZero();
@@ -89,15 +89,29 @@ class AplicarModeloPermissoesIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void semDietaAlterarNaoAplicaDietaMasComTudoAplicaOPacote() throws Exception {
-        JsonNode soDieta = membro(Set.of("MODELO_LER", "MODELO_APLICAR", "ALUNO_LER", "DIETA_LER", "DIETA_ALTERAR"));
+        JsonNode soDieta = membro(Set.of("MODELO_LER", "MODELO_APLICAR", "ALUNO_LER", "PASTA_ALTERAR", "DIETA_LER", "DIETA_ALTERAR"));
         aplicar(soDieta, treino, 403);
         aplicar(soDieta, mobilidade, 403);
         aplicar(soDieta, pacote, 403);
         assertThat(criados()).isZero();
         aplicar(soDieta, dieta, 200);
-        JsonNode completo = membro(Set.of("MODELO_LER", "MODELO_APLICAR", "ALUNO_LER", "TREINO_LER", "TREINO_ALTERAR",
-                "DIETA_LER", "DIETA_ALTERAR"));
+        JsonNode completo = membro(Set.of("MODELO_LER", "MODELO_APLICAR", "ALUNO_LER", "PASTA_ALTERAR", "TREINO_LER",
+                "TREINO_ALTERAR", "DIETA_LER", "DIETA_ALTERAR"));
         aplicar(completo, pacote, 200);
+    }
+
+    @Test
+    void semPastaAlterarSoAplicaEmPastaQueJaExiste() throws Exception {
+        JsonNode semPasta = membro(Set.of("MODELO_LER", "MODELO_APLICAR", "ALUNO_LER", "TREINO_LER", "TREINO_ALTERAR"));
+        aplicar(semPasta, treino, 403);
+        aplicar(semPasta, pacote, 403);
+        assertThat(criados()).isZero();
+        String pasta = api.post("/alunos/" + aluno + "/pastas", admin,
+                Map.of("titulo", "Pasta existente", "inicio", "2026-10-05", "fim", "2026-10-20"), 200).get("id").asString();
+        int antes = criados();
+        api.post("/receitas/" + treino + "/aplicar", semPasta,
+                Map.of("alunoId", aluno, "pastaId", pasta, "titulo", "Cópia fictícia"), 200);
+        assertThat(criados()).isEqualTo(antes + 1);
     }
 
     @Test

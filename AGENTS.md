@@ -77,7 +77,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   (`V007`, `V008`) não se edita à mão, e fonte nova ou corrigida = migration nova. Valor ausente nunca vira zero
   (`Tr`/`NA` → 0 com marca em `tracos`). A busca usa `nome_busca` (sem acento), calculada igual no Python e em
   `Buscas.semAcento`; teste: `python -m unittest scripts/catalogo/test_catalogo.py`.
-- Aplicar modelo (`POST /receitas/{id}/aplicar`) exige `MODELO_APLICAR` + `ALUNO_LER` e, no serviço e antes de qualquer efeito, `TREINO_ALTERAR` (treino, sessão, mobilidade), `DIETA_ALTERAR` (dieta, refeição) ou as do que o pacote traz; salvar pasta como modelo exige também `TREINO_LER` e `DIETA_LER`.
+- Aplicar modelo (`POST /receitas/{id}/aplicar`) exige `MODELO_APLICAR` + `ALUNO_LER` e, no serviço e antes de qualquer efeito, `TREINO_ALTERAR` (treino, sessão, mobilidade), `DIETA_ALTERAR` (dieta, refeição) ou as do que o pacote traz; salvar pasta como modelo exige também `TREINO_LER` e `DIETA_LER`. Sem `pastaId` o serviço cria pasta nova e exige também `PASTA_ALTERAR` (no app, `AplicarAoAluno` só oferece pastas existentes a quem não tem essa permissão).
 - Modelos do Planejamento (`receitas/`): tipo `MOBILIDADE` (alongamento/mobilidade: seções com itens nome, prescrição em texto e
   vídeo) é modelo reutilizável e também "Aplicar ao aluno" (cria o plano de mobilidade na pasta). Pasta de plano pode ser finalizada
   (`POST /pastas/{id}/finalizar`, `concluida_em`); peso e observação opcionais vão para o registro de peso na mesma

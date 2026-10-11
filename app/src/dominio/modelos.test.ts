@@ -1,6 +1,6 @@
 import type { Configuracao, ConteudoTreino } from '../api/tipos';
 import { aplicarReceitaDePlano, normalizarTreino, novaSerie, novaSessao } from './editorTreino';
-import { detalheDoModelo, podeAplicarModelo } from './modelos';
+import { destinosParaAplicar, detalheDoModelo, podeAplicarModelo, SEM_PASTA_PARA_APLICAR } from './modelos';
 import { conteudoInicial } from '../treinador/planejamento/modelos';
 
 let mockContador = 0;
@@ -54,4 +54,19 @@ test('aplicar modelo pede a permissão de alterar o que ele cria (como a API)', 
   expect(podeAplicarModelo('METODOLOGIA', tem('MODELO_APLICAR', 'ALUNO_LER', 'TREINO_ALTERAR'))).toBe(false);
   expect(podeAplicarModelo('PLANO_TREINO', tem('MODELO_APLICAR', 'TREINO_ALTERAR'))).toBe(false);
   expect(podeAplicarModelo('PLANO_TREINO', tem('ALUNO_LER', 'TREINO_ALTERAR'))).toBe(false);
+});
+
+test('sem PASTA_ALTERAR não há "criar nova pasta" ao aplicar um modelo', () => {
+  const pastas = [{ id: 'p1', titulo: 'Pasta 1' }, { id: 'p2', titulo: 'Pasta 2' }];
+  const quemCria = destinosParaAplicar(true, pastas);
+  expect(quemCria.opcoes.map((o) => o.valor)).toEqual(['', 'p1', 'p2']);
+  expect(quemCria.padrao).toBe('');
+  const quemNaoCria = destinosParaAplicar(false, pastas);
+  expect(quemNaoCria.opcoes.map((o) => o.valor)).toEqual(['p1', 'p2']);
+  expect(quemNaoCria.padrao).toBe('p1');
+  expect(quemNaoCria.semDestino).toBe(false);
+  expect(destinosParaAplicar(false, []).semDestino).toBe(true);
+  expect(destinosParaAplicar(false, null).semDestino).toBe(false);
+  expect(destinosParaAplicar(true, []).semDestino).toBe(false);
+  expect(SEM_PASTA_PARA_APLICAR).toBe('Peça a quem pode criar pastas para criar uma para este aluno.');
 });

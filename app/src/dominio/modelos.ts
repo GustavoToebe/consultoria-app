@@ -20,3 +20,19 @@ export function podeAplicarModelo(tipo: TipoReceita, pode: (codigo: string) => b
     default: return false;
   }
 }
+
+export const SEM_PASTA_PARA_APLICAR = 'Peça a quem pode criar pastas para criar uma para este aluno.';
+
+/**
+ * Destino ao aplicar um modelo (só apresentação; a API recusa com 403 criar pasta sem `PASTA_ALTERAR`): quem não pode
+ * criar pasta só escolhe uma existente, e sem nenhuma o aviso substitui o formulário. `pastas` nulo = ainda carregando.
+ */
+export function destinosParaAplicar(podeCriarPasta: boolean, pastas: readonly { id: string; titulo: string }[] | null) {
+  const existentes = (pastas ?? []).map((p) => ({ valor: p.id, rotulo: p.titulo }));
+  return {
+    opcoes: podeCriarPasta ? [{ valor: '', rotulo: 'Criar nova pasta' }, ...existentes] : existentes,
+    semDestino: !podeCriarPasta && pastas !== null && pastas.length === 0,
+    /** Destino usado quando nada foi escolhido: nova pasta (vazio) para quem pode criar; a primeira existente para os demais. */
+    padrao: podeCriarPasta ? '' : existentes[0]?.valor ?? '',
+  };
+}
