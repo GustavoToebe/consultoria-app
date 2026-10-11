@@ -38,7 +38,7 @@ export default function LayoutTreinador() {
   // Ponto no Início quando há atualização para revisar (só quem pode vê-las); falha silenciosa, sem travar o menu.
   const verAtualizacoes=pode('PAINEL_VER')&&pode('ATUALIZACAO_LER')&&pode('ALUNO_SENSIVEL_LER');
   const painel=useCarregar(verAtualizacoes?`ponto-atualizacoes:${caminho}`:null,()=>painelTreinador(false));
-  const ponto=(painel.dados?.atualizacoesParaRevisar??0)>0;
+  const ponto=verAtualizacoes&&(painel.dados?.atualizacoesParaRevisar??0)>0;
   return (
     <Navigator><GuardaDePapel papel="TREINADOR"><GuardaDeSaida>
       <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode)).map(i=>i.caminho==='/treinador'?{...i,ponto}:i)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />

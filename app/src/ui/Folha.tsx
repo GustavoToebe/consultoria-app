@@ -4,7 +4,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { X } from 'lucide-react-native';
 import { PortalHost } from '@rn-primitives/portal';
-import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -68,14 +68,17 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
         scheduleOnRN(aoFechar);
       } else deslocamento.set(reduzido ? 0 : withSpring(0,{damping:18,stiffness:260}));
     });
+  // Decidido ao abrir: girar a tela depois não move o foco de novo.
+  const [focarConteudo] = useState(centralizado);
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     // O foco entra no primeiro controle do conteúdo (campo ou botão); sem nenhum, no X de fechar. Nunca no fundo.
-    const raiz = conteudo.current as unknown as HTMLElement | null;
+    // Na folha de baixo (celular) o foco vai ao X: focar um campo abriria o teclado por cima da lista.
+    const raiz = focarConteudo ? (conteudo.current as unknown as HTMLElement | null) : null;
     const primeiro = raiz?.querySelector?.<HTMLElement>('input, textarea, select, button, a[href], [tabindex="0"]');
     const alvo = primeiro ?? (fechar.current as unknown as HTMLElement | null)?.querySelector?.<HTMLElement>('button, [tabindex="0"]');
     alvo?.focus?.();
-  }, []);
+  }, [focarConteudo]);
   return (
     <PortalDaFolha.Provider value={portal}>
     <GestureHandlerRootView style={{flex:1}}>
