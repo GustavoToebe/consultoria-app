@@ -37,7 +37,8 @@ public final class CatalogoPermissoes {
         new Permissao("EQUIPE_LER","Consultoria","Equipe","Consultar: equipe.",false),
         new Permissao("USUARIO_ALTERAR","Consultoria","Equipe","Criar e editar: equipe.",false),
         new Permissao("PERFIL_ALTERAR","Consultoria","Equipe","Criar e editar: equipe.",false),
-        new Permissao("AUDITORIA_LER","Consultoria","Auditoria","Consultar: auditoria.",false));
+        new Permissao("AUDITORIA_LER","Consultoria","Auditoria","Consultar: auditoria.",false),
+        new Permissao("CONTA_LER","Consultoria","Conta","Consultar: plano e cobranças.",false));
     public static final Set<String> CODIGOS=CATALOGO.stream().map(Permissao::codigo).collect(Collectors.toUnmodifiableSet());
     public static final Map<String,Set<String>> DEPENDENCIAS=Map.ofEntries(
         Map.entry("ALUNO_ALTERAR",Set.of("ALUNO_LER")),

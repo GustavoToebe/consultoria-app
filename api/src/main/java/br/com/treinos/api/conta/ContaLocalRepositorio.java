@@ -4,8 +4,17 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
+import br.com.treinos.api.conta.MinhaContaDto.ClienteDto;
+import br.com.treinos.api.conta.MinhaContaDto.ContratacaoDto;
+import tools.jackson.core.type.TypeReference;
+
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -16,6 +25,8 @@ import java.util.UUID;
  */
 @Component
 public class ContaLocalRepositorio {
+
+    private static final TypeReference<Map<String, Long>> LIMITES = new TypeReference<>() { };
 
     private final JdbcTemplate jdbc;
     private final JsonMapper json;
@@ -67,6 +78,37 @@ public class ContaLocalRepositorio {
                 c.id(), consultoriaId, Date.valueOf(c.competenciaInicio()), Date.valueOf(c.competenciaFim()),
                 Date.valueOf(c.vencimento()), c.valor(), c.situacao(),
                 c.pagoEm() == null ? null : Date.valueOf(c.pagoEm()));
+    }
+
+    public Optional<DireitosLocais> direitos(UUID consultoriaId) {
+        return jdbc.query("select contratacao_id, versao, situacao, acesso_liberado, motivo_bloqueio, vigente_ate, "
+                        + "plano_codigo, plano_nome, limites::text, funcionalidades, confirmado_em "
+                        + "from direitos_locais where consultoria_id = ?",
+                (rs, n) -> new DireitosLocais(consultoriaId, rs.getObject(1, UUID.class), rs.getLong(2), rs.getString(3),
+                        rs.getBoolean(4), rs.getString(5), data(rs.getDate(6)), rs.getString(7), rs.getString(8),
+                        json.readValue(rs.getString(9), LIMITES),
+                        Arrays.asList((String[]) rs.getArray(10).getArray()), rs.getTimestamp(11).toInstant()),
+                consultoriaId).stream().findFirst();
+    }
+
+    public Optional<ContaComercialLocal> contaComercial(UUID consultoriaId) {
+        return jdbc.query("select cliente::text, contratacao::text from conta_comercial_local where consultoria_id = ?",
+                (rs, n) -> new ContaComercialLocal(json.readValue(rs.getString(1), ClienteDto.class),
+                        json.readValue(rs.getString(2), ContratacaoDto.class)),
+                consultoriaId).stream().findFirst();
+    }
+
+    /** Da mais recente para a mais antiga, como no contrato. */
+    public List<CobrancaLocal> cobrancas(UUID consultoriaId) {
+        return jdbc.query("select id, competencia_inicio, competencia_fim, vencimento, valor, situacao, pago_em "
+                        + "from cobranca_local where consultoria_id = ? order by competencia_inicio desc, vencimento desc",
+                (rs, n) -> new CobrancaLocal(rs.getObject(1, UUID.class), data(rs.getDate(2)), data(rs.getDate(3)),
+                        data(rs.getDate(4)), rs.getBigDecimal(5), rs.getString(6), data(rs.getDate(7))),
+                consultoriaId);
+    }
+
+    private static LocalDate data(Date valor) {
+        return valor == null ? null : valor.toLocalDate();
     }
 
     private boolean existe(String sql, UUID consultoriaId) {

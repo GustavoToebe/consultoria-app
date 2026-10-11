@@ -12,6 +12,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
     java.util.List<Usuario> findByConsultoriaIdAndPapelOrderByNomeAsc(UUID consultoriaId, Papel papel);
     long countByConsultoriaIdAndPerfilId(UUID consultoriaId,UUID perfilId);
+    long countByConsultoriaIdAndPapelAndAtivoTrue(UUID consultoriaId, Papel papel);
 
     /** O e-mail já chega normalizado ({@code Emails.normalizar}); o índice único é em {@code lower(email)}. */
     @Query("select u from Usuario u where lower(u.email) = :email")
