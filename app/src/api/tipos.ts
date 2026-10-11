@@ -637,3 +637,20 @@ export interface SuplementoDaBiblioteca {
   link: string | null;
 }
 export type SuplementoDaBibliotecaRequest = Omit<SuplementoDaBiblioteca, 'id'>;
+
+export type CategoriaErgogenico = 'INJETAVEL' | 'ORAL' | 'PEPTIDEO' | 'MEDICAMENTO' | 'OUTRO';
+
+/**
+ * Item da biblioteca de medicação e ergogênicos (dado sensível, só com ERGOGENICO_LER): o que está no rótulo.
+ * Sem dose, ciclo nem indicação.
+ */
+export interface ErgogenicoDaBiblioteca {
+  id: string;
+  categoria: CategoriaErgogenico;
+  nome: string;
+  principioAtivo: string | null;
+  concentracao: string | null;
+  apresentacao: string | null;
+  observacao: string | null;
+}
+export type ErgogenicoDaBibliotecaRequest = Omit<ErgogenicoDaBiblioteca, 'id'>;

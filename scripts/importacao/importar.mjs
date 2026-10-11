@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Importa para a consultoria do Saraiva (pela API, como treinador) os vídeos da biblioteca de exercícios, os modelos
- * de semana de treino, os modelos de mobilidade e os suplementos que estão em ./dados. Pode rodar de novo à vontade: só cria o que
+ * de semana de treino, os modelos de mobilidade, os suplementos e a lista de medicação e ergogênicos que estão em ./dados. Pode rodar de novo à vontade: só cria o que
  * ainda não existe e nunca troca um vídeo que já está na biblioteca.
  *
  *   node scripts/importacao/importar.mjs --simular     (só lê; mostra o que faria)
@@ -193,7 +193,7 @@ export function obsLimpa(obs) {
 }
 
 // ---------------------------------------------------------------- relatório
-const rel = { suplementos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set() };
+const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set() };
 const falar = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------- biblioteca
@@ -391,6 +391,41 @@ async function importarSuplementos() {
   }
 }
 
+// ---------------------------------------------------------------- medicação e ergogênicos
+/** Chave do item: nome + concentração + apresentação (a mesma substância existe em concentrações diferentes). */
+export function chaveErgogenico(item) {
+  return [item.nome, item.concentracao, item.apresentacao].map(nomeBusca).join('|');
+}
+
+/**
+ * Itens de dados/medicacao-ergogenicos.json: só o que está no rótulo, sem dose. Criados por nome + concentração +
+ * apresentação; com --substituir atualiza os que já existem. Dado sensível: precisa de ERGOGENICO_LER/ALTERAR (por
+ * padrão só o Administrador); sem a permissão, a etapa é pulada com aviso e o resto da importação segue.
+ */
+async function importarErgogenicos() {
+  let existentes;
+  try {
+    existentes = new Map((await chamar('GET', '/ergogenicos')).map((e) => [chaveErgogenico(e), e]));
+  } catch (e) {
+    if (!String(e.message).includes('-> 403')) throw e;
+    rel.ergogenicos.push('pulado: o usuário não tem a permissão ERGOGENICO_LER (use um Administrador)');
+    return;
+  }
+  for (const item of lerJson('medicacao-ergogenicos.json').itens) {
+    const corpo = {
+      categoria: item.categoria, nome: item.nome, principioAtivo: item.principioAtivo ?? null,
+      concentracao: item.concentracao ?? null, apresentacao: item.apresentacao ?? null, observacao: item.observacao ?? null,
+    };
+    const rotulo = [item.nome, item.concentracao, item.apresentacao].filter(Boolean).join(' · ');
+    const ja = existentes.get(chaveErgogenico(item));
+    if (ja && !SUBSTITUIR) { rel.ergogenicos.push(`${rotulo}: já existe, mantido`); continue; }
+    if (SIMULAR) { rel.ergogenicos.push(`${rotulo}: ${ja ? 'seria atualizado' : 'seria criado'}`); continue; }
+    if (ja) await chamar('PUT', `/ergogenicos/${ja.id}`, corpo);
+    else await chamar('POST', '/ergogenicos', corpo);
+    rel.ergogenicos.push(`${rotulo}: ${ja ? 'atualizado' : 'criado'}`);
+  }
+}
+
 // ---------------------------------------------------------------- principal
 async function principal() {
   await entrar();
@@ -402,6 +437,7 @@ async function principal() {
   await importarModelos(regra);
   await importarMobilidade();
   await importarSuplementos();
+  await importarErgogenicos();
   await completarGrupos();
   quaseDuplicados();
   const lista = (titulo, itens) => { if (itens.length) { falar(`\n${titulo} (${itens.length}):`); itens.forEach((i) => falar(`  - ${i}`)); } };
@@ -415,6 +451,7 @@ async function principal() {
   lista('Modelos de treino', rel.modelos);
   lista('Modelos de mobilidade', rel.mobilidade);
   lista('Suplementos', rel.suplementos);
+  lista('Medicação e ergogênicos', rel.ergogenicos);
 }
 
 if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || process.argv[1].endsWith('importar.mjs')) {

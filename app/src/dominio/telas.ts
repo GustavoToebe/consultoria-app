@@ -27,7 +27,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'alunos', rotulo: 'Alunos', secao: 'Alunos', href: '/treinador/alunos', palavras: ['clientes', 'lista', 'ficha', 'cadastro'], permissao: null },
   { id: 'atualizacoes', rotulo: 'Atualizações', secao: 'Alunos', href: '/treinador/atualizacoes', palavras: ['check-in', 'checkin', 'revisar', 'feedback', 'atraso'], permissao: null },
   { id: 'planejamento', rotulo: 'Planejamento', secao: 'Planos', href: '/treinador/planejamento', palavras: ['modelos', 'treinos', 'dietas', 'mobilidade', 'pacotes', 'receitas'], permissao: null },
-  { id: 'biblioteca', rotulo: 'Biblioteca', secao: 'Conteúdo', href: '/treinador/biblioteca', palavras: ['exercicios', 'alimentos', 'videos', 'catalogo'], permissao: null },
+  { id: 'biblioteca', rotulo: 'Biblioteca', secao: 'Conteúdo', href: '/treinador/biblioteca', palavras: ['exercicios', 'alimentos', 'suplementos', 'videos', 'catalogo'], permissao: null },
   { id: 'marca', rotulo: 'Marca', secao: 'Consultoria', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
   { id: 'equipe', rotulo: 'Equipe', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['membros', 'usuarios', 'perfis', 'permissoes', 'convites'], permissao: null },
   { id: 'auditoria', rotulo: 'Auditoria', secao: 'Consultoria', href: '/treinador/auditoria', palavras: ['historico', 'registro de acoes', 'log', 'eventos'], permissao: null },
@@ -36,6 +36,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'minha-conta', rotulo: 'Minha conta', secao: 'Conta', href: '/treinador/minha-conta', palavras: ['plano', 'meu plano', 'financeiro', 'cobrancas', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'ajustes', rotulo: 'Ajustes', secao: 'Conta', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
 
+  { id: 'ergogenicos', rotulo: 'Medicação e ergogênicos', secao: 'Conteúdo', href: '/treinador/biblioteca?aba=ergogenicos', palavras: ['biblioteca', 'ergogenicos', 'medicacao', 'injetaveis', 'orais', 'peptideos'], permissao: 'ERGOGENICO_LER', acao: true },
   { id: 'novo-aluno', rotulo: 'Novo aluno', secao: 'Alunos', href: '/treinador/alunos/novo', palavras: ['cadastrar aluno', 'adicionar aluno', 'criar aluno'], permissao: 'ALUNO_ALTERAR', acao: true },
   { id: 'atualizacoes-revisar', rotulo: 'Atualizações para revisar', secao: 'Alunos', href: '/treinador/atualizacoes?situacao=PARA_REVISAR', palavras: ['check-in', 'checkin', 'feedback', 'pendentes'], permissao: null, acao: true },
   { id: 'atualizacoes-atrasadas', rotulo: 'Atualizações atrasadas', secao: 'Alunos', href: '/treinador/atualizacoes?situacao=ATRASADAS', palavras: ['check-in', 'checkin', 'atraso', 'vencidas'], permissao: null, acao: true },

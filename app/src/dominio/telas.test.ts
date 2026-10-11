@@ -19,6 +19,17 @@ describe('catálogo de telas', () => {
     expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'meus-dados', 'ajustes']);
   });
 
+  it('Medicação e ergogênicos só aparece e só é achado com ERGOGENICO_LER', () => {
+    const sem = telasPermitidas(com(ADMIN));
+    expect(ids(sem)).not.toContain('ergogenicos');
+    expect(ids(buscarTelas('ergogenicos', sem))).toEqual([]);
+    expect(ids(buscarTelas('medicacao', sem))).toEqual([]);
+    const com1 = telasPermitidas(com([...ADMIN, 'ERGOGENICO_LER']));
+    expect(ids(buscarTelas('medicacao', com1))).toEqual(['ergogenicos']);
+    // É atalho para a aba da Biblioteca, não uma tela: fica fora de "Todas as telas".
+    expect(agruparPorSecao(com1).flatMap((s) => ids(s.telas))).not.toContain('ergogenicos');
+  });
+
   it('ação com permissão extra exige a permissão além da tela', () => {
     // Pode ver o planejamento e a equipe, mas não criar modelo nem convidar.
     const leitor = ids(telasPermitidas(com(['MODELO_LER', 'EQUIPE_LER'])));

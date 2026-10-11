@@ -48,6 +48,8 @@ import type {
   SituacaoFiltro,
   SuplementoDaBiblioteca,
   SuplementoDaBibliotecaRequest,
+  ErgogenicoDaBiblioteca,
+  ErgogenicoDaBibliotecaRequest,
   Tema,
   TipoPlano,
   TipoReceita,
@@ -375,3 +377,10 @@ export const criarSuplemento = (dados: SuplementoDaBibliotecaRequest) =>
 export const alterarSuplemento = (id: string, dados: SuplementoDaBibliotecaRequest) =>
   requisicao<SuplementoDaBiblioteca>(`/suplementos/${id}`, { metodo: 'PUT', corpo: dados });
 export const inativarSuplemento = (id: string) => requisicao<void>(`/suplementos/${id}`, { metodo: 'DELETE' });
+
+export const listarErgogenicos = () => requisicao<ErgogenicoDaBiblioteca[]>('/ergogenicos');
+export const criarErgogenico = (dados: ErgogenicoDaBibliotecaRequest) =>
+  requisicao<ErgogenicoDaBiblioteca>('/ergogenicos', { metodo: 'POST', corpo: dados });
+export const alterarErgogenico = (id: string, dados: ErgogenicoDaBibliotecaRequest) =>
+  requisicao<ErgogenicoDaBiblioteca>(`/ergogenicos/${id}`, { metodo: 'PUT', corpo: dados });
+export const inativarErgogenico = (id: string) => requisicao<void>(`/ergogenicos/${id}`, { metodo: 'DELETE' });
