@@ -15,4 +15,11 @@ class CatalogoPermissoesTest {
         assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("DIETA_PUBLICAR"))))
                 .containsExactlyInAnyOrder("DIETA_PUBLICAR","DIETA_ALTERAR","DIETA_LER");
     }
+    @Test void ergogenicosSaoSensiveisEDependemDaBiblioteca() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("ERGOGENICO_"))
+                .extracting(CatalogoPermissoes.Permissao::sensivel).containsExactly(true,true);
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("ERGOGENICO_ALTERAR"))))
+                .containsExactlyInAnyOrder("ERGOGENICO_ALTERAR","ERGOGENICO_LER","BIBLIOTECA_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("ERGOGENICO_ALTERAR"))).isInstanceOf(BadRequestException.class);
+    }
 }
