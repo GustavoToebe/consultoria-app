@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, faseAtualizacao, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
+import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -67,4 +67,8 @@ it('cada pasta mostra a própria atualização: a vigente (mesmo sem linha grava
   expect(atualizacaoDaPasta('p1',atual,historico)?.id).toBe('h1');
   expect(atualizacaoDaPasta('p9',atual,historico)).toBeNull();
   expect(atualizacaoDaPasta('p1',null,historico)?.id).toBe('h1');
+});
+it('a lista aberta pelo contador leva o escopo "Meus alunos"', () => {
+  expect(caminhoListaAtualizacoes('PARA_REVISAR', true)).toBe('/treinador/atualizacoes?situacao=PARA_REVISAR&meus=true');
+  expect(caminhoListaAtualizacoes('ATRASADAS', false)).toBe('/treinador/atualizacoes?situacao=ATRASADAS');
 });

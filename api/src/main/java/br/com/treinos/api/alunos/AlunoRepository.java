@@ -35,4 +35,9 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID> {
     long countByAtivoTrue();
 
     List<Aluno> findByAtivoTrueOrderByNomeAsc();
+
+    /** Alunos ativos; com {@code responsavelId} só os dele ("Meus alunos"). Painel e listas usam esta mesma consulta. */
+    @Query("select a from Aluno a where a.ativo = true and (:responsavelId is null or a.responsavelId = :responsavelId) "
+            + "order by a.nome asc")
+    List<Aluno> ativosDoEscopo(UUID responsavelId);
 }

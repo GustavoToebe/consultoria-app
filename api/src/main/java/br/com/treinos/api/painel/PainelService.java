@@ -79,8 +79,7 @@ public class PainelService {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         UUID responsavelId = meus ? ((br.com.treinos.api.security.UsuarioAutenticado)
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).usuarioId() : null;
-        List<Aluno> ativos = alunos.findByAtivoTrueOrderByNomeAsc().stream()
-                .filter(a -> responsavelId == null || responsavelId.equals(a.getResponsavelId())).toList();
+        List<Aluno> ativos = alunos.ativosDoEscopo(responsavelId);
         Map<UUID, Aluno> porId = ativos.stream().collect(Collectors.toMap(Aluno::getId, Function.identity()));
 
         Map<UUID, LocalDate> ultimo = new HashMap<>();
@@ -106,12 +105,13 @@ public class PainelService {
                 && br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
         return new PainelTreinador(ativos.size(), registros ? semRegistro : List.of(), registros ? ultimasExecucoes(porId) : List.of(),
                 br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER") ? terminando : List.of(),
-                checkin ? contarAtualizacoes("PARA_REVISAR",porId) : 0, checkin ? contarAtualizacoes("ATRASADAS",porId) : 0,
-                checkin ? contarAtualizacoes("AVISARAM_ATRASO",porId) : 0, checkin ? contarAtualizacoes("PROXIMAS",porId) : 0);
+                checkin ? contarAtualizacoes("PARA_REVISAR",responsavelId) : 0, checkin ? contarAtualizacoes("ATRASADAS",responsavelId) : 0,
+                checkin ? contarAtualizacoes("AVISARAM_ATRASO",responsavelId) : 0, checkin ? contarAtualizacoes("PROXIMAS",responsavelId) : 0);
     }
 
-    private long contarAtualizacoes(String situacao,Map<UUID,Aluno> alunosDoFiltro) {
-        return atualizacoes.listar(situacao).stream().filter(a -> alunosDoFiltro.containsKey(a.alunoId())).count();
+    /** Mesma lista que a tela de atualizações abre a partir do contador. */
+    private long contarAtualizacoes(String situacao,UUID responsavelId) {
+        return atualizacoes.listar(situacao,responsavelId).size();
     }
 
     /** Agrupa os registros mais recentes por aluno, dia e sessão. Nomes de aluno só de alunos ativos. */

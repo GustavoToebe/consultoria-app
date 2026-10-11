@@ -9,6 +9,7 @@ import { ChevronRight, Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { painelTreinador } from '../../api/rotas';
+import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
 import { dataParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -55,7 +56,7 @@ export default function InicioTreinador() {
               ['Avisaram atraso',dados.atualizacoesAvisaramAtraso,'AVISARAM_ATRASO'],
               ['Próximas 7 dias',dados.atualizacoesProximas,'PROXIMAS'],
             ] as [string,number,SituacaoAtualizacao][]).map(([titulo,numero,situacao])=><Contador key={situacao} titulo={titulo} numero={numero??0}
-              aoTocar={()=>router.push(`/treinador/atualizacoes?situacao=${situacao}`)} />)}</View>
+              aoTocar={()=>router.push(caminhoListaAtualizacoes(situacao,escopo==='meus'))} />)}</View>
           </View></Permitido></Permitido>
           <Permitido codigo="ALUNO_LER">
           <View style={estilos.grupo}>

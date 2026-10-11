@@ -78,7 +78,8 @@ export const avisarAtrasoAtualizacao = (pastaId: string, novaData: string, motiv
   requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { pastaId, novaData, motivo } });
 export const marcarFeedbackVisto = (id: string) =>
   requisicao<void>(`/aluno/atualizacoes/${id}/feedback-visto`, { metodo: 'POST' });
-export const listarAtualizacoes = (situacao: SituacaoAtualizacao) => requisicao<Atualizacao[]>(`/atualizacoes?situacao=${situacao}`);
+export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false) =>
+  requisicao<Atualizacao[]>(`/atualizacoes?situacao=${situacao}&meus=${meus}`);
 export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${id}/atualizacoes`);
 export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${id}/atualizacao`);
 export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${id}`);

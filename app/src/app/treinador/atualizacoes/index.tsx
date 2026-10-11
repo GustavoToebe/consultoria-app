@@ -25,15 +25,16 @@ const ABAS:{valor:SituacaoAtualizacao;rotulo:string}[]=[
   {valor:'AVISARAM_ATRASO',rotulo:'Avisaram atraso'},{valor:'PROXIMAS',rotulo:'Próximas 7 dias'},
 ];
 export default function ListaAtualizacoes() {
-  const {situacao}=useLocalSearchParams<{situacao?:string}>();
+  const {situacao,meus:meusParam}=useLocalSearchParams<{situacao?:string;meus?:string}>();
+  const meus=meusParam==='true';
   const filtro=ABAS.find(a=>a.valor===situacao)?.valor??'PARA_REVISAR';
-  const lista=useCarregar(filtro,()=>listarAtualizacoes(filtro));
+  const lista=useCarregar(`${filtro}:${meus}`,()=>listarAtualizacoes(filtro,meus));
   const {recarregar}=lista;
   const {cores}=useTema();
   useFocusEffect(useCallback(()=>{recarregar();},[recarregar]));
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
     <Cabecalho titulo="Atualizações" voltar="/treinador" />
-    <Texto variante="suave">Atualizações enviadas pelos alunos em cada pasta: revise, acompanhe os atrasos e responda com feedback.</Texto>
+    <Texto variante="suave">Atualizações enviadas pelos alunos em cada pasta: revise, acompanhe os atrasos e responda com feedback.{meus?' Mostrando só os seus alunos.':''}</Texto>
     <Abas abas={ABAS} ativa={filtro} aoMudar={valor=>router.setParams({situacao:valor})} />
     {lista.erro?<MensagemErro texto={textoDoErro(lista.erro)} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}

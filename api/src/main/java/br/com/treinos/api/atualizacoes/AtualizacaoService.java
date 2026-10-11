@@ -150,10 +150,11 @@ public class AtualizacaoService {
         return detalhe(atualizacoes.saveAndFlush(a));
     }
     @Transactional(readOnly = true)
-    public List<Detalhe> listar(String situacao) {
+    public List<Detalhe> listar(String situacao, UUID responsavelId) {
         if (!List.of("PARA_REVISAR","ATRASADAS","AVISARAM_ATRASO","PROXIMAS").contains(situacao))
             throw new BadRequestException("Situação inválida.");
-        return alunos.findByAtivoTrueOrderByNomeAsc().stream().map(a -> atualDoAluno(a.getId())).filter(d -> switch (situacao) {
+        // O painel conta com esta mesma lista; responsavelId vem do usuário autenticado ("Meus alunos"), nunca do cliente.
+        return alunos.ativosDoEscopo(responsavelId).stream().map(a -> atualDoAluno(a.getId())).filter(d -> switch (situacao) {
             case "PARA_REVISAR" -> "ENVIADA".equals(d.fase());
             case "ATRASADAS" -> "ATRASADA".equals(d.fase());
             case "AVISARAM_ATRASO" -> d.atrasoAte() != null && !List.of("ENVIADA","REVISADA").contains(d.fase());

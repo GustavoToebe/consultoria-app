@@ -50,6 +50,9 @@ export function atualizacaoDaPasta(pastaId: string, atual: Atualizacao | null | 
 }
 export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>) => a.id
   ? `/treinador/atualizacoes/${a.id}` : `/treinador/atualizacoes/previa?alunoId=${a.alunoId}`;
+/** Lista aberta a partir de um contador do Início: leva junto o escopo "Meus alunos", para o total bater com a lista. */
+export const caminhoListaAtualizacoes = (situacao: string, meus: boolean) =>
+  `/treinador/atualizacoes?situacao=${situacao}${meus ? '&meus=true' : ''}`;
 export function statusAtualizacaoTreinador(a:Atualizacao) {
   if(a.fase==='ENVIADA')return {texto:'Para revisar',tipo:'atencao' as const};
   if(a.fase==='REVISADA')return {texto:'Revisada',tipo:'sucesso' as const};
