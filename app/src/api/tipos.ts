@@ -321,6 +321,8 @@ export interface Suplemento {
   dose: string;
   horario: string;
   observacao: string;
+  /** Link https do produto (copiado da biblioteca); versões antigas não têm. */
+  link: string | null;
 }
 
 export interface ConteudoDieta {

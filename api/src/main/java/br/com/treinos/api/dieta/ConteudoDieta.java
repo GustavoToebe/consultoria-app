@@ -66,7 +66,8 @@ public record ConteudoDieta(
             @Size(max = 120) String nome,
             @Size(max = 120) String dose,
             @Size(max = 120) String horario,
-            @Size(max = 500) String observacao) {
+            @Size(max = 500) String observacao,
+            @Size(max = 500) String link) {
     }
 
     public static ConteudoDieta vazio() {
@@ -90,7 +91,7 @@ public record ConteudoDieta(
                                 i.quantidade(), i.unidade(), i.kcal(), i.proteina(), i.carboidrato(), i.gordura(),
                                 i.manual())).toList())).toList())).toList();
         List<Suplemento> suplementos = suplementacaoOuVazio().stream().map(s -> new Suplemento(novo.get(), s.nome(),
-                s.dose(), s.horario(), s.observacao())).toList();
+                s.dose(), s.horario(), s.observacao(), s.link())).toList();
         return new ConteudoDieta(objetivo, dataInicio, profissional, novas, orientacoes, observacoes, suplementos);
     }
 }

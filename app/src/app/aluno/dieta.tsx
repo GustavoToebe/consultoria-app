@@ -1,5 +1,5 @@
 import { TotaisAnimados } from '../../ui/TotaisAnimados';
-import { FileDown } from 'lucide-react-native';
+import { ExternalLink, FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -10,6 +10,7 @@ import { dietaAluno, pesosAluno } from '../../api/rotas';
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
 import { normalizarDieta, somar, totalDoDia } from '../../dominio/dieta';
 import { dataParaTela, numeroParaTela } from '../../dominio/formatos';
+import { linkParaAbrir } from '../../dominio/links';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
@@ -18,6 +19,7 @@ import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
 import { documentoDieta } from '../../pdf/pdfDieta';
 import { Abas } from '../../ui/Abas';
+import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -144,6 +146,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
             <View key={s.uid} style={[estilos.item, { borderColor: cores.borda }]}>
               <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
               <Texto numerico variante="suave">{[s.dose, s.horario, s.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
+              {linkParaAbrir(s.link) ? <VerProduto link={s.link} /> : null}
             </View>
           ))}
         </Cartao>
@@ -153,6 +156,21 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
         {versao.titulo} (v{versao.numero})
       </Texto>
     </>
+  );
+}
+
+/** Abre o link do produto fora do app, sem token. */
+function VerProduto({ link }: { link: string | null }) {
+  const { avisar } = useAviso();
+  return (
+    <View style={estilos.produto}>
+      <Botao
+        rotulo="Ver produto"
+        tipo="secundario"
+        Icone={ExternalLink}
+        aoTocar={() => { void abrirLinkExterno(link).then((ok) => { if (!ok) avisar('Não foi possível abrir o link.', 'perigo'); }); }}
+      />
+    </View>
   );
 }
 
@@ -201,4 +219,5 @@ const estilos = StyleSheet.create({
   orientacao: { gap: 2 },
   forte: { fontFamily: fontes.semi },
   item: { borderTopWidth: 1, paddingTop: espaco(1), gap: 2 },
+  produto: { alignItems: 'flex-start', paddingTop: espaco(0.5) },
 });

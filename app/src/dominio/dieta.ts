@@ -137,6 +137,7 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
       dose: s.dose ?? '',
       horario: s.horario ?? '',
       observacao: s.observacao ?? '',
+      link: s.link ?? null,
     })),
   };
 }

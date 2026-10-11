@@ -4,6 +4,7 @@ import br.com.treinos.api.dieta.ConteudoDieta.Item;
 import br.com.treinos.api.dieta.ConteudoDieta.Opcao;
 import br.com.treinos.api.dieta.ConteudoDieta.Refeicao;
 import br.com.treinos.api.planos.ResultadoValidacao;
+import br.com.treinos.api.web.LinksExternos;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -65,7 +66,11 @@ public class ValidadorDieta {
             }
         }
         for (int s = 0; s < conteudo.suplementacaoOuVazio().size(); s++) {
-            uid(c, uids, conteudo.suplementacaoOuVazio().get(s).uid(), "suplementacao[" + s + "]");
+            ConteudoDieta.Suplemento sup = conteudo.suplementacaoOuVazio().get(s);
+            uid(c, uids, sup.uid(), "suplementacao[" + s + "]");
+            if (sup.link() != null && !sup.link().isBlank() && !LinksExternos.valido(sup.link())) {
+                c.erro("suplementacao[" + s + "].link", LinksExternos.MENSAGEM);
+            }
         }
         if (!refeicoes.isEmpty() && kcalDoDia.signum() == 0) {
             c.aviso("refeicoes", "O total do dia (opção A de cada refeição) está com 0 kcal.");

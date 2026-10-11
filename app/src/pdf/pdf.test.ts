@@ -118,7 +118,7 @@ describe('PDF da dieta', () => {
         ],
       },
     ],
-    suplementacao: [{ nome: '', dose: '', horario: '', observacao: '' }],
+    suplementacao: [{ uid: 's1', nome: '', dose: '', horario: '', observacao: '', link: null }],
   });
   const html = documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: [] }).corpo;
 
@@ -131,6 +131,42 @@ describe('PDF da dieta', () => {
   it('suplementação vazia e peso sem registro não aparecem', () => {
     expect(html).not.toContain('Suplementação');
     expect(html).not.toContain('Acompanhamento de peso');
+  });
+
+  describe('link da suplementação', () => {
+    const comSuplementos = (itens: { nome: string; link: string | null }[]) =>
+      documentoDieta({
+        ...base,
+        versao: 1,
+        pesos: [],
+        conteudo: { ...dieta, suplementacao: itens.map((s, i) => ({ uid: `s${i}`, dose: '', horario: '', observacao: '', ...s })) },
+      }).corpo;
+
+    it('nome vira link quando o https passa na regra', () => {
+      const h = comSuplementos([{ nome: 'Item de teste A (Marca)', link: 'https://exemplo.com/produto?a=1&b=2' }]);
+      expect(h).toContain('<a href="https://exemplo.com/produto?a=1&amp;b=2">Item de teste A (Marca)</a>');
+    });
+
+    it('link que tenta fechar o atributo sai escapado', () => {
+      const h = comSuplementos([{ nome: 'Item de teste B', link: 'https://exemplo.com/"><script>alert(1)</script>' }]);
+      expect(h).not.toContain('<script>');
+      expect(h).not.toContain('com/"><');
+      expect(h).toContain('<a href="https://exemplo.com/&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">Item de teste B</a>');
+    });
+
+    it('nome com HTML sai escapado e link inseguro não vira link', () => {
+      const h = comSuplementos([
+        { nome: '<img src=x onerror=alert(1)>', link: 'https://exemplo.com/a' },
+        { nome: 'Item de teste C', link: 'javascript:alert(1)' },
+        { nome: 'Item de teste D', link: 'http://exemplo.com/a' },
+      ]);
+      expect(h).not.toContain('<img');
+      expect(h).toContain('&lt;img src=x onerror=alert(1)&gt;</a>');
+      expect(h).toContain('<td>Item de teste C</td>');
+      expect(h).toContain('<td>Item de teste D</td>');
+      expect(h).not.toContain('javascript:');
+      expect(h).not.toContain('href="http:');
+    });
   });
 });
 

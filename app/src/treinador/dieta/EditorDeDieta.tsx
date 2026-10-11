@@ -1,26 +1,29 @@
 import { TotaisAnimados } from '../../ui/TotaisAnimados';
 import { useLocalSearchParams } from 'expo-router';
-import { ChevronsDownUp, ChevronsUpDown, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
+import { ChevronsDownUp, ChevronsUpDown, ExternalLink, Link2Off, Library, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { listarAlimentos, salvarPlanoComoReceita, criarReceita } from '../../api/rotas';
+import { listarAlimentos, listarSuplementos, salvarPlanoComoReceita, criarReceita } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import { aplicarReceitaDeDieta, novaRefeicao, novoItem, normalizarDieta, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { linhaDeSuplementacao } from '../../dominio/suplementos';
 import { novoUid } from '../../dominio/uid';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO, LARGURA_EDITOR } from '../../tema/tokens';
 import { CartaoRefeicao } from '../../treinador/dieta/CartaoRefeicao';
 import { FolhaAlimentos } from '../../treinador/dieta/FolhaAlimentos';
+import { FolhaSuplementos } from '../../treinador/dieta/FolhaSuplementos';
 import { FolhaReceitas } from '../../treinador/FolhaReceitas';
 import { FolhaSalvarReceita } from '../../treinador/FolhaSalvarReceita';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
 import { TopoModelo } from '../../treinador/plano/TopoModelo';
 import { TopoPlano } from '../../treinador/plano/TopoPlano';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
+import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -40,11 +43,11 @@ import { trilhaDoPlano } from '../plano/trilha';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { Folha } from '../../ui/Folha';
 
-type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number };
+type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'suplemento' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number };
 
 /**
  * Editor do plano de dieta (seção 10.4, item 5), no formato dos PDFs do Saraiva. Os valores dos itens vêm da
- * biblioteca e são gravados no item; o total do dia soma só a opção A de cada refeição. Suplementação é texto livre.
+ * biblioteca e são gravados no item; o total do dia soma só a opção A de cada refeição. Suplementação é texto livre (nome e link podem vir da biblioteca de suplementos).
  */
 export default function EditorDeDieta({ modelo = false, unica = false }: { modelo?: boolean; unica?: boolean }) {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,6 +56,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
   const editor = usePlanoEditor<ConteudoDieta>('dieta', id, normalizarDieta, modelo);
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const alimentos = useCarregar('biblioteca-alimentos', () => listarAlimentos()).dados ?? [];
+  const suplementosDaBiblioteca = useCarregar('biblioteca-suplementos', () => listarSuplementos()).dados ?? [];
   const porId = new Map<string, Alimento>(alimentos.map((a) => [a.id, a]));
   const [abertas, setAbertas] = useState<Set<string>>(new Set());
   const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
@@ -181,7 +185,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
       </Cartao>
 
       <Cartao titulo="Suplementação" style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={c.suplementacao.length === 0}>
-        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui.</Texto>
+        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
           return (
@@ -199,17 +203,24 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
                 <View style={estilos.campoSup}>
                   <Campo rotulo="Observação" valor={s.observacao} aoMudar={(observacao) => mudarS({ observacao })} maxLength={500} />
                 </View>
+                {s.link ? (
+                  <View style={estilos.acoes}>
+                    <Botao rotulo="Ver produto" tipo="secundario" Icone={ExternalLink} aoTocar={() => { void abrirLinkExterno(s.link).then((ok) => { if (!ok) avisar('Não foi possível abrir o link.', 'perigo'); }); }} />
+                    <Botao rotulo="Tirar link" tipo="perigoTexto" Icone={Link2Off} aoTocar={() => mudarS({ link: null })} />
+                  </View>
+                ) : null}
               </View>
               <IconeBotao Icone={Trash2} rotulo={`Remover ${s.nome || 'linha'}`} cor={cores.perigo} aoTocar={() => comDesfazer(`Suplementação “${s.nome || si + 1}” removida.`, (a) => ({ ...a, suplementacao: remover(a.suplementacao, si) }))} />
             </View>
           );
         })}
         <View style={estilos.acoes}>
+          <Botao rotulo="Escolher da biblioteca" tipo="secundario" Icone={Library} aoTocar={() => setFolha({ tipo: 'suplemento' })} />
           <Botao
             rotulo="Adicionar linha"
             tipo="secundario"
             Icone={Plus}
-            aoTocar={() => mudar({ suplementacao: [...c.suplementacao, { uid: novoUid(), nome: '', dose: '', horario: '', observacao: '' }] })}
+            aoTocar={() => mudar({ suplementacao: [...c.suplementacao, { uid: novoUid(), nome: '', dose: '', horario: '', observacao: '', link: null }] })}
           />
         </View>
       </Cartao>
@@ -243,6 +254,16 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
               if (!o) return lista;
               return substituir(lista, ri, { ...r, opcoes: substituir(r.opcoes, oi, { ...o, itens: [...o.itens, novoItem(alimento)] }) });
             });
+          }}
+        />
+      ) : null}
+      {folha?.tipo === 'suplemento' ? (
+        <FolhaSuplementos
+          suplementos={suplementosDaBiblioteca}
+          aoFechar={() => setFolha(null)}
+          aoEscolher={(s) => {
+            setFolha(null);
+            mudar({ suplementacao: [...c.suplementacao, linhaDeSuplementacao(s, novoUid())] });
           }}
         />
       ) : null}

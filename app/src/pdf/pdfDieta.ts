@@ -1,6 +1,7 @@
-import type { ConteudoDieta, ItemDieta, Marca, RegistroPeso } from '../api/tipos';
+import type { ConteudoDieta, ItemDieta, Marca, RegistroPeso, Suplemento } from '../api/tipos';
 import { somar, totalDoDia, type Totais } from '../dominio/dieta';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { linkParaAbrir } from '../dominio/links';
 import { cssBase, esc, escLinhas, type Documento } from './html';
 
 export interface DadosPdfDieta {
@@ -20,6 +21,13 @@ const kcal = (v: number | null) => (v === null ? '—' : `${numeroParaTela(v, 0)
 
 export function textoTotaisPdf(t: Totais): string {
   return `${kcal(t.kcal)} · P: ${g(t.proteina)} · C: ${g(t.carboidrato)} · G: ${g(t.gordura)}`;
+}
+
+/** Nome do suplemento; vira link só se o link passa na regra (https sem credenciais). Nome e link passam por `esc()`. */
+export function nomeDoSuplemento(s: Pick<Suplemento, 'nome' | 'link'>): string {
+  const nome = esc(s.nome) || '—';
+  const url = linkParaAbrir(s.link);
+  return url ? `<a href="${esc(url)}">${nome}</a>` : nome;
 }
 
 /** Cor da faixa de cada opção (A usa a cor da marca). */
@@ -124,7 +132,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${op
     c.observacoes ? `<div class="bloco"><strong>Observações e Diretrizes do Protocolo:</strong><div class="suave">${escLinhas(c.observacoes)}</div></div>` : '',
     suplementos.length
       ? `${barra}<div class="bloco">${sec('Sugestão de suplementação')}<table class="dark"><thead><tr><th>Suplemento</th><th>Dose</th><th>Horário</th><th>Obs</th></tr></thead><tbody>${suplementos
-          .map((s) => `<tr><td>${esc(s.nome) || '—'}</td><td>${esc(s.dose) || '—'}</td><td>${esc(s.horario) || '—'}</td><td>${esc(s.observacao) || '—'}</td></tr>`)
+          .map((s) => `<tr><td>${nomeDoSuplemento(s)}</td><td>${esc(s.dose) || '—'}</td><td>${esc(s.horario) || '—'}</td><td>${esc(s.observacao) || '—'}</td></tr>`)
           .join('')}</tbody></table></div>`
       : '',
     d.pesos.length

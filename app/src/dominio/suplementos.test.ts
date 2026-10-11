@@ -3,6 +3,7 @@ import {
   categoriasDe,
   descricaoDaPorcao,
   filtrarSuplementos,
+  linhaDeSuplementacao,
   marcaECategoria,
   MAX_SABORES,
   nomeParaDieta,
@@ -36,6 +37,16 @@ describe('textos do cartão', () => {
     expect(marcaECategoria({ marca: 'Heavy Suppz', categoria: 'Whey' })).toBe('Heavy Suppz · Whey');
     expect(marcaECategoria({ marca: null, categoria: 'Whey' })).toBe('Whey');
     expect(marcaECategoria({ marca: null, categoria: null })).toBe('—');
+  });
+  it('linha da dieta traz nome com marca e link; o resto fica vazio', () => {
+    expect(linhaDeSuplementacao(s('Creatina', { marca: 'Heavy Suppz', link: ' https://exemplo.com/p ' }), 'u1')).toEqual({
+      uid: 'u1', nome: 'Creatina (Heavy Suppz)', dose: '', horario: '', observacao: '', link: 'https://exemplo.com/p',
+    });
+    expect(linhaDeSuplementacao(s('Creatina', { marca: null }), 'u2')).toMatchObject({ nome: 'Creatina', link: null });
+  });
+  it('link fora da regra não vai para a dieta', () => {
+    expect(linhaDeSuplementacao(s('A', { link: 'javascript:alert(1)' }), 'u')).toMatchObject({ link: null });
+    expect(linhaDeSuplementacao(s('A', { link: 'http://exemplo.com' }), 'u')).toMatchObject({ link: null });
   });
   it('nome da linha de dieta leva a marca', () => {
     expect(nomeParaDieta({ nome: 'Creatina', marca: 'Heavy Suppz' })).toBe('Creatina (Heavy Suppz)');

@@ -1,5 +1,6 @@
-import type { SuplementoDaBiblioteca } from '../api/tipos';
+import type { Suplemento, SuplementoDaBiblioteca } from '../api/tipos';
 import { SEM_DADO } from './formatos';
+import { linkParaAbrir } from './links';
 
 /**
  * Regras de apresentação dos suplementos da biblioteca (sem tela). O suplemento é só nome, marca, categoria, porção,
@@ -49,6 +50,14 @@ export function saboresParaCampo(sabores: string[]): string {
 export function nomeParaDieta(s: Pick<SuplementoDaBiblioteca, 'nome' | 'marca'>): string {
   const marca = s.marca?.trim();
   return marca ? `${s.nome} (${marca})` : s.nome;
+}
+
+/**
+ * Linha de suplementação da dieta a partir de um produto da biblioteca: nome com a marca e o link copiados; dose,
+ * horário e observação ficam vazios para o treinador escrever. Link que não passa na regra não vai junto.
+ */
+export function linhaDeSuplementacao(s: Pick<SuplementoDaBiblioteca, 'nome' | 'marca' | 'link'>, uid: string): Suplemento {
+  return { uid, nome: nomeParaDieta(s), dose: '', horario: '', observacao: '', link: linkParaAbrir(s.link) };
 }
 
 /** Busca sem acento e sem caixa, no nome e na marca; categoria vazia = todas. */
