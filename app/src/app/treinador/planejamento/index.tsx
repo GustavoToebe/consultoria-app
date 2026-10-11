@@ -2,7 +2,7 @@ import { Permitido } from '../../../ui/Permitido';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA, RAIO } from '../../../tema/tokens';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Copy, Ellipsis, Library, Pencil, Trash2 } from 'lucide-react-native';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -38,7 +38,11 @@ export default function Planejamento() {
   const [tipo, setTipo] = useState<TipoReceita>('PLANO_TREINO');
   const [colecao, setColecao] = useState('*');
   const [busca, setBusca] = useState('');
-  const [formulario, setFormulario] = useState<Receita | 'novo' | null>(null);
+  // `?novo=1` (atalho da busca do topo) abre o formulário de novo modelo; fechar limpa o parâmetro.
+  const { novo: pedirNovo } = useLocalSearchParams<{ novo?: string }>();
+  const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
+  const formulario = formularioAberto ?? (pedirNovo === '1' ? 'novo' : null);
+  const fecharFormulario = () => { setFormulario(null); if (pedirNovo) router.setParams({ novo: undefined }); };
   const [organizar, setOrganizar] = useState(false);
   const [escolherColecao, setEscolherColecao] = useState(false);
   const [menu, setMenu] = useState<Receita | null>(null);
@@ -94,11 +98,11 @@ export default function Planejamento() {
       <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={ocupado !== null} aoTocar={() => duplicar(menu)} />
       <Botao rotulo="Excluir modelo" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setExcluir(menu); setMenu(null); }} />
     </Folha> : null}
-    {formulario && config.dados ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} colecaoInicial={colecao === '*' ? '' : colecao} colecoes={colecoes.dados ?? []} aoFechar={() => setFormulario(null)} aoSalvar={async (nome, descricao, pastaId) => {
+    {formulario && config.dados ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} colecaoInicial={colecao === '*' ? '' : colecao} colecoes={colecoes.dados ?? []} aoFechar={fecharFormulario} aoSalvar={async (nome, descricao, pastaId) => {
       if (formulario === 'novo') {
         const novo = await criarReceita({ tipo, nome, descricao, pastaId, conteudo: conteudoInicial(tipo, config.dados!.configuracao) });
-        setFormulario(null); modelos.recarregar(); router.push(`/treinador/planejamento/modelo/${novo.id}`);
-      } else { await alterarReceita(formulario.id, { ...formulario, nome, descricao, pastaId }); setFormulario(null); modelos.recarregar(); }
+        fecharFormulario(); modelos.recarregar(); router.push(`/treinador/planejamento/modelo/${novo.id}`);
+      } else { await alterarReceita(formulario.id, { ...formulario, nome, descricao, pastaId }); fecharFormulario(); modelos.recarregar(); }
     }} /> : null}
     {organizar ? <OrganizarColecoes colecoes={colecoes.dados ?? []} aoFechar={() => setOrganizar(false)} atualizar={atualizar} /> : null}
     {aplicar ? <AplicarAoAluno modelo={aplicar} aoFechar={() => setAplicar(null)} aoAplicar={(id, nome) => { setAplicar(null); avisar(mensagemCopiaCriada(nome), 'sucesso'); router.push(`/treinador/alunos/${id}`); }} /> : null}

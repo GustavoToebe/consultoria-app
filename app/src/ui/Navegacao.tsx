@@ -27,9 +27,9 @@ export interface ItemMenu {
 
 /**
  * Casca das áreas logadas: menu lateral fixo no PC (largura ≥ 900) e barra inferior no celular. Item ativo com a
- * cor da marca (o único uso de cor de marca na navegação).
+ * cor da marca (o único uso de cor de marca na navegação). `topo` é a barra de topo e só aparece com o menu lateral.
  */
-export function Navegacao({ itens, sempreInferior, rodape, conteudo }: { itens: ItemMenu[]; sempreInferior?: boolean; rodape?: ReactNode; conteudo?:ReactNode }) {
+export function Navegacao({ itens, sempreInferior, rodape, conteudo, topo }: { itens: ItemMenu[]; sempreInferior?: boolean; rodape?: ReactNode; conteudo?:ReactNode; topo?: ReactNode }) {
   const { width } = useWindowDimensions();
   const { cores } = useTema();
   const { marca } = useSessao();
@@ -67,7 +67,10 @@ export function Navegacao({ itens, sempreInferior, rodape, conteudo }: { itens: 
           </Pressable>
         </SafeAreaView>
         <View style={estilos.conteudo}>
-          {conteudo??<Slot />}
+          {topo}
+          <View style={estilos.conteudo}>
+            {conteudo??<Slot />}
+          </View>
         </View>
       </View>
     );

@@ -6,6 +6,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { podeAcessarTela } from '../../dominio/permissoes';
 import { GuardaDePermissao } from '../../ui/Permitido';
 import { GuardaDePapel } from '../../ui/GuardaDePapel';
+import { BarraTopo } from '../../ui/BarraTopo';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
 
 /** Só aparecem no menu as telas que já existem (nada de recurso fingido). No celular, Planejamento fica na Biblioteca. */
@@ -26,7 +27,7 @@ export default function LayoutTreinador() {
   useEffect(()=>{if(caminho.startsWith('/treinador')) void recarregarPerfil().catch(()=>undefined);},[recarregarPerfil,caminho]);
   return (
     <Navigator><GuardaDePapel papel="TREINADOR">
-      <Navegacao itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode))} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+      <Navegacao topo={<BarraTopo />} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode))} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
     </GuardaDePapel></Navigator>
   );
 }
