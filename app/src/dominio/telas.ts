@@ -83,6 +83,9 @@ export function agruparPorSecao(telas: readonly TelaDoCatalogo[]): { secao: Seca
     .filter((g) => g.telas.length > 0);
 }
 
+/** Chave do AsyncStorage dos favoritos; por usuário, apagada ao sair da conta. */
+export const chaveDosFavoritos = (usuarioId: string) => `treinos:${usuarioId}:favoritos`;
+
 /** Favoritos na ordem em que foram marcados; ignora ids que não existem mais ou que o usuário não pode abrir. */
 export function favoritosVisiveis(ids: readonly string[], permitidas: readonly TelaDoCatalogo[]): TelaDoCatalogo[] {
   const porId = new Map(permitidas.filter((t) => !t.acao).map((t) => [t.id, t]));

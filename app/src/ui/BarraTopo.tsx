@@ -1,17 +1,21 @@
 import { usePathname } from 'expo-router';
-import { useMemo } from 'react';
+import { LayoutGrid } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { nomeDaTela, telasPermitidas } from '../dominio/telas';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
+import { Botao } from './Botao';
 import { BuscaGlobal } from './BuscaGlobal';
 import { Texto } from './Texto';
+import { TodasAsTelas } from './TodasAsTelas';
+import { useFavoritos } from './useFavoritos';
 
 /**
  * Barra de topo do treinador no PC (o `Navegacao` só a monta com o menu lateral): consultoria e nome da tela à
- * esquerda, busca "O que você deseja fazer?" ao centro. No celular não existe.
+ * esquerda, busca "O que você deseja fazer?" ao centro e o botão "Todas as telas" (com favoritos) à direita. No celular não existe.
  */
 export function BarraTopo() {
   const caminho = usePathname();
@@ -19,6 +23,8 @@ export function BarraTopo() {
   const { cores, marca: corDaMarca } = useTema();
   const permitidas = useMemo(() => telasPermitidas(pode), [pode]);
   const tela = nomeDaTela(caminho);
+  const { favoritos, alternar } = useFavoritos();
+  const [todas, setTodas] = useState(false);
   return (
     <View style={[estilos.barra, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
       <View style={estilos.titulo}>
@@ -26,9 +32,12 @@ export function BarraTopo() {
         {tela ? <Texto variante="bloco" numberOfLines={1}>{tela}</Texto> : null}
       </View>
       <View style={estilos.centro}>
-        <BuscaGlobal permitidas={permitidas} />
+        <BuscaGlobal permitidas={permitidas} favoritos={favoritos} />
       </View>
-      <View style={estilos.direita} />
+      <View style={estilos.direita}>
+        <Botao rotulo="Todas as telas" tipo="fantasma" Icone={LayoutGrid} aoTocar={() => setTodas(true)} />
+      </View>
+      <TodasAsTelas visivel={todas} aoFechar={() => setTodas(false)} permitidas={permitidas} favoritos={favoritos} aoAlternarFavorito={alternar} />
     </View>
   );
 }

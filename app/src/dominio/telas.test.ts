@@ -1,5 +1,5 @@
 import { pode } from './permissoes';
-import { agruparPorSecao, alternarFavorito, buscarTelas, favoritosVisiveis, lerFavoritos, nomeDaTela, semAcento, TELAS, telasPermitidas } from './telas';
+import { agruparPorSecao, alternarFavorito, buscarTelas, chaveDosFavoritos, favoritosVisiveis, lerFavoritos, nomeDaTela, semAcento, TELAS, telasPermitidas } from './telas';
 
 const com = (codigos: string[]) => (codigo: string) => pode(codigos, codigo);
 const ADMIN = ['PAINEL_VER', 'ALUNO_LER', 'ALUNO_ALTERAR', 'ALUNO_SENSIVEL_LER', 'ATUALIZACAO_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'MODELO_ALTERAR', 'MARCA_ALTERAR', 'EQUIPE_LER', 'USUARIO_ALTERAR', 'AUDITORIA_LER'];
@@ -77,6 +77,9 @@ describe('Todas as telas e favoritos', () => {
   it('favorito sem permissão, repetido, de ação ou desconhecido não aparece', () => {
     const poucas = telasPermitidas(com(['PAINEL_VER', 'ALUNO_LER']));
     expect(ids(favoritosVisiveis(['equipe', 'alunos', 'alunos', 'novo-aluno', 'xyz', 'inicio'], poucas))).toEqual(['alunos', 'inicio']);
+  });
+  it('guarda por usuário, na chave treinos:<usuarioId>:favoritos', () => {
+    expect(chaveDosFavoritos('u1')).toBe('treinos:u1:favoritos');
   });
   it('lê o JSON salvo sem quebrar com lixo', () => {
     expect(lerFavoritos('["a","b"]')).toEqual(['a', 'b']);
