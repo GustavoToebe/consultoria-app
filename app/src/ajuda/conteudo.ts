@@ -41,7 +41,7 @@ const TREINADOR: Guia = {
   ],
   tutorial: [
     { titulo: 'Bem-vindo', texto: 'Este tutorial passa pelas telas principais na ordem em que você vai usá-las. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
-    { titulo: 'Menu', texto: 'No computador o menu fica à esquerda (dá para minimizar). No celular, na barra de baixo. Só aparece o que o seu perfil permite.', rota: '/treinador' },
+    { titulo: 'Menu e barra de topo', texto: 'No computador o menu fica à esquerda (dá para minimizar) e a barra de topo traz a busca "O que você deseja fazer?" (atalho Ctrl+K), o botão Todas as telas, onde dá para marcar favoritas, e o seu usuário. No celular, o menu fica na barra de baixo. Só aparece o que o seu perfil permite.', rota: '/treinador' },
     { titulo: 'Alunos', texto: 'Lista os alunos da consultoria, com busca e o filtro "Meus alunos". Toque em um aluno para abrir a ficha.', rota: '/treinador/alunos' },
     { titulo: 'Ficha do aluno', texto: 'Reúne dados, acesso ao app, lesões, pastas de plano, progresso por exercício e peso. Atualizações do aluno ficam dentro de cada pasta.', rota: '/treinador/alunos' },
     { titulo: 'Pastas de plano', texto: 'Cada pasta tem período e agrupa treino, dieta e mobilidade. Use o filtro Todas, Ativas ou Concluídas para achar uma pasta. Finalize a pasta ao fim do ciclo e replique para o próximo.' },
@@ -49,7 +49,7 @@ const TREINADOR: Guia = {
     { titulo: 'Biblioteca', texto: 'Exercícios (com filtro por grupo muscular), alimentos, catálogo público e importação por CSV.', rota: '/treinador/biblioteca' },
     { titulo: 'Planejamento', texto: 'Modelos reutilizáveis de treino, dieta e mobilidade, e pacotes de pasta inteira. Aplique o modelo a um aluno quando quiser.', rota: '/treinador/planejamento' },
     { titulo: 'Marca, Equipe e Auditoria', texto: 'Marca (cor, fonte e logo) aparece só a quem tem permissão para alterá-la. Equipe gerencia perfis e permissões; Auditoria lista o que foi feito. Aparecem conforme o seu perfil.' },
-    { titulo: 'Perfil e Ajuda', texto: 'Em Perfil você troca tema claro/escuro, tamanho do texto e senha. Esta Ajuda fica sempre à mão.', rota: '/treinador/perfil' },
+    { titulo: 'Seu usuário e Ajuda', texto: 'No cartão com o seu nome (canto superior direito; no celular, em Perfil) ficam Meus dados (nome, telefone e senha), Ajustes (tema claro/escuro e tamanho do texto) e Sair. Esta Ajuda fica sempre à mão.', rota: '/treinador/ajustes' },
   ],
   secoes: [
     {
@@ -100,7 +100,7 @@ const TREINADOR: Guia = {
         { titulo: 'Marca', texto: 'Cor, fonte do nome, tema padrão dos alunos e logo. Só quem tem a permissão de marca altera.' },
         { titulo: 'Equipe', texto: 'Cada membro tem um perfil com permissões. Ninguém concede mais do que tem.' },
         { titulo: 'Auditoria', texto: 'Lista ações importantes por pessoa e período, guardadas por um ano.' },
-        { titulo: 'Tema claro/escuro', texto: 'Qualquer pessoa troca em Perfil. Vale só para o seu usuário.' },
+        { titulo: 'Tema claro/escuro', texto: 'Qualquer pessoa troca em Ajustes (menu do seu nome, no topo; no celular, em Perfil). Vale só para o seu usuário.' },
       ],
     },
   ],

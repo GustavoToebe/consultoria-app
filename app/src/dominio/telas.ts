@@ -1,7 +1,7 @@
 import { podeAcessarTela } from './permissoes';
 
 /** Seções da lista "Todas as telas", na ordem em que aparecem. */
-export const SECOES_DE_TELAS = ['Início', 'Alunos', 'Planos', 'Conteúdo', 'Consultoria', 'Ajuda'] as const;
+export const SECOES_DE_TELAS = ['Início', 'Alunos', 'Planos', 'Conteúdo', 'Consultoria', 'Ajuda', 'Conta'] as const;
 export type SecaoDeTela = (typeof SECOES_DE_TELAS)[number];
 
 export interface TelaDoCatalogo {
@@ -32,6 +32,8 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'equipe', rotulo: 'Equipe', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['membros', 'usuarios', 'perfis', 'permissoes', 'convites'], permissao: null },
   { id: 'auditoria', rotulo: 'Auditoria', secao: 'Consultoria', href: '/treinador/auditoria', palavras: ['historico', 'registro de acoes', 'log', 'eventos'], permissao: null },
   { id: 'ajuda', rotulo: 'Ajuda', secao: 'Ajuda', href: '/treinador/ajuda', palavras: ['guia', 'tutorial', 'suporte', 'duvidas', 'perguntas'], permissao: null },
+  { id: 'meus-dados', rotulo: 'Meus dados', secao: 'Conta', href: '/treinador/meus-dados', palavras: ['nome', 'email', 'telefone', 'senha', 'trocar senha', 'perfil', 'sair'], permissao: null },
+  { id: 'ajustes', rotulo: 'Ajustes', secao: 'Conta', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
 
   { id: 'novo-aluno', rotulo: 'Novo aluno', secao: 'Alunos', href: '/treinador/alunos/novo', palavras: ['cadastrar aluno', 'adicionar aluno', 'criar aluno'], permissao: 'ALUNO_ALTERAR', acao: true },
   { id: 'atualizacoes-revisar', rotulo: 'Atualizações para revisar', secao: 'Alunos', href: '/treinador/atualizacoes?situacao=PARA_REVISAR', palavras: ['check-in', 'checkin', 'feedback', 'pendentes'], permissao: null, acao: true },
@@ -125,6 +127,9 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/mobilidades', 'Plano de mobilidade'],
   ['/treinador/receitas', 'Planejamento'],
   ['/treinador/perfil', 'Perfil'],
+  ['/treinador/meus-dados', 'Meus dados'],
+  ['/treinador/ajustes', 'Ajustes'],
+  ['/treinador/minha-conta', 'Minha conta'],
 ];
 
 /** Nome da tela do caminho atual para a barra de topo; `null` quando não se sabe (a barra mostra só a consultoria). */

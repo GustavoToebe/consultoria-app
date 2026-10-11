@@ -8,6 +8,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
 import { Botao } from './Botao';
+import { CartaoDoUsuario } from './CartaoDoUsuario';
 import { BuscaGlobal } from './BuscaGlobal';
 import { Texto } from './Texto';
 import { TodasAsTelas } from './TodasAsTelas';
@@ -15,7 +16,7 @@ import { useFavoritos } from './useFavoritos';
 
 /**
  * Barra de topo do treinador no PC (o `Navegacao` só a monta com o menu lateral): consultoria e nome da tela à
- * esquerda, busca "O que você deseja fazer?" ao centro e o botão "Todas as telas" (com favoritos) à direita. No celular não existe.
+ * esquerda, busca "O que você deseja fazer?" ao centro o botão "Todas as telas" (com favoritos) e o cartão do usuário à direita. No celular não existe.
  */
 export function BarraTopo() {
   const caminho = usePathname();
@@ -36,6 +37,7 @@ export function BarraTopo() {
       </View>
       <View style={estilos.direita}>
         <Botao rotulo="Todas as telas" tipo="fantasma" Icone={LayoutGrid} aoTocar={() => setTodas(true)} />
+        <CartaoDoUsuario />
       </View>
       <TodasAsTelas visivel={todas} aoFechar={() => setTodas(false)} permitidas={permitidas} favoritos={favoritos} aoAlternarFavorito={alternar} />
     </View>

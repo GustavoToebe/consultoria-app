@@ -1,5 +1,6 @@
 import { PERMISSOES_DO_PLANO, pode, podeAcessarTela } from './permissoes';
 
+const ADMIN_SEM_CONTA = ['PAINEL_VER','ALUNO_LER','EQUIPE_LER','MARCA_ALTERAR','AUDITORIA_LER'];
 describe('navegação de membros da equipe', () => {
   const assistente = ['PAINEL_VER','ALUNO_LER','ALUNO_ALTERAR','TREINO_LER','DIETA_LER','BIBLIOTECA_LER','MODELO_LER'];
   const acesso = (codigos: string[]) => (codigo: string) => pode(codigos, codigo);
@@ -23,6 +24,12 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/desconhecido', () => true)).toBe(false);
     expect(podeAcessarTela('/treinador/perfil', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajuda', acesso([]))).toBe(true);
+  });
+  it('Meus dados e Ajustes são de todos; Minha conta exige CONTA_LER', () => {
+    expect(podeAcessarTela('/treinador/meus-dados', acesso([]))).toBe(true);
+    expect(podeAcessarTela('/treinador/ajustes', acesso([]))).toBe(true);
+    expect(podeAcessarTela('/treinador/minha-conta', acesso(ADMIN_SEM_CONTA))).toBe(false);
+    expect(podeAcessarTela('/treinador/minha-conta', acesso(['CONTA_LER']))).toBe(true);
   });
   it('mobilidade usa as permissões do treino, não as da dieta', () => {
     expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['TREINO_LER','TREINO_ALTERAR']))).toBe(true);

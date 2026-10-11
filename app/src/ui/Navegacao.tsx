@@ -23,6 +23,10 @@ export interface ItemMenu {
   exato?: boolean;
   /** Só no menu lateral do PC (a barra do celular tem espaço para poucos itens). */
   soLateral?: boolean;
+  /** Só na barra inferior do celular (no PC o item vive em outro lugar, como o Perfil no cartão do usuário). */
+  soCelular?: boolean;
+  /** Outros caminhos que também deixam o item ativo (telas abertas a partir dele). */
+  tambem?: string[];
 }
 
 /**
@@ -54,7 +58,7 @@ export function Navegacao({ itens, sempreInferior, rodape, conteudo, topo }: { i
               <MarcaTitulo marca={marca} />
             </View>
           )}
-          {itens.map((item) => (
+          {itens.filter((item) => !item.soCelular).map((item) => (
             <ItemNavegacao key={item.caminho} item={item} lateral recolhido={recolhido} />
           ))}
           <Pressable
@@ -94,7 +98,8 @@ export function Navegacao({ itens, sempreInferior, rodape, conteudo, topo }: { i
 function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?: boolean; recolhido?: boolean }) {
   const caminho = usePathname();
   const { cores, marca } = useTema();
-  const ativo = item.exato ? caminho === item.caminho : caminho === item.caminho || caminho.startsWith(`${item.caminho}/`);
+  const casa = (base: string) => caminho === base || caminho.startsWith(`${base}/`);
+  const ativo = item.exato ? caminho === item.caminho : casa(item.caminho) || !!item.tambem?.some(casa);
   const cor = ativo ? marca : cores.textoSuave;
   return (
     <Pressable

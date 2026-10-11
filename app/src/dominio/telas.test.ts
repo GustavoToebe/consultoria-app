@@ -15,8 +15,8 @@ describe('catálogo de telas', () => {
     const tudo = telasPermitidas(com(ADMIN));
     expect(ids(tudo)).toEqual(expect.arrayContaining(['inicio', 'novo-aluno', 'novo-modelo', 'convidar-membro', 'atualizacoes-revisar', 'auditoria']));
     const assistente = telasPermitidas(com(['PAINEL_VER', 'ALUNO_LER', 'BIBLIOTECA_LER', 'MODELO_LER']));
-    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'planejamento', 'biblioteca', 'ajuda']);
-    expect(ids(telasPermitidas(com([])))).toEqual(['ajuda']);
+    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'planejamento', 'biblioteca', 'ajuda', 'meus-dados', 'ajustes']);
+    expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'meus-dados', 'ajustes']);
   });
 
   it('ação com permissão extra exige a permissão além da tela', () => {
@@ -59,9 +59,9 @@ describe('Todas as telas e favoritos', () => {
   const permitidas = telasPermitidas(com(ADMIN));
   it('agrupa por seção na ordem fixa e deixa as ações de fora', () => {
     const grupos = agruparPorSecao(permitidas);
-    expect(grupos.map((g) => g.secao)).toEqual(['Início', 'Alunos', 'Planos', 'Conteúdo', 'Consultoria', 'Ajuda']);
+    expect(grupos.map((g) => g.secao)).toEqual(['Início', 'Alunos', 'Planos', 'Conteúdo', 'Consultoria', 'Ajuda', 'Conta']);
     expect(grupos.flatMap((g) => ids(g.telas))).not.toContain('novo-aluno');
-    expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Ajuda']);
+    expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Ajuda', 'Conta']);
   });
   it('favoritos mantêm a ordem em que foram marcados', () => {
     let lista: string[] = [];
@@ -100,6 +100,9 @@ describe('nome da tela atual', () => {
     expect(nomeDaTela('/treinador/planejamento/modelo/um-id')).toBe('Modelo');
     expect(nomeDaTela('/treinador/planejamento')).toBe('Planejamento');
     expect(nomeDaTela('/treinador/perfil')).toBe('Perfil');
+    expect(nomeDaTela('/treinador/meus-dados')).toBe('Meus dados');
+    expect(nomeDaTela('/treinador/ajustes')).toBe('Ajustes');
+    expect(nomeDaTela('/treinador/minha-conta')).toBe('Minha conta');
     expect(nomeDaTela('/treinador/desconhecido')).toBeNull();
   });
 });
