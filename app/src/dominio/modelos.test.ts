@@ -1,6 +1,6 @@
 import type { Configuracao, ConteudoTreino } from '../api/tipos';
 import { aplicarReceitaDePlano, normalizarTreino, novaSerie, novaSessao } from './editorTreino';
-import { destinosParaAplicar, detalheDoModelo, podeAplicarModelo, SEM_PASTA_PARA_APLICAR } from './modelos';
+import { destinosParaAplicar, detalheDoModelo, podeAplicarModelo, podeSalvarPastaComoModelo, SEM_PASTA_PARA_APLICAR, temAcaoNoMenuDaPasta } from './modelos';
 import { conteudoInicial } from '../treinador/planejamento/modelos';
 
 let mockContador = 0;
@@ -69,4 +69,20 @@ test('sem PASTA_ALTERAR não há "criar nova pasta" ao aplicar um modelo', () =>
   expect(destinosParaAplicar(false, null).semDestino).toBe(false);
   expect(destinosParaAplicar(true, []).semDestino).toBe(false);
   expect(SEM_PASTA_PARA_APLICAR).toBe('Peça a quem pode criar pastas para criar uma para este aluno.');
+});
+
+test('salvar pasta como pacote segue as permissões da rota e o ⋯ some sem ação', () => {
+  const tem = (...codigos: string[]) => (c: string) => codigos.includes(c);
+  // Perfis padrão da V018: Treinador e Nutricionista têm as quatro; o Assistente não tem MODELO_ALTERAR.
+  const treinador = tem('PASTA_ALTERAR', 'MODELO_ALTERAR', 'ALUNO_LER', 'TREINO_LER', 'DIETA_LER');
+  const nutricionista = tem('MODELO_ALTERAR', 'ALUNO_LER', 'TREINO_LER', 'DIETA_LER');
+  const assistente = tem('ALUNO_LER', 'TREINO_LER', 'DIETA_LER', 'MODELO_LER');
+  expect(podeSalvarPastaComoModelo(treinador)).toBe(true);
+  expect(podeSalvarPastaComoModelo(nutricionista)).toBe(true);
+  expect(podeSalvarPastaComoModelo(assistente)).toBe(false);
+  expect(podeSalvarPastaComoModelo(tem('MODELO_ALTERAR', 'ALUNO_LER', 'TREINO_LER'))).toBe(false);
+  expect(podeSalvarPastaComoModelo(tem('MODELO_ALTERAR', 'TREINO_LER', 'DIETA_LER'))).toBe(false);
+  expect(temAcaoNoMenuDaPasta(nutricionista)).toBe(true);
+  expect(temAcaoNoMenuDaPasta(tem('PASTA_ALTERAR'))).toBe(true);
+  expect(temAcaoNoMenuDaPasta(tem('MODELO_ALTERAR', 'ALUNO_LER', 'TREINO_LER'))).toBe(false);
 });

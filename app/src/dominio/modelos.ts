@@ -36,3 +36,11 @@ export function destinosParaAplicar(podeCriarPasta: boolean, pastas: readonly { 
     padrao: podeCriarPasta ? '' : existentes[0]?.valor ?? '',
   };
 }
+
+/** Mesmas permissões da rota `POST /pastas/{id}/salvar-como-modelo` (só apresentação; a API decide). */
+export const podeSalvarPastaComoModelo = (pode: (codigo: string) => boolean): boolean =>
+  ['MODELO_ALTERAR', 'ALUNO_LER', 'TREINO_LER', 'DIETA_LER'].every(pode);
+
+/** O ⋯ da pasta só aparece se tiver ao menos uma ação: salvar como pacote ou excluir a pasta. */
+export const temAcaoNoMenuDaPasta = (pode: (codigo: string) => boolean): boolean =>
+  pode('PASTA_ALTERAR') || podeSalvarPastaComoModelo(pode);

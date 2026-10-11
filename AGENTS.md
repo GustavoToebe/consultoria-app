@@ -134,6 +134,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   Movimento usa Reanimated 4 com `sv.get()`/`sv.set()` (React Compiler) e `useMovimentoReduzido`; vibração só pelo `ui/vibrar` (sem chamadas na web).
 - Lint do React 19 recusa `setState` síncrono dentro de `useEffect`: atualizar estado só em callback de promessa.
   Dados de tela com `ui/useCarregar` (chave → busca; `definir` depois de alterar). Painel lateral/folha: `ui/Folha`.
+- Menu ⋯ da pasta: "Salvar como pacote" só com as permissões da rota (`dominio/modelos.podeSalvarPastaComoModelo`: MODELO_ALTERAR, ALUNO_LER, TREINO_LER, DIETA_LER); sem nenhuma ação o ⋯ some.
 - Pastas: `src/app/` só rotas; peças das telas do treinador em `src/treinador/`; regras puras (com teste) em
   `src/dominio/` (formatos BR, agrupamento "3x3 - FS", operações do editor, contas da dieta). `novoUid()` em todo item novo.
 - Editor de treino: uma sessão por vez (`SeletorDeSessoes`, chips) e os modelos numa `Folha` "Modelos"; dieta: refeições em

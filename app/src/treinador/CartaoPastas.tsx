@@ -1,5 +1,5 @@
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
-import { podeAplicarModelo } from '../dominio/modelos';
+import { podeAplicarModelo, podeSalvarPastaComoModelo, temAcaoNoMenuDaPasta } from '../dominio/modelos';
 import { Permitido } from '../ui/Permitido';
 import { useSessao } from '../sessao/SessaoProvider';
 import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
@@ -132,7 +132,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             )}
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} /></Permitido>
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} /></Permitido>
-            {pode('PASTA_ALTERAR') || pode('MODELO_ALTERAR') ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : null}
+            {temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : null}
           </View>
           <Texto variante="secao">Planos desta pasta</Texto>
           <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
@@ -144,7 +144,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         </Folha>
       ) : null}
       {menuPasta ? <Folha visivel titulo={menuPasta.titulo} aoFechar={() => setMenuPasta(null)}>
-        <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Salvar como pacote" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setSalvarModelo(p); }} /></Permitido>
+        {podeSalvarPastaComoModelo(pode) ? <Botao rotulo="Salvar como pacote" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setSalvarModelo(p); }} /> : null}
         <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setExcluir(p); }} /></Permitido>
       </Folha> : null}
       {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Pacote (treino, dieta e mobilidade)" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
