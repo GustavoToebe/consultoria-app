@@ -193,6 +193,14 @@ class ArquiteturaTest {
     }
 
     @Test
+    void modoSistemaSoParaOsSeedsDeDemonstracao() {
+        noClasses().that().haveNameNotMatching("br\\.com\\.treinos\\.api\\.(demo\\.SeedDemo|execucao\\.SeedHistoricoDemo)(\\$.*)?")
+                .should().callMethod(br.com.treinos.api.equipe.AcessoAtual.class, "comoSistema", java.util.function.Supplier.class)
+                .because("comoSistema concede ALUNO_SENSIVEL_LER/ALTERAR sem usuário; só os seeds (sem HTTP) podem usar")
+                .check(codigo);
+    }
+
+    @Test
     void gravacaoDeExecucaoNaoEPublica() {
         classes().that().haveSimpleName("ExecucaoUpsert").should().notBePublic()
                 .because("grava execucao_serie com consultoria e aluno explícitos; só o pacote execucao (e o seed que mora nele) usa")

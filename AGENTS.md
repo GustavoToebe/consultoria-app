@@ -46,7 +46,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   Dado sensível exige `ALUNO_SENSIVEL_LER`; a ficha omite objetivo e observações sem acesso. Escrita
   desses campos exige `ALUNO_SENSIVEL_ALTERAR`. O cadastro cria os quatro perfis na mesma transação
   por trigger da V018; o usuário nasce com Administrador obrigatório. Aluno continua sem perfil.
-  `AcessoAtual.pode` nega sem usuário autenticado; o seed de demonstração roda dentro de `AcessoAtual.comoSistema` (só dados sensíveis).
+  `AcessoAtual.pode` nega sem usuário autenticado; o seed de demonstração roda dentro de `AcessoAtual.comoSistema` (só dados sensíveis). Só `SeedDemo` e `SeedHistoricoDemo` podem chamá-lo (regra do `ArquiteturaTest`).
   Administrador do sistema não pode ser editado/apagado; mutações de membros travam a consultoria
   para manter ao menos um administrador ativo. Trocar perfil ou desativar encerra sessões e sobe `cv`.
   Teto de permissões (`EquipeService.ator`/`exigirPodeAtribuir`, lido do banco): perfil criado, editado, duplicado ou

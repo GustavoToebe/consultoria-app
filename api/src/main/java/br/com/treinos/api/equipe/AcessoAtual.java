@@ -17,7 +17,8 @@ public final class AcessoAtual {
         if(!pode(codigo)) throw new AccessDeniedException("Seu perfil não permite esta ação.");
     }
     /**
-     * Só para o seed de demonstração (sem HTTP): concede os dados sensíveis dentro do bloco e restaura o contexto anterior
+     * Só para o seed de demonstração (sem HTTP): só {@code SeedDemo} e {@code SeedHistoricoDemo} podem chamar (o
+     * {@code ArquiteturaTest} falha para qualquer outra classe). Concede os dados sensíveis dentro do bloco e restaura o contexto anterior
      * no fim. O principal não é um {@code UsuarioAutenticado}, então auditoria e responsável não o tratam como pessoa.
      */
     public static <T> T comoSistema(Supplier<T> acao) {
