@@ -4,7 +4,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { X } from 'lucide-react-native';
 import { PortalHost } from '@rn-primitives/portal';
-import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useCallback, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,10 +18,12 @@ import { Texto } from './Texto';
 export const LARGURA_FOLHA = 600;
 
 /**
- * Nome do portal da folha aberta. O `Modal` fica por cima do `PortalHost` da raiz, então um diálogo (confirmação)
- * aberto de dentro da folha precisa ir para um portal dentro do próprio Modal; fora de folha é `undefined` (raiz).
+ * Destino do diálogo aberto de dentro da folha. O `Modal` fica por cima do `PortalHost` da raiz, então a confirmação
+ * precisa ir para dentro do próprio Modal: no nativo pelo `nome` do portal, na web pelo `elemento` (o `hostName` do
+ * primitivo é ignorado na web, e sem container o diálogo iria para o fim do body, atrás do Modal). Fora de folha é `undefined`.
  */
-const PortalDaFolha = createContext<string | undefined>(undefined);
+export interface PortalDaFolhaValor { nome: string; elemento: HTMLElement | null }
+const PortalDaFolha = createContext<PortalDaFolhaValor | undefined>(undefined);
 export const usePortalDaFolha = () => useContext(PortalDaFolha);
 
 interface Props {
@@ -54,6 +56,9 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
   const centralizado = width >= LARGURA_MENU_LATERAL;
   const reduzido = useMovimentoReduzido();
   const portal = useId();
+  const [elementoPortal, setElementoPortal] = useState<HTMLElement | null>(null);
+  const guardarElementoPortal = useCallback((no: View | null) => setElementoPortal(Platform.OS === 'web' ? (no as unknown as HTMLElement | null) : null), []);
+  const valorPortal = useMemo(() => ({ nome: portal, elemento: elementoPortal }), [portal, elementoPortal]);
   const conteudo = useRef<View>(null);
   const fechar = useRef<View>(null);
   // Sem animação de entrada: o painel aparece pronto. O deslocamento só existe para o arrastar-para-fechar no celular.
@@ -80,7 +85,7 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
     alvo?.focus?.();
   }, [focarConteudo]);
   return (
-    <PortalDaFolha.Provider value={portal}>
+    <PortalDaFolha.Provider value={valorPortal}>
     <GestureHandlerRootView style={{flex:1}}>
       <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
       <View style={[estilos.fundo, centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
@@ -109,7 +114,7 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
         </Animated.View>
       </View>
       </KeyboardAvoidingView>
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none"><PortalHost name={portal} /></View>
+      <View ref={guardarElementoPortal} style={StyleSheet.absoluteFill} pointerEvents="box-none"><PortalHost name={portal} /></View>
     </GestureHandlerRootView>
     </PortalDaFolha.Provider>
   );

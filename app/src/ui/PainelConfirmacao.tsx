@@ -30,10 +30,10 @@ export function PainelConfirmacao(props: Props) {
   const { cores } = useTema();
   const focoAnterior = useRef<HTMLElement | null>(null);
   // Dentro de uma Folha o diálogo vai para o portal dela; no da raiz ficaria escondido atrás do Modal.
-  const portalHost = usePortalDaFolha();
+  const portal = usePortalDaFolha();
   return (
     <AlertDialog style={{position:'absolute'}} open={props.visivel} onOpenChange={(aberto) => { if (!aberto) props.aoCancelar(); }}>
-      <AlertDialogContent aoFechar={props.aoCancelar} portalHost={portalHost}
+      <AlertDialogContent aoFechar={props.aoCancelar} portalHost={portal?.nome} container={portal?.elemento}
         role="alertdialog"
         aria-modal
         aria-label={props.titulo}

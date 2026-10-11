@@ -52,14 +52,17 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   portalHost,
+  container,
   aoFechar,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
     portalHost?: string;
+    /** Só web: elemento que recebe o diálogo (dentro de uma folha); sem ele vai para o body. */
+    container?: HTMLElement | null;
     aoFechar?: () => void;
   }) {
   return (
-    <AlertDialogPortal hostName={portalHost}>
+    <AlertDialogPortal hostName={portalHost} container={container}>
       <AlertDialogOverlay>
         <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Fechar confirmação" onPress={aoFechar} />
         <AlertDialogPrimitive.Content

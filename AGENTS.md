@@ -144,7 +144,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   Fontes do nome: PADRAO, METAL, ESPORTIVA, CONDENSADA (migration V016).
   Movimento usa Reanimated 4 com `sv.get()`/`sv.set()` (React Compiler) e `useMovimentoReduzido`; vibração só pelo `ui/vibrar` (sem chamadas na web).
 - Lint do React 19 recusa `setState` síncrono dentro de `useEffect`: atualizar estado só em callback de promessa.
-  Dados de tela com `ui/useCarregar` (chave → busca; `definir` depois de alterar). Painel lateral/folha: `ui/Folha`. A `Folha` é um `Modal`: diálogo aberto dentro dela renderiza no `PortalHost` da própria folha (`usePortalDaFolha`; `PainelConfirmacao` já faz isso), senão fica atrás e o toque não chega.
+  Dados de tela com `ui/useCarregar` (chave → busca; `definir` depois de alterar). Painel lateral/folha: `ui/Folha`. A `Folha` é um `Modal`: diálogo aberto dentro dela renderiza no `PortalHost` da própria folha (`usePortalDaFolha`; `PainelConfirmacao` já faz isso), senão fica atrás e o toque não chega. Na web o `hostName` do primitivo é ignorado: o contexto também traz o `elemento` da folha, passado como `container`.
 - Menu ⋯ da pasta: "Salvar como pacote" só com as permissões da rota (`dominio/modelos.podeSalvarPastaComoModelo`: MODELO_ALTERAR, ALUNO_LER, TREINO_LER, DIETA_LER); sem nenhuma ação o ⋯ some.
 - Pastas: `src/app/` só rotas; peças das telas do treinador em `src/treinador/`; regras puras (com teste) em
   `src/dominio/` (formatos BR, agrupamento "3x3 - FS", operações do editor, contas da dieta). `novoUid()` em todo item novo.
