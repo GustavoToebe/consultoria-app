@@ -1356,6 +1356,28 @@ Nunca cortar segurança (seção 5) nem testes de isolamento/idempotência para 
   peso −1 onde a conta dá −1,5. Mostrar ao Saraiva; o sistema não corrige sozinho.
 - O que o Saraiva controla hoje no Sheets sobre os clientes (vencimento? pagamento? renovação?) → módulo "clientes".
 - Notificações, chat, fotos/avaliações, ranking: não.
+- **Entrada do aluno por subdomínio** (pedido do Gustavo em 11/10/2026, para depois): o aluno não entra pela mesma tela
+  do treinador. O mesmo build web atende dois endereços no Caddy, cada um com a sua `/api`:
+  - `app.<domínio>`: treinador e equipe; tela de entrada como hoje, com "Criar conta de treinador";
+  - `aluno.<domínio>`: tela "Entrar como aluno", sem o link de cadastro de treinador ("Recebeu um convite do seu
+    treinador? Abra o link do convite").
+
+  Regras:
+  - o app escolhe a tela pelo `hostname`;
+  - login com o papel errado para o endereço não abre a sessão ali e mostra o endereço certo;
+  - o link do convite do aluno passa a usar `aluno.`;
+  - as sessões e cookies ficam separados por endereço;
+  - a autorização continua só no servidor, e o endereço nunca decide acesso.
+
+  Precisa:
+  - do domínio, com os dois registros de DNS;
+  - de testes;
+  - de um jeito de simular os dois endereços no PC.
+
+  No app nativo não há subdomínio: lá entra uma tela "Sou aluno / Sou treinador" ou, no futuro, app próprio na loja.
+  **Variação futura:** um endereço por consultoria (`saraiva.<domínio>`), com a marca já na tela de entrada. Pede
+  certificado curinga e uma rota pública só com a marca; nunca usar o subdomínio como fonte da consultoria para
+  autorizar.
 
 ---
 
