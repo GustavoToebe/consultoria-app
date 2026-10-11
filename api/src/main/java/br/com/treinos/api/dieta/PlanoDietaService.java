@@ -54,14 +54,17 @@ public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVe
 
     /**
      * Sem ERGOGENICO_ALTERAR o que veio no corpo é ignorado e a lista que já está no rascunho fica como está (quem não
-     * vê não apaga sem querer). Plano sem aluno (modelo) nunca guarda a lista.
+     * vê não apaga sem querer). Com a permissão, corpo sem a lista ({@code null}) também mantém a que está gravada: o
+     * editor carregado antes de ganhar a permissão, ou uma aba com o app antigo, mandam {@code null}; apagar tudo é
+     * mandar a lista vazia. Plano sem aluno (modelo) nunca guarda a lista.
      */
     @Override
     protected ConteudoDieta paraGravarRascunho(ConteudoDieta novo, ConteudoDieta atual, PlanoDieta plano) {
         if (plano.getAlunoId() == null) {
             return novo.semErgogenicos();
         }
-        return AcessoAtual.pode("ERGOGENICO_ALTERAR") ? novo : novo.comErgogenicos(atual.ergogenicos());
+        boolean manter = !AcessoAtual.pode("ERGOGENICO_ALTERAR") || novo.ergogenicos() == null;
+        return manter ? novo.comErgogenicos(atual.ergogenicos()) : novo;
     }
 
     /** O que o aluno usa é pessoal: copiar a dieta de outro aluno leva só o plano alimentar. */

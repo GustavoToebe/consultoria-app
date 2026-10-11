@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * Regras de publicação da dieta (seção 9.3). Confere só a forma do plano; nunca avalia se a dieta é adequada.
@@ -74,6 +75,11 @@ public class ValidadorDieta {
         }
         List<ConteudoDieta.Ergogenico> ergogenicos = conteudo.ergogenicos() == null ? List.of() : conteudo.ergogenicos();
         for (int e = 0; e < ergogenicos.size(); e++) {
+            // Linha toda em branco ("Adicionar linha" sem preencher) não trava a publicação: o PDF e o app a ignoram, e
+            // quem publica sem ERGOGENICO_LER nem veria o que corrigir.
+            if (emBranco(ergogenicos.get(e))) {
+                continue;
+            }
             String ce = "ergogenicos[" + e + "]";
             uid(c, uids, ergogenicos.get(e).uid(), ce);
             if (ergogenicos.get(e).nome() == null || ergogenicos.get(e).nome().isBlank()) {
@@ -87,6 +93,11 @@ public class ValidadorDieta {
             c.aviso("fim", "O fim do período é antes do início.");
         }
         return c.resultado();
+    }
+
+    private static boolean emBranco(ConteudoDieta.Ergogenico e) {
+        return Stream.of(e.nome(), e.principioAtivo(), e.concentracao(), e.dose(), e.horario(),
+                e.observacao(), e.prescricao()).allMatch(t -> t == null || t.isBlank());
     }
 
     private static void item(ResultadoValidacao.Coletor c, Set<UUID> uids, Item item, String ci) {

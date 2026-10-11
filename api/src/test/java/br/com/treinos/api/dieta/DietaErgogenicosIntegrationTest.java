@@ -214,10 +214,44 @@ class DietaErgogenicosIntegrationTest extends AbstractIntegrationTest {
         String id = plano.path("plano").path("id").asString();
         UUID repetido = UUID.randomUUID();
         salvar(api, login, id, dieta(List.of(
-                new Ergogenico(repetido, " ", null, null, null, null, null, null),
+                new Ergogenico(repetido, " ", null, null, "Dose de teste", null, null, null),
                 new Ergogenico(repetido, NOME, null, null, null, null, null, null))), plano);
         JsonNode v = api.post("/planos-dieta/" + id + "/validar", login, null, 200);
         assertThat(v.path("erros").valueStream().map(e -> e.path("caminho").asString()))
                 .contains("ergogenicos[0].nome", "ergogenicos[1].uid");
+    }
+
+    @Test
+    void linhaEmBrancoNaoTravaAPublicacaoDeQuemNaoVeALista() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        UUID aluno = api.criarAluno(login, "Aluno Fictício");
+        JsonNode plano = api.post("/alunos/" + aluno + "/planos-dieta", login, Map.of("titulo", "Dieta"), 200);
+        String id = plano.path("plano").path("id").asString();
+        // "Adicionar linha" sem preencher: o autosave grava a linha vazia.
+        salvar(api, login, id, dieta(List.of(new Ergogenico(UUID.randomUUID(), "", "", "", "", "", "", ""))), plano);
+
+        trocarPerfil(login, "Nutricionista");
+        JsonNode atual = api.get("/planos-dieta/" + id, login, 200);
+        JsonNode v = api.post("/planos-dieta/" + id + "/validar", login, null, 200);
+        assertThat(v.path("erros").valueStream().map(e -> e.path("caminho").asString())).noneMatch(c -> c.startsWith("ergogenicos"));
+        publicar(api, login, id, atual);
+    }
+
+    @Test
+    void comPermissaoCorpoSemAListaMantemEListaVaziaApaga() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        UUID aluno = api.criarAluno(login, "Aluno Fictício");
+        JsonNode plano = api.post("/alunos/" + aluno + "/planos-dieta", login, Map.of("titulo", "Dieta"), 200);
+        String id = plano.path("plano").path("id").asString();
+        JsonNode salvo = salvar(api, login, id, dieta(List.of(medicacao(NOME))), plano);
+
+        // Editor aberto antes de ganhar a permissão (ou app antigo): manda a lista nula e não pode apagá-la.
+        JsonNode semLista = salvar(api, login, id, dieta(null), salvo);
+        assertThat(semLista.path("rascunho").path("ergogenicos")).hasSize(1);
+
+        JsonNode vazia = salvar(api, login, id, dieta(List.of()), semLista);
+        assertThat(vazia.path("rascunho").path("ergogenicos")).isEmpty();
     }
 }
