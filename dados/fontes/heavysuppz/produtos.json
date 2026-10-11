@@ -1,0 +1,1712 @@
+{
+  "fonte": "https://heavysuppz.com (loja pública, páginas de produto)",
+  "coletadoEm": "2026-10-11",
+  "aviso": "Valores transcritos das imagens de tabela nutricional publicadas no site. Conferir com o rótulo do produto antes de usar em tela. Preço é o do site na data da coleta. Ausência de dado = null.",
+  "excluido": "Acessórios, vestuário e kits/combos",
+  "total": 23,
+  "produtos": [
+    {
+      "slug": "pre-treino-fofista-crusher-450g-30-doses",
+      "nome": "Pré Treino - Fofista Crusher 450g - 30 doses",
+      "tipo": "PRODUTO",
+      "grupo": "Pré-treino",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/pre-treino-fofista-crusher-450g-30-doses/",
+      "precoSite": 162.9,
+      "sabores": [
+        "Pink Lemonade",
+        "Maracujá"
+      ],
+      "descricao": "Fofista Crusher - Pré Treino - 450g\nPrepare-se para transformar seus treinos com o Fofista Crusher, um pré treino único e inovador no Brasil. Com uma combinação poderosa de substâncias, este produto é projetado para aumentar sua performance, proporcionando mais foco, força, resistência e vascularização.\nPotencialize ainda mais os seus treinos! Adicione o Fofista Crusher à sua rotina e sinta a diferença!\nCada dose contém 15g das melhores substâncias que potencializam tanto a sua performance física quanto mental. Seus treinos nunca mais serão os mesmos!\nSabores Disponíveis:\nPINK LEMONADE\nMARACUJÁ\nExperimente o Fofista Crusher e leve seus treinos ao próximo nível!\nIngredientes: Beta Alanina, Taurina, Glicerol, Arginina, L-Carnitina, L-Tirosina, Extrato de Laranja Amarga, Cafeína Anidra, L-Theanina, Ácido Ascórbico, Acidulante Ácido Cítrico, Aroma Idêntico ao Natural de Limão, Aroma Idêntico ao Natural de Morango, Corante Artificial Vermelho Ponceu (INS 123), Edulcorante Sucralose.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-pre-treino-e116faf044e57f723317119361888532.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "2 dosadores (15g)",
+        "porcoesPorEmbalagem": "30",
+        "nutrientes": [
+          {
+            "nome": "Calorias",
+            "unidade": "kcal",
+            "valor": 40,
+            "vd": null
+          },
+          {
+            "nome": "Gorduras totais",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Gorduras saturadas",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Gorduras trans",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Sódio",
+            "unidade": "mg",
+            "valor": 25,
+            "vd": 0
+          },
+          {
+            "nome": "Carboidratos totais",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Proteína",
+            "unidade": "g",
+            "valor": 10,
+            "vd": 13
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de gorduras totais, gorduras saturadas, gorduras trans, fibra alimentar e sódio. (*) % valores diários de referência com base em uma dieta de 2000kcal ou 8400kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.",
+        "observacao": "Transcrito como publicado na imagem do site; o rótulo mostra 10 g de proteína e 0 g de carboidratos para um pré-treino, conferir com o fabricante."
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "creatina-monohidratada-creablood-300g",
+      "nome": "Creatina Monohidratada - CREABLOOD 300g",
+      "tipo": "PRODUTO",
+      "grupo": "Creatina",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/creatina-monohidratada-creablood-300g/",
+      "precoSite": 39.9,
+      "sabores": [],
+      "descricao": "CREABLOOD - Creatina Monohidratada - 300g\nAumente sua performance com o Creablood, a creatina monohidratada mais eficaz do mercado! Com uma dose única de 3g, este suplemento é perfeito para quem busca otimizar seus treinos e alcançar resultados impressionantes.\nBenefícios do Creablood:\nAumento da força muscular: Amplifique a potência dos seus músculos durante os treinos.\nHipertrofia muscular: Estimule o crescimento muscular e ganhe massa de forma eficaz.\nCapacidade de treino: Melhore seu desempenho, permitindo treinos mais intensos e prolongados.\nPrevenção do catabolismo: Proteja seus músculos em dietas ou períodos de treinamento intenso.\nTransforme seus resultados, adicione o Creablood à sua rotina e sinta a diferença na sua performance física.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-creatina-3b37a621febc335e8e17119362139670-1024-1024-436ed249f37461312417332615155849.webp"
+      ],
+      "informacaoNutricional": {
+        "porcao": "1 dosador (3g)",
+        "porcoesPorEmbalagem": "100",
+        "nutrientes": [
+          {
+            "nome": "Calorias",
+            "unidade": "kcal",
+            "valor": 12,
+            "vd": null
+          },
+          {
+            "nome": "Gorduras totais",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Gorduras saturadas",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Gorduras trans",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Carboidratos totais",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Proteína",
+            "unidade": "g",
+            "valor": 3,
+            "vd": 4
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de gorduras totais, gorduras saturadas, gorduras trans, fibra alimentar e sódio. (*) % valores diários de referência com base em uma dieta de 2000kcal ou 8400kJ. Seus valores diários podem ser maiores ou menores dependendo de suas necessidades energéticas.",
+        "observacao": "A página do pote de 300g só traz laudo laboratorial; esta tabela vem da página da dose única de 3g (100 porções de 3g = 300g). O rótulo mostra 3 g de proteína em creatina, como publicado."
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "intra-treino-intensity-hunter-600g",
+      "nome": "Intra Treino - Intensity Hunter 600g",
+      "tipo": "PRODUTO",
+      "grupo": "Intra-treino",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/intra-treino-intensity-hunter-600g/",
+      "precoSite": 147.9,
+      "sabores": [
+        "Pink Lemonade",
+        "Maça Verde"
+      ],
+      "descricao": "Intensity Hunter (Intra Treino) - 600g\nMaximize sua performance com o Intensity Hunter, uma fórmula única no mercado desenvolvida para manter seu rendimento até o último segundo do seu treino. Com 5.800mg de EAAs e 5.000mg de Glicerol, este suplemento é perfeito para quem busca elevar a intensidade dos treinos.\nO Intensity Hunter é ideal para atletas que desejam otimizar cada treino. Leve seus treinos para outro nível de intensidade!\nSabores\nPINK LEMONADE\nMAÇÃ VERDE\nComposição Poderosa: - 5.000mg de Dextrose: Fornece energia rápida. - 700mg de Eletrólitos: Mantém a hidratação e o equilíbrio. - 500mg de Arginina e 500mg de Taurina: Aumentam a resistência e a vascularização. - 200mg de L-Tirosina e 100mg de Cafeína: Melhoram o foco e a concentração.\nIngredientes:\nSabor Maçã Verde: Dextrose, glicerol, L-leucina, L-valina, L-isoleucina, taurina, cloridrato de lisina, L-fenilalanina, L-arginina, cloreto de sódio, L-treonina, cloreto de potássio, magnésio dimalato, L-histidina, L-metionina, L-tirosina, cloridrato de betaína, cafeína, cálcio bisglicinato, ácido ascórbico (vit. C), aromatizante, estabilizante goma xantana, acidulante ácido cítrico, antiumectante dióxido de silício, edulcorante sucralose e corantes tartrazina e indigotina.Sabor Pink Lemonade: Dextrose, glicerol, L-leucina, L-valina, L-isoleucina, taurina, cloridrato de lisina, L-fenilalanina, L-arginina, cloreto de sódio, L-treonina, cloreto de potássio, magnésio dimalato, L-histidina, L-metionina, L-tirosina, cloridrato de betaína, cafeína, cálcio bisglicinato, ácido ascórbico (vit. C), aromatizante, estabilizante goma xantana, acidulante ácido cítrico, antiumectante dióxido de silício, edulcorante sucralose e corante ponceau.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-intra-b2bf520e00875231c517119361612577.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "1 dosador (20g)",
+        "porcoesPorEmbalagem": "30",
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal",
+            "valor": 20,
+            "vd": 1
+          },
+          {
+            "nome": "Carboidratos",
+            "unidade": "g",
+            "valor": 5,
+            "vd": 2
+          },
+          {
+            "nome": "Açúcares totais",
+            "unidade": "g",
+            "valor": 5,
+            "vd": null
+          },
+          {
+            "nome": "Açúcares adicionados",
+            "unidade": "g",
+            "valor": 5,
+            "vd": 10
+          },
+          {
+            "nome": "Leucina",
+            "unidade": "mg",
+            "valor": 2000,
+            "vd": null
+          },
+          {
+            "nome": "Valina",
+            "unidade": "mg",
+            "valor": 1000,
+            "vd": null
+          },
+          {
+            "nome": "Isoleucina",
+            "unidade": "mg",
+            "valor": 1000,
+            "vd": null
+          },
+          {
+            "nome": "Arginina",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": null
+          },
+          {
+            "nome": "Lisina",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": null
+          },
+          {
+            "nome": "Fenilalanina",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": null
+          },
+          {
+            "nome": "Treonina",
+            "unidade": "mg",
+            "valor": 300,
+            "vd": null
+          },
+          {
+            "nome": "Histidina",
+            "unidade": "mg",
+            "valor": 300,
+            "vd": null
+          },
+          {
+            "nome": "Metionina",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": null
+          },
+          {
+            "nome": "Tirosina",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": null
+          },
+          {
+            "nome": "Triptofano",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": null
+          },
+          {
+            "nome": "Sódio",
+            "unidade": "mg",
+            "valor": 138,
+            "vd": 7
+          },
+          {
+            "nome": "Potássio",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": 3
+          },
+          {
+            "nome": "Cafeína",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": null
+          },
+          {
+            "nome": "Taurina",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": null
+          },
+          {
+            "nome": "Magnésio",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": null
+          },
+          {
+            "nome": "Cálcio",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": 10
+          },
+          {
+            "nome": "Vitamina C",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": 100
+          },
+          {
+            "nome": "Betaína",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": null
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de proteínas, gorduras totais, gorduras saturadas, gorduras trans e fibras alimentares. * Percentual de valores diários fornecidos pela porção"
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "whey-protein-concentrado-killer-whey-900g",
+      "nome": "Whey Protein Concentrado - Killer Whey 900g",
+      "tipo": "PRODUTO",
+      "grupo": "Whey",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/whey-protein-concentrado-killer-whey-900g/",
+      "precoSite": 229.9,
+      "sabores": [
+        "Chocotine (Chocolate Maltado)",
+        "Creme",
+        "Tutti-Frutti",
+        "Açaí com Banana"
+      ],
+      "descricao": "Killer Whey - Whey Protein Concentrado\nDescubra o Killer Whey, um whey protein que vai além do comum! Com 25g de proteína por dose, ele se destaca por incluir enzimas digestivas, como a Lactase , o que o torna único em digestibilidade e absorção protéica. Diga adeus à sensação de estufamento e mal-estar.\nEste produto é ideal para quem busca qualidade e sabor. Sem adição de açúcares.\nSabores disponíveis:\nCHOCOTINE (Chocolate Maltado) *contém glúten.\nCREME\nTUTTI-FRUTTI\nAÇAI COM BANANA\nAdicione o Killer Whey à sua rotina e potencialize seus resultados de forma saudável e saborosa, experimente esta combinação única de sabor e eficácia!\nA Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-whey-pt1-94a49c13a294715c8e17178103511932.png",
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-whey-pt2-5ba156619cc208430417178103515808.png"
+      ],
+      "imagemIngredientes": "https://acdn-us.mitiendanube.com/stores/003/424/434/products/whey-ingredientes-ce281b7f3041fc227217178122669886.png",
+      "informacaoNutricional": {
+        "porcao": "35g (1 dosador)",
+        "porcoesPorEmbalagem": "cerca de 26",
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal",
+            "valor": 142,
+            "vd": 7
+          },
+          {
+            "nome": "Carboidratos",
+            "unidade": "g",
+            "valor": 5.3,
+            "vd": 2
+          },
+          {
+            "nome": "Açúcares totais",
+            "unidade": "g",
+            "valor": 5.3,
+            "vd": null
+          },
+          {
+            "nome": "Açúcares adicionados",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Proteínas",
+            "unidade": "g",
+            "valor": 25,
+            "vd": 50
+          },
+          {
+            "nome": "Glicina",
+            "unidade": "mg",
+            "valor": 507,
+            "vd": null
+          },
+          {
+            "nome": "Isoleucina",
+            "unidade": "mg",
+            "valor": 1489,
+            "vd": null
+          },
+          {
+            "nome": "Alanina",
+            "unidade": "mg",
+            "valor": 1195,
+            "vd": null
+          },
+          {
+            "nome": "Triptofano",
+            "unidade": "mg",
+            "valor": 402,
+            "vd": null
+          },
+          {
+            "nome": "Cisteína",
+            "unidade": "mg",
+            "valor": 602,
+            "vd": null
+          },
+          {
+            "nome": "Valina",
+            "unidade": "mg",
+            "valor": 1437,
+            "vd": null
+          },
+          {
+            "nome": "Histidina",
+            "unidade": "mg",
+            "valor": 431,
+            "vd": null
+          },
+          {
+            "nome": "Metionina",
+            "unidade": "mg",
+            "valor": 567,
+            "vd": null
+          },
+          {
+            "nome": "Ácido aspártico",
+            "unidade": "mg",
+            "valor": 2607,
+            "vd": null
+          },
+          {
+            "nome": "Treonina",
+            "unidade": "mg",
+            "valor": 1736,
+            "vd": null
+          },
+          {
+            "nome": "Glutamina",
+            "unidade": "mg",
+            "valor": 4269,
+            "vd": null
+          },
+          {
+            "nome": "Fenilalanina",
+            "unidade": "mg",
+            "valor": 786,
+            "vd": null
+          },
+          {
+            "nome": "Tirosina",
+            "unidade": "mg",
+            "valor": 718,
+            "vd": null
+          },
+          {
+            "nome": "Leucina",
+            "unidade": "mg",
+            "valor": 2486,
+            "vd": null
+          },
+          {
+            "nome": "Arginina",
+            "unidade": "mg",
+            "valor": 712,
+            "vd": null
+          },
+          {
+            "nome": "Prolina",
+            "unidade": "mg",
+            "valor": 1512,
+            "vd": null
+          },
+          {
+            "nome": "Lisina",
+            "unidade": "mg",
+            "valor": 2169,
+            "vd": null
+          },
+          {
+            "nome": "Serina",
+            "unidade": "mg",
+            "valor": 1375,
+            "vd": null
+          },
+          {
+            "nome": "Gorduras totais",
+            "unidade": "g",
+            "valor": 2.3,
+            "vd": 4
+          },
+          {
+            "nome": "Gorduras saturadas",
+            "unidade": "g",
+            "valor": 1.3,
+            "vd": 7
+          },
+          {
+            "nome": "Gorduras trans",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Fibras alimentares",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Sódio",
+            "unidade": "mg",
+            "valor": 68,
+            "vd": 3
+          }
+        ],
+        "ingredientesPorSabor": {
+          "Açaí com Banana": "Proteína de soro do leite concentrada (WPC), aromatizante, edulcorante sucralose, antiumectante dióxido de silício e corantes amaranto e azul brilhante FCF.",
+          "Tutti-Frutti": "Proteína de soro do leite concentrada (WPC), aromatizante, edulcorante sucralose, antiumectante dióxido de silício e corantes tartrazina e ponceau 4R.",
+          "Creme": "Proteína de soro do leite concentrada (WPC), aromatizante, edulcorante sucralose e antiumectante dióxido de silício.",
+          "Chocotine (Chocolate Maltado)": "Proteína de soro do leite concentrada (WPC), cacau em pó, malte, aromatizante, edulcorante sucralose e antiumectante dióxido de silício."
+        },
+        "rodape": "Percentual de valores diários fornecidos pela porção"
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "super-multivitaminico-100-caps",
+      "nome": "Super Multivitamínico - 100 Caps",
+      "tipo": "PRODUTO",
+      "grupo": "Vitaminas e minerais",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/super-multivitaminico-100-caps/",
+      "precoSite": 69.9,
+      "sabores": [],
+      "descricao": "Super Multivitamínico - 100 Caps\nDescubra o Super Multivitamínico, um suplemento revolucionário que se destaca no mercado! Com uma formulação exclusiva e completa, ele oferece dosagens efetivas para atender às necessidades de indivíduos em alta performance.\nIdeal para quem busca melhorar a recuperação, fortalecer o sistema imunológico e promover saúde geral, este multivitamínico é a solução perfeita para otimizar seu bem-estar. Cada cápsula é um passo em direção a uma vida mais ativa e saudável!\nBenefícios:\nAumento da Imunidade: Fortalece suas defesas naturais.\nMelhora na Recuperação: Acelera a recuperação pós-treino.\nSaúde Geral: Suprimento ideal de vitaminas e minerais.\nExperimente o Super Multivitamínico e sinta a diferença em seu desempenho e saúde!A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-multi-9b29e06048525bb43f17213596831716.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "500mg (1 cápsula)",
+        "porcoesPorEmbalagem": "100",
+        "nutrientes": [
+          {
+            "nome": "Vitamina A",
+            "unidade": "µg",
+            "valor": 1515,
+            "vd": 189
+          },
+          {
+            "nome": "Vitamina D",
+            "unidade": "µg",
+            "valor": 50,
+            "vd": 333
+          },
+          {
+            "nome": "Vitamina E",
+            "unidade": "mg",
+            "valor": 135,
+            "vd": 900
+          },
+          {
+            "nome": "Vitamina C",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": 100
+          },
+          {
+            "nome": "Vitamina B1",
+            "unidade": "mg",
+            "valor": 2.02,
+            "vd": 168
+          },
+          {
+            "nome": "Vitamina B2",
+            "unidade": "mg",
+            "valor": 2.74,
+            "vd": 228
+          },
+          {
+            "nome": "Vitamina B3",
+            "unidade": "mg",
+            "valor": 25,
+            "vd": 167
+          },
+          {
+            "nome": "Vitamina B6",
+            "unidade": "mg",
+            "valor": 20,
+            "vd": 1538
+          },
+          {
+            "nome": "Vitamina B7",
+            "unidade": "µg",
+            "valor": 45,
+            "vd": 150
+          },
+          {
+            "nome": "Vitamina B9",
+            "unidade": "µg",
+            "valor": 200,
+            "vd": 50
+          },
+          {
+            "nome": "Vitamina B12",
+            "unidade": "µg",
+            "valor": 9.94,
+            "vd": 414
+          },
+          {
+            "nome": "Vitamina K",
+            "unidade": "µg",
+            "valor": 30,
+            "vd": 25
+          },
+          {
+            "nome": "Cálcio",
+            "unidade": "mg",
+            "valor": 10,
+            "vd": 1
+          },
+          {
+            "nome": "Cobre",
+            "unidade": "µg",
+            "valor": 900,
+            "vd": 100
+          },
+          {
+            "nome": "Manganês",
+            "unidade": "mg",
+            "valor": 2.3,
+            "vd": 77
+          },
+          {
+            "nome": "Cromo",
+            "unidade": "µg",
+            "valor": 100,
+            "vd": 286
+          },
+          {
+            "nome": "Molibdênio",
+            "unidade": "µg",
+            "valor": 45,
+            "vd": 100
+          },
+          {
+            "nome": "Ferro",
+            "unidade": "mg",
+            "valor": 20,
+            "vd": 143
+          },
+          {
+            "nome": "Iodo",
+            "unidade": "µg",
+            "valor": 130,
+            "vd": 87
+          },
+          {
+            "nome": "Magnésio",
+            "unidade": "mg",
+            "valor": 50,
+            "vd": 12
+          },
+          {
+            "nome": "Selênio",
+            "unidade": "µg",
+            "valor": 34,
+            "vd": 57
+          },
+          {
+            "nome": "Zinco",
+            "unidade": "mg",
+            "valor": 10,
+            "vd": 91
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de valor energético, carboidratos, açúcares totais, açúcares adicionados, proteínas, gorduras totais, gorduras saturadas, gorduras trans, fibras alimentares e sódio. * Percentual de valores diários fornecidos pela porção."
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "vitamina-d3-5-000ui-100-capsulas",
+      "nome": "Vitamina D3 - 5.000UI - 100 cápsulas",
+      "tipo": "PRODUTO",
+      "grupo": "Vitaminas e minerais",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/vitamina-d3-5-000ui-100-capsulas/",
+      "precoSite": 37.9,
+      "sabores": [],
+      "descricao": "Vitamina D3 - 5.000UI - 100 cápsulas\nA Vitamina D3 é essencial para manter a saúde do seu corpo em dia! Com uma dose poderosa de 5.000UI, este suplemento desempenha um papel fundamental na absorção de cálcio e fósforo, garantindo ossos fortes e saudáveis.\nAlém disso, a Vitamina D3 é crucial para a regulação dos níveis de minerais no sangue, contribuindo para a saúde óssea, função muscular e um sistema imunológico robusto. Incorporar este suplemento à sua rotina pode fazer toda a diferença na sua saúde e bem-estar.\nBenefícios da Vitamina D3:\nSaúde óssea: Fortalece seus ossos e dentes.\nFunção muscular: Melhora o desempenho físico.\nSistema imunológico: Ajuda a proteger seu corpo contra doenças.\nExperimente a Vitamina D3 - 5.000UI e sinta os efeitos positivos em sua saúde!A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-d3-2fc079f7696d38cef917213606873373.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "200mg (1 cápsula)",
+        "porcoesPorEmbalagem": "100",
+        "nutrientes": [
+          {
+            "nome": "Vitamina D3",
+            "unidade": "µg",
+            "valor": 125,
+            "vd": 833
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de valor energético, carboidratos, açúcares totais, açúcares adicionados, proteínas, gorduras totais, gorduras saturadas, gorduras trans, fibras alimentares e sódio. *Percentual de valores diários fornecidos pela porção"
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "cafeina-100mg-100-capsulas",
+      "nome": "Cafeína - 100mg - 100 cápsulas",
+      "tipo": "PRODUTO",
+      "grupo": "Vitaminas e minerais",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/cafeina-100mg-100-capsulas/",
+      "precoSite": 37.9,
+      "sabores": [],
+      "descricao": "Cafeína - 100mg - 100 cápsulas\nA Cafeína 100mg é o suplemento ideal para quem busca um ajuste de dose mais efetivo e seguro. Com sua dosagem precisa, proporciona um aumento significativo na energia e foco, otimizando seu desempenho em atividades físicas e mentais.\nBenefícios da Cafeína:\nAtivação do sistema nervoso central: Melhora o estado de alerta e concentração.\nAumento da força muscular: Potencializa a contração dos músculos durante os treinos.\nAceleração da mobilização de gorduras: Gera energia extra para atividades prolongadas.\nIncorpore a Cafeína 100mg à sua rotina e sinta a diferença em seus treinos e na sua produtividade diária. Experimente o poder da cafeína!\nComposição Cafeína anidra. \nA Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-cafeina-1743ad44b1d5796b9017213609771566.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "500mg (1 cápsula)",
+        "porcoesPorEmbalagem": "100",
+        "nutrientes": [
+          {
+            "nome": "Cafeína",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": null
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de valor energético, carboidratos, açúcares totais, açúcares adicionados, proteínas, gorduras totais, gorduras saturadas, gorduras trans, fibras alimentares e sódio. *Percentual de valores diários fornecidos pela porção"
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "vitamina-c-500mg-100-capsulas",
+      "nome": "Vitamina C - 500mg - 100 cápsulas",
+      "tipo": "PRODUTO",
+      "grupo": "Vitaminas e minerais",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/vitamina-c-500mg-100-capsulas/",
+      "precoSite": 39.9,
+      "sabores": [],
+      "descricao": "Vitamina C - 500mg - 100 cápsulas\nA Vitamina C é um dos nutrientes mais essenciais para o nosso organismo, desempenhando um papel crucial em diversos processos metabólicos. Cada cápsula de 500mg oferece uma dose poderosa desta vitamina, fundamental para a manutenção do colágeno, que é vital para a saúde da pele, e auxilia na absorção de ferro.\nAlém disso, a Vitamina C é um aliado no metabolismo de proteínas e gorduras, contribuindo para a energia e vitalidade do dia a dia. Sua importância se estende ao sistema imunológico, ajudando a fortalecer as defesas naturais do corpo.\nAdicione a Vitamina C à sua rotina e sinta a diferença na sua saúde e bem-estar!\nComposição: Vitamina C (Ácido Ascórbico) e excipientes.\nSugestão de uso: Consumir 1 cápsula ao dia ou conforme orientação de um profissional de saúde.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-vit-c-d3f2f841697069e99817213613194427.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "620mg (1 cápsula)",
+        "porcoesPorEmbalagem": "100",
+        "nutrientes": [
+          {
+            "nome": "Vitamina C",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": 500
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de valor energético, carboidratos, açúcares totais, açúcares adicionados, proteínas, gorduras totais, gorduras saturadas, gorduras trans, fibras alimentares e sódio. *Percentual de valores diários fornecidos pela porção"
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "creme-de-amendoim-assassins-cream-200g",
+      "nome": "Creme de Amendoim - Assassin's Cream 200g",
+      "tipo": "PRODUTO",
+      "grupo": "Alimentos",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/creme-de-amendoim-assassins-cream-200g/",
+      "precoSite": 31.9,
+      "sabores": [
+        "Ninho",
+        "Dulce de Leche"
+      ],
+      "descricao": "Assassin's Cream - Creme de Amendoim - 200g\nPasta de amendoim é o C4R4L**, isso é Assassin's Cream.\nDescubra o Assassin's Cream, um verdadeiro creme de amendoim que vai revolucionar a sua alimentação! Diferente das pastas convencionais, este produto é feito com ingredientes de alta qualidade, garantindo que você consuma mais amendoim e menos aditivos indesejados.\nBenefícios do Assassin's Cream:\nZERO AÇÚCAR: Satisfaça seu desejo de doce sem culpa.\nZERO GLÚTEN: Ideal para celíacos e quem busca evitar o glúten.\nZERO ESTABILIZANTES, ADOÇANTES E CONSERVANTES: Um produto puro e saudável.\nTransforme suas refeições ou lanches com o sabor irresistível do Assassin's Cream. Experimente e sinta a diferença!A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-creme-de-amendoim-97c8316a0edc1d855f17223573229631.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "15g (1 colher de sopa)",
+        "porcoesPorEmbalagem": null,
+        "colunas": [
+          "100g",
+          "15g"
+        ],
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal/kJ",
+            "valor100g": "580/2426",
+            "valor": "87/364",
+            "vd": 4
+          },
+          {
+            "nome": "Carboidratos",
+            "unidade": "g",
+            "valor100g": 33,
+            "valor": 5,
+            "vd": 2
+          },
+          {
+            "nome": "Açúcares",
+            "unidade": "g",
+            "valor100g": 0,
+            "valor": 0,
+            "vd": null,
+            "vdNota": "sem valor diário de referência"
+          },
+          {
+            "nome": "Açúcares adicionados",
+            "unidade": "g",
+            "valor100g": 0,
+            "valor": 0,
+            "vd": null,
+            "vdNota": "sem valor diário de referência"
+          },
+          {
+            "nome": "Proteínas",
+            "unidade": "g",
+            "valor100g": 27,
+            "valor": 4,
+            "vd": 7
+          },
+          {
+            "nome": "Gorduras totais",
+            "unidade": "g",
+            "valor100g": 40,
+            "valor": 6,
+            "vd": 9
+          },
+          {
+            "nome": "Gorduras saturadas",
+            "unidade": "g",
+            "valor100g": 13,
+            "valor": 2,
+            "vd": 9
+          },
+          {
+            "nome": "Gorduras trans",
+            "unidade": "g",
+            "valor100g": 0,
+            "valor": 0,
+            "vd": null,
+            "vdNota": "sem valor diário de referência"
+          },
+          {
+            "nome": "Fibra alimentar",
+            "unidade": "g",
+            "valor100g": 7,
+            "valor": 1,
+            "vd": 2
+          },
+          {
+            "nome": "Sódio",
+            "unidade": "mg",
+            "valor100g": 100,
+            "valor": 15,
+            "vd": 1
+          }
+        ],
+        "rodape": "* Percentual de valores diários fornecidos pela porção. ** Sem valor diário de referência.",
+        "observacao": "A imagem não traz porções por embalagem nem lista de ingredientes. Açúcares 0 g aparece como publicado."
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "dose-unica-killer-whey-whey-protein-concentrado-35g",
+      "nome": "Dose única - Killer Whey - Whey Protein Concentrado - 35g",
+      "tipo": "DOSE_UNICA",
+      "grupo": "Whey",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/dose-unica-killer-whey-whey-protein-concentrado-35g/",
+      "precoSite": 8.99,
+      "sabores": [
+        "Chocotine (Chocolate Maltado)",
+        "Creme",
+        "Açaí com Banana",
+        "Tutti-Frutti",
+        "Cappuccino",
+        "Mousse de Maracujá"
+      ],
+      "descricao": "Killer Whey - Whey Protein Concentrado\nDescubra o Killer Whey, um whey protein que vai além do comum! Com 25g de proteína por dose, ele se destaca por incluir enzimas Lactase e Protease, o que o torna único em digestibilidade e absorção protéica. Diga adeus à sensação de estufamento e mal-estar.\nEste produto é ideal para quem busca qualidade e sabor. Sem adição de açúcares.\nSabores disponíveis:\nCHOCOTINE (Chocolate Maltado) *contém glúten.\nCREME\nTUTTI-FRUTTI\nAÇAI COM BANANA\nAdicione o Killer Whey à sua rotina e potencialize seus resultados de forma saudável e saborosa, experimente esta combinação única de sabor e eficácia!\nA Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": "whey-protein-concentrado-killer-whey-900g",
+      "informacaoNutricional": null,
+      "tabelaNutricionalOrigem": "mesma fórmula de whey-protein-concentrado-killer-whey-900g"
+    },
+    {
+      "slug": "dose-unica-fofista-crusher-pre-treino-15g",
+      "nome": "Dose Única - Fofista Crusher - Pré Treino - 15g",
+      "tipo": "DOSE_UNICA",
+      "grupo": "Pré-treino",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/dose-unica-fofista-crusher-pre-treino-15g/",
+      "precoSite": 8.99,
+      "sabores": [
+        "Pink Lemonade",
+        "Maracujá"
+      ],
+      "descricao": "Dose Única - Fofista Crusher - Pré Treino - 15g\nPrepare-se para transformar seus treinos com o Fofista Crusher, um pré treino único e inovador no Brasil. Com uma combinação poderosa de substâncias, este produto é projetado para aumentar sua performance, proporcionando mais foco, força, resistência e vascularização.\nPotencialize ainda mais os seus treinos! Adicione o Fofista Crusher à sua rotina e sinta a diferença!\nCada dose contém 15g das melhores substâncias que potencializam tanto a sua performance física quanto mental. Seus treinos nunca mais serão os mesmos!\nSabores Disponíveis:\nPINK LEMONADE\nMARACUJÁ\nExperimente o Fofista Crusher e leve seus treinos ao próximo nível!\nIngredientes: Citrulina, Beta Alanina, Taurina, Glicerol, Arginina, L-Carnitina, L-Tirosina, Extrato de Laranja Amarga, Cafeína Anidra, L-Theanina, Mucuna Puriens, Rhodiola Rosea, Ácido Ascórbico, Acidulante Ácido Cítrico, Aroma Idêntico ao Natural de Limão, Aroma Idêntico ao Natural de Morango, Corante Artificial Vermelho Ponceu (INS 123), Edulcorante Sucralose.\nA Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": "pre-treino-fofista-crusher-450g-30-doses",
+      "informacaoNutricional": null,
+      "tabelaNutricionalOrigem": "mesma fórmula de pre-treino-fofista-crusher-450g-30-doses"
+    },
+    {
+      "slug": "pre-sono-rest-in-peace-300g",
+      "nome": "Pré Sono - Rest In Peace 300g",
+      "tipo": "PRODUTO",
+      "grupo": "Sono",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/pre-sono-rest-in-peace-300g/",
+      "precoSite": 137.9,
+      "sabores": [
+        "Abacaxi com Hortelã",
+        "Maracujá"
+      ],
+      "descricao": "Rest In Peace - 300g (30 Doses)\nExperimente uma nova qualidade de sono com o Rest In Peace, uma fórmula inovadora que combina ativos poderosos para melhorar seu descanso e acelerar sua recuperação. Cada dose contém uma mistura eficaz de Glicina, Taurina, Magnésio, Melatonina, Triptofano, Camomila, Maracujá e Inositol, proporcionando um aproveitamento superior das suas horas de sono.\nAo incorporar o Rest In Peace em sua rotina, você poderá acordar renovado, preparado para enfrentar os desafios do dia. Diga adeus às noites mal dormidas e descubra o poder de uma boa noite de sono!\nSabores disponíveis:\nMARACUJÁ\nABACAXI COM HORTELÃ\nBenefícios: - Melhora a qualidade do sono - Acelera a recuperação muscular - Promove relaxamento e tranquilidade\nExperimente o Rest In Peace e transforme suas noites!Ingredientes:\nSabor Maracujá: MALTODEXTRINA, GLICINA, TAURINA, L-TRIPTOFANO, BISGLICINATO DE MAGNÉSIO, INOSITOL, MELATONINA, AROMATIZANTE (CAMOMILA E MARACUJÁ), ACIDULANTE ÁCIDO CÍTRICO, EDULCORANTE SUCRALOSE E CORANTE AMARELO CREPÚSCULO.\nSabor Abacaxi com Hortelã: MALTODEXTRINA, GLICINA, TAURINA, L-TRIPTOFANO, BISGLICINATO DE MAGNÉSIO, INOSITOL, MELATONINA, AROMATIZANTE (CAMOMILA E MARACUJÁ), ACIDULANTE ÁCIDO CÍTRICO, EDULCORANTE SUCRALOSE E CORANTE TARTRAZINA.\nA Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-rest-811c65670c13b001e417329397670607.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "1 dosador (10g)",
+        "porcoesPorEmbalagem": "30",
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal",
+            "valor": 20,
+            "vd": 1
+          },
+          {
+            "nome": "Carboidratos",
+            "unidade": "g",
+            "valor": 5,
+            "vd": 2
+          },
+          {
+            "nome": "Açúcares totais",
+            "unidade": "g",
+            "valor": 1,
+            "vd": null
+          },
+          {
+            "nome": "Açúcares adicionados",
+            "unidade": "g",
+            "valor": 1,
+            "vd": 2
+          },
+          {
+            "nome": "Glicina",
+            "unidade": "mg",
+            "valor": 2000,
+            "vd": null
+          },
+          {
+            "nome": "Taurina",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": null
+          },
+          {
+            "nome": "Triptofano",
+            "unidade": "mg",
+            "valor": 300,
+            "vd": null
+          },
+          {
+            "nome": "Melatonina",
+            "unidade": "mg",
+            "valor": 0.21,
+            "vd": null
+          },
+          {
+            "nome": "Inositol",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": null
+          },
+          {
+            "nome": "Magnésio",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": 24
+          }
+        ],
+        "ingredientes": "Maltodextrina, glicina, taurina, L-triptofano, bisglicinato de magnésio, inositol, melatonina, aromatizante (camomila e maracujá), acidulante ácido cítrico, edulcorante sucralose e corante amarelo crepúsculo.",
+        "rodape": "Não contém quantidades significativas de proteínas, gorduras totais, gorduras saturadas, gorduras trans, fibras alimentares e sódio. * Percentual de valores diários fornecidos pela porção."
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "dose-unica-creablood-creatina-monohidratada-3g",
+      "nome": "Dose única - Creablood - Creatina Monohidratada - 3g",
+      "tipo": "DOSE_UNICA",
+      "grupo": "Creatina",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/dose-unica-creablood-creatina-monohidratada-3g/",
+      "precoSite": 1.29,
+      "sabores": [],
+      "descricao": "Dose única - Creablood - Creatina Monohidratada - 3g\nA creatina monohidratada é amplamente reconhecida como o suplemento mais estudado e eficaz do mundo. O Creablood oferece uma dose única de 3g, ideal para quem busca otimizar seus treinos.\nEntre os principais benefícios da creatina, destacam-se:\nAumento da força muscular: Ajuda seu músculo a gerar mais potência.\nHipertrofia muscular: Contribui para o crescimento muscular, essencial para quem deseja ganhar massa.\nCapacidade de treino: Melhora seu desempenho, permitindo treinos mais intensos e prolongados.\nPrevenção do catabolismo: Protege seus músculos durante períodos de dieta ou treinamento intenso.\nTransforme seus resultados, adicione o Creablood à sua rotina e sinta a diferença na sua performance física.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": "creatina-monohidratada-creablood-300g",
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-creatina-3b37a621febc335e8e17119362139670-1024-1024-436ed249f37461312417332615155849.webp"
+      ],
+      "informacaoNutricional": null,
+      "tabelaNutricionalOrigem": "mesma fórmula de creatina-monohidratada-creablood-300g"
+    },
+    {
+      "slug": "omega-3-1-200mg-100-capsulas",
+      "nome": "Ômega 3 - 1.200mg - 100 cápsulas",
+      "tipo": "PRODUTO",
+      "grupo": "Vitaminas e minerais",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/omega-3-1-200mg-100-capsulas/",
+      "precoSite": 69.9,
+      "sabores": [],
+      "descricao": "Ômega 3 - 1.200mg - 100 cápsulas\nDescubra o poder transformador do nosso Suplemento Ômega 3! Com uma impressionante dose de 1.200mg, este produto é essencial para quem busca saúde e bem-estar.\nOs benefícios do ômega 3 vão muito além da saúde cardiovascular. Pesquisas indicam que ele protege contra déficits cognitivos, podendo até melhorar sua memória. Imagine ter um cérebro mais ágil e saudável!\nAlém disso, suas propriedades anti-inflamatórias garantem um bem-estar geral, promovendo a saúde do sistema nervoso. Não deixe sua saúde em segundo plano!\nExperimente o Ômega 3 e sinta a diferença na sua vida diária!\nIngredientes: óleo de peixe, gelatina, glicerina, vitamina E.\nAproveite já e potencialize sua saúde com Ômega 3!A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-omega-b2ec047680066b6c9817386101669238.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "4,35g (3 cápsulas)",
+        "porcoesPorEmbalagem": "cerca de 33",
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal",
+            "valor": 30,
+            "vd": 1
+          },
+          {
+            "nome": "Proteínas",
+            "unidade": "g",
+            "valor": 0.7,
+            "vd": 1
+          },
+          {
+            "nome": "Gorduras totais",
+            "unidade": "g",
+            "valor": 3,
+            "vd": 5
+          },
+          {
+            "nome": "Gorduras saturadas",
+            "unidade": "g",
+            "valor": 0.9,
+            "vd": 5
+          },
+          {
+            "nome": "Gorduras trans",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Gorduras monoinsaturadas",
+            "unidade": "g",
+            "valor": 0.8,
+            "vd": 4
+          },
+          {
+            "nome": "Gorduras poli-insaturadas",
+            "unidade": "g",
+            "valor": 1.3,
+            "vd": 7
+          },
+          {
+            "nome": "Ômega 3",
+            "unidade": "mg",
+            "valor": 1236,
+            "vd": 31
+          },
+          {
+            "nome": "EPA",
+            "unidade": "mg",
+            "valor": 540,
+            "vd": null
+          },
+          {
+            "nome": "DHA",
+            "unidade": "mg",
+            "valor": 360,
+            "vd": null
+          },
+          {
+            "nome": "Colesterol",
+            "unidade": null,
+            "valor": 20,
+            "vd": 7
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de carboidratos, açúcares totais, açúcares adicionados, fibras alimentares e sódio. * Percentual de valores diários fornecidos pela porção.",
+        "observacao": "A linha 'Colesterol' vem sem unidade na imagem."
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "pre-treino-fofista-beater-750g-30-doses",
+      "nome": "Pré Treino - Fofista Beater 750g (30 doses)",
+      "tipo": "PRODUTO",
+      "grupo": "Pré-treino",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/pre-treino-fofista-beater-750g-30-doses/",
+      "precoSite": 199.99,
+      "sabores": [
+        "Fruit Mix",
+        "Morango c/ Maracujá"
+      ],
+      "descricao": "Pré Treino - Fofista Beater 750g (30 doses)\nPotencialize seus treinos com o Pré Treino Fofista Beater! Com 22 ingredientes exclusivos, ele aumenta força, resistência, foco e disposição, otimizando seu rendimento físico e mental. Sinta a diferença desde a primeira dose!\nSabores:\nFruit Mix (frutas tropicais e cítricas)\nMorango com Maracujá (frutado e equilibrado).\nTransforme seu treino. Experimente agora!\nIngredientes:\nSabor Maracuja com Morango: L-citrulina malato, L-arginina, beta-alanina, creatina monohidratada, maltodextrina, glicerol, bisglicinato de magnésio, L-carnitina L-tartarato, taurina, L-tirosina, laranja amarga em pó, cloreto de sódio, colina, cafeína, L-teanina de folhas de Camellia sinensis, ácido ascórbico (vit. C), cloreto de potássio, Mucuna pruriens em pó, Rhodiola rosea em pó, cloridrato de piridoxina (vit. B6), picolinato de cromo, cianocobalamina (vit. B12), acidulante ácido cítrico, aromatizante, espessante goma xantana,antiumectante dióxido de silício, edulcorante sucralose e corante ponceau 4R.Sabor Fruit Mix: L-citrulina malato, L-arginina, beta-alanina, creatina monohidratada, maltodextrina, glicerol, bisglicinato de magnésio, L-carnitina L-tartarato, taurina, L-tirosina, laranja amarga em pó, cloreto de sódio, colina, cafeína, L-teanina de folhas de Camellia sinensis, ácido ascórbico (vit. C), cloreto de potássio, Mucuna pruriens em pó, Rhodiola rosea em pó, cloridrato de piridoxina (vit. B6), picolinato de cromo, cianocobalamina (vit. B12), acidulante ácido cítrico, aromatizante, espessante goma xantana, antiumectante dióxido de silício, edulcorante sucralose e corante ponceau 4R.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/captura-de-tela-2025-07-16-as-13-01-35-0cb24f9b5446e2301c17526792819156.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "25g (1 dosador)",
+        "porcoesPorEmbalagem": "30",
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal",
+            "valor": 12,
+            "vd": 1
+          },
+          {
+            "nome": "Carboidratos",
+            "unidade": "g",
+            "valor": 3,
+            "vd": 1
+          },
+          {
+            "nome": "Açúcares totais",
+            "unidade": "g",
+            "valor": 0.6,
+            "vd": null
+          },
+          {
+            "nome": "Açúcares adicionados",
+            "unidade": "g",
+            "valor": 0.6,
+            "vd": 1
+          },
+          {
+            "nome": "Sódio",
+            "unidade": "mg",
+            "valor": 300,
+            "vd": 15
+          },
+          {
+            "nome": "L-Citrulina",
+            "unidade": "mg",
+            "valor": 4000,
+            "vd": null
+          },
+          {
+            "nome": "Beta-Alanina",
+            "unidade": "mg",
+            "valor": 3000,
+            "vd": null
+          },
+          {
+            "nome": "Creatina",
+            "unidade": "mg",
+            "valor": 3000,
+            "vd": null
+          },
+          {
+            "nome": "Arginina",
+            "unidade": "mg",
+            "valor": 3000,
+            "vd": null
+          },
+          {
+            "nome": "L-Carnitina",
+            "unidade": "mg",
+            "valor": 1000,
+            "vd": null
+          },
+          {
+            "nome": "Taurina",
+            "unidade": "mg",
+            "valor": 1000,
+            "vd": null
+          },
+          {
+            "nome": "L-Tirosina",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": null
+          },
+          {
+            "nome": "L-Teanina",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": null
+          },
+          {
+            "nome": "Cafeína",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": null
+          },
+          {
+            "nome": "Vitamina C",
+            "unidade": "mg",
+            "valor": 150,
+            "vd": 150
+          },
+          {
+            "nome": "Colina",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": 36
+          },
+          {
+            "nome": "Vitamina B6",
+            "unidade": "mg",
+            "valor": 5,
+            "vd": 385
+          },
+          {
+            "nome": "Vitamina B12",
+            "unidade": "µg",
+            "valor": 9.9,
+            "vd": 413
+          },
+          {
+            "nome": "Magnésio",
+            "unidade": "mg",
+            "valor": 300,
+            "vd": 71
+          },
+          {
+            "nome": "Cromo",
+            "unidade": "µg",
+            "valor": 250,
+            "vd": 714
+          },
+          {
+            "nome": "Potássio",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": 3
+          }
+        ],
+        "rodape": "Não contém quantidades significativas de proteínas, gorduras totais, gorduras saturadas, gorduras trans e fibras alimentares. * Percentual de valores diários fornecidos pela porção"
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "whey-protein-concentrado-killer-whey-limited-edition-450g",
+      "nome": "Whey Protein Concentrado - Killer Whey (Limited Edition) 450g",
+      "tipo": "PRODUTO",
+      "grupo": "Whey",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/whey-protein-concentrado-killer-whey-limited-edition-450g/",
+      "precoSite": 129.9,
+      "sabores": [
+        "Mousse de Maracujá",
+        "Cappuccino"
+      ],
+      "descricao": "Killer Whey - Whey Protein Concentrado Ed. Limitada\nPotencialize o ganho de massa muscular com o Killer Whey. O Whey Protein Concetrado, com 70% de proteína por dose, extremamente saboroso e de fácil digestão.\nBenéficios do Killer Whey:\n25g de proteína por dose\nSem sensação de estufamento\nZero açúcar\nDissolve fácil \nQualidade comprovada: Produto testado e aprovado em laudo técnico.\nSabores disponíveis:\nMousse de Maracujá\nCappuccino\nIngredientes:Sabor Maracujá: Proteína de soro do leite concentrada (WPC), lactase de Aspergillus oryzae, aromatizante, edulcorante sucralose e antiumectante dióxido de silício, corante amarelo crepúsculo.Sabor Cappucinno: Proteína de soro do leite concentrada (WPC), lactase de Aspergillus oryzae, aromatizante, edulcorante sucralose e antiumectante dióxido de silício.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/tabela-whey-450g-3baf533be32c82609b17623951788673.webp"
+      ],
+      "informacaoNutricional": {
+        "porcao": "35g (1 dosador)",
+        "porcoesPorEmbalagem": "cerca de 13",
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal",
+            "valor": 132,
+            "vd": 7
+          },
+          {
+            "nome": "Carboidratos",
+            "unidade": "g",
+            "valor": 3.4,
+            "vd": 1
+          },
+          {
+            "nome": "Açúcares totais",
+            "unidade": "g",
+            "valor": 2,
+            "vd": null
+          },
+          {
+            "nome": "Açúcares adicionados",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Proteínas",
+            "unidade": "g",
+            "valor": 25,
+            "vd": 50
+          },
+          {
+            "nome": "Gorduras totais",
+            "unidade": "g",
+            "valor": 2,
+            "vd": 3
+          },
+          {
+            "nome": "Gorduras saturadas",
+            "unidade": "g",
+            "valor": 1,
+            "vd": 5
+          },
+          {
+            "nome": "Gorduras trans",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Fibras alimentares",
+            "unidade": "g",
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Sódio",
+            "unidade": "mg",
+            "valor": 62,
+            "vd": 3
+          },
+          {
+            "nome": "Lactase",
+            "unidade": "UFCC",
+            "valor": 5000,
+            "vd": null
+          }
+        ],
+        "rodape": "* Percentual de valores diários fornecidos pela porção"
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "panqueca-proteica-deadly-punkakes-600g-svf89",
+      "nome": "Panqueca Proteica - Deadly Punkakes 600g",
+      "tipo": "PRODUTO",
+      "grupo": "Alimentos",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/panqueca-proteica-deadly-punkakes-600g-svf89/",
+      "precoSite": 71.9,
+      "sabores": [
+        "Coco",
+        "Banana com Canela"
+      ],
+      "descricao": "Panqueca Proteica - Deadly Punkakes 600g\nTransforme suas refeições com a Panqueca Proteica Deadly Punkakes! Desenvolvida para quem busca praticidade, sabor e saúde, cada porção oferece 18g de proteína, garantindo energia e saciedade para o seu dia.\nZero açúcar: Ideal para dietas balanceadas e restritivas.\nPreparo rápido: Basta adicionar água, misturar e levar à frigideira.\nSabor irresistível: Disponível em Coco e Banana com Canela.\nDeadly Punkakes é perfeita para café da manhã, lanches ou pós-treino. Incorpore mais proteína ao seu dia de forma prática e deliciosa!\nExperimente e surpreenda-se com o sabor e a qualidade!\nIngredientes:Sabor Coco: Proteína concentrada do soro do leite (WPC), farinha de trigo enriquecida com ferro e ácido fólico, ovo em pó liofilizado, sal, carbonato de cálcio, bisglicinato ferroso, óxido de zinco, nicotinamida (vit. B3), D-pantotenato de cálcio (vit. B5), riboflavina (vit. B2), cloridrato de piridoxina (vit. B6), ácido N-pteroil-L-glutâmico (ácido fólico), aromatizante, coco em pó, edulcorante sucralose, fermento químico (bicarbonato de sódio, fosfato monocálcico e carbonato de cálcio) e antiumectante dióxido de Silício.Sabor Banana com Canela: Proteína concentrada do soro do leite (WPC), farinha de trigo enriquecida com ferro e ácido fólico, ovo em pó liofilizado, sal, carbonato de cálcio, bisglicinato ferroso, óxido de zinco, nicotinamida (vit. B3), D-pantotenato de cálcio (vit. B5), riboflavina (vit. B2), cloridrato de piridoxina (vit. B6), ácido N-pteroil-L-glutâmico (ácido fólico), aromatizante, canela em pó, edulcorante sucralose, fermento químico (bicarbonato de sódio, fosfato monocálcico e carbonato de cálcio) e antiumectante dióxido de Silício.\nA Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/captura-de-tela-2025-08-04-as-17-16-02-e91b236bfccfd9f80f17543360497826-1024-1024-bc879fde35219a108e17623901158702.webp"
+      ],
+      "imagemModoDePreparo": "https://acdn-us.mitiendanube.com/stores/003/424/434/products/modo-de-preparo-panqueca-28d43937cc0683cb9917550246106260-1024-1024-6433051749bce9e87717623900992575.webp",
+      "informacaoNutricional": {
+        "porcao": "50g (2 dosadores)",
+        "porcoesPorEmbalagem": "12",
+        "colunas": [
+          "100g (no alimento pronto para consumo)",
+          "50g"
+        ],
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal",
+            "valor100g": 386,
+            "valor": 193,
+            "vd": 10
+          },
+          {
+            "nome": "Carboidratos",
+            "unidade": "g",
+            "valor100g": 56,
+            "valor": 28,
+            "vd": 1
+          },
+          {
+            "nome": "Açúcares totais",
+            "unidade": "g",
+            "valor100g": 2,
+            "valor": 1,
+            "vd": 1
+          },
+          {
+            "nome": "Açúcares adicionados",
+            "unidade": "g",
+            "valor100g": 0,
+            "valor": 0,
+            "vd": 1
+          },
+          {
+            "nome": "Proteínas",
+            "unidade": "g",
+            "valor100g": 36,
+            "valor": 18,
+            "vd": 36
+          },
+          {
+            "nome": "Gorduras totais",
+            "unidade": "g",
+            "valor100g": 2,
+            "valor": 1,
+            "vd": 2
+          },
+          {
+            "nome": "Gorduras saturadas",
+            "unidade": "g",
+            "valor100g": 0,
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Gorduras trans",
+            "unidade": "g",
+            "valor100g": 0,
+            "valor": 0,
+            "vd": 0
+          },
+          {
+            "nome": "Fibra alimentar",
+            "unidade": "g",
+            "valor100g": 1.6,
+            "valor": 0.8,
+            "vd": 3
+          },
+          {
+            "nome": "Sódio",
+            "unidade": "mg",
+            "valor100g": 340,
+            "valor": 170,
+            "vd": 9
+          },
+          {
+            "nome": "Cálcio",
+            "unidade": "mg",
+            "valor100g": 300,
+            "valor": 150,
+            "vd": 15
+          },
+          {
+            "nome": "Ferro",
+            "unidade": "mg",
+            "valor100g": 28,
+            "valor": 14,
+            "vd": 100
+          },
+          {
+            "nome": "Zinco",
+            "unidade": "mg",
+            "valor100g": 22,
+            "valor": 11,
+            "vd": 100
+          },
+          {
+            "nome": "Vitamina B2",
+            "unidade": "mg",
+            "valor100g": 2.4,
+            "valor": 1.2,
+            "vd": 100
+          },
+          {
+            "nome": "Vitamina B3",
+            "unidade": "mg",
+            "valor100g": 30,
+            "valor": 15,
+            "vd": 100
+          },
+          {
+            "nome": "Vitamina B5",
+            "unidade": "mg",
+            "valor100g": 10,
+            "valor": 5,
+            "vd": 100
+          },
+          {
+            "nome": "Vitamina B6",
+            "unidade": "mg",
+            "valor100g": 2.6,
+            "valor": 1.3,
+            "vd": 100
+          },
+          {
+            "nome": "Ácido fólico",
+            "unidade": "µg",
+            "valor100g": 800,
+            "valor": 400,
+            "vd": 100
+          }
+        ],
+        "rodape": "* Percentual de valores diários fornecidos pela porção. ** No alimento pronto para consumo.",
+        "modoDePreparo": [
+          "Misture um dosador do produto em um recipiente junto a um dosador de água e misture até que se forme uma mistura homogênea.",
+          "Depois de misturado, despejar o conteúdo em uma frigideira antiaderente em fogo médio.",
+          "Cozinhe até dourar, vire a panqueca para que cozinhe de ambos os lados."
+        ],
+        "observacao": "Na imagem, a coluna de 100g é marcada com ** (alimento pronto para consumo)."
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "dose-unica-panqueca-proteica-deadly-punkakes-25g-vualv",
+      "nome": "Dose Única - Panqueca Proteica - Deadly Punkakes - 25g",
+      "tipo": "DOSE_UNICA",
+      "grupo": "Alimentos",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/dose-unica-panqueca-proteica-deadly-punkakes-25g-vualv/",
+      "precoSite": 6.99,
+      "sabores": [
+        "Coco",
+        "Banana com Canela"
+      ],
+      "descricao": "Dose Única - Panqueca Proteica - Deadly Punkakes - 25g\nTransforme suas refeições com a Panqueca Proteica Deadly Punkakes! Desenvolvida para quem busca praticidade, sabor e saúde, oferece 18g de proteína na porção completa, garantindo energia e saciedade para o seu dia.\nZero açúcar: Ideal para dietas balanceadas e restritivas.\nPreparo rápido: Basta adicionar água, misturar e levar à frigideira.\nSabor irresistível: Disponível em Coco e Banana com Canela.\nDeadly Punkakes é perfeita para café da manhã, lanches ou pós-treino. Incorpore mais proteína ao seu dia de forma prática e deliciosa!\nExperimente e surpreenda-se com o sabor e a qualidade!\nIngredientes:Sabor Coco: Proteína concentrada do soro do leite (WPC), farinha de trigo enriquecida com ferro e ácido fólico, ovo em pó liofilizado, sal, carbonato de cálcio, bisglicinato ferroso, óxido de zinco, nicotinamida (vit. B3), D-pantotenato de cálcio (vit. B5), riboflavina (vit. B2), cloridrato de piridoxina (vit. B6), ácido N-pteroil-L-glutâmico (ácido fólico), aromatizante, coco em pó, edulcorante sucralose, fermento químico (bicarbonato de sódio, fosfato monocálcico e carbonato de cálcio) e antiumectante dióxido de Silício.Sabor Banana com Canela: Proteína concentrada do soro do leite (WPC), farinha de trigo enriquecida com ferro e ácido fólico, ovo em pó liofilizado, sal, carbonato de cálcio, bisglicinato ferroso, óxido de zinco, nicotinamida (vit. B3), D-pantotenato de cálcio (vit. B5), riboflavina (vit. B2), cloridrato de piridoxina (vit. B6), ácido N-pteroil-L-glutâmico (ácido fólico), aromatizante, canela em pó, edulcorante sucralose, fermento químico (bicarbonato de sódio, fosfato monocálcico e carbonato de cálcio) e antiumectante dióxido de Silício.\nA Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": "panqueca-proteica-deadly-punkakes-600g-svf89",
+      "informacaoNutricional": null,
+      "tabelaNutricionalOrigem": "mesma fórmula de panqueca-proteica-deadly-punkakes-600g-svf89"
+    },
+    {
+      "slug": "dose-unica-fofista-beater-25g-1ausc",
+      "nome": "Dose única - Fofista Beater - 25g",
+      "tipo": "DOSE_UNICA",
+      "grupo": "Pré-treino",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/dose-unica-fofista-beater-25g-1ausc/",
+      "precoSite": 8.99,
+      "sabores": [
+        "Fruit Mix",
+        "Morango c/ Maracujá"
+      ],
+      "descricao": "Dose única - Fofista Beater - 25g\nPotencialize seus treinos com o Pré Treino Fofista Beater! Com 22 ingredientes exclusivos, ele aumenta força, resistência, foco e disposição, otimizando seu rendimento físico e mental. Sinta a diferença desde a primeira dose!\nSabores:\nFruit Mix (frutas tropicais e cítricas)\nMorango com Maracujá (frutado e equilibrado).\nTransforme seu treino. Experimente agora!\nIngredientes:\nSabor Maracuja com Morango: L-citrulina malato, L-arginina, beta-alanina, creatina monohidratada, maltodextrina, glicerol, bisglicinato de magnésio, L-carnitina L-tartarato, taurina, L-tirosina, laranja amarga em pó, cloreto de sódio, colina, cafeína, L-teanina de folhas de Camellia sinensis, ácido ascórbico (vit. C), cloreto de potássio, cloridrato de piridoxina (vit. B6), picolinato de cromo, cianocobalamina (vit. B12), acidulante ácido cítrico, aromatizante, espessante goma xantana,antiumectante dióxido de silício, edulcorante sucralose e corante ponceau 4R.Sabor Fruit Mix: L-citrulina malato, L-arginina, beta-alanina, creatina monohidratada, maltodextrina, glicerol, bisglicinato de magnésio, L-carnitina L-tartarato, taurina, L-tirosina, laranja amarga em pó, cloreto de sódio, colina, cafeína, L-teanina de folhas de Camellia sinensis, ácido ascórbico (vit. C), cloreto de potássio, cloridrato de piridoxina (vit. B6), picolinato de cromo, cianocobalamina (vit. B12), acidulante ácido cítrico, aromatizante, espessante goma xantana, antiumectante dióxido de silício, edulcorante sucralose e corante ponceau 4R.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": "pre-treino-fofista-beater-750g-30-doses",
+      "informacaoNutricional": null,
+      "tabelaNutricionalOrigem": "mesma fórmula de pre-treino-fofista-beater-750g-30-doses"
+    },
+    {
+      "slug": "dose-unica-pre-sono-rest-in-peace-10g-10efi",
+      "nome": "Dose única - Pré Sono - Rest In Peace - 10g",
+      "tipo": "DOSE_UNICA",
+      "grupo": "Sono",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/dose-unica-pre-sono-rest-in-peace-10g-10efi/",
+      "precoSite": 7.99,
+      "sabores": [
+        "Abacaxi com Hortelã",
+        "Maracujá"
+      ],
+      "descricao": "Dose única - Pré Sono - Rest In Peace - 10g\nExperimente uma nova qualidade de sono com o Rest In Peace, uma fórmula inovadora que combina ativos poderosos para melhorar seu descanso e acelerar sua recuperação. Cada dose contém uma mistura eficaz de Glicina, Taurina, Magnésio, Melatonina, Triptofano, Camomila, Maracujá e Inositol, proporcionando um aproveitamento superior das suas horas de sono.\nAo incorporar o Rest In Peace em sua rotina, você poderá acordar renovado, preparado para enfrentar os desafios do dia. Diga adeus às noites mal dormidas e descubra o poder de uma boa noite de sono!\nSabores disponíveis:\nMARACUJÁ\nABACAXI COM HORTELÃ\nBenefícios: - Melhora a qualidade do sono - Acelera a recuperação muscular - Promove relaxamento e tranquilidade\nExperimente o Rest In Peace e transforme suas noites!Ingredientes:\nSabor Maracujá: MALTODEXTRINA, GLICINA, TAURINA, L-TRIPTOFANO, BISGLICINATO DE MAGNÉSIO, INOSITOL, MELATONINA, AROMATIZANTE (CAMOMILA E MARACUJÁ), ACIDULANTE ÁCIDO CÍTRICO, EDULCORANTE SUCRALOSE E CORANTE AMARELO CREPÚSCULO.\nSabor Abacaxi com Hortelã: MALTODEXTRINA, GLICINA, TAURINA, L-TRIPTOFANO, BISGLICINATO DE MAGNÉSIO, INOSITOL, MELATONINA, AROMATIZANTE (CAMOMILA E MARACUJÁ), ACIDULANTE ÁCIDO CÍTRICO, EDULCORANTE SUCRALOSE E CORANTE TARTRAZINA.\nA Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": "pre-sono-rest-in-peace-300g",
+      "informacaoNutricional": null,
+      "tabelaNutricionalOrigem": "mesma fórmula de pre-sono-rest-in-peace-300g"
+    },
+    {
+      "slug": "dose-unica-intra-treino-intensity-hunter-20g-1nun7",
+      "nome": "Dose única - Intra Treino - Intensity Hunter - 20g",
+      "tipo": "DOSE_UNICA",
+      "grupo": "Intra-treino",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/dose-unica-intra-treino-intensity-hunter-20g-1nun7/",
+      "precoSite": 7.99,
+      "sabores": [
+        "Pink Lemonade",
+        "Maça Verde"
+      ],
+      "descricao": "Dose única - Intra Treino - Intensity Hunter 20g\nMaximize sua performance com o Intensity Hunter, uma fórmula única no mercado desenvolvida para manter seu rendimento até o último segundo do seu treino. Com 5.800mg de EAAs e 5.000mg de Glicerol, este suplemento é perfeito para quem busca elevar a intensidade dos treinos.\nO Intensity Hunter é ideal para atletas que desejam otimizar cada treino. Leve seus treinos para outro nível de intensidade!\nSabores\nPINK LEMONADE\nMAÇÃ VERDE\nComposição Poderosa: - 5.000mg de Dextrose: Fornece energia rápida. - 700mg de Eletrólitos: Mantém a hidratação e o equilíbrio. - 500mg de Arginina e 500mg de Taurina: Aumentam a resistência e a vascularização. - 200mg de L-Tirosina e 100mg de Cafeína: Melhoram o foco e a concentração.\nIngredientes:\nSabor Maçã Verde: Dextrose, glicerol, L-leucina, L-valina, L-isoleucina, taurina, cloridrato de lisina, L-fenilalanina, L-arginina, cloreto de sódio, L-treonina, cloreto de potássio, magnésio dimalato, L-histidina, L-metionina, L-tirosina, cloridrato de betaína, cafeína, cálcio bisglicinato, ácido ascórbico (vit. C), aromatizante, estabilizante goma xantana, acidulante ácido cítrico, antiumectante dióxido de silício, edulcorante sucralose e corantes tartrazina e indigotina.Sabor Pink Lemonade: Dextrose, glicerol, L-leucina, L-valina, L-isoleucina, taurina, cloridrato de lisina, L-fenilalanina, L-arginina, cloreto de sódio, L-treonina, cloreto de potássio, magnésio dimalato, L-histidina, L-metionina, L-tirosina, cloridrato de betaína, cafeína, cálcio bisglicinato, ácido ascórbico (vit. C), aromatizante, estabilizante goma xantana, acidulante ácido cítrico, antiumectante dióxido de silício, edulcorante sucralose e corante ponceau.A Heavy Suppz atua com transparência, qualidade e conformidade regulatória perante as leis e órgãos regulamentadores.",
+      "baseSlug": "intra-treino-intensity-hunter-600g",
+      "informacaoNutricional": null,
+      "tabelaNutricionalOrigem": "mesma fórmula de intra-treino-intensity-hunter-600g"
+    },
+    {
+      "slug": "fofista-nightmare-450g-30-doses-18oqz",
+      "nome": "Fofista Nightmare (Stim Free) - 450g - 30 doses",
+      "tipo": "PRODUTO",
+      "grupo": "Pré-treino",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/fofista-nightmare-450g-30-doses-18oqz/",
+      "precoSite": 129.9,
+      "sabores": [
+        "Pink Lemonade",
+        "Frutas Vermelhas"
+      ],
+      "descricao": "Fofista Nightmare - 450g - 30 doses\nDescubra o Fofista Nightmare, o pré-treino sem estimulantes ideal para quem treina à noite! Sua fórmula exclusiva reúne 9 substâncias ativas que aumentam o foco, força, resistência e explosão muscular, sem afetar o sono. Perfeito para treinos intensos, potencializa seus resultados de forma segura e eficaz. São 30 doses para impulsionar sua performance sem prejuízo ao descanso!",
+      "baseSlug": null,
+      "imagensTabelaNutricional": [
+        "https://acdn-us.mitiendanube.com/stores/003/424/434/products/captura-de-tela-2026-08-07-as-13-37-57-7dc6d2922de27fea5217861211667047.png"
+      ],
+      "informacaoNutricional": {
+        "porcao": "15g (3 dosadores)",
+        "porcoesPorEmbalagem": "30",
+        "nutrientes": [
+          {
+            "nome": "Valor energético",
+            "unidade": "kcal",
+            "valor": 28,
+            "vd": 1
+          },
+          {
+            "nome": "Carboidratos",
+            "unidade": "g",
+            "valor": 7,
+            "vd": 2
+          },
+          {
+            "nome": "Açúcares totais",
+            "unidade": "g",
+            "valor": 1.4,
+            "vd": null
+          },
+          {
+            "nome": "Açúcares adicionados",
+            "unidade": "g",
+            "valor": 1.4,
+            "vd": 3
+          },
+          {
+            "nome": "Arginina",
+            "unidade": "mg",
+            "valor": 1000,
+            "vd": null
+          },
+          {
+            "nome": "Tirosina",
+            "unidade": "mg",
+            "valor": 300,
+            "vd": null
+          },
+          {
+            "nome": "Beta-Alanina",
+            "unidade": "mg",
+            "valor": 2000,
+            "vd": null
+          },
+          {
+            "nome": "Vitamina C",
+            "unidade": "mg",
+            "valor": 100,
+            "vd": 100
+          },
+          {
+            "nome": "Vitamina B6",
+            "unidade": "mg",
+            "valor": 5,
+            "vd": 385
+          },
+          {
+            "nome": "Vitamina B12",
+            "unidade": "µg",
+            "valor": 9,
+            "vd": 375
+          },
+          {
+            "nome": "Magnésio",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": 48
+          },
+          {
+            "nome": "Colina",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": 36
+          },
+          {
+            "nome": "Cromo",
+            "unidade": "µg",
+            "valor": 200,
+            "vd": null
+          },
+          {
+            "nome": "Taurina",
+            "unidade": "mg",
+            "valor": 500,
+            "vd": null
+          },
+          {
+            "nome": "Carnitina",
+            "unidade": "mg",
+            "valor": 1000,
+            "vd": null
+          },
+          {
+            "nome": "Teanina",
+            "unidade": "mg",
+            "valor": 200,
+            "vd": null
+          },
+          {
+            "nome": "Antocianinas",
+            "unidade": "mg",
+            "valor": 2,
+            "vd": null
+          },
+          {
+            "nome": "L-citrulinilarginina",
+            "unidade": null,
+            "valor": 2,
+            "vd": null
+          }
+        ],
+        "ingredientes": "Maltodextrina, beta-alanina, L-arginina, L-carnitina L-tartarato, taurina, bisglicinato de magnésio, L-tirosina, bitartarato de colina, L-teanina de folha de Camellia sinensis, extrato de laranja moro (Citrus sinensis L. Osbeck), ácido ascórbico (vit. C), cloridrato de piridoxina (vit. B6), cianocobalamina (vit. B12), acidulante ácido cítrico, aromatizante, espessante goma xantana, antiumectante dióxido de silício, edulcorante sucralose e corante ponceau 4R.",
+        "rodape": "Não contém quantidades significativas de proteínas, gorduras totais, gorduras saturadas, gorduras trans, fibras alimentares e sódio. * Percentual de Valores Diários fornecidos pela porção.",
+        "observacao": "A linha 'L-citrulinilarginina' vem sem unidade na imagem."
+      },
+      "tabelaNutricionalOrigem": "imagem do próprio produto no site, transcrita"
+    },
+    {
+      "slug": "dose-unica-fofista-nightmare-stim-free-1wdyk",
+      "nome": "Dose única - Fofista Nightmare (Stim Free) - 15g",
+      "tipo": "DOSE_UNICA",
+      "grupo": "Pré-treino",
+      "marca": "Heavy Suppz",
+      "url": "https://heavysuppz.com/produtos/dose-unica-fofista-nightmare-stim-free-1wdyk/",
+      "precoSite": 7.99,
+      "sabores": [
+        "Pink Lemonade",
+        "Frutas Vermelhas"
+      ],
+      "descricao": "Fofista Nightmare\nDescubra o Fofista Nightmare, o pré-treino sem estimulantes ideal para quem treina à noite! Sua fórmula exclusiva reúne 9 substâncias ativas que aumentam o foco, força, resistência e explosão muscular, sem afetar o sono. Perfeito para treinos intensos, potencializa seus resultados de forma segura e eficaz.",
+      "baseSlug": "fofista-nightmare-450g-30-doses-18oqz",
+      "informacaoNutricional": null,
+      "tabelaNutricionalOrigem": "mesma fórmula de fofista-nightmare-450g-30-doses-18oqz"
+    }
+  ]
+}
