@@ -85,6 +85,21 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void bloqueioDeLoginViraUmaLinhaDeAuditoriaPorJanelaENaoUmaPorTentativa() throws Exception {
+        String conta = ApiDeTeste.emailUnico("bloqueada");
+        JsonNode dono = api.cadastrarTreinador(conta);
+        for (int i = 0; i < 10; i++) {
+            mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                    .content(api.corpoLogin(conta, "senha-errada-123"))).andExpect(status().isUnauthorized());
+        }
+        for (int i = 0; i < 6; i++) {
+            mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                    .content(api.corpoLogin(conta, "senha-errada-123"))).andExpect(status().isTooManyRequests());
+        }
+        assertThat(api.get("/auditoria?acao=LOGIN_BLOQUEADO", dono, 200).path("itens")).hasSize(1);
+    }
+
+    @Test
     void decimaPrimeiraTentativaNaMesmaContaRecebe429ComRetryAfter() throws Exception {
         for (int i = 0; i < 10; i++) {
             mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)

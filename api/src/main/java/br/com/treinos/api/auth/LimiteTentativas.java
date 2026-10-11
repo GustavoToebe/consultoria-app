@@ -56,7 +56,24 @@ public class LimiteTentativas {
         boolean bloqueiaConta = porConta.tentativas() > limites.loginConta();
         if (bloqueiaIp || bloqueiaConta) {
             long ate = Math.max(bloqueiaIp ? porIp.ateMs() : agora, bloqueiaConta ? porConta.ateMs() : agora);
-            throw new MuitasRequisicoesException(segundosAte(ate, agora));
+            // Só a tentativa que cruza o limite abre o bloqueio (e vira auditoria); as demais da janela só recebem 429.
+            boolean abriu = (bloqueiaIp && porIp.tentativas() == limites.loginIp() + 1)
+                    || (bloqueiaConta && porConta.tentativas() == limites.loginConta() + 1);
+            throw new BloqueioDeLogin(segundosAte(ate, agora), abriu);
+        }
+    }
+
+    /** Login bloqueado; {@code abriuAgora} é verdadeiro uma única vez por chave e janela. */
+    public static class BloqueioDeLogin extends MuitasRequisicoesException {
+        private final boolean abriuAgora;
+
+        BloqueioDeLogin(long segundos, boolean abriuAgora) {
+            super(segundos);
+            this.abriuAgora = abriuAgora;
+        }
+
+        public boolean abriuAgora() {
+            return abriuAgora;
         }
     }
 

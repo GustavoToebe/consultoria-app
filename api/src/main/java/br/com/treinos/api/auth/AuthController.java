@@ -46,8 +46,9 @@ public class AuthController {
     public LoginResponse login(@RequestBody @Valid LoginRequest request, HttpServletRequest http,
                                HttpServletResponse resposta) {
         try { limite.login(http.getRemoteAddr(), request.email()); }
-        catch(br.com.treinos.api.web.MuitasRequisicoesException bloqueado) {
-            auditoria.bloqueioLogin(request.email());throw bloqueado;
+        catch(LimiteTentativas.BloqueioDeLogin bloqueado) {
+            if(bloqueado.abriuAgora()) auditoria.bloqueioLogin(request.email());
+            throw bloqueado;
         }
         DestinoCliente cliente = DestinoCliente.de(http);
         return sessaoHttp.responder(authService.entrar(request.email(), request.senha(), cliente), cliente, resposta);
