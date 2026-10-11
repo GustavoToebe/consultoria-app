@@ -1,6 +1,7 @@
 package br.com.treinos.api.demo;
 
 import br.com.treinos.api.AbstractIntegrationTest;
+import br.com.treinos.api.execucao.SeedHistoricoDemo;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;

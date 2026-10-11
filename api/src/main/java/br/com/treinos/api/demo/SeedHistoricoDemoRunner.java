@@ -1,5 +1,6 @@
 package br.com.treinos.api.demo;
 
+import br.com.treinos.api.execucao.SeedHistoricoDemo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

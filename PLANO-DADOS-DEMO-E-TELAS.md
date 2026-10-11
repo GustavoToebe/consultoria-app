@@ -330,7 +330,7 @@ Coloque todo o conteúdo novo numa **coleção "Biblioteca do guia"**, para sepa
 
 A API não deixa criar o passado: o check-in só aceita a pasta vigente, e as cargas só até 60 dias para trás. Por isso o
 histórico é um **seed Java só de desenvolvimento**:
-- `api/.../demo/SeedHistoricoDemo.java` + runner com `@ConditionalOnProperty(name = "treinos.demo.historico",
+- `api/.../execucao/SeedHistoricoDemo.java` (no pacote `execucao`, que é o único que enxerga o `ExecucaoUpsert` não público) + runner (em `demo/`) com `@ConditionalOnProperty(name = "treinos.demo.historico",
   havingValue = "true")`;
 - variável `TREINOS_DEMO_HISTORICO` no `docker-compose.yml`, **sem valor padrão `true`** (ausente = desligado);
 - **idempotente:** se `aluno01@demo.local` já existe, não faz nada;

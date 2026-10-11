@@ -193,6 +193,13 @@ class ArquiteturaTest {
     }
 
     @Test
+    void gravacaoDeExecucaoNaoEPublica() {
+        classes().that().haveSimpleName("ExecucaoUpsert").should().notBePublic()
+                .because("grava execucao_serie com consultoria e aluno explícitos; só o pacote execucao (e o seed que mora nele) usa")
+                .check(codigo);
+    }
+
+    @Test
     void jacksonTresNoCodigo() {
         noClasses().should().dependOnClassesThat()
                 .resideInAnyPackage("com.fasterxml.jackson.databind..", "com.fasterxml.jackson.core..")

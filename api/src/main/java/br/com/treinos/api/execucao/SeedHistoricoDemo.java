@@ -1,4 +1,4 @@
-package br.com.treinos.api.demo;
+package br.com.treinos.api.execucao;
 
 import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.equipe.AcessoAtual;
@@ -14,7 +14,6 @@ import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.dieta.PlanoDietaService;
-import br.com.treinos.api.execucao.ExecucaoUpsert;
 import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
 import br.com.treinos.api.lesoes.LesaoAluno.Situacao;

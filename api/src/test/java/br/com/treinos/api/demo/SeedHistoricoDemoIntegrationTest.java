@@ -3,6 +3,7 @@ package br.com.treinos.api.demo;
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
+import br.com.treinos.api.execucao.SeedHistoricoDemo;
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.dieta.ConteudoDieta.Item;
 import br.com.treinos.api.dieta.ConteudoDieta.Opcao;
