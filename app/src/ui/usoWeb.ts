@@ -7,6 +7,10 @@ export type AoTeclar = (evento: { key: string; ctrl: boolean }) => boolean | voi
 /**
  * Escuta o teclado da página inteira enquanto `ativo` (só na web; no celular não há teclado de atalhos).
  * O ouvinte sai quando a tela desmonta ou `ativo` muda.
+ *
+ * Escuta na fase de captura: o `TextInput` e o `Pressable` do react-native-web param a propagação de toda tecla, então
+ * na fase de bolha as setas, o Enter e o Esc digitados num campo (ou com o foco num botão) nunca chegariam aqui. Tecla
+ * tratada não segue para o elemento com foco (o Enter não "aperta" o botão focado nem envia o campo).
  */
 export function useTeclado(ativo: boolean, aoTeclar: AoTeclar): void {
   const ultimo = useRef(aoTeclar);
@@ -17,10 +21,13 @@ export function useTeclado(ativo: boolean, aoTeclar: AoTeclar): void {
     if (Platform.OS !== 'web' || !ativo) return undefined;
     const ouvir = (e: KeyboardEvent) => {
       const tratada = ultimo.current({ key: e.key, ctrl: e.ctrlKey || e.metaKey });
-      if (tratada) e.preventDefault();
+      if (tratada) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     };
-    document.addEventListener('keydown', ouvir);
-    return () => document.removeEventListener('keydown', ouvir);
+    document.addEventListener('keydown', ouvir, true);
+    return () => document.removeEventListener('keydown', ouvir, true);
   }, [ativo]);
 }
 

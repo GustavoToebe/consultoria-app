@@ -1,7 +1,7 @@
 import { router, type Href } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View, type TextInput } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View, type TextInput } from 'react-native';
 
 import { Input } from '../components/ui/input';
 import { buscarTelas, favoritosVisiveis, type TelaDoCatalogo } from '../dominio/telas';
@@ -113,7 +113,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
               {digitando ? 'Nada encontrado. Tente outra palavra.' : 'Digite para buscar telas e ações. Marque favoritos em "Todas as telas".'}
             </Texto>
           ) : (
-            <>
+            <ScrollView style={estilos.rolagem} keyboardShouldPersistTaps="handled">
               {digitando ? null : <Texto variante="rotulo" style={estilos.cabecaLista}>Favoritos</Texto>}
               {resultados.map((tela, i) => (
                 <Pressable
@@ -131,7 +131,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
                   <Texto variante="pequeno" numberOfLines={1}>{tela.acao ? `Ação · ${tela.secao}` : tela.secao}</Texto>
                 </Pressable>
               ))}
-            </>
+            </ScrollView>
           )}
         </View>
       ) : null}
@@ -170,10 +170,12 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RAIO,
     paddingVertical: espaco(0.5),
-    maxHeight: 420,
+    overflow: 'hidden',
     zIndex: 40,
     boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
   },
+  // Muitas telas casam com uma letra só: a lista rola dentro do quadro em vez de vazar por cima da página.
+  rolagem: { maxHeight: 400 },
   cabecaLista: { paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
   vazio: { paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.5) },
   item: {

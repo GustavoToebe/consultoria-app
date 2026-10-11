@@ -43,7 +43,12 @@ export function CartaoDoUsuario() {
   };
 
   useCliqueFora(caixa, aberto, fechar);
-  useTeclado(aberto, ({ key }) => {
+  useTeclado(aberto, ({ key, ctrl }) => {
+    // Ctrl+K abre a busca: o menu fecha para as setas e o Enter não agirem nos dois.
+    if (ctrl && key.toLowerCase() === 'k') {
+      fechar();
+      return undefined;
+    }
     if (key === 'Escape') {
       fechar();
       return true;
