@@ -588,3 +588,37 @@ export interface Atualizacao {
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */
 export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' | 'nomeAluno' | 'dataAtualizacao' | 'fase' | 'diasParaData' | 'diasDeAtraso' | 'atrasoAte'>;
 export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null; mobilidade?: ConteudoMobilidadeApi | null }[] }
+
+export type PeriodicidadeDaConta = 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL';
+export type SituacaoComercial = 'TRIAL' | 'ATIVA' | 'INADIMPLENTE' | 'BLOQUEADA' | 'CANCELADA';
+export type SituacaoDaCobranca = 'ABERTA' | 'PAGA' | 'CANCELADA' | 'ISENTA';
+export interface ContatoDaConta { nome: string | null; email: string | null; telefone: string | null; principal: boolean }
+export interface EnderecoDaConta {
+  logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null;
+  cidade: string | null; uf: string | null; cep: string | null;
+}
+export interface CobrancaDaConta {
+  id: string; competenciaInicio: string; competenciaFim: string; vencimento: string; valor: number;
+  situacao: SituacaoDaCobranca; vencida: boolean; pagoEm: string | null;
+}
+/** `GET /minha-conta`. `previa` = dados de demonstração das tabelas locais (a Central ainda não está ligada). */
+export interface MinhaConta {
+  cliente: { nome: string | null; documento: string | null; endereco: EnderecoDaConta | null; contatos: ContatoDaConta[] };
+  contratacao: {
+    planoNome: string | null; periodicidade: PeriodicidadeDaConta | null; valor: number | null; diaVencimento: number | null;
+    inicio: string | null; vigenteAte: string | null; situacaoComercial: SituacaoComercial | null;
+    nomeInstancia: string | null; adicionais: { nome: string; quantidade: number }[];
+  };
+  cobrancas: CobrancaDaConta[];
+  previa: boolean;
+}
+export type EstadoDoConsumo = 'SEM_LIMITE_CONFIGURADO' | 'DISPONIVEL' | 'ATENCAO' | 'ATINGIDO' | 'EXCEDIDO';
+export interface ItemDoConsumo {
+  codigo: string; nome: string; usado: number; limite: number | null; disponivel: number | null; unidade: string;
+  estado: EstadoDoConsumo;
+}
+/** `GET /minha-conta/consumo`. */
+export interface ConsumoDoPlano {
+  planoNome: string | null; versaoDireitos: number | null; direitosConfirmadosEm: string | null; consultadoEm: string;
+  itens: ItemDoConsumo[];
+}

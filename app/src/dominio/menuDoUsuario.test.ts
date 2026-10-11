@@ -7,6 +7,12 @@ describe('menu do usuário', () => {
     expect(itens[itens.length - 1].href).toBeNull();
     expect(itens.slice(0, -1).every((i) => i.href?.startsWith('/treinador/'))).toBe(true);
   });
+  it('Minha conta entra entre Meus dados e Ajustes só com CONTA_LER', () => {
+    const com = itensDoMenuDoUsuario((c) => c === 'CONTA_LER');
+    expect(com.map((i) => i.id)).toEqual(['meus-dados', 'minha-conta', 'ajustes', 'sair']);
+    expect(com[1].href).toBe('/treinador/minha-conta');
+    expect(itensDoMenuDoUsuario(() => false).some((i) => i.id === 'minha-conta')).toBe(false);
+  });
 });
 
 describe('seta de voltar das telas da conta', () => {

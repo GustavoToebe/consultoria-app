@@ -1,0 +1,72 @@
+import { useState } from 'react';
+import { useWindowDimensions, View } from 'react-native';
+
+import { ErroApi } from '../../api/cliente';
+import { consumoDoPlano, minhaConta } from '../../api/rotas';
+import { voltarDasTelasDaConta } from '../../dominio/menuDoUsuario';
+import { useTema } from '../../tema/TemaProvider';
+import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { AbaCadastro, AbaFinanceiro, AbaPlano, CartaoConsumo } from '../../treinador/conta/PartesDaConta';
+import { Abas } from '../../ui/Abas';
+import { Cabecalho } from '../../ui/Cabecalho';
+import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { textoDoErro } from '../../ui/erros';
+import { Selo } from '../../ui/Selo';
+import { Tela } from '../../ui/Tela';
+import { Texto } from '../../ui/Texto';
+import { useCarregar } from '../../ui/useCarregar';
+
+type Aba = 'cadastro' | 'plano' | 'financeiro';
+
+const ABAS: { valor: Aba; rotulo: string }[] = [
+  { valor: 'cadastro', rotulo: 'Cadastro' },
+  { valor: 'plano', rotulo: 'Meu plano' },
+  { valor: 'financeiro', rotulo: 'Financeiro' },
+];
+
+/**
+ * Minha conta (só com `CONTA_LER`): cadastro, plano e cobranças da consultoria e o consumo do plano. Só consulta. Enquanto
+ * a Central não está ligada, `previa` vem verdadeiro e a tela avisa que os dados são de demonstração.
+ */
+export default function MinhaConta() {
+  const { cores } = useTema();
+  const { width } = useWindowDimensions();
+  const [aba, setAba] = useState<Aba>('cadastro');
+  const conta = useCarregar('minha-conta', () => minhaConta());
+  const consumo = useCarregar('consumo-do-plano', () => consumoDoPlano());
+  return (
+    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
+      <Cabecalho titulo="Minha conta" voltar={voltarDasTelasDaConta(width, LARGURA_MENU_LATERAL)} />
+      {conta.dados?.previa ? (
+        <View accessibilityRole="alert"
+          style={{ borderWidth: 1, borderRadius: RAIO, borderColor: cores.atencao, backgroundColor: `${cores.atencao}18`,
+            padding: espaco(1.5), gap: espaco(0.5) }}>
+          <Selo texto="Prévia" tipo="atencao" />
+          <Texto>Dados de demonstração. Os dados reais virão da central de contratação.</Texto>
+        </View>
+      ) : null}
+      {conta.carregando && !conta.dados ? <Carregando /> : null}
+      {conta.erro ? (
+        <ErroOuVazio erro={conta.erro} recarregar={conta.recarregar} />
+      ) : null}
+      {conta.dados ? (
+        <View style={{ gap: espaco(3) }}>
+          <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
+          {aba === 'cadastro' ? <AbaCadastro conta={conta.dados} /> : null}
+          {aba === 'plano' ? <AbaPlano conta={conta.dados} /> : null}
+          {aba === 'financeiro' ? <AbaFinanceiro conta={conta.dados} /> : null}
+        </View>
+      ) : null}
+      {consumo.erro ? <MensagemErro texto={textoDoErro(consumo.erro)} tentarDeNovo={consumo.recarregar} erro={consumo.erro} /> : null}
+      {consumo.dados ? <CartaoConsumo consumo={consumo.dados} /> : null}
+    </Tela>
+  );
+}
+
+function ErroOuVazio({ erro, recarregar }: { erro: unknown; recarregar: () => void }) {
+  const naoEncontrada = erro instanceof ErroApi && erro.status === 404;
+  if (naoEncontrada) {
+    return <Vazio titulo="Conta ainda não disponível" texto="Os dados comerciais desta consultoria ainda não foram registrados." />;
+  }
+  return <MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar} erro={erro} />;
+}

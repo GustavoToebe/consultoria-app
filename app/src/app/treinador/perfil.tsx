@@ -32,7 +32,7 @@ export default function PerfilTreinador() {
         <Texto variante="bloco">{usuario?.nome ?? '—'}</Texto>
         <Texto variante="suave">{perfilEquipe?.nome ?? '—'}</Texto>
       </Cartao>
-      <Cartao titulo="Minha conta">
+      <Cartao titulo="Conta">
         <View style={estilos.lista}>
           {itensDoMenuDoUsuario(pode).map((item) => {
             const Icone = ICONES_DO_MENU[item.id];

@@ -106,6 +106,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.
 
 ## App: convenções
+- Minha conta (app): `app/treinador/minha-conta.tsx` com abas Cadastro / Meu plano / Financeiro e o cartão de consumo (peças em `treinador/conta/PartesDaConta`, regras de texto e selo em `dominio/minhaConta.ts`). Só consulta; `previa:true` mostra o aviso "Prévia"; 404 vira "Conta ainda não disponível". Item no menu do usuário e na busca só com `CONTA_LER` (`podeAcessarTela`).
 - Barra de topo do treinador (`ui/BarraTopo`, só com o menu lateral, PC ≥ 900 px): consultoria + nome da tela, busca "O que você deseja fazer?" (`ui/BuscaGlobal`, Ctrl/Cmd+K), "Todas as telas" com favoritos (`treinos:<usuarioId>:favoritos`, apagados ao sair) e cartão do usuário (Meus dados, Ajustes, Sair; Minha conta com `CONTA_LER`). Telas e ações da busca estão em `dominio/telas.ts` e seguem `podeAcessarTela`: **tela nova entra lá**. A busca não procura alunos pelo nome. `/treinador/perfil` fica só para o celular (barra inferior).
 - Equipe: `useSessao().pode(codigo)` usa `/eu` só para apresentação; menu, ações e cartões seguem
   as permissões. `GuardaDePermissao` não monta telas sem acesso. A API continua autorizando pelo banco.

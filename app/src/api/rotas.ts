@@ -13,6 +13,7 @@ import type {
   CatalogoExercicio,
   PaginaCatalogo,
   Configuracao,
+  ConsumoDoPlano,
   ConsultoriaResponse,
   ConteudoDieta,
   ConteudoMobilidadeApi,
@@ -27,6 +28,7 @@ import type {
   LoginResponse,
   LoteResponse,
   Marca,
+  MinhaConta,
   PaginaAlunos,
   PainelAluno,
   PastaDoAluno,
@@ -360,3 +362,6 @@ export const aplicarModelo = (id: string, dados: { alunoId: string; pastaId: str
 export const salvarPastaComoModelo = (id: string, nome: string, descricao: string | null) => requisicao<Receita>(`/pastas/${id}/salvar-como-modelo`, { metodo: 'POST', corpo: { nome, descricao } });
 export const excluirPasta = (id: string) => requisicao<void>(`/pastas/${id}`, { metodo: 'DELETE' });
 export const excluirPlano = (tipo: TipoPlano, id: string) => requisicao<void>(`/${prefixo(tipo)}/${id}`, { metodo: 'DELETE' });
+
+export const minhaConta = () => requisicao<MinhaConta>('/minha-conta');
+export const consumoDoPlano = () => requisicao<ConsumoDoPlano>('/minha-conta/consumo');
