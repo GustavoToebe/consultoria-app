@@ -1,6 +1,7 @@
 package br.com.treinos.api.demo;
 
 import br.com.treinos.api.alunos.AlunoService;
+import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.alunos.ConviteService;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.atualizacoes.Atualizacao;
@@ -223,6 +224,10 @@ public class SeedHistoricoDemo {
      * @throws IllegalStateException se o treinador não existe ou falta algum modelo do guia
      */
     public Resultado criar(String emailDoTreinador, String senha) {
+        return AcessoAtual.comoSistema(() -> criarNoContexto(emailDoTreinador, senha));
+    }
+
+    private Resultado criarNoContexto(String emailDoTreinador, String senha) {
         if (senha == null || senha.length() < 8) {
             throw new IllegalStateException("A senha dos alunos de demonstração precisa ter pelo menos 8 caracteres.");
         }

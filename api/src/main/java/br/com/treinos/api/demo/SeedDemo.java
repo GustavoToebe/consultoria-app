@@ -1,6 +1,7 @@
 package br.com.treinos.api.demo;
 
 import br.com.treinos.api.alunos.AlunoService;
+import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.alunos.ConviteService;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.auth.CriacaoDeConta;
@@ -136,8 +137,11 @@ public class SeedDemo {
         if (senha == null || senha.length() < 8) {
             throw new IllegalStateException("DEMO_SENHA precisa ter pelo menos 8 caracteres.");
         }
-        criarSaraiva(senha);
-        criarExemplo(senha);
+        AcessoAtual.comoSistema(() -> {
+            criarSaraiva(senha);
+            criarExemplo(senha);
+            return null;
+        });
     }
 
     // ---- Consultoria 1: Saraiva Team (piloto) ----
