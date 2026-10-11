@@ -1,6 +1,7 @@
 package br.com.treinos.api.receitas;
 
 import br.com.treinos.api.dieta.*;
+import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.mobilidade.*;
 import br.com.treinos.api.treino.*;
 import br.com.treinos.api.pastas.*;
@@ -49,13 +50,15 @@ public class AplicarModeloService {
                 && tipo != Receita.Tipo.PLANO_DIETA && tipo != Receita.Tipo.REFEICAO && tipo != Receita.Tipo.PASTA_PLANO
                 && tipo != Receita.Tipo.MOBILIDADE)
             throw new BadRequestException("Este modelo é aplicado dentro do editor.");
+        // Antes de qualquer efeito: o modelo cria treino, dieta ou mobilidade, então exige a permissão de alterar o que cria.
+        ConteudoPastaModelo pacote=tipo == Receita.Tipo.PASTA_PLANO ? json.treeToValue(modelo.conteudo(), ConteudoPastaModelo.class) : null;
+        exigirPermissoes(tipo, pacote);
         UUID pastaId=r.pastaId();
         if (pastaId == null) pastaId=pastas.criar(r.alunoId(), new PastaDtos.PastaRequest(r.titulo(),r.inicio(),r.fim())).id();
         else Exigir.existe(repositorioPastas.findById(pastaId).filter(p -> !p.isArquivado() && p.getAlunoId().equals(r.alunoId())),
                 () -> new NaoEncontradoException("Pasta não encontrada."));
         if (tipo == Receita.Tipo.PASTA_PLANO) {
-            var conteudo=json.treeToValue(modelo.conteudo(), ConteudoPastaModelo.class);
-            for (var p:conteudo.planos()) {
+            for (var p:pacote.planos()) {
                 var pedido=new CriarPlanoRequest(p.titulo(),r.inicio(),r.fim(),null,null,pastaId);
                 if (p.treino()!=null) {
                     var novo=treinos.criar(r.alunoId(),pedido);
@@ -84,6 +87,17 @@ public class AplicarModeloService {
         }
         var novo=dietas.criar(r.alunoId(),pedido);
         return new Response(pastaId,novo.plano().id(),"dieta");
+    }
+    /** Treino e mobilidade usam as permissões do treino; a dieta, as da dieta. O pacote exige o que seus planos trazem. */
+    private static void exigirPermissoes(Receita.Tipo tipo, ConteudoPastaModelo pacote) {
+        switch (tipo) {
+            case PLANO_TREINO, SESSAO_TREINO, MOBILIDADE -> AcessoAtual.exigir("TREINO_ALTERAR");
+            case PLANO_DIETA, REFEICAO -> AcessoAtual.exigir("DIETA_ALTERAR");
+            case PASTA_PLANO -> {
+                for (var p:pacote.planos()) AcessoAtual.exigir(p.dieta()!=null ? "DIETA_ALTERAR" : "TREINO_ALTERAR");
+            }
+            default -> { }
+        }
     }
     @Transactional
     public ReceitaService.ReceitaResponse salvarPasta(UUID id, SalvarComoReceitaRequest r) {
