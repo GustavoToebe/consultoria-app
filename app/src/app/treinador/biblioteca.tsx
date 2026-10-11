@@ -22,7 +22,10 @@ export default function Biblioteca() {
   const {pode}=useSessao();
   const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
   const abas = abasDaBiblioteca(pode);
-  const [escolhida, setAba] = useState<AbaDaBiblioteca | null>(null);
+  // A escolha à mão vale só para o `?aba=` com que foi feita: o atalho da busca para outra aba (mesma rota) troca a aba.
+  const [escolha, setEscolha] = useState<{ pedida: string | undefined; valor: AbaDaBiblioteca } | null>(null);
+  const escolhida = escolha && escolha.pedida === abaPedida ? escolha.valor : null;
+  const setAba = (valor: AbaDaBiblioteca) => setEscolha({ pedida: abaPedida, valor });
   // A aba que o perfil deixou de poder abrir (ex.: permissão tirada) cai na primeira.
   const aba: AbaDaBiblioteca = escolhida && abas.some((a) => a.valor === escolhida) ? escolhida : abaInicial(abaPedida, abas);
   const { width } = useWindowDimensions();

@@ -9,6 +9,7 @@ import { ErroApi } from '../../api/cliente';
 import { dietaAluno, pesosAluno } from '../../api/rotas';
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
 import { normalizarDieta, somar, totalDoDia } from '../../dominio/dieta';
+import { ergogenicosPreenchidos } from '../../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { linkParaAbrir } from '../../dominio/links';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -82,6 +83,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
   const { avisar } = useAviso();
   const [gerando, setGerando] = useState(false);
   const c = normalizarDieta(versao.conteudo);
+  const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
 
   const pdf = async () => {
     if (!pacote) return;
@@ -151,9 +153,9 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
-      {c.ergogenicos?.length ? (
+      {ergogenicos.length ? (
         <Cartao titulo="Medicação e ergogênicos">
-          {c.ergogenicos.map((e) => (
+          {ergogenicos.map((e) => (
             <View key={e.uid} style={[estilos.item, { borderColor: cores.borda }]}>
               <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
               {e.principioAtivo || e.concentracao ? (

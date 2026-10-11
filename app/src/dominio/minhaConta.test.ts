@@ -79,6 +79,7 @@ describe('cadastro', () => {
   it('contato principal primeiro, sem perder a ordem dos outros', () => {
     const c = (nome: string, principal: boolean) => ({ nome, email: null, telefone: null, principal });
     expect(contatosOrdenados([c('A', false), c('B', true), c('C', false)]).map((x) => x.nome)).toEqual(['B', 'A', 'C']);
+    expect(contatosOrdenados(null)).toEqual([]);
   });
 });
 

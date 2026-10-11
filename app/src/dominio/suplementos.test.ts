@@ -7,6 +7,7 @@ import {
   marcaECategoria,
   MAX_SABORES,
   nomeParaDieta,
+  MAX_NOME_NA_DIETA,
   saboresDoTexto,
   saboresParaCampo,
   saboresParaTela,
@@ -52,6 +53,11 @@ describe('textos do cartão', () => {
     expect(nomeParaDieta({ nome: 'Creatina', marca: 'Heavy Suppz' })).toBe('Creatina (Heavy Suppz)');
     expect(nomeParaDieta({ nome: 'Creatina', marca: null })).toBe('Creatina');
     expect(nomeParaDieta({ nome: 'Creatina', marca: ' ' })).toBe('Creatina');
+  });
+  it('nome da linha de dieta cabe no limite da API', () => {
+    const longo = 'N'.repeat(110);
+    expect(nomeParaDieta({ nome: longo, marca: 'Marca comprida' })).toBe(longo);
+    expect(nomeParaDieta({ nome: 'X'.repeat(130), marca: null })).toHaveLength(MAX_NOME_NA_DIETA);
   });
 });
 

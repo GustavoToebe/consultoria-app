@@ -82,14 +82,14 @@ export function AbaPlano({ conta }: { conta: MinhaConta }) {
           <Dado rotulo="Periodicidade" valor={periodicidadeParaTela(c.periodicidade)} />
           <Dado rotulo="Vencimento" valor={c.diaVencimento ? `Todo dia ${c.diaVencimento}` : null} />
           <Dado rotulo="Início" valor={dataParaTela(c.inicio)} />
-          <Dado rotulo="Vigente até" valor={dataParaTela(c.vigenteAte)} />
+          <Dado rotulo="Vigente até" valor={c.vigenteAte ? dataParaTela(c.vigenteAte) : 'Sem data de término'} />
           <Dado rotulo="Instância" valor={c.nomeInstancia} />
         </Grade>
       </Cartao>
       <Cartao titulo="Adicionais">
-        {c.adicionais.length === 0 ? <Texto variante="suave">Nenhum adicional contratado.</Texto> : (
+        {(c.adicionais ?? []).length === 0 ? <Texto variante="suave">Nenhum adicional contratado.</Texto> : (
           <Grade>
-            {c.adicionais.map((a) => (
+            {(c.adicionais ?? []).map((a) => (
               <View key={a.nome} style={[estilos.item, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
                 <Texto variante="bloco">{a.nome}</Texto>
                 <Texto variante="suave" numerico>Quantidade: {a.quantidade}</Texto>

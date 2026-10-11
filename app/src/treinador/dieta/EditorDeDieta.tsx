@@ -59,8 +59,10 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
   const editor = usePlanoEditor<ConteudoDieta>('dieta', id, normalizarDieta, modelo);
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const alimentos = useCarregar('biblioteca-alimentos', () => listarAlimentos()).dados ?? [];
-  const suplementosDaBiblioteca = useCarregar('biblioteca-suplementos', () => listarSuplementos()).dados ?? [];
   const { pode } = useSessao();
+  // Sem BIBLIOTECA_LER a API recusa a lista: nem pede, e o botão "Escolher da biblioteca" some.
+  const veBiblioteca = pode('BIBLIOTECA_LER');
+  const suplementosDaBiblioteca = useCarregar(veBiblioteca ? 'biblioteca-suplementos' : null, () => listarSuplementos()).dados ?? [];
   // Medicação e ergogênicos é dado sensível: sem ERGOGENICO_LER a lista nem é pedida; modelos nunca a levam.
   const veErgogenicos = !modelo && pode('ERGOGENICO_LER');
   const editaErgogenicos = veErgogenicos && pode('ERGOGENICO_ALTERAR');
@@ -223,7 +225,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
           );
         })}
         <View style={estilos.acoes}>
-          <Botao rotulo="Escolher da biblioteca" tipo="secundario" Icone={Library} aoTocar={() => setFolha({ tipo: 'suplemento' })} />
+          {veBiblioteca ? <Botao rotulo="Escolher da biblioteca" tipo="secundario" Icone={Library} aoTocar={() => setFolha({ tipo: 'suplemento' })} /> : null}
           <Botao
             rotulo="Adicionar linha"
             tipo="secundario"

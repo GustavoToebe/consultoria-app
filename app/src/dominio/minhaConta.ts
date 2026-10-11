@@ -87,8 +87,8 @@ export function enderecoParaTela(e: EnderecoDaConta | null | undefined): string[
 }
 
 /** O contato principal vem primeiro; a ordem dos demais é mantida. */
-export function contatosOrdenados(contatos: ContatoDaConta[]): ContatoDaConta[] {
-  return [...contatos].sort((a, b) => Number(b.principal) - Number(a.principal));
+export function contatosOrdenados(contatos: ContatoDaConta[] | null | undefined): ContatoDaConta[] {
+  return [...(contatos ?? [])].sort((a, b) => Number(b.principal) - Number(a.principal));
 }
 
 export function estadoDoConsumoParaTela(estado: EstadoDoConsumo): { texto: string; tipo: TipoDeSelo } {

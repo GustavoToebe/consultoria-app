@@ -46,10 +46,14 @@ export function saboresParaCampo(sabores: string[]): string {
   return sabores.join(', ');
 }
 
-/** Nome para a linha de suplementação da dieta: "<nome> (<marca>)". */
+/** Tamanho máximo do nome na linha de suplementação da dieta (`@Size` de `ConteudoDieta.Suplemento.nome`). */
+export const MAX_NOME_NA_DIETA = 120;
+
+/** Nome para a linha de suplementação da dieta: "<nome> (<marca>)"; sem a marca se não couber no limite da API. */
 export function nomeParaDieta(s: Pick<SuplementoDaBiblioteca, 'nome' | 'marca'>): string {
   const marca = s.marca?.trim();
-  return marca ? `${s.nome} (${marca})` : s.nome;
+  const comMarca = marca ? `${s.nome} (${marca})` : s.nome;
+  return comMarca.length <= MAX_NOME_NA_DIETA ? comMarca : s.nome.slice(0, MAX_NOME_NA_DIETA);
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { CategoriaErgogenico, ErgogenicoDaBiblioteca } from '../api/tipos';
 import {
   agruparErgogenicos,
+  ergogenicosPreenchidos,
   linhaDeErgogenico,
   CATEGORIAS_ERGOGENICO,
   filtrarErgogenicos,
@@ -76,5 +77,15 @@ describe('linha da dieta', () => {
     const l = linhaDeErgogenico({ nome: 'Item de teste B', principioAtivo: null, concentracao: null }, 'u2');
     expect(l.principioAtivo).toBe('');
     expect(l.concentracao).toBe('');
+  });
+});
+
+describe('linhas preenchidas da dieta', () => {
+  const vazia = { uid: 'a', nome: '', principioAtivo: ' ', concentracao: '', dose: '', horario: '', observacao: '', prescricao: '' };
+  it('tira só a linha toda em branco', () => {
+    expect(ergogenicosPreenchidos([vazia, { ...vazia, uid: 'b', dose: 'Dose de teste' }]).map((e) => e.uid)).toEqual(['b']);
+  });
+  it('lista nula vira vazia', () => {
+    expect(ergogenicosPreenchidos(null)).toEqual([]);
   });
 });

@@ -53,6 +53,16 @@ export function linhaDeErgogenico(e: Pick<ErgogenicoDaBiblioteca, 'nome' | 'prin
   };
 }
 
+/**
+ * Linhas da dieta que têm algo escrito: a linha criada por "Adicionar linha" e deixada em branco não aparece para o
+ * aluno nem no PDF (a API também não a cobra na publicação).
+ */
+export function ergogenicosPreenchidos(lista: readonly ItemErgogenico[] | null | undefined): ItemErgogenico[] {
+  return (lista ?? []).filter((e) =>
+    [e.nome, e.principioAtivo, e.concentracao, e.dose, e.horario, e.observacao, e.prescricao].some((t) => (t ?? '').trim() !== ''),
+  );
+}
+
 /** Campo de texto do rótulo (concentração, apresentação…): o que faltar vira "—". */
 export function textoOuTraco(valor: string | null | undefined): string {
   return valor?.trim() || SEM_DADO;

@@ -1,5 +1,6 @@
 import type { ConteudoDieta, ItemDieta, Marca, RegistroPeso, Suplemento } from '../api/tipos';
 import { somar, totalDoDia, type Totais } from '../dominio/dieta';
+import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
 import { cssBase, esc, escLinhas, type Documento } from './html';
@@ -105,7 +106,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${op
     })
     .join('');
   const suplementos = c.suplementacao.filter((s) => s.nome || s.dose || s.horario || s.observacao);
-  const ergogenicos = (c.ergogenicos ?? []).filter((e) => e.nome || e.dose || e.horario || e.observacao || e.prescricao);
+  const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
   const comPrescricao = ergogenicos.some((e) => e.prescricao.trim() !== '');
   const marcaOuLogo = d.logoDataUri ? `<img src="${esc(d.logoDataUri)}" alt="${esc(d.marca.nome)}">` : `<h1>${esc(d.marca.nome)}</h1>`;
   const corpo = [
