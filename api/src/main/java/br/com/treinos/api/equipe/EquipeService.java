@@ -80,9 +80,9 @@ public class EquipeService {
     @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_APAGADO",entidade="PERFIL",resumo="Apagou um perfil.")
     public void apagarPerfil(UUID id) {
         travar();var p=perfil(id);exigirEditavel(p);
-        if(usuarios.countByConsultoriaIdAndPerfilId(TenantContext.get(),id)>0 || convites.countByPerfilIdAndUsadoEmIsNull(id)>0)
+        if(usuarios.countByConsultoriaIdAndPerfilId(TenantContext.get(),id)>0 || convites.countByPerfilIdAndUsadoEmIsNullAndExpiraEmAfter(id,Instant.now())>0)
             throw new ConflitoException("Este perfil está vinculado a um membro ou convite.","PERFIL_EM_USO");
-        convites.deleteByPerfilIdAndUsadoEmIsNotNull(id);convites.flush();
+        convites.deleteByPerfilId(id);convites.flush();
         perfis.delete(p);perfis.flush();
     }
     @Transactional(readOnly=true)
@@ -111,6 +111,14 @@ public class EquipeService {
         String codigo=OpaqueTokenGenerator.gerar();Instant expira=Instant.now().plus(7,ChronoUnit.DAYS);
         convites.saveAndFlush(new UsuarioConvite(r.nome().trim(),email,p.getId(),OpaqueTokenGenerator.hash(codigo),expira,criadoPor));
         return new ConviteResponse(codigo,appUrl+"/convite-equipe#"+codigo,expira);
+    }
+    /** Cancela convite ainda não aceito (vencido ou não), com o mesmo teto de quem convida; de outra consultoria ou já aceito = 404. */
+    @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="CONVITE_EQUIPE_CANCELADO",entidade="USUARIO",resumo="Cancelou um convite de equipe.")
+    public void cancelarConvite(UUID id) {
+        travar();var c=convites.findById(id).filter(v -> v.getUsadoEm()==null).orElseThrow(EquipeService::naoEncontrado);
+        exigirPodeAtribuir(ator(),perfil(c.getPerfilId()));
+        convites.delete(c);convites.flush();
     }
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="USUARIO_ALTERADO",entidade="USUARIO",resumo="Editou nome, perfil ou situação de um membro.")

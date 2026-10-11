@@ -58,6 +58,42 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         var p=api.post("/perfis",admin,Map.of("nome","Para editar","permissoes",Set.of("ALUNO_LER")),200);
         api.put("/perfis/"+p.path("id").asString(),admin,Map.of("nome","Para editar","permissoes",comNulo,"versao",p.path("versao").asLong()),400);
     }
+    @Test void conviteVencidoNaoTravaOPerfilECancelarLiberaOPerfil() throws Exception {
+        String perfil=api.post("/perfis",admin,Map.of("nome","Perfil temporário","permissoes",Set.of("ALUNO_LER")),200).path("id").asString();
+        var vencido=convite("Convidada vencida","vencida@exemplo.test",perfil);
+        var vigente=convite("Convidado vigente","vigente@exemplo.test",perfil);
+        banco.update("update usuario_convite set expira_em=now()-interval '1 day' where email=?","vencida@exemplo.test");
+        String idVencido=null,idVigente=null;
+        for(var u:api.get("/usuarios",admin,200)) {
+            if(u.path("email").asString().equals("vencida@exemplo.test")) idVencido=u.path("id").asString();
+            if(u.path("email").asString().equals("vigente@exemplo.test")) idVigente=u.path("id").asString();
+        }
+        // Convite vigente ainda trava o perfil; o vencido sozinho não.
+        assertThat(api.delete("/perfis/"+perfil,admin,409).path("codigo").asString()).isEqualTo("PERFIL_EM_USO");
+        api.delete("/usuarios/convites/"+idVigente,admin,204);
+        api.delete("/usuarios/convites/"+idVigente,admin,404);
+        api.delete("/perfis/"+perfil,admin,204);
+        assertThat(banco.queryForObject("select count(*) from usuario_convite where email in ('vencida@exemplo.test','vigente@exemplo.test')",Integer.class)).isZero();
+        assertThat(idVencido).isNotNull();
+        assertThat(api.get("/auditoria?acao=CONVITE_EQUIPE_CANCELADO",admin,200).path("itens")).hasSize(1);
+    }
+    @Test void cancelarConviteRespeitaConsultoriaAceiteETeto() throws Exception {
+        String assistente=perfil("Assistente").path("id").asString();
+        var aceito=convite("Aceito","aceito@exemplo.test",assistente);aceitar(aceito,200);
+        var pendenteAdmin=convite("Futuro administrador","futuro@exemplo.test",perfil("Administrador").path("id").asString());
+        String idPendente=null;
+        for(var u:api.get("/usuarios",admin,200)) if(u.path("email").asString().equals("futuro@exemplo.test")) idPendente=u.path("id").asString();
+        // Convite já aceito não é mais convite (o id do membro também não vale).
+        for(var u:api.get("/usuarios",admin,200)) if(u.path("email").asString().equals("aceito@exemplo.test")) api.delete("/usuarios/convites/"+u.path("id").asString(),admin,404);
+        // Outra consultoria não enxerga o convite.
+        api.delete("/usuarios/convites/"+idPendente,api.novoTreinador(),404);
+        // Quem tem USUARIO_ALTERAR mas não é administrador não cancela convite de Administrador.
+        String pm=api.post("/perfis",admin,Map.of("nome","Gestor de convites","permissoes",Set.of("EQUIPE_LER","USUARIO_ALTERAR")),200).path("id").asString();
+        var gestor=aceitar(convite("Gestor","gestor@exemplo.test",pm),200);
+        api.delete("/usuarios/convites/"+idPendente,gestor,403);
+        api.delete("/usuarios/convites/"+idPendente,admin,204);
+        assertThat(pendenteAdmin.path("codigo").asString()).isNotBlank();
+    }
     @Test void conviteAceitoUmaVezTrocaDePerfilEDesativacaoEncerramSessoes() throws Exception {
         String assistente=perfil("Assistente").path("id").asString();String nutri=perfil("Nutricionista").path("id").asString();
         String email=ApiDeTeste.emailUnico("assistente");var c=convite("Assistente Teste",email,assistente);

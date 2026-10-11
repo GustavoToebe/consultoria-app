@@ -1,5 +1,5 @@
 import type { PerfilEquipe } from '../api/equipeTipos';
-import { completarPermissoes,desmarcarPermissoes,perfisAtribuiveis,permissaoMarcavel,podeDuplicarPerfil,podeEditarMembro,podeEditarPerfil,type AtorEquipe } from './perfilEquipe';
+import { completarPermissoes,desmarcarPermissoes,perfisAtribuiveis,permissaoMarcavel,podeCancelarConvite,podeDuplicarPerfil,podeEditarMembro,podeEditarPerfil,type AtorEquipe } from './perfilEquipe';
 describe('seleção de permissões de perfil',()=>{
   it('feedback marca a cadeia de leitura sensível e cadastro',()=>{
     expect(completarPermissoes(['ATUALIZACAO_RESPONDER'])).toEqual(expect.arrayContaining(['ATUALIZACAO_RESPONDER','ATUALIZACAO_LER','ALUNO_SENSIVEL_LER','ALUNO_LER']));
@@ -39,6 +39,13 @@ describe('teto de permissões na tela (espelha a API)',()=>{
     expect(perfisAtribuiveis(membroGestor,[admin,gestor,leitura],{id:'eu',perfilId:'gestor'}).map(p=>p.id)).toEqual(['gestor']);
     // membro com perfil maior que o do ator: mantém o perfil atual entre as opções (só nome/situação mudam)
     expect(perfisAtribuiveis(membroGestor,[gestor,nutri],{id:'outro',perfilId:'nutri'}).map(p=>p.id)).toEqual(['gestor','nutri']);
+  });
+  it('cancelar convite pendente segue o mesmo teto de quem convida',()=>{
+    expect(podeCancelarConvite(membroGestor,{convitePendente:true,perfilId:'leitura'},[admin,gestor,leitura])).toBe(true);
+    expect(podeCancelarConvite(membroGestor,{convitePendente:true,perfilId:'admin'},[admin,gestor,leitura])).toBe(false);
+    expect(podeCancelarConvite(membroGestor,{convitePendente:true,perfilId:'nutri'},[admin,gestor,nutri])).toBe(false);
+    expect(podeCancelarConvite(administrador,{convitePendente:true,perfilId:'admin'},[admin])).toBe(true);
+    expect(podeCancelarConvite(administrador,{convitePendente:false,perfilId:'leitura'},[leitura])).toBe(false);
   });
   it('editar e duplicar perfil só dentro do teto, nunca o perfil que usa',()=>{
     expect(podeEditarPerfil(membroGestor,gestor)).toBe(false);

@@ -59,6 +59,7 @@ export const excluirPerfilEquipe = (id:string) => requisicao<void>(`/perfis/${id
 export const membrosEquipe = () => requisicao<MembroEquipe[]>('/usuarios');
 export const pessoasAuditoria = () => requisicao<ResponsavelEquipe[]>('/auditoria/pessoas');
 export const convidarMembro = (corpo:{nome:string;email:string;perfilId:string}) => requisicao<ConviteEquipe>('/usuarios/convites',{metodo:'POST',corpo});
+export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/convites/${id}`,{metodo:'DELETE'});
 export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${id}`,{metodo:'PUT',corpo});
 export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>(`/publico/convites-equipe/${encodeURIComponent(codigo)}`,{metodo:'POST',corpo:{senha},semRenovar:true});
 export const responsaveisEquipe = () => requisicao<ResponsavelEquipe[]>('/responsaveis');

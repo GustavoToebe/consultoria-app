@@ -31,6 +31,8 @@ public class EquipeController {
     public List<EquipeService.Responsavel> responsaveis() { return equipe.responsaveis(); }
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PostMapping("/usuarios/convites")
     public ConviteResponse convidar(@RequestBody @Valid ConviteRequest r,@AuthenticationPrincipal UsuarioAutenticado eu) { return equipe.convidar(r,eu.usuarioId()); }
+    @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @DeleteMapping("/usuarios/convites/{id}")
+    public ResponseEntity<Void> cancelarConvite(@PathVariable UUID id) { equipe.cancelarConvite(id);return ResponseEntity.noContent().build(); }
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PutMapping("/usuarios/{id}")
     public UsuarioResponse usuario(@PathVariable UUID id,@RequestBody @Valid UsuarioRequest r) { return equipe.alterarUsuario(id,r); }
     @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')") @PutMapping("/alunos/{id}/responsavel")

@@ -53,6 +53,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   atribuído cabe nas permissões de quem age; Administrador só administrador atribui; não administrador não mexe em
   administrador, no próprio perfil nem no perfil que usa (403 `PERMISSAO_NEGADA`).
   Convite de equipe tem hash, 7 dias e aceite único, com a transação dentro de `TenantContext.executarComo`.
+  Convite vencido não trava a exclusão do perfil (a exclusão apaga os convites do perfil); `DELETE /usuarios/convites/{id}` cancela convite não aceito, com o mesmo teto de quem convida (404 se de outra consultoria ou já aceito; auditoria `CONVITE_EQUIPE_CANCELADO`).
   `/responsaveis` só lista id/nome dos membros ativos com `ALUNO_LER`; gestão completa exige `EQUIPE_LER`.
 - Auditoria: `auditoria/Auditoria.registrar` usa resumos fixos, sem valores clínicos ou códigos.
   `@Auditar` roda dentro da transação (advisor 1, transação 0); `AuditoriaGravacao` usa JDBC com

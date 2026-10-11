@@ -39,4 +39,9 @@ export function podeEditarMembro(ator:AtorEquipe,membro:{id:string;perfilId:stri
   return ator.administrador||!perfis.find(p=>p.id===membro.perfilId)?.acessoTotal;
 }
 export const podeEditarPerfil=(ator:AtorEquipe,p:PerfilEquipe)=>!p.sistema&&(ator.administrador||(p.id!==ator.perfilId&&cabeNoTeto(ator,p.permissoes)));
+/** Convite pendente só é cancelado por quem poderia convidar para aquele perfil (a API decide de verdade). */
+export const podeCancelarConvite=(ator:AtorEquipe,convite:{convitePendente:boolean;perfilId:string},perfis:readonly PerfilEquipe[])=>{
+  const perfil=perfis.find(p=>p.id===convite.perfilId);
+  return convite.convitePendente&&!!perfil&&podeAtribuir(ator,perfil);
+};
 export const podeDuplicarPerfil=(ator:AtorEquipe,p:PerfilEquipe)=>podeAtribuir(ator,p);
