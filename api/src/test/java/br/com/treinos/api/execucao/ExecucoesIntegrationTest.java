@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,6 +70,32 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(jdbc.queryForObject("select carga from execucao_serie where id = ?", java.math.BigDecimal.class, id))
                 .isEqualByComparingTo("35");
         assertThat(contar()).isEqualTo(1);
+    }
+
+    @Test
+    void observacaoDaSerieSoApareceParaQuemLeDadoSensivel() throws Exception {
+        Map<String, Object> r = registro(UUID.randomUUID(), treino.wsUid(), "30", 6, Instant.now());
+        r.put("observacao", "Dor leve no ombro (texto fictício)");
+        enviar(List.of(r));
+        String url = "/alunos/" + alunoId + "/execucoes";
+        JsonNode comSensivel = membro(Set.of("REGISTRO_LER", "ALUNO_LER", "ALUNO_SENSIVEL_LER"));
+        JsonNode semSensivel = membro(Set.of("REGISTRO_LER", "ALUNO_LER"));
+        assertThat(api.get(url, treinador, 200).toString()).contains("Dor leve");
+        assertThat(api.get(url, comSensivel, 200).toString()).contains("Dor leve");
+        JsonNode lista = api.get(url, semSensivel, 200);
+        assertThat(lista.toString()).doesNotContain("Dor leve");
+        // A série continua lá, só sem a observação; e o aluno vê a própria.
+        assertThat(lista.get(0).get("sessoes").get(0).get("exercicios").get(0).get("series")).hasSize(1);
+        assertThat(api.get("/aluno/execucoes", aluno, 200).toString()).contains("Dor leve");
+    }
+
+    private JsonNode membro(Set<String> permissoes) throws Exception {
+        String perfil = api.post("/perfis", treinador, Map.of("nome", "Perfil " + UUID.randomUUID(), "permissoes", permissoes), 200)
+                .get("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", treinador,
+                Map.of("nome", "Membro fictício", "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
+        return api.post("/publico/convites-equipe/" + convite.get("codigo").asString(), null,
+                Map.of("senha", ApiDeTeste.SENHA), 200);
     }
 
     @Test

@@ -2,6 +2,7 @@ package br.com.treinos.api.execucao;
 
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
+import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.DiaDeTreino;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.ExercicioFeito;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.ProgressoPonto;
@@ -49,15 +50,22 @@ public class HistoricoService {
         this.alunos = alunos;
     }
 
-    /** Treinador: confere que o aluno é da consultoria (404 se não for). */
+    /**
+     * Treinador: confere que o aluno é da consultoria (404 se não for). A observação da série é dado sensível: sem
+     * {@code ALUNO_SENSIVEL_LER} ela sai nula (o aluno continua vendo a própria, por {@link #historico}).
+     */
     @Transactional(readOnly = true)
     public List<DiaDeTreino> doAluno(UUID alunoId, LocalDate de, LocalDate ate) {
         exigirAluno(alunoId);
-        return historico(alunoId, de, ate);
+        return montar(alunoId, de, ate, AcessoAtual.pode("ALUNO_SENSIVEL_LER"));
     }
 
     @Transactional(readOnly = true)
     public List<DiaDeTreino> historico(UUID alunoId, LocalDate de, LocalDate ate) {
+        return montar(alunoId, de, ate, true);
+    }
+
+    private List<DiaDeTreino> montar(UUID alunoId, LocalDate de, LocalDate ate, boolean comObservacao) {
         LocalDate fim = ate == null ? LocalDate.now(Fuso.BRASILIA) : ate;
         LocalDate inicio = de == null ? fim.minusDays(13) : de;
         if (inicio.isAfter(fim) || ChronoUnit.DAYS.between(inicio, fim) > PERIODO_MAXIMO_DIAS) {
@@ -68,7 +76,8 @@ public class HistoricoService {
         Map<UUID, String> grupos = new HashMap<>();
         biblioteca.findAllById(lista.stream().map(ExecucaoSerie::getExercicioId).filter(java.util.Objects::nonNull).distinct().toList())
                 .forEach(e -> { if (e.getGrupoMuscular() != null) grupos.put(e.getId(), e.getGrupoMuscular()); });
-        return agrupar(lista, indices.carregar(lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList()), grupos);
+        return agrupar(lista, indices.carregar(lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList()), grupos,
+                comObservacao);
     }
 
     @Transactional(readOnly = true)
@@ -104,7 +113,8 @@ public class HistoricoService {
         return mapa;
     }
 
-    static List<DiaDeTreino> agrupar(List<ExecucaoSerie> lista, Map<UUID, IndiceVersao> indices, Map<UUID, String> grupos) {
+    static List<DiaDeTreino> agrupar(List<ExecucaoSerie> lista, Map<UUID, IndiceVersao> indices, Map<UUID, String> grupos,
+                                     boolean comObservacao) {
         Map<LocalDate, Map<UUID, List<ExecucaoSerie>>> porDia = new LinkedHashMap<>();
         for (ExecucaoSerie e : lista) {
             porDia.computeIfAbsent(e.getData(), d -> new LinkedHashMap<>())
@@ -124,7 +134,7 @@ public class HistoricoService {
                             .map(IndiceVersao.LocalSerie::tipo).orElse(null);
                     porExercicio.computeIfAbsent(e.getExercicioUid(), x -> new ArrayList<>())
                             .add(new SerieFeita(e.getId(), e.getSerieUid(), tipo, e.isSerieTrabalho(), e.getCarga(),
-                                    e.getUnidade(), e.getRepeticoes(), e.isConcluida(), e.getObservacao()));
+                                    e.getUnidade(), e.getRepeticoes(), e.isConcluida(), comObservacao ? e.getObservacao() : null));
                 }
                 List<ExercicioFeito> exercicios = new ArrayList<>();
                 porExercicio.forEach((exercicioUid, feitas2) -> exercicios.add(new ExercicioFeito(exercicioUid,
