@@ -114,7 +114,10 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
     public PlanoDetalhe<C> salvarRascunho(UUID id, SalvarRascunhoRequest<C> r) {
         P plano = buscar(id);
         exigirMesmaVersao(plano, r.versao());
-        plano.salvarRascunho(r.titulo().trim(), r.inicio(), r.fim(), escrever(r.conteudo()));
+        // Plano em pasta: a pasta dá o período (como no criar); início e fim do corpo são ignorados.
+        PastaPlano pasta = plano.getPastaId() == null ? null : pastas.findById(plano.getPastaId()).orElse(null);
+        plano.salvarRascunho(r.titulo().trim(), pasta != null ? pasta.getInicio() : r.inicio(),
+                pasta != null ? pasta.getFim() : r.fim(), escrever(r.conteudo()));
         return detalhe(planos.saveAndFlush(plano));
     }
 

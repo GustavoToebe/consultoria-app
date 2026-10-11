@@ -110,7 +110,9 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
         (d) => {
           versao.current = d.plano.versao;
           setErroSalvar(null);
-          setEstado((s) => (s ? { ...s, plano: d.plano, versoes: d.versoes, salvoEm: Math.max(s.salvoEm, enviada) } : s));
+          // Em pasta o servidor ignora o período enviado e usa o da pasta: a tela passa a mostrar o que ele guardou.
+          const daPasta = d.plano.pastaId ? { inicio: dataParaTela(d.plano.inicio), fim: dataParaTela(d.plano.fim) } : {};
+          setEstado((s) => (s ? { ...s, ...daPasta, plano: d.plano, versoes: d.versoes, salvoEm: Math.max(s.salvoEm, enviada) } : s));
           if (atual.current) atual.current = { ...atual.current, salvoEm: enviada };
           return true;
         },

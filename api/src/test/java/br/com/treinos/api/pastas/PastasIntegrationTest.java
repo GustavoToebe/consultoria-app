@@ -157,6 +157,41 @@ class PastasIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void salvarRascunhoDePlanoEmPastaMantemOPeriodoDaPastaMesmoComOutroOuSemPeriodo() throws Exception {
+        String pasta = novaPasta("Plano 18", "2026-10-05", "2026-10-20").get("id").asString();
+        for (String rota : new String[]{"planos-treino", "planos-dieta", "planos-mobilidade"}) {
+            JsonNode criado = api.post("/alunos/" + aluno + "/" + rota, treinador,
+                    Map.of("titulo", "Plano da pasta", "pastaId", pasta), 200);
+            String id = criado.get("plano").get("id").asString();
+            Map<String, Object> outroPeriodo = ApiDeTeste.rascunho("Plano da pasta", criado.get("rascunho"),
+                    criado.get("plano").get("versao").asLong());
+            outroPeriodo.put("inicio", "2030-01-01");
+            outroPeriodo.put("fim", "2030-02-01");
+            JsonNode salvo = api.put("/" + rota + "/" + id + "/rascunho", treinador, outroPeriodo, 200);
+            assertThat(salvo.get("plano").get("inicio").asString()).as(rota).isEqualTo("2026-10-05");
+            assertThat(salvo.get("plano").get("fim").asString()).as(rota).isEqualTo("2026-10-20");
+            JsonNode semPeriodo = api.put("/" + rota + "/" + id + "/rascunho", treinador,
+                    ApiDeTeste.rascunho("Plano da pasta", salvo.get("rascunho"), salvo.get("plano").get("versao").asLong()), 200);
+            assertThat(semPeriodo.get("plano").get("inicio").asString()).as(rota).isEqualTo("2026-10-05");
+            assertThat(semPeriodo.get("plano").get("fim").asString()).as(rota).isEqualTo("2026-10-20");
+            assertThat(api.get("/" + rota + "/" + id, treinador, 200).get("plano").get("fim").asString())
+                    .as(rota).isEqualTo("2026-10-20");
+        }
+    }
+
+    @Test
+    void salvarRascunhoDePlanoSemPastaContinuaAceitandoOPeriodoDoCorpo() throws Exception {
+        JsonNode criado = api.post("/alunos/" + aluno + "/planos-treino", treinador, Map.of("titulo", "Plano solto"), 200);
+        Map<String, Object> corpo = ApiDeTeste.rascunho("Plano solto", criado.get("rascunho"),
+                criado.get("plano").get("versao").asLong());
+        corpo.put("inicio", "2030-01-01");
+        corpo.put("fim", "2030-02-01");
+        JsonNode salvo = api.put("/planos-treino/" + criado.get("plano").get("id").asString() + "/rascunho", treinador, corpo, 200);
+        assertThat(salvo.get("plano").get("inicio").asString()).isEqualTo("2030-01-01");
+        assertThat(salvo.get("plano").get("fim").asString()).isEqualTo("2030-02-01");
+    }
+
+    @Test
     void periodoInvalidoEPastaDeOutraConsultoriaOuAlunoSaoRecusados() throws Exception {
         api.post("/alunos/" + aluno + "/pastas", treinador,
                 Map.of("titulo", "X", "inicio", "2026-10-20", "fim", "2026-10-05"), 400);
