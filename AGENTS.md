@@ -77,6 +77,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   (`V007`, `V008`) não se edita à mão, e fonte nova ou corrigida = migration nova. Valor ausente nunca vira zero
   (`Tr`/`NA` → 0 com marca em `tracos`). A busca usa `nome_busca` (sem acento), calculada igual no Python e em
   `Buscas.semAcento`; teste: `python -m unittest scripts/catalogo/test_catalogo.py`.
+- Suplementos e ergogênicos ficam na biblioteca (`/suplementos`, `/ergogenicos`) e são copiados para a dieta; link passa por `LinksExternos` (https). `ConteudoDieta.ergogenicos` sai nulo sem `ERGOGENICO_LER`, é preservado sem `ERGOGENICO_ALTERAR`, não entra em modelo nem em cópia para outro aluno e nunca vai a log/auditoria (ganchos `paraLeitura`/`paraGravarRascunho`/`paraCopiaDeOutroAluno` do `PlanoServiceBase`).
 - Aplicar modelo (`POST /receitas/{id}/aplicar`) exige `MODELO_APLICAR` + `ALUNO_LER` e, no serviço e antes de qualquer efeito, `TREINO_ALTERAR` (treino, sessão, mobilidade), `DIETA_ALTERAR` (dieta, refeição) ou as do que o pacote traz; salvar pasta como modelo exige também `TREINO_LER` e `DIETA_LER`. Sem `pastaId` o serviço cria pasta nova e exige também `PASTA_ALTERAR` (no app, `AplicarAoAluno` só oferece pastas existentes a quem não tem essa permissão).
 - Modelos do Planejamento (`receitas/`): tipo `MOBILIDADE` (alongamento/mobilidade: seções com itens nome, prescrição em texto e
   vídeo) é modelo reutilizável e também "Aplicar ao aluno" (cria o plano de mobilidade na pasta). Pasta de plano pode ser finalizada
@@ -203,7 +204,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   No Expo Go do Android o `expo-notifications` lança ao importar: `aluno/atualizacao/lembretes.ts` o carrega sob demanda e lá os lembretes ficam desligados.
   `Folha` usa mola e arraste no cabeçalho; web mantém Esc e clique fora. Bases RNR incluem licença MIT local.
 
-- Importação de conteúdo do Saraiva (vídeos, semanas de treino e mobilidade): `node scripts/importacao/importar.mjs`
+- Importação de conteúdo do Saraiva (vídeos, semanas de treino, mobilidade, suplementos e medicação/ergogênicos; o passo de ergogênicos pede login de Administrador): `node scripts/importacao/importar.mjs`
   (`--simular` só lê; `--substituir` troca modelos que já existem; `--trocar-videos` troca vídeo já gravado). Usa a API
   como treinador (`DEMO_SENHA` do ambiente, sem imprimir) e é idempotente. Dados em `scripts/importacao/dados/`, sem
   dado de aluno. Depois de `docker compose down -v`, rodar de novo.
