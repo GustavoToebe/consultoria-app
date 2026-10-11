@@ -1,11 +1,12 @@
 import { BedDouble, Dumbbell, Footprints, Plus, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Sessao, TipoSessao } from '../../api/tipos';
 import { rotuloDaSessao } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
+import { FaixaDeChips } from '../../ui/FaixaDeChips';
 import { Texto } from '../../ui/Texto';
 
 const ICONES: Record<TipoSessao, LucideIcon> = {
@@ -28,14 +29,14 @@ interface Props {
 }
 
 /**
- * Uma sessão por vez: chips com rolagem horizontal ("Seg · Costas"), o selecionado invertido, ponto vermelho nas
- * sessões com erro e o chip "+ Sessão" no fim.
+ * Uma sessão por vez: chips ("Seg · Costas") que quebram linha no PC e rolam no celular, o selecionado invertido,
+ * ponto vermelho nas sessões com erro e o chip "+ Sessão" no fim. O botão "Modelos" fica à direita, na primeira linha.
  */
 export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecionar, aoAdicionar, adicionarDesabilitado, acao }: Props) {
   const { cores } = useTema();
   return (
     <View style={estilos.barra}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={estilos.rolagem} contentContainerStyle={estilos.chips} accessibilityRole="tablist">
+      <View style={estilos.rolagem}><FaixaDeChips quebrar accessibilityRole="tablist" accessibilityLabel="Sessões do plano">
         {sessoes.map((s, i) => {
           const ativo = s.uid === selecionada;
           const erro = comProblema.has(s.uid);
@@ -75,16 +76,15 @@ export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecion
           <Plus size={16} color={cores.texto} strokeWidth={2} />
           <Texto style={[estilos.texto, { color: cores.texto }]}>Sessão</Texto>
         </Pressable>
-      </ScrollView>
+      </FaixaDeChips></View>
       {acao ? <View style={estilos.acao}>{acao}</View> : null}
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  barra: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  barra: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
   rolagem: { flex: 1, flexGrow: 1 },
-  chips: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), paddingRight: espaco(1) },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

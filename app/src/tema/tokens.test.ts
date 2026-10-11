@@ -1,9 +1,33 @@
-import { CLARO, ESCURO, contraste, textoSobre } from './tokens';
+import { CLARO, ESCURO, contraste, marcaParaTexto, textoSobre } from './tokens';
 
 it.each([CLARO, ESCURO])('preserva contraste AA nos detalhes de todas as superfícies', (cores) => {
   for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
     expect(contraste(cores.textoSuave, superficie)).toBeGreaterThanOrEqual(4.5);
   }
+});
+
+it.each([CLARO, ESCURO])('status e neutro servem de texto em todas as superfícies', (cores) => {
+  for (const cor of [cores.sucesso, cores.atencao, cores.perigo, cores.neutro]) {
+    for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
+      expect(contraste(cor, superficie)).toBeGreaterThanOrEqual(4.5);
+    }
+  }
+  expect(contraste('#FFFFFF', cores.perigoFundo)).toBeGreaterThanOrEqual(4.5);
+  expect(cores.anelFoco).toBe(cores.texto);
+});
+
+describe('marcaParaTexto', () => {
+  it('mantém a cor que já contrasta e clareia ou escurece a que não contrasta', () => {
+    expect(marcaParaTexto('#FACC15', ESCURO.fundo)).toBe('#FACC15');
+    expect(marcaParaTexto('#C62828', CLARO.superficie)).toBe('#C62828');
+    for (const marca of ['#C62828', '#2563EB', '#52525B', '#7C3AED', '#E5484D']) {
+      expect(contraste(marcaParaTexto(marca, ESCURO.superficie), ESCURO.superficie)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(marcaParaTexto(marca, CLARO.superficie), CLARO.superficie)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+  it('devolve o texto como veio quando não é #RRGGBB', () => {
+    expect(marcaParaTexto('vermelho', ESCURO.fundo)).toBe('vermelho');
+  });
 });
 
 it.each([CLARO, ESCURO])('campo, borda e cartão se distinguem do fundo e entre si', (cores) => {

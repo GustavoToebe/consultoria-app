@@ -135,12 +135,12 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
         { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
       ]}>
       <View style={estilos.dados}>
-        <Texto variante="bloco">{aluno.nome}</Texto>
+        <Texto variante="bloco" numberOfLines={2}>{aluno.nome}</Texto>
         <View style={estilos.selos}>
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} larguraMinima={LARGURA_SELO} />
           <Selo texto={aluno.temAcesso ? 'Com acesso' : 'Sem acesso'} tipo={aluno.temAcesso ? 'sucesso' : 'neutro'} larguraMinima={LARGURA_SELO} />
         </View>
-        <Texto variante="suave">
+        <Texto variante="suave" numberOfLines={2}>
           Treino: {aluno.planoAtivo?.titulo ?? '—'} · Último registro: {dataParaTela(aluno.ultimoRegistro) || '—'}
         </Texto>
       </View>

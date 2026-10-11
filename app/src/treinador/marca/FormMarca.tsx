@@ -35,6 +35,7 @@ interface Props {
 export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const { atualizarMarca } = useSessao();
   const { avisar } = useAviso();
+  const { cores } = useTema();
   const inicial = consultoria.marca;
   const [nome, setNome] = useState(inicial.nome);
   const [cor, setCor] = useState(inicial.corPrimaria);
@@ -50,6 +51,8 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const campos = errosPorCampo(erro);
   const corValida = HEX.test(cor);
   const avaliacao = avaliarMarca(cor);
+  // O botão de salvar só aparece quando algo mudou (logo salva na hora, à parte).
+  const alterado = nome.trim() !== inicial.nome || cor !== inicial.corPrimaria || fonte !== inicial.fonteTitulo || tema !== inicial.temaPadrao;
   const previa: Marca = { ...inicial, nome: nome || inicial.nome, lema: inicial.lema, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
   const salvar = () => {
@@ -223,9 +226,13 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
         </GradeDeOpcoes>
       </Cartao>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
-      <View style={estilos.rodape}>
-        <Botao rotulo="Salvar marca" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !corValida || !!avaliacao.bloqueia} />
-      </View>
+      {alterado ? (
+        <View style={[estilos.rodape, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
+          <Texto variante="suave" style={estilos.textoRodape}>Alterações ainda não salvas.</Texto>
+          <Botao rotulo="Salvar marca" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !corValida || !!avaliacao.bloqueia}
+            motivo={!nome.trim() ? 'Informe o nome da consultoria.' : !corValida ? 'Use uma cor no formato #RRGGBB.' : avaliacao.bloqueia ? 'Escolha uma cor que segure texto branco.' : undefined} />
+        </View>
+      ) : null}
       <PainelConfirmacao
         visivel={confirmarRemocao}
         titulo="Remover a logo?"
@@ -277,7 +284,8 @@ const estilos = StyleSheet.create({
   tituloPrevia: { fontFamily: fontes.semi },
   botaoPrevia: { borderRadius: RAIO, paddingVertical: espaco(1), alignItems: 'center', marginTop: espaco(0.5) },
   campoCor: { maxWidth: 240 },
-  rodape: { flexDirection: 'row', justifyContent: 'flex-end' },
+  rodape: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
+  textoRodape: { flexShrink: 1 },
   logo: { gap: espaco(0.75) },
   amostra: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   inicial: { fontFamily: fontes.negrito, fontSize: 18 },

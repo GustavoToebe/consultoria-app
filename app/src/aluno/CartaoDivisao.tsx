@@ -98,11 +98,11 @@ function ChipData({
   ativo: boolean;
   aoTocar: () => void;
 }) {
-  const { cores, marca, sobreMarca } = useTema();
+  const { cores, marca, marcaTexto, sobreMarca } = useTema();
   const fundo = hoje ? marca : cores.superficie2;
   const texto = hoje ? sobreMarca : cores.texto;
   const Icone = feito ? Check : CalendarDays;
-  const corIcone = hoje ? sobreMarca : feito ? cores.sucesso : marca;
+  const corIcone = hoje ? sobreMarca : feito ? cores.sucesso : marcaTexto;
   return (
     <Pressable
       accessibilityRole="button"

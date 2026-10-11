@@ -12,11 +12,11 @@ describe('preferências pessoais', () => {
   it('valor desconhecido, faltando ou texto quebrado volta ao padrão', () => {
     expect(normalizarPreferencias(undefined)).toEqual(PREFERENCIAS_PADRAO);
     expect(normalizarPreferencias('{quebrado')).toEqual(PREFERENCIAS_PADRAO);
-    expect(normalizarPreferencias({ tema: 'ROXO', contraste: 1, tamanhoTexto: 'GIGANTE', movimento: null, vibracao: 'sim' })).toEqual(PREFERENCIAS_PADRAO);
+    expect(normalizarPreferencias({ tema: 'ROXO', contraste: 1, tamanhoTexto: 'GIGANTE', movimento: null, vibracao: 'sim', graficos: 'não' })).toEqual(PREFERENCIAS_PADRAO);
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });

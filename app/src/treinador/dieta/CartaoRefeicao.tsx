@@ -65,6 +65,7 @@ export function CartaoRefeicao(p: Props) {
           selo={p.comProblema.has(r.uid) ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
           aberto={p.aberta}
           aoAlternar={p.aoAbrir}
+          acoesJuntas
           acoes={
             <>
               <IconeBotao Icone={ArrowUp} rotulo="Subir refeição" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />

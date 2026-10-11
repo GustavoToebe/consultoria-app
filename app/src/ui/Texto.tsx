@@ -10,9 +10,14 @@ interface Props extends TextProps {
   variante?: Variante;
   cor?: string;
   numerico?: boolean;
+  /**
+   * Nível de título para o leitor de tela (h1 a h3). Explícito, não derivado da variante: a tela tem um h1 (o
+   * `Cabecalho`), cartões e folhas têm h2 e subtítulos dentro deles h3.
+   */
+  nivel?: 1 | 2 | 3;
 }
 
-export function Texto({ variante = 'corpo', cor, numerico, style, ...resto }: Props) {
+export function Texto({ variante = 'corpo', cor, numerico, nivel, style, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const padrao = variante === 'suave' || variante === 'secao' || variante === 'pequeno' || variante === 'rotulo' ? cores.textoSuave : cores.texto;
   // O tamanho do texto da pessoa multiplica fonte e altura de linha, inclusive os tamanhos fixos passados em `style`.
@@ -21,5 +26,6 @@ export function Texto({ variante = 'corpo', cor, numerico, style, ...resto }: Pr
     estilo.fontSize = escalar(estilo.fontSize, fatorTexto);
     if (estilo.lineHeight) estilo.lineHeight = escalar(estilo.lineHeight, fatorTexto);
   }
-  return <Text maxFontSizeMultiplier={1.5} {...resto} style={estilo} />;
+  const titulo = nivel ? { role: 'heading' as const, 'aria-level': nivel } : null;
+  return <Text maxFontSizeMultiplier={1.5} {...titulo} {...resto} style={estilo} />;
 }

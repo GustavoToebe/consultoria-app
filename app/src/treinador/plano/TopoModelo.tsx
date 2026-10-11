@@ -16,7 +16,7 @@ const SITUACOES: Record<SituacaoRascunho, { texto: string; tipo: TipoSelo }> = {
 export function TopoModelo<C>({ editor }: { editor: ReturnType<typeof usePlanoEditor<C>> }) {
   const e = editor.estado;
   if (!e) return null;
-  return <Cartao titulo="Modelo reutilizável" descricao="As alterações só valem depois de Salvar modelo; se sair sem salvar, elas são descartadas. As cópias já aplicadas aos alunos permanecem iguais.">
+  return <Cartao titulo="Modelo reutilizável" descricao="Nada é salvo sozinho: as alterações só valem depois de Salvar modelo (ao sair com alteração pendente, o app pergunta antes). As cópias já aplicadas aos alunos permanecem iguais.">
     <Campo rotulo="Nome do modelo" valor={e.titulo} aoMudar={(titulo) => editor.alterar(() => ({ titulo }))} maxLength={120} />
     <Selo texto={SITUACOES[editor.situacao].texto} tipo={SITUACOES[editor.situacao].tipo} />
     {editor.situacao === 'conflito' ? <Botao rotulo="Recarregar modelo" aoTocar={editor.recarregar} /> : <Botao rotulo="Salvar modelo" aoTocar={() => void editor.salvar()} carregando={editor.situacao === 'salvando'} desabilitado={!e.titulo.trim()} />}

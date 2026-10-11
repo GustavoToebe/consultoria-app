@@ -57,7 +57,7 @@ export default function Cadastro() {
   return (
     <Tela largura={480}>
       <View style={estilos.topo}>
-        <Texto variante="titulo">Criar conta de treinador</Texto>
+        <Texto variante="titulo" nivel={1}>Criar conta de treinador</Texto>
         <Texto variante="suave">Sua consultoria nasce com receitas de séries, semanas de treino e dieta prontas para editar.</Texto>
       </View>
       <Cartao>

@@ -8,6 +8,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { ConfirmarSaida } from './ConfirmarSaida';
+import { useSaidaGuardada } from './GuardaDeSaida';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 import { useCliqueFora, useTeclado } from './usoWeb';
@@ -23,7 +24,7 @@ export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
  * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Minha conta, Ajustes,
  * Sair). Fecha com Esc e com clique fora; setas escolhem e Enter abre. Sair pede a confirmação de sempre.
  */
-export function CartaoDoUsuario() {
+export function CartaoDoUsuario({ compacto }: { compacto?: boolean } = {}) {
   const { usuario, perfilEquipe, pode } = useSessao();
   const { cores } = useTema();
   const [aberto, setAberto] = useState(false);
@@ -32,14 +33,17 @@ export function CartaoDoUsuario() {
   const caixa = useRef<View>(null);
   const itens = itensDoMenuDoUsuario(pode);
 
+  const { confirmar } = useSaidaGuardada();
   const fechar = () => {
     setAberto(false);
     setAtivo(-1);
   };
   const escolher = (id: IdDoItemDoMenu, href: string | null) => {
     fechar();
-    if (href === null) setSaindo(true);
-    else router.navigate(href as Href);
+    confirmar(() => {
+      if (href === null) setSaindo(true);
+      else router.navigate(href as Href);
+    });
   };
 
   useCliqueFora(caixa, aberto, fechar);
@@ -71,10 +75,10 @@ export function CartaoDoUsuario() {
         accessibilityLabel={`Menu do usuário, ${usuario?.nome ?? ''}`}
         accessibilityState={{ expanded: aberto }}
         onPress={() => (aberto ? fechar() : setAberto(true))}
-        style={(estado) => [estilos.cartao, { borderColor: cores.borda }, (aberto || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
+        style={(estado) => [estilos.cartao, compacto && estilos.cartaoCompacto, { borderColor: cores.borda }, (aberto || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
         <View style={estilos.textos}>
           <Texto numberOfLines={1} style={estilos.nome}>{usuario?.nome ?? '—'}</Texto>
-          <Texto variante="pequeno" numberOfLines={1}>{perfilEquipe?.nome ?? '—'}</Texto>
+          {compacto ? null : <Texto variante="pequeno" numberOfLines={1}>{perfilEquipe?.nome ?? '—'}</Texto>}
         </View>
         <ChevronDown size={16} color={cores.textoSuave} strokeWidth={2} />
       </Pressable>
@@ -117,6 +121,8 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RAIO,
   },
+  // No trilho (768 a 1023 px) o cartão encurta: só o nome.
+  cartaoCompacto: { maxWidth: 180 },
   textos: { flexShrink: 1, minWidth: 0 },
   nome: { fontFamily: fontes.semi, fontSize: 14 },
   menu: {

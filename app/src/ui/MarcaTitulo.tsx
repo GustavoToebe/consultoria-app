@@ -4,21 +4,22 @@ import { StyleSheet, View } from 'react-native';
 import { urlDaApi } from '../api/cliente';
 import type { Marca } from '../api/tipos';
 import { useTema } from '../tema/TemaProvider';
-import { fontes } from '../tema/tokens';
+import { fontes, marcaParaTexto } from '../tema/tokens';
 import { Texto } from './Texto';
 
 /**
  * Marca do treinador: a logo (se houver) ou o nome da consultoria. Com a fonte "Metal" o nome sai em Metal Mania
- * (o Saraiva gosta de logo estilo death/black metal).
+ * (o Saraiva gosta de logo estilo death/black metal). O nome usa a cor da marca em variante legível sobre o fundo
+ * (`marcaParaTexto`). `nivel` faz dele o título da tela para o leitor de tela (h1 nas telas públicas e do aluno).
  */
-export function MarcaTitulo({ marca, tamanho = 'medio' }: { marca: Marca | null; tamanho?: 'medio' | 'grande' }) {
-  const { marca: corDoTema } = useTema();
+export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca | null; tamanho?: 'medio' | 'grande'; nivel?: 1 | 2 | 3 }) {
+  const { cores, marcaTexto } = useTema();
   const grande = tamanho === 'grande';
   if (!marca) {
-    return <Texto variante="titulo">Treinos</Texto>;
+    return <Texto variante="titulo" nivel={nivel}>Treinos</Texto>;
   }
   // A cor da própria marca: na tela de convite (antes do login) o tema ainda é neutro.
-  const cor = marca.corPrimaria ?? corDoTema;
+  const cor = marca.corPrimaria ? marcaParaTexto(marca.corPrimaria, cores.superficie3) : marcaTexto;
   if (marca.logoUrl) {
     return (
       <View accessibilityRole="image" accessibilityLabel={marca.nome}>
@@ -35,7 +36,7 @@ export function MarcaTitulo({ marca, tamanho = 'medio' }: { marca: Marca | null;
   const metal = marca.fonteTitulo === 'METAL';
   return (
     <Texto
-      accessibilityRole="header"
+      nivel={nivel}
       numberOfLines={2}
       style={[
         { color: cor, fontFamily: familia },

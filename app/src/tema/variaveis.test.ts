@@ -17,6 +17,7 @@ it('marca não altera cores de status e mantém contraste', () => {
  expect(a['--color-primary']).toBe('#ABCDEF');
  expect(a['--color-primary-foreground']).toBe(textoSobre('#ABCDEF'));
  expect(a['--color-sucesso']).toBe(CLARO.sucesso);
- expect(a['--color-destructive']).toBe(CLARO.perigo);
+ expect(a['--color-destructive']).toBe(CLARO.perigoFundo);
+ expect(a['--color-ring']).toBe(CLARO.anelFoco);
 });
 

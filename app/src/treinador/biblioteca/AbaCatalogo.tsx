@@ -34,7 +34,7 @@ interface ListaCatalogo {
 
 /** Catálogo público (só leitura): marcar vários e importar para a biblioteca da consultoria. */
 export function AbaCatalogo() {
-  const { cores, marca } = useTema();
+  const { cores, marcaTexto } = useTema();
   const { avisar } = useAviso();
   const [tipo, setTipo] = useState<TipoBiblioteca>('exercicios');
   const [busca, setBusca] = useState('');
@@ -160,7 +160,7 @@ export function AbaCatalogo() {
                 accessibilityLabel={`${expandido ? 'Esconder' : 'Ver'} instruções de ${item.nome}`}
                 onPress={() => setAberto(expandido ? null : item.id)}
                 style={estilos.verInstrucoes}>
-                <Texto variante="pequeno" cor={marca}>{expandido ? 'Esconder instruções' : 'Ver instruções'}</Texto>
+                <Texto variante="pequeno" cor={marcaTexto}>{expandido ? 'Esconder instruções' : 'Ver instruções'}</Texto>
               </Pressable>
             ) : null}
             {expandido ? (

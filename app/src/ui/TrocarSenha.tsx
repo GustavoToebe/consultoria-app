@@ -48,7 +48,7 @@ export function TrocarSenha() {
       {erroSenha ? <MensagemErro texto={erroSenha} /> : null}
       <View style={estilos.linha}>
         <Botao rotulo="Trocar senha" tipo="secundario" cheio aoTocar={trocarSenha} carregando={trocando}
-          desabilitado={!senhaAtual || !senhaNova} />
+          desabilitado={!senhaAtual || !senhaNova} motivo="Preencha a senha atual e a nova." />
       </View>
     </Cartao>
   );

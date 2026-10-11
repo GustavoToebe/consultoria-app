@@ -6,7 +6,7 @@ const ABAS: readonly { valor: AbaDaBiblioteca; rotulo: string; permissao: string
   { valor: 'alimentos', rotulo: 'Alimentos', permissao: null },
   { valor: 'suplementos', rotulo: 'Suplementos', permissao: null },
   { valor: 'ergogenicos', rotulo: 'Medicação e ergogênicos', permissao: 'ERGOGENICO_LER' },
-  { valor: 'catalogo', rotulo: 'Catálogo', permissao: null },
+  { valor: 'catalogo', rotulo: 'Importar do catálogo', permissao: null },
   { valor: 'csv', rotulo: 'Importar CSV', permissao: 'BIBLIOTECA_ALTERAR' },
 ];
 

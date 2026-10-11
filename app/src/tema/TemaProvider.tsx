@@ -15,12 +15,13 @@ import {
 } from '../dominio/preferencias';
 import { useSessao } from '../sessao/SessaoProvider';
 import { definirVibracaoLigada } from '../ui/vibrar';
-import { CLARO, ESCURO, MARCA_NEUTRA, textoSobre, type Cores } from './tokens';
+import { CLARO, ESCURO, MARCA_NEUTRA, marcaParaTexto, textoSobre, type Cores } from './tokens';
 
 /**
  * Tema e preferências visuais de cada pessoa (tema, contraste, tamanho do texto, animações, vibração). Ficam no
  * aparelho, por usuário, num JSON só: é preferência visual, não dado sensível. Padrão do tema = o da marca do
- * treinador. A cor da marca é do treinador e não muda por pessoa.
+ * treinador; sem marca conhecida (entrar, cadastro, convite), o do aparelho. A cor da marca é do treinador e não
+ * muda por pessoa.
  */
 interface ValorTema {
   /** Tema em uso agora (escuro ou claro), já resolvido: consultoria, escolha da pessoa ou aparelho. */
@@ -28,6 +29,12 @@ interface ValorTema {
   cores: Cores;
   marca: string;
   sobreMarca: string;
+  /**
+   * A cor da marca para texto e ícone sobre o fundo e as superfícies (≥ 4,5:1): a própria cor quando contrasta,
+   * senão a variante mais clara (tema escuro) ou mais escura (tema claro). Fundo de botão e sublinhado de aba
+   * continuam com `marca`.
+   */
+  marcaTexto: string;
   preferencias: Preferencias;
   /** Multiplicador dos tamanhos de texto (1; 1,12; 1,25; 1,40). */
   fatorTexto: number;
@@ -75,21 +82,24 @@ export function TemaProvider({ children }: { children: ReactNode }) {
   );
 
   const valor = useMemo<ValorTema>(() => {
-    const doTreinador: Tema = sessao.marca?.temaPadrao ?? 'ESCURO';
+    const doAparelho: Tema = esquemaDoAparelho === 'light' ? 'CLARO' : 'ESCURO';
+    // Tela pública (sem consultoria conhecida) segue o aparelho; logado, o padrão é o da marca do treinador.
+    const doTreinador: Tema = sessao.marca?.temaPadrao ?? doAparelho;
     const modo: Tema =
       preferencias.tema === 'ESCURO' || preferencias.tema === 'CLARO'
         ? preferencias.tema
         : preferencias.tema === 'SISTEMA'
-          ? esquemaDoAparelho === 'light'
-            ? 'CLARO'
-            : 'ESCURO'
+          ? doAparelho
           : doTreinador;
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
+    const cores = coresComContraste(modo === 'CLARO' ? CLARO : ESCURO, preferencias.contraste, modo !== 'CLARO');
     return {
       modo,
-      cores: coresComContraste(modo === 'CLARO' ? CLARO : ESCURO, preferencias.contraste, modo !== 'CLARO'),
+      cores,
       marca,
       sobreMarca: textoSobre(marca),
+      // Contra a superfície de pior contraste: `superficie3` é a mais clara no escuro e a mais escura no claro.
+      marcaTexto: marcaParaTexto(marca, cores.superficie3),
       preferencias,
       fatorTexto: fatorDoTexto(preferencias.tamanhoTexto),
       escolherPreferencia: (parcial) => gravar({ ...preferencias, ...parcial }),

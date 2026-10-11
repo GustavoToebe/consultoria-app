@@ -41,7 +41,7 @@ export function ConfiguracaoDoPlano<C>({ editor, modelo, recolhido, descricao, c
       )}
       {modelo ? null : e.plano.pastaId ? (
         <Texto variante="suave">
-          Período: {e.inicio || '—'} a {e.fim || '—'}. Vem da pasta; para mudar, edite a pasta na ficha do aluno.
+          Período: {e.inicio || e.fim ? `${e.inicio || '—'} a ${e.fim || '—'}` : '—'}. Vem da pasta; para mudar, edite a pasta na ficha do aluno.
         </Texto>
       ) : (
         <View style={estilos.datas}>

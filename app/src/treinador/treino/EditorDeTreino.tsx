@@ -201,7 +201,13 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
             comDesfazer(`Sessão “${removida.nome || indiceSelecionado + 1}” removida.`, (a) => ({ ...a, sessoes: a.sessoes.filter((x) => x.uid !== removida.uid) }));
           }}
           aoSalvarModelo={() => setFolha({ tipo: 'salvarSessao', indice: indiceSelecionado })}
-          aoNovoExercicio={() => adicionarExercicio(indiceSelecionado)}>
+          aoNovoExercicio={() => adicionarExercicio(indiceSelecionado)}
+          todosAbertos={sessaoAtual.exercicios.length > 0 && sessaoAtual.exercicios.every((e) => abertos.has(e.uid))}
+          aoAlternarTodos={() => {
+            const uids = sessaoAtual.exercicios.map((e) => e.uid);
+            const todos = uids.every((u) => abertos.has(u));
+            setAbertos((a) => { const novo = new Set(a); uids.forEach((u) => (todos ? novo.delete(u) : novo.add(u))); return novo; });
+          }}>
           {sessaoAtual.exercicios.map((e, ei) => (
             <CartaoExercicio
               key={e.uid}

@@ -93,7 +93,7 @@ export default function Convite() {
       {!convite ? (
         <>
           <View style={estilos.topo}>
-            <Texto variante="titulo">Convite</Texto>
+            <Texto variante="titulo" nivel={1}>Convite</Texto>
             <Texto variante="suave">Digite o código que seu treinador enviou.</Texto>
           </View>
           <Cartao>
@@ -106,7 +106,7 @@ export default function Convite() {
       ) : (
         <>
           <View style={estilos.topo}>
-            <MarcaTitulo marca={convite.consultoria} tamanho="grande" />
+            <MarcaTitulo marca={convite.consultoria} tamanho="grande" nivel={1} />
             <Texto variante="subtitulo">Olá, {convite.primeiroNomeAluno}!</Texto>
             <Texto variante="suave">Crie seu acesso para ver seus treinos e registrar suas cargas.</Texto>
           </View>

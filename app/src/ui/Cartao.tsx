@@ -16,21 +16,26 @@ interface Props {
   cabecalho?: ReactNode;
   /** Botões do cartão, à direita do título. */
   acoes?: ReactNode;
+  /** Botões fixos na base do cartão: numa grade, ficam alinhados entre cartões de alturas diferentes. */
+  rodape?: ReactNode;
   /** O título vira botão que recolhe e expande o conteúdo (as `acoes` ficam sempre visíveis). */
   recolhivel?: boolean;
   /** Só vale com `recolhivel`: começa fechado. */
   recolhido?: boolean;
+  /** Nível do título para o leitor de tela; padrão h2 (o h1 é o `Cabecalho` da tela). */
+  nivel?: 2 | 3;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Cartão flat: superfície, borda nos dois temas, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
-export function Cartao({ children, cabecalho, titulo, descricao, acoes, recolhivel, recolhido = false, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, style }: Props) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
   const Seta = fechado ? ChevronDown : ChevronUp;
+  const recuo = espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2);
   return (
-    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: cabecalho ? 0 : espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2) }, cabecalho ? estilos.comCabecalho : null, style]}>
+    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: cabecalho ? 0 : recuo }, cabecalho ? estilos.comCabecalho : null, style]}>
       {cabecalho ?? null}
       {titulo || acoes ? (
         <View style={estilos.topo}>
@@ -42,16 +47,17 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, recolhiv
                 accessibilityState={{ expanded: !fechado }}
                 onPress={() => setFechado((v) => !v)}
                 style={({ pressed }) => [estilos.tituloBotao, { opacity: pressed ? 0.7 : 1 }]}>
-                <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto>
+                <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto>
                 <Seta size={18} color={cores.textoSuave} />
               </Pressable>
-            ) : titulo ? <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto> : null}
+            ) : titulo ? <Texto variante="bloco" nivel={nivel} style={estilos.titulo}>{titulo}</Texto> : null}
             {descricao && !fechado ? <Texto variante="suave">{descricao}</Texto> : null}
           </View>
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
         </View>
       ) : null}
-      {fechado || (cabecalho && Children.toArray(children).length === 0) ? null : cabecalho ? <View style={[estilos.corpo, { padding: espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2) }]}>{children}</View> : children}
+      {fechado || (cabecalho && Children.toArray(children).length === 0) ? null : cabecalho ? <View style={[estilos.corpo, { padding: recuo }]}>{children}</View> : children}
+      {rodape && !fechado ? <View style={[estilos.rodape, cabecalho ? { paddingHorizontal: recuo, paddingBottom: recuo } : null]}>{rodape}</View> : null}
     </Card>
   );
 }
@@ -65,4 +71,6 @@ const estilos = StyleSheet.create({
   titulo: { flexShrink: 1 },
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', maxWidth: '100%' },
+  // `marginTop: 'auto'` empurra o rodapé para a base quando o cartão é esticado pela grade.
+  rodape: { marginTop: 'auto' },
 });

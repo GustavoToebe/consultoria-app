@@ -106,7 +106,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
         {aoCancelar ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} /> : null}
-        <Botao rotulo={rotuloSalvar} aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || diasInvalidos} />
+        <Botao rotulo={rotuloSalvar} aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || diasInvalidos} motivo={!nome.trim() ? 'Informe o nome do aluno.' : 'Os dias de atualização vão de 1 a 365.'} />
       </View>
     </View>
   );

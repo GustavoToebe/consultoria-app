@@ -117,6 +117,15 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
         />
       </Cartao>
 
+      <Cartao titulo="Gráficos">
+        <Interruptor
+          rotulo="Mostrar gráficos de progresso e de peso"
+          ajuda="Desligado, as telas mostram só as listas."
+          valor={preferencias.graficos}
+          aoMudar={(graficos) => mudar({ graficos })}
+        />
+      </Cartao>
+
       {Platform.OS !== 'web' ? (
         <Cartao titulo="Vibração">
           <Interruptor

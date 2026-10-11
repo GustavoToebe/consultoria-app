@@ -18,16 +18,18 @@ interface Props {
   /** Com `aoAlternar` o título vira botão que recolhe e abre; `aberto` mostra a seta certa. */
   aoAlternar?: () => void;
   aberto?: boolean;
+  /** Ações só em ícone: ficam ao lado da seta também no celular, em vez de descer uma linha. */
+  acoesJuntas?: boolean;
 }
 
 /**
- * Faixa de grupo (nível 2): sessão, refeição, pasta, dia. Fundo `superficie2` ocupando a largura do cartão, com
- * divisor embaixo. Vai no `cabecalho` do `Cartao`, que então deixa de ter padding em volta dela.
+ * Faixa de grupo (nível 2): sessão, refeição, pasta, dia. Fundo `superficie3` (o mais forte dos níveis) ocupando a
+ * largura do cartão, com divisor embaixo, para o título se destacar do conteúdo. Vai no `cabecalho` do `Cartao`, que então deixa de ter padding em volta dela.
  */
-export function CabecalhoDeGrupo({ titulo, resumo, Icone, selo, acoes, aoAlternar, aberto = true }: Props) {
+export function CabecalhoDeGrupo({ titulo, resumo, Icone, selo, acoes, aoAlternar, aberto = true, acoesJuntas }: Props) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
-  const largo = width >= LARGURA_MENU_LATERAL;
+  const largo = width >= LARGURA_MENU_LATERAL || !!acoesJuntas;
   const Seta = aberto ? ChevronUp : ChevronDown;
   const identificacao = (
     <>
@@ -44,7 +46,7 @@ export function CabecalhoDeGrupo({ titulo, resumo, Icone, selo, acoes, aoAlterna
       style={[
         estilos.faixa,
         largo ? estilos.faixaLarga : estilos.faixaEstreita,
-        { backgroundColor: cores.superficie2, borderColor: cores.divisor },
+        { backgroundColor: cores.superficie3, borderColor: cores.borda },
       ]}>
       {aoAlternar ? (
         <Pressable

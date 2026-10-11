@@ -148,10 +148,10 @@ export function CampoNumericoGrande({
   /** Linha pequena abaixo da caixa (ex.: "Sugerida pelo plano"). */
   ajuda?: string;
 }) {
-  const { cores, marca, fatorTexto } = useTema();
+  const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro);
-  const corBorda = lido === undefined ? cores.perigo : foco ? marca : cores.bordaCampo;
+  const corBorda = lido === undefined ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
   const destaqueBorda = foco || lido === undefined ? 1 : 0;
   return (
     <View style={estilos.grande}>
@@ -159,6 +159,7 @@ export function CampoNumericoGrande({
       <View style={[estilos.caixa, destaque && estilos.caixaDestaque, { backgroundColor: cores.campo, borderColor: corBorda, borderWidth: 1 + destaqueBorda, paddingHorizontal: espaco(1.5) - destaqueBorda }]}>
         <TextInput
           accessibilityLabel={rotuloAcessivel ?? rotulo}
+          aria-invalid={lido === undefined}
           value={texto}
           onChangeText={mudar}
           onFocus={() => setFoco(true)}

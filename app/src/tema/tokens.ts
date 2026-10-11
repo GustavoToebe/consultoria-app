@@ -20,10 +20,15 @@ export interface Cores {
   bordaCampo: string;
   texto: string;
   textoSuave: string;
+  /** Status como texto e borda (≥ 4,5:1 sobre `superficie`, `superficie2` e `superficie3`). */
   sucesso: string;
   atencao: string;
   perigo: string;
   neutro: string;
+  /** Fundo do botão destrutivo preenchido (texto branco ≥ 4,5:1); o `perigo` claro do tema escuro não serve de fundo. */
+  perigoFundo: string;
+  /** Anel de foco do teclado: a cor do texto (≥ 4,5:1 em qualquer superfície), nunca a da marca. */
+  anelFoco: string;
 }
 
 export const ESCURO: Cores = {
@@ -37,10 +42,12 @@ export const ESCURO: Cores = {
   bordaCampo: '#63636B',
   texto: '#F4F4F5',
   textoSuave: '#A1A1AA',
-  sucesso: '#1F9D55',
-  atencao: '#B7791F',
-  perigo: '#E5484D',
-  neutro: '#6B6B73',
+  sucesso: '#2BB36A',
+  atencao: '#D9962C',
+  perigo: '#F0666B',
+  neutro: '#9A9AA3',
+  perigoFundo: '#C62828',
+  anelFoco: '#F4F4F5',
 };
 
 export const CLARO: Cores = {
@@ -54,10 +61,12 @@ export const CLARO: Cores = {
   bordaCampo: '#8A8A93',
   texto: '#111114',
   textoSuave: '#52525B',
-  sucesso: '#1A7F45',
-  atencao: '#9A6412',
-  perigo: '#C62828',
-  neutro: '#8A8A92',
+  sucesso: '#176E3C',
+  atencao: '#875710',
+  perigo: '#B71C1C',
+  neutro: '#616169',
+  perigoFundo: '#B71C1C',
+  anelFoco: '#111114',
 };
 
 /** Cor neutra para telas sem marca (entrar, cadastro). */
@@ -69,7 +78,10 @@ export const ALVO_TOQUE = 44;
 export const LARGURA_MAXIMA = 1800;
 /** Telas declaradas até esta largura são formulários curtos e não esticam. */
 export const LARGURA_FORMULARIO = 640;
-export const LARGURA_MENU_LATERAL = 900;
+/** A partir daqui o treinador tem menu lateral (e barra de topo na web); abaixo, barra inferior do celular. */
+export const LARGURA_MENU_LATERAL = 768;
+/** Abaixo disto o menu lateral fica só com ícones (trilho) para sobrar espaço ao conteúdo. */
+export const LARGURA_MENU_EXPANDIDO = 1024;
 /** Editores e formulários longos (treino, dieta, modelo, marca, perfil). */
 export const LARGURA_EDITOR = 1040;
 /** Listas e painéis (ficha do aluno, início, alunos, biblioteca, planejamento): todo o espaço útil (= `LARGURA_MAXIMA`). */
@@ -106,4 +118,26 @@ export function contraste(a: string, b: string): number {
 /** Texto sobre a cor da marca: branco ou preto, o que der maior contraste. */
 export function textoSobre(fundo: string): string {
   return contraste(fundo, '#FFFFFF') >= contraste(fundo, '#000000') ? '#FFFFFF' : '#000000';
+}
+
+/** Mistura `cor` com `alvo` na proporção `t` (0 = cor, 1 = alvo). */
+function misturar(cor: string, alvo: string, t: number): string {
+  const a = parseInt(cor.slice(1), 16);
+  const b = parseInt(alvo.slice(1), 16);
+  const canal = (desl: number) => Math.round(((a >> desl) & 255) * (1 - t) + ((b >> desl) & 255) * t);
+  return `#${[16, 8, 0].map((d) => canal(d).toString(16).padStart(2, '0').toUpperCase()).join('')}`;
+}
+
+/**
+ * A cor da marca como texto sobre um fundo: a própria cor quando já dá 4,5:1; senão a variante mais clara (tema
+ * escuro) ou mais escura (tema claro) mais próxima que chega lá. Preserva o tom; só muda o quanto precisa.
+ */
+export function marcaParaTexto(marca: string, fundo: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(marca.trim())) return marca;
+  const alvo = luminancia(fundo) < 0.18 ? '#FFFFFF' : '#000000';
+  for (let t = 0; t <= 1.0001; t += 0.04) {
+    const cor = misturar(marca.trim(), alvo, Math.min(t, 1));
+    if (contraste(cor, fundo) >= 4.5) return cor;
+  }
+  return alvo;
 }

@@ -16,6 +16,7 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoData } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
+import { Bloqueado } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
@@ -120,6 +121,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     <ScrollView ref={scroll} onScroll={evento=>{deslocamento.current=evento.nativeEvent.contentOffset.y;}}
       scrollEventThrottle={16} keyboardShouldPersistTaps="handled" contentContainerStyle={estilos.conteudo}>
       <FeedbackAtualizacao feedback={atual.feedback} />
+      {!leitura&&!liberada&&atual.dataAtualizacao?<Bloqueado titulo={`Disponível a partir de ${dataParaTela(somarDias(atual.dataAtualizacao,-1))}`} texto="O formulário libera um dia antes da data da atualização. Até lá você pode consultar as perguntas." />:null}
       <Selo {...statusAtualizacao(atual)} />
       {somenteLeitura&&!atual.enviadaEm?<Texto>Esta atualização é de um período anterior. Só é possível consultar.</Texto>:null}
       <Cartao titulo="Instruções">
@@ -127,7 +129,6 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
         {!leitura?<Texto variante="pequeno">* Campos obrigatórios. O rascunho fica salvo neste aparelho.</Texto>:null}
       </Cartao>
       <QuestionarioAtualizacao atualizacao={atual} respostas={respostas} aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} />
-      {!leitura&&!liberada?<Texto>O formulário libera um dia antes da atualização. Você pode consultar as perguntas.</Texto>:null}
       {!leitura&&liberada?<Botao rotulo="Enviar atualização" carregando={ocupado} aoTocar={()=>void enviar()} />:null}
       {!leitura?<Botao rotulo="Vou atrasar" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setAtraso(true)} />:null}
       {erros.respostas??erros.data?<Texto cor={cores.perigo}>{erros.respostas??erros.data}</Texto>:null}

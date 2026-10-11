@@ -9,6 +9,8 @@ import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens
 import { Campo } from './Campo';
 import { Cartao } from './Cartao';
 import { Folha } from './Folha';
+import { Grade } from './Grade';
+import { useSaidaGuardada } from './GuardaDeSaida';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 
@@ -27,6 +29,7 @@ interface Props {
  */
 export function TodasAsTelas({ visivel, aoFechar, permitidas, favoritos, aoAlternarFavorito }: Props) {
   const [texto, setTexto] = useState('');
+  const { confirmar } = useSaidaGuardada();
   const telas = permitidas.filter((t) => !t.acao);
   const filtradas = texto.trim() ? buscarTelas(texto, telas) : telas;
   const grupos = agruparPorSecao(filtradas);
@@ -38,20 +41,22 @@ export function TodasAsTelas({ visivel, aoFechar, permitidas, favoritos, aoAlter
     <Folha visivel={visivel} titulo="Todas as telas" aoFechar={fechar} largura={LARGURA_EDITOR}>
       <Campo rotulo="Buscar tela" valor={texto} aoMudar={setTexto} autoCorrect={false} />
       {grupos.length === 0 ? <Texto variante="suave">Nenhuma tela encontrada. Tente outra palavra.</Texto> : null}
+      <Grade gap={espaco(2)}>
       {grupos.map((grupo) => (
-        <Cartao key={grupo.secao} titulo={grupo.secao}>
+        <Cartao key={grupo.secao} titulo={grupo.telas.length === 1 && grupo.telas[0].rotulo === grupo.secao ? undefined : grupo.secao} style={estilos.grupo}>
           <View style={estilos.lista}>
             {grupo.telas.map((tela) => (
               <LinhaDaTela key={tela.id} tela={tela} favorita={favoritos.includes(tela.id)}
                 aoAbrir={() => {
                   fechar();
-                  router.navigate(tela.href as Href);
+                  confirmar(() => router.navigate(tela.href as Href));
                 }}
                 aoAlternar={() => aoAlternarFavorito(tela.id)} />
             ))}
           </View>
         </Cartao>
       ))}
+      </Grade>
     </Folha>
   );
 }
@@ -75,6 +80,7 @@ function LinhaDaTela({ tela, favorita, aoAbrir, aoAlternar }: { tela: TelaDoCata
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(1) },
+  grupo: { flexGrow: 1 },
   linha: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   abrir: { flex: 1, minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5) },
   nome: { fontFamily: fontes.semi },

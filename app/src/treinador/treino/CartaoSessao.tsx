@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Plus, Trash2 } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -13,6 +13,7 @@ import { CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
 
 const DIAS = [
@@ -31,6 +32,9 @@ interface Props {
   removivel?: boolean;
   aoSalvarModelo?: () => void;
   aoNovoExercicio: () => void;
+  /** Todos os exercícios da sessão estão abertos; com `aoAlternarTodos`, o botão "Fechar todos"/"Abrir todos". */
+  todosAbertos?: boolean;
+  aoAlternarTodos?: () => void;
   /** Os exercícios (cartões) já montados pela tela do editor. */
   children: ReactNode;
 }
@@ -91,25 +95,29 @@ export function CartaoSessao(p: Props) {
         linhas={2}
         maxLength={1000}
       />
-      <Texto variante="secao">Exercícios ({s.exercicios.length})</Texto>
-      <View style={estilos.exercicios}>{p.children}</View>
-      <View style={estilos.rodape}>
-        <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
-        <View style={estilos.direita}>
-          {p.aoSalvarModelo ? <Botao rotulo="Salvar esta sessão como modelo" tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : null}
-          {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
-        </View>
+      <View style={estilos.tituloExercicios}>
+        <Texto variante="secao">Exercícios ({s.exercicios.length})</Texto>
+        {p.aoAlternarTodos && s.exercicios.length > 1 ? (
+          <Botao rotulo={p.todosAbertos ? 'Fechar todos' : 'Abrir todos'} tipo="fantasma" Icone={p.todosAbertos ? ChevronsDownUp : ChevronsUpDown} aoTocar={p.aoAlternarTodos} />
+        ) : null}
       </View>
+      <View style={estilos.exercicios}>{p.children}</View>
+      <LinhaDeAcoes alinhar="entre">
+        <LinhaDeAcoes>
+          <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+          {p.aoSalvarModelo ? <Botao rotulo="Salvar sessão como modelo" rotuloAcessivel="Salvar esta sessão como modelo" tipo="secundario" aoTocar={p.aoSalvarModelo} /> : null}
+        </LinhaDeAcoes>
+        {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
+      </LinhaDeAcoes>
     </Cartao>
   );
 }
 
 const estilos = StyleSheet.create({
+  tituloExercicios: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   linhaDupla: { flexDirection: 'row', gap: espaco(2) },
   metade: { flex: 1 },
   coluna: { gap: espaco(2) },
   campoCurto: { width: 180 },
   exercicios: { gap: espaco(1) },
-  rodape: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
-  direita: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
 });

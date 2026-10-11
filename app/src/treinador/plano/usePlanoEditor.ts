@@ -5,6 +5,7 @@ import { plano as buscarPlano, publicarPlano, salvarRascunho, validarPlano, rece
 import type { PlanoDetalhe, PlanoResumo, Problema, TipoPlano, VersaoResumo } from '../../api/tipos';
 import { detalheDoModelo } from '../../dominio/modelos';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 
 export type SituacaoRascunho = 'salvo' | 'pendente' | 'salvando' | 'erro' | 'conflito' | 'dataInvalida';
 
@@ -26,16 +27,15 @@ export type ResultadoPublicacao =
   | { tipo: 'avisos'; avisos: Problema[] }
   | { tipo: 'falha'; mensagem: string };
 
-const ESPERA_MS = 1500;
-
 function problemas(erro: ErroApi): Problema[] {
   return erro.campos.map((c) => ({ caminho: c.field, mensagem: c.message }));
 }
 
 /**
- * Rascunho de um plano (treino ou dieta): carrega, salva sozinho 1,5 s depois da última mudança (menos modelo, que só salva no botão), trata a edição em
- * outra aba (409 `CONFLITO_EDICAO` → "recarregar") e publica com erros/avisos do validador da API. O publicado nunca
- * muda: publicar cria a versão seguinte.
+ * Rascunho de um plano (treino, dieta ou mobilidade) ou de um modelo: carrega, salva **só quando a pessoa pede** (botão
+ * "Salvar rascunho"/"Salvar modelo"; Validar e Publicar salvam antes), trata a edição em outra aba (409 `CONFLITO_EDICAO`
+ * → "recarregar") e publica com erros/avisos do validador da API. Com alteração pendente, sair da tela passa pela
+ * `GuardaDeSaida` ("Sair sem salvar?"). O publicado nunca muda: publicar cria a versão seguinte.
  */
 export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, normalizar: (c: unknown) => C, modelo = false) {
   const [estado, setEstado] = useState<Estado<C> | null>(null);
@@ -130,22 +130,9 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     return tentar();
   }, [tipo, id, modelo]);
 
-  // Salvamento automático do rascunho do aluno: 1,5 s depois da última mudança. Modelo só salva no botão "Salvar modelo"
-  // e, se sair sem salvar, as alterações são descartadas.
-  const revisao = estado?.revisao ?? 0;
-  const salvoEm = estado?.salvoEm ?? 0;
-  useEffect(() => {
-    if (modelo || revisao === salvoEm || erroSalvar === 'conflito') return;
-    const relogio = setTimeout(() => {
-      void salvar();
-    }, ESPERA_MS);
-    return () => clearTimeout(relogio);
-  }, [revisao, salvoEm, erroSalvar, salvar, modelo]);
-
-  // Saiu da tela com mudança pendente: envia na hora (rascunho de aluno). Modelo descarta.
-  useEffect(() => () => {
-    if (!modelo) void salvar();
-  }, [salvar, modelo]);
+  // Nada é salvo sozinho: com alteração pendente, sair da tela pergunta antes.
+  const pendente = !!estado && estado.revisao !== estado.salvoEm;
+  useGuardaDeSaida(pendente);
 
   const alterar = useCallback((mudanca: (e: Estado<C>) => Partial<Estado<C>>) => {
     setEstado((e) => (e ? { ...e, ...mudanca(e), revisao: e.revisao + 1 } : e));
@@ -162,7 +149,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     async (confirmarAvisos: boolean): Promise<ResultadoPublicacao> => {
       if (modelo || !id) return { tipo: 'falha', mensagem: 'Plano não encontrado.' };
       if (!(await salvar())) {
-        return { tipo: 'falha', mensagem: 'Corrija o título e as datas e espere o rascunho salvar antes de publicar.' };
+        return { tipo: 'falha', mensagem: 'Corrija o título e as datas antes de publicar.' };
       }
       try {
         const d = await publicarPlano<unknown>(tipo, id, versao.current, confirmarAvisos);
@@ -192,6 +179,8 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     estado,
     erroCarga,
     situacao,
+    /** Há alteração que o servidor ainda não tem. */
+    pendente,
     alterar,
     alterarConteudo,
     salvar,

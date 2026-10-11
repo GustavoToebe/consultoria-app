@@ -181,7 +181,6 @@ function CartaoSerie({
             rotulo="Peso"
             rotuloAcessivel={`Peso da série ${indice + 1}`}
             sufixo="kg"
-            ajuda={!registro && cargaDigitada === undefined && calculada.sugestao !== null ? 'Sugerida pelo plano' : undefined}
             valor={carga}
             aoMudar={(v) => mudar({ carga: v })}
           />
@@ -197,6 +196,7 @@ function CartaoSerie({
         <BotaoMarcar feito={feita} ultimaDoExercicio={ultimaDoExercicio} rotulo={`Série ${indice + 1} ${s.tipo} feita`}
           aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })} />
       </View>
+      {!semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <Texto numerico variante="pequeno">Peso sugerido pelo plano; mude se usar outro.</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </Animated.View>
   );
@@ -212,10 +212,10 @@ const estilos = StyleSheet.create({
   serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.75), gap: espaco(1.25) },
   cabecaSerie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   etiqueta: { borderRadius: 4, paddingHorizontal: espaco(0.75), paddingVertical: 3 },
-  etiquetaTexto: { fontFamily: fontes.negrito, fontSize: 11, lineHeight: 14, letterSpacing: 0.4, textTransform: 'uppercase' },
+  etiquetaTexto: { fontFamily: fontes.negrito, fontSize: 12, lineHeight: 16, letterSpacing: 0.4, textTransform: 'uppercase' },
   nomeSerie: { fontFamily: fontes.semi, fontSize: 16, flexShrink: 1 },
   meta: { flexGrow: 1, flexShrink: 1, textAlign: 'right' },
-  campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1) },
+  campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: '100%' },
   check: {
     width: 56,
     height: 52,

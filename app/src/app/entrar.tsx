@@ -1,6 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
@@ -20,6 +20,9 @@ export default function Entrar() {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // Em telas altas (PC), o formulário fica no meio em vez de colado no topo.
+  const { height } = useWindowDimensions();
+  const centrado = height >= 700;
 
   if (sessao.situacao === 'autenticado') {
     return <Redirect href="/" />;
@@ -43,9 +46,9 @@ export default function Entrar() {
   };
 
   return (
-    <Tela largura={440}>
-      <View style={estilos.topo}>
-        <Texto variante="titulo">Entrar</Texto>
+    <Tela largura={440} centrado={centrado}>
+      <View style={centrado ? estilos.topoCentrado : estilos.topo}>
+        <Texto variante="titulo" nivel={1}>Entrar</Texto>
         <Texto variante="suave">Treinos e dieta da sua consultoria.</Texto>
       </View>
       <Cartao>
@@ -66,5 +69,6 @@ export default function Entrar() {
 
 const estilos = StyleSheet.create({
   topo: { gap: espaco(0.5), marginTop: espaco(6) },
+  topoCentrado: { gap: espaco(0.5) },
   links: { alignItems: 'center', marginTop: espaco(1) },
 });

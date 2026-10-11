@@ -7,6 +7,10 @@ import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { aoPressionarMarcar } from './marcar';
 import { vibrar } from './vibrar';
 
+/**
+ * O ✓ de "série feita": caixa de 56 × 52 com borda `bordaCampo` quando vazia (a borda de cartão quase sumia no fundo
+ * escuro) e preenchida de verde quando feita.
+ */
 export function BotaoMarcar({ feito, aoTocar, ultimaDoExercicio, rotulo, desabilitado }: {
   feito: boolean; aoTocar: () => void; ultimaDoExercicio?: boolean; rotulo: string; desabilitado?: boolean;
 }) {
@@ -23,7 +27,7 @@ export function BotaoMarcar({ feito, aoTocar, ultimaDoExercicio, rotulo, desabil
           animar: () => escala.set(reduzido ? 1 : withSequence(withTiming(0.88, { duration: 80 }), withSpring(1, { damping: 14, stiffness: 260, mass: 1, reduceMotion: ReduceMotion.System }))),
           vibrar: () => { if (!feito) { if (ultimaDoExercicio) vibrar.sucesso(); else vibrar.leve(); } },
         })}
-        style={({ pressed }) => [estilos.botao, { borderColor: feito ? cores.sucesso : cores.borda, backgroundColor: feito ? cores.sucesso : pressed ? cores.superficie3 : 'transparent' }]}>
+        style={({ pressed }) => [estilos.botao, { borderColor: feito ? cores.sucesso : cores.bordaCampo, backgroundColor: feito ? cores.sucesso : pressed ? cores.superficie3 : cores.campo }]}>
         <Animated.View key={String(feito)} entering={reduzido ? undefined : new Keyframe({ 0: { opacity: 0, transform: [{ scale: 0.6 }] }, 100: { opacity: 1, transform: [{ scale: 1 }] } }).duration(150).reduceMotion(ReduceMotion.System)}>
           <Check size={26} color={feito ? '#FFFFFF' : cores.textoSuave} strokeWidth={3} />
         </Animated.View>

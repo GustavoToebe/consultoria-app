@@ -1,5 +1,5 @@
 import { Permitido } from '../../ui/Permitido';
-import { CheckCircle2, FileDown, Send } from 'lucide-react-native';
+import { CheckCircle2, FileDown, Save, Send } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -22,7 +22,7 @@ import type { SituacaoRascunho, usePlanoEditor } from './usePlanoEditor';
 
 const SITUACOES: Record<SituacaoRascunho, { texto: string; tipo: TipoSelo }> = {
   salvo: { texto: 'Rascunho salvo', tipo: 'sucesso' },
-  pendente: { texto: 'Alterações a salvar', tipo: 'atencao' },
+  pendente: { texto: 'Alterações não salvas', tipo: 'atencao' },
   salvando: { texto: 'Salvando…', tipo: 'neutro' },
   erro: { texto: 'Falha ao salvar', tipo: 'perigo' },
   conflito: { texto: 'Alterado em outra aba', tipo: 'perigo' },
@@ -39,7 +39,7 @@ interface Props<C> {
   aoProblemas: (r: ResultadoValidacao | null) => void;
 }
 
-/** Título, período, estado do rascunho e as ações Validar e Publicar, com o resultado do validador da API. */
+/** Título, período, estado do rascunho e as ações Salvar rascunho, Validar e Publicar, com o resultado do validador da API. Nada é salvo sozinho. */
 export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>) {
   const { avisar } = useAviso();
   const [validando, setValidando] = useState(false);
@@ -107,12 +107,18 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
     <>
       <Cartao
         titulo={e.titulo.trim() || 'Plano sem título'}
-        descricao="Monte o plano, valide e publique para o aluno ver."
+        descricao="Monte o plano, salve o rascunho, valide e publique para o aluno ver. Nada é salvo sozinho."
         acoes={
           <>
-            {editor.situacao === 'erro' ? (
-              <Botao rotulo="Tentar salvar de novo" tipo="secundario" aoTocar={() => void editor.salvar()} />
-            ) : null}
+            <Botao
+              rotulo="Salvar rascunho"
+              tipo="secundario"
+              Icone={Save}
+              carregando={editor.situacao === 'salvando'}
+              desabilitado={editor.situacao === 'salvo' || editor.situacao === 'dataInvalida' || editor.situacao === 'conflito'}
+              motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : 'Nada a salvar.'}
+              aoTocar={() => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : 'Não foi possível salvar o rascunho. Confira o título e as datas.', ok ? 'sucesso' : 'perigo'))}
+            />
             {tipo !== 'mobilidade' ? (
               <Botao
                 rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
@@ -131,7 +137,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
           <SelosDoPlano plano={e.plano} />
         </View>
         <Texto variante="suave" numerico>
-          Período: {e.inicio || '—'} a {e.fim || '—'}
+          Período: {e.inicio || e.fim ? `${e.inicio || '—'} a ${e.fim || '—'}` : '—'}
           {e.plano.pastaId ? ' (da pasta)' : ''}
         </Texto>
         {ultima ? (

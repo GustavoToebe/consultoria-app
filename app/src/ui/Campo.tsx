@@ -1,8 +1,8 @@
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { ESTILOS_TEXTO } from './tipografia';
-import { useState, type ReactNode } from 'react';
-import { StyleSheet, View, type TextInputProps } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AccessibilityInfo, Platform, StyleSheet, View, type TextInputProps } from 'react-native';
 
 import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
@@ -22,12 +22,17 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   acao?: ReactNode;
 }
 
+/**
+ * Campo de digitar com rótulo, ajuda e erro. O erro vai ao leitor de tela: `aria-invalid` na web, região viva no
+ * Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de foco (a cor da marca não contrasta no escuro).
+ */
 export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, ...resto }: Props) {
-  const { cores, marca, fatorTexto } = useTema();
+  const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
-  const corBorda = erro ? cores.perigo : foco ? marca : cores.bordaCampo;
+  const corBorda = erro ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
   // Foco e erro têm borda de 2 px; o padding cede 1 px para a altura e o texto não mexerem.
   const destaque = foco || !!erro ? 1 : 0;
+  useAnunciarErro(erro, rotulo);
   return (
     <View style={estilos.campo}>
       <Label style={[ESTILOS_TEXTO.rotulo, { color: cores.textoSuave }]}>{rotulo}</Label>
@@ -35,6 +40,8 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
       <Input
         {...resto}
         accessibilityLabel={rotulo}
+        accessibilityHint={erro ?? ajuda}
+        aria-invalid={!!erro}
         value={valor}
         onChangeText={aoMudar}
         onFocus={(e) => {
@@ -59,10 +66,17 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
       />
       {acao ? <View style={estilos.acao}>{acao}</View> : null}
       </View>
-      {erro ? <Texto variante="pequeno" cor={cores.perigo}>{erro}</Texto> : null}
+      {erro ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erro}</Texto> : null}
       {!erro && ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
     </View>
   );
+}
+
+/** No iOS a região viva não existe: o erro novo é anunciado com o nome do campo. */
+export function useAnunciarErro(erro: string | null | undefined, rotulo: string): void {
+  useEffect(() => {
+    if (Platform.OS === 'ios' && erro) AccessibilityInfo.announceForAccessibility(`${rotulo}: ${erro}`);
+  }, [erro, rotulo]);
 }
 
 /**
@@ -83,4 +97,3 @@ const estilos = StyleSheet.create({
     fontSize: 16,
   },
 });
-

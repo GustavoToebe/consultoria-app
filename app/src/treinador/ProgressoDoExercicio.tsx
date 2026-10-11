@@ -27,7 +27,7 @@ const DATAS_RECENTES = 5;
 export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTirar }: {
   alunoId: string; exercicioId: string; nome: string; grupo: string; aoTirar: () => void;
 }) {
-  const { cores } = useTema();
+  const { cores, preferencias } = useTema();
   const { dados, erro, carregando, recarregar } = useCarregar(`prog:${alunoId}:${exercicioId}`, () => progressoDoAluno(alunoId, exercicioId));
   const [todas, setTodas] = useState(false);
   const resumo = dados ? textoDoResumo(resumoDoProgresso(dados)) : null;
@@ -46,7 +46,7 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
       {carregando && !dados && !erro ? <Esqueleto /> : null}
       {dados && !resumo ? <Texto variante="suave">Sem registros com carga.</Texto> : null}
       {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
-      {pontos.length >= 2 ? (
+      {preferencias.graficos && pontos.length >= 2 ? (
         <GraficoLinha
           pontos={pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: p.carga }))}
           unidade="kg"

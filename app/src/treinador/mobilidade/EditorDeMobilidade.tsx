@@ -18,7 +18,7 @@ import { usePlanoEditor } from '../plano/usePlanoEditor';
 import { SecoesDeMobilidade } from './SecoesDeMobilidade';
 
 /**
- * Editor do plano de mobilidade do aluno: mesmo ciclo do treino e da dieta (rascunho salvo sozinho, validar, publicar
+ * Editor do plano de mobilidade do aluno: mesmo ciclo do treino e da dieta (salvar rascunho, validar, publicar
  * versão imutável), com as seções e itens do modelo de mobilidade. Sem PDF nesta versão.
  */
 export default function EditorDeMobilidade() {

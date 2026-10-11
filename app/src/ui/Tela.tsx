@@ -13,6 +13,8 @@ interface Props {
   /** Largura máxima do conteúdo (`LARGURA_EDITOR`, `LARGURA_LISTA`, 720 no aluno); nunca passa de `LARGURA_MAXIMA`. */
   largura?: number;
   bordas?: Edge[];
+  /** Conteúdo curto no meio da tela (Entrar em janela alta). */
+  centrado?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface Props {
  * topo no protótipo), fundo do tema e conteúdo centralizado até LARGURA_MAXIMA. Com rolagem própria, mostra o botão
  * "voltar ao início da página" (`RolagemComTopo`).
  */
-export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas = ['top', 'bottom'] }: Props) {
+export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas = ['top', 'bottom'], centrado }: Props) {
   const { cores } = useTema();
   const larguraUtil = Math.min(largura, LARGURA_MAXIMA);
   const conteudo = <View style={[estilos.conteudo, { maxWidth: larguraUtil }, !rolar && { flex: 1, minHeight: 0 }]}>{children}</View>;
@@ -28,7 +30,7 @@ export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas 
     <SafeAreaView edges={bordas} style={[estilos.raiz, { backgroundColor: cores.fundo }]}>
       <KeyboardAvoidingView style={estilos.raiz} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {rolar ? (
-          <RolagemComTopo preencher contentContainerStyle={estilos.rolagem}>{conteudo}</RolagemComTopo>
+          <RolagemComTopo preencher contentContainerStyle={[estilos.rolagem, centrado && estilos.centrado]}>{conteudo}</RolagemComTopo>
         ) : (
           <View style={[estilos.raiz, estilos.rolagem]}>{conteudo}</View>
         )}
@@ -40,5 +42,6 @@ export function Tela({ children, rolar = true, largura = LARGURA_MAXIMA, bordas 
 const estilos = StyleSheet.create({
   raiz: { flex: 1 },
   rolagem: { flexGrow: 1, padding: espaco(2) },
+  centrado: { justifyContent: 'center' },
   conteudo: { width: '100%', alignSelf: 'center', gap: espaco(3) },
 });

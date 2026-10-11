@@ -86,7 +86,7 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
           const emUso = t === trabalho || t === preparacao;
           return (
             <View key={t} style={[estilos.chip, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-              <Pressable accessibilityRole="button" accessibilityLabel={`Renomear tipo ${t}`} onPress={() => { setRenomeando(t); setNovoTipo(t); }}><Texto style={estilos.textoChip}>{t} ✎</Texto></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Renomear tipo ${t}`} onPress={() => { setRenomeando(t); setNovoTipo(t); }} style={estilos.renomear}><Texto style={estilos.textoChip}>{t} ✎</Texto></Pressable>
               {emUso ? null : (
                 <Pressable accessibilityRole="button" accessibilityLabel={`Remover ${t}`} onPress={() => setTipos(tipos.filter((x) => x !== t))} style={estilos.xChip}>
                   <X size={16} color={cores.textoSuave} />
@@ -100,7 +100,7 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
         <View style={estilos.campoTipo}>
           <Campo rotulo={renomeando ? "Renomear tipo" : "Novo tipo"} valor={novoTipo} aoMudar={setNovoTipo} maxLength={30} onSubmitEditing={adicionarTipo} />
         </View>
-        <Botao rotulo={renomeando ? "Renomear" : "Adicionar"} tipo="secundario" Icone={Plus} aoTocar={adicionarTipo} desabilitado={!novoTipo.trim()} />
+        <Botao rotulo={renomeando ? "Renomear" : "Adicionar"} tipo="secundario" Icone={Plus} aoTocar={adicionarTipo} desabilitado={!novoTipo.trim()} style={estilos.aoPeDoCampo} />
       </View>
       <Escolha rotulo="Série de trabalho (carga do dia)" opcoes={opcoesTipo} valor={trabalho} aoMudar={setTrabalho} />
       <Escolha rotulo="Série de preparação (em % da trabalho)" opcoes={opcoesTipo} valor={preparacao} aoMudar={setPreparacao} />
@@ -181,9 +181,13 @@ const estilos = StyleSheet.create({
     paddingLeft: espaco(1.25),
     minHeight: 36,
   },
+  // Renomear e remover com alvo de 44 px (antes o texto e o X tinham 36 px ou menos).
+  renomear: { minHeight: 44, justifyContent: 'center' },
   textoChip: { fontFamily: fontes.semi, fontSize: 14, paddingRight: espaco(1.25) },
-  xChip: { width: 32, height: 36, alignItems: 'center', justifyContent: 'center', marginLeft: -espaco(1) },
+  xChip: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -espaco(1.5) },
   novoTipo: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
+  // O Botao se fixa no topo da linha (para não esticar em coluna); ao lado do campo desce ao pé dele.
+  aoPeDoCampo: { alignSelf: 'flex-end' },
   campoTipo: { width: 220 },
   regra: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5), borderTopWidth: 1, paddingTop: espaco(1), flexWrap: 'wrap' },
   rotuloRegra: { fontFamily: fontes.semi, width: 72, paddingBottom: espaco(1.5) },

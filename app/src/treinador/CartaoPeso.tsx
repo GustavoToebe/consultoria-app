@@ -7,7 +7,7 @@ import { excluirPeso, pesosDoAluno, registrarPeso } from '../api/rotas';
 import type { RegistroPeso } from '../api/tipos';
 import { dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { espaco, fontes } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -19,6 +19,7 @@ import { errosPorCampo, textoDoErro } from '../ui/erros';
 import { GraficoLinha } from '../ui/GraficoLinha';
 import { IconeBotao } from '../ui/IconeBotao';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
+import { Tabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -33,7 +34,7 @@ const LINHAS_INICIAIS = 12;
 
 /** Registros de peso do aluno (dado sensível: só na tela, nunca em log). */
 export function CartaoPeso({ alunoId }: { alunoId: string }) {
-  const { cores } = useTema();
+  const { cores, preferencias } = useTema();
   const { dados, erro, carregando, recarregar, definir } = useCarregar(`peso:${alunoId}`, () => pesosDoAluno(alunoId));
   const [data, setData] = useState(dataParaTela(hojeIso()));
   const [peso, setPeso] = useState<number | null>(null);
@@ -75,7 +76,8 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
   const cronologico = [...(dados ?? [])].sort((a, b) => a.data.localeCompare(b.data));
   const lista = cronologico.map((p, i) => ({ ...p, numero: i + 1 })).reverse();
   const [todos, setTodos] = useState(false);
-  const comTabela = visao === 'lista' || !dados || dados.length < 2;
+  const comGrafico = preferencias.graficos && visao === 'grafico' && !!dados && dados.length > 1;
+  const comTabela = !comGrafico;
   const visiveis = todos ? lista : lista.slice(0, LINHAS_INICIAIS);
 
   return (
@@ -83,10 +85,10 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}
-      {dados && dados.length > 1 ? (
+      {preferencias.graficos && dados && dados.length > 1 ? (
         <Abas abas={[{ valor: 'lista', rotulo: 'Lista' }, { valor: 'grafico', rotulo: 'Gráfico' }]} ativa={visao} aoMudar={setVisao} />
       ) : null}
-      {visao === 'grafico' && dados && dados.length > 1 ? (
+      {comGrafico ? (
         <GraficoLinha
           pontos={cronologico.map((p, i) => ({ rotulo: `Atual. ${i + 1}`, valor: p.pesoKg }))}
           unidade="kg"
@@ -94,32 +96,25 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
         />
       ) : null}
       {comTabela && lista.length > 0 ? (
-        <View style={[estilos.tabela, { borderColor: cores.borda }]}>
-          <View style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-            <Texto variante="secao" style={[estilos.cNumero, estilos.centro]}>Atual.</Texto>
-            <Texto variante="secao" style={estilos.cData}>Data</Texto>
-            <Texto variante="secao" style={estilos.cPeso}>Peso</Texto>
-            <Texto variante="secao" style={estilos.cVariacao}>Variação</Texto>
-            <Texto variante="secao" style={estilos.cObs}>Obs</Texto>
-            <View style={estilos.cAcao} />
-          </View>
-          {visiveis.map((p, i) => (
-            <View key={p.id} style={[estilos.linha, i < visiveis.length - 1 && { borderColor: cores.borda, borderBottomWidth: 1 }]}>
-              <Texto numerico style={[estilos.cNumero, estilos.centro]}>{p.numero}</Texto>
-              <Texto numerico style={estilos.cData}>{dataParaTela(p.data)}</Texto>
-              <Texto numerico style={[estilos.cPeso, estilos.negrito]}>{numeroParaTela(p.pesoKg)} kg</Texto>
-              <Texto
-                numerico
-                style={[estilos.cVariacao, estilos.negrito, { color: p.variacao === null || p.variacao === 0 ? cores.textoSuave : p.variacao > 0 ? cores.perigo : cores.sucesso }]}>
-                {variacao(p.variacao)}
-              </Texto>
-              <Texto variante="suave" style={estilos.cObs} numberOfLines={2}>{p.observacao || '—'}</Texto>
-              <View style={estilos.cAcao}>
-                <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Trash2} rotulo={`Excluir peso de ${dataParaTela(p.data)}`} cor={cores.perigo} aoTocar={() => setExcluir(p)} /></Permitido>
-              </View>
-            </View>
-          ))}
-        </View>
+        <Tabela
+          rotulo="Registros de peso"
+          linhas={visiveis}
+          chave={(p) => p.id}
+          colunas={[
+            { chave: 'numero', titulo: 'Atual.', largura: 52, alinhar: 'centro', render: (p) => <Texto numerico>{p.numero}</Texto> },
+            { chave: 'data', titulo: 'Data', flex: 1.2, principal: true, render: (p) => <Texto numerico style={estilos.negrito}>{dataParaTela(p.data)}</Texto> },
+            { chave: 'peso', titulo: 'Peso', render: (p) => <Texto numerico style={estilos.negrito}>{numeroParaTela(p.pesoKg)} kg</Texto> },
+            {
+              chave: 'variacao', titulo: 'Variação',
+              render: (p) => <Texto numerico style={[estilos.negrito, { color: p.variacao === null || p.variacao === 0 ? cores.textoSuave : cores.texto }]}>{variacao(p.variacao)}</Texto>,
+            },
+            { chave: 'obs', titulo: 'Obs', flex: 1.4, render: (p) => <Texto variante="suave" numberOfLines={2}>{p.observacao || '—'}</Texto> },
+            {
+              chave: 'acao', titulo: 'Excluir', largura: 44, acao: true,
+              render: (p) => <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Trash2} rotulo={`Excluir peso de ${dataParaTela(p.data)}`} cor={cores.perigo} aoTocar={() => setExcluir(p)} /></Permitido>,
+            },
+          ]}
+        />
       ) : null}
       {comTabela && lista.length > LINHAS_INICIAIS ? (
         <Botao rotulo={todos ? 'Mostrar só os últimos' : `Mostrar todos (${lista.length})`} tipo="fantasma" aoTocar={() => setTodos((v) => !v)} />
@@ -138,7 +133,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
       </Permitido>
       {erroSalvar && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erroSalvar)} /> : null}
       <View style={estilos.botoes}>
-        <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Botao rotulo="Adicionar peso" tipo="secundario" carregando={salvando} desabilitado={!dataIso || peso === null} aoTocar={adicionar} /></Permitido>
+        <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Botao rotulo="Adicionar peso" tipo="secundario" carregando={salvando} desabilitado={!dataIso || peso === null} motivo={!dataIso ? 'Informe uma data válida.' : 'Informe o peso.'} aoTocar={adicionar} /></Permitido>
       </View>
       <PainelConfirmacao
         visivel={excluir !== null}
@@ -154,16 +149,6 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
 }
 
 const estilos = StyleSheet.create({
-  tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), minHeight: 48 },
-  cabecalho: { borderBottomWidth: 1, minHeight: 40 },
-  cNumero: { width: 52 },
-  cData: { flex: 1.2, minWidth: 84 },
-  cPeso: { flex: 1, minWidth: 70 },
-  cVariacao: { flex: 1, minWidth: 70 },
-  cObs: { flex: 1.4, minWidth: 40 },
-  cAcao: { width: 44, alignItems: 'center' },
-  centro: { textAlign: 'center' },
   negrito: { fontFamily: fontes.negrito },
   form: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
   campoData: { width: 190 },

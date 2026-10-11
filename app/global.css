@@ -26,14 +26,14 @@
    --color-secondary-foreground: #111114;
    --color-border: #D4D4D8;
    --color-input: #8A8A93;
-   --color-destructive: #C62828;
-   --color-sucesso: #1A7F45;
-   --color-atencao: #9A6412;
-   --color-perigo: #C62828;
-   --color-neutro: #8A8A92;
+   --color-destructive: #B71C1C;
+   --color-sucesso: #176E3C;
+   --color-atencao: #875710;
+   --color-perigo: #B71C1C;
+   --color-neutro: #616169;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
-   --color-ring: #52525B;
+   --color-ring: #111114;
   }
   @variant dark {
    --color-background: #0A0A0C;
@@ -48,14 +48,24 @@
    --color-secondary-foreground: #F4F4F5;
    --color-border: #3A3A41;
    --color-input: #63636B;
-   --color-destructive: #E5484D;
-   --color-sucesso: #1F9D55;
-   --color-atencao: #B7791F;
-   --color-perigo: #E5484D;
-   --color-neutro: #6B6B73;
+   --color-destructive: #C62828;
+   --color-sucesso: #2BB36A;
+   --color-atencao: #D9962C;
+   --color-perigo: #F0666B;
+   --color-neutro: #9A9AA3;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
-   --color-ring: #52525B;
+   --color-ring: #F4F4F5;
   }
  }
+}
+
+/* Anel de foco do teclado (R9): a cor do texto do tema, 2 px e folga de 2 px, só quando o foco veio do teclado. A
+   cor da marca não serve (3,1:1 sobre o fundo escuro). O RNR não desenha mais o anel próprio (box-shadow da marca). */
+:focus-visible {
+ outline: 2px solid var(--color-ring);
+ outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+ outline: none;
 }

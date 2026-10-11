@@ -58,7 +58,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Auditoria: `auditoria/Auditoria.registrar` usa resumos fixos, sem valores clínicos ou códigos.
   `@Auditar` roda dentro da transação (advisor 1, transação 0); `AuditoriaGravacao` usa JDBC com
   consultoria explícita porque o login começa global. A ação e seu evento sofrem o mesmo rollback.
-  Retenção de um ano, limpeza diária; leitura paginada exige `AUDITORIA_LER`.
+  Retenção de um ano, limpeza diária; leitura paginada exige `AUDITORIA_LER`. No app a lista é `Tabela` (colunas a partir de 760 px, cartões abaixo) e os filtros Pessoa/Ação são `EscolhaEmFolha`.
   `/auditoria/pessoas` traz só id/nome para o filtro, com a mesma permissão, sem exigir gestão da equipe.
 - `web/` erros (`ApiError` com `codigo`), `RequestIdFilter`, corpo até 1 MiB (`LimiteCorpoFilter`, 413 `CORPO_EXCEDIDO`).
 - `security/` JWT de 15 min com `cv`; refresh opaco com rotação (reuso derruba todas as sessões); web = cookie
@@ -79,6 +79,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   `Buscas.semAcento`; teste: `python -m unittest scripts/catalogo/test_catalogo.py`.
 - Suplementos e ergogênicos ficam na biblioteca (`/suplementos`, `/ergogenicos`) e são copiados para a dieta; link passa por `LinksExternos` (https). `ConteudoDieta.ergogenicos` sai nulo sem `ERGOGENICO_LER`, é preservado sem `ERGOGENICO_ALTERAR` e quando o corpo vem sem a lista (apagar = lista vazia), linha toda em branco não trava a publicação, não entra em modelo nem em cópia para outro aluno e nunca vai a log/auditoria (ganchos `paraLeitura`/`paraGravarRascunho`/`paraCopiaDeOutroAluno` do `PlanoServiceBase`).
 - Aplicar modelo (`POST /receitas/{id}/aplicar`) exige `MODELO_APLICAR` + `ALUNO_LER` e, no serviço e antes de qualquer efeito, `TREINO_ALTERAR` (treino, sessão, mobilidade), `DIETA_ALTERAR` (dieta, refeição) ou as do que o pacote traz; salvar pasta como modelo exige também `TREINO_LER` e `DIETA_LER`. Sem `pastaId` o serviço cria pasta nova e exige também `PASTA_ALTERAR` (no app, `AplicarAoAluno` só oferece pastas existentes a quem não tem essa permissão).
+- Planejamento no app: grupos (Treino, Dieta, Pacotes, Mobilidade = `GRUPOS_DE_MODELOS`) são `Abas`; os tipos do grupo, chips numa `FaixaDeChips`. Biblioteca: a aba do catálogo chama-se "Importar do catálogo".
 - Modelos do Planejamento (`receitas/`): tipo `MOBILIDADE` (alongamento/mobilidade: seções com itens nome, prescrição em texto e
   vídeo) é modelo reutilizável e também "Aplicar ao aluno" (cria o plano de mobilidade na pasta). Pasta de plano pode ser finalizada
   (`POST /pastas/{id}/finalizar`, `concluida_em`); peso e observação opcionais vão para o registro de peso na mesma
@@ -108,7 +109,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 
 ## App: convenções
 - Minha conta (app): `app/treinador/minha-conta.tsx` com abas Cadastro / Meu plano / Financeiro e o cartão de consumo (peças em `treinador/conta/PartesDaConta`, regras de texto e selo em `dominio/minhaConta.ts`). Só consulta; `previa:true` mostra o aviso "Prévia"; 404 vira "Conta ainda não disponível". Item no menu do usuário e na busca só com `CONTA_LER` (`podeAcessarTela`).
-- Barra de topo do treinador (`ui/BarraTopo`, só com o menu lateral, PC ≥ 900 px): consultoria + nome da tela, busca "O que você deseja fazer?" (`ui/BuscaGlobal`, Ctrl/Cmd+K), "Todas as telas" com favoritos (`treinos:<usuarioId>:favoritos`, apagados ao sair) e cartão do usuário (Meus dados, Ajustes, Sair; Minha conta com `CONTA_LER`). Teclado da barra (`ui/usoWeb.useTeclado`) escuta na captura, porque `TextInput`/`Pressable` do react-native-web param a propagação. Só na web (no tablet nativo o Perfil fica no menu lateral). Telas e ações da busca estão em `dominio/telas.ts` e seguem `podeAcessarTela`: **tela nova entra lá**. A busca não procura alunos pelo nome. `/treinador/perfil` fica só para o celular (barra inferior).
+- Barra de topo do treinador (`ui/BarraTopo`, só com o menu lateral, web ≥ 768 px; sem a linha da consultoria, que já está no menu): nome da tela, busca "O que você deseja fazer?" (`ui/BuscaGlobal`, Ctrl/Cmd+K), "Todas as telas" com favoritos (`treinos:<usuarioId>:favoritos`, apagados ao sair) e cartão do usuário (Meus dados, Ajustes, Sair; Minha conta com `CONTA_LER`). Teclado da barra (`ui/usoWeb.useTeclado`) escuta na captura, porque `TextInput`/`Pressable` do react-native-web param a propagação. Só na web (no tablet nativo o Perfil fica no menu lateral). Telas e ações da busca estão em `dominio/telas.ts` e seguem `podeAcessarTela`: **tela nova entra lá**. A busca não procura alunos pelo nome. `/treinador/perfil` fica só para o celular (barra inferior).
+- Menu do treinador (`ui/Navegacao`): lateral a partir de `LARGURA_MENU_LATERAL` (768), só ícones (trilho) até `LARGURA_MENU_EXPANDIDO` (1024), expandido depois. Barra inferior do celular: Início, Alunos, Biblioteca, Planejamento, Perfil; Marca, Equipe, Ajuda e Auditoria são `soLateral` e no celular ficam em Perfil › Atalhos (`ItemDeLista`). Início ganha `ponto` quando há atualização para revisar (`painelTreinador`, só com `PAINEL_VER` + `ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER`). Barra do aluno: inferior sempre, limitada a 720 px no PC.
 - Equipe: `useSessao().pode(codigo)` usa `/eu` só para apresentação; menu, ações e cartões seguem
   as permissões. `GuardaDePermissao` não monta telas sem acesso. A API continua autorizando pelo banco.
   Responsável é salvo junto ao cadastro (mesma transação); `meus=true` em `/alunos` e `/painel`
@@ -121,30 +123,38 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Na web, o cookie XSRF é de sessão do navegador: antes do refresh o cliente faz `GET /actuator/health` para ganhar
   um novo. Sem conexão na abertura, a sessão abre offline com o último perfil salvo.
 - Design: tokens em `tema/tokens.ts`; status com `Selo` (nunca a cor da marca); confirmação com `PainelConfirmacao`;
-  aviso com `useAviso()`; link de texto com `LinkTexto`. Fontes importadas por subcaminho (só os pesos usados).
-- **Níveis:** fundo → `Cartao` (`superficie` + borda) → faixa `CabecalhoDeGrupo` (`superficie2`) → item (`superficie2` + borda); campo
+  aviso com `useAviso()` (erro fica até ser fechado); link de texto com `LinkTexto`. Fontes importadas por subcaminho (só os pesos usados).
+  Marca como texto ou ícone usa `marcaTexto` do `useTema()` (`marcaParaTexto` escurece/clareia até 4,5:1 sobre o fundo), nunca `marca` direto; `marca` só em fundo com `sobreMarca`.
+  Tela pública (entrar, cadastro, convites) segue o tema do aparelho; logado, o padrão é o da marca. Foco de teclado é o anel único `anelFoco` (`:focus-visible` no `global.css`).
+  Peças compartilhadas: `ui/Tabela` (colunas a partir de `LARGURA_TABELA` 520, ou `larguraMinima`; abaixo vira cartões empilhados), `ui/ItemDeLista` (cartão inteiro é o toque, com seta), `ui/LinhaDeAcoes` (botões que quebram linha), `ui/FaixaDeChips` (chips numa linha que rola com esmaecimento; com `quebrar`, no PC viram linhas, porque rolagem horizontal com mouse parece corte), `ui/EscolhaEmFolha` (mais de `OPCOES_PARA_BUSCAR` = 8 opções: botão "Rótulo: valor" abre folha com busca), `ui/CampoLeitura` (rótulo + valor só leitura, "—" sem valor), `Estados` (`SemPermissao`, `Bloqueado`, `Incompleto`). Folha no PC tem `LARGURA_FOLHA` 600 (pasta usa `LARGURA_EDITOR`), semântica de diálogo e `KeyboardAvoidingView`. `Tela centrado` centraliza formulário curto (Entrar com altura ≥ 700).
+  Acessibilidade: título da tela é `Texto nivel={1}` (um h1 por tela); `Abas` aceita `contagem`; alvo de toque mínimo `ALVO_TOQUE` 44 em chip, aba, link, ícone e trilha; fonte mínima 12.
+- **Níveis:** fundo → `Cartao` (`superficie` + borda) → faixa `CabecalhoDeGrupo` e cabeçalho da `Tabela` (`superficie3`, para o título destacar) → item (`superficie2` + borda); campo
   = `campo` + `bordaCampo`; pressionado ou hover = `superficie3` (`ui/sobre`). 24 px entre blocos. `Tela` respeita `largura`
   (`LARGURA_EDITOR` 1040, `LARGURA_LISTA` 1800 = `LARGURA_MAXIMA`, aluno 720). Listas de itens usam `ui/Grade` (1 coluna abaixo de 760 px, 2 a partir de 760, 3 a partir de 1240, pela largura da própria grade; regra em `dominio/grade.ts`).
 - **Tipografia** (`ui/tipografia.ts`, escala 12/13/14/15/16/24/28): `titulo` 24/30, `bloco` (título de cartão e folha), `rotulo`
   (campo); `secao` só subtítulo dentro de bloco. `Texto numerico` e campos numéricos usam números tabulares.
-- **Botões:** um `primario` por área; botão não estica sem `cheio`; destrutivo = `perigoTexto` + `PainelConfirmacao`.
-- **Seleção** é invertida (`texto`/`fundo`: `Escolha`, chips, calendário); a marca só em ação principal, menu e aba ativos,
-  "Treino de hoje" e título.
+- **Botões:** um `primario` por área (Planejamento: "Novo modelo"; Folha da pasta: Finalizar/Reabrir; "Aplicar ao aluno" e "Editar" são secundários); botão não estica sem `cheio`;
+  rótulo quebra em até 2 linhas; destrutivo = `perigoTexto` + `PainelConfirmacao`. Botão desabilitado leva `motivo` (texto curto do porquê, lido pelo leitor de tela) em vez de ficar mudo.
+- **Seleção** é invertida (`texto`/`fundo`: `Escolha`, chips, calendário; `BotaoMarcar` desmarcado usa `bordaCampo`); a marca só em ação principal, menu e aba ativos,
+  cartão "Hoje" do aluno e título.
 - **Preferências pessoais** em `dominio/preferencias.ts` (AsyncStorage `treinos:<usuarioId>:preferencias`, um JSON; migra a
   chave antiga `...:tema`): tema (consultoria/escuro/claro/sistema), contraste, tamanho do texto (o `Texto` e os campos
-  multiplicam a fonte), animações e vibração. `useTema()` expõe `preferencias`, `fatorTexto` e `escolherPreferencia`. A marca
+  multiplicam a fonte), animações, vibração e gráficos (`graficos`: desligado, Progresso por exercício e Peso mostram só as listas; interruptor em Perfil › Preferências e no cartão Progresso). `useTema()` expõe `preferencias`, `fatorTexto` e `escolherPreferencia`. A marca
   da consultoria usa as paletas de `dominio/paletas.ts` (`avaliarMarca` bloqueia cor que não segura texto branco com 4,5:1).
   Fontes do nome: PADRAO, METAL, ESPORTIVA, CONDENSADA (migration V016).
   Movimento usa Reanimated 4 com `sv.get()`/`sv.set()` (React Compiler) e `useMovimentoReduzido`; vibração só pelo `ui/vibrar` (sem chamadas na web).
 - Lint do React 19 recusa `setState` síncrono dentro de `useEffect`: atualizar estado só em callback de promessa.
-  Dados de tela com `ui/useCarregar` (chave → busca; `definir` depois de alterar). Painel lateral/folha: `ui/Folha`.
+  Dados de tela com `ui/useCarregar` (chave → busca; `definir` depois de alterar). Painel lateral/folha: `ui/Folha`. A `Folha` é um `Modal`: diálogo aberto dentro dela renderiza no `PortalHost` da própria folha (`usePortalDaFolha`; `PainelConfirmacao` já faz isso), senão fica atrás e o toque não chega.
 - Menu ⋯ da pasta: "Salvar como pacote" só com as permissões da rota (`dominio/modelos.podeSalvarPastaComoModelo`: MODELO_ALTERAR, ALUNO_LER, TREINO_LER, DIETA_LER); sem nenhuma ação o ⋯ some.
 - Pastas: `src/app/` só rotas; peças das telas do treinador em `src/treinador/`; regras puras (com teste) em
   `src/dominio/` (formatos BR, agrupamento "3x3 - FS", operações do editor, contas da dieta). `novoUid()` em todo item novo.
-- Editor de treino: uma sessão por vez (`SeletorDeSessoes`, chips) e os modelos numa `Folha` "Modelos"; dieta: refeições em
+- Editor de treino: uma sessão por vez (`SeletorDeSessoes`, chips que quebram linha no PC), "Abrir/Fechar todos" os exercícios e os modelos numa `Folha` "Modelos"; dieta: refeições em
   `CabecalhoDeGrupo`, recolhidas por padrão. Configuração do plano (título, período, metodologia) é um cartão recolhível.
-- Editores de plano: `treinador/plano/usePlanoEditor` (rascunho do aluno salvo 1,5 s depois; modelo só salva no botão e descarta ao sair; 409 → recarregar, validar e
-  publicar com erros/avisos da API) + `TopoPlano`. Mudança grande (receita, remoção) passa pelo `BarraDesfazer`.
+- Editores de plano: `treinador/plano/usePlanoEditor` (**nada é salvo sozinho**: "Salvar rascunho" no `TopoPlano`, "Salvar modelo" no `TopoModelo`;
+  Validar e Publicar salvam antes; 409 → recarregar, validar e publicar com erros/avisos da API). Mudança grande (receita, remoção) passa pelo `BarraDesfazer`.
+  Sair com alteração pendente passa pela `ui/GuardaDeSaida` (provider no layout do treinador): a tela chama `useGuardaDeSaida(pendente)` (o hook do editor e o
+  `EditorModelo` já chamam) e quem navega (`Navegacao`, `BuscaGlobal`, `TodasAsTelas`, `CartaoDoUsuario`, voltar e trilha do `Cabecalho`) embrulha em
+  `confirmar` da `useSaidaGuardada`; `beforeRemove` cobre o botão físico e a seta, e a web avisa no `beforeunload`. Tela nova com estado não salvo entra nesse esquema.
 - Verificar: `npm run typecheck && npm run lint && npm test`; bundle nativo com `npx expo export --platform android`.
 - Atrás do Caddy o Tomcat recebe `X-Forwarded-Port` (porta do `Host`): sem isso a web em `:8088` parecia outra origem
   e o CORS recusava o login.
@@ -157,9 +167,10 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   roda nas duas (SQLite do Node em `bancoNode.apoioTeste.ts`, nunca importado pelo app). Série marcada grava no aparelho na hora;
   a carga sugerida vem de `dominio/cargas.ts` (seção 8) e o que o aluno digita é gravado como digitou.
 - Mobilidade do aluno: aba "Mobilidade" (antes do Histórico) só com mobilidade publicada; o `AlunoProvider` guarda a última vista no `RepositorioLocal` (documento `kv` `mobilidade`, sem mudar `VERSAO_ESQUEMA`) e limpa no 404. Tela só de consulta; vídeo abre fora do app.
-- Telas do aluno no estilo do protótipo: "Treino de hoje" na cor da marca, divisões com chips de data do período
+- Telas do aluno no estilo do protótipo: cartão "Hoje · <tipo da sessão>" na cor da marca (`CartaoHoje`; sem sessão ou sem exercício é cartão neutro, "Nada para registrar hoje."), divisões com chips de data do período
   (`datasDaSessao`; registro até 60 dias para trás ou para frente, `podeRegistrarEm`), dia em `sessao/[uid]?data=` e um
-  exercício por tela em `sessao/[uid]/[exercicio]` (`aluno/useSessaoDoDia`). Nome da sessão com `nomeComDia`.
+  exercício por tela em `sessao/[uid]/[exercicio]` (`aluno/useSessaoDoDia`). Nome da sessão com `nomeComDia`. Dieta sem total
+  (valor nulo) mostra `Incompleto`; atualização antes da data mostra `Bloqueado` com "Disponível a partir de".
 - Cargas por divisão (`dominio/relatorio.ts` + `treinador/CargasPorDivisao`) no histórico do aluno e na ficha do
   treinador; o mesmo dado sai no PDF de cargas (`pdf/pdfCargas.ts`).
 
@@ -207,4 +218,5 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Importação de conteúdo do Saraiva (vídeos, semanas de treino, mobilidade, suplementos e medicação/ergogênicos; o passo de ergogênicos pede login de Administrador): `node scripts/importacao/importar.mjs`
   (`--simular` só lê; `--substituir` troca modelos que já existem; `--trocar-videos` troca vídeo já gravado). Usa a API
   como treinador (`DEMO_SENHA` do ambiente, sem imprimir) e é idempotente. Dados em `scripts/importacao/dados/`, sem
-  dado de aluno. Depois de `docker compose down -v`, rodar de novo.
+  dado de aluno. No `docker compose up` o serviço `importacao` (one-shot, `node:24-alpine`, `API_URL=http://api:8080`) roda o script
+  sozinho depois da API ficar saudável; o conteúdo volta sozinho após `docker compose down -v`. Rodar à mão só para as opções.

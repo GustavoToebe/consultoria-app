@@ -16,6 +16,8 @@ export interface Preferencias {
   movimento: Movimento;
   /** Só aparece no celular. */
   vibracao: boolean;
+  /** Gráficos de progresso por exercício e de peso; desligado, só as listas. */
+  graficos: boolean;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
@@ -24,6 +26,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   tamanhoTexto: 'PADRAO',
   movimento: 'SISTEMA',
   vibracao: true,
+  graficos: true,
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'SISTEMA'];
@@ -52,6 +55,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     tamanhoTexto: entre(o.tamanhoTexto, TAMANHOS, PREFERENCIAS_PADRAO.tamanhoTexto),
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),
     vibracao: typeof o.vibracao === 'boolean' ? o.vibracao : PREFERENCIAS_PADRAO.vibracao,
+    graficos: typeof o.graficos === 'boolean' ? o.graficos : PREFERENCIAS_PADRAO.graficos,
   };
 }
 

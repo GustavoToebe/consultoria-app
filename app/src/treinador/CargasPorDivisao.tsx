@@ -8,6 +8,7 @@ import type { DivisaoRelatorio } from '../dominio/relatorio';
 import { textoCarga } from '../pdf/pdfCargas';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
+import { Tabela } from '../ui/Tabela';
 import { Texto } from '../ui/Texto';
 
 /**
@@ -15,7 +16,7 @@ import { Texto } from '../ui/Texto';
  * a carga de trabalho, as repetições e as séries feitas. Observação do aluno embaixo da linha.
  */
 export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] }) {
-  const { cores, marca } = useTema();
+  const { cores, marca, marcaTexto } = useTema();
   const animar = usePrimeiraLista(divisoes.length > 0, divisoes.map((d) => d.chave).join('|'));
   const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
   const alternar = (chave: string) =>
@@ -50,27 +51,24 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
                   {e.linhas.length} {e.linhas.length === 1 ? 'sessão' : 'sessões'}
                 </Texto>
               </View>
-              <View style={[estilos.linha, { borderColor: cores.borda }]}>
-                <Texto numerico variante="secao" style={estilos.colData}>Data</Texto>
-                <Texto numerico variante="secao" style={estilos.colCarga}>Carga</Texto>
-                <Texto numerico variante="secao" style={estilos.col}>Reps</Texto>
-                <Texto numerico variante="secao" style={estilos.col}>Séries</Texto>
-              </View>
-              {[...e.linhas].reverse().map((l, i) => (
-                <View key={`${l.data}-${i}`} style={[estilos.linha, { borderColor: cores.borda }]}>
-                  <View style={estilos.celulas}>
-                    <Texto numerico style={[estilos.colData, estilos.forte]}>{dataParaTela(l.data)}</Texto>
-                    <Texto numerico style={[estilos.colCarga, estilos.carga, l.carga !== null && { color: marca }]}>{textoCarga(l)}</Texto>
-                    <Texto numerico style={estilos.col}>{l.repeticoes ?? '—'}</Texto>
-                    <Texto numerico variante="suave" style={estilos.col}>{l.series}</Texto>
-                  </View>
-                  {l.observacoes.length ? (
+              <View style={estilos.tabela}>
+                <Tabela
+                  rotulo={`Cargas de ${e.nome}`}
+                  linhas={[...e.linhas].reverse().map((l, i) => ({ ...l, chave: `${l.data}-${i}` }))}
+                  chave={(l) => l.chave}
+                  colunas={[
+                    { chave: 'data', titulo: 'Data', flex: 1.3, principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
+                    { chave: 'carga', titulo: 'Carga', flex: 1.2, render: (l) => <Texto numerico style={[estilos.carga, l.carga !== null && { color: marcaTexto }]}>{textoCarga(l)}</Texto> },
+                    { chave: 'reps', titulo: 'Reps', flex: 0.8, render: (l) => <Texto numerico>{l.repeticoes ?? '—'}</Texto> },
+                    { chave: 'series', titulo: 'Séries', flex: 0.8, render: (l) => <Texto numerico variante="suave">{l.series}</Texto> },
+                  ]}
+                  detalhe={(l) => l.observacoes.length ? (
                     <View style={[estilos.obs, { borderLeftColor: cores.atencao }]}>
                       <Texto numerico variante="suave" style={estilos.obsTexto}>{l.observacoes.join(' · ')}</Texto>
                     </View>
                   ) : null}
-                </View>
-              ))}
+                />
+              </View>
             </View>
           ))}
         </EntradaEmCascata>
@@ -106,11 +104,8 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espaco(1.5),
   },
   nomeExercicio: { fontFamily: fontes.semi, flexShrink: 1 },
-  linha: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: espaco(1), paddingHorizontal: espaco(1.5), gap: espaco(0.75), flexDirection: 'row', flexWrap: 'wrap' },
-  celulas: { flexDirection: 'row', width: '100%' },
-  colData: { flex: 1.3 },
-  colCarga: { flex: 1.2 },
-  col: { flex: 0.8 },
+  // A tabela já tem a própria borda; dentro do bloco do exercício fica só com o recuo.
+  tabela: { padding: espaco(1) },
   forte: { fontFamily: fontes.semi },
   carga: { fontFamily: fontes.negrito },
   obs: { borderLeftWidth: 3, paddingLeft: espaco(1), width: '100%' },

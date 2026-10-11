@@ -5,18 +5,20 @@ import { espaco, LARGURA_LISTA, RAIO } from '../../../tema/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Copy, Ellipsis, Library, Pencil, Trash2 } from 'lucide-react-native';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { alterarPastaModelo, alterarReceita, consultoria, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
 import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
 import { CATEGORIAS, conteudoInicial, GRUPOS_DE_MODELOS, usoDoModelo } from '../../../treinador/planejamento/modelos';
+import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Campo } from '../../../ui/Campo';
 import { Cartao } from '../../../ui/Cartao';
 import { Escolha } from '../../../ui/Escolha';
+import { FaixaDeChips } from '../../../ui/FaixaDeChips';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { textoDoErro } from '../../../ui/erros';
@@ -51,6 +53,8 @@ export default function Planejamento() {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const atualizar = () => { modelos.recarregar(); colecoes.recarregar(); };
   const categoria = CATEGORIAS.find((c) => c.valor === tipo) ?? CATEGORIAS[0];
+  // Grupo (Treino, Dieta, Pacotes, Mobilidade) são abas; os tipos do grupo, chips numa faixa que rola.
+  const grupo = GRUPOS_DE_MODELOS.find((g) => g.tipos.includes(tipo)) ?? GRUPOS_DE_MODELOS[0];
   const uso = usoDoModelo(tipo);
   const nomeDaColecao = (id: string | null) => colecoes.dados?.find((c) => c.id === id)?.nome;
   const rotuloColecao = colecao === '*' ? 'Todas' : colecao === '' ? 'Sem coleção' : nomeDaColecao(colecao) ?? 'Todas';
@@ -62,22 +66,19 @@ export default function Planejamento() {
   return <Tela bordas={['top']} largura={LARGURA_LISTA}>
     <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
     <Texto variante="suave">Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.</Texto>
-    <View style={estilos.grupos}>
-      {GRUPOS_DE_MODELOS.map((g) => <View key={g.rotulo} style={estilos.grupo}>
-        <Texto variante="secao">{g.rotulo}</Texto>
-        {/* No celular o grupo rola na horizontal em vez de quebrar linha. */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.rolagem}>
-          <Escolha descricao={`Modelos de ${g.rotulo.toLocaleLowerCase()}`} valor={g.tipos.includes(tipo) ? tipo : null}
-            aoMudar={(v) => { if (v) setTipo(v); }} opcoes={CATEGORIAS.filter((c) => g.tipos.includes(c.valor))} />
-        </ScrollView>
-      </View>)}
-    </View>
+    <Abas abas={GRUPOS_DE_MODELOS.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo }))} ativa={grupo.rotulo}
+      aoMudar={(rotulo) => { const g = GRUPOS_DE_MODELOS.find((x) => x.rotulo === rotulo); if (g) setTipo(g.tipos[0]); }} />
+    {grupo.tipos.length > 1 ? (
+      <FaixaDeChips quebrar accessibilityLabel={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`}>
+        <Escolha descricao={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`} valor={tipo} aoMudar={setTipo} opcoes={CATEGORIAS.filter((c) => grupo.tipos.includes(c.valor))} />
+      </FaixaDeChips>
+    ) : null}
     <Cartao
       titulo={categoria.rotulo}
       descricao={categoria.descricao}
-      acoes={<Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Novo modelo" aoTocar={() => setFormulario('novo')} desabilitado={!config.dados} /></Permitido>}>
+      acoes={<Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Novo modelo" aoTocar={() => setFormulario('novo')} desabilitado={!config.dados} motivo="Aguardando a configuração da consultoria." /></Permitido>}>
       <View style={estilos.busca}>
-        <View style={estilos.campoBusca}><Campo rotulo="Buscar modelo" valor={busca} aoMudar={setBusca} /></View>
+        <View style={estilos.campoBusca}><Campo rotulo="Buscar modelo" valor={busca} aoMudar={setBusca} placeholder="Nome do modelo" autoCorrect={false} /></View>
         <Botao rotulo={`Coleção: ${rotuloColecao}`} tipo="secundario" Icone={Library} style={estilos.seletor} aoTocar={() => setEscolherColecao(true)} />
       </View>
       {modelos.erro || colecoes.erro || config.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? colecoes.erro ?? config.erro)} tentarDeNovo={() => { atualizar(); config.recarregar(); }} /> : null}
@@ -114,8 +115,9 @@ export default function Planejamento() {
 }
 
 /**
- * Semanas, dietas e pacotes: "Aplicar ao aluno" (primário) + "Editar". Peças (receitas de séries, dias, refeições,
- * metodologias, mobilidade): "Editar" e a linha de onde usar. O resto fica no menu ⋯.
+ * Semanas, dietas e pacotes: "Aplicar ao aluno" + "Editar", os dois secundários (o primário da tela é "Novo modelo").
+ * Peças (receitas de séries, dias, refeições, metodologias, mobilidade): "Editar" e a linha de onde usar. O resto
+ * fica no menu ⋯. As ações ficam na base do cartão, alinhadas entre cartões de alturas diferentes.
  */
 function CartaoModelo({ modelo: r, colecao, aplicavel, linhaDeUso, ocupado, aoAplicar, aoEditar, aoMenu }: {
   modelo: Receita; colecao: string | undefined; aplicavel: boolean; linhaDeUso: string | null; ocupado: boolean;
@@ -133,7 +135,7 @@ function CartaoModelo({ modelo: r, colecao, aplicavel, linhaDeUso, ocupado, aoAp
       {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${r.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
     </View>
     <View style={estilos.acoesModelo}>
-      {aplicavel ? <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Aplicar ao aluno" aoTocar={aoAplicar} /></Permitido> : null}
+      {aplicavel ? <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Aplicar ao aluno" tipo="secundario" aoTocar={aoAplicar} /></Permitido> : null}
       <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoEditar} /></Permitido>
     </View>
   </View>;
@@ -143,7 +145,7 @@ function Formulario({ receita, tipo, colecaoInicial, colecoes, aoFechar, aoSalva
   const [nome, setNome] = useState(receita?.nome ?? ''); const [descricao, setDescricao] = useState(receita?.descricao ?? '');
   const [colecao, setColecao] = useState(receita ? receita.pastaId ?? '' : colecaoInicial);
   const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState<unknown>(null);
-  return <Folha visivel titulo={receita ? 'Renomear / mover' : `Novo modelo: ${CATEGORIAS.find((c) => c.valor === tipo)?.rotulo}`} aoFechar={aoFechar} rodape={<Botao rotulo={receita ? 'Salvar' : 'Criar e editar'} desabilitado={!nome.trim()} carregando={salvando} aoTocar={() => {
+  return <Folha visivel titulo={receita ? 'Renomear / mover' : `Novo modelo: ${CATEGORIAS.find((c) => c.valor === tipo)?.rotulo}`} aoFechar={aoFechar} rodape={<Botao rotulo={receita ? 'Salvar' : 'Criar e editar'} desabilitado={!nome.trim()} motivo="Informe o nome do modelo." carregando={salvando} aoTocar={() => {
     setSalvando(true); setErro(null); aoSalvar(nome.trim(), descricao.trim() || null, colecao || null).catch((e: unknown) => { setErro(e); setSalvando(false); });
   }} />}>
     <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
@@ -165,7 +167,7 @@ function OrganizarColecoes({ colecoes: pastas, aoFechar, atualizar }: { colecoes
   return <Folha visivel titulo="Organizar coleções" aoFechar={aoFechar}>
     <Texto variante="suave">Coleções só organizam seus modelos. Para aplicar treinos e dietas juntos a um aluno, use um pacote.</Texto>
     <Campo rotulo={editando ? 'Renomear coleção' : 'Nova coleção'} valor={nome} aoMudar={setNome} maxLength={120} />
-    <Botao rotulo={editando ? 'Salvar nome' : 'Criar coleção'} carregando={salvando} desabilitado={!nome.trim()} aoTocar={() => void executar(() => editando ? alterarPastaModelo(editando.id, nome.trim(), editando.versao) : criarPastaModelo(nome.trim()))} />
+    <Botao rotulo={editando ? 'Salvar nome' : 'Criar coleção'} carregando={salvando} desabilitado={!nome.trim()} motivo="Informe o nome da coleção." aoTocar={() => void executar(() => editando ? alterarPastaModelo(editando.id, nome.trim(), editando.versao) : criarPastaModelo(nome.trim()))} />
     {editando ? <Botao rotulo="Cancelar edição" tipo="fantasma" aoTocar={() => { setEditando(null); setNome(''); }} /> : null}
     {pastas.map((p) => <Cartao key={p.id} titulo={p.nome}><Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Renomear coleção" tipo="secundario" desabilitado={salvando} aoTocar={() => { setEditando(p); setNome(p.nome); }} /></Permitido><Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Excluir coleção" tipo="perigoTexto" desabilitado={salvando} aoTocar={() => setExcluir(p)} /></Permitido></Cartao>)}
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
@@ -174,9 +176,6 @@ function OrganizarColecoes({ colecoes: pastas, aoFechar, atualizar }: { colecoes
 }
 
 const estilos = StyleSheet.create({
-  grupos: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5) },
-  grupo: { gap: espaco(0.5), maxWidth: '100%' },
-  rolagem: { paddingRight: espaco(1) },
   busca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
   campoBusca: { flexGrow: 1, flexBasis: 240 },
   // O Botao se alinha ao topo por padrão; aqui fica na base, rente ao campo de busca.
@@ -184,5 +183,5 @@ const estilos = StyleSheet.create({
   modelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), minHeight: 56, flexGrow: 1 },
   topoModelo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
   textosModelo: { flex: 1, gap: espaco(0.5) },
-  acoesModelo: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  acoesModelo: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), marginTop: 'auto' },
 });

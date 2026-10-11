@@ -12,34 +12,42 @@ import { BarraProgresso } from '../ui/BarraProgresso';
 import { Texto } from '../ui/Texto';
 
 /**
- * Destaque do topo: a sessão de hoje na cor da marca (é a ação principal da tela: tocar abre o treino). Sem sessão
- * hoje, um cartão neutro.
+ * Destaque do topo: a sessão de hoje na cor da marca (é a ação principal da tela: tocar abre o treino). O rótulo é
+ * "HOJE" mais o tipo da sessão (não é sempre treino: pode ser descanso ou cardio). Sem sessão ou sem exercício para
+ * registrar, um cartão neutro.
  */
 export function CartaoHoje({ sessao, hoje, feitas, aoAbrir }: { sessao: Sessao | null; hoje: string; feitas: number; aoAbrir: () => void }) {
   const { cores, marca, sobreMarca } = useTema();
   const reduzido = useMovimentoReduzido();
   const escala = useSharedValue(1);
   const movimento = useAnimatedStyle(() => ({transform:[{scale:escala.get()}]}));
-  if (!sessao) {
+  const temExercicios = !!sessao && sessao.exercicios.length > 0;
+  if (!sessao || !temExercicios) {
     return (
       <View style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
         <View style={estilos.topo}>
           <CalendarDays size={20} color={cores.textoSuave} />
-          <Texto variante="secao" style={estilos.rotulo}>Treino de hoje</Texto>
+          <Texto variante="secao" style={estilos.rotulo}>Hoje{sessao ? ` · ${rotuloDoTipo(sessao)}` : ''}</Texto>
           <Texto variante="secao">{dataCurta(hoje)}</Texto>
         </View>
-        <Texto variante="suave">Nenhuma sessão marcada para hoje. Escolha um dia nas divisões abaixo.</Texto>
+        {sessao ? (
+          <>
+            <Texto style={estilos.nome}>{nomeComDia(sessao)}</Texto>
+            <Texto variante="suave">{sessao.cardio ? `${rotuloDoTipo(sessao)} · ${sessao.cardio}` : 'Nada para registrar hoje.'}</Texto>
+          </>
+        ) : (
+          <Texto variante="suave">Nenhuma sessão marcada para hoje. Escolha um dia nas divisões abaixo.</Texto>
+        )}
       </View>
     );
   }
   const total = totalDeSeries(sessao);
-  const temExercicios = sessao.exercicios.length > 0;
   const conteudo = (
     <>
       <View style={estilos.topo}>
         <CirclePlay size={20} color={sobreMarca} />
         <Texto variante="secao" cor={sobreMarca} style={estilos.rotulo}>
-          Treino de hoje
+          Hoje · {rotuloDoTipo(sessao)}
         </Texto>
         <Texto variante="secao" cor={sobreMarca}>
           {dataCurta(hoje)}
@@ -49,7 +57,7 @@ export function CartaoHoje({ sessao, hoje, feitas, aoAbrir }: { sessao: Sessao |
         {nomeComDia(sessao)}
       </Texto>
       <Texto cor={sobreMarca} style={estilos.detalhe}>
-        {temExercicios ? `${sessao.exercicios.length} exercícios programados` : rotuloDoTipo(sessao)}
+        {`${sessao.exercicios.length} ${sessao.exercicios.length === 1 ? 'exercício programado' : 'exercícios programados'}`}
         {sessao.cardio ? ` · ${sessao.cardio}` : ''}
       </Texto>
       {total ? (
@@ -62,9 +70,6 @@ export function CartaoHoje({ sessao, hoje, feitas, aoAbrir }: { sessao: Sessao |
       ) : null}
     </>
   );
-  if (!temExercicios) {
-    return <View style={[estilos.cartao, { backgroundColor: marca, borderColor: marca }]}>{conteudo}</View>;
-  }
   return (
     <Animated.View style={movimento}><Pressable
       onPressIn={() => escala.set(reduzido ? 1 : withTiming(0.98,{duration:100}))}

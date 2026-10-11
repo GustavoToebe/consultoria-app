@@ -27,7 +27,7 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { MensagemErro, Vazio } from '../../ui/Estados';
+import { Incompleto, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
@@ -123,6 +123,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
       </Cartao>
       <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
         <TotaisAnimados totais={totalDoDia(c)} />
+        {Object.values(totalDoDia(c)).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
       </Cartao>
       {c.refeicoes.map((r) => (
         <CartaoRefeicaoAluno key={r.uid} refeicao={r} />

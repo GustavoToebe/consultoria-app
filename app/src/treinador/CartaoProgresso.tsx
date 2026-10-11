@@ -8,7 +8,9 @@ import { opcoesDeProgresso } from '../dominio/relatorio';
 import { LIMITE_PROGRESSO } from '../dominio/selecaoMultipla';
 import { espaco } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
+import { useTema } from '../tema/TemaProvider';
 import { Botao } from '../ui/Botao';
+import { Interruptor } from '../ui/Campos';
 import { Campo } from '../ui/Campo';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
@@ -33,6 +35,7 @@ const DIAS_DA_LISTA = 364;
  */
 export function CartaoProgresso({ alunoId }: { alunoId: string }) {
   const { avisar } = useAviso();
+  const { preferencias, escolherPreferencia } = useTema();
   const [larguraDoCartao, setLarguraDoCartao] = useState(0);
   const duasColunas = larguraDoCartao >= LARGURA_DUAS_COLUNAS;
   const aoMedir = (e: LayoutChangeEvent) => setLarguraDoCartao(e.nativeEvent.layout.width);
@@ -68,6 +71,8 @@ export function CartaoProgresso({ alunoId }: { alunoId: string }) {
       recolhivel
       recolhido
       acoes={<Botao rotulo={`Escolher exercícios (${mostrados.length})`} tipo="secundario" aoTocar={() => setEscolhendo(true)} />}>
+      {/* Preferência pessoal deste aparelho; vale também para o gráfico de peso. */}
+      <Interruptor rotulo="Mostrar gráficos" valor={preferencias.graficos} aoMudar={(graficos) => escolherPreferencia({ graficos })} />
       {mostrados.length === 0 ? <Vazio titulo="Nenhum exercício marcado" texto="Escolha os exercícios que quer comparar." acao={{ rotulo: 'Escolher exercícios', aoTocar: () => setEscolhendo(true) }} /> : null}
       {duasColunas ? (
         <View style={estilos.colunas}>

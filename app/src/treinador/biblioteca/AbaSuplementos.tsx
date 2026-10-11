@@ -17,6 +17,7 @@ import {
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -37,6 +38,7 @@ import { useCarregar } from '../../ui/useCarregar';
 export function AbaSuplementos() {
   const { cores } = useTema();
   const { avisar } = useAviso();
+  const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-suplementos', () => listarSuplementos());
   const [busca, setBusca] = useState('');
   const [categoria, setCategoria] = useState('');
@@ -88,7 +90,7 @@ export function AbaSuplementos() {
           texto={dados.length ? 'Tente outro termo ou outra categoria.' : 'Cadastre um suplemento ou importe a lista pelo script de importação.'}
           acao={dados.length
             ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setCategoria(''); } }
-            : { rotulo: 'Cadastrar suplemento', aoTocar: () => setEditando('novo') }}
+            : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar suplemento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}
       <Grade gap={espaco(2)}>{lista.map((s) => (

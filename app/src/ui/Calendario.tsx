@@ -5,7 +5,7 @@ import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } fro
 import { mesDeIso, mudarMes, NOMES_DOS_DIAS, semanasDoMes } from '../dominio/calendario';
 import { hojeIso } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { IconeBotao } from './IconeBotao';
 import { Texto } from './Texto';
 
@@ -27,7 +27,7 @@ interface Props {
 }
 
 const LARGURA = 280;
-const ALTURA = 332;
+const ALTURA = 344;
 const FOLGA = 8;
 const CELULA = 36;
 
@@ -36,7 +36,7 @@ const CELULA = 36;
  * anterior/próximo, dias dos meses vizinhos esmaecidos, "Hoje" e "Limpar". Tocar fora fecha.
  */
 export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Props) {
-  const { cores, marca } = useTema();
+  const { cores, marcaTexto } = useTema();
   const { width, height } = useWindowDimensions();
   const hoje = hojeIso();
   const [visto, setVisto] = useState(() => mesDeIso(valor, hoje));
@@ -70,7 +70,7 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
           <View key={si} style={estilos.linha}>
             {semana.map((d) => {
               const escolhido = d.iso === valor;
-              const cor = escolhido ? cores.fundo : d.doMes ? (d.iso === hoje ? marca : cores.texto) : cores.textoSuave;
+              const cor = escolhido ? cores.fundo : d.doMes ? (d.iso === hoje ? marcaTexto : cores.texto) : cores.textoSuave;
               return (
                 <Pressable
                   key={d.iso}
@@ -86,11 +86,11 @@ export function Calendario({ ancora, valor, aoEscolher, aoLimpar, aoFechar }: Pr
           </View>
         ))}
         <View style={[estilos.rodape, { borderColor: cores.borda }]}>
-          <Pressable accessibilityRole="button" onPress={() => aoEscolher(hoje)} hitSlop={8}>
-            <Texto style={[estilos.acao, { color: marca }]}>Hoje</Texto>
+          <Pressable accessibilityRole="button" onPress={() => aoEscolher(hoje)} style={({ pressed }) => [estilos.botaoRodape, pressed && { backgroundColor: cores.superficie3 }]}>
+            <Texto style={[estilos.acao, { color: marcaTexto }]}>Hoje</Texto>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={aoLimpar} hitSlop={8}>
-            <Texto style={[estilos.acao, { color: marca }]}>Limpar</Texto>
+          <Pressable accessibilityRole="button" onPress={aoLimpar} style={({ pressed }) => [estilos.botaoRodape, pressed && { backgroundColor: cores.superficie3 }]}>
+            <Texto style={[estilos.acao, { color: marcaTexto }]}>Limpar</Texto>
           </Pressable>
         </View>
       </View>
@@ -121,6 +121,7 @@ const estilos = StyleSheet.create({
   nomeDoDia: { flex: 1, textAlign: 'center', paddingVertical: espaco(0.5) },
   dia: { flex: 1, height: CELULA, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
   numeroDia: { fontFamily: fontes.semi, fontSize: 15 },
-  rodape: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 'auto', borderTopWidth: 1, paddingVertical: espaco(1.25), paddingHorizontal: espaco(0.5) },
+  rodape: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 'auto', borderTopWidth: 1, paddingVertical: espaco(0.5) },
+  botaoRodape: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5), borderRadius: RAIO },
   acao: { fontFamily: fontes.semi, fontSize: 14 },
 });

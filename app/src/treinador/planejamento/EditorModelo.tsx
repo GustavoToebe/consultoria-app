@@ -19,6 +19,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { CartaoMetodologia } from '../marca/CartaoMetodologia';
 import { FaixaDoModelo } from '../plano/FaixaDoPlano';
@@ -29,13 +30,17 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   const [nome, setNome] = useState(r.nome); const [descricao, setDescricao] = useState(r.descricao ?? '');
   const [conteudo, setConteudo] = useState(r.tipo === 'SERIES' ? { series: seriesDaReceita(r.conteudo) } : r.tipo === 'MOBILIDADE' ? normalizarMobilidade(r.conteudo) : r.conteudo);
   const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState<unknown>(null);
+  // Nada é salvo sozinho: qualquer mudança fica pendente até "Salvar modelo" e sair da tela pergunta antes.
+  const [pendente, setPendente] = useState(false);
+  useGuardaDeSaida(pendente);
+  const mudarConteudo: typeof setConteudo = (c) => { setConteudo(c); setPendente(true); };
   const [adicionar, setAdicionar] = useState<'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE' | null>(null);
   const { avisar } = useAviso();
   const consultoriaAtual = useCarregar('config-modelo', consultoria);
   const salvar = async (novoConteudo = conteudo) => {
     if (!nome.trim()) throw new Error('Preencha o nome do modelo.');
     setSalvando(true); setErro(null);
-    try { await alterarReceita(r.id, { ...r, nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'SERIES' ? seriesParaReceita((novoConteudo as { series: ReturnType<typeof seriesDaReceita> }).series) : r.tipo === 'MOBILIDADE' ? mobilidadeParaApi(novoConteudo as ConteudoMobilidade) : novoConteudo }); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
+    try { await alterarReceita(r.id, { ...r, nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'SERIES' ? seriesParaReceita((novoConteudo as { series: ReturnType<typeof seriesDaReceita> }).series) : r.tipo === 'MOBILIDADE' ? mobilidadeParaApi(novoConteudo as ConteudoMobilidade) : novoConteudo }); setPendente(false); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
     catch (e) { setErro(e); throw e; } finally { setSalvando(false); }
   };
   const pasta = conteudo as ConteudoPastaModelo;
@@ -44,24 +49,24 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
     <Cabecalho titulo={tituloDoModelo(r.tipo)} trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: tituloDoModelo(r.tipo) }]} subtitulo={r.nome} voltar="/treinador/planejamento" />
     <FaixaDoModelo />
     <Cartao titulo="Modelo reutilizável" descricao="Salve as alterações antes de sair. Os planos dos alunos permanecem iguais.">
-      <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
-      <Campo rotulo="Descrição" valor={descricao} aoMudar={setDescricao} linhas={2} maxLength={400} />
+      <Campo rotulo="Nome do modelo" valor={nome} aoMudar={(v) => { setNome(v); setPendente(true); }} maxLength={120} />
+      <Campo rotulo="Descrição" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={400} />
     </Cartao>
     {r.tipo === 'METODOLOGIA' ? <CartaoMetodologia configuracao={conteudo as Configuracao} aoSalvar={salvar} /> : null}
-    {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={consultoriaAtual.dados?.configuracao ?? null} aoMudar={(series) => setConteudo({ series })} /> : null}
-    {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={setConteudo} /> : null}
+    {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={consultoriaAtual.dados?.configuracao ?? null} aoMudar={(series) => mudarConteudo({ series })} /> : null}
+    {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={mudarConteudo} /> : null}
     {r.tipo === 'PASTA_PLANO' ? <Cartao titulo="Planos do pacote" descricao="Adicione cópias dos modelos de semana, dieta e mobilidade. Alterar o modelo original depois não modifica este pacote. Para atualizar um item, remova e adicione a versão desejada.">
       {pasta.planos.map((p, i) => <ItemDoPacote key={i} posicao={i} total={pasta.planos.length} plano={p}
-        aoTitulo={(titulo) => setConteudo({ planos: pasta.planos.map((x, n) => n === i ? { ...x, titulo } : x) })}
-        aoMover={(d) => setConteudo({ planos: mover(pasta.planos, i, d) })}
-        aoRemover={() => setConteudo({ planos: pasta.planos.filter((_, n) => n !== i) })} />)}
+        aoTitulo={(titulo) => mudarConteudo({ planos: pasta.planos.map((x, n) => n === i ? { ...x, titulo } : x) })}
+        aoMover={(d) => mudarConteudo({ planos: mover(pasta.planos, i, d) })}
+        aoRemover={() => mudarConteudo({ planos: pasta.planos.filter((_, n) => n !== i) })} />)}
       <View style={estilos.acoes}>
         <Botao rotulo="Adicionar semana de treino" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('PLANO_TREINO')} />
         <Botao rotulo="Adicionar dieta" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('PLANO_DIETA')} />
         <Botao rotulo="Adicionar mobilidade" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('MOBILIDADE')} />
       </View>
       {adicionar ? <FolhaReceitas tipo={adicionar} titulo="Adicionar modelo ao pacote" aoFechar={() => setAdicionar(null)} aoUsar={(modelo) => {
-        setConteudo({ planos: [...pasta.planos, { titulo: modelo.nome, treino: adicionar === 'PLANO_TREINO' ? normalizarTreino(modelo.conteudo) : null, dieta: adicionar === 'PLANO_DIETA' ? normalizarDieta(modelo.conteudo) : null, mobilidade: adicionar === 'MOBILIDADE' ? mobilidadeParaApi(normalizarMobilidade(modelo.conteudo)) : null }] }); setAdicionar(null);
+        mudarConteudo({ planos: [...pasta.planos, { titulo: modelo.nome, treino: adicionar === 'PLANO_TREINO' ? normalizarTreino(modelo.conteudo) : null, dieta: adicionar === 'PLANO_DIETA' ? normalizarDieta(modelo.conteudo) : null, mobilidade: adicionar === 'MOBILIDADE' ? mobilidadeParaApi(normalizarMobilidade(modelo.conteudo)) : null }] }); setAdicionar(null);
       }} /> : null}
     </Cartao> : null}
     {erro ? <><MensagemErro texto={textoDoErro(erro)} /><Botao rotulo="Recarregar modelo (descartar alterações)" tipo="secundario" aoTocar={aoRecarregar} /></> : null}

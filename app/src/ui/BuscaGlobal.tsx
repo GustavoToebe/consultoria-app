@@ -1,12 +1,13 @@
 import { router, type Href } from 'expo-router';
 import { Search } from 'lucide-react-native';
-import { useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View, type TextInput } from 'react-native';
+import { useId, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, View, type Role, type TextInput } from 'react-native';
 
 import { Input } from '../components/ui/input';
 import { buscarTelas, favoritosVisiveis, type TelaDoCatalogo } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { useSaidaGuardada } from './GuardaDeSaida';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 import { useCliqueFora, useTeclado } from './usoWeb';
@@ -25,30 +26,33 @@ const ATALHO = Platform.OS === 'web' && typeof navigator !== 'undefined' && /mac
 
 /**
  * Busca da barra de topo: "O que você deseja fazer?". Filtra o catálogo de telas e ações (`dominio/telas.ts`) só
- * entre o que o usuário pode abrir. Ctrl+K / Cmd+K foca o campo (web), setas escolhem, Enter abre, Esc fecha. Não
- * procura alunos pelo nome.
+ * entre o que o usuário pode abrir. Ctrl+K / Cmd+K foca o campo (web), setas escolhem, Enter abre, Esc fecha e
+ * limpa. Para o leitor de tela é um combobox com a lista de opções. Não procura alunos pelo nome.
  */
 export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props) {
-  const { cores, marca } = useTema();
+  const { cores } = useTema();
   const [texto, setTexto] = useState('');
   const [aberto, setAberto] = useState(false);
   const [ativo, setAtivo] = useState(0);
   const campo = useRef<TextInput>(null);
   const caixa = useRef<View>(null);
+  const idLista = useId();
 
   const digitando = texto.trim().length > 0;
   const resultados = digitando ? buscarTelas(texto, permitidas) : favoritosVisiveis(favoritos, permitidas);
   const indice = Math.min(ativo, Math.max(resultados.length - 1, 0));
 
+  // Fechar (clique fora, Esc, escolha) limpa o texto: reabrir não mostra a busca antiga.
+  const { confirmar } = useSaidaGuardada();
   const fechar = () => {
     setAberto(false);
     setAtivo(0);
+    setTexto('');
   };
   const abrir = (tela: TelaDoCatalogo) => {
-    setTexto('');
     fechar();
     campo.current?.blur();
-    router.navigate(tela.href as Href);
+    confirmar(() => router.navigate(tela.href as Href));
   };
 
   useCliqueFora(caixa, aberto, fechar);
@@ -75,6 +79,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
     return undefined;
   });
 
+  const idDaOpcao = (i: number) => `${idLista}-opcao-${i}`;
   return (
     <View ref={caixa} style={[estilos.caixa, { width: largura }]}>
       <View>
@@ -82,6 +87,11 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
         <Input
           ref={campo}
           accessibilityLabel="O que você deseja fazer?"
+          role="combobox"
+          aria-expanded={aberto}
+          aria-controls={idLista}
+          aria-activedescendant={aberto && resultados[indice] ? idDaOpcao(indice) : undefined}
+          aria-autocomplete="list"
           placeholder="O que você deseja fazer?"
           placeholderTextColor={cores.textoSuave}
           value={texto}
@@ -95,7 +105,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
           autoComplete="off"
           style={[
             estilos.entrada,
-            { color: cores.texto, backgroundColor: cores.campo, borderColor: aberto ? marca : cores.bordaCampo },
+            { color: cores.texto, backgroundColor: cores.campo, borderColor: aberto ? cores.anelFoco : cores.bordaCampo },
           ]}
         />
         {Platform.OS === 'web' ? (
@@ -106,7 +116,9 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
       </View>
       {aberto ? (
         <View
-          accessibilityRole="list"
+          nativeID={idLista}
+          role={'listbox' as Role}
+          accessibilityLabel="Telas e ações"
           style={[estilos.menu, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           {resultados.length === 0 ? (
             <Texto variante="suave" style={estilos.vazio}>
@@ -118,9 +130,11 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
               {resultados.map((tela, i) => (
                 <Pressable
                   key={tela.id}
-                  accessibilityRole="button"
+                  nativeID={idDaOpcao(i)}
+                  role="option"
                   accessibilityLabel={`${tela.rotulo}, ${tela.secao}`}
                   accessibilityState={{ selected: i === indice }}
+                  aria-selected={i === indice}
                   onPress={() => abrir(tela)}
                   onHoverIn={() => setAtivo(i)}
                   style={(estado) => [
@@ -141,21 +155,21 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
 
 const estilos = StyleSheet.create({
   caixa: { position: 'relative', maxWidth: '100%', zIndex: 30 },
-  lupa: { position: 'absolute', left: espaco(1.25), top: 12, zIndex: 1 },
+  lupa: { position: 'absolute', left: espaco(1.25), top: 14, zIndex: 1 },
   entrada: {
-    minHeight: 40,
+    minHeight: ALVO_TOQUE,
     borderRadius: RAIO,
     borderWidth: 1,
     fontFamily: fontes.normal,
     fontSize: 14,
     paddingLeft: espaco(4),
     paddingRight: espaco(9),
-    paddingVertical: espaco(0.75),
+    paddingVertical: espaco(1),
   },
   atalho: {
     position: 'absolute',
     right: espaco(1),
-    top: 9,
+    top: 11,
     borderWidth: 1,
     borderRadius: 6,
     paddingHorizontal: espaco(0.75),
@@ -164,7 +178,7 @@ const estilos = StyleSheet.create({
   textoAtalho: { fontSize: 12, fontFamily: fontes.semi },
   menu: {
     position: 'absolute',
-    top: 46,
+    top: ALVO_TOQUE + 6,
     left: 0,
     right: 0,
     borderWidth: 1,
@@ -183,7 +197,7 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: espaco(2),
-    minHeight: 40,
+    minHeight: ALVO_TOQUE,
     paddingHorizontal: espaco(1.5),
   },
   nome: { fontFamily: fontes.semi, fontSize: 14, flexShrink: 1 },

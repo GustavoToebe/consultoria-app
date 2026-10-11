@@ -18,6 +18,7 @@ import { ResponsavelAluno } from '../../../treinador/equipe/ResponsavelAluno';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
+import { CampoLeitura } from '../../../ui/CampoLeitura';
 import { Cartao } from '../../../ui/Cartao';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro } from '../../../ui/Estados';
@@ -118,11 +119,11 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
       ) : (
         <View style={estilos.dados}>
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} />
-          <Linha rotulo="E-mail" valor={aluno.email} />
+          <CampoLeitura rotulo="E-mail" valor={aluno.email} />
           <ResponsavelAluno id={aluno.responsavelId}/>
-          <Permitido codigo="ALUNO_SENSIVEL_LER"><Linha rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
-          <Linha rotulo="Nova atualização a cada" valor={aluno.diasAtualizacao ? `${aluno.diasAtualizacao} dias` : null} />
-          <Permitido codigo="ALUNO_SENSIVEL_LER"><Linha rotulo="Observações" valor={aluno.observacoes} /></Permitido>
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
+          <CampoLeitura rotulo="Nova atualização a cada" valor={aluno.diasAtualizacao ? `${aluno.diasAtualizacao} dias` : null} numerico />
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
           <View style={estilos.botoes}>
             <Permitido codigo="ALUNO_ALTERAR"><Botao
               rotulo={aluno.ativo ? 'Inativar aluno' : 'Reativar aluno'}
@@ -150,19 +151,9 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
   );
 }
 
-function Linha({ rotulo, valor }: { rotulo: string; valor: string | null | undefined }) {
-  return (
-    <View style={estilos.linha}>
-      <Texto variante="pequeno">{rotulo}</Texto>
-      <Texto>{valor || '—'}</Texto>
-    </View>
-  );
-}
-
 const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
   coluna: { flex: 1, gap: espaco(3) },
-  dados: { gap: espaco(1.25) },
-  linha: { gap: 2 },
+  dados: { gap: espaco(1.5) },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end' },
 });

@@ -3,8 +3,9 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import { scheduleOnRN } from 'react-native-worklets';
 import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { X } from 'lucide-react-native';
-import type { ReactNode } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { PortalHost } from '@rn-primitives/portal';
+import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
@@ -13,6 +14,16 @@ import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
 
+/** Larguras das folhas no PC: formulário curto e escolha (600) ou conteúdo grande (`LARGURA_EDITOR`). */
+export const LARGURA_FOLHA = 600;
+
+/**
+ * Nome do portal da folha aberta. O `Modal` fica por cima do `PortalHost` da raiz, então um diálogo (confirmação)
+ * aberto de dentro da folha precisa ir para um portal dentro do próprio Modal; fora de folha é `undefined` (raiz).
+ */
+const PortalDaFolha = createContext<string | undefined>(undefined);
+export const usePortalDaFolha = () => useContext(PortalDaFolha);
+
 interface Props {
   visivel: boolean;
   titulo: string;
@@ -20,13 +31,14 @@ interface Props {
   children: ReactNode;
   /** Botões fixos no rodapé (fora da rolagem). */
   rodape?: ReactNode;
-  /** Largura no PC (centralizada); padrão 600. Conteúdo grande (ex.: pasta com planos e registros) usa `LARGURA_EDITOR`. */
+  /** Largura no PC (centralizada); padrão `LARGURA_FOLHA` (600). Conteúdo grande (pasta com planos e registros) usa `LARGURA_EDITOR`. */
   largura?: number;
 }
 
 /**
- * Painel por cima da tela: lateral à direita no PC, folha que sobe de baixo no celular. Usado para escolher da
- * biblioteca, aplicar receita e formulários curtos. Fecha no X, tocando fora ou no voltar do Android.
+ * Painel por cima da tela: centralizado no PC, folha que sobe de baixo no celular. Usado para escolher da
+ * biblioteca, aplicar receita e formulários curtos. Fecha no X, tocando fora ou no voltar do Android. Para o leitor
+ * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo.
  */
 export function Folha({ visivel, titulo, aoFechar, children, rodape, largura }: Props) {
   return <Modal transparent visible={visivel} animationType="none" onRequestClose={aoFechar}>
@@ -41,6 +53,9 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
   const margem = useSafeAreaInsets();
   const centralizado = width >= LARGURA_MENU_LATERAL;
   const reduzido = useMovimentoReduzido();
+  const portal = useId();
+  const conteudo = useRef<View>(null);
+  const fechar = useRef<View>(null);
   // Sem animação de entrada: o painel aparece pronto. O deslocamento só existe para o arrastar-para-fechar no celular.
   const deslocamento = useSharedValue(0);
   const altura = useSharedValue(height * 0.88);
@@ -53,13 +68,26 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
         scheduleOnRN(aoFechar);
       } else deslocamento.set(reduzido ? 0 : withSpring(0,{damping:18,stiffness:260}));
     });
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    // O foco entra no primeiro controle do conteúdo (campo ou botão); sem nenhum, no X de fechar. Nunca no fundo.
+    const raiz = conteudo.current as unknown as HTMLElement | null;
+    const primeiro = raiz?.querySelector?.<HTMLElement>('input, textarea, select, button, a[href], [tabindex="0"]');
+    const alvo = primeiro ?? (fechar.current as unknown as HTMLElement | null)?.querySelector?.<HTMLElement>('button, [tabindex="0"]');
+    alvo?.focus?.();
+  }, []);
   return (
+    <PortalDaFolha.Provider value={portal}>
     <GestureHandlerRootView style={{flex:1}}>
+      <KeyboardAvoidingView style={estilos.fundoArea} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
       <View style={[estilos.fundo, centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar painel" />
+        <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar painel" importantForAccessibility="no-hide-descendants" />
         <Animated.View
           onLayout={evento => altura.set(evento.nativeEvent.layout.height)}
           accessibilityViewIsModal
+          role="dialog"
+          aria-modal
+          aria-label={titulo}
           style={[
             estilos.painel, movimento,
             centralizado
@@ -68,23 +96,29 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
             { backgroundColor: cores.superficie, borderColor: cores.borda },
           ]}>
           <GestureDetector gesture={gesto}><View style={estilos.topo}>
-            <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto>
-            <IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} />
+            <Texto variante="bloco" nivel={2} style={estilos.titulo}>{titulo}</Texto>
+            <View ref={fechar} collapsable={false}><IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} /></View>
           </View></GestureDetector>
-          <RolagemComTopo contentContainerStyle={estilos.conteudo}>{children}</RolagemComTopo>
+          <View ref={conteudo} collapsable={false} style={estilos.area}>
+            <RolagemComTopo contentContainerStyle={estilos.conteudo}>{children}</RolagemComTopo>
+          </View>
           {rodape ? <View style={[estilos.rodape, { borderColor: cores.borda }]}>{rodape}</View> : null}
         </Animated.View>
       </View>
+      </KeyboardAvoidingView>
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none"><PortalHost name={portal} /></View>
     </GestureHandlerRootView>
+    </PortalDaFolha.Provider>
   );
 }
 
 const estilos = StyleSheet.create({
+  fundoArea: { flex: 1 },
   fundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
   fundoCentral: { alignItems: 'center', justifyContent: 'center', padding: espaco(2) },
   fundoInferior: { justifyContent: 'flex-end' },
-  painel: { borderWidth: 1 },
-  painelCentral: { width: 600, maxWidth: '100%', maxHeight: '90%', borderRadius: RAIO, overflow: 'hidden' },
+  painel: { borderWidth: 1, overflow: 'hidden' },
+  painelCentral: { width: LARGURA_FOLHA, maxWidth: '100%', maxHeight: '90%', borderRadius: RAIO },
   painelInferior: { maxHeight: '88%', borderTopLeftRadius: RAIO, borderTopRightRadius: RAIO },
   topo: {
     flexDirection: 'row',
@@ -95,6 +129,8 @@ const estilos = StyleSheet.create({
     paddingVertical: espaco(1),
   },
   titulo: { flex: 1 },
+  // O botão "voltar ao início" do `RolagemComTopo` é absoluto dentro desta área, logo nunca sai do painel.
+  area: { flexShrink: 1, minHeight: 0 },
   conteudo: { padding: espaco(2), paddingTop: 0, gap: espaco(1.5) },
   rodape: {
     flexDirection: 'row',

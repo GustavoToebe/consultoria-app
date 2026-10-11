@@ -27,6 +27,7 @@ import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
 import { IconeBotao } from '../ui/IconeBotao';
+import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { Selo } from '../ui/Selo';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { AplicarAoAluno } from './planejamento/AplicarAoAluno';
@@ -122,7 +123,8 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             )}
             <Texto numerico variante="suave">Período: {periodo(aberta)}</Texto>
           </View>
-          <View style={estilos.acoes}>
+          {/* Uma ação principal só na folha (finalizar ou reabrir); o resto é secundário ou vai para o menu ⋯. */}
+          <LinhaDeAcoes>
             {aberta.concluidaEm ? (
               <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Reabrir pasta" Icone={RotateCcw} aoTocar={() => {
                 reabrirPasta(aberta.id).then(() => { avisar('Pasta reaberta.', 'sucesso'); recarregar(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
@@ -133,7 +135,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} /></Permitido>
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} /></Permitido>
             {temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : null}
-          </View>
+          </LinhaDeAcoes>
           <Texto variante="secao">Planos desta pasta</Texto>
           <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
           <Permitido codigo={PERMISSOES_DO_PLANO.dieta.ler}><CartaoPlanos tipo="dieta" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
@@ -164,7 +166,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
 
 /** Uma pasta na lista: nome, período e status. Tocar abre a folha com as ações e os planos de treino e dieta. */
 function LinhaPasta({ pasta, atualizacao, aoAbrir }: { pasta: PastaResumo; atualizacao: Atualizacao | null; aoAbrir: () => void }) {
-  const { cores, marca } = useTema();
+  const { cores, marca, marcaTexto } = useTema();
   const concluida = !!pasta.concluidaEm;
   const situacao = atualizacao?.dataAtualizacao ? statusAtualizacaoTreinador(atualizacao) : null;
   const Icone = concluida ? FolderCheck : Folder;
@@ -178,7 +180,7 @@ function LinhaPasta({ pasta, atualizacao, aoAbrir }: { pasta: PastaResumo; atual
         { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
       ]}>
       <View style={[estilos.icone, { backgroundColor: concluida ? cores.superficie2 : `${marca}22` }]}>
-        <Icone size={22} color={concluida ? cores.textoSuave : marca} />
+        <Icone size={22} color={concluida ? cores.textoSuave : marcaTexto} />
       </View>
       <View style={estilos.linhaTextos}>
         <Texto numerico style={estilos.linhaTitulo}>{pasta.titulo}</Texto>
@@ -232,7 +234,7 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!valido} />
+          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!valido} motivo={titulo.trim() === '' ? 'Informe o título.' : 'Confira as datas de início e fim.'} />
         </>
       }>
       {modo.tipo === 'replicar' ? (
@@ -300,7 +302,7 @@ function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; 
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" aoTocar={salvar} carregando={salvando} desabilitado={!valido} /></Permitido>
+          <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" aoTocar={salvar} carregando={salvando} desabilitado={!valido} motivo={dataIso === undefined ? 'Confira a data do peso.' : 'A observação só é gravada junto com o peso.'} /></Permitido>
         </>
       }>
       <Texto variante="suave">
@@ -321,7 +323,6 @@ const estilos = StyleSheet.create({
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
   data: { flex: 1, minWidth: 190 },
   resumo: { gap: espaco(0.75) },
-  acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   linhaAtualizacao: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.75), marginTop: espaco(0.5) },
   linha: {
     flexDirection: 'row',
