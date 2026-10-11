@@ -7,7 +7,7 @@ export function lembretesDaAtualizacao(a: Atualizacao | null, agora = new Date()
   const prazo = a.atrasoAte ?? a.dataAtualizacao;
   return [
     { chave: 'aviso', dia: somarDias(prazo,-3), texto: 'Sua atualização é em 3 dias.' },
-    { chave: 'dia', dia: prazo, texto: 'Hoje é dia da sua atualização. Peso e fotos em jejum.' },
+    { chave: 'dia', dia: prazo, texto: 'Hoje é dia da sua atualização.' },
     { chave: 'pendente', dia: somarDias(prazo,1), texto: 'Sua atualização está pendente. Se for atrasar, avise pelo app.' },
   ].map(({chave,dia,texto})=>{
     const [ano,mes,data]=dia.split('-').map(Number);

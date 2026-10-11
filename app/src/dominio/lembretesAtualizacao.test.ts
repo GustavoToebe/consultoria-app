@@ -13,3 +13,7 @@ it('usa o novo prazo, descarta horários passados e cancela depois do envio',()=
   expect(lembretesDaAtualizacao({...base,fase:'REVISADA'})).toEqual([]);
   expect(lembretesDaAtualizacao(null)).toEqual([]);
 });
+it('o lembrete do dia não pede fotos nem jejum (envio de fotos não existe)',()=>{
+  const dia=lembretesDaAtualizacao(base,new Date(2026,9,1)).find(l=>l.chave==='dia');
+  expect(dia?.texto).toBe('Hoje é dia da sua atualização.');
+});
