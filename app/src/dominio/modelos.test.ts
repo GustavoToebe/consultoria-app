@@ -1,6 +1,6 @@
 import type { Configuracao, ConteudoTreino } from '../api/tipos';
 import { aplicarReceitaDePlano, normalizarTreino, novaSerie, novaSessao } from './editorTreino';
-import { detalheDoModelo } from './modelos';
+import { detalheDoModelo, podeAplicarModelo } from './modelos';
 import { conteudoInicial } from '../treinador/planejamento/modelos';
 
 let mockContador = 0;
@@ -41,4 +41,17 @@ test('adapter conserva revisão otimista sem simular publicação nem associar a
   const detalhe = detalheDoModelo({ id: 'modelo', tipo: 'PLANO_TREINO', nome: 'Semana', descricao: null, pastaId: null, ordem: 1, versao: 7, conteudo: normalizarTreino(null) });
   expect(detalhe.plano).toMatchObject({ titulo: 'Semana', versao: 7, versaoPublicada: 0, ativo: false, alunoId: '', inicio: null, fim: null });
   expect(detalhe.versoes).toEqual([]);
+});
+
+test('aplicar modelo pede a permissão de alterar o que ele cria (como a API)', () => {
+  const tem = (...codigos: string[]) => (c: string) => codigos.includes(c);
+  const nutricionista = tem('MODELO_APLICAR', 'ALUNO_LER', 'TREINO_LER', 'DIETA_LER', 'DIETA_ALTERAR');
+  expect(podeAplicarModelo('PLANO_DIETA', nutricionista)).toBe(true);
+  expect(podeAplicarModelo('REFEICAO', nutricionista)).toBe(true);
+  expect(podeAplicarModelo('PLANO_TREINO', nutricionista)).toBe(false);
+  expect(podeAplicarModelo('MOBILIDADE', nutricionista)).toBe(false);
+  expect(podeAplicarModelo('PASTA_PLANO', nutricionista)).toBe(true);
+  expect(podeAplicarModelo('METODOLOGIA', tem('MODELO_APLICAR', 'ALUNO_LER', 'TREINO_ALTERAR'))).toBe(false);
+  expect(podeAplicarModelo('PLANO_TREINO', tem('MODELO_APLICAR', 'TREINO_ALTERAR'))).toBe(false);
+  expect(podeAplicarModelo('PLANO_TREINO', tem('ALUNO_LER', 'TREINO_ALTERAR'))).toBe(false);
 });

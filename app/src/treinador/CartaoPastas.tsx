@@ -1,4 +1,5 @@
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
+import { podeAplicarModelo } from '../dominio/modelos';
 import { Permitido } from '../ui/Permitido';
 import { useSessao } from '../sessao/SessaoProvider';
 import { BookmarkPlus, CheckCircle2, ChevronRight, Copy, Ellipsis, Folder, FolderCheck, FolderPlus, Package, Pencil, RotateCcw, Trash2 } from 'lucide-react-native';
@@ -95,7 +96,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         descricao="Cada pasta junta o treino, a dieta e a mobilidade de um período. O período da pasta vale para todos."
         recolhivel
         acoes={<>
-          <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Usar pacote" tipo="secundario" Icone={Package} aoTocar={() => setEscolher(true)} /></Permitido>
+          {podeAplicarModelo('PASTA_PLANO', pode) ? <Botao rotulo="Usar pacote" tipo="secundario" Icone={Package} aoTocar={() => setEscolher(true)} /> : null}
           <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Nova pasta" Icone={FolderPlus} aoTocar={() => setModo({ tipo: 'nova' })} /></Permitido>
         </>}>
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}

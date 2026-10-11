@@ -24,6 +24,7 @@ import { Grade } from '../../../ui/Grade';
 import { Folha } from '../../../ui/Folha';
 import { IconeBotao } from '../../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
+import { podeAplicarModelo } from '../../../dominio/modelos';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
@@ -78,7 +79,7 @@ export default function Planejamento() {
       {modelos.erro || colecoes.erro || config.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? colecoes.erro ?? config.erro)} tentarDeNovo={() => { atualizar(); config.recarregar(); }} /> : null}
       {!modelos.dados && modelos.carregando ? <Esqueleto /> : null}
       {filtrados?.length === 0 ? <Vazio texto="Nenhum modelo encontrado. Crie um modelo para começar." /> : null}
-      {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((r) => <CartaoModelo key={r.id} modelo={r} colecao={nomeDaColecao(r.pastaId)} aplicavel={uso.aplicavel} linhaDeUso={uso.linha}
+      {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((r) => <CartaoModelo key={r.id} modelo={r} colecao={nomeDaColecao(r.pastaId)} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)} linhaDeUso={uso.linha}
         ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
         aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</Grade> : null}
     </Cartao>
