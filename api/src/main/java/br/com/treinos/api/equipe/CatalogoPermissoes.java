@@ -57,7 +57,7 @@ public final class CatalogoPermissoes {
         Map.entry("USUARIO_ALTERAR",Set.of("EQUIPE_LER")),
         Map.entry("PERFIL_ALTERAR",Set.of("EQUIPE_LER")));
     public static Set<String> validar(Set<String> codigos) {
-        if(codigos==null || !CODIGOS.containsAll(codigos))
+        if(codigos==null || codigos.stream().anyMatch(java.util.Objects::isNull) || !CODIGOS.containsAll(codigos))
             throw new BadRequestException("Há permissões inválidas no perfil.");
         for(String codigo:codigos) if(!codigos.containsAll(DEPENDENCIAS.getOrDefault(codigo,Set.of())))
             throw new BadRequestException("Marque também as permissões necessárias para esta ação.");

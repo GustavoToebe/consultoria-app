@@ -52,6 +52,12 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         api.put("/perfis/"+id,admin,Map.of("nome","Antigo","permissoes",Set.of(),"versao",p.path("versao").asLong()),409);
         api.delete("/perfis/"+id,admin,204);api.delete("/perfis/"+copia.path("id").asString(),admin,204);
     }
+    @Test void permissaoNulaNoPerfilDa400() throws Exception {
+        var comNulo=java.util.Collections.singletonList(null);
+        api.post("/perfis",admin,Map.of("nome","Com nulo","permissoes",comNulo),400);
+        var p=api.post("/perfis",admin,Map.of("nome","Para editar","permissoes",Set.of("ALUNO_LER")),200);
+        api.put("/perfis/"+p.path("id").asString(),admin,Map.of("nome","Para editar","permissoes",comNulo,"versao",p.path("versao").asLong()),400);
+    }
     @Test void conviteAceitoUmaVezTrocaDePerfilEDesativacaoEncerramSessoes() throws Exception {
         String assistente=perfil("Assistente").path("id").asString();String nutri=perfil("Nutricionista").path("id").asString();
         String email=ApiDeTeste.emailUnico("assistente");var c=convite("Assistente Teste",email,assistente);

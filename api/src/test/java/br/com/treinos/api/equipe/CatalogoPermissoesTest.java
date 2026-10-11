@@ -8,6 +8,8 @@ class CatalogoPermissoesTest {
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("TREINO_PUBLICAR"))).isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("CODIGO_INVENTADO"))).isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> CatalogoPermissoes.validar(null)).isInstanceOf(BadRequestException.class);
+        var comNulo=new java.util.HashSet<String>();comNulo.add("ALUNO_LER");comNulo.add(null);
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(comNulo)).isInstanceOf(BadRequestException.class);
         assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("ATUALIZACAO_RESPONDER"))))
                 .containsExactlyInAnyOrder("ATUALIZACAO_RESPONDER","ATUALIZACAO_LER","ALUNO_SENSIVEL_LER","ALUNO_LER");
         assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("DIETA_PUBLICAR"))))

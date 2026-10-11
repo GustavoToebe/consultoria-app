@@ -6,7 +6,7 @@ import java.util.UUID;
 public final class EquipeDtos {
     private EquipeDtos() { }
     public record PerfilRequest(@NotBlank @Size(max=120) String nome,@Size(max=500) String descricao,
-                                @NotNull Set<String> permissoes,Boolean ativo,Long versao) { }
+                                @NotNull Set<@NotNull String> permissoes,Boolean ativo,Long versao) { }
     public record PerfilResponse(UUID id,String nome,String descricao,boolean acessoTotal,boolean sistema,boolean ativo,
                                  Set<String> permissoes,long usuarios,Long versao) { }
     public record UsuarioResponse(UUID id,String nome,String email,UUID perfilId,String perfilNome,boolean ativo,
