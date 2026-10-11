@@ -2,6 +2,7 @@ import { requisicao } from './cliente';
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
   Atualizacao,
+  AtualizacaoDaLista,
   RespostasAtualizacao,
   SituacaoAtualizacao,
   Alimento,
@@ -79,7 +80,7 @@ export const avisarAtrasoAtualizacao = (pastaId: string, novaData: string, motiv
 export const marcarFeedbackVisto = (id: string) =>
   requisicao<void>(`/aluno/atualizacoes/${id}/feedback-visto`, { metodo: 'POST' });
 export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false) =>
-  requisicao<Atualizacao[]>(`/atualizacoes?situacao=${situacao}&meus=${meus}`);
+  requisicao<AtualizacaoDaLista[]>(`/atualizacoes?situacao=${situacao}&meus=${meus}`);
 export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${id}/atualizacoes`);
 export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${id}/atualizacao`);
 export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${id}`);

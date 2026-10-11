@@ -2,6 +2,7 @@ package br.com.treinos.api.atualizacoes;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.web.Fuso;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,7 +12,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -70,6 +73,29 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
         return aluno;
     }
 
+    /** Aluno cuja pasta vigente vem só da dieta publicada (sem treino ativo). */
+    private UUID alunoSoComDieta(JsonNode responsavel, String nome, LocalDate fimDaPasta) throws Exception {
+        UUID aluno = UUID.fromString(api.post("/alunos", admin, Map.of("nome", nome,
+                "responsavelId", responsavel.path("usuario").path("id").asString()), 200).path("id").asString());
+        String pasta = api.post("/alunos/" + aluno + "/pastas", admin,
+                Map.of("titulo", "Período fictício", "inicio", fimDaPasta.minusDays(27), "fim", fimDaPasta), 200)
+                .path("id").asString();
+        JsonNode plano = api.post("/alunos/" + aluno + "/planos-dieta", admin,
+                Map.of("titulo", "Dieta fictícia", "pastaId", pasta), 200);
+        String id = plano.path("plano").path("id").asString();
+        ConteudoDieta.Item item = new ConteudoDieta.Item(UUID.randomUUID(), UUID.randomUUID(), "Arroz branco cozido",
+                new BigDecimal("150"), "g", new BigDecimal("191.7"), BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ZERO, false);
+        ConteudoDieta conteudo = new ConteudoDieta("Objetivo fictício", null, "Treinador Teste", List.of(
+                new ConteudoDieta.Refeicao(UUID.randomUUID(), "Almoço", "12:00", null, List.of(
+                        new ConteudoDieta.Opcao(UUID.randomUUID(), "A", List.of(item))))),
+                List.of(), null, List.of());
+        JsonNode salvo = api.put("/planos-dieta/" + id + "/rascunho", admin,
+                ApiDeTeste.rascunho("Dieta fictícia", conteudo, plano.path("plano").path("versao").asLong()), 200);
+        api.post("/planos-dieta/" + id + "/publicar", admin,
+                Map.of("versao", salvo.path("plano").path("versao").asLong(), "confirmarAvisos", true), 200);
+        return aluno;
+    }
+
     private JsonNode loginDoAluno(UUID aluno) throws Exception {
         return api.convidarEEntrar(admin, aluno);
     }
@@ -119,8 +145,18 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
                 }
             }
         }
+        // Pasta vindo só da dieta entra na mesma conta (atrasada, do membro).
+        alunoSoComDieta(membro, "Aluno só com dieta", hoje.minusDays(3));
+        assertThat(naLista(membro, "ATRASADAS", true)).isEqualTo(2);
+        assertThat(noPainel(membro, "ATRASADAS", true)).isEqualTo(2);
+        assertThat(naLista(admin, "ATRASADAS", false)).isEqualTo(3);
+        // A lista é leve: o modelo, as respostas e o resumo ficam no detalhe.
+        JsonNode item = api.get("/atualizacoes?situacao=PARA_REVISAR", admin, 200).get(0);
+        assertThat(item.has("modelo") || item.has("respostas") || item.has("resumo")).isFalse();
+        assertThat(item.path("nomeAluno").asString()).isEqualTo("Aluno que enviou");
+        JsonNode detalhe = api.get("/atualizacoes/" + item.path("id").asString(), admin, 200);
+        assertThat(detalhe.has("modelo")).isTrue();
         // Números esperados, para a igualdade acima não valer com tudo zerado.
-        assertThat(naLista(admin, "ATRASADAS", false)).isEqualTo(2);
         assertThat(naLista(admin, "ATRASADAS", true)).isEqualTo(1);
         assertThat(naLista(admin, "PROXIMAS", false)).isEqualTo(3);
         assertThat(naLista(admin, "PROXIMAS", true)).isEqualTo(2);
@@ -128,11 +164,10 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
         assertThat(naLista(admin, "PARA_REVISAR", true)).isZero();
         assertThat(naLista(admin, "PARA_REVISAR", false)).isEqualTo(1);
         assertThat(naLista(membro, "PARA_REVISAR", true)).isEqualTo(1);
-        assertThat(naLista(membro, "ATRASADAS", true)).isEqualTo(1);
         assertThat(naLista(membro, "PROXIMAS", true)).isEqualTo(1);
         assertThat(naLista(membro, "AVISARAM_ATRASO", true)).isZero();
         // "Meus" não restringe quem não pede: a mesma lista de antes.
-        assertThat(api.get("/atualizacoes?situacao=ATRASADAS", membro, 200)).hasSize(2);
+        assertThat(api.get("/atualizacoes?situacao=ATRASADAS", membro, 200)).hasSize(3);
     }
 
     @Test

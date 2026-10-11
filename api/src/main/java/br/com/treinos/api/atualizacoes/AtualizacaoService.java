@@ -18,7 +18,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Um check-in por pasta; travar a pasta serializa o primeiro envio e o aviso de atraso. */
@@ -149,18 +151,44 @@ public class AtualizacaoService {
         a.responder(r.texto().trim(),usuarioId,Instant.now());
         return detalhe(atualizacoes.saveAndFlush(a));
     }
+    public static final List<String> SITUACOES = List.of("PARA_REVISAR","ATRASADAS","AVISARAM_ATRASO","PROXIMAS");
+    /** Item das listas do treinador: sem modelo, respostas nem resumo (isso é do detalhe). */
+    public record ItemDaLista(UUID id, UUID pastaId, UUID alunoId, String nomeAluno, LocalDate dataAtualizacao,
+            String fase, long diasParaData, long diasDeAtraso, LocalDate atrasoAte) { }
+    private record Classificada(LinhaAtualizacao linha, RegrasAtualizacao.Situacao regras) { }
+    /**
+     * Lista e contadores do painel saem da mesma consulta e da mesma classificação, para nunca divergirem.
+     * {@code responsavelId} vem do usuário autenticado ("Meus alunos"), nunca do cliente.
+     */
     @Transactional(readOnly = true)
-    public List<Detalhe> listar(String situacao, UUID responsavelId) {
-        if (!List.of("PARA_REVISAR","ATRASADAS","AVISARAM_ATRASO","PROXIMAS").contains(situacao))
-            throw new BadRequestException("Situação inválida.");
-        // O painel conta com esta mesma lista; responsavelId vem do usuário autenticado ("Meus alunos"), nunca do cliente.
-        return alunos.ativosDoEscopo(responsavelId).stream().map(a -> atualDoAluno(a.getId())).filter(d -> switch (situacao) {
-            case "PARA_REVISAR" -> "ENVIADA".equals(d.fase());
-            case "ATRASADAS" -> "ATRASADA".equals(d.fase());
-            case "AVISARAM_ATRASO" -> d.atrasoAte() != null && !List.of("ENVIADA","REVISADA").contains(d.fase());
-            case "PROXIMAS" -> d.dataAtualizacao() != null && d.diasParaData() >= 0 && d.diasParaData() <= 7 && !List.of("ENVIADA","REVISADA").contains(d.fase());
+    public List<ItemDaLista> listar(String situacao, UUID responsavelId) {
+        if (!SITUACOES.contains(situacao)) throw new BadRequestException("Situação inválida.");
+        return classificar(responsavelId).stream().filter(c -> pertence(situacao, c)).map(c -> new ItemDaLista(
+            c.linha().atualizacaoId(),c.linha().pastaId(),c.linha().alunoId(),c.linha().nomeAluno(),c.linha().data(),
+            c.regras().fase(),c.regras().diasParaData(),c.regras().diasDeAtraso(),c.linha().atrasoAte())).toList();
+    }
+    @Transactional(readOnly = true)
+    public Map<String,Long> contar(UUID responsavelId) {
+        List<Classificada> todas = classificar(responsavelId);
+        Map<String,Long> contagem = new LinkedHashMap<>();
+        for (String situacao : SITUACOES) contagem.put(situacao, todas.stream().filter(c -> pertence(situacao, c)).count());
+        return contagem;
+    }
+    private List<Classificada> classificar(UUID responsavelId) {
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        return atualizacoes.linhasDoPainel(responsavelId).stream().map(l -> new Classificada(l,
+            RegrasAtualizacao.calcular(hoje,l.data(),l.atrasoAte(),l.estado()))).toList();
+    }
+    private static boolean pertence(String situacao, Classificada c) {
+        String fase = c.regras().fase();
+        boolean aberta = !List.of("ENVIADA","REVISADA").contains(fase);
+        return switch (situacao) {
+            case "PARA_REVISAR" -> "ENVIADA".equals(fase);
+            case "ATRASADAS" -> "ATRASADA".equals(fase);
+            case "AVISARAM_ATRASO" -> c.linha().atrasoAte() != null && aberta;
+            case "PROXIMAS" -> c.regras().diasParaData() >= 0 && c.regras().diasParaData() <= 7 && aberta;
             default -> false;
-        }).toList();
+        };
     }
     private PastaPlano pastaAtiva(UUID alunoId) {
         UUID pastaId = treinos.findByAlunoIdAndAtivoTrue(alunoId).map(p -> p.getPastaId())

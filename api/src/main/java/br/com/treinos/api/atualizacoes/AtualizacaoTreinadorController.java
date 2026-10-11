@@ -14,7 +14,7 @@ public class AtualizacaoTreinadorController {
     public AtualizacaoTreinadorController(AtualizacaoService atualizacoes) { this.atualizacoes = atualizacoes; }
 
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/atualizacoes")
-    public List<AtualizacaoService.Detalhe> listar(@RequestParam(defaultValue = "PARA_REVISAR") String situacao,
+    public List<AtualizacaoService.ItemDaLista> listar(@RequestParam(defaultValue = "PARA_REVISAR") String situacao,
             @RequestParam(defaultValue = "false") boolean meus, @AuthenticationPrincipal UsuarioAutenticado eu) {
         return atualizacoes.listar(situacao, meus ? eu.usuarioId() : null);
     }

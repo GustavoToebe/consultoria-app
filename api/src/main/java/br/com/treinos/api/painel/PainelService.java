@@ -103,15 +103,12 @@ public class PainelService {
         boolean registros = br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER");
         boolean checkin = br.com.treinos.api.equipe.AcessoAtual.pode("ATUALIZACAO_LER")
                 && br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
+        // Uma leitura só para os quatro contadores; são os mesmos números das listas que a tela abre.
+        Map<String,Long> contagem = checkin ? atualizacoes.contar(responsavelId) : Map.of();
         return new PainelTreinador(ativos.size(), registros ? semRegistro : List.of(), registros ? ultimasExecucoes(porId) : List.of(),
                 br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER") ? terminando : List.of(),
-                checkin ? contarAtualizacoes("PARA_REVISAR",responsavelId) : 0, checkin ? contarAtualizacoes("ATRASADAS",responsavelId) : 0,
-                checkin ? contarAtualizacoes("AVISARAM_ATRASO",responsavelId) : 0, checkin ? contarAtualizacoes("PROXIMAS",responsavelId) : 0);
-    }
-
-    /** Mesma lista que a tela de atualizações abre a partir do contador. */
-    private long contarAtualizacoes(String situacao,UUID responsavelId) {
-        return atualizacoes.listar(situacao,responsavelId).size();
+                contagem.getOrDefault("PARA_REVISAR",0L), contagem.getOrDefault("ATRASADAS",0L),
+                contagem.getOrDefault("AVISARAM_ATRASO",0L), contagem.getOrDefault("PROXIMAS",0L));
     }
 
     /** Agrupa os registros mais recentes por aluno, dia e sessão. Nomes de aluno só de alunos ativos. */

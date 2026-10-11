@@ -1,4 +1,4 @@
-import type { Atualizacao, FaseAtualizacao } from '../api/tipos';
+import type { Atualizacao, AtualizacaoDaLista, FaseAtualizacao } from '../api/tipos';
 import { dataParaTela, somarDias } from './formatos';
 
 export const DIAS_MAXIMOS_DE_ATRASO = 15;
@@ -53,7 +53,7 @@ export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>)
 /** Lista aberta a partir de um contador do Início: leva junto o escopo "Meus alunos", para o total bater com a lista. */
 export const caminhoListaAtualizacoes = (situacao: string, meus: boolean) =>
   `/treinador/atualizacoes?situacao=${situacao}${meus ? '&meus=true' : ''}`;
-export function statusAtualizacaoTreinador(a:Atualizacao) {
+export function statusAtualizacaoTreinador(a:AtualizacaoDaLista) {
   if(a.fase==='ENVIADA')return {texto:'Para revisar',tipo:'atencao' as const};
   if(a.fase==='REVISADA')return {texto:'Revisada',tipo:'sucesso' as const};
   if(a.fase==='ATRASADA')return {texto:`Atrasada há ${a.diasDeAtraso} ${a.diasDeAtraso===1?'dia':'dias'}`,tipo:'perigo' as const};
