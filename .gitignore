@@ -6,3 +6,4 @@ __pycache__/
 *.pdf
 !app/public/guias/*.pdf
 docs/Aux.csv
+.idea/
