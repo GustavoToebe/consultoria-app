@@ -1,4 +1,5 @@
 import type { DiaDeTreino, Sessao } from '../api/tipos';
+import { DIAS_SEMANA } from './editorTreino';
 import { diaDaSemanaIso, somarDias } from './formatos';
 import { nomeComDia } from './semana';
 
@@ -117,4 +118,25 @@ function moda(valores: number[]): number {
   const contagem = new Map<number, number>();
   for (const v of valores) contagem.set(v, (contagem.get(v) ?? 0) + 1);
   return [...contagem].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 99;
+}
+
+const semAcento = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/**
+ * Separa o dia do nome da divisão para a faixa do relatório: "Terça - Peito+Ombros" → dia "Terça", título
+ * "Peito+Ombros". Sem dia no começo (ou só o dia), o nome inteiro é o título. O texto do treinador não muda.
+ */
+export function partesDaDivisao(nome: string): { dia: string | null; titulo: string } {
+  const limpo = nome.trim();
+  const dia = DIAS_SEMANA.find((d) => semAcento(limpo).startsWith(semAcento(d)));
+  if (!dia) return { dia: null, titulo: limpo };
+  const resto = limpo.slice(dia.length).replace(/^\s*(-feira)?\s*[-–—·:|]?\s*/i, '').trim();
+  return resto ? { dia, titulo: resto } : { dia: null, titulo: limpo };
+}
+
+/** Data (ISO) do registro mais recente da divisão, ou `null` sem registro. */
+export function ultimoRegistroDaDivisao(d: DivisaoRelatorio): string | null {
+  let ultima: string | null = null;
+  for (const e of d.exercicios) for (const l of e.linhas) if (!ultima || l.data > ultima) ultima = l.data;
+  return ultima;
 }

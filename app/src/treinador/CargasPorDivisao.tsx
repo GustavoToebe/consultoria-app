@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { dataParaTela } from '../dominio/formatos';
-import type { DivisaoRelatorio } from '../dominio/relatorio';
+import { partesDaDivisao, ultimoRegistroDaDivisao, type DivisaoRelatorio } from '../dominio/relatorio';
 import { textoCarga } from '../pdf/pdfCargas';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Tabela } from '../ui/Tabela';
+import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 
 /**
@@ -16,7 +17,7 @@ import { Texto } from '../ui/Texto';
  * a carga de trabalho, as repetições e as séries feitas. Observação do aluno embaixo da linha.
  */
 export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] }) {
-  const { cores, marca, marcaTexto } = useTema();
+  const { cores, marcaTexto } = useTema();
   const animar = usePrimeiraLista(divisoes.length > 0, divisoes.map((d) => d.chave).join('|'));
   const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
   const alternar = (chave: string) =>
@@ -29,20 +30,7 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
     <View style={estilos.lista}>
       {divisoes.map((d, i) => (
         <EntradaEmCascata indice={i} animar={animar} key={d.chave} style={estilos.divisao}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${d.nome}, ${recolhidas.has(d.chave) ? 'recolhida' : 'aberta'}`}
-            accessibilityState={{ expanded: !recolhidas.has(d.chave) }}
-            onPress={() => alternar(d.chave)}
-            style={({ pressed }) => [estilos.faixa, { backgroundColor: cores.superficie2, borderLeftColor: marca, opacity: pressed ? 0.7 : 1 }]}>
-            <Texto numerico style={estilos.nomeDivisao}>{d.nome}</Texto>
-            <View style={estilos.resumoFaixa}>
-              <Texto numerico variante="pequeno">
-                {d.exercicios.length} {d.exercicios.length === 1 ? 'exercício' : 'exercícios'}
-              </Texto>
-              {recolhidas.has(d.chave) ? <ChevronDown size={18} color={cores.textoSuave} /> : <ChevronUp size={18} color={cores.textoSuave} />}
-            </View>
-          </Pressable>
+          <FaixaDaDivisao divisao={d} aberta={!recolhidas.has(d.chave)} aoAlternar={() => alternar(d.chave)} />
           {recolhidas.has(d.chave) ? null : d.exercicios.map((e) => (
             <View key={e.chave} style={[estilos.exercicio, { borderColor: cores.borda }]}>
               <View style={[estilos.cabecalho, { backgroundColor: cores.superficie2 }]}>
@@ -77,22 +65,50 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
   );
 }
 
+/**
+ * Faixa da divisão: o dia em cima, pequeno (como no PDF do Saraiva), o nome da divisão como título, sem caixa alta
+ * forçada, e o resumo embaixo. Sem a cor da marca (ela não diz status nem agrupa).
+ */
+function FaixaDaDivisao({ divisao, aberta, aoAlternar }: { divisao: DivisaoRelatorio; aberta: boolean; aoAlternar: () => void }) {
+  const { cores } = useTema();
+  const { dia, titulo } = partesDaDivisao(divisao.nome);
+  const n = divisao.exercicios.length;
+  const ultimo = ultimoRegistroDaDivisao(divisao);
+  const resumo = `${n} ${n === 1 ? 'exercício' : 'exercícios'}${ultimo ? ` · último em ${dataParaTela(ultimo)}` : ''}`;
+  const Seta = aberta ? ChevronUp : ChevronDown;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${divisao.nome}, ${resumo}, ${aberta ? 'aberta' : 'recolhida'}`}
+      accessibilityState={{ expanded: aberta }}
+      onPress={aoAlternar}
+      style={(estado) => [estilos.faixa, { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda }]}>
+      <View style={estilos.textosFaixa}>
+        {dia ? <Texto variante="pequeno" style={estilos.dia}>{dia}</Texto> : null}
+        <Texto variante="bloco" style={estilos.nomeDivisao}>{titulo}</Texto>
+        <Texto variante="suave" numerico>{resumo}</Texto>
+      </View>
+      <Seta size={20} color={cores.textoSuave} />
+    </Pressable>
+  );
+}
+
 const estilos = StyleSheet.create({
   lista: { gap: espaco(2.5) },
   divisao: { gap: espaco(1) },
   faixa: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: espaco(1),
-    borderLeftWidth: 4,
+    gap: espaco(1.5),
+    borderWidth: 1,
     borderRadius: RAIO,
-    paddingVertical: espaco(1.25),
-    paddingHorizontal: espaco(1.5),
+    minHeight: ALVO_TOQUE,
+    paddingVertical: espaco(1.5),
+    paddingHorizontal: espaco(2),
   },
-  // Nome longo quebra dentro da própria coluna; a contagem e a seta ficam sempre à direita, na mesma linha.
-  resumoFaixa: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 0 },
-  nomeDivisao: { fontFamily: fontes.negrito, fontSize: 15, letterSpacing: 0.8, textTransform: 'uppercase', flexShrink: 1 },
+  textosFaixa: { flex: 1, gap: 2 },
+  dia: { fontFamily: fontes.semi, textTransform: 'uppercase', letterSpacing: 0.6 },
+  nomeDivisao: { fontSize: 17, lineHeight: 22 },
   exercicio: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   cabecalho: {
     flexDirection: 'row',
