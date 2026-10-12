@@ -77,6 +77,13 @@ export interface Configuracao {
   arredondamentoKg: number;
   instrucoesTreino: string | null;
   rodapePdf: string | null;
+  /** Faixa de repetições de cada tipo de série (chave = tipo); o editor preenche ao criar a série ou trocar o tipo. */
+  repeticoes?: Record<string, FaixaRepeticoes> | null;
+}
+
+export interface FaixaRepeticoes {
+  min: number;
+  max: number;
 }
 
 export interface ConsultoriaResponse {

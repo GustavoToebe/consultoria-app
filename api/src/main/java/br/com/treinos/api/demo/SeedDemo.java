@@ -156,7 +156,7 @@ public class SeedDemo {
             ConfiguracaoConsultoria padrao = ConfiguracaoConsultoria.padrao();
             marcas.alterarConfiguracao(consultoria, new ConfiguracaoConsultoria(padrao.tiposSerie(),
                     padrao.tipoTrabalho(), padrao.tipoPreparacao(), padrao.regraPreparacao(), padrao.arredondamentoKg(),
-                    Plano16.INSTRUCOES, null));
+                    Plano16.INSTRUCOES, null, padrao.repeticoes()));
 
             Map<String, UUID> exercicios = bibliotecaDoPlano16();
             Map<String, UUID> alimentos = new HashMap<>();

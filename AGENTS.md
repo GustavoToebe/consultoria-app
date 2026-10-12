@@ -148,6 +148,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Menu ⋯ da pasta: "Salvar como pacote" só com as permissões da rota (`dominio/modelos.podeSalvarPastaComoModelo`: MODELO_ALTERAR, ALUNO_LER, TREINO_LER, DIETA_LER); sem nenhuma ação o ⋯ some.
 - Pastas: `src/app/` só rotas; peças das telas do treinador em `src/treinador/`; regras puras (com teste) em
   `src/dominio/` (formatos BR, agrupamento "3x3 - FS", operações do editor, contas da dieta). `novoUid()` em todo item novo.
+- Metodologia (`ConfiguracaoConsultoria`, modelo `METODOLOGIA`, cópia em `ConteudoTreino.metodologia`): além de tipos, trabalho/preparação, regra de % e arredondamento, tem `repeticoes` (faixa mín./máx. por tipo, opcional; nula nas gravadas antes). O editor preenche a faixa ao criar a série e ao trocar o tipo do grupo (`dominio/editorTreino.repeticoesDoTipo`); depois tudo é editável. Validação em `MarcaService.validar`.
 - Editor de treino: uma sessão por vez (`SeletorDeSessoes`, chips que quebram linha no PC), "Abrir/Fechar todos" os exercícios e os modelos numa `Folha` "Modelos"; dieta: refeições em
   `CabecalhoDeGrupo`, recolhidas por padrão. Configuração do plano (título, período, metodologia) é um cartão recolhível.
 - Editores de plano: `treinador/plano/usePlanoEditor` (**nada é salvo sozinho**: "Salvar rascunho" no `TopoPlano`, "Salvar modelo" no `TopoModelo`;

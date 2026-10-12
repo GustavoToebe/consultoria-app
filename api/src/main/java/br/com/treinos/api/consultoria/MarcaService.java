@@ -165,6 +165,17 @@ public class MarcaService {
                         + " série(s) precisam de " + e.getKey() + " percentual(is) de 1 a 200.");
             }
         }
+        Map<String, ConfiguracaoConsultoria.Repeticoes> repeticoes = c.repeticoes() == null ? Map.of() : c.repeticoes();
+        for (Map.Entry<String, ConfiguracaoConsultoria.Repeticoes> e : repeticoes.entrySet()) {
+            if (!tipos.contains(e.getKey())) {
+                throw new BadRequestException("Repetições: o tipo \"" + e.getKey() + "\" não está na lista de tipos.");
+            }
+            ConfiguracaoConsultoria.Repeticoes r = e.getValue();
+            if (r == null || r.min() == null || r.max() == null || r.min() < 0 || r.max() > 500 || r.max() < r.min()) {
+                throw new BadRequestException("Repetições de " + e.getKey()
+                        + ": informe mínima e máxima de 0 a 500, com a máxima maior ou igual à mínima.");
+            }
+        }
         if (c.instrucoesTreino() != null && c.instrucoesTreino().length() > 20000) {
             throw new BadRequestException("Instruções do treino com no máximo 20.000 caracteres.");
         }

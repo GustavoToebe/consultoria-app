@@ -7,6 +7,8 @@ import {
   mover,
   mudarQuantidade,
   normalizarTreino,
+  novaSerie,
+  repeticoesDoTipo,
   seriesDaReceita,
   seriesParaReceita,
   resumoDaSessao,
@@ -89,6 +91,21 @@ describe('editor de treino', () => {
       { modo: 'PERCENTUAL_WS', percentual: 70 },
       { modo: 'PERCENTUAL_WS', percentual: 85 },
     ]);
+  });
+
+  it('com faixas na metodologia, trocar o tipo preenche as repetições do tipo novo', () => {
+    const comFaixas: Configuracao = { ...CONFIG, repeticoes: { FS: { min: 3, max: 3 }, 'Back off': { min: 6, max: 8 } } };
+    const series = [ws('a'), ws('b')];
+    expect(alterarGrupo(series, agrupar(series)[0], { tipo: 'Back off' }, comFaixas).map((s) => [s.repsMin, s.repsMax])).toEqual([[6, 8], [6, 8]]);
+    // Tipo sem faixa mantém as repetições que já estavam; sem metodologia de faixas também.
+    expect(alterarGrupo(series, agrupar(series)[0], { tipo: 'Aquecimento' }, comFaixas).map((s) => [s.repsMin, s.repsMax])).toEqual([[3, 6], [3, 6]]);
+    expect(alterarGrupo(series, agrupar(series)[0], { tipo: 'Back off' }, CONFIG).map((s) => [s.repsMin, s.repsMax])).toEqual([[3, 6], [3, 6]]);
+  });
+
+  it('série nova nasce com a faixa do tipo de trabalho, se a metodologia tiver', () => {
+    expect(novaSerie({ ...CONFIG, repeticoes: { WS: { min: 3, max: 6 } } })).toMatchObject({ tipo: 'WS', repsMin: 3, repsMax: 6 });
+    expect(novaSerie(CONFIG)).toMatchObject({ tipo: 'WS', repsMin: null, repsMax: null });
+    expect(repeticoesDoTipo(null, 'WS')).toBeNull();
   });
 
   it('receita de séries ganha uids novos e volta sem uids ao salvar', () => {

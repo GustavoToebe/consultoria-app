@@ -62,13 +62,21 @@ export function novoExercicio(): ExercicioPlano {
   };
 }
 
-/** Série nova do tipo de trabalho da consultoria, sem faixa de repetições (o treinador preenche). */
+/** Faixa de repetições que a metodologia define para o tipo de série, se houver. */
+export function repeticoesDoTipo(config: Configuracao | null, tipo: string): { repsMin: number; repsMax: number } | null {
+  const r = config?.repeticoes?.[tipo];
+  return r && r.min != null && r.max != null ? { repsMin: r.min, repsMax: r.max } : null;
+}
+
+/** Série nova do tipo de trabalho da consultoria, com a faixa de repetições da metodologia (ou sem, para o treinador preencher). */
 export function novaSerie(config: Configuracao | null): Serie {
+  const tipo = config?.tipoTrabalho ?? 'Série';
+  const reps = repeticoesDoTipo(config, tipo);
   return {
     uid: novoUid(),
-    tipo: config?.tipoTrabalho ?? 'Série',
-    repsMin: null,
-    repsMax: null,
+    tipo,
+    repsMin: reps?.repsMin ?? null,
+    repsMax: reps?.repsMax ?? null,
     alvoTexto: null,
     intensidade: { modo: 'CARGA_TRABALHO' },
     descansoSegundos: null,
@@ -141,7 +149,8 @@ function intensidadeDoModo(modo: ModoIntensidade): Intensidade {
 
 /**
  * Aplica a mudança a todas as séries do grupo. Trocar o tipo para o de trabalho (WS) põe "carga de trabalho"; para o
- * de preparação (FS) põe "% da trabalho" com a regra da consultoria. Tudo continua editável.
+ * de preparação (FS) põe "% da trabalho" com a regra da consultoria; e a faixa de repetições do tipo, se a metodologia
+ * tiver. Tudo continua editável.
  */
 export function alterarGrupo(
   series: Serie[],
@@ -154,9 +163,13 @@ export function alterarGrupo(
     if (mudanca.tipo === config.tipoTrabalho) modo = 'CARGA_TRABALHO';
     else if (mudanca.tipo === config.tipoPreparacao) modo = 'PERCENTUAL_WS';
   }
+  // Trocar o tipo preenche a faixa de repetições que a metodologia define para ele (se a mudança não trouxer outra).
+  const repsDoNovoTipo =
+    mudanca.tipo !== undefined && mudanca.repsMin === undefined && mudanca.repsMax === undefined ? repeticoesDoTipo(config, mudanca.tipo) : null;
   let novas = grupo.series.map((s) => {
     const nova: Serie = { ...s };
     if (mudanca.tipo !== undefined) nova.tipo = mudanca.tipo;
+    if (repsDoNovoTipo) Object.assign(nova, repsDoNovoTipo);
     if (mudanca.repsMin !== undefined) nova.repsMin = mudanca.repsMin;
     if (mudanca.repsMax !== undefined) nova.repsMax = mudanca.repsMax;
     if (mudanca.alvoTexto !== undefined) nova.alvoTexto = mudanca.alvoTexto || null;

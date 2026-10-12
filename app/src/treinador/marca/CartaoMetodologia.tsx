@@ -19,10 +19,17 @@ import { Texto } from '../../ui/Texto';
 const ARREDONDAMENTOS = [0.25, 0.5, 1, 2.5].map((v) => ({ valor: v, rotulo: `${String(v).replace('.', ',')} kg` }));
 
 type Regra = Record<string, (number | null)[]>;
+type Faixas = Record<string, { min: number | null; max: number | null }>;
+
+/** Faixa vazia (nada a preencher) ou completa, de 0 a 500, com a máxima ≥ mínima. */
+function faixaValida(f: { min: number | null; max: number | null } | undefined): boolean {
+  if (!f || (f.min === null && f.max === null)) return true;
+  return f.min !== null && f.max !== null && f.min >= 0 && f.max <= 500 && f.max >= f.min;
+}
 
 /**
  * Metodologia da consultoria (seção 7.3): tipos de série, qual é a de trabalho (WS) e a de preparação (FS), a regra
- * que preenche os percentuais de FS no editor, o arredondamento da sugestão de carga do aluno e os textos do PDF.
+ * que preenche os percentuais de FS no editor, as repetições de cada tipo (preenchidas ao criar a série ou trocar o tipo), o arredondamento da sugestão de carga do aluno e os textos do PDF.
  * O sistema só guarda e aplica o que o treinador definiu.
  */
 export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Configuracao; aoSalvar: (c: Configuracao) => Promise<void> }) {
@@ -35,6 +42,7 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
   const [trabalho, setTrabalho] = useState(c.tipoTrabalho);
   const [preparacao, setPreparacao] = useState(c.tipoPreparacao);
   const [regra, setRegra] = useState<Regra>(c.regraPreparacao);
+  const [faixas, setFaixas] = useState<Faixas>(c.repeticoes ?? {});
   const [arredondamento, setArredondamento] = useState(c.arredondamentoKg);
   const [instrucoes, setInstrucoes] = useState(c.instrucoesTreino ?? '');
   const [rodape, setRodape] = useState(c.rodapePdf ?? '');
@@ -43,12 +51,17 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
 
   const chaves = Object.keys(regra).map(Number).sort((a, b) => a - b);
   const regraCompleta = Object.values(regra).every((v) => v.every((p) => p !== null && p >= 1 && p <= 200));
+  const faixasValidas = tipos.every((t) => faixaValida(faixas[t]));
   const opcoesTipo = tipos.map((t) => ({ valor: t, rotulo: t }));
 
   const adicionarTipo = () => {
     const t = novoTipo.trim();
     if (!t || (tipos.includes(t) && t !== renomeando) || (!renomeando && tipos.length >= 20)) return;
     setTipos(renomeando ? tipos.map((x) => x === renomeando ? t : x) : [...tipos, t]);
+    if (renomeando && renomeando !== t && faixas[renomeando]) {
+      const { [renomeando]: faixa, ...resto } = faixas;
+      setFaixas({ ...resto, [t]: faixa });
+    }
     if (trabalho === renomeando) setTrabalho(t);
     if (preparacao === renomeando) setPreparacao(t);
     setRenomeando(null);
@@ -66,6 +79,13 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
       arredondamentoKg: arredondamento,
       instrucoesTreino: instrucoes,
       rodapePdf: rodape,
+      // Só tipos que existem e com a faixa completa; o vazio não vai (o editor não preenche nada para ele).
+      repeticoes: Object.fromEntries(
+        tipos.flatMap((t) => {
+          const f = faixas[t];
+          return f && f.min !== null && f.max !== null ? [[t, { min: f.min, max: f.max }]] : [];
+        }),
+      ),
     }).then(
       () => {
         setSalvando(false);
@@ -88,7 +108,11 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
             <View key={t} style={[estilos.chip, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
               <Pressable accessibilityRole="button" accessibilityLabel={`Renomear tipo ${t}`} onPress={() => { setRenomeando(t); setNovoTipo(t); }} style={estilos.renomear}><Texto style={estilos.textoChip}>{t} ✎</Texto></Pressable>
               {emUso ? null : (
-                <Pressable accessibilityRole="button" accessibilityLabel={`Remover ${t}`} onPress={() => setTipos(tipos.filter((x) => x !== t))} style={estilos.xChip}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Remover ${t}`} onPress={() => {
+                  setTipos(tipos.filter((x) => x !== t));
+                  const { [t]: _removida, ...resto } = faixas;
+                  setFaixas(resto);
+                }} style={estilos.xChip}>
                   <X size={16} color={cores.textoSuave} />
                 </Pressable>
               )}
@@ -104,6 +128,35 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
       </View>
       <Escolha rotulo="Série de trabalho (carga do dia)" opcoes={opcoesTipo} valor={trabalho} aoMudar={setTrabalho} />
       <Escolha rotulo="Série de preparação (em % da trabalho)" opcoes={opcoesTipo} valor={preparacao} aoMudar={setPreparacao} />
+
+      <Texto variante="secao">Repetições por tipo</Texto>
+      <Texto variante="pequeno">
+        Preenchidas no editor quando você cria a série ou troca o tipo dela. Mínima e máxima iguais = número fixo (3x3).
+        Em branco, o editor não preenche nada. Depois cada série pode ser ajustada no plano.
+      </Texto>
+      {tipos.map((t) => {
+        const f = faixas[t] ?? { min: null, max: null };
+        const mudar = (campo: 'min' | 'max', v: number | null) => setFaixas({ ...faixas, [t]: { ...f, [campo]: v } });
+        return (
+          <View key={t} style={[estilos.regra, { borderColor: cores.borda }]}>
+            <Texto style={estilos.rotuloRegra}>{t}</Texto>
+            <View style={estilos.percentuais}>
+              <View style={estilos.percentual}>
+                <CampoNumerico rotulo="Reps mín." inteiro valor={f.min} aoMudar={(v) => mudar('min', v)} />
+              </View>
+              <View style={estilos.percentual}>
+                <CampoNumerico
+                  rotulo="Reps máx."
+                  inteiro
+                  valor={f.max}
+                  aoMudar={(v) => mudar('max', v)}
+                  erro={faixaValida(faixas[t]) ? undefined : 'Mín. ≤ máx. (0 a 500)'}
+                />
+              </View>
+            </View>
+          </View>
+        );
+      })}
 
       <Texto variante="secao">Regra de preparação</Texto>
       <Texto variante="pequeno">
@@ -165,7 +218,13 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
       <Campo rotulo="Rodapé do PDF (opcional)" valor={rodape} aoMudar={setRodape} maxLength={500} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
-        <Botao rotulo="Salvar metodologia" aoTocar={salvar} carregando={salvando} desabilitado={!regraCompleta} />
+        <Botao
+          rotulo="Salvar metodologia"
+          aoTocar={salvar}
+          carregando={salvando}
+          desabilitado={!regraCompleta || !faixasValidas}
+          motivo={!regraCompleta ? 'Preencha todos os percentuais da regra de preparação.' : 'Confira as repetições por tipo.'}
+        />
       </View>
     </Cartao>
   );
@@ -190,7 +249,7 @@ const estilos = StyleSheet.create({
   aoPeDoCampo: { alignSelf: 'flex-end' },
   campoTipo: { width: 220 },
   regra: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5), borderTopWidth: 1, paddingTop: espaco(1), flexWrap: 'wrap' },
-  rotuloRegra: { fontFamily: fontes.semi, width: 72, paddingBottom: espaco(1.5) },
+  rotuloRegra: { fontFamily: fontes.semi, width: 96, paddingBottom: espaco(1.5) },
   percentuais: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), flex: 1 },
   percentual: { width: 96 },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end' },
