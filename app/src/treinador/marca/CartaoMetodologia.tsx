@@ -132,7 +132,8 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
       <Texto variante="secao">Repetições por tipo</Texto>
       <Texto variante="pequeno">
         Preenchidas no editor quando você cria a série ou troca o tipo dela. Mínima e máxima iguais = número fixo (3x3).
-        Em branco, o editor não preenche nada. Depois cada série pode ser ajustada no plano.
+        Em branco, o editor não preenche nada: ao trocar para esse tipo, a série mantém as repetições que já tinha.
+        Depois cada série pode ser ajustada no plano.
       </Texto>
       {tipos.map((t) => {
         const f = faixas[t] ?? { min: null, max: null };

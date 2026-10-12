@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react';
-import { StyleSheet, View, type AccessibilityActionEvent, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { useState } from 'react';
+import { useSharedValue } from 'react-native-reanimated';
+import { StyleSheet, View, type AccessibilityActionEvent, type LayoutChangeEvent } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { posicaoDoValor, valorAposPasso, valorDaPosicao } from '../dominio/escalaNota';
 import { useTema } from '../tema/TemaProvider';
@@ -21,7 +23,7 @@ const MARGEM = BOTAO / 2;
 const TRILHA = 6;
 
 /**
- * Nota por controle deslizante: toque ou arraste em qualquer ponto da faixa (alvo de 44 px de altura). O valor
+ * Nota por controle deslizante: toque ou arraste na horizontal em qualquer ponto da faixa (alvo de 44 px de altura); arrastar na vertical rola a tela. O valor
  * aparece grande ao lado do rótulo. Teclado (setas, Home, End) e leitor de tela (aumentar/diminuir) também ajustam.
  * `aoMudar` só dispara quando a nota inteira muda, não a cada pixel arrastado.
  */
@@ -29,27 +31,29 @@ export function EscalaDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10 }
   const { cores } = useTema();
   const [largura, setLargura] = useState(0);
   // Última nota enviada no gesto atual: o arraste pode passar várias vezes pelo mesmo valor antes de a tela repintar.
-  const ultimo = useRef<number | null>(null);
+  const ultimo = useSharedValue(Number.NaN);
 
   const aplicar = (x: number) => {
     const nota = valorDaPosicao(x, largura, minimo, maximo, MARGEM);
-    if (nota === null || nota === ultimo.current) return;
-    ultimo.current = nota;
+    if (nota === null || nota === ultimo.get()) return;
+    ultimo.set(nota);
     vibrar.leve();
     aoMudar(nota);
   };
-  // Filhos têm `pointerEvents="none"`: o alvo do toque é sempre a faixa, e `locationX` é relativo a ela.
-  const gesto = {
-    onStartShouldSetResponder: () => true,
-    onMoveShouldSetResponder: () => true,
-    // Dentro de uma rolagem, o dedo que começou na faixa continua com ela até soltar.
-    onResponderTerminationRequest: () => false,
-    onResponderGrant: (evento: GestureResponderEvent) => {
-      ultimo.current = valor;
-      aplicar(evento.nativeEvent.locationX);
-    },
-    onResponderMove: (evento: GestureResponderEvent) => aplicar(evento.nativeEvent.locationX),
-  };
+  // Arraste horizontal escolhe a nota; arraste vertical reprova o gesto e a rolagem da tela segue (o sistema de
+  // responder do RN prenderia o dedo na faixa). Filhos têm `pointerEvents="none"`: o alvo é sempre a faixa, e o `x`
+  // do gesto é relativo a ela.
+  const comecar = () => { ultimo.set(valor ?? Number.NaN); };
+  const arrastar = Gesture.Pan().runOnJS(true)
+    .activeOffsetX([-8, 8])
+    .failOffsetY([-10, 10])
+    .onBegin(comecar)
+    .onUpdate((evento) => aplicar(evento.x));
+  const tocar = Gesture.Tap().runOnJS(true)
+    .maxDistance(10)
+    .onBegin(comecar)
+    .onEnd((evento, sucesso) => { if (sucesso) aplicar(evento.x); });
+  const gesto = Gesture.Race(arrastar, tocar);
 
   const passo = (direcao: 1 | -1) => aoMudar(valorAposPasso(valor, direcao, minimo, maximo));
   const aoAcessibilidade = (evento: AccessibilityActionEvent) => {
@@ -77,8 +81,8 @@ export function EscalaDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10 }
         <Texto variante="rotulo" style={estilos.rotulo}>{rotulo}</Texto>
         <Texto variante="destaque" cor={valor === null ? 'suave' : undefined}>{valor === null ? '—' : String(valor)}</Texto>
       </View>
+      <GestureDetector gesture={gesto}>
       <View
-        {...gesto}
         {...teclado}
         accessible
         accessibilityRole="adjustable"
@@ -105,6 +109,7 @@ export function EscalaDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10 }
           </>
         ) : null}
       </View>
+      </GestureDetector>
       <View style={estilos.pontas}>
         <Texto variante="pequeno" numerico>{minimo}</Texto>
         <Texto variante="pequeno" numerico>{maximo}</Texto>
