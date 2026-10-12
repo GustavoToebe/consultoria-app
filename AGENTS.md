@@ -103,6 +103,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   `ATUALIZACAO_NAO_ATUAL`); reenvio do já enviado = 200 sem alterar (checado antes da pasta). Envio mantém a observação
   do peso; corrida no peso do dia = 409. "Visto" do feedback é UPDATE sem `versioned`. Dado sensível, sem log, 404 fora do dono e da consultoria. Fotos ainda não implementadas.
   Painel e listas (`GET /atualizacoes?situacao=&meus=`) saem de `AtualizacaoService.listar/contar` (uma consulta JPQL, `linhasDoPainel`; a fase vem de `RegrasAtualizacao`, não de SQL), com o mesmo filtro "Meus alunos" (`AlunoRepository.ativosDoEscopo`); o item da lista não leva modelo, respostas nem resumo (só o detalhe).
+- Histórico do aluno no app (`aluno/historico.tsx`): "Registros e cargas" usa o período da pasta em uso (a escolhida em `AlunoProvider.escolhida` ou a vigente; sem pasta com período ou sem conexão, últimos 30 dias) e traz o mesmo `CartaoProgresso` da ficha, sem `alunoId`, pela rota `GET /aluno/progresso?exercicioId=` (só ALUNO, sempre o da sessão).
 - Histórico do aluno para o treinador (`GET /alunos/{id}/execucoes`): a `observacao` da série é dado sensível e sai nula sem `ALUNO_SENSIVEL_LER`; o aluno vê a própria.
 - Execuções: `execucao_serie.serie_trabalho` (fora do esboço do plano) e `exercicio_id` vêm da versão publicada, nunca
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.

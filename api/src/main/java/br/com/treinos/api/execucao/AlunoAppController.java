@@ -9,6 +9,7 @@ import br.com.treinos.api.execucao.dto.ExecucaoDtos.PainelAluno;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PastaDoAluno;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoResponse;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PlanosDaPasta;
+import br.com.treinos.api.execucao.dto.ExecucaoDtos.ProgressoPonto;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -86,6 +87,13 @@ public class AlunoAppController {
                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate de,
                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate) {
         return historico.historico(AlunoAppService.alunoDaSessao(eu), de, ate);
+    }
+
+    /** Progresso do próprio aluno em um exercício (maior carga de trabalho por dia, todas as pastas). */
+    @PreAuthorize("hasRole('ALUNO')")
+    @GetMapping("/progresso")
+    public List<ProgressoPonto> progresso(@AuthenticationPrincipal UsuarioAutenticado eu, @RequestParam UUID exercicioId) {
+        return historico.progresso(AlunoAppService.alunoDaSessao(eu), exercicioId);
     }
 
     @PreAuthorize("hasRole('ALUNO')")

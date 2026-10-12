@@ -2,7 +2,7 @@ import { X } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { progressoDoAluno } from '../api/rotas';
+import { progressoAluno, progressoDoAluno } from '../api/rotas';
 import { dataCurta, dataParaTela, numeroParaTela, SEM_DADO } from '../dominio/formatos';
 import { linhasDaTabela, pontosDoGrafico, resumoDoProgresso, textoDoResumo } from '../dominio/progresso';
 import { useTema } from '../tema/TemaProvider';
@@ -25,10 +25,12 @@ const DATAS_RECENTES = 5;
  * O × só tira o exercício da comparação; não apaga nada.
  */
 export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTirar }: {
-  alunoId: string; exercicioId: string; nome: string; grupo: string; aoTirar: () => void;
+  /** Treinador: o aluno da ficha. Ausente = o próprio aluno logado (app do aluno). */
+  alunoId?: string; exercicioId: string; nome: string; grupo: string; aoTirar: () => void;
 }) {
   const { cores, preferencias } = useTema();
-  const { dados, erro, carregando, recarregar } = useCarregar(`prog:${alunoId}:${exercicioId}`, () => progressoDoAluno(alunoId, exercicioId));
+  const { dados, erro, carregando, recarregar } = useCarregar(`prog:${alunoId ?? 'eu'}:${exercicioId}`, () =>
+    alunoId ? progressoDoAluno(alunoId, exercicioId) : progressoAluno(exercicioId));
   const [todas, setTodas] = useState(false);
   const resumo = dados ? textoDoResumo(resumoDoProgresso(dados)) : null;
   const pontos = dados ? pontosDoGrafico(dados) : [];

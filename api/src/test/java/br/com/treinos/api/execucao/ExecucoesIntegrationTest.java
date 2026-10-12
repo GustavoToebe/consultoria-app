@@ -181,6 +181,12 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode ultima = api.get("/aluno/painel", aluno, 200).get("ultimasCargas").get(treino.exercicioId().toString());
         assertThat(ultima.get("carga").decimalValue()).isEqualByComparingTo("30");
         assertThat(api.get("/aluno/execucoes", aluno, 200)).hasSize(1);
+
+        // O aluno vê o próprio progresso; o treinador não usa esta rota (só ALUNO).
+        JsonNode proprio = api.get("/aluno/progresso?exercicioId=" + treino.exercicioId(), aluno, 200);
+        assertThat(proprio).hasSize(1);
+        assertThat(proprio.get(0).get("maiorCargaTrabalho").decimalValue()).isEqualByComparingTo("30");
+        api.get("/aluno/progresso?exercicioId=" + treino.exercicioId(), treinador, 403);
     }
 
     @Test

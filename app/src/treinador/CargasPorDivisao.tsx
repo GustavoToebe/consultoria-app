@@ -84,14 +84,14 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
     gap: espaco(1),
     borderLeftWidth: 4,
     borderRadius: RAIO,
     paddingVertical: espaco(1.25),
     paddingHorizontal: espaco(1.5),
   },
-  resumoFaixa: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  // Nome longo quebra dentro da própria coluna; a contagem e a seta ficam sempre à direita, na mesma linha.
+  resumoFaixa: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 0 },
   nomeDivisao: { fontFamily: fontes.negrito, fontSize: 15, letterSpacing: 0.8, textTransform: 'uppercase', flexShrink: 1 },
   exercicio: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   cabecalho: {

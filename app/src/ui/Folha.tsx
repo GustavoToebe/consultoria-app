@@ -52,6 +52,8 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, largura }: 
 function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>) {
   const { cores } = useTema();
   const { width, height } = useWindowDimensions();
+  // No Android o `Modal` já fica acima da barra do sistema; somar a margem de baixo do provider (que está fora dele)
+  // deixava um vão sob o rodapé.
   const margem = useSafeAreaInsets();
   const centralizado = width >= LARGURA_MENU_LATERAL;
   const reduzido = useMovimentoReduzido();
@@ -100,7 +102,7 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
             estilos.painel, movimento,
             centralizado
               ? [estilos.painelCentral, largura ? { width: largura, height: '90%' as const } : null]
-              : [estilos.painelInferior, { paddingBottom: margem.bottom }],
+              : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }],
             { backgroundColor: cores.superficie, borderColor: cores.borda },
           ]}>
           <GestureDetector gesture={gesto}><View style={estilos.topo}>

@@ -348,6 +348,9 @@ export const enviarRegistros = (registros: RegistroEnvio[]) =>
 
 export const historicoAluno = (de: string, ate: string) => requisicao<DiaDeTreino[]>(`/aluno/execucoes?de=${de}&ate=${ate}`);
 
+export const progressoAluno = (exercicioId: string) =>
+  requisicao<ProgressoPonto[]>(`/aluno/progresso?exercicioId=${encodeURIComponent(exercicioId)}`);
+
 export const pesosAluno = () => requisicao<RegistroPeso[]>('/aluno/pesos');
 
 export const versaoPlano = <C>(tipo: TipoPlano, id: string, numero: number) =>

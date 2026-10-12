@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { type LayoutChangeEvent, StyleSheet, View } from 'react-native';
 
-import { execucoesDoAluno } from '../api/rotas';
+import { execucoesDoAluno, historicoAluno } from '../api/rotas';
 import { hojeIso, somarDias } from '../dominio/formatos';
 import { agruparPorGrupo } from '../dominio/progresso';
 import { opcoesDeProgresso } from '../dominio/relatorio';
@@ -33,7 +33,7 @@ const DIAS_DA_LISTA = 364;
  * muscular e caixas de seleção, até `LIMITE_PROGRESSO` de uma vez); cada marcado vira um bloco com o histórico
  * completo do aluno, de todas as pastas. Com o cartão largo (a partir de 760 px, medido nele e não na janela) os blocos ficam em duas colunas.
  */
-export function CartaoProgresso({ alunoId }: { alunoId: string }) {
+export function CartaoProgresso({ alunoId }: { alunoId?: string }) {
   const { avisar } = useAviso();
   const { preferencias, escolherPreferencia } = useTema();
   const [larguraDoCartao, setLarguraDoCartao] = useState(0);
@@ -41,7 +41,8 @@ export function CartaoProgresso({ alunoId }: { alunoId: string }) {
   const aoMedir = (e: LayoutChangeEvent) => setLarguraDoCartao(e.nativeEvent.layout.width);
   const hoje = hojeIso();
   const de = somarDias(hoje, -DIAS_DA_LISTA);
-  const { dados: dias } = useCarregar(`exec-progresso:${alunoId}:${de}:${hoje}`, () => execucoesDoAluno(alunoId, de, hoje));
+  const { dados: dias } = useCarregar(`exec-progresso:${alunoId ?? 'eu'}:${de}:${hoje}`, () =>
+    alunoId ? execucoesDoAluno(alunoId, de, hoje) : historicoAluno(de, hoje));
   const [grupo, setGrupo] = useState('todos');
   const [busca, setBusca] = useState('');
   const [escolhendo, setEscolhendo] = useState(false);
