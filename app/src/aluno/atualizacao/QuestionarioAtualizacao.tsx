@@ -10,10 +10,9 @@ import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
-import { Escolha } from '../../ui/Escolha';
+import { EscalaDeNota } from '../../ui/EscalaDeNota';
 import { Texto } from '../../ui/Texto';
 
-const NOTAS = Array.from({length:11},(_,valor)=>({valor,rotulo:String(valor)}));
 interface Props {
   atualizacao: Atualizacao;
   respostas: RespostasAtualizacao;
@@ -59,13 +58,13 @@ function Pergunta({pergunta:p,valor,atualizacao:a,erro,aoMudar}: {
   if(p.tipo==='PESO') return <CampoNumerico rotulo={rotulo} valor={typeof valor==='number'?valor:null}
     aoMudar={aoMudar} ajuda="Em kg, de 20 a 400, com uma casa decimal." erro={erro} />;
   if(p.tipo==='NOTA') return <View style={estilos.pergunta}>
-    <Escolha rotulo={rotulo} opcoes={NOTAS} valor={typeof valor==='number'?valor:null} aoMudar={aoMudar} />
+    <EscalaDeNota rotulo={rotulo} valor={typeof valor==='number'?valor:null} aoMudar={aoMudar} />
     {erro?<Texto cor={cores.perigo}>{erro}</Texto>:null}
   </View>;
   if(p.tipo==='NOTAS_POR_DIA') {
     const dias=typeof valor==='object' && valor!==null?valor:{};
     return <View style={estilos.pergunta}><Texto variante="rotulo">{rotulo}</Texto>
-      {(p.dias??[]).map(d=><Escolha key={d} rotulo={`Dia ${d}`} opcoes={NOTAS} valor={dias[String(d)]??null}
+      {(p.dias??[]).map(d=><EscalaDeNota key={d} rotulo={`Dia ${d}`} valor={dias[String(d)]??null}
         aoMudar={nota=>aoMudar({...dias,[String(d)]:nota})} />)}
       {erro?<Texto cor={cores.perigo}>{erro}</Texto>:null}
     </View>;

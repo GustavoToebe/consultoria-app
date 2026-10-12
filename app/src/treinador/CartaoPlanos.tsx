@@ -103,8 +103,8 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
             {p.versaoPublicada > 0 ? (
               <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
             ) : null}
-            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
           </View>
         </EntradaEmCascata>
       ))}

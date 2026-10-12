@@ -138,6 +138,20 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
+      {ergogenicos.length ? (
+        <Cartao titulo="Medicação e ergogênicos">
+          {ergogenicos.map((e) => (
+            <View key={e.uid} style={[estilos.item, { borderColor: cores.borda }]}>
+              <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
+              {e.principioAtivo || e.concentracao ? (
+                <Texto numerico variante="suave">{[e.principioAtivo, e.concentracao].filter(Boolean).join(' · ')}</Texto>
+              ) : null}
+              <Texto numerico variante="suave">{[e.dose, e.horario, e.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
+              {e.prescricao ? <Texto numerico variante="suave">Prescrição: {e.prescricao}</Texto> : null}
+            </View>
+          ))}
+        </Cartao>
+      ) : null}
       {c.observacoes ? (
         <Cartao titulo="Observações">
           <Texto numerico>{c.observacoes}</Texto>
@@ -150,20 +164,6 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
               <Texto numerico style={estilos.forte}>{s.nome || '—'}</Texto>
               <Texto numerico variante="suave">{[s.dose, s.horario, s.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
               {linkParaAbrir(s.link) ? <VerProduto link={s.link} /> : null}
-            </View>
-          ))}
-        </Cartao>
-      ) : null}
-      {ergogenicos.length ? (
-        <Cartao titulo="Medicação e ergogênicos">
-          {ergogenicos.map((e) => (
-            <View key={e.uid} style={[estilos.item, { borderColor: cores.borda }]}>
-              <Texto numerico style={estilos.forte}>{e.nome || '—'}</Texto>
-              {e.principioAtivo || e.concentracao ? (
-                <Texto numerico variante="suave">{[e.principioAtivo, e.concentracao].filter(Boolean).join(' · ')}</Texto>
-              ) : null}
-              <Texto numerico variante="suave">{[e.dose, e.horario, e.observacao].filter(Boolean).join(' · ') || '—'}</Texto>
-              {e.prescricao ? <Texto numerico variante="suave">Prescrição: {e.prescricao}</Texto> : null}
             </View>
           ))}
         </Cartao>
