@@ -57,8 +57,9 @@ export const FAMILIAS: Record<string, string> = {
 };
 
 const estilos = StyleSheet.create({
-  logo: { height: 36, width: 160 },
-  logoGrande: { height: 72, width: 260 },
+  // Logo em selo (quase quadrada, como a do Saraiva Team) precisa de altura para o nome ser legível.
+  logo: { height: 64, width: 160 },
+  logoGrande: { height: 112, width: 260 },
   nome: { fontSize: 22, lineHeight: 28 },
   nomeGrande: { fontSize: 34, lineHeight: 42 },
   nomeMetal: { letterSpacing: 1 },
