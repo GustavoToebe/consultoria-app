@@ -1,6 +1,6 @@
 import type { DiaDeTreino, SerieFeita, Sessao } from '../api/tipos';
 import { dataCurta, diaDaSemanaIso } from './formatos';
-import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, totalDeRegistros } from './relatorio';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, partesDaDivisao, totalDeRegistros, ultimoRegistroDaDivisao } from './relatorio';
 import { marcasDoEixo } from './grafico';
 import { datasDaSessao, nomeComDia, podeRegistrarEm } from './semana';
 
@@ -161,5 +161,25 @@ describe('progresso: grupo muscular e exercício', () => {
   it('escolher um grupo mostra só os exercícios dele', () => {
     expect(opcoesDeProgresso(dias, 'Costas').exercicios.map(e => e.rotulo)).toEqual(['Remada', 'Puxada']);
     expect(opcoesDeProgresso(dias, 'Sem grupo').exercicios.map(e => e.rotulo)).toEqual(['Prancha']);
+  });
+});
+
+describe('faixa da divisão', () => {
+  it('separa o dia do nome sem mudar o texto do treinador', () => {
+    expect(partesDaDivisao('Terça - Peito+Ombros')).toEqual({ dia: 'Terça', titulo: 'Peito+Ombros' });
+    expect(partesDaDivisao('TERCA · Peito')).toEqual({ dia: 'Terça', titulo: 'Peito' });
+    expect(partesDaDivisao('Segunda-feira: Costas')).toEqual({ dia: 'Segunda', titulo: 'Costas' });
+    expect(partesDaDivisao('Treino A')).toEqual({ dia: null, titulo: 'Treino A' });
+    expect(partesDaDivisao('Sábado')).toEqual({ dia: null, titulo: 'Sábado' });
+  });
+
+  it('último registro é a data mais recente entre os exercícios', () => {
+    const linha = (data: string) => ({ data, carga: null, unidade: 'kg', repeticoes: null, series: 1, observacoes: [] });
+    const d = { chave: 'a', nome: 'A', exercicios: [
+      { chave: 'x', nome: 'X', linhas: [linha('2026-10-01'), linha('2026-10-07')] },
+      { chave: 'y', nome: 'Y', linhas: [linha('2026-10-05')] },
+    ] } as unknown as Parameters<typeof ultimoRegistroDaDivisao>[0];
+    expect(ultimoRegistroDaDivisao(d)).toBe('2026-10-07');
+    expect(ultimoRegistroDaDivisao({ chave: 'b', nome: 'B', exercicios: [] })).toBeNull();
   });
 });
