@@ -29,3 +29,7 @@ de aluno para fora). Não consultar nenhuma API ao vivo.
 
 Scripts em `scripts/catalogo/` (`gerar_taco.py`, `gerar_exercicios.py`); relatórios em `dados/relatorios/`; fontes em
 `dados/fontes/`; curadoria dos nomes em `dados/curadoria/`. Teste: `python -m unittest scripts/catalogo/test_catalogo.py`.
+
+O schema fica em `V001__inicial.sql` (à mão). Os dados são gerados: `gerar_taco.py` escreve `V002__catalogo_taco.sql` e
+`gerar_exercicios.py` escreve `V003__catalogo_exercicios_ptbr.sql`, só com `insert`. Os 52 exercícios próprios estão em
+`dados/fontes/proprio/exercicios-proprios.csv` (`nome;grupo_muscular;equipamento;modalidade`) e entram no início do V003.

@@ -12,7 +12,7 @@ import java.util.UUID;
  * SQL da integração com a Central. As tabelas são globais e a integração roda fora do contexto de qualquer consultoria,
  * então toda consulta filtra {@code consultoria_id} explicitamente (nada vem de {@code TenantContext}). É a única classe
  * da integração com SQL nativo (liberada no {@code ArquiteturaTest}). O perfil Administrador de uma consultoria tem id
- * determinístico ({@code md5(consultoria_id || ':Administrador')}, migration V018).
+ * determinístico ({@code md5(consultoria_id || ':Administrador')}).
  */
 @Component
 public class IntegracaoRepositorio {

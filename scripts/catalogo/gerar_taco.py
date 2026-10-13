@@ -1,8 +1,8 @@
-"""Gera a migration V007 (catálogo de alimentos da TACO) e o relatório da importação.
+"""Gera a migration V002 (catálogo de alimentos da TACO) e o relatório da importação.
 
 Fonte oficial: planilha do NEPA/UNICAMP em dados/fontes/taco/. O PDF da mesma edição só serve para
-conferir os valores (seção 5.4 do PLANO-CATALOGO-PUBLICO.md). Valor ausente nunca vira zero: o
-alimento sai do catálogo e vai para o relatório. Só `Tr` e `NA` viram 0, e ficam registrados.
+conferir os valores. Valor ausente nunca vira zero: o alimento sai do catálogo e vai para o relatório.
+Só `Tr` e `NA` viram 0, e ficam registrados.
 
 Uso (na raiz do repositório): python scripts/catalogo/gerar_taco.py
 """
@@ -18,7 +18,7 @@ import comum  # noqa: E402
 
 PLANILHA = comum.RAIZ / "dados/fontes/taco/Taco-4a-Edicao.xlsx"
 PDF = comum.RAIZ / "dados/fontes/taco/taco_4_edicao_ampliada_e_revisada.pdf"
-SQL = comum.RAIZ / "api/src/main/resources/db/migration/V007__catalogo_taco.sql"
+SQL = comum.RAIZ / "api/src/main/resources/db/migration/V002__catalogo_taco.sql"
 RELATORIO = comum.RAIZ / "dados/relatorios/taco-importacao.md"
 
 FONTE = "TACO 4ª ed. (2011), NEPA/UNICAMP"
@@ -92,7 +92,7 @@ def arredondar(valor):
 
 
 def montar(alimentos):
-    """Aplica as regras da seção 5.3. Devolve (aceitos, descartados, contagem de marcadores)."""
+    """Aplica as regras de docs/catalogo.md. Devolve (aceitos, descartados, contagem de marcadores)."""
     aceitos, descartados = [], []
     vistos = {}
     contagem = {"traco": {n: 0 for n in NUTRIENTES}, "na": {n: 0 for n in NUTRIENTES}}
@@ -139,20 +139,12 @@ def montar(alimentos):
 
 def gerar_sql(aceitos, sha):
     linhas = [
-        "-- Catálogo público de alimentos: TACO 4ª edição (seção 5 do PLANO-CATALOGO-PUBLICO.md).",
+        "-- Catálogo público de alimentos: TACO 4ª edição.",
         f"-- GERADO por scripts/catalogo/gerar_taco.py a partir de dados/fontes/taco/{PLANILHA.name}",
         f"-- (sha256 {sha}). Não editar à mão.",
         f"-- Fonte: {CITACAO}",
         "-- Valores por 100 g de parte comestível. `Tr` e `NA` da tabela viram 0 (o nutriente `Tr` fica em `tracos`).",
         "-- Alimento com valor sem análise não entra (ver dados/relatorios/taco-importacao.md).",
-        "",
-        "alter table catalogo_alimento add column grupo varchar(80);",
-        "alter table catalogo_alimento add column codigo_fonte varchar(20);",
-        "alter table catalogo_alimento add column tracos varchar(60);",
-        "alter table catalogo_alimento add column nome_busca varchar(200);",
-        "",
-        "-- Os 9 itens de demonstração saem do catálogo; as cópias já importadas ficam na biblioteca de cada treinador.",
-        "delete from catalogo_alimento where fonte like 'Valores de demonstração%';",
         "",
     ]
     for bloco in comum.blocos(aceitos, 200):
@@ -169,15 +161,10 @@ def gerar_sql(aceitos, sha):
                 f"{comum.sql_texto(comum.normalizar(a['nome']))})")
         linhas.append(",\n".join(valores) + ";")
         linhas.append("")
-    linhas += [
-        "alter table catalogo_alimento alter column nome_busca set not null;",
-        "create index ix_catalogo_alimento_nome_busca on catalogo_alimento (nome_busca);",
-        "",
-    ]
     return "\n".join(linhas)
 
 
-# ---- conferência com o PDF (seção 5.4) ----
+# ---- conferência com o PDF ----
 
 _TOKEN = r"(?:\d+(?:,\d+)?[a-z]?|Tr|NA|\*)"
 _LINHA_PDF = re.compile(rf"^\s*(\d{{1,3}})\s+([^\W\d].*?)\s+({_TOKEN}(?:\s+{_TOKEN})*)\s*$")

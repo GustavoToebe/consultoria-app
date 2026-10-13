@@ -8,7 +8,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Catálogo público de alimentos (V006): só leitura, sem {@code @TenantId}. Cada item grava a fonte dos valores. */
+/** Catálogo público de alimentos: só leitura, sem {@code @TenantId}. Cada item grava a fonte dos valores. */
 @Entity
 @Table(name = "catalogo_alimento")
 public class CatalogoAlimento {

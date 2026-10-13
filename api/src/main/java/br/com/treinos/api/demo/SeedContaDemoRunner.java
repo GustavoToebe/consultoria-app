@@ -16,8 +16,8 @@ import java.util.List;
 
 /**
  * Depois do {@link SeedDemoRunner}, completa a Minha conta (plano, dados comerciais e cobranças fictícios) das duas
- * consultorias do seed. Roda a cada subida do profile de demonstração e só cria o que falta, então um banco de
- * demonstração anterior à V021 também ganha os dados sem precisar ser apagado. Com a integração com a Central ativa
+ * consultorias do seed. Roda a cada subida do profile de demonstração e só cria o que falta, então não duplica nada.
+ * Com a integração com a Central ativa
  * não faz nada: o plano e as cobranças reais vêm de lá, e dado fictício por cima do real seria pior que nenhum.
  */
 @Component

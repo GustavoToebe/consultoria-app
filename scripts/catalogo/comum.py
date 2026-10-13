@@ -36,7 +36,11 @@ def sql_numero(valor):
 
 
 def sha256(caminho):
-    return hashlib.sha256(Path(caminho).read_bytes()).hexdigest()
+    """Hash do arquivo. Em texto, ignora CRLF: o checkout no Windows converte e o hash não pode depender disso."""
+    dados = Path(caminho).read_bytes()
+    if Path(caminho).suffix in (".json", ".csv"):
+        dados = dados.replace(b"\r\n", b"\n")
+    return hashlib.sha256(dados).hexdigest()
 
 
 def escrever(caminho, conteudo):

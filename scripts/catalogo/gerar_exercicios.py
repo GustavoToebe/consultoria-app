@@ -1,4 +1,4 @@
-"""Gera `V008__catalogo_exercicios_ptbr.sql` a partir do exercicios-bd-ptbr (seção 6 do PLANO-CATALOGO-PUBLICO.md).
+"""Gera `V003__catalogo_exercicios_ptbr.sql` a partir do exercicios-bd-ptbr e dos exercícios próprios (docs/catalogo.md).
 
 Entrada: `exercises-ptbr-partial-translation.json` e, se existir, `dados/curadoria/exercicios-nomes.csv`
 (`id;nome_final`, só as linhas que a revisão mudou). Rodar: `PYTHONUTF8=1 python scripts/catalogo/gerar_exercicios.py`.
@@ -15,8 +15,8 @@ import comum  # noqa: E402
 
 JSON = comum.RAIZ / "dados/fontes/exercicios-bd-ptbr/exercises/exercises-ptbr-partial-translation.json"
 CURADORIA = comum.RAIZ / "dados/curadoria/exercicios-nomes.csv"
-V006 = comum.RAIZ / "api/src/main/resources/db/migration/V006__catalogo_publico.sql"
-SQL = comum.RAIZ / "api/src/main/resources/db/migration/V008__catalogo_exercicios_ptbr.sql"
+PROPRIOS = comum.RAIZ / "dados/fontes/proprio/exercicios-proprios.csv"
+SQL = comum.RAIZ / "api/src/main/resources/db/migration/V003__catalogo_exercicios_ptbr.sql"
 RELATORIO = comum.RAIZ / "dados/relatorios/exercicios-importacao.md"
 
 FONTE = "exercicios-bd-ptbr (CC0), tradução do free-exercise-db (Unlicense)"
@@ -41,7 +41,7 @@ PRESERVAR = {"Arnold", "Atlas", "Bosu", "Bradford", "Conan", "Cuban", "Frankenst
 
 
 def frase(nome):
-    """Primeira letra maiúscula, resto minúsculo, menos nomes próprios e siglas (seção 6.3)."""
+    """Primeira letra maiúscula, resto minúsculo, menos nomes próprios e siglas."""
     palavras = re.sub(r"\s+", " ", nome).strip().split(" ")
     saida = []
     for i, p in enumerate(palavras):
@@ -85,9 +85,11 @@ def ler_exercicios(caminho=JSON):
     return json.loads(Path(caminho).read_text(encoding="utf-8"))
 
 
-def nomes_do_v006(caminho=V006):
-    texto = Path(caminho).read_text(encoding="utf-8")
-    return re.findall(r"^\s+\('((?:[^']|'')+)', '", texto, flags=re.M)
+def ler_proprios(caminho=PROPRIOS):
+    """Os exercícios escritos à mão: `nome;grupo_muscular;equipamento;modalidade`, com cabeçalho."""
+    with open(caminho, encoding="utf-8", newline="") as f:
+        return [{"nome": l["nome"], "grupo": l["grupo_muscular"], "equipamento": l["equipamento"],
+                 "modalidade": l["modalidade"]} for l in csv.DictReader(f, delimiter=";")]
 
 
 def grupo_de(e):
@@ -111,7 +113,7 @@ def instrucoes_de(e):
 
 
 def montar(exercicios, curados, existentes):
-    """Devolve (aceitos, descartados, avisos). `existentes` = nomes dos exercícios já no catálogo (V006)."""
+    """Devolve (aceitos, descartados, avisos). `existentes` = nomes dos exercícios próprios."""
     ids = {e["id"] for e in exercicios}
     desconhecidos = sorted(set(curados) - ids)
     if desconhecidos:
@@ -148,22 +150,24 @@ def montar(exercicios, curados, existentes):
     return aceitos, descartados, avisos
 
 
-def gerar_sql(aceitos, sha):
+def gerar_sql(aceitos, sha, proprios=()):
     linhas = [
-        "-- Catálogo público de exercícios: exercicios-bd-ptbr (seção 6 do PLANO-CATALOGO-PUBLICO.md).",
+        "-- Catálogo público de exercícios: os próprios e o exercicios-bd-ptbr.",
         f"-- GERADO por scripts/catalogo/gerar_exercicios.py a partir de dados/fontes/exercicios-bd-ptbr/ (sha256 {sha})",
         "-- e dos nomes revisados em dados/curadoria/exercicios-nomes.csv. Não editar à mão.",
         f"-- Fonte: {FONTE}.",
-        "-- Os 52 exercícios do V006 continuam como estão (escritos à mão) e passam a ter fonte 'Catálogo próprio'.",
-        "",
-        "alter table catalogo_exercicio add column instrucoes text;",
-        "alter table catalogo_exercicio add column fonte varchar(200);",
-        "alter table catalogo_exercicio add column nome_busca varchar(160);",
-        "",
-        "update catalogo_exercicio set fonte = " + comum.sql_texto(FONTE_PROPRIA) + ",",
-        "  nome_busca = translate(lower(nome), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc');",
+        "-- Os exercícios próprios vêm de dados/fontes/proprio/exercicios-proprios.csv (fonte 'Catálogo próprio').",
         "",
     ]
+    if proprios:
+        linhas.append("insert into catalogo_exercicio (id, nome, grupo_muscular, equipamento, modalidade, fonte, "
+                      "nome_busca) values")
+        linhas.append(",\n".join(
+            f"  (md5('catalogo-exercicio:' || {comum.sql_texto(p['nome'])})::uuid, {comum.sql_texto(p['nome'])}, "
+            f"{comum.sql_texto(p['grupo'])}, {comum.sql_texto(p['equipamento'])}, {comum.sql_texto(p['modalidade'])}, "
+            f"{comum.sql_texto(FONTE_PROPRIA)}, {comum.sql_texto(comum.normalizar(p['nome']))})"
+            for p in proprios) + ";")
+        linhas.append("")
     for bloco in comum.blocos(aceitos, 200):
         linhas.append("insert into catalogo_exercicio (id, nome, grupo_muscular, equipamento, modalidade, "
                       "instrucoes, fonte, nome_busca) values")
@@ -176,11 +180,6 @@ def gerar_sql(aceitos, sha):
                 f"{comum.sql_texto(comum.normalizar(a['nome']))})")
         linhas.append(",\n".join(valores) + ";")
         linhas.append("")
-    linhas += [
-        "alter table catalogo_exercicio alter column nome_busca set not null;",
-        "create index ix_catalogo_exercicio_nome_busca on catalogo_exercicio (nome_busca);",
-        "",
-    ]
     return "\n".join(linhas)
 
 
@@ -228,9 +227,10 @@ def gerar_relatorio(exercicios, aceitos, descartados, avisos, curados, sha):
 def main():
     exercicios = ler_exercicios()
     curados = ler_nomes_curados(CURADORIA)
-    aceitos, descartados, avisos = montar(exercicios, curados, nomes_do_v006())
+    proprios = ler_proprios()
+    aceitos, descartados, avisos = montar(exercicios, curados, [p["nome"] for p in proprios])
     sha = comum.sha256(JSON)
-    comum.escrever(SQL, gerar_sql(aceitos, sha))
+    comum.escrever(SQL, gerar_sql(aceitos, sha, proprios))
     comum.escrever(RELATORIO, gerar_relatorio(exercicios, aceitos, descartados, avisos, curados, sha))
     print(f"{len(exercicios)} no dataset, {len(aceitos)} no catálogo, {len(descartados)} descartados, "
           f"{len(curados)} nomes revisados")

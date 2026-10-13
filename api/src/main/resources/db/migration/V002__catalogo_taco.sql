@@ -1,17 +1,9 @@
--- Catálogo público de alimentos: TACO 4ª edição (seção 5 do PLANO-CATALOGO-PUBLICO.md).
+-- Catálogo público de alimentos: TACO 4ª edição.
 -- GERADO por scripts/catalogo/gerar_taco.py a partir de dados/fontes/taco/Taco-4a-Edicao.xlsx
 -- (sha256 a66b8ec528daeabc63bc2b015fc9bd8c6d76b941c2fc0ed93a4311d449302d14). Não editar à mão.
 -- Fonte: NEPA/UNICAMP. Tabela Brasileira de Composição de Alimentos – TACO. 4. ed. rev. e ampl. Campinas: NEPA/UNICAMP, 2011.
 -- Valores por 100 g de parte comestível. `Tr` e `NA` da tabela viram 0 (o nutriente `Tr` fica em `tracos`).
 -- Alimento com valor sem análise não entra (ver dados/relatorios/taco-importacao.md).
-
-alter table catalogo_alimento add column grupo varchar(80);
-alter table catalogo_alimento add column codigo_fonte varchar(20);
-alter table catalogo_alimento add column tracos varchar(60);
-alter table catalogo_alimento add column nome_busca varchar(200);
-
--- Os 9 itens de demonstração saem do catálogo; as cópias já importadas ficam na biblioteca de cada treinador.
-delete from catalogo_alimento where fonte like 'Valores de demonstração%';
 
 insert into catalogo_alimento (id, nome, base_quantidade, base_unidade, kcal, proteina, carboidrato, gordura, gramas_por_unidade, fonte, grupo, codigo_fonte, tracos, nome_busca) values
   (md5('catalogo-alimento:taco:1')::uuid, 'Arroz, integral, cozido', 100, 'g', 123.53, 2.59, 25.81, 1.00, null, 'TACO 4ª ed. (2011), NEPA/UNICAMP', 'Cereais e derivados', '1', null, 'arroz, integral, cozido'),
@@ -609,6 +601,3 @@ insert into catalogo_alimento (id, nome, base_quantidade, base_unidade, kcal, pr
   (md5('catalogo-alimento:taco:595')::uuid, 'Pinhão, cozido', 100, 'g', 174.37, 2.98, 43.92, 0.75, null, 'TACO 4ª ed. (2011), NEPA/UNICAMP', 'Nozes e sementes', '595', null, 'pinhao, cozido'),
   (md5('catalogo-alimento:taco:596')::uuid, 'Pupunha, cozida', 100, 'g', 218.53, 2.52, 29.57, 12.76, null, 'TACO 4ª ed. (2011), NEPA/UNICAMP', 'Nozes e sementes', '596', null, 'pupunha, cozida'),
   (md5('catalogo-alimento:taco:597')::uuid, 'Noz, crua', 100, 'g', 620.06, 13.97, 18.36, 59.36, null, 'TACO 4ª ed. (2011), NEPA/UNICAMP', 'Nozes e sementes', '597', null, 'noz, crua');
-
-alter table catalogo_alimento alter column nome_busca set not null;
-create index ix_catalogo_alimento_nome_busca on catalogo_alimento (nome_busca);

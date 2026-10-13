@@ -119,9 +119,10 @@ class SqlTest(unittest.TestCase):
         self.assertIn("md5('catalogo-alimento:taco:1')::uuid", sql)
         self.assertEqual(sql, gerar_taco.gerar_sql(aceitos, "abc"))
 
-    def test_nao_deixa_alimento_demonstracao(self):
+    def test_so_gera_inserts(self):
         sql = gerar_taco.gerar_sql([], "abc")
-        self.assertIn("delete from catalogo_alimento where fonte like 'Valores de demonstração%'", sql)
+        self.assertNotIn("alter table", sql)
+        self.assertNotIn("delete from", sql)
 
 
 class ConferenciaTest(unittest.TestCase):
@@ -263,13 +264,18 @@ class ExerciciosTest(unittest.TestCase):
         sql = gerar_exercicios.gerar_sql(aceitos, "abc")
         self.assertIn("md5('catalogo-exercicio:fedb:' || 'Farmer''s_Walk')::uuid", sql)
         self.assertIn("'Caminhada d''água'", sql)
-        self.assertIn("update catalogo_exercicio set fonte = 'Catálogo próprio'", sql)
         self.assertEqual(sql, gerar_exercicios.gerar_sql(aceitos, "abc"))
 
-    def test_nomes_do_v006_sao_os_52(self):
-        nomes = gerar_exercicios.nomes_do_v006()
+    def test_proprios_sao_os_52(self):
+        nomes = [p["nome"] for p in gerar_exercicios.ler_proprios()]
         self.assertEqual(len(nomes), 52)
         self.assertIn("Supino reto com barra", nomes)
+
+    def test_sql_inclui_os_proprios_com_a_fonte_propria(self):
+        proprios = [{"nome": "Remada d'água", "grupo": "Costas", "equipamento": "Barra", "modalidade": "LIVRE"}]
+        sql = gerar_exercicios.gerar_sql([], "abc", proprios)
+        self.assertIn("md5('catalogo-exercicio:' || 'Remada d''água')::uuid", sql)
+        self.assertIn("'Catálogo próprio'", sql)
 
     def test_dataset_real_e_sql_commitado(self):
         if not gerar_exercicios.JSON.exists():
@@ -277,10 +283,11 @@ class ExerciciosTest(unittest.TestCase):
         exercicios = gerar_exercicios.ler_exercicios()
         self.assertEqual(len(exercicios), 873)
         if not gerar_exercicios.SQL.exists():
-            self.skipTest("V008 ainda não foi gerada")
+            self.skipTest("V003 ainda não foi gerada")
         curados = gerar_exercicios.ler_nomes_curados(gerar_exercicios.CURADORIA)
-        aceitos, _, _ = gerar_exercicios.montar(exercicios, curados, gerar_exercicios.nomes_do_v006())
-        self.assertEqual(gerar_exercicios.gerar_sql(aceitos, comum.sha256(gerar_exercicios.JSON)),
+        proprios = gerar_exercicios.ler_proprios()
+        aceitos, _, _ = gerar_exercicios.montar(exercicios, curados, [p["nome"] for p in proprios])
+        self.assertEqual(gerar_exercicios.gerar_sql(aceitos, comum.sha256(gerar_exercicios.JSON), proprios),
                          gerar_exercicios.SQL.read_text(encoding="utf-8"))
         nomes = [comum.normalizar(a["nome"]) for a in aceitos]
         self.assertEqual(len(nomes), len(set(nomes)))

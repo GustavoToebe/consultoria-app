@@ -7,7 +7,7 @@ import jakarta.persistence.Table;
 
 import java.util.UUID;
 
-/** Catálogo público (V006), igual para todos e só leitura: sem {@code @TenantId}. O treinador importa o que quiser. */
+/** Catálogo público, igual para todos e só leitura: sem {@code @TenantId}. O treinador importa o que quiser. */
 @Entity
 @Table(name = "catalogo_exercicio")
 public class CatalogoExercicio {

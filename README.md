@@ -108,7 +108,7 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
 
 - **Catálogo público real** (ver `docs/catalogo.md`). Alimentos: **591** da TACO 4ª ed. (NEPA/UNICAMP,
   2011), de 597 na planilha. Exercícios: **877** (52 próprios + 825 do exercicios-bd-ptbr, CC0), com nomes revisados em
-  `dados/curadoria/exercicios-nomes.csv`. O SQL (`V007`, `V008`) é gerado por `scripts/catalogo/` a partir de
+  `dados/curadoria/exercicios-nomes.csv`. O SQL (`V002`, `V003`) é gerado por `scripts/catalogo/` a partir de
   `dados/fontes/`; relatórios em `dados/relatorios/`. Pontos para o Gustavo/Saraiva olharem:
   - **TACO, uso comercial:** a publicação permite reproduzir citando a fonte e não fala de uso comercial. Decisão do
     Gustavo: não consultar a UNICAMP; a fonte é citada em cada alimento e na tela (`dados/fontes/README.md`).
@@ -128,7 +128,7 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
   almoço e no jantar). Ajustar no editor quando houver o PDF. O seed antigo do protótipo não foi usado:
   não bate com o PDF descrito e traz medicamentos, que não podem ir para o seed.
 - **Instruções do PDF do treino** vêm das regras do Saraiva (FS, cálculo, WS); o texto completo do PDF do Plano 16 pode substituir na tela Marca.
-- `login_tentativa` segue a V016 real da Central (uma linha por chave).
+- `login_tentativa` segue o da Central (uma linha por chave).
 - **Offline do aluno: SQLite no celular, AsyncStorage na web.** No Android/iOS cada usuário tem um banco
   `treinos-<usuarioId>.db` (expo-sqlite), com os registros numa tabela de chave única igual à do servidor e cada
   gravação numa transação; sair da conta apaga o arquivo. Na abertura, o app traz o que a versão anterior guardou no

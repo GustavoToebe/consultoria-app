@@ -1,15 +1,62 @@
--- Catálogo público de exercícios: exercicios-bd-ptbr (seção 6 do PLANO-CATALOGO-PUBLICO.md).
+-- Catálogo público de exercícios: os próprios e o exercicios-bd-ptbr.
 -- GERADO por scripts/catalogo/gerar_exercicios.py a partir de dados/fontes/exercicios-bd-ptbr/ (sha256 bea7728b7bb811bc1c304e2758e1e4eeecc8be592dfd3cd12b7534cc9fa89880)
 -- e dos nomes revisados em dados/curadoria/exercicios-nomes.csv. Não editar à mão.
 -- Fonte: exercicios-bd-ptbr (CC0), tradução do free-exercise-db (Unlicense).
--- Os 52 exercícios do V006 continuam como estão (escritos à mão) e passam a ter fonte 'Catálogo próprio'.
+-- Os exercícios próprios vêm de dados/fontes/proprio/exercicios-proprios.csv (fonte 'Catálogo próprio').
 
-alter table catalogo_exercicio add column instrucoes text;
-alter table catalogo_exercicio add column fonte varchar(200);
-alter table catalogo_exercicio add column nome_busca varchar(160);
-
-update catalogo_exercicio set fonte = 'Catálogo próprio',
-  nome_busca = translate(lower(nome), 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc');
+insert into catalogo_exercicio (id, nome, grupo_muscular, equipamento, modalidade, fonte, nome_busca) values
+  (md5('catalogo-exercicio:' || 'Supino reto com barra')::uuid, 'Supino reto com barra', 'Peito', 'Barra', 'LIVRE', 'Catálogo próprio', 'supino reto com barra'),
+  (md5('catalogo-exercicio:' || 'Supino inclinado com halteres')::uuid, 'Supino inclinado com halteres', 'Peito', 'Halteres', 'LIVRE', 'Catálogo próprio', 'supino inclinado com halteres'),
+  (md5('catalogo-exercicio:' || 'Supino reto na máquina')::uuid, 'Supino reto na máquina', 'Peito', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'supino reto na maquina'),
+  (md5('catalogo-exercicio:' || 'Crucifixo na máquina (peck deck)')::uuid, 'Crucifixo na máquina (peck deck)', 'Peito', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'crucifixo na maquina (peck deck)'),
+  (md5('catalogo-exercicio:' || 'Crossover na polia')::uuid, 'Crossover na polia', 'Peito', 'Polia', 'MAQUINA', 'Catálogo próprio', 'crossover na polia'),
+  (md5('catalogo-exercicio:' || 'Flexão de braço')::uuid, 'Flexão de braço', 'Peito', 'Peso corporal', 'PESO_CORPORAL', 'Catálogo próprio', 'flexao de braco'),
+  (md5('catalogo-exercicio:' || 'Puxada alta na polia')::uuid, 'Puxada alta na polia', 'Costas', 'Polia', 'MAQUINA', 'Catálogo próprio', 'puxada alta na polia'),
+  (md5('catalogo-exercicio:' || 'Remada curvada com barra')::uuid, 'Remada curvada com barra', 'Costas', 'Barra', 'LIVRE', 'Catálogo próprio', 'remada curvada com barra'),
+  (md5('catalogo-exercicio:' || 'Remada baixa na polia')::uuid, 'Remada baixa na polia', 'Costas', 'Polia', 'MAQUINA', 'Catálogo próprio', 'remada baixa na polia'),
+  (md5('catalogo-exercicio:' || 'Remada unilateral com halter')::uuid, 'Remada unilateral com halter', 'Costas', 'Halteres', 'LIVRE', 'Catálogo próprio', 'remada unilateral com halter'),
+  (md5('catalogo-exercicio:' || 'Remada na máquina articulada')::uuid, 'Remada na máquina articulada', 'Costas', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'remada na maquina articulada'),
+  (md5('catalogo-exercicio:' || 'Barra fixa')::uuid, 'Barra fixa', 'Costas', 'Peso corporal', 'PESO_CORPORAL', 'Catálogo próprio', 'barra fixa'),
+  (md5('catalogo-exercicio:' || 'Pulldown com corda')::uuid, 'Pulldown com corda', 'Costas', 'Polia', 'MAQUINA', 'Catálogo próprio', 'pulldown com corda'),
+  (md5('catalogo-exercicio:' || 'Desenvolvimento com halteres')::uuid, 'Desenvolvimento com halteres', 'Ombros', 'Halteres', 'LIVRE', 'Catálogo próprio', 'desenvolvimento com halteres'),
+  (md5('catalogo-exercicio:' || 'Desenvolvimento na máquina')::uuid, 'Desenvolvimento na máquina', 'Ombros', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'desenvolvimento na maquina'),
+  (md5('catalogo-exercicio:' || 'Elevação lateral com halteres')::uuid, 'Elevação lateral com halteres', 'Ombros', 'Halteres', 'LIVRE', 'Catálogo próprio', 'elevacao lateral com halteres'),
+  (md5('catalogo-exercicio:' || 'Elevação lateral na máquina')::uuid, 'Elevação lateral na máquina', 'Ombros', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'elevacao lateral na maquina'),
+  (md5('catalogo-exercicio:' || 'Crucifixo inverso na máquina')::uuid, 'Crucifixo inverso na máquina', 'Ombros', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'crucifixo inverso na maquina'),
+  (md5('catalogo-exercicio:' || 'Face pull na polia')::uuid, 'Face pull na polia', 'Ombros', 'Polia', 'MAQUINA', 'Catálogo próprio', 'face pull na polia'),
+  (md5('catalogo-exercicio:' || 'Rosca direta com barra')::uuid, 'Rosca direta com barra', 'Bíceps', 'Barra', 'LIVRE', 'Catálogo próprio', 'rosca direta com barra'),
+  (md5('catalogo-exercicio:' || 'Rosca alternada com halteres')::uuid, 'Rosca alternada com halteres', 'Bíceps', 'Halteres', 'LIVRE', 'Catálogo próprio', 'rosca alternada com halteres'),
+  (md5('catalogo-exercicio:' || 'Rosca martelo')::uuid, 'Rosca martelo', 'Bíceps', 'Halteres', 'LIVRE', 'Catálogo próprio', 'rosca martelo'),
+  (md5('catalogo-exercicio:' || 'Rosca na polia')::uuid, 'Rosca na polia', 'Bíceps', 'Polia', 'MAQUINA', 'Catálogo próprio', 'rosca na polia'),
+  (md5('catalogo-exercicio:' || 'Tríceps na polia com corda')::uuid, 'Tríceps na polia com corda', 'Tríceps', 'Polia', 'MAQUINA', 'Catálogo próprio', 'triceps na polia com corda'),
+  (md5('catalogo-exercicio:' || 'Tríceps na polia com barra')::uuid, 'Tríceps na polia com barra', 'Tríceps', 'Polia', 'MAQUINA', 'Catálogo próprio', 'triceps na polia com barra'),
+  (md5('catalogo-exercicio:' || 'Tríceps francês com halter')::uuid, 'Tríceps francês com halter', 'Tríceps', 'Halteres', 'LIVRE', 'Catálogo próprio', 'triceps frances com halter'),
+  (md5('catalogo-exercicio:' || 'Mergulho nas paralelas')::uuid, 'Mergulho nas paralelas', 'Tríceps', 'Peso corporal', 'PESO_CORPORAL', 'Catálogo próprio', 'mergulho nas paralelas'),
+  (md5('catalogo-exercicio:' || 'Agachamento livre')::uuid, 'Agachamento livre', 'Pernas', 'Barra', 'LIVRE', 'Catálogo próprio', 'agachamento livre'),
+  (md5('catalogo-exercicio:' || 'Agachamento no smith')::uuid, 'Agachamento no smith', 'Pernas', 'Smith', 'MAQUINA', 'Catálogo próprio', 'agachamento no smith'),
+  (md5('catalogo-exercicio:' || 'Leg press 45º')::uuid, 'Leg press 45º', 'Pernas', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'leg press 45º'),
+  (md5('catalogo-exercicio:' || 'Leg press horizontal')::uuid, 'Leg press horizontal', 'Pernas', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'leg press horizontal'),
+  (md5('catalogo-exercicio:' || 'Hack machine')::uuid, 'Hack machine', 'Pernas', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'hack machine'),
+  (md5('catalogo-exercicio:' || 'Cadeira extensora')::uuid, 'Cadeira extensora', 'Quadríceps', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'cadeira extensora'),
+  (md5('catalogo-exercicio:' || 'Cadeira flexora')::uuid, 'Cadeira flexora', 'Posterior', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'cadeira flexora'),
+  (md5('catalogo-exercicio:' || 'Mesa flexora')::uuid, 'Mesa flexora', 'Posterior', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'mesa flexora'),
+  (md5('catalogo-exercicio:' || 'Stiff com barra')::uuid, 'Stiff com barra', 'Posterior', 'Barra', 'LIVRE', 'Catálogo próprio', 'stiff com barra'),
+  (md5('catalogo-exercicio:' || 'Levantamento terra')::uuid, 'Levantamento terra', 'Posterior', 'Barra', 'LIVRE', 'Catálogo próprio', 'levantamento terra'),
+  (md5('catalogo-exercicio:' || 'Elevação pélvica')::uuid, 'Elevação pélvica', 'Glúteos', 'Barra/Máquina', 'MAQUINA', 'Catálogo próprio', 'elevacao pelvica'),
+  (md5('catalogo-exercicio:' || 'Abdução de quadril na máquina')::uuid, 'Abdução de quadril na máquina', 'Glúteos', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'abducao de quadril na maquina'),
+  (md5('catalogo-exercicio:' || 'Abdução de quadril na polia')::uuid, 'Abdução de quadril na polia', 'Glúteos', 'Polia', 'MAQUINA', 'Catálogo próprio', 'abducao de quadril na polia'),
+  (md5('catalogo-exercicio:' || 'Afundo com halteres')::uuid, 'Afundo com halteres', 'Pernas', 'Halteres', 'LIVRE', 'Catálogo próprio', 'afundo com halteres'),
+  (md5('catalogo-exercicio:' || 'Búlgaro com halteres')::uuid, 'Búlgaro com halteres', 'Pernas', 'Halteres', 'LIVRE', 'Catálogo próprio', 'bulgaro com halteres'),
+  (md5('catalogo-exercicio:' || 'Panturrilha em pé na máquina')::uuid, 'Panturrilha em pé na máquina', 'Panturrilha', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'panturrilha em pe na maquina'),
+  (md5('catalogo-exercicio:' || 'Panturrilha sentado')::uuid, 'Panturrilha sentado', 'Panturrilha', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'panturrilha sentado'),
+  (md5('catalogo-exercicio:' || 'Abdominal supra na máquina')::uuid, 'Abdominal supra na máquina', 'Abdômen', 'Máquina', 'MAQUINA', 'Catálogo próprio', 'abdominal supra na maquina'),
+  (md5('catalogo-exercicio:' || 'Abdominal na polia alta com corda')::uuid, 'Abdominal na polia alta com corda', 'Abdômen', 'Polia', 'MAQUINA', 'Catálogo próprio', 'abdominal na polia alta com corda'),
+  (md5('catalogo-exercicio:' || 'Prancha')::uuid, 'Prancha', 'Abdômen', 'Peso corporal', 'PESO_CORPORAL', 'Catálogo próprio', 'prancha'),
+  (md5('catalogo-exercicio:' || 'Elevação de pernas')::uuid, 'Elevação de pernas', 'Abdômen', 'Peso corporal', 'PESO_CORPORAL', 'Catálogo próprio', 'elevacao de pernas'),
+  (md5('catalogo-exercicio:' || 'Esteira')::uuid, 'Esteira', 'Cardio', 'Esteira', 'CARDIO', 'Catálogo próprio', 'esteira'),
+  (md5('catalogo-exercicio:' || 'Bicicleta ergométrica')::uuid, 'Bicicleta ergométrica', 'Cardio', 'Bicicleta', 'CARDIO', 'Catálogo próprio', 'bicicleta ergometrica'),
+  (md5('catalogo-exercicio:' || 'Elíptico')::uuid, 'Elíptico', 'Cardio', 'Elíptico', 'CARDIO', 'Catálogo próprio', 'eliptico'),
+  (md5('catalogo-exercicio:' || 'Clamshell com elástico')::uuid, 'Clamshell com elástico', 'Glúteos', 'Elástico', 'ELASTICO', 'Catálogo próprio', 'clamshell com elastico');
 
 insert into catalogo_exercicio (id, nome, grupo_muscular, equipamento, modalidade, instrucoes, fonte, nome_busca) values
   (md5('catalogo-exercicio:fedb:' || 'Frog_Sit-Ups')::uuid, 'Abdominais de sapo', 'Abdômen', 'Peso corporal', 'PESO_CORPORAL', 'Deite-se de costas no chão (ou em um colchonete) com as pernas estendidas.
@@ -3515,6 +3562,3 @@ Reposicione e repita a série do outro lado.', 'exercicios-bd-ptbr (CC0), tradu�
   (md5('catalogo-exercicio:fedb:' || 'Worlds_Greatest_Stretch')::uuid, 'World''s greatest stretch', 'Posterior', null, 'OUTRO', 'Este é um alongamento em três partes. Comece dando um passo à frente em afundo, com o pé da frente apoiado no chão e o de trás na ponta dos pés. Agache até o joelho da frente quase tocar o chão, mantendo o tronco ereto. Segure por 10 a 20 segundos.
 Agora, coloque a mão do mesmo lado da perna da frente no chão, com o cotovelo próximo ao pé. A outra mão deve apoiar no chão, paralela à perna da frente, para auxiliar.
 Após 10 a 20 segundos, coloque as mãos de cada lado do pé da frente. Levante os dedos do pé da frente e estique a perna, ajustando a perna de trás se necessário. Segure por 10 a 20 segundos e repita toda a sequência para o outro lado.', 'exercicios-bd-ptbr (CC0), tradução do free-exercise-db (Unlicense)', 'world''s greatest stretch');
-
-alter table catalogo_exercicio alter column nome_busca set not null;
-create index ix_catalogo_exercicio_nome_busca on catalogo_exercicio (nome_busca);

@@ -73,7 +73,7 @@ test('sem PASTA_ALTERAR não há "criar nova pasta" ao aplicar um modelo', () =>
 
 test('salvar pasta como pacote segue as permissões da rota e o ⋯ some sem ação', () => {
   const tem = (...codigos: string[]) => (c: string) => codigos.includes(c);
-  // Perfis padrão da V018: Treinador e Nutricionista têm as quatro; o Assistente não tem MODELO_ALTERAR.
+  // Perfis padrão: Treinador e Nutricionista têm as quatro; o Assistente não tem MODELO_ALTERAR.
   const treinador = tem('PASTA_ALTERAR', 'MODELO_ALTERAR', 'ALUNO_LER', 'TREINO_LER', 'DIETA_LER');
   const nutricionista = tem('MODELO_ALTERAR', 'ALUNO_LER', 'TREINO_LER', 'DIETA_LER');
   const assistente = tem('ALUNO_LER', 'TREINO_LER', 'DIETA_LER', 'MODELO_LER');

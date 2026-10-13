@@ -1,0 +1,53 @@
+nome;grupo_muscular;equipamento;modalidade
+Supino reto com barra;Peito;Barra;LIVRE
+Supino inclinado com halteres;Peito;Halteres;LIVRE
+Supino reto na máquina;Peito;Máquina;MAQUINA
+Crucifixo na máquina (peck deck);Peito;Máquina;MAQUINA
+Crossover na polia;Peito;Polia;MAQUINA
+Flexão de braço;Peito;Peso corporal;PESO_CORPORAL
+Puxada alta na polia;Costas;Polia;MAQUINA
+Remada curvada com barra;Costas;Barra;LIVRE
+Remada baixa na polia;Costas;Polia;MAQUINA
+Remada unilateral com halter;Costas;Halteres;LIVRE
+Remada na máquina articulada;Costas;Máquina;MAQUINA
+Barra fixa;Costas;Peso corporal;PESO_CORPORAL
+Pulldown com corda;Costas;Polia;MAQUINA
+Desenvolvimento com halteres;Ombros;Halteres;LIVRE
+Desenvolvimento na máquina;Ombros;Máquina;MAQUINA
+Elevação lateral com halteres;Ombros;Halteres;LIVRE
+Elevação lateral na máquina;Ombros;Máquina;MAQUINA
+Crucifixo inverso na máquina;Ombros;Máquina;MAQUINA
+Face pull na polia;Ombros;Polia;MAQUINA
+Rosca direta com barra;Bíceps;Barra;LIVRE
+Rosca alternada com halteres;Bíceps;Halteres;LIVRE
+Rosca martelo;Bíceps;Halteres;LIVRE
+Rosca na polia;Bíceps;Polia;MAQUINA
+Tríceps na polia com corda;Tríceps;Polia;MAQUINA
+Tríceps na polia com barra;Tríceps;Polia;MAQUINA
+Tríceps francês com halter;Tríceps;Halteres;LIVRE
+Mergulho nas paralelas;Tríceps;Peso corporal;PESO_CORPORAL
+Agachamento livre;Pernas;Barra;LIVRE
+Agachamento no smith;Pernas;Smith;MAQUINA
+Leg press 45º;Pernas;Máquina;MAQUINA
+Leg press horizontal;Pernas;Máquina;MAQUINA
+Hack machine;Pernas;Máquina;MAQUINA
+Cadeira extensora;Quadríceps;Máquina;MAQUINA
+Cadeira flexora;Posterior;Máquina;MAQUINA
+Mesa flexora;Posterior;Máquina;MAQUINA
+Stiff com barra;Posterior;Barra;LIVRE
+Levantamento terra;Posterior;Barra;LIVRE
+Elevação pélvica;Glúteos;Barra/Máquina;MAQUINA
+Abdução de quadril na máquina;Glúteos;Máquina;MAQUINA
+Abdução de quadril na polia;Glúteos;Polia;MAQUINA
+Afundo com halteres;Pernas;Halteres;LIVRE
+Búlgaro com halteres;Pernas;Halteres;LIVRE
+Panturrilha em pé na máquina;Panturrilha;Máquina;MAQUINA
+Panturrilha sentado;Panturrilha;Máquina;MAQUINA
+Abdominal supra na máquina;Abdômen;Máquina;MAQUINA
+Abdominal na polia alta com corda;Abdômen;Polia;MAQUINA
+Prancha;Abdômen;Peso corporal;PESO_CORPORAL
+Elevação de pernas;Abdômen;Peso corporal;PESO_CORPORAL
+Esteira;Cardio;Esteira;CARDIO
+Bicicleta ergométrica;Cardio;Bicicleta;CARDIO
+Elíptico;Cardio;Elíptico;CARDIO
+Clamshell com elástico;Glúteos;Elástico;ELASTICO

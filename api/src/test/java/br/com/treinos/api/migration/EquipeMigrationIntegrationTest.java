@@ -45,4 +45,36 @@ class EquipeMigrationIntegrationTest extends AbstractIntegrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThat(banco.queryForObject("select count(*) from perfil_permissao pp join perfil p on p.id=pp.perfil_id where p.consultoria_id=? and p.nome='Assistente' and (pp.codigo like '%SENSIVEL%' or pp.codigo like 'ATUALIZACAO_%')", Integer.class, consultoria)).isZero();
     }
+
+    @Test void novaConsultoriaNasceComOQuestionarioPadraoEComAsPermissoesDele() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var treinador = api.novoTreinador();
+        UUID usuario = UUID.fromString(treinador.path("usuario").path("id").asString());
+        UUID consultoria = banco.queryForObject("select consultoria_id from usuario where id=?", UUID.class, usuario);
+        assertThat(banco.queryForObject(
+                "select count(*) from questionario where consultoria_id = ? and padrao and versao_publicada = 1 and not arquivado",
+                Integer.class, consultoria)).isEqualTo(1);
+        assertThat(banco.queryForObject(
+                "select v.conteudo->>'formato' from questionario_versao v join questionario q on q.id = v.questionario_id"
+                        + " where q.consultoria_id = ? and q.padrao", String.class, consultoria)).isEqualTo("2");
+        assertThat(banco.queryForObject(
+                "select count(*) from questionario_versao v, jsonb_array_elements(v.conteudo->'secoes') s,"
+                        + " jsonb_array_elements(s->'perguntas') p where v.consultoria_id = ? and p->>'id' = 'treino_dias'"
+                        + " and p->>'ajudaAutomatica' = 'MEDIA_DIAS_TREINO'", Integer.class, consultoria)).isEqualTo(1);
+        // Versão publicada é imutável e só há um padrão por consultoria.
+        assertThatThrownBy(() -> banco.update("update questionario_versao set conteudo = '{}'::jsonb where consultoria_id = ?", consultoria))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> banco.update(
+                "insert into questionario(id, consultoria_id, nome, padrao, rascunho, versao_publicada) values (?, ?, 'Outro', true, '{}'::jsonb, 1)",
+                UUID.randomUUID(), consultoria)).isInstanceOf(DataIntegrityViolationException.class);
+        // Perfis padrão: treinador e nutricionista leem e alteram, o assistente só lê, o administrador tem acesso total.
+        assertThat(permissoes(consultoria, "Treinador")).contains("QUESTIONARIO_LER", "QUESTIONARIO_ALTERAR");
+        assertThat(permissoes(consultoria, "Nutricionista")).contains("QUESTIONARIO_LER", "QUESTIONARIO_ALTERAR");
+        assertThat(permissoes(consultoria, "Assistente")).contains("QUESTIONARIO_LER").doesNotContain("QUESTIONARIO_ALTERAR");
+    }
+
+    private java.util.List<String> permissoes(UUID consultoria, String perfil) {
+        return banco.queryForList("select pp.codigo from perfil_permissao pp join perfil p on p.id = pp.perfil_id"
+                + " where p.consultoria_id = ? and p.nome = ?", String.class, consultoria, perfil);
+    }
 }
