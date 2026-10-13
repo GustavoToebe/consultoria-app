@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
- * Chave-valor do `RepositorioChaveValor` (web: AsyncStorage = localStorage) e de onde o `RepositorioSqlite` migra o
- * que a versão anterior do app guardou no celular. Nos testes, a versão em memória.
+ * Chave-valor do `RepositorioChaveValor` (web: AsyncStorage = localStorage). Nos testes, a versão em memória.
  */
 export interface ChaveValor {
   ler(chave: string): Promise<string | null>;

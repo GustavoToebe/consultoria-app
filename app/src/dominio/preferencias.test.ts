@@ -4,7 +4,6 @@ import {
   escalar,
   fatorDoTexto,
   normalizarPreferencias,
-  preferenciasDoTemaAntigo,
   PREFERENCIAS_PADRAO,
 } from './preferencias';
 
@@ -20,13 +19,6 @@ describe('preferências pessoais', () => {
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
-  });
-
-  it('migra a chave antiga que só guardava o tema', () => {
-    expect(preferenciasDoTemaAntigo('ESCURO').tema).toBe('ESCURO');
-    expect(preferenciasDoTemaAntigo('CLARO').tema).toBe('CLARO');
-    expect(preferenciasDoTemaAntigo(null)).toEqual(PREFERENCIAS_PADRAO);
-    expect(preferenciasDoTemaAntigo('QUALQUER')).toEqual(PREFERENCIAS_PADRAO);
   });
 
   it('fator do texto: 1,00 · 1,12 · 1,25 · 1,40, arredondando em inteiro', () => {

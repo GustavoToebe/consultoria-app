@@ -8,7 +8,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import java.util.UUID;
 
-/** Modelo global, sem dado de aluno e apenas de leitura; versões antigas permanecem disponíveis. */
+/** Modelo de fábrica global, sem dado de aluno e só de leitura: a fonte de "Novo a partir do modelo da plataforma". */
 @Entity @Table(name = "atualizacao_modelo")
 public class AtualizacaoModelo {
     @Id private UUID id;

@@ -1,4 +1,4 @@
-import type { ModeloAtualizacao, PerguntaAtualizacao, RespostasAtualizacao } from '../api/tipos';
+import type { ConteudoQuestionario, PerguntaAtualizacao, RespostasAtualizacao } from '../api/tipos';
 import { LIMITES_QUESTIONARIO } from './questionario';
 
 const nota = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 10;
@@ -44,7 +44,7 @@ export const respondida = (v: unknown) => !(v == null || (typeof v === 'string' 
  * `ValidadorAtualizacao` do Java (o teste de paridade confere os campos com erro). Lista vazia e texto em branco
  * contam como "não respondido".
  */
-export function errosRespostasAtualizacao(modelo: ModeloAtualizacao, respostas: RespostasAtualizacao) {
+export function errosRespostasAtualizacao(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao) {
   const erros: Record<string, string> = {};
   const bytes = Array.from(JSON.stringify(respostas)).reduce((total, c) => {
     const codigo = c.codePointAt(0) ?? 0;

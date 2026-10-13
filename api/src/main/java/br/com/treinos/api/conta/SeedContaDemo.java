@@ -15,7 +15,7 @@ import java.util.UUID;
 /**
  * Dados de demonstração da Minha conta (plano "Profissional", dados comerciais e seis cobranças), só para a consultoria
  * do seed. Tudo fictício: documento zerado, endereço genérico e contato inventado, nada de uma empresa real. Idempotente:
- * cada parte só é criada se a consultoria ainda não a tem, então roda também num banco de demonstração antigo.
+ * cada parte só é criada se a consultoria ainda não a tem, então pode rodar de novo sem duplicar.
  */
 @Service
 public class SeedContaDemo {

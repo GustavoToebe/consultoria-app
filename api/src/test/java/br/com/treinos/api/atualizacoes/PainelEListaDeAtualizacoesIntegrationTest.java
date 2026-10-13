@@ -107,8 +107,10 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
     private void enviar(JsonNode loginAluno) throws Exception {
         Map<String, Object> respostas = new LinkedHashMap<>(
                 Map.of("peso", 80.5, "sono", 7, "alim_desempenho", 8, "treino_desempenho", 6));
+        JsonNode atual = api.get("/aluno/atualizacao", loginAluno, 200);
         api.post("/aluno/atualizacao/enviar", loginAluno,
-                Map.of("pastaId", pastaAtual(loginAluno), "modeloVersao", 1, "respostas", respostas), 200);
+                Map.of("pastaId", atual.path("pastaId").asString(), "questionarioVersaoId", atual.path("questionarioVersaoId").asString(),
+                        "respostas", respostas), 200);
     }
 
     private void avisarAtraso(JsonNode loginAluno, LocalDate novaData) throws Exception {

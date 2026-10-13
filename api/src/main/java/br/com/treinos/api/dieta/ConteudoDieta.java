@@ -28,7 +28,7 @@ public record ConteudoDieta(
         @Size(max = 40) List<@Valid @NotNull Suplemento> suplementacao,
         @Size(max = 40) List<@Valid @NotNull Ergogenico> ergogenicos) {
 
-    /** Sem a lista de medicação e ergogênicos (versões antigas e a maior parte dos usos). */
+    /** Sem a lista de medicação e ergogênicos (a maior parte dos usos). */
     public ConteudoDieta(String objetivo, String dataInicio, String profissional, List<Refeicao> refeicoes,
                          List<Orientacao> orientacoes, String observacoes, List<Suplemento> suplementacao) {
         this(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao, null);

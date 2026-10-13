@@ -1,6 +1,7 @@
 import type {
   Atualizacao, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, TipoPergunta,
 } from '../api/tipos';
+import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
 import { numeroParaTela } from './formatos';
 import { LIMITES_QUESTIONARIO } from './questionario';
 import { respondida, respostaValida } from './respostasAtualizacao';
@@ -94,22 +95,18 @@ export function respostasCompativeis(modelo: ConteudoQuestionario, respostas: Re
   return { respostas: mantidas, descartadas };
 }
 
-export interface RascunhoDaAtualizacao { questionarioVersaoId?: string | null; modeloVersao?: number | null; respostas: RespostasAtualizacao }
-
 /**
- * Respostas com que o formulário abre. Rascunho da mesma versão fica como está. Rascunho de outra versão (ou legado, que
- * só guardava o número) passa por `respostasCompativeis`. `mudou` liga o aviso "seu treinador atualizou o questionário":
- * só quando as duas versões são conhecidas e diferentes ou quando alguma resposta teve de ser descartada. Um rascunho
- * legado que não perde nada é adaptado em silêncio. `questionarioVersaoId` da atualização pode faltar (cópia antiga no aparelho).
+ * Respostas com que o formulário abre. Rascunho da mesma versão fica como está. Rascunho de outra versão (o treinador
+ * publicou uma nova, ou trocou o questionário da pasta) passa por `respostasCompativeis` e `mudou` liga o aviso
+ * "seu treinador atualizou o questionário".
  */
-export function rascunhoVigente(rascunho: RascunhoDaAtualizacao | null, atualizacao: Pick<Atualizacao, 'modelo' | 'questionarioVersaoId'>) {
+export function rascunhoVigente(rascunho: RascunhoAtualizacao | null, atualizacao: Pick<Atualizacao, 'modelo' | 'questionarioVersaoId'>) {
   if (!rascunho) return { respostas: {} as RespostasAtualizacao, mudou: false, adaptado: false };
-  const atual = atualizacao.questionarioVersaoId ?? null;
-  const salvo = rascunho.questionarioVersaoId ?? null;
-  if (salvo && atual && salvo === atual) return { respostas: rascunho.respostas, mudou: false, adaptado: false };
-  if (!atualizacao.modelo) return { respostas: rascunho.respostas, mudou: false, adaptado: false };
-  const { respostas, descartadas } = respostasCompativeis(atualizacao.modelo, rascunho.respostas);
-  return { respostas, mudou: (!!salvo && !!atual && salvo !== atual) || descartadas.length > 0, adaptado: true };
+  if (rascunho.questionarioVersaoId === atualizacao.questionarioVersaoId || !atualizacao.modelo) {
+    return { respostas: rascunho.respostas, mudou: false, adaptado: false };
+  }
+  const { respostas } = respostasCompativeis(atualizacao.modelo, rascunho.respostas);
+  return { respostas, mudou: true, adaptado: true };
 }
 
 // ---- Apoio dos controles do formulário ----

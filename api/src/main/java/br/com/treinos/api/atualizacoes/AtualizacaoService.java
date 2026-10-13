@@ -28,13 +28,13 @@ import java.util.UUID;
 @Service
 public class AtualizacaoService {
     /** {@code pastaId} diz qual atualização o aluno está respondendo; só a da pasta vigente aceita escrita. */
-    public record EnviarRequest(@NotNull UUID pastaId, UUID questionarioVersaoId, Integer modeloVersao, @NotNull JsonNode respostas) { }
+    public record EnviarRequest(@NotNull UUID pastaId, @NotNull UUID questionarioVersaoId, @NotNull JsonNode respostas) { }
     public record AtrasoRequest(@NotNull UUID pastaId, @NotNull LocalDate novaData, @Size(max = 300) String motivo) { }
     public record FeedbackRequest(@NotBlank @Size(max = 4000) String texto, @NotNull Long versao) { }
     public record Feedback(String texto, Instant em, Instant editadoEm, boolean naoLido, String nomeAutor) { }
     public record Detalhe(UUID id, UUID pastaId, UUID alunoId, String nomeAluno, LocalDate dataAtualizacao,
             String fase, long diasParaData, long diasDeAtraso, LocalDate atrasoAte, String atrasoMotivo,
-            int modeloVersao, UUID questionarioVersaoId, String questionarioNome, JsonNode modelo, JsonNode respostas, Instant enviadaEm,
+            int questionarioVersaoNumero, UUID questionarioVersaoId, String questionarioNome, JsonNode modelo, JsonNode respostas, Instant enviadaEm,
             Feedback feedback, Long versao, ResumoPeriodoService.Resumo resumo) { }
     private final AtualizacaoRepository atualizacoes;
     private final QuestionarioResolver questionarios;
@@ -81,13 +81,9 @@ public class AtualizacaoService {
         LocalDate data = atual == null ? pasta.getFim() : atual.getDataAtualizacao();
         if (LocalDate.now(Fuso.BRASILIA).isBefore(data.minusDays(1)))
             throw invalidos("data", "O formulário libera um dia antes da atualização.");
-        if (r.questionarioVersaoId() == null && r.modeloVersao() == null)
-            throw new BadRequestException("Informe a versão do questionário.");
         var modelo = modelo(pasta, atual);
-        // O app novo confere o id da versão; o antigo só conhece o número (compatibilidade temporária).
-        boolean mesmaVersao = r.questionarioVersaoId() != null ? r.questionarioVersaoId().equals(modelo.versaoId())
-                : r.modeloVersao() == modelo.numero();
-        if (!mesmaVersao) throw new ConflitoException("O modelo mudou. Recarregue o formulário.", "MODELO_ATUALIZACAO_ALTERADO");
+        // O app confere o id da versão que o aluno respondeu: se o treinador publicou outra no meio, recarrega.
+        if (!r.questionarioVersaoId().equals(modelo.versaoId())) throw new ConflitoException("O modelo mudou. Recarregue o formulário.", "MODELO_ATUALIZACAO_ALTERADO");
         JsonNode conteudo = json.readTree(modelo.conteudo());
         JsonNode respostas = validador.validar(conteudo, r.respostas());
         if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data);

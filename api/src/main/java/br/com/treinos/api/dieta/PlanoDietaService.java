@@ -55,8 +55,7 @@ public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVe
     /**
      * Sem ERGOGENICO_ALTERAR o que veio no corpo é ignorado e a lista que já está no rascunho fica como está (quem não
      * vê não apaga sem querer). Com a permissão, corpo sem a lista ({@code null}) também mantém a que está gravada: o
-     * editor carregado antes de ganhar a permissão, ou uma aba com o app antigo, mandam {@code null}; apagar tudo é
-     * mandar a lista vazia. Plano sem aluno (modelo) nunca guarda a lista.
+     * editor carregado antes de ganhar a permissão manda {@code null}; apagar tudo é mandar a lista vazia. Plano sem aluno (modelo) nunca guarda a lista.
      */
     @Override
     protected ConteudoDieta paraGravarRascunho(ConteudoDieta novo, ConteudoDieta atual, PlanoDieta plano) {

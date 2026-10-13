@@ -1,10 +1,7 @@
 import type { Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, PainelAluno, VersaoDetalhe } from '../api/tipos';
-import type { ChaveValor } from './armazenamento';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
 import {
-  apagarChavesDoUsuario,
   limiteGuardados,
-  prefixoDoUsuario,
   proximoInstante,
   type DadosRegistro,
   type HistoricoSemanaSalvo,
@@ -79,9 +76,6 @@ const INSERIR_REGISTRO = `insert into registro (${COLUNAS}) values (?, ?, ?, ?, 
  * Repositório do aluno no celular: um banco SQLite por usuário (`treinos-<usuarioId>.db`). Cada operação roda numa
  * transação, e uma por vez (fila em memória), como o repositório chave-valor. Gravar uma série mexe só na linha dela,
  * não reescreve a lista inteira.
- *
- * Na primeira abertura, traz o que estiver no AsyncStorage da versão anterior do app (`migrarDe`) e apaga de lá:
- * registro pendente nunca se perde na troca.
  */
 export class RepositorioSqlite implements RepositorioLocal {
   private fila: Promise<unknown> = Promise.resolve();
@@ -93,7 +87,6 @@ export class RepositorioSqlite implements RepositorioLocal {
     readonly usuarioId: string,
     private readonly novoId: () => string,
     private readonly agora: () => Date = () => new Date(),
-    private readonly migrarDe: ChaveValor | null = null,
   ) {}
 
   private get nome() {
@@ -105,10 +98,6 @@ export class RepositorioSqlite implements RepositorioLocal {
       const abrindo = (async () => {
         const conexao = await this.fabrica.abrir(this.nome);
         await prepararEsquema(conexao.banco);
-        if (this.migrarDe) {
-          // Migração que falhar não pode travar o app: as chaves antigas ficam e ela tenta de novo na próxima abertura.
-          await migrarDoChaveValor(conexao.banco, this.migrarDe, this.usuarioId).catch(() => undefined);
-        }
         return conexao;
       })();
       // Falhou ao abrir: a próxima operação tenta de novo.
@@ -323,7 +312,6 @@ export class RepositorioSqlite implements RepositorioLocal {
       this.encerrado = true;
       await this.fecharConexao();
       await this.fabrica.apagar(this.nome);
-      if (this.migrarDe) await apagarChavesDoUsuario(this.migrarDe, this.usuarioId);
     };
     const resultado = this.fila.then(executar, executar);
     this.fila = resultado.catch(() => undefined);
@@ -349,63 +337,4 @@ export class RepositorioSqlite implements RepositorioLocal {
       // Não chegou a abrir: nada a fechar.
     }
   }
-}
-
-/**
- * Traz para o SQLite o que a versão anterior do app guardou no AsyncStorage (prefixo `treinos:<usuarioId>:`) e
- * apaga de lá. Não sobrescreve o que já está no SQLite (`insert or ignore`): rodar de novo não muda nada.
- * As chaves antigas só saem depois da transação confirmada.
- */
-export async function migrarDoChaveValor(banco: BancoSql, kv: ChaveValor, usuarioId: string): Promise<void> {
-  const prefixo = prefixoDoUsuario(usuarioId);
-  const chaves = (await kv.chaves()).filter((c) => c.startsWith(prefixo));
-  if (chaves.length === 0) return;
-  const ler = async <T>(nome: string): Promise<T | null> => {
-    const texto = await kv.ler(prefixo + nome);
-    if (!texto) return null;
-    try {
-      return JSON.parse(texto) as T;
-    } catch {
-      return null;
-    }
-  };
-  const pacote = await ler<PacoteSalvo>('pacote');
-  const dieta = await ler<VersaoDetalhe<ConteudoDieta>>('dieta');
-  const cargas = (await ler<Record<string, number>>('cargas')) ?? {};
-  const registros = (await ler<RegistroLocal[]>('registros')) ?? [];
-
-  await banco.transacao(async (t) => {
-    for (const [chave, valor] of [
-      ['pacote', pacote],
-      ['dieta', dieta],
-    ] as const) {
-      if (valor !== null) {
-        await t.rodar('insert or ignore into kv (chave, valor) values (?, ?)', [chave, JSON.stringify(valor)]);
-      }
-    }
-    for (const [chave, carga] of Object.entries(cargas)) {
-      const separador = chave.lastIndexOf('|');
-      if (separador < 0 || typeof carga !== 'number') continue;
-      await t.rodar('insert or ignore into carga_trabalho (exercicio_uid, data, carga) values (?, ?, ?)', [
-        chave.slice(0, separador),
-        chave.slice(separador + 1),
-        carga,
-      ]);
-    }
-    for (const r of registros.filter(registroCompleto)) {
-      await t.rodar(INSERIR_REGISTRO.replace('insert into', 'insert or ignore into'), paraLinha(r));
-    }
-  });
-  await kv.apagar(chaves);
-}
-
-const SITUACOES = new Set<string>(['LOCAL', 'ENVIADO', 'FALHOU']);
-
-/** Registro antigo sem algum campo obrigatório fica de fora (o servidor também o recusaria). */
-function registroCompleto(r: RegistroLocal): boolean {
-  return (
-    [r.id, r.planoVersaoId, r.sessaoUid, r.exercicioUid, r.serieUid, r.data, r.alteradoEm].every(
-      (v) => typeof v === 'string' && v.length > 0,
-    ) && SITUACOES.has(r.situacao)
-  );
 }

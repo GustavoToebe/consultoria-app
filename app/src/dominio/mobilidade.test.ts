@@ -32,7 +32,7 @@ describe('mobilidade do aluno', () => {
     expect(temAbaMobilidade(versao, null)).toBe(true);
     expect(temAbaMobilidade(null, { mobilidade: versao })).toBe(true);
     expect(temAbaMobilidade(null, { mobilidade: null })).toBe(false);
-    expect(temAbaMobilidade(null, {})).toBe(false); // servidor antigo: sem o campo
+    expect(temAbaMobilidade(null, {})).toBe(false); // sem o campo
   });
 
   it('com pasta escolhida mostra a dela (ou nada), nunca a vigente', () => {

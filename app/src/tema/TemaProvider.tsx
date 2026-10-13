@@ -9,7 +9,6 @@ import {
   coresComContraste,
   fatorDoTexto,
   normalizarPreferencias,
-  preferenciasDoTemaAntigo,
   PREFERENCIAS_PADRAO,
   type Preferencias,
 } from '../dominio/preferencias';
@@ -132,22 +131,7 @@ function chave(usuarioId: string) {
   return `treinos:${usuarioId}:preferencias`;
 }
 
-function chaveAntigaDoTema(usuarioId: string) {
-  return `treinos:${usuarioId}:tema`;
-}
-
-/** Lê o JSON novo; sem ele, migra a chave antiga do tema (grava a nova e apaga a antiga). */
 async function lerPreferencias(usuarioId: string): Promise<Preferencias> {
   const atual = await AsyncStorage.getItem(chave(usuarioId));
-  if (atual !== null) {
-    return normalizarPreferencias(atual);
-  }
-  const antigo = await AsyncStorage.getItem(chaveAntigaDoTema(usuarioId));
-  if (antigo === null) {
-    return { ...PREFERENCIAS_PADRAO };
-  }
-  const migradas = preferenciasDoTemaAntigo(antigo);
-  await AsyncStorage.setItem(chave(usuarioId), JSON.stringify(migradas));
-  await AsyncStorage.removeItem(chaveAntigaDoTema(usuarioId));
-  return migradas;
+  return atual === null ? { ...PREFERENCIAS_PADRAO } : normalizarPreferencias(atual);
 }

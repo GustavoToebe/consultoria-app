@@ -219,7 +219,7 @@ export function agruparProblemas(c: ConteudoQuestionario, problemas: readonly Pr
 export function previaDeAtualizacao(conteudo: ConteudoQuestionario): Atualizacao {
   return {
     id: null, pastaId: null, alunoId: '', nomeAluno: null, dataAtualizacao: hojeIso(), fase: 'ABERTA',
-    diasParaData: 0, diasDeAtraso: 0, atrasoAte: null, atrasoMotivo: null, modeloVersao: 0,
+    diasParaData: 0, diasDeAtraso: 0, atrasoAte: null, atrasoMotivo: null, questionarioVersaoNumero: 0,
     questionarioVersaoId: null, questionarioNome: null, modelo: conteudo, respostas: null,
     enviadaEm: null, feedback: null, versao: null, resumo: null,
   };

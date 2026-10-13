@@ -85,9 +85,9 @@ export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:string
 export const atualizacaoAluno = () => requisicao<Atualizacao>('/aluno/atualizacao');
 export const atualizacoesAluno = () => requisicao<Atualizacao[]>('/aluno/atualizacoes');
 export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`/aluno/atualizacoes/${id}`);
-/** A API confere o id da versão; o número só vale para quem não tem o id (cópia antiga no aparelho). */
-export const enviarAtualizacao = (pastaId: string, versao: { questionarioVersaoId?: string | null; modeloVersao: number }, respostas: RespostasAtualizacao) =>
-  requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, questionarioVersaoId: versao.questionarioVersaoId ?? undefined, modeloVersao: versao.modeloVersao, respostas } });
+/** A API confere o id da versão respondida: se o treinador publicou outra no meio, responde 409. */
+export const enviarAtualizacao = (pastaId: string, questionarioVersaoId: string, respostas: RespostasAtualizacao) =>
+  requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, questionarioVersaoId, respostas } });
 // Questionários de atualização (gestão pelo treinador; a API autoriza pelo banco).
 export const listarQuestionarios = (arquivados = false) => requisicao<QuestionarioResumo[]>(`/questionarios?arquivados=${arquivados}`);
 export const opcoesDeQuestionario = () => requisicao<OpcaoQuestionario[]>('/questionarios/opcoes');

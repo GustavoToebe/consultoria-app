@@ -27,8 +27,6 @@ import { FeedbackAtualizacao } from './FeedbackAtualizacao';
 import { QuestionarioAtualizacao } from './QuestionarioAtualizacao';
 
 const SEM_CONEXAO='Sem conexão: suas respostas ficam salvas no aparelho. Envie quando conectar.';
-/** O rascunho identifica a versão pelo id; sem id (cópia antiga no aparelho) cai no número. */
-const versaoDoRascunho=(a:Atualizacao)=>a.questionarioVersaoId?{questionarioVersaoId:a.questionarioVersaoId}:{modeloVersao:a.modeloVersao};
 export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho,abrirAtraso,recarregar}: {
   atualizacao:Atualizacao;somenteLeitura?:boolean;rascunho:RascunhoAtualizacao|null;abrirAtraso:boolean;recarregar:()=>void;
 }) {
@@ -67,17 +65,17 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
   },[atual.id,atual.feedback?.naoLido,online,repositorio,atualizarAtualizacao]);
   const rascunhoRegravado=useRef(false);
   useEffect(()=>{
-    // Rascunho de outra versão (ou antigo, só com o número) vira o da versão em uso: a próxima abertura já o encontra assim.
+    // Rascunho de outra versão vira o da versão em uso: a próxima abertura já o encontra assim.
     // Só uma vez por montagem: `atualizacao` chega novo a cada foco e não pode sobrescrever o que o aluno digitou depois.
-    if(rascunhoRegravado.current||!rascunhoAdaptado||!atualizacao.pastaId)return;
+    if(rascunhoRegravado.current||!rascunhoAdaptado||!atualizacao.pastaId||!atualizacao.questionarioVersaoId)return;
     rascunhoRegravado.current=true;
-    void repositorio.salvarRascunhoAtualizacao(atualizacao.pastaId,{...versaoDoRascunho(atualizacao),respostas:vigente.respostas}).catch(()=>undefined);
+    void repositorio.salvarRascunhoAtualizacao(atualizacao.pastaId,{questionarioVersaoId:atualizacao.questionarioVersaoId,respostas:vigente.respostas}).catch(()=>undefined);
   },[rascunhoAdaptado,atualizacao,repositorio,vigente.respostas]);
   const mudar=(id:string,valor:RespostaAtualizacao)=>{
     const novas={...respostas,[id]:valor};
     setRespostas(novas);
     setErros(atuais=>{const copia={...atuais};delete copia[id];return copia;});
-    if(atual.pastaId) void repositorio.salvarRascunhoAtualizacao(atual.pastaId,{...versaoDoRascunho(atual),respostas:novas})
+    if(atual.pastaId && atual.questionarioVersaoId) void repositorio.salvarRascunhoAtualizacao(atual.pastaId,{questionarioVersaoId:atual.questionarioVersaoId,respostas:novas})
       .catch(()=>avisar('Não foi possível salvar o rascunho no aparelho.','perigo'));
   };
   const mostrarErros=(novos:Record<string,string>)=>{
@@ -91,13 +89,13 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     avisar(novos.respostas??novos.data??'Confira os campos indicados.');
   };
   const enviar=async()=>{
-    if(!atual.modelo || !atual.pastaId)return;
+    if(!atual.modelo || !atual.pastaId || !atual.questionarioVersaoId)return;
     const encontrados=errosRespostasAtualizacao(atual.modelo,respostas);
     if(Object.keys(encontrados).length){mostrarErros(encontrados);return;}
     if(!online){avisar(SEM_CONEXAO);return;}
     setOcupado(true);
     try {
-      const resultado=await enviarAtualizacao(atual.pastaId,{questionarioVersaoId:atual.questionarioVersaoId,modeloVersao:atual.modeloVersao},respostas);
+      const resultado=await enviarAtualizacao(atual.pastaId,atual.questionarioVersaoId,respostas);
       await atualizarAtualizacao(resultado);
       await repositorio.apagarRascunhoAtualizacao(atual.pastaId);
       setAtual(resultado);setEnviada(true);
@@ -113,7 +111,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
           // Guarda o que está na tela (com a versão antiga) para a remontagem reconciliar com o questionário novo.
           // Já enviada: o rascunho não serve mais.
           if(erro.codigo==='ATUALIZACAO_JA_ENVIADA') await repositorio.apagarRascunhoAtualizacao(atual.pastaId).catch(()=>undefined);
-          else await repositorio.salvarRascunhoAtualizacao(atual.pastaId,{...versaoDoRascunho(atual),respostas}).catch(()=>undefined);
+          else await repositorio.salvarRascunhoAtualizacao(atual.pastaId,{questionarioVersaoId:atual.questionarioVersaoId,respostas}).catch(()=>undefined);
           recarregar();
         }
       }

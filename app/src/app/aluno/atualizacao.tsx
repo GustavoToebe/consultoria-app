@@ -18,7 +18,7 @@ export default function AtualizacaoAluno() {
   const pasta=resultado.dados?.pastaId;
   // A versão do questionário entra na chave: depois de uma troca (409) o rascunho é lido de novo, e o formulário só
   // monta quando o rascunho da chave atual chegou, senão remontaria com o anterior e perderia as respostas.
-  const versao=resultado.dados?.questionarioVersaoId??`n${resultado.dados?.modeloVersao}`;
+  const versao=resultado.dados?.questionarioVersaoId;
   const chave=pasta?`${pasta}:${online}:${versao}`:null;
   const rascunho=useCarregar(chave,async c=>({chave:c,valor:await repositorio.lerRascunhoAtualizacao(pasta!)}));
   return <Tela largura={720} rolar={false} bordas={['top']}>

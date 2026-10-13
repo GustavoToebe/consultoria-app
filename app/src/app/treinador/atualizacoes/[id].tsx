@@ -39,7 +39,7 @@ export default function AtualizacaoTreinador() {
         {rotulo:`Atualização ${dataParaTela(a?.dataAtualizacao??null)}`},
       ]} />
     <Texto variante="suave">Respostas do aluno nesta pasta e o seu feedback.</Texto>
-    {a?.questionarioNome?<Texto variante="pequeno">Questionário: {a.questionarioNome} · versão {a.modeloVersao}</Texto>:null}
+    {a?.questionarioNome?<Texto variante="pequeno">Questionário: {a.questionarioNome} · versão {a.questionarioVersaoNumero}</Texto>:null}
     {detalhe.erro?<MensagemErro texto={textoDoErro(detalhe.erro)} tentarDeNovo={detalhe.recarregar} />:null}
     {detalhe.carregando?<Esqueleto />:null}
     {a?.modelo?<>

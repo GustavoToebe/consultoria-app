@@ -247,7 +247,7 @@ class DietaErgogenicosIntegrationTest extends AbstractIntegrationTest {
         String id = plano.path("plano").path("id").asString();
         JsonNode salvo = salvar(api, login, id, dieta(List.of(medicacao(NOME))), plano);
 
-        // Editor aberto antes de ganhar a permissão (ou app antigo): manda a lista nula e não pode apagá-la.
+        // Editor aberto antes de ganhar a permissão: manda a lista nula e não pode apagá-la.
         JsonNode semLista = salvar(api, login, id, dieta(null), salvo);
         assertThat(semLista.path("rascunho").path("ergogenicos")).hasSize(1);
 

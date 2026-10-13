@@ -1,6 +1,6 @@
 import { ErroApi } from '../api/cliente';
 import type { LoteResponse, RegistroEnvio } from '../api/tipos';
-import { emMemoria, type ChaveValor } from './armazenamento';
+import { emMemoria } from './armazenamento';
 import { fabricaNode, type FabricaDeTeste } from './bancoNode.apoioTeste';
 import { RepositorioChaveValor, type DadosRegistro, type RepositorioLocal } from './repositorioLocal';
 import { RepositorioSqlite } from './repositorioSqlite';
@@ -82,13 +82,6 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     await repo.salvarRascunhoAtualizacao('p1',salvo);
     expect(await aparelho('u1').lerRascunhoAtualizacao('p1')).toBeNull();
     expect(await aparelho('u1').lerRascunhoAtualizacao('p2')).toBeNull();
-  });
-
-  it('rascunho antigo da atualização (só o número da versão) continua legível', async () => {
-    const repo = aparelho('u1');
-    const antigo = {modeloVersao:1,respostas:{peso:80.5}};
-    await repo.salvarRascunhoAtualizacao('p1',antigo);
-    expect(await repo.lerRascunhoAtualizacao('p1')).toEqual(antigo);
   });
 
   it('histórico da semana fica isolado, sobrevive à reabertura e sai ao desconectar a conta', async () => {
@@ -309,55 +302,5 @@ describe('SQLite no celular', () => {
       }),
     ).rejects.toThrow();
     expect(await banco.todos('select a from t')).toEqual([]);
-  });
-
-  describe('migração do AsyncStorage da versão anterior', () => {
-    async function antigo(kv: ChaveValor, usuarioId: string) {
-      const velho = new RepositorioChaveValor(kv, usuarioId, novoId, agora);
-      await velho.salvarPacote({ marca: { nome: 'Saraiva' } } as unknown as Parameters<RepositorioLocal['salvarPacote']>[0]);
-      await velho.salvarCargaDeTrabalho('e1', '2026-10-07', 30);
-      const pendente = await velho.registrar(serie('p'));
-      const enviado = await velho.registrar(serie('e'));
-      await velho.aplicarResultados([enviado], [{ id: enviado.id, situacao: 'ACEITO', motivo: null }]);
-      return { pendente, enviado };
-    }
-
-    it('traz pacote, cargas e registros (com a situação) e apaga do AsyncStorage', async () => {
-      const kv = emMemoria();
-      const { pendente } = await antigo(kv, 'u1');
-      await kv.gravar('treinos:outro:registros', '[]');
-      const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora, kv);
-      const registros = await repo.listar();
-      expect(registros.map((r) => [r.serieUid, r.situacao])).toEqual([
-        ['p', 'LOCAL'],
-        ['e', 'ENVIADO'],
-      ]);
-      expect((await repo.pendentes()).map((r) => r.id)).toEqual([pendente.id]);
-      expect((await repo.lerPacote())?.pacote).toEqual({ marca: { nome: 'Saraiva' } });
-      expect(await repo.lerCargasDeTrabalho()).toEqual({ 'e1|2026-10-07': 30 });
-      expect([...kv.dados.keys()]).toEqual(['treinos:outro:registros']);
-    });
-
-    it('não sobrescreve o que já está no SQLite e rodar de novo não muda nada', async () => {
-      const kv = emMemoria();
-      const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora, kv);
-      const atual = await repo.registrar(serie('p', { carga: 40 }));
-      await repo.fechar();
-      await antigo(kv, 'u1');
-      const [r] = (await repo.listar()).filter((x) => x.serieUid === 'p');
-      expect(r).toMatchObject({ id: atual.id, carga: 40 });
-      expect(kv.dados.size).toBe(0);
-    });
-
-    it('registro antigo malformado fica de fora sem travar o app', async () => {
-      const kv = emMemoria();
-      await kv.gravar('treinos:u1:registros', JSON.stringify([{ id: 'sem-campos' }]));
-      await kv.gravar('treinos:u1:pacote', '{json quebrado');
-      const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora, kv);
-      expect(await repo.listar()).toEqual([]);
-      expect(await repo.lerPacote()).toBeNull();
-      await repo.registrar(serie('x'));
-      expect(await repo.listar()).toHaveLength(1);
-    });
   });
 });

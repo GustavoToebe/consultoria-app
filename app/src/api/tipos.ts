@@ -330,7 +330,7 @@ export interface Suplemento {
   dose: string;
   horario: string;
   observacao: string;
-  /** Link https do produto (copiado da biblioteca); versões antigas não têm. */
+  /** Link https do produto (copiado da biblioteca); nulo quando não há. */
   link: string | null;
 }
 
@@ -604,10 +604,6 @@ export interface PerguntaAtualizacao {
 export interface SecaoAtualizacao { uid?: string; titulo: string; perguntas: PerguntaAtualizacao[] }
 /** Conteúdo (formato 2) de um questionário: o rascunho e cada versão publicada. */
 export interface ConteudoQuestionario { formato?: number; instrucoes: string[]; secoes: SecaoAtualizacao[] }
-export interface ModeloAtualizacao extends ConteudoQuestionario {
-  /** Só nos modelos antigos (formato 1); o número da versão do questionário vem fora do conteúdo. */
-  versao?: number;
-}
 export interface Atualizacao {
   id: string | null;
   pastaId: string | null;
@@ -619,11 +615,12 @@ export interface Atualizacao {
   diasDeAtraso: number;
   atrasoAte: string | null;
   atrasoMotivo: string | null;
-  modeloVersao: number;
-  /** Versão do questionário em uso (a fixada no envio, ou a que vale hoje enquanto aberta). Ausente em cópia antiga no aparelho. */
-  questionarioVersaoId?: string | null;
-  questionarioNome?: string | null;
-  modelo: ModeloAtualizacao | null;
+  /** Número da versão do questionário em uso (0 sem pasta). */
+  questionarioVersaoNumero: number;
+  /** Versão do questionário em uso (a fixada no envio, ou a que vale hoje enquanto aberta); nula sem pasta. */
+  questionarioVersaoId: string | null;
+  questionarioNome: string | null;
+  modelo: ConteudoQuestionario | null;
   respostas: RespostasAtualizacao | null;
   enviadaEm: string | null;
   feedback: { texto: string; em: string; editadoEm: string | null; naoLido: boolean; nomeAutor?: string | null } | null;

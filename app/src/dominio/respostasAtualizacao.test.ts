@@ -1,7 +1,7 @@
-import type { ModeloAtualizacao, RespostasAtualizacao } from '../api/tipos';
+import type { ConteudoQuestionario, RespostasAtualizacao } from '../api/tipos';
 import { LIMITES_QUESTIONARIO } from './questionario';
 import { errosRespostasAtualizacao } from './respostasAtualizacao';
-const modelo:ModeloAtualizacao={versao:1,instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
+const modelo:ConteudoQuestionario={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
   {id:'peso',tipo:'PESO',rotulo:'Peso',obrigatoria:true},{id:'nota',tipo:'NOTA',rotulo:'Nota',obrigatoria:true},
   {id:'texto',tipo:'TEXTO',rotulo:'Texto',obrigatoria:false},{id:'dias',tipo:'NOTAS_POR_DIA',rotulo:'Dias',obrigatoria:false,dias:[1,2]},
 ]}]};
@@ -16,7 +16,7 @@ it.each(invalidas)('recusa formato ou faixa inválida',respostas=>{
 });
 
 // Os quatro tipos novos: as regras campo a campo estão nas fixtures de paridade com o Java.
-const novos:ModeloAtualizacao={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
+const novos:ConteudoQuestionario={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
   {id:'e',tipo:'ESCOLHA_UNICA',rotulo:'E',obrigatoria:true,opcoes:[{id:'a',rotulo:'A'},{id:'b',rotulo:'B'}]},
   {id:'m',tipo:'MULTIPLA_ESCOLHA',rotulo:'M',obrigatoria:false,opcoes:[{id:'a',rotulo:'A'},{id:'b',rotulo:'B'}]},
   {id:'n',tipo:'NUMERO',rotulo:'N',obrigatoria:false,min:0,max:10,casas:1},

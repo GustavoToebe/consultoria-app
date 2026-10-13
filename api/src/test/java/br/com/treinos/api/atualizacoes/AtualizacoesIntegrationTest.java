@@ -63,8 +63,13 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
     private JsonNode enviar(Map<String,Object> respostas,int status) throws Exception {
         return enviarNa(pastaAtual(),respostas,status);
     }
+    /** Id da versão do questionário que o aluno está vendo (um qualquer quando não há pasta: o envio falha antes de conferir). */
+    private String versaoAtual() throws Exception {
+        String versao = api.get("/aluno/atualizacao",loginAluno,200).path("questionarioVersaoId").asString();
+        return versao.isEmpty() ? UUID.randomUUID().toString() : versao;
+    }
     private JsonNode enviarNa(String pasta,Map<String,Object> respostas,int status) throws Exception {
-        return api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("pastaId",pasta,"modeloVersao",1,"respostas",respostas),status);
+        return api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("pastaId",pasta,"questionarioVersaoId",versaoAtual(),"respostas",respostas),status);
     }
     @Test void semPastaNaoExisteAtualizacaoENaoAceitaEnvio() throws Exception {
         assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("NENHUMA");
@@ -148,7 +153,7 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         r = respostas(); r.put("peso",0); conferirCampo(r,"peso");
         r = respostas(); r.put("alim_digestao","x".repeat(501)); conferirCampo(r,"alim_digestao");
         r = respostas(); r.put("fb_pos_treino",Map.of("7",5)); conferirCampo(r,"fb_pos_treino");
-        api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("pastaId",pastaAtual(),"modeloVersao",2,"respostas",respostas()),409);
+        api.post("/aluno/atualizacao/enviar",loginAluno,envioComVersao(pastaAtual(),UUID.randomUUID(),respostas()),409);
         assertThat(api.get("/aluno/atualizacoes",loginAluno,200)).isEmpty();
         assertThat(api.get("/alunos/"+aluno+"/pesos",treinador,200)).isEmpty();
     }
@@ -211,7 +216,7 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/aluno/atualizacoes",loginAluno,200)).hasSize(1);
         // Outro aluno não reaproveita a atualização alheia.
         JsonNode outroAluno = api.convidarEEntrar(treinador,api.criarAluno(treinador,"Outro aluno fictício"));
-        api.post("/aluno/atualizacao/enviar",outroAluno,Map.of("pastaId",antiga,"modeloVersao",1,"respostas",respostas()),404);
+        api.post("/aluno/atualizacao/enviar",outroAluno,envioComVersao(antiga,UUID.randomUUID(),respostas()),404);
     }
     @Test void feedbackTemVersaoEditadoEVisto() throws Exception {
         publicarPasta(hoje);
@@ -371,7 +376,7 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         JsonNode detalhe = api.get("/atualizacoes/"+enviada.path("id").asString(),treinador,200);
         assertThat(detalhe.path("questionarioNome").asString()).isEqualTo("Padrão");
         assertThat(detalhe.path("questionarioVersaoId").asString()).isEqualTo(enviada.path("questionarioVersaoId").asString());
-        assertThat(detalhe.path("modeloVersao").asInt()).isEqualTo(1);
+        assertThat(detalhe.path("questionarioVersaoNumero").asInt()).isEqualTo(1);
         assertThat(detalhe.path("modelo").path("secoes")).hasSize(4);
         assertThat(detalhe.path("respostas").path("peso").decimalValue()).isEqualByComparingTo("80.5");
         // O resumo vem do sistema (registros do período), não do questionário: peso anterior = último registro antes do fim.

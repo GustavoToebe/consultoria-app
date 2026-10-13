@@ -304,10 +304,10 @@ export class RepositorioChaveValor implements RepositorioLocal {
   }
 }
 
-/** Grava só o id da versão do questionário; o rascunho antigo só tem `modeloVersao` e é aceito na leitura. */
-export interface RascunhoAtualizacao { questionarioVersaoId?: string | null; modeloVersao?: number | null; respostas: RespostasAtualizacao }
+/** Rascunho da atualização no aparelho, guardado com o id da versão do questionário que o aluno estava respondendo. */
+export interface RascunhoAtualizacao { questionarioVersaoId: string; respostas: RespostasAtualizacao }
 
-/** Chaves que o repositório chave-valor usa para um usuário (também lidas na migração para o SQLite). */
+/** Chaves que o repositório chave-valor usa para um usuário. */
 export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
 
 export async function apagarChavesDoUsuario(kv: ChaveValor, usuarioId: string): Promise<void> {

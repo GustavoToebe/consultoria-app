@@ -63,11 +63,6 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
   };
 }
 
-/** Texto salvo antes das preferências existirem: só o tema ('ESCURO' ou 'CLARO'). */
-export function preferenciasDoTemaAntigo(valor: string | null): Preferencias {
-  return { ...PREFERENCIAS_PADRAO, tema: valor === 'ESCURO' || valor === 'CLARO' ? valor : 'CONSULTORIA' };
-}
-
 const FATORES: Record<TamanhoTexto, number> = { PADRAO: 1, MEDIO: 1.12, GRANDE: 1.25, EXTRA: 1.4 };
 
 export function fatorDoTexto(tamanho: TamanhoTexto): number {

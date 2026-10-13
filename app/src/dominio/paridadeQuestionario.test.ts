@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ConteudoQuestionario, ModeloAtualizacao, RespostasAtualizacao } from '../api/tipos';
+import type { ConteudoQuestionario, RespostasAtualizacao } from '../api/tipos';
 import { LIMITES_QUESTIONARIO, validarQuestionario } from './questionario';
 import { errosRespostasAtualizacao } from './respostasAtualizacao';
 
@@ -12,7 +12,7 @@ const ler = <T,>(nome: string) =>
   JSON.parse(readFileSync(resolve(__dirname, '../../../api/src/test/resources/paridade-questionario/', nome), 'utf8')) as T;
 
 interface CasoQuestionario { nome: string; conteudo: ConteudoQuestionario; erros: string[]; avisos: string[] }
-interface CasoRespostas { nome: string; modelo: ModeloAtualizacao; respostas: RespostasAtualizacao; camposComErro: string[] }
+interface CasoRespostas { nome: string; modelo: ConteudoQuestionario; respostas: RespostasAtualizacao; camposComErro: string[] }
 
 it('limites iguais aos do Java', () => {
   expect(LIMITES_QUESTIONARIO).toEqual(ler('limites.json'));

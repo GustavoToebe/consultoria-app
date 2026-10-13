@@ -103,7 +103,7 @@ describe('respostasCompativeis', () => {
 });
 
 describe('rascunhoVigente', () => {
-  const atual = (id?: string | null) => ({ modelo, questionarioVersaoId: id });
+  const atual = (id: string) => ({ modelo, questionarioVersaoId: id });
   it('sem rascunho não há o que mostrar', () => {
     expect(rascunhoVigente(null, atual('v1'))).toEqual({ respostas: {}, mudou: false, adaptado: false });
   });
@@ -115,20 +115,10 @@ describe('rascunhoVigente', () => {
     const r = rascunhoVigente({ questionarioVersaoId: 'v0', respostas: { dor: false } }, atual('v1'));
     expect(r).toEqual({ respostas: { dor: false }, mudou: true, adaptado: true });
   });
-  it('rascunho antigo (só o número) que não perde nada é adaptado em silêncio', () => {
-    const r = rascunhoVigente({ modeloVersao: 1, respostas: { peso: 80, dor: false } }, atual('v1'));
-    expect(r).toEqual({ respostas: { peso: 80, dor: false }, mudou: false, adaptado: true });
-  });
-  it('rascunho antigo que perde resposta avisa', () => {
-    const r = rascunhoVigente({ modeloVersao: 1, respostas: { dor: false, antiga: 'x' } }, atual('v1'));
+  it('outra versão que perde resposta avisa e descarta só o que não vale mais', () => {
+    const r = rascunhoVigente({ questionarioVersaoId: 'v0', respostas: { dor: false, antiga: 'x' } }, atual('v1'));
     expect(r.respostas).toEqual({ dor: false });
     expect(r.mudou).toBe(true);
-  });
-  it('atualização guardada sem id da versão (null ou ausente) não gera aviso falso', () => {
-    for (const id of [null, undefined]) {
-      const r = rascunhoVigente({ questionarioVersaoId: 'v0', respostas: { dor: true } }, atual(id));
-      expect(r).toEqual({ respostas: { dor: true }, mudou: false, adaptado: true });
-    }
   });
 });
 
