@@ -25,7 +25,9 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean):boo
   if(caminho.startsWith('/treinador/planejamento/modelo')) return tem('MODELO_LER')&&tem('MODELO_ALTERAR');
   if(caminho.startsWith('/treinador/planejamento/questionario')) return tem('QUESTIONARIO_LER');
   // O Planejamento abre para quem lê modelos ou questionários; a tela esconde a aba que a pessoa não pode ver.
-  if(caminho.startsWith('/treinador/planejamento')||caminho==='/treinador/receitas') return tem('MODELO_LER')||tem('QUESTIONARIO_LER');
+  // Qualquer outra subrota segue falhando fechado, com a permissão de modelos.
+  if(caminho==='/treinador/planejamento'||caminho==='/treinador/receitas') return tem('MODELO_LER')||tem('QUESTIONARIO_LER');
+  if(caminho.startsWith('/treinador/planejamento')) return tem('MODELO_LER');
   if(caminho==='/treinador/marca') return tem('MARCA_ALTERAR');
   if(caminho==='/treinador/equipe') return tem('EQUIPE_LER');
   if(caminho==='/treinador/auditoria') return tem('AUDITORIA_LER');

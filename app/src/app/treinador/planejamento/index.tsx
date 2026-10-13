@@ -50,7 +50,9 @@ export default function Planejamento() {
   // `?aba=atualizacao` abre a aba dos questionários; `?novo=1` (atalho da busca do topo) abre o formulário de novo
   // modelo ou, na aba Atualização, de novo questionário; fechar limpa o parâmetro.
   const { novo: pedirNovo, aba: abaPedida } = useLocalSearchParams<{ novo?: string; aba?: string }>();
-  const emAtualizacao = veAtualizacao && (abaEscolhida === null ? abaPedida === 'atualizacao' || !veModelos : abaEscolhida === ABA_ATUALIZACAO);
+  // O pedido da URL vence a aba tocada antes (a tela continua montada quando só o parâmetro muda): `aba=atualizacao`
+  // abre os questionários e `novo=1` sozinho é o "Novo modelo" da busca, que mostra a aba de modelos.
+  const emAtualizacao = veAtualizacao && (abaPedida === 'atualizacao' || !veModelos || (pedirNovo !== '1' && abaEscolhida === ABA_ATUALIZACAO));
   const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
   const formulario = formularioAberto ?? (pedirNovo === '1' && !emAtualizacao ? 'novo' : null);
   const fecharFormulario = () => { setFormulario(null); if (pedirNovo) router.setParams({ novo: undefined }); };

@@ -39,6 +39,10 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/planejamento/questionario/um-id', acesso(['MODELO_LER','MODELO_ALTERAR']))).toBe(false);
     expect(podeAcessarTela('/treinador/planejamento/modelo/um-id', acesso(['QUESTIONARIO_LER']))).toBe(false);
     expect(podeAcessarTela('/treinador/planejamento/modelo/um-id', acesso(['MODELO_LER','MODELO_ALTERAR']))).toBe(true);
+    // Subrota que não é nenhuma das conhecidas não se abre só com questionário.
+    expect(podeAcessarTela('/treinador/planejamento/outra', acesso(['QUESTIONARIO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/planejamento/outra', acesso(['MODELO_LER']))).toBe(true);
+    expect(podeAcessarTela('/treinador/receitas', acesso(['QUESTIONARIO_LER']))).toBe(true);
   });
   it('mobilidade usa as permissões do treino, não as da dieta', () => {
     expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['TREINO_LER','TREINO_ALTERAR']))).toBe(true);
