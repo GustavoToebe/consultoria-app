@@ -8,7 +8,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, listarPastas, replicarPasta } from '../api/rotas';
+import { atualizacaoDoAluno, atualizacoesDoAluno, excluirPasta, finalizarPasta, reabrirPasta, salvarPastaComoModelo, atualizarPasta, criarPasta, escolherQuestionarioDaPasta, listarPastas, replicarPasta } from '../api/rotas';
+import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { dataDaTela, dataParaTela, hojeIso } from '../dominio/formatos';
@@ -136,6 +137,9 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} /></Permitido>
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} /></Permitido>
           </LinhaDeAcoes>
+          {/* Só vale para este período; a atualização ainda aberta passa a usar o questionário escolhido na hora. */}
+          <SeletorDeQuestionario rotulo="Questionário deste período" valor={aberta.questionarioId} rotuloDoNulo="O do aluno" podeAlterar={pode('PASTA_ALTERAR')}
+            aoEscolher={async (questionarioId) => { await escolherQuestionarioDaPasta(aberta.id, questionarioId); recarregar(); recarregarAtualizacoes(); }} />
           {/* A atualização fecha o período e é o ponto central do acompanhamento: fica logo abaixo das ações. */}
           {verAtualizacoes ? <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes}
             aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}

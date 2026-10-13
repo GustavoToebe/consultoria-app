@@ -101,6 +101,11 @@ export const definirQuestionarioPadrao = (id: string) => requisicao<Questionario
 export const arquivarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/arquivar`, { metodo: 'POST' });
 export const desarquivarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/desarquivar`, { metodo: 'POST' });
 export const excluirQuestionario = (id: string) => requisicao<void>(`/questionarios/${id}`, { metodo: 'DELETE' });
+/** `null` volta ao padrão (aluno) ou ao questionário do aluno (pasta). */
+export const escolherQuestionarioDoAluno = (alunoId: string, questionarioId: string | null) =>
+  requisicao<AlunoDetalhe>(`/alunos/${alunoId}/questionario`, { metodo: 'PUT', corpo: { questionarioId } });
+export const escolherQuestionarioDaPasta = (pastaId: string, questionarioId: string | null) =>
+  requisicao<PastaResumo>(`/pastas/${pastaId}/questionario`, { metodo: 'PUT', corpo: { questionarioId } });
 export const avisarAtrasoAtualizacao = (pastaId: string, novaData: string, motivo?: string) =>
   requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { pastaId, novaData, motivo } });
 export const marcarFeedbackVisto = (id: string) =>

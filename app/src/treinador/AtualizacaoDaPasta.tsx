@@ -23,6 +23,7 @@ export function AtualizacaoDaPasta({atualizacao,carregando,aoAbrir}:{atualizacao
             <Texto variante="pequeno">Data da atualização</Texto>
             <Texto numerico variante="bloco">{dataParaTela(registrada.dataAtualizacao)}</Texto>
           </View>
+          {registrada.questionarioNome ? <Texto variante="suave">Questionário: {registrada.questionarioNome}</Texto> : null}
           <Texto variante="suave">{registrada.feedback
             ? `Feedback enviado${registrada.feedback.naoLido ? ' · o aluno ainda não leu' : ' · lido pelo aluno'}`
             : registrada.enviadaEm ? 'Respostas recebidas, aguardando seu feedback.' : 'O aluno ainda não enviou.'}</Texto>

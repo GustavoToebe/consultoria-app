@@ -5,7 +5,7 @@ import { Pencil } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno } from '../../../api/rotas';
+import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, escolherQuestionarioDoAluno } from '../../../api/rotas';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
@@ -15,6 +15,7 @@ import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
 import { CartaoPastas } from '../../../treinador/CartaoPastas';
 import { FormAluno } from '../../../treinador/FormAluno';
 import { ResponsavelAluno } from '../../../treinador/equipe/ResponsavelAluno';
+import { SeletorDeQuestionario } from '../../../treinador/questionarios/SeletorDeQuestionario';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
@@ -123,6 +124,8 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
           <ResponsavelAluno id={aluno.responsavelId}/>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
           <CampoLeitura rotulo="Nova atualização a cada" valor={aluno.diasAtualizacao ? `${aluno.diasAtualizacao} dias` : null} numerico />
+          <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={pode('ALUNO_ALTERAR')}
+            aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); }} />
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
           <View style={estilos.botoes}>
             <Permitido codigo="ALUNO_ALTERAR"><Botao
