@@ -3,6 +3,7 @@ package br.com.treinos.api.questionarios;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.atualizacoes.AtualizacaoModeloRepository;
+import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.pastas.PastaDtos.PastaResumo;
 import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.planos.ResultadoValidacao;
@@ -46,10 +47,12 @@ public class QuestionarioService {
     private final PastaRepository pastas;
     private final ValidadorQuestionario validador;
     private final JsonMapper json;
+    private final Auditoria auditoria;
 
     public QuestionarioService(QuestionarioRepository questionarios, QuestionarioVersaoRepository versoes,
                                AtualizacaoModeloRepository fabrica, AlunoRepository alunos, PastaRepository pastas,
-                               ValidadorQuestionario validador, JsonMapper json) {
+                               ValidadorQuestionario validador, JsonMapper json, Auditoria auditoria) {
+        this.auditoria = auditoria;
         this.questionarios = questionarios;
         this.versoes = versoes;
         this.fabrica = fabrica;
@@ -152,9 +155,8 @@ public class QuestionarioService {
         return detalhe(gravar(new Questionario(nome, origem.getDescricao(), origem.getRascunho())));
     }
 
+    /** Idempotente: repetir o pedido no que já é o padrão responde 200 sem auditar. */
     @Transactional
-    @br.com.treinos.api.auditoria.Auditar(acao = "QUESTIONARIO_PADRAO_ALTERADO", entidade = "QUESTIONARIO",
-            resumo = "Trocou o questionário de atualização padrão.")
     public QuestionarioDetalhe definirPadrao(UUID id) {
         Questionario q = buscarParaAlterar(id);
         if (!q.isUsavel()) {
@@ -168,7 +170,10 @@ public class QuestionarioService {
         questionarios.findByPadraoTrue().ifPresent(atual -> atual.definirPadrao(false));
         questionarios.flush();
         q.definirPadrao(true);
-        return detalhe(gravar(q));
+        Questionario gravado = gravar(q);
+        auditoria.registrarEvento("QUESTIONARIO_PADRAO_ALTERADO", "QUESTIONARIO", gravado.getId(),
+                "Trocou o questionário de atualização padrão.");
+        return detalhe(gravado);
     }
 
     @Transactional
@@ -184,16 +189,19 @@ public class QuestionarioService {
         return detalhe(gravar(q));
     }
 
+    /** Idempotente: desarquivar o que não está arquivado responde 200 sem gravar nem auditar. */
     @Transactional
-    @br.com.treinos.api.auditoria.Auditar(acao = "QUESTIONARIO_DESARQUIVADO", entidade = "QUESTIONARIO",
-            resumo = "Desarquivou um questionário de atualização.")
     public QuestionarioDetalhe desarquivar(UUID id) {
         Questionario q = buscar(id);
-        if (q.isArquivado()) {
-            exigirNomeLivre(q.getNome(), q.getId());
-            q.desarquivar();
+        if (!q.isArquivado()) {
+            return detalhe(q);
         }
-        return detalhe(gravar(q));
+        exigirNomeLivre(q.getNome(), q.getId());
+        q.desarquivar();
+        Questionario gravado = gravar(q);
+        auditoria.registrarEvento("QUESTIONARIO_DESARQUIVADO", "QUESTIONARIO", gravado.getId(),
+                "Desarquivou um questionário de atualização.");
+        return detalhe(gravado);
     }
 
     /**

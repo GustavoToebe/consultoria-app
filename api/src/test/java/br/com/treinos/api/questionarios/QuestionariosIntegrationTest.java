@@ -307,7 +307,8 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
         assertThat(banco.queryForObject("select count(*) from questionario where consultoria_id=? and padrao",
                 Integer.class, consultoria())).isEqualTo(1);
         assertThat(api.get("/questionarios/" + padraoId, treinador, 200).path("padrao").asBoolean()).isFalse();
-        assertThat(auditorias("QUESTIONARIO_PADRAO_ALTERADO")).isEqualTo(2);
+        // A segunda chamada em "outro" (já é o padrão) responde 200 e não audita.
+        assertThat(auditorias("QUESTIONARIO_PADRAO_ALTERADO")).isEqualTo(1);
 
         String atual = outro.path("id").asString();
         assertThat(api.post("/questionarios/" + atual + "/arquivar", treinador, null, 409).path("codigo").asString())
@@ -358,6 +359,22 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.post("/questionarios/" + a.path("id").asString() + "/desarquivar", treinador, null, 409)
                 .path("codigo").asString()).isEqualTo("QUESTIONARIO_NOME_EM_USO");
         assertThat(auditorias("QUESTIONARIO_ARQUIVADO")).isEqualTo(1);
+        assertThat(auditorias("QUESTIONARIO_DESARQUIVADO")).isZero();
+    }
+
+    @Test
+    void desarquivarAuditaSoQuandoMuda() throws Exception {
+        JsonNode q = publicado("Volta fictício");
+        String id = q.path("id").asString();
+        // Já ativo: 200 sem evento.
+        api.post("/questionarios/" + id + "/desarquivar", treinador, null, 200);
+        assertThat(auditorias("QUESTIONARIO_DESARQUIVADO")).isZero();
+
+        api.post("/questionarios/" + id + "/arquivar", treinador, null, 200);
+        api.post("/questionarios/" + id + "/desarquivar", treinador, null, 200);
+        assertThat(auditorias("QUESTIONARIO_DESARQUIVADO")).isEqualTo(1);
+        api.post("/questionarios/" + id + "/desarquivar", treinador, null, 200);
+        assertThat(auditorias("QUESTIONARIO_DESARQUIVADO")).isEqualTo(1);
     }
 
     @Test
