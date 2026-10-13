@@ -10,7 +10,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   QUESTIONARIO_PADRAO_ALTERADO:'Questionário padrão alterado',QUESTIONARIO_ARQUIVADO:'Questionário de atualização arquivado',QUESTIONARIO_DESARQUIVADO:'Questionário de atualização desarquivado',QUESTIONARIO_EXCLUIDO:'Questionário de atualização excluído',
   ALUNO_QUESTIONARIO_ALTERADO:'Questionário do aluno alterado',
   LESAO_REGISTRADA:'Lesão registrada',LESAO_ALTERADA:'Lesão editada',PESO_REGISTRADO:'Peso registrado',
-  ATUALIZACAO_FEEDBACK:'Feedback de atualização enviado ou editado',MARCA_ALTERADA:'Marca alterada',METODOLOGIA_ALTERADA:'Metodologia alterada',
+  ATUALIZACAO_FEEDBACK:'Feedback de atualização enviado ou editado',MARCA_ALTERADA:'Marca alterada',
   LOGO_ALTERADA:'Logo alterada',LOGO_REMOVIDA:'Logo removida',
   CSV_EXERCICIOS_IMPORTADO:'CSV de exercícios importado',CSV_ALIMENTOS_IMPORTADO:'CSV de alimentos importado',
 };

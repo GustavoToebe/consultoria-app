@@ -30,7 +30,7 @@ public class MarcaController {
         this.marcas = marcas;
     }
 
-    @PreAuthorize("hasAuthority('PERM_TREINO_LER') or hasAuthority('PERM_DIETA_LER') or hasAuthority('PERM_MODELO_LER') or hasAuthority('PERM_MARCA_ALTERAR') or hasAuthority('PERM_METODOLOGIA_ALTERAR')")
+    @PreAuthorize("hasAuthority('PERM_TREINO_LER') or hasAuthority('PERM_DIETA_LER') or hasAuthority('PERM_MODELO_LER') or hasAuthority('PERM_MARCA_ALTERAR')")
     @GetMapping
     public ConsultoriaResponse consultoria(@AuthenticationPrincipal UsuarioAutenticado eu) {
         return marcas.consultoria(eu.consultoriaId());
