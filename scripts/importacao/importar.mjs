@@ -432,7 +432,7 @@ async function importarErgogenicos() {
  * apagar o que o treinador editou. O mesmo texto está em Plano16.INSTRUCOES (um teste da API confere os dois).
  */
 async function importarInstrucoes(padrao) {
-  if (!padrao) { rel.instrucoes = 'sem metodologia padrão na consultoria: instruções não gravadas'; return; }
+  if (!padrao) { rel.instrucoes = 'ATENÇÃO: a consultoria não tem nenhuma metodologia, as instruções NÃO foram gravadas (crie uma em Planejamento e rode de novo)'; process.exitCode = 1; return; }
   const texto = readFileSync(join(AQUI, 'dados', 'instrucoes-plano16.txt'), 'utf8');
   const atual = padrao.conteudo?.instrucoesTreino ?? '';
   if (atual.trim() !== '' && !SUBSTITUIR) { rel.instrucoes = 'a metodologia padrão já tem instruções, mantida'; return; }

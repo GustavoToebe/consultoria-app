@@ -37,7 +37,8 @@ public class ProvisionamentoService {
     static final String TIPO = "PROVISIONAR";
     static final int VALIDADE_CONVITE_DIAS = 7;
 
-    public record Resultado(int status, JsonNode corpo, boolean repeticao) { }
+    /** {@code consultoriaNova} só vem preenchida quando esta chamada criou a consultoria (não em repetição nem adoção). */
+    public record Resultado(int status, JsonNode corpo, boolean repeticao, UUID consultoriaNova) { }
 
     public record ConviteEmitido(String link, Instant expiraEm) { }
 
@@ -69,7 +70,7 @@ public class ProvisionamentoService {
             if (!anterior.get().hashCorpo().equals(hashCorpo)) {
                 throw new ConflitoException("A mesma Idempotency-Key já foi usada com outro corpo.", "IDEMPOTENCY_KEY_CONFLITO");
             }
-            return new Resultado(200, json.readTree(anterior.get().resposta()), true);
+            return new Resultado(200, json.readTree(anterior.get().resposta()), true, null);
         }
         validar(chave, r);
         String email = Emails.normalizar(r.administrador().email());
@@ -122,7 +123,7 @@ public class ProvisionamentoService {
         if (convite != null) {
             administrador.put("convite", Map.of("link", convite.link(), "expiraEm", convite.expiraEm()));
         }
-        return new Resultado(201, json.valueToTree(resposta), false);
+        return new Resultado(201, json.valueToTree(resposta), false, convite == null ? null : consultoriaId);
     }
 
     /**

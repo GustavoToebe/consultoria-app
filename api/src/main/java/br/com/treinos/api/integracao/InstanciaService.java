@@ -3,6 +3,8 @@ package br.com.treinos.api.integracao;
 import br.com.treinos.api.conta.ContaLocalRepositorio;
 import br.com.treinos.api.conta.DireitosLocais;
 import br.com.treinos.api.conta.RecursosDoApp;
+import br.com.treinos.api.receitas.ReceitaService;
+import br.com.treinos.api.tenant.TenantContext;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,14 +26,17 @@ public class InstanciaService {
     private final IntegracaoRepositorio repositorio;
     private final ContaLocalRepositorio contas;
     private final AcessoPorDireitos acesso;
+    private final ReceitaService receitas;
 
     public InstanciaService(ProvisionamentoService provisionamento, DireitosService direitos,
-                            IntegracaoRepositorio repositorio, ContaLocalRepositorio contas, AcessoPorDireitos acesso) {
+                            IntegracaoRepositorio repositorio, ContaLocalRepositorio contas, AcessoPorDireitos acesso,
+                            ReceitaService receitas) {
         this.provisionamento = provisionamento;
         this.direitos = direitos;
         this.repositorio = repositorio;
         this.contas = contas;
         this.acesso = acesso;
+        this.receitas = receitas;
     }
 
     /**
@@ -41,10 +46,25 @@ public class InstanciaService {
      */
     public ProvisionamentoService.Resultado provisionar(UUID chave, String hashCorpo, ProvisionarRequest r) {
         try {
-            return provisionamento.provisionar(chave, hashCorpo, r);
+            return comReceitasPadrao(provisionamento.provisionar(chave, hashCorpo, r));
         } catch (DataIntegrityViolationException corrida) {
-            return provisionamento.provisionar(chave, hashCorpo, r);
+            return comReceitasPadrao(provisionamento.provisionar(chave, hashCorpo, r));
         }
+    }
+
+    /**
+     * A consultoria criada pela Central nasce com as mesmas receitas do cadastro (inclusive a metodologia que todo plano
+     * recebe). Depois do commit do provisionamento, em transação própria dentro do tenant: o Hibernate lê o tenant ao
+     * abrir a sessão, e a que gravou a consultoria abriu sem ele.
+     */
+    private ProvisionamentoService.Resultado comReceitasPadrao(ProvisionamentoService.Resultado resultado) {
+        if (resultado.consultoriaNova() != null) {
+            TenantContext.executarComo(resultado.consultoriaNova(), () -> {
+                receitas.criarPadrao();
+                return null;
+            });
+        }
+        return resultado;
     }
 
     public ProvisionamentoService.ConviteEmitido reemitirConvite(UUID consultoriaId) {

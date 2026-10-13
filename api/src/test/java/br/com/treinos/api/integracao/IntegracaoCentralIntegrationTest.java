@@ -359,6 +359,21 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void consultoriaCriadaPelaCentralNasceComAsReceitasPadraoEARepeticaoNaoDuplica() throws Exception {
+        UUID contratacao = UUID.randomUUID();
+        Map<String, Object> corpo = pedido(contratacao, ApiDeTeste.emailUnico("admin"), slugUnico());
+        JsonNode resposta = central("POST", "/integracao/v1/instancias", corpo, contratacao, 201);
+        UUID tenant = UUID.fromString(resposta.path("tenantId").asString());
+        Long modelos = jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant);
+        assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and tipo = 'METODOLOGIA'",
+                Long.class, tenant)).isEqualTo(1L);
+        // Mesma Idempotency-Key e mesmo corpo: devolve a resposta gravada, sem criar as receitas de novo.
+        central("POST", "/integracao/v1/instancias", corpo, contratacao, 200);
+        assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant))
+                .isEqualTo(modelos);
+    }
+
+    @Test
     void reemiteOConviteEOAnteriorDeixaDeValer() throws Exception {
         UUID contratacao = UUID.randomUUID();
         JsonNode resposta = provisionar(contratacao, ApiDeTeste.emailUnico("admin"));

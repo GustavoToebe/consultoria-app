@@ -110,11 +110,13 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         for (JsonNode m : api.get("/receitas?tipo=METODOLOGIA", treinador, 200)) {
             api.delete("/receitas/" + m.get("id").asString(), treinador, 204);
         }
-        var publicado = api.publicarTreino(treinador, aluno, ApiDeTeste.treino().conteudo());
-        assertThat(publicado.at("/rascunho/metodologia").isNull() || publicado.at("/rascunho/metodologia").isMissingNode()).isTrue();
+        api.publicarTreino(treinador, aluno, ApiDeTeste.treino().conteudo());
         var padrao = ConfiguracaoConsultoria.padrao();
         var login = api.convidarEEntrar(treinador, aluno);
-        var configuracao = api.get("/aluno/painel", login, 200).get("configuracao");
+        var painel = api.get("/aluno/painel", login, 200);
+        assertThat(painel.at("/treino/conteudo/sessoes")).isNotEmpty();
+        assertThat(painel.at("/treino/conteudo/metodologia").isNull() || painel.at("/treino/conteudo/metodologia").isMissingNode()).isTrue();
+        var configuracao = painel.get("configuracao");
         assertThat(configuracao.get("tipoTrabalho").asString()).isEqualTo(padrao.tipoTrabalho());
         assertThat(configuracao.get("arredondamentoKg").decimalValue()).isEqualByComparingTo(padrao.arredondamentoKg());
     }
