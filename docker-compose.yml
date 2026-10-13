@@ -25,6 +25,7 @@ services:
   api:
     build: ./api
     restart: unless-stopped
+    mem_limit: 768m
     environment:
       SPRING_PROFILES_ACTIVE: docker,demo
       DB_URL: jdbc:postgresql://db:5432/treinos
