@@ -193,7 +193,7 @@ export function obsLimpa(obs) {
 }
 
 // ---------------------------------------------------------------- relatório
-const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set() };
+const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '' };
 const falar = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------- biblioteca
@@ -426,12 +426,30 @@ async function importarErgogenicos() {
   }
 }
 
+/**
+ * As instruções do Plano 16 (FS, cálculo, WS, back off) vão na metodologia padrão, que a API copia para todo plano novo
+ * e que chega ao aluno e ao PDF. Só preenche se a metodologia estiver sem instruções (ou com --substituir), para não
+ * apagar o que o treinador editou. O mesmo texto está em Plano16.INSTRUCOES (um teste da API confere os dois).
+ */
+async function importarInstrucoes(padrao) {
+  if (!padrao) { rel.instrucoes = 'sem metodologia padrão na consultoria: instruções não gravadas'; return; }
+  const texto = readFileSync(join(AQUI, 'dados', 'instrucoes-plano16.txt'), 'utf8');
+  const atual = padrao.conteudo?.instrucoesTreino ?? '';
+  if (atual.trim() !== '' && !SUBSTITUIR) { rel.instrucoes = 'a metodologia padrão já tem instruções, mantida'; return; }
+  if (atual === texto) { rel.instrucoes = 'a metodologia padrão já tem as instruções do Plano 16'; return; }
+  if (SIMULAR) { rel.instrucoes = 'as instruções do Plano 16 seriam gravadas na metodologia padrão'; return; }
+  await chamar('PUT', `/receitas/${padrao.id}`, { ...padrao, conteudo: { ...padrao.conteudo, instrucoesTreino: texto } });
+  rel.instrucoes = 'instruções do Plano 16 gravadas na metodologia padrão';
+}
+
 // ---------------------------------------------------------------- principal
 async function principal() {
   await entrar();
   falar(SIMULAR ? 'SIMULAÇÃO: nada será gravado.' : 'Gravando na API', BASE);
-  const config = await chamar('GET', '/consultoria');
-  const regra = Object.fromEntries(Object.entries(config?.configuracao?.regraPreparacao ?? REGRA_PADRAO).map(([k, v]) => [Number(k), v]));
+  // A metodologia padrão é a primeira do tipo METODOLOGIA (a mesma que a API vincula a todo plano novo).
+  const padrao = (await chamar('GET', '/receitas?tipo=METODOLOGIA'))?.[0] ?? null;
+  const regra = Object.fromEntries(Object.entries(padrao?.conteudo?.regraPreparacao ?? REGRA_PADRAO).map(([k, v]) => [Number(k), v]));
+  await importarInstrucoes(padrao);
   await carregarBiblioteca();
   await importarVideos();
   await importarModelos(regra);
@@ -448,6 +466,7 @@ async function principal() {
   lista('Links não usados porque o vídeo é de outro exercício', [...rel.linksIgnorados]);
   lista('Exercícios da lista de vídeos sem link', rel.semLink);
   lista('Nomes parecidos na biblioteca (conferir se são o mesmo exercício)', rel.quase);
+  falar(`\nInstruções do Plano 16: ${rel.instrucoes}.`);
   lista('Modelos de treino', rel.modelos);
   lista('Modelos de mobilidade', rel.mobilidade);
   lista('Suplementos', rel.suplementos);

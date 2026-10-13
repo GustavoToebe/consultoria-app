@@ -88,6 +88,37 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/aluno/painel", loginAluno, 200).at("/configuracao/tipoTrabalho").asString()).isEqualTo("WS");
     }
 
+    @Test void todoPlanoDeTreinoNasceComAPrimeiraMetodologiaDaConsultoria() throws Exception {
+        var padrao = api.get("/receitas?tipo=METODOLOGIA", treinador, 200).get(0);
+        var vazio = api.post("/alunos/" + aluno + "/planos-treino", treinador, Map.of("titulo", "Plano vazio fictício"), 200);
+        assertThat(vazio.at("/rascunho/metodologia/id").asString()).isEqualTo(padrao.get("id").asString());
+        assertThat(vazio.at("/rascunho/metodologia/configuracao/tipoTrabalho").asString()).isEqualTo("WS");
+
+        // Modelo de semana sem metodologia e pacote: o plano aplicado também recebe a padrão.
+        var semana = aplicar(modelo("PLANO_TREINO", ApiDeTeste.treino().conteudo()), aluno);
+        assertThat(plano(semana).at("/rascunho/metodologia/id").asString()).isEqualTo(padrao.get("id").asString());
+        var pacote = aplicar(modelo("PASTA_PLANO", Map.of("planos", List.of(
+                Map.of("titulo", "Semana fictícia", "treino", ApiDeTeste.treino().conteudo())))), aluno);
+        var doPacote = api.get("/alunos/" + aluno + "/planos-treino", treinador, 200);
+        var idDoPacote = doPacote.valueStream().filter(p -> p.get("pastaId").asString().equals(pacote.get("pastaId").asString()))
+                .findFirst().orElseThrow().get("id").asString();
+        assertThat(api.get("/planos-treino/" + idDoPacote, treinador, 200).at("/rascunho/metodologia/id").asString())
+                .isEqualTo(padrao.get("id").asString());
+    }
+
+    @Test void consultoriaSemMetodologiaDeixaOPlanoSemEOPainelUsaOPadrao() throws Exception {
+        for (JsonNode m : api.get("/receitas?tipo=METODOLOGIA", treinador, 200)) {
+            api.delete("/receitas/" + m.get("id").asString(), treinador, 204);
+        }
+        var publicado = api.publicarTreino(treinador, aluno, ApiDeTeste.treino().conteudo());
+        assertThat(publicado.at("/rascunho/metodologia").isNull() || publicado.at("/rascunho/metodologia").isMissingNode()).isTrue();
+        var padrao = ConfiguracaoConsultoria.padrao();
+        var login = api.convidarEEntrar(treinador, aluno);
+        var configuracao = api.get("/aluno/painel", login, 200).get("configuracao");
+        assertThat(configuracao.get("tipoTrabalho").asString()).isEqualTo(padrao.tipoTrabalho());
+        assertThat(configuracao.get("arredondamentoKg").decimalValue()).isEqualByComparingTo(padrao.arredondamentoKg());
+    }
+
     /** Planejamento é o molde: a cópia do aluno e o modelo não se afetam, em nenhum dos dois sentidos. */
     @Test void mudarACopiaDoAlunoNaoAlteraOModeloEMudarOModeloNaoAlteraACopia() throws Exception {
         var modelo = modelo("PLANO_TREINO", ApiDeTeste.treino().conteudo());

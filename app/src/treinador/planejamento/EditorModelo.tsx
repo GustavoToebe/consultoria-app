@@ -2,7 +2,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { LARGURA_EDITOR } from '../../tema/tokens';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { alterarReceita, consultoria } from '../../api/rotas';
+import { alterarReceita } from '../../api/rotas';
 import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos';
 import { normalizarDieta } from '../../dominio/dieta';
 import { tituloDoModelo } from '../../dominio/planoDoAluno';
@@ -18,7 +18,7 @@ import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
-import { useCarregar } from '../../ui/useCarregar';
+import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { CartaoMetodologia } from '../marca/CartaoMetodologia';
@@ -36,7 +36,6 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   const mudarConteudo: typeof setConteudo = (c) => { setConteudo(c); setPendente(true); };
   const [adicionar, setAdicionar] = useState<'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE' | null>(null);
   const { avisar } = useAviso();
-  const consultoriaAtual = useCarregar('config-modelo', consultoria);
   const salvar = async (novoConteudo = conteudo) => {
     if (!nome.trim()) throw new Error('Preencha o nome do modelo.');
     setSalvando(true); setErro(null);
@@ -53,7 +52,7 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
       <Campo rotulo="Descrição" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={400} />
     </Cartao>
     {r.tipo === 'METODOLOGIA' ? <CartaoMetodologia configuracao={conteudo as Configuracao} aoSalvar={salvar} /> : null}
-    {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={consultoriaAtual.dados?.configuracao ?? null} aoMudar={(series) => mudarConteudo({ series })} /> : null}
+    {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={CONFIGURACAO_PADRAO} aoMudar={(series) => mudarConteudo({ series })} /> : null}
     {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={mudarConteudo} /> : null}
     {r.tipo === 'PASTA_PLANO' ? <Cartao titulo="Planos do pacote" descricao="Adicione cópias dos modelos de semana, dieta e mobilidade. Alterar o modelo original depois não modifica este pacote. Para atualizar um item, remova e adicione a versão desejada.">
       {pasta.planos.map((p, i) => <ItemDoPacote key={i} posicao={i} total={pasta.planos.length} plano={p}

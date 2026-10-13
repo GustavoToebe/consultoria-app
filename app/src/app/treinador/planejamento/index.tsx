@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Copy, Ellipsis, Library, Pencil, Trash2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
-import { alterarPastaModelo, alterarReceita, consultoria, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
+import { alterarPastaModelo, alterarReceita, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
 import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
@@ -31,6 +31,7 @@ import { podeAplicarModelo } from '../../../dominio/modelos';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
+import { CONFIGURACAO_PADRAO } from '../../../dominio/metodologiaPadrao';
 
 export default function Planejamento() {
   const { avisar } = useAviso();
@@ -40,7 +41,6 @@ export default function Planejamento() {
   const veAtualizacao = pode('QUESTIONARIO_LER');
   const modelos = useCarregar(veModelos ? 'planejamento' : null, () => listarReceitas());
   const colecoes = useCarregar(veModelos ? 'pastas-modelos' : null, listarPastasModelos);
-  const config = useCarregar(veModelos ? 'consultoria-planejamento' : null, consultoria);
   const [tipoEscolhido, setTipo] = useState<TipoReceita | null>(null);
   const [colecao, setColecao] = useState('*');
   const [busca, setBusca] = useState('');
@@ -95,12 +95,12 @@ export default function Planejamento() {
     {emAtualizacao ? null : <Cartao
       titulo={categoria.rotulo}
       descricao={categoria.descricao}
-      acoes={<Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Novo modelo" aoTocar={() => setFormulario('novo')} desabilitado={!config.dados} motivo="Aguardando a configuração da consultoria." /></Permitido>}>
+      acoes={<Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Novo modelo" aoTocar={() => setFormulario('novo')} /></Permitido>}>
       <View style={estilos.busca}>
         <View style={estilos.campoBusca}><Campo rotulo="Buscar modelo" valor={busca} aoMudar={setBusca} placeholder="Nome do modelo" autoCorrect={false} /></View>
         <Botao rotulo={`Coleção: ${rotuloColecao}`} tipo="secundario" Icone={Library} style={estilos.seletor} aoTocar={() => setEscolherColecao(true)} />
       </View>
-      {modelos.erro || colecoes.erro || config.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? colecoes.erro ?? config.erro)} tentarDeNovo={() => { atualizar(); config.recarregar(); }} /> : null}
+      {modelos.erro || colecoes.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? colecoes.erro)} tentarDeNovo={atualizar} /> : null}
       {!modelos.dados && modelos.carregando ? <Esqueleto /> : null}
       {filtrados?.length === 0 ? <Vazio texto="Nenhum modelo encontrado. Crie um modelo para começar." /> : null}
       {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((r) => <CartaoModelo key={r.id} modelo={r} colecao={nomeDaColecao(r.pastaId)} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)} linhaDeUso={uso.linha}
@@ -118,9 +118,9 @@ export default function Planejamento() {
       <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={ocupado !== null} aoTocar={() => duplicar(menu)} />
       <Botao rotulo="Excluir modelo" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setExcluir(menu); setMenu(null); }} />
     </Folha> : null}
-    {formulario && config.dados ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} colecaoInicial={colecao === '*' ? '' : colecao} colecoes={colecoes.dados ?? []} aoFechar={fecharFormulario} aoSalvar={async (nome, descricao, pastaId) => {
+    {formulario ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} colecaoInicial={colecao === '*' ? '' : colecao} colecoes={colecoes.dados ?? []} aoFechar={fecharFormulario} aoSalvar={async (nome, descricao, pastaId) => {
       if (formulario === 'novo') {
-        const novo = await criarReceita({ tipo, nome, descricao, pastaId, conteudo: conteudoInicial(tipo, config.dados!.configuracao) });
+        const novo = await criarReceita({ tipo, nome, descricao, pastaId, conteudo: conteudoInicial(tipo, CONFIGURACAO_PADRAO) });
         fecharFormulario(); modelos.recarregar(); router.push(`/treinador/planejamento/modelo/${novo.id}`);
       } else { await alterarReceita(formulario.id, { ...formulario, nome, descricao, pastaId }); fecharFormulario(); modelos.recarregar(); }
     }} /> : null}

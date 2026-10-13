@@ -55,6 +55,10 @@ public class PlanoTreinoService extends PlanoServiceBase<PlanoTreino, PlanoTrein
     @Override
     protected String escrever(ConteudoTreino conteudo) {
         ReceitaService.validarMetodologia(conteudo);
+        // Todo plano tem metodologia: o que chega sem uma recebe a padrão da consultoria (criar, aplicar modelo e salvar).
+        if (conteudo.metodologia() == null) {
+            conteudo = receitas.metodologiaPadrao().map(conteudo::comMetodologia).orElse(conteudo);
+        }
         return super.escrever(conteudo);
     }
 

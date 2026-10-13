@@ -9,8 +9,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -19,9 +17,6 @@ import java.util.UUID;
  * Cada treinador é uma consultoria. Tabela raiz do isolamento, por isso sem {@code @TenantId} (exceção registrada no
  * {@code ArquiteturaTest}). Os bytes da logo não são mapeados aqui para não serem carregados em todo login; só o
  * tipo e a versão, que formam a URL pública.
- *
- * <p>{@code configuracao} é JSON guardado como texto e convertido no service com o Jackson 3:
- * evita depender do FormatMapper do Hibernate.</p>
  */
 @Entity
 @Table(name = "consultoria")
@@ -58,10 +53,6 @@ public class Consultoria {
     @Column(name = "logo_versao", insertable = false, updatable = false)
     private int logoVersao;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false)
-    private String configuracao;
-
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 
@@ -71,10 +62,9 @@ public class Consultoria {
     protected Consultoria() {
     }
 
-    public Consultoria(String nome, String slug, String configuracao) {
+    public Consultoria(String nome, String slug) {
         this.nome = nome;
         this.slug = slug;
-        this.configuracao = configuracao;
     }
 
     public UUID getId() {
@@ -109,10 +99,6 @@ public class Consultoria {
         return logoVersao;
     }
 
-    public String getConfiguracao() {
-        return configuracao;
-    }
-
     public Instant getCriadoEm() {
         return criadoEm;
     }
@@ -126,9 +112,5 @@ public class Consultoria {
         this.corPrimaria = corPrimaria;
         this.fonteTitulo = fonteTitulo;
         this.temaPadrao = temaPadrao;
-    }
-
-    public void alterarConfiguracao(String configuracao) {
-        this.configuracao = configuracao;
     }
 }

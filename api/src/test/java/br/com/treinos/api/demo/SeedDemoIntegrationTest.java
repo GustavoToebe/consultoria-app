@@ -44,8 +44,6 @@ class SeedDemoIntegrationTest extends AbstractIntegrationTest {
         assertThat(aluno.get("planoAtivo").get("titulo").asString()).isEqualTo("Plano 16");
         assertThat(aluno.get("temAcesso").asBoolean()).isTrue();
         assertThat(api.get("/alunos/" + aluno.get("id").asString() + "/pesos", saraiva, 200)).hasSize(4);
-        assertThat(api.get("/consultoria", saraiva, 200).get("configuracao").get("instrucoesTreino").asString())
-                .contains("Feeder Set");
 
         // Treino e dieta da pasta "Plano 16" têm o período dela (a dieta já saiu "Sem período").
         String alunoId = aluno.get("id").asString();
@@ -61,6 +59,9 @@ class SeedDemoIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode alunoLogado = entrar(SeedDemo.ALUNO);
         JsonNode painel = api.get("/aluno/painel", alunoLogado, 200);
+        // As instruções do Plano 16 chegam ao aluno pela metodologia do plano (a padrão do Saraiva).
+        assertThat(painel.at("/configuracao/instrucoesTreino").asString()).contains("Feeder Set");
+        assertThat(painel.at("/treino/conteudo/metodologia/configuracao/instrucoesTreino").asString()).contains("Feeder Set");
         JsonNode sessoes = painel.get("treino").get("conteudo").get("sessoes");
         assertThat(sessoes).hasSize(8);
         assertThat(sessoes.get(3).get("nome").asString()).isEqualTo("Quinta - Off ativo");

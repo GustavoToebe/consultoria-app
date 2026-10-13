@@ -87,7 +87,6 @@ export interface FaixaRepeticoes {
 
 export interface ConsultoriaResponse {
   marca: Marca;
-  configuracao: Configuracao;
   versao: number;
 }
 

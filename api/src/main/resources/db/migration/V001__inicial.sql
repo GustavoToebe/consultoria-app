@@ -190,7 +190,6 @@ CREATE TABLE public.consultoria (
     logo bytea,
     logo_tipo character varying(20),
     logo_versao integer DEFAULT 0 NOT NULL,
-    configuracao jsonb DEFAULT '{}'::jsonb NOT NULL,
     criado_em timestamp with time zone DEFAULT now() NOT NULL,
     versao bigint DEFAULT 0 NOT NULL,
     CONSTRAINT consultoria_cor_primaria_check CHECK (((cor_primaria)::text ~ '^#[0-9A-Fa-f]{6}$'::text)),

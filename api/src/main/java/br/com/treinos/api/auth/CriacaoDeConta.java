@@ -1,7 +1,6 @@
 package br.com.treinos.api.auth;
 
 import br.com.treinos.api.auth.dto.CadastroTreinadorRequest;
-import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.consultoria.Consultoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.web.ConflitoException;
@@ -10,7 +9,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.text.Normalizer;
 import java.util.Locale;
@@ -24,14 +22,12 @@ public class CriacaoDeConta {
     private final ConsultoriaRepository consultorias;
     private final UsuarioRepository usuarios;
     private final PasswordEncoder passwordEncoder;
-    private final JsonMapper jsonMapper;
 
     public CriacaoDeConta(ConsultoriaRepository consultorias, UsuarioRepository usuarios,
-                          PasswordEncoder passwordEncoder, JsonMapper jsonMapper) {
+                          PasswordEncoder passwordEncoder) {
         this.consultorias = consultorias;
         this.usuarios = usuarios;
         this.passwordEncoder = passwordEncoder;
-        this.jsonMapper = jsonMapper;
     }
 
     @Transactional
@@ -42,7 +38,7 @@ public class CriacaoDeConta {
             throw emailEmUso();
         }
         Consultoria consultoria = consultorias.save(new Consultoria(request.nomeConsultoria().trim(),
-                slugUnico(request.nomeConsultoria()), jsonMapper.writeValueAsString(ConfiguracaoConsultoria.padrao())));
+                slugUnico(request.nomeConsultoria())));
         try {
             return usuarios.saveAndFlush(Usuario.treinador(consultoria.getId(), email, request.nome().trim(),
                     passwordEncoder.encode(request.senha())));
@@ -57,8 +53,7 @@ public class CriacaoDeConta {
      * transação de quem chama. O gatilho do banco cria os perfis padrão, inclusive o Administrador.
      */
     public Consultoria criarConsultoria(String nome, String slug) {
-        return consultorias.saveAndFlush(new Consultoria(nome.trim(), slug,
-                jsonMapper.writeValueAsString(ConfiguracaoConsultoria.padrao())));
+        return consultorias.saveAndFlush(new Consultoria(nome.trim(), slug));
     }
 
     private String slugUnico(String nome) {

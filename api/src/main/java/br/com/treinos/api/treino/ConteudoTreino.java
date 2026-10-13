@@ -108,6 +108,11 @@ public record ConteudoTreino(
         return comUids(UUID::randomUUID);
     }
 
+    /** Mesmo treino com outra metodologia (a cópia das regras que acompanha o plano). */
+    public ConteudoTreino comMetodologia(Metodologia nova) {
+        return new ConteudoTreino(objetivo, orientacoes, sessoes, nova);
+    }
+
     private ConteudoTreino comUids(Supplier<UUID> novo) {
         List<Sessao> novas = sessoesOuVazio().stream().map(s -> new Sessao(novo.get(), s.nome(), s.diaSemana(),
                 s.tipo(), s.frequenciaSemanal(), s.observacao(), s.cardio(),

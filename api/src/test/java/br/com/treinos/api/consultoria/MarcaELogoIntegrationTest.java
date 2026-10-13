@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Seção 15.1, item 6 (logo pelos bytes) e a marca/configuração da consultoria. */
+/** Seção 15.1, item 6 (logo pelos bytes) e a marca da consultoria. */
 @AutoConfigureMockMvc
 class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
 
@@ -78,10 +78,10 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void marcaEConfiguracaoComLockOtimistaEValidacao() throws Exception {
+    void marcaComLockOtimistaEValidacao() throws Exception {
         JsonNode atual = api.get("/consultoria", treinador, 200);
         long versao = atual.get("versao").asLong();
-        assertThat(atual.get("configuracao").get("regraPreparacao").get("3")).hasSize(3);
+        assertThat(atual.has("configuracao")).isFalse();
 
         JsonNode nova = api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#c62828",
                 "fonteTitulo", "METAL", "temaPadrao", "ESCURO", "versao", versao), 200);

@@ -12,7 +12,7 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
-/** Marca (nome, cor, fonte, tema, logo) com prévia ao vivo, e a metodologia da consultoria. */
+/** Marca (nome, cor, fonte, tema, logo) com prévia ao vivo. */
 export default function Marca() {
   const { dados, erro, carregando, recarregar, definir } = useCarregar('consultoria', () => consultoria());
   // Conflito (outra aba salvou): recarrega e recria o formulário com os valores atuais.

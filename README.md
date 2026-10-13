@@ -91,7 +91,7 @@ Senha de todas: o valor de `DEMO_SENHA` no `.env`. Todos os dados são fictício
 - [ ] Back off sobre a **carga da WS do dia** ou o **maior peso feito no exercício**? (o app usa a maior carga da WS
       do dia)
 - [ ] Cardio **todo dia** ou **só nos dias Off**?
-- [ ] Texto completo das **instruções do PDF do Plano 16** (hoje vem da planilha; trocar na tela Marca).
+- [ ] Texto completo das **instruções do PDF do Plano 16** (hoje vem da planilha; trocar na metodologia padrão, em Planejamento).
 - [ ] **PDF da dieta** (a do seed tem quantidades de exemplo).
 - [ ] “Refeição 2 — Almoço” só com frutas: nome certo?
 - [ ] Ovo inteiro 3 un / 180 g = 133 kcal: confere? Faltam proteína, carboidrato e gordura.
@@ -127,7 +127,7 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
   9 alimentos de exemplo com valores por 100 g, com quantidades de exemplo (5 refeições, opções A/B no
   almoço e no jantar). Ajustar no editor quando houver o PDF. O seed antigo do protótipo não foi usado:
   não bate com o PDF descrito e traz medicamentos, que não podem ir para o seed.
-- **Instruções do PDF do treino** vêm das regras do Saraiva (FS, cálculo, WS); o texto completo do PDF do Plano 16 pode substituir na tela Marca.
+- **Instruções do PDF do treino** vêm das regras do Saraiva (FS, cálculo, WS); o texto completo do PDF do Plano 16 pode substituir na metodologia padrão (Planejamento).
 - `login_tentativa` segue o da Central (uma linha por chave).
 - **Offline do aluno: SQLite no celular, AsyncStorage na web.** No Android/iOS cada usuário tem um banco
   `treinos-<usuarioId>.db` (expo-sqlite), com os registros numa tabela de chave única igual à do servidor e cada

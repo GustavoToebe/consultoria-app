@@ -2,6 +2,7 @@ import { aluno as buscarAluno, consultoria, listarPlanos, pesosDoAluno, versaoPl
 import type { ConteudoDieta, ConteudoTreino, PlanoResumo, Sessao, TipoPlano } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
+import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import type { DivisaoRelatorio } from '../dominio/relatorio';
 import { imprimir } from '../pdf/imprimir';
 import { logoComoDataUri } from '../pdf/logo';
@@ -27,7 +28,7 @@ export async function gerarPdfDoPlano(tipo: TipoPlanoComPdf, plano: PlanoResumo,
     aluno: a.nome,
     titulo: versao?.titulo ?? plano.titulo,
     versao: versao?.numero ?? null,
-    rodapePdf: c.configuracao.rodapePdf,
+    rodapePdf: null,
     emitidoEm: new Date(),
   };
   if (tipo === 'treino') {
@@ -37,8 +38,8 @@ export async function gerarPdfDoPlano(tipo: TipoPlanoComPdf, plano: PlanoResumo,
         inicio: versao?.inicio ?? plano.inicio,
         fim: versao?.fim ?? plano.fim,
         conteudo: normalizarTreino(conteudo) as ConteudoTreino,
-        tipoTrabalho: c.configuracao.tipoTrabalho,
-        instrucoesTreino: c.configuracao.instrucoesTreino,
+        tipoTrabalho: CONFIGURACAO_PADRAO.tipoTrabalho,
+        instrucoesTreino: CONFIGURACAO_PADRAO.instrucoesTreino,
       }),
     );
   } else {
@@ -72,7 +73,7 @@ export async function gerarPdfDeCargas(aluno: { id: string; nome: string }, de: 
       de,
       ate,
       divisoes,
-      rodapePdf: c.configuracao.rodapePdf,
+      rodapePdf: null,
       emitidoEm: new Date(),
     }),
   );

@@ -2,7 +2,6 @@ package br.com.treinos.api.receitas;
 
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
-import br.com.treinos.api.consultoria.MarcaService;
 import br.com.treinos.api.web.ConflitoException;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.web.BadRequestException;
@@ -21,6 +20,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -97,6 +97,18 @@ public class ReceitaService {
         }
     }
 
+    /**
+     * Metodologia que todo plano de treino recebe ao ser gravado sem uma: a primeira receita {@code METODOLOGIA} da
+     * consultoria, na mesma ordem da listagem de modelos. Sem nenhuma, o plano fica sem metodologia e quem lê usa
+     * {@link ConfiguracaoConsultoria#padrao()}.
+     */
+    @Transactional(readOnly = true)
+    public Optional<ConteudoTreino.Metodologia> metodologiaPadrao() {
+        return receitas.findByTipoOrderByOrdemAscNomeAsc(Receita.Tipo.METODOLOGIA).stream().findFirst()
+                .map(r -> new ConteudoTreino.Metodologia(r.getId(), r.getNome(),
+                        json.readValue(r.getConteudo(), ConfiguracaoConsultoria.class)));
+    }
+
     /** Conteúdo de uma receita de plano, já com uids novos (aplicar não reaproveita uid). */
     @Transactional(readOnly = true)
     public ConteudoTreino conteudoTreino(UUID id) {
@@ -152,7 +164,7 @@ public class ReceitaService {
             throw new BadRequestException("Conteúdo da receita inválido: " + violacoes.iterator().next().getPropertyPath()
                     + " " + violacoes.iterator().next().getMessage());
         }
-        if (valor instanceof ConfiguracaoConsultoria c) MarcaService.validar(c);
+        if (valor instanceof ConfiguracaoConsultoria c) ConfiguracaoConsultoria.validar(c);
         if (valor instanceof ConteudoTreino t) {
             validarMetodologia(t);
             if (tipo == Receita.Tipo.SESSAO_TREINO && t.sessoes().size() != 1)
@@ -190,7 +202,7 @@ public class ReceitaService {
     }
 
     public static void validarMetodologia(ConteudoTreino t) {
-        if (t.metodologia() != null) MarcaService.validar(t.metodologia().configuracao());
+        if (t.metodologia() != null) ConfiguracaoConsultoria.validar(t.metodologia().configuracao());
     }
 
     @Transactional(readOnly = true)

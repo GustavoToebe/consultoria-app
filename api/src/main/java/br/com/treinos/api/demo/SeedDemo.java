@@ -27,7 +27,10 @@ import br.com.treinos.api.planos.dto.PlanoDtos.CriarPlanoRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe;
 import br.com.treinos.api.planos.dto.PlanoDtos.PublicarRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.SalvarRascunhoRequest;
+import br.com.treinos.api.receitas.Receita;
 import br.com.treinos.api.receitas.ReceitaService;
+import br.com.treinos.api.receitas.ReceitaService.ReceitaRequest;
+import br.com.treinos.api.receitas.ReceitaService.ReceitaResponse;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
@@ -37,6 +40,7 @@ import br.com.treinos.api.treino.ConteudoTreino.Sessao;
 import br.com.treinos.api.treino.PlanoTreinoService;
 import br.com.treinos.api.web.Fuso;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -107,6 +111,7 @@ public class SeedDemo {
     private final CriacaoDeConta criacaoDeConta;
     private final ReceitaService receitas;
     private final MarcaService marcas;
+    private final JsonMapper json;
     private final BibliotecaService biblioteca;
     private final AlunoService alunos;
     private final ConviteService convites;
@@ -119,11 +124,12 @@ public class SeedDemo {
     public SeedDemo(CriacaoDeConta criacaoDeConta, ReceitaService receitas, MarcaService marcas,
                     BibliotecaService biblioteca, AlunoService alunos, ConviteService convites,
                     PlanoTreinoService treinos, PlanoDietaService dietas, SincronizacaoService sincronizacao,
-                    PesoService pesos, PastaService pastas) {
+                    PesoService pesos, PastaService pastas, JsonMapper json) {
         this.pastas = pastas;
         this.criacaoDeConta = criacaoDeConta;
         this.receitas = receitas;
         this.marcas = marcas;
+        this.json = json;
         this.biblioteca = biblioteca;
         this.alunos = alunos;
         this.convites = convites;
@@ -153,10 +159,7 @@ public class SeedDemo {
         TenantContext.executarComo(consultoria, () -> {
             receitas.criarPadrao();
             marca(consultoria, "SARAIVA TEAM", "#C62828", Consultoria.Fonte.METAL, Consultoria.Tema.ESCURO);
-            ConfiguracaoConsultoria padrao = ConfiguracaoConsultoria.padrao();
-            marcas.alterarConfiguracao(consultoria, new ConfiguracaoConsultoria(padrao.tiposSerie(),
-                    padrao.tipoTrabalho(), padrao.tipoPreparacao(), padrao.regraPreparacao(), padrao.arredondamentoKg(),
-                    Plano16.INSTRUCOES, null, padrao.repeticoes()));
+            instrucoesDoPlano16NaMetodologiaPadrao();
 
             Map<String, UUID> exercicios = bibliotecaDoPlano16();
             Map<String, UUID> alimentos = new HashMap<>();
@@ -187,6 +190,17 @@ public class SeedDemo {
             }
             return null;
         });
+    }
+
+    /** A metodologia padrão do Saraiva leva as instruções do Plano 16; todo plano novo copia essa metodologia. */
+    private void instrucoesDoPlano16NaMetodologiaPadrao() {
+        ReceitaResponse padrao = receitas.listar(Receita.Tipo.METODOLOGIA).get(0);
+        ConfiguracaoConsultoria base = json.treeToValue(padrao.conteudo(), ConfiguracaoConsultoria.class);
+        ConfiguracaoConsultoria comInstrucoes = new ConfiguracaoConsultoria(base.tiposSerie(), base.tipoTrabalho(),
+                base.tipoPreparacao(), base.regraPreparacao(), base.arredondamentoKg(), Plano16.INSTRUCOES,
+                base.rodapePdf(), base.repeticoes());
+        receitas.alterar(padrao.id(), new ReceitaRequest(Receita.Tipo.METODOLOGIA, padrao.nome(), padrao.descricao(),
+                json.valueToTree(comInstrucoes), null, padrao.versao()));
     }
 
     private Map<String, UUID> bibliotecaDoPlano16() {

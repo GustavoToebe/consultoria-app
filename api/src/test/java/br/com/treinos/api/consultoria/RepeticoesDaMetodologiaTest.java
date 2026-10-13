@@ -22,24 +22,24 @@ class RepeticoesDaMetodologiaTest {
         ConfiguracaoConsultoria p = ConfiguracaoConsultoria.padrao();
         assertThat(p.repeticoes()).containsEntry("FS", new ConfiguracaoConsultoria.Repeticoes(3, 3))
                 .containsEntry("WS", new ConfiguracaoConsultoria.Repeticoes(3, 6));
-        assertThatNoException().isThrownBy(() -> MarcaService.validar(p));
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(p));
     }
 
     @Test
     void semFaixasContinuaValida() {
-        assertThatNoException().isThrownBy(() -> MarcaService.validar(com(null)));
-        assertThatNoException().isThrownBy(() -> MarcaService.validar(com(Map.of())));
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(com(null)));
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(com(Map.of())));
     }
 
     @Test
     void recusaTipoForaDaListaEFaixaInvalida() {
-        assertThatThrownBy(() -> MarcaService.validar(com(Map.of("Drop set", new ConfiguracaoConsultoria.Repeticoes(8, 10)))))
+        assertThatThrownBy(() -> ConfiguracaoConsultoria.validar(com(Map.of("Drop set", new ConfiguracaoConsultoria.Repeticoes(8, 10)))))
                 .isInstanceOf(BadRequestException.class);
-        assertThatThrownBy(() -> MarcaService.validar(com(Map.of("WS", new ConfiguracaoConsultoria.Repeticoes(6, 3)))))
+        assertThatThrownBy(() -> ConfiguracaoConsultoria.validar(com(Map.of("WS", new ConfiguracaoConsultoria.Repeticoes(6, 3)))))
                 .isInstanceOf(BadRequestException.class);
-        assertThatThrownBy(() -> MarcaService.validar(com(Map.of("WS", new ConfiguracaoConsultoria.Repeticoes(3, null)))))
+        assertThatThrownBy(() -> ConfiguracaoConsultoria.validar(com(Map.of("WS", new ConfiguracaoConsultoria.Repeticoes(3, null)))))
                 .isInstanceOf(BadRequestException.class);
-        assertThatThrownBy(() -> MarcaService.validar(com(Map.of("WS", new ConfiguracaoConsultoria.Repeticoes(1, 501)))))
+        assertThatThrownBy(() -> ConfiguracaoConsultoria.validar(com(Map.of("WS", new ConfiguracaoConsultoria.Repeticoes(1, 501)))))
                 .isInstanceOf(BadRequestException.class);
     }
 }

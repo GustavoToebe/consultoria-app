@@ -1,0 +1,6 @@
+Feeder Set (FS): série de reconhecimento. O objetivo é aumentar a carga a cada série dentro das reps propostas para buscar a série de trabalho (WS). Não pode chegar na falha.
+Cálculo FS: se 3 FS, 1º 50% | 2º 70% | 3º 85~90% da WS. Se 2 FS, 1º 70% | 2º 85~90% da WS. Se 1 FS, 85% da WS.
+Working Set (WS): série de trabalho. Utilizar a carga máxima do dia nas reps propostas. Se passar do número, aumentar carga na semana seguinte. Deve estar pesada a ponto da última rep ser difícil.
+Pesos livres: 1 RIR. Máquinas: até a falha.
+Back off: percentual do maior peso feito na WS.
+Anote a carga de cada série no app.

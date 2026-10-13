@@ -3,7 +3,7 @@ import { NotebookTabs } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { consultoria, criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
+import { criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
 import type { Configuracao, ConteudoTreino, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import {
@@ -32,6 +32,7 @@ import { CartaoSessao } from '../../treinador/treino/CartaoSessao';
 import { FolhaBiblioteca } from '../../treinador/treino/FolhaBiblioteca';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
 import { Folha } from '../../ui/Folha';
@@ -43,7 +44,6 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { Tela } from '../../ui/Tela';
-import { useCarregar } from '../../ui/useCarregar';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
@@ -62,8 +62,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
   const { avisar } = useAviso();
   const editor = usePlanoEditor<ConteudoTreino>('treino', id, normalizarTreino, modelo);
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
-  const global = useCarregar('consultoria', () => consultoria()).dados?.configuracao ?? null;
-  const config = editor.estado?.conteudo.metodologia?.configuracao ?? global;
+  const config = editor.estado?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
   const [folha, setFolha] = useState<FolhaAberta | null>(null);
