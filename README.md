@@ -24,9 +24,10 @@ O banco começa com os dados de demonstração (só quando está vazio). Para re
 
 1. Instalar o **Git** e o **Docker Desktop** (pede administrador no Windows). Para o celular, também o **Node 24.21.0**
    (`app/.nvmrc`). JDK 21 e Maven só para rodar os testes da API.
-2. Pegar o código: `git clone https://github.com/GustavoToebe/Saraiva-api.git` (a `main` tem tudo). Se o PC usa o
-   mesmo OneDrive, a pasta `Documents/Saraiva-api` já vem sincronizada, com o `.env`.
-3. O `.env` **não está no git** (tem as senhas). Num clone novo: `cp .env.example .env` e preencher
+2. Pegar o código: `git clone https://github.com/GustavoToebe/consultoria-app.git` (a `main` tem tudo), em
+   `Documents/consultoria-app`, fora do OneDrive (git e `node_modules` brigam com a sincronização, e senha não vai
+   para a nuvem de arquivos).
+3. Cada PC tem o próprio `.env`, que **não está no git** (tem as senhas). Num clone novo: `cp .env.example .env` e preencher
    `POSTGRES_PASSWORD`, `TREINOS_JWT_SEGREDO` (`openssl rand -base64 48`) e `DEMO_SENHA` (senha das contas de
    demonstração). Nunca mandar o `.env` por e-mail, chat ou commit.
 4. `docker compose up -d --build` e abrir `http://localhost:8088`. O banco começa limpo, com a demonstração.

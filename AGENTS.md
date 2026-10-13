@@ -1,4 +1,4 @@
-# AGENTS.md — Saraiva-api (plataforma de treinos e dieta)
+# AGENTS.md — consultoria-app (plataforma de treinos e dieta)
 
 Plataforma para **vários treinadores**, cada um com sua consultoria isolada, montarem treino e dieta dos alunos.
 O aluno vê o plano e registra carga e repetições no celular ou na web, inclusive sem internet. O Saraiva
