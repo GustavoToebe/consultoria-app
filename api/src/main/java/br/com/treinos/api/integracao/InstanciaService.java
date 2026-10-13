@@ -62,8 +62,8 @@ public class InstanciaService {
      * A consultoria criada pela Central nasce com as mesmas receitas do cadastro (inclusive a metodologia que todo plano
      * recebe). Depois do commit do provisionamento, em transação própria dentro do tenant: o Hibernate lê o tenant ao
      * abrir a sessão, e a que gravou a consultoria abriu sem ele. Fora do {@code try} de {@link #provisionar}, para um
-     * erro daqui não ser tomado por corrida. Falha não derruba a chamada: o convite só vai na primeira resposta, e sem
-     * receitas o plano usa as regras padrão (o treinador cria as dele).
+     * erro daqui não ser tomado por corrida. Falha não derruba a chamada: o convite só vai na primeira resposta, e o
+     * primeiro acesso do administrador (aceite do convite) confere as receitas de novo.
      */
     private ProvisionamentoService.Resultado comReceitasPadrao(ProvisionamentoService.Resultado resultado) {
         if (resultado.consultoriaNova() == null) {

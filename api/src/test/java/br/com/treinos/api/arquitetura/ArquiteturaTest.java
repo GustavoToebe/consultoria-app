@@ -47,7 +47,7 @@ class ArquiteturaTest {
      * {@code ExecucaoUpsert} (registro idempotente do aluno, {@code ON CONFLICT ... WHERE} mais novo);
      * {@code LogoRepositorio} (bytes da logo fora da entidade, filtrado pelo id da consultoria);
      * {@code AuditoriaGravacao} (insert na transação global do login e limpeza diária, sempre com consultoria explícita);
-     * {@code ConviteEquipeBusca} (descobre apenas o tenant pelo hash para o aceite público da equipe);
+     * {@code ConviteEquipeBusca} (descobre apenas o tenant pelo hash, e se o convite é do sistema, para o aceite público da equipe);
      * {@code ConviteBusca} (convite público: descobre só a consultoria do convite antes de abrir a sessão nela);
      * {@code ContaLocalRepositorio} (tabelas globais da Minha conta, lidas também fora do tenant pela integração futura:
      * todo método recebe e filtra {@code consultoria_id});

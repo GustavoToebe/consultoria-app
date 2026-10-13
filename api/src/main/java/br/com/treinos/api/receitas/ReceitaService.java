@@ -2,10 +2,13 @@ package br.com.treinos.api.receitas;
 
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.ConflitoException;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.VideoUrls;
 import jakarta.validation.ConstraintViolation;
@@ -46,14 +49,16 @@ public class ReceitaService {
     private final Validator validator;
     private final PastaModeloRepository pastas;
     private final VideoUrls videoUrls;
+    private final ConsultoriaRepository consultorias;
 
     public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator, PastaModeloRepository pastas,
-                          VideoUrls videoUrls) {
+                          VideoUrls videoUrls, ConsultoriaRepository consultorias) {
         this.receitas = receitas;
         this.json = json;
         this.validator = validator;
         this.pastas = pastas;
         this.videoUrls = videoUrls;
+        this.consultorias = consultorias;
     }
 
     @Transactional(readOnly = true)
@@ -92,10 +97,13 @@ public class ReceitaService {
     /**
      * Receitas padrão da consultoria no {@code TenantContext}: cria só as que faltam (mesmo tipo e nome), então pode ser
      * chamada de novo sem duplicar. Roda no cadastro do treinador, no provisionamento pela Central e no primeiro acesso do
-     * administrador, que corrige um provisionamento que falhou no meio.
+     * administrador, que corrige um provisionamento que falhou no meio. Trava a consultoria antes de ler (o mesmo lock da
+     * equipe), porque {@code receita} não tem índice único: duas chamadas juntas, como um duplo envio do convite, leriam
+     * a lista vazia e criariam tudo duas vezes.
      */
     @Transactional
     public void garantirPadrao() {
+        Exigir.existe(consultorias.travar(TenantContext.get()), () -> new NaoEncontradoException("Consultoria não encontrada."));
         Set<String> existentes = new HashSet<>();
         for (Receita r : receitas.findAll()) {
             existentes.add(r.getTipo() + "/" + r.getNome());
