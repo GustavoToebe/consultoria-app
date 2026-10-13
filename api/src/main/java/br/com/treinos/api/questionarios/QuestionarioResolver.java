@@ -1,0 +1,61 @@
+package br.com.treinos.api.questionarios;
+
+import br.com.treinos.api.web.NaoEncontradoException;
+import org.springframework.stereotype.Component;
+
+import java.util.UUID;
+
+/**
+ * Descobre qual versão publicada do questionário vale: a escolhida na pasta, senão a do aluno, senão o padrão da
+ * consultoria. Questionário arquivado ou sem versão publicada é ignorado. A consulta é sempre da consultoria da
+ * sessão (@TenantId); id de outra consultoria nem aparece.
+ */
+@Component
+public class QuestionarioResolver {
+
+    /** Versão publicada pronta para uso: id, número, nome do questionário e o conteúdo (JSON). */
+    public record Resolvida(UUID versaoId, int numero, String nome, String conteudo) { }
+
+    private final QuestionarioRepository questionarios;
+    private final QuestionarioVersaoRepository versoes;
+
+    public QuestionarioResolver(QuestionarioRepository questionarios, QuestionarioVersaoRepository versoes) {
+        this.questionarios = questionarios;
+        this.versoes = versoes;
+    }
+
+    /** Pasta &gt; aluno &gt; padrão. Os dois primeiros podem ser nulos. */
+    public Resolvida vigente(UUID daPasta, UUID doAluno) {
+        for (UUID id : new UUID[] {daPasta, doAluno}) {
+            if (id == null) {
+                continue;
+            }
+            var usavel = questionarios.findById(id).filter(q -> !q.isArquivado() && q.getVersaoPublicada() > 0);
+            if (usavel.isPresent()) {
+                return publicada(usavel.get());
+            }
+        }
+        return padrao();
+    }
+
+    public Resolvida padrao() {
+        return publicada(questionarios.findByPadraoTrue().orElseThrow(naoEncontrado()));
+    }
+
+    /** Versão já fixada numa atualização enviada (continua valendo mesmo se o questionário for arquivado). */
+    public Resolvida fixa(UUID versaoId) {
+        QuestionarioVersao v = versoes.findById(versaoId).orElseThrow(naoEncontrado());
+        Questionario q = questionarios.findById(v.getQuestionarioId()).orElseThrow(naoEncontrado());
+        return new Resolvida(v.getId(), v.getNumero(), q.getNome(), v.getConteudo());
+    }
+
+    private Resolvida publicada(Questionario q) {
+        QuestionarioVersao v = versoes.findByQuestionarioIdAndNumero(q.getId(), q.getVersaoPublicada())
+                .orElseThrow(naoEncontrado());
+        return new Resolvida(v.getId(), v.getNumero(), q.getNome(), v.getConteudo());
+    }
+
+    private static java.util.function.Supplier<NaoEncontradoException> naoEncontrado() {
+        return () -> new NaoEncontradoException("Questionário de atualização não encontrado.");
+    }
+}

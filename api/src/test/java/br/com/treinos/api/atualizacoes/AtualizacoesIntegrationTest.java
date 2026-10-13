@@ -286,4 +286,136 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         api.get("/aluno/atualizacao",treinador,403);
         api.get("/atualizacoes?situacao=DESCONHECIDA",treinador,400);
     }
+
+    // --- Questionário vigente: pasta, depois aluno, depois o padrão ---
+    private static final String SEM_PESO = "{\"formato\":2,\"instrucoes\":[],\"secoes\":[{\"uid\":\"s1\",\"titulo\":\"Geral\","
+            + "\"perguntas\":[{\"id\":\"sono\",\"tipo\":\"NOTA\",\"rotulo\":\"Sono\",\"obrigatoria\":true}]}]}";
+    private UUID consultoria() { return banco.queryForObject("select consultoria_id from aluno where id=?",UUID.class,aluno); }
+    /** Cria um questionário já publicado (v1) direto no banco; devolve {id do questionário, id da versão}. */
+    private UUID[] novoQuestionario(String nome,String conteudo) {
+        UUID q = UUID.randomUUID(), v = UUID.randomUUID();
+        banco.update("insert into questionario(id,consultoria_id,nome,rascunho,versao_publicada,publicado_em) values (?,?,?,?::jsonb,1,now())",
+                q,consultoria(),nome,conteudo);
+        banco.update("insert into questionario_versao(id,consultoria_id,questionario_id,numero,conteudo) values (?,?,?,1,?::jsonb)",
+                v,consultoria(),q,conteudo);
+        return new UUID[]{q,v};
+    }
+    private void escolherNoAluno(UUID questionario) { banco.update("update aluno set questionario_id=? where id=?",questionario,aluno); }
+    private void escolherNaPasta(String pasta,UUID questionario) { banco.update("update pasta_plano set questionario_id=? where id=?",questionario,UUID.fromString(pasta)); }
+    private String nomeDoQuestionario() throws Exception { return api.get("/aluno/atualizacao",loginAluno,200).path("questionarioNome").asString(); }
+    private Map<String,Object> envioComVersao(String pasta,UUID versao,Map<String,Object> respostas) {
+        return Map.of("pastaId",pasta,"questionarioVersaoId",versao.toString(),"respostas",respostas);
+    }
+
+    @Test void questionarioVigenteSegueAPastaDepoisOAlunoDepoisOPadrao() throws Exception {
+        String pasta = publicarPasta(hoje);
+        assertThat(nomeDoQuestionario()).isEqualTo("Padrão");
+        UUID[] doAluno = novoQuestionario("Do aluno",SEM_PESO);
+        UUID[] daPasta = novoQuestionario("Da pasta",SEM_PESO);
+        escolherNoAluno(doAluno[0]);
+        assertThat(nomeDoQuestionario()).isEqualTo("Do aluno");
+        escolherNaPasta(pasta,daPasta[0]);
+        assertThat(nomeDoQuestionario()).isEqualTo("Da pasta");
+        // Arquivado é ignorado: cai para o próximo candidato e, por fim, para o padrão.
+        banco.update("update questionario set arquivado=true where id=?",daPasta[0]);
+        assertThat(nomeDoQuestionario()).isEqualTo("Do aluno");
+        banco.update("update questionario set arquivado=true where id=?",doAluno[0]);
+        assertThat(nomeDoQuestionario()).isEqualTo("Padrão");
+        // Sem versão publicada também é ignorado.
+        UUID[] rascunho = novoQuestionario("Só rascunho",SEM_PESO);
+        banco.update("update questionario set versao_publicada=0 where id=?",rascunho[0]);
+        escolherNaPasta(pasta,rascunho[0]);
+        assertThat(nomeDoQuestionario()).isEqualTo("Padrão");
+    }
+
+    @Test void envioConfereOIdDaVersaoEAEnviadaMantemAVersaoQueRespondeu() throws Exception {
+        String pasta = publicarPasta(hoje);
+        UUID[] antigo = novoQuestionario("Respondido",SEM_PESO);
+        escolherNoAluno(antigo[0]);
+        UUID padrao = banco.queryForObject("select id from questionario_versao where consultoria_id=? and questionario_id in (select id from questionario where padrao and consultoria_id=?)",UUID.class,consultoria(),consultoria());
+        // Versão que não é a vigente: 409 e nada é gravado.
+        api.post("/aluno/atualizacao/enviar",loginAluno,envioComVersao(pasta,padrao,Map.of("sono",7)),409);
+        assertThat(api.get("/aluno/atualizacao",loginAluno,200).path("fase").asString()).isEqualTo("ABERTA");
+        JsonNode enviada = api.post("/aluno/atualizacao/enviar",loginAluno,envioComVersao(pasta,antigo[1],Map.of("sono",7)),200);
+        assertThat(enviada.path("questionarioVersaoId").asString()).isEqualTo(antigo[1].toString());
+        // Trocar a escolha ou arquivar depois do envio não muda o que o aluno respondeu.
+        escolherNoAluno(null);
+        banco.update("update questionario set arquivado=true where id=?",antigo[0]);
+        JsonNode depois = api.get("/aluno/atualizacao",loginAluno,200);
+        assertThat(depois.path("questionarioVersaoId").asString()).isEqualTo(antigo[1].toString());
+        assertThat(depois.path("questionarioNome").asString()).isEqualTo("Respondido");
+        assertThat(banco.queryForObject("select questionario_versao_id from atualizacao where pasta_id=?",UUID.class,UUID.fromString(pasta))).isEqualTo(antigo[1]);
+    }
+
+    @Test void envioSemPerguntaDePesoNaoGravaPeso() throws Exception {
+        String pasta = publicarPasta(hoje);
+        UUID[] semPeso = novoQuestionario("Sem peso",SEM_PESO);
+        escolherNoAluno(semPeso[0]);
+        api.post("/aluno/atualizacao/enviar",loginAluno,envioComVersao(pasta,semPeso[1],Map.of("sono",7)),200);
+        assertThat(api.get("/alunos/"+aluno+"/pesos",treinador,200)).isEmpty();
+    }
+
+    @Test void atualizacaoAbertaComAvisoDeAtrasoSegueOQuestionarioVigente() throws Exception {
+        String pasta = publicarPasta(hoje.plusDays(5));
+        api.post("/aluno/atualizacao/atraso",loginAluno,Map.of("pastaId",pasta,"novaData",hoje.plusDays(7)),200);
+        UUID[] novo = novoQuestionario("Trocado depois do aviso",SEM_PESO);
+        escolherNoAluno(novo[0]);
+        assertThat(nomeDoQuestionario()).isEqualTo("Trocado depois do aviso");
+        assertThat(banco.queryForObject("select questionario_versao_id from atualizacao where pasta_id=?",UUID.class,UUID.fromString(pasta))).isNull();
+    }
+
+    @Test void detalheDoTreinadorTrazQuestionarioDaVersaoRespondidaEResumoDoPeriodo() throws Exception {
+        publicarPasta(hoje);
+        api.post("/alunos/"+aluno+"/pesos",treinador,Map.of("data",hoje.minusDays(10).toString(),"pesoKg",82.0),200);
+        JsonNode enviada = enviar(respostas(),200);
+        JsonNode detalhe = api.get("/atualizacoes/"+enviada.path("id").asString(),treinador,200);
+        assertThat(detalhe.path("questionarioNome").asString()).isEqualTo("Padrão");
+        assertThat(detalhe.path("questionarioVersaoId").asString()).isEqualTo(enviada.path("questionarioVersaoId").asString());
+        assertThat(detalhe.path("modeloVersao").asInt()).isEqualTo(1);
+        assertThat(detalhe.path("modelo").path("secoes")).hasSize(4);
+        assertThat(detalhe.path("respostas").path("peso").decimalValue()).isEqualByComparingTo("80.5");
+        // O resumo vem do sistema (registros do período), não do questionário: peso anterior = último registro antes do fim.
+        assertThat(detalhe.path("resumo").path("pesoAnterior").decimalValue()).isEqualByComparingTo("82");
+        assertThat(detalhe.path("resumo").path("diasComTreino").asInt()).isZero();
+        assertThat(detalhe.path("resumo").path("mediaDiasPorSemana").asDouble()).isZero();
+    }
+
+    @Test void respostasFalseEZeroDosTiposNovosSobrevivemAoEnvioEApareceNoDetalhe() throws Exception {
+        String pasta = publicarPasta(hoje);
+        String conteudo = """
+            {"formato":2,"instrucoes":[],"secoes":[{"uid":"s1","titulo":"Geral","perguntas":[
+              {"id":"dor","tipo":"SIM_NAO","rotulo":"Sentiu dor?","obrigatoria":true,"destaque":true},
+              {"id":"passos","tipo":"NUMERO","rotulo":"Passos","obrigatoria":true,"unidade":"mil","min":0,"max":50,"casas":1},
+              {"id":"humor","tipo":"ESCOLHA_UNICA","rotulo":"Humor","obrigatoria":false,
+               "opcoes":[{"id":"a","rotulo":"Ruim"},{"id":"b","rotulo":"Bom"}]},
+              {"id":"extras","tipo":"MULTIPLA_ESCOLHA","rotulo":"Extras","obrigatoria":false,
+               "opcoes":[{"id":"a","rotulo":"Água"},{"id":"b","rotulo":"Sono"}]}]}]}
+            """;
+        UUID[] novos = novoQuestionario("Tipos novos",conteudo);
+        escolherNoAluno(novos[0]);
+        // Texto no lugar de boolean e número fora da faixa são recusados, sem gravar nada.
+        for (String campo : new String[]{"dor","passos"}) {
+            Map<String,Object> ruim = new LinkedHashMap<>(Map.of("dor",false,"passos",1));
+            ruim.put(campo,campo.equals("dor") ? "não" : 51);
+            JsonNode erro = api.post("/aluno/atualizacao/enviar",loginAluno,envioComVersao(pasta,novos[1],ruim),422);
+            assertThat(erro.path("fieldErrors").get(0).path("field").asString()).isEqualTo(campo);
+        }
+        assertThat(api.get("/aluno/atualizacoes",loginAluno,200)).isEmpty();
+        Map<String,Object> r = new LinkedHashMap<>();
+        r.put("dor",false); r.put("passos",0); r.put("humor","b"); r.put("extras",java.util.List.of("b","a"));
+        JsonNode enviada = api.post("/aluno/atualizacao/enviar",loginAluno,envioComVersao(pasta,novos[1],r),200);
+        JsonNode detalhe = api.get("/atualizacoes/"+enviada.path("id").asString(),treinador,200);
+        JsonNode salvas = detalhe.path("respostas");
+        assertThat(salvas.path("dor").isBoolean()).isTrue();
+        assertThat(salvas.path("dor").asBoolean()).isFalse();
+        assertThat(salvas.path("passos").decimalValue()).isEqualByComparingTo("0");
+        assertThat(salvas.path("humor").asString()).isEqualTo("b");
+        assertThat(salvas.path("extras")).hasSize(2);
+        assertThat(detalhe.path("modelo").path("secoes").get(0).path("perguntas").get(0).path("destaque").asBoolean()).isTrue();
+    }
+
+    @Test void envioSemNenhumaVersaoInformadaDa400() throws Exception {
+        String pasta = publicarPasta(hoje);
+        api.post("/aluno/atualizacao/enviar",loginAluno,Map.of("pastaId",pasta,"respostas",respostas()),400);
+    }
 }

@@ -84,7 +84,6 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
     ['Nome', d.aluno],
     ['Objetivo', c.objetivo],
     ['Data Início', dataParaTela(c.dataInicio)],
-    ['Profissional', c.profissional ?? d.marca.nome],
     ['Emitido em', dataParaTela(d.emitidoEm.toISOString().slice(0, 10))],
   ]
     .map(([r, v]) => `<tr><td>${esc(r)}</td><td>${esc(v || '—')}</td></tr>`)
@@ -111,8 +110,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${op
   const marcaOuLogo = d.logoDataUri ? `<img src="${esc(d.logoDataUri)}" alt="${esc(d.marca.nome)}">` : `<h1>${esc(d.marca.nome)}</h1>`;
   const corpo = [
     `<div class="capa">${marcaOuLogo}
-<div class="titulo">SUGESTÃO DE PLANO ALIMENTAR</div>
-<div class="sub">Elaborado por profissional habilitado${d.versao ? '' : ' · RASCUNHO, não publicado'}</div></div>`,
+<div class="titulo">SUGESTÃO DE PLANO ALIMENTAR</div>${d.versao ? '' : '\n<div class="sub">RASCUNHO, não publicado</div>'}</div>`,
     barra,
     `<div class="bloco">${sec('Identificação do aluno')}<table class="id"><tbody>${identificacao}</tbody></table></div>`,
     barra,

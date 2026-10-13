@@ -1,4 +1,5 @@
 import type { ModeloAtualizacao, RespostasAtualizacao } from '../api/tipos';
+import { LIMITES_QUESTIONARIO } from './questionario';
 import { errosRespostasAtualizacao } from './respostasAtualizacao';
 const modelo:ModeloAtualizacao={versao:1,instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
   {id:'peso',tipo:'PESO',rotulo:'Peso',obrigatoria:true},{id:'nota',tipo:'NOTA',rotulo:'Nota',obrigatoria:true},
@@ -12,4 +13,32 @@ const invalidas:RespostasAtualizacao[]=[{peso:0,nota:5},{peso:80.55,nota:5},{pes
   {peso:80,nota:5,dias:{'3':5}}];
 it.each(invalidas)('recusa formato ou faixa inválida',respostas=>{
   expect(Object.keys(errosRespostasAtualizacao(modelo,respostas)).length).toBeGreaterThan(0);
+});
+
+// Os quatro tipos novos: as regras campo a campo estão nas fixtures de paridade com o Java.
+const novos:ModeloAtualizacao={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
+  {id:'e',tipo:'ESCOLHA_UNICA',rotulo:'E',obrigatoria:true,opcoes:[{id:'a',rotulo:'A'},{id:'b',rotulo:'B'}]},
+  {id:'m',tipo:'MULTIPLA_ESCOLHA',rotulo:'M',obrigatoria:false,opcoes:[{id:'a',rotulo:'A'},{id:'b',rotulo:'B'}]},
+  {id:'n',tipo:'NUMERO',rotulo:'N',obrigatoria:false,min:0,max:10,casas:1},
+  {id:'s',tipo:'SIM_NAO',rotulo:'S',obrigatoria:true},
+]}]};
+it('aceita os tipos novos e conta "não" e lista vazia corretamente',()=>{
+  expect(errosRespostasAtualizacao(novos,{e:'a',m:['a','b'],n:2.5,s:false})).toEqual({});
+  expect(errosRespostasAtualizacao(novos,{e:'a',m:[],s:true})).toEqual({});
+  expect(errosRespostasAtualizacao(novos,{e:'',s:null})).toEqual({e:'Preencha este campo.',s:'Preencha este campo.'});
+});
+const novasInvalidas:RespostasAtualizacao[]=[{e:'z',s:true},{e:'a',s:true,m:['a','a']},{e:'a',s:true,m:'a'},{e:'a',s:true,n:11},
+  {e:'a',s:true,n:2.25},{e:'a',s:true,n:'2'},{e:'a',s:'sim'}];
+it.each(novasInvalidas)('recusa tipo novo fora do contrato',respostas=>{
+  expect(Object.keys(errosRespostasAtualizacao(novos,respostas)).length).toBeGreaterThan(0);
+});
+
+it('o teto das respostas é de 256 KiB contados em bytes',()=>{
+  const moldura='{"texto":""}'.length;
+  const no={texto:'a'.repeat(LIMITES_QUESTIONARIO.respostasBytes-moldura)};
+  expect(errosRespostasAtualizacao(modelo,{peso:80,nota:5,...no}).respostas).toBeDefined();
+  // Sem os outros campos a moldura é menor: aqui conta só o teto, e o texto sozinho passa dele.
+  expect(errosRespostasAtualizacao({instrucoes:[],secoes:[]},no).respostas).toBeUndefined();
+  expect(errosRespostasAtualizacao({instrucoes:[],secoes:[]},{texto:no.texto+'a'}).respostas).toBeDefined();
+  expect(errosRespostasAtualizacao({instrucoes:[],secoes:[]},{texto:'ã'.repeat(LIMITES_QUESTIONARIO.respostasBytes/2)}).respostas).toBeDefined();
 });

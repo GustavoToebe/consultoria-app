@@ -133,6 +133,11 @@ describe('PDF da dieta', () => {
     expect(html).not.toContain('Acompanhamento de peso');
   });
 
+  it('não mostra profissional nem "Elaborado por" na capa', () => {
+    expect(html).not.toContain('Profissional');
+    expect(html).not.toContain('Elaborado por');
+  });
+
   describe('link da suplementação', () => {
     const comSuplementos = (itens: { nome: string; link: string | null }[]) =>
       documentoDieta({

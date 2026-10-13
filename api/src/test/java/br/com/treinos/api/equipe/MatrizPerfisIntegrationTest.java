@@ -17,8 +17,8 @@ class MatrizPerfisIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate banco;
     @ParameterizedTest
-    @CsvSource({"Administrador,200,200,200,200,200", "Treinador,200,200,200,200,403", "Nutricionista,403,200,403,200,403", "Assistente,403,403,200,403,403"})
-    void permissaoDaAcaoValeParaRascunhoPublicacaoCadastroConteudoEEquipe(String perfil,int treino,int dieta,int cadastro,int conteudo,int equipe) throws Exception {
+    @CsvSource({"Administrador,200,200,200,200,200,200", "Treinador,200,200,200,200,403,200", "Nutricionista,403,200,403,200,403,200", "Assistente,403,403,200,403,403,403"})
+    void permissaoDaAcaoValeParaRascunhoPublicacaoCadastroConteudoEEquipe(String perfil,int treino,int dieta,int cadastro,int conteudo,int equipe,int questionario) throws Exception {
         var api=new ApiDeTeste(mvc,json);var login=api.novoTreinador();UUID aluno=api.criarAluno(login,"Aluno da matriz fictícia");
         var t=api.post("/alunos/"+aluno+"/planos-treino",login,Map.of("titulo","Treino da matriz"),200);
         String tid=t.path("plano").path("id").asString();
@@ -43,6 +43,8 @@ class MatrizPerfisIntegrationTest extends AbstractIntegrationTest {
         api.post("/alunos",login,Map.of("nome","Cadastro da matriz fictícia"),cadastro);
         api.post("/perfis",login,Map.of("nome","Perfil da matriz","permissoes",Set.of()),equipe);
         api.get("/usuarios",login,equipe);api.get("/auditoria",login,equipe);
+        api.get("/questionarios",login,200);
+        api.post("/questionarios",login,Map.of("nome","Questionário da matriz","origem","VAZIO"),questionario);
         api.post("/exercicios",login,Map.of("nome","Exercício da matriz","modalidade","PESO_CORPORAL","unidadeCarga","kg"),conteudo);
     }
 }

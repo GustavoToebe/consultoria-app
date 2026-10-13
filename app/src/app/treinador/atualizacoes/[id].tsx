@@ -2,15 +2,15 @@ import { Permitido } from '../../../ui/Permitido';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 import { FeedbackAtualizacao } from '../../../aluno/atualizacao/FeedbackAtualizacao';
 import { QuestionarioAtualizacao } from '../../../aluno/atualizacao/QuestionarioAtualizacao';
 import { ErroApi } from '../../../api/cliente';
 import { atualizacaoDoAluno, detalheAtualizacao, responderAtualizacao } from '../../../api/rotas';
 import type { Atualizacao } from '../../../api/tipos';
 import { statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
-import { dataParaTela, numeroParaTela } from '../../../dominio/formatos';
-import { espaco, LARGURA_EDITOR } from '../../../tema/tokens';
+import { dataParaTela } from '../../../dominio/formatos';
+import { LARGURA_EDITOR } from '../../../tema/tokens';
+import { ResumoDaAtualizacao } from '../../../treinador/ResumoDaAtualizacao';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
@@ -39,11 +39,12 @@ export default function AtualizacaoTreinador() {
         {rotulo:`Atualização ${dataParaTela(a?.dataAtualizacao??null)}`},
       ]} />
     <Texto variante="suave">Respostas do aluno nesta pasta e o seu feedback.</Texto>
+    {a?.questionarioNome?<Texto variante="pequeno">Questionário: {a.questionarioNome} · versão {a.modeloVersao}</Texto>:null}
     {detalhe.erro?<MensagemErro texto={textoDoErro(detalhe.erro)} tentarDeNovo={detalhe.recarregar} />:null}
     {detalhe.carregando?<Esqueleto />:null}
     {a?.modelo?<>
       <Selo {...statusAtualizacaoTreinador(a)} />
-      {a.enviadaEm?<Resumo atualizacao={a} />:<Cartao titulo="Aguardando envio" descricao="As respostas aparecem aqui quando o aluno enviar."><Texto>O aluno ainda não enviou suas respostas.</Texto></Cartao>}
+      {a.enviadaEm?<ResumoDaAtualizacao atualizacao={a} modelo={a.modelo} />:<Cartao titulo="Aguardando envio" descricao="As respostas aparecem aqui quando o aluno enviar."><Texto>O aluno ainda não enviou suas respostas.</Texto></Cartao>}
       {a.atrasoAte?<Cartao titulo="Atraso avisado">
         <Texto>Nova data: {dataParaTela(a.atrasoAte)}</Texto>
         <Texto>{a.atrasoMotivo??'Sem motivo informado.'}</Texto>
@@ -53,23 +54,6 @@ export default function AtualizacaoTreinador() {
       <LinkTexto texto="Abrir pasta do aluno" href={`/treinador/alunos/${a.alunoId}?pastaId=${a.pastaId}`} />
     </>:a && !detalhe.carregando?<Vazio titulo="Sem atualização" texto="Não há pasta vigente com data de atualização." />:null}
   </Tela>;
-}
-
-function Resumo({atualizacao:a}: {atualizacao:Atualizacao}) {
-  const peso=typeof a.respostas?.peso==='number'?a.respostas.peso:null;
-  const anterior=a.resumo?.pesoAnterior;
-  const variacao=peso!=null && anterior!=null ? peso-anterior : null;
-  const numero=(valor:unknown,casas=0)=>typeof valor==='number'?numeroParaTela(valor,casas):'—';
-  return <Cartao titulo="Resumo do período">
-    <View style={estilos.numeros}>
-      {[
-        ['Peso (kg)',numero(peso,1)],['Variação (kg)',variacao==null?'—':`${variacao>0?'+':''}${numero(variacao,1)}`],
-        ['Sono',numero(a.respostas?.sono)],['Alimentar',numero(a.respostas?.alim_desempenho)],['Treino',numero(a.respostas?.treino_desempenho)],
-      ].map(([rotulo,valor])=><View key={rotulo} style={estilos.numero}><Texto variante="rotulo">{rotulo}</Texto><Texto variante="destaque" numerico>{valor}</Texto></View>)}
-    </View>
-    <Texto>Média de {numero(a.resumo?.mediaDiasPorSemana,1)} dias com treino por semana (registrado no app)</Texto>
-    <Texto variante="pequeno">Peso anterior: {anterior==null?'—':`${numero(anterior,1)} kg`}</Texto>
-  </Cartao>;
 }
 
 function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
@@ -103,4 +87,3 @@ function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
     {a.feedback?<Botao rotulo="Cancelar edição" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setEditando(false)} />:null}
   </Cartao>;
 }
-const estilos=StyleSheet.create({numeros:{flexDirection:'row',flexWrap:'wrap',gap:espaco(3)},numero:{minWidth:130,gap:espaco(1)}});

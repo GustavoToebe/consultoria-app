@@ -34,6 +34,8 @@ public final class CatalogoPermissoes {
         new Permissao("MODELO_LER","Conteúdo","Modelos","Consultar: modelos.",false),
         new Permissao("MODELO_ALTERAR","Conteúdo","Modelos","Criar e editar: modelos.",false),
         new Permissao("MODELO_APLICAR","Conteúdo","Modelos","Aplicar ao aluno: modelos.",false),
+        new Permissao("QUESTIONARIO_LER","Conteúdo","Questionários de atualização","Consultar: questionários de atualização.",false),
+        new Permissao("QUESTIONARIO_ALTERAR","Conteúdo","Questionários de atualização","Criar, editar e publicar: questionários de atualização.",false),
         new Permissao("MARCA_ALTERAR","Consultoria","Marca e metodologia","Criar e editar: marca e metodologia.",false),
         new Permissao("METODOLOGIA_ALTERAR","Consultoria","Marca e metodologia","Criar e editar: marca e metodologia.",false),
         new Permissao("EQUIPE_LER","Consultoria","Equipe","Consultar: equipe.",false),
@@ -59,6 +61,7 @@ public final class CatalogoPermissoes {
         Map.entry("ERGOGENICO_ALTERAR",Set.of("ERGOGENICO_LER")),
         Map.entry("MODELO_ALTERAR",Set.of("MODELO_LER")),
         Map.entry("MODELO_APLICAR",Set.of("MODELO_LER")),
+        Map.entry("QUESTIONARIO_ALTERAR",Set.of("QUESTIONARIO_LER")),
         Map.entry("USUARIO_ALTERAR",Set.of("EQUIPE_LER")),
         Map.entry("PERFIL_ALTERAR",Set.of("EQUIPE_LER")));
     public static Set<String> validar(Set<String> codigos) {

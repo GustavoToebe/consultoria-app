@@ -304,7 +304,8 @@ export class RepositorioChaveValor implements RepositorioLocal {
   }
 }
 
-export interface RascunhoAtualizacao { modeloVersao: number; respostas: RespostasAtualizacao }
+/** Grava só o id da versão do questionário; o rascunho antigo só tem `modeloVersao` e é aceito na leitura. */
+export interface RascunhoAtualizacao { questionarioVersaoId?: string | null; modeloVersao?: number | null; respostas: RespostasAtualizacao }
 
 /** Chaves que o repositório chave-valor usa para um usuário (também lidas na migração para o SQLite). */
 export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;

@@ -5,6 +5,7 @@ import { ErroApi } from '../../api/cliente';
 import { avisarAtrasoAtualizacao, enviarAtualizacao, marcarFeedbackVisto } from '../../api/rotas';
 import type { Atualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
 import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
+import { rascunhoVigente } from '../../dominio/atualizacaoQuestionario';
 import { dataDaTela, dataParaTela, hojeIso, somarDias } from '../../dominio/formatos';
 import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -26,6 +27,8 @@ import { FeedbackAtualizacao } from './FeedbackAtualizacao';
 import { QuestionarioAtualizacao } from './QuestionarioAtualizacao';
 
 const SEM_CONEXAO='Sem conexão: suas respostas ficam salvas no aparelho. Envie quando conectar.';
+/** O rascunho identifica a versão pelo id; sem id (cópia antiga no aparelho) cai no número. */
+const versaoDoRascunho=(a:Atualizacao)=>a.questionarioVersaoId?{questionarioVersaoId:a.questionarioVersaoId}:{modeloVersao:a.modeloVersao};
 export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho,abrirAtraso,recarregar}: {
   atualizacao:Atualizacao;somenteLeitura?:boolean;rascunho:RascunhoAtualizacao|null;abrirAtraso:boolean;recarregar:()=>void;
 }) {
@@ -34,7 +37,8 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
   const {cores}=useTema();
   const reduzido=useMovimentoReduzido();
   const [atual,setAtual]=useState(atualizacao);
-  const [respostas,setRespostas]=useState<RespostasAtualizacao>(atual.enviadaEm ? atual.respostas??{} : rascunho?.respostas??atual.respostas??{});
+  const [vigente]=useState(()=>rascunhoVigente(rascunho,atualizacao));
+  const [respostas,setRespostas]=useState<RespostasAtualizacao>(atual.enviadaEm ? atual.respostas??{} : rascunho ? vigente.respostas : atual.respostas??{});
   const [erros,setErros]=useState<Record<string,string>>({});
   const [ocupado,setOcupado]=useState(false);
   const [enviada,setEnviada]=useState(false);
@@ -47,6 +51,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
   const campos=useRef(new Map<string,View>());
   const deslocamento=useRef(0);
   const leitura=somenteLeitura||atual.fase==='ENVIADA'||atual.fase==='REVISADA';
+  const rascunhoAdaptado=vigente.adaptado&&!leitura&&!atual.enviadaEm;
   const liberada=podeResponderAtualizacao(atual,hojeIso());
   const dataOriginal=atual.dataAtualizacao??hojeIso();
   const limites=limitesNovaDataAtraso(hojeIso(),dataOriginal);
@@ -60,11 +65,19 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     })
       .catch(()=>undefined);
   },[atual.id,atual.feedback?.naoLido,online,repositorio,atualizarAtualizacao]);
+  const rascunhoRegravado=useRef(false);
+  useEffect(()=>{
+    // Rascunho de outra versão (ou antigo, só com o número) vira o da versão em uso: a próxima abertura já o encontra assim.
+    // Só uma vez por montagem: `atualizacao` chega novo a cada foco e não pode sobrescrever o que o aluno digitou depois.
+    if(rascunhoRegravado.current||!rascunhoAdaptado||!atualizacao.pastaId)return;
+    rascunhoRegravado.current=true;
+    void repositorio.salvarRascunhoAtualizacao(atualizacao.pastaId,{...versaoDoRascunho(atualizacao),respostas:vigente.respostas}).catch(()=>undefined);
+  },[rascunhoAdaptado,atualizacao,repositorio,vigente.respostas]);
   const mudar=(id:string,valor:RespostaAtualizacao)=>{
     const novas={...respostas,[id]:valor};
     setRespostas(novas);
     setErros(atuais=>{const copia={...atuais};delete copia[id];return copia;});
-    if(atual.pastaId) void repositorio.salvarRascunhoAtualizacao(atual.pastaId,{modeloVersao:atual.modeloVersao,respostas:novas})
+    if(atual.pastaId) void repositorio.salvarRascunhoAtualizacao(atual.pastaId,{...versaoDoRascunho(atual),respostas:novas})
       .catch(()=>avisar('Não foi possível salvar o rascunho no aparelho.','perigo'));
   };
   const mostrarErros=(novos:Record<string,string>)=>{
@@ -84,14 +97,26 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     if(!online){avisar(SEM_CONEXAO);return;}
     setOcupado(true);
     try {
-      const resultado=await enviarAtualizacao(atual.pastaId,atual.modeloVersao,respostas);
+      const resultado=await enviarAtualizacao(atual.pastaId,{questionarioVersaoId:atual.questionarioVersaoId,modeloVersao:atual.modeloVersao},respostas);
       await atualizarAtualizacao(resultado);
       await repositorio.apagarRascunhoAtualizacao(atual.pastaId);
       setAtual(resultado);setEnviada(true);
     } catch(erro) {
       if(erro instanceof ErroApi && erro.campos.length) mostrarErros(Object.fromEntries(erro.campos.map(c=>[c.field,c.message])));
       else if(erro instanceof ErroApi && erro.semConexao) avisar(SEM_CONEXAO);
-      else {avisar(textoDoErro(erro),'perigo');if(erro instanceof ErroApi && erro.status===409)recarregar();}
+      else {
+        // Todo 409 recarrega (questionário trocado, pasta que deixou de ser a atual, atualização já enviada), menos o peso do
+        // dia gravado ao mesmo tempo: esse só pede para enviar de novo. Recarregou, o aviso é neutro; o app já se corrigiu.
+        const recarrega=erro instanceof ErroApi && erro.status===409 && erro.codigo!=='PESO_JA_REGISTRADO';
+        avisar(textoDoErro(erro),recarrega?undefined:'perigo');
+        if(recarrega) {
+          // Guarda o que está na tela (com a versão antiga) para a remontagem reconciliar com o questionário novo.
+          // Já enviada: o rascunho não serve mais.
+          if(erro.codigo==='ATUALIZACAO_JA_ENVIADA') await repositorio.apagarRascunhoAtualizacao(atual.pastaId).catch(()=>undefined);
+          else await repositorio.salvarRascunhoAtualizacao(atual.pastaId,{...versaoDoRascunho(atual),respostas}).catch(()=>undefined);
+          recarregar();
+        }
+      }
     } finally {setOcupado(false);}
   };
   const salvarAtraso=async()=>{
@@ -123,6 +148,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
       <FeedbackAtualizacao feedback={atual.feedback} />
       {!leitura&&!liberada&&atual.dataAtualizacao?<Bloqueado titulo={`Disponível a partir de ${dataParaTela(somarDias(atual.dataAtualizacao,-1))}`} texto="O formulário libera um dia antes da data da atualização. Até lá você pode consultar as perguntas." />:null}
       <Selo {...statusAtualizacao(atual)} />
+      {rascunhoAdaptado&&vigente.mudou?<Cartao><Texto>Seu treinador atualizou o questionário. Confira as respostas.</Texto></Cartao>:null}
       {somenteLeitura&&!atual.enviadaEm?<Texto>Esta atualização é de um período anterior. Só é possível consultar.</Texto>:null}
       <Cartao titulo="Instruções">
         {atual.modelo?.instrucoes.map((texto,i)=><Texto key={i}>{texto}</Texto>)}

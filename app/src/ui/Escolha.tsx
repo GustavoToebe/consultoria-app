@@ -17,15 +17,17 @@ interface Props<T> {
   rotulo?: string;
   /** Rótulo lido pelo leitor de tela quando não há rótulo visível. */
   descricao?: string;
+  /** Tocar na opção ativa desmarca e devolve `null` (resposta opcional). Sem isto, a opção ativa não muda. */
+  limpavel?: boolean;
 }
 
 /** Escolha entre poucas opções (dia da semana, tipo de série, tema): botões lado a lado que quebram linha. */
-export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao }: Props<T>) {
+export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao, limpavel }: Props<T>) {
   const { cores } = useTema();
   return (
     <View style={estilos.campo}>
       {rotulo ? <Texto variante="rotulo">{rotulo}</Texto> : null}
-      <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { const opcao = v === undefined || v === '' ? undefined : opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={estilos.linha} accessibilityLabel={rotulo ?? descricao}>
+      <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { if (v === undefined || v === '') { if (limpavel) aoMudar(null as T); return; } const opcao = opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={estilos.linha} accessibilityLabel={rotulo ?? descricao}>
         {opcoes.map((o, indice) => {
           const ativo = o.valor === valor;
           return (

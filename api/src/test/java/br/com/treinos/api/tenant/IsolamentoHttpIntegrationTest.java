@@ -90,6 +90,51 @@ class IsolamentoHttpIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void questionariosDeAtualizacaoSaoDeCadaConsultoria() throws Exception {
+        JsonNode qB = api.post("/questionarios", treinadorB, Map.of("nome", "Só do B", "origem", "FABRICA"), 200);
+        String idB = qB.get("id").asString();
+        api.post("/questionarios/" + idB + "/publicar", treinadorB,
+                Map.of("versao", qB.get("versao").asLong(), "confirmarAvisos", true), 200);
+        String pastaB = api.post("/alunos/" + alunoB + "/pastas", treinadorB,
+                Map.of("titulo", "Pasta do B", "inicio", "2030-01-01", "fim", "2030-01-28"), 200).get("id").asString();
+
+        api.get("/questionarios/" + idB, treinadorA, 404);
+        api.put("/questionarios/" + idB, treinadorA, Map.of("nome", "x", "versao", 0,
+                "conteudo", Map.of("secoes", java.util.List.of())), 404);
+        api.post("/questionarios/" + idB + "/validar", treinadorA, null, 404);
+        api.post("/questionarios/" + idB + "/publicar", treinadorA, Map.of("versao", 1, "confirmarAvisos", true), 404);
+        api.post("/questionarios/" + idB + "/duplicar", treinadorA, null, 404);
+        api.post("/questionarios/" + idB + "/padrao", treinadorA, null, 404);
+        api.post("/questionarios/" + idB + "/arquivar", treinadorA, null, 404);
+        api.post("/questionarios/" + idB + "/desarquivar", treinadorA, null, 404);
+        api.delete("/questionarios/" + idB, treinadorA, 404);
+        assertThat(api.get("/questionarios", treinadorA, 200).valueStream().map(q -> q.get("nome").asString()))
+                .doesNotContain("Só do B");
+        assertThat(api.get("/questionarios/opcoes", treinadorA, 200).valueStream().map(q -> q.get("id").asString()))
+                .doesNotContain(idB);
+
+        // Escolha cruzada: questionário de uma consultoria em aluno/pasta de outra, nos dois sentidos.
+        UUID alunoA = api.criarAluno(treinadorA, "Aluno Fictício A");
+        String pastaA = api.post("/alunos/" + alunoA + "/pastas", treinadorA,
+                Map.of("titulo", "Pasta do A", "inicio", "2030-01-01", "fim", "2030-01-28"), 200).get("id").asString();
+        JsonNode qA = api.post("/questionarios", treinadorA, Map.of("nome", "Só do A", "origem", "FABRICA"), 200);
+        String idA = qA.get("id").asString();
+        api.post("/questionarios/" + idA + "/publicar", treinadorA,
+                Map.of("versao", qA.get("versao").asLong(), "confirmarAvisos", true), 200);
+        api.put("/alunos/" + alunoA + "/questionario", treinadorA, Map.of("questionarioId", idB), 404);
+        api.put("/pastas/" + pastaA + "/questionario", treinadorA, Map.of("questionarioId", idB), 404);
+        api.put("/alunos/" + alunoB + "/questionario", treinadorA, Map.of("questionarioId", idA), 404);
+        api.put("/pastas/" + pastaB + "/questionario", treinadorA, Map.of("questionarioId", idA), 404);
+        api.put("/alunos/" + alunoB + "/questionario", treinadorA, new java.util.HashMap<String, Object>(), 404);
+        api.put("/pastas/" + pastaB + "/questionario", treinadorA, new java.util.HashMap<String, Object>(), 404);
+
+        // B continua intacto: nada foi escolhido nem alterado.
+        assertThat(api.get("/alunos/" + alunoB, treinadorB, 200).get("questionarioId").isNull()).isTrue();
+        assertThat(api.get("/questionarios/" + idB, treinadorB, 200).get("versaoPublicada").asInt()).isEqualTo(1);
+        assertThat(api.get("/alunos/" + alunoA, treinadorA, 200).get("questionarioId").isNull()).isTrue();
+    }
+
+    @Test
     void alunoNaoUsaRotaDeTreinadorESoVeOProprioPlano() throws Exception {
         JsonNode alunoLogadoB = api.convidarEEntrar(treinadorB, alunoB);
         api.get("/alunos", alunoLogadoB, 403);

@@ -20,10 +20,10 @@ public final class PastaDtos {
     }
 
     public record PastaResumo(UUID id, UUID alunoId, String titulo, LocalDate inicio, LocalDate fim,
-                              Instant concluidaEm) {
+                              Instant concluidaEm, UUID questionarioId) {
         public static PastaResumo de(PastaPlano p) {
             return new PastaResumo(p.getId(), p.getAlunoId(), p.getTitulo(), p.getInicio(), p.getFim(),
-                    p.getConcluidaEm());
+                    p.getConcluidaEm(), p.getQuestionarioId());
         }
     }
 

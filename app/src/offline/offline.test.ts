@@ -69,7 +69,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
 
   it('rascunho da atualização persiste por pasta, fica isolado e some ao enviar ou sair', async () => {
     const repo = aparelho('u1');
-    const salvo = {modeloVersao:1,respostas:{peso:80.5,sono:7}};
+    const salvo = {questionarioVersaoId:'v-uuid-1',respostas:{peso:80.5,sono:7,dor:false,extras:['a','b']}};
     await repo.salvarRascunhoAtualizacao('p1',salvo);
     expect(await aparelho('u2').lerRascunhoAtualizacao('p1')).toBeNull();
     expect(await repo.lerRascunhoAtualizacao('p2')).toBeNull();
@@ -82,6 +82,13 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     await repo.salvarRascunhoAtualizacao('p1',salvo);
     expect(await aparelho('u1').lerRascunhoAtualizacao('p1')).toBeNull();
     expect(await aparelho('u1').lerRascunhoAtualizacao('p2')).toBeNull();
+  });
+
+  it('rascunho antigo da atualização (só o número da versão) continua legível', async () => {
+    const repo = aparelho('u1');
+    const antigo = {modeloVersao:1,respostas:{peso:80.5}};
+    await repo.salvarRascunhoAtualizacao('p1',antigo);
+    expect(await repo.lerRascunhoAtualizacao('p1')).toEqual(antigo);
   });
 
   it('histórico da semana fica isolado, sobrevive à reabertura e sai ao desconectar a conta', async () => {

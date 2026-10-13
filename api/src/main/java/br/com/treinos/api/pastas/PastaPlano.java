@@ -43,6 +43,12 @@ public class PastaPlano {
     public void concluir(Instant quando) { this.concluidaEm = quando; }
     public void reabrir() { this.concluidaEm = null; }
 
+    /** Questionário de atualização só deste período; nulo = o do aluno. */
+    @Column(name = "questionario_id")
+    private java.util.UUID questionarioId;
+    public java.util.UUID getQuestionarioId() { return questionarioId; }
+    public void alterarQuestionario(java.util.UUID id) { this.questionarioId = id; }
+
 
     private LocalDate inicio;
 

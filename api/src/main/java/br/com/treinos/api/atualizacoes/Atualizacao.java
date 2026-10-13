@@ -15,7 +15,8 @@ public class Atualizacao {
     @Column(name = "aluno_id", nullable = false, updatable = false) private UUID alunoId;
     @Column(name = "pasta_id", nullable = false, updatable = false) private UUID pastaId;
     @Column(name = "data_atualizacao", nullable = false) private LocalDate dataAtualizacao;
-    @Column(name = "modelo_versao", nullable = false) private int modeloVersao;
+    /** Versão publicada do questionário respondida; nula enquanto ABERTA (a versão vigente é resolvida na hora). */
+    @Column(name = "questionario_versao_id") private UUID questionarioVersaoId;
     @Column(nullable = false) private String estado;
     @JdbcTypeCode(SqlTypes.JSON) @Column(columnDefinition = "jsonb", nullable = false) private String respostas;
     @Column(name = "enviada_em") private Instant enviadaEm;
@@ -29,11 +30,14 @@ public class Atualizacao {
     @Column(name = "feedback_visto_em") private Instant feedbackVistoEm;
     @Version private Long versao;
     protected Atualizacao() { }
-    public Atualizacao(UUID alunoId, UUID pastaId, LocalDate data, int modeloVersao) {
+    public Atualizacao(UUID alunoId, UUID pastaId, LocalDate data) {
         this.alunoId = alunoId; this.pastaId = pastaId; this.dataAtualizacao = data;
-        this.modeloVersao = modeloVersao; this.estado = "ABERTA"; this.respostas = "{}";
+        this.estado = "ABERTA"; this.respostas = "{}";
     }
-    public void enviar(String respostas, Instant quando) { this.respostas = respostas; this.enviadaEm = quando; this.estado = "ENVIADA"; }
+    public void enviar(String respostas, Instant quando, UUID questionarioVersaoId) {
+        this.respostas = respostas; this.enviadaEm = quando; this.estado = "ENVIADA";
+        this.questionarioVersaoId = questionarioVersaoId;
+    }
     public void avisarAtraso(LocalDate data, String motivo, Instant quando) { this.atrasoAte = data; this.atrasoMotivo = motivo; this.atrasoAvisadoEm = quando; }
     public void responder(String texto, UUID usuarioId, Instant quando) {
         if (feedbackEm != null) feedbackEditadoEm = quando;
@@ -45,7 +49,7 @@ public class Atualizacao {
     public UUID getAlunoId() { return alunoId; }
     public UUID getPastaId() { return pastaId; }
     public LocalDate getDataAtualizacao() { return dataAtualizacao; }
-    public int getModeloVersao() { return modeloVersao; }
+    public UUID getQuestionarioVersaoId() { return questionarioVersaoId; }
     public String getEstado() { return estado; }
     public String getRespostas() { return respostas; }
     public Instant getEnviadaEm() { return enviadaEm; }

@@ -44,6 +44,11 @@ public class Aluno {
 
     @Column(name="responsavel_id") private UUID responsavelId;
 
+    /** Questionário de atualização do aluno; nulo = o padrão da consultoria. */
+    @Column(name = "questionario_id") private UUID questionarioId;
+    public UUID getQuestionarioId() { return questionarioId; }
+    public void alterarQuestionario(UUID id) { questionarioId=id; atualizadoEm=Instant.now(); }
+
     @Column(nullable = false)
     private boolean ativo = true;
 

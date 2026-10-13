@@ -123,6 +123,8 @@ export interface AlunoDetalhe {
   versao: number;
   diasAtualizacao: number | null;
   responsavelId?: string | null;
+  /** Questionário de atualização escolhido para o aluno; nulo = vale o padrão. */
+  questionarioId?: string | null;
 }
 
 export interface AlunoRequest {
@@ -372,6 +374,8 @@ export interface PastaResumo {
   fim: string | null;
   /** Instante em que o treinador finalizou a pasta; nulo = aberta. */
   concluidaEm: string | null;
+  /** Questionário escolhido só para o período da pasta; nulo = vale o do aluno. */
+  questionarioId?: string | null;
 }
 
 /** Peso e observação são opcionais e vão para o registro de peso do aluno (a observação só com o peso). */
@@ -574,20 +578,35 @@ export interface LoteResponse {
 export interface PastaModelo { id: string; nome: string; versao: number }
 export type FaseAtualizacao = 'NENHUMA' | 'AVISO' | 'ABERTA' | 'ATRASADA' | 'ENVIADA' | 'REVISADA';
 export type SituacaoAtualizacao = 'PARA_REVISAR' | 'ATRASADAS' | 'AVISARAM_ATRASO' | 'PROXIMAS';
-export type RespostaAtualizacao = string | number | null | Record<string, number | null>;
+export type RespostaAtualizacao = string | number | boolean | string[] | null | Record<string, number | null>;
 export type RespostasAtualizacao = Record<string, RespostaAtualizacao>;
+/** Mesmos valores de `TipoPergunta` no Java (`questionarios/TipoPergunta`). */
+export type TipoPergunta = 'DATA_AUTOMATICA' | 'PESO' | 'NOTA' | 'TEXTO' | 'TEXTO_LONGO' | 'NOTAS_POR_DIA' | 'FOTOS'
+  | 'ESCOLHA_UNICA' | 'MULTIPLA_ESCOLHA' | 'NUMERO' | 'SIM_NAO';
+export interface OpcaoPergunta { id: string; rotulo: string }
 export interface PerguntaAtualizacao {
   id: string;
-  tipo: 'DATA_AUTOMATICA' | 'PESO' | 'NOTA' | 'TEXTO' | 'TEXTO_LONGO' | 'NOTAS_POR_DIA' | 'FOTOS';
+  tipo: TipoPergunta;
   rotulo: string;
   obrigatoria: boolean;
-  dias?: number[];
   ajuda?: string;
+  /** Vai para o resumo do treinador (até 4; só NOTA, NUMERO, SIM_NAO e ESCOLHA_UNICA). */
+  destaque?: boolean;
+  rotuloCurto?: string;
+  ajudaAutomatica?: 'MEDIA_DIAS_TREINO';
+  dias?: number[];
+  opcoes?: OpcaoPergunta[];
+  unidade?: string;
+  min?: number;
+  max?: number;
+  casas?: number;
 }
-export interface ModeloAtualizacao {
-  versao: number;
-  instrucoes: string[];
-  secoes: { titulo: string; perguntas: PerguntaAtualizacao[] }[];
+export interface SecaoAtualizacao { uid?: string; titulo: string; perguntas: PerguntaAtualizacao[] }
+/** Conteúdo (formato 2) de um questionário: o rascunho e cada versão publicada. */
+export interface ConteudoQuestionario { formato?: number; instrucoes: string[]; secoes: SecaoAtualizacao[] }
+export interface ModeloAtualizacao extends ConteudoQuestionario {
+  /** Só nos modelos antigos (formato 1); o número da versão do questionário vem fora do conteúdo. */
+  versao?: number;
 }
 export interface Atualizacao {
   id: string | null;
@@ -601,6 +620,9 @@ export interface Atualizacao {
   atrasoAte: string | null;
   atrasoMotivo: string | null;
   modeloVersao: number;
+  /** Versão do questionário em uso (a fixada no envio, ou a que vale hoje enquanto aberta). Ausente em cópia antiga no aparelho. */
+  questionarioVersaoId?: string | null;
+  questionarioNome?: string | null;
   modelo: ModeloAtualizacao | null;
   respostas: RespostasAtualizacao | null;
   enviadaEm: string | null;

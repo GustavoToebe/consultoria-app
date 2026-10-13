@@ -8,6 +8,7 @@ import br.com.treinos.api.pastas.PastaPlano;
 import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
+import br.com.treinos.api.questionarios.QuestionarioResolver;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.web.*;
 import jakarta.validation.constraints.*;
@@ -27,16 +28,16 @@ import java.util.UUID;
 @Service
 public class AtualizacaoService {
     /** {@code pastaId} diz qual atualização o aluno está respondendo; só a da pasta vigente aceita escrita. */
-    public record EnviarRequest(@NotNull UUID pastaId, @NotNull Integer modeloVersao, @NotNull JsonNode respostas) { }
+    public record EnviarRequest(@NotNull UUID pastaId, UUID questionarioVersaoId, Integer modeloVersao, @NotNull JsonNode respostas) { }
     public record AtrasoRequest(@NotNull UUID pastaId, @NotNull LocalDate novaData, @Size(max = 300) String motivo) { }
     public record FeedbackRequest(@NotBlank @Size(max = 4000) String texto, @NotNull Long versao) { }
     public record Feedback(String texto, Instant em, Instant editadoEm, boolean naoLido, String nomeAutor) { }
     public record Detalhe(UUID id, UUID pastaId, UUID alunoId, String nomeAluno, LocalDate dataAtualizacao,
             String fase, long diasParaData, long diasDeAtraso, LocalDate atrasoAte, String atrasoMotivo,
-            int modeloVersao, JsonNode modelo, JsonNode respostas, Instant enviadaEm,
+            int modeloVersao, UUID questionarioVersaoId, String questionarioNome, JsonNode modelo, JsonNode respostas, Instant enviadaEm,
             Feedback feedback, Long versao, ResumoPeriodoService.Resumo resumo) { }
     private final AtualizacaoRepository atualizacoes;
-    private final AtualizacaoModeloRepository modelos;
+    private final QuestionarioResolver questionarios;
     private final PastaRepository pastas;
     private final PlanoTreinoRepository treinos;
     private final PlanoDietaRepository dietas;
@@ -46,12 +47,12 @@ public class AtualizacaoService {
     private final ValidadorAtualizacao validador;
     private final JsonMapper json;
     private final br.com.treinos.api.auth.UsuarioRepository usuarios;
-    public AtualizacaoService(AtualizacaoRepository atualizacoes, AtualizacaoModeloRepository modelos,
+    public AtualizacaoService(AtualizacaoRepository atualizacoes, QuestionarioResolver questionarios,
             PastaRepository pastas, PlanoTreinoRepository treinos, PlanoDietaRepository dietas, AlunoRepository alunos,
             RegistroPesoRepository pesos, ResumoPeriodoService resumos, ValidadorAtualizacao validador, JsonMapper json,
             br.com.treinos.api.auth.UsuarioRepository usuarios) {
         this.usuarios=usuarios;
-        this.atualizacoes = atualizacoes; this.modelos = modelos; this.pastas = pastas;
+        this.atualizacoes = atualizacoes; this.questionarios = questionarios; this.pastas = pastas;
         this.treinos = treinos; this.dietas = dietas; this.alunos = alunos; this.pesos = pesos;
         this.resumos = resumos; this.validador = validador; this.json = json;
     }
@@ -61,7 +62,7 @@ public class AtualizacaoService {
     public Detalhe atualDoAluno(UUID alunoId) {
         exigirAluno(alunoId);
         PastaPlano pasta = pastaAtiva(alunoId);
-        if (pasta == null) return new Detalhe(null,null,alunoId,null,null,"NENHUMA",0,0,null,null,0,null,null,null,null,null,null);
+        if (pasta == null) return new Detalhe(null,null,alunoId,null,null,"NENHUMA",0,0,null,null,0,null,null,null,null,null,null,null,null);
         return detalhe(pasta, atualizacoes.findByPastaId(pasta.getId()).orElse(null));
     }
     @Transactional
@@ -80,14 +81,30 @@ public class AtualizacaoService {
         LocalDate data = atual == null ? pasta.getFim() : atual.getDataAtualizacao();
         if (LocalDate.now(Fuso.BRASILIA).isBefore(data.minusDays(1)))
             throw invalidos("data", "O formulário libera um dia antes da atualização.");
-        AtualizacaoModelo modelo = modelo(atual);
-        if (r.modeloVersao() != modelo.getVersao()) throw new ConflitoException("O modelo mudou. Recarregue o formulário.", "MODELO_ATUALIZACAO_ALTERADO");
-        JsonNode respostas = validador.validar(json.readTree(modelo.getConteudo()), r.respostas());
-        if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data,modelo.getVersao());
-        atual.enviar(json.writeValueAsString(respostas), Instant.now());
+        if (r.questionarioVersaoId() == null && r.modeloVersao() == null)
+            throw new BadRequestException("Informe a versão do questionário.");
+        var modelo = modelo(pasta, atual);
+        // O app novo confere o id da versão; o antigo só conhece o número (compatibilidade temporária).
+        boolean mesmaVersao = r.questionarioVersaoId() != null ? r.questionarioVersaoId().equals(modelo.versaoId())
+                : r.modeloVersao() == modelo.numero();
+        if (!mesmaVersao) throw new ConflitoException("O modelo mudou. Recarregue o formulário.", "MODELO_ATUALIZACAO_ALTERADO");
+        JsonNode conteudo = json.readTree(modelo.conteudo());
+        JsonNode respostas = validador.validar(conteudo, r.respostas());
+        if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data);
+        atual.enviar(json.writeValueAsString(respostas), Instant.now(), modelo.versaoId());
         atualizacoes.saveAndFlush(atual);
-        // A data é a da atualização, inclusive no envio liberado na véspera (não usar validação de peso futuro).
-        var peso = respostas.path("peso").decimalValue();
+        // O peso vem da pergunta do tipo PESO (se o questionário tiver e o aluno tiver respondido).
+        var respostaPeso = respostas.path(idDaPergunta(conteudo, "PESO"));
+        if (respostaPeso.isNumber()) gravarPeso(eu, alunoId, data, respostaPeso.decimalValue());
+        return detalhe(pasta,atual);
+    }
+    private static String idDaPergunta(JsonNode conteudo, String tipo) {
+        for (var secao : conteudo.path("secoes")) for (var p : secao.path("perguntas"))
+            if (tipo.equals(p.path("tipo").asString())) return p.path("id").asString();
+        return "";
+    }
+    /** A data é a da atualização, inclusive no envio liberado na véspera (não usar validação de peso futuro). */
+    private void gravarPeso(UsuarioAutenticado eu, UUID alunoId, LocalDate data, java.math.BigDecimal peso) {
         try {
             // Mantém a observação já registrada no peso do dia.
             pesos.findByAlunoIdAndData(alunoId,data).ifPresentOrElse(
@@ -99,7 +116,6 @@ public class AtualizacaoService {
             // Outro peso do mesmo dia entrou ao mesmo tempo; a transação inteira volta e o aluno reenvia.
             throw new ConflitoException("O peso deste dia acabou de ser registrado. Envie de novo.", "PESO_JA_REGISTRADO");
         }
-        return detalhe(pasta,atual);
     }
     @Transactional
     public Detalhe avisarAtraso(UsuarioAutenticado eu, AtrasoRequest r) {
@@ -115,7 +131,7 @@ public class AtualizacaoService {
             throw invalidos("novaData", "Escolha uma data de " + DATA_BR.format(minimo) + " até "
                     + DATA_BR.format(data.plusDays(RegrasAtualizacao.DIAS_MAXIMOS_DE_ATRASO)) + ".");
         }
-        if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data,modelo(null).getVersao());
+        if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data);
         atual.avisarAtraso(r.novaData(),Buscas.opcional(r.motivo()),Instant.now());
         return detalhe(pasta,atualizacoes.saveAndFlush(atual));
     }
@@ -200,9 +216,11 @@ public class AtualizacaoService {
         if (pasta == null) throw new NaoEncontradoException("Atualização não encontrada.");
         return pastas.travarParaAtualizacao(pasta.getId()).orElseThrow(() -> new NaoEncontradoException("Atualização não encontrada."));
     }
-    private AtualizacaoModelo modelo(Atualizacao a) {
-        return (a == null ? modelos.findFirstByOrderByVersaoDesc() : modelos.findByVersao(a.getModeloVersao()))
-            .orElseThrow(() -> new NaoEncontradoException("Modelo de atualização não encontrado."));
+    /** Enviada: a versão fixada no envio. Aberta: a vigente (pasta, depois aluno, depois o padrão), resolvida na hora. */
+    private QuestionarioResolver.Resolvida modelo(PastaPlano pasta, Atualizacao a) {
+        if (a != null && a.getQuestionarioVersaoId() != null) return questionarios.fixa(a.getQuestionarioVersaoId());
+        var aluno = alunos.findById(pasta.getAlunoId()).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        return questionarios.vigente(pasta.getQuestionarioId(), aluno.getQuestionarioId());
     }
     private Atualizacao buscar(UUID id) { return atualizacoes.findById(id).orElseThrow(() -> new NaoEncontradoException("Atualização não encontrada.")); }
     private void exigirAluno(UUID id) { Exigir.existe(alunos.findById(id), () -> new NaoEncontradoException("Aluno não encontrado.")); }
@@ -226,13 +244,13 @@ public class AtualizacaoService {
     private Detalhe detalhe(PastaPlano pasta, Atualizacao a) {
         LocalDate data = a == null ? pasta.getFim() : a.getDataAtualizacao();
         var regras = RegrasAtualizacao.calcular(LocalDate.now(Fuso.BRASILIA),data,a == null ? null : a.getAtrasoAte(),a == null ? null : a.getEstado());
-        var modelo = modelo(a);
+        var modelo = modelo(pasta, a);
         var aluno = alunos.findById(pasta.getAlunoId()).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         String autor=a==null || a.getFeedbackPor()==null ? null : usuarios.findById(a.getFeedbackPor())
                 .filter(u -> u.getConsultoriaId().equals(aluno.getConsultoriaId())).map(br.com.treinos.api.auth.Usuario::getNome).orElse(null);
         var feedback = a == null || a.getFeedbackEm() == null ? null : new Feedback(a.getFeedback(),a.getFeedbackEm(),a.getFeedbackEditadoEm(),a.getFeedbackVistoEm() == null,autor);
         return new Detalhe(a == null ? null : a.getId(),pasta.getId(),aluno.getId(),aluno.getNome(),data,regras.fase(),regras.diasParaData(),regras.diasDeAtraso(),
-            a == null ? null : a.getAtrasoAte(),a == null ? null : a.getAtrasoMotivo(),modelo.getVersao(),json.readTree(modelo.getConteudo()),
+            a == null ? null : a.getAtrasoAte(),a == null ? null : a.getAtrasoMotivo(),modelo.numero(),modelo.versaoId(),modelo.nome(),json.readTree(modelo.conteudo()),
             a == null ? json.createObjectNode() : json.readTree(a.getRespostas()),a == null ? null : a.getEnviadaEm(),feedback,a == null ? null : a.getVersao(),resumos.calcular(aluno.getId(),pasta.getInicio(),data));
     }
 }

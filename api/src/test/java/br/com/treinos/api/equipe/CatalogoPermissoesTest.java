@@ -15,6 +15,14 @@ class CatalogoPermissoesTest {
         assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("DIETA_PUBLICAR"))))
                 .containsExactlyInAnyOrder("DIETA_PUBLICAR","DIETA_ALTERAR","DIETA_LER");
     }
+    @Test void questionariosAlterarExigeLerENaoSaoSensiveis() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("QUESTIONARIO_"))
+                .extracting(CatalogoPermissoes.Permissao::codigo,CatalogoPermissoes.Permissao::sensivel)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("QUESTIONARIO_LER",false),org.assertj.core.groups.Tuple.tuple("QUESTIONARIO_ALTERAR",false));
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("QUESTIONARIO_ALTERAR"))).isInstanceOf(BadRequestException.class);
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("QUESTIONARIO_ALTERAR"))))
+                .containsExactlyInAnyOrder("QUESTIONARIO_ALTERAR","QUESTIONARIO_LER");
+    }
     @Test void ergogenicosSaoSensiveisEDependemDaBiblioteca() {
         assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("ERGOGENICO_"))
                 .extracting(CatalogoPermissoes.Permissao::sensivel).containsExactly(true,true);

@@ -5,8 +5,7 @@ import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.alunos.ConviteService;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.atualizacoes.Atualizacao;
-import br.com.treinos.api.atualizacoes.AtualizacaoModelo;
-import br.com.treinos.api.atualizacoes.AtualizacaoModeloRepository;
+import br.com.treinos.api.questionarios.QuestionarioResolver;
 import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
 import br.com.treinos.api.atualizacoes.ValidadorAtualizacao;
 import br.com.treinos.api.auth.Usuario;
@@ -175,7 +174,7 @@ public class SeedHistoricoDemo {
     private final UsuarioRepository usuarios;
     private final RegistroPesoRepository pesoRepo;
     private final AtualizacaoRepository atualizacaoRepo;
-    private final AtualizacaoModeloRepository modeloRepo;
+    private final QuestionarioResolver questionarios;
     private final ValidadorAtualizacao validadorAtualizacao;
     private final ExecucaoUpsert execucoes;
     private final TransactionTemplate tx;
@@ -185,7 +184,7 @@ public class SeedHistoricoDemo {
                              PlanoTreinoService treinos, PlanoDietaService dietas, PlanoMobilidadeService mobilidades,
                              ReceitaService receitas, LesaoService lesoes, UsuarioRepository usuarios,
                              RegistroPesoRepository pesoRepo, AtualizacaoRepository atualizacaoRepo,
-                             AtualizacaoModeloRepository modeloRepo, ValidadorAtualizacao validadorAtualizacao,
+                             QuestionarioResolver questionarios, ValidadorAtualizacao validadorAtualizacao,
                              ExecucaoUpsert execucoes, TransactionTemplate tx, JsonMapper json) {
         this.alunos = alunos;
         this.convites = convites;
@@ -199,7 +198,7 @@ public class SeedHistoricoDemo {
         this.usuarios = usuarios;
         this.pesoRepo = pesoRepo;
         this.atualizacaoRepo = atualizacaoRepo;
-        this.modeloRepo = modeloRepo;
+        this.questionarios = questionarios;
         this.validadorAtualizacao = validadorAtualizacao;
         this.execucoes = execucoes;
         this.tx = tx;
@@ -240,8 +239,7 @@ public class SeedHistoricoDemo {
         return TenantContext.executarComo(consultoria, () -> {
             Modelos modelos = carregarModelos();
             LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
-            AtualizacaoModelo modeloAtualizacao = modeloRepo.findFirstByOrderByVersaoDesc()
-                    .orElseThrow(() -> new IllegalStateException("Modelo de atualização não encontrado."));
+            QuestionarioResolver.Resolvida modeloAtualizacao = questionarios.padrao();
             int[] total = new int[3];
             for (int i = 0; i < PERFIS.size(); i++) {
                 int[] parcial = criarAluno(i, PERFIS.get(i), consultoria, treinador.getId(), senha, hoje, modelos,
@@ -281,7 +279,7 @@ public class SeedHistoricoDemo {
     // ---- Um aluno ----
 
     private int[] criarAluno(int idx, Perfil p, UUID consultoria, UUID treinador, String senha, LocalDate hoje,
-                             Modelos modelos, AtualizacaoModelo modeloAtualizacao) {
+                             Modelos modelos, QuestionarioResolver.Resolvida modeloAtualizacao) {
         String email = String.format("aluno%02d@demo.local", idx + 1);
         UUID aluno = alunos.criar(new AlunoRequest(p.nome(), email, "Melhorar composição corporal", null, null, 30)).id();
         String codigo = convites.gerar(aluno).codigo();
@@ -498,8 +496,9 @@ public class SeedHistoricoDemo {
      * na situação do perfil.
      */
     private int fecharPastas(int idx, Perfil p, UUID aluno, List<UUID> pastasIds, List<LocalDate> fins, LocalDate hoje,
-                             NavigableMap<LocalDate, BigDecimal> pesos, UUID treinador, AtualizacaoModelo modelo) {
-        JsonNode modeloJson = json.readTree(modelo.getConteudo());
+                             NavigableMap<LocalDate, BigDecimal> pesos, UUID treinador,
+                             QuestionarioResolver.Resolvida modelo) {
+        JsonNode modeloJson = json.readTree(modelo.conteudo());
         int criadas = 0;
         for (int k = 0; k < 5; k++) {
             LocalDate fim = fins.get(k);
@@ -516,11 +515,11 @@ public class SeedHistoricoDemo {
             }
             Instant envio = enviadaEm;
             tx.executeWithoutResult(s -> {
-                Atualizacao a = new Atualizacao(aluno, pastasIds.get(ciclo), fim, modelo.getVersao());
+                Atualizacao a = new Atualizacao(aluno, pastasIds.get(ciclo), fim);
                 if (idx == 7 && ciclo == 2) {
                     a.avisarAtraso(fim.plusDays(4), "Viagem a trabalho; envio no retorno.", instante(fim.minusDays(1), 18));
                 }
-                a.enviar(respostas(modeloJson, idx, ciclo, pesos.get(fim)), envio);
+                a.enviar(respostas(modeloJson, idx, ciclo, pesos.get(fim)), envio, modelo.versaoId());
                 if (ciclo < 4) {
                     a.responder(FEEDBACKS.get((idx + ciclo) % FEEDBACKS.size()), treinador, envio.plus(26, ChronoUnit.HOURS));
                 }

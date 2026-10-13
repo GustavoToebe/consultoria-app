@@ -80,8 +80,9 @@ export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:string
 export const atualizacaoAluno = () => requisicao<Atualizacao>('/aluno/atualizacao');
 export const atualizacoesAluno = () => requisicao<Atualizacao[]>('/aluno/atualizacoes');
 export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`/aluno/atualizacoes/${id}`);
-export const enviarAtualizacao = (pastaId: string, modeloVersao: number, respostas: RespostasAtualizacao) =>
-  requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, modeloVersao, respostas } });
+/** A API confere o id da versão; o número só vale para quem não tem o id (cópia antiga no aparelho). */
+export const enviarAtualizacao = (pastaId: string, versao: { questionarioVersaoId?: string | null; modeloVersao: number }, respostas: RespostasAtualizacao) =>
+  requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, questionarioVersaoId: versao.questionarioVersaoId ?? undefined, modeloVersao: versao.modeloVersao, respostas } });
 export const avisarAtrasoAtualizacao = (pastaId: string, novaData: string, motivo?: string) =>
   requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { pastaId, novaData, motivo } });
 export const marcarFeedbackVisto = (id: string) =>

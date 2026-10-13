@@ -1,0 +1,4526 @@
+[
+ {
+  "nome": "valido_minimo",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [
+    "Uma instrução"
+   ],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": true
+      },
+      {
+       "id": "sono",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta sono",
+       "obrigatoria": true,
+       "destaque": true,
+       "rotuloCurto": "Sono"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "sem_peso_so_avisa",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "sono",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta sono",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [
+   "secoes"
+  ]
+ },
+ {
+  "nome": "sem_secoes",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": []
+  },
+  "erros": [
+   "secoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "secao_sem_pergunta",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [
+    "Uma instrução"
+   ],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": true
+      },
+      {
+       "id": "sono",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta sono",
+       "obrigatoria": true,
+       "destaque": true,
+       "rotuloCurto": "Sono"
+      }
+     ]
+    },
+    {
+     "uid": "s2",
+     "titulo": "Vazia",
+     "perguntas": []
+    }
+   ]
+  },
+  "erros": [
+   "secoes[1].perguntas"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "secao_sem_titulo_e_uid_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [
+    "Uma instrução"
+   ],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": true
+      },
+      {
+       "id": "sono",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta sono",
+       "obrigatoria": true,
+       "destaque": true,
+       "rotuloCurto": "Sono"
+      }
+     ]
+    },
+    {
+     "uid": "s1",
+     "titulo": "  ",
+     "perguntas": [
+      {
+       "id": "x1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x1",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[1].titulo",
+   "secoes[1].uid"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "secao_uid_invalido_e_ausente",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [
+    "Uma instrução"
+   ],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": true
+      },
+      {
+       "id": "sono",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta sono",
+       "obrigatoria": true,
+       "destaque": true,
+       "rotuloCurto": "Sono"
+      }
+     ]
+    },
+    {
+     "uid": "com espaço",
+     "titulo": "B",
+     "perguntas": [
+      {
+       "id": "x1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x1",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "titulo": "C",
+     "perguntas": [
+      {
+       "id": "x2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x2",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[1].uid",
+   "secoes[2].uid"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "pergunta_id_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "peso",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].id"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "pergunta_id_invalido_e_rotulo_vazio",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "com espaço",
+       "tipo": "NOTA",
+       "rotulo": "",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].id",
+   "secoes[0].perguntas[1].rotulo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "rotulo_200_aceito",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "NOTA",
+       "rotulo": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "rotulo_201_recusado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "NOTA",
+       "rotulo": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].rotulo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "titulo_80_utf16_aceito",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "✅aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "titulo_com_emoji_conta_utf16",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "😀aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].titulo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "ajuda_300_aceita",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x",
+       "obrigatoria": false,
+       "ajuda": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "ajuda_301_recusada",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x",
+       "obrigatoria": false,
+       "ajuda": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].ajuda"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "instrucoes_11",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a",
+    "a"
+   ],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "instrucoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "instrucoes_vazia_e_longa",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [
+    "",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ok"
+   ],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta x",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "instrucoes[0]",
+   "instrucoes[1]"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "tipo_unico_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "peso2",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso2",
+       "obrigatoria": false
+      },
+      {
+       "id": "f1",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f1",
+       "obrigatoria": false
+      },
+      {
+       "id": "f2",
+       "tipo": "FOTOS",
+       "rotulo": "Pergunta f2",
+       "obrigatoria": false
+      },
+      {
+       "id": "d1",
+       "tipo": "DATA_AUTOMATICA",
+       "rotulo": "Pergunta d1",
+       "obrigatoria": false
+      },
+      {
+       "id": "d2",
+       "tipo": "DATA_AUTOMATICA",
+       "rotulo": "Pergunta d2",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].tipo",
+   "secoes[0].perguntas[3].tipo",
+   "secoes[0].perguntas[5].tipo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "tipo_ausente",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "rotulo": "Sem tipo",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].tipo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "escolha_unica_valida",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        },
+        {
+         "id": "o2",
+         "rotulo": "Opção 2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "multipla_20_opcoes_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "MULTIPLA_ESCOLHA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        },
+        {
+         "id": "o2",
+         "rotulo": "Opção 2"
+        },
+        {
+         "id": "o3",
+         "rotulo": "Opção 3"
+        },
+        {
+         "id": "o4",
+         "rotulo": "Opção 4"
+        },
+        {
+         "id": "o5",
+         "rotulo": "Opção 5"
+        },
+        {
+         "id": "o6",
+         "rotulo": "Opção 6"
+        },
+        {
+         "id": "o7",
+         "rotulo": "Opção 7"
+        },
+        {
+         "id": "o8",
+         "rotulo": "Opção 8"
+        },
+        {
+         "id": "o9",
+         "rotulo": "Opção 9"
+        },
+        {
+         "id": "o10",
+         "rotulo": "Opção 10"
+        },
+        {
+         "id": "o11",
+         "rotulo": "Opção 11"
+        },
+        {
+         "id": "o12",
+         "rotulo": "Opção 12"
+        },
+        {
+         "id": "o13",
+         "rotulo": "Opção 13"
+        },
+        {
+         "id": "o14",
+         "rotulo": "Opção 14"
+        },
+        {
+         "id": "o15",
+         "rotulo": "Opção 15"
+        },
+        {
+         "id": "o16",
+         "rotulo": "Opção 16"
+        },
+        {
+         "id": "o17",
+         "rotulo": "Opção 17"
+        },
+        {
+         "id": "o18",
+         "rotulo": "Opção 18"
+        },
+        {
+         "id": "o19",
+         "rotulo": "Opção 19"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "escolha_sem_opcoes",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].opcoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "escolha_uma_opcao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "MULTIPLA_ESCOLHA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].opcoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "escolha_21_opcoes",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        },
+        {
+         "id": "o2",
+         "rotulo": "Opção 2"
+        },
+        {
+         "id": "o3",
+         "rotulo": "Opção 3"
+        },
+        {
+         "id": "o4",
+         "rotulo": "Opção 4"
+        },
+        {
+         "id": "o5",
+         "rotulo": "Opção 5"
+        },
+        {
+         "id": "o6",
+         "rotulo": "Opção 6"
+        },
+        {
+         "id": "o7",
+         "rotulo": "Opção 7"
+        },
+        {
+         "id": "o8",
+         "rotulo": "Opção 8"
+        },
+        {
+         "id": "o9",
+         "rotulo": "Opção 9"
+        },
+        {
+         "id": "o10",
+         "rotulo": "Opção 10"
+        },
+        {
+         "id": "o11",
+         "rotulo": "Opção 11"
+        },
+        {
+         "id": "o12",
+         "rotulo": "Opção 12"
+        },
+        {
+         "id": "o13",
+         "rotulo": "Opção 13"
+        },
+        {
+         "id": "o14",
+         "rotulo": "Opção 14"
+        },
+        {
+         "id": "o15",
+         "rotulo": "Opção 15"
+        },
+        {
+         "id": "o16",
+         "rotulo": "Opção 16"
+        },
+        {
+         "id": "o17",
+         "rotulo": "Opção 17"
+        },
+        {
+         "id": "o18",
+         "rotulo": "Opção 18"
+        },
+        {
+         "id": "o19",
+         "rotulo": "Opção 19"
+        },
+        {
+         "id": "o20",
+         "rotulo": "Opção 20"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].opcoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "opcao_repetida_sem_acento_e_caixa",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "Não"
+        },
+        {
+         "id": "b",
+         "rotulo": " nao "
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].opcoes[1].rotulo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "opcao_id_repetido_e_vazios",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "x"
+        },
+        {
+         "id": "a",
+         "rotulo": ""
+        },
+        {
+         "id": "",
+         "rotulo": "y"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].opcoes[1].id",
+   "secoes[0].perguntas[1].opcoes[1].rotulo",
+   "secoes[0].perguntas[1].opcoes[2].id"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "opcao_rotulo_81",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+         "id": "b",
+         "rotulo": "b"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].opcoes[0].rotulo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "opcoes_em_tipo_sem_opcoes",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "opcoes": []
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].opcoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "dias_validos",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "d",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false,
+       "dias": [
+        1,
+        2,
+        3
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "dias_14_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "d",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false,
+       "dias": [
+        14
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "dias_vazio",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "d",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false,
+       "dias": []
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].dias"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "dias_ausente",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "d",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].dias"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "dias_8",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "d",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false,
+       "dias": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].dias"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "dias_fora_da_faixa",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "d",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false,
+       "dias": [
+        0,
+        15
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].dias[0]",
+   "secoes[0].perguntas[1].dias[1]"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "dias_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "d",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false,
+       "dias": [
+        1,
+        1
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].dias[1]"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "dias_em_nota",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "dias": [
+        1
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].dias"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "numero_valido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "min": 0,
+       "max": 10,
+       "casas": 1,
+       "unidade": "kg"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "numero_min_igual_max_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "min": 5,
+       "max": 5
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "numero_min_maior_que_max",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "min": 10,
+       "max": 1
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].max"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "numero_casas_3",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "casas": 3
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].casas"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "numero_casas_negativo",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "casas": -1
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].casas"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "numero_unidade_12_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "unidade": "aaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "numero_unidade_13",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "unidade": "aaaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].unidade"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "campos_de_numero_fora_de_numero",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "min": 0,
+       "max": 1,
+       "casas": 1,
+       "unidade": "x"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].casas",
+   "secoes[0].perguntas[1].max",
+   "secoes[0].perguntas[1].min",
+   "secoes[0].perguntas[1].unidade"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "destaques_4_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n1",
+       "obrigatoria": false,
+       "destaque": true
+      },
+      {
+       "id": "n2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n2",
+       "obrigatoria": false,
+       "destaque": true
+      },
+      {
+       "id": "n3",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n3",
+       "obrigatoria": false,
+       "destaque": true
+      },
+      {
+       "id": "n4",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n4",
+       "obrigatoria": false,
+       "destaque": true
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "destaques_5",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n1",
+       "obrigatoria": false,
+       "destaque": true
+      },
+      {
+       "id": "n2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n2",
+       "obrigatoria": false,
+       "destaque": true
+      },
+      {
+       "id": "n3",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n3",
+       "obrigatoria": false,
+       "destaque": true
+      },
+      {
+       "id": "n4",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n4",
+       "obrigatoria": false,
+       "destaque": true
+      },
+      {
+       "id": "n5",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n5",
+       "obrigatoria": false,
+       "destaque": true
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[5].destaque"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "destaque_sim_nao_e_escolha_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false,
+       "destaque": true,
+       "rotuloCurto": "Sim"
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "destaque": true,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "destaque_em_texto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "destaque": true
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destaque"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "rotulo_curto_sem_destaque",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "rotuloCurto": "Curto"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].rotuloCurto"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "rotulo_curto_com_destaque_false",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "destaque": false,
+       "rotuloCurto": "X"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].rotuloCurto"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "rotulo_curto_21",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "destaque": true,
+       "rotuloCurto": "aaaaaaaaaaaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].rotuloCurto"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "rotulo_curto_20_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "destaque": true,
+       "rotuloCurto": "aaaaaaaaaaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "rotulo_curto_em_branco_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "rotuloCurto": "  "
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "ajuda_automatica_texto_e_numero_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "ajudaAutomatica": "MEDIA_DIAS_TREINO"
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "ajudaAutomatica": "MEDIA_DIAS_TREINO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "ajuda_automatica_em_nota",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "ajudaAutomatica": "MEDIA_DIAS_TREINO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].ajudaAutomatica"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "perguntas_40_na_secao_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Seção 1",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n1",
+       "obrigatoria": false
+      },
+      {
+       "id": "n2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n2",
+       "obrigatoria": false
+      },
+      {
+       "id": "n3",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n3",
+       "obrigatoria": false
+      },
+      {
+       "id": "n4",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n4",
+       "obrigatoria": false
+      },
+      {
+       "id": "n5",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n5",
+       "obrigatoria": false
+      },
+      {
+       "id": "n6",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n6",
+       "obrigatoria": false
+      },
+      {
+       "id": "n7",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n7",
+       "obrigatoria": false
+      },
+      {
+       "id": "n8",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n8",
+       "obrigatoria": false
+      },
+      {
+       "id": "n9",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n9",
+       "obrigatoria": false
+      },
+      {
+       "id": "n10",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n10",
+       "obrigatoria": false
+      },
+      {
+       "id": "n11",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n11",
+       "obrigatoria": false
+      },
+      {
+       "id": "n12",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n12",
+       "obrigatoria": false
+      },
+      {
+       "id": "n13",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n13",
+       "obrigatoria": false
+      },
+      {
+       "id": "n14",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n14",
+       "obrigatoria": false
+      },
+      {
+       "id": "n15",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n15",
+       "obrigatoria": false
+      },
+      {
+       "id": "n16",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n16",
+       "obrigatoria": false
+      },
+      {
+       "id": "n17",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n17",
+       "obrigatoria": false
+      },
+      {
+       "id": "n18",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n18",
+       "obrigatoria": false
+      },
+      {
+       "id": "n19",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n19",
+       "obrigatoria": false
+      },
+      {
+       "id": "n20",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n20",
+       "obrigatoria": false
+      },
+      {
+       "id": "n21",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n21",
+       "obrigatoria": false
+      },
+      {
+       "id": "n22",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n22",
+       "obrigatoria": false
+      },
+      {
+       "id": "n23",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n23",
+       "obrigatoria": false
+      },
+      {
+       "id": "n24",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n24",
+       "obrigatoria": false
+      },
+      {
+       "id": "n25",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n25",
+       "obrigatoria": false
+      },
+      {
+       "id": "n26",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n26",
+       "obrigatoria": false
+      },
+      {
+       "id": "n27",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n27",
+       "obrigatoria": false
+      },
+      {
+       "id": "n28",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n28",
+       "obrigatoria": false
+      },
+      {
+       "id": "n29",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n29",
+       "obrigatoria": false
+      },
+      {
+       "id": "n30",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n30",
+       "obrigatoria": false
+      },
+      {
+       "id": "n31",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n31",
+       "obrigatoria": false
+      },
+      {
+       "id": "n32",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n32",
+       "obrigatoria": false
+      },
+      {
+       "id": "n33",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n33",
+       "obrigatoria": false
+      },
+      {
+       "id": "n34",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n34",
+       "obrigatoria": false
+      },
+      {
+       "id": "n35",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n35",
+       "obrigatoria": false
+      },
+      {
+       "id": "n36",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n36",
+       "obrigatoria": false
+      },
+      {
+       "id": "n37",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n37",
+       "obrigatoria": false
+      },
+      {
+       "id": "n38",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n38",
+       "obrigatoria": false
+      },
+      {
+       "id": "n39",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n39",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "perguntas_41_na_secao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Seção 1",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n1",
+       "obrigatoria": false
+      },
+      {
+       "id": "n2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n2",
+       "obrigatoria": false
+      },
+      {
+       "id": "n3",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n3",
+       "obrigatoria": false
+      },
+      {
+       "id": "n4",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n4",
+       "obrigatoria": false
+      },
+      {
+       "id": "n5",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n5",
+       "obrigatoria": false
+      },
+      {
+       "id": "n6",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n6",
+       "obrigatoria": false
+      },
+      {
+       "id": "n7",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n7",
+       "obrigatoria": false
+      },
+      {
+       "id": "n8",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n8",
+       "obrigatoria": false
+      },
+      {
+       "id": "n9",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n9",
+       "obrigatoria": false
+      },
+      {
+       "id": "n10",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n10",
+       "obrigatoria": false
+      },
+      {
+       "id": "n11",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n11",
+       "obrigatoria": false
+      },
+      {
+       "id": "n12",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n12",
+       "obrigatoria": false
+      },
+      {
+       "id": "n13",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n13",
+       "obrigatoria": false
+      },
+      {
+       "id": "n14",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n14",
+       "obrigatoria": false
+      },
+      {
+       "id": "n15",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n15",
+       "obrigatoria": false
+      },
+      {
+       "id": "n16",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n16",
+       "obrigatoria": false
+      },
+      {
+       "id": "n17",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n17",
+       "obrigatoria": false
+      },
+      {
+       "id": "n18",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n18",
+       "obrigatoria": false
+      },
+      {
+       "id": "n19",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n19",
+       "obrigatoria": false
+      },
+      {
+       "id": "n20",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n20",
+       "obrigatoria": false
+      },
+      {
+       "id": "n21",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n21",
+       "obrigatoria": false
+      },
+      {
+       "id": "n22",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n22",
+       "obrigatoria": false
+      },
+      {
+       "id": "n23",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n23",
+       "obrigatoria": false
+      },
+      {
+       "id": "n24",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n24",
+       "obrigatoria": false
+      },
+      {
+       "id": "n25",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n25",
+       "obrigatoria": false
+      },
+      {
+       "id": "n26",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n26",
+       "obrigatoria": false
+      },
+      {
+       "id": "n27",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n27",
+       "obrigatoria": false
+      },
+      {
+       "id": "n28",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n28",
+       "obrigatoria": false
+      },
+      {
+       "id": "n29",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n29",
+       "obrigatoria": false
+      },
+      {
+       "id": "n30",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n30",
+       "obrigatoria": false
+      },
+      {
+       "id": "n31",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n31",
+       "obrigatoria": false
+      },
+      {
+       "id": "n32",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n32",
+       "obrigatoria": false
+      },
+      {
+       "id": "n33",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n33",
+       "obrigatoria": false
+      },
+      {
+       "id": "n34",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n34",
+       "obrigatoria": false
+      },
+      {
+       "id": "n35",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n35",
+       "obrigatoria": false
+      },
+      {
+       "id": "n36",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n36",
+       "obrigatoria": false
+      },
+      {
+       "id": "n37",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n37",
+       "obrigatoria": false
+      },
+      {
+       "id": "n38",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n38",
+       "obrigatoria": false
+      },
+      {
+       "id": "n39",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n39",
+       "obrigatoria": false
+      },
+      {
+       "id": "n40",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n40",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "perguntas_80_no_total_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Seção 1",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n1",
+       "obrigatoria": false
+      },
+      {
+       "id": "n2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n2",
+       "obrigatoria": false
+      },
+      {
+       "id": "n3",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n3",
+       "obrigatoria": false
+      },
+      {
+       "id": "n4",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n4",
+       "obrigatoria": false
+      },
+      {
+       "id": "n5",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n5",
+       "obrigatoria": false
+      },
+      {
+       "id": "n6",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n6",
+       "obrigatoria": false
+      },
+      {
+       "id": "n7",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n7",
+       "obrigatoria": false
+      },
+      {
+       "id": "n8",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n8",
+       "obrigatoria": false
+      },
+      {
+       "id": "n9",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n9",
+       "obrigatoria": false
+      },
+      {
+       "id": "n10",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n10",
+       "obrigatoria": false
+      },
+      {
+       "id": "n11",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n11",
+       "obrigatoria": false
+      },
+      {
+       "id": "n12",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n12",
+       "obrigatoria": false
+      },
+      {
+       "id": "n13",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n13",
+       "obrigatoria": false
+      },
+      {
+       "id": "n14",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n14",
+       "obrigatoria": false
+      },
+      {
+       "id": "n15",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n15",
+       "obrigatoria": false
+      },
+      {
+       "id": "n16",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n16",
+       "obrigatoria": false
+      },
+      {
+       "id": "n17",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n17",
+       "obrigatoria": false
+      },
+      {
+       "id": "n18",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n18",
+       "obrigatoria": false
+      },
+      {
+       "id": "n19",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n19",
+       "obrigatoria": false
+      },
+      {
+       "id": "n20",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n20",
+       "obrigatoria": false
+      },
+      {
+       "id": "n21",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n21",
+       "obrigatoria": false
+      },
+      {
+       "id": "n22",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n22",
+       "obrigatoria": false
+      },
+      {
+       "id": "n23",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n23",
+       "obrigatoria": false
+      },
+      {
+       "id": "n24",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n24",
+       "obrigatoria": false
+      },
+      {
+       "id": "n25",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n25",
+       "obrigatoria": false
+      },
+      {
+       "id": "n26",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n26",
+       "obrigatoria": false
+      },
+      {
+       "id": "n27",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n27",
+       "obrigatoria": false
+      },
+      {
+       "id": "n28",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n28",
+       "obrigatoria": false
+      },
+      {
+       "id": "n29",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n29",
+       "obrigatoria": false
+      },
+      {
+       "id": "n30",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n30",
+       "obrigatoria": false
+      },
+      {
+       "id": "n31",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n31",
+       "obrigatoria": false
+      },
+      {
+       "id": "n32",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n32",
+       "obrigatoria": false
+      },
+      {
+       "id": "n33",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n33",
+       "obrigatoria": false
+      },
+      {
+       "id": "n34",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n34",
+       "obrigatoria": false
+      },
+      {
+       "id": "n35",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n35",
+       "obrigatoria": false
+      },
+      {
+       "id": "n36",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n36",
+       "obrigatoria": false
+      },
+      {
+       "id": "n37",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n37",
+       "obrigatoria": false
+      },
+      {
+       "id": "n38",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n38",
+       "obrigatoria": false
+      },
+      {
+       "id": "n39",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n39",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s2",
+     "titulo": "Seção 2",
+     "perguntas": [
+      {
+       "id": "n40",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n40",
+       "obrigatoria": false
+      },
+      {
+       "id": "n41",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n41",
+       "obrigatoria": false
+      },
+      {
+       "id": "n42",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n42",
+       "obrigatoria": false
+      },
+      {
+       "id": "n43",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n43",
+       "obrigatoria": false
+      },
+      {
+       "id": "n44",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n44",
+       "obrigatoria": false
+      },
+      {
+       "id": "n45",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n45",
+       "obrigatoria": false
+      },
+      {
+       "id": "n46",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n46",
+       "obrigatoria": false
+      },
+      {
+       "id": "n47",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n47",
+       "obrigatoria": false
+      },
+      {
+       "id": "n48",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n48",
+       "obrigatoria": false
+      },
+      {
+       "id": "n49",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n49",
+       "obrigatoria": false
+      },
+      {
+       "id": "n50",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n50",
+       "obrigatoria": false
+      },
+      {
+       "id": "n51",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n51",
+       "obrigatoria": false
+      },
+      {
+       "id": "n52",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n52",
+       "obrigatoria": false
+      },
+      {
+       "id": "n53",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n53",
+       "obrigatoria": false
+      },
+      {
+       "id": "n54",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n54",
+       "obrigatoria": false
+      },
+      {
+       "id": "n55",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n55",
+       "obrigatoria": false
+      },
+      {
+       "id": "n56",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n56",
+       "obrigatoria": false
+      },
+      {
+       "id": "n57",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n57",
+       "obrigatoria": false
+      },
+      {
+       "id": "n58",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n58",
+       "obrigatoria": false
+      },
+      {
+       "id": "n59",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n59",
+       "obrigatoria": false
+      },
+      {
+       "id": "n60",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n60",
+       "obrigatoria": false
+      },
+      {
+       "id": "n61",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n61",
+       "obrigatoria": false
+      },
+      {
+       "id": "n62",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n62",
+       "obrigatoria": false
+      },
+      {
+       "id": "n63",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n63",
+       "obrigatoria": false
+      },
+      {
+       "id": "n64",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n64",
+       "obrigatoria": false
+      },
+      {
+       "id": "n65",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n65",
+       "obrigatoria": false
+      },
+      {
+       "id": "n66",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n66",
+       "obrigatoria": false
+      },
+      {
+       "id": "n67",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n67",
+       "obrigatoria": false
+      },
+      {
+       "id": "n68",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n68",
+       "obrigatoria": false
+      },
+      {
+       "id": "n69",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n69",
+       "obrigatoria": false
+      },
+      {
+       "id": "n70",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n70",
+       "obrigatoria": false
+      },
+      {
+       "id": "n71",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n71",
+       "obrigatoria": false
+      },
+      {
+       "id": "n72",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n72",
+       "obrigatoria": false
+      },
+      {
+       "id": "n73",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n73",
+       "obrigatoria": false
+      },
+      {
+       "id": "n74",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n74",
+       "obrigatoria": false
+      },
+      {
+       "id": "n75",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n75",
+       "obrigatoria": false
+      },
+      {
+       "id": "n76",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n76",
+       "obrigatoria": false
+      },
+      {
+       "id": "n77",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n77",
+       "obrigatoria": false
+      },
+      {
+       "id": "n78",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n78",
+       "obrigatoria": false
+      },
+      {
+       "id": "n79",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n79",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "perguntas_81_no_total",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Seção 1",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n1",
+       "obrigatoria": false
+      },
+      {
+       "id": "n2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n2",
+       "obrigatoria": false
+      },
+      {
+       "id": "n3",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n3",
+       "obrigatoria": false
+      },
+      {
+       "id": "n4",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n4",
+       "obrigatoria": false
+      },
+      {
+       "id": "n5",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n5",
+       "obrigatoria": false
+      },
+      {
+       "id": "n6",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n6",
+       "obrigatoria": false
+      },
+      {
+       "id": "n7",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n7",
+       "obrigatoria": false
+      },
+      {
+       "id": "n8",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n8",
+       "obrigatoria": false
+      },
+      {
+       "id": "n9",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n9",
+       "obrigatoria": false
+      },
+      {
+       "id": "n10",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n10",
+       "obrigatoria": false
+      },
+      {
+       "id": "n11",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n11",
+       "obrigatoria": false
+      },
+      {
+       "id": "n12",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n12",
+       "obrigatoria": false
+      },
+      {
+       "id": "n13",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n13",
+       "obrigatoria": false
+      },
+      {
+       "id": "n14",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n14",
+       "obrigatoria": false
+      },
+      {
+       "id": "n15",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n15",
+       "obrigatoria": false
+      },
+      {
+       "id": "n16",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n16",
+       "obrigatoria": false
+      },
+      {
+       "id": "n17",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n17",
+       "obrigatoria": false
+      },
+      {
+       "id": "n18",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n18",
+       "obrigatoria": false
+      },
+      {
+       "id": "n19",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n19",
+       "obrigatoria": false
+      },
+      {
+       "id": "n20",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n20",
+       "obrigatoria": false
+      },
+      {
+       "id": "n21",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n21",
+       "obrigatoria": false
+      },
+      {
+       "id": "n22",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n22",
+       "obrigatoria": false
+      },
+      {
+       "id": "n23",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n23",
+       "obrigatoria": false
+      },
+      {
+       "id": "n24",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n24",
+       "obrigatoria": false
+      },
+      {
+       "id": "n25",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n25",
+       "obrigatoria": false
+      },
+      {
+       "id": "n26",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n26",
+       "obrigatoria": false
+      },
+      {
+       "id": "n27",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n27",
+       "obrigatoria": false
+      },
+      {
+       "id": "n28",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n28",
+       "obrigatoria": false
+      },
+      {
+       "id": "n29",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n29",
+       "obrigatoria": false
+      },
+      {
+       "id": "n30",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n30",
+       "obrigatoria": false
+      },
+      {
+       "id": "n31",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n31",
+       "obrigatoria": false
+      },
+      {
+       "id": "n32",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n32",
+       "obrigatoria": false
+      },
+      {
+       "id": "n33",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n33",
+       "obrigatoria": false
+      },
+      {
+       "id": "n34",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n34",
+       "obrigatoria": false
+      },
+      {
+       "id": "n35",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n35",
+       "obrigatoria": false
+      },
+      {
+       "id": "n36",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n36",
+       "obrigatoria": false
+      },
+      {
+       "id": "n37",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n37",
+       "obrigatoria": false
+      },
+      {
+       "id": "n38",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n38",
+       "obrigatoria": false
+      },
+      {
+       "id": "n39",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n39",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s2",
+     "titulo": "Seção 2",
+     "perguntas": [
+      {
+       "id": "n40",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n40",
+       "obrigatoria": false
+      },
+      {
+       "id": "n41",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n41",
+       "obrigatoria": false
+      },
+      {
+       "id": "n42",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n42",
+       "obrigatoria": false
+      },
+      {
+       "id": "n43",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n43",
+       "obrigatoria": false
+      },
+      {
+       "id": "n44",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n44",
+       "obrigatoria": false
+      },
+      {
+       "id": "n45",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n45",
+       "obrigatoria": false
+      },
+      {
+       "id": "n46",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n46",
+       "obrigatoria": false
+      },
+      {
+       "id": "n47",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n47",
+       "obrigatoria": false
+      },
+      {
+       "id": "n48",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n48",
+       "obrigatoria": false
+      },
+      {
+       "id": "n49",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n49",
+       "obrigatoria": false
+      },
+      {
+       "id": "n50",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n50",
+       "obrigatoria": false
+      },
+      {
+       "id": "n51",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n51",
+       "obrigatoria": false
+      },
+      {
+       "id": "n52",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n52",
+       "obrigatoria": false
+      },
+      {
+       "id": "n53",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n53",
+       "obrigatoria": false
+      },
+      {
+       "id": "n54",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n54",
+       "obrigatoria": false
+      },
+      {
+       "id": "n55",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n55",
+       "obrigatoria": false
+      },
+      {
+       "id": "n56",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n56",
+       "obrigatoria": false
+      },
+      {
+       "id": "n57",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n57",
+       "obrigatoria": false
+      },
+      {
+       "id": "n58",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n58",
+       "obrigatoria": false
+      },
+      {
+       "id": "n59",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n59",
+       "obrigatoria": false
+      },
+      {
+       "id": "n60",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n60",
+       "obrigatoria": false
+      },
+      {
+       "id": "n61",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n61",
+       "obrigatoria": false
+      },
+      {
+       "id": "n62",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n62",
+       "obrigatoria": false
+      },
+      {
+       "id": "n63",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n63",
+       "obrigatoria": false
+      },
+      {
+       "id": "n64",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n64",
+       "obrigatoria": false
+      },
+      {
+       "id": "n65",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n65",
+       "obrigatoria": false
+      },
+      {
+       "id": "n66",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n66",
+       "obrigatoria": false
+      },
+      {
+       "id": "n67",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n67",
+       "obrigatoria": false
+      },
+      {
+       "id": "n68",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n68",
+       "obrigatoria": false
+      },
+      {
+       "id": "n69",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n69",
+       "obrigatoria": false
+      },
+      {
+       "id": "n70",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n70",
+       "obrigatoria": false
+      },
+      {
+       "id": "n71",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n71",
+       "obrigatoria": false
+      },
+      {
+       "id": "n72",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n72",
+       "obrigatoria": false
+      },
+      {
+       "id": "n73",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n73",
+       "obrigatoria": false
+      },
+      {
+       "id": "n74",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n74",
+       "obrigatoria": false
+      },
+      {
+       "id": "n75",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n75",
+       "obrigatoria": false
+      },
+      {
+       "id": "n76",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n76",
+       "obrigatoria": false
+      },
+      {
+       "id": "n77",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n77",
+       "obrigatoria": false
+      },
+      {
+       "id": "n78",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n78",
+       "obrigatoria": false
+      },
+      {
+       "id": "n79",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n79",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s3",
+     "titulo": "Seção 3",
+     "perguntas": [
+      {
+       "id": "n80",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n80",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "secoes_15_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Seção 1",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s2",
+     "titulo": "Seção 2",
+     "perguntas": [
+      {
+       "id": "n1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n1",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s3",
+     "titulo": "Seção 3",
+     "perguntas": [
+      {
+       "id": "n2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n2",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s4",
+     "titulo": "Seção 4",
+     "perguntas": [
+      {
+       "id": "n3",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n3",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s5",
+     "titulo": "Seção 5",
+     "perguntas": [
+      {
+       "id": "n4",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n4",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s6",
+     "titulo": "Seção 6",
+     "perguntas": [
+      {
+       "id": "n5",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n5",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s7",
+     "titulo": "Seção 7",
+     "perguntas": [
+      {
+       "id": "n6",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n6",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s8",
+     "titulo": "Seção 8",
+     "perguntas": [
+      {
+       "id": "n7",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n7",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s9",
+     "titulo": "Seção 9",
+     "perguntas": [
+      {
+       "id": "n8",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n8",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s10",
+     "titulo": "Seção 10",
+     "perguntas": [
+      {
+       "id": "n9",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n9",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s11",
+     "titulo": "Seção 11",
+     "perguntas": [
+      {
+       "id": "n10",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n10",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s12",
+     "titulo": "Seção 12",
+     "perguntas": [
+      {
+       "id": "n11",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n11",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s13",
+     "titulo": "Seção 13",
+     "perguntas": [
+      {
+       "id": "n12",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n12",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s14",
+     "titulo": "Seção 14",
+     "perguntas": [
+      {
+       "id": "n13",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n13",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s15",
+     "titulo": "Seção 15",
+     "perguntas": [
+      {
+       "id": "n14",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n14",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "secoes_16",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Seção 1",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s2",
+     "titulo": "Seção 2",
+     "perguntas": [
+      {
+       "id": "n1",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n1",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s3",
+     "titulo": "Seção 3",
+     "perguntas": [
+      {
+       "id": "n2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n2",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s4",
+     "titulo": "Seção 4",
+     "perguntas": [
+      {
+       "id": "n3",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n3",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s5",
+     "titulo": "Seção 5",
+     "perguntas": [
+      {
+       "id": "n4",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n4",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s6",
+     "titulo": "Seção 6",
+     "perguntas": [
+      {
+       "id": "n5",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n5",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s7",
+     "titulo": "Seção 7",
+     "perguntas": [
+      {
+       "id": "n6",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n6",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s8",
+     "titulo": "Seção 8",
+     "perguntas": [
+      {
+       "id": "n7",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n7",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s9",
+     "titulo": "Seção 9",
+     "perguntas": [
+      {
+       "id": "n8",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n8",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s10",
+     "titulo": "Seção 10",
+     "perguntas": [
+      {
+       "id": "n9",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n9",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s11",
+     "titulo": "Seção 11",
+     "perguntas": [
+      {
+       "id": "n10",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n10",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s12",
+     "titulo": "Seção 12",
+     "perguntas": [
+      {
+       "id": "n11",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n11",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s13",
+     "titulo": "Seção 13",
+     "perguntas": [
+      {
+       "id": "n12",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n12",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s14",
+     "titulo": "Seção 14",
+     "perguntas": [
+      {
+       "id": "n13",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n13",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s15",
+     "titulo": "Seção 15",
+     "perguntas": [
+      {
+       "id": "n14",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n14",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "s16",
+     "titulo": "Seção 16",
+     "perguntas": [
+      {
+       "id": "n15",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n15",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "capacidade_de_texto_40000_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t0",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t0",
+       "obrigatoria": false
+      },
+      {
+       "id": "t1",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t1",
+       "obrigatoria": false
+      },
+      {
+       "id": "t2",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t2",
+       "obrigatoria": false
+      },
+      {
+       "id": "t3",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t3",
+       "obrigatoria": false
+      },
+      {
+       "id": "t4",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t4",
+       "obrigatoria": false
+      },
+      {
+       "id": "t5",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t5",
+       "obrigatoria": false
+      },
+      {
+       "id": "t6",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t6",
+       "obrigatoria": false
+      },
+      {
+       "id": "t7",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t7",
+       "obrigatoria": false
+      },
+      {
+       "id": "t8",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t8",
+       "obrigatoria": false
+      },
+      {
+       "id": "t9",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t9",
+       "obrigatoria": false
+      },
+      {
+       "id": "t10",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t10",
+       "obrigatoria": false
+      },
+      {
+       "id": "t11",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t11",
+       "obrigatoria": false
+      },
+      {
+       "id": "t12",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t12",
+       "obrigatoria": false
+      },
+      {
+       "id": "t13",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t13",
+       "obrigatoria": false
+      },
+      {
+       "id": "t14",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t14",
+       "obrigatoria": false
+      },
+      {
+       "id": "t15",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t15",
+       "obrigatoria": false
+      },
+      {
+       "id": "t16",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t16",
+       "obrigatoria": false
+      },
+      {
+       "id": "t17",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t17",
+       "obrigatoria": false
+      },
+      {
+       "id": "t18",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t18",
+       "obrigatoria": false
+      },
+      {
+       "id": "t19",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t19",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "capacidade_de_texto_acima",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t0",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t0",
+       "obrigatoria": false
+      },
+      {
+       "id": "t1",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t1",
+       "obrigatoria": false
+      },
+      {
+       "id": "t2",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t2",
+       "obrigatoria": false
+      },
+      {
+       "id": "t3",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t3",
+       "obrigatoria": false
+      },
+      {
+       "id": "t4",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t4",
+       "obrigatoria": false
+      },
+      {
+       "id": "t5",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t5",
+       "obrigatoria": false
+      },
+      {
+       "id": "t6",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t6",
+       "obrigatoria": false
+      },
+      {
+       "id": "t7",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t7",
+       "obrigatoria": false
+      },
+      {
+       "id": "t8",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t8",
+       "obrigatoria": false
+      },
+      {
+       "id": "t9",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t9",
+       "obrigatoria": false
+      },
+      {
+       "id": "t10",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t10",
+       "obrigatoria": false
+      },
+      {
+       "id": "t11",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t11",
+       "obrigatoria": false
+      },
+      {
+       "id": "t12",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t12",
+       "obrigatoria": false
+      },
+      {
+       "id": "t13",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t13",
+       "obrigatoria": false
+      },
+      {
+       "id": "t14",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t14",
+       "obrigatoria": false
+      },
+      {
+       "id": "t15",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t15",
+       "obrigatoria": false
+      },
+      {
+       "id": "t16",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t16",
+       "obrigatoria": false
+      },
+      {
+       "id": "t17",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t17",
+       "obrigatoria": false
+      },
+      {
+       "id": "t18",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t18",
+       "obrigatoria": false
+      },
+      {
+       "id": "t19",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t19",
+       "obrigatoria": false
+      },
+      {
+       "id": "t20",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta t20",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "fabrica_v2",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [
+    "O feedback deve ser enviado no dia da atualização. Caso ocorram atrasos, avise previamente.",
+    "Atualização de peso e fotos em jejum"
+   ],
+   "secoes": [
+    {
+     "uid": "secao-1",
+     "titulo": "Atualização",
+     "perguntas": [
+      {
+       "id": "data",
+       "tipo": "DATA_AUTOMATICA",
+       "rotulo": "Atualização",
+       "obrigatoria": false
+      },
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Peso (em jejum)",
+       "obrigatoria": true
+      },
+      {
+       "id": "fotos",
+       "tipo": "FOTOS",
+       "rotulo": "Fotos em jejum",
+       "obrigatoria": false
+      },
+      {
+       "id": "psicologico",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Como foi o seu psicológico durante o mês?",
+       "obrigatoria": false
+      },
+      {
+       "id": "sono",
+       "tipo": "NOTA",
+       "rotulo": "De 0 a 10, como foi o seu sono?",
+       "obrigatoria": true,
+       "destaque": true,
+       "rotuloCurto": "Sono"
+      },
+      {
+       "id": "estresse",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Passou algum momento de estresse?",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "secao-2",
+     "titulo": "✅ Alimentar",
+     "perguntas": [
+      {
+       "id": "alim_desempenho",
+       "tipo": "NOTA",
+       "rotulo": "Desempenho (0 a 10)",
+       "obrigatoria": true,
+       "destaque": true,
+       "rotuloCurto": "Alimentar"
+      },
+      {
+       "id": "alim_faltou",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Sentiu que faltou algo durante a dieta?",
+       "obrigatoria": false
+      },
+      {
+       "id": "alim_livre",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "O que comeu em cada refeição livre e em qual quantidade?",
+       "obrigatoria": false
+      },
+      {
+       "id": "alim_digestao",
+       "tipo": "TEXTO",
+       "rotulo": "Como está sua digestão?",
+       "obrigatoria": false
+      },
+      {
+       "id": "alim_fome",
+       "tipo": "TEXTO",
+       "rotulo": "Momento que mais ficou com fome",
+       "obrigatoria": false
+      },
+      {
+       "id": "alim_enjoou",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Algum alimento que enjoou ou gostaria de substituir?",
+       "obrigatoria": false
+      },
+      {
+       "id": "alim_incluir",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Gostaria de comer algo durante as refeições (e em qual refeição)?",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "secao-3",
+     "titulo": "✅ Treino",
+     "perguntas": [
+      {
+       "id": "treino_dias",
+       "tipo": "TEXTO",
+       "rotulo": "Quantos dias por semana está conseguindo treinar?",
+       "obrigatoria": false,
+       "ajudaAutomatica": "MEDIA_DIAS_TREINO"
+      },
+      {
+       "id": "treino_desempenho",
+       "tipo": "NOTA",
+       "rotulo": "Desempenho (0 a 10)",
+       "obrigatoria": true,
+       "destaque": true,
+       "rotuloCurto": "Treino"
+      },
+      {
+       "id": "treino_dores",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Sentiu dores ou dificuldades? Quais as dores? Em quais exercícios?",
+       "obrigatoria": false
+      },
+      {
+       "id": "treino_descanso",
+       "tipo": "TEXTO",
+       "rotulo": "Precisou fazer descanso no meio da semana? Se sim, qual dia?",
+       "obrigatoria": false
+      },
+      {
+       "id": "treino_acrescentar",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Algo a acrescentar?",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "uid": "secao-4",
+     "titulo": "Feedbacks dos treinos durante esse período",
+     "perguntas": [
+      {
+       "id": "fb_recuperacao",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "De 0 a 10, como foi a recuperação de cada dia?",
+       "obrigatoria": false
+      },
+      {
+       "id": "fb_dores",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Sentiu dores durante a semana?",
+       "obrigatoria": false
+      },
+      {
+       "id": "fb_fadiga",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Sentiu muita fadiga durante a semana?",
+       "obrigatoria": false
+      },
+      {
+       "id": "fb_desgastante",
+       "tipo": "TEXTO",
+       "rotulo": "Qual dia foi mais desgastante?",
+       "obrigatoria": false
+      },
+      {
+       "id": "fb_substituiu",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Teve algum exercício que substituiu por não ter o maquinário próprio na sua academia? Se sim, quais?",
+       "obrigatoria": false
+      },
+      {
+       "id": "fb_recuperou",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Seu músculo recuperou até a próxima sessão de treino? (ajuda: \"Exemplo: treinei perna na segunda e na outra sessão de pernas treinei com dores\")",
+       "obrigatoria": false
+      },
+      {
+       "id": "fb_pos_treino",
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "De 0 a 10, como você se sentiu pós-treino nos dias abaixo",
+       "obrigatoria": false,
+       "dias": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+       ]
+      },
+      {
+       "id": "fb_mes",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Me diz brevemente um feedback desse mês ou alguma observação relevante para o seu desenvolvimento",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ }
+]
