@@ -178,8 +178,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 
 - Aluno offline: `offline/AlunoProvider` (pacote salvo, registros, gatilhos de envio) sobre a interface
   `RepositorioLocal` (uma operação por vez) e `Sincronizador`. `abrirRepositorio` escolhe: celular =
-  `RepositorioSqlite` (expo-sqlite, um banco `treinos-<usuarioId>.db` por usuário, esquema versionado por
-  `user_version` em `offline/banco.ts`: versão nova = bloco novo, nunca editar o v1);
+  `RepositorioSqlite` (expo-sqlite, um banco `treinos-<usuarioId>.db` por usuário, esquema único em
+  `offline/banco.ts`, criado na primeira abertura);
   web = `RepositorioChaveValor` (prefixo `treinos:<usuarioId>:`). Mudou o contrato? A bateria do `offline.test.ts`
   roda nas duas (SQLite do Node em `bancoNode.apoioTeste.ts`, nunca importado pelo app). Série marcada grava no aparelho na hora;
   a carga sugerida vem de `dominio/cargas.ts` (seção 8) e o que o aluno digita é gravado como digitou.
