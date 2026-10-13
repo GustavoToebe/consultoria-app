@@ -16,6 +16,5 @@ public final class EquipeDtos {
     public record ConviteResponse(String codigo,String link,Instant expiraEm) { }
     public record UsuarioRequest(@NotBlank @Size(max=120) String nome,@NotNull UUID perfilId,@NotNull Boolean ativo) { }
     public record AceitarRequest(@NotBlank @Size(max=200) String senha) { }
-    public record ResponsavelRequest(@NotNull UUID usuarioId) { }
     public record MeuPerfilRequest(@NotBlank @Size(max=120) String nome,@Size(max=30) String telefone) { }
 }

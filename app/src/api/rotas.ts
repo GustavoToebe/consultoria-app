@@ -17,7 +17,6 @@ import type {
   CatalogoAlimento,
   CatalogoExercicio,
   PaginaCatalogo,
-  Configuracao,
   ConsumoDoPlano,
   ConsultoriaResponse,
   ConteudoDieta,
@@ -74,7 +73,6 @@ export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/
 export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${id}`,{metodo:'PUT',corpo});
 export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>(`/publico/convites-equipe/${encodeURIComponent(codigo)}`,{metodo:'POST',corpo:{senha},semRenovar:true});
 export const responsaveisEquipe = () => requisicao<ResponsavelEquipe[]>('/responsaveis');
-export const alterarResponsavel = (id:string,usuarioId:string) => requisicao<AlunoDetalhe>(`/alunos/${id}/responsavel`,{metodo:'PUT',corpo:{usuarioId}});
 export const alterarMeuPerfil = (nome:string,telefone:string|null) => requisicao<EuResponse>('/eu',{metodo:'PUT',corpo:{nome,telefone}});
 export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:string;acao?:string;pagina:number}) => {
   const q=new URLSearchParams();for(const [campo,valor] of Object.entries(filtro)) if(valor!==undefined&&valor!=='') q.set(campo,String(valor));
@@ -169,9 +167,6 @@ export const enviarLogo = (arquivo: FormData) =>
   requisicao<Marca>('/consultoria/marca/logo', { metodo: 'PUT', corpoBruto: arquivo });
 
 export const removerLogo = () => requisicao<Marca>('/consultoria/marca/logo', { metodo: 'DELETE' });
-
-export const alterarConfiguracao = (configuracao: Configuracao) =>
-  requisicao<ConsultoriaResponse>('/consultoria/configuracao', { metodo: 'PUT', corpo: configuracao });
 
 // ---- Treinador: início ----
 
@@ -397,7 +392,6 @@ export const minhaConta = () => requisicao<MinhaConta>('/minha-conta');
 export const consumoDoPlano = () => requisicao<ConsumoDoPlano>('/minha-conta/consumo');
 
 export const listarSuplementos = () => requisicao<SuplementoDaBiblioteca[]>('/suplementos');
-export const categoriasDeSuplementos = () => requisicao<string[]>('/suplementos/categorias');
 export const criarSuplemento = (dados: SuplementoDaBibliotecaRequest) =>
   requisicao<SuplementoDaBiblioteca>('/suplementos', { metodo: 'POST', corpo: dados });
 export const alterarSuplemento = (id: string, dados: SuplementoDaBibliotecaRequest) =>

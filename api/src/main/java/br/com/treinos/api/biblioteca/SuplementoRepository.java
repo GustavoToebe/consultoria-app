@@ -14,10 +14,6 @@ public interface SuplementoRepository extends JpaRepository<Suplemento, UUID> {
             + "and (:categoria = '' or s.categoria = :categoria) order by s.nomeBusca")
     List<Suplemento> buscarAtivos(String padrao, String categoria);
 
-    @Query("select distinct s.categoria from Suplemento s where s.ativo = true and s.categoria is not null "
-            + "order by s.categoria")
-    List<String> categoriasAtivas();
-
     @Query("select count(s) > 0 from Suplemento s where s.ativo = true and s.nomeBusca = :nomeBusca and s.id <> :exceto")
     boolean existeNomeAtivo(String nomeBusca, UUID exceto);
 }

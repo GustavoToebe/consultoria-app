@@ -1,7 +1,5 @@
 package br.com.treinos.api.equipe;
 import br.com.treinos.api.auth.*;
-import br.com.treinos.api.alunos.AlunoRepository;
-import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.EquipeDtos.*;
 import br.com.treinos.api.security.OpaqueTokenGenerator;
@@ -27,18 +25,17 @@ public class EquipeService {
     private final UsuarioRepository usuarios;
     private final UsuarioConviteRepository convites;
     private final ConsultoriaRepository consultorias;
-    private final AlunoRepository alunos;
     private final RefreshTokenService refresh;
     private final PasswordEncoder senhas;
     private final String appUrl;
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
     private final PermissoesDoUsuario permissoesDoUsuario;
     public EquipeService(PerfilRepository perfis,UsuarioRepository usuarios,UsuarioConviteRepository convites,
-                        ConsultoriaRepository consultorias,AlunoRepository alunos,RefreshTokenService refresh,
+                        ConsultoriaRepository consultorias,RefreshTokenService refresh,
                         PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl,br.com.treinos.api.auditoria.Auditoria auditoria,PermissoesDoUsuario permissoesDoUsuario) {
         this.auditoria=auditoria;this.permissoesDoUsuario=permissoesDoUsuario;
         this.perfis=perfis;this.usuarios=usuarios;this.convites=convites;this.consultorias=consultorias;
-        this.alunos=alunos;this.refresh=refresh;this.senhas=senhas;this.appUrl=appUrl.replaceAll("/+$","");
+        this.refresh=refresh;this.senhas=senhas;this.appUrl=appUrl.replaceAll("/+$","");
     }
     @Transactional(readOnly=true)
     public List<PerfilResponse> perfis() { return perfis.findAllByOrderByNomeAsc().stream().map(this::perfilResponse).toList(); }
@@ -142,13 +139,6 @@ public class EquipeService {
         if(troca) auditoria.registrarEvento("USUARIO_PERFIL_ALTERADO","USUARIO",u.getId(),"Trocou o perfil de um membro.");
         if(desativar) auditoria.registrarEvento("USUARIO_DESATIVADO","USUARIO",u.getId(),"Desativou um membro.");
         usuarios.saveAndFlush(u);return usuarioResponse(u);
-    }
-    @Transactional
-    @br.com.treinos.api.auditoria.Auditar(acao="RESPONSAVEL_ALTERADO",entidade="ALUNO",resumo="Trocou o responsável do aluno.")
-    public AlunoDetalhe responsavel(UUID alunoId,UUID usuarioId) {
-        var a=alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
-        var u=usuario(usuarioId);if(!u.isAtivo()) throw naoEncontrado();
-        a.alterarResponsavel(u.getId());return AlunoDetalhe.de(alunos.saveAndFlush(a));
     }
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="CONVITE_EQUIPE_ACEITO",entidade="USUARIO",resumo="Aceitou um convite de equipe.")

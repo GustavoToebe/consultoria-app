@@ -35,12 +35,6 @@ public class SuplementoController {
         return service.listar(busca, categoria);
     }
 
-    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
-    @GetMapping("/categorias")
-    public List<String> categorias() {
-        return service.categorias();
-    }
-
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
     @PostMapping
     public SuplementoResponse criar(@RequestBody @Valid SuplementoRequest request) {

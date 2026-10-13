@@ -101,21 +101,6 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
                 "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "versao", versao), 409);
         api.put("/consultoria/marca", treinador, Map.of("nome", "Cor inválida", "corPrimaria", "vermelho",
                 "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "versao", nova.get("versao").asLong()), 400);
-
-        Map<String, Object> config = new java.util.LinkedHashMap<>();
-        config.put("tiposSerie", List.of("FS", "WS", "Back off"));
-        config.put("tipoTrabalho", "WS");
-        config.put("tipoPreparacao", "FS");
-        config.put("regraPreparacao", Map.of("2", List.of(70, 85)));
-        config.put("arredondamentoKg", 2.5);
-        config.put("instrucoesTreino", "Texto livre do treinador.");
-        assertThat(api.put("/consultoria/configuracao", treinador, config, 200).get("configuracao")
-                .get("arredondamentoKg").decimalValue()).isEqualByComparingTo("2.5");
-        config.put("arredondamentoKg", 0.3);
-        api.put("/consultoria/configuracao", treinador, config, 400);
-        config.put("arredondamentoKg", 0.5);
-        config.put("regraPreparacao", Map.of("2", List.of(70, 250)));
-        api.put("/consultoria/configuracao", treinador, config, 400);
     }
 
     private MvcResult enviar(MockMultipartFile arquivo, int esperado) throws Exception {

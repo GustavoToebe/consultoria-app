@@ -1,6 +1,5 @@
 package br.com.treinos.api.equipe;
 import br.com.treinos.api.equipe.EquipeDtos.*;
-import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +34,4 @@ public class EquipeController {
     public ResponseEntity<Void> cancelarConvite(@PathVariable UUID id) { equipe.cancelarConvite(id);return ResponseEntity.noContent().build(); }
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PutMapping("/usuarios/{id}")
     public UsuarioResponse usuario(@PathVariable UUID id,@RequestBody @Valid UsuarioRequest r) { return equipe.alterarUsuario(id,r); }
-    @PreAuthorize("hasAuthority('PERM_ALUNO_ALTERAR')") @PutMapping("/alunos/{id}/responsavel")
-    public AlunoDetalhe responsavel(@PathVariable UUID id,@RequestBody @Valid ResponsavelRequest r) { return equipe.responsavel(id,r.usuarioId()); }
 }

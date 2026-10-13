@@ -83,8 +83,6 @@ class SuplementoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/suplementos?busca=%25", login, 200)).isEmpty();
         assertThat(api.get("/suplementos?categoria=Creatina", login, 200)).hasSize(1);
         assertThat(api.get("/suplementos?categoria=Creatina&busca=omega", login, 200)).isEmpty();
-        JsonNode categorias = api.get("/suplementos/categorias", login, 200);
-        assertThat(categorias.valueStream().map(JsonNode::asString).toList()).containsExactly("Creatina", "Vitaminas e minerais");
     }
 
     @Test
@@ -109,7 +107,6 @@ class SuplementoIntegrationTest extends AbstractIntegrationTest {
         String id = api.post("/suplementos", dona, suplemento("Item de teste C", "Creatina", null), 200).path("id").asString();
 
         assertThat(api.get("/suplementos", outra, 200)).isEmpty();
-        assertThat(api.get("/suplementos/categorias", outra, 200)).isEmpty();
         api.put("/suplementos/" + id, outra, suplemento("Item de teste C", null, null), 404);
         api.delete("/suplementos/" + id, outra, 404);
         // O mesmo nome é livre na outra consultoria.
@@ -124,7 +121,6 @@ class SuplementoIntegrationTest extends AbstractIntegrationTest {
         api.post("/suplementos", login, suplemento("Item de teste D", null, null), 200);
         trocarPerfil(login, "Assistente");
         assertThat(api.get("/suplementos", login, 200)).hasSize(1);
-        api.get("/suplementos/categorias", login, 200);
         assertThat(api.post("/suplementos", login, suplemento("Item de teste E", null, null), 403)
                 .path("codigo").asString()).isEqualTo("PERMISSAO_NEGADA");
         trocarPerfil(login, "Administrador");

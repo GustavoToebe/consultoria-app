@@ -36,11 +36,6 @@ public class SuplementoService {
         return suplementos.buscarAtivos(Buscas.padraoSemAcento(busca), filtro).stream().map(this::resposta).toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<String> categorias() {
-        return suplementos.categoriasAtivas();
-    }
-
     @Transactional
     public SuplementoResponse criar(SuplementoRequest r) {
         Suplemento.Valores valores = valores(r);

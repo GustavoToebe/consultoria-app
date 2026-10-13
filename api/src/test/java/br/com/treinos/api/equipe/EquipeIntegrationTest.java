@@ -142,16 +142,12 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/painel?meus=true",membro,200).path("alunosAtivos").asLong()).isZero();
         assertThat(api.get("/auditoria?acao=ALUNO_RESPONSAVEL_ALTERADO",admin,200).path("total").asLong()).isEqualTo(1);
     }
-    @Test void outroTenantNaoEditaPerfilUsuarioOuResponsavelEMeuPerfilGuardaTelefone() throws Exception {
+    @Test void outroTenantNaoEditaPerfilOuUsuarioEMeuPerfilGuardaTelefone() throws Exception {
         var outro=api.novoTreinador();String uid=outro.path("usuario").path("id").asString();
         String pid=api.get("/eu",outro,200).path("perfil").path("id").asString();
         api.put("/perfis/"+pid,admin,Map.of("nome","Não pode","permissoes",Set.of(),"versao",0),404);
         api.delete("/perfis/"+pid,admin,404);api.post("/perfis/"+pid+"/duplicar",admin,null,404);
         api.put("/usuarios/"+uid,admin,Map.of("nome","Não pode","perfilId",perfil("Assistente").path("id").asString(),"ativo",true),404);
-        UUID aluno=api.criarAluno(admin,"Aluno fictício");
-        api.put("/alunos/"+aluno+"/responsavel",admin,Map.of("usuarioId",uid),404);
-        var ficha=api.put("/alunos/"+aluno+"/responsavel",admin,Map.of("usuarioId",admin.path("usuario").path("id").asString()),200);
-        assertThat(ficha.path("responsavelId").asString()).isEqualTo(admin.path("usuario").path("id").asString());
         var eu=api.put("/eu",admin,Map.of("nome","Meu nome fictício","telefone","+55 45 99999-8888"),200);
         assertThat(eu.path("usuario").path("telefone").asString()).isEqualTo("(45) 99999-8888");
         api.put("/eu",admin,Map.of("nome","Meu nome fictício","telefone","123"),400);

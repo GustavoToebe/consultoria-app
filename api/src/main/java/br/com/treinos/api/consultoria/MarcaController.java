@@ -59,11 +59,4 @@ public class MarcaController {
     public MarcaPublica removerLogo(@AuthenticationPrincipal UsuarioAutenticado eu) {
         return marcas.removerLogo(eu.consultoriaId());
     }
-
-    @PreAuthorize("hasAuthority('PERM_METODOLOGIA_ALTERAR')")
-    @PutMapping("/configuracao")
-    public ConsultoriaResponse alterarConfiguracao(@AuthenticationPrincipal UsuarioAutenticado eu,
-                                                  @RequestBody ConfiguracaoConsultoria configuracao) {
-        return marcas.alterarConfiguracao(eu.consultoriaId(), configuracao);
-    }
 }
