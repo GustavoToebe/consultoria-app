@@ -10,7 +10,8 @@ spring:
     username: ${DB_USUARIO}
     password: ${DB_SENHA}
     hikari:
-      maximum-pool-size: 5
+      # Com threads virtuais (acima) não há limite de threads do Tomcat: o pool é o que limita a concorrência no banco.
+      maximum-pool-size: 10
       data-source-properties:
         # O "Detalhe" do erro do Postgres traz os valores da linha (e-mail, peso): fica fora de exceção e de log.
         logServerErrorDetail: false
@@ -61,10 +62,6 @@ server:
   forward-headers-strategy: none
   tomcat:
     max-swallow-size: 1MB
-    # Só vale sem threads virtuais: com spring.threads.virtual.enabled (acima) o Tomcat usa uma thread virtual por
-    # requisição e ignora este limite; quem limita a concorrência no banco é o pool do Hikari (5).
-    threads:
-      max: 50
 
 management:
   endpoints:
