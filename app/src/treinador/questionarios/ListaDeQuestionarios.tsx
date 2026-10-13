@@ -1,0 +1,152 @@
+import { router } from 'expo-router';
+import { Archive, ArchiveRestore, Copy, Ellipsis, Pencil, Star, Trash2 } from 'lucide-react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import {
+  arquivarQuestionario, criarQuestionario, definirQuestionarioPadrao, desarquivarQuestionario, duplicarQuestionario, excluirQuestionario,
+  listarQuestionarios,
+} from '../../api/rotas';
+import type { OrigemQuestionario, QuestionarioResumo } from '../../api/tipos';
+import { useSessao } from '../../sessao/SessaoProvider';
+import { useTema } from '../../tema/TemaProvider';
+import { espaco, RAIO } from '../../tema/tokens';
+import { useAviso } from '../../ui/Aviso';
+import { Botao } from '../../ui/Botao';
+import { Campo } from '../../ui/Campo';
+import { Cartao } from '../../ui/Cartao';
+import { Escolha } from '../../ui/Escolha';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
+import { textoDoErro } from '../../ui/erros';
+import { Folha } from '../../ui/Folha';
+import { Grade } from '../../ui/Grade';
+import { IconeBotao } from '../../ui/IconeBotao';
+import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { Permitido } from '../../ui/Permitido';
+import { Selo } from '../../ui/Selo';
+import { Texto } from '../../ui/Texto';
+import { useCarregar } from '../../ui/useCarregar';
+
+const irParaEditor = (id: string) => router.push(`/treinador/planejamento/questionario/${id}`);
+
+/** Frase do uso ("2 alunos · 1 pasta · 5 envios"); sem uso nenhum diz isso. */
+export function linhaDeUso(q: Pick<QuestionarioResumo, 'uso'>) {
+  const { alunos, pastas, envios } = q.uso;
+  const partes = [
+    alunos ? `${alunos} ${alunos === 1 ? 'aluno' : 'alunos'}` : null,
+    pastas ? `${pastas} ${pastas === 1 ? 'pasta' : 'pastas'}` : null,
+    envios ? `${envios} ${envios === 1 ? 'envio' : 'envios'}` : null,
+  ].filter(Boolean);
+  return partes.length ? partes.join(' · ') : 'Sem uso ainda';
+}
+
+/**
+ * Aba "Atualização" do Planejamento: os questionários que o aluno responde no check-in. O padrão vale para quem não
+ * tem outro escolhido (na ficha do aluno ou na pasta). "Novo questionário" é o único botão primário.
+ */
+export function ListaDeQuestionarios({ pedirNovo, aoFecharNovo }: { pedirNovo: boolean; aoFecharNovo: () => void }) {
+  const { avisar } = useAviso();
+  const { pode } = useSessao();
+  const [arquivados, setArquivados] = useState(false);
+  const lista = useCarregar(`questionarios:${arquivados}`, () => listarQuestionarios(arquivados));
+  const [novoAberto, setNovoAberto] = useState(false);
+  const novo = novoAberto || pedirNovo;
+  const [menu, setMenu] = useState<QuestionarioResumo | null>(null);
+  const [excluir, setExcluir] = useState<QuestionarioResumo | null>(null);
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const podeAlterar = pode('QUESTIONARIO_ALTERAR');
+
+  const executar = (q: QuestionarioResumo, acao: () => Promise<unknown>, mensagem: string) => {
+    setMenu(null); setOcupado(q.id);
+    acao().then(() => { lista.recarregar(); avisar(mensagem, 'sucesso'); }, (e: unknown) => { lista.recarregar(); avisar(textoDoErro(e), 'perigo'); }).finally(() => setOcupado(null));
+  };
+  const fecharNovo = () => { setNovoAberto(false); aoFecharNovo(); };
+
+  return <>
+    <Cartao titulo="Questionários de atualização"
+      descricao="O check-in que o aluno responde a cada período. O padrão vale para quem não tem outro escolhido na ficha ou na pasta."
+      acoes={<Permitido codigo="QUESTIONARIO_ALTERAR"><Botao rotulo="Novo questionário" aoTocar={() => setNovoAberto(true)} /></Permitido>}>
+      <Escolha descricao="Situação" valor={arquivados ? 'arquivados' : 'ativos'} aoMudar={(v) => setArquivados(v === 'arquivados')}
+        opcoes={[{ valor: 'ativos', rotulo: 'Ativos' }, { valor: 'arquivados', rotulo: 'Arquivados' }]} />
+      {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
+      {!lista.dados && lista.carregando ? <Esqueleto /> : null}
+      {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : 'Nenhum questionário ainda.'} /> : null}
+      {lista.dados?.length ? <Grade gap={espaco(2)}>{lista.dados.map((q) =>
+        <CartaoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</Grade> : null}
+    </Cartao>
+
+    {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
+      <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={ocupado !== null}
+        aoTocar={() => { const q = menu; setMenu(null); setOcupado(q.id); duplicarQuestionario(q.id).then((d) => { lista.recarregar(); avisar('Questionário duplicado.', 'sucesso'); irParaEditor(d.id); }, (e: unknown) => avisar(textoDoErro(e), 'perigo')).finally(() => setOcupado(null)); }} />
+      {!menu.padrao && !menu.arquivado ? <Botao rotulo="Definir como padrão" tipo="secundario" Icone={Star} desabilitado={menu.versaoPublicada === 0}
+        motivo="Publique o questionário antes de torná-lo o padrão." aoTocar={() => executar(menu, () => definirQuestionarioPadrao(menu.id), 'Padrão alterado.')} /> : null}
+      {menu.arquivado
+        ? <Botao rotulo="Desarquivar" tipo="secundario" Icone={ArchiveRestore} aoTocar={() => executar(menu, () => desarquivarQuestionario(menu.id), 'Questionário desarquivado.')} />
+        : <Botao rotulo="Arquivar" tipo="secundario" Icone={Archive} desabilitado={menu.padrao} motivo="O padrão não pode ser arquivado. Defina outro como padrão antes."
+          aoTocar={() => executar(menu, () => arquivarQuestionario(menu.id), 'Questionário arquivado.')} />}
+      <Botao rotulo="Excluir questionário" tipo="perigoTexto" Icone={Trash2} desabilitado={menu.padrao || menu.uso.envios > 0}
+        motivo={menu.padrao ? 'O padrão não pode ser excluído.' : 'Já foi respondido: arquive em vez de excluir.'} aoTocar={() => { setExcluir(menu); setMenu(null); }} />
+    </Folha> : null}
+
+    {novo ? <FormularioNovo aoFechar={fecharNovo} /> : null}
+
+    <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.nome ?? ''}”?`}
+      mensagem={excluir && (excluir.uso.alunos || excluir.uso.pastas) ? 'Os alunos e as pastas que o usavam passam a usar o padrão da consultoria.' : 'Esta ação não pode ser desfeita.'}
+      rotuloConfirmar="Excluir questionário" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
+        if (!excluir) return; const q = excluir; setExcluir(null);
+        executar(q, () => excluirQuestionario(q.id), 'Questionário excluído.');
+      }} />
+  </>;
+}
+
+function CartaoQuestionario({ q, ocupado, podeAlterar, aoAbrir, aoMenu }: {
+  q: QuestionarioResumo; ocupado: boolean; podeAlterar: boolean; aoAbrir: () => void; aoMenu?: () => void;
+}) {
+  const { cores } = useTema();
+  return <View style={[estilos.cartao, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+    <View style={estilos.topo}>
+      <View style={estilos.textos}>
+        <Texto variante="bloco">{q.nome}</Texto>
+        {q.descricao ? <Texto variante="suave">{q.descricao}</Texto> : null}
+        <View style={estilos.selos}>
+          {q.padrao ? <Selo texto="Padrão" tipo="sucesso" /> : null}
+          <Selo texto={q.versaoPublicada ? `Publicado v${q.versaoPublicada}` : 'Nunca publicado'} tipo={q.versaoPublicada ? 'neutro' : 'atencao'} />
+          {q.alteradoDesdePublicacao ? <Selo texto="Alterado desde a publicação" tipo="atencao" /> : null}
+          {q.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
+        </View>
+        <Texto variante="pequeno">{linhaDeUso(q)}</Texto>
+      </View>
+      {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${q.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
+    </View>
+    <View style={estilos.acoes}>
+      <Botao rotulo={podeAlterar && !q.arquivado ? 'Editar' : 'Ver'} tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoAbrir} />
+    </View>
+  </View>;
+}
+
+function FormularioNovo({ aoFechar }: { aoFechar: () => void }) {
+  const [nome, setNome] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [origem, setOrigem] = useState<OrigemQuestionario>('FABRICA');
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<unknown>(null);
+  return <Folha visivel titulo="Novo questionário" aoFechar={aoFechar} rodape={<Botao rotulo="Criar e editar" desabilitado={!nome.trim()} motivo="Informe o nome do questionário." carregando={salvando} aoTocar={() => {
+    setSalvando(true); setErro(null);
+    criarQuestionario({ nome: nome.trim(), descricao: descricao.trim() || null, origem }).then((d) => { aoFechar(); irParaEditor(d.id); }, (e: unknown) => { setErro(e); setSalvando(false); });
+  }} />}>
+    <Campo rotulo="Nome do questionário" valor={nome} aoMudar={setNome} maxLength={120} />
+    <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={400} />
+    <Escolha rotulo="Começar de" valor={origem} aoMudar={setOrigem} opcoes={[{ valor: 'FABRICA', rotulo: 'Modelo da plataforma' }, { valor: 'VAZIO', rotulo: 'Em branco' }]} />
+    <Texto variante="suave">{origem === 'FABRICA' ? 'Traz as perguntas do questionário original para você ajustar.' : 'Começa com uma seção vazia.'}</Texto>
+    {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+  </Folha>;
+}
+
+const estilos = StyleSheet.create({
+  cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), minHeight: 56, flexGrow: 1 },
+  topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
+  textos: { flex: 1, gap: espaco(0.5) },
+  selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
+  acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), marginTop: 'auto' },
+});

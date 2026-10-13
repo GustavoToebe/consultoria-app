@@ -31,6 +31,15 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/minha-conta', acesso(ADMIN_SEM_CONTA))).toBe(false);
     expect(podeAcessarTela('/treinador/minha-conta', acesso(['CONTA_LER']))).toBe(true);
   });
+  it('Planejamento abre com modelos ou questionários; o editor de questionário só com QUESTIONARIO_LER; o de modelo segue igual', () => {
+    expect(podeAcessarTela('/treinador/planejamento', acesso(['QUESTIONARIO_LER']))).toBe(true);
+    expect(podeAcessarTela('/treinador/planejamento', acesso(['MODELO_LER']))).toBe(true);
+    expect(podeAcessarTela('/treinador/planejamento', acesso(['ALUNO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/planejamento/questionario/um-id', acesso(['QUESTIONARIO_LER']))).toBe(true);
+    expect(podeAcessarTela('/treinador/planejamento/questionario/um-id', acesso(['MODELO_LER','MODELO_ALTERAR']))).toBe(false);
+    expect(podeAcessarTela('/treinador/planejamento/modelo/um-id', acesso(['QUESTIONARIO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/planejamento/modelo/um-id', acesso(['MODELO_LER','MODELO_ALTERAR']))).toBe(true);
+  });
   it('mobilidade usa as permissões do treino, não as da dieta', () => {
     expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['TREINO_LER','TREINO_ALTERAR']))).toBe(true);
     expect(podeAcessarTela('/treinador/mobilidades/um-id', acesso(['TREINO_LER']))).toBe(false);

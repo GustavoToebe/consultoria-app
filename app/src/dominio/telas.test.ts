@@ -30,6 +30,16 @@ describe('catálogo de telas', () => {
     expect(agruparPorSecao(com1).flatMap((s) => ids(s.telas))).not.toContain('ergogenicos');
   });
 
+  it('questionários: atalho só com QUESTIONARIO_LER, "Novo questionário" só com ALTERAR; quem só lê questionário vê o Planejamento', () => {
+    const leitor = ids(telasPermitidas(com(['QUESTIONARIO_LER'])));
+    expect(leitor).toEqual(expect.arrayContaining(['planejamento', 'questionarios']));
+    expect(leitor).not.toContain('novo-questionario');
+    expect(ids(telasPermitidas(com(['MODELO_LER'])))).not.toContain('questionarios');
+    expect(ids(telasPermitidas(com(['QUESTIONARIO_LER', 'QUESTIONARIO_ALTERAR'])))).toContain('novo-questionario');
+    expect(ids(buscarTelas('check-in', telasPermitidas(com(['QUESTIONARIO_LER']))))).toContain('questionarios');
+    expect(agruparPorSecao(telasPermitidas(com(['QUESTIONARIO_LER']))).flatMap((s) => ids(s.telas))).not.toContain('questionarios');
+  });
+
   it('ação com permissão extra exige a permissão além da tela', () => {
     // Pode ver o planejamento e a equipe, mas não criar modelo nem convidar.
     const leitor = ids(telasPermitidas(com(['MODELO_LER', 'EQUIPE_LER'])));
@@ -109,6 +119,7 @@ describe('nome da tela atual', () => {
     expect(nomeDaTela('/treinador/atualizacoes/um-id')).toBe('Atualizações');
     expect(nomeDaTela('/treinador/treinos/um-id')).toBe('Plano de treino');
     expect(nomeDaTela('/treinador/planejamento/modelo/um-id')).toBe('Modelo');
+    expect(nomeDaTela('/treinador/planejamento/questionario/um-id')).toBe('Questionário');
     expect(nomeDaTela('/treinador/planejamento')).toBe('Planejamento');
     expect(nomeDaTela('/treinador/perfil')).toBe('Perfil');
     expect(nomeDaTela('/treinador/meus-dados')).toBe('Meus dados');

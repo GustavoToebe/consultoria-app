@@ -632,6 +632,23 @@ export interface Atualizacao {
 }
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */
 export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' | 'nomeAluno' | 'dataAtualizacao' | 'fase' | 'diasParaData' | 'diasDeAtraso' | 'atrasoAte'>;
+
+/** Gestão dos questionários (`questionarios/dto/QuestionarioDtos`). */
+export type OrigemQuestionario = 'VAZIO' | 'FABRICA';
+export interface UsoQuestionario { alunos: number; pastas: number; envios: number }
+export interface QuestionarioResumo {
+  id: string; nome: string; descricao: string | null; padrao: boolean; arquivado: boolean;
+  /** 0 = nunca publicado. */
+  versaoPublicada: number; publicadoEm: string | null; alteradoDesdePublicacao: boolean;
+  rascunhoAlteradoEm: string | null; uso: UsoQuestionario;
+}
+export interface QuestionarioDetalhe extends QuestionarioResumo {
+  /** Trava otimista do rascunho. */
+  versao: number; rascunho: ConteudoQuestionario; versoes: { numero: number; publicadoEm: string }[];
+}
+export interface OpcaoQuestionario { id: string; nome: string; padrao: boolean }
+export interface CriarQuestionarioRequest { nome: string; descricao: string | null; origem: OrigemQuestionario }
+export interface SalvarQuestionarioRequest { nome: string; descricao: string | null; conteudo: ConteudoQuestionario; versao: number }
 export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null; mobilidade?: ConteudoMobilidadeApi | null }[] }
 
 export type PeriodicidadeDaConta = 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL';

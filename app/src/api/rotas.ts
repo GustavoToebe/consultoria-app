@@ -3,6 +3,11 @@ import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, 
 import type {
   Atualizacao,
   AtualizacaoDaLista,
+  CriarQuestionarioRequest,
+  OpcaoQuestionario,
+  QuestionarioDetalhe,
+  QuestionarioResumo,
+  SalvarQuestionarioRequest,
   RespostasAtualizacao,
   SituacaoAtualizacao,
   Alimento,
@@ -83,6 +88,19 @@ export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`
 /** A API confere o id da versão; o número só vale para quem não tem o id (cópia antiga no aparelho). */
 export const enviarAtualizacao = (pastaId: string, versao: { questionarioVersaoId?: string | null; modeloVersao: number }, respostas: RespostasAtualizacao) =>
   requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, questionarioVersaoId: versao.questionarioVersaoId ?? undefined, modeloVersao: versao.modeloVersao, respostas } });
+// Questionários de atualização (gestão pelo treinador; a API autoriza pelo banco).
+export const listarQuestionarios = (arquivados = false) => requisicao<QuestionarioResumo[]>(`/questionarios?arquivados=${arquivados}`);
+export const opcoesDeQuestionario = () => requisicao<OpcaoQuestionario[]>('/questionarios/opcoes');
+export const criarQuestionario = (corpo: CriarQuestionarioRequest) => requisicao<QuestionarioDetalhe>('/questionarios', { metodo: 'POST', corpo });
+export const buscarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}`);
+export const salvarQuestionario = (id: string, corpo: SalvarQuestionarioRequest) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}`, { metodo: 'PUT', corpo });
+export const publicarQuestionario = (id: string, versao: number, confirmarAvisos: boolean) =>
+  requisicao<QuestionarioDetalhe>(`/questionarios/${id}/publicar`, { metodo: 'POST', corpo: { versao, confirmarAvisos } });
+export const duplicarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/duplicar`, { metodo: 'POST' });
+export const definirQuestionarioPadrao = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/padrao`, { metodo: 'POST' });
+export const arquivarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/arquivar`, { metodo: 'POST' });
+export const desarquivarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/desarquivar`, { metodo: 'POST' });
+export const excluirQuestionario = (id: string) => requisicao<void>(`/questionarios/${id}`, { metodo: 'DELETE' });
 export const avisarAtrasoAtualizacao = (pastaId: string, novaData: string, motivo?: string) =>
   requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { pastaId, novaData, motivo } });
 export const marcarFeedbackVisto = (id: string) =>

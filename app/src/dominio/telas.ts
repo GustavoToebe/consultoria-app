@@ -41,6 +41,8 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'atualizacoes-revisar', rotulo: 'Atualizações para revisar', secao: 'Alunos', href: '/treinador/atualizacoes?situacao=PARA_REVISAR', palavras: ['check-in', 'checkin', 'feedback', 'pendentes'], permissao: null, acao: true },
   { id: 'atualizacoes-atrasadas', rotulo: 'Atualizações atrasadas', secao: 'Alunos', href: '/treinador/atualizacoes?situacao=ATRASADAS', palavras: ['check-in', 'checkin', 'atraso', 'vencidas'], permissao: null, acao: true },
   { id: 'novo-modelo', rotulo: 'Novo modelo', secao: 'Planos', href: '/treinador/planejamento?novo=1', palavras: ['criar modelo', 'novo treino', 'nova dieta', 'novo pacote', 'adicionar modelo'], permissao: 'MODELO_ALTERAR', acao: true },
+  { id: 'questionarios', rotulo: 'Questionários de atualização', secao: 'Planos', href: '/treinador/planejamento?aba=atualizacao', palavras: ['check-in', 'checkin', 'atualizacao', 'perguntas', 'formulario', 'questionario'], permissao: 'QUESTIONARIO_LER', acao: true },
+  { id: 'novo-questionario', rotulo: 'Novo questionário', secao: 'Planos', href: '/treinador/planejamento?aba=atualizacao&novo=1', palavras: ['criar questionario', 'novo check-in', 'nova atualizacao', 'adicionar questionario'], permissao: 'QUESTIONARIO_ALTERAR', acao: true },
   { id: 'convidar-membro', rotulo: 'Convidar membro', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['convidar', 'novo usuario', 'adicionar membro', 'novo membro', 'convite da equipe'], permissao: 'USUARIO_ALTERAR', acao: true },
 ];
 
@@ -124,6 +126,7 @@ export function lerFavoritos(bruto: string | null): string[] {
 /** Nomes das telas que não estão no catálogo (editores e detalhes), do mais específico para o mais geral. */
 const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/planejamento/modelo', 'Modelo'],
+  ['/treinador/planejamento/questionario', 'Questionário'],
   ['/treinador/treinos', 'Plano de treino'],
   ['/treinador/dietas', 'Plano de dieta'],
   ['/treinador/mobilidades', 'Plano de mobilidade'],

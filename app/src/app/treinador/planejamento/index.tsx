@@ -10,6 +10,7 @@ import { alterarPastaModelo, alterarReceita, consultoria, criarPastaModelo, cria
 import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
+import { ListaDeQuestionarios } from '../../../treinador/questionarios/ListaDeQuestionarios';
 import { CATEGORIAS, conteudoInicial, GRUPOS_DE_MODELOS, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
@@ -31,19 +32,27 @@ import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
+const ABA_ATUALIZACAO = 'Atualização';
+
 export default function Planejamento() {
-  const modelos = useCarregar('planejamento', () => listarReceitas());
-  const colecoes = useCarregar('pastas-modelos', listarPastasModelos);
-  const config = useCarregar('consultoria-planejamento', consultoria);
   const { avisar } = useAviso();
   const { pode } = useSessao();
+  // Quem só tem QUESTIONARIO_LER entra no Planejamento pela aba Atualização: nada de modelos é buscado nem mostrado.
+  const veModelos = pode('MODELO_LER');
+  const veAtualizacao = pode('QUESTIONARIO_LER');
+  const modelos = useCarregar(veModelos ? 'planejamento' : null, () => listarReceitas());
+  const colecoes = useCarregar(veModelos ? 'pastas-modelos' : null, listarPastasModelos);
+  const config = useCarregar(veModelos ? 'consultoria-planejamento' : null, consultoria);
+  const [abaEscolhida, setAbaEscolhida] = useState<string | null>(null);
   const [tipo, setTipo] = useState<TipoReceita>('PLANO_TREINO');
   const [colecao, setColecao] = useState('*');
   const [busca, setBusca] = useState('');
-  // `?novo=1` (atalho da busca do topo) abre o formulário de novo modelo; fechar limpa o parâmetro.
-  const { novo: pedirNovo } = useLocalSearchParams<{ novo?: string }>();
+  // `?aba=atualizacao` abre a aba dos questionários; `?novo=1` (atalho da busca do topo) abre o formulário de novo
+  // modelo ou, na aba Atualização, de novo questionário; fechar limpa o parâmetro.
+  const { novo: pedirNovo, aba: abaPedida } = useLocalSearchParams<{ novo?: string; aba?: string }>();
+  const emAtualizacao = veAtualizacao && (abaEscolhida === null ? abaPedida === 'atualizacao' || !veModelos : abaEscolhida === ABA_ATUALIZACAO);
   const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
-  const formulario = formularioAberto ?? (pedirNovo === '1' ? 'novo' : null);
+  const formulario = formularioAberto ?? (pedirNovo === '1' && !emAtualizacao ? 'novo' : null);
   const fecharFormulario = () => { setFormulario(null); if (pedirNovo) router.setParams({ novo: undefined }); };
   const [organizar, setOrganizar] = useState(false);
   const [escolherColecao, setEscolherColecao] = useState(false);
@@ -65,15 +74,21 @@ export default function Planejamento() {
   };
   return <Tela bordas={['top']} largura={LARGURA_LISTA}>
     <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
-    <Texto variante="suave">Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.</Texto>
-    <Abas abas={GRUPOS_DE_MODELOS.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo }))} ativa={grupo.rotulo}
-      aoMudar={(rotulo) => { const g = GRUPOS_DE_MODELOS.find((x) => x.rotulo === rotulo); if (g) setTipo(g.tipos[0]); }} />
-    {grupo.tipos.length > 1 ? (
+    <Texto variante="suave">{emAtualizacao ? 'Monte os questionários de atualização que o aluno responde a cada período.' : 'Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.'}</Texto>
+    <Abas abas={[...(veModelos ? GRUPOS_DE_MODELOS.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? [{ valor: ABA_ATUALIZACAO, rotulo: ABA_ATUALIZACAO }] : [])]}
+      ativa={emAtualizacao ? ABA_ATUALIZACAO : grupo.rotulo}
+      aoMudar={(rotulo) => {
+        setAbaEscolhida(rotulo);
+        if (abaPedida || pedirNovo) router.setParams({ aba: undefined, novo: undefined });
+        const g = GRUPOS_DE_MODELOS.find((x) => x.rotulo === rotulo); if (g) setTipo(g.tipos[0]);
+      }} />
+    {emAtualizacao ? <ListaDeQuestionarios pedirNovo={pedirNovo === '1'} aoFecharNovo={() => { if (pedirNovo) router.setParams({ novo: undefined }); }} /> : null}
+    {!emAtualizacao && grupo.tipos.length > 1 ? (
       <FaixaDeChips quebrar accessibilityLabel={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`}>
         <Escolha descricao={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`} valor={tipo} aoMudar={setTipo} opcoes={CATEGORIAS.filter((c) => grupo.tipos.includes(c.valor))} />
       </FaixaDeChips>
     ) : null}
-    <Cartao
+    {emAtualizacao ? null : <Cartao
       titulo={categoria.rotulo}
       descricao={categoria.descricao}
       acoes={<Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Novo modelo" aoTocar={() => setFormulario('novo')} desabilitado={!config.dados} motivo="Aguardando a configuração da consultoria." /></Permitido>}>
@@ -87,7 +102,7 @@ export default function Planejamento() {
       {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((r) => <CartaoModelo key={r.id} modelo={r} colecao={nomeDaColecao(r.pastaId)} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)} linhaDeUso={uso.linha}
         ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
         aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</Grade> : null}
-    </Cartao>
+    </Cartao>}
     {escolherColecao ? <Folha visivel titulo="Coleção" aoFechar={() => setEscolherColecao(false)}>
       <Texto variante="suave">Coleções só organizam os modelos desta tela.</Texto>
       <Escolha descricao="Coleção" valor={colecao} aoMudar={(v) => { setColecao(v); setEscolherColecao(false); }}

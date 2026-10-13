@@ -14,7 +14,7 @@ chave estável por item, quem consome guarda a versão usada, e item já usado �
   Texto, Texto longo, Peso, Data automática; Fotos continua não implementado);
 - o editor fica numa **aba "Atualização" no Planejamento**.
 
-**Status:** Bloco 1 ✅ (V024, resolver, serviço, seed). Bloco 2 ✅ (esquema v2, validadores Java e TS, fixtures de paridade; API 328 testes, app 456). Bloco 3 ✅ (V025 e permissões, `QuestionarioService`/`Controller`, rotas de aluno e pasta, auditoria; PDF da dieta sem "Profissional" nem "Elaborado por"; API com `QuestionariosIntegrationTest`, `PermissoesQuestionarioMigrationIntegrationTest` e isolamento entre consultorias). Bloco 4 ✅ (app do aluno com os 11 tipos, envio por `questionarioVersaoId`, rascunho por versão com reconciliação, Resumo do treinador por destaque; app 481 testes, API 352 com `mvn verify`; conferência manual no navegador/aparelho **ainda não feita**). Próximo: **Blocos 5 e 6**.
+**Status:** Bloco 1 ✅ (V024, resolver, serviço, seed). Bloco 2 ✅ (esquema v2, validadores Java e TS, fixtures de paridade; API 328 testes, app 456). Bloco 3 ✅ (V025 e permissões, `QuestionarioService`/`Controller`, rotas de aluno e pasta, auditoria; PDF da dieta sem "Profissional" nem "Elaborado por"; API com `QuestionariosIntegrationTest`, `PermissoesQuestionarioMigrationIntegrationTest` e isolamento entre consultorias). Bloco 4 ✅ (app do aluno com os 11 tipos, envio por `questionarioVersaoId`, rascunho por versão com reconciliação, Resumo do treinador por destaque; app 481 testes, API 352 com `mvn verify`; conferência manual no navegador/aparelho **ainda não feita**). Bloco 5 ✅ (aba Atualização no Planejamento, lista, editor com prévia, hook, permissões e telas; app 500 testes, `expo export` Android ok; conferência manual no navegador **ainda não feita**). Próximo: **Bloco 6** (seção 12; um commit por bloco, sem push).
 **Pontos confirmados pelo Gustavo:** Nutricionista com QUESTIONARIO_LER e ALTERAR (Assistente só LER); replicar a
 pasta **não** copia a escolha de questionário; Publicar fica dentro de QUESTIONARIO_ALTERAR.
 A cópia deste plano já está em `PLANO-QUESTIONARIOS.md` na raiz do repositório (atualizar junto com este arquivo).
@@ -347,6 +347,126 @@ Rotas, serviço de gestão, V025/permissões (Bloco 3); renderização e `respos
 ### Verificação
 `cd api && mvn verify` (ArchUnit e JaCoCo ≥ 70%) e `cd app && npm run typecheck && npm run lint && npm test`.
 Revisão do `advisor` antes de fechar (contrato de validação compartilhado com o app).
+
+## 11. Bloco 5 em detalhe — editor no Planejamento (só app)
+
+**Decisões do Gustavo (2026-10-12):** quem tem `QUESTIONARIO_LER` sem `MODELO_LER` entra no Planejamento só com a aba
+Atualização; perguntas editadas em **cartão recolhível** (como os exercícios do treino, com "Abrir/Fechar todas");
+o questionário da pasta é escolhido **na folha da pasta aberta**; **um commit por bloco, sem push** (o Bloco 4 é
+commitado antes de começar o 5; `app/src/app/treinador/_layout.tsx` sempre fora).
+
+**O que já existe:** toda a API de gestão (Bloco 3, `QuestionarioController`); `ConteudoQuestionario`/`TipoPergunta`
+em `api/tipos.ts`; `validarQuestionario`/`errosDoQuestionario`/`LIMITES_QUESTIONARIO` em `dominio/questionario.ts`;
+`QuestionarioAtualizacao` renderiza os 11 tipos (prévia sai de graça); `mover`/`substituir`/`remover` em
+`dominio/editorTreino.ts`; `novoUid()` em `dominio/uid.ts`. **Não existe:** tipos e rotas de gestão no app, fábricas
+(`novaSecao`/`novaPergunta`…), tela nenhuma. `usePlanoEditor` está preso a `TipoPlano` e `localizar/uidsComProblema`
+(`dominio/caminhos.ts`) usam `uid`/`nome`: não servem ao questionário, por isso o hook e o mapa de caminhos são irmãos.
+
+### Tipos e rotas (`api/tipos.ts`, `api/rotas.ts`)
+- Tipos, copiados de `QuestionarioDtos.java`: `OrigemQuestionario` (`VAZIO|FABRICA`), `UsoQuestionario {alunos, pastas, envios}`,
+  `QuestionarioResumo {id, nome, descricao, padrao, arquivado, versaoPublicada (0 = nunca), publicadoEm, alteradoDesdePublicacao,
+  rascunhoAlteradoEm, uso}`, `QuestionarioDetalhe = Resumo + {versao, rascunho: ConteudoQuestionario, versoes: {numero, publicadoEm}[]}`,
+  `OpcaoQuestionario {id, nome, padrao}`, `ResultadoValidacaoQuestionario {erros, avisos: {caminho, mensagem}[]}`.
+- Uma função por rota: `listarQuestionarios(arquivados)`, `opcoesDeQuestionario()`, `criarQuestionario({nome, descricao, origem})`,
+  `buscarQuestionario(id)`, `salvarQuestionario(id, {nome, descricao, conteudo, versao})`, `publicarQuestionario(id, versao, confirmarAvisos)`,
+  `duplicarQuestionario`, `definirQuestionarioPadrao`, `arquivarQuestionario`, `desarquivarQuestionario`, `excluirQuestionario`.
+  (`/validar` não entra: o editor valida ao publicar.)
+
+### Domínio puro (novo `dominio/editorQuestionario.ts` + teste; `questionario.ts` continua só o espelho do validador)
+- `normalizarQuestionario(c: unknown)`: `formato: 2`, `instrucoes` lista, seção sem `uid` ganha `novoUid()`, `obrigatoria` nulo → false.
+- `paraApi(c)`: tira campos que não são do tipo (opções fora de escolha, `dias` fora de NOTAS_POR_DIA, `rotuloCurto` sem `destaque`,
+  `ajudaAutomatica` fora de TEXTO/NUMERO, textos opcionais vazios), sem mexer em ids.
+- Fábricas: `novaSecao()`, `novaOpcao()`, `novaPergunta(tipo)` (escolhas nascem com 2 opções vazias; NUMERO `casas: 0`; NOTAS_POR_DIA
+  `dias: [1..7]`), `duplicarPergunta(p)` (id novo **e** ids novos nas opções; rótulo igual).
+- `TIPOS_PARA_ADICIONAR` (os 11 menos FOTOS) com rótulo e descrição curta; `ROTULO_DO_TIPO`.
+- `podeAdicionar(conteudo, secao, tipo)` → `{pode, motivo}`: PESO/DATA_AUTOMATICA únicos ("Já existe uma pergunta de peso."),
+  40 por seção, 80 no total; `podeAdicionarSecao` (15); `podeDestacar(conteudo, id)` (4 destaques, só NOTA/NUMERO/SIM_NAO/ESCOLHA_UNICA).
+- `moverParaSecao(conteudo, de: {secao, pergunta}, para: secao)` (vai para o fim da seção destino).
+- `localDoProblema(caminho)` → `{secao?, pergunta?}` lendo `secoes[i].perguntas[j]…`; `problemasPorPergunta(conteudo, problemas)` → `Map<idPergunta, mensagens>`.
+- `previaDeAtualizacao(conteudo)` → `Atualizacao` só para a prévia (data de hoje, `resumo` nulo: nada de número inventado, a ajuda
+  automática cai no texto fixo da pergunta).
+- Teste-chave: para cada tipo, `novaPergunta(t)` com rótulo (e opções) preenchidos passa em `errosDoQuestionario`; e `paraApi` de uma pergunta
+  "suja" sai sem os campos de outro tipo.
+
+### Hook `treinador/questionarios/useQuestionarioEditor.ts` (semântica de `treinador/plano/usePlanoEditor.ts`)
+- Estado `{detalhe, nome, descricao, conteudo, revisao, salvoEm}`, `versao` em ref; `pendente = revisao !== salvoEm` → `useGuardaDeSaida(pendente)`.
+- `salvar()` (espera o envio em voo, manda `paraApi(conteudo)` e a `versao`): `CONFLITO_EDICAO` → situação `conflito` (Recarregar);
+  `QUESTIONARIO_NOME_EM_USO`, `QUESTIONARIO_GRANDE_DEMAIS`, `QUESTIONARIO_ARQUIVADO` → mensagem da API. **Nada salva sozinho.**
+- `publicar(confirmarAvisos)`: salva antes; `QUESTIONARIO_INVALIDO` → `{tipo:'erros', problemas}`; `CONFIRMAR_AVISOS` → `{tipo:'avisos'}`
+  (painel "Publicar mesmo assim"); sucesso recarrega o detalhe (selo "Publicado vN").
+
+### Telas
+- **`app/treinador/planejamento/index.tsx`:** abas = `GRUPOS_DE_MODELOS` (só com `MODELO_LER`) + "Atualização" (só com `QUESTIONARIO_LER`),
+  estado próprio de aba (a aba deixa de ser derivada só de `tipo`); `?aba=atualizacao` abre nela; sem `MODELO_LER` abre direto nela e não
+  busca receitas/coleções/consultoria (`useCarregar` com chave `null`). `?novo=1` abre o "novo" **da aba ativa**. O texto de introdução
+  muda na aba Atualização. Nada mais muda nos modelos.
+- **`treinador/questionarios/ListaDeQuestionarios.tsx`:** `Cartao` "Questionários de atualização" com "Novo questionário" (único primário,
+  `Permitido QUESTIONARIO_ALTERAR`) e um `Escolha` Ativos | Arquivados. `Grade` de cartões no molde do `CartaoModelo`: nome, descrição,
+  selos (`Padrão` sucesso; `Publicado vN` neutro ou `Nunca publicado` atenção; `Alterado desde a publicação` atenção; `Arquivado` neutro),
+  linha de uso "N alunos · N pastas · N envios" e "Editar" (com ALTERAR) ou "Ver" (só LER). Menu ⋯ (só ALTERAR) numa `Folha`: Duplicar;
+  Definir como padrão (some se já é; desabilitado com `motivo` se não publicado); Arquivar (desabilitado com `motivo` no padrão) ou
+  Desarquivar; Excluir (`perigoTexto`, desabilitado com `motivo` no padrão ou com envios: "Já foi respondido; arquive em vez de excluir").
+  Excluir passa por `PainelConfirmacao` (diz que alunos e pastas que o usavam voltam ao padrão); 409 de corrida mostra a mensagem.
+  "Novo questionário" abre `Folha` com nome, descrição e `Escolha` "Começar do modelo da plataforma" (FABRICA, padrão) | "Em branco";
+  "Criar e editar" leva ao editor.
+- **Rota `app/treinador/planejamento/questionario/[id].tsx` → `treinador/questionarios/EditorQuestionario.tsx`** (`LARGURA_EDITOR`):
+  - `Cabecalho` "Questionário", trilha Planejamento (`?aba=atualizacao`) › nome, voltar para a aba.
+  - Topo (`Cartao`): nome e descrição, selos, situação; "Salvar rascunho" (secundário) e "Publicar" (primário, `PainelConfirmacao`: "Quem
+    ainda não enviou passa a ver esta versão; quem já enviou mantém a que respondeu."). Lista de problemas da publicação, cada um com "Ir
+    para" (troca para Editar e abre a pergunta).
+  - `Abas` Editar | Prévia. Sem `QUESTIONARIO_ALTERAR` (Assistente) só a Prévia, sem botões. Arquivado: aviso "Arquivado. Desarquive para
+    editar." e só a Prévia.
+  - **Editar:** `Cartao` Instruções (até 10, adicionar/remover) e `SecoesDoQuestionario.tsx` (molde `treinador/mobilidade/SecoesDeMobilidade.tsx`):
+    seção = `Cartao` com título editável, ↑↓ e remover (`PainelConfirmacao`; a última não sai); pergunta = `CabecalhoDeGrupo` recolhível
+    (rótulo, resumo "Tipo · obrigatória", `Selo` perigo se tem problema) que abre `PropriedadesDaPergunta.tsx` e a `LinhaDeAcoes` ↑↓,
+    Duplicar, "Mover para seção…" (`EscolhaEmFolha`, só com 2+ seções) e Remover (`perigoTexto` + `PainelConfirmacao`). "Abrir/Fechar todas";
+    pergunta nova nasce aberta. "Adicionar pergunta" abre `Folha` com os tipos (`ItemDeLista`; os indisponíveis com `motivo`). "Adicionar seção".
+  - **`PropriedadesDaPergunta`:** rótulo, ajuda, Obrigatória (`Interruptor`; não em DATA_AUTOMATICA/FOTOS); "Mostrar no resumo do treinador"
+    + "Nome curto" nos 4 tipos que aceitam destaque; opções (campo, ↑↓, remover com mínimo 2, adicionar até 20); NUMERO: unidade, mín., máx.
+    (`CampoNumerico`), casas (`Escolha` 0/1/2); TEXTO/NUMERO: "Mostrar a média de dias com treino como ajuda" (`ajudaAutomatica`);
+    NOTAS_POR_DIA: dias 1–14 por chips marcáveis (até 7); PESO: nota "A resposta vai para o registro de peso do aluno."; FOTOS: "Envio de fotos
+    ainda não implementado." O tipo nunca muda (para mudar, remove e adiciona).
+  - **Prévia:** `QuestionarioAtualizacao` com `previaDeAtualizacao(conteudo)` e respostas em estado local; "Conferir respostas"
+    (`errosRespostasAtualizacao`) e "Limpar respostas". Mostra o rascunho; se difere do publicado, o selo do topo já avisa.
+
+### Permissões, telas e ajuda curta
+- `dominio/permissoes.ts`: `startsWith('/treinador/planejamento/questionario')` → `QUESTIONARIO_LER` (antes do ramo do Planejamento); o ramo
+  do Planejamento passa a `MODELO_LER || QUESTIONARIO_LER`. O menu (`_layout.tsx`) já filtra por `podeAcessarTela`: não precisa mexer nele.
+- `dominio/telas.ts`: "Questionários de atualização" (`?aba=atualizacao`, `permissao: 'QUESTIONARIO_LER'`) e ação "Novo questionário"
+  (`?aba=atualizacao&novo=1`, `QUESTIONARIO_ALTERAR`, `acao: true`); `TITULOS_DE_SUBTELAS` ganha `/treinador/planejamento/questionario` → "Questionário".
+- Testes: `permissoes.test.ts` (só QUESTIONARIO_LER abre Planejamento e editor; só MODELO_LER não abre o editor), `telas.test.ts` (listas do
+  assistente e `nomeDaTela`), `editorQuestionario.test.ts`.
+
+### Verificação e fechamento do Bloco 5
+`cd app && npm run typecheck && npm run lint && npm test` e `npx expo export --platform android`. Conferência manual (`docker compose up -d --build`,
+`:8088`): criar do modelo da plataforma, uma pergunta de cada tipo, prévia, publicar com erro (ir para), com aviso (sem peso) e válido; duplicar,
+padrão, arquivar, excluir; Assistente só vê; perfil só com QUESTIONARIO_LER vê só a aba; sair com pendência pede confirmação. Advisor antes de
+fechar (`/effort xhigh`). Commit "Questionários: editor no Planejamento". AGENTS.md: item Planejamento (aba Atualização, permissões, editor).
+
+## 12. Bloco 6 em detalhe — seletores, ajuda e documentação (só app)
+
+- **Rotas:** `escolherQuestionarioDoAluno(alunoId, questionarioId | null)` → `AlunoDetalhe`; `escolherQuestionarioDaPasta(pastaId, questionarioId | null)` → `PastaResumo`.
+- **`treinador/questionarios/SeletorDeQuestionario.tsx`** (um componente para os dois lugares): props `rotulo`, `valor`, `rotuloDoNulo`,
+  `podeAlterar`, `aoEscolher(id | null): Promise<void>`. Carrega `opcoesDeQuestionario()` (`useCarregar('questionarios-opcoes')`).
+  Com permissão: `EscolhaEmFolha` (opção vazia = `rotuloDoNulo`, "Padrão" no `detalhe` do padrão; erro da API vira `avisar(..., 'perigo')`,
+  409 `QUESTIONARIO_INDISPONIVEL` recarrega as opções). Sem permissão de alterar: `CampoLeitura`. Escolhido que não está nas opções
+  (arquivado depois): "Arquivado; vale o {rotuloDoNulo}". Sem acesso às opções (403): a linha não aparece.
+- **Ficha do aluno** (`app/treinador/alunos/[id].tsx`, `CartaoDados`, depois de "Nova atualização a cada"): "Questionário de atualização",
+  nulo = "Padrão da consultoria", `ALUNO_ALTERAR`, o retorno vai para o `definir` da ficha.
+- **Folha da pasta aberta** (`treinador/CartaoPastas.tsx`, entre a `LinhaDeAcoes` e `AtualizacaoDaPasta`): "Questionário deste período",
+  nulo = "O do aluno", `PASTA_ALTERAR`; depois de trocar, recarrega pastas e atualizações (a ABERTA resolve na hora).
+- **`AtualizacaoDaPasta`:** linha "Questionário: {questionarioNome}" quando a atualização traz o nome (conferir no código se a rota usada pela
+  ficha devolve o campo; se não devolver, a linha não aparece e nada muda na API).
+- **Ajuda (`app/src/ajuda/conteudo.ts`):** guia do treinador ganha o item "Questionário" na seção "Atualização do aluno" (padrão da consultoria,
+  escolha no aluno e na pasta, rascunho e versões, arquivar) e a pergunta "Mudei o questionário; e quem já respondeu?" (quem enviou mantém a
+  versão respondida; quem não enviou vê a nova; questionário respondido não se exclui, arquiva-se); tutorial do Planejamento cita a aba
+  Atualização. Guia do aluno não muda. Depois `node scripts/guias/gerar.mjs` (Edge/Chrome) e versionar `app/public/guias/*.pdf`.
+- **AGENTS.md:** seletores (ficha, pasta) e ajuda; `PLANO-QUESTIONARIOS.md` sincronizado com este arquivo.
+
+### Verificação e fechamento do Bloco 6
+`npm run typecheck && npm run lint && npm test`, `npx expo export --platform android`. Manual: escolher no aluno e na pasta, ver o aluno receber o
+questionário da pasta, voltar a "O do aluno", arquivar o escolhido e conferir o texto; abrir a ajuda e o PDF. Advisor antes de fechar. Commit
+"Questionários: seletores na ficha e na pasta, ajuda". Relatório final ✅/❌ dos blocos 5 e 6, citando a conferência manual que não puder ser feita.
 
 ## 10. Bloco 4 em detalhe — app do aluno e leitura do treinador (✅ concluído; só app + testes de API)
 
