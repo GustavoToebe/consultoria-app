@@ -41,8 +41,6 @@ public class Consultoria {
     @Column(nullable = false, updatable = false)
     private String slug;
 
-    private String lema;
-
     @Column(name = "cor_primaria", nullable = false)
     private String corPrimaria = "#C62828";
 
@@ -91,10 +89,6 @@ public class Consultoria {
         return slug;
     }
 
-    public String getLema() {
-        return lema;
-    }
-
     public String getCorPrimaria() {
         return corPrimaria;
     }
@@ -127,9 +121,8 @@ public class Consultoria {
         return versao;
     }
 
-    public void alterarMarca(String nome, String lema, String corPrimaria, Fonte fonteTitulo, Tema temaPadrao) {
+    public void alterarMarca(String nome, String corPrimaria, Fonte fonteTitulo, Tema temaPadrao) {
         this.nome = nome;
-        this.lema = lema;
         this.corPrimaria = corPrimaria;
         this.fonteTitulo = fonteTitulo;
         this.temaPadrao = temaPadrao;

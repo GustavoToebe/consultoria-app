@@ -39,9 +39,9 @@ class ValidadorAtualizacaoTest {
     }
 
     @Test void numeroGiganteOuInfinitoEh422NuncaErroInterno() {
-        // 1e400 vira infinito no JSON; limite antigo com infinito na versão gravada também não pode derrubar o envio.
+        // 1e400 vira infinito no JSON e não pode derrubar o envio.
         assertThatThrownBy(() -> validador.validar(modeloNovo(), json.readTree("{\"n\":1e400}"))).isInstanceOf(ValidacaoException.class);
-        var semLimite = json.readTree("{\"secoes\":[{\"perguntas\":[{\"id\":\"n\",\"tipo\":\"NUMERO\",\"max\":1e400}]}]}");
+        var semLimite = json.readTree("{\"secoes\":[{\"perguntas\":[{\"id\":\"n\",\"tipo\":\"NUMERO\"}]}]}");
         assertThat(validador.validar(semLimite, json.readTree("{\"n\":5}")).path("n").asInt()).isEqualTo(5);
         assertThatThrownBy(() -> validador.validar(semLimite, json.readTree("{\"n\":1000000001}"))).isInstanceOf(ValidacaoException.class);
     }

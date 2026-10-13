@@ -424,7 +424,7 @@ public class SeedDemo {
 
     private void marca(UUID consultoria, String nome, String cor, Consultoria.Fonte fonte, Consultoria.Tema tema) {
         Long versao = marcas.consultoria(consultoria).versao();
-        marcas.alterarMarca(consultoria, new MarcaRequest(nome, null, cor, fonte, tema, versao));
+        marcas.alterarMarca(consultoria, new MarcaRequest(nome, cor, fonte, tema, versao));
     }
 
     /** Mesmo caminho do convite real: gera o código e aceita com o e-mail da demo. */

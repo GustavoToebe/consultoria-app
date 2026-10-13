@@ -23,7 +23,7 @@ test('normalizar e aplicar semana preservam metodologia independente e renovam o
   expect(novaSerie(b.metodologia!.configuracao).tipo).toBe('Trabalho');
 });
 
-test('modelo antigo sem metodologia mantém a metodologia já vinculada ao aluno', () => {
+test('modelo sem metodologia mantém a metodologia já vinculada ao aluno', () => {
   const atual = { ...normalizarTreino(null), metodologia: { id: 'metodo', nome: 'Método', configuracao } };
   expect(aplicarReceitaDePlano(atual, { sessoes: [] }).metodologia).toEqual(atual.metodologia);
 });

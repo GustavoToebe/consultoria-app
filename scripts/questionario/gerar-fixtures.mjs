@@ -1,6 +1,6 @@
 // Gera as fixtures de paridade Java/TS em api/src/test/resources/paridade-questionario/ (`node scripts/questionario/gerar-fixtures.mjs`).
 // Os esperados são escritos aqui à mão, não calculados por nenhum validador. Mudou uma regra? Ajuste o caso aqui, gere de novo
-// e rode os dois lados (`mvn verify` e `npm test`). Os JSON gerados são versionados; a fábrica v2 sai da V017 como a V024 a deriva.
+// e rode os dois lados (`mvn verify` e `npm test`). Os JSON gerados são versionados; a fábrica sai do V001__inicial.sql.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -101,22 +101,11 @@ const longos = (n) => Array.from({ length: n }, (_, i) => P(`t${i}`, 'TEXTO_LONG
 c('capacidade_de_texto_40000_ok', com(...longos(20)));
 c('capacidade_de_texto_acima', com(...longos(21)), ['secoes']);
 
-// Fábrica v2: o mesmo que a V024 deriva da v1 (o teste de integração confere que o banco tem exatamente isto).
+// Fábrica: o questionário de onde sai o Padrão de cada consultoria, como está no V001 (o teste de integração confere o banco).
 {
-  const sql = readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V017__atualizacoes.sql`, 'utf8');
-  const m = sql.match(/values \('b582a268-f6e7-44fc-9b97-cf379f485c26',1,'(.*)'\);/s);
-  const v1 = JSON.parse(m[1].replace(/''/g, "'"));
-  const extras = {
-    sono: { destaque: true, rotuloCurto: 'Sono' },
-    alim_desempenho: { destaque: true, rotuloCurto: 'Alimentar' },
-    treino_desempenho: { destaque: true, rotuloCurto: 'Treino' },
-    treino_dias: { ajudaAutomatica: 'MEDIA_DIAS_TREINO' },
-  };
-  const v2 = {
-    formato: 2, instrucoes: v1.instrucoes,
-    secoes: v1.secoes.map((s, i) => ({ uid: `secao-${i + 1}`, titulo: s.titulo, perguntas: s.perguntas.map((p) => ({ ...p, ...(extras[p.id] ?? {}) })) })),
-  };
-  c('fabrica_v2', v2);
+  const sql = readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V001__inicial.sql`, 'utf8');
+  const m = sql.match(/INSERT INTO public\.atualizacao_modelo VALUES \('[0-9a-f-]+', \d+, '(.*?)', '[^']*'\);/);
+  c('fabrica_v2', JSON.parse(m[1].replace(/''/g, "'")));
 }
 
 writeFileSync(`${SAIDA}/questionarios.json`, JSON.stringify(casos, null, 1) + '\n');

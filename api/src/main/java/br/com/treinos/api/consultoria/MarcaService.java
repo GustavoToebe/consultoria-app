@@ -2,7 +2,6 @@ package br.com.treinos.api.consultoria;
 
 import br.com.treinos.api.web.ApiException;
 import br.com.treinos.api.web.BadRequestException;
-import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import jakarta.validation.constraints.NotBlank;
@@ -33,7 +32,6 @@ public class MarcaService {
 
     public record MarcaRequest(
             @NotBlank @Size(max = 120) String nome,
-            @Size(max = 160) String lema,
             @NotNull @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "use o formato #RRGGBB") String corPrimaria,
             @NotNull Consultoria.Fonte fonteTitulo,
             @NotNull Consultoria.Tema temaPadrao,
@@ -73,7 +71,7 @@ public class MarcaService {
     public ConsultoriaResponse alterarMarca(UUID consultoriaId, MarcaRequest r) {
         Consultoria c = buscar(consultoriaId);
         exigirMesmaVersao(c, r.versao());
-        c.alterarMarca(r.nome().trim(), Buscas.opcional(r.lema()), r.corPrimaria().toUpperCase(java.util.Locale.ROOT),
+        c.alterarMarca(r.nome().trim(), r.corPrimaria().toUpperCase(java.util.Locale.ROOT),
                 r.fonteTitulo(), r.temaPadrao());
         consultorias.saveAndFlush(c);
         return resposta(c);
@@ -165,8 +163,7 @@ public class MarcaService {
                         + " série(s) precisam de " + e.getKey() + " percentual(is) de 1 a 200.");
             }
         }
-        Map<String, ConfiguracaoConsultoria.Repeticoes> repeticoes = c.repeticoes() == null ? Map.of() : c.repeticoes();
-        for (Map.Entry<String, ConfiguracaoConsultoria.Repeticoes> e : repeticoes.entrySet()) {
+        for (Map.Entry<String, ConfiguracaoConsultoria.Repeticoes> e : c.repeticoes().entrySet()) {
             if (!tipos.contains(e.getKey())) {
                 throw new BadRequestException("Repetições: o tipo \"" + e.getKey() + "\" não está na lista de tipos.");
             }

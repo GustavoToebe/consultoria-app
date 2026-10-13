@@ -4382,11 +4382,6 @@
  {
   "nome": "fabrica_v2",
   "conteudo": {
-   "formato": 2,
-   "instrucoes": [
-    "O feedback deve ser enviado no dia da atualização. Caso ocorram atrasos, avise previamente.",
-    "Atualização de peso e fotos em jejum"
-   ],
    "secoes": [
     {
      "uid": "secao-1",
@@ -4420,8 +4415,8 @@
        "id": "sono",
        "tipo": "NOTA",
        "rotulo": "De 0 a 10, como foi o seu sono?",
-       "obrigatoria": true,
        "destaque": true,
+       "obrigatoria": true,
        "rotuloCurto": "Sono"
       },
       {
@@ -4440,8 +4435,8 @@
        "id": "alim_desempenho",
        "tipo": "NOTA",
        "rotulo": "Desempenho (0 a 10)",
-       "obrigatoria": true,
        "destaque": true,
+       "obrigatoria": true,
        "rotuloCurto": "Alimentar"
       },
       {
@@ -4497,8 +4492,8 @@
        "id": "treino_desempenho",
        "tipo": "NOTA",
        "rotulo": "Desempenho (0 a 10)",
-       "obrigatoria": true,
        "destaque": true,
+       "obrigatoria": true,
        "rotuloCurto": "Treino"
       },
       {
@@ -4563,9 +4558,6 @@
       },
       {
        "id": "fb_pos_treino",
-       "tipo": "NOTAS_POR_DIA",
-       "rotulo": "De 0 a 10, como você se sentiu pós-treino nos dias abaixo",
-       "obrigatoria": false,
        "dias": [
         1,
         2,
@@ -4573,7 +4565,10 @@
         4,
         5,
         6
-       ]
+       ],
+       "tipo": "NOTAS_POR_DIA",
+       "rotulo": "De 0 a 10, como você se sentiu pós-treino nos dias abaixo",
+       "obrigatoria": false
       },
       {
        "id": "fb_mes",
@@ -4583,6 +4578,11 @@
       }
      ]
     }
+   ],
+   "formato": 2,
+   "instrucoes": [
+    "O feedback deve ser enviado no dia da atualização. Caso ocorram atrasos, avise previamente.",
+    "Atualização de peso e fotos em jejum"
    ]
   },
   "erros": [],

@@ -14,7 +14,7 @@ import java.io.InputStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * O questionário de fábrica (v2 da V024, de onde sai o Padrão de cada consultoria) tem de ser publicável e igual ao
+ * O questionário de fábrica (de onde sai o Padrão de cada consultoria) tem de ser publicável e igual ao
  * que o TypeScript valida na fixture {@code fabrica_v2}. Sem dado de aluno.
  */
 class QuestionarioFabricaIntegrationTest extends AbstractIntegrationTest {

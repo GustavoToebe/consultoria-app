@@ -237,7 +237,7 @@ export function aplicarReceitaDePlano(atual: ConteudoTreino, receita: unknown): 
   return { ...atual, sessoes: daReceita.sessoes, ...(daReceita.metodologia ? { metodologia: daReceita.metodologia } : {}) };
 }
 
-/** Garante listas e campos que o editor espera (rascunho antigo, receita parcial). */
+/** Garante listas e campos que o editor espera (receita parcial). */
 export function normalizarTreino(conteudo: unknown): ConteudoTreino {
   const c = (conteudo ?? {}) as Partial<ConteudoTreino>;
   return {

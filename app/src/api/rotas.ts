@@ -158,7 +158,6 @@ export const consultoria = () => requisicao<ConsultoriaResponse>('/consultoria')
 
 export const alterarMarca = (dados: {
   nome: string;
-  lema: string | null;
   corPrimaria: string;
   fonteTitulo: Fonte;
   temaPadrao: Tema;

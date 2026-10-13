@@ -10,7 +10,7 @@ import java.util.Map;
  * regra de FS do Saraiva (3 FS = 50/70/85; 2 FS = 70/85; 1 FS = 85): o editor usa para preencher os percentuais
  * quando muda a quantidade de séries de preparação; depois cada série pode ser editada. {@code repeticoes} é a faixa de
  * repetições de cada tipo de série (chave = nome do tipo): o editor preenche ao criar a série ou trocar o tipo. Tipo sem
- * faixa não preenche nada; nulo = metodologia gravada antes deste campo.
+ * faixa não preenche nada.
  */
 public record ConfiguracaoConsultoria(
         List<String> tiposSerie,
@@ -26,12 +26,8 @@ public record ConfiguracaoConsultoria(
     /** Faixa de repetições de um tipo de série (mínima e máxima; iguais = número fixo, como "3x3"). */
     public record Repeticoes(Integer min, Integer max) { }
 
-    /** Metodologia sem faixa de repetições por tipo. */
-    public ConfiguracaoConsultoria(List<String> tiposSerie, String tipoTrabalho, String tipoPreparacao,
-                                   Map<String, List<Integer>> regraPreparacao, BigDecimal arredondamentoKg,
-                                   String instrucoesTreino, String rodapePdf) {
-        this(tiposSerie, tipoTrabalho, tipoPreparacao, regraPreparacao, arredondamentoKg, instrucoesTreino, rodapePdf,
-                null);
+    public ConfiguracaoConsultoria {
+        repeticoes = repeticoes == null ? Map.of() : repeticoes;
     }
 
     /** Ponto de partida de toda consultoria nova; o treinador muda na tela Marca. */

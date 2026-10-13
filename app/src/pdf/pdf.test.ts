@@ -11,7 +11,6 @@ jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 const marca: Marca = {
   id: 'm',
   nome: 'Consultoria <Teste>',
-  lema: null,
   corPrimaria: '#C62828',
   fonteTitulo: 'METAL',
   temaPadrao: 'ESCURO',

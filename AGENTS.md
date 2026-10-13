@@ -206,8 +206,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Ajuda: `app/src/ajuda/conteudo.ts` é o texto único (primeiros passos, tutorial guiado, seções, perguntas) das telas
   `/treinador/ajuda` e `/aluno/ajuda` e dos PDFs `app/public/guias/*.pdf` (web serve em `/guias/`). Mudou funcionalidade
   que o guia descreve? Edite o `conteudo.ts` e rode `node scripts/guias/gerar.mjs` (precisa de Edge/Chrome), versionando os PDFs.
-- `ui/RolagemComTopo` (usado por `Tela` e `Folha`) mostra o botão "voltar ao início da página" depois de 400 px de rolagem. Lema da marca saiu da interface e do PDF
-  (o campo saiu da tela; salvar a Marca mantém o lema que já estava gravado). Marca aparece a quem tem `MARCA_ALTERAR` (nos perfis
+- `ui/RolagemComTopo` (usado por `Tela` e `Folha`) mostra o botão "voltar ao início da página" depois de 400 px de rolagem. A marca não tem lema.
+  Marca aparece a quem tem `MARCA_ALTERAR` (nos perfis
   padrão, só o Administrador); tema claro/escuro é preferência pessoal em Perfil, para qualquer um.
 
 ## Onde está cada coisa

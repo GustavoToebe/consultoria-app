@@ -68,11 +68,7 @@ public class ValidadorAtualizacao {
         if (valor.abs().compareTo(BigDecimal.valueOf(LimitesQuestionario.NUMERO_ABSOLUTO)) > 0) return false;
         int casas = pergunta.path("casas").isNumber() ? pergunta.path("casas").asInt() : 0;
         if (valor.stripTrailingZeros().scale() > casas) return false;
-        if (limiteFinito(pergunta.path("min")) && valor.compareTo(pergunta.path("min").decimalValue()) < 0) return false;
-        return !(limiteFinito(pergunta.path("max")) && valor.compareTo(pergunta.path("max").decimalValue()) > 0);
-    }
-    /** Limite numérico utilizável (o publicador já recusa fora de ±{@code NUMERO_ABSOLUTO}; versão antiga com infinito é ignorada). */
-    private static boolean limiteFinito(JsonNode n) {
-        return n.isNumber() && !(n.isFloatingPointNumber() && !Double.isFinite(n.doubleValue()));
+        if (pergunta.path("min").isNumber() && valor.compareTo(pergunta.path("min").decimalValue()) < 0) return false;
+        return !(pergunta.path("max").isNumber() && valor.compareTo(pergunta.path("max").decimalValue()) > 0);
     }
 }

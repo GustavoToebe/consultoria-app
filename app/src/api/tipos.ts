@@ -9,7 +9,6 @@ export type Tema = 'ESCURO' | 'CLARO';
 export interface Marca {
   id: string;
   nome: string;
-  lema: string | null;
   corPrimaria: string;
   fonteTitulo: Fonte;
   temaPadrao: Tema;

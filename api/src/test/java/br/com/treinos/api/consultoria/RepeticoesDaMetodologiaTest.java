@@ -2,7 +2,6 @@ package br.com.treinos.api.consultoria;
 
 import br.com.treinos.api.web.BadRequestException;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Map;
 
@@ -42,15 +41,5 @@ class RepeticoesDaMetodologiaTest {
                 .isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> MarcaService.validar(com(Map.of("WS", new ConfiguracaoConsultoria.Repeticoes(1, 501)))))
                 .isInstanceOf(BadRequestException.class);
-    }
-
-    @Test
-    void jsonGravadoAntesDoCampoAindaLe() {
-        String antigo = """
-                {"tiposSerie":["FS","WS"],"tipoTrabalho":"WS","tipoPreparacao":"FS","regraPreparacao":{},
-                 "arredondamentoKg":0.5,"instrucoesTreino":"","rodapePdf":""}""";
-        ConfiguracaoConsultoria c = JsonMapper.builder().build().readValue(antigo, ConfiguracaoConsultoria.class);
-        assertThat(c.repeticoes()).isNull();
-        assertThat(c.tipoTrabalho()).isEqualTo("WS");
     }
 }

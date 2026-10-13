@@ -33,7 +33,7 @@ const VERSAO_ESQUEMA = 1;
  * Esquema local. `kv` guarda documentos que só são lidos inteiros (pacote do plano, dieta);
  * `registro` é a fila de envio, com a mesma chave única do servidor (versão, série, dia).
  */
-const ESQUEMA_V1 = `
+const ESQUEMA = `
   create table if not exists kv (
     chave text primary key,
     valor text not null
@@ -65,13 +65,12 @@ const ESQUEMA_V1 = `
   );
 `;
 
-/** Cria ou atualiza o esquema pelo `user_version` do SQLite. Versão nova = novo bloco aqui, nunca editar o v1. */
+/** Cria o esquema na primeira abertura (marcado no `user_version` do SQLite). */
 export async function prepararEsquema(banco: BancoSql): Promise<void> {
   const linha = await banco.primeiro<{ user_version: number }>('pragma user_version');
-  const versao = linha?.user_version ?? 0;
-  if (versao >= VERSAO_ESQUEMA) return;
+  if ((linha?.user_version ?? 0) >= VERSAO_ESQUEMA) return;
   await banco.transacao(async (t) => {
-    if (versao < 1) await t.executar(ESQUEMA_V1);
+    await t.executar(ESQUEMA);
     await t.executar(`pragma user_version = ${VERSAO_ESQUEMA}`);
   });
 }

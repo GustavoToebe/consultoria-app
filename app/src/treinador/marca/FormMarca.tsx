@@ -53,12 +53,12 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const avaliacao = avaliarMarca(cor);
   // O botão de salvar só aparece quando algo mudou (logo salva na hora, à parte).
   const alterado = nome.trim() !== inicial.nome || cor !== inicial.corPrimaria || fonte !== inicial.fonteTitulo || tema !== inicial.temaPadrao;
-  const previa: Marca = { ...inicial, nome: nome || inicial.nome, lema: inicial.lema, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
+  const previa: Marca = { ...inicial, nome: nome || inicial.nome, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    alterarMarca({ nome: nome.trim(), lema: inicial.lema, corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao }).then(
+    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao }).then(
       (c) => {
         setSalvando(false);
         aoSalvar(c);
