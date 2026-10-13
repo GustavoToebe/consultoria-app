@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ErroApi } from '../../api/cliente';
 import { opcoesDeQuestionario } from '../../api/rotas';
 import { opcoesDoSeletor, textoDoQuestionarioEscolhido } from '../../dominio/seletorQuestionario';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { CampoLeitura } from '../../ui/CampoLeitura';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
@@ -25,10 +26,13 @@ interface Props {
  */
 export function SeletorDeQuestionario({ rotulo, valor, rotuloDoNulo, podeAlterar, aoEscolher }: Props) {
   const { avisar } = useAviso();
-  const opcoes = useCarregar('questionarios-opcoes', () => opcoesDeQuestionario());
+  const { pode } = useSessao();
+  // As mesmas permissões da rota: sem nenhuma delas nem se pergunta (a API ainda responderia 403, tratado abaixo).
+  const podeVer = pode('QUESTIONARIO_LER') || pode('ALUNO_ALTERAR') || pode('PASTA_ALTERAR');
+  const opcoes = useCarregar(podeVer ? 'questionarios-opcoes' : null, () => opcoesDeQuestionario());
   const [ocupado, setOcupado] = useState(false);
 
-  if (opcoes.erro instanceof ErroApi && opcoes.erro.status === 403) return null;
+  if (!podeVer || (opcoes.erro instanceof ErroApi && opcoes.erro.status === 403)) return null;
   if (!opcoes.dados) return <CampoLeitura rotulo={rotulo} valor={opcoes.erro ? textoDoErro(opcoes.erro) : null} />;
 
   const texto = textoDoQuestionarioEscolhido(valor, opcoes.dados, rotuloDoNulo);
