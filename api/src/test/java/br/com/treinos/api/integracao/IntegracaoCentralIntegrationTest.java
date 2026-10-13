@@ -8,6 +8,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
@@ -74,6 +76,9 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         final AtomicReference<String> minhaConta = new AtomicReference<>("{}");
         final AtomicReference<String> ultimoCaminho = new AtomicReference<>();
         final AtomicReference<Boolean> assinaturaValida = new AtomicReference<>();
+        /** Lida no instante em que a chamada de Minha conta chega (conexões do banco em uso naquela hora). */
+        final AtomicReference<Supplier<Integer>> sonda = new AtomicReference<>(() -> null);
+        final AtomicReference<Integer> sondaNaChamada = new AtomicReference<>();
 
         CentralFalsa() {
             try {
@@ -97,6 +102,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
                     codigo = 401;
                     corpo = "{}";
                 } else if (caminho.contains("/minha-conta")) {
+                    sondaNaChamada.set(sonda.get().get());
                     codigo = statusMinhaConta.get();
                     corpo = minhaConta.get();
                 } else {
@@ -126,6 +132,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
+    @Autowired private javax.sql.DataSource dataSource;
     @Autowired private JdbcTemplate jdbc;
     @MockitoSpyBean private ReceitaService receitas;
     @Autowired private SincronizacaoDireitosService sincronizacao;
@@ -606,6 +613,21 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         assertThat(CENTRAL.assinaturaValida.get()).isTrue();
         assertThat(CENTRAL.ultimoCaminho.get())
                 .isEqualTo("/integracao/v1/produtos/TREINOS/instancias/" + consultoria + "/minha-conta");
+    }
+
+    @Test
+    void minhaContaChamaACentralSemSegurarConexaoDoBanco() throws Exception {
+        JsonNode login = loginDoAdministrador();
+        var pool = dataSource.unwrap(HikariDataSource.class).getHikariPoolMXBean();
+        CENTRAL.minhaConta.set("{}");
+        CENTRAL.sondaNaChamada.set(null);
+        CENTRAL.sonda.set(pool::getActiveConnections);
+        try {
+            api.get("/minha-conta", login, 200);
+        } finally {
+            CENTRAL.sonda.set(() -> null);
+        }
+        assertThat(CENTRAL.sondaNaChamada.get()).as("conexões em uso durante o HTTP à Central").isZero();
     }
 
     @Test

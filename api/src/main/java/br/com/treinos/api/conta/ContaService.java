@@ -37,7 +37,10 @@ public class ContaService {
         this.convites = convites;
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * Sem transação de propósito: com a integração ligada a fonte faz HTTP à Central (até 15 s) e não pode segurar uma
+     * conexão do pool nesse tempo. A fonte local lê com {@code JdbcTemplate}, cada consulta numa conexão curta; não há gravação.
+     */
     public MinhaContaResposta minhaConta() {
         return fonte.minhaConta(consultoria()).map(dto -> MinhaContaResposta.de(dto, fonte.previa()))
                 .orElseThrow(ContaNaoEncontradaException::new);
