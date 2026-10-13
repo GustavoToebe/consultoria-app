@@ -19,6 +19,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -88,12 +89,23 @@ public class ReceitaService {
         receitas.delete(buscar(id));
     }
 
-    /** Receitas padrão, criadas no cadastro do treinador (com a consultoria nova no {@code TenantContext}). */
+    /**
+     * Receitas padrão da consultoria no {@code TenantContext}: cria só as que faltam (mesmo tipo e nome), então pode ser
+     * chamada de novo sem duplicar. Roda no cadastro do treinador, no provisionamento pela Central e no primeiro acesso do
+     * administrador, que corrige um provisionamento que falhou no meio.
+     */
     @Transactional
-    public void criarPadrao() {
+    public void garantirPadrao() {
+        Set<String> existentes = new HashSet<>();
+        for (Receita r : receitas.findAll()) {
+            existentes.add(r.getTipo() + "/" + r.getNome());
+        }
         int ordem = 0;
         for (ReceitasPadrao.Padrao p : ReceitasPadrao.todas()) {
-            receitas.save(new Receita(p.tipo(), p.nome(), p.descricao(), json.writeValueAsString(p.conteudo()), ++ordem));
+            ordem++;
+            if (existentes.add(p.tipo() + "/" + p.nome())) {
+                receitas.save(new Receita(p.tipo(), p.nome(), p.descricao(), json.writeValueAsString(p.conteudo()), ordem));
+            }
         }
     }
 

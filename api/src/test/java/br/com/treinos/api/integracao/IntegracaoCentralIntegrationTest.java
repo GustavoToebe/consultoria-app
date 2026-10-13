@@ -3,6 +3,7 @@ package br.com.treinos.api.integracao;
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.receitas.ReceitaService;
+import br.com.treinos.api.tenant.TenantContext;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -379,19 +380,34 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void falhaAoCriarAsReceitasPadraoNaoPerdeOConviteDaPrimeiraResposta() throws Exception {
-        doThrow(new IllegalStateException("falha simulada")).when(receitas).criarPadrao();
+    void falhaAoCriarAsReceitasPadraoNaoPerdeOConviteEOPrimeiroAcessoDoAdministradorCorrige() throws Exception {
+        doThrow(new IllegalStateException("falha simulada")).when(receitas).garantirPadrao();
+        JsonNode resposta;
+        UUID tenant;
         try {
             UUID contratacao = UUID.randomUUID();
-            JsonNode resposta = central("POST", "/integracao/v1/instancias",
+            resposta = central("POST", "/integracao/v1/instancias",
                     pedido(contratacao, ApiDeTeste.emailUnico("admin"), slugUnico()), contratacao, 201);
+            tenant = UUID.fromString(resposta.path("tenantId").asString());
             assertThat(codigoDoConvite(resposta)).isNotBlank();
-            UUID tenant = UUID.fromString(resposta.path("tenantId").asString());
             assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant))
                     .isZero();
         } finally {
             reset(receitas);
         }
+        // O administrador aceita o convite do sistema: as receitas padrão passam a existir, uma vez cada.
+        api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        Long modelos = jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant);
+        assertThat(modelos).isEqualTo(13L);
+        assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and tipo = 'METODOLOGIA'",
+                Long.class, tenant)).isEqualTo(1L);
+        // Garantir de novo não duplica nem recria o que já existe.
+        TenantContext.executarComo(tenant, () -> {
+            receitas.garantirPadrao();
+            return null;
+        });
+        assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant))
+                .isEqualTo(modelos);
     }
 
     @Test

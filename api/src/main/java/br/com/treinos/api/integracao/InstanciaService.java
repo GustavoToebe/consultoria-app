@@ -71,7 +71,7 @@ public class InstanciaService {
         }
         try {
             TenantContext.executarComo(resultado.consultoriaNova(), () -> {
-                receitas.criarPadrao();
+                receitas.garantirPadrao();
                 return null;
             });
         } catch (RuntimeException e) {

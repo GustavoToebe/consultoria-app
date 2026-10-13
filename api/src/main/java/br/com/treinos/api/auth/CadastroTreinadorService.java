@@ -30,7 +30,7 @@ public class CadastroTreinadorService {
     public AuthService.Sessao cadastrar(CadastroTreinadorRequest request, DestinoCliente cliente) {
         Usuario usuario = criacaoDeConta.criarTreinador(request);
         TenantContext.executarComo(usuario.getConsultoriaId(), () -> {
-            receitas.criarPadrao();
+            receitas.garantirPadrao();
             return null;
         });
         return authService.sessaoNova(usuario, cliente);

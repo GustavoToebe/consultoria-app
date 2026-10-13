@@ -157,7 +157,7 @@ public class SeedDemo {
                 new CadastroTreinadorRequest("SARAIVA TEAM", "Saraiva", SARAIVA, senha));
         UUID consultoria = treinador.getConsultoriaId();
         TenantContext.executarComo(consultoria, () -> {
-            receitas.criarPadrao();
+            receitas.garantirPadrao();
             marca(consultoria, "SARAIVA TEAM", "#C62828", Consultoria.Fonte.METAL, Consultoria.Tema.ESCURO);
             instrucoesDoPlano16NaMetodologiaPadrao();
 
@@ -399,7 +399,7 @@ public class SeedDemo {
                 new CadastroTreinadorRequest("Consultoria Exemplo", "Treinador Exemplo", EXEMPLO, senha));
         UUID consultoria = treinador.getConsultoriaId();
         TenantContext.executarComo(consultoria, () -> {
-            receitas.criarPadrao();
+            receitas.garantirPadrao();
             marca(consultoria, "Consultoria Exemplo", "#2563EB", Consultoria.Fonte.PADRAO, Consultoria.Tema.CLARO);
             Map<String, UUID> ids = new LinkedHashMap<>();
             for (String nome : List.of("Supino reto com barra", "Desenvolvimento com halteres", "Remada curvada com barra",
