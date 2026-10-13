@@ -79,14 +79,6 @@ export function useAnunciarErro(erro: string | null | undefined, rotulo: string)
   }, [erro, rotulo]);
 }
 
-/**
- * Campo numérico com teclado decimal. Aceita vírgula e guarda exatamente o que foi digitado (o arredondamento é
- * só para sugestão; o valor do aluno nunca é arredondado).
- */
-export function CampoNumero(props: Omit<Props, 'keyboardType'>) {
-  return <Campo {...props} numerico keyboardType="decimal-pad" inputMode="decimal" />;
-}
-
 const estilos = StyleSheet.create({
   campo: { gap: espaco(0.5) },
   acao: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
