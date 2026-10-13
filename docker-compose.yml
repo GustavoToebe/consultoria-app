@@ -7,14 +7,15 @@ name: treinos
 
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: treinos
       POSTGRES_USER: ${POSTGRES_USER:-treinos}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
     volumes:
-      - dados-db:/var/lib/postgresql/data
+      # No Postgres 18 o diretório de dados fica numa subpasta versionada de /var/lib/postgresql.
+      - dados-db:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d treinos"]
       interval: 5s

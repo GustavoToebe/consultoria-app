@@ -6,12 +6,12 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
-/** Base dos testes de integração (como a Central): um Postgres 17 por execução da suíte, mesma versão do Docker local. */
+/** Base dos testes de integração (como a Central): um Postgres 18 por execução da suíte, mesma versão do Docker local. */
 @SpringBootTest
 @ActiveProfiles("test")
 public abstract class AbstractIntegrationTest {
 
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
             .withDatabaseName("treinos_test")
             .withUsername("treinos_test")
             .withPassword("treinos_test");
