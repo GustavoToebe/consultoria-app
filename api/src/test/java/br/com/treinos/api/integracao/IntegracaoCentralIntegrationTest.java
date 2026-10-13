@@ -2,6 +2,7 @@ package br.com.treinos.api.integracao;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.receitas.ReceitaService;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -35,6 +37,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -122,6 +126,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
+    @MockitoSpyBean private ReceitaService receitas;
     @Autowired private SincronizacaoDireitosService sincronizacao;
 
     private ApiDeTeste api;
@@ -371,6 +376,22 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         central("POST", "/integracao/v1/instancias", corpo, contratacao, 200);
         assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant))
                 .isEqualTo(modelos);
+    }
+
+    @Test
+    void falhaAoCriarAsReceitasPadraoNaoPerdeOConviteDaPrimeiraResposta() throws Exception {
+        doThrow(new IllegalStateException("falha simulada")).when(receitas).criarPadrao();
+        try {
+            UUID contratacao = UUID.randomUUID();
+            JsonNode resposta = central("POST", "/integracao/v1/instancias",
+                    pedido(contratacao, ApiDeTeste.emailUnico("admin"), slugUnico()), contratacao, 201);
+            assertThat(codigoDoConvite(resposta)).isNotBlank();
+            UUID tenant = UUID.fromString(resposta.path("tenantId").asString());
+            assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant))
+                    .isZero();
+        } finally {
+            reset(receitas);
+        }
     }
 
     @Test

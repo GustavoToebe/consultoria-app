@@ -5,6 +5,8 @@ import br.com.treinos.api.conta.DireitosLocais;
 import br.com.treinos.api.conta.RecursosDoApp;
 import br.com.treinos.api.receitas.ReceitaService;
 import br.com.treinos.api.tenant.TenantContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,8 @@ import java.util.UUID;
 /** Casos de uso de {@code /integracao/v1} que o controller chama (controller não fala com repositório). */
 @Service
 public class InstanciaService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(InstanciaService.class);
 
     public record Recurso(String codigo, String nome, String tipo, String unidade, boolean aplicado) { }
 
@@ -45,24 +49,35 @@ public class InstanciaService {
      * operação gravada (replay, ou 409 se o corpo difere).
      */
     public ProvisionamentoService.Resultado provisionar(UUID chave, String hashCorpo, ProvisionarRequest r) {
+        ProvisionamentoService.Resultado resultado;
         try {
-            return comReceitasPadrao(provisionamento.provisionar(chave, hashCorpo, r));
+            resultado = provisionamento.provisionar(chave, hashCorpo, r);
         } catch (DataIntegrityViolationException corrida) {
-            return comReceitasPadrao(provisionamento.provisionar(chave, hashCorpo, r));
+            resultado = provisionamento.provisionar(chave, hashCorpo, r);
         }
+        return comReceitasPadrao(resultado);
     }
 
     /**
      * A consultoria criada pela Central nasce com as mesmas receitas do cadastro (inclusive a metodologia que todo plano
      * recebe). Depois do commit do provisionamento, em transação própria dentro do tenant: o Hibernate lê o tenant ao
-     * abrir a sessão, e a que gravou a consultoria abriu sem ele.
+     * abrir a sessão, e a que gravou a consultoria abriu sem ele. Fora do {@code try} de {@link #provisionar}, para um
+     * erro daqui não ser tomado por corrida. Falha não derruba a chamada: o convite só vai na primeira resposta, e sem
+     * receitas o plano usa as regras padrão (o treinador cria as dele).
      */
     private ProvisionamentoService.Resultado comReceitasPadrao(ProvisionamentoService.Resultado resultado) {
-        if (resultado.consultoriaNova() != null) {
+        if (resultado.consultoriaNova() == null) {
+            return resultado;
+        }
+        try {
             TenantContext.executarComo(resultado.consultoriaNova(), () -> {
                 receitas.criarPadrao();
                 return null;
             });
+        } catch (RuntimeException e) {
+            // Só o id da consultoria e o tipo do erro: nada de dado pessoal no log.
+            LOG.error("Receitas padrão não criadas para a consultoria {} ({})", resultado.consultoriaNova(),
+                    e.getClass().getSimpleName());
         }
         return resultado;
     }
