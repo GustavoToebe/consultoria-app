@@ -18,7 +18,7 @@
     <description>API da plataforma de treinos e dieta para consultorias (vários treinadores, isolados)</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <!-- Qualidade igual à Central (docs/desenvolvimento/qualidade.md de lá). -->
         <archunit.version>1.5.1</archunit.version>
         <jacoco.version>0.8.15</jacoco.version>
