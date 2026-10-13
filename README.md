@@ -5,7 +5,7 @@ O aluno vê o plano no celular ou na web e registra cargas e repetições, inclu
 (Saraiva Team) é o primeiro treinador.
 
 - Regras para quem mexe no código e decisões de produto: [AGENTS.md](AGENTS.md). Catálogo público: [docs/catalogo.md](docs/catalogo.md).
-- `api/` — backend (Java 21, Spring Boot 4.1.1, PostgreSQL 17). `app/` — app Expo (web, Android e iOS).
+- `api/` — backend (Java 25, Spring Boot 4.1.1, PostgreSQL 18). `app/` — app Expo (web, Android e iOS).
 
 ## Como rodar (local, Docker)
 
@@ -17,12 +17,13 @@ docker compose up -d --build
 
 No Windows: Docker Desktop; `ipconfig` mostra o IP do PC; liberar a porta 8088 no firewall para o celular.
 O banco começa com os dados de demonstração (só quando está vazio). Para recomeçar do zero:
-`docker compose down -v && docker compose up -d --build`.
+`docker compose down -v && docker compose up -d --build`. Volume criado com o Postgres 17 (antes da Fase 3) não serve
+ao 18, que guarda os dados em outra pasta: rode `docker compose down -v` antes do primeiro `up`.
 
 ### Em outro computador
 
 1. Instalar o **Git** e o **Docker Desktop** (pede administrador no Windows). Para o celular, também o **Node 24.21.0**
-   (`app/.nvmrc`). JDK 21 e Maven só para rodar os testes da API.
+   (`app/.nvmrc`). JDK 25 e Maven só para rodar os testes da API.
 2. Pegar o código: `git clone https://github.com/GustavoToebe/consultoria-app.git` (a `main` tem tudo), em
    `Documents/consultoria-app`, fora do OneDrive (git e `node_modules` brigam com a sincronização, e senha não vai
    para a nuvem de arquivos).

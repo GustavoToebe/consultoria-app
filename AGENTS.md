@@ -40,11 +40,11 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   nutricional: ausência de dado é "—". Recurso que não existe não aparece na tela.
 
 ## Stack
-- `api/`: Java 21 · Spring Boot 4.1.1 · Hibernate 7 · Jackson 3 · PostgreSQL 17 · Flyway · Testcontainers · Maven.
+- `api/`: Java 25 · Spring Boot 4.1.1 · Hibernate 7 · Jackson 3 · PostgreSQL 18 · Flyway · Testcontainers (`postgres:18-alpine`, igual ao compose) · Maven.
   DTOs `record`, `ApiException` com `codigo`, `@Transactional` no service, `@PreAuthorize` em toda rota.
 - `app/`: Expo SDK 57 (web, Android e iOS num app só, treinador e aluno), Expo Router, Node 24.21.0 (`app/.nvmrc`).
   Dependência só com `npx expo install`; React Native é o que o SDK fixa.
-- Local: `docker-compose.yml` (Postgres + API + Caddy servindo a web em `:8088`, API em `/api`).
+- Local: `docker-compose.yml` (Postgres 18 + API + Caddy servindo a web em `:8088`, API em `/api`). No Postgres 18 o volume monta em `/var/lib/postgresql` (não mais `/data`): banco criado com a versão 17 pede `docker compose down -v`.
 
 ## API: convenções
 - Equipe: `TREINADOR` é membro com perfil; autoridades `PERM_...` vêm do banco a cada requisição
@@ -216,7 +216,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   de treino não ficam no git.
 
 ## Comandos
-- API: `cd api && mvn verify` (precisa de Docker para o Testcontainers). Maven usa o JDK do `JAVA_HOME` (21).
+- API: `cd api && mvn verify` (precisa de Docker para o Testcontainers). Maven usa o JDK do `JAVA_HOME`, que para o consultoria-app tem de ser o **JDK 25** (neste PC: `C:\Program Files\Eclipse Adoptium\jdk-25.0.4.101-hotspot`, definido só na sessão do terminal; a Central e o Servirea continuam no 21 até a fase 4). Imagem da API: `maven:3.9-eclipse-temurin-25` e `eclipse-temurin:25-jre-alpine`, com `-XX:+UseCompactObjectHeaders -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75`, `mem_limit: 768m`, pool Hikari de 5 (a API usa threads virtuais, então `server.tomcat.threads.max: 50` não limita nada: só vale se as threads virtuais forem desligadas).
 - App: `cd app && npm run typecheck && npm run lint && npm test`; `npx expo install --check` e `npx expo-doctor`.
 - Tudo local: `cp .env.example .env` (preencher), `docker compose up -d --build`, abrir `http://localhost:8088`.
 - Base de estilo: Uniwind 1.12.2 + Tailwind 4, sem preset de Babel; Metro estende `getDefaultConfig` do Expo.
