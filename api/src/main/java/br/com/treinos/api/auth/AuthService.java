@@ -5,6 +5,7 @@ import br.com.treinos.api.auth.dto.EuResponse;
 import br.com.treinos.api.auth.dto.UsuarioResumo;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.consultoria.MarcaPublica;
+import br.com.treinos.api.integracao.AcessoPorDireitos;
 import br.com.treinos.api.security.DestinoCliente;
 import br.com.treinos.api.security.JwtService;
 import br.com.treinos.api.security.OpaqueTokenGenerator;
@@ -13,6 +14,7 @@ import br.com.treinos.api.web.BadRequestException;
 import br.com.treinos.api.web.Emails;
 import br.com.treinos.api.web.NaoAutorizadoException;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.ProibidoException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokens;
     private final br.com.treinos.api.equipe.PerfilRepository perfis;
     private final br.com.treinos.api.equipe.PermissoesDoUsuario permissoes;
+    private final AcessoPorDireitos acesso;
 
     /**
      * Hash de uma senha aleatória, calculado uma vez. Com e-mail inexistente o BCrypt roda contra ele: a resposta
@@ -39,8 +42,8 @@ public class AuthService {
 
     public AuthService(UsuarioRepository usuarios, ConsultoriaRepository consultorias, AlunoRepository alunos,
                        PasswordEncoder passwordEncoder, JwtService jwtService, RefreshTokenService refreshTokens,br.com.treinos.api.equipe.PerfilRepository perfis,
-                       br.com.treinos.api.equipe.PermissoesDoUsuario permissoes) {
-        this.perfis=perfis;this.permissoes=permissoes;
+                       br.com.treinos.api.equipe.PermissoesDoUsuario permissoes, AcessoPorDireitos acesso) {
+        this.perfis=perfis;this.permissoes=permissoes;this.acesso=acesso;
         this.usuarios = usuarios;
         this.consultorias = consultorias;
         this.alunos = alunos;
@@ -124,6 +127,11 @@ public class AuthService {
     }
 
     private Sessao sessao(Usuario usuario, String refreshBruto) {
+        // Todo caminho que abre sessão (login, renovação, convite aceito) passa por aqui: consultoria suspensa não entra.
+        var decisao = acesso.decidir(usuario.getConsultoriaId());
+        if (!decisao.liberado()) {
+            throw new ProibidoException(decisao.motivo(), "ACESSO_BLOQUEADO");
+        }
         return new Sessao(
                 jwtService.gerarAccessToken(usuario.getId(), usuario.getCredenciaisVersao(), usuario.getPapel().name()),
                 jwtService.expiresInSeconds(),

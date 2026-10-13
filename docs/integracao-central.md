@@ -1,86 +1,120 @@
-# Integração com a Central — o que está pronto e o que falta
+# Integração com a Central
 
-Estado em 11/10/2026. A Minha conta e o consumo do plano já funcionam com **dados de demonstração** gravados no próprio
-banco. Nada aqui fala com a Central. Quando a integração entrar, só a **fonte dos dados** muda: a tela, as rotas e as
-permissões ficam como estão.
+Estado em 13/10/2026. O lado do Saraiva (Treinos) do contrato `central/central-api-back/docs/contrato-integracao-v1.md`
+está **implementado e testado**, desligado por padrão. Falta só o lado da Central: cadastrar o produto, trocar as chaves e
+apontar a URL (seção 5). Sem `TREINOS_INTEGRACAO_ATIVA=true` nada fala com a Central e a Minha conta continua com os
+dados de demonstração.
 
-Referência (somente leitura, não alterar lá): `central/central-api-back/docs/contrato-integracao-v1.md`, seções 2 (HMAC),
-4 (snapshot de direitos), 5.3 (webhook), 6.1 (sincronização), 6.3 (Minha conta), 7 (tabelas de apoio) e 8 (checklist).
-O Servirea (`minha-conta.service.ts`, `CotasService.java`) é a referência de como um app consome isso; é Angular + Spring,
-então copiar a ideia, não o código.
+## 1. O que existe (`api/.../integracao/`)
 
-## 1. O que existe hoje
+| Peça | O que faz |
+|---|---|
+| `HmacAssinatura` | Assinatura HMAC-SHA256 do contrato 2.3 (`MÉTODO\nCAMINHO(+query)\nTIMESTAMP\nNONCE\nSHA256(corpo)`). Testada com os dois vetores da 2.5. Biblioteca própria e pequena: o `servirea-comum` exige token do GitHub Packages no build do Docker. |
+| `ChavesDeIntegracao` | Lê as chaves uma vez, na subida; configuração errada derruba a API com mensagem clara. Segredo Base64 de no mínimo 32 bytes, no máximo duas chaves de entrada (troca sem parada). Chave com **três campos** (`id:segredo:PRODUTO`) é recusada: no Saraiva o escopo é da Central. |
+| `IntegracaoSecurityConfig` / `IntegracaoFiltro` | Cadeia própria para `/integracao/**`: sem JWT, sem cookie, sem CSRF, sem sessão. Confere chave, janela de ±300 s, formato, corpo (máx. 1 MiB) e assinatura; só então grava o nonce (tabela `integracao_nonce`, única por chave+nonce). Erros: `401` com `CHAVE_DESCONHECIDA`, `TIMESTAMP_FORA_DA_JANELA`, `ASSINATURA_INVALIDA`, `NONCE_INVALIDO`, `NONCE_REPETIDO`; `503 INTEGRACAO_NAO_CONFIGURADA` se desligada. A autoridade `PERM_INTEGRACAO` só existe para quem passou pelo HMAC; nenhum usuário a tem. |
+| `IntegracaoController` | `GET /integracao/v1/saude`, `GET /recursos`, `POST /instancias` (provisionamento), `GET /instancias/{tenantId}`, `PUT /instancias/{tenantId}/direitos`, e a extensão `POST /instancias/{tenantId}/convite-administrador`. |
+| `ProvisionamentoService` | Provisionamento idempotente (seção 3). |
+| `DireitosService` | Webhook e sincronização: só versão **maior** altera o snapshot; igual ou menor só atualiza `confirmado_em`. |
+| `SincronizacaoDireitosService` | `GET /integracao/v1/produtos/{produto}/direitos` na subida (em outra thread), a cada 8 h e a cada 30 min enquanto a última rodada falhou. Nunca lança. |
+| `CentralClient` / `FonteDaContaCentral` | Chamadas assinadas à Central (timeout de 5 s para conectar e 10 s para responder). Minha conta vem de `.../instancias/{idExterno}/minha-conta`; `idExterno` é o id da consultoria. `404` vira `CONTA_NAO_ENCONTRADA`; rede, 5xx, 401/403 ou corpo ilegível viram `502 CENTRAL_INDISPONIVEL`. `previa` passa a `false` e o aviso "Prévia" some sozinho. |
+| `AcessoPorDireitos` | Regra de acesso (seção 4). |
+| Migration `V026__integracao_central.sql` | `integracao_nonce`, `integracao_operacao` e `usuario_convite.criado_por` aceitando nulo (convite emitido pelo sistema). |
 
-| Peça | Onde | Observação |
-|---|---|---|
-| Tabelas `direitos_locais`, `conta_comercial_local`, `cobranca_local` | migration `V021__conta_local.sql` | Globais (sem `@TenantId`), como no Servirea. Toda consulta filtra `consultoria_id`. |
-| `ContaLocalRepositorio` | `api/.../conta/` | JDBC; é a única classe com SQL dessas tabelas (liberada no `ArquiteturaTest`). |
-| Contrato de dados | `MinhaContaDto`, `ConsumoPlanoDto` | `MinhaContaDto` tem os mesmos campos da seção 6.3 do contrato. |
-| Porta | `FonteDaConta` | Interface: `minhaConta(consultoriaId)` e `previa()`. Hoje implementada por `FonteDaContaLocal`. |
-| Serviço e rotas | `ContaService`, `ContaController` | `GET /minha-conta` e `GET /minha-conta/consumo`, só com `CONTA_LER`. |
-| Consumo | `ContaService.consumo()` + `RecursosDoApp` | Conta alunos ativos e membros da equipe de verdade e compara com `direitos_locais.limites`. |
-| Dados de demonstração | `SeedContaDemo` / `demo/SeedContaDemoRunner` | Plano Profissional (150 alunos, 5 membros) e seis cobranças fictícias. Idempotente. |
-| Tela | `app/src/app/treinador/minha-conta.tsx` | Mostra o aviso "Prévia" enquanto `previa` for `true`. |
+`FonteDaContaLocal` só existe com a integração desligada; `SeedContaDemoRunner` não semeia com ela ligada (senão gravaria
+dado fictício ao lado do real).
 
-O consumo **não bloqueia nada**: só informa. Nenhuma regra de negócio olha o limite hoje.
+## 2. Variáveis de ambiente
 
-## 2. O que muda na integração
-
-1. **`FonteDaContaCentral`** (nova): implementa `FonteDaConta` chamando
-   `GET /integracao/v1/produtos/{produto}/instancias/{idExterno}/minha-conta` (contrato 6.3), assinado com HMAC (seção 2),
-   corpo vazio. `idExterno` é o id da consultoria. Devolve o mesmo `MinhaContaDto`; `previa()` passa a ser `false`.
-   - `404` da Central → `ContaNaoEncontradaException` (já vira `404 CONTA_NAO_ENCONTRADA`).
-   - Central fora do ar, `5xx` ou assinatura recusada → `502 CENTRAL_INDISPONIVEL` (erro novo; hoje não existe).
-   - Integração sem chave configurada → `503 INTEGRACAO_NAO_CONFIGURADA` (erro novo).
-2. **Escolha da fonte** por configuração: com a integração ligada usa a Central; senão `FonteDaContaLocal`. Só um
-   `@Component` ativo de `FonteDaConta` por vez.
-3. **Direitos** (`direitos_locais`) passam a ser escritos pela integração, não pelo seed:
-   - webhook `PUT /integracao/v1/instancias/{tenantId}/direitos` (5.3): aplica só versão maior; versão igual só
-     atualiza `confirmado_em`;
-   - sincronização `GET /integracao/v1/produtos/{produto}/direitos` a cada 8 h e na subida da API (6.1), com nova
-     tentativa a cada 30 min se falhar;
-   - `ContaLocalRepositorio.gravarDireitos` já faz o upsert; falta regra "só versão maior".
-4. **Seed**: `SeedContaDemoRunner` deve ficar **desligado** quando a integração estiver ligada (senão gravaria dado
-   fictício por cima do real). Hoje ele só cria o que falta; ainda assim, desligar por configuração.
-5. **Aviso "Prévia"**: some sozinho, porque vem de `previa()`.
-
-## 3. O que ainda não existe e o contrato pede
-
-- Assinador e validador HMAC (seção 2), nonce e janela de horário, com os vetores de teste da 2.5.
-- Cadeia de segurança própria para `/integracao/**` (sem JWT de usuário, sem CSRF, sem sessão).
-- Tabelas `integracao_operacao` e `integracao_nonce` (seção 7). Não foram criadas: sem webhook não há o que guardar.
-- Provisionamento de instância (5.1) e código de suporte (5.4): fora do escopo da Minha conta.
-- Regra de acesso por direitos: `liberado = acessoLiberado E (agora − confirmadoEm) ≤ 72 h`. **Não aplicada.** Hoje
-  `acesso_liberado` e `situacao` só são exibidos. Aplicar bloqueio é decisão de produto separada.
-- Aplicação dos `limites` e das `funcionalidades` (o contrato chama de "aplicação futura"). Os códigos de
-  `RecursosDoApp` (`alunos_ativos`, `membros_equipe`, `CHECKIN`, `MOBILIDADE`, `PDF`, `EQUIPE`) precisam ser combinados com
-  a Central antes de ela cadastrar o produto.
-
-## 4. Variáveis de ambiente (propostas, sem valor padrão)
-
-Seguem o padrão da seção 2.1, trocando o prefixo. Só em variável de ambiente; nunca no git nem no `.env.example` com valor.
+Só em variável de ambiente; segredos nunca no git. Os nomes estão em `.env.example` e em `docker-compose.yml`.
 
 | Variável | Conteúdo |
 |---|---|
-| `TREINOS_INTEGRACAO_CHAVES_ENTRADA` | `id:segredoBase64[,id:segredoBase64]` (chaves que a Central usa para assinar) |
-| `TREINOS_INTEGRACAO_CHAVE_SAIDA_ID` / `..._SEGREDO` | chave com que o app assina as chamadas à Central |
-| `TREINOS_INTEGRACAO_CENTRAL_URL` | URL base da Central |
-| `TREINOS_INTEGRACAO_PRODUTO` | código do produto na Central |
-| `TREINOS_INTEGRACAO_TOLERANCIA_HORAS` | tolerância técnica (contrato: 72) |
+| `TREINOS_INTEGRACAO_ATIVA` | `true` liga tudo. Ligada, a API **não sobe** com chave ou URL incompleta. |
+| `TREINOS_INTEGRACAO_CHAVES_ENTRADA` | `id:segredoBase64[,id:segredoBase64]`: com que a Central assina para o Saraiva. |
+| `TREINOS_INTEGRACAO_CHAVE_SAIDA_ID` / `_SEGREDO` | Com que o Saraiva assina para a Central. |
+| `TREINOS_INTEGRACAO_CENTRAL_URL` | Base da Central (`https://...`), sem `/integracao`. Se houver prefixo (ex.: `/api`), ele entra aqui. |
+| `TREINOS_INTEGRACAO_PRODUTO` | Código do produto na Central. Padrão `TREINOS`. |
+| `TREINOS_INTEGRACAO_TOLERANCIA_HORAS` | Padrão 72. |
+| `TREINOS_INTEGRACAO_BLOQUEIO_ATIVO` | Padrão `false` (seção 4). |
 
-## 5. Como trocar, na prática
+Gerar um segredo: `openssl rand -base64 48`.
 
-1. Combinar com a Central o código do produto, os códigos de `limites`/`funcionalidades` e a chave por direção.
-2. Criar `FonteDaContaCentral` e o cliente HMAC; testar com os vetores da 2.5 e com um servidor falso.
-3. Criar a migration das tabelas de apoio que faltarem (próxima depois de V021) e subir o total em
-   `FlywayMigrationIntegrationTest`.
-4. Ligar webhook e sincronização gravando em `direitos_locais`.
-5. Escolher a fonte por configuração e desligar o `SeedContaDemoRunner` nesse ambiente.
-6. Revisar `GET /minha-conta` e `/minha-conta/consumo` com dados reais: o formato não deve mudar.
+## 3. Provisionamento (decisões do Gustavo, 13/10/2026)
 
-## 6. Cuidados
+- **Adoção pelo e-mail do administrador.** Se o e-mail já é de um administrador ativo de uma consultoria, a contratação
+  adota essa consultoria (`administrador.situacao = VINCULADO`) e o `tenantId` devolvido é o id dela. Senão cria
+  consultoria nova com o `slug` e o nome do pedido (`CONVIDADO`). Risco conhecido: **e-mail digitado errado na Central
+  adota a consultoria errada**. Por isso uma consultoria já ligada a uma contratação recusa outra
+  (`409 CONSULTORIA_JA_VINCULADA`). E-mail de aluno ou de usuário inativo: `422 ADMINISTRADOR_INVALIDO`. Slug já usado:
+  `422 SLUG_EM_USO`.
+- **Primeiro acesso por link, sem e-mail.** O app não envia e-mail. Consultoria nova ganha um convite de administrador
+  (válido 7 dias). O link (`{APP_URL}/convite-equipe#código`) vem **uma única vez**, na primeira resposta, em
+  `administrador.convite` (campo aditivo; a Central ignora o que não conhece). Não é gravado em repouso e não volta numa
+  repetição idempotente. Para ver de novo: `POST /integracao/v1/instancias/{tenantId}/convite-administrador` (extensão do
+  Saraiva, fora do contrato v1): invalida o anterior e devolve um novo, enquanto o administrador não aceitou.
+  `409 ADMINISTRADOR_JA_ATIVO` depois disso. Hoje o link é entregue por quem opera a Central, no painel dela ou por fora.
+- **Idempotência.** `Idempotency-Key` igual ao `contratacaoId`; mesma chave com o mesmo corpo devolve `200` +
+  `Idempotency-Replayed: true`; com outro corpo, `409`. Duas chamadas simultâneas: a perdedora refaz e cai no replay.
+- A consultoria da demonstração local (com linha em `direitos_locais` vinda do seed antigo) responde
+  `409 CONSULTORIA_JA_VINCULADA` se a Central tentar adotá-la com outra contratação: apague o banco de demonstração ou a
+  linha de `direitos_locais` antes.
 
-- Dados comerciais da consultoria não são clínicos, mas continuam sem log de conteúdo e sem ir para outro serviço além da Central.
-- `consultoria_id` vem sempre de `TenantContext` (banco), nunca de parâmetro. A rota nova de integração, por ser de
-  sistema para sistema, é a única que recebe o id da instância, e só depois de validar a assinatura.
-- O `SeedContaDemo` usa só dados fictícios (documento `00.000.000/0001-00`, e-mail `.invalid`). Não substituir por dado real.
+## 4. Bloqueio de acesso (opcional, desligado)
+
+`liberado = acessoLiberado E (agora − confirmadoEm) ≤ tolerância`. Com `TREINOS_INTEGRACAO_BLOQUEIO_ATIVO=true`:
+
+- login, renovação de sessão e aceite de convite recusam com `403 ACESSO_BLOQUEADO` e uma mensagem em português
+  ("O acesso desta consultoria está suspenso..." ou "Não foi possível confirmar o plano...");
+- a cada requisição autenticada a sessão deixa de valer na hora (`401`), então suspender na Central derruba quem já estava
+  dentro.
+- Consultoria **sem** linha em `direitos_locais` (não governada pela Central) nunca é bloqueada.
+- A Central fora do ar não derruba o app: o acesso só cai quando passam 72 h sem confirmação. A confirmação vem do webhook
+  ou da sincronização (8 h).
+- Antes de ligar em produção: conferir que a sincronização funciona (log "Sincronização de direitos: N item(ns)...") e que
+  `confirmado_em` está recente nas consultorias reais.
+- No app: quem já está dentro leva `401`, o refresh volta `401/403` e a sessão é encerrada (`api/cliente.ts`, sem laço de renovação); na tela de entrar a mensagem do `403` aparece como erro do login. **Ainda não foi testado no navegador com o bloqueio ligado**: fazer isso (suspender uma consultoria de teste na Central e ver login e sessão aberta) antes de ligar em produção.
+- `GET /integracao/v1/instancias/{tenantId}` informa `acessoEfetivo` mesmo com o bloqueio desligado, para a Central conciliar.
+
+## 5. Como ligar (lado da Central e deste app)
+
+1. **Central: cadastrar o produto** `TREINOS` com `url_base_integracao` = URL pública da API do Saraiva (ex.:
+   `https://treinos.exemplo.com.br/api`, a mesma que a Central alcança). A Central assina só o caminho que vem **depois**
+   dessa base, e o Caddy do Saraiva tira o `/api`: os dois lados enxergam `/integracao/v1/...`.
+2. **Chave de entrada (Central → Saraiva).** A Central usa **uma chave de saída global**, a mesma para todos os produtos.
+   Então `TREINOS_INTEGRACAO_CHAVES_ENTRADA` do Saraiva tem de ser `id:segredo` **idêntico** ao que o Servirea já usa para
+   validar a Central (peça ao operador da Central o par; não crie um novo, senão a Central não consegue assinar).
+3. **Chave de saída (Saraiva → Central).** Gerar `id` + segredo novos e cadastrar na Central como chave de entrada
+   do produto no formato `id:segredoBase64:TREINOS`. O terceiro campo é obrigatório: sem ele a Central o trata como Servirea
+   em silêncio.
+4. A Central precisa **alcançar** a API do Saraiva (HTTPS público ou rede privada) e o Saraiva precisa alcançar a Central.
+5. Definir as variáveis da seção 2 e `TREINOS_INTEGRACAO_ATIVA=true`. Reiniciar a API. No log aparece
+   "Sincronização de direitos: ...".
+6. Testar: `GET /integracao/v1/saude` assinado; provisionar uma contratação de teste na Central e abrir o link do convite.
+7. Códigos de `limites` e `funcionalidades` a cadastrar no produto na Central: `GET /integracao/v1/recursos` os lista
+   (`alunos_ativos`, `membros_equipe`, `CHECKIN`, `MOBILIDADE`, `PDF`, `EQUIPE`). **Nenhum limite é aplicado ainda**
+   (`aplicado=false`): o consumo só informa.
+
+## 6. Checklist para subir na VPS (o compose atual é de demonstração)
+
+- `docker-compose.yml` usa `SPRING_PROFILES_ACTIVE=docker,demo` e **não há perfil `prod`**: criar um antes de ir para a
+  internet (sem seed de demonstração, `DEMO_SENHA` fora, `TREINOS_DEMO_*` fora).
+- HTTPS no Caddy e `REFRESH_COOKIE_SECURE=true`; `APP_URL` com o endereço público (o link do convite usa essa base);
+  `CORS_ALLOWED_ORIGINS` com a origem real.
+- A imagem da `api` **não é reconstruída sozinha**: depois de mudar código, `docker compose up -d --build api`.
+- Rota `/api/integracao/*` exposta no Caddy (já passa pelo `/api`), e o IP da Central não precisa estar em lista nenhuma:
+  a defesa é a assinatura.
+- Backup do Postgres inclui `integracao_operacao` (histórico de idempotência).
+
+## 7. Fora de escopo (não feito)
+
+- Código de suporte (`/suporte`), endpoint de consumo para a Central (`/consumo`) e relatório de erros (`/erros`).
+- Envio de e-mail (convite sai como link).
+- Aplicação dos `limites` e das `funcionalidades` (o contrato chama de "aplicação futura").
+- Perfil `prod` e compose de produção.
+
+## 8. Testes
+
+`HmacAssinaturaTest` (vetores do contrato), `ChavesDeIntegracaoTest`, `AcessoPorDireitosTest` e
+`IntegracaoCentralIntegrationTest` (filtro, provisionamento, replay, adoção, direitos, bloqueio, sincronização e Minha conta
+contra uma Central de mentira que confere a assinatura). `ArquiteturaTest` e `FlywayMigrationIntegrationTest` foram
+atualizados (`IntegracaoRepositorio` com SQL nativo; 26 migrations).

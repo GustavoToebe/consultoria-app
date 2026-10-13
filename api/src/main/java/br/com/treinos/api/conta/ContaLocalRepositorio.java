@@ -48,19 +48,38 @@ public class ContaLocalRepositorio {
         return existe("select count(*) from cobranca_local where consultoria_id = ?", consultoriaId);
     }
 
+    private static final String UPSERT_DIREITOS = "insert into direitos_locais(consultoria_id, contratacao_id, versao, situacao, "
+            + "acesso_liberado, motivo_bloqueio, vigente_ate, plano_codigo, plano_nome, limites, funcionalidades, confirmado_em) "
+            + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, string_to_array(?, ','), ?) "
+            + "on conflict (consultoria_id) do update set contratacao_id = excluded.contratacao_id, "
+            + "versao = excluded.versao, situacao = excluded.situacao, acesso_liberado = excluded.acesso_liberado, "
+            + "motivo_bloqueio = excluded.motivo_bloqueio, vigente_ate = excluded.vigente_ate, "
+            + "plano_codigo = excluded.plano_codigo, plano_nome = excluded.plano_nome, limites = excluded.limites, "
+            + "funcionalidades = excluded.funcionalidades, confirmado_em = excluded.confirmado_em, atualizado_em = now()";
+
     /** Grava ou substitui a linha da consultoria (um snapshot por consultoria, como na Central). */
     public void gravarDireitos(DireitosLocais d) {
-        jdbc.update("insert into direitos_locais(consultoria_id, contratacao_id, versao, situacao, acesso_liberado, "
-                        + "motivo_bloqueio, vigente_ate, plano_codigo, plano_nome, limites, funcionalidades, confirmado_em) "
-                        + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, string_to_array(?, ','), ?) "
-                        + "on conflict (consultoria_id) do update set contratacao_id = excluded.contratacao_id, "
-                        + "versao = excluded.versao, situacao = excluded.situacao, acesso_liberado = excluded.acesso_liberado, "
-                        + "motivo_bloqueio = excluded.motivo_bloqueio, vigente_ate = excluded.vigente_ate, "
-                        + "plano_codigo = excluded.plano_codigo, plano_nome = excluded.plano_nome, limites = excluded.limites, "
-                        + "funcionalidades = excluded.funcionalidades, confirmado_em = excluded.confirmado_em, atualizado_em = now()",
-                d.consultoriaId(), d.contratacaoId(), d.versao(), d.situacao(), d.acessoLiberado(), d.motivoBloqueio(),
-                d.vigenteAte() == null ? null : Date.valueOf(d.vigenteAte()), d.planoCodigo(), d.planoNome(),
-                json.writeValueAsString(d.limites()), String.join(",", d.funcionalidades()),
+        gravar(UPSERT_DIREITOS, d);
+    }
+
+    /**
+     * Webhook e sincronização (contrato 5.3): só uma versão <b>maior</b> que a gravada substitui o snapshot. A conferência
+     * está no próprio {@code UPDATE}, então duas entregas simultâneas não deixam a menor ganhar. {@code true} = gravou.
+     */
+    public boolean aplicarSeMaisNova(DireitosLocais d) {
+        return gravar(UPSERT_DIREITOS + " where excluded.versao > direitos_locais.versao", d) == 1;
+    }
+
+    /** A Central confirmou o estado desta consultoria agora (webhook ou presença na sincronização), mesmo com versão igual. */
+    public void confirmar(UUID consultoriaId, java.time.Instant em) {
+        jdbc.update("update direitos_locais set confirmado_em = ?, atualizado_em = now() where consultoria_id = ?",
+                Timestamp.from(em), consultoriaId);
+    }
+
+    private int gravar(String sql, DireitosLocais d) {
+        return jdbc.update(sql, d.consultoriaId(), d.contratacaoId(), d.versao(), d.situacao(), d.acessoLiberado(),
+                d.motivoBloqueio(), d.vigenteAte() == null ? null : Date.valueOf(d.vigenteAte()), d.planoCodigo(),
+                d.planoNome(), json.writeValueAsString(d.limites()), String.join(",", d.funcionalidades()),
                 Timestamp.from(d.confirmadoEm()));
     }
 

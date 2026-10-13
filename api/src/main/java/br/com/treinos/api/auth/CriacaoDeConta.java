@@ -52,6 +52,15 @@ public class CriacaoDeConta {
         }
     }
 
+    /**
+     * Consultoria sem treinador, criada pela integração com a Central (o administrador entra por convite). Participa da
+     * transação de quem chama. O gatilho do banco cria os perfis padrão, inclusive o Administrador.
+     */
+    public Consultoria criarConsultoria(String nome, String slug) {
+        return consultorias.saveAndFlush(new Consultoria(nome.trim(), slug,
+                jsonMapper.writeValueAsString(ConfiguracaoConsultoria.padrao())));
+    }
+
     private String slugUnico(String nome) {
         String base = slug(nome);
         String candidato = base;

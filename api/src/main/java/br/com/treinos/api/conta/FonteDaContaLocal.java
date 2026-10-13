@@ -2,6 +2,7 @@ package br.com.treinos.api.conta;
 
 import br.com.treinos.api.conta.MinhaContaDto.CobrancaDto;
 import br.com.treinos.api.web.Fuso;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -13,6 +14,7 @@ import java.util.UUID;
  * aberta com vencimento antes de hoje (fuso de Brasília), como a Central faz.
  */
 @Component
+@ConditionalOnProperty(name = "treinos.integracao.ativa", havingValue = "false", matchIfMissing = true)
 public class FonteDaContaLocal implements FonteDaConta {
 
     private final ContaLocalRepositorio contas;

@@ -2,6 +2,7 @@ package br.com.treinos.api.security;
 
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.integracao.AcessoPorDireitos;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.NaoAutorizadoException;
 import jakarta.servlet.FilterChain;
@@ -30,9 +31,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UsuarioRepository usuarioRepository;
 
     private final PermissoesDoUsuario permissoes;
+    private final AcessoPorDireitos direitos;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository, PermissoesDoUsuario permissoes) {
+    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository, PermissoesDoUsuario permissoes,
+                                   AcessoPorDireitos acesso) {
         this.permissoes=permissoes;
+        this.direitos=acesso;
         this.jwtService = jwtService;
         this.usuarioRepository = usuarioRepository;
     }
@@ -63,6 +67,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .filter(u -> u.getCredenciaisVersao() == acesso.credenciaisVersao())
                 .orElse(null);
         if (usuario == null) {
+            return;
+        }
+        // Consultoria suspensa pela Central (ou sem confirmação além da tolerância): a sessão deixa de valer na hora.
+        if (!direitos.liberada(usuario.getConsultoriaId())) {
             return;
         }
         TenantContext.set(usuario.getConsultoriaId());

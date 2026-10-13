@@ -43,6 +43,17 @@ treinos:
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081}
   app-url: ${APP_URL:http://localhost:8088}
+  # Integração com a Central (docs/integracao-central.md). Desligada por padrão: Minha conta usa os dados locais de
+  # demonstração. Ligada, a API só sobe com chaves e URL completas. Segredos só em variável de ambiente.
+  integracao:
+    ativa: ${TREINOS_INTEGRACAO_ATIVA:false}
+    chaves-entrada: ${TREINOS_INTEGRACAO_CHAVES_ENTRADA:}
+    chave-saida-id: ${TREINOS_INTEGRACAO_CHAVE_SAIDA_ID:}
+    chave-saida-segredo: ${TREINOS_INTEGRACAO_CHAVE_SAIDA_SEGREDO:}
+    central-url: ${TREINOS_INTEGRACAO_CENTRAL_URL:}
+    produto: ${TREINOS_INTEGRACAO_PRODUTO:TREINOS}
+    tolerancia-horas: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:72}
+    bloqueio-ativo: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:false}
 
 server:
   port: ${PORT:8080}
