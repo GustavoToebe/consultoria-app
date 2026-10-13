@@ -6,6 +6,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
+import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../ui/erros';
@@ -67,10 +68,10 @@ export default function Cadastro() {
           autoComplete="name" />
         <Campo rotulo="E-mail" valor={dados.email} aoMudar={mudar('email')} erro={campos.email} autoCapitalize="none"
           keyboardType="email-address" inputMode="email" autoComplete="email" />
-        <Campo rotulo="Senha" valor={dados.senha} aoMudar={mudar('senha')} erro={campos.senha} secureTextEntry
+        <CampoSenha rotulo="Senha" valor={dados.senha} aoMudar={mudar('senha')} erro={campos.senha}
           autoComplete="new-password" ajuda="Mínimo de 8 caracteres." />
-        <Campo rotulo="Confirmar senha" valor={dados.confirmar} aoMudar={mudar('confirmar')} erro={campos.confirmar}
-          secureTextEntry autoComplete="new-password" />
+        <CampoSenha rotulo="Confirmar senha" valor={dados.confirmar} aoMudar={mudar('confirmar')} erro={campos.confirmar}
+          autoComplete="new-password" />
         {erro ? <MensagemErro texto={erro} /> : null}
         <Botao rotulo="Criar conta" aoTocar={enviar} carregando={enviando} cheio />
       </Cartao>

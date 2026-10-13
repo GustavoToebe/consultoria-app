@@ -3,7 +3,7 @@ import { useSessao } from '../../../sessao/SessaoProvider';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, LARGURA_LISTA, RAIO } from '../../../tema/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Copy, Ellipsis, Library, Pencil, Trash2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { alterarPastaModelo, alterarReceita, consultoria, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
@@ -11,7 +11,7 @@ import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
 import { ListaDeQuestionarios } from '../../../treinador/questionarios/ListaDeQuestionarios';
-import { CATEGORIAS, conteudoInicial, GRUPOS_DE_MODELOS, usoDoModelo } from '../../../treinador/planejamento/modelos';
+import { ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, GRUPOS_DE_MODELOS, slugDaAba, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
@@ -32,8 +32,6 @@ import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
-const ABA_ATUALIZACAO = 'Atualização';
-
 export default function Planejamento() {
   const { avisar } = useAviso();
   const { pode } = useSessao();
@@ -43,20 +41,25 @@ export default function Planejamento() {
   const modelos = useCarregar(veModelos ? 'planejamento' : null, () => listarReceitas());
   const colecoes = useCarregar(veModelos ? 'pastas-modelos' : null, listarPastasModelos);
   const config = useCarregar(veModelos ? 'consultoria-planejamento' : null, consultoria);
-  const [abaEscolhida, setAbaEscolhida] = useState<string | null>(null);
-  const [tipo, setTipo] = useState<TipoReceita>('PLANO_TREINO');
+  const [tipoEscolhido, setTipo] = useState<TipoReceita | null>(null);
   const [colecao, setColecao] = useState('*');
   const [busca, setBusca] = useState('');
-  // `?aba=atualizacao` abre a aba dos questionários; `?novo=1` (atalho da busca do topo) abre o formulário de novo
-  // modelo ou, na aba Atualização, de novo questionário; fechar limpa o parâmetro.
+  // A aba mora no endereço (`?aba=treino|dieta|pacotes|mobilidade|atualizacao`; sem ela, a primeira): tocar numa aba é um
+  // passo do histórico e o voltar a desfaz. `?novo=1` (atalho da busca do topo) abre o formulário de novo modelo ou, na
+  // aba Atualização, de novo questionário e sai do endereço na hora (consumido ao abrir, não ao fechar: fechar o
+  // formulário não reescreve a URL e o voltar do navegador não tem passo sobrando).
   const { novo: pedirNovo, aba: abaPedida } = useLocalSearchParams<{ novo?: string; aba?: string }>();
-  // O pedido da URL vence a aba tocada antes (a tela continua montada quando só o parâmetro muda): `aba=atualizacao`
-  // abre os questionários e `novo=1` sozinho é o "Novo modelo" da busca, que mostra a aba de modelos.
-  const emAtualizacao = veAtualizacao && (abaPedida === 'atualizacao' || !veModelos || (pedirNovo !== '1' && abaEscolhida === ABA_ATUALIZACAO));
+  const aba = abaDoPlanejamento(abaPedida, veModelos, veAtualizacao);
+  const emAtualizacao = aba === ABA_ATUALIZACAO;
   const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
-  const formulario = formularioAberto ?? (pedirNovo === '1' && !emAtualizacao ? 'novo' : null);
-  // O "Novo modelo" pedido pela URL mostrou a aba de modelos: fechar continua nela, sem voltar à aba tocada antes.
-  const fecharFormulario = () => { setFormulario(null); if (pedirNovo) { if (pedirNovo === '1' && !emAtualizacao) setAbaEscolhida(null); router.setParams({ novo: undefined }); } };
+  const formulario = formularioAberto;
+  const fecharFormulario = () => setFormulario(null);
+  useEffect(() => {
+    if (pedirNovo !== '1' || emAtualizacao) return;
+    let vivo = true;
+    void Promise.resolve().then(() => { if (!vivo) return; setFormulario('novo'); router.setParams({ novo: undefined }); });
+    return () => { vivo = false; };
+  }, [pedirNovo, emAtualizacao]);
   const [organizar, setOrganizar] = useState(false);
   const [escolherColecao, setEscolherColecao] = useState(false);
   const [menu, setMenu] = useState<Receita | null>(null);
@@ -64,9 +67,11 @@ export default function Planejamento() {
   const [aplicar, setAplicar] = useState<Receita | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const atualizar = () => { modelos.recarregar(); colecoes.recarregar(); };
-  const categoria = CATEGORIAS.find((c) => c.valor === tipo) ?? CATEGORIAS[0];
   // Grupo (Treino, Dieta, Pacotes, Mobilidade) são abas; os tipos do grupo, chips numa faixa que rola.
-  const grupo = GRUPOS_DE_MODELOS.find((g) => g.tipos.includes(tipo)) ?? GRUPOS_DE_MODELOS[0];
+  const grupo = GRUPOS_DE_MODELOS.find((g) => g.rotulo === aba) ?? GRUPOS_DE_MODELOS[0];
+  // O chip escolhido só vale dentro do grupo da aba (o menu pode trocar a aba sem remontar a tela).
+  const tipo: TipoReceita = tipoEscolhido && grupo.tipos.includes(tipoEscolhido) ? tipoEscolhido : grupo.tipos[0];
+  const categoria = CATEGORIAS.find((c) => c.valor === tipo) ?? CATEGORIAS[0];
   const uso = usoDoModelo(tipo);
   const nomeDaColecao = (id: string | null) => colecoes.dados?.find((c) => c.id === id)?.nome;
   const rotuloColecao = colecao === '*' ? 'Todas' : colecao === '' ? 'Sem coleção' : nomeDaColecao(colecao) ?? 'Todas';
@@ -79,13 +84,9 @@ export default function Planejamento() {
     <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
     <Texto variante="suave">{emAtualizacao ? 'Monte os questionários de atualização que o aluno responde a cada período.' : 'Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.'}</Texto>
     <Abas abas={[...(veModelos ? GRUPOS_DE_MODELOS.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? [{ valor: ABA_ATUALIZACAO, rotulo: ABA_ATUALIZACAO }] : [])]}
-      ativa={emAtualizacao ? ABA_ATUALIZACAO : grupo.rotulo}
-      aoMudar={(rotulo) => {
-        setAbaEscolhida(rotulo);
-        if (abaPedida || pedirNovo) router.setParams({ aba: undefined, novo: undefined });
-        const g = GRUPOS_DE_MODELOS.find((x) => x.rotulo === rotulo); if (g) setTipo(g.tipos[0]);
-      }} />
-    {emAtualizacao ? <ListaDeQuestionarios pedirNovo={pedirNovo === '1'} aoFecharNovo={() => { if (pedirNovo) router.setParams({ novo: undefined }); }} /> : null}
+      ativa={aba}
+      aoMudar={(rotulo) => { if (rotulo !== aba) router.push({ pathname: '/treinador/planejamento', params: { aba: slugDaAba(rotulo) } }); }} />
+    {emAtualizacao ? <ListaDeQuestionarios pedirNovo={pedirNovo === '1'} aoConsumirNovo={() => router.setParams({ novo: undefined })} /> : null}
     {!emAtualizacao && grupo.tipos.length > 1 ? (
       <FaixaDeChips quebrar accessibilityLabel={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`}>
         <Escolha descricao={`Modelos de ${grupo.rotulo.toLocaleLowerCase()}`} valor={tipo} aoMudar={setTipo} opcoes={CATEGORIAS.filter((c) => grupo.tipos.includes(c.valor))} />

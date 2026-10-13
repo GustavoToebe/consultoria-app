@@ -1,5 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { abaInicial, abasDaBiblioteca, type AbaDaBiblioteca } from '../../dominio/abasDaBiblioteca';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -20,12 +19,10 @@ export default function Biblioteca() {
   const {pode}=useSessao();
   const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
   const abas = abasDaBiblioteca(pode);
-  // A escolha à mão vale só para o `?aba=` com que foi feita: o atalho da busca para outra aba (mesma rota) troca a aba.
-  const [escolha, setEscolha] = useState<{ pedida: string | undefined; valor: AbaDaBiblioteca } | null>(null);
-  const escolhida = escolha && escolha.pedida === abaPedida ? escolha.valor : null;
-  const setAba = (valor: AbaDaBiblioteca) => setEscolha({ pedida: abaPedida, valor });
-  // A aba que o perfil deixou de poder abrir (ex.: permissão tirada) cai na primeira.
-  const aba: AbaDaBiblioteca = escolhida && abas.some((a) => a.valor === escolhida) ? escolhida : abaInicial(abaPedida, abas);
+  // A aba mora no endereço (`?aba=`): tocar numa aba é um passo do histórico, então o voltar a desfaz. A aba que o perfil
+  // deixou de poder abrir (ex.: permissão tirada) cai na primeira.
+  const aba: AbaDaBiblioteca = abaInicial(abaPedida, abas);
+  const setAba = (valor: AbaDaBiblioteca) => { if (valor !== aba) router.push({ pathname: '/treinador/biblioteca', params: { aba: valor } }); };
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo="Biblioteca" mostrarMarca="celular" />

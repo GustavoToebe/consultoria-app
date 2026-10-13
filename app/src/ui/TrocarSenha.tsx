@@ -5,7 +5,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
-import { Campo } from './Campo';
+import { CampoSenha } from './CampoSenha';
 import { Cartao } from './Cartao';
 import { MensagemErro } from './Estados';
 import { textoDoErro } from './erros';
@@ -41,9 +41,9 @@ export function TrocarSenha() {
   if (sessao.offline) return null;
   return (
     <Cartao titulo="Trocar senha">
-      <Campo rotulo="Senha atual" valor={senhaAtual} aoMudar={setSenhaAtual} secureTextEntry
+      <CampoSenha rotulo="Senha atual" valor={senhaAtual} aoMudar={setSenhaAtual}
         autoComplete="current-password" />
-      <Campo rotulo="Nova senha" valor={senhaNova} aoMudar={setSenhaNova} secureTextEntry
+      <CampoSenha rotulo="Nova senha" valor={senhaNova} aoMudar={setSenhaNova}
         autoComplete="new-password" ajuda="Mínimo de 8 caracteres. As outras sessões são encerradas." />
       {erroSenha ? <MensagemErro texto={erroSenha} /> : null}
       <View style={estilos.linha}>

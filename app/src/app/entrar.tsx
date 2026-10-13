@@ -6,6 +6,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
+import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
@@ -54,7 +55,7 @@ export default function Entrar() {
       <Cartao>
         <Campo rotulo="E-mail" valor={email} aoMudar={setEmail} autoCapitalize="none" autoComplete="email"
           keyboardType="email-address" inputMode="email" textContentType="emailAddress" />
-        <Campo rotulo="Senha" valor={senha} aoMudar={setSenha} secureTextEntry autoComplete="current-password"
+        <CampoSenha rotulo="Senha" valor={senha} aoMudar={setSenha} autoComplete="current-password"
           textContentType="password" onSubmitEditing={enviar} returnKeyType="go" />
         {erro ? <MensagemErro texto={erro} /> : null}
         <Botao rotulo="Entrar" aoTocar={enviar} carregando={enviando} cheio />

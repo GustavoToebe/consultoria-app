@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Archive, ArchiveRestore, Copy, Ellipsis, Pencil, Star, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
@@ -45,24 +45,33 @@ export function linhaDeUso(q: Pick<QuestionarioResumo, 'uso'>) {
  * Aba "Atualização" do Planejamento: os questionários que o aluno responde no check-in. O padrão vale para quem não
  * tem outro escolhido (na ficha do aluno ou na pasta). "Novo questionário" é o único botão primário.
  */
-export function ListaDeQuestionarios({ pedirNovo, aoFecharNovo }: { pedirNovo: boolean; aoFecharNovo: () => void }) {
+export function ListaDeQuestionarios({ pedirNovo, aoConsumirNovo }: { pedirNovo: boolean; aoConsumirNovo: () => void }) {
   const { avisar } = useAviso();
   const { pode } = useSessao();
   const [arquivados, setArquivados] = useState(false);
   const lista = useCarregar(`questionarios:${arquivados}`, () => listarQuestionarios(arquivados));
   const [novoAberto, setNovoAberto] = useState(false);
-  // `?novo=1` digitado na URL não abre o formulário sem a permissão (a API recusaria de qualquer jeito).
-  const novo = (novoAberto || pedirNovo) && pode('QUESTIONARIO_ALTERAR');
+  // `?novo=1` (atalho da busca) abre o formulário e sai do endereço na mesma hora: assim fechar o formulário não reescreve
+  // a URL e o voltar do navegador não tem passo sobrando. Sem a permissão não abre (a API recusaria de qualquer jeito).
+  const consumir = useRef(aoConsumirNovo);
+  useEffect(() => { consumir.current = aoConsumirNovo; });
+  const podeAlterar = pode('QUESTIONARIO_ALTERAR');
+  useEffect(() => {
+    if (!pedirNovo) return;
+    let vivo = true;
+    void Promise.resolve().then(() => { if (!vivo) return; if (podeAlterar) setNovoAberto(true); consumir.current(); });
+    return () => { vivo = false; };
+  }, [pedirNovo, podeAlterar]);
+  const novo = novoAberto && podeAlterar;
   const [menu, setMenu] = useState<QuestionarioResumo | null>(null);
   const [excluir, setExcluir] = useState<QuestionarioResumo | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
-  const podeAlterar = pode('QUESTIONARIO_ALTERAR');
 
   const executar = (q: QuestionarioResumo, acao: () => Promise<unknown>, mensagem: string) => {
     setMenu(null); setOcupado(q.id);
     acao().then(() => { lista.recarregar(); avisar(mensagem, 'sucesso'); }, (e: unknown) => { lista.recarregar(); avisar(textoDoErro(e), 'perigo'); }).finally(() => setOcupado(null));
   };
-  const fecharNovo = () => { setNovoAberto(false); aoFecharNovo(); };
+  const fecharNovo = () => setNovoAberto(false);
 
   return <>
     <Cartao titulo="Questionários de atualização"

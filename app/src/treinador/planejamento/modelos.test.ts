@@ -1,5 +1,5 @@
 import type { TipoReceita } from '../../api/tipos';
-import { CATEGORIAS, GRUPOS_DE_MODELOS, usoDoModelo } from './modelos';
+import { ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, GRUPOS_DE_MODELOS, slugDaAba, usoDoModelo } from './modelos';
 
 describe('organização da tela Planejamento', () => {
   it('cada tipo aparece uma vez, no grupo certo e na ordem pedida', () => {
@@ -24,5 +24,25 @@ describe('organização da tela Planejamento', () => {
     expect(usoDoModelo('REFEICAO').linha).toMatch(/^Use dentro do editor de dieta/);
     expect(usoDoModelo('MOBILIDADE').linha).toBeNull();
     expect(usoDoModelo('PLANO_TREINO').linha).toBeNull();
+  });
+});
+
+describe('aba do Planejamento pelo endereço', () => {
+  it('o valor de ?aba= é o rótulo sem acento nem maiúscula', () => {
+    expect([...GRUPOS_DE_MODELOS.map((g) => g.rotulo), ABA_ATUALIZACAO].map(slugDaAba)).toEqual(['treino', 'dieta', 'pacotes', 'mobilidade', 'atualizacao']);
+  });
+
+  it('abre a aba pedida e, sem pedido ou com pedido inválido, a primeira que o perfil vê', () => {
+    expect(abaDoPlanejamento('dieta', true, true)).toBe('Dieta');
+    expect(abaDoPlanejamento('atualizacao', true, true)).toBe(ABA_ATUALIZACAO);
+    expect(abaDoPlanejamento(undefined, true, true)).toBe('Treino');
+    expect(abaDoPlanejamento('qualquer', true, true)).toBe('Treino');
+    expect(abaDoPlanejamento(['mobilidade', 'dieta'], true, false)).toBe('Mobilidade');
+  });
+
+  it('não abre aba que o perfil não vê', () => {
+    expect(abaDoPlanejamento('dieta', false, true)).toBe(ABA_ATUALIZACAO);
+    expect(abaDoPlanejamento(undefined, false, true)).toBe(ABA_ATUALIZACAO);
+    expect(abaDoPlanejamento('atualizacao', true, false)).toBe('Treino');
   });
 });

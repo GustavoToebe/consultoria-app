@@ -8,6 +8,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
+import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { Carregando, MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
@@ -113,9 +114,9 @@ export default function Convite() {
           <Cartao>
             <Campo rotulo="Seu e-mail" valor={email} aoMudar={setEmail} autoCapitalize="none"
               keyboardType="email-address" inputMode="email" autoComplete="email" />
-            <Campo rotulo="Crie uma senha" valor={senha} aoMudar={setSenha} secureTextEntry autoComplete="new-password"
+            <CampoSenha rotulo="Crie uma senha" valor={senha} aoMudar={setSenha} autoComplete="new-password"
               ajuda="Mínimo de 8 caracteres." />
-            <Campo rotulo="Confirmar senha" valor={confirmar} aoMudar={setConfirmar} secureTextEntry
+            <CampoSenha rotulo="Confirmar senha" valor={confirmar} aoMudar={setConfirmar}
               autoComplete="new-password" />
             {erro ? <MensagemErro texto={erro} /> : null}
             <Botao rotulo="Criar meu acesso" aoTocar={aceitar} carregando={enviando} cheio />

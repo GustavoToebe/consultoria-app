@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useWindowDimensions, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
@@ -31,7 +31,10 @@ const ABAS: { valor: Aba; rotulo: string }[] = [
 export default function MinhaConta() {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
-  const [aba, setAba] = useState<Aba>('cadastro');
+  // A aba mora no endereço (`?aba=`): tocar numa aba é um passo do histórico, então o voltar a desfaz.
+  const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
+  const aba: Aba = ABAS.find((a) => a.valor === abaPedida)?.valor ?? 'cadastro';
+  const setAba = (valor: Aba) => { if (valor !== aba) router.push({ pathname: '/treinador/minha-conta', params: { aba: valor } }); };
   const conta = useCarregar('minha-conta', () => minhaConta());
   const consumo = useCarregar('consumo-do-plano', () => consumoDoPlano());
   return (

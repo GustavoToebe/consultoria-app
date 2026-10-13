@@ -2,6 +2,7 @@ import { useNavigation } from 'expo-router';
 import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 
+import { portalDaFolhaDoTopo } from './historicoDasFolhas';
 import { PainelConfirmacao } from './PainelConfirmacao';
 
 interface Guarda {
@@ -80,6 +81,8 @@ export function GuardaDeSaida({ children }: { children: ReactNode }) {
         rotuloConfirmar="Sair sem salvar"
         rotuloCancelar="Continuar editando"
         perigo
+        // Com uma Folha aberta (web) a pergunta iria para trás do Modal dela: vai para dentro da Folha do topo.
+        portal={acao !== null ? portalDaFolhaDoTopo() : undefined}
         aoConfirmar={sair}
         aoCancelar={() => setAcao(null)}
       />

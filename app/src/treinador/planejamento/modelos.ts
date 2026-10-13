@@ -26,6 +26,23 @@ export const GRUPOS_DE_MODELOS: { rotulo: string; tipos: TipoReceita[] }[] = [
   { rotulo: 'Mobilidade', tipos: ['MOBILIDADE'] },
 ];
 
+/** A aba dos questionários mora no Planejamento ao lado dos grupos de modelos. */
+export const ABA_ATUALIZACAO = 'Atualização';
+
+/** Valor de `?aba=` de uma aba do Planejamento: o rótulo sem acento nem maiúscula (`treino`, `dieta`, `atualizacao`). */
+export const slugDaAba = (rotulo: string): string => rotulo.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase();
+
+/**
+ * Aba aberta pelo endereço (`?aba=`). A aba é um passo do histórico, então o voltar a desfaz. Só entram as abas que o
+ * perfil pode ver (modelos com `MODELO_LER`, Atualização com `QUESTIONARIO_LER`); sem parâmetro ou com um que não vale,
+ * abre a primeira.
+ */
+export function abaDoPlanejamento(parametro: string | string[] | undefined, veModelos: boolean, veAtualizacao: boolean): string {
+  const rotulos = [...(veModelos ? GRUPOS_DE_MODELOS.map((g) => g.rotulo) : []), ...(veAtualizacao ? [ABA_ATUALIZACAO] : [])];
+  const pedida = Array.isArray(parametro) ? parametro[0] : parametro;
+  return rotulos.find((r) => slugDaAba(r) === pedida) ?? rotulos[0] ?? GRUPOS_DE_MODELOS[0].rotulo;
+}
+
 export const CATEGORIAS: { valor: TipoReceita; rotulo: string; descricao: string }[] =
   GRUPOS_DE_MODELOS.flatMap((g) => g.tipos.map((valor) => ({ valor, ...INFORMACOES[valor] })));
 

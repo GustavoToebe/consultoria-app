@@ -6,7 +6,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from './Botao';
-import { usePortalDaFolha } from './Folha';
+import { usePortalDaFolha, type PortalDaFolhaValor } from './Folha';
 import { Texto } from './Texto';
 
 interface Props {
@@ -18,6 +18,8 @@ interface Props {
   rotuloCancelar?: string;
   perigo?: boolean;
   carregando?: boolean;
+  /** Folha por cima da qual o diálogo deve aparecer, quando ele não está dentro dela (ex.: o "Sair sem salvar?" da guarda). */
+  portal?: PortalDaFolhaValor;
   aoConfirmar: () => void;
   aoCancelar: () => void;
 }
@@ -30,7 +32,8 @@ export function PainelConfirmacao(props: Props) {
   const { cores } = useTema();
   const focoAnterior = useRef<HTMLElement | null>(null);
   // Dentro de uma Folha o diálogo vai para o portal dela; no da raiz ficaria escondido atrás do Modal.
-  const portal = usePortalDaFolha();
+  const portalDeQuemContem = usePortalDaFolha();
+  const portal = props.portal ?? portalDeQuemContem;
   return (
     <AlertDialog style={{position:'absolute'}} open={props.visivel} onOpenChange={(aberto) => { if (!aberto) props.aoCancelar(); }}>
       <AlertDialogContent aoFechar={props.aoCancelar} portalHost={portal?.nome} container={portal?.elemento}

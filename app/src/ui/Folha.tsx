@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { useFolhaNoHistorico } from './historicoDasFolhas';
 import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
 import { Texto } from './Texto';
@@ -63,6 +64,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
   const [elementoPortal, setElementoPortal] = useState<HTMLElement | null>(null);
   const guardarElementoPortal = useCallback((no: View | null) => setElementoPortal(Platform.OS === 'web' ? (no as unknown as HTMLElement | null) : null), []);
   const valorPortal = useMemo(() => ({ nome: portal, elemento: elementoPortal }), [portal, elementoPortal]);
+  useFolhaNoHistorico(aoFechar, valorPortal);
   const conteudo = useRef<View>(null);
   const fechar = useRef<View>(null);
   // Sem animação de entrada: o painel aparece pronto. O deslocamento só existe para o arrastar-para-fechar no celular.

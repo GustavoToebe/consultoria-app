@@ -38,7 +38,7 @@ export default function ListaAtualizacoes() {
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
     <Cabecalho titulo="Atualizações" mostrarMarca="celular" />
     <Texto variante="suave">Atualizações enviadas pelos alunos em cada pasta: revise, acompanhe os atrasos e responda com feedback.{meus?' Mostrando só os seus alunos.':''}</Texto>
-    <Abas abas={ABAS.map(a=>({...a,contagem:contagens[a.valor]}))} ativa={filtro} aoMudar={valor=>router.setParams({situacao:valor})} />
+    <Abas abas={ABAS.map(a=>({...a,contagem:contagens[a.valor]}))} ativa={filtro} aoMudar={valor=>{ if(valor!==filtro) router.push({pathname:'/treinador/atualizacoes',params:meus?{situacao:valor,meus:'true'}:{situacao:valor}}); }} />
     {lista.erro?<MensagemErro texto={textoDoErro(lista.erro)} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}
     {!lista.carregando && lista.dados?.length===0?<Vazio titulo="Nenhuma atualização nesta lista" texto="As atualizações aparecem conforme o período da pasta e o envio do aluno." />:null}
