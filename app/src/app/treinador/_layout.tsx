@@ -1,4 +1,4 @@
-import { BookOpen, CircleUserRound, GraduationCap, House, NotebookTabs, Palette, UsersRound, History, LifeBuoy } from 'lucide-react-native';
+import { BookOpen, CircleUserRound, ContactRound, House, NotebookTabs, Palette, UsersRound, History, LifeBuoy } from 'lucide-react-native';
 
 import { Navigator, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
@@ -20,7 +20,7 @@ import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
  */
 const ITENS: ItemMenu[] = [
   { rotulo: 'Início', href: '/treinador', caminho: '/treinador', Icone: House, exato: true },
-  { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: GraduationCap },
+  { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: ContactRound },
   { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen },
   { rotulo: 'Planejamento', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
   { rotulo: 'Marca', href: '/treinador/marca', caminho: '/treinador/marca', Icone: Palette, soLateral: true },
