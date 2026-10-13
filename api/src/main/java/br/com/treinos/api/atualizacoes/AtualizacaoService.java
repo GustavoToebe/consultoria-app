@@ -35,7 +35,14 @@ public class AtualizacaoService {
     public record Detalhe(UUID id, UUID pastaId, UUID alunoId, String nomeAluno, LocalDate dataAtualizacao,
             String fase, long diasParaData, long diasDeAtraso, LocalDate atrasoAte, String atrasoMotivo,
             int questionarioVersaoNumero, UUID questionarioVersaoId, String questionarioNome, JsonNode modelo, JsonNode respostas, Instant enviadaEm,
-            Feedback feedback, Long versao, ResumoPeriodoService.Resumo resumo) { }
+            Feedback feedback, Long versao, ResumoPeriodoService.Resumo resumo) {
+        /** O que vai para o aluno: o nome do questionário é de trabalho do treinador ("Iniciantes", "Pós-lesão") e não sai. */
+        public Detalhe paraAluno() {
+            return new Detalhe(id, pastaId, alunoId, nomeAluno, dataAtualizacao, fase, diasParaData, diasDeAtraso, atrasoAte,
+                    atrasoMotivo, questionarioVersaoNumero, questionarioVersaoId, null, modelo, respostas, enviadaEm, feedback,
+                    versao, resumo);
+        }
+    }
     private final AtualizacaoRepository atualizacoes;
     private final QuestionarioResolver questionarios;
     private final PastaRepository pastas;

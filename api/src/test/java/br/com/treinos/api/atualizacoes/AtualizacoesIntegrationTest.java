@@ -307,7 +307,7 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
     }
     private void escolherNoAluno(UUID questionario) { banco.update("update aluno set questionario_id=? where id=?",questionario,aluno); }
     private void escolherNaPasta(String pasta,UUID questionario) { banco.update("update pasta_plano set questionario_id=? where id=?",questionario,UUID.fromString(pasta)); }
-    private String nomeDoQuestionario() throws Exception { return api.get("/aluno/atualizacao",loginAluno,200).path("questionarioNome").asString(); }
+    private String nomeDoQuestionario() throws Exception { return api.get("/alunos/"+aluno+"/atualizacao",treinador,200).path("questionarioNome").asString(); }
     private Map<String,Object> envioComVersao(String pasta,UUID versao,Map<String,Object> respostas) {
         return Map.of("pastaId",pasta,"questionarioVersaoId",versao.toString(),"respostas",respostas);
     }
@@ -348,7 +348,8 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         banco.update("update questionario set arquivado=true where id=?",antigo[0]);
         JsonNode depois = api.get("/aluno/atualizacao",loginAluno,200);
         assertThat(depois.path("questionarioVersaoId").asString()).isEqualTo(antigo[1].toString());
-        assertThat(depois.path("questionarioNome").asString()).isEqualTo("Respondido");
+        assertThat(depois.path("questionarioNome").isNull()).isTrue();
+        assertThat(nomeDoQuestionario()).isEqualTo("Respondido");
         assertThat(banco.queryForObject("select questionario_versao_id from atualizacao where pasta_id=?",UUID.class,UUID.fromString(pasta))).isEqualTo(antigo[1]);
     }
 

@@ -80,7 +80,7 @@ public class AlunoAppService {
                 ? treino.conteudo().metodologia().configuracao() : marcas.configuracao(eu.consultoriaId());
         return new PainelAluno(marcas.marca(eu.consultoriaId()), new AlunoNome(aluno.getNome()), treino, ultimas,
                 new ConfiguracaoAluno(config.arredondamentoKg(), config.tipoTrabalho(), config.instrucoesTreino()), Instant.now(),
-                atualizacoes.atualDoAluno(alunoId));
+                semNome(atualizacoes.atualDoAluno(alunoId)));
     }
 
     @Transactional(readOnly = true)
@@ -174,5 +174,11 @@ public class AlunoAppService {
                 .map(ConteudoTreino.ExercicioPlano::exercicioId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+    }
+
+    /** O painel é do aluno: o nome do questionário (de trabalho do treinador) não sai. */
+    private static br.com.treinos.api.atualizacoes.AtualizacaoService.Detalhe semNome(
+            br.com.treinos.api.atualizacoes.AtualizacaoService.Detalhe d) {
+        return d == null ? null : d.paraAluno();
     }
 }

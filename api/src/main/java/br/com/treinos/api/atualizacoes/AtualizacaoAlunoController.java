@@ -13,15 +13,17 @@ public class AtualizacaoAlunoController {
     private final AtualizacaoService atualizacoes;
     public AtualizacaoAlunoController(AtualizacaoService atualizacoes) { this.atualizacoes = atualizacoes; }
     @PreAuthorize("hasRole('ALUNO')") @GetMapping("/aluno/atualizacao")
-    public AtualizacaoService.Detalhe atual(@AuthenticationPrincipal UsuarioAutenticado eu) { return atualizacoes.atual(eu); }
+    public AtualizacaoService.Detalhe atual(@AuthenticationPrincipal UsuarioAutenticado eu) { return semNome(atualizacoes.atual(eu)); }
     @PreAuthorize("hasRole('ALUNO')") @PostMapping("/aluno/atualizacao/enviar")
-    public AtualizacaoService.Detalhe enviar(@AuthenticationPrincipal UsuarioAutenticado eu, @Valid @RequestBody AtualizacaoService.EnviarRequest r) { return atualizacoes.enviar(eu,r); }
+    public AtualizacaoService.Detalhe enviar(@AuthenticationPrincipal UsuarioAutenticado eu, @Valid @RequestBody AtualizacaoService.EnviarRequest r) { return semNome(atualizacoes.enviar(eu,r)); }
     @PreAuthorize("hasRole('ALUNO')") @PostMapping("/aluno/atualizacao/atraso")
-    public AtualizacaoService.Detalhe atraso(@AuthenticationPrincipal UsuarioAutenticado eu, @Valid @RequestBody AtualizacaoService.AtrasoRequest r) { return atualizacoes.avisarAtraso(eu,r); }
+    public AtualizacaoService.Detalhe atraso(@AuthenticationPrincipal UsuarioAutenticado eu, @Valid @RequestBody AtualizacaoService.AtrasoRequest r) { return semNome(atualizacoes.avisarAtraso(eu,r)); }
     @PreAuthorize("hasRole('ALUNO')") @GetMapping("/aluno/atualizacoes")
-    public List<AtualizacaoService.Detalhe> historico(@AuthenticationPrincipal UsuarioAutenticado eu) { return atualizacoes.historico(eu); }
+    public List<AtualizacaoService.Detalhe> historico(@AuthenticationPrincipal UsuarioAutenticado eu) { return atualizacoes.historico(eu).stream().map(AtualizacaoService.Detalhe::paraAluno).toList(); }
     @PreAuthorize("hasRole('ALUNO')") @GetMapping("/aluno/atualizacoes/{id}")
-    public AtualizacaoService.Detalhe detalhe(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) { return atualizacoes.detalheAluno(eu,id); }
+    public AtualizacaoService.Detalhe detalhe(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) { return semNome(atualizacoes.detalheAluno(eu,id)); }
     @PreAuthorize("hasRole('ALUNO')") @PostMapping("/aluno/atualizacoes/{id}/feedback-visto")
     public ResponseEntity<Void> visto(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id) { atualizacoes.feedbackVisto(eu,id); return ResponseEntity.noContent().build(); }
+    /** Rotas do aluno nunca levam o nome do questionário (ver {@link AtualizacaoService.Detalhe#paraAluno()}). */
+    private static AtualizacaoService.Detalhe semNome(AtualizacaoService.Detalhe d) { return d == null ? null : d.paraAluno(); }
 }

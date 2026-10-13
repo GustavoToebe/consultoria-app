@@ -405,7 +405,10 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
         JsonNode loginAluno = api.convidarEEntrar(treinador, aluno);
         api.put("/alunos/" + aluno + "/questionario", treinador, Map.of("questionarioId", q.path("id").asString()), 200);
         JsonNode vigente = api.get("/aluno/atualizacao", loginAluno, 200);
-        assertThat(vigente.path("questionarioNome").asString()).isEqualTo("Respondido fictício");
+        // O nome é do treinador: a rota do aluno nunca o traz; a do treinador, sim.
+        assertThat(vigente.path("questionarioNome").isNull()).isTrue();
+        assertThat(api.get("/alunos/" + aluno + "/atualizacao", treinador, 200).path("questionarioNome").asString())
+                .isEqualTo("Respondido fictício");
         api.post("/aluno/atualizacao/enviar", loginAluno, Map.of("pastaId", pasta,
                 "questionarioVersaoId", vigente.path("questionarioVersaoId").asString(),
                 "respostas", Map.of("peso", 80.5, "sono", 7, "alim_desempenho", 8, "treino_desempenho", 6)), 200);
@@ -416,7 +419,7 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
         assertThat(uso.path("envios").asLong()).isEqualTo(1);
         api.post("/questionarios/" + q.path("id").asString() + "/arquivar", treinador, null, 200);
         // Arquivado depois do envio: a atualização enviada continua mostrando a versão que o aluno respondeu.
-        assertThat(api.get("/aluno/atualizacao", loginAluno, 200).path("questionarioNome").asString())
+        assertThat(api.get("/alunos/" + aluno + "/atualizacao", treinador, 200).path("questionarioNome").asString())
                 .isEqualTo("Respondido fictício");
     }
 
@@ -430,14 +433,15 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
         JsonNode escolhido = api.put("/alunos/" + aluno + "/questionario", treinador,
                 Map.of("questionarioId", q.path("id").asString()), 200);
         assertThat(escolhido.path("questionarioId").asString()).isEqualTo(q.path("id").asString());
-        assertThat(api.get("/aluno/atualizacao", loginAluno, 200).path("questionarioNome").asString())
+        assertThat(api.get("/alunos/" + aluno + "/atualizacao", treinador, 200).path("questionarioNome").asString())
                 .isEqualTo("Escolhido fictício");
         api.post("/questionarios/" + q.path("id").asString() + "/arquivar", treinador, null, 200);
-        assertThat(api.get("/aluno/atualizacao", loginAluno, 200).path("questionarioNome").asString())
+        assertThat(api.get("/alunos/" + aluno + "/atualizacao", treinador, 200).path("questionarioNome").asString())
                 .isEqualTo("Padrão");
         api.post("/questionarios/" + q.path("id").asString() + "/desarquivar", treinador, null, 200);
-        assertThat(api.get("/aluno/atualizacao", loginAluno, 200).path("questionarioNome").asString())
+        assertThat(api.get("/alunos/" + aluno + "/atualizacao", treinador, 200).path("questionarioNome").asString())
                 .isEqualTo("Escolhido fictício");
+        assertThat(api.get("/aluno/atualizacao", loginAluno, 200).path("questionarioNome").isNull()).isTrue();
     }
 
     @Test
