@@ -620,14 +620,19 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         JsonNode login = loginDoAdministrador();
         var pool = dataSource.unwrap(HikariDataSource.class).getHikariPoolMXBean();
         CENTRAL.minhaConta.set("{}");
-        CENTRAL.sondaNaChamada.set(null);
         CENTRAL.sonda.set(pool::getActiveConnections);
+        // Uma transação aberta na requisição dá 1 em todas as chamadas; um agendador (limpeza de nonces) pode dar 1 por acaso.
+        int menor = Integer.MAX_VALUE;
         try {
-            api.get("/minha-conta", login, 200);
+            for (int i = 0; i < 3; i++) {
+                CENTRAL.sondaNaChamada.set(null);
+                api.get("/minha-conta", login, 200);
+                menor = Math.min(menor, CENTRAL.sondaNaChamada.get());
+            }
         } finally {
             CENTRAL.sonda.set(() -> null);
         }
-        assertThat(CENTRAL.sondaNaChamada.get()).as("conexões em uso durante o HTTP à Central").isZero();
+        assertThat(menor).as("conexões em uso durante o HTTP à Central").isZero();
     }
 
     @Test
