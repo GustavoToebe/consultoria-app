@@ -30,6 +30,8 @@ export const LIMITES_QUESTIONARIO = {
   rascunhoBytes: 256 * 1024,
   respostasBytes: 256 * 1024,
   idTamanho: 40,
+  /** Mínimo, máximo e resposta de NUMERO ficam em [-N, N] (igual a `LimitesQuestionario.NUMERO_ABSOLUTO`). */
+  numeroAbsoluto: 1_000_000_000,
 } as const;
 
 export interface ProblemaDoQuestionario { caminho: string; mensagem: string }
@@ -186,6 +188,9 @@ function numero(p: PerguntaAtualizacao, cp: string, erro: Erro) {
   if (p.casas != null && (!Number.isInteger(p.casas) || p.casas < 0 || p.casas > L.casasMaximo)) {
     erro(`${cp}.casas`, `Use de 0 a ${L.casasMaximo} casas decimais.`);
   }
+  const N = L.numeroAbsoluto;
+  if (p.min != null && !(Math.abs(p.min) <= N)) erro(`${cp}.min`, `Use um mínimo entre -${N} e ${N}.`);
+  if (p.max != null && !(Math.abs(p.max) <= N)) erro(`${cp}.max`, `Use um máximo entre -${N} e ${N}.`);
   if (p.min != null && p.max != null && p.min > p.max) erro(`${cp}.max`, 'O máximo é menor que o mínimo.');
   if (p.unidade != null && p.unidade.length > L.unidadeTamanho) erro(`${cp}.unidade`, 'Unidade longa demais.');
 }

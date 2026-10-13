@@ -14,12 +14,13 @@ import { useCarregar } from '../../ui/useCarregar';
 export default function AtualizacaoAluno() {
   const {id,atraso}=useLocalSearchParams<{id?:string;atraso?:string}>();
   const resultado=useAtualizacao(id);
-  const {repositorio,online}=useAluno();
+  const {repositorio}=useAluno();
   const pasta=resultado.dados?.pastaId;
-  // A versão do questionário entra na chave: depois de uma troca (409) o rascunho é lido de novo, e o formulário só
-  // monta quando o rascunho da chave atual chegou, senão remontaria com o anterior e perderia as respostas.
+  // A chave do rascunho é a mesma do formulário (pasta, `versao` da linha e versão do questionário): toda remontagem
+  // (409, troca do questionário, pasta alterada) lê o rascunho de novo, senão o formulário voltaria com o rascunho da
+  // abertura e perderia o que foi digitado. A conexão não entra: o rascunho é local e cair a rede não remonta a tela.
   const versao=resultado.dados?.questionarioVersaoId;
-  const chave=pasta?`${pasta}:${online}:${versao}`:null;
+  const chave=pasta?`${pasta}:${resultado.dados?.versao}:${versao}`:null;
   const rascunho=useCarregar(chave,async c=>({chave:c,valor:await repositorio.lerRascunhoAtualizacao(pasta!)}));
   return <Tela largura={720} rolar={false} bordas={['top']}>
     <Cabecalho titulo={`Atualização${resultado.dados?.dataAtualizacao?` · ${dataParaTela(resultado.dados.dataAtualizacao)}`:''}`}
@@ -29,7 +30,7 @@ export default function AtualizacaoAluno() {
     {rascunho.erro?<MensagemErro texto="Não foi possível ler o rascunho. Volte e tente novamente." />:null}
     {resultado.dados && !resultado.dados.modelo?<Vazio titulo="Sem atualização" texto="Seu treinador ainda não publicou uma pasta com período." />:null}
     {resultado.dados?.modelo && (!id || resultado.dados.id===id) && rascunho.dados && rascunho.dados.chave===chave && !rascunho.carregando && !rascunho.erro?<FormularioAtualizacao
-      key={`${pasta}:${resultado.dados.versao}:${versao}`}
+      key={chave}
       atualizacao={resultado.dados} somenteLeitura={resultado.dados.somenteLeitura} rascunho={rascunho.dados.valor} abrirAtraso={atraso==='sim'} recarregar={resultado.recarregar} />:null}
   </Tela>;
 }

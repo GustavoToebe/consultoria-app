@@ -28,7 +28,7 @@ public class ValidadorAtualizacao {
             String id = p.path("id").asString(); String tipo = p.path("tipo").asString();
             if ("FOTOS".equals(tipo) || "DATA_AUTOMATICA".equals(tipo)) continue;
             var v = respostas.path(id);
-            boolean vazio = v.isMissingNode() || v.isNull() || (v.isString() && v.asString().isBlank()) || (v.isArray() && v.isEmpty());
+            boolean vazio = v.isMissingNode() || v.isNull() || (v.isString() && v.asString().isBlank()) || (v.isArray() && v.isEmpty()) || (v.isObject() && v.isEmpty());
             if (vazio) { if (p.path("obrigatoria").asBoolean(false)) erros.add(new ApiError.FieldError(id, "Preencha este campo.")); continue; }
             boolean valido = switch (tipo) {
                 case "NOTA" -> nota(v);
@@ -63,11 +63,16 @@ public class ValidadorAtualizacao {
     }
     /** Dentro de min/max (quando existem) e com no máximo {@code casas} decimais (padrão 0). */
     private static boolean numero(JsonNode pergunta, JsonNode v) {
-        if (!v.isNumber()) return false;
+        if (!v.isNumber() || (v.isFloatingPointNumber() && !Double.isFinite(v.doubleValue()))) return false;
         BigDecimal valor = v.decimalValue();
+        if (valor.abs().compareTo(BigDecimal.valueOf(LimitesQuestionario.NUMERO_ABSOLUTO)) > 0) return false;
         int casas = pergunta.path("casas").isNumber() ? pergunta.path("casas").asInt() : 0;
         if (valor.stripTrailingZeros().scale() > casas) return false;
-        if (pergunta.path("min").isNumber() && valor.compareTo(pergunta.path("min").decimalValue()) < 0) return false;
-        return !(pergunta.path("max").isNumber() && valor.compareTo(pergunta.path("max").decimalValue()) > 0);
+        if (limiteFinito(pergunta.path("min")) && valor.compareTo(pergunta.path("min").decimalValue()) < 0) return false;
+        return !(limiteFinito(pergunta.path("max")) && valor.compareTo(pergunta.path("max").decimalValue()) > 0);
+    }
+    /** Limite numérico utilizável (o publicador já recusa fora de ±{@code NUMERO_ABSOLUTO}; versão antiga com infinito é ignorada). */
+    private static boolean limiteFinito(JsonNode n) {
+        return n.isNumber() && !(n.isFloatingPointNumber() && !Double.isFinite(n.doubleValue()));
     }
 }

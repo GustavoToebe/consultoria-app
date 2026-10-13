@@ -51,7 +51,8 @@ export function ListaDeQuestionarios({ pedirNovo, aoFecharNovo }: { pedirNovo: b
   const [arquivados, setArquivados] = useState(false);
   const lista = useCarregar(`questionarios:${arquivados}`, () => listarQuestionarios(arquivados));
   const [novoAberto, setNovoAberto] = useState(false);
-  const novo = novoAberto || pedirNovo;
+  // `?novo=1` digitado na URL não abre o formulário sem a permissão (a API recusaria de qualquer jeito).
+  const novo = (novoAberto || pedirNovo) && pode('QUESTIONARIO_ALTERAR');
   const [menu, setMenu] = useState<QuestionarioResumo | null>(null);
   const [excluir, setExcluir] = useState<QuestionarioResumo | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);

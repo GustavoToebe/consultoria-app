@@ -6,6 +6,7 @@ import br.com.treinos.api.questionarios.ConteudoQuestionario.Pergunta;
 import br.com.treinos.api.questionarios.ConteudoQuestionario.Secao;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.EnumSet;
@@ -259,6 +260,13 @@ public class ValidadorQuestionario {
         }
         if (p.casas() != null && (p.casas() < 0 || p.casas() > LimitesQuestionario.CASAS_MAXIMO)) {
             c.erro(cp + ".casas", "Use de 0 a " + LimitesQuestionario.CASAS_MAXIMO + " casas decimais.");
+        }
+        BigDecimal limite = BigDecimal.valueOf(LimitesQuestionario.NUMERO_ABSOLUTO);
+        if (p.min() != null && p.min().abs().compareTo(limite) > 0) {
+            c.erro(cp + ".min", "Use um mínimo entre -" + LimitesQuestionario.NUMERO_ABSOLUTO + " e " + LimitesQuestionario.NUMERO_ABSOLUTO + ".");
+        }
+        if (p.max() != null && p.max().abs().compareTo(limite) > 0) {
+            c.erro(cp + ".max", "Use um máximo entre -" + LimitesQuestionario.NUMERO_ABSOLUTO + " e " + LimitesQuestionario.NUMERO_ABSOLUTO + ".");
         }
         if (p.min() != null && p.max() != null && p.min().compareTo(p.max()) > 0) {
             c.erro(cp + ".max", "O máximo é menor que o mínimo.");

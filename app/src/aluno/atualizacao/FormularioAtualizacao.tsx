@@ -89,7 +89,9 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     avisar(novos.respostas??novos.data??'Confira os campos indicados.');
   };
   const enviar=async()=>{
-    if(!atual.modelo || !atual.pastaId || !atual.questionarioVersaoId)return;
+    if(!atual.modelo || !atual.pastaId)return;
+    // Atualização guardada por uma versão anterior do app (sem a versão do questionário): só dá para enviar recarregando.
+    if(!atual.questionarioVersaoId){avisar('Conecte-se à internet e abra a atualização de novo para carregar o questionário.');return;}
     const encontrados=errosRespostasAtualizacao(atual.modelo,respostas);
     if(Object.keys(encontrados).length){mostrarErros(encontrados);return;}
     if(!online){avisar(SEM_CONEXAO);return;}

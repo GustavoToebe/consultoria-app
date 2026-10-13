@@ -31,6 +31,8 @@ public final class LimitesQuestionario {
     public static final int RASCUNHO_BYTES = 256 * 1024;
     public static final int RESPOSTAS_BYTES = 256 * 1024;
     public static final int ID_TAMANHO = 40;
+    /** Mínimo, máximo e resposta de NUMERO ficam em [-N, N]: fora disso o JSON pode virar infinito e quebrar a validação. */
+    public static final int NUMERO_ABSOLUTO = 1_000_000_000;
     /** Identificador de pergunta, seção e opção: aceita os ids antigos ({@code peso}, {@code sono}) e uids. */
     public static final String ID_PADRAO = "[A-Za-z0-9_-]{1,40}";
 

@@ -4,7 +4,7 @@ import { LIMITES_QUESTIONARIO } from './questionario';
 const nota = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 10;
 
 function numeroValido(p: PerguntaAtualizacao, v: unknown) {
-  if (typeof v !== 'number' || !Number.isFinite(v)) return false;
+  if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > LIMITES_QUESTIONARIO.numeroAbsoluto) return false;
   const casas = typeof p.casas === 'number' ? p.casas : 0;
   if (Number(v.toFixed(casas)) !== v) return false;
   if (typeof p.min === 'number' && v < p.min) return false;
@@ -36,13 +36,15 @@ export function respostaValida(p: PerguntaAtualizacao, v: unknown) {
   }
 }
 
-/** `false` e `0` são respostas; só ausência, texto em branco e lista vazia contam como "não respondido". */
-export const respondida = (v: unknown) => !(v == null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0));
+/** `false` e `0` são respostas; só ausência, texto em branco, lista vazia e notas por dia vazias contam como "não respondido". */
+export const respondida = (v: unknown) =>
+  !(v == null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0)
+    || (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0));
 
 /**
  * Validação para marcar o campo; o servidor sempre valida novamente contra sua versão. Mesmas regras do
- * `ValidadorAtualizacao` do Java (o teste de paridade confere os campos com erro). Lista vazia e texto em branco
- * contam como "não respondido".
+ * `ValidadorAtualizacao` do Java (o teste de paridade confere os campos com erro). Lista vazia, texto em branco e
+ * notas por dia vazias contam como "não respondido".
  */
 export function errosRespostasAtualizacao(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao) {
   const erros: Record<string, string> = {};

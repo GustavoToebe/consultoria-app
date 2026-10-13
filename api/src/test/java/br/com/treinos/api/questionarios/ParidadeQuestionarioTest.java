@@ -68,6 +68,7 @@ class ParidadeQuestionarioTest {
         daqui.put("rascunhoBytes", LimitesQuestionario.RASCUNHO_BYTES);
         daqui.put("respostasBytes", LimitesQuestionario.RESPOSTAS_BYTES);
         daqui.put("idTamanho", LimitesQuestionario.ID_TAMANHO);
+        daqui.put("numeroAbsoluto", LimitesQuestionario.NUMERO_ABSOLUTO);
 
         JsonNode fixture = fixture("limites.json");
         Map<String, Integer> esperado = new LinkedHashMap<>();

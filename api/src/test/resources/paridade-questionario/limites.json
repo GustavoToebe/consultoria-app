@@ -21,5 +21,6 @@
  "capacidadeDeTextoTotal": 40000,
  "rascunhoBytes": 262144,
  "respostasBytes": 262144,
- "idTamanho": 40
+ "idTamanho": 40,
+ "numeroAbsoluto": 1000000000
 }

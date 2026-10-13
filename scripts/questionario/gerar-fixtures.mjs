@@ -69,6 +69,8 @@ c('dias_em_nota', com(P('n', 'NOTA', { dias: [1] })), [`${pp(1)}.dias`]);
 c('numero_valido', com(P('n', 'NUMERO', { min: 0, max: 10, casas: 1, unidade: 'kg' })));
 c('numero_min_igual_max_ok', com(P('n', 'NUMERO', { min: 5, max: 5 })));
 c('numero_min_maior_que_max', com(P('n', 'NUMERO', { min: 10, max: 1 })), [`${pp(1)}.max`]);
+c('numero_limites_no_absoluto_ok', com(P('n', 'NUMERO', { min: -1000000000, max: 1000000000 })));
+c('numero_limites_acima_do_absoluto', com(P('n', 'NUMERO', { min: -1000000001, max: 1e12 })), [`${pp(1)}.min`, `${pp(1)}.max`]);
 c('numero_casas_3', com(P('n', 'NUMERO', { casas: 3 })), [`${pp(1)}.casas`]);
 c('numero_casas_negativo', com(P('n', 'NUMERO', { casas: -1 })), [`${pp(1)}.casas`]);
 c('numero_unidade_12_ok', com(P('n', 'NUMERO', { unidade: 'a'.repeat(12) })));
@@ -149,6 +151,7 @@ r('numero_casas_ok', Q(N({ casas: 1 })), { n: 2.5 });
 r('numero_duas_casas', Q(N({ casas: 2 })), { n: 2.25 });
 r('numero_como_texto', Q(N()), { n: '5' }, ['n']);
 r('numero_sem_limites', Q(N()), { n: 1000000 });
+r('numero_acima_do_absoluto', Q(N()), { n: 1000000001 }, ['n']);
 r('sim_nao_verdadeiro', Q(S()), { s: true });
 r('sim_nao_falso_obrigatorio_e_resposta', Q(S({ obrigatoria: true })), { s: false });
 r('sim_nao_como_texto', Q(S()), { s: 'sim' }, ['s']);
@@ -157,6 +160,7 @@ r('nota_valida_e_invalida', Q({ id: 'a', tipo: 'NOTA', rotulo: 'a', obrigatoria:
 r('peso_invalido', Q({ id: 'peso', tipo: 'PESO', rotulo: 'p', obrigatoria: true }), { peso: 80.55 }, ['peso']);
 r('texto_501', Q({ id: 't', tipo: 'TEXTO', rotulo: 't', obrigatoria: false }), { t: 'x'.repeat(501) }, ['t']);
 r('texto_longo_2000_ok', Q({ id: 't', tipo: 'TEXTO_LONGO', rotulo: 't', obrigatoria: false }), { t: 'x'.repeat(2000) });
+r('notas_por_dia_vazia_obrigatoria', Q({ id: 'd', tipo: 'NOTAS_POR_DIA', rotulo: 'd', obrigatoria: true, dias: [1, 2] }), { d: {} }, ['d']);
 r('notas_por_dia_dia_fora', Q({ id: 'd', tipo: 'NOTAS_POR_DIA', rotulo: 'd', obrigatoria: false, dias: [1, 2] }), { d: { 3: 5 } }, ['d']);
 r('resposta_desconhecida_e_ignorada', Q(E('e')), { e: 'a', fantasma: 'x' });
 r('tipo_desconhecido_respondido', Q({ id: 'x', tipo: 'TIPO_NOVO', rotulo: 'x', obrigatoria: false }), { x: 'a' }, ['x']);
@@ -169,6 +173,7 @@ const limites = {
   rotuloTamanho: 200, ajudaTamanho: 300, rotuloCurtoTamanho: 20, opcoesMinimo: 2, opcoesMaximo: 20, opcaoTamanho: 80,
   unidadeTamanho: 12, casasMaximo: 2, diasMaximo: 7, diaValorMaximo: 14, destaquesMaximo: 4, textoCurtoCapacidade: 500,
   textoLongoCapacidade: 2000, capacidadeDeTextoTotal: 40000, rascunhoBytes: 262144, respostasBytes: 262144, idTamanho: 40,
+  numeroAbsoluto: 1000000000,
 };
 writeFileSync(`${SAIDA}/limites.json`, JSON.stringify(limites, null, 1) + '\n');
 console.log(`${casos.length} casos de questionário, ${respostas.length} de respostas`);

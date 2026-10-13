@@ -176,17 +176,22 @@ public class QuestionarioService {
         return detalhe(gravado);
     }
 
+    /** Idempotente: arquivar o que já está arquivado responde 200 sem gravar nem auditar. */
     @Transactional
-    @br.com.treinos.api.auditoria.Auditar(acao = "QUESTIONARIO_ARQUIVADO", entidade = "QUESTIONARIO",
-            resumo = "Arquivou um questionário de atualização.")
     public QuestionarioDetalhe arquivar(UUID id) {
         Questionario q = buscar(id);
+        if (q.isArquivado()) {
+            return detalhe(q);
+        }
         if (q.isPadrao()) {
             throw new ConflitoException("O questionário padrão não pode ser arquivado. Escolha outro padrão antes.",
                     "QUESTIONARIO_PADRAO");
         }
         q.arquivar();
-        return detalhe(gravar(q));
+        Questionario gravado = gravar(q);
+        auditoria.registrarEvento("QUESTIONARIO_ARQUIVADO", "QUESTIONARIO", gravado.getId(),
+                "Arquivou um questionário de atualização.");
+        return detalhe(gravado);
     }
 
     /** Idempotente: desarquivar o que não está arquivado responde 200 sem gravar nem auditar. */

@@ -81,7 +81,7 @@ export function EscalaDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10 }
         <Texto variante="rotulo" style={estilos.rotulo}>{rotulo}</Texto>
         <Texto variante="destaque" cor={valor === null ? 'suave' : undefined}>{valor === null ? '—' : String(valor)}</Texto>
       </View>
-      <GestureDetector gesture={gesto}>
+      <GestureDetector gesture={gesto} touchAction="pan-y">
       <View
         {...teclado}
         accessible

@@ -55,7 +55,8 @@ export default function Planejamento() {
   const emAtualizacao = veAtualizacao && (abaPedida === 'atualizacao' || !veModelos || (pedirNovo !== '1' && abaEscolhida === ABA_ATUALIZACAO));
   const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
   const formulario = formularioAberto ?? (pedirNovo === '1' && !emAtualizacao ? 'novo' : null);
-  const fecharFormulario = () => { setFormulario(null); if (pedirNovo) router.setParams({ novo: undefined }); };
+  // O "Novo modelo" pedido pela URL mostrou a aba de modelos: fechar continua nela, sem voltar à aba tocada antes.
+  const fecharFormulario = () => { setFormulario(null); if (pedirNovo) { if (pedirNovo === '1' && !emAtualizacao) setAbaEscolhida(null); router.setParams({ novo: undefined }); } };
   const [organizar, setOrganizar] = useState(false);
   const [escolherColecao, setEscolherColecao] = useState(false);
   const [menu, setMenu] = useState<Receita | null>(null);

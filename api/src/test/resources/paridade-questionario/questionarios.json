@@ -1500,6 +1500,71 @@
   "avisos": []
  },
  {
+  "nome": "numero_limites_no_absoluto_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "min": -1000000000,
+       "max": 1000000000
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "numero_limites_acima_do_absoluto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "min": -1000000001,
+       "max": 1000000000000
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].max",
+   "secoes[0].perguntas[1].min"
+  ],
+  "avisos": []
+ },
+ {
   "nome": "numero_casas_3",
   "conteudo": {
    "formato": 2,

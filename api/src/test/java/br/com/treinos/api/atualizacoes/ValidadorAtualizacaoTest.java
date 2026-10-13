@@ -38,6 +38,14 @@ class ValidadorAtualizacaoTest {
         assertThat(limpas.isEmpty()).isTrue();
     }
 
+    @Test void numeroGiganteOuInfinitoEh422NuncaErroInterno() {
+        // 1e400 vira infinito no JSON; limite antigo com infinito na versão gravada também não pode derrubar o envio.
+        assertThatThrownBy(() -> validador.validar(modeloNovo(), json.readTree("{\"n\":1e400}"))).isInstanceOf(ValidacaoException.class);
+        var semLimite = json.readTree("{\"secoes\":[{\"perguntas\":[{\"id\":\"n\",\"tipo\":\"NUMERO\",\"max\":1e400}]}]}");
+        assertThat(validador.validar(semLimite, json.readTree("{\"n\":5}")).path("n").asInt()).isEqualTo(5);
+        assertThatThrownBy(() -> validador.validar(semLimite, json.readTree("{\"n\":1000000001}"))).isInstanceOf(ValidacaoException.class);
+    }
+
     @Test void recusaTiposNovosForaDoContrato() {
         for (String ruim : new String[] {"{\"e\":\"z\"}", "{\"m\":[\"a\",\"a\"]}", "{\"m\":\"a\"}", "{\"n\":11}", "{\"n\":2.25}", "{\"n\":\"2\"}", "{\"s\":\"sim\"}"}) {
             assertThatThrownBy(() -> validador.validar(modeloNovo(), json.readTree(ruim))).as(ruim).isInstanceOf(ValidacaoException.class);
