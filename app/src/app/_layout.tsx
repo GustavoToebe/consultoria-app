@@ -61,7 +61,13 @@ export default function Raiz() {
 }
 
 function Conteudo() {
-  const { cores, modo } = useTema();
+  const { cores, modo, preferencias } = useTema();
+  // Web: `color-scheme` na raiz faz o navegador desenhar barras de rolagem (e as folhas, que são portais) no escuro.
+  const barrasEscuras = modo === 'ESCURO' && preferencias.barrasEscuras;
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    document.documentElement.style.colorScheme = barrasEscuras ? 'dark' : 'light';
+  }, [barrasEscuras]);
   return (
     <View style={{ flex: 1, backgroundColor: cores.fundo }}>
       <StatusBar style={modo === 'ESCURO' ? 'light' : 'dark'} />

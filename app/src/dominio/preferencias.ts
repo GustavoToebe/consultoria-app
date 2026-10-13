@@ -18,6 +18,8 @@ export interface Preferencias {
   vibracao: boolean;
   /** Gráficos de progresso por exercício e de peso; desligado, só as listas. */
   graficos: boolean;
+  /** Só na web: barras de rolagem (e demais controles do navegador) no escuro quando o tema em uso é escuro. */
+  barrasEscuras: boolean;
 }
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
@@ -27,6 +29,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   movimento: 'SISTEMA',
   vibracao: true,
   graficos: true,
+  barrasEscuras: true,
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'SISTEMA'];
@@ -56,6 +59,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),
     vibracao: typeof o.vibracao === 'boolean' ? o.vibracao : PREFERENCIAS_PADRAO.vibracao,
     graficos: typeof o.graficos === 'boolean' ? o.graficos : PREFERENCIAS_PADRAO.graficos,
+    barrasEscuras: typeof o.barrasEscuras === 'boolean' ? o.barrasEscuras : PREFERENCIAS_PADRAO.barrasEscuras,
   };
 }
 

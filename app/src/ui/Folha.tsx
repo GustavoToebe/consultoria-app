@@ -33,6 +33,8 @@ interface Props {
   children: ReactNode;
   /** Botões fixos no rodapé (fora da rolagem). */
   rodape?: ReactNode;
+  /** Ação do cabeçalho, ao lado do X (ex.: menu ⋯); fica fixa enquanto o conteúdo rola. */
+  acaoNoTopo?: ReactNode;
   /** Largura no PC (centralizada); padrão `LARGURA_FOLHA` (600). Conteúdo grande (pasta com planos e registros) usa `LARGURA_EDITOR`. */
   largura?: number;
 }
@@ -42,14 +44,14 @@ interface Props {
  * biblioteca, aplicar receita e formulários curtos. Fecha no X, tocando fora ou no voltar do Android. Para o leitor
  * de tela é um diálogo modal com o nome do título; na web o foco entra no primeiro controle do conteúdo.
  */
-export function Folha({ visivel, titulo, aoFechar, children, rodape, largura }: Props) {
+export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, acaoNoTopo }: Props) {
   return <Modal transparent visible={visivel} animationType="none" onRequestClose={aoFechar}>
-    {visivel ? <Painel titulo={titulo} aoFechar={aoFechar} rodape={rodape} largura={largura}>{children}</Painel> : null}
+    {visivel ? <Painel titulo={titulo} aoFechar={aoFechar} rodape={rodape} largura={largura} acaoNoTopo={acaoNoTopo}>{children}</Painel> : null}
   </Modal>;
 }
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo. */
-function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>) {
+function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,'visivel'>) {
   const { cores } = useTema();
   const { width, height } = useWindowDimensions();
   // No Android o `Modal` já fica acima da barra do sistema; somar a margem de baixo do provider (que está fora dele)
@@ -107,7 +109,10 @@ function Painel({titulo,aoFechar,children,rodape,largura}:Omit<Props,'visivel'>)
           ]}>
           <GestureDetector gesture={gesto}><View style={estilos.topo}>
             <Texto variante="bloco" nivel={2} style={estilos.titulo}>{titulo}</Texto>
-            <View ref={fechar} collapsable={false}><IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} /></View>
+            <View style={estilos.acoesTopo}>
+              {acaoNoTopo}
+              <View ref={fechar} collapsable={false}><IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} /></View>
+            </View>
           </View></GestureDetector>
           <View ref={conteudo} collapsable={false} style={estilos.area}>
             <RolagemComTopo contentContainerStyle={estilos.conteudo}>{children}</RolagemComTopo>
@@ -139,9 +144,11 @@ const estilos = StyleSheet.create({
     paddingVertical: espaco(1),
   },
   titulo: { flex: 1 },
+  acoesTopo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   // O botão "voltar ao início" do `RolagemComTopo` é absoluto dentro desta área, logo nunca sai do painel.
   area: { flexShrink: 1, minHeight: 0 },
-  conteudo: { padding: espaco(2), paddingTop: 0, gap: espaco(1.5) },
+  // Folga de 6 px no topo: o anel de foco (2 px + recuo de 2 px) do primeiro controle não é cortado pela rolagem.
+  conteudo: { padding: espaco(2), paddingTop: espaco(0.75), gap: espaco(1.5) },
   rodape: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

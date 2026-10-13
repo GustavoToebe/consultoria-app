@@ -126,6 +126,17 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
         />
       </Cartao>
 
+      {Platform.OS === 'web' ? (
+        <Cartao titulo="Barras de rolagem">
+          <Interruptor
+            rotulo="Barras escuras no tema escuro"
+            ajuda="Desligado, as barras de rolagem ficam claras mesmo com o tema escuro."
+            valor={preferencias.barrasEscuras}
+            aoMudar={(barrasEscuras) => mudar({ barrasEscuras })}
+          />
+        </Cartao>
+      ) : null}
+
       {Platform.OS !== 'web' ? (
         <Cartao titulo="Vibração">
           <Interruptor
@@ -140,7 +151,7 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
       <PainelConfirmacao
         visivel={confirmandoRestaurar}
         titulo="Restaurar as preferências?"
-        mensagem="Tema, contraste, tamanho do texto, animações e vibração voltam ao padrão."
+        mensagem="Tema, contraste, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão."
         rotuloConfirmar="Restaurar"
         aoConfirmar={() => {
           restaurarPadrao();

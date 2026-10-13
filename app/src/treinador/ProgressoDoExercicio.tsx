@@ -6,13 +6,14 @@ import { progressoAluno, progressoDoAluno } from '../api/rotas';
 import { dataCurta, dataParaTela, numeroParaTela, SEM_DADO } from '../dominio/formatos';
 import { linhasDaTabela, pontosDoGrafico, resumoDoProgresso, textoDoResumo } from '../dominio/progresso';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { GraficoLinha } from '../ui/GraficoLinha';
 import { IconeBotao } from '../ui/IconeBotao';
+import { larguraDaData } from '../ui/larguraDaData';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 
@@ -28,7 +29,8 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
   /** Treinador: o aluno da ficha. Ausente = o próprio aluno logado (app do aluno). */
   alunoId?: string; exercicioId: string; nome: string; grupo: string; aoTirar: () => void;
 }) {
-  const { cores, preferencias } = useTema();
+  const { cores, marcaTexto, preferencias, fatorTexto } = useTema();
+  const colData = { width: larguraDaData(fatorTexto), flexShrink: 0 } as const;
   const { dados, erro, carregando, recarregar } = useCarregar(`prog:${alunoId ?? 'eu'}:${exercicioId}`, () =>
     alunoId ? progressoDoAluno(alunoId, exercicioId) : progressoAluno(exercicioId));
   const [todas, setTodas] = useState(false);
@@ -57,15 +59,17 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
       ) : null}
       {dados && dados.length > 0 ? (
         <View style={[estilos.tabela, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
-          <View style={[estilos.linha, { backgroundColor: cores.superficie2 }]}>
-            <Texto numerico variante="pequeno" style={estilos.colData}>Data</Texto>
-            <Texto numerico variante="pequeno" style={estilos.colNumero}>Carga</Texto>
-            <Texto numerico variante="pequeno" style={estilos.colNumero}>Repetições</Texto>
+          <View style={[estilos.linha, { backgroundColor: cores.superficie3 }]}>
+            <Texto variante="secao" style={colData}>Data</Texto>
+            <Texto variante="secao" style={estilos.colNumero}>Carga</Texto>
+            <Texto variante="secao" style={estilos.colNumero}>Reps</Texto>
           </View>
           {linhas.map((p) => (
             <View key={p.data} style={[estilos.linha, estilos.linhaDeDados, { borderColor: cores.borda }]}>
-              <Texto numerico style={estilos.colData}>{dataParaTela(p.data)}</Texto>
-              <Texto numerico style={estilos.colNumero}>{p.maiorCargaTrabalho === null ? SEM_DADO : `${numeroParaTela(p.maiorCargaTrabalho)} kg`}</Texto>
+              <Texto numerico style={[colData, estilos.forte]}>{dataParaTela(p.data)}</Texto>
+              <Texto numerico style={[estilos.colNumero, estilos.carga, p.maiorCargaTrabalho !== null && { color: marcaTexto }]}>
+                {p.maiorCargaTrabalho === null ? SEM_DADO : `${numeroParaTela(p.maiorCargaTrabalho)} kg`}
+              </Texto>
               <Texto numerico style={estilos.colNumero}>{p.repeticoes ?? SEM_DADO}</Texto>
             </View>
           ))}
@@ -85,6 +89,7 @@ const estilos = StyleSheet.create({
   tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   linha: { flexDirection: 'row', gap: espaco(1), paddingHorizontal: espaco(1.5), paddingVertical: espaco(1) },
   linhaDeDados: { borderTopWidth: StyleSheet.hairlineWidth },
-  colData: { flex: 1 },
-  colNumero: { flex: 1, textAlign: 'right' },
+  colNumero: { flex: 1, minWidth: 0, textAlign: 'right' },
+  forte: { fontFamily: fontes.semi },
+  carga: { fontFamily: fontes.negrito },
 });

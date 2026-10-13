@@ -8,16 +8,21 @@ import { partesDaDivisao, ultimoRegistroDaDivisao, type DivisaoRelatorio } from 
 import { textoCarga } from '../pdf/pdfCargas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { larguraDaData } from '../ui/larguraDaData';
 import { Tabela } from '../ui/Tabela';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
+
+/** Quatro colunas curtas cabem no celular; só abaixo disso a tabela vira cartões. */
+const LARGURA_MINIMA_TABELA = 280;
 
 /**
  * Cargas por divisão (treinador e aluno): faixa com o nome da divisão e, para cada exercício, uma tabela com a data,
  * a carga de trabalho, as repetições e as séries feitas. Observação do aluno embaixo da linha.
  */
 export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] }) {
-  const { cores, marcaTexto } = useTema();
+  const { cores, marcaTexto, fatorTexto } = useTema();
+  const larguraData = larguraDaData(fatorTexto);
   const animar = usePrimeiraLista(divisoes.length > 0, divisoes.map((d) => d.chave).join('|'));
   const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
   const alternar = (chave: string) =>
@@ -44,11 +49,12 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
                   rotulo={`Cargas de ${e.nome}`}
                   linhas={[...e.linhas].reverse().map((l, i) => ({ ...l, chave: `${l.data}-${i}` }))}
                   chave={(l) => l.chave}
+                  larguraMinima={LARGURA_MINIMA_TABELA}
                   colunas={[
-                    { chave: 'data', titulo: 'Data', flex: 1.3, principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
-                    { chave: 'carga', titulo: 'Carga', flex: 1.2, render: (l) => <Texto numerico style={[estilos.carga, l.carga !== null && { color: marcaTexto }]}>{textoCarga(l)}</Texto> },
-                    { chave: 'reps', titulo: 'Reps', flex: 0.8, render: (l) => <Texto numerico>{l.repeticoes ?? '—'}</Texto> },
-                    { chave: 'series', titulo: 'Séries', flex: 0.8, render: (l) => <Texto numerico variante="suave">{l.series}</Texto> },
+                    { chave: 'data', titulo: 'Data', largura: larguraData, principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
+                    { chave: 'carga', titulo: 'Carga', flex: 1.8, alinhar: 'direita', render: (l) => <Texto numerico style={[estilos.carga, l.carga !== null && { color: marcaTexto }]}>{textoCarga(l)}</Texto> },
+                    { chave: 'reps', titulo: 'Reps', flex: 0.7, alinhar: 'direita', render: (l) => <Texto numerico>{l.repeticoes ?? '—'}</Texto> },
+                    { chave: 'series', titulo: 'Séries', flex: 0.9, alinhar: 'direita', render: (l) => <Texto numerico variante="suave">{l.series}</Texto> },
                   ]}
                   detalhe={(l) => l.observacoes.length ? (
                     <View style={[estilos.obs, { borderLeftColor: cores.atencao }]}>

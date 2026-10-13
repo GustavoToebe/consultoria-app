@@ -1,5 +1,4 @@
 import { Permitido } from '../ui/Permitido';
-import { useSessao } from '../sessao/SessaoProvider';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { Copy, FileDown, Pencil, Plus } from 'lucide-react-native';
@@ -69,7 +68,6 @@ export function SelosDoPlano({ plano }: { plano: PlanoResumo }) {
  * abrir, PDF e replicar. `geracao` muda quando a pasta muda o período.
  */
 export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: { tipo: TipoPlano; alunoId: string; pasta: PastaResumo; geracao?: number; aoNavegar?: () => void }) {
-  const { pode } = useSessao();
   const { width } = useWindowDimensions();
   const rotuloCurto = width < LARGURA_ROTULO_CURTO;
   const { cores } = useTema();
@@ -89,7 +87,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (
-        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Os planos deste período aparecerão aqui." acao={pode(PERMISSOES_DO_PLANO[tipo].alterar) ? { rotulo: NOMES[tipo].novo, aoTocar: () => setNovo(true) } : undefined} />
+        <Vazio titulo={`Sem ${NOMES[tipo].plural.toLowerCase()} nesta pasta`} texto="Os planos deste período aparecerão aqui." />
       ) : null}
       {dados?.map((p, i) => (
         <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>

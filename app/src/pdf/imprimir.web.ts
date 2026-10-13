@@ -12,7 +12,7 @@ export async function imprimir(d: Documento): Promise<void> {
   bloco.id = ID;
   const estilo = document.createElement('style');
   estilo.textContent = `${d.css}
-#${ID} { display: none; }
+#${ID} { display: none; color-scheme: light; }
 @media print {
   body > *:not(#${ID}) { display: none !important; }
   #${ID} { display: block; }
