@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Receitas criadas em toda consultoria nova (seção 9.6): ponto de partida genérico, com nomes neutros (nada que
+ * Receitas criadas em toda consultoria nova: ponto de partida genérico, com nomes neutros (nada que
  * identifique outra consultoria). São só estrutura (séries, dias, refeições); nenhuma carga nem alimento é sugerido.
  */
 final class ReceitasPadrao {

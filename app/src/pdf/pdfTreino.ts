@@ -100,7 +100,7 @@ export function blocoInstrucoes(texto: string): string {
   return `<section><h2>Instruções</h2><table class="instrucoes"><tbody>${linhas}</tbody></table></section>`;
 }
 
-/** PDF do treino no formato do Saraiva (seção 12): semana, sessões com tabela e, no fim, as instruções. */
+/** PDF do treino no formato do Saraiva: semana, sessões com tabela e, no fim, as instruções. */
 export function documentoTreino(d: DadosPdfTreino): Documento {
   const metodologia = d.conteudo.metodologia?.configuracao;
   if (metodologia) d = { ...d, tipoTrabalho: metodologia.tipoTrabalho, instrucoesTreino: metodologia.instrucoesTreino, rodapePdf: metodologia.rodapePdf };

@@ -10,7 +10,7 @@ export type ResultadoSincronizacao =
   | { tipo: 'erro'; mensagem: string }
   | { tipo: 'emAndamento' };
 
-/** Espera entre tentativas depois de falha de rede: 5 s, 15 s, 60 s e depois 5 min (seção 11.2). */
+/** Espera entre tentativas depois de falha de rede: 5 s, 15 s, 60 s e depois 5 min. */
 export const ESPERAS_MS = [5_000, 15_000, 60_000, 300_000];
 
 const LOTE = 300;

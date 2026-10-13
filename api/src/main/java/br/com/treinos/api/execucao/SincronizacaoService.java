@@ -20,7 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Recebe o lote de registros do aparelho (seção 9.4). Cada registro é conferido contra a versão publicada que o
+ * Recebe o lote de registros do aparelho. Cada registro é conferido contra a versão publicada que o
  * aluno executou e gravado de forma idempotente. Um registro ruim vira {@code RECUSADO} com motivo, sem derrubar o lote.
  * A consultoria e o aluno vêm sempre da sessão; do cliente, só os uids e os valores digitados.
  */

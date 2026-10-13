@@ -34,7 +34,7 @@ import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING;
 
 /**
- * Regras da seção 5 do plano que viraram teste (como o {@code ArquiteturaTest} da Central). Exceção nova entra numa
+ * Regras de arquitetura que viraram teste (como o {@code ArquiteturaTest} da Central). Exceção nova entra numa
  * das listas abaixo, com o porquê: a lista é o lugar visível da decisão.
  */
 class ArquiteturaTest {
@@ -65,7 +65,7 @@ class ArquiteturaTest {
     private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario", "RefreshToken",
             "CatalogoExercicio", "CatalogoAlimento", "AtualizacaoModelo");
 
-    /** Controllers das rotas públicas da seção 5.4 (login, refresh, cadastro, convite, logo). */
+    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo). */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController");
 
@@ -98,7 +98,7 @@ class ArquiteturaTest {
                         }
                     }
                 })
-                .because("um treinador nunca vê dado de outra consultoria (regra 1 do plano)")
+                .because("um treinador nunca vê dado de outra consultoria")
                 .check(codigo);
     }
 
@@ -116,7 +116,7 @@ class ArquiteturaTest {
                                         m.getFullName() + " não tem @PreAuthorize")));
                     }
                 })
-                .because("toda rota nova declara o papel (seção 5.4 do plano)")
+                .because("toda rota nova declara o papel")
                 .check(codigo);
     }
 

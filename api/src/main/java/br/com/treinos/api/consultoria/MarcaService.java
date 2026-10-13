@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/** Marca (nome, cor, fonte, tema, logo) e metodologia da consultoria da sessão (seção 9.3). */
+/** Marca (nome, cor, fonte, tema, logo) e metodologia da consultoria da sessão. */
 @Service
 public class MarcaService {
 

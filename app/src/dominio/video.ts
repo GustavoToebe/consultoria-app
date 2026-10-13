@@ -1,5 +1,5 @@
 /**
- * Link de vídeo (seção 5.5): só https e hosts do YouTube, como `VideoUrls` da API (que confere de novo). Recusa
+ * Link de vídeo: só https e hosts do YouTube, como `VideoUrls` da API (que confere de novo). Recusa
  * `javascript:`, `data:` e qualquer outro host.
  */
 const HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be']);

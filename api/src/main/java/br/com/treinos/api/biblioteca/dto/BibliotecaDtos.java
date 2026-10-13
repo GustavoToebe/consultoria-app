@@ -16,7 +16,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-/** Contratos HTTP da biblioteca (seção 9.3). Agrupados aqui por serem curtos e só usados pelos controllers dela. */
+/** Contratos HTTP da biblioteca. Agrupados aqui por serem curtos e só usados pelos controllers dela. */
 public final class BibliotecaDtos {
 
     private BibliotecaDtos() { }

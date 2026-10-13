@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/** Planos de treino do treinador (seção 9.3). */
+/** Planos de treino do treinador. */
 @RestController
 public class PlanoTreinoController {
 

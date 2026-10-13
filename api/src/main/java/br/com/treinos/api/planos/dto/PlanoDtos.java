@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Contratos HTTP comuns aos planos de treino e de dieta (seção 9.3). {@code C} é o conteúdo de cada tipo. */
+/** Contratos HTTP comuns aos planos de treino e de dieta. {@code C} é o conteúdo de cada tipo. */
 public final class PlanoDtos {
 
     private PlanoDtos() { }

@@ -25,7 +25,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * Convite do aluno (seção 9.3/9.1): código de 10 caracteres sem letras ambíguas, válido por 7 dias, de uso único. O
+ * Convite do aluno: código de 10 caracteres sem letras ambíguas, válido por 7 dias, de uso único. O
  * banco guarda só o SHA-256; o código aparece uma vez, na resposta de quem gerou. Gerar outro invalida o anterior.
  * Os métodos públicos rodam com a consultoria do convite já no {@code TenantContext} ({@link ConvitePublicoService}).
  */

@@ -20,7 +20,7 @@ import java.util.UUID;
  * {@code ArquiteturaTest}). Os bytes da logo não são mapeados aqui para não serem carregados em todo login; só o
  * tipo e a versão, que formam a URL pública.
  *
- * <p>{@code configuracao} é JSON guardado como texto e convertido no service com o Jackson 3 (seção 7 do plano):
+ * <p>{@code configuracao} é JSON guardado como texto e convertido no service com o Jackson 3:
  * evita depender do FormatMapper do Hibernate.</p>
  */
 @Entity

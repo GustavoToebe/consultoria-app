@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 
 /**
  * Rotas {@code /aluno/**}: sempre o aluno da sessão, nunca um id vindo do cliente. O painel é o pacote que o app
- * guarda para funcionar sem internet (seção 11): marca, versão publicada do treino, últimas cargas e configuração.
+ * guarda para funcionar sem internet: marca, versão publicada do treino, últimas cargas e configuração.
  */
 @Service
 public class AlunoAppService {

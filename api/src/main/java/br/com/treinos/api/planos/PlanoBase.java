@@ -16,7 +16,7 @@ import java.util.UUID;
 
 /**
  * Colunas comuns de {@code plano_treino} e {@code plano_dieta}. O rascunho é o único lugar editável; publicar copia
- * para uma versão nova e imutável (regra 2 do plano). {@code ativo} marca o plano vigente do aluno (um por aluno,
+ * para uma versão nova e imutável. {@code ativo} marca o plano vigente do aluno (um por aluno,
  * índice parcial no banco).
  */
 @MappedSuperclass

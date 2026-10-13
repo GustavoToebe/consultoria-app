@@ -27,7 +27,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Rotas do aluno (seção 9.4). O aluno é sempre o da sessão. */
+/** Rotas do aluno. O aluno é sempre o da sessão. */
 @RestController
 @RequestMapping("/aluno")
 public class AlunoAppController {

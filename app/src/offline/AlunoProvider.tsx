@@ -62,7 +62,7 @@ const ESPERA_APOS_GRAVAR_MS = 2_000;
 const INTERVALO_COM_PENDENCIA_MS = 60_000;
 
 /**
- * Área do aluno sem depender de internet (seção 11): o plano vem do pacote salvo; cada série marcada grava no
+ * Área do aluno sem depender de internet: o plano vem do pacote salvo; cada série marcada grava no
  * aparelho na hora e vai para o servidor depois. Envia 2 s depois de gravar, quando a rede volta, quando o app volta
  * para a frente, a cada 60 s se houver pendência e no "Sincronizar agora". Falha de rede espera 5 s, 15 s, 60 s, 5 min.
  */

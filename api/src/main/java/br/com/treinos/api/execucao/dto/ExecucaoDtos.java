@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Contratos HTTP de registros, histórico, peso e das rotas do aluno (seções 9.3 e 9.4). */
+/** Contratos HTTP de registros, histórico, peso e das rotas do aluno. */
 public final class ExecucaoDtos {
 
     private ExecucaoDtos() { }
@@ -92,7 +92,7 @@ public final class ExecucaoDtos {
     public record AlunoNome(String nome) {
     }
 
-    /** Tudo o que o app guarda para funcionar sem internet (seção 11). {@code treino} nulo = sem plano publicado. */
+    /** Tudo o que o app guarda para funcionar sem internet. {@code treino} nulo = sem plano publicado. */
     public record PainelAluno(MarcaPublica marca, AlunoNome aluno, TreinoAtual treino,
                               Map<UUID, UltimaCarga> ultimasCargas, ConfiguracaoAluno configuracao, Instant geradoEm,
                               br.com.treinos.api.atualizacoes.AtualizacaoService.Detalhe atualizacao) {

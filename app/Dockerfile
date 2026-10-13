@@ -1,4 +1,4 @@
-# Web (seção 14.1 do plano): exporta o app Expo para a web e serve com o Caddy.
+# Web: exporta o app Expo para a web e serve com o Caddy.
 # O Caddyfile vem de deploy-local/ (montado pelo docker-compose).
 FROM node:24.21.0-alpine AS build
 WORKDIR /app

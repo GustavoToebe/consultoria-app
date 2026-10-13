@@ -11,7 +11,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Conteúdo do plano de treino (seção 7.1), guardado em {@code jsonb} no rascunho e em cada versão. Todo {@code uid} nasce
+ * Conteúdo do plano de treino, guardado em {@code jsonb} no rascunho e em cada versão. Todo {@code uid} nasce
  * no cliente e é preservado ao editar: é ele que liga o registro do aluno à série. As anotações limitam o tamanho do
  * que chega; as regras de negócio ficam no {@link ValidadorTreino} (rascunho pode estar incompleto).
  */
@@ -103,7 +103,7 @@ public record ConteudoTreino(
         return sessoes == null ? List.of() : sessoes;
     }
 
-    /** Cópia com todos os uids novos: receita aplicada, plano copiado ou replicado (seção 9.3). */
+    /** Cópia com todos os uids novos: receita aplicada, plano copiado ou replicado. */
     public ConteudoTreino comUidsNovos() {
         return comUids(UUID::randomUUID);
     }

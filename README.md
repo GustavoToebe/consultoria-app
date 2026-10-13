@@ -4,9 +4,8 @@ Plataforma para vários treinadores (cada um com a sua consultoria isolada) mont
 O aluno vê o plano no celular ou na web e registra cargas e repetições, inclusive sem internet. O Saraiva
 (Saraiva Team) é o primeiro treinador.
 
-- Plano de execução: [PLANO-IMPLEMENTACAO.md](PLANO-IMPLEMENTACAO.md). Regras para quem mexe no código: [AGENTS.md](AGENTS.md).
+- Regras para quem mexe no código e decisões de produto: [AGENTS.md](AGENTS.md). Catálogo público: [docs/catalogo.md](docs/catalogo.md).
 - `api/` — backend (Java 21, Spring Boot 4.1.1, PostgreSQL 17). `app/` — app Expo (web, Android e iOS).
-- `backend/` e `mobile/` — protótipo antigo, só como referência.
 
 ## Como rodar (local, Docker)
 
@@ -99,7 +98,7 @@ Senha de todas: o valor de `DEMO_SENHA` no `.env`. Todos os dados são fictício
 - [ ] Legumes com 45 kcal e macros zerados: valores certos?
 - [ ] Variação de peso −1 onde a conta dá −1,5: qual vale?
 
-**Para depois da demonstração** (seção 19 do plano): preço por aluno “cadastrado” ou “ativo”; o que o Saraiva
+**Para depois da demonstração:** preço por aluno “cadastrado” ou “ativo”; o que o Saraiva
 controla hoje na planilha sobre os clientes; cobrança pela Central; MFA do treinador; RLS no Postgres; service
 worker na web (abrir sem internet); importar plano da planilha; app próprio nas lojas.
 
@@ -107,7 +106,7 @@ worker na web (abrir sem internet); importar plano da planilha; app próprio nas
 
 Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Saraiva.
 
-- **Catálogo público real** (plano em `PLANO-CATALOGO-PUBLICO.md`). Alimentos: **591** da TACO 4ª ed. (NEPA/UNICAMP,
+- **Catálogo público real** (ver `docs/catalogo.md`). Alimentos: **591** da TACO 4ª ed. (NEPA/UNICAMP,
   2011), de 597 na planilha. Exercícios: **877** (52 próprios + 825 do exercicios-bd-ptbr, CC0), com nomes revisados em
   `dados/curadoria/exercicios-nomes.csv`. O SQL (`V007`, `V008`) é gerado por `scripts/catalogo/` a partir de
   `dados/fontes/`; relatórios em `dados/relatorios/`. Pontos para o Gustavo/Saraiva olharem:
@@ -125,12 +124,11 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
   - A busca do catálogo ignora acento e olha só o nome; o grupo é um filtro à parte.
 
 - **Dieta de demonstração reconstruída.** O PDF da dieta do Saraiva não está no repositório: a dieta do seed usa os
-  9 alimentos e valores por 100 g da seção 13.1 do plano, com quantidades de exemplo (5 refeições, opções A/B no
-  almoço e no jantar). Ajustar no editor quando houver o PDF. O `mobile/src/database/seed_diet.ts` antigo não foi usado:
+  9 alimentos de exemplo com valores por 100 g, com quantidades de exemplo (5 refeições, opções A/B no
+  almoço e no jantar). Ajustar no editor quando houver o PDF. O seed antigo do protótipo não foi usado:
   não bate com o PDF descrito e traz medicamentos, que não podem ir para o seed.
-- **Instruções do PDF do treino** vêm de `docs/Instruções e Regras.csv` (FS, cálculo, WS) mais as regras citadas no
-  plano; o texto completo do PDF do Plano 16 pode substituir na tela Marca.
-- `login_tentativa` segue a V016 real da Central (uma linha por chave), não o esboço da seção 6 do plano.
+- **Instruções do PDF do treino** vêm das regras do Saraiva (FS, cálculo, WS); o texto completo do PDF do Plano 16 pode substituir na tela Marca.
+- `login_tentativa` segue a V016 real da Central (uma linha por chave).
 - **Offline do aluno: SQLite no celular, AsyncStorage na web.** No Android/iOS cada usuário tem um banco
   `treinos-<usuarioId>.db` (expo-sqlite), com os registros numa tabela de chave única igual à do servidor e cada
   gravação numa transação; sair da conta apaga o arquivo. Na abertura, o app traz o que a versão anterior guardou no
@@ -145,8 +143,8 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
   valores que o Saraiva usar.
 - **Logs sem dado pessoal:** erro inesperado vai para o log só com as classes e os pontos do código, e o driver do
   Postgres não inclui o “Detalhe” (que traria e-mail ou peso) nas exceções.
-- `execucao_serie.serie_trabalho` (não está no esboço): marca a série de trabalho, vinda da versão do plano.
-- Ambiguidades dos PDFs para mostrar ao Saraiva (seção 19 do plano): Off ativo na quarta ou na quinta (o seed usa
+- `execucao_serie.serie_trabalho`: marca a série de trabalho, vinda da versão do plano.
+- Ambiguidades dos PDFs para mostrar ao Saraiva: Off ativo na quarta ou na quinta (o seed usa
   quinta); back off sobre "carga da WS" ou "maior peso do exercício" (o app usa o maior peso registrado na WS do dia);
   cardio todo dia ou só nos dias Off; "Refeição 2 — ALMOÇO" com frutas; ovo 3 un/180 g com 133 kcal; legumes com
   45 kcal e macros zerados; variação de peso −1 onde a conta dá −1,5.

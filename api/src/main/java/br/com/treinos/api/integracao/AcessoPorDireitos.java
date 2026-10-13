@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Regra de acesso do contrato (seção 4): {@code liberado = acessoLiberado E (agora − confirmadoEm) ≤ tolerância}.
+ * Regra de acesso do contrato: {@code liberado = acessoLiberado E (agora − confirmadoEm) ≤ tolerância}.
  * Consultoria sem linha em {@code direitos_locais} (não governada pela Central) fica liberada. Só vale quando
  * {@code treinos.integracao.bloqueio-ativo=true}; desligado, {@link #liberada} nem consulta o banco. A Central fora do ar
  * não derruba o app: o acesso só cai quando a tolerância (padrão 72 h) estoura.

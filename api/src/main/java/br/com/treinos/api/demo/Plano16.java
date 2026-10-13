@@ -5,13 +5,13 @@ import br.com.treinos.api.biblioteca.Exercicio;
 import java.util.List;
 
 /**
- * Plano 16 do Saraiva, portado de {@code mobile/src/database/pdf_plan_parser.ts} (protótipo) para o formato 7.1.
+ * Plano 16 do Saraiva, montado a partir do PDF do treino, no formato do {@code ConteudoTreino}.
  * Só a estrutura do treino: nenhum dado pessoal. Séries numa notação curta para caber numa linha:
  * {@code A10-15} aquecimento; {@code F3@50} FS de 3 reps a 50% da WS ({@code F3-5@70} = 3 a 5 reps); {@code W3-6}
  * série de trabalho; {@code B6-8@85} back off a 85% da WS.
  *
  * <p>Quinta como "Off ativo" (o PDF tem um título "Quarta - Off ativo" que contradiz o resumo; pendência para o
- * Saraiva, seção 19 do plano).</p>
+ * Saraiva).</p>
  */
 final class Plano16 {
 
@@ -98,7 +98,7 @@ final class Plano16 {
                 Limite.NENHUM, true, "kg", List.of("W6-8", "W6-8"));
     }
 
-    /** Texto de instruções do PDF do treino (resumo de {@code docs/Instruções e Regras.csv}). */
+    /** Texto de instruções do PDF do treino (resumo das regras do Saraiva). */
     static final String INSTRUCOES = """
             Feeder Set (FS): série de reconhecimento. O objetivo é aumentar a carga a cada série dentro das reps \
             propostas para buscar a série de trabalho (WS). Não pode chegar na falha.

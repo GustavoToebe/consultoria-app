@@ -14,7 +14,7 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
-/** Biblioteca da consultoria (seção 10.4, item 6): exercícios, alimentos, suplementos e as abas de importação. */
+/** Biblioteca da consultoria: exercícios, alimentos, suplementos e as abas de importação. */
 export default function Biblioteca() {
   const {pode}=useSessao();
   const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();

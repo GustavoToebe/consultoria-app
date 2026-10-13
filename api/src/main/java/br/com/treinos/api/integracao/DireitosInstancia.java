@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Snapshot de direitos do contrato (seção 4): sempre o estado completo, nunca uma diferença. Campos que o app não
+ * Snapshot de direitos do contrato: sempre o estado completo, nunca uma diferença. Campos que o app não
  * conhece são ignorados (mudanças da v1 são só aditivas).
  */
 public record DireitosInstancia(

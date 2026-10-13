@@ -30,7 +30,7 @@ import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
-/** Ficha do aluno: cada bloco em um cartão com os próprios botões (seção 10.4). */
+/** Ficha do aluno: cada bloco em um cartão com os próprios botões. */
 export default function FichaAluno() {
   const { id, pastaId } = useLocalSearchParams<{ id: string; pastaId?: string }>();
   const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));

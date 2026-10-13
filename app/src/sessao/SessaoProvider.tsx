@@ -12,7 +12,7 @@ import { lerRefresh } from './armazenamentoSeguro';
  * Sessão do app. Ao abrir, tenta renovar com o refresh guardado (cookie na web, SecureStore no nativo):
  * - servidor aceitou: sessão aberta;
  * - servidor recusou (401): volta para "Entrar";
- * - sem conexão: abre offline com o último perfil salvo (o aluno precisa treinar sem internet, seção 11).
+ * - sem conexão: abre offline com o último perfil salvo (o aluno precisa treinar sem internet).
  * O perfil salvo (nome, papel e marca) serve só para isso e é apagado ao sair.
  */
 export type Situacao = 'carregando' | 'anonimo' | 'autenticado';

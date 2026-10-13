@@ -1,4 +1,4 @@
-# Caddy local (seção 14.1 do plano): serve a web (Expo exportado em /srv) e publica a API em /api.
+# Caddy local: serve a web (Expo exportado em /srv) e publica a API em /api.
 # Cabeçalhos iguais aos do ecossistema (deploy/Caddyfile da Central), sem HSTS: aqui não há HTTPS.
 {
 	admin off

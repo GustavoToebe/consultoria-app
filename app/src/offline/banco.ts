@@ -30,7 +30,7 @@ export const nomeDoBanco = (usuarioId: string) => `treinos-${usuarioId}.db`;
 const VERSAO_ESQUEMA = 1;
 
 /**
- * Esquema da seção 11.1 do plano. `kv` guarda documentos que só são lidos inteiros (pacote do plano, dieta);
+ * Esquema local. `kv` guarda documentos que só são lidos inteiros (pacote do plano, dieta);
  * `registro` é a fila de envio, com a mesma chave única do servidor (versão, série, dia).
  */
 const ESQUEMA_V1 = `

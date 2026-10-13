@@ -1,4 +1,4 @@
-# API (seção 14.1 do plano): build com Maven + JDK 21, execução com JRE 21 Alpine e usuário sem privilégio.
+# API: build com Maven + JDK 21, execução com JRE 21 Alpine e usuário sem privilégio.
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /src
 COPY pom.xml .

@@ -17,7 +17,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
- * Regras de publicação da dieta (seção 9.3). Confere só a forma do plano; nunca avalia se a dieta é adequada.
+ * Regras de publicação da dieta. Confere só a forma do plano; nunca avalia se a dieta é adequada.
  * O total do dia considera a primeira opção de cada refeição (opção A), nunca a soma das alternativas.
  */
 @Component

@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Desenho da Central (seção 5 do plano): sem sessão no servidor, JWT no header, refresh em cookie HttpOnly na web
+ * Desenho da Central: sem sessão no servidor, JWT no header, refresh em cookie HttpOnly na web
  * (com CSRF) ou no corpo no app nativo. Toda rota fora da lista pública exige login e, no controller,
  * {@code @PreAuthorize} com o papel (o {@code ArquiteturaTest} confere).
  */

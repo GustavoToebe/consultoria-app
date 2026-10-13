@@ -5,7 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.Locale;
 
 /**
- * Tipo de cliente, pelo header {@code X-Treinos-Cliente} (seção 5.2 do plano). Web (padrão): refresh em cookie
+ * Tipo de cliente, pelo header {@code X-Treinos-Cliente}. Web (padrão): refresh em cookie
  * HttpOnly com CSRF. Nativo (Android/iOS): refresh no corpo, guardado no SecureStore, sem cookie.
  */
 public enum DestinoCliente {

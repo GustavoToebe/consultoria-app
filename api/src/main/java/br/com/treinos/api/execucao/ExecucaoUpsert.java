@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Gravação idempotente do registro do aluno (seção 9.4). SQL nativo permitido no {@code ArquiteturaTest}: o
+ * Gravação idempotente do registro do aluno. SQL nativo permitido no {@code ArquiteturaTest}: o
  * {@code @TenantId} não protege SQL nativo, então consultoria e aluno vão sempre explícitos, vindos da sessão.
  *
  * <p>Upsert pela chave {@code (aluno, versão, série, dia)}: mesmo registro reenviado não duplica; só atualiza se o

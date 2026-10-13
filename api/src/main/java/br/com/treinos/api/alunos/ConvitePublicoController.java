@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Convite público (seção 9.1): mostra a marca do treinador e cria a conta do aluno. Limite de tentativas por IP. */
+/** Convite público: mostra a marca do treinador e cria a conta do aluno. Limite de tentativas por IP. */
 @RestController
 @RequestMapping("/publico/convites")
 public class ConvitePublicoController {

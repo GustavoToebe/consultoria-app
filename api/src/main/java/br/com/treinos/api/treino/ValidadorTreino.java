@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Regras de publicação do treino (seção 9.3). O app mostra o mesmo resultado antes de publicar. Não opina sobre
+ * Regras de publicação do treino. O app mostra o mesmo resultado antes de publicar. Não opina sobre
  * carga nem volume: só confere que o plano é executável e coerente.
  */
 @Component

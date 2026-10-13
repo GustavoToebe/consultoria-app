@@ -23,7 +23,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Registros, progresso e peso de um aluno, vistos pelo treinador (seção 9.3). Aluno de outra consultoria = 404. */
+/** Registros, progresso e peso de um aluno, vistos pelo treinador. Aluno de outra consultoria = 404. */
 @RestController
 @RequestMapping("/alunos/{alunoId}")
 public class ExecucoesTreinadorController {

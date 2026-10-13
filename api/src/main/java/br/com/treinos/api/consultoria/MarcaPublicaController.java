@@ -14,7 +14,7 @@ import java.time.Duration;
 import java.util.UUID;
 
 /**
- * Logo pública (seção 9.1): aparece na tela de convite antes do login e no PDF. O UUID da consultoria não é
+ * Logo pública: aparece na tela de convite antes do login e no PDF. O UUID da consultoria não é
  * adivinhável e a imagem não tem dado de aluno. A URL leva a versão ({@code ?v=}), então o cache pode ser longo.
  */
 @RestController

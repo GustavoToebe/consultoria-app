@@ -29,7 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/** Alunos da consultoria do treinador (seção 9.3). Aluno de outra consultoria não é encontrado (404). */
+/** Alunos da consultoria do treinador. Aluno de outra consultoria não é encontrado (404). */
 @Service
 public class AlunoService {
 

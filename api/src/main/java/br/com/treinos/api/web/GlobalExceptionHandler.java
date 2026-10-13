@@ -26,7 +26,7 @@ import java.util.List;
 
 /**
  * Toda resposta de erro sai como {@link ApiError}, sem stack trace, SQL nem nome de classe. O log leva só status e
- * código: a mensagem pode citar dado do aluno e dado de saúde nunca vai para log (regra 4 do plano).
+ * código: a mensagem pode citar dado do aluno e dado de saúde nunca vai para log.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -44,7 +44,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return resposta.body(corpo(ex.getStatus(), ex.getMessage(), ex.getCodigo(), request, problemas));
     }
 
-    /** Outra aba ou pessoa salvou antes: o app mostra "Recarregar" (seção 10.4 do plano). */
+    /** Outra aba ou pessoa salvou antes: o app mostra "Recarregar". */
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<ApiError> handleLockOtimista(ObjectOptimisticLockingFailureException ex,
                                                        HttpServletRequest request) {

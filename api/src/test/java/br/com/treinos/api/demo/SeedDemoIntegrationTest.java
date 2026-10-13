@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** O seed monta exatamente o que o roteiro da seção 18 usa, passando pelas validações da API. */
+/** O seed monta exatamente o que o roteiro da demonstração usa, passando pelas validações da API. */
 @AutoConfigureMockMvc
 class SeedDemoIntegrationTest extends AbstractIntegrationTest {
 

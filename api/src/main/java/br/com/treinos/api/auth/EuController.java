@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Rotas de qualquer usuário logado (seção 9.2). */
+/** Rotas de qualquer usuário logado. */
 @RestController
 @RequestMapping("/eu")
 public class EuController {

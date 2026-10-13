@@ -66,7 +66,7 @@ export interface ApiErrorBody {
   fieldErrors: CampoComErro[] | null;
 }
 
-// ---- Marca e configuração (seção 7.3) ----
+// ---- Marca e configuração ----
 
 export interface Configuracao {
   tiposSerie: string[];
@@ -244,7 +244,7 @@ export interface Receita {
   versao: number;
 }
 
-// ---- Planos (seção 7) ----
+// ---- Planos ----
 
 export type TipoSessao = 'TREINO' | 'DESCANSO_ATIVO' | 'DESCANSO' | 'ACESSORIOS';
 export type ModoIntensidade = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'RIR' | 'RPE' | 'LIVRE' | 'NENHUMA';
@@ -488,7 +488,7 @@ export interface RegistroPeso {
   observacao: string | null;
 }
 
-// ---- Aluno (seção 9.4) ----
+// ---- Aluno ----
 
 export interface TreinoAtual {
   planoId: string;

@@ -2,7 +2,7 @@ import { getRandomBytes, randomUUID } from 'expo-crypto';
 
 /**
  * Todo item do plano nasce com um UUID gerado aqui e o mantém ao ser editado: é ele que liga o registro do aluno à
- * série (seção 7). Receita aplicada, cópia e replicação ganham uids novos.
+ * série. Receita aplicada, cópia e replicação ganham uids novos.
  *
  * Na web, `crypto.randomUUID` só existe em origem segura (https/localhost); acessando pelo IP da rede em http ele some
  * e quebraria "Adicionar sessão" e as receitas. `getRandomValues` funciona em qualquer origem.

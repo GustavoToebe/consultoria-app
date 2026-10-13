@@ -37,7 +37,7 @@ public class RefreshTokenService {
     /**
      * Troca o refresh por um novo. O usuário é travado antes de reler o token: dois refresh simultâneos do mesmo token
      * ficam em série, e o segundo vê o token já usado. Token usado ou revogado apresentado de novo derruba todas as
-     * sessões (detecção de roubo, seção 5.2).
+     * sessões (detecção de roubo).
      */
     @Transactional
     public Rotacao rotacionar(String tokenBruto) {

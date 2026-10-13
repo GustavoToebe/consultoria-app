@@ -28,7 +28,7 @@ function faixaValida(f: { min: number | null; max: number | null } | undefined):
 }
 
 /**
- * Metodologia da consultoria (seção 7.3): tipos de série, qual é a de trabalho (WS) e a de preparação (FS), a regra
+ * Metodologia da consultoria: tipos de série, qual é a de trabalho (WS) e a de preparação (FS), a regra
  * que preenche os percentuais de FS no editor, as repetições de cada tipo (preenchidas ao criar a série ou trocar o tipo), o arredondamento da sugestão de carga do aluno e os textos do PDF.
  * O sistema só guarda e aplica o que o treinador definiu.
  */

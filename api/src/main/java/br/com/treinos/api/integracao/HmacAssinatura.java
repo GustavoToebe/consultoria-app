@@ -8,7 +8,7 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 
 /**
- * Assinatura HMAC-SHA256 do contrato de integração com a Central (seção 2.3):
+ * Assinatura HMAC-SHA256 do contrato de integração com a Central:
  * {@code MÉTODO\nCAMINHO\nTIMESTAMP\nNONCE\nSHA256_HEX(CORPO)}, assinatura {@code v1=} + hex minúsculo.
  * O caminho vai como foi enviado na linha de requisição (com a query, percent-encoded), sem esquema nem host.
  */

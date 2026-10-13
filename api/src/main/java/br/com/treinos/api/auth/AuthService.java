@@ -36,7 +36,7 @@ public class AuthService {
 
     /**
      * Hash de uma senha aleatória, calculado uma vez. Com e-mail inexistente o BCrypt roda contra ele: a resposta
-     * leva o mesmo tempo que uma senha errada e não revela quais e-mails têm conta (seção 5.1).
+     * leva o mesmo tempo que uma senha errada e não revela quais e-mails têm conta.
      */
     private final String hashFicticio;
 

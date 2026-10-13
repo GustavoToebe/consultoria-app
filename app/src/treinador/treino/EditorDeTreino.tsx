@@ -56,7 +56,7 @@ type FolhaAberta =
   | { tipo: 'receitaPlano' }
   | { tipo: 'salvarPlano' } | { tipo: 'metodologia' } | { tipo: 'sessao' } | { tipo: 'salvarSessao'; indice: number };
 
-/** Editor do plano de treino (seção 10.4, item 4): a tela mais importante do treinador. */
+/** Editor do plano de treino: a tela mais importante do treinador. */
 export default function EditorDeTreino({ modelo = false, unica = false }: { modelo?: boolean; unica?: boolean }) {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { avisar } = useAviso();

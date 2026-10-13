@@ -11,7 +11,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Regra do contrato (seção 4): liberado = acessoLiberado E (agora − confirmadoEm) ≤ tolerância. */
+/** Regra do contrato: liberado = acessoLiberado E (agora − confirmadoEm) ≤ tolerância. */
 class AcessoPorDireitosTest {
 
     private static final Instant AGORA = Instant.parse("2026-10-13T12:00:00Z");

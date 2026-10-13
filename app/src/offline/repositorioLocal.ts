@@ -2,13 +2,13 @@ import type { Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilida
 import type { ChaveValor } from './armazenamento';
 
 /**
- * Dados do aluno no aparelho (seção 11.1), separados por usuário: trocar de conta não mistura nada.
+ * Dados do aluno no aparelho, separados por usuário: trocar de conta não mistura nada.
  * Plano = só leitura (pacote baixado); registro de série = escrito aqui e enviado depois.
  *
  * Duas implementações com o mesmo contrato (os testes rodam a mesma bateria nas duas):
  * - `RepositorioSqlite` (celular): um banco SQLite por usuário, registro em tabela com chave única.
  * - `RepositorioChaveValor` (web): AsyncStorage/localStorage com prefixo `treinos:<usuarioId>:`. O SQLite na web
- *   exige cabeçalhos COOP/COEP e WASM (seção 20 do plano), por isso fica só no celular.
+ *   exige cabeçalhos COOP/COEP e WASM, por isso fica só no celular.
  */
 
 /** LOCAL = no aparelho, aguardando envio; ENVIADO = o servidor aceitou; FALHOU = recusado (com motivo). */

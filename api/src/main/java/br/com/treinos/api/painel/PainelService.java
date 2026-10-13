@@ -24,7 +24,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Tela Início do treinador (seção 9.3). "Sem registro há 7 dias" é só informação: pode ter treinado sem registrar,
+ * Tela Início do treinador. "Sem registro há 7 dias" é só informação: pode ter treinado sem registrar,
  * e nunca inativa ninguém.
  */
 @Service

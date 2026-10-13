@@ -1,4 +1,4 @@
-# Dados de demonstração (seção 13 do plano). Só cria se o banco não tiver nenhuma consultoria.
+# Dados de demonstração. Só cria se o banco não tiver nenhuma consultoria.
 # DEMO_SENHA é obrigatória neste profile e não tem valor padrão: é a senha das 4 contas de demonstração.
 treinos:
   demo:

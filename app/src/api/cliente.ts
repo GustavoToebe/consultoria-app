@@ -6,7 +6,7 @@ import { caminhoDaApi } from './destino-api';
 import type { ApiErrorBody, CampoComErro, LoginResponse } from './tipos';
 
 /**
- * Cliente HTTP da API (seção 10.6 do plano).
+ * Cliente HTTP da API.
  * - Token, cookies e XSRF só vão para a própria API (`caminhoDaApi`).
  * - Web: access token em memória, refresh no cookie HttpOnly, `credentials: 'include'` e header XSRF.
  * - Nativo: access em memória, refresh no SecureStore e no corpo, `credentials: 'omit'`.

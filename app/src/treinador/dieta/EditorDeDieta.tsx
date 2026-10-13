@@ -49,7 +49,7 @@ import { Folha } from '../../ui/Folha';
 type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'suplemento' } | { tipo: 'ergogenico' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number };
 
 /**
- * Editor do plano de dieta (seção 10.4, item 5), no formato dos PDFs do Saraiva. Os valores dos itens vêm da
+ * Editor do plano de dieta, no formato dos PDFs do Saraiva. Os valores dos itens vêm da
  * biblioteca e são gravados no item; o total do dia soma só a opção A de cada refeição. Suplementação é texto livre (nome e link podem vir da biblioteca de suplementos).
  */
 export default function EditorDeDieta({ modelo = false, unica = false }: { modelo?: boolean; unica?: boolean }) {

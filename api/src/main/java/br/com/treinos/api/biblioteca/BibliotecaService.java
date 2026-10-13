@@ -24,7 +24,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-/** Biblioteca da consultoria e importação do catálogo público (seção 9.3). Tudo já isolado pelo {@code @TenantId}. */
+/** Biblioteca da consultoria e importação do catálogo público. Tudo já isolado pelo {@code @TenantId}. */
 @Service
 public class BibliotecaService {
 

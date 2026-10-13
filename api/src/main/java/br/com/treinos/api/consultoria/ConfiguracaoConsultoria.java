@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Metodologia da consultoria ({@code consultoria.configuracao}, seção 7.3 do plano). {@code regraPreparacao} é a
+ * Metodologia da consultoria ({@code consultoria.configuracao}). {@code regraPreparacao} é a
  * regra de FS do Saraiva (3 FS = 50/70/85; 2 FS = 70/85; 1 FS = 85): o editor usa para preencher os percentuais
  * quando muda a quantidade de séries de preparação; depois cada série pode ser editada. {@code repeticoes} é a faixa de
  * repetições de cada tipo de série (chave = nome do tipo): o editor preenche ao criar a série ou trocar o tipo. Tipo sem

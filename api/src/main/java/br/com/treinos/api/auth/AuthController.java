@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Rotas públicas de sessão (seção 9.1). Web recebe o refresh em cookie HttpOnly; nativo (header
+ * Rotas públicas de sessão. Web recebe o refresh em cookie HttpOnly; nativo (header
  * {@code X-Treinos-Cliente: nativo}) recebe no corpo. O limite de tentativas roda antes do BCrypt.
  */
 @RestController

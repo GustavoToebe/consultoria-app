@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Link de vídeo (seção 5.5): só {@code https://} e hosts da lista (YouTube por padrão, configurável em
+ * Link de vídeo: só {@code https://} e hosts da lista (YouTube por padrão, configurável em
  * {@code treinos.video.hosts}). Recusa {@code javascript:}, {@code data:}, credenciais na URL e qualquer outro host.
  * O app confere de novo antes de abrir, e abre fora do app, sem token.
  */

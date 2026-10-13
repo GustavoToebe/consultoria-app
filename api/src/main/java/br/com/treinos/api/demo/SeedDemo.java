@@ -51,7 +51,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Dados de demonstração (seção 13 do plano): duas consultorias, para mostrar vários treinadores isolados. Tudo
+ * Dados de demonstração: duas consultorias, para mostrar vários treinadores isolados. Tudo
  * fictício: nenhum nome, peso ou protocolo real dos PDFs. Usa os mesmos serviços da API, então os dados passam pelas
  * mesmas validações do uso normal. Quem chama ({@link SeedDemoRunner}) garante que o banco está vazio.
  */
@@ -65,7 +65,7 @@ public class SeedDemo {
 
     private static final String FONTE_ALIMENTOS = "Plano do treinador (exemplo)";
 
-    /** Vídeos do protótipo ({@code mobile/src/constants/exerciseVideos.ts}); o service recusa link fora da regra 5.5. */
+    /** Vídeos de exemplo; o service recusa link que não seja https. */
     private static final Map<String, String> VIDEOS = Map.ofEntries(
             Map.entry("Remada baixa na polia unilateral", "https://youtu.be/vOmSaZeqA84"),
             Map.entry("Puxada alta com pegada romana (neutra)", "https://youtu.be/AQmHe1vjs-A"),
@@ -89,7 +89,7 @@ public class SeedDemo {
             Map.entry("Leg press 45º", "https://youtu.be/hYKoCUczAY4"),
             Map.entry("Abdução de quadril na polia", "https://youtu.be/nQwNcD7CKKY"));
 
-    /** Valores por 100 g (seção 13.1 do plano). Ovo e legumes ficam como itens manuais na dieta. */
+    /** Valores por 100 g. Ovo e legumes ficam como itens manuais na dieta. */
     private record AlimentoDemo(String nome, String kcal, String proteina, String carboidrato, String gordura) {
     }
 
@@ -321,7 +321,7 @@ public class SeedDemo {
 
     /**
      * Dieta de demonstração no formato do PDF do Saraiva (5 refeições, opções A/B no almoço e no jantar), montada com
-     * os alimentos da seção 13.1. O PDF original não está no repositório: quantidades de exemplo, para o Gustavo
+     * os alimentos de exemplo. O PDF original não está no repositório: quantidades de exemplo, para o Gustavo
      * ajustar no editor. Ovo e legumes são itens manuais (o PDF tem valores inconsistentes para eles). Suplementação
      * vazia, sem protocolo.
      */

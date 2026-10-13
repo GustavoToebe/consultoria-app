@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.util.Locale;
 
 /**
- * Corpo de requisição até 1 MiB (seção 5.5 do plano), como {@code /integracao/**} na Central. O tamanho declarado é
+ * Corpo de requisição até 1 MiB, como {@code /integracao/**} na Central. O tamanho declarado é
  * conferido antes da leitura; sem {@code Content-Length} (chunked), a leitura que passa de 1 MiB falha com
  * {@link CorpoExcedidoIOException}, que o {@link GlobalExceptionHandler} traduz em 413. Upload multipart segue os
  * limites próprios do Tomcat ({@code spring.servlet.multipart}).

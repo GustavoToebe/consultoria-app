@@ -5,7 +5,7 @@ import br.com.treinos.api.web.Emails;
 
 import java.nio.charset.StandardCharsets;
 
-/** Senha: mínimo 8 caracteres, máximo 72 bytes (o BCrypt ignora o resto) e diferente do e-mail (seção 5.1). */
+/** Senha: mínimo 8 caracteres, máximo 72 bytes (o BCrypt ignora o resto) e diferente do e-mail. */
 public final class RegrasSenha {
 
     private RegrasSenha() {

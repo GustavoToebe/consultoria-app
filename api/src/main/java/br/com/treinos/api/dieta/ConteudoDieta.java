@@ -10,7 +10,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Conteúdo do plano de dieta (seção 7.2), no formato dos PDFs do Saraiva. Os valores de cada item são calculados no
+ * Conteúdo do plano de dieta, no formato dos PDFs do Saraiva. Os valores de cada item são calculados no
  * app ao editar e gravados aqui; a versão publicada guarda os números e não recalcula. {@code suplementacao} é campo
  * livre do treinador: o sistema só guarda e mostra (sem validar, sugerir nem calcular nada).
  *

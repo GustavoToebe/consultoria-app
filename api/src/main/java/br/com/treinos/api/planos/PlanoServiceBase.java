@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Ciclo de vida comum aos planos de treino e de dieta (seção 9.3): rascunho editável com lock otimista, validação,
+ * Ciclo de vida comum aos planos de treino e de dieta: rascunho editável com lock otimista, validação,
  * publicação em versão imutável (o plano publicado vira o vigente do aluno e desliga o anterior na mesma transação),
  * replicação para o próximo ciclo e consulta das versões. Tudo isolado pela consultoria ({@code @TenantId}): plano ou
  * aluno de outra consultoria simplesmente não é encontrado (404).

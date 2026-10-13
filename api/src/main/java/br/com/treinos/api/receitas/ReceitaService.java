@@ -88,7 +88,7 @@ public class ReceitaService {
         receitas.delete(buscar(id));
     }
 
-    /** Receitas da seção 9.6, criadas no cadastro do treinador (com a consultoria nova no {@code TenantContext}). */
+    /** Receitas padrão, criadas no cadastro do treinador (com a consultoria nova no {@code TenantContext}). */
     @Transactional
     public void criarPadrao() {
         int ordem = 0;

@@ -3,7 +3,7 @@ import { faixa, textoIntensidade } from './agrupamento';
 import { numeroParaTela } from './formatos';
 
 /**
- * Sugestão de carga do aluno (seção 8 do plano). Só aplica o que o treinador escreveu no plano sobre a carga de
+ * Sugestão de carga do aluno. Só aplica o que o treinador escreveu no plano sobre a carga de
  * trabalho que o próprio aluno informa: nunca inventa carga nem repetição. Sugestão é só sugestão; o que o aluno
  * digita é gravado exatamente como digitou.
  */

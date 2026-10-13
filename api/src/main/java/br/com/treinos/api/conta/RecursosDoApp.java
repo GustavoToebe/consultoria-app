@@ -3,7 +3,7 @@ package br.com.treinos.api.conta;
 import java.util.List;
 
 /**
- * Catálogo de recursos do app que um plano pode limitar ou ligar (contrato da Central, seção 5.5). Hoje só o
+ * Catálogo de recursos do app que um plano pode limitar ou ligar (contrato da Central). Hoje só o
  * consumo lê os limites; nenhuma rota usa as funcionalidades ainda. Código novo aqui = recurso novo no catálogo da Central.
  */
 public final class RecursosDoApp {

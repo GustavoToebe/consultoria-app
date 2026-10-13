@@ -26,7 +26,7 @@ spring:
     baseline-on-migrate: false
   servlet:
     multipart:
-      # Logo da consultoria: até 512 KiB (seção 5.5 do plano).
+      # Logo da consultoria: até 512 KiB.
       max-file-size: 512KB
       max-request-size: 1MB
 

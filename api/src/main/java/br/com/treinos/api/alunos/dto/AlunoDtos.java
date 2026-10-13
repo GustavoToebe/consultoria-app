@@ -14,7 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** Contratos HTTP de alunos e convite (seções 9.1 e 9.3). */
+/** Contratos HTTP de alunos e convite. */
 public final class AlunoDtos {
 
     private AlunoDtos() { }

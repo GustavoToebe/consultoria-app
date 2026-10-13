@@ -5,8 +5,14 @@ O aluno vê o plano e registra carga e repetições no celular ou na web, inclus
 (Saraiva Team) é o primeiro treinador. Idioma do código, comentários, mensagens de erro, interface e commits:
 **português**.
 
-- Plano de execução (fases, rotas, banco, telas): `PLANO-IMPLEMENTACAO.md`. Contexto de negócio:
-  `DIRECIONAMENTO-APP-TREINOS.md` (onde conflitar, vale a seção 1.2 do plano).
+- Decisões de produto: monolito modular (uma API, um PostgreSQL, sem microsserviços); isolamento por `consultoria_id`
+  com `@TenantId`; metodologia configurável por receitas e réplica do plano para o próximo ciclo; app único com a
+  marca do treinador carregada depois do login; catálogo público importado para a biblioteca (`docs/catalogo.md`);
+  o aluno vê o plano só leitura e registra carga e repetições, inclusive offline; PDF de treino e dieta; tema claro e
+  escuro à escolha do usuário; um único app Expo (web, Android e iOS), com o papel vindo do login.
+- Sem compatibilidade com o que é antigo: **até o primeiro cliente real**, nada precisa ser compatível com versões,
+  formatos, dados, rotas, campos ou migrations antigas. Pode apagar, renomear e alterar; não crie código de transição
+  nem leitura de formato velho. A regra deixa de valer quando o Gustavo disser que o primeiro cliente entrou.
 - Padrões de segurança copiados da Central (`central-api-back`) e do Servirea (`servirea-api-front`,
   `destino-api.ts`). Ler o arquivo de lá antes de reimplementar algo equivalente.
 
@@ -65,8 +71,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   `TREINOS_REFRESH` + CSRF `TREINOS-XSRF-TOKEN`, nativo = refresh no corpo (`X-Treinos-Cliente: nativo`).
 - `tenant/` `TenantContext` preenchido só pelo `JwtAuthenticationFilter` (ou `TenantContext.executarComo` em rota
   pública/seed, com a transação aberta **dentro** do bloco). Sem contexto = UUID zero (leitura vazia, escrita falha).
-- `auth/LimiteTentativas`: `login_tentativa` igual à V016 da Central (uma linha por chave), não o esboço da seção 6 Login bloqueado grava `LOGIN_BLOQUEADO` só na tentativa que cruza o limite (uma linha por chave e janela), não em cada 429.
-  do plano. No profile `test` os limites por IP são altos (a suíte toda sai de 127.0.0.1).
+- `auth/LimiteTentativas`: `login_tentativa` igual à V016 da Central (uma linha por chave). Login bloqueado grava `LOGIN_BLOQUEADO` só na tentativa que cruza o limite (uma linha por chave e janela), não em cada 429.
+  No profile `test` os limites por IP são altos (a suíte toda sai de 127.0.0.1).
 - Qualidade: Error Prone na compilação, `ArquiteturaTest` (`@TenantId`, `@PreAuthorize`, SQL nativo, Jackson 3) e
   JaCoCo ≥ 70% de linhas no `mvn verify`. Exceção nova entra na lista do teste com o porquê.
 - Migration nova: subir o total em `FlywayMigrationIntegrationTest`. Coluna `char(n)` pede `@JdbcTypeCode(SqlTypes.CHAR)`.
@@ -114,7 +120,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Gestão dos questionários (`questionarios/QuestionarioService`, rotas `/questionarios`): permissões `QUESTIONARIO_LER` e `QUESTIONARIO_ALTERAR` (V025; publicar, duplicar, arquivar, excluir e definir o padrão ficam em ALTERAR; Treinador e Nutricionista têm as duas, o Assistente só LER). `GET /questionarios/opcoes` também abre com `ALUNO_ALTERAR`/`PASTA_ALTERAR`, para os seletores. Rascunho com `versao` (409 `CONFLITO_EDICAO`), não é auditado e aceita conteúdo incompleto (`obrigatoria` nulo vira false; acima de 256 KiB = 422 `QUESTIONARIO_GRANDE_DEMAIS`); publicar valida com o `ValidadorQuestionario` (422 `QUESTIONARIO_INVALIDO` com `fieldErrors`, `CONFIRMAR_AVISOS`) e recusa mudar o tipo de um id já publicado (caminho `...tipo`). Nome único entre os ativos (409 `QUESTIONARIO_NOME_EM_USO`); só um padrão (publicado e ativo; trocar desmarca o atual e dá `flush` antes). O padrão não se arquiva nem se exclui (409 `QUESTIONARIO_PADRAO`); excluir com envio apontando para alguma versão = 409 `QUESTIONARIO_EM_USO` (o app oferece arquivar); aluno e pasta que o escolheram voltam a nulo pela FK. Escolha em `PUT /alunos/{id}/questionario` e `PUT /pastas/{id}/questionario` (`{questionarioId|null}`; só publicado e não arquivado, senão 409 `QUESTIONARIO_INDISPONIVEL`); replicar a pasta não copia a escolha. Outra consultoria responde 404 em tudo. Definir padrão, arquivar e desarquivar são idempotentes (200) e só auditam quando mudam o estado (`Auditoria.registrarEvento`). Auditoria com resumos fixos (`QUESTIONARIO_*`, `ALUNO_QUESTIONARIO_ALTERADO`, `PASTA_QUESTIONARIO_ALTERADO`). Os espelhos manuais no app são `dominio/perfilEquipe.ts` e `treinador/equipe/acoesAuditoria.ts`.
 - Histórico do aluno no app (`aluno/historico.tsx`): "Registros e cargas" usa o período da pasta em uso (a escolhida em `AlunoProvider.escolhida` ou a vigente; sem pasta com período ou sem conexão, últimos 30 dias) e traz o mesmo `CartaoProgresso` da ficha, sem `alunoId`, pela rota `GET /aluno/progresso?exercicioId=` (só ALUNO, sempre o da sessão).
 - Histórico do aluno para o treinador (`GET /alunos/{id}/execucoes`): a `observacao` da série é dado sensível e sai nula sem `ALUNO_SENSIVEL_LER`; o aluno vê a própria.
-- Execuções: `execucao_serie.serie_trabalho` (fora do esboço do plano) e `exercicio_id` vêm da versão publicada, nunca
+- Execuções: `execucao_serie.serie_trabalho` e `exercicio_id` vêm da versão publicada, nunca
   do cliente. Gravação só pelo upsert do `ExecucaoUpsert`; registro ruim vira `RECUSADO` com motivo, sem derrubar o lote.
 
 ## App: convenções
@@ -126,7 +132,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   Responsável é salvo junto ao cadastro (mesma transação); `meus=true` em `/alunos` e `/painel`
   filtra pelo usuário autenticado. É preferência de listagem, sem restringir acesso a outros alunos da consultoria.
 - Rotas em `app/src/app/` (Expo Router). Áreas em pastas reais `treinador/` e `aluno/` (URLs `/treinador` e `/aluno`):
-  grupos `(treinador)`/`(aluno)` do esboço do plano colidiriam os dois `index` em `/`.
+  grupos `(treinador)`/`(aluno)` colidiriam os dois `index` em `/`.
 - `api/cliente.ts` é o único lugar que fala HTTP; `api/rotas.ts` tem uma função por rota. Credencial só vai para a
   própria API (`caminhoDaApi`). Web: access em memória + cookie; nativo: SecureStore (`sessao/armazenamentoSeguro.ts`,
   com `.web.ts` vazio). Nunca `localStorage` para token.
@@ -206,9 +212,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 
 ## Onde está cada coisa
 - `api/` — backend novo. `app/` — app Expo novo.
-- `backend/` e `mobile/` — protótipo antigo: **não mexer, não apagar**. `mobile/src/database/pdf_plan_parser.ts` e
-  `mobile/src/constants/exerciseVideos.ts` são fontes do seed.
-- `docs/` — planilhas e CSVs antigos: não copiar dados pessoais deles.
+- `docs/` — `integracao-central.md` (integração com a Central) e `catalogo.md` (catálogo público). Planilhas e CSVs
+  de treino não ficam no git.
 
 ## Comandos
 - API: `cd api && mvn verify` (precisa de Docker para o Testcontainers). Maven usa o JDK do `JAVA_HOME` (21).

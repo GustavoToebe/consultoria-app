@@ -1,4 +1,4 @@
-# Ambiente local da demonstração (seção 14 do plano): Postgres + API + web (Caddy) + importação do conteúdo do Saraiva.
+# Ambiente local da demonstração: Postgres + API + web (Caddy) + importação do conteúdo do Saraiva.
 #   cp .env.example .env    (preencher as obrigatórias)
 #   docker compose up -d --build
 #   Web: http://localhost:8088  (na rede: http://IP-DO-PC:8088). A API fica em /api.

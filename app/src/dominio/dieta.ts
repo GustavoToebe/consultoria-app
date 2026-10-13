@@ -2,7 +2,7 @@ import type { Alimento, ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao, Unida
 import { novoUid } from './uid';
 
 /**
- * Contas da dieta (seção 7.2): o valor do item vem do alimento da biblioteca proporcional à quantidade, calculado ao
+ * Contas da dieta: o valor do item vem do alimento da biblioteca proporcional à quantidade, calculado ao
  * editar e gravado no item (a versão publicada não recalcula). Sem dado para calcular, o valor fica vazio ("—"):
  * nunca inventar valor nutricional.
  */

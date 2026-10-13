@@ -3,7 +3,7 @@ package br.com.treinos.api.web;
 import java.time.Instant;
 import java.util.List;
 
-/** Mesmo corpo de erro da Central e do Servirea, com {@code codigo} estável para o app tratar (seção 9.5 do plano). */
+/** Mesmo corpo de erro da Central e do Servirea, com {@code codigo} estável para o app tratar. */
 public record ApiError(
         Instant timestamp,
         int status,
