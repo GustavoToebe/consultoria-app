@@ -70,6 +70,11 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
   };
 }
 
+/** Aplica as escolhas na ordem em que foram feitas sobre uma base (a última de cada campo vence). */
+export function aplicarEscolhas(base: Preferencias, escolhas: readonly Partial<Preferencias>[]): Preferencias {
+  return escolhas.reduce<Preferencias>((atual, parcial) => ({ ...atual, ...parcial }), base);
+}
+
 const FATORES: Record<TamanhoTexto, number> = { PADRAO: 1, MEDIO: 1.12, GRANDE: 1.25, EXTRA: 1.4 };
 
 export function fatorDoTexto(tamanho: TamanhoTexto): number {

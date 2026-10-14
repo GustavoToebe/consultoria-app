@@ -1,7 +1,7 @@
 import { Uniwind } from 'uniwind';
 import { variaveisDoTema } from './variaveis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 
 import type { Tema } from '../api/tipos';
@@ -14,6 +14,7 @@ import {
 } from '../dominio/preferencias';
 import { useSessao } from '../sessao/SessaoProvider';
 import { definirVibracaoLigada } from '../ui/vibrar';
+import { criarArmazemDePreferencias } from './armazemDePreferencias';
 import { CLARO, ESCURO, MARCA_NEUTRA, marcaParaTexto, textoSobre, type Cores } from './tokens';
 
 /**
@@ -48,37 +49,28 @@ export function TemaProvider({ children }: { children: ReactNode }) {
   const sessao = useSessao();
   const usuarioId = sessao.usuario?.id ?? null;
   const esquemaDoAparelho = useColorScheme();
-  // A escolha vale só para o usuário que a fez: trocou de conta, volta ao padrão até ler a do novo usuário.
-  const [salva, setSalva] = useState<{ usuarioId: string; preferencias: Preferencias } | null>(null);
-  const preferencias = salva && salva.usuarioId === usuarioId ? salva.preferencias : PREFERENCIAS_PADRAO;
-
-  useEffect(() => {
-    if (!usuarioId) {
-      return;
-    }
-    let ativo = true;
-    lerPreferencias(usuarioId)
-      .then((lidas) => {
-        if (ativo) {
-          setSalva({ usuarioId, preferencias: lidas });
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      ativo = false;
-    };
-  }, [usuarioId]);
-
-  const gravar = useCallback(
-    (proximas: Preferencias) => {
-      if (!usuarioId) {
-        return;
-      }
-      setSalva({ usuarioId, preferencias: proximas });
-      AsyncStorage.setItem(chave(usuarioId), JSON.stringify(proximas)).catch(() => undefined);
-    },
+  // A escolha vale só para o usuário que a fez: um armazém por conta, e trocar de conta volta ao padrão até ler a do novo
+  // usuário. Escolha feita enquanto a leitura corre não se perde (ver `armazemDePreferencias`).
+  const armazem = useMemo(
+    () =>
+      usuarioId
+        ? criarArmazemDePreferencias(
+            () => lerPreferencias(usuarioId),
+            (preferencias) => AsyncStorage.setItem(chave(usuarioId), JSON.stringify(preferencias)),
+          )
+        : null,
     [usuarioId],
   );
+  useEffect(() => {
+    armazem?.iniciar();
+    return () => armazem?.parar();
+  }, [armazem]);
+  const preferencias = useSyncExternalStore(
+    useCallback((aviso: () => void) => armazem?.assinar(aviso) ?? (() => undefined), [armazem]),
+    () => armazem?.obter() ?? PREFERENCIAS_PADRAO,
+    () => PREFERENCIAS_PADRAO,
+  );
+  const gravar = useCallback((parcial: Partial<Preferencias>) => armazem?.escolher(parcial), [armazem]);
 
   const valor = useMemo<ValorTema>(() => {
     const doAparelho: Tema = esquemaDoAparelho === 'light' ? 'CLARO' : 'ESCURO';
@@ -101,7 +93,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       marcaTexto: marcaParaTexto(marca, cores.superficie3),
       preferencias,
       fatorTexto: fatorDoTexto(preferencias.tamanhoTexto),
-      escolherPreferencia: (parcial) => gravar({ ...preferencias, ...parcial }),
+      escolherPreferencia: gravar,
       restaurarPadrao: () => gravar({ ...PREFERENCIAS_PADRAO }),
     };
   }, [preferencias, sessao.marca, esquemaDoAparelho, gravar]);
