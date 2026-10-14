@@ -19,7 +19,7 @@ const PADRAO = 'padrao';
 interface Props {
   /** Ids marcados na lista (1 a 100). */
   alunoIds: string[];
-  /** Depois de aplicar (ou de a API recusar com 404): a lista sai do modo selecionar e recarrega. */
+  /** Depois de aplicar: a lista sai do modo selecionar e recarrega. Se a API recusar, a seleção fica para tentar de novo. */
   aoConcluir: () => void;
 }
 
