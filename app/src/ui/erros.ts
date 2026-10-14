@@ -1,25 +1,9 @@
-import { ErroApi } from '../api/cliente';
+import { erroDeConexao, errosPorCampo, mensagemApi } from '@plataforma/web';
 
 /** Texto para mostrar na tela a partir de qualquer erro (a API já manda mensagens em português). */
 export function textoDoErro(erro: unknown): string {
-  if (erro instanceof ErroApi) {
-    return erro.message;
-  }
-  return 'Algo deu errado. Tente de novo.';
+  return mensagemApi(erro, 'Algo deu errado. Tente de novo.');
 }
 
-/** Falta de conexão (a requisição nem chegou à API). */
-export function erroDeConexao(erro: unknown): boolean {
-  return erro instanceof ErroApi && erro.semConexao;
-}
-
-/** Erros por campo da API (`fieldErrors`), indexados pelo nome do campo. */
-export function errosPorCampo(erro: unknown): Record<string, string> {
-  const mapa: Record<string, string> = {};
-  if (erro instanceof ErroApi) {
-    for (const c of erro.campos) {
-      mapa[c.field] = c.message;
-    }
-  }
-  return mapa;
-}
+/** `erroDeConexao` (a requisição nem chegou à API) e `errosPorCampo` (`fieldErrors` pelo nome do campo) vêm do pacote. */
+export { erroDeConexao, errosPorCampo };

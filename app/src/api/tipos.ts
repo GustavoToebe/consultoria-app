@@ -70,23 +70,6 @@ export interface ConvitePublico {
   primeiroNomeAluno: string;
 }
 
-export interface CampoComErro {
-  field: string;
-  message: string;
-}
-
-/** Corpo de erro padrão da API (ApiError). */
-export interface ApiErrorBody {
-  timestamp: string;
-  status: number;
-  error: string;
-  message: string;
-  codigo: string | null;
-  path: string;
-  requestId: string | null;
-  fieldErrors: CampoComErro[] | null;
-}
-
 // ---- Marca e configuração ----
 
 export interface Configuracao {
