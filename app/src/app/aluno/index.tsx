@@ -8,7 +8,6 @@ import { useState } from 'react';
 import { CartaoDivisao, CartaoDivisaoLeitura } from '../../aluno/CartaoDivisao';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
-import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { caminhoDaSessao } from '../../aluno/useSessaoDoDia';
 import type { Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
@@ -91,7 +90,7 @@ export default function TreinoAluno() {
 
   return (
     <Tela bordas={['top']} largura={720}>
-      <Cabecalho mostrarMarca="sempre" acoes={<SeloSincronizacao />} />
+      <Cabecalho mostrarMarca="sempre" />
       <Texto variante="titulo">Olá, {pacote.pacote.aluno.nome.split(' ')[0]}</Texto>
       <Texto variante="suave">Seu treino da semana: abra o de hoje e registre carga e repetições. Funciona sem internet.</Texto>
       <SeletorPlano rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} />

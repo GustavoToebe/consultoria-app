@@ -1,4 +1,7 @@
 import { BarraDescanso } from '../../aluno/BarraDescanso';
+import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
+import { StyleSheet, View } from 'react-native';
+import { espaco } from '../../tema/tokens';
 import { CalendarDays, Dumbbell, PersonStanding, Salad, UserRound } from 'lucide-react-native';
 
 import { AlunoProvider, useAluno } from '../../offline/AlunoProvider';
@@ -37,5 +40,19 @@ function MenuAluno() {
   const {atualizacao,mobilidade,escolhida}=useAluno();
   const comMobilidade=temAbaMobilidade(mobilidade,escolhida?{mobilidade:escolhida.planos.mobilidade}:null);
   const ponto=!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)});
-  return <Navegacao itens={ITENS.filter(item=>item.caminho!=='/aluno/mobilidade'||comMobilidade).map(item=>item.caminho==='/aluno'?{...item,ponto}:item)} sempreInferior larguraInferior={720} rodape={<BarraDescanso />} />;
+  return <Navegacao itens={ITENS.filter(item=>item.caminho!=='/aluno/mobilidade'||comMobilidade).map(item=>item.caminho==='/aluno'?{...item,ponto}:item)} sempreInferior larguraInferior={720} rodape={<RodapeAluno />} />;
 }
+
+/** Sincronização à vista em todas as telas do aluno, logo acima da barra de baixo; o descanso vem por último. */
+function RodapeAluno() {
+  return (
+    <>
+      <View style={estilos.sincronizacao}><SeloSincronizacao /></View>
+      <BarraDescanso />
+    </>
+  );
+}
+
+const estilos = StyleSheet.create({
+  sincronizacao: { alignItems: 'center', paddingVertical: espaco(0.5) },
+});

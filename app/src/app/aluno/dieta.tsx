@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { SeletorPlano } from '../../aluno/SeletorPlano';
-import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { ErroApi } from '../../api/cliente';
 import { dietaAluno, pesosAluno } from '../../api/rotas';
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
@@ -54,7 +53,7 @@ export default function DietaAluno() {
 
   return (
     <Tela bordas={['top']} largura={720}>
-      <Cabecalho titulo="Dieta" acoes={<SeloSincronizacao />} />
+      <Cabecalho titulo="Dieta" />
       <Texto variante="suave">A dieta que o seu treinador publicou, só para consulta.</Texto>
       <SeletorPlano rotulo={null} />
       {escolhida ? (

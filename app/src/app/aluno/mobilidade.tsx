@@ -2,7 +2,6 @@ import { PlayCircle } from 'lucide-react-native';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { SeletorPlano } from '../../aluno/SeletorPlano';
-import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import type { ConteudoMobilidadeApi, VersaoDetalhe } from '../../api/tipos';
 import { itemParaTela, mobilidadeParaExibir } from '../../dominio/mobilidade';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -25,7 +24,7 @@ export default function MobilidadeAluno() {
   const versao = mobilidadeParaExibir(mobilidade, escolhida ? { mobilidade: escolhida.planos.mobilidade } : null);
   return (
     <Tela bordas={['top']} largura={720}>
-      <Cabecalho titulo="Mobilidade" acoes={<SeloSincronizacao />} />
+      <Cabecalho titulo="Mobilidade" />
       <Texto variante="suave">Mobilidade e alongamentos do seu treinador, com vídeo quando houver.</Texto>
       <SeletorPlano rotulo={null} />
       {versao ? <Mobilidade versao={versao} /> : <Vazio titulo="Sem mobilidade" texto={escolhida ? 'Este plano não tem mobilidade publicada.' : 'Seu treinador ainda não publicou a mobilidade.'} />}

@@ -1,7 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { FormularioAtualizacao } from '../../aluno/atualizacao/FormularioAtualizacao';
 import { useAtualizacao } from '../../aluno/atualizacao/useAtualizacao';
-import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { dataParaTela } from '../../dominio/formatos';
 import { useAluno } from '../../offline/AlunoProvider';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -24,7 +23,7 @@ export default function AtualizacaoAluno() {
   const rascunho=useCarregar(chave,async c=>({chave:c,valor:await repositorio.lerRascunhoAtualizacao(pasta!)}));
   return <Tela largura={720} rolar={false} bordas={['top']}>
     <Cabecalho titulo={`Atualização${resultado.dados?.dataAtualizacao?` · ${dataParaTela(resultado.dados.dataAtualizacao)}`:''}`}
-      voltar="/aluno" acoes={<SeloSincronizacao />} />
+      voltar="/aluno" />
     {resultado.carregando || rascunho.carregando?<Esqueleto texto="Carregando atualização" />:null}
     {resultado.erro?<MensagemErro texto={textoDoErro(resultado.erro)} />:null}
     {rascunho.erro?<MensagemErro texto="Não foi possível ler o rascunho. Volte e tente novamente." />:null}

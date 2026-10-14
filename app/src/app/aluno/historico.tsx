@@ -4,7 +4,6 @@ import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { ErroApi } from '../../api/cliente';
 import { historicoAluno, pastasDoAluno, pesosAluno } from '../../api/rotas';
 import type { ExercicioPlano, Sessao } from '../../api/tipos';
@@ -95,7 +94,7 @@ export default function HistoricoAluno() {
 
   return (
     <Tela bordas={['top']} largura={720}>
-      <Cabecalho titulo="Histórico" acoes={<SeloSincronizacao />} />
+      <Cabecalho titulo="Histórico" />
       <HistoricoAtualizacoes />
       {naoEnviados.length ? (
         <Cartao titulo="Ainda não enviados">

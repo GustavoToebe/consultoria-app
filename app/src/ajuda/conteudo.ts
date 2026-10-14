@@ -142,13 +142,13 @@ const ALUNO: Guia = {
   tutorial: [
     { titulo: 'Bem-vindo', texto: 'Este tutorial mostra as abas do app. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
     { titulo: 'Treino', texto: 'Mostra o treino de hoje e as divisões do período. Os chips de data deixam registrar dias próximos (até 60 dias para trás ou para frente).', rota: '/aluno' },
-    { titulo: 'Registrar uma série', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano; o que você digita é gravado como digitou.' },
+    { titulo: 'Registrar uma série', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano; o que você digita é gravado como digitou. Os botões − e + mudam o peso de passo em passo, e "Repetir a série anterior" copia peso e repetições da série de cima e já marca como feita. A tela fica acesa enquanto você treina.' },
     { titulo: 'Descanso', texto: 'Quando o plano define descanso, o contador começa ao marcar a série. Ele não usa notificação com o app fechado.' },
     { titulo: 'Dieta', texto: 'Mostra as refeições publicadas pelo treinador. Só consulta.', rota: '/aluno/dieta' },
     { titulo: 'Mobilidade', texto: 'Aparece só se o treinador publicou um plano de mobilidade. Vídeos abrem fora do app.', rota: '/aluno/mobilidade' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', rota: '/aluno/historico' },
     { titulo: 'Atualização', texto: 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer.' },
-    { titulo: 'Sem internet', texto: 'Pode treinar sem conexão. Em Conta você vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
+    { titulo: 'Sem internet', texto: 'Pode treinar sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
     { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
   ],
   secoes: [
