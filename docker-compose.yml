@@ -23,7 +23,9 @@ services:
       retries: 20
 
   api:
-    build: ./api
+    build:
+      context: ./api
+      secrets: [gh_token]
     restart: unless-stopped
     mem_limit: 768m
     environment:
@@ -89,6 +91,12 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+# Token de leitura do GitHub Packages (read:packages) para baixar a biblioteca plataforma no build da API. Arquivo fora do git
+# (deploy-local/segredos/ está no .gitignore): ver README, "Token do GitHub Packages".
+secrets:
+  gh_token:
+    file: ./deploy-local/segredos/gh_token
 
 volumes:
   dados-db:

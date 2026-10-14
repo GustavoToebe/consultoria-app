@@ -15,6 +15,10 @@ docker compose up -d --build
 # Web (treinador e aluno): http://localhost:8088   (na rede: http://IP-DO-PC:8088)
 ```
 
+**Token do GitHub Packages.** A API usa a biblioteca `plataforma` (`docs/biblioteca-comum.md`), que o GitHub Packages só entrega com
+token. Antes do primeiro `up --build`, crie `deploy-local/segredos/gh_token` (fora do git) com um token de leitura
+(`read:packages`) numa linha; o Docker o usa só durante o build, sem gravá-lo na imagem.
+
 No Windows: Docker Desktop; `ipconfig` mostra o IP do PC; liberar a porta 8088 no firewall para o celular.
 O banco começa com os dados de demonstração (só quando está vazio). Para recomeçar do zero:
 `docker compose down -v && docker compose up -d --build`. Volume criado com o Postgres 17 (antes da Fase 3) não serve

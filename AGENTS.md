@@ -44,6 +44,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   DTOs `record`, `ApiException` com `codigo`, `@Transactional` no service, `@PreAuthorize` em toda rota.
 - `app/`: Expo SDK 57 (web, Android e iOS num app só, treinador e aluno), Expo Router, Node 24.21.0 (`app/.nvmrc`).
   Dependência só com `npx expo install`; React Native é o que o SDK fixa.
+- Biblioteca `plataforma` 1.7.0 (parent e módulos do GitHub Packages; `docs/biblioteca-comum.md`): o build do Docker precisa do segredo `deploy-local/segredos/gh_token` (fora do git); `mvn` local precisa do `server` `github` no `~/.m2/settings.xml` ou da versão já instalada. Subir a versão = uma linha no `pom.xml`; `mvn verify` no Postgres 18 e 17 (`-Dplataforma.postgres.imagem=postgres:17-alpine`).
 - Local: `docker-compose.yml` (Postgres 18 + API + Caddy servindo a web em `:8088`, API em `/api`). No Postgres 18 o volume monta em `/var/lib/postgresql` (não mais `/data`): banco criado com a versão 17 pede `docker compose down -v`.
 
 ## API: convenções

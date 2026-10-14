@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.1</version>
+        <groupId>br.com.plataforma</groupId>
+        <artifactId>plataforma-parent</artifactId>
+        <version>1.7.0</version>
         <relativePath/>
     </parent>
 
@@ -18,16 +18,17 @@
     <description>API da plataforma de treinos e dieta para consultorias (vários treinadores, isolados)</description>
 
     <properties>
-        <java.version>25</java.version>
-        <!-- Qualidade igual à Central (docs/desenvolvimento/qualidade.md de lá). -->
-        <archunit.version>1.5.1</archunit.version>
-        <jacoco.version>0.8.15</jacoco.version>
-        <errorprone.version>2.50.0</errorprone.version>
+        <!-- Java, Error Prone, JaCoCo, Surefire e a imagem do Postgres dos testes vêm do plataforma-parent. -->
         <cobertura.minima.linhas>0.70</cobertura.minima.linhas>
-        <!-- O JaCoCo põe o agente em argLine; argumentos da máquina (ex.: Windows) vão em argumentosLocais. -->
-        <argLine></argLine>
-        <argumentosLocais></argumentosLocais>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/GustavoToebe/plataforma</url>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>
@@ -89,7 +90,6 @@
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
-            <version>${archunit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -129,75 +129,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-            <!--
-              Error Prone: análise estática na compilação, mesmas regras da Central. Padrão de bug vira erro de
-              compilação; aviso aparece no log. Precisa das aberturas do javac em .mvn/jvm.config.
-            -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgs combine.children="append">
-                        <arg>-XDcompilePolicy=simple</arg>
-                        <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
-                        <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NotJavadoc:OFF -Xep:MissingSummary:OFF -Xep:StringSplitter:OFF -Xep:StringCaseLocaleUsage:ERROR -Xep:DefaultCharset:ERROR -Xep:JavaTimeDefaultTimeZone:ERROR -Xep:ReferenceEquality:ERROR -Xep:FutureReturnValueIgnored:ERROR -Xep:MissingOverride:ERROR -Xep:EmptyCatch:ERROR -Xep:UnusedVariable:ERROR -Xep:UnusedMethod:ERROR -Xep:OperatorPrecedence:ERROR -Xep:EnumOrdinal:ERROR -Xep:AlreadyChecked:ERROR -Xep:ArrayRecordComponent:ERROR -Xep:LoopOverCharArray:ERROR -Xep:InputStreamSlowMultibyteRead:ERROR -Xep:NonApiType:ERROR -Xep:BoxingComparator:ERROR -Xep:CanonicalDuration:ERROR</arg>
-                    </compilerArgs>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>com.google.errorprone</groupId>
-                            <artifactId>error_prone_core</artifactId>
-                            <version>${errorprone.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <argLine>@{argLine} ${argumentosLocais}</argLine>
-                </configuration>
-            </plugin>
-            <!--
-              JaCoCo: relatório em target/site/jacoco/index.html depois do `mvn verify`. Mínimo inicial de 70% das
-              linhas (plano, seção 5.7); subir junto com a cobertura medida.
-            -->
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>${jacoco.version}</version>
-                <executions>
-                    <execution>
-                        <id>agente</id>
-                        <goals><goal>prepare-agent</goal></goals>
-                    </execution>
-                    <execution>
-                        <id>relatorio</id>
-                        <phase>verify</phase>
-                        <goals><goal>report</goal></goals>
-                    </execution>
-                    <execution>
-                        <id>minimo</id>
-                        <phase>verify</phase>
-                        <goals><goal>check</goal></goals>
-                        <configuration>
-                            <rules>
-                                <rule>
-                                    <element>BUNDLE</element>
-                                    <limits>
-                                        <limit>
-                                            <counter>LINE</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>${cobertura.minima.linhas}</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
