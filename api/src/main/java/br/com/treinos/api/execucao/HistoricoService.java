@@ -60,6 +60,13 @@ public class HistoricoService {
         return montar(alunoId, de, ate, AcessoAtual.pode("ALUNO_SENSIVEL_LER"));
     }
 
+    /** Exportação de dados: todos os dias registrados, sem o limite de período das telas. Quem chama confere as permissões. */
+    @Transactional(readOnly = true)
+    public List<DiaDeTreino> completoDoAluno(UUID alunoId) {
+        exigirAluno(alunoId);
+        return carregar(alunoId, LocalDate.of(2000, 1, 1), LocalDate.now(Fuso.BRASILIA).plusDays(366), true);
+    }
+
     @Transactional(readOnly = true)
     public List<DiaDeTreino> historico(UUID alunoId, LocalDate de, LocalDate ate) {
         return montar(alunoId, de, ate, true);
@@ -71,6 +78,10 @@ public class HistoricoService {
         if (inicio.isAfter(fim) || ChronoUnit.DAYS.between(inicio, fim) > PERIODO_MAXIMO_DIAS) {
             throw new BadRequestException("Período inválido (até 1 ano).");
         }
+        return carregar(alunoId, inicio, fim, comObservacao);
+    }
+
+    private List<DiaDeTreino> carregar(UUID alunoId, LocalDate inicio, LocalDate fim, boolean comObservacao) {
         List<ExecucaoSerie> lista = execucoes.findByAlunoIdAndDataBetweenOrderByDataDesc(alunoId, inicio, fim);
         // Biblioteca filtrada pela consultoria da sessão (@TenantId).
         Map<UUID, String> grupos = new HashMap<>();

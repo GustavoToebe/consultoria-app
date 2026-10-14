@@ -52,10 +52,13 @@ class ArquiteturaTest {
      * {@code ContaLocalRepositorio} (tabelas globais da Minha conta, lidas também fora do tenant pela integração futura:
      * todo método recebe e filtra {@code consultoria_id});
      * {@code IntegracaoRepositorio} (nonce, operações idempotentes e provisionamento da integração com a Central: roda
-     * fora do tenant, e todo método recebe e filtra {@code consultoria_id}).
+     * fora do tenant, e todo método recebe e filtra {@code consultoria_id});
+     * {@code AnonimizacaoRepositorio} (anonimização do aluno: limpa texto livre de {@code execucao_serie} e títulos de versões,
+     * que a JPA trata como imutáveis; todo método filtra {@code consultoria_id} e {@code aluno_id}).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of("ContadorBanco", "ExecucaoUpsert",
-            "LogoRepositorio", "ConviteBusca", "ConviteEquipeBusca", "AuditoriaGravacao", "ContaLocalRepositorio", "IntegracaoRepositorio");
+            "LogoRepositorio", "ConviteBusca", "ConviteEquipeBusca", "AuditoriaGravacao", "ContaLocalRepositorio", "IntegracaoRepositorio",
+            "AnonimizacaoRepositorio");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario} e

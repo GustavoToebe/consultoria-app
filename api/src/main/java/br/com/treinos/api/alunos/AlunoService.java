@@ -104,6 +104,7 @@ public class AlunoService {
     @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_ALTERADO",entidade="ALUNO",resumo="Editou o cadastro do aluno.")
     public AlunoDetalhe alterar(UUID id, AlunoRequest r) {
         Aluno aluno = buscar(id);
+        exigirNaoAnonimizado(aluno);
         if (r.versao() == null || !r.versao().equals(aluno.getVersao())) {
             throw new ConflitoException("Outra pessoa ou aba alterou este aluno. Recarregue para ver a versão atual.",
                     "CONFLITO_EDICAO");
@@ -127,6 +128,7 @@ public class AlunoService {
     @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_SITUACAO",entidade="ALUNO",resumo="Alterou a situação do aluno.")
     public AlunoDetalhe alterarSituacao(UUID id, boolean ativo) {
         Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
+        if (ativo) exigirNaoAnonimizado(aluno);
         aluno.alterarSituacao(ativo, Instant.now());
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));
@@ -135,6 +137,12 @@ public class AlunoService {
             }
         }
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
+    }
+
+    /** Cadastro anonimizado não é editado nem reativado: os dados pessoais não podem voltar. */
+    public static void exigirNaoAnonimizado(Aluno aluno) {
+        if (aluno.isAnonimizado())
+            throw new ConflitoException("Este aluno foi anonimizado e não pode mais ser alterado.", "ALUNO_ANONIMIZADO");
     }
 
     private void definirResponsavel(Aluno aluno,UUID id) {

@@ -23,6 +23,15 @@ class CatalogoPermissoesTest {
         assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("QUESTIONARIO_ALTERAR"))))
                 .containsExactlyInAnyOrder("QUESTIONARIO_ALTERAR","QUESTIONARIO_LER");
     }
+    @Test void exportarEAnonimizarAlunoSaoSensiveisEDependemDeLerEAlterarDadosSensiveis() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().equals("ALUNO_EXPORTAR") || p.codigo().equals("ALUNO_ANONIMIZAR"))
+                .extracting(CatalogoPermissoes.Permissao::sensivel).containsExactly(true,true);
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("ALUNO_EXPORTAR"))))
+                .containsExactlyInAnyOrder("ALUNO_EXPORTAR","ALUNO_SENSIVEL_LER","ALUNO_LER");
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("ALUNO_ANONIMIZAR"))))
+                .containsExactlyInAnyOrder("ALUNO_ANONIMIZAR","ALUNO_ALTERAR","ALUNO_SENSIVEL_ALTERAR","ALUNO_SENSIVEL_LER","ALUNO_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("ALUNO_ANONIMIZAR","ALUNO_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
+    }
     @Test void ergogenicosSaoSensiveisEDependemDaBiblioteca() {
         assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("ERGOGENICO_"))
                 .extracting(CatalogoPermissoes.Permissao::sensivel).containsExactly(true,true);

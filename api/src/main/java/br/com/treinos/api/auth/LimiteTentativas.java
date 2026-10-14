@@ -63,6 +63,11 @@ public class LimiteTentativas {
         }
     }
 
+    /** Apaga o contador de login do e-mail (anonimização do aluno): a chave é só um hash, mas é derivada do e-mail antigo. */
+    public void esquecerConta(String email) {
+        contador.apagar(chave("login-conta", Emails.normalizar(email)));
+    }
+
     /** Login bloqueado; {@code abriuAgora} é verdadeiro uma única vez por chave e janela. */
     public static class BloqueioDeLogin extends MuitasRequisicoesException {
         private final boolean abriuAgora;

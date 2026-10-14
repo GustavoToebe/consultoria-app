@@ -145,6 +145,19 @@ public class Usuario {
         this.credenciaisVersao++;
     }
 
+    /**
+     * Anonimização do aluno (LGPD): troca nome, e-mail e senha, apaga o telefone e desativa. O e-mail é um marcador
+     * único que não recebe mensagem; a senha é um hash de segredo aleatório que ninguém conhece.
+     */
+    public void anonimizar(String nome, String emailMarcador, String senhaHashInutil) {
+        this.nome = nome;
+        this.email = emailMarcador;
+        this.telefone = null;
+        this.senhaHash = senhaHashInutil;
+        this.ativo = false;
+        this.credenciaisVersao++;
+    }
+
     /** Desativar derruba o Bearer em uso (versão nova); reativar não devolve sessões antigas. */
     public void alterarAtivo(boolean ativo) {
         if (this.ativo != ativo) {

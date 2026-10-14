@@ -5,6 +5,7 @@ import br.com.treinos.api.pastas.PastaPlano;
 import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.planos.dto.PlanoDtos.CriarPlanoRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe;
+import br.com.treinos.api.planos.dto.PlanoDtos.PlanoPublicado;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoResumo;
 import br.com.treinos.api.planos.dto.PlanoDtos.PublicarRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.ReplicarRequest;
@@ -204,6 +205,19 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
     @Transactional(readOnly = true)
     public C rascunho(UUID id) {
         return ler(buscar(id).getRascunho());
+    }
+
+    /**
+     * Todos os planos do aluno com versão publicada (inclusive arquivados) e as versões publicadas, para a exportação de
+     * dados. Passa por {@link #paraLeitura}: o que quem pede não pode ler (ergogênicos) sai de fora. Rascunho não entra.
+     */
+    @Transactional(readOnly = true)
+    public List<PlanoPublicado<C>> publicadosDoAluno(UUID alunoId) {
+        exigirAluno(alunoId);
+        return planos.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream().filter(p -> p.getVersaoPublicada() > 0)
+                .map(p -> new PlanoPublicado<>(PlanoResumo.de(p),
+                        versoes.findByPlanoIdOrderByNumeroAsc(p.getId()).stream().map(this::detalheVersao).toList()))
+                .toList();
     }
 
     /** Versão vigente do aluno (plano ativo já publicado), para as rotas {@code /aluno/**} e o PDF. */

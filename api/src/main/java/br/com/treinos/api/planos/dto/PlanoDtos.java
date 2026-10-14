@@ -71,6 +71,10 @@ public final class PlanoDtos {
     public record PlanoDetalhe<C>(PlanoResumo plano, C rascunho, List<VersaoResumo> versoes) {
     }
 
+    /** Plano com todas as versões publicadas, para a exportação de dados do aluno. */
+    public record PlanoPublicado<C>(PlanoResumo plano, List<VersaoDetalhe<C>> versoes) {
+    }
+
     public record VersaoDetalhe<C>(UUID id, UUID planoId, int numero, String titulo, LocalDate inicio, LocalDate fim,
                                    Instant publicadoEm, C conteudo) {
     }

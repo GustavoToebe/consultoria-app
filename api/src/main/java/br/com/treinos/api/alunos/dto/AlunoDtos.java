@@ -51,13 +51,13 @@ public final class AlunoDtos {
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String objetivo,
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String observacoes, boolean ativo,
                                boolean temAcesso, Instant conviteExpiraEm, Long versao,
-                               Integer diasAtualizacao,UUID responsavelId,UUID questionarioId) {
+                               Integer diasAtualizacao,UUID responsavelId,UUID questionarioId,boolean anonimizado) {
         public static AlunoDetalhe de(Aluno a) {
             boolean conviteValido = a.getConviteExpiraEm() != null && a.getConviteExpiraEm().isAfter(Instant.now());
             return new AlunoDetalhe(a.getId(), a.getNome(), a.getEmail(), br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER") ? a.getObjetivo() : null,
                     br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER") ? a.getObservacoes() : null,
                     a.isAtivo(), a.getUsuarioId() != null, conviteValido ? a.getConviteExpiraEm() : null,
-                    a.getVersao(), a.getDiasAtualizacao(),a.getResponsavelId(),a.getQuestionarioId());
+                    a.getVersao(), a.getDiasAtualizacao(),a.getResponsavelId(),a.getQuestionarioId(),a.isAnonimizado());
         }
     }
 

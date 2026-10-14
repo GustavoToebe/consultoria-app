@@ -41,6 +41,11 @@ class ContadorBanco {
                 chave, fim, agora, agora, fim);
     }
 
+    /** Apaga a linha de uma chave (esquecer o e-mail de um aluno anonimizado). */
+    void apagar(String chave) {
+        jdbc.update("delete from login_tentativa where chave = ?", chave);
+    }
+
     /** Remove janelas vencidas há mais de uma hora, no máximo uma vez por minuto por processo. */
     private void limparSeNecessario(long agoraMs) {
         long previsto = proximaLimpeza.get();

@@ -22,6 +22,8 @@ import java.util.UUID;
 @Table(name = "aluno")
 public class Aluno {
 
+    public static final String NOME_ANONIMIZADO = "Aluno anonimizado";
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -54,6 +56,10 @@ public class Aluno {
 
     @Column(name = "inativado_em")
     private Instant inativadoEm;
+
+    /** Preenchido quando os dados pessoais foram apagados; o cadastro não volta a ser editado nem reativado. */
+    @Column(name = "anonimizado_em")
+    private Instant anonimizadoEm;
 
     @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "convite_hash", length = 64)
@@ -164,6 +170,24 @@ public class Aluno {
     public void alterarSituacao(boolean ativo, Instant quando) {
         this.ativo = ativo;
         this.inativadoEm = ativo ? null : quando;
+        this.atualizadoEm = quando;
+    }
+
+    public boolean isAnonimizado() {
+        return anonimizadoEm != null;
+    }
+
+    /** Troca o nome e apaga o que identifica a pessoa; a situação fica inativa. Contagens (pastas, treinos) seguem. */
+    public void anonimizar(Instant quando) {
+        this.nome = NOME_ANONIMIZADO;
+        this.email = null;
+        this.objetivo = null;
+        this.observacoes = null;
+        this.conviteHash = null;
+        this.conviteExpiraEm = null;
+        this.ativo = false;
+        if (this.inativadoEm == null) this.inativadoEm = quando;
+        this.anonimizadoEm = quando;
         this.atualizadoEm = quando;
     }
 

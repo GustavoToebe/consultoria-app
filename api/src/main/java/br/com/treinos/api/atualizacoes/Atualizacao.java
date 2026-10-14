@@ -44,6 +44,8 @@ public class Atualizacao {
         else feedbackEm = quando;
         feedback = texto; feedbackPor = usuarioId; feedbackVistoEm = null; estado = "REVISADA";
     }
+    /** Anonimização do aluno: apaga o que ele respondeu e o que o treinador escreveu; estado e datas ficam para as contagens. */
+    public void limparDadosPessoais() { respostas = "{}"; atrasoMotivo = null; feedback = null; }
     public UUID getId() { return id; }
     public UUID getConsultoriaId() { return consultoriaId; }
     public UUID getAlunoId() { return alunoId; }
