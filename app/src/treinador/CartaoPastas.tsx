@@ -13,7 +13,7 @@ import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { dataDaTela, dataParaTela, hojeIso } from '../dominio/formatos';
-import { periodoInicial } from '../dominio/periodo';
+import { dadosDaRenovacao, periodoInicial, proximoPeriodo } from '../dominio/periodo';
 import { FILTROS_PASTAS, filtrarPastas, type FiltroPastas } from '../dominio/pastas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
@@ -38,7 +38,7 @@ import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { AtualizacaoDaPasta } from './AtualizacaoDaPasta';
 import { CartaoRegistros } from './CartaoRegistros';
-import { CartaoPlanos, periodo, proximoPeriodo } from './CartaoPlanos';
+import { CartaoPlanos, periodo } from './CartaoPlanos';
 
 type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 'replicar'; pasta: PastaResumo };
 
@@ -66,6 +66,8 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   const [excluir, setExcluir] = useState<PastaResumo | null>(null);
   const [salvarModelo, setSalvarModelo] = useState<PastaResumo | null>(null);
   const [finalizar, setFinalizar] = useState<PastaResumo | null>(null);
+  const [renovar, setRenovar] = useState<PastaResumo | null>(null);
+  const [renovando, setRenovando] = useState(false);
   // Pasta aberta na folha com as ações e os planos; guarda só o id para refletir o que a lista recarrega.
   const [abertaId, setAbertaId] = useState<string | null>(pastaInicialId??null);
   // "Mais ações" da pasta (salvar como pacote, excluir): menu à parte, para a folha ter uma ação principal só.
@@ -152,6 +154,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
       ) : null}
       {menuPasta ? <Folha visivel titulo={menuPasta.titulo} aoFechar={() => setMenuPasta(null)}>
         {podeSalvarPastaComoModelo(pode) ? <Botao rotulo="Salvar como pacote" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setSalvarModelo(p); }} /> : null}
+        <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Renovar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setRenovar(p); }} /></Permitido>
         <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setExcluir(p); }} /></Permitido>
       </Folha> : null}
       {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Pacote (treino, dieta e mobilidade)" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
@@ -159,6 +162,17 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
       {salvarModelo ? <FolhaSalvarReceita titulo="Salvar pasta como pacote" explicacao="Copia os rascunhos de treino e dieta desta pasta para reutilizar em outros alunos." aoFechar={() => setSalvarModelo(null)} aoSalvar={async (nome, descricao) => {
         await salvarPastaComoModelo(salvarModelo.id, nome, descricao); setSalvarModelo(null); avisar('Pacote salvo.', 'sucesso');
       }} /> : null}
+      <PainelConfirmacao visivel={!!renovar} titulo={`Renovar a pasta “${renovar?.titulo ?? ''}”?`}
+        mensagem={renovar ? `Cria a pasta “${dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao).titulo}” para ${dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao).texto}, com cópia em rascunho dos treinos, dietas e mobilidades. A pasta atual continua como está; para mudar o título ou o período, use Replicar pasta.` : ''}
+        rotuloConfirmar="Renovar pasta" carregando={renovando} aoCancelar={() => setRenovar(null)} aoConfirmar={() => {
+          if (!renovar) return;
+          const { titulo, inicio, fim } = dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao);
+          setRenovando(true);
+          replicarPasta(renovar.id, { titulo, inicio, fim }).then(
+            () => { setRenovando(false); setRenovar(null); avisar('Pasta renovada. Os planos vieram como rascunho.', 'sucesso'); aoSalvar(); },
+            (e: unknown) => { setRenovando(false); setRenovar(null); avisar(textoDoErro(e), 'perigo'); },
+          );
+        }} />
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.titulo ?? ''}”?`} mensagem="A pasta e seus planos saem da lista. Os planos deixam de estar ativos; versões publicadas e registros dos alunos são preservados." rotuloConfirmar="Excluir pasta e planos" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
         if (!excluir) return; const id = excluir.id; setExcluir(null);
         excluirPasta(id).then(aoSalvar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));

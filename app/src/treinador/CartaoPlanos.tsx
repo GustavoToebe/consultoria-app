@@ -8,6 +8,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano } from '../api/rotas';
 import type { PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
 import { dataDaTela, dataParaTela, somarDias } from '../dominio/formatos';
+import { proximoPeriodo } from '../dominio/periodo';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
@@ -233,15 +234,6 @@ function FolhaNovoPlano({
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>
   );
-}
-
-/** Próximo ciclo: começa no dia seguinte ao fim do plano e dura o mesmo tanto (tudo editável). */
-export function proximoPeriodo(p: { inicio: string | null; fim: string | null }): { inicio: string; fim: string } {
-  if (!p.fim) return { inicio: '', fim: '' };
-  const inicio = somarDias(p.fim, 1);
-  if (!p.inicio) return { inicio: dataParaTela(inicio), fim: '' };
-  const dias = Math.round((Date.parse(p.fim) - Date.parse(p.inicio)) / 86_400_000);
-  return { inicio: dataParaTela(inicio), fim: dataParaTela(somarDias(inicio, dias)) };
 }
 
 function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoNavegar?: () => void }) {
