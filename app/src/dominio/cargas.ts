@@ -82,3 +82,18 @@ export function usaCargaDeTrabalho(exercicio: ExercicioPlano): boolean {
     exercicio.series.some((s) => modo(s) === 'CARGA_TRABALHO' || modo(s) === 'PERCENTUAL_WS')
   );
 }
+
+/**
+ * Botões "+" e "−" da carga: andam de passo em passo do arredondamento da metodologia (a mesma fonte da sugestão).
+ * Sem botões quando o exercício não usa carga ou o passo não é positivo. Nunca abaixo de 0; sem número digitado, parte
+ * da sugestão e, sem ela, do 0.
+ */
+export function passoDaCarga(exercicio: Pick<ExercicioPlano, 'unidade'>, arredondamentoKg: number): number | null {
+  if (exercicio.unidade === 'nenhuma') return null;
+  return Number.isFinite(arredondamentoKg) && arredondamentoKg > 0 ? arredondamentoKg : null;
+}
+
+export function ajustarCarga(atual: number | null, sugestao: number | null, passo: number, sentido: 1 | -1): number {
+  const base = atual ?? sugestao ?? 0;
+  return Math.max(0, Math.round((base + sentido * passo) * 1000) / 1000);
+}

@@ -1,5 +1,5 @@
 import type { ExercicioPlano, Serie } from '../api/tipos';
-import { arredondar, calcularCargasDoExercicio, metaDaSerie } from './cargas';
+import { ajustarCarga, arredondar, calcularCargasDoExercicio, metaDaSerie, passoDaCarga } from './cargas';
 
 const serie = (uid: string, tipo: string, extra: Partial<Serie>): Serie => ({
   uid,
@@ -73,3 +73,26 @@ describe('cargas do aluno', () => {
   });
 });
 
+
+describe('botões + e − da carga', () => {
+  it('o passo é o arredondamento da metodologia; sem carga ou passo inválido, sem botões', () => {
+    expect(passoDaCarga({ unidade: 'kg' }, 2.5)).toBe(2.5);
+    expect(passoDaCarga({ unidade: 'nenhuma' }, 2.5)).toBeNull();
+    expect(passoDaCarga({ unidade: 'kg' }, 0)).toBeNull();
+    expect(passoDaCarga({ unidade: 'kg' }, -1)).toBeNull();
+    expect(passoDaCarga({ unidade: 'kg' }, Number.NaN)).toBeNull();
+  });
+
+  it('anda de passo em passo a partir do digitado, da sugestão ou do zero, sem erro de ponto flutuante', () => {
+    expect(ajustarCarga(20, null, 2.5, 1)).toBe(22.5);
+    expect(ajustarCarga(20, 40, 2.5, -1)).toBe(17.5);
+    expect(ajustarCarga(null, 40, 2.5, 1)).toBe(42.5);
+    expect(ajustarCarga(null, null, 0.25, 1)).toBe(0.25);
+    expect(ajustarCarga(0.1, null, 0.2, 1)).toBe(0.3);
+  });
+
+  it('nunca fica abaixo de zero', () => {
+    expect(ajustarCarga(1, null, 2.5, -1)).toBe(0);
+    expect(ajustarCarga(0, null, 0.5, -1)).toBe(0);
+  });
+});

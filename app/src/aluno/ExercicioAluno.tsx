@@ -1,17 +1,18 @@
 import { Cartao } from '../ui/Cartao';
-import { PlayCircle } from 'lucide-react-native';
+import { PlayCircle, Repeat } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
-import { calcularCargasDoExercicio, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { videoValido } from '../dominio/video';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
+import { AjusteDeCarga } from '../ui/AjusteDeCarga';
 import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
@@ -53,6 +54,7 @@ export function ExercicioAluno(p: Props) {
   for (const s of e.series) cargasDoDia[s.uid] = p.registroDe(s.uid)?.carga ?? null;
   const calculadas = calcularCargasDoExercicio(e, base, cargasDoDia, p.config);
   const feitas = e.series.filter((s) => p.registroDe(s.uid)?.concluida).length;
+  const passo = passoDaCarga(e, p.config.arredondamentoKg);
 
   const abrirVideo = () => {
     if (!e.videoUrl || !videoValido(e.videoUrl)) return;
@@ -87,6 +89,9 @@ export function ExercicioAluno(p: Props) {
             valor={base}
             aoMudar={p.aoMudarCargaDoDia}
           />
+          {passo !== null ? (
+            <AjusteDeCarga passo={passo} rotulo="carga de trabalho" aoAjustar={(sentido) => p.aoMudarCargaDoDia(ajustarCarga(base, null, passo, sentido))} />
+          ) : null}
           <Texto numerico variante="pequeno">
             {p.ultima?.carga != null
               ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}`
@@ -106,7 +111,9 @@ export function ExercicioAluno(p: Props) {
           calculada={c}
           indice={i}
           semCarga={e.unidade === 'nenhuma'}
+          passo={passo}
           registro={p.registroDe(c.serie.uid)}
+          anterior={i > 0 ? p.registroDe(e.series[i - 1]!.uid) : undefined}
           ultimaDoExercicio={feitas === e.series.length - 1}
           aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
         />
@@ -119,14 +126,20 @@ function CartaoSerie({
   calculada,
   indice,
   semCarga,
+  passo,
   registro,
+  anterior,
   aoRegistrar,
   ultimaDoExercicio,
 }: {
   calculada: SerieCalculada;
   indice: number;
   semCarga: boolean;
+  /** Passo dos botões + e − do peso; `null` esconde os botões. */
+  passo: number | null;
   registro: RegistroLocal | undefined;
+  /** Registro da série anterior do mesmo exercício e dia, se houver (para "Repetir a série anterior"). */
+  anterior: RegistroLocal | undefined;
   aoRegistrar: (d: DadosSerie) => void;
   ultimaDoExercicio: boolean;
 }) {
@@ -196,6 +209,14 @@ function CartaoSerie({
         <BotaoMarcar feito={feita} ultimaDoExercicio={ultimaDoExercicio} rotulo={`Série ${indice + 1} ${s.tipo} feita`}
           aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })} />
       </View>
+      {!semCarga && passo !== null ? (
+        <AjusteDeCarga passo={passo} rotulo={`peso da série ${indice + 1}`}
+          aoAjustar={(sentido) => mudar({ carga: ajustarCarga(carga, calculada.sugestao, passo, sentido) })} />
+      ) : null}
+      {anterior && !feita ? (
+        <Botao rotulo="Repetir a série anterior" rotuloAcessivel={`Repetir a série ${indice} na série ${indice + 1}`} tipo="fantasma" Icone={Repeat}
+          aoTocar={() => aoRegistrar({ carga: semCarga ? null : anterior.carga, repeticoes: anterior.repeticoes, concluida: true })} />
+      ) : null}
       {!semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <Texto numerico variante="pequeno">Peso sugerido pelo plano; mude se usar outro.</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </Animated.View>
