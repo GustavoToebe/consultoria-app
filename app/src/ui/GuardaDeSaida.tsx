@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useId, useMemo, useState, type Re
 import { Platform } from 'react-native';
 
 import { criarGuarda, SEM_GUARDA, type Guarda } from './guarda';
-import { portalDaFolhaDoTopo, useGuardaNoHistorico } from './historicoDasFolhas';
+import { devolverGuardaDoHistorico, portalDaFolhaDoTopo, useGuardaNoHistorico } from './historicoDasFolhas';
 import { PainelConfirmacao } from './PainelConfirmacao';
 
 const Contexto = createContext<Guarda>(SEM_GUARDA);
@@ -32,12 +32,15 @@ export function GuardaDeSaida({ children }: { children: ReactNode }) {
     setAcao(null);
     if (!a) return;
     // A ação navega e o navegador da pilha dispara `beforeRemove` na hora: com a saída liberada ele não pergunta de novo.
+    // Na web, a entrada da guarda do editor sai do histórico antes (a ação corre depois do `popstate`).
     const soltar = guarda.liberar();
-    try {
-      a();
-    } finally {
-      setTimeout(soltar, 0);
-    }
+    devolverGuardaDoHistorico(() => {
+      try {
+        a();
+      } finally {
+        setTimeout(soltar, 0);
+      }
+    });
   };
 
   return (
@@ -66,7 +69,7 @@ export function useGuardaDeSaida(pendente: boolean) {
   const navigation = useNavigation();
   // O voltar do navegador (web) cai numa entrada de guarda e pergunta aqui; confirmar sai por um `history.go` só, com a
   // saída liberada até o `popstate` passar (senão o `beforeRemove` abaixo perguntaria de novo).
-  const { sairAntes } = useGuardaNoHistorico(pendente, (sair) =>
+  useGuardaNoHistorico(pendente, (sair) =>
     guarda.confirmar(() => {
       const soltar = guarda.liberar();
       sair();
@@ -79,24 +82,13 @@ export function useGuardaDeSaida(pendente: boolean) {
     const soltar = navigation.addListener('beforeRemove', (e) => {
       if (guarda.liberado()) return;
       e.preventDefault();
-      const acao = e.data.action;
-      guarda.confirmar(() => {
-        // Seta e botão físico: a entrada da guarda sai do histórico antes do voltar (senão sobra uma entrada na web).
-        const soltar = guarda.liberar();
-        sairAntes(() => {
-          try {
-            navigation.dispatch(acao);
-          } finally {
-            setTimeout(soltar, 0);
-          }
-        });
-      });
+      guarda.confirmar(() => navigation.dispatch(e.data.action));
     });
     return () => {
       desmarcar();
       soltar();
     };
-  }, [pendente, id, guarda, navigation, sairAntes]);
+  }, [pendente, id, guarda, navigation]);
 }
 
 /**

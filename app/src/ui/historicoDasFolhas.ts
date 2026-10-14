@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { folhasParaFechar, nivelDoEstado, passosParaSairDeEntradasSobrando, passosParaSairDoEditor, planejarAcerto, podeRegistrarGuarda } from '../dominio/historicoDasFolhas';
@@ -187,21 +187,19 @@ export function useGuardaNoHistorico(pendente: boolean, perguntar: (sair: () => 
       remover(id);
     };
   }, [id, pendente]);
-  const sairAntes = useCallback((depois: () => void) => sairDaGuardaAntes(id, depois), [id]);
-  return { sairAntes };
 }
 
 /**
- * Saída por "voltar" do app (seta, botão físico) já confirmada: com o histórico em cima da entrada da guarda, um
- * `router.back()` só desfaria essa entrada e sobraria uma com o endereço da tela anterior (o voltar seguinte não sairia
- * do lugar). Então a guarda é retirada e a entrada devolvida primeiro, e `depois` (a navegação) corre quando o
- * `popstate` chega. Sem guarda no histórico (ou fora da web) `depois` corre na hora. Quem chama mantém a saída liberada
- * até `depois` terminar.
+ * Toda saída confirmada do editor (seta, botão físico, menu, trilha) passa por aqui antes de navegar: com o histórico em
+ * cima da entrada da guarda, um `router.back()` só desfaria essa entrada e sobraria uma com o endereço da tela anterior
+ * (o voltar seguinte não sairia do lugar). A guarda é retirada e a entrada devolvida primeiro; `depois` (a navegação) corre
+ * quando o `popstate` chega. Sem guarda no histórico (ou fora da web) `depois` corre na hora. Quem chama mantém a saída
+ * liberada até `depois` terminar.
  */
-function sairDaGuardaAntes(id: string, depois: () => void) {
-  const i = web() ? abertas.findIndex((a) => a.id === id && a.guarda) : -1;
+export function devolverGuardaDoHistorico(depois: () => void) {
+  const i = web() ? abertas.findIndex((a) => a.guarda) : -1;
   if (i < 0 || nivelDoEstado(window.history.state) === 0) { depois(); return; }
-  if (guardaPedida?.id === id) guardaPedida = null;
+  if (guardaPedida?.id === abertas[i].id) guardaPedida = null;
   abertas.splice(i, 1);
   nivelAoRemover = 0;
   aoChegar = depois;
@@ -209,9 +207,11 @@ function sairDaGuardaAntes(id: string, depois: () => void) {
 }
 
 /**
- * Sai de vez do editor (é o `sair` que `perguntar` recebe), já com a pessoa tendo confirmado: tira a guarda sem reempilhar e volta as entradas dela e da tela
- * num `history.go` só (um caminho só; um `router.back()` junto disputaria com o acerto e voltaria duas telas). Quem chama
- * mantém a saída liberada (`liberar`) até o `popstate` passar, senão o `beforeRemove` do editor pergunta de novo.
+ * Sai de vez do editor (é o `sair` que `perguntar` recebe), já com a pessoa tendo confirmado: tira a guarda (se ainda
+ * estiver registrada) sem reempilhar e volta as entradas dela e da tela num `history.go` só (um `router.back()` junto
+ * disputaria com o acerto e voltaria duas telas). Quem chama mantém a saída liberada (`liberar`) até o `popstate` passar,
+ * senão o `beforeRemove` do editor pergunta de novo. Pelo `GuardaDeSaida.sair` a guarda já foi devolvida antes
+ * (`devolverGuardaDoHistorico`) e resta a entrada da própria tela.
  */
 function sairDoEditorPeloNavegador(id: string) {
   if (!web()) return;
