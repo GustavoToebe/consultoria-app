@@ -176,7 +176,7 @@ export const removerLogo = () => requisicao<Marca>('/consultoria/marca/logo', { 
 
 // ---- Treinador: início ----
 
-export const painelTreinador = (meus=false) => requisicao<PainelTreinador>(`/painel?meus=${meus}`);
+export const painelTreinador = (meus=false, diasSemRegistro=7) => requisicao<PainelTreinador>(`/painel?meus=${meus}&dias=${diasSemRegistro}`);
 
 // ---- Treinador: alunos ----
 

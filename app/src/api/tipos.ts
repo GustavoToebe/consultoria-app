@@ -118,7 +118,12 @@ export interface AlunoResumo {
   planoAtivo: { id: string; titulo: string } | null;
   ultimoRegistro: string | null;
   responsavelId?: string | null;
+  /** Atualização da pasta vigente; nula sem permissão de ler atualizações ou sem pasta com período. */
+  atualizacao?: SituacaoDaAtualizacao | null;
 }
+
+/** Mesmos campos de {@link AtualizacaoDaLista} que {@link statusAtualizacaoTreinador} usa, sem o nome do aluno. */
+export type SituacaoDaAtualizacao = Omit<AtualizacaoDaLista, 'pastaId' | 'alunoId' | 'nomeAluno'>;
 
 export interface PaginaAlunos {
   itens: AlunoResumo[];
@@ -448,7 +453,7 @@ export interface PainelTreinador {
   atualizacoesAvisaramAtraso: number;
   atualizacoesProximas: number;
   alunosAtivos: number;
-  alunosSemRegistro7Dias: { id: string; nome: string; ultimoRegistro: string | null }[];
+  alunosSemRegistro: { id: string; nome: string; ultimoRegistro: string | null }[];
   ultimasExecucoes: { aluno: { id: string; nome: string }; data: string; sessao: string; series: number }[];
   planosTerminando: { plano: { id: string; titulo: string }; aluno: { id: string; nome: string }; fim: string }[];
 }

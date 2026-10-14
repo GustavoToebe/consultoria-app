@@ -10,6 +10,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { painelTreinador } from '../../api/rotas';
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
+import { OPCOES_DIAS_SEM_REGISTRO } from '../../dominio/preferencias';
 import { dataParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -25,13 +26,15 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 /**
- * Início do treinador: alunos ativos, quem não registra há 7 dias (informação, não inativa ninguém), últimos registros
+ * Início do treinador: alunos ativos, quem não registra há N dias (preferência pessoal) (informação, não inativa ninguém), últimos registros
  * e planos que terminam nos próximos 7 dias (atalho para a ficha, onde está o "Replicar").
  */
 export default function InicioTreinador() {
   const { usuario,perfilEquipe } = useSessao();
   const [escopo,setEscopo]=useState<'meus'|'todos'>(perfilEquipe?.acessoTotal?'todos':'meus');
-  const { dados, erro, carregando, recarregar } = useCarregar(`painel:${escopo}`, () => painelTreinador(escopo==='meus'));
+  const { preferencias, escolherPreferencia } = useTema();
+  const dias = preferencias.diasSemRegistro;
+  const { dados, erro, carregando, recarregar } = useCarregar(`painel:${escopo}:${dias}`, () => painelTreinador(escopo==='meus', dias));
   useFocusEffect(useCallback(()=>{recarregar();},[recarregar]));
   const abrirAluno = (id: string) => router.push(`/treinador/alunos/${id}`);
 
@@ -75,9 +78,11 @@ export default function InicioTreinador() {
               />
             ))}
           </Cartao>
-          </Permitido><Permitido codigo="REGISTRO_LER"><Cartao titulo="Sem registro há 7 dias" descricao="Pode ter treinado sem registrar no app." style={estilos.metade}>
-            {dados.alunosSemRegistro7Dias.length === 0 ? <Vazio titulo="Nenhum aluno nesta lista" texto="Os alunos sem registros recentes aparecerão aqui." /> : null}
-            {dados.alunosSemRegistro7Dias.map((a) => (
+          </Permitido><Permitido codigo="REGISTRO_LER"><Cartao titulo={`Sem registro há ${dias} dias`} descricao="Pode ter treinado sem registrar no app." style={estilos.metade}>
+            <Escolha descricao="Dias sem registro" opcoes={OPCOES_DIAS_SEM_REGISTRO.map((n) => ({ valor: n, rotulo: `${n} dias` }))} valor={dias}
+              aoMudar={(n) => escolherPreferencia({ diasSemRegistro: n })} />
+            {dados.alunosSemRegistro.length === 0 ? <Vazio titulo="Nenhum aluno nesta lista" texto="Os alunos sem registros recentes aparecerão aqui." /> : null}
+            {dados.alunosSemRegistro.map((a) => (
               <Linha
                 key={a.id}
                 titulo={a.nome}

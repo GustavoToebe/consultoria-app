@@ -9,6 +9,7 @@ import br.com.treinos.api.execucao.IndiceVersao;
 import br.com.treinos.api.execucao.IndicesDeVersao;
 import br.com.treinos.api.treino.PlanoTreino;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
+import br.com.treinos.api.web.BadRequestException;
 import br.com.treinos.api.web.Fuso;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +25,14 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Tela Início do treinador. "Sem registro há 7 dias" é só informação: pode ter treinado sem registrar,
+ * Tela Início do treinador. "Sem registro há N dias" (N escolhido por quem vê, de 1 a 90) é só informação: pode ter treinado sem registrar,
  * e nunca inativa ninguém.
  */
 @Service
 public class PainelService {
 
+    public static final int DIAS_SEM_REGISTRO_PADRAO = 7;
+    public static final int DIAS_SEM_REGISTRO_MAXIMO = 90;
     private static final int LIMITE_LISTA = 20;
     private static final int ULTIMAS_EXECUCOES = 10;
 
@@ -48,7 +51,7 @@ public class PainelService {
     public record PlanoTerminando(PlanoRef plano, AlunoRef aluno, LocalDate fim) {
     }
 
-    public record PainelTreinador(long alunosAtivos, List<AlunoSemRegistro> alunosSemRegistro7Dias,
+    public record PainelTreinador(long alunosAtivos, List<AlunoSemRegistro> alunosSemRegistro,
                                   List<ExecucaoRecente> ultimasExecucoes, List<PlanoTerminando> planosTerminando,
                                   long atualizacoesParaRevisar, long atualizacoesAtrasadas,
                                   long atualizacoesAvisaramAtraso, long atualizacoesProximas) {
@@ -71,11 +74,14 @@ public class PainelService {
 
     @Transactional(readOnly = true)
     public PainelTreinador painel() {
-        return painel(false);
+        return painel(false, DIAS_SEM_REGISTRO_PADRAO);
     }
 
     @Transactional(readOnly = true)
-    public PainelTreinador painel(boolean meus) {
+    public PainelTreinador painel(boolean meus, int diasSemRegistro) {
+        if (diasSemRegistro < 1 || diasSemRegistro > DIAS_SEM_REGISTRO_MAXIMO) {
+            throw new BadRequestException("Dias sem registro precisa estar entre 1 e " + DIAS_SEM_REGISTRO_MAXIMO + ".");
+        }
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         UUID responsavelId = meus ? ((br.com.treinos.api.security.UsuarioAutenticado)
                 org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal()).usuarioId() : null;
@@ -87,7 +93,7 @@ public class PainelService {
             execucoes.ultimoRegistro(porId.keySet()).forEach(u -> ultimo.put(u.alunoId(), u.data()));
         }
         List<AlunoSemRegistro> semRegistro = ativos.stream()
-                .filter(a -> ultimo.get(a.getId()) == null || ultimo.get(a.getId()).isBefore(hoje.minusDays(7)))
+                .filter(a -> ultimo.get(a.getId()) == null || ultimo.get(a.getId()).isBefore(hoje.minusDays(diasSemRegistro)))
                 .limit(LIMITE_LISTA)
                 .map(a -> new AlunoSemRegistro(a.getId(), a.getNome(), ultimo.get(a.getId())))
                 .toList();

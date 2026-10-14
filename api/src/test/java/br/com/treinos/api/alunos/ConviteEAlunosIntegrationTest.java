@@ -154,7 +154,17 @@ class ConviteEAlunosIntegrationTest extends AbstractIntegrationTest {
     void painelMostraAlunosSemRegistroEPlanosTerminando() throws Exception {
         JsonNode painel = api.get("/painel", treinador, 200);
         assertThat(painel.get("alunosAtivos").asLong()).isEqualTo(1);
-        assertThat(painel.get("alunosSemRegistro7Dias").get(0).get("nome").asString()).isEqualTo("Maria Fictícia Souza");
+        assertThat(painel.get("alunosSemRegistro").get(0).get("nome").asString()).isEqualTo("Maria Fictícia Souza");
         assertThat(painel.get("ultimasExecucoes")).isEmpty();
+    }
+
+    @Test
+    void painelAceitaDiasSemRegistroDeUmANoventaESoIsso() throws Exception {
+        assertThat(api.get("/painel?dias=30", treinador, 200).get("alunosSemRegistro")).hasSize(1);
+        assertThat(api.get("/painel?dias=1", treinador, 200).get("alunosSemRegistro")).hasSize(1);
+        assertThat(api.get("/painel?dias=90", treinador, 200).get("alunosSemRegistro")).hasSize(1);
+        api.get("/painel?dias=0", treinador, 400);
+        api.get("/painel?dias=91", treinador, 400);
+        api.get("/painel?dias=abc", treinador, 400);
     }
 }

@@ -20,7 +20,12 @@ export interface Preferencias {
   graficos: boolean;
   /** Só na web: barras de rolagem (e demais controles do navegador) no escuro quando o tema em uso é escuro. */
   barrasEscuras: boolean;
+  /** Só treinador: "Sem registro há N dias" no Início. Informação, nunca inativa ninguém. */
+  diasSemRegistro: number;
 }
+
+/** Valores que o cartão "Sem registro" oferece; a API aceita de 1 a 90. */
+export const OPCOES_DIAS_SEM_REGISTRO: readonly number[] = [3, 7, 14, 30];
 
 export const PREFERENCIAS_PADRAO: Preferencias = {
   tema: 'CONSULTORIA',
@@ -30,6 +35,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   vibracao: true,
   graficos: true,
   barrasEscuras: true,
+  diasSemRegistro: 7,
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'SISTEMA'];
@@ -60,6 +66,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     vibracao: typeof o.vibracao === 'boolean' ? o.vibracao : PREFERENCIAS_PADRAO.vibracao,
     graficos: typeof o.graficos === 'boolean' ? o.graficos : PREFERENCIAS_PADRAO.graficos,
     barrasEscuras: typeof o.barrasEscuras === 'boolean' ? o.barrasEscuras : PREFERENCIAS_PADRAO.barrasEscuras,
+    diasSemRegistro: typeof o.diasSemRegistro === 'number' && OPCOES_DIAS_SEM_REGISTRO.includes(o.diasSemRegistro) ? o.diasSemRegistro : PREFERENCIAS_PADRAO.diasSemRegistro,
   };
 }
 

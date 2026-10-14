@@ -16,7 +16,8 @@ public class PainelTreinadorController {
 
     @PreAuthorize("hasAuthority('PERM_PAINEL_VER')")
     @GetMapping("/painel")
-    public PainelTreinador painel(@org.springframework.web.bind.annotation.RequestParam(defaultValue="false") boolean meus) {
-        return painel.painel(meus);
+    public PainelTreinador painel(@org.springframework.web.bind.annotation.RequestParam(defaultValue="false") boolean meus,
+                                  @org.springframework.web.bind.annotation.RequestParam(defaultValue="7") int dias) {
+        return painel.painel(meus, dias);
     }
 }
