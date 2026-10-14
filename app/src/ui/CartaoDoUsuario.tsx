@@ -41,10 +41,9 @@ export function CartaoDoUsuario({ compacto }: { compacto?: boolean } = {}) {
   };
   const escolher = (id: IdDoItemDoMenu, href: string | null) => {
     fechar();
-    confirmar(() => {
-      if (href === null) setSaindo(true);
-      else router.navigate(href as Href);
-    });
+    // Sair da conta tem a própria pergunta (que já avisa de alteração não salva): passar pela guarda perguntaria duas vezes.
+    if (href === null) setSaindo(true);
+    else confirmar(() => router.navigate(href as Href));
   };
 
   useCliqueFora(caixa, aberto, fechar);
