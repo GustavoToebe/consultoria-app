@@ -5,6 +5,9 @@ import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoResumo;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PaginaAlunos;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PlanoAtivoResumo;
+import br.com.treinos.api.alunos.dto.AlunoDtos.SituacaoAtualizacao;
+import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
+import br.com.treinos.api.atualizacoes.RegrasAtualizacao;
 import br.com.treinos.api.auth.RefreshTokenService;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
@@ -13,6 +16,7 @@ import br.com.treinos.api.treino.PlanoTreinoRepository;
 import br.com.treinos.api.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoException;
+import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -41,15 +45,18 @@ public class AlunoService {
     private final PlanoTreinoRepository planos;
     private final ExecucaoSerieRepository execucoes;
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
+    private final AtualizacaoRepository atualizacoes;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, RefreshTokenService refreshTokens,
-                        PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria) {
+                        PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
+                        AtualizacaoRepository atualizacoes) {
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.refreshTokens = refreshTokens;
         this.planos = planos;
         this.execucoes = execucoes;
         this.auditoria = auditoria;
+        this.atualizacoes = atualizacoes;
     }
 
     @Transactional(readOnly = true)
@@ -74,12 +81,30 @@ public class AlunoService {
         if (!ids.isEmpty()) {
             execucoes.ultimoRegistro(ids).forEach(u -> ultimo.put(u.alunoId(), u.data()));
         }
+        Map<UUID, SituacaoAtualizacao> situacoes = situacoesDasAtualizacoes(ids);
         List<AlunoResumo> itens = page.getContent().stream().map(a -> {
             PlanoTreino p = planoAtivo.get(a.getId());
             return new AlunoResumo(a.getId(), a.getNome(), a.isAtivo(), a.getUsuarioId() != null,
-                    (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null,a.getResponsavelId());
+                    (p == null || !br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER")) ? null : new PlanoAtivoResumo(p.getId(), p.getTitulo()), br.com.treinos.api.equipe.AcessoAtual.pode("REGISTRO_LER") ? ultimo.get(a.getId()) : null,a.getResponsavelId(),
+                    situacoes.get(a.getId()));
         }).toList();
         return new PaginaAlunos(itens, page.getTotalElements());
+    }
+
+    /** Mesma exigência dos painéis de atualização: ler atualizações e dados sensíveis (as respostas são de saúde). */
+    private Map<UUID, SituacaoAtualizacao> situacoesDasAtualizacoes(List<UUID> ids) {
+        if (ids.isEmpty() || !br.com.treinos.api.equipe.AcessoAtual.pode("ATUALIZACAO_LER")
+                || !br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER")) {
+            return Map.of();
+        }
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        Map<UUID, SituacaoAtualizacao> situacoes = new HashMap<>();
+        atualizacoes.linhasDosAlunos(ids).forEach(l -> {
+            var r = RegrasAtualizacao.calcular(hoje, l.data(), l.atrasoAte(), l.estado());
+            situacoes.put(l.alunoId(), new SituacaoAtualizacao(l.atualizacaoId(), r.fase(), l.data(), r.diasParaData(),
+                    r.diasDeAtraso(), l.atrasoAte()));
+        });
+        return situacoes;
     }
 
     @Transactional

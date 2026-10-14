@@ -40,8 +40,14 @@ public final class AlunoDtos {
     public record PlanoAtivoResumo(UUID id, String titulo) {
     }
 
+    /** Situação da atualização da pasta vigente; os campos são os de {@code RegrasAtualizacao.Situacao} mais a data. */
+    public record SituacaoAtualizacao(UUID id, String fase, LocalDate data, long diasParaData, long diasDeAtraso,
+                                      LocalDate atrasoAte) {
+    }
+
+    /** {@code atualizacao} sai nula sem permissão de ler atualizações ou quando o aluno não tem pasta com período. */
     public record AlunoResumo(UUID id, String nome, boolean ativo, boolean temAcesso, PlanoAtivoResumo planoAtivo,
-                              LocalDate ultimoRegistro,UUID responsavelId) {
+                              LocalDate ultimoRegistro,UUID responsavelId, SituacaoAtualizacao atualizacao) {
     }
 
     public record PaginaAlunos(List<AlunoResumo> itens, long total) {

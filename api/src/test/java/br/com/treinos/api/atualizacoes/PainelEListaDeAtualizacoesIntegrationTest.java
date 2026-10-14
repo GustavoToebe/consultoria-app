@@ -184,4 +184,53 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
             }
         }
     }
+
+    private JsonNode itemDaLista(JsonNode quem, UUID aluno) throws Exception {
+        for (JsonNode item : api.get("/alunos?tamanho=100", quem, 200).path("itens")) {
+            if (item.path("id").asString().equals(aluno.toString())) return item;
+        }
+        throw new AssertionError("Aluno fora da lista: " + aluno);
+    }
+
+    @Test
+    void listaDeAlunosTrazASituacaoDaAtualizacaoDaPastaAtual() throws Exception {
+        UUID atrasado = alunoDe(admin, "Aluno atrasado da lista", hoje.minusDays(2));
+        UUID enviou = alunoDe(admin, "Aluno que enviou na lista", hoje);
+        enviar(loginDoAluno(enviou));
+        UUID avisou = alunoDe(admin, "Aluno que avisou na lista", hoje);
+        avisarAtraso(loginDoAluno(avisou), hoje.plusDays(2));
+        UUID soComDieta = alunoSoComDieta(admin, "Aluno só com dieta na lista", hoje.plusDays(10));
+        UUID semPasta = UUID.fromString(api.post("/alunos", admin, Map.of("nome", "Aluno sem pasta na lista"), 200)
+                .path("id").asString());
+
+        JsonNode a = itemDaLista(admin, atrasado).path("atualizacao");
+        assertThat(a.path("fase").asString()).isEqualTo("ATRASADA");
+        assertThat(a.path("diasDeAtraso").asLong()).isEqualTo(2);
+        assertThat(a.path("data").asString()).isEqualTo(hoje.minusDays(2).toString());
+        assertThat(a.path("id").isNull()).isTrue();
+
+        JsonNode e = itemDaLista(admin, enviou).path("atualizacao");
+        assertThat(e.path("fase").asString()).isEqualTo("ENVIADA");
+        assertThat(e.path("id").asString()).isNotEmpty();
+
+        JsonNode v = itemDaLista(admin, avisou).path("atualizacao");
+        assertThat(v.path("atrasoAte").asString()).isEqualTo(hoje.plusDays(2).toString());
+
+        assertThat(itemDaLista(admin, soComDieta).path("atualizacao").path("fase").asString()).isEqualTo("NENHUMA");
+        assertThat(itemDaLista(admin, semPasta).path("atualizacao").isNull()).isTrue();
+    }
+
+    @Test
+    void listaDeAlunosNaoTrazAtualizacaoSemPermissaoDeLerAtualizacoes() throws Exception {
+        UUID aluno = alunoDe(admin, "Aluno atrasado sem permissão", hoje.minusDays(2));
+        String perfil = api.post("/perfis", admin, Map.of("nome", "Só lista de alunos",
+                "permissoes", Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER")), 200).path("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", admin, Map.of("nome", "Sem atualização",
+                "email", ApiDeTeste.emailUnico("sematu"), "perfilId", perfil), 200);
+        JsonNode sem = api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
+                Map.of("senha", ApiDeTeste.SENHA), 200);
+        JsonNode item = itemDaLista(sem, aluno);
+        assertThat(item.path("atualizacao").isNull()).isTrue();
+        assertThat(itemDaLista(admin, aluno).path("atualizacao").path("fase").asString()).isEqualTo("ATRASADA");
+    }
 }

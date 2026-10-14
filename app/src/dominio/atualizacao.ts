@@ -53,7 +53,7 @@ export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>)
 /** Lista aberta a partir de um contador do Início: leva junto o escopo "Meus alunos", para o total bater com a lista. */
 export const caminhoListaAtualizacoes = (situacao: string, meus: boolean) =>
   `/treinador/atualizacoes?situacao=${situacao}${meus ? '&meus=true' : ''}`;
-export function statusAtualizacaoTreinador(a:AtualizacaoDaLista) {
+export function statusAtualizacaoTreinador(a:Pick<AtualizacaoDaLista,'fase'|'diasDeAtraso'|'diasParaData'|'atrasoAte'>) {
   if(a.fase==='ENVIADA')return {texto:'Para revisar',tipo:'atencao' as const};
   if(a.fase==='REVISADA')return {texto:'Revisada',tipo:'sucesso' as const};
   if(a.fase==='ATRASADA')return {texto:`Atrasada há ${a.diasDeAtraso} ${a.diasDeAtraso===1?'dia':'dias'}`,tipo:'perigo' as const};

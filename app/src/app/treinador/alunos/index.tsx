@@ -9,6 +9,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { listarAlunos } from '../../../api/rotas';
 import type { AlunoResumo, SituacaoFiltro } from '../../../api/tipos';
+import { statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataParaTela } from '../../../dominio/formatos';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, RAIO, LARGURA_LISTA } from '../../../tema/tokens';
@@ -125,10 +126,11 @@ const LARGURA_SELO = 96;
 
 function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
   const { cores } = useTema();
+  const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`Abrir ${aluno.nome}`}
+      accessibilityLabel={`Abrir ${aluno.nome}${atualizacao ? `. Atualização: ${atualizacao.texto}` : ''}`}
       onPress={() => router.push(`/treinador/alunos/${aluno.id}`)}
       style={(estado) => [
         estilos.linha,
@@ -139,6 +141,7 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
         <View style={estilos.selos}>
           <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} larguraMinima={LARGURA_SELO} />
           <Selo texto={aluno.temAcesso ? 'Com acesso' : 'Sem acesso'} tipo={aluno.temAcesso ? 'sucesso' : 'neutro'} larguraMinima={LARGURA_SELO} />
+          {atualizacao ? <Selo {...atualizacao} /> : null}
         </View>
         <Texto variante="suave" numberOfLines={2}>
           Treino: {aluno.planoAtivo?.titulo ?? '—'} · Último registro: {dataParaTela(aluno.ultimoRegistro) || '—'}

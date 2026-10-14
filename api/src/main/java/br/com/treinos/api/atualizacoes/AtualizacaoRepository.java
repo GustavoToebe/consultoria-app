@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.List;
 import java.util.UUID;
@@ -25,6 +26,17 @@ public interface AtualizacaoRepository extends JpaRepository<Atualizacao, UUID> 
             + "left join Atualizacao u on u.pastaId = p.id "
             + "where a.ativo = true and (:responsavelId is null or a.responsavelId = :responsavelId) order by a.nome asc")
     List<LinhaAtualizacao> linhasDoPainel(UUID responsavelId);
+
+    /** Mesma consulta de {@link #linhasDoPainel}, só para os alunos de uma página da lista (sem filtro de responsável). */
+    @Query("select new br.com.treinos.api.atualizacoes.LinhaAtualizacao(a.id, a.nome, p.id, p.fim, u.id, "
+            + "u.dataAtualizacao, u.atrasoAte, u.estado) from Aluno a "
+            + "left join PlanoTreino t on t.alunoId = a.id and t.ativo = true "
+            + "left join PlanoDieta d on d.alunoId = a.id and d.ativo = true "
+            + "join PastaPlano p on p.id = coalesce(t.pastaId, d.pastaId) and p.alunoId = a.id "
+            + "and p.arquivado = false and p.fim is not null "
+            + "left join Atualizacao u on u.pastaId = p.id "
+            + "where a.ativo = true and a.id in :alunoIds order by a.nome asc")
+    List<LinhaAtualizacao> linhasDosAlunos(Collection<UUID> alunoIds);
 
     /**
      * A data da atualização acompanha o fim da pasta enquanto ela estiver ABERTA; enviada ou revisada não muda.
