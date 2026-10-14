@@ -7,7 +7,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano } from '../api/rotas';
 import type { PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
-import { dataDaTela, dataParaTela, somarDias } from '../dominio/formatos';
+import { dataDaTela, dataParaTela } from '../dominio/formatos';
 import { proximoPeriodo } from '../dominio/periodo';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
