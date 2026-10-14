@@ -243,6 +243,7 @@ describe('PDF da mobilidade', () => {
   it('vídeo vira só o link; link inseguro ou prescrição ausente vira "—"', () => {
     expect(html).toContain('<a href="https://youtu.be/abc123">Vídeo</a>');
     expect(html).not.toContain('"onmouseover="');
+    expect(html).toContain('abc&quot;onmouseover=&quot;x');
     expect(html).not.toContain('javascript:');
     expect(html).toContain('<td>—</td>');
   });
