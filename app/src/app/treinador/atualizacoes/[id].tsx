@@ -1,13 +1,13 @@
 import { Permitido } from '../../../ui/Permitido';
 import { useSessao } from '../../../sessao/SessaoProvider';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { FeedbackAtualizacao } from '../../../aluno/atualizacao/FeedbackAtualizacao';
 import { QuestionarioAtualizacao } from '../../../aluno/atualizacao/QuestionarioAtualizacao';
 import { ErroApi } from '../../../api/cliente';
-import { atualizacaoDoAluno, detalheAtualizacao, responderAtualizacao } from '../../../api/rotas';
+import { atualizacaoDoAluno, detalheAtualizacao, listarAtualizacoes, responderAtualizacao } from '../../../api/rotas';
 import type { Atualizacao } from '../../../api/tipos';
-import { statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
+import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, filaDosParametros, type FilaDeAtualizacoes, proximaDaFila, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataParaTela } from '../../../dominio/formatos';
 import { LARGURA_EDITOR } from '../../../tema/tokens';
 import { ResumoDaAtualizacao } from '../../../treinador/ResumoDaAtualizacao';
@@ -27,7 +27,8 @@ import { useCarregar } from '../../../ui/useCarregar';
 
 export default function AtualizacaoTreinador() {
   const {pode}=useSessao();
-  const {id,alunoId}=useLocalSearchParams<{id:string;alunoId?:string}>();
+  const {id,alunoId,situacao,meus}=useLocalSearchParams<{id:string;alunoId?:string;situacao?:string;meus?:string}>();
+  const fila=filaDosParametros(situacao,meus);
   const detalhe=useCarregar(id==='previa'?alunoId??null:id??null,()=>
     id==='previa' ? atualizacaoDoAluno(alunoId!) : detalheAtualizacao(id));
   const a=detalhe.dados;
@@ -52,6 +53,7 @@ export default function AtualizacaoTreinador() {
       <QuestionarioAtualizacao atualizacao={a} respostas={a.respostas??{}} />
       {a.enviadaEm?pode('ATUALIZACAO_RESPONDER')?<EditorFeedback key={`${a.id}:${a.versao}`} atualizacao={a} aoSalvar={detalhe.definir} recarregar={detalhe.recarregar} />:<FeedbackAtualizacao feedback={a.feedback}/>:null}
       <LinkTexto texto="Abrir pasta do aluno" href={`/treinador/alunos/${a.alunoId}?pastaId=${a.pastaId}`} />
+      {fila?<ProximaDaFila fila={fila} pastaAtual={a.pastaId} />:null}
     </>:a && !detalhe.carregando?<Vazio titulo="Sem atualização" texto="Não há pasta vigente com data de atualização." />:null}
   </Tela>;
 }
@@ -86,4 +88,25 @@ function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
     <Permitido codigo="ATUALIZACAO_RESPONDER"><Botao rotulo="Enviar feedback" carregando={ocupado} desabilitado={!texto.trim()||conflito} motivo={conflito?'Recarregue antes de enviar.':'Escreva o feedback.'} aoTocar={()=>void salvar()} /></Permitido>
     {a.feedback?<Botao rotulo="Cancelar edição" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setEditando(false)} />:null}
   </Cartao>;
+}
+
+/**
+ * "Próxima ›" da revisão em fila: busca a lista de onde o treinador veio e abre a primeira que não é esta, trocando a
+ * tela (replace) para o voltar não acumular uma por atualização revisada.
+ */
+function ProximaDaFila({fila,pastaAtual}:{fila:FilaDeAtualizacoes;pastaAtual:string|null}) {
+  const [buscando,setBuscando]=useState(false);
+  const [acabou,setAcabou]=useState(false);
+  const {avisar}=useAviso();
+  const proxima=async()=>{
+    setBuscando(true);
+    try {
+      const item=proximaDaFila(await listarAtualizacoes(fila.situacao,fila.meus),pastaAtual);
+      if(item)router.replace(caminhoAtualizacaoTreinador(item,fila) as never);
+      else setAcabou(true);
+    }catch(erro){avisar(textoDoErro(erro),'perigo');}
+    finally{setBuscando(false);}
+  };
+  if(acabou)return <Cartao titulo="Nada mais para revisar"><Texto>Você chegou ao fim desta lista.</Texto><LinkTexto texto="Voltar para a lista" href={caminhoListaAtualizacoes(fila.situacao,fila.meus)} /></Cartao>;
+  return <Botao rotulo="Próxima ›" rotuloAcessivel="Abrir a próxima atualização da lista" tipo="secundario" carregando={buscando} aoTocar={()=>void proxima()} />;
 }

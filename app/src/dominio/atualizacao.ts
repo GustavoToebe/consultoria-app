@@ -1,4 +1,4 @@
-import type { Atualizacao, AtualizacaoDaLista, FaseAtualizacao } from '../api/tipos';
+import type { Atualizacao, AtualizacaoDaLista, FaseAtualizacao, SituacaoAtualizacao } from '../api/tipos';
 import { dataParaTela, somarDias } from './formatos';
 
 export const DIAS_MAXIMOS_DE_ATRASO = 15;
@@ -48,8 +48,21 @@ export function atualizacaoDaPasta(pastaId: string, atual: Atualizacao | null | 
   if (atual?.pastaId === pastaId) return atual;
   return historico.find(a => a.pastaId === pastaId) ?? null;
 }
-export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>) => a.id
-  ? `/treinador/atualizacoes/${a.id}` : `/treinador/atualizacoes/previa?alunoId=${a.alunoId}`;
+/** Lista de onde o treinador veio: a revisão em fila segue o mesmo filtro (`?situacao=&meus=`). */
+export interface FilaDeAtualizacoes { situacao: SituacaoAtualizacao; meus: boolean }
+const SITUACOES_DA_FILA: readonly SituacaoAtualizacao[] = ['PARA_REVISAR', 'ATRASADAS', 'AVISARAM_ATRASO', 'PROXIMAS'];
+export function filaDosParametros(situacao: string | undefined, meus: string | undefined): FilaDeAtualizacoes | null {
+  const achada = SITUACOES_DA_FILA.find((s) => s === situacao);
+  return achada ? { situacao: achada, meus: meus === 'true' } : null;
+}
+export const caminhoAtualizacaoTreinador = (a: Pick<Atualizacao,'id'|'alunoId'>, fila?: FilaDeAtualizacoes | null) => {
+  const base = a.id ? `/treinador/atualizacoes/${a.id}` : `/treinador/atualizacoes/previa?alunoId=${a.alunoId}`;
+  if (!fila) return base;
+  return `${base}${a.id ? '?' : '&'}situacao=${fila.situacao}${fila.meus ? '&meus=true' : ''}`;
+};
+/** "Próxima ›": a primeira da lista que não é a atual (ao responder, a atual sai de "Para revisar"). */
+export const proximaDaFila = <T extends { pastaId: string | null }>(itens: readonly T[], pastaAtual: string | null): T | null =>
+  itens.find((i) => i.pastaId !== pastaAtual) ?? null;
 /** Lista aberta a partir de um contador do Início: leva junto o escopo "Meus alunos", para o total bater com a lista. */
 export const caminhoListaAtualizacoes = (situacao: string, meus: boolean) =>
   `/treinador/atualizacoes?situacao=${situacao}${meus ? '&meus=true' : ''}`;

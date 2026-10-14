@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida } from './atualizacao';
+import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, proximaDaFila } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -71,4 +71,30 @@ it('cada pasta mostra a própria atualização: a vigente (mesmo sem linha grava
 it('a lista aberta pelo contador leva o escopo "Meus alunos"', () => {
   expect(caminhoListaAtualizacoes('PARA_REVISAR', true)).toBe('/treinador/atualizacoes?situacao=PARA_REVISAR&meus=true');
   expect(caminhoListaAtualizacoes('ATRASADAS', false)).toBe('/treinador/atualizacoes?situacao=ATRASADAS');
+});
+
+describe('revisão em fila', () => {
+  it('o endereço leva a lista de origem; sem fila fica como era', () => {
+    const fila = { situacao: 'PARA_REVISAR' as const, meus: true };
+    expect(caminhoAtualizacaoTreinador({ id: 'c1', alunoId: 'a1' }, fila)).toBe('/treinador/atualizacoes/c1?situacao=PARA_REVISAR&meus=true');
+    expect(caminhoAtualizacaoTreinador({ id: 'c1', alunoId: 'a1' }, { situacao: 'ATRASADAS', meus: false })).toBe('/treinador/atualizacoes/c1?situacao=ATRASADAS');
+    expect(caminhoAtualizacaoTreinador({ id: null, alunoId: 'a1' }, fila)).toBe('/treinador/atualizacoes/previa?alunoId=a1&situacao=PARA_REVISAR&meus=true');
+    expect(caminhoAtualizacaoTreinador({ id: 'c1', alunoId: 'a1' }, null)).toBe('/treinador/atualizacoes/c1');
+  });
+
+  it('só aceita situação conhecida', () => {
+    expect(filaDosParametros('PROXIMAS', 'true')).toEqual({ situacao: 'PROXIMAS', meus: true });
+    expect(filaDosParametros('AVISARAM_ATRASO', undefined)).toEqual({ situacao: 'AVISARAM_ATRASO', meus: false });
+    expect(filaDosParametros('QUALQUER', 'true')).toBeNull();
+    expect(filaDosParametros(undefined, 'true')).toBeNull();
+  });
+
+  it('a próxima é a primeira diferente da atual; fila acabou = nula', () => {
+    const itens = [{ pastaId: 'p1' }, { pastaId: 'p2' }, { pastaId: 'p3' }];
+    expect(proximaDaFila(itens, 'p1')?.pastaId).toBe('p2');
+    expect(proximaDaFila(itens, 'p2')?.pastaId).toBe('p1');
+    expect(proximaDaFila(itens, null)?.pastaId).toBe('p1');
+    expect(proximaDaFila([{ pastaId: 'p1' }], 'p1')).toBeNull();
+    expect(proximaDaFila([], 'p1')).toBeNull();
+  });
 });

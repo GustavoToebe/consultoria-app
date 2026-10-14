@@ -43,7 +43,7 @@ export default function ListaAtualizacoes() {
     {lista.carregando?<Esqueleto />:null}
     {!lista.carregando && lista.dados?.length===0?<Vazio titulo="Nenhuma atualização nesta lista" texto="As atualizações aparecem conforme o período da pasta e o envio do aluno." />:null}
     {lista.dados?.length?<Cartao titulo={ABAS.find(a=>a.valor===filtro)?.rotulo} descricao={`${lista.dados.length} ${lista.dados.length===1?'atualização':'atualizações'} nesta lista.`}>
-      <Grade gap={espaco(2)}>{lista.dados.map(a=><ItemDeLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} detalhe={`Atualização · ${dataParaTela(a.dataAtualizacao)}`} selo={statusAtualizacaoTreinador(a)} href={caminhoAtualizacaoTreinador(a)} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${dataParaTela(a.dataAtualizacao)}, ${statusAtualizacaoTreinador(a).texto}`} />)}</Grade>
+      <Grade gap={espaco(2)}>{lista.dados.map(a=><ItemDeLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} detalhe={`Atualização · ${dataParaTela(a.dataAtualizacao)}`} selo={statusAtualizacaoTreinador(a)} href={caminhoAtualizacaoTreinador(a,{situacao:filtro,meus})} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${dataParaTela(a.dataAtualizacao)}, ${statusAtualizacaoTreinador(a).texto}`} />)}</Grade>
     </Cartao>:null}
   </Tela>;
 }
