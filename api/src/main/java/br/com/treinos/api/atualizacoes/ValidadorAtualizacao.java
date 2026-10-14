@@ -1,6 +1,6 @@
 package br.com.treinos.api.atualizacoes;
 import br.com.treinos.api.questionarios.LimitesQuestionario;
-import br.com.treinos.api.web.ApiError;
+import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;

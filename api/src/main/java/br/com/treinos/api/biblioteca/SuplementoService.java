@@ -3,7 +3,7 @@ package br.com.treinos.api.biblioteca;
 import br.com.treinos.api.biblioteca.dto.SuplementoDtos.SuplementoRequest;
 import br.com.treinos.api.biblioteca.dto.SuplementoDtos.SuplementoResponse;
 import br.com.treinos.api.web.Buscas;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
@@ -78,7 +78,7 @@ public class SuplementoService {
 
     private void exigirNomeLivre(String nomeBusca, UUID exceto) {
         if (suplementos.existeNomeAtivo(nomeBusca, exceto)) {
-            throw new ConflitoException("Já existe um suplemento com este nome.", "NOME_EM_USO");
+            throw new ConflictException("Já existe um suplemento com este nome.", "NOME_EM_USO");
         }
     }
 }

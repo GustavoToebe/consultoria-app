@@ -1,6 +1,6 @@
 package br.com.treinos.api.conta;
 
-import br.com.treinos.api.web.ApiException;
+import br.com.plataforma.comum.web.ApiException;
 import org.springframework.http.HttpStatus;
 
 /** A consultoria ainda não tem dados comerciais (404 {@code CONTA_NAO_ENCONTRADA}). */

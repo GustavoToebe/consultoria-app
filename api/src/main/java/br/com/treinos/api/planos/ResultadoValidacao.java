@@ -1,6 +1,6 @@
 package br.com.treinos.api.planos;
 
-import br.com.treinos.api.web.ApiError;
+import br.com.plataforma.comum.web.ApiError;
 
 import java.util.ArrayList;
 import java.util.List;

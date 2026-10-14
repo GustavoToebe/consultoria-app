@@ -2,7 +2,7 @@ package br.com.treinos.api.termos;
 
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.UsuarioRepository;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +40,7 @@ public class TermosService {
     @Transactional
     public Resposta aceitar(UUID usuarioId, String versao) {
         if (!Termos.VERSAO.equals(versao)) {
-            throw new ConflitoException("Os termos foram atualizados. Leia a versão nova antes de aceitar.",
+            throw new ConflictException("Os termos foram atualizados. Leia a versão nova antes de aceitar.",
                     "TERMOS_DESATUALIZADOS");
         }
         // Trava a linha do usuário: dois toques seguidos em "Li e aceito" ficam em série.

@@ -1,5 +1,6 @@
 package br.com.treinos.api.web;
 
+import br.com.plataforma.comum.web.BadRequestException;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

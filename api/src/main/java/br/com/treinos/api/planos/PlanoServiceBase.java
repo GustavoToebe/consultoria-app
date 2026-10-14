@@ -12,8 +12,8 @@ import br.com.treinos.api.planos.dto.PlanoDtos.ReplicarRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.SalvarRascunhoRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.VersaoDetalhe;
 import br.com.treinos.api.planos.dto.PlanoDtos.VersaoResumo;
-import br.com.treinos.api.web.BadRequestException;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.BadRequestException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
@@ -290,7 +290,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
 
     private static void exigirMesmaVersao(PlanoBase plano, Long versao) {
         if (!plano.getVersao().equals(versao)) {
-            throw new ConflitoException("Outra pessoa ou aba alterou este plano. Recarregue para ver a versão atual.",
+            throw new ConflictException("Outra pessoa ou aba alterou este plano. Recarregue para ver a versão atual.",
                     "CONFLITO_EDICAO");
         }
     }

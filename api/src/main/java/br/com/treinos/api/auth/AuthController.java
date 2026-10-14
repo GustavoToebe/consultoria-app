@@ -6,7 +6,7 @@ import br.com.treinos.api.auth.dto.LoginResponse;
 import br.com.treinos.api.auth.dto.RefreshRequest;
 import br.com.treinos.api.security.CookieDeRefresh;
 import br.com.treinos.api.security.DestinoCliente;
-import br.com.treinos.api.web.NaoAutorizadoException;
+import br.com.plataforma.comum.web.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -70,7 +70,7 @@ public class AuthController {
         DestinoCliente cliente = DestinoCliente.de(http);
         String bruto = tokenDoCliente(cliente, corpo, doCookie);
         if (bruto == null || bruto.isBlank()) {
-            throw new NaoAutorizadoException("Sessão inválida ou expirada. Entre de novo.", "SESSAO_EXPIRADA");
+            throw new UnauthorizedException("Sessão inválida ou expirada. Entre de novo.", "SESSAO_EXPIRADA");
         }
         return sessaoHttp.responder(authService.renovar(bruto), cliente, resposta);
     }

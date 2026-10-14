@@ -3,7 +3,7 @@ package br.com.treinos.api.auth;
 import br.com.treinos.api.security.DestinoCliente;
 import br.com.treinos.api.security.OpaqueTokenGenerator;
 import br.com.treinos.api.security.SecurityProperties;
-import br.com.treinos.api.web.NaoAutorizadoException;
+import br.com.plataforma.comum.web.UnauthorizedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,8 +74,8 @@ public class RefreshTokenService {
         repository.apagarTodos(usuarioId);
     }
 
-    private static NaoAutorizadoException sessaoInvalida() {
-        return new NaoAutorizadoException("Sessão inválida ou expirada. Entre de novo.", "SESSAO_EXPIRADA");
+    private static UnauthorizedException sessaoInvalida() {
+        return new UnauthorizedException("Sessão inválida ou expirada. Entre de novo.", "SESSAO_EXPIRADA");
     }
 
     public record Rotacao(Usuario usuario, String refreshTokenBruto) {

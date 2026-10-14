@@ -6,6 +6,7 @@ import br.com.treinos.api.security.OpaqueTokenGenerator;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.*;
+import br.com.plataforma.comum.web.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -58,7 +59,7 @@ public class EquipeService {
         exigirDentroDoTeto(ator,permissoes);
         exigirDentroDoTeto(ator,permissoesDoPerfil(p));
         if(!ator.administrador() && p.getId().equals(ator.perfilId())) throw negada("Você não pode editar o perfil que você mesmo usa.");
-        if(r.versao()==null || !r.versao().equals(p.getVersao())) throw new ConflitoException("Outra pessoa alterou; recarregue.","CONFLITO_EDICAO");
+        if(r.versao()==null || !r.versao().equals(p.getVersao())) throw new ConflictException("Outra pessoa alterou; recarregue.","CONFLITO_EDICAO");
         nomeDisponivel(r.nome(),id);
         p.alterar(r.nome().trim(),Buscas.opcional(r.descricao()),r.ativo()==null || r.ativo(),permissoes);
         return perfilResponse(perfis.saveAndFlush(p));
@@ -78,7 +79,7 @@ public class EquipeService {
     public void apagarPerfil(UUID id) {
         travar();var p=perfil(id);exigirEditavel(p);
         if(usuarios.countByConsultoriaIdAndPerfilId(TenantContext.get(),id)>0 || convites.countByPerfilIdAndUsadoEmIsNullAndExpiraEmAfter(id,Instant.now())>0)
-            throw new ConflitoException("Este perfil está vinculado a um membro ou convite.","PERFIL_EM_USO");
+            throw new ConflictException("Este perfil está vinculado a um membro ou convite.","PERFIL_EM_USO");
         convites.deleteByPerfilId(id);convites.flush();
         perfis.delete(p);perfis.flush();
     }
@@ -103,7 +104,7 @@ public class EquipeService {
         travar();var p=perfil(r.perfilId());
         exigirPodeAtribuir(ator(),p);
         if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
-        String email=Emails.normalizar(r.email());if(usuarios.existeEmail(email)) throw new ConflitoException("Este e-mail já tem uma conta.","EMAIL_EM_USO");
+        String email=Emails.normalizar(r.email());if(usuarios.existeEmail(email)) throw new ConflictException("Este e-mail já tem uma conta.","EMAIL_EM_USO");
         convites.deleteByEmailAndUsadoEmIsNull(email);convites.flush();
         String codigo=OpaqueTokenGenerator.gerar();Instant expira=Instant.now().plus(7,ChronoUnit.DAYS);
         convites.saveAndFlush(new UsuarioConvite(r.nome().trim(),email,p.getId(),OpaqueTokenGenerator.hash(codigo),expira,criadoPor));
@@ -132,7 +133,7 @@ public class EquipeService {
         }
         if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
         if(u.isAtivo() && anterior.isAcessoTotal() && (!r.ativo() || !p.isAcessoTotal()) && administradoresAtivos()<=1)
-            throw new ConflitoException("A consultoria precisa de pelo menos um administrador ativo.","ULTIMO_ADMINISTRADOR");
+            throw new ConflictException("A consultoria precisa de pelo menos um administrador ativo.","ULTIMO_ADMINISTRADOR");
         boolean troca=!u.getPerfilId().equals(p.getId());boolean desativar=u.isAtivo() && !r.ativo();
         u.alterarNome(r.nome().trim());u.alterarPerfil(p.getId());u.alterarAtivo(r.ativo());
         if(troca || desativar) refresh.encerrarTodas(u.getId());
@@ -175,7 +176,7 @@ public class EquipeService {
         exigirDentroDoTeto(ator,permissoesDoPerfil(perfil));
     }
     private static final String MENSAGEM_TETO="Você não pode dar permissões que não tem.";
-    private static ProibidoException negada(String mensagem) { return new ProibidoException(mensagem,"PERMISSAO_NEGADA"); }
+    private static ForbiddenException negada(String mensagem) { return new ForbiddenException(mensagem,"PERMISSAO_NEGADA"); }
     private long administradoresAtivos() {
         return usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(TenantContext.get(),Papel.TREINADOR).stream()
             .filter(Usuario::isAtivo).filter(u -> { var p=perfil(u.getPerfilId());return p.isAtivo() && p.isAcessoTotal(); }).count();
@@ -186,8 +187,8 @@ public class EquipeService {
     private PerfilResponse perfilResponse(Perfil p) { return new PerfilResponse(p.getId(),p.getNome(),p.getDescricao(),p.isAcessoTotal(),p.isSistema(),p.isAtivo(),p.isAcessoTotal()?CatalogoPermissoes.CODIGOS:p.getPermissoes(),usuarios.countByConsultoriaIdAndPerfilId(TenantContext.get(),p.getId()),p.getVersao()); }
     private UsuarioResponse usuarioResponse(Usuario u) { var p=perfil(u.getPerfilId());return new UsuarioResponse(u.getId(),u.getNome(),u.getEmail(),p.getId(),p.getNome(),u.isAtivo(),false,null,u.getUltimoLoginEm()); }
     private boolean nomeExiste(String nome,UUID exceto) { return perfis.findAllByOrderByNomeAsc().stream().anyMatch(p -> !p.getId().equals(exceto) && p.getNome().equalsIgnoreCase(nome.trim())); }
-    private void nomeDisponivel(String nome,UUID exceto) { if(nomeExiste(nome,exceto)) throw new ConflitoException("Já existe um perfil com este nome.","NOME_EM_USO"); }
-    private static void exigirEditavel(Perfil p) { if(p.isSistema()) throw new ConflitoException("O perfil Administrador é do sistema.","PERFIL_DE_SISTEMA"); }
+    private void nomeDisponivel(String nome,UUID exceto) { if(nomeExiste(nome,exceto)) throw new ConflictException("Já existe um perfil com este nome.","NOME_EM_USO"); }
+    private static void exigirEditavel(Perfil p) { if(p.isSistema()) throw new ConflictException("O perfil Administrador é do sistema.","PERFIL_DE_SISTEMA"); }
     private static NaoEncontradoException naoEncontrado() { return new NaoEncontradoException("Recurso não encontrado."); }
     public static NaoEncontradoException conviteInvalido() { return new NaoEncontradoException("Convite inválido ou expirado."); }
 }

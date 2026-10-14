@@ -11,7 +11,7 @@ import br.com.treinos.api.planos.ResultadoValidacao.Problema;
 import br.com.treinos.api.questionarios.ConteudoQuestionario.Pergunta;
 import br.com.treinos.api.questionarios.ConteudoQuestionario.Secao;
 import br.com.treinos.api.questionarios.dto.QuestionarioDtos.*;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -160,7 +160,7 @@ public class QuestionarioService {
     public QuestionarioDetalhe definirPadrao(UUID id) {
         Questionario q = buscarParaAlterar(id);
         if (!q.isUsavel()) {
-            throw new ConflitoException("Só um questionário publicado e ativo pode ser o padrão.",
+            throw new ConflictException("Só um questionário publicado e ativo pode ser o padrão.",
                     "QUESTIONARIO_NAO_PUBLICADO");
         }
         if (q.isPadrao()) {
@@ -184,7 +184,7 @@ public class QuestionarioService {
             return detalhe(q);
         }
         if (q.isPadrao()) {
-            throw new ConflitoException("O questionário padrão não pode ser arquivado. Escolha outro padrão antes.",
+            throw new ConflictException("O questionário padrão não pode ser arquivado. Escolha outro padrão antes.",
                     "QUESTIONARIO_PADRAO");
         }
         q.arquivar();
@@ -219,11 +219,11 @@ public class QuestionarioService {
     public void excluir(UUID id) {
         Questionario q = buscar(id);
         if (q.isPadrao()) {
-            throw new ConflitoException("O questionário padrão não pode ser excluído. Escolha outro padrão antes.",
+            throw new ConflictException("O questionário padrão não pode ser excluído. Escolha outro padrão antes.",
                     "QUESTIONARIO_PADRAO");
         }
         if (questionarios.contarEnviosDo(q.getId()) > 0) {
-            throw new ConflitoException("Este questionário já foi respondido por alunos. Arquive em vez de excluir.",
+            throw new ConflictException("Este questionário já foi respondido por alunos. Arquive em vez de excluir.",
                     "QUESTIONARIO_EM_USO");
         }
         try {
@@ -231,7 +231,7 @@ public class QuestionarioService {
             questionarios.flush();
         } catch (DataIntegrityViolationException e) {
             // Um envio chegou entre a conferência e o delete: a FK de atualizacao protege.
-            throw new ConflitoException("Este questionário já foi respondido por alunos. Arquive em vez de excluir.",
+            throw new ConflictException("Este questionário já foi respondido por alunos. Arquive em vez de excluir.",
                     "QUESTIONARIO_EM_USO");
         }
     }
@@ -268,7 +268,7 @@ public class QuestionarioService {
             return;
         }
         if (!buscar(questionarioId).isUsavel()) {
-            throw new ConflitoException("Escolha um questionário publicado e que não esteja arquivado.",
+            throw new ConflictException("Escolha um questionário publicado e que não esteja arquivado.",
                     "QUESTIONARIO_INDISPONIVEL");
         }
     }
@@ -289,10 +289,10 @@ public class QuestionarioService {
         } catch (DataIntegrityViolationException e) {
             // Corrida: os índices únicos são a rede. A mensagem nunca repete o que foi digitado.
             if (restricao(e).contains("nome")) {
-                throw new ConflitoException("Já existe um questionário ativo com este nome.",
+                throw new ConflictException("Já existe um questionário ativo com este nome.",
                         "QUESTIONARIO_NOME_EM_USO");
             }
-            throw new ConflitoException(
+            throw new ConflictException(
                     "Outra pessoa alterou este questionário ao mesmo tempo. Recarregue para ver a versão atual.",
                     "CONFLITO_EDICAO");
         }
@@ -310,14 +310,14 @@ public class QuestionarioService {
 
     private static void exigirAtivo(Questionario q) {
         if (q.isArquivado()) {
-            throw new ConflitoException("Este questionário está arquivado. Desarquive para editar.",
+            throw new ConflictException("Este questionário está arquivado. Desarquive para editar.",
                     "QUESTIONARIO_ARQUIVADO");
         }
     }
 
     private static void exigirMesmaVersao(Questionario q, Long versao) {
         if (!q.getVersao().equals(versao)) {
-            throw new ConflitoException(
+            throw new ConflictException(
                     "Outra pessoa ou aba alterou este questionário. Recarregue para ver a versão atual.",
                     "CONFLITO_EDICAO");
         }
@@ -328,7 +328,7 @@ public class QuestionarioService {
                 ? questionarios.existsByNomeIgnoreCaseAndArquivadoFalse(nome)
                 : questionarios.existsByNomeIgnoreCaseAndArquivadoFalseAndIdNot(nome, proprio);
         if (ocupado) {
-            throw new ConflitoException("Já existe um questionário ativo com este nome.", "QUESTIONARIO_NOME_EM_USO");
+            throw new ConflictException("Já existe um questionário ativo com este nome.", "QUESTIONARIO_NOME_EM_USO");
         }
     }
 

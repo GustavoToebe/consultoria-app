@@ -1,5 +1,7 @@
 package br.com.treinos.api.web;
 
+import br.com.plataforma.comum.web.ApiError;
+import br.com.plataforma.comum.web.ApiException;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
@@ -9,6 +11,8 @@ import java.util.List;
  * {@code PLANO_INVALIDO} (erros que bloqueiam) e {@code CONFIRMAR_AVISOS} (avisos que pedem confirmação).
  */
 public class ValidacaoException extends ApiException {
+
+    private static final long serialVersionUID = 1L;
 
     private final transient List<ApiError.FieldError> problemas;
 

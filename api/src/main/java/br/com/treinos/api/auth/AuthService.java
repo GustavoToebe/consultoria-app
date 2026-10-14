@@ -12,11 +12,11 @@ import br.com.treinos.api.security.OpaqueTokenGenerator;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.termos.Termos;
 import br.com.treinos.api.termos.TermosService;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Emails;
-import br.com.treinos.api.web.NaoAutorizadoException;
+import br.com.plataforma.comum.web.UnauthorizedException;
 import br.com.treinos.api.web.NaoEncontradoException;
-import br.com.treinos.api.web.ProibidoException;
+import br.com.plataforma.comum.web.ForbiddenException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -135,7 +135,7 @@ public class AuthService {
         // Todo caminho que abre sessão (login, renovação, convite aceito) passa por aqui: consultoria suspensa não entra.
         var decisao = acesso.decidir(usuario.getConsultoriaId());
         if (!decisao.liberado()) {
-            throw new ProibidoException(decisao.motivo(), "ACESSO_BLOQUEADO");
+            throw new ForbiddenException(decisao.motivo(), "ACESSO_BLOQUEADO");
         }
         return new Sessao(
                 jwtService.gerarAccessToken(usuario.getId(), usuario.getCredenciaisVersao(), usuario.getPapel().name()),
@@ -151,8 +151,8 @@ public class AuthService {
                 .orElseThrow(() -> new NaoEncontradoException("Consultoria não encontrada."));
     }
 
-    private static NaoAutorizadoException credenciaisInvalidas() {
-        return new NaoAutorizadoException("E-mail ou senha inválidos.", "CREDENCIAIS_INVALIDAS");
+    private static UnauthorizedException credenciaisInvalidas() {
+        return new UnauthorizedException("E-mail ou senha inválidos.", "CREDENCIAIS_INVALIDAS");
     }
 
     public record Sessao(String accessToken, long expiresIn, String refreshTokenBruto, UsuarioResumo usuario,

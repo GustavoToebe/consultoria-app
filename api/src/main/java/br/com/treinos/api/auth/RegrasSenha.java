@@ -1,6 +1,6 @@
 package br.com.treinos.api.auth;
 
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Emails;
 
 import java.nio.charset.StandardCharsets;

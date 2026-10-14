@@ -13,8 +13,8 @@ import br.com.treinos.api.dieta.PlanoDietaVersaoRepository;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
 import br.com.treinos.api.lesoes.LesaoRepository;
 import br.com.treinos.api.privacidade.PrivacidadeDtos.AnonimizarRequest;
-import br.com.treinos.api.web.ApiError;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ApiError;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -71,10 +71,10 @@ public class AnonimizacaoService {
     public AlunoDetalhe anonimizar(UUID alunoId, AnonimizarRequest r) {
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         if (aluno.isAnonimizado()) {
-            throw new ConflitoException("Este aluno já foi anonimizado.", "ALUNO_ANONIMIZADO");
+            throw new ConflictException("Este aluno já foi anonimizado.", "ALUNO_ANONIMIZADO");
         }
         if (aluno.isAtivo()) {
-            throw new ConflitoException("Inative o aluno antes de anonimizar.", "ALUNO_ATIVO");
+            throw new ConflictException("Inative o aluno antes de anonimizar.", "ALUNO_ATIVO");
         }
         if (!igual(aluno.getNome(), r.nomeConfirmado())) {
             throw new ValidacaoException("O nome digitado não confere com o do aluno.", "NOME_NAO_CONFERE",

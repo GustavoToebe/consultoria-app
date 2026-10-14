@@ -1,6 +1,6 @@
 package br.com.treinos.api.security;
 
-import br.com.treinos.api.web.RespostaDeErro;
+import br.com.plataforma.comum.web.RespostaDeErro;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;

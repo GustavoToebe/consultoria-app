@@ -7,7 +7,7 @@ import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.consultoria.MarcaService;
 import br.com.treinos.api.security.OpaqueTokenGenerator;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Emails;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,10 +58,10 @@ public class ConviteService {
         Aluno aluno = alunos.buscarParaAlterar(alunoId)
                 .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         if (!aluno.isAtivo()) {
-            throw new ConflitoException("Aluno inativo. Reative para convidar.", "ALUNO_INATIVO");
+            throw new ConflictException("Aluno inativo. Reative para convidar.", "ALUNO_INATIVO");
         }
         if (aluno.getUsuarioId() != null) {
-            throw new ConflitoException("Este aluno já tem acesso.", "ALUNO_COM_ACESSO");
+            throw new ConflictException("Este aluno já tem acesso.", "ALUNO_COM_ACESSO");
         }
         String codigo = novoCodigo();
         Instant expiraEm = Instant.now().plus(VALIDADE);
@@ -128,7 +128,7 @@ public class ConviteService {
         return new NaoEncontradoException("Convite inválido ou expirado. Peça um novo ao seu treinador.");
     }
 
-    private static ConflitoException emailEmUso() {
-        return new ConflitoException("Este e-mail já tem uma conta.", "EMAIL_EM_USO");
+    private static ConflictException emailEmUso() {
+        return new ConflictException("Este e-mail já tem uma conta.", "EMAIL_EM_USO");
     }
 }

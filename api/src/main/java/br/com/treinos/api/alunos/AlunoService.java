@@ -13,9 +13,9 @@ import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.treino.PlanoTreino;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.data.domain.Page;
@@ -131,7 +131,7 @@ public class AlunoService {
         Aluno aluno = buscar(id);
         exigirNaoAnonimizado(aluno);
         if (r.versao() == null || !r.versao().equals(aluno.getVersao())) {
-            throw new ConflitoException("Outra pessoa ou aba alterou este aluno. Recarregue para ver a versão atual.",
+            throw new ConflictException("Outra pessoa ou aba alterou este aluno. Recarregue para ver a versão atual.",
                     "CONFLITO_EDICAO");
         }
         exigirEscritaSensivel(r);
@@ -172,7 +172,7 @@ public class AlunoService {
     /** Cadastro anonimizado não é editado nem reativado: os dados pessoais não podem voltar. */
     public static void exigirNaoAnonimizado(Aluno aluno) {
         if (aluno.isAnonimizado())
-            throw new ConflitoException("Este aluno foi anonimizado e não pode mais ser alterado.", "ALUNO_ANONIMIZADO");
+            throw new ConflictException("Este aluno foi anonimizado e não pode mais ser alterado.", "ALUNO_ANONIMIZADO");
     }
 
     /** Responsável tem de ser treinador ativo da mesma consultoria; sem id, não muda nada. Usado também pelo lote. */

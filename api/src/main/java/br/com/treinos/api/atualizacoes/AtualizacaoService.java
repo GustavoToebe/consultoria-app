@@ -11,6 +11,7 @@ import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.questionarios.QuestionarioResolver;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.web.*;
+import br.com.plataforma.comum.web.*;
 import jakarta.validation.constraints.*;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -90,7 +91,7 @@ public class AtualizacaoService {
             throw invalidos("data", "O formulário libera um dia antes da atualização.");
         var modelo = modelo(pasta, atual);
         // O app confere o id da versão que o aluno respondeu: se o treinador publicou outra no meio, recarrega.
-        if (!r.questionarioVersaoId().equals(modelo.versaoId())) throw new ConflitoException("O modelo mudou. Recarregue o formulário.", "MODELO_ATUALIZACAO_ALTERADO");
+        if (!r.questionarioVersaoId().equals(modelo.versaoId())) throw new ConflictException("O modelo mudou. Recarregue o formulário.", "MODELO_ATUALIZACAO_ALTERADO");
         JsonNode conteudo = json.readTree(modelo.conteudo());
         JsonNode respostas = validador.validar(conteudo, r.respostas());
         if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data);
@@ -117,7 +118,7 @@ public class AtualizacaoService {
         } catch (DataIntegrityViolationException corrida) {
             if (!violou(corrida, "registro_peso_aluno_id_data_key")) throw corrida;
             // Outro peso do mesmo dia entrou ao mesmo tempo; a transação inteira volta e o aluno reenvia.
-            throw new ConflitoException("O peso deste dia acabou de ser registrado. Envie de novo.", "PESO_JA_REGISTRADO");
+            throw new ConflictException("O peso deste dia acabou de ser registrado. Envie de novo.", "PESO_JA_REGISTRADO");
         }
     }
     @Transactional
@@ -165,8 +166,8 @@ public class AtualizacaoService {
     @br.com.treinos.api.auditoria.Auditar(acao="ATUALIZACAO_FEEDBACK",entidade="ATUALIZACAO",resumo="Enviou ou editou feedback de atualização.")
     public Detalhe responder(UUID id, FeedbackRequest r, UUID usuarioId) {
         Atualizacao a = buscar(id);
-        if (!a.getVersao().equals(r.versao())) throw new ConflitoException("Outra pessoa alterou a atualização. Recarregue.", "CONFLITO_EDICAO");
-        if ("ABERTA".equals(a.getEstado())) throw new ConflitoException("A atualização ainda não foi enviada.", "ATUALIZACAO_NAO_ENVIADA");
+        if (!a.getVersao().equals(r.versao())) throw new ConflictException("Outra pessoa alterou a atualização. Recarregue.", "CONFLITO_EDICAO");
+        if ("ABERTA".equals(a.getEstado())) throw new ConflictException("A atualização ainda não foi enviada.", "ATUALIZACAO_NAO_ENVIADA");
         a.responder(r.texto().trim(),usuarioId,Instant.now());
         return detalhe(atualizacoes.saveAndFlush(a));
     }
@@ -229,10 +230,10 @@ public class AtualizacaoService {
     private void exigirAluno(UUID id) { Exigir.existe(alunos.findById(id), () -> new NaoEncontradoException("Aluno não encontrado.")); }
     private static void exigirAtual(PastaPlano pasta, UUID pastaId) {
         if (!pasta.getId().equals(pastaId))
-            throw new ConflitoException("Esta atualização não é mais a atual. Recarregue.", "ATUALIZACAO_NAO_ATUAL");
+            throw new ConflictException("Esta atualização não é mais a atual. Recarregue.", "ATUALIZACAO_NAO_ATUAL");
     }
     private static void exigirNaoEnviada(Atualizacao a) {
-        if (a != null && !"ABERTA".equals(a.getEstado())) throw new ConflitoException("Esta atualização já foi enviada.", "ATUALIZACAO_JA_ENVIADA");
+        if (a != null && !"ABERTA".equals(a.getEstado())) throw new ConflictException("Esta atualização já foi enviada.", "ATUALIZACAO_JA_ENVIADA");
     }
     private static boolean violou(DataIntegrityViolationException e, String restricao) {
         for (Throwable t = e; t != null; t = t.getCause())

@@ -3,7 +3,7 @@ package br.com.treinos.api.consultoria;
 import br.com.treinos.api.consultoria.MarcaService.ConsultoriaResponse;
 import br.com.treinos.api.consultoria.MarcaService.MarcaRequest;
 import br.com.treinos.api.security.UsuarioAutenticado;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;

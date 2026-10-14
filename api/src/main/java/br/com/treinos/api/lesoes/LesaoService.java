@@ -3,7 +3,7 @@ package br.com.treinos.api.lesoes;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.lesoes.LesaoDtos.LesaoRequest;
 import br.com.treinos.api.lesoes.LesaoDtos.LesaoResponse;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.NaoEncontradoException;

@@ -4,6 +4,7 @@ import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.*;
+import br.com.plataforma.comum.web.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;

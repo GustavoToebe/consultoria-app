@@ -3,7 +3,7 @@ package br.com.treinos.api.auth;
 import br.com.treinos.api.auth.dto.CadastroTreinadorRequest;
 import br.com.treinos.api.consultoria.Consultoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Emails;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -76,7 +76,7 @@ public class CriacaoDeConta {
         return slug.isEmpty() ? "consultoria" : slug;
     }
 
-    static ConflitoException emailEmUso() {
-        return new ConflitoException("Este e-mail já tem uma conta.", "EMAIL_EM_USO");
+    static ConflictException emailEmUso() {
+        return new ConflictException("Este e-mail já tem uma conta.", "EMAIL_EM_USO");
     }
 }

@@ -9,7 +9,7 @@ import br.com.treinos.api.execucao.IndiceVersao;
 import br.com.treinos.api.execucao.IndicesDeVersao;
 import br.com.treinos.api.treino.PlanoTreino;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Fuso;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

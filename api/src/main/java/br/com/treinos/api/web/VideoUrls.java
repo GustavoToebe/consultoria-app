@@ -1,5 +1,6 @@
 package br.com.treinos.api.web;
 
+import br.com.plataforma.comum.web.BadRequestException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 

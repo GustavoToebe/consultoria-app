@@ -27,7 +27,7 @@ import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.treino.PlanoTreinoService;
 import br.com.treinos.api.web.NaoEncontradoException;
-import br.com.treinos.api.web.ProibidoException;
+import br.com.plataforma.comum.web.ForbiddenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -163,7 +163,7 @@ public class AlunoAppService {
 
     public static UUID alunoDaSessao(UsuarioAutenticado eu) {
         if (eu.alunoId() == null) {
-            throw new ProibidoException("Acesso negado.");
+            throw new ForbiddenException("Acesso negado.");
         }
         return eu.alunoId();
     }

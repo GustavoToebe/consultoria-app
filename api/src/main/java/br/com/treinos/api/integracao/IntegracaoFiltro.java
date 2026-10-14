@@ -1,8 +1,8 @@
 package br.com.treinos.api.integracao;
 
-import br.com.treinos.api.web.CorpoExcedidoException;
-import br.com.treinos.api.web.LimiteCorpoFilter;
-import br.com.treinos.api.web.RespostaDeErro;
+import br.com.plataforma.comum.web.CorpoExcedidoException;
+import br.com.plataforma.comum.web.LimiteCorpoFilter;
+import br.com.plataforma.comum.web.RespostaDeErro;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;

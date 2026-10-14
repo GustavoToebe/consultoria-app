@@ -3,7 +3,7 @@ import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -46,7 +46,7 @@ class AdministradoresConcorrentesIntegrationTest extends AbstractIntegrationTest
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(new UsuarioAutenticado(id,cid,"TREINADOR",null),null,List.of()));
         try {
             return TenantContext.executarComo(cid,() -> {equipe.alterarUsuario(id,new EquipeDtos.UsuarioRequest("Administrador fictício",perfil,false));return 200;});
-        } catch(ConflitoException conflito) { assertThat(conflito.getCodigo()).isEqualTo("ULTIMO_ADMINISTRADOR");return 409; }
+        } catch(ConflictException conflito) { assertThat(conflito.getCodigo()).isEqualTo("ULTIMO_ADMINISTRADOR");return 409; }
         finally { SecurityContextHolder.clearContext(); }
     }
 }

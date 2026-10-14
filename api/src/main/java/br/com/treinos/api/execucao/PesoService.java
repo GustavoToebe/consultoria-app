@@ -3,7 +3,7 @@ package br.com.treinos.api.execucao;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoRequest;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoResponse;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.Fuso;

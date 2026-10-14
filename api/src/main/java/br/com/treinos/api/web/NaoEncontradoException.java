@@ -1,11 +1,13 @@
 package br.com.treinos.api.web;
 
-import org.springframework.http.HttpStatus;
+import br.com.plataforma.comum.web.ResourceNotFoundException;
 
 /** Também é a resposta para recurso de outra consultoria: 404 em vez de 403, para não revelar que existe. */
-public class NaoEncontradoException extends ApiException {
+public class NaoEncontradoException extends ResourceNotFoundException {
+
+    private static final long serialVersionUID = 1L;
 
     public NaoEncontradoException(String message) {
-        super(HttpStatus.NOT_FOUND, message, "NAO_ENCONTRADO");
+        super(message, "NAO_ENCONTRADO");
     }
 }

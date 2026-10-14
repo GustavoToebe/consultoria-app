@@ -1,14 +1,16 @@
 package br.com.treinos.api.web;
 
-import org.springframework.http.HttpStatus;
+import br.com.plataforma.comum.web.TooManyRequestsException;
 
-/** Limite de tentativas (login, cadastro, convite, refresh). O handler devolve o {@code Retry-After}. */
-public class MuitasRequisicoesException extends ApiException {
+/** Limite de tentativas (cadastro, convite, refresh). O {@link TratadorDoApp} devolve o {@code Retry-After}. */
+public class MuitasRequisicoesException extends TooManyRequestsException {
+
+    private static final long serialVersionUID = 1L;
 
     private final long segundos;
 
     public MuitasRequisicoesException(long segundos) {
-        super(HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas de acesso. Aguarde e tente novamente.", "LOGIN_LIMITADO");
+        super("Muitas tentativas de acesso. Aguarde e tente novamente.", "LOGIN_LIMITADO");
         this.segundos = segundos;
     }
 

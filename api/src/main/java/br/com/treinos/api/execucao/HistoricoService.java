@@ -9,7 +9,7 @@ import br.com.treinos.api.execucao.dto.ExecucaoDtos.ProgressoPonto;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.SerieFeita;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.SessaoFeita;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.UltimaCarga;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;

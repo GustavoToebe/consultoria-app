@@ -6,7 +6,7 @@ import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.conta.ConsumoPlanoDto.Item;
 import br.com.treinos.api.equipe.UsuarioConviteRepository;
 import br.com.treinos.api.tenant.TenantContext;
-import br.com.treinos.api.web.ProibidoException;
+import br.com.plataforma.comum.web.ForbiddenException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,7 +71,7 @@ public class ContaService {
     private static UUID consultoria() {
         UUID id = TenantContext.get();
         if (id == null) {
-            throw new ProibidoException("Sem consultoria na sessão.");
+            throw new ForbiddenException("Sem consultoria na sessão.");
         }
         return id;
     }

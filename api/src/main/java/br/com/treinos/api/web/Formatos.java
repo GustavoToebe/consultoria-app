@@ -1,4 +1,6 @@
 package br.com.treinos.api.web;
+
+import br.com.plataforma.comum.web.BadRequestException;
 /** Mesmo formato do Servirea: DDD, número e +55 opcional; sem ecoar o valor no erro. */
 public final class Formatos {
     private Formatos() { }

@@ -1,6 +1,6 @@
 package br.com.treinos.api.security;
 
-import br.com.treinos.api.web.NaoAutorizadoException;
+import br.com.plataforma.comum.web.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -78,8 +78,8 @@ public class JwtService {
         }
     }
 
-    private static NaoAutorizadoException recusado() {
-        return new NaoAutorizadoException("Token recusado.", "SESSAO_EXPIRADA");
+    private static UnauthorizedException recusado() {
+        return new UnauthorizedException("Token recusado.", "SESSAO_EXPIRADA");
     }
 
     public record Acesso(UUID usuarioId, long credenciaisVersao) {

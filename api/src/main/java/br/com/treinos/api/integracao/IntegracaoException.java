@@ -1,6 +1,6 @@
 package br.com.treinos.api.integracao;
 
-import br.com.treinos.api.web.ApiException;
+import br.com.plataforma.comum.web.ApiException;
 import org.springframework.http.HttpStatus;
 
 /** Erro de contrato da integração (422, 502, 503...): o {@code GlobalExceptionHandler} já o traduz em {@code ApiError}. */

@@ -1,6 +1,6 @@
 package br.com.treinos.api.receitas;
 import br.com.treinos.api.web.NaoEncontradoException;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class PastaModeloService {
     public Response alterar(UUID id, Request r) {
         PastaModelo p = buscar(id);
         if (r.versao() != null && !r.versao().equals(p.getVersao()))
-            throw new ConflitoException("A pasta foi alterada. Recarregue.", "CONFLITO_EDICAO");
+            throw new ConflictException("A pasta foi alterada. Recarregue.", "CONFLITO_EDICAO");
         p.renomear(r.nome().trim()); return resposta(pastas.saveAndFlush(p));
     }
     @Transactional

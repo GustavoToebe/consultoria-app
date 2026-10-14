@@ -6,7 +6,7 @@ import br.com.treinos.api.mobilidade.*;
 import br.com.treinos.api.treino.*;
 import br.com.treinos.api.pastas.*;
 import br.com.treinos.api.planos.dto.PlanoDtos.*;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.Exigir;
 import jakarta.validation.constraints.*;

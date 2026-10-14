@@ -2,7 +2,7 @@ package br.com.treinos.api.alunos;
 
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.questionarios.QuestionarioService;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

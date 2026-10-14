@@ -1,6 +1,6 @@
 package br.com.treinos.api.consultoria;
 
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

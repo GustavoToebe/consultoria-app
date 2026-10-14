@@ -15,8 +15,8 @@ import br.com.treinos.api.planos.PlanoBase;
 import br.com.treinos.api.planos.dto.PlanoDtos.ReplicarRequest;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
 import br.com.treinos.api.treino.PlanoTreinoService;
-import br.com.treinos.api.web.BadRequestException;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.BadRequestException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
@@ -128,7 +128,7 @@ public class PastaService {
     public PastaResumo finalizar(UUID id, FinalizarRequest r, UUID usuarioId) {
         PastaPlano pasta = buscar(id);
         if (pasta.getConcluidaEm() != null) {
-            throw new ConflitoException("Esta pasta já foi finalizada.", "PASTA_JA_FINALIZADA");
+            throw new ConflictException("Esta pasta já foi finalizada.", "PASTA_JA_FINALIZADA");
         }
         if (r.pesoKg() == null && r.observacao() != null && !r.observacao().isBlank()) {
             throw new BadRequestException("Informe o peso para gravar a observação.");

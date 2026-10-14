@@ -1,7 +1,7 @@
 package br.com.treinos.api.consultoria;
 
-import br.com.treinos.api.web.ApiException;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ApiException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -105,7 +105,7 @@ public class MarcaService {
 
     private static void exigirMesmaVersao(Consultoria c, Long versao) {
         if (!c.getVersao().equals(versao)) {
-            throw new ConflitoException("Outra pessoa ou aba alterou a marca. Recarregue para ver a versão atual.",
+            throw new ConflictException("Outra pessoa ou aba alterou a marca. Recarregue para ver a versão atual.",
                     "CONFLITO_EDICAO");
         }
     }

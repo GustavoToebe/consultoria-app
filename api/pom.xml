@@ -89,6 +89,12 @@
 
         <dependency>
             <groupId>br.com.plataforma</groupId>
+            <artifactId>plataforma-comum-web</artifactId>
+            <version>1.7.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>br.com.plataforma</groupId>
             <artifactId>plataforma-comum-teste</artifactId>
             <version>1.7.0</version>
             <scope>test</scope>

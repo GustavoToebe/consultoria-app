@@ -67,7 +67,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   consultoria explícita porque o login começa global. A ação e seu evento sofrem o mesmo rollback.
   Retenção de um ano, limpeza diária; leitura paginada exige `AUDITORIA_LER`. No app a lista é `Tabela` (colunas a partir de 760 px, cartões abaixo) e os filtros Pessoa/Ação são `EscolhaEmFolha`.
   `/auditoria/pessoas` traz só id/nome para o filtro, com a mesma permissão, sem exigir gestão da equipe.
-- `web/` erros (`ApiError` com `codigo`), `RequestIdFilter`, corpo até 1 MiB (`LimiteCorpoFilter`, 413 `CORPO_EXCEDIDO`).
+- `web/` erros, request id e corpo até 1 MiB (413 `CORPO_EXCEDIDO`) vêm do módulo `plataforma-comum-web`; o app tem só `NaoEncontradoException`, `ValidacaoException` (422 + `fieldErrors`), `MuitasRequisicoesException` (429 + `Retry-After`) e o `TratadorDoApp` que as traduz. Exceções 4xx: `BadRequestException`/`ConflictException`/`ForbiddenException`/`UnauthorizedException` da biblioteca. `ErroJsonIntegrationTest` trava o formato do JSON de erro.
 - `security/` JWT de 15 min com `cv`; refresh opaco com rotação (reuso derruba todas as sessões); web = cookie
   `TREINOS_REFRESH` + CSRF `TREINOS-XSRF-TOKEN`, nativo = refresh no corpo (`X-Treinos-Cliente: nativo`).
 - `tenant/` `TenantContext` preenchido só pelo `JwtAuthenticationFilter` (ou `TenantContext.executarComo` em rota

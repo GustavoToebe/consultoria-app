@@ -1,6 +1,6 @@
 package br.com.treinos.api.biblioteca;
 
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

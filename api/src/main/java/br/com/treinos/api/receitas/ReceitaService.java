@@ -4,9 +4,9 @@ import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.tenant.TenantContext;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.treino.ConteudoTreino;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.NaoEncontradoException;
@@ -252,7 +252,7 @@ public class ReceitaService {
 
     private static void exigirVersao(Receita r, Long versao) {
         if (versao != null && !versao.equals(r.getVersao()))
-            throw new ConflitoException("O modelo mudou em outra aba. Recarregue antes de salvar.", "CONFLITO_EDICAO");
+            throw new ConflictException("O modelo mudou em outra aba. Recarregue antes de salvar.", "CONFLITO_EDICAO");
     }
 
     private Receita buscar(UUID id) {

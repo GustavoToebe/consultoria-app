@@ -3,7 +3,7 @@ package br.com.treinos.api.biblioteca;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ErroLinha;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.PreviaCsv;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.VideoUrls;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -153,7 +153,7 @@ public class ImportacaoCsvService {
 
     private static void exigirMesmoHash(String atual, String informado) {
         if (informado == null || !informado.equals(atual)) {
-            throw new ConflitoException("O arquivo mudou depois da prévia. Gere a prévia de novo.", "PREVIA_DIFERENTE");
+            throw new ConflictException("O arquivo mudou depois da prévia. Gere a prévia de novo.", "PREVIA_DIFERENTE");
         }
     }
 

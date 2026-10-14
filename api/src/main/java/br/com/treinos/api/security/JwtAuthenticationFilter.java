@@ -4,7 +4,7 @@ import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.integracao.AcessoPorDireitos;
 import br.com.treinos.api.tenant.TenantContext;
-import br.com.treinos.api.web.NaoAutorizadoException;
+import br.com.plataforma.comum.web.UnauthorizedException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -59,7 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         JwtService.Acesso acesso;
         try {
             acesso = jwtService.validarAcesso(header.substring(7).trim());
-        } catch (NaoAutorizadoException recusado) {
+        } catch (UnauthorizedException recusado) {
             return;
         }
         Usuario usuario = usuarioRepository.findById(acesso.usuarioId())

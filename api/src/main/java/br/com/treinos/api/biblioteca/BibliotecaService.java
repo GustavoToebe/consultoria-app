@@ -9,7 +9,7 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioResponse;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.web.Buscas;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.VideoUrls;
 import org.springframework.data.domain.Page;
@@ -191,13 +191,13 @@ public class BibliotecaService {
 
     private void exigirNomeLivreExercicio(String nome, UUID exceto) {
         if (exercicios.existeNomeAtivo(nome.toLowerCase(Locale.ROOT), exceto)) {
-            throw new ConflitoException("Já existe um exercício com este nome.", "NOME_EM_USO");
+            throw new ConflictException("Já existe um exercício com este nome.", "NOME_EM_USO");
         }
     }
 
     private void exigirNomeLivreAlimento(String nome, UUID exceto) {
         if (alimentos.existeNomeAtivo(nome.toLowerCase(Locale.ROOT), exceto)) {
-            throw new ConflitoException("Já existe um alimento com este nome.", "NOME_EM_USO");
+            throw new ConflictException("Já existe um alimento com este nome.", "NOME_EM_USO");
         }
     }
 }

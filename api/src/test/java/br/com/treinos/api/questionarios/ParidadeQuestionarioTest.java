@@ -2,7 +2,7 @@ package br.com.treinos.api.questionarios;
 
 import br.com.treinos.api.atualizacoes.ValidadorAtualizacao;
 import br.com.treinos.api.planos.ResultadoValidacao;
-import br.com.treinos.api.web.ApiError;
+import br.com.plataforma.comum.web.ApiError;
 import br.com.treinos.api.web.ValidacaoException;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;

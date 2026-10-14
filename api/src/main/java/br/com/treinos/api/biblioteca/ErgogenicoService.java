@@ -3,7 +3,7 @@ package br.com.treinos.api.biblioteca;
 import br.com.treinos.api.biblioteca.dto.ErgogenicoDtos.ErgogenicoRequest;
 import br.com.treinos.api.biblioteca.dto.ErgogenicoDtos.ErgogenicoResponse;
 import br.com.treinos.api.web.Buscas;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,7 +73,7 @@ public class ErgogenicoService {
 
     private void exigirLivre(Ergogenico.Valores v, UUID exceto) {
         if (ergogenicos.existeIgual(v.nomeBusca(), vazioSeNulo(v.concentracao()), vazioSeNulo(v.apresentacao()), exceto)) {
-            throw new ConflitoException("Já existe um item com este nome, concentração e apresentação.", "NOME_EM_USO");
+            throw new ConflictException("Já existe um item com este nome, concentração e apresentação.", "NOME_EM_USO");
         }
     }
 

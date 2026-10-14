@@ -1,5 +1,5 @@
 package br.com.treinos.api.equipe;
-import br.com.treinos.api.web.BadRequestException;
+import br.com.plataforma.comum.web.BadRequestException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;

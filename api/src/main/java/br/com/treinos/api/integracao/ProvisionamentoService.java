@@ -5,8 +5,8 @@ import br.com.treinos.api.conta.ContaLocalRepositorio;
 import br.com.treinos.api.conta.DireitosLocais;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.security.OpaqueTokenGenerator;
-import br.com.treinos.api.web.BadRequestException;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.BadRequestException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.Emails;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -68,7 +68,7 @@ public class ProvisionamentoService {
         var anterior = repositorio.operacao(chave);
         if (anterior.isPresent()) {
             if (!anterior.get().hashCorpo().equals(hashCorpo)) {
-                throw new ConflitoException("A mesma Idempotency-Key já foi usada com outro corpo.", "IDEMPOTENCY_KEY_CONFLITO");
+                throw new ConflictException("A mesma Idempotency-Key já foi usada com outro corpo.", "IDEMPOTENCY_KEY_CONFLITO");
             }
             return new Resultado(200, json.readTree(anterior.get().resposta()), true, null);
         }
@@ -92,7 +92,7 @@ public class ProvisionamentoService {
             situacao = "VINCULADO";
             var direitos = contas.direitos(consultoriaId);
             if (direitos.isPresent() && !direitos.get().contratacaoId().equals(r.contratacaoId())) {
-                throw new ConflitoException("Esta consultoria já está vinculada a outra contratação.", "CONSULTORIA_JA_VINCULADA");
+                throw new ConflictException("Esta consultoria já está vinculada a outra contratação.", "CONSULTORIA_JA_VINCULADA");
             }
         } else {
             if (consultorias.existsBySlug(r.instancia().slug())) {
@@ -137,7 +137,7 @@ public class ProvisionamentoService {
             throw IntegracaoException.instanciaNaoEncontrada();
         }
         var pendente = repositorio.convitePendenteDoAdministrador(consultoriaId).orElseThrow(
-                () -> new ConflitoException("O administrador desta consultoria já tem acesso.", "ADMINISTRADOR_JA_ATIVO"));
+                () -> new ConflictException("O administrador desta consultoria já tem acesso.", "ADMINISTRADOR_JA_ATIVO"));
         repositorio.apagarConvitesPendentesDoAdministrador(consultoriaId);
         return emitirConvite(consultoriaId, pendente.nome(), pendente.email());
     }

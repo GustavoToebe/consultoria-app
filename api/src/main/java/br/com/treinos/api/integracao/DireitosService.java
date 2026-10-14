@@ -2,8 +2,8 @@ package br.com.treinos.api.integracao;
 
 import br.com.treinos.api.conta.ContaLocalRepositorio;
 import br.com.treinos.api.conta.DireitosLocais;
-import br.com.treinos.api.web.BadRequestException;
-import br.com.treinos.api.web.ConflitoException;
+import br.com.plataforma.comum.web.BadRequestException;
+import br.com.plataforma.comum.web.ConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -46,7 +46,7 @@ public class DireitosService {
         }
         DireitosLocais existente = contas.direitos(consultoriaId).orElseThrow(IntegracaoException::instanciaNaoEncontrada);
         if (!existente.contratacaoId().equals(d.contratacaoId())) {
-            throw new ConflitoException("A contratação dos direitos não é a vinculada a esta instância.",
+            throw new ConflictException("A contratação dos direitos não é a vinculada a esta instância.",
                     "IDEMPOTENCY_KEY_CONFLITO");
         }
         boolean aplicado = gravar(consultoriaId, d);
