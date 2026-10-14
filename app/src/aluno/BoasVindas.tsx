@@ -2,11 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
 import { GUIAS } from '../ajuda/conteudo';
-import { chaveBoasVindas, deveMostrarBoasVindas, passoDasBoasVindas } from '../dominio/boasVindas';
+import { chaveBoasVindas, passoDasBoasVindas, situacaoDasBoasVindas } from '../dominio/boasVindas';
 import { useSessao } from '../sessao/SessaoProvider';
 import { Botao } from '../ui/Botao';
 import { Folha } from '../ui/Folha';
 import { Texto } from '../ui/Texto';
+import { useInformarBoasVindas } from './SituacaoDasBoasVindas';
 
 const PASSOS = GUIAS.aluno.boasVindas ?? [];
 
@@ -14,7 +15,8 @@ const PASSOS = GUIAS.aluno.boasVindas ?? [];
  * Três telas curtas no primeiro acesso do aluno (Treino de hoje, Dieta, Atualização), com o texto do guia. Pular, fechar
  * ou chegar ao fim conta como visto, e a marca fica no aparelho por usuário; `aoSair` a apaga, então ela volta depois
  * de sair e entrar. Nada aparece antes de ler a marca. A `Folha` não anima a entrada nem a troca de tela, então o
- * movimento reduzido já é respeitado. Quem monta já checou o aceite dos termos (o aluno só chega aqui depois dele).
+ * movimento reduzido já é respeitado. Quem monta já checou o aceite dos termos (o aluno só chega aqui depois dele). Enquanto lê ou está aberta, avisa o
+ * `ProvedorDasBoasVindas`: o lembrete da atualização só pergunta depois (uma pergunta de cada vez, boas-vindas primeiro).
  */
 export function BoasVindas({ usuarioId }: { usuarioId: string }) {
   const { aoSair } = useSessao();
@@ -32,7 +34,9 @@ export function BoasVindas({ usuarioId }: { usuarioId: string }) {
 
   useEffect(() => aoSair((id) => AsyncStorage.removeItem(chaveBoasVindas(id)).catch(() => undefined)), [aoSair]);
 
-  if (dispensada || !deveMostrarBoasVindas(leitura, PASSOS.length)) return null;
+  const situacao = situacaoDasBoasVindas(leitura, dispensada, PASSOS.length);
+  useInformarBoasVindas(situacao);
+  if (situacao !== 'aberta') return null;
   const passo = passoDasBoasVindas(indice, PASSOS.length);
   const atual = PASSOS[passo.indice];
   const concluir = () => {

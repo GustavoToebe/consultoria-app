@@ -23,3 +23,18 @@ export function passoDasBoasVindas(indice: number, total: number): PassoDasBoasV
   const ultimo = i >= total - 1;
   return { indice: i, ultimo, rotuloProximo: ultimo ? 'Começar' : 'Próximo', progresso: `${i + 1} de ${total}` };
 }
+
+/** Onde as boas-vindas estão: lendo a marca, na tela, ou já resolvidas (vistas antes, falha na leitura, ou dispensadas). */
+export type SituacaoDasBoasVindas = 'lendo' | 'aberta' | 'encerrada';
+
+export function situacaoDasBoasVindas(
+  leitura: 'lendo' | 'falhou' | { valor: string | null },
+  dispensada: boolean,
+  passos: number,
+): SituacaoDasBoasVindas {
+  if (leitura === 'lendo') return 'lendo';
+  return !dispensada && deveMostrarBoasVindas(leitura, passos) ? 'aberta' : 'encerrada';
+}
+
+/** Uma pergunta de cada vez: o lembrete da atualização só abre quando as boas-vindas já não estão nem para abrir. */
+export const lembretePodeAbrir = (boasVindas: SituacaoDasBoasVindas): boolean => boasVindas === 'encerrada';

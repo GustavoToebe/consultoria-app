@@ -1,4 +1,10 @@
-import { chaveBoasVindas, deveMostrarBoasVindas, passoDasBoasVindas } from './boasVindas';
+import {
+  chaveBoasVindas,
+  deveMostrarBoasVindas,
+  lembretePodeAbrir,
+  passoDasBoasVindas,
+  situacaoDasBoasVindas,
+} from './boasVindas';
 
 describe('boas-vindas do aluno', () => {
   it('a chave é por usuário', () => {
@@ -26,5 +32,20 @@ describe('boas-vindas do aluno', () => {
   it('índice fora da faixa é limitado', () => {
     expect(passoDasBoasVindas(9, 3).indice).toBe(2);
     expect(passoDasBoasVindas(-1, 3).indice).toBe(0);
+  });
+
+  it('a situação vai de lendo a aberta ou encerrada, sem passar por "encerrada" antes de ler', () => {
+    expect(situacaoDasBoasVindas('lendo', false, 3)).toBe('lendo');
+    expect(situacaoDasBoasVindas({ valor: null }, false, 3)).toBe('aberta');
+    expect(situacaoDasBoasVindas({ valor: null }, true, 3)).toBe('encerrada'); // pulou, fechou ou chegou ao fim
+    expect(situacaoDasBoasVindas({ valor: '1' }, false, 3)).toBe('encerrada');
+    expect(situacaoDasBoasVindas('falhou', false, 3)).toBe('encerrada');
+    expect(situacaoDasBoasVindas({ valor: null }, false, 0)).toBe('encerrada');
+  });
+
+  it('o lembrete da atualização espera as boas-vindas: só abre quando elas estão encerradas', () => {
+    expect(lembretePodeAbrir('lendo')).toBe(false);
+    expect(lembretePodeAbrir('aberta')).toBe(false);
+    expect(lembretePodeAbrir('encerrada')).toBe(true);
   });
 });
