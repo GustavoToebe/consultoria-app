@@ -31,9 +31,9 @@ export default function LayoutAluno() {
       {usuario ? (
         // Um provedor por usuário: trocar de conta nunca mistura registros.
         <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
-          <ProvedorDasBoasVindas>
+          <ProvedorDasBoasVindas usuarioId={usuario.id}>
             <MenuAluno />
-            <BoasVindas usuarioId={usuario.id} />
+            <BoasVindas />
           </ProvedorDasBoasVindas>
         </AlunoProvider>
       ) : null}

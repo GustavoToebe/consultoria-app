@@ -1,31 +1,48 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import type { SituacaoDasBoasVindas } from '../dominio/boasVindas';
+import { GUIAS } from '../ajuda/conteudo';
+import { chaveBoasVindas, situacaoDasBoasVindas, type SituacaoDasBoasVindas } from '../dominio/boasVindas';
+
+export const PASSOS_DAS_BOAS_VINDAS = GUIAS.aluno.boasVindas ?? [];
 
 interface Valor {
   situacao: SituacaoDasBoasVindas;
-  informar: (situacao: SituacaoDasBoasVindas) => void;
+  /** Pular, fechar ou chegar ao fim: conta como visto e guarda a marca no aparelho. */
+  dispensar: () => void;
 }
 
 // Sem o provedor (outras telas e testes) não há boas-vindas para esperar.
-const Contexto = createContext<Valor>({ situacao: 'encerrada', informar: () => undefined });
+const Contexto = createContext<Valor>({ situacao: 'encerrada', dispensar: () => undefined });
 
 /**
- * Deixa o que abre diálogo na área do aluno saber se as boas-vindas ainda vão aparecer. Começa em "lendo": nada abre
- * por engano enquanto a marca do aparelho não foi lida. Mora no layout, por usuário, junto com o `AlunoProvider`.
+ * Dono do estado das boas-vindas do aluno: lê a marca do aparelho e diz em que pé elas estão. Quem desenha
+ * (`BoasVindas`) e quem abre outro diálogo (o lembrete da atualização, que espera `encerrada`) só consultam. Começa em
+ * "lendo": nada abre por engano antes de a marca ser lida. A marca é por usuário e sobrevive a sair e entrar. Mora no
+ * layout, dentro do `AlunoProvider` (um por usuário).
  */
-export function ProvedorDasBoasVindas({ children }: { children: ReactNode }) {
-  const [situacao, informar] = useState<SituacaoDasBoasVindas>('lendo');
-  const valor = useMemo(() => ({ situacao, informar }), [situacao]);
+export function ProvedorDasBoasVindas({ usuarioId, children }: { usuarioId: string; children: ReactNode }) {
+  const [leitura, setLeitura] = useState<'lendo' | 'falhou' | { valor: string | null }>('lendo');
+  const [dispensada, setDispensada] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    AsyncStorage.getItem(chaveBoasVindas(usuarioId))
+      .then((valor) => ativo && setLeitura({ valor }))
+      .catch(() => ativo && setLeitura('falhou'));
+    return () => {
+      ativo = false;
+    };
+  }, [usuarioId]);
+
+  const dispensar = useCallback(() => {
+    setDispensada(true);
+    AsyncStorage.setItem(chaveBoasVindas(usuarioId), '1').catch(() => undefined);
+  }, [usuarioId]);
+
+  const situacao = situacaoDasBoasVindas(leitura, dispensada, PASSOS_DAS_BOAS_VINDAS.length);
+  const valor = useMemo(() => ({ situacao, dispensar }), [situacao, dispensar]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
 
-export const useSituacaoDasBoasVindas = (): SituacaoDasBoasVindas => useContext(Contexto).situacao;
-
-/** Quem controla as boas-vindas diz aqui em que pé elas estão. */
-export function useInformarBoasVindas(situacao: SituacaoDasBoasVindas): void {
-  const { informar } = useContext(Contexto);
-  useEffect(() => {
-    informar(situacao);
-  }, [informar, situacao]);
-}
+export const useBoasVindas = (): Valor => useContext(Contexto);

@@ -1,53 +1,33 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-import { GUIAS } from '../ajuda/conteudo';
-import { chaveBoasVindas, passoDasBoasVindas, situacaoDasBoasVindas } from '../dominio/boasVindas';
+import { passoDasBoasVindas } from '../dominio/boasVindas';
 import { Botao } from '../ui/Botao';
 import { Folha } from '../ui/Folha';
 import { Texto } from '../ui/Texto';
-import { useInformarBoasVindas } from './SituacaoDasBoasVindas';
-
-const PASSOS = GUIAS.aluno.boasVindas ?? [];
+import { PASSOS_DAS_BOAS_VINDAS as PASSOS, useBoasVindas } from './SituacaoDasBoasVindas';
 
 /**
- * Três telas curtas no primeiro acesso do aluno (Treino de hoje, Dieta, Atualização), com o texto do guia. Pular, fechar
- * ou chegar ao fim conta como visto, e a marca fica no aparelho por usuário e sobrevive a sair e entrar (só aparece
- * uma vez por usuário em cada aparelho). Nada aparece antes de ler a marca. A `Folha` não anima a entrada nem a troca de tela, então o
- * movimento reduzido já é respeitado. Quem monta já checou o aceite dos termos (o aluno só chega aqui depois dele). Enquanto lê ou está aberta, avisa o
- * `ProvedorDasBoasVindas`: o lembrete da atualização só pergunta depois (uma pergunta de cada vez, boas-vindas primeiro).
+ * Três telas curtas no primeiro acesso do aluno (Treino de hoje, Dieta, Atualização), com o texto do guia. Pular,
+ * fechar ou chegar ao fim conta como visto (`dispensar` do `ProvedorDasBoasVindas`, que também guarda a marca e diz
+ * quando abrir). A `Folha` não anima a entrada nem a troca de tela, então o movimento reduzido já é respeitado. Quem
+ * monta já checou o aceite dos termos (o aluno só chega aqui depois dele).
  */
-export function BoasVindas({ usuarioId }: { usuarioId: string }) {
-  const [leitura, setLeitura] = useState<'lendo' | 'falhou' | { valor: string | null }>('lendo');
-  const [dispensada, setDispensada] = useState(false);
+export function BoasVindas() {
+  const { situacao, dispensar } = useBoasVindas();
   const [indice, setIndice] = useState(0);
 
-  useEffect(() => {
-    let ativo = true;
-    AsyncStorage.getItem(chaveBoasVindas(usuarioId))
-      .then((valor) => ativo && setLeitura({ valor }))
-      .catch(() => ativo && setLeitura('falhou'));
-    return () => { ativo = false; };
-  }, [usuarioId]);
-
-  const situacao = situacaoDasBoasVindas(leitura, dispensada, PASSOS.length);
-  useInformarBoasVindas(situacao);
   if (situacao !== 'aberta') return null;
   const passo = passoDasBoasVindas(indice, PASSOS.length);
   const atual = PASSOS[passo.indice];
-  const concluir = () => {
-    setDispensada(true);
-    AsyncStorage.setItem(chaveBoasVindas(usuarioId), '1').catch(() => undefined);
-  };
   return (
     <Folha
       visivel
       titulo={atual.titulo}
-      aoFechar={concluir}
+      aoFechar={dispensar}
       rodape={
         <>
-          {passo.ultimo ? null : <Botao rotulo="Pular" tipo="fantasma" aoTocar={concluir} />}
-          <Botao rotulo={passo.rotuloProximo} aoTocar={passo.ultimo ? concluir : () => setIndice(passo.indice + 1)} />
+          {passo.ultimo ? null : <Botao rotulo="Pular" tipo="fantasma" aoTocar={dispensar} />}
+          <Botao rotulo={passo.rotuloProximo} aoTocar={passo.ultimo ? dispensar : () => setIndice(passo.indice + 1)} />
         </>
       }>
       <Texto variante="pequeno">{`Boas-vindas · ${passo.progresso}`}</Texto>
