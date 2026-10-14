@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { Problema, ResultadoValidacao, TipoPlano } from '../../api/tipos';
 import { localizar } from '../../dominio/caminhos';
+import { textoDosProblemas, uidsDoPrimeiroProblema } from '../../dominio/problemasDoPlano';
 import { textoDoSalvo } from '../../dominio/estadoDoRascunho';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
@@ -14,6 +15,7 @@ import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { textoDoErro } from '../../ui/erros';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { useRolagem } from '../../ui/RolagemComTopo';
 import { Selo, type TipoSelo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { SelosDoPlano } from '../CartaoPlanos';
@@ -38,11 +40,15 @@ interface Props<C> {
   /** Problemas da última validação/publicação (o editor destaca os cartões). */
   problemas: ResultadoValidacao | null;
   aoProblemas: (r: ResultadoValidacao | null) => void;
+  /** Antes de rolar até o primeiro erro: o editor seleciona a sessão e abre o cartão dele (recebe os uids, do mais específico ao mais geral). */
+  aoIrAoPrimeiro?: (uids: string[]) => void;
 }
 
 /** Título, período, estado do rascunho e as ações Salvar rascunho, Validar e Publicar, com o resultado do validador da API. Nada é salvo sozinho. */
-export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>) {
+export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrimeiro }: Props<C>) {
   const { avisar } = useAviso();
+  const { rolarAte } = useRolagem();
+  const { cores } = useTema();
   const [validando, setValidando] = useState(false);
   const [publicando, setPublicando] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -137,6 +143,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
           <Selo texto={situacao.texto} tipo={situacao.tipo} />
           <SelosDoPlano plano={e.plano} />
         </View>
+        {editor.situacao === 'erro' && editor.mensagemDeErro ? <Texto variante="pequeno" cor={cores.perigo}>{editor.mensagemDeErro}</Texto> : null}
         <Texto variante="suave" numerico>
           Período: {e.inicio || e.fim ? `${e.inicio || '—'} a ${e.fim || '—'}` : '—'}
           {e.plano.pastaId ? ' (da pasta)' : ''}
@@ -150,7 +157,8 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
           <Texto variante="suave">Ainda não publicado: o aluno não vê este plano.</Texto>
         )}
       </Cartao>
-      {problemas ? <ListaProblemas conteudo={e.conteudo} resultado={problemas} aoFechar={() => aoProblemas(null)} /> : null}
+      {problemas ? <ListaProblemas conteudo={e.conteudo} resultado={problemas} aoFechar={() => aoProblemas(null)}
+        aoIrAoPrimeiro={aoIrAoPrimeiro ? () => { const uids = uidsDoPrimeiroProblema(e.conteudo, problemas.erros); aoIrAoPrimeiro(uids); rolarAte(uids); } : undefined} /> : null}
       <PainelConfirmacao
         visivel={avisos !== null}
         titulo="Publicar com avisos?"
@@ -176,11 +184,14 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
   );
 }
 
-function ListaProblemas({ conteudo, resultado, aoFechar }: { conteudo: unknown; resultado: ResultadoValidacao; aoFechar: () => void }) {
+function ListaProblemas({ conteudo, resultado, aoFechar, aoIrAoPrimeiro }: { conteudo: unknown; resultado: ResultadoValidacao; aoFechar: () => void; aoIrAoPrimeiro?: () => void }) {
   const limpo = !resultado.erros.length && !resultado.avisos.length;
   return (
     <Cartao titulo="Resultado da validação" acoes={<Botao rotulo="Fechar" tipo="fantasma" aoTocar={aoFechar} />}>
       {limpo ? <Selo texto="Sem erros nem avisos" tipo="sucesso" /> : null}
+      {resultado.erros.length ? (aoIrAoPrimeiro
+        ? <Botao rotulo={`${textoDosProblemas(resultado.erros.length)} · ir ao primeiro`} tipo="perigoTexto" aoTocar={aoIrAoPrimeiro} />
+        : <Selo texto={textoDosProblemas(resultado.erros.length)} tipo="perigo" />) : null}
       {resultado.erros.map((p, i) => (
         <ItemProblema key={`e${i}`} conteudo={conteudo} problema={p} tipo="perigo" />
       ))}

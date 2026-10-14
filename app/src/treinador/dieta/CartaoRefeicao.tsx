@@ -16,6 +16,7 @@ import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
 
@@ -56,7 +57,7 @@ export function CartaoRefeicao(p: Props) {
     mudar({ opcoes: substituir(r.opcoes, indice, { ...opcao, itens: fn(opcao.itens) }) });
 
   return (
-    <Cartao
+    <AlvoDeRolagem chave={r.uid}><Cartao
       style={p.comProblema.has(r.uid) ? { borderColor: cores.perigo } : undefined}
       cabecalho={
         <CabecalhoDeGrupo
@@ -138,7 +139,7 @@ export function CartaoRefeicao(p: Props) {
           </View>
         </View>
       ) : null}
-    </Cartao>
+    </Cartao></AlvoDeRolagem>
   );
 }
 

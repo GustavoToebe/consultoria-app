@@ -108,7 +108,8 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="dieta" />}
-      {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="dieta" editor={editor} problemas={problemas} aoProblemas={setProblemas} />}
+      {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="dieta" editor={editor} problemas={problemas} aoProblemas={setProblemas}
+        aoIrAoPrimeiro={(uids) => setAbertas((a) => new Set([...a, ...c.refeicoes.filter((r) => uids.includes(r.uid)).map((r) => r.uid)]))} />}
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}

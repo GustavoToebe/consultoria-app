@@ -14,6 +14,7 @@ import { Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Selo } from '../../ui/Selo';
+import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
 import { EditorSeries } from './EditorSeries';
 import { MODALIDADES } from './FolhaBiblioteca';
@@ -44,7 +45,7 @@ export function CartaoExercicio(p: Props) {
   const [extrasAbertos, setExtrasAbertos] = useState(!!(e.observacao || e.videoUrl));
 
   return (
-    <View
+    <AlvoDeRolagem chave={e.uid}
       style={[
         estilos.cartao,
         { borderColor: p.comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie2 },
@@ -137,7 +138,7 @@ export function CartaoExercicio(p: Props) {
           </View>
         </View>
       ) : null}
-    </View>
+    </AlvoDeRolagem>
   );
 }
 

@@ -5,6 +5,7 @@ import { plano as buscarPlano, publicarPlano, salvarRascunho, validarPlano, rece
 import type { PlanoDetalhe, PlanoResumo, Problema, TipoPlano, VersaoResumo } from '../../api/tipos';
 import { detalheDoModelo } from '../../dominio/modelos';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { textoDoErro } from '../../ui/erros';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 
 export type SituacaoRascunho = 'salvo' | 'pendente' | 'salvando' | 'erro' | 'conflito' | 'dataInvalida';
@@ -43,6 +44,8 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
   const [rodada, setRodada] = useState(0);
   const [salvando, setSalvando] = useState(false);
   const [erroSalvar, setErroSalvar] = useState<'erro' | 'conflito' | null>(null);
+  /** Texto do último erro ao salvar (da API, ou "Confira a internet…" sem conexão). */
+  const [mensagemDeErro, setMensagemDeErro] = useState<string | null>(null);
   /** Quando o último salvamento desta tela terminou; nulo = ainda não salvou aqui. */
   const [salvoAs, setSalvoAs] = useState<Date | null>(null);
 
@@ -113,6 +116,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
         (d) => {
           versao.current = d.plano.versao;
           setErroSalvar(null);
+          setMensagemDeErro(null);
           setSalvoAs(new Date());
           // Em pasta o servidor ignora o período enviado e usa o da pasta: a tela passa a mostrar o que ele guardou.
           const daPasta = d.plano.pastaId ? { inicio: dataParaTela(d.plano.inicio), fim: dataParaTela(d.plano.fim) } : {};
@@ -122,6 +126,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
         },
         (erro: unknown) => {
           setErroSalvar(erro instanceof ErroApi && erro.codigo === 'CONFLITO_EDICAO' ? 'conflito' : 'erro');
+          setMensagemDeErro(textoDoErro(erro));
           return false;
         },
       );
@@ -166,7 +171,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
           return { tipo: 'avisos', avisos: problemas(erro) };
         }
         if (erro instanceof ErroApi && erro.codigo === 'CONFLITO_EDICAO') setErroSalvar('conflito');
-        return { tipo: 'falha', mensagem: erro instanceof Error ? erro.message : 'Não foi possível publicar.' };
+        return { tipo: 'falha', mensagem: textoDoErro(erro) };
       }
     },
     [tipo, id, salvar, modelo],
@@ -184,6 +189,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     erroCarga,
     situacao,
     salvoAs,
+    mensagemDeErro,
     /** Há alteração que o servidor ainda não tem. */
     pendente,
     alterar,

@@ -5,6 +5,7 @@ import { buscarQuestionario, publicarQuestionario, salvarQuestionario } from '..
 import type { ConteudoQuestionario, QuestionarioDetalhe } from '../../api/tipos';
 import { normalizarQuestionario, paraApi } from '../../dominio/editorQuestionario';
 import type { ProblemaDoQuestionario } from '../../dominio/questionario';
+import { textoDoErro } from '../../ui/erros';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 
 export type SituacaoDoQuestionario = 'salvo' | 'pendente' | 'salvando' | 'erro' | 'conflito';
@@ -97,7 +98,7 @@ export function useQuestionarioEditor(id: string | undefined) {
         },
         (erro: unknown) => {
           const conflito = erro instanceof ErroApi && erro.codigo === 'CONFLITO_EDICAO';
-          setErroSalvar({ tipo: conflito ? 'conflito' : 'erro', mensagem: erro instanceof Error ? erro.message : 'Não foi possível salvar.' });
+          setErroSalvar({ tipo: conflito ? 'conflito' : 'erro', mensagem: textoDoErro(erro) });
           return false;
         },
       );
@@ -133,7 +134,7 @@ export function useQuestionarioEditor(id: string | undefined) {
         if (erro instanceof ErroApi && erro.codigo === 'QUESTIONARIO_INVALIDO') return { tipo: 'erros', erros: problemas(erro) };
         if (erro instanceof ErroApi && erro.codigo === 'CONFIRMAR_AVISOS') return { tipo: 'avisos', avisos: problemas(erro) };
         if (erro instanceof ErroApi && erro.codigo === 'CONFLITO_EDICAO') setErroSalvar({ tipo: 'conflito', mensagem: erro.message });
-        return { tipo: 'falha', mensagem: erro instanceof Error ? erro.message : 'Não foi possível publicar.' };
+        return { tipo: 'falha', mensagem: textoDoErro(erro) };
       }
     },
     [id, salvar],

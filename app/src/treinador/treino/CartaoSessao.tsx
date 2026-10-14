@@ -14,6 +14,7 @@ import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
 
 const DIAS = [
@@ -51,7 +52,7 @@ export function CartaoSessao(p: Props) {
   const mudar = (parcial: Partial<Sessao>) => p.aoMudar({ ...s, ...parcial });
 
   return (
-    <Cartao
+    <AlvoDeRolagem chave={s.uid}><Cartao
       style={p.comProblema ? { borderColor: cores.perigo } : undefined}
       cabecalho={
         <CabecalhoDeGrupo
@@ -109,7 +110,7 @@ export function CartaoSessao(p: Props) {
         </LinhaDeAcoes>
         {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
       </LinhaDeAcoes>
-    </Cartao>
+    </Cartao></AlvoDeRolagem>
   );
 }
 

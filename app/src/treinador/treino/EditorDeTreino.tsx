@@ -103,6 +103,13 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
     }
   };
 
+  /** "Ir ao primeiro" da lista de erros: seleciona a sessão dele e abre o exercício; a rolagem é do `TopoPlano`. */
+  const irAoPrimeiro = (uids: string[]) => {
+    const sessao = c.sessoes.find((x) => uids.includes(x.uid) || x.exercicios.some((e) => uids.includes(e.uid)));
+    if (sessao) setSelecionadaUid(sessao.uid);
+    for (const u of uids) if (c.sessoes.some((x) => x.exercicios.some((e) => e.uid === u))) abrir(u);
+  };
+
   /** Mudança grande (receita, remoção): guarda o conteúdo anterior para o "Desfazer". */
   const comDesfazer = (rotulo: string, mudanca: (c: ConteudoTreino) => ConteudoTreino) => {
     setDesfazer({ rotulo, conteudo: c });
@@ -136,7 +143,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
-      {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={aoProblemas} />}
+      {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={aoProblemas} aoIrAoPrimeiro={irAoPrimeiro} />}
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}
