@@ -57,6 +57,10 @@ treinos:
     tolerancia-horas: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:72}
     bloqueio-ativo: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:false}
 
+# Coleta de métricas (docs/biblioteca-comum.md): fechada sem um token de 32 a 128 caracteres [A-Za-z0-9_-].
+monitoramento:
+  token: ${MONITORAMENTO_TOKEN:}
+
 plataforma:
   web:
     # O log do 500 mostra por onde o erro passou no código do app (só as classes, nunca a mensagem).

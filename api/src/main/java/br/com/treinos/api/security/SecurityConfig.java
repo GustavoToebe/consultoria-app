@@ -1,6 +1,8 @@
 package br.com.treinos.api.security;
 
+import br.com.plataforma.comum.monitoramento.MonitoramentoFilter;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -68,7 +70,8 @@ public class SecurityConfig {
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
                                                    CorsConfigurationSource corsConfigurationSource,
                                                    RestAuthenticationEntryPoint authenticationEntryPoint,
-                                                   RestAccessDeniedHandler accessDeniedHandler) throws Exception {
+                                                   RestAccessDeniedHandler accessDeniedHandler,
+                                                   @Value("${monitoramento.token:}") String monitoramentoToken) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf
@@ -83,7 +86,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, ROTAS_PUBLICAS_POST).permitAll()
                         .requestMatchers(ROTAS_PUBLICAS).permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Credencial exclusiva de coleta (Authorization: Monitoring <token>); só vale em /monitoramento/metrics.
+                .addFilterBefore(new MonitoramentoFilter(monitoramentoToken), JwtAuthenticationFilter.class);
         return http.build();
     }
 

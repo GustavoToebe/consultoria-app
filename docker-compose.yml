@@ -34,6 +34,8 @@ services:
       DB_USUARIO: ${POSTGRES_USER:-treinos}
       DB_SENHA: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       TREINOS_JWT_SEGREDO: ${TREINOS_JWT_SEGREDO:?defina TREINOS_JWT_SEGREDO no .env}
+      # Vazio = coleta de métricas fechada (sem coletor externo configurado).
+      MONITORAMENTO_TOKEN: ${MONITORAMENTO_TOKEN:-}
       DEMO_SENHA: ${DEMO_SENHA:?defina DEMO_SENHA no .env}
       TREINOS_DEMO_HISTORICO: ${TREINOS_DEMO_HISTORICO:-false}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081}

@@ -7,7 +7,7 @@ A API usa o `plataforma-parent` e os módulos `plataforma-comum-*` (repositório
 | `plataforma-parent` | Java 25, Spring Boot, Error Prone, JaCoCo, Surefire, imagem do Postgres dos testes | adotado |
 | `plataforma-comum-teste` | `PostgresDeTeste` e `RegrasDeArquitetura` | adotado |
 | `plataforma-comum-web` | `ApiError`, exceções 4xx, handler global, request id, limite de corpo | adotado; ficam no app só `NaoEncontradoException`, `ValidacaoException` (422 com `fieldErrors`) e `MuitasRequisicoesException` (429 com `Retry-After`), tratadas por `TratadorDoApp` |
-| `plataforma-comum-monitoramento` | filtro de token e `/monitoramento/metrics` (formato Prometheus) | em adoção (Fase 5), sem coleta externa |
+| `plataforma-comum-monitoramento` | filtro de token e `/monitoramento/metrics` (formato Prometheus) | adotado, sem coleta externa (`MONITORAMENTO_TOKEN` vazio fecha a rota) |
 | `plataforma-comum-seguranca` | limite de login, HMAC, TOTP | adotado com o `auth` |
 | `plataforma-comum-auth` | login, JWT, refresh, CSRF, MFA | em adoção (Fase 5) |
 | `plataforma-comum-central` | integração com a Central (filtro HMAC, idempotência, direitos) | **Fase 6** (a API ainda tem a integração própria) |
