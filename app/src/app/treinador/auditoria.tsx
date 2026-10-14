@@ -10,7 +10,8 @@ import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Tabela } from '../../ui/Tabela';
-import { Carregando,MensagemErro,Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro,Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
@@ -36,7 +37,7 @@ export default function Auditoria() {
       </View>
       <Botao rotulo="Filtrar auditoria" desabilitado={invalido} motivo="Confira o período informado." aoTocar={()=>setFiltro({de:inicio??undefined,ate:fim??undefined,usuarioId:pessoa||undefined,acao:acao.trim()||undefined,pagina:0})}/>
     </Cartao>
-    {erro?<MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar}/>:null}{carregando&&!dados?<Carregando/>:null}
+    {erro?<MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar}/>:null}{carregando&&!dados?<Esqueleto/>:null}
     {dados?.itens.length===0?<Vazio titulo="Sem eventos neste filtro" texto="Tente outro período, pessoa ou ação."/>:null}
     {dados?.itens.length ? <Cartao titulo="Eventos" descricao={`${dados.total} ${dados.total===1?'evento':'eventos'} neste filtro.`}>
     {/* Linhas de tabela a partir de 760 px (quando/quem/ação/resumo); no celular, cartões com os mesmos campos. */}

@@ -6,6 +6,7 @@ import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cartao } from '../ui/Cartao';
 import { Selo } from '../ui/Selo';
+import { Esqueleto } from '../ui/Esqueleto';
 import { Texto } from '../ui/Texto';
 
 /**
@@ -16,7 +17,7 @@ export function AtualizacaoDaPasta({atualizacao,carregando,aoAbrir}:{atualizacao
   const registrada = !carregando && atualizacao?.dataAtualizacao ? atualizacao : null;
   return (
     <Cartao titulo="Atualização do período" acoes={registrada ? <Selo {...statusAtualizacaoTreinador(registrada)} /> : undefined}>
-      {carregando ? <Texto variante="suave">Carregando atualização…</Texto>
+      {carregando ? <Esqueleto texto="Carregando atualização" cartoes={1} />
         : !registrada ? <Texto variante="suave">Nenhuma atualização registrada nesta pasta.</Texto>
         : <View style={{gap:espaco(1)}}>
           <View style={{gap:espaco(0.25)}}>

@@ -6,6 +6,7 @@ import { semAcento } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Campo } from './Campo';
+import { Esqueleto } from './Esqueleto';
 import { Folha } from './Folha';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
@@ -34,6 +35,8 @@ interface Props<T> {
   /** Conteúdo depois da lista (paginação, erro, "Organizar..."). */
   rodape?: ReactNode;
   textoVazio?: string;
+  /** Mostra o esqueleto no lugar de "nenhuma opção" enquanto as opções chegam. */
+  carregando?: boolean;
   desabilitado?: boolean;
   /** Estilo do botão (ex.: `alignSelf: 'flex-end'` quando fica ao lado de um campo com rótulo). */
   style?: StyleProp<ViewStyle>;
@@ -48,7 +51,7 @@ export const OPCOES_PARA_BUSCAR = 8;
  * opções, sem busca, use `Escolha`.
  */
 export function EscolhaEmFolha<T extends string | number | null>({
-  rotulo, valor, opcoes, aoMudar, titulo, rotuloDoValor, busca, rodape, textoVazio = 'Nenhuma opção encontrada.', desabilitado, style,
+  rotulo, valor, opcoes, aoMudar, titulo, rotuloDoValor, busca, rodape, textoVazio = 'Nenhuma opção encontrada.', carregando, desabilitado, style,
 }: Props<T>) {
   const { cores } = useTema();
   const [aberta, setAberta] = useState(false);
@@ -82,7 +85,7 @@ export function EscolhaEmFolha<T extends string | number | null>({
           {busca ? <Campo rotulo={busca.rotulo ?? 'Buscar'} valor={busca.valor} aoMudar={busca.aoMudar} autoCorrect={false} /> : null}
           {comBuscaLocal ? <Campo rotulo="Buscar" valor={filtro} aoMudar={setFiltro} autoCorrect={false} /> : null}
           <View accessibilityRole="radiogroup" accessibilityLabel={rotulo} style={estilos.lista}>
-            {visiveis.length === 0 ? <Texto variante="suave">{textoVazio}</Texto> : null}
+            {visiveis.length === 0 ? (carregando ? <Esqueleto texto="Carregando opções" cartoes={2} /> : <Texto variante="suave">{textoVazio}</Texto>) : null}
             {visiveis.map((o) => {
               const ativa = o.valor === valor;
               return (

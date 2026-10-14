@@ -54,7 +54,7 @@ export function AplicarAoAluno({ modelo, alunoInicial, aoFechar, aoAplicar }: {
       opcoes={(alunos.dados?.itens ?? []).map((a) => ({ valor: a.id, rotulo: a.nome }))}
       aoMudar={(id) => { setAlunoId(id); setPastaId(''); setNomeEscolhido(alunos.dados?.itens.find((a) => a.id === id)?.nome ?? null); }}
       busca={{ valor: busca, rotulo: 'Buscar aluno', aoMudar: (v) => { setBusca(v); setPagina(0); } }}
-      textoVazio={alunos.carregando ? 'Carregando…' : 'Nenhum aluno encontrado.'}
+      textoVazio="Nenhum aluno encontrado." carregando={alunos.carregando}
       rodape={<>
         {pagina > 0 || temMais ? <LinhaDeAcoes>
           {pagina > 0 ? <Botao rotulo="Alunos anteriores" tipo="secundario" aoTocar={() => setPagina(pagina - 1)} /> : null}

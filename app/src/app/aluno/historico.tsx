@@ -143,8 +143,10 @@ export default function HistoricoAluno() {
           [...pesos.dados].reverse().map((p) => (
             <LinhaPeso key={p.id} data={p.data} peso={p.pesoKg} variacao={p.variacao} />
           ))
+        ) : pesos.carregando ? (
+          <Esqueleto texto="Carregando pesos" cartoes={1} />
         ) : (
-          <Texto numerico variante="suave">{pesos.carregando ? 'Carregando…' : pesos.erro ? 'Sem conexão.' : 'Nenhum registro de peso.'}</Texto>
+          <Texto numerico variante="suave">{pesos.erro ? 'Sem conexão.' : 'Nenhum registro de peso.'}</Texto>
         )}
       </Cartao>
     </Tela>

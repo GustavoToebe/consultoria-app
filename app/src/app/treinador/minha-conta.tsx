@@ -9,7 +9,8 @@ import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../../tema/t
 import { AbaCadastro, AbaFinanceiro, AbaPlano, CartaoConsumo } from '../../treinador/conta/PartesDaConta';
 import { Abas } from '../../ui/Abas';
 import { Cabecalho } from '../../ui/Cabecalho';
-import { Carregando, MensagemErro, Vazio } from '../../ui/Estados';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
@@ -48,7 +49,7 @@ export default function MinhaConta() {
           <Texto>Dados de demonstração. Os dados reais virão da central de contratação.</Texto>
         </View>
       ) : null}
-      {conta.carregando && !conta.dados ? <Carregando /> : null}
+      {conta.carregando && !conta.dados ? <Esqueleto /> : null}
       {conta.erro ? (
         <ErroOuVazio erro={conta.erro} recarregar={conta.recarregar} />
       ) : null}
