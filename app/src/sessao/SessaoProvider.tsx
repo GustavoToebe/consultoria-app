@@ -38,11 +38,14 @@ interface ValorSessao {
   marca: Marca | null;
   /** Aberta sem confirmar com o servidor (sem conexão). */
   offline: boolean;
-  entrar: (email: string, senha: string) => Promise<void>;
+  entrar: (email: string, senha: string, codigoMfa?: string) => Promise<void>;
   cadastrarTreinador: (dados: { nomeConsultoria: string; nome: string; email: string; senha: string }) => Promise<void>;
   aceitarConvite: (codigo: string, email: string, senha: string) => Promise<void>;
   aceitarConviteEquipe: (codigo:string,senha:string) => Promise<void>;
   trocarSenha: (atual: string, nova: string) => Promise<void>;
+  /** Ativa a verificação em duas etapas; devolve os códigos de recuperação (mostrados uma vez). As outras sessões caem. */
+  ativarMfa: (senha: string, codigo: string) => Promise<string[]>;
+  desativarMfa: (senha: string, codigo: string) => Promise<void>;
   atualizarMarca: (marca: Marca) => void;
   sair: () => Promise<void>;
   /** Limpezas extras ao sair (ex.: dados offline do aluno). Devolve a função que remove o registro. */
@@ -184,10 +187,16 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       usuario: perfil?.usuario ?? null,
       marca: perfil?.marca ?? null,
       offline,
-      entrar: async (email, senha) => abrir(await rotas.entrar(email.trim(), senha)),
+      entrar: async (email, senha, codigoMfa) => abrir(await rotas.entrar(email.trim(), senha, codigoMfa)),
       cadastrarTreinador: async (dados) => abrir(await rotas.cadastrarTreinador(dados)),
       aceitarConvite: async (codigo, email, senha) => abrir(await rotas.aceitarConvite(codigo, email.trim(), senha)),
       trocarSenha: async (atual, nova) => abrir(await rotas.trocarSenha(atual, nova)),
+      ativarMfa: async (senha, codigo) => {
+        const ativacao = await rotas.mfaAtivar(senha, codigo);
+        await abrir(ativacao.sessao);
+        return ativacao.codigosDeRecuperacao;
+      },
+      desativarMfa: async (senha, codigo) => abrir(await rotas.mfaDesativar(senha, codigo)),
       atualizarMarca: (marca) => {
         setPerfil((atual) => {
           if (!atual) return atual;

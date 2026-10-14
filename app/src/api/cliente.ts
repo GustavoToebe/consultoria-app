@@ -84,7 +84,13 @@ export function urlDaApi(caminho: string): string {
 }
 
 /** Erros de regra de negócio: nunca disparam refresh nem repetição automática. */
-const CODIGOS_SEM_REPETICAO = new Set(['CONFLITO_EDICAO', 'PLANO_INVALIDO', 'CONFIRMAR_AVISOS']);
+const CODIGOS_SEM_REPETICAO = new Set([
+  'CONFLITO_EDICAO',
+  'PLANO_INVALIDO',
+  'CONFIRMAR_AVISOS',
+  'MFA_CODIGO_INVALIDO',
+  'MFA_SENHA_INVALIDA',
+]);
 
 export interface Opcoes {
   metodo?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

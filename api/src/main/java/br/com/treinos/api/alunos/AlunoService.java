@@ -8,7 +8,7 @@ import br.com.treinos.api.alunos.dto.AlunoDtos.PlanoAtivoResumo;
 import br.com.treinos.api.alunos.dto.AlunoDtos.SituacaoAtualizacao;
 import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
 import br.com.treinos.api.atualizacoes.RegrasAtualizacao;
-import br.com.treinos.api.auth.RefreshTokenService;
+import br.com.plataforma.comum.auth.Autenticador;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.treino.PlanoTreino;
@@ -41,18 +41,18 @@ public class AlunoService {
 
     private final AlunoRepository alunos;
     private final UsuarioRepository usuarios;
-    private final RefreshTokenService refreshTokens;
+    private final Autenticador autenticador;
     private final PlanoTreinoRepository planos;
     private final ExecucaoSerieRepository execucoes;
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
     private final AtualizacaoRepository atualizacoes;
 
-    public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, RefreshTokenService refreshTokens,
+    public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
                         AtualizacaoRepository atualizacoes) {
         this.alunos = alunos;
         this.usuarios = usuarios;
-        this.refreshTokens = refreshTokens;
+        this.autenticador = autenticador;
         this.planos = planos;
         this.execucoes = execucoes;
         this.auditoria = auditoria;
@@ -164,7 +164,7 @@ public class AlunoService {
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));
             if (!ativo) {
-                refreshTokens.encerrarTodas(aluno.getUsuarioId());
+                autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
             }
         }
     }

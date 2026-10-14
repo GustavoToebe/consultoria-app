@@ -1,4 +1,4 @@
-export type IdDoItemDoMenu = 'meus-dados' | 'minha-conta' | 'ajustes' | 'sair';
+export type IdDoItemDoMenu = 'meus-dados' | 'seguranca' | 'minha-conta' | 'ajustes' | 'sair';
 
 export interface ItemDoMenuDoUsuario {
   id: IdDoItemDoMenu;
@@ -14,13 +14,14 @@ export interface ItemDoMenuDoUsuario {
 export function itensDoMenuDoUsuario(pode: (codigo: string) => boolean): ItemDoMenuDoUsuario[] {
   return [
     { id: 'meus-dados', rotulo: 'Meus dados', href: '/treinador/meus-dados' },
+    { id: 'seguranca', rotulo: 'Segurança', href: '/treinador/seguranca' },
     ...(pode('CONTA_LER') ? [{ id: 'minha-conta' as const, rotulo: 'Minha conta', href: '/treinador/minha-conta' }] : []),
     { id: 'ajustes', rotulo: 'Ajustes', href: '/treinador/ajustes' },
     { id: 'sair', rotulo: 'Sair', href: null },
   ];
 }
 
-/** Meus dados, Ajustes e Minha conta abrem a partir do cartão do usuário no PC e da tela Perfil no celular; só no celular precisam da seta de voltar. */
+/** Meus dados, Segurança, Ajustes e Minha conta abrem a partir do cartão do usuário no PC e da tela Perfil no celular; só no celular precisam da seta de voltar. */
 export function voltarDasTelasDaConta(larguraDaJanela: number, larguraMenuLateral: number): '/treinador/perfil' | undefined {
   return larguraDaJanela < larguraMenuLateral ? '/treinador/perfil' : undefined;
 }

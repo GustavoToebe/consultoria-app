@@ -32,6 +32,9 @@ import type {
   Fonte,
   ImportacaoResultado,
   LoginResponse,
+  MfaAtivacao,
+  MfaPreparacao,
+  MfaStatus,
   LoteResponse,
   Marca,
   MinhaConta,
@@ -122,8 +125,22 @@ export const responderAtualizacao = (id: string, texto: string, versao: number) 
 
 // ---- Sessão ----
 
-export const entrar = (email: string, senha: string) =>
-  requisicao<LoginResponse>('/auth/login', { metodo: 'POST', corpo: { email, senha }, semRenovar: true });
+export const entrar = (email: string, senha: string, codigoMfa?: string) =>
+  requisicao<LoginResponse>('/auth/login', {
+    metodo: 'POST',
+    corpo: codigoMfa ? { email, senha, codigoMfa } : { email, senha },
+    semRenovar: true,
+  });
+
+// ---- Verificação em duas etapas (treinador) ----
+
+export const mfaStatus = () => requisicao<MfaStatus>('/eu/mfa');
+export const mfaPreparar = (senha: string) =>
+  requisicao<MfaPreparacao>('/eu/mfa/preparar', { metodo: 'POST', corpo: { senha } });
+export const mfaAtivar = (senha: string, codigo: string) =>
+  requisicao<MfaAtivacao>('/eu/mfa/ativar', { metodo: 'POST', corpo: { senha, codigo } });
+export const mfaDesativar = (senha: string, codigo: string) =>
+  requisicao<LoginResponse>('/eu/mfa/desativar', { metodo: 'POST', corpo: { senha, codigo } });
 
 export const sairDaApi = (refreshToken: string | null) =>
   requisicao<void>('/auth/logout', {

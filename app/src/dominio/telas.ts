@@ -34,6 +34,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'ajuda', rotulo: 'Ajuda', secao: 'Ajuda', href: '/treinador/ajuda', palavras: ['guia', 'tutorial', 'suporte', 'duvidas', 'perguntas'], permissao: null },
   { id: 'termos', rotulo: 'Termos e privacidade', secao: 'Ajuda', href: '/treinador/termos', palavras: ['termo de uso', 'aviso de privacidade', 'lgpd', 'dados pessoais', 'politica'], permissao: null },
   { id: 'meus-dados', rotulo: 'Meus dados', secao: 'Conta', href: '/treinador/meus-dados', palavras: ['nome', 'email', 'telefone', 'senha', 'trocar senha', 'perfil', 'sair'], permissao: null },
+  { id: 'seguranca', rotulo: 'Segurança', secao: 'Conta', href: '/treinador/seguranca', palavras: ['verificacao em duas etapas', 'duas etapas', '2fa', 'mfa', 'autenticador', 'codigo', 'codigos de recuperacao', 'qr'], permissao: null },
   { id: 'minha-conta', rotulo: 'Minha conta', secao: 'Conta', href: '/treinador/minha-conta', palavras: ['plano', 'meu plano', 'financeiro', 'cobrancas', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'ajustes', rotulo: 'Ajustes', secao: 'Conta', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
 
@@ -134,6 +135,7 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/receitas', 'Planejamento'],
   ['/treinador/perfil', 'Perfil'],
   ['/treinador/meus-dados', 'Meus dados'],
+  ['/treinador/seguranca', 'Segurança'],
   ['/treinador/ajustes', 'Ajustes'],
   ['/treinador/minha-conta', 'Minha conta'],
   ['/treinador/termos', 'Termos e privacidade'],

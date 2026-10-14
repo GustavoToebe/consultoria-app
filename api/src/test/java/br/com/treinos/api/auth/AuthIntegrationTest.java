@@ -195,6 +195,25 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void navegadorReabertoGanhaOCookieCsrfPeloHealthEORefreshPassa() throws Exception {
+        MvcResult login = mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(api.corpoLogin(email, ApiDeTeste.SENHA)))
+                .andExpect(status().isOk()).andReturn();
+        Cookie refresh = login.getResponse().getCookie("TREINOS_REFRESH");
+        assertThat(refresh).isNotNull();
+
+        // O cookie XSRF é de sessão do navegador: reaberto, só o refresh sobrou. O app pede /actuator/health para ganhar outro.
+        MvcResult health = mvc.perform(get("/actuator/health")).andExpect(status().isOk()).andReturn();
+        Cookie xsrf = health.getResponse().getCookie("TREINOS-XSRF-TOKEN");
+        assertThat(xsrf).isNotNull();
+        assertThat(xsrf.getValue()).isNotBlank();
+
+        mvc.perform(post("/auth/refresh").cookie(refresh, xsrf).header("X-XSRF-TOKEN", xsrf.getValue()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
+
+    @Test
     void cadastroComEmailJaUsadoRecebe409() throws Exception {
         mvc.perform(post("/auth/cadastro-treinador").contentType(MediaType.APPLICATION_JSON)
                         .content(api.paraJson(Map.of("nomeConsultoria", "Outra", "nome", "Outro", "email",

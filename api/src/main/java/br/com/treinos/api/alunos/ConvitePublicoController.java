@@ -42,7 +42,7 @@ public class ConvitePublicoController {
                                  HttpServletRequest http, HttpServletResponse resposta) {
         limite.convite(http.getRemoteAddr());
         DestinoCliente cliente = DestinoCliente.de(http);
-        return sessaoHttp.responder(convites.aceitar(codigo, request.email(), request.senha(), cliente), cliente,
+        return sessaoHttp.responder(convites.aceitar(codigo, request.email(), request.senha()), cliente,
                 resposta);
     }
 }

@@ -34,6 +34,10 @@ services:
       DB_USUARIO: ${POSTGRES_USER:-treinos}
       DB_SENHA: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       TREINOS_JWT_SEGREDO: ${TREINOS_JWT_SEGREDO:?defina TREINOS_JWT_SEGREDO no .env}
+      TREINOS_LOGIN_SAL: ${TREINOS_LOGIN_SAL:?defina TREINOS_LOGIN_SAL no .env}
+      # Vazias = o treinador não consegue ativar a verificação em duas etapas (503 MFA_INDISPONIVEL).
+      TREINOS_MFA_CHAVES: ${TREINOS_MFA_CHAVES:-}
+      TREINOS_MFA_CHAVE_ATIVA: ${TREINOS_MFA_CHAVE_ATIVA:-}
       # Vazio = coleta de métricas fechada (sem coletor externo configurado).
       MONITORAMENTO_TOKEN: ${MONITORAMENTO_TOKEN:-}
       DEMO_SENHA: ${DEMO_SENHA:?defina DEMO_SENHA no .env}

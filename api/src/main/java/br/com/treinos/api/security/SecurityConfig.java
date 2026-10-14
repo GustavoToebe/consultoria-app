@@ -1,5 +1,7 @@
 package br.com.treinos.api.security;
 
+import br.com.plataforma.comum.auth.CookieDeRefresh;
+import br.com.plataforma.comum.auth.PoliticaCsrf;
 import br.com.plataforma.comum.monitoramento.MonitoramentoFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +18,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -34,9 +36,6 @@ import java.util.Set;
 @EnableMethodSecurity
 @EnableConfigurationProperties(SecurityProperties.class)
 public class SecurityConfig {
-
-    /** Nome próprio, como a Central ({@code CENTRAL-XSRF-TOKEN}), para não colidir com outro app no navegador. */
-    public static final String COOKIE_CSRF = "TREINOS-XSRF-TOKEN";
 
     private static final Set<String> METODOS_SEGUROS = Set.of("GET", "HEAD", "TRACE", "OPTIONS");
 
@@ -71,13 +70,14 @@ public class SecurityConfig {
                                                    CorsConfigurationSource corsConfigurationSource,
                                                    RestAuthenticationEntryPoint authenticationEntryPoint,
                                                    RestAccessDeniedHandler accessDeniedHandler,
+                                                   PoliticaCsrf politicaCsrf, CookieDeRefresh cookieDeRefresh,
                                                    @Value("${monitoramento.token:}") String monitoramentoToken) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf
-                        .spa()
-                        .csrfTokenRepository(csrfTokenRepository())
-                        .requireCsrfProtectionMatcher(SecurityConfig::exigeCsrf))
+                        .csrfTokenRepository(politicaCsrf.repositorio())
+                        .csrfTokenRequestHandler(politicaCsrf.tratador())
+                        .requireCsrfProtectionMatcher(exigeCsrf(cookieDeRefresh)))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint)
@@ -92,35 +92,30 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /** Mesmo repositório do {@code spa()} (cookie legível pelo JS do app web), com nome próprio. */
-    static CookieCsrfTokenRepository csrfTokenRepository() {
-        CookieCsrfTokenRepository repositorio = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        repositorio.setCookieName(COOKIE_CSRF);
-        repositorio.setCookiePath("/");
-        return repositorio;
-    }
-
     /**
      * CSRF só protege quem tem o cookie de refresh (cliente web): {@code /auth/refresh} e {@code /auth/logout} com o
      * cookie, e requisição sem Bearer que carregue o cookie. Bearer dispensa (o navegador não o anexa sozinho).
-     * Login, cadastro e convite públicos não usam o cookie (como {@code /auth/login} na Central).
+     * Login, cadastro e convite públicos não usam o cookie (como {@code /auth/login} na Central). O cookie e o cabeçalho
+     * do token (nome {@code TREINOS-XSRF-TOKEN}) vêm de {@code plataforma.auth.csrf}.
      */
-    static boolean exigeCsrf(HttpServletRequest request) {
-        if (METODOS_SEGUROS.contains(request.getMethod())) {
-            return false;
-        }
-        String caminho = request.getRequestURI().substring(request.getContextPath().length());
-        if ("/auth/login".equals(caminho) || "/auth/cadastro-treinador".equals(caminho)
-                || caminho.startsWith("/publico/")) {
-            return false;
-        }
-        if (caminho.startsWith("/auth/")) {
-            return CookieDeRefresh.presente(request);
-        }
-        String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
-            return false;
-        }
-        return CookieDeRefresh.presente(request);
+    static RequestMatcher exigeCsrf(CookieDeRefresh cookieDeRefresh) {
+        return request -> {
+            if (METODOS_SEGUROS.contains(request.getMethod())) {
+                return false;
+            }
+            String caminho = request.getRequestURI().substring(request.getContextPath().length());
+            if ("/auth/login".equals(caminho) || "/auth/cadastro-treinador".equals(caminho)
+                    || caminho.startsWith("/publico/")) {
+                return false;
+            }
+            if (caminho.startsWith("/auth/")) {
+                return cookieDeRefresh.presente(request);
+            }
+            String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+            if (authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)) {
+                return false;
+            }
+            return cookieDeRefresh.presente(request);
+        };
     }
 }

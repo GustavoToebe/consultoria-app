@@ -10,7 +10,7 @@ O aluno vê o plano no celular ou na web e registra cargas e repetições, inclu
 ## Como rodar (local, Docker)
 
 ```bash
-cp .env.example .env    # preencher POSTGRES_PASSWORD, TREINOS_JWT_SEGREDO (openssl rand -base64 48) e DEMO_SENHA
+cp .env.example .env    # preencher POSTGRES_PASSWORD, TREINOS_JWT_SEGREDO e TREINOS_LOGIN_SAL (openssl rand -base64 48 cada) e DEMO_SENHA
 docker compose up -d --build
 # Web (treinador e aluno): http://localhost:8088   (na rede: http://IP-DO-PC:8088)
 ```
@@ -32,7 +32,7 @@ ao 18, que guarda os dados em outra pasta: rode `docker compose down -v` antes d
    `Documents/consultoria-app`, fora do OneDrive (git e `node_modules` brigam com a sincronização, e senha não vai
    para a nuvem de arquivos).
 3. Cada PC tem o próprio `.env`, que **não está no git** (tem as senhas). Num clone novo: `cp .env.example .env` e preencher
-   `POSTGRES_PASSWORD`, `TREINOS_JWT_SEGREDO` (`openssl rand -base64 48`) e `DEMO_SENHA` (senha das contas de
+   `POSTGRES_PASSWORD`, `TREINOS_JWT_SEGREDO` e `TREINOS_LOGIN_SAL` (`openssl rand -base64 48` cada) e `DEMO_SENHA` (senha das contas de
    demonstração). Nunca mandar o `.env` por e-mail, chat ou commit.
 4. `docker compose up -d --build` e abrir `http://localhost:8088`. O banco começa limpo, com a demonstração.
 5. Celular: o IP muda de rede para rede (`ipconfig`). Rede de empresa costuma bloquear um aparelho de falar com o
@@ -104,7 +104,7 @@ Senha de todas: o valor de `DEMO_SENHA` no `.env`. Todos os dados são fictício
 - [ ] Variação de peso −1 onde a conta dá −1,5: qual vale?
 
 **Para depois da demonstração:** preço por aluno “cadastrado” ou “ativo”; o que o Saraiva
-controla hoje na planilha sobre os clientes; cobrança pela Central; MFA do treinador; RLS no Postgres; service
+controla hoje na planilha sobre os clientes; cobrança pela Central; RLS no Postgres; service
 worker na web (abrir sem internet); importar plano da planilha; app próprio nas lojas.
 
 ## Pendências e decisões

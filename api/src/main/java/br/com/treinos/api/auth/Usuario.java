@@ -140,6 +140,11 @@ public class Usuario {
         this.ultimoLoginEm = quando;
     }
 
+    /** Ativar ou desativar o MFA: os tokens de acesso emitidos antes deixam de valer. */
+    public void subirVersaoDeCredenciais() {
+        this.credenciaisVersao++;
+    }
+
     public void trocarSenha(String novoHash) {
         this.senhaHash = novoHash;
         this.credenciaisVersao++;

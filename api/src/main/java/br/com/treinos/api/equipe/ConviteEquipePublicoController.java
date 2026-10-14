@@ -16,6 +16,6 @@ public class ConviteEquipePublicoController {
     @PostMapping("/publico/convites-equipe/{codigo}")
     public LoginResponse aceitar(@PathVariable String codigo,@RequestBody @Valid EquipeDtos.AceitarRequest r,HttpServletRequest http,HttpServletResponse resposta) {
         limite.convite(http.getRemoteAddr());var cliente=DestinoCliente.de(http);
-        return sessao.responder(convites.aceitar(codigo,r.senha(),cliente),cliente,resposta);
+        return sessao.responder(convites.aceitar(codigo,r.senha()),cliente,resposta);
     }
 }

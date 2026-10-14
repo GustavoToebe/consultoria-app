@@ -1,7 +1,6 @@
 package br.com.treinos.api.equipe;
 import br.com.treinos.api.auth.AuthService;
 import br.com.treinos.api.receitas.ReceitaService;
-import br.com.treinos.api.security.DestinoCliente;
 import br.com.treinos.api.security.OpaqueTokenGenerator;
 import br.com.treinos.api.tenant.TenantContext;
 import org.springframework.stereotype.Service;
@@ -12,7 +11,7 @@ public class ConviteEquipePublicoService {
     private final AuthService auth;
     private final ReceitaService receitas;
     public ConviteEquipePublicoService(ConviteEquipeBusca busca,EquipeService equipe,AuthService auth,ReceitaService receitas) { this.busca=busca;this.equipe=equipe;this.auth=auth;this.receitas=receitas; }
-    public AuthService.Sessao aceitar(String codigo,String senha,DestinoCliente cliente) {
+    public AuthService.Sessao aceitar(String codigo,String senha) {
         if(codigo==null || !codigo.matches("[A-Za-z0-9_-]{43}")) throw EquipeService.conviteInvalido();
         String hash=OpaqueTokenGenerator.hash(codigo);var convite=busca.convite(hash).orElseThrow(EquipeService::conviteInvalido);
         var usuario=TenantContext.executarComo(convite.consultoriaId(),() -> {
@@ -21,6 +20,6 @@ public class ConviteEquipePublicoService {
             if(convite.doSistema()) receitas.garantirPadrao();
             return equipe.aceitar(hash,senha);
         });
-        return auth.sessaoNova(usuario,cliente);
+        return auth.sessaoNova(usuario);
     }
 }

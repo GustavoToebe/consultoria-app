@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { ChevronDown, LogOut, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
+import { ChevronDown, LogOut, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -15,6 +15,7 @@ import { useCliqueFora, useTeclado } from './usoWeb';
 
 export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
   'meus-dados': UserRound,
+  seguranca: ShieldCheck,
   'minha-conta': UserRound,
   ajustes: SlidersHorizontal,
   sair: LogOut,

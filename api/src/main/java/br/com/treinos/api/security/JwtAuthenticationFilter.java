@@ -1,5 +1,7 @@
 package br.com.treinos.api.security;
 
+import br.com.plataforma.comum.auth.Autenticador;
+import br.com.plataforma.comum.auth.JwtService;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.integracao.AcessoPorDireitos;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.UUID;
 import br.com.treinos.api.equipe.PermissoesDoUsuario;
 
 /**
@@ -27,17 +30,17 @@ import br.com.treinos.api.equipe.PermissoesDoUsuario;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
+    private final Autenticador autenticador;
     private final UsuarioRepository usuarioRepository;
 
     private final PermissoesDoUsuario permissoes;
     private final AcessoPorDireitos direitos;
 
-    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepository, PermissoesDoUsuario permissoes,
+    public JwtAuthenticationFilter(Autenticador autenticador, UsuarioRepository usuarioRepository, PermissoesDoUsuario permissoes,
                                    AcessoPorDireitos acesso) {
         this.permissoes=permissoes;
         this.direitos=acesso;
-        this.jwtService = jwtService;
+        this.autenticador = autenticador;
         this.usuarioRepository = usuarioRepository;
     }
 
@@ -56,16 +59,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (header == null || !header.regionMatches(true, 0, "Bearer ", 0, 7)) {
             return;
         }
-        JwtService.Acesso acesso;
+        // Assinatura, validade e a versão das credenciais (o claim cv) são conferidas pelo módulo de autenticação.
+        JwtService.Token token;
         try {
-            acesso = jwtService.validarAcesso(header.substring(7).trim());
+            token = autenticador.autenticar(header.substring(7).trim());
         } catch (UnauthorizedException recusado) {
             return;
         }
-        Usuario usuario = usuarioRepository.findById(acesso.usuarioId())
-                .filter(Usuario::isAtivo)
-                .filter(u -> u.getCredenciaisVersao() == acesso.credenciaisVersao())
-                .orElse(null);
+        UUID usuarioId;
+        try {
+            usuarioId = UUID.fromString(token.sujeito());
+        } catch (IllegalArgumentException semUuid) {
+            return;
+        }
+        Usuario usuario = usuarioRepository.findById(usuarioId).filter(Usuario::isAtivo).orElse(null);
         if (usuario == null) {
             return;
         }

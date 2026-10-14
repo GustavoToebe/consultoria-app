@@ -1,12 +1,20 @@
 # Segredo só desta suíte. O valor decodifica para 37 bytes; não serve fora do teste.
-treinos:
-  security:
+plataforma:
+  auth:
     jwt:
       secret: dGVzdGUtdHJlaW5vcy1qd3Qtc2VjcmV0LTMyLWJ5dGVzLW9rIQ==
+    # Sal e chave do MFA só desta suíte (a chave tem 32 bytes); não servem fora do teste.
+    login:
+      sal: sal-so-da-suite-de-testes
+      # O limite por conta (10) continua o de produção e é testado no AuthIntegrationTest.
+      limite-ip: 100000
+    mfa:
+      chaves: "teste:Y2hhdmUtYWVzLTI1Ni1zby1kYS1zdWl0ZS10ZXN0ZSE="
+      chave-ativa: teste
+treinos:
   # Toda a suíte sai de 127.0.0.1: os limites por IP ficam altos para um teste não bloquear o outro.
   # O limite por conta (10) continua o de produção e é testado no AuthIntegrationTest.
   limites:
-    login-ip: 100000
     cadastro-ip: 100000
     convite-ip: 100000
     refresh-ip: 100000

@@ -1,95 +1,109 @@
 package br.com.treinos.api.auth;
 
+import br.com.plataforma.comum.auth.Autenticador;
+import br.com.plataforma.comum.web.BadRequestException;
+import br.com.plataforma.comum.web.ForbiddenException;
+import br.com.plataforma.comum.web.UnauthorizedException;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.auth.dto.EuResponse;
 import br.com.treinos.api.auth.dto.UsuarioResumo;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.consultoria.MarcaPublica;
 import br.com.treinos.api.integracao.AcessoPorDireitos;
-import br.com.treinos.api.security.DestinoCliente;
-import br.com.treinos.api.security.JwtService;
-import br.com.treinos.api.security.OpaqueTokenGenerator;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.termos.Termos;
 import br.com.treinos.api.termos.TermosService;
-import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Emails;
-import br.com.plataforma.comum.web.UnauthorizedException;
 import br.com.treinos.api.web.NaoEncontradoException;
-import br.com.plataforma.comum.web.ForbiddenException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.time.Instant;
+import java.util.Map;
+import java.util.UUID;
 
+/**
+ * Login, renovação, logout e troca de senha. O fluxo de sessão (limite de tentativas, senha, segundo fator, tokens e rotação do
+ * refresh) é do {@link Autenticador} da plataforma; aqui ficam o e-mail normalizado, a consultoria suspensa pela Central e os
+ * dados da tela. {@code entrar} e {@code renovar} <b>não</b> rodam dentro de transação: o módulo revoga as sessões em transação
+ * própria quando detecta o reuso de um refresh.
+ */
 @Service
 public class AuthService {
+
+    private static final String SESSAO_INVALIDA = "Sessão inválida ou expirada. Entre de novo.";
 
     private final UsuarioRepository usuarios;
     private final ConsultoriaRepository consultorias;
     private final AlunoRepository alunos;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
-    private final RefreshTokenService refreshTokens;
+    private final Autenticador autenticador;
     private final br.com.treinos.api.equipe.PerfilRepository perfis;
     private final br.com.treinos.api.equipe.PermissoesDoUsuario permissoes;
     private final AcessoPorDireitos acesso;
     private final TermosService termos;
-
-    /**
-     * Hash de uma senha aleatória, calculado uma vez. Com e-mail inexistente o BCrypt roda contra ele: a resposta
-     * leva o mesmo tempo que uma senha errada e não revela quais e-mails têm conta.
-     */
-    private final String hashFicticio;
+    private final AberturaDeSessao abertura;
+    private final TransactionTemplate transacao;
+    private final TransactionTemplate leitura;
 
     public AuthService(UsuarioRepository usuarios, ConsultoriaRepository consultorias, AlunoRepository alunos,
-                       PasswordEncoder passwordEncoder, JwtService jwtService, RefreshTokenService refreshTokens,br.com.treinos.api.equipe.PerfilRepository perfis,
+                       PasswordEncoder passwordEncoder, Autenticador autenticador,
+                       br.com.treinos.api.equipe.PerfilRepository perfis,
                        br.com.treinos.api.equipe.PermissoesDoUsuario permissoes, AcessoPorDireitos acesso,
-                       TermosService termos) {
-        this.perfis=perfis;this.permissoes=permissoes;this.acesso=acesso;this.termos=termos;
+                       TermosService termos, AberturaDeSessao abertura, PlatformTransactionManager transacoes) {
+        this.abertura = abertura;
+        this.perfis = perfis;
+        this.permissoes = permissoes;
+        this.acesso = acesso;
+        this.termos = termos;
         this.usuarios = usuarios;
         this.consultorias = consultorias;
         this.alunos = alunos;
         this.passwordEncoder = passwordEncoder;
-        this.jwtService = jwtService;
-        this.refreshTokens = refreshTokens;
-        this.hashFicticio = passwordEncoder.encode(OpaqueTokenGenerator.gerar());
+        this.autenticador = autenticador;
+        this.transacao = new TransactionTemplate(transacoes);
+        this.leitura = new TransactionTemplate(transacoes);
+        this.leitura.setReadOnly(true);
     }
 
-    @Transactional
-    @br.com.treinos.api.auditoria.Auditar(acao="LOGIN_SUCESSO",entidade="USUARIO",resumo="Entrou no aplicativo.")
-    public Sessao entrar(String email, String senha, DestinoCliente cliente) {
-        Usuario usuario = usuarios.buscarPorEmail(Emails.normalizar(email)).orElse(null);
-        if (usuario == null) {
-            passwordEncoder.matches(senha, hashFicticio);
+    public Sessao entrar(String email, String senha, String codigoMfa, String ip) {
+        Autenticador.Identidade identidade;
+        try {
+            identidade = autenticador.verificarCredenciais(Emails.normalizar(email), senha, codigoMfa, ip);
+        } catch (UnauthorizedException recusado) {
             throw credenciaisInvalidas();
         }
-        if (!passwordEncoder.matches(senha, usuario.getSenhaHash()) || !usuario.isAtivo()) {
-            throw credenciaisInvalidas();
-        }
-        usuario.registrarLogin(Instant.now());
-        return sessaoNova(usuario, cliente);
+        Usuario usuario = carregar(identidade.sujeito());
+        liberarAcesso(usuario);
+        Usuario registrado = abertura.entrou(usuario.getId());
+        return montar(registrado, autenticador.novaSessao(identidade.sujeito(), identidade.versao(), ip));
     }
 
-    @Transactional
-    public Sessao renovar(String refreshTokenBruto) {
-        RefreshTokenService.Rotacao rotacao = refreshTokens.rotacionar(refreshTokenBruto);
-        return sessao(rotacao.usuario(), rotacao.refreshTokenBruto());
+    public Sessao renovar(String refreshTokenBruto, String ip) {
+        // A conferência da consultoria roda dentro da rotação: se ela recusar, o refresh antigo continua valendo.
+        Autenticador.Sessao sessao = autenticador.renovar(refreshTokenBruto, ip, sujeito -> {
+            liberarAcesso(carregar(sujeito));
+            return Map.of();
+        });
+        return montar(carregar(sessao.sujeito()), sessao);
     }
 
-    @Transactional
     public void sair(String refreshTokenBruto) {
         if (refreshTokenBruto != null && !refreshTokenBruto.isBlank()) {
-            refreshTokens.revogar(refreshTokenBruto);
+            autenticador.sair(refreshTokenBruto);
         }
     }
 
-    /** Sessão para um usuário recém-criado (cadastro de treinador, convite aceito) ou que acabou de entrar. */
-    @Transactional
-    @br.com.treinos.api.auditoria.Auditar(acao="LOGIN_SUCESSO",entidade="USUARIO",resumo="Abriu uma sessão no aplicativo.")
-    public Sessao sessaoNova(Usuario usuario, DestinoCliente cliente) {
-        return sessao(usuario, refreshTokens.emitir(usuario, cliente));
+    /** Sessão para um usuário recém-criado (cadastro de treinador, convite aceito). */
+    public Sessao sessaoNova(Usuario usuario) {
+        liberarAcesso(usuario);
+        abertura.abriu(usuario);
+        return montar(usuario, autenticador.novaSessao(usuario.getId().toString(), usuario.getCredenciaisVersao(), ipAtual()));
     }
 
     @Transactional(readOnly = true)
@@ -102,10 +116,10 @@ public class AuthService {
                     .map(a -> new EuResponse.AlunoResumo(a.getId(), a.getNome()))
                     .orElse(null);
         }
-        var perfil=usuario.getPerfilId()==null ? null : perfis.buscar(usuario.getPerfilId(),usuario.getConsultoriaId())
-                .map(p -> new EuResponse.PerfilResumo(p.getId(),p.getNome(),p.isAcessoTotal())).orElse(null);
-        return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno,perfil,
-                usuario.getPapel()==Papel.TREINADOR ? permissoes.codigos(usuario) : null,
+        var perfil = usuario.getPerfilId() == null ? null : perfis.buscar(usuario.getPerfilId(), usuario.getConsultoriaId())
+                .map(p -> new EuResponse.PerfilResumo(p.getId(), p.getNome(), p.isAcessoTotal())).orElse(null);
+        return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno, perfil,
+                usuario.getPapel() == Papel.TREINADOR ? permissoes.codigos(usuario) : null,
                 termos.pendente(usuario.getId()), Termos.VERSAO);
     }
 
@@ -113,42 +127,68 @@ public class AuthService {
      * Troca a própria senha: confere a atual, incrementa a versão das credenciais (Bearer antigo recusado na hora),
      * encerra todas as sessões e devolve uma sessão nova para esta continuar aberta.
      */
-    @Transactional
-    public Sessao trocarSenha(UsuarioAutenticado autenticado, String senhaAtual, String senhaNova,
-                              DestinoCliente cliente) {
-        Usuario usuario = usuarios.buscarParaAlterar(autenticado.usuarioId())
-                .orElseThrow(() -> new NaoEncontradoException("Usuário não encontrado."));
-        if (!passwordEncoder.matches(senhaAtual, usuario.getSenhaHash())) {
-            throw new BadRequestException("A senha atual não confere.");
-        }
-        RegrasSenha.validar(senhaNova, usuario.getEmail());
-        if (passwordEncoder.matches(senhaNova, usuario.getSenhaHash())) {
-            throw new BadRequestException("A nova senha precisa ser diferente da atual.");
-        }
-        usuario.trocarSenha(passwordEncoder.encode(senhaNova));
-        usuarios.saveAndFlush(usuario);
-        refreshTokens.encerrarTodas(usuario.getId());
-        return sessaoNova(usuario, cliente);
+    public Sessao trocarSenha(UsuarioAutenticado autenticado, String senhaAtual, String senhaNova, String ip) {
+        long versao = transacao.execute(status -> {
+            Usuario usuario = usuarios.buscarParaAlterar(autenticado.usuarioId())
+                    .orElseThrow(() -> new NaoEncontradoException("Usuário não encontrado."));
+            if (!passwordEncoder.matches(senhaAtual, usuario.getSenhaHash())) {
+                throw new BadRequestException("A senha atual não confere.");
+            }
+            RegrasSenha.validar(senhaNova, usuario.getEmail());
+            if (passwordEncoder.matches(senhaNova, usuario.getSenhaHash())) {
+                throw new BadRequestException("A nova senha precisa ser diferente da atual.");
+            }
+            usuario.trocarSenha(passwordEncoder.encode(senhaNova));
+            usuarios.saveAndFlush(usuario);
+            return usuario.getCredenciaisVersao();
+        });
+        return reabrirSessao(autenticado.usuarioId(), versao, ip);
     }
 
-    private Sessao sessao(Usuario usuario, String refreshBruto) {
-        // Todo caminho que abre sessão (login, renovação, convite aceito) passa por aqui: consultoria suspensa não entra.
+    /**
+     * Depois de a versão das credenciais subir (troca de senha, ativação ou desativação do MFA): encerra as demais sessões do
+     * usuário e abre uma nova para quem fez a troca continuar.
+     */
+    public Sessao reabrirSessao(UUID usuarioId, long versao, String ip) {
+        String sujeito = usuarioId.toString();
+        autenticador.encerrarSessoes(sujeito);
+        return montar(carregar(sujeito), autenticador.novaSessao(sujeito, versao, ip));
+    }
+
+    private Usuario carregar(String sujeito) {
+        try {
+            return usuarios.findById(UUID.fromString(sujeito)).filter(Usuario::isAtivo)
+                    .orElseThrow(() -> new UnauthorizedException(SESSAO_INVALIDA));
+        } catch (IllegalArgumentException semUuid) {
+            throw new UnauthorizedException(SESSAO_INVALIDA);
+        }
+    }
+
+    /** Todo caminho que abre sessão (login, renovação, convite aceito) passa por aqui: consultoria suspensa não entra. */
+    private void liberarAcesso(Usuario usuario) {
         var decisao = acesso.decidir(usuario.getConsultoriaId());
         if (!decisao.liberado()) {
             throw new ForbiddenException(decisao.motivo(), "ACESSO_BLOQUEADO");
         }
-        return new Sessao(
-                jwtService.gerarAccessToken(usuario.getId(), usuario.getCredenciaisVersao(), usuario.getPapel().name()),
-                jwtService.expiresInSeconds(),
-                refreshBruto,
-                UsuarioResumo.de(usuario),
-                marca(usuario));
+    }
+
+    private Sessao montar(Usuario usuario, Autenticador.Sessao sessao) {
+        return leitura.execute(status -> new Sessao(sessao.accessToken(), sessao.expiraEmSegundos(), sessao.refreshToken(),
+                UsuarioResumo.de(usuario), marca(usuario)));
     }
 
     private MarcaPublica marca(Usuario usuario) {
         return consultorias.findById(usuario.getConsultoriaId())
                 .map(MarcaPublica::de)
                 .orElseThrow(() -> new NaoEncontradoException("Consultoria não encontrada."));
+    }
+
+    private static String ipAtual() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes atributos) {
+            HttpServletRequest requisicao = atributos.getRequest();
+            return requisicao.getRemoteAddr();
+        }
+        return null;
     }
 
     private static UnauthorizedException credenciaisInvalidas() {

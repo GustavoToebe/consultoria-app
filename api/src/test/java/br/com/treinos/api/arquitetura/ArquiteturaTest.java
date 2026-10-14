@@ -64,11 +64,11 @@ class ArquiteturaTest {
             "br.com.treinos.api.privacidade.AnonimizacaoRepositorio");
 
     /**
-     * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario} e
-     * {@code RefreshToken} são do login, que acontece antes de saber a consultoria; {@code CatalogoExercicio} e
+     * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario}
+     * é do login, que acontece antes de saber a consultoria; {@code CatalogoExercicio} e
      * {@code CatalogoAlimento} são o catálogo público, igual para todos e só leitura. AtualizacaoModelo é o questionário global versionado, sem respostas.
      */
-    private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario", "RefreshToken",
+    private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario",
             "CatalogoExercicio", "CatalogoAlimento", "AtualizacaoModelo");
 
     /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo). */
@@ -129,9 +129,9 @@ class ArquiteturaTest {
     @Test
     void rotaDaEquipeDeclaraPermissao() {
         classes().that().areAnnotatedWith(RestController.class)
-                .and(DescribedPredicate.describe("rotas da equipe (exceto /eu e /termos, compartilhados com o aluno, e rotas públicas/aluno)",
+                .and(DescribedPredicate.describe("rotas da equipe (exceto /eu, /eu/mfa e /termos, que são da própria conta, e rotas públicas/aluno)",
                         (JavaClass c) -> !CONTROLLERS_PUBLICOS.contains(c.getSimpleName())
-                                && !Set.of("EuController", "TermosController", "AlunoAppController", "AtualizacaoAlunoController").contains(c.getSimpleName())))
+                                && !Set.of("EuController", "MfaController", "TermosController", "AlunoAppController", "AtualizacaoAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

@@ -2,7 +2,6 @@ package br.com.treinos.api.auth;
 
 import br.com.treinos.api.auth.dto.CadastroTreinadorRequest;
 import br.com.treinos.api.receitas.ReceitaService;
-import br.com.treinos.api.security.DestinoCliente;
 import br.com.treinos.api.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 
@@ -27,12 +26,12 @@ public class CadastroTreinadorService {
         this.authService = authService;
     }
 
-    public AuthService.Sessao cadastrar(CadastroTreinadorRequest request, DestinoCliente cliente) {
+    public AuthService.Sessao cadastrar(CadastroTreinadorRequest request) {
         Usuario usuario = criacaoDeConta.criarTreinador(request);
         TenantContext.executarComo(usuario.getConsultoriaId(), () -> {
             receitas.garantirPadrao();
             return null;
         });
-        return authService.sessaoNova(usuario, cliente);
+        return authService.sessaoNova(usuario);
     }
 }

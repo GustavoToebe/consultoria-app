@@ -118,6 +118,17 @@ describe('cliente HTTP: refresh compartilhado', () => {
     expect(encerrada).not.toHaveBeenCalled();
   });
 
+  it('código de verificação errado (401) não renova a sessão nem a encerra', async () => {
+    fetchSimulado.mockResolvedValue(erro401('MFA_CODIGO_INVALIDO'));
+    const { requisicao, aoEncerrar } = carregarCliente();
+    const encerrada = jest.fn();
+    aoEncerrar(encerrada);
+
+    await expect(requisicao('/eu/mfa/ativar', { metodo: 'POST', corpo: {} })).rejects.toMatchObject({ codigo: 'MFA_CODIGO_INVALIDO' });
+    expect(chamados(fetchSimulado)).toEqual(['/eu/mfa/ativar']);
+    expect(encerrada).not.toHaveBeenCalled();
+  });
+
   it('409 de conflito de edição chega sem repetição', async () => {
     fetchSimulado.mockResolvedValue(json(409, { status: 409, message: 'Outra aba alterou.', codigo: 'CONFLITO_EDICAO' }));
     const { requisicao } = carregarCliente();

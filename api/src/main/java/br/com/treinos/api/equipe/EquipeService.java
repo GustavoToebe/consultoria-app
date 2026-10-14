@@ -1,4 +1,5 @@
 package br.com.treinos.api.equipe;
+import br.com.plataforma.comum.auth.Autenticador;
 import br.com.treinos.api.auth.*;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.EquipeDtos.*;
@@ -26,17 +27,17 @@ public class EquipeService {
     private final UsuarioRepository usuarios;
     private final UsuarioConviteRepository convites;
     private final ConsultoriaRepository consultorias;
-    private final RefreshTokenService refresh;
+    private final Autenticador autenticador;
     private final PasswordEncoder senhas;
     private final String appUrl;
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
     private final PermissoesDoUsuario permissoesDoUsuario;
     public EquipeService(PerfilRepository perfis,UsuarioRepository usuarios,UsuarioConviteRepository convites,
-                        ConsultoriaRepository consultorias,RefreshTokenService refresh,
+                        ConsultoriaRepository consultorias,Autenticador autenticador,
                         PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl,br.com.treinos.api.auditoria.Auditoria auditoria,PermissoesDoUsuario permissoesDoUsuario) {
         this.auditoria=auditoria;this.permissoesDoUsuario=permissoesDoUsuario;
         this.perfis=perfis;this.usuarios=usuarios;this.convites=convites;this.consultorias=consultorias;
-        this.refresh=refresh;this.senhas=senhas;this.appUrl=appUrl.replaceAll("/+$","");
+        this.autenticador=autenticador;this.senhas=senhas;this.appUrl=appUrl.replaceAll("/+$","");
     }
     @Transactional(readOnly=true)
     public List<PerfilResponse> perfis() { return perfis.findAllByOrderByNomeAsc().stream().map(this::perfilResponse).toList(); }
@@ -136,7 +137,7 @@ public class EquipeService {
             throw new ConflictException("A consultoria precisa de pelo menos um administrador ativo.","ULTIMO_ADMINISTRADOR");
         boolean troca=!u.getPerfilId().equals(p.getId());boolean desativar=u.isAtivo() && !r.ativo();
         u.alterarNome(r.nome().trim());u.alterarPerfil(p.getId());u.alterarAtivo(r.ativo());
-        if(troca || desativar) refresh.encerrarTodas(u.getId());
+        if(troca || desativar) autenticador.encerrarSessoes(u.getId().toString());
         if(troca) auditoria.registrarEvento("USUARIO_PERFIL_ALTERADO","USUARIO",u.getId(),"Trocou o perfil de um membro.");
         if(desativar) auditoria.registrarEvento("USUARIO_DESATIVADO","USUARIO",u.getId(),"Desativou um membro.");
         usuarios.saveAndFlush(u);return usuarioResponse(u);

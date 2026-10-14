@@ -3,7 +3,6 @@ package br.com.treinos.api.alunos;
 import br.com.treinos.api.alunos.dto.AlunoDtos.ConvitePublico;
 import br.com.treinos.api.auth.AuthService;
 import br.com.treinos.api.auth.Usuario;
-import br.com.treinos.api.security.DestinoCliente;
 import br.com.treinos.api.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 
@@ -33,10 +32,10 @@ public class ConvitePublicoService {
         return TenantContext.executarComo(consultoriaId, () -> convites.ler(hash));
     }
 
-    public AuthService.Sessao aceitar(String codigo, String email, String senha, DestinoCliente cliente) {
+    public AuthService.Sessao aceitar(String codigo, String email, String senha) {
         String hash = ConviteService.hash(codigo);
         UUID consultoriaId = busca.consultoriaDoConvite(hash).orElseThrow(ConviteService::invalido);
         Usuario usuario = TenantContext.executarComo(consultoriaId, () -> convites.aceitar(hash, email, senha));
-        return authService.sessaoNova(usuario, cliente);
+        return authService.sessaoNova(usuario);
     }
 }

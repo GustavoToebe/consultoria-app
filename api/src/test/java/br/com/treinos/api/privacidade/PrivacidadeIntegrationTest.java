@@ -241,7 +241,7 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
                 Integer.class, id)).isZero();
         assertThat(jdbc.queryForObject("select count(*) from aluno where id = ?::uuid and objetivo is null and observacoes is null"
                 + " and email is null and convite_hash is null and anonimizado_em is not null", Integer.class, id)).isEqualTo(1);
-        assertThat(jdbc.queryForObject("select count(*) from refresh_token where usuario_id = ?::uuid", Integer.class,
+        assertThat(jdbc.queryForObject("select count(*) from plataforma.refresh_token where sujeito = ?", Integer.class,
                 usuarioId)).isZero();
         Map<String, Object> usuario = jdbc.queryForMap("select nome, email, telefone, ativo from usuario where id = ?::uuid", usuarioId);
         assertThat(usuario.get("nome")).isEqualTo("Aluno anonimizado");

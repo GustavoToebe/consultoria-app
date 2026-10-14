@@ -33,6 +33,12 @@ export interface LoginResponse {
   marca: Marca;
 }
 
+/** Verificação em duas etapas do treinador (`/eu/mfa`). */
+export interface MfaStatus { ativo: boolean; configurado: boolean; codigosRestantes: number }
+/** O segredo e o link aparecem uma vez: QR code, texto para copiar e link `otpauth://` para abrir no mesmo aparelho. */
+export interface MfaPreparacao { segredo: string; expiraEm: string; otpauthUri: string }
+export interface MfaAtivacao { codigosDeRecuperacao: string[]; sessao: LoginResponse }
+
 export interface PerfilDaEquipe { id:string; nome:string; acessoTotal:boolean }
 
 export interface EuResponse {

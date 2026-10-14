@@ -34,14 +34,6 @@ spring:
 
 treinos:
   security:
-    jwt:
-      access-token-ttl: PT15M
-      secret: ${TREINOS_JWT_SEGREDO}
-    refresh-token-ttl: P30D
-    # Atrás do Caddy a API fica em /api, então o cookie vai em /api/auth (docker-compose.yml).
-    refresh-cookie-path: ${REFRESH_COOKIE_PATH:/auth}
-    # false só no ambiente local por IP da rede (http). Em produção sempre true.
-    refresh-cookie-secure: ${REFRESH_COOKIE_SECURE:true}
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081}
   app-url: ${APP_URL:http://localhost:8088}
@@ -62,6 +54,40 @@ monitoramento:
   token: ${MONITORAMENTO_TOKEN:}
 
 plataforma:
+  # Login, JWT, refresh, CSRF e MFA vêm do módulo de autenticação (schema "plataforma", migrations próprias). Quem migra é o
+  # mesmo usuário do banco que a API usa (DB_*): ele precisa poder criar o schema.
+  auth:
+    habilitado: true
+    jwt:
+      secret: ${TREINOS_JWT_SEGREDO}
+      emissor: consultoria
+      access-ttl: PT15M
+    refresh:
+      ttl: P30D
+    # Web: cookie HttpOnly. Atrás do Caddy a API fica em /api, então o cookie vai em /api/auth (docker-compose.yml).
+    # secure=false só no ambiente local por IP da rede (http); em produção sempre true.
+    cookie:
+      nome: TREINOS_REFRESH
+      path: ${REFRESH_COOKIE_PATH:/auth}
+      secure: ${REFRESH_COOKIE_SECURE:true}
+      same-site: Strict
+    # Nome próprio para não colidir com outro app no mesmo domínio pai (Central: CENTRAL-XSRF-TOKEN).
+    csrf:
+      cookie: TREINOS-XSRF-TOKEN
+      header: X-XSRF-TOKEN
+      path: /
+      secure: ${REFRESH_COOKIE_SECURE:true}
+      somente-com-cookie-de-refresh: true
+    login:
+      limite-ip: ${TREINOS_AUTH_LIMITE_IP:60}
+      limite-conta: ${TREINOS_AUTH_LIMITE_CONTA:10}
+      janela-segundos: ${TREINOS_AUTH_JANELA_SEGUNDOS:600}
+      sal: ${TREINOS_LOGIN_SAL}
+    # Chaves AES-256 do MFA (id:base64, separadas por vírgula). Sem chave, o login funciona e ativar o MFA responde 503.
+    mfa:
+      chaves: ${TREINOS_MFA_CHAVES:}
+      chave-ativa: ${TREINOS_MFA_CHAVE_ATIVA:}
+      contexto: consultoria
   web:
     # O log do 500 mostra por onde o erro passou no código do app (só as classes, nunca a mensagem).
     prefixo-codigo-proprio: br.com.treinos.

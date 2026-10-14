@@ -50,7 +50,7 @@ public class EuController {
                                      @RequestBody @Valid TrocaSenhaRequest request,
                                      HttpServletRequest http, HttpServletResponse resposta) {
         DestinoCliente cliente = DestinoCliente.de(http);
-        AuthService.Sessao sessao = authService.trocarSenha(eu, request.senhaAtual(), request.senhaNova(), cliente);
+        AuthService.Sessao sessao = authService.trocarSenha(eu, request.senhaAtual(), request.senhaNova(), http.getRemoteAddr());
         return sessaoHttp.responder(sessao, cliente, resposta);
     }
 }

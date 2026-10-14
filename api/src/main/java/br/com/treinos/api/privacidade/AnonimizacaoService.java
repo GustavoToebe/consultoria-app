@@ -5,8 +5,7 @@ import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
 import br.com.treinos.api.auditoria.Auditar;
-import br.com.treinos.api.auth.LimiteTentativas;
-import br.com.treinos.api.auth.RefreshTokenService;
+import br.com.plataforma.comum.auth.Autenticador;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.dieta.PlanoDietaVersaoRepository;
@@ -25,7 +24,6 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -39,8 +37,7 @@ public class AnonimizacaoService {
 
     private final AlunoRepository alunos;
     private final UsuarioRepository usuarios;
-    private final RefreshTokenService refreshTokens;
-    private final LimiteTentativas tentativas;
+    private final Autenticador autenticador;
     private final PasswordEncoder senhas;
     private final RegistroPesoRepository pesos;
     private final LesaoRepository lesoes;
@@ -49,14 +46,13 @@ public class AnonimizacaoService {
     private final PlanoDietaVersaoRepository versoesDeDieta;
     private final AnonimizacaoRepositorio nativo;
 
-    public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, RefreshTokenService refreshTokens,
-                               LimiteTentativas tentativas, PasswordEncoder senhas, RegistroPesoRepository pesos,
+    public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
+                               PasswordEncoder senhas, RegistroPesoRepository pesos,
                                LesaoRepository lesoes, AtualizacaoRepository atualizacoes, PlanoDietaRepository dietas,
                                PlanoDietaVersaoRepository versoesDeDieta, AnonimizacaoRepositorio nativo) {
         this.alunos = alunos;
         this.usuarios = usuarios;
-        this.refreshTokens = refreshTokens;
-        this.tentativas = tentativas;
+        this.autenticador = autenticador;
         this.senhas = senhas;
         this.pesos = pesos;
         this.lesoes = lesoes;
@@ -81,8 +77,6 @@ public class AnonimizacaoService {
                     List.of(new ApiError.FieldError("nomeConfirmado", "Digite o nome do aluno exatamente como está no cadastro.")));
         }
         UUID consultoriaId = aluno.getConsultoriaId();
-        var emailsAntigos = new java.util.ArrayList<String>();
-        if (aluno.getEmail() != null) emailsAntigos.add(aluno.getEmail());
 
         // Dado sensível: apaga as linhas (entidades normais) e limpa o texto livre das imutáveis por SQL nativo.
         pesos.deleteAll(pesos.findByAlunoIdOrderByDataAsc(alunoId));
@@ -99,14 +93,12 @@ public class AnonimizacaoService {
 
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> {
-                emailsAntigos.add(u.getEmail());
                 u.anonimizar(Aluno.NOME_ANONIMIZADO, "anonimizado+" + u.getId() + "@anonimizado.invalid",
                         senhas.encode(segredoAleatorio()));
             });
-            refreshTokens.encerrarTodas(aluno.getUsuarioId());
+            autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
         }
         aluno.anonimizar(Instant.now());
-        emailsAntigos.stream().map(e -> e.toLowerCase(Locale.ROOT)).distinct().forEach(tentativas::esquecerConta);
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
     }
 
