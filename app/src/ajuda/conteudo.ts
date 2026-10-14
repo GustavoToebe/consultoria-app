@@ -42,7 +42,7 @@ const TREINADOR: Guia = {
     { titulo: 'Acompanhe os registros', texto: 'Na pasta, o cartão Registros e cargas mostra o que o aluno fez, por divisão ou por dia. Dá para baixar o PDF das cargas.' },
   ],
   tutorial: [
-    { titulo: 'Bem-vindo', texto: 'Este tutorial passa pelas telas principais na ordem em que você vai usá-las. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
+    { titulo: 'Boas-vindas', texto: 'Este tutorial passa pelas telas principais na ordem em que você vai usá-las. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
     { titulo: 'Menu e barra de topo', texto: 'No computador o menu fica à esquerda (dá para minimizar) e a barra de topo traz a busca "O que você deseja fazer?" (atalho Ctrl+K), o botão Todas as telas, onde dá para marcar favoritas, e o seu usuário. No celular, a barra de baixo tem Início, Alunos, Biblioteca, Planejamento e Perfil; Marca, Equipe e Auditoria ficam nos atalhos do Perfil. Só aparece o que o seu perfil permite.', rota: '/treinador' },
     { titulo: 'Alunos', texto: 'Lista os alunos da consultoria, com busca e o filtro "Meus alunos". Cada linha mostra a situação da atualização da pasta atual (para quem pode ver atualizações). Toque em um aluno para abrir a ficha.', rota: '/treinador/alunos' },
     { titulo: 'Ficha do aluno', texto: 'Reúne dados, acesso ao app, lesões, pastas de plano, frequência, progresso por exercício e peso. Atualizações do aluno ficam dentro de cada pasta.', rota: '/treinador/alunos' },
@@ -151,7 +151,7 @@ const ALUNO: Guia = {
     { titulo: 'Escolha o tema', texto: 'Em Conta, deixe o app claro ou escuro e ajuste o tamanho do texto.', rota: '/aluno/conta' },
   ],
   tutorial: [
-    { titulo: 'Bem-vindo', texto: 'Este tutorial mostra as abas do app. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
+    { titulo: 'Boas-vindas', texto: 'Este tutorial mostra as abas do app. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
     { titulo: 'Treino', texto: 'Mostra o treino de hoje e as divisões do período. Os chips de data deixam registrar dias próximos (até 60 dias para trás ou para frente).', rota: '/aluno' },
     { titulo: 'Registrar uma série', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano; o que você digita é gravado como digitou. Os botões − e + mudam o peso de passo em passo, e "Repetir a série anterior" copia peso e repetições da série de cima e já marca como feita. A tela fica acesa enquanto você treina.' },
     { titulo: 'Descanso', texto: 'Quando o plano define descanso, o contador começa ao marcar a série. Ele não usa notificação com o app fechado.' },
@@ -215,7 +215,7 @@ const ALUNO: Guia = {
     { pergunta: 'Esqueci a senha.', resposta: 'Fale com o seu treinador.' },
     { pergunta: 'Errei a carga de uma série.', resposta: 'Abra o exercício e altere o valor no campo da série: o registro é atualizado.' },
     { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
-    { pergunta: 'Como vejo de novo as boas-vindas?', resposta: 'Elas aparecem uma vez no primeiro acesso, com três telas curtas que dá para pular. Para ver de novo, saia da conta e entre outra vez.' },
+    { pergunta: 'Como vejo de novo as boas-vindas?', resposta: 'Elas aparecem uma vez no primeiro acesso, com três telas curtas que dá para pular. O mesmo conteúdo está no tutorial: em Conta, toque em "Ajuda, primeiros passos e tutorial".' },
     { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
   ],
 };
