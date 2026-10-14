@@ -14,7 +14,7 @@ O aluno vê o plano e registra carga e repetições no celular ou na web, inclus
   formatos, dados, rotas, campos ou migrations antigas. Pode apagar, renomear e alterar; não crie código de transição
   nem leitura de formato velho. A regra deixa de valer quando o Gustavo disser que o primeiro cliente entrou.
 - Padrões de segurança copiados da Central (`central-api-back`) e do Servirea (`servirea-api-front`,
-  `destino-api.ts`). Ler o arquivo de lá antes de reimplementar algo equivalente.
+  `destino-api.ts`, hoje `caminhoDaApi` do `@plataforma/web`). Ler o arquivo de lá antes de reimplementar algo equivalente.
 
 ## Manter este arquivo atualizado
 Arquivo de instruções compartilhado entre ferramentas de IA; o `CLAUDE.md` só importa este (`@AGENTS.md`).
@@ -34,7 +34,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Peso, dieta, suplementação e observações são **dados sensíveis (LGPD)**: nunca em log, no git ou em outro serviço.
   Seed e testes só com dados fictícios.
 - Segredos só em variável de ambiente, **sem valor padrão**. Nunca no git (`.env` ignorado; `.env.example` sem valores).
-- O app anexa token e cookies **somente** à própria API (`destino-api.ts`). Link de vídeo abre fora do app, sem token.
+- O app anexa token e cookies **somente** à própria API (`caminhoDaApi` do `@plataforma/web`). Link de vídeo abre fora do app, sem token.
 - Nada de `alert()`, `confirm()` ou `Alert.alert`: confirmação é painel na tela.
 - Não opinar nem calcular nada sobre saúde, suplementos ou protocolos. Não inventar carga, repetição ou valor
   nutricional: ausência de dado é "—". Recurso que não existe não aparece na tela.
@@ -44,6 +44,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   DTOs `record`, `ApiException` com `codigo`, `@Transactional` no service, `@PreAuthorize` em toda rota.
 - `app/`: Expo SDK 57 (web, Android e iOS num app só, treinador e aluno), Expo Router, Node 24.21.0 (`app/.nvmrc`).
   Dependência só com `npx expo install`; React Native é o que o SDK fixa.
+- `@plataforma/web` (TypeScript puro da plataforma: `caminhoDaApi`, erros da API, lógica do cliente de autenticação; formatos e tokens existem no pacote e o app ainda não usa): fixado pela URL da Release do GitHub no `package.json` (`https://github.com/GustavoToebe/plataforma/releases/download/web-vX.Y.Z/plataforma-web-X.Y.Z.tgz`); o `package-lock.json` grava o hash. Sem token (nem no Docker nem no EAS). Subir a versão = trocar a URL e rodar `npm install`; `npx expo install` não vale para ele. Código em `plataforma/web/`.
 - Biblioteca `plataforma` 1.7.0 (parent e módulos do GitHub Packages; `docs/biblioteca-comum.md`): o build do Docker precisa do segredo `deploy-local/segredos/gh_token` (fora do git); `mvn` local precisa do `server` `github` no `~/.m2/settings.xml` ou da versão já instalada. Subir a versão = uma linha no `pom.xml`; `mvn verify` no Postgres 18 e 17 (`-Dplataforma.postgres.imagem=postgres:17-alpine`).
 - Local: `docker-compose.yml` (Postgres 18 + API + Caddy servindo a web em `:8088`, API em `/api`). No Postgres 18 o volume monta em `/var/lib/postgresql` (não mais `/data`): banco criado com a versão 17 pede `docker compose down -v`.
 
@@ -145,7 +146,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Rotas em `app/src/app/` (Expo Router). Áreas em pastas reais `treinador/` e `aluno/` (URLs `/treinador` e `/aluno`):
   grupos `(treinador)`/`(aluno)` colidiriam os dois `index` em `/`.
 - `api/cliente.ts` é o único lugar que fala HTTP; `api/rotas.ts` tem uma função por rota. Credencial só vai para a
-  própria API (`caminhoDaApi`). Web: access em memória + cookie; nativo: SecureStore (`sessao/armazenamentoSeguro.ts`,
+  própria API (`caminhoDaApi` do `@plataforma/web`). Web: access em memória + cookie; nativo: SecureStore (`sessao/armazenamentoSeguro.ts`,
   com `.web.ts` vazio). Nunca `localStorage` para token.
 - Na web, o cookie XSRF é de sessão do navegador: antes do refresh o cliente faz `GET /actuator/health` para ganhar
   um novo. Sem conexão na abertura, a sessão abre offline com o último perfil salvo.
@@ -183,7 +184,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   Sair com alteração pendente passa pela `ui/GuardaDeSaida` (provider no layout do treinador): a tela chama `useGuardaDeSaida(pendente)` (o hook do editor e o
   `EditorModelo` já chamam) e quem navega (`Navegacao`, `BuscaGlobal`, `TodasAsTelas`, `CartaoDoUsuario`, voltar e trilha do `Cabecalho`) embrulha em
   `confirmar` da `useSaidaGuardada`; `beforeRemove` cobre o botão físico e a seta, e a web avisa no `beforeunload`. Tela nova com estado não salvo entra nesse esquema. A guarda é `ui/guarda.ts` (`criarGuarda`, testada). **Sair da conta** tem uma pergunta só: o `ConfirmarSaida` avisa da alteração não salva e usa `liberar()` até o logout terminar (o `router.replace('/entrar')` chega depois do `await` e cairia no `beforeRemove` do editor); o item "Sair" do `CartaoDoUsuario` não passa por `confirmar`.
-- Acabamento dos editores: carregamento de lista/cartão usa `Esqueleto` (o `Carregando` com indicador fica só nas telas de passagem: `index`, `convite`, guardas e `TelaDosTermos`). O selo do rascunho diz "Alterações não salvas" e, depois de salvar na tela, "Salvo às HH:MM" (`salvoAs` dos hooks `usePlanoEditor`/`useQuestionarioEditor` e do `EditorModelo`; texto em `dominio/estadoDoRascunho`). Erro ao salvar/publicar mostra a mensagem da API ou "Confira a internet…" (`textoDoErro`; publicar/validar sem internet também diz isso, por `editor.falhaAoSalvar()`). A lista de validação traz "N problemas para publicar · ir ao primeiro" (`dominio/problemasDoPlano`): o editor seleciona a sessão/abre o cartão e `TopoPlano` rola até ele com `useRolagem().rolarAte` (`ui/RolagemComTopo`; cartões se registram com `ui/AlvoDeRolagem`). `api/cliente.test.ts` cobre o refresh compartilhado (`jest.isolateModules` + `fetch` simulado).
+- Acabamento dos editores: carregamento de lista/cartão usa `Esqueleto` (o `Carregando` com indicador fica só nas telas de passagem: `index`, `convite`, guardas e `TelaDosTermos`). O selo do rascunho diz "Alterações não salvas" e, depois de salvar na tela, "Salvo às HH:MM" (`salvoAs` dos hooks `usePlanoEditor`/`useQuestionarioEditor` e do `EditorModelo`; texto em `dominio/estadoDoRascunho`). Erro ao salvar/publicar mostra a mensagem da API ou "Confira a internet…" (`textoDoErro`; publicar/validar sem internet também diz isso, por `editor.falhaAoSalvar()`). A lista de validação traz "N problemas para publicar · ir ao primeiro" (`dominio/problemasDoPlano`): o editor seleciona a sessão/abre o cartão e `TopoPlano` rola até ele com `useRolagem().rolarAte` (`ui/RolagemComTopo`; cartões se registram com `ui/AlvoDeRolagem`). `api/cliente.test.ts` cobre o refresh compartilhado (`jest.isolateModules` + `fetch` simulado); a lógica (renovação única, XSRF só em escrita, encerrar só com 401/403, leitura do `ApiError`) é do `@plataforma/web`, testada lá.
 - Verificar: `npm run typecheck && npm run lint && npm test`; bundle nativo com `npx expo export --platform android`.
 - Atrás do Caddy o Tomcat recebe `X-Forwarded-Port` (porta do `Host`): sem isso a web em `:8088` parecia outra origem
   e o CORS recusava o login.
