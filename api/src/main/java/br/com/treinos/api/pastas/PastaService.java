@@ -11,6 +11,7 @@ import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoRequest;
 import br.com.treinos.api.pastas.PastaDtos.FinalizarRequest;
 import br.com.treinos.api.pastas.PastaDtos.PastaRequest;
 import br.com.treinos.api.pastas.PastaDtos.PastaResumo;
+import br.com.treinos.api.pastas.PastaDtos.PastaVigenteResposta;
 import br.com.treinos.api.planos.PlanoBase;
 import br.com.treinos.api.planos.dto.PlanoDtos.ReplicarRequest;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
@@ -46,13 +47,15 @@ public class PastaService {
     private final PlanoMobilidadeService servicoMobilidade;
     private final PesoService pesos;
     private final AtualizacaoRepository atualizacoes;
+    private final PastaVigente vigente;
 
     public PastaService(PastaRepository pastas, AlunoRepository alunos, PlanoTreinoRepository treinos,
                         PlanoDietaRepository dietas, PlanoMobilidadeRepository mobilidades,
                         PlanoTreinoService servicoTreino, PlanoDietaService servicoDieta,
                         PlanoMobilidadeService servicoMobilidade, PesoService pesos,
-                        AtualizacaoRepository atualizacoes) {
+                        AtualizacaoRepository atualizacoes, PastaVigente vigente) {
         this.atualizacoes = atualizacoes;
+        this.vigente = vigente;
         this.pastas = pastas;
         this.alunos = alunos;
         this.treinos = treinos;
@@ -68,6 +71,13 @@ public class PastaService {
     public List<PastaResumo> listar(UUID alunoId) {
         exigirAluno(alunoId);
         return pastas.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream().filter(p -> !p.isArquivado()).map(PastaResumo::de).toList();
+    }
+
+    /** A pasta que o aluno está usando agora (regra única em {@link PastaVigente}); nenhuma = {@code pasta} nulo. */
+    @Transactional(readOnly = true)
+    public PastaVigenteResposta vigente(UUID alunoId) {
+        exigirAluno(alunoId);
+        return new PastaVigenteResposta(vigente.de(alunoId).map(PastaResumo::de).orElse(null));
     }
 
     @Transactional

@@ -3,6 +3,7 @@ package br.com.treinos.api.pastas;
 import br.com.treinos.api.pastas.PastaDtos.FinalizarRequest;
 import br.com.treinos.api.pastas.PastaDtos.PastaRequest;
 import br.com.treinos.api.pastas.PastaDtos.PastaResumo;
+import br.com.treinos.api.pastas.PastaDtos.PastaVigenteResposta;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -33,6 +34,12 @@ public class PastaController {
     @GetMapping("/alunos/{alunoId}/pastas")
     public List<PastaResumo> listar(@PathVariable UUID alunoId) {
         return pastas.listar(alunoId);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_ALUNO_LER')")
+    @GetMapping("/alunos/{alunoId}/pastas/vigente")
+    public PastaVigenteResposta vigente(@PathVariable UUID alunoId) {
+        return pastas.vigente(alunoId);
     }
 
     @PreAuthorize("hasAuthority('PERM_PASTA_ALTERAR')")

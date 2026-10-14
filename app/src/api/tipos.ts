@@ -408,6 +408,11 @@ export interface PastaResumo {
   questionarioId?: string | null;
 }
 
+/** Pasta que o aluno está usando agora (a do treino ativo, senão a da dieta ativa); nula = nenhuma. */
+export interface PastaVigenteResposta {
+  pasta: PastaResumo | null;
+}
+
 /** Peso e observação são opcionais e vão para o registro de peso do aluno (a observação só com o peso). */
 export interface FinalizarPastaRequest {
   data: string | null;

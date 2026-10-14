@@ -47,6 +47,7 @@ import type {
   DadosLesao,
   Lesao,
   PastaResumo,
+  PastaVigenteResposta,
   PlanoResumo,
   PreviaCsv,
   ProgressoPonto,
@@ -345,6 +346,7 @@ export interface NovoPlano {
 }
 
 export const listarPastas = (alunoId: string) => requisicao<PastaResumo[]>(`/alunos/${alunoId}/pastas`);
+export const pastaVigenteDoAluno = (alunoId: string) => requisicao<PastaVigenteResposta>(`/alunos/${alunoId}/pastas/vigente`);
 
 export const criarPasta = (alunoId: string, dados: DadosPasta) =>
   requisicao<PastaResumo>(`/alunos/${alunoId}/pastas`, { metodo: 'POST', corpo: dados });

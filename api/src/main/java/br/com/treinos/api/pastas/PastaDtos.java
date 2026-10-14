@@ -27,6 +27,10 @@ public final class PastaDtos {
         }
     }
 
+    /** Pasta vigente do aluno; {@code pasta} nulo = nenhuma. */
+    public record PastaVigenteResposta(PastaResumo pasta) {
+    }
+
     /**
      * Finalizar a pasta. Peso e observação são opcionais e vão para o registro de peso do aluno; a observação só vale
      * junto com o peso. {@code data} vazia = hoje.

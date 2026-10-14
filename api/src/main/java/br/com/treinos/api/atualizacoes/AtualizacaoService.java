@@ -6,8 +6,7 @@ import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
 import br.com.treinos.api.pastas.PastaPlano;
 import br.com.treinos.api.pastas.PastaRepository;
-import br.com.treinos.api.treino.PlanoTreinoRepository;
-import br.com.treinos.api.dieta.PlanoDietaRepository;
+import br.com.treinos.api.pastas.PastaVigente;
 import br.com.treinos.api.questionarios.QuestionarioResolver;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.web.*;
@@ -47,8 +46,7 @@ public class AtualizacaoService {
     private final AtualizacaoRepository atualizacoes;
     private final QuestionarioResolver questionarios;
     private final PastaRepository pastas;
-    private final PlanoTreinoRepository treinos;
-    private final PlanoDietaRepository dietas;
+    private final PastaVigente vigente;
     private final AlunoRepository alunos;
     private final RegistroPesoRepository pesos;
     private final ResumoPeriodoService resumos;
@@ -56,12 +54,12 @@ public class AtualizacaoService {
     private final JsonMapper json;
     private final br.com.treinos.api.auth.UsuarioRepository usuarios;
     public AtualizacaoService(AtualizacaoRepository atualizacoes, QuestionarioResolver questionarios,
-            PastaRepository pastas, PlanoTreinoRepository treinos, PlanoDietaRepository dietas, AlunoRepository alunos,
+            PastaRepository pastas, PastaVigente vigente, AlunoRepository alunos,
             RegistroPesoRepository pesos, ResumoPeriodoService resumos, ValidadorAtualizacao validador, JsonMapper json,
             br.com.treinos.api.auth.UsuarioRepository usuarios) {
         this.usuarios=usuarios;
         this.atualizacoes = atualizacoes; this.questionarios = questionarios; this.pastas = pastas;
-        this.treinos = treinos; this.dietas = dietas; this.alunos = alunos; this.pesos = pesos;
+        this.vigente = vigente; this.alunos = alunos; this.pesos = pesos;
         this.resumos = resumos; this.validador = validador; this.json = json;
     }
     @Transactional(readOnly = true)
@@ -211,9 +209,7 @@ public class AtualizacaoService {
         };
     }
     private PastaPlano pastaAtiva(UUID alunoId) {
-        UUID pastaId = treinos.findByAlunoIdAndAtivoTrue(alunoId).map(p -> p.getPastaId())
-                .or(() -> dietas.findByAlunoIdAndAtivoTrue(alunoId).map(p -> p.getPastaId())).orElse(null);
-        return pastaId == null ? null : pastas.findById(pastaId).filter(p -> !p.isArquivado() && p.getFim() != null && p.getAlunoId().equals(alunoId)).orElse(null);
+        return vigente.de(alunoId).orElse(null);
     }
     private PastaPlano exigirPastaAtiva(UUID alunoId) {
         PastaPlano pasta = pastaAtiva(alunoId);

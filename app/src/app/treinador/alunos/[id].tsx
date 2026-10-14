@@ -9,6 +9,7 @@ import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, escolherQuest
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
+import { CartaoFrequencia } from '../../../treinador/CartaoFrequencia';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
 import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
@@ -67,6 +68,7 @@ export default function FichaAluno() {
             </>
           )}
           <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
+          <Permitido codigo="REGISTRO_LER"><CartaoFrequencia alunoId={aluno.id} /></Permitido>
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
         </>
