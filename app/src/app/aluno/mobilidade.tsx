@@ -1,10 +1,14 @@
-import { PlayCircle } from 'lucide-react-native';
+import { FileDown, PlayCircle } from 'lucide-react-native';
+import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import type { ConteudoMobilidadeApi, VersaoDetalhe } from '../../api/tipos';
-import { itemParaTela, mobilidadeParaExibir } from '../../dominio/mobilidade';
+import { itemParaTela, mobilidadeParaExibir, normalizarMobilidade } from '../../dominio/mobilidade';
 import { useAluno } from '../../offline/AlunoProvider';
+import { imprimir } from '../../pdf/imprimir';
+import { logoComoDataUri } from '../../pdf/logo';
+import { documentoMobilidade } from '../../pdf/pdfMobilidade';
 import { fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -12,12 +16,13 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
 import { Vazio } from '../../ui/Estados';
+import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
 /**
- * Mobilidade publicada (só consulta: nome, prescrição e vídeo; sem marcar como feito). Vem do aparelho, que guarda a
- * última vista online, então abre sem internet.
+ * Mobilidade publicada (só consulta: nome, prescrição e vídeo; sem marcar como feito; o PDF sai do que já está no
+ * aparelho). Vem do aparelho, que guarda a última vista online, então abre sem internet.
  */
 export default function MobilidadeAluno() {
   const { mobilidade, escolhida } = useAluno();
@@ -34,7 +39,32 @@ export default function MobilidadeAluno() {
 
 function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }) {
   const { avisar } = useAviso();
+  const { pacote } = useAluno();
+  const [gerando, setGerando] = useState(false);
   const c = versao.conteudo;
+  const pdf = async () => {
+    if (!pacote) return;
+    setGerando(true);
+    try {
+      const marca = pacote.pacote.marca;
+      await imprimir(
+        documentoMobilidade({
+          marca,
+          logoDataUri: await logoComoDataUri(marca),
+          aluno: pacote.pacote.aluno.nome,
+          titulo: versao.titulo,
+          versao: versao.numero,
+          conteudo: normalizarMobilidade(c),
+          rodapePdf: null,
+          emitidoEm: new Date(),
+        }),
+      );
+    } catch (e) {
+      avisar(textoDoErro(e), 'perigo');
+    } finally {
+      setGerando(false);
+    }
+  };
   const abrirVideo = (url: string) => {
     // Abre fora do app (navegador ou app do YouTube), sem token nem cookie.
     Linking.openURL(url).catch(() => avisar('Não foi possível abrir o vídeo.', 'perigo'));
@@ -63,6 +93,7 @@ function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }
       <Texto variante="suave">
         {versao.titulo} (v{versao.numero})
       </Texto>
+      <Botao rotulo="Baixar PDF da mobilidade" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
     </>
   );
 }

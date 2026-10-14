@@ -24,7 +24,7 @@ import { Folha } from '../ui/Folha';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
-import { gerarPdfDoPlano, type TipoPlanoComPdf } from './gerarPdf';
+import { gerarPdfDoPlano } from './gerarPdf';
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import { mensagemPlanoCopiado, rotuloAbrirFicha, rotuloEditarPlano } from '../dominio/planoDoAluno';
 import { useCarregar } from '../ui/useCarregar';
@@ -100,7 +100,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
             <SelosDoPlano plano={p} />
           </View>
           <View style={estilos.botoes}>
-            {p.versaoPublicada > 0 && tipo !== 'mobilidade' ? <BotaoPdf tipo={tipo} plano={p} /> : null}
+            {p.versaoPublicada > 0 ? <BotaoPdf tipo={tipo} plano={p} /> : null}
             {p.versaoPublicada > 0 ? (
               <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
             ) : null}
@@ -125,7 +125,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
 }
 
 /** PDF da versão publicada, direto da ficha. */
-function BotaoPdf({ tipo, plano }: { tipo: TipoPlanoComPdf; plano: PlanoResumo }) {
+function BotaoPdf({ tipo, plano }: { tipo: TipoPlano; plano: PlanoResumo }) {
   const { avisar } = useAviso();
   const [gerando, setGerando] = useState(false);
   return (

@@ -1,9 +1,11 @@
 import type { ConteudoDieta, ConteudoTreino, Marca, Serie } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
+import { normalizarMobilidade } from '../dominio/mobilidade';
 import { esc, link } from './html';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
+import { documentoMobilidade } from './pdfMobilidade';
 import { blocoInstrucoes, documentoTreino } from './pdfTreino';
 
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
@@ -205,6 +207,56 @@ describe('PDF da dieta: medicação e ergogênicos', () => {
     expect(h).not.toContain('<b>');
     expect(h).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(h).toContain('Prescrição &lt;b&gt;de teste&lt;/b&gt;');
+  });
+});
+
+describe('PDF da mobilidade', () => {
+  const conteudo = normalizarMobilidade({
+    orientacoes: 'Faça <b>devagar</b>\nSem dor',
+    secoes: [
+      {
+        uid: 's1',
+        titulo: 'Aquecimento <i>geral</i>',
+        itens: [
+          { uid: 'i1', nome: 'Gato-camelo <script>x</script>', prescricao: '2x30s\nlado a lado', videoUrl: 'https://youtu.be/abc123' },
+          { uid: 'i2', nome: 'Rotação', prescricao: null, videoUrl: 'https://youtu.be/abc"onmouseover="x' },
+          { uid: 'i3', nome: 'Ponte', prescricao: '10 reps', videoUrl: 'javascript:alert(1)' },
+        ],
+      },
+      { uid: 's2', titulo: null, itens: [] },
+    ],
+  });
+  const dados = { ...base, versao: 3, conteudo, rodapePdf: null };
+  const html = documentoMobilidade(dados).corpo;
+
+  it('escapa todo texto do usuário e mantém as quebras de linha', () => {
+    expect(html).not.toContain('<script>');
+    expect(html).not.toContain('<b>');
+    expect(html).not.toContain('<i>');
+    expect(html).toContain('Faça &lt;b&gt;devagar&lt;/b&gt;<br>Sem dor');
+    expect(html).toContain('Aquecimento &lt;i&gt;geral&lt;/i&gt;');
+    expect(html).toContain('Gato-camelo &lt;script&gt;x&lt;/script&gt;');
+    expect(html).toContain('2x30s<br>lado a lado');
+    expect(html).toContain('Consultoria &lt;Teste&gt;');
+  });
+
+  it('vídeo vira só o link; link inseguro ou prescrição ausente vira "—"', () => {
+    expect(html).toContain('<a href="https://youtu.be/abc123">Vídeo</a>');
+    expect(html).not.toContain('"onmouseover="');
+    expect(html).not.toContain('javascript:');
+    expect(html).toContain('<td>—</td>');
+  });
+
+  it('seção sem itens não aparece e o título da versão publicada sai na capa', () => {
+    expect(html.match(/<section/g)).toHaveLength(1);
+    expect(html).toContain('Plano 16 (v3)');
+    expect(html).not.toContain('RASCUNHO');
+  });
+
+  it('rascunho sai marcado e o nome do arquivo identifica o aluno', () => {
+    const d = documentoMobilidade({ ...dados, versao: null });
+    expect(d.corpo).toContain('RASCUNHO');
+    expect(d.titulo).toBe('Mobilidade - Aluno Demonstração - Plano 16');
   });
 });
 

@@ -3,21 +3,20 @@ import type { ConteudoDieta, ConteudoTreino, PlanoResumo, Sessao, TipoPlano } fr
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
+import { normalizarMobilidade } from '../dominio/mobilidade';
 import type { DivisaoRelatorio } from '../dominio/relatorio';
 import { imprimir } from '../pdf/imprimir';
 import { logoComoDataUri } from '../pdf/logo';
 import { documentoCargas } from '../pdf/pdfCargas';
 import { documentoDieta } from '../pdf/pdfDieta';
+import { documentoMobilidade } from '../pdf/pdfMobilidade';
 import { documentoTreino } from '../pdf/pdfTreino';
 
 /**
  * PDF de um plano para o treinador: a versão publicada mais recente (o que o aluno vê). Plano nunca publicado sai
  * do rascunho, marcado como RASCUNHO.
  */
-/** Mobilidade ainda não tem PDF: o tipo a deixa de fora para o compilador barrar quem tentar. */
-export type TipoPlanoComPdf = Exclude<TipoPlano, 'mobilidade'>;
-
-export async function gerarPdfDoPlano(tipo: TipoPlanoComPdf, plano: PlanoResumo, rascunho?: unknown): Promise<void> {
+export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascunho?: unknown): Promise<void> {
   const [c, a] = await Promise.all([consultoria(), buscarAluno(plano.alunoId)]);
   const publicado = plano.versaoPublicada > 0;
   const versao = publicado ? await versaoPlano<unknown>(tipo, plano.id, plano.versaoPublicada) : null;
@@ -42,6 +41,8 @@ export async function gerarPdfDoPlano(tipo: TipoPlanoComPdf, plano: PlanoResumo,
         instrucoesTreino: CONFIGURACAO_PADRAO.instrucoesTreino,
       }),
     );
+  } else if (tipo === 'mobilidade') {
+    await imprimir(documentoMobilidade({ ...comum, conteudo: normalizarMobilidade(conteudo) }));
   } else {
     const pesos = await pesosDoAluno(plano.alunoId).catch(() => []);
     await imprimir(documentoDieta({ ...comum, conteudo: normalizarDieta(conteudo) as ConteudoDieta, pesos }));

@@ -84,7 +84,7 @@ const TREINADOR: Guia = {
       itens: [
         { titulo: 'Rascunho e publicação', texto: 'Edições vão para o rascunho. Publicar valida e cria uma versão imutável; os registros do aluno apontam para a versão que ele executou.' },
         { titulo: 'Validação', texto: 'Erros impedem a publicação. Avisos pedem confirmação. Cada problema indica onde está no plano, e o botão "N problemas para publicar" leva ao primeiro.' },
-        { titulo: 'PDF', texto: 'Treino e dieta podem ser exportados em PDF para imprimir ou compartilhar.' },
+        { titulo: 'PDF', texto: 'Treino, dieta e mobilidade podem ser exportados em PDF para imprimir ou compartilhar. Na mobilidade, o vídeo sai só como link.' },
         { titulo: 'Suplementação da dieta', texto: 'Na dieta, "Escolher da biblioteca" traz o nome e o link do produto; dose, horário e observação quem escreve é você. O link abre fora do app.' },
         { titulo: 'Medicação e ergogênicos', texto: 'Na dieta, o cartão só aparece para quem tem a permissão. Da biblioteca vêm só nome, princípio ativo e concentração; dose, horário e prescrição são texto seu. O sistema não sugere, não calcula nem compara. Modelos de dieta nunca levam esta lista, e quem não tem a permissão não a vê nem a apaga ao salvar.' },
         { titulo: 'Modelos', texto: 'Salve um plano como modelo ou aplique um modelo ao aluno em Planejamento.' },
@@ -170,7 +170,7 @@ const ALUNO: Guia = {
       titulo: 'Dieta e mobilidade',
       itens: [
         { titulo: 'Dieta', texto: 'Mostra o que foi publicado pelo treinador, refeição por refeição.' },
-        { titulo: 'Mobilidade', texto: 'Aba só de consulta, visível quando existe plano publicado.' },
+        { titulo: 'Mobilidade', texto: 'Aba só de consulta, visível quando existe plano publicado. Dá para baixar em PDF.' },
       ],
     },
     {

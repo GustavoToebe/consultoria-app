@@ -79,7 +79,6 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
 
   // PDF da última versão publicada (o que o aluno vê); nunca publicado, sai do rascunho marcado como tal.
   const pdf = async () => {
-    if (tipo === 'mobilidade') return; // sem PDF de mobilidade; o botão nem aparece
     setGerandoPdf(true);
     try {
       if (e.plano.versaoPublicada === 0) await editor.salvar();
@@ -126,15 +125,13 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
               motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : 'Nada a salvar.'}
               aoTocar={() => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : (editor.falhaAoSalvar() ?? 'Não foi possível salvar o rascunho. Confira o título e as datas.'), ok ? 'sucesso' : 'perigo'))}
             />
-            {tipo !== 'mobilidade' ? (
-              <Botao
-                rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
-                tipo="secundario"
-                Icone={FileDown}
-                carregando={gerandoPdf}
-                aoTocar={() => void pdf()}
-              />
-            ) : null}
+            <Botao
+              rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
+              tipo="secundario"
+              Icone={FileDown}
+              carregando={gerandoPdf}
+              aoTocar={() => void pdf()}
+            />
             <Botao rotulo="Validar" tipo="secundario" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}><Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} /></Permitido>
           </>
