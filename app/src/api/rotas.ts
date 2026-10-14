@@ -5,6 +5,7 @@ import type {
   AtualizacaoDaLista,
   CriarQuestionarioRequest,
   OpcaoQuestionario,
+  ResultadoLote,
   QuestionarioDetalhe,
   QuestionarioResumo,
   SalvarQuestionarioRequest,
@@ -198,6 +199,16 @@ export const alterarAluno = (id: string, dados: AlunoRequest) =>
 
 export const alterarSituacaoAluno = (id: string, ativo: boolean) =>
   requisicao<AlunoDetalhe>(`/alunos/${id}/situacao`, { metodo: 'PATCH', corpo: { ativo } });
+
+/** Ações em lote da lista de alunos: tudo ou nada; `alterados` deixa de fora quem já estava como pedido. */
+export const trocarResponsavelEmLote = (alunoIds: string[], responsavelId: string) =>
+  requisicao<ResultadoLote>('/alunos/lote/responsavel', { metodo: 'POST', corpo: { alunoIds, responsavelId } });
+
+export const trocarQuestionarioEmLote = (alunoIds: string[], questionarioId: string | null) =>
+  requisicao<ResultadoLote>('/alunos/lote/questionario', { metodo: 'POST', corpo: { alunoIds, questionarioId } });
+
+export const desativarEmLote = (alunoIds: string[]) =>
+  requisicao<ResultadoLote>('/alunos/lote/desativar', { metodo: 'POST', corpo: { alunoIds } });
 
 /** Tudo o que a consultoria guarda do aluno; o app só grava o arquivo, sem interpretar. */
 export const exportarAluno = (id: string) => requisicao<Record<string, unknown>>(`/alunos/${id}/exportacao`);

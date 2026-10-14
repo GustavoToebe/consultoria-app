@@ -110,6 +110,9 @@ export interface ConsultoriaResponse {
 
 export type SituacaoFiltro = 'ATIVO' | 'INATIVO' | 'TODOS';
 
+/** Resposta das ações em lote: quantos alunos foram escolhidos e em quantos algo mudou de fato. */
+export interface ResultadoLote { selecionados: number; alterados: number }
+
 export interface AlunoResumo {
   id: string;
   nome: string;

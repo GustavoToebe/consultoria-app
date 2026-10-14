@@ -3,7 +3,7 @@ import { useSessao } from '../../../sessao/SessaoProvider';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata';
 import { sobre } from '../../../ui/sobre';
 import { router } from 'expo-router';
-import { ChevronRight, Plus } from 'lucide-react-native';
+import { Check, ChevronRight, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -11,8 +11,12 @@ import { listarAlunos } from '../../../api/rotas';
 import type { AlunoResumo, SituacaoFiltro } from '../../../api/tipos';
 import { statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataParaTela } from '../../../dominio/formatos';
+import { LIMITE_LOTE, textoDaSelecao } from '../../../dominio/loteDeAlunos';
+import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, RAIO, LARGURA_LISTA } from '../../../tema/tokens';
+import { AcoesEmLote } from '../../../treinador/AcoesEmLote';
+import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Cartao } from '../../../ui/Cartao';
@@ -37,6 +41,10 @@ const TAMANHO_PAGINA = 30;
 
 export default function Alunos() {
   const { pode,perfilEquipe } = useSessao();
+  const { avisar } = useAviso();
+  // Modo "Selecionar" (ações em lote): os marcados valem entre páginas, mas mudar busca ou filtro limpa a marcação.
+  const [selecionando, setSelecionando] = useState(false);
+  const [marcados, setMarcados] = useState<ReadonlySet<string>>(new Set());
   const [escopo,setEscopo]=useState<'meus'|'todos'>(perfilEquipe?.acessoTotal?'todos':'meus');
   const [busca, setBusca] = useState('');
   const [situacao, setSituacao] = useState<SituacaoFiltro>('ATIVO');
@@ -46,6 +54,18 @@ export default function Alunos() {
     listarAlunos({ busca: termo, situacao, pagina,meus:escopo==='meus' }),
   );
   const animar = usePrimeiraLista(!!dados, `${termo}|${situacao}|${pagina}`);
+  const mudarFiltro = (aplicar: () => void) => { aplicar(); setPagina(0); setMarcados(new Set()); };
+  const sairDaSelecao = () => { setSelecionando(false); setMarcados(new Set()); };
+  const alternar = (id: string) => {
+    const r = alternarComLimite(marcados, id, !marcados.has(id), LIMITE_LOTE);
+    if (r.recusado) avisar(`Dá para marcar até ${LIMITE_LOTE} alunos por vez.`, 'neutro');
+    setMarcados(r.marcados);
+  };
+  const marcarOsVisiveis = () => {
+    const r = marcarVisiveis((dados?.itens ?? []).map((a) => a.id), marcados, LIMITE_LOTE);
+    if (r.deixados > 0) avisar(`Dá para marcar até ${LIMITE_LOTE} alunos por vez; ${r.deixados} ficaram de fora.`, 'neutro');
+    setMarcados(r.marcados);
+  };
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
 
   return (
@@ -54,11 +74,16 @@ export default function Alunos() {
         titulo="Alunos"
         mostrarMarca="celular"
         acoes={
-          <Permitido codigo="ALUNO_ALTERAR"><Botao
-            rotulo="Novo aluno"
-            Icone={Plus}
-            aoTocar={() => router.push('/treinador/alunos/novo')}
-          /></Permitido>
+          <View style={estilos.acoesDoTopo}>
+            <Permitido codigo="ALUNO_ALTERAR">
+              <Botao rotulo={selecionando ? 'Sair da seleção' : 'Selecionar'} tipo="secundario" aoTocar={() => (selecionando ? sairDaSelecao() : setSelecionando(true))} />
+            </Permitido>
+            <Permitido codigo="ALUNO_ALTERAR"><Botao
+              rotulo="Novo aluno"
+              Icone={Plus}
+              aoTocar={() => router.push('/treinador/alunos/novo')}
+            /></Permitido>
+          </View>
         }
       />
       <Texto variante="suave">Busque pelo nome e abra a ficha para ver planos, registros e atualizações.</Texto>
@@ -68,29 +93,35 @@ export default function Alunos() {
           <Campo
             rotulo="Buscar"
             valor={busca}
-            aoMudar={(t) => {
-              setBusca(t);
-              setPagina(0);
-            }}
+            aoMudar={(t) => mudarFiltro(() => setBusca(t))}
             placeholder="Nome do aluno"
             autoCapitalize="none"
           />
         </View>
         {/* Os dois recortes da lista lado a lado; no celular o segundo desce. */}
         <View style={estilos.recortes}>
-          <Escolha rotulo="Responsabilidade" opcoes={[{ valor: 'meus', rotulo: 'Meus alunos' }, { valor: 'todos', rotulo: 'Todos os alunos' }]} valor={escopo} aoMudar={(v) => { setEscopo(v); setPagina(0); }} />
+          <Escolha rotulo="Responsabilidade" opcoes={[{ valor: 'meus', rotulo: 'Meus alunos' }, { valor: 'todos', rotulo: 'Todos os alunos' }]} valor={escopo} aoMudar={(v) => mudarFiltro(() => setEscopo(v))} />
           <Escolha
             rotulo="Situação"
             opcoes={SITUACOES}
             valor={situacao}
-            aoMudar={(s) => {
-              setSituacao(s);
-              setPagina(0);
-            }}
+            aoMudar={(s) => mudarFiltro(() => setSituacao(s))}
           />
         </View>
       </View>
       </Cartao>
+      {selecionando ? (
+        <Cartao titulo="Ações em lote">
+          <View style={estilos.lote}>
+            <Texto variante="suave" numerico>{textoDaSelecao(marcados.size)}</Texto>
+            <View style={estilos.acoesDoTopo}>
+              <Botao rotulo="Marcar visíveis" tipo="secundario" desabilitado={!dados || dados.itens.length === 0} aoTocar={marcarOsVisiveis} />
+              <Botao rotulo="Limpar" tipo="secundario" desabilitado={marcados.size === 0} aoTocar={() => setMarcados(new Set())} />
+            </View>
+            <AcoesEmLote alunoIds={[...marcados]} aoConcluir={() => { sairDaSelecao(); recarregar(); }} />
+          </View>
+        </Cartao>
+      ) : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
@@ -101,7 +132,7 @@ export default function Alunos() {
         />
       ) : null}
       <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]}>
-        <Grade gap={espaco(1)}>{(dados?.itens ?? []).map((a, i) => <EntradaEmCascata key={a.id} indice={i} animar={animar} style={estilos.crescer}><LinhaAluno aluno={a} /></EntradaEmCascata>)}</Grade>
+        <Grade gap={espaco(1)}>{(dados?.itens ?? []).map((a, i) => <EntradaEmCascata key={a.id} indice={i} animar={animar} style={estilos.crescer}><LinhaAluno aluno={a} selecionando={selecionando} marcado={marcados.has(a.id)} aoMarcar={() => alternar(a.id)} /></EntradaEmCascata>)}</Grade>
       </View>
       {dados && paginas > 1 ? (
         <View style={estilos.paginacao}>
@@ -124,18 +155,24 @@ export default function Alunos() {
 /** Os dois selos da linha têm a mesma largura (o maior texto, "Sem acesso", define). */
 const LARGURA_SELO = 96;
 
-function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
+function LinhaAluno({ aluno, selecionando, marcado, aoMarcar }: { aluno: AlunoResumo; selecionando: boolean; marcado: boolean; aoMarcar: () => void }) {
   const { cores } = useTema();
   const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;
   return (
     <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={`Abrir ${aluno.nome}${atualizacao ? `. Atualização: ${atualizacao.texto}` : ''}`}
-      onPress={() => router.push(`/treinador/alunos/${aluno.id}`)}
+      accessibilityRole={selecionando ? 'checkbox' : 'link'}
+      accessibilityLabel={selecionando ? aluno.nome : `Abrir ${aluno.nome}${atualizacao ? `. Atualização: ${atualizacao.texto}` : ''}`}
+      accessibilityState={selecionando ? { checked: marcado } : undefined}
+      onPress={() => (selecionando ? aoMarcar() : router.push(`/treinador/alunos/${aluno.id}`))}
       style={(estado) => [
         estilos.linha,
         { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
       ]}>
+      {selecionando ? (
+        <View style={[estilos.caixa, { backgroundColor: marcado ? cores.texto : cores.campo, borderColor: cores.borda }]}>
+          {marcado ? <Check size={18} color={cores.fundo} /> : null}
+        </View>
+      ) : null}
       <View style={estilos.dados}>
         <Texto variante="bloco" numberOfLines={2}>{aluno.nome}</Texto>
         <View style={estilos.selos}>
@@ -147,12 +184,15 @@ function LinhaAluno({ aluno }: { aluno: AlunoResumo }) {
           Treino: {aluno.planoAtivo?.titulo ?? '—'} · Último registro: {dataParaTela(aluno.ultimoRegistro) || '—'}
         </Texto>
       </View>
-      <ChevronRight size={20} color={cores.textoSuave} />
+      {selecionando ? null : <ChevronRight size={20} color={cores.textoSuave} />}
     </Pressable>
   );
 }
 
 const estilos = StyleSheet.create({
+  acoesDoTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+  lote: { gap: espaco(1.5) },
+  caixa: { width: 24, height: 24, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   filtros: { gap: espaco(1.5) },
   busca: { maxWidth: 480 },
   recortes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5) },
