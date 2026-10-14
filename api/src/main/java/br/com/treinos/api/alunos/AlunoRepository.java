@@ -24,6 +24,11 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID> {
     @Query("select a from Aluno a where a.id = :id")
     Optional<Aluno> buscarParaAlterar(UUID id);
 
+    /** Trava vários alunos da consultoria atual de uma vez (ações em lote), em ordem de id para não travar em círculo. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Aluno a where a.id in :ids order by a.id")
+    List<Aluno> buscarParaAlterarVarios(java.util.Collection<UUID> ids);
+
     /** Trava o aluno do convite: dois aceites simultâneos ficam em série e só o primeiro consome o código. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Aluno a where a.conviteHash = :hash")

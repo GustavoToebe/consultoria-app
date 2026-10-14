@@ -154,6 +154,12 @@ public class AlunoService {
     public AlunoDetalhe alterarSituacao(UUID id, boolean ativo) {
         Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
         if (ativo) exigirNaoAnonimizado(aluno);
+        aplicarSituacao(aluno, ativo);
+        return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
+    }
+
+    /** Muda a situação do aluno e do acesso dele; inativar encerra as sessões. Usado também pelo lote. */
+    void aplicarSituacao(Aluno aluno, boolean ativo) {
         aluno.alterarSituacao(ativo, Instant.now());
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));
@@ -161,7 +167,6 @@ public class AlunoService {
                 refreshTokens.encerrarTodas(aluno.getUsuarioId());
             }
         }
-        return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
     }
 
     /** Cadastro anonimizado não é editado nem reativado: os dados pessoais não podem voltar. */
@@ -170,7 +175,8 @@ public class AlunoService {
             throw new ConflitoException("Este aluno foi anonimizado e não pode mais ser alterado.", "ALUNO_ANONIMIZADO");
     }
 
-    private void definirResponsavel(Aluno aluno,UUID id) {
+    /** Responsável tem de ser treinador ativo da mesma consultoria; sem id, não muda nada. Usado também pelo lote. */
+    void definirResponsavel(Aluno aluno,UUID id) {
         if(id==null) return;
         var u=usuarios.findById(id).filter(v -> v.getConsultoriaId().equals(br.com.treinos.api.tenant.TenantContext.get())
                 && v.isAtivo() && v.getPapel()==br.com.treinos.api.auth.Papel.TREINADOR)

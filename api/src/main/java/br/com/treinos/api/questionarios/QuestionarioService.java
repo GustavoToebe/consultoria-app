@@ -244,6 +244,7 @@ public class QuestionarioService {
     public AlunoDetalhe escolherDoAluno(UUID alunoId, UUID questionarioId) {
         var aluno = alunos.buscarParaAlterar(alunoId)
                 .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        br.com.treinos.api.alunos.AlunoService.exigirNaoAnonimizado(aluno);
         exigirEscolhivel(questionarioId);
         aluno.alterarQuestionario(questionarioId);
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
@@ -261,7 +262,8 @@ public class QuestionarioService {
 
     // ---------------------------------------------------------------- apoio
 
-    private void exigirEscolhivel(UUID questionarioId) {
+    /** Questionário vazio vale (volta ao padrão); senão tem de estar publicado e não arquivado. */
+    public void exigirEscolhivel(UUID questionarioId) {
         if (questionarioId == null) {
             return;
         }
