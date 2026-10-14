@@ -64,7 +64,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
       (r) => {
         setValidando(false);
         if (!r) {
-          avisar('Não deu para salvar o rascunho. Confira o título e as datas.', 'perigo');
+          avisar(editor.falhaAoSalvar() ?? 'Não deu para salvar o rascunho. Confira o título e as datas.', 'perigo');
           return;
         }
         aoProblemas(r);
@@ -124,7 +124,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
               carregando={editor.situacao === 'salvando'}
               desabilitado={editor.situacao === 'salvo' || editor.situacao === 'dataInvalida' || editor.situacao === 'conflito'}
               motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : 'Nada a salvar.'}
-              aoTocar={() => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : 'Não foi possível salvar o rascunho. Confira o título e as datas.', ok ? 'sucesso' : 'perigo'))}
+              aoTocar={() => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : (editor.falhaAoSalvar() ?? 'Não foi possível salvar o rascunho. Confira o título e as datas.'), ok ? 'sucesso' : 'perigo'))}
             />
             {tipo !== 'mobilidade' ? (
               <Botao

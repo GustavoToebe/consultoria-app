@@ -52,6 +52,8 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
   const atual = useRef<Estado<C> | null>(null);
   const versao = useRef(0);
   const emVoo = useRef<Promise<boolean> | null>(null);
+  /** Texto da última falha ao salvar, lido logo depois de `await salvar()` (o estado ainda não chegou). */
+  const falhaAoSalvar = useRef<string | null>(null);
   const normalizarAtual = useRef(normalizar);
 
   useEffect(() => {
@@ -103,7 +105,10 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
       if (e.revisao === e.salvoEm) return Promise.resolve(true);
       const inicio = dataDaTela(e.inicio);
       const fim = dataDaTela(e.fim);
-      if (inicio === undefined || fim === undefined || !e.titulo.trim()) return Promise.resolve(false);
+      if (inicio === undefined || fim === undefined || !e.titulo.trim()) {
+        falhaAoSalvar.current = null;
+        return Promise.resolve(false);
+      }
       const enviada = e.revisao;
       setSalvando(true);
       const envio = (modelo ? salvarConteudoReceita(id, { nome: e.titulo.trim(), conteudo: e.conteudo, versao: versao.current }).then(detalheDoModelo) : salvarRascunho<C>(tipo, id, {
@@ -116,6 +121,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
         (d) => {
           versao.current = d.plano.versao;
           setErroSalvar(null);
+          falhaAoSalvar.current = null;
           setMensagemDeErro(null);
           setSalvoAs(new Date());
           // Em pasta o servidor ignora o período enviado e usa o da pasta: a tela passa a mostrar o que ele guardou.
@@ -126,7 +132,8 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
         },
         (erro: unknown) => {
           setErroSalvar(erro instanceof ErroApi && erro.codigo === 'CONFLITO_EDICAO' ? 'conflito' : 'erro');
-          setMensagemDeErro(textoDoErro(erro));
+          falhaAoSalvar.current = textoDoErro(erro);
+          setMensagemDeErro(falhaAoSalvar.current);
           return false;
         },
       );
@@ -158,7 +165,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     async (confirmarAvisos: boolean): Promise<ResultadoPublicacao> => {
       if (modelo || !id) return { tipo: 'falha', mensagem: 'Plano não encontrado.' };
       if (!(await salvar())) {
-        return { tipo: 'falha', mensagem: 'Corrija o título e as datas antes de publicar.' };
+        return { tipo: 'falha', mensagem: falhaAoSalvar.current ?? 'Corrija o título e as datas antes de publicar.' };
       }
       try {
         const d = await publicarPlano<unknown>(tipo, id, versao.current, confirmarAvisos);
@@ -190,6 +197,8 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     situacao,
     salvoAs,
     mensagemDeErro,
+    /** Por que o último `salvar()` falhou (API ou sem conexão); nulo se foi título/data inválidos. */
+    falhaAoSalvar: () => falhaAoSalvar.current,
     /** Há alteração que o servidor ainda não tem. */
     pendente,
     alterar,

@@ -28,13 +28,12 @@ import { FaixaDoModelo } from '../plano/FaixaDoPlano';
 import { SecoesDeMobilidade } from '../mobilidade/SecoesDeMobilidade';
 import { EditorSeries } from '../treino/EditorSeries';
 
-export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; aoRecarregar: () => void }) {
+export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { receita: Receita; aoRecarregar: () => void; salvoAs: Date | null; aoSalvar: (quando: Date) => void }) {
   const [nome, setNome] = useState(r.nome); const [descricao, setDescricao] = useState(r.descricao ?? '');
   const [conteudo, setConteudo] = useState(r.tipo === 'SERIES' ? { series: seriesDaReceita(r.conteudo) } : r.tipo === 'MOBILIDADE' ? normalizarMobilidade(r.conteudo) : r.conteudo);
   const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState<unknown>(null);
   // Nada é salvo sozinho: qualquer mudança fica pendente até "Salvar modelo" e sair da tela pergunta antes.
   const [pendente, setPendente] = useState(false);
-  const [salvoAs, setSalvoAs] = useState<Date | null>(null);
   useGuardaDeSaida(pendente);
   const mudarConteudo: typeof setConteudo = (c) => { setConteudo(c); setPendente(true); };
   const [adicionar, setAdicionar] = useState<'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE' | null>(null);
@@ -42,7 +41,7 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   const salvar = async (novoConteudo = conteudo) => {
     if (!nome.trim()) throw new Error('Preencha o nome do modelo.');
     setSalvando(true); setErro(null);
-    try { await alterarReceita(r.id, { ...r, nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'SERIES' ? seriesParaReceita((novoConteudo as { series: ReturnType<typeof seriesDaReceita> }).series) : r.tipo === 'MOBILIDADE' ? mobilidadeParaApi(novoConteudo as ConteudoMobilidade) : novoConteudo }); setPendente(false); setSalvoAs(new Date()); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
+    try { await alterarReceita(r.id, { ...r, nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'SERIES' ? seriesParaReceita((novoConteudo as { series: ReturnType<typeof seriesDaReceita> }).series) : r.tipo === 'MOBILIDADE' ? mobilidadeParaApi(novoConteudo as ConteudoMobilidade) : novoConteudo }); setPendente(false); aoSalvar(new Date()); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
     catch (e) { setErro(e); throw e; } finally { setSalvando(false); }
   };
   const pasta = conteudo as ConteudoPastaModelo;
