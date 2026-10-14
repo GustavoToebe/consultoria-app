@@ -123,8 +123,7 @@ class DietaErgogenicosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void modeloNuncaLevaErgogenicosMasCopiaDoMesmoAlunoLeva() throws Exception {
-        var api = new ApiDeTeste(mvc, json);
+    void modeloNuncaLevaErgogenicosMasCopiaDoMesmoAlunoLeva() throws Exception {        var api = new ApiDeTeste(mvc, json);
         var login = api.novoTreinador();
         UUID aluno = api.criarAluno(login, "Aluno Fictício");
         JsonNode plano = api.post("/alunos/" + aluno + "/planos-dieta", login, Map.of("titulo", "Dieta"), 200);
@@ -156,11 +155,14 @@ class DietaErgogenicosIntegrationTest extends AbstractIntegrationTest {
         JsonNode origem = api.get("/planos-dieta/" + id, login, 200).path("rascunho").path("ergogenicos");
         assertThat(copiados.get(0).path("uid").asString()).isNotEqualTo(origem.get(0).path("uid").asString());
 
-        // Copiar para OUTRO aluno não leva.
+        // Copiar para OUTRO aluno não leva, e só a rota de copiar para aluno faz isso (o criar recusa).
         UUID outro = api.criarAluno(login, "Outro Aluno Fictício");
-        JsonNode paraOutro = api.post("/alunos/" + outro + "/planos-dieta", login,
-                Map.of("titulo", "Cópia", "copiarDoPlanoId", id), 200);
+        api.post("/alunos/" + outro + "/planos-dieta", login, Map.of("titulo", "Cópia", "copiarDoPlanoId", id), 404);
+        JsonNode resposta = api.post("/planos-dieta/" + id + "/copiar-para-aluno", login,
+                Map.of("alunoId", outro, "titulo", "Cópia", "inicio", "2026-11-02", "fim", "2026-11-29"), 200);
+        JsonNode paraOutro = api.get("/planos-dieta/" + resposta.path("planoId").asString(), login, 200);
         assertThat(paraOutro.path("rascunho").path("ergogenicos").isNull()).isTrue();
+        assertThat(paraOutro.toString()).doesNotContain(NOME);
     }
 
     @Test

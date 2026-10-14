@@ -9,14 +9,22 @@ import { Texto } from './Texto';
 
 type TipoAviso = 'sucesso' | 'perigo' | 'neutro';
 
+/** Ação opcional do aviso (ex.: "Abrir ficha"): fecha o aviso e executa. */
+interface AcaoDoAviso {
+  rotulo: string;
+  aoTocar: () => void;
+}
+
 interface ValorAviso {
-  avisar: (mensagem: string, tipo?: TipoAviso) => void;
+  avisar: (mensagem: string, tipo?: TipoAviso, acao?: AcaoDoAviso) => void;
 }
 
 const Contexto = createContext<ValorAviso | null>(null);
 
 /** Quanto tempo o aviso de sucesso ou neutro fica na tela. O de erro fica até a pessoa fechar. */
 const DURACAO_MS = 4000;
+/** Com uma ação para tocar, o aviso fica mais tempo. */
+const DURACAO_COM_ACAO_MS = 10000;
 
 /**
  * Mensagem curta no rodapé (substitui o `alert`, que não existe na web). Sucesso e neutro somem sozinhos; erro
@@ -25,13 +33,13 @@ const DURACAO_MS = 4000;
 export function AvisoProvider({ children }: { children: ReactNode }) {
   const { cores } = useTema();
   const margem = useSafeAreaInsets();
-  const [aviso, setAviso] = useState<{ mensagem: string; tipo: TipoAviso } | null>(null);
+  const [aviso, setAviso] = useState<{ mensagem: string; tipo: TipoAviso; acao?: AcaoDoAviso } | null>(null);
   const relogio = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const avisar = useCallback((mensagem: string, tipo: TipoAviso = 'neutro') => {
+  const avisar = useCallback((mensagem: string, tipo: TipoAviso = 'neutro', acao?: AcaoDoAviso) => {
     if (relogio.current) clearTimeout(relogio.current);
-    setAviso({ mensagem, tipo });
-    relogio.current = tipo === 'perigo' ? null : setTimeout(() => setAviso(null), DURACAO_MS);
+    setAviso({ mensagem, tipo, acao });
+    relogio.current = tipo === 'perigo' ? null : setTimeout(() => setAviso(null), acao ? DURACAO_COM_ACAO_MS : DURACAO_MS);
   }, []);
 
   const valor = useMemo(() => ({ avisar }), [avisar]);
@@ -47,6 +55,18 @@ export function AvisoProvider({ children }: { children: ReactNode }) {
             accessibilityLiveRegion={aviso.tipo === 'perigo' ? 'assertive' : 'polite'}
             style={[estilos.aviso, { backgroundColor: cores.superficie2, borderColor: corBorda }]}>
             <Texto style={estilos.texto}>{aviso.mensagem}</Texto>
+            {aviso.acao ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  const acao = aviso.acao;
+                  setAviso(null);
+                  acao?.aoTocar();
+                }}
+                style={estilos.acao}>
+                <Texto style={estilos.rotuloAcao}>{aviso.acao.rotulo}</Texto>
+              </Pressable>
+            ) : null}
             <Pressable accessibilityRole="button" accessibilityLabel="Fechar aviso" onPress={() => setAviso(null)} style={estilos.fechar}>
               <X size={18} color={cores.textoSuave} strokeWidth={2} />
             </Pressable>
@@ -81,5 +101,7 @@ const estilos = StyleSheet.create({
     paddingRight: espaco(0.5),
   },
   texto: { fontFamily: fontes.semi, flex: 1, paddingVertical: espaco(0.5) },
+  acao: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1), borderRadius: RAIO },
+  rotuloAcao: { fontFamily: fontes.semi, textDecorationLine: 'underline' },
   fechar: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
 });

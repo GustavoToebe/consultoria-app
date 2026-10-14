@@ -1,7 +1,7 @@
 import { Permitido } from '../ui/Permitido';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
-import { Copy, FileDown, Pencil, Plus } from 'lucide-react-native';
+import { Copy, FileDown, Pencil, Plus, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -26,8 +26,9 @@ import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { gerarPdfDoPlano, type TipoPlanoComPdf } from './gerarPdf';
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
-import { rotuloEditarPlano } from '../dominio/planoDoAluno';
+import { mensagemPlanoCopiado, rotuloAbrirFicha, rotuloEditarPlano } from '../dominio/planoDoAluno';
 import { useCarregar } from '../ui/useCarregar';
+import { CopiarParaAluno } from './CopiarParaAluno';
 
 const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
   treino: { titulo: 'Treino', plural: 'Treinos', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
@@ -80,6 +81,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
   const [excluir, setExcluir] = useState<PlanoResumo | null>(null);
   const [novo, setNovo] = useState(false);
   const [replicando, setReplicando] = useState<PlanoResumo | null>(null);
+  const [copiando, setCopiando] = useState<PlanoResumo | null>(null);
 
   return (
     <Cartao
@@ -102,6 +104,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
             {p.versaoPublicada > 0 ? (
               <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
             ) : null}
+            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Permitido codigo="ALUNO_LER"><Botao rotulo="Copiar para outro aluno" tipo="secundario" Icone={Users} aoTocar={() => setCopiando(p)} /></Permitido></Permitido>
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
           </View>
@@ -113,6 +116,10 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
       }} />
       {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} aoNavegar={aoNavegar} /> : null}
       {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} aoNavegar={aoNavegar} /> : null}
+      {copiando ? <CopiarParaAluno tipo={tipo} plano={copiando} aoFechar={() => setCopiando(null)} aoCopiar={(destinoId, nome) => {
+        setCopiando(null);
+        avisar(mensagemPlanoCopiado(tipo, nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => { aoNavegar?.(); router.push(`/treinador/alunos/${destinoId}`); } });
+      }} /> : null}
     </Cartao>
   );
 }

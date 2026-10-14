@@ -51,6 +51,20 @@ export function rotuloEditarPlano(tipo: TipoPlano): string {
   return EDITAR[tipo];
 }
 
+const COPIADO: Record<TipoPlano, string> = { treino: 'Treino copiado', dieta: 'Dieta copiada', mobilidade: 'Mobilidade copiada' };
+
+/** Aviso depois de copiar um plano para outro aluno: vai como rascunho e o plano de origem não muda. */
+export function mensagemPlanoCopiado(tipo: TipoPlano, nomeDoAluno: string | null | undefined): string {
+  const nome = nomeDoAluno?.trim();
+  return `${COPIADO[tipo]} para ${nome || 'o aluno'}, como rascunho. Revise e publique na ficha do aluno.`;
+}
+
+/** Ação do aviso de cópia: "Abrir ficha de Ana"; sem nome, "Abrir ficha do aluno". */
+export function rotuloAbrirFicha(nomeDoAluno: string | null | undefined): string {
+  const nome = nomeDoAluno?.trim();
+  return nome ? `Abrir ficha de ${nome}` : 'Abrir ficha do aluno';
+}
+
 /** Aviso depois de aplicar um modelo: a cópia é do aluno e o molde não muda. */
 export function mensagemCopiaCriada(nomeDoAluno: string | null | undefined): string {
   const nome = nomeDoAluno?.trim();

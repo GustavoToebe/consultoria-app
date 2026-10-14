@@ -1,6 +1,7 @@
 package br.com.treinos.api.planos;
 
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.pastas.PastaPlano;
 import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.planos.dto.PlanoDtos.CriarPlanoRequest;
@@ -108,11 +109,12 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         if (r.receitaId() != null) {
             conteudo = daReceita(r.receitaId());
         } else if (r.copiarDoPlanoId() != null) {
+            // Só dentro do mesmo aluno: para outro aluno existe a rota auditada de copiar (permissões e conteúdo próprios).
             P origem = buscar(r.copiarDoPlanoId());
-            conteudo = comUidsNovos(ler(origem.getRascunho()));
             if (!alunoId.equals(origem.getAlunoId())) {
-                conteudo = paraCopiaDeOutroAluno(conteudo);
+                throw new NaoEncontradoException(nomeDoPlano + " não encontrado.");
             }
+            conteudo = comUidsNovos(ler(origem.getRascunho()));
         } else {
             conteudo = vazio();
         }
@@ -194,6 +196,33 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         if (pasta != null) {
             novo.definirPasta(pasta.getId());
         }
+        return detalhe(planos.saveAndFlush(novo));
+    }
+
+    /**
+     * Confere, antes de qualquer efeito, se o plano pode ir para o aluno: origem existente, não arquivada e de um aluno
+     * (404); destino existente (404) e não anonimizado (409); aluno diferente (400). Outra consultoria é 404 nos dois lados.
+     */
+    @Transactional(readOnly = true)
+    public void exigirCopiavel(UUID origemId, UUID destinoId) {
+        origemCopiavel(origemId, destinoId);
+    }
+
+    /**
+     * Cópia para OUTRO aluno: plano novo na pasta do destino (que já existe), sempre rascunho, a partir da última versão
+     * publicada da origem (o rascunho, se nunca foi publicada), com uids novos e sem o que é pessoal de cada tipo.
+     */
+    @Transactional
+    @br.com.treinos.api.auditoria.Auditar(acao="PLANO_COPIADO",entidade="PLANO",resumo="Copiou um plano para outro aluno.")
+    public PlanoDetalhe<C> copiarParaAluno(UUID origemId, UUID destinoId, UUID pastaId, String titulo) {
+        P origem = origemCopiavel(origemId, destinoId);
+        PastaPlano pasta = Optional.ofNullable(pastaDoAluno(pastaId, destinoId)).orElseThrow(
+                () -> new NaoEncontradoException("Pasta não encontrada."));
+        String base = origem.getVersaoPublicada() == 0 ? origem.getRascunho()
+                : versao(origem, origem.getVersaoPublicada()).getConteudo();
+        P novo = novoPlano(destinoId, titulo.trim(), pasta.getInicio(), pasta.getFim(),
+                escrever(paraCopiaDeOutroAluno(comUidsNovos(ler(base)))));
+        novo.definirPasta(pasta.getId());
         return detalhe(planos.saveAndFlush(novo));
     }
 
@@ -282,6 +311,19 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         }
         return pastas.findById(pastaId).filter(p -> !p.isArquivado() && p.getAlunoId().equals(alunoId))
                 .orElseThrow(() -> new NaoEncontradoException("Pasta não encontrada."));
+    }
+
+    private P origemCopiavel(UUID origemId, UUID destinoId) {
+        P origem = buscar(origemId);
+        if (origem.isArquivado() || origem.getAlunoId() == null) {
+            throw new NaoEncontradoException(nomeDoPlano + " não encontrado.");
+        }
+        AlunoService.exigirNaoAnonimizado(
+                alunos.findById(destinoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado.")));
+        if (origem.getAlunoId().equals(destinoId)) {
+            throw new BadRequestException("Escolha outro aluno: para o mesmo aluno, use Replicar ou Novo plano.");
+        }
+        return origem;
     }
 
     private void exigirAluno(UUID alunoId) {

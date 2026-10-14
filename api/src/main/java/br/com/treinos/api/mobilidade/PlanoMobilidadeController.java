@@ -1,7 +1,10 @@
 package br.com.treinos.api.mobilidade;
 
+import br.com.treinos.api.planos.CopiarPlanoService;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.treinos.api.receitas.ConteudoMobilidade;
+import br.com.treinos.api.planos.dto.PlanoDtos.CopiaResposta;
+import br.com.treinos.api.planos.dto.PlanoDtos.CopiarPlanoRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.CriarPlanoRequest;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoResumo;
@@ -35,10 +38,12 @@ public class PlanoMobilidadeController {
 
     private final PlanoMobilidadeService planos;
     private final ReceitaService receitas;
+    private final CopiarPlanoService copias;
 
-    public PlanoMobilidadeController(PlanoMobilidadeService planos, ReceitaService receitas) {
+    public PlanoMobilidadeController(PlanoMobilidadeService planos, ReceitaService receitas, CopiarPlanoService copias) {
         this.planos = planos;
         this.receitas = receitas;
+        this.copias = copias;
     }
 
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")
@@ -87,6 +92,12 @@ public class PlanoMobilidadeController {
     @PostMapping("/planos-mobilidade/{id}/replicar")
     public PlanoDetalhe<ConteudoMobilidade> replicar(@PathVariable UUID id, @RequestBody @Valid ReplicarRequest request) {
         return planos.replicar(id, request);
+    }
+
+    @PreAuthorize("hasAuthority('PERM_TREINO_ALTERAR') and hasAuthority('PERM_ALUNO_LER')")
+    @PostMapping("/planos-mobilidade/{id}/copiar-para-aluno")
+    public CopiaResposta copiarParaAluno(@PathVariable UUID id, @RequestBody @Valid CopiarPlanoRequest request) {
+        return copias.mobilidade(id, request);
     }
 
     @PreAuthorize("hasAuthority('PERM_TREINO_LER')")

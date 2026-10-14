@@ -2,6 +2,8 @@ import {
   avisoDoPlanoDoAluno,
   AVISO_DO_MODELO,
   mensagemCopiaCriada,
+  mensagemPlanoCopiado,
+  rotuloAbrirFicha,
   rotuloEditarPlano,
   tituloDoModelo,
   tituloDoPlanoDoAluno,
@@ -53,5 +55,23 @@ describe('mensagemCopiaCriada', () => {
   });
   it('sem nome, fala "o aluno"', () => {
     expect(mensagemCopiaCriada(null)).toBe('Cópia criada para o aluno. O modelo continua igual.');
+  });
+});
+
+describe('mensagemPlanoCopiado', () => {
+  it('cita o tipo e o aluno e diz que foi como rascunho', () => {
+    expect(mensagemPlanoCopiado('treino', 'Ana')).toBe('Treino copiado para Ana, como rascunho. Revise e publique na ficha do aluno.');
+    expect(mensagemPlanoCopiado('dieta', ' Ana ')).toBe('Dieta copiada para Ana, como rascunho. Revise e publique na ficha do aluno.');
+    expect(mensagemPlanoCopiado('mobilidade', 'Ana')).toContain('Mobilidade copiada para Ana');
+  });
+  it('sem nome, fala "o aluno"', () => {
+    expect(mensagemPlanoCopiado('treino', null)).toBe('Treino copiado para o aluno, como rascunho. Revise e publique na ficha do aluno.');
+  });
+});
+
+describe('rotuloAbrirFicha', () => {
+  it('cita o aluno; sem nome, fala "do aluno"', () => {
+    expect(rotuloAbrirFicha(' Ana ')).toBe('Abrir ficha de Ana');
+    expect(rotuloAbrirFicha(null)).toBe('Abrir ficha do aluno');
   });
 });

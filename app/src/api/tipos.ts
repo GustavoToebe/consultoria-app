@@ -449,6 +449,12 @@ export interface PlanoDetalhe<C> {
   versoes: VersaoResumo[];
 }
 
+/** Cópia de um plano para outro aluno: sempre rascunho, na pasta indicada ou numa pasta nova. */
+export interface CopiaDePlano {
+  pastaId: string;
+  planoId: string;
+}
+
 export interface Problema {
   caminho: string;
   mensagem: string;

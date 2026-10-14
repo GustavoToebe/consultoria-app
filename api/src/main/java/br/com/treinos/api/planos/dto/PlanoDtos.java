@@ -50,6 +50,17 @@ public final class PlanoDtos {
         }
     }
 
+    /**
+     * Copia um plano para outro aluno. {@code pastaId}: pasta do destino que recebe a cópia; sem ele nasce uma pasta nova
+     * (com {@code titulo}, {@code inicio} e {@code fim}), o que exige a permissão de alterar pastas.
+     */
+    public record CopiarPlanoRequest(@NotNull UUID alunoId, UUID pastaId, @NotBlank @Size(max = 120) String titulo,
+                                     LocalDate inicio, LocalDate fim) {
+    }
+
+    public record CopiaResposta(UUID pastaId, UUID planoId) {
+    }
+
     public record SalvarComoReceitaRequest(@NotBlank @Size(max = 120) String nome, @Size(max = 400) String descricao) {
     }
 

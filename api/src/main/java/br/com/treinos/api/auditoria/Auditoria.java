@@ -40,15 +40,24 @@ public class Auditoria {
         UUID entidadeId=idDoResultado(resultado);
         if(entidadeId==null && argumentos.length>0 && argumentos[0] instanceof UUID id) entidadeId=id;
         String acao=evento.acao();String entidade=evento.entidade();String resumo=evento.resumo();
-        if(acao.equals("PLANO_PUBLICADO") && resultado instanceof br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe<?> p) {
+        boolean publicou=acao.equals("PLANO_PUBLICADO");
+        if((publicou || acao.equals("PLANO_COPIADO")) && resultado instanceof br.com.treinos.api.planos.dto.PlanoDtos.PlanoDetalhe<?> p) {
             String tipo=switch(p.rascunho()) {
                 case br.com.treinos.api.treino.ConteudoTreino t -> "TREINO";
                 case br.com.treinos.api.dieta.ConteudoDieta d -> "DIETA";
                 case br.com.treinos.api.receitas.ConteudoMobilidade m -> "MOBILIDADE";
                 default -> throw new IllegalStateException("Tipo de plano sem evento de auditoria.");
             };
-            acao=tipo+(tipo.equals("TREINO")?"_PUBLICADO":"_PUBLICADA");entidade=tipo;
-            resumo="Publicou uma versão de "+tipo.toLowerCase(java.util.Locale.ROOT)+" (v"+p.plano().versaoPublicada()+").";
+            String nome=tipo.toLowerCase(java.util.Locale.ROOT);
+            boolean masculino=tipo.equals("TREINO");
+            entidade=tipo;
+            if(publicou) {
+                acao=tipo+(masculino?"_PUBLICADO":"_PUBLICADA");
+                resumo="Publicou uma versão de "+nome+" (v"+p.plano().versaoPublicada()+").";
+            } else {
+                acao=tipo+(masculino?"_COPIADO":"_COPIADA");
+                resumo="Copiou um plano de "+nome+" para outro aluno.";
+            }
         }
         gravar(usuario,acao,entidade,entidadeId,resumo);
     }

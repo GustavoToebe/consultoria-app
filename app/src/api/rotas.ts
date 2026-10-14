@@ -43,6 +43,7 @@ import type {
   PastaDoAluno,
   PlanosDaPasta,
   PainelTreinador,
+  CopiaDePlano,
   PlanoDetalhe,
   DadosLesao,
   Lesao,
@@ -388,7 +389,11 @@ export const publicarPlano = <C>(tipo: TipoPlano, id: string, versao: number, co
 export const replicarPlano = <C>(tipo: TipoPlano, id: string, dados: Omit<NovoPlano, 'receitaId' | 'copiarDoPlanoId'>) =>
   requisicao<PlanoDetalhe<C>>(`/${prefixo(tipo)}/${id}/replicar`, { metodo: 'POST', corpo: dados });
 
-export const salvarPlanoComoReceita = (tipo: TipoPlano, id: string, nome: string, descricao: string | null) =>
+/** Sem `pastaId`, nasce uma pasta nova no destino (com `titulo`, `inicio` e `fim`); com ele, o período é o da pasta. */
+export const copiarPlanoParaAluno = (tipo: TipoPlano, id: string, dados: { alunoId: string; pastaId: string | null; titulo: string; inicio: string | null; fim: string | null }) =>
+  requisicao<CopiaDePlano>(`/${prefixo(tipo)}/${id}/copiar-para-aluno`, { metodo: 'POST', corpo: dados });
+
+export const salvarPlanoComoReceita =(tipo: TipoPlano, id: string, nome: string, descricao: string | null) =>
   requisicao<Receita>(`/${prefixo(tipo)}/${id}/salvar-como-receita`, { metodo: 'POST', corpo: { nome, descricao } });
 
 // ---- Aluno (sempre o aluno do token) ----

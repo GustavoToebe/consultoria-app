@@ -5,6 +5,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   PERFIL_CRIADO:'Perfil criado',PERFIL_ALTERADO:'Perfil editado',PERFIL_APAGADO:'Perfil excluído',PERFIL_DUPLICADO:'Perfil duplicado',
   ALUNO_CRIADO:'Aluno cadastrado',ALUNO_ALTERADO:'Aluno editado',ALUNO_SITUACAO:'Situação do aluno alterada',ALUNO_CONVIDADO:'Convite de aluno criado',ALUNO_RESPONSAVEL_ALTERADO:'Responsável alterado no cadastro',
   TREINO_PUBLICADO:'Treino publicado',DIETA_PUBLICADA:'Dieta publicada',MOBILIDADE_PUBLICADA:'Mobilidade publicada',
+  TREINO_COPIADO:'Treino copiado para outro aluno',DIETA_COPIADA:'Dieta copiada para outro aluno',MOBILIDADE_COPIADA:'Mobilidade copiada para outro aluno',
   TERMOS_ACEITOS:'Termo de uso e aviso de privacidade aceitos',
   ALUNO_EXPORTADO:'Dados do aluno exportados',ALUNO_ANONIMIZADO:'Aluno anonimizado',
   PASTA_CRIADA:'Pasta criada',PASTA_REPLICADA:'Pasta replicada',PASTA_FINALIZADA:'Pasta finalizada',PASTA_QUESTIONARIO_ALTERADO:'Questionário da pasta alterado',
