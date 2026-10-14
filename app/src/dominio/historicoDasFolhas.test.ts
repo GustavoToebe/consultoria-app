@@ -1,4 +1,4 @@
-import { folhasParaFechar, nivelDoEstado, passosParaSairDeEntradasSobrando, planejarAcerto } from './historicoDasFolhas';
+import { folhasParaFechar, nivelDoEstado, passosParaSairDeEntradasSobrando, passosParaSairDoEditor, planejarAcerto, podeRegistrarGuarda } from './historicoDasFolhas';
 
 describe('Folhas no histórico do navegador', () => {
   it('abrir uma Folha empilha uma entrada; abrir outra empilha mais uma', () => {
@@ -43,5 +43,24 @@ describe('Folhas no histórico do navegador', () => {
     expect(nivelDoEstado({ folhaNivel: '1' })).toBe(0);
     expect(nivelDoEstado({ folhaNivel: -1 })).toBe(0);
     expect(nivelDoEstado({ folhaNivel: 1.5 })).toBe(0);
+  });
+});
+
+describe('guarda de edição no histórico', () => {
+  it('a guarda só entra sem Folha aberta e uma de cada vez', () => {
+    expect(podeRegistrarGuarda(0, false)).toBe(true);
+    expect(podeRegistrarGuarda(1, false)).toBe(false);
+    expect(podeRegistrarGuarda(0, true)).toBe(false);
+  });
+
+  it('sair do editor com a guarda retirada volta a entrada dela e a da tela', () => {
+    expect(passosParaSairDoEditor(1)).toBe(2);
+    // O navegador já estava na entrada da tela (voltou da guarda e ainda não reempilhou): só a da tela.
+    expect(passosParaSairDoEditor(0)).toBe(1);
+  });
+
+  it('com a guarda como única aberta, o voltar para a entrada da tela pede para fechá-la (perguntar) e a reempilha', () => {
+    expect(folhasParaFechar(1, 0)).toBe(1);
+    expect(planejarAcerto(1, 0)).toEqual({ tipo: 'empilhar', niveis: [1] });
   });
 });

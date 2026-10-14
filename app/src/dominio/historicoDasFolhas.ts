@@ -33,6 +33,23 @@ export function passosParaSairDeEntradasSobrando(sobrando: number, abertas: numb
   return veioDeOutraTela && abertas === 0 ? Math.max(0, sobrando) : 0;
 }
 
+/**
+ * A guarda de um editor com alteração pendente ocupa uma entrada como uma Folha, mas tem de ficar por baixo delas: o
+ * voltar fecha sempre a do topo, e a pergunta "Sair sem salvar?" só deve vir depois que as Folhas fecharam. Com Folha
+ * aberta a guarda espera (e entra quando a última fechar); duas guardas ao mesmo tempo nunca.
+ */
+export function podeRegistrarGuarda(folhasAbertas: number, guardaRegistrada: boolean): boolean {
+  return folhasAbertas === 0 && !guardaRegistrada;
+}
+
+/**
+ * Passos para sair do editor de vez, com a guarda já retirada: a entrada da guarda (se o histórico está nela) e a da
+ * própria tela. Só a entrada da tela, se o navegador já voltou da guarda.
+ */
+export function passosParaSairDoEditor(nivelAtual: number): number {
+  return nivelAtual + 1;
+}
+
 /** Nível guardado numa entrada do histórico; entrada sem marca (ou estado estranho) é nível 0. */
 export function nivelDoEstado(estado: unknown): number {
   const nivel = (estado as { folhaNivel?: unknown } | null)?.folhaNivel;

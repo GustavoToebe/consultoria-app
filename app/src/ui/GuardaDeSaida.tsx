@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useId, useMemo, useState, type Re
 import { Platform } from 'react-native';
 
 import { criarGuarda, SEM_GUARDA, type Guarda } from './guarda';
-import { portalDaFolhaDoTopo } from './historicoDasFolhas';
+import { portalDaFolhaDoTopo, useGuardaNoHistorico } from './historicoDasFolhas';
 import { PainelConfirmacao } from './PainelConfirmacao';
 
 const Contexto = createContext<Guarda>(SEM_GUARDA);
@@ -64,19 +64,39 @@ export function useGuardaDeSaida(pendente: boolean) {
   const id = useId();
   const guarda = useContext(Contexto);
   const navigation = useNavigation();
+  // O voltar do navegador (web) cai numa entrada de guarda e pergunta aqui; confirmar sai por um `history.go` só, com a
+  // saída liberada até o `popstate` passar (senão o `beforeRemove` abaixo perguntaria de novo).
+  const { sairAntes } = useGuardaNoHistorico(pendente, (sair) =>
+    guarda.confirmar(() => {
+      const soltar = guarda.liberar();
+      sair();
+      setTimeout(soltar, 1500);
+    }),
+  );
   useEffect(() => {
     if (!pendente) return;
     const desmarcar = guarda.registrar(id);
     const soltar = navigation.addListener('beforeRemove', (e) => {
       if (guarda.liberado()) return;
       e.preventDefault();
-      guarda.confirmar(() => navigation.dispatch(e.data.action));
+      const acao = e.data.action;
+      guarda.confirmar(() => {
+        // Seta e botão físico: a entrada da guarda sai do histórico antes do voltar (senão sobra uma entrada na web).
+        const soltar = guarda.liberar();
+        sairAntes(() => {
+          try {
+            navigation.dispatch(acao);
+          } finally {
+            setTimeout(soltar, 0);
+          }
+        });
+      });
     });
     return () => {
       desmarcar();
       soltar();
     };
-  }, [pendente, id, guarda, navigation]);
+  }, [pendente, id, guarda, navigation, sairAntes]);
 }
 
 /**

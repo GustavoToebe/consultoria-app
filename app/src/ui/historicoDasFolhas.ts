@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { folhasParaFechar, nivelDoEstado, passosParaSairDeEntradasSobrando, planejarAcerto } from '../dominio/historicoDasFolhas';
+import { folhasParaFechar, nivelDoEstado, passosParaSairDeEntradasSobrando, passosParaSairDoEditor, planejarAcerto, podeRegistrarGuarda } from '../dominio/historicoDasFolhas';
 import type { PortalDaFolhaValor } from './Folha';
 
 /**
@@ -10,8 +10,21 @@ import type { PortalDaFolhaValor } from './Folha';
  * volta a entrada. No celular não faz nada (o voltar do Android já fecha o `Modal`). As regras estão em
  * `dominio/historicoDasFolhas`. Se uma Folha navega para outra tela com a Folha ainda aberta (ex.: "Criar e editar"), a
  * entrada dela fica para trás: ao voltar de lá o `popstate` cai nela, sem Folha, e ela é pulada na hora.
+ *
+ * Um editor com alteração pendente usa o mesmo mecanismo (a "guarda"): ocupa uma entrada como uma Folha, mas o voltar
+ * que cai nela não fecha nada, só pergunta "Sair sem salvar?"; a entrada é reempilhada e a pessoa continua no editor.
+ * A guarda fica por baixo das Folhas (espera todas fecharem para entrar).
  */
-interface Aberta { id: string; /** `id` do expo-router da tela onde abriu. */ tela: string | undefined; fechar: () => void; portal: () => PortalDaFolhaValor }
+interface Aberta {
+  id: string;
+  /** `id` do expo-router da tela onde abriu. */
+  tela: string | undefined;
+  /** Folha: fecha. Guarda: pergunta se pode sair (a entrada é reempilhada, a guarda continua aberta). */
+  fechar: () => void;
+  portal: () => PortalDaFolhaValor | undefined;
+  guarda?: boolean;
+}
+interface PedidoDeGuarda { id: string; perguntar: (sair: () => void) => void }
 
 const abertas: Aberta[] = [];
 let agendado = false;
@@ -20,10 +33,14 @@ let aguardando = false;
 let escutando = false;
 /** Entradas de Folha que ficaram para trás de uma tela quando a Folha navegou sem fechar: `id` da tela → quantas. */
 const sobrando = new Map<string, number>();
+/** Editor com alteração pendente que quer a guarda; entra em `abertas` quando não há Folha aberta. */
+let guardaPedida: PedidoDeGuarda | null = null;
 /** `id` (do expo-router) da tela em que o histórico estava no último evento que vimos; diz se um voltar veio de outra tela. */
 let idAtual: string | undefined;
 /** Nível da entrada em que a última Folha foi removida; se a tela mudar antes do acerto, essa entrada ficou para trás. */
 let nivelAoRemover = 0;
+/** Navegação que espera o `popstate` da entrada da guarda devolvida (ver `sairDaGuardaAntes`). */
+let aoChegar: (() => void) | null = null;
 
 const web = () => Platform.OS === 'web' && typeof window !== 'undefined';
 
@@ -32,12 +49,25 @@ const idDoEstado = () => (window.history.state as { id?: string } | null)?.id;
 /** Espera o `popstate` do `history.go` que a gente mesmo pediu; se ele não vier, solta depois de um tempo. */
 function irPara(passos: number) {
   aguardando = true;
-  setTimeout(() => { if (aguardando) { aguardando = false; agendar(); } }, 400);
+  setTimeout(() => { if (aguardando) { aguardando = false; agendar(); executarAoChegar(); } }, 400);
   window.history.go(passos);
+}
+
+function executarAoChegar() {
+  const depois = aoChegar;
+  aoChegar = null;
+  if (depois) setTimeout(depois, 0);
+}
+
+function registrarGuardaSePuder() {
+  const pedido = guardaPedida;
+  if (!pedido || !podeRegistrarGuarda(abertas.length, abertas.some((a) => a.guarda))) return;
+  registrar({ id: pedido.id, tela: idDoEstado(), fechar: () => pedido.perguntar(() => sairDoEditorPeloNavegador(pedido.id)), portal: () => undefined, guarda: true });
 }
 
 function acertar() {
   agendado = false;
+  registrarGuardaSePuder();
   // A Folha fechou porque a tela navegou (o expo-router empilha a rota nova depois do desmonte): a entrada dela ficou.
   if (nivelAoRemover > 0 && idAtual !== undefined && idDoEstado() !== idAtual) sobrando.set(idAtual, Math.max(sobrando.get(idAtual) ?? 0, nivelAoRemover));
   nivelAoRemover = 0;
@@ -77,6 +107,7 @@ function aoVoltarOuAvancar() {
   if (n > 0) abertas.slice(-n).reverse().forEach((a) => a.fechar());
   aguardando = false;
   agendar();
+  executarAoChegar();
 }
 
 /** `replaceState` de verdade, sem o embrulho de `preservarMarcaDaEntrada`: é por ele que a gente tira a marca de uma entrada. */
@@ -119,9 +150,9 @@ function remover(id: string) {
   agendar();
 }
 
-/** Portal da Folha aberta por último (o diálogo "Sair sem salvar?" precisa aparecer por cima dela). Só na web. */
+/** Portal da Folha aberta por último (o diálogo "Sair sem salvar?" precisa aparecer por cima dela). Só na web. A guarda não é Folha. */
 export function portalDaFolhaDoTopo(): PortalDaFolhaValor | undefined {
-  return abertas[abertas.length - 1]?.portal();
+  return abertas.findLast((a) => !a.guarda)?.portal();
 }
 
 /** Chamado pelo painel da Folha enquanto está aberto. `portal` devolve o valor atual (o elemento chega depois da montagem). */
@@ -135,4 +166,58 @@ export function useFolhaNoHistorico(aoFechar: () => void, portal: PortalDaFolhaV
     registrar({ id, tela: idDoEstado(), fechar: () => fechar.current(), portal: () => valorPortal.current });
     return () => remover(id);
   }, [id]);
+}
+
+/**
+ * Editor com alteração pendente (só na web): o voltar do navegador pergunta antes de sair. `perguntar` abre o "Sair
+ * sem salvar?" e, se a pessoa confirmar, chama a função `sair` que recebe (sai do editor num `history.go` só). Salvar (ou
+ * descartar) tira a guarda e devolve a entrada, como fechar uma Folha pelo X.
+ */
+export function useGuardaNoHistorico(pendente: boolean, perguntar: (sair: () => void) => void) {
+  const id = useId();
+  const pergunta = useRef(perguntar);
+  useEffect(() => { pergunta.current = perguntar; });
+  useEffect(() => {
+    if (!web() || !pendente) return;
+    guardaPedida = { id, perguntar: (sair) => pergunta.current(sair) };
+    registrarGuardaSePuder();
+    agendar();
+    return () => {
+      if (guardaPedida?.id === id) guardaPedida = null;
+      remover(id);
+    };
+  }, [id, pendente]);
+  const sairAntes = useCallback((depois: () => void) => sairDaGuardaAntes(id, depois), [id]);
+  return { sairAntes };
+}
+
+/**
+ * Saída por "voltar" do app (seta, botão físico) já confirmada: com o histórico em cima da entrada da guarda, um
+ * `router.back()` só desfaria essa entrada e sobraria uma com o endereço da tela anterior (o voltar seguinte não sairia
+ * do lugar). Então a guarda é retirada e a entrada devolvida primeiro, e `depois` (a navegação) corre quando o
+ * `popstate` chega. Sem guarda no histórico (ou fora da web) `depois` corre na hora. Quem chama mantém a saída liberada
+ * até `depois` terminar.
+ */
+function sairDaGuardaAntes(id: string, depois: () => void) {
+  const i = web() ? abertas.findIndex((a) => a.id === id && a.guarda) : -1;
+  if (i < 0 || nivelDoEstado(window.history.state) === 0) { depois(); return; }
+  if (guardaPedida?.id === id) guardaPedida = null;
+  abertas.splice(i, 1);
+  nivelAoRemover = 0;
+  aoChegar = depois;
+  irPara(-1);
+}
+
+/**
+ * Sai de vez do editor (é o `sair` que `perguntar` recebe), já com a pessoa tendo confirmado: tira a guarda sem reempilhar e volta as entradas dela e da tela
+ * num `history.go` só (um caminho só; um `router.back()` junto disputaria com o acerto e voltaria duas telas). Quem chama
+ * mantém a saída liberada (`liberar`) até o `popstate` passar, senão o `beforeRemove` do editor pergunta de novo.
+ */
+function sairDoEditorPeloNavegador(id: string) {
+  if (!web()) return;
+  if (guardaPedida?.id === id) guardaPedida = null;
+  const i = abertas.findIndex((a) => a.id === id);
+  if (i >= 0) abertas.splice(i, 1);
+  nivelAoRemover = 0;
+  irPara(-passosParaSairDoEditor(nivelDoEstado(window.history.state)));
 }
