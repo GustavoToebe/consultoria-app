@@ -164,7 +164,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   rótulo quebra em até 2 linhas; destrutivo = `perigoTexto` + `PainelConfirmacao`. Botão desabilitado leva `motivo` (texto curto do porquê, lido pelo leitor de tela) em vez de ficar mudo.
 - **Seleção** é invertida (`texto`/`fundo`: `Escolha`, chips, calendário; `BotaoMarcar` desmarcado usa `bordaCampo`); a marca só em ação principal, menu e aba ativos,
   cartão "Hoje" do aluno e título.
-- **Preferências pessoais** em `dominio/preferencias.ts` (AsyncStorage `treinos:<usuarioId>:preferencias`, um JSON): tema (consultoria/escuro/claro/sistema), contraste, tamanho do texto (o `Texto` e os campos
+- **Preferências pessoais** em `dominio/preferencias.ts` (AsyncStorage `treinos:<usuarioId>:preferencias`, um JSON, apagado ao sair no celular e na web pelo `aoSair` do `TemaProvider`, que espera a fila de gravação e não grava mais depois): tema (consultoria/escuro/claro/sistema), contraste, tamanho do texto (o `Texto` e os campos
   multiplicam a fonte), animações, vibração e gráficos (`graficos`: desligado, Progresso por exercício e Peso mostram só as listas; interruptor em Perfil › Preferências e no cartão Progresso) e `barrasEscuras` (só web, padrão ligado: `color-scheme: dark` na raiz com o tema escuro, aplicado em `app/_layout.tsx`; o bloco de impressão fixa `color-scheme: light`). `useTema()` expõe `preferencias`, `fatorTexto` e `escolherPreferencia`. A marca
   da consultoria usa as paletas de `dominio/paletas.ts` (`avaliarMarca` bloqueia cor que não segura texto branco com 4,5:1).
   Fontes do nome: PADRAO, METAL, ESPORTIVA, CONDENSADA.

@@ -57,6 +57,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
         ? criarArmazemDePreferencias(
             () => lerPreferencias(usuarioId),
             (preferencias) => AsyncStorage.setItem(chave(usuarioId), JSON.stringify(preferencias)),
+            () => AsyncStorage.removeItem(chave(usuarioId)),
           )
         : null,
     [usuarioId],
@@ -65,6 +66,9 @@ export function TemaProvider({ children }: { children: ReactNode }) {
     armazem?.iniciar();
     return () => armazem?.parar();
   }, [armazem]);
+  // Ao sair, a escolha vai embora do aparelho como o resto do que é da pessoa (favoritos, boas-vindas), no celular e na web.
+  const { aoSair } = sessao;
+  useEffect(() => aoSair(() => armazem?.apagar() ?? Promise.resolve()), [aoSair, armazem]);
   const preferencias = useSyncExternalStore(
     useCallback((aviso: () => void) => armazem?.assinar(aviso) ?? (() => undefined), [armazem]),
     () => armazem?.obter() ?? PREFERENCIAS_PADRAO,

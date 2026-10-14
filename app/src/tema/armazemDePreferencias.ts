@@ -15,15 +15,22 @@ export interface ArmazemDePreferencias {
   iniciar: () => void;
   /** Para de aplicar a leitura em andamento (o armazém pode ser iniciado de novo). */
   parar: () => void;
+  /**
+   * Sai da conta: espera as gravações que já estavam na fila, apaga o que está salvo e deixa o armazém sem gravar mais
+   * nada (uma escolha tardia não recria o que acabou de ser apagado).
+   */
+  apagar: () => Promise<void>;
 }
 
 export function criarArmazemDePreferencias(
   ler: () => Promise<Preferencias>,
   gravar: (preferencias: Preferencias) => Promise<void>,
+  remover: () => Promise<void> = async () => undefined,
 ): ArmazemDePreferencias {
   let atual: Preferencias = PREFERENCIAS_PADRAO;
   let lido = false;
   let lendo = false;
+  let apagado = false;
   let geracao = 0;
   let feitasAntes: Partial<Preferencias>[] = [];
   let fila: Promise<void> = Promise.resolve();
@@ -31,6 +38,7 @@ export function criarArmazemDePreferencias(
 
   const avisar = () => avisos.forEach((a) => a());
   const guardar = (preferencias: Preferencias) => {
+    if (apagado) return;
     fila = fila.then(() => gravar(preferencias)).catch(() => undefined);
   };
 
@@ -68,6 +76,13 @@ export function criarArmazemDePreferencias(
     parar: () => {
       geracao += 1;
       lendo = false;
+    },
+    apagar: () => {
+      apagado = true;
+      geracao += 1;
+      lendo = false;
+      fila = fila.then(remover).catch(() => undefined);
+      return fila;
     },
   };
 }
