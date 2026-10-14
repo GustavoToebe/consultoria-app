@@ -1,16 +1,33 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import {
+  MENSAGEM_SEM_CONEXAO,
+  ErroApi,
+  cabecalhosDeCredencial,
+  caminhoDaApi,
+  comRenovacao,
+  corpoDoErro,
+  desfechoDoRefresh,
+  deveRenovar,
+  erroApiDaResposta,
+  lerCookie as lerCookieDoTexto,
+  umaPorVez,
+} from '@plataforma/web';
+
 import { apagarRefresh, lerRefresh, salvarRefresh } from '../sessao/armazenamentoSeguro';
-import { caminhoDaApi } from './destino-api';
-import type { ApiErrorBody, CampoComErro, LoginResponse } from './tipos';
+import type { LoginResponse } from './tipos';
+
+export { ErroApi };
 
 /**
  * Cliente HTTP da API.
  * - Token, cookies e XSRF só vão para a própria API (`caminhoDaApi`).
  * - Web: access token em memória, refresh no cookie HttpOnly, `credentials: 'include'` e header XSRF.
  * - Nativo: access em memória, refresh no SecureStore e no corpo, `credentials: 'omit'`.
- * - 401: um único refresh compartilhado; repete a requisição uma vez. Falhou: sessão encerrada.
+ * - 401: um único refresh compartilhado; repete a requisição uma vez. Refresh recusado (401/403): sessão encerrada.
+ * A lógica de sessão (destino, XSRF, renovação, leitura do erro) é do `@plataforma/web`; aqui ficam só o `fetch`, o
+ * timeout, a plataforma, o SecureStore e o que é deste app (cookie XSRF, cabeçalho, códigos que não renovam).
  */
 
 const WEB = Platform.OS === 'web';
@@ -41,26 +58,8 @@ function base(): string {
   return WEB && typeof window !== 'undefined' ? window.location.origin : API_URL;
 }
 
-export class ErroApi extends Error {
-  constructor(
-    readonly status: number,
-    readonly codigo: string | null,
-    mensagem: string,
-    readonly campos: CampoComErro[] = [],
-  ) {
-    super(mensagem);
-    this.name = 'ErroApi';
-  }
-
-  /** Sem rede, servidor fora do ar ou tempo esgotado: o app continua com o que tem salvo. */
-  get semConexao(): boolean {
-    return this.status === 0;
-  }
-}
-
 let accessToken: string | null = null;
 let aoEncerrarSessao: (() => void) | null = null;
-let renovando: Promise<LoginResponse | null> | null = null;
 
 /** O SessaoProvider é avisado quando o refresh falha no meio do uso. */
 export function aoEncerrar(callback: (() => void) | null) {
@@ -84,13 +83,13 @@ export function urlDaApi(caminho: string): string {
 }
 
 /** Erros de regra de negócio: nunca disparam refresh nem repetição automática. */
-const CODIGOS_SEM_REPETICAO = new Set([
+const CODIGOS_SEM_REPETICAO = [
   'CONFLITO_EDICAO',
   'PLANO_INVALIDO',
   'CONFIRMAR_AVISOS',
   'MFA_CODIGO_INVALIDO',
   'MFA_SENHA_INVALIDA',
-]);
+];
 
 export interface Opcoes {
   metodo?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -103,32 +102,29 @@ export interface Opcoes {
 }
 
 export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promise<T> {
-  const resposta = await enviar(caminho, opcoes);
   // Também sem access em memória: a sessão pode ter aberto sem internet e ter refresh guardado.
-  if (resposta.status === 401 && !opcoes.semRenovar) {
-    const corpo = await lerErro(resposta.clone());
-    if (!CODIGOS_SEM_REPETICAO.has(corpo.codigo ?? '')) {
-      const renovada = await renovarSessao();
-      if (renovada) {
-        return tratar<T>(await enviar(caminho, opcoes));
+  const resposta = await comRenovacao(() => enviar(caminho, opcoes), {
+    deveRenovar: async (r) => {
+      if (r.status !== 401 || opcoes.semRenovar) {
+        return false;
       }
-      aoEncerrarSessao?.();
-    }
-  }
+      const { codigo } = corpoDoErro(await lerCorpo(r.clone()), r.status);
+      return deveRenovar({ status: r.status, codigo }, { codigosSemRenovar: CODIGOS_SEM_REPETICAO });
+    },
+    renovar: async () => (await renovarSessao()) !== null,
+    aoEncerrar: () => aoEncerrarSessao?.(),
+  });
   return tratar<T>(resposta);
 }
+
+const renovacaoCompartilhada = umaPorVez(fazerRefresh);
 
 /**
  * Um refresh por vez: chamadas simultâneas esperam o mesmo. Devolve a sessão nova, `null` se o servidor recusou
  * (sessão encerrada) e lança {@link ErroApi} com `semConexao` se não deu para falar com o servidor.
  */
 export function renovarSessao(): Promise<LoginResponse | null> {
-  if (!renovando) {
-    renovando = fazerRefresh().finally(() => {
-      renovando = null;
-    });
-  }
-  return renovando;
+  return renovacaoCompartilhada();
 }
 
 async function fazerRefresh(): Promise<LoginResponse | null> {
@@ -143,10 +139,11 @@ async function fazerRefresh(): Promise<LoginResponse | null> {
     corpo = { refreshToken: refresh };
   }
   const resposta = await enviar('/auth/refresh', { metodo: 'POST', corpo, semRenovar: true });
-  if (resposta.status === 401 || resposta.status === 403) {
+  if (desfechoDoRefresh(resposta.status) === 'encerrar') {
     await limparSessaoLocal();
     return null;
   }
+  // 5xx e afins não encerram a sessão: `tratar` lança o erro e o app segue com o que tem salvo.
   const sessao = await tratar<LoginResponse>(resposta);
   await guardarSessao(sessao);
   return sessao;
@@ -154,7 +151,7 @@ async function fazerRefresh(): Promise<LoginResponse | null> {
 
 /** O cookie XSRF é de sessão do navegador: depois de fechar e abrir, pede um novo antes do refresh. */
 async function garantirXsrf(): Promise<void> {
-  if (!lerCookie(COOKIE_XSRF)) {
+  if (!cookieXsrf()) {
     await enviar('/actuator/health', { semRenovar: true });
   }
 }
@@ -177,13 +174,7 @@ async function enviar(caminho: string, opcoes: Opcoes): Promise<Response> {
     headers['Content-Type'] = 'application/json';
   }
   if (daApi) {
-    if (accessToken) {
-      headers.Authorization = `Bearer ${accessToken}`;
-    }
-    const xsrf = WEB ? lerCookie(COOKIE_XSRF) : null;
-    if (xsrf) {
-      headers['X-XSRF-TOKEN'] = xsrf;
-    }
+    Object.assign(headers, cabecalhosDeCredencial({ token: accessToken, xsrf: cookieXsrf(), metodo: opcoes.metodo ?? 'GET' }));
   }
   const controle = new AbortController();
   const limite = setTimeout(() => controle.abort(), TIMEOUT_MS);
@@ -196,7 +187,7 @@ async function enviar(caminho: string, opcoes: Opcoes): Promise<Response> {
       signal: controle.signal,
     });
   } catch {
-    throw new ErroApi(0, 'SEM_CONEXAO', 'Sem conexão com o servidor. Confira a internet e tente de novo.');
+    throw new ErroApi(0, 'SEM_CONEXAO', MENSAGEM_SEM_CONEXAO);
   } finally {
     clearTimeout(limite);
   }
@@ -210,36 +201,18 @@ async function tratar<T>(resposta: Response): Promise<T> {
     const tipo = resposta.headers.get('Content-Type') ?? '';
     return (tipo.includes('application/json') ? await resposta.json() : await resposta.text()) as T;
   }
-  const erro = await lerErro(resposta);
-  throw new ErroApi(resposta.status, erro.codigo, erro.message, erro.fieldErrors ?? []);
+  throw erroApiDaResposta(resposta.status, await lerCorpo(resposta));
 }
 
-async function lerErro(resposta: Response): Promise<ApiErrorBody> {
+/** Corpo JSON da resposta; `undefined` se não é JSON (o pacote cai no texto padrão do status). */
+async function lerCorpo(resposta: Response): Promise<unknown> {
   try {
-    return (await resposta.json()) as ApiErrorBody;
+    return await resposta.json();
   } catch {
-    return {
-      timestamp: '',
-      status: resposta.status,
-      error: '',
-      message: resposta.status >= 500 ? 'O servidor teve um problema. Tente de novo.' : 'Não foi possível concluir.',
-      codigo: null,
-      path: '',
-      requestId: null,
-      fieldErrors: null,
-    };
+    return undefined;
   }
 }
 
-function lerCookie(nome: string): string | null {
-  if (!WEB || typeof document === 'undefined') {
-    return null;
-  }
-  for (const parte of document.cookie.split(';')) {
-    const [chave, ...valor] = parte.trim().split('=');
-    if (chave === nome) {
-      return decodeURIComponent(valor.join('='));
-    }
-  }
-  return null;
+function cookieXsrf(): string | null {
+  return WEB && typeof document !== 'undefined' ? lerCookieDoTexto(document.cookie, COOKIE_XSRF) : null;
 }
