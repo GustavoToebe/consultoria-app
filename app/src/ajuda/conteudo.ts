@@ -23,6 +23,8 @@ export interface Guia {
   introducao: string;
   primeirosPassos: PassoGuia[];
   tutorial: PassoGuia[];
+  /** Telas curtas do primeiro acesso do aluno (as mesmas explicações do tutorial); vazio/ausente = sem boas-vindas. */
+  boasVindas?: PassoGuia[];
   secoes: SecaoGuia[];
   perguntas: { pergunta: string; resposta: string }[];
 }
@@ -131,6 +133,11 @@ const TREINADOR: Guia = {
   ],
 };
 
+/** Explicações do aluno que aparecem em mais de um lugar (primeiros passos, tutorial e boas-vindas): um texto só. */
+const TEXTO_TREINO_DE_HOJE = 'Na aba Treino, o cartão Treino de hoje mostra a divisão do dia. Toque nele para começar.';
+const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador. Só consulta.';
+const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer.';
+
 const ALUNO: Guia = {
   titulo: 'Guia do aluno',
   arquivoPdf: 'guia-aluno.pdf',
@@ -138,7 +145,7 @@ const ALUNO: Guia = {
     'Aqui você vê o treino e a dieta que o seu treinador montou e registra a carga e as repetições de cada série. Funciona também sem internet: o que você marca fica no aparelho e é enviado depois.',
   primeirosPassos: [
     { titulo: 'Entre com o convite', texto: 'Use o código ou o link que o treinador enviou, crie a sua senha e entre.' },
-    { titulo: 'Veja o treino de hoje', texto: 'Na aba Treino, o cartão Treino de hoje mostra a divisão do dia. Toque nele para começar.', rota: '/aluno' },
+    { titulo: 'Veja o treino de hoje', texto: TEXTO_TREINO_DE_HOJE, rota: '/aluno' },
     { titulo: 'Registre cada série', texto: 'Em cada exercício, informe o peso e as repetições feitas e toque no botão de marcar a série.' },
     { titulo: 'Confira o histórico', texto: 'Na aba Histórico você revê o que já registrou.', rota: '/aluno/historico' },
     { titulo: 'Escolha o tema', texto: 'Em Conta, deixe o app claro ou escuro e ajuste o tamanho do texto.', rota: '/aluno/conta' },
@@ -148,12 +155,17 @@ const ALUNO: Guia = {
     { titulo: 'Treino', texto: 'Mostra o treino de hoje e as divisões do período. Os chips de data deixam registrar dias próximos (até 60 dias para trás ou para frente).', rota: '/aluno' },
     { titulo: 'Registrar uma série', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano; o que você digita é gravado como digitou. Os botões − e + mudam o peso de passo em passo, e "Repetir a série anterior" copia peso e repetições da série de cima e já marca como feita. A tela fica acesa enquanto você treina.' },
     { titulo: 'Descanso', texto: 'Quando o plano define descanso, o contador começa ao marcar a série. Ele não usa notificação com o app fechado.' },
-    { titulo: 'Dieta', texto: 'Mostra as refeições publicadas pelo treinador. Só consulta.', rota: '/aluno/dieta' },
+    { titulo: 'Dieta', texto: TEXTO_DIETA, rota: '/aluno/dieta' },
     { titulo: 'Mobilidade', texto: 'Aparece só se o treinador publicou um plano de mobilidade. Vídeos abrem fora do app.', rota: '/aluno/mobilidade' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', rota: '/aluno/historico' },
-    { titulo: 'Atualização', texto: 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer.' },
+    { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO },
     { titulo: 'Sem internet', texto: 'Pode treinar sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
     { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
+  ],
+  boasVindas: [
+    { titulo: 'Treino de hoje', texto: TEXTO_TREINO_DE_HOJE },
+    { titulo: 'Dieta', texto: TEXTO_DIETA },
+    { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO },
   ],
   secoes: [
     {
@@ -203,6 +215,7 @@ const ALUNO: Guia = {
     { pergunta: 'Esqueci a senha.', resposta: 'Fale com o seu treinador.' },
     { pergunta: 'Errei a carga de uma série.', resposta: 'Abra o exercício e altere o valor no campo da série: o registro é atualizado.' },
     { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
+    { pergunta: 'Como vejo de novo as boas-vindas?', resposta: 'Elas aparecem uma vez no primeiro acesso, com três telas curtas que dá para pular. Para ver de novo, saia da conta e entre outra vez.' },
     { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
   ],
 };

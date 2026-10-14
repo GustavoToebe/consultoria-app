@@ -1,4 +1,5 @@
 import { BarraDescanso } from '../../aluno/BarraDescanso';
+import { BoasVindas } from '../../aluno/BoasVindas';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { StyleSheet, View } from 'react-native';
 import { espaco } from '../../tema/tokens';
@@ -30,6 +31,7 @@ export default function LayoutAluno() {
         // Um provedor por usuário: trocar de conta nunca mistura registros.
         <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
           <MenuAluno />
+          <BoasVindas usuarioId={usuario.id} />
         </AlunoProvider>
       ) : null}
     </GuardaDePapel>
