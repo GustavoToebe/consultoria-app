@@ -18,6 +18,9 @@ interface Props {
   rotuloCancelar?: string;
   perigo?: boolean;
   carregando?: boolean;
+  /** Confirmar fica bloqueado (ex.: digitar o nome ainda não conferiu); `motivo` diz o porquê ao leitor de tela. */
+  desabilitado?: boolean;
+  motivo?: string;
   /** Folha por cima da qual o diálogo deve aparecer, quando ele não está dentro dela (ex.: o "Sair sem salvar?" da guarda). */
   portal?: PortalDaFolhaValor;
   aoConfirmar: () => void;
@@ -52,6 +55,8 @@ export function PainelConfirmacao(props: Props) {
               rotulo={props.rotuloConfirmar}
               tipo={props.perigo ? 'perigo' : 'primario'}
               carregando={props.carregando}
+              desabilitado={props.desabilitado}
+              motivo={props.motivo}
               aoTocar={props.aoConfirmar}
             />
           </View>

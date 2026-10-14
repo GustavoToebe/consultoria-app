@@ -139,6 +139,8 @@ export interface AlunoDetalhe {
   responsavelId?: string | null;
   /** Questionário de atualização escolhido para o aluno; nulo = vale o padrão. */
   questionarioId?: string | null;
+  /** Dados pessoais apagados (LGPD): o cadastro não é mais editado nem reativado. */
+  anonimizado: boolean;
 }
 
 export interface AlunoRequest {

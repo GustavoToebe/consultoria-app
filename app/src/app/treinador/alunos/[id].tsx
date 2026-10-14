@@ -14,6 +14,7 @@ import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
 import { CartaoPastas } from '../../../treinador/CartaoPastas';
 import { FormAluno } from '../../../treinador/FormAluno';
+import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
 import { ResponsavelAluno } from '../../../treinador/equipe/ResponsavelAluno';
 import { SeletorDeQuestionario } from '../../../treinador/questionarios/SeletorDeQuestionario';
 import { useAviso } from '../../../ui/Aviso';
@@ -103,7 +104,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
       titulo="Dados"
       descricao="Cadastro do aluno e responsável pelo acompanhamento."
       acoes={
-        editando || !pode("ALUNO_ALTERAR") ? null : <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} /></Permitido>
+        editando || aluno.anonimizado || !pode("ALUNO_ALTERAR") ? null : <Permitido codigo="ALUNO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} /></Permitido>
       }>
       {editando ? (
         <FormAluno
@@ -119,7 +120,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
         />
       ) : (
         <View style={estilos.dados}>
-          <Selo texto={aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo ? 'sucesso' : 'neutro'} />
+          <Selo texto={aluno.anonimizado ? 'Anonimizado' : aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo && !aluno.anonimizado ? 'sucesso' : 'neutro'} />
           <CampoLeitura rotulo="E-mail" valor={aluno.email} />
           <ResponsavelAluno id={aluno.responsavelId}/>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
@@ -128,12 +129,13 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
             aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); }} />
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
           <View style={estilos.botoes}>
-            <Permitido codigo="ALUNO_ALTERAR"><Botao
+            {aluno.anonimizado ? null : <Permitido codigo="ALUNO_ALTERAR"><Botao
               rotulo={aluno.ativo ? 'Inativar aluno' : 'Reativar aluno'}
               tipo={aluno.ativo ? 'perigoTexto' : 'secundario'}
               aoTocar={() => setConfirmar(true)}
-            /></Permitido>
+            /></Permitido>}
           </View>
+          <AcoesDePrivacidade aluno={aluno} aoAnonimizar={aoAlterar} />
         </View>
       )}
       <PainelConfirmacao

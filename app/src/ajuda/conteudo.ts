@@ -62,6 +62,14 @@ const TREINADOR: Guia = {
       ],
     },
     {
+      titulo: 'Privacidade (LGPD)',
+      itens: [
+        { titulo: 'Termo de uso e aviso de privacidade', texto: 'No primeiro acesso, você e o aluno leem e aceitam os dois textos; sem o aceite o app não abre. Quando o texto muda, todos aceitam de novo. Dá para reler em Perfil › Termos e privacidade. Os textos atuais são rascunho e precisam de revisão jurídica.' },
+        { titulo: 'Exportar os dados de um aluno', texto: 'Na ficha, em Exportar dados, o app baixa um arquivo com cadastro, planos publicados, registros, peso, lesões e atualizações. Só entra o que o seu perfil pode ver. O arquivo tem dados pessoais e de saúde: guarde com cuidado. A exportação fica na auditoria, sem o conteúdo. Só quem tem a permissão de exportar vê o botão (nos perfis prontos, o Administrador).' },
+        { titulo: 'Anonimizar um aluno que saiu', texto: 'Com o aluno já inativo, Anonimizar apaga nome, e-mail, objetivo, observações, peso, lesões, respostas e feedback das atualizações, observações dos registros e a dieta, e encerra o acesso. Pastas, treinos e as cargas e repetições ficam, só para as contagens. Para confirmar, digite o nome do aluno. Não tem volta, e o cadastro anonimizado não é mais editado nem reativado.' },
+      ],
+    },
+    {
       titulo: 'Pastas de plano',
       itens: [
         { titulo: 'Período', texto: 'O período da pasta vale para todos os planos dela. Mudar a pasta altera só os rascunhos.' },
@@ -114,6 +122,7 @@ const TREINADOR: Guia = {
     { pergunta: 'O aluno não consegue entrar.', resposta: 'Gere um convite novo na ficha dele (cartão Acesso ao app) e confirme que o aluno está ativo.' },
     { pergunta: 'Aparece "Alterado em outra aba" no plano.', resposta: 'O mesmo plano foi alterado em outro lugar. Use a opção de recarregar, confira o que mudou e edite de novo.' },
     { pergunta: 'Mudei o questionário; e quem já respondeu?', resposta: 'Quem já enviou mantém a versão que respondeu. Quem ainda não enviou passa a ver a versão nova assim que você publica, e as respostas já digitadas que continuam valendo são mantidas. Um questionário que já foi respondido não se exclui: arquive.' },
+    { pergunta: 'O aluno pediu para apagar os dados dele.', resposta: 'Inative o aluno e, na ficha, use Anonimizar (quem tem a permissão). Se ele pedir uma cópia antes, use Exportar dados.' },
     { pergunta: 'Por que há um traço "—" nas cargas?', resposta: 'O aluno não informou o valor. O app nunca inventa carga nem repetição.' },
   ],
 };
@@ -189,6 +198,7 @@ const ALUNO: Guia = {
     { pergunta: 'Não vejo o treino novo.', resposta: 'O treinador precisa ter publicado o plano. Confirme com ele e abra o app com internet.' },
     { pergunta: 'Esqueci a senha.', resposta: 'Fale com o seu treinador.' },
     { pergunta: 'Errei a carga de uma série.', resposta: 'Abra o exercício e altere o valor no campo da série: o registro é atualizado.' },
+    { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
     { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
   ],
 };

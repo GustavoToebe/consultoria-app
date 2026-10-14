@@ -6,6 +6,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   ALUNO_CRIADO:'Aluno cadastrado',ALUNO_ALTERADO:'Aluno editado',ALUNO_SITUACAO:'Situação do aluno alterada',ALUNO_CONVIDADO:'Convite de aluno criado',ALUNO_RESPONSAVEL_ALTERADO:'Responsável alterado no cadastro',
   TREINO_PUBLICADO:'Treino publicado',DIETA_PUBLICADA:'Dieta publicada',MOBILIDADE_PUBLICADA:'Mobilidade publicada',
   TERMOS_ACEITOS:'Termo de uso e aviso de privacidade aceitos',
+  ALUNO_EXPORTADO:'Dados do aluno exportados',ALUNO_ANONIMIZADO:'Aluno anonimizado',
   PASTA_CRIADA:'Pasta criada',PASTA_REPLICADA:'Pasta replicada',PASTA_FINALIZADA:'Pasta finalizada',PASTA_QUESTIONARIO_ALTERADO:'Questionário da pasta alterado',
   QUESTIONARIO_CRIADO:'Questionário de atualização criado',QUESTIONARIO_PUBLICADO:'Questionário de atualização publicado',QUESTIONARIO_DUPLICADO:'Questionário de atualização duplicado',
   QUESTIONARIO_PADRAO_ALTERADO:'Questionário padrão alterado',QUESTIONARIO_ARQUIVADO:'Questionário de atualização arquivado',QUESTIONARIO_DESARQUIVADO:'Questionário de atualização desarquivado',QUESTIONARIO_EXCLUIDO:'Questionário de atualização excluído',

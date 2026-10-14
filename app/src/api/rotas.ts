@@ -199,6 +199,12 @@ export const alterarAluno = (id: string, dados: AlunoRequest) =>
 export const alterarSituacaoAluno = (id: string, ativo: boolean) =>
   requisicao<AlunoDetalhe>(`/alunos/${id}/situacao`, { metodo: 'PATCH', corpo: { ativo } });
 
+/** Tudo o que a consultoria guarda do aluno; o app só grava o arquivo, sem interpretar. */
+export const exportarAluno = (id: string) => requisicao<Record<string, unknown>>(`/alunos/${id}/exportacao`);
+
+export const anonimizarAluno = (id: string, nomeConfirmado: string) =>
+  requisicao<AlunoDetalhe>(`/alunos/${id}/anonimizar`, { metodo: 'POST', corpo: { nomeConfirmado } });
+
 export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/${id}/convite`, { metodo: 'POST' });
 
 export const execucoesDoAluno = (id: string, de: string, ate: string) =>
