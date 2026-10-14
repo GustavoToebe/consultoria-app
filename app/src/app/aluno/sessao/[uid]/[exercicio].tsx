@@ -4,7 +4,7 @@ import { ArrowRight, Check } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { ExercicioAluno } from '../../../../aluno/ExercicioAluno';
-import { SeloSincronizacao } from '../../../../aluno/SeloSincronizacao';
+import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { dataCurta } from '../../../../dominio/formatos';
 import { nomeComDia } from '../../../../dominio/semana';
@@ -22,6 +22,7 @@ import { Texto } from '../../../../ui/Texto';
 export default function ExercicioDaSessao() {
   const { uid, exercicio: exercicioUid, data: dataDaRota } = useLocalSearchParams<{ uid: string; exercicio: string; data?: string }>();
   const dia = useSessaoDoDia(uid, dataDaRota);
+  useTelaAcesa();
   const { sessao, data } = dia;
   const voltar = caminhoDaSessao(uid ?? '', data);
 
@@ -53,7 +54,6 @@ export default function ExercicioDaSessao() {
         titulo={e.nome}
         subtitulo={`Exercício ${posicao + 1} de ${sessao.exercicios.length} · ${nomeDoDia} (${dataCurta(data)})`}
         voltar={voltar}
-        acoes={<SeloSincronizacao />}
       />
       {e.modalidade ? (
         <View style={estilos.selos}>

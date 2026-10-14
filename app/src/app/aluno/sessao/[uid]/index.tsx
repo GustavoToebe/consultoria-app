@@ -6,7 +6,7 @@ import { Play } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
-import { SeloSincronizacao } from '../../../../aluno/SeloSincronizacao';
+import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { nomeComDia, totalDeSeries } from '../../../../dominio/semana';
@@ -25,6 +25,7 @@ import { Texto } from '../../../../ui/Texto';
 export default function SessaoAluno() {
   const { uid, data: dataDaRota } = useLocalSearchParams<{ uid: string; data?: string }>();
   const dia = useSessaoDoDia(uid, dataDaRota);
+  useTelaAcesa();
   const { sessao, data, hoje } = dia;
   const animar = usePrimeiraLista(dia.carregado);
   const reduzido = useMovimentoReduzido();
@@ -58,7 +59,6 @@ export default function SessaoAluno() {
         titulo={nomeComDia(sessao)}
         subtitulo={`${sessao.exercicios.length} exercícios programados`}
         voltar="/aluno"
-        acoes={<SeloSincronizacao />}
       />
       </Animated.View>
       <Cartao>
