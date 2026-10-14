@@ -1,5 +1,7 @@
 import { ErroApi } from '../api/cliente';
 import type { LoteResponse, RegistroEnvio } from '../api/tipos';
+import { chaveBoasVindas } from '../dominio/boasVindas';
+import { chaveDasPreferencias } from '../dominio/preferencias';
 import { emMemoria } from './armazenamento';
 import { fabricaNode, type FabricaDeTeste } from './bancoNode.apoioTeste';
 import { RepositorioChaveValor, type DadosRegistro, type RepositorioLocal } from './repositorioLocal';
@@ -302,5 +304,21 @@ describe('SQLite no celular', () => {
       }),
     ).rejects.toThrow();
     expect(await banco.todos('select a from t')).toEqual([]);
+  });
+});
+
+describe('sair da conta na web (chave-valor)', () => {
+  it('guarda só a preferência de tela e as boas-vindas vistas, e apenas as de quem saiu', async () => {
+    const kv = emMemoria();
+    const mantidas = [chaveDasPreferencias('ana'), chaveBoasVindas('ana'), chaveDasPreferencias('bia'), chaveBoasVindas('bia')];
+    for (const chave of [...mantidas, 'treinos:ana:favoritos', 'treinos:ana:lembreteAtualizacaoPerguntado', 'treinos:bia:favoritos']) {
+      await kv.gravar(chave, '1');
+    }
+    const ana = new RepositorioChaveValor(kv, 'ana', novoId, agora);
+    await ana.registrar(serie('x'));
+    await ana.apagarTudo();
+    const restam = (await kv.chaves()).filter((c) => c.startsWith('treinos:'));
+    expect([...restam].sort()).toEqual([...mantidas, 'treinos:bia:favoritos'].sort());
+    expect(await ana.listar()).toEqual([]);
   });
 });

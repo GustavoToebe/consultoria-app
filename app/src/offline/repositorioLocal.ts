@@ -310,9 +310,17 @@ export interface RascunhoAtualizacao { questionarioVersaoId: string; respostas: 
 /** Chaves que o repositório chave-valor usa para um usuário. */
 export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
 
+/**
+ * O que não vai embora ao sair da conta: preferências de tela e "boas-vindas já vistas". São do usuário naquele
+ * aparelho, não têm dado pessoal, e a pessoa não deve refazer a escolha nem rever as boas-vindas a cada entrada.
+ * Os testes conferem as chaves reais (`chaveDasPreferencias`, `chaveBoasVindas`).
+ */
+export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'boasVindasVistas'];
+
 export async function apagarChavesDoUsuario(kv: ChaveValor, usuarioId: string): Promise<void> {
   const prefixo = prefixoDoUsuario(usuarioId);
-  await kv.apagar((await kv.chaves()).filter((c) => c.startsWith(prefixo)));
+  const ficam = new Set(SOBREVIVEM_AO_SAIR.map((nome) => `${prefixo}${nome}`));
+  await kv.apagar((await kv.chaves()).filter((c) => c.startsWith(prefixo) && !ficam.has(c)));
 }
 
 export function paraEnvio(r: RegistroLocal): RegistroEnvio {

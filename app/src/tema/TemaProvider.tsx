@@ -6,6 +6,7 @@ import { useColorScheme } from 'react-native';
 
 import type { Tema } from '../api/tipos';
 import {
+  chaveDasPreferencias,
   coresComContraste,
   fatorDoTexto,
   normalizarPreferencias,
@@ -56,8 +57,7 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       usuarioId
         ? criarArmazemDePreferencias(
             () => lerPreferencias(usuarioId),
-            (preferencias) => AsyncStorage.setItem(chave(usuarioId), JSON.stringify(preferencias)),
-            () => AsyncStorage.removeItem(chave(usuarioId)),
+            (preferencias) => AsyncStorage.setItem(chaveDasPreferencias(usuarioId), JSON.stringify(preferencias)),
           )
         : null,
     [usuarioId],
@@ -66,9 +66,6 @@ export function TemaProvider({ children }: { children: ReactNode }) {
     armazem?.iniciar();
     return () => armazem?.parar();
   }, [armazem]);
-  // Ao sair, a escolha vai embora do aparelho como o resto do que é da pessoa (favoritos, boas-vindas), no celular e na web.
-  const { aoSair } = sessao;
-  useEffect(() => aoSair(() => armazem?.apagar() ?? Promise.resolve()), [aoSair, armazem]);
   const preferencias = useSyncExternalStore(
     useCallback((aviso: () => void) => armazem?.assinar(aviso) ?? (() => undefined), [armazem]),
     () => armazem?.obter() ?? PREFERENCIAS_PADRAO,
@@ -123,11 +120,7 @@ export function useTema(): ValorTema {
   return valor;
 }
 
-function chave(usuarioId: string) {
-  return `treinos:${usuarioId}:preferencias`;
-}
-
 async function lerPreferencias(usuarioId: string): Promise<Preferencias> {
-  const atual = await AsyncStorage.getItem(chave(usuarioId));
+  const atual = await AsyncStorage.getItem(chaveDasPreferencias(usuarioId));
   return atual === null ? { ...PREFERENCIAS_PADRAO } : normalizarPreferencias(atual);
 }

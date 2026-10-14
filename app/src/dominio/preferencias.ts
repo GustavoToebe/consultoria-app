@@ -25,6 +25,9 @@ export interface Preferencias {
 }
 
 /** Valores que o cartão "Sem registro" oferece; a API aceita de 1 a 90. */
+/** Chave local por usuário. Fica no aparelho depois de sair da conta (ver `SOBREVIVEM_AO_SAIR` no repositório local). */
+export const chaveDasPreferencias = (usuarioId: string) => `treinos:${usuarioId}:preferencias`;
+
 export const OPCOES_DIAS_SEM_REGISTRO: readonly number[] = [3, 7, 14, 30];
 
 export const PREFERENCIAS_PADRAO: Preferencias = {

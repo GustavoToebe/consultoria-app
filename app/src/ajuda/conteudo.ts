@@ -215,7 +215,7 @@ const ALUNO: Guia = {
     { pergunta: 'Esqueci a senha.', resposta: 'Fale com o seu treinador.' },
     { pergunta: 'Errei a carga de uma série.', resposta: 'Abra o exercício e altere o valor no campo da série: o registro é atualizado.' },
     { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
-    { pergunta: 'Como vejo de novo as boas-vindas?', resposta: 'Elas aparecem uma vez no primeiro acesso, com três telas curtas que dá para pular. O mesmo conteúdo está no tutorial: em Conta, toque em "Ajuda, primeiros passos e tutorial".' },
+    { pergunta: 'Como vejo de novo as boas-vindas?', resposta: 'Elas aparecem uma vez em cada aparelho, no primeiro acesso, com três telas curtas que dá para pular. O mesmo conteúdo está no tutorial: em Conta, toque em "Ajuda, primeiros passos e tutorial".' },
     { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
   ],
 };

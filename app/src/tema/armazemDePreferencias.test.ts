@@ -121,42 +121,4 @@ describe('armazém de preferências', () => {
     armazem.escolher({ vibracao: false });
     expect(aviso).toHaveBeenCalledTimes(1);
   });
-
-  it('apagar espera a fila, remove o que estava salvo e não deixa escolha tardia recriar', async () => {
-    const primeira = adiavel<void>();
-    const ordem: string[] = [];
-    let chamada = 0;
-    const armazem = criarArmazemDePreferencias(
-      async () => SALVAS,
-      async (p) => {
-        if (++chamada === 1) await primeira.promessa;
-        ordem.push(`gravou:${p.tema}`);
-      },
-      async () => void ordem.push('removeu'),
-    );
-    armazem.iniciar();
-    await esperar();
-    armazem.escolher({ tema: 'ESCURO' });
-    const apagando = armazem.apagar();
-    armazem.escolher({ tema: 'SISTEMA' }); // depois de sair: vale na tela, mas não é gravado
-    expect(ordem).toEqual([]);
-    primeira.resolver();
-    await apagando;
-    await esperar();
-    expect(ordem).toEqual(['gravou:ESCURO', 'removeu']);
-  });
-
-  it('apagar falhando não estoura e a leitura em andamento é descartada', async () => {
-    const leitura = adiavel<Preferencias>();
-    const armazem = criarArmazemDePreferencias(
-      () => leitura.promessa,
-      async () => undefined,
-      () => Promise.reject(new Error('sem acesso')),
-    );
-    armazem.iniciar();
-    await expect(armazem.apagar()).resolves.toBeUndefined();
-    leitura.resolver(SALVAS);
-    await esperar();
-    expect(armazem.obter()).toEqual(PREFERENCIAS_PADRAO);
-  });
 });
