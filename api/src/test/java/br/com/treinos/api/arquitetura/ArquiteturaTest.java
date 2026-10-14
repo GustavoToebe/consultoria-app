@@ -1,6 +1,7 @@
 package br.com.treinos.api.arquitetura;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import br.com.plataforma.comum.teste.RegrasDeArquitetura;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaMethod;
@@ -13,9 +14,7 @@ import jakarta.persistence.Entity;
 import org.hibernate.annotations.TenantId;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -29,9 +28,6 @@ import java.util.stream.Collectors;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS;
-import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_USE_FIELD_INJECTION;
-import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING;
 
 /**
  * Regras de arquitetura que viraram teste (como o {@code ArquiteturaTest} da Central). Exceção nova entra numa
@@ -56,9 +52,16 @@ class ArquiteturaTest {
      * {@code AnonimizacaoRepositorio} (anonimização do aluno: limpa texto livre de {@code execucao_serie} e títulos de versões,
      * que a JPA trata como imutáveis; todo método filtra {@code consultoria_id} e {@code aluno_id}).
      */
-    private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of("ContadorBanco", "ExecucaoUpsert",
-            "LogoRepositorio", "ConviteBusca", "ConviteEquipeBusca", "AuditoriaGravacao", "ContaLocalRepositorio", "IntegracaoRepositorio",
-            "AnonimizacaoRepositorio");
+    private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of(
+            "br.com.treinos.api.auth.ContadorBanco",
+            "br.com.treinos.api.execucao.ExecucaoUpsert",
+            "br.com.treinos.api.consultoria.LogoRepositorio",
+            "br.com.treinos.api.alunos.ConviteBusca",
+            "br.com.treinos.api.equipe.ConviteEquipeBusca",
+            "br.com.treinos.api.auditoria.AuditoriaGravacao",
+            "br.com.treinos.api.conta.ContaLocalRepositorio",
+            "br.com.treinos.api.integracao.IntegracaoRepositorio",
+            "br.com.treinos.api.privacidade.AnonimizacaoRepositorio");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario} e
@@ -81,8 +84,8 @@ class ArquiteturaTest {
 
     @Test
     void listasDeExcecaoSoCitamClassesQueExistem() {
+        RegrasDeArquitetura.exigirQueAsExcecoesExistem(codigo, "SQL_NATIVO_PERMITIDO", SQL_NATIVO_PERMITIDO);
         Set<String> todas = codigo.stream().map(JavaClass::getSimpleName).collect(Collectors.toSet());
-        org.assertj.core.api.Assertions.assertThat(todas).as("SQL_NATIVO_PERMITIDO").containsAll(SQL_NATIVO_PERMITIDO);
         org.assertj.core.api.Assertions.assertThat(todas).as("ENTIDADES_GLOBAIS").containsAll(ENTIDADES_GLOBAIS);
         org.assertj.core.api.Assertions.assertThat(todas).as("CONTROLLERS_PUBLICOS").containsAll(CONTROLLERS_PUBLICOS);
     }
@@ -142,61 +145,22 @@ class ArquiteturaTest {
 
     @Test
     void sqlNativoSoNasClassesPermitidas() {
-        DescribedPredicate<JavaClass> foraDaLista = DescribedPredicate.describe("não estão em SQL_NATIVO_PERMITIDO",
-                (JavaClass c) -> !SQL_NATIVO_PERMITIDO.contains(c.getSimpleName()));
-        noClasses().that(foraDaLista)
-                .should().dependOnClassesThat().haveFullyQualifiedName("org.springframework.jdbc.core.JdbcTemplate")
-                .orShould().dependOnClassesThat().haveFullyQualifiedName("org.springframework.jdbc.core.simple.JdbcClient")
-                .orShould().dependOnClassesThat()
-                .haveFullyQualifiedName("org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate")
-                .orShould().callMethod(jakarta.persistence.EntityManager.class, "createNativeQuery", String.class)
-                .orShould().callMethod(jakarta.persistence.EntityManager.class, "createNativeQuery", String.class,
-                        Class.class)
-                .because("@TenantId não protege SQL nativo; toda consulta nativa filtra a consultoria à mão")
-                .check(codigo);
-        noClasses().that(foraDaLista)
-                .should(new ArchCondition<>("declarar @Query(nativeQuery = true)") {
-                    @Override
-                    public void check(JavaClass c, ConditionEvents eventos) {
-                        c.getMethods().stream()
-                                .filter(m -> m.isAnnotatedWith(Query.class) && m.getAnnotationOfType(Query.class).nativeQuery())
-                                .forEach(m -> eventos.add(SimpleConditionEvent.satisfied(m, m.getFullName() + " usa SQL nativo")));
-                    }
-                })
-                .check(codigo);
+        RegrasDeArquitetura.sqlNativoSoEm(SQL_NATIVO_PERMITIDO).check(codigo);
     }
 
     @Test
     void controllerSoFalaComService() {
-        noClasses().that().areAnnotatedWith(RestController.class)
-                .should().dependOnClassesThat().haveSimpleNameEndingWith("Repository")
-                .orShould().dependOnClassesThat().haveFullyQualifiedName("jakarta.persistence.EntityManager")
-                .orShould().dependOnClassesThat().haveFullyQualifiedName("org.springframework.jdbc.core.JdbcTemplate")
-                .because("regra de negócio e transação ficam no service")
-                .check(codigo);
+        RegrasDeArquitetura.CONTROLLER_SO_FALA_COM_SERVICE.check(codigo);
     }
 
     @Test
     void controllerNaoAbreTransacao() {
-        noClasses().that().areAnnotatedWith(RestController.class)
-                .should().beAnnotatedWith(Transactional.class)
-                .check(codigo);
-        noClasses().that().areAnnotatedWith(RestController.class)
-                .should(new ArchCondition<>("ter método @Transactional") {
-                    @Override
-                    public void check(JavaClass c, ConditionEvents eventos) {
-                        c.getMethods().stream().filter(m -> m.isAnnotatedWith(Transactional.class))
-                                .forEach(m -> eventos.add(SimpleConditionEvent.satisfied(m, m.getFullName() + " é @Transactional")));
-                    }
-                })
-                .check(codigo);
+        RegrasDeArquitetura.CONTROLLER_NAO_ABRE_TRANSACAO.check(codigo);
     }
 
     @Test
     void serviceERepositorioNaoDependemDeController() {
-        noClasses().that().areNotAnnotatedWith(RestController.class)
-                .should().dependOnClassesThat().areAnnotatedWith(RestController.class)
-                .check(codigo);
+        RegrasDeArquitetura.NADA_DEPENDE_DE_CONTROLLER.check(codigo);
     }
 
     @Test
@@ -216,17 +180,14 @@ class ArquiteturaTest {
 
     @Test
     void jacksonTresNoCodigo() {
-        noClasses().should().dependOnClassesThat()
-                .resideInAnyPackage("com.fasterxml.jackson.databind..", "com.fasterxml.jackson.core..")
-                .because("o projeto usa Jackson 3 (tools.jackson.*); de com.fasterxml só as anotações e o motor do jjwt")
-                .check(codigo);
+        RegrasDeArquitetura.JACKSON_TRES.check(codigo);
     }
 
     @Test
     void injecaoPorConstrutorELogPorSlf4j() {
-        NO_CLASSES_SHOULD_USE_FIELD_INJECTION.check(codigo);
-        NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING.check(codigo);
-        NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS.check(codigo);
+        RegrasDeArquitetura.SEM_INJECAO_POR_CAMPO.check(codigo);
+        RegrasDeArquitetura.SEM_JAVA_UTIL_LOGGING.check(codigo);
+        RegrasDeArquitetura.SEM_SAIDA_PADRAO.check(codigo);
     }
 
     private static boolean eRota(JavaMethod m) {
