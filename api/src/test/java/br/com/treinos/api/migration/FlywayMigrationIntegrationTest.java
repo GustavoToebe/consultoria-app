@@ -22,8 +22,8 @@ class FlywayMigrationIntegrationTest extends AbstractIntegrationTest {
         List<String> descricoes = jdbcTemplate.queryForList(
                 "select description from flyway_schema_history where type = 'SQL' order by installed_rank",
                 String.class);
-        assertThat(total).isEqualTo(3);
-        assertThat(descricoes).containsExactly("inicial", "catalogo taco", "catalogo exercicios ptbr");
+        assertThat(total).isEqualTo(4);
+        assertThat(descricoes).containsExactly("inicial", "catalogo taco", "catalogo exercicios ptbr", "aceite termo");
     }
 
     @Test

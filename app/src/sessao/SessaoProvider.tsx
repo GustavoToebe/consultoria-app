@@ -22,9 +22,14 @@ interface Perfil {
   permissoes?: string[];
   usuario: UsuarioResumo;
   marca: Marca;
+  /** Termo de uso e aviso de privacidade ainda sem aceite na versão vigente (guardado para abrir offline). */
+  termosPendentes?: boolean;
 }
 
 interface ValorSessao {
+  /** Pendente de aceite: o app só mostra a tela dos termos até aceitar. */
+  termosPendentes: boolean;
+  aceitarTermos: (versao: string) => Promise<void>;
   perfilEquipe: PerfilDaEquipe | null;
   pode: (codigo:string) => boolean;
   recarregarPerfil: () => Promise<void>;
@@ -60,8 +65,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
 
   const abrir = useCallback(async (resposta: LoginResponse) => {
     await guardarSessao(resposta);
-    const eu = resposta.usuario.papel === 'TREINADOR' ? await rotas.eu() : null;
-    const novo: Perfil = eu ? {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes} : {usuario:resposta.usuario,marca:resposta.marca};
+    const eu = await rotas.eu();
+    const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;
     setPerfil(novo);
     setOffline(false);
@@ -153,12 +158,24 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     const atual=perfilAtual.current;if(!atual || atual.usuario.papel!=='TREINADOR') return;
     const eu=await rotas.eu();
     if(perfilAtual.current?.usuario.id!==eu.usuario.id) return;
-    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes};
+    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;setPerfil(novo);
     await AsyncStorage.setItem(CHAVE_PERFIL,JSON.stringify(novo)).catch(()=>undefined);
   },[]);
+  const aceitarTermos = useCallback(async (versao: string) => {
+    await rotas.aceitarTermos(versao);
+    setPerfil((atual) => {
+      if (!atual) return atual;
+      const novo = { ...atual, termosPendentes: false };
+      perfilAtual.current = novo;
+      AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+      return novo;
+    });
+  }, []);
   const valor = useMemo<ValorSessao>(
     () => ({
+      termosPendentes: perfil?.termosPendentes ?? false,
+      aceitarTermos,
       perfilEquipe:perfil?.perfil??null,
       aceitarConviteEquipe:async(codigo,senha)=>abrir(await rotas.aceitarConviteEquipe(codigo,senha)),
       pode:(codigo)=>conferirPermissao(perfil?.permissoes,codigo),
@@ -194,7 +211,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         };
       },
     }),
-    [situacao, perfil, offline, abrir, encerrarLocal,recarregarPerfil],
+    [situacao, perfil, offline, abrir, encerrarLocal,recarregarPerfil,aceitarTermos],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

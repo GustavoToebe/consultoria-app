@@ -15,8 +15,8 @@ describe('catálogo de telas', () => {
     const tudo = telasPermitidas(com(ADMIN));
     expect(ids(tudo)).toEqual(expect.arrayContaining(['inicio', 'novo-aluno', 'novo-modelo', 'convidar-membro', 'atualizacoes-revisar', 'auditoria']));
     const assistente = telasPermitidas(com(['PAINEL_VER', 'ALUNO_LER', 'BIBLIOTECA_LER', 'MODELO_LER']));
-    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'planejamento', 'biblioteca', 'ajuda', 'meus-dados', 'ajustes']);
-    expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'meus-dados', 'ajustes']);
+    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'planejamento', 'biblioteca', 'ajuda', 'termos', 'meus-dados', 'ajustes']);
+    expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'termos', 'meus-dados', 'ajustes']);
   });
 
   it('Medicação e ergogênicos só aparece e só é achado com ERGOGENICO_LER', () => {

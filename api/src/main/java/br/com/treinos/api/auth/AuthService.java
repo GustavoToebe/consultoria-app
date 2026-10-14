@@ -10,6 +10,8 @@ import br.com.treinos.api.security.DestinoCliente;
 import br.com.treinos.api.security.JwtService;
 import br.com.treinos.api.security.OpaqueTokenGenerator;
 import br.com.treinos.api.security.UsuarioAutenticado;
+import br.com.treinos.api.termos.Termos;
+import br.com.treinos.api.termos.TermosService;
 import br.com.treinos.api.web.BadRequestException;
 import br.com.treinos.api.web.Emails;
 import br.com.treinos.api.web.NaoAutorizadoException;
@@ -33,6 +35,7 @@ public class AuthService {
     private final br.com.treinos.api.equipe.PerfilRepository perfis;
     private final br.com.treinos.api.equipe.PermissoesDoUsuario permissoes;
     private final AcessoPorDireitos acesso;
+    private final TermosService termos;
 
     /**
      * Hash de uma senha aleatória, calculado uma vez. Com e-mail inexistente o BCrypt roda contra ele: a resposta
@@ -42,8 +45,9 @@ public class AuthService {
 
     public AuthService(UsuarioRepository usuarios, ConsultoriaRepository consultorias, AlunoRepository alunos,
                        PasswordEncoder passwordEncoder, JwtService jwtService, RefreshTokenService refreshTokens,br.com.treinos.api.equipe.PerfilRepository perfis,
-                       br.com.treinos.api.equipe.PermissoesDoUsuario permissoes, AcessoPorDireitos acesso) {
-        this.perfis=perfis;this.permissoes=permissoes;this.acesso=acesso;
+                       br.com.treinos.api.equipe.PermissoesDoUsuario permissoes, AcessoPorDireitos acesso,
+                       TermosService termos) {
+        this.perfis=perfis;this.permissoes=permissoes;this.acesso=acesso;this.termos=termos;
         this.usuarios = usuarios;
         this.consultorias = consultorias;
         this.alunos = alunos;
@@ -101,7 +105,8 @@ public class AuthService {
         var perfil=usuario.getPerfilId()==null ? null : perfis.buscar(usuario.getPerfilId(),usuario.getConsultoriaId())
                 .map(p -> new EuResponse.PerfilResumo(p.getId(),p.getNome(),p.isAcessoTotal())).orElse(null);
         return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno,perfil,
-                usuario.getPapel()==Papel.TREINADOR ? permissoes.codigos(usuario) : null);
+                usuario.getPapel()==Papel.TREINADOR ? permissoes.codigos(usuario) : null,
+                termos.pendente(usuario.getId()), Termos.VERSAO);
     }
 
     /**

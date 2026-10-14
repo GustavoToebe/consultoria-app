@@ -8,6 +8,11 @@ export function textoDoErro(erro: unknown): string {
   return 'Algo deu errado. Tente de novo.';
 }
 
+/** Falta de conexão (a requisição nem chegou à API). */
+export function erroDeConexao(erro: unknown): boolean {
+  return erro instanceof ErroApi && erro.semConexao;
+}
+
 /** Erros por campo da API (`fieldErrors`), indexados pelo nome do campo. */
 export function errosPorCampo(erro: unknown): Record<string, string> {
   const mapa: Record<string, string> = {};

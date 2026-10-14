@@ -32,6 +32,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'equipe', rotulo: 'Equipe', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['membros', 'usuarios', 'perfis', 'permissoes', 'convites'], permissao: null },
   { id: 'auditoria', rotulo: 'Auditoria', secao: 'Consultoria', href: '/treinador/auditoria', palavras: ['historico', 'registro de acoes', 'log', 'eventos'], permissao: null },
   { id: 'ajuda', rotulo: 'Ajuda', secao: 'Ajuda', href: '/treinador/ajuda', palavras: ['guia', 'tutorial', 'suporte', 'duvidas', 'perguntas'], permissao: null },
+  { id: 'termos', rotulo: 'Termos e privacidade', secao: 'Ajuda', href: '/treinador/termos', palavras: ['termo de uso', 'aviso de privacidade', 'lgpd', 'dados pessoais', 'politica'], permissao: null },
   { id: 'meus-dados', rotulo: 'Meus dados', secao: 'Conta', href: '/treinador/meus-dados', palavras: ['nome', 'email', 'telefone', 'senha', 'trocar senha', 'perfil', 'sair'], permissao: null },
   { id: 'minha-conta', rotulo: 'Minha conta', secao: 'Conta', href: '/treinador/minha-conta', palavras: ['plano', 'meu plano', 'financeiro', 'cobrancas', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'ajustes', rotulo: 'Ajustes', secao: 'Conta', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
@@ -135,6 +136,7 @@ const TITULOS_DE_SUBTELAS: readonly [string, string][] = [
   ['/treinador/meus-dados', 'Meus dados'],
   ['/treinador/ajustes', 'Ajustes'],
   ['/treinador/minha-conta', 'Minha conta'],
+  ['/treinador/termos', 'Termos e privacidade'],
 ];
 
 /** Nome da tela do caminho atual para a barra de topo; `null` quando não se sabe (a barra mostra só a consultoria). */

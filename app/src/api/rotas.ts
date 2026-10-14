@@ -25,6 +25,7 @@ import type {
   ConvitePublico,
   DiaDeTreino,
   EuResponse,
+  TermosVigentes,
   Exercicio,
   ExercicioRequest,
   Fonte,
@@ -134,6 +135,11 @@ export const cadastrarTreinador = (dados: { nomeConsultoria: string; nome: strin
   requisicao<LoginResponse>('/auth/cadastro-treinador', { metodo: 'POST', corpo: dados, semRenovar: true });
 
 export const eu = () => requisicao<EuResponse>('/eu');
+
+export const termos = () => requisicao<TermosVigentes>('/termos');
+
+export const aceitarTermos = (versao: string) =>
+  requisicao<TermosVigentes>('/termos/aceite', { metodo: 'POST', corpo: { versao } });
 
 export const trocarSenha = (senhaAtual: string, senhaNova: string) =>
   requisicao<LoginResponse>('/eu/senha', { metodo: 'PUT', corpo: { senhaAtual, senhaNova } });

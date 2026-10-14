@@ -123,9 +123,9 @@ class ArquiteturaTest {
     @Test
     void rotaDaEquipeDeclaraPermissao() {
         classes().that().areAnnotatedWith(RestController.class)
-                .and(DescribedPredicate.describe("rotas da equipe (exceto /eu compartilhado e rotas públicas/aluno)",
+                .and(DescribedPredicate.describe("rotas da equipe (exceto /eu e /termos, compartilhados com o aluno, e rotas públicas/aluno)",
                         (JavaClass c) -> !CONTROLLERS_PUBLICOS.contains(c.getSimpleName())
-                                && !Set.of("EuController", "AlunoAppController", "AtualizacaoAlunoController").contains(c.getSimpleName())))
+                                && !Set.of("EuController", "TermosController", "AlunoAppController", "AtualizacaoAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

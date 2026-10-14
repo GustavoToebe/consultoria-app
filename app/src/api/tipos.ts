@@ -41,6 +41,22 @@ export interface EuResponse {
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string };
+  termosPendentes: boolean;
+  termosVersao: string;
+}
+
+export interface DocumentoDeTermos {
+  id: 'TERMO_USO' | 'AVISO_PRIVACIDADE';
+  titulo: string;
+  texto: string;
+}
+
+/** Termo de uso e aviso de privacidade vigentes; `rascunho` = ainda sem revisão do advogado. */
+export interface TermosVigentes {
+  versao: string;
+  rascunho: boolean;
+  aceito: boolean;
+  documentos: DocumentoDeTermos[];
 }
 
 export interface ConvitePublico {

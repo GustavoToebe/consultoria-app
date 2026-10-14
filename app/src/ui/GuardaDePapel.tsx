@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { Papel } from '../api/tipos';
 import { useSessao } from '../sessao/SessaoProvider';
 import { Carregando } from './Estados';
+import { GuardaDeTermos } from './GuardaDeTermos';
 import { Tela } from './Tela';
 
 /**
@@ -25,5 +26,5 @@ export function GuardaDePapel({ papel, children }: { papel: Papel; children: Rea
   if (usuario.papel !== papel) {
     return <Redirect href="/" />;
   }
-  return <>{children}</>;
+  return <GuardaDeTermos>{children}</GuardaDeTermos>;
 }

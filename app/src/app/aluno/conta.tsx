@@ -21,6 +21,7 @@ export default function ContaAluno() {
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Conta e preferências" />
       <LinkTexto href="/aluno/ajuda" texto="Ajuda, primeiros passos e tutorial" />
+      <LinkTexto href="/aluno/termos" texto="Termos e privacidade" />
       <PainelConta
         avisoAoSair={
           naoEnviados
