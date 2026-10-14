@@ -7,6 +7,7 @@ import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtu
 import {
   agruparProblemas, alterarInstrucoes, descricaoDoLocal, previaDeAtualizacao, type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
+import { textoDoSalvo } from '../../dominio/estadoDoRascunho';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { LIMITES_QUESTIONARIO as L, type ProblemaDoQuestionario } from '../../dominio/questionario';
 import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
@@ -71,7 +72,7 @@ export function EditorQuestionario({ id }: { id: string }) {
   const editavel = pode('QUESTIONARIO_ALTERAR') && !d.arquivado;
   const abaAtiva = editavel ? aba : 'previa';
   const agrupados: ProblemasAgrupados = agruparProblemas(e.conteudo, problemas ?? []);
-  const situacao = SITUACOES[editor.situacao];
+  const situacao = editor.situacao === 'salvo' ? { ...SITUACOES.salvo, texto: textoDoSalvo(editor.salvoAs, SITUACOES.salvo.texto) } : SITUACOES[editor.situacao];
   const previa = previaDeAtualizacao(e.conteudo);
 
   const alternar = (pid: string) => setAbertas((a) => { const novo = new Set(a); if (novo.has(pid)) novo.delete(pid); else novo.add(pid); return novo; });

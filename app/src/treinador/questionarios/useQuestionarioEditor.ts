@@ -39,6 +39,8 @@ export function useQuestionarioEditor(id: string | undefined) {
   const [rodada, setRodada] = useState(0);
   const [salvando, setSalvando] = useState(false);
   const [erroSalvar, setErroSalvar] = useState<{ tipo: 'erro' | 'conflito'; mensagem: string } | null>(null);
+  /** Quando o último salvamento desta tela terminou; nulo = ainda não salvou aqui. */
+  const [salvoAs, setSalvoAs] = useState<Date | null>(null);
 
   const atual = useRef<Estado | null>(null);
   const versao = useRef(0);
@@ -61,6 +63,7 @@ export function useQuestionarioEditor(id: string | undefined) {
         if (!vivo) return;
         setErroCarga(null);
         setErroSalvar(null);
+        setSalvoAs(null);
         aplicarDetalhe(d);
       },
       (e: unknown) => vivo && setErroCarga(e),
@@ -87,6 +90,7 @@ export function useQuestionarioEditor(id: string | undefined) {
         (d) => {
           versao.current = d.versao;
           setErroSalvar(null);
+          setSalvoAs(new Date());
           setEstado((s) => (s ? { ...s, detalhe: d, salvoEm: Math.max(s.salvoEm, enviada) } : s));
           if (atual.current) atual.current = { ...atual.current, salvoEm: enviada };
           return true;
@@ -144,6 +148,7 @@ export function useQuestionarioEditor(id: string | undefined) {
     estado,
     erroCarga,
     situacao,
+    salvoAs,
     /** Mensagem do último erro ao salvar (nome vazio, nome repetido, rascunho grande demais, conflito…). */
     mensagemDeErro: erroSalvar?.mensagem ?? null,
     pendente,

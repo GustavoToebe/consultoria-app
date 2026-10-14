@@ -43,6 +43,8 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
   const [rodada, setRodada] = useState(0);
   const [salvando, setSalvando] = useState(false);
   const [erroSalvar, setErroSalvar] = useState<'erro' | 'conflito' | null>(null);
+  /** Quando o último salvamento desta tela terminou; nulo = ainda não salvou aqui. */
+  const [salvoAs, setSalvoAs] = useState<Date | null>(null);
 
   const atual = useRef<Estado<C> | null>(null);
   const versao = useRef(0);
@@ -76,6 +78,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
         if (!vivo) return;
         setErroCarga(null);
         setErroSalvar(null);
+        setSalvoAs(null);
         aplicarDetalhe(d);
       },
       (e: unknown) => vivo && setErroCarga(e),
@@ -110,6 +113,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
         (d) => {
           versao.current = d.plano.versao;
           setErroSalvar(null);
+          setSalvoAs(new Date());
           // Em pasta o servidor ignora o período enviado e usa o da pasta: a tela passa a mostrar o que ele guardou.
           const daPasta = d.plano.pastaId ? { inicio: dataParaTela(d.plano.inicio), fim: dataParaTela(d.plano.fim) } : {};
           setEstado((s) => (s ? { ...s, ...daPasta, plano: d.plano, versoes: d.versoes, salvoEm: Math.max(s.salvoEm, enviada) } : s));
@@ -179,6 +183,7 @@ export function usePlanoEditor<C>(tipo: TipoPlano, id: string | undefined, norma
     estado,
     erroCarga,
     situacao,
+    salvoAs,
     /** Há alteração que o servidor ainda não tem. */
     pendente,
     alterar,

@@ -17,6 +17,8 @@ import { MensagemErro } from '../../ui/Estados';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
+import { textoDoSalvo } from '../../dominio/estadoDoRascunho';
+import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
@@ -32,6 +34,7 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState<unknown>(null);
   // Nada é salvo sozinho: qualquer mudança fica pendente até "Salvar modelo" e sair da tela pergunta antes.
   const [pendente, setPendente] = useState(false);
+  const [salvoAs, setSalvoAs] = useState<Date | null>(null);
   useGuardaDeSaida(pendente);
   const mudarConteudo: typeof setConteudo = (c) => { setConteudo(c); setPendente(true); };
   const [adicionar, setAdicionar] = useState<'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE' | null>(null);
@@ -39,7 +42,7 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
   const salvar = async (novoConteudo = conteudo) => {
     if (!nome.trim()) throw new Error('Preencha o nome do modelo.');
     setSalvando(true); setErro(null);
-    try { await alterarReceita(r.id, { ...r, nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'SERIES' ? seriesParaReceita((novoConteudo as { series: ReturnType<typeof seriesDaReceita> }).series) : r.tipo === 'MOBILIDADE' ? mobilidadeParaApi(novoConteudo as ConteudoMobilidade) : novoConteudo }); setPendente(false); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
+    try { await alterarReceita(r.id, { ...r, nome: nome.trim(), descricao: descricao.trim() || null, conteudo: r.tipo === 'SERIES' ? seriesParaReceita((novoConteudo as { series: ReturnType<typeof seriesDaReceita> }).series) : r.tipo === 'MOBILIDADE' ? mobilidadeParaApi(novoConteudo as ConteudoMobilidade) : novoConteudo }); setPendente(false); setSalvoAs(new Date()); avisar('Modelo salvo.', 'sucesso'); aoRecarregar(); }
     catch (e) { setErro(e); throw e; } finally { setSalvando(false); }
   };
   const pasta = conteudo as ConteudoPastaModelo;
@@ -50,6 +53,7 @@ export function EditorModelo({ receita: r, aoRecarregar }: { receita: Receita; a
     <Cartao titulo="Modelo reutilizável" descricao="Salve as alterações antes de sair. Os planos dos alunos permanecem iguais.">
       <Campo rotulo="Nome do modelo" valor={nome} aoMudar={(v) => { setNome(v); setPendente(true); }} maxLength={120} />
       <Campo rotulo="Descrição" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={400} />
+      <Selo texto={salvando ? 'Salvando…' : pendente ? 'Alterações não salvas' : textoDoSalvo(salvoAs)} tipo={salvando ? 'neutro' : pendente ? 'atencao' : 'sucesso'} />
     </Cartao>
     {r.tipo === 'METODOLOGIA' ? <CartaoMetodologia configuracao={conteudo as Configuracao} aoSalvar={salvar} /> : null}
     {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={CONFIGURACAO_PADRAO} aoMudar={(series) => mudarConteudo({ series })} /> : null}

@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { Problema, ResultadoValidacao, TipoPlano } from '../../api/tipos';
 import { localizar } from '../../dominio/caminhos';
+import { textoDoSalvo } from '../../dominio/estadoDoRascunho';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
@@ -48,7 +49,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas }: Props<C>)
   const [avisos, setAvisos] = useState<Problema[] | null>(null);
   const e = editor.estado;
   if (!e) return null;
-  const situacao = SITUACOES[editor.situacao];
+  const situacao = editor.situacao === 'salvo' ? { ...SITUACOES.salvo, texto: textoDoSalvo(editor.salvoAs, SITUACOES.salvo.texto) } : SITUACOES[editor.situacao];
   const ultima = e.versoes[e.versoes.length - 1];
 
   const validar = () => {
