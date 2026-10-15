@@ -47,7 +47,8 @@ Gerar um segredo: `openssl rand -base64 48`.
   adota a consultoria errada**. Por isso uma consultoria já ligada a uma contratação recusa outra
   (`409 CONSULTORIA_JA_VINCULADA`). E-mail de aluno ou de usuário inativo: `422 ADMINISTRADOR_INVALIDO`. Slug já usado:
   `422 SLUG_EM_USO`.
-- **Primeiro acesso por link, sem e-mail.** O app não envia e-mail. Consultoria nova ganha um convite de administrador
+- **Primeiro acesso por link, sem e-mail.** O convite do provisionamento **não** é enviado por e-mail (o app já envia "esqueci a
+  senha" e o convite de equipe, mas não este). Consultoria nova ganha um convite de administrador
   (válido 7 dias). O link (`{APP_URL}/convite-equipe#código`) vem **uma única vez**, na primeira resposta, em
   `administrador.convite` (campo aditivo; a Central ignora o que não conhece). Não é gravado em repouso e não volta numa
   repetição idempotente. Para ver de novo: `POST /integracao/v1/instancias/{tenantId}/convite-administrador` (extensão do
@@ -77,17 +78,22 @@ Gerar um segredo: `openssl rand -base64 48`.
 
 ## 5. Como ligar (lado da Central e deste app)
 
-1. **Central: cadastrar o produto** `TREINOS` com `url_base_integracao` = URL pública da API do Saraiva (ex.:
-   `https://treinos.exemplo.com.br/api`, a mesma que a Central alcança). A Central assina só o caminho que vem **depois**
-   dessa base, e o Caddy do Saraiva tira o `/api`: os dois lados enxergam `/integracao/v1/...`.
+1. **Central: cadastrar o produto** `TREINOS` com `url_base_integracao` = URL que a Central alcança. Na VPS é a **interna**,
+   pela rede Docker `plataforma`: `http://consultoria-api:8080` (sem `/api`, sem passar pelo Caddy; a Central não valida a URL).
+   Fora da VPS, a pública (ex.: `https://treinos.exemplo.com.br/api`). A Central assina só o caminho que vem **depois**
+   dessa base, e o Caddy tira o `/api`: os dois lados enxergam `/integracao/v1/...`.
 2. **Chave de entrada (Central → Saraiva).** A Central usa **uma chave de saída global**, a mesma para todos os produtos.
    Então `TREINOS_INTEGRACAO_CHAVES_ENTRADA` do Saraiva tem de ser `id:segredo` **idêntico** ao que o Servirea já usa para
    validar a Central (peça ao operador da Central o par; não crie um novo, senão a Central não consegue assinar).
 3. **Chave de saída (Saraiva → Central).** Gerar `id` + segredo novos e cadastrar na Central como chave de entrada
-   do produto no formato `id:segredoBase64:TREINOS`. O terceiro campo é obrigatório: sem ele a Central o trata como Servirea
-   em silêncio.
-4. A Central precisa **alcançar** a API do Saraiva (HTTPS público ou rede privada) e o Saraiva precisa alcançar a Central.
-5. Definir as variáveis da seção 2 e `TREINOS_INTEGRACAO_ATIVA=true`. Reiniciar a API. No log aparece
+   do produto no formato `id:segredoBase64:TREINOS`. O terceiro campo é obrigatório: a Central não sobe com uma entrada
+   de dois campos, e o produto vem sempre da configuração dela, nunca do pedido.
+   **Na VPS não se faz nada à mão** (2 e 3): `deploy/apps/consultoria/ligar-integracao.sh`, do `central-api-back`, copia a
+   chave da Central para o `consultoria.env`, gera a chave `treinos`, grava `treinos:<segredo>:TREINOS` no `central.env`
+   e liga `TREINOS_INTEGRACAO_ATIVA=true`, sem que ninguém veja ou digite as chaves (`deploy/README.md`, seção 12).
+4. A Central precisa **alcançar** a API do Saraiva (HTTPS público ou rede privada) e o Saraiva precisa alcançar a Central
+   (na VPS: `http://central-api:8081`, sem prefixo, pela rede `plataforma`).
+5. Definir as variáveis da seção 2 e `TREINOS_INTEGRACAO_ATIVA=true`. Recriar a API (`deploy/recriar.sh`). No log aparece
    "Sincronização de direitos: ...".
 6. Testar: `GET /integracao/v1/saude` assinado; provisionar uma contratação de teste na Central e abrir o link do convite.
 7. Códigos de `limites` e `funcionalidades` a cadastrar no produto na Central: `GET /integracao/v1/recursos` os lista
@@ -101,7 +107,9 @@ e o `atualizar.sh` estão em `central-api-back/deploy` (`apps/consultoria/`, `pr
 
 - Perfil `docker` (sem `demo`, sem `DEMO_SENHA`); `REFRESH_COOKIE_SECURE=true` e `REFRESH_COOKIE_PATH=/api/auth` fixos no compose;
   `APP_URL` e `CORS_ALLOWED_ORIGINS` = `https://consultoria.servirea.com.br` no `consultoria.env` da VPS.
-- A integração fica desligada (`TREINOS_INTEGRACAO_ATIVA=false`) até a Central ter o produto `TREINOS` cadastrado (seção 5).
+- A integração fica desligada (`TREINOS_INTEGRACAO_ATIVA=false`) até o `ligar-integracao.sh` rodar na VPS (seção 5); ele a liga **antes**
+  de o produto ser cadastrado na Central, porque com a flag desligada todo `/integracao/**` responde 503, inclusive à tela da Central.
+  O bloqueio por direitos (`TREINOS_INTEGRACAO_BLOQUEIO_ATIVO`) continua desligado.
 - `/api/integracao/*` passa pelo `/api` do proxy; o IP da Central não entra em lista nenhuma: a defesa é a assinatura.
 - Cada push na `main` publica: o workflow só chama a VPS depois de `testar` e das duas imagens (Trivy) verdes.
 - Backup do Postgres inclui `integracao_operacao` (histórico de idempotência). Fase 7: backup antes de qualquer aluno real.
@@ -109,7 +117,7 @@ e o `atualizar.sh` estão em `central-api-back/deploy` (`apps/consultoria/`, `pr
 ## 7. Fora de escopo (não feito)
 
 - Código de suporte (`/suporte`), endpoint de consumo para a Central (`/consumo`) e relatório de erros (`/erros`).
-- Envio de e-mail (convite sai como link).
+- Envio por e-mail do convite do provisionamento (sai como link na resposta; "esqueci a senha" e o convite de equipe já saem por e-mail).
 - Aplicação dos `limites` e das `funcionalidades` (o contrato chama de "aplicação futura").
 
 ## 8. Testes
