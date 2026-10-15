@@ -20,6 +20,11 @@
     <properties>
         <!-- Java, Error Prone, JaCoCo, Surefire e a imagem do Postgres dos testes vêm do plataforma-parent. -->
         <cobertura.minima.linhas>0.70</cobertura.minima.linhas>
+        <!-- Trivy (Fase 6): correções de patch já publicadas para o que o Spring Boot 4.1.1 traz (Tomcat 11.0.24, Jackson 2.21.5 e 3.1.5).
+             Remover quando o plataforma-parent subir o Spring Boot para uma versão que já as inclua. -->
+        <tomcat.version>11.0.25</tomcat.version>
+        <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
+        <jackson-bom.version>3.1.7</jackson-bom.version>
     </properties>
 
     <repositories>

@@ -1,0 +1,7 @@
+# Binário do Caddy da imagem oficial caddy:2-alpine (Go stdlib 1.26.8 / x/net 0.59.0): negação de serviço no servidor
+# HTTP, com correção publicada (Go 1.26.9 / x/net 0.60.0) que a imagem oficial ainda não incorporou. Este contêiner só serve
+# arquivos estáticos, não publica porta e só recebe tráfego do proxy da VPS. A validade (exp) faz o Trivy voltar a
+# bloquear sozinho: ao vencer, refaça a imagem (a base é puxada de novo a cada build) ou renove com nova justificativa.
+CVE-2026-78667 exp:2026-11-14
+CVE-2026-78669 exp:2026-11-14
+CVE-2026-97031 exp:2026-11-14
