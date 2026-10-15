@@ -1,0 +1,214 @@
+name: Testar e publicar
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A VPS atualiza um aplicativo por vez (o mesmo grupo do deploy dos outros repositórios).
+concurrency:
+  group: producao
+  cancel-in-progress: false
+
+jobs:
+  testar-api:
+    permissions:
+      contents: read
+      packages: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Banco de produção (18) e o anterior (17), igual aos outros backends da plataforma.
+        postgres: ['postgres:18-alpine', 'postgres:17-alpine']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: api/pom.xml
+          server-id: github
+          server-username-env-var: GITHUB_ACTOR
+          server-password-env-var: GITHUB_TOKEN
+          settings-path: ${{ runner.temp }}/maven
+      - name: Testes (o Testcontainers sobe o Postgres)
+        working-directory: api
+        env:
+          # Maven privado herda permissões do repo produtor; leitura entre repos pode exigir PAT classic.
+          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN || secrets.GITHUB_TOKEN }}
+        run: mvn -s "$RUNNER_TEMP/maven/settings.xml" -B -q verify -Dplataforma.postgres.imagem=${{ matrix.postgres }}
+
+  testar-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Tipos
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Testes
+        run: npm test
+
+  # As imagens são construídas aqui, uma vez, e a VPS só baixa. Na main publicam
+  # ghcr.io/gustavotoebe/consultoria-api|web:<12 primeiros caracteres do commit>; no disparo manual em outra branch só
+  # constroem e varrem. O Trivy roda antes da publicação (HIGH/CRITICAL com correção publicada bloqueia; exceções em .trivyignore).
+  imagem-api:
+    needs: [testar-api, testar-app]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tag e rótulo de migration
+        id: meta
+        run: |
+          echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          # O rollback.sh recusa voltar quando este rótulo muda: última migration do app mais a versão da plataforma
+          # (as tabelas do módulo auth vivem no schema `plataforma`, com histórico próprio, fora de db/migration).
+          migracao="$(ls api/src/main/resources/db/migration | grep -E '^V[0-9]+__' | sort -V | tail -1 || true)"
+          plataforma="$(sed -n '/<parent>/,/<\/parent>/p' api/pom.xml | sed -n 's|.*<version>\(.*\)</version>.*|\1|p' | head -1)"
+          echo "migracao=${migracao}+plataforma-${plataforma}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4.4.1
+      - name: Construir a imagem da API (sem publicar)
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: ./api
+          load: true
+          tags: consultoria-api:varredura
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+          secrets: |
+            gh_token=${{ secrets.GH_PACKAGES_READ_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Varredura de vulnerabilidades (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: consultoria-api:varredura
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Entrar no GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publicar a imagem da API
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: ./api
+          push: true
+          tags: ghcr.io/gustavotoebe/consultoria-api:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha,scope=api
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            br.plataforma.migration-ultima=${{ steps.meta.outputs.migracao }}
+          secrets: |
+            gh_token=${{ secrets.GH_PACKAGES_READ_TOKEN || secrets.GITHUB_TOKEN }}
+
+  imagem-web:
+    needs: [testar-api, testar-app]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tag
+        id: meta
+        run: echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4.4.1
+      - name: Construir a imagem da web (sem publicar)
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: ./app
+          load: true
+          tags: consultoria-web:varredura
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+      - name: Varredura de vulnerabilidades (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: consultoria-web:varredura
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Entrar no GHCR
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publicar a imagem da web
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v7.4.0
+        with:
+          context: ./app
+          push: true
+          tags: ghcr.io/gustavotoebe/consultoria-web:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha,scope=web
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  publicar:
+    needs: [testar-api, testar-app, imagem-api, imagem-web]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Publicar na VPS (API primeiro, depois a web)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          SHA: ${{ needs.imagem-api.outputs.sha }}
+        run: |
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_SSH_KEY" ] || [ -z "$VPS_KNOWN_HOSTS" ]; then
+            echo "Faltam os secrets VPS_HOST, VPS_USER, VPS_SSH_KEY e VPS_KNOWN_HOSTS. Produção não foi alterada."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          for componente in api web; do
+            # A chave só consegue rodar o atualizar.sh (comando fixo no authorized_keys da VPS); o argumento é validado lá.
+            # As duas imagens usam os 12 primeiros caracteres do mesmo commit. Keepalive a cada 30 s: o docker pull e a espera
+            # pela saúde (até 180 s) quase não imprimem nada, e a rede do runner derruba conexão parada.
+            ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \
+              "$VPS_USER@$VPS_HOST" "atualizar consultoria $componente $SHA"
+          done
