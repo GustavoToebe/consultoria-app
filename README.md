@@ -56,6 +56,19 @@ O app acha a API sozinho em `http://IP-DO-PC:8088/api` (pelo endereço do Metro)
 - API: `cd api && mvn verify` (Error Prone, ArchUnit, JaCoCo ≥ 70%; precisa do Docker para o Testcontainers).
 - App: `cd app && npm run typecheck && npm run lint && npm test`; bundle nativo: `npx expo export --platform android`.
 
+## Produção (VPS)
+
+Endereço: **https://consultoria.servirea.com.br** (a API fica em `/api`). Nada é compilado na VPS: o GitHub Actions
+(`.github/workflows/deploy.yml`) testa, constrói as imagens `ghcr.io/gustavotoebe/consultoria-api` e `consultoria-web`
+(tag = 12 primeiros caracteres do commit), varre com o Trivy e chama o `atualizar.sh` da VPS. O compose, o proxy único (Caddy) e
+os scripts de atualização e rollback moram em [central-api-back/deploy](https://github.com/GustavoToebe/central-api-back/tree/main/deploy)
+(`apps/consultoria/`). Os segredos ficam em `/opt/ecossistema/consultoria.env` na VPS (nomes em `apps/consultoria/.env.example`), nunca no git.
+
+- O compose desta pasta (`docker-compose.yml`) é só de demonstração local; não vai para a VPS.
+- Cadastro público de treinador (`/api/auth/cadastro-treinador`): aberto só até existir a primeira conta; depois o Caddy responde 404
+  (linha marcada no `consultoria.caddy` da VPS).
+- Integração com a Central desligada (`TREINOS_INTEGRACAO_ATIVA=false`): ver [docs/integracao-central.md](docs/integracao-central.md).
+
 ## Roteiro da demonstração
 
 Antes do ensaio, recomeçar do zero: `docker compose down -v && docker compose up -d --build`.

@@ -47,6 +47,9 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - `@plataforma/web` (TypeScript puro da plataforma: `caminhoDaApi`, erros da API, lógica do cliente de autenticação; formatos e tokens existem no pacote e o app ainda não usa): fixado pela URL da Release do GitHub no `package.json` (`https://github.com/GustavoToebe/plataforma/releases/download/web-vX.Y.Z/plataforma-web-X.Y.Z.tgz`); o `package-lock.json` grava o hash. Sem token (nem no Docker nem no EAS). Subir a versão = trocar a URL e rodar `npm install`; `npx expo install` não vale para ele. Código em `plataforma/web/`.
 - Biblioteca `plataforma` 1.7.0 (parent e módulos do GitHub Packages; `docs/biblioteca-comum.md`): o build do Docker precisa do segredo `deploy-local/segredos/gh_token` (fora do git); `mvn` local precisa do `server` `github` no `~/.m2/settings.xml` ou da versão já instalada. Subir a versão = uma linha no `pom.xml`; `mvn verify` no Postgres 18 e 17 (`-Dplataforma.postgres.imagem=postgres:17-alpine`).
 - Local: `docker-compose.yml` (Postgres 18 + API + Caddy servindo a web em `:8088`, API em `/api`). No Postgres 18 o volume monta em `/var/lib/postgresql` (não mais `/data`): banco criado com a versão 17 pede `docker compose down -v`.
+- Produção (Fase 6): imagens `ghcr.io/gustavotoebe/consultoria-api|web:<sha12>` construídas pelo `.github/workflows/deploy.yml` (testar → imagem com Trivy → publicar) e
+  baixadas pela VPS; compose, proxy e `atualizar.sh`/`rollback.sh` ficam em `central-api-back/deploy`. Domínio `consultoria.servirea.com.br`, perfil `docker` (sem `demo`), cookie de refresh `Secure` em `/api/auth`.
+  `/actuator/*` (exceto health) e `/monitoramento/*` dão 404 no proxy. Cadastro público de treinador fecha no Caddy depois da primeira conta. Push na `main` publica em produção: só com testes verdes.
 
 ## API: convenções
 - Equipe: `TREINADOR` é membro com perfil; autoridades `PERM_...` vêm do banco a cada requisição

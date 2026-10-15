@@ -94,23 +94,23 @@ Gerar um segredo: `openssl rand -base64 48`.
    (`alunos_ativos`, `membros_equipe`, `CHECKIN`, `MOBILIDADE`, `PDF`, `EQUIPE`). **Nenhum limite é aplicado ainda**
    (`aplicado=false`): o consumo só informa.
 
-## 6. Checklist para subir na VPS (o compose atual é de demonstração)
+## 6. Produção na VPS (Fase 6)
 
-- `docker-compose.yml` usa `SPRING_PROFILES_ACTIVE=docker,demo` e **não há perfil `prod`**: criar um antes de ir para a
-  internet (sem seed de demonstração, `DEMO_SENHA` fora, `TREINOS_DEMO_*` fora).
-- HTTPS no Caddy e `REFRESH_COOKIE_SECURE=true`; `APP_URL` com o endereço público (o link do convite usa essa base);
-  `CORS_ALLOWED_ORIGINS` com a origem real.
-- A imagem da `api` **não é reconstruída sozinha**: depois de mudar código, `docker compose up -d --build api`.
-- Rota `/api/integracao/*` exposta no Caddy (já passa pelo `/api`), e o IP da Central não precisa estar em lista nenhuma:
-  a defesa é a assinatura.
-- Backup do Postgres inclui `integracao_operacao` (histórico de idempotência).
+O consultoria-app roda em `https://consultoria.servirea.com.br` (API em `/api`) a partir de imagens do GHCR; o compose, o proxy
+e o `atualizar.sh` estão em `central-api-back/deploy` (`apps/consultoria/`, `proxy/extras/consultoria.caddy.modelo`).
+
+- Perfil `docker` (sem `demo`, sem `DEMO_SENHA`); `REFRESH_COOKIE_SECURE=true` e `REFRESH_COOKIE_PATH=/api/auth` fixos no compose;
+  `APP_URL` e `CORS_ALLOWED_ORIGINS` = `https://consultoria.servirea.com.br` no `consultoria.env` da VPS.
+- A integração fica desligada (`TREINOS_INTEGRACAO_ATIVA=false`) até a Central ter o produto `TREINOS` cadastrado (seção 5).
+- `/api/integracao/*` passa pelo `/api` do proxy; o IP da Central não entra em lista nenhuma: a defesa é a assinatura.
+- Cada push na `main` publica: o workflow só chama a VPS depois de `testar` e das duas imagens (Trivy) verdes.
+- Backup do Postgres inclui `integracao_operacao` (histórico de idempotência). Fase 7: backup antes de qualquer aluno real.
 
 ## 7. Fora de escopo (não feito)
 
 - Código de suporte (`/suporte`), endpoint de consumo para a Central (`/consumo`) e relatório de erros (`/erros`).
 - Envio de e-mail (convite sai como link).
 - Aplicação dos `limites` e das `funcionalidades` (o contrato chama de "aplicação futura").
-- Perfil `prod` e compose de produção.
 
 ## 8. Testes
 
