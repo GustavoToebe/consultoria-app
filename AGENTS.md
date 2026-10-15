@@ -49,6 +49,8 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 - Local: `docker-compose.yml` (Postgres 18 + API + Caddy servindo a web em `:8088`, API em `/api`). No Postgres 18 o volume monta em `/var/lib/postgresql` (não mais `/data`): banco criado com a versão 17 pede `docker compose down -v`.
 - Produção (Fase 6): imagens `ghcr.io/gustavotoebe/consultoria-api|web:<sha12>` construídas pelo `.github/workflows/deploy.yml` (testar → imagem com Trivy → publicar) e
   baixadas pela VPS; compose, proxy e `atualizar.sh`/`rollback.sh` ficam em `central-api-back/deploy`. Domínio `consultoria.servirea.com.br`, perfil `docker` (sem `demo`), cookie de refresh `Secure` em `/api/auth`.
+  Banco: Postgres único da VPS, banco `consultoria`, dois papéis (`consultoria_migracao` dono/Flyway, `consultoria_app` só dados; `docs/papeis-banco.md`):
+  no perfil `docker` o Flyway e o módulo auth migram com `MIGRATION_DB_*` e `PLATAFORMA_PAPEL_APP` é obrigatória; o callback `afterMigrate__revogar_historico_do_app.sql` fecha o `flyway_schema_history` ao app; teste: `PapeisBancoIntegrationTest`.
   `/actuator/*` (exceto health) e `/monitoramento/*` dão 404 no proxy. Cadastro público de treinador fecha no Caddy depois da primeira conta. Push na `main` publica em produção: só com testes verdes.
 
 ## API: convenções

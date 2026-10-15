@@ -26,6 +26,10 @@ spring:
   flyway:
     locations: classpath:db/migration
     baseline-on-migrate: false
+    # Papel da API para o callback afterMigrate__revogar_historico_do_app.sql. Vazio = nada a fazer (um usuário só: testes e
+    # dev). No perfil docker (produção) a variável é obrigatória e sem valor padrão (application-docker.yml).
+    placeholders:
+      papelApp: ${PLATAFORMA_PAPEL_APP:}
   servlet:
     multipart:
       # Logo da consultoria: até 512 KiB.
@@ -54,8 +58,9 @@ monitoramento:
   token: ${MONITORAMENTO_TOKEN:}
 
 plataforma:
-  # Login, JWT, refresh, CSRF e MFA vêm do módulo de autenticação (schema "plataforma", migrations próprias). Quem migra é o
-  # mesmo usuário do banco que a API usa (DB_*): ele precisa poder criar o schema.
+  # Login, JWT, refresh, CSRF e MFA vêm do módulo de autenticação (schema "plataforma", migrations próprias). Quem migra
+  # (Flyway do app e do módulo) é o papel dono do schema, MIGRATION_DB_* no perfil docker (application-docker.yml); fora dele
+  # (testes, dev) é o mesmo usuário DB_* da API, que precisa poder criar o schema.
   auth:
     habilitado: true
     jwt:

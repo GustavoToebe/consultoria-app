@@ -7,3 +7,24 @@ server:
       # Porta que o navegador usou (8088). Sem ela, com X-Forwarded-Proto: http o Tomcat assume 80 e a web servida
       # pelo próprio Caddy vira "outra origem" para o CORS.
       port-header: X-Forwarded-Port
+
+# Papéis do banco (docs/papeis-banco.md): o Flyway e o módulo de autenticação migram com o papel dono do schema
+# (MIGRATION_DB_*); a API roda com DB_* (papel só de dados). Sem MIGRATION_DB_* vale o DB_*, como no ambiente local de
+# um usuário só. PLATAFORMA_PAPEL_APP é o papel da API, obrigatório e sem valor padrão: com ele o módulo concede o schema
+# plataforma e o callback afterMigrate__revogar_historico_do_app.sql fecha o flyway_schema_history. Se API e Flyway usam
+# o mesmo usuário, informe esse usuário (o callback o ignora).
+spring:
+  flyway:
+    url: ${MIGRATION_DB_URL:${DB_URL}}
+    user: ${MIGRATION_DB_USER:${DB_USUARIO}}
+    password: ${MIGRATION_DB_PASSWORD:${DB_SENHA}}
+    placeholders:
+      papelApp: ${PLATAFORMA_PAPEL_APP}
+
+plataforma:
+  auth:
+    migracao:
+      url: ${MIGRATION_DB_URL:${DB_URL}}
+      user: ${MIGRATION_DB_USER:${DB_USUARIO}}
+      password: ${MIGRATION_DB_PASSWORD:${DB_SENHA}}
+      papel-app: ${PLATAFORMA_PAPEL_APP}

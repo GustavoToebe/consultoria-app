@@ -33,6 +33,8 @@ services:
       DB_URL: jdbc:postgresql://db:5432/treinos
       DB_USUARIO: ${POSTGRES_USER:-treinos}
       DB_SENHA: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      # Local há um usuário só (dono e API): o papel da API é ele mesmo. Em produção são dois (docs/papeis-banco.md).
+      PLATAFORMA_PAPEL_APP: ${POSTGRES_USER:-treinos}
       TREINOS_JWT_SEGREDO: ${TREINOS_JWT_SEGREDO:?defina TREINOS_JWT_SEGREDO no .env}
       TREINOS_LOGIN_SAL: ${TREINOS_LOGIN_SAL:?defina TREINOS_LOGIN_SAL no .env}
       # Vazias = o treinador não consegue ativar a verificação em duas etapas (503 MFA_INDISPONIVEL).

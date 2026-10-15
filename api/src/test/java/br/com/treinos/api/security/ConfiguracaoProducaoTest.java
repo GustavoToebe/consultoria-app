@@ -33,6 +33,23 @@ class ConfiguracaoProducaoTest {
         assertSemPadrao(padrao, "spring.datasource.password", "DB_SENHA");
     }
 
+    /** Perfil de produção: o Flyway e o módulo migram com MIGRATION_DB_* (ou DB_*) e o papel da API é obrigatório. */
+    @Test
+    void perfilDockerExigeOPapelDaApiEMigraComAsCredenciaisDoMigrador() {
+        YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
+        yaml.setResources(new ClassPathResource("application-docker.yml"));
+        Properties docker = yaml.getObject();
+
+        assertThat(docker).isNotNull();
+        assertSemPadrao(docker, "spring.flyway.placeholders.papelApp", "PLATAFORMA_PAPEL_APP");
+        assertSemPadrao(docker, "plataforma.auth.migracao.papel-app", "PLATAFORMA_PAPEL_APP");
+        for (String prefixo : new String[] {"spring.flyway.", "plataforma.auth.migracao."}) {
+            assertThat(docker.getProperty(prefixo + "url")).as(prefixo + "url").isEqualTo("${MIGRATION_DB_URL:${DB_URL}}");
+            assertThat(docker.getProperty(prefixo + "user")).as(prefixo + "user").isEqualTo("${MIGRATION_DB_USER:${DB_USUARIO}}");
+            assertThat(docker.getProperty(prefixo + "password")).as(prefixo + "password").isEqualTo("${MIGRATION_DB_PASSWORD:${DB_SENHA}}");
+        }
+    }
+
     @Test
     void contextoPadraoSemAsVariaveisNaoSobe() {
         assumeTrue(System.getenv("TREINOS_JWT_SEGREDO") == null && System.getenv("TREINOS_LOGIN_SAL") == null
