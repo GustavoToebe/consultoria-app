@@ -13,7 +13,10 @@ public final class EquipeDtos {
                                   boolean convitePendente,Instant conviteExpiraEm,Instant ultimoAcesso) { }
     public record ConviteRequest(@NotBlank @Size(max=120) String nome,@NotBlank @Email @Size(max=254) String email,
                                 @NotNull UUID perfilId) { }
-    public record ConviteResponse(String codigo,String link,Instant expiraEm) { }
+    /** {@code emailEnviado}: o link também foi por e-mail; senão quem convidou copia o link da resposta. */
+    public record ConviteResponse(String codigo,String link,Instant expiraEm,boolean emailEnviado) {
+        public ConviteResponse comEmailEnviado(boolean enviado) { return new ConviteResponse(codigo,link,expiraEm,enviado); }
+    }
     public record UsuarioRequest(@NotBlank @Size(max=120) String nome,@NotNull UUID perfilId,@NotNull Boolean ativo) { }
     public record AceitarRequest(@NotBlank @Size(max=200) String senha) { }
     public record MeuPerfilRequest(@NotBlank @Size(max=120) String nome,@Size(max=30) String telefone) { }

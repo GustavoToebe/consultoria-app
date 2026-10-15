@@ -11,7 +11,8 @@ import java.util.UUID;
 @RestController
 public class EquipeController {
     private final EquipeService equipe;
-    public EquipeController(EquipeService equipe) { this.equipe=equipe; }
+    private final ConviteEquipeEmail conviteEmail;
+    public EquipeController(EquipeService equipe,ConviteEquipeEmail conviteEmail) { this.equipe=equipe;this.conviteEmail=conviteEmail; }
     @PreAuthorize("hasAuthority('PERM_EQUIPE_LER')") @GetMapping("/permissoes/catalogo")
     public List<CatalogoPermissoes.Permissao> catalogo() { return CatalogoPermissoes.CATALOGO; }
     @PreAuthorize("hasAuthority('PERM_EQUIPE_LER')") @GetMapping("/perfis")
@@ -29,7 +30,11 @@ public class EquipeController {
     @PreAuthorize("hasAuthority('PERM_ALUNO_LER')") @GetMapping("/responsaveis")
     public List<EquipeService.Responsavel> responsaveis() { return equipe.responsaveis(); }
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PostMapping("/usuarios/convites")
-    public ConviteResponse convidar(@RequestBody @Valid ConviteRequest r,@AuthenticationPrincipal UsuarioAutenticado eu) { return equipe.convidar(r,eu.usuarioId()); }
+    public ConviteResponse convidar(@RequestBody @Valid ConviteRequest r,@AuthenticationPrincipal UsuarioAutenticado eu) {
+        // O convite já está gravado (transação do serviço fechada): a chamada HTTP do e-mail não segura conexão do banco.
+        var convite=equipe.convidar(r,eu.usuarioId());
+        return convite.comEmailEnviado(conviteEmail.enviar(br.com.treinos.api.web.Emails.normalizar(r.email()),convite.link()));
+    }
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @DeleteMapping("/usuarios/convites/{id}")
     public ResponseEntity<Void> cancelarConvite(@PathVariable UUID id) { equipe.cancelarConvite(id);return ResponseEntity.noContent().build(); }
     @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PutMapping("/usuarios/{id}")

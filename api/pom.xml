@@ -7,7 +7,7 @@
     <parent>
         <groupId>br.com.plataforma</groupId>
         <artifactId>plataforma-parent</artifactId>
-        <version>1.7.0</version>
+        <version>1.9.0</version>
         <relativePath/>
     </parent>
 
@@ -73,24 +73,24 @@
         <dependency>
             <groupId>br.com.plataforma</groupId>
             <artifactId>plataforma-comum-auth</artifactId>
-            <version>1.7.0</version>
+            <version>1.9.0</version>
         </dependency>
         <dependency>
             <groupId>br.com.plataforma</groupId>
             <artifactId>plataforma-comum-web</artifactId>
-            <version>1.7.0</version>
+            <version>1.9.0</version>
         </dependency>
 
         <dependency>
             <groupId>br.com.plataforma</groupId>
             <artifactId>plataforma-comum-monitoramento</artifactId>
-            <version>1.7.0</version>
+            <version>1.9.0</version>
         </dependency>
 
         <dependency>
             <groupId>br.com.plataforma</groupId>
             <artifactId>plataforma-comum-teste</artifactId>
-            <version>1.7.0</version>
+            <version>1.9.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -188,7 +188,7 @@ class MfaIntegrationTest extends AbstractIntegrationTest {
     }
 
     /** O código de 6 dígitos que o aplicativo autenticador mostraria no passo dado (RFC 6238, SHA-1, 30 s). */
-    private static String codigo(String segredo, long passo) {
+    static String codigo(String segredo, long passo) {
         try {
             byte[] chave = new byte[segredo.length() * 5 / 8];
             int bits = 0;

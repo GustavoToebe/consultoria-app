@@ -1,6 +1,6 @@
 # Biblioteca comum (`plataforma`)
 
-A API usa o `plataforma-parent` e os módulos `plataforma-comum-*` (repositório `GustavoToebe/plataforma`, GitHub Packages) no lugar de cópias próprias. Versão em uso: **1.7.0** (as 1.1.0 a 1.5.0 não devem ser usadas).
+A API usa o `plataforma-parent` e os módulos `plataforma-comum-*` (repositório `GustavoToebe/plataforma`, GitHub Packages) no lugar de cópias próprias. Versão em uso: **1.9.0** (e-mail de acesso e redefinição de senha; as 1.1.0 a 1.5.0 não devem ser usadas).
 
 | Módulo | O que traz | Estado aqui |
 | --- | --- | --- |
@@ -16,7 +16,7 @@ A API usa o `plataforma-parent` e os módulos `plataforma-comum-*` (repositório
 
 O GitHub Packages exige token mesmo para leitura. Duas formas:
 
-- **Maven na máquina**: `~/.m2/settings.xml` com um `<server>` de `<id>github</id>`, usuário `GustavoToebe` e um token com `read:packages`. Sem isso, `mvn` só funciona se a versão já estiver no `~/.m2` (por exemplo, instalada a partir da tag `v1.7.0` do repositório `plataforma`).
+- **Maven na máquina**: `~/.m2/settings.xml` com um `<server>` de `<id>github</id>`, usuário `GustavoToebe` e um token com `read:packages`. Sem isso, `mvn` só funciona se a versão já estiver no `~/.m2` (por exemplo, instalada a partir da tag `v1.9.0` do repositório `plataforma`).
 - **Docker** (`docker compose up --build`): o Compose entrega o token ao BuildKit como segredo `gh_token`, lido do arquivo `deploy-local/segredos/gh_token` (fora do git, modo 600, só o token numa linha). O Dockerfile grava um `settings.xml` temporário no mesmo `RUN` e o apaga ao terminar, inclusive em falha; o token não usa `ARG` nem `ENV` e não vai para a imagem. Fora do Compose: `docker build --secret id=gh_token,src=/caminho/fora/do/git/gh_token api`.
 
 Sem o arquivo do segredo o `docker compose up --build` falha antes de começar: crie o arquivo (ou use a API já construída).

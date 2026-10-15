@@ -78,6 +78,7 @@ export default function Entrar() {
         <Botao rotulo="Entrar" aoTocar={enviar} carregando={enviando} cheio />
       </Cartao>
       <View style={estilos.links}>
+        <LinkTexto href="/esqueci-senha" texto="Esqueci minha senha" />
         <LinkTexto href="/convite" texto="Tenho um convite" />
         <LinkTexto href="/cadastro" texto="Sou treinador, criar conta" />
       </View>

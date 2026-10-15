@@ -88,6 +88,20 @@ plataforma:
       limite-conta: ${TREINOS_AUTH_LIMITE_CONTA:10}
       janela-segundos: ${TREINOS_AUTH_JANELA_SEGUNDOS:600}
       sal: ${TREINOS_LOGIN_SAL}
+    # E-mail de acesso (redefinição de senha e convite de equipe): desligado por padrão. Em produção TREINOS_EMAIL_HABILITADO=true,
+    # TREINOS_EMAIL_PROVEDOR=resend, remetente do subdomínio verificado no Resend e a chave "Sending access" só desse domínio.
+    # Sem a chave o app não sobe com o provedor resend; o provedor "log" só registra que houve envio (nunca o link).
+    email:
+      habilitado: ${TREINOS_EMAIL_HABILITADO:false}
+      provedor: ${TREINOS_EMAIL_PROVEDOR:log}
+      remetente: ${TREINOS_EMAIL_REMETENTE:}
+      nome-app: ${TREINOS_EMAIL_NOME_APP:Consultoria}
+      resend:
+        api-key: ${TREINOS_EMAIL_RESEND_API_KEY:}
+    # "Esqueci a senha": o link leva o token no fragmento (#token=...) para a tela /redefinir-senha do app.
+    redefinicao:
+      habilitado: ${TREINOS_EMAIL_HABILITADO:false}
+      url-base: ${APP_URL:http://localhost:8088}/redefinir-senha
     # Chaves AES-256 do MFA (id:base64, separadas por vírgula). Sem chave, o login funciona e ativar o MFA responde 503.
     mfa:
       chaves: ${TREINOS_MFA_CHAVES:}

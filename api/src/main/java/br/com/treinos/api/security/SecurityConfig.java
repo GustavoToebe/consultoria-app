@@ -40,7 +40,8 @@ public class SecurityConfig {
     private static final Set<String> METODOS_SEGUROS = Set.of("GET", "HEAD", "TRACE", "OPTIONS");
 
     private static final String[] ROTAS_PUBLICAS_POST = {
-            "/publico/convites-equipe/*", "/auth/login", "/auth/refresh", "/auth/logout", "/auth/cadastro-treinador"};
+            "/publico/convites-equipe/*", "/auth/login", "/auth/refresh", "/auth/logout", "/auth/cadastro-treinador", "/auth/esqueci-senha",
+            "/auth/redefinir-senha"};
 
     private static final String[] ROTAS_PUBLICAS = {"/publico/**", "/actuator/health", "/error"};
 
@@ -105,6 +106,7 @@ public class SecurityConfig {
             }
             String caminho = request.getRequestURI().substring(request.getContextPath().length());
             if ("/auth/login".equals(caminho) || "/auth/cadastro-treinador".equals(caminho)
+                    || "/auth/esqueci-senha".equals(caminho) || "/auth/redefinir-senha".equals(caminho)
                     || caminho.startsWith("/publico/")) {
                 return false;
             }

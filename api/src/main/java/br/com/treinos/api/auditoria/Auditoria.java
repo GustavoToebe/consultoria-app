@@ -73,6 +73,11 @@ public class Auditoria {
     public void bloqueioLogin(String email) {
         usuarios.buscarPorEmail(Emails.normalizar(email)).ifPresent(u -> gravar(u,"LOGIN_BLOQUEADO","USUARIO",u.getId(),"Login bloqueado por excesso de tentativas."));
     }
+    /** Chamada dentro da transação da redefinição por link: se a troca desfaz, o evento também. */
+    @Transactional
+    public void senhaRedefinida(Usuario u) {
+        gravar(u,"SENHA_REDEFINIDA","USUARIO",u.getId(),"Redefiniu a senha pelo link do e-mail.");
+    }
     private void gravar(Usuario u,String acao,String entidade,UUID id,String resumo) {
         String ip=null;String agente=null;
         if(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {

@@ -79,6 +79,10 @@ export const convidarMembro = (corpo:{nome:string;email:string;perfilId:string})
 export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/convites/${id}`,{metodo:'DELETE'});
 export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${id}`,{metodo:'PUT',corpo});
 export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>(`/publico/convites-equipe/${encodeURIComponent(codigo)}`,{metodo:'POST',corpo:{senha},semRenovar:true});
+/** "Esqueci a senha": a API responde 202 exista a conta ou não. */
+export const pedirRedefinicaoDeSenha = (email:string) => requisicao<void>('/auth/esqueci-senha',{metodo:'POST',corpo:{email},semRenovar:true});
+/** Com o token do link do e-mail; não abre sessão. Com MFA ativo a API pede `codigoMfa` (401 `MFA_NECESSARIO`). */
+export const redefinirSenha = (token:string,novaSenha:string,codigoMfa?:string) => requisicao<void>('/auth/redefinir-senha',{metodo:'POST',corpo:{token,novaSenha,codigoMfa},semRenovar:true});
 export const responsaveisEquipe = () => requisicao<ResponsavelEquipe[]>('/responsaveis');
 export const alterarMeuPerfil = (nome:string,telefone:string|null) => requisicao<EuResponse>('/eu',{metodo:'PUT',corpo:{nome,telefone}});
 export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:string;acao?:string;pagina:number}) => {

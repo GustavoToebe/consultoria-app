@@ -54,6 +54,7 @@ function EditorUsuario({membro,perfis,aoFechar,recarregar}:{membro:MembroEquipe|
   return <>
     <Folha visivel titulo={convite?'Convite criado':novo?'Convidar membro':'Editar membro'} aoFechar={aoFechar} rodape={convite?<Botao rotulo="Concluir" aoTocar={aoFechar}/>:<><Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar}/><Botao rotulo={novo?'Gerar convite':'Salvar membro'} carregando={ocupado} desabilitado={!nome.trim()||!perfilId||(novo&&!email.trim())} aoTocar={()=>{if(!novo&&membro?.ativo&&!ativo)setConfirmar(true);else void salvar();}}/></>}>
       {convite?<>
+        {convite.emailEnviado?<Texto>Enviamos o link para {email.trim()}. Você também pode copiá-lo abaixo.</Texto>:null}
         <Texto>Válido até {dataHoraParaTela(convite.expiraEm)}. O link só pode ser usado uma vez.</Texto>
         <Texto selectable>{convite.codigo}</Texto><Botao rotulo="Copiar código" tipo="secundario" aoTocar={()=>void copiar(convite.codigo)}/>
         <Texto selectable>{convite.link}</Texto>

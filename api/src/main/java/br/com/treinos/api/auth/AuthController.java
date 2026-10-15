@@ -4,8 +4,10 @@ import br.com.plataforma.comum.seguranca.login.LimiteLoginException;
 import br.com.plataforma.comum.web.UnauthorizedException;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.dto.CadastroTreinadorRequest;
+import br.com.treinos.api.auth.dto.EsqueciSenhaRequest;
 import br.com.treinos.api.auth.dto.LoginRequest;
 import br.com.treinos.api.auth.dto.LoginResponse;
+import br.com.treinos.api.auth.dto.RedefinirSenhaRequest;
 import br.com.treinos.api.auth.dto.RefreshRequest;
 import br.com.treinos.api.security.DestinoCliente;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,9 +34,12 @@ public class AuthController {
     private final LimiteTentativas limite;
     private final SessaoHttp sessaoHttp;
     private final Auditoria auditoria;
+    private final RedefinicaoSenhaService redefinicao;
 
     public AuthController(AuthService authService, CadastroTreinadorService cadastroTreinador,
-                          LimiteTentativas limite, SessaoHttp sessaoHttp, Auditoria auditoria) {
+                          LimiteTentativas limite, SessaoHttp sessaoHttp, Auditoria auditoria,
+                          RedefinicaoSenhaService redefinicao) {
+        this.redefinicao = redefinicao;
         this.auditoria = auditoria;
         this.authService = authService;
         this.cadastroTreinador = cadastroTreinador;
@@ -76,6 +81,32 @@ public class AuthController {
         String bruto = sessaoHttp.refreshDoCliente(cliente, corpo == null ? null : corpo.refreshToken(), http)
                 .orElseThrow(() -> new UnauthorizedException("Sessão inválida ou expirada. Entre de novo.", "SESSAO_EXPIRADA"));
         return sessaoHttp.responder(authService.renovar(bruto, http.getRemoteAddr()), cliente, resposta);
+    }
+
+    /** Sempre 202, exista a conta ou não; o e-mail só sai se existir. Limite por IP e por e-mail é do módulo (429 + Retry-After). */
+    @PostMapping("/esqueci-senha")
+    public ResponseEntity<Void> esqueciSenha(@RequestBody @Valid EsqueciSenhaRequest request, HttpServletRequest http,
+                                             HttpServletResponse resposta) {
+        try {
+            redefinicao.solicitar(request.email(), http.getRemoteAddr());
+        } catch (LimiteLoginException limitado) {
+            resposta.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(limitado.segundos()));
+            throw limitado;
+        }
+        return ResponseEntity.accepted().build();
+    }
+
+    /** Não abre sessão: a pessoa entra com a senha nova (todas as sessões antigas caem). Com MFA ativo pede {@code codigoMfa}. */
+    @PostMapping("/redefinir-senha")
+    public ResponseEntity<Void> redefinirSenha(@RequestBody @Valid RedefinirSenhaRequest request, HttpServletRequest http,
+                                               HttpServletResponse resposta) {
+        try {
+            redefinicao.redefinir(request.token(), request.novaSenha(), request.codigoMfa(), http.getRemoteAddr());
+        } catch (LimiteLoginException limitado) {
+            resposta.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(limitado.segundos()));
+            throw limitado;
+        }
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/logout")

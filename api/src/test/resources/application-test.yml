@@ -8,6 +8,16 @@ plataforma:
       sal: sal-so-da-suite-de-testes
       # O limite por conta (10) continua o de produção e é testado no AuthIntegrationTest.
       limite-ip: 100000
+    # E-mail de acesso ligado com o provedor "log"; o teste troca o envio por um que guarda as mensagens (EmailDeTeste).
+    email:
+      habilitado: true
+      provedor: log
+      remetente: "Consultoria <acesso@teste.local>"
+      nome-app: Consultoria
+    redefinicao:
+      habilitado: true
+      url-base: http://localhost:8088/redefinir-senha
+      limite-ip: 100000
     mfa:
       chaves: "teste:Y2hhdmUtYWVzLTI1Ni1zby1kYS1zdWl0ZS10ZXN0ZSE="
       chave-ativa: teste

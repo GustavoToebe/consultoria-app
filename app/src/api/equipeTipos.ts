@@ -8,7 +8,7 @@ export interface MembroEquipe {
   id:string; nome:string; email:string; perfilId:string; perfilNome:string; ativo:boolean;
   convitePendente:boolean; conviteExpiraEm:string|null; ultimoAcesso:string|null;
 }
-export interface ConviteEquipe { codigo:string; link:string; expiraEm:string }
+export interface ConviteEquipe { codigo:string; link:string; expiraEm:string; emailEnviado:boolean }
 export interface ResponsavelEquipe { id:string; nome:string }
 export interface EventoAuditoria { id:string; usuarioId:string; nomeUsuario:string; acao:string; entidade:string; entidadeId:string|null; resumo:string; criadoEm:string }
 export interface PaginaAuditoria { itens:EventoAuditoria[]; total:number; pagina:number }

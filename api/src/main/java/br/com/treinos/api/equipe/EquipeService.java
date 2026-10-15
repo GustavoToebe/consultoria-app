@@ -109,7 +109,7 @@ public class EquipeService {
         convites.deleteByEmailAndUsadoEmIsNull(email);convites.flush();
         String codigo=OpaqueTokenGenerator.gerar();Instant expira=Instant.now().plus(7,ChronoUnit.DAYS);
         convites.saveAndFlush(new UsuarioConvite(r.nome().trim(),email,p.getId(),OpaqueTokenGenerator.hash(codigo),expira,criadoPor));
-        return new ConviteResponse(codigo,appUrl+"/convite-equipe#"+codigo,expira);
+        return new ConviteResponse(codigo,appUrl+"/convite-equipe#"+codigo,expira,false);
     }
     /** Cancela convite ainda não aceito (vencido ou não), com o mesmo teto de quem convida; de outra consultoria ou já aceito = 404. */
     @Transactional
