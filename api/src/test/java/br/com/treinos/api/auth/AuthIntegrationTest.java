@@ -169,6 +169,37 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void trocaDeSenhaGravaAuditoriaSemValores() throws Exception {
+        JsonNode nova = api.put("/eu/senha", loginNativo(), Map.of("senhaAtual", ApiDeTeste.SENHA, "senhaNova", "outra-senha-456"), 200);
+        JsonNode itens = api.get("/auditoria?acao=SENHA_ALTERADA", nova, 200).path("itens");
+        assertThat(itens).hasSize(1);
+        assertThat(itens.get(0).path("resumo").asString()).isEqualTo("Trocou a própria senha.");
+        assertThat(itens.toString()).doesNotContain("outra-senha-456").doesNotContain(ApiDeTeste.SENHA);
+    }
+
+    @Test
+    void trocaDeSenhaPassaPeloLimiteDeTentativas() throws Exception {
+        JsonNode login = loginNativo();
+        int tentativas = 0;
+        MvcResult ultima;
+        do {
+            ultima = mvc.perform(put("/eu/senha").header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(login))
+                            .header("X-Treinos-Cliente", "nativo").contentType(MediaType.APPLICATION_JSON)
+                            .content(api.paraJson(Map.of("senhaAtual", "nao-e-esta-123", "senhaNova", "outra-senha-456"))))
+                    .andReturn();
+        } while (ultima.getResponse().getStatus() == 400 && ++tentativas < 20);
+        assertThat(tentativas).isBetween(5, 15);
+        assertThat(ultima.getResponse().getStatus()).isEqualTo(429);
+        assertThat(ultima.getResponse().getHeader(HttpHeaders.RETRY_AFTER)).isNotBlank();
+        assertThat(ultima.getResponse().getContentAsString()).contains("LOGIN_LIMITADO");
+        // Bloqueado, nem a senha certa passa.
+        mvc.perform(put("/eu/senha").header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(login))
+                        .header("X-Treinos-Cliente", "nativo").contentType(MediaType.APPLICATION_JSON)
+                        .content(api.paraJson(Map.of("senhaAtual", ApiDeTeste.SENHA, "senhaNova", "outra-senha-456"))))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
     void refreshWebExigeCsrfQuandoVemOCookie() throws Exception {
         MvcResult login = mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(api.corpoLogin(email, ApiDeTeste.SENHA)))

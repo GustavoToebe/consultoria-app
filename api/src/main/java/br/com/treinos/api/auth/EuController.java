@@ -7,7 +7,9 @@ import br.com.treinos.api.security.DestinoCliente;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import br.com.plataforma.comum.seguranca.login.LimiteLoginException;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,6 +52,13 @@ public class EuController {
                                      @RequestBody @Valid TrocaSenhaRequest request,
                                      HttpServletRequest http, HttpServletResponse resposta) {
         DestinoCliente cliente = DestinoCliente.de(http);
+        resposta.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        try {
+            authService.limitarTrocaDeSenha(eu.usuarioId(), http.getRemoteAddr());
+        } catch (LimiteLoginException bloqueado) {
+            resposta.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(bloqueado.segundos()));
+            throw bloqueado;
+        }
         AuthService.Sessao sessao = authService.trocarSenha(eu, request.senhaAtual(), request.senhaNova(), http.getRemoteAddr());
         return sessaoHttp.responder(sessao, cliente, resposta);
     }

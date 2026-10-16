@@ -1,10 +1,12 @@
 package br.com.treinos.api.auth;
 
 import br.com.plataforma.comum.auth.Autenticador;
+import br.com.plataforma.comum.seguranca.login.LimiteLogin;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ForbiddenException;
 import br.com.plataforma.comum.web.UnauthorizedException;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.dto.EuResponse;
 import br.com.treinos.api.auth.dto.UsuarioResumo;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
@@ -49,6 +51,8 @@ public class AuthService {
     private final TermosService termos;
     private final AberturaDeSessao abertura;
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
+    private final LimiteLogin limite;
+    private final Auditoria auditoria;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -57,8 +61,10 @@ public class AuthService {
                        br.com.treinos.api.equipe.PerfilRepository perfis,
                        br.com.treinos.api.equipe.PermissoesDoUsuario permissoes, AcessoPorDireitos acesso,
                        TermosService termos, AberturaDeSessao abertura, PlatformTransactionManager transacoes,
-                       br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+                       br.com.treinos.api.conta.PlanoDaConsultoria plano, LimiteLogin limite, Auditoria auditoria) {
         this.plano = plano;
+        this.limite = limite;
+        this.auditoria = auditoria;
         this.abertura = abertura;
         this.perfis = perfis;
         this.permissoes = permissoes;
@@ -128,6 +134,15 @@ public class AuthService {
     }
 
     /**
+     * Cada troca de senha própria passa pelo mesmo limite do login (IP e conta), como o MFA: sem isso quem tem a sessão
+     * poderia adivinhar a senha atual sem freio. Lança {@code LimiteLoginException} (429); a biblioteca não tem "limpar".
+     */
+    public void limitarTrocaDeSenha(UUID usuarioId, String ip) {
+        String email = usuarios.findById(usuarioId).map(u -> Emails.normalizar(u.getEmail())).orElse(null);
+        limite.registrar(ip, email);
+    }
+
+    /**
      * Troca a própria senha: confere a atual, incrementa a versão das credenciais (Bearer antigo recusado na hora),
      * encerra todas as sessões e devolve uma sessão nova para esta continuar aberta.
      */
@@ -144,6 +159,9 @@ public class AuthService {
             }
             usuario.trocarSenha(passwordEncoder.encode(senhaNova));
             usuarios.saveAndFlush(usuario);
+            if (usuario.getConsultoriaId() != null) {
+                auditoria.registrarEvento("SENHA_ALTERADA", "USUARIO", usuario.getId(), "Trocou a própria senha.");
+            }
             return usuario.getCredenciaisVersao();
         });
         return reabrirSessao(autenticado.usuarioId(), versao, ip);
