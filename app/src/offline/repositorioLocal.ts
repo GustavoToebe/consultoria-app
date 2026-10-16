@@ -45,6 +45,25 @@ export interface PacoteSalvo {
 /** Registros enviados há mais de 60 dias saem do aparelho (o servidor também não aceita mais tão antigos). */
 export const DIAS_GUARDADOS = 60;
 
+/**
+ * Prazo da fila retida quando o servidor recusa a sessão: se o mesmo usuário não entrar de novo em 30 dias, ela é
+ * apagada. É tempo de sobra para reabrir o app (entrar é um toque) e curto para um aparelho guardar registros de quem
+ * já não tem sessão; também fica dentro dos 60 dias em que o servidor ainda aceita registro.
+ */
+export const DIAS_FILA_RETIDA = 30;
+
+/** `retida` = ainda dentro do prazo; `vencida` = passou do prazo e foi apagada; `nenhuma` = não havia fila retida. */
+export type SituacaoDaFilaRetida = 'nenhuma' | 'retida' | 'vencida';
+
+/** Marca gravada junto com a fila retida (documento `filaRetida`): quando a sessão foi recusada. */
+export interface MarcaDaFilaRetida {
+  desde: string;
+}
+
+export function filaRetidaVenceu(desde: string, agora: Date): boolean {
+  return agora.getTime() >= Date.parse(desde) + DIAS_FILA_RETIDA * 86_400_000;
+}
+
 export interface ResultadoEnvio {
   id: string;
   situacao: 'ACEITO' | 'IGNORADO_ANTIGO' | 'RECUSADO';
@@ -90,6 +109,19 @@ export interface RepositorioLocal {
   reenviarFalhas(): Promise<number>;
   /** Ao sair da conta: apaga tudo deste usuário no aparelho. Depois disso o repositório não grava mais nada. */
   apagarTudo(): Promise<void>;
+  /**
+   * Servidor recusou a sessão: apaga tudo que é dado da pessoa (plano, dieta, mobilidade, rascunhos, cargas, registros
+   * já enviados ou recusados) e guarda **só** os registros ainda não enviados (LOCAL), com a data da recusa. Devolve
+   * quantos ficaram; sem nenhum, apaga tudo como `apagarTudo`. Depois disso o repositório não grava mais nada.
+   */
+  reterSoAFila(): Promise<number>;
+  /**
+   * Se há fila retida e passou de `DIAS_FILA_RETIDA`, apaga tudo deste usuário (o repositório continua usável).
+   * Devolve o que havia: `retida` (dentro do prazo, intacta), `vencida` (apagada) ou `nenhuma`.
+   */
+  descartarFilaRetidaVencida(): Promise<SituacaoDaFilaRetida>;
+  /** O mesmo usuário entrou de novo: tira a marca e a fila volta a ser a fila normal de envio. `true` se havia marca. */
+  retomarFilaRetida(): Promise<boolean>;
   /** Libera recursos (conexão do banco). Pode voltar a ser usado depois: reabre sozinho. */
   fechar(): Promise<void>;
 }
@@ -299,6 +331,38 @@ export class RepositorioChaveValor implements RepositorioLocal {
     });
   }
 
+  reterSoAFila(): Promise<number> {
+    return this.emFila(async () => {
+      const fila = (await this.lerJson<RegistroLocal[]>('registros', [])).filter((r) => r.situacao === 'LOCAL');
+      // Grava a fila e a marca antes de apagar o resto: uma falha no meio não perde registro.
+      if (fila.length) {
+        await this.kv.gravar(this.chave('registros'), JSON.stringify(fila));
+        await this.kv.gravar(this.chave('filaRetida'), JSON.stringify({ desde: this.agora().toISOString() }));
+      }
+      this.encerrado = true;
+      await apagarChavesDoUsuario(this.kv, this.usuarioId, fila.length ? CHAVES_DA_FILA_RETIDA : []);
+      return fila.length;
+    });
+  }
+
+  descartarFilaRetidaVencida(): Promise<SituacaoDaFilaRetida> {
+    return this.emFila(async () => {
+      const marca = await this.lerJson<MarcaDaFilaRetida | null>('filaRetida', null);
+      if (!marca) return 'nenhuma';
+      if (!filaRetidaVenceu(marca.desde, this.agora())) return 'retida';
+      await apagarChavesDoUsuario(this.kv, this.usuarioId);
+      return 'vencida';
+    });
+  }
+
+  retomarFilaRetida(): Promise<boolean> {
+    return this.emFila(async () => {
+      if (this.encerrado || (await this.kv.ler(this.chave('filaRetida'))) === null) return false;
+      await this.kv.apagar([this.chave('filaRetida')]);
+      return true;
+    });
+  }
+
   async fechar(): Promise<void> {
     // Nada aberto: o AsyncStorage não tem conexão.
   }
@@ -325,9 +389,17 @@ export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
  */
 export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'boasVindasVistas'];
 
-export async function apagarChavesDoUsuario(kv: ChaveValor, usuarioId: string): Promise<void> {
+/** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados e a marca com a data. */
+export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'filaRetida'];
+
+/** `tambemFicam` = nomes (sem o prefixo do usuário) que `SOBREVIVEM_AO_SAIR` não cobre e que não devem sair. */
+export async function apagarChavesDoUsuario(
+  kv: ChaveValor,
+  usuarioId: string,
+  tambemFicam: readonly string[] = [],
+): Promise<void> {
   const prefixo = prefixoDoUsuario(usuarioId);
-  const ficam = new Set(SOBREVIVEM_AO_SAIR.map((nome) => `${prefixo}${nome}`));
+  const ficam = new Set([...SOBREVIVEM_AO_SAIR, ...tambemFicam].map((nome) => `${prefixo}${nome}`));
   await kv.apagar((await kv.chaves()).filter((c) => c.startsWith(prefixo) && !ficam.has(c)));
 }
 

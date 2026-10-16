@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { dataParaTela } from '../../dominio/formatos';
+import { avisoAoSairComPendencias, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
 import { useAluno } from '../../offline/AlunoProvider';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -15,19 +16,14 @@ import { Texto } from '../../ui/Texto';
 
 /** Conta do aluno: sincronização (pendências, falhas, "Sincronizar agora"), tema, senha e sair. */
 export default function ContaAluno() {
-  const { pendentes, falhas, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
+  const { pendentes, falhas, registros, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
   const naoEnviados = pendentes + falhas.length;
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Conta e preferências" />
       <LinkTexto href="/aluno/ajuda" texto="Ajuda, primeiros passos e tutorial" />
       <LinkTexto href="/aluno/termos" texto="Termos e privacidade" />
-      <PainelConta
-        avisoAoSair={
-          naoEnviados
-            ? `Há ${naoEnviados} registro(s) ainda não enviado(s). Se sair agora, eles serão apagados deste aparelho. Conecte-se e sincronize antes, se puder.`
-            : null
-        }>
+      <PainelConta avisoAoSair={avisoAoSairComPendencias(treinosNaoEnviados(registros))}>
         <Cartao titulo="Sincronização" descricao="Os registros ficam salvos neste aparelho e vão para o seu treinador quando houver internet.">
           <SeloSincronizacao />
           <Texto variante="suave">

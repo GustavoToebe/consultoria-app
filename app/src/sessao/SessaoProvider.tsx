@@ -5,9 +5,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { aoEncerrar, ErroApi, guardarSessao, limparSessaoLocal, renovarSessao } from '../api/cliente';
 import * as rotas from '../api/rotas';
 import type { LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
-import { apagarDadosDaSessaoLocal } from '../dominio/encerrarSessaoLocal';
+import { apagarDadosDaSessaoLocal, type MotivoDoEncerramento } from '../dominio/encerrarSessaoLocal';
 import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funcionalidadesDoPlano';
 import { pode as conferirPermissao } from '../dominio/permissoes';
+import { varrerFilasRetidas } from '../offline/filasRetidas';
+import { limparDadosDoAluno } from '../offline/limparDadosDoAluno';
 import { lerRefresh } from './armazenamentoSeguro';
 
 /**
@@ -16,6 +18,8 @@ import { lerRefresh } from './armazenamentoSeguro';
  * - servidor recusou (401): volta para "Entrar";
  * - sem conexão: abre offline com o último perfil salvo (o aluno precisa treinar sem internet).
  * O perfil salvo (nome, papel e marca) serve só para isso e é apagado ao sair.
+ * Sessão recusada pelo servidor no meio do uso apaga os dados do aparelho como o "Sair", menos a fila de registros de
+ * treino ainda não enviados (`MotivoDoEncerramento`).
  */
 export type Situacao = 'carregando' | 'anonimo' | 'autenticado';
 
@@ -56,18 +60,32 @@ interface ValorSessao {
   desativarMfa: (senha: string, codigo: string) => Promise<void>;
   atualizarMarca: (marca: Marca) => void;
   sair: () => Promise<void>;
-  /** Limpezas extras ao sair (ex.: dados offline do aluno). Devolve a função que remove o registro. */
-  aoSair: (limpeza: (usuarioId: string) => Promise<void>) => () => void;
+  /**
+   * Limpezas extras ao sair (ex.: dados offline do aluno). Recebem o motivo: `sair` apaga tudo; `recusada` (servidor
+   * derrubou a sessão) apaga o que é dado sensível e preserva a fila de envio. Devolve a função que remove o registro.
+   */
+  aoSair: (limpeza: (usuarioId: string, motivo: MotivoDoEncerramento) => Promise<void>) => () => void;
 }
 
 const CHAVE_PERFIL = 'treinos:perfil';
+
+/** Id do aluno de um perfil salvo (texto do AsyncStorage); nulo se não há, está ilegível ou não é de aluno. */
+function alunoDoPerfilSalvo(salvo: string | null): string | null {
+  if (!salvo) return null;
+  try {
+    const { usuario } = JSON.parse(salvo) as Partial<Perfil>;
+    return usuario?.papel === 'ALUNO' && usuario.id ? usuario.id : null;
+  } catch {
+    return null;
+  }
+}
 const Contexto = createContext<ValorSessao | null>(null);
 
 export function SessaoProvider({ children }: { children: ReactNode }) {
   const [situacao, setSituacao] = useState<Situacao>('carregando');
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [offline, setOffline] = useState(false);
-  const limpezas = useRef(new Set<(usuarioId: string) => Promise<void>>());
+  const limpezas = useRef(new Set<(usuarioId: string, motivo: MotivoDoEncerramento) => Promise<void>>());
   const perfilAtual = useRef<Perfil | null>(null);
 
   useEffect(() => {
@@ -83,18 +101,21 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     setOffline(false);
     setSituacao('autenticado');
     await AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+    // Filas retidas de sessões recusadas: apaga as que passaram do prazo (de qualquer usuário; nunca envia nada).
+    void varrerFilasRetidas({ exceto: eu.usuario.id }).catch(() => undefined);
   }, []);
 
   // Um encerramento por vez: "Sair" e o servidor recusando a sessão (várias requisições podem avisar juntas) dividem
-  // a mesma execução. O id vem da ref na hora da chamada, não de uma cópia do registro do callback.
-  const encerrando = useRef<Promise<void> | null>(null);
-  const encerrarLocal = useCallback((): Promise<void> => {
-    if (encerrando.current) return encerrando.current;
+  // a mesma execução. O id vem da ref na hora da chamada, não de uma cópia do registro do callback. Se a sessão já
+  // está sendo encerrada como `recusada` e a pessoa pede "Sair", este segundo pedido roda depois, para apagar também a
+  // fila que a recusa preservou.
+  const encerrando = useRef<{ motivo: MotivoDoEncerramento; usuarioId: string | undefined; execucao: Promise<void> } | null>(null);
+  const iniciarEncerramento = useCallback((motivo: MotivoDoEncerramento, usuarioId: string | undefined): Promise<void> => {
     const execucao = (async () => {
-      const usuarioId = perfilAtual.current?.usuario.id;
       try {
         await apagarDadosDaSessaoLocal({
           usuarioId,
+          motivo,
           limparSessaoLocal,
           removerPerfilSalvo: () => AsyncStorage.removeItem(CHAVE_PERFIL),
           limpezas: limpezas.current,
@@ -108,16 +129,29 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     })().finally(() => {
       encerrando.current = null;
     });
-    encerrando.current = execucao;
+    encerrando.current = { motivo, usuarioId, execucao };
     return execucao;
   }, []);
+  const encerrarLocal = useCallback(
+    (motivo: MotivoDoEncerramento): Promise<void> => {
+      const andamento = encerrando.current;
+      if (!andamento) return iniciarEncerramento(motivo, perfilAtual.current?.usuario.id);
+      if (motivo === 'sair' && andamento.motivo === 'recusada') {
+        return andamento.execucao.then(() => iniciarEncerramento('sair', andamento.usuarioId));
+      }
+      return andamento.execucao;
+    },
+    [iniciarEncerramento],
+  );
 
   useEffect(() => {
     let ativo = true;
+    void varrerFilasRetidas().catch(() => undefined);
     aoEncerrar(() => {
-      // O refresh foi recusado (401/403) no meio do uso: sessão encerrada no servidor. Apaga os dados do aparelho como
-      // no "Sair". Erro de rede ou 5xx não chega aqui (o cliente só avisa quando o servidor recusa).
-      void encerrarLocal().catch(() => undefined);
+      // O refresh foi recusado (401/403) no meio do uso: sessão encerrada no servidor, sem a pessoa ter pedido. Apaga os
+      // dados do aparelho como no "Sair", mas guarda os registros de treino ainda não enviados. Erro de rede ou 5xx
+      // não chega aqui (o cliente só avisa quando o servidor recusa).
+      void encerrarLocal('recusada').catch(() => undefined);
     });
     (async () => {
       try {
@@ -126,7 +160,13 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         if (sessao) {
           await abrir(sessao);
         } else {
+          // O servidor recusou a sessão guardada (ou ela já não existia). Com um perfil de aluno salvo, é sessão
+          // derrubada na ausência: apaga o que é dado sensível e guarda só a fila de registros não enviados.
+          const salvo = await AsyncStorage.getItem(CHAVE_PERFIL).catch(() => null);
           await AsyncStorage.removeItem(CHAVE_PERFIL).catch(() => undefined);
+          const aluno = alunoDoPerfilSalvo(salvo);
+          if (aluno) await limparDadosDoAluno(aluno, 'recusada').catch(() => undefined);
+          if (!ativo) return;
           setSituacao('anonimo');
         }
       } catch (erro) {
@@ -147,8 +187,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     };
   }, [abrir, encerrarLocal]);
 
-  // Aberta sem internet: tenta renovar quando a rede volta (e a cada 30 s). Recusada no servidor, volta para
-  // "Entrar" sem apagar os registros do aparelho (o mesmo aluno, ao entrar de novo, envia o que ficou).
+  // Aberta sem internet: tenta renovar quando a rede volta (e a cada 30 s). Recusada no servidor, é sessão derrubada:
+  // volta para "Entrar" e o aparelho guarda só a fila de registros (o mesmo aluno, ao entrar de novo, envia o que ficou).
   useEffect(() => {
     if (!offline) return;
     let ativo = true;
@@ -159,9 +199,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
           if (sessao) {
             void abrir(sessao);
           } else {
-            setPerfil(null);
-            setOffline(false);
-            setSituacao('anonimo');
+            // Recusada no servidor: o mesmo que no meio do uso (dados sensíveis saem, a fila de envio fica).
+            void encerrarLocal('recusada').catch(() => undefined);
           }
         },
         () => undefined,
@@ -176,7 +215,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       cancelarRede();
       clearInterval(relogio);
     };
-  }, [offline, abrir]);
+  }, [offline, abrir, encerrarLocal]);
 
   const recarregarPerfil=useCallback(async()=>{
     const atual=perfilAtual.current;if(!atual || atual.usuario.papel!=='TREINADOR') return;
@@ -234,7 +273,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         } catch {
           // Sem conexão: a sessão local é apagada mesmo assim; o refresh expira no servidor.
         }
-        await encerrarLocal();
+        await encerrarLocal('sair');
       },
       aoSair: (limpeza) => {
         limpezas.current.add(limpeza);

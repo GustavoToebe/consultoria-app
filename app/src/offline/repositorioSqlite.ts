@@ -1,15 +1,18 @@
 import type { Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
 import {
+  filaRetidaVenceu,
   limiteGuardados,
   proximoInstante,
   type DadosRegistro,
   type HistoricoSemanaSalvo,
+  type MarcaDaFilaRetida,
   type PacoteSalvo,
   type RegistroLocal,
   type RepositorioLocal,
   type RascunhoAtualizacao,
   type ResultadoEnvio,
+  type SituacaoDaFilaRetida,
 } from './repositorioLocal';
 
 interface LinhaRegistro {
@@ -316,6 +319,68 @@ export class RepositorioSqlite implements RepositorioLocal {
     const resultado = this.fila.then(executar, executar);
     this.fila = resultado.catch(() => undefined);
     return resultado;
+  }
+
+  /**
+   * Tira do banco tudo o que é dado da pessoa, menos os registros. `secure_delete` vai dentro da transação porque o
+   * expo-sqlite a roda em outra conexão; ele faz as páginas liberadas serem zeradas, sem resto legível no arquivo.
+   */
+  private async apagarDadosDaPessoa(t: BancoSql): Promise<void> {
+    await t.executar('pragma secure_delete = on');
+    await t.rodar('delete from kv');
+    await t.rodar('delete from carga_trabalho');
+  }
+
+  reterSoAFila(): Promise<number> {
+    const executar = async () => {
+      if (this.encerrado) return 0;
+      const { banco } = await this.abrir();
+      const retidos = await banco.transacao(async (t) => {
+        await this.apagarDadosDaPessoa(t);
+        await t.rodar("delete from registro where situacao <> 'LOCAL'");
+        const { n } = (await t.primeiro<{ n: number }>('select count(*) as n from registro')) ?? { n: 0 };
+        if (n > 0) await this.gravarDocumento(t, 'filaRetida', { desde: this.agora().toISOString() });
+        return n;
+      });
+      this.encerrado = true;
+      // Os dados já saíram na transação; apagar o arquivo (sem fila) é só arrumação, e o `vacuum` encolhe o que sobrou.
+      if (retidos === 0) {
+        await this.fecharConexao();
+        await this.fabrica.apagar(this.nome);
+      } else {
+        await banco.executar('vacuum').catch(() => undefined);
+        await this.fecharConexao();
+      }
+      return retidos;
+    };
+    const resultado = this.fila.then(executar, executar);
+    this.fila = resultado.catch(() => undefined);
+    return resultado;
+  }
+
+  descartarFilaRetidaVencida(): Promise<SituacaoDaFilaRetida> {
+    const executar = async (): Promise<SituacaoDaFilaRetida> => {
+      if (this.encerrado) return 'nenhuma';
+      const { banco } = await this.abrir();
+      const marca = await this.lerDocumento<MarcaDaFilaRetida>(banco, 'filaRetida');
+      if (!marca) return 'nenhuma';
+      if (!filaRetidaVenceu(marca.desde, this.agora())) return 'retida';
+      // Esvazia as tabelas em vez de apagar o arquivo: outra conexão (a varredura do aparelho e o provider do mesmo
+      // usuário podem abrir o banco juntos) faria a exclusão do arquivo falhar sem aviso e a fila vencida seria enviada.
+      await banco.transacao(async (t) => {
+        await this.apagarDadosDaPessoa(t);
+        await t.rodar('delete from registro');
+      });
+      await banco.executar('vacuum').catch(() => undefined);
+      return 'vencida';
+    };
+    const resultado = this.fila.then(executar, executar);
+    this.fila = resultado.catch(() => undefined);
+    return resultado;
+  }
+
+  retomarFilaRetida(): Promise<boolean> {
+    return this.emFila(false, async (b) => (await b.rodar("delete from kv where chave = 'filaRetida'")).alteradas > 0);
   }
 
   fechar(): Promise<void> {
