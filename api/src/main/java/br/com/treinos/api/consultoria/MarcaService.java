@@ -20,6 +20,8 @@ import java.util.UUID;
 public class MarcaService {
 
     public static final int LOGO_MAXIMO_BYTES = 512 * 1024;
+    /** Maior lado da logo, em pixels (PNG pelo cabeçalho, JPEG pelo quadro). */
+    public static final int LOGO_LADO_MAXIMO = 2048;
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
 
     public record MarcaRequest(
@@ -75,8 +77,21 @@ public class MarcaService {
             throw arquivoInvalido("A logo pode ter no máximo 512 KB.");
         }
         String tipo = tipoPelosBytes(bytes).orElseThrow(() -> arquivoInvalido("A logo precisa ser PNG ou JPEG."));
+        byte[] guardar = bytes;
+        if ("image/png".equals(tipo)) {
+            if (!ladosDoPngCabem(bytes)) {
+                throw arquivoInvalido("A logo precisa ter no máximo " + LOGO_LADO_MAXIMO + " px de largura e de altura.");
+            }
+        } else {
+            // O JPEG é regravado sem EXIF, GPS, miniatura nem comentários: a logo é pública.
+            try {
+                guardar = br.com.treinos.api.fotos.JpegSemMetadados.limpar(bytes, LOGO_LADO_MAXIMO);
+            } catch (IllegalArgumentException invalido) {
+                throw arquivoInvalido("A logo JPEG precisa estar inteira e ter no máximo " + LOGO_LADO_MAXIMO + " px de largura e de altura.");
+            }
+        }
         exigirExiste(consultoriaId);
-        logos.gravar(consultoriaId, bytes, tipo);
+        logos.gravar(consultoriaId, guardar, tipo);
         return MarcaPublica.de(buscar(consultoriaId));
     }
 
@@ -91,6 +106,20 @@ public class MarcaService {
     @Transactional(readOnly = true)
     public Optional<LogoRepositorio.Logo> logoPublica(UUID consultoriaId) {
         return logos.ler(consultoriaId);
+    }
+
+    /** Largura e altura vêm do chunk IHDR, que a assinatura PNG exige logo depois dela (bytes 16 a 23). Zero ou acima do limite recusa. */
+    static boolean ladosDoPngCabem(byte[] b) {
+        if (b.length < 24 || b[12] != 'I' || b[13] != 'H' || b[14] != 'D' || b[15] != 'R') {
+            return false;
+        }
+        long largura = inteiro(b, 16);
+        long altura = inteiro(b, 20);
+        return largura >= 1 && altura >= 1 && largura <= LOGO_LADO_MAXIMO && altura <= LOGO_LADO_MAXIMO;
+    }
+
+    private static long inteiro(byte[] b, int i) {
+        return ((long) (b[i] & 0xFF) << 24) | ((b[i + 1] & 0xFF) << 16) | ((b[i + 2] & 0xFF) << 8) | (b[i + 3] & 0xFF);
     }
 
     static Optional<String> tipoPelosBytes(byte[] b) {

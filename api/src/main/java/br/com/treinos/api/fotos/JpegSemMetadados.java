@@ -11,7 +11,7 @@ import java.io.ByteArrayOutputStream;
  *
  * <p>Só JPEG de base ou progressivo (SOF0, SOF1, SOF2). Tudo o que não for reconhecido é recusado, não repassado.
  */
-final class JpegSemMetadados {
+public final class JpegSemMetadados {
 
     /** Maior lado aceito, em pixels. O app reduz para ~1600; folga para outros clientes sem deixar uma imagem gigante passar. */
     static final int LADO_MAXIMO = 4096;
@@ -24,7 +24,12 @@ final class JpegSemMetadados {
     }
 
     /** @throws IllegalArgumentException se não for um JPEG inteiro e aceito (a mensagem não repete nada do arquivo) */
-    static byte[] limpar(byte[] jpeg) {
+    public static byte[] limpar(byte[] jpeg) {
+        return limpar(jpeg, LADO_MAXIMO);
+    }
+
+    /** Igual a {@link #limpar(byte[])}, com outro maior lado aceito (a logo da consultoria usa 2048). */
+    public static byte[] limpar(byte[] jpeg, int ladoMaximo) {
         if (jpeg == null || jpeg.length < 4 || (jpeg[0] & 0xFF) != 0xFF || (jpeg[1] & 0xFF) != SOI) {
             throw new IllegalArgumentException("não é JPEG");
         }
@@ -73,7 +78,7 @@ final class JpegSemMetadados {
                         if (quadro) {
                             throw new IllegalArgumentException("quadro repetido");
                         }
-                        conferirQuadro(jpeg, inicio, fim);
+                        conferirQuadro(jpeg, inicio, fim, ladoMaximo);
                         quadro = true;
                     }
                     if (marcador == SOS && !quadro) {
@@ -146,7 +151,7 @@ final class JpegSemMetadados {
         return true;
     }
 
-    private static void conferirQuadro(byte[] b, int inicio, int fim) {
+    private static void conferirQuadro(byte[] b, int inicio, int fim, int ladoMaximo) {
         if (fim - inicio < 6) {
             throw new IllegalArgumentException("quadro curto");
         }
@@ -154,7 +159,7 @@ final class JpegSemMetadados {
         int altura = ((b[inicio + 1] & 0xFF) << 8) | (b[inicio + 2] & 0xFF);
         int largura = ((b[inicio + 3] & 0xFF) << 8) | (b[inicio + 4] & 0xFF);
         int componentes = b[inicio + 5] & 0xFF;
-        if (precisao != 8 || altura == 0 || largura == 0 || altura > LADO_MAXIMO || largura > LADO_MAXIMO
+        if (precisao != 8 || altura == 0 || largura == 0 || altura > ladoMaximo || largura > ladoMaximo
                 || (componentes != 1 && componentes != 3 && componentes != 4)) {
             throw new IllegalArgumentException("imagem fora do aceito");
         }

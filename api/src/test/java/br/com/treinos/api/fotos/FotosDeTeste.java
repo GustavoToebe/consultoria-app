@@ -13,14 +13,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /** Fotos de mentira para os testes: quadrados coloridos gerados na hora. Nenhuma imagem de pessoa. */
-final class FotosDeTeste {
+public final class FotosDeTeste {
 
-    static final String MARCA_EXIF = "GPS-FICTICIO-23.55S-46.63W-MODELO-DO-APARELHO";
+    public static final String MARCA_EXIF = "GPS-FICTICIO-23.55S-46.63W-MODELO-DO-APARELHO";
 
     private FotosDeTeste() {
     }
 
-    static byte[] jpeg(Color cor, int lado, boolean progressivo) {
+    public static byte[] jpeg(Color cor, int lado, boolean progressivo) {
         BufferedImage imagem = new BufferedImage(lado, lado, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = imagem.createGraphics();
         g.setColor(cor);
@@ -48,12 +48,12 @@ final class FotosDeTeste {
         }
     }
 
-    static byte[] jpeg(Color cor) {
+    public static byte[] jpeg(Color cor) {
         return jpeg(cor, 64, false);
     }
 
     /** Põe depois do SOI um APP1 "Exif" (com um texto que lembra GPS e modelo), um comentário e um APP13. */
-    static byte[] comMetadados(byte[] jpeg) {
+    public static byte[] comMetadados(byte[] jpeg) {
         ByteArrayOutputStream saida = new ByteArrayOutputStream();
         saida.write(jpeg, 0, 2);
         segmento(saida, 0xE1, ("Exif\0\0" + MARCA_EXIF).getBytes(StandardCharsets.ISO_8859_1));
@@ -90,7 +90,7 @@ final class FotosDeTeste {
         saida.write(carga, 0, carga.length);
     }
 
-    static boolean contem(byte[] bytes, String texto) {
+    public static boolean contem(byte[] bytes, String texto) {
         return new String(bytes, StandardCharsets.ISO_8859_1).contains(texto);
     }
 

@@ -1,6 +1,8 @@
 package br.com.treinos.api.consultoria;
 
+import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.web.NaoEncontradoException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,13 +24,16 @@ import java.util.UUID;
 public class MarcaPublicaController {
 
     private final MarcaService marcas;
+    private final LimiteTentativas limite;
 
-    public MarcaPublicaController(MarcaService marcas) {
+    public MarcaPublicaController(MarcaService marcas, LimiteTentativas limite) {
         this.marcas = marcas;
+        this.limite = limite;
     }
 
     @GetMapping("/{consultoriaId}/logo")
-    public ResponseEntity<byte[]> logo(@PathVariable UUID consultoriaId) {
+    public ResponseEntity<byte[]> logo(@PathVariable UUID consultoriaId, HttpServletRequest http) {
+        limite.logo(http.getRemoteAddr());
         return marcas.logoPublica(consultoriaId)
                 .map(logo -> ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(logo.tipo()))

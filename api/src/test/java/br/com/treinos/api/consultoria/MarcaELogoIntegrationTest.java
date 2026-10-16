@@ -14,6 +14,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import br.com.treinos.api.fotos.FotosDeTeste;
+
+import java.awt.Color;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +32,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
 
-    private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0, 0, 0, 13, 'I', 'H', 'D', 'R'};
+    private static final byte[] PNG = png(64, 64);
+
+    /** Assinatura PNG + chunk IHDR com a largura e a altura pedidas (o servidor lê só o cabeçalho). */
+    private static byte[] png(int largura, int altura) {
+        java.nio.ByteBuffer b = java.nio.ByteBuffer.allocate(33);
+        b.put(new byte[] {(byte) 0x89, 'P', 'N', 'G', 13, 10, 0x1A, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R'});
+        b.putInt(largura).putInt(altura).put(new byte[] {8, 6, 0, 0, 0}).putInt(0);
+        return b.array();
+    }
     private static final byte[] GIF = "GIF89a....".getBytes(StandardCharsets.US_ASCII);
     private static final byte[] SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>"
             .getBytes(StandardCharsets.UTF_8);
@@ -75,6 +86,32 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
         System.arraycopy(PNG, 0, grande, 0, PNG.length);
         enviar(new MockMultipartFile("arquivo", "grande.png", "image/png", grande), 400);
         assertThat(api.get("/consultoria", treinador, 200).get("marca").get("logoUrl").isNull()).isTrue();
+    }
+
+    @Test
+    void pngTemOTamanhoConferidoNoCabecalho() throws Exception {
+        enviar(new MockMultipartFile("arquivo", "logo.png", "image/png", png(2048, 2048)), 200);
+        for (byte[] ruim : List.of(png(2049, 100), png(100, 2049), png(0, 100), png(100, 0), png(Integer.MIN_VALUE, 100),
+                java.util.Arrays.copyOf(png(100, 100), 20))) {
+            MvcResult r = enviar(new MockMultipartFile("arquivo", "logo.png", "image/png", ruim), 400);
+            assertThat(api.ler(r).get("codigo").asString()).isEqualTo("ARQUIVO_INVALIDO");
+        }
+    }
+
+    @Test
+    void jpegPassaPelaLimpezaDeMetadadosETemOMesmoLimiteDeLado() throws Exception {
+        byte[] suja = FotosDeTeste.comMetadados(FotosDeTeste.jpeg(Color.RED));
+        assertThat(FotosDeTeste.contem(suja, "Exif")).isTrue();
+        String logoUrl = api.ler(enviar(new MockMultipartFile("arquivo", "logo.jpg", "image/jpeg", suja), 200)).get("logoUrl").asString();
+        byte[] servida = mvc.perform(get(logoUrl)).andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/jpeg")).andReturn().getResponse().getContentAsByteArray();
+        assertThat(FotosDeTeste.contem(servida, "Exif")).isFalse();
+        assertThat(FotosDeTeste.contem(servida, FotosDeTeste.MARCA_EXIF)).isFalse();
+        // Maior que 2048 px, cortado ao meio ou só o começo de um JPEG: recusa.
+        enviar(new MockMultipartFile("arquivo", "grande.jpg", "image/jpeg", FotosDeTeste.jpeg(Color.RED, 2100, false)), 400);
+        byte[] inteira = FotosDeTeste.jpeg(Color.RED);
+        enviar(new MockMultipartFile("arquivo", "cortada.jpg", "image/jpeg", java.util.Arrays.copyOf(inteira, inteira.length / 2)), 400);
+        enviar(new MockMultipartFile("arquivo", "falsa.jpg", "image/jpeg", new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0}), 400);
     }
 
     @Test

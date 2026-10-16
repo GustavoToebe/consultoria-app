@@ -26,6 +26,7 @@ treinos:
   # O limite por conta (10) continua o de produção e é testado no AuthIntegrationTest.
   limites:
     cadastro-ip: 100000
+    logo-ip: 100000
     convite-ip: 100000
     refresh-ip: 100000
   # Fotos ligadas em toda a suíte (o bucket é um MinIO de teste, registrado por MinioDeTeste); o modo desligado tem a sua
