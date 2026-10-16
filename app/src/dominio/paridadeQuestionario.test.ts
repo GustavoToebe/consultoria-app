@@ -12,7 +12,11 @@ const ler = <T,>(nome: string) =>
   JSON.parse(readFileSync(resolve(__dirname, '../../../api/src/test/resources/paridade-questionario/', nome), 'utf8')) as T;
 
 interface CasoQuestionario { nome: string; conteudo: ConteudoQuestionario; erros: string[]; avisos: string[] }
-interface CasoRespostas { nome: string; modelo: ConteudoQuestionario; respostas: RespostasAtualizacao; camposComErro: string[] }
+interface CasoRespostas {
+  nome: string; modelo: ConteudoQuestionario; respostas: RespostasAtualizacao; camposComErro: string[];
+  /** Ausente = ligadas (o caso é sobre a validação das fotos). */
+  fotosLigadas?: boolean;
+}
 
 it('limites iguais aos do Java', () => {
   expect(LIMITES_QUESTIONARIO).toEqual(ler('limites.json'));
@@ -29,5 +33,5 @@ it.each(questionarios.map((c) => [c.nome, c] as const))('questionário: %s', (_n
 const respostas = ler<CasoRespostas[]>('respostas.json');
 it('há casos de respostas', () => expect(respostas.length).toBeGreaterThan(25));
 it.each(respostas.map((c) => [c.nome, c] as const))('respostas: %s', (_nome, caso) => {
-  expect(Object.keys(errosRespostasAtualizacao(caso.modelo, caso.respostas)).sort()).toEqual([...caso.camposComErro].sort());
+  expect(Object.keys(errosRespostasAtualizacao(caso.modelo, caso.respostas, caso.fotosLigadas ?? true)).sort()).toEqual([...caso.camposComErro].sort());
 });

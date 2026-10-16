@@ -29,6 +29,8 @@ export const LIMITES_QUESTIONARIO = {
   capacidadeDeTextoTotal: 40000,
   rascunhoBytes: 256 * 1024,
   respostasBytes: 256 * 1024,
+  /** Fotos por pergunta FOTOS (o servidor limita também o tamanho de cada uma e o total por dia). */
+  fotosPorPergunta: 6,
   idTamanho: 40,
   /** Mínimo, máximo e resposta de NUMERO ficam em [-N, N] (igual a `LimitesQuestionario.NUMERO_ABSOLUTO`). */
   numeroAbsoluto: 1_000_000_000,

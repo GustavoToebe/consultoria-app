@@ -651,6 +651,8 @@ export interface Atualizacao {
   versao: number | null;
   resumo: { diasComTreino: number; mediaDiasPorSemana: number | null; pesoAnterior: number | null } | null;
 }
+/** `GET /aluno/fotos/configuracao`: o que o servidor aceita (os limites também valem lá). */
+export interface ConfiguracaoDeFotos { habilitado: boolean; maximoPorPergunta: number; bytesMaximo: number; porDia: number }
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */
 export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' | 'nomeAluno' | 'dataAtualizacao' | 'fase' | 'diasParaData' | 'diasDeAtraso' | 'atrasoAte'>;
 

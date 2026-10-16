@@ -38,7 +38,7 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
     {aceitaObrigatoria(p.tipo) ? <Interruptor rotulo="Obrigatória" valor={p.obrigatoria} aoMudar={(obrigatoria) => aoMudar({ obrigatoria })} /> : null}
     {p.tipo === 'PESO' ? <Texto variante="suave">A resposta vai para o registro de peso do aluno.</Texto> : null}
     {p.tipo === 'DATA_AUTOMATICA' ? <Texto variante="suave">Mostra a data da atualização; o aluno não responde.</Texto> : null}
-    {p.tipo === 'FOTOS' ? <Texto variante="suave">Envio de fotos ainda não implementado.</Texto> : null}
+    {p.tipo === 'FOTOS' ? <Texto variante="suave">O aluno anexa até 6 fotos. Elas só aparecem para você na atualização enviada, e só com o envio de fotos ligado no servidor.</Texto> : null}
 
     {temOpcoes(p.tipo) ? <View style={estilos.bloco}>
       <Texto variante="rotulo">Opções ({opcoes.length} de {L.opcoesMaximo})</Texto>

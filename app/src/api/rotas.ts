@@ -3,6 +3,7 @@ import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, 
 import type {
   Atualizacao,
   AtualizacaoDaLista,
+  ConfiguracaoDeFotos,
   CriarQuestionarioRequest,
   OpcaoQuestionario,
   ResultadoLote,
@@ -123,6 +124,21 @@ export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false) 
   requisicao<AtualizacaoDaLista[]>(`/atualizacoes?situacao=${situacao}&meus=${meus}`);
 export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${id}/atualizacoes`);
 export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${id}/atualizacao`);
+
+// ---- Fotos da atualização (bytes só pela API, com token; nada de link direto para o bucket) ----
+
+export const configuracaoDeFotos = () => requisicao<ConfiguracaoDeFotos>('/aluno/fotos/configuracao');
+
+/** `arquivo`: FormData com o campo `arquivo` (JPEG já sem EXIF); `pastaId` vai junto. */
+export const enviarFoto = (pastaId: string, arquivo: FormData) =>
+  requisicao<{ id: string }>(`/aluno/fotos?pastaId=${encodeURIComponent(pastaId)}`, { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
+
+export const removerFoto = (id: string) => requisicao<void>(`/aluno/fotos/${id}`, { metodo: 'DELETE' });
+
+export const baixarFotoDoAluno = (id: string) => requisicao<Blob>(`/aluno/fotos/${id}`, { binario: true, limiteMs: 60000 });
+
+export const baixarFotoDoTreinador = (atualizacaoId: string, fotoId: string) =>
+  requisicao<Blob>(`/atualizacoes/${atualizacaoId}/fotos/${fotoId}`, { binario: true, limiteMs: 60000 });
 export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${id}`);
 export const responderAtualizacao = (id: string, texto: string, versao: number) =>
   requisicao<Atualizacao>(`/atualizacoes/${id}/feedback`, { metodo: 'PUT', corpo: { texto, versao } });

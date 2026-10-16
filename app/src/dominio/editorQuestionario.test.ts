@@ -25,10 +25,9 @@ describe('fábricas', () => {
       expect(errosDoQuestionario(paraApi(c))).toEqual([]);
     }
   });
-  it('não oferece FOTOS no menu e cobre todos os outros tipos', () => {
+  it('o menu cobre todos os tipos, inclusive FOTOS', () => {
     const oferecidos = TIPOS_PARA_ADICIONAR.map((t) => t.tipo);
-    expect(oferecidos).not.toContain('FOTOS');
-    expect([...oferecidos].sort()).toEqual(TODOS.filter((t) => t !== 'FOTOS').sort());
+    expect([...oferecidos].sort()).toEqual([...TODOS].sort());
   });
   it('escolhas nascem com duas opções vazias, número sem casas e notas por dia com sete dias', () => {
     expect(novaPergunta('ESCOLHA_UNICA').opcoes).toHaveLength(2);

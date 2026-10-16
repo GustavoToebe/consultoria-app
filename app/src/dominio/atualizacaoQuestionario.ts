@@ -79,11 +79,11 @@ export function resumoDoTreinador(
 
 /**
  * Respostas que continuam valendo num questionário novo: o id existe, o valor é do tipo e da faixa da pergunta nova.
- * Fotos e data automática nunca guardam resposta.
+ * Data automática nunca guarda resposta; fotos guardam só os ids das já enviadas.
  */
 export function respostasCompativeis(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao) {
   const perguntas = new Map(todasAsPerguntas(modelo)
-    .filter((p) => p.tipo !== 'FOTOS' && p.tipo !== 'DATA_AUTOMATICA').map((p) => [p.id, p]));
+    .filter((p) => p.tipo !== 'DATA_AUTOMATICA').map((p) => [p.id, p]));
   const mantidas: RespostasAtualizacao = {};
   const descartadas: string[] = [];
   for (const [id, valor] of Object.entries(respostas)) {

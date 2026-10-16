@@ -7,7 +7,6 @@ import {
 import { dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
-import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
@@ -18,6 +17,7 @@ import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { EscalaDeNota } from '../../ui/EscalaDeNota';
 import { Texto } from '../../ui/Texto';
+import { CampoFotos } from './fotos/CampoFotos';
 
 interface Props {
   atualizacao: Atualizacao;
@@ -47,7 +47,6 @@ function Pergunta({pergunta:p,valor,atualizacao:a,erro,aoMudar}: {
   pergunta:PerguntaAtualizacao;valor:RespostaAtualizacao;atualizacao:Atualizacao;erro?:string;
   aoMudar?: (valor:RespostaAtualizacao)=>void;
 }) {
-  const {avisar}=useAviso();
   const {cores}=useTema();
   const rotulo=`${p.rotulo}${p.obrigatoria ? ' *' : ''}`;
   const ajuda=p.ajudaAutomatica==='MEDIA_DIAS_TREINO' && a.resumo?.mediaDiasPorSemana!=null
@@ -56,9 +55,7 @@ function Pergunta({pergunta:p,valor,atualizacao:a,erro,aoMudar}: {
   const mensagemErro=erro?<Texto cor={cores.perigo}>{erro}</Texto>:null;
   if(p.tipo==='DATA_AUTOMATICA') return <View style={estilos.pergunta}><Texto variante="rotulo">{p.rotulo}</Texto><Texto numerico>{dataParaTela(a.dataAtualizacao)||'—'}</Texto></View>;
   if(p.tipo==='FOTOS') return <View style={estilos.pergunta}>
-    <Texto variante="rotulo">{p.rotulo}</Texto>
-    <View style={estilos.fotos}>{['Frente','Costas','Lado','Livre'].map(pose=><Botao key={pose} tipo="secundario" rotulo={pose}
-      aoTocar={()=>avisar('Envio de fotos ainda não implementado.')} />)}</View>
+    <CampoFotos pergunta={p} valor={valor} atualizacaoId={a.id} rotulo={rotulo} />{mensagemErro}
   </View>;
   if(!TIPOS_CONHECIDOS.includes(p.tipo)) return <View style={estilos.pergunta}>
     <Texto variante="rotulo">{p.rotulo}</Texto><Texto variante="pequeno">{aoMudar?'Atualize o app para responder esta pergunta.':'Atualize o app para ver esta resposta.'}</Texto>
@@ -110,4 +107,4 @@ function Pergunta({pergunta:p,valor,atualizacao:a,erro,aoMudar}: {
   return <Campo rotulo={rotulo} valor={typeof valor==='string'?valor:''} aoMudar={aoMudar}
     linhas={p.tipo==='TEXTO_LONGO'?4:undefined} maxLength={p.tipo==='TEXTO_LONGO'?2000:500} erro={erro} ajuda={ajuda} />;
 }
-const estilos=StyleSheet.create({pergunta:{gap:espaco(1)},fotos:{flexDirection:'row',flexWrap:'wrap',gap:espaco(1)}});
+const estilos=StyleSheet.create({pergunta:{gap:espaco(1)}});

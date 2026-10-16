@@ -158,3 +158,17 @@ describe('false e 0 de ponta a ponta', () => {
     expect(Object.keys(errosRespostasAtualizacao(obrigatorias, { dor: null, n: null }))).toEqual(['dor', 'n']);
   });
 });
+
+describe('respostasCompativeis com fotos', () => {
+  const ID = '0b8f6f0e-6a53-4c3b-9d5a-2f1a4f3f9a11';
+  const comFotos: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 's', titulo: 'Fictício', perguntas: [
+    { id: 'fotos', tipo: 'FOTOS', rotulo: 'Fotos', obrigatoria: false },
+  ] }] };
+  it('mantém os ids das fotos já enviadas e descarta lista malformada', () => {
+    expect(respostasCompativeis(comFotos, { fotos: [ID] })).toEqual({ respostas: { fotos: [ID] }, descartadas: [] });
+    expect(respostasCompativeis(comFotos, { fotos: ['nao-e-id'] })).toEqual({ respostas: {}, descartadas: ['fotos'] });
+  });
+  it('descarta fotos se o questionário novo não tem a pergunta', () => {
+    expect(respostasCompativeis(modelo, { fotos: [ID] })).toEqual({ respostas: {}, descartadas: ['fotos'] });
+  });
+});

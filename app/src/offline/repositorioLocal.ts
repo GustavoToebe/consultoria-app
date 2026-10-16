@@ -305,7 +305,15 @@ export class RepositorioChaveValor implements RepositorioLocal {
 }
 
 /** Rascunho da atualização no aparelho, guardado com o id da versão do questionário que o aluno estava respondendo. */
-export interface RascunhoAtualizacao { questionarioVersaoId: string; respostas: RespostasAtualizacao }
+export interface RascunhoAtualizacao {
+  questionarioVersaoId: string;
+  respostas: RespostasAtualizacao;
+  /**
+   * Fotos tiradas e ainda não enviadas (só no celular): por pergunta, os nomes dos arquivos na pasta privada do app.
+   * Sobem no envio da atualização; as já enviadas ficam em `respostas` como ids.
+   */
+  fotosLocais?: Record<string, string[]>;
+}
 
 /** Chaves que o repositório chave-valor usa para um usuário. */
 export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;

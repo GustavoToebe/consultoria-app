@@ -18,6 +18,15 @@ function multiplaValida(p: PerguntaAtualizacao, v: unknown) {
   return v.every((item) => typeof item === 'string' && ids.has(item) && !vistos.has(item) && !!vistos.add(item));
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Lista de ids (UUID) de fotos já enviadas, sem repetir, até o limite da pergunta. */
+function fotosValidas(v: unknown) {
+  if (!Array.isArray(v) || v.length > LIMITES_QUESTIONARIO.fotosPorPergunta) return false;
+  const vistos = new Set<string>();
+  return v.every((id) => typeof id === 'string' && UUID.test(id) && !vistos.has(id.toLowerCase()) && !!vistos.add(id.toLowerCase()));
+}
+
 /** Uma resposta (já presente) respeita o tipo e os limites da pergunta. Mesmas regras do `ValidadorAtualizacao`. */
 export function respostaValida(p: PerguntaAtualizacao, v: unknown) {
   switch (p.tipo) {
@@ -32,6 +41,7 @@ export function respostaValida(p: PerguntaAtualizacao, v: unknown) {
     case 'MULTIPLA_ESCOLHA': return multiplaValida(p, v);
     case 'NUMERO': return numeroValido(p, v);
     case 'SIM_NAO': return typeof v === 'boolean';
+    case 'FOTOS': return fotosValidas(v);
     default: return false;
   }
 }
@@ -44,9 +54,16 @@ export const respondida = (v: unknown) =>
 /**
  * Validação para marcar o campo; o servidor sempre valida novamente contra sua versão. Mesmas regras do
  * `ValidadorAtualizacao` do Java (o teste de paridade confere os campos com erro). Lista vazia, texto em branco e
- * notas por dia vazias contam como "não respondido".
+ * notas por dia vazias contam como "não respondido". Com as fotos desligadas (padrão do servidor) a pergunta FOTOS é
+ * ignorada; ligadas, a resposta é a lista de ids das fotos já enviadas.
  */
-export function errosRespostasAtualizacao(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao) {
+export function errosRespostasAtualizacao(
+  modelo: ConteudoQuestionario,
+  respostas: RespostasAtualizacao,
+  fotosLigadas = false,
+  /** Fotos ainda no aparelho (celular), por pergunta: vão subir no envio, então já contam como respondidas e no limite. */
+  fotosNoAparelho: Readonly<Record<string, number>> = {},
+) {
   const erros: Record<string, string> = {};
   const bytes = Array.from(JSON.stringify(respostas)).reduce((total, c) => {
     const codigo = c.codePointAt(0) ?? 0;
@@ -54,8 +71,15 @@ export function errosRespostasAtualizacao(modelo: ConteudoQuestionario, resposta
   }, 0);
   if (bytes > LIMITES_QUESTIONARIO.respostasBytes) erros.respostas = 'As respostas ultrapassam o limite de 256 KiB.';
   for (const p of modelo.secoes.flatMap((s) => s.perguntas)) {
-    if (p.tipo === 'FOTOS' || p.tipo === 'DATA_AUTOMATICA') continue;
+    if (p.tipo === 'DATA_AUTOMATICA' || (p.tipo === 'FOTOS' && !fotosLigadas)) continue;
     const v = respostas[p.id];
+    const noAparelho = p.tipo === 'FOTOS' ? (fotosNoAparelho[p.id] ?? 0) : 0;
+    if (noAparelho > 0) {
+      const enviadas = Array.isArray(v) ? v.length : 0;
+      if (respondida(v) && !respostaValida(p, v)) erros[p.id] = 'Confira o formato e os limites deste campo.';
+      else if (enviadas + noAparelho > LIMITES_QUESTIONARIO.fotosPorPergunta) erros[p.id] = 'Há fotos demais nesta pergunta.';
+      continue;
+    }
     if (!respondida(v)) {
       if (p.obrigatoria) erros[p.id] = 'Preencha este campo.';
       continue;

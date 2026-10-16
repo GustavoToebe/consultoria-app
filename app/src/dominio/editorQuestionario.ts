@@ -23,7 +23,7 @@ export const ROTULO_DO_TIPO: Record<TipoPergunta, string> = {
   FOTOS: 'Fotos',
 };
 
-/** Tipos do menu "Adicionar pergunta". FOTOS fica de fora (ainda não implementado); a que veio na v1 é preservada. */
+/** Tipos do menu "Adicionar pergunta". FOTOS só aparece no menu enquanto o questionário não tem uma (é única). */
 export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: string }[] = [
   { tipo: 'NOTA', descricao: 'O aluno escolhe uma nota de 0 a 10.' },
   { tipo: 'SIM_NAO', descricao: 'Resposta Sim ou Não.' },
@@ -35,6 +35,7 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
   { tipo: 'NOTAS_POR_DIA', descricao: 'Uma nota para cada dia da semana de treino.' },
   { tipo: 'PESO', descricao: 'O peso vai para o registro de peso do aluno. Só uma por questionário.' },
   { tipo: 'DATA_AUTOMATICA', descricao: 'Mostra a data da atualização. Só uma por questionário.' },
+  { tipo: 'FOTOS', descricao: 'O aluno anexa até 6 fotos. Só aparece para o aluno quando o envio de fotos está ligado no servidor. Só uma por questionário.' },
 ];
 
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];

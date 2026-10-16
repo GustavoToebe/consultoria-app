@@ -24,6 +24,8 @@ import { Texto } from '../../ui/Texto';
 import { textoDoErro } from '../../ui/erros';
 import { useMovimentoReduzido } from '../../ui/useMovimentoReduzido';
 import { FeedbackAtualizacao } from './FeedbackAtualizacao';
+import { ContextoDeFotos } from './fotos/ControleDeFotos';
+import { useFotosDoFormulario, type EstadoDasFotos } from './fotos/useFotosDoFormulario';
 import { QuestionarioAtualizacao } from './QuestionarioAtualizacao';
 
 const SEM_CONEXAO='Sem conexão: suas respostas ficam salvas no aparelho. Envie quando conectar.';
@@ -37,6 +39,9 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
   const [atual,setAtual]=useState(atualizacao);
   const [vigente]=useState(()=>rascunhoVigente(rascunho,atualizacao));
   const [respostas,setRespostas]=useState<RespostasAtualizacao>(atual.enviadaEm ? atual.respostas??{} : rascunho ? vigente.respostas : atual.respostas??{});
+  // Fotos tiradas e ainda não enviadas (só no celular): ficam na pasta privada do app, aqui só os nomes.
+  const [locais,setLocais]=useState<Record<string,string[]>>(()=>atual.enviadaEm ? {} : rascunho?.fotosLocais ?? {});
+  const ultimo=useRef<EstadoDasFotos>({respostas,locais});
   const [erros,setErros]=useState<Record<string,string>>({});
   const [ocupado,setOcupado]=useState(false);
   const [enviada,setEnviada]=useState(false);
@@ -69,14 +74,26 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     // Só uma vez por montagem: `atualizacao` chega novo a cada foco e não pode sobrescrever o que o aluno digitou depois.
     if(rascunhoRegravado.current||!rascunhoAdaptado||!atualizacao.pastaId||!atualizacao.questionarioVersaoId)return;
     rascunhoRegravado.current=true;
-    void repositorio.salvarRascunhoAtualizacao(atualizacao.pastaId,{questionarioVersaoId:atualizacao.questionarioVersaoId,respostas:vigente.respostas}).catch(()=>undefined);
-  },[rascunhoAdaptado,atualizacao,repositorio,vigente.respostas]);
-  const mudar=(id:string,valor:RespostaAtualizacao)=>{
-    const novas={...respostas,[id]:valor};
-    setRespostas(novas);
-    setErros(atuais=>{const copia={...atuais};delete copia[id];return copia;});
-    if(atual.pastaId && atual.questionarioVersaoId) void repositorio.salvarRascunhoAtualizacao(atual.pastaId,{questionarioVersaoId:atual.questionarioVersaoId,respostas:novas})
+    void repositorio.salvarRascunhoAtualizacao(atualizacao.pastaId,{questionarioVersaoId:atualizacao.questionarioVersaoId,respostas:vigente.respostas,
+      ...(rascunho?.fotosLocais?{fotosLocais:rascunho.fotosLocais}:{})}).catch(()=>undefined);
+  },[rascunhoAdaptado,atualizacao,repositorio,vigente.respostas,rascunho?.fotosLocais]);
+  const gravarRascunho=(estado:EstadoDasFotos)=>{
+    if(atual.pastaId && atual.questionarioVersaoId) void repositorio.salvarRascunhoAtualizacao(atual.pastaId,{
+      questionarioVersaoId:atual.questionarioVersaoId,respostas:estado.respostas,...(Object.keys(estado.locais).length?{fotosLocais:estado.locais}:{})})
       .catch(()=>avisar('Não foi possível salvar o rascunho no aparelho.','perigo'));
+  };
+  // Respostas e fotos mudam juntas (uma foto enviada vira id na resposta): o último estado fica na ref, para um envio
+  // de foto que demora não gravar por cima do que o aluno digitou enquanto isso.
+  const aplicar=(estado:EstadoDasFotos)=>{
+    ultimo.current=estado;
+    setRespostas(estado.respostas);setLocais(estado.locais);
+    gravarRascunho(estado);
+  };
+  const fotos=useFotosDoFormulario({usuarioId:repositorio.usuarioId,atual,online,editavel:!leitura&&liberada&&!ocupado,locais,
+    ler:()=>ultimo.current,aplicar});
+  const mudar=(id:string,valor:RespostaAtualizacao)=>{
+    aplicar({respostas:{...ultimo.current.respostas,[id]:valor},locais:ultimo.current.locais});
+    setErros(atuais=>{const copia={...atuais};delete copia[id];return copia;});
   };
   const mostrarErros=(novos:Record<string,string>)=>{
     setErros(novos);
@@ -90,14 +107,18 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
   };
   const enviar=async()=>{
     if(!atual.modelo || !atual.pastaId || !atual.questionarioVersaoId)return;
-    const encontrados=errosRespostasAtualizacao(atual.modelo,respostas);
+    const noAparelho=Object.fromEntries(Object.entries(locais).map(([id,nomes])=>[id,nomes.length]));
+    const encontrados=errosRespostasAtualizacao(atual.modelo,respostas,fotos.habilitado===true,noAparelho);
     if(Object.keys(encontrados).length){mostrarErros(encontrados);return;}
     if(!online){avisar(SEM_CONEXAO);return;}
     setOcupado(true);
     try {
-      const resultado=await enviarAtualizacao(atual.pastaId,atual.questionarioVersaoId,respostas);
+      // As fotos do aparelho sobem agora (uma a uma) e viram ids nas respostas; falhou uma, o resto fica salvo para tentar de novo.
+      const completas=fotos.habilitado===true ? await fotos.subirLocais() : ultimo.current.respostas;
+      const resultado=await enviarAtualizacao(atual.pastaId,atual.questionarioVersaoId,completas);
       await atualizarAtualizacao(resultado);
       await repositorio.apagarRascunhoAtualizacao(atual.pastaId);
+      await fotos.apagarLocais();
       setAtual(resultado);setEnviada(true);
     } catch(erro) {
       if(erro instanceof ErroApi && erro.campos.length) mostrarErros(Object.fromEntries(erro.campos.map(c=>[c.field,c.message])));
@@ -110,8 +131,14 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
         if(recarrega) {
           // Guarda o que está na tela (com a versão antiga) para a remontagem reconciliar com o questionário novo.
           // Já enviada: o rascunho não serve mais.
-          if(erro.codigo==='ATUALIZACAO_JA_ENVIADA') await repositorio.apagarRascunhoAtualizacao(atual.pastaId).catch(()=>undefined);
-          else await repositorio.salvarRascunhoAtualizacao(atual.pastaId,{questionarioVersaoId:atual.questionarioVersaoId,respostas}).catch(()=>undefined);
+          if(erro.codigo==='ATUALIZACAO_JA_ENVIADA') {
+            await repositorio.apagarRascunhoAtualizacao(atual.pastaId).catch(()=>undefined);
+            await fotos.apagarLocais();
+          } else {
+            const estado=ultimo.current;
+            await repositorio.salvarRascunhoAtualizacao(atual.pastaId,{questionarioVersaoId:atual.questionarioVersaoId,respostas:estado.respostas,
+              ...(Object.keys(estado.locais).length?{fotosLocais:estado.locais}:{})}).catch(()=>undefined);
+          }
           recarregar();
         }
       }
@@ -152,7 +179,9 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
         {atual.modelo?.instrucoes.map((texto,i)=><Texto key={i}>{texto}</Texto>)}
         {!leitura?<Texto variante="pequeno">* Campos obrigatórios. O rascunho fica salvo neste aparelho.</Texto>:null}
       </Cartao>
-      <QuestionarioAtualizacao atualizacao={atual} respostas={respostas} aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} />
+      <ContextoDeFotos.Provider value={fotos.controle}>
+        <QuestionarioAtualizacao atualizacao={atual} respostas={respostas} aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} />
+      </ContextoDeFotos.Provider>
       {!leitura&&liberada?<Botao rotulo="Enviar atualização" carregando={ocupado} aoTocar={()=>void enviar()} />:null}
       {!leitura?<Botao rotulo="Vou atrasar" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setAtraso(true)} />:null}
       {erros.respostas??erros.data?<Texto cor={cores.perigo}>{erros.respostas??erros.data}</Texto>:null}

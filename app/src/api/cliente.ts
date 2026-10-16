@@ -99,6 +99,10 @@ export interface Opcoes {
   tipoConteudo?: string;
   /** Rotas de sessão (login, refresh...) não tentam renovar no 401. */
   semRenovar?: boolean;
+  /** A resposta é uma imagem: devolve o `Blob` em vez de JSON (erros continuam vindo em JSON). */
+  binario?: boolean;
+  /** Prazo da chamada; o padrão é de 15 s (envio de foto em rede lenta pede mais). */
+  limiteMs?: number;
 }
 
 export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promise<T> {
@@ -114,7 +118,7 @@ export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promi
     renovar: async () => (await renovarSessao()) !== null,
     aoEncerrar: () => aoEncerrarSessao?.(),
   });
-  return tratar<T>(resposta);
+  return tratar<T>(resposta, opcoes);
 }
 
 const renovacaoCompartilhada = umaPorVez(fazerRefresh);
@@ -160,7 +164,8 @@ async function enviar(caminho: string, opcoes: Opcoes): Promise<Response> {
   const url = urlDaApi(caminho);
   const daApi = caminhoDaApi(url, API_URL, base()) !== null;
   const headers: Record<string, string> = {
-    Accept: 'application/json',
+    // Imagem: o erro continua vindo em JSON, então o servidor precisa aceitar os dois tipos.
+    Accept: opcoes.binario ? 'image/jpeg, application/json' : 'application/json',
     'X-Treinos-Cliente': WEB ? 'web' : 'nativo',
   };
   let body: BodyInit | undefined;
@@ -177,7 +182,7 @@ async function enviar(caminho: string, opcoes: Opcoes): Promise<Response> {
     Object.assign(headers, cabecalhosDeCredencial({ token: accessToken, xsrf: cookieXsrf(), metodo: opcoes.metodo ?? 'GET' }));
   }
   const controle = new AbortController();
-  const limite = setTimeout(() => controle.abort(), TIMEOUT_MS);
+  const limite = setTimeout(() => controle.abort(), opcoes.limiteMs ?? TIMEOUT_MS);
   try {
     return await fetch(url, {
       method: opcoes.metodo ?? 'GET',
@@ -193,10 +198,13 @@ async function enviar(caminho: string, opcoes: Opcoes): Promise<Response> {
   }
 }
 
-async function tratar<T>(resposta: Response): Promise<T> {
+async function tratar<T>(resposta: Response, opcoes: Opcoes = {}): Promise<T> {
   if (resposta.ok) {
     if (resposta.status === 204) {
       return undefined as T;
+    }
+    if (opcoes.binario) {
+      return (await resposta.blob()) as T;
     }
     const tipo = resposta.headers.get('Content-Type') ?? '';
     return (tipo.includes('application/json') ? await resposta.json() : await resposta.text()) as T;

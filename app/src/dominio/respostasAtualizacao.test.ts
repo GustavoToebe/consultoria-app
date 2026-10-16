@@ -42,3 +42,20 @@ it('o teto das respostas é de 256 KiB contados em bytes',()=>{
   expect(errosRespostasAtualizacao({instrucoes:[],secoes:[]},{texto:no.texto+'a'}).respostas).toBeDefined();
   expect(errosRespostasAtualizacao({instrucoes:[],secoes:[]},{texto:'ã'.repeat(LIMITES_QUESTIONARIO.respostasBytes/2)}).respostas).toBeDefined();
 });
+
+// Fotos: as regras de formato estão nas fixtures de paridade; aqui, o que é só do app (fotos ainda no aparelho).
+const comFotos:ConteudoQuestionario={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
+  {id:'fotos',tipo:'FOTOS',rotulo:'Fotos',obrigatoria:true},
+]}]};
+const ID='0b8f6f0e-6a53-4c3b-9d5a-2f1a4f3f9a11';
+it('foto no aparelho conta como respondida e entra no limite junto com as enviadas',()=>{
+  expect(errosRespostasAtualizacao(comFotos,{},true)).toEqual({fotos:'Preencha este campo.'});
+  expect(errosRespostasAtualizacao(comFotos,{},true,{fotos:2})).toEqual({});
+  expect(errosRespostasAtualizacao(comFotos,{fotos:[ID]},true,{fotos:5})).toEqual({});
+  expect(Object.keys(errosRespostasAtualizacao(comFotos,{fotos:[ID]},true,{fotos:6}))).toEqual(['fotos']);
+  expect(Object.keys(errosRespostasAtualizacao(comFotos,{fotos:['x']},true,{fotos:1}))).toEqual(['fotos']);
+});
+it('com as fotos desligadas a pergunta é ignorada, mesmo obrigatória',()=>{
+  expect(errosRespostasAtualizacao(comFotos,{},false)).toEqual({});
+  expect(errosRespostasAtualizacao(comFotos,{fotos:['x']},false)).toEqual({});
+});

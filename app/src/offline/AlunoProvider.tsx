@@ -1,6 +1,8 @@
 import { iniciarDescanso as novoDescanso, ajustarDescanso as ajustar, terminado, type Descanso } from '../dominio/descanso';
 import { vibrar } from '../ui/vibrar';
 import { cancelarLembretesAtualizacao, iniciarLembretesAtualizacao, reagendarLembretesAtualizacao } from '../aluno/atualizacao/lembretes';
+import { esquecerConfiguracaoDeFotos } from '../aluno/atualizacao/fotos/configuracaoSalva';
+import { apagarTodasAsFotosLocais } from '../aluno/atualizacao/fotos/fotosLocais';
 import NetInfo from '@react-native-community/netinfo';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
@@ -244,6 +246,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     () =>
       sessao.aoSair(async (id) => {
         await cancelarLembretesAtualizacao(id).catch(()=>undefined);
+        await apagarTodasAsFotosLocais(id).catch(()=>undefined);
+        await esquecerConfiguracaoDeFotos(id);
         await (id === repositorio.usuarioId ? repositorio : abrirRepositorio(id, novoUid)).apagarTudo();
       }),
     [sessao, repositorio],

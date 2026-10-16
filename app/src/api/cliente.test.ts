@@ -137,3 +137,31 @@ describe('cliente HTTP: refresh compartilhado', () => {
     expect(fetchSimulado).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('cliente HTTP: imagem protegida', () => {
+  let fetchSimulado: jest.Mock;
+
+  beforeEach(() => {
+    process.env.EXPO_PUBLIC_API_URL = API;
+    mockLerRefresh.mockResolvedValue('refresh-velho');
+    fetchSimulado = jest.fn();
+    global.fetch = fetchSimulado as unknown as typeof fetch;
+  });
+
+  it('pede imagem aceitando JSON de erro e devolve o Blob, com o token só para a própria API', async () => {
+    fetchSimulado.mockResolvedValue(new Response(new Blob(['bytes'], { type: 'image/jpeg' }), { status: 200, headers: { 'Content-Type': 'image/jpeg' } }));
+    const { requisicao, guardarSessao } = carregarCliente();
+    await guardarSessao({ accessToken: 'acesso', refreshToken: 'r' } as never);
+    const imagem = await requisicao<Blob>('/aluno/fotos/abc', { binario: true });
+    expect(imagem.size).toBeGreaterThan(0);
+    const cabecalhos = fetchSimulado.mock.calls[0][1].headers as Record<string, string>;
+    expect(cabecalhos.Accept).toBe('image/jpeg, application/json');
+    expect(cabecalhos.Authorization).toBe('Bearer acesso');
+  });
+
+  it('erro de uma rota de imagem continua vindo como ErroApi, sem tentar ler imagem', async () => {
+    fetchSimulado.mockResolvedValue(json(404, { status: 404, message: 'Foto não encontrada.', codigo: 'NAO_ENCONTRADO', fieldErrors: null }));
+    const { requisicao, ErroApi } = carregarCliente();
+    await expect(requisicao('/aluno/fotos/x', { binario: true })).rejects.toBeInstanceOf(ErroApi);
+  });
+});

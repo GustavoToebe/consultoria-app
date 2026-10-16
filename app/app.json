@@ -39,7 +39,15 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-sharing",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Treinos usa suas fotos só para você anexar à atualização enviada ao seu treinador.",
+          "cameraPermission": "O Treinos usa a câmera só para você tirar fotos da atualização enviada ao seu treinador.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true
