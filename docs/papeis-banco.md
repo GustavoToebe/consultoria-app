@@ -17,7 +17,7 @@ histórico do Flyway. Nenhuma API usa o superusuário.
 No perfil `docker` (produção), `application-docker.yml`:
 - `MIGRATION_DB_USER` / `MIGRATION_DB_PASSWORD` (e `MIGRATION_DB_URL`, se a conexão for outra) alimentam `spring.flyway.*` e
   `plataforma.auth.migracao.*`; sem elas valem `DB_*` (um usuário só, como no `docker-compose.yml` local).
-- `PLATAFORMA_PAPEL_APP` = `consultoria_app`: **obrigatória, sem valor padrão**. O módulo de autenticação dá a esse papel uso do schema
+- `PLATAFORMA_PAPEL_APP` = `consultoria_app`: **obrigatória, sem valor padrão**, e só aceita letras, números e `_` (começando por letra ou `_`): a API não sobe com outro formato. O módulo de autenticação dá a esse papel uso do schema
   `plataforma` e DML nas tabelas (menos `historico_migracao`), e o callback `afterMigrate__revogar_historico_do_app.sql` tira dele o acesso
   ao `flyway_schema_history`. Com API e Flyway no mesmo usuário (local), informe esse usuário: o callback o ignora.
 - Fora do perfil `docker` (testes, dev) o placeholder é vazio e o callback não faz nada.
