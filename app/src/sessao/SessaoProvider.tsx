@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { aoEncerrar, ErroApi, guardarSessao, limparSessaoLocal, renovarSessao } from '../api/cliente';
 import * as rotas from '../api/rotas';
 import type { LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
+import { apagarDadosDaSessaoLocal } from '../dominio/encerrarSessaoLocal';
 import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funcionalidadesDoPlano';
 import { pode as conferirPermissao } from '../dominio/permissoes';
 import { lerRefresh } from './armazenamentoSeguro';
@@ -84,26 +85,39 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
   }, []);
 
-  const encerrarLocal = useCallback(async () => {
-    const usuarioId = perfilAtual.current?.usuario.id;
-    await limparSessaoLocal();
-    await AsyncStorage.removeItem(CHAVE_PERFIL).catch(() => undefined);
-    if (usuarioId) {
-      for (const limpar of limpezas.current) {
-        await limpar(usuarioId).catch(() => undefined);
+  // Um encerramento por vez: "Sair" e o servidor recusando a sessão (várias requisições podem avisar juntas) dividem
+  // a mesma execução. O id vem da ref na hora da chamada, não de uma cópia do registro do callback.
+  const encerrando = useRef<Promise<void> | null>(null);
+  const encerrarLocal = useCallback((): Promise<void> => {
+    if (encerrando.current) return encerrando.current;
+    const execucao = (async () => {
+      const usuarioId = perfilAtual.current?.usuario.id;
+      try {
+        await apagarDadosDaSessaoLocal({
+          usuarioId,
+          limparSessaoLocal,
+          removerPerfilSalvo: () => AsyncStorage.removeItem(CHAVE_PERFIL),
+          limpezas: limpezas.current,
+        });
+      } finally {
+        // Mesmo se apagar falhar, a pessoa sai: manter a tela aberta com a sessão morta é pior.
+        setPerfil(null);
+        setOffline(false);
+        setSituacao('anonimo');
       }
-    }
-    setPerfil(null);
-    setOffline(false);
-    setSituacao('anonimo');
+    })().finally(() => {
+      encerrando.current = null;
+    });
+    encerrando.current = execucao;
+    return execucao;
   }, []);
 
   useEffect(() => {
     let ativo = true;
     aoEncerrar(() => {
-      // O refresh foi recusado no meio do uso: sessão encerrada no servidor.
-      setPerfil(null);
-      setSituacao('anonimo');
+      // O refresh foi recusado (401/403) no meio do uso: sessão encerrada no servidor. Apaga os dados do aparelho como
+      // no "Sair". Erro de rede ou 5xx não chega aqui (o cliente só avisa quando o servidor recusa).
+      void encerrarLocal().catch(() => undefined);
     });
     (async () => {
       try {
@@ -131,7 +145,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       ativo = false;
       aoEncerrar(null);
     };
-  }, [abrir]);
+  }, [abrir, encerrarLocal]);
 
   // Aberta sem internet: tenta renovar quando a rede volta (e a cada 30 s). Recusada no servidor, volta para
   // "Entrar" sem apagar os registros do aparelho (o mesmo aluno, ao entrar de novo, envia o que ficou).

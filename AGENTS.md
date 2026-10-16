@@ -159,7 +159,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   própria API (`caminhoDaApi` do `@plataforma/web`). Web: access em memória + cookie; nativo: SecureStore (`sessao/armazenamentoSeguro.ts`,
   com `.web.ts` vazio). Nunca `localStorage` para token.
 - Na web, o cookie XSRF é de sessão do navegador: antes do refresh o cliente faz `GET /actuator/health` para ganhar
-  um novo. Sem conexão na abertura, a sessão abre offline com o último perfil salvo.
+  um novo. Sem conexão na abertura, a sessão abre offline com o último perfil salvo. Sessão recusada pelo servidor no meio do uso (refresh 401/403; rede e 5xx não contam) faz o mesmo que "Sair": `encerrarLocal` apaga credenciais, perfil salvo e os dados do aparelho (`dominio/encerrarSessaoLocal`; o que estava na fila de envio se perde). Exceção deliberada: a retomada offline recusada só volta para "Entrar", sem apagar os registros (o mesmo aluno reenvia ao entrar).
 - Design: tokens em `tema/tokens.ts`; status com `Selo` (nunca a cor da marca); confirmação com `PainelConfirmacao`;
   aviso com `useAviso()` (erro fica até ser fechado); link de texto com `LinkTexto`. Fontes importadas por subcaminho (só os pesos usados).
   Marca como texto ou ícone usa `marcaTexto` do `useTema()` (`marcaParaTexto` escurece/clareia até 4,5:1 sobre o fundo), nunca `marca` direto; `marca` só em fundo com `sobreMarca`.
@@ -224,7 +224,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   biblioteca; nulo fora dela = "Sem grupo") e exercício (`dominio/relatorio.opcoesDeProgresso`), com busca sem acento na folha. Cada exercício marcado é um bloco
   (`ProgressoDoExercicio`: resumo do primeiro e do último registro com carga, `GraficoLinha` com 2 pontos ou mais, 5 datas mais recentes e "Ver todos"); regras em `dominio/progresso.ts`, sem cálculo novo. `CartaoFrequencia` (`REGISTRO_LER`, logo depois das pastas): só contagem de treinos com registro na semana corrente e na pasta vigente (`dominio/frequencia.ts`: par data+sessão com ao menos uma série `concluida`, uma consulta de `/alunos/{id}/execucoes` cobrindo os dois períodos, pasta limitada aos últimos 365 dias; sem pasta com período "—", zero "Nenhum registro"). Não é a conta do `progressoSemana` do aluno (que usa o dia fixo da sessão): sem meta, previsto nem porcentagem.
 - PDFs: `pdf/pdfTreino.ts`/`pdfDieta.ts` montam HTML (todo texto com `esc()`); `pdf/imprimir.ts` no celular gera o
-  arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()`
+  arquivo e abre o compartilhar; `imprimir.web.ts` usa um bloco só de impressão na própria página + `window.print()` (espera as imagens por no máximo 5 s; imagem com erro conta como terminada)
   (a CSP só libera `frame-src` para `challenges.cloudflare.com`, então nada de iframe de PDF). Logo entra como data URI (`pdf/logo.ts`).
 
 - Ajuda: `app/src/ajuda/conteudo.ts` é o texto único (primeiros passos, tutorial guiado, seções, perguntas) das telas
