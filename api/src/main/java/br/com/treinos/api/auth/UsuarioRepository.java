@@ -11,6 +11,7 @@ import java.util.UUID;
 public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
 
     java.util.List<Usuario> findByConsultoriaIdAndPapelOrderByNomeAsc(UUID consultoriaId, Papel papel);
+    java.util.List<Usuario> findByConsultoriaIdAndPerfilId(UUID consultoriaId,UUID perfilId);
     long countByConsultoriaIdAndPerfilId(UUID consultoriaId,UUID perfilId);
     long countByConsultoriaIdAndPapelAndAtivoTrue(UUID consultoriaId, Papel papel);
 

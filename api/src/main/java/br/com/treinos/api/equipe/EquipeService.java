@@ -60,11 +60,16 @@ public class EquipeService {
         var permissoes=CatalogoPermissoes.validar(r.permissoes());
         var ator=ator();
         exigirDentroDoTeto(ator,permissoes);
-        exigirDentroDoTeto(ator,permissoesDoPerfil(p));
+        var antes=permissoesDoPerfil(p);
+        exigirDentroDoTeto(ator,antes);
         if(!ator.administrador() && p.getId().equals(ator.perfilId())) throw negada("Você não pode editar o perfil que você mesmo usa.");
         if(r.versao()==null || !r.versao().equals(p.getVersao())) throw new ConflictException("Outra pessoa alterou; recarregue.","CONFLITO_EDICAO");
         nomeDisponivel(r.nome(),id);
-        p.alterar(r.nome().trim(),Buscas.opcional(r.descricao()),r.ativo()==null || r.ativo(),permissoes);
+        boolean ativo=r.ativo()==null || r.ativo();
+        // Desativar o perfil ou tirar permissões derruba a sessão de quem o usa (como trocar de perfil ou desativar o membro).
+        boolean perdeAcesso=(p.isAtivo() && !ativo) || !permissoes.containsAll(antes);
+        p.alterar(r.nome().trim(),Buscas.opcional(r.descricao()),ativo,permissoes);
+        if(perdeAcesso) usuarios.findByConsultoriaIdAndPerfilId(TenantContext.get(),p.getId()).forEach(m -> { m.invalidarCredenciais();autenticador.encerrarSessoes(m.getId().toString()); });
         return perfilResponse(perfis.saveAndFlush(p));
     }
     @Transactional
@@ -81,6 +86,7 @@ public class EquipeService {
     @br.com.treinos.api.auditoria.Auditar(acao="PERFIL_APAGADO",entidade="PERFIL",resumo="Apagou um perfil.")
     public void apagarPerfil(UUID id) {
         travar();var p=perfil(id);exigirEditavel(p);
+        exigirDentroDoTeto(ator(),permissoesDoPerfil(p)); // apagar também respeita o teto, como editar
         if(usuarios.countByConsultoriaIdAndPerfilId(TenantContext.get(),id)>0 || convites.countByPerfilIdAndUsadoEmIsNullAndExpiraEmAfter(id,Instant.now())>0)
             throw new ConflictException("Este perfil está vinculado a um membro ou convite.","PERFIL_EM_USO");
         convites.deleteByPerfilId(id);convites.flush();
@@ -108,6 +114,9 @@ public class EquipeService {
         exigirPodeAtribuir(ator(),p);
         if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
         String email=Emails.normalizar(r.email());if(usuarios.existeEmail(email)) throw new ConflictException("Este e-mail já tem uma conta.","EMAIL_EM_USO");
+        // Substituir o convite pendente do mesmo e-mail é cancelá-lo: vale o teto do perfil dele, como em cancelarConvite.
+        var ator=ator();
+        for(var antigo:convites.findByEmailAndUsadoEmIsNull(email)) exigirPodeAtribuir(ator,perfil(antigo.getPerfilId()));
         convites.deleteByEmailAndUsadoEmIsNull(email);convites.flush();
         plano.exigirVagaDeMembro(); // depois de apagar o convite antigo do mesmo e-mail: reconvidar não conta duas vezes
         String codigo=OpaqueTokenGenerator.gerar();Instant expira=Instant.now().plus(7,ChronoUnit.DAYS);
@@ -130,6 +139,7 @@ public class EquipeService {
         var ator=ator();
         if(!ator.administrador()) {
             if(anterior.isAcessoTotal()) throw negada("Somente administradores podem alterar administradores.");
+            exigirPodeAtribuir(ator,anterior); // o perfil ATUAL do membro também precisa caber no teto (nome, situação e perfil)
             if(!u.getPerfilId().equals(p.getId())) {
                 exigirPodeAtribuir(ator,p);
                 if(u.getId().equals(ator.usuarioId())) throw negada("Você não pode trocar o seu próprio perfil.");

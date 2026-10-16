@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 public interface UsuarioConviteRepository extends JpaRepository<UsuarioConvite,UUID> {
     List<UsuarioConvite> findByUsadoEmIsNullOrderByCriadoEmDesc();
+    List<UsuarioConvite> findByEmailAndUsadoEmIsNull(String email);
     void deleteByEmailAndUsadoEmIsNull(String email);
     long countByPerfilIdAndUsadoEmIsNullAndExpiraEmAfter(UUID perfilId,java.time.Instant agora);
     void deleteByPerfilId(UUID perfilId);

@@ -248,4 +248,77 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         var copia = api.post("/perfis/" + adminPerfil + "/duplicar", admin, null, 200);
         assertThat(copia.path("permissoes")).isNotEmpty();
     }
+
+    @Test void membroSemSerAdministradorNaoAlteraMembroComPerfilAcimaDoTeto() throws Exception {
+        var gestor = membroComPerfil(criarPerfilComPermissoes("Gestor de membros", "EQUIPE_LER", "USUARIO_ALTERAR"));
+        var leitura = criarPerfilComPermissoes("Leitura de membros", "EQUIPE_LER");
+        var acima = membroComPerfil(perfil("Nutricionista"));
+        var abaixo = membroComPerfil(leitura);
+        String acimaId = acima.path("usuario").path("id").asString();
+        String abaixoId = abaixo.path("usuario").path("id").asString();
+        String nutri = perfil("Nutricionista").path("id").asString();
+
+        // Mesmo perfil, só nome ou situação: o perfil ATUAL do membro precisa caber no teto de quem altera.
+        assertNegada(api.put("/usuarios/" + acimaId, gestor, Map.of("nome", "Renomeada", "perfilId", nutri, "ativo", true), 403));
+        assertNegada(api.put("/usuarios/" + acimaId, gestor, Map.of("nome", "Nutricionista", "perfilId", nutri, "ativo", false), 403));
+        api.get("/eu", acima, 200); // continua ativa e logada
+        // Inativa por um administrador, também não é reativada por quem está abaixo.
+        api.put("/usuarios/" + acimaId, admin, Map.of("nome", "Nutricionista", "perfilId", nutri, "ativo", false), 200);
+        assertNegada(api.put("/usuarios/" + acimaId, gestor, Map.of("nome", "Nutricionista", "perfilId", nutri, "ativo", true), 403));
+        // Dentro do teto continua funcionando.
+        api.put("/usuarios/" + abaixoId, gestor, Map.of("nome", "Renomeada", "perfilId", leitura.path("id").asString(), "ativo", false), 200);
+        api.get("/eu", abaixo, 401);
+    }
+
+    @Test void membroSemSerAdministradorNaoApagaPerfilAcimaDoTeto() throws Exception {
+        var editor = membroComPerfil(criarPerfilComPermissoes("Editor de perfis", "EQUIPE_LER", "PERFIL_ALTERAR"));
+        var alto = criarPerfilComPermissoes("Perfil alto", "EQUIPE_LER", "ALUNO_LER", "ALUNO_SENSIVEL_LER");
+        var baixo = criarPerfilComPermissoes("Perfil baixo", "EQUIPE_LER");
+        assertNegada(api.delete("/perfis/" + alto.path("id").asString(), editor, 403));
+        assertThat(perfil("Perfil alto").path("id").asString()).isEqualTo(alto.path("id").asString());
+        api.delete("/perfis/" + baixo.path("id").asString(), editor, 204);
+        api.delete("/perfis/" + alto.path("id").asString(), admin, 204);
+    }
+
+    @Test void convidarNaoSubstituiConvitePendenteDePerfilAcimaDoTeto() throws Exception {
+        var gestor = membroComPerfil(criarPerfilComPermissoes("Gestor de convites 2", "EQUIPE_LER", "USUARIO_ALTERAR"));
+        String leitura = criarPerfilComPermissoes("Leitura de convites", "EQUIPE_LER").path("id").asString();
+        String nutri = perfil("Nutricionista").path("id").asString();
+        String email = ApiDeTeste.emailUnico("substituido");
+        var pendente = convite("Pessoa fictícia", email, nutri);
+        assertNegada(api.post("/usuarios/convites", gestor, Map.of("nome", "Outra", "email", email, "perfilId", leitura), 403));
+        aceitar(pendente, 200); // o convite original continua valendo
+        // Convite pendente dentro do teto pode ser substituído.
+        String outro = ApiDeTeste.emailUnico("substituivel");
+        var antigo = convite("Pessoa fictícia", outro, leitura);
+        api.post("/usuarios/convites", gestor, Map.of("nome", "Outra", "email", outro, "perfilId", leitura), 200);
+        aceitar(antigo, 404);
+    }
+
+    @Test void alterarPerfilEncerraSessoesDeQuemPerdeAcesso() throws Exception {
+        var perfil = criarPerfilComPermissoes("Perfil de sessões", "EQUIPE_LER", "ALUNO_LER");
+        String pid = perfil.path("id").asString();
+        String email = ApiDeTeste.emailUnico("sessoes");
+        aceitar(convite("Membro fictício", email, pid), 200);
+        var login = (java.util.function.Supplier<JsonNode>) () -> {
+            try { return api.post("/auth/login", null, Map.of("email", email, "senha", ApiDeTeste.SENHA), 200); }
+            catch (Exception e) { throw new AssertionError(e); }
+        };
+        var membro = login.get();
+        // Ganhar permissão não derruba a sessão.
+        var ampliado = api.put("/perfis/" + pid, admin, Map.of("nome", "Perfil de sessões", "permissoes", Set.of("EQUIPE_LER", "ALUNO_LER", "ALUNO_ALTERAR"),
+                "versao", perfil.path("versao").asLong()), 200);
+        api.get("/eu", membro, 200);
+        // Perder permissão derruba (bearer e refresh).
+        var reduzido = api.put("/perfis/" + pid, admin, Map.of("nome", "Perfil de sessões", "permissoes", Set.of("EQUIPE_LER", "ALUNO_LER"),
+                "versao", ampliado.path("versao").asLong()), 200);
+        api.get("/eu", membro, 401);
+        api.post("/auth/refresh", null, Map.of("refreshToken", membro.path("refreshToken").asString()), 401);
+        // Desativar o perfil também derruba.
+        membro = login.get();
+        api.get("/eu", membro, 200);
+        api.put("/perfis/" + pid, admin, Map.of("nome", "Perfil de sessões", "permissoes", Set.of("EQUIPE_LER", "ALUNO_LER"), "ativo", false,
+                "versao", reduzido.path("versao").asLong()), 200);
+        api.get("/eu", membro, 401);
+    }
 }

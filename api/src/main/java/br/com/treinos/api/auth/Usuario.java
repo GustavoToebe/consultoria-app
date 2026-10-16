@@ -113,6 +113,8 @@ public class Usuario {
         if (!java.util.Objects.equals(this.perfilId,perfilId)) { this.perfilId=perfilId; this.credenciaisVersao++; }
     }
 
+    /** Sobe a versão das credenciais: os tokens de acesso já emitidos deixam de valer (quem chama também encerra as sessões de refresh). */
+    public void invalidarCredenciais() { this.credenciaisVersao++; }
     public UUID getPerfilId() { return perfilId; }
     public String getTelefone() { return telefone; }
 

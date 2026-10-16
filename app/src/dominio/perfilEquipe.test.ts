@@ -35,9 +35,12 @@ describe('teto de permissões na tela (espelha a API)',()=>{
   it('não mexe em administrador; no próprio cadastro o perfil não muda',()=>{
     expect(podeEditarMembro(membroGestor,{id:'outro',perfilId:'admin'},[admin,gestor])).toBe(false);
     expect(podeEditarMembro(membroGestor,{id:'outro',perfilId:'leitura'},[admin,leitura])).toBe(true);
+    expect(podeEditarMembro(membroGestor,{id:'outro',perfilId:'nutri'},[nutri])).toBe(false);
+    expect(podeEditarMembro(membroGestor,{id:'eu',perfilId:'gestor'},[gestor])).toBe(true);
+    expect(podeEditarMembro(membroGestor,{id:'outro',perfilId:'sumiu'},[gestor])).toBe(false);
     expect(podeEditarMembro(administrador,{id:'outro',perfilId:'admin'},[admin])).toBe(true);
     expect(perfisAtribuiveis(membroGestor,[admin,gestor,leitura],{id:'eu',perfilId:'gestor'}).map(p=>p.id)).toEqual(['gestor']);
-    // membro com perfil maior que o do ator: mantém o perfil atual entre as opções (só nome/situação mudam)
+    // membro com perfil maior que o do ator: o perfil atual continua na lista (a tela nem abre a edição: podeEditarMembro)
     expect(perfisAtribuiveis(membroGestor,[gestor,nutri],{id:'outro',perfilId:'nutri'}).map(p=>p.id)).toEqual(['gestor','nutri']);
   });
   it('cancelar convite pendente segue o mesmo teto de quem convida',()=>{

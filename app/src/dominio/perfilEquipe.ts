@@ -25,7 +25,7 @@ export function desmarcarPermissoes(atuais:readonly string[],remover:readonly st
 /**
  * Teto de permissões, só para apresentação (espelha `EquipeService` da API, que decide de verdade):
  * Administrador só administrador atribui; ninguém dá permissão que não tem; quem não é administrador não mexe em
- * administrador, no próprio perfil nem no perfil que usa.
+ * administrador, no próprio perfil nem no perfil que usa; e só altera membro cujo perfil atual cabe no teto.
  */
 export interface AtorEquipe { administrador:boolean; perfilId:string|null; usuarioId:string|null; tem:(codigo:string)=>boolean }
 const cabeNoTeto=(ator:AtorEquipe,permissoes:readonly string[])=>ator.administrador||permissoes.every(ator.tem);
@@ -36,8 +36,11 @@ export function perfisAtribuiveis(ator:AtorEquipe,perfis:readonly PerfilEquipe[]
   if(membro&&!ator.administrador&&membro.id===ator.usuarioId) return perfis.filter(p=>p.id===membro.perfilId);
   return perfis.filter(p=>p.id===membro?.perfilId||(p.ativo&&podeAtribuir(ator,p)));
 }
+/** Quem não é administrador só altera (e renova convite de) membro cujo perfil ATUAL cabe no teto dele. */
 export function podeEditarMembro(ator:AtorEquipe,membro:{id:string;perfilId:string},perfis:readonly PerfilEquipe[]) {
-  return ator.administrador||!perfis.find(p=>p.id===membro.perfilId)?.acessoTotal;
+  if(ator.administrador) return true;
+  const perfil=perfis.find(p=>p.id===membro.perfilId);
+  return !!perfil&&podeAtribuir(ator,perfil);
 }
 export const podeEditarPerfil=(ator:AtorEquipe,p:PerfilEquipe)=>!p.sistema&&(ator.administrador||(p.id!==ator.perfilId&&cabeNoTeto(ator,p.permissoes)));
 /** Convite pendente só é cancelado por quem poderia convidar para aquele perfil (a API decide de verdade). */

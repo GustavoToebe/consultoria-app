@@ -63,8 +63,9 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
   Administrador do sistema não pode ser editado/apagado; mutações de membros travam a consultoria
   para manter ao menos um administrador ativo. Trocar perfil ou desativar encerra sessões e sobe `cv`.
   Teto de permissões (`EquipeService.ator`/`exigirPodeAtribuir`, lido do banco): perfil criado, editado, duplicado ou
-  atribuído cabe nas permissões de quem age; Administrador só administrador atribui; não administrador não mexe em
-  administrador, no próprio perfil nem no perfil que usa (403 `PERMISSAO_NEGADA`).
+  atribuído ou apagado cabe nas permissões de quem age; Administrador só administrador atribui; não administrador não mexe em
+  administrador, no próprio perfil nem no perfil que usa (403 `PERMISSAO_NEGADA`); só altera (nome, situação ou perfil) membro cujo perfil **atual** cabe no
+  teto dele (`dominio/perfilEquipe.podeEditarMembro` espelha) e `convidar` não substitui convite pendente de perfil acima do teto. Desativar um perfil ou tirar permissões dele encerra as sessões e sobe o `cv` de quem o usa.
   Convite de equipe tem hash, 7 dias e aceite único, com a transação dentro de `TenantContext.executarComo`; o link também vai por e-mail (`equipe/ConviteEquipeEmail`, depois do commit; `emailEnviado` na resposta, e o link continua nela para copiar se o e-mail falhar ou estiver desligado).
   Convite vencido não trava a exclusão do perfil (a exclusão apaga os convites do perfil); `DELETE /usuarios/convites/{id}` cancela convite não aceito, com o mesmo teto de quem convida (404 se de outra consultoria ou já aceito; auditoria `CONVITE_EQUIPE_CANCELADO`).
   `/responsaveis` só lista id/nome dos membros ativos com `ALUNO_LER`; gestão completa exige `EQUIPE_LER`.
