@@ -10,7 +10,7 @@ O aluno vê o plano no celular ou na web e registra cargas e repetições, inclu
 ## Como rodar (local, Docker)
 
 ```bash
-cp .env.example .env    # preencher POSTGRES_PASSWORD, TREINOS_JWT_SEGREDO e TREINOS_LOGIN_SAL (openssl rand -base64 48 cada) e DEMO_SENHA
+cp .env.example .env    # preencher POSTGRES_PASSWORD, TREINOS_JWT_SEGREDO e TREINOS_LOGIN_SAL (openssl rand -base64 48 cada); para a demonstração, ver o passo 3
 docker compose up -d --build
 # Web (treinador e aluno): http://localhost:8088   (na rede: http://IP-DO-PC:8088)
 ```
@@ -32,9 +32,10 @@ ao 18, que guarda os dados em outra pasta: rode `docker compose down -v` antes d
    `Documents/consultoria-app`, fora do OneDrive (git e `node_modules` brigam com a sincronização, e senha não vai
    para a nuvem de arquivos).
 3. Cada PC tem o próprio `.env`, que **não está no git** (tem as senhas). Num clone novo: `cp .env.example .env` e preencher
-   `POSTGRES_PASSWORD`, `TREINOS_JWT_SEGREDO` e `TREINOS_LOGIN_SAL` (`openssl rand -base64 48` cada) e `DEMO_SENHA` (senha das contas de
-   demonstração). Nunca mandar o `.env` por e-mail, chat ou commit.
-4. `docker compose up -d --build` e abrir `http://localhost:8088`. O banco começa limpo, com a demonstração.
+   `POSTGRES_PASSWORD`, `TREINOS_JWT_SEGREDO` e `TREINOS_LOGIN_SAL` (`openssl rand -base64 48` cada). A demonstração (contas e dados
+   fictícios) **não liga sozinha**: para tê-la, descomente no `.env` `SPRING_PROFILES_ACTIVE=docker,demo`, `COMPOSE_PROFILES=demo` e
+   `DEMO_SENHA` (senha das contas de demonstração). Nunca mandar o `.env` por e-mail, chat ou commit.
+4. `docker compose up -d --build` e abrir `http://localhost:8088`. O banco começa limpo; com a demonstração ligada (passo 3), já vem com as contas fictícias.
 5. Celular: o IP muda de rede para rede (`ipconfig`). Rede de empresa costuma bloquear um aparelho de falar com o
    outro; nesse caso, `npx expo start --tunnel`.
 
@@ -92,7 +93,7 @@ Depois, para trazer os vídeos, as semanas de treino (Wellness, Torso & Limbs, P
 
 ## Contas de demonstração
 
-Senha de todas: o valor de `DEMO_SENHA` no `.env`. Todos os dados são fictícios.
+Existem só com a demonstração ligada (README, passo 3). Senha de todas: o valor de `DEMO_SENHA` no `.env`. Todos os dados são fictícios.
 
 | Conta | Papel | Consultoria |
 |---|---|---|

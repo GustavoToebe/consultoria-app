@@ -29,7 +29,9 @@ services:
     restart: unless-stopped
     mem_limit: 768m
     environment:
-      SPRING_PROFILES_ACTIVE: docker,demo
+      # Sem demonstração por padrão (contas e dados fictícios com a mesma senha). Para ligar: SPRING_PROFILES_ACTIVE=docker,demo
+      # e COMPOSE_PROFILES=demo no .env (o segundo sobe o serviço `importacao`).
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       DB_URL: jdbc:postgresql://db:5432/treinos
       DB_USUARIO: ${POSTGRES_USER:-treinos}
       DB_SENHA: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
@@ -42,7 +44,8 @@ services:
       TREINOS_MFA_CHAVE_ATIVA: ${TREINOS_MFA_CHAVE_ATIVA:-}
       # Vazio = coleta de métricas fechada (sem coletor externo configurado).
       MONITORAMENTO_TOKEN: ${MONITORAMENTO_TOKEN:-}
-      DEMO_SENHA: ${DEMO_SENHA:?defina DEMO_SENHA no .env}
+      # Só o perfil demo lê; ligado e vazio, a API não sobe.
+      DEMO_SENHA: ${DEMO_SENHA:-}
       TREINOS_DEMO_HISTORICO: ${TREINOS_DEMO_HISTORICO:-false}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081}
       APP_URL: ${APP_URL:-http://localhost:8088}
@@ -120,12 +123,13 @@ services:
       api:
         condition: service_healthy
 
-  # Conteúdo do Saraiva (vídeos, modelos de treino e mobilidade, suplementos, medicação e ergogênicos) entra por
-  # padrão: roda scripts/importacao/importar.mjs uma vez, depois que a API está saudável. É idempotente (só cria o que
+  # Conteúdo do Saraiva (vídeos, modelos de treino e mobilidade, suplementos, medicação e ergogênicos) entra com a
+  # demonstração (COMPOSE_PROFILES=demo, ele usa a conta do treinador demo): roda scripts/importacao/importar.mjs uma vez, depois que a API está saudável. É idempotente (só cria o que
   # falta), então repete a cada "up" sem efeito colateral. Para as opções (--simular, --substituir, --trocar-videos),
   # rode o script à mão no PC.
   importacao:
     image: node:24-alpine
+    profiles: [demo]
     restart: "no"
     working_dir: /importacao
     volumes:
