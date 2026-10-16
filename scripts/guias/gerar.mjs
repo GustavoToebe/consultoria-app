@@ -56,6 +56,7 @@ try {
     const origem = join(temp, `${guia.arquivoPdf}.html`);
     const destino = join(saida, guia.arquivoPdf);
     writeFileSync(origem, html(guia), 'utf8');
+    rmSync(destino, { force: true }); // sem isto, um navegador que não escreve nada passaria com o PDF velho
     execFileSync(
       navegador,
       ['--headless=new', '--disable-gpu', '--no-pdf-header-footer', `--user-data-dir=${join(temp, 'perfil')}`, `--print-to-pdf=${destino}`, pathToFileURL(origem).href],

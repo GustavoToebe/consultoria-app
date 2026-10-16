@@ -60,6 +60,14 @@ services:
       TREINOS_INTEGRACAO_PRODUTO: ${TREINOS_INTEGRACAO_PRODUTO:-TREINOS}
       TREINOS_INTEGRACAO_TOLERANCIA_HORAS: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:-72}
       TREINOS_INTEGRACAO_BLOQUEIO_ATIVO: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:-false}
+      # Fotos da atualização: desligadas por padrão (a pergunta FOTOS segue sem envio). Para testar local, suba o MinIO
+      # (docker compose --profile fotos up -d) e use os valores do .env.example. Em produção o bucket é o R2 da Cloudflare.
+      TREINOS_FOTOS_HABILITADO: ${TREINOS_FOTOS_HABILITADO:-false}
+      TREINOS_FOTOS_ENDPOINT: ${TREINOS_FOTOS_ENDPOINT:-}
+      TREINOS_FOTOS_BUCKET: ${TREINOS_FOTOS_BUCKET:-}
+      TREINOS_FOTOS_CHAVE: ${TREINOS_FOTOS_CHAVE:-}
+      TREINOS_FOTOS_SEGREDO: ${TREINOS_FOTOS_SEGREDO:-}
+      TREINOS_FOTOS_REGIAO: ${TREINOS_FOTOS_REGIAO:-auto}
     depends_on:
       db:
         condition: service_healthy
@@ -69,6 +77,32 @@ services:
       timeout: 3s
       start_period: 60s
       retries: 12
+
+  # Bucket S3 local para as fotos da atualização (só no perfil "fotos"; sem ele nada sobe). Imagem do Chainguard porque o
+  # minio/minio saiu do Docker Hub. Não publica porta: só a API fala com ele.
+  #   TREINOS_FOTOS_HABILITADO=true  TREINOS_FOTOS_ENDPOINT=http://minio:9000  TREINOS_FOTOS_BUCKET=consultoria-fotos
+  #   TREINOS_FOTOS_CHAVE=<MINIO_USUARIO>  TREINOS_FOTOS_SEGREDO=<MINIO_SENHA>
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    profiles: [fotos]
+    restart: unless-stopped
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USUARIO:-}
+      MINIO_ROOT_PASSWORD: ${MINIO_SENHA:-}
+    volumes:
+      - dados-fotos:/data
+
+  # Cria o bucket uma vez (idempotente). O `mc` lê o acesso da variável MC_HOST_<alias>.
+  minio-bucket:
+    image: cgr.dev/chainguard/minio-client:latest
+    profiles: [fotos]
+    restart: on-failure
+    environment:
+      MC_HOST_local: http://${MINIO_USUARIO:-}:${MINIO_SENHA:-}@minio:9000
+    command: ["mb", "--ignore-existing", "local/${TREINOS_FOTOS_BUCKET:-consultoria-fotos}"]
+    depends_on:
+      - minio
 
   web:
     build: ./app
@@ -108,3 +142,4 @@ secrets:
 
 volumes:
   dados-db:
+  dados-fotos:

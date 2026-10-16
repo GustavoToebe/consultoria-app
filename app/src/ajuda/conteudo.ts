@@ -107,7 +107,7 @@ const TREINADOR: Guia = {
       itens: [
         { titulo: 'Onde fica', texto: 'Dentro de cada pasta, ao fim do período. O aluno responde e envia; você revisa e escreve o retorno.' },
         { titulo: 'Revisar em fila', texto: 'Ao abrir uma atualização pela lista (Para revisar, Atrasadas...), o botão Próxima › abre a seguinte da mesma lista. Quando acabam, o app avisa "Nada mais para revisar".' },
-        { titulo: 'Atraso', texto: 'O aluno pode avisar que vai atrasar. Isso só avisa; não bloqueia nada.' },
+        { titulo: 'Atraso', texto: 'O aluno pode avisar que vai atrasar. Isso só avisa; não bloqueia nada.' }, { titulo: 'Fotos', texto: 'Se o questionário tem a pergunta Fotos, o aluno anexa até 6 fotos por pergunta. Elas são dado sensível: só quem tem acesso à atualização e aos dados sensíveis do aluno as vê, dentro da atualização e no Resumo, e nunca por link público. Sem foto aparece "—". Quando o recurso ainda não está ligado na sua consultoria, a pergunta aparece como "Fotos ainda não disponíveis" para o aluno. Na exportação do aluno entra só a lista das fotos (data e tamanho), sem as imagens; ao anonimizar, elas são apagadas.' },
         { titulo: 'Questionário', texto: 'Cada consultoria monta os próprios questionários em Planejamento, na aba Atualização: edite o rascunho, confira na Prévia e toque em Publicar. Um deles é o padrão da consultoria. Na ficha do aluno você escolhe o questionário dele ("Padrão da consultoria" usa o padrão) e, na pasta aberta, o questionário só daquele período ("O do aluno" usa o escolhido na ficha). Quem não é mais usado se arquiva; um que já foi respondido não se exclui.' },
       ],
     },
@@ -197,7 +197,8 @@ const ALUNO: Guia = {
       titulo: 'Atualização',
       itens: [
         { titulo: 'Responder', texto: 'Abra a atualização, responda e envie. O peso informado entra no seu histórico.' },
-        { titulo: 'Vou atrasar', texto: 'Se precisar de mais tempo, avise pelo botão. Isso só avisa o treinador.' },
+        { titulo: 'Fotos', texto: 'Quando a atualização pede fotos, escolha da galeria ou tire na hora (até 6 por pergunta). No celular elas ficam guardadas só dentro do app, sem ir para a galeria, e sobem quando você envia a atualização; na web é preciso estar conectado para anexar. Toque no X para remover antes de enviar. Só você e seu treinador veem as fotos.' },
+   { titulo: 'Vou atrasar', texto: 'Se precisar de mais tempo, avise pelo botão. Isso só avisa o treinador.' },
         { titulo: 'Lembretes', texto: 'No celular, o app lembra 3 dias antes, no dia e 1 dia depois, às 9h. Na web, só aparece um cartão.' },
       ],
     },
