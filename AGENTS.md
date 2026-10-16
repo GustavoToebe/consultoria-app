@@ -238,7 +238,7 @@ Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele
 
 ## Onde está cada coisa
 - `api/` — backend novo. `app/` — app Expo novo.
-- `docs/` — `integracao-central.md` (integração com a Central), `catalogo.md` (catálogo público) e `fotos.md` (fotos da atualização: nome do objeto e saída de uma consultoria). Planilhas e CSVs
+- `docs/` — `integracao-central.md` (integração com a Central), `catalogo.md` (catálogo público) e `fotos.md` (fotos da atualização: nome do objeto e saída de uma consultoria) e `build-celular.md` (EAS: perfis, APK de teste, o que testar no celular, o que muda para a loja; ícones provisórios). Planilhas e CSVs
   de treino não ficam no git.
 
 ## Comandos
