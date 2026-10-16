@@ -7,7 +7,7 @@ import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo aluno, PerfilResumo perfil, java.util.Set<String> permissoes,
-                         boolean termosPendentes, String termosVersao) {
+                         boolean termosPendentes, String termosVersao, java.util.List<String> funcionalidadesDoPlano) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 

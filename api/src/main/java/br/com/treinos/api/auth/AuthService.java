@@ -48,6 +48,7 @@ public class AuthService {
     private final AcessoPorDireitos acesso;
     private final TermosService termos;
     private final AberturaDeSessao abertura;
+    private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -55,7 +56,9 @@ public class AuthService {
                        PasswordEncoder passwordEncoder, Autenticador autenticador,
                        br.com.treinos.api.equipe.PerfilRepository perfis,
                        br.com.treinos.api.equipe.PermissoesDoUsuario permissoes, AcessoPorDireitos acesso,
-                       TermosService termos, AberturaDeSessao abertura, PlatformTransactionManager transacoes) {
+                       TermosService termos, AberturaDeSessao abertura, PlatformTransactionManager transacoes,
+                       br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+        this.plano = plano;
         this.abertura = abertura;
         this.perfis = perfis;
         this.permissoes = permissoes;
@@ -120,7 +123,8 @@ public class AuthService {
                 .map(p -> new EuResponse.PerfilResumo(p.getId(), p.getNome(), p.isAcessoTotal())).orElse(null);
         return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno, perfil,
                 usuario.getPapel() == Papel.TREINADOR ? permissoes.codigos(usuario) : null,
-                termos.pendente(usuario.getId()), Termos.VERSAO);
+                termos.pendente(usuario.getId()), Termos.VERSAO,
+                plano.funcionalidadesLiberadas(usuario.getConsultoriaId()));
     }
 
     /**

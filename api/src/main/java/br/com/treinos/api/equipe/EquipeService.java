@@ -32,10 +32,12 @@ public class EquipeService {
     private final String appUrl;
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
     private final PermissoesDoUsuario permissoesDoUsuario;
+    private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
     public EquipeService(PerfilRepository perfis,UsuarioRepository usuarios,UsuarioConviteRepository convites,
                         ConsultoriaRepository consultorias,Autenticador autenticador,
-                        PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl,br.com.treinos.api.auditoria.Auditoria auditoria,PermissoesDoUsuario permissoesDoUsuario) {
-        this.auditoria=auditoria;this.permissoesDoUsuario=permissoesDoUsuario;
+                        PasswordEncoder senhas,@Value("${treinos.app-url}") String appUrl,br.com.treinos.api.auditoria.Auditoria auditoria,PermissoesDoUsuario permissoesDoUsuario,
+                        br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+        this.plano=plano;this.auditoria=auditoria;this.permissoesDoUsuario=permissoesDoUsuario;
         this.perfis=perfis;this.usuarios=usuarios;this.convites=convites;this.consultorias=consultorias;
         this.autenticador=autenticador;this.senhas=senhas;this.appUrl=appUrl.replaceAll("/+$","");
     }
@@ -107,6 +109,7 @@ public class EquipeService {
         if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
         String email=Emails.normalizar(r.email());if(usuarios.existeEmail(email)) throw new ConflictException("Este e-mail já tem uma conta.","EMAIL_EM_USO");
         convites.deleteByEmailAndUsadoEmIsNull(email);convites.flush();
+        plano.exigirVagaDeMembro(); // depois de apagar o convite antigo do mesmo e-mail: reconvidar não conta duas vezes
         String codigo=OpaqueTokenGenerator.gerar();Instant expira=Instant.now().plus(7,ChronoUnit.DAYS);
         convites.saveAndFlush(new UsuarioConvite(r.nome().trim(),email,p.getId(),OpaqueTokenGenerator.hash(codigo),expira,criadoPor));
         return new ConviteResponse(codigo,appUrl+"/convite-equipe#"+codigo,expira,false);
@@ -135,6 +138,10 @@ public class EquipeService {
         if(!p.isAtivo()) throw new BadRequestException("Escolha um perfil ativo.");
         if(u.isAtivo() && anterior.isAcessoTotal() && (!r.ativo() || !p.isAcessoTotal()) && administradoresAtivos()<=1)
             throw new ConflictException("A consultoria precisa de pelo menos um administrador ativo.","ULTIMO_ADMINISTRADOR");
+        if(!u.isAtivo() && r.ativo()) {
+            plano.exigirFuncionalidade(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_EQUIPE);
+            plano.exigirVagaDeMembro(); // reativar ocupa uma vaga; desativar e editar nunca são barrados
+        }
         boolean troca=!u.getPerfilId().equals(p.getId());boolean desativar=u.isAtivo() && !r.ativo();
         u.alterarNome(r.nome().trim());u.alterarPerfil(p.getId());u.alterarAtivo(r.ativo());
         if(troca || desativar) autenticador.encerrarSessoes(u.getId().toString());

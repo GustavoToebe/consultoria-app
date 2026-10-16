@@ -33,10 +33,13 @@ public class AplicarModeloService {
     private final PlanoDietaRepository repositorioDietas;
     private final PlanoMobilidadeRepository repositorioMobilidades;
     private final JsonMapper json;
+    private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
     public AplicarModeloService(ReceitaService receitas, PastaService pastas, PastaRepository repositorioPastas,
             PlanoTreinoService treinos, PlanoDietaService dietas, PlanoMobilidadeService mobilidades,
             PlanoTreinoRepository repositorioTreinos, PlanoDietaRepository repositorioDietas,
-            PlanoMobilidadeRepository repositorioMobilidades, JsonMapper json) {
+            PlanoMobilidadeRepository repositorioMobilidades, JsonMapper json,
+            br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+        this.plano=plano;
         this.receitas=receitas; this.pastas=pastas; this.repositorioPastas=repositorioPastas;
         this.treinos=treinos; this.dietas=dietas; this.repositorioTreinos=repositorioTreinos;
         this.repositorioDietas=repositorioDietas; this.json=json;
@@ -53,6 +56,8 @@ public class AplicarModeloService {
         // Antes de qualquer efeito: o modelo cria treino, dieta ou mobilidade, então exige a permissão de alterar o que cria.
         ConteudoPastaModelo pacote=tipo == Receita.Tipo.PASTA_PLANO ? json.treeToValue(modelo.conteudo(), ConteudoPastaModelo.class) : null;
         exigirPermissoes(tipo, pacote);
+        if (tipo == Receita.Tipo.MOBILIDADE) plano.exigirFuncionalidade(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_MOBILIDADE);
+        boolean comMobilidade = plano.funcionalidadeLiberada(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_MOBILIDADE);
         if (r.pastaId() == null) AcessoAtual.exigir("PASTA_ALTERAR"); // vai criar uma pasta nova
         UUID pastaId=r.pastaId();
         if (pastaId == null) pastaId=pastas.criar(r.alunoId(), new PastaDtos.PastaRequest(r.titulo(),r.inicio(),r.fim())).id();
@@ -69,7 +74,7 @@ public class AplicarModeloService {
                     var novo=dietas.criar(r.alunoId(),pedido);
                     dietas.salvarRascunho(novo.plano().id(),new SalvarRascunhoRequest<>(p.titulo(),novo.plano().inicio(),
                             novo.plano().fim(),p.dieta().semErgogenicos().comUidsNovos(),novo.plano().versao()));
-                } else {
+                } else if (comMobilidade) { // o plano não cobre mobilidade: o pacote sai sem ela (não dá 403, para o resto vir)
                     var novo=mobilidades.criar(r.alunoId(),pedido);
                     mobilidades.salvarRascunho(novo.plano().id(),new SalvarRascunhoRequest<>(p.titulo(),novo.plano().inicio(),
                             novo.plano().fim(),p.mobilidade().comUidsNovos(),novo.plano().versao()));
@@ -109,6 +114,7 @@ public class AplicarModeloService {
             conteudos.add(new ConteudoPastaModelo.Plano(p.getTitulo(),treinos.rascunho(p.getId()),null,null));
         for(var p:repositorioDietas.findByPastaId(id)) if(!p.isArquivado())
             conteudos.add(new ConteudoPastaModelo.Plano(p.getTitulo(),null,dietas.rascunho(p.getId()),null));
+        if(plano.funcionalidadeLiberada(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_MOBILIDADE))
         for(var p:repositorioMobilidades.findByPastaId(id)) if(!p.isArquivado())
             conteudos.add(new ConteudoPastaModelo.Plano(p.getTitulo(),null,null,mobilidades.rascunho(p.getId())));
         return receitas.salvarConteudo(Receita.Tipo.PASTA_PLANO,r.nome(),r.descricao(),new ConteudoPastaModelo(conteudos));

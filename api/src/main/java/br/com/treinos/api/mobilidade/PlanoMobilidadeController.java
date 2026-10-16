@@ -1,5 +1,7 @@
 package br.com.treinos.api.mobilidade;
 
+import br.com.treinos.api.conta.ExigeFuncionalidade;
+import br.com.treinos.api.conta.RecursosDoApp;
 import br.com.treinos.api.planos.CopiarPlanoService;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.treinos.api.receitas.ConteudoMobilidade;
@@ -34,6 +36,7 @@ import java.util.UUID;
 
 /** Planos de dieta do treinador: mesmas rotas do treino, trocando {@code planos-treino} por {@code planos-mobilidade}. */
 @RestController
+@ExigeFuncionalidade(RecursosDoApp.FUNCIONALIDADE_MOBILIDADE)
 public class PlanoMobilidadeController {
 
     private final PlanoMobilidadeService planos;

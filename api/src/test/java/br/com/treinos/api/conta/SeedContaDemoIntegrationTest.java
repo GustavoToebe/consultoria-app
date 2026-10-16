@@ -48,7 +48,7 @@ class SeedContaDemoIntegrationTest extends AbstractIntegrationTest {
         assertThat(jdbc.queryForObject("select limites ->> 'membros_equipe' from direitos_locais where consultoria_id = ?",
                 String.class, consultoria)).isEqualTo("5");
         assertThat(jdbc.queryForObject("select array_to_string(funcionalidades, ',') from direitos_locais where consultoria_id = ?",
-                String.class, consultoria)).isEqualTo("CHECKIN,MOBILIDADE,PDF,EQUIPE");
+                String.class, consultoria)).isEqualTo("MOBILIDADE,PDF,EQUIPE");
 
         assertThat(jdbc.queryForObject("select cliente ->> 'documento' from conta_comercial_local where consultoria_id = ?",
                 String.class, consultoria)).isEqualTo("00.000.000/0001-00");

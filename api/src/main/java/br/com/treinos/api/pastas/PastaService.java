@@ -48,12 +48,15 @@ public class PastaService {
     private final PesoService pesos;
     private final AtualizacaoRepository atualizacoes;
     private final PastaVigente vigente;
+    private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
 
     public PastaService(PastaRepository pastas, AlunoRepository alunos, PlanoTreinoRepository treinos,
                         PlanoDietaRepository dietas, PlanoMobilidadeRepository mobilidades,
                         PlanoTreinoService servicoTreino, PlanoDietaService servicoDieta,
                         PlanoMobilidadeService servicoMobilidade, PesoService pesos,
-                        AtualizacaoRepository atualizacoes, PastaVigente vigente) {
+                        AtualizacaoRepository atualizacoes, PastaVigente vigente,
+                        br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+        this.plano = plano;
         this.atualizacoes = atualizacoes;
         this.vigente = vigente;
         this.pastas = pastas;
@@ -121,7 +124,9 @@ public class PastaService {
             servicoDieta.replicar(p.getId(),
                     new ReplicarRequest(tituloDaCopia(p, origem, nova), r.inicio(), r.fim(), nova.getId()));
         }
-        for (PlanoBase p : mobilidades.findByPastaId(id)) {
+        // Plano sem mobilidade: a pasta nova sai sem ela (renovar a pasta não pode quebrar por causa disso).
+        boolean comMobilidade = plano.funcionalidadeLiberada(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_MOBILIDADE);
+        for (PlanoBase p : comMobilidade ? mobilidades.findByPastaId(id) : List.<PlanoBase>of()) {
             if (p.isArquivado()) continue;
             servicoMobilidade.replicar(p.getId(),
                     new ReplicarRequest(tituloDaCopia(p, origem, nova), r.inicio(), r.fim(), nova.getId()));

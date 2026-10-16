@@ -99,8 +99,39 @@ Gerar um segredo: `openssl rand -base64 48`.
    "Sincronização de direitos: ...".
 6. Testar: `GET /integracao/v1/saude` assinado; provisionar uma contratação de teste na Central e abrir o link do convite.
 7. Códigos de `limites` e `funcionalidades` a cadastrar no produto na Central: `GET /integracao/v1/recursos` os lista
-   (`alunos_ativos`, `membros_equipe`, `CHECKIN`, `MOBILIDADE`, `PDF`, `EQUIPE`). **Nenhum limite é aplicado ainda**
-   (`aplicado=false`): o consumo só informa.
+   (a tela "Recursos do app" da Central importa de `GET /produtos/{id}/recursos-do-app`). Lista final:
+
+   | Tipo | Código | O que bloqueia no app |
+   |---|---|---|
+   | limite | `alunos_ativos` | cadastrar aluno, reativar aluno |
+   | limite | `membros_equipe` | convidar membro, reativar membro (conta membros ativos + convites pendentes) |
+   | funcionalidade | `MOBILIDADE` | planos de mobilidade e modelos do tipo mobilidade |
+   | funcionalidade | `EQUIPE` | convidar e gerenciar membros além do administrador, criar e duplicar perfil |
+   | funcionalidade | `PDF` | só some o botão no app (o PDF é gerado no aparelho; não há rota para barrar) |
+
+   `CHECKIN` saiu do catálogo: o app não tem tela nem rota de check-in, e todo código que fica precisa corresponder a algo
+   que o app consiga barrar. Os limites e as funcionalidades só passam a valer com a chave `TREINOS_PLANO_APLICAR=true`
+   (seção 5.1); até lá `aplicado=false` e o consumo só informa.
+
+## 5.1. Aplicação do plano (`TREINOS_PLANO_APLICAR`)
+
+Desligada por padrão. Ligada, a API lê `direitos_locais` **do banco a cada operação** (nunca do token) e bloqueia só o que é
+novo; nada é apagado nem desativado quando o plano cai.
+
+- Sem linha em `direitos_locais` (integração desligada, local, demonstração): nada é barrado.
+- Limite ausente: sem limite (nunca zero). `alunos_ativos` e `membros_equipe` bloqueiam quando `usado >= limite`, com a
+  consultoria travada na contagem (duas criações ao mesmo tempo não passam do limite).
+- Acima do limite: `409 LIMITE_DO_PLANO`, recurso em `fieldErrors[0].field` (`alunos_ativos` ou `membros_equipe`) e mensagem
+  sem nome nem dado de pessoa.
+- Funcionalidade desligada: `403 FUNCIONALIDADE_FORA_DO_PLANO`, código em `fieldErrors[0].field`. Vale para escrita (POST/PUT/
+  PATCH) das rotas de mobilidade e de convite e perfil de equipe; leitura e exclusão nunca são barradas. Lista com maiúsculas
+  ou minúsculas é aceita (`mobilidade` = `MOBILIDADE`). A lista é lida como "intersecção com o catálogo": código desconhecido não libera nada.
+- Replicar pasta e aplicar pacote **pulam** a mobilidade quando a funcionalidade está fora do plano (não dão 403).
+- `GET /eu` devolve `funcionalidadesDoPlano` (todas, se a chave está desligada ou não há linha); o app esconde botões, abas e a busca
+  global com isso, e mostra "Disponível em outro plano". Quem tem `CONTA_LER` vê o atalho para "Minha conta" nos avisos de 409/403.
+  A API continua sendo quem barra.
+- Importação de alunos em lote não existe; o lote só desativa. Convites criados pelo provisionamento da Central contam em `membros_equipe`.
+- Testes: `PlanoAplicadoIntegrationTest` (chave ligada) e `PlanoDesligadoIntegrationTest`.
 
 ## 6. Produção na VPS (Fase 6)
 
@@ -119,7 +150,8 @@ e o `atualizar.sh` estão em `central-api-back/deploy` (`apps/consultoria/`, `pr
 ## 7. Fora de escopo (não feito)
 
 - Código de suporte (`/suporte`), endpoint de consumo para a Central (`/consumo`) e relatório de erros (`/erros`).
-- Aplicação dos `limites` e das `funcionalidades` (o contrato chama de "aplicação futura").
+- Aplicar limites e funcionalidades está feito, mas **desligado** (seção 5.1): só vale com `TREINOS_PLANO_APLICAR=true`, depois de
+  cadastrar os recursos acima no produto `TREINOS` da Central.
 
 ## 8. Testes
 

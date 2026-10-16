@@ -1,10 +1,6 @@
 package br.com.treinos.api.conta;
 
-import br.com.treinos.api.alunos.AlunoRepository;
-import br.com.treinos.api.auth.Papel;
-import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.conta.ConsumoPlanoDto.Item;
-import br.com.treinos.api.equipe.UsuarioConviteRepository;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.plataforma.comum.web.ForbiddenException;
 import org.springframework.stereotype.Service;
@@ -16,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Minha conta e consumo do plano da consultoria da requisição. Só leitura; não bloqueia nada nem entra na auditoria.
+ * Minha conta e consumo do plano da consultoria da requisição. Só leitura, nem entra na auditoria; quem bloqueia é o {@link PlanoDaConsultoria}, que usa a mesma contagem.
  * A consultoria vem do {@link TenantContext} (preenchido do banco), nunca do corpo ou de parâmetro.
  */
 @Service
@@ -24,17 +20,12 @@ public class ContaService {
 
     private final FonteDaConta fonte;
     private final ContaLocalRepositorio contas;
-    private final AlunoRepository alunos;
-    private final UsuarioRepository usuarios;
-    private final UsuarioConviteRepository convites;
+    private final PlanoDaConsultoria plano;
 
-    public ContaService(FonteDaConta fonte, ContaLocalRepositorio contas, AlunoRepository alunos,
-                        UsuarioRepository usuarios, UsuarioConviteRepository convites) {
+    public ContaService(FonteDaConta fonte, ContaLocalRepositorio contas, PlanoDaConsultoria plano) {
         this.fonte = fonte;
         this.contas = contas;
-        this.alunos = alunos;
-        this.usuarios = usuarios;
-        this.convites = convites;
+        this.plano = plano;
     }
 
     /**
@@ -52,10 +43,9 @@ public class ContaService {
         UUID consultoria = consultoria();
         DireitosLocais direitos = contas.direitos(consultoria).orElse(null);
         Map<String, Long> limites = direitos == null ? Map.of() : direitos.limites();
-        long membros = usuarios.countByConsultoriaIdAndPapelAndAtivoTrue(consultoria, Papel.TREINADOR)
-                + convites.countByUsadoEmIsNullAndExpiraEmAfter(Instant.now());
+        long membros = plano.membrosDaEquipe(consultoria);
         List<Item> itens = List.of(
-                item(RecursosDoApp.LIMITE_ALUNOS_ATIVOS, "Alunos ativos", alunos.countByAtivoTrue(), limites),
+                item(RecursosDoApp.LIMITE_ALUNOS_ATIVOS, "Alunos ativos", plano.alunosAtivos(), limites),
                 item(RecursosDoApp.LIMITE_MEMBROS_EQUIPE, "Membros da equipe", membros, limites));
         return new ConsumoPlanoDto(direitos == null ? null : direitos.planoNome(),
                 direitos == null ? null : direitos.versao(), direitos == null ? null : direitos.confirmadoEm(),

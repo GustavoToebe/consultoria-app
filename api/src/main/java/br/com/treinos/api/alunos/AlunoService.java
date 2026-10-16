@@ -46,10 +46,12 @@ public class AlunoService {
     private final ExecucaoSerieRepository execucoes;
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
     private final AtualizacaoRepository atualizacoes;
+    private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
-                        AtualizacaoRepository atualizacoes) {
+                        AtualizacaoRepository atualizacoes, br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+        this.plano = plano;
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
@@ -111,6 +113,7 @@ public class AlunoService {
     @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_CRIADO",entidade="ALUNO",resumo="Cadastrou um aluno.")
     public AlunoDetalhe criar(AlunoRequest r) {
         exigirEscritaSensivel(r);
+        plano.exigirVagaDeAluno();
         Aluno aluno = new Aluno(r.nome().trim(), email(r.email()), Buscas.opcional(r.objetivo()),
                 Buscas.opcional(r.observacoes()), r.diasAtualizacao());
         var auth=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
@@ -153,7 +156,10 @@ public class AlunoService {
     @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_SITUACAO",entidade="ALUNO",resumo="Alterou a situação do aluno.")
     public AlunoDetalhe alterarSituacao(UUID id, boolean ativo) {
         Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
-        if (ativo) exigirNaoAnonimizado(aluno);
+        if (ativo) {
+            exigirNaoAnonimizado(aluno);
+            if (!aluno.isAtivo()) plano.exigirVagaDeAluno(); // reativar ocupa uma vaga; PATCH em quem já está ativo não
+        }
         aplicarSituacao(aluno, ativo);
         return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
     }

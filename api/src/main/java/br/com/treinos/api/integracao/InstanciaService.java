@@ -35,9 +35,13 @@ public class InstanciaService {
     private final ReceitaService receitas;
     private final ConviteEquipeEmail conviteEmail;
 
+    private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
+
     public InstanciaService(ProvisionamentoService provisionamento, DireitosService direitos,
                             IntegracaoRepositorio repositorio, ContaLocalRepositorio contas, AcessoPorDireitos acesso,
-                            ReceitaService receitas, ConviteEquipeEmail conviteEmail) {
+                            ReceitaService receitas, ConviteEquipeEmail conviteEmail,
+                            br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+        this.plano = plano;
         this.conviteEmail = conviteEmail;
         this.provisionamento = provisionamento;
         this.direitos = direitos;
@@ -135,15 +139,15 @@ public class InstanciaService {
         return corpo;
     }
 
-    /** Catálogo (contrato 5.5). Nenhum limite é aplicado ainda: o consumo só informa, então {@code aplicado=false}. */
+    /** Catálogo (contrato 5.5). {@code aplicado} reflete a chave {@code TREINOS_PLANO_APLICAR}: desligada, o consumo só informa. */
     public List<Recurso> recursos() {
+        boolean aplicado = plano.aplicando();
         return List.of(
-                new Recurso(RecursosDoApp.LIMITE_ALUNOS_ATIVOS, "Alunos ativos", "LIMITE", "aluno", false),
-                new Recurso(RecursosDoApp.LIMITE_MEMBROS_EQUIPE, "Membros da equipe", "LIMITE", "pessoa", false),
-                new Recurso(RecursosDoApp.FUNCIONALIDADE_CHECKIN, "Check-in", "FUNCIONALIDADE", null, false),
-                new Recurso(RecursosDoApp.FUNCIONALIDADE_MOBILIDADE, "Mobilidade", "FUNCIONALIDADE", null, false),
-                new Recurso(RecursosDoApp.FUNCIONALIDADE_PDF, "PDF", "FUNCIONALIDADE", null, false),
-                new Recurso(RecursosDoApp.FUNCIONALIDADE_EQUIPE, "Equipe", "FUNCIONALIDADE", null, false));
+                new Recurso(RecursosDoApp.LIMITE_ALUNOS_ATIVOS, "Alunos ativos", "LIMITE", "aluno", aplicado),
+                new Recurso(RecursosDoApp.LIMITE_MEMBROS_EQUIPE, "Membros da equipe", "LIMITE", "pessoa", aplicado),
+                new Recurso(RecursosDoApp.FUNCIONALIDADE_MOBILIDADE, "Mobilidade", "FUNCIONALIDADE", null, aplicado),
+                new Recurso(RecursosDoApp.FUNCIONALIDADE_PDF, "PDF", "FUNCIONALIDADE", null, aplicado),
+                new Recurso(RecursosDoApp.FUNCIONALIDADE_EQUIPE, "Equipe", "FUNCIONALIDADE", null, aplicado));
     }
 
     public Map<String, Object> saude(String produto) {

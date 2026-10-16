@@ -51,8 +51,12 @@ public class ReceitaService {
     private final VideoUrls videoUrls;
     private final ConsultoriaRepository consultorias;
 
+    private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
+
     public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator, PastaModeloRepository pastas,
-                          VideoUrls videoUrls, ConsultoriaRepository consultorias) {
+                          VideoUrls videoUrls, ConsultoriaRepository consultorias,
+                          br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+        this.plano = plano;
         this.receitas = receitas;
         this.json = json;
         this.validator = validator;
@@ -70,6 +74,7 @@ public class ReceitaService {
 
     @Transactional
     public ReceitaResponse criar(ReceitaRequest r) {
+        exigirPlano(r.tipo());
         String conteudo = conteudoValidado(r.tipo(), r.conteudo());
         Receita receita = new Receita(r.tipo(), r.nome().trim(), Buscas.opcional(r.descricao()), conteudo,
                 receitas.maiorOrdem(r.tipo()) + 1);
@@ -80,6 +85,7 @@ public class ReceitaService {
     @Transactional
     public ReceitaResponse alterar(UUID id, ReceitaRequest r) {
         Receita receita = buscar(id);
+        exigirPlano(receita.getTipo());
         exigirVersao(receita, r.versao());
         if (receita.getTipo() != r.tipo()) {
             throw new BadRequestException("O tipo da receita não pode mudar.");
@@ -87,6 +93,13 @@ public class ReceitaService {
         receita.alterar(r.nome().trim(), Buscas.opcional(r.descricao()), conteudoValidado(r.tipo(), r.conteudo()));
         receita.definirPasta(exigirPasta(r.pastaId()));
         return resposta(receitas.saveAndFlush(receita));
+    }
+
+    /** Modelo de mobilidade só se o plano inclui a funcionalidade; ler e excluir nunca são barrados. */
+    private void exigirPlano(Receita.Tipo tipo) {
+        if (tipo == Receita.Tipo.MOBILIDADE) {
+            plano.exigirFuncionalidade(br.com.treinos.api.conta.RecursosDoApp.FUNCIONALIDADE_MOBILIDADE);
+        }
     }
 
     @Transactional

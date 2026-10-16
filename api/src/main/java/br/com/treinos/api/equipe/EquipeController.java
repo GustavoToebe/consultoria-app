@@ -1,4 +1,6 @@
 package br.com.treinos.api.equipe;
+import br.com.treinos.api.conta.ExigeFuncionalidade;
+import br.com.treinos.api.conta.RecursosDoApp;
 import br.com.treinos.api.equipe.EquipeDtos.*;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
@@ -17,11 +19,11 @@ public class EquipeController {
     public List<CatalogoPermissoes.Permissao> catalogo() { return CatalogoPermissoes.CATALOGO; }
     @PreAuthorize("hasAuthority('PERM_EQUIPE_LER')") @GetMapping("/perfis")
     public List<PerfilResponse> perfis() { return equipe.perfis(); }
-    @PreAuthorize("hasAuthority('PERM_PERFIL_ALTERAR')") @PostMapping("/perfis")
+    @ExigeFuncionalidade(RecursosDoApp.FUNCIONALIDADE_EQUIPE) @PreAuthorize("hasAuthority('PERM_PERFIL_ALTERAR')") @PostMapping("/perfis")
     public PerfilResponse criar(@RequestBody @Valid PerfilRequest r) { return equipe.criarPerfil(r); }
     @PreAuthorize("hasAuthority('PERM_PERFIL_ALTERAR')") @PutMapping("/perfis/{id}")
     public PerfilResponse alterar(@PathVariable UUID id,@RequestBody @Valid PerfilRequest r) { return equipe.alterarPerfil(id,r); }
-    @PreAuthorize("hasAuthority('PERM_PERFIL_ALTERAR')") @PostMapping("/perfis/{id}/duplicar")
+    @ExigeFuncionalidade(RecursosDoApp.FUNCIONALIDADE_EQUIPE) @PreAuthorize("hasAuthority('PERM_PERFIL_ALTERAR')") @PostMapping("/perfis/{id}/duplicar")
     public PerfilResponse duplicar(@PathVariable UUID id) { return equipe.duplicarPerfil(id); }
     @PreAuthorize("hasAuthority('PERM_PERFIL_ALTERAR')") @DeleteMapping("/perfis/{id}")
     public ResponseEntity<Void> apagar(@PathVariable UUID id) { equipe.apagarPerfil(id);return ResponseEntity.noContent().build(); }
@@ -29,7 +31,7 @@ public class EquipeController {
     public List<UsuarioResponse> usuarios() { return equipe.usuarios(); }
     @PreAuthorize("hasAuthority('PERM_ALUNO_LER')") @GetMapping("/responsaveis")
     public List<EquipeService.Responsavel> responsaveis() { return equipe.responsaveis(); }
-    @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PostMapping("/usuarios/convites")
+    @ExigeFuncionalidade(RecursosDoApp.FUNCIONALIDADE_EQUIPE) @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PostMapping("/usuarios/convites")
     public ConviteResponse convidar(@RequestBody @Valid ConviteRequest r,@AuthenticationPrincipal UsuarioAutenticado eu) {
         // O convite já está gravado (transação do serviço fechada): a chamada HTTP do e-mail não segura conexão do banco.
         var convite=equipe.convidar(r,eu.usuarioId());

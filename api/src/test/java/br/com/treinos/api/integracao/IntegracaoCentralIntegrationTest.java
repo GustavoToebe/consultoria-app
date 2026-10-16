@@ -201,7 +201,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         d.put("motivoBloqueio", liberado ? null : "Inadimplência");
         d.put("plano", Map.of("codigo", "pro", "nome", "Profissional"));
         d.put("limites", Map.of("alunos_ativos", 50));
-        d.put("funcionalidades", List.of("checkin"));
+        d.put("funcionalidades", List.of("pdf"));
         d.put("campoFuturo", "ignorado");
         return d;
     }
