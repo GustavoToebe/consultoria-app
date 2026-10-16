@@ -137,7 +137,8 @@ services:
     environment:
       # Dentro da rede do compose a API responde na raiz (o /api é só do Caddy).
       API_URL: http://api:8080
-      DEMO_SENHA: ${DEMO_SENHA:?defina DEMO_SENHA no .env}
+      # Serviço só do perfil demo; sem a senha o script avisa e sai.
+      DEMO_SENHA: ${DEMO_SENHA:-}
     command: ["node", "importar.mjs"]
     depends_on:
       api:
