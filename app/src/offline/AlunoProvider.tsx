@@ -13,6 +13,7 @@ import type { Atualizacao, ConteudoMobilidadeApi, PastaDoAluno, PlanosDaPasta, V
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
+import { registrarFilaRetida } from './filasRetidas';
 import type { DadosRegistro, PacoteSalvo, RegistroLocal, RepositorioLocal } from './repositorioLocal';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
 
@@ -175,10 +176,11 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     }
   }, [sincronizador, repositorio, recarregarRegistros, baixarPacote]);
 
-  // Abertura: lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
+  // Abertura: confere a fila que uma sessão recusada deixou (vencida = apagada; dentro do prazo = volta a ser a fila
+  // normal deste usuário), lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
   useEffect(() => {
     let vivo = true;
-    Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade()]).then(
+    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade()])).then(
       ([p, r, c, a, m]) => {
         if (!vivo) return;
         setPacote(p);
@@ -241,14 +243,21 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     [],
   );
 
-  // Ao sair da conta, os dados deste aluno saem do aparelho (o painel de sair avisa se havia pendência).
+  // Ao sair da conta, os dados deste aluno saem do aparelho (o painel de sair avisa se havia pendência). Quando é o
+  // servidor que recusa a sessão, sai tudo o que é dado sensível (plano, dieta, mobilidade, rascunhos, fotos locais...)
+  // e fica só a fila de registros ainda não enviados, para o mesmo aluno enviar ao entrar de novo (`DIAS_FILA_RETIDA`).
   useEffect(
     () =>
-      sessao.aoSair(async (id) => {
+      sessao.aoSair(async (id, motivo) => {
         await cancelarLembretesAtualizacao(id).catch(()=>undefined);
         await apagarTodasAsFotosLocais(id).catch(()=>undefined);
         await esquecerConfiguracaoDeFotos(id);
-        await (id === repositorio.usuarioId ? repositorio : abrirRepositorio(id, novoUid)).apagarTudo();
+        const alvo = id === repositorio.usuarioId ? repositorio : abrirRepositorio(id, novoUid);
+        if (motivo === 'recusada') {
+          if ((await alvo.reterSoAFila()) > 0) await registrarFilaRetida(id);
+        } else {
+          await alvo.apagarTudo();
+        }
       }),
     [sessao, repositorio],
   );

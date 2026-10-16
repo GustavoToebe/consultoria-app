@@ -4,7 +4,8 @@ import { chaveBoasVindas } from '../dominio/boasVindas';
 import { chaveDasPreferencias } from '../dominio/preferencias';
 import { emMemoria } from './armazenamento';
 import { fabricaNode, type FabricaDeTeste } from './bancoNode.apoioTeste';
-import { RepositorioChaveValor, type DadosRegistro, type RepositorioLocal } from './repositorioLocal';
+import { CHAVE_FILAS_RETIDAS, registrarFilaRetida, varrerFilasRetidas } from './filasRetidas';
+import { DIAS_FILA_RETIDA, RepositorioChaveValor, type DadosRegistro, type RepositorioLocal } from './repositorioLocal';
 import { RepositorioSqlite } from './repositorioSqlite';
 import { Sincronizador } from './sincronizacao';
 
@@ -44,21 +45,23 @@ const aceitaTudo = async (registros: RegistroEnvio[]): Promise<LoteResponse> => 
  * Um "aparelho": cria repositórios por usuário que compartilham o mesmo armazenamento. A mesma bateria roda nas duas
  * implementações (celular = SQLite, web = chave-valor): o contrato é um só.
  */
-type Aparelho = (usuarioId: string) => RepositorioLocal;
+type Aparelho = (usuarioId: string, relogio?: () => Date) => RepositorioLocal;
+
+const DIA_MS = 86_400_000;
 
 const implementacoes: [string, () => Aparelho][] = [
   [
     'chave-valor (web)',
     () => {
       const kv = emMemoria();
-      return (usuarioId) => new RepositorioChaveValor(kv, usuarioId, novoId, agora);
+      return (usuarioId, relogioDoTeste = agora) => new RepositorioChaveValor(kv, usuarioId, novoId, relogioDoTeste);
     },
   ],
   [
     'SQLite (celular)',
     () => {
       const fabrica = fabricaNode();
-      return (usuarioId) => new RepositorioSqlite(fabrica, usuarioId, novoId, agora);
+      return (usuarioId, relogioDoTeste = agora) => new RepositorioSqlite(fabrica, usuarioId, novoId, relogioDoTeste);
     },
   ],
 ];
@@ -252,6 +255,171 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect(await repo.listar()).toEqual([]);
     expect(await repo.lerCargasDeTrabalho()).toEqual({});
   });
+
+  describe('sessão recusada pelo servidor: guarda só a fila de envio', () => {
+    const instante = (t0: number, ms: number) => () => new Date(t0 + ms);
+
+    /** Um aluno com tudo no aparelho: 2 registros na fila, 1 enviado, 1 recusado, plano, dieta, cargas e rascunho. */
+    async function encher(repo: RepositorioLocal) {
+      await repo.registrar(serie('fila-1'));
+      await repo.registrar(serie('fila-2', { carga: 35, repeticoes: 6, observacao: 'pesado' }));
+      await repo.registrar(serie('enviada'));
+      await repo.registrar(serie('recusada'));
+      const todos = await repo.listar();
+      const [, , enviada, recusada] = todos;
+      await repo.aplicarResultados(
+        [enviada, recusada],
+        [
+          { id: enviada.id, situacao: 'ACEITO', motivo: null },
+          { id: recusada.id, situacao: 'RECUSADO', motivo: 'Versão inexistente.' },
+        ],
+      );
+      await repo.salvarPacote({ aluno: { nome: 'Fictício' } } as never);
+      await repo.salvarDieta({ id: 'd1' } as never);
+      await repo.salvarMobilidade({ id: 'm1' } as never);
+      await repo.salvarCargaDeTrabalho('e1', '2026-10-07', 30);
+      await repo.salvarRascunhoAtualizacao('p1', { questionarioVersaoId: 'q1', respostas: { peso: 80 } });
+      await repo.salvarHistoricoSemana({ versaoId: 'v1', inicio: '2026-10-05', dias: [] });
+      return todos;
+    }
+
+    it('apaga plano, dieta, mobilidade, rascunho e o resto, e fica só com os registros não enviados', async () => {
+      const repo = aparelho('u1');
+      const [fila1, fila2] = await encher(repo);
+      expect(await repo.reterSoAFila()).toBe(2);
+
+      const depois = aparelho('u1');
+      expect(await depois.lerPacote()).toBeNull();
+      expect(await depois.lerDieta()).toBeNull();
+      expect(await depois.lerMobilidade()).toBeNull();
+      expect(await depois.lerAtualizacao()).toBeNull();
+      expect(await depois.lerRascunhoAtualizacao('p1')).toBeNull();
+      expect(await depois.lerHistoricoSemana()).toBeNull();
+      expect(await depois.lerCargasDeTrabalho()).toEqual({});
+      // Os dois da fila voltam iguais (mesmo id, para o servidor reconhecer o reenvio); enviado e recusado se foram.
+      expect(await depois.listar()).toEqual([fila1, fila2]);
+      expect((await depois.pendentes()).map((r) => r.id)).toEqual([fila1.id, fila2.id]);
+    });
+
+    it('depois da recusa o repositório antigo não grava mais nada', async () => {
+      const repo = aparelho('u1');
+      await encher(repo);
+      await repo.reterSoAFila();
+      await repo.registrar(serie('tarde'));
+      await repo.salvarPacote({ aluno: { nome: 'Fictício' } } as never);
+      await repo.salvarCargaDeTrabalho('e1', '2026-10-07', 99);
+      const depois = aparelho('u1');
+      expect((await depois.listar()).map((r) => r.serieUid)).toEqual(['fila-1', 'fila-2']);
+      expect(await depois.lerPacote()).toBeNull();
+      expect(await depois.lerCargasDeTrabalho()).toEqual({});
+    });
+
+    it('sem nada na fila apaga tudo, como sair', async () => {
+      const repo = aparelho('u1');
+      await repo.registrar(serie('x'));
+      const [x] = await repo.listar();
+      await repo.aplicarResultados([x], [{ id: x.id, situacao: 'ACEITO', motivo: null }]);
+      await repo.salvarPacote({ aluno: { nome: 'Fictício' } } as never);
+      expect(await repo.reterSoAFila()).toBe(0);
+      const depois = aparelho('u1');
+      expect(await depois.listar()).toEqual([]);
+      expect(await depois.lerPacote()).toBeNull();
+      expect(await depois.descartarFilaRetidaVencida()).toBe('nenhuma');
+    });
+
+    it('o mesmo usuário que entra de novo envia a fila, e reenviar não duplica', async () => {
+      const repo = aparelho('u1');
+      const [fila1, fila2] = await encher(repo);
+      await repo.reterSoAFila();
+
+      const volta = aparelho('u1');
+      expect(await volta.descartarFilaRetidaVencida()).toBe('retida');
+      expect(await volta.retomarFilaRetida()).toBe(true);
+      expect(await volta.retomarFilaRetida()).toBe(false);
+
+      const enviados: RegistroEnvio[] = [];
+      const sincronizador = new Sincronizador(volta, async (registros) => {
+        enviados.push(...registros);
+        return aceitaTudo(registros);
+      });
+      expect(await sincronizador.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
+      // O servidor é idempotente por id: o envio leva os mesmos ids que o aparelho já tinha antes da recusa.
+      expect(enviados.map((e) => e.id)).toEqual([fila1.id, fila2.id]);
+      expect(enviados[1]).toMatchObject({ carga: 35, repeticoes: 6, observacao: 'pesado', concluida: true });
+      expect((await volta.listar()).map((r) => r.situacao)).toEqual(['ENVIADO', 'ENVIADO']);
+      expect(await volta.pendentes()).toEqual([]);
+      // Marca tirada: nada mais a descartar por prazo.
+      expect(await aparelho('u1').descartarFilaRetidaVencida()).toBe('nenhuma');
+    });
+
+    it('outro usuário no aparelho não vê nem envia a fila do primeiro', async () => {
+      const ana = aparelho('ana');
+      await ana.registrar(serie('da-ana'));
+      await ana.registrar(serie('da-ana-2'));
+      await ana.reterSoAFila();
+
+      const bia = aparelho('bia');
+      await bia.descartarFilaRetidaVencida();
+      await bia.retomarFilaRetida();
+      expect(await bia.listar()).toEqual([]);
+      expect(await bia.pendentes()).toEqual([]);
+      const enviar = jest.fn(aceitaTudo);
+      expect(await new Sincronizador(bia, enviar).sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+      expect(enviar).not.toHaveBeenCalled();
+
+      // A fila da Ana continua separada e retida, mesmo depois de a Bia registrar e enviar.
+      await bia.registrar(serie('da-bia'));
+      await new Sincronizador(bia, enviar).sincronizar();
+      expect(enviar.mock.calls.flatMap(([lote]) => lote.map((r) => r.serieUid))).toEqual(['da-bia']);
+      const anaDepois = aparelho('ana');
+      expect(await anaDepois.descartarFilaRetidaVencida()).toBe('retida');
+      expect((await anaDepois.listar()).map((r) => r.serieUid)).toEqual(['da-ana', 'da-ana-2']);
+    });
+
+    it(`a fila vence em ${DIAS_FILA_RETIDA} dias e some inteira; o repositório segue usável`, async () => {
+      const t0 = Date.parse('2026-10-07T12:00:00Z');
+      const repo = aparelho('u1', instante(t0, 0));
+      await encher(repo);
+      await repo.reterSoAFila();
+
+      const quase = aparelho('u1', instante(t0, DIAS_FILA_RETIDA * DIA_MS - 1000));
+      expect(await quase.descartarFilaRetidaVencida()).toBe('retida');
+      expect(await quase.listar()).toHaveLength(2);
+
+      const vencida = aparelho('u1', instante(t0, DIAS_FILA_RETIDA * DIA_MS));
+      expect(await vencida.descartarFilaRetidaVencida()).toBe('vencida');
+      expect(await vencida.listar()).toEqual([]);
+      expect(await vencida.pendentes()).toEqual([]);
+      expect(await vencida.descartarFilaRetidaVencida()).toBe('nenhuma');
+      // Quem entra depois do prazo começa do zero e grava normalmente.
+      await vencida.registrar(serie('novo'));
+      expect((await vencida.listar()).map((r) => r.serieUid)).toEqual(['novo']);
+    });
+
+    it('a varredura do aparelho apaga a fila vencida de qualquer usuário, sem enviar e sem tocar nas outras', async () => {
+      const listaDeFilas = emMemoria();
+      const t0 = Date.parse('2026-10-07T12:00:00Z');
+      for (const id of ['ana', 'bia']) {
+        const repo = aparelho(id, instante(t0, id === 'ana' ? 0 : 10 * DIA_MS));
+        await repo.registrar(serie(`de-${id}`));
+        await repo.reterSoAFila();
+        await registrarFilaRetida(id, { kv: listaDeFilas });
+      }
+      await registrarFilaRetida('ana', { kv: listaDeFilas });
+      expect(JSON.parse((await listaDeFilas.ler(CHAVE_FILAS_RETIDAS)) ?? '[]')).toEqual(['ana', 'bia']);
+
+      const abrir = (id: string) => aparelho(id, instante(t0, DIAS_FILA_RETIDA * DIA_MS + 1000));
+      expect(await varrerFilasRetidas({ kv: listaDeFilas, abrir })).toBe(1);
+      expect(await aparelho('ana').listar()).toEqual([]);
+      expect((await aparelho('bia').listar()).map((r) => r.serieUid)).toEqual(['de-bia']);
+      expect(JSON.parse((await listaDeFilas.ler(CHAVE_FILAS_RETIDAS)) ?? '[]')).toEqual(['bia']);
+
+      // Mais tarde a da Bia também vence e a lista some.
+      const maisTarde = (id: string) => aparelho(id, instante(t0, 41 * DIA_MS));
+      expect(await varrerFilasRetidas({ kv: listaDeFilas, abrir: maisTarde })).toBe(1);
+      expect(await listaDeFilas.ler(CHAVE_FILAS_RETIDAS)).toBeNull();
+    });
+  });
 });
 
 describe('SQLite no celular', () => {
@@ -294,6 +462,38 @@ describe('SQLite no celular', () => {
     expect(fabrica.abertas()).toBe(1);
   });
 
+  it('sessão recusada: sobra no arquivo só a tabela de registros com a fila e a marca', async () => {
+    const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora);
+    await repo.registrar(serie('fila'));
+    await repo.registrar(serie('enviada'));
+    const [, enviada] = await repo.listar();
+    await repo.aplicarResultados([enviada], [{ id: enviada.id, situacao: 'ACEITO', motivo: null }]);
+    await repo.salvarDieta({ id: 'd1' } as never);
+    await repo.salvarCargaDeTrabalho('e1', '2026-10-07', 30);
+    await repo.reterSoAFila();
+    const banco = fabrica.banco('treinos-u1.db');
+    expect((await banco.todos<{ chave: string }>('select chave from kv')).map((l) => l.chave)).toEqual(['filaRetida']);
+    expect(await banco.todos('select * from carga_trabalho')).toEqual([]);
+    expect((await banco.todos<{ serie_uid: string }>('select serie_uid from registro')).map((l) => l.serie_uid)).toEqual(['fila']);
+    expect(fabrica.abertas()).toBe(0);
+  });
+
+  it('sessão recusada sem fila apaga o arquivo; fila vencida também', async () => {
+    const vazio = new RepositorioSqlite(fabrica, 'vazio', novoId, agora);
+    await vazio.salvarDieta({ id: 'd1' } as never);
+    await vazio.reterSoAFila();
+    expect(fabrica.nomes()).not.toContain('treinos-vazio.db');
+
+    const t0 = Date.parse('2026-10-07T12:00:00Z');
+    const com = new RepositorioSqlite(fabrica, 'com', novoId, () => new Date(t0));
+    await com.registrar(serie('x'));
+    await com.reterSoAFila();
+    expect(fabrica.nomes()).toContain('treinos-com.db');
+    const tarde = new RepositorioSqlite(fabrica, 'com', novoId, () => new Date(t0 + DIAS_FILA_RETIDA * DIA_MS));
+    expect(await tarde.descartarFilaRetidaVencida()).toBe('vencida');
+    expect(fabrica.nomes()).not.toContain('treinos-com.db');
+  });
+
   it('transação: erro no meio não deixa metade gravada', async () => {
     const banco = fabrica.banco('t.db');
     await banco.executar('create table t (a text not null)');
@@ -304,6 +504,26 @@ describe('SQLite no celular', () => {
       }),
     ).rejects.toThrow();
     expect(await banco.todos('select a from t')).toEqual([]);
+  });
+});
+
+describe('sessão recusada na web (chave-valor)', () => {
+  it('sobram só os registros não enviados, a marca e o que já sobrevive ao sair; "Sair" depois apaga a fila também', async () => {
+    const kv = emMemoria();
+    const preferencias = chaveDasPreferencias('ana');
+    for (const chave of [preferencias, chaveBoasVindas('ana'), 'treinos:ana:favoritos', 'treinos:ana:pacote', 'treinos:bia:favoritos']) {
+      await kv.gravar(chave, '1');
+    }
+    const ana = new RepositorioChaveValor(kv, 'ana', novoId, agora);
+    await ana.registrar(serie('x'));
+    await ana.reterSoAFila();
+    const restam = (await kv.chaves()).filter((c) => c.startsWith('treinos:'));
+    expect([...restam].sort()).toEqual(
+      [preferencias, chaveBoasVindas('ana'), 'treinos:ana:registros', 'treinos:ana:filaRetida', 'treinos:bia:favoritos'].sort(),
+    );
+    // A pessoa ainda tocou em "Sair" a tempo: aí a fila também vai embora.
+    await new RepositorioChaveValor(kv, 'ana', novoId, agora).apagarTudo();
+    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:')).sort()).toEqual([preferencias, chaveBoasVindas('ana')].sort());
   });
 });
 
