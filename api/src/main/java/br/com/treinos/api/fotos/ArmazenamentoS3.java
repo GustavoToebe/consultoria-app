@@ -17,7 +17,6 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.net.URI;
-import java.util.UUID;
 
 /**
  * Cliente S3 compatível com o R2 (e com o MinIO dos testes). Só PutObject, GetObject e DeleteObject. Endereço em estilo de
@@ -44,23 +43,23 @@ final class ArmazenamentoS3 implements ArmazenamentoDeFotos, AutoCloseable {
     }
 
     @Override
-    public void gravar(UUID objeto, byte[] jpeg) {
-        s3.putObject(PutObjectRequest.builder().bucket(bucket).key(objeto.toString()).contentType("image/jpeg")
+    public void gravar(String chave, byte[] jpeg) {
+        s3.putObject(PutObjectRequest.builder().bucket(bucket).key(chave).contentType("image/jpeg")
                 .contentLength((long) jpeg.length).build(), RequestBody.fromBytes(jpeg));
     }
 
     @Override
-    public byte[] ler(UUID objeto) {
+    public byte[] ler(String chave) {
         try {
-            return s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(objeto.toString()).build()).asByteArray();
+            return s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(chave).build()).asByteArray();
         } catch (NoSuchKeyException e) {
             throw new NaoEncontradoException("Foto não encontrada.");
         }
     }
 
     @Override
-    public void apagar(UUID objeto) {
-        s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(objeto.toString()).build());
+    public void apagar(String chave) {
+        s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(chave).build());
     }
 
     @PreDestroy

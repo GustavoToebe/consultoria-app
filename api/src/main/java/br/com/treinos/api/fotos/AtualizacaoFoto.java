@@ -12,8 +12,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Metadados de uma foto de atualização (dado sensível, LGPD). O arquivo fica no bucket privado com o próprio {@code id} como
- * nome do objeto; aqui não há nome de arquivo, só quem enviou e quando. Nunca em log nem em {@code toString}.
+ * Metadados de uma foto de atualização (dado sensível, LGPD). O arquivo fica no bucket privado em
+ * {@code consultorias/<consultoriaId>/fotos/<id>.jpg} ({@link ChaveDeFoto}); aqui não há nome de arquivo, só quem enviou e quando. Nunca em log nem em {@code toString}.
  */
 @Entity
 @Table(name = "atualizacao_foto")
@@ -59,6 +59,10 @@ public class AtualizacaoFoto {
 
     public UUID getId() {
         return id;
+    }
+
+    public UUID getConsultoriaId() {
+        return consultoriaId;
     }
 
     public UUID getAlunoId() {

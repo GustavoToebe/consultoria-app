@@ -11,7 +11,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Rotinas das fotos: (1) esvazia a fila de remoção no bucket, com espera crescente a cada falha; (2) apaga as fotos
@@ -65,10 +64,10 @@ public class FotosManutencao {
         }
         int apagados = 0;
         int adiados = 0;
-        List<UUID> lote = transacao.execute(s -> remocoes.arrendarVencidas(Instant.now(), LOTE));
-        for (UUID objeto : lote == null ? List.<UUID>of() : lote) {
+        List<ObjetoDeFoto> lote = transacao.execute(s -> remocoes.arrendarVencidas(Instant.now(), LOTE));
+        for (ObjetoDeFoto objeto : lote == null ? List.<ObjetoDeFoto>of() : lote) {
             try {
-                bucket.apagar(objeto);
+                bucket.apagar(objeto.chave());
                 transacao.executeWithoutResult(s -> remocoes.concluir(objeto));
                 apagados++;
             } catch (RuntimeException e) {

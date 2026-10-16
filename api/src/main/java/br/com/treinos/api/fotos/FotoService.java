@@ -2,6 +2,7 @@ package br.com.treinos.api.fotos;
 
 import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.pastas.PastaRepository;
@@ -78,30 +79,31 @@ public class FotoService {
         ArmazenamentoDeFotos bucket = exigirLigadas();
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
         byte[] jpeg = limpar(recebido);
-        UUID id = transacao.execute(s -> reservar(alunoId, pastaId, jpeg.length));
+        ObjetoDeFoto objeto = transacao.execute(s -> reservar(alunoId, pastaId, jpeg.length));
         try {
-            bucket.gravar(id, jpeg);
+            bucket.gravar(objeto.chave(), jpeg);
         } catch (RuntimeException falha) {
             // Pode ter gravado pela metade: tira a linha e manda apagar o objeto, que a remoção repete até dar certo.
             transacao.executeWithoutResult(s -> {
-                fotos.deleteById(id);
-                remocoes.enfileirar(List.of(id));
+                fotos.deleteById(objeto.fotoId());
+                remocoes.enfileirar(List.of(objeto));
             });
             throw FotoException.falhaNoArmazenamento();
         }
-        return id;
+        return objeto.fotoId();
     }
 
-    private UUID reservar(UUID alunoId, UUID pastaId, int tamanho) {
-        // Trava o aluno: duas fotos ao mesmo tempo não passam juntas do limite do dia.
-        Exigir.existe(alunos.buscarParaAlterar(alunoId), () -> new NaoEncontradoException("Aluno não encontrado."));
+    private ObjetoDeFoto reservar(UUID alunoId, UUID pastaId, int tamanho) {
+        // Trava o aluno: duas fotos ao mesmo tempo não passam juntas do limite do dia. A consultoria do objeto vem desta linha do banco.
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         Exigir.existe(pastas.findById(pastaId).filter(p -> p.getAlunoId().equals(alunoId)),
                 () -> new NaoEncontradoException("Atualização não encontrada."));
         Instant agora = Instant.now();
         if (fotos.countByAlunoIdAndCriadaEmAfter(alunoId, agora.minus(JANELA_DO_DIA)) >= POR_DIA) {
             throw FotoException.limiteDoDia();
         }
-        return fotos.saveAndFlush(new AtualizacaoFoto(alunoId, pastaId, tamanho, agora)).getId();
+        UUID id = fotos.saveAndFlush(new AtualizacaoFoto(alunoId, pastaId, tamanho, agora)).getId();
+        return new ObjetoDeFoto(aluno.getConsultoriaId(), id);
     }
 
     static byte[] limpar(byte[] recebido) {
@@ -136,7 +138,7 @@ public class FotoService {
             throw new ConflictException("Esta foto já foi enviada com a atualização.", "FOTO_JA_ENVIADA");
         }
         if (fotos.removerPendente(id, alunoId, Instant.now()) == 1) {
-            remocoes.enfileirar(List.of(id));
+            remocoes.enfileirar(List.of(ObjetoDeFoto.de(foto)));
         }
     }
 
@@ -144,17 +146,17 @@ public class FotoService {
     @Transactional(readOnly = true)
     public byte[] lerDoAluno(UsuarioAutenticado eu, UUID id) {
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
-        Exigir.existe(fotos.findById(id).filter(f -> f.getAlunoId().equals(alunoId) && f.getRemovidaEm() == null),
-                () -> new NaoEncontradoException("Foto não encontrada."));
-        return exigirLigadas().ler(id);
+        AtualizacaoFoto foto = fotos.findById(id).filter(f -> f.getAlunoId().equals(alunoId) && f.getRemovidaEm() == null)
+                .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
+        return exigirLigadas().ler(ObjetoDeFoto.de(foto).chave());
     }
 
     /** O treinador vê pela atualização a que a foto pertence; a permissão é conferida na rota. Outra consultoria: 404. */
     @Transactional(readOnly = true)
     public byte[] lerDoTreinador(UUID atualizacaoId, UUID id) {
-        Exigir.existe(fotos.findById(id).filter(f -> atualizacaoId.equals(f.getAtualizacaoId()) && f.getRemovidaEm() == null),
-                () -> new NaoEncontradoException("Foto não encontrada."));
-        return exigirLigadas().ler(id);
+        AtualizacaoFoto foto = fotos.findById(id).filter(f -> atualizacaoId.equals(f.getAtualizacaoId()) && f.getRemovidaEm() == null)
+                .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
+        return exigirLigadas().ler(ObjetoDeFoto.de(foto).chave());
     }
 
     private ArmazenamentoDeFotos exigirLigadas() {
@@ -187,7 +189,7 @@ public class FotoService {
         List<AtualizacaoFoto> doAluno = fotos.findByAlunoIdAndRemovidaEmIsNull(alunoId);
         doAluno.forEach(f -> f.remover(agora));
         fotos.flush();
-        remocoes.enfileirar(doAluno.stream().map(AtualizacaoFoto::getId).toList());
+        remocoes.enfileirar(doAluno.stream().map(ObjetoDeFoto::de).toList());
     }
 
     /** Exportação do titular: de cada atualização, em que pergunta e quando as fotos foram enviadas (sem os bytes). */

@@ -127,6 +127,16 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
+    /** Consultoria da foto, como o banco a guarda (é daí que sai o prefixo do objeto no bucket). */
+    private UUID consultoriaDe(UUID foto) {
+        return banco.queryForObject("select consultoria_id from atualizacao_foto where id = ?", UUID.class, foto);
+    }
+
+    /** Chave esperada do objeto da foto no bucket. */
+    private String chave(UUID foto) {
+        return MinioDeTeste.chave(consultoriaDe(foto), foto);
+    }
+
     private Map<String, Object> linha(UUID foto) {
         return banco.queryForMap("select * from atualizacao_foto where id = ?", foto);
     }
@@ -138,13 +148,14 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
         byte[] suja = FotosDeTeste.comMetadados(FotosDeTeste.jpeg(Color.RED));
         UUID foto = subir(suja);
 
-        // O que está no bucket foi reescrito: sem EXIF, GPS, comentário nem o nome do arquivo; o objeto se chama só UUID.
-        byte[] guardado = MinioDeTeste.ler(foto);
+        // O que está no bucket foi reescrito: sem EXIF, GPS, comentário nem o nome do arquivo; o objeto se chama consultorias/<consultoria>/fotos/<foto>.jpg, só UUIDs.
+        byte[] guardado = MinioDeTeste.ler(chave(foto));
         assertThat(FotosDeTeste.contem(guardado, "Exif")).isFalse();
         assertThat(FotosDeTeste.contem(guardado, FotosDeTeste.MARCA_EXIF)).isFalse();
         assertThat(FotosDeTeste.contem(guardado, "qualquer-nome")).isFalse();
         assertThat(JpegSemMetadados.temMetadados(guardado)).isFalse();
-        assertThat(MinioDeTeste.chaves()).allSatisfy(chave -> assertThat(UUID.fromString(chave)).isNotNull());
+        assertThat(MinioDeTeste.chaves()).contains(chave(foto)).allSatisfy(chave -> assertThat(chave).matches(
+                "consultorias/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/fotos/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.jpg"));
         assertThat(linha(foto).get("atualizacao_id")).as("pendente até o envio").isNull();
 
         // O aluno vê a própria foto, sem cache.
@@ -173,7 +184,7 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
         ver("/atualizacoes/" + UUID.randomUUID() + "/fotos/" + foto, treinador, 404);
         // O aluno não apaga a foto de uma atualização já enviada.
         assertThat(api.delete("/aluno/fotos/" + foto, loginAluno, 409).path("codigo").asString()).isEqualTo("FOTO_JA_ENVIADA");
-        assertThat(MinioDeTeste.existe(foto)).isTrue();
+        assertThat(MinioDeTeste.existe(chave(foto))).isTrue();
     }
 
     @Test
@@ -287,7 +298,7 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
         // Exatamente no limite: passa (e o multipart de 1 MiB comporta, sem 413).
         UUID noLimite = UUID.fromString(api.ler(subirBruto(loginAluno, pasta,
                 FotosDeTeste.engordado(base, FotoService.BYTES_MAXIMO), 200)).path("id").asString());
-        assertThat(MinioDeTeste.ler(noLimite).length).isLessThan(base.length + 100);
+        assertThat(MinioDeTeste.ler(chave(noLimite)).length).isLessThan(base.length + 100);
         // Um byte acima: 422 com o código próprio.
         assertThat(api.ler(subirBruto(loginAluno, pasta, FotosDeTeste.engordado(base, FotoService.BYTES_MAXIMO + 1), 422))
                 .path("codigo").asString()).isEqualTo("FOTO_GRANDE_DEMAIS");
@@ -316,18 +327,48 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
     @Test
     void removerPendenteEnfileiraEOWorkerApagaNoBucket() throws Exception {
         UUID foto = subirCor(Color.RED);
-        assertThat(MinioDeTeste.existe(foto)).isTrue();
+        assertThat(MinioDeTeste.existe(chave(foto))).isTrue();
 
         api.delete("/aluno/fotos/" + foto, loginAluno, 204);
         ver("/aluno/fotos/" + foto, loginAluno, 404);
         // Repetir é inofensivo.
         api.delete("/aluno/fotos/" + foto, loginAluno, 204);
         assertThat(naFila(foto)).isEqualTo(1);
-        assertThat(MinioDeTeste.existe(foto)).as("o HTTP de apagar roda fora da transação, no job").isTrue();
+        assertThat(MinioDeTeste.existe(chave(foto))).as("o HTTP de apagar roda fora da transação, no job").isTrue();
 
         esvaziarAte(foto);
-        assertThat(MinioDeTeste.existe(foto)).isFalse();
+        assertThat(MinioDeTeste.existe(chave(foto))).isFalse();
         assertThat(naFila(foto)).isZero();
+    }
+
+    @Test
+    void cadaConsultoriaGuardaSobOSeuPrefixoEAFilaLevaAConsultoria() throws Exception {
+        UUID minha = subirCor(Color.RED);
+
+        // Outra consultoria, com o próprio aluno: a foto dela vai para outro prefixo e a minha continua só minha.
+        JsonNode outroTreinador = api.novoTreinador();
+        UUID outroAluno = api.criarAluno(outroTreinador, "Aluno Fictício Outra Consultoria");
+        JsonNode loginOutro = api.convidarEEntrar(outroTreinador, outroAluno);
+        String pastaOutra = api.post("/alunos/" + outroAluno + "/pastas", outroTreinador,
+                Map.of("titulo", "Pasta da outra", "inicio", LocalDate.now(Fuso.BRASILIA).minusDays(27), "fim",
+                        LocalDate.now(Fuso.BRASILIA)), 200).path("id").asString();
+        UUID dela = UUID.fromString(api.ler(subirBruto(loginOutro, pastaOutra, FotosDeTeste.jpeg(Color.CYAN), 200)).path("id").asString());
+
+        assertThat(consultoriaDe(minha)).isNotEqualTo(consultoriaDe(dela));
+        assertThat(chave(minha)).startsWith("consultorias/" + consultoriaDe(minha) + "/fotos/").endsWith("/" + minha + ".jpg");
+        assertThat(chave(dela)).startsWith("consultorias/" + consultoriaDe(dela) + "/fotos/").endsWith("/" + dela + ".jpg");
+        assertThat(MinioDeTeste.chaves()).contains(chave(minha), chave(dela));
+        // Ler pela API nunca atravessa o prefixo: a foto de uma consultoria não abre pela outra.
+        ver("/aluno/fotos/" + dela, loginAluno, 404);
+        ver("/aluno/fotos/" + minha, loginOutro, 404);
+
+        // A fila guarda a consultoria do banco e apaga exatamente o objeto daquele prefixo.
+        api.delete("/aluno/fotos/" + dela, loginOutro, 204);
+        assertThat(banco.queryForObject("select consultoria_id from foto_remocao where objeto = ?", UUID.class, dela))
+                .isEqualTo(consultoriaDe(dela));
+        esvaziarAte(dela);
+        assertThat(MinioDeTeste.existe(chave(dela))).isFalse();
+        assertThat(MinioDeTeste.existe(chave(minha))).isTrue();
     }
 
     @Test
@@ -338,9 +379,9 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
 
         var fabrica = new DefaultListableBeanFactory();
         fabrica.registerSingleton("fora-do-ar", new ArmazenamentoDeFotos() {
-            @Override public void gravar(UUID objeto, byte[] jpeg) { throw new IllegalStateException("fora do ar"); }
-            @Override public byte[] ler(UUID objeto) { throw new IllegalStateException("fora do ar"); }
-            @Override public void apagar(UUID objeto) { throw new IllegalStateException("fora do ar"); }
+            @Override public void gravar(String chave, byte[] jpeg) { throw new IllegalStateException("fora do ar"); }
+            @Override public byte[] ler(String chave) { throw new IllegalStateException("fora do ar"); }
+            @Override public void apagar(String chave) { throw new IllegalStateException("fora do ar"); }
         });
         var comFalha = new FotosManutencao(fila, fabrica.getBeanProvider(ArmazenamentoDeFotos.class), propriedades, transacoes);
         try {
@@ -348,7 +389,7 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
             Map<String, Object> pendente = banco.queryForMap("select tentativas, proxima_tentativa > now() as adiada from foto_remocao where objeto = ?", foto);
             assertThat(pendente.get("tentativas")).isEqualTo(1);
             assertThat(pendente.get("adiada")).isEqualTo(true);
-            assertThat(MinioDeTeste.existe(foto)).isTrue();
+            assertThat(MinioDeTeste.existe(chave(foto))).isTrue();
             // Ainda dentro da espera: nem tenta.
             assertThat(comFalha.esvaziarFila()).isZero();
             assertThat(banco.queryForObject("select tentativas from foto_remocao where objeto = ?", Integer.class, foto)).isEqualTo(1);
@@ -357,7 +398,7 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
             banco.update("update foto_remocao set proxima_tentativa = now() - interval '1 second'");
         }
         esvaziarAte(foto);
-        assertThat(MinioDeTeste.existe(foto)).isFalse();
+        assertThat(MinioDeTeste.existe(chave(foto))).isFalse();
     }
 
     @Test
@@ -376,9 +417,9 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
         assertThat(linha(ligada).get("removida_em")).isNull();
         assertThat(naFila(ligada)).isZero();
         esvaziarAte(velha);
-        assertThat(MinioDeTeste.existe(velha)).isFalse();
-        assertThat(MinioDeTeste.existe(recente)).isTrue();
-        assertThat(MinioDeTeste.existe(ligada)).isTrue();
+        assertThat(MinioDeTeste.existe(chave(velha))).isFalse();
+        assertThat(MinioDeTeste.existe(chave(recente))).isTrue();
+        assertThat(MinioDeTeste.existe(chave(ligada))).isTrue();
         // A foto removida deixa de ser servida.
         ver("/aluno/fotos/" + velha, loginAluno, 404);
     }
@@ -425,7 +466,7 @@ class FotosIntegrationTest extends AbstractIntegrationTest {
         esvaziarAte(enviada);
         for (UUID foto : List.of(enviada, pendente)) {
             esvaziarAte(foto);
-            assertThat(MinioDeTeste.existe(foto)).isFalse();
+            assertThat(MinioDeTeste.existe(chave(foto))).isFalse();
         }
         String atualizacaoId = banco.queryForObject("select id::text from atualizacao where aluno_id = ?", String.class, aluno);
         ver("/atualizacoes/" + atualizacaoId + "/fotos/" + enviada, treinador, 404);

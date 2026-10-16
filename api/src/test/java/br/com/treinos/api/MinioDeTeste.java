@@ -64,11 +64,16 @@ public final class MinioDeTeste {
         registry.add("treinos.fotos.manutencao-ativa", () -> "false");
     }
 
-    /** O objeto existe no bucket? (conferência direta, sem passar pela aplicação) */
-    public static boolean existe(UUID objeto) {
+    /** Chave de um objeto no formato consultorias/<consultoriaId>/fotos/<fotoId>.jpg. */
+    public static String chave(UUID consultoriaId, UUID foto) {
+        return "consultorias/" + consultoriaId + "/fotos/" + foto + ".jpg";
+    }
+
+    /** O objeto existe no bucket, sob esta chave? (conferência direta, sem passar pela aplicação) */
+    public static boolean existe(String chave) {
         iniciar();
         try {
-            cliente.headObject(HeadObjectRequest.builder().bucket(BUCKET).key(objeto.toString()).build());
+            cliente.headObject(HeadObjectRequest.builder().bucket(BUCKET).key(chave).build());
             return true;
         } catch (NoSuchKeyException e) {
             return false;
@@ -81,12 +86,12 @@ public final class MinioDeTeste {
     }
 
     /** Bytes guardados, para conferir que não sobrou metadado. */
-    public static byte[] ler(UUID objeto) {
+    public static byte[] ler(String chave) {
         iniciar();
-        return cliente.getObjectAsBytes(b -> b.bucket(BUCKET).key(objeto.toString())).asByteArray();
+        return cliente.getObjectAsBytes(b -> b.bucket(BUCKET).key(chave)).asByteArray();
     }
 
-    /** Nomes de todos os objetos do bucket (só UUIDs). */
+    /** Nomes de todos os objetos do bucket (consultorias/<uuid>/fotos/<uuid>.jpg). */
     public static java.util.List<String> chaves() {
         iniciar();
         return cliente.listObjectsV2(b -> b.bucket(BUCKET)).contents().stream().map(o -> o.key()).toList();
