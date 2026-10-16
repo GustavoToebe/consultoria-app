@@ -1,3 +1,4 @@
+import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
 import { CheckCircle2, FileDown, Save, Send } from 'lucide-react-native';
 import { useState } from 'react';
@@ -8,6 +9,7 @@ import { localizar } from '../../dominio/caminhos';
 import { textoDosProblemas, uidsDoPrimeiroProblema } from '../../dominio/problemasDoPlano';
 import { textoDoSalvo } from '../../dominio/estadoDoRascunho';
 import { dataHoraParaTela } from '../../dominio/formatos';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -49,6 +51,9 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
   const { avisar } = useAviso();
   const { rolarAte } = useRolagem();
   const { cores } = useTema();
+  const { temFuncionalidade } = useSessao();
+  // Mobilidade fora do plano: a API só bloqueia escrita, então o editor abre para consulta, sem salvar nem publicar.
+  const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
   const [validando, setValidando] = useState(false);
   const [publicando, setPublicando] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -81,7 +86,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
   const pdf = async () => {
     setGerandoPdf(true);
     try {
-      if (e.plano.versaoPublicada === 0) await editor.salvar();
+      if (e.plano.versaoPublicada === 0 && escritaLiberada) await editor.salvar();
       await gerarPdfDoPlano(tipo, e.plano, e.conteudo);
     } catch (erro) {
       avisar(textoDoErro(erro), 'perigo');
@@ -116,6 +121,7 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
         descricao="Monte o plano, salve o rascunho, valide e publique para o aluno ver. Nada é salvo sozinho."
         acoes={
           <>
+            {escritaLiberada ? (
             <Botao
               rotulo="Salvar rascunho"
               tipo="secundario"
@@ -125,6 +131,8 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
               motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : 'Nada a salvar.'}
               aoTocar={() => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : (editor.falhaAoSalvar() ?? 'Não foi possível salvar o rascunho. Confira o título e as datas.'), ok ? 'sucesso' : 'perigo'))}
             />
+            ) : null}
+            <NoPlano funcionalidade="PDF">
             <Botao
               rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
               tipo="secundario"
@@ -132,14 +140,20 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
               carregando={gerandoPdf}
               aoTocar={() => void pdf()}
             />
+            </NoPlano>
+            {escritaLiberada ? (
+              <>
             <Botao rotulo="Validar" tipo="secundario" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}><Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} /></Permitido>
+              </>
+            ) : null}
           </>
         }>
         <View style={estilos.selos}>
           <Selo texto={situacao.texto} tipo={situacao.tipo} />
           <SelosDoPlano plano={e.plano} />
         </View>
+        {escritaLiberada ? null : <Texto variante="suave">Disponível em outro plano: dá para consultar este plano, mas não salvar nem publicar.</Texto>}
         {editor.situacao === 'erro' && editor.mensagemDeErro ? <Texto variante="pequeno" cor={cores.perigo}>{editor.mensagemDeErro}</Texto> : null}
         <Texto variante="suave" numerico>
           Período: {e.inicio || e.fim ? `${e.inicio || '—'} a ${e.fim || '—'}` : '—'}

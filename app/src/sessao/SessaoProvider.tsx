@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { aoEncerrar, ErroApi, guardarSessao, limparSessaoLocal, renovarSessao } from '../api/cliente';
 import * as rotas from '../api/rotas';
 import type { LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
+import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funcionalidadesDoPlano';
 import { pode as conferirPermissao } from '../dominio/permissoes';
 import { lerRefresh } from './armazenamentoSeguro';
 
@@ -20,6 +21,8 @@ export type Situacao = 'carregando' | 'anonimo' | 'autenticado';
 interface Perfil {
   perfil?: PerfilDaEquipe;
   permissoes?: string[];
+  /** Funcionalidades ligadas no plano da consultoria; ausente (perfil antigo ou offline) = tudo liberado. */
+  funcionalidadesDoPlano?: string[];
   usuario: UsuarioResumo;
   marca: Marca;
   /** Termo de uso e aviso de privacidade ainda sem aceite na versão vigente (guardado para abrir offline). */
@@ -32,6 +35,10 @@ interface ValorSessao {
   aceitarTermos: (versao: string) => Promise<void>;
   perfilEquipe: PerfilDaEquipe | null;
   pode: (codigo:string) => boolean;
+  /** A funcionalidade (`MOBILIDADE`, `PDF`, `EQUIPE`) está ligada no plano? Só apresentação; a API barra. */
+  temFuncionalidade: (codigo: string) => boolean;
+  /** Lista de liberadas para filtros puros (`undefined` = tudo). */
+  funcionalidadesDoPlano: readonly string[] | undefined;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -69,7 +76,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const abrir = useCallback(async (resposta: LoginResponse) => {
     await guardarSessao(resposta);
     const eu = await rotas.eu();
-    const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,termosPendentes:eu.termosPendentes};
+    const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;
     setPerfil(novo);
     setOffline(false);
@@ -161,7 +168,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     const atual=perfilAtual.current;if(!atual || atual.usuario.papel!=='TREINADOR') return;
     const eu=await rotas.eu();
     if(perfilAtual.current?.usuario.id!==eu.usuario.id) return;
-    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,termosPendentes:eu.termosPendentes};
+    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;setPerfil(novo);
     await AsyncStorage.setItem(CHAVE_PERFIL,JSON.stringify(novo)).catch(()=>undefined);
   },[]);
@@ -182,6 +189,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       perfilEquipe:perfil?.perfil??null,
       aceitarConviteEquipe:async(codigo,senha)=>abrir(await rotas.aceitarConviteEquipe(codigo,senha)),
       pode:(codigo)=>conferirPermissao(perfil?.permissoes,codigo),
+      temFuncionalidade:(codigo)=>conferirFuncionalidade(perfil?.funcionalidadesDoPlano,codigo),
+      funcionalidadesDoPlano:perfil?.funcionalidadesDoPlano,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,

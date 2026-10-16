@@ -21,6 +21,7 @@ import { textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { CargasPorDivisao } from './CargasPorDivisao';
+import { NoPlano } from '../ui/NoPlano';
 import { gerarPdfDeCargas, sessoesPorUid, treinosDoAluno } from './gerarPdf';
 
 /** "WS 32 kg × 5"; o que o aluno não informou aparece como "—" (nunca presumido). */
@@ -77,7 +78,7 @@ export function CartaoRegistros({ aluno, pasta }: { aluno: { id: string; nome: s
         titulo="Registros e cargas"
         recolhivel
         acoes={
-          divisoes.length ? <Botao rotulo="PDF das cargas" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /> : null
+          divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF das cargas" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null
         }>
         <View style={estilos.filtros}>
           {daPasta ? <Texto numerico variante="suave">Período da pasta: {dataParaTela(de)} a {dataParaTela(ate)}</Texto>

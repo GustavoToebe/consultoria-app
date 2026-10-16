@@ -13,6 +13,7 @@ import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
+import { NoPlano } from '../../ui/NoPlano';
 import { MensagemErro } from '../../ui/Estados';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { textoDoErro } from '../../ui/erros';
@@ -65,7 +66,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
       <View style={estilos.acoes}>
         <Botao rotulo="Adicionar semana de treino" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('PLANO_TREINO')} />
         <Botao rotulo="Adicionar dieta" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('PLANO_DIETA')} />
-        <Botao rotulo="Adicionar mobilidade" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('MOBILIDADE')} />
+        <NoPlano funcionalidade="MOBILIDADE"><Botao rotulo="Adicionar mobilidade" tipo="secundario" desabilitado={pasta.planos.length >= 30} aoTocar={() => setAdicionar('MOBILIDADE')} /></NoPlano>
       </View>
       {adicionar ? <FolhaReceitas tipo={adicionar} titulo="Adicionar modelo ao pacote" aoFechar={() => setAdicionar(null)} aoUsar={(modelo) => {
         mudarConteudo({ planos: [...pasta.planos, { titulo: modelo.nome, treino: adicionar === 'PLANO_TREINO' ? normalizarTreino(modelo.conteudo) : null, dieta: adicionar === 'PLANO_DIETA' ? normalizarDieta(modelo.conteudo) : null, mobilidade: adicionar === 'MOBILIDADE' ? mobilidadeParaApi(normalizarMobilidade(modelo.conteudo)) : null }] }); setAdicionar(null);

@@ -3,10 +3,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
-export function CaixaSelecao({rotulo,ajuda,marcado,aoMudar}:{rotulo:string;ajuda?:string;marcado:boolean;aoMudar:(valor:boolean)=>void}) {
+/** `desabilitado` apaga a caixa e não deixa mudar; o `ajuda` é onde cabe o motivo ("Disponível em outro plano"). */
+export function CaixaSelecao({rotulo,ajuda,marcado,aoMudar,desabilitado}:{rotulo:string;ajuda?:string;marcado:boolean;aoMudar:(valor:boolean)=>void;desabilitado?:boolean}) {
   const {cores}=useTema();
-  return <Pressable accessibilityRole="checkbox" accessibilityLabel={rotulo} accessibilityState={{checked:marcado}} aria-checked={marcado}
-    onPress={()=>aoMudar(!marcado)} style={({pressed})=>[estilos.linha,{backgroundColor:pressed?cores.superficie3:cores.superficie2,borderColor:cores.borda}]}>
+  return <Pressable accessibilityRole="checkbox" accessibilityLabel={rotulo} accessibilityState={{checked:marcado,disabled:!!desabilitado}} aria-checked={marcado} aria-disabled={!!desabilitado} accessibilityHint={desabilitado?ajuda:undefined}
+    disabled={desabilitado} onPress={()=>aoMudar(!marcado)} style={({pressed})=>[estilos.linha,{backgroundColor:pressed&&!desabilitado?cores.superficie3:cores.superficie2,borderColor:cores.borda,opacity:desabilitado?0.5:1}]}>
     <View style={[estilos.caixa,{backgroundColor:marcado?cores.texto:cores.campo,borderColor:cores.borda}]}>{marcado?<Check size={18} color={cores.fundo}/>:null}</View>
     <View style={estilos.textos}><Texto variante="rotulo">{rotulo}</Texto>{ajuda?<Texto variante="pequeno">{ajuda}</Texto>:null}</View>
   </Pressable>;

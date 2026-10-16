@@ -19,6 +19,7 @@ import { logoComoDataUri } from '../../pdf/logo';
 import { documentoTreino } from '../../pdf/pdfTreino';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { NoPlano } from '../../ui/NoPlano';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -134,7 +135,7 @@ export default function TreinoAluno() {
               {conteudo.orientacoes ? <Texto variante="suave">{conteudo.orientacoes}</Texto> : null}
             </Cartao>
           ) : null}
-          <Botao rotulo="Baixar PDF do treino" tipo="secundario" cheio Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />
+          <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF do treino" tipo="secundario" cheio Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} /></NoPlano>
           <Texto variante="suave">
             {treino.titulo} (v{treino.numero}) · atualizado em {dataHoraParaTela(pacote.salvoEm)}
           </Texto>

@@ -23,10 +23,10 @@ import { useFavoritos } from './useFavoritos';
  */
 export function BarraTopo() {
   const caminho = usePathname();
-  const { marca, pode } = useSessao();
+  const { marca, pode, funcionalidadesDoPlano } = useSessao();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
-  const permitidas = useMemo(() => telasPermitidas(pode), [pode]);
+  const permitidas = useMemo(() => telasPermitidas(pode, undefined, funcionalidadesDoPlano), [pode, funcionalidadesDoPlano]);
   const tela = nomeDaTela(caminho);
   const { favoritos, alternar } = useFavoritos();
   const [todas, setTodas] = useState(false);

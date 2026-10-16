@@ -1,3 +1,4 @@
+import { temFuncionalidade } from './funcionalidadesDoPlano';
 import { podeAcessarTela } from './permissoes';
 
 /** Seções da lista "Todas as telas", na ordem em que aparecem. */
@@ -16,6 +17,8 @@ export interface TelaDoCatalogo {
   permissao: string | null;
   /** Atalho para uma ação (não é uma tela): aparece na busca, não em "Todas as telas" e não pode ser favorito. */
   acao?: boolean;
+  /** Funcionalidade do plano (`MOBILIDADE`, `PDF`, `EQUIPE`) de que o item depende; desligada, o item some. Ausente = sempre. */
+  funcionalidade?: string;
 }
 
 /**
@@ -45,7 +48,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'novo-modelo', rotulo: 'Novo modelo', secao: 'Planos', href: '/treinador/planejamento?novo=1', palavras: ['criar modelo', 'novo treino', 'nova dieta', 'novo pacote', 'adicionar modelo'], permissao: 'MODELO_ALTERAR', acao: true },
   { id: 'questionarios', rotulo: 'Questionários de atualização', secao: 'Planos', href: '/treinador/planejamento?aba=atualizacao', palavras: ['check-in', 'checkin', 'atualizacao', 'perguntas', 'formulario', 'questionario'], permissao: 'QUESTIONARIO_LER', acao: true },
   { id: 'novo-questionario', rotulo: 'Novo questionário', secao: 'Planos', href: '/treinador/planejamento?aba=atualizacao&novo=1', palavras: ['criar questionario', 'novo check-in', 'nova atualizacao', 'adicionar questionario'], permissao: 'QUESTIONARIO_ALTERAR', acao: true },
-  { id: 'convidar-membro', rotulo: 'Convidar membro', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['convidar', 'novo usuario', 'adicionar membro', 'novo membro', 'convite da equipe'], permissao: 'USUARIO_ALTERAR', acao: true },
+  { id: 'convidar-membro', rotulo: 'Convidar membro', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['convidar', 'novo usuario', 'adicionar membro', 'novo membro', 'convite da equipe'], permissao: 'USUARIO_ALTERAR', acao: true, funcionalidade: 'EQUIPE' },
 ];
 
 /** Minúsculas e sem acento: a busca ignora as duas diferenças. */
@@ -59,9 +62,21 @@ export function caminhoDoHref(href: string): string {
   return fim < 0 ? href : href.slice(0, fim);
 }
 
-/** Itens que o usuário pode abrir. */
-export function telasPermitidas(pode: (codigo: string) => boolean, telas: readonly TelaDoCatalogo[] = TELAS): TelaDoCatalogo[] {
-  return telas.filter((t) => podeAcessarTela(caminhoDoHref(t.href), pode) && (t.permissao === null || pode(t.permissao)));
+/**
+ * Itens que o usuário pode abrir. `liberadas` são as funcionalidades ligadas no plano da consultoria (`undefined` = todas,
+ * como no pacote antigo ou offline): item que depende de uma desligada some.
+ */
+export function telasPermitidas(
+  pode: (codigo: string) => boolean,
+  telas: readonly TelaDoCatalogo[] = TELAS,
+  liberadas?: readonly string[],
+): TelaDoCatalogo[] {
+  return telas.filter(
+    (t) =>
+      podeAcessarTela(caminhoDoHref(t.href), pode) &&
+      (t.permissao === null || pode(t.permissao)) &&
+      (t.funcionalidade === undefined || temFuncionalidade(liberadas, t.funcionalidade)),
+  );
 }
 
 /**

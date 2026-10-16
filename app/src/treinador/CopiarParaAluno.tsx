@@ -9,6 +9,7 @@ import { CampoData } from '../ui/Campos';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 import { Texto } from '../ui/Texto';
 import { EscolhaDeAlunoEPasta, useEscolhaDeAlunoEPasta } from './EscolhaDeAlunoEPasta';
 
@@ -19,8 +20,8 @@ const DO_TIPO: Record<TipoPlano, string> = { treino: 'do treino', dieta: 'da die
  * publicado), numa pasta existente do destino ou numa pasta nova. O plano de origem não muda. Na dieta, medicação e
  * ergogênicos nunca vão. Quem renderiza já checou a permissão de alterar o tipo e `ALUNO_LER`.
  */
-export function CopiarParaAluno({ tipo, plano, aoFechar, aoCopiar }: {
-  tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoCopiar: (alunoId: string, nomeDoAluno: string | null) => void;
+export function CopiarParaAluno({ tipo, plano, aoFechar, aoCopiar, aoNavegar }: {
+  tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoNavegar?: () => void; aoCopiar: (alunoId: string, nomeDoAluno: string | null) => void;
 }) {
   const escolha = useEscolhaDeAlunoEPasta({ excluirAlunoId: plano.alunoId });
   const { alunoId, destino } = escolha;
@@ -29,6 +30,7 @@ export function CopiarParaAluno({ tipo, plano, aoFechar, aoCopiar }: {
   const [fim, setFim] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
+  const avisarDoPlano = useAvisoDoPlano(aoNavegar);
   const ini = dataDaTela(inicio);
   const fi = dataDaTela(fim);
   const copiar = async () => {
@@ -38,8 +40,10 @@ export function CopiarParaAluno({ tipo, plano, aoFechar, aoCopiar }: {
       await copiarPlanoParaAluno(tipo, plano.id, { alunoId, pastaId: destino || null, titulo: titulo.trim(), inicio: ini ?? null, fim: fi ?? null });
       aoCopiar(alunoId, escolha.nomeDoAluno);
     } catch (e) {
-      setErro(e);
       setSalvando(false);
+      // Erro do plano: o aviso fica fora da Folha (que é um Modal), então a Folha fecha antes.
+      if (avisarDoPlano(e)) aoFechar();
+      else setErro(e);
     }
   };
   const motivo =

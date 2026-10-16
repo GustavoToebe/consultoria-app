@@ -1,5 +1,5 @@
 import type { TipoReceita } from '../../api/tipos';
-import { ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, GRUPOS_DE_MODELOS, slugDaAba, usoDoModelo } from './modelos';
+import { ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, slugDaAba, usoDoModelo } from './modelos';
 
 describe('organização da tela Planejamento', () => {
   it('cada tipo aparece uma vez, no grupo certo e na ordem pedida', () => {
@@ -44,5 +44,22 @@ describe('aba do Planejamento pelo endereço', () => {
     expect(abaDoPlanejamento('dieta', false, true)).toBe(ABA_ATUALIZACAO);
     expect(abaDoPlanejamento(undefined, false, true)).toBe(ABA_ATUALIZACAO);
     expect(abaDoPlanejamento('atualizacao', true, false)).toBe('Treino');
+  });
+});
+
+describe('Planejamento e as funcionalidades do plano', () => {
+  it('sem a lista, todos os grupos aparecem', () => {
+    expect(gruposLiberados(undefined).map((g) => g.rotulo)).toEqual(['Treino', 'Dieta', 'Pacotes', 'Mobilidade']);
+  });
+
+  it('Mobilidade desligada tira só a aba Mobilidade', () => {
+    expect(gruposLiberados(['PDF', 'EQUIPE']).map((g) => g.rotulo)).toEqual(['Treino', 'Dieta', 'Pacotes']);
+    expect(gruposLiberados(['MOBILIDADE']).map((g) => g.rotulo)).toContain('Mobilidade');
+  });
+
+  it('o endereço ?aba=mobilidade não abre a aba desligada', () => {
+    expect(abaDoPlanejamento('mobilidade', true, true, ['PDF'])).toBe('Treino');
+    expect(abaDoPlanejamento('mobilidade', true, true, ['MOBILIDADE'])).toBe('Mobilidade');
+    expect(abaDoPlanejamento('atualizacao', true, true, [])).toBe(ABA_ATUALIZACAO);
   });
 });

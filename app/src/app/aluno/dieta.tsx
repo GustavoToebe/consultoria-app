@@ -22,6 +22,7 @@ import { Abas } from '../../ui/Abas';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { NoPlano } from '../../ui/NoPlano';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
@@ -167,7 +168,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
-      <Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
+      <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
       <Texto variante="suave">
         {versao.titulo} (v{versao.numero})
       </Texto>

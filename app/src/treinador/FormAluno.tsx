@@ -12,6 +12,7 @@ import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../ui/erros';
+import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 
 interface Props {
   inicial?: AlunoDetalhe;
@@ -41,6 +42,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
   const [dias, setDias] = useState(inicial?.diasAtualizacao ? String(inicial.diasAtualizacao) : '');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
+  const avisarDoPlano = useAvisoDoPlano();
   const campos = errosPorCampo(erro);
   const diasInvalidos = dias.trim() !== '' && diasDoCampo(dias) === null;
 
@@ -62,7 +64,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
       () => setSalvando(false),
       (e: unknown) => {
         setSalvando(false);
-        setErro(e);
+        // Limite do plano: o aviso explica (com "Ver minha conta") e o formulário fica como está, sem erro de campo.
+        if (!avisarDoPlano(e)) setErro(e);
       },
     );
   };

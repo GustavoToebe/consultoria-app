@@ -1,3 +1,4 @@
+import { NoPlano } from '../ui/NoPlano';
 import { Permitido } from '../ui/Permitido';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
@@ -9,6 +10,7 @@ import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano }
 import type { PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
 import { dataDaTela, dataParaTela } from '../dominio/formatos';
 import { proximoPeriodo } from '../dominio/periodo';
+import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
@@ -27,6 +29,7 @@ import { Texto } from '../ui/Texto';
 import { gerarPdfDoPlano } from './gerarPdf';
 import { PERMISSOES_DO_PLANO } from '../dominio/permissoes';
 import { mensagemPlanoCopiado, rotuloAbrirFicha, rotuloEditarPlano } from '../dominio/planoDoAluno';
+import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 import { useCarregar } from '../ui/useCarregar';
 import { CopiarParaAluno } from './CopiarParaAluno';
 
@@ -78,6 +81,9 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
   const dados = todos.dados ? todos.dados.filter((p) => p.pastaId === pasta.id) : null;
   const animar = usePrimeiraLista(!!dados);
   const { avisar } = useAviso();
+  const { temFuncionalidade } = useSessao();
+  // Mobilidade fora do plano: a API só bloqueia escrita; o que já existe continua em leitura e pode ser excluído.
+  const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
   const [excluir, setExcluir] = useState<PlanoResumo | null>(null);
   const [novo, setNovo] = useState(false);
   const [replicando, setReplicando] = useState<PlanoResumo | null>(null);
@@ -86,7 +92,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
   return (
     <Cartao
       titulo={NOMES[tipo].plural}
-      acoes={<Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido>}>
+      acoes={escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={NOMES[tipo].novo} tipo="secundario" Icone={Plus} aoTocar={() => setNovo(true)} /></Permitido> : null}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? (
@@ -100,11 +106,11 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
             <SelosDoPlano plano={p} />
           </View>
           <View style={estilos.botoes}>
-            {p.versaoPublicada > 0 ? <BotaoPdf tipo={tipo} plano={p} /> : null}
-            {p.versaoPublicada > 0 ? (
+            {p.versaoPublicada > 0 ? <NoPlano funcionalidade="PDF"><BotaoPdf tipo={tipo} plano={p} /></NoPlano> : null}
+            {p.versaoPublicada > 0 && escritaLiberada ? (
               <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
             ) : null}
-            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Permitido codigo="ALUNO_LER"><Botao rotulo="Copiar para outro aluno" tipo="secundario" Icone={Users} aoTocar={() => setCopiando(p)} /></Permitido></Permitido>
+            {escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Permitido codigo="ALUNO_LER"><Botao rotulo="Copiar para outro aluno" tipo="secundario" Icone={Users} aoTocar={() => setCopiando(p)} /></Permitido></Permitido> : null}
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
           </View>
@@ -116,7 +122,7 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
       }} />
       {novo ? <FolhaNovoPlano tipo={tipo} alunoId={alunoId} pasta={pasta} planos={todos.dados ?? []} aoFechar={() => setNovo(false)} aoNavegar={aoNavegar} /> : null}
       {replicando ? <FolhaReplicar tipo={tipo} plano={replicando} aoFechar={() => setReplicando(null)} aoNavegar={aoNavegar} /> : null}
-      {copiando ? <CopiarParaAluno tipo={tipo} plano={copiando} aoFechar={() => setCopiando(null)} aoCopiar={(destinoId, nome) => {
+      {copiando ? <CopiarParaAluno tipo={tipo} plano={copiando} aoNavegar={aoNavegar} aoFechar={() => setCopiando(null)} aoCopiar={(destinoId, nome) => {
         setCopiando(null);
         avisar(mensagemPlanoCopiado(tipo, nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => { aoNavegar?.(); router.push(`/treinador/alunos/${destinoId}`); } });
       }} /> : null}
@@ -168,6 +174,7 @@ function FolhaNovoPlano({
   const [copiaId, setCopiaId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
+  const avisarDoPlano = useAvisoDoPlano(aoNavegar);
 
   const valido =
     titulo.trim() !== '' &&
@@ -193,7 +200,9 @@ function FolhaNovoPlano({
       },
       (e: unknown) => {
         setSalvando(false);
-        setErro(e);
+        // Erro do plano: o aviso fica fora da Folha (que é um Modal), então a Folha fecha antes.
+        if (avisarDoPlano(e)) aoFechar();
+        else setErro(e);
       },
     );
   };
@@ -245,6 +254,7 @@ function FolhaNovoPlano({
 
 function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; plano: PlanoResumo; aoFechar: () => void; aoNavegar?: () => void }) {
   const { avisar } = useAviso();
+  const avisarDoPlano = useAvisoDoPlano(aoNavegar);
   const naPasta = plano.pastaId !== null;
   const sugestao = proximoPeriodo(plano);
   const [titulo, setTitulo] = useState(naPasta ? `${plano.titulo} (cópia)` : plano.titulo);
@@ -274,7 +284,9 @@ function FolhaReplicar({ tipo, plano, aoFechar, aoNavegar }: { tipo: TipoPlano; 
       },
       (e: unknown) => {
         setSalvando(false);
-        setErro(e);
+        // Erro do plano: o aviso fica fora da Folha (que é um Modal), então a Folha fecha antes.
+        if (avisarDoPlano(e)) aoFechar();
+        else setErro(e);
       },
     );
   };

@@ -23,6 +23,7 @@ import { DiaRegistros, textoSerie, VISOES, type VisaoRegistros } from '../../tre
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { NoPlano } from '../../ui/NoPlano';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -123,7 +124,7 @@ export default function HistoricoAluno() {
 
       <Cartao
         titulo={daPasta ? 'Registros e cargas' : `Treinos dos últimos ${DIAS} dias`}
-        acoes={divisoes.length ? <Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /> : null}>
+        acoes={divisoes.length ? <NoPlano funcionalidade="PDF"><Botao rotulo="PDF" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={pdf} /></NoPlano> : null}>
         {daPasta ? <Texto numerico variante="suave">Período do plano: {dataParaTela(de)} a {dataParaTela(ate)}</Texto> : null}
         <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
         {semConexao ? <Texto numerico variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}

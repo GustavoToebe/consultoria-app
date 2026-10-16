@@ -26,6 +26,7 @@ import { Cartao } from '../../../ui/Cartao';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
+import { useAvisoDoPlano } from '../../../ui/useAvisoDoPlano';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Selo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
@@ -80,6 +81,7 @@ export default function FichaAluno() {
 function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a: AlunoDetalhe) => void }) {
   const {pode}=useSessao();
   const { avisar } = useAviso();
+  const avisarDoPlano = useAvisoDoPlano();
   const [editando, setEditando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [mudando, setMudando] = useState(false);
@@ -96,7 +98,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
       (e: unknown) => {
         setMudando(false);
         setConfirmar(false);
-        avisar(textoDoErro(e), 'perigo');
+        if (!avisarDoPlano(e)) avisar(textoDoErro(e), 'perigo');
       },
     );
   };

@@ -44,6 +44,8 @@ export interface PerfilDaEquipe { id:string; nome:string; acessoTotal:boolean }
 export interface EuResponse {
   perfil?: PerfilDaEquipe;
   permissoes?: string[];
+  /** Funcionalidades ligadas no plano da consultoria (`MOBILIDADE`, `PDF`, `EQUIPE`); ausente = tudo liberado. */
+  funcionalidadesDoPlano?: string[];
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string };

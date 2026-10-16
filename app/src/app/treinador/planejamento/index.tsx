@@ -11,7 +11,7 @@ import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
 import { ListaDeQuestionarios } from '../../../treinador/questionarios/ListaDeQuestionarios';
-import { ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, GRUPOS_DE_MODELOS, slugDaAba, usoDoModelo } from '../../../treinador/planejamento/modelos';
+import { ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, slugDaAba, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
@@ -35,7 +35,7 @@ import { CONFIGURACAO_PADRAO } from '../../../dominio/metodologiaPadrao';
 
 export default function Planejamento() {
   const { avisar } = useAviso();
-  const { pode } = useSessao();
+  const { pode, funcionalidadesDoPlano } = useSessao();
   // Quem só tem QUESTIONARIO_LER entra no Planejamento pela aba Atualização: nada de modelos é buscado nem mostrado.
   const veModelos = pode('MODELO_LER');
   const veAtualizacao = pode('QUESTIONARIO_LER');
@@ -49,7 +49,8 @@ export default function Planejamento() {
   // aba Atualização, de novo questionário e sai do endereço na hora (consumido ao abrir, não ao fechar: fechar o
   // formulário não reescreve a URL e o voltar do navegador não tem passo sobrando).
   const { novo: pedirNovo, aba: abaPedida } = useLocalSearchParams<{ novo?: string; aba?: string }>();
-  const aba = abaDoPlanejamento(abaPedida, veModelos, veAtualizacao);
+  const aba = abaDoPlanejamento(abaPedida, veModelos, veAtualizacao, funcionalidadesDoPlano);
+  const grupos = gruposLiberados(funcionalidadesDoPlano);
   const emAtualizacao = aba === ABA_ATUALIZACAO;
   const [formularioAberto, setFormulario] = useState<Receita | 'novo' | null>(null);
   const formulario = formularioAberto;
@@ -68,7 +69,7 @@ export default function Planejamento() {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const atualizar = () => { modelos.recarregar(); colecoes.recarregar(); };
   // Grupo (Treino, Dieta, Pacotes, Mobilidade) são abas; os tipos do grupo, chips numa faixa que rola.
-  const grupo = GRUPOS_DE_MODELOS.find((g) => g.rotulo === aba) ?? GRUPOS_DE_MODELOS[0];
+  const grupo = grupos.find((g) => g.rotulo === aba) ?? grupos[0];
   // O chip escolhido só vale dentro do grupo da aba (o menu pode trocar a aba sem remontar a tela).
   const tipo: TipoReceita = tipoEscolhido && grupo.tipos.includes(tipoEscolhido) ? tipoEscolhido : grupo.tipos[0];
   const categoria = CATEGORIAS.find((c) => c.valor === tipo) ?? CATEGORIAS[0];
@@ -83,7 +84,7 @@ export default function Planejamento() {
   return <Tela bordas={['top']} largura={LARGURA_LISTA}>
     <Cabecalho titulo="Planejamento" mostrarMarca="celular" />
     <Texto variante="suave">{emAtualizacao ? 'Monte os questionários de atualização que o aluno responde a cada período.' : 'Monte modelos, vincule metodologias às semanas e reutilize nos alunos. Cada aplicação cria uma cópia independente.'}</Texto>
-    <Abas abas={[...(veModelos ? GRUPOS_DE_MODELOS.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? [{ valor: ABA_ATUALIZACAO, rotulo: ABA_ATUALIZACAO }] : [])]}
+    <Abas abas={[...(veModelos ? grupos.map((g) => ({ valor: g.rotulo, rotulo: g.rotulo })) : []), ...(veAtualizacao ? [{ valor: ABA_ATUALIZACAO, rotulo: ABA_ATUALIZACAO }] : [])]}
       ativa={aba}
       aoMudar={(rotulo) => { if (rotulo !== aba) router.push({ pathname: '/treinador/planejamento', params: { aba: slugDaAba(rotulo) } }); }} />
     {emAtualizacao ? <ListaDeQuestionarios pedirNovo={pedirNovo === '1'} aoConsumirNovo={() => router.setParams({ novo: undefined })} /> : null}

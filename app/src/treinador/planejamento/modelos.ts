@@ -1,6 +1,7 @@
 import type { Configuracao, TipoReceita } from '../../api/tipos';
 import { normalizarDieta, novaRefeicao } from '../../dominio/dieta';
 import { normalizarTreino, novaSerie, novaSessao } from '../../dominio/editorTreino';
+import { temFuncionalidade } from '../../dominio/funcionalidadesDoPlano';
 import { mobilidadeParaApi, normalizarMobilidade } from '../../dominio/mobilidade';
 
 /**
@@ -19,12 +20,19 @@ const INFORMACOES: Record<TipoReceita, { rotulo: string; descricao: string }> = 
 };
 
 /** Abas agrupadas: Treino, Dieta, Pacotes e Mobilidade (no celular, cada grupo rola na horizontal). */
-export const GRUPOS_DE_MODELOS: { rotulo: string; tipos: TipoReceita[] }[] = [
+export interface GrupoDeModelos { rotulo: string; tipos: TipoReceita[]; /** Funcionalidade do plano de que o grupo depende; desligada, a aba some. */ funcionalidade?: string }
+
+export const GRUPOS_DE_MODELOS: GrupoDeModelos[] = [
   { rotulo: 'Treino', tipos: ['PLANO_TREINO', 'SESSAO_TREINO', 'SERIES', 'METODOLOGIA'] },
   { rotulo: 'Dieta', tipos: ['PLANO_DIETA', 'REFEICAO'] },
   { rotulo: 'Pacotes', tipos: ['PASTA_PLANO'] },
-  { rotulo: 'Mobilidade', tipos: ['MOBILIDADE'] },
+  { rotulo: 'Mobilidade', tipos: ['MOBILIDADE'], funcionalidade: 'MOBILIDADE' },
 ];
+
+/** Grupos que o plano da consultoria libera (`liberadas` ausente = todos). Mobilidade desligada some do Planejamento. */
+export function gruposLiberados(liberadas?: readonly string[]): GrupoDeModelos[] {
+  return GRUPOS_DE_MODELOS.filter((g) => g.funcionalidade === undefined || temFuncionalidade(liberadas, g.funcionalidade));
+}
 
 /** A aba dos questionários mora no Planejamento ao lado dos grupos de modelos. */
 export const ABA_ATUALIZACAO = 'Atualização';
@@ -37,8 +45,8 @@ export const slugDaAba = (rotulo: string): string => rotulo.normalize('NFD').rep
  * perfil pode ver (modelos com `MODELO_LER`, Atualização com `QUESTIONARIO_LER`); sem parâmetro ou com um que não vale,
  * abre a primeira.
  */
-export function abaDoPlanejamento(parametro: string | string[] | undefined, veModelos: boolean, veAtualizacao: boolean): string {
-  const rotulos = [...(veModelos ? GRUPOS_DE_MODELOS.map((g) => g.rotulo) : []), ...(veAtualizacao ? [ABA_ATUALIZACAO] : [])];
+export function abaDoPlanejamento(parametro: string | string[] | undefined, veModelos: boolean, veAtualizacao: boolean, liberadas?: readonly string[]): string {
+  const rotulos = [...(veModelos ? gruposLiberados(liberadas).map((g) => g.rotulo) : []), ...(veAtualizacao ? [ABA_ATUALIZACAO] : [])];
   const pedida = Array.isArray(parametro) ? parametro[0] : parametro;
   return rotulos.find((r) => slugDaAba(r) === pedida) ?? rotulos[0] ?? GRUPOS_DE_MODELOS[0].rotulo;
 }

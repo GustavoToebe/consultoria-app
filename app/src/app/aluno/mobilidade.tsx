@@ -12,6 +12,7 @@ import { documentoMobilidade } from '../../pdf/pdfMobilidade';
 import { fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
+import { NoPlano } from '../../ui/NoPlano';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
@@ -93,7 +94,7 @@ function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }
       <Texto variante="suave">
         {versao.titulo} (v{versao.numero})
       </Texto>
-      <Botao rotulo="Baixar PDF da mobilidade" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} />
+      <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da mobilidade" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
     </>
   );
 }

@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import * as api from '../../api/rotas';
 import type { PerfilEquipe, PermissaoEquipe } from '../../api/equipeTipos';
 import { completarPermissoes, desmarcarPermissoes, permissaoMarcavel, podeDuplicarPerfil, podeEditarPerfil } from '../../dominio/perfilEquipe';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -15,6 +16,7 @@ import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
@@ -25,11 +27,14 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
   const [excluir,setExcluir]=useState<PerfilEquipe|null>(null);
   const [ocupado,setOcupado]=useState(false);const [erro,setErro]=useState<unknown>(null);const {avisar}=useAviso();
   const ator=useAtorEquipe();
+  const {temFuncionalidade}=useSessao();
+  // Equipe fora do plano: perfis só para consulta, edição e exclusão; sem criar nem duplicar.
+  const criaLiberado=temFuncionalidade('EQUIPE');
   const {cores}=useTema();
   const duplicar=async(p:PerfilEquipe)=>{setErro(null);try{await api.duplicarPerfilEquipe(p.id);recarregar();avisar('Perfil duplicado.','sucesso');}catch(e){setErro(e);}};
   const apagar=async()=>{if(!excluir)return;setOcupado(true);setErro(null);try{await api.excluirPerfilEquipe(excluir.id);setExcluir(null);recarregar();avisar('Perfil excluído.','sucesso');}catch(e){setExcluir(null);setErro(e);}finally{setOcupado(false);}};
   return <>
-    <Cartao titulo="Perfis de acesso" descricao="Cada perfil define o que a pessoa vê e altera." acoes={<Permitido codigo="PERFIL_ALTERAR"><Botao rotulo="Novo perfil" aoTocar={()=>setEditar('novo')}/></Permitido>}>
+    <Cartao titulo="Perfis de acesso" descricao="Cada perfil define o que a pessoa vê e altera." acoes={<NoPlano funcionalidade="EQUIPE"><Permitido codigo="PERFIL_ALTERAR"><Botao rotulo="Novo perfil" aoTocar={()=>setEditar('novo')}/></Permitido></NoPlano>}>
     {erro?<MensagemErro texto={textoDoErro(erro)}/>:null}
     {perfis.map(p=><Cartao key={p.id} titulo={p.nome} style={{backgroundColor:cores.superficie2}} acoes={<>
       {p.sistema?<Selo texto="Acesso total · perfil do sistema" tipo="neutro"/>:null}
@@ -38,7 +43,7 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
       <Texto variante="suave">{p.descricao||'—'}</Texto><Texto variante="suave">{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
       <Permitido codigo="PERFIL_ALTERAR"><View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap'}}>
         {podeEditarPerfil(ator,p)?<Botao rotulo={`Editar ${p.nome}`} tipo="secundario" aoTocar={()=>setEditar(p)}/>:null}
-        {podeDuplicarPerfil(ator,p)?<Botao rotulo={`Duplicar ${p.nome}`} tipo="secundario" aoTocar={()=>void duplicar(p)}/>:null}
+        {criaLiberado&&podeDuplicarPerfil(ator,p)?<Botao rotulo={`Duplicar ${p.nome}`} tipo="secundario" aoTocar={()=>void duplicar(p)}/>:null}
         {!p.sistema?<Botao rotulo={`Excluir ${p.nome}`} tipo="perigoTexto" aoTocar={()=>setExcluir(p)}/>:null}
       </View></Permitido>
     </Cartao>)}

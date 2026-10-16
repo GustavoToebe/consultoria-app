@@ -1,3 +1,4 @@
+import { FUNCIONALIDADES } from './funcionalidadesDoPlano';
 import { pode } from './permissoes';
 import { agruparPorSecao, alternarFavorito, buscarTelas, chaveDosFavoritos, favoritosVisiveis, lerFavoritos, nomeDaTela, semAcento, TELAS, telasPermitidas } from './telas';
 
@@ -48,6 +49,32 @@ describe('catálogo de telas', () => {
     expect(leitor).not.toContain('convidar-membro');
     // Atualizações pedem também o dado sensível, como na guarda da tela.
     expect(ids(telasPermitidas(com(['ATUALIZACAO_LER'])))).not.toContain('atualizacoes');
+  });
+});
+
+describe('funcionalidades do plano no catálogo', () => {
+  it('sem a lista (pacote antigo ou offline), tudo segue como antes', () => {
+    expect(ids(telasPermitidas(com(ADMIN), TELAS, undefined))).toContain('convidar-membro');
+  });
+
+  it('EQUIPE desligada: "Convidar membro" some da lista e da busca, e a tela Equipe continua', () => {
+    const liberadas = ['MOBILIDADE', 'PDF'];
+    const permitidas = telasPermitidas(com(ADMIN), TELAS, liberadas);
+    expect(ids(permitidas)).not.toContain('convidar-membro');
+    expect(ids(permitidas)).toContain('equipe');
+    expect(buscarTelas('convidar', permitidas)).toEqual([]);
+    expect(ids(buscarTelas('equipe', permitidas))).toContain('equipe');
+  });
+
+  it('EQUIPE ligada mantém "Convidar membro"; desligar outra funcionalidade não mexe nele', () => {
+    expect(ids(telasPermitidas(com(ADMIN), TELAS, ['EQUIPE']))).toContain('convidar-membro');
+    expect(ids(telasPermitidas(com(ADMIN), TELAS, ['EQUIPE']))).toContain('novo-modelo');
+  });
+
+  it('todo item do catálogo que declara funcionalidade usa um código conhecido', () => {
+    for (const t of TELAS) {
+      if (t.funcionalidade !== undefined) expect(FUNCIONALIDADES as readonly string[]).toContain(t.funcionalidade);
+    }
   });
 });
 
