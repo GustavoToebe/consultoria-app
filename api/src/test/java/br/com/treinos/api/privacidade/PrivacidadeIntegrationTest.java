@@ -118,6 +118,59 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
                 Map.of("texto", "Feedback fictício", "versao", enviada.get("versao").asLong()), 200);
     }
 
+    /** Rascunho e versão publicada de treino e de mobilidade com texto livre; a anonimização limpa o texto e mantém o resto. */
+    @Test
+    void anonimizarLimpaOTextoLivreDentroDosPlanosEMantemIdsSeriesECargas() throws Exception {
+        String id = alunoId.toString();
+        String pasta = jdbc.queryForObject("select id::text from pasta_plano where aluno_id = ?::uuid", String.class, id);
+        JsonNode criado = api.post("/alunos/" + alunoId + "/planos-mobilidade", admin,
+                Map.of("titulo", "Mobilidade de " + NOME, "pastaId", pasta), 200);
+        String mobilidadeId = criado.get("plano").get("id").asString();
+        Map<String, Object> item = Map.of("uid", UUID.randomUUID(), "nome", "Alongamento fictício",
+                "prescricao", "Prescrição fictícia QWERTY", "videoUrl", "https://www.youtube.com/watch?v=exemplo");
+        Map<String, Object> conteudo = Map.of("orientacoes", "Orientação fictícia QWERTY",
+                "secoes", List.of(Map.of("uid", UUID.randomUUID(), "titulo", "Quadril", "itens", List.of(item))));
+        JsonNode salvo = api.put("/planos-mobilidade/" + mobilidadeId + "/rascunho", admin,
+                ApiDeTeste.rascunho("Mobilidade de " + NOME, conteudo, criado.get("plano").get("versao").asLong()), 200);
+        api.post("/planos-mobilidade/" + mobilidadeId + "/publicar", admin,
+                Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+        // Rascunho novo depois de publicado: o texto também está no rascunho, além da versão.
+        JsonNode atual = api.get("/planos-mobilidade/" + mobilidadeId, admin, 200);
+        api.put("/planos-mobilidade/" + mobilidadeId + "/rascunho", admin,
+                ApiDeTeste.rascunho("Mobilidade de " + NOME, conteudo, atual.get("plano").get("versao").asLong()), 200);
+
+        UUID outro = api.criarAluno(admin, "Outro aluno fictício");
+        JsonNode outroPlano = api.post("/alunos/" + outro + "/planos-treino", admin, Map.of("titulo", "Treino do outro"), 200);
+        api.put("/planos-treino/" + outroPlano.get("plano").get("id").asString() + "/rascunho", admin,
+                ApiDeTeste.rascunho("Treino do outro", ApiDeTeste.treino().conteudo(), outroPlano.get("plano").get("versao").asLong()), 200);
+
+        String antes = jdbc.queryForObject("select string_agg(conteudo::text, ' ') from plano_treino_versao v join plano_treino p on p.id = v.plano_id"
+                + " where p.aluno_id = ?::uuid", String.class, id);
+        assertThat(antes).contains("Objetivo fictício");
+        int cargas = jdbc.queryForObject("select count(*) from execucao_serie where aluno_id = ?::uuid and carga is not null", Integer.class, id);
+
+        api.patch("/alunos/" + alunoId + "/situacao", admin, Map.of("ativo", false), 200);
+        api.post("/alunos/" + alunoId + "/anonimizar", admin, Map.of("nomeConfirmado", NOME), 200);
+
+        String textos = jdbc.queryForObject("select coalesce(string_agg(t, ' '), '') from (" +
+                "select rascunho::text t from plano_treino where aluno_id = ?::uuid " +
+                "union all select conteudo::text from plano_treino_versao v join plano_treino p on p.id = v.plano_id where p.aluno_id = ?::uuid " +
+                "union all select rascunho::text from plano_mobilidade where aluno_id = ?::uuid " +
+                "union all select conteudo::text from plano_mobilidade_versao v join plano_mobilidade p on p.id = v.plano_id where p.aluno_id = ?::uuid" +
+                ") x", String.class, id, id, id, id);
+        assertThat(textos).doesNotContain("Objetivo fictício").doesNotContain("QWERTY");
+        // Fica o que não é texto livre: nomes, ids, séries, repetições e vídeos.
+        assertThat(textos).contains("Remada baixa na polia").contains("Alongamento fictício").contains("youtube.com")
+                .contains("\"repsMax\": 6");
+        assertThat(jdbc.queryForObject("select count(*) from plano_mobilidade_versao v join plano_mobilidade p on p.id = v.plano_id"
+                + " where p.aluno_id = ?::uuid", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from execucao_serie where aluno_id = ?::uuid and carga is not null", Integer.class, id))
+                .isEqualTo(cargas);
+        // Só os planos DESTE aluno: o de outra pessoa da mesma consultoria segue com o texto.
+        assertThat(jdbc.queryForObject("select rascunho::text from plano_treino where aluno_id = ?::uuid", String.class, outro.toString()))
+                .contains("Objetivo fictício");
+    }
+
     private JsonNode membro(String nome, Set<String> permissoes) throws Exception {
         String perfil = api.post("/perfis", admin, Map.of("nome", "Perfil " + nome, "permissoes", permissoes), 200)
                 .get("id").asString();

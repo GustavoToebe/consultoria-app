@@ -96,6 +96,7 @@ public class AnonimizacaoService {
         fotos.removerTodasDoAluno(alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
         nativo.apagarNomesDosTitulos(consultoriaId, alunoId);
+        nativo.apagarTextoLivreDosPlanos(consultoriaId, alunoId);
 
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> {
