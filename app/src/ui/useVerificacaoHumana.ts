@@ -31,6 +31,8 @@ export interface VerificacaoHumana {
    * widget. Com `VERIFICACAO_HUMANA` busca a configuração de novo (a verificação pode ter sido ligada depois da primeira busca).
    */
   depoisDoEnvio: (falha?: unknown) => void;
+  /** Busca a configuração de novo, sem cache (o widget desistiu ou "Tentar de novo"): se a verificação foi desligada, solta o envio. */
+  reconferir: () => void;
 }
 
 /** Configuração da verificação humana e o token do widget de uma tela pública (entrar, cadastro, esqueci a senha). */
@@ -68,6 +70,13 @@ export function useVerificacaoHumana(): VerificacaoHumana {
     }
   }, []);
 
+  const reconferir = useCallback(() => {
+    configuracao.obter(true).then(
+      (config) => setSituacao({ tipo: 'pronta', config }),
+      () => undefined,
+    );
+  }, []);
+
   const config = situacao.tipo === 'pronta' ? situacao.config : null;
   const siteKey = config?.siteKey ?? '';
   const exigida = !!config && config.verificacaoHumana && siteKey !== '';
@@ -80,5 +89,6 @@ export function useVerificacaoHumana(): VerificacaoHumana {
     chave,
     aoReceberToken: setToken,
     depoisDoEnvio,
+    reconferir,
   };
 }

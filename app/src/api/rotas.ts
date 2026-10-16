@@ -190,7 +190,11 @@ export const trocarSenha = (senhaAtual: string, senhaNova: string) =>
 
 /** O que o app precisa saber antes do login (verificação humana e a chave pública do widget). `semCache` na busca de conferência. */
 export const configuracaoPublica = (semCache = false) =>
-  requisicao<ConfiguracaoPublica>('/publico/configuracao', { semRenovar: true, semCache });
+  // Conferência forçada: além de `cache: 'no-store'` (o fetch do celular pode ignorar), um parâmetro novo fura o `max-age` da resposta.
+  requisicao<ConfiguracaoPublica>(semCache ? `/publico/configuracao?r=${Date.now()}` : '/publico/configuracao', {
+    semRenovar: true,
+    semCache,
+  });
 
 // ---- Convite (público) ----
 

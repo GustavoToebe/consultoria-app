@@ -6,4 +6,9 @@ export interface PropsVerificacaoHumana {
   onToken: (token: string | null) => void;
   /** Muda para pedir um desafio novo (depois de cada envio: o token é de uso único). */
   chave: number;
+  /**
+   * O widget desistiu ou a pessoa tocou em "Tentar de novo": a tela confere a configuração de novo (a verificação pode ter sido
+   * desligada, a saída de emergência do servidor) e solta o botão se não for mais exigida.
+   */
+  aoReconferir?: () => void;
 }

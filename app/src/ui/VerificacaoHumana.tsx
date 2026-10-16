@@ -24,7 +24,7 @@ const ORIGENS_PERMITIDAS = ['https://*', 'about:*'];
  * funciona em página http(s) do hostname cadastrado. A página (`htmlDoWidget`) avisa o app por mensagem; o WebView só
  * navega para a Cloudflare. O token vai só a `onToken`, nunca a log.
  */
-export function VerificacaoHumana({ siteKey, onToken, chave }: PropsVerificacaoHumana) {
+export function VerificacaoHumana({ siteKey, onToken, chave, aoReconferir }: PropsVerificacaoHumana) {
   const { modo } = useTema();
   const tema = modo === 'CLARO' ? 'light' : 'dark';
   const html = useMemo(() => htmlDoWidget(siteKey, tema), [siteKey, tema]);
@@ -37,9 +37,17 @@ export function VerificacaoHumana({ siteKey, onToken, chave }: PropsVerificacaoH
   const [falhou, setFalhou] = useState(false);
   const [tentativa, setTentativa] = useState(0);
 
+  const aoReconferirAtual = useRef(aoReconferir);
+
   useEffect(() => {
     aoToken.current = onToken;
+    aoReconferirAtual.current = aoReconferir;
   });
+
+  // Desistiu: confere a configuração de novo (se a verificação foi desligada, a tela solta o botão).
+  useEffect(() => {
+    if (falhou) aoReconferirAtual.current?.();
+  }, [falhou]);
 
   const cancelarEspera = useCallback(() => {
     if (espera.current !== null) {
@@ -100,6 +108,7 @@ export function VerificacaoHumana({ siteKey, onToken, chave }: PropsVerificacaoH
   );
 
   const tentarDeNovo = () => {
+    aoReconferir?.();
     falhasSeguidas.current = 0;
     setAltura(ALTURA_INICIAL);
     setFalhou(false);

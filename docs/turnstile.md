@@ -21,7 +21,9 @@ O resumo das regras de código está no `AGENTS.md` (item "Verificação humana"
 ### Login com a Cloudflare fora do ar
 Decisão: **falha fechada** também no login. Quem já tem sessão continua (o refresh não exige token); ninguém novo entra enquanto
 a Cloudflare não responder. Saída de emergência: `TREINOS_TURNSTILE_HABILITADO=false` e recriar a API (o login volta a ser só
-senha + limites por IP e conta).
+senha + limites por IP e conta). No app, o widget que desiste (ou o toque em "Tentar de novo") busca `/publico/configuracao` de
+novo, sem cache (`?r=<hora>` fura o `max-age` de 5 min, que o fetch do celular pode respeitar); se a verificação já saiu do ar,
+o botão é solto sem reiniciar o app. Quem ainda está com o widget carregando e funcionando só percebe ao reabrir a tela.
 
 ## Variáveis
 | Variável | Padrão | Observação |
@@ -55,4 +57,9 @@ do navegador e, se aparecer bloqueio de `connect-src`, acrescentar `https://chal
 1. Criar o widget no painel da Cloudflare (domínio `consultoria.servirea.com.br`, modo Managed). Copiar a site key e o segredo.
 2. Gravar o segredo na VPS com `gravar-segredo.sh` (`TREINOS_TURNSTILE_SEGREDO`); a site key vai em `TREINOS_TURNSTILE_SITE_KEY` no `consultoria.env`.
 3. Aplicar a CSP nova no proxy (`consultoria.caddy.modelo`, depois da Fase 5) e conferir no navegador que o cabeçalho saiu.
-4. Só então `TREINOS_TURNSTILE_HABILITADO=true` e recriar a API. Testar entrar, cadastrar e esqueci a senha no navegador e no celular.
+4. Só então `TREINOS_TURNSTILE_HABILITADO=true` e recriar a API (o compose da VPS lê o `consultoria.env` inteiro por `env_file`, então as
+   variáveis passam sem mudar o compose). Ligada e sem o segredo, a API **não sobe**: conferir a saúde e o log logo depois de recriar;
+   a volta é `HABILITADO=false` e recriar. Testar entrar, cadastrar e esqueci a senha no navegador e no celular (o WebView do celular
+   nunca foi visto num aparelho), e confirmar que uma tentativa ruim não dá 429 para outra rede (o limite por IP depende de o
+   `getRemoteAddr()` ser o IP real atrás do túnel, a mesma fonte do limite de login do módulo auth).
+5. Ordem de validação: o corpo inválido (422) é conferido antes da verificação humana; a verificação vem antes dos limites, do módulo auth e do BCrypt.

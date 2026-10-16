@@ -85,7 +85,7 @@ export default function Cadastro() {
           autoComplete="new-password" />
         {erro ? <MensagemErro texto={erro} /> : null}
         {verificacao.exigida ? (
-          <VerificacaoHumana siteKey={verificacao.siteKey} onToken={verificacao.aoReceberToken} chave={verificacao.chave} />
+          <VerificacaoHumana siteKey={verificacao.siteKey} onToken={verificacao.aoReceberToken} chave={verificacao.chave} aoReconferir={verificacao.reconferir} />
         ) : null}
         <Botao rotulo={rotuloDoEnvio('Criar conta', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
           desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} cheio />

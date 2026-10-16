@@ -67,7 +67,7 @@ function carregarScript(): Promise<TurnstileApi> {
  * Widget do Turnstile na web: script da Cloudflare injetado uma vez, `render` explícito e `remove` ao desmontar. O tema
  * acompanha o do app (muda o tema, o widget é desenhado de novo). O token vai só a `onToken`, nunca a log.
  */
-export function VerificacaoHumana({ siteKey, onToken, chave }: PropsVerificacaoHumana) {
+export function VerificacaoHumana({ siteKey, onToken, chave, aoReconferir }: PropsVerificacaoHumana) {
   const { modo } = useTema();
   const tema = modo === 'CLARO' ? 'light' : 'dark';
   const chaveValida = siteKeyValida(siteKey);
@@ -79,9 +79,17 @@ export function VerificacaoHumana({ siteKey, onToken, chave }: PropsVerificacaoH
   const [falhou, setFalhou] = useState(false);
   const [tentativa, setTentativa] = useState(0);
 
+  const aoReconferirAtual = useRef(aoReconferir);
+
   useEffect(() => {
     aoToken.current = onToken;
+    aoReconferirAtual.current = aoReconferir;
   });
+
+  // Desistiu: confere a configuração de novo (se a verificação foi desligada, a tela solta o botão).
+  useEffect(() => {
+    if (falhou) aoReconferirAtual.current?.();
+  }, [falhou]);
 
   useEffect(() => {
     if (!chaveValida) {
@@ -167,6 +175,7 @@ export function VerificacaoHumana({ siteKey, onToken, chave }: PropsVerificacaoH
   }, [chave]);
 
   const tentarDeNovo = () => {
+    aoReconferir?.();
     falhasSeguidas.current = 0;
     setFalhou(false);
     setTentativa((n) => n + 1);
