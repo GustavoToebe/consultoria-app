@@ -1,0 +1,53 @@
+name: Limpar imagens antigas (GHCR)
+
+# Sessão 22: as imagens publicadas a cada deploy (consultoria-api, consultoria-web) ficam para sempre no GHCR e gastam o espaço dos Packages.
+# Esta rotina semanal apaga as MAIS ANTIGAS e deixa as 20 versões com tag mais recentes de cada pacote. Regras no topo de
+# .github/scripts/limpar-ghcr.sh (nunca apaga tag que não seja de commit nem versão sem tag; a VPS só usa a release atual e a anterior,
+# ambas entre as últimas publicadas, e o rollback.sh baixa a anterior pela tag).
+#
+# MODO: o padrão é SIMULAÇÃO (só lista no log o que seria apagado). Para apagar de verdade:
+#   - uma vez, à mão: Actions > "Limpar imagens antigas (GHCR)" > Run workflow > marcar "apagar"; ou
+#   - de forma permanente, na rotina semanal: Settings > Secrets and variables > Actions > Variables > GHCR_LIMPEZA_APAGAR = true.
+# Num pull request que mexe nestes arquivos roda sempre em simulação.
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      apagar:
+        description: 'Apagar de verdade (desmarcado = só listar)'
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - '.github/workflows/limpar-ghcr.yml'
+      - '.github/scripts/limpar-ghcr*.sh'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: limpar-ghcr
+  cancel-in-progress: false
+
+jobs:
+  limpar:
+    name: limpar - ghcr
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Testes do script de limpeza (sem rede)
+        run: bash .github/scripts/limpar-ghcr.test.sh
+      - name: Versões antigas dos pacotes
+        env:
+          GH_TOKEN: ${{ secrets.GHCR_LIMPEZA_TOKEN || github.token }}
+          DONO: ${{ github.repository_owner }}
+          PACOTES: consultoria-api consultoria-web
+          MANTER: '20'
+          # Só apaga em disparo manual com "apagar" marcado ou na rotina semanal com a variável GHCR_LIMPEZA_APAGAR=true.
+          APAGAR: ${{ ((github.event_name == 'workflow_dispatch' && inputs.apagar) || (github.event_name == 'schedule' && vars.GHCR_LIMPEZA_APAGAR == 'true')) && 'true' || 'false' }}
+        run: bash .github/scripts/limpar-ghcr.sh

@@ -3,9 +3,14 @@ name: Testar e publicar
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
+    # Só documentação não testa nem publica: fora todo .md e docs/. Exceção: .md dentro de src/ é lido pelo aplicativo (os termos de uso
+    # e o aviso de privacidade em api/src/main/resources/termos/ saem no jar), então mudar um deles precisa publicar.
+    # Ordem importa: o padrão que vem depois vence.
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '**/src/**/*.md'
+      - '!docs/**'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -13,10 +18,11 @@ on:
 permissions:
   contents: read
 
-# A VPS atualiza um aplicativo por vez (o mesmo grupo do deploy dos outros repositórios).
+# A VPS atualiza um aplicativo por vez (o mesmo grupo do deploy dos outros repositórios). Push na main e disparo manual NUNCA
+# cancelam (deploy em andamento termina). Só o pull request, que tem grupo próprio por ref, cancela a execução que o commit novo substituiu.
 concurrency:
-  group: producao
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.ref) || 'producao' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   testar-api:
