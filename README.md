@@ -154,7 +154,7 @@ Decisões tomadas onde o plano não fechava; conferir com o Gustavo ou com o Sar
   o SQLite na web exige cabeçalhos COOP/COEP e WASM. Os testes rodam a mesma bateria nas duas implementações, com o
   SQLite do próprio Node. Na web o app não abre sem servidor (não há service worker); sem internet no meio do uso,
   continua funcionando.
-- **PDF na web sem iframe.** A CSP do Caddy tem `frame-src 'none'`; o PDF entra num bloco só de impressão da própria
+- **PDF na web sem iframe.** A CSP do Caddy só libera `frame-src` para o Turnstile (`challenges.cloudflare.com`); o PDF entra num bloco só de impressão da própria
   página e abre o “Imprimir / Salvar como PDF” do navegador. No celular gera o arquivo e abre o compartilhar.
 - **Item “Ovo inteiro, 3 un” do seed só tem kcal (133).** Sem proteína, carboidrato e gordura, os totais de macros do
   café e do dia aparecem como “—” (o sistema não inventa valor nutricional). Preencher no editor de dieta com os

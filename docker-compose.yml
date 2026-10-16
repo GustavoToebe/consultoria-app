@@ -60,6 +60,11 @@ services:
       TREINOS_INTEGRACAO_PRODUTO: ${TREINOS_INTEGRACAO_PRODUTO:-TREINOS}
       TREINOS_INTEGRACAO_TOLERANCIA_HORAS: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:-72}
       TREINOS_INTEGRACAO_BLOQUEIO_ATIVO: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:-false}
+      TREINOS_PLANO_APLICAR: ${TREINOS_PLANO_APLICAR:-false}
+      # Verificação humana (Turnstile): desligada por padrão. O segredo só vem do ambiente, nunca com valor padrão.
+      TREINOS_TURNSTILE_HABILITADO: ${TREINOS_TURNSTILE_HABILITADO:-false}
+      TREINOS_TURNSTILE_SITE_KEY: ${TREINOS_TURNSTILE_SITE_KEY:-}
+      TREINOS_TURNSTILE_SEGREDO: ${TREINOS_TURNSTILE_SEGREDO:-}
       # Fotos da atualização: desligadas por padrão (a pergunta FOTOS segue sem envio). Para testar local, suba o MinIO
       # (docker compose --profile fotos up -d) e use os valores do .env.example. Em produção o bucket é o R2 da Cloudflare.
       TREINOS_FOTOS_HABILITADO: ${TREINOS_FOTOS_HABILITADO:-false}

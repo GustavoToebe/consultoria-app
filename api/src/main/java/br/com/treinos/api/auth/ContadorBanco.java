@@ -41,6 +41,14 @@ class ContadorBanco {
                 chave, fim, agora, agora, fim);
     }
 
+    /** Só lê (não conta): quantas tentativas a chave tem na janela corrente, ou zero se a janela já venceu. */
+    Estado ler(String chave, long agoraMs) {
+        Timestamp agora = Timestamp.from(Instant.ofEpochMilli(agoraMs));
+        return jdbc.query("select tentativas, janela_ate from login_tentativa where chave = ? and janela_ate > ?",
+                (rs, n) -> new Estado(rs.getInt(1), rs.getTimestamp(2).getTime()), chave, agora)
+                .stream().findFirst().orElse(new Estado(0, agoraMs));
+    }
+
     /** Apaga a linha de uma chave (esquecer o e-mail de um aluno anonimizado). */
     void apagar(String chave) {
         jdbc.update("delete from login_tentativa where chave = ?", chave);

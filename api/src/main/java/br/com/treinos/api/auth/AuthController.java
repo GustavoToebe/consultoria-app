@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Rotas públicas de sessão. Web recebe o refresh em cookie HttpOnly; nativo (header
  * {@code X-Treinos-Cliente: nativo}) recebe no corpo. O limite de tentativas do login é do módulo de autenticação (roda
- * antes do BCrypt); cadastro e refresh têm o limite por IP do app ({@link LimiteTentativas}).
+ * antes do BCrypt); cadastro e refresh têm o limite por IP do app ({@link LimiteTentativas}). Login, cadastro e
+ * "esqueci a senha" começam pela verificação humana ({@link VerificacaoHumana}), antes de tudo o mais; o refresh não.
  */
 @RestController
 @RequestMapping("/auth")
@@ -35,10 +36,12 @@ public class AuthController {
     private final SessaoHttp sessaoHttp;
     private final Auditoria auditoria;
     private final RedefinicaoSenhaService redefinicao;
+    private final VerificacaoHumana verificacao;
 
     public AuthController(AuthService authService, CadastroTreinadorService cadastroTreinador,
                           LimiteTentativas limite, SessaoHttp sessaoHttp, Auditoria auditoria,
-                          RedefinicaoSenhaService redefinicao) {
+                          RedefinicaoSenhaService redefinicao, VerificacaoHumana verificacao) {
+        this.verificacao = verificacao;
         this.redefinicao = redefinicao;
         this.auditoria = auditoria;
         this.authService = authService;
@@ -50,6 +53,7 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@RequestBody @Valid LoginRequest request, HttpServletRequest http,
                                HttpServletResponse resposta) {
+        verificacao.exigir(request.turnstileToken(), http.getRemoteAddr());
         DestinoCliente cliente = DestinoCliente.de(http);
         AuthService.Sessao sessao;
         try {
@@ -68,6 +72,7 @@ public class AuthController {
     @PostMapping("/cadastro-treinador")
     public LoginResponse cadastroTreinador(@RequestBody @Valid CadastroTreinadorRequest request,
                                            HttpServletRequest http, HttpServletResponse resposta) {
+        verificacao.exigir(request.turnstileToken(), http.getRemoteAddr());
         limite.cadastro(http.getRemoteAddr());
         DestinoCliente cliente = DestinoCliente.de(http);
         return sessaoHttp.responder(cadastroTreinador.cadastrar(request), cliente, resposta);
@@ -87,6 +92,7 @@ public class AuthController {
     @PostMapping("/esqueci-senha")
     public ResponseEntity<Void> esqueciSenha(@RequestBody @Valid EsqueciSenhaRequest request, HttpServletRequest http,
                                              HttpServletResponse resposta) {
+        verificacao.exigir(request.turnstileToken(), http.getRemoteAddr());
         try {
             redefinicao.solicitar(request.email(), http.getRemoteAddr());
         } catch (LimiteLoginException limitado) {

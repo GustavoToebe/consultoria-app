@@ -53,6 +53,18 @@ treinos:
     produto: ${TREINOS_INTEGRACAO_PRODUTO:TREINOS}
     tolerancia-horas: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:72}
     bloqueio-ativo: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:false}
+  # Aplica o plano da Central (limites e funcionalidades de direitos_locais) a quem cria algo novo. Desligada por padrão:
+  # ligar antes de o produto ter as funcionalidades configuradas na Central tiraria Mobilidade e Equipe das consultorias.
+  # Sem linha em direitos_locais (integração desligada, demo) nada é barrado, ligada ou não. docs/integracao-central.md.
+  plano:
+    aplicar: ${TREINOS_PLANO_APLICAR:false}
+  # Verificação humana (Cloudflare Turnstile) no cadastro de treinador, no login e no "esqueci a senha". Desligada por padrão.
+  # Ligada, a API só sobe com a chave pública e o segredo; o segredo só em variável de ambiente, sem valor padrão. A chave
+  # pública chega ao app por GET /publico/configuracao. Só ligar depois de a CSP do site liberar challenges.cloudflare.com.
+  turnstile:
+    habilitado: ${TREINOS_TURNSTILE_HABILITADO:false}
+    site-key: ${TREINOS_TURNSTILE_SITE_KEY:}
+    segredo: ${TREINOS_TURNSTILE_SEGREDO:}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:

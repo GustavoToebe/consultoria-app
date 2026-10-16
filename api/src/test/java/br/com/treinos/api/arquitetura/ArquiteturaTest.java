@@ -76,7 +76,7 @@ class ArquiteturaTest {
 
     /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo). */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
-            "MarcaPublicaController", "ConviteEquipePublicoController");
+            "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController");
 
     @BeforeAll
     static void importar() {

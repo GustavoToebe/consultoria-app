@@ -12,7 +12,8 @@ import java.util.HexFormat;
 
 /**
  * Limita as tentativas das rotas públicas que não são o login (o login é do módulo de autenticação da plataforma:
- * {@code LimiteLogin}): cadastro de treinador e convite público por IP (10 e 30) e refresh por IP (120), com janela fixa
+ * {@code LimiteLogin}): cadastro de treinador e convite público por IP (10 e 30), refresh por IP (120) e falhas da
+ * verificação humana por IP (20), com janela fixa
  * de 600 s e contador no banco. A chave é um SHA-256 com o sal {@code plataforma.auth.login.sal}; cada ação tem prefixo
  * próprio, então uma não consome o limite da outra.
  */
@@ -29,10 +30,11 @@ public class LimiteTentativas {
                      @Value("${treinos.limites.cadastro-ip:10}") int cadastroIp,
                      @Value("${treinos.limites.convite-ip:30}") int conviteIp,
                      @Value("${treinos.limites.refresh-ip:120}") int refreshIp,
+                     @Value("${treinos.limites.verificacao-ip:20}") int verificacaoIp,
                      @Value("${treinos.limites.janela-segundos:600}") long janelaSegundos,
                      @Value("${plataforma.auth.login.sal:}") String sal) {
-        this.limites = new Limites(cadastroIp, conviteIp, refreshIp);
-        if (cadastroIp < 1 || conviteIp < 1 || refreshIp < 1 || janelaSegundos < 1 || janelaSegundos > 86400) {
+        this.limites = new Limites(cadastroIp, conviteIp, refreshIp, verificacaoIp);
+        if (cadastroIp < 1 || conviteIp < 1 || refreshIp < 1 || verificacaoIp < 1 || janelaSegundos < 1 || janelaSegundos > 86400) {
             throw new IllegalArgumentException("Limites de tentativas inválidos.");
         }
         this.contador = contador;
@@ -51,6 +53,23 @@ public class LimiteTentativas {
 
     public void refresh(String ip) {
         porIp("refresh-ip", ip, limites.refreshIp());
+    }
+
+    /**
+     * Verificação humana: antes de chamar a Cloudflare, recusa o IP que já gastou as falhas da janela (não conta nada, assim
+     * quem está bloqueado também não gera chamada ao siteverify).
+     */
+    public void verificacaoBloqueada(String ip) {
+        long agora = clock.millis();
+        var estado = contador.ler(chave("verificacao-ip", ip), agora);
+        if (estado.tentativas() >= limites.verificacaoIp()) {
+            throw new MuitasRequisicoesException(segundosAte(estado.ateMs(), agora));
+        }
+    }
+
+    /** Conta uma verificação humana que falhou (token ausente ou recusado); a que cruza o limite já recebe o 429. */
+    public void verificacaoFalhou(String ip) {
+        porIp("verificacao-ip", ip, limites.verificacaoIp());
     }
 
     private void porIp(String acao, String ip, int limite) {
@@ -75,6 +94,6 @@ public class LimiteTentativas {
         }
     }
 
-    private record Limites(int cadastroIp, int conviteIp, int refreshIp) {
+    private record Limites(int cadastroIp, int conviteIp, int refreshIp, int verificacaoIp) {
     }
 }

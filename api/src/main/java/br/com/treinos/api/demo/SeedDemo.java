@@ -154,7 +154,7 @@ public class SeedDemo {
 
     private void criarSaraiva(String senha) {
         Usuario treinador = criacaoDeConta.criarTreinador(
-                new CadastroTreinadorRequest("SARAIVA TEAM", "Saraiva", SARAIVA, senha));
+                new CadastroTreinadorRequest("SARAIVA TEAM", "Saraiva", SARAIVA, senha, null));
         UUID consultoria = treinador.getConsultoriaId();
         TenantContext.executarComo(consultoria, () -> {
             receitas.garantirPadrao();
@@ -396,7 +396,7 @@ public class SeedDemo {
 
     private void criarExemplo(String senha) {
         Usuario treinador = criacaoDeConta.criarTreinador(
-                new CadastroTreinadorRequest("Consultoria Exemplo", "Treinador Exemplo", EXEMPLO, senha));
+                new CadastroTreinadorRequest("Consultoria Exemplo", "Treinador Exemplo", EXEMPLO, senha, null));
         UUID consultoria = treinador.getConsultoriaId();
         TenantContext.executarComo(consultoria, () -> {
             receitas.garantirPadrao();
