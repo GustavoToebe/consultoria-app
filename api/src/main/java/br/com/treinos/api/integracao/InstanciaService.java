@@ -3,8 +3,10 @@ package br.com.treinos.api.integracao;
 import br.com.treinos.api.conta.ContaLocalRepositorio;
 import br.com.treinos.api.conta.DireitosLocais;
 import br.com.treinos.api.conta.RecursosDoApp;
+import br.com.treinos.api.equipe.ConviteEquipeEmail;
 import br.com.treinos.api.receitas.ReceitaService;
 import br.com.treinos.api.tenant.TenantContext;
+import br.com.treinos.api.web.Emails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -31,10 +33,12 @@ public class InstanciaService {
     private final ContaLocalRepositorio contas;
     private final AcessoPorDireitos acesso;
     private final ReceitaService receitas;
+    private final ConviteEquipeEmail conviteEmail;
 
     public InstanciaService(ProvisionamentoService provisionamento, DireitosService direitos,
                             IntegracaoRepositorio repositorio, ContaLocalRepositorio contas, AcessoPorDireitos acesso,
-                            ReceitaService receitas) {
+                            ReceitaService receitas, ConviteEquipeEmail conviteEmail) {
+        this.conviteEmail = conviteEmail;
         this.provisionamento = provisionamento;
         this.direitos = direitos;
         this.repositorio = repositorio;
@@ -55,7 +59,25 @@ public class InstanciaService {
         } catch (DataIntegrityViolationException corrida) {
             resultado = provisionamento.provisionar(chave, hashCorpo, r);
         }
-        return comReceitasPadrao(resultado);
+        resultado = comReceitasPadrao(resultado);
+        enviarConviteDaConsultoriaNova(resultado, r.administrador().email());
+        return resultado;
+    }
+
+    /**
+     * O convite do administrador vai por e-mail depois do commit do provisionamento, só quando esta chamada criou a
+     * consultoria ({@code consultoriaNova} nulo em repetição e adoção: a Central repete o pedido e ninguém recebe duas
+     * vezes). E-mail desligado ou falha do provedor não desfazem nada: o {@link ConviteEquipeEmail} engole a falha e só
+     * registra a classe do erro. O link continua na resposta para a Central.
+     */
+    private void enviarConviteDaConsultoriaNova(ProvisionamentoService.Resultado resultado, String email) {
+        if (resultado.consultoriaNova() == null) {
+            return;
+        }
+        String link = resultado.corpo().path("administrador").path("convite").path("link").asString();
+        if (!link.isBlank()) {
+            conviteEmail.enviar(Emails.normalizar(email), link);
+        }
     }
 
     /**
@@ -82,8 +104,11 @@ public class InstanciaService {
         return resultado;
     }
 
+    /** Novo link para o administrador; o e-mail sai depois do commit da reemissão (e o link volta para a Central). */
     public ProvisionamentoService.ConviteEmitido reemitirConvite(UUID consultoriaId) {
-        return provisionamento.reemitirConviteDoAdministrador(consultoriaId);
+        var reemissao = provisionamento.reemitirConviteDoAdministrador(consultoriaId);
+        conviteEmail.enviar(reemissao.email(), reemissao.convite().link());
+        return reemissao.convite();
     }
 
     public DireitosService.Resultado aplicarDireitos(UUID consultoriaId, DireitosInstancia d) {

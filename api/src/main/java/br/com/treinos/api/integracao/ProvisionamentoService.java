@@ -42,6 +42,9 @@ public class ProvisionamentoService {
 
     public record ConviteEmitido(String link, Instant expiraEm) { }
 
+    /** O e-mail do administrador acompanha o convite só por dentro da API: a resposta para a Central é o {@link ConviteEmitido}. */
+    public record Reemissao(ConviteEmitido convite, String email) { }
+
     private final IntegracaoRepositorio repositorio;
     private final ContaLocalRepositorio contas;
     private final ConsultoriaRepository consultorias;
@@ -132,14 +135,14 @@ public class ProvisionamentoService {
      * administrador.
      */
     @Transactional
-    public ConviteEmitido reemitirConviteDoAdministrador(UUID consultoriaId) {
+    public Reemissao reemitirConviteDoAdministrador(UUID consultoriaId) {
         if (repositorio.consultoria(consultoriaId).isEmpty() || contas.direitos(consultoriaId).isEmpty()) {
             throw IntegracaoException.instanciaNaoEncontrada();
         }
         var pendente = repositorio.convitePendenteDoAdministrador(consultoriaId).orElseThrow(
                 () -> new ConflictException("O administrador desta consultoria já tem acesso.", "ADMINISTRADOR_JA_ATIVO"));
         repositorio.apagarConvitesPendentesDoAdministrador(consultoriaId);
-        return emitirConvite(consultoriaId, pendente.nome(), pendente.email());
+        return new Reemissao(emitirConvite(consultoriaId, pendente.nome(), pendente.email()), pendente.email());
     }
 
     private ConviteEmitido emitirConvite(UUID consultoriaId, String nome, String email) {

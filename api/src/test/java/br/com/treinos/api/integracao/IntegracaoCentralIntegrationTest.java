@@ -2,6 +2,7 @@ package br.com.treinos.api.integracao;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.EmailDeTeste;
 import br.com.treinos.api.receitas.ReceitaService;
 import br.com.treinos.api.tenant.TenantContext;
 import com.sun.net.httpserver.HttpServer;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
@@ -40,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -434,6 +437,75 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         // Já tem acesso: não há mais o que reemitir.
         assertThat(central("POST", "/integracao/v1/instancias/" + tenant + "/convite-administrador", null, null)
                 .getResponse().getStatus()).isEqualTo(409);
+    }
+
+    // ---- convite do administrador por e-mail ----
+
+    @Test
+    void conviteDaConsultoriaNovaVaiPorEmailUmaVezSoEORespostaNaoMuda() throws Exception {
+        UUID contratacao = UUID.randomUUID();
+        String email = ApiDeTeste.emailUnico("admin-email");
+        Map<String, Object> corpo = pedido(contratacao, email.toUpperCase(java.util.Locale.ROOT), slugUnico());
+        JsonNode resposta = central("POST", "/integracao/v1/instancias", corpo, contratacao, 201);
+
+        // Contrato v1 intacto: o link continua na primeira resposta e é o mesmo do e-mail.
+        String link = resposta.path("administrador").path("convite").path("link").asString();
+        assertThat(link).contains("/convite-equipe#");
+        await().atMost(Duration.ofSeconds(15)).until(() -> !EmailDeTeste.para(email).isEmpty());
+        var mensagem = EmailDeTeste.para(email).get(0);
+        assertThat(mensagem.texto()).contains(link).doesNotContain("Admin Teste");
+
+        // A Central repete o pedido (1 min, 5 min...): a repetição não manda outro e-mail.
+        assertThat(central("POST", "/integracao/v1/instancias", corpo, contratacao).getResponse().getStatus()).isEqualTo(200);
+        await().during(Duration.ofMillis(700)).atMost(Duration.ofSeconds(5))
+                .until(() -> EmailDeTeste.para(email).size() == 1);
+
+        // O código do e-mail aceita o convite.
+        api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null, Map.of("senha", ApiDeTeste.SENHA), 200);
+    }
+
+    @Test
+    void adocaoDeConsultoriaExistenteNaoMandaConvitePorEmail() throws Exception {
+        String email = ApiDeTeste.emailUnico("adocao-email");
+        api.cadastrarTreinador(email);
+        UUID contratacao = UUID.randomUUID();
+
+        central("POST", "/integracao/v1/instancias", pedido(contratacao, email, slugUnico()), contratacao, 201);
+
+        await().during(Duration.ofMillis(700)).atMost(Duration.ofSeconds(5)).until(() -> EmailDeTeste.para(email).isEmpty());
+    }
+
+    @Test
+    void reemissaoDoConviteVaiPorEmailComOLinkNovo() throws Exception {
+        UUID contratacao = UUID.randomUUID();
+        String email = ApiDeTeste.emailUnico("reemite-email");
+        JsonNode resposta = provisionar(contratacao, email);
+        UUID tenant = UUID.fromString(resposta.path("tenantId").asString());
+        await().atMost(Duration.ofSeconds(15)).until(() -> EmailDeTeste.para(email).size() == 1);
+
+        JsonNode novo = central("POST", "/integracao/v1/instancias/" + tenant + "/convite-administrador", null, null, 201);
+
+        await().atMost(Duration.ofSeconds(15)).until(() -> EmailDeTeste.para(email).size() == 2);
+        assertThat(EmailDeTeste.para(email).get(1).texto()).contains(novo.path("link").asString());
+        assertThat(List.copyOf(novo.propertyNames())).containsExactlyInAnyOrder("link", "expiraEm");
+    }
+
+    @Test
+    void falhaDoProvedorDeEmailNaoDesfazOProvisionamento() throws Exception {
+        EmailDeTeste.FALHAR.set(true);
+        try {
+            UUID contratacao = UUID.randomUUID();
+            String email = ApiDeTeste.emailUnico("falha-email");
+
+            JsonNode resposta = provisionar(contratacao, email);
+
+            assertThat(resposta.path("administrador").path("convite").path("link").asString()).contains("/convite-equipe#");
+            assertThat(EmailDeTeste.para(email)).isEmpty();
+            // Convite válido mesmo sem o e-mail: o administrador entra pelo link da resposta.
+            api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        } finally {
+            EmailDeTeste.FALHAR.set(false);
+        }
     }
 
     @Test

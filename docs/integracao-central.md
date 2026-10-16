@@ -47,13 +47,15 @@ Gerar um segredo: `openssl rand -base64 48`.
   adota a consultoria errada**. Por isso uma consultoria já ligada a uma contratação recusa outra
   (`409 CONSULTORIA_JA_VINCULADA`). E-mail de aluno ou de usuário inativo: `422 ADMINISTRADOR_INVALIDO`. Slug já usado:
   `422 SLUG_EM_USO`.
-- **Primeiro acesso por link, sem e-mail.** O convite do provisionamento **não** é enviado por e-mail (o app já envia "esqueci a
-  senha" e o convite de equipe, mas não este). Consultoria nova ganha um convite de administrador
-  (válido 7 dias). O link (`{APP_URL}/convite-equipe#código`) vem **uma única vez**, na primeira resposta, em
+- **Primeiro acesso por link, também por e-mail.** Consultoria nova ganha um convite de administrador
+  (válido 7 dias) que o app **também envia por e-mail** ao administrador (módulo `auth`, texto fixo só com o link, depois do
+  commit do provisionamento), quando `TREINOS_EMAIL_HABILITADO` está ligado; o mesmo vale para o convite reemitido. Só a
+  chamada que cria a consultoria envia: repetição idempotente e adoção (`VINCULADO`) não mandam nada. Falha do provedor não
+  desfaz o provisionamento (só a classe do erro vai para o log) e a resposta para a Central não muda. O link (`{APP_URL}/convite-equipe#código`) vem **uma única vez**, na primeira resposta, em
   `administrador.convite` (campo aditivo; a Central ignora o que não conhece). Não é gravado em repouso e não volta numa
   repetição idempotente. Para ver de novo: `POST /integracao/v1/instancias/{tenantId}/convite-administrador` (extensão do
   Saraiva, fora do contrato v1): invalida o anterior e devolve um novo, enquanto o administrador não aceitou.
-  `409 ADMINISTRADOR_JA_ATIVO` depois disso. Hoje o link é entregue por quem opera a Central, no painel dela ou por fora.
+  `409 ADMINISTRADOR_JA_ATIVO` depois disso. Com o e-mail desligado, o link continua sendo entregue por quem opera a Central.
 - **Idempotência.** `Idempotency-Key` igual ao `contratacaoId`; mesma chave com o mesmo corpo devolve `200` +
   `Idempotency-Replayed: true`; com outro corpo, `409`. Duas chamadas simultâneas: a perdedora refaz e cai no replay.
 - A consultoria da demonstração local (com linha em `direitos_locais` vinda do seed antigo) responde
@@ -117,7 +119,6 @@ e o `atualizar.sh` estão em `central-api-back/deploy` (`apps/consultoria/`, `pr
 ## 7. Fora de escopo (não feito)
 
 - Código de suporte (`/suporte`), endpoint de consumo para a Central (`/consumo`) e relatório de erros (`/erros`).
-- Envio por e-mail do convite do provisionamento (sai como link na resposta; "esqueci a senha" e o convite de equipe já saem por e-mail).
 - Aplicação dos `limites` e das `funcionalidades` (o contrato chama de "aplicação futura").
 
 ## 8. Testes
