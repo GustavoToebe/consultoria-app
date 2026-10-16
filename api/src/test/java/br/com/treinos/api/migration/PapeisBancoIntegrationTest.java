@@ -84,7 +84,8 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
                         "DB_URL=" + urlDe(banco), "DB_USUARIO=" + app, "DB_SENHA=" + SENHA_APP,
                         "MIGRATION_DB_USER=" + migrador, "MIGRATION_DB_PASSWORD=" + SENHA_MIGRADOR,
                         "PLATAFORMA_PAPEL_APP=" + app)
-                .run();
+                // Argumento de linha de comando vence o application-test.yml: padrão de produção, fotos desligadas.
+                .run("--treinos.fotos.habilitado=false");
     }
 
     private void assertHistoricosFechadosParaOApp(String banco, String app) throws SQLException {
@@ -200,7 +201,7 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
             var primeira = Flyway.configure().dataSource(urlDe(banco), migrador, SENHA_MIGRADOR).locations("classpath:db/migration")
                     .placeholders(papel).load().migrate();
             assertThat(primeira.success).isTrue();
-            assertThat(primeira.migrationsExecuted).isEqualTo(6);
+            assertThat(primeira.migrationsExecuted).isEqualTo(7);
             try (Connection c = como(banco, app, SENHA_APP); Statement st = c.createStatement()) {
                 assertThatThrownBy(() -> st.executeQuery("SELECT * FROM flyway_schema_history")).hasMessageContaining("permission denied");
             }

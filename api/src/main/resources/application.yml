@@ -32,8 +32,9 @@ spring:
       papelApp: ${PLATAFORMA_PAPEL_APP:}
   servlet:
     multipart:
-      # Logo da consultoria: até 512 KiB.
-      max-file-size: 512KB
+      # Até 1 MiB, igual ao limite do corpo da requisição: cabe a foto de atualização (FotoService.BYTES_MAXIMO). O logo da
+      # consultoria continua limitado a 512 KiB no MarcaService.
+      max-file-size: 1MB
       max-request-size: 1MB
 
 treinos:
@@ -52,6 +53,15 @@ treinos:
     produto: ${TREINOS_INTEGRACAO_PRODUTO:TREINOS}
     tolerancia-horas: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:72}
     bloqueio-ativo: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:false}
+  # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
+  # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
+  fotos:
+    habilitado: ${TREINOS_FOTOS_HABILITADO:false}
+    endpoint: ${TREINOS_FOTOS_ENDPOINT:}
+    bucket: ${TREINOS_FOTOS_BUCKET:}
+    chave: ${TREINOS_FOTOS_CHAVE:}
+    segredo: ${TREINOS_FOTOS_SEGREDO:}
+    regiao: ${TREINOS_FOTOS_REGIAO:auto}
 
 # Coleta de métricas (docs/biblioteca-comum.md): fechada sem um token de 32 a 128 caracteres [A-Za-z0-9_-].
 monitoramento:

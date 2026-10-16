@@ -117,7 +117,10 @@ const M = (extra = {}) => E('m', { tipo: 'MULTIPLA_ESCOLHA', ...extra });
 const N = (extra = {}) => ({ id: 'n', tipo: 'NUMERO', rotulo: 'n', obrigatoria: false, ...extra });
 const S = (extra = {}) => ({ id: 's', tipo: 'SIM_NAO', rotulo: 's', obrigatoria: false, ...extra });
 const respostas = [];
-const r = (nome, modelo, resp, campos = []) => respostas.push({ nome, modelo, respostas: resp, camposComErro: [...campos].sort() });
+// fotosLigadas (padrão true): com as fotos desligadas na API a pergunta FOTOS é ignorada.
+const r = (nome, modelo, resp, campos = [], extra = {}) => respostas.push({ nome, modelo, respostas: resp, camposComErro: [...campos].sort(), ...extra });
+const F = (extra = {}) => ({ id: 'f', tipo: 'FOTOS', rotulo: 'f', obrigatoria: false, ...extra });
+const U = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
 r('escolha_unica_valida', Q(E('e')), { e: 'a' });
 r('escolha_unica_opcao_inexistente', Q(E('e')), { e: 'z' }, ['e']);
@@ -154,6 +157,19 @@ r('notas_por_dia_dia_fora', Q({ id: 'd', tipo: 'NOTAS_POR_DIA', rotulo: 'd', obr
 r('resposta_desconhecida_e_ignorada', Q(E('e')), { e: 'a', fantasma: 'x' });
 r('tipo_desconhecido_respondido', Q({ id: 'x', tipo: 'TIPO_NOVO', rotulo: 'x', obrigatoria: false }), { x: 'a' }, ['x']);
 r('tipo_desconhecido_sem_resposta', Q({ id: 'x', tipo: 'TIPO_NOVO', rotulo: 'x', obrigatoria: false }), {});
+r('fotos_validas', Q(F()), { f: [U(1), U(2)] });
+r('fotos_no_limite', Q(F()), { f: [1, 2, 3, 4, 5, 6].map(U) });
+r('fotos_acima_do_limite', Q(F()), { f: [1, 2, 3, 4, 5, 6, 7].map(U) }, ['f']);
+r('fotos_obrigatoria_ausente', Q(F({ obrigatoria: true })), {}, ['f']);
+r('fotos_vazia_obrigatoria', Q(F({ obrigatoria: true })), { f: [] }, ['f']);
+r('fotos_vazia_opcional', Q(F()), { f: [] });
+r('fotos_repetida', Q(F()), { f: [U(1), U(1)] }, ['f']);
+r('fotos_repetida_em_maiuscula', Q(F()), { f: [U(10), U(10).toUpperCase()] }, ['f']);
+r('fotos_nao_e_uuid', Q(F()), { f: ['foto.jpg'] }, ['f']);
+r('fotos_item_nao_texto', Q(F()), { f: [1] }, ['f']);
+r('fotos_nao_e_lista', Q(F()), { f: U(1) }, ['f']);
+r('fotos_desligadas_ignora_a_pergunta', Q(F({ obrigatoria: true })), { f: 'lixo' }, [], { fotosLigadas: false });
+r('fotos_desligadas_sem_resposta_obrigatoria', Q(F({ obrigatoria: true })), {}, [], { fotosLigadas: false });
 
 writeFileSync(`${SAIDA}/respostas.json`, JSON.stringify(respostas, null, 1) + '\n');
 
@@ -162,7 +178,7 @@ const limites = {
   rotuloTamanho: 200, ajudaTamanho: 300, rotuloCurtoTamanho: 20, opcoesMinimo: 2, opcoesMaximo: 20, opcaoTamanho: 80,
   unidadeTamanho: 12, casasMaximo: 2, diasMaximo: 7, diaValorMaximo: 14, destaquesMaximo: 4, textoCurtoCapacidade: 500,
   textoLongoCapacidade: 2000, capacidadeDeTextoTotal: 40000, rascunhoBytes: 262144, respostasBytes: 262144, idTamanho: 40,
-  numeroAbsoluto: 1000000000,
+  numeroAbsoluto: 1000000000, fotosPorPergunta: 6,
 };
 writeFileSync(`${SAIDA}/limites.json`, JSON.stringify(limites, null, 1) + '\n');
 console.log(`${casos.length} casos de questionário, ${respostas.length} de respostas`);

@@ -69,6 +69,7 @@ class ParidadeQuestionarioTest {
         daqui.put("respostasBytes", LimitesQuestionario.RESPOSTAS_BYTES);
         daqui.put("idTamanho", LimitesQuestionario.ID_TAMANHO);
         daqui.put("numeroAbsoluto", LimitesQuestionario.NUMERO_ABSOLUTO);
+        daqui.put("fotosPorPergunta", LimitesQuestionario.FOTOS_POR_PERGUNTA);
 
         JsonNode fixture = fixture("limites.json");
         Map<String, Integer> esperado = new LinkedHashMap<>();
@@ -94,7 +95,7 @@ class ParidadeQuestionarioTest {
             TreeSet<String> esperado = new TreeSet<>(lista(caso.path("camposComErro")));
             TreeSet<String> obtido = new TreeSet<>();
             try {
-                respostas.validar(caso.path("modelo"), caso.path("respostas"));
+                respostas.validar(caso.path("modelo"), caso.path("respostas"), caso.path("fotosLigadas").asBoolean(true));
             } catch (ValidacaoException e) {
                 e.getProblemas().stream().map(ApiError.FieldError::field).forEach(obtido::add);
             }

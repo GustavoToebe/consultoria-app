@@ -10,6 +10,7 @@ import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.dieta.PlanoDietaVersaoRepository;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
+import br.com.treinos.api.fotos.FotoService;
 import br.com.treinos.api.lesoes.LesaoRepository;
 import br.com.treinos.api.privacidade.PrivacidadeDtos.AnonimizarRequest;
 import br.com.plataforma.comum.web.ApiError;
@@ -45,11 +46,13 @@ public class AnonimizacaoService {
     private final PlanoDietaRepository dietas;
     private final PlanoDietaVersaoRepository versoesDeDieta;
     private final AnonimizacaoRepositorio nativo;
+    private final FotoService fotos;
 
     public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
                                LesaoRepository lesoes, AtualizacaoRepository atualizacoes, PlanoDietaRepository dietas,
-                               PlanoDietaVersaoRepository versoesDeDieta, AnonimizacaoRepositorio nativo) {
+                               PlanoDietaVersaoRepository versoesDeDieta, AnonimizacaoRepositorio nativo,
+                               FotoService fotos) {
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
@@ -60,6 +63,7 @@ public class AnonimizacaoService {
         this.dietas = dietas;
         this.versoesDeDieta = versoesDeDieta;
         this.nativo = nativo;
+        this.fotos = fotos;
     }
 
     @Transactional
@@ -88,6 +92,8 @@ public class AnonimizacaoService {
         versoesDeDieta.flush();
         dietas.deleteAll(dietas.findByAlunoIdOrderByCriadoEmDesc(alunoId));
         dietas.flush();
+        // Fotos de corpo: saem do ar na hora e o bucket é esvaziado pela fila de remoção (HTTP fora desta transação).
+        fotos.removerTodasDoAluno(alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
         nativo.apagarNomesDosTitulos(consultoriaId, alunoId);
 

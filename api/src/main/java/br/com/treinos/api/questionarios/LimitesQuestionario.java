@@ -24,6 +24,8 @@ public final class LimitesQuestionario {
     public static final int DIAS_MAXIMO = 7;
     public static final int DIA_VALOR_MAXIMO = 14;
     public static final int DESTAQUES_MAXIMO = 4;
+    /** Fotos por pergunta FOTOS (o limite por dia e o tamanho de cada foto são do {@code FotoService} e vêm de {@code GET /aluno/fotos/configuracao}). */
+    public static final int FOTOS_POR_PERGUNTA = 6;
     public static final int TEXTO_CURTO_CAPACIDADE = 500;
     public static final int TEXTO_LONGO_CAPACIDADE = 2000;
     /** Soma das capacidades de TEXTO e TEXTO_LONGO: garante que as respostas cabem em {@link #RESPOSTAS_BYTES}. */

@@ -22,5 +22,7 @@ public abstract class AbstractIntegrationTest {
     @DynamicPropertySource
     static void datasourceProperties(DynamicPropertyRegistry registry) {
         PostgresDeTeste.registrar(registry, POSTGRES);
+        // Fotos ligadas em todos os testes, num MinIO de teste; o modo desligado tem a sua classe (FotosDesligadasIntegrationTest).
+        MinioDeTeste.registrar(registry);
     }
 }

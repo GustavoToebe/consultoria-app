@@ -50,7 +50,9 @@ class ArquiteturaTest {
      * {@code IntegracaoRepositorio} (nonce, operações idempotentes e provisionamento da integração com a Central: roda
      * fora do tenant, e todo método recebe e filtra {@code consultoria_id});
      * {@code AnonimizacaoRepositorio} (anonimização do aluno: limpa texto livre de {@code execucao_serie} e títulos de versões,
-     * que a JPA trata como imutáveis; todo método filtra {@code consultoria_id} e {@code aluno_id}).
+     * que a JPA trata como imutáveis; todo método filtra {@code consultoria_id} e {@code aluno_id});
+     * {@code FotoRemocaoRepositorio} (fila durável de remoção das fotos no bucket e limpeza das fotos pendentes vencidas: roda no job, sem tenant,
+     * e só mexe em ids de objeto e em linhas ainda não ligadas a nenhuma atualização; nenhum método devolve dado de pessoa).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of(
             "br.com.treinos.api.auth.ContadorBanco",
@@ -61,7 +63,8 @@ class ArquiteturaTest {
             "br.com.treinos.api.auditoria.AuditoriaGravacao",
             "br.com.treinos.api.conta.ContaLocalRepositorio",
             "br.com.treinos.api.integracao.IntegracaoRepositorio",
-            "br.com.treinos.api.privacidade.AnonimizacaoRepositorio");
+            "br.com.treinos.api.privacidade.AnonimizacaoRepositorio",
+            "br.com.treinos.api.fotos.FotoRemocaoRepositorio");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario}
@@ -131,7 +134,7 @@ class ArquiteturaTest {
         classes().that().areAnnotatedWith(RestController.class)
                 .and(DescribedPredicate.describe("rotas da equipe (exceto /eu, /eu/mfa e /termos, que são da própria conta, e rotas públicas/aluno)",
                         (JavaClass c) -> !CONTROLLERS_PUBLICOS.contains(c.getSimpleName())
-                                && !Set.of("EuController", "MfaController", "TermosController", "AlunoAppController", "AtualizacaoAlunoController").contains(c.getSimpleName())))
+                                && !Set.of("EuController", "MfaController", "TermosController", "AlunoAppController", "AtualizacaoAlunoController", "FotoAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

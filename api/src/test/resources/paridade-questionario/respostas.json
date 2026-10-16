@@ -930,5 +930,320 @@
   },
   "respostas": {},
   "camposComErro": []
+ },
+ {
+  "nome": "fotos_validas",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_no_limite",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000005",
+    "00000000-0000-4000-8000-000000000006"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_acima_do_limite",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000005",
+    "00000000-0000-4000-8000-000000000006",
+    "00000000-0000-4000-8000-000000000007"
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_obrigatoria_ausente",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {},
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_vazia_obrigatoria",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": []
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_vazia_opcional",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": []
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_repetida",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000001"
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_repetida_em_maiuscula",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000010",
+    "00000000-0000-4000-8000-000000000010"
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_nao_e_uuid",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "foto.jpg"
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_item_nao_texto",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    1
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_nao_e_lista",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": "00000000-0000-4000-8000-000000000001"
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_desligadas_ignora_a_pergunta",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": "lixo"
+  },
+  "camposComErro": [],
+  "fotosLigadas": false
+ },
+ {
+  "nome": "fotos_desligadas_sem_resposta_obrigatoria",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {},
+  "camposComErro": [],
+  "fotosLigadas": false
  }
 ]

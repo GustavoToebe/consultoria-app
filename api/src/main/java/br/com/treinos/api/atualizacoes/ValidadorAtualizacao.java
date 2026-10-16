@@ -19,14 +19,20 @@ import java.util.Set;
 public class ValidadorAtualizacao {
     private final JsonMapper json;
     public ValidadorAtualizacao(JsonMapper json) { this.json = json; }
-    public JsonNode validar(JsonNode modelo, JsonNode respostas) {
+    /** Com as fotos desligadas (padrão): a pergunta FOTOS é ignorada, como sempre foi. */
+    public JsonNode validar(JsonNode modelo, JsonNode respostas) { return validar(modelo, respostas, false); }
+    /**
+     * Com as fotos ligadas, a resposta de FOTOS é a lista de ids das fotos já enviadas (sem repetir, no máximo
+     * {@link LimitesQuestionario#FOTOS_POR_PERGUNTA}); quem as liga à atualização é o {@code FotoService}, no envio.
+     */
+    public JsonNode validar(JsonNode modelo, JsonNode respostas, boolean fotosLigadas) {
         var erros = new ArrayList<ApiError.FieldError>();
         var limpas = json.createObjectNode();
         if (respostas == null || !respostas.isObject() || json.writeValueAsString(respostas).getBytes(StandardCharsets.UTF_8).length > LimitesQuestionario.RESPOSTAS_BYTES)
             throw new ValidacaoException("Confira as respostas.", "ATUALIZACAO_INVALIDA", java.util.List.of(new ApiError.FieldError("respostas", "Respostas inválidas ou acima do limite.")));
         for (var secao : modelo.path("secoes")) for (var p : secao.path("perguntas")) {
             String id = p.path("id").asString(); String tipo = p.path("tipo").asString();
-            if ("FOTOS".equals(tipo) || "DATA_AUTOMATICA".equals(tipo)) continue;
+            if ("DATA_AUTOMATICA".equals(tipo) || ("FOTOS".equals(tipo) && !fotosLigadas)) continue;
             var v = respostas.path(id);
             boolean vazio = v.isMissingNode() || v.isNull() || (v.isString() && v.asString().isBlank()) || (v.isArray() && v.isEmpty()) || (v.isObject() && v.isEmpty());
             if (vazio) { if (p.path("obrigatoria").asBoolean(false)) erros.add(new ApiError.FieldError(id, "Preencha este campo.")); continue; }
@@ -40,13 +46,31 @@ public class ValidadorAtualizacao {
                 case "MULTIPLA_ESCOLHA" -> multiplaEscolha(p, v);
                 case "NUMERO" -> numero(p, v);
                 case "SIM_NAO" -> v.isBoolean();
+                case "FOTOS" -> fotos(v);
                 default -> false;
             };
             if (!valido) erros.add(new ApiError.FieldError(id, "Confira o formato e os limites deste campo."));
-            else limpas.set(id, v);
+            else limpas.set(id, "FOTOS".equals(tipo) ? fotosEmMinusculas(v) : v);
         }
         if (!erros.isEmpty()) throw new ValidacaoException("Confira as respostas.", "ATUALIZACAO_INVALIDA", erros);
         return limpas;
+    }
+    private static final java.util.regex.Pattern UUID_TEXTO = java.util.regex.Pattern.compile(
+            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+    /** Lista de ids (UUID) sem repetição, de 1 a {@code FOTOS_POR_PERGUNTA}. A lista vazia já foi tratada como "não respondida". */
+    private static boolean fotos(JsonNode v) {
+        if (!v.isArray() || v.size() > LimitesQuestionario.FOTOS_POR_PERGUNTA) return false;
+        Set<String> vistos = new HashSet<>();
+        for (var item : v) {
+            if (!item.isString() || !UUID_TEXTO.matcher(item.asString()).matches()) return false;
+            if (!vistos.add(item.asString().toLowerCase(java.util.Locale.ROOT))) return false;
+        }
+        return true;
+    }
+    private JsonNode fotosEmMinusculas(JsonNode v) {
+        var lista = json.createArrayNode();
+        for (var item : v) lista.add(item.asString().toLowerCase(java.util.Locale.ROOT));
+        return lista;
     }
     private static boolean nota(JsonNode v) { return v.isIntegralNumber() && v.asLong() >= 0 && v.asLong() <= 10; }
     private static Set<String> idsDasOpcoes(JsonNode pergunta) {

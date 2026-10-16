@@ -4,6 +4,7 @@ import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
+import br.com.treinos.api.fotos.FotoService;
 import br.com.treinos.api.pastas.PastaPlano;
 import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.pastas.PastaVigente;
@@ -53,11 +54,12 @@ public class AtualizacaoService {
     private final ValidadorAtualizacao validador;
     private final JsonMapper json;
     private final br.com.treinos.api.auth.UsuarioRepository usuarios;
+    private final FotoService fotos;
     public AtualizacaoService(AtualizacaoRepository atualizacoes, QuestionarioResolver questionarios,
             PastaRepository pastas, PastaVigente vigente, AlunoRepository alunos,
             RegistroPesoRepository pesos, ResumoPeriodoService resumos, ValidadorAtualizacao validador, JsonMapper json,
-            br.com.treinos.api.auth.UsuarioRepository usuarios) {
-        this.usuarios=usuarios;
+            br.com.treinos.api.auth.UsuarioRepository usuarios, FotoService fotos) {
+        this.usuarios=usuarios; this.fotos=fotos;
         this.atualizacoes = atualizacoes; this.questionarios = questionarios; this.pastas = pastas;
         this.vigente = vigente; this.alunos = alunos; this.pesos = pesos;
         this.resumos = resumos; this.validador = validador; this.json = json;
@@ -91,14 +93,25 @@ public class AtualizacaoService {
         // O app confere o id da versão que o aluno respondeu: se o treinador publicou outra no meio, recarrega.
         if (!r.questionarioVersaoId().equals(modelo.versaoId())) throw new ConflictException("O modelo mudou. Recarregue o formulário.", "MODELO_ATUALIZACAO_ALTERADO");
         JsonNode conteudo = json.readTree(modelo.conteudo());
-        JsonNode respostas = validador.validar(conteudo, r.respostas());
+        JsonNode respostas = validador.validar(conteudo, r.respostas(), fotos.ligadas());
         if (atual == null) atual = new Atualizacao(alunoId,pasta.getId(),data);
         atual.enviar(json.writeValueAsString(respostas), Instant.now(), modelo.versaoId());
         atualizacoes.saveAndFlush(atual);
+        ligarFotos(conteudo, respostas, alunoId, pasta.getId(), atual.getId());
         // O peso vem da pergunta do tipo PESO (se o questionário tiver e o aluno tiver respondido).
         var respostaPeso = respostas.path(idDaPergunta(conteudo, "PESO"));
         if (respostaPeso.isNumber()) gravarPeso(eu, alunoId, data, respostaPeso.decimalValue());
         return detalhe(pasta,atual);
+    }
+    /** As fotos da resposta FOTOS deixam de ser pendentes e passam a fazer parte desta atualização, na mesma transação. */
+    private void ligarFotos(JsonNode conteudo, JsonNode respostas, UUID alunoId, UUID pastaId, UUID atualizacaoId) {
+        if (!fotos.ligadas()) return;
+        for (var secao : conteudo.path("secoes")) for (var p : secao.path("perguntas")) {
+            if (!"FOTOS".equals(p.path("tipo").asString())) continue;
+            String perguntaId = p.path("id").asString();
+            List<UUID> ids = respostas.path(perguntaId).valueStream().map(n -> UUID.fromString(n.asString())).toList();
+            if (!ids.isEmpty()) fotos.ligar(alunoId, pastaId, atualizacaoId, perguntaId, ids);
+        }
     }
     private static String idDaPergunta(JsonNode conteudo, String tipo) {
         for (var secao : conteudo.path("secoes")) for (var p : secao.path("perguntas"))

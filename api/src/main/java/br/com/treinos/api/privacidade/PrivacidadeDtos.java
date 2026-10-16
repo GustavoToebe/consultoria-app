@@ -1,5 +1,6 @@
 package br.com.treinos.api.privacidade;
 
+import br.com.treinos.api.fotos.FotoService;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.DiaDeTreino;
@@ -31,7 +32,8 @@ public final class PrivacidadeDtos {
 
     public record AtualizacaoExportada(UUID id, UUID pastaId, LocalDate dataAtualizacao, String estado,
                                        UUID questionarioVersaoId, JsonNode respostas, Instant enviadaEm,
-                                       LocalDate atrasoAte, String atrasoMotivo, String feedback, Instant feedbackEm) { }
+                                       LocalDate atrasoAte, String atrasoMotivo, String feedback, Instant feedbackEm,
+                                       List<FotoService.FotoExportada> fotos) { }
 
     /**
      * Tudo o que a consultoria guarda do aluno e que quem exporta pode ler. Seção que a pessoa não pode ler fica fora
