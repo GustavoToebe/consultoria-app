@@ -13,6 +13,8 @@ export const CHAVE_FILAS_RETIDAS = 'treinos:filasRetidas';
 interface Dependencias {
   kv?: ChaveValor;
   abrir?: (usuarioId: string) => RepositorioLocal;
+  /** Quem acabou de entrar: o `AlunoProvider` dele cuida da própria fila (prazo e retomada), a varredura não mexe. */
+  exceto?: string;
 }
 
 async function ler(kv: ChaveValor): Promise<string[]> {
@@ -41,12 +43,16 @@ export async function registrarFilaRetida(usuarioId: string, { kv = asyncStorage
  * envio é só do `Sincronizador` do usuário que está com sessão. Quem já não tem fila (vencida, retomada ou apagada)
  * sai da lista. Falha em um usuário não impede os outros. Devolve quantas filas apagou.
  */
-export async function varrerFilasRetidas({ kv = asyncStorage, abrir }: Dependencias = {}): Promise<number> {
+export async function varrerFilasRetidas({ kv = asyncStorage, abrir, exceto }: Dependencias = {}): Promise<number> {
   const abrirDe = abrir ?? ((id: string) => abrirRepositorio(id, novoUid));
   const ids = await ler(kv);
   let apagadas = 0;
   const seguem: string[] = [];
   for (const id of ids) {
+    if (id === exceto) {
+      seguem.push(id);
+      continue;
+    }
     const repositorio = abrirDe(id);
     try {
       const situacao = await repositorio.descartarFilaRetidaVencida();

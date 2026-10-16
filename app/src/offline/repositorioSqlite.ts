@@ -321,21 +321,29 @@ export class RepositorioSqlite implements RepositorioLocal {
     return resultado;
   }
 
+  /**
+   * Tira do banco tudo o que é dado da pessoa, menos os registros. `secure_delete` vai dentro da transação porque o
+   * expo-sqlite a roda em outra conexão; ele faz as páginas liberadas serem zeradas, sem resto legível no arquivo.
+   */
+  private async apagarDadosDaPessoa(t: BancoSql): Promise<void> {
+    await t.executar('pragma secure_delete = on');
+    await t.rodar('delete from kv');
+    await t.rodar('delete from carga_trabalho');
+  }
+
   reterSoAFila(): Promise<number> {
     const executar = async () => {
       if (this.encerrado) return 0;
       const { banco } = await this.abrir();
-      // O que sai é sobrescrito nas páginas do arquivo (não fica resto legível), e o `vacuum` no fim encolhe o arquivo.
-      await banco.executar('pragma secure_delete = on');
       const retidos = await banco.transacao(async (t) => {
-        await t.rodar('delete from kv');
-        await t.rodar('delete from carga_trabalho');
+        await this.apagarDadosDaPessoa(t);
         await t.rodar("delete from registro where situacao <> 'LOCAL'");
         const { n } = (await t.primeiro<{ n: number }>('select count(*) as n from registro')) ?? { n: 0 };
         if (n > 0) await this.gravarDocumento(t, 'filaRetida', { desde: this.agora().toISOString() });
         return n;
       });
       this.encerrado = true;
+      // Os dados já saíram na transação; apagar o arquivo (sem fila) é só arrumação, e o `vacuum` encolhe o que sobrou.
       if (retidos === 0) {
         await this.fecharConexao();
         await this.fabrica.apagar(this.nome);
@@ -357,9 +365,13 @@ export class RepositorioSqlite implements RepositorioLocal {
       const marca = await this.lerDocumento<MarcaDaFilaRetida>(banco, 'filaRetida');
       if (!marca) return 'nenhuma';
       if (!filaRetidaVenceu(marca.desde, this.agora())) return 'retida';
-      // Apaga o arquivo; a próxima operação cria um banco novo e vazio.
-      await this.fecharConexao();
-      await this.fabrica.apagar(this.nome);
+      // Esvazia as tabelas em vez de apagar o arquivo: outra conexão (a varredura do aparelho e o provider do mesmo
+      // usuário podem abrir o banco juntos) faria a exclusão do arquivo falhar sem aviso e a fila vencida seria enviada.
+      await banco.transacao(async (t) => {
+        await this.apagarDadosDaPessoa(t);
+        await t.rodar('delete from registro');
+      });
+      await banco.executar('vacuum').catch(() => undefined);
       return 'vencida';
     };
     const resultado = this.fila.then(executar, executar);

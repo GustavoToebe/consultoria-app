@@ -9,6 +9,7 @@ import { apagarDadosDaSessaoLocal, type MotivoDoEncerramento } from '../dominio/
 import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funcionalidadesDoPlano';
 import { pode as conferirPermissao } from '../dominio/permissoes';
 import { varrerFilasRetidas } from '../offline/filasRetidas';
+import { limparDadosDoAluno } from '../offline/limparDadosDoAluno';
 import { lerRefresh } from './armazenamentoSeguro';
 
 /**
@@ -67,6 +68,17 @@ interface ValorSessao {
 }
 
 const CHAVE_PERFIL = 'treinos:perfil';
+
+/** Id do aluno de um perfil salvo (texto do AsyncStorage); nulo se não há, está ilegível ou não é de aluno. */
+function alunoDoPerfilSalvo(salvo: string | null): string | null {
+  if (!salvo) return null;
+  try {
+    const { usuario } = JSON.parse(salvo) as Partial<Perfil>;
+    return usuario?.papel === 'ALUNO' && usuario.id ? usuario.id : null;
+  } catch {
+    return null;
+  }
+}
 const Contexto = createContext<ValorSessao | null>(null);
 
 export function SessaoProvider({ children }: { children: ReactNode }) {
@@ -90,7 +102,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     setSituacao('autenticado');
     await AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
     // Filas retidas de sessões recusadas: apaga as que passaram do prazo (de qualquer usuário; nunca envia nada).
-    void varrerFilasRetidas().catch(() => undefined);
+    void varrerFilasRetidas({ exceto: eu.usuario.id }).catch(() => undefined);
   }, []);
 
   // Um encerramento por vez: "Sair" e o servidor recusando a sessão (várias requisições podem avisar juntas) dividem
@@ -148,7 +160,13 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         if (sessao) {
           await abrir(sessao);
         } else {
+          // O servidor recusou a sessão guardada (ou ela já não existia). Com um perfil de aluno salvo, é sessão
+          // derrubada na ausência: apaga o que é dado sensível e guarda só a fila de registros não enviados.
+          const salvo = await AsyncStorage.getItem(CHAVE_PERFIL).catch(() => null);
           await AsyncStorage.removeItem(CHAVE_PERFIL).catch(() => undefined);
+          const aluno = alunoDoPerfilSalvo(salvo);
+          if (aluno) await limparDadosDoAluno(aluno, 'recusada').catch(() => undefined);
+          if (!ativo) return;
           setSituacao('anonimo');
         }
       } catch (erro) {
@@ -169,8 +187,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     };
   }, [abrir, encerrarLocal]);
 
-  // Aberta sem internet: tenta renovar quando a rede volta (e a cada 30 s). Recusada no servidor, volta para
-  // "Entrar" sem apagar os registros do aparelho (o mesmo aluno, ao entrar de novo, envia o que ficou).
+  // Aberta sem internet: tenta renovar quando a rede volta (e a cada 30 s). Recusada no servidor, é sessão derrubada:
+  // volta para "Entrar" e o aparelho guarda só a fila de registros (o mesmo aluno, ao entrar de novo, envia o que ficou).
   useEffect(() => {
     if (!offline) return;
     let ativo = true;
@@ -181,9 +199,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
           if (sessao) {
             void abrir(sessao);
           } else {
-            setPerfil(null);
-            setOffline(false);
-            setSituacao('anonimo');
+            // Recusada no servidor: o mesmo que no meio do uso (dados sensíveis saem, a fila de envio fica).
+            void encerrarLocal('recusada').catch(() => undefined);
           }
         },
         () => undefined,
@@ -198,7 +215,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       cancelarRede();
       clearInterval(relogio);
     };
-  }, [offline, abrir]);
+  }, [offline, abrir, encerrarLocal]);
 
   const recarregarPerfil=useCallback(async()=>{
     const atual=perfilAtual.current;if(!atual || atual.usuario.papel!=='TREINADOR') return;

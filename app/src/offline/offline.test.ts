@@ -414,6 +414,29 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       expect((await aparelho('bia').listar()).map((r) => r.serieUid)).toEqual(['de-bia']);
       expect(JSON.parse((await listaDeFilas.ler(CHAVE_FILAS_RETIDAS)) ?? '[]')).toEqual(['bia']);
 
+      // Quem acabou de entrar fica de fora da varredura: o provider dele é que cuida da fila.
+      const daAna = aparelho('ana', instante(t0, 0));
+      await daAna.registrar(serie('de-ana-2'));
+      await daAna.reterSoAFila();
+      await registrarFilaRetida('ana', { kv: listaDeFilas });
+      const todosVencidos = (id: string) => aparelho(id, instante(t0, 90 * DIA_MS));
+      expect(await varrerFilasRetidas({ kv: listaDeFilas, abrir: todosVencidos, exceto: 'ana' })).toBe(1);
+      expect((await aparelho('ana').listar()).map((r) => r.serieUid)).toEqual(['de-ana-2']);
+      expect(JSON.parse((await listaDeFilas.ler(CHAVE_FILAS_RETIDAS)) ?? '[]')).toEqual(['ana']);
+      await varrerFilasRetidas({ kv: listaDeFilas, abrir: todosVencidos });
+      expect(await listaDeFilas.ler(CHAVE_FILAS_RETIDAS)).toBeNull();
+    });
+
+    it('a varredura para quando a fila da Bia vence depois da da Ana', async () => {
+      const listaDeFilas = emMemoria();
+      const t0 = Date.parse('2026-10-07T12:00:00Z');
+      for (const id of ['ana', 'bia']) {
+        const repo = aparelho(id, instante(t0, id === 'ana' ? 0 : 10 * DIA_MS));
+        await repo.registrar(serie(`de-${id}`));
+        await repo.reterSoAFila();
+        await registrarFilaRetida(id, { kv: listaDeFilas });
+      }
+      await varrerFilasRetidas({ kv: listaDeFilas, abrir: (id) => aparelho(id, instante(t0, DIAS_FILA_RETIDA * DIA_MS + 1000)) });
       // Mais tarde a da Bia também vence e a lista some.
       const maisTarde = (id: string) => aparelho(id, instante(t0, 41 * DIA_MS));
       expect(await varrerFilasRetidas({ kv: listaDeFilas, abrir: maisTarde })).toBe(1);
@@ -478,7 +501,7 @@ describe('SQLite no celular', () => {
     expect(fabrica.abertas()).toBe(0);
   });
 
-  it('sessão recusada sem fila apaga o arquivo; fila vencida também', async () => {
+  it('sessão recusada sem fila apaga o arquivo; fila vencida esvazia as tabelas sem apagar o arquivo', async () => {
     const vazio = new RepositorioSqlite(fabrica, 'vazio', novoId, agora);
     await vazio.salvarDieta({ id: 'd1' } as never);
     await vazio.reterSoAFila();
@@ -491,7 +514,10 @@ describe('SQLite no celular', () => {
     expect(fabrica.nomes()).toContain('treinos-com.db');
     const tarde = new RepositorioSqlite(fabrica, 'com', novoId, () => new Date(t0 + DIAS_FILA_RETIDA * DIA_MS));
     expect(await tarde.descartarFilaRetidaVencida()).toBe('vencida');
-    expect(fabrica.nomes()).not.toContain('treinos-com.db');
+    // O arquivo fica (outra conexão aberta o faria falhar ao apagar); o que importa é estar vazio.
+    const banco = fabrica.banco('treinos-com.db');
+    expect(await banco.todos('select * from registro')).toEqual([]);
+    expect(await banco.todos('select * from kv')).toEqual([]);
   });
 
   it('transação: erro no meio não deixa metade gravada', async () => {

@@ -1,8 +1,6 @@
 import { iniciarDescanso as novoDescanso, ajustarDescanso as ajustar, terminado, type Descanso } from '../dominio/descanso';
 import { vibrar } from '../ui/vibrar';
-import { cancelarLembretesAtualizacao, iniciarLembretesAtualizacao, reagendarLembretesAtualizacao } from '../aluno/atualizacao/lembretes';
-import { esquecerConfiguracaoDeFotos } from '../aluno/atualizacao/fotos/configuracaoSalva';
-import { apagarTodasAsFotosLocais } from '../aluno/atualizacao/fotos/fotosLocais';
+import { iniciarLembretesAtualizacao, reagendarLembretesAtualizacao } from '../aluno/atualizacao/lembretes';
 import NetInfo from '@react-native-community/netinfo';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
@@ -13,7 +11,7 @@ import type { Atualizacao, ConteudoMobilidadeApi, PastaDoAluno, PlanosDaPasta, V
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
-import { registrarFilaRetida } from './filasRetidas';
+import { limparDadosDoAluno } from './limparDadosDoAluno';
 import type { DadosRegistro, PacoteSalvo, RegistroLocal, RepositorioLocal } from './repositorioLocal';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
 
@@ -248,17 +246,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   // e fica só a fila de registros ainda não enviados, para o mesmo aluno enviar ao entrar de novo (`DIAS_FILA_RETIDA`).
   useEffect(
     () =>
-      sessao.aoSair(async (id, motivo) => {
-        await cancelarLembretesAtualizacao(id).catch(()=>undefined);
-        await apagarTodasAsFotosLocais(id).catch(()=>undefined);
-        await esquecerConfiguracaoDeFotos(id);
-        const alvo = id === repositorio.usuarioId ? repositorio : abrirRepositorio(id, novoUid);
-        if (motivo === 'recusada') {
-          if ((await alvo.reterSoAFila()) > 0) await registrarFilaRetida(id);
-        } else {
-          await alvo.apagarTudo();
-        }
-      }),
+      sessao.aoSair((id, motivo) => limparDadosDoAluno(id, motivo, id === repositorio.usuarioId ? repositorio : undefined)),
     [sessao, repositorio],
   );
 
