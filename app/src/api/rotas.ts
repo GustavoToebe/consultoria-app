@@ -4,6 +4,7 @@ import type {
   Atualizacao,
   AtualizacaoDaLista,
   ConfiguracaoDeFotos,
+  ConfiguracaoPublica,
   CriarQuestionarioRequest,
   OpcaoQuestionario,
   ResultadoLote,
@@ -80,8 +81,8 @@ export const convidarMembro = (corpo:{nome:string;email:string;perfilId:string})
 export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/convites/${id}`,{metodo:'DELETE'});
 export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${id}`,{metodo:'PUT',corpo});
 export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>(`/publico/convites-equipe/${encodeURIComponent(codigo)}`,{metodo:'POST',corpo:{senha},semRenovar:true});
-/** "Esqueci a senha": a API responde 202 exista a conta ou não. */
-export const pedirRedefinicaoDeSenha = (email:string) => requisicao<void>('/auth/esqueci-senha',{metodo:'POST',corpo:{email},semRenovar:true});
+/** "Esqueci a senha": a API responde 202 exista a conta ou não. `turnstileToken` (uso único) só quando a verificação humana está ligada. */
+export const pedirRedefinicaoDeSenha = (email:string,turnstileToken?:string) => requisicao<void>('/auth/esqueci-senha',{metodo:'POST',corpo:turnstileToken?{email,turnstileToken}:{email},semRenovar:true});
 /** Com o token do link do e-mail; não abre sessão. Com MFA ativo a API pede `codigoMfa` (401 `MFA_NECESSARIO`). */
 export const redefinirSenha = (token:string,novaSenha:string,codigoMfa?:string) => requisicao<void>('/auth/redefinir-senha',{metodo:'POST',corpo:{token,novaSenha,codigoMfa},semRenovar:true});
 export const responsaveisEquipe = () => requisicao<ResponsavelEquipe[]>('/responsaveis');
@@ -147,10 +148,11 @@ export const responderAtualizacao = (id: string, texto: string, versao: number) 
 
 // ---- Sessão ----
 
-export const entrar = (email: string, senha: string, codigoMfa?: string) =>
+/** `turnstileToken`: token de uso único do widget, só quando a verificação humana está ligada (vale no 1º envio e no do MFA). */
+export const entrar = (email: string, senha: string, codigoMfa?: string, turnstileToken?: string) =>
   requisicao<LoginResponse>('/auth/login', {
     metodo: 'POST',
-    corpo: codigoMfa ? { email, senha, codigoMfa } : { email, senha },
+    corpo: { email, senha, ...(codigoMfa ? { codigoMfa } : {}), ...(turnstileToken ? { turnstileToken } : {}) },
     semRenovar: true,
   });
 
@@ -171,7 +173,7 @@ export const sairDaApi = (refreshToken: string | null) =>
     semRenovar: true,
   });
 
-export const cadastrarTreinador = (dados: { nomeConsultoria: string; nome: string; email: string; senha: string }) =>
+export const cadastrarTreinador = (dados: { nomeConsultoria: string; nome: string; email: string; senha: string; turnstileToken?: string }) =>
   requisicao<LoginResponse>('/auth/cadastro-treinador', { metodo: 'POST', corpo: dados, semRenovar: true });
 
 export const eu = () => requisicao<EuResponse>('/eu');
@@ -183,6 +185,12 @@ export const aceitarTermos = (versao: string) =>
 
 export const trocarSenha = (senhaAtual: string, senhaNova: string) =>
   requisicao<LoginResponse>('/eu/senha', { metodo: 'PUT', corpo: { senhaAtual, senhaNova } });
+
+// ---- Configuração pública ----
+
+/** O que o app precisa saber antes do login (verificação humana e a chave pública do widget). `semCache` na busca de conferência. */
+export const configuracaoPublica = (semCache = false) =>
+  requisicao<ConfiguracaoPublica>('/publico/configuracao', { semRenovar: true, semCache });
 
 // ---- Convite (público) ----
 

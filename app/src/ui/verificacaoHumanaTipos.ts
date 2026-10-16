@@ -1,0 +1,9 @@
+/** Props das duas implementações de `VerificacaoHumana` (`.tsx` celular com WebView, `.web.tsx` com o script da Cloudflare). */
+export interface PropsVerificacaoHumana {
+  /** Chave pública do widget (`GET /publico/configuracao`). */
+  siteKey: string;
+  /** Token novo (uso único) ou `null` quando o que valia expirou, deu erro ou o widget foi renovado. Nunca vai a log. */
+  onToken: (token: string | null) => void;
+  /** Muda para pedir um desafio novo (depois de cada envio: o token é de uso único). */
+  chave: number;
+}

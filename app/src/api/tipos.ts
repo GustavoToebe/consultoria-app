@@ -72,6 +72,13 @@ export interface ConvitePublico {
   primeiroNomeAluno: string;
 }
 
+/** `GET /publico/configuracao`: com `verificacaoHumana` ligada, entrar, cadastro e "esqueci a senha" pedem o `turnstileToken`. */
+export interface ConfiguracaoPublica {
+  verificacaoHumana: boolean;
+  /** Chave pública do widget (vazia com a verificação desligada). */
+  siteKey: string;
+}
+
 // ---- Marca e configuração ----
 
 export interface Configuracao {

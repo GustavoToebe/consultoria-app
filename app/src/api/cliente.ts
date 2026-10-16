@@ -103,6 +103,8 @@ export interface Opcoes {
   binario?: boolean;
   /** Prazo da chamada; o padrão é de 15 s (envio de foto em rede lenta pede mais). */
   limiteMs?: number;
+  /** Ignora o cache HTTP do navegador (a configuração pública vem com `max-age`; a conferência depois de um 400 precisa da atual). */
+  semCache?: boolean;
 }
 
 export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promise<T> {
@@ -189,6 +191,7 @@ async function enviar(caminho: string, opcoes: Opcoes): Promise<Response> {
       headers,
       body,
       credentials: WEB && daApi ? 'include' : 'omit',
+      ...(opcoes.semCache ? { cache: 'no-store' as const } : {}),
       signal: controle.signal,
     });
   } catch {

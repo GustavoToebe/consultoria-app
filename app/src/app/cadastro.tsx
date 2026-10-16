@@ -2,6 +2,7 @@ import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../dominio/verificacaoHumana';
 import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
@@ -13,10 +14,13 @@ import { errosPorCampo, textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
+import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
+import { VerificacaoHumana } from '../ui/VerificacaoHumana';
 
 /** Cadastro de treinador: cria a consultoria já com as receitas padrão. */
 export default function Cadastro() {
   const sessao = useSessao();
+  const verificacao = useVerificacaoHumana();
   const [dados, setDados] = useState({ nomeConsultoria: '', nome: '', email: '', senha: '', confirmar: '' });
   const [erro, setErro] = useState<string | null>(null);
   const [campos, setCampos] = useState<Record<string, string>>({});
@@ -37,21 +41,28 @@ export default function Cadastro() {
     if (dados.senha !== dados.confirmar) locais.confirmar = 'As senhas não conferem.';
     setCampos(locais);
     if (Object.keys(locais).length) return;
+    // O Enter nos campos chama `enviar` sem passar pelo botão desabilitado.
+    if (verificacao.aguardando) return;
     setEnviando(true);
     setErro(null);
+    let falha: unknown;
     try {
       await sessao.cadastrarTreinador({
         nomeConsultoria: dados.nomeConsultoria.trim(),
         nome: dados.nome.trim(),
         email: dados.email.trim(),
         senha: dados.senha,
+        turnstileToken: verificacao.token ?? undefined,
       });
       router.replace('/');
     } catch (e) {
-      setErro(textoDoErro(e));
+      falha = e;
+      setErro(mensagemDaVerificacao(e) ?? textoDoErro(e));
       setCampos(errosPorCampo(e));
     } finally {
       setEnviando(false);
+      // Token de uso único: gasto com a tentativa (sucesso ou erro).
+      verificacao.depoisDoEnvio(falha);
     }
   };
 
@@ -73,7 +84,11 @@ export default function Cadastro() {
         <CampoSenha rotulo="Confirmar senha" valor={dados.confirmar} aoMudar={mudar('confirmar')} erro={campos.confirmar}
           autoComplete="new-password" />
         {erro ? <MensagemErro texto={erro} /> : null}
-        <Botao rotulo="Criar conta" aoTocar={enviar} carregando={enviando} cheio />
+        {verificacao.exigida ? (
+          <VerificacaoHumana siteKey={verificacao.siteKey} onToken={verificacao.aoReceberToken} chave={verificacao.chave} />
+        ) : null}
+        <Botao rotulo={rotuloDoEnvio('Criar conta', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
+          desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} cheio />
       </Cartao>
       <View style={estilos.links}>
         <LinkTexto href="/entrar" texto="Já tenho conta" />

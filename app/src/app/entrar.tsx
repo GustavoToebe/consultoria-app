@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { normalizarCodigo, pedeCodigoMfa } from '../dominio/mfa';
+import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../dominio/verificacaoHumana';
 import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
@@ -14,10 +15,13 @@ import { textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
+import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
+import { VerificacaoHumana } from '../ui/VerificacaoHumana';
 
 /** Entrar (marca neutra: a do treinador só aparece depois do login). */
 export default function Entrar() {
   const sessao = useSessao();
+  const verificacao = useVerificacaoHumana();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   // Depois da senha, quem tem verificação em duas etapas informa o código do aplicativo (ou de recuperação).
@@ -42,19 +46,25 @@ export default function Entrar() {
       setErro('Informe o código de verificação.');
       return;
     }
+    // O Enter nos campos chama `enviar` sem passar pelo botão desabilitado.
+    if (verificacao.aguardando) return;
     setEnviando(true);
     setErro(null);
+    let falha: unknown;
     try {
-      await sessao.entrar(email, senha, pedirCodigo ? normalizarCodigo(codigo) : undefined);
+      await sessao.entrar(email, senha, pedirCodigo ? normalizarCodigo(codigo) : undefined, verificacao.token ?? undefined);
       router.replace('/');
     } catch (e) {
+      falha = e;
       if (pedeCodigoMfa(e)) {
         setPedirCodigo(true);
       } else {
-        setErro(textoDoErro(e));
+        setErro(mensagemDaVerificacao(e) ?? textoDoErro(e));
       }
     } finally {
       setEnviando(false);
+      // O token é de uso único: também o do 1º envio (que pediu o MFA) já foi gasto; o 2º espera um novo.
+      verificacao.depoisDoEnvio(falha);
     }
   };
 
@@ -75,7 +85,11 @@ export default function Entrar() {
             onSubmitEditing={enviar} returnKeyType="go" />
         ) : null}
         {erro ? <MensagemErro texto={erro} /> : null}
-        <Botao rotulo="Entrar" aoTocar={enviar} carregando={enviando} cheio />
+        {verificacao.exigida ? (
+          <VerificacaoHumana siteKey={verificacao.siteKey} onToken={verificacao.aoReceberToken} chave={verificacao.chave} />
+        ) : null}
+        <Botao rotulo={rotuloDoEnvio('Entrar', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
+          desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} cheio />
       </Cartao>
       <View style={estilos.links}>
         <LinkTexto href="/esqueci-senha" texto="Esqueci minha senha" />

@@ -130,6 +130,9 @@ const TREINADOR: Guia = {
     { pergunta: 'Mudei o questionário; e quem já respondeu?', resposta: 'Quem já enviou mantém a versão que respondeu. Quem ainda não enviou passa a ver a versão nova assim que você publica, e as respostas já digitadas que continuam valendo são mantidas. Um questionário que já foi respondido não se exclui: arquive.' },
     { pergunta: 'O aluno pediu para apagar os dados dele.', resposta: 'Inative o aluno e, na ficha, use Anonimizar (quem tem a permissão). Se ele pedir uma cópia antes, use Exportar dados.' },
     { pergunta: 'Por que há um traço "—" nas cargas?', resposta: 'O aluno não informou o valor. O app nunca inventa carga nem repetição.' },
+    { pergunta: 'Apareceu "Seu plano permite até N alunos ativos" (ou membros da equipe).', resposta: 'É o limite do plano da consultoria. Inative um aluno que não treina mais, ou veja o plano e o consumo em Minha conta (só aparece para quem tem permissão). Nada do que já existe é apagado: o limite só impede de cadastrar ou reativar além dele.' },
+    { pergunta: 'Não vejo Mobilidade, Equipe ou o botão de PDF.', resposta: 'Esses recursos dependem do plano da consultoria. Quando não estão incluídos, o app esconde o botão ou mostra "Disponível em outro plano". O que já foi feito continua guardado e legível.' },
+    { pergunta: 'A verificação de segurança não aparece ou não carrega.', resposta: 'Ao entrar, cadastrar a consultoria ou pedir nova senha, o app pede para confirmar que você é uma pessoa. Se não carregar, confira a internet, desligue bloqueadores de conteúdo da página e toque em Tentar de novo. Cada confirmação vale para um envio só: depois de um erro, espere a nova.' },
   ],
 };
 

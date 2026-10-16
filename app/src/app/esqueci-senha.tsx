@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { pedirRedefinicaoDeSenha } from '../api/rotas';
+import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../dominio/verificacaoHumana';
 import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
@@ -13,10 +14,13 @@ import { textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
+import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
+import { VerificacaoHumana } from '../ui/VerificacaoHumana';
 
 /** Pede o link de redefinição por e-mail. A resposta é a mesma exista a conta ou não: a tela nunca diz se o e-mail é conhecido. */
 export default function EsqueciSenha() {
   const sessao = useSessao();
+  const verificacao = useVerificacaoHumana();
   const [email, setEmail] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -31,15 +35,21 @@ export default function EsqueciSenha() {
       setErro('Informe o e-mail.');
       return;
     }
+    // O Enter no campo chama `enviar` sem passar pelo botão desabilitado.
+    if (verificacao.aguardando) return;
     setEnviando(true);
     setErro(null);
+    let falha: unknown;
     try {
-      await pedirRedefinicaoDeSenha(email.trim());
+      await pedirRedefinicaoDeSenha(email.trim(), verificacao.token ?? undefined);
       setPedido(true);
     } catch (e) {
-      setErro(textoDoErro(e));
+      falha = e;
+      setErro(mensagemDaVerificacao(e) ?? textoDoErro(e));
     } finally {
       setEnviando(false);
+      // Token de uso único: gasto com a tentativa (sucesso ou erro).
+      verificacao.depoisDoEnvio(falha);
     }
   };
 
@@ -64,7 +74,11 @@ export default function EsqueciSenha() {
             keyboardType="email-address" inputMode="email" textContentType="emailAddress" maxLength={254}
             onSubmitEditing={enviar} returnKeyType="send" />
           {erro ? <MensagemErro texto={erro} /> : null}
-          <Botao rotulo="Enviar link" aoTocar={enviar} carregando={enviando} cheio />
+          {verificacao.exigida ? (
+            <VerificacaoHumana siteKey={verificacao.siteKey} onToken={verificacao.aoReceberToken} chave={verificacao.chave} />
+          ) : null}
+          <Botao rotulo={rotuloDoEnvio('Enviar link', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
+            desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} cheio />
         </Cartao>
       )}
       <View style={estilos.links}>
