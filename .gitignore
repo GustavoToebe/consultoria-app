@@ -2,6 +2,10 @@ node_modules/
 target/
 __pycache__/
 .env
+.env.*
+!.env.example
+*.pem
+*.key
 deploy-local/segredos/
 .expo/
 *.pdf
