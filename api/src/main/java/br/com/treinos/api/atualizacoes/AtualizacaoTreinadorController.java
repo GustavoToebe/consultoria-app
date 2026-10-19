@@ -11,7 +11,10 @@ import java.util.UUID;
 @RestController
 public class AtualizacaoTreinadorController {
     private final AtualizacaoService atualizacoes;
-    public AtualizacaoTreinadorController(AtualizacaoService atualizacoes) { this.atualizacoes = atualizacoes; }
+    private final EvolucaoRespostasService evolucao;
+    public AtualizacaoTreinadorController(AtualizacaoService atualizacoes, EvolucaoRespostasService evolucao) {
+        this.atualizacoes = atualizacoes; this.evolucao = evolucao;
+    }
 
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/atualizacoes")
     public List<AtualizacaoService.ItemDaLista> listar(@RequestParam(defaultValue = "PARA_REVISAR") String situacao,
@@ -20,6 +23,10 @@ public class AtualizacaoTreinadorController {
     }
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/alunos/{alunoId}/atualizacoes")
     public List<AtualizacaoService.Detalhe> doAluno(@PathVariable UUID alunoId) { return atualizacoes.doAluno(alunoId); }
+
+    /** Respostas numéricas (NOTA e NUMERO) das últimas atualizações enviadas, por pergunta; mesma permissão do detalhe. */
+    @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/alunos/{alunoId}/atualizacoes/evolucao")
+    public EvolucaoRespostasService.Evolucao evolucao(@PathVariable UUID alunoId) { return evolucao.doAluno(alunoId); }
 
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')") @GetMapping("/alunos/{alunoId}/atualizacao")
     public AtualizacaoService.Detalhe atualDoAluno(@PathVariable UUID alunoId) { return atualizacoes.atualDoAluno(alunoId); }
