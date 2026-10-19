@@ -7,9 +7,11 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.CatalogoExercicioRespons
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.CatalogoPagina;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioResponse;
+import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.FatoresDoAlimento;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.web.Buscas;
 import br.com.plataforma.comum.web.ApiError;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -131,6 +134,22 @@ public class BibliotecaService {
     @Transactional(readOnly = true)
     public List<AlimentoResponse> listarAlimentos(String busca) {
         return alimentos.buscarAtivos(Buscas.padrao(busca)).stream().map(AlimentoResponse::de).toList();
+    }
+
+    /**
+     * Fatores de correção e de cocção atuais dos alimentos pedidos, para a prévia da lista de compras no editor da dieta
+     * (plano do aluno ou modelo). Mesma busca da publicação ({@code PlanoDietaService.paraPublicar}): inativos entram,
+     * porque a publicação também os copia, e alimento de outra consultoria some pelo {@code @TenantId} (como se não
+     * existisse). Id que não existe fica fora da resposta. No máximo {@value #LIMITE_MAXIMO} ids distintos por chamada.
+     */
+    @Transactional(readOnly = true)
+    public List<FatoresDoAlimento> fatoresDosAlimentos(List<UUID> ids) {
+        Set<UUID> distintos = ids == null ? Set.of() : new LinkedHashSet<>(ids);
+        if (distintos.size() > LIMITE_MAXIMO) {
+            throw new BadRequestException("Peça no máximo " + LIMITE_MAXIMO + " alimentos por vez.");
+        }
+        if (distintos.isEmpty()) return List.of();
+        return alimentos.findAllById(distintos).stream().map(FatoresDoAlimento::de).toList();
     }
 
     @Transactional

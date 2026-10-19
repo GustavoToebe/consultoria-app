@@ -358,6 +358,13 @@ export interface ConteudoTreino {
   sessoes: Sessao[];
 }
 
+/** Fatores atuais de um alimento da biblioteca (`GET /alimentos/fatores`), para a prévia da lista de compras. */
+export interface FatoresDoAlimento {
+  alimentoId: string;
+  fatorCorrecao: number | null;
+  fatorCoccao: number | null;
+}
+
 export interface ItemDieta {
   uid: string;
   alimentoId: string | null;

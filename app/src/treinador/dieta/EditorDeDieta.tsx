@@ -1,6 +1,6 @@
 import { TotaisAnimados } from '../../ui/TotaisAnimados';
 import { useLocalSearchParams } from 'expo-router';
-import { ChevronsDownUp, ChevronsUpDown, ExternalLink, Link2Off, Library, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
+import { ChevronsDownUp, ChevronsUpDown, ExternalLink, Link2Off, Library, NotebookTabs, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -19,6 +19,7 @@ import { espaco, RAIO, LARGURA_EDITOR } from '../../tema/tokens';
 import { CartaoRefeicao } from '../../treinador/dieta/CartaoRefeicao';
 import { FolhaAlimentos } from '../../treinador/dieta/FolhaAlimentos';
 import { FolhaErgogenicos } from '../../treinador/dieta/FolhaErgogenicos';
+import { FolhaListaDeCompras } from '../../treinador/dieta/FolhaListaDeCompras';
 import { FolhaSuplementos } from '../../treinador/dieta/FolhaSuplementos';
 import { FolhaReceitas } from '../../treinador/FolhaReceitas';
 import { FolhaSalvarReceita } from '../../treinador/FolhaSalvarReceita';
@@ -46,11 +47,12 @@ import { trilhaDoPlano } from '../plano/trilha';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { Folha } from '../../ui/Folha';
 
-type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'suplemento' } | { tipo: 'ergogenico' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number };
+type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tipo: 'receita' } | { tipo: 'suplemento' } | { tipo: 'ergogenico' } | { tipo: 'salvar' } | { tipo: 'refeicao' } | { tipo: 'salvarRefeicao'; indice: number } | { tipo: 'compras' };
 
 /**
  * Editor do plano de dieta, no formato dos PDFs do Saraiva. Os valores dos itens vêm da
  * biblioteca e são gravados no item; o total do dia soma só a opção A de cada refeição. Suplementação é texto livre (nome e link podem vir da biblioteca de suplementos).
+ * "Lista de compras" abre a prévia da lista do aluno sobre o que está na tela (`FolhaListaDeCompras`).
  */
 export default function EditorDeDieta({ modelo = false, unica = false }: { modelo?: boolean; unica?: boolean }) {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -146,6 +148,14 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
             }}
           />
           <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />
+          <Botao
+            rotulo="Lista de compras"
+            tipo="secundario"
+            Icone={ShoppingCart}
+            desabilitado={c.refeicoes.length === 0}
+            motivo="Adicione uma refeição primeiro."
+            aoTocar={() => setFolha({ tipo: 'compras' })}
+          />
           {c.refeicoes.length > 1 ? (
             <Botao
               rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'}
@@ -298,6 +308,9 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
         </Folha>
       ) : null}
 
+      {folha?.tipo === 'compras' ? (
+        <FolhaListaDeCompras conteudo={c} titulo={estado.titulo} aluno={modelo ? null : nomeDoAluno} aoFechar={() => setFolha(null)} />
+      ) : null}
       {folha?.tipo === 'refeicao' ? <FolhaReceitas tipo="REFEICAO" titulo="Adicionar refeição do modelo" aoFechar={() => setFolha(null)} aoUsar={(r) => {
         setFolha(null); comDesfazer('Refeição adicionada.', (a) => ({ ...a, refeicoes: [...a.refeicoes, ...aplicarReceitaDeDieta(normalizarDieta(null), r.conteudo).refeicoes] }));
       }} /> : null}

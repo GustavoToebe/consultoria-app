@@ -29,6 +29,7 @@ import type {
   SituacaoAtualizacao,
   Alimento,
   AlimentoRequest,
+  FatoresDoAlimento,
   AlunoDetalhe,
   AlunoRequest,
   CatalogoAlimento,
@@ -415,6 +416,9 @@ export const alterarExercicio = (id: string, dados: ExercicioRequest) =>
 export const inativarExercicio = (id: string) => requisicao<void>(`/exercicios/${seg(id)}`, { metodo: 'DELETE' });
 
 export const listarAlimentos = (texto?: string) => requisicao<Alimento[]>(`/alimentos${busca(texto)}`);
+/** Fatores atuais dos alimentos (até 200 ids) para a lista de compras do editor da dieta; id de fora fica sem resposta. */
+export const fatoresDosAlimentos = (ids: string[]) =>
+  requisicao<FatoresDoAlimento[]>(`/alimentos/fatores?ids=${ids.map(seg).join(',')}`);
 export const criarAlimento = (dados: AlimentoRequest) =>
   requisicao<Alimento>('/alimentos', { metodo: 'POST', corpo: dados });
 export const alterarAlimento = (id: string, dados: AlimentoRequest) =>
