@@ -99,10 +99,34 @@ Teste também num celular simples (pouca memória): abrir o app, trocar de aba e
     conferir que chegam; negar a permissão e conferir que o app segue funcionando.
 16. [ ] **PDF** (treino, dieta com a água, mobilidade, cargas): gerar e abrir o compartilhar do celular.
 
+### Novidades de 19/10
+17. [ ] **Técnicas no treino do aluno:** drop-set, bi-set/supersérie, tri-set e circuito aparecem com a faixa do grupo
+    (sem descanso entre os exercícios ligados); cadência e isometria aparecem por extenso no exercício; "Iniciar pausa de
+    N s" das técnicas usa o mesmo descanso. O aluno continua registrando a série inteira.
+18. [ ] **Lista de compras** (dieta com alimentos que têm FC/FCc na biblioteca): Dieta › "Lista de compras", trocar
+    Semana/Mês e a opção de cada refeição; sem fator vale a quantidade da dieta; sem internet a lista continua; o PDF abre
+    o compartilhar.
+19. [ ] **Anamnese:** com uma anamnese enviada pelo treinador (web), o cartão "Responda sua anamnese" aparece no Início;
+    responder os tipos novos (data, telefone, e-mail, grade, aceite, informativo com imagem), ver a pergunta condicional
+    aparecer e sumir, anexar uma foto (câmera e galeria; a foto não vai para a galeria), sair no meio (o rascunho fica),
+    voltar e enviar. Sem internet, o envio espera e avisa.
+20. [ ] **Inscrição por link:** abrir no navegador do celular o link `/inscricao/<código>` (ligado na web, em
+    Interessados) e enviar uma inscrição fictícia: o desafio do Turnstile (se ligado) e o teclado não cobrem os campos.
+21. [ ] **Excluir a própria conta** (aluno de teste descartável, **nunca** o "teste" que serve para o resto): Conta ›
+    "Excluir minha conta" pede a senha e a palavra de confirmação no painel da tela; depois o app volta para "Entrar" e o login antigo não
+    funciona mais. Nada de treino ou foto fica no aparelho.
+
+Do lado do treinador (web, uma vez, depois do teste do aluno):
+- [ ] Ficha do aluno › **Evolução das respostas**: as notas e números das atualizações enviadas aparecem por pergunta
+  (gráfico com 2 ou mais pontos e a lista das datas); sem resposta, "Nenhuma resposta numérica ainda.".
+- [ ] Editor da dieta › **Lista de compras**: a folha mostra o selo "Prévia" e a mesma lista que o aluno vê depois de
+  publicar.
+- [ ] Ficha do aluno › **Anamnese**: as respostas do item 19, a foto e "Marcar como revisada".
+
 ### Fim
-17. [ ] Perfil › Preferências: tema claro/escuro, tamanho do texto e vibração.
-18. [ ] **Sair da conta** com treino não enviado: o painel avisa "Você tem N treinos ainda não enviados".
-19. [ ] Abrir o app sem internet depois de já ter entrado: o plano aparece (modo offline).
+22. [ ] Perfil › Preferências: tema claro/escuro, tamanho do texto e vibração.
+23. [ ] **Sair da conta** com treino não enviado: o painel avisa "Você tem N treinos ainda não enviados".
+24. [ ] Abrir o app sem internet depois de já ter entrado: o plano aparece (modo offline).
 
 Qualquer erro: `npx eas-cli build:list` e o log da build no site da Expo; erro do app em execução, `adb logcat`.
 
