@@ -734,6 +734,22 @@ export interface Atualizacao {
   versao: number | null;
   resumo: { diasComTreino: number; mediaDiasPorSemana: number | null; pesoAnterior: number | null } | null;
 }
+/**
+ * `GET /alunos/{id}/atualizacoes/evolucao`: respostas NOTA e NUMERO das últimas `limite` atualizações enviadas ou
+ * revisadas, uma série por id de pergunta (rótulo, unidade e casas da versão mais recente). Sem resposta não é ponto.
+ */
+export interface PontoDeResposta { atualizacaoId: string; data: string; valor: number }
+export interface SerieDeResposta {
+  perguntaId: string;
+  tipo: 'NOTA' | 'NUMERO';
+  rotulo: string;
+  rotuloCurto: string | null;
+  unidade: string | null;
+  casas: number | null;
+  /** Do mais antigo ao mais novo. */
+  pontos: PontoDeResposta[];
+}
+export interface EvolucaoRespostas { limite: number; atualizacoes: number; series: SerieDeResposta[] }
 /** `GET /aluno/fotos/configuracao`: o que o servidor aceita (os limites também valem lá). */
 export interface ConfiguracaoDeFotos { habilitado: boolean; maximoPorPergunta: number; bytesMaximo: number; porDia: number }
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */

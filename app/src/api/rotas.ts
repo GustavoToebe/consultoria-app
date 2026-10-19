@@ -14,6 +14,7 @@ import type {
 import type {
   Atualizacao,
   AtualizacaoDaLista,
+  EvolucaoRespostas,
   ConfiguracaoDeFotos,
   ConfiguracaoPublica,
   CriarQuestionarioRequest,
@@ -172,6 +173,8 @@ export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false) 
   requisicao<AtualizacaoDaLista[]>(`/atualizacoes?situacao=${situacao}&meus=${meus}`);
 export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${seg(id)}/atualizacoes`);
 export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${seg(id)}/atualizacao`);
+export const evolucaoRespostasDoAluno = (id: string) =>
+  requisicao<EvolucaoRespostas>(`/alunos/${seg(id)}/atualizacoes/evolucao`);
 
 // ---- Fotos da atualização (bytes só pela API, com token; nada de link direto para o bucket) ----
 

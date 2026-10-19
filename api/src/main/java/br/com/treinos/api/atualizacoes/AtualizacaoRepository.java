@@ -1,4 +1,5 @@
 package br.com.treinos.api.atualizacoes;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -37,6 +38,16 @@ public interface AtualizacaoRepository extends JpaRepository<Atualizacao, UUID> 
             + "left join Atualizacao u on u.pastaId = p.id "
             + "where a.ativo = true and a.id in :alunoIds order by a.nome asc")
     List<LinhaAtualizacao> linhasDosAlunos(Collection<UUID> alunoIds);
+
+    /**
+     * Atualizações enviadas ou revisadas do aluno com as respostas e o conteúdo da versão respondida, da mais recente
+     * para a mais antiga, numa consulta só (evolução das respostas). JPQL: o {@code @TenantId} vale nas duas entidades.
+     */
+    @Query("select new br.com.treinos.api.atualizacoes.LinhaEvolucao(a.id, a.dataAtualizacao, a.respostas, v.conteudo) "
+            + "from Atualizacao a join QuestionarioVersao v on v.id = a.questionarioVersaoId "
+            + "where a.alunoId = :alunoId and a.estado in ('ENVIADA', 'REVISADA') "
+            + "order by a.dataAtualizacao desc, a.enviadaEm desc")
+    List<LinhaEvolucao> linhasDaEvolucao(UUID alunoId, Pageable pagina);
 
     /**
      * A data da atualização acompanha o fim da pasta enquanto ela estiver ABERTA; enviada ou revisada não muda.

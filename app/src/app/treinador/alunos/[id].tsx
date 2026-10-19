@@ -11,6 +11,7 @@ import type { AlunoDetalhe } from '../../../api/tipos';
 import { FotoDePerfil } from '../../../ui/FotoDePerfil';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
+import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia } from '../../../treinador/CartaoFrequencia';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
 import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
@@ -79,6 +80,7 @@ export default function FichaAluno() {
           <Permitido codigo="REGISTRO_LER"><CartaoFrequencia alunoId={aluno.id} /></Permitido>
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
+          {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoEvolucaoRespostas alunoId={aluno.id} /> : null}
         </>
       ) : null}
     </Tela>
