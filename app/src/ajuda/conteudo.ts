@@ -105,7 +105,7 @@ const TREINADOR: Guia = {
       itens: [
         { titulo: 'Rascunho e publicação', texto: 'Edições vão para o rascunho. Publicar valida e cria uma versão imutável; os registros do aluno apontam para a versão que ele executou.' },
         { titulo: 'Séries', texto: 'Em cada exercício, "Adicionar série" pergunta o tipo: se for o mesmo do último grupo, soma uma série a ele; se não, cria um grupo novo no fim. As setas ↑ e ↓ mudam a ordem dos grupos. O campo Descanso (em segundos) liga o contador do aluno depois de cada série. Cada exercício tem no máximo 30 séries.' },
-        { titulo: 'Cluster e rest pause', texto: 'No grupo de séries, escolha a técnica. Cluster: quantos blocos, quantas repetições por bloco e a pausa entre os blocos. Rest pause: a pausa, quantas retomadas e, se quiser, as repetições de cada retomada (vazio = até a falha). O aluno lê a técnica por extenso e registra a série inteira, como as outras; o app não faz cronômetro dos blocos.' },
+        { titulo: 'Cluster e rest pause', texto: 'No grupo de séries, escolha a técnica. Cluster: quantos blocos, quantas repetições por bloco e a pausa entre os blocos. Rest pause: a pausa, quantas retomadas e, se quiser, as repetições de cada retomada (vazio = até a falha). O aluno lê a técnica por extenso e registra a série inteira, como as outras; se quiser, toca em "Iniciar pausa" para o cronômetro contar a pausa (nada começa sozinho).' },
         { titulo: 'Validação', texto: 'Erros impedem a publicação. Avisos pedem confirmação. Cada problema indica onde está no plano, e o botão "N problemas para publicar" leva ao primeiro.' },
         { titulo: 'PDF', texto: 'Treino, dieta e mobilidade podem ser exportados em PDF para imprimir ou compartilhar. Na mobilidade, o vídeo sai só como link.' },
         { titulo: 'Água por dia', texto: 'Na dieta, o campo "Água por dia" (em litros, de 0,1 a 20) aparece para o aluno no topo da dieta, no início do app e no PDF. É só o número que você escreve: o app não calcula meta nem pede para o aluno marcar copos. Vazio, não aparece.' },
@@ -202,7 +202,7 @@ const ALUNO: Guia = {
         { titulo: 'Treino de hoje', texto: 'O cartão em destaque abre a divisão do dia.' },
         { titulo: 'Trocar de plano', texto: 'Se houver mais de uma pasta, o seletor no topo mostra as outras. Pasta antiga é só para consultar.' },
         { titulo: 'Peso e repetições', texto: 'Deixe em branco o que não souber: aparece "—". O app não presume valor.' },
-        { titulo: 'Cluster e rest pause', texto: 'Quando a série tem uma técnica, o exercício explica antes das séries (por exemplo, quantos blocos e a pausa entre eles). Registre a série inteira, como as outras.' },
+        { titulo: 'Cluster e rest pause', texto: 'Quando a série tem uma técnica, o exercício explica antes das séries (por exemplo, quantos blocos e a pausa entre eles). Registre a série inteira, como as outras. Se quiser, toque em "Iniciar pausa" para o cronômetro contar a pausa entre os blocos ou antes da retomada.' },
         { titulo: 'Vídeos', texto: 'O link do vídeo abre fora do app, no navegador ou aplicativo de vídeo.' },
         { titulo: 'PDF do treino', texto: 'Baixe o treino em PDF na aba Treino.' },
       ],

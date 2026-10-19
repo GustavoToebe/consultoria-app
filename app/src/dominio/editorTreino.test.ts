@@ -5,6 +5,7 @@ import {
   adicionarSerie,
   alterarGrupo,
   LIMITE_SERIES,
+  modosDeIntensidade,
   moverGrupo,
   aplicarReceitaDePlano,
   mover,
@@ -39,6 +40,13 @@ function serie(uid: string, tipo: string, min: number | null, max: number | null
 const fs = (uid: string, p: number) => serie(uid, 'FS', 3, 3, { intensidade: { modo: 'PERCENTUAL_WS', percentual: p } });
 const ws = (uid: string) => serie(uid, 'WS', 3, 6, { intensidade: { modo: 'CARGA_TRABALHO' } });
 const backOff = (uid: string) => serie(uid, 'Back off', 6, 8, { intensidade: { modo: 'PERCENTUAL_WS', percentual: 85 } });
+
+describe('intensidade', () => {
+  it('o % diz a base pelo nome da série de trabalho', () => {
+    expect(modosDeIntensidade('WS').find((m) => m.valor === 'PERCENTUAL_WS')?.rotulo).toBe('% da WS');
+    expect(modosDeIntensidade(null).find((m) => m.valor === 'PERCENTUAL_WS')?.rotulo).toBe('% da série de trabalho');
+  });
+});
 
 describe('agrupamento', () => {
   it('junta séries consecutivas iguais como no PDF', () => {

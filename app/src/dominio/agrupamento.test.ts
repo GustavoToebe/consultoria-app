@@ -1,5 +1,5 @@
 import type { Serie, Tecnica } from '../api/tipos';
-import { agrupar, descreverSeries, textosDeTecnica, textoTecnica, textoTecnicaPorExtenso } from './agrupamento';
+import { agrupar, descreverSeries, tecnicasDoExercicio, textosDeTecnica, textoTecnica, textoTecnicaPorExtenso } from './agrupamento';
 
 const cluster: Tecnica = { tipo: 'CLUSTER', blocos: 3, repsPorBloco: 2, pausaSegundos: 20, retomadas: null, repsPorRetomada: null };
 const restPause: Tecnica = { tipo: 'REST_PAUSE', blocos: null, repsPorBloco: null, pausaSegundos: 20, retomadas: 2, repsPorRetomada: null };
@@ -29,6 +29,14 @@ describe('técnica da série (reunião de 17/10)', () => {
     const series = [serie('a'), serie('b', cluster), serie('c', cluster)];
     expect(agrupar(series).map((g) => g.series.length)).toEqual([1, 2]);
     expect(descreverSeries(series)).toEqual(['1x6 - WS', '2x6 - WS · Cluster 3×2, 20 s']);
+  });
+
+  it('cada técnica traz a pausa para o botão do cronômetro', () => {
+    expect(tecnicasDoExercicio([serie('a', cluster), serie('b', cluster), serie('c', restPause), serie('d')]).map((t) => t.pausaSegundos)).toEqual([
+      cluster.pausaSegundos,
+      restPause.pausaSegundos,
+    ]);
+    expect(tecnicasDoExercicio([serie('a', { ...cluster, pausaSegundos: null })])[0].pausaSegundos).toBeNull();
   });
 
   it('o aluno lê cada técnica uma vez', () => {

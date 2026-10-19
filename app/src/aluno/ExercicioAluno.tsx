@@ -1,11 +1,11 @@
 import { Cartao } from '../ui/Cartao';
-import { PlayCircle, Repeat } from 'lucide-react-native';
+import { PlayCircle, Repeat, Timer } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
-import { textosDeTecnica } from '../dominio/agrupamento';
+import { tecnicasDoExercicio } from '../dominio/agrupamento';
 import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { videoValido } from '../dominio/video';
@@ -40,6 +40,8 @@ interface Props {
   aoRegistrar: (serieUid: string, dados: DadosSerie) => void;
   /** Ao lado do botão de vídeo, cada um com metade da largura (o descanso). */
   acaoAoLadoDoVideo?: ReactNode;
+  /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. */
+  aoIniciarPausa?: (segundos: number) => void;
 }
 
 /**
@@ -71,8 +73,18 @@ export function ExercicioAluno(p: Props) {
         </Cartao>
       ) : null}
       {!e.progressao ? <Texto numerico style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
-      {textosDeTecnica(e.series).map((t) => (
-        <Texto key={t} numerico style={estilos.destaque}>{t}</Texto>
+      {tecnicasDoExercicio(e.series).map((t) => (
+        <View key={t.texto} style={estilos.tecnica}>
+          <Texto numerico style={estilos.destaque}>{t.texto}</Texto>
+          {t.pausaSegundos !== null && p.aoIniciarPausa ? (
+            <Botao
+              rotulo={`Iniciar pausa de ${t.pausaSegundos} s`}
+              tipo="secundario"
+              Icone={Timer}
+              aoTocar={() => p.aoIniciarPausa?.(t.pausaSegundos as number)}
+            />
+          ) : null}
+        </View>
       ))}
       {videoValido(e.videoUrl) || p.acaoAoLadoDoVideo ? (
         <View style={estilos.acoesRapidas}>
@@ -231,6 +243,7 @@ const estilos = StyleSheet.create({
   exercicio: { gap: espaco(1.5) },
   obsTexto: { fontStyle: 'italic' },
   destaque: { fontFamily: fontes.semi },
+  tecnica: { gap: espaco(1), alignItems: 'flex-start' },
   acoesRapidas: { flexDirection: 'row', gap: espaco(1) },
   metade: { flex: 1, minWidth: 0 },
   tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: espaco(1), gap: espaco(1) },

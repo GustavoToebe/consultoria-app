@@ -95,5 +95,26 @@ export function descreverSeries(series: Serie[]): string[] {
 
 /** Técnicas do exercício por extenso, sem repetir (o aluno lê uma vez, antes das séries). */
 export function textosDeTecnica(series: readonly Serie[]): string[] {
-  return [...new Set(series.map((s) => textoTecnicaPorExtenso(s.tecnica)).filter(Boolean))];
+  return tecnicasDoExercicio(series).map((t) => t.texto);
+}
+
+export interface TecnicaParaOAluno {
+  texto: string;
+  /** Pausa entre blocos ou antes da retomada; nulo quando o treinador não informou. */
+  pausaSegundos: number | null;
+}
+
+/**
+ * Técnicas do exercício para o aluno, sem repetir, com a pausa: a tela oferece um botão para iniciar o cronômetro
+ * dela (opcional; nada começa sozinho e nada prende o aluno, pedido da reunião de 17/10).
+ */
+export function tecnicasDoExercicio(series: readonly Serie[]): TecnicaParaOAluno[] {
+  const vistas = new Map<string, TecnicaParaOAluno>();
+  for (const s of series) {
+    const texto = textoTecnicaPorExtenso(s.tecnica);
+    if (!texto || vistas.has(texto)) continue;
+    const pausa = s.tecnica?.pausaSegundos;
+    vistas.set(texto, { texto, pausaSegundos: pausa != null && pausa > 0 ? pausa : null });
+  }
+  return [...vistas.values()];
 }

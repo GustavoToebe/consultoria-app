@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ExercicioAluno } from '../../../../aluno/ExercicioAluno';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
+import { useAluno } from '../../../../offline/AlunoProvider';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { dataCurta } from '../../../../dominio/formatos';
 import { nomeComDia } from '../../../../dominio/semana';
@@ -28,6 +29,7 @@ export default function ExercicioDaSessao() {
   const { uid, exercicio: exercicioUid, data: dataDaRota } = useLocalSearchParams<{ uid: string; exercicio: string; data?: string }>();
   const dia = useSessaoDoDia(uid, dataDaRota);
   useTelaAcesa();
+  const { iniciarDescanso } = useAluno();
   const { sessao, data } = dia;
   const voltar = caminhoDaSessao(uid ?? '', data);
 
@@ -77,6 +79,7 @@ export default function ExercicioDaSessao() {
         config={dia.config}
         aoMudarCargaDoDia={(c) => dia.salvarCargaDoDia(e, c)}
         aoRegistrar={(serieUid, d) => dia.registrar(e, serieUid, d)}
+        aoIniciarPausa={iniciarDescanso}
       />
       <View style={estilos.fim}>
         {proximo ? (

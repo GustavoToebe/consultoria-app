@@ -10,7 +10,7 @@ import {
   alterarPercentual,
   DESCANSO_MAXIMO_SEGUNDOS,
   LIMITE_SERIES,
-  MODOS,
+  modosDeIntensidade,
   moverGrupo,
   mudarQuantidade,
   removerGrupo,
@@ -37,7 +37,7 @@ interface Props {
 
 /**
  * Séries agrupadas como no PDF ("3x3 - FS 50/70/85%"), cada grupo com tipo, quantidade (− +), faixa de repetições,
- * intensidade e descanso, e ↑↓ para mudar a ordem dos grupos. Em "% da trabalho" cada série tem o próprio percentual.
+ * intensidade e descanso, e ↑↓ para mudar a ordem dos grupos. Em "% da <série de trabalho>" (ex.: "% da WS") cada série tem o próprio percentual.
  * Mudar a quantidade de FS reaplica a regra da consultoria. "Adicionar série" pergunta o tipo (o FS novo pode subir
  * para antes da WS pelo ↑). O limite de séries vale para o exercício todo, como no servidor.
  */
@@ -172,7 +172,7 @@ function EditorGrupo({
         placeholder={porTempo ? 'Ex.: 50 min' : 'Ex.: até a falha'}
         maxLength={120}
       />
-      <Escolha rotulo="Intensidade" opcoes={MODOS} valor={modo} aoMudar={(m) => aoAlterar({ modo: m })} />
+      <Escolha rotulo="Intensidade" opcoes={modosDeIntensidade(config?.tipoTrabalho)} valor={modo} aoMudar={(m) => aoAlterar({ modo: m })} />
       {modo === 'PERCENTUAL_WS' ? (
         <View style={estilos.linha}>
           {grupo.series.map((s, i) => (

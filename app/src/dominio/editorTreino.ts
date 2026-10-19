@@ -29,12 +29,21 @@ export const TIPOS_SESSAO: { valor: TipoSessao; rotulo: string }[] = [
 
 export const MODOS: { valor: ModoIntensidade; rotulo: string }[] = [
   { valor: 'CARGA_TRABALHO', rotulo: 'Carga de trabalho' },
-  { valor: 'PERCENTUAL_WS', rotulo: '% da trabalho' },
+  { valor: 'PERCENTUAL_WS', rotulo: '% da série de trabalho' },
   { valor: 'RIR', rotulo: 'RIR' },
   { valor: 'RPE', rotulo: 'RPE' },
   { valor: 'LIVRE', rotulo: 'Texto livre' },
   { valor: 'NENHUMA', rotulo: 'Sem intensidade' },
 ];
+
+/**
+ * As opções de intensidade com o "% de quê" escrito pelo nome da série de trabalho da metodologia ("% da WS"): o
+ * levantamento de 19/10 pede que o percentual sempre diga a base, para não ser confundido com % do 1RM.
+ */
+export function modosDeIntensidade(tipoTrabalho: string | null | undefined): { valor: ModoIntensidade; rotulo: string }[] {
+  const base = tipoTrabalho?.trim();
+  return base ? MODOS.map((m) => (m.valor === 'PERCENTUAL_WS' ? { ...m, rotulo: `% da ${base}` } : m)) : MODOS;
+}
 
 export function novaSessao(diaSemana: number | null): Sessao {
   return {
@@ -77,7 +86,7 @@ export const DESCANSO_MAXIMO_SEGUNDOS = 3600;
 
 /**
  * Série nova de um tipo (sem tipo, o de trabalho da consultoria), com a faixa de repetições da metodologia (ou sem, para
- * o treinador preencher). O de preparação nasce em "% da trabalho" com a regra de 1 série; os outros, em carga de trabalho.
+ * o treinador preencher). O de preparação nasce em "% da série de trabalho" com a regra de 1 série; os outros, em carga de trabalho.
  */
 export function novaSerie(config: Configuracao | null, tipoEscolhido?: string): Serie {
   const tipo = tipoEscolhido ?? config?.tipoTrabalho ?? 'Série';
@@ -197,7 +206,7 @@ function intensidadeDoModo(modo: ModoIntensidade): Intensidade {
 
 /**
  * Aplica a mudança a todas as séries do grupo. Trocar o tipo para o de trabalho (WS) põe "carga de trabalho"; para o
- * de preparação (FS) põe "% da trabalho" com a regra da consultoria; e a faixa de repetições do tipo, se a metodologia
+ * de preparação (FS) põe "% da série de trabalho" com a regra da consultoria; e a faixa de repetições do tipo, se a metodologia
  * tiver. Tudo continua editável.
  */
 export function alterarGrupo(

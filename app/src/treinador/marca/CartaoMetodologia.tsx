@@ -127,7 +127,7 @@ export function CartaoMetodologia({ configuracao, aoSalvar }: { configuracao: Co
         <Botao rotulo={renomeando ? "Renomear" : "Adicionar"} tipo="secundario" Icone={Plus} aoTocar={adicionarTipo} desabilitado={!novoTipo.trim()} style={estilos.aoPeDoCampo} />
       </View>
       <Escolha rotulo="Série de trabalho (carga do dia)" opcoes={opcoesTipo} valor={trabalho} aoMudar={setTrabalho} />
-      <Escolha rotulo="Série de preparação (em % da trabalho)" opcoes={opcoesTipo} valor={preparacao} aoMudar={setPreparacao} />
+      <Escolha rotulo={`Série de preparação (em % da ${trabalho || "série de trabalho"})`} opcoes={opcoesTipo} valor={preparacao} aoMudar={setPreparacao} />
 
       <Texto variante="secao">Repetições por tipo</Texto>
       <Texto variante="pequeno">
