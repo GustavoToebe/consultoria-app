@@ -297,6 +297,20 @@ test('nome repetido é anotado e mantido (o importador para); peso inicial na me
   assert.equal(r.contagens.iniciaisNoHistorico, 1);
 });
 
+test('"x" (ou "-") no lugar do e-mail vale como sem e-mail, sem virar problema', () => {
+  const r = converter(
+    lerXlsx(
+      xlsx({
+        Alunos: [CAB_ALUNOS, ['A1', 'Aluno Teste 1', 'x', null, null, null, null], ['A2', 'Aluno Teste 2', ' - ', null, null, null, null]],
+        'Histórico Pesos': [CAB_PESOS],
+      }),
+    ),
+    HOJE,
+  );
+  assert.deepEqual(r.alunos.map((a) => a.email), ['', '']);
+  assert.deepEqual(r.problemas, []);
+});
+
 test('aba ou cabeçalho que falta para tudo, com mensagem sem conteúdo da planilha', () => {
   assert.throws(() => converter(lerXlsx(xlsx({ Alunos: [CAB_ALUNOS] })), HOJE), /não achei a aba "Histórico Pesos"/);
   assert.throws(

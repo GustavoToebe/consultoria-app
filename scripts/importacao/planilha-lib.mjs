@@ -224,6 +224,8 @@ function cabecalho(linhas, exigidas, conhecidas, rotulo) {
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Marcador de "sem e-mail" que a planilha usa no lugar da célula vazia (na do Saraiva, um "x"): vale como vazio. */
+const SEM_EMAIL = new Set(['x', '-', '--', '—', '.', 'sem', 'sem email', 'sem e-mail', 'nao tem', 'não tem', 'n/a', 'na']);
 const ABA_ALUNOS = 'Alunos';
 const ABA_PESOS = 'Histórico Pesos';
 const COLUNAS_ALUNOS = ['id', 'nome', 'email', 'telefone', 'peso_inicial_kg', 'objetivo', 'data_inicio', 'status', 'obs'];
@@ -277,6 +279,7 @@ export function converter(planilha, hoje) {
       continue;
     }
     let email = texto(celula(linha, cEmail)).toLowerCase();
+    if (SEM_EMAIL.has(email)) email = '';
     if (email && (!EMAIL.test(email) || email.length > 254)) {
       problema(ABA_ALUNOS, linha.n, 'e-mail inválido (aluno convertido sem e-mail)');
       email = '';
