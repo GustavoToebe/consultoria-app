@@ -144,6 +144,21 @@ export const removerFoto = (id: string) => requisicao<void>(`/aluno/fotos/${seg(
 
 export const baixarFotoDoAluno = (id: string) => requisicao<Blob>(`/aluno/fotos/${seg(id)}`, { binario: true, limiteMs: 60000 });
 
+// ---- Foto de perfil do aluno (opcional; bytes só pela API, com token) ----
+
+/** `arquivo`: FormData com o campo `arquivo` (JPEG já reduzido e sem EXIF). Troca a foto atual, se houver. */
+export const trocarFotoDePerfil = (arquivo: FormData) =>
+  requisicao<{ atualizadaEm: string }>('/aluno/foto-perfil', { metodo: 'PUT', corpoBruto: arquivo, limiteMs: 60000 });
+
+export const removerFotoDePerfil = () => requisicao<void>('/aluno/foto-perfil', { metodo: 'DELETE' });
+
+/** 404 = sem foto. */
+export const baixarFotoDePerfil = () => requisicao<Blob>('/aluno/foto-perfil', { binario: true, limiteMs: 30000 });
+
+/** Equipe (ALUNO_LER); 404 = sem foto. */
+export const baixarFotoDePerfilDoAluno = (alunoId: string) =>
+  requisicao<Blob>(`/alunos/${seg(alunoId)}/foto-perfil`, { binario: true, limiteMs: 30000 });
+
 export const baixarFotoDoTreinador = (atualizacaoId: string, fotoId: string) =>
   requisicao<Blob>(`/atualizacoes/${seg(atualizacaoId)}/fotos/${seg(fotoId)}`, { binario: true, limiteMs: 60000 });
 export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${seg(id)}`);
