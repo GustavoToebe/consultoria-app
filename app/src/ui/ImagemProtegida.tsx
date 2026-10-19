@@ -30,10 +30,14 @@ interface Props {
   tamanho?: number;
   /** Com `aoTocar` a miniatura vira botão (ex.: abrir ampliada). */
   aoTocar?: () => void;
+  /** Retângulo em vez de quadrado (imagem de pergunta). */
+  altura?: number;
+  /** `contain` mostra a imagem inteira (escala, aparelho); padrão `cover` (foto em miniatura). */
+  ajuste?: 'cover' | 'contain';
 }
 
 /** Miniatura de foto que só existe atrás da API: baixa com o token, mostra e solta o endereço ao sair da tela. */
-export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTocar }: Props) {
+export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTocar, altura, ajuste = 'cover' }: Props) {
   const { cores } = useTema();
   const { dados: endereco, erro, carregando, recarregar } = useCarregar(chave, async () => enderecoDaImagem(await carregar()));
   useEffect(
@@ -42,7 +46,7 @@ export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTo
     },
     [endereco],
   );
-  const caixa = [estilos.caixa, { width: tamanho, height: tamanho, borderColor: cores.borda, backgroundColor: cores.superficie2 }];
+  const caixa = [estilos.caixa, { width: tamanho, height: altura ?? tamanho, maxWidth: '100%' as const, borderColor: cores.borda, backgroundColor: cores.superficie2 }];
   if (erro) {
     return (
       <Pressable accessibilityRole="button" accessibilityLabel={`${descricao}: não foi possível carregar. Tocar para tentar de novo`}
@@ -54,7 +58,7 @@ export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTo
   if (carregando || !endereco) {
     return <View accessibilityRole="progressbar" accessibilityLabel={`Carregando: ${descricao}`} style={caixa} />;
   }
-  const imagem = <Image source={{ uri: endereco }} cachePolicy="none" accessibilityLabel={descricao} contentFit="cover" style={estilos.imagem} />;
+  const imagem = <Image source={{ uri: endereco }} cachePolicy="none" accessibilityLabel={descricao} contentFit={ajuste} style={estilos.imagem} />;
   return aoTocar ? (
     <Pressable accessibilityRole="imagebutton" accessibilityLabel={descricao} onPress={aoTocar}
       style={[caixa, { minWidth: ALVO_TOQUE, minHeight: ALVO_TOQUE }]}>{imagem}</Pressable>

@@ -13,6 +13,8 @@ import { GuardaDePapel } from '../../ui/GuardaDePapel';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
 import { ProvedorDoPasseio } from '../../ui/Passeio';
 import { GUIAS } from '../../ajuda/conteudo';
+import { ContextoDeImagens } from '../../aluno/atualizacao/ImagemDaPergunta';
+import { baixarImagemDoAluno } from '../../api/rotas';
 
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
@@ -33,7 +35,10 @@ export default function LayoutAluno() {
         <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
           {/* Passeio pelo menu no primeiro acesso, logo depois do aceite dos termos; o lembrete da atualização espera. */}
           <ProvedorDoPasseio usuarioId={usuario.id} passos={GUIAS.aluno.passeio}>
-            <MenuAluno />
+            {/* As imagens das perguntas, no aluno, vêm pela rota dele (só as do que ele responde). */}
+            <ContextoDeImagens.Provider value={baixarImagemDoAluno}>
+              <MenuAluno />
+            </ContextoDeImagens.Provider>
           </ProvedorDoPasseio>
         </AlunoProvider>
       ) : null}

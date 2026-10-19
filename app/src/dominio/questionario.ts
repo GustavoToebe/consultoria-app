@@ -1,7 +1,7 @@
-import type { ConteudoQuestionario, PerguntaAtualizacao, TipoPergunta } from '../api/tipos';
+import type { CondicaoPergunta, ConteudoQuestionario, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, TipoPergunta } from '../api/tipos';
 
 /**
- * Limites do questionário de atualização. Mudou um valor, muda também `LimitesQuestionario` no Java
+ * Limites do questionário (atualização e anamnese). Mudou um valor, muda também `LimitesQuestionario` no Java
  * (`api/.../questionarios`): o teste de paridade lê `limites.json` e confere os dois lados.
  * Tamanho de texto conta unidades UTF-16 (`.length`), igual ao `String.length` do Java.
  */
@@ -34,14 +34,35 @@ export const LIMITES_QUESTIONARIO = {
   idTamanho: 40,
   /** Mínimo, máximo e resposta de NUMERO ficam em [-N, N] (igual a `LimitesQuestionario.NUMERO_ABSOLUTO`). */
   numeroAbsoluto: 1_000_000_000,
+  /** GRADE: linhas (uma resposta por linha) e colunas (as escolhas). */
+  linhasMinimo: 1,
+  linhasMaximo: 30,
+  colunasMinimo: 2,
+  colunasMaximo: 10,
+  /** Texto do ACEITE e do INFORMATIVO; frase de declaração do ACEITE. */
+  textoInformativoTamanho: 4000,
+  declaracaoTamanho: 200,
+  telefoneTamanho: 25,
+  telefoneDigitosMinimo: 10,
+  telefoneDigitosMaximo: 13,
+  emailTamanho: 254,
+  /** Resposta de DATA entre 1900 e 2100 (com `somentePassado`, até hoje). */
+  dataAnoMinimo: 1900,
+  dataAnoMaximo: 2100,
+  /** Imagem da pergunta ou da opção (o servidor confere de novo e regrava sem metadados). */
+  imagemBytes: 300_000,
+  imagemLado: 1600,
 } as const;
 
 export interface ProblemaDoQuestionario { caminho: string; mensagem: string }
 export interface ResultadoDoQuestionario { erros: ProblemaDoQuestionario[]; avisos: ProblemaDoQuestionario[] }
 
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
-const TIPOS: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'PESO', 'NOTA', 'TEXTO', 'TEXTO_LONGO', 'NOTAS_POR_DIA', 'FOTOS',
-  'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO'];
+/** Id de imagem: UUID em minúsculas, como a API devolve (igual a `LimitesQuestionario.IMAGEM_PADRAO`). */
+const IMAGEM = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const TIPOS_DE_PERGUNTA: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'PESO', 'NOTA', 'TEXTO', 'TEXTO_LONGO', 'NOTAS_POR_DIA', 'FOTOS',
+  'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO', 'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ACEITE', 'INFORMATIVO'];
+const TIPOS = TIPOS_DE_PERGUNTA;
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
 const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA', 'FOTOS'];
@@ -50,6 +71,12 @@ const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA', 'FOTOS'];
 export function temOpcoes(tipo: TipoPergunta) {
   return tipo === 'ESCOLHA_UNICA' || tipo === 'MULTIPLA_ESCOLHA';
 }
+
+/** Tipos que podem controlar a condição (`mostrarSe`) de uma pergunta ou seção seguinte. */
+export const controlaCondicao = (tipo: TipoPergunta) => temOpcoes(tipo) || tipo === 'SIM_NAO';
+
+/** Tipos sem resposta do aluno. */
+export const semResposta = (tipo: TipoPergunta) => tipo === 'DATA_AUTOMATICA' || tipo === 'INFORMATIVO';
 
 /** Minúsculas, sem acento e sem espaços nas pontas: "Sim" e " sim" são a mesma opção. */
 export function normalizarOpcao(texto: string) {
@@ -60,6 +87,9 @@ const idValido = (id: unknown) => typeof id === 'string' && ID.test(id);
 const vazio = (texto: unknown) => typeof texto !== 'string' || texto.trim() === '';
 
 interface Estado {
+  finalidade: FinalidadeQuestionario;
+  /** Perguntas já vistas, na ordem do formulário: a condição só aponta para uma delas. */
+  anteriores: Map<string, PerguntaAtualizacao>;
   total: number;
   destaques: number;
   capacidadeDeTexto: number;
@@ -72,7 +102,7 @@ interface Estado {
  * (`secoes[0].perguntas[1].opcoes[2].rotulo`). Confere só a forma; nunca avalia se uma pergunta é adequada.
  * Aceita conteúdo incompleto (campo ausente é erro, não exceção).
  */
-export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>): ResultadoDoQuestionario {
+export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>, finalidade: FinalidadeQuestionario = 'ATUALIZACAO'): ResultadoDoQuestionario {
   const erros: ProblemaDoQuestionario[] = [];
   const avisos: ProblemaDoQuestionario[] = [];
   const erro = (caminho: string, mensagem: string) => erros.push({ caminho, mensagem });
@@ -88,7 +118,7 @@ export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>): Re
   const secoes = conteudo.secoes ?? [];
   if (secoes.length === 0) erro('secoes', 'O questionário não tem nenhuma seção.');
   if (secoes.length > L.secoes) erro('secoes', 'Seções demais.');
-  const estado: Estado = { total: 0, destaques: 0, capacidadeDeTexto: 0, ids: new Set(), tipos: new Set() };
+  const estado: Estado = { finalidade, anteriores: new Map(), total: 0, destaques: 0, capacidadeDeTexto: 0, ids: new Set(), tipos: new Set() };
   const uids = new Set<string>();
   secoes.forEach((s, i) => {
     const cs = `secoes[${i}]`;
@@ -97,6 +127,7 @@ export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>): Re
     else uids.add(s.uid as string);
     if (vazio(s.titulo)) erro(`${cs}.titulo`, 'Seção sem título.');
     else if (s.titulo.length > L.tituloTamanho) erro(`${cs}.titulo`, 'Título longo demais.');
+    condicao(s.mostrarSe, cs, estado, erro);
     const perguntas = s.perguntas ?? [];
     if (perguntas.length === 0) erro(`${cs}.perguntas`, 'Seção sem pergunta.');
     if (perguntas.length > L.perguntasPorSecao) erro(`${cs}.perguntas`, 'Perguntas demais na seção.');
@@ -104,15 +135,15 @@ export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>): Re
   });
   if (estado.total > L.perguntasTotal) erro('secoes', 'Perguntas demais.');
   if (estado.capacidadeDeTexto > L.capacidadeDeTextoTotal) erro('secoes', 'Respostas de texto demais.');
-  if (estado.total > 0 && !estado.tipos.has('PESO')) {
+  if (finalidade === 'ATUALIZACAO' && estado.total > 0 && !estado.tipos.has('PESO')) {
     avisos.push({ caminho: 'secoes', mensagem: 'Sem pergunta de peso: o peso não será registrado.' });
   }
   return { erros, avisos };
 }
 
 /** Só os erros (bloqueiam a publicação). */
-export function errosDoQuestionario(conteudo: Partial<ConteudoQuestionario>) {
-  return validarQuestionario(conteudo).erros;
+export function errosDoQuestionario(conteudo: Partial<ConteudoQuestionario>, finalidade: FinalidadeQuestionario = 'ATUALIZACAO') {
+  return validarQuestionario(conteudo, finalidade).erros;
 }
 
 type Erro = (caminho: string, mensagem: string) => unknown;
@@ -126,8 +157,12 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   if (vazio(p.rotulo)) erro(`${cp}.rotulo`, 'Pergunta sem texto.');
   else if (p.rotulo.length > L.rotuloTamanho) erro(`${cp}.rotulo`, 'Texto longo demais.');
   if (p.ajuda != null && p.ajuda.length > L.ajudaTamanho) erro(`${cp}.ajuda`, 'Ajuda longa demais.');
+  if (p.imagemId != null && !IMAGEM.test(p.imagemId)) erro(`${cp}.imagemId`, 'Imagem inválida.');
+  condicao(p.mostrarSe, cp, estado, erro);
   // Tipo desconhecido não existe no Java (a leitura falha); aqui é só defesa contra dado velho ou de outro app.
   if (p.tipo == null || !TIPOS.includes(p.tipo)) { erro(`${cp}.tipo`, 'Falta o tipo.'); return; }
+  if (p.id != null && !estado.anteriores.has(p.id)) estado.anteriores.set(p.id, p);
+  if (estado.finalidade === 'ANAMNESE' && p.tipo === 'DATA_AUTOMATICA') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de atualização.');
   if (UNICOS.includes(p.tipo) && estado.tipos.has(p.tipo)) erro(`${cp}.tipo`, 'Este tipo só pode aparecer uma vez.');
   estado.tipos.add(p.tipo);
   if (p.tipo === 'TEXTO') estado.capacidadeDeTexto += L.textoCurtoCapacidade;
@@ -138,6 +173,60 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   destaque(p, cp, estado, erro);
   if (p.ajudaAutomatica != null && !COM_AJUDA_AUTOMATICA.includes(p.tipo)) {
     erro(`${cp}.ajudaAutomatica`, 'Este tipo não tem ajuda automática.');
+  } else if (p.ajudaAutomatica != null && estado.finalidade === 'ANAMNESE') {
+    erro(`${cp}.ajudaAutomatica`, 'Esta ajuda só vale no questionário de atualização.');
+  }
+  if (p.somentePassado != null && p.tipo !== 'DATA') erro(`${cp}.somentePassado`, 'Este tipo não tem esta opção.');
+  textos(p, cp, erro);
+  grade(p, cp, erro);
+}
+
+/** `texto` do ACEITE (obrigatório) e do INFORMATIVO (opcional); `declaracao` só do ACEITE (obrigatória). */
+function textos(p: PerguntaAtualizacao, cp: string, erro: Erro) {
+  const L = LIMITES_QUESTIONARIO;
+  const temTexto = p.tipo === 'ACEITE' || p.tipo === 'INFORMATIVO';
+  if (!temTexto) {
+    if (p.texto != null) erro(`${cp}.texto`, 'Este tipo não tem texto.');
+  } else if (p.tipo === 'ACEITE' && vazio(p.texto)) erro(`${cp}.texto`, 'Falta o texto.');
+  else if (p.texto != null && p.texto.length > L.textoInformativoTamanho) erro(`${cp}.texto`, 'Texto longo demais.');
+  if (p.tipo !== 'ACEITE') {
+    if (p.declaracao != null) erro(`${cp}.declaracao`, 'Este tipo não tem declaração.');
+  } else if (vazio(p.declaracao)) erro(`${cp}.declaracao`, 'Falta a frase de declaração.');
+  else if ((p.declaracao as string).length > L.declaracaoTamanho) erro(`${cp}.declaracao`, 'Frase longa demais.');
+}
+
+function grade(p: PerguntaAtualizacao, cp: string, erro: Erro) {
+  const L = LIMITES_QUESTIONARIO;
+  if (p.tipo !== 'GRADE') {
+    if (p.linhas != null) erro(`${cp}.linhas`, 'Este tipo não tem linhas.');
+    if (p.colunas != null) erro(`${cp}.colunas`, 'Este tipo não tem colunas.');
+    return;
+  }
+  lista(p.linhas, `${cp}.linhas`, L.linhasMinimo, L.linhasMaximo, 'linhas', false, erro);
+  lista(p.colunas, `${cp}.colunas`, L.colunasMinimo, L.colunasMaximo, 'colunas', false, erro);
+}
+
+/** Condição: aponta para uma pergunta de escolha já vista e lista respostas que existem nela, sem repetir. */
+function condicao(m: CondicaoPergunta | undefined, base: string, estado: Estado, erro: Erro) {
+  if (m == null) return;
+  const alvo = m.perguntaId == null ? undefined : estado.anteriores.get(m.perguntaId);
+  if (!alvo || alvo.tipo == null || !controlaCondicao(alvo.tipo)) {
+    erro(`${base}.mostrarSe.perguntaId`, 'A condição precisa apontar para uma pergunta de escolha anterior.');
+    return;
+  }
+  const valores = m.valores ?? [];
+  if (valores.length === 0 || valores.length > LIMITES_QUESTIONARIO.opcoesMaximo) {
+    erro(`${base}.mostrarSe.valores`, 'Escolha ao menos uma resposta para a condição.');
+    return;
+  }
+  const validos = new Set(alvo.tipo === 'SIM_NAO' ? ['sim', 'nao'] : (alvo.opcoes ?? []).map((o) => o.id));
+  const vistos = new Set<string>();
+  for (const v of valores) {
+    if (typeof v !== 'string' || !validos.has(v) || vistos.has(v)) {
+      erro(`${base}.mostrarSe.valores`, 'A condição tem uma resposta que não existe na pergunta.');
+      return;
+    }
+    vistos.add(v);
   }
 }
 
@@ -147,19 +236,26 @@ function opcoes(p: PerguntaAtualizacao, cp: string, erro: Erro) {
     if (p.opcoes != null) erro(`${cp}.opcoes`, 'Este tipo não tem opções.');
     return;
   }
-  const n = p.opcoes?.length ?? 0;
-  if (n < L.opcoesMinimo || n > L.opcoesMaximo) erro(`${cp}.opcoes`, `Use de ${L.opcoesMinimo} a ${L.opcoesMaximo} opções.`);
+  lista(p.opcoes, `${cp}.opcoes`, L.opcoesMinimo, L.opcoesMaximo, 'opções', true, erro);
+}
+
+/** Opções de escolha, linhas e colunas da GRADE: mesma regra de quantidade, id e texto sem repetir. */
+function lista(itens: OpcaoPergunta[] | undefined, caminho: string, minimo: number, maximo: number, nome: string, comImagem: boolean, erro: Erro) {
+  const L = LIMITES_QUESTIONARIO;
+  const n = itens?.length ?? 0;
+  if (n < minimo || n > maximo) erro(caminho, `Use de ${minimo} a ${maximo} ${nome}.`);
   const ids = new Set<string>();
   const rotulos = new Set<string>();
-  (p.opcoes ?? []).forEach((o, k) => {
-    const co = `${cp}.opcoes[${k}]`;
+  (itens ?? []).forEach((o, k) => {
+    const co = `${caminho}[${k}]`;
     if (!idValido(o.id)) erro(`${co}.id`, 'Falta o identificador.');
     else if (ids.has(o.id)) erro(`${co}.id`, 'Identificador repetido.');
     else ids.add(o.id);
-    if (vazio(o.rotulo)) erro(`${co}.rotulo`, 'Opção sem texto.');
+    if (vazio(o.rotulo)) erro(`${co}.rotulo`, 'Texto vazio.');
     else if (o.rotulo.length > L.opcaoTamanho) erro(`${co}.rotulo`, 'Texto longo demais.');
-    else if (rotulos.has(normalizarOpcao(o.rotulo))) erro(`${co}.rotulo`, 'Opção repetida.');
+    else if (rotulos.has(normalizarOpcao(o.rotulo))) erro(`${co}.rotulo`, 'Texto repetido.');
     else rotulos.add(normalizarOpcao(o.rotulo));
+    if (o.imagemId != null && (!comImagem || !IMAGEM.test(o.imagemId))) erro(`${co}.imagemId`, comImagem ? 'Imagem inválida.' : 'Só opção de escolha tem imagem.');
   });
 }
 

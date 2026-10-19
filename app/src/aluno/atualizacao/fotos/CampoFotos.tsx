@@ -3,7 +3,7 @@ import { Camera, ImagePlus, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { baixarFotoDoAluno, baixarFotoDoTreinador } from '../../../api/rotas';
+import { baixarFotoDoAluno } from '../../../api/rotas';
 import type { PerguntaAtualizacao, RespostaAtualizacao } from '../../../api/tipos';
 import { contagemDeFotos, idsDeFotos, TEXTO_FOTOS_INDISPONIVEIS, TEXTO_FOTOS_SEM_CONEXAO, vagasDeFoto } from '../../../dominio/fotosAtualizacao';
 import { useTema } from '../../../tema/TemaProvider';
@@ -23,8 +23,8 @@ interface Props {
   pergunta: PerguntaAtualizacao;
   /** Ids das fotos já enviadas (resposta da pergunta). */
   valor: RespostaAtualizacao;
-  /** Atualização a que as fotos pertencem (a rota do treinador pede o id dela). */
-  atualizacaoId: string | null;
+  /** Treinador: como baixar uma foto já enviada (rota da atualização ou da anamnese). Sem isto, só o aluno vê. */
+  carregarDaEquipe?: (fotoId: string) => Promise<Blob>;
   rotulo: string;
 }
 
@@ -32,7 +32,7 @@ interface Props {
  * Pergunta FOTOS. Aluno (com {@link ContextoDeFotos}): anexa, vê e remove antes de enviar. Treinador (sem contexto): só vê as
  * enviadas, pela rota dele. As imagens só existem atrás da API; "—" quando não há nenhuma.
  */
-export function CampoFotos({ pergunta: p, valor, atualizacaoId, rotulo }: Props) {
+export function CampoFotos({ pergunta: p, valor, carregarDaEquipe, rotulo }: Props) {
   const controle = useControleDeFotos();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
@@ -47,12 +47,12 @@ export function CampoFotos({ pergunta: p, valor, atualizacaoId, rotulo }: Props)
   const lado = Math.min(width - espaco(8), 520);
 
   const carregar = (item: Extract<ItemDeFoto, { tipo: 'enviada' }>) =>
-    controle ? () => baixarFotoDoAluno(item.id) : () => baixarFotoDoTreinador(atualizacaoId ?? '', item.id);
+    controle || !carregarDaEquipe ? () => baixarFotoDoAluno(item.id) : () => carregarDaEquipe(item.id);
   const miniatura = (item: ItemDeFoto, tamanho: number, aoTocar?: () => void) =>
     item.tipo === 'enviada' ? (
-      <ImagemProtegida chave={item.id} carregar={carregar(item)} descricao="Foto da atualização" tamanho={tamanho} aoTocar={aoTocar} />
+      <ImagemProtegida chave={item.id} carregar={carregar(item)} descricao="Foto enviada" tamanho={tamanho} aoTocar={aoTocar} />
     ) : (
-      <Pressable accessibilityRole="imagebutton" accessibilityLabel="Foto da atualização, ainda neste aparelho" onPress={aoTocar}
+      <Pressable accessibilityRole="imagebutton" accessibilityLabel="Foto ainda neste aparelho" onPress={aoTocar}
         style={[estilos.local, { width: tamanho, height: tamanho, borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
         <Image source={{ uri: uriDaFotoLocal(controle?.usuarioId ?? '', item.nome) }} cachePolicy="none" contentFit="cover" style={estilos.imagem} />
       </Pressable>
@@ -97,7 +97,7 @@ export function CampoFotos({ pergunta: p, valor, atualizacaoId, rotulo }: Props)
       {cabecalho}
       {ajuda}
       <Texto variante="pequeno">
-        Só você e seu treinador veem as fotos. {controle.guardaNoAparelho ? 'Elas ficam neste aparelho até você enviar a atualização.' : 'Elas sobem assim que você escolhe.'}
+        Só você e seu treinador veem as fotos. {controle.guardaNoAparelho ? 'Elas ficam neste aparelho até você enviar.' : 'Elas sobem assim que você escolhe.'}
       </Texto>
       {itens.length ? (
         <View style={estilos.grade}>
@@ -149,9 +149,9 @@ function Ampliada({ item, lado, aoFechar, carregarDe, usuarioId }: {
   return (
     <Folha titulo="Foto" visivel={item !== null} aoFechar={aoFechar}>
       {item?.tipo === 'enviada' ? (
-        <ImagemProtegida chave={`grande:${item.id}`} carregar={carregarDe(item)} descricao="Foto da atualização ampliada" tamanho={lado} />
+        <ImagemProtegida chave={`grande:${item.id}`} carregar={carregarDe(item)} descricao="Foto ampliada" tamanho={lado} />
       ) : item?.tipo === 'local' ? (
-        <Image source={{ uri: uriDaFotoLocal(usuarioId, item.nome) }} cachePolicy="none" accessibilityLabel="Foto da atualização ampliada" contentFit="contain"
+        <Image source={{ uri: uriDaFotoLocal(usuarioId, item.nome) }} cachePolicy="none" accessibilityLabel="Foto ampliada" contentFit="contain"
           style={{ width: lado, height: lado }} />
       ) : null}
     </Folha>

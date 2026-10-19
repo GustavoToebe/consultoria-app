@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { FeedbackAtualizacao } from '../../../aluno/atualizacao/FeedbackAtualizacao';
 import { QuestionarioAtualizacao } from '../../../aluno/atualizacao/QuestionarioAtualizacao';
 import { ErroApi } from '../../../api/cliente';
-import { atualizacaoDoAluno, detalheAtualizacao, listarAtualizacoes, responderAtualizacao } from '../../../api/rotas';
+import { atualizacaoDoAluno, baixarFotoDoTreinador, detalheAtualizacao, listarAtualizacoes, responderAtualizacao } from '../../../api/rotas';
 import type { Atualizacao } from '../../../api/tipos';
 import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, filaDosParametros, type FilaDeAtualizacoes, proximaDaFila, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataParaTela } from '../../../dominio/formatos';
@@ -50,7 +50,8 @@ export default function AtualizacaoTreinador() {
         <Texto>Nova data: {dataParaTela(a.atrasoAte)}</Texto>
         <Texto>{a.atrasoMotivo??'Sem motivo informado.'}</Texto>
       </Cartao>:null}
-      <QuestionarioAtualizacao atualizacao={a} respostas={a.respostas??{}} />
+      <QuestionarioAtualizacao modelo={a.modelo} dataAtualizacao={a.dataAtualizacao} resumo={a.resumo} respostas={a.respostas??{}}
+        carregarFotoDaEquipe={a.id?(foto)=>baixarFotoDoTreinador(a.id??'',foto):undefined} />
       {a.enviadaEm?pode('ATUALIZACAO_RESPONDER')?<EditorFeedback key={`${a.id}:${a.versao}`} atualizacao={a} aoSalvar={detalhe.definir} recarregar={detalhe.recarregar} />:<FeedbackAtualizacao feedback={a.feedback}/>:null}
       <LinkTexto texto="Abrir pasta do aluno" href={`/treinador/alunos/${a.alunoId}?pastaId=${a.pastaId}`} />
       {fila?<ProximaDaFila fila={fila} pastaAtual={a.pastaId} />:null}

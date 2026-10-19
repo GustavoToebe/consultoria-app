@@ -1,7 +1,8 @@
-import type { Atualizacao, ConteudoQuestionario, OpcaoPergunta, PerguntaAtualizacao, SecaoAtualizacao, TipoPergunta } from '../api/tipos';
+import type {
+  CondicaoPergunta, ConteudoQuestionario, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, SecaoAtualizacao, TipoPergunta,
+} from '../api/tipos';
 import { mover, remover, substituir } from './editorTreino';
-import { hojeIso } from './formatos';
-import { LIMITES_QUESTIONARIO as L, temOpcoes, type ProblemaDoQuestionario } from './questionario';
+import { controlaCondicao, LIMITES_QUESTIONARIO as L, temOpcoes, type ProblemaDoQuestionario } from './questionario';
 import { novoUid } from './uid';
 
 /**
@@ -21,10 +22,16 @@ export const ROTULO_DO_TIPO: Record<TipoPergunta, string> = {
   NUMERO: 'Número',
   SIM_NAO: 'Sim ou não',
   FOTOS: 'Fotos',
+  DATA: 'Data',
+  TELEFONE: 'Telefone',
+  EMAIL: 'E-mail',
+  GRADE: 'Grade (linhas e colunas)',
+  ACEITE: 'Aceite de regras',
+  INFORMATIVO: 'Texto ou imagem (sem resposta)',
 };
 
 /** Tipos do menu "Adicionar pergunta". FOTOS só aparece no menu enquanto o questionário não tem uma (é única). */
-export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: string }[] = [
+export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: string; soAtualizacao?: boolean }[] = [
   { tipo: 'NOTA', descricao: 'O aluno escolhe uma nota de 0 a 10.' },
   { tipo: 'SIM_NAO', descricao: 'Resposta Sim ou Não.' },
   { tipo: 'ESCOLHA_UNICA', descricao: 'Uma opção entre as que você definir.' },
@@ -32,19 +39,30 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
   { tipo: 'NUMERO', descricao: 'Um número, com unidade, faixa e casas decimais opcionais.' },
   { tipo: 'TEXTO', descricao: 'Resposta curta em texto.' },
   { tipo: 'TEXTO_LONGO', descricao: 'Resposta longa em texto.' },
+  { tipo: 'DATA', descricao: 'Uma data (nascimento, última pesagem...). Pode aceitar só hoje ou antes.' },
+  { tipo: 'TELEFONE', descricao: 'Telefone com DDD.' },
+  { tipo: 'EMAIL', descricao: 'Endereço de e-mail.' },
+  { tipo: 'GRADE', descricao: 'Linhas e colunas que você define; o aluno marca uma coluna em cada linha (ex.: frequência de cada item).' },
+  { tipo: 'ACEITE', descricao: 'Um texto (regras da consultoria) e a frase que o aluno marca para aceitar.' },
+  { tipo: 'INFORMATIVO', descricao: 'Só texto e/ou imagem para o aluno ler, sem resposta (orientação, referência).' },
   { tipo: 'NOTAS_POR_DIA', descricao: 'Uma nota para cada dia da semana de treino.' },
-  { tipo: 'PESO', descricao: 'O peso vai para o registro de peso do aluno. Só uma por questionário.' },
-  { tipo: 'DATA_AUTOMATICA', descricao: 'Mostra a data da atualização. Só uma por questionário.' },
+  { tipo: 'PESO', descricao: 'O peso informado. Na atualização, vai para o registro de peso do aluno. Só uma por questionário.' },
+  { tipo: 'DATA_AUTOMATICA', descricao: 'Mostra a data da atualização. Só uma por questionário.', soAtualizacao: true },
   { tipo: 'FOTOS', descricao: 'O aluno anexa até 6 fotos. Só aparece para o aluno quando o envio de fotos está ligado no servidor. Só uma por questionário.' },
 ];
 
+/** Os tipos que valem para a finalidade (a anamnese não tem data da atualização). */
+export const tiposParaAdicionar = (finalidade: FinalidadeQuestionario) =>
+  TIPOS_PARA_ADICIONAR.filter((t) => finalidade === 'ATUALIZACAO' || !t.soAtualizacao);
+
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
-const SEM_OBRIGATORIA: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'FOTOS'];
+const SEM_OBRIGATORIA: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'INFORMATIVO'];
 const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA', 'FOTOS'];
 
 export const aceitaDestaque = (tipo: TipoPergunta) => COM_DESTAQUE.includes(tipo);
-export const aceitaAjudaAutomatica = (tipo: TipoPergunta) => COM_AJUDA_AUTOMATICA.includes(tipo);
+export const aceitaAjudaAutomatica = (tipo: TipoPergunta, finalidade: FinalidadeQuestionario = 'ATUALIZACAO') =>
+  finalidade === 'ATUALIZACAO' && COM_AJUDA_AUTOMATICA.includes(tipo);
 export const aceitaObrigatoria = (tipo: TipoPergunta) => !SEM_OBRIGATORIA.includes(tipo);
 
 export const novaOpcao = (rotulo = ''): OpcaoPergunta => ({ id: novoUid(), rotulo });
@@ -55,12 +73,18 @@ export function novaPergunta(tipo: TipoPergunta): PerguntaAtualizacao {
   if (temOpcoes(tipo)) return { ...base, opcoes: [novaOpcao(), novaOpcao()] };
   if (tipo === 'NUMERO') return { ...base, casas: 0 };
   if (tipo === 'NOTAS_POR_DIA') return { ...base, dias: [1, 2, 3, 4, 5, 6, 7] };
+  if (tipo === 'GRADE') return { ...base, linhas: [novaOpcao()], colunas: [novaOpcao(), novaOpcao()] };
+  if (tipo === 'ACEITE') return { ...base, obrigatoria: true, texto: '', declaracao: 'Li e concordo com as regras acima.' };
+  if (tipo === 'INFORMATIVO') return { ...base, texto: '' };
   return base;
 }
 
 /** Cópia com identificador novo na pergunta e em cada opção, para não colidir com a original. */
 export function duplicarPergunta(p: PerguntaAtualizacao): PerguntaAtualizacao {
-  return { ...p, id: novoUid(), opcoes: p.opcoes?.map((o) => ({ ...o, id: novoUid() })), dias: p.dias ? [...p.dias] : undefined };
+  return {
+    ...p, id: novoUid(), opcoes: p.opcoes?.map((o) => ({ ...o, id: novoUid() })), dias: p.dias ? [...p.dias] : undefined,
+    linhas: p.linhas?.map((o) => ({ ...o, id: novoUid() })), colunas: p.colunas?.map((o) => ({ ...o, id: novoUid() })),
+  };
 }
 
 /** Completa o que o rascunho incompleto pode trazer: formato 2, listas, uid de seção e `obrigatoria` booleano. */
@@ -72,6 +96,7 @@ export function normalizarQuestionario(c: Partial<ConteudoQuestionario> | null |
       uid: s.uid ?? novoUid(),
       titulo: s.titulo ?? '',
       perguntas: (s.perguntas ?? []).map((p) => ({ ...p, obrigatoria: p.obrigatoria === true })),
+      ...(s.mostrarSe ? { mostrarSe: s.mostrarSe } : {}),
     })),
   };
 }
@@ -80,14 +105,16 @@ export function normalizarQuestionario(c: Partial<ConteudoQuestionario> | null |
  * O que vai no PUT: tira o que não pertence ao tipo (opções fora de escolha, dias fora de NOTAS_POR_DIA…) e
  * textos opcionais vazios, para o JSON gravado nunca carregar lixo. Não mexe em ids.
  */
-export function paraApi(c: ConteudoQuestionario): ConteudoQuestionario {
+export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestionario = 'ATUALIZACAO'): ConteudoQuestionario {
   const texto = (v: string | undefined) => (v != null && v.trim() !== '' ? v : undefined);
+  const opcao = (o: OpcaoPergunta, comImagem: boolean): OpcaoPergunta => ({ id: o.id, rotulo: o.rotulo, imagemId: comImagem ? texto(o.imagemId) : undefined });
   return {
     formato: 2,
     instrucoes: c.instrucoes,
     secoes: c.secoes.map((s) => ({
       uid: s.uid,
       titulo: s.titulo,
+      mostrarSe: s.mostrarSe,
       perguntas: s.perguntas.map((p): PerguntaAtualizacao => {
         const destacada = aceitaDestaque(p.tipo) && p.destaque === true;
         const numerico = p.tipo === 'NUMERO';
@@ -99,13 +126,20 @@ export function paraApi(c: ConteudoQuestionario): ConteudoQuestionario {
           ajuda: texto(p.ajuda),
           destaque: destacada ? true : undefined,
           rotuloCurto: destacada ? texto(p.rotuloCurto) : undefined,
-          ajudaAutomatica: aceitaAjudaAutomatica(p.tipo) ? p.ajudaAutomatica : undefined,
+          ajudaAutomatica: aceitaAjudaAutomatica(p.tipo, finalidade) ? p.ajudaAutomatica : undefined,
           dias: p.tipo === 'NOTAS_POR_DIA' ? p.dias : undefined,
-          opcoes: temOpcoes(p.tipo) ? p.opcoes : undefined,
+          opcoes: temOpcoes(p.tipo) ? p.opcoes?.map((o) => opcao(o, true)) : undefined,
           unidade: numerico ? texto(p.unidade) : undefined,
           min: numerico ? p.min : undefined,
           max: numerico ? p.max : undefined,
           casas: numerico ? p.casas : undefined,
+          imagemId: texto(p.imagemId),
+          somentePassado: p.tipo === 'DATA' && p.somentePassado === true ? true : undefined,
+          linhas: p.tipo === 'GRADE' ? p.linhas?.map((o) => opcao(o, false)) : undefined,
+          colunas: p.tipo === 'GRADE' ? p.colunas?.map((o) => opcao(o, false)) : undefined,
+          texto: p.tipo === 'ACEITE' ? (p.texto ?? '') : p.tipo === 'INFORMATIVO' ? texto(p.texto) : undefined,
+          declaracao: p.tipo === 'ACEITE' ? (p.declaracao ?? '') : undefined,
+          mostrarSe: p.mostrarSe,
         };
       }),
     })),
@@ -216,12 +250,49 @@ export function agruparProblemas(c: ConteudoQuestionario, problemas: readonly Pr
   return r;
 }
 
-/** Atualização fictícia só para a prévia do editor: data de hoje e nenhum número inventado (sem resumo). */
-export function previaDeAtualizacao(conteudo: ConteudoQuestionario): Atualizacao {
-  return {
-    id: null, pastaId: null, alunoId: '', nomeAluno: null, dataAtualizacao: hojeIso(), fase: 'ABERTA',
-    diasParaData: 0, diasDeAtraso: 0, atrasoAte: null, atrasoMotivo: null, questionarioVersaoNumero: 0,
-    questionarioVersaoId: null, questionarioNome: null, modelo: conteudo, respostas: null,
-    enviadaEm: null, feedback: null, versao: null, resumo: null,
-  };
+// ---- Condição simples (mostrarSe) ----
+
+/** Pergunta que pode controlar a condição, com as respostas que a condição pode citar. */
+export interface ControleDeCondicao { id: string; rotulo: string; valores: { valor: string; rotulo: string }[] }
+
+const valoresDeControle = (p: PerguntaAtualizacao) => p.tipo === 'SIM_NAO'
+  ? [{ valor: 'sim', rotulo: 'Sim' }, { valor: 'nao', rotulo: 'Não' }]
+  : (p.opcoes ?? []).map((o) => ({ valor: o.id, rotulo: o.rotulo.trim() || 'Opção sem texto' }));
+
+/**
+ * Perguntas de escolha (única, múltipla, sim ou não) que vêm antes, na ordem do formulário: só elas podem esconder a
+ * pergunta `{secao, pergunta}`. Para a condição de uma seção, `pergunta` = -1 (só as das seções anteriores).
+ */
+export function controlesAnteriores(c: ConteudoQuestionario, secao: number, pergunta: number): ControleDeCondicao[] {
+  const r: ControleDeCondicao[] = [];
+  c.secoes.forEach((s, si) => s.perguntas.forEach((p, pi) => {
+    const antes = si < secao || (si === secao && pi < pergunta);
+    if (antes && controlaCondicao(p.tipo)) r.push({ id: p.id, rotulo: p.rotulo.trim() || `Pergunta ${pi + 1} da seção ${si + 1}`, valores: valoresDeControle(p) });
+  }));
+  return r;
 }
+
+/** Onde está a pergunta (para achar as anteriores). */
+export function posicaoDaPergunta(c: ConteudoQuestionario, id: string): { secao: number; pergunta: number } | null {
+  for (let si = 0; si < c.secoes.length; si++) {
+    const pi = c.secoes[si].perguntas.findIndex((p) => p.id === id);
+    if (pi >= 0) return { secao: si, pergunta: pi };
+  }
+  return null;
+}
+
+/** Troca a pergunta de controle: os valores marcados não valem mais (outra pergunta, outras opções). */
+export const condicaoPara = (perguntaId: string): CondicaoPergunta => ({ perguntaId, valores: [] });
+
+/** "Aparece se “Pratica atividade?” for Sim" para o resumo do cartão; sem condição, vazio. */
+export function textoDaCondicao(c: ConteudoQuestionario, condicao: CondicaoPergunta | undefined): string {
+  if (!condicao) return '';
+  const alvo = c.secoes.flatMap((s) => s.perguntas).find((p) => p.id === condicao.perguntaId);
+  if (!alvo) return 'Condição sem pergunta';
+  const nomes = valoresDeControle(alvo).filter((v) => condicao.valores.includes(v.valor)).map((v) => v.rotulo);
+  return `Aparece se “${alvo.rotulo.trim() || 'pergunta sem texto'}” for ${nomes.length ? nomes.join(' ou ') : '…'}`;
+}
+
+/** Condição da seção. */
+export const alterarCondicaoDaSecao = (c: ConteudoQuestionario, secao: number, mostrarSe: CondicaoPergunta | undefined) =>
+  ({ ...c, secoes: c.secoes.map((s, i) => (i === secao ? { ...s, mostrarSe } : s)) });

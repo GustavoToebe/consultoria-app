@@ -1,5 +1,5 @@
 import type { TipoReceita } from '../../api/tipos';
-import { ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, slugDaAba, usoDoModelo } from './modelos';
+import { ABA_ANAMNESE, ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, slugDaAba, usoDoModelo } from './modelos';
 
 describe('organização da tela Planejamento', () => {
   it('cada tipo aparece uma vez, no grupo certo e na ordem pedida', () => {
@@ -35,6 +35,8 @@ describe('aba do Planejamento pelo endereço', () => {
   it('abre a aba pedida e, sem pedido ou com pedido inválido, a primeira que o perfil vê', () => {
     expect(abaDoPlanejamento('dieta', true, true)).toBe('Dieta');
     expect(abaDoPlanejamento('atualizacao', true, true)).toBe(ABA_ATUALIZACAO);
+    expect(abaDoPlanejamento('anamnese', true, true)).toBe(ABA_ANAMNESE);
+    expect(abaDoPlanejamento('anamnese', true, false)).toBe('Treino');
     expect(abaDoPlanejamento(undefined, true, true)).toBe('Treino');
     expect(abaDoPlanejamento('qualquer', true, true)).toBe('Treino');
     expect(abaDoPlanejamento(['mobilidade', 'dieta'], true, false)).toBe('Mobilidade');

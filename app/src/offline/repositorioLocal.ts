@@ -1,4 +1,4 @@
-import type { Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DiaDeTreino, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DiaDeTreino, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 
 /**
@@ -78,6 +78,13 @@ export interface RepositorioLocal {
   lerRascunhoAtualizacao(pastaId: string): Promise<RascunhoAtualizacao | null>;
   salvarRascunhoAtualizacao(pastaId: string, rascunho: RascunhoAtualizacao): Promise<void>;
   apagarRascunhoAtualizacao(pastaId: string): Promise<void>;
+  /** Última anamnese vista online (a pendente ou a última enviada): o aluno continua respondendo sem internet. Nulo = nenhuma. */
+  lerAnamnese(): Promise<AnamneseDetalhe | null>;
+  salvarAnamnese(anamnese: AnamneseDetalhe | null): Promise<void>;
+  /** Rascunho da anamnese, por anamnese (mesmo formato do da atualização: versão, respostas e fotos no aparelho). */
+  lerRascunhoAnamnese(anamneseId: string): Promise<RascunhoAtualizacao | null>;
+  salvarRascunhoAnamnese(anamneseId: string, rascunho: RascunhoAtualizacao): Promise<void>;
+  apagarRascunhoAnamnese(anamneseId: string): Promise<void>;
   lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null>;
   salvarHistoricoSemana(historico: HistoricoSemanaSalvo): Promise<void>;
   readonly usuarioId: string;
@@ -152,6 +159,17 @@ export class RepositorioChaveValor implements RepositorioLocal {
   }
   apagarRascunhoAtualizacao(pastaId: string): Promise<void> {
     return this.emFila(async () => { if (!this.encerrado) await this.kv.apagar([this.chave(`atualizacao:rascunho:${pastaId}`)]); });
+  }
+  lerAnamnese(): Promise<AnamneseDetalhe | null> { return this.emFila(() => this.lerJson<AnamneseDetalhe | null>('anamnese', null)); }
+  salvarAnamnese(anamnese: AnamneseDetalhe | null): Promise<void> { return this.emFila(() => this.gravarJson('anamnese', anamnese)); }
+  lerRascunhoAnamnese(anamneseId: string): Promise<RascunhoAtualizacao | null> {
+    return this.emFila(() => this.lerJson(`anamnese:rascunho:${anamneseId}`, null));
+  }
+  salvarRascunhoAnamnese(anamneseId: string, rascunho: RascunhoAtualizacao): Promise<void> {
+    return this.emFila(() => this.gravarJson(`anamnese:rascunho:${anamneseId}`, rascunho));
+  }
+  apagarRascunhoAnamnese(anamneseId: string): Promise<void> {
+    return this.emFila(async () => { if (!this.encerrado) await this.kv.apagar([this.chave(`anamnese:rascunho:${anamneseId}`)]); });
   }
   private fila: Promise<unknown> = Promise.resolve();
   private encerrado = false;
@@ -368,7 +386,7 @@ export class RepositorioChaveValor implements RepositorioLocal {
   }
 }
 
-/** Rascunho da atualização no aparelho, guardado com o id da versão do questionário que o aluno estava respondendo. */
+/** Rascunho da atualização (ou da anamnese) no aparelho, guardado com o id da versão do questionário que o aluno estava respondendo. */
 export interface RascunhoAtualizacao {
   questionarioVersaoId: string;
   respostas: RespostasAtualizacao;

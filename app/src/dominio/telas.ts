@@ -48,6 +48,8 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'novo-modelo', rotulo: 'Novo modelo', secao: 'Planos', href: '/treinador/planejamento?novo=1', palavras: ['criar modelo', 'novo treino', 'nova dieta', 'novo pacote', 'adicionar modelo'], permissao: 'MODELO_ALTERAR', acao: true },
   { id: 'questionarios', rotulo: 'Questionários de atualização', secao: 'Planos', href: '/treinador/planejamento?aba=atualizacao', palavras: ['check-in', 'checkin', 'atualizacao', 'perguntas', 'formulario', 'questionario'], permissao: 'QUESTIONARIO_LER', acao: true },
   { id: 'novo-questionario', rotulo: 'Novo questionário', secao: 'Planos', href: '/treinador/planejamento?aba=atualizacao&novo=1', palavras: ['criar questionario', 'novo check-in', 'nova atualizacao', 'adicionar questionario'], permissao: 'QUESTIONARIO_ALTERAR', acao: true },
+  { id: 'anamneses', rotulo: 'Anamneses', secao: 'Planos', href: '/treinador/planejamento?aba=anamnese', palavras: ['anamnese', 'questionario inicial', 'formulario inicial', 'avaliacao inicial', 'perguntas'], permissao: 'QUESTIONARIO_LER', acao: true },
+  { id: 'nova-anamnese', rotulo: 'Nova anamnese', secao: 'Planos', href: '/treinador/planejamento?aba=anamnese&novo=1', palavras: ['criar anamnese', 'nova anamnese', 'adicionar anamnese'], permissao: 'QUESTIONARIO_ALTERAR', acao: true },
   { id: 'convidar-membro', rotulo: 'Convidar membro', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['convidar', 'novo usuario', 'adicionar membro', 'novo membro', 'convite da equipe'], permissao: 'USUARIO_ALTERAR', acao: true, funcionalidade: 'EQUIPE' },
 ];
 
