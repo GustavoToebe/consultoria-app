@@ -41,14 +41,23 @@ interface Props {
  * Mudar a quantidade de FS reaplica a regra da consultoria. "Adicionar série" pergunta o tipo (o FS novo pode subir
  * para antes da WS pelo ↑). O limite de séries vale para o exercício todo, como no servidor.
  */
+/** Ao adicionar: série simples ou já com a técnica (um grupo próprio, para "1 WS + 1 WS em cluster"). */
+const TECNICAS_NOVAS: { valor: 'SIMPLES' | Tecnica['tipo']; rotulo: string }[] = [
+  { valor: 'SIMPLES', rotulo: 'Simples' },
+  { valor: 'CLUSTER', rotulo: 'Cluster' },
+  { valor: 'REST_PAUSE', rotulo: 'Rest pause' },
+];
+
 export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) {
   const grupos = agrupar(series);
   const [escolhendoTipo, setEscolhendoTipo] = useState(false);
+  const [tecnicaNova, setTecnicaNova] = useState<'SIMPLES' | Tecnica['tipo']>('SIMPLES');
   const cheio = series.length >= LIMITE_SERIES;
   const tipos = [...new Set([...(config?.tiposSerie ?? []), ...series.map((x) => x.tipo)].filter(Boolean))];
   const adicionar = (tipo?: string) => {
-    aoMudar(adicionarSerie(series, config, tipo));
+    aoMudar(adicionarSerie(series, config, tipo, tecnicaNova === 'SIMPLES' ? null : tecnicaNova));
     setEscolhendoTipo(false);
+    setTecnicaNova('SIMPLES');
   };
   return (
     <View style={estilos.lista}>
@@ -69,6 +78,7 @@ export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) 
       ))}
       {escolhendoTipo ? (
         <View style={estilos.escolhaTipo}>
+          <Escolha rotulo="Técnica da série nova" opcoes={TECNICAS_NOVAS} valor={tecnicaNova} aoMudar={setTecnicaNova} />
           <Texto variante="rotulo">Tipo da série nova</Texto>
           <LinhaDeAcoes>
             {tipos.map((t) => (
@@ -87,7 +97,7 @@ export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) 
             cheio={!!aoUsarReceita}
             desabilitado={cheio}
             motivo={cheio ? `O exercício já tem ${LIMITE_SERIES} séries, o máximo.` : undefined}
-            aoTocar={() => (tipos.length > 1 ? setEscolhendoTipo((v) => !v) : adicionar(tipos[0]))}
+            aoTocar={() => setEscolhendoTipo((v) => !v)}
           />
         </View>
         {aoUsarReceita ? <View style={estilos.metade}>

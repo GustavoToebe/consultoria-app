@@ -185,6 +185,64 @@ describe('adicionar e reordenar séries (reunião de 17/10)', () => {
   });
 });
 
+describe('composições da pesquisa de técnicas (19/10)', () => {
+  beforeEach(() => {
+    mockContador = 0;
+  });
+  const cluster = { tipo: 'CLUSTER' as const, blocos: 3, repsPorBloco: 4, pausaSegundos: 20, retomadas: null, repsPorRetomada: null };
+  const comCluster = (series: Serie[]) => {
+    const grupos = agrupar(series);
+    return alterarGrupo(series, grupos[grupos.length - 1], { tecnica: cluster }, CONFIG);
+  };
+  const reabrir = (series: Serie[]) =>
+    normalizarTreino(JSON.parse(JSON.stringify({ sessoes: [{ exercicios: [{ series }] }] }))).sessoes[0].exercicios[0].series;
+  const pelaReceita = (series: Serie[]) => seriesDaReceita(JSON.parse(JSON.stringify(seriesParaReceita(series))));
+
+  it('WS simples, WS + cluster e duas séries cluster continuam diferentes ao salvar, reabrir e virar receita', () => {
+    const simples = adicionarSerie([], CONFIG, 'WS');
+    const wsMaisCluster = comCluster(adicionarSerie(simples, CONFIG, 'WS', 'CLUSTER'));
+    const doisCluster = adicionarSerie(comCluster(adicionarSerie([], CONFIG, 'WS', 'CLUSTER')), CONFIG, 'WS', 'CLUSTER');
+
+    const esperado = {
+      simples: ['1x - WS'],
+      wsMaisCluster: ['1x - WS', '1x - WS · Cluster 3×4, 20 s'],
+      doisCluster: ['2x - WS · Cluster 3×4, 20 s'],
+    };
+    for (const [nome, series] of Object.entries({ simples, wsMaisCluster, doisCluster })) {
+      const quer = esperado[nome as keyof typeof esperado];
+      expect(descreverSeries(series)).toEqual(quer);
+      expect(descreverSeries(reabrir(series))).toEqual(quer);
+      expect(descreverSeries(pelaReceita(series))).toEqual(quer);
+    }
+  });
+
+  it('série simples depois do cluster nasce num grupo próprio, sem herdar a técnica', () => {
+    const wsMaisCluster = comCluster(adicionarSerie(adicionarSerie([], CONFIG, 'WS'), CONFIG, 'WS', 'CLUSTER'));
+    expect(descreverSeries(adicionarSerie(wsMaisCluster, CONFIG, 'WS'))).toEqual([
+      '1x - WS',
+      '1x - WS · Cluster 3×4, 20 s',
+      '1x - WS',
+    ]);
+  });
+
+  it('trocar de 3 para 4 blocos muda só a técnica, sem virar séries', () => {
+    const doisCluster = adicionarSerie(comCluster(adicionarSerie([], CONFIG, 'WS', 'CLUSTER')), CONFIG, 'WS', 'CLUSTER');
+    const grupo = agrupar(doisCluster)[0];
+    const quatro = alterarGrupo(doisCluster, grupo, { tecnica: { ...cluster, blocos: 4 } }, CONFIG);
+    expect(quatro).toHaveLength(2);
+    expect(quatro.map((s) => s.uid)).toEqual(doisCluster.map((s) => s.uid));
+    expect(descreverSeries(quatro)).toEqual(['2x - WS · Cluster 4×4, 20 s']);
+  });
+
+  it('receita aplicada é cópia: mudar a origem depois não muda o exercício', () => {
+    const origem = comCluster(adicionarSerie([], CONFIG, 'WS', 'CLUSTER'));
+    const receita = seriesParaReceita(origem);
+    const aplicada = seriesDaReceita(JSON.parse(JSON.stringify(receita)));
+    (receita.series[0].tecnica as { blocos: number }).blocos = 9;
+    expect(descreverSeries(aplicada)).toEqual(['1x - WS · Cluster 3×4, 20 s']);
+  });
+});
+
 describe('caminhos do validador', () => {
   const conteudo = normalizarTreino({
     sessoes: [

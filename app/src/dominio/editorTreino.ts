@@ -105,16 +105,24 @@ export function novaSerie(config: Configuracao | null, tipoEscolhido?: string): 
 }
 
 /**
- * "Adicionar série" com o tipo escolhido: entra no fim do exercício. Se o último grupo já é desse tipo, soma uma série a
- * ele pelo mesmo caminho do "+" (copia a última e a regra de preparação continua valendo); senão nasce um grupo novo.
+ * "Adicionar série" com o tipo (e, se quiser, a técnica) escolhido: entra no fim do exercício. Se o último grupo já é
+ * desse tipo e dessa técnica, soma uma série a ele pelo mesmo caminho do "+" (copia a última e a regra de preparação continua valendo); senão nasce um grupo novo.
  * No limite de séries do exercício, nada muda. Para pôr o grupo novo antes de outro, o treinador usa ↑ (`moverGrupo`).
  */
-export function adicionarSerie(series: Serie[], config: Configuracao | null, tipo?: string): Serie[] {
+export function adicionarSerie(
+  series: Serie[],
+  config: Configuracao | null,
+  tipo?: string,
+  tecnica: Tecnica['tipo'] | null = null,
+): Serie[] {
   if (series.length >= LIMITE_SERIES) return series;
   const nova = novaSerie(config, tipo);
+  if (tecnica) nova.tecnica = tecnicaVazia(tecnica);
   const grupos = agrupar(series);
   const ultimo = grupos[grupos.length - 1];
-  if (ultimo && ultimo.series[0].tipo === nova.tipo) {
+  // Soma ao último grupo só se for o mesmo tipo com a mesma técnica: "1 WS + 1 WS em cluster" (exemplo da pesquisa de
+  // 19/10) precisa de dois grupos, senão a técnica escolhida depois valeria para as duas.
+  if (ultimo && ultimo.series[0].tipo === nova.tipo && (ultimo.series[0].tecnica?.tipo ?? null) === tecnica) {
     return mudarQuantidade(series, ultimo, ultimo.series.length + 1, config);
   }
   return [...series, nova];
