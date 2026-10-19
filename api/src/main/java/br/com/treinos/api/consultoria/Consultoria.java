@@ -45,7 +45,11 @@ public class Consultoria {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tema_padrao", nullable = false)
-    private Tema temaPadrao = Tema.ESCURO;
+    private Tema temaPadrao = Tema.CLARO;
+
+    /** Ciclo de atualização padrão (V009): aluno sem valor próprio usa este; nulo = sem padrão. */
+    @Column(name = "dias_atualizacao_padrao")
+    private Integer diasAtualizacaoPadrao;
 
     @Column(name = "logo_tipo", insertable = false, updatable = false)
     private String logoTipo;
@@ -91,6 +95,10 @@ public class Consultoria {
         return temaPadrao;
     }
 
+    public Integer getDiasAtualizacaoPadrao() {
+        return diasAtualizacaoPadrao;
+    }
+
     public String getLogoTipo() {
         return logoTipo;
     }
@@ -107,10 +115,12 @@ public class Consultoria {
         return versao;
     }
 
-    public void alterarMarca(String nome, String corPrimaria, Fonte fonteTitulo, Tema temaPadrao) {
+    public void alterarMarca(String nome, String corPrimaria, Fonte fonteTitulo, Tema temaPadrao,
+                             Integer diasAtualizacaoPadrao) {
         this.nome = nome;
         this.corPrimaria = corPrimaria;
         this.fonteTitulo = fonteTitulo;
         this.temaPadrao = temaPadrao;
+        this.diasAtualizacaoPadrao = diasAtualizacaoPadrao;
     }
 }
