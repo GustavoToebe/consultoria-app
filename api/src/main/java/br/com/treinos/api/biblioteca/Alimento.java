@@ -18,6 +18,11 @@ import java.util.UUID;
 /**
  * Alimento da biblioteca: valores por {@code baseQuantidade} {@code baseUnidade} (ex.: por 100 g). O app calcula o item
  * da dieta ao editar e grava o resultado; a versão publicada guarda os números e não recalcula depois.
+ *
+ * <p>{@code fatorCorrecao} (peso bruto ÷ líquido) e {@code fatorCoccao} (peso pronto ÷ cru) servem só à lista de compras
+ * do aluno (reunião de 17/10, R13/R14/R32). São opcionais e digitados pelo treinador: nenhuma tabela de terceiros entra
+ * no sistema (direitos autorais), e nulo quer dizer "não informado", nunca 1. A publicação da dieta copia os valores do
+ * momento para os itens (ver {@code PlanoDietaService.paraPublicar}).
  */
 @Entity
 @Table(name = "alimento")
@@ -57,6 +62,12 @@ public class Alimento {
 
     private String fonte;
 
+    @Column(name = "fator_correcao")
+    private BigDecimal fatorCorrecao;
+
+    @Column(name = "fator_coccao")
+    private BigDecimal fatorCoccao;
+
     @Column(nullable = false)
     private boolean ativo = true;
 
@@ -92,6 +103,8 @@ public class Alimento {
         this.gordura = v.gordura();
         this.gramasPorUnidade = v.gramasPorUnidade();
         this.fonte = v.fonte();
+        this.fatorCorrecao = v.fatorCorrecao();
+        this.fatorCoccao = v.fatorCoccao();
     }
 
     public void inativar() {
@@ -142,6 +155,14 @@ public class Alimento {
         return fonte;
     }
 
+    public BigDecimal getFatorCorrecao() {
+        return fatorCorrecao;
+    }
+
+    public BigDecimal getFatorCoccao() {
+        return fatorCoccao;
+    }
+
     public boolean isAtivo() {
         return ativo;
     }
@@ -158,9 +179,20 @@ public class Alimento {
         return versao;
     }
 
-    /** Valores editáveis do alimento, já validados pelo service. */
+    /**
+     * Valores editáveis do alimento, já validados pelo service. O construtor curto (sem fatores) é o das importações
+     * (catálogo e CSV), que não trazem fator: o treinador os digita depois, se quiser.
+     */
     public record Valores(String nome, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
                           BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
-                          BigDecimal gramasPorUnidade, String fonte) {
+                          BigDecimal gramasPorUnidade, String fonte, BigDecimal fatorCorrecao,
+                          BigDecimal fatorCoccao) {
+
+        public Valores(String nome, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
+                       BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
+                       BigDecimal gramasPorUnidade, String fonte) {
+            this(nome, baseQuantidade, baseUnidade, kcal, proteina, carboidrato, gordura, gramasPorUnidade, fonte,
+                    null, null);
+        }
     }
 }
