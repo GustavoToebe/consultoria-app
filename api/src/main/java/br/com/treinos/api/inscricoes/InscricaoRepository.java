@@ -50,6 +50,9 @@ public interface InscricaoRepository extends JpaRepository<Inscricao, UUID> {
 
     Optional<Inscricao> findByAlunoId(UUID alunoId);
 
+    /** Inscrições da consultoria recebidas desde {@code inicio} (teto diário do link público). */
+    long countByCriadaEmAfter(Instant inicio);
+
     /** Retenção: recusadas e desistentes paradas desde antes do limite. As notas saem pela FK em cascata. */
     @Modifying
     @Query("delete from Inscricao i where i.consultoriaId = :consultoriaId and i.situacao in :situacoes "

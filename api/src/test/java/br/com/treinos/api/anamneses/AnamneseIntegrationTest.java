@@ -319,6 +319,24 @@ class AnamneseIntegrationTest extends AbstractIntegrationTest {
                 .andReturn().getResponse().getStatus();
     }
 
+    /** Revisão de segurança (19/10): as imagens ficam no banco, então cada consultoria tem um teto de envios por dia. */
+    @Test
+    void imagensDoQuestionarioTemTetoDiarioPorConsultoria() throws Exception {
+        UUID consultoria = banco.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
+                treinador.path("usuario").path("id").asString());
+        banco.update("insert into questionario_imagem (id, consultoria_id, tipo, bytes, tamanho) select gen_random_uuid(), ?, "
+                + "'image/png', '\\x00'::bytea, 1 from generate_series(1, 100)", consultoria);
+        byte[] jpeg = FotosDeTeste.jpeg(Color.BLUE, 200, false);
+        JsonNode erro = api.ler(subirImagem(treinador, jpeg, 422));
+        assertThat(erro.path("codigo").asString()).isEqualTo("IMAGENS_LIMITE_DIARIO");
+        assertThat(banco.queryForObject("select count(*) from questionario_imagem where consultoria_id = ?", Long.class,
+                consultoria)).isEqualTo(100);
+        // O teto é de cada consultoria, e as de mais de um dia não contam.
+        subirImagem(api.novoTreinador(), jpeg, 200);
+        banco.update("update questionario_imagem set criada_em = now() - interval '25 hours' where consultoria_id = ?", consultoria);
+        subirImagem(treinador, jpeg, 200);
+    }
+
     @Test
     void imagemDaPerguntaSemMetadadosEVistaSoPorQuemPode() throws Exception {
         byte[] jpeg = FotosDeTeste.jpeg(Color.BLUE, 200, false);
