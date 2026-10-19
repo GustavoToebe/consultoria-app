@@ -342,8 +342,7 @@ public class SeedHistoricoDemo {
         // A série de trabalho do guia vem como "WS"; com outra metodologia ela passa a ter o nome de trabalho dela.
         List<Sessao> sessoes = base.sessoesOuVazio().stream().map(s -> new Sessao(s.uid(), s.nome(), s.diaSemana(),
                 s.tipo(), s.frequenciaSemanal(), s.observacao(), s.cardio(),
-                s.exerciciosOuVazio().stream().map(e -> new ExercicioPlano(e.uid(), e.exercicioId(), e.nome(),
-                        e.modalidade(), e.videoUrl(), e.observacao(), e.progressao(), e.unidade(),
+                s.exerciciosOuVazio().stream().map(e -> e.comSeries(e.uid(),
                         e.seriesOuVazio().stream().map(x -> x.deTrabalho()
                                 ? new Serie(x.uid(), cfg.tipoTrabalho(), x.repsMin(), x.repsMax(), x.alvoTexto(),
                                 x.intensidade(), x.descansoSegundos()) : x).toList())).toList())).toList();

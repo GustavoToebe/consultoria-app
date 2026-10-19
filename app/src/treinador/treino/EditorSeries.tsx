@@ -46,6 +46,7 @@ const TECNICAS_NOVAS: { valor: 'SIMPLES' | Tecnica['tipo']; rotulo: string }[] =
   { valor: 'SIMPLES', rotulo: 'Simples' },
   { valor: 'CLUSTER', rotulo: 'Cluster' },
   { valor: 'REST_PAUSE', rotulo: 'Rest pause' },
+  { valor: 'DROP_SET', rotulo: 'Drop-set' },
 ];
 
 export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) {
@@ -224,11 +225,13 @@ const TECNICAS: { valor: Tecnica['tipo'] | 'NENHUMA'; rotulo: string }[] = [
   { valor: 'NENHUMA', rotulo: 'Nenhuma' },
   { valor: 'CLUSTER', rotulo: 'Cluster' },
   { valor: 'REST_PAUSE', rotulo: 'Rest pause' },
+  { valor: 'DROP_SET', rotulo: 'Drop-set' },
 ];
 
 /**
  * Técnica do grupo com campos próprios (pedido do Saraiva em 17/10): cluster = blocos, repetições por bloco e pausa
- * entre blocos; rest pause = pausa, retomadas e repetições por retomada (vazio = até a falha). Nasce sem números.
+ * entre blocos; rest pause = pausa, retomadas e repetições por retomada (vazio = até a falha); drop-set = quedas,
+ * redução da carga em % (vazio = sem fixar) e repetições por queda (vazio = até a falha). Nasce sem números.
  */
 function CamposDaTecnica({ tecnica, aoMudar }: { tecnica: Tecnica | null; aoMudar: (t: Tecnica | null) => void }) {
   const mudar = (parte: Partial<Tecnica>) => tecnica && aoMudar({ ...tecnica, ...parte });
@@ -267,6 +270,32 @@ function CamposDaTecnica({ tecnica, aoMudar }: { tecnica: Tecnica | null; aoMuda
               inteiro
               valor={tecnica.repsPorRetomada}
               aoMudar={(repsPorRetomada) => mudar({ repsPorRetomada })}
+              ajuda="Vazio = até a falha."
+            />
+          </View>
+        </View>
+      ) : null}
+      {tecnica?.tipo === 'DROP_SET' ? (
+        <View style={estilos.linha}>
+          <View style={estilos.reps}>
+            <CampoNumerico rotulo="Quedas" inteiro valor={tecnica.quedas ?? null} aoMudar={(quedas) => mudar({ quedas })} />
+          </View>
+          <View style={estilos.repsLargo}>
+            <CampoNumerico
+              rotulo="Reduzir a carga"
+              inteiro
+              sufixo="%"
+              valor={tecnica.reducaoPercentual ?? null}
+              aoMudar={(reducaoPercentual) => mudar({ reducaoPercentual })}
+              ajuda="Vazio = sem fixar."
+            />
+          </View>
+          <View style={estilos.repsLargo}>
+            <CampoNumerico
+              rotulo="Reps por queda"
+              inteiro
+              valor={tecnica.repsPorQueda ?? null}
+              aoMudar={(repsPorQueda) => mudar({ repsPorQueda })}
               ajuda="Vazio = até a falha."
             />
           </View>

@@ -1,6 +1,8 @@
 import type { ConteudoTreino, ExercicioPlano, Marca, Sessao } from '../api/tipos';
 import { agrupar, faixa, textoIntensidade, textoTecnica, type GrupoDeSeries } from '../dominio/agrupamento';
+import { gruposDaSessao } from '../dominio/combinacoes';
 import { DIAS_SEMANA } from '../dominio/editorTreino';
+import { textoExecucao } from '../dominio/execucaoDoExercicio';
 import { dataHoraParaTela, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { rotuloDoDia, rotuloDoTipo, sessoesDaSemana } from '../dominio/semana';
 import { cssBase, esc, escLinhas, link, topo, type Documento } from './html';
@@ -45,12 +47,24 @@ function linhaExercicio(e: ExercicioPlano, tipoTrabalho: string): string {
   const grupos = agrupar(e.series);
   const obs = [e.observacao, ...grupos.map((g) => obsDoGrupo(g, tipoTrabalho)), e.progressao ? null : 'Foco em controle, não em carga']
     .filter((x): x is string => !!x);
+  const execucao = textoExecucao(e);
   return `<tr>
-<td><strong>${esc(e.nome)}</strong></td>
+<td><strong>${esc(e.nome)}</strong>${execucao ? `<div class="suave">${esc(execucao)}</div>` : ''}</td>
 <td>${grupos.map((g) => esc(linhaDoGrupo(g))).join('<br>') || '—'}</td>
 <td>${obs.map(esc).join('<br>') || '—'}</td>
 <td>${link(e.videoUrl, 'Vídeo')}</td>
 </tr>`;
+}
+
+/** Exercícios da sessão; os feitos juntos (bi-set, tri-set, circuito) ganham uma linha com o nome do grupo antes. */
+function linhasDosExercicios(s: Sessao, tipoTrabalho: string): string {
+  return gruposDaSessao(s.exercicios)
+    .map((g) => {
+      const linhas = g.exercicios.map((e) => linhaExercicio(e, tipoTrabalho)).join('');
+      if (!g.nome) return linhas;
+      return `<tr><td colspan="4"><strong>${esc(g.nome)}</strong> · ${g.exercicios.length} exercícios em sequência, sem descanso entre eles</td></tr>${linhas}`;
+    })
+    .join('');
 }
 
 function blocoSessao(s: Sessao, tipoTrabalho: string): string {
@@ -65,7 +79,7 @@ function blocoSessao(s: Sessao, tipoTrabalho: string): string {
   return `<section class="${s.exercicios.length <= 8 ? 'bloco' : ''}">
 <h2>${esc(titulo)}</h2>${extras}
 <table><thead><tr><th style="width:34%">Exercício</th><th style="width:24%">Séries x reps</th><th>Obs</th><th style="width:9%">Vídeo</th></tr></thead>
-<tbody>${s.exercicios.map((e) => linhaExercicio(e, tipoTrabalho)).join('')}</tbody></table>
+<tbody>${linhasDosExercicios(s, tipoTrabalho)}</tbody></table>
 </section>`;
 }
 

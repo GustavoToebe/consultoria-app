@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Regras de publicação do treino. O app mostra o mesmo resultado antes de publicar. Não opina sobre
@@ -25,6 +26,10 @@ import java.util.UUID;
 public class ValidadorTreino {
 
     private static final BigDecimal MEIO = new BigDecimal("0.5");
+    /** Cadência em 4 partes (descida-pausa embaixo-subida-pausa em cima), cada uma 0 a 9 segundos ou X (explosivo). */
+    private static final Pattern CADENCIA = Pattern.compile("[0-9X](-[0-9X]){3}");
+    /** Bi-set, tri-set ou circuito: até 6 exercícios feitos em sequência. */
+    static final int MAXIMO_POR_GRUPO = 6;
 
     private final VideoUrls videoUrls;
 
@@ -71,6 +76,7 @@ public class ValidadorTreino {
             for (int j = 0; j < exercicios.size(); j++) {
                 exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]");
             }
+            agrupamento(c, exercicios, cs);
         }
         if (!sessoes.isEmpty() && !temDescanso) {
             c.aviso("sessoes", "O plano não tem dia de descanso.");
@@ -91,6 +97,15 @@ public class ValidadorTreino {
         }
         if (e.unidade() != null && !"kg".equals(e.unidade()) && !"nenhuma".equals(e.unidade())) {
             c.erro(ce + ".unidade", "Unidade precisa ser kg ou nenhuma.");
+        }
+        if (e.cadencia() != null && !e.cadencia().isBlank() && !CADENCIA.matcher(e.cadencia()).matches()) {
+            c.erro(ce + ".cadencia", "Cadência em 4 partes separadas por hífen, cada uma de 0 a 9 ou X (ex.: 3-1-1-0).");
+        }
+        if (e.isometriaSegundos() != null) {
+            faixa(c, e.isometriaSegundos(), 1, 120, ce + ".isometriaSegundos", "Isometria de 1 a 120 segundos.");
+        }
+        if (e.combinacao() != null && !ConteudoTreino.SUPERSERIE.equals(e.combinacao())) {
+            c.erro(ce + ".combinacao", "Nome do grupo inválido: use bi-set ou supersérie.");
         }
         List<Serie> series = e.seriesOuVazio();
         if (series.isEmpty()) {
@@ -114,8 +129,31 @@ public class ValidadorTreino {
         }
     }
 
+    /**
+     * Exercícios ligados por {@code juntoComAnterior} formam um grupo feito em sequência (bi-set, tri-set, circuito). O
+     * primeiro da sessão não tem anterior e o grupo vai até {@link #MAXIMO_POR_GRUPO}; o erro aponta o exercício que
+     * passou do limite. O nome do grupo ({@code combinacao}) só conta no primeiro de um grupo de 2: nos outros é ignorado.
+     */
+    private static void agrupamento(ResultadoValidacao.Coletor c, List<ExercicioPlano> exercicios, String cs) {
+        int tamanho = 0;
+        for (int j = 0; j < exercicios.size(); j++) {
+            ExercicioPlano e = exercicios.get(j);
+            if (j == 0 && e.junto()) {
+                c.erro(cs + ".exercicios[0].juntoComAnterior",
+                        "O primeiro exercício da sessão não tem um anterior para fazer junto.");
+            }
+            tamanho = j > 0 && e.junto() ? tamanho + 1 : 1;
+            if (tamanho == MAXIMO_POR_GRUPO + 1) {
+                c.erro(cs + ".exercicios[" + j + "].juntoComAnterior",
+                        "Um grupo de exercícios feitos juntos vai até " + MAXIMO_POR_GRUPO + " exercícios.");
+            }
+        }
+    }
+
     /** Cluster: 2 a 10 blocos, 1 a 50 repetições por bloco e 5 a 600 s entre blocos. Rest pause: 5 a 600 s de pausa,
-     * 1 a 5 retomadas e, se informadas, 1 a 50 repetições por retomada (vazio = até a falha). */
+     * 1 a 5 retomadas e, se informadas, 1 a 50 repetições por retomada (vazio = até a falha). Drop-set: 1 a 5 quedas
+     * e, se informadas, 5% a 50% de redução e 1 a 50 repetições por queda (vazio = até a falha). Campos de outra técnica
+     * são ignorados. */
     private static void tecnica(ResultadoValidacao.Coletor c, ConteudoTreino.Tecnica t, String ct) {
         if (ConteudoTreino.CLUSTER.equals(t.tipo())) {
             faixa(c, t.blocos(), 2, 10, ct + ".blocos", "Blocos do cluster entre 2 e 10.");
@@ -128,8 +166,18 @@ public class ValidadorTreino {
                 faixa(c, t.repsPorRetomada(), 1, 50, ct + ".repsPorRetomada",
                         "Repetições por retomada entre 1 e 50 (ou vazio, até a falha).");
             }
+        } else if (ConteudoTreino.DROP_SET.equals(t.tipo())) {
+            faixa(c, t.quedas(), 1, 5, ct + ".quedas", "Quedas do drop-set entre 1 e 5.");
+            if (t.reducaoPercentual() != null) {
+                faixa(c, t.reducaoPercentual(), 5, 50, ct + ".reducaoPercentual",
+                        "Redução da carga entre 5% e 50% (ou vazio, sem fixar).");
+            }
+            if (t.repsPorQueda() != null) {
+                faixa(c, t.repsPorQueda(), 1, 50, ct + ".repsPorQueda",
+                        "Repetições por queda entre 1 e 50 (ou vazio, até a falha).");
+            }
         } else {
-            c.erro(ct + ".tipo", "Técnica desconhecida: use cluster ou rest pause.");
+            c.erro(ct + ".tipo", "Técnica desconhecida: use cluster, rest pause ou drop-set.");
         }
     }
 

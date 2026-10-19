@@ -40,6 +40,9 @@ public record ConteudoTreino(
     /** Técnicas da série com campos próprios (reunião de 17/10): o tipo da série tem nome livre, a técnica não. */
     public static final String CLUSTER = "CLUSTER";
     public static final String REST_PAUSE = "REST_PAUSE";
+    public static final String DROP_SET = "DROP_SET";
+    /** Nome escolhido pelo treinador para um grupo de 2 exercícios (sem ele, "Bi-set"). */
+    public static final String SUPERSERIE = "SUPERSERIE";
 
     public record Sessao(
             UUID uid,
@@ -65,10 +68,32 @@ public record ConteudoTreino(
             @Size(max = 1000) String observacao,
             Boolean progressao,
             @Size(max = 10) String unidade,
-            @Size(max = 30) List<@Valid @NotNull Serie> series) {
+            @Size(max = 30) List<@Valid @NotNull Serie> series,
+            @Size(max = 15) String cadencia,
+            Integer isometriaSegundos,
+            Boolean juntoComAnterior,
+            @Size(max = 20) String combinacao) {
+
+        /** Sem cadência, isometria nem agrupamento (a maior parte dos exercícios). */
+        public ExercicioPlano(UUID uid, UUID exercicioId, String nome, String modalidade, String videoUrl,
+                              String observacao, Boolean progressao, String unidade, List<Serie> series) {
+            this(uid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade, series, null, null,
+                    null, null);
+        }
 
         public List<Serie> seriesOuVazio() {
             return series == null ? List.of() : series;
+        }
+
+        /** Feito em sequência com o exercício anterior da sessão, sem descanso entre eles (bi-set, tri-set...). */
+        public boolean junto() {
+            return Boolean.TRUE.equals(juntoComAnterior);
+        }
+
+        /** Mesmo exercício com outras séries (o resto, inclusive execução e agrupamento, acompanha). */
+        public ExercicioPlano comSeries(UUID novoUid, List<Serie> novas) {
+            return new ExercicioPlano(novoUid, exercicioId, nome, modalidade, videoUrl, observacao, progressao, unidade,
+                    novas, cadencia, isometriaSegundos, juntoComAnterior, combinacao);
         }
     }
 
@@ -98,9 +123,10 @@ public record ConteudoTreino(
     }
 
     /**
-     * Cluster (blocos de repetições com pausa entre eles) ou rest pause (série, pausa e retomadas). Só números que o
-     * treinador escreve; o aluno vê a estrutura e registra a série inteira, como nas outras.
-     * {@code repsPorRetomada} nulo no rest pause = "até a falha".
+     * Estrutura da série: cluster (blocos de repetições com pausa entre eles), rest pause (série, pausa e retomadas) ou
+     * drop-set (ao terminar, reduz a carga e continua). Só números que o treinador escreve; o aluno vê a estrutura e
+     * registra a série inteira, como nas outras. {@code repsPorRetomada} e {@code repsPorQueda} nulos = "até a falha";
+     * {@code reducaoPercentual} nulo = o treinador não fixou quanto reduzir.
      */
     public record Tecnica(
             @Size(max = 20) String tipo,
@@ -108,7 +134,16 @@ public record ConteudoTreino(
             Integer repsPorBloco,
             Integer pausaSegundos,
             Integer retomadas,
-            Integer repsPorRetomada) {
+            Integer repsPorRetomada,
+            Integer quedas,
+            Integer reducaoPercentual,
+            Integer repsPorQueda) {
+
+        /** Cluster ou rest pause (sem os campos do drop-set). */
+        public Tecnica(String tipo, Integer blocos, Integer repsPorBloco, Integer pausaSegundos, Integer retomadas,
+                       Integer repsPorRetomada) {
+            this(tipo, blocos, repsPorBloco, pausaSegundos, retomadas, repsPorRetomada, null, null, null);
+        }
     }
 
     public record Intensidade(
@@ -140,8 +175,7 @@ public record ConteudoTreino(
     private ConteudoTreino comUids(Supplier<UUID> novo) {
         List<Sessao> novas = sessoesOuVazio().stream().map(s -> new Sessao(novo.get(), s.nome(), s.diaSemana(),
                 s.tipo(), s.frequenciaSemanal(), s.observacao(), s.cardio(),
-                s.exerciciosOuVazio().stream().map(e -> new ExercicioPlano(novo.get(), e.exercicioId(), e.nome(),
-                        e.modalidade(), e.videoUrl(), e.observacao(), e.progressao(), e.unidade(),
+                s.exerciciosOuVazio().stream().map(e -> e.comSeries(novo.get(),
                         e.seriesOuVazio().stream().map(x -> new Serie(novo.get(), x.tipo(), x.repsMin(), x.repsMax(),
                                 x.alvoTexto(), x.intensidade(), x.descansoSegundos(), x.tecnica())).toList())).toList()))
                 .toList();

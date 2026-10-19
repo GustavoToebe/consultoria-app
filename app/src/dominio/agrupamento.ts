@@ -13,7 +13,15 @@ export interface GrupoDeSeries {
 
 const modo = (s: Serie) => s.intensidade?.modo ?? 'NENHUMA';
 
-const chave = (s: Serie) => [s.tipo, s.repsMin ?? '', s.repsMax ?? '', s.alvoTexto ?? '', modo(s), s.tecnica ? JSON.stringify(s.tecnica) : ''].join('|');
+/** Técnica na chave do grupo, campo a campo: ausente e nulo contam igual (o servidor devolve todos os campos). */
+const chaveTecnica = (t: Tecnica | null | undefined) =>
+  t
+    ? [t.tipo, t.blocos, t.repsPorBloco, t.pausaSegundos, t.retomadas, t.repsPorRetomada, t.quedas, t.reducaoPercentual, t.repsPorQueda]
+        .map((v) => v ?? '')
+        .join(',')
+    : '';
+
+const chave = (s: Serie) => [s.tipo, s.repsMin ?? '', s.repsMax ?? '', s.alvoTexto ?? '', modo(s), chaveTecnica(s.tecnica)].join('|');
 
 export function agrupar(series: Serie[]): GrupoDeSeries[] {
   const grupos: GrupoDeSeries[] = [];
@@ -52,10 +60,17 @@ export function textoIntensidade(i: Intensidade | null): string {
 
 const n = (v: number | null | undefined) => (v == null ? '?' : String(v));
 
-/** Técnica em texto curto (editor e PDF): "Cluster 3×2, 20 s" e "Rest pause 20 s +2" ("+2×3" com repetições fixas). */
+/**
+ * Técnica em texto curto (editor e PDF): "Cluster 3×2, 20 s", "Rest pause 20 s +2" ("+2×3" com repetições fixas) e
+ * "Drop-set 2× −20%" ("2×8" com repetições fixas; sem redução fixada, sem o %).
+ */
 export function textoTecnica(t: Tecnica | null | undefined): string {
   if (!t) return '';
   if (t.tipo === 'CLUSTER') return `Cluster ${n(t.blocos)}×${n(t.repsPorBloco)}, ${n(t.pausaSegundos)} s`;
+  if (t.tipo === 'DROP_SET') {
+    const reducao = t.reducaoPercentual ? ` −${t.reducaoPercentual}%` : '';
+    return `Drop-set ${n(t.quedas)}×${t.repsPorQueda ?? ''}${reducao}`;
+  }
   const reps = t.repsPorRetomada ? `×${t.repsPorRetomada}` : '';
   return `Rest pause ${n(t.pausaSegundos)} s +${n(t.retomadas)}${reps}`;
 }
@@ -65,6 +80,12 @@ export function textoTecnicaPorExtenso(t: Tecnica | null | undefined): string {
   if (!t) return '';
   if (t.tipo === 'CLUSTER') {
     return `Cluster: ${n(t.blocos)} blocos de ${n(t.repsPorBloco)} repetições, ${n(t.pausaSegundos)} s de pausa entre os blocos.`;
+  }
+  if (t.tipo === 'DROP_SET') {
+    const reduza = t.reducaoPercentual ? `reduza a carga cerca de ${t.reducaoPercentual}%` : 'reduza a carga';
+    const depois = t.repsPorQueda ? `faça mais ${t.repsPorQueda} repetições` : 'continue até a falha';
+    const vezes = t.quedas === 1 ? '1 vez' : `${n(t.quedas)} vezes`;
+    return `Drop-set: ao terminar, ${reduza} e ${depois}, ${vezes}.`;
   }
   const retomadas = t.retomadas === 1 ? '1 retomada' : `${n(t.retomadas)} retomadas`;
   const reps = t.repsPorRetomada ? `de ${t.repsPorRetomada} repetições` : 'até a falha';
