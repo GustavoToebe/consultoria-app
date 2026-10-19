@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 import type { BancoSql, ConexaoSql, FabricaBanco } from './banco';
+import { excluirDoBackup } from './excluirDoBackup';
 
 /** `BancoSql` sobre o expo-sqlite. Só no celular: na web o repositório é o chave-valor (`abrirRepositorio.web.ts`). */
 function adaptar(db: SQLite.SQLiteDatabase): BancoSql {
@@ -25,6 +26,8 @@ export const fabricaExpo: FabricaBanco = {
     const db = await SQLite.openDatabaseAsync(nome);
     // WAL: a transação exclusiva usa outra conexão; leitura e escrita não se bloqueiam.
     await db.execAsync('pragma journal_mode = wal; pragma busy_timeout = 5000;');
+    // iPhone: a pasta dos bancos (`Documents/SQLite`, com o `-wal` e o `-shm`) fica fora do backup do iCloud.
+    await excluirDoBackup(SQLite.defaultDatabaseDirectory);
     return { banco: adaptar(db), fechar: () => db.closeAsync() };
   },
   async apagar(nome) {
