@@ -1,0 +1,11 @@
+# As actions dos workflows ficam fixadas pelo commit (uma tag pode ser trocada no repositório de origem e levar os tokens
+# do build e do GHCR). O Dependabot abre, uma vez por mês, o PR que sobe o commit junto com o comentário da versão.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

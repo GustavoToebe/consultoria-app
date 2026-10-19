@@ -39,12 +39,13 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Testes do script de limpeza (sem rede)
         run: bash .github/scripts/limpar-ghcr.test.sh
       - name: Versões antigas dos pacotes
         env:
-          GH_TOKEN: ${{ secrets.GHCR_LIMPEZA_TOKEN || github.token }}
+          # Num pull request o script vem do próprio PR: nunca recebe o token que apaga pacotes.
+          GH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.GHCR_LIMPEZA_TOKEN || github.token }}
           DONO: ${{ github.repository_owner }}
           PACOTES: consultoria-api consultoria-web
           MANTER: '20'
