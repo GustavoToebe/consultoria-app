@@ -76,6 +76,7 @@ public class ValidadorQuestionario {
         if (estado.capacidadeDeTexto > LimitesQuestionario.CAPACIDADE_DE_TEXTO_TOTAL) {
             c.erro("secoes", "Respostas de texto demais.");
         }
+        datasDaPesagem(c, estado);
         if (estado.finalidade == Finalidade.ATUALIZACAO && estado.total > 0 && !estado.tipos.contains(PESO)) {
             c.aviso("secoes", "Sem pergunta de peso: o peso não será registrado.");
         }
@@ -120,6 +121,10 @@ public class ValidadorQuestionario {
         int capacidadeDeTexto;
         final Set<String> ids = new HashSet<>();
         final Set<TipoPergunta> tipos = EnumSet.noneOf(TipoPergunta.class);
+        /** Campos do perfil já alimentados: um destino por questionário. */
+        final Set<DestinoNoPerfil> destinos = EnumSet.noneOf(DestinoNoPerfil.class);
+        /** Caminho da pergunta PESO → id da pergunta DATA da pesagem, conferido no fim (a DATA pode vir depois). */
+        final Map<String, String> pesagens = new java.util.LinkedHashMap<>();
 
         Estado(Finalidade finalidade) {
             this.finalidade = finalidade;
@@ -217,6 +222,41 @@ public class ValidadorQuestionario {
         }
         textos(c, p, cp);
         grade(c, p, cp);
+        destino(c, estado, p, cp);
+    }
+
+    /**
+     * Destino no perfil (só na anamnese): o tipo precisa alimentar o campo e cada campo vem de uma pergunta só, para o
+     * envio nunca ter de escolher entre duas respostas. {@code destinoData} só no PESO com destino.
+     */
+    private static void destino(ResultadoValidacao.Coletor c, Estado estado, Pergunta p, String cp) {
+        DestinoNoPerfil d = p.destino();
+        if (d != null) {
+            if (estado.finalidade != Finalidade.ANAMNESE) {
+                c.erro(cp + ".destino", "O campo do perfil só vale na anamnese.");
+            } else if (!d.aceita(p.tipo())) {
+                c.erro(cp + ".destino", "Este tipo de pergunta não alimenta este campo.");
+            } else if (!estado.destinos.add(d)) {
+                c.erro(cp + ".destino", "Outra pergunta já alimenta este campo.");
+            }
+        }
+        if (p.destinoData() != null) {
+            if (d != DestinoNoPerfil.PESO) {
+                c.erro(cp + ".destinoData", "Só o peso guardado no perfil usa a data da pesagem.");
+            } else {
+                estado.pesagens.put(cp, p.destinoData());
+            }
+        }
+    }
+
+    /** A data da pesagem é uma pergunta DATA "só hoje ou antes": peso no futuro não existe no registro. */
+    private static void datasDaPesagem(ResultadoValidacao.Coletor c, Estado estado) {
+        estado.pesagens.forEach((cp, id) -> {
+            Pergunta alvo = estado.anteriores.get(id);
+            if (alvo == null || alvo.tipo() != DATA || !Boolean.TRUE.equals(alvo.somentePassado())) {
+                c.erro(cp + ".destinoData", "A data da pesagem precisa ser uma pergunta de data que aceita só hoje ou antes.");
+            }
+        });
     }
 
     /** {@code texto} do ACEITE (obrigatório) e do INFORMATIVO (opcional); {@code declaracao} só do ACEITE (obrigatória). */

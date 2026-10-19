@@ -6054,6 +6054,361 @@
   "avisos": []
  },
  {
+  "nome": "destino_peso_e_objetivo_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "pesagem",
+       "tipo": "DATA",
+       "rotulo": "Pergunta pesagem",
+       "obrigatoria": false,
+       "somentePassado": true
+      },
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false,
+       "destino": "PESO",
+       "destinoData": "pesagem"
+      },
+      {
+       "id": "obj",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta obj",
+       "obrigatoria": false,
+       "destino": "OBJETIVO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_data_da_pesagem_depois_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false,
+       "destino": "PESO",
+       "destinoData": "pesagem"
+      },
+      {
+       "id": "pesagem",
+       "tipo": "DATA",
+       "rotulo": "Pergunta pesagem",
+       "obrigatoria": false,
+       "somentePassado": true
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_peso_sem_data_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false,
+       "destino": "PESO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_na_atualizacao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "o",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta o",
+       "obrigatoria": false,
+       "destino": "OBJETIVO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "destino_tipo_errado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "o",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta o",
+       "obrigatoria": false,
+       "destino": "OBJETIVO"
+      },
+      {
+       "id": "n",
+       "tipo": "NUMERO",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "destino": "PESO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].destino",
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "destino": "OBJETIVO"
+      },
+      {
+       "id": "b",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta b",
+       "obrigatoria": false,
+       "destino": "OBJETIVO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_data_sem_destino_peso",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "pesagem",
+       "tipo": "DATA",
+       "rotulo": "Pergunta pesagem",
+       "obrigatoria": false,
+       "somentePassado": true
+      },
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false,
+       "destinoData": "pesagem"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destinoData"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_data_sem_somente_passado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "pesagem",
+       "tipo": "DATA",
+       "rotulo": "Pergunta pesagem",
+       "obrigatoria": false
+      },
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false,
+       "destino": "PESO",
+       "destinoData": "pesagem"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destinoData"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_data_inexistente_e_de_texto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "A",
+     "perguntas": [
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false
+      },
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false,
+       "destino": "PESO",
+       "destinoData": "fantasma"
+      }
+     ]
+    },
+    {
+     "uid": "s2",
+     "titulo": "B",
+     "perguntas": [
+      {
+       "id": "p2",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta p2",
+       "obrigatoria": false
+      },
+      {
+       "id": "x",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta x",
+       "obrigatoria": false,
+       "destinoData": "t"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destinoData",
+   "secoes[1].perguntas[1].destinoData"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_data_aponta_para_texto",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false
+      },
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false,
+       "destino": "PESO",
+       "destinoData": "t"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destinoData"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
   "nome": "fabrica_v2",
   "conteudo": {
    "secoes": [

@@ -42,7 +42,8 @@ public record ConteudoQuestionario(
      * Campos que só valem para alguns tipos: {@code dias} (NOTAS_POR_DIA), {@code opcoes} (escolhas), {@code unidade},
      * {@code min}, {@code max} e {@code casas} (NUMERO), {@code somentePassado} (DATA), {@code linhas} e {@code colunas}
      * (GRADE), {@code texto} (ACEITE e INFORMATIVO) e {@code declaracao} (ACEITE). {@code imagemId} e {@code mostrarSe}
-     * valem para todos.
+     * valem para todos. Só na anamnese: {@code destino} (campo do cadastro que a resposta alimenta) e, no PESO com destino,
+     * {@code destinoData} (id da pergunta DATA com a data da pesagem; sem ela, vale a data do envio).
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -67,14 +68,26 @@ public record ConteudoQuestionario(
             @Size(max = LimitesQuestionario.COLUNAS_MAXIMO) List<@NotNull @Valid Opcao> colunas,
             @Size(max = LimitesQuestionario.TEXTO_INFORMATIVO_TAMANHO) String texto,
             @Size(max = LimitesQuestionario.DECLARACAO_TAMANHO) String declaracao,
-            @Valid Condicao mostrarSe) {
+            @Valid Condicao mostrarSe,
+            DestinoNoPerfil destino,
+            @Size(max = LimitesQuestionario.ID_TAMANHO) String destinoData) {
 
-        /** Pergunta sem os campos da anamnese (imagem, data, grade, aceite, condição). */
+        /** Pergunta sem destino no perfil. */
+        public Pergunta(String id, TipoPergunta tipo, String rotulo, Boolean obrigatoria, String ajuda, Boolean destaque,
+                        String rotuloCurto, AjudaAutomatica ajudaAutomatica, List<Integer> dias, List<Opcao> opcoes,
+                        String unidade, BigDecimal min, BigDecimal max, Integer casas, String imagemId,
+                        Boolean somentePassado, List<Opcao> linhas, List<Opcao> colunas, String texto, String declaracao,
+                        Condicao mostrarSe) {
+            this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
+                    max, casas, imagemId, somentePassado, linhas, colunas, texto, declaracao, mostrarSe, null, null);
+        }
+
+        /** Pergunta sem os campos da anamnese (imagem, data, grade, aceite, condição, destino). */
         public Pergunta(String id, TipoPergunta tipo, String rotulo, Boolean obrigatoria, String ajuda, Boolean destaque,
                         String rotuloCurto, AjudaAutomatica ajudaAutomatica, List<Integer> dias, List<Opcao> opcoes,
                         String unidade, BigDecimal min, BigDecimal max, Integer casas) {
             this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
-                    max, casas, null, null, null, null, null, null, null);
+                    max, casas, null, null, null, null, null, null, null, null, null);
         }
     }
 

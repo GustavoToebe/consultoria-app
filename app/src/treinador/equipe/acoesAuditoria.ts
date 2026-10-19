@@ -15,6 +15,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   QUESTIONARIO_CRIADO:'Questionário criado',QUESTIONARIO_PUBLICADO:'Questionário publicado',QUESTIONARIO_DUPLICADO:'Questionário duplicado',
   QUESTIONARIO_PADRAO_ALTERADO:'Questionário padrão alterado',QUESTIONARIO_ARQUIVADO:'Questionário arquivado',QUESTIONARIO_DESARQUIVADO:'Questionário desarquivado',QUESTIONARIO_EXCLUIDO:'Questionário excluído',
   ANAMNESE_ATRIBUIDA:'Anamnese enviada ao aluno',ANAMNESE_ENVIADA:'Anamnese respondida pelo aluno',ANAMNESE_REVISADA:'Anamnese marcada como revisada',ANAMNESE_DISPENSADA:'Anamnese dispensada',
+  ANAMNESE_CADASTRO_PREENCHIDO:'Anamnese preencheu campos vazios do cadastro',ANAMNESE_ALTERACAO_APLICADA:'Alteração da anamnese aplicada ao cadastro',ANAMNESE_ALTERACAO_DESCARTADA:'Alteração da anamnese descartada',
   ALUNO_QUESTIONARIO_ALTERADO:'Questionário do aluno alterado',
   LESAO_REGISTRADA:'Lesão registrada',LESAO_ALTERADA:'Lesão editada',PESO_REGISTRADO:'Peso registrado',
   ATUALIZACAO_FEEDBACK:'Feedback de atualização enviado ou editado',MARCA_ALTERADA:'Marca alterada',

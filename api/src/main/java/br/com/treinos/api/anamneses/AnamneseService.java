@@ -63,13 +63,14 @@ public class AnamneseService {
     private final AtualizacaoRepository atualizacoes;
     private final PastaVigente pastaVigente;
     private final Auditoria auditoria;
+    private final PerfilDaAnamnese perfil;
     private final JsonMapper json;
 
     public AnamneseService(AnamneseRepository anamneses, AlunoRepository alunos, QuestionarioService questionarios,
                            QuestionarioResolver resolver, QuestionarioVersaoRepository versoes,
                            QuestionarioImagemService imagens, ValidadorAtualizacao validador, FotoService fotos,
                            UsuarioRepository usuarios, AtualizacaoRepository atualizacoes, PastaVigente pastaVigente,
-                           Auditoria auditoria, JsonMapper json) {
+                           Auditoria auditoria, PerfilDaAnamnese perfil, JsonMapper json) {
         this.anamneses = anamneses;
         this.alunos = alunos;
         this.questionarios = questionarios;
@@ -82,6 +83,7 @@ public class AnamneseService {
         this.atualizacoes = atualizacoes;
         this.pastaVigente = pastaVigente;
         this.auditoria = auditoria;
+        this.perfil = perfil;
         this.json = json;
     }
 
@@ -110,10 +112,12 @@ public class AnamneseService {
     @Transactional(readOnly = true)
     public List<AnamneseResumo> doAluno(UUID alunoId) {
         exigirAluno(alunoId);
+        var abertas = perfil.abertasPorAnamnese(alunoId);
         return anamneses.findByAlunoIdOrderByAtribuidaEmDesc(alunoId).stream().map(a -> {
             var v = resolver.fixa(a.getQuestionarioVersaoId());
             return new AnamneseResumo(a.getId(), a.getSituacao().name(), v.nome(), v.numero(), a.getAtribuidaEm(),
-                    a.getEnviadaEm(), a.getRevisadaEm(), a.getDispensadaEm(), a.getDispensaMotivo(), a.getVersao());
+                    a.getEnviadaEm(), a.getRevisadaEm(), a.getDispensadaEm(), a.getDispensaMotivo(), a.getVersao(),
+                    abertas.getOrDefault(a.getId(), 0L));
         }).toList();
     }
 
@@ -151,6 +155,31 @@ public class AnamneseService {
         return detalhe(gravada);
     }
 
+    /**
+     * Aplica ao cadastro a alteração que a anamnese propôs (a rota exige {@code ANAMNESE_ALTERAR}; o
+     * {@link PerfilDaAnamnese} exige também a permissão do campo). Idempotente: aplicar a já aplicada não grava nem audita.
+     */
+    @Transactional
+    public AnamneseDetalhe aplicarAlteracao(UUID id, UUID alteracaoId, UUID usuarioId) {
+        Anamnese a = buscar(id);
+        if (perfil.aplicar(a, alteracaoId, usuarioId)) {
+            auditoria.registrarEvento("ANAMNESE_ALTERACAO_APLICADA", "ANAMNESE", a.getId(),
+                    "Aplicou ao cadastro uma alteração proposta pela anamnese.");
+        }
+        return detalhe(a);
+    }
+
+    /** Descarta a alteração proposta; o cadastro fica como está. Idempotente, como aplicar. */
+    @Transactional
+    public AnamneseDetalhe descartarAlteracao(UUID id, UUID alteracaoId, UUID usuarioId) {
+        Anamnese a = buscar(id);
+        if (perfil.descartar(a, alteracaoId, usuarioId)) {
+            auditoria.registrarEvento("ANAMNESE_ALTERACAO_DESCARTADA", "ANAMNESE", a.getId(),
+                    "Descartou uma alteração do cadastro proposta pela anamnese.");
+        }
+        return detalhe(a);
+    }
+
     // ---------------------------------------------------------------- aluno
 
     /** A pendente; sem ela, a última enviada ou revisada. Nenhuma (ou só dispensadas): 404. */
@@ -167,7 +196,9 @@ public class AnamneseService {
     /**
      * Envio do aluno. Já enviada (rede caiu depois do commit, clique duplo): devolve o estado sem mudar nada. A versão
      * respondida tem de ser a da atribuição; as respostas são validadas por ela (pergunta escondida por condição não é
-     * obrigatória e a resposta dela é descartada) e as fotos pendentes são ligadas na mesma transação.
+     * obrigatória e a resposta dela é descartada) e as fotos pendentes são ligadas na mesma transação. Também na mesma
+     * transação, as respostas com destino no cadastro preenchem o que estava vazio e propõem o que difere
+     * ({@link PerfilDaAnamnese}).
      */
     @Transactional
     public AnamneseDetalhe enviar(UsuarioAutenticado eu, UUID id, EnviarRequest r) {
@@ -184,12 +215,16 @@ public class AnamneseService {
             throw new ConflictException("Esta anamnese é de outra versão. Recarregue.", "ANAMNESE_VERSAO_DIFERENTE");
         }
         JsonNode modelo = json.readTree(resolver.fixa(a.getQuestionarioVersaoId()).conteudo());
-        JsonNode respostas = validador.validar(modelo, r.respostas(), fotos.ligadas(), "ANAMNESE_INVALIDA",
-                LocalDate.now(Fuso.BRASILIA));
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        JsonNode respostas = validador.validar(modelo, r.respostas(), fotos.ligadas(), "ANAMNESE_INVALIDA", hoje);
         a.enviar(json.writeValueAsString(respostas), Instant.now());
         Anamnese gravada = anamneses.saveAndFlush(a);
         ligarFotos(modelo, respostas, alunoId, gravada.getId());
         auditoria.registrarEvento("ANAMNESE_ENVIADA", "ANAMNESE", gravada.getId(), "Enviou as respostas da anamnese.");
+        if (perfil.aplicarNoEnvio(gravada, modelo, respostas, eu.usuarioId(), hoje)) {
+            auditoria.registrarEvento("ANAMNESE_CADASTRO_PREENCHIDO", "ANAMNESE", gravada.getId(),
+                    "A anamnese preencheu campos vazios do cadastro.");
+        }
         return detalhe(gravada).paraAluno();
     }
 
@@ -218,15 +253,24 @@ public class AnamneseService {
     @Transactional(readOnly = true)
     public List<AnamneseExportada> exportar(UUID alunoId) {
         List<Anamnese> todas = anamneses.findByAlunoIdOrderByAtribuidaEmDesc(alunoId);
-        var fotosPorAnamnese = fotos.metadadosDeAnamneses(todas.stream().map(Anamnese::getId).toList());
+        List<UUID> ids = todas.stream().map(Anamnese::getId).toList();
+        var fotosPorAnamnese = fotos.metadadosDeAnamneses(ids);
+        var alteracoes = perfil.porAnamnese(ids);
         return todas.stream().map(a -> new AnamneseExportada(a.getId(), a.getSituacao().name(), a.getQuestionarioVersaoId(),
                 json.readTree(a.getRespostas()), a.getAtribuidaEm(), a.getEnviadaEm(), a.getRevisadaEm(), a.getDispensadaEm(),
-                a.getDispensaMotivo(), fotosPorAnamnese.getOrDefault(a.getId(), List.of()))).toList();
+                a.getDispensaMotivo(), fotosPorAnamnese.getOrDefault(a.getId(), List.of()),
+                alteracoes.getOrDefault(a.getId(), List.of()).stream().map(p -> new AnamneseDtos.AlteracaoExportada(
+                        p.getDestino().name(), p.getPerguntaId(), json.readTree(p.getValor()), p.getSituacao().name(),
+                        p.isAutomatica(), p.getCriadaEm(), p.getResolvidaEm())).toList())).toList();
     }
 
-    /** Anonimização do aluno (na transação dela): respostas e motivo saem; as fotos saem pelo {@code FotoService}. */
+    /**
+     * Anonimização do aluno (na transação dela): respostas, motivo e as alterações do cadastro propostas (valores dele)
+     * saem; as fotos saem pelo {@code FotoService}.
+     */
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
     public void anonimizarDoAluno(UUID alunoId) {
+        perfil.anonimizarDoAluno(alunoId);
         anamneses.findByAlunoIdOrderByAtribuidaEmDesc(alunoId).forEach(Anamnese::limparDadosPessoais);
         anamneses.flush();
     }
@@ -298,7 +342,11 @@ public class AnamneseService {
         return new AnamneseDetalhe(a.getId(), aluno.getId(), aluno.getNome(), a.getSituacao().name(), v.versaoId(), v.numero(),
                 v.nome(), json.readTree(v.conteudo()), json.readTree(a.getRespostas()), a.getAtribuidaEm(),
                 nome(a.getAtribuidaPor(), aluno), a.getEnviadaEm(), a.getRevisadaEm(), nome(a.getRevisadaPor(), aluno),
-                a.getDispensadaEm(), nome(a.getDispensadaPor(), aluno), a.getDispensaMotivo(), a.getVersao());
+                a.getDispensadaEm(), nome(a.getDispensadaPor(), aluno), a.getDispensaMotivo(), a.getVersao(),
+                perfil.daAnamnese(a.getId()).stream().map(p -> new AnamneseDtos.AlteracaoDoCadastro(p.getId(),
+                        p.getDestino().name(), p.getPerguntaId(), json.readTree(p.getValor()), perfil.valorAtual(p),
+                        p.getSituacao().name(), p.isAutomatica(), p.getCriadaEm(), p.getResolvidaEm(),
+                        nome(p.getResolvidaPor(), aluno))).toList());
     }
 
     /** Nome de quem agiu, só se for da mesma consultoria (o usuário é global). */

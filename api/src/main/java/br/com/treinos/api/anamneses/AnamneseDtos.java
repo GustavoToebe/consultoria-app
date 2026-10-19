@@ -22,29 +22,44 @@ public final class AnamneseDtos {
     /** O aluno manda a versão que respondeu: é a da atribuição, que nunca muda. */
     public record EnviarRequest(@NotNull UUID questionarioVersaoId, @NotNull JsonNode respostas) { }
 
-    /** Item da lista na ficha (sem respostas nem modelo). */
+    /** Item da lista na ficha (sem respostas nem modelo). {@code alteracoesParaRevisar}: pendências abertas do cadastro. */
     public record AnamneseResumo(UUID id, String situacao, String questionarioNome, int questionarioVersaoNumero,
                                  Instant atribuidaEm, Instant enviadaEm, Instant revisadaEm, Instant dispensadaEm,
-                                 String dispensaMotivo, Long versao) { }
+                                 String dispensaMotivo, Long versao, long alteracoesParaRevisar) { }
+
+    /**
+     * Campo do cadastro alimentado pela anamnese: {@code PENDENTE} (o cadastro tinha outro valor; {@code valorAtual} é o
+     * de agora), {@code APLICADA} ({@code automatica} = preenchida no envio porque estava vazia) ou {@code DESCARTADA}.
+     * {@code valor}: {@code {"texto"}} (objetivo) ou {@code {"pesoKg", "data"}} (peso). Só para a equipe.
+     */
+    public record AlteracaoDoCadastro(UUID id, String destino, String perguntaId, JsonNode valor, JsonNode valorAtual,
+                                      String situacao, boolean automatica, Instant criadaEm, Instant resolvidaEm,
+                                      String resolvidaPorNome) { }
+
+    /** Exportação do titular: o que a anamnese propôs ou preencheu no cadastro. */
+    public record AlteracaoExportada(String destino, String perguntaId, JsonNode valor, String situacao, boolean automatica,
+                                     Instant criadaEm, Instant resolvidaEm) { }
 
     /**
      * Detalhe com o modelo (a versão respondida) e as respostas. Os nomes de quem atribuiu, revisou ou dispensou, o motivo
-     * e o nome do questionário são da equipe: {@link #paraAluno()} os tira.
+     * e o nome do questionário são da equipe, como as alterações do cadastro: {@link #paraAluno()} os tira.
      */
     public record AnamneseDetalhe(UUID id, UUID alunoId, String nomeAluno, String situacao, UUID questionarioVersaoId,
                                   int questionarioVersaoNumero, String questionarioNome, JsonNode modelo,
                                   JsonNode respostas, Instant atribuidaEm, String atribuidaPorNome, Instant enviadaEm,
                                   Instant revisadaEm, String revisadaPorNome, Instant dispensadaEm,
-                                  String dispensadaPorNome, String dispensaMotivo, Long versao) {
+                                  String dispensadaPorNome, String dispensaMotivo, Long versao,
+                                  java.util.List<AlteracaoDoCadastro> alteracoes) {
 
         public AnamneseDetalhe paraAluno() {
             return new AnamneseDetalhe(id, alunoId, null, situacao, questionarioVersaoId, questionarioVersaoNumero, null,
-                    modelo, respostas, atribuidaEm, null, enviadaEm, revisadaEm, null, dispensadaEm, null, null, versao);
+                    modelo, respostas, atribuidaEm, null, enviadaEm, revisadaEm, null, dispensadaEm, null, null, versao, null);
         }
     }
 
     /** Exportação do titular (LGPD): fotos só como metadados. */
     public record AnamneseExportada(UUID id, String situacao, UUID questionarioVersaoId, JsonNode respostas,
                                     Instant atribuidaEm, Instant enviadaEm, Instant revisadaEm, Instant dispensadaEm,
-                                    String dispensaMotivo, java.util.List<br.com.treinos.api.fotos.FotoService.FotoExportada> fotos) { }
+                                    String dispensaMotivo, java.util.List<br.com.treinos.api.fotos.FotoService.FotoExportada> fotos,
+                                    java.util.List<AlteracaoExportada> alteracoesDoCadastro) { }
 }

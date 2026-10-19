@@ -144,6 +144,11 @@ export const dispensarAnamnese = (id: string, motivo: string, versao: number) =>
   requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/dispensar`, { metodo: 'POST', corpo: { motivo, versao } });
 export const revisarAnamnese = (id: string, versao: number) =>
   requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/revisar`, { metodo: 'POST', corpo: { versao } });
+/** Alteração do cadastro proposta pela anamnese: aplicar ou descartar (ANAMNESE_ALTERAR + a permissão do campo). */
+export const aplicarAlteracaoDaAnamnese = (id: string, alteracaoId: string) =>
+  requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/alteracoes/${seg(alteracaoId)}/aplicar`, { metodo: 'POST' });
+export const descartarAlteracaoDaAnamnese = (id: string, alteracaoId: string) =>
+  requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/alteracoes/${seg(alteracaoId)}/descartar`, { metodo: 'POST' });
 export const baixarFotoDaAnamnese = (anamneseId: string, fotoId: string) =>
   requisicao<Blob>(`/anamneses/${seg(anamneseId)}/fotos/${seg(fotoId)}`, { binario: true, limiteMs: 60000 });
 /** A pendente ou a última enviada; 404 = nenhuma. */

@@ -62,13 +62,19 @@ function gradeValida(p: PerguntaAtualizacao, v: unknown) {
   return Object.entries(v).every(([linha, coluna]) => linhas.has(linha) && typeof coluna === 'string' && colunas.has(coluna));
 }
 
+/** Tamanho máximo da resposta de texto: o do objetivo do cadastro quando a resposta vai para lá (anamnese). */
+export function tamanhoDoTexto(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino'>) {
+  if (p.destino === 'OBJETIVO') return LIMITES_QUESTIONARIO.objetivoTamanho;
+  return p.tipo === 'TEXTO' ? LIMITES_QUESTIONARIO.textoCurtoCapacidade : LIMITES_QUESTIONARIO.textoLongoCapacidade;
+}
+
 /** Uma resposta (já presente) respeita o tipo e os limites da pergunta. Mesmas regras do `ValidadorAtualizacao`. */
 export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string = hojeIso()) {
   switch (p.tipo) {
     case 'NOTA': return nota(v);
     case 'PESO': return typeof v === 'number' && Number.isFinite(v) && v >= 20 && v <= 400 && Math.abs(v * 10 - Math.round(v * 10)) < 1e-8;
-    case 'TEXTO': return typeof v === 'string' && v.length <= LIMITES_QUESTIONARIO.textoCurtoCapacidade;
-    case 'TEXTO_LONGO': return typeof v === 'string' && v.length <= LIMITES_QUESTIONARIO.textoLongoCapacidade;
+    case 'TEXTO': return typeof v === 'string' && v.length <= tamanhoDoTexto(p);
+    case 'TEXTO_LONGO': return typeof v === 'string' && v.length <= tamanhoDoTexto(p);
     case 'NOTAS_POR_DIA':
       return typeof v === 'object' && v !== null && !Array.isArray(v)
         && Object.entries(v).every(([d, n]) => (p.dias ?? []).some((dia) => String(dia) === d) && (n == null || nota(n)));

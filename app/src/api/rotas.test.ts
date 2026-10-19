@@ -1,4 +1,4 @@
-import { buscarQuestionario, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos } from './rotas';
+import { aplicarAlteracaoDaAnamnese, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
 
@@ -16,6 +16,11 @@ describe('caminhos da API', () => {
 
   it('ids dos fatores vão separados por vírgula, cada um codificado', async () => {
     await expect(fatoresDosAlimentos(['a', 'b,c', '../x'])).resolves.toBe('/alimentos/fatores?ids=a,b%2Cc,..%2Fx');
+  });
+
+  it('alteração do cadastro proposta pela anamnese: os dois ids codificados', async () => {
+    await expect(aplicarAlteracaoDaAnamnese('a/b', '../c')).resolves.toBe('/anamneses/a%2Fb/alteracoes/..%2Fc/aplicar');
+    await expect(descartarAlteracaoDaAnamnese('a', 'b')).resolves.toBe('/anamneses/a/alteracoes/b/descartar');
   });
 
   it('uuid comum passa igual', async () => {

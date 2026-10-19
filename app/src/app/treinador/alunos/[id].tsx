@@ -44,7 +44,7 @@ export default function FichaAluno() {
   const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
   // Ciclo padrão da consultoria (V009). Quem não pode ler a consultoria fica só com o do aluno.
   const padrao = useCarregar('consultoria-ciclo', () => buscarConsultoria().then((c) => c.diasAtualizacaoPadrao ?? null, () => null)).dados ?? null;
-  // Finalizar uma pasta pode gravar peso: o cartão de peso é remontado para buscar de novo.
+  // Finalizar uma pasta ou aplicar uma alteração da anamnese pode gravar peso: o cartão de peso é remontado para buscar de novo.
   const [geracaoPeso, setGeracaoPeso] = useState(0);
   // A partir de 1.100 px: Dados à esquerda; Acesso e Lesões à direita. O resto vem em largura cheia.
   const { width } = useWindowDimensions();
@@ -75,7 +75,8 @@ export default function FichaAluno() {
               <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
             </>
           )}
-          {pode('ANAMNESE_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoAnamnese alunoId={aluno.id} anonimizado={aluno.anonimizado} /> : null}
+          {pode('ANAMNESE_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoAnamnese alunoId={aluno.id} anonimizado={aluno.anonimizado}
+            aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} /> : null}
           <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           <Permitido codigo="REGISTRO_LER"><CartaoFrequencia alunoId={aluno.id} /></Permitido>
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
