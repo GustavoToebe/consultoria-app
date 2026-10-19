@@ -69,6 +69,11 @@ interface ValorSessao {
   /** Ativa a verificação em duas etapas; devolve os códigos de recuperação (mostrados uma vez). As outras sessões caem. */
   ativarMfa: (senha: string, codigo: string) => Promise<string[]>;
   desativarMfa: (senha: string, codigo: string) => Promise<void>;
+  /**
+   * "Excluir minha conta" (só aluno): a API anonimiza e encerra as sessões; aqui sai tudo do aparelho como no "Sair",
+   * inclusive a fila de envio (os registros não teriam mais dono).
+   */
+  excluirConta: (senha: string, confirmacao: string) => Promise<void>;
   atualizarMarca: (marca: Marca) => void;
   sair: () => Promise<void>;
   /**
@@ -296,6 +301,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         return ativacao.codigosDeRecuperacao;
       },
       desativarMfa: async (senha, codigo) => abrir(await rotas.mfaDesativar(senha, codigo)),
+      excluirConta: async (senha, confirmacao) => {
+        await rotas.excluirMinhaConta(senha, confirmacao);
+        await encerrarLocal('sair');
+      },
       atualizarMarca,
       sair: async () => {
         try {

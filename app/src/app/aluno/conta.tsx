@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
+import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
 import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { dataParaTela } from '../../dominio/formatos';
@@ -15,7 +16,7 @@ import { PainelConta } from '../../ui/PainelConta';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
-/** Conta do aluno: foto de perfil, sincronização (pendências, falhas, "Sincronizar agora"), tema, senha e sair. */
+/** Conta do aluno: foto de perfil, sincronização (pendências, falhas, "Sincronizar agora"), tema, senha, sair e, por último, excluir a conta. */
 export default function ContaAluno() {
   const { pendentes, falhas, registros, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
   const naoEnviados = pendentes + falhas.length;
@@ -45,6 +46,7 @@ export default function ContaAluno() {
           </View>
         </Cartao>
       </PainelConta>
+      <CartaoExcluirConta />
     </Tela>
   );
 }
