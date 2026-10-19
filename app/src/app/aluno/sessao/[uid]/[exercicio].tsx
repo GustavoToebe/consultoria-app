@@ -7,12 +7,14 @@ import { ExercicioAluno } from '../../../../aluno/ExercicioAluno';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { useAluno } from '../../../../offline/AlunoProvider';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
+import { posicaoNoGrupo, textoDaFaixa } from '../../../../dominio/combinacoes';
 import { dataCurta } from '../../../../dominio/formatos';
 import { nomeComDia } from '../../../../dominio/semana';
 import { MODALIDADES } from '../../../../treinador/treino/FolhaBiblioteca';
-import { espaco } from '../../../../tema/tokens';
+import { espaco, fontes } from '../../../../tema/tokens';
 import { Botao } from '../../../../ui/Botao';
 import { Cabecalho } from '../../../../ui/Cabecalho';
+import { Cartao } from '../../../../ui/Cartao';
 import { Esqueleto } from '../../../../ui/Esqueleto';
 import { LinhaDeAcoes } from '../../../../ui/LinhaDeAcoes';
 import { Vazio } from '../../../../ui/Estados';
@@ -55,6 +57,11 @@ export default function ExercicioDaSessao() {
   const proximo = sessao.exercicios[posicao + 1];
   const anterior = posicao > 0 ? sessao.exercicios[posicao - 1] : undefined;
   const nomeDoDia = nomeComDia(sessao);
+  // Bi-set, tri-set ou circuito: diz o que vem em seguida dentro do grupo (sem descanso entre eles).
+  const noGrupo = posicaoNoGrupo(sessao.exercicios, posicao);
+  const faixaDoGrupo = noGrupo
+    ? textoDaFaixa(noGrupo, noGrupo.grupo.exercicios.some((x) => dia.feitas(x) < x.series.length))
+    : null;
 
   return (
     <Tela bordas={['top']} largura={720}>
@@ -67,6 +74,12 @@ export default function ExercicioDaSessao() {
         <View style={estilos.selos}>
           <Selo texto={MODALIDADES[e.modalidade] ?? e.modalidade} tipo="neutro" />
         </View>
+      ) : null}
+      {faixaDoGrupo ? (
+        <Cartao>
+          <Texto numerico style={estilos.faixa}>{faixaDoGrupo}</Texto>
+          <Texto variante="pequeno">Faça os exercícios do grupo um depois do outro, sem descanso entre eles.</Texto>
+        </Cartao>
       ) : null}
       <ExercicioAluno
         acaoAoLadoDoVideo={<DescansoManual />}
@@ -115,4 +128,5 @@ export default function ExercicioDaSessao() {
 const estilos = StyleSheet.create({
   selos: { flexDirection: 'row', gap: espaco(1), marginTop: -espaco(1) },
   fim: { marginTop: espaco(1), gap: espaco(1) },
+  faixa: { fontFamily: fontes.semi },
 });

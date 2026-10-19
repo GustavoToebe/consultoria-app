@@ -291,22 +291,30 @@ export interface Serie {
   alvoTexto: string | null;
   intensidade: Intensidade | null;
   descansoSegundos: number | null;
-  /** Cluster ou rest pause com campos próprios (reunião de 17/10); nulo = série comum. */
+  /** Estrutura da série com campos próprios (cluster, rest pause, drop-set); nulo = série simples. */
   tecnica?: Tecnica | null;
 }
 
 /**
  * Cluster: `blocos` de `repsPorBloco` com `pausaSegundos` entre eles. Rest pause: a série, `pausaSegundos` de pausa e
- * `retomadas` de `repsPorRetomada` (nulo = até a falha). Só números do treinador; o aluno registra a série inteira.
+ * `retomadas` de `repsPorRetomada` (nulo = até a falha). Drop-set: ao terminar, reduz a carga (`reducaoPercentual`,
+ * nulo = sem fixar) e continua, `quedas` vezes, com `repsPorQueda` (nulo = até a falha). Só números do treinador; o
+ * aluno registra a série inteira.
  */
 export interface Tecnica {
-  tipo: 'CLUSTER' | 'REST_PAUSE';
+  tipo: 'CLUSTER' | 'REST_PAUSE' | 'DROP_SET';
   blocos: number | null;
   repsPorBloco: number | null;
   pausaSegundos: number | null;
   retomadas: number | null;
   repsPorRetomada: number | null;
+  quedas?: number | null;
+  reducaoPercentual?: number | null;
+  repsPorQueda?: number | null;
 }
+
+/** Nome que o treinador escolhe para um grupo de 2 exercícios (sem ele, "Bi-set"). */
+export type Combinacao = 'SUPERSERIE';
 
 export interface ExercicioPlano {
   uid: string;
@@ -318,6 +326,14 @@ export interface ExercicioPlano {
   progressao: boolean;
   unidade: 'kg' | 'nenhuma';
   series: Serie[];
+  /** Cadência em 4 partes (descida-pausa embaixo-subida-pausa em cima), ex.: "3-1-1-0"; nulo = sem cadência. */
+  cadencia?: string | null;
+  /** Segundos de isometria ("segure N s", no ponto que a observação disser); nulo = sem isometria. */
+  isometriaSegundos?: number | null;
+  /** Feito em sequência com o exercício anterior, sem descanso (bi-set, tri-set, circuito). */
+  juntoComAnterior?: boolean | null;
+  /** Só no primeiro de um grupo de 2: "Supersérie" em vez de "Bi-set". */
+  combinacao?: Combinacao | null;
 }
 
 export interface Sessao {

@@ -106,6 +106,47 @@ describe('PDF do treino', () => {
   });
 });
 
+describe('PDF do treino: técnicas da pesquisa de 19/10', () => {
+  const conteudo = normalizarTreino({
+    sessoes: [
+      {
+        nome: 'Terça - Peito',
+        diaSemana: 2,
+        tipo: 'TREINO',
+        exercicios: [
+          {
+            nome: 'Supino reto',
+            cadencia: '3-1-1-0',
+            combinacao: 'SUPERSERIE',
+            series: [
+              {
+                ...s('WS', 6, 8, { modo: 'CARGA_TRABALHO' }),
+                tecnica: { tipo: 'DROP_SET', blocos: null, repsPorBloco: null, pausaSegundos: null, retomadas: null, repsPorRetomada: null, quedas: 2, reducaoPercentual: 20, repsPorQueda: null },
+              },
+            ],
+          },
+          { nome: 'Remada <curvada>', juntoComAnterior: true, isometriaSegundos: 10, series: [s('WS', 8, 10, { modo: 'CARGA_TRABALHO' })] },
+          { nome: 'Rosca direta', series: [s('WS', 8, 10, { modo: 'CARGA_TRABALHO' })] },
+        ],
+      },
+    ],
+  });
+  const html = documentoTreino({ ...base, inicio: null, fim: null, versao: 1, conteudo, tipoTrabalho: 'WS', instrucoesTreino: null }).corpo;
+
+  it('drop-set na coluna de séries, cadência e isometria junto do exercício', () => {
+    expect(html).toContain('1x6 a 8 - WS · Drop-set 2× −20%');
+    expect(html).toContain('Cadência 3-1-1-0');
+    expect(html).toContain('Isometria 10 s');
+  });
+
+  it('rótulo do grupo antes dos exercícios feitos juntos, e só deles', () => {
+    expect(html).toContain('<strong>Supersérie</strong>');
+    expect(html.indexOf('Supersérie')).toBeLessThan(html.indexOf('Supino reto'));
+    expect(html.match(/em sequência/g)).toHaveLength(1);
+    expect(html).toContain('Remada &lt;curvada&gt;');
+  });
+});
+
 describe('PDF da dieta', () => {
   const dieta: ConteudoDieta = normalizarDieta({
     objetivo: 'Construção muscular',

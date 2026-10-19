@@ -3,14 +3,17 @@ import { useMovimentoReduzido } from '../../../../ui/useMovimentoReduzido';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Play } from 'lucide-react-native';
+import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
+import { gruposDaSessao } from '../../../../dominio/combinacoes';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { nomeComDia, totalDeSeries } from '../../../../dominio/semana';
-import { espaco } from '../../../../tema/tokens';
+import { useTema } from '../../../../tema/TemaProvider';
+import { espaco, RAIO } from '../../../../tema/tokens';
 import { BarraProgresso } from '../../../../ui/BarraProgresso';
 import { Botao } from '../../../../ui/Botao';
 import { Cabecalho } from '../../../../ui/Cabecalho';
@@ -29,6 +32,7 @@ export default function SessaoAluno() {
   const { sessao, data, hoje } = dia;
   const animar = usePrimeiraLista(dia.carregado);
   const reduzido = useMovimentoReduzido();
+  const { cores } = useTema();
 
   if (!dia.carregado) {
     return (
@@ -80,24 +84,39 @@ export default function SessaoAluno() {
       {pendente ? (
         <Botao rotulo={feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'} Icone={Play} cheio aoTocar={() => abrir(pendente.uid)} />
       ) : null}
-      {sessao.exercicios.map((e, i) => (
-        <EntradaEmCascata key={e.uid} indice={i} animar={animar}>
-        <CartaoExercicioDoDia
-          exercicio={e}
-          posicao={i}
-          feitas={dia.feitas(e)}
-          cargaDoDia={dia.cargaDoDia(e)}
-          ultima={dia.ultimaCarga(e.exercicioId)}
-          tipoTrabalho={dia.config.tipoTrabalho}
-          aoAbrir={() => abrir(e.uid)}
-        />
-        </EntradaEmCascata>
-      ))}
+      {gruposDaSessao(sessao.exercicios).map((g) => {
+        const cartoes = g.exercicios.map((e, j) => {
+          const i = g.inicio + j;
+          return (
+            <EntradaEmCascata key={e.uid} indice={i} animar={animar}>
+            <CartaoExercicioDoDia
+              exercicio={e}
+              posicao={i}
+              feitas={dia.feitas(e)}
+              cargaDoDia={dia.cargaDoDia(e)}
+              ultima={dia.ultimaCarga(e.exercicioId)}
+              tipoTrabalho={dia.config.tipoTrabalho}
+              aoAbrir={() => abrir(e.uid)}
+            />
+            </EntradaEmCascata>
+          );
+        });
+        // Exercícios feitos juntos (bi-set, tri-set, circuito) aparecem numa moldura com o nome do grupo.
+        return g.nome ? (
+          <View key={`grupo-${g.exercicios[0].uid}`} style={[estilos.grupo, { borderColor: cores.borda }]}>
+            <Texto variante="rotulo">{g.nome}: {g.exercicios.length} exercícios, um depois do outro, sem descanso</Texto>
+            {cartoes}
+          </View>
+        ) : (
+          <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>
+        );
+      })}
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>
   );
 }
 
 const estilos = StyleSheet.create({
+  grupo: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1), gap: espaco(1) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

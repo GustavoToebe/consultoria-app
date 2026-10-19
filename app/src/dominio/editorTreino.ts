@@ -156,6 +156,27 @@ export function remover<T>(lista: T[], indice: number): T[] {
   return lista.filter((_, i) => i !== indice);
 }
 
+/**
+ * Depois de mover ou remover exercícios: a ligação "junto com o anterior" acompanha o exercício, mas o primeiro da
+ * sessão não tem anterior, então perde a marca (o servidor recusaria publicar).
+ */
+export function ajustarLigacoes(exercicios: ExercicioPlano[]): ExercicioPlano[] {
+  const primeiro = exercicios[0];
+  if (!primeiro?.juntoComAnterior) return exercicios;
+  return [{ ...primeiro, juntoComAnterior: null }, ...exercicios.slice(1)];
+}
+
+/** Sobe ou desce um exercício da sessão levando a ligação com ele. */
+export function moverExercicio(exercicios: ExercicioPlano[], indice: number, delta: -1 | 1): ExercicioPlano[] {
+  const movidos = mover(exercicios, indice, delta);
+  return movidos === exercicios ? exercicios : ajustarLigacoes(movidos);
+}
+
+/** Remove um exercício da sessão; se o novo primeiro estava ligado ao removido, a ligação sai. */
+export function removerExercicio(exercicios: ExercicioPlano[], indice: number): ExercicioPlano[] {
+  return ajustarLigacoes(remover(exercicios, indice));
+}
+
 /** Percentuais da regra de preparação para `n` séries, se a consultoria tiver regra para esse número. */
 export function percentuaisDaRegra(config: Configuracao | null, n: number): number[] | null {
   const regra = config?.regraPreparacao?.[String(n)];
@@ -199,13 +220,23 @@ export interface AlteracaoDeGrupo {
   intensidade?: Partial<Intensidade>;
   /** Descanso depois de cada série do grupo, em segundos (vazio = sem descanso definido). */
   descansoSegundos?: number | null;
-  /** Técnica do grupo (cluster ou rest pause); nulo tira. */
+  /** Técnica do grupo (cluster, rest pause ou drop-set); nulo tira. */
   tecnica?: Tecnica | null;
 }
 
 /** Técnica nova sem números: o treinador preenche (nada é inventado) e a publicação cobra o que faltar. */
 export function tecnicaVazia(tipo: Tecnica['tipo']): Tecnica {
-  return { tipo, blocos: null, repsPorBloco: null, pausaSegundos: null, retomadas: null, repsPorRetomada: null };
+  return {
+    tipo,
+    blocos: null,
+    repsPorBloco: null,
+    pausaSegundos: null,
+    retomadas: null,
+    repsPorRetomada: null,
+    quedas: null,
+    reducaoPercentual: null,
+    repsPorQueda: null,
+  };
 }
 
 function intensidadeDoModo(modo: ModoIntensidade): Intensidade {
@@ -329,6 +360,10 @@ export function normalizarTreino(conteudo: unknown): ConteudoTreino {
         observacao: e.observacao ?? null,
         progressao: e.progressao ?? true,
         unidade: e.unidade === 'nenhuma' ? 'nenhuma' : 'kg',
+        cadencia: e.cadencia ?? null,
+        isometriaSegundos: e.isometriaSegundos ?? null,
+        juntoComAnterior: e.juntoComAnterior ?? null,
+        combinacao: e.combinacao ?? null,
         series: (e.series ?? []).map((x) => ({
           uid: x.uid ?? novoUid(),
           tipo: x.tipo ?? '',

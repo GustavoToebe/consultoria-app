@@ -1,4 +1,4 @@
-import type { Configuracao, Serie } from '../api/tipos';
+import type { Configuracao, ExercicioPlano, Serie } from '../api/tipos';
 import { agrupar, descreverGrupo, descreverSeries } from './agrupamento';
 import { localizar, uidsComProblema } from './caminhos';
 import {
@@ -10,7 +10,10 @@ import {
   aplicarReceitaDePlano,
   mover,
   mudarQuantidade,
+  moverExercicio,
   normalizarTreino,
+  removerExercicio,
+  tecnicaVazia,
   novaSerie,
   repeticoesDoTipo,
   seriesDaReceita,
@@ -303,5 +306,79 @@ describe('sessão selecionada do editor', () => {
     expect(rotuloDaSessao(sessao('a', '', null), 3)).toBe('Sessão 4');
     expect(resumoDaSessao({ ...sessao('a', '', 1, ['e1']) })).toBe('Segunda · Treino · 1 exercício');
     expect(resumoDaSessao(sessao('a'))).toBe('Sem dia fixo · Treino · 0 exercícios');
+  });
+});
+
+describe('drop-set no editor (pesquisa de técnicas de 19/10)', () => {
+  beforeEach(() => {
+    mockContador = 0;
+  });
+  const drop = { ...tecnicaVazia('DROP_SET'), quedas: 2, reducaoPercentual: 20 };
+  const comDrop = (series: Serie[]) => {
+    const grupos = agrupar(series);
+    return alterarGrupo(series, grupos[grupos.length - 1], { tecnica: drop }, CONFIG);
+  };
+
+  it('nasce sem números, como as outras técnicas', () => {
+    const [s] = adicionarSerie([], CONFIG, 'WS', 'DROP_SET');
+    expect(s.tecnica).toEqual(expect.objectContaining({ tipo: 'DROP_SET', quedas: null, reducaoPercentual: null, repsPorQueda: null }));
+  });
+
+  it('soma ao último grupo só com o mesmo tipo e o mesmo drop-set', () => {
+    const wsMaisDrop = comDrop(adicionarSerie(adicionarSerie([], CONFIG, 'WS'), CONFIG, 'WS', 'DROP_SET'));
+    expect(descreverSeries(wsMaisDrop)).toEqual(['1x - WS', '1x - WS · Drop-set 2× −20%']);
+    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WS', 'DROP_SET'))).toEqual(['1x - WS', '2x - WS · Drop-set 2× −20%']);
+    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WS', 'CLUSTER'))).toEqual([
+      '1x - WS',
+      '1x - WS · Drop-set 2× −20%',
+      '1x - WS · Cluster ?×?, ? s',
+    ]);
+    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WS'))).toEqual(['1x - WS', '1x - WS · Drop-set 2× −20%', '1x - WS']);
+  });
+
+  it('continua igual ao reabrir e ao virar receita', () => {
+    const series = comDrop(adicionarSerie([], CONFIG, 'WS', 'DROP_SET'));
+    const reaberto = normalizarTreino(JSON.parse(JSON.stringify({ sessoes: [{ exercicios: [{ series }] }] }))).sessoes[0].exercicios[0].series;
+    expect(descreverSeries(reaberto)).toEqual(['1x - WS · Drop-set 2× −20%']);
+    expect(descreverSeries(seriesDaReceita(JSON.parse(JSON.stringify(seriesParaReceita(series)))))).toEqual(['1x - WS · Drop-set 2× −20%']);
+  });
+});
+
+describe('exercícios feitos juntos ao mover e remover', () => {
+  const ex = (uid: string, juntoComAnterior: boolean | null = null): ExercicioPlano => ({
+    uid,
+    exercicioId: null,
+    nome: uid,
+    modalidade: null,
+    videoUrl: null,
+    observacao: null,
+    progressao: true,
+    unidade: 'kg',
+    series: [],
+    juntoComAnterior,
+  });
+
+  it('a ligação acompanha o exercício e o primeiro da sessão perde a marca', () => {
+    const lista = [ex('A'), ex('B', true), ex('C')];
+    const subiu = moverExercicio(lista, 1, -1);
+    expect(subiu.map((e) => [e.uid, !!e.juntoComAnterior])).toEqual([['B', false], ['A', false], ['C', false]]);
+    const desceu = moverExercicio(lista, 1, 1);
+    expect(desceu.map((e) => [e.uid, !!e.juntoComAnterior])).toEqual([['A', false], ['C', false], ['B', true]]);
+    expect(moverExercicio(lista, 0, -1)).toBe(lista);
+  });
+
+  it('remover o primeiro solta o que estava ligado a ele', () => {
+    expect(removerExercicio([ex('A'), ex('B', true), ex('C', true)], 0).map((e) => [e.uid, !!e.juntoComAnterior])).toEqual([
+      ['B', false],
+      ['C', true],
+    ]);
+  });
+
+  it('normalizar mantém cadência, isometria e agrupamento', () => {
+    const conteudo = normalizarTreino({
+      sessoes: [{ exercicios: [{ nome: 'A', cadencia: '3-1-1-0', isometriaSegundos: 10, combinacao: 'SUPERSERIE' }, { nome: 'B', juntoComAnterior: true }] }],
+    });
+    const [a, b] = conteudo.sessoes[0].exercicios;
+    expect([a.cadencia, a.isometriaSegundos, a.combinacao, b.juntoComAnterior]).toEqual(['3-1-1-0', 10, 'SUPERSERIE', true]);
   });
 });

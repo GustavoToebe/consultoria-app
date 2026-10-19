@@ -1,19 +1,21 @@
 import { useLocalSearchParams } from 'expo-router';
 import { NotebookTabs } from 'lucide-react-native';
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
 import type { Configuracao, ConteudoTreino, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
+import { gruposDaSessao, podeJuntar } from '../../dominio/combinacoes';
 import {
   aplicarReceitaDePlano,
   comUidsNovos,
   mover,
+  moverExercicio,
   normalizarTreino,
   novaSessao,
   novoExercicio,
-  remover,
+  removerExercicio,
   sessaoSelecionadaDepois,
   seriesDaReceita,
   seriesParaReceita,
@@ -214,29 +216,46 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
             const todos = uids.every((u) => abertos.has(u));
             setAbertos((a) => { const novo = new Set(a); uids.forEach((u) => (todos ? novo.delete(u) : novo.add(u))); return novo; });
           }}>
-          {sessaoAtual.exercicios.map((e, ei) => (
-            <CartaoExercicio
-              key={e.uid}
-              exercicio={e}
-              posicao={ei}
-              total={sessaoAtual.exercicios.length}
-              aberto={abertos.has(e.uid)}
-              comProblema={comErro.has(e.uid)}
-              config={config}
-              aoAbrir={() => alternar(e.uid)}
-              aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
-              aoMover={(d) => mudarExercicios(indiceSelecionado, (lista) => mover(lista, ei, d))}
-              aoRemover={() =>
-                comDesfazer(`Exercício “${e.nome || ei + 1}” removido.`, (a) => ({
-                  ...a,
-                  sessoes: substituir(a.sessoes, indiceSelecionado, { ...a.sessoes[indiceSelecionado], exercicios: remover(a.sessoes[indiceSelecionado].exercicios, ei) }),
-                }))
-              }
-              aoEscolherDaBiblioteca={() => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-              aoUsarReceita={() => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-              aoSalvarReceita={() => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-            />
-          ))}
+          {gruposDaSessao(sessaoAtual.exercicios).map((g) => {
+            const cartoes = g.exercicios.map((e, i) => {
+              const ei = g.inicio + i;
+              return (
+                <CartaoExercicio
+                  key={e.uid}
+                  exercicio={e}
+                  posicao={ei}
+                  total={sessaoAtual.exercicios.length}
+                  aberto={abertos.has(e.uid)}
+                  comProblema={comErro.has(e.uid)}
+                  config={config}
+                  podeJuntar={podeJuntar(sessaoAtual.exercicios, ei)}
+                  primeiroDeDupla={i === 0 && g.exercicios.length === 2}
+                  aoAbrir={() => alternar(e.uid)}
+                  aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
+                  aoMover={(d) => mudarExercicios(indiceSelecionado, (lista) => moverExercicio(lista, ei, d))}
+                  aoRemover={() =>
+                    comDesfazer(`Exercício “${e.nome || ei + 1}” removido.`, (a) => ({
+                      ...a,
+                      sessoes: substituir(a.sessoes, indiceSelecionado, {
+                        ...a.sessoes[indiceSelecionado],
+                        exercicios: removerExercicio(a.sessoes[indiceSelecionado].exercicios, ei),
+                      }),
+                    }))
+                  }
+                  aoEscolherDaBiblioteca={() => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
+                  aoUsarReceita={() => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
+                  aoSalvarReceita={() => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
+                />
+              );
+            });
+            return g.nome ? (
+              <GrupoDeExercicios key={`grupo-${g.exercicios[0].uid}`} nome={g.nome} tamanho={g.exercicios.length}>
+                {cartoes}
+              </GrupoDeExercicios>
+            ) : (
+              <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>
+            );
+          })}
         </CartaoSessao>
       ) : null}
 
@@ -360,6 +379,17 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
   );
 }
 
+/** Exercícios feitos juntos (bi-set, tri-set, circuito): cartões numa moldura com o nome do grupo. */
+function GrupoDeExercicios({ nome, tamanho, children }: { nome: string; tamanho: number; children: ReactNode }) {
+  const { cores } = useTema();
+  return (
+    <View style={[estilos.grupo, { borderColor: cores.borda }]} accessibilityLabel={`${nome}, ${tamanho} exercícios feitos juntos`}>
+      <Texto variante="rotulo">{nome} · {tamanho} exercícios sem descanso entre eles</Texto>
+      {children}
+    </View>
+  );
+}
+
 /** Linha de ação da folha "Modelos": título, o que faz e um toque para escolher. */
 function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado?: boolean; aoEscolher: () => void }) {
   const { cores } = useTema();
@@ -383,4 +413,5 @@ const estilos = StyleSheet.create({
   metodologia: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   metodologiaTexto: { flexShrink: 1 },
   opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
+  grupo: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1), gap: espaco(1) },
 });
