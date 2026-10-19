@@ -2,17 +2,17 @@ import { useEffect, useState } from 'react';
 import type { Atualizacao } from '../../api/tipos';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useAviso } from '../../ui/Aviso';
-import { lembretePodeAbrir } from '../../dominio/boasVindas';
+import { lembretePodeAbrir } from '../../dominio/passeio';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
-import { useBoasVindas } from '../SituacaoDasBoasVindas';
+import { usePasseio } from '../../ui/Passeio';
 import { dispensarExplicacaoLembrete, permitirLembretesAtualizacao, precisaExplicacaoLembrete } from './lembretes';
 
 export function PermissaoLembrete({atualizacao}: {atualizacao:Atualizacao}) {
   const {repositorio}=useAluno();
   const [precisa,setPrecisa]=useState(false);
-  const {situacao:boasVindas}=useBoasVindas();
-  // O aparelho pode já ter dito que precisa perguntar, mas as boas-vindas vêm primeiro.
-  const visivel=precisa && lembretePodeAbrir(boasVindas);
+  const {situacao:passeio}=usePasseio();
+  // O aparelho pode já ter dito que precisa perguntar, mas o passeio pelo menu vem primeiro.
+  const visivel=precisa && lembretePodeAbrir(passeio);
   const [ocupado,setOcupado]=useState(false);
   const {avisar}=useAviso();
   useEffect(()=>{

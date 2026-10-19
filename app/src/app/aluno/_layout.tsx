@@ -1,6 +1,4 @@
 import { BarraDescanso } from '../../aluno/BarraDescanso';
-import { BoasVindas } from '../../aluno/BoasVindas';
-import { ProvedorDasBoasVindas } from '../../aluno/SituacaoDasBoasVindas';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { StyleSheet, View } from 'react-native';
 import { espaco } from '../../tema/tokens';
@@ -13,6 +11,8 @@ import { temAbaMobilidade } from '../../dominio/mobilidade';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { GuardaDePapel } from '../../ui/GuardaDePapel';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
+import { ProvedorDoPasseio } from '../../ui/Passeio';
+import { GUIAS } from '../../ajuda/conteudo';
 
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
@@ -31,10 +31,10 @@ export default function LayoutAluno() {
       {usuario ? (
         // Um provedor por usuário: trocar de conta nunca mistura registros.
         <AlunoProvider key={usuario.id} usuarioId={usuario.id}>
-          <ProvedorDasBoasVindas usuarioId={usuario.id}>
+          {/* Passeio pelo menu no primeiro acesso, logo depois do aceite dos termos; o lembrete da atualização espera. */}
+          <ProvedorDoPasseio usuarioId={usuario.id} passos={GUIAS.aluno.passeio}>
             <MenuAluno />
-            <BoasVindas />
-          </ProvedorDasBoasVindas>
+          </ProvedorDoPasseio>
         </AlunoProvider>
       ) : null}
     </GuardaDePapel>

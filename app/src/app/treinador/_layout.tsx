@@ -13,6 +13,8 @@ import { BarraTopo } from '../../ui/BarraTopo';
 import { useLimparFavoritosAoSair } from '../../ui/useFavoritos';
 import { GuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { Navegacao, type ItemMenu } from '../../ui/Navegacao';
+import { ProvedorDoPasseio } from '../../ui/Passeio';
+import { GUIAS } from '../../ajuda/conteudo';
 
 /**
  * Só aparecem no menu as telas que já existem (nada de recurso fingido). A barra do celular leva Início, Alunos,
@@ -32,7 +34,7 @@ const ITENS: ItemMenu[] = [
 ];
 
 export default function LayoutTreinador() {
-  const {pode,recarregarPerfil}=useSessao();const caminho=usePathname();
+  const {pode,recarregarPerfil,usuario}=useSessao();const caminho=usePathname();
   useLimparFavoritosAoSair();
   useEffect(()=>{if(caminho.startsWith('/treinador')) void recarregarPerfil().catch(()=>undefined);},[recarregarPerfil,caminho]);
   // Ponto no Início quando há atualização para revisar (só quem pode vê-las); falha silenciosa, sem travar o menu.
@@ -41,7 +43,10 @@ export default function LayoutTreinador() {
   const ponto=verAtualizacoes&&(painel.dados?.atualizacoesParaRevisar??0)>0;
   return (
     <Navigator><GuardaDePapel papel="TREINADOR"><GuardaDeSaida>
-      <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode)).map(i=>i.caminho==='/treinador'?{...i,ponto}:i)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+      {/* Passeio pelo menu no primeiro acesso (depois dos termos, que a GuardaDePapel cobra); revisto pela Ajuda. */}
+      <ProvedorDoPasseio key={usuario?.id ?? ''} usuarioId={usuario?.id ?? ''} passos={usuario ? GUIAS.treinador.passeio : []}>
+        <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode)).map(i=>i.caminho==='/treinador'?{...i,ponto}:i)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+      </ProvedorDoPasseio>
     </GuardaDeSaida></GuardaDePapel></Navigator>
   );
 }

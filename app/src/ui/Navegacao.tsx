@@ -11,6 +11,7 @@ import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { MarcaTitulo } from './MarcaTitulo';
+import { useAlvoDoPasseio } from './Passeio';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 
@@ -119,11 +120,13 @@ function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?:
   const caminho = usePathname();
   const { cores, marcaTexto } = useTema();
   const { confirmar } = useSaidaGuardada();
+  const alvo = useAlvoDoPasseio(`menu:${item.caminho}`);
   const casa = (base: string) => caminho === base || caminho.startsWith(`${base}/`);
   const ativo = item.exato ? caminho === item.caminho : casa(item.caminho) || !!item.tambem?.some(casa);
   const cor = ativo ? marcaTexto : cores.textoSuave;
   return (
     <Pressable
+      ref={alvo}
       accessibilityRole="link"
       accessibilityLabel={item.ponto ? `${item.rotulo}, pendência` : item.rotulo}
       accessibilityState={{ selected: ativo }}

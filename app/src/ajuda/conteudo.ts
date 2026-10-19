@@ -12,6 +12,13 @@ export interface PassoGuia {
   rota?: string;
 }
 
+/** Um passo do passeio pelo menu: `alvo` = `menu:<caminho do item>`; sem alvo, o balão fica no meio da tela. */
+export interface PassoPasseio {
+  titulo: string;
+  texto: string;
+  alvo?: string;
+}
+
 export interface SecaoGuia {
   titulo: string;
   itens: { titulo: string; texto: string }[];
@@ -23,8 +30,8 @@ export interface Guia {
   introducao: string;
   primeirosPassos: PassoGuia[];
   tutorial: PassoGuia[];
-  /** Telas curtas do primeiro acesso do aluno (as mesmas explicações do tutorial); vazio/ausente = sem boas-vindas. */
-  boasVindas?: PassoGuia[];
+  /** Passeio pelo menu no primeiro acesso (destaca item por item); dá para rever na Ajuda. */
+  passeio: PassoPasseio[];
   secoes: SecaoGuia[];
   perguntas: { pergunta: string; resposta: string }[];
 }
@@ -52,6 +59,17 @@ const TREINADOR: Guia = {
     { titulo: 'Planejamento', texto: 'Modelos reutilizáveis de treino, dieta e mobilidade, e pacotes de pasta inteira. Aplique o modelo a um aluno quando quiser. A aba Atualização guarda os questionários que o aluno responde ao fim de cada período.', rota: '/treinador/planejamento' },
     { titulo: 'Marca, Equipe e Auditoria', texto: 'Marca (cor, fonte e logo) aparece só a quem tem permissão para alterá-la. Equipe gerencia perfis e permissões; Auditoria lista o que foi feito. Aparecem conforme o seu perfil, no menu lateral do computador e nos atalhos do Perfil no celular.' },
     { titulo: 'Seu usuário e Ajuda', texto: 'No cartão com o seu nome (canto superior direito; no celular, em Perfil) ficam Meus dados (nome, telefone e senha), Segurança (verificação em duas etapas com aplicativo autenticador, códigos de recuperação), Minha conta (plano, cobranças e consumo; só aparece para quem tem permissão), Ajustes (tema claro/escuro e tamanho do texto) e Sair. Esta Ajuda fica sempre à mão.', rota: '/treinador/ajustes' },
+  ],
+  passeio: [
+    { titulo: 'Boas-vindas', texto: 'Um passeio rápido pelo menu, item por item. Leva menos de um minuto. Dá para pular agora e rever quando quiser em Ajuda.' },
+    { titulo: 'Início', texto: 'O resumo da consultoria: atualizações para revisar e alunos sem registro há alguns dias.', alvo: 'menu:/treinador' },
+    { titulo: 'Alunos', texto: 'Cadastre os alunos e abra a ficha de cada um: convite para o app, pastas com treino, dieta e mobilidade, registros, peso e atualizações.', alvo: 'menu:/treinador/alunos' },
+    { titulo: 'Biblioteca', texto: 'Exercícios, alimentos, suplementos e Outros (medicação e ergogênicos). Tudo o que entra nos planos sai daqui.', alvo: 'menu:/treinador/biblioteca' },
+    { titulo: 'Planejamento', texto: 'Modelos de treino, dieta e mobilidade para aplicar aos alunos, e os questionários da atualização.', alvo: 'menu:/treinador/planejamento' },
+    { titulo: 'Marca', texto: 'Cor, logo, tema e o ciclo padrão de atualização da consultoria.', alvo: 'menu:/treinador/marca' },
+    { titulo: 'Equipe', texto: 'Convide quem trabalha com você e escolha o que cada perfil pode ver e fazer.', alvo: 'menu:/treinador/equipe' },
+    { titulo: 'Perfil', texto: 'Seus dados, senha, ajustes de tela e os atalhos para Marca, Equipe, Ajuda e Auditoria.', alvo: 'menu:/treinador/perfil' },
+    { titulo: 'Ajuda', texto: 'Guia, tutorial e perguntas frequentes. Este passeio também fica lá, para rever quando quiser.', alvo: 'menu:/treinador/ajuda' },
   ],
   secoes: [
     {
@@ -140,7 +158,7 @@ const TREINADOR: Guia = {
   ],
 };
 
-/** Explicações do aluno que aparecem em mais de um lugar (primeiros passos, tutorial e boas-vindas): um texto só. */
+/** Explicações do aluno que aparecem em mais de um lugar (primeiros passos, tutorial e passeio pelo menu): um texto só. */
 const TEXTO_TREINO_DE_HOJE = 'Na aba Treino, o cartão Treino de hoje mostra a divisão do dia. Toque nele para começar.';
 const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador e a água do dia, quando ele escreveu. Só consulta. No início do app, o cartão Dieta leva até ela.';
 const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer.';
@@ -169,10 +187,12 @@ const ALUNO: Guia = {
     { titulo: 'Sem internet', texto: 'Pode treinar sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
     { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
   ],
-  boasVindas: [
-    { titulo: 'Treino de hoje', texto: TEXTO_TREINO_DE_HOJE },
-    { titulo: 'Dieta', texto: TEXTO_DIETA },
-    { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO },
+  passeio: [
+    { titulo: 'Treino de hoje', texto: TEXTO_TREINO_DE_HOJE, alvo: 'menu:/aluno' },
+    { titulo: 'Dieta', texto: TEXTO_DIETA, alvo: 'menu:/aluno/dieta' },
+    { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, alvo: 'menu:/aluno' },
+    { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', alvo: 'menu:/aluno/historico' },
+    { titulo: 'Conta', texto: 'Tema, senha, sincronização e a Ajuda, onde dá para rever este passeio.', alvo: 'menu:/aluno/conta' },
   ],
   secoes: [
     {
@@ -224,7 +244,7 @@ const ALUNO: Guia = {
     { pergunta: 'Esqueci a senha.', resposta: 'Na tela de entrar, toque em "Esqueci minha senha" e siga o link que chega no seu e-mail. Se não chegar, fale com o seu treinador.' },
     { pergunta: 'Errei a carga de uma série.', resposta: 'Abra o exercício e altere o valor no campo da série: o registro é atualizado.' },
     { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
-    { pergunta: 'Como vejo de novo as boas-vindas?', resposta: 'Elas aparecem uma vez em cada aparelho, no primeiro acesso, com três telas curtas que dá para pular. O mesmo conteúdo está no tutorial: em Conta, toque em "Ajuda, primeiros passos e tutorial".' },
+    { pergunta: 'Como vejo de novo o passeio pelo menu?', resposta: 'Ele aparece uma vez em cada aparelho, no primeiro acesso, e dá para pular. Para rever, em Conta toque em "Ajuda, primeiros passos e tutorial" e depois em "Rever o passeio".' },
     { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
   ],
 };

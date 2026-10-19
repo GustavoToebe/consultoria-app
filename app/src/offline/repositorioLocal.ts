@@ -383,11 +383,11 @@ export interface RascunhoAtualizacao {
 export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
 
 /**
- * O que não vai embora ao sair da conta: preferências de tela e "boas-vindas já vistas". São do usuário naquele
- * aparelho, não têm dado pessoal, e a pessoa não deve refazer a escolha nem rever as boas-vindas a cada entrada.
- * Os testes conferem as chaves reais (`chaveDasPreferencias`, `chaveBoasVindas`).
+ * O que não vai embora ao sair da conta: preferências de tela e "passeio pelo menu já visto". São do usuário naquele
+ * aparelho, não têm dado pessoal, e a pessoa não deve refazer a escolha nem rever o passeio a cada entrada.
+ * Os testes conferem as chaves reais (`chaveDasPreferencias`, `chavePasseio`).
  */
-export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'boasVindasVistas'];
+export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'passeioVisto'];
 
 /** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados e a marca com a data. */
 export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'filaRetida'];

@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { FileDown, PlayCircle } from 'lucide-react-native';
+import { FileDown, MousePointerClick, PlayCircle } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Platform, StyleSheet, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { Cabecalho } from '../ui/Cabecalho';
 import { Cartao } from '../ui/Cartao';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
+import { usePasseio } from '../ui/Passeio';
 import { GUIAS, type Publico } from './conteudo';
 import { TutorialGuiado } from './TutorialGuiado';
 
@@ -16,10 +17,17 @@ import { TutorialGuiado } from './TutorialGuiado';
 export function TelaAjuda({ publico }: { publico: Publico }) {
   const guia = GUIAS[publico];
   const [tutorial, setTutorial] = useState(false);
+  const { rever } = usePasseio();
   return (
     <Tela bordas={['top']} largura={publico === 'aluno' ? 720 : LARGURA_EDITOR}>
       <Cabecalho titulo="Ajuda" mostrarMarca={publico === 'aluno' ? 'sempre' : 'celular'} />
       <Texto variante="suave">{guia.introducao}</Texto>
+      <Cartao
+        titulo="Passeio pelo menu"
+        descricao="O mesmo do primeiro acesso: o app destaca cada item do menu e explica para que serve."
+        acoes={<Botao rotulo="Rever o passeio" tipo="secundario" Icone={MousePointerClick} aoTocar={rever} />}>
+        <Texto variante="pequeno">Dá para pular a qualquer momento.</Texto>
+      </Cartao>
       <Cartao
         titulo="Tutorial guiado"
         descricao="Um passeio rápido pelas telas, na ordem em que você vai usá-las."
