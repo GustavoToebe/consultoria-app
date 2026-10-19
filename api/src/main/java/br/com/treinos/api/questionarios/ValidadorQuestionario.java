@@ -29,9 +29,14 @@ import static br.com.treinos.api.questionarios.TipoPergunta.SIM_NAO;
 import static br.com.treinos.api.questionarios.TipoPergunta.TEXTO;
 import static br.com.treinos.api.questionarios.TipoPergunta.TEXTO_LONGO;
 import static br.com.treinos.api.questionarios.TipoPergunta.ESCOLHA_UNICA;
+import static br.com.treinos.api.questionarios.TipoPergunta.ACEITE;
+import static br.com.treinos.api.questionarios.TipoPergunta.DATA;
+import static br.com.treinos.api.questionarios.TipoPergunta.GRADE;
+import static br.com.treinos.api.questionarios.TipoPergunta.INFORMATIVO;
 
 /**
- * Regras de publicação do questionário. Confere só a forma; nunca avalia se uma pergunta é adequada. Os caminhos
+ * Regras de publicação do questionário (atualização e anamnese). Confere só a forma; nunca avalia se uma pergunta é
+ * adequada. Os caminhos
  * ({@code secoes[0].perguntas[1].opcoes[2].rotulo}) e as regras são os mesmos de {@code errosDoQuestionario} em
  * {@code app/src/dominio/questionario.ts}: mudou uma regra, muda a outra (o teste de paridade confere os caminhos).
  */
@@ -39,11 +44,18 @@ import static br.com.treinos.api.questionarios.TipoPergunta.ESCOLHA_UNICA;
 public class ValidadorQuestionario {
 
     private static final Pattern ID = Pattern.compile(LimitesQuestionario.ID_PADRAO);
+    private static final Pattern IMAGEM = Pattern.compile(LimitesQuestionario.IMAGEM_PADRAO);
+    private static final Set<String> SIM_NAO_VALORES = Set.of("sim", "nao");
     private static final Set<TipoPergunta> COM_DESTAQUE = EnumSet.of(NOTA, NUMERO, SIM_NAO, ESCOLHA_UNICA);
     private static final Set<TipoPergunta> COM_AJUDA_AUTOMATICA = EnumSet.of(TEXTO, NUMERO);
     private static final Set<TipoPergunta> UNICOS = EnumSet.of(PESO, DATA_AUTOMATICA, FOTOS);
 
+    /** Questionário de atualização (o de sempre). */
     public ResultadoValidacao validar(ConteudoQuestionario conteudo) {
+        return validar(conteudo, Finalidade.ATUALIZACAO);
+    }
+
+    public ResultadoValidacao validar(ConteudoQuestionario conteudo, Finalidade finalidade) {
         ResultadoValidacao.Coletor c = new ResultadoValidacao.Coletor();
         instrucoes(c, conteudo.instrucoes() == null ? List.of() : conteudo.instrucoes());
         List<Secao> secoes = conteudo.secoes() == null ? List.of() : conteudo.secoes();
@@ -53,7 +65,7 @@ public class ValidadorQuestionario {
         if (secoes.size() > LimitesQuestionario.SECOES) {
             c.erro("secoes", "Seções demais.");
         }
-        Estado estado = new Estado();
+        Estado estado = new Estado(finalidade == null ? Finalidade.ATUALIZACAO : finalidade);
         Set<String> uids = new HashSet<>();
         for (int i = 0; i < secoes.size(); i++) {
             secao(c, estado, uids, secoes.get(i), "secoes[" + i + "]");
@@ -64,7 +76,7 @@ public class ValidadorQuestionario {
         if (estado.capacidadeDeTexto > LimitesQuestionario.CAPACIDADE_DE_TEXTO_TOTAL) {
             c.erro("secoes", "Respostas de texto demais.");
         }
-        if (estado.total > 0 && !estado.tipos.contains(PESO)) {
+        if (estado.finalidade == Finalidade.ATUALIZACAO && estado.total > 0 && !estado.tipos.contains(PESO)) {
             c.aviso("secoes", "Sem pergunta de peso: o peso não será registrado.");
         }
         return c.resultado();
@@ -100,11 +112,18 @@ public class ValidadorQuestionario {
 
     /** Contadores e registros que atravessam as seções. */
     private static final class Estado {
+        final Finalidade finalidade;
+        /** Perguntas já vistas, na ordem do formulário: a condição só aponta para uma delas. */
+        final Map<String, Pergunta> anteriores = new HashMap<>();
         int total;
         int destaques;
         int capacidadeDeTexto;
         final Set<String> ids = new HashSet<>();
         final Set<TipoPergunta> tipos = EnumSet.noneOf(TipoPergunta.class);
+
+        Estado(Finalidade finalidade) {
+            this.finalidade = finalidade;
+        }
     }
 
     private static void instrucoes(ResultadoValidacao.Coletor c, List<String> instrucoes) {
@@ -132,6 +151,7 @@ public class ValidadorQuestionario {
         } else if (s.titulo().length() > LimitesQuestionario.TITULO_TAMANHO) {
             c.erro(cs + ".titulo", "Título longo demais.");
         }
+        condicao(c, estado, s.mostrarSe(), cs);
         List<Pergunta> perguntas = s.perguntas() == null ? List.of() : s.perguntas();
         if (perguntas.isEmpty()) {
             c.erro(cs + ".perguntas", "Seção sem pergunta.");
@@ -159,10 +179,20 @@ public class ValidadorQuestionario {
         if (p.ajuda() != null && p.ajuda().length() > LimitesQuestionario.AJUDA_TAMANHO) {
             c.erro(cp + ".ajuda", "Ajuda longa demais.");
         }
+        if (p.imagemId() != null && !IMAGEM.matcher(p.imagemId()).matches()) {
+            c.erro(cp + ".imagemId", "Imagem inválida.");
+        }
+        condicao(c, estado, p.mostrarSe(), cp);
         TipoPergunta tipo = p.tipo();
         if (tipo == null) {
             c.erro(cp + ".tipo", "Falta o tipo.");
             return;
+        }
+        if (p.id() != null) {
+            estado.anteriores.putIfAbsent(p.id(), p);
+        }
+        if (estado.finalidade == Finalidade.ANAMNESE && tipo == DATA_AUTOMATICA) {
+            c.erro(cp + ".tipo", "Este tipo só vale no questionário de atualização.");
         }
         if (UNICOS.contains(tipo) && !estado.tipos.add(tipo)) {
             c.erro(cp + ".tipo", "Este tipo só pode aparecer uma vez.");
@@ -179,40 +209,121 @@ public class ValidadorQuestionario {
         destaque(c, estado, p, cp);
         if (p.ajudaAutomatica() != null && !COM_AJUDA_AUTOMATICA.contains(tipo)) {
             c.erro(cp + ".ajudaAutomatica", "Este tipo não tem ajuda automática.");
+        } else if (p.ajudaAutomatica() != null && estado.finalidade == Finalidade.ANAMNESE) {
+            c.erro(cp + ".ajudaAutomatica", "Esta ajuda só vale no questionário de atualização.");
+        }
+        if (p.somentePassado() != null && tipo != DATA) {
+            c.erro(cp + ".somentePassado", "Este tipo não tem esta opção.");
+        }
+        textos(c, p, cp);
+        grade(c, p, cp);
+    }
+
+    /** {@code texto} do ACEITE (obrigatório) e do INFORMATIVO (opcional); {@code declaracao} só do ACEITE (obrigatória). */
+    private static void textos(ResultadoValidacao.Coletor c, Pergunta p, String cp) {
+        boolean temTexto = p.tipo() == ACEITE || p.tipo() == INFORMATIVO;
+        if (!temTexto) {
+            if (p.texto() != null) {
+                c.erro(cp + ".texto", "Este tipo não tem texto.");
+            }
+        } else if (p.tipo() == ACEITE && (p.texto() == null || p.texto().isBlank())) {
+            c.erro(cp + ".texto", "Falta o texto.");
+        } else if (p.texto() != null && p.texto().length() > LimitesQuestionario.TEXTO_INFORMATIVO_TAMANHO) {
+            c.erro(cp + ".texto", "Texto longo demais.");
+        }
+        if (p.tipo() != ACEITE) {
+            if (p.declaracao() != null) {
+                c.erro(cp + ".declaracao", "Este tipo não tem declaração.");
+            }
+        } else if (p.declaracao() == null || p.declaracao().isBlank()) {
+            c.erro(cp + ".declaracao", "Falta a frase de declaração.");
+        } else if (p.declaracao().length() > LimitesQuestionario.DECLARACAO_TAMANHO) {
+            c.erro(cp + ".declaracao", "Frase longa demais.");
+        }
+    }
+
+    private static void grade(ResultadoValidacao.Coletor c, Pergunta p, String cp) {
+        if (p.tipo() != GRADE) {
+            if (p.linhas() != null) {
+                c.erro(cp + ".linhas", "Este tipo não tem linhas.");
+            }
+            if (p.colunas() != null) {
+                c.erro(cp + ".colunas", "Este tipo não tem colunas.");
+            }
+            return;
+        }
+        lista(c, p.linhas(), cp + ".linhas", LimitesQuestionario.LINHAS_MINIMO, LimitesQuestionario.LINHAS_MAXIMO, "linhas", false);
+        lista(c, p.colunas(), cp + ".colunas", LimitesQuestionario.COLUNAS_MINIMO, LimitesQuestionario.COLUNAS_MAXIMO, "colunas", false);
+    }
+
+    /**
+     * Condição simples: aponta para uma pergunta de escolha já vista (anterior na ordem do formulário) e lista respostas
+     * que existem nela, sem repetir.
+     */
+    private static void condicao(ResultadoValidacao.Coletor c, Estado estado, ConteudoQuestionario.Condicao m, String base) {
+        if (m == null) {
+            return;
+        }
+        Pergunta alvo = m.perguntaId() == null ? null : estado.anteriores.get(m.perguntaId());
+        if (alvo == null || alvo.tipo() == null || !alvo.tipo().controlaCondicao()) {
+            c.erro(base + ".mostrarSe.perguntaId", "A condição precisa apontar para uma pergunta de escolha anterior.");
+            return;
+        }
+        List<String> valores = m.valores() == null ? List.of() : m.valores();
+        if (valores.isEmpty() || valores.size() > LimitesQuestionario.OPCOES_MAXIMO) {
+            c.erro(base + ".mostrarSe.valores", "Escolha ao menos uma resposta para a condição.");
+            return;
+        }
+        Set<String> validos = alvo.tipo() == TipoPergunta.SIM_NAO ? SIM_NAO_VALORES : new HashSet<>(
+                alvo.opcoes() == null ? List.of() : alvo.opcoes().stream().map(Opcao::id).filter(java.util.Objects::nonNull).toList());
+        Set<String> vistos = new HashSet<>();
+        for (String v : valores) {
+            if (v == null || !validos.contains(v) || !vistos.add(v)) {
+                c.erro(base + ".mostrarSe.valores", "A condição tem uma resposta que não existe na pergunta.");
+                return;
+            }
         }
     }
 
     private static void opcoes(ResultadoValidacao.Coletor c, Pergunta p, String cp) {
-        List<Opcao> opcoes = p.opcoes();
         if (!p.tipo().temOpcoes()) {
-            if (opcoes != null) {
+            if (p.opcoes() != null) {
                 c.erro(cp + ".opcoes", "Este tipo não tem opções.");
             }
             return;
         }
-        int n = opcoes == null ? 0 : opcoes.size();
-        if (n < LimitesQuestionario.OPCOES_MINIMO || n > LimitesQuestionario.OPCOES_MAXIMO) {
-            c.erro(cp + ".opcoes", "Use de " + LimitesQuestionario.OPCOES_MINIMO + " a " + LimitesQuestionario.OPCOES_MAXIMO + " opções.");
+        lista(c, p.opcoes(), cp + ".opcoes", LimitesQuestionario.OPCOES_MINIMO, LimitesQuestionario.OPCOES_MAXIMO, "opções", true);
+    }
+
+    /** Opções de escolha, linhas e colunas da GRADE: mesma regra de quantidade, id e texto sem repetir. */
+    private static void lista(ResultadoValidacao.Coletor c, List<Opcao> itens, String caminho, int minimo, int maximo,
+                              String nome, boolean comImagem) {
+        int n = itens == null ? 0 : itens.size();
+        if (n < minimo || n > maximo) {
+            c.erro(caminho, "Use de " + minimo + " a " + maximo + " " + nome + ".");
         }
-        if (opcoes == null) {
+        if (itens == null) {
             return;
         }
         Set<String> ids = new HashSet<>();
         Set<String> rotulos = new HashSet<>();
-        for (int k = 0; k < opcoes.size(); k++) {
-            Opcao o = opcoes.get(k);
-            String co = cp + ".opcoes[" + k + "]";
+        for (int k = 0; k < itens.size(); k++) {
+            Opcao o = itens.get(k);
+            String co = caminho + "[" + k + "]";
             if (!idValido(o.id())) {
                 c.erro(co + ".id", "Falta o identificador.");
             } else if (!ids.add(o.id())) {
                 c.erro(co + ".id", "Identificador repetido.");
             }
             if (o.rotulo() == null || o.rotulo().isBlank()) {
-                c.erro(co + ".rotulo", "Opção sem texto.");
+                c.erro(co + ".rotulo", "Texto vazio.");
             } else if (o.rotulo().length() > LimitesQuestionario.OPCAO_TAMANHO) {
                 c.erro(co + ".rotulo", "Texto longo demais.");
             } else if (!rotulos.add(normalizar(o.rotulo()))) {
-                c.erro(co + ".rotulo", "Opção repetida.");
+                c.erro(co + ".rotulo", "Texto repetido.");
+            }
+            if (o.imagemId() != null && (!comImagem || !IMAGEM.matcher(o.imagemId()).matches())) {
+                c.erro(co + ".imagemId", comImagem ? "Imagem inválida." : "Só opção de escolha tem imagem.");
             }
         }
     }

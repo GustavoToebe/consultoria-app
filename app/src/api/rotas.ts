@@ -17,6 +17,9 @@ import type {
   ConfiguracaoDeFotos,
   ConfiguracaoPublica,
   CriarQuestionarioRequest,
+  AnamneseDetalhe,
+  AnamneseResumo,
+  FinalidadeQuestionario,
   OpcaoQuestionario,
   ResultadoLote,
   QuestionarioDetalhe,
@@ -117,8 +120,34 @@ export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`
 export const enviarAtualizacao = (pastaId: string, questionarioVersaoId: string, respostas: RespostasAtualizacao) =>
   requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, questionarioVersaoId, respostas } });
 // Questionários de atualização (gestão pelo treinador; a API autoriza pelo banco).
-export const listarQuestionarios = (arquivados = false) => requisicao<QuestionarioResumo[]>(`/questionarios?arquivados=${arquivados}`);
-export const opcoesDeQuestionario = () => requisicao<OpcaoQuestionario[]>('/questionarios/opcoes');
+export const listarQuestionarios = (arquivados = false, finalidade: FinalidadeQuestionario = 'ATUALIZACAO') =>
+  requisicao<QuestionarioResumo[]>(`/questionarios?arquivados=${arquivados}&finalidade=${finalidade}`);
+export const opcoesDeQuestionario = (finalidade: FinalidadeQuestionario = 'ATUALIZACAO') =>
+  requisicao<OpcaoQuestionario[]>(`/questionarios/opcoes?finalidade=${finalidade}`);
+/** Imagem de pergunta ou opção: FormData com `arquivo` (PNG ou JPEG; a API regrava sem metadados). */
+export const enviarImagemDeQuestionario = (arquivo: FormData) =>
+  requisicao<{ id: string }>('/questionarios/imagens', { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
+/** Equipe (quem lê questionários, anamneses ou atualizações). */
+export const baixarImagemDeQuestionario = (id: string) =>
+  requisicao<Blob>(`/questionarios/imagens/${seg(id)}`, { binario: true, limiteMs: 30000 });
+/** Aluno: só as imagens do que ele responde. */
+export const baixarImagemDoAluno = (id: string) =>
+  requisicao<Blob>(`/aluno/questionarios/imagens/${seg(id)}`, { binario: true, limiteMs: 30000 });
+// ---- Anamnese ----
+export const anamnesesDoAluno = (alunoId: string) => requisicao<AnamneseResumo[]>(`/alunos/${seg(alunoId)}/anamneses`);
+export const atribuirAnamnese = (alunoId: string, questionarioId: string) =>
+  requisicao<AnamneseDetalhe>(`/alunos/${seg(alunoId)}/anamneses`, { metodo: 'POST', corpo: { questionarioId } });
+export const detalheAnamnese = (id: string) => requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}`);
+export const dispensarAnamnese = (id: string, motivo: string, versao: number) =>
+  requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/dispensar`, { metodo: 'POST', corpo: { motivo, versao } });
+export const revisarAnamnese = (id: string, versao: number) =>
+  requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/revisar`, { metodo: 'POST', corpo: { versao } });
+export const baixarFotoDaAnamnese = (anamneseId: string, fotoId: string) =>
+  requisicao<Blob>(`/anamneses/${seg(anamneseId)}/fotos/${seg(fotoId)}`, { binario: true, limiteMs: 60000 });
+/** A pendente ou a última enviada; 404 = nenhuma. */
+export const anamneseDoAlunoLogado = () => requisicao<AnamneseDetalhe>('/aluno/anamnese');
+export const enviarAnamnese = (id: string, questionarioVersaoId: string, respostas: RespostasAtualizacao) =>
+  requisicao<AnamneseDetalhe>(`/aluno/anamnese/${seg(id)}/enviar`, { metodo: 'POST', corpo: { questionarioVersaoId, respostas } });
 export const criarQuestionario = (corpo: CriarQuestionarioRequest) => requisicao<QuestionarioDetalhe>('/questionarios', { metodo: 'POST', corpo });
 export const buscarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}`);
 export const salvarQuestionario = (id: string, corpo: SalvarQuestionarioRequest) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}`, { metodo: 'PUT', corpo });
@@ -148,8 +177,11 @@ export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alun
 export const configuracaoDeFotos = () => requisicao<ConfiguracaoDeFotos>('/aluno/fotos/configuracao');
 
 /** `arquivo`: FormData com o campo `arquivo` (JPEG já sem EXIF); `pastaId` vai junto. */
-export const enviarFoto = (pastaId: string, arquivo: FormData) =>
-  requisicao<{ id: string }>(`/aluno/fotos?pastaId=${encodeURIComponent(pastaId)}`, { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
+/** Destino da foto pendente: a pasta (atualização) ou a anamnese. */
+export type DestinoDaFoto = { pastaId: string } | { anamneseId: string };
+export const enviarFoto = (destino: DestinoDaFoto, arquivo: FormData) =>
+  requisicao<{ id: string }>(`/aluno/fotos?${'pastaId' in destino ? `pastaId=${encodeURIComponent(destino.pastaId)}` : `anamneseId=${encodeURIComponent(destino.anamneseId)}`}`,
+    { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
 
 export const removerFoto = (id: string) => requisicao<void>(`/aluno/fotos/${seg(id)}`, { metodo: 'DELETE' });
 

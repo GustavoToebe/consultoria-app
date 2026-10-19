@@ -89,6 +89,21 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect(await aparelho('u1').lerRascunhoAtualizacao('p2')).toBeNull();
   });
 
+  it('rascunho da anamnese persiste por anamnese, fica isolado, separado do da atualização, e some ao sair', async () => {
+    const repo = aparelho('u1');
+    const salvo = {questionarioVersaoId:'v-anamnese',respostas:{pratica:true,qual:'Texto fictício'},fotosLocais:{fotos:['f1.jpg']}};
+    await repo.salvarRascunhoAnamnese('a1',salvo);
+    expect(await aparelho('u2').lerRascunhoAnamnese('a1')).toBeNull();
+    expect(await repo.lerRascunhoAtualizacao('a1')).toBeNull();
+    await repo.fechar();
+    expect(await aparelho('u1').lerRascunhoAnamnese('a1')).toEqual(salvo);
+    await repo.apagarRascunhoAnamnese('a1');
+    expect(await repo.lerRascunhoAnamnese('a1')).toBeNull();
+    await repo.salvarRascunhoAnamnese('a2',salvo);
+    await repo.apagarTudo();
+    expect(await aparelho('u1').lerRascunhoAnamnese('a2')).toBeNull();
+  });
+
   it('histórico da semana fica isolado, sobrevive à reabertura e sai ao desconectar a conta', async () => {
     const repo = aparelho('u1');
     const salvo = {versaoId:'v1',inicio:'2026-10-05',dias:[{data:'2026-10-05',sessoes:[]}]};

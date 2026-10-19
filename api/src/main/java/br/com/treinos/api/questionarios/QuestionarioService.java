@@ -29,7 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Gestão dos questionários de atualização da consultoria. Tudo passa pelo {@code @TenantId}: questionário, aluno ou
+ * Gestão dos questionários da consultoria (atualização e anamnese). Tudo passa pelo {@code @TenantId}: questionário, aluno ou
  * pasta de outra consultoria nem aparece (404). Sem SQL nativo. Nome, descrição e conteúdo não vão para log nem para a
  * auditoria (os resumos são fixos).
  */
@@ -48,11 +48,14 @@ public class QuestionarioService {
     private final ValidadorQuestionario validador;
     private final JsonMapper json;
     private final Auditoria auditoria;
+    private final QuestionarioImagemService imagens;
 
     public QuestionarioService(QuestionarioRepository questionarios, QuestionarioVersaoRepository versoes,
                                AtualizacaoModeloRepository fabrica, AlunoRepository alunos, PastaRepository pastas,
-                               ValidadorQuestionario validador, JsonMapper json, Auditoria auditoria) {
+                               ValidadorQuestionario validador, JsonMapper json, Auditoria auditoria,
+                               QuestionarioImagemService imagens) {
         this.auditoria = auditoria;
+        this.imagens = imagens;
         this.questionarios = questionarios;
         this.versoes = versoes;
         this.fabrica = fabrica;
@@ -65,16 +68,16 @@ public class QuestionarioService {
     // ---------------------------------------------------------------- leitura
 
     @Transactional(readOnly = true)
-    public List<QuestionarioResumo> listar(boolean arquivados) {
+    public List<QuestionarioResumo> listar(boolean arquivados, Finalidade finalidade) {
         Usos usos = usos();
-        return questionarios.findByArquivadoOrderByNomeAsc(arquivados).stream()
+        return questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(arquivados, finalidade).stream()
                 .sorted(Comparator.comparing((Questionario q) -> !q.isPadrao()))
                 .map(q -> resumo(q, usos.de(q.getId()))).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<OpcaoQuestionario> opcoes() {
-        return questionarios.findByArquivadoOrderByNomeAsc(false).stream().filter(Questionario::isUsavel)
+    public List<OpcaoQuestionario> opcoes(Finalidade finalidade) {
+        return questionarios.findByArquivadoAndFinalidadeOrderByNomeAsc(false, finalidade).stream().filter(Questionario::isUsavel)
                 .sorted(Comparator.comparing((Questionario q) -> !q.isPadrao()))
                 .map(q -> new OpcaoQuestionario(q.getId(), q.getNome(), q.isPadrao())).toList();
     }
@@ -95,16 +98,20 @@ public class QuestionarioService {
 
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao = "QUESTIONARIO_CRIADO", entidade = "QUESTIONARIO",
-            resumo = "Criou um questionário de atualização.")
+            resumo = "Criou um questionário.")
     public QuestionarioDetalhe criar(CriarRequest r) {
         String nome = r.nome().trim();
+        Finalidade finalidade = r.finalidade() == null ? Finalidade.ATUALIZACAO : r.finalidade();
+        if (finalidade == Finalidade.ANAMNESE && r.origem() == Origem.FABRICA) {
+            throw new br.com.plataforma.comum.web.BadRequestException("Ainda não há modelo da plataforma para anamnese: comece em branco.");
+        }
         exigirNomeLivre(nome, null);
         String rascunho = r.origem() == Origem.FABRICA
                 ? fabrica.findFirstByOrderByVersaoDesc().orElseThrow(
                         () -> new NaoEncontradoException("Modelo de fábrica não encontrado.")).getConteudo()
                 : escrever(new ConteudoQuestionario(FORMATO, List.of(),
                         List.of(new Secao(UUID.randomUUID().toString(), "Geral", List.of()))));
-        return detalhe(gravar(new Questionario(nome, descricao(r.descricao()), rascunho)));
+        return detalhe(gravar(new Questionario(nome, descricao(r.descricao()), rascunho, finalidade)));
     }
 
     /** Rascunho: sem auditoria (é salvo o tempo todo); publicar é que fica registrado. */
@@ -125,7 +132,7 @@ public class QuestionarioService {
 
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao = "QUESTIONARIO_PUBLICADO", entidade = "QUESTIONARIO",
-            resumo = "Publicou uma versão de questionário de atualização.")
+            resumo = "Publicou uma versão de questionário.")
     public QuestionarioDetalhe publicar(UUID id, PublicarRequest r, UUID usuarioId) {
         Questionario q = buscarParaAlterar(id);
         exigirAtivo(q);
@@ -143,16 +150,18 @@ public class QuestionarioService {
         int numero = q.getVersaoPublicada() + 1;
         versoes.save(new QuestionarioVersao(q.getId(), numero, escrever(conteudo), usuarioId));
         q.publicar(numero, Instant.now());
-        return detalhe(gravar(q));
+        Questionario gravado = gravar(q);
+        imagens.removerOrfas();
+        return detalhe(gravado);
     }
 
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao = "QUESTIONARIO_DUPLICADO", entidade = "QUESTIONARIO",
-            resumo = "Duplicou um questionário de atualização.")
+            resumo = "Duplicou um questionário.")
     public QuestionarioDetalhe duplicar(UUID id) {
         Questionario origem = buscar(id);
         String nome = nomeDaCopia(origem.getNome());
-        return detalhe(gravar(new Questionario(nome, origem.getDescricao(), origem.getRascunho())));
+        return detalhe(gravar(new Questionario(nome, origem.getDescricao(), origem.getRascunho(), origem.getFinalidade())));
     }
 
     /** Idempotente: repetir o pedido no que já é o padrão responde 200 sem auditar. */
@@ -166,13 +175,13 @@ public class QuestionarioService {
         if (q.isPadrao()) {
             return detalhe(q);
         }
-        // O índice único parcial só admite um padrão: desmarca o atual e grava antes de marcar o novo.
-        questionarios.findByPadraoTrue().ifPresent(atual -> atual.definirPadrao(false));
+        // O índice único parcial só admite um padrão por finalidade: desmarca o atual e grava antes de marcar o novo.
+        questionarios.findByPadraoTrueAndFinalidade(q.getFinalidade()).ifPresent(atual -> atual.definirPadrao(false));
         questionarios.flush();
         q.definirPadrao(true);
         Questionario gravado = gravar(q);
         auditoria.registrarEvento("QUESTIONARIO_PADRAO_ALTERADO", "QUESTIONARIO", gravado.getId(),
-                "Trocou o questionário de atualização padrão.");
+                q.getFinalidade() == Finalidade.ANAMNESE ? "Trocou a anamnese padrão." : "Trocou o questionário de atualização padrão.");
         return detalhe(gravado);
     }
 
@@ -190,7 +199,7 @@ public class QuestionarioService {
         q.arquivar();
         Questionario gravado = gravar(q);
         auditoria.registrarEvento("QUESTIONARIO_ARQUIVADO", "QUESTIONARIO", gravado.getId(),
-                "Arquivou um questionário de atualização.");
+                "Arquivou um questionário.");
         return detalhe(gravado);
     }
 
@@ -205,30 +214,32 @@ public class QuestionarioService {
         q.desarquivar();
         Questionario gravado = gravar(q);
         auditoria.registrarEvento("QUESTIONARIO_DESARQUIVADO", "QUESTIONARIO", gravado.getId(),
-                "Desarquivou um questionário de atualização.");
+                "Desarquivou um questionário.");
         return detalhe(gravado);
     }
 
     /**
-     * Só sem uso: o padrão e o que já teve envio (a atualização guarda a versão respondida) ficam; o app oferece
-     * arquivar. Aluno e pasta que o escolheram voltam a nulo pela chave estrangeira.
+     * Só sem uso: o padrão e o que já teve envio (a atualização guarda a versão respondida) ou anamnese atribuída (a
+     * atribuição guarda a versão) ficam; o app oferece arquivar. Aluno e pasta que o escolheram voltam a nulo pela chave
+     * estrangeira.
      */
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao = "QUESTIONARIO_EXCLUIDO", entidade = "QUESTIONARIO",
-            resumo = "Excluiu um questionário de atualização.")
+            resumo = "Excluiu um questionário.")
     public void excluir(UUID id) {
         Questionario q = buscar(id);
         if (q.isPadrao()) {
             throw new ConflictException("O questionário padrão não pode ser excluído. Escolha outro padrão antes.",
                     "QUESTIONARIO_PADRAO");
         }
-        if (questionarios.contarEnviosDo(q.getId()) > 0) {
+        if (questionarios.contarEnviosDo(q.getId()) > 0 || questionarios.contarAnamnesesDo(q.getId()) > 0) {
             throw new ConflictException("Este questionário já foi respondido por alunos. Arquive em vez de excluir.",
                     "QUESTIONARIO_EM_USO");
         }
         try {
             questionarios.delete(q);
             questionarios.flush();
+            imagens.removerOrfas();
         } catch (DataIntegrityViolationException e) {
             // Um envio chegou entre a conferência e o delete: a FK de atualizacao protege.
             throw new ConflictException("Este questionário já foi respondido por alunos. Arquive em vez de excluir.",
@@ -262,25 +273,36 @@ public class QuestionarioService {
 
     // ---------------------------------------------------------------- apoio
 
-    /** Questionário vazio vale (volta ao padrão); senão tem de estar publicado e não arquivado. */
+    /** Questionário vazio vale (volta ao padrão); senão tem de ser de atualização, publicado e não arquivado. */
     public void exigirEscolhivel(UUID questionarioId) {
         if (questionarioId == null) {
             return;
         }
-        if (!buscar(questionarioId).isUsavel()) {
+        Questionario q = buscar(questionarioId);
+        if (!q.isUsavel() || q.getFinalidade() != Finalidade.ATUALIZACAO) {
             throw new ConflictException("Escolha um questionário publicado e que não esteja arquivado.",
                     "QUESTIONARIO_INDISPONIVEL");
         }
     }
 
+    /** Anamnese para atribuir: de anamnese, publicada e não arquivada (senão 409 {@code QUESTIONARIO_INDISPONIVEL}). */
+    public Questionario exigirAnamneseUsavel(UUID questionarioId) {
+        Questionario q = buscar(questionarioId);
+        if (!q.isUsavel() || q.getFinalidade() != Finalidade.ANAMNESE) {
+            throw new ConflictException("Escolha uma anamnese publicada e que não esteja arquivada.",
+                    "QUESTIONARIO_INDISPONIVEL");
+        }
+        return q;
+    }
+
     private Questionario buscar(UUID id) {
         return questionarios.findById(id)
-                .orElseThrow(() -> new NaoEncontradoException("Questionário de atualização não encontrado."));
+                .orElseThrow(() -> new NaoEncontradoException("Questionário não encontrado."));
     }
 
     private Questionario buscarParaAlterar(UUID id) {
         return questionarios.buscarParaAlterar(id)
-                .orElseThrow(() -> new NaoEncontradoException("Questionário de atualização não encontrado."));
+                .orElseThrow(() -> new NaoEncontradoException("Questionário não encontrado."));
     }
 
     private Questionario gravar(Questionario q) {
@@ -347,33 +369,58 @@ public class QuestionarioService {
         return texto == null || texto.isBlank() ? null : texto.trim();
     }
 
-    /** Erros do validador mais o tipo de um id que já foi publicado com outro tipo (nunca muda entre versões). */
+    /**
+     * Erros do validador, o tipo de um id que já foi publicado com outro tipo (nunca muda entre versões) e imagem citada
+     * que não existe na consultoria.
+     */
     private ResultadoValidacao resultadoDaPublicacao(Questionario q, ConteudoQuestionario conteudo) {
-        ResultadoValidacao base = validador.validar(conteudo);
+        ResultadoValidacao base = validador.validar(conteudo, q.getFinalidade());
         List<ConteudoQuestionario> publicadas = versoes.findByQuestionarioIdOrderByNumeroAsc(q.getId()).stream()
                 .map(v -> ler(v.getConteudo())).toList();
         Set<String> mudaram = ValidadorQuestionario.tiposQueMudaram(conteudo, publicadas);
-        if (mudaram.isEmpty()) {
+        Set<UUID> semImagem = imagens.inexistentes(QuestionarioImagemService.imagensDo(conteudo));
+        if (mudaram.isEmpty() && semImagem.isEmpty()) {
             return base;
         }
         List<Problema> erros = new ArrayList<>(base.erros());
         for (int i = 0; i < conteudo.secoes().size(); i++) {
             var perguntas = conteudo.secoes().get(i).perguntas();
             for (int j = 0; perguntas != null && j < perguntas.size(); j++) {
-                if (mudaram.contains(perguntas.get(j).id())) {
-                    erros.add(new Problema("secoes[" + i + "].perguntas[" + j + "].tipo",
+                var p = perguntas.get(j);
+                String cp = "secoes[" + i + "].perguntas[" + j + "]";
+                if (mudaram.contains(p.id())) {
+                    erros.add(new Problema(cp + ".tipo",
                             "O tipo de uma pergunta já publicada não pode mudar. Crie uma pergunta nova."));
+                }
+                if (citaInexistente(p.imagemId(), semImagem)) {
+                    erros.add(new Problema(cp + ".imagemId", "A imagem não existe mais. Envie de novo."));
+                }
+                for (int k = 0; p.opcoes() != null && k < p.opcoes().size(); k++) {
+                    if (citaInexistente(p.opcoes().get(k).imagemId(), semImagem)) {
+                        erros.add(new Problema(cp + ".opcoes[" + k + "].imagemId", "A imagem não existe mais. Envie de novo."));
+                    }
                 }
             }
         }
         return new ResultadoValidacao(List.copyOf(erros), base.avisos());
     }
 
+    private static boolean citaInexistente(String imagemId, Set<UUID> semImagem) {
+        if (imagemId == null || semImagem.isEmpty()) {
+            return false;
+        }
+        try {
+            return semImagem.contains(UUID.fromString(imagemId));
+        } catch (IllegalArgumentException formatoErrado) {
+            return false;
+        }
+    }
+
     /** Rascunho incompleto é aceito; aqui só se fixa o formato e o que o JSON gravado precisa ter. */
     static ConteudoQuestionario normalizar(ConteudoQuestionario c) {
         List<Secao> secoes = c.secoes() == null ? List.of() : c.secoes().stream()
                 .map(s -> new Secao(s.uid(), s.titulo(), s.perguntas() == null ? List.<Pergunta>of()
-                        : s.perguntas().stream().map(QuestionarioService::normalizar).toList()))
+                        : s.perguntas().stream().map(QuestionarioService::normalizar).toList(), s.mostrarSe()))
                 .toList();
         return new ConteudoQuestionario(FORMATO, c.instrucoes() == null ? List.of() : c.instrucoes(), secoes);
     }
@@ -381,7 +428,8 @@ public class QuestionarioService {
     private static Pergunta normalizar(Pergunta p) {
         return new Pergunta(p.id(), p.tipo(), p.rotulo(), Boolean.TRUE.equals(p.obrigatoria()), p.ajuda(),
                 p.destaque(), p.rotuloCurto(), p.ajudaAutomatica(), p.dias(), p.opcoes(), p.unidade(), p.min(),
-                p.max(), p.casas());
+                p.max(), p.casas(), p.imagemId(), p.somentePassado(), p.linhas(), p.colunas(), p.texto(),
+                p.declaracao(), p.mostrarSe());
     }
 
     private ConteudoQuestionario ler(String conteudo) {
@@ -395,13 +443,13 @@ public class QuestionarioService {
     private QuestionarioDetalhe detalhe(Questionario q) {
         List<VersaoResumo> publicadas = versoes.findByQuestionarioIdOrderByNumeroAsc(q.getId()).stream()
                 .map(v -> new VersaoResumo(v.getNumero(), v.getPublicadoEm())).toList();
-        return new QuestionarioDetalhe(q.getId(), q.getNome(), q.getDescricao(), q.isPadrao(), q.isArquivado(),
+        return new QuestionarioDetalhe(q.getId(), q.getNome(), q.getDescricao(), q.getFinalidade(), q.isPadrao(), q.isArquivado(),
                 q.getVersaoPublicada(), q.getPublicadoEm(), alterado(q), q.getRascunhoAlteradoEm(), q.getVersao(),
                 usos().de(q.getId()), ler(q.getRascunho()), publicadas);
     }
 
     private static QuestionarioResumo resumo(Questionario q, Uso uso) {
-        return new QuestionarioResumo(q.getId(), q.getNome(), q.getDescricao(), q.isPadrao(), q.isArquivado(),
+        return new QuestionarioResumo(q.getId(), q.getNome(), q.getDescricao(), q.getFinalidade(), q.isPadrao(), q.isArquivado(),
                 q.getVersaoPublicada(), q.getPublicadoEm(), alterado(q), q.getRascunhoAlteradoEm(), uso);
     }
 
@@ -417,6 +465,7 @@ public class QuestionarioService {
         questionarios.contarAlunos().forEach(c -> a.put(c.questionarioId(), c.total()));
         questionarios.contarPastas().forEach(c -> p.put(c.questionarioId(), c.total()));
         questionarios.contarEnvios().forEach(c -> e.put(c.questionarioId(), c.total()));
+        questionarios.contarAnamneses().forEach(c -> e.merge(c.questionarioId(), c.total(), Long::sum));
         return new Usos(a, p, e);
     }
 

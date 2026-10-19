@@ -1,58 +1,69 @@
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2 } from 'lucide-react-native';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { ConteudoQuestionario, PerguntaAtualizacao } from '../../api/tipos';
-import { aceitaAjudaAutomatica, aceitaDestaque, aceitaObrigatoria, novaOpcao, podeDestacar } from '../../dominio/editorQuestionario';
+import type { ConteudoQuestionario, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao } from '../../api/tipos';
+import { ImagemDaPergunta } from '../../aluno/atualizacao/ImagemDaPergunta';
+import { FotoRecusada } from '../../aluno/atualizacao/fotos/prepararFoto';
+import {
+  aceitaAjudaAutomatica, aceitaDestaque, aceitaObrigatoria, condicaoPara, controlesAnteriores, novaOpcao, podeDestacar, posicaoDaPergunta,
+} from '../../dominio/editorQuestionario';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { LIMITES_QUESTIONARIO as L, temOpcoes } from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
+import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
+import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { SelecaoMultipla } from '../../ui/SelecaoMultipla';
 import { Texto } from '../../ui/Texto';
+import { textoDoErro } from '../../ui/erros';
+import { escolherEEnviarImagem } from './enviarImagem';
 
 const CASAS = [{ valor: 0, rotulo: '0' }, { valor: 1, rotulo: '1' }, { valor: 2, rotulo: '2' }];
 const DIAS = Array.from({ length: L.diaValorMaximo }, (_, i) => ({ valor: String(i + 1), rotulo: `Dia ${i + 1}` }));
+const AVISO_LICENCA = 'Use só imagens suas ou com licença de uso: você responde pelo que envia.';
 
 /**
  * Propriedades de uma pergunta, por tipo. O tipo nunca muda aqui (a resposta já gravada depende dele): para trocar,
  * remova a pergunta e adicione outra.
  */
-export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somenteLeitura, aoMudar }: {
+export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somenteLeitura, finalidade = 'ATUALIZACAO', aoMudar }: {
   pergunta: PerguntaAtualizacao; conteudo: ConteudoQuestionario; problemas: string[]; somenteLeitura?: boolean;
-  aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void;
+  finalidade?: FinalidadeQuestionario; aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void;
 }) {
   const { cores } = useTema();
   const opcoes = p.opcoes ?? [];
   const destaque = podeDestacar(conteudo, p.id);
-  const mudarOpcao = (indice: number, rotulo: string) => aoMudar({ opcoes: substituir(opcoes, indice, { ...opcoes[indice], rotulo }) });
   if (somenteLeitura) return <Texto variante="suave">{p.ajuda || 'Sem texto de ajuda.'}</Texto>;
   return <View style={estilos.bloco}>
     {problemas.map((m) => <Texto key={m} variante="pequeno" cor={cores.perigo}>{m}</Texto>)}
-    <Campo rotulo="Texto da pergunta" valor={p.rotulo} maxLength={L.rotuloTamanho} aoMudar={(rotulo) => aoMudar({ rotulo })} />
-    <Campo rotulo="Ajuda para o aluno (opcional)" valor={p.ajuda ?? ''} maxLength={L.ajudaTamanho} linhas={2} aoMudar={(ajuda) => aoMudar({ ajuda })} />
-    {aceitaObrigatoria(p.tipo) ? <Interruptor rotulo="Obrigatória" valor={p.obrigatoria} aoMudar={(obrigatoria) => aoMudar({ obrigatoria })} /> : null}
-    {p.tipo === 'PESO' ? <Texto variante="suave">A resposta vai para o registro de peso do aluno.</Texto> : null}
+    <Campo rotulo={p.tipo === 'INFORMATIVO' ? 'Título' : 'Texto da pergunta'} valor={p.rotulo} maxLength={L.rotuloTamanho} aoMudar={(rotulo) => aoMudar({ rotulo })} />
+    {p.tipo === 'INFORMATIVO' ? <Campo rotulo="Texto (opcional)" valor={p.texto ?? ''} maxLength={L.textoInformativoTamanho} linhas={5} aoMudar={(texto) => aoMudar({ texto })} />
+      : <Campo rotulo="Ajuda para o aluno (opcional)" valor={p.ajuda ?? ''} maxLength={L.ajudaTamanho} linhas={2} aoMudar={(ajuda) => aoMudar({ ajuda })} />}
+    {aceitaObrigatoria(p.tipo) ? <Interruptor rotulo={p.tipo === 'GRADE' ? 'Obrigatória (todas as linhas)' : 'Obrigatória'} valor={p.obrigatoria}
+      aoMudar={(obrigatoria) => aoMudar({ obrigatoria })} /> : null}
+    {p.tipo === 'PESO' ? <Texto variante="suave">{finalidade === 'ATUALIZACAO' ? 'A resposta vai para o registro de peso do aluno.' : 'Na anamnese, o peso fica só nas respostas (não entra no registro de peso).'}</Texto> : null}
     {p.tipo === 'DATA_AUTOMATICA' ? <Texto variante="suave">Mostra a data da atualização; o aluno não responde.</Texto> : null}
-    {p.tipo === 'FOTOS' ? <Texto variante="suave">O aluno anexa até 6 fotos. Elas só aparecem para você na atualização enviada, e só com o envio de fotos ligado no servidor.</Texto> : null}
+    {p.tipo === 'FOTOS' ? <Texto variante="suave">O aluno anexa até 6 fotos. Elas só aparecem para você depois do envio, e só com o envio de fotos ligado no servidor.</Texto> : null}
+    {p.tipo === 'DATA' ? <Interruptor rotulo="Só hoje ou antes (ex.: nascimento, última pesagem)" valor={p.somentePassado === true}
+      aoMudar={(somentePassado) => aoMudar({ somentePassado: somentePassado || undefined })} /> : null}
+    {p.tipo === 'ACEITE' ? <>
+      <Campo rotulo="Texto que o aluno lê (regras)" valor={p.texto ?? ''} maxLength={L.textoInformativoTamanho} linhas={6} aoMudar={(texto) => aoMudar({ texto })} />
+      <Campo rotulo="Frase que o aluno marca para aceitar" valor={p.declaracao ?? ''} maxLength={L.declaracaoTamanho} aoMudar={(declaracao) => aoMudar({ declaracao })} />
+      <Texto variante="suave">A resposta guarda a versão do questionário: se você mudar o texto e publicar, quem já aceitou continua com o texto que aceitou.</Texto>
+    </> : null}
 
-    {temOpcoes(p.tipo) ? <View style={estilos.bloco}>
-      <Texto variante="rotulo">Opções ({opcoes.length} de {L.opcoesMaximo})</Texto>
-      {opcoes.map((o, i) => <View key={o.id} style={estilos.opcao}>
-        <View style={estilos.campoOpcao}><Campo rotulo={`Opção ${i + 1}`} valor={o.rotulo} maxLength={L.opcaoTamanho} aoMudar={(r) => mudarOpcao(i, r)} /></View>
-        <IconeBotao Icone={ArrowUp} rotulo={`Subir opção ${i + 1}`} desabilitado={i === 0} aoTocar={() => aoMudar({ opcoes: mover(opcoes, i, -1) })} />
-        <IconeBotao Icone={ArrowDown} rotulo={`Descer opção ${i + 1}`} desabilitado={i === opcoes.length - 1} aoTocar={() => aoMudar({ opcoes: mover(opcoes, i, 1) })} />
-        <IconeBotao Icone={Trash2} rotulo={`Remover opção ${i + 1}`} desabilitado={opcoes.length <= L.opcoesMinimo} aoTocar={() => aoMudar({ opcoes: remover(opcoes, i) })} />
-      </View>)}
-      <View style={estilos.linha}>
-        <Botao rotulo="Adicionar opção" tipo="secundario" Icone={Plus} desabilitado={opcoes.length >= L.opcoesMaximo}
-          motivo={`No máximo ${L.opcoesMaximo} opções.`} aoTocar={() => aoMudar({ opcoes: [...opcoes, novaOpcao()] })} />
-      </View>
-    </View> : null}
+    {temOpcoes(p.tipo) ? <ListaDeItens titulo="Opções" itens={opcoes} minimo={L.opcoesMinimo} maximo={L.opcoesMaximo} nome="opção" comImagem
+      aoMudar={(novas) => aoMudar({ opcoes: novas })} /> : null}
+    {p.tipo === 'GRADE' ? <>
+      <ListaDeItens titulo="Linhas" itens={p.linhas ?? []} minimo={L.linhasMinimo} maximo={L.linhasMaximo} nome="linha" aoMudar={(linhas) => aoMudar({ linhas })} />
+      <ListaDeItens titulo="Colunas" itens={p.colunas ?? []} minimo={L.colunasMinimo} maximo={L.colunasMaximo} nome="coluna" aoMudar={(colunas) => aoMudar({ colunas })} />
+    </> : null}
 
     {p.tipo === 'NUMERO' ? <View style={estilos.bloco}>
       <Campo rotulo="Unidade (opcional, ex.: kg, passos)" valor={p.unidade ?? ''} maxLength={L.unidadeTamanho} aoMudar={(unidade) => aoMudar({ unidade })} />
@@ -65,15 +76,94 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
       marcados={new Set((p.dias ?? []).map(String))}
       aoMudar={(marcados) => aoMudar({ dias: [...marcados].map(Number).sort((a, b) => a - b) })} /> : null}
 
-    {aceitaAjudaAutomatica(p.tipo) ? <Interruptor rotulo="Mostrar a média de dias com treino como ajuda"
+    {aceitaAjudaAutomatica(p.tipo, finalidade) ? <Interruptor rotulo="Mostrar a média de dias com treino como ajuda"
       valor={p.ajudaAutomatica === 'MEDIA_DIAS_TREINO'} aoMudar={(ligado) => aoMudar({ ajudaAutomatica: ligado ? 'MEDIA_DIAS_TREINO' : undefined })} /> : null}
 
-    {aceitaDestaque(p.tipo) ? (destaque.pode || p.destaque === true
+    {aceitaDestaque(p.tipo) && finalidade === 'ATUALIZACAO' ? (destaque.pode || p.destaque === true
       ? <View style={estilos.bloco}>
         <Interruptor rotulo="Mostrar no resumo do treinador" valor={p.destaque === true} aoMudar={(ligado) => aoMudar({ destaque: ligado, rotuloCurto: ligado ? p.rotuloCurto : undefined })} />
         {p.destaque === true ? <Campo rotulo="Nome curto no resumo (opcional)" valor={p.rotuloCurto ?? ''} maxLength={L.rotuloCurtoTamanho} aoMudar={(rotuloCurto) => aoMudar({ rotuloCurto })} /> : null}
       </View>
       : <Texto variante="pequeno">{destaque.motivo}</Texto>) : null}
+
+    <ImagemDoItem imagemId={p.imagemId} rotulo={p.tipo === 'INFORMATIVO' ? 'Imagem (opcional)' : 'Imagem de referência (opcional)'}
+      aoMudar={(imagemId) => aoMudar({ imagemId })} />
+    <EditorDeCondicao conteudo={conteudo} perguntaId={p.id} condicao={p.mostrarSe} aoMudar={(mostrarSe) => aoMudar({ mostrarSe })} />
+  </View>;
+}
+
+/** Imagem da pergunta ou da opção: envia, mostra e tira. */
+function ImagemDoItem({ imagemId, rotulo, aoMudar, compacta }: { imagemId?: string; rotulo: string; aoMudar: (id: string | undefined) => void; compacta?: boolean }) {
+  const { avisar } = useAviso();
+  const [enviando, setEnviando] = useState(false);
+  const enviar = () => {
+    setEnviando(true);
+    escolherEEnviarImagem().then((id) => { if (id) aoMudar(id); }, (e: unknown) => avisar(e instanceof FotoRecusada ? e.message : textoDoErro(e), 'perigo'))
+      .finally(() => setEnviando(false));
+  };
+  return <View style={estilos.bloco}>
+    {compacta ? null : <Texto variante="rotulo">{rotulo}</Texto>}
+    {imagemId ? <ImagemDaPergunta id={imagemId} descricao={rotulo} pequena={compacta} /> : null}
+    <View style={estilos.linha}>
+      <Botao rotulo={imagemId ? 'Trocar imagem' : compacta ? 'Imagem' : 'Enviar imagem'} tipo="secundario" Icone={ImagePlus} carregando={enviando} aoTocar={enviar} />
+      {imagemId ? <Botao rotulo="Tirar imagem" tipo="perigoTexto" aoTocar={() => aoMudar(undefined)} /> : null}
+    </View>
+    {compacta || imagemId ? null : <Texto variante="pequeno">PNG ou JPEG; o app reduz para caber em 300 KB. {AVISO_LICENCA}</Texto>}
+  </View>;
+}
+
+/** Opções de escolha, linhas e colunas da grade: texto, ordem e (só nas opções) imagem. */
+function ListaDeItens({ titulo, itens, minimo, maximo, nome, comImagem, aoMudar }: {
+  titulo: string; itens: OpcaoPergunta[]; minimo: number; maximo: number; nome: string; comImagem?: boolean;
+  aoMudar: (itens: OpcaoPergunta[]) => void;
+}) {
+  const mudar = (i: number, parcial: Partial<OpcaoPergunta>) => aoMudar(substituir(itens, i, { ...itens[i], ...parcial }));
+  const Nome = `${nome[0].toUpperCase()}${nome.slice(1)}`;
+  return <View style={estilos.bloco}>
+    <Texto variante="rotulo">{`${titulo} (${itens.length} de ${maximo})`}</Texto>
+    {itens.map((o, i) => <View key={o.id} style={estilos.bloco}>
+      <View style={estilos.opcao}>
+        <View style={estilos.campoOpcao}><Campo rotulo={`${Nome} ${i + 1}`} valor={o.rotulo} maxLength={L.opcaoTamanho} aoMudar={(rotulo) => mudar(i, { rotulo })} /></View>
+        <IconeBotao Icone={ArrowUp} rotulo={`Subir ${nome} ${i + 1}`} desabilitado={i === 0} aoTocar={() => aoMudar(mover(itens, i, -1))} />
+        <IconeBotao Icone={ArrowDown} rotulo={`Descer ${nome} ${i + 1}`} desabilitado={i === itens.length - 1} aoTocar={() => aoMudar(mover(itens, i, 1))} />
+        <IconeBotao Icone={Trash2} rotulo={`Remover ${nome} ${i + 1}`} desabilitado={itens.length <= minimo} aoTocar={() => aoMudar(remover(itens, i))} />
+      </View>
+      {comImagem ? <ImagemDoItem imagemId={o.imagemId} rotulo={`Imagem da ${nome} ${i + 1}`} compacta aoMudar={(imagemId) => mudar(i, { imagemId })} /> : null}
+    </View>)}
+    <View style={estilos.linha}>
+      <Botao rotulo={`Adicionar ${nome}`} tipo="secundario" Icone={Plus} desabilitado={itens.length >= maximo}
+        motivo={`No máximo ${maximo}.`} aoTocar={() => aoMudar([...itens, novaOpcao()])} />
+    </View>
+    {comImagem ? <Texto variante="pequeno">{AVISO_LICENCA}</Texto> : null}
+  </View>;
+}
+
+/**
+ * "Mostrar só se...": escolhe uma pergunta de escolha anterior e as respostas que mostram esta pergunta (ou seção).
+ * Escondida, não é obrigatória e a resposta dela não é enviada.
+ */
+export function EditorDeCondicao({ conteudo, perguntaId, secao, condicao, aoMudar }: {
+  conteudo: ConteudoQuestionario; perguntaId?: string; secao?: number; condicao?: PerguntaAtualizacao['mostrarSe'];
+  aoMudar: (condicao: PerguntaAtualizacao['mostrarSe']) => void;
+}) {
+  const posicao = perguntaId ? posicaoDaPergunta(conteudo, perguntaId) : secao != null ? { secao, pergunta: -1 } : null;
+  const controles = posicao ? controlesAnteriores(conteudo, posicao.secao, posicao.pergunta) : [];
+  const ligado = !!condicao;
+  if (!ligado && controles.length === 0) {
+    return <Texto variante="pequeno">{perguntaId ? 'Para mostrar esta pergunta só em alguns casos, ponha antes dela uma pergunta de escolha ou de sim ou não.'
+      : 'Para mostrar esta seção só em alguns casos, ponha numa seção anterior uma pergunta de escolha ou de sim ou não.'}</Texto>;
+  }
+  const alvo = controles.find((c) => c.id === condicao?.perguntaId);
+  return <View style={estilos.bloco}>
+    <Interruptor rotulo={perguntaId ? 'Mostrar só conforme uma resposta anterior' : 'Mostrar a seção só conforme uma resposta anterior'} valor={ligado}
+      aoMudar={(ligar) => aoMudar(ligar ? condicaoPara(controles[0]?.id ?? '') : undefined)} />
+    {ligado ? <>
+      <EscolhaEmFolha rotulo="Pergunta" valor={condicao?.perguntaId ?? ''} rotuloDoValor="escolher"
+        opcoes={controles.map((c) => ({ valor: c.id, rotulo: c.rotulo }))} aoMudar={(id) => aoMudar(condicaoPara(id))} />
+      {alvo ? <SelecaoMultipla rotulo="Mostrar quando a resposta for" opcoes={alvo.valores} marcados={new Set(condicao?.valores ?? [])}
+        aoMudar={(marcados) => aoMudar({ perguntaId: alvo.id, valores: alvo.valores.map((v) => v.valor).filter((v) => marcados.has(v)) })} />
+        : <Texto variante="pequeno">A pergunta escolhida não está mais antes desta. Escolha outra.</Texto>}
+    </> : null}
   </View>;
 }
 

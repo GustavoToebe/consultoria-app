@@ -7,7 +7,7 @@ import type { Atualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../
 import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
 import { rascunhoVigente } from '../../dominio/atualizacaoQuestionario';
 import { dataDaTela, dataParaTela, hojeIso, somarDias } from '../../dominio/formatos';
-import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
+import { errosRespostasAtualizacao, respostasParaEnviar } from '../../dominio/respostasAtualizacao';
 import { useAluno } from '../../offline/AlunoProvider';
 import type { RascunhoAtualizacao } from '../../offline/repositorioLocal';
 import { useTema } from '../../tema/TemaProvider';
@@ -89,7 +89,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     setRespostas(estado.respostas);setLocais(estado.locais);
     gravarRascunho(estado);
   };
-  const fotos=useFotosDoFormulario({usuarioId:repositorio.usuarioId,atual,online,editavel:!leitura&&liberada&&!ocupado,locais,
+  const fotos=useFotosDoFormulario({usuarioId:repositorio.usuarioId,destino:atual.pastaId?{pastaId:atual.pastaId}:null,online,editavel:!leitura&&liberada&&!ocupado,locais,
     ler:()=>ultimo.current,aplicar});
   const mudar=(id:string,valor:RespostaAtualizacao)=>{
     aplicar({respostas:{...ultimo.current.respostas,[id]:valor},locais:ultimo.current.locais});
@@ -115,7 +115,8 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     try {
       // As fotos do aparelho sobem agora (uma a uma) e viram ids nas respostas; falhou uma, o resto fica salvo para tentar de novo.
       const completas=fotos.habilitado===true ? await fotos.subirLocais() : ultimo.current.respostas;
-      const resultado=await enviarAtualizacao(atual.pastaId,atual.questionarioVersaoId,completas);
+      // Resposta de pergunta escondida por condição não vai (o servidor também a descartaria).
+      const resultado=await enviarAtualizacao(atual.pastaId,atual.questionarioVersaoId,respostasParaEnviar(atual.modelo,completas,fotos.habilitado===true));
       await atualizarAtualizacao(resultado);
       await repositorio.apagarRascunhoAtualizacao(atual.pastaId);
       await fotos.apagarLocais();
@@ -180,7 +181,8 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
         {!leitura?<Texto variante="pequeno">* Campos obrigatórios. O rascunho fica salvo neste aparelho.</Texto>:null}
       </Cartao>
       <ContextoDeFotos.Provider value={fotos.controle}>
-        <QuestionarioAtualizacao atualizacao={atual} respostas={respostas} aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} />
+        <QuestionarioAtualizacao modelo={atual.modelo} dataAtualizacao={atual.dataAtualizacao} resumo={atual.resumo} respostas={respostas}
+          aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} />
       </ContextoDeFotos.Provider>
       {!leitura&&liberada?<Botao rotulo="Enviar atualização" carregando={ocupado} aoTocar={()=>void enviar()} />:null}
       {!leitura?<Botao rotulo="Vou atrasar" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setAtraso(true)} />:null}

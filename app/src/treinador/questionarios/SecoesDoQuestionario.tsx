@@ -2,10 +2,10 @@ import { ArrowDown, ArrowUp, ChevronsDownUp, ChevronsUpDown, Copy, Plus, Trash2 
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { ConteudoQuestionario, PerguntaAtualizacao, TipoPergunta } from '../../api/tipos';
+import type { ConteudoQuestionario, FinalidadeQuestionario, PerguntaAtualizacao, TipoPergunta } from '../../api/tipos';
 import {
-  adicionarPergunta, adicionarSecao, alterarPergunta, alterarSecao, duplicarPerguntaNaSecao, moverParaSecao, moverPergunta, moverSecao,
-  novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, ROTULO_DO_TIPO, TIPOS_PARA_ADICIONAR,
+  adicionarPergunta, adicionarSecao, alterarCondicaoDaSecao, alterarPergunta, alterarSecao, duplicarPerguntaNaSecao, moverParaSecao, moverPergunta, moverSecao,
+  novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, ROTULO_DO_TIPO, textoDaCondicao, tiposParaAdicionar,
   type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
 import { LIMITES_QUESTIONARIO as L } from '../../dominio/questionario';
@@ -21,7 +21,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
-import { PropriedadesDaPergunta } from './PropriedadesDaPergunta';
+import { EditorDeCondicao, PropriedadesDaPergunta } from './PropriedadesDaPergunta';
 
 type Alvo = { secao: number; pergunta: number };
 
@@ -35,13 +35,14 @@ interface Props {
   aoAbrir: (id: string) => void;
   problemas: ProblemasAgrupados;
   somenteLeitura?: boolean;
+  finalidade?: FinalidadeQuestionario;
 }
 
 /**
  * Seções e perguntas do questionário (molde: `SecoesDeMobilidade`). Cada pergunta é um cartão recolhível, como o
  * exercício no treino; PESO e Data só uma vez. Nada é salvo aqui: o pai guarda o rascunho.
  */
-export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar, aoAlternarTodas, aoAbrir, problemas, somenteLeitura }: Props) {
+export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar, aoAlternarTodas, aoAbrir, problemas, somenteLeitura, finalidade = 'ATUALIZACAO' }: Props) {
   const { cores } = useTema();
   const [adicionarEm, setAdicionarEm] = useState<number | null>(null);
   const [removerPerguntaDe, setRemoverPerguntaDe] = useState<Alvo | null>(null);
@@ -70,10 +71,12 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar
       </View>}>
       {somenteLeitura ? null : <Campo rotulo="Título da seção" valor={sec.titulo} maxLength={L.tituloTamanho} erro={problemas.porSecao.get(si)?.join(' ')}
         aoMudar={(titulo) => aoMudar((x) => alterarSecao(x, si, titulo))} />}
+      {somenteLeitura ? (sec.mostrarSe ? <Texto variante="pequeno">{textoDaCondicao(c, sec.mostrarSe)}</Texto> : null)
+        : <EditorDeCondicao conteudo={c} secao={si} condicao={sec.mostrarSe} aoMudar={(m) => aoMudar((x) => alterarCondicaoDaSecao(x, si, m))} />}
       {sec.perguntas.length === 0 ? <Texto variante="suave">Seção sem pergunta. Adicione ao menos uma.</Texto> : null}
       {sec.perguntas.map((p, pi) => <CartaoDaPergunta key={p.id} pergunta={p} conteudo={c} posicao={pi} total={sec.perguntas.length}
         aberta={abertas.has(p.id)} problemas={problemas.porPergunta.get(p.id) ?? []} secoes={c.secoes.map((s, i) => ({ i, titulo: s.titulo || `Seção ${i + 1}` }))} secaoAtual={si}
-        somenteLeitura={somenteLeitura} fundo={cores.superficie2} podeDuplicar={podeDuplicar(c, si, pi).pode}
+        somenteLeitura={somenteLeitura} finalidade={finalidade} fundo={cores.superficie2} podeDuplicar={podeDuplicar(c, si, pi).pode}
         aoAlternar={() => aoAlternar(p.id)}
         aoMudar={(parcial) => aoMudar((x) => alterarPergunta(x, si, pi, parcial))}
         aoMover={(d) => aoMudar((x) => moverPergunta(x, si, pi, d))}
@@ -92,7 +95,7 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar
     </LinhaDeAcoes>}
 
     {adicionarEm !== null ? <Folha visivel titulo="Adicionar pergunta" aoFechar={() => setAdicionarEm(null)}>
-      {TIPOS_PARA_ADICIONAR.map(({ tipo, descricao }) => {
+      {tiposParaAdicionar(finalidade).map(({ tipo, descricao }) => {
         const permissao = podeAdicionar(c, adicionarEm, tipo);
         return <View key={tipo} style={estilos.tipo}>
           <Botao rotulo={ROTULO_DO_TIPO[tipo]} tipo="secundario" cheio desabilitado={!permissao.pode} motivo={permissao.motivo} aoTocar={() => adicionar(adicionarEm, tipo)} />
@@ -112,20 +115,22 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar
   </>;
 }
 
-function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, problemas, secoes, secaoAtual, somenteLeitura, fundo, podeDuplicar: duplicavel,
+function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, problemas, secoes, secaoAtual, somenteLeitura, finalidade, fundo, podeDuplicar: duplicavel,
   aoAlternar, aoMudar, aoMover, aoDuplicar, aoMoverParaSecao, aoRemover }: {
   pergunta: PerguntaAtualizacao; conteudo: ConteudoQuestionario; posicao: number; total: number; aberta: boolean; problemas: string[];
-  secoes: { i: number; titulo: string }[]; secaoAtual: number; somenteLeitura?: boolean; fundo: string; podeDuplicar: boolean;
+  secoes: { i: number; titulo: string }[]; secaoAtual: number; somenteLeitura?: boolean; finalidade: FinalidadeQuestionario; fundo: string; podeDuplicar: boolean;
   aoAlternar: () => void; aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void; aoMover: (d: -1 | 1) => void;
   aoDuplicar: () => void; aoMoverParaSecao: (para: number) => void; aoRemover: () => void;
 }) {
-  const resumo = [ROTULO_DO_TIPO[p.tipo], p.obrigatoria ? 'obrigatória' : null, p.destaque ? 'no resumo' : null].filter(Boolean).join(' · ');
+  const resumo = [ROTULO_DO_TIPO[p.tipo] ?? p.tipo, p.obrigatoria ? 'obrigatória' : null, p.destaque ? 'no resumo' : null,
+    p.mostrarSe ? 'com condição' : null, p.imagemId ? 'com imagem' : null].filter(Boolean).join(' · ');
   const outras = secoes.filter((s) => s.i !== secaoAtual).map((s) => ({ valor: String(s.i), rotulo: s.titulo }));
   return <Cartao style={{ backgroundColor: fundo }}
     cabecalho={<CabecalhoDeGrupo titulo={p.rotulo || 'Pergunta sem texto'} resumo={resumo} aberto={aberta} aoAlternar={aoAlternar}
       selo={problemas.length ? { texto: 'Corrigir', tipo: 'perigo' } : undefined} />}>
     {aberta ? <>
-      <PropriedadesDaPergunta pergunta={p} conteudo={conteudo} problemas={problemas} somenteLeitura={somenteLeitura} aoMudar={aoMudar} />
+      {p.mostrarSe && somenteLeitura ? <Texto variante="pequeno">{textoDaCondicao(conteudo, p.mostrarSe)}</Texto> : null}
+      <PropriedadesDaPergunta pergunta={p} conteudo={conteudo} problemas={problemas} somenteLeitura={somenteLeitura} finalidade={finalidade} aoMudar={aoMudar} />
       {somenteLeitura ? null : <LinhaDeAcoes>
         <IconeBotao Icone={ArrowUp} rotulo={`Subir a pergunta ${posicao + 1}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
         <IconeBotao Icone={ArrowDown} rotulo={`Descer a pergunta ${posicao + 1}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />

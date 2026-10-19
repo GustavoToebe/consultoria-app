@@ -1,4 +1,4 @@
-import type { Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, PainelAluno, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
 import {
   filaRetidaVenceu,
@@ -138,6 +138,17 @@ export class RepositorioSqlite implements RepositorioLocal {
   }
   apagarRascunhoAtualizacao(pastaId: string): Promise<void> {
     return this.emFila(undefined, async b => { await b.rodar('delete from kv where chave = ?',[`atualizacao:rascunho:${pastaId}`]); });
+  }
+  lerAnamnese(): Promise<AnamneseDetalhe | null> { return this.emFila(null,b => this.lerDocumento<AnamneseDetalhe>(b,'anamnese')); }
+  salvarAnamnese(anamnese: AnamneseDetalhe | null): Promise<void> { return this.emFila(undefined,b => this.gravarDocumento(b,'anamnese',anamnese)); }
+  lerRascunhoAnamnese(anamneseId: string): Promise<RascunhoAtualizacao | null> {
+    return this.emFila(null,b => this.lerDocumento(b,`anamnese:rascunho:${anamneseId}`));
+  }
+  salvarRascunhoAnamnese(anamneseId: string, rascunho: RascunhoAtualizacao): Promise<void> {
+    return this.emFila(undefined,b => this.gravarDocumento(b,`anamnese:rascunho:${anamneseId}`,rascunho));
+  }
+  apagarRascunhoAnamnese(anamneseId: string): Promise<void> {
+    return this.emFila(undefined, async b => { await b.rodar('delete from kv where chave = ?',[`anamnese:rascunho:${anamneseId}`]); });
   }
 
   private async lerDocumento<T>(banco: BancoSql, chave: string): Promise<T | null> {

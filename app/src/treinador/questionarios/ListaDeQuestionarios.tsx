@@ -7,7 +7,7 @@ import {
   arquivarQuestionario, criarQuestionario, definirQuestionarioPadrao, desarquivarQuestionario, duplicarQuestionario, excluirQuestionario,
   listarQuestionarios,
 } from '../../api/rotas';
-import type { OrigemQuestionario, QuestionarioResumo } from '../../api/tipos';
+import type { FinalidadeQuestionario, OrigemQuestionario, QuestionarioResumo } from '../../api/tipos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
@@ -42,14 +42,18 @@ export function linhaDeUso(q: Pick<QuestionarioResumo, 'uso'>) {
 }
 
 /**
- * Aba "Atualização" do Planejamento: os questionários que o aluno responde no check-in. O padrão vale para quem não
- * tem outro escolhido (na ficha do aluno ou na pasta). "Novo questionário" é o único botão primário.
+ * Abas "Atualização" e "Anamnese" do Planejamento. Atualização: os questionários que o aluno responde no check-in; o
+ * padrão vale para quem não tem outro escolhido (na ficha do aluno ou na pasta). Anamnese: os questionários que a
+ * equipe envia ao aluno pela ficha; o padrão é só o primeiro sugerido. "Novo questionário" é o único botão primário.
  */
-export function ListaDeQuestionarios({ pedirNovo, aoConsumirNovo }: { pedirNovo: boolean; aoConsumirNovo: () => void }) {
+export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, aoConsumirNovo }: {
+  finalidade?: FinalidadeQuestionario; pedirNovo: boolean; aoConsumirNovo: () => void;
+}) {
   const { avisar } = useAviso();
   const { pode } = useSessao();
+  const anamnese = finalidade === 'ANAMNESE';
   const [arquivados, setArquivados] = useState(false);
-  const lista = useCarregar(`questionarios:${arquivados}`, () => listarQuestionarios(arquivados));
+  const lista = useCarregar(`questionarios:${finalidade}:${arquivados}`, () => listarQuestionarios(arquivados, finalidade));
   const [novoAberto, setNovoAberto] = useState(false);
   // `?novo=1` (atalho da busca) abre o formulário e sai do endereço na mesma hora: assim fechar o formulário não reescreve
   // a URL e o voltar do navegador não tem passo sobrando. Sem a permissão não abre (a API recusaria de qualquer jeito).
@@ -74,14 +78,15 @@ export function ListaDeQuestionarios({ pedirNovo, aoConsumirNovo }: { pedirNovo:
   const fecharNovo = () => setNovoAberto(false);
 
   return <>
-    <Cartao titulo="Questionários de atualização"
-      descricao="O check-in que o aluno responde a cada período. O padrão vale para quem não tem outro escolhido na ficha ou na pasta."
-      acoes={<Permitido codigo="QUESTIONARIO_ALTERAR"><Botao rotulo="Novo questionário" aoTocar={() => setNovoAberto(true)} /></Permitido>}>
+    <Cartao titulo={anamnese ? 'Anamneses' : 'Questionários de atualização'}
+      descricao={anamnese ? 'O questionário inicial que você envia ao aluno pela ficha dele (cartão Anamnese). Ele responde no app, logado; a versão enviada não muda depois.'
+        : 'O check-in que o aluno responde a cada período. O padrão vale para quem não tem outro escolhido na ficha ou na pasta.'}
+      acoes={<Permitido codigo="QUESTIONARIO_ALTERAR"><Botao rotulo={anamnese ? 'Nova anamnese' : 'Novo questionário'} aoTocar={() => setNovoAberto(true)} /></Permitido>}>
       <Escolha descricao="Situação" valor={arquivados ? 'arquivados' : 'ativos'} aoMudar={(v) => setArquivados(v === 'arquivados')}
         opcoes={[{ valor: 'ativos', rotulo: 'Ativos' }, { valor: 'arquivados', rotulo: 'Arquivados' }]} />
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
       {!lista.dados && lista.carregando ? <Esqueleto /> : null}
-      {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : 'Nenhum questionário ainda.'} /> : null}
+      {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : anamnese ? 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.' : 'Nenhum questionário ainda.'} /> : null}
       {lista.dados?.length ? <Grade gap={espaco(2)}>{lista.dados.map((q) =>
         <CartaoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</Grade> : null}
     </Cartao>
@@ -99,7 +104,7 @@ export function ListaDeQuestionarios({ pedirNovo, aoConsumirNovo }: { pedirNovo:
         motivo={menu.padrao ? 'O padrão não pode ser excluído.' : 'Já foi respondido: arquive em vez de excluir.'} aoTocar={() => { setExcluir(menu); setMenu(null); }} />
     </Folha> : null}
 
-    {novo ? <FormularioNovo aoFechar={fecharNovo} /> : null}
+    {novo ? <FormularioNovo finalidade={finalidade} aoFechar={fecharNovo} /> : null}
 
     <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.nome ?? ''}”?`}
       mensagem={excluir && (excluir.uso.alunos || excluir.uso.pastas) ? 'Os alunos e as pastas que o usavam passam a usar o padrão da consultoria.' : 'Esta ação não pode ser desfeita.'}
@@ -135,20 +140,24 @@ function CartaoQuestionario({ q, ocupado, podeAlterar, aoAbrir, aoMenu }: {
   </View>;
 }
 
-function FormularioNovo({ aoFechar }: { aoFechar: () => void }) {
+function FormularioNovo({ finalidade, aoFechar }: { finalidade: FinalidadeQuestionario; aoFechar: () => void }) {
+  const anamnese = finalidade === 'ANAMNESE';
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
-  const [origem, setOrigem] = useState<OrigemQuestionario>('FABRICA');
+  // Anamnese começa em branco: não há modelo da plataforma para ela.
+  const [origem, setOrigem] = useState<OrigemQuestionario>(anamnese ? 'VAZIO' : 'FABRICA');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
-  return <Folha visivel titulo="Novo questionário" aoFechar={aoFechar} rodape={<Botao rotulo="Criar e editar" desabilitado={!nome.trim()} motivo="Informe o nome do questionário." carregando={salvando} aoTocar={() => {
+  return <Folha visivel titulo={anamnese ? 'Nova anamnese' : 'Novo questionário'} aoFechar={aoFechar} rodape={<Botao rotulo="Criar e editar" desabilitado={!nome.trim()} motivo="Informe o nome." carregando={salvando} aoTocar={() => {
     setSalvando(true); setErro(null);
-    criarQuestionario({ nome: nome.trim(), descricao: descricao.trim() || null, origem }).then((d) => { aoFechar(); irParaEditor(d.id); }, (e: unknown) => { setErro(e); setSalvando(false); });
+    criarQuestionario({ nome: nome.trim(), descricao: descricao.trim() || null, origem, finalidade }).then((d) => { aoFechar(); irParaEditor(d.id); }, (e: unknown) => { setErro(e); setSalvando(false); });
   }} />}>
-    <Campo rotulo="Nome do questionário" valor={nome} aoMudar={setNome} maxLength={120} />
+    <Campo rotulo={anamnese ? 'Nome da anamnese' : 'Nome do questionário'} valor={nome} aoMudar={setNome} maxLength={120} />
     <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={400} />
-    <Escolha rotulo="Começar de" valor={origem} aoMudar={setOrigem} opcoes={[{ valor: 'FABRICA', rotulo: 'Modelo da plataforma' }, { valor: 'VAZIO', rotulo: 'Em branco' }]} />
-    <Texto variante="suave">{origem === 'FABRICA' ? 'Traz as perguntas do questionário original para você ajustar.' : 'Começa com uma seção vazia.'}</Texto>
+    {anamnese ? <Texto variante="suave">Começa com uma seção vazia. Use seções para dividir (dados, rotina, treino, alimentação) e condições para mostrar perguntas só quando fazem sentido.</Texto> : <>
+      <Escolha rotulo="Começar de" valor={origem} aoMudar={setOrigem} opcoes={[{ valor: 'FABRICA', rotulo: 'Modelo da plataforma' }, { valor: 'VAZIO', rotulo: 'Em branco' }]} />
+      <Texto variante="suave">{origem === 'FABRICA' ? 'Traz as perguntas do questionário original para você ajustar.' : 'Começa com uma seção vazia.'}</Texto>
+    </>}
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
   </Folha>;
 }

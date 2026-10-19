@@ -2,7 +2,9 @@
 
 As fotos da atualização do aluno são dado sensível (LGPD). O arquivo fica num bucket S3 privado (produção: R2 da Cloudflare, bucket
 `consultoria-fotos`; local e testes: MinIO). No banco ficam só os metadados (`atualizacao_foto`) e a fila de remoção (`foto_remocao`).
-O resumo das regras de código está no `AGENTS.md` (item "Fotos da atualização").
+O resumo das regras de código está no `AGENTS.md` (item "Fotos da atualização"). Desde a V013 a mesma tabela e o mesmo bucket
+guardam também as fotos da **anamnese** (a foto pendente pertence a uma pasta ou a uma anamnese; o nome do objeto não muda), então
+tudo o que vale aqui (nome do objeto, fila de remoção, saída de uma consultoria) vale para elas.
 
 ## Nome do objeto
 ```

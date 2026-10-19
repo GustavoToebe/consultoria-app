@@ -140,7 +140,9 @@ class ArquiteturaTest {
                         (JavaClass c) -> !CONTROLLERS_PUBLICOS.contains(c.getSimpleName())
                                 && !Set.of("EuController", "MfaController", "TermosController", "AlunoAppController", "AtualizacaoAlunoController", "FotoAlunoController",
                                 // Foto de perfil do próprio aluno (hasRole ALUNO, sempre a da sessão); a da equipe declara PERM_ALUNO_LER.
-                                "FotoPerfilAlunoController").contains(c.getSimpleName())))
+                                "FotoPerfilAlunoController",
+                                // Anamnese do próprio aluno e imagens das perguntas que ele responde (hasRole ALUNO, sempre a da sessão).
+                                "AnamneseAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

@@ -2,11 +2,13 @@ import type {
   Atualizacao, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, TipoPergunta,
 } from '../api/tipos';
 import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
-import { numeroParaTela } from './formatos';
-import { LIMITES_QUESTIONARIO } from './questionario';
-import { respondida, respostaValida } from './respostasAtualizacao';
+import { dataParaTela, numeroParaTela } from './formatos';
+import { LIMITES_QUESTIONARIO, semResposta } from './questionario';
+import { avaliarRespostas, respondida, respostaValida } from './respostasAtualizacao';
 
 const SEM_DADO = '—';
+/** Pergunta escondida por condição (na leitura): diferente de "não respondida" e de "não". */
+export const NAO_SE_APLICA = 'Não se aplica';
 const TIPOS_DE_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const ROTULO_MAXIMO = 32;
 
@@ -38,7 +40,16 @@ export function textoDaResposta(p: PerguntaAtualizacao, valor: RespostaAtualizac
       if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) return SEM_DADO;
       return (p.dias ?? []).map((d) => `Dia ${d}: ${valor[String(d)] ?? SEM_DADO}`).join('\n');
     case 'TEXTO':
-    case 'TEXTO_LONGO': return typeof valor === 'string' ? valor : SEM_DADO;
+    case 'TEXTO_LONGO':
+    case 'TELEFONE':
+    case 'EMAIL': return typeof valor === 'string' ? valor : SEM_DADO;
+    case 'DATA': return typeof valor === 'string' ? dataParaTela(valor) || valor : SEM_DADO;
+    case 'ACEITE': return valor === true ? `Aceito: “${p.declaracao ?? ''}”` : SEM_DADO;
+    case 'GRADE': {
+      if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) return SEM_DADO;
+      const marcadas = valor as Record<string, unknown>;
+      return (p.linhas ?? []).map((l) => `${l.rotulo}: ${(p.colunas ?? []).find((c) => c.id === marcadas[l.id])?.rotulo ?? SEM_DADO}`).join('\n');
+    }
     default: return SEM_DADO;
   }
 }
@@ -83,7 +94,7 @@ export function resumoDoTreinador(
  */
 export function respostasCompativeis(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao) {
   const perguntas = new Map(todasAsPerguntas(modelo)
-    .filter((p) => p.tipo !== 'DATA_AUTOMATICA').map((p) => [p.id, p]));
+    .filter((p) => !semResposta(p.tipo)).map((p) => [p.id, p]));
   const mantidas: RespostasAtualizacao = {};
   const descartadas: string[] = [];
   for (const [id, valor] of Object.entries(respostas)) {
@@ -108,6 +119,20 @@ export function rascunhoVigente(rascunho: RascunhoAtualizacao | null, atualizaca
   const { respostas } = respostasCompativeis(atualizacao.modelo, rascunho.respostas);
   return { respostas, mudou: true, adaptado: true };
 }
+
+/** Por seção visível: quantas perguntas respondíveis estão respondidas (para o "3 de 5" e a barra do formulário). */
+export function progressoDasSecoes(modelo: ConteudoQuestionario, respostas: RespostasAtualizacao, fotosLigadas = false) {
+  const { escondidas, secoesEscondidas } = avaliarRespostas(modelo, respostas, fotosLigadas);
+  return modelo.secoes.map((secao, i) => {
+    if (secoesEscondidas.has(i)) return null;
+    const contam = secao.perguntas.filter((p) => !semResposta(p.tipo) && !escondidas.has(p.id) && (p.tipo !== 'FOTOS' || fotosLigadas));
+    return { respondidas: contam.filter((p) => respondida(respostas[p.id])).length, total: contam.length };
+  });
+}
+
+/** "2 de 4 respondidas"; sem pergunta para responder, vazio. */
+export const textoDoProgresso = (p: { respondidas: number; total: number } | null) =>
+  !p || p.total === 0 ? '' : `${p.respondidas} de ${p.total} ${p.total === 1 ? 'respondida' : 'respondidas'}`;
 
 // ---- Apoio dos controles do formulário ----
 export type SimNao = 'sim' | 'nao';

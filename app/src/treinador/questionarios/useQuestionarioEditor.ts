@@ -87,7 +87,7 @@ export function useQuestionarioEditor(id: string | undefined) {
       }
       const enviada = e.revisao;
       setSalvando(true);
-      const envio = salvarQuestionario(id, { nome: e.nome.trim(), descricao: e.descricao.trim() || null, conteudo: paraApi(e.conteudo), versao: versao.current }).then(
+      const envio = salvarQuestionario(id, { nome: e.nome.trim(), descricao: e.descricao.trim() || null, conteudo: paraApi(e.conteudo, e.detalhe.finalidade), versao: versao.current }).then(
         (d) => {
           versao.current = d.versao;
           setErroSalvar(null);

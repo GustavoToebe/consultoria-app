@@ -11,7 +11,7 @@ import java.util.Set;
  * um continua valendo). Recusa PNG truncado, sem `IHDR` no começo, sem `IEND` ou com chunk crítico desconhecido.
  * Como o JPEG ({@code JpegSemMetadados}), não decodifica a imagem: não há bomba de descompressão.
  */
-final class PngSemMetadados {
+public final class PngSemMetadados {
 
     private static final byte[] ASSINATURA = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
     private static final Set<String> MANTIDOS = Set.of("IHDR", "PLTE", "tRNS", "sRGB", "gAMA", "IDAT", "IEND");
@@ -19,7 +19,7 @@ final class PngSemMetadados {
     private PngSemMetadados() {
     }
 
-    static byte[] limpar(byte[] png) {
+    public static byte[] limpar(byte[] png) {
         if (png.length < ASSINATURA.length + 12) {
             throw new IllegalArgumentException("PNG curto demais.");
         }

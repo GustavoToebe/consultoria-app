@@ -37,6 +37,8 @@ describe('catálogo de telas', () => {
     expect(leitor).not.toContain('novo-questionario');
     expect(ids(telasPermitidas(com(['MODELO_LER'])))).not.toContain('questionarios');
     expect(ids(telasPermitidas(com(['QUESTIONARIO_LER', 'QUESTIONARIO_ALTERAR'])))).toContain('novo-questionario');
+    expect(ids(telasPermitidas(com(['QUESTIONARIO_LER', 'QUESTIONARIO_ALTERAR'])))).toContain('nova-anamnese');
+    expect(leitor).not.toContain('nova-anamnese');
     expect(ids(buscarTelas('check-in', telasPermitidas(com(['QUESTIONARIO_LER']))))).toContain('questionarios');
     expect(agruparPorSecao(telasPermitidas(com(['QUESTIONARIO_LER']))).flatMap((s) => ids(s.telas))).not.toContain('questionarios');
   });

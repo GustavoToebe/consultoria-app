@@ -12,7 +12,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Metadados de uma foto de atualização (dado sensível, LGPD). O arquivo fica no bucket privado em
+ * Metadados de uma foto de atualização ou de anamnese (dado sensível, LGPD). A pendente pertence a uma pasta
+ * (atualização) ou a uma anamnese; o envio a liga à pergunta. O arquivo fica no bucket privado em
  * {@code consultorias/<consultoriaId>/fotos/<id>.jpg} ({@link ChaveDeFoto}); aqui não há nome de arquivo, só quem enviou e quando. Nunca em log nem em {@code toString}.
  */
 @Entity
@@ -27,11 +28,16 @@ public class AtualizacaoFoto {
     private UUID consultoriaId;
     @Column(name = "aluno_id", nullable = false, updatable = false)
     private UUID alunoId;
-    @Column(name = "pasta_id", nullable = false, updatable = false)
+    /** Destino da foto de atualização (nulo na de anamnese). */
+    @Column(name = "pasta_id", updatable = false)
     private UUID pastaId;
-    /** Nulo = pendente: subiu, mas o envio da atualização ainda não a ligou à resposta. */
+    /** Destino da foto de anamnese (nulo na de atualização). */
+    @Column(name = "anamnese_id", updatable = false)
+    private UUID anamneseId;
+    /** Atualização enviada a que a foto pertence (só fotos de pasta, depois do envio). */
     @Column(name = "atualizacao_id")
     private UUID atualizacaoId;
+    /** Nulo = pendente: subiu, mas o envio ainda não a ligou a uma pergunta. */
     @Column(name = "pergunta_id")
     private String perguntaId;
     @Column(nullable = false, updatable = false)
@@ -46,9 +52,10 @@ public class AtualizacaoFoto {
     protected AtualizacaoFoto() {
     }
 
-    AtualizacaoFoto(UUID alunoId, UUID pastaId, int tamanho, Instant criadaEm) {
+    AtualizacaoFoto(UUID alunoId, UUID pastaId, UUID anamneseId, int tamanho, Instant criadaEm) {
         this.alunoId = alunoId;
         this.pastaId = pastaId;
+        this.anamneseId = anamneseId;
         this.tamanho = tamanho;
         this.criadaEm = criadaEm;
     }
@@ -73,6 +80,10 @@ public class AtualizacaoFoto {
         return pastaId;
     }
 
+    public UUID getAnamneseId() {
+        return anamneseId;
+    }
+
     public UUID getAtualizacaoId() {
         return atualizacaoId;
     }
@@ -90,7 +101,7 @@ public class AtualizacaoFoto {
     }
 
     public boolean isPendente() {
-        return atualizacaoId == null && removidaEm == null;
+        return perguntaId == null && removidaEm == null;
     }
 
     @Override

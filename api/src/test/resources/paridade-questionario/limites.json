@@ -23,5 +23,19 @@
  "respostasBytes": 262144,
  "idTamanho": 40,
  "numeroAbsoluto": 1000000000,
- "fotosPorPergunta": 6
+ "fotosPorPergunta": 6,
+ "linhasMinimo": 1,
+ "linhasMaximo": 30,
+ "colunasMinimo": 2,
+ "colunasMaximo": 10,
+ "textoInformativoTamanho": 4000,
+ "declaracaoTamanho": 200,
+ "telefoneTamanho": 25,
+ "telefoneDigitosMinimo": 10,
+ "telefoneDigitosMaximo": 13,
+ "emailTamanho": 254,
+ "dataAnoMinimo": 1900,
+ "dataAnoMaximo": 2100,
+ "imagemBytes": 300000,
+ "imagemLado": 1600
 }

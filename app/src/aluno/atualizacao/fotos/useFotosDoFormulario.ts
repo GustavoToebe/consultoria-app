@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
 import { ErroApi } from '../../../api/cliente';
-import { removerFoto } from '../../../api/rotas';
-import type { Atualizacao, RespostasAtualizacao } from '../../../api/tipos';
+import { removerFoto, type DestinoDaFoto } from '../../../api/rotas';
+import type { RespostasAtualizacao } from '../../../api/tipos';
 import {
   comFotoLocal, idsDeFotos, semFotoLocal, TEXTO_FOTOS_INDISPONIVEIS, TEXTO_FOTOS_SEM_CONEXAO, todasAsFotosLocais, vagasDeFoto,
 } from '../../../dominio/fotosAtualizacao';
@@ -20,9 +20,10 @@ export interface EstadoDasFotos { respostas: RespostasAtualizacao; locais: Fotos
 
 interface Entrada {
   usuarioId: string;
-  atual: Atualizacao;
+  /** Para onde a foto sobe: a pasta da atualização ou a anamnese pendente. Nulo = não dá para subir. */
+  destino: DestinoDaFoto | null;
   online: boolean;
-  /** Atualização aberta, liberada e sem envio em andamento. */
+  /** Formulário aberto, liberado e sem envio em andamento. */
   editavel: boolean;
   /** Fotos no aparelho que a tela mostra agora. */
   locais: FotosLocais;
@@ -33,10 +34,10 @@ interface Entrada {
 }
 
 /**
- * Fotos da atualização no formulário do aluno. Celular: a foto é reduzida, fica na pasta privada do app e sobe no envio
+ * Fotos da atualização ou da anamnese no formulário do aluno. Celular: a foto é reduzida, fica na pasta privada do app e sobe no envio
  * (dá para tirar sem internet). Web: precisa de internet, sobe na hora e o rascunho guarda só os ids.
  */
-export function useFotosDoFormulario({ usuarioId, atual, online, editavel, locais: locaisNaTela, ler, aplicar }: Entrada) {
+export function useFotosDoFormulario({ usuarioId, destino, online, editavel, locais: locaisNaTela, ler, aplicar }: Entrada) {
   const { avisar } = useAviso();
   const [ocupado, setOcupado] = useState(false);
   const configuracao = useCarregar(`${usuarioId}:${online}`, () => buscarConfiguracaoDeFotos(usuarioId, online));
@@ -44,7 +45,7 @@ export function useFotosDoFormulario({ usuarioId, atual, online, editavel, locai
   const maximo = configuracao.dados?.maximoPorPergunta ?? 6;
 
   const anexar = async (perguntaId: string, origem: OrigemDaFoto) => {
-    if (!editavel || ocupado || !atual.pastaId) return;
+    if (!editavel || ocupado || !destino) return;
     if (habilitado !== true) {
       avisar(TEXTO_FOTOS_INDISPONIVEIS);
       return;
@@ -68,7 +69,7 @@ export function useFotosDoFormulario({ usuarioId, atual, online, editavel, locai
         const agora = ler();
         aplicar({ respostas: agora.respostas, locais: comFotoLocal(agora.locais, perguntaId, nome) });
       } else {
-        const id = await enviarFotoDoAparelho(atual.pastaId, foto);
+        const id = await enviarFotoDoAparelho(destino, foto);
         const agora = ler();
         aplicar({ respostas: { ...agora.respostas, [perguntaId]: [...idsDeFotos(agora.respostas[perguntaId]), id] }, locais: agora.locais });
       }
@@ -116,7 +117,7 @@ export function useFotosDoFormulario({ usuarioId, atual, online, editavel, locai
    * primeira foto que falhar.
    */
   const subirLocais = async (): Promise<RespostasAtualizacao> => {
-    if (!atual.pastaId) return ler().respostas;
+    if (!destino) return ler().respostas;
     for (const [perguntaId, nomes] of Object.entries(ler().locais)) {
       for (const nome of nomes) {
         const agora = ler();
@@ -125,7 +126,7 @@ export function useFotosDoFormulario({ usuarioId, atual, online, editavel, locai
           aplicar({ respostas: agora.respostas, locais: semFotoLocal(agora.locais, perguntaId, nome) });
           continue;
         }
-        const id = await enviarFotoDoAparelho(atual.pastaId, { uri: uriDaFotoLocal(usuarioId, nome) });
+        const id = await enviarFotoDoAparelho(destino, { uri: uriDaFotoLocal(usuarioId, nome) });
         await apagarFotoLocal(usuarioId, nome).catch(() => undefined);
         const depois = ler();
         aplicar({
