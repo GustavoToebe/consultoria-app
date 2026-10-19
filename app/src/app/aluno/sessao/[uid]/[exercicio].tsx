@@ -1,6 +1,6 @@
 import { DescansoManual } from '../../../../aluno/DescansoManual';
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowRight, Check } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, Check, List } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { ExercicioAluno } from '../../../../aluno/ExercicioAluno';
@@ -13,12 +13,17 @@ import { espaco } from '../../../../tema/tokens';
 import { Botao } from '../../../../ui/Botao';
 import { Cabecalho } from '../../../../ui/Cabecalho';
 import { Esqueleto } from '../../../../ui/Esqueleto';
+import { LinhaDeAcoes } from '../../../../ui/LinhaDeAcoes';
 import { Vazio } from '../../../../ui/Estados';
 import { Selo } from '../../../../ui/Selo';
 import { Tela } from '../../../../ui/Tela';
 import { Texto } from '../../../../ui/Texto';
 
-/** Um exercício da sessão: séries em cartões para registrar carga e repetições, e o caminho para o próximo. */
+/**
+ * Um exercício da sessão: séries em cartões para registrar carga e repetições. No rodapé, "Próximo" e, logo abaixo,
+ * "Anterior" e "Lista do dia", para o aluno andar fora de ordem sem precisar subir até a seta do topo (pedido do
+ * Saraiva na reunião de 17/10: o aluno pula exercício, troca a ordem e volta à lista quando quer).
+ */
 export default function ExercicioDaSessao() {
   const { uid, exercicio: exercicioUid, data: dataDaRota } = useLocalSearchParams<{ uid: string; exercicio: string; data?: string }>();
   const dia = useSessaoDoDia(uid, dataDaRota);
@@ -46,6 +51,7 @@ export default function ExercicioDaSessao() {
   }
 
   const proximo = sessao.exercicios[posicao + 1];
+  const anterior = posicao > 0 ? sessao.exercicios[posicao - 1] : undefined;
   const nomeDoDia = nomeComDia(sessao);
 
   return (
@@ -83,6 +89,20 @@ export default function ExercicioDaSessao() {
         ) : (
           <Botao rotulo="Voltar para o dia" Icone={Check} cheio tipo="secundario" aoTocar={() => router.replace(voltar)} />
         )}
+        <LinhaDeAcoes alinhar="entre">
+          {anterior ? (
+            <Botao
+              rotulo="Anterior"
+              rotuloAcessivel={`Anterior: ${anterior.nome}`}
+              Icone={ArrowLeft}
+              tipo="secundario"
+              aoTocar={() => router.replace(caminhoDaSessao(sessao.uid, data, anterior.uid))}
+            />
+          ) : (
+            <View />
+          )}
+          {proximo ? <Botao rotulo="Lista do dia" Icone={List} tipo="secundario" aoTocar={() => router.replace(voltar)} /> : null}
+        </LinhaDeAcoes>
       </View>
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>
@@ -91,5 +111,5 @@ export default function ExercicioDaSessao() {
 
 const estilos = StyleSheet.create({
   selos: { flexDirection: 'row', gap: espaco(1), marginTop: -espaco(1) },
-  fim: { marginTop: espaco(1) },
+  fim: { marginTop: espaco(1), gap: espaco(1) },
 });
