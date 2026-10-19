@@ -27,7 +27,7 @@ export function campos(linha, separador) {
 
 const semAcento = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
 /** Nome do cabeçalho comparável: "Peso (kg)" = "peso_kg". */
-const coluna = (t) => semAcento(t).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+export const coluna = (t) => semAcento(t).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 /** Nome de pessoa comparável, para achar o aluno que já existe na consultoria. */
 export const chaveDoNome = (t) => semAcento(t).toLowerCase().replace(/\s+/g, ' ').trim();
 
