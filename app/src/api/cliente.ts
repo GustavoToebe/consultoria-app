@@ -60,6 +60,9 @@ function base(): string {
 
 let accessToken: string | null = null;
 let aoEncerrarSessao: (() => void) | null = null;
+/** Quem está com a sessão aberta nesta aba; a renovação que devolve outra pessoa não é aceita. */
+let usuarioEsperado: string | null = null;
+let recusaPorTroca = false;
 
 /** O SessaoProvider é avisado quando o refresh falha no meio do uso. */
 export function aoEncerrar(callback: (() => void) | null) {
@@ -71,6 +74,22 @@ export async function guardarSessao(resposta: LoginResponse): Promise<void> {
   if (!WEB && resposta.refreshToken) {
     await salvarRefresh(resposta.refreshToken);
   }
+}
+
+/**
+ * Na web o cookie de renovação é um só por navegador: entrar com outra conta em outra aba troca a sessão desta. Sem
+ * conferir, a aba do aluno renovava como treinador e as rotas do aluno respondiam 403 ("Seu perfil não permite esta
+ * ação"). O SessaoProvider diz quem abriu a sessão; a renovação de outra pessoa vira recusa.
+ */
+export function definirUsuarioDaSessao(id: string | null) {
+  usuarioEsperado = id;
+}
+
+/** A última recusa foi porque a renovação devolveu outra pessoa (lê e zera). */
+export function recusadaPorTrocaDeUsuario(): boolean {
+  const houve = recusaPorTroca;
+  recusaPorTroca = false;
+  return houve;
 }
 
 export async function limparSessaoLocal(): Promise<void> {
@@ -151,6 +170,11 @@ async function fazerRefresh(): Promise<LoginResponse | null> {
   }
   // 5xx e afins não encerram a sessão: `tratar` lança o erro e o app segue com o que tem salvo.
   const sessao = await tratar<LoginResponse>(resposta);
+  if (usuarioEsperado && sessao.usuario?.id && sessao.usuario.id !== usuarioEsperado) {
+    recusaPorTroca = true;
+    accessToken = null;
+    return null;
+  }
   await guardarSessao(sessao);
   return sessao;
 }

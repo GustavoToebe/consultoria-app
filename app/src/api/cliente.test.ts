@@ -129,6 +129,40 @@ describe('cliente HTTP: refresh compartilhado', () => {
     expect(encerrada).not.toHaveBeenCalled();
   });
 
+  it('renovação que devolve outra pessoa (outra conta entrou em outra aba) encerra a sessão sem repetir', async () => {
+    fetchSimulado.mockImplementation((url: string) =>
+      Promise.resolve(String(url).endsWith('/auth/refresh')
+        ? json(200, { ...SESSAO_NOVA, usuario: { id: 'treinador-1' } })
+        : erro401('TOKEN_EXPIRADO')));
+    const { requisicao, aoEncerrar, definirUsuarioDaSessao, recusadaPorTrocaDeUsuario } = carregarCliente();
+    const encerrada = jest.fn();
+    aoEncerrar(encerrada);
+    definirUsuarioDaSessao('aluno-1');
+
+    await expect(requisicao('/aluno/dieta')).rejects.toMatchObject({ status: 401 });
+    expect(encerrada).toHaveBeenCalledTimes(1);
+    expect(chamados(fetchSimulado)).toEqual(['/aluno/dieta', '/auth/refresh']);
+    expect(recusadaPorTrocaDeUsuario()).toBe(true);
+    expect(recusadaPorTrocaDeUsuario()).toBe(false);
+  });
+
+  it('renovação da mesma pessoa segue normal', async () => {
+    let primeira = true;
+    fetchSimulado.mockImplementation((url: string) => {
+      if (String(url).endsWith('/auth/refresh')) return Promise.resolve(json(200, { ...SESSAO_NOVA, usuario: { id: 'aluno-1' } }));
+      if (primeira) {
+        primeira = false;
+        return Promise.resolve(erro401('TOKEN_EXPIRADO'));
+      }
+      return Promise.resolve(json(200, { ok: true }));
+    });
+    const { requisicao, definirUsuarioDaSessao, recusadaPorTrocaDeUsuario } = carregarCliente();
+    definirUsuarioDaSessao('aluno-1');
+
+    await expect(requisicao('/aluno/dieta')).resolves.toEqual({ ok: true });
+    expect(recusadaPorTrocaDeUsuario()).toBe(false);
+  });
+
   it('409 de conflito de edição chega sem repetição', async () => {
     fetchSimulado.mockResolvedValue(json(409, { status: 409, message: 'Outra aba alterou.', codigo: 'CONFLITO_EDICAO' }));
     const { requisicao } = carregarCliente();

@@ -1,8 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
-import { aoEncerrar, ErroApi, guardarSessao, limparSessaoLocal, renovarSessao } from '../api/cliente';
+import {
+  aoEncerrar,
+  definirUsuarioDaSessao,
+  ErroApi,
+  guardarSessao,
+  limparSessaoLocal,
+  recusadaPorTrocaDeUsuario,
+  renovarSessao,
+} from '../api/cliente';
 import * as rotas from '../api/rotas';
 import type { LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
 import { apagarDadosDaSessaoLocal, type MotivoDoEncerramento } from '../dominio/encerrarSessaoLocal';
@@ -82,6 +91,16 @@ function alunoDoPerfilSalvo(salvo: string | null): string | null {
 }
 const Contexto = createContext<ValorSessao | null>(null);
 
+/**
+ * Na web, outra conta entrou em outra aba do mesmo navegador (o cookie de renovação é um só): esta aba já limpou a
+ * sessão antiga como recusada e recarrega para abrir com a conta que está no navegador, em vez de mostrar 403.
+ */
+function recarregarSeTrocouDeConta() {
+  if (recusadaPorTrocaDeUsuario() && Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.location.reload();
+  }
+}
+
 export function SessaoProvider({ children }: { children: ReactNode }) {
   const [situacao, setSituacao] = useState<Situacao>('carregando');
   const [perfil, setPerfil] = useState<Perfil | null>(null);
@@ -98,6 +117,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     const eu = await rotas.eu();
     const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;
+    definirUsuarioDaSessao(eu.usuario.id);
     setPerfil(novo);
     setOffline(false);
     setSituacao('autenticado');
@@ -125,6 +145,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         try { apagarArquivosTemporarios(); } catch { /* sem a pasta, nada a apagar */ }
       } finally {
         // Mesmo se apagar falhar, a pessoa sai: manter a tela aberta com a sessão morta é pior.
+        definirUsuarioDaSessao(null);
         setPerfil(null);
         setOffline(false);
         setSituacao('anonimo');
@@ -154,7 +175,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       // O refresh foi recusado (401/403) no meio do uso: sessão encerrada no servidor, sem a pessoa ter pedido. Apaga os
       // dados do aparelho como no "Sair", mas guarda os registros de treino ainda não enviados. Erro de rede ou 5xx
       // não chega aqui (o cliente só avisa quando o servidor recusa).
-      void encerrarLocal('recusada').catch(() => undefined);
+      void encerrarLocal('recusada').then(recarregarSeTrocouDeConta, () => undefined);
     });
     (async () => {
       try {
@@ -176,7 +197,9 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         if (!ativo) return;
         const salvo = await AsyncStorage.getItem(CHAVE_PERFIL).catch(() => null);
         if (erro instanceof ErroApi && erro.semConexao && salvo) {
-          setPerfil(JSON.parse(salvo) as Perfil);
+          const offlinePerfil = JSON.parse(salvo) as Perfil;
+          definirUsuarioDaSessao(offlinePerfil.usuario?.id ?? null);
+          setPerfil(offlinePerfil);
           setOffline(true);
           setSituacao('autenticado');
         } else {
@@ -203,7 +226,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
             void abrir(sessao);
           } else {
             // Recusada no servidor: o mesmo que no meio do uso (dados sensíveis saem, a fila de envio fica).
-            void encerrarLocal('recusada').catch(() => undefined);
+            void encerrarLocal('recusada').then(recarregarSeTrocouDeConta, () => undefined);
           }
         },
         () => undefined,
