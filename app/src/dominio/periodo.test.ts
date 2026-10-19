@@ -1,4 +1,4 @@
-import { dadosDaRenovacao, periodoInicial, proximoPeriodo } from './periodo';
+import { cicloDoAluno, dadosDaRenovacao, periodoInicial, proximoPeriodo, textoDoCiclo } from './periodo';
 
 it('começa hoje e termina depois de N dias contando o primeiro', () => {
   expect(periodoInicial('2026-02-15', 30)).toEqual({ inicio: '15/02/2026', fim: '16/03/2026' });
@@ -35,5 +35,19 @@ describe('renovar pasta', () => {
 
   it('o título respeita o limite de 120 caracteres da API', () => {
     expect(dadosDaRenovacao({ titulo: 'x'.repeat(120), inicio: null, fim: null }, '2026-10-13', 7).titulo).toHaveLength(120);
+  });
+});
+
+describe('ciclo de atualização do aluno (reunião de 17/10)', () => {
+  it('o do aluno vale; sem ele, o padrão da consultoria; sem nenhum, nulo', () => {
+    expect(cicloDoAluno(15, 30)).toBe(15);
+    expect(cicloDoAluno(null, 30)).toBe(30);
+    expect(cicloDoAluno(undefined, null)).toBeNull();
+  });
+
+  it('texto da ficha diz quando vem do padrão', () => {
+    expect(textoDoCiclo(15, 30)).toBe('15 dias');
+    expect(textoDoCiclo(null, 30)).toBe('30 dias (padrão da consultoria)');
+    expect(textoDoCiclo(null, null)).toBeNull();
   });
 });

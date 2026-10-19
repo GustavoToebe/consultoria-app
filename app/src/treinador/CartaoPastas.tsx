@@ -263,7 +263,7 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
       ) : null}
       {modo.tipo === 'nova' && diasAtualizacao ? (
         <Texto variante="suave">
-          Início e fim já vêm preenchidos pelo ciclo do aluno ({diasAtualizacao} dias). Você pode mudar as datas.
+          Início e fim já vêm preenchidos pelo ciclo de atualização ({diasAtualizacao} dias). Você pode mudar as datas.
         </Texto>
       ) : null}
       {modo.tipo === 'editar' ? (

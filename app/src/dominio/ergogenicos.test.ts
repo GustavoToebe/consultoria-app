@@ -1,30 +1,32 @@
-import type { CategoriaErgogenico, ErgogenicoDaBiblioteca } from '../api/tipos';
+import type { ErgogenicoDaBiblioteca } from '../api/tipos';
 import {
   agruparErgogenicos,
   ergogenicosPreenchidos,
   linhaDeErgogenico,
-  CATEGORIAS_ERGOGENICO,
+  categoriasDosErgogenicos,
   filtrarErgogenicos,
   nomeEPrincipio,
   resumoDoGrupo,
-  rotuloDaCategoria,
+  SEM_CATEGORIA,
   textoOuTraco,
 } from './ergogenicos';
 
-const e = (nome: string, categoria: CategoriaErgogenico, extra: Partial<ErgogenicoDaBiblioteca> = {}): ErgogenicoDaBiblioteca => ({
+const e = (nome: string, categoria: string | null, extra: Partial<ErgogenicoDaBiblioteca> = {}): ErgogenicoDaBiblioteca => ({
   id: nome, categoria, nome, principioAtivo: null, concentracao: null, apresentacao: null, observacao: null, ...extra,
 });
 
 describe('categorias', () => {
-  it('ordem da lista: injetáveis, orais, peptídeos, medicamentos, outros', () => {
-    expect(CATEGORIAS_ERGOGENICO.map((c) => c.rotulo)).toEqual(['Injetáveis', 'Orais', 'Peptídeos', 'Medicamentos', 'Outros']);
-    expect(rotuloDaCategoria('PEPTIDEO')).toBe('Peptídeos');
+  it('são as que o treinador escreveu, sem repetir, em ordem alfabética', () => {
+    expect(categoriasDosErgogenicos([e('A', 'Orais'), e('B', 'Injetáveis'), e('C', ' Orais '), e('D', null), e('E', '  ')])).toEqual([
+      'Injetáveis',
+      'Orais',
+    ]);
   });
 
-  it('agrupa na ordem fixa, sem grupo vazio, mantendo a ordem de dentro', () => {
-    const grupos = agruparErgogenicos([e('Item B', 'OUTRO'), e('Item C', 'INJETAVEL'), e('Item A', 'OUTRO'), e('Item D', 'ORAL')]);
-    expect(grupos.map((g) => g.rotulo)).toEqual(['Injetáveis', 'Orais', 'Outros']);
-    expect(grupos[2].itens.map((i) => i.nome)).toEqual(['Item B', 'Item A']);
+  it('agrupa por categoria em ordem alfabética, "Sem categoria" por último, mantendo a ordem de dentro', () => {
+    const grupos = agruparErgogenicos([e('Item B', 'Outros'), e('Item C', null), e('Item A', 'Outros'), e('Item D', 'Minha categoria')]);
+    expect(grupos.map((g) => g.rotulo)).toEqual(['Minha categoria', 'Outros', SEM_CATEGORIA]);
+    expect(grupos[1].itens.map((i) => i.nome)).toEqual(['Item B', 'Item A']);
     expect(agruparErgogenicos([])).toEqual([]);
   });
 
@@ -50,9 +52,9 @@ describe('textos da linha', () => {
 
 describe('busca', () => {
   const lista = [
-    e('Ômega Teste', 'ORAL', { principioAtivo: 'Ácido Teste' }),
-    e('Peptídeo Teste', 'PEPTIDEO'),
-    e('Outro Teste', 'OUTRO'),
+    e('Ômega Teste', 'Orais', { principioAtivo: 'Ácido Teste' }),
+    e('Peptídeo Teste', 'Peptídeos'),
+    e('Outro Teste', null),
   ];
   it('sem acento, no nome e no princípio ativo', () => {
     expect(filtrarErgogenicos(lista, 'omega', '').map((x) => x.nome)).toEqual(['Ômega Teste']);
@@ -60,8 +62,8 @@ describe('busca', () => {
     expect(filtrarErgogenicos(lista, '', '')).toHaveLength(3);
   });
   it('filtra por categoria e junta com a busca', () => {
-    expect(filtrarErgogenicos(lista, '', 'PEPTIDEO').map((x) => x.nome)).toEqual(['Peptídeo Teste']);
-    expect(filtrarErgogenicos(lista, 'omega', 'PEPTIDEO')).toEqual([]);
+    expect(filtrarErgogenicos(lista, '', 'Peptídeos').map((x) => x.nome)).toEqual(['Peptídeo Teste']);
+    expect(filtrarErgogenicos(lista, 'omega', 'Peptídeos')).toEqual([]);
   });
 });
 

@@ -41,7 +41,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'minha-conta', rotulo: 'Minha conta', secao: 'Conta', href: '/treinador/minha-conta', palavras: ['plano', 'meu plano', 'financeiro', 'cobrancas', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'ajustes', rotulo: 'Ajustes', secao: 'Conta', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
 
-  { id: 'ergogenicos', rotulo: 'Medicação e ergogênicos', secao: 'Conteúdo', href: '/treinador/biblioteca?aba=ergogenicos', palavras: ['biblioteca', 'ergogenicos', 'medicacao', 'injetaveis', 'orais', 'peptideos'], permissao: 'ERGOGENICO_LER', acao: true },
+  { id: 'ergogenicos', rotulo: 'Outros (medicação e ergogênicos)', secao: 'Conteúdo', href: '/treinador/biblioteca?aba=ergogenicos', palavras: ['biblioteca', 'outros', 'ergogenicos', 'medicacao', 'categorias'], permissao: 'ERGOGENICO_LER', acao: true },
   { id: 'novo-aluno', rotulo: 'Novo aluno', secao: 'Alunos', href: '/treinador/alunos/novo', palavras: ['cadastrar aluno', 'adicionar aluno', 'criar aluno'], permissao: 'ALUNO_ALTERAR', acao: true },
   { id: 'atualizacoes-revisar', rotulo: 'Atualizações para revisar', secao: 'Alunos', href: '/treinador/atualizacoes?situacao=PARA_REVISAR', palavras: ['check-in', 'checkin', 'feedback', 'pendentes'], permissao: null, acao: true },
   { id: 'atualizacoes-atrasadas', rotulo: 'Atualizações atrasadas', secao: 'Alunos', href: '/treinador/atualizacoes?situacao=ATRASADAS', palavras: ['check-in', 'checkin', 'atraso', 'vencidas'], permissao: null, acao: true },

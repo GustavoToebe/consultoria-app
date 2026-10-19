@@ -102,6 +102,8 @@ export interface FaixaRepeticoes {
 export interface ConsultoriaResponse {
   marca: Marca;
   versao: number;
+  /** Ciclo de atualização padrão (1 a 365 dias): aluno sem valor próprio usa este; nulo = sem padrão. */
+  diasAtualizacaoPadrao: number | null;
 }
 
 // ---- Alunos ----
@@ -732,15 +734,14 @@ export interface SuplementoDaBiblioteca {
 }
 export type SuplementoDaBibliotecaRequest = Omit<SuplementoDaBiblioteca, 'id'>;
 
-export type CategoriaErgogenico = 'INJETAVEL' | 'ORAL' | 'PEPTIDEO' | 'MEDICAMENTO' | 'OUTRO';
-
 /**
  * Item da biblioteca de medicação e ergogênicos (dado sensível, só com ERGOGENICO_LER): o que está no rótulo.
  * Sem dose, ciclo nem indicação.
  */
 export interface ErgogenicoDaBiblioteca {
   id: string;
-  categoria: CategoriaErgogenico;
+  /** Texto livre do treinador (até 60), opcional. */
+  categoria: string | null;
   nome: string;
   principioAtivo: string | null;
   concentracao: string | null;
