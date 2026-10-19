@@ -20,7 +20,11 @@ O aluno vê o plano e registra carga e repetições no celular ou na web, inclus
 Arquivo de instruções compartilhado entre ferramentas de IA; o `CLAUDE.md` só importa este (`@AGENTS.md`).
 Edite **só aqui**. Mudança que invalida algo daqui atualiza este arquivo junto com a funcionalidade. Manter curto.
 
-Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele pedir. A tag `demo-parte-a` é o plano B da demonstração.
+Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele pedir.
+**Minutos do GitHub Actions são contados (plano Pro, 3.000 por mês; em 19/10 chegaram a 90%):** rode os testes locais antes de
+subir (`npm run typecheck && npm run lint && npm test`; `mvn verify` quando mexer na API), junte os commits e faça **um push por
+lote**, não um por commit; não dispare workflow à mão nem reexecute job que falhou sem antes corrigir a causa. Push só de
+documentação (`*.md`, `docs/`) não roda a CI. A tag `demo-parte-a` é o plano B da demonstração.
 
 ## Regras que não podem ser quebradas
 - Um treinador **nunca** vê nem altera dado de outra consultoria; um aluno só vê os **próprios** dados. Toda leitura e
