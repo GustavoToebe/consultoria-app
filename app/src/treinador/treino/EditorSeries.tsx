@@ -1,14 +1,18 @@
-import { Minus, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Minus, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ModoIntensidade, Serie } from '../../api/tipos';
 import { agrupar, descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
 import {
+  adicionarSerie,
   alterarGrupo,
   alterarPercentual,
+  DESCANSO_MAXIMO_SEGUNDOS,
+  LIMITE_SERIES,
   MODOS,
+  moverGrupo,
   mudarQuantidade,
-  novaSerie,
   removerGrupo,
   type AlteracaoDeGrupo,
 } from '../../dominio/editorTreino';
@@ -19,6 +23,7 @@ import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
 
 interface Props {
@@ -30,28 +35,59 @@ interface Props {
 }
 
 /**
- * Séries agrupadas como no PDF ("3x3 - FS 50/70/85%"), cada grupo com tipo, quantidade (− +), faixa de repetições e
- * intensidade. Em "% da trabalho" cada série tem o próprio percentual. Mudar a quantidade de FS reaplica a regra da
- * consultoria.
+ * Séries agrupadas como no PDF ("3x3 - FS 50/70/85%"), cada grupo com tipo, quantidade (− +), faixa de repetições,
+ * intensidade e descanso, e ↑↓ para mudar a ordem dos grupos. Em "% da trabalho" cada série tem o próprio percentual.
+ * Mudar a quantidade de FS reaplica a regra da consultoria. "Adicionar série" pergunta o tipo (o FS novo pode subir
+ * para antes da WS pelo ↑). O limite de séries vale para o exercício todo, como no servidor.
  */
 export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) {
   const grupos = agrupar(series);
+  const [escolhendoTipo, setEscolhendoTipo] = useState(false);
+  const cheio = series.length >= LIMITE_SERIES;
+  const tipos = [...new Set([...(config?.tiposSerie ?? []), ...series.map((x) => x.tipo)].filter(Boolean))];
+  const adicionar = (tipo?: string) => {
+    aoMudar(adicionarSerie(series, config, tipo));
+    setEscolhendoTipo(false);
+  };
   return (
     <View style={estilos.lista}>
-      {grupos.map((g) => (
+      {grupos.map((g, indice) => (
         <EditorGrupo
           key={g.series[0].uid}
           grupo={g}
           config={config}
+          podeMais={!cheio}
+          primeiro={indice === 0}
+          ultimo={indice === grupos.length - 1}
+          aoMover={(delta) => aoMudar(moverGrupo(series, indice, delta))}
           aoAlterar={(m) => aoMudar(alterarGrupo(series, g, m, config))}
           aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, config))}
           aoPercentual={(i, p) => aoMudar(alterarPercentual(series, g.inicio + i, p))}
           aoRemover={() => aoMudar(removerGrupo(series, g))}
         />
       ))}
+      {escolhendoTipo ? (
+        <View style={estilos.escolhaTipo}>
+          <Texto variante="rotulo">Tipo da série nova</Texto>
+          <LinhaDeAcoes>
+            {tipos.map((t) => (
+              <Botao key={t} rotulo={t} tipo="secundario" aoTocar={() => adicionar(t)} />
+            ))}
+            <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setEscolhendoTipo(false)} />
+          </LinhaDeAcoes>
+        </View>
+      ) : null}
       <View style={estilos.adicionar}>
         <View style={aoUsarReceita ? estilos.metade : null}>
-          <Botao rotulo="Adicionar série" tipo="secundario" Icone={Plus} cheio={!!aoUsarReceita} aoTocar={() => aoMudar([...series, novaSerie(config)])} />
+          <Botao
+            rotulo="Adicionar série"
+            tipo="secundario"
+            Icone={Plus}
+            cheio={!!aoUsarReceita}
+            desabilitado={cheio}
+            motivo={cheio ? `O exercício já tem ${LIMITE_SERIES} séries, o máximo.` : undefined}
+            aoTocar={() => (tipos.length > 1 ? setEscolhendoTipo((v) => !v) : adicionar(tipos[0]))}
+          />
         </View>
         {aoUsarReceita ? <View style={estilos.metade}>
           <Botao rotulo="Usar receita" tipo="secundario" Icone={NotebookTabs} cheio aoTocar={aoUsarReceita} />
@@ -64,6 +100,10 @@ export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) 
 function EditorGrupo({
   grupo,
   config,
+  podeMais,
+  primeiro,
+  ultimo,
+  aoMover,
   aoAlterar,
   aoQuantidade,
   aoPercentual,
@@ -71,6 +111,10 @@ function EditorGrupo({
 }: {
   grupo: GrupoDeSeries;
   config: Configuracao | null;
+  podeMais: boolean;
+  primeiro: boolean;
+  ultimo: boolean;
+  aoMover: (delta: -1 | 1) => void;
   aoAlterar: (m: AlteracaoDeGrupo) => void;
   aoQuantidade: (n: number) => void;
   aoPercentual: (indice: number, p: number | null) => void;
@@ -82,11 +126,15 @@ function EditorGrupo({
   const tipos = [...new Set([...(config?.tiposSerie ?? []), primeira.tipo].filter(Boolean))];
   const n = grupo.series.length;
   const porTempo = primeira.repsMin === null && primeira.repsMax === null;
+  const descansoInvalido =
+    primeira.descansoSegundos != null && (primeira.descansoSegundos < 0 || primeira.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS);
 
   return (
     <View style={[estilos.grupo, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
       <View style={estilos.topo}>
         <Texto style={estilos.resumo}>{descreverGrupo(grupo)}</Texto>
+        <IconeBotao Icone={ChevronUp} rotulo="Subir este grupo de séries" desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
+        <IconeBotao Icone={ChevronDown} rotulo="Descer este grupo de séries" desabilitado={ultimo} aoTocar={() => aoMover(1)} />
         <IconeBotao Icone={Trash2} rotulo="Remover este grupo de séries" cor={cores.perigo} aoTocar={aoRemover} />
       </View>
       <Escolha rotulo="Tipo" opcoes={tipos.map((t) => ({ valor: t, rotulo: t }))} valor={primeira.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />
@@ -96,7 +144,7 @@ function EditorGrupo({
           <View style={estilos.contador}>
             <IconeBotao Icone={Minus} rotulo="Uma série a menos" desabilitado={n <= 1} aoTocar={() => aoQuantidade(n - 1)} />
             <Texto style={estilos.numero} accessibilityLabel={`${n} séries`}>{n}</Texto>
-            <IconeBotao Icone={Plus} rotulo="Uma série a mais" desabilitado={n >= 30} aoTocar={() => aoQuantidade(n + 1)} />
+            <IconeBotao Icone={Plus} rotulo="Uma série a mais" desabilitado={!podeMais} aoTocar={() => aoQuantidade(n + 1)} />
           </View>
         </View>
         <View style={estilos.reps}>
@@ -104,6 +152,16 @@ function EditorGrupo({
         </View>
         <View style={estilos.reps}>
           <CampoNumerico rotulo="Reps máx." inteiro valor={primeira.repsMax} aoMudar={(v) => aoAlterar({ repsMax: v })} />
+        </View>
+        <View style={estilos.reps}>
+          <CampoNumerico
+            rotulo="Descanso"
+            inteiro
+            sufixo="s"
+            valor={primeira.descansoSegundos}
+            aoMudar={(v) => aoAlterar({ descansoSegundos: v })}
+            erro={descansoInvalido ? `De 0 a ${DESCANSO_MAXIMO_SEGUNDOS} s.` : undefined}
+          />
         </View>
       </View>
       <Campo
@@ -162,5 +220,6 @@ const estilos = StyleSheet.create({
   numero: { fontFamily: fontes.negrito, fontSize: 18, minWidth: 28, textAlign: 'center' },
   reps: { width: 110 },
   adicionar: { flexDirection: 'row', gap: espaco(1) },
+  escolhaTipo: { gap: espaco(0.75) },
   metade: { flex: 1 },
 });

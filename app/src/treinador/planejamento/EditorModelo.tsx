@@ -2,7 +2,7 @@ import { useTema } from '../../tema/TemaProvider';
 import { LARGURA_EDITOR } from '../../tema/tokens';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { alterarReceita } from '../../api/rotas';
+import { alterarReceita, listarReceitas } from '../../api/rotas';
 import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos';
 import { normalizarDieta } from '../../dominio/dieta';
 import { tituloDoModelo } from '../../dominio/planoDoAluno';
@@ -23,6 +23,7 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
+import { useCarregar } from '../../ui/useCarregar';
 import { FolhaReceitas } from '../FolhaReceitas';
 import { CartaoMetodologia } from '../marca/CartaoMetodologia';
 import { FaixaDoModelo } from '../plano/FaixaDoPlano';
@@ -39,6 +40,10 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
   const mudarConteudo: typeof setConteudo = (c) => { setConteudo(c); setPendente(true); };
   const [adicionar, setAdicionar] = useState<'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE' | null>(null);
   const { avisar } = useAviso();
+  // Modelo de séries usa a metodologia da consultoria (a primeira, como o servidor faz nos planos), não a do sistema:
+  // a regra de % do FS e as faixas de repetição são as do treinador. Sem nenhuma, vale a padrão.
+  const metodologias = useCarregar(r.tipo === 'SERIES' ? 'metodologias' : null, () => listarReceitas('METODOLOGIA'));
+  const configDaConsultoria = (metodologias.dados?.[0]?.conteudo as Configuracao | undefined) ?? CONFIGURACAO_PADRAO;
   const salvar = async (novoConteudo = conteudo) => {
     if (!nome.trim()) throw new Error('Preencha o nome do modelo.');
     setSalvando(true); setErro(null);
@@ -56,7 +61,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
       <Selo texto={salvando ? 'Salvando…' : pendente ? 'Alterações não salvas' : textoDoSalvo(salvoAs)} tipo={salvando ? 'neutro' : pendente ? 'atencao' : 'sucesso'} />
     </Cartao>
     {r.tipo === 'METODOLOGIA' ? <CartaoMetodologia configuracao={conteudo as Configuracao} aoSalvar={salvar} /> : null}
-    {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={CONFIGURACAO_PADRAO} aoMudar={(series) => mudarConteudo({ series })} /> : null}
+    {r.tipo === 'SERIES' ? <EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={configDaConsultoria} aoMudar={(series) => mudarConteudo({ series })} /> : null}
     {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={mudarConteudo} /> : null}
     {r.tipo === 'PASTA_PLANO' ? <Cartao titulo="Planos do pacote" descricao="Adicione cópias dos modelos de semana, dieta e mobilidade. Alterar o modelo original depois não modifica este pacote. Para atualizar um item, remova e adicione a versão desejada.">
       {pasta.planos.map((p, i) => <ItemDoPacote key={i} posicao={i} total={pasta.planos.length} plano={p}

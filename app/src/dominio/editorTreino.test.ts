@@ -2,7 +2,10 @@ import type { Configuracao, Serie } from '../api/tipos';
 import { agrupar, descreverGrupo, descreverSeries } from './agrupamento';
 import { localizar, uidsComProblema } from './caminhos';
 import {
+  adicionarSerie,
   alterarGrupo,
+  LIMITE_SERIES,
+  moverGrupo,
   aplicarReceitaDePlano,
   mover,
   mudarQuantidade,
@@ -126,6 +129,51 @@ describe('editor de treino', () => {
   it('mover troca vizinhos e ignora os limites', () => {
     expect(mover([1, 2, 3], 0, 1)).toEqual([2, 1, 3]);
     expect(mover([1, 2, 3], 0, -1)).toEqual([1, 2, 3]);
+  });
+});
+
+describe('adicionar e reordenar séries (reunião de 17/10)', () => {
+  beforeEach(() => {
+    mockContador = 0;
+  });
+
+  it('FS adicionado depois da WS fica num grupo próprio, com a regra de 1 série, e sobe para antes dela', () => {
+    const series = [ws('a')];
+    const comFs = adicionarSerie(series, CONFIG, 'FS');
+    expect(descreverSeries(comFs)).toEqual(['1x3 a 6 - WS', '1x - FS 85%']);
+    const reordenado = moverGrupo(comFs, 1, -1);
+    expect(descreverSeries(reordenado)).toEqual(['1x - FS 85%', '1x3 a 6 - WS']);
+    expect(reordenado.map((s) => s.uid)).toEqual([comFs[1].uid, 'a']);
+  });
+
+  it('série igual ao último grupo soma a ele pelo mesmo caminho do "+", com a regra de preparação', () => {
+    const series = [fs('a', 70), fs('b', 85)];
+    const resultado = adicionarSerie(series, CONFIG, 'FS');
+    expect(descreverSeries(resultado)).toEqual(['3x3 - FS 50/70/85%']);
+    expect(resultado.slice(0, 2).map((s) => s.uid)).toEqual(['a', 'b']);
+  });
+
+  it('sem tipo, a série nova é a de trabalho', () => {
+    expect(adicionarSerie([], CONFIG).map((s) => s.tipo)).toEqual(['WS']);
+  });
+
+  it('o limite de séries vale para o exercício todo', () => {
+    const muitas = Array.from({ length: LIMITE_SERIES - 1 }, (_, i) => ws(`w${i}`));
+    const series = [fs('a', 85), ...muitas];
+    expect(adicionarSerie(series, CONFIG, 'Back off')).toBe(series);
+    expect(mudarQuantidade(series, agrupar(series)[0], 2, CONFIG)).toBe(series);
+  });
+
+  it('mover fora dos limites devolve a mesma lista', () => {
+    const series = [fs('a', 85), ws('b')];
+    expect(moverGrupo(series, 0, -1)).toBe(series);
+    expect(moverGrupo(series, 1, 1)).toBe(series);
+  });
+
+  it('o descanso vale para todas as séries do grupo', () => {
+    const series = [ws('a'), ws('b'), backOff('c')];
+    const resultado = alterarGrupo(series, agrupar(series)[0], { descansoSegundos: 120 }, CONFIG);
+    expect(resultado.map((s) => s.descansoSegundos)).toEqual([120, 120, null]);
   });
 });
 

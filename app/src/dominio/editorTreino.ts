@@ -8,7 +8,7 @@ import type {
   Sessao,
   TipoSessao,
 } from '../api/tipos';
-import type { GrupoDeSeries } from './agrupamento';
+import { agrupar, type GrupoDeSeries } from './agrupamento';
 import { novoUid } from './uid';
 
 /**
@@ -68,19 +68,57 @@ export function repeticoesDoTipo(config: Configuracao | null, tipo: string): { r
   return r && r.min != null && r.max != null ? { repsMin: r.min, repsMax: r.max } : null;
 }
 
-/** Série nova do tipo de trabalho da consultoria, com a faixa de repetições da metodologia (ou sem, para o treinador preencher). */
-export function novaSerie(config: Configuracao | null): Serie {
-  const tipo = config?.tipoTrabalho ?? 'Série';
+/** Limite de séries por exercício, o mesmo do servidor (`ConteudoTreino`, `@Size(max = 30)`): contado no exercício todo. */
+export const LIMITE_SERIES = 30;
+
+/** Descanso aceito pelo servidor (`ValidadorTreino`): de 0 a 1 hora, em segundos. */
+export const DESCANSO_MAXIMO_SEGUNDOS = 3600;
+
+/**
+ * Série nova de um tipo (sem tipo, o de trabalho da consultoria), com a faixa de repetições da metodologia (ou sem, para
+ * o treinador preencher). O de preparação nasce em "% da trabalho" com a regra de 1 série; os outros, em carga de trabalho.
+ */
+export function novaSerie(config: Configuracao | null, tipoEscolhido?: string): Serie {
+  const tipo = tipoEscolhido ?? config?.tipoTrabalho ?? 'Série';
   const reps = repeticoesDoTipo(config, tipo);
+  const preparacao = !!config && tipo === config.tipoPreparacao && tipo !== config.tipoTrabalho;
+  const percentual = preparacao ? (percentuaisDaRegra(config, 1)?.[0] ?? null) : null;
   return {
     uid: novoUid(),
     tipo,
     repsMin: reps?.repsMin ?? null,
     repsMax: reps?.repsMax ?? null,
     alvoTexto: null,
-    intensidade: { modo: 'CARGA_TRABALHO' },
+    intensidade: preparacao ? { modo: 'PERCENTUAL_WS', percentual } : { modo: 'CARGA_TRABALHO' },
     descansoSegundos: null,
   };
+}
+
+/**
+ * "Adicionar série" com o tipo escolhido: entra no fim do exercício. Se o último grupo já é desse tipo, soma uma série a
+ * ele pelo mesmo caminho do "+" (copia a última e a regra de preparação continua valendo); senão nasce um grupo novo.
+ * No limite de séries do exercício, nada muda. Para pôr o grupo novo antes de outro, o treinador usa ↑ (`moverGrupo`).
+ */
+export function adicionarSerie(series: Serie[], config: Configuracao | null, tipo?: string): Serie[] {
+  if (series.length >= LIMITE_SERIES) return series;
+  const nova = novaSerie(config, tipo);
+  const grupos = agrupar(series);
+  const ultimo = grupos[grupos.length - 1];
+  if (ultimo && ultimo.series[0].tipo === nova.tipo) {
+    return mudarQuantidade(series, ultimo, ultimo.series.length + 1, config);
+  }
+  return [...series, nova];
+}
+
+/**
+ * Troca um grupo de séries de lugar com o vizinho (↑↓ no editor): o FS criado depois da WS sobe para antes dela. Os
+ * uids e o conteúdo de cada série ficam iguais; só a ordem muda.
+ */
+export function moverGrupo(series: Serie[], indiceDoGrupo: number, delta: -1 | 1): Serie[] {
+  const grupos = agrupar(series);
+  const reordenados = mover(grupos, indiceDoGrupo, delta);
+  if (reordenados === grupos) return series;
+  return reordenados.flatMap((g) => g.series);
 }
 
 /** Troca um item de lugar com o vizinho (setas ↑↓). Fora dos limites devolve a mesma lista. */
@@ -120,7 +158,7 @@ function trocarGrupo(series: Serie[], grupo: GrupoDeSeries, novas: Serie[]): Ser
  * (3 FS = 50/70/85; 2 FS = 70/85). Depois cada série pode ser editada.
  */
 export function mudarQuantidade(series: Serie[], grupo: GrupoDeSeries, n: number, config: Configuracao | null): Serie[] {
-  if (n < 1 || n > 30) return series;
+  if (n < 1 || series.length - grupo.series.length + n > LIMITE_SERIES) return series;
   const ultima = grupo.series[grupo.series.length - 1];
   let novas =
     n <= grupo.series.length
@@ -141,6 +179,8 @@ export interface AlteracaoDeGrupo {
   modo?: ModoIntensidade;
   /** Valor da intensidade para todas as séries do grupo (RIR, RPE, texto ou um % único). */
   intensidade?: Partial<Intensidade>;
+  /** Descanso depois de cada série do grupo, em segundos (vazio = sem descanso definido). */
+  descansoSegundos?: number | null;
 }
 
 function intensidadeDoModo(modo: ModoIntensidade): Intensidade {
@@ -173,6 +213,7 @@ export function alterarGrupo(
     if (mudanca.repsMin !== undefined) nova.repsMin = mudanca.repsMin;
     if (mudanca.repsMax !== undefined) nova.repsMax = mudanca.repsMax;
     if (mudanca.alvoTexto !== undefined) nova.alvoTexto = mudanca.alvoTexto || null;
+    if (mudanca.descansoSegundos !== undefined) nova.descansoSegundos = mudanca.descansoSegundos;
     if (modo !== undefined && modo !== (s.intensidade?.modo ?? 'NENHUMA')) nova.intensidade = intensidadeDoModo(modo);
     if (mudanca.intensidade) {
       nova.intensidade = { ...(nova.intensidade ?? { modo: 'NENHUMA' }), ...mudanca.intensidade };
