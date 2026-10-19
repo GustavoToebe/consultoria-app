@@ -1,4 +1,4 @@
-import type { CategoriaErgogenico, ErgogenicoDaBiblioteca, ItemErgogenico } from '../api/tipos';
+import type { ErgogenicoDaBiblioteca, ItemErgogenico } from '../api/tipos';
 import { SEM_DADO } from './formatos';
 
 /**
@@ -6,29 +6,33 @@ import { SEM_DADO } from './formatos';
  * aqui sugere dose, soma, compara nem avisa sobre combinação. Ausência de dado é "—".
  */
 
-/** Categorias na ordem em que aparecem na lista. */
-export const CATEGORIAS_ERGOGENICO: readonly { valor: CategoriaErgogenico; rotulo: string }[] = [
-  { valor: 'INJETAVEL', rotulo: 'Injetáveis' },
-  { valor: 'ORAL', rotulo: 'Orais' },
-  { valor: 'PEPTIDEO', rotulo: 'Peptídeos' },
-  { valor: 'MEDICAMENTO', rotulo: 'Medicamentos' },
-  { valor: 'OUTRO', rotulo: 'Outros' },
-];
+/**
+ * A categoria é texto livre do treinador (pedido do Saraiva em 17/10: nada de "Injetáveis/Peptídeos" fixos na entrada).
+ * Item sem categoria fica no grupo "Sem categoria", sempre por último.
+ */
+export const SEM_CATEGORIA = 'Sem categoria';
 
-export function rotuloDaCategoria(categoria: CategoriaErgogenico): string {
-  return CATEGORIAS_ERGOGENICO.find((c) => c.valor === categoria)?.rotulo ?? SEM_DADO;
+/** Categorias que existem na lista, sem repetir e em ordem alfabética (filtro e sugestões do formulário). */
+export function categoriasDosErgogenicos(lista: readonly Pick<ErgogenicoDaBiblioteca, 'categoria'>[]): string[] {
+  const nomes = new Set(lista.map((e) => e.categoria?.trim()).filter((c): c is string => !!c));
+  return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
 export interface GrupoDeErgogenicos {
-  categoria: CategoriaErgogenico;
+  categoria: string | null;
   rotulo: string;
   itens: ErgogenicoDaBiblioteca[];
 }
 
-/** Agrupa na ordem fixa das categorias, sem grupos vazios; dentro do grupo, mantém a ordem recebida. */
+/** Agrupa por categoria em ordem alfabética, "Sem categoria" por último; dentro do grupo, mantém a ordem recebida. */
 export function agruparErgogenicos(lista: ErgogenicoDaBiblioteca[]): GrupoDeErgogenicos[] {
-  return CATEGORIAS_ERGOGENICO.map((c) => ({ categoria: c.valor, rotulo: c.rotulo, itens: lista.filter((e) => e.categoria === c.valor) }))
-    .filter((g) => g.itens.length > 0);
+  const grupos: GrupoDeErgogenicos[] = categoriasDosErgogenicos(lista).map((c) => ({
+    categoria: c,
+    rotulo: c,
+    itens: lista.filter((e) => e.categoria?.trim() === c),
+  }));
+  const sem = lista.filter((e) => !e.categoria?.trim());
+  return sem.length ? [...grupos, { categoria: null, rotulo: SEM_CATEGORIA, itens: sem }] : grupos;
 }
 
 /** "1 item" / "13 itens". */
@@ -75,10 +79,10 @@ export function nomeEPrincipio(e: Pick<ErgogenicoDaBiblioteca, 'nome' | 'princip
 }
 
 /** Busca sem acento e sem caixa no nome e no princípio ativo; categoria vazia = todas. */
-export function filtrarErgogenicos(lista: ErgogenicoDaBiblioteca[], busca: string, categoria: CategoriaErgogenico | ''): ErgogenicoDaBiblioteca[] {
+export function filtrarErgogenicos(lista: ErgogenicoDaBiblioteca[], busca: string, categoria: string): ErgogenicoDaBiblioteca[] {
   const termo = semAcentoMinusculo(busca);
   return lista.filter((e) => {
-    if (categoria && e.categoria !== categoria) return false;
+    if (categoria && (e.categoria?.trim() ?? '') !== categoria) return false;
     return !termo || semAcentoMinusculo(`${e.nome} ${e.principioAtivo ?? ''}`).includes(termo);
   });
 }

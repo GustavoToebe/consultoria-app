@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { alterarErgogenico, criarErgogenico, inativarErgogenico, listarErgogenicos } from '../../api/rotas';
-import type { CategoriaErgogenico, ErgogenicoDaBiblioteca, ErgogenicoDaBibliotecaRequest } from '../../api/tipos';
+import type { ErgogenicoDaBiblioteca, ErgogenicoDaBibliotecaRequest } from '../../api/tipos';
 import {
   agruparErgogenicos,
-  CATEGORIAS_ERGOGENICO,
+  categoriasDosErgogenicos,
   filtrarErgogenicos,
   nomeEPrincipio,
   resumoDoGrupo,
@@ -25,22 +25,25 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 /**
- * Medicação e ergogênicos da biblioteca (dado sensível: a aba só existe com ERGOGENICO_LER). Só o que está no rótulo:
- * nome, princípio ativo, concentração e apresentação. O sistema não sugere dose, não soma e não compara.
+ * Aba "Outros" da biblioteca: medicação, ergogênicos e o que mais o treinador registrar (dado sensível: a aba só existe
+ * com ERGOGENICO_LER). Só o que está no rótulo: nome, princípio ativo, concentração e apresentação. O sistema não sugere
+ * dose, não soma e não compara. A categoria é do treinador (texto livre): nada de grupos fixos na entrada.
  */
 export function AbaErgogenicos() {
   const { avisar } = useAviso();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-ergogenicos', () => listarErgogenicos());
   const [busca, setBusca] = useState('');
-  const [categoria, setCategoria] = useState<CategoriaErgogenico | ''>('');
+  const [categoria, setCategoria] = useState('');
   const [editando, setEditando] = useState<ErgogenicoDaBiblioteca | 'novo' | null>(null);
   const [inativar, setInativar] = useState<ErgogenicoDaBiblioteca | null>(null);
+  const categorias = categoriasDosErgogenicos(dados ?? []);
   const grupos = agruparErgogenicos(filtrarErgogenicos(dados ?? [], busca, categoria));
   const { width } = useWindowDimensions();
   const largo = width >= LARGURA_MENU_LATERAL;
@@ -61,18 +64,20 @@ export function AbaErgogenicos() {
   return (
     <>
       <Cartao
-        titulo="Medicação e ergogênicos"
-        descricao="Só o que está no rótulo. Dose, horário e prescrição quem escreve é você, na dieta do aluno."
+        titulo="Outros"
+        descricao="Medicação, ergogênicos e o que mais você quiser ter à mão, nas categorias que você criar. Só o que está no rótulo: dose, horário e prescrição quem escreve é você, na dieta do aluno."
         acoes={<Permitido codigo="ERGOGENICO_ALTERAR"><Botao rotulo="Novo item" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
         <View style={estilos.busca}>
           <Campo rotulo="Buscar item" valor={busca} aoMudar={setBusca} />
         </View>
-        <Escolha
-          descricao="Categoria"
-          valor={categoria}
-          aoMudar={(v) => setCategoria(v as CategoriaErgogenico | '')}
-          opcoes={[{ valor: '', rotulo: 'Todas' }, ...CATEGORIAS_ERGOGENICO.map((c) => ({ valor: c.valor, rotulo: c.rotulo }))]}
-        />
+        {categorias.length ? (
+          <Escolha
+            descricao="Categoria"
+            valor={categoria}
+            aoMudar={setCategoria}
+            opcoes={[{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))]}
+          />
+        ) : null}
         {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
         {!dados && carregando ? <Esqueleto /> : null}
         {dados && grupos.length === 0 ? (
@@ -84,7 +89,7 @@ export function AbaErgogenicos() {
         ) : null}
       </Cartao>
       {grupos.map((g) => (
-        <Cartao key={g.categoria} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDoGrupo(g.itens.length)} />}>
+        <Cartao key={g.categoria ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDoGrupo(g.itens.length)} />}>
           {largo ? <TitulosDasColunas /> : null}
           {g.itens.map((e) => (
             <LinhaDeErgogenico key={e.id} item={e} largo={largo} aoEditar={() => setEditando(e)} />
@@ -94,6 +99,7 @@ export function AbaErgogenicos() {
       {editando ? (
         <FolhaErgogenico
           inicial={editando === 'novo' ? null : editando}
+          categorias={categorias}
           aoTirar={editando === 'novo' ? undefined : () => { const alvo = editando; setEditando(null); setInativar(alvo); }}
           aoFechar={() => setEditando(null)}
           aoSalvar={() => {
@@ -152,8 +158,20 @@ function LinhaDeErgogenico({ item, largo, aoEditar }: { item: ErgogenicoDaBiblio
   );
 }
 
-function FolhaErgogenico({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () => void; inicial: ErgogenicoDaBiblioteca | null; aoFechar: () => void; aoSalvar: () => void }) {
-  const [categoria, setCategoria] = useState<CategoriaErgogenico>(inicial?.categoria ?? 'INJETAVEL');
+function FolhaErgogenico({
+  inicial,
+  categorias,
+  aoFechar,
+  aoSalvar,
+  aoTirar,
+}: {
+  aoTirar?: () => void;
+  inicial: ErgogenicoDaBiblioteca | null;
+  categorias: string[];
+  aoFechar: () => void;
+  aoSalvar: () => void;
+}) {
+  const [categoria, setCategoria] = useState(inicial?.categoria ?? '');
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [principio, setPrincipio] = useState(inicial?.principioAtivo ?? '');
   const [concentracao, setConcentracao] = useState(inicial?.concentracao ?? '');
@@ -167,7 +185,7 @@ function FolhaErgogenico({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: (
   const salvar = () => {
     if (!completo) return;
     const dados: ErgogenicoDaBibliotecaRequest = {
-      categoria,
+      categoria: categoria.trim() || null,
       nome: nome.trim(),
       principioAtivo: principio.trim() || null,
       concentracao: concentracao.trim() || null,
@@ -193,12 +211,6 @@ function FolhaErgogenico({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: (
           <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!completo} />
         </>
       }>
-      <Escolha
-        descricao="Categoria"
-        valor={categoria}
-        aoMudar={(v) => setCategoria(v as CategoriaErgogenico)}
-        opcoes={CATEGORIAS_ERGOGENICO.map((c) => ({ valor: c.valor, rotulo: c.rotulo }))}
-      />
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
       <Campo rotulo="Princípio ativo (opcional)" valor={principio} aoMudar={setPrincipio} erro={campos.principioAtivo} maxLength={160} />
       <Campo rotulo="Concentração (opcional)" valor={concentracao} aoMudar={setConcentracao} erro={campos.concentracao} maxLength={40}
@@ -206,6 +218,21 @@ function FolhaErgogenico({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: (
       <Campo rotulo="Apresentação (opcional)" valor={apresentacao} aoMudar={setApresentacao} erro={campos.apresentacao} maxLength={40}
         ajuda="Por exemplo “10 ml” ou “50 caps”." />
       <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} erro={campos.observacao} maxLength={500} linhas={3} />
+      <Campo
+        rotulo="Categoria (opcional)"
+        valor={categoria}
+        aoMudar={setCategoria}
+        erro={campos.categoria}
+        maxLength={60}
+        ajuda="Escreva o nome da categoria ou toque numa que você já usa. Vazio fica em “Sem categoria”."
+      />
+      {categorias.length ? (
+        <LinhaDeAcoes>
+          {categorias.map((c) => (
+            <Botao key={c} rotulo={c} tipo="secundario" aoTocar={() => setCategoria(c)} />
+          ))}
+        </LinhaDeAcoes>
+      ) : null}
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
     </Folha>

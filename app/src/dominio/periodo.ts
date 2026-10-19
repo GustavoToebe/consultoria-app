@@ -35,3 +35,18 @@ export function dadosDaRenovacao(
   const texto = inicio && fim ? `${sugestao.inicio} a ${sugestao.fim}` : inicio ? `a partir de ${sugestao.inicio}` : 'sem período definido';
   return { titulo: `${pasta.titulo} (renovada)`.slice(0, 120), inicio, fim, texto };
 }
+
+/**
+ * Ciclo de atualização que vale para o aluno: o dele; sem valor próprio, o padrão da consultoria (pedido do Saraiva em
+ * 17/10, para não repetir o mesmo número em cada cadastro); sem nenhum, nulo.
+ */
+export function cicloDoAluno(doAluno: number | null | undefined, padraoDaConsultoria: number | null | undefined): number | null {
+  return doAluno ?? padraoDaConsultoria ?? null;
+}
+
+/** "15 dias", "20 dias (padrão da consultoria)" ou nulo ("—" na ficha). */
+export function textoDoCiclo(doAluno: number | null | undefined, padraoDaConsultoria: number | null | undefined): string | null {
+  if (doAluno) return `${doAluno} dias`;
+  if (padraoDaConsultoria) return `${padraoDaConsultoria} dias (padrão da consultoria)`;
+  return null;
+}

@@ -27,8 +27,8 @@ public class ErgogenicoService {
     }
 
     @Transactional(readOnly = true)
-    public List<ErgogenicoResponse> listar(String busca, CategoriaErgogenico categoria) {
-        return ergogenicos.buscarAtivos(Buscas.padraoSemAcento(busca), categoria == null ? "" : categoria.name())
+    public List<ErgogenicoResponse> listar(String busca, String categoria) {
+        return ergogenicos.buscarAtivos(Buscas.padraoSemAcento(busca), categoria == null ? "" : categoria.trim())
                 .stream().map(ErgogenicoService::resposta).toList();
     }
 
@@ -56,13 +56,13 @@ public class ErgogenicoService {
     private static Ergogenico.Valores valores(ErgogenicoRequest r) {
         String nome = r.nome().trim();
         String principio = Buscas.opcional(r.principioAtivo());
-        return new Ergogenico.Valores(r.categoria(), nome, Buscas.semAcento(nome), principio,
+        return new Ergogenico.Valores(Buscas.opcional(r.categoria()), nome, Buscas.semAcento(nome), principio,
                 Buscas.semAcento(principio), Buscas.opcional(r.concentracao()), Buscas.opcional(r.apresentacao()),
                 Buscas.opcional(r.observacao()));
     }
 
     private static ErgogenicoResponse resposta(Ergogenico e) {
-        return new ErgogenicoResponse(e.getId(), CategoriaErgogenico.valueOf(e.getCategoria()), e.getNome(),
+        return new ErgogenicoResponse(e.getId(), e.getCategoria(), e.getNome(),
                 e.getPrincipioAtivo(), e.getConcentracao(), e.getApresentacao(), e.getObservacao());
     }
 

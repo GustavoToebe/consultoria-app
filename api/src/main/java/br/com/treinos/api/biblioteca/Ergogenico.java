@@ -29,8 +29,7 @@ public class Ergogenico {
     @Column(name = "consultoria_id", nullable = false, updatable = false)
     private UUID consultoriaId;
 
-    /** Nome de {@link CategoriaErgogenico} (check no banco). */
-    @Column(nullable = false)
+    /** Texto livre do treinador (V009), opcional; o filtro mostra as que existem. */
     private String categoria;
 
     @Column(nullable = false)
@@ -76,7 +75,7 @@ public class Ergogenico {
     }
 
     private void aplicar(Valores v) {
-        this.categoria = v.categoria().name();
+        this.categoria = v.categoria();
         this.nome = v.nome();
         this.nomeBusca = v.nomeBusca();
         this.principioAtivo = v.principioAtivo();
@@ -123,7 +122,7 @@ public class Ergogenico {
     }
 
     /** Valores editáveis, já validados e normalizados pelo service. */
-    public record Valores(CategoriaErgogenico categoria, String nome, String nomeBusca, String principioAtivo,
+    public record Valores(String categoria, String nome, String nomeBusca, String principioAtivo,
                           String principioBusca, String concentracao, String apresentacao, String observacao) {
     }
 }

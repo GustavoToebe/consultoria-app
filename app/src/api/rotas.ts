@@ -218,6 +218,7 @@ export const alterarMarca = (dados: {
   fonteTitulo: Fonte;
   temaPadrao: Tema;
   versao: number;
+  diasAtualizacaoPadrao: number | null;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 
 /** `arquivo`: FormData já montado (web: File; nativo: {uri, name, type}). */

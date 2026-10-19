@@ -114,6 +114,32 @@ public class ValidadorTreino {
         }
     }
 
+    /** Cluster: 2 a 10 blocos, 1 a 50 repetições por bloco e 5 a 600 s entre blocos. Rest pause: 5 a 600 s de pausa,
+     * 1 a 5 retomadas e, se informadas, 1 a 50 repetições por retomada (vazio = até a falha). */
+    private static void tecnica(ResultadoValidacao.Coletor c, ConteudoTreino.Tecnica t, String ct) {
+        if (ConteudoTreino.CLUSTER.equals(t.tipo())) {
+            faixa(c, t.blocos(), 2, 10, ct + ".blocos", "Blocos do cluster entre 2 e 10.");
+            faixa(c, t.repsPorBloco(), 1, 50, ct + ".repsPorBloco", "Repetições por bloco entre 1 e 50.");
+            faixa(c, t.pausaSegundos(), 5, 600, ct + ".pausaSegundos", "Pausa entre blocos de 5 a 600 segundos.");
+        } else if (ConteudoTreino.REST_PAUSE.equals(t.tipo())) {
+            faixa(c, t.pausaSegundos(), 5, 600, ct + ".pausaSegundos", "Pausa do rest pause de 5 a 600 segundos.");
+            faixa(c, t.retomadas(), 1, 5, ct + ".retomadas", "Retomadas do rest pause entre 1 e 5.");
+            if (t.repsPorRetomada() != null) {
+                faixa(c, t.repsPorRetomada(), 1, 50, ct + ".repsPorRetomada",
+                        "Repetições por retomada entre 1 e 50 (ou vazio, até a falha).");
+            }
+        } else {
+            c.erro(ct + ".tipo", "Técnica desconhecida: use cluster ou rest pause.");
+        }
+    }
+
+    private static void faixa(ResultadoValidacao.Coletor c, Integer valor, int min, int max, String caminho,
+                              String mensagem) {
+        if (valor == null || valor < min || valor > max) {
+            c.erro(caminho, mensagem);
+        }
+    }
+
     private static void serie(ResultadoValidacao.Coletor c, Serie x, String cx) {
         if (vazio(x.tipo())) {
             c.erro(cx + ".tipo", "Série sem tipo.");
@@ -129,6 +155,9 @@ public class ValidadorTreino {
         }
         if (x.descansoSegundos() != null && (x.descansoSegundos() < 0 || x.descansoSegundos() > 3600)) {
             c.erro(cx + ".descansoSegundos", "Descanso precisa ficar entre 0 e 3600 segundos.");
+        }
+        if (x.tecnica() != null) {
+            tecnica(c, x.tecnica(), cx + ".tecnica");
         }
         Intensidade i = x.intensidade();
         String modo = x.modo();

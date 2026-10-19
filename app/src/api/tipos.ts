@@ -102,6 +102,8 @@ export interface FaixaRepeticoes {
 export interface ConsultoriaResponse {
   marca: Marca;
   versao: number;
+  /** Ciclo de atualização padrão (1 a 365 dias): aluno sem valor próprio usa este; nulo = sem padrão. */
+  diasAtualizacaoPadrao: number | null;
 }
 
 // ---- Alunos ----
@@ -287,6 +289,21 @@ export interface Serie {
   alvoTexto: string | null;
   intensidade: Intensidade | null;
   descansoSegundos: number | null;
+  /** Cluster ou rest pause com campos próprios (reunião de 17/10); nulo = série comum. */
+  tecnica?: Tecnica | null;
+}
+
+/**
+ * Cluster: `blocos` de `repsPorBloco` com `pausaSegundos` entre eles. Rest pause: a série, `pausaSegundos` de pausa e
+ * `retomadas` de `repsPorRetomada` (nulo = até a falha). Só números do treinador; o aluno registra a série inteira.
+ */
+export interface Tecnica {
+  tipo: 'CLUSTER' | 'REST_PAUSE';
+  blocos: number | null;
+  repsPorBloco: number | null;
+  pausaSegundos: number | null;
+  retomadas: number | null;
+  repsPorRetomada: number | null;
 }
 
 export interface ExercicioPlano {
@@ -378,6 +395,8 @@ export interface ConteudoDieta {
   suplementacao: Suplemento[];
   /** Nulo para quem não tem ERGOGENICO_LER (a API não envia) e em modelos; lista para quem vê. */
   ergogenicos: ItemErgogenico[] | null;
+  /** Água por dia que o treinador escreveu (0,1 a 20 L); nulo não aparece. Nada é calculado. */
+  aguaLitros: number | null;
 }
 
 /** Mobilidade como a API entrega (campos de texto opcionais vêm nulos); o editor usa `dominio/mobilidade`. */
@@ -730,15 +749,14 @@ export interface SuplementoDaBiblioteca {
 }
 export type SuplementoDaBibliotecaRequest = Omit<SuplementoDaBiblioteca, 'id'>;
 
-export type CategoriaErgogenico = 'INJETAVEL' | 'ORAL' | 'PEPTIDEO' | 'MEDICAMENTO' | 'OUTRO';
-
 /**
  * Item da biblioteca de medicação e ergogênicos (dado sensível, só com ERGOGENICO_LER): o que está no rótulo.
  * Sem dose, ciclo nem indicação.
  */
 export interface ErgogenicoDaBiblioteca {
   id: string;
-  categoria: CategoriaErgogenico;
+  /** Texto livre do treinador (até 60), opcional. */
+  categoria: string | null;
   nome: string;
   principioAtivo: string | null;
   concentracao: string | null;

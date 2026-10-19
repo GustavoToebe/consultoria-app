@@ -5,7 +5,8 @@ import { Pencil } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, escolherQuestionarioDoAluno } from '../../../api/rotas';
+import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
+import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
@@ -37,6 +38,8 @@ import { useCarregar } from '../../../ui/useCarregar';
 export default function FichaAluno() {
   const { id, pastaId } = useLocalSearchParams<{ id: string; pastaId?: string }>();
   const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
+  // Ciclo padrão da consultoria (V009). Quem não pode ler a consultoria fica só com o do aluno.
+  const padrao = useCarregar('consultoria-ciclo', () => buscarConsultoria().then((c) => c.diasAtualizacaoPadrao ?? null, () => null)).dados ?? null;
   // Finalizar uma pasta pode gravar peso: o cartão de peso é remontado para buscar de novo.
   const [geracaoPeso, setGeracaoPeso] = useState(0);
   // A partir de 1.100 px: Dados à esquerda; Acesso e Lesões à direita. O resto vem em largura cheia.
@@ -54,7 +57,7 @@ export default function FichaAluno() {
           {duasColunas ? (
             <View style={estilos.colunas}>
               <View style={estilos.coluna}>
-                <CartaoDados aluno={aluno} aoAlterar={definir} />
+                <CartaoDados aluno={aluno} padrao={padrao} aoAlterar={definir} />
               </View>
               <View style={estilos.coluna}>
                 <CartaoAcesso aluno={aluno} />
@@ -63,12 +66,12 @@ export default function FichaAluno() {
             </View>
           ) : (
             <>
-              <CartaoDados aluno={aluno} aoAlterar={definir} />
+              <CartaoDados aluno={aluno} padrao={padrao} aoAlterar={definir} />
               <CartaoAcesso aluno={aluno} />
               <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
             </>
           )}
-          <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={aluno.diasAtualizacao} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
+          <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           <Permitido codigo="REGISTRO_LER"><CartaoFrequencia alunoId={aluno.id} /></Permitido>
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
@@ -78,7 +81,7 @@ export default function FichaAluno() {
   );
 }
 
-function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a: AlunoDetalhe) => void }) {
+function CartaoDados({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void }) {
   const {pode}=useSessao();
   const { avisar } = useAviso();
   const avisarDoPlano = useAvisoDoPlano();
@@ -128,7 +131,7 @@ function CartaoDados({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlterar: (a:
           <CampoLeitura rotulo="E-mail" valor={aluno.email} />
           <ResponsavelAluno id={aluno.responsavelId}/>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
-          <CampoLeitura rotulo="Nova atualização a cada" valor={aluno.diasAtualizacao ? `${aluno.diasAtualizacao} dias` : null} numerico />
+          <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
           <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={pode('ALUNO_ALTERAR')}
             aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); }} />
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>

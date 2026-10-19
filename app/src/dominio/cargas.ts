@@ -1,5 +1,5 @@
 import type { ExercicioPlano, Serie } from '../api/tipos';
-import { faixa, textoIntensidade } from './agrupamento';
+import { faixa, textoIntensidade, textoTecnica } from './agrupamento';
 import { numeroParaTela } from './formatos';
 
 /**
@@ -41,6 +41,8 @@ export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false): s
     const t = textoIntensidade(s.intensidade);
     if (t) partes.push(t);
   }
+  const tecnica = textoTecnica(s.tecnica);
+  if (tecnica) partes.push(tecnica);
   return partes.length ? `Meta: ${partes.join(' · ')}` : 'Meta: —';
 }
 

@@ -7,10 +7,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { listarAlimentos, listarErgogenicos, listarSuplementos, salvarPlanoComoReceita, criarReceita } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
-import { aplicarReceitaDeDieta, novaRefeicao, novoItem, normalizarDieta, totalDoDia } from '../../dominio/dieta';
+import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, novaRefeicao, novoItem, normalizarDieta, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
-import { dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { linhaDeSuplementacao } from '../../dominio/suplementos';
 import { novoUid } from '../../dominio/uid';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -31,7 +31,7 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
-import { CampoData } from '../../ui/Campos';
+import { CampoData, CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
@@ -391,6 +391,16 @@ function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar
         <View style={estilos.cresce}>
           <Campo rotulo="Profissional (opcional)" valor={conteudo.profissional ?? ''} aoMudar={(t) => aoMudar({ profissional: t || null })} maxLength={120} />
         </View>
+      </View>
+      <View style={estilos.campoSup}>
+        <CampoNumerico
+          rotulo="Água por dia (opcional)"
+          sufixo="L"
+          valor={conteudo.aguaLitros ?? null}
+          aoMudar={(v) => aoMudar({ aguaLitros: v })}
+          erro={aguaValida(conteudo.aguaLitros ?? null) ? null : `De ${numeroParaTela(AGUA_MINIMA)} a ${AGUA_MAXIMA} L, com uma casa decimal.`}
+          ajuda="Aparece para o aluno no início e na dieta. Vazio não aparece."
+        />
       </View>
     </>
   );

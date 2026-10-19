@@ -13,6 +13,7 @@ import { CLARO, ESCURO, espaco, fontes, RAIO, textoSobre, type Cores } from '../
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { MensagemErro } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
@@ -43,6 +44,8 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const [personalizada, setPersonalizada] = useState(!paletaDaCor(inicial.corPrimaria));
   const [fonte, setFonte] = useState<Fonte>(inicial.fonteTitulo);
   const [tema, setTema] = useState<Tema>(inicial.temaPadrao);
+  const [dias, setDias] = useState<number | null>(consultoria.diasAtualizacaoPadrao ?? null);
+  const diasValidos = dias === null || (Number.isInteger(dias) && dias >= 1 && dias <= 365);
   const [logoUrl, setLogoUrl] = useState(inicial.logoUrl);
   const [salvando, setSalvando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -52,13 +55,18 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const corValida = HEX.test(cor);
   const avaliacao = avaliarMarca(cor);
   // O botão de salvar só aparece quando algo mudou (logo salva na hora, à parte).
-  const alterado = nome.trim() !== inicial.nome || cor !== inicial.corPrimaria || fonte !== inicial.fonteTitulo || tema !== inicial.temaPadrao;
+  const alterado =
+    nome.trim() !== inicial.nome ||
+    cor !== inicial.corPrimaria ||
+    fonte !== inicial.fonteTitulo ||
+    tema !== inicial.temaPadrao ||
+    dias !== (consultoria.diasAtualizacaoPadrao ?? null);
   const previa: Marca = { ...inicial, nome: nome || inicial.nome, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao }).then(
+    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao, diasAtualizacaoPadrao: dias }).then(
       (c) => {
         setSalvando(false);
         aoSalvar(c);
@@ -225,12 +233,24 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
           ))}
         </GradeDeOpcoes>
       </Cartao>
+      <Cartao titulo="Acompanhamento" descricao="Vale para quem não tem um ciclo próprio no cadastro do aluno.">
+        <View style={estilos.campoDias}>
+          <CampoNumerico
+            rotulo="Nova atualização a cada (dias)"
+            inteiro
+            valor={dias}
+            aoMudar={setDias}
+            erro={campos.diasAtualizacaoPadrao ?? (diasValidos ? null : 'Use de 1 a 365 dias.')}
+            ajuda="Preenche o início e o fim de cada pasta nova. Vazio = sem padrão."
+          />
+        </View>
+      </Cartao>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {alterado ? (
         <View style={[estilos.rodape, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           <Texto variante="suave" style={estilos.textoRodape}>Alterações ainda não salvas.</Texto>
-          <Botao rotulo="Salvar marca" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !corValida || !!avaliacao.bloqueia}
-            motivo={!nome.trim() ? 'Informe o nome da consultoria.' : !corValida ? 'Use uma cor no formato #RRGGBB.' : avaliacao.bloqueia ? 'Escolha uma cor que segure texto branco.' : undefined} />
+          <Botao rotulo="Salvar marca" aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || !corValida || !!avaliacao.bloqueia || !diasValidos}
+            motivo={!nome.trim() ? 'Informe o nome da consultoria.' : !corValida ? 'Use uma cor no formato #RRGGBB.' : avaliacao.bloqueia ? 'Escolha uma cor que segure texto branco.' : !diasValidos ? 'O ciclo de atualização vai de 1 a 365 dias.' : undefined} />
         </View>
       ) : null}
       <PainelConfirmacao
@@ -277,6 +297,7 @@ function Previa({ marca, cores, rotulo }: { marca: Marca; cores: Cores; rotulo: 
 }
 
 const estilos = StyleSheet.create({
+  campoDias: { maxWidth: 280 },
   previas: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   previa: { flex: 1, minWidth: 240, gap: espaco(0.5) },
   telaPrevia: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1) },

@@ -119,6 +119,9 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
         JsonNode atual = api.get("/consultoria", treinador, 200);
         long versao = atual.get("versao").asLong();
         assertThat(atual.has("configuracao")).isFalse();
+        // Consultoria nova abre no claro e sem ciclo padrão (V009).
+        assertThat(atual.get("marca").get("temaPadrao").asString()).isEqualTo("CLARO");
+        assertThat(atual.get("diasAtualizacaoPadrao").isNull()).isTrue();
 
         JsonNode nova = api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#c62828",
                 "fonteTitulo", "METAL", "temaPadrao", "ESCURO", "versao", versao), 200);
@@ -138,6 +141,19 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
                 "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "versao", versao), 409);
         api.put("/consultoria/marca", treinador, Map.of("nome", "Cor inválida", "corPrimaria", "vermelho",
                 "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "versao", nova.get("versao").asLong()), 400);
+
+        // Ciclo de atualização padrão: 1 a 365 dias, e sem o campo volta a nulo.
+        api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828",
+                "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "versao", nova.get("versao").asLong(),
+                "diasAtualizacaoPadrao", 0), 400);
+        JsonNode comCiclo = api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828",
+                "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "versao", nova.get("versao").asLong(),
+                "diasAtualizacaoPadrao", 15), 200);
+        assertThat(comCiclo.get("diasAtualizacaoPadrao").asInt()).isEqualTo(15);
+        assertThat(api.get("/consultoria", treinador, 200).get("diasAtualizacaoPadrao").asInt()).isEqualTo(15);
+        JsonNode semCiclo = api.put("/consultoria/marca", treinador, Map.of("nome", "SARAIVA TEAM", "corPrimaria", "#C62828",
+                "fonteTitulo", "PADRAO", "temaPadrao", "CLARO", "versao", comCiclo.get("versao").asLong()), 200);
+        assertThat(semCiclo.get("diasAtualizacaoPadrao").isNull()).isTrue();
     }
 
     private MvcResult enviar(MockMultipartFile arquivo, int esperado) throws Exception {

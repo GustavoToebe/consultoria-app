@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import type { CategoriaErgogenico, ErgogenicoDaBiblioteca } from '../../api/tipos';
-import { agruparErgogenicos, CATEGORIAS_ERGOGENICO, filtrarErgogenicos, nomeEPrincipio, textoOuTraco } from '../../dominio/ergogenicos';
+import type { ErgogenicoDaBiblioteca } from '../../api/tipos';
+import { agruparErgogenicos, categoriasDosErgogenicos, filtrarErgogenicos, nomeEPrincipio, textoOuTraco } from '../../dominio/ergogenicos';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { Campo } from '../../ui/Campo';
@@ -22,25 +22,28 @@ export function FolhaErgogenicos({
 }) {
   const { cores } = useTema();
   const [busca, setBusca] = useState('');
-  const [categoria, setCategoria] = useState<CategoriaErgogenico | ''>('');
+  const [categoria, setCategoria] = useState('');
+  const categorias = categoriasDosErgogenicos(itens);
   const filtrados = filtrarErgogenicos(itens, busca, categoria);
   const grupos = agruparErgogenicos(filtrados);
   return (
     <Folha visivel titulo="Escolher da biblioteca" aoFechar={aoFechar}>
       <Campo rotulo="Buscar item" valor={busca} aoMudar={setBusca} autoFocus />
-      <Escolha
-        descricao="Categoria"
-        valor={categoria}
-        aoMudar={(v) => setCategoria(v as CategoriaErgogenico | '')}
-        opcoes={[{ valor: '', rotulo: 'Todas' }, ...CATEGORIAS_ERGOGENICO.map((c) => ({ valor: c.valor, rotulo: c.rotulo }))]}
-      />
+      {categorias.length ? (
+        <Escolha
+          descricao="Categoria"
+          valor={categoria}
+          aoMudar={setCategoria}
+          opcoes={[{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))]}
+        />
+      ) : null}
       {itens.length === 0 ? (
-        <Texto variante="suave">Nenhum item na biblioteca. Cadastre em Biblioteca → Medicação e ergogênicos ou use “Adicionar linha”.</Texto>
+        <Texto variante="suave">Nenhum item na biblioteca. Cadastre em Biblioteca → Outros ou use “Adicionar linha”.</Texto>
       ) : filtrados.length === 0 ? (
         <Texto variante="suave">Nenhum item encontrado.</Texto>
       ) : null}
       {grupos.map((g) => (
-        <View key={g.categoria} style={estilos.grupo}>
+        <View key={g.categoria ?? ''} style={estilos.grupo}>
           <Texto variante="rotulo">{g.rotulo}</Texto>
           {g.itens.slice(0, 80).map((e) => (
             <Pressable

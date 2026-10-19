@@ -1,6 +1,8 @@
 package br.com.treinos.api.dieta;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -17,6 +19,9 @@ import java.util.function.Supplier;
  * <p>{@code ergogenicos} (medicação e ergogênicos do aluno) é dado sensível: só sai do servidor para quem tem
  * {@code ERGOGENICO_LER} (e para o próprio aluno), só muda com {@code ERGOGENICO_ALTERAR} e nunca vai para modelo
  * ({@link #semErgogenicos()}). Dose, horário e prescrição são texto que o treinador escreve; nada é sugerido nem calculado.
+ *
+ * <p>{@code aguaLitros} é a água por dia que o treinador escreveu (pedido do Saraiva em 17/10, para o aluno ver no início).
+ * Só se mostra: o sistema não calcula, não sugere meta e não registra consumo. Nulo = não aparece.
  */
 public record ConteudoDieta(
         @Size(max = 200) String objetivo,
@@ -26,12 +31,20 @@ public record ConteudoDieta(
         @Size(max = 30) List<@Valid @NotNull Orientacao> orientacoes,
         @Size(max = 8000) String observacoes,
         @Size(max = 40) List<@Valid @NotNull Suplemento> suplementacao,
-        @Size(max = 40) List<@Valid @NotNull Ergogenico> ergogenicos) {
+        @Size(max = 40) List<@Valid @NotNull Ergogenico> ergogenicos,
+        @DecimalMin("0") @DecimalMax("100") BigDecimal aguaLitros) {
 
-    /** Sem a lista de medicação e ergogênicos (a maior parte dos usos). */
+    /** Sem a água por dia. */
+    public ConteudoDieta(String objetivo, String dataInicio, String profissional, List<Refeicao> refeicoes,
+                         List<Orientacao> orientacoes, String observacoes, List<Suplemento> suplementacao,
+                         List<Ergogenico> ergogenicos) {
+        this(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao, ergogenicos, null);
+    }
+
+    /** Sem a lista de medicação e ergogênicos nem a água (a maior parte dos usos). */
     public ConteudoDieta(String objetivo, String dataInicio, String profissional, List<Refeicao> refeicoes,
                          List<Orientacao> orientacoes, String observacoes, List<Suplemento> suplementacao) {
-        this(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao, null);
+        this(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao, null, null);
     }
 
     public record Refeicao(
@@ -104,7 +117,7 @@ public record ConteudoDieta(
 
     public ConteudoDieta comErgogenicos(List<Ergogenico> lista) {
         return new ConteudoDieta(objetivo, dataInicio, profissional, refeicoes, orientacoes, observacoes, suplementacao,
-                lista);
+                lista, aguaLitros);
     }
 
     public List<Refeicao> refeicoesOuVazio() {
@@ -129,6 +142,6 @@ public record ConteudoDieta(
                 e.nome(), e.principioAtivo(), e.concentracao(), e.dose(), e.horario(), e.observacao(),
                 e.prescricao())).toList();
         return new ConteudoDieta(objetivo, dataInicio, profissional, novas, orientacoes, observacoes, suplementos,
-                medicacao);
+                medicacao, aguaLitros);
     }
 }

@@ -32,7 +32,7 @@ public class ErgogenicoController {
     @PreAuthorize("hasAuthority('PERM_ERGOGENICO_LER')")
     @GetMapping
     public List<ErgogenicoResponse> listar(@RequestParam(required = false) String busca,
-                                           @RequestParam(required = false) CategoriaErgogenico categoria) {
+                                           @RequestParam(required = false) String categoria) {
         return service.listar(busca, categoria);
     }
 

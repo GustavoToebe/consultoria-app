@@ -37,6 +37,9 @@ public record ConteudoTreino(
     public static final String CARGA_TRABALHO = "CARGA_TRABALHO";
     public static final String PERCENTUAL_WS = "PERCENTUAL_WS";
     public static final List<String> MODOS = List.of(CARGA_TRABALHO, PERCENTUAL_WS, "RIR", "RPE", "LIVRE", "NENHUMA");
+    /** Técnicas da série com campos próprios (reunião de 17/10): o tipo da série tem nome livre, a técnica não. */
+    public static final String CLUSTER = "CLUSTER";
+    public static final String REST_PAUSE = "REST_PAUSE";
 
     public record Sessao(
             UUID uid,
@@ -76,7 +79,14 @@ public record ConteudoTreino(
             Integer repsMax,
             @Size(max = 120) String alvoTexto,
             @Valid Intensidade intensidade,
-            Integer descansoSegundos) {
+            Integer descansoSegundos,
+            @Valid Tecnica tecnica) {
+
+        /** Sem técnica (a maior parte das séries). */
+        public Serie(UUID uid, String tipo, Integer repsMin, Integer repsMax, String alvoTexto, Intensidade intensidade,
+                     Integer descansoSegundos) {
+            this(uid, tipo, repsMin, repsMax, alvoTexto, intensidade, descansoSegundos, null);
+        }
 
         public String modo() {
             return intensidade == null || intensidade.modo() == null ? "NENHUMA" : intensidade.modo();
@@ -85,6 +95,20 @@ public record ConteudoTreino(
         public boolean deTrabalho() {
             return CARGA_TRABALHO.equals(modo());
         }
+    }
+
+    /**
+     * Cluster (blocos de repetições com pausa entre eles) ou rest pause (série, pausa e retomadas). Só números que o
+     * treinador escreve; o aluno vê a estrutura e registra a série inteira, como nas outras.
+     * {@code repsPorRetomada} nulo no rest pause = "até a falha".
+     */
+    public record Tecnica(
+            @Size(max = 20) String tipo,
+            Integer blocos,
+            Integer repsPorBloco,
+            Integer pausaSegundos,
+            Integer retomadas,
+            Integer repsPorRetomada) {
     }
 
     public record Intensidade(
@@ -119,7 +143,8 @@ public record ConteudoTreino(
                 s.exerciciosOuVazio().stream().map(e -> new ExercicioPlano(novo.get(), e.exercicioId(), e.nome(),
                         e.modalidade(), e.videoUrl(), e.observacao(), e.progressao(), e.unidade(),
                         e.seriesOuVazio().stream().map(x -> new Serie(novo.get(), x.tipo(), x.repsMin(), x.repsMax(),
-                                x.alvoTexto(), x.intensidade(), x.descansoSegundos())).toList())).toList())).toList();
+                                x.alvoTexto(), x.intensidade(), x.descansoSegundos(), x.tecnica())).toList())).toList()))
+                .toList();
         return new ConteudoTreino(objetivo, orientacoes, novas, metodologia);
     }
 }

@@ -3,6 +3,8 @@ package br.com.treinos.api.consultoria;
 import br.com.plataforma.comum.web.ApiException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -29,10 +31,17 @@ public class MarcaService {
             @NotNull @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "use o formato #RRGGBB") String corPrimaria,
             @NotNull Consultoria.Fonte fonteTitulo,
             @NotNull Consultoria.Tema temaPadrao,
-            @NotNull Long versao) {
+            @NotNull Long versao,
+            /** Ciclo de atualização padrão da consultoria (1 a 365 dias); nulo = sem padrão. */
+            @Min(1) @Max(365) Integer diasAtualizacaoPadrao) {
+
+        public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
+                            Long versao) {
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null);
+        }
     }
 
-    public record ConsultoriaResponse(MarcaPublica marca, Long versao) {
+    public record ConsultoriaResponse(MarcaPublica marca, Long versao, Integer diasAtualizacaoPadrao) {
     }
 
     private final ConsultoriaRepository consultorias;
@@ -59,7 +68,7 @@ public class MarcaService {
         Consultoria c = buscar(consultoriaId);
         exigirMesmaVersao(c, r.versao());
         c.alterarMarca(r.nome().trim(), r.corPrimaria().toUpperCase(java.util.Locale.ROOT),
-                r.fonteTitulo(), r.temaPadrao());
+                r.fonteTitulo(), r.temaPadrao(), r.diasAtualizacaoPadrao());
         consultorias.saveAndFlush(c);
         return resposta(c);
     }
@@ -140,7 +149,7 @@ public class MarcaService {
     }
 
     private ConsultoriaResponse resposta(Consultoria c) {
-        return new ConsultoriaResponse(MarcaPublica.de(c), c.getVersao());
+        return new ConsultoriaResponse(MarcaPublica.de(c), c.getVersao(), c.getDiasAtualizacaoPadrao());
     }
 
     private Consultoria buscar(UUID consultoriaId) {

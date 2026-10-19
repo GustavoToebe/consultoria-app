@@ -92,7 +92,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
         valor={dias}
         aoMudar={(t) => setDias(t.replace(/\D/g, '').slice(0, 3))}
         erro={diasInvalidos ? 'Use de 1 a 365 dias.' : campos.diasAtualizacao}
-        ajuda="Ao criar uma pasta de plano, o fim do período já vem preenchido com esses dias (você pode mudar)."
+        ajuda="Ao criar uma pasta de plano, o fim do período já vem preenchido com esses dias (você pode mudar). Vazio usa o padrão da consultoria, se houver (Marca › Acompanhamento)."
         keyboardType="number-pad"
         inputMode="numeric"
         maxLength={3}
