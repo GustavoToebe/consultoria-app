@@ -1,8 +1,8 @@
 import type {
-  CondicaoPergunta, ConteudoQuestionario, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, SecaoAtualizacao, TipoPergunta,
+  CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, SecaoAtualizacao, TipoPergunta,
 } from '../api/tipos';
 import { mover, remover, substituir } from './editorTreino';
-import { controlaCondicao, LIMITES_QUESTIONARIO as L, temOpcoes, type ProblemaDoQuestionario } from './questionario';
+import { controlaCondicao, LIMITES_QUESTIONARIO as L, temOpcoes, TIPO_DO_DESTINO, type ProblemaDoQuestionario } from './questionario';
 import { novoUid } from './uid';
 
 /**
@@ -79,10 +79,10 @@ export function novaPergunta(tipo: TipoPergunta): PerguntaAtualizacao {
   return base;
 }
 
-/** Cópia com identificador novo na pergunta e em cada opção, para não colidir com a original. */
+/** Cópia com identificador novo na pergunta e em cada opção, para não colidir com a original. Sem destino no cadastro (é um por campo). */
 export function duplicarPergunta(p: PerguntaAtualizacao): PerguntaAtualizacao {
   return {
-    ...p, id: novoUid(), opcoes: p.opcoes?.map((o) => ({ ...o, id: novoUid() })), dias: p.dias ? [...p.dias] : undefined,
+    ...p, id: novoUid(), destino: undefined, destinoData: undefined, opcoes: p.opcoes?.map((o) => ({ ...o, id: novoUid() })), dias: p.dias ? [...p.dias] : undefined,
     linhas: p.linhas?.map((o) => ({ ...o, id: novoUid() })), colunas: p.colunas?.map((o) => ({ ...o, id: novoUid() })),
   };
 }
@@ -140,6 +140,8 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
           texto: p.tipo === 'ACEITE' ? (p.texto ?? '') : p.tipo === 'INFORMATIVO' ? texto(p.texto) : undefined,
           declaracao: p.tipo === 'ACEITE' ? (p.declaracao ?? '') : undefined,
           mostrarSe: p.mostrarSe,
+          destino: p.destino != null && destinoPossivel(p.tipo, finalidade) === p.destino ? p.destino : undefined,
+          destinoData: p.tipo === 'PESO' && p.destino === 'PESO' && finalidade === 'ANAMNESE' ? texto(p.destinoData) : undefined,
         };
       }),
     })),
@@ -296,3 +298,25 @@ export function textoDaCondicao(c: ConteudoQuestionario, condicao: CondicaoPergu
 /** Condição da seção. */
 export const alterarCondicaoDaSecao = (c: ConteudoQuestionario, secao: number, mostrarSe: CondicaoPergunta | undefined) =>
   ({ ...c, secoes: c.secoes.map((s, i) => (i === secao ? { ...s, mostrarSe } : s)) });
+
+/** Campo do cadastro que este tipo pode alimentar (só na anamnese): PESO → registro de peso, TEXTO → objetivo. */
+export function destinoPossivel(tipo: TipoPergunta, finalidade: FinalidadeQuestionario): DestinoNoPerfil | null {
+  if (finalidade !== 'ANAMNESE') return null;
+  const d = (Object.keys(TIPO_DO_DESTINO) as DestinoNoPerfil[]).find((x) => TIPO_DO_DESTINO[x] === tipo);
+  return d ?? null;
+}
+
+/** Ligar o destino nesta pergunta: só um por campo no questionário. */
+export function podeUsarDestino(c: ConteudoQuestionario, id: string, finalidade: FinalidadeQuestionario): Permissao {
+  const p = todas(c).find((x) => x.id === id);
+  const d = p ? destinoPossivel(p.tipo, finalidade) : null;
+  if (!p || !d) return { pode: false, motivo: 'Este tipo não alimenta o cadastro.' };
+  if (p.destino === d) return { pode: true };
+  return todas(c).some((x) => x.id !== id && x.destino === d)
+    ? { pode: false, motivo: 'Outra pergunta já alimenta este campo do cadastro.' } : { pode: true };
+}
+
+/** Perguntas que podem dar a data da pesagem: DATA "só hoje ou antes" (peso no futuro não existe no registro). */
+export function datasDaPesagem(c: ConteudoQuestionario): { id: string; rotulo: string }[] {
+  return todas(c).filter((x) => x.tipo === 'DATA' && x.somentePassado === true).map((x) => ({ id: x.id, rotulo: x.rotulo.trim() || 'Data sem texto' }));
+}

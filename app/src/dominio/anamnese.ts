@@ -1,6 +1,8 @@
-import type { AnamneseDetalhe, AnamneseResumo, SituacaoAnamnese } from '../api/tipos';
+import type {
+  AlteracaoDoCadastro, AnamneseDetalhe, AnamneseResumo, ConteudoQuestionario, DestinoNoPerfil, PerguntaAtualizacao, SituacaoAnamnese, ValorDoCadastro,
+} from '../api/tipos';
 import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
-import { dataParaTela } from './formatos';
+import { dataParaTela, numeroParaTela, SEM_DADO } from './formatos';
 
 /**
  * Regras de apresentação da anamnese (a decisão é sempre da API). Cor com significado: âmbar = falta alguém agir
@@ -40,4 +42,46 @@ export function respostasIniciais(anamnese: Pick<AnamneseDetalhe, 'situacao' | '
   if (anamnese.situacao !== 'PENDENTE') return { respostas: anamnese.respostas ?? {}, locais: {} as Record<string, string[]> };
   if (!rascunho || rascunho.questionarioVersaoId !== anamnese.questionarioVersaoId) return { respostas: {}, locais: {} as Record<string, string[]> };
   return { respostas: rascunho.respostas, locais: rascunho.fotosLocais ?? {} };
+}
+
+// ---------------------------------------------------------------- respostas que alimentam o cadastro (fase C)
+
+/**
+ * Texto para o aluno embaixo da pergunta com destino no cadastro: diz para onde a resposta vai e, no peso, **qual data**
+ * vale (a da pergunta indicada pelo treinador ou, sem ela, a do envio). Sem destino, nada.
+ */
+export function notaDoCadastro(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino' | 'destinoData'>, modelo: Pick<ConteudoQuestionario, 'secoes'>): string | null {
+  if (p.destino === 'OBJETIVO' && p.tipo === 'TEXTO') return 'Esta resposta vai para o objetivo do seu cadastro.';
+  if (p.destino !== 'PESO' || p.tipo !== 'PESO') return null;
+  const data = p.destinoData ? modelo.secoes.flatMap((s) => s.perguntas).find((x) => x.id === p.destinoData && x.tipo === 'DATA') : undefined;
+  return data
+    ? `Este peso vai para o seu histórico com a data respondida em “${data.rotulo.trim()}” (sem ela, a data do envio).`
+    : 'Este peso vai para o seu histórico com a data do envio.';
+}
+
+/** Nome do campo do cadastro, para a equipe. */
+export const ROTULO_DO_DESTINO: Record<DestinoNoPerfil, string> = { PESO: 'Peso', OBJETIVO: 'Objetivo' };
+
+/** Valor do cadastro em texto: "80,5 kg em 10/01/2026" ou o objetivo; ausente, "—". */
+export function textoDoValor(destino: DestinoNoPerfil, v: ValorDoCadastro | null | undefined): string {
+  if (!v) return SEM_DADO;
+  if (destino === 'OBJETIVO') return v.texto?.trim() || SEM_DADO;
+  if (v.pesoKg == null) return SEM_DADO;
+  const data = dataParaTela(v.data ?? null);
+  return `${numeroParaTela(v.pesoKg, 1)} kg${data ? ` em ${data}` : ''}`;
+}
+
+/** Selo de cada alteração: âmbar = falta a equipe decidir, verde = aplicada, cinza = descartada. */
+export function seloDaAlteracao(a: Pick<AlteracaoDoCadastro, 'situacao' | 'automatica'>): { texto: string; tipo: 'sucesso' | 'atencao' | 'neutro' } {
+  switch (a.situacao) {
+    case 'PENDENTE': return { texto: 'Para revisar', tipo: 'atencao' };
+    case 'APLICADA': return { texto: a.automatica ? 'Preenchido no envio' : 'Aplicada', tipo: 'sucesso' };
+    case 'DESCARTADA': return { texto: 'Descartada', tipo: 'neutro' };
+  }
+}
+
+/** "1 alteração para revisar" / "N alterações para revisar"; zero, nada. */
+export function textoParaRevisar(n: number | null | undefined): string | null {
+  if (!n) return null;
+  return n === 1 ? '1 alteração do cadastro para revisar' : `${n} alterações do cadastro para revisar`;
 }

@@ -20,7 +20,8 @@ import java.util.UUID;
 
 /**
  * Anamnese, lado da equipe. Ler exige {@code ANAMNESE_LER} e {@code ALUNO_SENSIVEL_LER} (respostas são dado sensível,
- * como as da atualização); atribuir, dispensar e marcar revisada exigem também {@code ANAMNESE_ALTERAR}.
+ * como as da atualização); atribuir, dispensar, marcar revisada e aplicar ou descartar as alterações do cadastro que a
+ * anamnese propôs exigem também {@code ANAMNESE_ALTERAR}.
  */
 @RestController
 public class AnamneseController {
@@ -58,6 +59,21 @@ public class AnamneseController {
     public AnamneseDetalhe dispensar(@PathVariable UUID id, @Valid @RequestBody DispensarRequest r,
                                      @AuthenticationPrincipal UsuarioAutenticado eu) {
         return anamneses.dispensar(id, r, eu.usuarioId());
+    }
+
+    /** A permissão do campo (peso e objetivo: {@code ALUNO_SENSIVEL_ALTERAR}) é conferida no serviço, por alteração. */
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/anamneses/{id}/alteracoes/{alteracaoId}/aplicar")
+    public AnamneseDetalhe aplicarAlteracao(@PathVariable UUID id, @PathVariable UUID alteracaoId,
+                                            @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return anamneses.aplicarAlteracao(id, alteracaoId, eu.usuarioId());
+    }
+
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/anamneses/{id}/alteracoes/{alteracaoId}/descartar")
+    public AnamneseDetalhe descartarAlteracao(@PathVariable UUID id, @PathVariable UUID alteracaoId,
+                                              @AuthenticationPrincipal UsuarioAutenticado eu) {
+        return anamneses.descartarAlteracao(id, alteracaoId, eu.usuarioId());
     }
 
     @PreAuthorize(ALTERAR)

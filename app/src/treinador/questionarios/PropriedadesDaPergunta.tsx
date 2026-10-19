@@ -6,7 +6,8 @@ import type { ConteudoQuestionario, FinalidadeQuestionario, OpcaoPergunta, Pergu
 import { ImagemDaPergunta } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { FotoRecusada } from '../../aluno/atualizacao/fotos/prepararFoto';
 import {
-  aceitaAjudaAutomatica, aceitaDestaque, aceitaObrigatoria, condicaoPara, controlesAnteriores, novaOpcao, podeDestacar, posicaoDaPergunta,
+  aceitaAjudaAutomatica, aceitaDestaque, aceitaObrigatoria, condicaoPara, controlesAnteriores, datasDaPesagem, destinoPossivel, novaOpcao,
+  podeDestacar, podeUsarDestino, posicaoDaPergunta,
 } from '../../dominio/editorQuestionario';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { LIMITES_QUESTIONARIO as L, temOpcoes } from '../../dominio/questionario';
@@ -47,7 +48,8 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
       : <Campo rotulo="Ajuda para o aluno (opcional)" valor={p.ajuda ?? ''} maxLength={L.ajudaTamanho} linhas={2} aoMudar={(ajuda) => aoMudar({ ajuda })} />}
     {aceitaObrigatoria(p.tipo) ? <Interruptor rotulo={p.tipo === 'GRADE' ? 'Obrigatória (todas as linhas)' : 'Obrigatória'} valor={p.obrigatoria}
       aoMudar={(obrigatoria) => aoMudar({ obrigatoria })} /> : null}
-    {p.tipo === 'PESO' ? <Texto variante="suave">{finalidade === 'ATUALIZACAO' ? 'A resposta vai para o registro de peso do aluno.' : 'Na anamnese, o peso fica só nas respostas (não entra no registro de peso).'}</Texto> : null}
+    {p.tipo === 'PESO' && finalidade === 'ATUALIZACAO' ? <Texto variante="suave">A resposta vai para o registro de peso do aluno.</Texto> : null}
+    {destinoPossivel(p.tipo, finalidade) ? <DestinoNoCadastro pergunta={p} conteudo={conteudo} finalidade={finalidade} aoMudar={aoMudar} /> : null}
     {p.tipo === 'DATA_AUTOMATICA' ? <Texto variante="suave">Mostra a data da atualização; o aluno não responde.</Texto> : null}
     {p.tipo === 'FOTOS' ? <Texto variante="suave">O aluno anexa até 6 fotos. Elas só aparecem para você depois do envio, e só com o envio de fotos ligado no servidor.</Texto> : null}
     {p.tipo === 'DATA' ? <Interruptor rotulo="Só hoje ou antes (ex.: nascimento, última pesagem)" valor={p.somentePassado === true}
@@ -89,6 +91,43 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
     <ImagemDoItem imagemId={p.imagemId} rotulo={p.tipo === 'INFORMATIVO' ? 'Imagem (opcional)' : 'Imagem de referência (opcional)'}
       aoMudar={(imagemId) => aoMudar({ imagemId })} />
     <EditorDeCondicao conteudo={conteudo} perguntaId={p.id} condicao={p.mostrarSe} aoMudar={(mostrarSe) => aoMudar({ mostrarSe })} />
+  </View>;
+}
+
+const SEM_DATA = '__envio__';
+
+/**
+ * "Guardar no cadastro do aluno" (só na anamnese): peso → registro de peso, texto curto → objetivo. Campo vazio é
+ * preenchido no envio; com outro valor, a mudança fica para a equipe revisar na ficha. No peso, escolhe a data: a de
+ * uma pergunta de data "só hoje ou antes" ou a do envio (o aluno vê qual vale).
+ */
+function DestinoNoCadastro({ pergunta: p, conteudo, finalidade, aoMudar }: {
+  pergunta: PerguntaAtualizacao; conteudo: ConteudoQuestionario; finalidade: FinalidadeQuestionario;
+  aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void;
+}) {
+  const destino = destinoPossivel(p.tipo, finalidade);
+  const permissao = podeUsarDestino(conteudo, p.id, finalidade);
+  if (!destino) return null;
+  const ligado = p.destino === destino;
+  const peso = destino === 'PESO';
+  const datas = datasDaPesagem(conteudo);
+  const dataEscolhida = datas.find((d) => d.id === p.destinoData);
+  const rotulo = peso ? 'Guardar no registro de peso do aluno' : 'Guardar no objetivo do cadastro do aluno';
+  if (!ligado && !permissao.pode) return <Texto variante="pequeno">{permissao.motivo}</Texto>;
+  return <View style={estilos.bloco}>
+    <Interruptor rotulo={rotulo} valor={ligado} aoMudar={(ligar) => aoMudar({ destino: ligar ? destino : undefined, destinoData: undefined })}
+      ajuda={peso ? 'Sem peso na data, entra no registro. Com outro peso na mesma data, nada é trocado: a mudança fica para você revisar na ficha.'
+        : `Até ${L.objetivoTamanho} caracteres. Objetivo vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.`} />
+    {ligado && peso ? <>
+      <EscolhaEmFolha rotulo="Data da pesagem" titulo="Data da pesagem" valor={dataEscolhida ? dataEscolhida.id : SEM_DATA}
+        opcoes={[{ valor: SEM_DATA, rotulo: 'Data do envio' }, ...datas.map((d) => ({ valor: d.id, rotulo: d.rotulo }))]}
+        aoMudar={(id) => aoMudar({ destinoData: id === SEM_DATA ? undefined : id })} />
+      <Texto variante="pequeno">{dataEscolhida
+        ? `O peso entra com a data respondida em “${dataEscolhida.rotulo}”; sem resposta, com a data do envio. O aluno vê isso embaixo da pergunta.`
+        : datas.length ? 'O peso entra com a data do envio. O aluno vê isso embaixo da pergunta.'
+          : 'O peso entra com a data do envio. Para usar a data da pesagem, adicione uma pergunta de data com “Só hoje ou antes”.'}</Texto>
+      {p.destinoData && !dataEscolhida ? <Texto variante="pequeno">A data escolhida antes não é mais uma pergunta de data só no passado. Escolha outra.</Texto> : null}
+    </> : null}
   </View>;
 }
 

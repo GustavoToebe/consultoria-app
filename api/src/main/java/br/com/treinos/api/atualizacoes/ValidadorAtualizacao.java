@@ -145,8 +145,7 @@ public class ValidadorAtualizacao {
         return switch (tipo) {
             case "NOTA" -> nota(v);
             case "PESO" -> v.isNumber() && v.asDouble() >= 20 && v.asDouble() <= 400 && v.decimalValue().stripTrailingZeros().scale() <= 1;
-            case "TEXTO", "TEXTO_LONGO" -> v.isString() && v.asString().length() <= ("TEXTO".equals(tipo)
-                    ? LimitesQuestionario.TEXTO_CURTO_CAPACIDADE : LimitesQuestionario.TEXTO_LONGO_CAPACIDADE);
+            case "TEXTO", "TEXTO_LONGO" -> v.isString() && v.asString().length() <= tamanhoDoTexto(tipo, p);
             case "NOTAS_POR_DIA" -> v.isObject() && v.properties().stream().allMatch(e ->
                     p.path("dias").valueStream().anyMatch(d -> String.valueOf(d.asInt()).equals(e.getKey()))
                             && (e.getValue().isNull() || nota(e.getValue())));
@@ -163,6 +162,14 @@ public class ValidadorAtualizacao {
             case "ACEITE" -> v.isBoolean() && v.asBoolean();
             default -> false;
         };
+    }
+
+    /** O texto que vai para o objetivo do cadastro cabe nele (anamnese com destino OBJETIVO). */
+    private static int tamanhoDoTexto(String tipo, JsonNode p) {
+        if ("OBJETIVO".equals(p.path("destino").asString(""))) {
+            return LimitesQuestionario.OBJETIVO_TAMANHO;
+        }
+        return "TEXTO".equals(tipo) ? LimitesQuestionario.TEXTO_CURTO_CAPACIDADE : LimitesQuestionario.TEXTO_LONGO_CAPACIDADE;
     }
 
     /** AAAA-MM-DD de verdade (sem 31/02), entre 1900 e 2100; com {@code somentePassado}, até hoje. */
