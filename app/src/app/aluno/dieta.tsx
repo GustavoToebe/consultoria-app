@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { SeletorPlano } from '../../aluno/SeletorPlano';
+import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { ErroApi } from '../../api/cliente';
-import { dietaAluno, pesosAluno } from '../../api/rotas';
+import { pesosAluno } from '../../api/rotas';
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
-import { normalizarDieta, somar, totalDoDia } from '../../dominio/dieta';
+import { normalizarDieta, somar, textoDaAgua, totalDoDia } from '../../dominio/dieta';
 import { ergogenicosPreenchidos } from '../../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { linkParaAbrir } from '../../dominio/links';
@@ -32,25 +33,14 @@ import { textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
-import { useCarregar } from '../../ui/useCarregar';
 
 /**
  * Dieta publicada (só leitura). Busca online; sem conexão mostra a última vista neste aparelho, avisando que pode
  * estar desatualizada.
  */
 export default function DietaAluno() {
-  const { repositorio, escolhida } = useAluno();
-  const { dados, erro, carregando, recarregar } = useCarregar('dieta-aluno', async () => {
-    try {
-      const { dieta } = await dietaAluno();
-      await repositorio.salvarDieta(dieta);
-      return { dieta, salva: false };
-    } catch (e) {
-      const salva = e instanceof ErroApi && e.semConexao ? await repositorio.lerDieta() : null;
-      if (salva) return { dieta: salva, salva: true };
-      throw e;
-    }
-  });
+  const { escolhida } = useAluno();
+  const { dados, erro, carregando, recarregar } = useDietaDoAluno();
 
   return (
     <Tela bordas={['top']} largura={720}>
@@ -117,6 +107,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
       <Cartao>
         <Texto numerico variante="subtitulo">{versao.titulo}</Texto>
         {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
+        {textoDaAgua(c.aguaLitros) ? <Texto numerico>Água: {textoDaAgua(c.aguaLitros)}</Texto> : null}
         <Texto numerico variante="suave">
           {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
         </Texto>

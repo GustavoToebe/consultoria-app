@@ -378,6 +378,8 @@ export interface ConteudoDieta {
   suplementacao: Suplemento[];
   /** Nulo para quem não tem ERGOGENICO_LER (a API não envia) e em modelos; lista para quem vê. */
   ergogenicos: ItemErgogenico[] | null;
+  /** Água por dia que o treinador escreveu (0,1 a 20 L); nulo não aparece. Nada é calculado. */
+  aguaLitros: number | null;
 }
 
 /** Mobilidade como a API entrega (campos de texto opcionais vêm nulos); o editor usa `dominio/mobilidade`. */

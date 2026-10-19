@@ -6,9 +6,11 @@ import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { CartaoDivisao, CartaoDivisaoLeitura } from '../../aluno/CartaoDivisao';
+import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import { caminhoDaSessao } from '../../aluno/useSessaoDoDia';
+import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import type { Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataHoraParaTela, dataParaTela, diaDaSemana, hojeIso } from '../../dominio/formatos';
@@ -37,6 +39,7 @@ export default function TreinoAluno() {
   const animar = usePrimeiraLista(!!pacote);
   const { avisar } = useAviso();
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const dietaVigente = useDietaDoAluno().dados?.dieta;
   const hoje = hojeIso();
   // Outro plano escolhido no seletor: só consulta (o registro das séries é do plano vigente).
   const somenteLeitura = !!escolhida;
@@ -96,6 +99,7 @@ export default function TreinoAluno() {
       <Texto variante="suave">Seu treino da semana: abra o de hoje e registre carga e repetições. Funciona sem internet.</Texto>
       <SeletorPlano rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} />
       <CartaoAtualizacao />
+      <CartaoDietaDoInicio versao={escolhida ? escolhida.planos.dieta : dietaVigente} />
       {!treino || !conteudo ? (
         <Vazio
           titulo={escolhida ? 'Sem treino neste plano' : 'Sem plano de treino'}

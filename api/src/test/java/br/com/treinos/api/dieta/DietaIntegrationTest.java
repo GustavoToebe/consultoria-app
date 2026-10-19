@@ -55,7 +55,7 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
                         new Item(UUID.randomUUID(), null, "Legumes", new BigDecimal("100"), "g", new BigDecimal("45"),
                                 null, null, null, true)))))),
                 List.of(new ConteudoDieta.Orientacao("Hidratação", "3 a 4 litros de água")),
-                "Texto livre", List.of());
+                "Texto livre", List.of(), null, new BigDecimal("3.5"));
         JsonNode salvo = api.put("/planos-dieta/" + id + "/rascunho", treinador,
                 ApiDeTeste.rascunho("Dieta de teste", conteudo, plano.get("plano").get("versao").asLong()), 200);
         assertThat(api.post("/planos-dieta/" + id + "/validar", treinador, null, 200).get("erros")).isEmpty();
@@ -66,6 +66,32 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
         assertThat(dieta.get("numero").asInt()).isEqualTo(1);
         assertThat(dieta.get("conteudo").get("refeicoes").get(0).get("opcoes")).hasSize(2);
         assertThat(dieta.get("conteudo").get("suplementacao")).isEmpty();
+        // A água por dia é só o número que o treinador escreveu, e chega igual ao aluno.
+        assertThat(dieta.get("conteudo").get("aguaLitros").decimalValue()).isEqualByComparingTo("3.5");
+    }
+
+    @Test
+    void aguaPorDiaForaDaFaixaOuComMaisDeUmaCasaNaoPublica() throws Exception {
+        ApiDeTeste api = new ApiDeTeste(mvc, json);
+        JsonNode treinador = api.novoTreinador();
+        UUID aluno = api.criarAluno(treinador, "Aluno Fictício");
+        JsonNode plano = api.post("/alunos/" + aluno + "/planos-dieta", treinador, Map.of("titulo", "Dieta"), 200);
+        String id = plano.get("plano").get("id").asString();
+        long versao = plano.get("plano").get("versao").asLong();
+        List<Refeicao> refeicoes = List.of(refeicao("Almoço", "12:00", List.of(
+                new Opcao(UUID.randomUUID(), "A", List.of(item("Arroz branco cozido", "150", "191.7"))))));
+        for (String agua : List.of("0.05", "21", "2.25")) {
+            ConteudoDieta conteudo = new ConteudoDieta(null, null, null, refeicoes, List.of(), null, List.of(), null,
+                    new BigDecimal(agua));
+            versao = api.put("/planos-dieta/" + id + "/rascunho", treinador,
+                    ApiDeTeste.rascunho("Dieta", conteudo, versao), 200).get("plano").get("versao").asLong();
+            JsonNode v = api.post("/planos-dieta/" + id + "/validar", treinador, null, 200);
+            assertThat(v.get("erros").valueStream().map(e -> e.get("caminho").asString())).containsExactly("aguaLitros");
+        }
+        ConteudoDieta certa = new ConteudoDieta(null, null, null, refeicoes, List.of(), null, List.of(), null,
+                new BigDecimal("20"));
+        api.put("/planos-dieta/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Dieta", certa, versao), 200);
+        assertThat(api.post("/planos-dieta/" + id + "/validar", treinador, null, 200).get("erros")).isEmpty();
     }
 
     @Test

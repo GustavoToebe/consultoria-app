@@ -1,4 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../api/tipos';
+import { numeroParaTela } from './formatos';
 import { novoUid } from './uid';
 
 /**
@@ -131,6 +132,7 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
     })),
     orientacoes: (c.orientacoes ?? []).map((o) => ({ titulo: o.titulo ?? '', texto: o.texto ?? '' })),
     observacoes: c.observacoes ?? null,
+    aguaLitros: c.aguaLitros ?? null,
     suplementacao: (c.suplementacao ?? []).map((s) => ({
       uid: s.uid ?? novoUid(),
       nome: s.nome ?? '',
@@ -166,4 +168,28 @@ export function aplicarReceitaDeDieta(atual: ConteudoDieta, receita: unknown): C
       opcoes: r.opcoes.map((o) => ({ ...o, uid: novoUid(), itens: o.itens.map((i) => ({ ...i, uid: novoUid() })) })),
     })),
   };
+}
+
+/** Faixa da água por dia aceita pelo servidor (`ValidadorDieta`): de 0,1 a 20 L, no máximo uma casa decimal. */
+export const AGUA_MINIMA = 0.1;
+export const AGUA_MAXIMA = 20;
+
+/** Água vazia é válida (não aparece); preenchida, fica na faixa e com uma casa decimal no máximo. */
+export function aguaValida(litros: number | null): boolean {
+  if (litros == null) return true;
+  return litros >= AGUA_MINIMA && litros <= AGUA_MAXIMA && Math.abs(Math.round(litros * 10) - litros * 10) < 1e-9;
+}
+
+/** "3,5 L por dia" (o número que o treinador escreveu); sem água, `null` e nada aparece. */
+export function textoDaAgua(litros: number | null | undefined): string | null {
+  if (litros == null) return null;
+  return `${numeroParaTela(litros, 1)} L por dia`;
+}
+
+/** Linha do cartão da dieta no início do aluno: "5 refeições · Água: 3,5 L por dia" (sem água, só as refeições). */
+export function resumoDaDietaNoInicio(c: ConteudoDieta): string {
+  const n = c.refeicoes.length;
+  const refeicoes = `${n} ${n === 1 ? 'refeição' : 'refeições'}`;
+  const agua = textoDaAgua(c.aguaLitros);
+  return agua ? `${refeicoes} · Água: ${agua}` : refeicoes;
 }

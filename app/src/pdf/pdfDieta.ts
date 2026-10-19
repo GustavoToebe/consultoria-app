@@ -1,5 +1,5 @@
 import type { ConteudoDieta, ItemDieta, Marca, RegistroPeso, Suplemento } from '../api/tipos';
-import { somar, totalDoDia, type Totais } from '../dominio/dieta';
+import { somar, textoDaAgua, totalDoDia, type Totais } from '../dominio/dieta';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
@@ -84,6 +84,7 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
     ['Nome', d.aluno],
     ['Objetivo', c.objetivo],
     ['Data Início', dataParaTela(c.dataInicio)],
+    ...(textoDaAgua(c.aguaLitros) ? [['Água', textoDaAgua(c.aguaLitros)]] : []),
     ['Emitido em', dataParaTela(d.emitidoEm.toISOString().slice(0, 10))],
   ]
     .map(([r, v]) => `<tr><td>${esc(r)}</td><td>${esc(v || '—')}</td></tr>`)

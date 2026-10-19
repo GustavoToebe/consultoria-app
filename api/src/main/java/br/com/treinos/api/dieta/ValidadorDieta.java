@@ -24,6 +24,8 @@ import java.util.stream.Stream;
 public class ValidadorDieta {
 
     private static final BigDecimal MAXIMO = new BigDecimal("99999");
+    private static final BigDecimal AGUA_MINIMA = new BigDecimal("0.1");
+    private static final BigDecimal AGUA_MAXIMA = new BigDecimal("20");
 
     public ResultadoValidacao validar(ConteudoDieta conteudo, LocalDate inicio, LocalDate fim) {
         ResultadoValidacao.Coletor c = new ResultadoValidacao.Coletor();
@@ -85,6 +87,11 @@ public class ValidadorDieta {
             if (ergogenicos.get(e).nome() == null || ergogenicos.get(e).nome().isBlank()) {
                 c.erro(ce + ".nome", "Item de medicação sem nome.");
             }
+        }
+        BigDecimal agua = conteudo.aguaLitros();
+        if (agua != null && (agua.compareTo(AGUA_MINIMA) < 0 || agua.compareTo(AGUA_MAXIMA) > 0
+                || agua.stripTrailingZeros().scale() > 1)) {
+            c.erro("aguaLitros", "Água por dia entre 0,1 e 20 litros, com no máximo uma casa decimal.");
         }
         if (!refeicoes.isEmpty() && kcalDoDia.signum() == 0) {
             c.aviso("refeicoes", "O total do dia (opção A de cada refeição) está com 0 kcal.");
