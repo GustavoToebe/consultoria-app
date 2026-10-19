@@ -13,9 +13,10 @@ import java.net.URI;
  * @param siteKey chave pública do widget (vai ao app pela rota pública de configuração)
  * @param segredo segredo do widget, só no servidor
  * @param verifyUrl endereço do siteverify (o da Cloudflare por padrão; os testes apontam para um servidor local)
+ * @param hostname site em que o token precisa ter sido resolvido; vazio = o host do {@code APP_URL}
  */
 @ConfigurationProperties("treinos.turnstile")
-public record TurnstileProperties(boolean habilitado, String siteKey, String segredo, String verifyUrl) {
+public record TurnstileProperties(boolean habilitado, String siteKey, String segredo, String verifyUrl, String hostname) {
 
     static final String VERIFY_URL_PADRAO = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
@@ -23,6 +24,7 @@ public record TurnstileProperties(boolean habilitado, String siteKey, String seg
         siteKey = limpar(siteKey);
         segredo = limpar(segredo);
         verifyUrl = limpar(verifyUrl).isEmpty() ? VERIFY_URL_PADRAO : limpar(verifyUrl);
+        hostname = limpar(hostname);
     }
 
     /** Falha a subida, dizendo só o NOME da variável que falta (nunca o valor). */
