@@ -50,26 +50,59 @@ iOS (`--profile preview --platform ios`) exige conta paga no Apple Developer e q
 
 ## 3. O que testar no celular
 
-Use um aluno e um treinador de teste (dados fictícios).
+Use um aluno e um treinador de teste (dados fictícios). Marque cada item; anote o modelo do celular e a versão do Android.
+Teste também num celular simples (pouca memória): abrir o app, trocar de aba e rolar a lista do dia não devem travar.
 
-1. **Entrar, com e sem o Turnstile ligado.** O Turnstile é `TREINOS_TURNSTILE_HABILITADO` na API (`docs/turnstile.md`).
+### Antes de começar
+- [ ] Instalar o APK, abrir e ver a tela Entrar no tema do aparelho (claro ou escuro).
+- [ ] No treinador (web), convidar o aluno de teste e abrir o link do convite no celular: o código some do endereço e o
+  aceite cria a conta.
+
+### Entrar e sessão
+1. [ ] **Entrar, com e sem o Turnstile ligado.** O Turnstile é `TREINOS_TURNSTILE_HABILITADO` na API (`docs/turnstile.md`).
    - Desligado: entrar direto.
    - Ligado: o desafio aparece dentro do app (WebView), o botão só libera depois de resolver, e depois de cada envio o
      desafio renova. É o ponto que **nunca foi visto num aparelho**: conferir se o widget aparece inteiro, se não fica
      transparente nem cortado, se resolve de verdade e se o login passa. Se o widget não carregar, o login deve dar
-     erro claro, nunca ficar travado. Conferir também o "esqueci a senha" e o cadastro de treinador.
-2. **Sessão derrubada sem perder treino** (sessão 20): registrar uma série sem internet, derrubar a sessão (entrar na
-   web com a mesma conta e sair, ou revogar no servidor), voltar para a internet com o app aberto. O app volta para
-   "Entrar"; ao entrar com o **mesmo aluno**, o treino registrado deve aparecer e ser enviado. Entrar com **outro** aluno
-   não envia nada do primeiro.
-3. **Fotos da atualização** (com `TREINOS_FOTOS_HABILITADO=true`): pedir a permissão da câmera, tirar uma foto, escolher
-   da galeria, anexar sem internet e enviar depois. A foto não deve aparecer na galeria do celular.
-4. **Registro offline e envio**: ligar o modo avião, registrar carga e repetições, fechar e abrir o app (os registros
-   continuam), desligar o modo avião e conferir o selo de sincronização e o registro no treinador.
-5. **PDF** (treino, dieta, cargas): gerar e abrir o compartilhar do celular.
-6. **Lembretes da atualização** (3 dias antes, no dia, 1 dia depois, às 9h): aceitar a permissão de notificações e conferir
-   que elas chegam; negar a permissão e conferir que o app segue funcionando.
-7. Tema claro/escuro, abrir um link de vídeo (abre fora do app) e sair da conta.
+     erro claro, nunca ficar travado. Conferir também o "esqueci a senha".
+2. [ ] **Esqueci a senha** (com `TREINOS_EMAIL_HABILITADO=true`): pedir o link, abrir o e-mail no celular, trocar a senha e
+   entrar com a nova.
+3. [ ] **Passeio pelo menu** no primeiro acesso, logo depois de aceitar os termos: a tela escurece, cada item da barra de
+   baixo fica em destaque, Pular/Anterior/Próximo funcionam e o balão não sai da tela (girar o celular também). Sair e
+   entrar de novo não mostra outra vez; Ajuda › "Rever o passeio" mostra. Fazer com o aluno e com o treinador.
+4. [ ] **Sessão derrubada sem perder treino**: registrar uma série sem internet, derrubar a sessão (entrar na web com a
+   mesma conta e trocar a senha), voltar para a internet com o app aberto. O app volta para "Entrar"; ao entrar com o
+   **mesmo aluno**, o treino registrado deve aparecer e ser enviado. Entrar com **outro** aluno não envia nada do primeiro.
+
+### Treino do aluno
+5. [ ] **Início:** cartão "Hoje" na cor da marca e, se houver dieta publicada, o cartão "Dieta" com as refeições e a água.
+6. [ ] **Dia de treino:** a tela não apaga enquanto está aberta; −/+ da carga sobem e descem pelo arredondamento da
+   metodologia; "Repetir a série anterior" copia carga e repetições; o descanso começa sozinho ao marcar a série (só se o
+   treinador pôs "Descanso" no grupo) e vibra no fim.
+7. [ ] **Andar fora de ordem:** "Próximo", "Anterior" e "Lista do dia" no rodapé, inclusive no último exercício.
+8. [ ] **Cluster e rest pause:** o texto por extenso aparece antes das séries ("3 blocos de 2 repetições…").
+9. [ ] **Registro offline e envio**: ligar o modo avião, registrar carga e repetições, fechar e abrir o app (os registros
+   continuam), desligar o modo avião e conferir o selo de sincronização e o registro na ficha do treinador.
+10. [ ] **Mobilidade:** a aba aparece só com mobilidade publicada; o vídeo abre fora do app.
+
+### Fotos
+11. [ ] **Foto de perfil:** Conta › Foto de perfil › "Escolher foto" (pede a permissão da galeria) e "Tirar foto" (pede a da
+    câmera). A foto aparece na Conta, ao lado do "Olá" e na ficha do aluno no treinador. "Remover" pede confirmação e
+    volta às iniciais. A foto **não** deve aparecer na galeria do celular. Sem internet: aviso de erro, nada trava.
+12. [ ] **Fotos da atualização** (com `TREINOS_FOTOS_HABILITADO=true`): tirar uma foto, escolher da galeria, anexar sem
+    internet e enviar depois. A foto não deve aparecer na galeria do celular; o treinador vê no detalhe da atualização.
+13. [ ] **Negar as permissões** de câmera e galeria: o app avisa e segue funcionando.
+
+### Atualização, PDF e avisos
+14. [ ] **Atualização:** responder o questionário, sair no meio (o rascunho fica), voltar e enviar.
+15. [ ] **Lembretes da atualização** (3 dias antes, no dia, 1 dia depois, às 9h): aceitar a permissão de notificações e
+    conferir que chegam; negar a permissão e conferir que o app segue funcionando.
+16. [ ] **PDF** (treino, dieta com a água, mobilidade, cargas): gerar e abrir o compartilhar do celular.
+
+### Fim
+17. [ ] Perfil › Preferências: tema claro/escuro, tamanho do texto e vibração.
+18. [ ] **Sair da conta** com treino não enviado: o painel avisa "Você tem N treinos ainda não enviados".
+19. [ ] Abrir o app sem internet depois de já ter entrado: o plano aparece (modo offline).
 
 Qualquer erro: `npx eas-cli build:list` e o log da build no site da Expo; erro do app em execução, `adb logcat`.
 
