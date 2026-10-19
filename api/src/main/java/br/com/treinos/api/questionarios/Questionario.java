@@ -2,6 +2,8 @@ package br.com.treinos.api.questionarios;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -15,8 +17,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Questionário de atualização de uma consultoria: o rascunho é editável; publicar cria uma {@link QuestionarioVersao}
- * imutável. Um por consultoria é o padrão (sempre publicado e ativo).
+ * Questionário de uma consultoria, de atualização ou de anamnese ({@link Finalidade}, fixa desde a criação): o rascunho é
+ * editável; publicar cria uma {@link QuestionarioVersao} imutável. Um por consultoria e finalidade é o padrão (sempre
+ * publicado e ativo).
  */
 @Entity
 @Table(name = "questionario")
@@ -34,6 +37,10 @@ public class Questionario {
     private String nome;
 
     private String descricao;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false)
+    private Finalidade finalidade = Finalidade.ATUALIZACAO;
 
     @Column(nullable = false)
     private boolean padrao;
@@ -65,6 +72,11 @@ public class Questionario {
 
     /** Questionário novo: só rascunho (sem versão publicada), nunca padrão. */
     public Questionario(String nome, String descricao, String rascunho) {
+        this(nome, descricao, rascunho, Finalidade.ATUALIZACAO);
+    }
+
+    public Questionario(String nome, String descricao, String rascunho, Finalidade finalidade) {
+        this.finalidade = finalidade;
         this.nome = nome;
         this.descricao = descricao;
         this.rascunho = rascunho;
@@ -96,6 +108,7 @@ public class Questionario {
     public UUID getConsultoriaId() { return consultoriaId; }
     public String getNome() { return nome; }
     public String getDescricao() { return descricao; }
+    public Finalidade getFinalidade() { return finalidade; }
     public boolean isPadrao() { return padrao; }
     public boolean isArquivado() { return arquivado; }
     public String getRascunho() { return rascunho; }

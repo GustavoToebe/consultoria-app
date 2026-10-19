@@ -10,7 +10,10 @@ import org.junit.jupiter.api.TestFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import br.com.treinos.api.web.Fuso;
+
 import java.io.IOException;
+import java.time.LocalDate;
 import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -70,6 +73,20 @@ class ParidadeQuestionarioTest {
         daqui.put("idTamanho", LimitesQuestionario.ID_TAMANHO);
         daqui.put("numeroAbsoluto", LimitesQuestionario.NUMERO_ABSOLUTO);
         daqui.put("fotosPorPergunta", LimitesQuestionario.FOTOS_POR_PERGUNTA);
+        daqui.put("linhasMinimo", LimitesQuestionario.LINHAS_MINIMO);
+        daqui.put("linhasMaximo", LimitesQuestionario.LINHAS_MAXIMO);
+        daqui.put("colunasMinimo", LimitesQuestionario.COLUNAS_MINIMO);
+        daqui.put("colunasMaximo", LimitesQuestionario.COLUNAS_MAXIMO);
+        daqui.put("textoInformativoTamanho", LimitesQuestionario.TEXTO_INFORMATIVO_TAMANHO);
+        daqui.put("declaracaoTamanho", LimitesQuestionario.DECLARACAO_TAMANHO);
+        daqui.put("telefoneTamanho", LimitesQuestionario.TELEFONE_TAMANHO);
+        daqui.put("telefoneDigitosMinimo", LimitesQuestionario.TELEFONE_DIGITOS_MINIMO);
+        daqui.put("telefoneDigitosMaximo", LimitesQuestionario.TELEFONE_DIGITOS_MAXIMO);
+        daqui.put("emailTamanho", LimitesQuestionario.EMAIL_TAMANHO);
+        daqui.put("dataAnoMinimo", LimitesQuestionario.DATA_ANO_MINIMO);
+        daqui.put("dataAnoMaximo", LimitesQuestionario.DATA_ANO_MAXIMO);
+        daqui.put("imagemBytes", LimitesQuestionario.IMAGEM_BYTES);
+        daqui.put("imagemLado", LimitesQuestionario.IMAGEM_LADO);
 
         JsonNode fixture = fixture("limites.json");
         Map<String, Integer> esperado = new LinkedHashMap<>();
@@ -81,7 +98,8 @@ class ParidadeQuestionarioTest {
     Stream<DynamicTest> questionarios() throws IOException {
         return fixture("questionarios.json").valueStream().map(caso -> DynamicTest.dynamicTest(caso.path("nome").asString(), () -> {
             ConteudoQuestionario conteudo = json.treeToValue(caso.path("conteudo"), ConteudoQuestionario.class);
-            ResultadoValidacao r = validador.validar(conteudo);
+            Finalidade finalidade = Finalidade.valueOf(caso.path("finalidade").asString("ATUALIZACAO"));
+            ResultadoValidacao r = validador.validar(conteudo, finalidade);
             assertThat(new TreeSet<>(r.erros().stream().map(ResultadoValidacao.Problema::caminho).toList()))
                     .as("erros").containsExactlyElementsOf(new TreeSet<>(lista(caso.path("erros"))));
             assertThat(r.avisos().stream().map(ResultadoValidacao.Problema::caminho).toList())
@@ -94,12 +112,19 @@ class ParidadeQuestionarioTest {
         return fixture("respostas.json").valueStream().map(caso -> DynamicTest.dynamicTest(caso.path("nome").asString(), () -> {
             TreeSet<String> esperado = new TreeSet<>(lista(caso.path("camposComErro")));
             TreeSet<String> obtido = new TreeSet<>();
+            LocalDate hoje = caso.path("hoje").isString() ? LocalDate.parse(caso.path("hoje").asString()) : LocalDate.now(Fuso.BRASILIA);
+            JsonNode aceitas = null;
             try {
-                respostas.validar(caso.path("modelo"), caso.path("respostas"), caso.path("fotosLigadas").asBoolean(true));
+                aceitas = respostas.validar(caso.path("modelo"), caso.path("respostas"), caso.path("fotosLigadas").asBoolean(true),
+                        "ATUALIZACAO_INVALIDA", hoje);
             } catch (ValidacaoException e) {
                 e.getProblemas().stream().map(ApiError.FieldError::field).forEach(obtido::add);
             }
             assertThat(obtido).containsExactlyElementsOf(esperado);
+            if (caso.has("chavesAceitas")) {
+                assertThat(aceitas).as("sem erro").isNotNull();
+                assertThat(new TreeSet<>(aceitas.propertyNames())).containsExactlyElementsOf(new TreeSet<>(lista(caso.path("chavesAceitas"))));
+            }
         }));
     }
 }

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-/** Fotos da atualização, lado do treinador: mesma permissão do detalhe da atualização, e a foto precisa ser dela. */
+/** Fotos da atualização e da anamnese, lado do treinador: mesma permissão do detalhe, e a foto precisa ser dele. */
 @RestController
 public class FotoTreinadorController {
 
@@ -22,5 +22,11 @@ public class FotoTreinadorController {
     @GetMapping("/atualizacoes/{atualizacaoId}/fotos/{fotoId}")
     public ResponseEntity<byte[]> ver(@PathVariable UUID atualizacaoId, @PathVariable UUID fotoId) {
         return RespostaDeFoto.de(fotos.lerDoTreinador(atualizacaoId, fotoId));
+    }
+
+    @PreAuthorize("hasAuthority('PERM_ANAMNESE_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')")
+    @GetMapping("/anamneses/{anamneseId}/fotos/{fotoId}")
+    public ResponseEntity<byte[]> verDaAnamnese(@PathVariable UUID anamneseId, @PathVariable UUID fotoId) {
+        return RespostaDeFoto.de(fotos.lerDaAnamnese(anamneseId, fotoId));
     }
 }

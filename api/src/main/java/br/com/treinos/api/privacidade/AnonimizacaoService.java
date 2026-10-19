@@ -30,7 +30,7 @@ import java.util.UUID;
 
 /**
  * Anonimização do aluno que saiu (LGPD). Só aluno já inativo; o servidor confere o nome digitado. Apaga o que é pessoal
- * ou sensível (peso, lesões, respostas e feedback das atualizações, observações das séries, dieta inteira, nome, e-mail,
+ * ou sensível (peso, lesões, respostas e feedback das atualizações, respostas das anamneses, observações das séries, dieta inteira, nome, e-mail,
  * senha, convite e sessões) e mantém pastas, treinos e registros (carga e repetições) para as contagens. Sem volta:
  * o cadastro anonimizado não é editado nem reativado. Nada disso vai a log ou à auditoria, que grava um resumo fixo.
  */
@@ -49,12 +49,15 @@ public class AnonimizacaoService {
     private final AnonimizacaoRepositorio nativo;
     private final FotoService fotos;
     private final FotoPerfilService fotoPerfil;
+    private final br.com.treinos.api.anamneses.AnamneseService anamneses;
 
     public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
                                LesaoRepository lesoes, AtualizacaoRepository atualizacoes, PlanoDietaRepository dietas,
                                PlanoDietaVersaoRepository versoesDeDieta, AnonimizacaoRepositorio nativo,
-                               FotoService fotos, FotoPerfilService fotoPerfil) {
+                               FotoService fotos, FotoPerfilService fotoPerfil,
+                               br.com.treinos.api.anamneses.AnamneseService anamneses) {
+        this.anamneses = anamneses;
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
@@ -89,6 +92,7 @@ public class AnonimizacaoService {
         pesos.deleteAll(pesos.findByAlunoIdOrderByDataAsc(alunoId));
         lesoes.deleteAll(lesoes.findByAlunoIdOrderByDataInicioDescCriadoEmDesc(alunoId));
         atualizacoes.findByAlunoIdOrderByDataAtualizacaoDesc(alunoId).forEach(a -> a.limparDadosPessoais());
+        anamneses.anonimizarDoAluno(alunoId);
         for (var plano : dietas.findByAlunoIdOrderByCriadoEmDesc(alunoId)) {
             versoesDeDieta.deleteAll(versoesDeDieta.findByPlanoIdOrderByNumeroAsc(plano.getId()));
         }

@@ -4380,6 +4380,1680 @@
   "avisos": []
  },
  {
+  "nome": "anamnese_sem_peso_nao_avisa",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "anamnese_com_peso_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "anamnese_data_automatica",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA_AUTOMATICA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].tipo"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "anamnese_ajuda_automatica",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "ajudaAutomatica": "MEDIA_DIAS_TREINO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].ajudaAutomatica"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "tipos_novos_validos",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "nasc",
+       "tipo": "DATA",
+       "rotulo": "Pergunta nasc",
+       "obrigatoria": false,
+       "somentePassado": true
+      },
+      {
+       "id": "fone",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta fone",
+       "obrigatoria": false
+      },
+      {
+       "id": "mail",
+       "tipo": "EMAIL",
+       "rotulo": "Pergunta mail",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "Pergunta g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "Linha 0"
+        },
+        {
+         "id": "l1",
+         "rotulo": "Linha 1"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Coluna 0"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Coluna 1"
+        },
+        {
+         "id": "c2",
+         "rotulo": "Coluna 2"
+        }
+       ]
+      },
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "texto": "Regras da consultoria (texto fictício).",
+       "declaracao": "Li e concordo."
+      },
+      {
+       "id": "info",
+       "tipo": "INFORMATIVO",
+       "rotulo": "Pergunta info",
+       "obrigatoria": false,
+       "texto": "Explicação (fictícia).",
+       "imagemId": "0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f"
+      },
+      {
+       "id": "info2",
+       "tipo": "INFORMATIVO",
+       "rotulo": "Pergunta info2",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "tipos_novos_na_atualizacao_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "EMAIL",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "somente_passado_fora_de_data",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "somentePassado": true
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].somentePassado"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "grade_sem_linhas_e_uma_coluna",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "Pergunta g",
+       "obrigatoria": false,
+       "linhas": [],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Coluna 0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].colunas",
+   "secoes[0].perguntas[1].linhas"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "grade_ausentes",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "Pergunta g",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].colunas",
+   "secoes[0].perguntas[1].linhas"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "grade_30_linhas_10_colunas_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "Pergunta g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "Linha 0"
+        },
+        {
+         "id": "l1",
+         "rotulo": "Linha 1"
+        },
+        {
+         "id": "l2",
+         "rotulo": "Linha 2"
+        },
+        {
+         "id": "l3",
+         "rotulo": "Linha 3"
+        },
+        {
+         "id": "l4",
+         "rotulo": "Linha 4"
+        },
+        {
+         "id": "l5",
+         "rotulo": "Linha 5"
+        },
+        {
+         "id": "l6",
+         "rotulo": "Linha 6"
+        },
+        {
+         "id": "l7",
+         "rotulo": "Linha 7"
+        },
+        {
+         "id": "l8",
+         "rotulo": "Linha 8"
+        },
+        {
+         "id": "l9",
+         "rotulo": "Linha 9"
+        },
+        {
+         "id": "l10",
+         "rotulo": "Linha 10"
+        },
+        {
+         "id": "l11",
+         "rotulo": "Linha 11"
+        },
+        {
+         "id": "l12",
+         "rotulo": "Linha 12"
+        },
+        {
+         "id": "l13",
+         "rotulo": "Linha 13"
+        },
+        {
+         "id": "l14",
+         "rotulo": "Linha 14"
+        },
+        {
+         "id": "l15",
+         "rotulo": "Linha 15"
+        },
+        {
+         "id": "l16",
+         "rotulo": "Linha 16"
+        },
+        {
+         "id": "l17",
+         "rotulo": "Linha 17"
+        },
+        {
+         "id": "l18",
+         "rotulo": "Linha 18"
+        },
+        {
+         "id": "l19",
+         "rotulo": "Linha 19"
+        },
+        {
+         "id": "l20",
+         "rotulo": "Linha 20"
+        },
+        {
+         "id": "l21",
+         "rotulo": "Linha 21"
+        },
+        {
+         "id": "l22",
+         "rotulo": "Linha 22"
+        },
+        {
+         "id": "l23",
+         "rotulo": "Linha 23"
+        },
+        {
+         "id": "l24",
+         "rotulo": "Linha 24"
+        },
+        {
+         "id": "l25",
+         "rotulo": "Linha 25"
+        },
+        {
+         "id": "l26",
+         "rotulo": "Linha 26"
+        },
+        {
+         "id": "l27",
+         "rotulo": "Linha 27"
+        },
+        {
+         "id": "l28",
+         "rotulo": "Linha 28"
+        },
+        {
+         "id": "l29",
+         "rotulo": "Linha 29"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Coluna 0"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Coluna 1"
+        },
+        {
+         "id": "c2",
+         "rotulo": "Coluna 2"
+        },
+        {
+         "id": "c3",
+         "rotulo": "Coluna 3"
+        },
+        {
+         "id": "c4",
+         "rotulo": "Coluna 4"
+        },
+        {
+         "id": "c5",
+         "rotulo": "Coluna 5"
+        },
+        {
+         "id": "c6",
+         "rotulo": "Coluna 6"
+        },
+        {
+         "id": "c7",
+         "rotulo": "Coluna 7"
+        },
+        {
+         "id": "c8",
+         "rotulo": "Coluna 8"
+        },
+        {
+         "id": "c9",
+         "rotulo": "Coluna 9"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "grade_31_linhas_11_colunas",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "Pergunta g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "Linha 0"
+        },
+        {
+         "id": "l1",
+         "rotulo": "Linha 1"
+        },
+        {
+         "id": "l2",
+         "rotulo": "Linha 2"
+        },
+        {
+         "id": "l3",
+         "rotulo": "Linha 3"
+        },
+        {
+         "id": "l4",
+         "rotulo": "Linha 4"
+        },
+        {
+         "id": "l5",
+         "rotulo": "Linha 5"
+        },
+        {
+         "id": "l6",
+         "rotulo": "Linha 6"
+        },
+        {
+         "id": "l7",
+         "rotulo": "Linha 7"
+        },
+        {
+         "id": "l8",
+         "rotulo": "Linha 8"
+        },
+        {
+         "id": "l9",
+         "rotulo": "Linha 9"
+        },
+        {
+         "id": "l10",
+         "rotulo": "Linha 10"
+        },
+        {
+         "id": "l11",
+         "rotulo": "Linha 11"
+        },
+        {
+         "id": "l12",
+         "rotulo": "Linha 12"
+        },
+        {
+         "id": "l13",
+         "rotulo": "Linha 13"
+        },
+        {
+         "id": "l14",
+         "rotulo": "Linha 14"
+        },
+        {
+         "id": "l15",
+         "rotulo": "Linha 15"
+        },
+        {
+         "id": "l16",
+         "rotulo": "Linha 16"
+        },
+        {
+         "id": "l17",
+         "rotulo": "Linha 17"
+        },
+        {
+         "id": "l18",
+         "rotulo": "Linha 18"
+        },
+        {
+         "id": "l19",
+         "rotulo": "Linha 19"
+        },
+        {
+         "id": "l20",
+         "rotulo": "Linha 20"
+        },
+        {
+         "id": "l21",
+         "rotulo": "Linha 21"
+        },
+        {
+         "id": "l22",
+         "rotulo": "Linha 22"
+        },
+        {
+         "id": "l23",
+         "rotulo": "Linha 23"
+        },
+        {
+         "id": "l24",
+         "rotulo": "Linha 24"
+        },
+        {
+         "id": "l25",
+         "rotulo": "Linha 25"
+        },
+        {
+         "id": "l26",
+         "rotulo": "Linha 26"
+        },
+        {
+         "id": "l27",
+         "rotulo": "Linha 27"
+        },
+        {
+         "id": "l28",
+         "rotulo": "Linha 28"
+        },
+        {
+         "id": "l29",
+         "rotulo": "Linha 29"
+        },
+        {
+         "id": "l30",
+         "rotulo": "Linha 30"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Coluna 0"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Coluna 1"
+        },
+        {
+         "id": "c2",
+         "rotulo": "Coluna 2"
+        },
+        {
+         "id": "c3",
+         "rotulo": "Coluna 3"
+        },
+        {
+         "id": "c4",
+         "rotulo": "Coluna 4"
+        },
+        {
+         "id": "c5",
+         "rotulo": "Coluna 5"
+        },
+        {
+         "id": "c6",
+         "rotulo": "Coluna 6"
+        },
+        {
+         "id": "c7",
+         "rotulo": "Coluna 7"
+        },
+        {
+         "id": "c8",
+         "rotulo": "Coluna 8"
+        },
+        {
+         "id": "c9",
+         "rotulo": "Coluna 9"
+        },
+        {
+         "id": "c10",
+         "rotulo": "Coluna 10"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].colunas",
+   "secoes[0].perguntas[1].linhas"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "grade_repetidos_e_vazios",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "Pergunta g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "Dor"
+        },
+        {
+         "id": "l1",
+         "rotulo": " dor "
+        },
+        {
+         "id": "l1",
+         "rotulo": ""
+        }
+       ],
+       "colunas": [
+        {
+         "id": "com espaço",
+         "rotulo": "A"
+        },
+        {
+         "id": "c1",
+         "rotulo": "B"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].colunas[0].id",
+   "secoes[0].perguntas[1].linhas[1].rotulo",
+   "secoes[0].perguntas[1].linhas[2].id",
+   "secoes[0].perguntas[1].linhas[2].rotulo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "grade_linha_com_imagem",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "Pergunta g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A",
+         "imagemId": "0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Coluna 0"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Coluna 1"
+        },
+        {
+         "id": "c2",
+         "rotulo": "Coluna 2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].linhas[0].imagemId"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "linhas_em_tipo_errado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "Linha 0"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Coluna 0"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Coluna 1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].colunas",
+   "secoes[0].perguntas[1].linhas"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "aceite_sem_texto_e_declaracao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].declaracao",
+   "secoes[0].perguntas[1].texto"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "aceite_em_branco",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "texto": "  ",
+       "declaracao": " "
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].declaracao",
+   "secoes[0].perguntas[1].texto"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "aceite_texto_4000_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "texto": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "declaracao": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "aceite_texto_4001_declaracao_201",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "texto": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       "declaracao": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].declaracao",
+   "secoes[0].perguntas[1].texto"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "informativo_texto_4001",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "i",
+       "tipo": "INFORMATIVO",
+       "rotulo": "Pergunta i",
+       "obrigatoria": false,
+       "texto": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].texto"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "texto_e_declaracao_em_tipo_errado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "texto": "x",
+       "declaracao": "y"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].declaracao",
+   "secoes[0].perguntas[1].texto"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "imagem_valida_na_pergunta_e_opcao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "imagemId": "0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f",
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A",
+         "imagemId": "0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "imagem_invalida",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "imagemId": "abc",
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A",
+         "imagemId": "0B6F9A1E-5C3D-4E2A-9F7B-1A2B3C4D5E6F"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].imagemId",
+   "secoes[0].perguntas[1].opcoes[0].imagemId"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_valida",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "A",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        },
+        {
+         "id": "o2",
+         "rotulo": "Opção 2"
+        }
+       ]
+      },
+      {
+       "id": "m",
+       "tipo": "MULTIPLA_ESCOLHA",
+       "rotulo": "Pergunta m",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        }
+       ],
+       "mostrarSe": {
+        "perguntaId": "e",
+        "valores": [
+         "o0",
+         "o2"
+        ]
+       }
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "m",
+        "valores": [
+         "o1"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "uid": "s2",
+     "titulo": "B",
+     "mostrarSe": {
+      "perguntaId": "s",
+      "valores": [
+       "nao"
+      ]
+     },
+     "perguntas": [
+      {
+       "id": "x",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta x",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_para_pergunta_posterior",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].mostrarSe.perguntaId"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_em_si_mesma",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].mostrarSe.perguntaId"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_para_tipo_errado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "Pergunta n",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "n",
+        "valores": [
+         "5"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[2].mostrarSe.perguntaId"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_para_inexistente",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "fantasma",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].mostrarSe.perguntaId"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_sem_valores",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": []
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[2].mostrarSe.valores"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_valor_inexistente",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "o0",
+         "rotulo": "Opção 0"
+        },
+        {
+         "id": "o1",
+         "rotulo": "Opção 1"
+        },
+        {
+         "id": "o2",
+         "rotulo": "Opção 2"
+        }
+       ]
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "e",
+        "valores": [
+         "o0",
+         "zz"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[2].mostrarSe.valores"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_sim_nao_com_valor_de_opcao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "true"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[2].mostrarSe.valores"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_valores_repetidos",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim",
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[2].mostrarSe.valores"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "condicao_de_secao_para_pergunta_da_propria_secao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "A",
+     "mostrarSe": {
+      "perguntaId": "s",
+      "valores": [
+       "sim"
+      ]
+     },
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "Pergunta s",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].mostrarSe.perguntaId"
+  ],
+  "avisos": []
+ },
+ {
   "nome": "fabrica_v2",
   "conteudo": {
    "secoes": [

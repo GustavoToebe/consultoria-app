@@ -40,11 +40,11 @@ class FotoRemocaoRepositorio {
     }
 
     /**
-     * Pendentes que ninguém ligou a uma atualização dentro do prazo: marca como removidas e enfileira o objeto, na mesma
+     * Pendentes que nenhum envio (atualização ou anamnese) ligou dentro do prazo: marca como removidas e enfileira o objeto, na mesma
      * transação. Devolve quantas.
      */
     int removerPendentesAntigas(Instant limite, Instant agora) {
-        return jdbc.update("with p as (update atualizacao_foto set removida_em = ? where atualizacao_id is null "
+        return jdbc.update("with p as (update atualizacao_foto set removida_em = ? where pergunta_id is null "
                 + "and removida_em is null and criada_em < ? returning id, consultoria_id) "
                 + "insert into foto_remocao (objeto, consultoria_id) select id, consultoria_id from p on conflict (objeto) do nothing", em(agora), em(limite));
     }

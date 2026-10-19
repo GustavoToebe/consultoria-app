@@ -125,19 +125,24 @@ public class MarcaService {
 
     /** Largura e altura vêm do chunk IHDR, que a assinatura PNG exige logo depois dela (bytes 16 a 23). Zero ou acima do limite recusa. */
     static boolean ladosDoPngCabem(byte[] b) {
+        return ladosDoPngCabem(b, LOGO_LADO_MAXIMO);
+    }
+
+    /** Também usada pelas imagens do questionário, com o limite delas. */
+    public static boolean ladosDoPngCabem(byte[] b, int ladoMaximo) {
         if (b.length < 24 || b[12] != 'I' || b[13] != 'H' || b[14] != 'D' || b[15] != 'R') {
             return false;
         }
         long largura = inteiro(b, 16);
         long altura = inteiro(b, 20);
-        return largura >= 1 && altura >= 1 && largura <= LOGO_LADO_MAXIMO && altura <= LOGO_LADO_MAXIMO;
+        return largura >= 1 && altura >= 1 && largura <= ladoMaximo && altura <= ladoMaximo;
     }
 
     private static long inteiro(byte[] b, int i) {
         return ((long) (b[i] & 0xFF) << 24) | ((b[i + 1] & 0xFF) << 16) | ((b[i + 2] & 0xFF) << 8) | (b[i + 3] & 0xFF);
     }
 
-    static Optional<String> tipoPelosBytes(byte[] b) {
+    public static Optional<String> tipoPelosBytes(byte[] b) {
         if (b.length >= PNG.length && java.util.Arrays.equals(java.util.Arrays.copyOf(b, PNG.length), PNG)) {
             return Optional.of("image/png");
         }

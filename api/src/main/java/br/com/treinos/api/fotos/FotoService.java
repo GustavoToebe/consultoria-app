@@ -27,8 +27,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Fotos da atualização do aluno (dado sensível, LGPD). A foto sobe antes do envio e fica pendente; enviar a atualização a
- * liga à resposta na mesma transação; pendente que ninguém ligou é apagada pelo job. Gravar e apagar no bucket é HTTP e
+ * Fotos da atualização e da anamnese do aluno (dado sensível, LGPD). A foto sobe antes do envio e fica pendente (de uma
+ * pasta ou de uma anamnese); o envio a liga à resposta na mesma transação; pendente que ninguém ligou é apagada pelo job. Gravar e apagar no bucket é HTTP e
  * fica sempre FORA das transações do banco: a transação só reserva a linha ou enfileira a remoção.
  * Nada daqui vai a log: nem id de foto, nem de aluno, nem o arquivo.
  */
@@ -52,11 +52,14 @@ public class FotoService {
     private final FotosProperties propriedades;
     private final AlunoRepository alunos;
     private final PastaRepository pastas;
+    private final br.com.treinos.api.anamneses.AnamneseRepository anamneses;
     private final TransactionTemplate transacao;
 
     public FotoService(AtualizacaoFotoRepository fotos, FotoRemocaoRepositorio remocoes,
                        ObjectProvider<ArmazenamentoDeFotos> armazenamento, FotosProperties propriedades,
-                       AlunoRepository alunos, PastaRepository pastas, PlatformTransactionManager gerenteDeTransacao) {
+                       AlunoRepository alunos, PastaRepository pastas,
+                       br.com.treinos.api.anamneses.AnamneseRepository anamneses, PlatformTransactionManager gerenteDeTransacao) {
+        this.anamneses = anamneses;
         this.fotos = fotos;
         this.remocoes = remocoes;
         this.armazenamento = armazenamento;
@@ -74,12 +77,18 @@ public class FotoService {
         return new Configuracao(ligadas(), LimitesQuestionario.FOTOS_POR_PERGUNTA, BYTES_MAXIMO, POR_DIA);
     }
 
-    /** Recebe a foto do aluno, tira todo metadado, guarda no bucket e devolve o id (pendente até o envio da atualização). */
-    public UUID subir(UsuarioAutenticado eu, UUID pastaId, byte[] recebido) {
+    /**
+     * Recebe a foto do aluno, tira todo metadado, guarda no bucket e devolve o id (pendente até o envio). O destino é a
+     * pasta (atualização) ou a anamnese pendente, um dos dois.
+     */
+    public UUID subir(UsuarioAutenticado eu, UUID pastaId, UUID anamneseId, byte[] recebido) {
+        if ((pastaId == null) == (anamneseId == null)) {
+            throw new br.com.plataforma.comum.web.BadRequestException("Informe a pasta ou a anamnese da foto.");
+        }
         ArmazenamentoDeFotos bucket = exigirLigadas();
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
         byte[] jpeg = limpar(recebido);
-        ObjetoDeFoto objeto = transacao.execute(s -> reservar(alunoId, pastaId, jpeg.length));
+        ObjetoDeFoto objeto = transacao.execute(s -> reservar(alunoId, pastaId, anamneseId, jpeg.length));
         try {
             bucket.gravar(objeto.chave(), jpeg);
         } catch (RuntimeException falha) {
@@ -93,16 +102,22 @@ public class FotoService {
         return objeto.fotoId();
     }
 
-    private ObjetoDeFoto reservar(UUID alunoId, UUID pastaId, int tamanho) {
+    private ObjetoDeFoto reservar(UUID alunoId, UUID pastaId, UUID anamneseId, int tamanho) {
         // Trava o aluno: duas fotos ao mesmo tempo não passam juntas do limite do dia. A consultoria do objeto vem desta linha do banco.
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
-        Exigir.existe(pastas.findById(pastaId).filter(p -> p.getAlunoId().equals(alunoId)),
-                () -> new NaoEncontradoException("Atualização não encontrada."));
+        if (pastaId != null) {
+            Exigir.existe(pastas.findById(pastaId).filter(p -> p.getAlunoId().equals(alunoId)),
+                    () -> new NaoEncontradoException("Atualização não encontrada."));
+        } else {
+            Exigir.existe(anamneses.findById(anamneseId).filter(a -> a.getAlunoId().equals(alunoId)
+                            && a.getSituacao() == br.com.treinos.api.anamneses.Anamnese.Situacao.PENDENTE),
+                    () -> new NaoEncontradoException("Anamnese não encontrada."));
+        }
         Instant agora = Instant.now();
         if (fotos.countByAlunoIdAndCriadaEmAfter(alunoId, agora.minus(JANELA_DO_DIA)) >= POR_DIA) {
             throw FotoException.limiteDoDia();
         }
-        UUID id = fotos.saveAndFlush(new AtualizacaoFoto(alunoId, pastaId, tamanho, agora)).getId();
+        UUID id = fotos.saveAndFlush(new AtualizacaoFoto(alunoId, pastaId, anamneseId, tamanho, agora)).getId();
         return new ObjetoDeFoto(aluno.getConsultoriaId(), id);
     }
 
@@ -125,7 +140,7 @@ public class FotoService {
         return limpo;
     }
 
-    /** Remove foto pendente do aluno (a já enviada faz parte da atualização e não se apaga). Repetir é inofensivo. */
+    /** Remove foto pendente do aluno (a já enviada faz parte do envio e não se apaga). Repetir é inofensivo. */
     @Transactional
     public void remover(UsuarioAutenticado eu, UUID id) {
         UUID alunoId = AlunoAppService.alunoDaSessao(eu);
@@ -134,8 +149,8 @@ public class FotoService {
         if (foto.getRemovidaEm() != null) {
             return;
         }
-        if (foto.getAtualizacaoId() != null) {
-            throw new ConflictException("Esta foto já foi enviada com a atualização.", "FOTO_JA_ENVIADA");
+        if (foto.getPerguntaId() != null) {
+            throw new ConflictException("Esta foto já foi enviada.", "FOTO_JA_ENVIADA");
         }
         if (fotos.removerPendente(id, alunoId, Instant.now()) == 1) {
             remocoes.enfileirar(List.of(ObjetoDeFoto.de(foto)));
@@ -155,6 +170,15 @@ public class FotoService {
     @Transactional(readOnly = true)
     public byte[] lerDoTreinador(UUID atualizacaoId, UUID id) {
         AtualizacaoFoto foto = fotos.findById(id).filter(f -> atualizacaoId.equals(f.getAtualizacaoId()) && f.getRemovidaEm() == null)
+                .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
+        return exigirLigadas().ler(ObjetoDeFoto.de(foto).chave());
+    }
+
+    /** O treinador vê pela anamnese a que a foto foi ligada; a permissão é conferida na rota. Outra consultoria: 404. */
+    @Transactional(readOnly = true)
+    public byte[] lerDaAnamnese(UUID anamneseId, UUID id) {
+        AtualizacaoFoto foto = fotos.findById(id).filter(f -> anamneseId.equals(f.getAnamneseId()) && f.getPerguntaId() != null
+                        && f.getRemovidaEm() == null)
                 .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
         return exigirLigadas().ler(ObjetoDeFoto.de(foto).chave());
     }
@@ -180,6 +204,29 @@ public class FotoService {
                         perguntaId, "Uma das fotos não está mais disponível. Remova e anexe de novo.")));
             }
         }
+    }
+
+    /** Liga as fotos pendentes da anamnese à resposta da pergunta, na transação do envio (mesma regra de {@link #ligar}). */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void ligarNaAnamnese(UUID alunoId, UUID anamneseId, String perguntaId, List<UUID> ids) {
+        Instant agora = Instant.now();
+        for (UUID id : ids) {
+            if (fotos.ligarNaAnamnese(id, alunoId, anamneseId, perguntaId, agora) != 1) {
+                throw new ValidacaoException("Confira as respostas.", "ANAMNESE_INVALIDA", List.of(new ApiError.FieldError(
+                        perguntaId, "Uma das fotos não está mais disponível. Remova e anexe de novo.")));
+            }
+        }
+    }
+
+    /** Exportação do titular: de cada anamnese, em que pergunta e quando as fotos foram enviadas (sem os bytes). */
+    @Transactional(readOnly = true)
+    public Map<UUID, List<FotoExportada>> metadadosDeAnamneses(Collection<UUID> anamneseIds) {
+        if (anamneseIds.isEmpty()) {
+            return Map.of();
+        }
+        return fotos.findByAnamneseIdInAndPerguntaIdIsNotNullAndRemovidaEmIsNullOrderByCriadaEmAsc(anamneseIds).stream()
+                .collect(Collectors.groupingBy(AtualizacaoFoto::getAnamneseId,
+                        Collectors.mapping(f -> new FotoExportada(f.getPerguntaId(), f.getCriadaEm()), Collectors.toList())));
     }
 
     /** Anonimização do aluno: todas as fotos dele saem do ar e do bucket (pela fila). */
