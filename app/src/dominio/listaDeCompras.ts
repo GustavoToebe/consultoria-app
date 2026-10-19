@@ -1,8 +1,10 @@
-import type { ConteudoDieta, ItemDieta, UnidadeAlimento } from '../api/tipos';
+import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, UnidadeAlimento } from '../api/tipos';
 
 /**
  * Lista de compras da dieta publicada (pedido do Saraiva em 17/10, R13/R14/R32), calculada no aparelho do aluno, também
  * sem internet: a versão publicada já traz os fatores de cada item (copiados da biblioteca pelo servidor ao publicar).
+ * O editor do treinador mostra a mesma lista como prévia do que está na tela: como o rascunho não guarda fatores, ele
+ * busca os atuais da biblioteca e os põe nos itens com `comFatoresDaBiblioteca`, a mesma regra da publicação.
  *
  * As quantidades da dieta são do alimento **como é comido** (ex.: "Arroz branco cozido" 150 g). Por item, em gramas:
  * cru = quantidade ÷ FCc (se o treinador informou o fator de cocção); a comprar = cru × FC (se informou o fator de
@@ -88,6 +90,35 @@ export function refeicoesComEscolha(conteudo: ConteudoDieta): ConteudoDieta['ref
   return conteudo.refeicoes.filter((r) => r.opcoes.length > 1);
 }
 
+/** Ids distintos dos alimentos da biblioteca usados na dieta (todas as opções), para buscar os fatores atuais. */
+export function alimentosDaDieta(conteudo: ConteudoDieta): string[] {
+  const ids = new Set<string>();
+  for (const r of conteudo.refeicoes) for (const o of r.opcoes) for (const i of o.itens) if (i.alimentoId) ids.add(i.alimentoId);
+  return [...ids];
+}
+
+/**
+ * Conteúdo com os fatores da biblioteca nos itens, como a publicação faz no servidor (`PlanoDietaService.paraPublicar`):
+ * item com alimento achado recebe os dois fatores atuais; item manual ou alimento não achado fica sem fator (nunca o
+ * que estava no item, que no rascunho não vale). Não muda o conteúdo recebido.
+ */
+export function comFatoresDaBiblioteca(conteudo: ConteudoDieta, fatores: readonly FatoresDoAlimento[]): ConteudoDieta {
+  const porId = new Map(fatores.map((f) => [f.alimentoId, f]));
+  return {
+    ...conteudo,
+    refeicoes: conteudo.refeicoes.map((r) => ({
+      ...r,
+      opcoes: r.opcoes.map((o) => ({
+        ...o,
+        itens: o.itens.map((i) => {
+          const f = i.alimentoId ? porId.get(i.alimentoId) : undefined;
+          return { ...i, fatorCorrecao: f?.fatorCorrecao ?? null, fatorCoccao: f?.fatorCoccao ?? null };
+        }),
+      })),
+    })),
+  };
+}
+
 /** Margem para a conta em ponto flutuante não pular um degrau (419,9999 → 420, não 430). */
 const MARGEM = 1e-9;
 const acima = (n: number, passo: number) => Math.ceil(n / passo - MARGEM) * passo;
@@ -106,6 +137,9 @@ export function quantidadeParaTela(quantidade: number, unidade: UnidadeAlimento)
 
 /** Nota do rodapé da tela e do PDF. */
 export const NOTA_DA_LISTA = 'Quantidades calculadas com os fatores que o treinador cadastrou; sem fator, vale a quantidade da dieta.';
+
+/** Aviso da prévia no editor do treinador (a lista do aluno sai dos fatores copiados na publicação). */
+export const NOTA_DA_PREVIA = 'Prévia com os fatores atuais da biblioteca; o aluno vê os fatores que estiverem na biblioteca quando você publicar.';
 
 /** "Semana (7 dias)" / "Mês (30 dias)" para o título do PDF. */
 export function textoDoPeriodo(periodo: PeriodoDaLista): string {

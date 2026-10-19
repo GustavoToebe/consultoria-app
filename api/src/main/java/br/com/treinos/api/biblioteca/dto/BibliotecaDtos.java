@@ -67,6 +67,16 @@ public final class BibliotecaDtos {
         }
     }
 
+    /**
+     * Fatores atuais de um alimento da biblioteca, para a prévia da lista de compras no editor da dieta (o rascunho não
+     * os guarda: a publicação copia os do momento). Nulo = não informado.
+     */
+    public record FatoresDoAlimento(UUID alimentoId, BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
+        public static FatoresDoAlimento de(Alimento a) {
+            return new FatoresDoAlimento(a.getId(), a.getFatorCorrecao(), a.getFatorCoccao());
+        }
+    }
+
     public record CatalogoExercicioResponse(UUID id, String nome, String grupoMuscular, String equipamento,
                                             String modalidade, String instrucoes, String fonte) {
         public static CatalogoExercicioResponse de(CatalogoExercicio c) {

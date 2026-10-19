@@ -1,4 +1,4 @@
-import { buscarQuestionario, inscricao, inscricaoPublica, listarPlanos } from './rotas';
+import { buscarQuestionario, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
 
@@ -12,6 +12,10 @@ describe('caminhos da API', () => {
     await expect(inscricaoPublica('../alunos')).resolves.toBe('/publico/inscricoes/..%2Falunos');
     await expect(inscricao('a/b')).resolves.toBe('/inscricoes/a%2Fb');
     await expect(inscricaoPublica('Ab-_09xYzAb-_09xYzAb-_09')).resolves.toBe('/publico/inscricoes/Ab-_09xYzAb-_09xYzAb-_09');
+  });
+
+  it('ids dos fatores vão separados por vírgula, cada um codificado', async () => {
+    await expect(fatoresDosAlimentos(['a', 'b,c', '../x'])).resolves.toBe('/alimentos/fatores?ids=a,b%2Cc,..%2Fx');
   });
 
   it('uuid comum passa igual', async () => {

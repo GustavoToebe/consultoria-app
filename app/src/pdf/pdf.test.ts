@@ -383,6 +383,15 @@ describe('PDF da lista de compras', () => {
     expect(d.corpo).toContain('sem fator, vale a quantidade da dieta');
   });
 
+  it('prévia do editor (sem versão) avisa que não é a publicada; modelo sai sem aluno', () => {
+    const d = documentoListaDeCompras({ ...base, aluno: null, versao: null, periodo: 'semana', opcoes: [], linhas: [] });
+    expect(d.titulo).toBe('Lista de compras - Modelo - Dieta & ciclo');
+    expect(d.corpo).not.toContain('Aluno:');
+    expect(d.corpo).toContain('Dieta &amp; ciclo (prévia, não publicada)');
+    expect(d.corpo).toContain('Prévia com os fatores atuais da biblioteca');
+    expect(documentoListaDeCompras({ ...base, periodo: 'semana', opcoes: [], linhas: [] }).corpo).not.toContain('Prévia com');
+  });
+
   it('lista vazia vira "—"', () => {
     const d = documentoListaDeCompras({ ...base, periodo: 'mes', opcoes: [], linhas: [] });
     expect(d.corpo).toContain('Mês (30 dias)');
