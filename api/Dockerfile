@@ -27,6 +27,9 @@ RUN --mount=type=secret,id=gh_token,required=false \
     mvn -B -q package -DskipTests -Djacoco.skip=true
 
 FROM eclipse-temurin:25-jre-alpine
+# Pacotes do Alpine atualizados na construção: correção publicada depois da imagem base (ex.: libexpat, 19/10) não
+# espera a próxima tag da imagem para passar no Trivy.
+RUN apk upgrade --no-cache
 RUN addgroup -S treinos && adduser -S treinos -G treinos
 WORKDIR /app
 COPY --from=build /src/target/treinos-api-*.jar app.jar
