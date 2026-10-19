@@ -23,12 +23,16 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.PaginaInscricoes;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoComRecursoException;
 import br.com.treinos.api.web.Formatos;
+import br.com.treinos.api.web.MuitasRequisicoesException;
 import br.com.treinos.api.web.NaoEncontradoException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumSet;
@@ -54,6 +58,8 @@ public class InscricaoService {
 
     /** O {@code objetivo} do aluno tem até 200 caracteres; maior que isso fica só na inscrição. */
     static final int OBJETIVO_DO_ALUNO = 200;
+    /** Janela do teto de inscrições por consultoria ({@code treinos.limites.inscricao-consultoria-dia}). */
+    static final Duration JANELA_DO_TETO = Duration.ofHours(24);
 
     private final InscricaoRepository inscricoes;
     private final InscricaoNotaRepository notas;
@@ -62,10 +68,16 @@ public class InscricaoService {
     private final AlunoService alunos;
     private final ConviteService convites;
     private final Auditoria auditoria;
+    private final int limiteDiario;
 
     public InscricaoService(InscricaoRepository inscricoes, InscricaoNotaRepository notas,
                             InscricaoConfiguracaoRepository configuracoes, ResponsaveisDaInscricao responsaveis,
-                            AlunoService alunos, ConviteService convites, Auditoria auditoria) {
+                            AlunoService alunos, ConviteService convites, Auditoria auditoria,
+                            @Value("${treinos.limites.inscricao-consultoria-dia:200}") int limiteDiario) {
+        if (limiteDiario < 1) {
+            throw new IllegalArgumentException("Limite diário de inscrições inválido.");
+        }
+        this.limiteDiario = limiteDiario;
         this.inscricoes = inscricoes;
         this.notas = notas;
         this.configuracoes = configuracoes;
@@ -86,10 +98,17 @@ public class InscricaoService {
     /**
      * Grava a inscrição com o responsável padrão do link (se ainda for membro ativo). Com texto da consultoria, a ciência
      * é obrigatória e a inscrição guarda o texto que a pessoa viu e a hora.
+     *
+     * <p>Teto por consultoria em 24 h (revisão de segurança de 19/10): o limite por IP do controller não segura quem troca
+     * de endereço (um bloco IPv6 tem endereços sem fim) e a verificação humana nasce desligada; sem o teto, o link
+     * público enchia a fila e o banco sem limite. Passou do teto: 429, a mesma resposta de quem tentou demais.
      */
     @Transactional
     public void registrarPublica(String codigo, InscricaoPublicaRequest r) {
         InscricaoConfiguracao link = linkAberto(codigo);
+        if (inscricoes.countByCriadaEmAfter(Instant.now().minus(JANELA_DO_TETO)) >= limiteDiario) {
+            throw new MuitasRequisicoesException(JANELA_DO_TETO.toSeconds());
+        }
         String texto = link.getTexto();
         if (texto != null && !Boolean.TRUE.equals(r.cienciaPrivacidade())) {
             throw new BadRequestException("Confirme que leu o texto da consultoria para enviar.", "CIENCIA_OBRIGATORIA");
@@ -119,7 +138,7 @@ public class InscricaoService {
         List<Inscricao> lista = page.getContent();
         Map<UUID, Duplicidade> duplicidades = duplicidades(lista);
         Map<UUID, String> nomes = responsaveis.nomes(lista.stream().map(Inscricao::getResponsavelId).toList());
-        List<InscricaoResumo> itens = lista.stream().map(i -> new InscricaoResumo(i.getId(), i.getNome(), i.getObjetivo(),
+        List<InscricaoResumo> itens = lista.stream().map(i -> new InscricaoResumo(i.getId(), i.getNome(), textoLivre(i, i.getObjetivo()),
                 i.getWhatsapp(), i.getEmail(), i.getSituacao(), i.getPagamento(), i.getResponsavelId(),
                 nomes.get(i.getResponsavelId()), alunoVisivel(i.getAlunoId()), i.getCriadaEm(),
                 duplicidades.getOrDefault(i.getId(), Duplicidade.NENHUMA))).toList();
@@ -226,8 +245,8 @@ public class InscricaoService {
         pessoas.add(i.getPagamentoConfirmadoPor());
         lista.forEach(n -> pessoas.add(n.getAutorId()));
         Map<UUID, String> nomes = responsaveis.nomes(pessoas);
-        return new InscricaoDetalhe(i.getId(), i.getNome(), i.getWhatsapp(), i.getEmail(), i.getObjetivo(),
-                i.getObservacao(), i.getCienciaEm(), i.getCienciaTexto(), i.getSituacao(), i.getPagamento(),
+        return new InscricaoDetalhe(i.getId(), i.getNome(), i.getWhatsapp(), i.getEmail(), textoLivre(i, i.getObjetivo()),
+                textoLivre(i, i.getObservacao()), i.getCienciaEm(), i.getCienciaTexto(), i.getSituacao(), i.getPagamento(),
                 nomes.get(i.getPagamentoConfirmadoPor()), i.getPagamentoConfirmadoEm(), i.getResponsavelId(),
                 nomes.get(i.getResponsavelId()), alunoVisivel(i.getAlunoId()), i.getCriadaEm(), i.getAtualizadaEm(),
                 i.getVersao(), duplicidades(List.of(i)).getOrDefault(i.getId(), Duplicidade.NENHUMA),
@@ -264,6 +283,16 @@ public class InscricaoService {
             }
         }
         return resultado;
+    }
+
+    /**
+     * Objetivo e observação da inscrição aceita: ela virou aluno e segue as regras do aluno, cuja ficha só mostra o
+     * objetivo e as observações a quem tem {@code ALUNO_SENSIVEL_LER} (revisão de segurança de 19/10: o Assistente,
+     * que atende interessados sem essa permissão, lia pela inscrição o objetivo que a ficha esconde dele). Antes do
+     * aceite o texto é de quem atende a fila.
+     */
+    private static String textoLivre(Inscricao i, String texto) {
+        return i.getSituacao() == SituacaoInscricao.ACEITA && !AcessoAtual.pode("ALUNO_SENSIVEL_LER") ? null : texto;
     }
 
     /** O id do aluno só sai para quem pode abrir a ficha. */

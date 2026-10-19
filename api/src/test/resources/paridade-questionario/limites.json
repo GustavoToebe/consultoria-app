@@ -37,5 +37,6 @@
  "dataAnoMinimo": 1900,
  "dataAnoMaximo": 2100,
  "imagemBytes": 300000,
- "imagemLado": 1600
+ "imagemLado": 1600,
+ "objetivoTamanho": 200
 }

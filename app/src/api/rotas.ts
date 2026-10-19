@@ -14,6 +14,7 @@ import type {
 import type {
   Atualizacao,
   AtualizacaoDaLista,
+  EvolucaoRespostas,
   ConfiguracaoDeFotos,
   ConfiguracaoPublica,
   CriarQuestionarioRequest,
@@ -29,6 +30,7 @@ import type {
   SituacaoAtualizacao,
   Alimento,
   AlimentoRequest,
+  FatoresDoAlimento,
   AlunoDetalhe,
   AlunoRequest,
   CatalogoAlimento,
@@ -142,6 +144,11 @@ export const dispensarAnamnese = (id: string, motivo: string, versao: number) =>
   requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/dispensar`, { metodo: 'POST', corpo: { motivo, versao } });
 export const revisarAnamnese = (id: string, versao: number) =>
   requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/revisar`, { metodo: 'POST', corpo: { versao } });
+/** Alteração do cadastro proposta pela anamnese: aplicar ou descartar (ANAMNESE_ALTERAR + a permissão do campo). */
+export const aplicarAlteracaoDaAnamnese = (id: string, alteracaoId: string) =>
+  requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/alteracoes/${seg(alteracaoId)}/aplicar`, { metodo: 'POST' });
+export const descartarAlteracaoDaAnamnese = (id: string, alteracaoId: string) =>
+  requisicao<AnamneseDetalhe>(`/anamneses/${seg(id)}/alteracoes/${seg(alteracaoId)}/descartar`, { metodo: 'POST' });
 export const baixarFotoDaAnamnese = (anamneseId: string, fotoId: string) =>
   requisicao<Blob>(`/anamneses/${seg(anamneseId)}/fotos/${seg(fotoId)}`, { binario: true, limiteMs: 60000 });
 /** A pendente ou a última enviada; 404 = nenhuma. */
@@ -171,6 +178,8 @@ export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false) 
   requisicao<AtualizacaoDaLista[]>(`/atualizacoes?situacao=${situacao}&meus=${meus}`);
 export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${seg(id)}/atualizacoes`);
 export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${seg(id)}/atualizacao`);
+export const evolucaoRespostasDoAluno = (id: string) =>
+  requisicao<EvolucaoRespostas>(`/alunos/${seg(id)}/atualizacoes/evolucao`);
 
 // ---- Fotos da atualização (bytes só pela API, com token; nada de link direto para o bucket) ----
 
@@ -249,6 +258,10 @@ export const aceitarTermos = (versao: string) =>
 
 export const trocarSenha = (senhaAtual: string, senhaNova: string) =>
   requisicao<LoginResponse>('/eu/senha', { metodo: 'PUT', corpo: { senhaAtual, senhaNova } });
+
+/** "Excluir minha conta" do aluno: 204 e a sessão deixa de valer no servidor (a do aparelho sai pelo `encerrarLocal`). */
+export const excluirMinhaConta = (senha: string, confirmacao: string) =>
+  requisicao<void>('/aluno/conta/excluir', { metodo: 'POST', corpo: { senha, confirmacao } });
 
 // ---- Configuração pública ----
 
@@ -415,6 +428,9 @@ export const alterarExercicio = (id: string, dados: ExercicioRequest) =>
 export const inativarExercicio = (id: string) => requisicao<void>(`/exercicios/${seg(id)}`, { metodo: 'DELETE' });
 
 export const listarAlimentos = (texto?: string) => requisicao<Alimento[]>(`/alimentos${busca(texto)}`);
+/** Fatores atuais dos alimentos (até 200 ids) para a lista de compras do editor da dieta; id de fora fica sem resposta. */
+export const fatoresDosAlimentos = (ids: string[]) =>
+  requisicao<FatoresDoAlimento[]>(`/alimentos/fatores?ids=${ids.map(seg).join(',')}`);
 export const criarAlimento = (dados: AlimentoRequest) =>
   requisicao<Alimento>('/alimentos', { metodo: 'POST', corpo: dados });
 export const alterarAlimento = (id: string, dados: AlimentoRequest) =>

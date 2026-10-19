@@ -441,4 +441,84 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(banco.queryForObject("select count(*) from inscricao_nota where consultoria_id = ?", Long.class,
                 consultoria)).isZero();
     }
+
+    // ---- revisão de segurança (19/10) ----
+
+    private static boolean semValor(JsonNode campo) {
+        return campo.isNull() || campo.isMissingNode();
+    }
+
+    @Test
+    void inscricaoAceitaEscondeObjetivoEObservacaoDeQuemNaoLeDadoSensivel() throws Exception {
+        String codigo = abrirLink(admin, null, null).path("codigo").asString();
+        inscrever(codigo, inscricao("Aluna Fictícia Sensível", null), 202);
+        String id = unica(admin).path("id").asString();
+
+        // Antes do aceite, quem atende a fila (Assistente, sem ALUNO_SENSIVEL_LER) lê o que a pessoa escreveu.
+        perfil(admin, "Assistente");
+        assertThat(api.get("/inscricoes/" + id, admin, 200).path("objetivo").asString()).isEqualTo("Objetivo fictício");
+
+        perfil(admin, "Administrador");
+        String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin,
+                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 200)
+                .path("alunoId").asString();
+        assertThat(api.get("/inscricoes/" + id, admin, 200).path("observacao").asString()).isEqualTo("Observação fictícia");
+
+        // Depois do aceite valem as regras do aluno: a ficha esconde o objetivo, e a inscrição também.
+        perfil(admin, "Assistente");
+        assertThat(semValor(api.get("/alunos/" + alunoId, admin, 200).path("objetivo"))).isTrue();
+        JsonNode detalhe = api.get("/inscricoes/" + id, admin, 200);
+        assertThat(semValor(detalhe.path("objetivo"))).isTrue();
+        assertThat(semValor(detalhe.path("observacao"))).isTrue();
+        JsonNode item = api.get("/inscricoes?situacao=TODAS", admin, 200).path("itens").get(0);
+        assertThat(semValor(item.path("objetivo"))).isTrue();
+        assertThat(detalhe.toString() + item).doesNotContain("Objetivo fictício").doesNotContain("Observação fictícia");
+    }
+
+    @Test
+    void exportacaoDoAlunoLevaAInscricaoQueOCriou() throws Exception {
+        String codigo = abrirLink(admin, null, "Texto fictício da consultoria.").path("codigo").asString();
+        Map<String, Object> corpo = inscricao("Aluna Fictícia Exportada", null);
+        corpo.put("cienciaPrivacidade", true);
+        inscrever(codigo, corpo, 202);
+        String id = unica(admin).path("id").asString();
+        api.post("/inscricoes/" + id + "/notas", admin, Map.of("texto", "Nota fictícia da equipe"), 200);
+        String alunoId = api.post("/inscricoes/" + id + "/aceitar", admin,
+                Map.of("convidar", false, "versao", api.get("/inscricoes/" + id, admin, 200).path("versao").asLong()), 200)
+                .path("alunoId").asString();
+
+        JsonNode exportacao = api.get("/alunos/" + alunoId + "/exportacao", admin, 200);
+        JsonNode itens = exportacao.path("inscricao").path("itens");
+        assertThat(itens).hasSize(1);
+        assertThat(itens.get(0).path("whatsapp").asString()).isEqualTo(WHATSAPP);
+        assertThat(itens.get(0).path("observacao").asString()).isEqualTo("Observação fictícia");
+        assertThat(itens.get(0).path("cienciaTexto").asString()).isEqualTo("Texto fictício da consultoria.");
+        assertThat(itens.get(0).path("notas").get(0).path("texto").asString()).isEqualTo("Nota fictícia da equipe");
+        assertThat(itens.get(0).path("notas").get(0).has("autorId")).isFalse();
+
+        // Aluno que não veio do link: seção vazia, não omitida.
+        UUID outro = api.criarAluno(admin, "Aluno Fictício Direto");
+        assertThat(api.get("/alunos/" + outro + "/exportacao", admin, 200).path("inscricao").path("itens")).isEmpty();
+    }
+
+    @Test
+    void linkPublicoTemTetoDeInscricoesPorConsultoriaEm24Horas() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String codigo = abrirLink(admin, null, null).path("codigo").asString();
+        JsonNode outra = api.novoTreinador();
+        String codigoOutra = abrirLink(outra, null, null).path("codigo").asString();
+        // O teto padrão (200) já gasto nas últimas 24 h, sem passar 200 vezes pelo controller.
+        banco.update("insert into inscricao (id, consultoria_id, nome, whatsapp) select gen_random_uuid(), ?, "
+                + "'Pessoa Fictícia ' || g, ? from generate_series(1, 200) g", consultoria, WHATSAPP);
+
+        JsonNode recusada = inscrever(codigo, inscricao("Pessoa Fictícia a Mais", null), 429);
+        assertThat(recusada.toString()).doesNotContain("Fictícia");
+        assertThat(banco.queryForObject("select count(*) from inscricao where consultoria_id = ?", Long.class, consultoria))
+                .isEqualTo(200);
+        // O teto é de cada consultoria: a outra continua recebendo.
+        inscrever(codigoOutra, inscricao("Pessoa Fictícia da Outra", null), 202);
+        // Passadas 24 h, o link volta a receber.
+        banco.update("update inscricao set criada_em = now() - interval '25 hours' where consultoria_id = ?", consultoria);
+        inscrever(codigo, inscricao("Pessoa Fictícia do Dia Seguinte", null), 202);
+    }
 }

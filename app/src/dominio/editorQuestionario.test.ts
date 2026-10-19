@@ -3,7 +3,7 @@ import {
   adicionarPergunta, adicionarSecao, agruparProblemas, alterarPergunta, descricaoDoLocal, duplicarPergunta, duplicarPerguntaNaSecao, localDoProblema,
   moverParaSecao, moverPergunta, moverSecao, normalizarQuestionario, novaOpcao, novaPergunta, novaSecao, paraApi, podeAdicionar,
   podeAdicionarSecao, podeDestacar, podeDuplicar, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR, tiposParaAdicionar,
-  controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao,
+  controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinoPossivel, podeUsarDestino,
 } from './editorQuestionario';
 import { errosDoQuestionario, LIMITES_QUESTIONARIO, validarQuestionario } from './questionario';
 
@@ -219,5 +219,37 @@ describe('condição', () => {
     expect(validarQuestionario(paraApi(x)).erros.filter((e) => e.caminho.includes('mostrarSe'))).toEqual([]);
     const y = alterarCondicaoDaSecao(c(), 0, { perguntaId: 's', valores: ['nao'] });
     expect(validarQuestionario(paraApi(y)).erros.map((e) => e.caminho)).toContain('secoes[0].mostrarSe.perguntaId');
+  });
+});
+
+describe('destino no cadastro (anamnese)', () => {
+  const P = (id: string, tipo: TipoPergunta, extra: Partial<PerguntaAtualizacao> = {}): PerguntaAtualizacao => ({ id, tipo, rotulo: `Pergunta ${id}`, obrigatoria: false, ...extra });
+  const c = (...perguntas: PerguntaAtualizacao[]): ConteudoQuestionario => ({ formato: 2, instrucoes: [], secoes: [{ uid: 's1', titulo: 'A', perguntas }] });
+  it('só na anamnese: peso → registro de peso, texto curto → objetivo', () => {
+    expect(destinoPossivel('PESO', 'ANAMNESE')).toBe('PESO');
+    expect(destinoPossivel('TEXTO', 'ANAMNESE')).toBe('OBJETIVO');
+    expect(destinoPossivel('TEXTO_LONGO', 'ANAMNESE')).toBeNull();
+    expect(destinoPossivel('PESO', 'ATUALIZACAO')).toBeNull();
+  });
+  it('um campo por questionário', () => {
+    const x = c(P('a', 'TEXTO', { destino: 'OBJETIVO' }), P('b', 'TEXTO'), P('n', 'NOTA'));
+    expect(podeUsarDestino(x, 'a', 'ANAMNESE').pode).toBe(true);
+    expect(podeUsarDestino(x, 'b', 'ANAMNESE')).toEqual({ pode: false, motivo: 'Outra pergunta já alimenta este campo do cadastro.' });
+    expect(podeUsarDestino(x, 'n', 'ANAMNESE').pode).toBe(false);
+  });
+  it('a data da pesagem é uma DATA só no passado', () => {
+    const x = c(P('d1', 'DATA', { somentePassado: true, rotulo: 'Pesagem' }), P('d2', 'DATA'));
+    expect(datasDaPesagem(x)).toEqual([{ id: 'd1', rotulo: 'Pesagem' }]);
+  });
+  it('paraApi mantém o destino válido e tira o que não cabe; duplicar não leva o destino', () => {
+    const x = c(P('d', 'DATA', { somentePassado: true }), P('peso', 'PESO', { destino: 'PESO', destinoData: 'd' }),
+      P('t', 'TEXTO_LONGO', { destino: 'OBJETIVO' }), P('o', 'TEXTO', { destino: 'OBJETIVO', destinoData: 'd' }));
+    const [, peso, t, o] = paraApi(x, 'ANAMNESE').secoes[0].perguntas;
+    expect([peso.destino, peso.destinoData]).toEqual(['PESO', 'd']);
+    expect(t.destino).toBeUndefined();
+    expect([o.destino, o.destinoData]).toEqual(['OBJETIVO', undefined]);
+    expect(validarQuestionario(paraApi(x, 'ANAMNESE'), 'ANAMNESE').erros).toEqual([]);
+    expect(paraApi(x, 'ATUALIZACAO').secoes[0].perguntas[1].destino).toBeUndefined();
+    expect(duplicarPergunta(peso).destino).toBeUndefined();
   });
 });

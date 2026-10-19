@@ -9,11 +9,14 @@ import br.com.treinos.api.dieta.ConteudoDieta.Refeicao;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,6 +35,8 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
     private MockMvc mvc;
     @Autowired
     private JsonMapper json;
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     void fatoresSaoOpcionaisEConferidosNaBiblioteca() throws Exception {
@@ -115,6 +120,59 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
                 .get(0).get("opcoes").get(0).get("itens").get(0);
         assertThat(v1.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.10");
         assertThat(v1.get("fatorCoccao").decimalValue()).isEqualByComparingTo("2.50");
+    }
+
+    @Test
+    void fatoresAtuaisParaAPreviaDoEditorSoDaPropriaConsultoria() throws Exception {
+        ApiDeTeste api = new ApiDeTeste(mvc, json);
+        JsonNode treinador = api.novoTreinador();
+        JsonNode outro = api.novoTreinador();
+        String comFatores = api.post("/alimentos", treinador, alimento("Grão fictício cozido", "1.10", "2.50"), 200)
+                .get("id").asString();
+        String semFatores = api.post("/alimentos", treinador, alimento("Folha fictícia", null, null), 200)
+                .get("id").asString();
+        String inativo = api.post("/alimentos", treinador, alimento("Alimento fictício antigo", "1.30", null), 200)
+                .get("id").asString();
+        api.delete("/alimentos/" + inativo, treinador, 204);
+        String deOutra = api.post("/alimentos", outro, alimento("Alimento fictício de outra", "3.00", "3.00"), 200)
+                .get("id").asString();
+        String inexistente = UUID.randomUUID().toString();
+
+        JsonNode fatores = api.get("/alimentos/fatores?ids=" + String.join(",", comFatores, semFatores, inativo,
+                deOutra, inexistente, comFatores), treinador, 200);
+        Map<String, JsonNode> porId = new HashMap<>();
+        fatores.forEach(f -> porId.put(f.get("alimentoId").asString(), f));
+        // Inativo entra (a publicação também o copia); outra consultoria e id inexistente somem; repetido vem uma vez.
+        assertThat(porId.keySet()).containsExactlyInAnyOrder(comFatores, semFatores, inativo);
+        assertThat(fatores).hasSize(3);
+        assertThat(porId.get(comFatores).get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.10");
+        assertThat(porId.get(comFatores).get("fatorCoccao").decimalValue()).isEqualByComparingTo("2.50");
+        assertThat(porId.get(semFatores).get("fatorCorrecao").isNull()).isTrue();
+        assertThat(porId.get(semFatores).get("fatorCoccao").isNull()).isTrue();
+        assertThat(porId.get(inativo).get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.30");
+
+        // É sempre o valor atual da biblioteca.
+        api.put("/alimentos/" + comFatores, treinador, alimento("Grão fictício cozido", "1.20", null), 200);
+        JsonNode atual = api.get("/alimentos/fatores?ids=" + comFatores, treinador, 200).get(0);
+        assertThat(atual.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.20");
+        assertThat(atual.get("fatorCoccao").isNull()).isTrue();
+
+        // Sem ids, lista vazia; acima de 200 ids distintos, 400.
+        assertThat(api.get("/alimentos/fatores", treinador, 200)).isEmpty();
+        List<String> muitos = new ArrayList<>();
+        for (int i = 0; i < 201; i++) muitos.add(UUID.randomUUID().toString());
+        api.get("/alimentos/fatores?ids=" + String.join(",", muitos), treinador, 400);
+
+        // Quem só lê a dieta (sem biblioteca nem modelos) também vê; sem nenhuma das três, 403.
+        String usuario = treinador.path("usuario").path("id").asString();
+        jdbc.update("update usuario u set perfil_id = p.id from perfil p where u.id = ?::uuid "
+                + "and p.consultoria_id = u.consultoria_id and p.nome = 'Assistente'", usuario);
+        jdbc.update("delete from perfil_permissao pp using usuario u where u.id = ?::uuid and pp.perfil_id = u.perfil_id "
+                + "and pp.codigo in ('BIBLIOTECA_LER', 'MODELO_LER')", usuario);
+        assertThat(api.get("/alimentos/fatores?ids=" + semFatores, treinador, 200)).hasSize(1);
+        jdbc.update("delete from perfil_permissao pp using usuario u where u.id = ?::uuid and pp.perfil_id = u.perfil_id "
+                + "and pp.codigo = 'DIETA_LER'", usuario);
+        api.get("/alimentos/fatores?ids=" + semFatores, treinador, 403);
     }
 
     private static AlimentoRequest alimento(String nome, String fatorCorrecao, String fatorCoccao) {

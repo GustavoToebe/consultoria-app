@@ -5,6 +5,7 @@ import br.com.treinos.api.atualizacoes.Atualizacao;
 import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
 import br.com.treinos.api.auditoria.Auditar;
 import br.com.treinos.api.dieta.PlanoDietaService;
+import br.com.treinos.api.inscricoes.InscricaoDoAluno;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.execucao.HistoricoService;
 import br.com.treinos.api.execucao.PesoService;
@@ -51,14 +52,17 @@ public class ExportacaoService {
     private final FotoService fotos;
     private final FotoPerfilService fotoPerfil;
     private final br.com.treinos.api.anamneses.AnamneseService anamneses;
+    private final InscricaoDoAluno inscricao;
     private final JsonMapper json;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
                              PesoService pesos, LesaoService lesoes, AtualizacaoRepository atualizacoes,
                              FotoService fotos, FotoPerfilService fotoPerfil,
-                             br.com.treinos.api.anamneses.AnamneseService anamneses, JsonMapper json) {
+                             br.com.treinos.api.anamneses.AnamneseService anamneses, InscricaoDoAluno inscricao,
+                             JsonMapper json) {
         this.anamneses = anamneses;
+        this.inscricao = inscricao;
         this.alunos = alunos;
         this.pastas = pastas;
         this.treinos = treinos;
@@ -94,9 +98,12 @@ public class ExportacaoService {
                 "atualizacoes", omitidas, () -> atualizacoesExportadas(alunoId));
         var anamnese = secao(AcessoAtual.pode("ANAMNESE_LER") && AcessoAtual.pode("ALUNO_SENSIVEL_LER"),
                 "anamneses", omitidas, () -> anamneses.exportar(alunoId));
+        // A inscrição pelo link que virou o aluno, com quem atende a fila (INSCRICAO_LER).
+        var inscricaoDoAluno = secao(AcessoAtual.pode("INSCRICAO_LER"), "inscricao", omitidas,
+                () -> inscricao.exportar(alunoId));
         var fotoDePerfil = fotoPerfil.atualizadaEm(alunoId).map(PrivacidadeDtos.FotoPerfilExportada::new).orElse(null);
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
-                registros, peso, lesao, atualizacao, anamnese, fotoDePerfil);
+                registros, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, fotoDePerfil);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

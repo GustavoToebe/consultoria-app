@@ -48,6 +48,7 @@ public final class PrivacidadeDtos {
                              Secao<DiaDeTreino> registros, Secao<PesoResponse> pesos, Secao<LesaoResponse> lesoes,
                              Secao<AtualizacaoExportada> atualizacoes,
                              Secao<br.com.treinos.api.anamneses.AnamneseDtos.AnamneseExportada> anamneses,
+                             Secao<br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoExportada> inscricao,
                              FotoPerfilExportada fotoDePerfil) { }
 
     /** Só a data em que a foto de perfil foi trocada; a imagem não vai no arquivo. Sem foto: {@code null}. */
@@ -55,4 +56,10 @@ public final class PrivacidadeDtos {
 
     /** O nome digitado é conferido de novo no servidor. */
     public record AnonimizarRequest(@NotBlank @Size(max = 200) String nomeConfirmado) { }
+
+    /**
+     * "Excluir minha conta" pelo próprio aluno: a senha dele e o texto fixo {@code EXCLUIR}, para um toque acidental não
+     * apagar nada. Os dois são conferidos no servidor.
+     */
+    public record ExcluirContaRequest(@NotBlank @Size(max = 200) String senha, @NotBlank @Size(max = 20) String confirmacao) { }
 }

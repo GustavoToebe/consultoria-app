@@ -28,6 +28,8 @@ public final class LimitesQuestionario {
     public static final int FOTOS_POR_PERGUNTA = 6;
     public static final int TEXTO_CURTO_CAPACIDADE = 500;
     public static final int TEXTO_LONGO_CAPACIDADE = 2000;
+    /** Resposta do TEXTO com destino OBJETIVO: o tamanho de {@code aluno.objetivo} (o mesmo do cadastro na ficha). */
+    public static final int OBJETIVO_TAMANHO = 200;
     /** Soma das capacidades de TEXTO e TEXTO_LONGO: garante que as respostas cabem em {@link #RESPOSTAS_BYTES}. */
     public static final int CAPACIDADE_DE_TEXTO_TOTAL = 40_000;
     public static final int RASCUNHO_BYTES = 256 * 1024;

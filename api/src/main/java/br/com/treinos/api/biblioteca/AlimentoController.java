@@ -2,6 +2,7 @@ package br.com.treinos.api.biblioteca;
 
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.AlimentoRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.AlimentoResponse;
+import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.FatoresDoAlimento;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportarCatalogoRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.PreviaCsv;
@@ -37,6 +38,16 @@ public class AlimentoController {
     @GetMapping
     public List<AlimentoResponse> listar(@RequestParam(required = false) String busca) {
         return biblioteca.listarAlimentos(busca);
+    }
+
+    /**
+     * Fatores atuais dos alimentos ({@code ?ids=a,b,...}, até 200) para a lista de compras do editor da dieta. Abre a
+     * quem lê a biblioteca, a dieta do aluno ou os modelos (quem abre o editor), porque os fatores não são dado do aluno.
+     */
+    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER') or hasAuthority('PERM_DIETA_LER') or hasAuthority('PERM_MODELO_LER')")
+    @GetMapping("/fatores")
+    public List<FatoresDoAlimento> fatores(@RequestParam(required = false) List<UUID> ids) {
+        return biblioteca.fatoresDosAlimentos(ids);
     }
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")

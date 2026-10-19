@@ -99,10 +99,35 @@ Teste também num celular simples (pouca memória): abrir o app, trocar de aba e
     conferir que chegam; negar a permissão e conferir que o app segue funcionando.
 16. [ ] **PDF** (treino, dieta com a água, mobilidade, cargas): gerar e abrir o compartilhar do celular.
 
+### Novidades de 19/10
+17. [ ] **Técnicas no treino do aluno:** drop-set, bi-set/supersérie, tri-set e circuito aparecem com a faixa do grupo
+    (sem descanso entre os exercícios ligados); cadência e isometria aparecem por extenso no exercício; "Iniciar pausa de
+    N s" das técnicas usa o mesmo descanso. O aluno continua registrando a série inteira.
+18. [ ] **Lista de compras** (dieta com alimentos que têm FC/FCc na biblioteca): Dieta › "Lista de compras", trocar
+    Semana/Mês e a opção de cada refeição; sem fator vale a quantidade da dieta; sem internet a lista continua; o PDF abre
+    o compartilhar.
+19. [ ] **Anamnese:** com uma anamnese enviada pelo treinador (web), o cartão "Responda sua anamnese" aparece no Início;
+    responder os tipos novos (data, telefone, e-mail, grade, aceite, informativo com imagem), ver a pergunta condicional
+    aparecer e sumir, anexar uma foto (câmera e galeria; a foto não vai para a galeria), sair no meio (o rascunho fica),
+    voltar e enviar. Sem internet, o envio espera e avisa.
+20. [ ] **Inscrição por link:** abrir no navegador do celular o link `/inscricao/<código>` (ligado na web, em
+    Interessados) e enviar uma inscrição fictícia: o desafio do Turnstile (se ligado) e o teclado não cobrem os campos.
+21. [ ] **Excluir minha conta** (só com um aluno de teste descartável, que some de verdade; **nunca** o "teste" que serve
+    para o resto): Conta › "Excluir minha conta". O botão final só libera com a senha e EXCLUIR; senha errada mostra o erro
+    e nada muda. Ao confirmar, o app volta ao Entrar com "Conta excluída.", e o mesmo e-mail e senha não entram mais; na
+    ficha, o treinador vê "Aluno anonimizado".
+
+Do lado do treinador (web, uma vez, depois do teste do aluno):
+- [ ] Ficha do aluno › **Evolução das respostas**: as notas e números das atualizações enviadas aparecem por pergunta
+  (gráfico com 2 ou mais pontos e a lista das datas); sem resposta, "Nenhuma resposta numérica ainda.".
+- [ ] Editor da dieta › **Lista de compras**: a folha mostra o selo "Prévia" e a mesma lista que o aluno vê depois de
+  publicar.
+- [ ] Ficha do aluno › **Anamnese**: as respostas do item 19, a foto e "Marcar como revisada".
+
 ### Fim
-17. [ ] Perfil › Preferências: tema claro/escuro, tamanho do texto e vibração.
-18. [ ] **Sair da conta** com treino não enviado: o painel avisa "Você tem N treinos ainda não enviados".
-19. [ ] Abrir o app sem internet depois de já ter entrado: o plano aparece (modo offline).
+22. [ ] Perfil › Preferências: tema claro/escuro, tamanho do texto e vibração.
+23. [ ] **Sair da conta** com treino não enviado: o painel avisa "Você tem N treinos ainda não enviados".
+24. [ ] Abrir o app sem internet depois de já ter entrado: o plano aparece (modo offline).
 
 Qualquer erro: `npx eas-cli build:list` e o log da build no site da Expo; erro do app em execução, `adb logcat`.
 
@@ -266,9 +291,12 @@ Use o mesmo roteiro, com estas diferenças. Anote o modelo do iPhone e a versão
 ### Antes da App Store (não precisa para o TestFlight interno)
 
 - Tudo da seção 4 (textos, capturas de tela de iPhone, política de privacidade, "App Privacy", conta de demonstração).
-- **Excluir a conta pelo app**: a Apple exige que app em que se cria conta deixe o usuário pedir a exclusão da conta de
-  dentro do app (diretriz 5.1.1(v)). Hoje o aluno cria a conta ao aceitar o convite e só o treinador anonimiza. É decisão
-  do Gustavo antes de mandar para a revisão da loja (pode bastar um pedido de exclusão que chegue ao treinador).
+- **Excluir a conta pelo app** (diretriz 5.1.1(v)): **atendido**. O aluno (quem cria conta ao aceitar o convite) tem
+  Conta › "Excluir minha conta": pede a senha e a palavra EXCLUIR e apaga os dados pessoais na hora (a mesma anonimização
+  que o treinador faz; `POST /aluno/conta/excluir`). Na revisão, se a Apple perguntar, o caminho é Conta › último cartão.
+  O Google Play também pede, na "Data safety", um endereço na web para pedir a exclusão: a versão web do app
+  (`https://consultoria.servirea.com.br`, entrar como aluno › Conta) faz o mesmo. A conta do **treinador** é da
+  consultoria contratada pela Central e não se exclui pelo app (ele não cria conta pelo app: o cadastro público está fechado).
 - Sem login social (Google etc.), então "Entrar com a Apple" não é exigido.
 
 ## Antes da loja: ícones

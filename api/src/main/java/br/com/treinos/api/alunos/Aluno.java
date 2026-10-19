@@ -167,6 +167,12 @@ public class Aluno {
         this.atualizadoEm = Instant.now();
     }
 
+    /** Objetivo vindo da anamnese (fase C): só ele muda; nome e e-mail nunca saem de uma resposta. */
+    public void alterarObjetivo(String objetivo) {
+        this.objetivo = objetivo;
+        this.atualizadoEm = Instant.now();
+    }
+
     public void alterarSituacao(boolean ativo, Instant quando) {
         this.ativo = ativo;
         this.inativadoEm = ativo ? null : quando;

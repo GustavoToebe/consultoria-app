@@ -9,7 +9,8 @@ import {
 } from '../../dominio/atualizacaoQuestionario';
 import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
-import { avaliarRespostas } from '../../dominio/respostasAtualizacao';
+import { notaDoCadastro } from '../../dominio/anamnese';
+import { avaliarRespostas, tamanhoDoTexto } from '../../dominio/respostasAtualizacao';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { BarraProgresso } from '../../ui/BarraProgresso';
@@ -74,6 +75,7 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
             return <View key={p.id} collapsable={false}
               ref={(view) => { if (view) campos?.current.set(p.id, view); else campos?.current.delete(p.id); }}>
               <Pergunta pergunta={p} valor={respostas[p.id] ?? null} dataAtualizacao={dataAtualizacao} resumo={resumo} erro={erros[p.id]}
+                notaDoCadastro={leitura ? null : notaDoCadastro(p, modelo)}
                 carregarFotoDaEquipe={carregarFotoDaEquipe} aoMudar={aoMudar ? (valor) => aoMudar(p.id, valor) : undefined} />
             </View>;
           })}
@@ -82,9 +84,9 @@ export function QuestionarioAtualizacao({ modelo, respostas, aoMudar, erros = {}
   </>;
 }
 
-function Pergunta({ pergunta: p, valor, dataAtualizacao, resumo, erro, carregarFotoDaEquipe, aoMudar }: {
+function Pergunta({ pergunta: p, valor, dataAtualizacao, resumo, erro, notaDoCadastro: nota, carregarFotoDaEquipe, aoMudar }: {
   pergunta: PerguntaAtualizacao; valor: RespostaAtualizacao; dataAtualizacao?: string | null; resumo?: Atualizacao['resumo'];
-  erro?: string; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>; aoMudar?: (valor: RespostaAtualizacao) => void;
+  erro?: string; notaDoCadastro?: string | null; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>; aoMudar?: (valor: RespostaAtualizacao) => void;
 }) {
   const imagem = p.imagemId ? <ImagemDaPergunta id={p.imagemId} descricao={`Imagem da pergunta: ${p.rotulo}`} /> : null;
   if (p.tipo === 'INFORMATIVO') {
@@ -94,16 +96,16 @@ function Pergunta({ pergunta: p, valor, dataAtualizacao, resumo, erro, carregarF
       {imagem}
     </View>;
   }
-  if (!imagem) return <Controle p={p} valor={valor} dataAtualizacao={dataAtualizacao} resumo={resumo} erro={erro} carregarFotoDaEquipe={carregarFotoDaEquipe} aoMudar={aoMudar} />;
+  if (!imagem) return <Controle p={p} valor={valor} dataAtualizacao={dataAtualizacao} resumo={resumo} erro={erro} nota={nota} carregarFotoDaEquipe={carregarFotoDaEquipe} aoMudar={aoMudar} />;
   return <View style={estilos.pergunta}>
     {imagem}
-    <Controle p={p} valor={valor} dataAtualizacao={dataAtualizacao} resumo={resumo} erro={erro} carregarFotoDaEquipe={carregarFotoDaEquipe} aoMudar={aoMudar} />
+    <Controle p={p} valor={valor} dataAtualizacao={dataAtualizacao} resumo={resumo} erro={erro} nota={nota} carregarFotoDaEquipe={carregarFotoDaEquipe} aoMudar={aoMudar} />
   </View>;
 }
 
-function Controle({ p, valor, dataAtualizacao, resumo, erro, carregarFotoDaEquipe, aoMudar }: {
+function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoDaEquipe, aoMudar }: {
   p: PerguntaAtualizacao; valor: RespostaAtualizacao; dataAtualizacao?: string | null; resumo?: Atualizacao['resumo'];
-  erro?: string; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>; aoMudar?: (valor: RespostaAtualizacao) => void;
+  erro?: string; nota?: string | null; carregarFotoDaEquipe?: (fotoId: string) => Promise<Blob>; aoMudar?: (valor: RespostaAtualizacao) => void;
 }) {
   const { cores } = useTema();
   const rotulo = `${p.rotulo}${p.obrigatoria ? ' *' : ''}`;
@@ -124,7 +126,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, carregarFotoDaEquip
     {temImagemNasOpcoes(p) ? <OpcoesComImagem p={p} valor={valor} /> : <Texto>{textoDaResposta(p, valor)}</Texto>}
     {ajudaTexto}</View>;
   if (p.tipo === 'PESO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null}
-    aoMudar={aoMudar} ajuda="Em kg, de 20 a 400, com uma casa decimal." erro={erro} />;
+    aoMudar={aoMudar} ajuda={['Em kg, de 20 a 400, com uma casa decimal.', nota].filter(Boolean).join(' ')} erro={erro} />;
   if (p.tipo === 'NUMERO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null} aoMudar={aoMudar}
     sufixo={p.unidade} inteiro={(p.casas ?? 0) === 0} ajuda={[ajudaDoNumero(p), ajuda].filter(Boolean).join(' ')} erro={erro} />;
   if (p.tipo === 'NOTA') return <View style={estilos.pergunta}>
@@ -197,7 +199,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, carregarFotoDaEquip
   if (p.tipo === 'EMAIL') return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? valor : ''} aoMudar={aoMudar}
     keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" maxLength={L.emailTamanho} erro={erro} ajuda={ajuda} />;
   return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? valor : ''} aoMudar={aoMudar}
-    linhas={p.tipo === 'TEXTO_LONGO' ? 4 : undefined} maxLength={p.tipo === 'TEXTO_LONGO' ? L.textoLongoCapacidade : L.textoCurtoCapacidade} erro={erro} ajuda={ajuda} />;
+    linhas={p.tipo === 'TEXTO_LONGO' ? 4 : undefined} maxLength={tamanhoDoTexto(p)} erro={erro} ajuda={[ajuda, nota].filter(Boolean).join(' ') || undefined} />;
 }
 
 const temImagemNasOpcoes = (p: PerguntaAtualizacao) =>

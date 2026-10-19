@@ -1,0 +1,318 @@
+package br.com.treinos.api.anamneses;
+
+import br.com.treinos.api.AbstractIntegrationTest;
+import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.equipe.CatalogoPermissoes;
+import br.com.treinos.api.web.Fuso;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Fase C da anamnese: respostas com destino no cadastro (peso e objetivo). Campo vazio é preenchido no envio, igual não
+ * muda nada, diferente vira alteração para revisar (aplicar ou descartar), com permissão do campo, isolamento, reenvio
+ * idempotente, data da pesagem, exportação e anonimização. Só dados fictícios.
+ */
+@AutoConfigureMockMvc
+class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
+
+    private static final String OBJETIVO = "Objetivo fictício de teste";
+
+    @Autowired private MockMvc mvc;
+    @Autowired private JsonMapper json;
+    @Autowired private JdbcTemplate banco;
+    private ApiDeTeste api;
+    private JsonNode treinador;
+    private JsonNode questionario;
+    private LocalDate pesagem;
+
+    @BeforeEach
+    void preparar() throws Exception {
+        api = new ApiDeTeste(mvc, json);
+        treinador = api.novoTreinador();
+        questionario = publicar(treinador, conteudo(true));
+        pesagem = LocalDate.now(Fuso.BRASILIA).minusDays(5);
+    }
+
+    // ---- apoio ----
+
+    /** Data da pesagem (só passado), peso → registro de peso (com ou sem a data indicada) e texto → objetivo. */
+    private static Map<String, Object> conteudo(boolean comDataDaPesagem) {
+        Map<String, Object> data = Map.of("id", "pesagem", "tipo", "DATA", "rotulo", "Data da pesagem", "obrigatoria", false,
+                "somentePassado", true);
+        Map<String, Object> peso = new HashMap<>(Map.of("id", "peso", "tipo", "PESO", "rotulo", "Peso", "obrigatoria", false,
+                "destino", "PESO"));
+        if (comDataDaPesagem) {
+            peso.put("destinoData", "pesagem");
+        }
+        Map<String, Object> objetivo = Map.of("id", "objetivo", "tipo", "TEXTO", "rotulo", "Objetivo", "obrigatoria", false,
+                "destino", "OBJETIVO");
+        return Map.of("instrucoes", List.of(), "secoes", List.of(
+                Map.of("uid", "s1", "titulo", "Geral", "perguntas", List.of(data, peso, objetivo))));
+    }
+
+    private JsonNode publicar(JsonNode quem, Map<String, Object> conteudo) throws Exception {
+        String nome = "Anamnese " + UUID.randomUUID();
+        JsonNode q = api.post("/questionarios", quem, Map.of("nome", nome, "origem", "VAZIO", "finalidade", "ANAMNESE"), 200);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("nome", nome);
+        corpo.put("conteudo", conteudo);
+        corpo.put("versao", q.path("versao").asLong());
+        JsonNode salvo = api.put("/questionarios/" + q.path("id").asString(), quem, corpo, 200);
+        // O destino sobrevive à gravação (o conteúdo descarta chave desconhecida).
+        assertThat(api.get("/questionarios/" + q.path("id").asString(), quem, 200).toString()).contains("\"destino\":\"PESO\"");
+        return api.post("/questionarios/" + q.path("id").asString() + "/publicar", quem,
+                Map.of("versao", salvo.path("versao").asLong(), "confirmarAvisos", false), 200);
+    }
+
+    /** Cria o aluno (com objetivo, se houver), atribui a anamnese e devolve [anamnese, login do aluno]. */
+    private JsonNode[] alunoComAnamnese(String objetivo, JsonNode q) throws Exception {
+        Map<String, Object> corpo = new HashMap<>(Map.of("nome", "Aluno Fictício " + UUID.randomUUID().toString().substring(0, 8)));
+        if (objetivo != null) {
+            corpo.put("objetivo", objetivo);
+        }
+        UUID aluno = UUID.fromString(api.post("/alunos", treinador, corpo, 200).path("id").asString());
+        JsonNode a = api.post("/alunos/" + aluno + "/anamneses", treinador, Map.of("questionarioId", q.path("id").asString()), 200);
+        return new JsonNode[] {a, api.convidarEEntrar(treinador, aluno)};
+    }
+
+    private JsonNode enviar(JsonNode login, JsonNode a, Map<String, Object> respostas, int status) throws Exception {
+        return api.post("/aluno/anamnese/" + a.path("id").asString() + "/enviar", login,
+                Map.of("questionarioVersaoId", a.path("questionarioVersaoId").asString(), "respostas", respostas), status);
+    }
+
+    private static Map<String, Object> respostas(Object peso, String data, String objetivo) {
+        Map<String, Object> r = new LinkedHashMap<>();
+        if (data != null) r.put("pesagem", data);
+        if (peso != null) r.put("peso", peso);
+        if (objetivo != null) r.put("objetivo", objetivo);
+        return r;
+    }
+
+    private String alunoId(JsonNode a) {
+        return a.path("alunoId").asString();
+    }
+
+    private JsonNode pesos(JsonNode a) throws Exception {
+        return api.get("/alunos/" + alunoId(a) + "/pesos", treinador, 200);
+    }
+
+    private JsonNode detalhe(JsonNode a, JsonNode quem) throws Exception {
+        return api.get("/anamneses/" + a.path("id").asString(), quem, 200);
+    }
+
+    private static JsonNode alteracao(JsonNode detalhe, String destino) {
+        return detalhe.path("alteracoes").valueStream().filter(x -> destino.equals(x.path("destino").asString())).findFirst()
+                .orElseThrow();
+    }
+
+    private String acao(JsonNode a, String alteracao, String verbo) {
+        return "/anamneses/" + a.path("id").asString() + "/alteracoes/" + alteracao + "/" + verbo;
+    }
+
+    private int auditorias(JsonNode a, String acao) {
+        return banco.queryForObject("select count(*) from auditoria where entidade_id = ?::uuid and acao = ?", Integer.class,
+                a.path("id").asString(), acao);
+    }
+
+    private JsonNode membro(Set<String> permissoes) throws Exception {
+        String perfil = api.post("/perfis", treinador,
+                Map.of("nome", "Perfil " + UUID.randomUUID(), "permissoes", permissoes), 200).get("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", treinador,
+                Map.of("nome", "Membro fictício", "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
+        return api.post("/publico/convites-equipe/" + convite.get("codigo").asString(), null,
+                Map.of("senha", ApiDeTeste.SENHA), 200);
+    }
+
+    // ---- testes ----
+
+    @Test
+    void campoVazioPreencheNoEnvioComADataInformadaEReenvioNaoDuplica() throws Exception {
+        JsonNode[] x = alunoComAnamnese(null, questionario);
+        JsonNode a = x[0];
+        JsonNode login = x[1];
+
+        enviar(login, a, respostas(80.5, pesagem.toString(), "  " + OBJETIVO + " "), 200);
+
+        assertThat(api.get("/alunos/" + alunoId(a), treinador, 200).path("objetivo").asString()).isEqualTo(OBJETIVO);
+        JsonNode lista = pesos(a);
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).path("data").asString()).isEqualTo(pesagem.toString());
+        assertThat(lista.get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
+
+        // Ficam registradas como origem (aplicadas no envio, sem autor da equipe); nada para revisar.
+        JsonNode d = detalhe(a, treinador);
+        assertThat(d.path("alteracoes")).hasSize(2);
+        assertThat(d.path("alteracoes").valueStream().allMatch(p -> "APLICADA".equals(p.path("situacao").asString())
+                && p.path("automatica").asBoolean() && p.path("resolvidaPorNome").isNull())).isTrue();
+        assertThat(api.get("/alunos/" + alunoId(a) + "/anamneses", treinador, 200).get(0).path("alteracoesParaRevisar").asLong()).isZero();
+        assertThat(auditorias(a, "ANAMNESE_CADASTRO_PREENCHIDO")).isEqualTo(1);
+        // O aluno não vê as alterações do cadastro.
+        assertThat(api.get("/aluno/anamnese", login, 200).path("alteracoes").isNull()).isTrue();
+
+        // Reenvio (clique duplo, rede que caiu), até com outros valores: nada muda, nada duplica.
+        enviar(login, a, respostas(90, pesagem.toString(), "Outro objetivo fictício"), 200);
+        assertThat(pesos(a)).hasSize(1);
+        assertThat(detalhe(a, treinador).path("alteracoes")).hasSize(2);
+        assertThat(api.get("/alunos/" + alunoId(a), treinador, 200).path("objetivo").asString()).isEqualTo(OBJETIVO);
+        assertThat(auditorias(a, "ANAMNESE_CADASTRO_PREENCHIDO")).isEqualTo(1);
+    }
+
+    @Test
+    void semDataIndicadaOPesoUsaADataDoEnvio() throws Exception {
+        JsonNode semData = publicar(treinador, conteudo(false));
+        JsonNode[] x = alunoComAnamnese(null, semData);
+        // A data respondida não é a da pesagem neste questionário: vale a do envio.
+        enviar(x[1], x[0], respostas(70, pesagem.toString(), null), 200);
+        assertThat(pesos(x[0]).get(0).path("data").asString()).isEqualTo(LocalDate.now(Fuso.BRASILIA).toString());
+
+        // Com a data indicada mas sem resposta (opcional), também a do envio.
+        JsonNode[] y = alunoComAnamnese(null, questionario);
+        enviar(y[1], y[0], respostas(70, null, null), 200);
+        assertThat(pesos(y[0]).get(0).path("data").asString()).isEqualTo(LocalDate.now(Fuso.BRASILIA).toString());
+    }
+
+    @Test
+    void igualNaoMudaEDiferenteViraAlteracaoParaAplicar() throws Exception {
+        JsonNode[] x = alunoComAnamnese(OBJETIVO, questionario);
+        JsonNode a = x[0];
+        api.post("/alunos/" + alunoId(a) + "/pesos", treinador, Map.of("data", pesagem.toString(), "pesoKg", 70,
+                "observacao", "Observação fictícia"), 200);
+
+        enviar(x[1], a, respostas(72, pesagem.toString(), OBJETIVO + "  "), 200);
+
+        // Objetivo igual: nada. Peso diferente na mesma data: não sobrescreve, vira alteração.
+        assertThat(api.get("/alunos/" + alunoId(a), treinador, 200).path("objetivo").asString()).isEqualTo(OBJETIVO);
+        assertThat(pesos(a).get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("70");
+        JsonNode d = detalhe(a, treinador);
+        assertThat(d.path("alteracoes")).hasSize(1);
+        JsonNode p = alteracao(d, "PESO");
+        assertThat(p.path("situacao").asString()).isEqualTo("PENDENTE");
+        assertThat(p.path("valor").path("pesoKg").decimalValue()).isEqualByComparingTo("72");
+        assertThat(p.path("valor").path("data").asString()).isEqualTo(pesagem.toString());
+        assertThat(p.path("valorAtual").path("pesoKg").decimalValue()).isEqualByComparingTo("70");
+        assertThat(api.get("/alunos/" + alunoId(a) + "/anamneses", treinador, 200).get(0).path("alteracoesParaRevisar").asLong()).isEqualTo(1);
+        assertThat(auditorias(a, "ANAMNESE_CADASTRO_PREENCHIDO")).isZero();
+
+        // Aplicar: o peso da data muda e a observação fica; repetir não grava nem audita; descartar depois = 409.
+        String id = p.path("id").asString();
+        JsonNode aplicada = api.post(acao(a, id, "aplicar"), treinador, null, 200);
+        assertThat(alteracao(aplicada, "PESO").path("situacao").asString()).isEqualTo("APLICADA");
+        assertThat(alteracao(aplicada, "PESO").path("resolvidaPorNome").isNull()).isFalse();
+        assertThat(alteracao(aplicada, "PESO").path("valorAtual").isNull()).isTrue();
+        JsonNode lista = pesos(a);
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).path("pesoKg").decimalValue()).isEqualByComparingTo("72");
+        assertThat(lista.get(0).path("observacao").asString()).isEqualTo("Observação fictícia");
+        api.post(acao(a, id, "aplicar"), treinador, null, 200);
+        assertThat(auditorias(a, "ANAMNESE_ALTERACAO_APLICADA")).isEqualTo(1);
+        api.post(acao(a, id, "descartar"), treinador, null, 409);
+        assertThat(api.get("/alunos/" + alunoId(a) + "/anamneses", treinador, 200).get(0).path("alteracoesParaRevisar").asLong()).isZero();
+    }
+
+    @Test
+    void objetivoDiferenteSeDescartaSemMexerNoCadastro() throws Exception {
+        JsonNode[] x = alunoComAnamnese(OBJETIVO, questionario);
+        JsonNode a = x[0];
+        enviar(x[1], a, respostas(null, null, "Objetivo fictício novo"), 200);
+
+        JsonNode p = alteracao(detalhe(a, treinador), "OBJETIVO");
+        assertThat(p.path("valor").path("texto").asString()).isEqualTo("Objetivo fictício novo");
+        assertThat(p.path("valorAtual").path("texto").asString()).isEqualTo(OBJETIVO);
+        String id = p.path("id").asString();
+        JsonNode descartada = api.post(acao(a, id, "descartar"), treinador, null, 200);
+        assertThat(alteracao(descartada, "OBJETIVO").path("situacao").asString()).isEqualTo("DESCARTADA");
+        api.post(acao(a, id, "descartar"), treinador, null, 200);
+        assertThat(auditorias(a, "ANAMNESE_ALTERACAO_DESCARTADA")).isEqualTo(1);
+        api.post(acao(a, id, "aplicar"), treinador, null, 409);
+        assertThat(api.get("/alunos/" + alunoId(a), treinador, 200).path("objetivo").asString()).isEqualTo(OBJETIVO);
+        // A resposta original continua na anamnese.
+        assertThat(detalhe(a, treinador).path("respostas").path("objetivo").asString()).isEqualTo("Objetivo fictício novo");
+    }
+
+    @Test
+    void objetivoAplicadoAtualizaOCadastroEPassaDoTamanhoERecusado() throws Exception {
+        JsonNode[] x = alunoComAnamnese(OBJETIVO, questionario);
+        JsonNode a = x[0];
+        JsonNode erro = enviar(x[1], a, respostas(null, null, "x".repeat(201)), 422);
+        assertThat(erro.toString()).contains("objetivo");
+        enviar(x[1], a, respostas(null, null, "Objetivo fictício novo"), 200);
+        api.post(acao(a, alteracao(detalhe(a, treinador), "OBJETIVO").path("id").asString(), "aplicar"), treinador, null, 200);
+        assertThat(api.get("/alunos/" + alunoId(a), treinador, 200).path("objetivo").asString()).isEqualTo("Objetivo fictício novo");
+    }
+
+    @Test
+    void permissaoDoCampoEOutraConsultoria() throws Exception {
+        JsonNode[] x = alunoComAnamnese(OBJETIVO, questionario);
+        JsonNode a = x[0];
+        enviar(x[1], a, respostas(null, null, "Objetivo fictício novo"), 200);
+        String id = alteracao(detalhe(a, treinador), "OBJETIVO").path("id").asString();
+
+        // Só ler: vê, não age. Anamnese sem o dado sensível de escrita: também não age.
+        JsonNode leitor = membro(CatalogoPermissoes.comDependencias(Set.of("ANAMNESE_LER")));
+        assertThat(detalhe(a, leitor).path("alteracoes")).hasSize(1);
+        api.post(acao(a, id, "aplicar"), leitor, null, 403);
+        JsonNode semCampo = membro(CatalogoPermissoes.comDependencias(Set.of("ANAMNESE_ALTERAR")));
+        api.post(acao(a, id, "aplicar"), semCampo, null, 403);
+        api.post(acao(a, id, "descartar"), semCampo, null, 403);
+        JsonNode comCampo = membro(CatalogoPermissoes.comDependencias(Set.of("ANAMNESE_ALTERAR", "ALUNO_SENSIVEL_ALTERAR")));
+
+        // Outra consultoria: 404, também com o id da alteração debaixo de outra anamnese.
+        JsonNode outro = api.novoTreinador();
+        api.post(acao(a, id, "aplicar"), outro, null, 404);
+        JsonNode[] y = alunoComAnamnese(null, questionario);
+        api.post(acao(y[0], id, "aplicar"), treinador, null, 404);
+
+        api.post(acao(a, id, "aplicar"), comCampo, null, 200);
+        assertThat(api.get("/alunos/" + alunoId(a), treinador, 200).path("objetivo").asString()).isEqualTo("Objetivo fictício novo");
+    }
+
+    @Test
+    void publicacaoConfereODestino() throws Exception {
+        // Destino em questionário de atualização: 422 no caminho dele.
+        JsonNode q = api.post("/questionarios", treinador, Map.of("nome", "Atualização com destino", "origem", "VAZIO"), 200);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("nome", "Atualização com destino");
+        corpo.put("conteudo", Map.of("instrucoes", List.of(), "secoes", List.of(Map.of("uid", "s1", "titulo", "A", "perguntas",
+                List.of(Map.of("id", "peso", "tipo", "PESO", "rotulo", "Peso", "destino", "PESO"))))));
+        corpo.put("versao", q.path("versao").asLong());
+        JsonNode salvo = api.put("/questionarios/" + q.path("id").asString(), treinador, corpo, 200);
+        JsonNode erro = api.post("/questionarios/" + q.path("id").asString() + "/publicar", treinador,
+                Map.of("versao", salvo.path("versao").asLong(), "confirmarAvisos", true), 422);
+        assertThat(erro.toString()).contains("secoes[0].perguntas[0].destino");
+    }
+
+    @Test
+    void exportacaoLevaEAnonimizacaoApagaAsAlteracoes() throws Exception {
+        JsonNode[] x = alunoComAnamnese(OBJETIVO, questionario);
+        JsonNode a = x[0];
+        enviar(x[1], a, respostas(81, pesagem.toString(), "Objetivo fictício novo"), 200);
+
+        JsonNode exportacao = api.get("/alunos/" + alunoId(a) + "/exportacao", treinador, 200);
+        JsonNode alteracoes = exportacao.path("anamneses").path("itens").get(0).path("alteracoesDoCadastro");
+        assertThat(alteracoes).hasSize(2);
+        assertThat(alteracoes.toString()).contains("Objetivo fictício novo");
+
+        String nome = api.get("/alunos/" + alunoId(a), treinador, 200).path("nome").asString();
+        api.patch("/alunos/" + alunoId(a) + "/situacao", treinador, Map.of("ativo", false), 200);
+        api.post("/alunos/" + alunoId(a) + "/anonimizar", treinador, Map.of("nomeConfirmado", nome), 200);
+        assertThat(banco.queryForObject("select count(*) from anamnese_pendencia where aluno_id = ?::uuid", Integer.class,
+                alunoId(a))).isZero();
+        assertThat(detalhe(a, treinador).path("alteracoes")).isEmpty();
+    }
+}

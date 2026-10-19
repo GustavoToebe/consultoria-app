@@ -358,6 +358,13 @@ export interface ConteudoTreino {
   sessoes: Sessao[];
 }
 
+/** Fatores atuais de um alimento da biblioteca (`GET /alimentos/fatores`), para a prévia da lista de compras. */
+export interface FatoresDoAlimento {
+  alimentoId: string;
+  fatorCorrecao: number | null;
+  fatorCoccao: number | null;
+}
+
 export interface ItemDieta {
   uid: string;
   alimentoId: string | null;
@@ -672,6 +679,11 @@ export interface OpcaoPergunta { id: string; rotulo: string; imagemId?: string }
  * dos `valores` (ids de opção; `sim`/`nao` no SIM_NAO). Escondida não é obrigatória e a resposta dela não é enviada.
  */
 export interface CondicaoPergunta { perguntaId: string; valores: string[] }
+/**
+ * Campo do cadastro que uma pergunta da anamnese alimenta (`questionarios/DestinoNoPerfil`): PESO (pergunta PESO →
+ * registro de peso) e OBJETIVO (pergunta TEXTO → objetivo do aluno). Nome e e-mail nunca.
+ */
+export type DestinoNoPerfil = 'PESO' | 'OBJETIVO';
 export interface PerguntaAtualizacao {
   id: string;
   tipo: TipoPergunta;
@@ -700,6 +712,10 @@ export interface PerguntaAtualizacao {
   /** ACEITE: "Li e concordo...". */
   declaracao?: string;
   mostrarSe?: CondicaoPergunta;
+  /** Só na anamnese: campo do cadastro que a resposta alimenta. */
+  destino?: DestinoNoPerfil;
+  /** PESO com destino: id da pergunta DATA ("só hoje ou antes") com a data da pesagem; sem ela, a data do envio. */
+  destinoData?: string;
 }
 export interface SecaoAtualizacao { uid?: string; titulo: string; perguntas: PerguntaAtualizacao[]; mostrarSe?: CondicaoPergunta }
 /** Conteúdo (formato 2) de um questionário: o rascunho e cada versão publicada. */
@@ -727,6 +743,22 @@ export interface Atualizacao {
   versao: number | null;
   resumo: { diasComTreino: number; mediaDiasPorSemana: number | null; pesoAnterior: number | null } | null;
 }
+/**
+ * `GET /alunos/{id}/atualizacoes/evolucao`: respostas NOTA e NUMERO das últimas `limite` atualizações enviadas ou
+ * revisadas, uma série por id de pergunta (rótulo, unidade e casas da versão mais recente). Sem resposta não é ponto.
+ */
+export interface PontoDeResposta { atualizacaoId: string; data: string; valor: number }
+export interface SerieDeResposta {
+  perguntaId: string;
+  tipo: 'NOTA' | 'NUMERO';
+  rotulo: string;
+  rotuloCurto: string | null;
+  unidade: string | null;
+  casas: number | null;
+  /** Do mais antigo ao mais novo. */
+  pontos: PontoDeResposta[];
+}
+export interface EvolucaoRespostas { limite: number; atualizacoes: number; series: SerieDeResposta[] }
 /** `GET /aluno/fotos/configuracao`: o que o servidor aceita (os limites também valem lá). */
 export interface ConfiguracaoDeFotos { habilitado: boolean; maximoPorPergunta: number; bytesMaximo: number; porDia: number }
 /** Item das listas do treinador (`GET /atualizacoes`): sem modelo, respostas nem resumo, que só vêm no detalhe. */
@@ -756,6 +788,19 @@ export interface AnamneseResumo {
   id: string; situacao: SituacaoAnamnese; questionarioNome: string; questionarioVersaoNumero: number;
   atribuidaEm: string; enviadaEm: string | null; revisadaEm: string | null; dispensadaEm: string | null;
   dispensaMotivo: string | null; versao: number;
+  /** Alterações do cadastro propostas pela anamnese e ainda não aplicadas nem descartadas. */
+  alteracoesParaRevisar: number;
+}
+export type SituacaoAlteracaoDoCadastro = 'PENDENTE' | 'APLICADA' | 'DESCARTADA';
+/** Valor de uma alteração do cadastro: `{texto}` no objetivo, `{pesoKg, data}` no peso. */
+export interface ValorDoCadastro { texto?: string; pesoKg?: number; data?: string }
+/**
+ * O que a anamnese fez no cadastro (`AnamneseDtos.AlteracaoDoCadastro`): PENDENTE = o cadastro tinha outro valor
+ * (`valorAtual`), APLICADA (`automatica` = campo vazio preenchido no envio) ou DESCARTADA. Só para a equipe.
+ */
+export interface AlteracaoDoCadastro {
+  id: string; destino: DestinoNoPerfil; perguntaId: string; valor: ValorDoCadastro; valorAtual: ValorDoCadastro | null;
+  situacao: SituacaoAlteracaoDoCadastro; automatica: boolean; criadaEm: string; resolvidaEm: string | null; resolvidaPorNome: string | null;
 }
 /** Nas rotas do aluno, nome do questionário, nomes da equipe e motivo vêm nulos. */
 export interface AnamneseDetalhe {
@@ -764,6 +809,8 @@ export interface AnamneseDetalhe {
   respostas: RespostasAtualizacao; atribuidaEm: string; atribuidaPorNome: string | null; enviadaEm: string | null;
   revisadaEm: string | null; revisadaPorNome: string | null; dispensadaEm: string | null; dispensadaPorNome: string | null;
   dispensaMotivo: string | null; versao: number;
+  /** Só para a equipe (nulo nas rotas do aluno). */
+  alteracoes: AlteracaoDoCadastro[] | null;
 }
 export interface SalvarQuestionarioRequest { nome: string; descricao: string | null; conteudo: ConteudoQuestionario; versao: number }
 export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null; mobilidade?: ConteudoMobilidadeApi | null }[] }

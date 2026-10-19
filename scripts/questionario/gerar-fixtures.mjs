@@ -157,6 +157,25 @@ c('condicao_valores_repetidos', com(SQ(), P('t', 'TEXTO', se('s', 'sim', 'sim'))
 c('condicao_de_secao_para_pergunta_da_propria_secao', { formato: 2, instrucoes: [], secoes: [
   { uid: 's1', titulo: 'A', ...se('s', 'sim'), perguntas: [P('peso', 'PESO'), SQ()] }] }, ['secoes[0].mostrarSe.perguntaId']);
 
+// Destino no perfil (fase C): só na anamnese, tipo compatível, um por campo; a data da pesagem é uma DATA "só hoje ou antes".
+const DP = (extra = {}) => P('peso', 'PESO', { destino: 'PESO', ...extra });
+const DS = (id = 'pesagem', extra = {}) => P(id, 'DATA', { somentePassado: true, ...extra });
+ca('destino_peso_e_objetivo_ok', so(DS(), DP({ destinoData: 'pesagem' }), P('obj', 'TEXTO', { destino: 'OBJETIVO' })));
+ca('destino_data_da_pesagem_depois_ok', so(DP({ destinoData: 'pesagem' }), DS()));
+ca('destino_peso_sem_data_ok', so(DP()));
+c('destino_na_atualizacao', com(P('o', 'TEXTO', { destino: 'OBJETIVO' })), [`${pp(1)}.destino`]);
+ca('destino_tipo_errado', so(P('o', 'TEXTO_LONGO', { destino: 'OBJETIVO' }), P('n', 'NUMERO', { destino: 'PESO' })),
+  ['secoes[0].perguntas[0].destino', 'secoes[0].perguntas[1].destino']);
+ca('destino_repetido', so(P('a', 'TEXTO', { destino: 'OBJETIVO' }), P('b', 'TEXTO', { destino: 'OBJETIVO' })), ['secoes[0].perguntas[1].destino']);
+ca('destino_data_sem_destino_peso', so(DS(), P('peso', 'PESO', { destinoData: 'pesagem' })), ['secoes[0].perguntas[1].destinoData']);
+ca('destino_data_sem_somente_passado', so(DS('pesagem', { somentePassado: undefined }), DP({ destinoData: 'pesagem' })),
+  ['secoes[0].perguntas[1].destinoData']);
+ca('destino_data_inexistente_e_de_texto', { formato: 2, instrucoes: [], secoes: [
+  { uid: 's1', titulo: 'A', perguntas: [P('t', 'TEXTO'), DP({ destinoData: 'fantasma' })] },
+  { uid: 's2', titulo: 'B', perguntas: [P('p2', 'NOTA', {}), P('x', 'TEXTO', { destinoData: 't' })] }] },
+  ['secoes[0].perguntas[1].destinoData', 'secoes[1].perguntas[1].destinoData']);
+ca('destino_data_aponta_para_texto', so(P('t', 'TEXTO'), DP({ destinoData: 't' })), ['secoes[0].perguntas[1].destinoData']);
+
 // Fábrica: o questionário de onde sai o Padrão de cada consultoria, como está no V001 (o teste de integração confere o banco).
 {
   const sql = readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V001__inicial.sql`, 'utf8');
@@ -290,6 +309,12 @@ r('condicao_de_secao', { secoes: [{ perguntas: [SN('s')] }, { ...quando('s', 'si
 r('condicao_de_secao_visivel', { secoes: [{ perguntas: [SN('s')] }, { ...quando('s', 'sim'), perguntas: [TX('t', { obrigatoria: true })] }] },
   { s: true }, ['t']);
 
+// Texto que vai para o objetivo do cadastro cabe nele (200).
+const OB = (extra = {}) => ({ id: 'o', tipo: 'TEXTO', rotulo: 'o', obrigatoria: false, destino: 'OBJETIVO', ...extra });
+r('objetivo_200_ok', Q(OB()), { o: 'x'.repeat(200) });
+r('objetivo_201', Q(OB()), { o: 'x'.repeat(201) }, ['o']);
+r('texto_sem_destino_500_ok', Q(TX('t')), { t: 'x'.repeat(500) });
+
 writeFileSync(`${SAIDA}/respostas.json`, JSON.stringify(respostas, null, 1) + '\n');
 
 const limites = {
@@ -300,6 +325,7 @@ const limites = {
   numeroAbsoluto: 1000000000, fotosPorPergunta: 6, linhasMinimo: 1, linhasMaximo: 30, colunasMinimo: 2, colunasMaximo: 10,
   textoInformativoTamanho: 4000, declaracaoTamanho: 200, telefoneTamanho: 25, telefoneDigitosMinimo: 10,
   telefoneDigitosMaximo: 13, emailTamanho: 254, dataAnoMinimo: 1900, dataAnoMaximo: 2100, imagemBytes: 300000, imagemLado: 1600,
+  objetivoTamanho: 200,
 };
 writeFileSync(`${SAIDA}/limites.json`, JSON.stringify(limites, null, 1) + '\n');
 console.log(`${casos.length} casos de questionário, ${respostas.length} de respostas`);

@@ -1,4 +1,4 @@
-import type { CondicaoPergunta, ConteudoQuestionario, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, TipoPergunta } from '../api/tipos';
+import type { CondicaoPergunta, ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao, TipoPergunta } from '../api/tipos';
 
 /**
  * Limites do questionário (atualização e anamnese). Mudou um valor, muda também `LimitesQuestionario` no Java
@@ -52,6 +52,8 @@ export const LIMITES_QUESTIONARIO = {
   /** Imagem da pergunta ou da opção (o servidor confere de novo e regrava sem metadados). */
   imagemBytes: 300_000,
   imagemLado: 1600,
+  /** Resposta do TEXTO com destino OBJETIVO: o tamanho do objetivo do cadastro. */
+  objetivoTamanho: 200,
 } as const;
 
 export interface ProblemaDoQuestionario { caminho: string; mensagem: string }
@@ -66,6 +68,8 @@ const TIPOS = TIPOS_DE_PERGUNTA;
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
 const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA', 'FOTOS'];
+/** Tipo de pergunta que alimenta cada campo do cadastro (igual a `DestinoNoPerfil` do Java). */
+export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = { PESO: 'PESO', OBJETIVO: 'TEXTO' };
 
 /** Tipos que carregam a lista de opções. */
 export function temOpcoes(tipo: TipoPergunta) {
@@ -95,6 +99,10 @@ interface Estado {
   capacidadeDeTexto: number;
   ids: Set<string>;
   tipos: Set<TipoPergunta>;
+  /** Campos do perfil já alimentados: um destino por questionário. */
+  destinos: Set<DestinoNoPerfil>;
+  /** Caminho da pergunta PESO → id da DATA da pesagem, conferido no fim (a DATA pode vir depois). */
+  pesagens: [string, string][];
 }
 
 /**
@@ -118,7 +126,7 @@ export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>, fin
   const secoes = conteudo.secoes ?? [];
   if (secoes.length === 0) erro('secoes', 'O questionário não tem nenhuma seção.');
   if (secoes.length > L.secoes) erro('secoes', 'Seções demais.');
-  const estado: Estado = { finalidade, anteriores: new Map(), total: 0, destaques: 0, capacidadeDeTexto: 0, ids: new Set(), tipos: new Set() };
+  const estado: Estado = { finalidade, anteriores: new Map(), total: 0, destaques: 0, capacidadeDeTexto: 0, ids: new Set(), tipos: new Set(), destinos: new Set(), pesagens: [] };
   const uids = new Set<string>();
   secoes.forEach((s, i) => {
     const cs = `secoes[${i}]`;
@@ -133,6 +141,10 @@ export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>, fin
     if (perguntas.length > L.perguntasPorSecao) erro(`${cs}.perguntas`, 'Perguntas demais na seção.');
     perguntas.forEach((p, j) => pergunta(p, `${cs}.perguntas[${j}]`, estado, erro));
   });
+  for (const [cp, id] of estado.pesagens) {
+    const alvo = estado.anteriores.get(id);
+    if (!alvo || alvo.tipo !== 'DATA' || alvo.somentePassado !== true) erro(`${cp}.destinoData`, 'A data da pesagem precisa ser uma pergunta de data que aceita só hoje ou antes.');
+  }
   if (estado.total > L.perguntasTotal) erro('secoes', 'Perguntas demais.');
   if (estado.capacidadeDeTexto > L.capacidadeDeTextoTotal) erro('secoes', 'Respostas de texto demais.');
   if (finalidade === 'ATUALIZACAO' && estado.total > 0 && !estado.tipos.has('PESO')) {
@@ -179,6 +191,22 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   if (p.somentePassado != null && p.tipo !== 'DATA') erro(`${cp}.somentePassado`, 'Este tipo não tem esta opção.');
   textos(p, cp, erro);
   grade(p, cp, erro);
+  destino(p, cp, estado, erro);
+}
+
+/** Destino no perfil (só na anamnese): tipo compatível e um por campo; `destinoData` só no PESO com destino. */
+function destino(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro) {
+  const d = p.destino;
+  if (d != null) {
+    if (estado.finalidade !== 'ANAMNESE') erro(`${cp}.destino`, 'O campo do perfil só vale na anamnese.');
+    else if (TIPO_DO_DESTINO[d] !== p.tipo) erro(`${cp}.destino`, 'Este tipo de pergunta não alimenta este campo.');
+    else if (estado.destinos.has(d)) erro(`${cp}.destino`, 'Outra pergunta já alimenta este campo.');
+    else estado.destinos.add(d);
+  }
+  if (p.destinoData != null) {
+    if (d !== 'PESO') erro(`${cp}.destinoData`, 'Só o peso guardado no perfil usa a data da pesagem.');
+    else estado.pesagens.push([cp, p.destinoData]);
+  }
 }
 
 /** `texto` do ACEITE (obrigatório) e do INFORMATIVO (opcional); `declaracao` só do ACEITE (obrigatória). */

@@ -429,7 +429,7 @@ public class QuestionarioService {
         return new Pergunta(p.id(), p.tipo(), p.rotulo(), Boolean.TRUE.equals(p.obrigatoria()), p.ajuda(),
                 p.destaque(), p.rotuloCurto(), p.ajudaAutomatica(), p.dias(), p.opcoes(), p.unidade(), p.min(),
                 p.max(), p.casas(), p.imagemId(), p.somentePassado(), p.linhas(), p.colunas(), p.texto(),
-                p.declaracao(), p.mostrarSe());
+                p.declaracao(), p.mostrarSe(), p.destino(), p.destinoData());
     }
 
     private ConteudoQuestionario ler(String conteudo) {

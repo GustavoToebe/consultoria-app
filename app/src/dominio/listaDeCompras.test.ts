@@ -1,6 +1,6 @@
 import type { ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
-import { DIAS_DO_PERIODO, listaDeCompras, quantidadeParaTela, refeicoesComEscolha, textoDoPeriodo } from './listaDeCompras';
+import { alimentosDaDieta, comFatoresDaBiblioteca, DIAS_DO_PERIODO, listaDeCompras, quantidadeParaTela, refeicoesComEscolha, textoDoPeriodo } from './listaDeCompras';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
 
@@ -96,6 +96,43 @@ describe('listaDeCompras', () => {
   it('dieta publicada vinda da API passa pelo normalizador sem perder os fatores', () => {
     const c = normalizarDieta({ refeicoes: [{ uid: 'r', nome: 'Almoço', opcoes: [{ uid: 'a', rotulo: 'A', itens: [{ uid: 'i', alimentoId: 'x', nome: 'Arroz cozido', quantidade: 100, unidade: 'g', fatorCoccao: 2.5 }] }] }] });
     expect(listaDeCompras(c, {}, 'semana')[0]).toMatchObject({ quantidade: 280, cru: true, bruto: false });
+  });
+});
+
+describe('prévia do editor com os fatores da biblioteca', () => {
+  const c = dieta([
+    refeicao('almoco', [
+      opcao('a', [item('Arroz cozido', 150, { alimentoId: 'arroz', manual: false }), item('Feijão', 100, { alimentoId: 'feijao', manual: false, fatorCoccao: 9 })]),
+      opcao('b', [item('Arroz cozido', 100, { alimentoId: 'arroz', manual: false }), item('Manual', 50, { fatorCorrecao: 9 })]),
+    ]),
+    refeicao('jantar', [opcao('a', [item('Sumido', 80, { alimentoId: 'sumido', manual: false, fatorCorrecao: 9 })])]),
+  ]);
+
+  it('ids distintos dos alimentos de todas as opções, sem os itens manuais', () => {
+    expect(alimentosDaDieta(c)).toEqual(['arroz', 'feijao', 'sumido']);
+  });
+
+  it('aplica os fatores achados e tira o que o rascunho tinha (manual ou não achado fica sem fator), como a publicação', () => {
+    const fatores = [
+      { alimentoId: 'arroz', fatorCorrecao: null, fatorCoccao: 2.5 },
+      { alimentoId: 'feijao', fatorCorrecao: 1.1, fatorCoccao: null },
+    ];
+    const comFatores = comFatoresDaBiblioteca(c, fatores);
+    const itens = comFatores.refeicoes.flatMap((r) => r.opcoes.flatMap((o) => o.itens));
+    expect(itens.map((i) => [i.nome, i.fatorCorrecao, i.fatorCoccao])).toEqual([
+      ['Arroz cozido', null, 2.5],
+      ['Feijão', 1.1, null],
+      ['Arroz cozido', null, 2.5],
+      ['Manual', null, null],
+      ['Sumido', null, null],
+    ]);
+    // O conteúdo da tela não muda.
+    expect(c.refeicoes[0].opcoes[0].itens[1].fatorCoccao).toBe(9);
+    expect(listaDeCompras(comFatores, {}, 'semana').map((l) => [l.nome, l.quantidade, l.semFator])).toEqual([
+      ['Arroz cozido', (150 / 2.5) * 7, false],
+      ['Feijão', expect.closeTo(100 * 1.1 * 7, 6), false],
+      ['Sumido', 560, true],
+    ]);
   });
 });
 

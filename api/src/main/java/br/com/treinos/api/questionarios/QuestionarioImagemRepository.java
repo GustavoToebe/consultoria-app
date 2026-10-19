@@ -15,6 +15,9 @@ public interface QuestionarioImagemRepository extends JpaRepository<Questionario
     @Query("select i.id from QuestionarioImagem i where i.criadaEm < :limite")
     List<UUID> idsCriadosAntes(Instant limite);
 
+    /** Imagens da consultoria criadas desde {@code inicio} (teto diário de envios). */
+    long countByCriadaEmAfter(Instant inicio);
+
     /** Quais destes ids existem na consultoria (sem carregar os bytes). */
     @Query("select i.id from QuestionarioImagem i where i.id in :ids")
     List<UUID> existentes(Collection<UUID> ids);
