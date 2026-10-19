@@ -74,6 +74,19 @@ describe('cargas do aluno', () => {
 });
 
 
+describe('drop-set', () => {
+  it('a sugestão é a carga de começo da série; a redução fica só no texto, sem calcular a carga das quedas', () => {
+    const drop = serie('d', 'WS', {
+      repsMax: 6,
+      intensidade: { modo: 'CARGA_TRABALHO' },
+      tecnica: { tipo: 'DROP_SET', blocos: null, repsPorBloco: null, pausaSegundos: null, retomadas: null, repsPorRetomada: null, quedas: 2, reducaoPercentual: 20, repsPorQueda: null },
+    });
+    const [r] = calcularCargasDoExercicio(exercicio([drop]), 30, {}, CONFIG);
+    expect(r.sugestao).toBe(30);
+    expect(r.meta).toBe('Meta: 3 a 6 reps · carga de trabalho · Drop-set 2× −20%');
+  });
+});
+
 describe('botões + e − da carga', () => {
   it('o passo é o arredondamento da metodologia; sem carga ou passo inválido, sem botões', () => {
     expect(passoDaCarga({ unidade: 'kg' }, 2.5)).toBe(2.5);

@@ -104,11 +104,15 @@ const TREINADOR: Guia = {
       titulo: 'Treino, dieta e mobilidade',
       itens: [
         { titulo: 'Rascunho e publicação', texto: 'Edições vão para o rascunho. Publicar valida e cria uma versão imutável; os registros do aluno apontam para a versão que ele executou.' },
-        { titulo: 'Séries', texto: 'Em cada exercício, "Adicionar série" pergunta a técnica (simples, cluster ou rest pause) e o tipo: se forem os mesmos do último grupo, soma uma série a ele; se não, cria um grupo novo no fim (assim dá para ter uma WS simples seguida de uma WS em cluster). As setas ↑ e ↓ mudam a ordem dos grupos. O campo Descanso (em segundos) liga o contador do aluno depois de cada série. Cada exercício tem no máximo 30 séries.' },
+        { titulo: 'Séries', texto: 'Em cada exercício, "Adicionar série" pergunta a técnica (simples, cluster, rest pause ou drop-set) e o tipo: se forem os mesmos do último grupo, soma uma série a ele; se não, cria um grupo novo no fim (assim dá para ter uma WS simples seguida de uma WS em cluster). As setas ↑ e ↓ mudam a ordem dos grupos. O campo Descanso (em segundos) liga o contador do aluno depois de cada série. Cada exercício tem no máximo 30 séries.' },
         { titulo: 'Cluster e rest pause', texto: 'No grupo de séries, escolha a técnica. Cluster: quantos blocos, quantas repetições por bloco e a pausa entre os blocos. Rest pause: a pausa, quantas retomadas e, se quiser, as repetições de cada retomada (vazio = até a falha). O aluno lê a técnica por extenso e registra a série inteira, como as outras; se quiser, toca em "Iniciar pausa" para o cronômetro contar a pausa (nada começa sozinho).' },
+        { titulo: 'Drop-set', texto: 'Também no grupo de séries: quantas quedas (de 1 a 5), quanto reduzir a carga em cada uma (de 5% a 50%; vazio = você não fixa e o aluno reduz como combinado) e as repetições de cada queda (vazio = até a falha). O app não calcula a carga das quedas: o aluno registra a série inteira, com a carga de começo.' },
+        { titulo: 'Cadência e isometria', texto: 'No exercício aberto, em "Execução": cadência em 4 números separados por hífen, em segundos, na ordem descida, pausa embaixo, subida e pausa em cima (ex.: 3-1-1-0; X = o mais rápido possível). Isometria: quantos segundos segurar (de 1 a 120); diga onde na observação. Os dois valem para o exercício todo e aparecem para o aluno antes das séries e no PDF.' },
+        { titulo: 'Bi-set, supersérie, tri-set e circuito', texto: 'No exercício aberto (menos o primeiro da sessão), ligue "Fazer junto com o anterior (sem descanso)". Exercícios ligados em sequência formam um grupo: 2 = bi-set (ou supersérie, escolhendo no primeiro do grupo), 3 = tri-set, 4 ou mais = circuito, até 6. O aluno vê o grupo na lista do dia e, em cada exercício, qual vem em seguida. O descanso continua por série: ponha o descanso no último exercício do grupo e deixe os outros sem. Mover ou remover um exercício leva a ligação com ele.' },
         { titulo: 'Validação', texto: 'Erros impedem a publicação. Avisos pedem confirmação. Cada problema indica onde está no plano, e o botão "N problemas para publicar" leva ao primeiro.' },
         { titulo: 'PDF', texto: 'Treino, dieta e mobilidade podem ser exportados em PDF para imprimir ou compartilhar. Na mobilidade, o vídeo sai só como link.' },
         { titulo: 'Água por dia', texto: 'Na dieta, o campo "Água por dia" (em litros, de 0,1 a 20) aparece para o aluno no topo da dieta, no início do app e no PDF. É só o número que você escreve: o app não calcula meta nem pede para o aluno marcar copos. Vazio, não aparece.' },
+        { titulo: 'Fatores e lista de compras', texto: 'O aluno tem, na Dieta, uma lista de compras da semana ou do mês. Para ela mostrar o que comprar, cadastre no alimento da biblioteca o fator de correção (peso bruto ÷ peso limpo, de 1 a 20; ex.: 1,75 = para 1 kg limpo, compre 1,75 kg) e o fator de cocção (peso pronto ÷ peso cru, de 0,1 a 10; ex.: 2,5 = 100 g cru rendem 250 g prontos). Use os fatores que você adota: o app não traz tabela pronta. Os dois são opcionais; sem fator, a lista usa a quantidade da dieta. Na dieta escreva a quantidade como o alimento é comido (ex.: arroz cozido): a lista converte para cru e para o peso de compra. Só valem para itens em gramas escolhidos da biblioteca, e entram na dieta do aluno quando você publica (mudou um fator, publique de novo).' },
         { titulo: 'Suplementação da dieta', texto: 'Na dieta, "Escolher da biblioteca" traz o nome e o link do produto; dose, horário e observação quem escreve é você. O link abre fora do app.' },
         { titulo: 'Medicação e ergogênicos', texto: 'Na biblioteca ficam na aba Outros, agrupados pela categoria que você escreve (opcional, como "Injetáveis"). Na dieta, o cartão só aparece para quem tem a permissão. Da biblioteca vêm só nome, princípio ativo e concentração; dose, horário e prescrição são texto seu. O sistema não sugere, não calcula nem compara. Modelos de dieta nunca levam esta lista, e quem não tem a permissão não a vê nem a apaga ao salvar.' },
         { titulo: 'Modelos', texto: 'Salve um plano como modelo ou aplique um modelo ao aluno em Planejamento.' },
@@ -161,7 +165,7 @@ const TREINADOR: Guia = {
 
 /** Explicações do aluno que aparecem em mais de um lugar (primeiros passos, tutorial e passeio pelo menu): um texto só. */
 const TEXTO_TREINO_DE_HOJE = 'Na aba Treino, o cartão Treino de hoje mostra a divisão do dia. Toque nele para começar.';
-const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador e a água do dia, quando ele escreveu. Só consulta. No início do app, o cartão Dieta leva até ela.';
+const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador e a água do dia, quando ele escreveu. Só consulta. No início do app, o cartão Dieta leva até ela. O botão Lista de compras soma o que comprar na semana ou no mês.';
 const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer.';
 
 const ALUNO: Guia = {
@@ -203,6 +207,9 @@ const ALUNO: Guia = {
         { titulo: 'Trocar de plano', texto: 'Se houver mais de uma pasta, o seletor no topo mostra as outras. Pasta antiga é só para consultar.' },
         { titulo: 'Peso e repetições', texto: 'Deixe em branco o que não souber: aparece "—". O app não presume valor.' },
         { titulo: 'Cluster e rest pause', texto: 'Quando a série tem uma técnica, o exercício explica antes das séries (por exemplo, quantos blocos e a pausa entre eles). Registre a série inteira, como as outras. Se quiser, toque em "Iniciar pausa" para o cronômetro contar a pausa entre os blocos ou antes da retomada.' },
+        { titulo: 'Drop-set', texto: 'Ao terminar a série, reduza a carga (o quanto o treinador escreveu, quando escreveu) e continue, quantas vezes ele pediu. Registre a série inteira, com a carga com que você começou.' },
+        { titulo: 'Cadência e isometria', texto: 'Cadência são 4 tempos em segundos: descendo, parado embaixo, subindo e parado em cima (X = o mais rápido que puder). Isometria é segurar parado pelos segundos indicados, no ponto que a observação disser. Os dois aparecem antes das séries.' },
+        { titulo: 'Bi-set, supersérie, tri-set e circuito', texto: 'Exercícios em grupo são feitos um depois do outro, sem descanso entre eles: bi-set ou supersérie (2), tri-set (3) e circuito (4 ou mais). Na lista do dia eles aparecem juntos, e cada exercício diz qual vem em seguida. Descanse depois do último do grupo e repita, até completar as séries.' },
         { titulo: 'Vídeos', texto: 'O link do vídeo abre fora do app, no navegador ou aplicativo de vídeo.' },
         { titulo: 'PDF do treino', texto: 'Baixe o treino em PDF na aba Treino.' },
       ],
@@ -211,6 +218,7 @@ const ALUNO: Guia = {
       titulo: 'Dieta e mobilidade',
       itens: [
         { titulo: 'Dieta', texto: 'Mostra o que foi publicado pelo treinador, refeição por refeição, e a água por dia quando ele escreveu. O cartão Dieta no início do app mostra quantas refeições e a água.' },
+        { titulo: 'Lista de compras', texto: 'Na Dieta, toque em Lista de compras e escolha Semana (7 dias) ou Mês (30 dias). Nas refeições com mais de uma opção, escolha a que vai comprar (a primeira já vem marcada). A quantidade é arredondada para cima; "cru" quer dizer que o treinador cadastrou o fator de cocção e a lista já converteu o alimento cozido para cru. Sem fator, vale a quantidade da dieta. Funciona sem internet com a última dieta salva, e dá para baixar em PDF.' },
         { titulo: 'Mobilidade', texto: 'Aba só de consulta, visível quando existe plano publicado. Dá para baixar em PDF.' },
       ],
     },

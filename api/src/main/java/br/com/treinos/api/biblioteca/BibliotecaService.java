@@ -9,8 +9,10 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioResponse;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.web.Buscas;
+import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.web.NaoEncontradoException;
+import br.com.treinos.api.web.ValidacaoException;
 import br.com.treinos.api.web.VideoUrls;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,9 +20,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,6 +36,10 @@ public class BibliotecaService {
     private static final UUID NENHUM = new UUID(0L, 0L);
     private static final int LIMITE_PADRAO = 50;
     private static final int LIMITE_MAXIMO = 200;
+    private static final BigDecimal FC_MINIMO = new BigDecimal("1.00");
+    private static final BigDecimal FC_MAXIMO = new BigDecimal("20.00");
+    private static final BigDecimal FCC_MINIMO = new BigDecimal("0.10");
+    private static final BigDecimal FCC_MAXIMO = new BigDecimal("10.00");
 
     private final ExercicioRepository exercicios;
     private final AlimentoRepository alimentos;
@@ -175,8 +184,40 @@ public class BibliotecaService {
     }
 
     private static Alimento.Valores valores(AlimentoRequest r) {
+        exigirFatores(r);
         return new Alimento.Valores(r.nome().trim(), r.baseQuantidade(), r.baseUnidade(), r.kcal(), r.proteina(),
-                r.carboidrato(), r.gordura(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()));
+                r.carboidrato(), r.gordura(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()), r.fatorCorrecao(),
+                r.fatorCoccao());
+    }
+
+    /**
+     * Faixas iguais às do CHECK da V011 e às do formulário do app ({@code dominio/fatoresDoAlimento.ts}). Conferidas
+     * aqui, e não por anotação no DTO, para responder 422 com o campo e a mensagem em português, como as outras
+     * validações de conteúdo; mais de duas casas seriam arredondadas em silêncio pelo {@code numeric(5,2)}.
+     */
+    private static void exigirFatores(AlimentoRequest r) {
+        List<ApiError.FieldError> erros = new ArrayList<>();
+        fatorForaDaFaixa(r.fatorCorrecao(), FC_MINIMO, FC_MAXIMO).ifPresent(m -> erros.add(
+                new ApiError.FieldError("fatorCorrecao", "O fator de correção " + m)));
+        fatorForaDaFaixa(r.fatorCoccao(), FCC_MINIMO, FCC_MAXIMO).ifPresent(m -> erros.add(
+                new ApiError.FieldError("fatorCoccao", "O fator de cocção " + m)));
+        if (!erros.isEmpty()) {
+            throw new ValidacaoException("Confira os fatores do alimento.", "ALIMENTO_INVALIDO", erros);
+        }
+    }
+
+    private static Optional<String> fatorForaDaFaixa(BigDecimal valor, BigDecimal minimo, BigDecimal maximo) {
+        if (valor == null) {
+            return Optional.empty();
+        }
+        if (valor.compareTo(minimo) < 0 || valor.compareTo(maximo) > 0) {
+            return Optional.of("vai de " + minimo.toPlainString().replace('.', ',') + " a "
+                    + maximo.toPlainString().replace('.', ',') + ".");
+        }
+        if (valor.stripTrailingZeros().scale() > 2) {
+            return Optional.of("aceita no máximo duas casas decimais.");
+        }
+        return Optional.empty();
     }
 
     private Exercicio exercicioAtivo(UUID id) {

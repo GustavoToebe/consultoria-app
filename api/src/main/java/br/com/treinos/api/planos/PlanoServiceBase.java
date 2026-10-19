@@ -88,6 +88,15 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         return novo;
     }
 
+    /**
+     * Conteúdo que vai para a versão publicada (imutável), já validado. O plano pode completar com o que o servidor sabe
+     * e o rascunho não precisa guardar (a dieta copia os fatores dos alimentos da biblioteca). O rascunho não muda.
+     * Padrão: igual.
+     */
+    protected C paraPublicar(C conteudo) {
+        return conteudo;
+    }
+
     /** Cópia do conteúdo de um plano de OUTRO aluno: o plano pode deixar de levar o que é pessoal. Padrão: igual. */
     protected C paraCopiaDeOutroAluno(C conteudo) {
         return conteudo;
@@ -178,7 +187,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
         }
         Instant agora = Instant.now();
         int numero = plano.getVersaoPublicada() + 1;
-        versoes.save(novaVersao(plano, numero, escrever(conteudo), usuarioId, agora));
+        versoes.save(novaVersao(plano, numero, escrever(paraPublicar(conteudo)), usuarioId, agora));
         planos.desativarOutros(plano.getAlunoId(), plano.getId());
         plano.publicar(numero, agora);
         return detalhe(planos.saveAndFlush(plano));

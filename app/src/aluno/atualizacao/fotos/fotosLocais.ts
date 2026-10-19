@@ -1,19 +1,24 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
 import { novoUid } from '../../../dominio/uid';
+import { excluirDoBackup } from '../../../offline/excluirDoBackup';
 
 /**
  * Celular: a foto tirada sem internet fica na pasta privada do app (nunca na galeria) até a atualização ser enviada. Uma
- * pasta por usuário; sair da conta apaga tudo. O nome do arquivo é só um identificador sorteado.
+ * pasta por usuário; sair da conta apaga tudo. O nome do arquivo é só um identificador sorteado. No iPhone a pasta `fotos`
+ * inteira fica fora do backup do iCloud (foto de corpo é dado sensível).
  */
 export const fotosLocaisDisponiveis = true;
 
-const pasta = (usuarioId: string) => new Directory(Paths.document, 'fotos', usuarioId);
+const raiz = () => new Directory(Paths.document, 'fotos');
+const pasta = (usuarioId: string) => new Directory(raiz(), usuarioId);
 
 /** Move a foto já reduzida (sem EXIF) para a pasta privada do usuário e devolve o nome guardado. */
 export async function guardarFotoLocal(usuarioId: string, origemUri: string): Promise<string> {
   const destino = pasta(usuarioId);
   destino.create({ intermediates: true, idempotent: true });
+  // A cada foto, porque a pasta pode ter sido apagada e criada de novo; antes de a foto entrar nela.
+  await excluirDoBackup(raiz().uri);
   const nome = `${novoUid()}.jpg`;
   new File(origemUri).move(new File(destino, nome));
   return nome;

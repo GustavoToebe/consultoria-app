@@ -7,6 +7,7 @@ import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTimin
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { tecnicasDoExercicio } from '../dominio/agrupamento';
 import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { videoValido } from '../dominio/video';
 import type { RegistroLocal } from '../offline/repositorioLocal';
@@ -73,6 +74,9 @@ export function ExercicioAluno(p: Props) {
         </Cartao>
       ) : null}
       {!e.progressao ? <Texto numerico style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
+      {textosDeExecucao(e).map((t) => (
+        <Texto key={t} numerico style={estilos.destaque}>{t}</Texto>
+      ))}
       {tecnicasDoExercicio(e.series).map((t) => (
         <View key={t.texto} style={estilos.tecnica}>
           <Texto numerico style={estilos.destaque}>{t.texto}</Texto>

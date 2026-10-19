@@ -1,5 +1,6 @@
 import { TotaisAnimados } from '../../ui/TotaisAnimados';
-import { ExternalLink, FileDown } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { ExternalLink, FileDown, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -112,6 +113,7 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
         </Texto>
       </Cartao>
+      <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} aoTocar={() => router.push('/aluno/lista-de-compras')} />
       <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
         <TotaisAnimados totais={totalDoDia(c)} />
         {Object.values(totalDoDia(c)).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}

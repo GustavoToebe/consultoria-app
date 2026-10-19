@@ -3,6 +3,17 @@ import { agrupar, descreverSeries, tecnicasDoExercicio, textosDeTecnica, textoTe
 
 const cluster: Tecnica = { tipo: 'CLUSTER', blocos: 3, repsPorBloco: 2, pausaSegundos: 20, retomadas: null, repsPorRetomada: null };
 const restPause: Tecnica = { tipo: 'REST_PAUSE', blocos: null, repsPorBloco: null, pausaSegundos: 20, retomadas: 2, repsPorRetomada: null };
+const dropSet: Tecnica = {
+  tipo: 'DROP_SET',
+  blocos: null,
+  repsPorBloco: null,
+  pausaSegundos: null,
+  retomadas: null,
+  repsPorRetomada: null,
+  quedas: 2,
+  reducaoPercentual: 20,
+  repsPorQueda: null,
+};
 
 function serie(uid: string, tecnica: Tecnica | null = null): Serie {
   return { uid, tipo: 'WS', repsMin: 6, repsMax: 6, alvoTexto: null, intensidade: { modo: 'CARGA_TRABALHO' }, descansoSegundos: null, tecnica };
@@ -44,5 +55,28 @@ describe('técnica da série (reunião de 17/10)', () => {
       textoTecnicaPorExtenso(cluster),
       textoTecnicaPorExtenso(restPause),
     ]);
+  });
+});
+
+describe('drop-set', () => {
+  it('texto curto: quedas, repetições fixas e redução só quando o treinador escreveu', () => {
+    expect(textoTecnica(dropSet)).toBe('Drop-set 2× −20%');
+    expect(textoTecnica({ ...dropSet, reducaoPercentual: null })).toBe('Drop-set 2×');
+    expect(textoTecnica({ ...dropSet, repsPorQueda: 8 })).toBe('Drop-set 2×8 −20%');
+    expect(textoTecnica({ ...dropSet, quedas: null })).toBe('Drop-set ?× −20%');
+  });
+
+  it('por extenso para o aluno, sem inventar a redução', () => {
+    expect(textoTecnicaPorExtenso(dropSet)).toBe('Drop-set: ao terminar, reduza a carga cerca de 20% e continue até a falha, 2 vezes.');
+    expect(textoTecnicaPorExtenso({ ...dropSet, reducaoPercentual: null })).toBe('Drop-set: ao terminar, reduza a carga e continue até a falha, 2 vezes.');
+    expect(textoTecnicaPorExtenso({ ...dropSet, quedas: 1, repsPorQueda: 6 })).toBe(
+      'Drop-set: ao terminar, reduza a carga cerca de 20% e faça mais 6 repetições, 1 vez.',
+    );
+  });
+
+  it('não tem pausa para o cronômetro e não se junta a série simples nem a outra técnica', () => {
+    expect(tecnicasDoExercicio([serie('a', dropSet)])[0].pausaSegundos).toBeNull();
+    expect(agrupar([serie('a'), serie('b', dropSet), serie('c', dropSet), serie('d', cluster)]).map((g) => g.series.length)).toEqual([1, 2, 1]);
+    expect(descreverSeries([serie('a', dropSet)])).toEqual(['1x6 - WS · Drop-set 2× −20%']);
   });
 });
