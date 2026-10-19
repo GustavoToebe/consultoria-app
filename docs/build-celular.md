@@ -112,9 +112,10 @@ Teste também num celular simples (pouca memória): abrir o app, trocar de aba e
     voltar e enviar. Sem internet, o envio espera e avisa.
 20. [ ] **Inscrição por link:** abrir no navegador do celular o link `/inscricao/<código>` (ligado na web, em
     Interessados) e enviar uma inscrição fictícia: o desafio do Turnstile (se ligado) e o teclado não cobrem os campos.
-21. [ ] **Excluir a própria conta** (aluno de teste descartável, **nunca** o "teste" que serve para o resto): Conta ›
-    "Excluir minha conta" pede a senha e a palavra de confirmação no painel da tela; depois o app volta para "Entrar" e o login antigo não
-    funciona mais. Nada de treino ou foto fica no aparelho.
+21. [ ] **Excluir minha conta** (só com um aluno de teste descartável, que some de verdade; **nunca** o "teste" que serve
+    para o resto): Conta › "Excluir minha conta". O botão final só libera com a senha e EXCLUIR; senha errada mostra o erro
+    e nada muda. Ao confirmar, o app volta ao Entrar com "Conta excluída.", e o mesmo e-mail e senha não entram mais; na
+    ficha, o treinador vê "Aluno anonimizado".
 
 Do lado do treinador (web, uma vez, depois do teste do aluno):
 - [ ] Ficha do aluno › **Evolução das respostas**: as notas e números das atualizações enviadas aparecem por pergunta
@@ -290,9 +291,12 @@ Use o mesmo roteiro, com estas diferenças. Anote o modelo do iPhone e a versão
 ### Antes da App Store (não precisa para o TestFlight interno)
 
 - Tudo da seção 4 (textos, capturas de tela de iPhone, política de privacidade, "App Privacy", conta de demonstração).
-- **Excluir a conta pelo app**: a Apple exige que app em que se cria conta deixe o usuário pedir a exclusão da conta de
-  dentro do app (diretriz 5.1.1(v)). Hoje o aluno cria a conta ao aceitar o convite e só o treinador anonimiza. É decisão
-  do Gustavo antes de mandar para a revisão da loja (pode bastar um pedido de exclusão que chegue ao treinador).
+- **Excluir a conta pelo app** (diretriz 5.1.1(v)): **atendido**. O aluno (quem cria conta ao aceitar o convite) tem
+  Conta › "Excluir minha conta": pede a senha e a palavra EXCLUIR e apaga os dados pessoais na hora (a mesma anonimização
+  que o treinador faz; `POST /aluno/conta/excluir`). Na revisão, se a Apple perguntar, o caminho é Conta › último cartão.
+  O Google Play também pede, na "Data safety", um endereço na web para pedir a exclusão: a versão web do app
+  (`https://consultoria.servirea.com.br`, entrar como aluno › Conta) faz o mesmo. A conta do **treinador** é da
+  consultoria contratada pela Central e não se exclui pelo app (ele não cria conta pelo app: o cadastro público está fechado).
 - Sem login social (Google etc.), então "Entrar com a Apple" não é exigido.
 
 ## Antes da loja: ícones

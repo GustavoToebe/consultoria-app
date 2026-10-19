@@ -254,6 +254,10 @@ export const aceitarTermos = (versao: string) =>
 export const trocarSenha = (senhaAtual: string, senhaNova: string) =>
   requisicao<LoginResponse>('/eu/senha', { metodo: 'PUT', corpo: { senhaAtual, senhaNova } });
 
+/** "Excluir minha conta" do aluno: 204 e a sessão deixa de valer no servidor (a do aparelho sai pelo `encerrarLocal`). */
+export const excluirMinhaConta = (senha: string, confirmacao: string) =>
+  requisicao<void>('/aluno/conta/excluir', { metodo: 'POST', corpo: { senha, confirmacao } });
+
 // ---- Configuração pública ----
 
 /** O que o app precisa saber antes do login (verificação humana e a chave pública do widget). `semCache` na busca de conferência. */
