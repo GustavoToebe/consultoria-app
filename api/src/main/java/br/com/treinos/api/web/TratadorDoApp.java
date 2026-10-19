@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * Os erros do app que o tratador da biblioteca não conhece: o 422 com a lista de problemas em {@code fieldErrors},
- * o 409/403 do plano (recurso em {@code fieldErrors}) e o 429 com {@code Retry-After}. Vem antes do tratador da biblioteca, que cuida de todo o resto.
+ * o 409/403 do plano (recurso em {@code fieldErrors}), o 409 que aponta um recurso existente e o 429 com {@code Retry-After}. Vem antes do tratador da biblioteca, que cuida de todo o resto.
  */
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -36,6 +36,12 @@ public class TratadorDoApp {
 
     @ExceptionHandler(PlanoException.class)
     public ResponseEntity<ApiError> plano(PlanoException ex, HttpServletRequest request) {
+        log.warn("Erro de negócio tratado: status={} codigo={}", ex.getStatus().value(), ex.getCodigo());
+        return ResponseEntity.status(ex.getStatus()).body(corpo(ex, request, ex.getProblemas()));
+    }
+
+    @ExceptionHandler(ConflitoComRecursoException.class)
+    public ResponseEntity<ApiError> conflitoComRecurso(ConflitoComRecursoException ex, HttpServletRequest request) {
         log.warn("Erro de negócio tratado: status={} codigo={}", ex.getStatus().value(), ex.getCodigo());
         return ResponseEntity.status(ex.getStatus()).body(corpo(ex, request, ex.getProblemas()));
     }
