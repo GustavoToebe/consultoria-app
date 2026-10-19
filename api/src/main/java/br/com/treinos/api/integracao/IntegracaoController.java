@@ -76,7 +76,8 @@ public class IntegracaoController {
 
     /**
      * Extensão do Saraiva (não está no contrato v1): novo link de primeiro acesso do administrador que ainda não
-     * aceitou o convite. Como o app não envia e-mail, é assim que o operador recupera o link.
+     * aceitou o convite. O e-mail sai por aqui (depois do commit) e o link volta na resposta, para a Central
+     * mostrá-lo ao operador uma única vez.
      */
     @PostMapping("/instancias/{tenantId}/convite-administrador")
     @PreAuthorize("hasAuthority('PERM_INTEGRACAO')")
