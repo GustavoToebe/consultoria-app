@@ -38,6 +38,10 @@ public final class BibliotecaDtos {
         }
     }
 
+    /**
+     * {@code fatorCorrecao} e {@code fatorCoccao} são opcionais (nulo = não informado); faixa e casas decimais são
+     * conferidas no {@code BibliotecaService}, que responde 422 {@code ALIMENTO_INVALIDO} com o campo.
+     */
     public record AlimentoRequest(
             @NotBlank @Size(max = 160) String nome,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 6, fraction = 2) BigDecimal baseQuantidade,
@@ -47,16 +51,19 @@ public final class BibliotecaDtos {
             @NotNull @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal carboidrato,
             @NotNull @DecimalMin("0") @DecimalMax("99999") @Digits(integer = 6, fraction = 2) BigDecimal gordura,
             @DecimalMin(value = "0", inclusive = false) @Digits(integer = 6, fraction = 2) BigDecimal gramasPorUnidade,
-            @Size(max = 200) String fonte) {
+            @Size(max = 200) String fonte,
+            BigDecimal fatorCorrecao,
+            BigDecimal fatorCoccao) {
     }
 
     public record AlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                    BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
-                                   BigDecimal gramasPorUnidade, String fonte, String origem) {
+                                   BigDecimal gramasPorUnidade, String fonte, String origem,
+                                   BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
         public static AlimentoResponse de(Alimento a) {
             return new AlimentoResponse(a.getId(), a.getNome(), a.getBaseQuantidade(), a.getBaseUnidade(),
                     a.getKcal(), a.getProteina(), a.getCarboidrato(), a.getGordura(), a.getGramasPorUnidade(),
-                    a.getFonte(), a.getOrigem().name());
+                    a.getFonte(), a.getOrigem().name(), a.getFatorCorrecao(), a.getFatorCoccao());
         }
     }
 

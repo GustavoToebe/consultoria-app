@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 /**
  * Conteúdo do plano de dieta, no formato dos PDFs do Saraiva. Os valores de cada item são calculados no
@@ -22,6 +23,10 @@ import java.util.function.Supplier;
  *
  * <p>{@code aguaLitros} é a água por dia que o treinador escreveu (pedido do Saraiva em 17/10, para o aluno ver no início).
  * Só se mostra: o sistema não calcula, não sugere meta e não registra consumo. Nulo = não aparece.
+ *
+ * <p>{@code Item.fatorCorrecao}/{@code Item.fatorCoccao} são os fatores do alimento da biblioteca, copiados pelo servidor
+ * ao publicar ({@code PlanoDietaService.paraPublicar}) para a versão imutável levar o que o app do aluno precisa para a
+ * lista de compras, inclusive sem internet. O que o cliente manda nesses campos não vale: a publicação regrava os dois.
  */
 public record ConteudoDieta(
         @Size(max = 200) String objetivo,
@@ -79,7 +84,20 @@ public record ConteudoDieta(
             BigDecimal proteina,
             BigDecimal carboidrato,
             BigDecimal gordura,
-            Boolean manual) {
+            Boolean manual,
+            BigDecimal fatorCorrecao,
+            BigDecimal fatorCoccao) {
+
+        /** Sem os fatores (rascunho, modelo, seed e testes: só a publicação os preenche). */
+        public Item(UUID uid, UUID alimentoId, String nome, BigDecimal quantidade, String unidade, BigDecimal kcal,
+                    BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura, Boolean manual) {
+            this(uid, alimentoId, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, manual, null, null);
+        }
+
+        public Item comFatores(BigDecimal correcao, BigDecimal coccao) {
+            return new Item(uid, alimentoId, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, manual,
+                    correcao, coccao);
+        }
     }
 
     public record Orientacao(@Size(max = 80) String titulo, @Size(max = 2000) String texto) {
@@ -128,6 +146,16 @@ public record ConteudoDieta(
         return suplementacao == null ? List.of() : suplementacao;
     }
 
+    /** Cópia com cada item trocado por {@code troca} (mesmos uids e o resto igual). */
+    public ConteudoDieta comItens(UnaryOperator<Item> troca) {
+        List<Refeicao> novas = refeicoes == null ? null : refeicoes.stream().map(r -> new Refeicao(r.uid(), r.nome(),
+                r.horario(), r.observacao(), r.opcoes() == null ? null : r.opcoes().stream().map(o -> new Opcao(
+                        o.uid(), o.rotulo(), o.itens() == null ? null : o.itens().stream().map(troca).toList()))
+                        .toList())).toList();
+        return new ConteudoDieta(objetivo, dataInicio, profissional, novas, orientacoes, observacoes, suplementacao,
+                ergogenicos, aguaLitros);
+    }
+
     /** Cópia com uids novos (receita, cópia ou replicação). */
     public ConteudoDieta comUidsNovos() {
         Supplier<UUID> novo = UUID::randomUUID;
@@ -135,7 +163,7 @@ public record ConteudoDieta(
                 r.observacao(), r.opcoesOuVazio().stream().map(o -> new Opcao(novo.get(), o.rotulo(),
                         o.itensOuVazio().stream().map(i -> new Item(novo.get(), i.alimentoId(), i.nome(),
                                 i.quantidade(), i.unidade(), i.kcal(), i.proteina(), i.carboidrato(), i.gordura(),
-                                i.manual())).toList())).toList())).toList();
+                                i.manual(), i.fatorCorrecao(), i.fatorCoccao())).toList())).toList())).toList();
         List<Suplemento> suplementos = suplementacaoOuVazio().stream().map(s -> new Suplemento(novo.get(), s.nome(),
                 s.dose(), s.horario(), s.observacao(), s.link())).toList();
         List<Ergogenico> medicacao = ergogenicos == null ? null : ergogenicos.stream().map(e -> new Ergogenico(novo.get(),

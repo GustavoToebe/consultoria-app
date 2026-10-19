@@ -24,6 +24,9 @@ de aluno para fora). Não consultar nenhuma API ao vivo.
    edita o SQL gerado à mão; fonte nova ou corrigida regenera o arquivo.
 5. A busca usa `nome_busca` (sem acento), calculada igual no Python e em `Buscas.semAcento`.
 6. Sem dado pessoal: as bases são públicas.
+7. Fator de correção e de cocção (lista de compras) **não** vêm do catálogo nem da importação por CSV: são dado de cada
+   consultoria, digitados pelo treinador no alimento. Nenhuma tabela de fatores de terceiros (livros, planilhas) entra
+   no repositório, em seed ou em migration.
 
 ## Como gerar
 

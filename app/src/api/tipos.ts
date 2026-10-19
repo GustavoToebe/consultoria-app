@@ -208,6 +208,10 @@ export interface Alimento {
   gramasPorUnidade: number | null;
   fonte: string | null;
   origem: string;
+  /** Fator de correção (peso bruto ÷ líquido, 1 a 20) que o treinador digitou; nulo = não informado (nunca 1). */
+  fatorCorrecao: number | null;
+  /** Fator de cocção (peso pronto ÷ cru, 0,1 a 10) que o treinador digitou; nulo = não informado. */
+  fatorCoccao: number | null;
 }
 
 export type AlimentoRequest = Omit<Alimento, 'id' | 'origem'>;
@@ -365,6 +369,12 @@ export interface ItemDieta {
   carboidrato: number | null;
   gordura: number | null;
   manual: boolean;
+  /**
+   * Fatores do alimento da biblioteca, copiados pelo servidor ao publicar (só na versão publicada; no rascunho o que
+   * houver é ignorado e regravado). Usados só na lista de compras do aluno. Nulo = não informado.
+   */
+  fatorCorrecao?: number | null;
+  fatorCoccao?: number | null;
 }
 
 export interface OpcaoRefeicao {

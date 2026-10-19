@@ -127,6 +127,8 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
           carboidrato: i.carboidrato ?? null,
           gordura: i.gordura ?? null,
           manual: i.manual ?? i.alimentoId == null,
+          fatorCorrecao: i.fatorCorrecao ?? null,
+          fatorCoccao: i.fatorCoccao ?? null,
         })),
       })),
     })),

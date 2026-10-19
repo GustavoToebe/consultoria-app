@@ -17,7 +17,7 @@ import { GUIAS } from '../../ajuda/conteudo';
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
   { rotulo: 'Treino', href: '/aluno', caminho: '/aluno', Icone: Dumbbell, exato: true },
-  { rotulo: 'Dieta', href: '/aluno/dieta', caminho: '/aluno/dieta', Icone: Salad },
+  { rotulo: 'Dieta', href: '/aluno/dieta', caminho: '/aluno/dieta', Icone: Salad, tambem: ['/aluno/lista-de-compras'] },
   // Só aparece com mobilidade publicada (veja MenuAluno); fica antes do Histórico para a barra de 5 abas.
   { rotulo: 'Mobilidade', href: '/aluno/mobilidade', caminho: '/aluno/mobilidade', Icone: PersonStanding },
   { rotulo: 'Histórico', href: '/aluno/historico', caminho: '/aluno/historico', Icone: CalendarDays },

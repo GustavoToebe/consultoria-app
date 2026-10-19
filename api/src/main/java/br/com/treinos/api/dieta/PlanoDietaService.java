@@ -1,6 +1,8 @@
 package br.com.treinos.api.dieta;
 
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.biblioteca.Alimento;
+import br.com.treinos.api.biblioteca.AlimentoRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.pastas.PastaRepository;
 import br.com.treinos.api.planos.PlanoServiceBase;
@@ -11,18 +13,25 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVersao, ConteudoDieta> {
 
     private final ReceitaService receitas;
     private final ValidadorDieta validador;
+    private final AlimentoRepository alimentos;
 
-    public PlanoDietaService(PlanoDietaRepository planos, PlanoDietaVersaoRepository versoes, AlunoRepository alunos, PastaRepository pastas, JsonMapper json, ReceitaService receitas, ValidadorDieta validador) {
+    public PlanoDietaService(PlanoDietaRepository planos, PlanoDietaVersaoRepository versoes, AlunoRepository alunos, PastaRepository pastas, JsonMapper json, ReceitaService receitas, ValidadorDieta validador, AlimentoRepository alimentos) {
         super(planos, versoes, alunos, pastas, json, ConteudoDieta.class, "Plano de dieta");
         this.receitas = receitas;
         this.validador = validador;
+        this.alimentos = alimentos;
     }
 
     @Override
@@ -70,6 +79,28 @@ public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVe
     @Override
     protected ConteudoDieta paraCopiaDeOutroAluno(ConteudoDieta conteudo) {
         return conteudo.semErgogenicos();
+    }
+
+    /**
+     * Lista de compras do aluno (reunião de 17/10, R13/R14/R32): cada item que veio da biblioteca recebe o fator de
+     * correção e o de cocção que o alimento tem <b>agora</b>, e a versão publicada (imutável) passa a levá-los. Assim o
+     * app do aluno calcula a lista sem internet e sem rota nova, e mudar o fator na biblioteca depois só vale na próxima
+     * publicação, como os outros números do item. A busca passa pelo {@code @TenantId}: alimento de outra consultoria
+     * (ou id que não existe) não é achado e o item fica sem fatores; item manual (sem {@code alimentoId}) também. O que o
+     * cliente mandou nesses campos é sempre sobrescrito. Alimento inativado continua valendo: a dieta ainda o usa e os
+     * fatores são os que o treinador digitou.
+     */
+    @Override
+    protected ConteudoDieta paraPublicar(ConteudoDieta conteudo) {
+        Set<UUID> ids = conteudo.refeicoesOuVazio().stream().flatMap(r -> r.opcoesOuVazio().stream())
+                .flatMap(o -> o.itensOuVazio().stream()).map(ConteudoDieta.Item::alimentoId).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, Alimento> porId = ids.isEmpty() ? Map.of()
+                : alimentos.findAllById(ids).stream().collect(Collectors.toMap(Alimento::getId, Function.identity()));
+        return conteudo.comItens(i -> {
+            Alimento a = i.alimentoId() == null ? null : porId.get(i.alimentoId());
+            return a == null ? i.comFatores(null, null) : i.comFatores(a.getFatorCorrecao(), a.getFatorCoccao());
+        });
     }
 
     @Override

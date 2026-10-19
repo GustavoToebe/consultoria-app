@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { alterarAlimento, criarAlimento, inativarAlimento, listarAlimentos } from '../../api/rotas';
 import type { Alimento, AlimentoRequest, UnidadeAlimento } from '../../api/tipos';
+import { AJUDA_FC, AJUDA_FCC, erroDoFatorCoccao, erroDoFatorCorrecao, textoDosFatores } from '../../dominio/fatoresDoAlimento';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
@@ -80,6 +81,7 @@ export function AbaAlimentos() {
           <View style={estilos.dados}>
             <Texto variante="bloco">{a.nome}</Texto>
             <Texto variante="suave">{resumoAlimento(a)}</Texto>
+            {textoDosFatores(a) ? <Texto variante="suave">{textoDosFatores(a)}</Texto> : null}
           </View>
           <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>
         </View>
@@ -119,10 +121,14 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
   const [gordura, setGordura] = useState<number | null>(inicial?.gordura ?? null);
   const [gramas, setGramas] = useState<number | null>(inicial?.gramasPorUnidade ?? null);
   const [fonte, setFonte] = useState(inicial?.fonte ?? '');
+  const [fc, setFc] = useState<number | null>(inicial?.fatorCorrecao ?? null);
+  const [fcc, setFcc] = useState<number | null>(inicial?.fatorCoccao ?? null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
-  const completo = nome.trim() && base && kcal !== null && proteina !== null && carboidrato !== null && gordura !== null;
+  const erroFc = erroDoFatorCorrecao(fc);
+  const erroFcc = erroDoFatorCoccao(fcc);
+  const completo = nome.trim() && base && kcal !== null && proteina !== null && carboidrato !== null && gordura !== null && !erroFc && !erroFcc;
 
   const salvar = () => {
     if (!completo) return;
@@ -136,6 +142,8 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
       gordura,
       gramasPorUnidade: gramas,
       fonte: fonte.trim() || null,
+      fatorCorrecao: fc,
+      fatorCoccao: fcc,
     };
     setSalvando(true);
     setErro(null);
@@ -153,7 +161,7 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
       rodape={
         <>
           <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoFechar} />
-          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!completo} />
+          <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!completo} motivo={erroFc || erroFcc ? 'Confira os fatores do alimento.' : undefined} />
         </>
       }>
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={160} />
@@ -188,6 +196,15 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
         />
       </View>
       <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} />
+      <Texto variante="suave">Para a lista de compras do aluno. Use os fatores que você adota; vazio = a lista usa a quantidade da dieta.</Texto>
+      <View style={estilos.grade}>
+        <View style={estilos.campo}>
+          <CampoNumerico rotulo="Fator de correção (opcional)" valor={fc} aoMudar={setFc} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
+        </View>
+        <View style={estilos.campo}>
+          <CampoNumerico rotulo="Fator de cocção (opcional)" valor={fcc} aoMudar={setFcc} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
+        </View>
+      </View>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
     </Folha>
