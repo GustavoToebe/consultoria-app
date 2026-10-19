@@ -53,6 +53,11 @@ treinos:
     produto: ${TREINOS_INTEGRACAO_PRODUTO:TREINOS}
     tolerancia-horas: ${TREINOS_INTEGRACAO_TOLERANCIA_HORAS:72}
     bloqueio-ativo: ${TREINOS_INTEGRACAO_BLOQUEIO_ATIVO:false}
+  # Cadastro público de treinador (POST /auth/cadastro-treinador). Fechado por padrão: aberto, qualquer pessoa cria uma
+  # consultoria, descobre se um e-mail já tem conta e ocupa o e-mail de quem ainda vai contratar pela Central (que vincula
+  # pelo e-mail do administrador). Consultoria nova em produção entra pela Central. Fechado, a rota responde 404.
+  cadastro:
+    aberto: ${TREINOS_CADASTRO_ABERTO:false}
   # Aplica o plano da Central (limites e funcionalidades de direitos_locais) a quem cria algo novo. Desligada por padrão:
   # ligar antes de o produto ter as funcionalidades configuradas na Central tiraria Mobilidade e Equipe das consultorias.
   # Sem linha em direitos_locais (integração desligada, demo) nada é barrado, ligada ou não. docs/integracao-central.md.

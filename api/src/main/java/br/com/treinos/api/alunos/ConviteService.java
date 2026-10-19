@@ -67,7 +67,7 @@ public class ConviteService {
         Instant expiraEm = Instant.now().plus(VALIDADE);
         aluno.novoConvite(hash(codigo), expiraEm);
         alunos.saveAndFlush(aluno);
-        return new ConviteResponse(codigo, appUrl + "/convite?codigo=" + URLEncoder.encode(codigo, StandardCharsets.UTF_8),
+        return new ConviteResponse(codigo, appUrl + "/convite#codigo=" + URLEncoder.encode(codigo, StandardCharsets.UTF_8),
                 expiraEm);
     }
 

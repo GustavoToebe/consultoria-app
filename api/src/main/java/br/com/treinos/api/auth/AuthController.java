@@ -10,9 +10,11 @@ import br.com.treinos.api.auth.dto.LoginResponse;
 import br.com.treinos.api.auth.dto.RedefinirSenhaRequest;
 import br.com.treinos.api.auth.dto.RefreshRequest;
 import br.com.treinos.api.security.DestinoCliente;
+import br.com.treinos.api.web.NaoEncontradoException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,10 +39,13 @@ public class AuthController {
     private final Auditoria auditoria;
     private final RedefinicaoSenhaService redefinicao;
     private final VerificacaoHumana verificacao;
+    private final boolean cadastroAberto;
 
     public AuthController(AuthService authService, CadastroTreinadorService cadastroTreinador,
                           LimiteTentativas limite, SessaoHttp sessaoHttp, Auditoria auditoria,
-                          RedefinicaoSenhaService redefinicao, VerificacaoHumana verificacao) {
+                          RedefinicaoSenhaService redefinicao, VerificacaoHumana verificacao,
+                          @Value("${treinos.cadastro.aberto:false}") boolean cadastroAberto) {
+        this.cadastroAberto = cadastroAberto;
         this.verificacao = verificacao;
         this.redefinicao = redefinicao;
         this.auditoria = auditoria;
@@ -72,6 +77,10 @@ public class AuthController {
     @PostMapping("/cadastro-treinador")
     public LoginResponse cadastroTreinador(@RequestBody @Valid CadastroTreinadorRequest request,
                                            HttpServletRequest http, HttpServletResponse resposta) {
+        // Fechado (o padrão): 404 antes de tudo, sem dizer se o e-mail existe nem gastar verificação humana.
+        if (!cadastroAberto) {
+            throw new NaoEncontradoException("Cadastro de treinador fechado.");
+        }
         verificacao.exigir(request.turnstileToken(), http.getRemoteAddr());
         limite.cadastro(http.getRemoteAddr());
         DestinoCliente cliente = DestinoCliente.de(http);

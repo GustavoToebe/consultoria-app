@@ -1,9 +1,10 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import * as rotas from '../api/rotas';
 import type { ConvitePublico } from '../api/tipos';
+import { codigoDoFragmento } from '../dominio/linkDeConvite';
 import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
@@ -18,15 +19,15 @@ import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
 
 /**
- * Convite do aluno: abre pelo link (`/convite?codigo=...`) ou digitando o código. Mostra a marca do treinador e cria
- * a conta do aluno. O código vale uma vez só.
+ * Convite do aluno: abre pelo link (`/convite#codigo=...`, o código no fragmento, tirado do endereço logo depois de
+ * lido) ou digitando o código. Mostra a marca do treinador e cria a conta do aluno. O código vale uma vez só.
  */
 export default function Convite() {
-  const params = useLocalSearchParams<{ codigo?: string }>();
+  const [doLink] = useState(() => (Platform.OS === 'web' && typeof window !== 'undefined' ? codigoDoFragmento(window.location.hash) : ''));
   const sessao = useSessao();
-  const [codigo, setCodigo] = useState(params.codigo ?? '');
+  const [codigo, setCodigo] = useState(doLink);
   const [convite, setConvite] = useState<ConvitePublico | null>(null);
-  const [carregando, setCarregando] = useState(!!params.codigo);
+  const [carregando, setCarregando] = useState(!!doLink);
   const [erro, setErro] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -53,15 +54,22 @@ export default function Convite() {
       });
   }, []);
 
+  // O código não fica no endereço (histórico, captura de tela, link copiado).
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.hash) {
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+    }
+  }, []);
+
   // Aberto pelo link do convite: consulta direto.
   useEffect(() => {
-    if (!params.codigo) return;
+    if (!doLink) return;
     let ativo = true;
-    buscar(params.codigo, () => ativo);
+    buscar(doLink, () => ativo);
     return () => {
       ativo = false;
     };
-  }, [params.codigo, buscar]);
+  }, [doLink, buscar]);
 
   const consultar = (valor: string) => {
     if (!valor.trim()) {

@@ -350,6 +350,30 @@ class CopiarPlanoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void replicarOuExcluirAPastaExigeAlterarCadaTipoDePlanoDela() throws Exception {
+        String pasta = api.post("/alunos/" + origem + "/pastas", treinador,
+                Map.of("titulo", "Período fictício", "inicio", "2026-11-02", "fim", "2026-11-29"), 200).path("id").asString();
+        api.post("/alunos/" + origem + "/planos-treino", treinador, Map.of("titulo", "Treino", "pastaId", pasta), 200);
+        api.post("/alunos/" + origem + "/planos-dieta", treinador, Map.of("titulo", "Dieta", "pastaId", pasta), 200);
+        Map<String, Object> replica = Map.of("titulo", "Próximo período", "inicio", "2026-11-30", "fim", "2026-12-27");
+        int pastas = banco.queryForObject("select count(*) from pasta_plano where aluno_id = ?", Integer.class, origem);
+
+        comPermissoes("ALUNO_LER", "PASTA_ALTERAR", "TREINO_LER", "DIETA_LER");
+        api.post("/pastas/" + pasta + "/replicar", treinador, replica, 403);
+        api.delete("/pastas/" + pasta, treinador, 403);
+        comPermissoes("ALUNO_LER", "PASTA_ALTERAR", "TREINO_LER", "DIETA_LER", "TREINO_ALTERAR");
+        api.post("/pastas/" + pasta + "/replicar", treinador, replica, 403);
+        api.delete("/pastas/" + pasta, treinador, 403);
+        assertThat(banco.queryForObject("select count(*) from pasta_plano where aluno_id = ?", Integer.class, origem)).isEqualTo(pastas);
+        assertThat(banco.queryForObject("select count(*) from plano_treino where pasta_id = ?::uuid and not arquivado",
+                Integer.class, pasta)).isEqualTo(1);
+
+        comPermissoes("ALUNO_LER", "PASTA_ALTERAR", "TREINO_LER", "DIETA_LER", "TREINO_ALTERAR", "DIETA_ALTERAR");
+        api.post("/pastas/" + pasta + "/replicar", treinador, replica, 200);
+        api.delete("/pastas/" + pasta, treinador, 204);
+    }
+
+    @Test
     void semAlterarOTipoE403() throws Exception {
         String id = treinoPublicadoComRascunhoNovo();
         String dieta = dietaPublicadaComRascunhoNovo();

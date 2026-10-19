@@ -34,11 +34,24 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
 
     private static final byte[] PNG = png(64, 64);
 
-    /** Assinatura PNG + chunk IHDR com a largura e a altura pedidas (o servidor lê só o cabeçalho). */
+    /** Assinatura PNG + IHDR com a largura e a altura pedidas + IEND (o servidor confere o cabeçalho e os chunks, sem decodificar). */
     private static byte[] png(int largura, int altura) {
-        java.nio.ByteBuffer b = java.nio.ByteBuffer.allocate(33);
+        java.nio.ByteBuffer b = java.nio.ByteBuffer.allocate(45);
         b.put(new byte[] {(byte) 0x89, 'P', 'N', 'G', 13, 10, 0x1A, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R'});
         b.putInt(largura).putInt(altura).put(new byte[] {8, 6, 0, 0, 0}).putInt(0);
+        b.put(new byte[] {0, 0, 0, 0, 'I', 'E', 'N', 'D', (byte) 0xAE, 0x42, 0x60, (byte) 0x82});
+        return b.array();
+    }
+
+    /** O mesmo PNG com um chunk de texto antes do IEND e lixo depois dele. */
+    private static byte[] pngComTexto(String texto) {
+        byte[] base = png(64, 64);
+        byte[] dados = texto.getBytes(StandardCharsets.ISO_8859_1);
+        java.nio.ByteBuffer b = java.nio.ByteBuffer.allocate(base.length + 12 + dados.length + dados.length);
+        b.put(base, 0, 33);
+        b.putInt(dados.length).put(new byte[] {'t', 'E', 'X', 't'}).put(dados).putInt(0);
+        b.put(base, 33, 12);
+        b.put(dados);
         return b.array();
     }
     private static final byte[] GIF = "GIF89a....".getBytes(StandardCharsets.US_ASCII);
@@ -96,6 +109,18 @@ class MarcaELogoIntegrationTest extends AbstractIntegrationTest {
             MvcResult r = enviar(new MockMultipartFile("arquivo", "logo.png", "image/png", ruim), 400);
             assertThat(api.ler(r).get("codigo").asString()).isEqualTo("ARQUIVO_INVALIDO");
         }
+    }
+
+    @Test
+    void pngPerdeTextoEOQueVemDepoisDoIend() throws Exception {
+        byte[] sujo = pngComTexto("Comment\0GPS fictício -25.0,-53.0");
+        assertThat(FotosDeTeste.contem(sujo, "GPS")).isTrue();
+        String logoUrl = api.ler(enviar(new MockMultipartFile("arquivo", "logo.png", "image/png", sujo), 200)).get("logoUrl").asString();
+        byte[] servida = mvc.perform(get(logoUrl)).andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        assertThat(servida).isEqualTo(png(64, 64));
+        // Sem IEND (cortado depois do IHDR inteiro): recusa.
+        MvcResult r = enviar(new MockMultipartFile("arquivo", "logo.png", "image/png", java.util.Arrays.copyOf(png(64, 64), 33)), 400);
+        assertThat(api.ler(r).get("codigo").asString()).isEqualTo("ARQUIVO_INVALIDO");
     }
 
     @Test

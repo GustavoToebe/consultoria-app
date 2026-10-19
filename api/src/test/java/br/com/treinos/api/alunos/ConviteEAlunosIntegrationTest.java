@@ -44,22 +44,22 @@ class ConviteEAlunosIntegrationTest extends AbstractIntegrationTest {
         JsonNode convite = api.post("/alunos/" + aluno + "/convite", treinador, null, 200);
         String codigo = convite.get("codigo").asString();
         assertThat(codigo).hasSize(10).matches("[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{10}");
-        assertThat(convite.get("link").asString()).endsWith("/convite?codigo=" + codigo);
+        assertThat(convite.get("link").asString()).endsWith("/convite#codigo=" + codigo);
 
-        JsonNode publico = api.get("/publico/convites/" + codigo, null, 200);
+        JsonNode publico = api.post("/publico/convites/consultar", null, Map.of("codigo", codigo), 200);
         assertThat(publico.get("primeiroNomeAluno").asString()).isEqualTo("Maria");
         assertThat(publico.get("consultoria").get("id").asString())
                 .isEqualTo(treinador.get("marca").get("id").asString());
 
         String email = ApiDeTeste.emailUnico("aluna");
-        JsonNode login = api.post("/publico/convites/" + codigo.toLowerCase(java.util.Locale.ROOT) + "/aceitar", null,
-                Map.of("email", email, "senha", ApiDeTeste.SENHA), 200);
+        JsonNode login = api.post("/publico/convites/aceitar", null,
+                Map.of("codigo", codigo.toLowerCase(java.util.Locale.ROOT), "email", email, "senha", ApiDeTeste.SENHA), 200);
         assertThat(login.get("usuario").get("papel").asString()).isEqualTo("ALUNO");
         assertThat(api.get("/alunos/" + aluno, treinador, 200).get("temAcesso").asBoolean()).isTrue();
 
-        api.post("/publico/convites/" + codigo + "/aceitar", null,
-                Map.of("email", ApiDeTeste.emailUnico("outra"), "senha", ApiDeTeste.SENHA), 404);
-        api.get("/publico/convites/" + codigo, null, 404);
+        api.post("/publico/convites/aceitar", null,
+                Map.of("codigo", codigo, "email", ApiDeTeste.emailUnico("outra"), "senha", ApiDeTeste.SENHA), 404);
+        api.post("/publico/convites/consultar", null, Map.of("codigo", codigo), 404);
         // Aluno com acesso não recebe convite novo.
         assertThat(api.post("/alunos/" + aluno + "/convite", treinador, null, 409).get("codigo").asString())
                 .isEqualTo("ALUNO_COM_ACESSO");
@@ -88,25 +88,25 @@ class ConviteEAlunosIntegrationTest extends AbstractIntegrationTest {
     void conviteExpiradoOuSubstituidoNaoVale() throws Exception {
         String primeiro = api.post("/alunos/" + aluno + "/convite", treinador, null, 200).get("codigo").asString();
         String segundo = api.post("/alunos/" + aluno + "/convite", treinador, null, 200).get("codigo").asString();
-        api.get("/publico/convites/" + primeiro, null, 404);
-        api.get("/publico/convites/" + segundo, null, 200);
+        api.post("/publico/convites/consultar", null, Map.of("codigo", primeiro), 404);
+        api.post("/publico/convites/consultar", null, Map.of("codigo", segundo), 200);
 
         jdbc.update("update aluno set convite_expira_em = now() - interval '1 minute' where id = ?", aluno);
-        api.get("/publico/convites/" + segundo, null, 404);
-        api.post("/publico/convites/" + segundo + "/aceitar", null,
-                Map.of("email", ApiDeTeste.emailUnico("tarde"), "senha", ApiDeTeste.SENHA), 404);
+        api.post("/publico/convites/consultar", null, Map.of("codigo", segundo), 404);
+        api.post("/publico/convites/aceitar", null,
+                Map.of("codigo", segundo, "email", ApiDeTeste.emailUnico("tarde"), "senha", ApiDeTeste.SENHA), 404);
     }
 
     @Test
     void emailJaUsadoRecebe409() throws Exception {
         String emailDoTreinador = api.get("/eu", treinador, 200).get("usuario").get("email").asString();
         String codigo = api.post("/alunos/" + aluno + "/convite", treinador, null, 200).get("codigo").asString();
-        JsonNode erro = api.post("/publico/convites/" + codigo + "/aceitar", null,
-                Map.of("email", emailDoTreinador, "senha", ApiDeTeste.SENHA), 409);
+        JsonNode erro = api.post("/publico/convites/aceitar", null,
+                Map.of("codigo", codigo, "email", emailDoTreinador, "senha", ApiDeTeste.SENHA), 409);
         assertThat(erro.get("codigo").asString()).isEqualTo("EMAIL_EM_USO");
         // O convite continua valendo para o e-mail certo.
-        api.post("/publico/convites/" + codigo + "/aceitar", null,
-                Map.of("email", ApiDeTeste.emailUnico("certo"), "senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites/aceitar", null,
+                Map.of("codigo", codigo, "email", ApiDeTeste.emailUnico("certo"), "senha", ApiDeTeste.SENHA), 200);
     }
 
     @Test

@@ -15,3 +15,6 @@ produção sem os testes terem passado sobre aquele código.
   repositório `GHCR_LIMPEZA_APAGAR=true`. Nunca apaga versão sem tag nem tag que não seja de commit. A VPS só usa a release atual e a
   anterior (`releases/consultoria/atual.env` e `anterior.env`), ambas entre as últimas publicadas.
 - **Sem proteção de branch** na `main`: decisão do Gustavo (o fluxo é direto na `main`).
+- **Actions fixadas pelo commit** (com a versão em comentário): uma tag mexida no repositório de origem não leva o `gh_token`, o
+  `GITHUB_TOKEN` com `packages: write` nem o PAT. O Dependabot (`.github/dependabot.yml`, mensal) abre o PR que sobe o commit. O
+  token de limpeza do GHCR não vai para pull request (o script ali vem do próprio PR).

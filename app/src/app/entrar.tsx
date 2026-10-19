@@ -94,7 +94,7 @@ export default function Entrar() {
       <View style={estilos.links}>
         <LinkTexto href="/esqueci-senha" texto="Esqueci minha senha" />
         <LinkTexto href="/convite" texto="Tenho um convite" />
-        <LinkTexto href="/cadastro" texto="Sou treinador, criar conta" />
+        {verificacao.cadastroAberto ? <LinkTexto href="/cadastro" texto="Sou treinador, criar conta" /> : null}
       </View>
     </Tela>
   );

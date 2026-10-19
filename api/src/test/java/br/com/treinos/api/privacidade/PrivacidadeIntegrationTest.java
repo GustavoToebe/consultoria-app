@@ -88,8 +88,8 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
                 Map.of("versao", dietaSalva.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
 
         String codigo = api.post("/alunos/" + alunoId + "/convite", admin, null, 200).get("codigo").asString();
-        loginDoAluno = api.post("/publico/convites/" + codigo + "/aceitar", null,
-                Map.of("email", emailDoAluno, "senha", ApiDeTeste.SENHA), 200);
+        loginDoAluno = api.post("/publico/convites/aceitar", null,
+                Map.of("codigo", codigo, "email", emailDoAluno, "senha", ApiDeTeste.SENHA), 200);
         String versaoId = api.get("/aluno/painel", loginDoAluno, 200).get("treino").get("versaoId").asString();
         Map<String, Object> registro = new LinkedHashMap<>();
         registro.put("id", UUID.randomUUID().toString());
@@ -330,6 +330,15 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.post("/alunos/" + alunoId + "/anonimizar", admin, Map.of("nomeConfirmado", NOME), 409)
                 .get("codigo").asString()).isEqualTo("ALUNO_ANONIMIZADO");
         api.post("/alunos/" + alunoId + "/convite", admin, null, 409);
+        // Nada de dado de saúde novo num cadastro anonimizado (peso, lesão, pasta, plano).
+        for (var gravar : List.<Map.Entry<String, Map<String, Object>>>of(
+                Map.entry("/pesos", Map.of("data", hoje.minusDays(1), "pesoKg", "70.00")),
+                Map.entry("/lesoes", Map.of("regiao", "Joelho", "dataInicio", "2026-03-01", "situacao", "ATIVA")),
+                Map.entry("/pastas", Map.of("titulo", "Período fictício")),
+                Map.entry("/planos-treino", Map.of("titulo", "Treino fictício")))) {
+            assertThat(api.post("/alunos/" + alunoId + gravar.getKey(), admin, gravar.getValue(), 409).get("codigo").asString())
+                    .as(gravar.getKey()).isEqualTo("ALUNO_ANONIMIZADO");
+        }
 
         // A exportação do anonimizado não tem o que foi apagado.
         String exportado = api.get("/alunos/" + alunoId + "/exportacao", admin, 200).toString();

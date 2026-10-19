@@ -204,13 +204,14 @@ export const configuracaoPublica = (semCache = false) =>
 
 // ---- Convite (público) ----
 
+/** O código vai só no corpo (no caminho ficaria em log de acesso e no histórico). */
 export const consultarConvite = (codigo: string) =>
-  requisicao<ConvitePublico>(`/publico/convites/${encodeURIComponent(codigo)}`, { semRenovar: true });
+  requisicao<ConvitePublico>('/publico/convites/consultar', { metodo: 'POST', corpo: { codigo }, semRenovar: true });
 
 export const aceitarConvite = (codigo: string, email: string, senha: string) =>
-  requisicao<LoginResponse>(`/publico/convites/${encodeURIComponent(codigo)}/aceitar`, {
+  requisicao<LoginResponse>('/publico/convites/aceitar', {
     metodo: 'POST',
-    corpo: { email, senha },
+    corpo: { codigo, email, senha },
     semRenovar: true,
   });
 

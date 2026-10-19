@@ -33,3 +33,6 @@ treinos:
   # classe (FotosDesligadasIntegrationTest), que sobrescreve esta chave.
   fotos:
     habilitado: true
+  # A suíte cria treinadores pelo cadastro público; o modo fechado (o de produção) tem a sua classe.
+  cadastro:
+    aberto: true
