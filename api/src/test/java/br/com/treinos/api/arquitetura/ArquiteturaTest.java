@@ -142,7 +142,9 @@ class ArquiteturaTest {
                                 // Foto de perfil do próprio aluno (hasRole ALUNO, sempre a da sessão); a da equipe declara PERM_ALUNO_LER.
                                 "FotoPerfilAlunoController",
                                 // Anamnese do próprio aluno e imagens das perguntas que ele responde (hasRole ALUNO, sempre a da sessão).
-                                "AnamneseAlunoController").contains(c.getSimpleName())))
+                                "AnamneseAlunoController",
+                                // "Excluir minha conta" (hasRole ALUNO, sempre a conta da sessão, com a senha dela).
+                                "ExclusaoDeContaController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

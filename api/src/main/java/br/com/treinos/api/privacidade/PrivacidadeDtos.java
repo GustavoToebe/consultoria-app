@@ -55,4 +55,10 @@ public final class PrivacidadeDtos {
 
     /** O nome digitado é conferido de novo no servidor. */
     public record AnonimizarRequest(@NotBlank @Size(max = 200) String nomeConfirmado) { }
+
+    /**
+     * "Excluir minha conta" pelo próprio aluno: a senha dele e o texto fixo {@code EXCLUIR}, para um toque acidental não
+     * apagar nada. Os dois são conferidos no servidor.
+     */
+    public record ExcluirContaRequest(@NotBlank @Size(max = 200) String senha, @NotBlank @Size(max = 20) String confirmacao) { }
 }
