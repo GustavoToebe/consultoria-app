@@ -106,15 +106,20 @@ jobs:
         with:
           context: ./api
           load: true
-          tags: consultoria-api:varredura
+          # Já com a tag final: o que vai ao GHCR é esta imagem, a mesma que o Trivy varre (nada é construído de novo).
+          tags: ghcr.io/gustavotoebe/consultoria-api:${{ steps.meta.outputs.sha }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            br.plataforma.migration-ultima=${{ steps.meta.outputs.migracao }}
           secrets: |
             gh_token=${{ secrets.GH_PACKAGES_READ_TOKEN || secrets.GITHUB_TOKEN }}
       - name: Varredura de vulnerabilidades (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: consultoria-api:varredura
+          image-ref: ghcr.io/gustavotoebe/consultoria-api:${{ steps.meta.outputs.sha }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
@@ -125,20 +130,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publicar a imagem da API
+      - name: Publicar a imagem da API (a mesma que foi varrida)
         if: github.ref == 'refs/heads/main'
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ./api
-          push: true
-          tags: ghcr.io/gustavotoebe/consultoria-api:${{ steps.meta.outputs.sha }}
-          cache-from: type=gha,scope=api
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            br.plataforma.migration-ultima=${{ steps.meta.outputs.migracao }}
-          secrets: |
-            gh_token=${{ secrets.GH_PACKAGES_READ_TOKEN || secrets.GITHUB_TOKEN }}
+        run: docker push "ghcr.io/gustavotoebe/consultoria-api:${{ steps.meta.outputs.sha }}"
 
   imagem-web:
     needs: [testar-api, testar-app]
@@ -159,13 +153,17 @@ jobs:
         with:
           context: ./app
           load: true
-          tags: consultoria-web:varredura
+          # Já com a tag final: o que vai ao GHCR é esta imagem, a mesma que o Trivy varre (nada é construído de novo).
+          tags: ghcr.io/gustavotoebe/consultoria-web:${{ steps.meta.outputs.sha }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
       - name: Varredura de vulnerabilidades (Trivy)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: consultoria-web:varredura
+          image-ref: ghcr.io/gustavotoebe/consultoria-web:${{ steps.meta.outputs.sha }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
@@ -176,17 +174,9 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publicar a imagem da web
+      - name: Publicar a imagem da web (a mesma que foi varrida)
         if: github.ref == 'refs/heads/main'
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ./app
-          push: true
-          tags: ghcr.io/gustavotoebe/consultoria-web:${{ steps.meta.outputs.sha }}
-          cache-from: type=gha,scope=web
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+        run: docker push "ghcr.io/gustavotoebe/consultoria-web:${{ steps.meta.outputs.sha }}"
 
   publicar:
     needs: [testar-api, testar-app, imagem-api, imagem-web]
