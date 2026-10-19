@@ -1,6 +1,17 @@
 import { requisicao } from './cliente';
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
+  AceiteInscricao,
+  AlterarInscricaoRequest,
+  ConfiguracaoInscricao,
+  ConfiguracaoInscricaoRequest,
+  FiltroInscricoes,
+  InscricaoDetalhe,
+  InscricaoPublica,
+  InscricaoPublicaRequest,
+  PaginaInscricoes,
+} from './inscricoesTipos';
+import type {
   Atualizacao,
   AtualizacaoDaLista,
   ConfiguracaoDeFotos,
@@ -229,6 +240,49 @@ export const aceitarConvite = (codigo: string, email: string, senha: string) =>
     corpo: { codigo, email, senha },
     semRenovar: true,
   });
+
+// ---- Inscrição pelo link (pública) ----
+
+/** O código é o do link que a consultoria divulga (não é segredo de uso único): vai no caminho, sempre por `seg()`. */
+export const inscricaoPublica = (codigo: string) =>
+  requisicao<InscricaoPublica>(`/publico/inscricoes/${seg(codigo)}`, { semRenovar: true });
+
+export const enviarInscricao = (codigo: string, corpo: InscricaoPublicaRequest) =>
+  requisicao<{ mensagem: string }>(`/publico/inscricoes/${seg(codigo)}`, { metodo: 'POST', corpo, semRenovar: true });
+
+// ---- Treinador: interessados (fila de inscrições) ----
+
+export const configuracaoInscricao = () => requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao');
+
+export const alterarConfiguracaoInscricao = (corpo: ConfiguracaoInscricaoRequest) =>
+  requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao', { metodo: 'PUT', corpo });
+
+/** Troca o código: o link anterior para de valer na hora. */
+export const novoLinkInscricao = (versao: number | null) =>
+  requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao/novo-link', { metodo: 'POST', corpo: { versao } });
+
+export const listarInscricoes = (filtro: { situacao: FiltroInscricoes; meus: boolean; pagina: number }) => {
+  const q = new URLSearchParams();
+  q.set('situacao', filtro.situacao);
+  q.set('meus', String(filtro.meus));
+  q.set('pagina', String(filtro.pagina));
+  return requisicao<PaginaInscricoes>(`/inscricoes?${q.toString()}`);
+};
+
+export const inscricao = (id: string) => requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}`);
+
+export const alterarInscricao = (id: string, corpo: AlterarInscricaoRequest) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}`, { metodo: 'PUT', corpo });
+
+export const notaNaInscricao = (id: string, texto: string) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/notas`, { metodo: 'POST', corpo: { texto } });
+
+export const recusarInscricao = (id: string, versao: number) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/recusar`, { metodo: 'POST', corpo: { versao } });
+
+/** Cria o aluno; com `convidar`, o convite de acesso vem na resposta (o código só aparece aqui). */
+export const aceitarInscricao = (id: string, convidar: boolean, versao: number) =>
+  requisicao<AceiteInscricao>(`/inscricoes/${seg(id)}/aceitar`, { metodo: 'POST', corpo: { convidar, versao } });
 
 // ---- Treinador: marca e configuração ----
 

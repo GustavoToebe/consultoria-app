@@ -1,4 +1,4 @@
-import { BookOpen, CircleUserRound, ContactRound, House, NotebookTabs, Palette, UsersRound, History, LifeBuoy } from 'lucide-react-native';
+import { BookOpen, CircleUserRound, ContactRound, House, NotebookTabs, Palette, UsersRound, History, LifeBuoy, UserPlus } from 'lucide-react-native';
 
 import { Navigator, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
@@ -18,11 +18,12 @@ import { GUIAS } from '../../ajuda/conteudo';
 
 /**
  * Só aparecem no menu as telas que já existem (nada de recurso fingido). A barra do celular leva Início, Alunos,
- * Biblioteca, Planejamento e Perfil; Marca, Equipe, Ajuda e Auditoria ficam no menu lateral e nos atalhos do Perfil.
+ * Biblioteca, Planejamento e Perfil; Interessados, Marca, Equipe, Ajuda e Auditoria ficam no menu lateral e nos atalhos do Perfil.
  */
 const ITENS: ItemMenu[] = [
   { rotulo: 'Início', href: '/treinador', caminho: '/treinador', Icone: House, exato: true },
   { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: ContactRound },
+  { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: UserPlus, soLateral: true },
   { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen },
   { rotulo: 'Planejamento', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
   { rotulo: 'Marca', href: '/treinador/marca', caminho: '/treinador/marca', Icone: Palette, soLateral: true },
