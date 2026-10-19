@@ -4,6 +4,7 @@ import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { CartaoDivisao, CartaoDivisaoLeitura } from '../../aluno/CartaoDivisao';
 import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
@@ -11,11 +12,14 @@ import { CartaoHoje } from '../../aluno/CartaoHoje';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import { caminhoDaSessao } from '../../aluno/useSessaoDoDia';
 import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
+import { useVersaoDaFotoDePerfil } from '../../aluno/versaoDaFotoDePerfil';
+import { baixarFotoDePerfil } from '../../api/rotas';
 import type { Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataHoraParaTela, dataParaTela, diaDaSemana, hojeIso } from '../../dominio/formatos';
 import { sessaoDoDia, sessoesDaSemana } from '../../dominio/semana';
 import { useAluno } from '../../offline/AlunoProvider';
+import { espaco } from '../../tema/tokens';
 import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
 import { documentoTreino } from '../../pdf/pdfTreino';
@@ -25,6 +29,7 @@ import { NoPlano } from '../../ui/NoPlano';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
+import { FotoDePerfil } from '../../ui/FotoDePerfil';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
@@ -36,6 +41,7 @@ import { Texto } from '../../ui/Texto';
  */
 export default function TreinoAluno() {
   const { pacote, carregando, erroPacote, registros, escolhida } = useAluno();
+  const versaoDaFoto = useVersaoDaFotoDePerfil();
   const animar = usePrimeiraLista(!!pacote);
   const { avisar } = useAviso();
   const [gerandoPdf, setGerandoPdf] = useState(false);
@@ -95,7 +101,10 @@ export default function TreinoAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho mostrarMarca="sempre" />
-      <Texto variante="titulo">Olá, {pacote.pacote.aluno.nome.split(' ')[0]}</Texto>
+      <View style={estilos.saudacao}>
+        <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={pacote.pacote.aluno.nome} />
+        <Texto variante="titulo" style={estilos.ola}>Olá, {pacote.pacote.aluno.nome.split(' ')[0]}</Texto>
+      </View>
       <Texto variante="suave">Seu treino da semana: abra o de hoje e registre carga e repetições. Funciona sem internet.</Texto>
       <SeletorPlano rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} />
       <CartaoAtualizacao />
@@ -148,3 +157,8 @@ export default function TreinoAluno() {
     </Tela>
   );
 }
+
+const estilos = StyleSheet.create({
+  saudacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
+  ola: { flex: 1 },
+});

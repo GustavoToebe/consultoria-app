@@ -10,6 +10,7 @@ import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.dieta.PlanoDietaVersaoRepository;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
+import br.com.treinos.api.alunos.FotoPerfilService;
 import br.com.treinos.api.fotos.FotoService;
 import br.com.treinos.api.lesoes.LesaoRepository;
 import br.com.treinos.api.privacidade.PrivacidadeDtos.AnonimizarRequest;
@@ -47,12 +48,13 @@ public class AnonimizacaoService {
     private final PlanoDietaVersaoRepository versoesDeDieta;
     private final AnonimizacaoRepositorio nativo;
     private final FotoService fotos;
+    private final FotoPerfilService fotoPerfil;
 
     public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
                                LesaoRepository lesoes, AtualizacaoRepository atualizacoes, PlanoDietaRepository dietas,
                                PlanoDietaVersaoRepository versoesDeDieta, AnonimizacaoRepositorio nativo,
-                               FotoService fotos) {
+                               FotoService fotos, FotoPerfilService fotoPerfil) {
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
@@ -64,6 +66,7 @@ public class AnonimizacaoService {
         this.versoesDeDieta = versoesDeDieta;
         this.nativo = nativo;
         this.fotos = fotos;
+        this.fotoPerfil = fotoPerfil;
     }
 
     @Transactional
@@ -94,6 +97,7 @@ public class AnonimizacaoService {
         dietas.flush();
         // Fotos de corpo: saem do ar na hora e o bucket é esvaziado pela fila de remoção (HTTP fora desta transação).
         fotos.removerTodasDoAluno(alunoId);
+        fotoPerfil.removerDoAluno(alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
         nativo.apagarNomesDosTitulos(consultoriaId, alunoId);
         nativo.apagarTextoLivreDosPlanos(consultoriaId, alunoId);

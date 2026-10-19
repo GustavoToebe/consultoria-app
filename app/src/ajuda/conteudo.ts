@@ -77,6 +77,7 @@ const TREINADOR: Guia = {
       itens: [
         { titulo: 'Cadastrar e editar', texto: 'Novo aluno pede nome e e-mail. Objetivo e observações são dados sensíveis: só aparecem para quem tem permissão.' },
         { titulo: 'Convite de acesso', texto: 'O convite tem código e link, vale por tempo limitado e só pode ser usado uma vez. Copie o código antes de sair da tela: ele não aparece de novo. Gerar outro invalida o anterior.' },
+        { titulo: 'Foto de perfil', texto: 'Quem a escolhe é o aluno, em Conta (é opcional). Ela aparece no cartão Dados da ficha para quem pode ver alunos; sem foto, aparecem as iniciais.' },
         { titulo: 'Inativar', texto: 'Inativar tira o aluno do app na hora; planos e registros ficam guardados e dá para reativar.' },
         { titulo: 'Ações em lote', texto: 'Na lista de Alunos, toque em Selecionar, marque os alunos (ou Marcar visíveis) e escolha Trocar responsável, Trocar questionário ou Desativar. Vale para até 100 alunos por vez, tudo ou nada, e cada ação pede confirmação. Desativar encerra as sessões dos alunos marcados; dá para reativar um por um na ficha.' },
         { titulo: 'Lesões e peso', texto: 'Ficam na ficha, só para quem pode ver dados sensíveis. O app apenas guarda o que você registra.' },
@@ -185,14 +186,14 @@ const ALUNO: Guia = {
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', rota: '/aluno/historico' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO },
     { titulo: 'Sem internet', texto: 'Pode treinar sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
-    { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
+    { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam foto de perfil, tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
   ],
   passeio: [
     { titulo: 'Treino de hoje', texto: TEXTO_TREINO_DE_HOJE, alvo: 'menu:/aluno' },
     { titulo: 'Dieta', texto: TEXTO_DIETA, alvo: 'menu:/aluno/dieta' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, alvo: 'menu:/aluno' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', alvo: 'menu:/aluno/historico' },
-    { titulo: 'Conta', texto: 'Tema, senha, sincronização e a Ajuda, onde dá para rever este passeio.', alvo: 'menu:/aluno/conta' },
+    { titulo: 'Conta', texto: 'Foto de perfil, tema, senha, sincronização e a Ajuda, onde dá para rever este passeio.', alvo: 'menu:/aluno/conta' },
   ],
   secoes: [
     {
@@ -233,6 +234,7 @@ const ALUNO: Guia = {
     {
       titulo: 'Conta',
       itens: [
+        { titulo: 'Foto de perfil', texto: 'Opcional. Em Conta, escolha uma foto da galeria ou tire na hora; ela aparece no seu início e para a equipe do seu treinador. Precisa de internet e não fica salva no aparelho. Dá para trocar ou remover quando quiser.' },
         { titulo: 'Tema e texto', texto: 'Claro, escuro ou do sistema; tamanho do texto, contraste, animações e vibração.' },
         { titulo: 'Senha', texto: 'Trocar a senha encerra as outras sessões.' },
       ],

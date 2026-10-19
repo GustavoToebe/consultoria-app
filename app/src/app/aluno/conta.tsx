@@ -1,6 +1,7 @@
 import { RefreshCw } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
+import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { dataParaTela } from '../../dominio/formatos';
 import { avisoAoSairComPendencias, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
@@ -14,7 +15,7 @@ import { PainelConta } from '../../ui/PainelConta';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
-/** Conta do aluno: sincronização (pendências, falhas, "Sincronizar agora"), tema, senha e sair. */
+/** Conta do aluno: foto de perfil, sincronização (pendências, falhas, "Sincronizar agora"), tema, senha e sair. */
 export default function ContaAluno() {
   const { pendentes, falhas, registros, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
   const naoEnviados = pendentes + falhas.length;
@@ -24,6 +25,7 @@ export default function ContaAluno() {
       <LinkTexto href="/aluno/ajuda" texto="Ajuda, primeiros passos e tutorial" />
       <LinkTexto href="/aluno/termos" texto="Termos e privacidade" />
       <PainelConta avisoAoSair={avisoAoSairComPendencias(treinosNaoEnviados(registros))}>
+        <CartaoFotoDePerfil />
         <Cartao titulo="Sincronização" descricao="Os registros ficam salvos neste aparelho e vão para o seu treinador quando houver internet.">
           <SeloSincronizacao />
           <Texto variante="suave">

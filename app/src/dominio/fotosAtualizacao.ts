@@ -21,12 +21,13 @@ export interface Reducao { lado: number; qualidade: number }
 const LADOS = [LIMITES_FOTO.ladoMaximo, 1200, 900, 640];
 const QUALIDADES = [0.85, 0.7, 0.55];
 
-export function reducoesDeFoto(largura: number, altura: number): Reducao[] {
+/** `lados`: do maior para o menor (a foto de perfil usa os dela, menores). */
+export function reducoesDeFoto(largura: number, altura: number, lados: readonly number[] = LADOS): Reducao[] {
   const maior = Math.max(largura, altura);
   // Foto já pequena: o primeiro lado é o dela mesma (só reencoda, o que tira o EXIF).
-  const lados = [...new Set(LADOS.map((l) => Math.min(l, maior)))].filter((l) => l > 0);
+  const ladosUsados = [...new Set(lados.map((l) => Math.min(l, maior)))].filter((l) => l > 0);
   const tentativas: Reducao[] = [];
-  for (const lado of lados) for (const qualidade of QUALIDADES) tentativas.push({ lado, qualidade });
+  for (const lado of ladosUsados) for (const qualidade of QUALIDADES) tentativas.push({ lado, qualidade });
   return tentativas;
 }
 

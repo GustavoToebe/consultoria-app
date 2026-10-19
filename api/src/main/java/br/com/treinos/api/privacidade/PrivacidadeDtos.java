@@ -46,7 +46,11 @@ public final class PrivacidadeDtos {
                              Secao<PlanoPublicado<ConteudoDieta>> dietas,
                              Secao<PlanoPublicado<ConteudoMobilidade>> mobilidades,
                              Secao<DiaDeTreino> registros, Secao<PesoResponse> pesos, Secao<LesaoResponse> lesoes,
-                             Secao<AtualizacaoExportada> atualizacoes) { }
+                             Secao<AtualizacaoExportada> atualizacoes,
+                             FotoPerfilExportada fotoDePerfil) { }
+
+    /** Só a data em que a foto de perfil foi trocada; a imagem não vai no arquivo. Sem foto: {@code null}. */
+    public record FotoPerfilExportada(Instant atualizadaEm) { }
 
     /** O nome digitado é conferido de novo no servidor. */
     public record AnonimizarRequest(@NotBlank @Size(max = 200) String nomeConfirmado) { }

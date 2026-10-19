@@ -8,6 +8,7 @@ import br.com.treinos.api.dieta.PlanoDietaService;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.execucao.HistoricoService;
 import br.com.treinos.api.execucao.PesoService;
+import br.com.treinos.api.alunos.FotoPerfilService;
 import br.com.treinos.api.fotos.FotoService;
 import br.com.treinos.api.lesoes.LesaoService;
 import br.com.treinos.api.mobilidade.PlanoMobilidadeService;
@@ -48,12 +49,13 @@ public class ExportacaoService {
     private final LesaoService lesoes;
     private final AtualizacaoRepository atualizacoes;
     private final FotoService fotos;
+    private final FotoPerfilService fotoPerfil;
     private final JsonMapper json;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
                              PesoService pesos, LesaoService lesoes, AtualizacaoRepository atualizacoes,
-                             FotoService fotos, JsonMapper json) {
+                             FotoService fotos, FotoPerfilService fotoPerfil, JsonMapper json) {
         this.alunos = alunos;
         this.pastas = pastas;
         this.treinos = treinos;
@@ -64,6 +66,7 @@ public class ExportacaoService {
         this.lesoes = lesoes;
         this.atualizacoes = atualizacoes;
         this.fotos = fotos;
+        this.fotoPerfil = fotoPerfil;
         this.json = json;
     }
 
@@ -86,8 +89,9 @@ public class ExportacaoService {
         var lesao = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "lesoes", omitidas, () -> lesoes.listar(alunoId));
         var atualizacao = secao(AcessoAtual.pode("ATUALIZACAO_LER") && AcessoAtual.pode("ALUNO_SENSIVEL_LER"),
                 "atualizacoes", omitidas, () -> atualizacoesExportadas(alunoId));
+        var fotoDePerfil = fotoPerfil.atualizadaEm(alunoId).map(PrivacidadeDtos.FotoPerfilExportada::new).orElse(null);
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
-                registros, peso, lesao, atualizacao);
+                registros, peso, lesao, atualizacao, fotoDePerfil);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

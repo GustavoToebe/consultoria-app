@@ -5,9 +5,10 @@ import { Pencil } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
+import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, baixarFotoDePerfilDoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import type { AlunoDetalhe } from '../../../api/tipos';
+import { FotoDePerfil } from '../../../ui/FotoDePerfil';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoFrequencia } from '../../../treinador/CartaoFrequencia';
@@ -127,7 +128,10 @@ function CartaoDados({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao
         />
       ) : (
         <View style={estilos.dados}>
-          <Selo texto={aluno.anonimizado ? 'Anonimizado' : aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo && !aluno.anonimizado ? 'sucesso' : 'neutro'} />
+          <View style={estilos.identidade}>
+            <FotoDePerfil chave={`perfil:${aluno.id}`} carregar={() => baixarFotoDePerfilDoAluno(aluno.id)} nome={aluno.nome} tamanho={56} />
+            <Selo texto={aluno.anonimizado ? 'Anonimizado' : aluno.ativo ? 'Ativo' : 'Inativo'} tipo={aluno.ativo && !aluno.anonimizado ? 'sucesso' : 'neutro'} />
+          </View>
           <CampoLeitura rotulo="E-mail" valor={aluno.email} />
           <ResponsavelAluno id={aluno.responsavelId}/>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
@@ -167,5 +171,6 @@ const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
   coluna: { flex: 1, gap: espaco(3) },
   dados: { gap: espaco(1.5) },
+  identidade: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end' },
 });
