@@ -658,12 +658,20 @@ export interface LoteResponse {
 export interface PastaModelo { id: string; nome: string; versao: number }
 export type FaseAtualizacao = 'NENHUMA' | 'AVISO' | 'ABERTA' | 'ATRASADA' | 'ENVIADA' | 'REVISADA';
 export type SituacaoAtualizacao = 'PARA_REVISAR' | 'ATRASADAS' | 'AVISARAM_ATRASO' | 'PROXIMAS';
-export type RespostaAtualizacao = string | number | boolean | string[] | null | Record<string, number | null>;
+/** NOTAS_POR_DIA = dia → nota; GRADE = linha → coluna. */
+export type RespostaAtualizacao = string | number | boolean | string[] | null | Record<string, number | null> | Record<string, string>;
 export type RespostasAtualizacao = Record<string, RespostaAtualizacao>;
 /** Mesmos valores de `TipoPergunta` no Java (`questionarios/TipoPergunta`). */
 export type TipoPergunta = 'DATA_AUTOMATICA' | 'PESO' | 'NOTA' | 'TEXTO' | 'TEXTO_LONGO' | 'NOTAS_POR_DIA' | 'FOTOS'
-  | 'ESCOLHA_UNICA' | 'MULTIPLA_ESCOLHA' | 'NUMERO' | 'SIM_NAO';
-export interface OpcaoPergunta { id: string; rotulo: string }
+  | 'ESCOLHA_UNICA' | 'MULTIPLA_ESCOLHA' | 'NUMERO' | 'SIM_NAO'
+  | 'DATA' | 'TELEFONE' | 'EMAIL' | 'GRADE' | 'ACEITE' | 'INFORMATIVO';
+/** Opção de escolha (com imagem opcional) e também linha/coluna da GRADE (sem imagem). */
+export interface OpcaoPergunta { id: string; rotulo: string; imagemId?: string }
+/**
+ * Condição simples: a pergunta (ou seção) só aparece se a resposta da pergunta `perguntaId` (anterior, de escolha) for um
+ * dos `valores` (ids de opção; `sim`/`nao` no SIM_NAO). Escondida não é obrigatória e a resposta dela não é enviada.
+ */
+export interface CondicaoPergunta { perguntaId: string; valores: string[] }
 export interface PerguntaAtualizacao {
   id: string;
   tipo: TipoPergunta;
@@ -680,8 +688,20 @@ export interface PerguntaAtualizacao {
   min?: number;
   max?: number;
   casas?: number;
+  /** Imagem (PNG/JPEG da consultoria), vista pela API com token. */
+  imagemId?: string;
+  /** DATA: só hoje ou antes. */
+  somentePassado?: boolean;
+  /** GRADE. */
+  linhas?: OpcaoPergunta[];
+  colunas?: OpcaoPergunta[];
+  /** ACEITE (obrigatório) e INFORMATIVO (opcional). */
+  texto?: string;
+  /** ACEITE: "Li e concordo...". */
+  declaracao?: string;
+  mostrarSe?: CondicaoPergunta;
 }
-export interface SecaoAtualizacao { uid?: string; titulo: string; perguntas: PerguntaAtualizacao[] }
+export interface SecaoAtualizacao { uid?: string; titulo: string; perguntas: PerguntaAtualizacao[]; mostrarSe?: CondicaoPergunta }
 /** Conteúdo (formato 2) de um questionário: o rascunho e cada versão publicada. */
 export interface ConteudoQuestionario { formato?: number; instrucoes: string[]; secoes: SecaoAtualizacao[] }
 export interface Atualizacao {
@@ -714,9 +734,11 @@ export type AtualizacaoDaLista = Pick<Atualizacao, 'id' | 'pastaId' | 'alunoId' 
 
 /** Gestão dos questionários (`questionarios/dto/QuestionarioDtos`). */
 export type OrigemQuestionario = 'VAZIO' | 'FABRICA';
+/** Check-in de cada período ou anamnese atribuída ao aluno. */
+export type FinalidadeQuestionario = 'ATUALIZACAO' | 'ANAMNESE';
 export interface UsoQuestionario { alunos: number; pastas: number; envios: number }
 export interface QuestionarioResumo {
-  id: string; nome: string; descricao: string | null; padrao: boolean; arquivado: boolean;
+  id: string; nome: string; descricao: string | null; finalidade: FinalidadeQuestionario; padrao: boolean; arquivado: boolean;
   /** 0 = nunca publicado. */
   versaoPublicada: number; publicadoEm: string | null; alteradoDesdePublicacao: boolean;
   rascunhoAlteradoEm: string | null; uso: UsoQuestionario;
@@ -726,7 +748,23 @@ export interface QuestionarioDetalhe extends QuestionarioResumo {
   versao: number; rascunho: ConteudoQuestionario; versoes: { numero: number; publicadoEm: string }[];
 }
 export interface OpcaoQuestionario { id: string; nome: string; padrao: boolean }
-export interface CriarQuestionarioRequest { nome: string; descricao: string | null; origem: OrigemQuestionario }
+export interface CriarQuestionarioRequest { nome: string; descricao: string | null; origem: OrigemQuestionario; finalidade: FinalidadeQuestionario }
+
+/** Anamnese atribuída ao aluno (`anamneses/AnamneseDtos`). A versão do questionário é a da atribuição e nunca muda. */
+export type SituacaoAnamnese = 'PENDENTE' | 'ENVIADA' | 'REVISADA' | 'DISPENSADA';
+export interface AnamneseResumo {
+  id: string; situacao: SituacaoAnamnese; questionarioNome: string; questionarioVersaoNumero: number;
+  atribuidaEm: string; enviadaEm: string | null; revisadaEm: string | null; dispensadaEm: string | null;
+  dispensaMotivo: string | null; versao: number;
+}
+/** Nas rotas do aluno, nome do questionário, nomes da equipe e motivo vêm nulos. */
+export interface AnamneseDetalhe {
+  id: string; alunoId: string; nomeAluno: string | null; situacao: SituacaoAnamnese; questionarioVersaoId: string;
+  questionarioVersaoNumero: number; questionarioNome: string | null; modelo: ConteudoQuestionario;
+  respostas: RespostasAtualizacao; atribuidaEm: string; atribuidaPorNome: string | null; enviadaEm: string | null;
+  revisadaEm: string | null; revisadaPorNome: string | null; dispensadaEm: string | null; dispensadaPorNome: string | null;
+  dispensaMotivo: string | null; versao: number;
+}
 export interface SalvarQuestionarioRequest { nome: string; descricao: string | null; conteudo: ConteudoQuestionario; versao: number }
 export interface ConteudoPastaModelo { planos: { titulo: string; treino: ConteudoTreino | null; dieta: ConteudoDieta | null; mobilidade?: ConteudoMobilidadeApi | null }[] }
 

@@ -1,5 +1,6 @@
 import { ProgressoSemana } from '../../aluno/ProgressoSemana';
 import { CartaoAtualizacao } from '../../aluno/atualizacao/CartaoAtualizacao';
+import { CartaoAnamnese } from '../../aluno/anamnese/CartaoAnamnese';
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
@@ -107,6 +108,7 @@ export default function TreinoAluno() {
       </View>
       <Texto variante="suave">Seu treino da semana: abra o de hoje e registre carga e repetições. Funciona sem internet.</Texto>
       <SeletorPlano rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} />
+      <CartaoAnamnese />
       <CartaoAtualizacao />
       <CartaoDietaDoInicio versao={escolhida ? escolhida.planos.dieta : dietaVigente} />
       {!treino || !conteudo ? (

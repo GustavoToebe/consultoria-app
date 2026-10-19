@@ -18,6 +18,9 @@ interface AtualizacaoFotoRepository extends JpaRepository<AtualizacaoFoto, UUID>
 
     List<AtualizacaoFoto> findByAtualizacaoIdInAndRemovidaEmIsNullOrderByCriadaEmAsc(java.util.Collection<UUID> atualizacaoIds);
 
+    /** Fotos já ligadas às anamneses dadas (exportação). */
+    List<AtualizacaoFoto> findByAnamneseIdInAndPerguntaIdIsNotNullAndRemovidaEmIsNullOrderByCriadaEmAsc(java.util.Collection<UUID> anamneseIds);
+
     List<AtualizacaoFoto> findByAlunoIdOrderByCriadaEmAsc(UUID alunoId);
 
     /**
@@ -27,12 +30,19 @@ interface AtualizacaoFotoRepository extends JpaRepository<AtualizacaoFoto, UUID>
     @Modifying
     @Query("update AtualizacaoFoto f set f.atualizacaoId = :atualizacaoId, f.perguntaId = :perguntaId, f.ligadaEm = :quando "
             + "where f.id = :id and f.alunoId = :alunoId and f.pastaId = :pastaId "
-            + "and f.atualizacaoId is null and f.removidaEm is null")
+            + "and f.perguntaId is null and f.removidaEm is null")
     int ligar(UUID id, UUID alunoId, UUID pastaId, UUID atualizacaoId, String perguntaId, Instant quando);
 
-    /** Marca como removida só se ainda pendente (foto ligada a uma atualização enviada não se apaga pelo aluno). */
+    /** Mesma regra de {@link #ligar}, para a foto pendente de uma anamnese. */
+    @Modifying
+    @Query("update AtualizacaoFoto f set f.perguntaId = :perguntaId, f.ligadaEm = :quando "
+            + "where f.id = :id and f.alunoId = :alunoId and f.anamneseId = :anamneseId "
+            + "and f.perguntaId is null and f.removidaEm is null")
+    int ligarNaAnamnese(UUID id, UUID alunoId, UUID anamneseId, String perguntaId, Instant quando);
+
+    /** Marca como removida só se ainda pendente (foto ligada a um envio não se apaga pelo aluno). */
     @Modifying
     @Query("update AtualizacaoFoto f set f.removidaEm = :quando where f.id = :id and f.alunoId = :alunoId "
-            + "and f.atualizacaoId is null and f.removidaEm is null")
+            + "and f.perguntaId is null and f.removidaEm is null")
     int removerPendente(UUID id, UUID alunoId, Instant quando);
 }

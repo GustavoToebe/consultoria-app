@@ -212,12 +212,13 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void exportarSoLeOQueAPermissaoDeCadaSecaoDeixa() throws Exception {
-        // Só as três permissões que a dependência garante: nada de plano, registro nem atualização.
+        // Só as três permissões que a dependência garante: nada de plano, registro, atualização nem anamnese.
         JsonNode minimo = membro("Exportador mínimo", Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER", "ALUNO_EXPORTAR"));
         JsonNode dados = api.get("/alunos/" + alunoId + "/exportacao", minimo, 200);
         assertThat(dados.get("secoesOmitidas").valueStream().map(JsonNode::asString))
-                .containsExactlyInAnyOrder("treinos", "dietas", "mobilidades", "registros", "atualizacoes");
+                .containsExactlyInAnyOrder("treinos", "dietas", "mobilidades", "registros", "atualizacoes", "anamneses");
         assertThat(dados.has("treinos")).isFalse();
+        assertThat(dados.has("anamneses")).isFalse();
         assertThat(dados.has("dietas")).isFalse();
         assertThat(dados.has("registros")).isFalse();
         assertThat(dados.has("atualizacoes")).isFalse();

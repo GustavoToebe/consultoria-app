@@ -29,7 +29,8 @@ public class EquipeController {
     public ResponseEntity<Void> apagar(@PathVariable UUID id) { equipe.apagarPerfil(id);return ResponseEntity.noContent().build(); }
     @PreAuthorize("hasAuthority('PERM_EQUIPE_LER')") @GetMapping("/usuarios")
     public List<UsuarioResponse> usuarios() { return equipe.usuarios(); }
-    @PreAuthorize("hasAuthority('PERM_ALUNO_LER')") @GetMapping("/responsaveis")
+    // Também para quem atende interessados (escolher o responsável da inscrição e o padrão do link).
+    @PreAuthorize("hasAuthority('PERM_ALUNO_LER') or hasAuthority('PERM_INSCRICAO_LER')") @GetMapping("/responsaveis")
     public List<EquipeService.Responsavel> responsaveis() { return equipe.responsaveis(); }
     @ExigeFuncionalidade(RecursosDoApp.FUNCIONALIDADE_EQUIPE) @PreAuthorize("hasAuthority('PERM_USUARIO_ALTERAR')") @PostMapping("/usuarios/convites")
     public ConviteResponse convidar(@RequestBody @Valid ConviteRequest r,@AuthenticationPrincipal UsuarioAutenticado eu) {

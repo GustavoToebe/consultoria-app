@@ -1,7 +1,7 @@
 import type { ConteudoQuestionario, PerguntaAtualizacao } from '../api/tipos';
 import {
   ajudaDoNumero, alternarMarcado, escolhaParaSimNao, perguntaPeso, perguntasDestaque, rascunhoVigente, respostasCompativeis,
-  resumoDoTreinador, simNaoParaEscolha, textoDaResposta,
+  progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso,
 } from './atualizacaoQuestionario';
 import { errosRespostasAtualizacao, respondida } from './respostasAtualizacao';
 
@@ -170,5 +170,28 @@ describe('respostasCompativeis com fotos', () => {
   });
   it('descarta fotos se o questionário novo não tem a pergunta', () => {
     expect(respostasCompativeis(modelo, { fotos: [ID] })).toEqual({ respostas: {}, descartadas: ['fotos'] });
+  });
+});
+
+describe('tipos da anamnese', () => {
+  const P = (id: string, tipo: PerguntaAtualizacao['tipo'], extra: Partial<PerguntaAtualizacao> = {}): PerguntaAtualizacao =>
+    ({ id, tipo, rotulo: id, obrigatoria: false, ...extra });
+  it('texto das respostas novas; ausência é "—"', () => {
+    expect(textoDaResposta(P('d', 'DATA'), '1990-05-10')).toBe('10/05/1990');
+    expect(textoDaResposta(P('f', 'TELEFONE'), '(45) 99999-8888')).toBe('(45) 99999-8888');
+    expect(textoDaResposta(P('a', 'ACEITE', { declaracao: 'Li e concordo.' }), true)).toBe('Aceito: “Li e concordo.”');
+    expect(textoDaResposta(P('a', 'ACEITE'), null)).toBe('—');
+    const g = P('g', 'GRADE', { linhas: [{ id: 'l1', rotulo: 'Item A' }, { id: 'l2', rotulo: 'Item B' }], colunas: [{ id: 'c1', rotulo: 'Nunca' }, { id: 'c2', rotulo: 'Sempre' }] });
+    expect(textoDaResposta(g, { l1: 'c2' })).toBe('Item A: Sempre\nItem B: —');
+  });
+  it('progresso por seção conta só as visíveis e respondíveis', () => {
+    const modelo = { instrucoes: [], secoes: [
+      { uid: 's1', titulo: 'A', perguntas: [P('i', 'INFORMATIVO'), P('s', 'SIM_NAO'), P('t', 'TEXTO', { mostrarSe: { perguntaId: 's', valores: ['sim'] } })] },
+      { uid: 's2', titulo: 'B', mostrarSe: { perguntaId: 's', valores: ['nao'] }, perguntas: [P('u', 'TEXTO')] },
+    ] };
+    expect(progressoDasSecoes(modelo, { s: true })).toEqual([{ respondidas: 1, total: 2 }, null]);
+    expect(progressoDasSecoes(modelo, { s: false })).toEqual([{ respondidas: 1, total: 1 }, { respondidas: 0, total: 1 }]);
+    expect(textoDoProgresso({ respondidas: 1, total: 2 })).toBe('1 de 2 respondidas');
+    expect(textoDoProgresso({ respondidas: 0, total: 0 })).toBe('');
   });
 });

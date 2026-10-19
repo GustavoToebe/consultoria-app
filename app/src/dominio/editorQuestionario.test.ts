@@ -2,14 +2,16 @@ import type { ConteudoQuestionario, PerguntaAtualizacao, TipoPergunta } from '..
 import {
   adicionarPergunta, adicionarSecao, agruparProblemas, alterarPergunta, descricaoDoLocal, duplicarPergunta, duplicarPerguntaNaSecao, localDoProblema,
   moverParaSecao, moverPergunta, moverSecao, normalizarQuestionario, novaOpcao, novaPergunta, novaSecao, paraApi, podeAdicionar,
-  podeAdicionarSecao, podeDestacar, podeDuplicar, previaDeAtualizacao, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR,
+  podeAdicionarSecao, podeDestacar, podeDuplicar, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR, tiposParaAdicionar,
+  controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao,
 } from './editorQuestionario';
 import { errosDoQuestionario, LIMITES_QUESTIONARIO, validarQuestionario } from './questionario';
 
 let mockContador = 0;
 jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContador}` }));
 
-const TODOS: TipoPergunta[] = ['DATA_AUTOMATICA', 'PESO', 'NOTA', 'TEXTO', 'TEXTO_LONGO', 'NOTAS_POR_DIA', 'FOTOS', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO'];
+const TODOS: TipoPergunta[] = ['DATA_AUTOMATICA', 'PESO', 'NOTA', 'TEXTO', 'TEXTO_LONGO', 'NOTAS_POR_DIA', 'FOTOS', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO',
+  'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ACEITE', 'INFORMATIVO'];
 const p = (id: string, tipo: TipoPergunta = 'TEXTO', extra: Partial<PerguntaAtualizacao> = {}): PerguntaAtualizacao => ({ id, tipo, rotulo: `Pergunta ${id}`, obrigatoria: false, ...extra });
 const base = (): ConteudoQuestionario => ({
   formato: 2, instrucoes: [],
@@ -20,7 +22,9 @@ describe('fábricas', () => {
   it('cada tipo da lista de adicionar nasce válido depois de preencher o texto e as opções', () => {
     for (const { tipo } of TIPOS_PARA_ADICIONAR) {
       const nova = novaPergunta(tipo);
-      const preenchida = { ...nova, rotulo: 'Texto', opcoes: nova.opcoes?.map((o, k) => ({ ...o, rotulo: `Opção ${k}` })) };
+      const rotular = (l?: { id: string; rotulo: string }[]) => l?.map((o, k) => ({ ...o, rotulo: `Item ${k}` }));
+      const preenchida = { ...nova, rotulo: 'Texto', opcoes: rotular(nova.opcoes), linhas: rotular(nova.linhas), colunas: rotular(nova.colunas),
+        texto: tipo === 'ACEITE' ? 'Regras fictícias.' : nova.texto };
       const c: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 'x', titulo: 'Seção', perguntas: [preenchida] }] };
       expect(errosDoQuestionario(paraApi(c))).toEqual([]);
     }
@@ -155,14 +159,65 @@ describe('descrição do local', () => {
   });
 });
 
-describe('prévia', () => {
-  it('não inventa número: sem resumo, sem respostas e com o conteúdo como modelo', () => {
-    const c = base();
-    const a = previaDeAtualizacao(c);
-    expect(a.resumo).toBeNull();
-    expect(a.respostas).toBeNull();
-    expect(a.modelo).toBe(c);
-    expect(a.modelo?.secoes).toHaveLength(2);
-    expect(a.dataAtualizacao).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+describe('anamnese', () => {
+  it('a anamnese não oferece a data da atualização; a atualização oferece tudo', () => {
+    expect(tiposParaAdicionar('ANAMNESE').map((t) => t.tipo)).not.toContain('DATA_AUTOMATICA');
+    expect(tiposParaAdicionar('ATUALIZACAO')).toHaveLength(TODOS.length);
+  });
+  it('grade nasce com uma linha e duas colunas; aceite obrigatório com a frase pronta', () => {
+    const g = novaPergunta('GRADE');
+    expect(g.linhas).toHaveLength(1);
+    expect(g.colunas).toHaveLength(2);
+    const a = novaPergunta('ACEITE');
+    expect(a.obrigatoria).toBe(true);
+    expect(a.declaracao).toBeTruthy();
+  });
+  it('paraApi tira o que não é do tipo e as imagens vazias; mantém imagem da opção e a condição', () => {
+    const c: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 's', titulo: 'A', mostrarSe: undefined, perguntas: [
+      p('s', 'SIM_NAO'),
+      p('t', 'TEXTO', { somentePassado: true, linhas: [novaOpcao('x')], texto: 'x', declaracao: 'y', imagemId: '  ', mostrarSe: { perguntaId: 's', valores: ['sim'] } }),
+      p('e', 'ESCOLHA_UNICA', { opcoes: [{ id: 'a', rotulo: 'A', imagemId: '0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f' }, { id: 'b', rotulo: 'B', imagemId: '' }] }),
+      p('g', 'GRADE', { linhas: [{ id: 'l', rotulo: 'L', imagemId: 'x' }], colunas: [novaOpcao('c1'), novaOpcao('c2')] }),
+    ] }] };
+    const [s, t, e, g] = paraApi(c, 'ANAMNESE').secoes[0].perguntas;
+    expect(s.mostrarSe).toBeUndefined();
+    expect(t).toMatchObject({ mostrarSe: { perguntaId: 's', valores: ['sim'] } });
+    expect(t.somentePassado ?? t.linhas ?? t.texto ?? t.declaracao ?? t.imagemId).toBeUndefined();
+    expect(e.opcoes?.[0].imagemId).toBe('0b6f9a1e-5c3d-4e2a-9f7b-1a2b3c4d5e6f');
+    expect(e.opcoes?.[1].imagemId).toBeUndefined();
+    expect(g.linhas?.[0].imagemId).toBeUndefined();
+  });
+  it('duplicar a grade gera ids novos em linhas e colunas', () => {
+    const g = novaPergunta('GRADE');
+    const copia = duplicarPergunta(g);
+    expect(copia.linhas?.[0].id).not.toBe(g.linhas?.[0].id);
+    expect(copia.colunas?.[0].id).not.toBe(g.colunas?.[0].id);
+  });
+});
+
+describe('condição', () => {
+  const c = (): ConteudoQuestionario => ({ instrucoes: [], secoes: [
+    { uid: 's1', titulo: 'A', perguntas: [p('n', 'NOTA'), p('s', 'SIM_NAO', { rotulo: 'Pratica?' }), p('e', 'ESCOLHA_UNICA', { opcoes: [novaOpcao('X'), novaOpcao('Y')] }), p('t')] },
+    { uid: 's2', titulo: 'B', perguntas: [p('u')] },
+  ] });
+  it('só perguntas de escolha anteriores controlam', () => {
+    expect(controlesAnteriores(c(), 0, 3).map((x) => x.id)).toEqual(['s', 'e']);
+    expect(controlesAnteriores(c(), 0, 2).map((x) => x.id)).toEqual(['s']);
+    expect(controlesAnteriores(c(), 1, -1).map((x) => x.id)).toEqual(['s', 'e']);
+    expect(controlesAnteriores(c(), 0, -1)).toEqual([]);
+    expect(controlesAnteriores(c(), 0, 3)[0].valores.map((v) => v.valor)).toEqual(['sim', 'nao']);
+  });
+  it('acha a posição e descreve a condição', () => {
+    expect(posicaoDaPergunta(c(), 'u')).toEqual({ secao: 1, pergunta: 0 });
+    expect(posicaoDaPergunta(c(), 'zz')).toBeNull();
+    expect(textoDaCondicao(c(), { perguntaId: 's', valores: ['sim'] })).toBe('Aparece se “Pratica?” for Sim');
+    expect(textoDaCondicao(c(), undefined)).toBe('');
+    expect(textoDaCondicao(c(), { perguntaId: 'zz', valores: [] })).toBe('Condição sem pergunta');
+  });
+  it('a condição da seção passa na validação quando aponta para escolha anterior', () => {
+    const x = alterarCondicaoDaSecao(c(), 1, { perguntaId: 's', valores: ['nao'] });
+    expect(validarQuestionario(paraApi(x)).erros.filter((e) => e.caminho.includes('mostrarSe'))).toEqual([]);
+    const y = alterarCondicaoDaSecao(c(), 0, { perguntaId: 's', valores: ['nao'] });
+    expect(validarQuestionario(paraApi(y)).erros.map((e) => e.caminho)).toContain('secoes[0].mostrarSe.perguntaId');
   });
 });

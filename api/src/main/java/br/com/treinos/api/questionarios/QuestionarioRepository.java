@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface QuestionarioRepository extends JpaRepository<Questionario, UUID> {
-    Optional<Questionario> findByPadraoTrue();
+    Optional<Questionario> findByPadraoTrueAndFinalidade(Finalidade finalidade);
 
     /** Trava a linha: publicar e trocar o padrão em paralelo esperam em fila e a segunda cai em CONFLITO_EDICAO. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -21,7 +21,7 @@ public interface QuestionarioRepository extends JpaRepository<Questionario, UUID
 
     boolean existsByNomeIgnoreCaseAndArquivadoFalseAndIdNot(String nome, UUID id);
 
-    List<Questionario> findByArquivadoOrderByNomeAsc(boolean arquivado);
+    List<Questionario> findByArquivadoAndFinalidadeOrderByNomeAsc(boolean arquivado, Finalidade finalidade);
 
     /** Contagens para a lista (uma consulta por tipo de uso, sem N+1). Todas passam pelo @TenantId. */
     @Query("select new br.com.treinos.api.questionarios.ContagemPorQuestionario(a.questionarioId, count(a)) "
@@ -36,8 +36,22 @@ public interface QuestionarioRepository extends JpaRepository<Questionario, UUID
             + "from Atualizacao t, QuestionarioVersao v where t.questionarioVersaoId = v.id group by v.questionarioId")
     List<ContagemPorQuestionario> contarEnvios();
 
+    /** Anamneses atribuídas por questionário (contam como envios: a versão fica presa à atribuição). */
+    @Query("select new br.com.treinos.api.questionarios.ContagemPorQuestionario(v.questionarioId, count(n)) "
+            + "from Anamnese n, QuestionarioVersao v where n.questionarioVersaoId = v.id group by v.questionarioId")
+    List<ContagemPorQuestionario> contarAnamneses();
+
     /** Quantos envios apontam para alguma versão deste questionário (impede excluir). */
     @Query("select count(t) from Atualizacao t, QuestionarioVersao v "
             + "where t.questionarioVersaoId = v.id and v.questionarioId = :id")
     long contarEnviosDo(UUID id);
+
+    /** Quantas anamneses (em qualquer situação) usam alguma versão deste questionário (impede excluir). */
+    @Query("select count(n) from Anamnese n, QuestionarioVersao v "
+            + "where n.questionarioVersaoId = v.id and v.questionarioId = :id")
+    long contarAnamnesesDo(UUID id);
+
+    /** Rascunhos de todos os questionários da consultoria: as imagens que eles citam não são órfãs. */
+    @Query("select q.rascunho from Questionario q")
+    List<String> rascunhos();
 }

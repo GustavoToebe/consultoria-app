@@ -5,10 +5,10 @@ import { StyleSheet, View } from 'react-native';
 import type { RespostasAtualizacao } from '../../api/tipos';
 import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
 import {
-  agruparProblemas, alterarInstrucoes, descricaoDoLocal, previaDeAtualizacao, type ProblemasAgrupados,
+  agruparProblemas, alterarInstrucoes, descricaoDoLocal, type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
 import { textoDoSalvo } from '../../dominio/estadoDoRascunho';
-import { dataHoraParaTela } from '../../dominio/formatos';
+import { dataHoraParaTela, hojeIso } from '../../dominio/formatos';
 import { LIMITES_QUESTIONARIO as L, type ProblemaDoQuestionario } from '../../dominio/questionario';
 import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -40,10 +40,11 @@ const SITUACOES: Record<SituacaoDoQuestionario, { texto: string; tipo: TipoSelo 
   conflito: { texto: 'Alterado em outra aba', tipo: 'perigo' },
 };
 
-const ABA_VOLTAR = '/treinador/planejamento?aba=atualizacao' as const;
+const ABA_ATUALIZACAO = '/treinador/planejamento?aba=atualizacao' as const;
+const ABA_ANAMNESE = '/treinador/planejamento?aba=anamnese' as const;
 
 /**
- * Editor de um questionário de atualização: rascunho (nome, instruções, seções e perguntas), prévia do que o aluno vê
+ * Editor de um questionário de atualização ou de anamnese: rascunho (nome, instruções, seções e perguntas), prévia do que o aluno vê
  * e publicação. Nada é salvo sozinho; publicar cria a versão seguinte e não mexe em quem já respondeu.
  */
 export function EditorQuestionario({ id }: { id: string }) {
@@ -63,17 +64,18 @@ export function EditorQuestionario({ id }: { id: string }) {
   const e = editor.estado;
   if (!e) {
     return <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Questionário" voltar={ABA_VOLTAR} />
+      <Cabecalho titulo="Questionário" voltar="/treinador/planejamento" />
       {editor.erroCarga ? <MensagemErro texto={textoDoErro(editor.erroCarga)} erro={editor.erroCarga} tentarDeNovo={editor.recarregar} /> : <Esqueleto />}
     </Tela>;
   }
 
   const d = e.detalhe;
+  const anamnese = d.finalidade === 'ANAMNESE';
+  const ABA_VOLTAR = anamnese ? ABA_ANAMNESE : ABA_ATUALIZACAO;
   const editavel = pode('QUESTIONARIO_ALTERAR') && !d.arquivado;
   const abaAtiva = editavel ? aba : 'previa';
   const agrupados: ProblemasAgrupados = agruparProblemas(e.conteudo, problemas ?? []);
   const situacao = editor.situacao === 'salvo' ? { ...SITUACOES.salvo, texto: textoDoSalvo(editor.salvoAs, SITUACOES.salvo.texto) } : SITUACOES[editor.situacao];
-  const previa = previaDeAtualizacao(e.conteudo);
 
   const alternar = (pid: string) => setAbertas((a) => { const novo = new Set(a); if (novo.has(pid)) novo.delete(pid); else novo.add(pid); return novo; });
   const todasAsPerguntas = e.conteudo.secoes.flatMap((s) => s.perguntas.map((p) => p.id));
@@ -95,7 +97,7 @@ export function EditorQuestionario({ id }: { id: string }) {
       setAvisos(null);
       if (r.tipo === 'publicado') {
         setProblemas(null);
-        avisar(`Publicado v${r.numero}. Quem ainda não enviou passa a ver esta versão.`, 'sucesso');
+        avisar(anamnese ? `Publicado v${r.numero}. As próximas anamneses enviadas usam esta versão.` : `Publicado v${r.numero}. Quem ainda não enviou passa a ver esta versão.`, 'sucesso');
       } else if (r.tipo === 'erros') {
         mostrarErros(r.erros);
         avisar('Corrija o que está marcado antes de publicar.', 'perigo');
@@ -111,8 +113,8 @@ export function EditorQuestionario({ id }: { id: string }) {
   const instrucoes = e.conteudo.instrucoes;
 
   return <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-    <Cabecalho titulo="Questionário" subtitulo={e.nome}
-      trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: 'Atualização', href: ABA_VOLTAR }, { rotulo: e.nome || 'Questionário' }]}
+    <Cabecalho titulo={anamnese ? 'Anamnese' : 'Questionário'} subtitulo={e.nome}
+      trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: anamnese ? 'Anamnese' : 'Atualização', href: ABA_VOLTAR }, { rotulo: e.nome || 'Questionário' }]}
       voltar={ABA_VOLTAR} />
 
     <Cartao titulo={e.nome.trim() || 'Questionário sem nome'}
@@ -139,8 +141,8 @@ export function EditorQuestionario({ id }: { id: string }) {
       </>}
       <Texto variante="suave">
         {d.versoes.length
-          ? `Última publicação: v${d.versoes[d.versoes.length - 1].numero} em ${dataHoraParaTela(d.versoes[d.versoes.length - 1].publicadoEm)}. Editar aqui mexe só no rascunho; o aluno continua vendo a versão publicada até você publicar de novo.`
-          : 'Ainda não publicado: nenhum aluno vê este questionário.'}
+          ? `Última publicação: v${d.versoes[d.versoes.length - 1].numero} em ${dataHoraParaTela(d.versoes[d.versoes.length - 1].publicadoEm)}. Editar aqui mexe só no rascunho; ${anamnese ? 'cada anamnese enviada fica com a versão publicada no momento do envio.' : 'o aluno continua vendo a versão publicada até você publicar de novo.'}`
+          : anamnese ? 'Ainda não publicada: não dá para enviar esta anamnese a um aluno.' : 'Ainda não publicado: nenhum aluno vê este questionário.'}
       </Texto>
       {editor.mensagemDeErro && editor.situacao === 'erro' ? <Texto variante="pequeno" cor={cores.perigo}>{editor.mensagemDeErro}</Texto> : null}
     </Cartao>
@@ -164,12 +166,12 @@ export function EditorQuestionario({ id }: { id: string }) {
         </LinhaDeAcoes>
       </Cartao>
       <SecoesDoQuestionario conteudo={e.conteudo} aoMudar={editor.alterarConteudo} abertas={abertas} aoAlternar={alternar} aoAlternarTodas={alternarTodas}
-        aoAbrir={(pid) => setAbertas((a) => new Set(a).add(pid))} problemas={agrupados} />
+        aoAbrir={(pid) => setAbertas((a) => new Set(a).add(pid))} problemas={agrupados} finalidade={d.finalidade} />
     </> : <>
       <Cartao titulo="Prévia" descricao="É assim que o aluno vê o rascunho. As respostas daqui não são salvas nem enviadas a ninguém.">
         {e.conteudo.instrucoes.map((texto, i) => <Texto key={i}>{texto}</Texto>)}
       </Cartao>
-      <QuestionarioAtualizacao atualizacao={previa} respostas={respostas} erros={errosPrevia ?? {}}
+      <QuestionarioAtualizacao modelo={e.conteudo} dataAtualizacao={hojeIso()} respostas={respostas} erros={errosPrevia ?? {}} progresso={anamnese}
         aoMudar={(pid, valor) => { setRespostas((r) => ({ ...r, [pid]: valor })); setErrosPrevia(null); }} />
       <LinhaDeAcoes>
         <Botao rotulo="Conferir respostas" tipo="secundario" aoTocar={() => {
@@ -181,8 +183,9 @@ export function EditorQuestionario({ id }: { id: string }) {
       </LinhaDeAcoes>
     </>}
 
-    <PainelConfirmacao visivel={confirmando && avisos === null} titulo="Publicar este questionário?"
-      mensagem="Quem ainda não enviou passa a ver a versão nova. Quem já enviou mantém a versão que respondeu."
+    <PainelConfirmacao visivel={confirmando && avisos === null} titulo={anamnese ? 'Publicar esta anamnese?' : 'Publicar este questionário?'}
+      mensagem={anamnese ? 'As próximas anamneses enviadas usam a versão nova. Quem já recebeu continua com a versão que recebeu.'
+        : 'Quem ainda não enviou passa a ver a versão nova. Quem já enviou mantém a versão que respondeu.'}
       rotuloConfirmar="Publicar" carregando={publicando} aoConfirmar={() => publicar(false)} aoCancelar={() => setConfirmando(false)} />
     <PainelConfirmacao visivel={avisos !== null} titulo="Publicar com avisos?" mensagem="O questionário pode ser publicado, mas confira:"
       rotuloConfirmar="Publicar mesmo assim" carregando={publicando} aoConfirmar={() => publicar(true)} aoCancelar={() => { setAvisos(null); setConfirmando(false); }}>

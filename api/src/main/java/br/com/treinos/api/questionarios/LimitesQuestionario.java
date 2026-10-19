@@ -1,7 +1,7 @@
 package br.com.treinos.api.questionarios;
 
 /**
- * Limites do questionário de atualização. Mudou um valor, muda também {@code LIMITES_QUESTIONARIO} em
+ * Limites do questionário (atualização e anamnese). Mudou um valor, muda também {@code LIMITES_QUESTIONARIO} em
  * {@code app/src/dominio/questionario.ts} (o teste de paridade lê {@code limites.json} e confere os dois lados).
  * Tamanho de texto conta unidades UTF-16 ({@code String.length}), igual ao {@code .length} do TypeScript.
  */
@@ -35,8 +35,29 @@ public final class LimitesQuestionario {
     public static final int ID_TAMANHO = 40;
     /** Mínimo, máximo e resposta de NUMERO ficam em [-N, N]: fora disso o JSON pode virar infinito e quebrar a validação. */
     public static final int NUMERO_ABSOLUTO = 1_000_000_000;
+    /** GRADE: linhas (uma resposta por linha) e colunas (as escolhas de cada linha). */
+    public static final int LINHAS_MINIMO = 1;
+    public static final int LINHAS_MAXIMO = 30;
+    public static final int COLUNAS_MINIMO = 2;
+    public static final int COLUNAS_MAXIMO = 10;
+    /** Texto do ACEITE e do INFORMATIVO. */
+    public static final int TEXTO_INFORMATIVO_TAMANHO = 4000;
+    /** Frase de declaração do ACEITE ("Li e concordo..."). */
+    public static final int DECLARACAO_TAMANHO = 200;
+    public static final int TELEFONE_TAMANHO = 25;
+    public static final int TELEFONE_DIGITOS_MINIMO = 10;
+    public static final int TELEFONE_DIGITOS_MAXIMO = 13;
+    public static final int EMAIL_TAMANHO = 254;
+    /** Resposta de DATA fica entre 1900 e 2100 (e, com {@code somentePassado}, até hoje no horário de Brasília). */
+    public static final int DATA_ANO_MINIMO = 1900;
+    public static final int DATA_ANO_MAXIMO = 2100;
+    /** Imagem da pergunta ou da opção: PNG ou JPEG, no banco, regravada sem metadados. */
+    public static final int IMAGEM_BYTES = 300_000;
+    public static final int IMAGEM_LADO = 1600;
     /** Identificador de pergunta, seção e opção: ids legíveis ({@code peso}, {@code sono}) e uids. */
     public static final String ID_PADRAO = "[A-Za-z0-9_-]{1,40}";
+    /** Id de imagem do questionário (UUID em minúsculas, como a API devolve). */
+    public static final String IMAGEM_PADRAO = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
     private LimitesQuestionario() {
     }

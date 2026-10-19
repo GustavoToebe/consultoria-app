@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/** Questionários de atualização do treinador. Publicar, duplicar, arquivar, excluir e padrão exigem ALTERAR. */
+/** Questionários (atualização e anamnese) do treinador. Publicar, duplicar, arquivar, excluir e padrão exigem ALTERAR. */
 @RestController
 public class QuestionarioController {
 
@@ -33,16 +33,20 @@ public class QuestionarioController {
 
     @PreAuthorize("hasAuthority('PERM_QUESTIONARIO_LER')")
     @GetMapping("/questionarios")
-    public List<QuestionarioResumo> listar(@RequestParam(defaultValue = "false") boolean arquivados) {
-        return questionarios.listar(arquivados);
+    public List<QuestionarioResumo> listar(@RequestParam(defaultValue = "false") boolean arquivados,
+                                           @RequestParam(defaultValue = "ATUALIZACAO") Finalidade finalidade) {
+        return questionarios.listar(arquivados, finalidade);
     }
 
-    /** Para os seletores do aluno e da pasta: quem os usa pode não ter permissão de ler o módulo. */
+    /**
+     * Para os seletores do aluno e da pasta (atualização) e do "Enviar anamnese": quem os usa pode não ter permissão de
+     * ler o módulo.
+     */
     @PreAuthorize("hasAuthority('PERM_QUESTIONARIO_LER') or hasAuthority('PERM_ALUNO_ALTERAR') "
-            + "or hasAuthority('PERM_PASTA_ALTERAR')")
+            + "or hasAuthority('PERM_PASTA_ALTERAR') or hasAuthority('PERM_ANAMNESE_ALTERAR')")
     @GetMapping("/questionarios/opcoes")
-    public List<OpcaoQuestionario> opcoes() {
-        return questionarios.opcoes();
+    public List<OpcaoQuestionario> opcoes(@RequestParam(defaultValue = "ATUALIZACAO") Finalidade finalidade) {
+        return questionarios.opcoes(finalidade);
     }
 
     @PreAuthorize("hasAuthority('PERM_QUESTIONARIO_ALTERAR')")

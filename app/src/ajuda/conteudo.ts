@@ -50,13 +50,14 @@ const TREINADOR: Guia = {
   ],
   tutorial: [
     { titulo: 'Boas-vindas', texto: 'Este tutorial passa pelas telas principais na ordem em que você vai usá-las. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
-    { titulo: 'Menu e barra de topo', texto: 'No computador o menu fica à esquerda (dá para minimizar) e a barra de topo traz a busca "O que você deseja fazer?" (atalho Ctrl+K), o botão Todas as telas, onde dá para marcar favoritas, e o seu usuário. No celular, a barra de baixo tem Início, Alunos, Biblioteca, Planejamento e Perfil; Marca, Equipe e Auditoria ficam nos atalhos do Perfil. Só aparece o que o seu perfil permite.', rota: '/treinador' },
+    { titulo: 'Menu e barra de topo', texto: 'No computador o menu fica à esquerda (dá para minimizar) e a barra de topo traz a busca "O que você deseja fazer?" (atalho Ctrl+K), o botão Todas as telas, onde dá para marcar favoritas, e o seu usuário. No celular, a barra de baixo tem Início, Alunos, Biblioteca, Planejamento e Perfil; Interessados, Marca, Equipe e Auditoria ficam nos atalhos do Perfil. Só aparece o que o seu perfil permite.', rota: '/treinador' },
     { titulo: 'Alunos', texto: 'Lista os alunos da consultoria, com busca e o filtro "Meus alunos". Cada linha mostra a situação da atualização da pasta atual (para quem pode ver atualizações). Toque em um aluno para abrir a ficha.', rota: '/treinador/alunos' },
+    { titulo: 'Interessados', texto: 'O link de inscrição da consultoria e a fila de quem se inscreveu por ele. Ligue o link, copie e divulgue; cada inscrição chega para o responsável escolhido. Abra a inscrição para conversar pelo WhatsApp, registrar o andamento e aceitar (o aluno é cadastrado na hora) ou recusar.', rota: '/treinador/interessados' },
     { titulo: 'Ficha do aluno', texto: 'Reúne dados, acesso ao app, lesões, pastas de plano, frequência, progresso por exercício e peso. Atualizações do aluno ficam dentro de cada pasta.', rota: '/treinador/alunos' },
     { titulo: 'Pastas de plano', texto: 'Cada pasta tem período e agrupa treino, dieta e mobilidade. Use o filtro Todas, Ativas ou Concluídas para achar uma pasta. Finalize a pasta ao fim do ciclo e replique para o próximo; em Mais ações (⋯), Renovar pasta faz isso de uma vez, com o próximo período e os planos em rascunho.' },
     { titulo: 'Editores de plano', texto: 'Nada é salvo sozinho: toque em Salvar rascunho (Validar e Publicar também salvam antes). O selo do topo diz "Alterações não salvas" e, depois de salvar, "Salvo às HH:MM". Se sair com alterações não salvas, o app pergunta antes. Plano publicado é imutável.' },
     { titulo: 'Biblioteca', texto: 'Exercícios (com filtro por grupo muscular), alimentos, suplementos, catálogo público e importação por CSV. A aba Outros (medicação e ergogênicos) só aparece para quem tem a permissão; as categorias dela são você quem escreve.', rota: '/treinador/biblioteca' },
-    { titulo: 'Planejamento', texto: 'Modelos reutilizáveis de treino, dieta e mobilidade, e pacotes de pasta inteira. Aplique o modelo a um aluno quando quiser. A aba Atualização guarda os questionários que o aluno responde ao fim de cada período.', rota: '/treinador/planejamento' },
+    { titulo: 'Planejamento', texto: 'Modelos reutilizáveis de treino, dieta e mobilidade, e pacotes de pasta inteira. Aplique o modelo a um aluno quando quiser. A aba Atualização guarda os questionários que o aluno responde ao fim de cada período, e a aba Anamnese, os questionários iniciais que você envia pela ficha do aluno.', rota: '/treinador/planejamento' },
     { titulo: 'Marca, Equipe e Auditoria', texto: 'Marca (cor, fonte e logo) aparece só a quem tem permissão para alterá-la. Equipe gerencia perfis e permissões; Auditoria lista o que foi feito. Aparecem conforme o seu perfil, no menu lateral do computador e nos atalhos do Perfil no celular.' },
     { titulo: 'Seu usuário e Ajuda', texto: 'No cartão com o seu nome (canto superior direito; no celular, em Perfil) ficam Meus dados (nome, telefone e senha), Segurança (verificação em duas etapas com aplicativo autenticador, códigos de recuperação), Minha conta (plano, cobranças com o botão "Pagar" nas que estão em aberto, e consumo; só aparece para quem tem permissão), Ajustes (tema claro/escuro e tamanho do texto) e Sair. Esta Ajuda fica sempre à mão.', rota: '/treinador/ajustes' },
   ],
@@ -64,11 +65,12 @@ const TREINADOR: Guia = {
     { titulo: 'Boas-vindas', texto: 'Um passeio rápido pelo menu, item por item. Leva menos de um minuto. Dá para pular agora e rever quando quiser em Ajuda.' },
     { titulo: 'Início', texto: 'O resumo da consultoria: atualizações para revisar e alunos sem registro há alguns dias.', alvo: 'menu:/treinador' },
     { titulo: 'Alunos', texto: 'Cadastre os alunos e abra a ficha de cada um: convite para o app, pastas com treino, dieta e mobilidade, registros, peso e atualizações.', alvo: 'menu:/treinador/alunos' },
+    { titulo: 'Interessados', texto: 'O link de inscrição da consultoria e a fila de quem se inscreveu por ele: contato pelo WhatsApp, notas, aceitar (vira aluno) ou recusar.', alvo: 'menu:/treinador/interessados' },
     { titulo: 'Biblioteca', texto: 'Exercícios, alimentos, suplementos e Outros (medicação e ergogênicos). Tudo o que entra nos planos sai daqui.', alvo: 'menu:/treinador/biblioteca' },
-    { titulo: 'Planejamento', texto: 'Modelos de treino, dieta e mobilidade para aplicar aos alunos, e os questionários da atualização.', alvo: 'menu:/treinador/planejamento' },
+    { titulo: 'Planejamento', texto: 'Modelos de treino, dieta e mobilidade para aplicar aos alunos, e os questionários da atualização e da anamnese.', alvo: 'menu:/treinador/planejamento' },
     { titulo: 'Marca', texto: 'Cor, logo, tema e o ciclo padrão de atualização da consultoria.', alvo: 'menu:/treinador/marca' },
     { titulo: 'Equipe', texto: 'Convide quem trabalha com você e escolha o que cada perfil pode ver e fazer.', alvo: 'menu:/treinador/equipe' },
-    { titulo: 'Perfil', texto: 'Seus dados, senha, ajustes de tela e os atalhos para Marca, Equipe, Ajuda e Auditoria.', alvo: 'menu:/treinador/perfil' },
+    { titulo: 'Perfil', texto: 'Seus dados, senha, ajustes de tela e os atalhos para Interessados, Marca, Equipe, Ajuda e Auditoria.', alvo: 'menu:/treinador/perfil' },
     { titulo: 'Ajuda', texto: 'Guia, tutorial e perguntas frequentes. Este passeio também fica lá, para rever quando quiser.', alvo: 'menu:/treinador/ajuda' },
   ],
   secoes: [
@@ -81,6 +83,20 @@ const TREINADOR: Guia = {
         { titulo: 'Inativar', texto: 'Inativar tira o aluno do app na hora; planos e registros ficam guardados e dá para reativar.' },
         { titulo: 'Ações em lote', texto: 'Na lista de Alunos, toque em Selecionar, marque os alunos (ou Marcar visíveis) e escolha Trocar responsável, Trocar questionário ou Desativar. Vale para até 100 alunos por vez, tudo ou nada, e cada ação pede confirmação. Desativar encerra as sessões dos alunos marcados; dá para reativar um por um na ficha.' },
         { titulo: 'Lesões e peso', texto: 'Ficam na ficha, só para quem pode ver dados sensíveis. O app apenas guarda o que você registra.' },
+      ],
+    },
+    {
+      titulo: 'Interessados (inscrição por link)',
+      itens: [
+        { titulo: 'Ligar e divulgar o link', texto: 'Em Interessados, no cartão Link de inscrição, ligue "Receber inscrições pelo link", escolha o responsável pelas novas e salve. Copie o link e divulgue onde quiser (Instagram, WhatsApp, site). A pessoa preenche nome, WhatsApp e, se quiser, e-mail, objetivo e uma observação, sem criar conta. Desligado, o link mostra que a inscrição está encerrada.' },
+        { titulo: 'Texto de apresentação e privacidade', texto: 'O texto que você escreve no cartão do link aparece na página de inscrição. Com texto, a pessoa precisa marcar "Li e estou ciente" para enviar, e a inscrição guarda o texto e a hora. Use-o para dizer como a consultoria usa os dados.' },
+        { titulo: 'Gerar novo link', texto: 'Se o link vazou ou você quer trocar, toque em Gerar novo link: o anterior para de funcionar na hora. As inscrições já recebidas não mudam.' },
+        { titulo: 'Atender a fila', texto: 'A lista mostra as inscrições em atendimento, as mais novas primeiro; filtre pela situação ou por "Meus" (as que estão com você). Abra uma inscrição para ver o que a pessoa escreveu, tocar em Abrir WhatsApp (abre a conversa sem mensagem pronta; abrir não quer dizer que foi enviada), anotar o contato nas notas da equipe e mudar a situação, o responsável e o pagamento.' },
+        { titulo: 'Pagamento', texto: 'É só um registro manual (não controlado, aguardando ou confirmado, com quem e quando). O app não confere pagamento e o aceite não depende dele.' },
+        { titulo: 'Aceitar', texto: 'Aceitar cadastra o aluno com o nome e o e-mail da inscrição e o mesmo responsável; com "Enviar convite de acesso ao app" marcado, o link do convite aparece uma vez para você copiar e mandar. Aceitar de novo não cria outro aluno. Se já existe um aluno com o mesmo e-mail, o app avisa e oferece abrir a ficha dele. O limite de alunos do plano vale também aqui.' },
+        { titulo: 'Possível duplicidade', texto: 'A inscrição avisa quando há aluno com o mesmo e-mail ou outra inscrição em atendimento com o mesmo e-mail ou WhatsApp. É só um aviso: nada é juntado sozinho.' },
+        { titulo: 'Recusar e por quanto tempo fica guardado', texto: 'Recusar tira a inscrição da fila. Inscrições recusadas ou de quem desistiu são apagadas sozinhas 180 dias depois da última mudança; a aceita segue as regras do aluno (ao anonimizar o aluno, a inscrição dele também é apagada).' },
+        { titulo: 'Quem vê', texto: 'Interessados aparece para quem tem a permissão de interessados (nos perfis prontos, Administrador, Treinador e Assistente). Aceitar pede também a permissão de cadastrar alunos, e o convite, a de convidar.' },
       ],
     },
     {
@@ -138,6 +154,16 @@ const TREINADOR: Guia = {
       ],
     },
     {
+      titulo: 'Anamnese',
+      itens: [
+        { titulo: 'Montar', texto: 'Em Planejamento, aba Anamnese, toque em Nova anamnese. Ela começa em branco: crie seções (dados, rotina, treino, alimentação) e perguntas. Além dos tipos da atualização, há Data, Telefone, E-mail, Grade (linhas e colunas, uma resposta por linha), Aceite de regras (texto e frase que o aluno marca) e Texto ou imagem (só para ler). Confira na Prévia e publique. Usar anamnese é opcional.' },
+        { titulo: 'Mostrar só em alguns casos', texto: 'Numa pergunta (ou numa seção), ligue "Mostrar só conforme uma resposta anterior" e escolha uma pergunta de escolha ou de sim ou não que vem antes, e as respostas que mostram esta. Pergunta escondida não é obrigatória e a resposta dela não é enviada; nas respostas aparece como "Não se aplica".' },
+        { titulo: 'Imagens', texto: 'Uma pergunta pode ter uma imagem de referência, e cada opção de escolha também (escalas, aparelhos). Use só imagens suas ou com licença de uso: você responde pelo que envia. Elas ficam guardadas sem os dados de câmera e só aparecem para a sua equipe e para o aluno que responde.' },
+        { titulo: 'Enviar ao aluno', texto: 'Na ficha do aluno, no cartão Anamnese, toque em Enviar anamnese e escolha uma publicada. O aluno vê "Responda sua anamnese" no início do app e responde logado, no celular ou na web, aos poucos (o rascunho fica no aparelho). A versão enviada não muda: se você publicar outra, ela vale para os próximos envios. Só uma pode estar aguardando o aluno de cada vez.' },
+        { titulo: 'Ver, revisar e dispensar', texto: 'Toque na anamnese do cartão para ver todas as perguntas com as respostas ("—" quando ficou em branco). Depois de ler, toque em Marcar como revisada. Uma que o aluno ainda não respondeu pode ser dispensada, com o motivo; fica registrado quem dispensou. As respostas são dado sensível: só quem tem acesso à anamnese e aos dados sensíveis do aluno as vê. Exportar dados leva as anamneses, e anonimizar apaga as respostas.' },
+      ],
+    },
+    {
       titulo: 'Consultoria',
       itens: [
         { titulo: 'Marca', texto: 'Cor, fonte do nome, tema padrão dos alunos (nasce claro) e logo. Só quem tem a permissão de marca altera.' },
@@ -152,6 +178,7 @@ const TREINADOR: Guia = {
     { pergunta: 'Editei um plano e o aluno ainda vê o antigo.', resposta: 'O aluno só vê o que está publicado. Toque em Publicar para gerar a versão nova.' },
     { pergunta: 'Se eu mudar o treino de um aluno, o modelo muda?', resposta: 'Não. Aplicar um modelo cria uma cópia só daquele aluno. Mudar a cópia não altera o modelo, e mudar o modelo não altera quem já recebeu.' },
     { pergunta: 'Não vejo o menu Marca.', resposta: 'Marca aparece só para quem tem permissão de alterar a marca da consultoria. No celular, fica em Perfil, nos atalhos. Peça a um administrador.' },
+    { pergunta: 'Como recebo interessados sem planilha nem formulário de fora?', resposta: 'Em Interessados, ligue o link de inscrição, copie e divulgue. Quem se inscreve aparece na lista; você conversa pelo WhatsApp e, quando fechar, toca em Aceitar.' },
     { pergunta: 'O aluno não consegue entrar.', resposta: 'Gere um convite novo na ficha dele (cartão Acesso ao app) e confirme que o aluno está ativo.' },
     { pergunta: 'Aparece "Alterado em outra aba" no plano.', resposta: 'O mesmo plano foi alterado em outro lugar. Use a opção de recarregar, confira o que mudou e edite de novo.' },
     { pergunta: 'Mudei o questionário; e quem já respondeu?', resposta: 'Quem já enviou mantém a versão que respondeu. Quem ainda não enviou passa a ver a versão nova assim que você publica, e as respostas já digitadas que continuam valendo são mantidas. Um questionário que já foi respondido não se exclui: arquive.' },
@@ -237,6 +264,13 @@ const ALUNO: Guia = {
         { titulo: 'Fotos', texto: 'Quando a atualização pede fotos, escolha da galeria ou tire na hora (até 6 por pergunta). No celular elas ficam guardadas só dentro do app, sem ir para a galeria, e sobem quando você envia a atualização; na web é preciso estar conectado para anexar. Toque no X para remover antes de enviar. Só você e seu treinador veem as fotos.' },
         { titulo: 'Vou atrasar', texto: 'Se precisar de mais tempo, avise pelo botão. Isso só avisa o treinador.' },
         { titulo: 'Lembretes', texto: 'No celular, o app lembra 3 dias antes, no dia e 1 dia depois, às 9h. Na web, só aparece um cartão.' },
+      ],
+    },
+    {
+      titulo: 'Anamnese',
+      itens: [
+        { titulo: 'Responder', texto: 'Quando o treinador pede, aparece no início o cartão "Responda sua anamnese". Responda com calma: o rascunho fica salvo no aparelho e dá para continuar depois, inclusive sem internet (para enviar, precisa de conexão). Algumas perguntas só aparecem conforme o que você responde antes.' },
+        { titulo: 'Enviar', texto: 'Ao tocar em Enviar anamnese, o app confere o que falta. Depois de enviada, ela fica só para consulta; para mudar uma resposta, fale com o seu treinador. Só você e a equipe do seu treinador veem as respostas e as fotos.' },
       ],
     },
     {

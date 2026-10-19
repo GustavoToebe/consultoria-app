@@ -1245,5 +1245,1478 @@
   "respostas": {},
   "camposComErro": [],
   "fotosLigadas": false
+ },
+ {
+  "nome": "data_valida",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "1990-05-10"
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "data_inexistente",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "1990-02-30"
+  },
+  "camposComErro": [
+   "d"
+  ]
+ },
+ {
+  "nome": "data_formato_br",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "10/05/1990"
+  },
+  "camposComErro": [
+   "d"
+  ]
+ },
+ {
+  "nome": "data_ano_1899",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "1899-12-31"
+  },
+  "camposComErro": [
+   "d"
+  ]
+ },
+ {
+  "nome": "data_ano_2101",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "2101-01-01"
+  },
+  "camposComErro": [
+   "d"
+  ]
+ },
+ {
+  "nome": "data_hoje_somente_passado_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false,
+       "somentePassado": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "2026-10-19"
+  },
+  "camposComErro": [],
+  "hoje": "2026-10-19"
+ },
+ {
+  "nome": "data_amanha_somente_passado",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false,
+       "somentePassado": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "2026-10-20"
+  },
+  "camposComErro": [
+   "d"
+  ],
+  "hoje": "2026-10-19"
+ },
+ {
+  "nome": "data_futura_sem_restricao_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": "2030-01-01"
+  },
+  "camposComErro": [],
+  "hoje": "2026-10-19"
+ },
+ {
+  "nome": "data_numero",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "d",
+       "tipo": "DATA",
+       "rotulo": "d",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "d": 19900510
+  },
+  "camposComErro": [
+   "d"
+  ]
+ },
+ {
+  "nome": "telefone_valido",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "TELEFONE",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": "(45) 99999-8888"
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "telefone_com_55",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "TELEFONE",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": "+55 45 99999-8888"
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "telefone_curto",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "TELEFONE",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": "9999-8888"
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "telefone_com_letra",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "TELEFONE",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": "(45) 9999A-8888"
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "telefone_14_digitos",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "TELEFONE",
+       "rotulo": "f",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": "55 45 999998888 1"
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "telefone_obrigatorio_vazio",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "TELEFONE",
+       "rotulo": "f",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": "  "
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "email_valido",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "EMAIL",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": "pessoa@exemplo.com.br"
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "email_sem_arroba",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "EMAIL",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": "pessoa.exemplo.com"
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "email_com_espaco",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "EMAIL",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": "pes soa@exemplo.com"
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "email_sem_dominio",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "EMAIL",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": "pessoa@exemplo"
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "email_255",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "EMAIL",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@exemplo.com"
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "grade_completa",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "g",
+       "obrigatoria": true,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A"
+        },
+        {
+         "id": "l1",
+         "rotulo": "B"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Nunca"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Sempre"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "g": {
+    "l0": "c0",
+    "l1": "c1"
+   }
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "grade_parcial_opcional",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A"
+        },
+        {
+         "id": "l1",
+         "rotulo": "B"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Nunca"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Sempre"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "g": {
+    "l0": "c1"
+   }
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "grade_parcial_obrigatoria",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "g",
+       "obrigatoria": true,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A"
+        },
+        {
+         "id": "l1",
+         "rotulo": "B"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Nunca"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Sempre"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "g": {
+    "l0": "c1"
+   }
+  },
+  "camposComErro": [
+   "g"
+  ]
+ },
+ {
+  "nome": "grade_vazia_obrigatoria",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "g",
+       "obrigatoria": true,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A"
+        },
+        {
+         "id": "l1",
+         "rotulo": "B"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Nunca"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Sempre"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "g": {}
+  },
+  "camposComErro": [
+   "g"
+  ]
+ },
+ {
+  "nome": "grade_linha_inexistente",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A"
+        },
+        {
+         "id": "l1",
+         "rotulo": "B"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Nunca"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Sempre"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "g": {
+    "l9": "c0"
+   }
+  },
+  "camposComErro": [
+   "g"
+  ]
+ },
+ {
+  "nome": "grade_coluna_inexistente",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A"
+        },
+        {
+         "id": "l1",
+         "rotulo": "B"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Nunca"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Sempre"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "g": {
+    "l0": "c9"
+   }
+  },
+  "camposComErro": [
+   "g"
+  ]
+ },
+ {
+  "nome": "grade_valor_nao_texto",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A"
+        },
+        {
+         "id": "l1",
+         "rotulo": "B"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Nunca"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Sempre"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "g": {
+    "l0": 1
+   }
+  },
+  "camposComErro": [
+   "g"
+  ]
+ },
+ {
+  "nome": "grade_nao_objeto",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "g",
+       "tipo": "GRADE",
+       "rotulo": "g",
+       "obrigatoria": false,
+       "linhas": [
+        {
+         "id": "l0",
+         "rotulo": "A"
+        },
+        {
+         "id": "l1",
+         "rotulo": "B"
+        }
+       ],
+       "colunas": [
+        {
+         "id": "c0",
+         "rotulo": "Nunca"
+        },
+        {
+         "id": "c1",
+         "rotulo": "Sempre"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "g": [
+    "c0"
+   ]
+  },
+  "camposComErro": [
+   "g"
+  ]
+ },
+ {
+  "nome": "aceite_marcado",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "a",
+       "obrigatoria": true,
+       "texto": "t",
+       "declaracao": "d"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "a": true
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "aceite_falso",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "a",
+       "obrigatoria": false,
+       "texto": "t",
+       "declaracao": "d"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "a": false
+  },
+  "camposComErro": [
+   "a"
+  ]
+ },
+ {
+  "nome": "aceite_obrigatorio_ausente",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "a",
+       "obrigatoria": true,
+       "texto": "t",
+       "declaracao": "d"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {},
+  "camposComErro": [
+   "a"
+  ]
+ },
+ {
+  "nome": "aceite_texto",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "ACEITE",
+       "rotulo": "a",
+       "obrigatoria": false,
+       "texto": "t",
+       "declaracao": "d"
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "a": "sim"
+  },
+  "camposComErro": [
+   "a"
+  ]
+ },
+ {
+  "nome": "informativo_ignorado",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "i",
+       "tipo": "INFORMATIVO",
+       "rotulo": "i",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "i": "lixo"
+  },
+  "camposComErro": [],
+  "chavesAceitas": []
+ },
+ {
+  "nome": "condicao_escondida_nao_obriga",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": false
+  },
+  "camposComErro": [],
+  "chavesAceitas": [
+   "s"
+  ]
+ },
+ {
+  "nome": "condicao_visivel_obriga",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": true
+  },
+  "camposComErro": [
+   "t"
+  ]
+ },
+ {
+  "nome": "condicao_escondida_descarta_resposta",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": false,
+   "t": "texto fictício"
+  },
+  "camposComErro": [],
+  "chavesAceitas": [
+   "s"
+  ]
+ },
+ {
+  "nome": "condicao_escondida_resposta_invalida_ignorada",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": false,
+   "t": 5
+  },
+  "camposComErro": [],
+  "chavesAceitas": [
+   "s"
+  ]
+ },
+ {
+  "nome": "condicao_sem_resposta_de_controle_esconde",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "nao"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {},
+  "camposComErro": [],
+  "chavesAceitas": []
+ },
+ {
+  "nome": "condicao_nao_mostra",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true,
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "nao"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": false
+  },
+  "camposComErro": [
+   "t"
+  ]
+ },
+ {
+  "nome": "condicao_multipla_alguma_marcada",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "m",
+       "tipo": "MULTIPLA_ESCOLHA",
+       "rotulo": "m",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true,
+       "mostrarSe": {
+        "perguntaId": "m",
+        "valores": [
+         "b"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "m": [
+    "a",
+    "b"
+   ]
+  },
+  "camposComErro": [
+   "t"
+  ]
+ },
+ {
+  "nome": "condicao_multipla_nenhuma_marcada",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "m",
+       "tipo": "MULTIPLA_ESCOLHA",
+       "rotulo": "m",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true,
+       "mostrarSe": {
+        "perguntaId": "m",
+        "valores": [
+         "b"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "m": [
+    "a"
+   ],
+   "t": "x"
+  },
+  "camposComErro": [],
+  "chavesAceitas": [
+   "m"
+  ]
+ },
+ {
+  "nome": "condicao_escolha_unica",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": false,
+       "mostrarSe": {
+        "perguntaId": "e",
+        "valores": [
+         "a"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": "a",
+   "t": "x"
+  },
+  "camposComErro": [],
+  "chavesAceitas": [
+   "e",
+   "t"
+  ]
+ },
+ {
+  "nome": "condicao_controle_invalido_esconde",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true,
+       "mostrarSe": {
+        "perguntaId": "e",
+        "valores": [
+         "a"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": "z"
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "condicao_em_cadeia",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "e",
+       "obrigatoria": false,
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ],
+       "mostrarSe": {
+        "perguntaId": "s",
+        "valores": [
+         "sim"
+        ]
+       }
+      },
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true,
+       "mostrarSe": {
+        "perguntaId": "e",
+        "valores": [
+         "a"
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": false,
+   "e": "a"
+  },
+  "camposComErro": [],
+  "chavesAceitas": [
+   "s"
+  ]
+ },
+ {
+  "nome": "condicao_de_secao",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "mostrarSe": {
+      "perguntaId": "s",
+      "valores": [
+       "sim"
+      ]
+     },
+     "perguntas": [
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true
+      },
+      {
+       "id": "u",
+       "tipo": "TEXTO",
+       "rotulo": "u",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": false,
+   "u": "x"
+  },
+  "camposComErro": [],
+  "chavesAceitas": [
+   "s"
+  ]
+ },
+ {
+  "nome": "condicao_de_secao_visivel",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "s",
+       "tipo": "SIM_NAO",
+       "rotulo": "s",
+       "obrigatoria": false
+      }
+     ]
+    },
+    {
+     "mostrarSe": {
+      "perguntaId": "s",
+      "valores": [
+       "sim"
+      ]
+     },
+     "perguntas": [
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "t",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "s": true
+  },
+  "camposComErro": [
+   "t"
+  ]
  }
 ]

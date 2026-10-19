@@ -13,9 +13,9 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Conteúdo (formato 2) de um questionário de atualização: é o rascunho e o que cada versão publicada guarda. Como nos
- * demais planos, o rascunho aceita conteúdo incompleto: só forma e tamanho são conferidos aqui; as regras de publicação
- * ficam no {@link ValidadorQuestionario}. Chave desconhecida é descartada ao regravar.
+ * Conteúdo (formato 2) de um questionário de atualização ou de anamnese: é o rascunho e o que cada versão publicada
+ * guarda. Como nos demais planos, o rascunho aceita conteúdo incompleto: só forma e tamanho são conferidos aqui; as
+ * regras de publicação ficam no {@link ValidadorQuestionario}. Chave desconhecida é descartada ao regravar.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -24,13 +24,26 @@ public record ConteudoQuestionario(
         @Size(max = LimitesQuestionario.INSTRUCOES) List<@NotNull @Size(max = LimitesQuestionario.INSTRUCAO_TAMANHO) String> instrucoes,
         @NotNull @Size(max = LimitesQuestionario.SECOES) List<@NotNull @Valid Secao> secoes) {
 
+    /** {@code mostrarSe} nulo = seção sempre visível. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Secao(
             @Pattern(regexp = LimitesQuestionario.ID_PADRAO) String uid,
             @Size(max = LimitesQuestionario.TITULO_TAMANHO) String titulo,
-            @NotNull @Size(max = LimitesQuestionario.PERGUNTAS_POR_SECAO) List<@NotNull @Valid Pergunta> perguntas) { }
+            @NotNull @Size(max = LimitesQuestionario.PERGUNTAS_POR_SECAO) List<@NotNull @Valid Pergunta> perguntas,
+            @Valid Condicao mostrarSe) {
 
+        public Secao(String uid, String titulo, List<Pergunta> perguntas) {
+            this(uid, titulo, perguntas, null);
+        }
+    }
+
+    /**
+     * Campos que só valem para alguns tipos: {@code dias} (NOTAS_POR_DIA), {@code opcoes} (escolhas), {@code unidade},
+     * {@code min}, {@code max} e {@code casas} (NUMERO), {@code somentePassado} (DATA), {@code linhas} e {@code colunas}
+     * (GRADE), {@code texto} (ACEITE e INFORMATIVO) e {@code declaracao} (ACEITE). {@code imagemId} e {@code mostrarSe}
+     * valem para todos.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Pergunta(
@@ -47,11 +60,45 @@ public record ConteudoQuestionario(
             @Size(max = LimitesQuestionario.UNIDADE_TAMANHO) String unidade,
             BigDecimal min,
             BigDecimal max,
-            @Min(0) @Max(LimitesQuestionario.CASAS_MAXIMO) Integer casas) { }
+            @Min(0) @Max(LimitesQuestionario.CASAS_MAXIMO) Integer casas,
+            @Size(max = LimitesQuestionario.ID_TAMANHO) String imagemId,
+            Boolean somentePassado,
+            @Size(max = LimitesQuestionario.LINHAS_MAXIMO) List<@NotNull @Valid Opcao> linhas,
+            @Size(max = LimitesQuestionario.COLUNAS_MAXIMO) List<@NotNull @Valid Opcao> colunas,
+            @Size(max = LimitesQuestionario.TEXTO_INFORMATIVO_TAMANHO) String texto,
+            @Size(max = LimitesQuestionario.DECLARACAO_TAMANHO) String declaracao,
+            @Valid Condicao mostrarSe) {
 
+        /** Pergunta sem os campos da anamnese (imagem, data, grade, aceite, condição). */
+        public Pergunta(String id, TipoPergunta tipo, String rotulo, Boolean obrigatoria, String ajuda, Boolean destaque,
+                        String rotuloCurto, AjudaAutomatica ajudaAutomatica, List<Integer> dias, List<Opcao> opcoes,
+                        String unidade, BigDecimal min, BigDecimal max, Integer casas) {
+            this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
+                    max, casas, null, null, null, null, null, null, null);
+        }
+    }
+
+    /** Opção de escolha, linha ou coluna da GRADE. {@code imagemId} só nas opções de escolha. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Opcao(
             @Pattern(regexp = LimitesQuestionario.ID_PADRAO) String id,
-            @Size(max = LimitesQuestionario.OPCAO_TAMANHO) String rotulo) { }
+            @Size(max = LimitesQuestionario.OPCAO_TAMANHO) String rotulo,
+            @Size(max = LimitesQuestionario.ID_TAMANHO) String imagemId) {
+
+        public Opcao(String id, String rotulo) {
+            this(id, rotulo, null);
+        }
+    }
+
+    /**
+     * Condição simples: a pergunta (ou seção) só aparece se a resposta da pergunta {@code perguntaId}, anterior e de
+     * escolha (ESCOLHA_UNICA, MULTIPLA_ESCOLHA ou SIM_NAO), for um dos {@code valores} (ids de opção; "sim"/"nao" no
+     * SIM_NAO). Oculta não é obrigatória e a resposta dela é descartada no envio.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Condicao(
+            @Size(max = LimitesQuestionario.ID_TAMANHO) String perguntaId,
+            @Size(max = LimitesQuestionario.OPCOES_MAXIMO) List<@NotNull @Size(max = LimitesQuestionario.ID_TAMANHO) String> valores) { }
 }

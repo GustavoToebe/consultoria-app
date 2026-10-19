@@ -37,8 +37,19 @@ describe('catálogo de telas', () => {
     expect(leitor).not.toContain('novo-questionario');
     expect(ids(telasPermitidas(com(['MODELO_LER'])))).not.toContain('questionarios');
     expect(ids(telasPermitidas(com(['QUESTIONARIO_LER', 'QUESTIONARIO_ALTERAR'])))).toContain('novo-questionario');
+    expect(ids(telasPermitidas(com(['QUESTIONARIO_LER', 'QUESTIONARIO_ALTERAR'])))).toContain('nova-anamnese');
+    expect(leitor).not.toContain('nova-anamnese');
     expect(ids(buscarTelas('check-in', telasPermitidas(com(['QUESTIONARIO_LER']))))).toContain('questionarios');
     expect(agruparPorSecao(telasPermitidas(com(['QUESTIONARIO_LER']))).flatMap((s) => ids(s.telas))).not.toContain('questionarios');
+  });
+
+  it('Interessados só com INSCRICAO_LER, e a busca acha por "inscrição" e "link"', () => {
+    expect(ids(telasPermitidas(com(ADMIN)))).not.toContain('interessados');
+    const atendente = telasPermitidas(com(['INSCRICAO_LER']));
+    expect(ids(atendente)).toContain('interessados');
+    expect(ids(buscarTelas('inscricao', atendente))).toEqual(['interessados']);
+    expect(ids(buscarTelas('link de inscrição', atendente))).toEqual(['interessados']);
+    expect(nomeDaTela('/treinador/interessados')).toBe('Interessados');
   });
 
   it('ação com permissão extra exige a permissão além da tela', () => {

@@ -6,8 +6,8 @@ import org.springframework.stereotype.Component;
 import java.util.UUID;
 
 /**
- * Descobre qual versão publicada do questionário vale: a escolhida na pasta, senão a do aluno, senão o padrão da
- * consultoria. Questionário arquivado ou sem versão publicada é ignorado. A consulta é sempre da consultoria da
+ * Descobre qual versão publicada do questionário de atualização vale: a escolhida na pasta, senão a do aluno, senão o
+ * padrão da consultoria. Questionário arquivado, sem versão publicada ou de anamnese é ignorado. A consulta é sempre da consultoria da
  * sessão (@TenantId); id de outra consultoria nem aparece.
  */
 @Component
@@ -30,7 +30,8 @@ public class QuestionarioResolver {
             if (id == null) {
                 continue;
             }
-            var usavel = questionarios.findById(id).filter(q -> !q.isArquivado() && q.getVersaoPublicada() > 0);
+            var usavel = questionarios.findById(id).filter(q -> q.getFinalidade() == Finalidade.ATUALIZACAO
+                    && !q.isArquivado() && q.getVersaoPublicada() > 0);
             if (usavel.isPresent()) {
                 return publicada(usavel.get());
             }
@@ -39,7 +40,7 @@ public class QuestionarioResolver {
     }
 
     public Resolvida padrao() {
-        return publicada(questionarios.findByPadraoTrue().orElseThrow(naoEncontrado()));
+        return publicada(questionarios.findByPadraoTrueAndFinalidade(Finalidade.ATUALIZACAO).orElseThrow(naoEncontrado()));
     }
 
     /** Versão já fixada numa atualização enviada (continua valendo mesmo se o questionário for arquivado). */
@@ -49,7 +50,8 @@ public class QuestionarioResolver {
         return new Resolvida(v.getId(), v.getNumero(), q.getNome(), v.getConteudo());
     }
 
-    private Resolvida publicada(Questionario q) {
+    /** Última versão publicada de um questionário usável (anamnese: a atribuição fixa esta versão). */
+    public Resolvida publicada(Questionario q) {
         QuestionarioVersao v = versoes.findByQuestionarioIdAndNumero(q.getId(), q.getVersaoPublicada())
                 .orElseThrow(naoEncontrado());
         return new Resolvida(v.getId(), v.getNumero(), q.getNome(), v.getConteudo());

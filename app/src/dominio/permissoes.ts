@@ -17,6 +17,7 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean):boo
   if(caminho==='/treinador') return tem('PAINEL_VER');
   if(caminho.startsWith('/treinador/atualizacoes')) return tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER');
   if(caminho==='/treinador/alunos/novo') return tem('ALUNO_ALTERAR');
+  if(caminho==='/treinador/interessados') return tem('INSCRICAO_LER');
   if(caminho.startsWith('/treinador/alunos')) return tem('ALUNO_LER');
   if(caminho.startsWith('/treinador/treinos')) return tem('TREINO_LER')&&tem('TREINO_ALTERAR');
   if(caminho.startsWith('/treinador/dietas')) return tem('DIETA_LER')&&tem('DIETA_ALTERAR');

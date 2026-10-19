@@ -29,6 +29,8 @@ treinos:
     logo-ip: 100000
     convite-ip: 100000
     refresh-ip: 100000
+    inscricao-ip: 100000
+    inscricao-consulta-ip: 100000
   # Fotos ligadas em toda a suíte (o bucket é um MinIO de teste, registrado por MinioDeTeste); o modo desligado tem a sua
   # classe (FotosDesligadasIntegrationTest), que sobrescreve esta chave.
   fotos:

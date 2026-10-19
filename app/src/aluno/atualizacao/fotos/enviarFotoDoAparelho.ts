@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-import { enviarFoto } from '../../../api/rotas';
+import { enviarFoto, type DestinoDaFoto } from '../../../api/rotas';
 
 /** Foto a enviar: no celular basta a `uri` (`file://`); na web vai o `arquivo` já em memória (`FotoPronta.arquivo`). */
 export interface FotoParaEnviar {
@@ -22,9 +22,9 @@ export function anexarFoto(dados: FormData, foto: FotoParaEnviar): void {
   }
 }
 
-/** Sobe uma foto JPEG já reduzida (sem EXIF) para a atualização da pasta e devolve o id dela. */
-export async function enviarFotoDoAparelho(pastaId: string, foto: FotoParaEnviar): Promise<string> {
+/** Sobe uma foto JPEG já reduzida (sem EXIF) para a atualização da pasta ou para a anamnese e devolve o id dela. */
+export async function enviarFotoDoAparelho(destino: DestinoDaFoto, foto: FotoParaEnviar): Promise<string> {
   const dados = new FormData();
   anexarFoto(dados, foto);
-  return (await enviarFoto(pastaId, dados)).id;
+  return (await enviarFoto(destino, dados)).id;
 }

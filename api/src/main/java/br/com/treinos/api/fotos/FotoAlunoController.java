@@ -18,7 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.UUID;
 
-/** Fotos da atualização, lado do aluno: só as próprias. Foto de corpo é dado sensível: nunca em cache, nunca em URL pública. */
+/** Fotos da atualização e da anamnese, lado do aluno: só as próprias. Foto de corpo é dado sensível: nunca em cache, nunca em URL pública. */
 @RestController
 public class FotoAlunoController {
 
@@ -36,13 +36,15 @@ public class FotoAlunoController {
         return fotos.configuracao();
     }
 
-    /** {@code pastaId} vai como campo do formulário (multipart), junto do arquivo. */
+    /** {@code pastaId} (atualização) ou {@code anamneseId} (anamnese pendente) vai como parâmetro, junto do arquivo. */
     @PreAuthorize("hasRole('ALUNO')")
     @PostMapping(value = "/aluno/fotos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public FotoCriada subir(@AuthenticationPrincipal UsuarioAutenticado eu, @RequestParam("pastaId") UUID pastaId,
+    public FotoCriada subir(@AuthenticationPrincipal UsuarioAutenticado eu,
+                            @RequestParam(value = "pastaId", required = false) UUID pastaId,
+                            @RequestParam(value = "anamneseId", required = false) UUID anamneseId,
                             @RequestPart("arquivo") MultipartFile arquivo) {
         try {
-            return new FotoCriada(fotos.subir(eu, pastaId, arquivo.getBytes()));
+            return new FotoCriada(fotos.subir(eu, pastaId, anamneseId, arquivo.getBytes()));
         } catch (IOException e) {
             throw new BadRequestException("Não foi possível ler o arquivo enviado.");
         }
