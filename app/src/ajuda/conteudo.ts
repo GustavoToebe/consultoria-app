@@ -109,6 +109,7 @@ const TREINADOR: Guia = {
         { titulo: 'Validação', texto: 'Erros impedem a publicação. Avisos pedem confirmação. Cada problema indica onde está no plano, e o botão "N problemas para publicar" leva ao primeiro.' },
         { titulo: 'PDF', texto: 'Treino, dieta e mobilidade podem ser exportados em PDF para imprimir ou compartilhar. Na mobilidade, o vídeo sai só como link.' },
         { titulo: 'Água por dia', texto: 'Na dieta, o campo "Água por dia" (em litros, de 0,1 a 20) aparece para o aluno no topo da dieta, no início do app e no PDF. É só o número que você escreve: o app não calcula meta nem pede para o aluno marcar copos. Vazio, não aparece.' },
+        { titulo: 'Fatores e lista de compras', texto: 'O aluno tem, na Dieta, uma lista de compras da semana ou do mês. Para ela mostrar o que comprar, cadastre no alimento da biblioteca o fator de correção (peso bruto ÷ peso limpo, de 1 a 20; ex.: 1,75 = para 1 kg limpo, compre 1,75 kg) e o fator de cocção (peso pronto ÷ peso cru, de 0,1 a 10; ex.: 2,5 = 100 g cru rendem 250 g prontos). Use os fatores que você adota: o app não traz tabela pronta. Os dois são opcionais; sem fator, a lista usa a quantidade da dieta. Na dieta escreva a quantidade como o alimento é comido (ex.: arroz cozido): a lista converte para cru e para o peso de compra. Só valem para itens em gramas escolhidos da biblioteca, e entram na dieta do aluno quando você publica (mudou um fator, publique de novo).' },
         { titulo: 'Suplementação da dieta', texto: 'Na dieta, "Escolher da biblioteca" traz o nome e o link do produto; dose, horário e observação quem escreve é você. O link abre fora do app.' },
         { titulo: 'Medicação e ergogênicos', texto: 'Na biblioteca ficam na aba Outros, agrupados pela categoria que você escreve (opcional, como "Injetáveis"). Na dieta, o cartão só aparece para quem tem a permissão. Da biblioteca vêm só nome, princípio ativo e concentração; dose, horário e prescrição são texto seu. O sistema não sugere, não calcula nem compara. Modelos de dieta nunca levam esta lista, e quem não tem a permissão não a vê nem a apaga ao salvar.' },
         { titulo: 'Modelos', texto: 'Salve um plano como modelo ou aplique um modelo ao aluno em Planejamento.' },
@@ -161,7 +162,7 @@ const TREINADOR: Guia = {
 
 /** Explicações do aluno que aparecem em mais de um lugar (primeiros passos, tutorial e passeio pelo menu): um texto só. */
 const TEXTO_TREINO_DE_HOJE = 'Na aba Treino, o cartão Treino de hoje mostra a divisão do dia. Toque nele para começar.';
-const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador e a água do dia, quando ele escreveu. Só consulta. No início do app, o cartão Dieta leva até ela.';
+const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador e a água do dia, quando ele escreveu. Só consulta. No início do app, o cartão Dieta leva até ela. O botão Lista de compras soma o que comprar na semana ou no mês.';
 const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer.';
 
 const ALUNO: Guia = {
@@ -211,6 +212,7 @@ const ALUNO: Guia = {
       titulo: 'Dieta e mobilidade',
       itens: [
         { titulo: 'Dieta', texto: 'Mostra o que foi publicado pelo treinador, refeição por refeição, e a água por dia quando ele escreveu. O cartão Dieta no início do app mostra quantas refeições e a água.' },
+        { titulo: 'Lista de compras', texto: 'Na Dieta, toque em Lista de compras e escolha Semana (7 dias) ou Mês (30 dias). Nas refeições com mais de uma opção, escolha a que vai comprar (a primeira já vem marcada). A quantidade é arredondada para cima; "cru" quer dizer que o treinador cadastrou o fator de cocção e a lista já converteu o alimento cozido para cru. Sem fator, vale a quantidade da dieta. Funciona sem internet com a última dieta salva, e dá para baixar em PDF.' },
         { titulo: 'Mobilidade', texto: 'Aba só de consulta, visível quando existe plano publicado. Dá para baixar em PDF.' },
       ],
     },

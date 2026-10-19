@@ -5,6 +5,7 @@ import { normalizarMobilidade } from '../dominio/mobilidade';
 import { esc, link } from './html';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
+import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
 import { blocoInstrucoes, documentoTreino } from './pdfTreino';
 
@@ -314,5 +315,36 @@ describe('instruções do PDF do treino', () => {
   });
   it('texto vazio não gera bloco', () => {
     expect(blocoInstrucoes('  \n ')).toBe('');
+  });
+});
+
+describe('PDF da lista de compras', () => {
+  const base = { marca, logoDataUri: null, aluno: 'Aluno <Fictício>', titulo: 'Dieta & ciclo', versao: 2, emitidoEm: new Date('2026-10-19T12:00:00Z') };
+
+  it('quantidade arredondada para cima, marca "cru" e escapa todo texto', () => {
+    const d = documentoListaDeCompras({
+      ...base,
+      periodo: 'semana',
+      opcoes: ['Café <da> manhã: opção B'],
+      linhas: [
+        { chave: 'a', nome: 'Arroz <b>cozido</b>', unidade: 'g', quantidade: 1225, cru: true, bruto: false, semFator: false },
+        { chave: 'b', nome: 'Ovo', unidade: 'un', quantidade: 20.5, cru: false, bruto: false, semFator: true },
+      ],
+    });
+    expect(d.titulo).toBe('Lista de compras - Aluno <Fictício> - Dieta & ciclo');
+    expect(d.corpo).toContain('Lista de compras — Semana (7 dias)');
+    expect(d.corpo).toContain('Arroz &lt;b&gt;cozido&lt;/b&gt; <span class="suave">(cru)</span>');
+    expect(d.corpo).toContain('1,23 kg');
+    expect(d.corpo).toContain('21 un');
+    expect(d.corpo).toContain('Café &lt;da&gt; manhã: opção B');
+    expect(d.corpo).toContain('Aluno: Aluno &lt;Fictício&gt;');
+    expect(d.corpo).not.toContain('<b>cozido</b>');
+    expect(d.corpo).toContain('sem fator, vale a quantidade da dieta');
+  });
+
+  it('lista vazia vira "—"', () => {
+    const d = documentoListaDeCompras({ ...base, periodo: 'mes', opcoes: [], linhas: [] });
+    expect(d.corpo).toContain('Mês (30 dias)');
+    expect(d.corpo).toContain('<div class="suave">—</div>');
   });
 });

@@ -16,6 +16,8 @@ const pao: Alimento = {
   gramasPorUnidade: 25,
   fonte: null,
   origem: 'MANUAL',
+  fatorCorrecao: null,
+  fatorCoccao: null,
 };
 
 describe('dieta', () => {
