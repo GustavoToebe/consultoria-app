@@ -58,11 +58,21 @@ public class CentralClient {
 
     /** {@code caminho} começa em {@code /integracao/v1/...} e inclui a query, exatamente como será enviado. */
     public Resposta get(String caminho) throws IOException, InterruptedException {
+        return enviar("GET", caminho);
+    }
+
+    /** POST de corpo vazio (link de pagamento, contrato 6.4), assinado como o GET. */
+    public Resposta post(String caminho) throws IOException, InterruptedException {
+        return enviar("POST", caminho);
+    }
+
+    private Resposta enviar(String metodo, String caminho) throws IOException, InterruptedException {
         var chave = chaves.saida().orElseThrow(IntegracaoException::naoConfigurada);
         String timestamp = Long.toString(java.time.Instant.now().getEpochSecond());
         String nonce = UUID.randomUUID().toString();
-        String assinatura = HmacAssinatura.assinar(chave.segredo(), "GET", caminho, timestamp, nonce, new byte[0]);
-        HttpRequest requisicao = HttpRequest.newBuilder(URI.create(base + caminho)).timeout(RESPOSTA).GET()
+        String assinatura = HmacAssinatura.assinar(chave.segredo(), metodo, caminho, timestamp, nonce, new byte[0]);
+        HttpRequest requisicao = HttpRequest.newBuilder(URI.create(base + caminho)).timeout(RESPOSTA)
+                .method(metodo, HttpRequest.BodyPublishers.noBody())
                 .header(IntegracaoFiltro.CHAVE, chave.id())
                 .header(IntegracaoFiltro.TIMESTAMP, timestamp)
                 .header(IntegracaoFiltro.NONCE, nonce)
