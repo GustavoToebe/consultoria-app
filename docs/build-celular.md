@@ -15,6 +15,7 @@ O que já está pronto no repositório:
   | `production` | loja | **AAB** | build da loja (TestFlight / App Store) |
 
 - `app/app.json` com os textos de câmera e fotos, `privacyManifests` do iOS e só as permissões que o app usa no Android.
+  O iPhone tem a seção própria: [5. iPhone](#5-iphone).
 - Ícone e abertura **provisórios** (letra T no fundo escuro do app). Ver "Antes da loja".
 
 ## 1. Primeira vez
@@ -45,8 +46,7 @@ npx eas-cli build --profile preview --platform android
   instale (o Android pede para permitir "instalar apps desconhecidos" do navegador).
 - O mesmo APK serve para quantos aparelhos quiser.
 
-iOS (`--profile preview --platform ios`) exige conta paga no Apple Developer e que o iPhone esteja cadastrado
-(`npx eas-cli device:create`); sem isso não há como instalar fora da loja.
+iPhone: não existe "APK" no iOS. O caminho para o piloto é o TestFlight; ver [5. iPhone](#5-iphone).
 
 ## 3. O que testar no celular
 
@@ -133,8 +133,143 @@ Qualquer erro: `npx eas-cli build:list` e o log da build no site da Expo; erro d
    atualização, ligados à conta, para o funcionamento do serviço; nada de rastreamento nem anúncio).
 6. **iOS**: `ITSAppUsesNonExemptEncryption=false` já está no `app.json` (o app só usa HTTPS do sistema). O
    `privacyManifests` declara `UserDefaults` e `FileTimestamp`; se a Apple avisar por e-mail que falta algum motivo de
-   API, acrescente em `expo.ios.privacyManifests` e gere a build de novo.
+   API, acrescente em `expo.ios.privacyManifests` e gere a build de novo. O resto (TestFlight, testadores, o que só a
+   App Store pede) está em [5. iPhone](#5-iphone).
 7. **Revisão da loja**: a Apple e o Google pedem uma conta de teste (e-mail e senha de um aluno e de um treinador de demonstração).
+
+## 5. iPhone
+
+Não precisa de Mac: o EAS compila na nuvem da Expo e manda para a Apple. Os passos com 🛑 só o Gustavo faz (conta,
+senha, código de dois fatores, decisões); nada disso vai para o repositório nem para o chat.
+
+### O que já está pronto no repositório
+
+- **Identificador** `br.com.treinos.app` em `expo.ios.bundleIdentifier`, ainda **provisório** (ver 🛑 abaixo).
+- **Só iPhone** (`supportsTablet: false`): no iPad o app abre em modo de compatibilidade, do tamanho de um iPhone, e a
+  loja não pede capturas de iPad. Para atender iPad de verdade, mudar para `true` (e aí a Apple testa no iPad).
+- **Permissões**: câmera e fotos com o texto do app (o plugin do `expo-image-picker`); sem microfone; sem Face ID
+  (`faceIDPermission: false` no plugin do `expo-secure-store`: o app não usa biometria e o plugin punha um texto padrão em
+  inglês, que a revisão da Apple costuma recusar). Os lembretes da atualização são notificações locais: não pedem chave
+  no `Info.plist`, só a permissão na hora. O plugin do `expo-notifications` liga a capacidade de push
+  (`aps-environment`) mesmo sem push; o EAS liga essa capacidade no identificador sozinho, sem chave de push nem custo.
+- **Criptografia**: `ITSAppUsesNonExemptEncryption: false` (só o HTTPS do sistema), então o TestFlight não pergunta nada
+  sobre exportação de criptografia.
+- **Dado do aluno fora do backup do iCloud** (LGPD): o iOS manda a pasta `Documents` para o backup do iCloud. Ali ficam o
+  banco do aluno (`Documents/SQLite`: plano, dieta, registros, rascunho da atualização) e as fotos da atualização ainda não
+  enviadas (`Documents/fotos`). O módulo nativo local `app/modules/excluir-do-backup` (Swift, só iOS; o Expo não tem API
+  para isso) marca as duas pastas como fora do backup (`isExcludedFromBackup`), pelo `app/src/offline/excluirDoBackup.ts`,
+  depois de abrir o banco e de criar a pasta das fotos. O resto: o AsyncStorage (preferências, perfil salvo) a própria
+  biblioteca já tira do backup; cache (PDFs, imagens) o iOS nunca copia; o refresh token fica no Keychain como "só deste
+  aparelho" (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`), então um backup restaurado noutro iPhone não leva a sessão. O Swift só
+  compila na build do EAS (aqui não há Xcode): se a build falhar no passo "Install pods" ou "Build", o log aponta o
+  arquivo.
+- **Perfis do `eas.json`**: nenhum perfil novo. O TestFlight usa o `production` (é a mesma build que vai para a loja,
+  com o número da build subindo sozinho); o `preview` no iOS é a distribuição ad hoc (só aparelhos cadastrados).
+
+### 🛑 Antes da primeira build do iPhone
+
+1. **Conta Apple Developer** (<https://developer.apple.com/programs/>): US$ 99 por ano, cobrados em reais. Pessoa física
+   (o nome do Gustavo aparece como vendedor na loja) ou empresa (precisa do número D-U-N-S, que demora mais). O Apple ID
+   precisa de autenticação de dois fatores. A aprovação leva de um a alguns dias. Depois, entrar no App Store Connect
+   (<https://appstoreconnect.apple.com>) e aceitar os termos que aparecerem.
+2. **Decidir o identificador** (item 2 de "O que muda para a loja"). No iPhone a decisão vem **antes do primeiro build
+   para o TestFlight**: o app criado no App Store Connect fica preso ao identificador para sempre. Trocou, troque em
+   `expo.ios.bundleIdentifier` (e `expo.android.package`, para ficarem iguais) e só então faça a build.
+3. **Nome na loja**: precisa ser único na App Store inteira ("Treinos" sozinho dificilmente está livre). O nome sob o
+   ícone (`expo.name`) pode continuar "Treinos".
+
+### Primeira build e envio para o TestFlight
+
+```bash
+cd app
+npx eas-cli build --profile production --platform ios
+```
+
+- 🛑 O EAS pede o login da Apple (Apple ID, senha e o código de dois fatores, digitados por ele no terminal). Com isso
+  ele registra o identificador, cria o certificado de distribuição e o perfil de provisionamento e guarda tudo na Expo.
+  Aceite as sugestões padrão. Nada disso vai para o repositório.
+- Ao terminar (fila gratuita: de alguns minutos a mais de uma hora), envie para a Apple:
+
+```bash
+npx eas-cli submit --platform ios --latest
+```
+
+- 🛑 Na primeira vez o `submit` cria o app no App Store Connect (pergunta o nome da loja) e oferece criar e guardar na
+  Expo uma chave de API do App Store Connect; aceite. Se baixar a chave (arquivo `.p8`), guarde fora do git (o `.gitignore`
+  já recusa `*.p8`).
+- A Apple processa a build (de 5 a 30 minutos) e manda um e-mail. Ela aparece em App Store Connect › o app › TestFlight.
+- Da segunda vez em diante dá para fazer as duas coisas num comando:
+  `npx eas-cli build --profile production --platform ios --auto-submit`.
+
+### Testadores
+
+| | Internos | Externos |
+| --- | --- | --- |
+| Quem | até 100 pessoas da equipe da conta no App Store Connect (Usuários e Acesso; qualquer papel) | até 10.000, por e-mail ou por um link público |
+| Revisão da Apple | **não**: recebem assim que a build termina de processar | **sim** na primeira build de cada versão (revisão beta, em geral de horas a 2 dias); as builds seguintes da mesma versão normalmente passam direto |
+| O que a revisão beta pede | — | descrição do que testar, e-mail de contato e uma **conta de demonstração** (e-mail e senha de um aluno e de um treinador fictícios) |
+| Para quê | Gustavo, Saraiva e quem mais estiver na equipe | alunos do piloto |
+
+- O testador instala o app **TestFlight** da App Store, abre o convite (e-mail ou link) e instala o Treinos por ele.
+  Atualização nova chega pelo próprio TestFlight.
+- Cada build do TestFlight vale **90 dias**; depois disso o app para de abrir até chegar uma build nova.
+- Erro no app: o testador tira um print e usa "Enviar feedback" no TestFlight; as falhas (crashes) aparecem em App Store
+  Connect › TestFlight › Falhas, sem precisar de Mac.
+
+### Alternativa sem TestFlight: ad hoc (aparelhos cadastrados)
+
+Serve para um teste rápido antes de abrir o TestFlight; para o piloto o TestFlight é melhor (não cadastra aparelho e
+atualiza sozinho).
+
+```bash
+cd app
+npx eas-cli device:create                              # gera um link/QR: abrir no iPhone e instalar o perfil
+npx eas-cli build --profile preview --platform ios     # pergunta quais aparelhos entram
+```
+
+- O link de instalação abre no iPhone. No iOS 16 ou mais novo o iPhone pode pedir para ligar o **Modo de
+  Desenvolvedor** (Ajustes › Privacidade e Segurança › Modo de Desenvolvedor, reinicia o aparelho).
+- Aparelho cadastrado depois da build só instala numa build nova. A Apple limita a 100 iPhones por ano por conta.
+
+### O que muda no roteiro de teste (seção 3) no iPhone
+
+Use o mesmo roteiro, com estas diferenças. Anote o modelo do iPhone e a versão do iOS (Ajustes › Geral › Sobre).
+
+- **Instalar**: pelo TestFlight (ou pelo link ad hoc), não por APK.
+- **Turnstile (item 1)**: no iPhone o desafio roda num WKWebView com um iframe de `challenges.cloudflare.com`, o ponto que
+  ainda não foi visto num aparelho. Conferir que o quadro aparece inteiro (nem transparente nem cortado), que resolve e
+  que o botão libera; tocar em "Privacidade" ou "Termos" dentro do quadro não abre nada (bloqueado de propósito). Se ficar
+  em "Verificando…" para sempre ou mostrar o erro com "Tentar de novo", anotar a versão do iOS e mandar print: sem Mac
+  não dá para inspecionar o WebView.
+- **Permissões (itens 11 a 13 e 15)**: o iOS pergunta **uma vez só**. Depois de negar, o app avisa e segue; para
+  devolver a permissão é em Ajustes › Treinos. Na galeria o iOS oferece "Limitar acesso" (só algumas fotos): escolher
+  foto tem de funcionar assim também.
+- **Notificações (item 15)**: conferir os lembretes às 9h; ver também Ajustes › Notificações › Treinos. Modo Foco ou
+  "Não perturbe" seguram o aviso.
+- **Voltar**: o iPhone não tem botão físico; o voltar é arrastar da borda esquerda. Num editor com alteração não salva
+  (treinador), arrastar para voltar tem de perguntar "Sair sem salvar?". Se voltar sem perguntar, anotar.
+- **Teclado**: o teclado numérico do iPhone não tem tecla de confirmar. Conferir que dá para fechar o teclado (tocar fora)
+  e chegar aos botões em carga, repetições, peso e nos campos do questionário.
+- **Bordas da tela**: nada escondido atrás do entalhe/Dynamic Island nem da barra de gestos embaixo, na vertical.
+- **PDF (item 16)**: abre a folha de compartilhar do iOS; "Salvar em Arquivos" deve funcionar.
+- **Fotos (itens 11 e 12)**: a foto não aparece no app Fotos.
+- **Backup do iCloud fora** (novo):
+  1. Entrar como aluno, abrir o plano, registrar alguns treinos e, com a internet desligada, anexar 2 ou 3 fotos à
+     atualização (ficam no aparelho).
+  2. Com Wi-Fi, Ajustes › [seu nome] › iCloud › Backup do iCloud › **Fazer Backup Agora** e esperar terminar.
+  3. Ajustes › [seu nome] › iCloud › Gerenciar Armazenamento (ou "Armazenamento da Conta") › Backups › este iPhone: na
+     lista de apps, o **Treinos** deve aparecer com poucos KB (ou nem aparecer), não com o tamanho das fotos (centenas de
+     KB cada). Se mostrar MB, o módulo não marcou as pastas: anotar e avisar.
+- **Erro**: em vez do `adb logcat`, o "Enviar feedback" do TestFlight e as falhas no App Store Connect; o log da build está
+  no site da Expo (`npx eas-cli build:list`).
+
+### Antes da App Store (não precisa para o TestFlight interno)
+
+- Tudo da seção 4 (textos, capturas de tela de iPhone, política de privacidade, "App Privacy", conta de demonstração).
+- **Excluir a conta pelo app**: a Apple exige que app em que se cria conta deixe o usuário pedir a exclusão da conta de
+  dentro do app (diretriz 5.1.1(v)). Hoje o aluno cria a conta ao aceitar o convite e só o treinador anonimiza. É decisão
+  do Gustavo antes de mandar para a revisão da loja (pode bastar um pedido de exclusão que chegue ao treinador).
+- Sem login social (Google etc.), então "Entrar com a Apple" não é exigido.
 
 ## Antes da loja: ícones
 
