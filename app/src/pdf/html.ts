@@ -56,6 +56,9 @@ html, body { background: #fff; color: #111; margin: 0; }
 .doc .texto { white-space: normal; }
 .doc a { color: ${marca}; }
 .doc .rodape { margin-top: 14pt; font-size: 8.5pt; color: #666; border-top: 1px solid #ddd; padding-top: 4pt; }
+/* O fim (rodapé e nome) nunca vai sozinho para uma página nova: na reunião de 17/10 a dieta saiu com a 3ª página só
+   com o nome da consultoria. Chromium respeita o avoid entre irmãos e leva junto as últimas linhas do bloco anterior. */
+.doc .fim, .doc .rodape { break-before: avoid; page-break-before: avoid; break-inside: avoid; page-break-inside: avoid; }
 `;
 }
 

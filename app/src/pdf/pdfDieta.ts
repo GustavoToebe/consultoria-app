@@ -153,8 +153,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${op
           )
           .join('')}</tbody></table></div>`
       : '',
-    d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',
-    `<div class="pequeno centro" style="margin-top:14pt">${esc(d.marca.nome)}</div>`,
+    `<div class="fim">${d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : ''}<div class="pequeno centro" style="margin-top:14pt">${esc(d.marca.nome)}</div></div>`,
   ].join('\n');
   return { titulo: `Dieta - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria) + CSS_DIETA, corpo };
 }
