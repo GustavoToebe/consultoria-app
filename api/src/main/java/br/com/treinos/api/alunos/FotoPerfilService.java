@@ -65,8 +65,8 @@ public class FotoPerfilService {
     /** A permissão é conferida na rota; aluno de outra consultoria some pelo filtro do tenant (404). */
     @Transactional(readOnly = true)
     public byte[] lerDoTreinador(UUID alunoId) {
-        alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
-        return ler(alunoId);
+        Aluno aluno = alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        return ler(aluno.getId());
     }
 
     /** Para a exportação: só quando foi trocada, nunca os bytes. */
