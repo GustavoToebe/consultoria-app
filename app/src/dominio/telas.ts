@@ -28,6 +28,7 @@ export interface TelaDoCatalogo {
 export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'inicio', rotulo: 'Início', secao: 'Início', href: '/treinador', palavras: ['painel', 'resumo', 'home'], permissao: null },
   { id: 'alunos', rotulo: 'Alunos', secao: 'Alunos', href: '/treinador/alunos', palavras: ['clientes', 'lista', 'ficha', 'cadastro'], permissao: null },
+  { id: 'interessados', rotulo: 'Interessados', secao: 'Alunos', href: '/treinador/interessados', palavras: ['inscricoes', 'inscricao', 'link de inscricao', 'fila', 'candidatos', 'novos alunos', 'whatsapp', 'captacao'], permissao: null },
   { id: 'atualizacoes', rotulo: 'Atualizações', secao: 'Alunos', href: '/treinador/atualizacoes', palavras: ['check-in', 'checkin', 'revisar', 'feedback', 'atraso'], permissao: null },
   { id: 'planejamento', rotulo: 'Planejamento', secao: 'Planos', href: '/treinador/planejamento', palavras: ['modelos', 'treinos', 'dietas', 'mobilidade', 'pacotes', 'receitas'], permissao: null },
   { id: 'biblioteca', rotulo: 'Biblioteca', secao: 'Conteúdo', href: '/treinador/biblioteca', palavras: ['exercicios', 'alimentos', 'suplementos', 'videos', 'catalogo'], permissao: null },

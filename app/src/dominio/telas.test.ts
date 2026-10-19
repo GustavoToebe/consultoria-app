@@ -41,6 +41,15 @@ describe('catálogo de telas', () => {
     expect(agruparPorSecao(telasPermitidas(com(['QUESTIONARIO_LER']))).flatMap((s) => ids(s.telas))).not.toContain('questionarios');
   });
 
+  it('Interessados só com INSCRICAO_LER, e a busca acha por "inscrição" e "link"', () => {
+    expect(ids(telasPermitidas(com(ADMIN)))).not.toContain('interessados');
+    const atendente = telasPermitidas(com(['INSCRICAO_LER']));
+    expect(ids(atendente)).toContain('interessados');
+    expect(ids(buscarTelas('inscricao', atendente))).toEqual(['interessados']);
+    expect(ids(buscarTelas('link de inscrição', atendente))).toEqual(['interessados']);
+    expect(nomeDaTela('/treinador/interessados')).toBe('Interessados');
+  });
+
   it('ação com permissão extra exige a permissão além da tela', () => {
     // Pode ver o planejamento e a equipe, mas não criar modelo nem convidar.
     const leitor = ids(telasPermitidas(com(['MODELO_LER', 'EQUIPE_LER'])));

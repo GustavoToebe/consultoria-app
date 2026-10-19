@@ -52,7 +52,9 @@ class ArquiteturaTest {
      * {@code AnonimizacaoRepositorio} (anonimização do aluno: limpa texto livre de {@code execucao_serie} e títulos de versões,
      * que a JPA trata como imutáveis; todo método filtra {@code consultoria_id} e {@code aluno_id});
      * {@code FotoRemocaoRepositorio} (fila durável de remoção das fotos no bucket e limpeza das fotos pendentes vencidas: roda no job, sem tenant,
-     * e só mexe em ids de objeto e em linhas ainda não ligadas a nenhuma atualização; nenhum método devolve dado de pessoa).
+     * e só mexe em ids de objeto e em linhas ainda não ligadas a nenhuma atualização; nenhum método devolve dado de pessoa);
+     * {@code InscricaoBusca} (link público de inscrição: descobre só a consultoria de um link aberto pelo código, antes de abrir a
+     * sessão nela).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of(
             "br.com.treinos.api.auth.ContadorBanco",
@@ -64,7 +66,8 @@ class ArquiteturaTest {
             "br.com.treinos.api.conta.ContaLocalRepositorio",
             "br.com.treinos.api.integracao.IntegracaoRepositorio",
             "br.com.treinos.api.privacidade.AnonimizacaoRepositorio",
-            "br.com.treinos.api.fotos.FotoRemocaoRepositorio");
+            "br.com.treinos.api.fotos.FotoRemocaoRepositorio",
+            "br.com.treinos.api.inscricoes.InscricaoBusca");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario}
@@ -74,9 +77,10 @@ class ArquiteturaTest {
     private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario",
             "CatalogoExercicio", "CatalogoAlimento", "AtualizacaoModelo");
 
-    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo). */
+    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link). */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
-            "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController");
+            "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
+            "InscricaoPublicaController");
 
     @BeforeAll
     static void importar() {

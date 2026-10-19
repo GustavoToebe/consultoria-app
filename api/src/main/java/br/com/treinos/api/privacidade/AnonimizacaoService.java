@@ -1,5 +1,7 @@
 package br.com.treinos.api.privacidade;
 
+import br.com.treinos.api.inscricoes.InscricaoDoAluno;
+
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
@@ -31,7 +33,7 @@ import java.util.UUID;
 /**
  * Anonimização do aluno que saiu (LGPD). Só aluno já inativo; o servidor confere o nome digitado. Apaga o que é pessoal
  * ou sensível (peso, lesões, respostas e feedback das atualizações, observações das séries, dieta inteira, nome, e-mail,
- * senha, convite e sessões) e mantém pastas, treinos e registros (carga e repetições) para as contagens. Sem volta:
+ * senha, convite, sessões e a inscrição pelo link que virou o aluno) e mantém pastas, treinos e registros (carga e repetições) para as contagens. Sem volta:
  * o cadastro anonimizado não é editado nem reativado. Nada disso vai a log ou à auditoria, que grava um resumo fixo.
  */
 @Service
@@ -49,12 +51,13 @@ public class AnonimizacaoService {
     private final AnonimizacaoRepositorio nativo;
     private final FotoService fotos;
     private final FotoPerfilService fotoPerfil;
+    private final InscricaoDoAluno inscricao;
 
     public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
                                LesaoRepository lesoes, AtualizacaoRepository atualizacoes, PlanoDietaRepository dietas,
                                PlanoDietaVersaoRepository versoesDeDieta, AnonimizacaoRepositorio nativo,
-                               FotoService fotos, FotoPerfilService fotoPerfil) {
+                               FotoService fotos, FotoPerfilService fotoPerfil, InscricaoDoAluno inscricao) {
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
@@ -67,6 +70,7 @@ public class AnonimizacaoService {
         this.nativo = nativo;
         this.fotos = fotos;
         this.fotoPerfil = fotoPerfil;
+        this.inscricao = inscricao;
     }
 
     @Transactional
@@ -98,6 +102,8 @@ public class AnonimizacaoService {
         // Fotos de corpo: saem do ar na hora e o bucket é esvaziado pela fila de remoção (HTTP fora desta transação).
         fotos.removerTodasDoAluno(alunoId);
         fotoPerfil.removerDoAluno(alunoId);
+        // A inscrição pelo link que virou este aluno (nome, contato, objetivo e notas) sai inteira.
+        inscricao.apagarDoAluno(alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
         nativo.apagarNomesDosTitulos(consultoriaId, alunoId);
         nativo.apagarTextoLivreDosPlanos(consultoriaId, alunoId);

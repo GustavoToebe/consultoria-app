@@ -1,4 +1,4 @@
-import { buscarQuestionario, listarPlanos } from './rotas';
+import { buscarQuestionario, inscricao, inscricaoPublica, listarPlanos } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
 
@@ -6,6 +6,12 @@ describe('caminhos da API', () => {
   it('id vindo do endereço da tela é codificado: "../" não vira outra rota com o token de quem abriu', async () => {
     await expect(buscarQuestionario('../../alunos/x')).resolves.toBe('/questionarios/..%2F..%2Falunos%2Fx');
     await expect(listarPlanos('treino', 'a/b')).resolves.toBe('/alunos/a%2Fb/planos-treino');
+  });
+
+  it('código do link de inscrição e id da inscrição também são codificados', async () => {
+    await expect(inscricaoPublica('../alunos')).resolves.toBe('/publico/inscricoes/..%2Falunos');
+    await expect(inscricao('a/b')).resolves.toBe('/inscricoes/a%2Fb');
+    await expect(inscricaoPublica('Ab-_09xYzAb-_09xYzAb-_09')).resolves.toBe('/publico/inscricoes/Ab-_09xYzAb-_09xYzAb-_09');
   });
 
   it('uuid comum passa igual', async () => {

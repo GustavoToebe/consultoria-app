@@ -12,7 +12,8 @@ import java.util.HexFormat;
 
 /**
  * Limita as tentativas das rotas públicas que não são o login (o login é do módulo de autenticação da plataforma:
- * {@code LimiteLogin}): cadastro de treinador e convite público por IP (10 e 30), refresh por IP (120), logo pública por IP (300) e falhas da
+ * {@code LimiteLogin}): cadastro de treinador e convite público por IP (10 e 30), refresh por IP (120), logo pública por IP (300),
+ * inscrição pelo link por IP (20 envios e 300 consultas da página) e falhas da
  * verificação humana por IP (20), com janela fixa
  * de 600 s e contador no banco. A chave é um SHA-256 com o sal {@code plataforma.auth.login.sal}; cada ação tem prefixo
  * próprio, então uma não consome o limite da outra.
@@ -32,10 +33,13 @@ public class LimiteTentativas {
                      @Value("${treinos.limites.refresh-ip:120}") int refreshIp,
                      @Value("${treinos.limites.verificacao-ip:20}") int verificacaoIp,
                      @Value("${treinos.limites.logo-ip:300}") int logoIp,
+                     @Value("${treinos.limites.inscricao-ip:20}") int inscricaoIp,
+                     @Value("${treinos.limites.inscricao-consulta-ip:300}") int inscricaoConsultaIp,
                      @Value("${treinos.limites.janela-segundos:600}") long janelaSegundos,
                      @Value("${plataforma.auth.login.sal:}") String sal) {
-        this.limites = new Limites(cadastroIp, conviteIp, refreshIp, verificacaoIp, logoIp);
-        if (cadastroIp < 1 || conviteIp < 1 || refreshIp < 1 || verificacaoIp < 1 || logoIp < 1 || janelaSegundos < 1 || janelaSegundos > 86400) {
+        this.limites = new Limites(cadastroIp, conviteIp, refreshIp, verificacaoIp, logoIp, inscricaoIp, inscricaoConsultaIp);
+        if (cadastroIp < 1 || conviteIp < 1 || refreshIp < 1 || verificacaoIp < 1 || logoIp < 1 || inscricaoIp < 1
+                || inscricaoConsultaIp < 1 || janelaSegundos < 1 || janelaSegundos > 86400) {
             throw new IllegalArgumentException("Limites de tentativas inválidos.");
         }
         this.contador = contador;
@@ -55,6 +59,16 @@ public class LimiteTentativas {
     /** Logo pública da consultoria (sem login): cada resposta lê a imagem do banco, então o IP tem um teto por janela. */
     public void logo(String ip) {
         porIp("logo-ip", ip, limites.logoIp());
+    }
+
+    /** Envio de inscrição pelo link público (sem login): grava uma linha por envio, então o teto é baixo. */
+    public void inscricao(String ip) {
+        porIp("inscricao-ip", ip, limites.inscricaoIp());
+    }
+
+    /** Consulta da página pública da inscrição (marca e texto da consultoria). */
+    public void inscricaoConsulta(String ip) {
+        porIp("inscricao-consulta-ip", ip, limites.inscricaoConsultaIp());
     }
 
     public void refresh(String ip) {
@@ -100,6 +114,7 @@ public class LimiteTentativas {
         }
     }
 
-    private record Limites(int cadastroIp, int conviteIp, int refreshIp, int verificacaoIp, int logoIp) {
+    private record Limites(int cadastroIp, int conviteIp, int refreshIp, int verificacaoIp, int logoIp, int inscricaoIp,
+                           int inscricaoConsultaIp) {
     }
 }

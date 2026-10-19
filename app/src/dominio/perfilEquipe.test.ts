@@ -63,3 +63,8 @@ describe('teto de permissões na tela (espelha a API)',()=>{
     expect(permissaoMarcavel(administrador,'ALUNO_SENSIVEL_LER')).toBe(true);
   });
 });
+
+test('alterar interessados leva junto o ler, e desmarcar o ler tira o alterar', () => {
+  expect(completarPermissoes(['INSCRICAO_ALTERAR']).sort()).toEqual(['INSCRICAO_ALTERAR', 'INSCRICAO_LER']);
+  expect(desmarcarPermissoes(['INSCRICAO_ALTERAR', 'INSCRICAO_LER'], ['INSCRICAO_LER'])).toEqual([]);
+});

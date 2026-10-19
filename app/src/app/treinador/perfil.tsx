@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { History, LifeBuoy, Palette, ShieldCheck, UsersRound } from 'lucide-react-native';
+import { History, LifeBuoy, Palette, ShieldCheck, UserPlus, UsersRound } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -17,7 +17,7 @@ import { Texto } from '../../ui/Texto';
 
 /**
  * Perfil: porta de entrada da conta no celular (no PC isso é o cartão do usuário na barra de topo). Mostra os mesmos
- * itens do menu do usuário, mais atalhos para ajuda, marca, equipe e auditoria (que no celular não cabem na barra).
+ * itens do menu do usuário, mais atalhos para ajuda, interessados, marca, equipe e auditoria (que no celular não cabem na barra).
  */
 export default function PerfilTreinador() {
   const { usuario, perfilEquipe, pode } = useSessao();
@@ -41,6 +41,7 @@ export default function PerfilTreinador() {
         <View style={estilos.lista}>
           <ItemDeLista href="/treinador/ajuda" Icone={LifeBuoy} titulo="Ajuda" detalhe="Primeiros passos, tutorial e perguntas" />
           <ItemDeLista href="/treinador/termos" Icone={ShieldCheck} titulo="Termos e privacidade" detalhe="Termo de uso e aviso de privacidade" />
+          <Permitido codigo="INSCRICAO_LER"><ItemDeLista href="/treinador/interessados" Icone={UserPlus} titulo="Interessados" detalhe="Link de inscrição e a fila de quem quer ser aluno" /></Permitido>
           <Permitido codigo="MARCA_ALTERAR"><ItemDeLista href="/treinador/marca" Icone={Palette} titulo="Marca" detalhe="Nome, logo, cor e tema dos alunos" /></Permitido>
           <Permitido codigo="EQUIPE_LER"><ItemDeLista href="/treinador/equipe" Icone={UsersRound} titulo="Equipe" detalhe="Membros, perfis e convites" /></Permitido>
           <Permitido codigo="AUDITORIA_LER"><ItemDeLista href="/treinador/auditoria" Icone={History} titulo="Auditoria" detalhe="O que foi feito na consultoria" /></Permitido>
