@@ -48,6 +48,7 @@ const PENDENTE: AnamneseDetalhe = {
   revisadaPorNome: null,
   dispensadaEm: null,
   dispensadaPorNome: null,
+  alteracoes: [],
   dispensaMotivo: null,
   versao: 1,
 };
@@ -122,6 +123,7 @@ test('treinador vê a anamnese respondida no cartão da ficha, com "Não se apli
     revisadaEm: null,
     dispensadaEm: null,
     dispensaMotivo: null,
+    alteracoesParaRevisar: 0,
     versao: 2,
   };
   const { errosDaPagina } = await simularApi(page, {
