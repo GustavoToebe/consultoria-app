@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp, Minus, NotebookTabs, Plus, Trash2 } from 'lucid
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { Configuracao, ModoIntensidade, Serie } from '../../api/tipos';
+import type { Configuracao, ModoIntensidade, Serie, Tecnica } from '../../api/tipos';
 import { agrupar, descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
 import {
   adicionarSerie,
@@ -14,6 +14,7 @@ import {
   moverGrupo,
   mudarQuantidade,
   removerGrupo,
+  tecnicaVazia,
   type AlteracaoDeGrupo,
 } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
@@ -204,7 +205,64 @@ function EditorGrupo({
           maxLength={120}
         />
       ) : null}
+      <CamposDaTecnica tecnica={primeira.tecnica ?? null} aoMudar={(tecnica) => aoAlterar({ tecnica })} />
     </View>
+  );
+}
+
+const TECNICAS: { valor: Tecnica['tipo'] | 'NENHUMA'; rotulo: string }[] = [
+  { valor: 'NENHUMA', rotulo: 'Nenhuma' },
+  { valor: 'CLUSTER', rotulo: 'Cluster' },
+  { valor: 'REST_PAUSE', rotulo: 'Rest pause' },
+];
+
+/**
+ * Técnica do grupo com campos próprios (pedido do Saraiva em 17/10): cluster = blocos, repetições por bloco e pausa
+ * entre blocos; rest pause = pausa, retomadas e repetições por retomada (vazio = até a falha). Nasce sem números.
+ */
+function CamposDaTecnica({ tecnica, aoMudar }: { tecnica: Tecnica | null; aoMudar: (t: Tecnica | null) => void }) {
+  const mudar = (parte: Partial<Tecnica>) => tecnica && aoMudar({ ...tecnica, ...parte });
+  return (
+    <>
+      <Escolha
+        rotulo="Técnica"
+        opcoes={TECNICAS}
+        valor={tecnica?.tipo ?? 'NENHUMA'}
+        aoMudar={(v) => aoMudar(v === 'NENHUMA' ? null : tecnica?.tipo === v ? tecnica : tecnicaVazia(v))}
+      />
+      {tecnica?.tipo === 'CLUSTER' ? (
+        <View style={estilos.linha}>
+          <View style={estilos.reps}>
+            <CampoNumerico rotulo="Blocos" inteiro valor={tecnica.blocos} aoMudar={(blocos) => mudar({ blocos })} />
+          </View>
+          <View style={estilos.reps}>
+            <CampoNumerico rotulo="Reps por bloco" inteiro valor={tecnica.repsPorBloco} aoMudar={(repsPorBloco) => mudar({ repsPorBloco })} />
+          </View>
+          <View style={estilos.reps}>
+            <CampoNumerico rotulo="Pausa entre blocos" inteiro sufixo="s" valor={tecnica.pausaSegundos} aoMudar={(pausaSegundos) => mudar({ pausaSegundos })} />
+          </View>
+        </View>
+      ) : null}
+      {tecnica?.tipo === 'REST_PAUSE' ? (
+        <View style={estilos.linha}>
+          <View style={estilos.reps}>
+            <CampoNumerico rotulo="Pausa" inteiro sufixo="s" valor={tecnica.pausaSegundos} aoMudar={(pausaSegundos) => mudar({ pausaSegundos })} />
+          </View>
+          <View style={estilos.reps}>
+            <CampoNumerico rotulo="Retomadas" inteiro valor={tecnica.retomadas} aoMudar={(retomadas) => mudar({ retomadas })} />
+          </View>
+          <View style={estilos.repsLargo}>
+            <CampoNumerico
+              rotulo="Reps por retomada"
+              inteiro
+              valor={tecnica.repsPorRetomada}
+              aoMudar={(repsPorRetomada) => mudar({ repsPorRetomada })}
+              ajuda="Vazio = até a falha."
+            />
+          </View>
+        </View>
+      ) : null}
+    </>
   );
 }
 
@@ -219,6 +277,7 @@ const estilos = StyleSheet.create({
   contador: { flexDirection: 'row', alignItems: 'center' },
   numero: { fontFamily: fontes.negrito, fontSize: 18, minWidth: 28, textAlign: 'center' },
   reps: { width: 110 },
+  repsLargo: { width: 160 },
   adicionar: { flexDirection: 'row', gap: espaco(1) },
   escolhaTipo: { gap: espaco(0.75) },
   metade: { flex: 1 },

@@ -6,6 +6,7 @@ import type {
   ModoIntensidade,
   Serie,
   Sessao,
+  Tecnica,
   TipoSessao,
 } from '../api/tipos';
 import { agrupar, type GrupoDeSeries } from './agrupamento';
@@ -181,6 +182,13 @@ export interface AlteracaoDeGrupo {
   intensidade?: Partial<Intensidade>;
   /** Descanso depois de cada série do grupo, em segundos (vazio = sem descanso definido). */
   descansoSegundos?: number | null;
+  /** Técnica do grupo (cluster ou rest pause); nulo tira. */
+  tecnica?: Tecnica | null;
+}
+
+/** Técnica nova sem números: o treinador preenche (nada é inventado) e a publicação cobra o que faltar. */
+export function tecnicaVazia(tipo: Tecnica['tipo']): Tecnica {
+  return { tipo, blocos: null, repsPorBloco: null, pausaSegundos: null, retomadas: null, repsPorRetomada: null };
 }
 
 function intensidadeDoModo(modo: ModoIntensidade): Intensidade {
@@ -214,6 +222,7 @@ export function alterarGrupo(
     if (mudanca.repsMax !== undefined) nova.repsMax = mudanca.repsMax;
     if (mudanca.alvoTexto !== undefined) nova.alvoTexto = mudanca.alvoTexto || null;
     if (mudanca.descansoSegundos !== undefined) nova.descansoSegundos = mudanca.descansoSegundos;
+    if (mudanca.tecnica !== undefined) nova.tecnica = mudanca.tecnica;
     if (modo !== undefined && modo !== (s.intensidade?.modo ?? 'NENHUMA')) nova.intensidade = intensidadeDoModo(modo);
     if (mudanca.intensidade) {
       nova.intensidade = { ...(nova.intensidade ?? { modo: 'NENHUMA' }), ...mudanca.intensidade };
@@ -248,6 +257,7 @@ export function seriesDaReceita(conteudo: unknown): Serie[] {
     alvoTexto: s.alvoTexto ?? null,
     intensidade: s.intensidade ?? null,
     descansoSegundos: s.descansoSegundos ?? null,
+    tecnica: s.tecnica ?? null,
   }));
 }
 
@@ -310,6 +320,7 @@ export function normalizarTreino(conteudo: unknown): ConteudoTreino {
           alvoTexto: x.alvoTexto ?? null,
           intensidade: x.intensidade ?? null,
           descansoSegundos: x.descansoSegundos ?? null,
+          tecnica: x.tecnica ?? null,
         })),
       })),
     })),

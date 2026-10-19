@@ -5,6 +5,7 @@ import { Linking, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
+import { textosDeTecnica } from '../dominio/agrupamento';
 import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { videoValido } from '../dominio/video';
@@ -70,6 +71,9 @@ export function ExercicioAluno(p: Props) {
         </Cartao>
       ) : null}
       {!e.progressao ? <Texto numerico style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
+      {textosDeTecnica(e.series).map((t) => (
+        <Texto key={t} numerico style={estilos.destaque}>{t}</Texto>
+      ))}
       {videoValido(e.videoUrl) || p.acaoAoLadoDoVideo ? (
         <View style={estilos.acoesRapidas}>
           {videoValido(e.videoUrl) ? (

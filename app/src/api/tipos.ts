@@ -289,6 +289,21 @@ export interface Serie {
   alvoTexto: string | null;
   intensidade: Intensidade | null;
   descansoSegundos: number | null;
+  /** Cluster ou rest pause com campos próprios (reunião de 17/10); nulo = série comum. */
+  tecnica?: Tecnica | null;
+}
+
+/**
+ * Cluster: `blocos` de `repsPorBloco` com `pausaSegundos` entre eles. Rest pause: a série, `pausaSegundos` de pausa e
+ * `retomadas` de `repsPorRetomada` (nulo = até a falha). Só números do treinador; o aluno registra a série inteira.
+ */
+export interface Tecnica {
+  tipo: 'CLUSTER' | 'REST_PAUSE';
+  blocos: number | null;
+  repsPorBloco: number | null;
+  pausaSegundos: number | null;
+  retomadas: number | null;
+  repsPorRetomada: number | null;
 }
 
 export interface ExercicioPlano {

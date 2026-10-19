@@ -122,6 +122,40 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void clusterERestPauseTemCamposPropriosConferidosAoPublicar() throws Exception {
+        JsonNode plano = api.post("/alunos/" + aluno + "/planos-treino", treinador, Map.of("titulo", "Plano"), 200);
+        String id = plano.get("plano").get("id").asString();
+        ConteudoTreino.Intensidade carga = new ConteudoTreino.Intensidade("CARGA_TRABALHO", null, null, null, null);
+        Serie clusterRuim = new Serie(UUID.randomUUID(), "Cluster", 6, 6, null, carga, null,
+                new ConteudoTreino.Tecnica("CLUSTER", 1, 0, 2, null, null));
+        Serie restPauseRuim = new Serie(UUID.randomUUID(), "Rest pause", 6, 8, null, carga, null,
+                new ConteudoTreino.Tecnica("REST_PAUSE", null, null, 700, 9, 0));
+        Serie desconhecida = new Serie(UUID.randomUUID(), "WS", 3, 6, null, carga, null,
+                new ConteudoTreino.Tecnica("DROP_SET", null, null, null, null, null));
+        JsonNode salvo = api.put("/planos-treino/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Plano",
+                comSeries(List.of(clusterRuim, restPauseRuim, desconhecida)), plano.get("plano").get("versao").asLong()), 200);
+        String base = "sessoes[0].exercicios[0].series[";
+        assertThat(api.post("/planos-treino/" + id + "/validar", treinador, null, 200).get("erros").valueStream()
+                .map(e -> e.get("caminho").asString())).contains(
+                base + "0].tecnica.blocos", base + "0].tecnica.repsPorBloco", base + "0].tecnica.pausaSegundos",
+                base + "1].tecnica.pausaSegundos", base + "1].tecnica.retomadas", base + "1].tecnica.repsPorRetomada",
+                base + "2].tecnica.tipo");
+
+        // Corretas: 3 blocos de 2 com 20 s; rest pause de 20 s com 2 retomadas até a falha. Chegam iguais na leitura.
+        Serie cluster = new Serie(UUID.randomUUID(), "Cluster", 6, 6, null, carga, 120,
+                new ConteudoTreino.Tecnica("CLUSTER", 3, 2, 20, null, null));
+        Serie restPause = new Serie(UUID.randomUUID(), "Rest pause", 6, 8, null, carga, null,
+                new ConteudoTreino.Tecnica("REST_PAUSE", null, null, 20, 2, null));
+        salvo = api.put("/planos-treino/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Plano",
+                comSeries(List.of(cluster, restPause)), salvo.get("plano").get("versao").asLong()), 200);
+        assertThat(api.post("/planos-treino/" + id + "/validar", treinador, null, 200).get("erros").valueStream()
+                .map(e -> e.get("caminho").asString())).noneMatch(c -> c.contains("tecnica"));
+        JsonNode series = salvo.get("rascunho").get("sessoes").get(0).get("exercicios").get(0).get("series");
+        assertThat(series.get(0).get("tecnica").get("blocos").asInt()).isEqualTo(3);
+        assertThat(series.get(1).get("tecnica").get("repsPorRetomada").isNull()).isTrue();
+    }
+
+    @Test
     void replicarGeraUidsNovosAPartirDaUltimaVersao() throws Exception {
         ApiDeTeste.TreinoDeTeste t = ApiDeTeste.treino();
         String id = api.publicarTreino(treinador, aluno, t.conteudo()).get("plano").get("id").asString();

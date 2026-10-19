@@ -1,5 +1,5 @@
 import type { ConteudoTreino, ExercicioPlano, Marca, Sessao } from '../api/tipos';
-import { agrupar, faixa, textoIntensidade, type GrupoDeSeries } from '../dominio/agrupamento';
+import { agrupar, faixa, textoIntensidade, textoTecnica, type GrupoDeSeries } from '../dominio/agrupamento';
 import { DIAS_SEMANA } from '../dominio/editorTreino';
 import { dataHoraParaTela, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { rotuloDoDia, rotuloDoTipo, sessoesDaSemana } from '../dominio/semana';
@@ -24,7 +24,8 @@ export interface DadosPdfTreino {
 /** Coluna "Séries x reps": "3x3 - FS", "1x3 a 6 - WS", "1x - Cardio (50 min)". */
 export function linhaDoGrupo(g: GrupoDeSeries): string {
   const s = g.series[0];
-  return `${g.series.length}x${faixa(s)} - ${s.tipo || 'Série'}${s.alvoTexto ? ` (${s.alvoTexto})` : ''}`;
+  const tecnica = textoTecnica(s.tecnica);
+  return `${g.series.length}x${faixa(s)} - ${s.tipo || 'Série'}${s.alvoTexto ? ` (${s.alvoTexto})` : ''}${tecnica ? ` · ${tecnica}` : ''}`;
 }
 
 /** Intensidade escrita na coluna OBS: "Back off - 85% da WS", "FS - 50/70/85% da WS", "Série - 2 RIR". */

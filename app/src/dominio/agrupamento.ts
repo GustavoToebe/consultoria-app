@@ -1,4 +1,4 @@
-import type { Intensidade, Serie } from '../api/tipos';
+import type { Intensidade, Serie, Tecnica } from '../api/tipos';
 import { numeroParaTela } from './formatos';
 
 /**
@@ -13,7 +13,7 @@ export interface GrupoDeSeries {
 
 const modo = (s: Serie) => s.intensidade?.modo ?? 'NENHUMA';
 
-const chave = (s: Serie) => [s.tipo, s.repsMin ?? '', s.repsMax ?? '', s.alvoTexto ?? '', modo(s)].join('|');
+const chave = (s: Serie) => [s.tipo, s.repsMin ?? '', s.repsMax ?? '', s.alvoTexto ?? '', modo(s), s.tecnica ? JSON.stringify(s.tecnica) : ''].join('|');
 
 export function agrupar(series: Serie[]): GrupoDeSeries[] {
   const grupos: GrupoDeSeries[] = [];
@@ -50,6 +50,27 @@ export function textoIntensidade(i: Intensidade | null): string {
   }
 }
 
+const n = (v: number | null | undefined) => (v == null ? '?' : String(v));
+
+/** Técnica em texto curto (editor e PDF): "Cluster 3×2, 20 s" e "Rest pause 20 s +2" ("+2×3" com repetições fixas). */
+export function textoTecnica(t: Tecnica | null | undefined): string {
+  if (!t) return '';
+  if (t.tipo === 'CLUSTER') return `Cluster ${n(t.blocos)}×${n(t.repsPorBloco)}, ${n(t.pausaSegundos)} s`;
+  const reps = t.repsPorRetomada ? `×${t.repsPorRetomada}` : '';
+  return `Rest pause ${n(t.pausaSegundos)} s +${n(t.retomadas)}${reps}`;
+}
+
+/** Técnica por extenso, como o aluno lê: o que fazer, sem nada além do que o treinador escreveu. */
+export function textoTecnicaPorExtenso(t: Tecnica | null | undefined): string {
+  if (!t) return '';
+  if (t.tipo === 'CLUSTER') {
+    return `Cluster: ${n(t.blocos)} blocos de ${n(t.repsPorBloco)} repetições, ${n(t.pausaSegundos)} s de pausa entre os blocos.`;
+  }
+  const retomadas = t.retomadas === 1 ? '1 retomada' : `${n(t.retomadas)} retomadas`;
+  const reps = t.repsPorRetomada ? `de ${t.repsPorRetomada} repetições` : 'até a falha';
+  return `Rest pause: depois da série, ${n(t.pausaSegundos)} s de pausa e mais ${retomadas} ${reps}.`;
+}
+
 /** Resumo do grupo: "3x3 - FS 50/70/85%", "1x3 a 6 - WS", "1x - Cardio 50 min". */
 export function descreverGrupo(grupo: GrupoDeSeries): string {
   const primeira = grupo.series[0];
@@ -62,10 +83,17 @@ export function descreverGrupo(grupo: GrupoDeSeries): string {
     if (texto) partes.push(texto);
   }
   if (primeira.alvoTexto) partes.push(primeira.alvoTexto);
+  const tecnica = textoTecnica(primeira.tecnica);
+  if (tecnica) partes.push(`· ${tecnica}`);
   return partes.join(' ');
 }
 
 /** Resumo de todas as séries do exercício, um grupo por linha. */
 export function descreverSeries(series: Serie[]): string[] {
   return agrupar(series).map(descreverGrupo);
+}
+
+/** Técnicas do exercício por extenso, sem repetir (o aluno lê uma vez, antes das séries). */
+export function textosDeTecnica(series: readonly Serie[]): string[] {
+  return [...new Set(series.map((s) => textoTecnicaPorExtenso(s.tecnica)).filter(Boolean))];
 }
