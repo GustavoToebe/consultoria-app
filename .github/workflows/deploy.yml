@@ -25,17 +25,66 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Economia de minutos (19/10, os 3.000 do plano chegaram a 90% no dia 19): (1) só a parte que mudou desde o último deploy
+  # que deu certo (api/ ou app/) é testada, construída e publicada (.github/scripts/partes-mudadas.sh); (2) no push da main,
+  # se a árvore do commit é exatamente a que já passou nos testes do pull request, o teste não repete
+  # (.github/scripts/arvore-ja-testada.sh, o mesmo da Central). Na dúvida, os dois scripts dizem "testa tudo".
+  escopo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      api: ${{ steps.p.outputs.api }}
+      app: ${{ steps.p.outputs.app }}
+      reaproveitar-api: ${{ steps.r.outputs.api }}
+      reaproveitar-app: ${{ steps.r.outputs.app }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Testes dos scripts de CI (só no pull request)
+        if: github.event_name == 'pull_request'
+        run: |
+          bash .github/scripts/partes-mudadas.test.sh
+          bash .github/scripts/arvore-ja-testada.test.sh
+      - id: p
+        name: O que mudou (api/, app/) desde a base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_PR: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base=""
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            base="$BASE_PR"
+          elif [ "$GITHUB_EVENT_NAME" = push ]; then
+            # Último push na main cujo deploy terminou verde: o que mudou desde ele ainda não está em produção.
+            base="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/deploy.yml/runs?branch=main&event=push&status=success&per_page=1" \
+              --jq '.workflow_runs[0].head_sha // empty' 2>/dev/null || true)"
+          fi
+          bash .github/scripts/partes-mudadas.sh "$base" >> "$GITHUB_OUTPUT"
+      - id: r
+        name: Esta árvore já passou nos testes de um pull request?
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          api=nao; app=nao
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF" = refs/heads/main ]; then
+            api="$(bash .github/scripts/arvore-ja-testada.sh "$GITHUB_REPOSITORY" "$GITHUB_SHA" deploy.yml testar-api || echo nao)"
+            app="$(bash .github/scripts/arvore-ja-testada.sh "$GITHUB_REPOSITORY" "$GITHUB_SHA" deploy.yml testar-app || echo nao)"
+          fi
+          echo "api=$([ "$api" = sim ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "app=$([ "$app" = sim ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   testar-api:
+    needs: escopo
+    if: needs.escopo.outputs.api == 'true' && needs.escopo.outputs.reaproveitar-api != 'true'
     permissions:
       contents: read
       packages: read
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        # Banco de produção (18) e o anterior (17), igual aos outros backends da plataforma.
-        postgres: ['postgres:18-alpine', 'postgres:17-alpine']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
@@ -48,14 +97,31 @@ jobs:
           server-username-env-var: GITHUB_ACTOR
           server-password-env-var: GITHUB_TOKEN
           settings-path: ${{ runner.temp }}/maven
-      - name: Testes (o Testcontainers sobe o Postgres)
+      - name: Testes (o Testcontainers sobe o Postgres 18, o da produção)
         working-directory: api
         env:
           # Maven privado herda permissões do repo produtor; leitura entre repos pode exigir PAT classic.
           GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN || secrets.GITHUB_TOKEN }}
-        run: mvn -s "$RUNNER_TEMP/maven/settings.xml" -B -q verify -Dplataforma.postgres.imagem=${{ matrix.postgres }}
+        run: mvn -s "$RUNNER_TEMP/maven/settings.xml" -B -q verify
+      - name: Registrar a árvore aprovada (pull request)
+        id: arvore
+        if: github.event_name == 'pull_request'
+        run: |
+          arvore="$(git rev-parse 'HEAD^{tree}')"
+          echo "arvore=$arvore" >> "$GITHUB_OUTPUT"
+          echo "$arvore" > "$RUNNER_TEMP/aprovado.txt"
+      - name: Guardar a aprovação
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aprovado-testar-api-${{ steps.arvore.outputs.arvore }}
+          path: ${{ runner.temp }}/aprovado.txt
+          retention-days: 30
+          overwrite: true
 
   testar-app:
+    needs: escopo
+    if: needs.escopo.outputs.app == 'true' && needs.escopo.outputs.reaproveitar-app != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -75,13 +141,31 @@ jobs:
         run: npm run lint
       - name: Testes
         run: npm test
+      - name: Registrar a árvore aprovada (pull request)
+        id: arvore
+        if: github.event_name == 'pull_request'
+        run: |
+          arvore="$(git rev-parse 'HEAD^{tree}')"
+          echo "arvore=$arvore" >> "$GITHUB_OUTPUT"
+          echo "$arvore" > "$RUNNER_TEMP/aprovado.txt"
+      - name: Guardar a aprovação
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aprovado-testar-app-${{ steps.arvore.outputs.arvore }}
+          path: ${{ runner.temp }}/aprovado.txt
+          retention-days: 30
+          overwrite: true
 
   # As imagens são construídas aqui, uma vez, e a VPS só baixa. Na main publicam
   # ghcr.io/gustavotoebe/consultoria-api|web:<12 primeiros caracteres do commit>; no disparo manual em outra branch só
   # constroem e varrem. O Trivy roda antes da publicação (HIGH/CRITICAL com correção publicada bloqueia; exceções em .trivyignore).
   imagem-api:
-    needs: [testar-api, testar-app]
-    if: github.event_name != 'pull_request'
+    needs: [escopo, testar-api, testar-app]
+    # Testes pulados só valem quando o escopo deu certo (parte sem mudança ou árvore já aprovada no pull request).
+    if: >-
+      always() && github.event_name != 'pull_request' && needs.escopo.result == 'success' && needs.escopo.outputs.api == 'true'
+      && contains(fromJSON('["success","skipped"]'), needs.testar-api.result) && contains(fromJSON('["success","skipped"]'), needs.testar-app.result)
     permissions:
       contents: read
       packages: write
@@ -135,8 +219,10 @@ jobs:
         run: docker push "ghcr.io/gustavotoebe/consultoria-api:${{ steps.meta.outputs.sha }}"
 
   imagem-web:
-    needs: [testar-api, testar-app]
-    if: github.event_name != 'pull_request'
+    needs: [escopo, testar-api, testar-app]
+    if: >-
+      always() && github.event_name != 'pull_request' && needs.escopo.result == 'success' && needs.escopo.outputs.app == 'true'
+      && contains(fromJSON('["success","skipped"]'), needs.testar-api.result) && contains(fromJSON('["success","skipped"]'), needs.testar-app.result)
     permissions:
       contents: read
       packages: write
@@ -179,8 +265,14 @@ jobs:
         run: docker push "ghcr.io/gustavotoebe/consultoria-web:${{ steps.meta.outputs.sha }}"
 
   publicar:
-    needs: [testar-api, testar-app, imagem-api, imagem-web]
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [imagem-api, imagem-web]
+    # Publica o que foi construído agora; parte sem imagem nova (pulada) fica na versão que já está no ar. Imagem que falhou
+    # não publica nada.
+    if: >-
+      always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      && (needs.imagem-api.result == 'success' || needs.imagem-web.result == 'success')
+      && needs.imagem-api.result != 'failure' && needs.imagem-web.result != 'failure'
+      && needs.imagem-api.result != 'cancelled' && needs.imagem-web.result != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -190,7 +282,8 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
-          SHA: ${{ needs.imagem-api.outputs.sha }}
+          API: ${{ needs.imagem-api.result == 'success' }}
+          WEB: ${{ needs.imagem-web.result == 'success' }}
         run: |
           if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_SSH_KEY" ] || [ -z "$VPS_KNOWN_HOSTS" ]; then
             echo "Faltam os secrets VPS_HOST, VPS_USER, VPS_SSH_KEY e VPS_KNOWN_HOSTS. Produção não foi alterada."
@@ -200,9 +293,13 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          for componente in api web; do
+          SHA="${GITHUB_SHA::12}"
+          componentes=""
+          [ "$API" = true ] && componentes="api"
+          [ "$WEB" = true ] && componentes="$componentes web"
+          for componente in $componentes; do
             # A chave só consegue rodar o atualizar.sh (comando fixo no authorized_keys da VPS); o argumento é validado lá.
-            # As duas imagens usam os 12 primeiros caracteres do mesmo commit. Keepalive a cada 30 s: o docker pull e a espera
+            # Toda imagem usa os 12 primeiros caracteres do commit que a construiu. Keepalive a cada 30 s: o docker pull e a espera
             # pela saúde (até 180 s) quase não imprimem nada, e a rede do runner derruba conexão parada.
             ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
               -o ServerAliveInterval=30 -o ServerAliveCountMax=20 \

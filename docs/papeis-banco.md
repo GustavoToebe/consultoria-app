@@ -34,7 +34,7 @@ uma cópia do `api/scripts/roles-banco.sql` (**mantenha as duas iguais**) e grav
 `/opt/ecossistema/consultoria.env`, sem imprimir nenhuma senha. Roda uma vez, antes da primeira subida da API.
 
 ## O que o teste garante
-`PapeisBancoIntegrationTest` (Postgres 18 e 17): banco novo e vazio → `roles-banco.sql` → a **API sobe de verdade** (perfil `docker`) com o
+`PapeisBancoIntegrationTest` (Postgres 18 na CI; o 17 à mão, ao subir a biblioteca): banco novo e vazio → `roles-banco.sql` → a **API sobe de verdade** (perfil `docker`) com o
 migrador e o papel só de dados → o app é recusado nos dois históricos já na primeira subida e na segunda, lê, grava e apaga dados (inclusive
 numa tabela criada depois só pelo migrador, com sequência), é recusado em `CREATE`, `ALTER`, `DROP` e `TRUNCATE` nos dois schemas e não
 conecta no banco de outro aplicativo. Cobre também o callback: reabrir o histórico à mão é desfeito na subida seguinte; papel vazio ou
