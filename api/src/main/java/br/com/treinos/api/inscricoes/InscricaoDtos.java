@@ -103,6 +103,20 @@ public final class InscricaoDtos {
     public record AceitarRequest(@NotNull Boolean convidar, @NotNull Long versao) {
     }
 
+    // ---- Privacidade ----
+
+    /**
+     * Exportação do titular (LGPD): a inscrição pelo link que virou o aluno, com o que a pessoa escreveu, a ciência e as
+     * notas da equipe sobre ela (sem o autor, que é dado da equipe).
+     */
+    public record InscricaoExportada(Instant criadaEm, String nome, String whatsapp, String email, String objetivo,
+                                     String observacao, Instant cienciaEm, String cienciaTexto,
+                                     List<NotaExportada> notas) {
+    }
+
+    public record NotaExportada(Instant criadaEm, String texto) {
+    }
+
     /** {@code id} = a inscrição (a auditoria lê o id daqui); {@code convite} nulo sem convite. */
     public record AceiteResponse(UUID id, UUID alunoId, ConviteResponse convite) {
     }

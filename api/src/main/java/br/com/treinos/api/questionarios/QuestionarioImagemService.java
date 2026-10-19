@@ -32,6 +32,12 @@ public class QuestionarioImagemService {
     /** O corpo da requisição já é limitado a 1 MiB; aqui o limite do que chega antes de limpar. */
     static final int BYTES_RECEBIDOS = 1_000_000;
     static final Duration CARENCIA_DA_ORFA = Duration.ofDays(1);
+    /**
+     * Teto de imagens novas por consultoria em 24 h (revisão de segurança de 19/10). As imagens ficam no banco e a órfã só
+     * sai ao publicar ou excluir um questionário: sem teto, um cliente com {@code QUESTIONARIO_ALTERAR} enchia o banco
+     * de todas as consultorias com envios de 300 KB. Cem por dia cobre com folga montar vários questionários.
+     */
+    static final int POR_DIA = 100;
     private static final Pattern UUID_NO_TEXTO = Pattern.compile(LimitesQuestionario.IMAGEM_PADRAO);
 
     /** Bytes e tipo, para a resposta da rota. */
@@ -72,6 +78,10 @@ public class QuestionarioImagemService {
         }
         if (recebido.length > BYTES_RECEBIDOS) {
             throw grandeDemais();
+        }
+        if (imagens.countByCriadaEmAfter(Instant.now().minus(Duration.ofDays(1))) >= POR_DIA) {
+            throw new ValidacaoException("Limite de " + POR_DIA + " imagens por dia atingido. Tente de novo amanhã.",
+                    "IMAGENS_LIMITE_DIARIO", List.of());
         }
         String tipo = MarcaService.tipoPelosBytes(recebido).orElseThrow(() -> invalida("A imagem precisa ser PNG ou JPEG."));
         byte[] limpo;
