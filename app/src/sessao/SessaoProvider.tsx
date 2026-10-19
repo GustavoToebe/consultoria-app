@@ -10,6 +10,7 @@ import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funciona
 import { pode as conferirPermissao } from '../dominio/permissoes';
 import { varrerFilasRetidas } from '../offline/filasRetidas';
 import { limparDadosDoAluno } from '../offline/limparDadosDoAluno';
+import { apagarArquivosTemporarios } from '../offline/arquivosTemporarios';
 import { lerRefresh } from './armazenamentoSeguro';
 
 /**
@@ -120,6 +121,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
           removerPerfilSalvo: () => AsyncStorage.removeItem(CHAVE_PERFIL),
           limpezas: limpezas.current,
         });
+        // PDFs e exportação LGPD gravados para o compartilhar: nada de dado de aluno sobrando no cache.
+        try { apagarArquivosTemporarios(); } catch { /* sem a pasta, nada a apagar */ }
       } finally {
         // Mesmo se apagar falhar, a pessoa sai: manter a tela aberta com a sessão morta é pior.
         setPerfil(null);

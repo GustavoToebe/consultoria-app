@@ -54,7 +54,7 @@ export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTo
   if (carregando || !endereco) {
     return <View accessibilityRole="progressbar" accessibilityLabel={`Carregando: ${descricao}`} style={caixa} />;
   }
-  const imagem = <Image source={{ uri: endereco }} accessibilityLabel={descricao} contentFit="cover" style={estilos.imagem} />;
+  const imagem = <Image source={{ uri: endereco }} cachePolicy="none" accessibilityLabel={descricao} contentFit="cover" style={estilos.imagem} />;
   return aoTocar ? (
     <Pressable accessibilityRole="imagebutton" accessibilityLabel={descricao} onPress={aoTocar}
       style={[caixa, { minWidth: ALVO_TOQUE, minHeight: ALVO_TOQUE }]}>{imagem}</Pressable>

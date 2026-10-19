@@ -69,17 +69,23 @@ import type {
   VersaoDetalhe,
 } from './tipos';
 
+/**
+ * Valor dinâmico num segmento do caminho (ids vindos do endereço da tela): codificado, para um "../" no endereço não
+ * virar outra rota da API com o token de quem abriu o link.
+ */
+const seg = (valor: string | number) => encodeURIComponent(String(valor));
+
 export const perfisEquipe = () => requisicao<PerfilEquipe[]>('/perfis');
 export const catalogoPermissoes = () => requisicao<PermissaoEquipe[]>('/permissoes/catalogo');
 export const criarPerfilEquipe = (corpo:PerfilEquipeRequest) => requisicao<PerfilEquipe>('/perfis',{metodo:'POST',corpo});
-export const alterarPerfilEquipe = (id:string,corpo:PerfilEquipeRequest) => requisicao<PerfilEquipe>(`/perfis/${id}`,{metodo:'PUT',corpo});
-export const duplicarPerfilEquipe = (id:string) => requisicao<PerfilEquipe>(`/perfis/${id}/duplicar`,{metodo:'POST'});
-export const excluirPerfilEquipe = (id:string) => requisicao<void>(`/perfis/${id}`,{metodo:'DELETE'});
+export const alterarPerfilEquipe = (id:string,corpo:PerfilEquipeRequest) => requisicao<PerfilEquipe>(`/perfis/${seg(id)}`,{metodo:'PUT',corpo});
+export const duplicarPerfilEquipe = (id:string) => requisicao<PerfilEquipe>(`/perfis/${seg(id)}/duplicar`,{metodo:'POST'});
+export const excluirPerfilEquipe = (id:string) => requisicao<void>(`/perfis/${seg(id)}`,{metodo:'DELETE'});
 export const membrosEquipe = () => requisicao<MembroEquipe[]>('/usuarios');
 export const pessoasAuditoria = () => requisicao<ResponsavelEquipe[]>('/auditoria/pessoas');
 export const convidarMembro = (corpo:{nome:string;email:string;perfilId:string}) => requisicao<ConviteEquipe>('/usuarios/convites',{metodo:'POST',corpo});
-export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/convites/${id}`,{metodo:'DELETE'});
-export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${id}`,{metodo:'PUT',corpo});
+export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/convites/${seg(id)}`,{metodo:'DELETE'});
+export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${seg(id)}`,{metodo:'PUT',corpo});
 export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>(`/publico/convites-equipe/${encodeURIComponent(codigo)}`,{metodo:'POST',corpo:{senha},semRenovar:true});
 /** "Esqueci a senha": a API responde 202 exista a conta ou não. `turnstileToken` (uso único) só quando a verificação humana está ligada. */
 export const pedirRedefinicaoDeSenha = (email:string,turnstileToken?:string) => requisicao<void>('/auth/esqueci-senha',{metodo:'POST',corpo:turnstileToken?{email,turnstileToken}:{email},semRenovar:true});
@@ -95,7 +101,7 @@ export const listarAuditoria = (filtro:{de?:string;ate?:string;usuarioId?:string
 // ---- Atualizações ----
 export const atualizacaoAluno = () => requisicao<Atualizacao>('/aluno/atualizacao');
 export const atualizacoesAluno = () => requisicao<Atualizacao[]>('/aluno/atualizacoes');
-export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`/aluno/atualizacoes/${id}`);
+export const detalheAtualizacaoAluno = (id: string) => requisicao<Atualizacao>(`/aluno/atualizacoes/${seg(id)}`);
 /** A API confere o id da versão respondida: se o treinador publicou outra no meio, responde 409. */
 export const enviarAtualizacao = (pastaId: string, questionarioVersaoId: string, respostas: RespostasAtualizacao) =>
   requisicao<Atualizacao>('/aluno/atualizacao/enviar', { metodo: 'POST', corpo: { pastaId, questionarioVersaoId, respostas } });
@@ -103,28 +109,28 @@ export const enviarAtualizacao = (pastaId: string, questionarioVersaoId: string,
 export const listarQuestionarios = (arquivados = false) => requisicao<QuestionarioResumo[]>(`/questionarios?arquivados=${arquivados}`);
 export const opcoesDeQuestionario = () => requisicao<OpcaoQuestionario[]>('/questionarios/opcoes');
 export const criarQuestionario = (corpo: CriarQuestionarioRequest) => requisicao<QuestionarioDetalhe>('/questionarios', { metodo: 'POST', corpo });
-export const buscarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}`);
-export const salvarQuestionario = (id: string, corpo: SalvarQuestionarioRequest) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}`, { metodo: 'PUT', corpo });
+export const buscarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}`);
+export const salvarQuestionario = (id: string, corpo: SalvarQuestionarioRequest) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}`, { metodo: 'PUT', corpo });
 export const publicarQuestionario = (id: string, versao: number, confirmarAvisos: boolean) =>
-  requisicao<QuestionarioDetalhe>(`/questionarios/${id}/publicar`, { metodo: 'POST', corpo: { versao, confirmarAvisos } });
-export const duplicarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/duplicar`, { metodo: 'POST' });
-export const definirQuestionarioPadrao = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/padrao`, { metodo: 'POST' });
-export const arquivarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/arquivar`, { metodo: 'POST' });
-export const desarquivarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${id}/desarquivar`, { metodo: 'POST' });
-export const excluirQuestionario = (id: string) => requisicao<void>(`/questionarios/${id}`, { metodo: 'DELETE' });
+  requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/publicar`, { metodo: 'POST', corpo: { versao, confirmarAvisos } });
+export const duplicarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/duplicar`, { metodo: 'POST' });
+export const definirQuestionarioPadrao = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/padrao`, { metodo: 'POST' });
+export const arquivarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/arquivar`, { metodo: 'POST' });
+export const desarquivarQuestionario = (id: string) => requisicao<QuestionarioDetalhe>(`/questionarios/${seg(id)}/desarquivar`, { metodo: 'POST' });
+export const excluirQuestionario = (id: string) => requisicao<void>(`/questionarios/${seg(id)}`, { metodo: 'DELETE' });
 /** `null` volta ao padrão (aluno) ou ao questionário do aluno (pasta). */
 export const escolherQuestionarioDoAluno = (alunoId: string, questionarioId: string | null) =>
-  requisicao<AlunoDetalhe>(`/alunos/${alunoId}/questionario`, { metodo: 'PUT', corpo: { questionarioId } });
+  requisicao<AlunoDetalhe>(`/alunos/${seg(alunoId)}/questionario`, { metodo: 'PUT', corpo: { questionarioId } });
 export const escolherQuestionarioDaPasta = (pastaId: string, questionarioId: string | null) =>
-  requisicao<PastaResumo>(`/pastas/${pastaId}/questionario`, { metodo: 'PUT', corpo: { questionarioId } });
+  requisicao<PastaResumo>(`/pastas/${seg(pastaId)}/questionario`, { metodo: 'PUT', corpo: { questionarioId } });
 export const avisarAtrasoAtualizacao = (pastaId: string, novaData: string, motivo?: string) =>
   requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { pastaId, novaData, motivo } });
 export const marcarFeedbackVisto = (id: string) =>
-  requisicao<void>(`/aluno/atualizacoes/${id}/feedback-visto`, { metodo: 'POST' });
+  requisicao<void>(`/aluno/atualizacoes/${seg(id)}/feedback-visto`, { metodo: 'POST' });
 export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false) =>
   requisicao<AtualizacaoDaLista[]>(`/atualizacoes?situacao=${situacao}&meus=${meus}`);
-export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${id}/atualizacoes`);
-export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${id}/atualizacao`);
+export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${seg(id)}/atualizacoes`);
+export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${seg(id)}/atualizacao`);
 
 // ---- Fotos da atualização (bytes só pela API, com token; nada de link direto para o bucket) ----
 
@@ -134,15 +140,15 @@ export const configuracaoDeFotos = () => requisicao<ConfiguracaoDeFotos>('/aluno
 export const enviarFoto = (pastaId: string, arquivo: FormData) =>
   requisicao<{ id: string }>(`/aluno/fotos?pastaId=${encodeURIComponent(pastaId)}`, { metodo: 'POST', corpoBruto: arquivo, limiteMs: 60000 });
 
-export const removerFoto = (id: string) => requisicao<void>(`/aluno/fotos/${id}`, { metodo: 'DELETE' });
+export const removerFoto = (id: string) => requisicao<void>(`/aluno/fotos/${seg(id)}`, { metodo: 'DELETE' });
 
-export const baixarFotoDoAluno = (id: string) => requisicao<Blob>(`/aluno/fotos/${id}`, { binario: true, limiteMs: 60000 });
+export const baixarFotoDoAluno = (id: string) => requisicao<Blob>(`/aluno/fotos/${seg(id)}`, { binario: true, limiteMs: 60000 });
 
 export const baixarFotoDoTreinador = (atualizacaoId: string, fotoId: string) =>
-  requisicao<Blob>(`/atualizacoes/${atualizacaoId}/fotos/${fotoId}`, { binario: true, limiteMs: 60000 });
-export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${id}`);
+  requisicao<Blob>(`/atualizacoes/${seg(atualizacaoId)}/fotos/${seg(fotoId)}`, { binario: true, limiteMs: 60000 });
+export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${seg(id)}`);
 export const responderAtualizacao = (id: string, texto: string, versao: number) =>
-  requisicao<Atualizacao>(`/atualizacoes/${id}/feedback`, { metodo: 'PUT', corpo: { texto, versao } });
+  requisicao<Atualizacao>(`/atualizacoes/${seg(id)}/feedback`, { metodo: 'PUT', corpo: { texto, versao } });
 
 /** Uma função por rota da API. As telas não montam URL nem método. */
 
@@ -244,13 +250,13 @@ export const listarAlunos = (filtro: { busca?: string; situacao?: SituacaoFiltro
 
 export const criarAluno = (dados: AlunoRequest) => requisicao<AlunoDetalhe>('/alunos', { metodo: 'POST', corpo: dados });
 
-export const aluno = (id: string) => requisicao<AlunoDetalhe>(`/alunos/${id}`);
+export const aluno = (id: string) => requisicao<AlunoDetalhe>(`/alunos/${seg(id)}`);
 
 export const alterarAluno = (id: string, dados: AlunoRequest) =>
-  requisicao<AlunoDetalhe>(`/alunos/${id}`, { metodo: 'PUT', corpo: dados });
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 
 export const alterarSituacaoAluno = (id: string, ativo: boolean) =>
-  requisicao<AlunoDetalhe>(`/alunos/${id}/situacao`, { metodo: 'PATCH', corpo: { ativo } });
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/situacao`, { metodo: 'PATCH', corpo: { ativo } });
 
 /** Ações em lote da lista de alunos: tudo ou nada; `alterados` deixa de fora quem já estava como pedido. */
 export const trocarResponsavelEmLote = (alunoIds: string[], responsavelId: string) =>
@@ -263,37 +269,37 @@ export const desativarEmLote = (alunoIds: string[]) =>
   requisicao<ResultadoLote>('/alunos/lote/desativar', { metodo: 'POST', corpo: { alunoIds } });
 
 /** Tudo o que a consultoria guarda do aluno; o app só grava o arquivo, sem interpretar. */
-export const exportarAluno = (id: string) => requisicao<Record<string, unknown>>(`/alunos/${id}/exportacao`);
+export const exportarAluno = (id: string) => requisicao<Record<string, unknown>>(`/alunos/${seg(id)}/exportacao`);
 
 export const anonimizarAluno = (id: string, nomeConfirmado: string) =>
-  requisicao<AlunoDetalhe>(`/alunos/${id}/anonimizar`, { metodo: 'POST', corpo: { nomeConfirmado } });
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/anonimizar`, { metodo: 'POST', corpo: { nomeConfirmado } });
 
-export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/${id}/convite`, { metodo: 'POST' });
+export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/${seg(id)}/convite`, { metodo: 'POST' });
 
 export const execucoesDoAluno = (id: string, de: string, ate: string) =>
-  requisicao<DiaDeTreino[]>(`/alunos/${id}/execucoes?de=${de}&ate=${ate}`);
+  requisicao<DiaDeTreino[]>(`/alunos/${seg(id)}/execucoes?de=${de}&ate=${ate}`);
 
 export const progressoDoAluno = (id: string, exercicioId: string) =>
-  requisicao<ProgressoPonto[]>(`/alunos/${id}/progresso?exercicioId=${encodeURIComponent(exercicioId)}`);
+  requisicao<ProgressoPonto[]>(`/alunos/${seg(id)}/progresso?exercicioId=${encodeURIComponent(exercicioId)}`);
 
-export const pesosDoAluno = (id: string) => requisicao<RegistroPeso[]>(`/alunos/${id}/pesos`);
+export const pesosDoAluno = (id: string) => requisicao<RegistroPeso[]>(`/alunos/${seg(id)}/pesos`);
 
 export const registrarPeso = (id: string, dados: { data: string; pesoKg: number; observacao: string | null }) =>
-  requisicao<RegistroPeso[]>(`/alunos/${id}/pesos`, { metodo: 'POST', corpo: dados });
+  requisicao<RegistroPeso[]>(`/alunos/${seg(id)}/pesos`, { metodo: 'POST', corpo: dados });
 
-export const listarLesoes = (alunoId: string) => requisicao<Lesao[]>(`/alunos/${alunoId}/lesoes`);
+export const listarLesoes = (alunoId: string) => requisicao<Lesao[]>(`/alunos/${seg(alunoId)}/lesoes`);
 
 export const registrarLesao = (alunoId: string, dados: DadosLesao) =>
-  requisicao<Lesao>(`/alunos/${alunoId}/lesoes`, { metodo: 'POST', corpo: dados });
+  requisicao<Lesao>(`/alunos/${seg(alunoId)}/lesoes`, { metodo: 'POST', corpo: dados });
 
 export const alterarLesao = (alunoId: string, id: string, dados: DadosLesao) =>
-  requisicao<Lesao>(`/alunos/${alunoId}/lesoes/${id}`, { metodo: 'PUT', corpo: dados });
+  requisicao<Lesao>(`/alunos/${seg(alunoId)}/lesoes/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 
 export const excluirLesao = (alunoId: string, id: string) =>
-  requisicao<void>(`/alunos/${alunoId}/lesoes/${id}`, { metodo: 'DELETE' });
+  requisicao<void>(`/alunos/${seg(alunoId)}/lesoes/${seg(id)}`, { metodo: 'DELETE' });
 
 export const excluirPeso = (id: string, pesoId: string) =>
-  requisicao<void>(`/alunos/${id}/pesos/${pesoId}`, { metodo: 'DELETE' });
+  requisicao<void>(`/alunos/${seg(id)}/pesos/${seg(pesoId)}`, { metodo: 'DELETE' });
 
 // ---- Treinador: biblioteca ----
 
@@ -303,15 +309,15 @@ export const listarExercicios = (texto?: string) => requisicao<Exercicio[]>(`/ex
 export const criarExercicio = (dados: ExercicioRequest) =>
   requisicao<Exercicio>('/exercicios', { metodo: 'POST', corpo: dados });
 export const alterarExercicio = (id: string, dados: ExercicioRequest) =>
-  requisicao<Exercicio>(`/exercicios/${id}`, { metodo: 'PUT', corpo: dados });
-export const inativarExercicio = (id: string) => requisicao<void>(`/exercicios/${id}`, { metodo: 'DELETE' });
+  requisicao<Exercicio>(`/exercicios/${seg(id)}`, { metodo: 'PUT', corpo: dados });
+export const inativarExercicio = (id: string) => requisicao<void>(`/exercicios/${seg(id)}`, { metodo: 'DELETE' });
 
 export const listarAlimentos = (texto?: string) => requisicao<Alimento[]>(`/alimentos${busca(texto)}`);
 export const criarAlimento = (dados: AlimentoRequest) =>
   requisicao<Alimento>('/alimentos', { metodo: 'POST', corpo: dados });
 export const alterarAlimento = (id: string, dados: AlimentoRequest) =>
-  requisicao<Alimento>(`/alimentos/${id}`, { metodo: 'PUT', corpo: dados });
-export const inativarAlimento = (id: string) => requisicao<void>(`/alimentos/${id}`, { metodo: 'DELETE' });
+  requisicao<Alimento>(`/alimentos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
+export const inativarAlimento = (id: string) => requisicao<void>(`/alimentos/${seg(id)}`, { metodo: 'DELETE' });
 
 const consulta = (filtros: Record<string, string | undefined>) => {
   const partes = Object.entries(filtros)
@@ -324,22 +330,22 @@ export const catalogoExercicios = (texto?: string, grupo?: string) =>
   requisicao<PaginaCatalogo<CatalogoExercicio>>(`/catalogo/exercicios${consulta({ busca: texto, grupo })}`);
 export const catalogoAlimentos = (texto?: string, grupo?: string) =>
   requisicao<PaginaCatalogo<CatalogoAlimento>>(`/catalogo/alimentos${consulta({ busca: texto, grupo })}`);
-export const gruposDoCatalogo = (tipo: TipoBiblioteca) => requisicao<string[]>(`/catalogo/${tipo}/grupos`);
+export const gruposDoCatalogo = (tipo: TipoBiblioteca) => requisicao<string[]>(`/catalogo/${seg(tipo)}/grupos`);
 
 export type TipoBiblioteca = 'exercicios' | 'alimentos';
 
 export const importarDoCatalogo = (tipo: TipoBiblioteca, ids: string[]) =>
-  requisicao<ImportacaoResultado>(`/${tipo}/importar-catalogo`, { metodo: 'POST', corpo: { ids } });
+  requisicao<ImportacaoResultado>(`/${seg(tipo)}/importar-catalogo`, { metodo: 'POST', corpo: { ids } });
 
 export const previaCsv = (tipo: TipoBiblioteca, texto: string) =>
-  requisicao<PreviaCsv>(`/${tipo}/importar-csv?confirmar=false`, {
+  requisicao<PreviaCsv>(`/${seg(tipo)}/importar-csv?confirmar=false`, {
     metodo: 'POST',
     corpoBruto: texto,
     tipoConteudo: 'text/plain;charset=UTF-8',
   });
 
 export const confirmarCsv = (tipo: TipoBiblioteca, texto: string, hash: string) =>
-  requisicao<ImportacaoResultado>(`/${tipo}/importar-csv?confirmar=true&hash=${encodeURIComponent(hash)}`, {
+  requisicao<ImportacaoResultado>(`/${seg(tipo)}/importar-csv?confirmar=true&hash=${encodeURIComponent(hash)}`, {
     metodo: 'POST',
     corpoBruto: texto,
     tipoConteudo: 'text/plain;charset=UTF-8',
@@ -354,9 +360,9 @@ export const listarReceitas = (tipo?: TipoReceita) => requisicao<Receita[]>(`/re
 export const criarReceita = (dados: ReceitaRequest) => requisicao<Receita>('/receitas', { metodo: 'POST', corpo: dados });
 
 export const alterarReceita = (id: string, dados: ReceitaRequest) =>
-  requisicao<Receita>(`/receitas/${id}`, { metodo: 'PUT', corpo: dados });
+  requisicao<Receita>(`/receitas/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 
-export const excluirReceita = (id: string) => requisicao<void>(`/receitas/${id}`, { metodo: 'DELETE' });
+export const excluirReceita = (id: string) => requisicao<void>(`/receitas/${seg(id)}`, { metodo: 'DELETE' });
 
 // ---- Treinador: planos de treino, dieta e mobilidade (mesmas rotas, trocando o prefixo) ----
 
@@ -379,55 +385,55 @@ export interface NovoPlano {
   pastaId?: string;
 }
 
-export const listarPastas = (alunoId: string) => requisicao<PastaResumo[]>(`/alunos/${alunoId}/pastas`);
-export const pastaVigenteDoAluno = (alunoId: string) => requisicao<PastaVigenteResposta>(`/alunos/${alunoId}/pastas/vigente`);
+export const listarPastas = (alunoId: string) => requisicao<PastaResumo[]>(`/alunos/${seg(alunoId)}/pastas`);
+export const pastaVigenteDoAluno = (alunoId: string) => requisicao<PastaVigenteResposta>(`/alunos/${seg(alunoId)}/pastas/vigente`);
 
 export const criarPasta = (alunoId: string, dados: DadosPasta) =>
-  requisicao<PastaResumo>(`/alunos/${alunoId}/pastas`, { metodo: 'POST', corpo: dados });
+  requisicao<PastaResumo>(`/alunos/${seg(alunoId)}/pastas`, { metodo: 'POST', corpo: dados });
 
 export const atualizarPasta = (id: string, dados: DadosPasta) =>
-  requisicao<PastaResumo>(`/pastas/${id}`, { metodo: 'PUT', corpo: dados });
+  requisicao<PastaResumo>(`/pastas/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 
 export const replicarPasta = (id: string, dados: DadosPasta) =>
-  requisicao<PastaResumo>(`/pastas/${id}/replicar`, { metodo: 'POST', corpo: dados });
+  requisicao<PastaResumo>(`/pastas/${seg(id)}/replicar`, { metodo: 'POST', corpo: dados });
 
 export const finalizarPasta = (id: string, dados: import('./tipos').FinalizarPastaRequest) =>
-  requisicao<PastaResumo>(`/pastas/${id}/finalizar`, { metodo: 'POST', corpo: dados });
+  requisicao<PastaResumo>(`/pastas/${seg(id)}/finalizar`, { metodo: 'POST', corpo: dados });
 
-export const reabrirPasta = (id: string) => requisicao<PastaResumo>(`/pastas/${id}/reabrir`, { metodo: 'POST' });
+export const reabrirPasta = (id: string) => requisicao<PastaResumo>(`/pastas/${seg(id)}/reabrir`, { metodo: 'POST' });
 
 export const listarPlanos = (tipo: TipoPlano, alunoId: string) =>
-  requisicao<PlanoResumo[]>(`/alunos/${alunoId}/${prefixo(tipo)}`);
+  requisicao<PlanoResumo[]>(`/alunos/${seg(alunoId)}/${seg(prefixo(tipo))}`);
 
 export const criarPlano = <C>(tipo: TipoPlano, alunoId: string, dados: NovoPlano) =>
-  requisicao<PlanoDetalhe<C>>(`/alunos/${alunoId}/${prefixo(tipo)}`, { metodo: 'POST', corpo: dados });
+  requisicao<PlanoDetalhe<C>>(`/alunos/${seg(alunoId)}/${seg(prefixo(tipo))}`, { metodo: 'POST', corpo: dados });
 
-export const plano = <C>(tipo: TipoPlano, id: string) => requisicao<PlanoDetalhe<C>>(`/${prefixo(tipo)}/${id}`);
+export const plano = <C>(tipo: TipoPlano, id: string) => requisicao<PlanoDetalhe<C>>(`/${seg(prefixo(tipo))}/${seg(id)}`);
 
 export const salvarRascunho = <C>(
   tipo: TipoPlano,
   id: string,
   dados: { titulo: string; inicio: string | null; fim: string | null; conteudo: C; versao: number },
-) => requisicao<PlanoDetalhe<C>>(`/${prefixo(tipo)}/${id}/rascunho`, { metodo: 'PUT', corpo: dados });
+) => requisicao<PlanoDetalhe<C>>(`/${seg(prefixo(tipo))}/${seg(id)}/rascunho`, { metodo: 'PUT', corpo: dados });
 
 export const validarPlano = (tipo: TipoPlano, id: string) =>
-  requisicao<ResultadoValidacao>(`/${prefixo(tipo)}/${id}/validar`, { metodo: 'POST' });
+  requisicao<ResultadoValidacao>(`/${seg(prefixo(tipo))}/${seg(id)}/validar`, { metodo: 'POST' });
 
 export const publicarPlano = <C>(tipo: TipoPlano, id: string, versao: number, confirmarAvisos: boolean) =>
-  requisicao<PlanoDetalhe<C>>(`/${prefixo(tipo)}/${id}/publicar`, {
+  requisicao<PlanoDetalhe<C>>(`/${seg(prefixo(tipo))}/${seg(id)}/publicar`, {
     metodo: 'POST',
     corpo: { versao, confirmarAvisos },
   });
 
 export const replicarPlano = <C>(tipo: TipoPlano, id: string, dados: Omit<NovoPlano, 'receitaId' | 'copiarDoPlanoId'>) =>
-  requisicao<PlanoDetalhe<C>>(`/${prefixo(tipo)}/${id}/replicar`, { metodo: 'POST', corpo: dados });
+  requisicao<PlanoDetalhe<C>>(`/${seg(prefixo(tipo))}/${seg(id)}/replicar`, { metodo: 'POST', corpo: dados });
 
 /** Sem `pastaId`, nasce uma pasta nova no destino (com `titulo`, `inicio` e `fim`); com ele, o período é o da pasta. */
 export const copiarPlanoParaAluno = (tipo: TipoPlano, id: string, dados: { alunoId: string; pastaId: string | null; titulo: string; inicio: string | null; fim: string | null }) =>
-  requisicao<CopiaDePlano>(`/${prefixo(tipo)}/${id}/copiar-para-aluno`, { metodo: 'POST', corpo: dados });
+  requisicao<CopiaDePlano>(`/${seg(prefixo(tipo))}/${seg(id)}/copiar-para-aluno`, { metodo: 'POST', corpo: dados });
 
 export const salvarPlanoComoReceita =(tipo: TipoPlano, id: string, nome: string, descricao: string | null) =>
-  requisicao<Receita>(`/${prefixo(tipo)}/${id}/salvar-como-receita`, { metodo: 'POST', corpo: { nome, descricao } });
+  requisicao<Receita>(`/${seg(prefixo(tipo))}/${seg(id)}/salvar-como-receita`, { metodo: 'POST', corpo: { nome, descricao } });
 
 // ---- Aluno (sempre o aluno do token) ----
 
@@ -435,7 +441,7 @@ export const painelAluno = () => requisicao<PainelAluno>('/aluno/painel');
 
 export const pastasDoAluno = () => requisicao<PastaDoAluno[]>('/aluno/pastas');
 
-export const planosDaPastaAluno = (id: string) => requisicao<PlanosDaPasta>(`/aluno/pastas/${id}`);
+export const planosDaPastaAluno = (id: string) => requisicao<PlanosDaPasta>(`/aluno/pastas/${seg(id)}`);
 
 export const mobilidadeAluno = () => requisicao<{ mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> }>('/aluno/mobilidade');
 
@@ -452,21 +458,21 @@ export const progressoAluno = (exercicioId: string) =>
 export const pesosAluno = () => requisicao<RegistroPeso[]>('/aluno/pesos');
 
 export const versaoPlano = <C>(tipo: TipoPlano, id: string, numero: number) =>
-  requisicao<VersaoDetalhe<C>>(`/${prefixo(tipo)}/${id}/versoes/${numero}`);
+  requisicao<VersaoDetalhe<C>>(`/${seg(prefixo(tipo))}/${seg(id)}/versoes/${seg(numero)}`);
 
-export const receita = (id: string) => requisicao<Receita>(`/receitas/${id}`);
+export const receita = (id: string) => requisicao<Receita>(`/receitas/${seg(id)}`);
 export const salvarConteudoReceita = (id: string, dados: { nome: string; conteudo: unknown; versao: number }) =>
-  requisicao<Receita>(`/receitas/${id}/conteudo`, { metodo: 'PUT', corpo: dados });
-export const duplicarReceita = (id: string) => requisicao<Receita>(`/receitas/${id}/duplicar`, { metodo: 'POST' });
+  requisicao<Receita>(`/receitas/${seg(id)}/conteudo`, { metodo: 'PUT', corpo: dados });
+export const duplicarReceita = (id: string) => requisicao<Receita>(`/receitas/${seg(id)}/duplicar`, { metodo: 'POST' });
 export const listarPastasModelos = () => requisicao<import('./tipos').PastaModelo[]>('/pastas-modelos');
 export const criarPastaModelo = (nome: string) => requisicao<import('./tipos').PastaModelo>('/pastas-modelos', { metodo: 'POST', corpo: { nome } });
-export const alterarPastaModelo = (id: string, nome: string, versao: number) => requisicao<import('./tipos').PastaModelo>(`/pastas-modelos/${id}`, { metodo: 'PUT', corpo: { nome, versao } });
-export const excluirPastaModelo = (id: string) => requisicao<void>(`/pastas-modelos/${id}`, { metodo: 'DELETE' });
+export const alterarPastaModelo = (id: string, nome: string, versao: number) => requisicao<import('./tipos').PastaModelo>(`/pastas-modelos/${seg(id)}`, { metodo: 'PUT', corpo: { nome, versao } });
+export const excluirPastaModelo = (id: string) => requisicao<void>(`/pastas-modelos/${seg(id)}`, { metodo: 'DELETE' });
 export const aplicarModelo = (id: string, dados: { alunoId: string; pastaId: string | null; titulo: string; inicio: string | null; fim: string | null }) =>
-  requisicao<{ pastaId: string; planoId: string | null; tipo: string }>(`/receitas/${id}/aplicar`, { metodo: 'POST', corpo: dados });
-export const salvarPastaComoModelo = (id: string, nome: string, descricao: string | null) => requisicao<Receita>(`/pastas/${id}/salvar-como-modelo`, { metodo: 'POST', corpo: { nome, descricao } });
-export const excluirPasta = (id: string) => requisicao<void>(`/pastas/${id}`, { metodo: 'DELETE' });
-export const excluirPlano = (tipo: TipoPlano, id: string) => requisicao<void>(`/${prefixo(tipo)}/${id}`, { metodo: 'DELETE' });
+  requisicao<{ pastaId: string; planoId: string | null; tipo: string }>(`/receitas/${seg(id)}/aplicar`, { metodo: 'POST', corpo: dados });
+export const salvarPastaComoModelo = (id: string, nome: string, descricao: string | null) => requisicao<Receita>(`/pastas/${seg(id)}/salvar-como-modelo`, { metodo: 'POST', corpo: { nome, descricao } });
+export const excluirPasta = (id: string) => requisicao<void>(`/pastas/${seg(id)}`, { metodo: 'DELETE' });
+export const excluirPlano = (tipo: TipoPlano, id: string) => requisicao<void>(`/${seg(prefixo(tipo))}/${seg(id)}`, { metodo: 'DELETE' });
 
 export const minhaConta = () => requisicao<MinhaConta>('/minha-conta');
 export const consumoDoPlano = () => requisicao<ConsumoDoPlano>('/minha-conta/consumo');
@@ -475,12 +481,12 @@ export const listarSuplementos = () => requisicao<SuplementoDaBiblioteca[]>('/su
 export const criarSuplemento = (dados: SuplementoDaBibliotecaRequest) =>
   requisicao<SuplementoDaBiblioteca>('/suplementos', { metodo: 'POST', corpo: dados });
 export const alterarSuplemento = (id: string, dados: SuplementoDaBibliotecaRequest) =>
-  requisicao<SuplementoDaBiblioteca>(`/suplementos/${id}`, { metodo: 'PUT', corpo: dados });
-export const inativarSuplemento = (id: string) => requisicao<void>(`/suplementos/${id}`, { metodo: 'DELETE' });
+  requisicao<SuplementoDaBiblioteca>(`/suplementos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
+export const inativarSuplemento = (id: string) => requisicao<void>(`/suplementos/${seg(id)}`, { metodo: 'DELETE' });
 
 export const listarErgogenicos = () => requisicao<ErgogenicoDaBiblioteca[]>('/ergogenicos');
 export const criarErgogenico = (dados: ErgogenicoDaBibliotecaRequest) =>
   requisicao<ErgogenicoDaBiblioteca>('/ergogenicos', { metodo: 'POST', corpo: dados });
 export const alterarErgogenico = (id: string, dados: ErgogenicoDaBibliotecaRequest) =>
-  requisicao<ErgogenicoDaBiblioteca>(`/ergogenicos/${id}`, { metodo: 'PUT', corpo: dados });
-export const inativarErgogenico = (id: string) => requisicao<void>(`/ergogenicos/${id}`, { metodo: 'DELETE' });
+  requisicao<ErgogenicoDaBiblioteca>(`/ergogenicos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
+export const inativarErgogenico = (id: string) => requisicao<void>(`/ergogenicos/${seg(id)}`, { metodo: 'DELETE' });

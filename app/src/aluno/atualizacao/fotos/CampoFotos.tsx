@@ -54,7 +54,7 @@ export function CampoFotos({ pergunta: p, valor, atualizacaoId, rotulo }: Props)
     ) : (
       <Pressable accessibilityRole="imagebutton" accessibilityLabel="Foto da atualização, ainda neste aparelho" onPress={aoTocar}
         style={[estilos.local, { width: tamanho, height: tamanho, borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-        <Image source={{ uri: uriDaFotoLocal(controle?.usuarioId ?? '', item.nome) }} contentFit="cover" style={estilos.imagem} />
+        <Image source={{ uri: uriDaFotoLocal(controle?.usuarioId ?? '', item.nome) }} cachePolicy="none" contentFit="cover" style={estilos.imagem} />
       </Pressable>
     );
 
@@ -151,7 +151,7 @@ function Ampliada({ item, lado, aoFechar, carregarDe, usuarioId }: {
       {item?.tipo === 'enviada' ? (
         <ImagemProtegida chave={`grande:${item.id}`} carregar={carregarDe(item)} descricao="Foto da atualização ampliada" tamanho={lado} />
       ) : item?.tipo === 'local' ? (
-        <Image source={{ uri: uriDaFotoLocal(usuarioId, item.nome) }} accessibilityLabel="Foto da atualização ampliada" contentFit="contain"
+        <Image source={{ uri: uriDaFotoLocal(usuarioId, item.nome) }} cachePolicy="none" accessibilityLabel="Foto da atualização ampliada" contentFit="contain"
           style={{ width: lado, height: lado }} />
       ) : null}
     </Folha>

@@ -31,6 +31,7 @@
     },
     "android": {
       "package": "br.com.treinos.app",
+      "allowBackup": false,
       "adaptiveIcon": {
         "backgroundColor": "#0E0E10",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
