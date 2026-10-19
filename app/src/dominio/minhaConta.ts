@@ -69,11 +69,20 @@ export function competenciaParaTela(inicio: string, fim: string): string {
 }
 
 /** Cobranças em aberto (a vencer ou vencidas), para o resumo do topo da aba Financeiro. */
+/**
+ * Contagens do topo do Financeiro. "Em aberto" são as abertas **ainda no prazo**: a vencida conta só em "vencidas",
+ * senão o resumo dizia "1 vencida · 2 em aberto" com uma vencida e uma aberta na lista (visto na reunião de 17/10).
+ */
 export function resumoFinanceiro(cobrancas: CobrancaDaConta[]): { emAberto: number; vencidas: number } {
   return {
-    emAberto: cobrancas.filter((c) => c.situacao === 'ABERTA').length,
+    emAberto: cobrancas.filter((c) => c.situacao === 'ABERTA' && !c.vencida).length,
     vencidas: cobrancas.filter((c) => c.vencida).length,
   };
+}
+
+/** Só cobrança aberta de verdade (não prévia) mostra "Pagar"; o servidor confere de novo. */
+export function podePagar(c: CobrancaDaConta, previa: boolean): boolean {
+  return !previa && c.situacao === 'ABERTA' && c.valor > 0;
 }
 
 /** Linhas do endereço sem partes vazias: `Rua Exemplo, 100 - Centro` e `Cidade/UF - CEP`. Tudo vazio → lista vazia. */

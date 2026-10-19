@@ -6,6 +6,7 @@ import {
   fracaoDoConsumo,
   moedaParaTela,
   periodicidadeParaTela,
+  podePagar,
   resumoFinanceiro,
   situacaoComercialParaTela,
   situacaoDaCobrancaParaTela,
@@ -59,9 +60,9 @@ describe('cobranças', () => {
     expect(competenciaParaTela('2026-09-01', '2026-09-30')).toBe('09/2026');
     expect(competenciaParaTela('2026-07-01', '2026-09-30')).toBe('07/2026 a 09/2026');
   });
-  it('resumo conta abertas e vencidas', () => {
+  it('resumo separa as vencidas das abertas no prazo', () => {
     const lista = [cobranca('PAGA'), cobranca('ABERTA', true), cobranca('ABERTA'), cobranca('ISENTA')];
-    expect(resumoFinanceiro(lista)).toEqual({ emAberto: 2, vencidas: 1 });
+    expect(resumoFinanceiro(lista)).toEqual({ emAberto: 1, vencidas: 1 });
     expect(resumoFinanceiro([])).toEqual({ emAberto: 0, vencidas: 0 });
   });
 });
@@ -101,5 +102,15 @@ describe('consumo do plano', () => {
     expect(fracaoDoConsumo({ usado: 200, limite: 150 })).toBe(1);
     expect(fracaoDoConsumo({ usado: 5, limite: null })).toBeNull();
     expect(fracaoDoConsumo({ usado: 0, limite: 0 })).toBeNull();
+  });
+});
+
+describe('pagar cobrança', () => {
+  it('só aberta, com valor e fora da prévia', () => {
+    expect(podePagar(cobranca('ABERTA'), false)).toBe(true);
+    expect(podePagar(cobranca('ABERTA', true), false)).toBe(true);
+    expect(podePagar(cobranca('ABERTA'), true)).toBe(false);
+    expect(podePagar(cobranca('PAGA'), false)).toBe(false);
+    expect(podePagar({ ...cobranca('ABERTA'), valor: 0 }, false)).toBe(false);
   });
 });

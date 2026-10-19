@@ -37,6 +37,16 @@ public class ContaService {
                 .orElseThrow(ContaNaoEncontradaException::new);
     }
 
+    /**
+     * Link para pagar uma cobrança aberta desta consultoria (a Central confere que a cobrança é dela). Sem transação: é
+     * HTTP à Central, como a Minha conta.
+     */
+    public LinkDePagamento linkDePagamento(UUID cobrancaId) {
+        return new LinkDePagamento(fonte.linkDePagamento(consultoria(), cobrancaId));
+    }
+
+    public record LinkDePagamento(String url) {}
+
     /** Uso real contado agora, na consultoria da sessão, contra os limites de {@code direitos_locais}. */
     @Transactional(readOnly = true)
     public ConsumoPlanoDto consumo() {

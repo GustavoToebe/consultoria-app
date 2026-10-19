@@ -1,4 +1,8 @@
-import { StyleSheet, View } from 'react-native';
+import { CreditCard } from 'lucide-react-native';
+import { useState } from 'react';
+import { Linking, StyleSheet, View } from 'react-native';
+
+import { linkDePagamento } from '../../api/rotas';
 
 import type { CobrancaDaConta, ConsumoDoPlano, ItemDoConsumo, MinhaConta } from '../../api/tipos';
 import { dataParaTela, dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
@@ -10,6 +14,7 @@ import {
   fracaoDoConsumo,
   moedaParaTela,
   periodicidadeParaTela,
+  podePagar,
   resumoFinanceiro,
   situacaoComercialParaTela,
   situacaoDaCobrancaParaTela,
@@ -17,11 +22,14 @@ import {
 } from '../../dominio/minhaConta';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
+import { useAviso } from '../../ui/Aviso';
 import { BarraProgresso } from '../../ui/BarraProgresso';
+import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Vazio } from '../../ui/Estados';
 import { Grade } from '../../ui/Grade';
 import { Selo } from '../../ui/Selo';
+import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 
 /** Rótulo pequeno em cima, valor embaixo; ausência de dado é "—". */
@@ -102,7 +110,24 @@ export function AbaPlano({ conta }: { conta: MinhaConta }) {
   );
 }
 
-function LinhaDeCobranca({ c }: { c: CobrancaDaConta }) {
+/**
+ * "Pagar" pede à API o link do checkout da Central (Mercado Pago) e abre fora do app, sem token nem cookie. A baixa
+ * só acontece quando a Central confirma o pagamento: a lista atualiza ao abrir a tela de novo.
+ */
+function BotaoPagar({ cobrancaId }: { cobrancaId: string }) {
+  const { avisar } = useAviso();
+  const [abrindo, setAbrindo] = useState(false);
+  const pagar = () => {
+    setAbrindo(true);
+    linkDePagamento(cobrancaId)
+      .then(({ url }) => Linking.openURL(url))
+      .catch((erro: unknown) => avisar(textoDoErro(erro), 'perigo'))
+      .finally(() => setAbrindo(false));
+  };
+  return <Botao rotulo="Pagar" Icone={CreditCard} tipo="secundario" carregando={abrindo} aoTocar={pagar} />;
+}
+
+function LinhaDeCobranca({ c, previa }: { c: CobrancaDaConta; previa: boolean }) {
   const { cores } = useTema();
   const situacao = situacaoDaCobrancaParaTela(c);
   return (
@@ -116,6 +141,7 @@ function LinhaDeCobranca({ c }: { c: CobrancaDaConta }) {
         Vence em {dataParaTela(c.vencimento) || SEM_DADO}
         {c.pagoEm ? ` · pago em ${dataParaTela(c.pagoEm)}` : ''}
       </Texto>
+      {podePagar(c, previa) ? <BotaoPagar cobrancaId={c.id} /> : null}
     </View>
   );
 }
@@ -131,7 +157,7 @@ export function AbaFinanceiro({ conta }: { conta: MinhaConta }) {
     : `${resumo.emAberto} em aberto`;
   return (
     <Cartao titulo="Cobranças" descricao={descricao}>
-      <Grade>{conta.cobrancas.map((c) => <LinhaDeCobranca key={c.id} c={c} />)}</Grade>
+      <Grade>{conta.cobrancas.map((c) => <LinhaDeCobranca key={c.id} c={c} previa={conta.previa} />)}</Grade>
     </Cartao>
   );
 }

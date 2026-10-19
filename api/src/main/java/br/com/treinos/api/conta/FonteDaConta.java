@@ -14,6 +14,14 @@ public interface FonteDaConta {
     /** Vazio quando a consultoria não tem dados comerciais (a rota responde 404 CONTA_NAO_ENCONTRADA). */
     Optional<MinhaContaDto> minhaConta(UUID consultoriaId);
 
+    /**
+     * Link do checkout de uma cobrança aberta desta consultoria (contrato 6.4 da Central). Sem Central não há pagamento:
+     * a fonte local (prévia) responde {@link PagamentoIndisponivelException}.
+     */
+    default String linkDePagamento(UUID consultoriaId, UUID cobrancaId) {
+        throw new PagamentoIndisponivelException();
+    }
+
     /** {@code true} enquanto os dados são de demonstração e não da Central. */
     default boolean previa() {
         return false;

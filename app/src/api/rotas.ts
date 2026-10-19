@@ -492,6 +492,9 @@ export const excluirPlano = (tipo: TipoPlano, id: string) => requisicao<void>(`/
 
 export const minhaConta = () => requisicao<MinhaConta>('/minha-conta');
 export const consumoDoPlano = () => requisicao<ConsumoDoPlano>('/minha-conta/consumo');
+/** Link do checkout (Mercado Pago) de uma cobrança aberta; o app abre fora dele, sem token. */
+export const linkDePagamento = (cobrancaId: string) =>
+  requisicao<{ url: string }>(`/minha-conta/cobrancas/${seg(cobrancaId)}/pagar`, { metodo: 'POST' });
 
 export const listarSuplementos = () => requisicao<SuplementoDaBiblioteca[]>('/suplementos');
 export const criarSuplemento = (dados: SuplementoDaBibliotecaRequest) =>

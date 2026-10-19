@@ -77,6 +77,9 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         final AtomicReference<String> direitos = new AtomicReference<>("{\"itens\":[],\"total\":0}");
         final AtomicReference<Integer> statusMinhaConta = new AtomicReference<>(200);
         final AtomicReference<String> minhaConta = new AtomicReference<>("{}");
+        final AtomicReference<Integer> statusLink = new AtomicReference<>(200);
+        final AtomicReference<String> link = new AtomicReference<>("{}");
+        final AtomicReference<String> ultimoMetodo = new AtomicReference<>();
         final AtomicReference<String> ultimoCaminho = new AtomicReference<>();
         final AtomicReference<Boolean> assinaturaValida = new AtomicReference<>();
         /** Lida no instante em que a chamada de Minha conta chega (conexões do banco em uso naquela hora). */
@@ -98,12 +101,16 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
                 boolean valida = "saida-1".equals(h.getFirst(IntegracaoFiltro.CHAVE))
                         && esperada.equals(h.getFirst(IntegracaoFiltro.ASSINATURA));
                 ultimoCaminho.set(caminho);
+                ultimoMetodo.set(troca.getRequestMethod());
                 assinaturaValida.set(valida);
                 int codigo;
                 String corpo;
                 if (!valida) {
                     codigo = 401;
                     corpo = "{}";
+                } else if (caminho.endsWith("/link-de-pagamento")) {
+                    codigo = statusLink.get();
+                    corpo = link.get();
                 } else if (caminho.contains("/minha-conta")) {
                     sondaNaChamada.set(sonda.get().get());
                     codigo = statusMinhaConta.get();
@@ -719,5 +726,35 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         CENTRAL.statusMinhaConta.set(200);
         CENTRAL.minhaConta.set("não é json");
         assertThat(api.get("/minha-conta", login, 502).path("codigo").asString()).isEqualTo("CENTRAL_INDISPONIVEL");
+    }
+
+    @Test
+    void pagarPedeOLinkAssinadoNaCentralESoAceitaOMercadoPago() throws Exception {
+        JsonNode login = loginDoAdministrador();
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
+                login.path("usuario").path("id").asString());
+        UUID cobranca = UUID.randomUUID();
+        String rota = "/minha-conta/cobrancas/" + cobranca + "/pagar";
+        String url = "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=teste";
+        CENTRAL.statusLink.set(200);
+        CENTRAL.link.set("{\"url\":\"" + url + "\"}");
+
+        assertThat(api.post(rota, login, null, 200).path("url").asString()).isEqualTo(url);
+        assertThat(CENTRAL.assinaturaValida.get()).isTrue();
+        assertThat(CENTRAL.ultimoMetodo.get()).isEqualTo("POST");
+        assertThat(CENTRAL.ultimoCaminho.get()).isEqualTo(
+                "/integracao/v1/produtos/TREINOS/instancias/" + consultoria + "/cobrancas/" + cobranca + "/link-de-pagamento");
+
+        CENTRAL.link.set("{\"url\":\"https://outro-site.example/pagar\"}");
+        assertThat(api.post(rota, login, null, 502).path("codigo").asString()).isEqualTo("CENTRAL_INDISPONIVEL");
+
+        CENTRAL.statusLink.set(404);
+        api.post(rota, login, null, 404);
+        CENTRAL.statusLink.set(409);
+        assertThat(api.post(rota, login, null, 409).path("codigo").asString()).isEqualTo("COBRANCA_NAO_ABERTA");
+        CENTRAL.statusLink.set(503);
+        assertThat(api.post(rota, login, null, 503).path("codigo").asString()).isEqualTo("PAGAMENTO_INDISPONIVEL");
+        CENTRAL.statusLink.set(500);
+        assertThat(api.post(rota, login, null, 502).path("codigo").asString()).isEqualTo("CENTRAL_INDISPONIVEL");
     }
 }

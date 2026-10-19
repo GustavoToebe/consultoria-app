@@ -71,9 +71,19 @@ class ContaIntegrationTest extends AbstractIntegrationTest {
             perfil(login, nome);
             assertThat(api.get("/minha-conta", login, 403).path("codigo").asString()).isEqualTo("PERMISSAO_NEGADA");
             api.get("/minha-conta/consumo", login, 403);
+            api.post("/minha-conta/cobrancas/" + java.util.UUID.randomUUID() + "/pagar", login, null, 403);
         }
         perfil(login, "Administrador");
         api.get("/minha-conta", login, 200);
+    }
+
+    @Test
+    void naPreviaNaoHaPagamentoOnline() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        seed.semear(consultoria(login), "Consultoria Fictícia");
+        assertThat(api.post("/minha-conta/cobrancas/" + java.util.UUID.randomUUID() + "/pagar", login, null, 503)
+                .path("codigo").asString()).isEqualTo("PAGAMENTO_INDISPONIVEL");
     }
 
     @Test
