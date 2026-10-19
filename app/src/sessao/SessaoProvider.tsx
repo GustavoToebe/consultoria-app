@@ -15,6 +15,7 @@ import {
 import * as rotas from '../api/rotas';
 import type { LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
 import { apagarDadosDaSessaoLocal, type MotivoDoEncerramento } from '../dominio/encerrarSessaoLocal';
+import { mesmaMarca } from '../dominio/marcaDaSessao';
 import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funcionalidadesDoPlano';
 import { pode as conferirPermissao } from '../dominio/permissoes';
 import { varrerFilasRetidas } from '../offline/filasRetidas';
@@ -261,6 +262,16 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       return novo;
     });
   }, []);
+  // Estável e sem efeito com a marca igual: o AlunoProvider chama a cada painel baixado e depende dela na abertura.
+  const atualizarMarca = useCallback((marca: Marca) => {
+    setPerfil((atual) => {
+      if (!atual || mesmaMarca(atual.marca, marca)) return atual;
+      const novo = { ...atual, marca };
+      perfilAtual.current = novo;
+      AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+      return novo;
+    });
+  }, []);
   const valor = useMemo<ValorSessao>(
     () => ({
       termosPendentes: perfil?.termosPendentes ?? false,
@@ -285,14 +296,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         return ativacao.codigosDeRecuperacao;
       },
       desativarMfa: async (senha, codigo) => abrir(await rotas.mfaDesativar(senha, codigo)),
-      atualizarMarca: (marca) => {
-        setPerfil((atual) => {
-          if (!atual) return atual;
-          const novo = { ...atual, marca };
-          AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
-          return novo;
-        });
-      },
+      atualizarMarca,
       sair: async () => {
         try {
           await rotas.sairDaApi(await lerRefresh());
@@ -308,7 +312,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         };
       },
     }),
-    [situacao, perfil, offline, abrir, encerrarLocal,recarregarPerfil,aceitarTermos],
+    [situacao, perfil, offline, abrir, encerrarLocal,recarregarPerfil,aceitarTermos,atualizarMarca],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
