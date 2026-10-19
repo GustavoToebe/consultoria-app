@@ -6,6 +6,7 @@ import {
   LIMITES_FOTO, MENSAGEM_FOTO_GRANDE, MENSAGEM_FOTO_NAO_LIDA, redimensionamento, reducoesDeFoto,
 } from '../../../dominio/fotosAtualizacao';
 import { apagarTemporaria } from './fotosLocais';
+import { blobDeBase64 } from './jpegDaWeb';
 
 export type OrigemDaFoto = 'galeria' | 'camera';
 
@@ -13,6 +14,8 @@ export interface FotoPronta {
   /** JPEG novo, sem EXIF (reencodado), com no máximo `LIMITES_FOTO.bytesMaximo` bytes. */
   uri: string;
   bytes: number;
+  /** Só na web: o JPEG já em memória, para enviar sem `fetch` (veja `jpegDaWeb`). No celular é nulo e vale a `uri`. */
+  arquivo: Blob | null;
 }
 
 /** Falha que a pessoa pode entender e resolver (foto ilegível, grande demais, câmera sem permissão). */
@@ -21,6 +24,7 @@ export class FotoRecusada extends Error {}
 /** Lados (do maior para o menor) e teto de bytes; o padrão é o da foto de atualização. */
 export interface LimitesDaReducao { lados?: readonly number[]; bytesMaximo?: number }
 
+/** Tamanho do arquivo no celular (`file://`, fora da CSP). Na web o tamanho vem do próprio `Blob`. */
 async function tamanhoDe(uri: string): Promise<number> {
   const resposta = await fetch(uri);
   return (await resposta.blob()).size;
@@ -43,9 +47,12 @@ export async function prepararFoto(uri: string, largura: number, altura: number,
     const acao = redimensionamento(largura, altura, lado);
     const redimensionado = acao ? contexto.resize(acao) : contexto;
     const imagem = await redimensionado.renderAsync();
-    const salvo = await imagem.saveAsync({ format: SaveFormat.JPEG, compress: qualidade });
-    const bytes = await tamanhoDe(salvo.uri);
-    if (bytes > 0 && bytes <= bytesMaximo) return { uri: salvo.uri, bytes };
+    const web = Platform.OS === 'web';
+    const salvo = await imagem.saveAsync({ format: SaveFormat.JPEG, compress: qualidade, base64: web });
+    const arquivo = web && salvo.base64 ? blobDeBase64(salvo.base64) : null;
+    if (web && !arquivo) throw new FotoRecusada(MENSAGEM_FOTO_NAO_LIDA);
+    const bytes = arquivo ? arquivo.size : await tamanhoDe(salvo.uri);
+    if (bytes > 0 && bytes <= bytesMaximo) return { uri: salvo.uri, bytes, arquivo };
     await apagarTemporaria(salvo.uri);
   }
   throw new FotoRecusada(MENSAGEM_FOTO_GRANDE);

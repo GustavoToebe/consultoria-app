@@ -2,17 +2,29 @@ import { Platform } from 'react-native';
 
 import { enviarFoto } from '../../../api/rotas';
 
+/** Foto a enviar: no celular basta a `uri` (`file://`); na web vai o `arquivo` já em memória (`FotoPronta.arquivo`). */
+export interface FotoParaEnviar {
+  uri: string;
+  arquivo?: Blob | null;
+}
+
 /**
- * Sobe uma foto JPEG já reduzida (sem EXIF) para a atualização da pasta e devolve o id dela. O nome do arquivo no envio é
- * sempre o mesmo: o nome original não sai do aparelho.
+ * Põe a foto no campo `arquivo` do formulário, sempre com o mesmo nome (o nome original não sai do aparelho). Na web
+ * nunca faz `fetch` da `blob:`/`data:`: a CSP (`connect-src 'self'`) recusa.
  */
-export async function enviarFotoDoAparelho(pastaId: string, uri: string): Promise<string> {
-  const dados = new FormData();
+export function anexarFoto(dados: FormData, foto: FotoParaEnviar): void {
   if (Platform.OS === 'web') {
-    dados.append('arquivo', await (await fetch(uri)).blob(), 'foto.jpg');
+    if (!foto.arquivo) throw new Error('Foto sem conteúdo para enviar.');
+    dados.append('arquivo', foto.arquivo, 'foto.jpg');
   } else {
     // React Native aceita {uri, name, type} no FormData.
-    dados.append('arquivo', { uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
+    dados.append('arquivo', { uri: foto.uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
   }
+}
+
+/** Sobe uma foto JPEG já reduzida (sem EXIF) para a atualização da pasta e devolve o id dela. */
+export async function enviarFotoDoAparelho(pastaId: string, foto: FotoParaEnviar): Promise<string> {
+  const dados = new FormData();
+  anexarFoto(dados, foto);
   return (await enviarFoto(pastaId, dados)).id;
 }

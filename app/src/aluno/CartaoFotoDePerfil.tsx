@@ -15,6 +15,7 @@ import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
 import { apagarTemporaria } from './atualizacao/fotos/fotosLocais';
+import { anexarFoto } from './atualizacao/fotos/enviarFotoDoAparelho';
 import { escolherFoto, FotoRecusada, type OrigemDaFoto } from './atualizacao/fotos/prepararFoto';
 import { avisarQueAFotoMudou, useVersaoDaFotoDePerfil } from './versaoDaFotoDePerfil';
 
@@ -40,12 +41,7 @@ export function CartaoFotoDePerfil() {
       if (!pronta) return;
       uri = pronta.uri;
       const dados = new FormData();
-      if (Platform.OS === 'web') {
-        dados.append('arquivo', await (await fetch(pronta.uri)).blob(), 'foto.jpg');
-      } else {
-        // React Native aceita {uri, name, type} no FormData; o nome original não sai do aparelho.
-        dados.append('arquivo', { uri: pronta.uri, name: 'foto.jpg', type: 'image/jpeg' } as unknown as Blob);
-      }
+      anexarFoto(dados, pronta);
       await trocarFotoDePerfil(dados);
       avisarQueAFotoMudou();
       avisar('Foto de perfil salva.', 'sucesso');

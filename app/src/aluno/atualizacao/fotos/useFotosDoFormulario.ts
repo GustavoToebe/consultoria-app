@@ -68,7 +68,7 @@ export function useFotosDoFormulario({ usuarioId, atual, online, editavel, locai
         const agora = ler();
         aplicar({ respostas: agora.respostas, locais: comFotoLocal(agora.locais, perguntaId, nome) });
       } else {
-        const id = await enviarFotoDoAparelho(atual.pastaId, foto.uri);
+        const id = await enviarFotoDoAparelho(atual.pastaId, foto);
         const agora = ler();
         aplicar({ respostas: { ...agora.respostas, [perguntaId]: [...idsDeFotos(agora.respostas[perguntaId]), id] }, locais: agora.locais });
       }
@@ -125,7 +125,7 @@ export function useFotosDoFormulario({ usuarioId, atual, online, editavel, locai
           aplicar({ respostas: agora.respostas, locais: semFotoLocal(agora.locais, perguntaId, nome) });
           continue;
         }
-        const id = await enviarFotoDoAparelho(atual.pastaId, uriDaFotoLocal(usuarioId, nome));
+        const id = await enviarFotoDoAparelho(atual.pastaId, { uri: uriDaFotoLocal(usuarioId, nome) });
         await apagarFotoLocal(usuarioId, nome).catch(() => undefined);
         const depois = ler();
         aplicar({
