@@ -15,7 +15,10 @@ export default function AnamneseAluno() {
   const a = resultado.dados;
   // A chave inclui a situação: enviada ou dispensada em outro aparelho, o formulário remonta com o estado novo.
   const chave = a ? `${a.id}:${a.situacao}:${a.versao}` : null;
-  const rascunho = useCarregar(chave, async (c) => ({ chave: c, valor: await repositorio.lerRascunhoAnamnese(a!.id) }));
+  // O id sai fora da função: com `a!.id` dentro dela, o React Compiler lia `a.id` já na renderização (dependência da
+  // memória) e a tela quebrava enquanto a anamnese carregava (achado pelo teste de tela, 19/10).
+  const id = a?.id ?? null;
+  const rascunho = useCarregar(chave, async (c) => ({ chave: c, valor: id ? await repositorio.lerRascunhoAnamnese(id) : null }));
   return <Tela largura={720} rolar={false} bordas={['top']}>
     <Cabecalho titulo="Anamnese" voltar="/aluno" />
     {resultado.carregando || rascunho.carregando ? <Esqueleto texto="Carregando anamnese" /> : null}
