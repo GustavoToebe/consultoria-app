@@ -46,12 +46,25 @@ class TurnstileConfiguracaoTest {
     @Test
     void ligadoComTudoSobe() {
         contexto.withPropertyValues("treinos.turnstile.habilitado=true", "treinos.turnstile.site-key=k",
-                "treinos.turnstile.segredo=s").run(c -> assertThat(c).hasNotFailed());
+                "treinos.turnstile.segredo=s", "treinos.app-url=https://consultoria.exemplo.com").run(c -> assertThat(c).hasNotFailed());
+    }
+
+    @Test
+    void hostnameVemDaVariavelOuDoAppUrlESemNenhumLigadoNaoSobe() {
+        assertThat(TurnstileConfiguracao.hostnameEsperado("Consultoria.Exemplo.com", "https://outro.example")).isEqualTo("consultoria.exemplo.com");
+        assertThat(TurnstileConfiguracao.hostnameEsperado("", "https://consultoria.exemplo.com/")).isEqualTo("consultoria.exemplo.com");
+        assertThat(TurnstileConfiguracao.hostnameEsperado("", "http://localhost:8088")).isEqualTo("localhost");
+        assertThat(TurnstileConfiguracao.hostnameEsperado("", "nao e url")).isEmpty();
+        contexto.withPropertyValues("treinos.turnstile.habilitado=true", "treinos.turnstile.site-key=k", "treinos.turnstile.segredo=s",
+                "treinos.app-url=").run(c -> {
+            assertThat(c).hasFailed();
+            assertThat(rastro(c.getStartupFailure())).contains("TREINOS_TURNSTILE_HOSTNAME");
+        });
     }
 
     @Test
     void oObjetoDeConfiguracaoNaoMostraSegredoNoToString() {
-        var p = new TurnstileProperties(true, "chave-publica", "segredo-secreto", null);
+        var p = new TurnstileProperties(true, "chave-publica", "segredo-secreto", null, null);
         assertThat(p.toString()).doesNotContain("segredo-secreto").doesNotContain("chave-publica");
     }
 

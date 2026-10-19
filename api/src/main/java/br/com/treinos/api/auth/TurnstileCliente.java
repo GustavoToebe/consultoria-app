@@ -22,6 +22,9 @@ import java.util.stream.Collectors;
  * requisição por muito tempo. Não segue redirecionamento (o segredo iria junto) e nunca registra token, segredo nem IP.
  * Resposta que não é JSON, status 5xx, falha de rede e erro de chave ({@code invalid-input-secret}, um erro nosso, não da
  * pessoa) viram {@link VerificacaoHumanaException#indisponivel()}; o resto é "recusada" ou "aprovada".
+ * <p>Aprovado só quando o {@code hostname} da resposta é o do app: um token resolvido em outro site que use a mesma site key
+ * (ela é pública) não vale aqui (revisão de segurança de 19/10). O app nativo carrega o widget com o {@code baseUrl} do site,
+ * então o hostname é o mesmo da web.
  */
 class TurnstileCliente {
 
@@ -32,11 +35,14 @@ class TurnstileCliente {
     private static final Duration RESPOSTA = Duration.ofSeconds(5);
 
     private final TurnstileProperties propriedades;
+    private final String hostnameEsperado;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(CONEXAO).followRedirects(HttpClient.Redirect.NEVER).build();
     private final JsonMapper json = new JsonMapper();
 
-    TurnstileCliente(TurnstileProperties propriedades) {
+    /** @param hostnameEsperado host do app (minúsculo); vazio só no teste contra a Cloudflare real, cujas chaves de teste respondem outro host */
+    TurnstileCliente(TurnstileProperties propriedades, String hostnameEsperado) {
         this.propriedades = propriedades;
+        this.hostnameEsperado = hostnameEsperado;
     }
 
     Veredito verificar(String token, String ipDoCliente) {
@@ -74,7 +80,11 @@ class TurnstileCliente {
             throw VerificacaoHumanaException.indisponivel();
         }
         if (raiz != null && raiz.path("success").asBoolean(false)) {
-            return Veredito.APROVADO;
+            if (hostnameEsperado.isEmpty() || hostnameEsperado.equalsIgnoreCase(raiz.path("hostname").asString(""))) {
+                return Veredito.APROVADO;
+            }
+            log.warn("Turnstile: token aprovado pela Cloudflare, mas resolvido em outro site; recusado.");
+            return Veredito.RECUSADO;
         }
         // Erro de chave é problema de configuração nosso, não do visitante: falha fechada como "indisponível".
         for (JsonNode codigo : raiz == null ? json.createArrayNode() : raiz.path("error-codes")) {

@@ -15,7 +15,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Siteverify de mentira (servidor do JDK, sem rede). O veredito sai do token recebido: {@code token-ok} passa,
  * {@code token-ruim} é recusado, {@code token-segredo} acusa segredo inválido, {@code token-queda} responde 503 e
- * {@code token-lixo} responde algo que não é JSON. Qualquer outro token é recusado. Guarda os campos de cada chamada.
+ * {@code token-lixo} responde algo que não é JSON e {@code token-outro-site} passa, mas resolvido em outro site. Qualquer
+ * outro token é recusado. O token aprovado vem do host {@link #HOST} (o do {@code APP_URL} padrão). Guarda os campos de cada chamada.
  */
 final class SiteverifyFalso implements AutoCloseable {
 
@@ -24,6 +25,8 @@ final class SiteverifyFalso implements AutoCloseable {
     static final String SEGREDO_INVALIDO = "token-segredo";
     static final String QUEDA = "token-queda";
     static final String LIXO = "token-lixo";
+    static final String OUTRO_SITE = "token-outro-site";
+    static final String HOST = "localhost";
 
     private final HttpServer servidor;
     private final List<Map<String, String>> chamadas = new CopyOnWriteArrayList<>();
@@ -48,7 +51,8 @@ final class SiteverifyFalso implements AutoCloseable {
             String token = campos.getOrDefault("response", "");
             int status = 200;
             String resposta = switch (token) {
-                case OK -> "{\"success\":true,\"error-codes\":[]}";
+                case OK -> "{\"success\":true,\"hostname\":\"" + HOST + "\",\"error-codes\":[]}";
+                case OUTRO_SITE -> "{\"success\":true,\"hostname\":\"site-alheio.example\",\"error-codes\":[]}";
                 case SEGREDO_INVALIDO -> "{\"success\":false,\"error-codes\":[\"invalid-input-secret\"]}";
                 case QUEDA -> {
                     status = 503;

@@ -70,6 +70,8 @@ treinos:
     habilitado: ${TREINOS_TURNSTILE_HABILITADO:false}
     site-key: ${TREINOS_TURNSTILE_SITE_KEY:}
     segredo: ${TREINOS_TURNSTILE_SEGREDO:}
+    # Site em que o token precisa ter sido resolvido (resposta do siteverify). Vazio = o host do APP_URL.
+    hostname: ${TREINOS_TURNSTILE_HOSTNAME:}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:

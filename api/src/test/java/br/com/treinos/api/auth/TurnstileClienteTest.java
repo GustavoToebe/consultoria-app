@@ -16,7 +16,8 @@ class TurnstileClienteTest {
     @BeforeAll
     static void subir() {
         falso = new SiteverifyFalso();
-        cliente = new TurnstileCliente(new TurnstileProperties(true, "chave-publica", "segredo-de-teste", falso.url()));
+        cliente = new TurnstileCliente(new TurnstileProperties(true, "chave-publica", "segredo-de-teste", falso.url(), null),
+                SiteverifyFalso.HOST);
     }
 
     @AfterAll
@@ -47,6 +48,11 @@ class TurnstileClienteTest {
     }
 
     @Test
+    void tokenResolvidoEmOutroSiteERecusado() {
+        assertThat(cliente.verificar(SiteverifyFalso.OUTRO_SITE, "203.0.113.9")).isEqualTo(TurnstileCliente.Veredito.RECUSADO);
+    }
+
+    @Test
     void cloudflareForaOuRespostaEstranhaFalhaFechadoComoIndisponivel() {
         for (String token : new String[] {SiteverifyFalso.QUEDA, SiteverifyFalso.LIXO, SiteverifyFalso.SEGREDO_INVALIDO}) {
             assertThatThrownBy(() -> cliente.verificar(token, "203.0.113.9")).as(token)
@@ -57,7 +63,8 @@ class TurnstileClienteTest {
 
     @Test
     void servidorQueNaoRespondeFalhaFechadoComoIndisponivel() {
-        var morto = new TurnstileCliente(new TurnstileProperties(true, "k", "s", "http://127.0.0.1:1/turnstile/v0/siteverify"));
+        var morto = new TurnstileCliente(new TurnstileProperties(true, "k", "s", "http://127.0.0.1:1/turnstile/v0/siteverify", null),
+                SiteverifyFalso.HOST);
         assertThatThrownBy(() -> morto.verificar(SiteverifyFalso.OK, "203.0.113.9"))
                 .isInstanceOfSatisfying(VerificacaoHumanaException.class,
                         e -> assertThat(e.getCodigo()).isEqualTo(VerificacaoHumanaException.INDISPONIVEL));

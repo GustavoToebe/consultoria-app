@@ -11,6 +11,9 @@ O resumo das regras de código está no `AGENTS.md` (item "Verificação humana"
   Cloudflare com o segredo e o **IP real** (`getRemoteAddr()`: o túnel da Cloudflare já entrega o IP certo; não ler `X-Forwarded-For`).
 - Token ausente ou recusado: `400 VERIFICACAO_HUMANA`. Cloudflare fora (rede, timeout de 3 s/5 s, 5xx, resposta que não é JSON) ou
   segredo recusado: `503 VERIFICACAO_INDISPONIVEL`. **Falha fechada** nas três rotas, nunca passa sem verificar.
+- Aprovado só se o `hostname` da resposta da Cloudflare for o do app (`TREINOS_TURNSTILE_HOSTNAME` ou, vazio, o host do `APP_URL`):
+  a site key é pública, então um token resolvido em outro site com a mesma chave é recusado (`400 VERIFICACAO_HUMANA`). Ligada sem
+  hostname possível, a API não sobe.
 - Token é de uso único e vale 5 min: o app renova o widget depois de cada envio (inclusive o segundo envio do login com MFA).
 - As falhas (400) contam no limite por IP (`treinos.limites.verificacao-ip`, 20 por janela de 600 s). IP que já gastou o limite recebe
   `429` antes de a Cloudflare ser chamada. O `503` não conta (não é falha da pessoa).
@@ -31,6 +34,7 @@ o botão é solto sem reiniciar o app. Quem ainda está com o widget carregando 
 | `TREINOS_TURNSTILE_HABILITADO` | `false` | ligada, a API só sobe com a chave pública e o segredo |
 | `TREINOS_TURNSTILE_SITE_KEY` | vazio | chave pública do widget |
 | `TREINOS_TURNSTILE_SEGREDO` | vazio, sem valor padrão | segredo do widget; só na VPS, por `gravar-segredo.sh`; nunca no git, em log ou no chat |
+| `TREINOS_TURNSTILE_HOSTNAME` | host do `APP_URL` | site em que o token precisa ter sido resolvido; só preencher se for diferente do `APP_URL` (ex.: chaves de teste da Cloudflare, que respondem `example.com`) |
 | `treinos.turnstile.verify-url` | siteverify da Cloudflare | só os testes mudam (servidor local de mentira) |
 | `treinos.limites.verificacao-ip` | `20` | falhas por IP na janela |
 
