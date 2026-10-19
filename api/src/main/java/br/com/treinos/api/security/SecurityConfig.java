@@ -6,6 +6,7 @@ import br.com.plataforma.comum.monitoramento.MonitoramentoFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -44,6 +45,18 @@ public class SecurityConfig {
             "/auth/redefinir-senha"};
 
     private static final String[] ROTAS_PUBLICAS = {"/publico/**", "/actuator/health", "/error"};
+
+    /**
+     * O filtro JWT é um {@code @Component}: sem isto o Spring Boot também o registraria como filtro de servlet global, e
+     * ele rodaria em {@code /integracao/**} (cadeia só de HMAC, sem ele) depois da autorização, trocando a autenticação e
+     * a consultoria pelo dono de um Bearer que viesse junto. Ele só roda dentro da cadeia de segurança, onde é posto.
+     */
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> filtroJwtSoNaCadeia(JwtAuthenticationFilter filtro) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registro = new FilterRegistrationBean<>(filtro);
+        registro.setEnabled(false);
+        return registro;
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {

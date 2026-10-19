@@ -31,6 +31,8 @@ export interface VerificacaoHumana {
    * widget. Com `VERIFICACAO_HUMANA` busca a configuração de novo (a verificação pode ter sido ligada depois da primeira busca).
    */
   depoisDoEnvio: (falha?: unknown) => void;
+  /** O link "Sou treinador, criar conta" só aparece com o cadastro aberto (sem a configuração, não aparece). */
+  cadastroAberto: boolean;
   /** Busca a configuração de novo, sem cache (o widget desistiu ou "Tentar de novo"): se a verificação foi desligada, solta o envio. */
   reconferir: () => void;
 }
@@ -90,5 +92,6 @@ export function useVerificacaoHumana(): VerificacaoHumana {
     aoReceberToken: setToken,
     depoisDoEnvio,
     reconferir,
+    cadastroAberto: config?.cadastroAberto === true,
   };
 }

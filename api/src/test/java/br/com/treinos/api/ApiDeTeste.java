@@ -105,8 +105,8 @@ public final class ApiDeTeste {
     /** Gera o convite e aceita como o aluno; devolve o login do aluno (cliente nativo). */
     public JsonNode convidarEEntrar(JsonNode treinador, UUID alunoId) throws Exception {
         String codigo = post("/alunos/" + alunoId + "/convite", treinador, null, 200).get("codigo").asString();
-        return post("/publico/convites/" + codigo + "/aceitar", null,
-                Map.of("email", emailUnico("aluno"), "senha", SENHA), 200);
+        return post("/publico/convites/aceitar", null,
+                Map.of("codigo", codigo, "email", emailUnico("aluno"), "senha", SENHA), 200);
     }
 
     // ---- Planos ----

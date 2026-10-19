@@ -37,7 +37,7 @@ public class LesaoService {
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="LESAO_REGISTRADA",entidade="LESAO",resumo="Registrou uma lesão.")
     public LesaoResponse criar(UUID alunoId, LesaoRequest r, UUID usuarioId) {
-        exigirAluno(alunoId);
+        exigirAlunoParaGravar(alunoId);
         LesaoAluno l = new LesaoAluno(alunoId, usuarioId);
         preencher(l, r);
         return LesaoResponse.de(lesoes.saveAndFlush(l));
@@ -46,6 +46,7 @@ public class LesaoService {
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="LESAO_ALTERADA",entidade="LESAO",resumo="Alterou um registro de lesão.")
     public LesaoResponse alterar(UUID alunoId, UUID id, LesaoRequest r) {
+        exigirAlunoParaGravar(alunoId);
         LesaoAluno l = buscar(alunoId, id);
         preencher(l, r);
         return LesaoResponse.de(lesoes.saveAndFlush(l));
@@ -71,5 +72,11 @@ public class LesaoService {
 
     private void exigirAluno(UUID alunoId) {
         Exigir.existe(alunos.findById(alunoId), () -> new NaoEncontradoException("Aluno não encontrado."));
+    }
+
+    /** Gravar dado novo: o aluno existe e não foi anonimizado (dado de saúde num cadastro anonimizado contraria a LGPD). */
+    private void exigirAlunoParaGravar(UUID alunoId) {
+        br.com.treinos.api.alunos.AlunoService.exigirNaoAnonimizado(
+                alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado.")));
     }
 }

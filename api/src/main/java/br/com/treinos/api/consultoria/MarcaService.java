@@ -91,6 +91,12 @@ public class MarcaService {
             if (!ladosDoPngCabem(bytes)) {
                 throw arquivoInvalido("A logo precisa ter no máximo " + LOGO_LADO_MAXIMO + " px de largura e de altura.");
             }
+            // Como o JPEG: a logo é pública, então texto, EXIF e o que vier depois do IEND saem.
+            try {
+                guardar = PngSemMetadados.limpar(bytes);
+            } catch (IllegalArgumentException invalido) {
+                throw arquivoInvalido("A logo PNG precisa estar inteira.");
+            }
         } else {
             // O JPEG é regravado sem EXIF, GPS, miniatura nem comentários: a logo é pública.
             try {

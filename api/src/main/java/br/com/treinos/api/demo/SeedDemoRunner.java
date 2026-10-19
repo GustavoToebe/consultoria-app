@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(10)
+@Profile("demo") // além da propriedade: produção roda no perfil "docker", nunca no "demo"
 @ConditionalOnProperty(name = "treinos.demo.seed", havingValue = "true")
 public class SeedDemoRunner implements ApplicationRunner {
 

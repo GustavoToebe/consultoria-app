@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Order(20)
-@Profile("!prod")
+@Profile("demo") // além da propriedade: produção roda no perfil "docker", nunca no "demo"
 @ConditionalOnProperty(name = "treinos.demo.historico", havingValue = "true")
 public class SeedHistoricoDemoRunner implements ApplicationRunner {
 

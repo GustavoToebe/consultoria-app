@@ -52,7 +52,7 @@ public class PesoService {
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="PESO_REGISTRADO",entidade="PESO",resumo="Registrou ou alterou um peso.")
     public List<PesoResponse> registrar(UUID alunoId, PesoRequest r, UUID usuarioId) {
-        exigirAluno(alunoId);
+        exigirAlunoParaGravar(alunoId);
         if (r.data().isAfter(LocalDate.now(Fuso.BRASILIA))) {
             throw new BadRequestException("A data do peso não pode ser no futuro.");
         }
@@ -73,5 +73,11 @@ public class PesoService {
 
     private void exigirAluno(UUID alunoId) {
         Exigir.existe(alunos.findById(alunoId), () -> new NaoEncontradoException("Aluno não encontrado."));
+    }
+
+    /** Gravar dado novo: o aluno existe e não foi anonimizado (dado de saúde num cadastro anonimizado contraria a LGPD). */
+    private void exigirAlunoParaGravar(UUID alunoId) {
+        br.com.treinos.api.alunos.AlunoService.exigirNaoAnonimizado(
+                alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado.")));
     }
 }

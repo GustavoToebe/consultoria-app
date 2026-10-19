@@ -86,7 +86,7 @@ public class PastaService {
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="PASTA_CRIADA",entidade="PASTA",resumo="Criou uma pasta de plano.")
     public PastaResumo criar(UUID alunoId, PastaRequest r) {
-        exigirAluno(alunoId);
+        exigirAlunoParaGravar(alunoId);
         exigirPeriodo(r.inicio(), r.fim());
         return PastaResumo.de(pastas.saveAndFlush(new PastaPlano(alunoId, r.titulo().trim(), r.inicio(), r.fim())));
     }
@@ -113,6 +113,8 @@ public class PastaService {
     public PastaResumo replicar(UUID id, PastaRequest r) {
         exigirPeriodo(r.inicio(), r.fim());
         PastaPlano origem = buscar(id);
+        exigirAlunoParaGravar(origem.getAlunoId());
+        exigirPermissoesDosPlanos(id);
         PastaPlano nova = pastas.saveAndFlush(new PastaPlano(origem.getAlunoId(), r.titulo().trim(), r.inicio(), r.fim()));
         for (PlanoBase p : treinos.findByPastaId(id)) {
             if (p.isArquivado()) continue;
@@ -167,6 +169,7 @@ public class PastaService {
     @Transactional
     public void excluir(UUID id) {
         PastaPlano p = buscar(id);
+        exigirPermissoesDosPlanos(id);
         treinos.findByPastaId(id).forEach(PlanoBase::arquivar);
         dietas.findByPastaId(id).forEach(PlanoBase::arquivar);
         mobilidades.findByPastaId(id).forEach(PlanoBase::arquivar);
@@ -183,6 +186,25 @@ public class PastaService {
 
     private void exigirAluno(UUID alunoId) {
         Exigir.existe(alunos.findById(alunoId), () -> new NaoEncontradoException("Aluno não encontrado."));
+    }
+
+    /** Gravar dado novo: o aluno existe e não foi anonimizado (dado de saúde num cadastro anonimizado contraria a LGPD). */
+    private void exigirAlunoParaGravar(UUID alunoId) {
+        br.com.treinos.api.alunos.AlunoService.exigirNaoAnonimizado(
+                alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado.")));
+    }
+
+    /**
+     * Replicar ou excluir a pasta cria ou arquiva os planos dela: só com a permissão de alterar cada tipo presente, como
+     * aplicar modelo e copiar plano já exigem (mobilidade usa a do treino). Antes de qualquer efeito.
+     */
+    private void exigirPermissoesDosPlanos(UUID pastaId) {
+        boolean treino = treinos.findByPastaId(pastaId).stream().anyMatch(p -> !p.isArquivado())
+                || mobilidades.findByPastaId(pastaId).stream().anyMatch(p -> !p.isArquivado());
+        if (treino) br.com.treinos.api.equipe.AcessoAtual.exigir("TREINO_ALTERAR");
+        if (dietas.findByPastaId(pastaId).stream().anyMatch(p -> !p.isArquivado())) {
+            br.com.treinos.api.equipe.AcessoAtual.exigir("DIETA_ALTERAR");
+        }
     }
 
     private static void exigirPeriodo(LocalDate inicio, LocalDate fim) {

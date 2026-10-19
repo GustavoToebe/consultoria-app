@@ -101,7 +101,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
 
     @Transactional
     public PlanoDetalhe<C> criar(UUID alunoId, CriarPlanoRequest r) {
-        exigirAluno(alunoId);
+        exigirAlunoParaGravar(alunoId);
         if (r.receitaId() != null && r.copiarDoPlanoId() != null) {
             throw new BadRequestException("Escolha uma receita ou um plano para copiar, não os dois.");
         }
@@ -188,6 +188,7 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
     @Transactional
     public PlanoDetalhe<C> replicar(UUID id, ReplicarRequest r) {
         P origem = buscar(id);
+        exigirAlunoParaGravar(origem.getAlunoId());
         String base = origem.getVersaoPublicada() == 0 ? origem.getRascunho()
                 : versao(origem, origem.getVersaoPublicada()).getConteudo();
         PastaPlano pasta = pastaDoAluno(r.pastaId(), origem.getAlunoId());
@@ -328,6 +329,12 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
 
     private void exigirAluno(UUID alunoId) {
         Exigir.existe(alunos.findById(alunoId), () -> new NaoEncontradoException("Aluno não encontrado."));
+    }
+
+    /** Plano novo (criar, aplicar modelo, replicar): o aluno existe e não foi anonimizado. */
+    private void exigirAlunoParaGravar(UUID alunoId) {
+        AlunoService.exigirNaoAnonimizado(alunos.findById(alunoId)
+                .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado.")));
     }
 
     private static void exigirMesmaVersao(PlanoBase plano, Long versao) {

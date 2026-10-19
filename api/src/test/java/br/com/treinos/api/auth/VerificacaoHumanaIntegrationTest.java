@@ -58,6 +58,7 @@ class VerificacaoHumanaIntegrationTest extends AbstractIntegrationTest {
         JsonNode corpo = json.readTree(r.getResponse().getContentAsString());
         assertThat(corpo.path("verificacaoHumana").asBoolean()).isTrue();
         assertThat(corpo.path("siteKey").asString()).isEqualTo("1x00000000000000000000AA");
+        assertThat(corpo.path("cadastroAberto").asBoolean()).isTrue(); // a suíte abre o cadastro (application-test.yml)
         assertThat(r.getResponse().getContentAsString()).doesNotContain("1x0000000000000000000000000000000AA").doesNotContain("segredo");
     }
 

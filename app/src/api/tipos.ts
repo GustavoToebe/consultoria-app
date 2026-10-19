@@ -77,6 +77,8 @@ export interface ConfiguracaoPublica {
   verificacaoHumana: boolean;
   /** Chave pública do widget (vazia com a verificação desligada). */
   siteKey: string;
+  /** Cadastro público de treinador aberto (em produção, fechado: consultoria nova entra pela Central). */
+  cadastroAberto: boolean;
 }
 
 // ---- Marca e configuração ----

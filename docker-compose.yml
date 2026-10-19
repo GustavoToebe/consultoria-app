@@ -47,6 +47,8 @@ services:
       # Só o perfil demo lê; ligado e vazio, a API não sobe.
       DEMO_SENHA: ${DEMO_SENHA:-}
       TREINOS_DEMO_HISTORICO: ${TREINOS_DEMO_HISTORICO:-false}
+      # Cadastro público de treinador: aberto só aqui, para testar no PC; em produção fica fechado (padrão da API).
+      TREINOS_CADASTRO_ABERTO: ${TREINOS_CADASTRO_ABERTO:-true}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081}
       APP_URL: ${APP_URL:-http://localhost:8088}
       # Atrás do Caddy a API fica em /api: o cookie de refresh vai em /api/auth.

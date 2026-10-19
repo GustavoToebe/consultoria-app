@@ -77,7 +77,12 @@ public final class AlunoDtos {
     public record ConvitePublico(MarcaPublica consultoria, String primeiroNomeAluno) {
     }
 
+    /** O código vai no corpo, nunca no caminho: assim não fica em log de acesso, histórico nem prévia de link. */
+    public record ConsultarConviteRequest(@NotBlank @Size(max = 64) String codigo) {
+    }
+
     public record AceitarConviteRequest(
+            @NotBlank @Size(max = 64) String codigo,
             @NotBlank @Email @Size(max = 254) String email,
             @NotBlank @Size(max = 200) String senha) {
     }
