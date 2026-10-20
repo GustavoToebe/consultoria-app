@@ -13,6 +13,8 @@ import { SeletorDeQuestionario } from './questionarios/SeletorDeQuestionario';
 import type { Atualizacao, PastaResumo, Receita } from '../api/tipos';
 import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../dominio/atualizacao';
 import { dataDaTela, dataParaTela, hojeIso } from '../dominio/formatos';
+import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
+import { precisaRenovar } from '../dominio/resumoDoAluno';
 import { dadosDaRenovacao, periodoInicial, proximoPeriodo } from '../dominio/periodo';
 import { FILTROS_PASTAS, filtrarPastas, type FiltroPastas } from '../dominio/pastas';
 import { useTema } from '../tema/TemaProvider';
@@ -38,7 +40,8 @@ import { Texto } from '../ui/Texto';
 import { useCarregar } from '../ui/useCarregar';
 import { AtualizacaoDaPasta } from './AtualizacaoDaPasta';
 import { CartaoRegistros } from './CartaoRegistros';
-import { CartaoPlanos, periodo } from './CartaoPlanos';
+import { CartaoPlanos } from './CartaoPlanos';
+import { FolhaDeAcoes } from './FolhaDeAcoes';
 
 type Modo = { tipo: 'nova' } | { tipo: 'editar'; pasta: PastaResumo } | { tipo: 'replicar'; pasta: PastaResumo };
 
@@ -51,23 +54,49 @@ interface PropsPastas {
   diasAtualizacao?: number | null;
   /** Chamado depois de gravar um peso (ao finalizar a pasta) para o cartão de peso recarregar. */
   aoGravarPeso?: () => void;
+  /** Chamado depois de criar, alterar, renovar, finalizar ou excluir uma pasta (o resumo do topo da ficha recarrega). */
+  aoMudar?: () => void;
+  /** Muda quando outra parte da ficha alterou as pastas (renovar pelo resumo): a lista busca de novo. */
+  geracao?: number;
+}
+
+/**
+ * "Renovar" da pasta (menu ⋯, linha da pasta e resumo da ficha): confirma e cria a pasta do próximo ciclo com cópia
+ * em rascunho dos planos (`dadosDaRenovacao`). Devolve o pedido e o painel de confirmação, que a tela coloca onde quiser.
+ */
+export function useRenovarPasta(diasAtualizacao: number | null, aoRenovar: () => void) {
+  const { avisar } = useAviso();
+  const [renovar, setRenovar] = useState<PastaResumo | null>(null);
+  const [renovando, setRenovando] = useState(false);
+  const dados = renovar ? dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao) : null;
+  const painel = (
+    <PainelConfirmacao visivel={!!renovar} titulo={`Renovar a pasta “${renovar?.titulo ?? ''}”?`}
+      mensagem={dados ? `Cria a pasta “${dados.titulo}” para ${dados.texto}, com cópia em rascunho dos treinos, dietas e mobilidades. A pasta atual continua como está; para escolher o título ou as datas, use “Copiar para outro período” na pasta.` : ''}
+      rotuloConfirmar="Renovar pasta" carregando={renovando} aoCancelar={() => setRenovar(null)} aoConfirmar={() => {
+        if (!renovar || !dados) return;
+        setRenovando(true);
+        replicarPasta(renovar.id, { titulo: dados.titulo, inicio: dados.inicio, fim: dados.fim }).then(
+          () => { setRenovando(false); setRenovar(null); avisar('Pasta renovada. Os planos vieram como rascunho.', 'sucesso'); aoRenovar(); },
+          (e: unknown) => { setRenovando(false); setRenovar(null); avisar(textoDoErro(e), 'perigo'); },
+        );
+      }} />
+  );
+  return { pedir: setRenovar, painel };
 }
 
 /**
  * Pastas do aluno (ex.: "Plano 16"): cada uma agrupa treinos e dietas e tem o período que vale para todos. Mudar o
  * período da pasta acompanha os rascunhos dos planos dela; replicar a pasta copia todos para o próximo ciclo.
  */
-export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, aoGravarPeso, pastaInicialId }: PropsPastas) {
+export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, aoGravarPeso, aoMudar, geracao: geracaoExterna = 0, pastaInicialId }: PropsPastas) {
   const { pode } = useSessao();
-  const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}`, () => listarPastas(alunoId));
+  const { dados, erro, carregando, recarregar } = useCarregar(`pastas:${alunoId}:${geracaoExterna}`, () => listarPastas(alunoId));
   const [modo, setModo] = useState<Modo | null>(null);
   const [filtro, setFiltro] = useState<FiltroPastas>('todas');
   const { avisar } = useAviso();
   const [excluir, setExcluir] = useState<PastaResumo | null>(null);
   const [salvarModelo, setSalvarModelo] = useState<PastaResumo | null>(null);
   const [finalizar, setFinalizar] = useState<PastaResumo | null>(null);
-  const [renovar, setRenovar] = useState<PastaResumo | null>(null);
-  const [renovando, setRenovando] = useState(false);
   // Pasta aberta na folha com as ações e os planos; guarda só o id para refletir o que a lista recarrega.
   const [abertaId, setAbertaId] = useState<string | null>(pastaInicialId??null);
   // "Mais ações" da pasta (salvar como pacote, excluir): menu à parte, para a folha ter uma ação principal só.
@@ -85,13 +114,18 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   });
   useFocusEffect(useCallback(() => { recarregarAtualizacoes(); }, [recarregarAtualizacoes]));
   const daPasta = (id: string) => atualizacoes ? atualizacaoDaPasta(id, atualizacoes.atual, atualizacoes.historico) : null;
+  // Com a atualização da pasta aberta para revisar, a ação principal da folha passa a ser revisá-la.
+  const revisarNaFolha = !!aberta && verAtualizacoes && daPasta(aberta.id)?.fase === 'ENVIADA' && pode('ATUALIZACAO_RESPONDER');
 
   const aoSalvar = () => {
     setModo(null);
     setGeracao((g) => g + 1);
     recarregar();
     recarregarAtualizacoes();
+    aoMudar?.();
   };
+  const renovacao = useRenovarPasta(diasAtualizacao, aoSalvar);
+  const hoje = hojeIso();
 
   return (
     <>
@@ -113,37 +147,36 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'ativas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'} />
         ) : null}
         {visiveis.map((p) => (
-          <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} />
+          <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
+            aoRevisar={(a) => router.push(caminhoAtualizacaoTreinador(a))}
+            aoRenovar={pode('PASTA_ALTERAR') && precisaRenovar(p, dados ?? [], hoje) ? () => renovacao.pedir(p) : undefined} />
         ))}
       </Cartao>
       {aberta ? (
         <Folha visivel titulo={aberta.titulo} largura={LARGURA_EDITOR} aoFechar={() => setAbertaId(null)}
           acaoNoTopo={temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : undefined}>
           <View style={estilos.resumo}>
-            {aberta.concluidaEm ? (
-              <Selo texto={`Concluída em ${dataParaTela(hojeIso(new Date(aberta.concluidaEm)))}`} tipo="neutro" />
-            ) : (
-              <Selo texto="Ativa" tipo="sucesso" />
-            )}
-            <Texto numerico variante="suave">Período: {periodo(aberta)}</Texto>
+            <Texto numerico variante="suave">Período: {periodoCurto(aberta.inicio, aberta.fim, hoje)}</Texto>
+            {aberta.concluidaEm ? <Selo texto={`Concluída em ${dataSemAnoCorrente(hojeIso(new Date(aberta.concluidaEm)), hoje)}`} tipo="neutro" /> : null}
           </View>
-          {/* Uma ação principal só na folha (finalizar ou reabrir); o resto é secundário ou vai para o menu ⋯. */}
+          {/* Uma ação principal só na folha: com a atualização para revisar, é "Revisar atualização" (no cartão dela,
+              logo abaixo); senão finalizar ou reabrir. O resto é secundário ou vai para o menu ⋯. */}
           <LinhaDeAcoes>
             {aberta.concluidaEm ? (
-              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Reabrir pasta" Icone={RotateCcw} aoTocar={() => {
-                reabrirPasta(aberta.id).then(() => { avisar('Pasta reaberta.', 'sucesso'); recarregar(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
+              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Reabrir pasta" Icone={RotateCcw} tipo={revisarNaFolha ? 'secundario' : 'primario'} aoTocar={() => {
+                reabrirPasta(aberta.id).then(() => { avisar('Pasta reaberta.', 'sucesso'); recarregar(); aoMudar?.(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
               }} /></Permitido>
             ) : (
-              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" Icone={CheckCircle2} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} /></Permitido>
+              <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Finalizar pasta" Icone={CheckCircle2} tipo={revisarNaFolha ? 'secundario' : 'primario'} aoTocar={() => { setAbertaId(null); setFinalizar(aberta); }} /></Permitido>
             )}
             <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'editar', pasta: aberta }); }} /></Permitido>
-            <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Replicar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} /></Permitido>
+            <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Copiar para outro período" tipo="secundario" Icone={Copy} aoTocar={() => { setAbertaId(null); setModo({ tipo: 'replicar', pasta: aberta }); }} /></Permitido>
           </LinhaDeAcoes>
           {/* Só vale para este período; a atualização ainda aberta passa a usar o questionário escolhido na hora. */}
-          <SeletorDeQuestionario rotulo="Questionário deste período" valor={aberta.questionarioId} rotuloDoNulo="O do aluno" podeAlterar={pode('PASTA_ALTERAR')}
+          <SeletorDeQuestionario rotulo="Questionário" valor={aberta.questionarioId} rotuloDoNulo="O mesmo do aluno" podeAlterar={pode('PASTA_ALTERAR')}
             aoEscolher={async (questionarioId) => { await escolherQuestionarioDaPasta(aberta.id, questionarioId); recarregar(); recarregarAtualizacoes(); }} />
           {/* A atualização fecha o período e é o ponto central do acompanhamento: fica logo abaixo das ações. */}
-          {verAtualizacoes ? <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes}
+          {verAtualizacoes ? <AtualizacaoDaPasta atualizacao={daPasta(aberta.id)} carregando={!atualizacoes} destaque={revisarNaFolha}
             aoAbrir={(a) => { setAbertaId(null); router.push(caminhoAtualizacaoTreinador(a)); }} /> : null}
           <Texto variante="secao">Planos desta pasta</Texto>
           <Permitido codigo={PERMISSOES_DO_PLANO.treino.ler}><CartaoPlanos tipo="treino" alunoId={alunoId} pasta={aberta} geracao={geracao} aoNavegar={() => setAbertaId(null)} /></Permitido>
@@ -152,27 +185,17 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           <Permitido codigo="REGISTRO_LER"><CartaoRegistros aluno={{ id: alunoId, nome: alunoNome }} pasta={aberta} /></Permitido>
         </Folha>
       ) : null}
-      {menuPasta ? <Folha visivel titulo={menuPasta.titulo} aoFechar={() => setMenuPasta(null)}>
-        {podeSalvarPastaComoModelo(pode) ? <Botao rotulo="Salvar como pacote" tipo="secundario" Icone={BookmarkPlus} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setSalvarModelo(p); }} /> : null}
-        <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Renovar pasta" tipo="secundario" Icone={Copy} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setRenovar(p); }} /></Permitido>
-        <Permitido codigo="PASTA_ALTERAR"><Botao rotulo="Excluir pasta" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { const p = menuPasta; setMenuPasta(null); setExcluir(p); }} /></Permitido>
-      </Folha> : null}
+      {menuPasta ? <FolhaDeAcoes titulo={menuPasta.titulo} aoFechar={() => setMenuPasta(null)} acoes={[
+        pode('PASTA_ALTERAR') ? { rotulo: 'Renovar para o próximo ciclo', detalhe: 'Pasta nova com os planos em rascunho.', Icone: Copy, aoTocar: () => renovacao.pedir(menuPasta) } : null,
+        podeSalvarPastaComoModelo(pode) ? { rotulo: 'Salvar como pacote', detalhe: 'Para usar com outros alunos.', Icone: BookmarkPlus, aoTocar: () => setSalvarModelo(menuPasta) } : null,
+        pode('PASTA_ALTERAR') ? { rotulo: 'Excluir pasta', Icone: Trash2, perigo: true, aoTocar: () => setExcluir(menuPasta) } : null,
+      ]} /> : null}
       {escolher ? <FolhaReceitas tipo="PASTA_PLANO" titulo="Pacote (treino, dieta e mobilidade)" aoFechar={() => setEscolher(false)} aoUsar={(r) => { setEscolher(false); setModelo(r); }} /> : null}
       {modelo ? <AplicarAoAluno modelo={modelo} alunoInicial={alunoId} aoFechar={() => setModelo(null)} aoAplicar={() => { setModelo(null); aoSalvar(); avisar('Pasta copiada como rascunho.', 'sucesso'); }} /> : null}
       {salvarModelo ? <FolhaSalvarReceita titulo="Salvar pasta como pacote" explicacao="Copia os rascunhos de treino e dieta desta pasta para reutilizar em outros alunos." aoFechar={() => setSalvarModelo(null)} aoSalvar={async (nome, descricao) => {
         await salvarPastaComoModelo(salvarModelo.id, nome, descricao); setSalvarModelo(null); avisar('Pacote salvo.', 'sucesso');
       }} /> : null}
-      <PainelConfirmacao visivel={!!renovar} titulo={`Renovar a pasta “${renovar?.titulo ?? ''}”?`}
-        mensagem={renovar ? `Cria a pasta “${dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao).titulo}” para ${dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao).texto}, com cópia em rascunho dos treinos, dietas e mobilidades. A pasta atual continua como está; para mudar o título ou o período, use Replicar pasta.` : ''}
-        rotuloConfirmar="Renovar pasta" carregando={renovando} aoCancelar={() => setRenovar(null)} aoConfirmar={() => {
-          if (!renovar) return;
-          const { titulo, inicio, fim } = dadosDaRenovacao(renovar, hojeIso(), diasAtualizacao);
-          setRenovando(true);
-          replicarPasta(renovar.id, { titulo, inicio, fim }).then(
-            () => { setRenovando(false); setRenovar(null); avisar('Pasta renovada. Os planos vieram como rascunho.', 'sucesso'); aoSalvar(); },
-            (e: unknown) => { setRenovando(false); setRenovar(null); avisar(textoDoErro(e), 'perigo'); },
-          );
-        }} />
+      {renovacao.painel}
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir pasta “${excluir?.titulo ?? ''}”?`} mensagem="A pasta e seus planos saem da lista. Os planos deixam de estar ativos; versões publicadas e registros dos alunos são preservados." rotuloConfirmar="Excluir pasta e planos" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
         if (!excluir) return; const id = excluir.id; setExcluir(null);
         excluirPasta(id).then(aoSalvar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
@@ -183,32 +206,52 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
   );
 }
 
-/** Uma pasta na lista: nome, período e status. Tocar abre a folha com as ações e os planos de treino e dieta. */
-function LinhaPasta({ pasta, atualizacao, aoAbrir }: { pasta: PastaResumo; atualizacao: Atualizacao | null; aoAbrir: () => void }) {
-  const { cores, marca, marcaTexto } = useTema();
+/**
+ * Uma pasta na lista: nome, período e a situação da atualização (o selo diz de quê). Tocar abre a folha com as ações e
+ * os planos. Na pasta que pede trabalho, as ações do dia ficam na própria linha: "Revisar atualização" e "Renovar".
+ * Os botões ficam fora da área de toque da linha (botão dentro de botão não funciona no leitor de tela).
+ */
+function LinhaPasta({ pasta, atualizacao, hoje, aoAbrir, aoRevisar, aoRenovar }: {
+  pasta: PastaResumo; atualizacao: Atualizacao | null; hoje: string; aoAbrir: () => void;
+  aoRevisar: (a: Atualizacao) => void; aoRenovar?: () => void;
+}) {
+  const { cores } = useTema();
+  const { pode } = useSessao();
   const concluida = !!pasta.concluidaEm;
-  const situacao = atualizacao?.dataAtualizacao ? statusAtualizacaoTreinador(atualizacao) : null;
+  const situacao = atualizacao?.dataAtualizacao ? statusAtualizacaoTreinador(atualizacao, hoje) : null;
+  const revisar = atualizacao?.fase === 'ENVIADA' && pode('ATUALIZACAO_LER') ? atualizacao : null;
   const Icone = concluida ? FolderCheck : Folder;
+  const periodoTexto = periodoCurto(pasta.inicio, pasta.fim, hoje);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'ativa'}, ${periodo(pasta)}${situacao ? `, atualização: ${situacao.texto}` : ''}. Abrir.`}
-      onPress={aoAbrir}
-      style={(estado) => [
-        estilos.linha,
-        { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
-      ]}>
-      <View style={[estilos.icone, { backgroundColor: concluida ? cores.superficie2 : `${marca}22` }]}>
-        <Icone size={22} color={concluida ? cores.textoSuave : marcaTexto} />
-      </View>
-      <View style={estilos.linhaTextos}>
-        <Texto numerico style={estilos.linhaTitulo}>{pasta.titulo}</Texto>
-        <Texto numerico variante="suave">{periodo(pasta)}</Texto>
-        {situacao ? <View style={estilos.linhaAtualizacao}><Texto variante="pequeno">Atualização:</Texto><Selo {...situacao} /></View> : null}
-      </View>
-      {concluida ? <Selo texto="Concluída" tipo="neutro" /> : <Selo texto="Ativa" tipo="sucesso" />}
-      <ChevronRight size={20} color={cores.textoSuave} />
-    </Pressable>
+    <View style={[estilos.linha, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Pasta ${pasta.titulo}, ${concluida ? 'concluída' : 'aberta'}, ${periodoTexto}${situacao ? `, ${situacao.texto}` : ''}. Abrir.`}
+        onPress={aoAbrir}
+        style={(estado) => [estilos.linhaToque, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+        {/* Ícone neutro: a marca não diz situação; quem diz é o selo. */}
+        <View style={[estilos.icone, { backgroundColor: cores.superficie3 }]}>
+          <Icone size={22} color={concluida ? cores.textoSuave : cores.texto} />
+        </View>
+        <View style={estilos.linhaTextos}>
+          <Texto numerico style={estilos.linhaTitulo}>{pasta.titulo}</Texto>
+          <Texto numerico variante="suave">{periodoTexto}</Texto>
+          {situacao || concluida ? (
+            <View style={estilos.linhaAtualizacao}>
+              {concluida ? <Selo texto="Concluída" tipo="neutro" /> : null}
+              {situacao ? <Selo texto={situacao.texto} tipo={situacao.tipo} /> : null}
+            </View>
+          ) : null}
+        </View>
+        <ChevronRight size={20} color={cores.textoSuave} />
+      </Pressable>
+      {revisar || aoRenovar ? (
+        <LinhaDeAcoes style={estilos.acoesDaLinha}>
+          {revisar ? <Botao rotulo="Revisar atualização" tipo="secundario" aoTocar={() => aoRevisar(revisar)} /> : null}
+          {aoRenovar ? <Botao rotulo="Renovar" rotuloAcessivel={`Renovar a pasta ${pasta.titulo} para o próximo ciclo`} tipo="secundario" Icone={Copy} aoTocar={aoRenovar} /> : null}
+        </LinhaDeAcoes>
+      ) : null}
+    </View>
   );
 }
 
@@ -343,15 +386,15 @@ const estilos = StyleSheet.create({
   data: { flex: 1, minWidth: 190 },
   resumo: { gap: espaco(0.75) },
   linhaAtualizacao: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.75), marginTop: espaco(0.5) },
-  linha: {
+  linha: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  linhaToque: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: espaco(1.5),
     minHeight: ALVO_TOQUE + espaco(1),
-    borderWidth: 1,
-    borderRadius: RAIO,
     padding: espaco(1.5),
   },
+  acoesDaLinha: { paddingHorizontal: espaco(1.5), paddingBottom: espaco(1.5) },
   icone: { width: 44, height: 44, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center' },
   linhaTextos: { flex: 1, gap: 2 },
   linhaTitulo: { fontFamily: fontes.negrito, fontSize: 17, lineHeight: 23 },

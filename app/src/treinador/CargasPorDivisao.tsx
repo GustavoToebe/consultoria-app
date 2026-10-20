@@ -18,10 +18,14 @@ const LARGURA_MINIMA_TABELA = 280;
 
 /**
  * Cargas por divisão (treinador e aluno): faixa com o nome da divisão e, para cada exercício, uma tabela com a data,
- * a carga de trabalho, as repetições e as séries feitas. Observação do aluno embaixo da linha.
+ * a carga de trabalho, as repetições e as séries feitas. Observação do aluno embaixo da linha. Carga na cor do texto,
+ * nunca da marca.
  */
 export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] }) {
-  const { cores, marcaTexto, fatorTexto } = useTema();
+  const { cores, fatorTexto } = useTema();
+  // "—" na carga quer dizer que não houve série de trabalho com carga naquele dia (só aquecimento ou preparação):
+  // sem explicar, parecia que o registro sumiu.
+  const temSoPreparacao = divisoes.some((d) => d.exercicios.some((e) => e.linhas.some((l) => l.carga === null && !l.semCarga)));
   const larguraData = larguraDaData(fatorTexto);
   const animar = usePrimeiraLista(divisoes.length > 0, divisoes.map((d) => d.chave).join('|'));
   const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
@@ -33,6 +37,9 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
     });
   return (
     <View style={estilos.lista}>
+      {temSoPreparacao ? (
+        <Texto variante="suave">Carga e reps contam só as séries de trabalho. “—” = nesse dia só houve aquecimento ou preparação.</Texto>
+      ) : null}
       {divisoes.map((d, i) => (
         <EntradaEmCascata indice={i} animar={animar} key={d.chave} style={estilos.divisao}>
           <FaixaDaDivisao divisao={d} aberta={!recolhidas.has(d.chave)} aoAlternar={() => alternar(d.chave)} />
@@ -52,7 +59,7 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
                   larguraMinima={LARGURA_MINIMA_TABELA}
                   colunas={[
                     { chave: 'data', titulo: 'Data', largura: larguraData, principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
-                    { chave: 'carga', titulo: 'Carga', flex: 1.8, alinhar: 'direita', render: (l) => <Texto numerico style={[estilos.carga, l.carga !== null && { color: marcaTexto }]}>{textoCarga(l)}</Texto> },
+                    { chave: 'carga', titulo: 'Carga', flex: 1.8, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.carga}>{textoCarga(l)}</Texto> },
                     { chave: 'reps', titulo: 'Reps', flex: 0.7, alinhar: 'direita', render: (l) => <Texto numerico>{l.repeticoes ?? '—'}</Texto> },
                     { chave: 'series', titulo: 'Séries', flex: 0.9, alinhar: 'direita', render: (l) => <Texto numerico variante="suave">{l.series}</Texto> },
                   ]}
