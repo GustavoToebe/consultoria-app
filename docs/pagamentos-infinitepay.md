@@ -2,7 +2,7 @@
 
 Pesquisa feita em 20/10/2026, antes de qualquer código de provedor. Cada resposta traz a fonte. O que **não** foi
 encontrado está dito como "não encontrado": nada aqui é suposição apresentada como fato. Quem decide é o Gustavo (ver
-"Perguntas que só o Gustavo responde", no fim).
+"Perguntas em aberto", no fim).
 
 Contexto: o treinador cobra o aluno, **na conta InfinitePay do próprio treinador**. O dinheiro não passa pela conta do
 Gustavo nem da plataforma. Isto não tem relação com o Mercado Pago da Central (a Central cobra o treinador).
@@ -49,7 +49,7 @@ Gustavo nem da plataforma. Isto não tem relação com o Mercado Pago da Central
     [repasse de taxas](https://ajuda.infinitepay.io/pt-BR/articles/11731276-como-configurar-o-repasse-de-taxas-no-link-de-pagamento).
 - **Boleto: não encontrado** na API do checkout (nem na documentação, nem no artigo de ajuda). Cartão de débito e outras formas
   também não são citados na API.
-- **Decisão para o Gustavo:** boleto via **Mercado Pago na conta do treinador** (o desenho genérico de provedores permite) ou
+- **Em aberto (Fase 3):** boleto via **Mercado Pago na conta do treinador** (o desenho genérico de provedores permite) ou
   **ficar sem boleto**.
 
 ## 3. Webhook e consulta de situação
@@ -75,8 +75,8 @@ Gustavo nem da plataforma. Isto não tem relação com o Mercado Pago da Central
   **no app InfinitePay**, não na API.
 - O exemplo do `payment_check` mostra `amount` 1500 e `paid_amount` 1510: a diferença indica repasse, mas **não há campo de
   taxa** nem de líquido.
-- **Regra do projeto:** não inventar taxa. As taxas só entram se o **treinador as digitar** na configuração (Fase 2). Sem
-  elas, a tela mostra "—" e "líquido indisponível". Nenhuma tabela de taxas no código.
+- **Regra do projeto (brief final, 20/10/2026):** não inventar taxa e não digitar taxa. A tela mostra o valor bruto e
+  "líquido indisponível". Nenhuma tabela de taxas no código.
 
 ## 5. Ambiente de teste (sandbox)
 - **Não encontrado.** A documentação recomenda "testar bastante no ambiente de desenvolvimento", mas não descreve URL, credencial
@@ -92,8 +92,9 @@ Gustavo nem da plataforma. Isto não tem relação com o Mercado Pago da Central
   cliente e o valor é debitado de recebíveis futuros, e o estabelecimento pode apresentar provas
   ([fonte](https://ajuda.infinitepay.io/pt-BR/articles/3944818-o-que-acontece-se-meu-estabelecimento-tiver-uma-venda-contestada)).
   O treinador só saberia pelo app ou pelos recebíveis.
-- **Consequência:** estorno vira `ESTORNADA` (por `refunded`, confirmado na consulta quando possível), sempre com aviso ao
-  treinador e **sem apagar a baixa sozinho**. `CONTESTADA` só pode ser marcada à mão pelo treinador. **Agenda de recebimentos e
+- **Consequência (versão implementada):** estorno nunca é automático. Consulta que vira "não paga" para transação já
+  aplicada, ou `refunded` para ela, gera aviso CONFERIR `ESTORNO_INFORMADO`; a cobrança continua PAGA e a baixa não é
+  apagada. `CONTESTADA` só pode ser marcada à mão pelo treinador. **Agenda de recebimentos e
   tela de contestações não entram na Fase 2:** a API não dá esses dados, e não vamos simular.
 
 ## 7. Termos de uso para integração por terceiros
@@ -126,18 +127,84 @@ Gustavo nem da plataforma. Isto não tem relação com o Mercado Pago da Central
   inclui o Brasil, mas os termos do programa **não foram verificados**.
 - **Risco:** plano entregue pelo app + botão "Pagar" que abre pagamento fora = risco de recusa ou de pedido de comissão nas duas
   lojas, conforme a leitura do revisor.
-- **Recomendação conservadora (não decido):** no iOS e no Android, a tela mostra o plano e as cobranças, **sem botão "Pagar"**
-  ("o seu treinador vai mandar o link"), e o "Pagar" só aparece na **web**. Isso é o que a Fase 1 já faz (sem "Pagar" em lugar
-  nenhum). Quem decide é o Gustavo.
+- **Decisão implementada (brief final, 20/10/2026):** no celular, a tela só informa o valor e o vencimento da cobrança,
+  **sem botão "Pagar"**, sem link e sem frase de pagamento por outro meio. O "Pagar" aparece na **web**. As chaves
+  `TREINOS_PAGAMENTOS_PAGAR_NO_IOS` e `TREINOS_PAGAMENTOS_PAGAR_NO_ANDROID` (padrão `false`) só se ligam depois de resposta
+  das lojas.
 
-## Perguntas que só o Gustavo responde
-1. **Boleto:** Mercado Pago na conta do treinador só para boleto, ou ficar sem boleto?
-2. **Lojas:** aceitar a recomendação conservadora (sem "Pagar" no celular, só na web)? Ou pedir os entitlements da Apple e o
-   programa do Google, assumindo comissão e processo de aprovação?
-3. **Credencial:** basta a **InfiniteTag** (sem segredo) ou o Saraiva quer usar também a **API Key** (mais recursos, mas um
-   segredo a guardar)? O fluxo mínimo da pesquisa funciona só com a InfiniteTag.
-4. **Termos:** o Saraiva confirma com a InfinitePay (e lê o Contrato de Afiliação) que gerar links por API para os alunos dele é
-   permitido?
-5. **Taxas:** o treinador digita as taxas por forma e parcela, ou a tela só mostra o bruto e "líquido indisponível"?
+## Perguntas em aberto
 
-A Fase 2 (InfinitePay) só começa depois destas respostas.
+1. **Boleto:** segue fora da Fase 2 (a API do checkout não tem boleto). Mercado Pago na conta do treinador é Fase 3; só a interface `ProvedorDePagamento` está pronta. A questão do boleto fica para a Fase 3.
+2. **Lojas:** respondida pelo brief final (sem "Pagar" no celular; chaves só depois de resposta das lojas). Entitlements da Apple e programa de billing do Google não foram pedidos: fica para quando as lojas responderem.
+3. **Credencial:** em aberto. Só o passo 11 do roteiro (Tag basta ou não) responde.
+4. **Termos:** em aberto. O treinador confirma com a InfinitePay e lê o Contrato de Afiliação.
+5. **Taxas:** respondida. Nada digitado nem inventado; a tela mostra o bruto e "líquido indisponível".
+
+A Fase 2 (InfinitePay) está implementada e desligada por padrão. Os itens 3 e 4 seguem em aberto; o teste de R$ 1
+(abaixo) decide a credencial.
+
+## Roteiro do teste real de R$ 1
+
+Objetivo: decidir se a InfiniteTag basta ou se a API Key é obrigatória, e confirmar o que o código ainda não pode
+assumir: o formato do `POST /links`, do webhook e do `payment_check`, a ordem dos avisos e o que acontece depois de um
+estorno. Use a conta InfinitePay de um treinador **de teste**, nunca a de um cliente real.
+
+Pré-requisitos:
+- Conta InfinitePay de teste, com o Checkout Integrado habilitado no app (Vendas › Checkout › Configurações) e a InfiniteTag
+  anotada.
+- API Key dessa conta, só a partir do passo 4. Guardar no gerenciador de segredos; nunca no documento, no chat ou no log.
+- Ambiente com `TREINOS_PAGAMENTOS_INFINITEPAY_HABILITADO=true`, `TREINOS_PAGAMENTOS_URL_PUBLICA` em https e alcançável pela
+  InfinitePay, e `TREINOS_PAGAMENTOS_CHAVES` e `TREINOS_PAGAMENTOS_CHAVE_ATIVA` configuradas (cifra da API Key). A API não sobe
+  sem elas quando a InfinitePay está ligada.
+- Um aluno de teste com cobrança aberta de R$ 1,00 (100 centavos).
+- Anotar, em local privado, data, hora e cada resposta pedida, sem token, sem chave e sem dado de pessoa real.
+
+Passos (cada um com "anotar"):
+1. **Gerar o link sem API Key e com API Key.** Primeiro sem chave: anotar se a InfinitePay aceita o `POST /links` só com
+   `handle` e `webhook_url`, e o nome exato de cada campo da resposta (`url`, ou `link` e `slug`). Depois com chave:
+   anotar o mesmo, e o que muda (`options`, `webhook`, `valid_until`).
+2. **Pagar R$ 1 com Pix e com cartão.** Anotar, do `payment_check`, `success`, `paid`, `amount`, `paid_amount`,
+   `installments` e `capture_method`. Conferir se `amount` é 100 (centavos, se for esse o formato).
+3. **Consultar o `payment_check` de duas formas.** Primeiro com os 4 campos (`handle`, `order_nsu`, `transaction_nsu`,
+   `slug`); depois só com `order_nsu`. Anotar se a segunda funciona. É só para saber: o código não assume isso. Repetir
+   com `X-Api-Key` no header e anotar se a resposta muda.
+4. **Pagar o link sem chave duas vezes.** Anotar se a segunda vez é aceita, o que o `payment_check` devolve para cada
+   `transaction_nsu` e o que o app mostra (esperado: aviso CONFERIR `COBRANCA_JA_PAGA`, com valor e data).
+5. **`single_payment` com chave.** Com o link gerado com chave, pagar e tentar pagar de novo. Anotar se a segunda tentativa
+   é bloqueada e a mensagem que a página mostra.
+6. **Webhook: reenvio e corpo real.** Fazer a API responder 400 uma vez ao webhook (um proxy de teste na frente serve) e
+   anotar se a InfinitePay reenvia, quantas vezes e com que intervalo. Anotar o corpo real só como lista de campos e
+   valores que não são pessoais (nunca o corpo inteiro no documento). Conferir `event`, `order_nsu` e se `invoice_slug` é
+   igual ao `slug` do passo 1. Se não for, todo pagamento vai para "Para conferir" com `LINK_DIFERENTE`; nesse caso,
+   remover a checagem de slug antes de seguir.
+7. **Estorno (só com chave).** Estornar o R$ 1 pelo app da InfinitePay. Anotar a ordem dos avisos (`paid` e `refunded`), e
+   o que o `payment_check` devolve depois: `success`, `paid`, e se vem `success:false` ou `paid:false`. Anotar também se o
+   `refunded` chega enquanto o `paid` ainda está PENDENTE: ponto aberto, porque o app só marca o estorno para transação já
+   aplicada; se o `payment_check` ainda disser pago, dá baixa. Lembrar: `success` diferente de true é falha de consulta,
+   não estorno. Depois de 12 tentativas, a conferência vira `CONSULTA_FALHOU`. Esperado: a cobrança continua PAGA, com
+   aviso `ESTORNO_INFORMADO`.
+8. **Juros do parcelamento.** Gerar um link com `assured_installments` 0 (juros do aluno) e outro com 12 (juros do
+   treinador, com chave). Pagar em 2x no cartão nos dois. Anotar `amount`, `paid_amount`, `installments` e a diferença
+   `paid_amount - amount`. Essa diferença são os juros repassados: é só informação, não é taxa nem líquido.
+9. **Validade.** Conferir se o `valid_until` do link com chave cai no futuro (30 dias contados do vencimento ou de hoje,
+   às 23:59:59 de Brasília). Anotar o que a página do link mostra depois de vencida. Se o teste não puder esperar 30 dias,
+   registrar como lacuna.
+10. **Tag na página e no comprovante.** Anotar se a InfiniteTag aparece na página do link e no comprovante, sem dado
+    pessoal no registro.
+11. **Resultado.** Marcar qual caso valeu para a credencial:
+    - a Tag basta: os passos 1 e 2 deram certo sem API Key;
+    - a API Key é obrigatória: o passo 1 ou o 2 foi recusado sem ela.
+
+    Registrar a decisão no `AGENTS.md`, no bullet da credencial da InfinitePay. Fontes: [documentação do checkout](https://www.infinitepay.io/checkout-documentacao)
+    e [artigo da central de ajuda](https://ajuda.infinitepay.io/pt-BR/articles/10766888).
+
+## Lacunas da pesquisa
+
+Não encontrado nas fontes oficiais; o roteiro acima não cobre tudo isso e cada item continua sem resposta:
+- Códigos e formato de erro da API (inclusive o que `POST /links` e `payment_check` devolvem quando recusam).
+- Limite de chamadas (rate limit).
+- Tamanho máximo de `description` nos itens.
+- O que a API faz quando o mesmo `order_nsu` é usado de novo.
+- Cancelar um link já gerado (não há rota documentada).
+- Assinatura, IP de origem ou qualquer outra forma de provar que o webhook veio da InfinitePay.
+- Sandbox (ambiente de teste oficial).
