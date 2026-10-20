@@ -41,6 +41,8 @@ class ArquiteturaTest {
      * SQL nativo, sempre com consultoria/aluno explícitos:
      * {@code ContadorBanco} (contador de login com {@code ON CONFLICT} atômico);
      * {@code ExecucaoUpsert} (registro idempotente do aluno, {@code ON CONFLICT ... WHERE} mais novo);
+     * {@code MobilidadeRegistroUpsert} (item de mobilidade marcado pelo aluno, idempotente pelo id do aparelho,
+     * {@code ON CONFLICT ... WHERE} mais novo; consultoria e aluno vêm da sessão, como no {@code ExecucaoUpsert});
      * {@code LogoRepositorio} (bytes da logo fora da entidade, filtrado pelo id da consultoria);
      * {@code AuditoriaGravacao} (insert na transação global do login e limpeza diária, sempre com consultoria explícita);
      * {@code ConviteEquipeBusca} (descobre apenas o tenant pelo hash, e se o convite é do sistema, para o aceite público da equipe);
@@ -59,6 +61,7 @@ class ArquiteturaTest {
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of(
             "br.com.treinos.api.auth.ContadorBanco",
             "br.com.treinos.api.execucao.ExecucaoUpsert",
+            "br.com.treinos.api.mobilidade.MobilidadeRegistroUpsert",
             "br.com.treinos.api.consultoria.LogoRepositorio",
             "br.com.treinos.api.alunos.ConviteBusca",
             "br.com.treinos.api.equipe.ConviteEquipeBusca",
@@ -143,6 +146,8 @@ class ArquiteturaTest {
                                 "FotoPerfilAlunoController",
                                 // Anamnese do próprio aluno e imagens das perguntas que ele responde (hasRole ALUNO, sempre a da sessão).
                                 "AnamneseAlunoController",
+                                // Itens de mobilidade que o próprio aluno marca (hasRole ALUNO, sempre o da sessão); a leitura do treinador declara PERM_REGISTRO_LER.
+                                "AlunoMobilidadeRegistrosController",
                                 // "Excluir minha conta" (hasRole ALUNO, sempre a conta da sessão, com a senha dela).
                                 "ExclusaoDeContaController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
@@ -188,6 +193,13 @@ class ArquiteturaTest {
     void gravacaoDeExecucaoNaoEPublica() {
         classes().that().haveSimpleName("ExecucaoUpsert").should().notBePublic()
                 .because("grava execucao_serie com consultoria e aluno explícitos; só o pacote execucao (e o seed que mora nele) usa")
+                .check(codigo);
+    }
+
+    @Test
+    void gravacaoDeMobilidadeNaoEPublica() {
+        classes().that().haveSimpleName("MobilidadeRegistroUpsert").should().notBePublic()
+                .because("grava mobilidade_registro com consultoria e aluno explícitos; só o pacote mobilidade usa")
                 .check(codigo);
     }
 

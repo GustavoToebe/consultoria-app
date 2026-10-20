@@ -6,6 +6,7 @@ import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.DiaDeTreino;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.PesoResponse;
 import br.com.treinos.api.lesoes.LesaoDtos.LesaoResponse;
+import br.com.treinos.api.mobilidade.MobilidadeRegistroDtos.RegistroMobilidadeFeito;
 import br.com.treinos.api.planos.dto.PlanoDtos.PlanoPublicado;
 import br.com.treinos.api.receitas.ConteudoMobilidade;
 import br.com.treinos.api.treino.ConteudoTreino;
@@ -45,7 +46,8 @@ public final class PrivacidadeDtos {
                              Secao<PlanoPublicado<ConteudoTreino>> treinos,
                              Secao<PlanoPublicado<ConteudoDieta>> dietas,
                              Secao<PlanoPublicado<ConteudoMobilidade>> mobilidades,
-                             Secao<DiaDeTreino> registros, Secao<PesoResponse> pesos, Secao<LesaoResponse> lesoes,
+                             Secao<DiaDeTreino> registros, Secao<RegistroMobilidadeFeito> mobilidadeRegistros,
+                             Secao<PesoResponse> pesos, Secao<LesaoResponse> lesoes,
                              Secao<AtualizacaoExportada> atualizacoes,
                              Secao<br.com.treinos.api.anamneses.AnamneseDtos.AnamneseExportada> anamneses,
                              Secao<br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoExportada> inscricao,
