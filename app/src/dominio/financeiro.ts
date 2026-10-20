@@ -2,17 +2,20 @@ import type {
   CartoesDoPainel,
   CobrancaDoAluno,
   CobrancaResponse,
+  MotivoDaConferencia,
   FiltroDeSituacao,
   FormaDePagamento,
+  JurosDoParcelamento,
   Liquido,
   MesDoPainel,
   Painel,
   PeriodoDoPlano,
+  RetornoDoPagamento,
   SituacaoDaCobranca,
   SituacaoDaContratacao,
   ValorEQuantidade,
 } from '../api/financeiroTipos';
-import { centavosParaTela, SEM_DADO } from './formatos';
+import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
 import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
 
 /**
@@ -92,7 +95,6 @@ const FORMAS: Record<FormaDePagamento, string> = {
   TRANSFERENCIA: 'Transferência',
   OUTRO: 'Outro',
   PIX: 'Pix',
-  BOLETO: 'Boleto',
   CARTAO: 'Cartão',
 };
 
@@ -100,7 +102,7 @@ export function rotuloDaForma(f: FormaDePagamento | null | undefined): string {
   return f ? (FORMAS[f] ?? SEM_DADO) : SEM_DADO;
 }
 
-/** Só estas quatro podem ser escolhidas numa baixa manual; as demais só vêm de um provedor. */
+/** Só estas quatro podem ser escolhidas numa baixa manual; `PIX` e `CARTAO` só vêm do recebimento online. */
 export const FORMAS_MANUAIS: readonly { valor: FormaDePagamento; rotulo: string }[] = (
   ['DINHEIRO', 'PIX_DIRETO', 'TRANSFERENCIA', 'OUTRO'] as const
 ).map((valor) => ({ valor, rotulo: FORMAS[valor] }));
@@ -158,6 +160,8 @@ export const FILTROS_DE_SITUACAO: { valor: FiltroDeSituacao; rotulo: string }[] 
   { valor: 'VENCIDA', rotulo: 'Vencidas' },
   { valor: 'PAGA', rotulo: 'Pagas' },
   { valor: 'CANCELADA', rotulo: 'Canceladas' },
+  { valor: 'ESTORNADA', rotulo: 'Estornadas' },
+  { valor: 'CONTESTADA', rotulo: 'Contestadas' },
 ];
 
 // ---- O que cada botão pode fazer (a API confere de novo) ----
@@ -175,6 +179,214 @@ export function podeCancelarCobranca(c: Pick<CobrancaResponse, 'situacao'>): boo
 export function podeDesfazerBaixa(c: Pick<CobrancaResponse, 'situacao' | 'provedor'>): boolean {
   return c.situacao === 'PAGA' && c.provedor === 'MANUAL';
 }
+
+// ---- Recebimento online (InfinitePay) ----
+
+export const ROTULO_ONLINE = 'Online';
+
+/** Pago pelo provedor (link de pagamento): provedor preenchido e diferente de `MANUAL`. Sem provedor não conta. */
+export function ehPagamentoOnline(c: Pick<CobrancaResponse, 'provedor'>): boolean {
+  return !!c.provedor && c.provedor !== 'MANUAL';
+}
+
+/** Copiar o link: só de cobrança em aberto e com o recebimento online configurado (a API confere de novo). */
+export function podeCopiarLink(c: Pick<CobrancaResponse, 'situacao'>, recebimentoConfigurado: boolean): boolean {
+  return c.situacao === 'ABERTA' && recebimentoConfigurado;
+}
+
+export type PlataformaDoApp = 'web' | 'ios' | 'android';
+
+/** `Platform.OS` do React Native → a plataforma da regra. Qualquer coisa que não seja a web conta como celular (loja). */
+export function plataformaDoApp(os: string): PlataformaDoApp {
+  if (os === 'web') return 'web';
+  return os === 'ios' ? 'ios' : 'android';
+}
+
+export const TEXTO_COMBINE_COM_O_TREINADOR = 'Seu treinador vai combinar a forma de pagamento com você e registrar quando receber.';
+
+/** As chaves da plataforma que o `GET /eu` traz: liberam o "Pagar" no iOS e no Android. Ausente = desligada. */
+export interface ChavesDePagamentoNoCelular {
+  pagarNoIos?: boolean | null;
+  pagarNoAndroid?: boolean | null;
+}
+
+/**
+ * O "Pagar" existe nesta plataforma? A web sempre tem. No celular só se a chave da plataforma do aparelho (`pagarNoIos`
+ * no iOS, `pagarNoAndroid` no Android) estiver ligada; a do outro sistema não conta. Vale para o aluno e para a Minha
+ * conta do treinador.
+ */
+export function pagarPermitidoNaPlataforma(plataforma: PlataformaDoApp, chaves: ChavesDePagamentoNoCelular): boolean {
+  if (plataforma === 'web') return true;
+  return (plataforma === 'ios' ? chaves.pagarNoIos : chaves.pagarNoAndroid) === true;
+}
+
+export type ComoPagar = 'botao' | 'informar' | 'combinar';
+
+/**
+ * Como o aluno vê uma cobrança em aberto. `informar`: celular sem a chave da plataforma, só informação (nada de botão,
+ * link nem frase mandando pagar). Com o "Pagar" permitido, `botao` quando a consultoria tem o recebimento online; sem
+ * ele o treinador combina a forma e registra à mão (`combinar`). A plataforma vem do componente (`Platform.OS`).
+ */
+export function comoPagar(plataforma: PlataformaDoApp, pagamentoOnline: boolean, chaves: ChavesDePagamentoNoCelular): ComoPagar {
+  if (!pagarPermitidoNaPlataforma(plataforma, chaves)) return 'informar';
+  return pagamentoOnline ? 'botao' : 'combinar';
+}
+
+/** O texto da seção "Em aberto" para cada modo; `botao` e `informar` não têm texto (o botão fala por si; informar só informa). */
+export function textoDeComoPagar(modo: ComoPagar): string | null {
+  return modo === 'combinar' ? TEXTO_COMBINE_COM_O_TREINADOR : null;
+}
+
+/**
+ * Linha de informação de uma cobrança no celular sem o "Pagar" (`informar`), com a vencida decidida pela API: aberta no
+ * prazo = "Mensalidade de R$ 150,00, vence em 05/11"; aberta vencida = "Em aberto desde 05/10" (data do vencimento);
+ * paga = "Paga em 19/10" (data da baixa). Qualquer outra situação (ou paga sem data) fica sem linha: só o selo.
+ */
+export function informacaoDaCobranca(
+  c: Pick<CobrancaDoAluno, 'situacao' | 'vencida' | 'vencimento' | 'valorCentavos' | 'pagoEm'>,
+): string | null {
+  if (c.situacao === 'PAGA') {
+    const quando = c.pagoEm ? dataCurta(c.pagoEm) : '';
+    return quando ? `Paga em ${quando}` : null;
+  }
+  if (c.situacao !== 'ABERTA') return null;
+  const vence = dataCurta(c.vencimento);
+  if (!vence) return null;
+  return c.vencida ? `Em aberto desde ${vence}` : `Mensalidade de ${centavosParaTela(c.valorCentavos)}, vence em ${vence}`;
+}
+
+export const TEXTO_RECEBIMENTO_ONLINE =
+  'O aluno paga por Pix ou cartão por um link da InfinitePay e o dinheiro cai direto na sua conta InfinitePay. O app não recebe nem guarda dinheiro.';
+export const TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO = 'Configure o recebimento online para copiar o link de pagamento.';
+export const TEXTO_CHAVE_DO_RECEBIMENTO =
+  'Sem a chave o link pode ser pago mais de uma vez e não vence; com a chave o link vale para um pagamento e 30 dias.';
+export const TEXTO_NADA_E_BAIXADO =
+  'Nada é baixado nem desfeito sozinho: se o pagamento for válido, registre-o na cobrança; se houve estorno, ajuste a cobrança à mão.';
+
+const MOTIVOS_DA_CONFERENCIA: Record<MotivoDaConferencia, string> = {
+  COBRANCA_CANCELADA: 'Cobrança já cancelada',
+  COBRANCA_JA_PAGA: 'Já estava paga (pagamento em dobro?)',
+  VALOR_DIFERENTE: 'Valor diferente do combinado',
+  LINK_DIFERENTE: 'Link diferente do da cobrança',
+  FORMA_DESCONHECIDA: 'Forma de pagamento desconhecida',
+  COBRANCA_NAO_ENCONTRADA: 'Cobrança não encontrada',
+  CONSULTA_FALHOU: 'Não foi possível confirmar com a InfinitePay',
+  ESTORNO_INFORMADO: 'A InfinitePay informou estorno deste pagamento. Confira na sua conta e, se for o caso, ajuste a cobrança à mão.',
+};
+
+export function rotuloDoMotivoDaConferencia(m: MotivoDaConferencia | null | undefined): string {
+  return (m && MOTIVOS_DA_CONFERENCIA[m]) || 'Conferir manualmente';
+}
+
+/** Limites da InfiniteTag e da API Key (a API confere de novo). */
+export const TAG_MINIMO = 3;
+export const TAG_MAXIMO = 40;
+export const CHAVE_MINIMO = 10;
+export const CHAVE_MAXIMO = 200;
+
+/** Sem espaços nas pontas nem o cifrão do começo, em minúscula: como a API guarda e como a tela mostra. */
+export function normalizarInfiniteTag(texto: string | null | undefined): string {
+  let tag = (texto ?? '').trim();
+  if (tag.startsWith('$')) tag = tag.slice(1).trim();
+  return tag.toLowerCase();
+}
+
+export interface ErrosDoRecebimentoOnline {
+  infiniteTag: string | null;
+  apiKey: string | null;
+}
+
+/**
+ * InfiniteTag de 3 a 40 caracteres entre letras minúsculas, números, ponto, hífen e sublinhado (depois de tirar o `$` e
+ * os espaços das pontas). A chave é opcional: em branco vale "não mudar"; preenchida, de 10 a 200 caracteres sem espaço.
+ * As mensagens nunca repetem o que foi digitado.
+ */
+export function validarRecebimentoOnline(dados: { infiniteTag: string; apiKey?: string | null }): ErrosDoRecebimentoOnline {
+  const tag = normalizarInfiniteTag(dados.infiniteTag);
+  let erroDaTag: string | null = null;
+  if (!tag) erroDaTag = 'Informe a sua InfiniteTag.';
+  else if (!/^[a-z0-9_.-]+$/.test(tag) || tag.length < TAG_MINIMO || tag.length > TAG_MAXIMO) {
+    erroDaTag = `Use a InfiniteTag sem o cifrão: de ${TAG_MINIMO} a ${TAG_MAXIMO} letras, números, ponto, hífen ou sublinhado.`;
+  }
+  const chave = (dados.apiKey ?? '').trim();
+  let erroDaChave: string | null = null;
+  if (chave && (/[\s\x00-\x1f\x7f]/.test(chave) || chave.length < CHAVE_MINIMO || chave.length > CHAVE_MAXIMO)) {
+    erroDaChave = `A chave precisa ter de ${CHAVE_MINIMO} a ${CHAVE_MAXIMO} caracteres, sem espaços.`;
+  }
+  return { infiniteTag: erroDaTag, apiKey: erroDaChave };
+}
+
+// ---- Juros do parcelamento ----
+
+export const TITULO_JUROS_DO_PARCELAMENTO = 'Quem paga os juros do parcelamento';
+export const TEXTO_JUROS_DO_PARCELAMENTO =
+  'Aluno: ele paga os juros quando parcela no cartão. Você: você absorve os juros do parcelamento.';
+export const MOTIVO_JUROS_SEM_CHAVE = 'Precisa da chave de API para valer.';
+
+export const OPCOES_DE_JUROS: readonly { valor: JurosDoParcelamento; rotulo: string }[] = [
+  { valor: 'ALUNO', rotulo: 'Aluno' },
+  { valor: 'TREINADOR', rotulo: 'Você' },
+];
+
+/** Para quem só lê (sem permissão de alterar): a frase fala do treinador, não de "você". */
+export function rotuloDosJurosParaLeitura(juros: JurosDoParcelamento | null | undefined): string {
+  if (juros === 'TREINADOR') return 'O treinador absorve os juros';
+  return juros === 'ALUNO' ? 'O aluno paga os juros' : SEM_DADO;
+}
+
+/**
+ * Há chave de API valendo? A já configurada, ou uma digitada agora que passa na validação (assim dá para criar tag,
+ * chave e "Você" no mesmo salvar). Sem chave a opção "Você" fica desabilitada e a escolha volta para Aluno.
+ */
+export function temChaveParaJuros(apiKeyConfigurada: boolean, chaveDigitada: string | null | undefined): boolean {
+  if (apiKeyConfigurada) return true;
+  const chave = (chaveDigitada ?? '').trim();
+  return chave !== '' && validarRecebimentoOnline({ infiniteTag: 'valida', apiKey: chave }).apiKey === null;
+}
+
+/** A escolha que vale: "Você" só com chave; sem ela, Aluno. */
+export function jurosQueValem(escolha: JurosDoParcelamento | null | undefined, temChave: boolean): JurosDoParcelamento {
+  return escolha === 'TREINADOR' && temChave ? 'TREINADOR' : 'ALUNO';
+}
+
+/** A API confere de novo (422 `RECEBIMENTO_ONLINE_INVALIDO` no campo `jurosDoParcelamento`). */
+export function validarJurosDoParcelamento(juros: JurosDoParcelamento, temChave: boolean): string | null {
+  return juros === 'TREINADOR' && !temChave ? MOTIVO_JUROS_SEM_CHAVE : null;
+}
+
+// ---- Retorno do navegador depois do pagamento ----
+
+/** Texto simples (UUID, NSU, slug, forma de captura): letras, números, hífen, sublinhado e ponto, de 1 a 100 caracteres. */
+const TEXTO_SIMPLES = /^[A-Za-z0-9._-]{1,100}$/;
+
+function umTexto(valor: string | string[] | undefined): string | null {
+  const texto = Array.isArray(valor) ? (valor.length === 1 ? valor[0] : undefined) : valor;
+  return typeof texto === 'string' && TEXTO_SIMPLES.test(texto) ? texto : null;
+}
+
+/**
+ * A InfinitePay volta ao app em `/aluno/conta` com `order_nsu`, `transaction_nsu`, `slug`, `capture_method` (e
+ * `receipt_url`, que não usamos) na query. `presente`: algum desses parâmetros veio (a tela limpa o endereço); `retorno`:
+ * os dois NSU são válidos (só então a API é chamada). `slug` e `capture_method` inválidos são descartados; o resto da
+ * query, ignorado.
+ */
+export function lerRetornoDoPagamento(
+  params: Record<string, string | string[] | undefined>,
+): { presente: boolean; retorno: RetornoDoPagamento | null } {
+  const presente = ['order_nsu', 'transaction_nsu', 'slug', 'capture_method', 'receipt_url'].some((c) => params[c] !== undefined);
+  const orderNsu = umTexto(params.order_nsu);
+  const transactionNsu = umTexto(params.transaction_nsu);
+  if (!orderNsu || !transactionNsu) return { presente, retorno: null };
+  const retorno: RetornoDoPagamento = { orderNsu, transactionNsu };
+  const slug = umTexto(params.slug);
+  if (slug) retorno.slug = slug;
+  const captureMethod = umTexto(params.capture_method);
+  if (captureMethod) retorno.captureMethod = captureMethod;
+  return { presente, retorno };
+}
+
+export const AVISO_RETORNO_DO_PAGAMENTO = 'Recebemos o retorno do pagamento. A confirmação pode levar alguns instantes.';
+export const AVISO_RETORNO_SEM_CONFIRMAR = 'Não foi possível conferir o retorno agora. Se você pagou, a confirmação pode levar alguns instantes.';
 
 /**
  * Aviso do painel de Pausar e de Encerrar: as cobranças abertas (as vencidas incluídas) continuam valendo. `null` quando

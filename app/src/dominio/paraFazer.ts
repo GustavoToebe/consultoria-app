@@ -1,7 +1,7 @@
 import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { Atualizacao } from '../api/tipos';
 import type { TipoSelo } from '../ui/Selo';
-import { pagamentoPendente } from './financeiro';
+import { informacaoDaCobranca, pagamentoPendente, type ComoPagar } from './financeiro';
 import { centavosParaTela, dataCurta } from './formatos';
 
 export interface ItemParaFazer {
@@ -53,10 +53,15 @@ export function itemDaAtualizacao(a: Atualizacao): ItemParaFazer {
 
 /**
  * "Pagamento em aberto" em "Suas pendências": cobrança vencida (a API decide) ou que vence em até 3 dias. É um aviso, não
- * uma cobrança: não há botão de pagar (o treinador combina a forma de pagamento). Vencida em âmbar, a vencer em neutro;
- * vermelho continua só da atualização atrasada. Sem pendência, `null`.
+ * uma cobrança: não há botão de pagar aqui (o item leva à Conta, onde fica o "Pagar", se a plataforma o tem). Vencida em
+ * âmbar, a vencer em neutro; vermelho continua só da atualização atrasada. No celular sem o "Pagar" (`modo` `informar`) o
+ * detalhe só informa, no formato de `informacaoDaCobranca`, sem frase de chamada. Sem pendência, `null`.
  */
-export function itemDoPagamento(abertas: readonly CobrancaDoAluno[] | null | undefined, hoje: string): ItemParaFazer | null {
+export function itemDoPagamento(
+  abertas: readonly CobrancaDoAluno[] | null | undefined,
+  hoje: string,
+  modo: ComoPagar = 'botao',
+): ItemParaFazer | null {
   const pendentes = pagamentoPendente(abertas, hoje).sort((a, b) => a.vencimento.localeCompare(b.vencimento));
   if (pendentes.length === 0) return null;
   const primeira = pendentes[0];
@@ -65,6 +70,13 @@ export function itemDoPagamento(abertas: readonly CobrancaDoAluno[] | null | und
   const valor = centavosParaTela(primeira.valorCentavos);
   const quando = dataCurta(primeira.vencimento);
   const mais = pendentes.length > 1 ? ` (e mais ${pendentes.length - 1})` : '';
+  const informacao = modo === 'informar' ? informacaoDaCobranca(primeira) : null;
+  if (informacao) {
+    return {
+      titulo, detalhe: `${informacao}${mais}`,
+      selo: primeira.vencida ? { texto: 'Vencida', tipo: 'atencao' } : { texto: `Vence ${quando}`, tipo: 'neutro' }, responder: false,
+    };
+  }
   if (vencidas > 0) {
     return { titulo, detalhe: `${valor}${mais}, venceu em ${quando}. Fale com o seu treinador.`, selo: { texto: 'Vencida', tipo: 'atencao' }, responder: false };
   }

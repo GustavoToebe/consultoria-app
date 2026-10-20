@@ -67,6 +67,24 @@ describe('pagamento nas pendências', () => {
     expect(item?.detalhe).toContain('e mais 1');
     expect(item?.detalhe).toContain('10/09');
   });
+  it('celular sem o "Pagar" (informar): só informa, no formato exato, sem frase de chamada', () => {
+    const noPrazo = itemDoPagamento([cobranca({ vencimento: '2026-10-23' })], hoje, 'informar');
+    expect(semEspaco(noPrazo?.detalhe ?? '')).toBe('Mensalidade de R$ 150,00, vence em 23/10');
+    expect(noPrazo?.selo).toEqual({ texto: 'Vence 23/10', tipo: 'neutro' });
+    const vencida = itemDoPagamento([cobranca({ vencida: true, vencimento: '2026-10-05' })], hoje, 'informar');
+    expect(vencida?.detalhe).toBe('Em aberto desde 05/10');
+    expect(vencida?.selo).toEqual({ texto: 'Vencida', tipo: 'atencao' });
+    expect(JSON.stringify([noPrazo, vencida])).not.toMatch(/treinador|pagar|pague|link|site/i);
+  });
+  it('informar com várias: a mais antiga primeiro, com a contagem das outras', () => {
+    const item = itemDoPagamento([cobranca({ id: 'b', vencimento: '2026-10-22' }), cobranca({ id: 'a', vencida: true, vencimento: '2026-09-10' })], hoje, 'informar');
+    expect(item?.detalhe).toBe('Em aberto desde 10/09 (e mais 1)');
+  });
+  it('os outros modos seguem como antes', () => {
+    const doBotao = itemDoPagamento([cobranca({ vencimento: '2026-10-23' })], hoje, 'botao');
+    expect(semEspaco(doBotao?.detalhe ?? '')).toBe('R$ 150,00, vence em 23/10.');
+    expect(itemDoPagamento([cobranca({ vencimento: '2026-10-23' })], hoje, 'combinar')).toEqual(doBotao);
+  });
   it('não tem botão de pagar nem texto de cobrança por link', () => {
     const item = itemDoPagamento([cobranca({ vencimento: '2026-10-21' })], hoje);
     expect(JSON.stringify(item).toLowerCase()).not.toContain('pagar');

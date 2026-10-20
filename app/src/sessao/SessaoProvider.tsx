@@ -41,6 +41,11 @@ interface Perfil {
   funcionalidadesDoPlano?: string[];
   /** Pagamentos do aluno ao treinador ligados para a consultoria; ausente (perfil antigo ou offline) = desligado. */
   pagamentosHabilitados?: boolean;
+  /** Recebimento online (InfinitePay) ligado além dos pagamentos; ausente (perfil antigo ou offline) = desligado. */
+  recebimentoOnlineHabilitado?: boolean;
+  /** Chaves da plataforma do "Pagar" no celular; ausente (perfil antigo ou offline) = desligada. */
+  pagarNoIos?: boolean;
+  pagarNoAndroid?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   /** Termo de uso e aviso de privacidade ainda sem aceite na versão vigente (guardado para abrir offline). */
@@ -59,6 +64,11 @@ interface ValorSessao {
   funcionalidadesDoPlano: readonly string[] | undefined;
   /** Módulo de pagamentos ligado? Desligado ou desconhecido, o app esconde o financeiro e não o consulta. */
   pagamentosHabilitados: boolean;
+  /** Pagamentos E InfinitePay ligados? Desligado ou desconhecido, o app esconde o recebimento online e não o consulta. */
+  recebimentoOnlineHabilitado: boolean;
+  /** Chave da plataforma ligada para o iOS? Sem ela o celular não tem "Pagar" (a web sempre tem). */
+  pagarNoIos: boolean;
+  pagarNoAndroid: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -125,7 +135,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const abrir = useCallback(async (resposta: LoginResponse) => {
     await guardarSessao(resposta);
     const eu = await rotas.eu();
-    const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,termosPendentes:eu.termosPendentes};
+    const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,recebimentoOnlineHabilitado:eu.recebimentoOnlineHabilitado,pagarNoIos:eu.pagarNoIos,pagarNoAndroid:eu.pagarNoAndroid,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;
     definirUsuarioDaSessao(eu.usuario.id);
     setPerfil(novo);
@@ -257,7 +267,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     const atual=perfilAtual.current;if(!atual || atual.usuario.papel!=='TREINADOR') return;
     const eu=await rotas.eu();
     if(perfilAtual.current?.usuario.id!==eu.usuario.id) return;
-    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,termosPendentes:eu.termosPendentes};
+    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,recebimentoOnlineHabilitado:eu.recebimentoOnlineHabilitado,pagarNoIos:eu.pagarNoIos,pagarNoAndroid:eu.pagarNoAndroid,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;setPerfil(novo);
     await AsyncStorage.setItem(CHAVE_PERFIL,JSON.stringify(novo)).catch(()=>undefined);
   },[]);
@@ -291,6 +301,9 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       temFuncionalidade:(codigo)=>conferirFuncionalidade(perfil?.funcionalidadesDoPlano,codigo),
       funcionalidadesDoPlano:perfil?.funcionalidadesDoPlano,
       pagamentosHabilitados:perfil?.pagamentosHabilitados===true,
+      recebimentoOnlineHabilitado:perfil?.pagamentosHabilitados===true&&perfil?.recebimentoOnlineHabilitado===true,
+      pagarNoIos:perfil?.pagarNoIos===true,
+      pagarNoAndroid:perfil?.pagarNoAndroid===true,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,

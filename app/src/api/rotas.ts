@@ -4,10 +4,12 @@ import type {
   BaixaManualRequest,
   ContratacaoResponse,
   ContratarRequest,
+  ConferenciasDePagamento,
   FinanceiroDoAluno,
   FiltroDeSituacao,
   LancamentoRequest,
   LancamentoResponse,
+  LinkDePagamento,
   MotivoRequest,
   Painel,
   PaginaCobrancas,
@@ -16,6 +18,8 @@ import type {
   CobrancaResponse,
   PlanoRequest,
   PlanoResponse,
+  RecebimentoOnline,
+  RecebimentoOnlineRequest,
 } from './financeiroTipos';
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
@@ -717,3 +721,31 @@ export const excluirLancamento = (id: string, versao: number) =>
 
 /** O que o aluno vê do próprio plano e das cobranças. `plano` nulo = nada contratado. */
 export const financeiroDoAluno = () => requisicao<FinanceiroDoAluno>('/aluno/financeiro');
+
+// ---- Recebimento online (InfinitePay): só com `recebimentoOnlineHabilitado`; desligado no servidor, as rotas dão 503 ----
+
+/** A API Key nunca volta: só `apiKeyConfigurada`. `versao` nula = nada configurado. */
+export const buscarRecebimentoOnline = () => requisicao<RecebimentoOnline>('/financeiro/recebimento-online');
+export const salvarRecebimentoOnline = (corpo: RecebimentoOnlineRequest) =>
+  requisicao<RecebimentoOnline>('/financeiro/recebimento-online', { metodo: 'PUT', corpo });
+/** A versão vai na query, não no corpo. */
+export const removerRecebimentoOnline = (versao?: number | null) =>
+  requisicao<void>(`/financeiro/recebimento-online${consultaFinanceiro({ versao })}`, { metodo: 'DELETE' });
+
+/** Link de pagamento de uma cobrança em aberto, para o treinador copiar e mandar ao aluno. */
+export const linkDaCobranca = (id: string) =>
+  requisicao<LinkDePagamento>(`/cobrancas/${seg(id)}/link`, { metodo: 'POST' });
+/** Link de pagamento de uma cobrança do próprio aluno (o "Pagar"; no celular só com a chave da plataforma ligada). */
+export const linkDePagamentoDoAluno = (id: string) =>
+  requisicao<LinkDePagamento>(`/aluno/financeiro/cobrancas/${seg(id)}/link`, { metodo: 'POST' });
+/**
+ * A volta do navegador depois do pagamento (a InfinitePay manda o aluno a `/aluno/conta` com os NSU na query): avisa a API,
+ * que consulta a InfinitePay e dá a baixa se for o caso. 204; cobrança de outro aluno = 404. Nada fica no aparelho.
+ */
+export const retornoDoPagamento = (corpo: import('./financeiroTipos').RetornoDoPagamento) =>
+  requisicao<void>('/aluno/financeiro/retorno-pagamento', { metodo: 'POST', corpo });
+
+/** Pagamentos que o provedor avisou e não deram baixa sozinhos. */
+export const listarConferencias = () => requisicao<ConferenciasDePagamento>('/financeiro/conferencias');
+export const marcarConferido = (id: string) =>
+  requisicao<void>(`/financeiro/conferencias/${seg(id)}/conferido`, { metodo: 'POST' });

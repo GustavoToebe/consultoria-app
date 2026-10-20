@@ -1,14 +1,18 @@
+import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import type { CobrancaResponse, FormaDePagamento } from '../../api/financeiroTipos';
-import { cancelarCobranca, desfazerBaixaDaCobranca, registrarPagamentoManual } from '../../api/rotas';
+import type { CobrancaResponse, FormaDePagamento, RecebimentoOnline } from '../../api/financeiroTipos';
+import { buscarRecebimentoOnline, cancelarCobranca, desfazerBaixaDaCobranca, linkDaCobranca, registrarPagamentoManual } from '../../api/rotas';
 import {
-  atrasoParaTela, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeDesfazerBaixa, podeRegistrarPagamento,
-  rotuloDaForma, seloDaCobranca, validarBaixa,
+  atrasoParaTela, ehPagamentoOnline, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeCopiarLink, podeDesfazerBaixa,
+  podeRegistrarPagamento, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { linkParaAbrir } from '../../dominio/links';
 import { rotuloDoMes } from '../../dominio/numeros';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -17,11 +21,13 @@ import { CampoLeitura } from '../../ui/CampoLeitura';
 import { CampoData } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { MensagemErro } from '../../ui/Estados';
-import { textoDoErro } from '../../ui/erros';
+import { codigoApi, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Selo } from '../../ui/Selo';
+import { Texto } from '../../ui/Texto';
+import { useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, ehConflito } from './comum';
 
 type Modo = 'detalhe' | 'baixa';
@@ -30,7 +36,8 @@ type Pergunta = 'desfazer' | 'cancelar' | null;
 /**
  * Uma cobrança: os dados, o selo, e (com `FINANCEIRO_ALTERAR`) Registrar pagamento, Desfazer a baixa e Cancelar. Registrar
  * e cancelar só em cobrança em aberto; desfazer só em baixa manual. A API confere de novo. O app nunca envia valor de
- * cobrança: só data, forma, observação e a versão que viu. Sem botão "Pagar" (o aluno não paga por aqui).
+ * cobrança: só data, forma, observação e a versão que viu. O treinador não paga nem recebe por aqui: "Copiar link de
+ * pagamento" pede o link da InfinitePay (cobrança em aberto, recebimento online configurado) para ele mandar ao aluno.
  */
 export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
   cobranca: CobrancaResponse | null;
@@ -41,16 +48,25 @@ export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, aoFechar,
   /** Depois de qualquer mudança (ou conflito): quem chamou recarrega as listas. */
   aoMudar: () => void;
 }) {
+  const { recebimentoOnlineHabilitado } = useSessao();
+  // O estado do recebimento online só é buscado quando o link pode ser copiado (em aberto, com permissão e a InfinitePay
+  // ligada); fica aqui, fora do `Conteudo`, para não buscar de novo a cada versão da cobrança.
+  const querLink = !!cobranca && cobranca.situacao === 'ABERTA' && podeAlterar && recebimentoOnlineHabilitado;
+  const recebimento = useCarregar(querLink ? 'recebimento-online|folha' : null, () => buscarRecebimentoOnline());
   if (!cobranca) return null;
   // A chave reinicia o formulário a cada cobrança aberta.
   return <Conteudo key={`${cobranca.id}:${cobranca.versao}:${abrirEmBaixa ? 'b' : 'd'}`} cobranca={cobranca} podeAlterar={podeAlterar}
-    abrirEmBaixa={!!abrirEmBaixa} aoFechar={aoFechar} aoMudar={aoMudar} />;
+    abrirEmBaixa={!!abrirEmBaixa} querLink={querLink} recebimento={recebimento.dados} aoFechar={aoFechar} aoMudar={aoMudar} />;
 }
 
-function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
+function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, aoFechar, aoMudar }: {
   cobranca: CobrancaResponse;
   podeAlterar: boolean;
   abrirEmBaixa: boolean;
+  /** Mostra o "Copiar link de pagamento" (ou o aviso de que falta configurar). */
+  querLink: boolean;
+  /** Estado do recebimento online; `undefined` enquanto carrega ou se a busca falhou (então nada é oferecido). */
+  recebimento: RecebimentoOnline | undefined;
   aoFechar: () => void;
   aoMudar: () => void;
 }) {
@@ -64,6 +80,9 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const [tentou, setTentou] = useState(false);
+  const [copiando, setCopiando] = useState(false);
+  /** Só quando o navegador recusa a cópia: o link fica na tela para a pessoa copiar à mão. */
+  const [linkParaCopiarAMao, setLinkParaCopiarAMao] = useState<string | null>(null);
 
   const selo = seloDaCobranca(cobranca);
   const hoje = hojeEmBrasilia();
@@ -111,6 +130,38 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
     else concluir(() => cancelarCobranca(cobranca.id, { motivo: texto, versao: cobranca.versao }), 'Cobrança cancelada.');
   };
 
+  const copiarLink = () => {
+    setCopiando(true);
+    setErro(null);
+    setLinkParaCopiarAMao(null);
+    linkDaCobranca(cobranca.id).then(
+      ({ url }) => {
+        const seguro = linkParaAbrir(url);
+        if (!seguro) {
+          setCopiando(false);
+          setErro(new Error('O link de pagamento veio inválido. Tente de novo.'));
+          return;
+        }
+        // O navegador pode recusar a escrita depois de uma espera (Safari): então o link fica na tela para copiar à mão.
+        Clipboard.setStringAsync(seguro).then(
+          () => { setCopiando(false); avisar('Link copiado.', 'sucesso'); },
+          () => { setCopiando(false); setLinkParaCopiarAMao(seguro); avisar('Não foi possível copiar sozinho. Selecione o link e copie à mão.', 'neutro'); },
+        );
+      },
+      (e: unknown) => {
+        setCopiando(false);
+        setErro(e);
+        // A cobrança deixou de estar aberta em outro lugar: a lista confere de novo.
+        if (codigoApi(e) === 'COBRANCA_NAO_ABERTA') aoMudar();
+      },
+    );
+  };
+
+  const irParaORecebimento = () => {
+    aoFechar();
+    router.push({ pathname: '/treinador/financeiro', params: { aba: 'recebimento' } });
+  };
+
   const perguntar = (p: Pergunta) => { setMotivo(''); setErro(null); setPergunta(p); };
 
   const titulo = modo === 'baixa' ? 'Registrar pagamento' : 'Cobrança';
@@ -122,6 +173,9 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
   ) : podeAlterar ? (
     <LinhaDeAcoes alinhar="fim">
       {podeRegistrarPagamento(cobranca) ? <Botao rotulo="Registrar pagamento" aoTocar={() => setModo('baixa')} /> : null}
+      {querLink && recebimento && podeCopiarLink(cobranca, recebimento.configurado) ? (
+        <Botao rotulo="Copiar link de pagamento" tipo="secundario" carregando={copiando} aoTocar={copiarLink} />
+      ) : null}
       {podeDesfazerBaixa(cobranca) ? <Botao rotulo="Desfazer baixa" tipo="secundario" aoTocar={() => perguntar('desfazer')} /> : null}
       {podeCancelarCobranca(cobranca) ? <Botao rotulo="Cancelar cobrança" tipo="perigoTexto" aoTocar={() => perguntar('cancelar')} /> : null}
     </LinhaDeAcoes>
@@ -134,7 +188,10 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
       <View style={{ gap: espaco(1.5) }}>
         <LinhaDeAcoes alinhar="entre">
           <CampoLeitura rotulo="Aluno" valor={cobranca.alunoNome} />
-          <Selo texto={selo.rotulo} tipo={selo.tom} />
+          <View style={{ gap: espaco(0.5), alignItems: 'flex-end' }}>
+            <Selo texto={selo.rotulo} tipo={selo.tom} />
+            {cobranca.situacao === 'PAGA' && ehPagamentoOnline(cobranca) ? <Selo texto={ROTULO_ONLINE} tipo="neutro" /> : null}
+          </View>
         </LinhaDeAcoes>
         <CampoLeitura rotulo="Valor" valor={centavosParaTela(cobranca.valorCentavos)} numerico />
         {modo === 'detalhe' ? (
@@ -152,6 +209,13 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
             ) : null}
             <CampoLeitura rotulo="Observação" valor={cobranca.observacao} />
             {cobranca.motivo ? <CampoLeitura rotulo="Motivo" valor={cobranca.motivo} /> : null}
+            {querLink && recebimento && !recebimento.configurado ? (
+              <View style={{ gap: espaco(0.5) }}>
+                <Texto variante="suave">{TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO}</Texto>
+                <LinhaDeAcoes><Botao rotulo="Abrir Recebimento online" tipo="fantasma" aoTocar={irParaORecebimento} /></LinhaDeAcoes>
+              </View>
+            ) : null}
+            {linkParaCopiarAMao ? <Texto selectable>{linkParaCopiarAMao}</Texto> : null}
           </>
         ) : (
           <>

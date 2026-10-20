@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
 import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
 import { CartaoMeuPlano } from '../../aluno/financeiro/CartaoMeuPlano';
+import { useRetornoDoPagamento } from '../../aluno/financeiro/useRetornoDoPagamento';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { dataParaTela } from '../../dominio/formatos';
 import { avisoAoSairComPendencias, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
@@ -26,10 +27,12 @@ import { TrocarSenha } from '../../ui/TrocarSenha';
  * Conta do aluno, do mais usado ao menos usado (revisão de 19/10: senha, sair e excluir ficavam depois de oito cartões
  * de preferências, a ~3.400 px): conta e foto, sincronização, segurança (senha), "Aparência e preferências" numa
  * folha, Ajuda e Termos como itens, Sair e, por último, excluir a conta. "Sincronizar agora" é secundário; o primário
- * só aparece quando há falha ("Tentar de novo").
+ * só aparece quando há falha ("Tentar de novo"). Na web, esta tela também recebe a volta do pagamento da InfinitePay
+ * (`useRetornoDoPagamento`).
  */
 export default function ContaAluno() {
   const sessao = useSessao();
+  useRetornoDoPagamento();
   const { pendentes, falhas, falhasDeMobilidade, mobilidadeNoAparelho, registros, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
   const [preferencias, abrirPreferencias] = useState(false);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);

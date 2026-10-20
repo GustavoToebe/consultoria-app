@@ -1,4 +1,8 @@
-import { aplicarAlteracaoDaAnamnese, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos } from './rotas';
+import { requisicao } from './cliente';
+import {
+  aplicarAlteracaoDaAnamnese, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
+  retornoDoPagamento,
+} from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
 
@@ -21,6 +25,12 @@ describe('caminhos da API', () => {
   it('alteração do cadastro proposta pela anamnese: os dois ids codificados', async () => {
     await expect(aplicarAlteracaoDaAnamnese('a/b', '../c')).resolves.toBe('/anamneses/a%2Fb/alteracoes/..%2Fc/aplicar');
     await expect(descartarAlteracaoDaAnamnese('a', 'b')).resolves.toBe('/anamneses/a/alteracoes/b/descartar');
+  });
+
+  it('volta do pagamento: POST com o corpo em JSON (camelCase), sem nada no caminho', async () => {
+    const corpo = { orderNsu: 'c0000000-0000-4000-8000-0000000000b1', transactionNsu: 'tx1', slug: 'abc', captureMethod: 'pix' };
+    await retornoDoPagamento(corpo);
+    expect(requisicao).toHaveBeenLastCalledWith('/aluno/financeiro/retorno-pagamento', { metodo: 'POST', corpo });
   });
 
   it('uuid comum passa igual', async () => {

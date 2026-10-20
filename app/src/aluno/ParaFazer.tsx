@@ -20,7 +20,7 @@ import { SecaoDoInicio } from './SecaoDoInicio';
 
 /**
  * "Suas pendências" no início do aluno, abaixo do Hoje: anamnese inicial, atualização do período e pagamento em aberto
- * (só com o módulo de pagamentos ligado; o item leva à Conta, sem botão de pagar), cada uma um item
+ * (só com o módulo de pagamentos ligado; o item leva à Conta, onde fica o "Pagar", se a plataforma o tem), cada uma um item
  * inteiro tocável (`ItemDeLista`: ícone, uma linha de contexto, selo curto e seta). Só a atualização atrasada é vermelha;
  * o resto é neutro, para a lista não gritar. A contagem fica à direita do título. Sem nada pendente, o bloco some.
  */
@@ -31,7 +31,7 @@ export function ParaFazer() {
   const comAtualizacao = !!atualizacao && mostrarCartaoAtualizacao(atualizacao);
   const financeiro = useFinanceiroDoAluno();
   useRecarregarFinanceiroAoFocar();
-  const pagamento = financeiro.habilitado ? itemDoPagamento(financeiro.dados?.abertas, hojeEmBrasilia()) : null;
+  const pagamento = financeiro.habilitado ? itemDoPagamento(financeiro.dados?.abertas, hojeEmBrasilia(), financeiro.modoDePagamento) : null;
   if (!comAnamnese && !comAtualizacao && !pagamento) return null;
   const item = comAtualizacao ? itemDaAtualizacao(atualizacao) : null;
   const total = (comAnamnese ? 1 : 0) + (item ? 1 : 0) + (pagamento ? 1 : 0);

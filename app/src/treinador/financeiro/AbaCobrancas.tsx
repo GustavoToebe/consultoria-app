@@ -4,9 +4,10 @@ import { StyleSheet, View } from 'react-native';
 
 import type { CobrancaResponse, FiltroDeSituacao } from '../../api/financeiroTipos';
 import { listarCobrancas } from '../../api/rotas';
-import { atrasoParaTela, FILTROS_DE_SITUACAO, rotuloDaForma, seloDaCobranca } from '../../dominio/financeiro';
+import { atrasoParaTela, ehPagamentoOnline, FILTROS_DE_SITUACAO, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMes } from '../../dominio/numeros';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { EscolhaResponsabilidade, type Responsabilidade } from '../EscolhaResponsabilidade';
 import { Botao } from '../../ui/Botao';
@@ -18,6 +19,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
+import { CartaoDeConferencias } from './CartaoDeConferencias';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
 import { ListaOuTabela } from './ListaOuTabela';
 
@@ -26,12 +28,15 @@ const TAMANHO_PAGINA = 50;
 /**
  * Cobranças dos alunos, por vencimento. "Vencidas" é só um filtro (a API decide pela data de Brasília); "Em aberto"
  * inclui as vencidas. Tocar na linha abre a cobrança, com Registrar pagamento, Desfazer e Cancelar para quem pode alterar.
+ * No topo, com o recebimento online ligado, "Pagamentos para conferir" (só aparece quando há algum). Cobrança paga pelo
+ * provedor leva o selo "Online".
  */
 export function AbaCobrancas({ escopo, aoMudarEscopo, podeAlterar }: {
   escopo: Responsabilidade;
   aoMudarEscopo: (v: Responsabilidade) => void;
   podeAlterar: boolean;
 }) {
+  const { pode, recebimentoOnlineHabilitado } = useSessao();
   const [filtro, setFiltro] = useState<FiltroDeSituacao>('TODAS');
   const [pagina, setPagina] = useState(0);
   const [aberta, setAberta] = useState<CobrancaResponse | null>(null);
@@ -45,6 +50,7 @@ export function AbaCobrancas({ escopo, aoMudarEscopo, podeAlterar }: {
 
   return (
     <View style={estilos.coluna}>
+      {recebimentoOnlineHabilitado && pode('ALUNO_LER') ? <CartaoDeConferencias podeAlterar={podeAlterar} /> : null}
       <View style={estilos.filtros}>
         <EscolhaResponsabilidade valor={escopo} aoMudar={(v) => mudar(() => aoMudarEscopo(v))} />
         <View style={estilos.caber}>
@@ -67,7 +73,7 @@ export function AbaCobrancas({ escopo, aoMudarEscopo, podeAlterar }: {
                 const selo = seloDaCobranca(c);
                 return {
                   titulo: c.alunoNome ?? '—',
-                  detalhe: `${centavosParaTela(c.valorCentavos)} · vence ${dataParaTela(c.vencimento)}`,
+                  detalhe: `${centavosParaTela(c.valorCentavos)} · vence ${dataParaTela(c.vencimento)}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
                   selo: { texto: selo.rotulo, tipo: selo.tom },
                 };
               }}
@@ -101,6 +107,7 @@ export function SituacaoDaCobranca({ cobranca }: { cobranca: CobrancaResponse })
   return (
     <View style={estilos.selos}>
       <Selo texto={selo.rotulo} tipo={selo.tom} />
+      {cobranca.situacao === 'PAGA' && ehPagamentoOnline(cobranca) ? <Selo texto={ROTULO_ONLINE} tipo="neutro" /> : null}
       {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <Texto variante="pequeno">{atrasoParaTela(cobranca.diasDeAtraso)}</Texto> : null}
     </View>
   );

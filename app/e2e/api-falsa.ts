@@ -127,6 +127,9 @@ export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<
     marca: MARCA,
     termosPendentes: false,
     termosVersao: '2026-10',
+    // As chaves da plataforma do "Pagar" no celular vêm sempre no /eu (padrão desligadas); a web não depende delas.
+    pagarNoIos: false,
+    pagarNoAndroid: false,
     ...(usuario.papel === 'TREINADOR'
       ? { perfil: { id: 'p1', nome: 'Treinador', acessoTotal: false }, permissoes: PERMISSOES_TREINADOR }
       : { aluno: { id: 'a0000000-0000-4000-8000-000000000002', nome: usuario.nome } }),

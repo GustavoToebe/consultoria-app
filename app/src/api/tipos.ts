@@ -48,6 +48,11 @@ export interface EuResponse {
   funcionalidadesDoPlano?: string[];
   /** Módulo de pagamentos do aluno ao treinador ligado para a consultoria; falso ou ausente = o app esconde tudo dele. */
   pagamentosHabilitados?: boolean;
+  /** Módulo de pagamentos E a InfinitePay ligados na consultoria; falso ou ausente = o app esconde o recebimento online. */
+  recebimentoOnlineHabilitado?: boolean;
+  /** Chaves da plataforma: o "Pagar" aparece no iOS / no Android só com a respectiva ligada (a web sempre tem). Ausente = desligada. */
+  pagarNoIos?: boolean;
+  pagarNoAndroid?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string };

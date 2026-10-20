@@ -1,36 +1,65 @@
-import type { CobrancaDoAluno, MesDoPainel } from '../api/financeiroTipos';
+import type { CobrancaDoAluno, MesDoPainel, MotivoDaConferencia } from '../api/financeiroTipos';
 import {
   abertasDaContratacao,
   atrasoParaTela,
+  AVISO_LIQUIDO,
+  AVISO_RETORNO_DO_PAGAMENTO,
+  AVISO_RETORNO_SEM_CONFIRMAR,
   cartoesDoPainel,
+  COMO_CALCULAMOS,
+  comoPagar,
   descricaoDoGrafico,
+  ehPagamentoOnline,
+  FILTROS_DE_SITUACAO,
   FORMAS_MANUAIS,
   graficoTemDados,
   hojeEmBrasilia,
   inadimplenciaParaTela,
+  informacaoDaCobranca,
+  jurosQueValem,
+  lerRetornoDoPagamento,
   liquidoParaTela,
+  MOTIVO_JUROS_SEM_CHAVE,
   maiorValorDoGrafico,
   nomeDoCsv,
+  normalizarInfiniteTag,
   NOTA_CONSIDERA_GERADAS,
+  OPCOES_DE_JUROS,
   pagamentoPendente,
+  pagarPermitidoNaPlataforma,
   percentualParaTela,
+  plataformaDoApp,
   reaisCompactos,
   periodoDoMes,
   periodoDoPainel,
   podeCancelarCobranca,
+  podeCopiarLink,
   podeDesfazerBaixa,
   podeRegistrarPagamento,
   resultadoDoMesParaTela,
   rotuloDaForma,
   rotuloDaPeriodicidade,
+  rotuloDoMotivoDaConferencia,
+  rotuloDosJurosParaLeitura,
   seloDaCobranca,
   seloDaContratacao,
   serieDoGrafico,
+  temChaveParaJuros,
+  TEXTO_CHAVE_DO_RECEBIMENTO,
+  TEXTO_COMBINE_COM_O_TREINADOR,
+  TEXTO_JUROS_DO_PARCELAMENTO,
+  TEXTO_NADA_E_BAIXADO,
+  TITULO_JUROS_DO_PARCELAMENTO,
+  TEXTO_RECEBIMENTO_ONLINE,
+  TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO,
   textoDeAbertasQueContinuam,
+  textoDeComoPagar,
   validarBaixa,
   validarContratacao,
+  validarJurosDoParcelamento,
   validarLancamento,
   validarPlano,
+  validarRecebimentoOnline,
   valorEQuantidadeParaTela,
 } from './financeiro';
 
@@ -345,5 +374,280 @@ describe('pagamentoPendente', () => {
 describe('nomeDoCsv', () => {
   it('segue o nome que a API usa', () => {
     expect(nomeDoCsv('2026-01-01', '2026-06-30')).toBe('financeiro-2026-01-01-a-2026-06-30.csv');
+  });
+});
+
+describe('pagarPermitidoNaPlataforma', () => {
+  it('a web sempre tem o "Pagar", com ou sem chaves', () => {
+    expect(pagarPermitidoNaPlataforma('web', {})).toBe(true);
+    expect(pagarPermitidoNaPlataforma('web', { pagarNoIos: false, pagarNoAndroid: false })).toBe(true);
+  });
+  it('no celular vale só a chave da própria plataforma (a do outro sistema não conta)', () => {
+    expect(pagarPermitidoNaPlataforma('ios', { pagarNoIos: true, pagarNoAndroid: false })).toBe(true);
+    expect(pagarPermitidoNaPlataforma('ios', { pagarNoIos: false, pagarNoAndroid: true })).toBe(false);
+    expect(pagarPermitidoNaPlataforma('android', { pagarNoIos: false, pagarNoAndroid: true })).toBe(true);
+    expect(pagarPermitidoNaPlataforma('android', { pagarNoIos: true, pagarNoAndroid: false })).toBe(false);
+  });
+  it('chave ausente ou nula é desligada', () => {
+    expect(pagarPermitidoNaPlataforma('ios', {})).toBe(false);
+    expect(pagarPermitidoNaPlataforma('android', { pagarNoAndroid: null })).toBe(false);
+  });
+});
+
+describe('comoPagar', () => {
+  const ligadas = { pagarNoIos: true, pagarNoAndroid: true };
+  const desligadas = { pagarNoIos: false, pagarNoAndroid: false };
+  it('web: botão com pagamento online, combinar sem ele, qualquer que seja a chave', () => {
+    for (const chaves of [ligadas, desligadas, {}]) {
+      expect(comoPagar('web', true, chaves)).toBe('botao');
+      expect(comoPagar('web', false, chaves)).toBe('combinar');
+    }
+  });
+  it('celular com a chave da plataforma ligada: botão com pagamento online, combinar sem ele', () => {
+    expect(comoPagar('ios', true, { pagarNoIos: true })).toBe('botao');
+    expect(comoPagar('android', true, { pagarNoAndroid: true })).toBe('botao');
+    expect(comoPagar('ios', false, ligadas)).toBe('combinar');
+    expect(comoPagar('android', false, ligadas)).toBe('combinar');
+  });
+  it('celular sem a chave da plataforma: só informa, com ou sem pagamento online', () => {
+    for (const plataforma of ['ios', 'android'] as const) {
+      expect(comoPagar(plataforma, true, desligadas)).toBe('informar');
+      expect(comoPagar(plataforma, false, desligadas)).toBe('informar');
+      expect(comoPagar(plataforma, true, {})).toBe('informar');
+    }
+  });
+  it('a chave do outro sistema não libera o botão', () => {
+    expect(comoPagar('ios', true, { pagarNoIos: false, pagarNoAndroid: true })).toBe('informar');
+    expect(comoPagar('android', true, { pagarNoIos: true, pagarNoAndroid: false })).toBe('informar');
+  });
+  it('os textos de cada modo: só o "combinar" fala; botão e informar não chamam ninguém a pagar fora', () => {
+    expect(textoDeComoPagar('combinar')).toBe(TEXTO_COMBINE_COM_O_TREINADOR);
+    expect(textoDeComoPagar('botao')).toBeNull();
+    expect(textoDeComoPagar('informar')).toBeNull();
+    expect(TEXTO_COMBINE_COM_O_TREINADOR).not.toMatch(/pague|site|link/i);
+  });
+  it('só a web é web: o resto do Platform.OS conta como celular', () => {
+    expect(plataformaDoApp('web')).toBe('web');
+    expect(plataformaDoApp('ios')).toBe('ios');
+    expect(plataformaDoApp('android')).toBe('android');
+    expect(plataformaDoApp('windows')).toBe('android');
+    expect(plataformaDoApp('macos')).toBe('android');
+  });
+});
+
+describe('informacaoDaCobranca (celular sem o "Pagar")', () => {
+  const cobranca = (extra: Partial<CobrancaDoAluno>): CobrancaDoAluno => ({
+    id: 'c', competencia: '2026-11-05', vencimento: '2026-11-05', valorCentavos: 15_000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, ...extra,
+  });
+  const semEspaco = (t: string | null) => (t ?? '').replace(/ /g, ' ');
+  it('aberta no prazo: valor e vencimento', () => {
+    expect(semEspaco(informacaoDaCobranca(cobranca({})))).toBe('Mensalidade de R$ 150,00, vence em 05/11');
+  });
+  it('aberta vencida (a API decide): desde a data do vencimento', () => {
+    expect(informacaoDaCobranca(cobranca({ vencida: true, vencimento: '2026-10-05' }))).toBe('Em aberto desde 05/10');
+  });
+  it('paga: a data da baixa, aceitando a data com hora', () => {
+    expect(informacaoDaCobranca(cobranca({ situacao: 'PAGA', pagoEm: '2026-10-19' }))).toBe('Paga em 19/10');
+    expect(informacaoDaCobranca(cobranca({ situacao: 'PAGA', pagoEm: '2026-10-19T14:00:00Z' }))).toBe('Paga em 19/10');
+  });
+  it('paga sem data, cancelada, estornada e contestada ficam sem linha (só o selo)', () => {
+    expect(informacaoDaCobranca(cobranca({ situacao: 'PAGA', pagoEm: null }))).toBeNull();
+    for (const situacao of ['CANCELADA', 'ESTORNADA', 'CONTESTADA'] as const) expect(informacaoDaCobranca(cobranca({ situacao }))).toBeNull();
+  });
+  it('nunca chama a pagar nem cita link ou site', () => {
+    const linhas = [
+      informacaoDaCobranca(cobranca({})), informacaoDaCobranca(cobranca({ vencida: true })),
+      informacaoDaCobranca(cobranca({ situacao: 'PAGA', pagoEm: '2026-10-19' })),
+    ];
+    for (const l of linhas) expect(l).not.toMatch(/pagu|pagar|link|site/i);
+  });
+});
+
+describe('juros do parcelamento', () => {
+  it('os textos e as duas escolhas, Aluno primeiro (o padrão)', () => {
+    expect(TITULO_JUROS_DO_PARCELAMENTO).toBe('Quem paga os juros do parcelamento');
+    expect(TEXTO_JUROS_DO_PARCELAMENTO).toBe('Aluno: ele paga os juros quando parcela no cartão. Você: você absorve os juros do parcelamento.');
+    expect(TEXTO_JUROS_DO_PARCELAMENTO).not.toMatch(/\d/);
+    expect(OPCOES_DE_JUROS).toEqual([{ valor: 'ALUNO', rotulo: 'Aluno' }, { valor: 'TREINADOR', rotulo: 'Você' }]);
+    expect(MOTIVO_JUROS_SEM_CHAVE).toBe('Precisa da chave de API para valer.');
+  });
+  it('há chave valendo: a configurada, ou uma digitada que passa na validação', () => {
+    expect(temChaveParaJuros(true, '')).toBe(true);
+    expect(temChaveParaJuros(false, '')).toBe(false);
+    expect(temChaveParaJuros(false, null)).toBe(false);
+    expect(temChaveParaJuros(false, '   ')).toBe(false);
+    expect(temChaveParaJuros(false, 'curta')).toBe(false);
+    expect(temChaveParaJuros(false, 'tem espaco no meio 123')).toBe(false);
+    expect(temChaveParaJuros(false, ' chave-de-teste-0123456789 ')).toBe(true);
+  });
+  it('"Você" só vale com chave; sem ela a escolha volta para Aluno', () => {
+    expect(jurosQueValem('TREINADOR', true)).toBe('TREINADOR');
+    expect(jurosQueValem('TREINADOR', false)).toBe('ALUNO');
+    expect(jurosQueValem('ALUNO', true)).toBe('ALUNO');
+    expect(jurosQueValem(null, true)).toBe('ALUNO');
+    expect(jurosQueValem(undefined, false)).toBe('ALUNO');
+  });
+  it('validação: só "Você" sem chave é erro', () => {
+    expect(validarJurosDoParcelamento('TREINADOR', false)).toBe(MOTIVO_JUROS_SEM_CHAVE);
+    expect(validarJurosDoParcelamento('TREINADOR', true)).toBeNull();
+    expect(validarJurosDoParcelamento('ALUNO', false)).toBeNull();
+  });
+  it('rótulo de leitura fala do treinador, não de "você"', () => {
+    expect(rotuloDosJurosParaLeitura('ALUNO')).toBe('O aluno paga os juros');
+    expect(rotuloDosJurosParaLeitura('TREINADOR')).toBe('O treinador absorve os juros');
+    expect(rotuloDosJurosParaLeitura(null)).toBe('—');
+  });
+});
+
+describe('retorno do navegador depois do pagamento', () => {
+  const order = '0b9a6a4e-3f0b-4b6e-9a3a-0a5b2f3c1d11';
+  it('com os dois NSU válidos, devolve só os quatro campos conhecidos', () => {
+    expect(lerRetornoDoPagamento({
+      order_nsu: order, transaction_nsu: 'ABC123xyz', slug: 'abc-123', capture_method: 'credit_card', receipt_url: 'https://x.invalid/r', outro: 'lixo',
+    })).toEqual({
+      presente: true, retorno: { orderNsu: order, transactionNsu: 'ABC123xyz', slug: 'abc-123', captureMethod: 'credit_card' },
+    });
+  });
+  it('slug e capture_method são opcionais e, inválidos, são descartados', () => {
+    expect(lerRetornoDoPagamento({ order_nsu: order, transaction_nsu: 'tx1' }).retorno).toEqual({ orderNsu: order, transactionNsu: 'tx1' });
+    expect(lerRetornoDoPagamento({ order_nsu: order, transaction_nsu: 'tx1', slug: 'com espaço', capture_method: '<b>' }).retorno)
+      .toEqual({ orderNsu: order, transactionNsu: 'tx1' });
+  });
+  it('sem um dos NSU, ou com NSU fora do padrão, não chama a API mas o endereço ainda é limpo', () => {
+    expect(lerRetornoDoPagamento({ order_nsu: order })).toEqual({ presente: true, retorno: null });
+    expect(lerRetornoDoPagamento({ transaction_nsu: 'tx1' })).toEqual({ presente: true, retorno: null });
+    expect(lerRetornoDoPagamento({ order_nsu: '../../x', transaction_nsu: 'tx1' }).retorno).toBeNull();
+    expect(lerRetornoDoPagamento({ order_nsu: order, transaction_nsu: 'a b' }).retorno).toBeNull();
+    expect(lerRetornoDoPagamento({ order_nsu: order, transaction_nsu: 'x'.repeat(101) }).retorno).toBeNull();
+    expect(lerRetornoDoPagamento({ order_nsu: '', transaction_nsu: 'tx1' }).retorno).toBeNull();
+  });
+  it('parâmetro repetido (lista) só vale com um valor', () => {
+    expect(lerRetornoDoPagamento({ order_nsu: [order], transaction_nsu: ['tx1'] }).retorno).toEqual({ orderNsu: order, transactionNsu: 'tx1' });
+    expect(lerRetornoDoPagamento({ order_nsu: [order, 'outro'], transaction_nsu: 'tx1' }).retorno).toBeNull();
+  });
+  it('sem nenhum parâmetro do retorno, nada a fazer', () => {
+    expect(lerRetornoDoPagamento({})).toEqual({ presente: false, retorno: null });
+    expect(lerRetornoDoPagamento({ aba: 'x' })).toEqual({ presente: false, retorno: null });
+  });
+  it('os avisos são neutros: não afirmam que o pagamento foi confirmado', () => {
+    expect(AVISO_RETORNO_DO_PAGAMENTO).toBe('Recebemos o retorno do pagamento. A confirmação pode levar alguns instantes.');
+    expect(AVISO_RETORNO_SEM_CONFIRMAR).toMatch(/pode levar alguns instantes/);
+  });
+});
+
+describe('recebimento online: link e selo', () => {
+  it('copiar o link: só cobrança aberta e com o recebimento configurado', () => {
+    expect(podeCopiarLink({ situacao: 'ABERTA' }, true)).toBe(true);
+    expect(podeCopiarLink({ situacao: 'ABERTA' }, false)).toBe(false);
+    for (const situacao of ['PAGA', 'CANCELADA', 'ESTORNADA', 'CONTESTADA'] as const) {
+      expect(podeCopiarLink({ situacao }, true)).toBe(false);
+    }
+  });
+  it('"Online" é provedor preenchido e diferente de MANUAL', () => {
+    expect(ehPagamentoOnline({ provedor: 'INFINITEPAY' })).toBe(true);
+    expect(ehPagamentoOnline({ provedor: 'MANUAL' })).toBe(false);
+    expect(ehPagamentoOnline({ provedor: null })).toBe(false);
+    expect(ehPagamentoOnline({ provedor: '' })).toBe(false);
+  });
+  it('a baixa online continua sem desfazer pelo app', () => {
+    expect(podeDesfazerBaixa({ situacao: 'PAGA', provedor: 'INFINITEPAY' })).toBe(false);
+  });
+  it('os filtros de situação incluem Estornadas e Contestadas', () => {
+    const valores = FILTROS_DE_SITUACAO.map((f) => f.valor);
+    expect(valores).toContain('ESTORNADA');
+    expect(valores).toContain('CONTESTADA');
+    expect(FILTROS_DE_SITUACAO.find((f) => f.valor === 'ESTORNADA')?.rotulo).toBe('Estornadas');
+  });
+});
+
+describe('motivo da conferência', () => {
+  const todos: MotivoDaConferencia[] = [
+    'COBRANCA_CANCELADA', 'COBRANCA_JA_PAGA', 'VALOR_DIFERENTE', 'LINK_DIFERENTE', 'FORMA_DESCONHECIDA',
+    'COBRANCA_NAO_ENCONTRADA', 'CONSULTA_FALHOU', 'ESTORNO_INFORMADO',
+  ];
+  it('cada motivo tem um texto curto e diferente', () => {
+    const textos = todos.map((m) => rotuloDoMotivoDaConferencia(m));
+    expect(new Set(textos).size).toBe(todos.length);
+    expect(textos).toContain('Cobrança já cancelada');
+    expect(textos).toContain('Já estava paga (pagamento em dobro?)');
+    expect(textos).toContain('Valor diferente do combinado');
+    expect(textos).toContain('Link diferente do da cobrança');
+    expect(textos).toContain('Forma de pagamento desconhecida');
+    expect(textos).toContain('Cobrança não encontrada');
+    expect(textos).toContain('Não foi possível confirmar com a InfinitePay');
+    for (const t of textos.filter((x) => !x.startsWith('A InfinitePay informou'))) expect(t.length).toBeLessThanOrEqual(50);
+  });
+  it('estorno informado: diz que foi a InfinitePay quem informou e que o ajuste é à mão, sem sugerir que o sistema estornou', () => {
+    const texto = rotuloDoMotivoDaConferencia('ESTORNO_INFORMADO');
+    expect(texto).toBe('A InfinitePay informou estorno deste pagamento. Confira na sua conta e, se for o caso, ajuste a cobrança à mão.');
+    expect(texto).not.toMatch(/estornada|estornamos|desfeit/i);
+  });
+  it('o texto do cartão diz que nada é baixado nem desfeito sozinho', () => {
+    expect(TEXTO_NADA_E_BAIXADO).toMatch(/nem desfeito sozinho/);
+  });
+  it('motivo desconhecido ou ausente não quebra', () => {
+    expect(rotuloDoMotivoDaConferencia(null)).toBe('Conferir manualmente');
+    expect(rotuloDoMotivoDaConferencia('NOVO' as MotivoDaConferencia)).toBe('Conferir manualmente');
+  });
+});
+
+describe('validarRecebimentoOnline', () => {
+  const ok = { infiniteTag: null, apiKey: null };
+  it('a InfiniteTag vale com ou sem cifrão, com espaços e em maiúscula', () => {
+    expect(validarRecebimentoOnline({ infiniteTag: 'saraiva.team' })).toEqual(ok);
+    expect(validarRecebimentoOnline({ infiniteTag: '  $Saraiva_Team ' })).toEqual(ok);
+    expect(normalizarInfiniteTag('  $Saraiva_Team ')).toBe('saraiva_team');
+    expect(normalizarInfiniteTag('$ abc')).toBe('abc');
+    expect(normalizarInfiniteTag(null)).toBe('');
+  });
+  it('tamanho da InfiniteTag: de 3 a 40', () => {
+    expect(validarRecebimentoOnline({ infiniteTag: 'ab' }).infiniteTag).not.toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc' }).infiniteTag).toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'a'.repeat(40) }).infiniteTag).toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'a'.repeat(41) }).infiniteTag).not.toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: '  ' }).infiniteTag).toBe('Informe a sua InfiniteTag.');
+  });
+  it('InfiniteTag com caractere fora de letras, números, ponto, hífen e sublinhado', () => {
+    expect(validarRecebimentoOnline({ infiniteTag: 'meu nome' }).infiniteTag).not.toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'a@b.com' }).infiniteTag).not.toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'ação' }).infiniteTag).not.toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: '$$abc' }).infiniteTag).not.toBeNull();
+  });
+  it('a chave é opcional; preenchida, de 10 a 200 caracteres sem espaço', () => {
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: '' }).apiKey).toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: null }).apiKey).toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: '   ' }).apiKey).toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: 'a'.repeat(9) }).apiKey).not.toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: 'a'.repeat(10) }).apiKey).toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: 'a'.repeat(200) }).apiKey).toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: 'a'.repeat(201) }).apiKey).not.toBeNull();
+    expect(validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: 'abcde fghijk' }).apiKey).not.toBeNull();
+  });
+  it('a mensagem de erro nunca repete a chave digitada', () => {
+    const erros = validarRecebimentoOnline({ infiniteTag: 'abc', apiKey: 'segredo com espaco' });
+    expect(erros.apiKey).not.toBeNull();
+    expect(erros.apiKey).not.toContain('segredo');
+  });
+});
+
+describe('sem boleto', () => {
+  it('nenhum texto do financeiro fala em boleto', () => {
+    const textos = [
+      ...FORMAS_MANUAIS.map((f) => f.rotulo),
+      ...(['DINHEIRO', 'PIX_DIRETO', 'TRANSFERENCIA', 'OUTRO', 'PIX', 'CARTAO'] as const).map((f) => rotuloDaForma(f)),
+      ...FILTROS_DE_SITUACAO.map((f) => f.rotulo),
+      ...COMO_CALCULAMOS,
+      AVISO_LIQUIDO,
+      TEXTO_COMBINE_COM_O_TREINADOR,
+      TEXTO_JUROS_DO_PARCELAMENTO,
+      TEXTO_RECEBIMENTO_ONLINE,
+      TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO,
+      TEXTO_CHAVE_DO_RECEBIMENTO,
+      TEXTO_NADA_E_BAIXADO,
+    ];
+    for (const t of textos) expect(t).not.toMatch(/boleto/i);
+  });
+  it('a forma BOLETO não existe mais: cai em "—"', () => {
+    expect(rotuloDaForma('BOLETO' as never)).toBe('—');
   });
 });

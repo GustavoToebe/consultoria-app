@@ -8,6 +8,10 @@ import { Texto } from './Texto';
 export interface OpcaoEscolha<T> {
   valor: T;
   rotulo: string;
+  /** Opção apagada, que não pode ser escolhida. */
+  desabilitada?: boolean;
+  /** Por que está desabilitada: aparece sob a escolha e vai no `accessibilityHint` da opção (como o `motivo` do `Botao`). */
+  motivo?: string;
 }
 
 interface Props<T> {
@@ -24,6 +28,7 @@ interface Props<T> {
 /** Escolha entre poucas opções (dia da semana, tipo de série, tema): botões lado a lado que quebram linha. */
 export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao, limpavel }: Props<T>) {
   const { cores } = useTema();
+  const motivos = opcoes.filter((o) => o.desabilitada && o.motivo).map((o) => o.motivo as string);
   return (
     <View style={estilos.campo}>
       {rotulo ? <Texto variante="rotulo">{rotulo}</Texto> : null}
@@ -34,12 +39,15 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
             <ToggleGroupItem value={String(indice)}
               key={String(o.valor)}
               accessibilityLabel={o.rotulo}
-              accessibilityState={{ checked: ativo }}
+              accessibilityHint={o.desabilitada ? o.motivo : undefined}
+              accessibilityState={{ checked: ativo, disabled: !!o.desabilitada }}
+              disabled={o.desabilitada}
               style={[
                 estilos.opcao,
                 {
                   backgroundColor: ativo ? cores.texto : cores.superficie2,
                   borderColor: ativo ? cores.texto : cores.borda,
+                  opacity: o.desabilitada ? 0.5 : 1,
                 },
               ]}>
               <Texto style={[estilos.texto, { color: ativo ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>
@@ -47,6 +55,7 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
           );
         })}
       </ToggleGroup>
+      {motivos.map((m) => <Texto key={m} variante="pequeno">{m}</Texto>)}
     </View>
   );
 }

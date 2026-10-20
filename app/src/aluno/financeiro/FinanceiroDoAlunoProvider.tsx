@@ -1,8 +1,10 @@
 import { useFocusEffect } from 'expo-router';
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { AppState, Platform } from 'react-native';
 
 import type { FinanceiroDoAluno } from '../../api/financeiroTipos';
 import { financeiroDoAluno } from '../../api/rotas';
+import { comoPagar, plataformaDoApp, type ComoPagar } from '../../dominio/financeiro';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { codigoApi } from '../../ui/erros';
@@ -16,6 +18,11 @@ interface Valor {
   dados: FinanceiroDoAluno | undefined;
   erro: unknown;
   carregando: boolean;
+  /**
+   * Como o aluno vê as cobranças em aberto nesta plataforma (`comoPagar`): botão "Pagar", só informação (celular sem a
+   * chave da plataforma) ou "o treinador combina". Uma conta só para a Conta e para as pendências do Início.
+   */
+  modoDePagamento: ComoPagar;
   recarregar: () => void;
 }
 
@@ -27,12 +34,34 @@ const Contexto = createContext<Valor | null>(null);
  * é chamada. Tem de ficar dentro do `AlunoProvider` (precisa do estado de conexão).
  */
 export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode }) {
-  const { pagamentosHabilitados, usuario } = useSessao();
+  const { pagamentosHabilitados, usuario, pagarNoIos, pagarNoAndroid } = useSessao();
   const { online } = useAluno();
   const chave = pagamentosHabilitados && online ? `financeiro-do-aluno:${usuario?.id ?? ''}` : null;
   const carga = useCarregar(chave, () => financeiroDoAluno());
   // 503 `FINANCEIRO_INDISPONIVEL`: o módulo foi desligado no servidor; some como se a flag estivesse desligada.
   const indisponivel = codigoApi(carga.erro) === 'FINANCEIRO_INDISPONIVEL';
+  // O "Pagar" abre fora do app (outra aba na web, o navegador no celular): ao voltar, a lista confere se o pagamento já
+  // caiu. O `useFocusEffect` não cobre isso (a tela continua em foco no roteador). O estado só muda no retorno da busca,
+  // nunca aqui no efeito.
+  const { recarregar } = carga;
+  const buscando = chave !== null;
+  useEffect(() => {
+    if (!buscando) return;
+    if (Platform.OS !== 'web') {
+      const assinatura = AppState.addEventListener('change', (estado) => {
+        if (estado === 'active') recarregar();
+      });
+      return () => assinatura.remove();
+    }
+    if (typeof document === 'undefined') return;
+    const aoVoltar = () => {
+      if (document.visibilityState === 'visible') recarregar();
+    };
+    document.addEventListener('visibilitychange', aoVoltar);
+    return () => document.removeEventListener('visibilitychange', aoVoltar);
+  }, [buscando, recarregar]);
+  const pagamentoOnline = chave !== null && carga.dados?.pagamentoOnline === true;
+  const modoDePagamento = comoPagar(plataformaDoApp(Platform.OS), pagamentoOnline, { pagarNoIos, pagarNoAndroid });
   const valor = useMemo<Valor>(
     () => ({
       habilitado: pagamentosHabilitados && !indisponivel,
@@ -40,9 +69,10 @@ export function FinanceiroDoAlunoProvider({ children }: { children: ReactNode })
       dados: chave === null ? undefined : carga.dados,
       erro: carga.erro,
       carregando: carga.carregando,
+      modoDePagamento,
       recarregar: carga.recarregar,
     }),
-    [pagamentosHabilitados, indisponivel, online, chave, carga.dados, carga.erro, carga.carregando, carga.recarregar],
+    [pagamentosHabilitados, indisponivel, online, chave, carga.dados, carga.erro, carga.carregando, modoDePagamento, carga.recarregar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

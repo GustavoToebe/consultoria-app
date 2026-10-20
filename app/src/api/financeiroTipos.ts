@@ -5,11 +5,10 @@
  */
 
 export type PeriodoDoPlano = 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL' | 'PARCELA_UNICA';
-export type TaxaDoCartao = 'ALUNO' | 'TREINADOR';
 export type SituacaoDaContratacao = 'ATIVA' | 'PAUSADA' | 'ENCERRADA';
 export type SituacaoDaCobranca = 'ABERTA' | 'PAGA' | 'CANCELADA' | 'ESTORNADA' | 'CONTESTADA';
-/** As quatro primeiras são do registro manual; as outras só vêm de um provedor (Fase 2). */
-export type FormaDePagamento = 'DINHEIRO' | 'PIX_DIRETO' | 'TRANSFERENCIA' | 'OUTRO' | 'PIX' | 'BOLETO' | 'CARTAO';
+/** As quatro primeiras são do registro manual; `PIX` e `CARTAO` só vêm do recebimento online (InfinitePay). */
+export type FormaDePagamento = 'DINHEIRO' | 'PIX_DIRETO' | 'TRANSFERENCIA' | 'OUTRO' | 'PIX' | 'CARTAO';
 export type TipoDeLancamento = 'ENTRADA' | 'SAIDA';
 
 // ---- Plano comercial ----
@@ -19,12 +18,6 @@ export interface PlanoRequest {
   nome: string;
   valorCentavos: number;
   periodicidade: PeriodoDoPlano;
-  aceitaPix?: boolean | null;
-  aceitaBoleto?: boolean | null;
-  aceitaCartao?: boolean | null;
-  aceitaManual?: boolean | null;
-  maxParcelas?: number | null;
-  taxaCartao?: TaxaDoCartao | null;
   versao?: number | null;
 }
 
@@ -33,12 +26,6 @@ export interface PlanoResponse {
   nome: string;
   valorCentavos: number;
   periodicidade: PeriodoDoPlano;
-  aceitaPix: boolean;
-  aceitaBoleto: boolean;
-  aceitaCartao: boolean;
-  aceitaManual: boolean;
-  maxParcelas: number;
-  taxaCartao: TaxaDoCartao;
   arquivado: boolean;
   criadoEm: string;
   versao: number;
@@ -292,9 +279,94 @@ export interface CobrancaDoAluno {
   pagoEm: string | null;
 }
 
-/** `plano` nulo = nenhum plano comercial contratado. */
+/**
+ * `plano` nulo = nenhum plano comercial contratado. `pagamentoOnline`: a consultoria tem o recebimento online configurado
+ * e ligado (a InfiniteTag nunca vai ao aluno); só então o "Pagar" aparece (na web sempre; no celular, só com a chave da
+ * plataforma ligada, `pagarNoIos`/`pagarNoAndroid` do `/eu`).
+ */
 export interface FinanceiroDoAluno {
   plano: PlanoDoAluno | null;
   abertas: CobrancaDoAluno[];
   historico: CobrancaDoAluno[];
+  pagamentoOnline: boolean;
+}
+
+// ---- Recebimento online (InfinitePay, conta do treinador) ----
+
+/** O que a API guarda do recebimento online. A API Key nunca volta: só `apiKeyConfigurada`. `versao` nula = nada configurado. */
+export interface RecebimentoOnline {
+  habilitado: boolean;
+  configurado: boolean;
+  infiniteTag: string | null;
+  apiKeyConfigurada: boolean;
+  /** Quem paga os juros do parcelamento no cartão; nulo quando não há credencial. */
+  jurosDoParcelamento: JurosDoParcelamento | null;
+  versao: number | null;
+}
+
+/** `TREINADOR` (ele absorve os juros) só vale com a API Key configurada. */
+export type JurosDoParcelamento = 'ALUNO' | 'TREINADOR';
+
+/**
+ * `apiKey` ausente mantém a que existe; `removerApiKey` a apaga (não mande as duas). `versao` fica nula ao criar e é
+ * obrigatória (a que a API devolveu) ao alterar.
+ */
+export interface RecebimentoOnlineRequest {
+  infiniteTag: string;
+  apiKey?: string;
+  removerApiKey?: boolean;
+  /** Omitido ao criar = `ALUNO`; omitido ao alterar = não muda. `TREINADOR` sem API Key dá 422 no campo. */
+  jurosDoParcelamento?: JurosDoParcelamento;
+  versao?: number | null;
+}
+
+/** O que a volta do navegador depois do pagamento manda à API (`POST /aluno/financeiro/retorno-pagamento`, 204). */
+export interface RetornoDoPagamento {
+  orderNsu: string;
+  transactionNsu: string;
+  slug?: string;
+  captureMethod?: string;
+}
+
+/** Link de pagamento de uma cobrança em aberto (`https`, aberto fora do app, sem token). */
+export interface LinkDePagamento {
+  url: string;
+}
+
+// ---- Pagamentos para conferir ----
+
+/**
+ * Por que um pagamento recebido pelo provedor não deu baixa sozinho. Nada é baixado: o treinador decide. `ESTORNO_INFORMADO`:
+ * um pagamento já baixado que a InfinitePay informou estornado; a cobrança continua PAGA e o treinador a ajusta à mão.
+ */
+export type MotivoDaConferencia =
+  | 'COBRANCA_CANCELADA'
+  | 'COBRANCA_JA_PAGA'
+  | 'VALOR_DIFERENTE'
+  | 'LINK_DIFERENTE'
+  | 'FORMA_DESCONHECIDA'
+  | 'COBRANCA_NAO_ENCONTRADA'
+  | 'CONSULTA_FALHOU'
+  | 'ESTORNO_INFORMADO';
+
+/**
+ * `alunoId`, `alunoNome`, `cobrancaId`, `competencia` e `valorCobrancaCentavos` são nulos quando o pagamento não casou com
+ * uma cobrança desta consultoria (a API só acha o aluno pela cobrança). `valorPagoCentavos` é o que o provedor confirmou:
+ * nulo só quando a consulta ao provedor falhou. `competencia` é a data civil `AAAA-MM-DD` da cobrança e `recebidoEm`, o
+ * instante ISO-8601 em UTC do aviso.
+ */
+export interface ConferenciaDePagamento {
+  id: string;
+  alunoId: string | null;
+  alunoNome: string | null;
+  cobrancaId: string | null;
+  competencia: string | null;
+  valorCobrancaCentavos: number | null;
+  valorPagoCentavos: number | null;
+  motivo: MotivoDaConferencia;
+  recebidoEm: string;
+}
+
+export interface ConferenciasDePagamento {
+  itens: ConferenciaDePagamento[];
 }

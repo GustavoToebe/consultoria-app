@@ -26,5 +26,8 @@ export const ACOES_AUDITORIA:Record<string,string>={
   COBRANCA_CANCELADA:'Cobrança cancelada',COBRANCA_BAIXA_DESFEITA:'Baixa de cobrança desfeita',PAGAMENTO_MANUAL_REGISTRADO:'Pagamento registrado manualmente',
   LANCAMENTO_FINANCEIRO_CRIADO:'Lançamento financeiro criado',LANCAMENTO_FINANCEIRO_ALTERADO:'Lançamento financeiro editado',LANCAMENTO_FINANCEIRO_EXCLUIDO:'Lançamento financeiro excluído',
   FINANCEIRO_EXPORTADO:'Financeiro exportado em CSV',
+  RECEBIMENTO_ONLINE_CONFIGURADO:'Recebimento online configurado',RECEBIMENTO_ONLINE_REMOVIDO:'Recebimento online removido',
+  LINK_DE_PAGAMENTO_GERADO:'Link de pagamento gerado',PAGAMENTO_ONLINE_CONFIRMADO:'Pagamento online confirmado',PAGAMENTO_ESTORNADO:'Estorno informado pela InfinitePay',
+  PAGAMENTO_PARA_CONFERIR:'Pagamento enviado para conferir',PAGAMENTO_CONFERIDO:'Pagamento conferido',
   CSV_EXERCICIOS_IMPORTADO:'CSV de exercícios importado',CSV_ALIMENTOS_IMPORTADO:'CSV de alimentos importado',
 };

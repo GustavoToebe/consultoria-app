@@ -1,10 +1,11 @@
 import { CreditCard } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { linkDePagamento } from '../../api/rotas';
 
 import type { CobrancaDaConta, ConsumoDoPlano, ItemDoConsumo, MinhaConta } from '../../api/tipos';
+import { pagarPermitidoNaPlataforma, plataformaDoApp } from '../../dominio/financeiro';
 import { dataParaTela, dataHoraParaTela, moedaParaTela, SEM_DADO } from '../../dominio/formatos';
 import {
   competenciaParaTela,
@@ -19,6 +20,7 @@ import {
   situacaoDaCobrancaParaTela,
   usoParaTela,
 } from '../../dominio/minhaConta';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -128,6 +130,7 @@ function BotaoPagar({ cobrancaId }: { cobrancaId: string }) {
 
 function LinhaDeCobranca({ c, previa }: { c: CobrancaDaConta; previa: boolean }) {
   const { cores } = useTema();
+  const { pagarNoIos, pagarNoAndroid } = useSessao();
   const situacao = situacaoDaCobrancaParaTela(c);
   return (
     <View style={[estilos.item, estilos.cobranca, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
@@ -140,7 +143,8 @@ function LinhaDeCobranca({ c, previa }: { c: CobrancaDaConta; previa: boolean })
         Vence em {dataParaTela(c.vencimento) || SEM_DADO}
         {c.pagoEm ? ` · pago em ${dataParaTela(c.pagoEm)}` : ''}
       </Texto>
-      {podePagar(c, previa) ? <BotaoPagar cobrancaId={c.id} /> : null}
+      {/* No celular o "Pagar" segue a chave da plataforma; sem ela a linha só informa vencimento e pagamento. */}
+      {podePagar(c, previa) && pagarPermitidoNaPlataforma(plataformaDoApp(Platform.OS), { pagarNoIos, pagarNoAndroid }) ? <BotaoPagar cobrancaId={c.id} /> : null}
     </View>
   );
 }
