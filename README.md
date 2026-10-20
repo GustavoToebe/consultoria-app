@@ -84,9 +84,9 @@ Depois, para trazer os vídeos, as semanas de treino (Wellness, Torso & Limbs, P
    séries” → mudar FS de 3 para 2 (os percentuais viram 70/85) → Validar → Publicar (confirmar os avisos) → v2.
 4. Ficha → tocar na pasta → Replicar pasta (o próximo ciclo já vem sugerido) → o plano novo abre como rascunho, igual ao anterior.
 5. PDF do treino e da dieta (botão PDF na ficha ou no editor; na web abre “Salvar como PDF”).
-6. Celular (Expo Go), `aluno@demo.local`: tocar no “Treino de hoje” (ou num chip de data das divisões) → abrir um
+6. Celular (Expo Go), `aluno@demo.local`: tocar em “Ver meu treino” no cartão Hoje (ou numa divisão da semana) → abrir um
    exercício → marcar séries → modo avião → marcar mais → fechar e abrir o app (“salvo no aparelho”) → tirar do
-   modo avião → “Sincronizado”. Na quinta o seed tem Off ativo: usar o chip da quarta.
+   modo avião → “Sincronizado”. Na quinta o seed tem Off ativo: abrir a divisão da quarta e usar “Outras datas”.
 7. PC: ficha do aluno → “Registros e cargas” (por divisão ou por dia, 14/30/60 dias), PDF das cargas e Progresso.
 8. `exemplo@demo.local`: outra marca e tema claro; nada do Saraiva aparece.
 9. Sair → “Sou treinador, criar conta” → consultoria nova, já com as receitas prontas.
