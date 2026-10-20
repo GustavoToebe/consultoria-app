@@ -4,9 +4,9 @@ import {
   moverParaSecao, moverPergunta, moverSecao, normalizarQuestionario, novaOpcao, novaPergunta, novaSecao, paraApi, podeAdicionar,
   podeAdicionarSecao, podeDestacar, podeDuplicar, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR, tiposParaAdicionar,
   controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinosPossiveis, podeUsarDestino,
-  gruposParaAdicionar,
+  gruposParaAdicionar, alterarDescricaoDaSecao,
 } from './editorQuestionario';
-import { errosDoQuestionario, LIMITES_QUESTIONARIO, validarQuestionario } from './questionario';
+import { errosDoQuestionario, escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos, validarQuestionario } from './questionario';
 
 let mockContador = 0;
 jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContador}` }));
@@ -75,6 +75,47 @@ describe('normalizar e paraApi', () => {
     expect(t).toMatchObject({ id: 't', obrigatoria: true, opcoes: undefined, dias: undefined, unidade: undefined, min: undefined, casas: undefined, destaque: undefined, rotuloCurto: undefined, ajuda: undefined });
     expect(d.obrigatoria).toBe(false);
     expect(n).toMatchObject({ id: 'n', unidade: undefined, min: 0, max: 5, casas: 1, destaque: true, rotuloCurto: undefined, ajudaAutomatica: 'MEDIA_DIAS_TREINO' });
+  });
+});
+
+describe('descrição da seção, escala da nota e fotos por pergunta', () => {
+  it('paraApi leva a descrição da seção e tira a vazia; normalizar mantém', () => {
+    const c = alterarDescricaoDaSecao(base(), 0, '**Leia** antes\n__com calma__');
+    expect(paraApi(c).secoes[0].descricao).toBe('**Leia** antes\n__com calma__');
+    expect(normalizarQuestionario(c).secoes[0].descricao).toBe('**Leia** antes\n__com calma__');
+    expect(paraApi(alterarDescricaoDaSecao(base(), 0, '   ')).secoes[0].descricao).toBeUndefined();
+    expect('descricao' in normalizarQuestionario(base()).secoes[0]).toBe(false);
+  });
+  it('paraApi leva min, max e os textos das pontas da NOTA, e só o max da FOTOS', () => {
+    const c: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 's', titulo: 'x', perguntas: [
+      p('n', 'NOTA', { min: 1, max: 5, rotuloMin: 'Nada', rotuloMax: ' ', casas: 1, unidade: 'x' }),
+      p('f', 'FOTOS', { min: 1, max: 3, rotuloMin: 'a' }),
+      p('t', 'TEXTO', { rotuloMin: 'a', rotuloMax: 'b' }),
+    ] }] };
+    const [n, f, t] = paraApi(c).secoes[0].perguntas;
+    expect(n).toMatchObject({ min: 1, max: 5, rotuloMin: 'Nada', rotuloMax: undefined, casas: undefined, unidade: undefined });
+    expect(f).toMatchObject({ min: undefined, max: 3, rotuloMin: undefined });
+    expect(t).toMatchObject({ rotuloMin: undefined, rotuloMax: undefined });
+    expect(errosDoQuestionario(paraApi(c))).toEqual([]);
+  });
+  it('nota nova é de 0 a 10; a escala e as fotos usam o padrão quando o valor falta ou está fora da regra', () => {
+    expect(escalaDaNota(novaPergunta('NOTA'))).toEqual({ min: 0, max: 10 });
+    expect(escalaDaNota({ min: 1, max: 5 })).toEqual({ min: 1, max: 5 });
+    expect(escalaDaNota({ min: 2, max: 11 })).toEqual({ min: 0, max: 10 });
+    expect(maximoDeFotos(novaPergunta('FOTOS'))).toBe(LIMITES_QUESTIONARIO.fotosPorPergunta);
+    expect(maximoDeFotos({ max: 2 })).toBe(2);
+    expect(maximoDeFotos({ max: 0 })).toBe(LIMITES_QUESTIONARIO.fotosPorPergunta);
+  });
+  it('FOTOS pode repetir até seis perguntas; a sétima é recusada antes de publicar', () => {
+    let c = base();
+    for (let i = 0; i < LIMITES_QUESTIONARIO.perguntasFotos; i++) {
+      expect(podeAdicionar(c, 0, 'FOTOS').pode).toBe(true);
+      c = adicionarPergunta(c, 0, p(`f${i}`, 'FOTOS'));
+    }
+    expect(podeAdicionar(c, 0, 'FOTOS')).toEqual({ pode: false, motivo: 'O questionário já tem 6 perguntas de fotos.' });
+    expect(podeDuplicar(c, 0, 3).pode).toBe(false);
+    expect(errosDoQuestionario(adicionarPergunta(c, 1, p('f9', 'FOTOS'))).map((e) => e.caminho)).toEqual(['secoes[1].perguntas[1].tipo']);
+    expect(TIPOS_PARA_ADICIONAR.find((t) => t.tipo === 'FOTOS')?.descricao).not.toMatch(/Só uma/);
   });
 });
 

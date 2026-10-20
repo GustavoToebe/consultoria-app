@@ -59,3 +59,19 @@ it('com as fotos desligadas a pergunta é ignorada, mesmo obrigatória',()=>{
   expect(errosRespostasAtualizacao(comFotos,{},false)).toEqual({});
   expect(errosRespostasAtualizacao(comFotos,{fotos:['x']},false)).toEqual({});
 });
+it('foto no aparelho respeita o max da pergunta, cada pergunta com o seu',()=>{
+  const duas:ConteudoQuestionario={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
+    {id:'frente',tipo:'FOTOS',rotulo:'Frente',obrigatoria:true,max:1},{id:'lado',tipo:'FOTOS',rotulo:'Lado',obrigatoria:false,max:2},
+  ]}]};
+  expect(errosRespostasAtualizacao(duas,{},true,{frente:1,lado:2})).toEqual({});
+  expect(Object.keys(errosRespostasAtualizacao(duas,{frente:[ID]},true,{frente:1}))).toEqual(['frente']);
+  expect(Object.keys(errosRespostasAtualizacao(duas,{},true,{frente:1,lado:3}))).toEqual(['lado']);
+});
+it('nota na escala da pergunta; notas por dia seguem de 0 a 10',()=>{
+  const escala:ConteudoQuestionario={instrucoes:[],secoes:[{titulo:'Fictício',perguntas:[
+    {id:'n',tipo:'NOTA',rotulo:'N',obrigatoria:true,min:1,max:5},{id:'d',tipo:'NOTAS_POR_DIA',rotulo:'D',obrigatoria:false,dias:[1]},
+  ]}]};
+  expect(errosRespostasAtualizacao(escala,{n:1,d:{'1':10}})).toEqual({});
+  expect(Object.keys(errosRespostasAtualizacao(escala,{n:0}))).toEqual(['n']);
+  expect(Object.keys(errosRespostasAtualizacao(escala,{n:6}))).toEqual(['n']);
+});

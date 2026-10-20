@@ -39,7 +39,7 @@ export function textoDoValor(s: Pick<SerieDeResposta, 'tipo' | 'casas' | 'unidad
   return `${numeroParaTela(valor, s.casas ?? 0)}${unidade ? ` ${unidade}` : ''}`;
 }
 
-/** Unidade no eixo do gráfico: a do NUMERO; a NOTA (0 a 10) não tem. */
+/** Unidade no eixo do gráfico: a do NUMERO; a NOTA (escala da pergunta) não tem. */
 export const unidadeDoGrafico = (s: Pick<SerieDeResposta, 'tipo' | 'unidade'>) => (s.tipo === 'NUMERO' ? s.unidade?.trim() ?? '' : '');
 
 const porData = (a: PontoDeResposta, b: PontoDeResposta) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0);
