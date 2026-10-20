@@ -1,4 +1,4 @@
-import { itensDoMenuDoUsuario, voltarDasTelasDaConta } from './menuDoUsuario';
+import { itensDoMenuDoUsuario } from './menuDoUsuario';
 
 describe('menu do usuário', () => {
   it('traz Meus dados, Segurança, Ajustes e Sair, com Sair por último e sem endereço', () => {
@@ -12,13 +12,5 @@ describe('menu do usuário', () => {
     expect(com.map((i) => i.id)).toEqual(['meus-dados', 'seguranca', 'minha-conta', 'ajustes', 'sair']);
     expect(com[2].href).toBe('/treinador/minha-conta');
     expect(itensDoMenuDoUsuario(() => false).some((i) => i.id === 'minha-conta')).toBe(false);
-  });
-});
-
-describe('seta de voltar das telas da conta', () => {
-  it('aparece só no celular, onde o Perfil é a porta de entrada', () => {
-    expect(voltarDasTelasDaConta(390, 900)).toBe('/treinador/perfil');
-    expect(voltarDasTelasDaConta(900, 900)).toBeUndefined();
-    expect(voltarDasTelasDaConta(1280, 900)).toBeUndefined();
   });
 });

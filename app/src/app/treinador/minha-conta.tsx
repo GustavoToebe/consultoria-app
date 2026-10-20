@@ -1,11 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useWindowDimensions, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { consumoDoPlano, minhaConta } from '../../api/rotas';
-import { voltarDasTelasDaConta } from '../../dominio/menuDoUsuario';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
 import { AbaCadastro, AbaFinanceiro, AbaPlano, CartaoConsumo } from '../../treinador/conta/PartesDaConta';
 import { Abas } from '../../ui/Abas';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -31,7 +30,6 @@ const ABAS: { valor: Aba; rotulo: string }[] = [
  */
 export default function MinhaConta() {
   const { cores } = useTema();
-  const { width } = useWindowDimensions();
   // A aba mora no endereço (`?aba=`): tocar numa aba é um passo do histórico, então o voltar a desfaz.
   const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
   const aba: Aba = ABAS.find((a) => a.valor === abaPedida)?.valor ?? 'cadastro';
@@ -40,7 +38,7 @@ export default function MinhaConta() {
   const consumo = useCarregar('consumo-do-plano', () => consumoDoPlano());
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Minha conta" voltar={voltarDasTelasDaConta(width, LARGURA_MENU_LATERAL)} />
+      <Cabecalho titulo="Minha conta" subtitulo="Assinatura da consultoria: cadastro, plano e cobranças." />
       {conta.dados?.previa ? (
         <View accessibilityRole="alert"
           style={{ borderWidth: 1, borderRadius: RAIO, borderColor: cores.atencao, backgroundColor: `${cores.atencao}18`,

@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { ChevronDown, LogOut, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
+import { ChevronDown, CreditCard, LogOut, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -16,7 +16,8 @@ import { useCliqueFora, useTeclado } from './usoWeb';
 export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
   'meus-dados': UserRound,
   seguranca: ShieldCheck,
-  'minha-conta': UserRound,
+  // A assinatura (plano e cobranças) tem ícone próprio: com o mesmo de Meus dados as duas linhas pareciam iguais.
+  'minha-conta': CreditCard,
   ajustes: SlidersHorizontal,
   sair: LogOut,
 };
@@ -25,7 +26,7 @@ export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
  * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Minha conta, Ajustes,
  * Sair). Fecha com Esc e com clique fora; setas escolhem e Enter abre. Sair pede a confirmação de sempre.
  */
-export function CartaoDoUsuario({ compacto }: { compacto?: boolean } = {}) {
+export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boolean; ativo?: boolean } = {}) {
   const { usuario, perfilEquipe, pode } = useSessao();
   const { cores } = useTema();
   const [aberto, setAberto] = useState(false);
@@ -73,9 +74,9 @@ export function CartaoDoUsuario({ compacto }: { compacto?: boolean } = {}) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Menu do usuário, ${usuario?.nome ?? ''}`}
-        accessibilityState={{ expanded: aberto }}
+        accessibilityState={{ expanded: aberto, selected: !!naConta }}
         onPress={() => (aberto ? fechar() : setAberto(true))}
-        style={(estado) => [estilos.cartao, compacto && estilos.cartaoCompacto, { borderColor: cores.borda }, (aberto || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
+        style={(estado) => [estilos.cartao, compacto && estilos.cartaoCompacto, { borderColor: cores.borda }, naConta && { backgroundColor: cores.superficie2 }, (aberto || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
         <View style={estilos.textos}>
           <Texto numberOfLines={1} style={estilos.nome}>{usuario?.nome ?? '—'}</Texto>
           {compacto ? null : <Texto variante="pequeno" numberOfLines={1}>{perfilEquipe?.nome ?? '—'}</Texto>}

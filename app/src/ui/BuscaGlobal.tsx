@@ -4,7 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View, type Role, type TextInput } from 'react-native';
 
 import { Input } from '../components/ui/input';
-import { buscarTelas, favoritosVisiveis, type TelaDoCatalogo } from '../dominio/telas';
+import { atalhosPadrao, buscarTelas, favoritosVisiveis, type TelaDoCatalogo } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { useSaidaGuardada } from './GuardaDeSaida';
@@ -17,7 +17,7 @@ interface Props {
   permitidas: readonly TelaDoCatalogo[];
   /** Ids favoritos, na ordem de marcação; aparecem quando o campo está vazio. */
   favoritos?: readonly string[];
-  /** Largura do campo; o menu abaixo acompanha. */
+  /** Largura máxima do campo (encolhe com a barra); o menu abaixo acompanha. */
   largura?: number;
 }
 
@@ -39,7 +39,9 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
   const idLista = useId();
 
   const digitando = texto.trim().length > 0;
-  const resultados = digitando ? buscarTelas(texto, permitidas) : favoritosVisiveis(favoritos, permitidas);
+  const marcados = favoritosVisiveis(favoritos, permitidas);
+  // Campo vazio: os favoritos; sem nenhum, uns atalhos do dia a dia (antes a lista vazia só dava uma instrução).
+  const resultados = digitando ? buscarTelas(texto, permitidas) : marcados.length > 0 ? marcados : atalhosPadrao(permitidas);
   const indice = Math.min(ativo, Math.max(resultados.length - 1, 0));
 
   // Fechar (clique fora, Esc, escolha) limpa o texto: reabrir não mostra a busca antiga.
@@ -81,7 +83,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
 
   const idDaOpcao = (i: number) => `${idLista}-opcao-${i}`;
   return (
-    <View ref={caixa} style={[estilos.caixa, { width: largura }]}>
+    <View ref={caixa} style={[estilos.caixa, { width: '100%', maxWidth: largura }]}>
       <View>
         <Search size={16} color={cores.textoSuave} strokeWidth={2} style={estilos.lupa} />
         <Input
@@ -122,11 +124,11 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
           style={[estilos.menu, { backgroundColor: cores.superficie, borderColor: cores.borda }]}>
           {resultados.length === 0 ? (
             <Texto variante="suave" style={estilos.vazio}>
-              {digitando ? 'Nada encontrado. Tente outra palavra.' : 'Digite para buscar telas e ações. Marque favoritos em "Todas as telas".'}
+              {digitando ? 'Nada encontrado. Tente outra palavra.' : 'Digite para buscar telas e ações.'}
             </Texto>
           ) : (
             <ScrollView style={estilos.rolagem} keyboardShouldPersistTaps="handled">
-              {digitando ? null : <Texto variante="rotulo" style={estilos.cabecaLista}>Favoritos</Texto>}
+              {digitando ? null : <Texto variante="rotulo" style={estilos.cabecaLista}>{marcados.length > 0 ? 'Favoritos' : 'Atalhos'}</Texto>}
               {resultados.map((tela, i) => (
                 <Pressable
                   key={tela.id}

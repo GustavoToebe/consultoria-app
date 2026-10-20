@@ -9,14 +9,15 @@ import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue/400Regular';
 import { MetalMania_400Regular } from '@expo-google-fonts/metal-mania/400Regular';
 import { Oswald_700Bold } from '@expo-google-fonts/oswald/700Bold';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { SessaoProvider } from '../sessao/SessaoProvider';
+import { tituloDaPagina } from '../dominio/telas';
+import { SessaoProvider, useSessao } from '../sessao/SessaoProvider';
 import { TemaProvider, useTema } from '../tema/TemaProvider';
 import { AvisoProvider } from '../ui/Aviso';
 
@@ -68,6 +69,13 @@ function Conteudo() {
     if (Platform.OS !== 'web') return;
     document.documentElement.style.colorScheme = barrasEscuras ? 'dark' : 'light';
   }, [barrasEscuras]);
+  // Título da aba do navegador: "Tela · Consultoria" (antes era sempre "Treinos", e várias abas abertas se confundiam).
+  const caminho = usePathname();
+  const { marca } = useSessao();
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    document.title = tituloDaPagina(caminho, marca?.nome);
+  }, [caminho, marca?.nome]);
   return (
     <View style={{ flex: 1, backgroundColor: cores.fundo }}>
       <StatusBar style={modo === 'ESCURO' ? 'light' : 'dark'} />

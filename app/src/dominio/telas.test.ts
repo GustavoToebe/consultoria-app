@@ -1,6 +1,6 @@
 import { FUNCIONALIDADES } from './funcionalidadesDoPlano';
 import { pode } from './permissoes';
-import { agruparPorSecao, alternarFavorito, buscarTelas, chaveDosFavoritos, favoritosVisiveis, lerFavoritos, nomeDaTela, semAcento, TELAS, telasPermitidas } from './telas';
+import { agruparPorSecao, alternarFavorito, atalhosPadrao, buscarTelas, chaveDosFavoritos, favoritosVisiveis, lerFavoritos, nomeDaTela, semAcento, TELAS, telasDaOrigem, telasPermitidas, tituloDaPagina, voltarAutomatico } from './telas';
 
 const com = (codigos: string[]) => (codigo: string) => pode(codigos, codigo);
 const ADMIN = ['PAINEL_VER', 'ALUNO_LER', 'ALUNO_ALTERAR', 'ALUNO_SENSIVEL_LER', 'ATUALIZACAO_LER', 'BIBLIOTECA_LER', 'MODELO_LER', 'MODELO_ALTERAR', 'MARCA_ALTERAR', 'EQUIPE_LER', 'USUARIO_ALTERAR', 'AUDITORIA_LER'];
@@ -16,7 +16,7 @@ describe('catálogo de telas', () => {
     const tudo = telasPermitidas(com(ADMIN));
     expect(ids(tudo)).toEqual(expect.arrayContaining(['inicio', 'novo-aluno', 'novo-modelo', 'convidar-membro', 'atualizacoes-revisar', 'auditoria']));
     const assistente = telasPermitidas(com(['PAINEL_VER', 'ALUNO_LER', 'BIBLIOTECA_LER', 'MODELO_LER']));
-    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'planejamento', 'biblioteca', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
+    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'biblioteca', 'planejamento', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
     expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
   });
 
@@ -109,6 +109,10 @@ describe('busca de telas', () => {
     expect(buscarTelas('convidar', semEquipe)).toEqual([]);
     expect(buscarTelas('equipe', semEquipe)).toEqual([]);
   });
+  it('"senha" acha Meus dados e Segurança; "sair" não abre tela', () => {
+    expect(ids(buscarTelas('senha', permitidas))).toEqual(expect.arrayContaining(['meus-dados', 'seguranca']));
+    expect(buscarTelas('sair', permitidas)).toEqual([]);
+  });
   it('não procura alunos pelo nome', () => {
     expect(buscarTelas('Maria', permitidas)).toEqual([]);
   });
@@ -116,11 +120,15 @@ describe('busca de telas', () => {
 
 describe('Todas as telas e favoritos', () => {
   const permitidas = telasPermitidas(com(ADMIN));
-  it('agrupa por seção na ordem fixa e deixa as ações de fora', () => {
+  it('agrupa na ordem do menu e deixa as ações de fora', () => {
     const grupos = agruparPorSecao(permitidas);
-    expect(grupos.map((g) => g.secao)).toEqual(['Início', 'Alunos', 'Planos', 'Conteúdo', 'Consultoria', 'Ajuda', 'Conta']);
-    expect(grupos.flatMap((g) => ids(g.telas))).not.toContain('novo-aluno');
-    expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Ajuda', 'Conta']);
+    expect(grupos.map((g) => g.secao)).toEqual(['Dia a dia', 'Planos', 'Consultoria', 'Ajuda', 'Sua conta']);
+    expect(grupos.flatMap((g) => ids(g.telas))).toEqual(['inicio', 'alunos', 'atualizacoes', 'biblioteca', 'planejamento', 'marca', 'equipe', 'auditoria', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
+    expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Ajuda', 'Sua conta']);
+  });
+  it('busca vazia sem favoritos sugere atalhos que o perfil pode abrir', () => {
+    expect(ids(atalhosPadrao(permitidas))).toEqual(['atualizacoes-revisar', 'alunos', 'novo-aluno', 'planejamento', 'ajuda']);
+    expect(ids(atalhosPadrao(telasPermitidas(com([]))))).toEqual(['ajuda']);
   });
   it('favoritos mantêm a ordem em que foram marcados', () => {
     let lista: string[] = [];
@@ -164,5 +172,39 @@ describe('nome da tela atual', () => {
     expect(nomeDaTela('/treinador/ajustes')).toBe('Ajustes');
     expect(nomeDaTela('/treinador/minha-conta')).toBe('Minha conta');
     expect(nomeDaTela('/treinador/desconhecido')).toBeNull();
+  });
+});
+
+describe('voltar e item aceso fora da barra inferior', () => {
+  it('com a barra inferior, a tela aberta pelo Perfil, pelo Início ou pela Conta volta para lá', () => {
+    expect(voltarAutomatico('/treinador/equipe', true)).toBe('/treinador/perfil');
+    expect(voltarAutomatico('/treinador/termos', true)).toBe('/treinador/perfil');
+    expect(voltarAutomatico('/treinador/atualizacoes', true)).toBe('/treinador');
+    expect(voltarAutomatico('/aluno/ajuda', true)).toBe('/aluno/conta');
+  });
+  it('no PC não há seta; telas da barra e detalhes não ganham seta automática', () => {
+    expect(voltarAutomatico('/treinador/equipe', false)).toBeUndefined();
+    expect(voltarAutomatico('/treinador/alunos', true)).toBeUndefined();
+    expect(voltarAutomatico('/treinador/atualizacoes/um-id', true)).toBeUndefined();
+  });
+  it('lista as telas que acendem cada origem', () => {
+    expect(telasDaOrigem('/aluno/conta')).toEqual(['/aluno/ajuda', '/aluno/termos']);
+    expect(telasDaOrigem('/treinador')).toEqual(['/treinador/atualizacoes']);
+    expect(telasDaOrigem('/treinador/perfil')).toContain('/treinador/interessados');
+  });
+});
+
+describe('título da aba do navegador', () => {
+  it('"Tela · Consultoria" logado e "Tela · Treinos" sem consultoria', () => {
+    expect(tituloDaPagina('/treinador/alunos/um-id', 'Saraiva Team')).toBe('Alunos · Saraiva Team');
+    expect(tituloDaPagina('/aluno', 'Saraiva Team')).toBe('Treino · Saraiva Team');
+    expect(tituloDaPagina('/aluno/sessao/x/y', 'Saraiva Team')).toBe('Treino do dia · Saraiva Team');
+    expect(tituloDaPagina('/entrar', null)).toBe('Entrar · Treinos');
+    expect(tituloDaPagina('/convite-equipe', null)).toBe('Convite da equipe · Treinos');
+    expect(tituloDaPagina('/inscricao/abc', 'Saraiva Team')).toBe('Inscrição · Saraiva Team');
+  });
+  it('tela desconhecida fica só com o nome', () => {
+    expect(tituloDaPagina('/qualquer', '  ')).toBe('Treinos');
+    expect(tituloDaPagina('/treinador/xyz', 'Saraiva Team')).toBe('Saraiva Team');
   });
 });

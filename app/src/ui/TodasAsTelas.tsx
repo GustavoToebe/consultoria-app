@@ -5,11 +5,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { agruparPorSecao, buscarTelas, type TelaDoCatalogo } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Campo } from './Campo';
-import { Cartao } from './Cartao';
 import { Folha } from './Folha';
-import { Grade } from './Grade';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
@@ -23,9 +21,9 @@ interface Props {
 }
 
 /**
- * Painel "Todas as telas": busca no topo e as telas que o usuário pode abrir agrupadas por seção. A estrela marca
- * favorita; os favoritos aparecem na busca da barra de topo quando o campo está vazio. Ações (como "Novo aluno")
- * só existem na busca.
+ * Painel "Todas as telas": busca no topo e uma lista única das telas que o usuário pode abrir, com um título por seção
+ * na ordem do menu (antes eram cartões soltos, alguns com um item só, em outra ordem). A estrela marca favorita; os
+ * favoritos aparecem na busca da barra de topo quando o campo está vazio. Ações (como "Novo aluno") só existem na busca.
  */
 export function TodasAsTelas({ visivel, aoFechar, permitidas, favoritos, aoAlternarFavorito }: Props) {
   const [texto, setTexto] = useState('');
@@ -38,12 +36,12 @@ export function TodasAsTelas({ visivel, aoFechar, permitidas, favoritos, aoAlter
     aoFechar();
   };
   return (
-    <Folha visivel={visivel} titulo="Todas as telas" aoFechar={fechar} largura={LARGURA_EDITOR}>
+    <Folha visivel={visivel} titulo="Todas as telas" aoFechar={fechar}>
       <Campo rotulo="Buscar tela" valor={texto} aoMudar={setTexto} autoCorrect={false} />
       {grupos.length === 0 ? <Texto variante="suave">Nenhuma tela encontrada. Tente outra palavra.</Texto> : null}
-      <Grade gap={espaco(2)}>
       {grupos.map((grupo) => (
-        <Cartao key={grupo.secao} titulo={grupo.telas.length === 1 && grupo.telas[0].rotulo === grupo.secao ? undefined : grupo.secao} style={estilos.grupo}>
+        <View key={grupo.secao} style={estilos.grupo}>
+          <Texto variante="secao" nivel={2}>{grupo.secao}</Texto>
           <View style={estilos.lista}>
             {grupo.telas.map((tela) => (
               <LinhaDaTela key={tela.id} tela={tela} favorita={favoritos.includes(tela.id)}
@@ -54,9 +52,8 @@ export function TodasAsTelas({ visivel, aoFechar, permitidas, favoritos, aoAlter
                 aoAlternar={() => aoAlternarFavorito(tela.id)} />
             ))}
           </View>
-        </Cartao>
+        </View>
       ))}
-      </Grade>
     </Folha>
   );
 }
@@ -80,7 +77,7 @@ function LinhaDaTela({ tela, favorita, aoAbrir, aoAlternar }: { tela: TelaDoCata
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(1) },
-  grupo: { flexGrow: 1 },
+  grupo: { gap: espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   abrir: { flex: 1, minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.5) },
   nome: { fontFamily: fontes.semi },
