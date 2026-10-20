@@ -70,7 +70,7 @@ e publica na tela. A aba **TACO** (tabela de terceiros) nunca é lida: o convers
 precisa e a TACO nem é descomprimida. Os alunos precisam ter sido importados antes (o plano é ligado ao aluno pelo nome).
 
 ```
-node scripts/importacao/converter-planos.mjs --planilha <fora do repositório>/planilha.xlsx --saida <pasta fora do repositório> [--simular]
+node scripts/importacao/converter-planos.mjs --planilha <fora do repositório>/planilha.xlsx --saida <pasta fora do repositório> [--simular] [--pacote]
 node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --simular      (sem rede e sem login)
 node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar       (grava; exige API_URL, IMPORT_EMAIL, IMPORT_SENHA)
 ```
@@ -78,7 +78,7 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
 - **Conversor:** grava um JSON por aluno (o nome do arquivo é o código do aluno na planilha, nunca o nome; permissão 0600)
   e um `problemas.csv` só com aba, linha e motivo. Recusa planilha e pasta dentro do repositório. O terminal mostra só
   contagens. `--simular` não grava nada. Grava também o `correspondencias-exercicios.csv` e o
-  `classificacao-suplementos.csv` (abaixo).
+  `classificacao-suplementos.csv` (abaixo); com `--pacote`, grava ainda a pasta `para-o-saraiva/` (abaixo).
 - **Regras:** só entra plano ou rotina **ativo** e **único** por aluno (plano inativo, repetido ou de aluno que não está
   na aba Alunos vai para os problemas; o conversor nunca escolhe um). Valor ausente é "—" (nulo), nunca zero: quantidade 0
   na dieta fica sem quantidade. Intra-treino, hidratação e refeição livre viram orientações da dieta; "Obs Gerais", a
@@ -117,38 +117,65 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
   normalizado (sem acento, em minúsculas, sem dose, unidade nem parênteses). Colunas (`;`, UTF-8 com BOM): `nome_normalizado`,
   `ocorrencias` e `destino` (em branco). Quem a lista de ergogênicos ou a de suplementos reconhece **não** entra; nome que
   fica vazio depois de normalizar ("500 mg") também não, e continua na lista sensível. O arquivo é sempre gravado (só com o
-  cabeçalho quando não há nada a classificar). O treinador escreve em `destino` `suplemento` ou `sensivel` (maiúsculas,
-  minúsculas e espaços não importam; qualquer outro valor, inclusive "sensível" com acento, é ignorado e o item conta como
-  não classificado). **A decisão é aplicada pelo importador, não pelo conversor** (os JSON não mudam): `importar-planos.mjs`
+  cabeçalho quando não há nada a classificar). O valor de `destino` é lido sem acento, sem diferença de maiúsculas e sem
+  espaços nas pontas: **suplemento** = `suplemento`, `suplementos` ou `s`; **sensível** (Medicação e ergogênicos) =
+  `sensivel`, `sensível`, `medicamento`, `medicacao`, `medicação` ou `m`. Em branco = não classificado (fica na lista
+  sensível). **Qualquer outro valor** é "destino não entendido": o item também fica na lista sensível, o resumo conta
+  (conversor e `--simular`) e o conversor o lista no `problemas.csv` com a linha do arquivo (nunca o valor escrito). **A
+  decisão é aplicada pelo importador, não pelo conversor** (os JSON não mudam): `importar-planos.mjs`
   lê o arquivo se ele estiver na pasta, recalcula o destino de cada item da lista sensível com as mesmas listas do conversor
   e só move o que nenhuma lista reconhece (a lista de ergogênicos vence sempre, mesmo se o nome normalizado for igual ao de
   uma linha `suplemento`): `suplemento` leva o item para a Suplementação (sem princípio ativo, concentração nem prescrição);
-  `sensivel`, em branco, valor estranho ou arquivo ausente deixa na lista sensível. A Suplementação tem teto de 40 itens por
+  sensível, em branco, destino não entendido ou arquivo ausente deixa na lista sensível. A Suplementação tem teto de 40 itens por
   dieta: o excedente fica na lista sensível e o resumo conta. Quem fica sem nenhum item sensível não exige
   `ERGOGENICO_ALTERAR`. Rodar o conversor de novo **preserva o `destino` já preenchido** dos nomes que continuam na planilha
   e não apaga linha preenchida de nome que sumiu (fica com 0 ocorrências); as linhas em branco são geradas de novo. Aceita o
   "CSV" comum do Excel (ANSI); arquivo sem as colunas esperadas é recusado. O resumo do `--simular` traz as contagens de itens
-  classificados como suplemento, como sensível e não classificados.
+  classificados como suplemento, como sensível e não classificados, e, se houver, os nomes e os itens com destino não
+  entendido (com as linhas do arquivo). O arquivo que o Saraiva devolve (cabeçalhos "Nome na planilha", "Quantas vezes
+  aparece", "Destino") também é lido: basta salvá-lo na pasta como `classificacao-suplementos.csv`.
 - **Correspondência de exercícios (`correspondencias-exercicios.csv`):** o conversor grava, na pasta de saída, os
   exercícios da planilha **sem par exato** (fora da biblioteca do Saraiva e do catálogo; mesma chave da importação: sem
   acento, caixa, pontuação e artigos, mais os apelidos do `importar.mjs`). Colunas (`;`, UTF-8 com BOM, abre no Excel):
-  `nome_na_planilha`, `ocorrencias`, `sugestao_da_biblioteca`, `nota_de_semelhanca` e `confirmado` (em branco). A sugestão
+  `nome_na_planilha`, `ocorrencias`, `sugestao_da_biblioteca`, `nota_de_semelhanca`, `confirmado` e `nome_correto` (as
+  duas últimas em branco; `nome_correto` pode faltar em arquivo gerado antes dela). A sugestão
   é o nome da biblioteca do Saraiva mais parecido, com nota de 0 a 1 (média da semelhança de edição, `1 - distância de
   edição / tamanho`, com o coeficiente de Dice das palavras); abaixo de 0,5 não há sugestão (ficam em branco, nunca 0).
-  O treinador escreve `sim` em `confirmado` nas sugestões certas (pode corrigir a coluna de sugestão antes). **O vínculo é
-  aplicado pelo importador, não pelo conversor** (o conversor não conhece os ids da API e os JSON continuam com
-  `exercicioId` nulo): `importar-planos.mjs` lê o arquivo se ele estiver na pasta e usa **só** as linhas `sim` (maiúsculas,
-  minúsculas e espaços não importam; "s", "x" ou "talvez" não valem), e só para nome sem par exato. O exercício ganha o
+  O treinador responde de duas formas: `sim` em `confirmado` nas sugestões certas, ou o nome certo do exercício em
+  `nome_correto` quando a sugestão está errada. `confirmado` vale como **sim** com `sim`, `s`, `x` ou `ok` e como **não**
+  com `nao` ou `n` (sem acento, sem diferença de maiúsculas e sem espaços nas pontas); qualquer outro valor não é resposta.
+  **O vínculo é aplicado pelo importador, não pelo conversor** (o conversor não conhece os ids da API e os JSON continuam
+  com `exercicioId` nulo): `importar-planos.mjs` lê o arquivo se ele estiver na pasta e usa **só** as linhas com `sim`
+  (vale a sugestão) ou com `nome_correto` (vale esse nome, procurado na biblioteca sem acento nem diferença de maiúsculas);
+  se as duas estiverem preenchidas, o `sim` vence. Vale só para nome sem par exato. O exercício ganha o
   `exercicioId`, a modalidade e (se a planilha não trouxe) o vídeo do exercício da biblioteca, e **mantém o nome da
-  planilha**. Vínculo cujo destino não existe na biblioteca (ou só no catálogo, que precisa ser importado antes) fica sem
-  par; o resumo conta esses casos. Linha sem `sim` não muda nada. Rodar o conversor de novo **não mexe nas linhas que já
-  têm `confirmado` preenchido** (`sim` ou `não`; nem a sugestão e a nota delas, porque o `sim` vale para o que o
-  treinador viu) e não apaga linha preenchida de nome que sumiu da planilha (fica com 0 ocorrências); o resto é gerado de
-  novo. Se o Excel salvar o arquivo como "CSV" comum (ANSI), a leitura aceita; arquivo sem as colunas esperadas é recusado.
+  planilha**. Nome certo que não existe na biblioteca (ou só no catálogo, que precisa ser importado antes) deixa o
+  exercício sem par, e o resumo conta esses casos: **nunca nasce exercício novo**. Linha sem `sim` nem `nome_correto` não
+  muda nada. Rodar o conversor de novo **não mexe nas linhas que já têm `confirmado` ou `nome_correto` preenchido** (nem a
+  sugestão e a nota delas, porque o `sim` vale para o que o treinador viu) e não apaga linha preenchida de nome que sumiu
+  da planilha (fica com 0 ocorrências); o resto é gerado de novo. Se o Excel salvar o arquivo como "CSV" comum (ANSI), a
+  leitura aceita; arquivo sem as colunas esperadas é recusado. O arquivo que o Saraiva devolve (cabeçalhos "Nome na
+  planilha", "Quantas vezes aparece", "Sugestão do app", "Está certo?", "Se não, qual é"; "—" na sugestão = sem sugestão)
+  também é lido: basta salvá-lo na pasta como `correspondencias-exercicios.csv`.
+- **Pacote para o Saraiva (`--pacote`):** o conversor grava, em `para-o-saraiva/` dentro da pasta de saída (0600), o que
+  ele precisa conferir, para abrir direto no Excel do Brasil (UTF-8 com BOM, `;`; sem `--simular`; com `--simular` só
+  conta): `1-suplementos.csv` (os nomes que nenhuma lista reconhece: "Nome na planilha", "Quantas vezes aparece" e "Destino",
+  em branco), `2-exercicios.csv` (os exercícios sem par, do mais ao menos frequente: "Nome na planilha", "Quantas vezes
+  aparece", "Sugestão do app", com "—" quando não há, "Está certo?" e "Se não, qual é", em branco), `3-o-que-corrigir.csv`
+  (os problemas da planilha, por aluno, aba e linha, cada um num texto em português simples: "Aluno", "Aba", "Linha" e "O
+  que corrigir"; o aluno é o da aba Alunos, senão o "Nome Aluno" da própria linha, senão o código, senão "—") e
+  `mensagem.txt` (o texto que o Gustavo manda junto, com as contagens). **Esses arquivos têm nome e dado real de aluno**:
+  ficam fora do repositório, nunca vão para log, chat nem grupo; seguem para o Saraiva por canal privado (e-mail ou
+  WhatsApp direto). O terminal mostra só as contagens. Como o Saraiva preenche: em `1-suplementos.csv`, escreve
+  `suplemento` ou `medicamento` em cada linha (em branco entra como medicamento); em `2-exercicios.csv`, escreve `sim` se
+  a sugestão está certa ou o nome certo na última coluna (em branco: entra com o nome da planilha, sem vídeo); em
+  `3-o-que-corrigir.csv` só lê e ajusta a planilha original. Como volta: salvar o `1-suplementos.csv` preenchido como
+  `classificacao-suplementos.csv` e o `2-exercicios.csv` como `correspondencias-exercicios.csv` na pasta do conversor
+  (substituem os gerados) e rodar `importar-planos.mjs --simular`.
 - **Importador:** `--simular` lê só os arquivos e o repositório e mostra contagens, entre elas quantos exercícios têm par
   na biblioteca do Saraiva, quantos só no catálogo público (precisam ser importados para a biblioteca) e quantos não têm
-  par (e quantos foram ligados por `confirmado = sim`) e quantos suplementos foram classificados como suplemento, como
-  sensível e não classificados. `--gravar` cria, para cada aluno, a pasta "Importada da planilha (rascunho)" (sem datas), os planos e o rascunho
+  par (e quantos foram ligados por `confirmado = sim` ou por `nome_correto`) e quantos suplementos foram classificados como
+  suplemento, como sensível e não classificados (com a contagem de destinos não entendidos). `--gravar` cria, para cada aluno, a pasta "Importada da planilha (rascunho)" (sem datas), os planos e o rascunho
   de cada um (com o `exercicioId` quando o nome casa com a biblioteca; exercício sem par fica só com o nome, nunca é
   criado). Confere as permissões em `GET /eu` antes de gravar qualquer coisa (inclusive `ERGOGENICO_ALTERAR` quando há
   medicação) e para no primeiro erro. Rodar de novo não duplica. Nunca chama `/publicar`.

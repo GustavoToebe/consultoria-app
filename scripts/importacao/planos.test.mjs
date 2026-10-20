@@ -14,11 +14,17 @@ import { fileURLToPath } from 'node:url';
 import { lerBibliotecaLocal, lerReferenciasDeSuplementos } from './biblioteca-local.mjs';
 import {
   ARQUIVO_CORRESPONDENCIAS, csvDeCorrespondencias, decodificarCsv, lerCorrespondencias, linhasDeCorrespondencia, notaDeSemelhanca,
-  sugerirDaBiblioteca, vinculosConfirmados,
+  origemDosVinculos, respostaDeConfirmacao, sugerirDaBiblioteca, vinculosConfirmados,
 } from './correspondencias-lib.mjs';
 import {
-  ARQUIVO_CLASSIFICACAO, aplicarClassificacao, csvDeClassificacao, destinosClassificados, lerClassificacao, linhasDeClassificacao,
+  ARQUIVO_CLASSIFICACAO, aplicarClassificacao, csvDeClassificacao, destinoEscolhido, destinosClassificados, destinosNaoEntendidos, lerClassificacao,
+  linhasDeClassificacao,
 } from './classificacao-suplementos-lib.mjs';
+import {
+  ARQUIVOS_DO_PACOTE, PASTA_DO_PACOTE, SEM_SUGESTAO, csvDeExerciciosParaConferir, csvDeSuplementosParaConferir, csvDoQueCorrigir, textoDaMensagem,
+  textoDoProblema,
+} from './pacote-saraiva-lib.mjs';
+import { lerCsv } from './alunos-lib.mjs';
 import { lerXlsx } from './planilha-lib.mjs';
 import {
   ABAS_LIDAS, TITULO_PASTA, chaveDoExercicio, converterPlanos, destinoDoSuplemento, diaDaSemana, faixaDeRepeticoes,
@@ -490,8 +496,10 @@ function paresFicticios() {
   return { biblioteca: new Map(nomes.map((nome) => [chaveDoExercicio(nome), nome])), catalogo: new Set([chaveDoExercicio('Agachamento livre')]) };
 }
 const arquivoComExercicios = (...nomes) => ({ treino: { conteudo: { sessoes: [{ exercicios: nomes.map((nome) => ({ nome })) }] } } });
-/** Preenche a coluna `confirmado` da linha do nome. */
-const confirmar = (csv, nome, valor) => csv.replace(new RegExp(`(^${nome};[^\\n]*;)$`, 'm'), `$1${valor}`);
+/** Preenche a coluna `confirmado` (a penúltima) da linha do nome, de um CSV com `confirmado` e `nome_correto` em branco. */
+const confirmar = (csv, nome, valor) => csv.replace(new RegExp(`(^${nome};[^\\n]*);;$`, 'm'), `$1;${valor};`);
+/** Preenche a coluna `nome_correto` (a última) da linha do nome. */
+const corrigir = (csv, nome, valor) => csv.replace(new RegExp(`(^${nome};[^\\n]*;)$`, 'm'), `$1${valor}`);
 
 test('correspondências: só nomes sem par exato; sugestão sem acento e sem diferença de caixa; nota de 0 a 1; sem sugestão abaixo do piso', () => {
   const pares = paresFicticios();
@@ -523,7 +531,7 @@ test('correspondências: o arquivo tem BOM, ; e confirmado vazio; lê de volta; 
   const pares = paresFicticios();
   const { linhas } = linhasDeCorrespondencia([arquivoComExercicios('Remada curvadda', 'Rosca diretta', '=Fórmula; "estranha"', 'Puxada altta polia')], pares);
   const csv = csvDeCorrespondencias(linhas);
-  assert.ok(csv.startsWith('﻿nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado\n'));
+  assert.ok(csv.startsWith('﻿nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado;nome_correto\n'));
   assert.ok(csv.includes("'=Fórmula"));
   const lidas = lerCorrespondencias(csv);
   assert.deepEqual([...lidas.values()].map((l) => l.confirmado), ['', '', '', '']);
@@ -535,8 +543,12 @@ test('correspondências: o arquivo tem BOM, ; e confirmado vazio; lê de volta; 
     [chaveDoExercicio('Remada curvadda'), chaveDoExercicio('Remada curvada')],
     [chaveDoExercicio('Rosca diretta'), chaveDoExercicio('Rosca direta')],
   ]);
-  for (const outro of ['s', 'x', 'talvez', 'sim?', '1', 'true', 'nao']) {
+  for (const outro of ['talvez', 'sim?', '1', 'true', 'nao', 'não', 'n', 'N', ' Não ']) {
     assert.equal(vinculosConfirmados(lerCorrespondencias(confirmar(csv, 'Remada curvadda', outro))).size, 0, outro);
+  }
+  // todas as formas de dizer "sim": sim, s, x, ok, com ou sem acento, em qualquer caixa e com espaços
+  for (const sim of ['sim', 'SIM', 'Sim', 's', 'S', 'x', 'X', 'ok', 'OK', 'Ok', ' sim ', 'sím']) {
+    assert.equal(vinculosConfirmados(lerCorrespondencias(confirmar(csv, 'Remada curvadda', sim))).size, 1, sim);
   }
   assert.throws(() => lerCorrespondencias('a;b\n1;2\n'), /não tem as colunas/);
 });
@@ -548,6 +560,63 @@ test('correspondências: ler o CSV salvo como ANSI (windows-1252) pelo Excel man
   assert.equal(decodificarCsv(ansi), csv);
   assert.equal(decodificarCsv(Buffer.from(`﻿${csv}`, 'utf8')), csv); // BOM do UTF-8 sai
   assert.deepEqual([...vinculosConfirmados(lerCorrespondencias(decodificarCsv(ansi)))], [[chaveDoExercicio('Extensão fictícia'), chaveDoExercicio('Extensão de pernas')]]);
+});
+
+test('correspondências: respostaDeConfirmacao entende sim e não sem acento, sem caixa e com espaços; o resto não é resposta', () => {
+  for (const v of ['sim', 'SIM', ' Sim ', 's', 'S', 'x', 'X', 'ok', 'Ok', 'OK', 'sím']) assert.equal(respostaDeConfirmacao(v), 'sim', v);
+  for (const v of ['nao', 'NAO', ' Não ', 'não', 'n', 'N']) assert.equal(respostaDeConfirmacao(v), 'nao', v);
+  for (const v of ['', '  ', 'talvez', 'sim?', 'ss', 'xx', 'okay', '1', undefined, null]) assert.equal(respostaDeConfirmacao(v), '', String(v));
+});
+
+test('correspondências: nome_correto vincula pelo nome sem acento nem caixa; "sim" vence; nome que não existe fica sem destino', () => {
+  const pares = paresFicticios();
+  const arquivos = [arquivoComExercicios('Remada curvadda', 'Rosca diretta', 'Puxada altta polia', 'Xyzzy qwerty', 'Supino torto')];
+  const { linhas } = linhasDeCorrespondencia(arquivos, pares);
+  let csv = csvDeCorrespondencias(linhas);
+  csv = corrigir(csv, 'Xyzzy qwerty', 'REMADA CURVÁDA'); // sem sugestão: só o nome certo vale
+  csv = corrigir(csv, 'Supino torto', 'Exercício que não existe');
+  csv = corrigir(confirmar(csv, 'Remada curvadda', 'sim'), 'Remada curvadda', 'Rosca direta'); // os dois: o sim vence
+  csv = corrigir(confirmar(csv, 'Rosca diretta', 'não'), 'Rosca diretta', 'Rosca direta'); // não + nome certo: o nome certo vale
+  const lidas = lerCorrespondencias(csv);
+  assert.deepEqual([...vinculosConfirmados(lidas)].sort(), [
+    [chaveDoExercicio('Remada curvadda'), chaveDoExercicio('Remada curvada')], // a sugestão, não o nome escrito
+    [chaveDoExercicio('Rosca diretta'), chaveDoExercicio('Rosca direta')],
+    [chaveDoExercicio('Supino torto'), chaveDoExercicio('Exercício que não existe')],
+    [chaveDoExercicio('Xyzzy qwerty'), chaveDoExercicio('Remada curvada')],
+  ].sort());
+  assert.deepEqual(origemDosVinculos(lidas), { sim: 1, corrigidos: 3 });
+  // a importação: o que existe na biblioteca liga; o que não existe é contado e nunca cria exercício
+  const c = resumoDaImportacao(arquivos, pares, vinculosConfirmados(lidas));
+  assert.deepEqual([c.vinculados, c.vinculosSemDestino], [3, 1]);
+  // a linha só com nome_correto (confirmado em branco) conta como respondida ao regerar
+  const de_novo = linhasDeCorrespondencia(arquivos, pares, lidas);
+  assert.equal(de_novo.resumo.comNomeCorreto, 4);
+  assert.equal(de_novo.linhas.find((l) => l.nome === 'Xyzzy qwerty').correcao, 'REMADA CURVÁDA');
+  assert.equal(lerCorrespondencias(csvDeCorrespondencias(de_novo.linhas)).get(chaveDoExercicio('Xyzzy qwerty')).correcao, 'REMADA CURVÁDA');
+});
+
+test('correspondências: arquivo no formato anterior (sem nome_correto) e o arquivo do Saraiva (cabeçalhos do pacote, "—") são lidos', () => {
+  const antigo = lerCorrespondencias('nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado\nRemada curvadda;3;Remada curvada;0,9;sim\n');
+  assert.deepEqual([...vinculosConfirmados(antigo)], [[chaveDoExercicio('Remada curvadda'), chaveDoExercicio('Remada curvada')]]);
+  assert.equal(antigo.get(chaveDoExercicio('Remada curvadda')).correcao, '');
+
+  const pacote = [
+    'Nome na planilha;Quantas vezes aparece;Sugestão do app;Está certo?;Se não, qual é',
+    'Remada curvadda;3;Remada curvada;Sim;',
+    'Xyzzy qwerty;1;—;;Rosca direta',
+    'Puxada altta polia;1;Puxada alta na polia;;',
+    'Supino torto;2;—;;',
+  ].join('\r\n');
+  const lidas = lerCorrespondencias(pacote);
+  assert.deepEqual([...vinculosConfirmados(lidas)].sort(), [
+    [chaveDoExercicio('Remada curvadda'), chaveDoExercicio('Remada curvada')],
+    [chaveDoExercicio('Xyzzy qwerty'), chaveDoExercicio('Rosca direta')],
+  ].sort());
+  assert.equal(lidas.get(chaveDoExercicio('Xyzzy qwerty')).sugestao, ''); // "—" não é um nome
+  assert.equal(lidas.get(chaveDoExercicio('Puxada altta polia')).sugestao, 'Puxada alta na polia');
+  // "—" com "sim" não liga a nada
+  assert.equal(vinculosConfirmados(lerCorrespondencias('Nome na planilha;Sugestão do app;Está certo?\nSupino torto;—;sim\n')).size, 0);
+  assert.throws(() => lerCorrespondencias('Nome na planilha;Sugestão do app\nA;B\n'), /não tem as colunas: confirmado/);
 });
 
 test('correspondências: regerar preserva o confirmado (e a sugestão confirmada) e não perde linha preenchida', () => {
@@ -620,14 +689,14 @@ test('classificação: só o que nenhuma lista reconhece entra, por nome normali
     { nome: 'xilofone ficticio', ocorrencias: 2, destino: '' },
     { nome: 'zincoxxx', ocorrencias: 1, destino: '' },
   ]);
-  assert.deepEqual(resumo, { nomesDistintos: 2, itens: 3, semNome: 1, comDestinoNoArquivo: 0 });
+  assert.deepEqual(resumo, { nomesDistintos: 2, itens: 3, semNome: 1, comDestinoNoArquivo: 0, naoEntendidos: 0 });
   // quem a lista comum ou a de ergogênicos reconhece nunca aparece
   assert.ok(!linhas.some((l) => /whey|droga/.test(l.nome)));
   // nenhum item, nenhum problema: só o cabeçalho
   assert.deepEqual(linhasDeClassificacao(planosComSuplementos([['P1', 'Whey Protein']]), REFS).linhas, []);
 });
 
-test('classificação: o arquivo tem BOM, ; e destino vazio; lê de volta (CRLF e ANSI do Excel); só suplemento e sensivel valem', () => {
+test('classificação: o arquivo tem BOM, ; e destino vazio; lê de volta (CRLF e ANSI do Excel); o que não é destino fica de fora', () => {
   const { linhas } = linhasDeClassificacao(planosComSuplementos(ITENS_DE_CLASSIFICACAO), REFS);
   const csv = csvDeClassificacao(linhas);
   assert.equal(csv, '﻿nome_normalizado;ocorrencias;destino\nxilofone ficticio;2;\nzincoxxx;1;\n');
@@ -635,11 +704,35 @@ test('classificação: o arquivo tem BOM, ; e destino vazio; lê de volta (CRLF 
   assert.deepEqual([...lerClassificacao(csv).keys()], ['xilofone ficticio', 'zincoxxx']);
   assert.equal(destinosClassificados(lerClassificacao(csv)).size, 0);
 
-  const preenchido = 'nome_normalizado;ocorrencias;destino\r\nXilofone Fictício;2; Suplemento \r\nzincoxxx;1;SENSIVEL\r\nvazio um;1;\r\nvazio dois;1;talvez\r\nvazio tres;1;sensível\r\nvazio quatro;1;s\r\n';
+  const preenchido = 'nome_normalizado;ocorrencias;destino\r\nXilofone Fictício;2; Suplemento \r\nzincoxxx;1;SENSIVEL\r\nvazio um;1;\r\nvazio dois;1;talvez\r\nvazio tres;1;sensível\r\nvazio quatro;1;s\r\nvazio cinco;1;sei lá\r\n';
   const ansi = Buffer.from(preenchido, 'latin1');
   assert.throws(() => new TextDecoder('utf-8', { fatal: true }).decode(ansi));
-  assert.deepEqual([...destinosClassificados(lerClassificacao(decodificarCsv(ansi)))], [['xilofone ficticio', 'suplemento'], ['zincoxxx', 'sensivel']]);
+  const lidas = lerClassificacao(decodificarCsv(ansi));
+  assert.deepEqual([...destinosClassificados(lidas)], [['xilofone ficticio', 'suplemento'], ['zincoxxx', 'sensivel'], ['vazio tres', 'sensivel'], ['vazio quatro', 'suplemento']]);
+  // o que ninguém entende vem com o número da linha do arquivo (o cabeçalho é a 1); em branco não é "não entendido"
+  assert.deepEqual([...destinosNaoEntendidos(lidas)], [['vazio dois', 5], ['vazio cinco', 8]]);
   assert.throws(() => lerClassificacao('a;b\n1;2\n'), /não tem as colunas/);
+});
+
+test('classificação: destinoEscolhido entende cada variação (sem acento, caixa, espaços); em branco é vazio e o resto, não entendido', () => {
+  for (const v of ['suplemento', 'Suplemento', ' SUPLEMENTO ', 'suplementos', 'Suplementos', 's', 'S']) assert.equal(destinoEscolhido(v), 'suplemento', v);
+  for (const v of ['sensivel', 'sensível', 'SENSÍVEL', 'medicamento', 'Medicamento', 'medicacao', 'medicação', 'MEDICAÇÃO', 'm', 'M', ' m ']) {
+    assert.equal(destinoEscolhido(v), 'sensivel', v);
+  }
+  for (const v of ['', '   ', undefined, null]) assert.equal(destinoEscolhido(v), '', String(v));
+  for (const v of ['talvez', 'x', 'sim', 'suple', 'ss', 'sensiveis', 'remedio', '1', 'suplemento medicamento']) assert.equal(destinoEscolhido(v), 'nao-entendido', v);
+});
+
+test('classificação: o arquivo do Saraiva (cabeçalhos do pacote) é lido direto, com o número da linha dos destinos não entendidos', () => {
+  const lidas = lerClassificacao([
+    'Nome na planilha;Quantas vezes aparece;Destino',
+    'xilofone ficticio;2;Suplemento',
+    'zincoxxx;1;medicação',
+    'terceiro fictício;1;não sei',
+    'quarto ficticio;1;',
+  ].join('\r\n'));
+  assert.deepEqual([...destinosClassificados(lidas)], [['xilofone ficticio', 'suplemento'], ['zincoxxx', 'sensivel']]);
+  assert.deepEqual([...destinosNaoEntendidos(lidas)], [['terceiro ficticio', 4]]);
 });
 
 test('classificação: regerar preserva o destino preenchido e não perde linha preenchida de nome que sumiu', () => {
@@ -655,7 +748,7 @@ test('classificação: regerar preserva o destino preenchido e não perde linha 
   assert.deepEqual(reconhecido.linhas.map((l) => l.nome), ['xilofone ficticio', 'nome que sumiu']);
 });
 
-test('classificação na importação: suplemento move para a Suplementação; sensivel, branco e valor estranho ficam na sensível', () => {
+test('classificação na importação: suplemento move para a Suplementação; sensivel, branco e destino não entendido ficam na sensível', () => {
   const planos = planosComSuplementos(ITENS_DE_CLASSIFICACAO);
   const antes = JSON.stringify(planos);
   const destinos = (...linhas) => destinosClassificados(lerClassificacao(['nome_normalizado;ocorrencias;destino', ...linhas].join('\n')));
@@ -663,11 +756,11 @@ test('classificação na importação: suplemento move para a Suplementação; s
   // sem arquivo = comportamento atual: tudo o que ninguém reconhece segue na sensível, e conta como não classificado
   const sem = aplicarClassificacao(planos, REFS);
   assert.deepEqual(sem.planos, planos);
-  assert.deepEqual(sem.contagens, { suplemento: 0, sensivel: 0, naoClassificado: 4, semVaga: 0 });
+  assert.deepEqual(sem.contagens, { suplemento: 0, sensivel: 0, naoClassificado: 4, naoEntendido: 0, semVaga: 0 });
 
   const r = aplicarClassificacao(planos, REFS, destinos('xilofone ficticio;2; Suplemento ', 'zincoxxx;1;sensivel'));
   assert.equal(JSON.stringify(planos), antes); // a entrada não muda
-  assert.deepEqual(r.contagens, { suplemento: 2, sensivel: 1, naoClassificado: 1, semVaga: 0 });
+  assert.deepEqual(r.contagens, { suplemento: 2, sensivel: 1, naoClassificado: 1, naoEntendido: 0, semVaga: 0 });
   const [al1, al2] = ['AL1', 'AL2'].map((c) => r.planos.find((p) => p.codigo === c).dieta.conteudo);
   assert.deepEqual(nomesDe(al1.suplementacao), ['Whey Protein isolado 30 g', 'Xilofone Fictício 5 mg']);
   assert.deepEqual(nomesDe(al1.ergogenicos), ['Droga Ficticia 10 mg', 'Zincoxxx 10 mg']);
@@ -680,10 +773,27 @@ test('classificação na importação: suplemento move para a Suplementação; s
   // a lista sensível que esvazia vira null, como no conversor
   assert.equal(aplicarClassificacao(planosComSuplementos([['P1', 'Zincoxxx']]), REFS, destinos('zincoxxx;1;suplemento')).planos[0].dieta.conteudo.ergogenicos, null);
 
-  // em branco, valor estranho ou com acento: ficam na sensível e contam como não classificados
-  for (const valor of ['', 'talvez', 'sensível', 's', 'suplementos']) {
+  // em branco: fica na sensível e conta como não classificado (mas não como "destino não entendido")
+  const emBranco = aplicarClassificacao(planos, REFS, destinos('xilofone ficticio;2;', 'zincoxxx;1;'));
+  assert.deepEqual(emBranco.contagens, { suplemento: 0, sensivel: 0, naoClassificado: 4, naoEntendido: 0, semVaga: 0 });
+  assert.deepEqual(emBranco.planos, planos);
+
+  // cada forma de escrever "suplemento" e "sensível" vale (xilofone: 2 itens; zincoxxx: 1 item; o "500 mg" nunca é classificado)
+  for (const valor of ['suplemento', 'Suplementos', 's', ' S ']) {
     const x = aplicarClassificacao(planos, REFS, destinos(`xilofone ficticio;2;${valor}`, `zincoxxx;1;${valor}`));
-    assert.deepEqual(x.contagens, { suplemento: 0, sensivel: 0, naoClassificado: 4, semVaga: 0 }, valor);
+    assert.deepEqual(x.contagens, { suplemento: 3, sensivel: 0, naoClassificado: 1, naoEntendido: 0, semVaga: 0 }, valor);
+  }
+  for (const valor of ['sensivel', 'sensível', 'Medicamento', 'medicacao', 'MEDICAÇÃO', 'm']) {
+    const x = aplicarClassificacao(planos, REFS, destinos(`xilofone ficticio;2;${valor}`, `zincoxxx;1;${valor}`));
+    assert.deepEqual(x.contagens, { suplemento: 0, sensivel: 3, naoClassificado: 1, naoEntendido: 0, semVaga: 0 }, valor);
+    assert.deepEqual(x.planos, planos, valor); // na sensível desde o começo: nada muda
+  }
+
+  // destino que ninguém entende: fica na sensível, conta como não classificado e como "não entendido"
+  for (const valor of ['talvez', 'x', 'sim', 'sei lá']) {
+    const lidas = lerClassificacao(['nome_normalizado;ocorrencias;destino', `xilofone ficticio;2;${valor}`, `zincoxxx;1;${valor}`].join('\n'));
+    const x = aplicarClassificacao(planos, REFS, destinosClassificados(lidas), destinosNaoEntendidos(lidas));
+    assert.deepEqual(x.contagens, { suplemento: 0, sensivel: 0, naoClassificado: 4, naoEntendido: 3, semVaga: 0 }, valor);
     assert.deepEqual(x.planos, planos, valor);
   }
 });
@@ -695,7 +805,7 @@ test('classificação na importação: a lista de ergogênicos vence mesmo com o
   const r = aplicarClassificacao(planos, REFS, destinos);
   assert.deepEqual(nomesDe(r.planos[0].dieta.conteudo.ergogenicos), ['Droga Ficticia 10 mg', 'Droga Ficticia (lote 3)']);
   assert.deepEqual(nomesDe(r.planos[0].dieta.conteudo.suplementacao), ['Zincoxxx']);
-  assert.deepEqual(r.contagens, { suplemento: 1, sensivel: 0, naoClassificado: 0, semVaga: 0 });
+  assert.deepEqual(r.contagens, { suplemento: 1, sensivel: 0, naoClassificado: 0, naoEntendido: 0, semVaga: 0 });
   // mesmo nome normalizado, com e sem a palavra da lista de ergogênicos: o reconhecido nunca conta como classificado
   const parenteses = planosComSuplementos([['P1', 'Zincoxxx (com Droga Ficticia)'], ['P1', 'Zincoxxx']]);
   const p = aplicarClassificacao(parenteses, REFS, destinosClassificados(lerClassificacao('nome_normalizado;ocorrencias;destino\nzincoxxx;1;suplemento\n')));
@@ -708,7 +818,7 @@ test('classificação na importação: a lista de ergogênicos vence mesmo com o
   const lotado = aplicarClassificacao(cheio, REFS, destinosClassificados(lerClassificacao('nome_normalizado;ocorrencias;destino\nzincoxxx;1;suplemento\n')));
   assert.equal(lotado.planos[0].dieta.conteudo.suplementacao.length, 40);
   assert.deepEqual(nomesDe(lotado.planos[0].dieta.conteudo.ergogenicos), ['Zincoxxx']);
-  assert.deepEqual(lotado.contagens, { suplemento: 0, sensivel: 0, naoClassificado: 0, semVaga: 1 });
+  assert.deepEqual(lotado.contagens, { suplemento: 0, sensivel: 0, naoClassificado: 0, naoEntendido: 0, semVaga: 1 });
 });
 
 // ------------------------------------------------------------------------------------ linha de comando
@@ -763,7 +873,7 @@ test('converter-planos: grava correspondencias-exercicios.csv (0600) só com nom
 
   const simulado = rodar('--simular');
   assert.equal(simulado.status, 0, simulado.stderr);
-  assert.match(simulado.stdout, /Exercícios sem par exato na biblioteca nem no catálogo: 6 nomes diferentes \(\d+ com sugestão da biblioteca, \d+ sem\); 0 linhas já com "confirmado" preenchido no arquivo \(0 "sim"\)/);
+  assert.match(simulado.stdout, /Exercícios sem par exato na biblioteca nem no catálogo: 6 nomes diferentes \(\d+ com sugestão da biblioteca, \d+ sem\); 0 linhas já respondidas no arquivo \(0 "sim", 0 com o nome certo escrito\)/);
   assert.throws(() => readdirSync(saida));
 
   const primeira = rodar();
@@ -771,18 +881,18 @@ test('converter-planos: grava correspondencias-exercicios.csv (0600) só com nom
   assert.ok(!/Remada fictícia|Puxada fictícia/.test(primeira.stdout + primeira.stderr));
   const caminho = join(saida, ARQUIVO_CORRESPONDENCIAS);
   const csv = readFileSync(caminho, 'utf8');
-  assert.ok(csv.startsWith('﻿nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado\n'));
+  assert.ok(csv.startsWith('﻿nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado;nome_correto\n'));
   assert.equal(csv.trim().split('\n').length, 1 + 6);
   assert.ok(lerCorrespondencias(csv).has(chaveDoExercicio('Remada fictícia')));
   if (process.platform !== 'win32') assert.equal(statSync(caminho).mode & 0o077, 0);
 
   // o treinador confirma uma linha (em ANSI, como o Excel grava) e o conversor roda de novo
-  const editado = csv.replace(/^(Remada fictícia;[^\n]*;)$/m, '$1Sim').replace(/^(Puxada fictícia;[^\n]*;)$/m, '$1não');
+  const editado = csv.replace(/^(Remada fictícia;[^\n]*);;$/m, '$1;Sim;').replace(/^(Puxada fictícia;[^\n]*);;$/m, '$1;não;');
   assert.notEqual(editado, csv);
   writeFileSync(caminho, Buffer.from(editado.replace(/^﻿/, ''), 'latin1')); // o ANSI do Excel não tem BOM
   const segunda = rodar();
   assert.equal(segunda.status, 0, segunda.stderr);
-  assert.match(segunda.stdout, /2 linhas já com "confirmado" preenchido no arquivo \(1 "sim"\)/);
+  assert.match(segunda.stdout, /2 linhas já respondidas no arquivo \(1 "sim", 0 com o nome certo escrito\)/);
   const depois = lerCorrespondencias(readFileSync(caminho, 'utf8'));
   assert.deepEqual([depois.get(chaveDoExercicio('Remada fictícia')).confirmado, depois.get(chaveDoExercicio('Puxada fictícia')).confirmado], ['Sim', 'não']);
 
@@ -968,23 +1078,35 @@ test('importar-planos --gravar: sem IMPORT_EMAIL/IMPORT_SENHA não chama a API',
   assert.equal(api.requisicoes.length, 0);
 });
 
-test('importar-planos --simular: usa só as linhas confirmado = sim do correspondencias-exercicios.csv da pasta', async (t) => {
+test('importar-planos --simular: usa as linhas com confirmado = sim (ou s, x, ok) e o nome certo do correspondencias-exercicios.csv da pasta', async (t) => {
   const pasta = pastaDePlanos(t);
   const destino = lerBibliotecaLocal().biblioteca.values().next().value; // um nome qualquer da biblioteca do repositório
   const arquivo = join(pasta, ARQUIVO_CORRESPONDENCIAS);
+  // formato anterior, sem a coluna nome_correto: continua sendo lido
   const escrever = (linhas) => writeFileSync(arquivo, `nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado\n${linhas.join('\n')}\n`);
+  const escreverComNomeCerto = (linhas) => writeFileSync(arquivo, `nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado;nome_correto\n${linhas.join('\n')}\n`);
 
   // sem o arquivo: nada ligado
-  assert.match((await rodarImportador(['--pasta', pasta, '--simular'], {})).saida, /Vínculos confirmados \(confirmado = sim\): 0 nomes no arquivo; 0 exercícios ligados/);
-  // confirmado vazio, "não" e "talvez" não vinculam; " SIM " vincula (e o destino que não existe fica sem par)
-  escrever([`Remada fictícia;1;${destino};0,9;`, `Puxada fictícia;1;${destino};0,9;não`, `Exercício data;1;${destino};0,9;talvez`]);
-  assert.match((await rodarImportador(['--pasta', pasta, '--simular'], {})).saida, /0 nomes no arquivo; 0 exercícios ligados/);
+  assert.match((await rodarImportador(['--pasta', pasta, '--simular'], {})).saida, /Vínculos \(confirmado = sim ou nome certo escrito\): 0 nomes no arquivo \(0 por "sim", 0 por nome corrigido\); 0 exercícios ligados/);
+  // confirmado vazio, "não", "n" e "talvez" não vinculam
+  escrever([`Remada fictícia;1;${destino};0,9;`, `Puxada fictícia;1;${destino};0,9;não`, `Exercício data;1;${destino};0,9;talvez`, `Sem série;1;${destino};0,9;N`]);
+  assert.match((await rodarImportador(['--pasta', pasta, '--simular'], {})).saida, /0 nomes no arquivo \(0 por "sim", 0 por nome corrigido\); 0 exercícios ligados/);
+  // " SIM " vincula (e o destino que não existe fica sem par)
   escrever([`Remada fictícia;1;${destino};0,9; SIM `, 'Puxada fictícia;1;Nome que não existe na biblioteca;0,9;sim']);
   const r = await rodarImportador(['--pasta', pasta, '--simular'], {});
   assert.equal(r.status, 0, r.saida);
   assert.match(r.saida, /Exercícios: 6 \(1 na biblioteca do Saraiva, 0 só no catálogo público, 5 sem par; 5 nomes diferentes sem par\)/);
-  assert.match(r.saida, /2 nomes no arquivo; 1 exercícios ligados por eles \(já contados acima\) e 1 cujo destino não está/);
+  assert.match(r.saida, /2 nomes no arquivo \(2 por "sim", 0 por nome corrigido\); 1 exercícios ligados por eles \(já contados acima\) e 1 cujo destino não está/);
   assert.ok(!/Remada|Puxada|fictíci/.test(r.saida));
+  // s, x e ok também são "sim"
+  escrever([`Remada fictícia;1;${destino};0,9;s`, `Puxada fictícia;1;${destino};0,9;X`, `Exercício data;1;${destino};0,9;ok`]);
+  assert.match((await rodarImportador(['--pasta', pasta, '--simular'], {})).saida, /3 nomes no arquivo \(3 por "sim", 0 por nome corrigido\); 3 exercícios ligados/);
+  // o nome certo escrito vale pelo nome na biblioteca (sem acento nem caixa); o que não existe fica sem par e nunca vira exercício novo
+  escreverComNomeCerto([`Remada fictícia;1;;;;${destino.toUpperCase()}`, 'Puxada fictícia;1;;;;Exercício que não existe', `Exercício data;1;${destino};0,9;sim;Outro nome`]);
+  const c = await rodarImportador(['--pasta', pasta, '--simular'], {});
+  assert.equal(c.status, 0, c.saida);
+  assert.match(c.saida, /3 nomes no arquivo \(1 por "sim", 2 por nome corrigido\); 2 exercícios ligados por eles \(já contados acima\) e 1 cujo destino não está/);
+  assert.ok(!/Remada|Puxada|fictíci/.test(c.saida));
   // arquivo que não é o de correspondências: erro sem conteúdo
   writeFileSync(arquivo, 'a;b\n1;2\n');
   const ruim = await rodarImportador(['--pasta', pasta, '--simular'], {});
@@ -1034,7 +1156,7 @@ test('converter-planos: grava classificacao-suplementos.csv (0600) só com o que
 
   const simulado = rodar('--simular');
   assert.equal(simulado.status, 0, simulado.stderr);
-  assert.match(simulado.stdout, /Suplementos que nenhuma lista reconhece \(hoje na lista sensível\): 3 itens, 2 nomes diferentes; 0 linhas já com "destino" preenchido/);
+  assert.match(simulado.stdout, /Suplementos que nenhuma lista reconhece \(hoje na lista sensível\): 3 itens, 2 nomes diferentes; 0 linhas já com "destino" entendido no arquivo\./);
   assert.throws(() => readdirSync(saida));
 
   const primeira = rodar();
@@ -1049,8 +1171,20 @@ test('converter-planos: grava classificacao-suplementos.csv (0600) só com o que
   writeFileSync(caminho, Buffer.from(csv.replace(/^﻿/, '').replace('zincoxxx;2;', 'zincoxxx;2;Suplemento '), 'latin1'));
   const segunda = rodar();
   assert.equal(segunda.status, 0, segunda.stderr);
-  assert.match(segunda.stdout, /1 linhas já com "destino" preenchido/);
+  assert.match(segunda.stdout, /1 linhas já com "destino" entendido no arquivo\./);
   assert.deepEqual([...destinosClassificados(lerClassificacao(readFileSync(caminho, 'utf8')))], [['zincoxxx', 'suplemento']]);
+
+  // destino que ninguém entende: a linha fica como está, o resumo conta e o problemas.csv aponta a linha do arquivo, sem repetir o valor
+  const estranho = readFileSync(caminho, 'utf8').replace('remedio ficticio xyz;1;', 'remedio ficticio xyz;1;sei lá');
+  writeFileSync(caminho, Buffer.from(estranho.replace(/^﻿/, ''), 'latin1'));
+  const terceira = rodar();
+  assert.equal(terceira.status, 0, terceira.stderr);
+  assert.match(terceira.stdout, /1 linhas já com "destino" entendido no arquivo e 1 com destino não entendido/);
+  assert.ok(!/sei l|Rem[ée]dio/i.test(terceira.stdout + terceira.stderr));
+  const problemas = readFileSync(join(saida, 'problemas.csv'), 'utf8');
+  assert.ok(problemas.includes(`${ARQUIVO_CLASSIFICACAO};3;destino não entendido`), problemas.slice(0, 300));
+  assert.ok(!/sei l/.test(problemas));
+  assert.match(readFileSync(caminho, 'utf8').replace(/\r/g, ''), /remedio ficticio xyz;1;sei lá/); // o arquivo da pessoa não é mexido
 
   writeFileSync(caminho, 'isto;nao;e;o;arquivo\n1;2;3;4;5\n');
   const quebrado = rodar();
@@ -1080,16 +1214,28 @@ test('importar-planos --simular: usa só as linhas destino = suplemento ou sensi
   let saida = await simular();
   assert.match(saida, /medicação e ergogênicos: 3 itens/);
   assert.match(saida, /0 itens classificados como suplemento \(já levados para a Suplementação\), 0 como sensível, 3 não classificados/);
-  // em branco e valor estranho: o mesmo
-  escrever('zincoxxx;1;', 'remedio ficticio xyz;1;talvez', 'xilofone ficticio;1;sensível');
+  // em branco: o mesmo, sem linha de "destino não entendido"
+  escrever('zincoxxx;1;', 'remedio ficticio xyz;1;', 'xilofone ficticio;1;');
   saida = await simular();
   assert.match(saida, /medicação e ergogênicos: 3 itens/);
   assert.match(saida, /0 itens classificados como suplemento .*, 0 como sensível, 3 não classificados/);
+  assert.ok(!/Destino não entendido/.test(saida));
+  // destino que ninguém entende: o mesmo, mas conta e diz em que linhas do arquivo (a 1 é o cabeçalho)
+  escrever('zincoxxx;1;', 'remedio ficticio xyz;1;talvez', 'xilofone ficticio;1;sei lá');
+  saida = await simular();
+  assert.match(saida, /medicação e ergogênicos: 3 itens/);
+  assert.match(saida, /0 itens classificados como suplemento .*, 0 como sensível, 3 não classificados/);
+  assert.match(saida, /Destino não entendido: 2 nomes no classificacao-suplementos\.csv \(linhas 3, 4\), 2 itens\. Escreva suplemento ou medicamento\./);
   // "Suplemento " (maiúscula e espaço) move; sensivel conta e fica
   escrever('zincoxxx;1; Suplemento ', 'remedio ficticio xyz;1;SENSIVEL', 'xilofone ficticio;1;');
   saida = await simular();
   assert.match(saida, /medicação e ergogênicos: 2 itens/);
   assert.match(saida, /1 itens classificados como suplemento .*, 1 como sensível, 1 não classificados/);
+  // as outras formas de escrever: "s" move; "sensível" e "m" ficam como sensível
+  escrever('zincoxxx;1;s', 'remedio ficticio xyz;1;sensível', 'xilofone ficticio;1;M');
+  saida = await simular();
+  assert.match(saida, /medicação e ergogênicos: 2 itens/);
+  assert.match(saida, /1 itens classificados como suplemento .*, 2 como sensível, 0 não classificados/);
   assert.ok(!/Zincoxxx|Rem[ée]dio|Xilofone/i.test(saida));
   // arquivo que não é o de classificação: erro sem conteúdo
   writeFileSync(arquivo, 'a;b\n1;2\n');
@@ -1117,4 +1263,150 @@ test('importar-planos --gravar: o item classificado como suplemento vai para a S
   assert.equal(dieta.ergogenicos, null);
   assert.deepEqual(Object.keys(dieta.suplementacao[1]).sort(), ['dose', 'horario', 'link', 'nome', 'observacao', 'uid']);
   assert.ok(!/Zincoxxx|Creatina/.test(r.saida));
+});
+
+// ------------------------------------------------------------------------------------------ pacote para o Saraiva
+
+test('conversão: cada problema leva o código do aluno dono da linha, e o resultado traz o nome de cada código', () => {
+  const r = converter();
+  const por = (aba, linha, trecho) => r.problemas.find((p) => p.aba === aba && p.linha === linha && p.tipo.includes(trecho));
+  assert.equal(por('Treinos_Exercicios', 5, 'FS sem regra').codigo, 'AL1'); // exercício de rotina: o aluno da rotina
+  assert.equal(por('Treinos_Rotinas', 3, 'rotina inativa').codigo, 'AL2');
+  assert.equal(por('Planos', 4, 'mais de um plano ativo').codigo, 'AL4');
+  assert.equal(por('Planos', 7, 'não está entre').codigo, 'AL9'); // aluno fora dos convertidos: o código da planilha
+  assert.equal(por('Refeições', 8, 'item sem alimento').codigo, 'AL1'); // refeição: o aluno do plano
+  assert.equal(por('Suplementos', 5, 'sem nome').codigo, 'AL1');
+  assert.equal(por('Treinos_Exercicios', 8, 'não existe na aba').codigo, null); // rotina que não existe: sem dono
+  assert.equal(r.nomes.get('AL1'), 'Aluno Um');
+  assert.equal(r.nomes.get('AL5'), 'Aluno Cinco');
+  assert.equal(r.nomes.get('AL9'), 'x'); // fora da aba Alunos: o "Nome Aluno" da própria linha
+});
+
+test('pacote: textoDoProblema escreve em português simples, sem código nem conteúdo da planilha, e conhece todos os tipos da conversão', () => {
+  const t = (tipo) => textoDoProblema({ tipo, motivo: tipo });
+  // os textos pedidos
+  assert.match(t('FS sem regra de percentual na metodologia (séries sem intensidade)'), /série FS.*porcentagem/);
+  assert.match(t('quantidade ausente, zero ou inválida (item mantido sem quantidade)'), /falta a quantidade/);
+  assert.match(t('aluno do plano não está entre os alunos convertidos'), /aluno que não está na aba Alunos/);
+  assert.match(t('aluno do rotina não está entre os alunos convertidos'), /treino é de um aluno/);
+  assert.match(t('mais de um plano ativo para o aluno (nenhum usado)'), /mais de um plano marcado como ativo/);
+  assert.match(t('plano inativo (ignorado)'), /inativo.*não vai ser importado/);
+  assert.match(t('rotina inativa (ignorada)'), /treino está marcado como inativo/);
+  assert.match(t('item sem alimento (ignorado)'), /falta o nome do alimento/);
+  assert.equal(t('nome do exercício com mais de 120 letras (cortado)'), 'o nome passa de 120 letras; encurte');
+  assert.equal(t('nome do alimento com mais de 160 letras (cortado)'), 'o nome passa de 160 letras; encurte');
+  assert.equal(t('observação com mais de 1000 letras (cortado)'), 'o texto passa de 1000 letras; encurte');
+  assert.match(t('quantidade de WS acima de 10 (ignorada)'), /mais de 10 séries WS/);
+  assert.equal(t('destino não entendido'), 'o destino não foi entendido; escreva suplemento ou medicamento');
+  // um tipo que a tabela não conhece vira um texto genérico com o motivo
+  assert.equal(textoDoProblema({ tipo: 'coisa nova', motivo: 'coisa nova' }), 'confira esta linha (coisa nova)');
+  // todos os tipos que a conversão de fato produz têm texto próprio (nenhum cai no genérico), sem o código do aluno
+  for (const p of converter().problemas) {
+    const texto = textoDoProblema(p);
+    assert.ok(!texto.startsWith('confira esta linha'), `${p.tipo} -> ${texto}`);
+    assert.ok(!/\bAL\d|\bnull\b|undefined/.test(texto), texto);
+  }
+});
+
+test('pacote: 3-o-que-corrigir.csv tem BOM, ; e o cabeçalho do Saraiva; vem por aluno, aba e linha; sem dono, o traço', () => {
+  const r = converter();
+  const { csv, total } = csvDoQueCorrigir(r.problemas, r.nomes);
+  assert.equal(total, r.problemas.length);
+  const lido = lerCsv(csv); // textos com ";" saem entre aspas, como o Excel espera
+  assert.ok(csv.startsWith('﻿Aluno;Aba;Linha;O que corrigir\n'));
+  assert.deepEqual(lido.colunas, ['aluno', 'aba', 'linha', 'o_que_corrigir']);
+  assert.equal(lido.linhas.length, r.problemas.length);
+  assert.ok(lido.linhas.every((l) => l.o_que_corrigir.length > 0));
+  // ordem: aluno, depois aba e linha; o problema sem dono mostra só o traço
+  const alunos = lido.linhas.map((l) => l.aluno);
+  const comNome = alunos.filter((a) => a !== '—');
+  assert.deepEqual(comNome, [...comNome].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+  assert.ok(alunos.includes('—'));
+  assert.deepEqual(lido.linhas.filter((l) => l.aluno === 'Aluno Quatro').map((l) => [l.aba, l.linha]), [['Planos', '4'], ['Planos', '5']]);
+  assert.ok(!/AL[12456]\b/.test(csv)); // o nome do aluno, nunca o código, quando se sabe
+  // código sem nome conhecido: aparece como está na planilha
+  assert.ok(csvDoQueCorrigir(r.problemas, new Map()).csv.includes('AL4;Planos;4;'));
+  // problema de arquivo de decisão (sem aluno) entra com o traço e a linha do arquivo
+  const solto = csvDoQueCorrigir([{ aba: ARQUIVO_CLASSIFICACAO, linha: 3, tipo: 'destino não entendido', motivo: 'destino não entendido', codigo: null }], r.nomes).csv;
+  assert.equal(solto, `﻿Aluno;Aba;Linha;O que corrigir\n—;${ARQUIVO_CLASSIFICACAO};3;"o destino não foi entendido; escreva suplemento ou medicamento"\n`);
+});
+
+test('pacote: 1-suplementos.csv e 2-exercicios.csv têm BOM, ; , só o que falta decidir, do mais frequente para o menos, e "—" sem sugestão', () => {
+  const sup = linhasDeClassificacao(planosComSuplementos(ITENS_DE_CLASSIFICACAO), REFS, lerClassificacao('nome_normalizado;ocorrencias;destino\nsumiu da planilha;4;sensivel\n'));
+  const s = csvDeSuplementosParaConferir(sup.linhas);
+  // o nome que sumiu da planilha (0 ocorrências hoje) não vai para o Saraiva
+  assert.equal(s.csv, '﻿Nome na planilha;Quantas vezes aparece;Destino\nxilofone ficticio;2;\nzincoxxx;1;\n');
+  assert.equal(s.total, 2);
+
+  const pares = paresFicticios();
+  const { linhas } = linhasDeCorrespondencia([
+    arquivoComExercicios('Remada curvadda', 'Remada curvadda', 'Puxada altta polia', 'Xyzzy qwerty', 'Supino reto com barra', 'Agachamento livre'),
+  ], pares);
+  const e = csvDeExerciciosParaConferir(linhas);
+  assert.equal(e.total, 3); // só os sem par exato
+  assert.equal(e.semSugestao, 1);
+  assert.equal(e.csv, [
+    '﻿Nome na planilha;Quantas vezes aparece;Sugestão do app;Está certo?;Se não, qual é',
+    'Remada curvadda;2;Remada curvada;;',
+    'Puxada altta polia;1;Puxada alta na polia;;',
+    `Xyzzy qwerty;1;${SEM_SUGESTAO};;`,
+    '',
+  ].join('\n'));
+  // o que o Saraiva devolve é lido direto pelo importador: "—" não é sugestão
+  const devolvido = e.csv.replace('Remada curvadda;2;Remada curvada;;', 'Remada curvadda;2;Remada curvada;sim;').replace(`Xyzzy qwerty;1;${SEM_SUGESTAO};;`, `Xyzzy qwerty;1;${SEM_SUGESTAO};;Rosca direta`);
+  assert.deepEqual([...vinculosConfirmados(lerCorrespondencias(devolvido))].sort(), [
+    [chaveDoExercicio('Remada curvadda'), chaveDoExercicio('Remada curvada')],
+    [chaveDoExercicio('Xyzzy qwerty'), chaveDoExercicio('Rosca direta')],
+  ].sort());
+});
+
+test('pacote: a mensagem do Gustavo leva só as contagens', () => {
+  const m = textoDaMensagem({ suplementos: 27, exercicios: 254, problemas: 62 });
+  assert.match(m, /\*Suplementos\* \(27 nomes\)/);
+  assert.match(m, /\*Exercícios\* \(254 nomes que o app não achou na biblioteca\)/);
+  assert.match(m, /\*O que corrigir\* \(62 linhas\)/);
+  assert.match(m, /_suplemento_ ou _medicamento_/);
+  assert.match(m, /rascunho/);
+});
+
+test('converter-planos --pacote: grava a pasta para-o-saraiva com os 4 arquivos; com --simular só conta; sem --pacote não cria nada', (t) => {
+  const pasta = pastaTemporaria(t, 'planos-pacote-');
+  const arquivo = join(pasta, 'planilha.xlsx');
+  writeFileSync(arquivo, planilhaFicticia());
+  const saida = join(pasta, 'saida');
+  const rodar = (...extra) => spawnSync(process.execPath, [CONVERSOR, '--planilha', arquivo, '--saida', saida, ...extra], { encoding: 'utf8' });
+
+  const simulado = rodar('--simular', '--pacote');
+  assert.equal(simulado.status, 0, simulado.stderr);
+  assert.match(simulado.stdout, /Pacote do Saraiva: \d+ suplementos, 6 exercícios \(\d+ sem sugestão\) e 15 linhas a corrigir \(nada gravado\)\./);
+  assert.throws(() => readdirSync(saida));
+
+  const sem = rodar();
+  assert.equal(sem.status, 0, sem.stderr);
+  assert.throws(() => readdirSync(join(saida, PASTA_DO_PACOTE)));
+  assert.ok(!/Pacote do Saraiva/.test(sem.stdout));
+
+  const com = rodar('--pacote');
+  assert.equal(com.status, 0, com.stderr);
+  assert.match(com.stdout, /Pacote do Saraiva: .*em para-o-saraiva\/ \(1-suplementos\.csv, 2-exercicios\.csv, 3-o-que-corrigir\.csv e mensagem\.txt\): mande por canal privado, nunca em grupo/);
+  assert.ok(!/Aluno (Um|Dois|Quatro|Cinco|Seis)|Remada|Puxada|Xilofone|Rem[ée]dio/i.test(com.stdout + com.stderr)); // o terminal só conta
+  const dentro = join(saida, PASTA_DO_PACOTE);
+  assert.deepEqual(readdirSync(dentro).sort(), [...ARQUIVOS_DO_PACOTE].sort());
+  for (const nome of ARQUIVOS_DO_PACOTE.filter((n) => n.endsWith('.csv'))) assert.ok(readFileSync(join(dentro, nome), 'utf8').startsWith('﻿'), nome);
+  if (process.platform !== 'win32') for (const nome of ARQUIVOS_DO_PACOTE) assert.equal(statSync(join(dentro, nome)).mode & 0o077, 0, nome);
+  const corrigir = readFileSync(join(dentro, '3-o-que-corrigir.csv'), 'utf8');
+  assert.equal(corrigir.trimEnd().split('\n').length, 1 + 15);
+  assert.ok(corrigir.includes('Aluno Um;Treinos_Exercicios;5;'));
+  const exercicios = readFileSync(join(dentro, '2-exercicios.csv'), 'utf8');
+  assert.equal(exercicios.trimEnd().split('\n').length, 1 + 6);
+  assert.match(readFileSync(join(dentro, 'mensagem.txt'), 'utf8'), /\*O que corrigir\* \(15 linhas\)/);
+
+  // o destino que a pessoa escreveu e ninguém entende entra no "o que corrigir" desta rodada
+  const a = abas();
+  a.Suplementos = [CAB_SUP, ['s1', 'P1', 'x', 'Zincoxxx 10 mg', null, null, null]];
+  writeFileSync(arquivo, xlsx(a));
+  writeFileSync(join(saida, ARQUIVO_CLASSIFICACAO), 'nome_normalizado;ocorrencias;destino\nzincoxxx;1;sei lá\n');
+  const de_novo = rodar('--pacote');
+  assert.equal(de_novo.status, 0, de_novo.stderr);
+  assert.ok(readFileSync(join(dentro, '3-o-que-corrigir.csv'), 'utf8').includes(`—;${ARQUIVO_CLASSIFICACAO};2;"o destino não foi entendido; escreva suplemento ou medicamento"`));
 });

@@ -17,11 +17,13 @@
  * datas), `POST /alunos/{id}/planos-treino` e `PUT /planos-treino/{id}/rascunho` (o mesmo para a dieta). Rodar de novo
  * não duplica: pasta com o título fixo é reaproveitada e o plano que já está nela é mantido. Os exercícios ganham o
  * `exercicioId` da biblioteca pelo nome; exercício sem par fica só com o nome (nunca é criado). Se a pasta tem o
- * `correspondencias-exercicios.csv` (gerado pelo conversor), as linhas com `confirmado = sim` também ligam o exercício ao
- * da biblioteca (só quando não há par exato; o nome da planilha fica); o resto do arquivo é ignorado. Se a pasta tem o
- * `classificacao-suplementos.csv`, os itens que nenhuma lista reconhece e cuja linha tem `destino = suplemento` vão para a
- * Suplementação em vez da lista sensível (`sensivel`, em branco ou outro valor: continuam na sensível; a lista de ergogênicos
- * sempre vence). Para no primeiro erro.
+ * `correspondencias-exercicios.csv` (gerado pelo conversor), as linhas com `confirmado` = sim (`sim`, `s`, `x` ou `ok`) ligam o
+ * exercício à sugestão, e as com o nome certo em `nome_correto` o ligam a esse nome, procurado na biblioteca sem acento nem
+ * diferença de caixa (só quando não há par exato; o nome da planilha fica; nome que não existe fica sem vínculo e o resumo
+ * conta; nunca cria exercício); o resto do arquivo é ignorado. Se a pasta tem o `classificacao-suplementos.csv`, os itens que
+ * nenhuma lista reconhece e cuja linha tem `destino` = suplemento (`suplemento`, `suplementos` ou `s`) vão para a Suplementação
+ * em vez da lista sensível (`sensivel`, `medicamento`, `medicacao` ou `m`, em branco ou um valor que ninguém entende: continuam
+ * na sensível, e o que ninguém entende é contado; a lista de ergogênicos sempre vence). Para no primeiro erro.
  * O terminal mostra só contagens e o código do aluno na planilha, nunca nome, dieta ou observação.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -29,8 +31,8 @@ import { join } from 'node:path';
 
 import { chaveDoNome } from './alunos-lib.mjs';
 import { lerBibliotecaLocal, lerReferenciasDeSuplementos } from './biblioteca-local.mjs';
-import { ARQUIVO_CLASSIFICACAO, aplicarClassificacao, destinosClassificados, lerClassificacao } from './classificacao-suplementos-lib.mjs';
-import { ARQUIVO_CORRESPONDENCIAS, decodificarCsv, lerCorrespondencias, vinculosConfirmados } from './correspondencias-lib.mjs';
+import { ARQUIVO_CLASSIFICACAO, aplicarClassificacao, destinosClassificados, destinosNaoEntendidos, lerClassificacao } from './classificacao-suplementos-lib.mjs';
+import { ARQUIVO_CORRESPONDENCIAS, decodificarCsv, lerCorrespondencias, origemDosVinculos, vinculosConfirmados } from './correspondencias-lib.mjs';
 import { dentroDoRepositorio, real } from './fora-do-repositorio.mjs';
 import { chaveDoExercicio, exerciciosDoTreino, lerArquivoDePlano, resumoDaImportacao, treinoComBiblioteca } from './planos-lib.mjs';
 
@@ -75,13 +77,17 @@ function lerDaPasta(arquivo, ler) {
   }
 }
 
-// Vínculos confirmados pelo treinador (`confirmado = sim`) no arquivo de correspondências, se ele existir na pasta.
-const vinculos = lerDaPasta(ARQUIVO_CORRESPONDENCIAS, (t) => vinculosConfirmados(lerCorrespondencias(t))) ?? new Map();
+// Vínculos escolhidos pelo treinador (`confirmado` = sim ou `nome_correto`) no arquivo de correspondências, se ele existir na pasta.
+const correspondenciasLidas = lerDaPasta(ARQUIVO_CORRESPONDENCIAS, lerCorrespondencias) ?? new Map();
+const vinculos = vinculosConfirmados(correspondenciasLidas);
+const origemDosVinculosLidos = origemDosVinculos(correspondenciasLidas);
 
-// Destinos escolhidos pelo treinador (`destino` = suplemento ou sensivel) no arquivo de classificação, se ele existir na
-// pasta. Os itens que nenhuma lista reconhece mudam para a Suplementação antes de qualquer contagem ou gravação.
-const destinosDeSuplemento = lerDaPasta(ARQUIVO_CLASSIFICACAO, (t) => destinosClassificados(lerClassificacao(t))) ?? new Map();
-const { planos, contagens: classificados } = aplicarClassificacao(planosLidos, lerReferenciasDeSuplementos(), destinosDeSuplemento);
+// Destinos escolhidos pelo treinador (`destino` = suplemento ou sensivel, ou como ele escreve) no arquivo de classificação, se
+// ele existir na pasta. Os itens que nenhuma lista reconhece mudam para a Suplementação antes de qualquer contagem ou gravação.
+const classificacaoLida = lerDaPasta(ARQUIVO_CLASSIFICACAO, lerClassificacao) ?? new Map();
+const destinosDeSuplemento = destinosClassificados(classificacaoLida);
+const destinosNaoEntendidosLidos = destinosNaoEntendidos(classificacaoLida);
+const { planos, contagens: classificados } = aplicarClassificacao(planosLidos, lerReferenciasDeSuplementos(), destinosDeSuplemento, destinosNaoEntendidosLidos);
 
 const contagem = (a) => resumoDaImportacao(a, lerBibliotecaLocal(), vinculos);
 
@@ -90,9 +96,12 @@ if (SIMULAR) {
   console.log(`Simulação (nenhuma API foi chamada, nada foi gravado): ${c.alunos} alunos, ${c.comTreino} com treino e ${c.comDieta} com dieta.`);
   console.log(`Criaria ${c.alunos} pasta(s) "${planos[0].pasta.titulo}", ${c.comTreino} rascunho(s) de treino e ${c.comDieta} de dieta. Nunca publica.`);
   console.log(`Exercícios: ${c.exercicios} (${c.naBiblioteca} na biblioteca do Saraiva, ${c.soNoCatalogo} só no catálogo público, ${c.semPar} sem par; ${c.nomesSemPar.size} nomes diferentes sem par).`);
-  console.log(`Vínculos confirmados (confirmado = sim): ${vinculos.size} nomes no arquivo; ${c.vinculados} exercícios ligados por eles (já contados acima) e ${c.vinculosSemDestino} cujo destino não está na biblioteca nem no catálogo (ficam sem par).`);
+  console.log(`Vínculos (confirmado = sim ou nome certo escrito): ${vinculos.size} nomes no arquivo (${origemDosVinculosLidos.sim} por "sim", ${origemDosVinculosLidos.corrigidos} por nome corrigido); ${c.vinculados} exercícios ligados por eles (já contados acima) e ${c.vinculosSemDestino} cujo destino não está na biblioteca nem no catálogo (ficam sem par).`);
   console.log(`Dieta: ${c.refeicoes} refeições, ${c.itens} itens; medicação e ergogênicos: ${c.ergogenicos} itens (no modo real exigem ERGOGENICO_ALTERAR).`);
-  console.log(`Classificação de suplementos (${ARQUIVO_CLASSIFICACAO}, ${destinosDeSuplemento.size} nomes com destino válido): ${classificados.suplemento} itens classificados como suplemento (já levados para a Suplementação), ${classificados.sensivel} como sensível, ${classificados.naoClassificado} não classificados (em branco ou valor inválido; ficam na lista sensível)${classificados.semVaga ? `; ${classificados.semVaga} como suplemento ficaram na lista sensível por falta de vaga na Suplementação` : ''}.`);
+  console.log(`Classificação de suplementos (${ARQUIVO_CLASSIFICACAO}, ${destinosDeSuplemento.size} nomes com destino válido): ${classificados.suplemento} itens classificados como suplemento (já levados para a Suplementação), ${classificados.sensivel} como sensível, ${classificados.naoClassificado} não classificados (em branco ou destino não entendido; ficam na lista sensível)${classificados.semVaga ? `; ${classificados.semVaga} como suplemento ficaram na lista sensível por falta de vaga na Suplementação` : ''}.`);
+  if (destinosNaoEntendidosLidos.size) {
+    console.log(`Destino não entendido: ${destinosNaoEntendidosLidos.size} nomes no ${ARQUIVO_CLASSIFICACAO} (linhas ${[...destinosNaoEntendidosLidos.values()].join(', ')}), ${classificados.naoEntendido} itens. Escreva suplemento ou medicamento.`);
+  }
   process.exit(0);
 }
 

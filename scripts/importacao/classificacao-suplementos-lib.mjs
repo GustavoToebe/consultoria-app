@@ -3,10 +3,14 @@
  * **nenhuma lista reconhece** (nem a de ergogênicos, nem a de suplementos conhecidos e comuns). Hoje eles vão para a lista
  * sensível "Medicação e ergogênicos"; o treinador escreve na coluna `destino` o que cada nome é:
  *
- * - `suplemento`: o `importar-planos.mjs` leva o item para a Suplementação da dieta;
- * - `sensivel`: continua em Medicação e ergogênicos (é o que acontece em branco ou sem o arquivo; só passa a contar como
- *   "classificado");
- * - qualquer outro valor é ignorado e o item conta como não classificado (e continua na lista sensível).
+ * - `suplemento` (também `suplementos` e `s`): o `importar-planos.mjs` leva o item para a Suplementação da dieta;
+ * - `sensivel` (também `medicamento`, `medicacao` e `m`): continua em Medicação e ergogênicos (é o que acontece em branco ou
+ *   sem o arquivo; só passa a contar como "classificado");
+ * - em branco: não classificado (continua na lista sensível);
+ * - qualquer outra coisa: "destino não entendido", ignorado e contado como não classificado (continua na lista sensível).
+ *
+ * Maiúsculas, acentos e espaços nas pontas não importam ({@link destinoEscolhido}). Os cabeçalhos do arquivo que o
+ * Saraiva recebe ("Nome na planilha", "Quantas vezes aparece", "Destino") também são lidos.
  *
  * O arquivo fica na pasta de saída do conversor (fora do repositório), com os nomes normalizados
  * ({@link nomeDeSuplementoNormalizado}: sem acento, minúsculas, sem dose, unidade nem parênteses) e quantas vezes cada um
@@ -16,13 +20,27 @@
  * Nada aqui lê ou grava arquivo. Mesmo molde do `correspondencias-lib.mjs` (BOM, `;`, apóstrofo contra fórmula,
  * windows-1252 na leitura, regerar preserva o que foi preenchido).
  */
-import { coluna, lerCsv } from './alunos-lib.mjs';
+import { chaveDoNome, coluna, lerCsv } from './alunos-lib.mjs';
 import { semApostrofoDeFormula, textoDeCsv } from './csv-apoio-lib.mjs';
 import { LIMITE_DE_SUPLEMENTOS, destinoDoSuplemento, nomeDeSuplementoNormalizado } from './planos-lib.mjs';
 
 export const ARQUIVO_CLASSIFICACAO = 'classificacao-suplementos.csv';
 
 const CABECALHO = ['nome_normalizado', 'ocorrencias', 'destino'];
+
+const DESTINOS_ACEITOS = new Map([
+  ['suplemento', 'suplemento'], ['suplementos', 'suplemento'], ['s', 'suplemento'],
+  ['sensivel', 'sensivel'], ['medicamento', 'sensivel'], ['medicacao', 'sensivel'], ['m', 'sensivel'],
+]);
+
+/**
+ * O que a pessoa escreveu em `destino`, entendido: `suplemento`, `sensivel`, `''` (em branco) ou `nao-entendido`. Sem acento,
+ * em minúsculas e sem espaços nas pontas.
+ */
+export function destinoEscolhido(valor) {
+  const v = chaveDoNome(valor ?? '');
+  return v ? (DESTINOS_ACEITOS.get(v) ?? 'nao-entendido') : '';
+}
 
 /** O item nenhuma lista reconhece: é o único que o treinador classifica. */
 const naoReconhecido = (nome, refs) => destinoDoSuplemento(nome, refs) === 'ergogenico-nao-reconhecido';
@@ -61,7 +79,8 @@ export function linhasDeClassificacao(arquivos, refs, anteriores = new Map()) {
       nomesDistintos: contagem.size,
       itens,
       semNome,
-      comDestinoNoArquivo: linhas.filter((l) => l.destino).length,
+      comDestinoNoArquivo: linhas.filter((l) => ['suplemento', 'sensivel'].includes(destinoEscolhido(l.destino))).length,
+      naoEntendidos: linhas.filter((l) => destinoEscolhido(l.destino) === 'nao-entendido').length,
     },
   };
 }
@@ -70,32 +89,43 @@ export function linhasDeClassificacao(arquivos, refs, anteriores = new Map()) {
 export const csvDeClassificacao = (linhas) => textoDeCsv(CABECALHO, linhas.map((l) => [l.nome, l.ocorrencias, l.destino]));
 
 /**
- * Lê o arquivo (já decodificado) em `Map` nome normalizado -> `{ nome, ocorrencias, destino }`. O nome é normalizado de novo
- * na leitura (o Excel pode ter mexido na caixa); as colunas vêm pelo cabeçalho; linha repetida: vale a primeira. Erro com
- * mensagem fixa, sem conteúdo do arquivo.
+ * Lê o arquivo (já decodificado) em `Map` nome normalizado -> `{ nome, ocorrencias, destino, linha }` (`linha` = a do arquivo,
+ * para apontar o problema sem repetir o conteúdo). O nome é normalizado de novo na leitura (o Excel pode ter mexido na
+ * caixa); as colunas vêm pelo cabeçalho (o do arquivo do conversor ou o do arquivo que o Saraiva recebe); linha repetida:
+ * vale a primeira. Erro com mensagem fixa, sem conteúdo do arquivo.
  */
 export function lerClassificacao(texto) {
   const { colunas, linhas } = lerCsv(texto);
-  const faltam = ['nome_normalizado', 'destino'].filter((c) => !colunas.includes(coluna(c)));
+  const colunaDoNome = ['nome_normalizado', 'nome_na_planilha'].find((c) => colunas.includes(coluna(c)));
+  const faltam = [];
+  if (!colunaDoNome) faltam.push('nome_normalizado');
+  if (!colunas.includes('destino')) faltam.push('destino');
   if (faltam.length) throw new Error(`o ${ARQUIVO_CLASSIFICACAO} não tem as colunas: ${faltam.join(', ')}`);
   const lidas = new Map();
   for (const l of linhas) {
-    const nome = semApostrofoDeFormula(l.nome_normalizado);
+    const nome = semApostrofoDeFormula(l[colunaDoNome]);
     const k = nomeDeSuplementoNormalizado(nome);
     if (!k || lidas.has(k)) continue;
-    lidas.set(k, { nome: k, ocorrencias: l.ocorrencias ?? '', destino: l.destino });
+    lidas.set(k, { nome: k, ocorrencias: l.ocorrencias ?? l.quantas_vezes_aparece ?? '', destino: l.destino, linha: l.n });
   }
   return lidas;
 }
 
-/** Os destinos que valem: `Map` nome normalizado -> `suplemento` ou `sensivel` (caixa e espaços nas pontas não importam). */
+/** Os destinos que valem: `Map` nome normalizado -> `suplemento` ou `sensivel` (ver {@link destinoEscolhido}). */
 export function destinosClassificados(lidas) {
   const destinos = new Map();
   for (const [k, l] of lidas) {
-    const d = l.destino.trim().toLowerCase();
+    const d = destinoEscolhido(l.destino);
     if (d === 'suplemento' || d === 'sensivel') destinos.set(k, d);
   }
   return destinos;
+}
+
+/** Os destinos preenchidos que ninguém entende: `Map` nome normalizado -> número da linha no arquivo. */
+export function destinosNaoEntendidos(lidas) {
+  const naoEntendidos = new Map();
+  for (const [k, l] of lidas) if (destinoEscolhido(l.destino) === 'nao-entendido') naoEntendidos.set(k, l.linha);
+  return naoEntendidos;
 }
 
 const comoSuplemento = (e) => ({ uid: e.uid, nome: e.nome, dose: e.dose, horario: e.horario, observacao: e.observacao, link: null });
@@ -106,11 +136,12 @@ const comoSuplemento = (e) => ({ uid: e.uid, nome: e.nome, dose: e.dose, horario
  * normalizado seja igual ao de uma linha `suplemento`. `suplemento` leva o item para a Suplementação (formato dela: sem
  * princípio ativo, concentração nem prescrição); passando do limite da API, ele fica na lista sensível e conta em
  * `semVaga`. A lista sensível que esvazia vira `null`, como no conversor. Devolve os planos novos e as contagens, só de
- * itens que nenhuma lista reconhece: `suplemento` (movidos), `sensivel`, `naoClassificado` (em branco, valor inválido,
- * nome sem letras ou sem linha no arquivo) e `semVaga`.
+ * itens que nenhuma lista reconhece: `suplemento` (movidos), `sensivel`, `naoClassificado` (em branco, destino não
+ * entendido, nome sem letras ou sem linha no arquivo), `naoEntendido` (os de destino não entendido, que também contam em
+ * `naoClassificado`; `naoEntendidos` = {@link destinosNaoEntendidos}) e `semVaga`.
  */
-export function aplicarClassificacao(planos, refs, destinos = new Map()) {
-  const c = { suplemento: 0, sensivel: 0, naoClassificado: 0, semVaga: 0 };
+export function aplicarClassificacao(planos, refs, destinos = new Map(), naoEntendidos = new Map()) {
+  const c = { suplemento: 0, sensivel: 0, naoClassificado: 0, naoEntendido: 0, semVaga: 0 };
   const novos = planos.map((p) => {
     const sensiveis = p.dieta?.conteudo.ergogenicos;
     if (!sensiveis?.length) return p;
@@ -124,7 +155,10 @@ export function aplicarClassificacao(planos, refs, destinos = new Map()) {
         if (suplementacao.length < LIMITE_DE_SUPLEMENTOS) { suplementacao.push(comoSuplemento(e)); c.suplemento++; continue; }
         c.semVaga++;
       } else if (destino === 'sensivel') c.sensivel++;
-      else c.naoClassificado++;
+      else {
+        c.naoClassificado++;
+        if (k && naoEntendidos.has(k)) c.naoEntendido++;
+      }
       ficam.push(e);
     }
     return { ...p, dieta: { ...p.dieta, conteudo: { ...p.dieta.conteudo, suplementacao, ergogenicos: ficam.length ? ficam : null } } };

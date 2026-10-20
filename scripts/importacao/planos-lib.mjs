@@ -223,7 +223,15 @@ export function destinoDoSuplemento(nome, refs) {
  */
 export function converterPlanos(planilha, hoje, refs = { suplementos: [], ergogenicos: [] }) {
   const problemas = [];
-  const problema = (abaNome, linha, tipo, detalhe = '') => problemas.push({ aba: abaNome, linha, tipo, motivo: tipo + detalhe });
+  const problema = (abaNome, linha, tipo, detalhe = '') => problemas.push({ aba: abaNome, linha, tipo, motivo: tipo + detalhe, codigo: null });
+  // De quem é cada linha da planilha (código do aluno), anotado onde a conversão já o conhece; vira `codigo` do problema no fim.
+  const donos = new Map();
+  const nomesNaPlanilha = new Map();
+  const dono = (abaNome, linha, codigo, nome = '') => {
+    if (!codigo) return;
+    donos.set(`${abaNome}|${linha}`, codigo);
+    if (nome && !nomesNaPlanilha.has(codigo)) nomesNaPlanilha.set(codigo, nome);
+  };
   const cortar = (abaNome, linha, rotulo, valor, max) => {
     if (valor.length <= max) return valor;
     problema(abaNome, linha, `${rotulo} com mais de ${max} letras (cortado)`);
@@ -231,7 +239,9 @@ export function converterPlanos(planilha, hoje, refs = { suplementos: [], ergoge
   };
 
   const alunos = new Map(converter(planilha, hoje).alunos.map((a) => [a.codigo, a]));
-  const treinos = treinosDosAlunos(planilha, alunos, problema, cortar);  const dietas = dietasDosAlunos(planilha, alunos, refs, problema, cortar);
+  const treinos = treinosDosAlunos(planilha, alunos, problema, cortar, dono);
+  const dietas = dietasDosAlunos(planilha, alunos, refs, problema, cortar, dono);
+  for (const p of problemas) p.codigo = donos.get(`${p.aba}|${p.linha}`) ?? null;
 
   const arquivos = [];
   for (const [codigo, aluno] of alunos) {
@@ -255,17 +265,20 @@ export function converterPlanos(planilha, hoje, refs = { suplementos: [], ergoge
     ...treinos.contagens,
     ...dietas.contagens,
   };
-  return { arquivos, problemas, contagens };
+  // Nome de cada código, para dizer a quem pertence o problema: o dos alunos convertidos e, para quem ficou fora, o que a aba traz.
+  const nomes = new Map([...nomesNaPlanilha, ...[...alunos].map(([codigo, a]) => [codigo, a.nome])]);
+  return { arquivos, problemas, contagens, nomes };
 }
 
 /** Uma entrada por aluno com exatamente um plano/rotina ativo; o resto vira problema (nunca escolhe um). */
-function ativosPorAluno(linhas, c, alunos, problema, abaNome, rotulo) {
+function ativosPorAluno(linhas, c, alunos, problema, abaNome, rotulo, dono) {
   const f = rotulo === 'rotina'; // feminino
   const porAluno = new Map();
   for (const linha of linhas) {
     if (emBranco(linha)) continue;
     const id = texto(celula(linha, c.id));
     const codigo = texto(celula(linha, c.aluno));
+    dono(abaNome, linha.n, codigo, linhaUnica(texto(celula(linha, c.nomeAluno))));
     if (!id) { problema(abaNome, linha.n, `${rotulo} sem ID`); continue; }
     if (!codigo || !alunos.has(codigo)) { problema(abaNome, linha.n, `aluno do ${rotulo} não está entre os alunos convertidos`); continue; }
     if (logico(celula(linha, c.ativo)) !== true) { problema(abaNome, linha.n, `${rotulo} ${f ? 'inativa' : 'inativo'} (ignorad${f ? 'a' : 'o'})`); continue; }
@@ -283,20 +296,20 @@ const colunasDe = (cab, nomes) => Object.fromEntries(Object.entries(nomes).map((
 
 // ------------------------------------------------------------------------------------------------------- treino
 
-function treinosDosAlunos(planilha, alunos, problema, cortar) {
+function treinosDosAlunos(planilha, alunos, problema, cortar, dono) {
   const ABA_ROT = 'Treinos_Rotinas';
   const ABA_EX = 'Treinos_Exercicios';
   const linhasRot = aba(planilha, ['treinos_rotinas'], ABA_ROT);
   const linhasEx = aba(planilha, ['treinos_exercicios'], ABA_EX);
   const cr = cabecalho(linhasRot, ['id_rotina', 'id_aluno'], [], ABA_ROT);
   const ce = cabecalho(linhasEx, ['id_rotina', 'nome_exercicio'], [], ABA_EX);
-  const r = colunasDe(cr, { id: 'id_rotina', aluno: 'id_aluno', obs: 'obs_gerais', recomendacoes: 'recomendacoes', ativo: 'ativo', divisao: 'divisao_semanal', acessorios: 'acessorios' });
+  const r = colunasDe(cr, { id: 'id_rotina', aluno: 'id_aluno', nomeAluno: 'nome_aluno', obs: 'obs_gerais', recomendacoes: 'recomendacoes', ativo: 'ativo', divisao: 'divisao_semanal', acessorios: 'acessorios' });
   const e = colunasDe(ce, {
     rotina: 'id_rotina', letra: 'letra_treino', nomeTreino: 'nome_treino', ordem: 'ordem', nome: 'nome_exercicio', ws: 'ws', fs: 'fs', ts: 'ts', bo: 'bo',
     reps: 'rep_range', obs: 'obs_especifica', video: 'link_video', backoff: ['back_off', 'back_off_percentual'],
   });
 
-  const rotinas = ativosPorAluno(linhasRot.slice(cr.inicio), r, alunos, problema, ABA_ROT, 'rotina');
+  const rotinas = ativosPorAluno(linhasRot.slice(cr.inicio), r, alunos, problema, ABA_ROT, 'rotina', dono);
   const idsAtivos = new Map([...rotinas].map(([codigo, x]) => [x.id, codigo]));
   const todosIds = new Set(linhasRot.slice(cr.inicio).map((l) => texto(celula(l, r.id))).filter(Boolean));
 
@@ -306,6 +319,7 @@ function treinosDosAlunos(planilha, alunos, problema, cortar) {
     const id = texto(celula(linha, e.rotina));
     if (!id || !todosIds.has(id)) { problema(ABA_EX, linha.n, 'exercício de rotina que não existe na aba Treinos_Rotinas'); continue; }
     if (!idsAtivos.has(id)) continue; // rotina já tratada (inativa, duplicada ou de aluno fora): o problema foi anotado lá
+    dono(ABA_EX, linha.n, idsAtivos.get(id));
     exerciciosPorRotina.set(id, [...(exerciciosPorRotina.get(id) ?? []), linha]);
   }
 
@@ -435,7 +449,7 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecup
 
 // -------------------------------------------------------------------------------------------------------- dieta
 
-function dietasDosAlunos(planilha, alunos, refs, problema, cortar) {
+function dietasDosAlunos(planilha, alunos, refs, problema, cortar, dono) {
   const ABA_P = 'Planos';
   const ABA_R = 'Refeições';
   const ABA_S = 'Suplementos';
@@ -445,14 +459,14 @@ function dietasDosAlunos(planilha, alunos, refs, problema, cortar) {
   const cp = cabecalho(linhasP, ['id_plano', 'id_aluno'], [], ABA_P);
   const cr = cabecalho(linhasR, ['id_plano', 'alimento'], [], ABA_R);
   const cs = cabecalho(linhasS, ['id_plano', 'dose'], [], ABA_S);
-  const p = colunasDe(cp, { id: 'id_plano', aluno: 'id_aluno', intra: 'intra_treino', hidratacao: 'hidratacao', livre: 'refeicao_livre', obs: 'obs_gerais', ativo: 'ativo' });
+  const p = colunasDe(cp, { id: 'id_plano', aluno: 'id_aluno', nomeAluno: 'nome_aluno', intra: 'intra_treino', hidratacao: 'hidratacao', livre: 'refeicao_livre', obs: 'obs_gerais', ativo: 'ativo' });
   const r = colunasDe(cr, {
     plano: 'id_plano', numero: 'n_refeicao', titulo: 'titulo', opcao: 'opcao', item: 'item_n', alimento: 'alimento', quantidade: 'quantidade_g',
     kcal: 'kcal', proteina: 'proteina_g', carbo: 'carb_g', gordura: 'gord_g', dica: 'dica', unidade: 'unidade_mode',
   });
   const s = colunasDe(cs, { plano: 'id_plano', nome: ['suplemento_medicamento', 'suplemento'], dose: 'dose', horario: 'horario', obs: 'observacao' });
 
-  const planos = ativosPorAluno(linhasP.slice(cp.inicio), p, alunos, problema, ABA_P, 'plano');
+  const planos = ativosPorAluno(linhasP.slice(cp.inicio), p, alunos, problema, ABA_P, 'plano', dono);
   const porIdPlano = new Map([...planos].map(([codigo, x]) => [x.id, { codigo, linha: x.linha }]));
 
   const refeicoesDoPlano = new Map();
@@ -460,6 +474,7 @@ function dietasDosAlunos(planilha, alunos, refs, problema, cortar) {
     if (emBranco(linha)) continue;
     const id = texto(celula(linha, r.plano));
     if (!porIdPlano.has(id)) continue;
+    dono(ABA_R, linha.n, porIdPlano.get(id).codigo);
     refeicoesDoPlano.set(id, [...(refeicoesDoPlano.get(id) ?? []), linha]);
   }
   const suplementosDoPlano = new Map();
@@ -467,6 +482,7 @@ function dietasDosAlunos(planilha, alunos, refs, problema, cortar) {
     if (emBranco(linha)) continue;
     const id = texto(celula(linha, s.plano));
     if (!porIdPlano.has(id)) continue;
+    dono(ABA_S, linha.n, porIdPlano.get(id).codigo);
     suplementosDoPlano.set(id, [...(suplementosDoPlano.get(id) ?? []), linha]);
   }
 
