@@ -28,7 +28,7 @@ import { Grade } from '../../../ui/Grade';
 import { Folha } from '../../../ui/Folha';
 import { IconeBotao } from '../../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
-import { podeAplicarModelo } from '../../../dominio/modelos';
+import { descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO, podeAplicarModelo } from '../../../dominio/modelos';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
@@ -147,7 +147,7 @@ function CartaoModelo({ modelo: r, colecao, aplicavel, ocupado, aoAplicar, aoEdi
       <View style={estilos.textosModelo}>
         <Texto variante="bloco">{r.nome}</Texto>
         <Texto variante="pequeno" numerico>{metadadosDoModelo(r.tipo, r.conteudo)}{colecao ? ` · ${colecao}` : ''}</Texto>
-        {r.descricao ? <Texto variante="suave" numberOfLines={2}>{r.descricao}</Texto> : null}
+        <Texto variante="suave" numberOfLines={2}>{descricaoDoModelo(r)}</Texto>
       </View>
       {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${r.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
     </View>
@@ -166,7 +166,7 @@ function Formulario({ receita, tipo, colecaoInicial, colecoes, aoFechar, aoSalva
     setSalvando(true); setErro(null); aoSalvar(nome.trim(), descricao.trim() || null, colecao || null).catch((e: unknown) => { setErro(e); setSalvando(false); });
   }} />}>
     <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
-    <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={400} />
+    <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={LIMITE_DESCRICAO_DO_MODELO} />
     <Escolha rotulo="Coleção" valor={colecao} aoMudar={setColecao} opcoes={[{ valor: '', rotulo: 'Sem coleção' }, ...colecoes.map((c) => ({ valor: c.id, rotulo: c.nome }))]} />
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
   </Folha>;

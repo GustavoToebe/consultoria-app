@@ -3,7 +3,7 @@ import { somar, textoDaAgua, totalDoDia, type Totais } from '../dominio/dieta';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
-import { cssBase, esc, escLinhas, type Documento } from './html';
+import { corDaMarca, cssBase, esc, escLinhas, faixaDaMarca, type Documento } from './html';
 
 export interface DadosPdfDieta {
   marca: Marca;
@@ -76,7 +76,7 @@ const CSS_DIETA = `
 /** PDF da dieta no layout do Saraiva Team (capa com logo, barras da marca, refeições em faixas escuras). */
 export function documentoDieta(d: DadosPdfDieta): Documento {
   const c = d.conteudo;
-  const cor = /^#[0-9A-Fa-f]{6}$/.test(d.marca.corPrimaria) ? d.marca.corPrimaria : '#333333';
+  const cor = corDaMarca(d.marca.corPrimaria);
   const barra = `<div class="barra" style="background:${cor}"></div>`;
   const sec = (t: string) => `<h2 class="sec" style="color:${cor}">${esc(t)}</h2>`;
   const total = totalDoDia(c);
@@ -110,6 +110,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${op
   const comPrescricao = ergogenicos.some((e) => e.prescricao.trim() !== '');
   const marcaOuLogo = d.logoDataUri ? `<img src="${esc(d.logoDataUri)}" alt="${esc(d.marca.nome)}">` : `<h1>${esc(d.marca.nome)}</h1>`;
   const corpo = [
+    faixaDaMarca(d.marca),
     `<div class="capa">${marcaOuLogo}
 <div class="titulo">SUGESTÃO DE PLANO ALIMENTAR</div>${d.versao ? '' : '\n<div class="sub">RASCUNHO, não publicado</div>'}</div>`,
     barra,

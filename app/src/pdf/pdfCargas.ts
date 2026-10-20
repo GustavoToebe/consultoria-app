@@ -1,7 +1,7 @@
 import type { Marca } from '../api/tipos';
 import { dataHoraParaTela, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { totalDeRegistros, type DivisaoRelatorio, type LinhaCarga } from '../dominio/relatorio';
-import { cssBase, esc, topo, type Documento } from './html';
+import { corDaMarca, cssBase, esc, topo, type Documento } from './html';
 
 export interface DadosPdfCargas {
   marca: Marca;
@@ -14,8 +14,6 @@ export interface DadosPdfCargas {
   emitidoEm: Date;
 }
 
-const HEX = /^#[0-9A-Fa-f]{6}$/;
-
 /** Carga da linha: "75 kg", "Sem carga" (peso corporal) ou "—" (sem série de trabalho registrada). */
 export function textoCarga(l: LinhaCarga): string {
   if (l.carga !== null) return `${numeroParaTela(l.carga)} kg`;
@@ -27,7 +25,7 @@ export function textoCarga(l: LinhaCarga): string {
  * repetições e a observação do aluno. Só o que foi registrado.
  */
 export function documentoCargas(d: DadosPdfCargas): Documento {
-  const marca = HEX.test(d.marca.corPrimaria) ? d.marca.corPrimaria : '#333333';
+  const marca = corDaMarca(d.marca.corPrimaria);
   const total = totalDeRegistros(d.divisoes);
   const divisoes = d.divisoes
     .map((div) => {

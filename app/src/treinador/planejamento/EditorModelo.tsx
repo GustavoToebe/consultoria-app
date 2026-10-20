@@ -11,6 +11,7 @@ import { StyleSheet, View } from 'react-native';
 import { alterarReceita, listarReceitas } from '../../api/rotas';
 import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos';
 import { normalizarDieta } from '../../dominio/dieta';
+import { LIMITE_DESCRICAO_DO_MODELO } from '../../dominio/modelos';
 import { tituloDoModelo } from '../../dominio/planoDoAluno';
 import { mover, normalizarTreino, seriesDaReceita, seriesParaReceita } from '../../dominio/editorTreino';
 import { type ConteudoMobilidade, mobilidadeParaApi, mobilidadeValida, normalizarMobilidade } from '../../dominio/mobilidade';
@@ -70,7 +71,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
     <FaixaDoModelo />
     <Cartao>
       <Campo rotulo="Nome do modelo" valor={nome} aoMudar={(v) => { setNome(v); setPendente(true); }} maxLength={120} erro={nome.trim() ? null : 'Informe o nome do modelo.'} />
-      <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={400} />
+      <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={LIMITE_DESCRICAO_DO_MODELO} />
     </Cartao>
     {erro ? <Botao rotulo="Recarregar modelo (descartar alterações)" tipo="secundario" aoTocar={aoRecarregar} /> : null}
     {metodologia ? <CartaoMetodologia configuracao={metodologia} aoMudar={mudarConteudo} /> : null}

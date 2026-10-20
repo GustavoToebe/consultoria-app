@@ -91,7 +91,7 @@ test('ficha: endereço parcial é recusado (só a cidade), "s/n" vale e tudo em 
   // Completo, com "s/n" e sem complemento nem bairro (opcionais).
   await page.getByLabel('CEP').fill('01310100');
   await page.getByLabel('Rua, avenida…').fill('Rua Exemplo');
-  await page.getByLabel('Número').fill('s/n');
+  await page.getByRole('textbox', { name: /^Número/ }).fill('s/n');
   await page.getByRole('button', { name: /^UF/ }).click();
   await page.getByRole('dialog').getByRole('radio', { name: 'SP', exact: true }).click();
   await expect(page.getByText('Informe o CEP.')).toHaveCount(0);
@@ -105,7 +105,7 @@ test('ficha: endereço parcial é recusado (só a cidade), "s/n" vale e tudo em 
 
   // Tudo em branco: o endereço é opcional e o envio leva null.
   await page.getByRole('button', { name: 'Editar', exact: true }).click();
-  for (const rotulo of ['CEP', 'Rua, avenida…', 'Número', 'Cidade']) await page.getByLabel(rotulo).fill('');
+  for (const rotulo of ['CEP', 'Rua, avenida…', 'Número', 'Cidade']) await page.getByRole('textbox', { name: new RegExp('^' + rotulo) }).fill('');
   await page.getByRole('button', { name: /^UF/ }).click();
   await page.getByRole('dialog').getByRole('radio', { name: 'Não informar' }).click();
   await expect(salvar).toBeEnabled();
@@ -196,7 +196,7 @@ test('aluno responde o endereço na anamnese: só a cidade é recusada; completo
   await page.getByLabel('CEP').fill('01310100');
   await expect(page.getByLabel('CEP')).toHaveValue('01310-100');
   await page.getByLabel('Rua, avenida…').fill('Rua Exemplo');
-  await page.getByLabel('Número').fill('s/n');
+  await page.getByRole('textbox', { name: /^Número/ }).fill('s/n');
   await page.getByRole('button', { name: /^UF/ }).click();
   await page.getByRole('dialog').getByRole('radio', { name: 'SP', exact: true }).click();
   await page.getByRole('button', { name: 'Enviar anamnese' }).click();

@@ -25,6 +25,17 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/perfil', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajuda', acesso([]))).toBe(true);
   });
+  it('a Agenda pede o mesmo que as Atualizações (ATUALIZACAO_LER e ALUNO_SENSIVEL_LER)', () => {
+    expect(podeAcessarTela('/treinador/agenda', acesso(['ATUALIZACAO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/agenda', acesso(['ALUNO_SENSIVEL_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/agenda', acesso(['PAINEL_VER','ALUNO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/agenda', acesso(['ATUALIZACAO_LER','ALUNO_SENSIVEL_LER']))).toBe(true);
+  });
+  it('Números pede só PAINEL_VER (a permissão de quem vê o painel)', () => {
+    expect(podeAcessarTela('/treinador/numeros', acesso(['PAINEL_VER']))).toBe(true);
+    expect(podeAcessarTela('/treinador/numeros', acesso(['ATUALIZACAO_LER','ALUNO_SENSIVEL_LER','ALUNO_LER','CONTA_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/numeros', acesso([]))).toBe(false);
+  });
   it('Meus dados e Ajustes são de todos; Minha conta exige CONTA_LER', () => {
     expect(podeAcessarTela('/treinador/meus-dados', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajustes', acesso([]))).toBe(true);

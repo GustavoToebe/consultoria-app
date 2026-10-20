@@ -11,6 +11,7 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
+import { Grade } from '../../ui/Grade';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -134,7 +135,7 @@ export function AbaCatalogo() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo." /> : null}
-      {dados?.itens.map((item) => {
+      {dados && dados.itens.length > 0 ? <Grade>{dados.itens.map((item) => {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;
         const jaTem = nomesNaBiblioteca.has(normalizar(item.nome.trim()));
@@ -175,7 +176,7 @@ export function AbaCatalogo() {
             ) : null}
           </View>
         );
-      })}
+      })}</Grade> : null}
       {dados && textoMostrando(dados.itens.length, dados.total) ? (
         <Texto variante="pequeno" accessibilityLiveRegion="polite">{textoMostrando(dados.itens.length, dados.total)}</Texto>
       ) : null}

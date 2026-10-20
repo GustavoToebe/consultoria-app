@@ -1,9 +1,10 @@
 import type { Marca } from '../api/tipos';
 import { videoValido } from '../dominio/video';
+import { textoSobre } from '../tema/tokens';
 
 /**
  * Peças comuns dos PDFs: HTML + CSS de impressão gerados a partir dos dados (nunca imagem da tela). Fundo branco,
- * A4, margens de 14 mm, fonte do sistema; a cor da marca só em títulos e linhas. Todo texto do usuário passa por
+ * A4, margens de 14 mm, fonte do sistema; a cor da marca só em títulos, linhas e na faixa fina do alto. Todo texto do usuário passa por
  * `esc()`.
  */
 
@@ -32,9 +33,18 @@ export function link(url: string | null | undefined, rotulo: string): string {
 }
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;
+const COR_NEUTRA = '#333333';
+
+/**
+ * Única validação da cor da marca nos PDFs: só `#RRGGBB` entra no CSS/HTML; qualquer outra coisa cai no neutro.
+ * Todo gerador usa esta função, nunca a cor crua.
+ */
+export function corDaMarca(cor: string | null | undefined): string {
+  return typeof cor === 'string' && HEX.test(cor) ? cor : COR_NEUTRA;
+}
 
 export function cssBase(cor: string): string {
-  const marca = HEX.test(cor) ? cor : '#333333';
+  const marca = corDaMarca(cor);
   return `
 @page { size: A4; margin: 14mm; }
 * { box-sizing: border-box; }
@@ -43,6 +53,7 @@ html, body { background: #fff; color: #111; margin: 0; }
 .doc h1 { font-size: 18pt; margin: 0; letter-spacing: 1px; text-transform: uppercase; color: ${marca}; }
 .doc h2 { font-size: 12.5pt; margin: 14pt 0 5pt; padding-bottom: 3pt; border-bottom: 2px solid ${marca}; break-after: avoid; page-break-after: avoid; }
 .doc h3 { font-size: 11pt; margin: 9pt 0 4pt; break-after: avoid; page-break-after: avoid; }
+.doc .faixa-marca { padding: 2pt 8pt; margin-bottom: 8pt; font-size: 7.5pt; line-height: 1.2; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .doc .topo { display: flex; align-items: center; justify-content: space-between; gap: 12pt; border-bottom: 3px solid ${marca}; padding-bottom: 8pt; margin-bottom: 8pt; }
 .doc .topo img { max-height: 48pt; max-width: 200pt; }
 .doc .suave { color: #555; }
@@ -62,10 +73,20 @@ html, body { background: #fff; color: #111; margin: 0; }
 `;
 }
 
-/** Topo: logo (data URI) ou o nome da consultoria em caixa alta, e as linhas de identificação à direita. */
+/**
+ * Faixa fina no alto do documento: fundo na cor da marca e o nome da consultoria na cor de contraste (`textoSobre`, a
+ * mesma regra do `sobreMarca` do app). Fica acima do logo/título, que seguem sobre branco; o corpo não ganha fundo
+ * colorido. Cor que não é `#RRGGBB` usa o neutro. Os valores de cor vêm só de `corDaMarca` (validada), nunca crus.
+ */
+export function faixaDaMarca(marca: Marca): string {
+  const fundo = corDaMarca(marca.corPrimaria);
+  return `<div class="faixa-marca" style="background:${fundo};color:${textoSobre(fundo)}">${esc(marca.nome)}</div>`;
+}
+
+/** Topo: faixa da marca, logo (data URI) ou o nome da consultoria em caixa alta, e as linhas de identificação à direita. */
 export function topo(marca: Marca, logoDataUri: string | null, linhas: string[]): string {
   const esquerda = logoDataUri ? `<img src="${esc(logoDataUri)}" alt="${esc(marca.nome)}">` : `<h1>${esc(marca.nome)}</h1>`;
-  return `<div class="topo"><div>${esquerda}</div><div class="pequeno" style="text-align:right">${linhas.map(esc).join('<br>')}</div></div>`;
+  return `${faixaDaMarca(marca)}<div class="topo"><div>${esquerda}</div><div class="pequeno" style="text-align:right">${linhas.map(esc).join('<br>')}</div></div>`;
 }
 
 /** Documento completo (celular: vira arquivo PDF). */

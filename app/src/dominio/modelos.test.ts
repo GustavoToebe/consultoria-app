@@ -1,6 +1,6 @@
 import type { Configuracao, ConteudoTreino } from '../api/tipos';
 import { aplicarReceitaDePlano, normalizarTreino, novaSerie, novaSessao } from './editorTreino';
-import { destinosParaAplicar, detalheDoModelo, podeAplicarModelo, podeSalvarPastaComoModelo, SEM_PASTA_PARA_APLICAR, temAcaoNoMenuDaPasta } from './modelos';
+import { destinosParaAplicar, detalheDoModelo, podeAplicarModelo, podeSalvarPastaComoModelo, SEM_PASTA_PARA_APLICAR, temAcaoNoMenuDaPasta, descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO } from './modelos';
 import { conteudoInicial } from '../treinador/planejamento/modelos';
 
 let mockContador = 0;
@@ -85,4 +85,11 @@ test('salvar pasta como pacote segue as permissões da rota e o ⋯ some sem aç
   expect(temAcaoNoMenuDaPasta(nutricionista)).toBe(true);
   expect(temAcaoNoMenuDaPasta(tem('PASTA_ALTERAR'))).toBe(true);
   expect(temAcaoNoMenuDaPasta(tem('MODELO_ALTERAR', 'ALUNO_LER', 'TREINO_LER'))).toBe(false);
+});
+
+test('descrição do modelo: texto aparado ou "—", e o limite é o da API', () => {
+  expect(descricaoDoModelo({ descricao: '  Semana de força  ' })).toBe('Semana de força');
+  expect(descricaoDoModelo({ descricao: null })).toBe('—');
+  expect(descricaoDoModelo({ descricao: '   ' })).toBe('—');
+  expect(LIMITE_DESCRICAO_DO_MODELO).toBe(300);
 });

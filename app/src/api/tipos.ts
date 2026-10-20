@@ -67,6 +67,11 @@ export interface TermosVigentes {
   documentos: DocumentoDeTermos[];
 }
 
+/** `POST /publico/convites-equipe/consultar`: só a marca da consultoria (nada de quem foi convidado). */
+export interface ConviteEquipePublico {
+  consultoria: Marca;
+}
+
 export interface ConvitePublico {
   consultoria: Marca;
   primeiroNomeAluno: string;
@@ -538,6 +543,23 @@ export interface PainelTreinador {
   alunosSemRegistro: { id: string; nome: string; ultimoRegistro: string | null }[];
   ultimasExecucoes: { aluno: { id: string; nome: string }; data: string; sessao: string; series: number }[];
   planosTerminando: { plano: { id: string; titulo: string }; aluno: { id: string; nome: string }; fim: string }[];
+}
+
+/**
+ * `GET /numeros`: relatório da consultoria, só contagens (sem nomes). Seis meses, do mais antigo ao mais recente; o último
+ * é o mês corrente (`parcial`, "até hoje"). `null` = sem dado (a tela mostra "—"); zero só quando a API manda 0.
+ */
+export interface MesDeNumeros {
+  /** `AAAA-MM`. */
+  mes: string;
+  parcial: boolean;
+  alunosAtivos: number | null;
+  atualizacoesNoPrazo: number | null;
+  atualizacoesAtrasadas: number | null;
+}
+
+export interface NumerosDaConsultoria {
+  meses: MesDeNumeros[];
 }
 
 export interface SerieFeita {

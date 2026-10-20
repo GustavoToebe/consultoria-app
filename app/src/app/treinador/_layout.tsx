@@ -1,4 +1,4 @@
-import { BookOpen, CircleUserRound, ClipboardCheck, ContactRound, House, Inbox, NotebookTabs, Palette, UsersRound, History, LifeBuoy } from 'lucide-react-native';
+import { BookOpen, CalendarDays, ChartColumn, CircleUserRound, ClipboardCheck, ContactRound, House, Inbox, NotebookTabs, Palette, UsersRound, History, LifeBuoy } from 'lucide-react-native';
 
 import { Navigator, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
@@ -26,7 +26,9 @@ const ITENS: ItemMenu[] = [
   { rotulo: 'Início', href: '/treinador', caminho: '/treinador', Icone: House, exato: true, tambemNoCelular: telasDaOrigem('/treinador') },
   { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: ContactRound },
   { rotulo: 'Atualizações', href: '/treinador/atualizacoes', caminho: '/treinador/atualizacoes', Icone: ClipboardCheck, soLateral: true },
+  { rotulo: 'Agenda', href: '/treinador/agenda', caminho: '/treinador/agenda', Icone: CalendarDays, soLateral: true },
   { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: Inbox, soLateral: true },
+  { rotulo: 'Números', href: '/treinador/numeros', caminho: '/treinador/numeros', Icone: ChartColumn, soLateral: true },
   { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen },
   { rotulo: 'Planejamento', rotuloCurto: 'Planos', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
   { rotulo: 'Marca', href: '/treinador/marca', caminho: '/treinador/marca', Icone: Palette, soLateral: true },

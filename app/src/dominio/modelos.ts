@@ -1,4 +1,11 @@
 import type { PlanoDetalhe, Receita, TipoReceita } from '../api/tipos';
+import { SEM_DADO } from './formatos';
+
+/** Mesmo limite da API (`ReceitaRequest` e `SalvarComoReceitaRequest`). A coluna do banco comporta 400: texto antigo maior continua legível, mas só salva reduzido. */
+export const LIMITE_DESCRICAO_DO_MODELO = 300;
+
+/** Descrição do modelo na lista e no "Aplicar ao aluno"; sem texto, "—". Não vai para o plano criado. */
+export const descricaoDoModelo = (r: Pick<Receita, 'descricao'>): string => r.descricao?.trim() || SEM_DADO;
 
 /** Adapta modelos ao mesmo editor de conteúdo, sem datas ou publicação. */
 export function detalheDoModelo(r: Receita): PlanoDetalhe<unknown> {

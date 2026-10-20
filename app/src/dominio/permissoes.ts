@@ -15,7 +15,10 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean):boo
   if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos'].includes(caminho)) return true;
   if(caminho==='/treinador/minha-conta') return tem('CONTA_LER');
   if(caminho==='/treinador') return tem('PAINEL_VER');
-  if(caminho.startsWith('/treinador/atualizacoes')) return tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER');
+  // A Agenda é a mesma informação das Atualizações (as próximas por dia): mesma permissão.
+  if(caminho==='/treinador/agenda'||caminho.startsWith('/treinador/atualizacoes')) return tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER');
+  // Números é o relatório da consultoria (só contagens): a permissão de quem vê o painel.
+  if(caminho==='/treinador/numeros') return tem('PAINEL_VER');
   if(caminho==='/treinador/alunos/novo') return tem('ALUNO_ALTERAR');
   if(caminho==='/treinador/interessados') return tem('INSCRICAO_LER');
   if(caminho.startsWith('/treinador/alunos')) return tem('ALUNO_LER');

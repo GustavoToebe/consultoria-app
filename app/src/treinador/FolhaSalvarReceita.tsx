@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { Botao } from '../ui/Botao';
+import { LIMITE_DESCRICAO_DO_MODELO } from '../dominio/modelos';
 import { Campo } from '../ui/Campo';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
@@ -44,7 +45,7 @@ export function FolhaSalvarReceita({
       }>
       <Texto variante="suave">{explicacao}</Texto>
       <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
-      <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={2} maxLength={400} />
+      <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={2} maxLength={LIMITE_DESCRICAO_DO_MODELO} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>
   );

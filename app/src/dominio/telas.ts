@@ -2,7 +2,7 @@ import { temFuncionalidade } from './funcionalidadesDoPlano';
 import { podeAcessarTela } from './permissoes';
 
 /**
- * Seções da lista "Todas as telas", na ordem do menu lateral (Início, Alunos, Atualizações, Interessados; Biblioteca,
+ * Seções da lista "Todas as telas", na ordem do menu lateral (Início, Alunos, Atualizações, Agenda, Interessados, Números; Biblioteca,
  * Planejamento; Marca, Equipe, Auditoria; Ajuda) e, por último, a conta da pessoa (o cartão do usuário).
  */
 export const SECOES_DE_TELAS = ['Dia a dia', 'Planos', 'Consultoria', 'Ajuda', 'Sua conta'] as const;
@@ -33,7 +33,9 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'inicio', rotulo: 'Início', secao: 'Dia a dia', href: '/treinador', palavras: ['painel', 'resumo', 'home'], permissao: null },
   { id: 'alunos', rotulo: 'Alunos', secao: 'Dia a dia', href: '/treinador/alunos', palavras: ['clientes', 'lista', 'ficha', 'cadastro'], permissao: null },
   { id: 'atualizacoes', rotulo: 'Atualizações', secao: 'Dia a dia', href: '/treinador/atualizacoes', palavras: ['check-in', 'checkin', 'revisar', 'feedback', 'atraso'], permissao: null },
+  { id: 'agenda', rotulo: 'Agenda', secao: 'Dia a dia', href: '/treinador/agenda', palavras: ['semana', 'calendario', 'proximas', 'vencem', 'dias', 'prazos'], permissao: null },
   { id: 'interessados', rotulo: 'Interessados', secao: 'Dia a dia', href: '/treinador/interessados', palavras: ['inscricoes', 'inscricao', 'link de inscricao', 'fila', 'candidatos', 'novos alunos', 'whatsapp', 'captacao'], permissao: null },
+  { id: 'numeros', rotulo: 'Números', secao: 'Dia a dia', href: '/treinador/numeros', palavras: ['relatorio', 'contagem', 'alunos ativos', 'meses', 'no prazo', 'atrasadas'], permissao: null },
   { id: 'biblioteca', rotulo: 'Biblioteca', secao: 'Planos', href: '/treinador/biblioteca', palavras: ['exercicios', 'alimentos', 'suplementos', 'videos', 'catalogo', 'conteudo'], permissao: null },
   { id: 'planejamento', rotulo: 'Planejamento', secao: 'Planos', href: '/treinador/planejamento', palavras: ['modelos', 'treinos', 'dietas', 'mobilidade', 'pacotes', 'receitas'], permissao: null },
   { id: 'marca', rotulo: 'Marca', secao: 'Consultoria', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
@@ -194,6 +196,8 @@ export function atalhosPadrao(permitidas: readonly TelaDoCatalogo[]): TelaDoCata
  */
 const ORIGEM_NO_CELULAR: readonly [string, string][] = [
   ['/treinador/atualizacoes', '/treinador'],
+  ['/treinador/agenda', '/treinador'],
+  ['/treinador/numeros', '/treinador'],
   ['/treinador/interessados', '/treinador/perfil'],
   ['/treinador/marca', '/treinador/perfil'],
   ['/treinador/equipe', '/treinador/perfil'],

@@ -2,7 +2,7 @@ import type { ConteudoDieta, ConteudoTreino, Marca, Serie } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { normalizarMobilidade } from '../dominio/mobilidade';
-import { esc, link } from './html';
+import { esc, link, type Documento } from './html';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
@@ -396,5 +396,57 @@ describe('PDF da lista de compras', () => {
     const d = documentoListaDeCompras({ ...base, periodo: 'mes', opcoes: [], linhas: [] });
     expect(d.corpo).toContain('Mês (30 dias)');
     expect(d.corpo).toContain('<div class="suave">—</div>');
+  });
+});
+
+describe('faixa da marca no alto dos cinco PDFs', () => {
+  const dados = (m: Marca) => ({ ...base, marca: m });
+  const geradores: Record<string, (m: Marca) => Documento> = {
+    treino: (m) => documentoTreino({ ...dados(m), inicio: null, fim: null, versao: 1, conteudo: treino, tipoTrabalho: 'WS', instrucoesTreino: null }),
+    dieta: (m) => documentoDieta({ ...dados(m), versao: 1, conteudo: normalizarDieta({ refeicoes: [] }), pesos: [] }),
+    mobilidade: (m) => documentoMobilidade({ ...dados(m), versao: 1, conteudo: normalizarMobilidade({ secoes: [] }) }),
+    cargas: (m) => documentoCargas({ ...dados(m), de: '2026-10-01', ate: '2026-10-14', divisoes: [] }),
+    'lista de compras': (m) => documentoListaDeCompras({ ...dados(m), periodo: 'semana', opcoes: [], linhas: [], versao: 1 }),
+  };
+  const faixa = (cor: string, texto: string) => `<div class="faixa-marca" style="background:${cor};color:${texto}">Consultoria &lt;Teste&gt;</div>`;
+
+  describe.each(Object.entries(geradores))('%s', (_nome, gerar) => {
+    it('cor escura: faixa na cor da marca com texto branco, antes de qualquer outro bloco', () => {
+      const d = gerar(marca);
+      expect(d.corpo.startsWith(faixa('#C62828', '#FFFFFF'))).toBe(true);
+      expect(d.corpo.match(/faixa-marca/g)).toHaveLength(1);
+    });
+
+    it('cor clara: texto preto', () => {
+      expect(gerar({ ...marca, corPrimaria: '#FFEB3B' }).corpo.startsWith(faixa('#FFEB3B', '#000000'))).toBe(true);
+    });
+
+    it('faixa pede para o navegador imprimir o fundo; o corpo segue preto no branco', () => {
+      const css = gerar(marca).css;
+      expect(css).toMatch(/\.faixa-marca \{[^}]*-webkit-print-color-adjust: exact; print-color-adjust: exact;/);
+      expect(css).toContain('html, body { background: #fff; color: #111; margin: 0; }');
+      expect(css).toContain('.doc { font-family');
+      expect(css).not.toMatch(/\.doc \{[^}]*background/);
+    });
+
+    it.each(['red', '#FFF', '#C62828; } body { display: none', 'url(javascript:x)', '#GGGGGG', ''])('cor inválida %p não vaza: faixa neutra e nada da cor no HTML', (ruim) => {
+      const d = gerar({ ...marca, corPrimaria: ruim });
+      expect(d.corpo.startsWith(faixa('#333333', '#FFFFFF'))).toBe(true);
+      const tudo = d.corpo + d.css;
+      for (const trecho of ['display: none', 'javascript', 'GGGGGG', 'red;', 'background:red', '#FFF;']) expect(tudo).not.toContain(trecho);
+    });
+  });
+
+  it('fora da faixa, treino, mobilidade, cargas e lista de compras não têm fundo na cor da marca no corpo', () => {
+    for (const nome of ['treino', 'mobilidade', 'cargas', 'lista de compras']) {
+      const corpo = geradores[nome](marca).corpo;
+      expect(corpo.match(/background:\s*#C62828/gi)).toHaveLength(1);
+    }
+  });
+
+  it('o logo continua fora da faixa, sobre branco', () => {
+    const d = documentoMobilidade({ ...base, logoDataUri: 'data:image/png;base64,AAAA', versao: 1, conteudo: normalizarMobilidade({ secoes: [] }) });
+    expect(d.corpo.indexOf('faixa-marca')).toBeLessThan(d.corpo.indexOf('<img'));
+    expect(d.corpo).toMatch(/<\/div><div class="topo"><div><img src="data:image\/png;base64,AAAA"/);
   });
 });

@@ -16,7 +16,7 @@ describe('catálogo de telas', () => {
     const tudo = telasPermitidas(com(ADMIN));
     expect(ids(tudo)).toEqual(expect.arrayContaining(['inicio', 'novo-aluno', 'novo-modelo', 'convidar-membro', 'atualizacoes-revisar', 'auditoria']));
     const assistente = telasPermitidas(com(['PAINEL_VER', 'ALUNO_LER', 'BIBLIOTECA_LER', 'MODELO_LER']));
-    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'biblioteca', 'planejamento', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
+    expect(ids(assistente)).toEqual(['inicio', 'alunos', 'numeros', 'biblioteca', 'planejamento', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
     expect(ids(telasPermitidas(com([])))).toEqual(['ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
   });
 
@@ -50,6 +50,26 @@ describe('catálogo de telas', () => {
     expect(ids(buscarTelas('inscricao', atendente))).toEqual(['interessados']);
     expect(ids(buscarTelas('link de inscrição', atendente))).toEqual(['interessados']);
     expect(nomeDaTela('/treinador/interessados')).toBe('Interessados');
+  });
+
+  it('Agenda pede as mesmas permissões das Atualizações e a busca a acha por "semana"', () => {
+    expect(ids(telasPermitidas(com(['ATUALIZACAO_LER'])))).not.toContain('agenda');
+    expect(ids(telasPermitidas(com(['ALUNO_SENSIVEL_LER'])))).not.toContain('agenda');
+    const completa = telasPermitidas(com(['ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER']));
+    expect(ids(completa)).toContain('agenda');
+    expect(ids(buscarTelas('semana', completa))).toEqual(['agenda']);
+    expect(nomeDaTela('/treinador/agenda')).toBe('Agenda');
+  });
+
+  it('Números pede só PAINEL_VER (como o Início) e a busca acha por "relatório" e "alunos ativos"', () => {
+    expect(ids(telasPermitidas(com(['ALUNO_LER'])))).not.toContain('numeros');
+    expect(ids(telasPermitidas(com(['ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER'])))).not.toContain('numeros');
+    const painel = telasPermitidas(com(['PAINEL_VER']));
+    expect(ids(painel)).toContain('numeros');
+    expect(ids(buscarTelas('relatório', painel))).toEqual(['numeros']);
+    expect(ids(buscarTelas('alunos ativos', painel))).toEqual(['numeros']);
+    expect(nomeDaTela('/treinador/numeros')).toBe('Números');
+    expect(tituloDaPagina('/treinador/numeros', 'Saraiva Team')).toBe('Números · Saraiva Team');
   });
 
   it('ação com permissão extra exige a permissão além da tela', () => {
@@ -123,7 +143,7 @@ describe('Todas as telas e favoritos', () => {
   it('agrupa na ordem do menu e deixa as ações de fora', () => {
     const grupos = agruparPorSecao(permitidas);
     expect(grupos.map((g) => g.secao)).toEqual(['Dia a dia', 'Planos', 'Consultoria', 'Ajuda', 'Sua conta']);
-    expect(grupos.flatMap((g) => ids(g.telas))).toEqual(['inicio', 'alunos', 'atualizacoes', 'biblioteca', 'planejamento', 'marca', 'equipe', 'auditoria', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
+    expect(grupos.flatMap((g) => ids(g.telas))).toEqual(['inicio', 'alunos', 'atualizacoes', 'agenda', 'numeros', 'biblioteca', 'planejamento', 'marca', 'equipe', 'auditoria', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
     expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Ajuda', 'Sua conta']);
   });
   it('busca vazia sem favoritos sugere atalhos que o perfil pode abrir', () => {
@@ -189,7 +209,10 @@ describe('voltar e item aceso fora da barra inferior', () => {
   });
   it('lista as telas que acendem cada origem', () => {
     expect(telasDaOrigem('/aluno/conta')).toEqual(['/aluno/ajuda', '/aluno/termos']);
-    expect(telasDaOrigem('/treinador')).toEqual(['/treinador/atualizacoes']);
+    expect(telasDaOrigem('/treinador')).toEqual(['/treinador/atualizacoes', '/treinador/agenda', '/treinador/numeros']);
+    expect(voltarAutomatico('/treinador/numeros', true)).toBe('/treinador');
+    expect(voltarAutomatico('/treinador/agenda', true)).toBe('/treinador');
+    expect(voltarAutomatico('/treinador/agenda', false)).toBeUndefined();
     expect(telasDaOrigem('/treinador/perfil')).toContain('/treinador/interessados');
   });
 });

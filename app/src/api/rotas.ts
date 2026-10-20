@@ -42,6 +42,7 @@ import type {
   ConteudoMobilidadeApi,
   ConviteGerado,
   ConvitePublico,
+  ConviteEquipePublico,
   DiaDeTreino,
   EuResponse,
   TermosVigentes,
@@ -56,6 +57,7 @@ import type {
   LoteResponse,
   Marca,
   MinhaConta,
+  NumerosDaConsultoria,
   PaginaAlunos,
   PainelAluno,
   PastaDoAluno,
@@ -102,6 +104,8 @@ export const pessoasAuditoria = () => requisicao<ResponsavelEquipe[]>('/auditori
 export const convidarMembro = (corpo:{nome:string;email:string;perfilId:string}) => requisicao<ConviteEquipe>('/usuarios/convites',{metodo:'POST',corpo});
 export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/convites/${seg(id)}`,{metodo:'DELETE'});
 export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${seg(id)}`,{metodo:'PUT',corpo});
+/** Marca da consultoria do convite de equipe; o código vai só no corpo. Código inválido, vencido ou aceito = 404 igual. */
+export const consultarConviteEquipe = (codigo:string) => requisicao<ConviteEquipePublico>('/publico/convites-equipe/consultar',{metodo:'POST',corpo:{codigo},semRenovar:true});
 export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>(`/publico/convites-equipe/${encodeURIComponent(codigo)}`,{metodo:'POST',corpo:{senha},semRenovar:true});
 /** "Esqueci a senha": a API responde 202 exista a conta ou não. `turnstileToken` (uso único) só quando a verificação humana está ligada. */
 export const pedirRedefinicaoDeSenha = (email:string,turnstileToken?:string) => requisicao<void>('/auth/esqueci-senha',{metodo:'POST',corpo:turnstileToken?{email,turnstileToken}:{email},semRenovar:true});
@@ -351,6 +355,9 @@ export const removerLogo = () => requisicao<Marca>('/consultoria/marca/logo', { 
 // ---- Treinador: início ----
 
 export const painelTreinador = (meus=false, diasSemRegistro=7) => requisicao<PainelTreinador>(`/painel?meus=${meus}&dias=${diasSemRegistro}`);
+
+/** Relatório da consultoria (`PAINEL_VER`): contagens dos últimos 6 meses, sem nomes. */
+export const numerosDaConsultoria = () => requisicao<NumerosDaConsultoria>('/numeros');
 
 // ---- Treinador: alunos ----
 
