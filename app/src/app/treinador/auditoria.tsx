@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { listarAuditoria,pessoasAuditoria } from '../../api/rotas';
 import { dataDaTela,dataHoraParaTela } from '../../dominio/formatos';
-import { LARGURA_LISTA,espaco } from '../../tema/tokens';
+import { LARGURA_LISTA,LARGURA_MENU_LATERAL,espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { CampoData } from '../../ui/Campos';
@@ -17,25 +17,38 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { ACOES_AUDITORIA } from '../../treinador/equipe/acoesAuditoria';
+/**
+ * Auditoria: eventos da consultoria com filtros que valem na hora (como em Interessados), sem botão "Filtrar". Período
+ * incompleto ou inválido não busca: fica a última busca válida. No celular os filtros começam recolhidos.
+ */
 export default function Auditoria() {
+  const {width}=useWindowDimensions();
   const [de,setDe]=useState('');const [ate,setAte]=useState('');const [pessoa,setPessoa]=useState('');const [acao,setAcao]=useState('');
-  const [filtro,setFiltro]=useState<{de?:string;ate?:string;usuarioId?:string;acao?:string;pagina:number}>({pagina:0});
+  const [pagina,setPagina]=useState(0);
+  const [valido,setValido]=useState<{de?:string;ate?:string}>({});
   const {dados:membros,erro:erroPessoas,recarregar:recarregarPessoas}=useCarregar('pessoas-auditoria',()=>pessoasAuditoria());
-  const {dados,erro,carregando,recarregar}=useCarregar(JSON.stringify(filtro),()=>listarAuditoria(filtro));
   const inicio=dataDaTela(de),fim=dataDaTela(ate);const invalido=inicio===undefined||fim===undefined||!!(inicio&&fim&&fim<inicio);
-  return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Auditoria"/>
-    <Texto variante="suave">Registro das ações feitas na consultoria, guardado por um ano. Os valores clínicos não aparecem.</Texto>
-    <Cartao titulo="Filtros" descricao="Combine pessoa, ação e período para achar um evento.">
+  // Data digitada pela metade não apaga a busca: o período só muda quando os dois campos fazem sentido.
+  const periodo=invalido?valido:{de:inicio??undefined,ate:fim??undefined};
+  const filtro={...periodo,usuarioId:pessoa||undefined,acao:acao.trim()||undefined,pagina};
+  const mudarPeriodo=(campo:'de'|'ate',valor:string)=>{
+    const novoDe=campo==='de'?valor:de,novoAte=campo==='ate'?valor:ate;
+    if(campo==='de')setDe(valor);else setAte(valor);
+    const i=dataDaTela(novoDe),f=dataDaTela(novoAte);
+    if(i!==undefined&&f!==undefined&&!(i&&f&&f<i)){setValido({de:i??undefined,ate:f??undefined});setPagina(0);}
+  };
+  const {dados,erro,carregando,recarregar}=useCarregar(JSON.stringify(filtro),()=>listarAuditoria(filtro));
+  return <Tela largura={LARGURA_LISTA} bordas={['top']}><Cabecalho titulo="Auditoria" subtitulo="Ações feitas na consultoria, guardadas por um ano. Valores clínicos não aparecem."/>
+    <Cartao titulo="Filtros" descricao="Combine pessoa, ação e período. A lista muda na hora." recolhivel recolhido={width<LARGURA_MENU_LATERAL}>
       {/* Pessoa e ação com o mesmo padrão: botão "Rótulo: valor" que abre a lista com busca. */}
       <LinhaDeAcoes>
-        <EscolhaEmFolha rotulo="Pessoa" valor={pessoa} aoMudar={setPessoa} opcoes={[{valor:'',rotulo:'Todas as pessoas'},...(membros??[]).map(m=>({valor:m.id,rotulo:m.nome}))]}/>
-        <EscolhaEmFolha rotulo="Ação" titulo="Filtrar por ação" valor={acao} aoMudar={setAcao} opcoes={[{valor:'',rotulo:'Todas as ações'},...Object.entries(ACOES_AUDITORIA).map(([codigo,nome])=>({valor:codigo,rotulo:nome}))]}/>
+        <EscolhaEmFolha rotulo="Pessoa" valor={pessoa} aoMudar={(v)=>{setPessoa(v);setPagina(0);}} opcoes={[{valor:'',rotulo:'Todas as pessoas'},...(membros??[]).map(m=>({valor:m.id,rotulo:m.nome}))]}/>
+        <EscolhaEmFolha rotulo="Ação" titulo="Filtrar por ação" valor={acao} aoMudar={(v)=>{setAcao(v);setPagina(0);}} opcoes={[{valor:'',rotulo:'Todas as ações'},...Object.entries(ACOES_AUDITORIA).map(([codigo,nome])=>({valor:codigo,rotulo:nome}))]}/>
       </LinhaDeAcoes>
       {erroPessoas?<MensagemErro texto={textoDoErro(erroPessoas)} tentarDeNovo={recarregarPessoas}/>:null}
       <View style={{flexDirection:'row',gap:espaco(2),flexWrap:'wrap',alignItems:'flex-end'}}>
-        <CampoData rotulo="De" valor={de} aoMudar={setDe} erro={inicio===undefined?'Data inválida.':undefined}/><CampoData rotulo="Até" valor={ate} aoMudar={setAte} erro={fim===undefined?'Data inválida.':!!(inicio&&fim&&fim<inicio)?'Fim antes do início.':undefined}/>
+        <CampoData rotulo="De" valor={de} aoMudar={(v)=>mudarPeriodo('de',v)} erro={inicio===undefined?'Data inválida.':undefined}/><CampoData rotulo="Até" valor={ate} aoMudar={(v)=>mudarPeriodo('ate',v)} erro={fim===undefined?'Data inválida.':!!(inicio&&fim&&fim<inicio)?'Fim antes do início.':undefined}/>
       </View>
-      <Botao rotulo="Filtrar auditoria" desabilitado={invalido} motivo="Confira o período informado." aoTocar={()=>setFiltro({de:inicio??undefined,ate:fim??undefined,usuarioId:pessoa||undefined,acao:acao.trim()||undefined,pagina:0})}/>
     </Cartao>
     {erro?<MensagemErro texto={textoDoErro(erro)} tentarDeNovo={recarregar}/>:null}{carregando&&!dados?<Esqueleto/>:null}
     {dados?.itens.length===0?<Vazio titulo="Sem eventos neste filtro" texto="Tente outro período, pessoa ou ação."/>:null}
@@ -47,7 +60,7 @@ export default function Auditoria() {
       {chave:'acao',titulo:'Ação',flex:1.2,render:e=><Texto>{ACOES_AUDITORIA[e.acao]??'Ação registrada'}</Texto>},
       {chave:'resumo',titulo:'Resumo',flex:2.4,render:e=><Texto>{e.resumo}</Texto>},
     ]}/>
-    {dados&&dados.total>50?<View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap',alignItems:'center'}}><Botao rotulo="Anterior" tipo="secundario" desabilitado={filtro.pagina===0} aoTocar={()=>setFiltro({...filtro,pagina:filtro.pagina-1})}/><Texto>Página {filtro.pagina+1} de {Math.ceil(dados.total/50)}</Texto><Botao rotulo="Próxima" tipo="secundario" desabilitado={(filtro.pagina+1)*50>=dados.total} aoTocar={()=>setFiltro({...filtro,pagina:filtro.pagina+1})}/></View>:null}
+    {dados&&dados.total>50?<View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap',alignItems:'center'}}><Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina===0} aoTocar={()=>setPagina(pagina-1)}/><Texto>Página {pagina+1} de {Math.ceil(dados.total/50)}</Texto><Botao rotulo="Próxima" tipo="secundario" desabilitado={(pagina+1)*50>=dados.total} aoTocar={()=>setPagina(pagina+1)}/></View>:null}
     </Cartao> : null}
   </Tela>;
 }

@@ -24,9 +24,10 @@ export function TextosDosTermos({ termos }: { termos: TermosVigentes }) {
       {termos.rascunho ? <Selo texto="Rascunho em revisão" tipo="atencao" /> : null}
       {termos.documentos.map((d) => (
         <Cartao key={d.id} titulo={d.titulo}>
-          {blocosDoTexto(d.texto).map((b, i) =>
+          {/* O texto começa repetindo o título do documento (já no cartão): essa primeira linha sai. */}
+          {blocosDoTexto(d.texto).filter((b, i) => !(i === 0 && b.tipo === 'secao' && b.trechos.map((t) => t.texto).join('') === d.titulo)).map((b, i) =>
             b.tipo === 'secao' ? (
-              <Texto key={i} variante="rotulo" nivel={3}>{b.trechos.map((t) => t.texto).join('')}</Texto>
+              <Texto key={i} variante="bloco" nivel={3} style={estilos.secao}>{b.trechos.map((t) => t.texto).join('')}</Texto>
             ) : b.tipo === 'item' ? (
               <View key={i} style={estilos.item}>
                 <Texto>•</Texto>
@@ -46,4 +47,5 @@ const estilos = StyleSheet.create({
   item: { flexDirection: 'row', gap: espaco(1), paddingLeft: espaco(1) },
   textoDoItem: { flex: 1 },
   negrito: { fontFamily: fontes.semi },
+  secao: { marginTop: espaco(1) },
 });

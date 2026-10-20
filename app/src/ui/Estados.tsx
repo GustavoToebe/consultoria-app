@@ -83,16 +83,36 @@ export function Incompleto({ texto = 'Há itens sem valor informado.' }: { texto
   );
 }
 
-/** Erro na própria tela, com o texto da API e, se der, um "tentar de novo" (nunca para "não encontrado"). */
+/** Frase padrão do HTTP em inglês (erro que não passou pelo tratador da API, como um id fora do formato). */
+const PADRAO_EM_INGLES = /^(bad request|not found|forbidden|unauthorized|internal server error|method not allowed|service unavailable)\.?$/i;
+
+/** Texto em português quando a API devolveu só a frase padrão do HTTP; senão o texto recebido. */
+export function textoSemIngles(texto: string, erro?: unknown): string {
+  if (!PADRAO_EM_INGLES.test(texto.trim())) return texto;
+  const status = erro instanceof ErroApi ? erro.status : 0;
+  if (status === 403) return 'Seu perfil não permite esta ação.';
+  if (status >= 500) return 'O servidor não respondeu como devia. Tente de novo em instantes.';
+  return 'Não encontramos o que você procura. Confira o endereço ou volte à lista.';
+}
+
+/** Tentar de novo só ajuda quando o problema pode passar: sem conexão, servidor fora, tempo esgotado ou limite. */
+function valeTentarDeNovo(erro: unknown): boolean {
+  if (!(erro instanceof ErroApi)) return true;
+  return erro.status === 0 || erro.status === 408 || erro.status === 429 || erro.status >= 500;
+}
+
+/**
+ * Erro na própria tela, com o texto da API e, se der, um "tentar de novo" (só quando repetir pode resolver: nunca para
+ * 400, 403, 404 ou 409). Frase padrão do HTTP em inglês ("Bad Request") vira português.
+ */
 export function MensagemErro({ texto, tentarDeNovo, erro }: { texto: string; tentarDeNovo?: () => void; erro?: unknown }) {
-  const definitivo = erro instanceof ErroApi && erro.status === 404;
   const { cores } = useTema();
   return (
     <View
       accessibilityRole="alert"
       style={[estilos.erro, { borderColor: cores.perigo, backgroundColor: `${cores.perigo}18` }]}>
-      <Texto cor={cores.perigo}>{texto}</Texto>
-      {tentarDeNovo && !definitivo ? <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={tentarDeNovo} /> : null}
+      <Texto cor={cores.perigo}>{textoSemIngles(texto, erro)}</Texto>
+      {tentarDeNovo && valeTentarDeNovo(erro) ? <Botao rotulo="Tentar de novo" tipo="secundario" aoTocar={tentarDeNovo} /> : null}
     </View>
   );
 }

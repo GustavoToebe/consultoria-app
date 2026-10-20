@@ -1,8 +1,9 @@
-import { Link, router, type Href } from 'expo-router';
+import { Link, router, usePathname, type Href } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { voltarAutomatico } from '../dominio/telas';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_LATERAL } from '../tema/tokens';
@@ -25,9 +26,16 @@ interface Props {
   /** Linha menor abaixo do título (nome do aluno, período). */
   subtitulo?: string;
   acoes?: ReactNode;
-  /** `sempre` (área do aluno, sem menu lateral) ou `celular` (treinador: no PC a marca já está no menu). */
+  /**
+   * `sempre` (área do aluno, sem menu lateral) ou `celular` (treinador: no PC a marca já está no menu). Regra única:
+   * a marca só aparece no Início de cada área (`/treinador`, `/aluno`); nas outras telas o pedido é ignorado.
+   */
   mostrarMarca?: 'sempre' | 'celular';
-  /** Seta de voltar. Sem histórico (link aberto direto na web), vai para este endereço. */
+  /**
+   * Seta de voltar. Sem histórico (link aberto direto na web), vai para este endereço. Sem isto, as telas abertas fora
+   * da barra inferior (Equipe, Ajuda, Atualizações...) ganham a seta para a tela de origem quando a barra está à vista
+   * (`voltarAutomatico`).
+   */
   voltar?: Href;
 }
 
@@ -35,12 +43,17 @@ interface Props {
  * Topo das telas: marca do treinador (ou título da página), selo de "sem conexão" e ações à direita. O título é o
  * único h1 da tela (a marca sem título vira o h1 nas telas públicas e do aluno).
  */
-export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, voltar }: Props) {
+export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, voltar: voltarPedido }: Props) {
   const { marca, offline, usuario } = useSessao();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
+  const caminho = usePathname();
   const { confirmar, pendente } = useSaidaGuardada();
-  const comMarca = mostrarMarca === 'sempre' || (mostrarMarca === 'celular' && width < LARGURA_MENU_LATERAL);
+  const naRaiz = caminho === '/treinador' || caminho === '/aluno';
+  const comMarca = naRaiz && (mostrarMarca === 'sempre' || (mostrarMarca === 'celular' && width < LARGURA_MENU_LATERAL));
+  // O aluno tem a barra inferior em qualquer largura; o treinador, só abaixo do menu lateral.
+  const comBarraInferior = usuario?.papel === 'ALUNO' || width < LARGURA_MENU_LATERAL;
+  const voltar = voltarPedido ?? (voltarAutomatico(caminho, comBarraInferior) as Href | undefined);
   return (
     <View style={estilos.cabecalho}>
       <View style={estilos.inicio}>

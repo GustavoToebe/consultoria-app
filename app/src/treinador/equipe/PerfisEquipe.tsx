@@ -22,6 +22,17 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAtorEquipe } from './useAtorEquipe';
 
+/**
+ * Descrição dos quatro perfis que toda consultoria ganha ao nascer (a API os cria sem descrição). Vale só enquanto o
+ * perfil não tem descrição própria; mudou as permissões, escreva a descrição no editor.
+ */
+const DESCRICOES_PADRAO: Record<string, string> = {
+  Administrador: 'Acesso total: equipe, marca, conta e auditoria, além de tudo dos alunos.',
+  Treinador: 'Alunos, treinos, dietas, atualizações, anamneses e interessados.',
+  Nutricionista: 'Dietas, atualizações e anamneses; só lê alunos e treinos.',
+  Assistente: 'Cadastra e convida alunos e atende interessados; só lê os planos.',
+};
+
 export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[];catalogo:PermissaoEquipe[];recarregar:()=>void}) {
   const [editar,setEditar]=useState<PerfilEquipe|'novo'|null>(null);
   const [excluir,setExcluir]=useState<PerfilEquipe|null>(null);
@@ -40,11 +51,12 @@ export function PerfisEquipe({perfis,catalogo,recarregar}:{perfis:PerfilEquipe[]
       {p.sistema?<Selo texto="Acesso total · perfil do sistema" tipo="neutro"/>:null}
       {!p.ativo?<Selo texto="Inativo" tipo="neutro"/>:null}
     </>}>
-      <Texto variante="suave">{p.descricao||'—'}</Texto><Texto variante="suave">{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
+      <Texto variante="suave">{p.descricao||DESCRICOES_PADRAO[p.nome]||'—'}</Texto><Texto variante="suave">{p.usuarios} {p.usuarios===1?'usuário':'usuários'}</Texto>
       <Permitido codigo="PERFIL_ALTERAR"><View style={{flexDirection:'row',gap:espaco(1),flexWrap:'wrap'}}>
-        {podeEditarPerfil(ator,p)?<Botao rotulo={`Editar ${p.nome}`} tipo="secundario" aoTocar={()=>setEditar(p)}/>:null}
-        {criaLiberado&&podeDuplicarPerfil(ator,p)?<Botao rotulo={`Duplicar ${p.nome}`} tipo="secundario" aoTocar={()=>void duplicar(p)}/>:null}
-        {!p.sistema?<Botao rotulo={`Excluir ${p.nome}`} tipo="perigoTexto" aoTocar={()=>setExcluir(p)}/>:null}
+        {/* Rótulo curto na tela (o nome já é o título do cartão); o leitor de tela ouve o nome junto. */}
+        {podeEditarPerfil(ator,p)?<Botao rotulo="Editar" rotuloAcessivel={`Editar ${p.nome}`} tipo="secundario" aoTocar={()=>setEditar(p)}/>:null}
+        {criaLiberado&&podeDuplicarPerfil(ator,p)?<Botao rotulo="Duplicar" rotuloAcessivel={`Duplicar ${p.nome}`} tipo="secundario" aoTocar={()=>void duplicar(p)}/>:null}
+        {!p.sistema?<Botao rotulo="Excluir" rotuloAcessivel={`Excluir ${p.nome}`} tipo="perigoTexto" aoTocar={()=>setExcluir(p)}/>:null}
       </View></Permitido>
     </Cartao>)}
     </Cartao>

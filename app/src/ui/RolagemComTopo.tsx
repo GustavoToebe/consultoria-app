@@ -23,6 +23,8 @@ const SEM_ROLAGEM: Rolagem = { registrar: () => undefined, rolarAte: () => undef
 
 /** Rolagem (px) a partir da qual aparece o botão de voltar ao início. */
 const LIMITE_TOPO = 400;
+/** Movimento mínimo (px) para contar como rolar para cima ou para baixo (ignora o tremor do dedo). */
+const DIFERENCA_MINIMA = 4;
 
 interface Props {
   children: ReactNode;
@@ -31,7 +33,11 @@ interface Props {
   preencher?: boolean;
 }
 
-/** ScrollView com o botão flutuante "Voltar ao início da página", usado nas telas e nas folhas. */
+/**
+ * ScrollView com o botão flutuante "Voltar ao início da página", usado nas telas e nas folhas. O botão só aparece
+ * depois de 400 px e enquanto a pessoa rola para cima (quem rola para baixo está lendo ou marcando séries, e o botão
+ * parado no canto cobria o ✓ da série e a seta do último item).
+ */
 export function RolagemComTopo({ children, contentContainerStyle, preencher }: Props) {
   const { cores } = useTema();
   const reduzido = useMovimentoReduzido();
@@ -61,7 +67,14 @@ export function RolagemComTopo({ children, contentContainerStyle, preencher }: P
         contentContainerStyle={[contentContainerStyle, estilos.fim]}
         keyboardShouldPersistTaps="handled"
         scrollEventThrottle={100}
-        onScroll={(e) => { deslocamento.current = e.nativeEvent.contentOffset.y; setLonge(e.nativeEvent.contentOffset.y > LIMITE_TOPO); }}>
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          const anterior = deslocamento.current;
+          deslocamento.current = y;
+          if (y <= LIMITE_TOPO) setLonge(false);
+          else if (y < anterior - DIFERENCA_MINIMA) setLonge(true);
+          else if (y > anterior + DIFERENCA_MINIMA) setLonge(false);
+        }}>
         {children}
       </ScrollView>
       {longe ? (

@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes } from '../tema/tokens';
+import { Esmaecido, useEsmaecimento } from './FaixaDeChips';
 import { Texto } from './Texto';
 
 interface Props<T extends string> {
@@ -10,14 +11,22 @@ interface Props<T extends string> {
   abas: { valor: T; rotulo: string; contagem?: number }[];
   ativa: T;
   aoMudar: (valor: T) => void;
+  /** Cor atrás das abas (fundo da tela ou superfície do cartão), para o esmaecido das bordas casar. */
+  fundo?: string;
 }
 
-/** Abas de texto com sublinhado na cor da marca; rolam na horizontal se não couberem no celular. Alvo de 44 px. */
-export function Abas<T extends string>({ abas, ativa, aoMudar }: Props<T>) {
+/**
+ * Abas de texto com sublinhado na cor da marca; rolam na horizontal se não couberem no celular, com a borda esmaecida
+ * do lado em que há mais abas (sem isso "Atua…" parecia cortado). Alvo de 44 px.
+ */
+export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>) {
   const { cores, marca } = useTema();
+  const { direita, esquerda, medidas } = useEsmaecimento();
+  const cor = fundo ?? cores.fundo;
   return (
     <Tabs value={ativa} onValueChange={(v) => aoMudar(v as T)} style={[estilos.borda, { borderColor: cores.borda }]}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.linha}>
+      <View style={estilos.area}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={estilos.linha} {...medidas}>
         <TabsList style={estilos.linha}>
           {abas.map((a) => {
             const sel = a.valor === ativa;
@@ -42,12 +51,16 @@ export function Abas<T extends string>({ abas, ativa, aoMudar }: Props<T>) {
           })}
         </TabsList>
       </ScrollView>
+      {direita ? <Esmaecido cor={cor} lado="direita" /> : null}
+      {esquerda ? <Esmaecido cor={cor} lado="esquerda" /> : null}
+      </View>
     </Tabs>
   );
 }
 
 const estilos = StyleSheet.create({
   borda: { borderBottomWidth: 1 },
+  area: { position: 'relative' },
   linha: { flexDirection: 'row' },
   aba: {
     // 44 px de alvo mais os 2 px do sublinhado, que entram na própria altura.

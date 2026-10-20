@@ -20,8 +20,3 @@ export function itensDoMenuDoUsuario(pode: (codigo: string) => boolean): ItemDoM
     { id: 'sair', rotulo: 'Sair', href: null },
   ];
 }
-
-/** Meus dados, Segurança, Ajustes e Minha conta abrem a partir do cartão do usuário no PC e da tela Perfil no celular; só no celular precisam da seta de voltar. */
-export function voltarDasTelasDaConta(larguraDaJanela: number, larguraMenuLateral: number): '/treinador/perfil' | undefined {
-  return larguraDaJanela < larguraMenuLateral ? '/treinador/perfil' : undefined;
-}
