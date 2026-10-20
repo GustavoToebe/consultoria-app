@@ -62,14 +62,14 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   // Semana (padrão): arroz cozido 150 g ÷ 2,5 = 60 g cru por dia, 420 g na semana; frango sem fator, como na dieta.
   await expect(page.getByText('Lista da semana')).toBeVisible();
   await expect(page.getByText('420 g cru')).toBeVisible();
-  await expect(page.getByText('700 g', { exact: true })).toBeVisible();
+  await expect(page.getByText('700 g (como na dieta)', { exact: true })).toBeVisible();
   await expect(page.getByText('14 un')).toBeVisible();
 
   // Mês (30 dias): passa de 1.000 g vira kg, arredondado para cima.
   await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Mês' }).click();
   await expect(page.getByText('Lista do mês')).toBeVisible();
   await expect(page.getByText('1,80 kg cru')).toBeVisible();
-  await expect(page.getByText('3,00 kg', { exact: true })).toBeVisible();
+  await expect(page.getByText('3,00 kg (como na dieta)', { exact: true })).toBeVisible();
   await expect(page.getByText('60 un')).toBeVisible();
 
   // Opção B do almoço: sai o arroz e o frango, entra a batata com o fator de correção (200 × 1,25 × 30 = 7,5 kg).

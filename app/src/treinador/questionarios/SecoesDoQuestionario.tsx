@@ -1,18 +1,17 @@
 import { ArrowDown, ArrowUp, ChevronsDownUp, ChevronsUpDown, Copy, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ConteudoQuestionario, FinalidadeQuestionario, PerguntaAtualizacao, TipoPergunta } from '../../api/tipos';
 import {
   adicionarPergunta, adicionarSecao, alterarCondicaoDaSecao, alterarPergunta, alterarSecao, duplicarPerguntaNaSecao, moverParaSecao, moverPergunta, moverSecao,
-  novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, ROTULO_DO_TIPO, textoDaCondicao, tiposParaAdicionar,
+  gruposParaAdicionar, novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, ROTULO_DO_TIPO, textoDaCondicao,
   type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
 import { LIMITES_QUESTIONARIO as L } from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
-import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
@@ -21,6 +20,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
+import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
 import { EditorDeCondicao, PropriedadesDaPergunta } from './PropriedadesDaPergunta';
 
 type Alvo = { secao: number; pergunta: number };
@@ -59,18 +59,27 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar
     setAdicionarEm(null);
   };
 
+  const totalDePerguntas = c.secoes.reduce((n, sec) => n + sec.perguntas.length, 0);
   return <>
-    {c.secoes.length > 0 && c.secoes.some((s) => s.perguntas.length > 0) ? <LinhaDeAcoes alinhar="fim">
-      <Botao rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'} tipo="fantasma" Icone={todasAbertas ? ChevronsDownUp : ChevronsUpDown} aoTocar={aoAlternarTodas} />
-    </LinhaDeAcoes> : null}
-    {c.secoes.map((sec, si) => <Cartao key={sec.uid ?? si} titulo={sec.titulo || `Seção ${si + 1}`}
-      acoes={somenteLeitura ? undefined : <View style={estilos.setas}>
-        <IconeBotao Icone={ArrowUp} rotulo={`Subir a seção ${si + 1}`} desabilitado={si === 0} aoTocar={() => aoMudar((x) => moverSecao(x, si, -1))} />
-        <IconeBotao Icone={ArrowDown} rotulo={`Descer a seção ${si + 1}`} desabilitado={si === c.secoes.length - 1} aoTocar={() => aoMudar((x) => moverSecao(x, si, 1))} />
-        <Botao rotulo="Remover seção" tipo="perigoTexto" Icone={Trash2} desabilitado={c.secoes.length <= 1} motivo="O questionário precisa de ao menos uma seção." aoTocar={() => setRemoverSecaoN(si)} />
-      </View>}>
-      {somenteLeitura ? null : <Campo rotulo="Título da seção" valor={sec.titulo} maxLength={L.tituloTamanho} erro={problemas.porSecao.get(si)?.join(' ')}
-        aoMudar={(titulo) => aoMudar((x) => alterarSecao(x, si, titulo))} />}
+    <View style={estilos.cabecalhoLista}>
+      <Texto variante="bloco" nivel={2}>Seções e perguntas ({totalDePerguntas})</Texto>
+      {totalDePerguntas > 1 ? <Botao rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'} tipo="fantasma" Icone={todasAbertas ? ChevronsDownUp : ChevronsUpDown} aoTocar={aoAlternarTodas} /> : null}
+    </View>
+    {c.secoes.map((sec, si) => <Cartao key={sec.uid ?? si} titulo={somenteLeitura ? sec.titulo || `Seção ${si + 1}` : undefined}>
+      {/* O título da seção é o próprio campo (antes aparecia no cabeçalho e de novo no campo); setas e lixeira ao lado. */}
+      {somenteLeitura ? null : <View style={estilos.tituloSecao}>
+        <View style={estilos.campoTitulo}>
+          <Campo rotulo={`Seção ${si + 1}`} valor={sec.titulo} maxLength={L.tituloTamanho} erro={problemas.porSecao.get(si)?.join(' ')}
+            aoMudar={(titulo) => aoMudar((x) => alterarSecao(x, si, titulo))} />
+        </View>
+        <View style={estilos.setas}>
+          {c.secoes.length > 1 ? <>
+            <IconeBotao Icone={ArrowUp} rotulo={`Subir a seção ${si + 1}`} desabilitado={si === 0} aoTocar={() => aoMudar((x) => moverSecao(x, si, -1))} />
+            <IconeBotao Icone={ArrowDown} rotulo={`Descer a seção ${si + 1}`} desabilitado={si === c.secoes.length - 1} aoTocar={() => aoMudar((x) => moverSecao(x, si, 1))} />
+            <IconeBotao Icone={Trash2} rotulo={`Remover a seção ${sec.titulo || si + 1}`} aoTocar={() => setRemoverSecaoN(si)} />
+          </> : null}
+        </View>
+      </View>}
       {somenteLeitura ? (sec.mostrarSe ? <Texto variante="pequeno">{textoDaCondicao(c, sec.mostrarSe)}</Texto> : null)
         : <EditorDeCondicao conteudo={c} secao={si} condicao={sec.mostrarSe} aoMudar={(m) => aoMudar((x) => alterarCondicaoDaSecao(x, si, m))} />}
       {sec.perguntas.length === 0 ? <Texto variante="suave">Seção sem pergunta. Adicione ao menos uma.</Texto> : null}
@@ -95,13 +104,17 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar
     </LinhaDeAcoes>}
 
     {adicionarEm !== null ? <Folha visivel titulo="Adicionar pergunta" aoFechar={() => setAdicionarEm(null)}>
-      {tiposParaAdicionar(finalidade).map(({ tipo, descricao }) => {
-        const permissao = podeAdicionar(c, adicionarEm, tipo);
-        return <View key={tipo} style={estilos.tipo}>
-          <Botao rotulo={ROTULO_DO_TIPO[tipo]} tipo="secundario" cheio desabilitado={!permissao.pode} motivo={permissao.motivo} aoTocar={() => adicionar(adicionarEm, tipo)} />
-          <Texto variante="pequeno">{permissao.pode ? descricao : permissao.motivo}</Texto>
-        </View>;
-      })}
+      {gruposParaAdicionar(finalidade).map((g) => <View key={g.rotulo} style={estilos.grupoDeTipos}>
+        <Texto variante="secao">{g.rotulo}</Texto>
+        <View style={estilos.opcoesDeTipo}>
+          {g.itens.map(({ tipo, descricao }) => {
+            const permissao = podeAdicionar(c, adicionarEm, tipo);
+            // O motivo aparece uma vez só, no lugar da descrição (antes vinha embaixo do botão e de novo no texto).
+            return <OpcaoDeTipo key={tipo} titulo={ROTULO_DO_TIPO[tipo]} descricao={permissao.pode ? descricao : permissao.motivo ?? descricao}
+              desabilitado={!permissao.pode} aoEscolher={() => adicionar(adicionarEm, tipo)} />;
+          })}
+        </View>
+      </View>)}
     </Folha> : null}
 
     <PainelConfirmacao visivel={perguntaARemover !== undefined} titulo={`Remover a pergunta “${perguntaARemover?.rotulo || 'sem texto'}”?`}
@@ -122,27 +135,46 @@ function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, probl
   aoAlternar: () => void; aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void; aoMover: (d: -1 | 1) => void;
   aoDuplicar: () => void; aoMoverParaSecao: (para: number) => void; aoRemover: () => void;
 }) {
+  const { cores } = useTema();
   const resumo = [ROTULO_DO_TIPO[p.tipo] ?? p.tipo, p.obrigatoria ? 'obrigatória' : null, p.destaque ? 'no resumo' : null,
     p.mostrarSe ? 'com condição' : null, p.imagemId ? 'com imagem' : null].filter(Boolean).join(' · ');
   const outras = secoes.filter((s) => s.i !== secaoAtual).map((s) => ({ valor: String(s.i), rotulo: s.titulo }));
-  return <Cartao style={{ backgroundColor: fundo }}
-    cabecalho={<CabecalhoDeGrupo titulo={p.rotulo || 'Pergunta sem texto'} resumo={resumo} aberto={aberta} aoAlternar={aoAlternar}
-      selo={problemas.length ? { texto: 'Corrigir', tipo: 'perigo' } : undefined} />}>
-    {aberta ? <>
+  // Mesma gramática dos outros editores: setas ↑↓ movem, chevron abre, lixeira remove (antes as setas ficavam no rodapé).
+  return <View style={[estilos.pergunta, { backgroundColor: fundo, borderColor: problemas.length ? cores.perigo : cores.borda }]}>
+    <CabecalhoDoItem titulo={p.rotulo || 'Pergunta sem texto'} resumo={resumo} aberto={aberta} aoAlternar={aoAlternar} nomeDoItem={`a pergunta ${posicao + 1}`}
+      selo={problemas.length ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
+      posicao={posicao} total={total} aoMover={somenteLeitura ? undefined : aoMover}
+      remover={somenteLeitura ? undefined : <IconeBotao Icone={Trash2} rotulo={`Remover a pergunta ${posicao + 1}`} aoTocar={aoRemover} />} />
+    {aberta ? <View style={estilos.corpoPergunta}>
       {p.mostrarSe && somenteLeitura ? <Texto variante="pequeno">{textoDaCondicao(conteudo, p.mostrarSe)}</Texto> : null}
       <PropriedadesDaPergunta pergunta={p} conteudo={conteudo} problemas={problemas} somenteLeitura={somenteLeitura} finalidade={finalidade} aoMudar={aoMudar} />
       {somenteLeitura ? null : <LinhaDeAcoes>
-        <IconeBotao Icone={ArrowUp} rotulo={`Subir a pergunta ${posicao + 1}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
-        <IconeBotao Icone={ArrowDown} rotulo={`Descer a pergunta ${posicao + 1}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />
         <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={!duplicavel} motivo="Este tipo só pode aparecer uma vez." aoTocar={aoDuplicar} />
         {outras.length ? <EscolhaEmFolha rotulo="Mover para a seção" valor="" opcoes={outras} rotuloDoValor="escolher" aoMudar={(v) => aoMoverParaSecao(Number(v))} /> : null}
-        <Botao rotulo="Remover pergunta" tipo="perigoTexto" Icone={Trash2} aoTocar={aoRemover} />
       </LinhaDeAcoes>}
-    </> : null}
-  </Cartao>;
+    </View> : null}
+  </View>;
+}
+
+/** Opção da folha "Adicionar pergunta": título e o que faz (ou por que não dá), como as opções da folha "Modelos". */
+function OpcaoDeTipo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado: boolean; aoEscolher: () => void }) {
+  const { cores } = useTema();
+  return <Pressable accessibilityRole="button" accessibilityLabel={titulo} accessibilityHint={descricao} accessibilityState={{ disabled: desabilitado }} disabled={desabilitado} onPress={aoEscolher}
+    style={({ pressed }) => [estilos.opcao, { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: cores.borda, opacity: desabilitado ? 0.55 : 1 }]}>
+    <Texto style={estilos.tituloOpcao}>{titulo}</Texto>
+    <Texto variante="pequeno">{descricao}</Texto>
+  </Pressable>;
 }
 
 const estilos = StyleSheet.create({
-  setas: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  tipo: { gap: espaco(0.5) },
+  setas: { flexDirection: 'row', alignItems: 'center' },
+  cabecalhoLista: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  tituloSecao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(0.5) },
+  campoTitulo: { flex: 1 },
+  pergunta: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
+  corpoPergunta: { gap: espaco(1.5), paddingVertical: espaco(1) },
+  grupoDeTipos: { gap: espaco(0.75) },
+  opcoesDeTipo: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  opcao: { flexGrow: 1, flexBasis: 220, borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: 2, minHeight: 56 },
+  tituloOpcao: { fontFamily: fontes.semi },
 });

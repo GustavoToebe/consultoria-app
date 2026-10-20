@@ -5,7 +5,9 @@ import { StyleSheet, View } from 'react-native';
 import type { ConteudoDieta } from '../api/tipos';
 import {
   listaDeCompras,
-  NOTA_DA_LISTA,
+  marcaSemFator,
+  NOTA_DA_LISTA_ALUNO,
+  NOTA_DA_LISTA_TREINADOR,
   quantidadeParaTela,
   refeicoesComEscolha,
   type EscolhasDeOpcao,
@@ -20,6 +22,7 @@ import { Escolha } from './Escolha';
 import { Vazio } from './Estados';
 import { textoDoErro } from './erros';
 import { NoPlano } from './NoPlano';
+import { Selo } from './Selo';
 import { Tabela, type ColunaDaTabela } from './Tabela';
 import { Texto } from './Texto';
 
@@ -28,20 +31,34 @@ const PERIODOS: { valor: PeriodoDaLista; rotulo: string }[] = [
   { valor: 'mes', rotulo: 'Mês' },
 ];
 
-const COLUNAS: ColunaDaTabela<LinhaDaLista>[] = [
-  { chave: 'nome', titulo: 'Alimento', principal: true, flex: 2, render: (l) => <Texto numerico>{l.nome}</Texto> },
-  {
-    chave: 'quantidade',
-    titulo: 'Quantidade',
-    alinhar: 'direita',
-    render: (l) => (
-      <Texto numerico style={estilos.forte}>
-        {quantidadeParaTela(l.quantidade, l.unidade)}
-        {l.cru ? <Texto variante="suave"> cru</Texto> : null}
-      </Texto>
-    ),
-  },
-];
+/**
+ * Alimento e quantidade. A quantidade é coluna de "ação" da `Tabela`: no celular fica no canto do cartão, sem o rótulo
+ * "Quantidade" repetido em cada item. Item sem fator diz isso (aluno: "(como na dieta)"; treinador: selo "Sem fator"),
+ * para não parecer peso cru.
+ */
+function colunas(papel: 'aluno' | 'treinador'): ColunaDaTabela<LinhaDaLista>[] {
+  return [
+    { chave: 'nome', titulo: 'Alimento', principal: true, flex: 2, render: (l) => (
+      <View style={estilos.nome}>
+        <Texto numerico>{l.nome}</Texto>
+        {papel === 'treinador' && l.semFator ? <Selo texto={marcaSemFator('treinador')} tipo="neutro" /> : null}
+      </View>
+    ) },
+    {
+      chave: 'quantidade',
+      titulo: 'Quantidade',
+      alinhar: 'direita',
+      acao: true,
+      render: (l) => (
+        <Texto numerico style={estilos.forte}>
+          {quantidadeParaTela(l.quantidade, l.unidade)}
+          {l.cru ? <Texto variante="suave"> cru</Texto> : null}
+          {papel === 'aluno' && l.semFator ? <Texto variante="suave"> ({marcaSemFator('aluno')})</Texto> : null}
+        </Texto>
+      ),
+    },
+  ];
+}
 
 /** O que o PDF precisa da escolha feita na tela. */
 export interface EscolhaDaLista {
@@ -56,7 +73,7 @@ export interface EscolhaDaLista {
  * treinador na prévia do editor, com os fatores atuais da biblioteca já aplicados). Período e opção por refeição são
  * estado da tela, não ficam salvos. O botão de PDF só aparece com `aoGerarPdf` e com a funcionalidade `PDF` no plano.
  */
-export function ListaDeCompras({ conteudo, aoGerarPdf }: { conteudo: ConteudoDieta; aoGerarPdf?: (escolha: EscolhaDaLista) => Promise<void> }) {
+export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { conteudo: ConteudoDieta; aoGerarPdf?: (escolha: EscolhaDaLista) => Promise<void>; papel?: 'aluno' | 'treinador' }) {
   const { avisar } = useAviso();
   const [periodo, setPeriodo] = useState<PeriodoDaLista>('semana');
   const [escolhas, setEscolhas] = useState<EscolhasDeOpcao>({});
@@ -98,11 +115,11 @@ export function ListaDeCompras({ conteudo, aoGerarPdf }: { conteudo: ConteudoDie
       </Cartao>
       <Cartao titulo={periodo === 'semana' ? 'Lista da semana' : 'Lista do mês'}>
         {linhas.length ? (
-          <Tabela rotulo="Lista de compras" colunas={COLUNAS} linhas={linhas} chave={(l) => l.chave} />
+          <Tabela rotulo="Lista de compras" colunas={colunas(papel)} linhas={linhas} chave={(l) => l.chave} />
         ) : (
           <Vazio titulo="Nada para listar" texto="A dieta não tem itens com quantidade." />
         )}
-        <Texto variante="suave">{NOTA_DA_LISTA}</Texto>
+        <Texto variante="suave">{papel === 'aluno' ? NOTA_DA_LISTA_ALUNO : NOTA_DA_LISTA_TREINADOR}</Texto>
       </Cartao>
       {aoGerarPdf ? (
         <NoPlano funcionalidade="PDF">
@@ -115,5 +132,6 @@ export function ListaDeCompras({ conteudo, aoGerarPdf }: { conteudo: ConteudoDie
 
 const estilos = StyleSheet.create({
   forte: { fontFamily: fontes.semi },
+  nome: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
   opcoes: { gap: espaco(1.5), paddingTop: espaco(1) },
 });

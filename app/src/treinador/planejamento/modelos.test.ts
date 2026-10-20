@@ -1,5 +1,5 @@
 import type { TipoReceita } from '../../api/tipos';
-import { ABA_ANAMNESE, ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, slugDaAba, usoDoModelo } from './modelos';
+import { ABA_ANAMNESE, ABA_ATUALIZACAO, abaDoPlanejamento, avisoModeloSalvo, CATEGORIAS, GRUPOS_DE_MODELOS, gruposLiberados, metadadosDoModelo, nomeDoModelo, rotuloNovoModelo, rotuloSalvarComo, slugDaAba, usoDoModelo } from './modelos';
 
 describe('organização da tela Planejamento', () => {
   it('cada tipo aparece uma vez, no grupo certo e na ordem pedida', () => {
@@ -20,8 +20,8 @@ describe('organização da tela Planejamento', () => {
   });
   it('semanas, dietas, pacotes e mobilidade são aplicados ao aluno; peças dizem onde usar, sem inventar uso', () => {
     expect(CATEGORIAS.filter((c) => usoDoModelo(c.valor).aplicavel).map((c) => c.valor)).toEqual(['PLANO_TREINO', 'PLANO_DIETA', 'PASTA_PLANO', 'MOBILIDADE']);
-    expect(usoDoModelo('SERIES').linha).toMatch(/^Use dentro do editor/);
-    expect(usoDoModelo('REFEICAO').linha).toMatch(/^Use dentro do editor de dieta/);
+    expect(usoDoModelo('SERIES').linha).toMatch(/editor de treino/);
+    expect(usoDoModelo('REFEICAO').linha).toMatch(/editor de dieta/);
     expect(usoDoModelo('MOBILIDADE').linha).toBeNull();
     expect(usoDoModelo('PLANO_TREINO').linha).toBeNull();
   });
@@ -63,5 +63,23 @@ describe('Planejamento e as funcionalidades do plano', () => {
     expect(abaDoPlanejamento('mobilidade', true, true, ['PDF'])).toBe('Treino');
     expect(abaDoPlanejamento('mobilidade', true, true, ['MOBILIDADE'])).toBe('Mobilidade');
     expect(abaDoPlanejamento('atualizacao', true, true, [])).toBe(ABA_ATUALIZACAO);
+  });
+  it('um nome por tipo no botão, na folha e no aviso', () => {
+    expect(nomeDoModelo('SESSAO_TREINO')).toBe('dia de treino');
+    expect(rotuloNovoModelo('PLANO_TREINO')).toBe('Nova semana de treino');
+    expect(rotuloNovoModelo('SESSAO_TREINO')).toBe('Novo dia de treino');
+    expect(rotuloNovoModelo('PASTA_PLANO')).toBe('Novo pacote');
+    expect(rotuloSalvarComo('SERIES')).toBe('Salvar como receita de séries');
+    expect(avisoModeloSalvo('SESSAO_TREINO')).toBe('Dia de treino salvo no Planejamento.');
+    expect(avisoModeloSalvo('REFEICAO')).toBe('Modelo de refeição salvo no Planejamento.');
+    expect(rotuloNovoModelo('PLANO_DIETA')).toBe('Novo modelo de dieta');
+  });
+  it('metadados do cartão contam o que o modelo tem', () => {
+    expect(metadadosDoModelo('PLANO_TREINO', { sessoes: [{ nome: 'A', exercicios: [{ nome: 'x', series: [] }, { nome: 'y', series: [] }] }] })).toBe('1 sessão · 2 exercícios');
+    expect(metadadosDoModelo('PLANO_TREINO', { sessoes: [{ nome: 'A', exercicios: [] }] })).toBe('1 sessão · sem exercícios');
+    expect(metadadosDoModelo('PASTA_PLANO', { planos: [{}, {}] })).toBe('2 planos');
+    expect(metadadosDoModelo('PLANO_DIETA', { refeicoes: [] })).toBe('0 refeições');
+    expect(metadadosDoModelo('METODOLOGIA', { tiposSerie: ['FS', 'WS'] })).toBe('2 tipos de série');
+    expect(metadadosDoModelo('MOBILIDADE', { orientacoes: '', secoes: [{ titulo: 'A', itens: [{ nome: 'x', prescricao: '', videoUrl: '' }] }] })).toBe('1 seção · 1 item');
   });
 });

@@ -16,6 +16,8 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
+import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
+import { semAcento } from '../../dominio/telas';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -54,6 +56,9 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
   const anamnese = finalidade === 'ANAMNESE';
   const [arquivados, setArquivados] = useState(false);
   const lista = useCarregar(`questionarios:${finalidade}:${arquivados}`, () => listarQuestionarios(arquivados, finalidade));
+  const [busca, setBusca] = useState('');
+  const termo = semAcento(busca.trim());
+  const filtrados = lista.dados?.filter((q) => !termo || semAcento(`${q.nome} ${q.descricao ?? ''}`).includes(termo));
   const [novoAberto, setNovoAberto] = useState(false);
   // `?novo=1` (atalho da busca) abre o formulário e sai do endereço na mesma hora: assim fechar o formulário não reescreve
   // a URL e o voltar do navegador não tem passo sobrando. Sem a permissão não abre (a API recusaria de qualquer jeito).
@@ -82,25 +87,30 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       descricao={anamnese ? 'O questionário inicial que você envia ao aluno pela ficha dele (cartão Anamnese). Ele responde no app, logado; a versão enviada não muda depois.'
         : 'O check-in que o aluno responde a cada período. O padrão vale para quem não tem outro escolhido na ficha ou na pasta.'}
       acoes={<Permitido codigo="QUESTIONARIO_ALTERAR"><Botao rotulo={anamnese ? 'Nova anamnese' : 'Novo questionário'} aoTocar={() => setNovoAberto(true)} /></Permitido>}>
-      <Escolha descricao="Situação" valor={arquivados ? 'arquivados' : 'ativos'} aoMudar={(v) => setArquivados(v === 'arquivados')}
-        opcoes={[{ valor: 'ativos', rotulo: 'Ativos' }, { valor: 'arquivados', rotulo: 'Arquivados' }]} />
+      {/* A mesma barra da lista de modelos: busca, depois o filtro. */}
+      <View style={estilos.busca}>
+        <View style={estilos.campoBusca}><Campo rotulo={anamnese ? 'Buscar anamnese' : 'Buscar questionário'} valor={busca} aoMudar={setBusca} placeholder="Nome ou descrição" autoCorrect={false} /></View>
+        <EscolhaEmFolha rotulo="Situação" valor={arquivados ? 'arquivados' : 'ativos'} aoMudar={(v) => setArquivados(v === 'arquivados')} style={estilos.seletor}
+          opcoes={[{ valor: 'ativos', rotulo: 'Ativos' }, { valor: 'arquivados', rotulo: 'Arquivados' }]} />
+      </View>
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={lista.recarregar} /> : null}
       {!lista.dados && lista.carregando ? <Esqueleto /> : null}
+      {lista.dados?.length && filtrados?.length === 0 ? <Vazio texto="Nenhum questionário com essa busca." /> : null}
       {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : anamnese ? 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.' : 'Nenhum questionário ainda.'} /> : null}
-      {lista.dados?.length ? <Grade gap={espaco(2)}>{lista.dados.map((q) =>
+      {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((q) =>
         <CartaoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</Grade> : null}
     </Cartao>
 
     {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
-      <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={ocupado !== null}
+      <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} cheio desabilitado={ocupado !== null}
         aoTocar={() => { const q = menu; setMenu(null); setOcupado(q.id); duplicarQuestionario(q.id).then((d) => { lista.recarregar(); avisar('Questionário duplicado.', 'sucesso'); irParaEditor(d.id); }, (e: unknown) => avisar(textoDoErro(e), 'perigo')).finally(() => setOcupado(null)); }} />
-      {!menu.padrao && !menu.arquivado ? <Botao rotulo="Definir como padrão" tipo="secundario" Icone={Star} desabilitado={menu.versaoPublicada === 0}
+      {!menu.padrao && !menu.arquivado ? <Botao rotulo="Definir como padrão" tipo="secundario" Icone={Star} cheio desabilitado={menu.versaoPublicada === 0}
         motivo="Publique o questionário antes de torná-lo o padrão." aoTocar={() => executar(menu, () => definirQuestionarioPadrao(menu.id), 'Padrão alterado.')} /> : null}
       {menu.arquivado
-        ? <Botao rotulo="Desarquivar" tipo="secundario" Icone={ArchiveRestore} aoTocar={() => executar(menu, () => desarquivarQuestionario(menu.id), 'Questionário desarquivado.')} />
-        : <Botao rotulo="Arquivar" tipo="secundario" Icone={Archive} desabilitado={menu.padrao} motivo="O padrão não pode ser arquivado. Defina outro como padrão antes."
+        ? <Botao rotulo="Desarquivar" tipo="secundario" Icone={ArchiveRestore} cheio aoTocar={() => executar(menu, () => desarquivarQuestionario(menu.id), 'Questionário desarquivado.')} />
+        : <Botao rotulo="Arquivar" tipo="secundario" Icone={Archive} cheio desabilitado={menu.padrao} motivo="O padrão não pode ser arquivado. Defina outro como padrão antes."
           aoTocar={() => executar(menu, () => arquivarQuestionario(menu.id), 'Questionário arquivado.')} />}
-      <Botao rotulo="Excluir questionário" tipo="perigoTexto" Icone={Trash2} desabilitado={menu.padrao || menu.uso.envios > 0}
+      <Botao rotulo="Excluir questionário" tipo="perigoTexto" Icone={Trash2} cheio desabilitado={menu.padrao || menu.uso.envios > 0}
         motivo={menu.padrao ? 'O padrão não pode ser excluído.' : 'Já foi respondido: arquive em vez de excluir.'} aoTocar={() => { setExcluir(menu); setMenu(null); }} />
     </Folha> : null}
 
@@ -163,6 +173,9 @@ function FormularioNovo({ finalidade, aoFechar }: { finalidade: FinalidadeQuesti
 }
 
 const estilos = StyleSheet.create({
+  busca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
+  campoBusca: { flexGrow: 1, flexBasis: 240 },
+  seletor: { alignSelf: 'flex-end' },
   cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), minHeight: 56, flexGrow: 1 },
   topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
   textos: { flex: 1, gap: espaco(0.5) },

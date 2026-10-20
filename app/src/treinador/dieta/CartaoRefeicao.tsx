@@ -10,7 +10,6 @@ import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
-import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Cartao } from '../../ui/Cartao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
@@ -19,6 +18,8 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
 import { UNIDADES } from '../biblioteca/AbaAlimentos';
+import { CabecalhoDoItem } from '../plano/CabecalhoDoItem';
+import { rotuloSalvarComo } from '../planejamento/modelos';
 
 /** "2.236 kcal · P 180,2 g · C 250 g · G 60,1 g"; valor que falta aparece como "—" (nunca inventado). */
 export function textoTotais(t: Totais): string {
@@ -60,19 +61,17 @@ export function CartaoRefeicao(p: Props) {
     <AlvoDeRolagem chave={r.uid}><Cartao
       style={p.comProblema.has(r.uid) ? { borderColor: cores.perigo } : undefined}
       cabecalho={
-        <CabecalhoDeGrupo
+        <CabecalhoDoItem
+          faixa
           titulo={`${r.horario ? `${r.horario} · ` : ''}${r.nome || `Refeição ${p.posicao + 1}`}`}
           resumo={`${totalA.kcal === null ? '—' : numeroParaTela(totalA.kcal, 0)} kcal · ${nItens} ${nItens === 1 ? 'item' : 'itens'}${r.opcoes.length > 1 ? ` · ${r.opcoes.length} opções` : ''}`}
           selo={p.comProblema.has(r.uid) ? { texto: 'Corrigir', tipo: 'perigo' } : undefined}
           aberto={p.aberta}
           aoAlternar={p.aoAbrir}
-          acoesJuntas
-          acoes={
-            <>
-              <IconeBotao Icone={ArrowUp} rotulo="Subir refeição" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-              <IconeBotao Icone={ArrowDown} rotulo="Descer refeição" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
-            </>
-          }
+          nomeDoItem="refeição"
+          posicao={p.posicao}
+          total={p.total}
+          aoMover={p.aoMover}
         />
       }>
       {p.aberta ? (
@@ -134,7 +133,7 @@ export function CartaoRefeicao(p: Props) {
                 }}
               />
             ) : null}
-            {p.aoSalvarModelo ? <Botao rotulo="Salvar como modelo" tipo="secundario" aoTocar={p.aoSalvarModelo} /> : null}
+            {p.aoSalvarModelo ? <Botao rotulo={rotuloSalvarComo('REFEICAO')} tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : null}
           {p.removivel !== false ? <Botao rotulo="Remover refeição" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
           </View>
         </View>
@@ -179,6 +178,8 @@ function LinhaItem({
           <CampoNumerico rotulo="Quantidade" valor={item.quantidade} aoMudar={(quantidade) => mudar({ quantidade })} />
         </View>
         <Escolha descricao="Unidade" opcoes={UNIDADES} valor={item.unidade} aoMudar={(unidade: UnidadeAlimento) => mudar({ unidade })} />
+        {/* Item da biblioteca: os valores ficam na mesma linha da quantidade; só o manual abre os campos de valor. */}
+        {item.manual ? null : <Texto variante="suave" numerico style={estilos.valoresDoItem}>{textoTotais(somar([item]))}</Texto>}
       </View>
       {item.manual ? (
         <View style={estilos.linha}>
@@ -195,9 +196,7 @@ function LinhaItem({
             <CampoNumerico rotulo="G (g)" valor={item.gordura} aoMudar={(gordura) => mudar({ gordura })} />
           </View>
         </View>
-      ) : (
-        <Texto variante="suave">{textoTotais(somar([item]))}</Texto>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -217,5 +216,6 @@ const estilos = StyleSheet.create({
   quantidade: { width: 120 },
   valor: { width: 92 },
   total: { fontFamily: fontes.semi },
+  valoresDoItem: { alignSelf: 'center', flexShrink: 1 },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
 });

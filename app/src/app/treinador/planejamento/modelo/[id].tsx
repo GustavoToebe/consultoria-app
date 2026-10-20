@@ -18,8 +18,8 @@ export default function Modelo() {
   // O editor remonta a cada versão salva (a chave leva a versão); a hora do último salvamento mora aqui para sobreviver.
   const [salvo, setSalvo] = useState<{ id: string; quando: Date } | null>(null);
   if (!carga.dados) return <Tela bordas={['top']} largura={LARGURA_LISTA}><Cabecalho titulo="Modelo" voltar="/treinador/planejamento" />{carga.erro ? <MensagemErro texto={textoDoErro(carga.erro)} tentarDeNovo={carga.recarregar} /> : <Esqueleto />}</Tela>;
-  if (carga.dados.tipo === 'PLANO_TREINO' || carga.dados.tipo === 'SESSAO_TREINO') return <EditorDeTreino key={id} modelo unica={carga.dados.tipo === 'SESSAO_TREINO'} />;
-  if (carga.dados.tipo === 'PLANO_DIETA' || carga.dados.tipo === 'REFEICAO') return <EditorDeDieta key={id} modelo unica={carga.dados.tipo === 'REFEICAO'} />;
+  if (carga.dados.tipo === 'PLANO_TREINO' || carga.dados.tipo === 'SESSAO_TREINO') return <EditorDeTreino key={id} modelo unica={carga.dados.tipo === 'SESSAO_TREINO'} receita={carga.dados} />;
+  if (carga.dados.tipo === 'PLANO_DIETA' || carga.dados.tipo === 'REFEICAO') return <EditorDeDieta key={id} modelo unica={carga.dados.tipo === 'REFEICAO'} receita={carga.dados} />;
   return <EditorModelo key={`${id}:${carga.dados.versao}`} receita={carga.dados} aoRecarregar={carga.recarregar}
     salvoAs={salvo?.id === id ? salvo.quando : null} aoSalvar={(quando) => setSalvo({ id, quando })} />;
 }

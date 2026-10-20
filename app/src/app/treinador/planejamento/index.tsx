@@ -11,7 +11,7 @@ import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { mensagemCopiaCriada } from '../../../dominio/planoDoAluno';
 import { AplicarAoAluno } from '../../../treinador/planejamento/AplicarAoAluno';
 import { ListaDeQuestionarios } from '../../../treinador/questionarios/ListaDeQuestionarios';
-import { ABA_ANAMNESE, ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, slugDaAba, usoDoModelo } from '../../../treinador/planejamento/modelos';
+import { ABA_ANAMNESE, ABA_ATUALIZACAO, abaDoPlanejamento, CATEGORIAS, conteudoInicial, gruposLiberados, metadadosDoModelo, rotuloNovoModelo, slugDaAba, usoDoModelo } from '../../../treinador/planejamento/modelos';
 import { Abas } from '../../../ui/Abas';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
@@ -19,6 +19,7 @@ import { Cabecalho } from '../../../ui/Cabecalho';
 import { Campo } from '../../../ui/Campo';
 import { Cartao } from '../../../ui/Cartao';
 import { Escolha } from '../../../ui/Escolha';
+import { EscolhaEmFolha } from '../../../ui/EscolhaEmFolha';
 import { FaixaDeChips } from '../../../ui/FaixaDeChips';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { Esqueleto } from '../../../ui/Esqueleto';
@@ -64,7 +65,6 @@ export default function Planejamento() {
     return () => { vivo = false; };
   }, [pedirNovo, emAtualizacao]);
   const [organizar, setOrganizar] = useState(false);
-  const [escolherColecao, setEscolherColecao] = useState(false);
   const [menu, setMenu] = useState<Receita | null>(null);
   const [excluir, setExcluir] = useState<Receita | null>(null);
   const [aplicar, setAplicar] = useState<Receita | null>(null);
@@ -77,7 +77,6 @@ export default function Planejamento() {
   const categoria = CATEGORIAS.find((c) => c.valor === tipo) ?? CATEGORIAS[0];
   const uso = usoDoModelo(tipo);
   const nomeDaColecao = (id: string | null) => colecoes.dados?.find((c) => c.id === id)?.nome;
-  const rotuloColecao = colecao === '*' ? 'Todas' : colecao === '' ? 'Sem coleção' : nomeDaColecao(colecao) ?? 'Todas';
   const filtrados = modelos.dados?.filter((r) => r.tipo === tipo && (colecao === '*' || (r.pastaId ?? '') === colecao) && `${r.nome} ${r.descricao ?? ''}`.toLocaleLowerCase().includes(busca.toLocaleLowerCase()));
   const duplicar = (r: Receita) => {
     setMenu(null); setOcupado(r.id);
@@ -97,29 +96,26 @@ export default function Planejamento() {
     ) : null}
     {emAtualizacao ? null : <Cartao
       titulo={categoria.rotulo}
-      descricao={categoria.descricao}
-      acoes={<Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Novo modelo" aoTocar={() => setFormulario('novo')} /></Permitido>}>
+      descricao={uso.linha ? `${categoria.descricao} ${uso.linha}` : categoria.descricao}
+      acoes={<Permitido codigo="MODELO_ALTERAR"><Botao rotulo={rotuloNovoModelo(tipo)} aoTocar={() => setFormulario('novo')} /></Permitido>}>
+      {/* Mesma barra das outras listas: busca, depois o filtro. */}
       <View style={estilos.busca}>
-        <View style={estilos.campoBusca}><Campo rotulo="Buscar modelo" valor={busca} aoMudar={setBusca} placeholder="Nome do modelo" autoCorrect={false} /></View>
-        <Botao rotulo={`Coleção: ${rotuloColecao}`} tipo="secundario" Icone={Library} style={estilos.seletor} aoTocar={() => setEscolherColecao(true)} />
+        <View style={estilos.campoBusca}><Campo rotulo="Buscar modelo" valor={busca} aoMudar={setBusca} placeholder="Nome ou descrição" autoCorrect={false} /></View>
+        <EscolhaEmFolha rotulo="Coleção" valor={colecao} aoMudar={setColecao} style={estilos.seletor}
+          opcoes={[{ valor: '*', rotulo: 'Todas' }, { valor: '', rotulo: 'Sem coleção' }, ...(colecoes.dados ?? []).map((c) => ({ valor: c.id, rotulo: c.nome }))]}
+          rodape={pode('MODELO_ALTERAR') ? <Botao rotulo="Organizar coleções" tipo="secundario" Icone={Library} aoTocar={() => setOrganizar(true)} /> : undefined} />
       </View>
       {modelos.erro || colecoes.erro ? <MensagemErro texto={textoDoErro(modelos.erro ?? colecoes.erro)} tentarDeNovo={atualizar} /> : null}
       {!modelos.dados && modelos.carregando ? <Esqueleto /> : null}
-      {filtrados?.length === 0 ? <Vazio texto="Nenhum modelo encontrado. Crie um modelo para começar." /> : null}
-      {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((r) => <CartaoModelo key={r.id} modelo={r} colecao={nomeDaColecao(r.pastaId)} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)} linhaDeUso={uso.linha}
+      {filtrados?.length === 0 ? <Vazio texto={busca.trim() || colecao !== '*' ? 'Nenhum modelo com essa busca ou coleção.' : `Nenhum modelo ainda. Toque em “${rotuloNovoModelo(tipo)}” para começar.`} /> : null}
+      {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((r) => <CartaoModelo key={r.id} modelo={r} colecao={nomeDaColecao(r.pastaId)} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)}
         ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
         aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</Grade> : null}
     </Cartao>}
-    {escolherColecao ? <Folha visivel titulo="Coleção" aoFechar={() => setEscolherColecao(false)}>
-      <Texto variante="suave">Coleções só organizam os modelos desta tela.</Texto>
-      <Escolha descricao="Coleção" valor={colecao} aoMudar={(v) => { setColecao(v); setEscolherColecao(false); }}
-        opcoes={[{ valor: '*', rotulo: 'Todas' }, { valor: '', rotulo: 'Sem coleção' }, ...(colecoes.dados ?? []).map((c) => ({ valor: c.id, rotulo: c.nome }))]} />
-      <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Organizar coleções" tipo="secundario" aoTocar={() => { setEscolherColecao(false); setOrganizar(true); }} /></Permitido>
-    </Folha> : null}
     {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
-      <Botao rotulo="Renomear / mover" tipo="secundario" Icone={Pencil} aoTocar={() => { setFormulario(menu); setMenu(null); }} />
-      <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={ocupado !== null} aoTocar={() => duplicar(menu)} />
-      <Botao rotulo="Excluir modelo" tipo="perigoTexto" Icone={Trash2} aoTocar={() => { setExcluir(menu); setMenu(null); }} />
+      <Botao rotulo="Renomear ou mudar de coleção" tipo="secundario" Icone={Pencil} cheio aoTocar={() => { setFormulario(menu); setMenu(null); }} />
+      <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} cheio desabilitado={ocupado !== null} aoTocar={() => duplicar(menu)} />
+      <Botao rotulo="Excluir modelo" tipo="perigoTexto" Icone={Trash2} cheio aoTocar={() => { setExcluir(menu); setMenu(null); }} />
     </Folha> : null}
     {formulario ? <Formulario key={typeof formulario === 'string' ? 'novo' : formulario.id} receita={formulario === 'novo' ? null : formulario} tipo={tipo} colecaoInicial={colecao === '*' ? '' : colecao} colecoes={colecoes.dados ?? []} aoFechar={fecharFormulario} aoSalvar={async (nome, descricao, pastaId) => {
       if (formulario === 'novo') {
@@ -137,12 +133,12 @@ export default function Planejamento() {
 }
 
 /**
- * Semanas, dietas e pacotes: "Aplicar ao aluno" + "Editar", os dois secundários (o primário da tela é "Novo modelo").
- * Peças (receitas de séries, dias, refeições, metodologias, mobilidade): "Editar" e a linha de onde usar. O resto
- * fica no menu ⋯. As ações ficam na base do cartão, alinhadas entre cartões de alturas diferentes.
+ * Semanas, dietas e pacotes: "Aplicar ao aluno" + "Editar", os dois secundários (o primário da tela é "Nova …" do
+ * tipo). Linha de metadados ("6 sessões · 32 exercícios") e a descrição; onde usar as peças vai uma vez só, na
+ * descrição do cartão do tipo. O resto fica no menu ⋯. As ações ficam na base do cartão, alinhadas entre cartões de alturas diferentes.
  */
-function CartaoModelo({ modelo: r, colecao, aplicavel, linhaDeUso, ocupado, aoAplicar, aoEditar, aoMenu }: {
-  modelo: Receita; colecao: string | undefined; aplicavel: boolean; linhaDeUso: string | null; ocupado: boolean;
+function CartaoModelo({ modelo: r, colecao, aplicavel, ocupado, aoAplicar, aoEditar, aoMenu }: {
+  modelo: Receita; colecao: string | undefined; aplicavel: boolean; ocupado: boolean;
   aoAplicar: () => void; aoEditar: () => void; aoMenu?: () => void;
 }) {
   const { cores } = useTema();
@@ -150,9 +146,8 @@ function CartaoModelo({ modelo: r, colecao, aplicavel, linhaDeUso, ocupado, aoAp
     <View style={estilos.topoModelo}>
       <View style={estilos.textosModelo}>
         <Texto variante="bloco">{r.nome}</Texto>
-        {r.descricao ? <Texto variante="suave">{r.descricao}</Texto> : null}
-        {colecao ? <Texto variante="pequeno">Coleção: {colecao}</Texto> : null}
-        {linhaDeUso ? <Texto variante="pequeno">{linhaDeUso}</Texto> : null}
+        <Texto variante="pequeno" numerico>{metadadosDoModelo(r.tipo, r.conteudo)}{colecao ? ` · ${colecao}` : ''}</Texto>
+        {r.descricao ? <Texto variante="suave" numberOfLines={2}>{r.descricao}</Texto> : null}
       </View>
       {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${r.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
     </View>
@@ -167,11 +162,11 @@ function Formulario({ receita, tipo, colecaoInicial, colecoes, aoFechar, aoSalva
   const [nome, setNome] = useState(receita?.nome ?? ''); const [descricao, setDescricao] = useState(receita?.descricao ?? '');
   const [colecao, setColecao] = useState(receita ? receita.pastaId ?? '' : colecaoInicial);
   const [salvando, setSalvando] = useState(false); const [erro, setErro] = useState<unknown>(null);
-  return <Folha visivel titulo={receita ? 'Renomear / mover' : `Novo modelo: ${CATEGORIAS.find((c) => c.valor === tipo)?.rotulo}`} aoFechar={aoFechar} rodape={<Botao rotulo={receita ? 'Salvar' : 'Criar e editar'} desabilitado={!nome.trim()} motivo="Informe o nome do modelo." carregando={salvando} aoTocar={() => {
+  return <Folha visivel titulo={receita ? 'Renomear ou mudar de coleção' : rotuloNovoModelo(tipo)} aoFechar={aoFechar} rodape={<Botao rotulo={receita ? 'Salvar' : 'Criar e editar'} desabilitado={!nome.trim()} motivo="Informe o nome do modelo." carregando={salvando} aoTocar={() => {
     setSalvando(true); setErro(null); aoSalvar(nome.trim(), descricao.trim() || null, colecao || null).catch((e: unknown) => { setErro(e); setSalvando(false); });
   }} />}>
     <Campo rotulo="Nome do modelo" valor={nome} aoMudar={setNome} maxLength={120} />
-    <Campo rotulo="Descrição" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={400} />
+    <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={setDescricao} linhas={3} maxLength={400} />
     <Escolha rotulo="Coleção" valor={colecao} aoMudar={setColecao} opcoes={[{ valor: '', rotulo: 'Sem coleção' }, ...colecoes.map((c) => ({ valor: c.id, rotulo: c.nome }))]} />
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
   </Folha>;
