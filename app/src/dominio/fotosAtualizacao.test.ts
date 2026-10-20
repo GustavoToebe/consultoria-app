@@ -1,5 +1,5 @@
 import {
-  comFotoLocal, contagemDeFotos, maximoDeFotos, idsDeFotos, LIMITES_FOTO, redimensionamento, reducoesDeFoto, semFotoLocal, todasAsFotosLocais, vagasDeFoto,
+  comFotoLocal, contagemDeFotos, fotosAceitas, idsDeFotos, LIMITES_FOTO, redimensionamento, reducoesDeFoto, semFotoLocal, todasAsFotosLocais, vagasDeFoto,
 } from './fotosAtualizacao';
 
 describe('reducoesDeFoto', () => {
@@ -71,13 +71,13 @@ describe('fotos locais do rascunho', () => {
   });
 });
 
-describe('maximoDeFotos', () => {
+describe('fotosAceitas', () => {
   it('vale o max da pergunta, sem passar do teto do servidor; sem ele, 6', () => {
-    expect(maximoDeFotos(1, 6)).toBe(1);
-    expect(maximoDeFotos(4, 6)).toBe(4);
-    expect(maximoDeFotos(undefined, 6)).toBe(6);
-    expect(maximoDeFotos(6, 3)).toBe(3);
-    expect(maximoDeFotos(0, 6)).toBe(6);
-    expect(maximoDeFotos(9)).toBe(6);
+    expect(fotosAceitas(1, 6)).toBe(1);
+    expect(fotosAceitas(4, 6)).toBe(4);
+    expect(fotosAceitas(undefined, 6)).toBe(6);
+    expect(fotosAceitas(6, 3)).toBe(3);
+    expect(fotosAceitas(0, 6)).toBe(6);
+    expect(fotosAceitas(9)).toBe(6);
   });
 });

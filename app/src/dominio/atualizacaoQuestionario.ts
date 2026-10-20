@@ -4,7 +4,7 @@ import type {
 import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
 import { enderecoDaResposta, enderecoParaLeitura } from './cadastroDoAluno';
 import { dataParaTela, numeroParaTela } from './formatos';
-import { LIMITES_QUESTIONARIO, semResposta } from './questionario';
+import { escalaDaNota, LIMITES_QUESTIONARIO, semResposta } from './questionario';
 import { avaliarRespostas, respondida, respondidaNaPergunta, respostaValida } from './respostasAtualizacao';
 
 const SEM_DADO = '—';
@@ -166,19 +166,9 @@ export function ajudaDoNumero(p: PerguntaAtualizacao): string {
   return faixa ? `${faixa}, ${decimais}.` : `${decimais[0].toUpperCase()}${decimais.slice(1)}.`;
 }
 
-/**
- * Escala da NOTA: ponta de baixo 0 ou 1 e de cima 2 a 10 (padrão 0 a 10). Valor fora disso, que a publicação recusa,
- * volta ao padrão em vez de desenhar uma escala sem sentido.
- */
-export function escalaDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>): { minimo: number; maximo: number } {
-  const minimo = p.min === 1 ? 1 : 0;
-  const maximo = typeof p.max === 'number' && Number.isInteger(p.max) && p.max >= 2 && p.max <= 10 ? p.max : 10;
-  return { minimo, maximo };
-}
-
 /** "7 de 10": a nota na leitura, com a ponta de cima (uma escala de 1 a 5 não se confunde com uma de 0 a 10). */
 export function textoDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>, valor: RespostaAtualizacao | undefined): string {
-  return typeof valor === 'number' ? `${numeroParaTela(valor, 0)} de ${escalaDaNota(p).maximo}` : SEM_DADO;
+  return typeof valor === 'number' ? `${numeroParaTela(valor, 0)} de ${escalaDaNota(p).max}` : SEM_DADO;
 }
 
 /** GRADE na leitura: uma linha por item, com a coluna escolhida ou "—". */

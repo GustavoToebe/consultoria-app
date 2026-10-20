@@ -6,12 +6,12 @@ import type {
   Atualizacao, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, SecaoAtualizacao,
 } from '../../api/tipos';
 import {
-  ajudaDoNumero, alternarMarcado, colunasDasOpcoes, escalaDaNota, escolhaParaSimNao, NAO_SE_APLICA, progressoDasSecoes,
+  ajudaDoNumero, alternarMarcado, colunasDasOpcoes, escolhaParaSimNao, NAO_SE_APLICA, progressoDasSecoes,
   respostasDaGrade, simNaoParaEscolha, textoDaNota, textoDaResposta, textoDoProgresso, type SimNao,
 } from '../../dominio/atualizacaoQuestionario';
 import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { textoDaParte } from '../../dominio/paginasDoQuestionario';
-import { LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
+import { escalaDaNota, LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
 import { notaDoCadastro } from '../../dominio/anamnese';
 import { enderecoParaForm, errosDoEndereco, respostaDeEndereco } from '../../dominio/cadastroDoAluno';
 import { avaliarRespostas, tamanhoDoTexto } from '../../dominio/respostasAtualizacao';
@@ -174,7 +174,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   if (p.tipo === 'NUMERO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null} aoMudar={aoMudar}
     sufixo={p.unidade} inteiro={(p.casas ?? 0) === 0} ajuda={[ajudaDoNumero(p), ajuda].filter(Boolean).join(' ')} erro={erro} />;
   if (p.tipo === 'NOTA') {
-    const { minimo, maximo } = escalaDaNota(p);
+    const { min: minimo, max: maximo } = escalaDaNota(p);
     return <View style={estilos.pergunta}>
       <SeletorDeNota rotulo={rotulo} valor={typeof valor === 'number' ? valor : null} minimo={minimo} maximo={maximo}
         rotuloMinimo={p.rotuloMin} rotuloMaximo={p.rotuloMax} limpavel={!p.obrigatoria} aoMudar={aoMudar} />

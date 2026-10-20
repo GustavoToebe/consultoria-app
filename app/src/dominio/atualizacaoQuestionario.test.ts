@@ -1,7 +1,7 @@
 import type { ConteudoQuestionario, PerguntaAtualizacao } from '../api/tipos';
 import {
   ajudaDoNumero, alternarMarcado, escolhaParaSimNao, perguntaPeso, perguntasDestaque, rascunhoVigente, respostasCompativeis,
-  progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso, escalaDaNota, textoDaNota, respostasDaGrade,
+  progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso, textoDaNota, respostasDaGrade,
   colunasDasOpcoes,
 } from './atualizacaoQuestionario';
 import { errosRespostasAtualizacao, respondida } from './respostasAtualizacao';
@@ -198,14 +198,6 @@ describe('tipos da anamnese', () => {
 });
 
 describe('apoio da nota, da grade e das opções com imagem', () => {
-  it('escala da nota: padrão 0 a 10; 1 a N quando definida; valor estranho volta ao padrão', () => {
-    expect(escalaDaNota({})).toEqual({ minimo: 0, maximo: 10 });
-    expect(escalaDaNota({ min: 1, max: 10 })).toEqual({ minimo: 1, maximo: 10 });
-    expect(escalaDaNota({ min: 0, max: 5 })).toEqual({ minimo: 0, maximo: 5 });
-    expect(escalaDaNota({ min: 3, max: 40 })).toEqual({ minimo: 0, maximo: 10 });
-    expect(escalaDaNota({ max: 1 })).toEqual({ minimo: 0, maximo: 10 });
-  });
-
   it('nota na leitura leva a ponta de cima; sem resposta, "—"', () => {
     expect(textoDaNota({ min: 1, max: 5 }, 4)).toBe('4 de 5');
     expect(textoDaNota({}, 0)).toBe('0 de 10');

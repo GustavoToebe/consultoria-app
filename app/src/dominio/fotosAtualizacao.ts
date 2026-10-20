@@ -1,5 +1,5 @@
 import type { RespostaAtualizacao } from '../api/tipos';
-import { LIMITES_QUESTIONARIO } from './questionario';
+import { LIMITES_QUESTIONARIO, maximoDeFotos } from './questionario';
 
 /**
  * Fotos da atualização: regras puras (sem câmera, arquivo nem rede). Os limites do servidor valem de qualquer forma;
@@ -48,13 +48,11 @@ export function vagasDeFoto(enviadas: number, locais: number, maximo: number = L
 }
 
 /**
- * Fotos que a pergunta aceita: o `max` dela (1 a 6; sem ele, 6), nunca acima do teto do servidor. Cada pergunta FOTOS
- * tem o seu (frente, costas e lado com uma foto cada, por exemplo).
+ * Fotos que a pergunta aceita no aparelho: o `max` dela (`maximoDeFotos`, a mesma regra da validação), nunca acima
+ * do teto que o servidor informou. Cada pergunta FOTOS tem o seu (frente, costas e lado com uma foto cada, por exemplo).
  */
-export function maximoDeFotos(maxDaPergunta: number | undefined, tetoDoServidor: number = LIMITES_QUESTIONARIO.fotosPorPergunta) {
-  const daPergunta = typeof maxDaPergunta === 'number' && Number.isInteger(maxDaPergunta) && maxDaPergunta >= 1
-    ? maxDaPergunta : LIMITES_QUESTIONARIO.fotosPorPergunta;
-  return Math.max(1, Math.min(daPergunta, tetoDoServidor, LIMITES_QUESTIONARIO.fotosPorPergunta));
+export function fotosAceitas(maxDaPergunta: number | undefined, tetoDoServidor: number = LIMITES_QUESTIONARIO.fotosPorPergunta) {
+  return Math.max(1, Math.min(maximoDeFotos({ max: maxDaPergunta }), tetoDoServidor));
 }
 
 export function contagemDeFotos(total: number, maximo: number) {

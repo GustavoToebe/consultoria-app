@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { baixarFotoDoAluno } from '../../../api/rotas';
 import type { PerguntaAtualizacao, RespostaAtualizacao } from '../../../api/tipos';
 import {
-  contagemDeFotos, idsDeFotos, maximoDeFotos, TEXTO_FOTOS_INDISPONIVEIS, TEXTO_FOTOS_SEM_CONEXAO, vagasDeFoto,
+  contagemDeFotos, idsDeFotos, fotosAceitas, TEXTO_FOTOS_INDISPONIVEIS, TEXTO_FOTOS_SEM_CONEXAO, vagasDeFoto,
 } from '../../../dominio/fotosAtualizacao';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, RAIO } from '../../../tema/tokens';
@@ -91,7 +91,7 @@ export function CampoFotos({ pergunta: p, valor, carregarDaEquipe, rotulo }: Pro
   }
 
   // Cada pergunta tem o próprio limite (frente, costas e lado com uma foto cada); o servidor confere de novo no envio.
-  const limite = maximoDeFotos(p.max, controle.maximoPorPergunta);
+  const limite = fotosAceitas(p.max, controle.maximoPorPergunta);
   const vagas = vagasDeFoto(enviadas.length, locais.length, limite);
   const semConexao = !controle.guardaNoAparelho && !controle.online;
   const motivo = vagas === 0 ? `Esta pergunta aceita até ${limite} fotos.` : semConexao ? TEXTO_FOTOS_SEM_CONEXAO : undefined;
