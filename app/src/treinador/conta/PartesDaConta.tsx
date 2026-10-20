@@ -5,14 +5,13 @@ import { Linking, StyleSheet, View } from 'react-native';
 import { linkDePagamento } from '../../api/rotas';
 
 import type { CobrancaDaConta, ConsumoDoPlano, ItemDoConsumo, MinhaConta } from '../../api/tipos';
-import { dataParaTela, dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
+import { dataParaTela, dataHoraParaTela, moedaParaTela, SEM_DADO } from '../../dominio/formatos';
 import {
   competenciaParaTela,
   contatosOrdenados,
   enderecoParaTela,
   estadoDoConsumoParaTela,
   fracaoDoConsumo,
-  moedaParaTela,
   periodicidadeParaTela,
   podePagar,
   resumoFinanceiro,
@@ -77,7 +76,7 @@ export function AbaCadastro({ conta }: { conta: MinhaConta }) {
   );
 }
 
-/** Aba Meu plano: contratação e adicionais. */
+/** Aba Assinatura: contratação e adicionais. */
 export function AbaPlano({ conta }: { conta: MinhaConta }) {
   const { cores } = useTema();
   const c = conta.contratacao;
@@ -146,7 +145,7 @@ function LinhaDeCobranca({ c, previa }: { c: CobrancaDaConta; previa: boolean })
   );
 }
 
-/** Aba Financeiro: cobranças da mais recente para a mais antiga. */
+/** Aba Faturas: cobranças da mais recente para a mais antiga. */
 export function AbaFinanceiro({ conta }: { conta: MinhaConta }) {
   const resumo = resumoFinanceiro(conta.cobrancas);
   if (conta.cobrancas.length === 0) {

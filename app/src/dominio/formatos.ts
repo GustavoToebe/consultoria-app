@@ -99,3 +99,56 @@ export function dataCurta(iso: string): string {
   const [, m, d] = iso.slice(0, 10).split('-');
   return m && d ? `${d}/${m}` : '';
 }
+
+/** `1234.5` → `R$ 1.234,50`. Nulo → "—". Não depende de `Intl` (o Hermes do celular pode não ter pt-BR). */
+export function moedaParaTela(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined || Number.isNaN(valor)) return SEM_DADO;
+  const [inteiro, centavos] = Math.abs(valor).toFixed(2).split('.');
+  const milhares = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${valor < 0 ? '-' : ''}R$ ${milhares},${centavos}`;
+}
+
+/**
+ * Dinheiro do financeiro: a API manda **centavos** inteiros (`12345` → `R$ 123,45`). Conta só com inteiros, sem passar
+ * por ponto flutuante. Nulo → "—" (sem dado nunca vira `R$ 0,00`).
+ */
+export function centavosParaTela(centavos: number | null | undefined): string {
+  if (centavos === null || centavos === undefined || !Number.isFinite(centavos)) return SEM_DADO;
+  const total = Math.round(Math.abs(centavos));
+  const reais = Math.floor(total / 100);
+  const resto = String(total % 100).padStart(2, '0');
+  const milhares = String(reais).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${centavos < 0 && total > 0 ? '-' : ''}R$ ${milhares},${resto}`;
+}
+
+/** Centavos como o campo mostra ao editar: `12345` → `123,45` (sem "R$" nem milhar). Nulo → "". */
+export function centavosParaCampo(centavos: number | null | undefined): string {
+  if (centavos === null || centavos === undefined || !Number.isFinite(centavos)) return '';
+  const total = Math.round(Math.abs(centavos));
+  return `${Math.floor(total / 100)},${String(total % 100).padStart(2, '0')}`;
+}
+
+/**
+ * Valor digitado em reais → centavos inteiros. Aceita `150`, `150,5`, `1.234,50`, `R$ 99,90` e `12.50` (ponto com uma
+ * ou duas casas). Parte inteira e parte decimal são lidas separadas (nada de `parseFloat * 100`). Vazio, mais de duas
+ * casas, zero, negativo ou número grande demais → `null` (a API só aceita valor positivo).
+ */
+export function centavosDaTela(texto: string): number | null {
+  const t = texto.trim().replace(/^R\$\s*/i, '').trim();
+  if (!t) return null;
+  let inteiro: string;
+  let decimal = '';
+  const virgula = /^(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?$/.exec(t);
+  const ponto = /^(\d+)\.(\d{1,2})$/.exec(t);
+  if (virgula) {
+    inteiro = virgula[1].replace(/\./g, '');
+    decimal = virgula[2] ?? '';
+  } else if (ponto) {
+    [, inteiro, decimal] = ponto;
+  } else {
+    return null;
+  }
+  if (inteiro.length > 10) return null;
+  const centavos = Number(inteiro) * 100 + Number(decimal.padEnd(2, '0') || '0');
+  return Number.isSafeInteger(centavos) && centavos > 0 ? centavos : null;
+}

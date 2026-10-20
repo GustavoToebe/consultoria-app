@@ -11,7 +11,11 @@ export const PERMISSOES_DO_PLANO: Record<TipoPlano, { ler: string; alterar: stri
 export function pode(permissoes:readonly string[]|undefined,codigo:string):boolean {
   return permissoes?.includes(codigo)??false;
 }
-export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean):boolean {
+/**
+ * `pagamentosHabilitados`: módulo de pagamentos ligado para a consultoria (vem de `GET /eu`). Ausente = desligado: o
+ * Financeiro some do menu mesmo para quem tem a permissão.
+ */
+export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,pagamentosHabilitados:boolean=false):boolean {
   if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos'].includes(caminho)) return true;
   if(caminho==='/treinador/minha-conta') return tem('CONTA_LER');
   if(caminho==='/treinador') return tem('PAINEL_VER');
@@ -19,6 +23,8 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean):boo
   if(caminho==='/treinador/agenda'||caminho.startsWith('/treinador/atualizacoes')) return tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER');
   // Números é o relatório da consultoria (só contagens): a permissão de quem vê o painel.
   if(caminho==='/treinador/numeros') return tem('PAINEL_VER');
+  // Financeiro: planos comerciais, cobranças e painel de recebimentos. Precisa da permissão E do módulo ligado.
+  if(caminho==='/treinador/financeiro') return pagamentosHabilitados&&tem('FINANCEIRO_LER');
   if(caminho==='/treinador/alunos/novo') return tem('ALUNO_ALTERAR');
   if(caminho==='/treinador/interessados') return tem('INSCRICAO_LER');
   if(caminho.startsWith('/treinador/alunos')) return tem('ALUNO_LER');

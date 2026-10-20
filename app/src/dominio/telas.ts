@@ -38,6 +38,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   { id: 'numeros', rotulo: 'Números', secao: 'Dia a dia', href: '/treinador/numeros', palavras: ['relatorio', 'contagem', 'alunos ativos', 'meses', 'no prazo', 'atrasadas'], permissao: null },
   { id: 'biblioteca', rotulo: 'Biblioteca', secao: 'Planos', href: '/treinador/biblioteca', palavras: ['exercicios', 'alimentos', 'suplementos', 'videos', 'catalogo', 'conteudo'], permissao: null },
   { id: 'planejamento', rotulo: 'Planejamento', secao: 'Planos', href: '/treinador/planejamento', palavras: ['modelos', 'treinos', 'dietas', 'mobilidade', 'pacotes', 'receitas'], permissao: null },
+  { id: 'financeiro', rotulo: 'Financeiro', secao: 'Consultoria', href: '/treinador/financeiro', palavras: ['pagamentos', 'cobrancas', 'recebimentos', 'planos comerciais', 'mensalidade', 'inadimplencia', 'inadimplentes', 'lancamentos', 'receita', 'caixa', 'baixa', 'pix'], permissao: null },
   { id: 'marca', rotulo: 'Marca', secao: 'Consultoria', href: '/treinador/marca', palavras: ['logo', 'cores', 'tema', 'identidade', 'visual', 'nome'], permissao: null },
   { id: 'equipe', rotulo: 'Equipe', secao: 'Consultoria', href: '/treinador/equipe', palavras: ['membros', 'usuarios', 'perfis', 'permissoes', 'convites'], permissao: null },
   { id: 'auditoria', rotulo: 'Auditoria', secao: 'Consultoria', href: '/treinador/auditoria', palavras: ['historico', 'registro de acoes', 'log', 'eventos'], permissao: null },
@@ -46,7 +47,7 @@ export const TELAS: readonly TelaDoCatalogo[] = [
   // "sair" não abre tela (é o último item do cartão do usuário); "senha" acha as duas telas que tratam dela.
   { id: 'meus-dados', rotulo: 'Meus dados', secao: 'Sua conta', href: '/treinador/meus-dados', palavras: ['nome', 'email', 'telefone', 'senha', 'trocar senha', 'perfil', 'acesso'], permissao: null },
   { id: 'seguranca', rotulo: 'Segurança', secao: 'Sua conta', href: '/treinador/seguranca', palavras: ['senha', 'verificacao em duas etapas', 'duas etapas', '2fa', 'mfa', 'autenticador', 'codigo', 'codigos de recuperacao', 'qr'], permissao: null },
-  { id: 'minha-conta', rotulo: 'Minha conta', secao: 'Sua conta', href: '/treinador/minha-conta', palavras: ['plano', 'meu plano', 'assinatura', 'financeiro', 'cobrancas', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
+  { id: 'minha-conta', rotulo: 'Minha conta', secao: 'Sua conta', href: '/treinador/minha-conta', palavras: ['plano', 'assinatura', 'faturas', 'boleto', 'contrato', 'cadastro da consultoria', 'consumo', 'limites'], permissao: null },
   { id: 'ajustes', rotulo: 'Ajustes', secao: 'Sua conta', href: '/treinador/ajustes', palavras: ['preferencias', 'tema', 'escuro', 'claro', 'contraste', 'tamanho do texto', 'fonte', 'animacoes', 'vibracao'], permissao: null },
 
   { id: 'ergogenicos', rotulo: 'Outros (medicação e ergogênicos)', secao: 'Planos', href: '/treinador/biblioteca?aba=ergogenicos', palavras: ['biblioteca', 'outros', 'ergogenicos', 'medicacao', 'categorias'], permissao: 'ERGOGENICO_LER', acao: true },
@@ -80,10 +81,11 @@ export function telasPermitidas(
   pode: (codigo: string) => boolean,
   telas: readonly TelaDoCatalogo[] = TELAS,
   liberadas?: readonly string[],
+  pagamentosHabilitados = false,
 ): TelaDoCatalogo[] {
   return telas.filter(
     (t) =>
-      podeAcessarTela(caminhoDoHref(t.href), pode) &&
+      podeAcessarTela(caminhoDoHref(t.href), pode, pagamentosHabilitados) &&
       (t.permissao === null || pode(t.permissao)) &&
       (t.funcionalidade === undefined || temFuncionalidade(liberadas, t.funcionalidade)),
   );
@@ -198,6 +200,7 @@ const ORIGEM_NO_CELULAR: readonly [string, string][] = [
   ['/treinador/atualizacoes', '/treinador'],
   ['/treinador/agenda', '/treinador'],
   ['/treinador/numeros', '/treinador'],
+  ['/treinador/financeiro', '/treinador/perfil'],
   ['/treinador/interessados', '/treinador/perfil'],
   ['/treinador/marca', '/treinador/perfil'],
   ['/treinador/equipe', '/treinador/perfil'],

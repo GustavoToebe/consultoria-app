@@ -16,16 +16,16 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
-type Aba = 'cadastro' | 'plano' | 'financeiro';
+type Aba = 'cadastro' | 'assinatura' | 'faturas';
 
 const ABAS: { valor: Aba; rotulo: string }[] = [
   { valor: 'cadastro', rotulo: 'Cadastro' },
-  { valor: 'plano', rotulo: 'Meu plano' },
-  { valor: 'financeiro', rotulo: 'Financeiro' },
+  { valor: 'assinatura', rotulo: 'Assinatura' },
+  { valor: 'faturas', rotulo: 'Faturas' },
 ];
 
 /**
- * Minha conta (só com `CONTA_LER`): cadastro, plano e cobranças da consultoria e o consumo do plano. Só consulta. Enquanto
+ * Minha conta (só com `CONTA_LER`): cadastro, assinatura e faturas da consultoria e o consumo do plano. Só consulta. Enquanto
  * a Central não está ligada, `previa` vem verdadeiro e a tela avisa que os dados são de demonstração.
  */
 export default function MinhaConta() {
@@ -38,7 +38,7 @@ export default function MinhaConta() {
   const consumo = useCarregar('consumo-do-plano', () => consumoDoPlano());
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Minha conta" subtitulo="Assinatura da consultoria: cadastro, plano e cobranças." />
+      <Cabecalho titulo="Minha conta" subtitulo="Assinatura da consultoria: cadastro, plano e faturas." />
       {conta.dados?.previa ? (
         <View accessibilityRole="alert"
           style={{ borderWidth: 1, borderRadius: RAIO, borderColor: cores.atencao, backgroundColor: `${cores.atencao}18`,
@@ -55,8 +55,8 @@ export default function MinhaConta() {
         <View style={{ gap: espaco(3) }}>
           <Abas abas={ABAS} ativa={aba} aoMudar={setAba} />
           {aba === 'cadastro' ? <AbaCadastro conta={conta.dados} /> : null}
-          {aba === 'plano' ? <AbaPlano conta={conta.dados} /> : null}
-          {aba === 'financeiro' ? <AbaFinanceiro conta={conta.dados} /> : null}
+          {aba === 'assinatura' ? <AbaPlano conta={conta.dados} /> : null}
+          {aba === 'faturas' ? <AbaFinanceiro conta={conta.dados} /> : null}
         </View>
       ) : null}
       {consumo.erro ? <MensagemErro texto={textoDoErro(consumo.erro)} tentarDeNovo={consumo.recarregar} erro={consumo.erro} /> : null}

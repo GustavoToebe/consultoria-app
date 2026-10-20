@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { FileText, History, Inbox, LayoutGrid, LifeBuoy, Palette, UsersRound } from 'lucide-react-native';
+import { FileText, History, Inbox, LayoutGrid, LifeBuoy, Palette, UsersRound, Wallet } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -25,10 +25,10 @@ import { useFavoritos } from '../../ui/useFavoritos';
  * marca, equipe e auditoria (que no celular não cabem na barra). As telas abertas daqui voltam para cá pela seta.
  */
 export default function PerfilTreinador() {
-  const { usuario, perfilEquipe, pode, funcionalidadesDoPlano } = useSessao();
+  const { usuario, perfilEquipe, pode, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
   const [saindo, setSaindo] = useState(false);
   const [todas, setTodas] = useState(false);
-  const permitidas = useMemo(() => telasPermitidas(pode, undefined, funcionalidadesDoPlano), [pode, funcionalidadesDoPlano]);
+  const permitidas = useMemo(() => telasPermitidas(pode, undefined, funcionalidadesDoPlano, pagamentosHabilitados), [pode, funcionalidadesDoPlano, pagamentosHabilitados]);
   const { favoritos, alternar } = useFavoritos();
   // Inscrições novas: o mesmo aviso do ponto no menu, aqui com a contagem.
   const novas = useCarregar(pode('INSCRICAO_LER') ? 'perfil-inscricoes-novas' : null, () => listarInscricoes({ situacao: 'NOVA', meus: false, pagina: 0 }));
@@ -49,6 +49,9 @@ export default function PerfilTreinador() {
         <View style={estilos.lista}>
           <Permitido codigo="INSCRICAO_LER"><ItemDeLista href="/treinador/interessados" Icone={Inbox} titulo="Interessados" detalhe="Link de inscrição e a fila de quem quer ser aluno"
             selo={totalNovas > 0 ? { texto: totalNovas === 1 ? '1 nova' : `${totalNovas} novas`, tipo: 'atencao' } : undefined} /></Permitido>
+          {pagamentosHabilitados ? (
+            <Permitido codigo="FINANCEIRO_LER"><ItemDeLista href="/treinador/financeiro" Icone={Wallet} titulo="Financeiro" detalhe="Planos comerciais, cobranças e recebimentos dos alunos" /></Permitido>
+          ) : null}
           <Permitido codigo="MARCA_ALTERAR"><ItemDeLista href="/treinador/marca" Icone={Palette} titulo="Marca" detalhe="Nome, logo, cor e tema dos alunos" /></Permitido>
           <Permitido codigo="EQUIPE_LER"><ItemDeLista href="/treinador/equipe" Icone={UsersRound} titulo="Equipe" detalhe="Membros, perfis e convites" /></Permitido>
           <Permitido codigo="AUDITORIA_LER"><ItemDeLista href="/treinador/auditoria" Icone={History} titulo="Auditoria" detalhe="O que foi feito na consultoria" /></Permitido>

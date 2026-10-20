@@ -10,8 +10,8 @@ export function Permitido({codigo,children}:{codigo:string;children:ReactNode}) 
 }
 /** Não monta a tela nem suas buscas quando falta permissão. A proteção de dados continua na API. */
 export function GuardaDePermissao({children}:{children:ReactNode}) {
-  const caminho=usePathname();const {pode}=useSessao();
-  if(!podeAcessarTela(caminho,pode)) {
+  const caminho=usePathname();const {pode,pagamentosHabilitados}=useSessao();
+  if(!podeAcessarTela(caminho,pode,pagamentosHabilitados)) {
     const inicio = caminho.startsWith('/aluno') ? '/aluno' : '/treinador';
     return <Tela><SemPermissao acao={{ rotulo: 'Voltar ao início', aoTocar: () => router.replace(inicio) }} /></Tela>;
   }

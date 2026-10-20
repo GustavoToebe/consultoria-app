@@ -4,7 +4,6 @@ import {
   enderecoParaTela,
   estadoDoConsumoParaTela,
   fracaoDoConsumo,
-  moedaParaTela,
   periodicidadeParaTela,
   podePagar,
   resumoFinanceiro,
@@ -17,19 +16,6 @@ import type { CobrancaDaConta } from '../api/tipos';
 const cobranca = (situacao: CobrancaDaConta['situacao'], vencida = false): CobrancaDaConta => ({
   id: 'x', competenciaInicio: '2026-09-01', competenciaFim: '2026-09-30', vencimento: '2026-09-10',
   valor: 150, situacao, vencida, pagoEm: null,
-});
-
-describe('moeda', () => {
-  it('usa vírgula, ponto de milhar e duas casas', () => {
-    expect(moedaParaTela(150)).toBe('R$ 150,00');
-    expect(moedaParaTela(1234.5)).toBe('R$ 1.234,50');
-    expect(moedaParaTela(1234567.891)).toBe('R$ 1.234.567,89');
-    expect(moedaParaTela(0)).toBe('R$ 0,00');
-  });
-  it('ausência é "—", não zero', () => {
-    expect(moedaParaTela(null)).toBe('—');
-    expect(moedaParaTela(undefined)).toBe('—');
-  });
 });
 
 describe('rótulos da contratação', () => {

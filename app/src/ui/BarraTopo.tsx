@@ -22,10 +22,10 @@ import { useFavoritos } from './useFavoritos';
  */
 export function BarraTopo() {
   const caminho = usePathname();
-  const { pode, funcionalidadesDoPlano } = useSessao();
+  const { pode, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
-  const permitidas = useMemo(() => telasPermitidas(pode, undefined, funcionalidadesDoPlano), [pode, funcionalidadesDoPlano]);
+  const permitidas = useMemo(() => telasPermitidas(pode, undefined, funcionalidadesDoPlano, pagamentosHabilitados), [pode, funcionalidadesDoPlano, pagamentosHabilitados]);
   const { favoritos, alternar } = useFavoritos();
   const [todas, setTodas] = useState(false);
   const estreita = width < LARGURA_MENU_EXPANDIDO;

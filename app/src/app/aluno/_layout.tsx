@@ -6,6 +6,7 @@ import { CalendarDays, House, PersonStanding, Salad, UserRound } from 'lucide-re
 
 import { AlunoProvider, useAluno } from '../../offline/AlunoProvider';
 import { faseAtualizacao, temAcaoAtualizacao } from '../../dominio/atualizacao';
+import { pagamentoPendente, hojeEmBrasilia } from '../../dominio/financeiro';
 import { hojeIso } from '../../dominio/formatos';
 import { temAbaMobilidade } from '../../dominio/mobilidade';
 import { telasDaOrigem } from '../../dominio/telas';
@@ -17,6 +18,7 @@ import { GUIAS } from '../../ajuda/conteudo';
 import { ContextoDeImagens } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { baixarImagemDoAluno } from '../../api/rotas';
 import { useAnamnese } from '../../aluno/anamnese/useAnamnese';
+import { FinanceiroDoAlunoProvider, useFinanceiroDoAluno } from '../../aluno/financeiro/FinanceiroDoAlunoProvider';
 
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
@@ -40,7 +42,10 @@ export default function LayoutAluno() {
           <ProvedorDoPasseio usuarioId={usuario.id} passos={GUIAS.aluno.passeio}>
             {/* As imagens das perguntas, no aluno, vêm pela rota dele (só as do que ele responde). */}
             <ContextoDeImagens.Provider value={baixarImagemDoAluno}>
-              <MenuAluno />
+              {/* O financeiro do aluno fica só em memória (nada no aparelho) e só é buscado com o módulo ligado e online. */}
+              <FinanceiroDoAlunoProvider>
+                <MenuAluno />
+              </FinanceiroDoAlunoProvider>
             </ContextoDeImagens.Provider>
           </ProvedorDoPasseio>
         </AlunoProvider>
@@ -52,10 +57,12 @@ export default function LayoutAluno() {
 function MenuAluno() {
   const {atualizacao,mobilidade,escolhida}=useAluno();
   const comMobilidade=temAbaMobilidade(mobilidade,escolhida?{mobilidade:escolhida.planos.mobilidade}:null);
-  // O ponto no Início conta as duas pendências: a atualização a enviar e a anamnese a responder.
+  // O ponto no Início conta as pendências: a atualização a enviar, a anamnese a responder e o pagamento em aberto.
   const anamnese=useAnamnese();
   const anamnesePendente=anamnese.dados?.situacao==='PENDENTE';
-  const ponto=anamnesePendente || (!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)}));
+  const financeiro=useFinanceiroDoAluno();
+  const pagamentoEmAberto=financeiro.habilitado&&pagamentoPendente(financeiro.dados?.abertas,hojeEmBrasilia()).length>0;
+  const ponto=pagamentoEmAberto || anamnesePendente || (!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)}));
   return <Navegacao itens={ITENS.filter(item=>item.caminho!=='/aluno/mobilidade'||comMobilidade).map(item=>item.caminho==='/aluno'?{...item,ponto}:item)} sempreInferior larguraInferior={720} rodape={<RodapeAluno />} />;
 }
 

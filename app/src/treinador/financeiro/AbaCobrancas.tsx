@@ -1,0 +1,116 @@
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+
+import type { CobrancaResponse, FiltroDeSituacao } from '../../api/financeiroTipos';
+import { listarCobrancas } from '../../api/rotas';
+import { atrasoParaTela, FILTROS_DE_SITUACAO, rotuloDaForma, seloDaCobranca } from '../../dominio/financeiro';
+import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
+import { rotuloDoMes } from '../../dominio/numeros';
+import { espaco } from '../../tema/tokens';
+import { EscolhaResponsabilidade, type Responsabilidade } from '../EscolhaResponsabilidade';
+import { Botao } from '../../ui/Botao';
+import { Cartao } from '../../ui/Cartao';
+import { Escolha } from '../../ui/Escolha';
+import { Esqueleto } from '../../ui/Esqueleto';
+import { MensagemErro, Vazio } from '../../ui/Estados';
+import { textoDoErro } from '../../ui/erros';
+import { Selo } from '../../ui/Selo';
+import { Texto } from '../../ui/Texto';
+import { useCarregar } from '../../ui/useCarregar';
+import { FolhaDaCobranca } from './FolhaDaCobranca';
+import { ListaOuTabela } from './ListaOuTabela';
+
+const TAMANHO_PAGINA = 50;
+
+/**
+ * Cobranças dos alunos, por vencimento. "Vencidas" é só um filtro (a API decide pela data de Brasília); "Em aberto"
+ * inclui as vencidas. Tocar na linha abre a cobrança, com Registrar pagamento, Desfazer e Cancelar para quem pode alterar.
+ */
+export function AbaCobrancas({ escopo, aoMudarEscopo, podeAlterar }: {
+  escopo: Responsabilidade;
+  aoMudarEscopo: (v: Responsabilidade) => void;
+  podeAlterar: boolean;
+}) {
+  const [filtro, setFiltro] = useState<FiltroDeSituacao>('TODAS');
+  const [pagina, setPagina] = useState(0);
+  const [aberta, setAberta] = useState<CobrancaResponse | null>(null);
+  const lista = useCarregar(`cobrancas|${filtro}|${escopo}|${pagina}`, () =>
+    listarCobrancas({ situacao: filtro, meus: escopo === 'meus', pagina }));
+  const { recarregar } = lista;
+  useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
+  const dados = lista.dados;
+  const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
+  const mudar = (aplicar: () => void) => { aplicar(); setPagina(0); };
+
+  return (
+    <View style={estilos.coluna}>
+      <View style={estilos.filtros}>
+        <EscolhaResponsabilidade valor={escopo} aoMudar={(v) => mudar(() => aoMudarEscopo(v))} />
+        <View style={estilos.caber}>
+          <Escolha rotulo="Situação" opcoes={FILTROS_DE_SITUACAO} valor={filtro}
+            aoMudar={(v) => mudar(() => setFiltro(v))} />
+        </View>
+      </View>
+      {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
+      {!dados && lista.carregando ? <Esqueleto /> : null}
+      {dados && dados.itens.length === 0 ? (
+        <Vazio titulo="Nenhuma cobrança nesta lista"
+          texto={filtro === 'TODAS' ? 'As cobranças aparecem quando um aluno tem um plano comercial contratado na ficha.' : 'Tente outra situação.'} />
+      ) : null}
+      {dados && dados.itens.length > 0 ? (
+        <Cartao descricao={`${dados.total} ${dados.total === 1 ? 'cobrança' : 'cobranças'}. Toque na linha para abrir.`}>
+          <View style={lista.carregando ? estilos.esmaecido : null}>
+            <ListaOuTabela rotulo="Cobranças" linhas={dados.itens} chave={(c) => c.id} aoTocar={setAberta}
+              rotuloDaLinha={(c) => `Abrir cobrança de ${c.alunoNome ?? 'aluno'}`}
+              item={(c) => {
+                const selo = seloDaCobranca(c);
+                return {
+                  titulo: c.alunoNome ?? '—',
+                  detalhe: `${centavosParaTela(c.valorCentavos)} · vence ${dataParaTela(c.vencimento)}`,
+                  selo: { texto: selo.rotulo, tipo: selo.tom },
+                };
+              }}
+              colunas={[
+                { chave: 'aluno', titulo: 'Aluno', flex: 1.6, principal: true, render: (c) => <Texto variante="bloco" numberOfLines={2}>{c.alunoNome ?? '—'}</Texto> },
+                { chave: 'plano', titulo: 'Plano', flex: 1.2, render: (c) => <Texto numberOfLines={2}>{c.planoNome ?? '—'}</Texto> },
+                { chave: 'competencia', titulo: 'Competência', flex: 1, render: (c) => <Texto numerico>{rotuloDoMes(c.competencia)}</Texto> },
+                { chave: 'vencimento', titulo: 'Vencimento', flex: 1, render: (c) => <Texto numerico>{dataParaTela(c.vencimento)}</Texto> },
+                { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (c) => <Texto numerico>{centavosParaTela(c.valorCentavos)}</Texto> },
+                { chave: 'situacao', titulo: 'Situação', flex: 1.4, render: (c) => <SituacaoDaCobranca cobranca={c} /> },
+                { chave: 'forma', titulo: 'Forma', flex: 1, render: (c) => <Texto>{c.situacao === 'PAGA' ? rotuloDaForma(c.forma) : '—'}</Texto> },
+              ]} />
+          </View>
+          {paginas > 1 ? (
+            <View style={estilos.paginacao}>
+              <Botao rotulo="Anterior" tipo="secundario" desabilitado={pagina === 0} aoTocar={() => setPagina(pagina - 1)} />
+              <Texto variante="suave">Página {pagina + 1} de {paginas}</Texto>
+              <Botao rotulo="Próxima" tipo="secundario" desabilitado={pagina + 1 >= paginas} aoTocar={() => setPagina(pagina + 1)} />
+            </View>
+          ) : null}
+        </Cartao>
+      ) : null}
+      <FolhaDaCobranca cobranca={aberta} podeAlterar={podeAlterar} aoFechar={() => setAberta(null)} aoMudar={recarregar} />
+    </View>
+  );
+}
+
+/** Selo da situação; vencida mostra os dias de atraso que a API calculou. */
+export function SituacaoDaCobranca({ cobranca }: { cobranca: CobrancaResponse }) {
+  const selo = seloDaCobranca(cobranca);
+  return (
+    <View style={estilos.selos}>
+      <Selo texto={selo.rotulo} tipo={selo.tom} />
+      {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <Texto variante="pequeno">{atrasoParaTela(cobranca.diasDeAtraso)}</Texto> : null}
+    </View>
+  );
+}
+
+const estilos = StyleSheet.create({
+  coluna: { gap: espaco(2) },
+  filtros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5), alignItems: 'flex-end' },
+  caber: { flexShrink: 1, maxWidth: '100%' },
+  esmaecido: { opacity: 0.6 },
+  selos: { gap: espaco(0.25) },
+  paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
+});

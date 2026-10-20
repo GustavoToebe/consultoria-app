@@ -36,6 +36,13 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/numeros', acesso(['ATUALIZACAO_LER','ALUNO_SENSIVEL_LER','ALUNO_LER','CONTA_LER']))).toBe(false);
     expect(podeAcessarTela('/treinador/numeros', acesso([]))).toBe(false);
   });
+  it('Financeiro pede FINANCEIRO_LER e o módulo de pagamentos ligado', () => {
+    expect(podeAcessarTela('/treinador/financeiro', acesso(['FINANCEIRO_LER','ALUNO_LER']), true)).toBe(true);
+    expect(podeAcessarTela('/treinador/financeiro', acesso(['FINANCEIRO_LER','ALUNO_LER']), false)).toBe(false);
+    expect(podeAcessarTela('/treinador/financeiro', acesso(['FINANCEIRO_LER','ALUNO_LER']))).toBe(false);
+    expect(podeAcessarTela('/treinador/financeiro', acesso(['ALUNO_LER','PAINEL_VER']), true)).toBe(false);
+    expect(podeAcessarTela('/treinador/financeiro', acesso(['FINANCEIRO_ALTERAR']), true)).toBe(false);
+  });
   it('Meus dados e Ajustes são de todos; Minha conta exige CONTA_LER', () => {
     expect(podeAcessarTela('/treinador/meus-dados', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajustes', acesso([]))).toBe(true);

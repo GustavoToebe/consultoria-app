@@ -13,6 +13,7 @@ import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
 import { dataRelativa } from '../../dominio/datasRelativas';
 import { proximoPassoDoInicio, tomDoContador, umPorAluno } from '../../dominio/inicioTreinador';
 import { OPCOES_DIAS_SEM_REGISTRO } from '../../dominio/preferencias';
+import { podeAcessarTela } from '../../dominio/permissoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO, LARGURA_LISTA } from '../../tema/tokens';
@@ -38,7 +39,7 @@ const ULTIMOS_POR_ALUNO = 5;
  * há N dias (preferência pessoal; só informação, não inativa ninguém) e o último registro de cada aluno.
  */
 export default function InicioTreinador() {
-  const { usuario, perfilEquipe, pode } = useSessao();
+  const { usuario, perfilEquipe, pode, pagamentosHabilitados } = useSessao();
   const [escopo, setEscopo] = useState<Responsabilidade>(perfilEquipe?.acessoTotal ? 'todos' : 'meus');
   const { preferencias, escolherPreferencia } = useTema();
   const dias = preferencias.diasSemRegistro;
@@ -88,10 +89,11 @@ export default function InicioTreinador() {
             <LinkTexto texto="Ver alunos" href="/treinador/alunos" />
           </View>
         ) : null}
-        {/* Agenda e Números não cabem na barra do celular: abrem daqui, que é a origem deles (`dominio/telas`). */}
+        {/* Agenda e Números não cabem na barra do celular: abrem daqui, que é a origem deles (`dominio/telas`). O Financeiro tem o atalho no Perfil (a origem dele) e este link. */}
         <View style={estilos.ativos}>
           {verAtualizacoes ? <LinkTexto texto="Agenda" href="/treinador/agenda" /> : null}
           <LinkTexto texto="Números" href="/treinador/numeros" />
+          {podeAcessarTela('/treinador/financeiro', pode, pagamentosHabilitados) ? <LinkTexto texto="Financeiro" href="/treinador/financeiro" /> : null}
         </View>
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}

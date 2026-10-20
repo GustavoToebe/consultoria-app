@@ -11,6 +11,15 @@ describe('seleção de permissões de perfil',()=>{
     expect(resultado).not.toContain('ATUALIZACAO_LER');
     expect(resultado).toEqual(expect.arrayContaining(['DIETA_LER','DIETA_ALTERAR','DIETA_PUBLICAR']));
   });
+  it('financeiro: alterar marca ler, que marca a leitura de alunos; tirar a leitura de alunos tira o financeiro', () => {
+    expect(completarPermissoes(['FINANCEIRO_ALTERAR'])).toEqual(expect.arrayContaining(['FINANCEIRO_ALTERAR','FINANCEIRO_LER','ALUNO_LER']));
+    const atuais=completarPermissoes(['FINANCEIRO_ALTERAR','TREINO_LER']);
+    const sem=desmarcarPermissoes(atuais,['ALUNO_LER']);
+    expect(sem).not.toContain('FINANCEIRO_LER');
+    expect(sem).not.toContain('FINANCEIRO_ALTERAR');
+    expect(sem).toContain('TREINO_LER');
+    expect(desmarcarPermissoes(atuais,['FINANCEIRO_LER'])).not.toContain('FINANCEIRO_ALTERAR');
+  });
   it('uma seção inteira pode ser removida sem permissões dependentes órfãs',()=>{
     const atuais=completarPermissoes(['TREINO_PUBLICAR','ALUNO_CONVITE']);
     expect(desmarcarPermissoes(atuais,['TREINO_LER','TREINO_ALTERAR'])).toEqual(expect.arrayContaining(['ALUNO_LER','ALUNO_CONVITE']));

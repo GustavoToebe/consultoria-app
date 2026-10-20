@@ -46,6 +46,8 @@ export interface EuResponse {
   permissoes?: string[];
   /** Funcionalidades ligadas no plano da consultoria (`MOBILIDADE`, `PDF`, `EQUIPE`); ausente = tudo liberado. */
   funcionalidadesDoPlano?: string[];
+  /** Módulo de pagamentos do aluno ao treinador ligado para a consultoria; falso ou ausente = o app esconde tudo dele. */
+  pagamentosHabilitados?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string };

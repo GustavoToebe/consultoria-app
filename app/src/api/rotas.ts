@@ -1,4 +1,22 @@
 import { requisicao } from './cliente';
+import type {
+  AlterarContratacaoRequest,
+  BaixaManualRequest,
+  ContratacaoResponse,
+  ContratarRequest,
+  FinanceiroDoAluno,
+  FiltroDeSituacao,
+  LancamentoRequest,
+  LancamentoResponse,
+  MotivoRequest,
+  Painel,
+  PaginaCobrancas,
+  PaginaInadimplentes,
+  PaginaLancamentos,
+  CobrancaResponse,
+  PlanoRequest,
+  PlanoResponse,
+} from './financeiroTipos';
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
   AceiteInscricao,
@@ -618,3 +636,73 @@ export const criarErgogenico = (dados: ErgogenicoDaBibliotecaRequest) =>
 export const alterarErgogenico = (id: string, dados: ErgogenicoDaBibliotecaRequest) =>
   requisicao<ErgogenicoDaBiblioteca>(`/ergogenicos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 export const inativarErgogenico = (id: string) => requisicao<void>(`/ergogenicos/${seg(id)}`, { metodo: 'DELETE' });
+
+// ---- Financeiro: pagamentos do aluno ao treinador (só com `pagamentosHabilitados`) ----
+// O app nunca envia valor de cobrança: ele sai do plano ou da contratação, no servidor.
+
+function consultaFinanceiro(filtro: Record<string, string | number | boolean | undefined | null>): string {
+  const q = new URLSearchParams();
+  for (const [campo, valor] of Object.entries(filtro)) {
+    if (valor !== undefined && valor !== null && valor !== '') q.set(campo, String(valor));
+  }
+  const texto = q.toString();
+  return texto ? `?${texto}` : '';
+}
+
+export const listarPlanosComerciais = (arquivados = false) =>
+  requisicao<PlanoResponse[]>(`/financeiro/planos${consultaFinanceiro({ arquivados })}`);
+export const criarPlanoComercial = (corpo: PlanoRequest) =>
+  requisicao<PlanoResponse>('/financeiro/planos', { metodo: 'POST', corpo });
+export const alterarPlanoComercial = (id: string, corpo: PlanoRequest) =>
+  requisicao<PlanoResponse>(`/financeiro/planos/${seg(id)}`, { metodo: 'PUT', corpo });
+export const arquivarPlanoComercial = (id: string, versao: number) =>
+  requisicao<PlanoResponse>(`/financeiro/planos/${seg(id)}/arquivar`, { metodo: 'POST', corpo: { versao } });
+
+export const listarContratacoesDoAluno = (alunoId: string) =>
+  requisicao<ContratacaoResponse[]>(`/alunos/${seg(alunoId)}/contratacoes`);
+export const contratarPlano = (alunoId: string, corpo: ContratarRequest) =>
+  requisicao<ContratacaoResponse>(`/alunos/${seg(alunoId)}/contratacoes`, { metodo: 'POST', corpo });
+export const alterarContratacao = (id: string, corpo: AlterarContratacaoRequest) =>
+  requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}`, { metodo: 'PUT', corpo });
+export const mudarSituacaoDaContratacao = (id: string, acao: 'pausar' | 'retomar' | 'encerrar', versao: number) =>
+  requisicao<ContratacaoResponse>(`/contratacoes/${seg(id)}/${acao}`, { metodo: 'POST', corpo: { versao } });
+
+export const listarCobrancasDoAluno = (alunoId: string) =>
+  requisicao<CobrancaResponse[]>(`/alunos/${seg(alunoId)}/cobrancas`);
+export const listarCobrancas = (filtro: { situacao?: FiltroDeSituacao; de?: string; ate?: string; meus?: boolean; pagina?: number }) =>
+  requisicao<PaginaCobrancas>(
+    `/financeiro/cobrancas${consultaFinanceiro({
+      situacao: filtro.situacao === 'TODAS' ? undefined : filtro.situacao,
+      de: filtro.de,
+      ate: filtro.ate,
+      meus: filtro.meus ? true : undefined,
+      pagina: filtro.pagina ?? 0,
+    })}`,
+  );
+export const registrarPagamentoManual = (id: string, corpo: BaixaManualRequest) =>
+  requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/baixa-manual`, { metodo: 'POST', corpo });
+export const desfazerBaixaDaCobranca = (id: string, corpo: MotivoRequest) =>
+  requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/desfazer-baixa`, { metodo: 'POST', corpo });
+export const cancelarCobranca = (id: string, corpo: MotivoRequest) =>
+  requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/cancelar`, { metodo: 'POST', corpo });
+
+export const painelFinanceiro = (filtro: { de: string; ate: string; meus: boolean }) =>
+  requisicao<Painel>(`/financeiro/painel${consultaFinanceiro({ de: filtro.de, ate: filtro.ate, meus: filtro.meus ? true : undefined })}`);
+export const listarInadimplentes = (filtro: { meus: boolean; pagina?: number }) =>
+  requisicao<PaginaInadimplentes>(`/financeiro/inadimplentes${consultaFinanceiro({ meus: filtro.meus ? true : undefined, pagina: filtro.pagina ?? 0 })}`);
+/** CSV como texto (cobranças e lançamentos do período). 422 se passar de 5.000 linhas. */
+export const exportarFinanceiro = (de: string, ate: string) =>
+  requisicao<string>(`/financeiro/exportacao${consultaFinanceiro({ de, ate })}`, { aceita: 'text/csv' });
+
+export const listarLancamentos = (filtro: { de?: string; ate?: string; pagina?: number } = {}) =>
+  requisicao<PaginaLancamentos>(`/financeiro/lancamentos${consultaFinanceiro({ de: filtro.de, ate: filtro.ate, pagina: filtro.pagina ?? 0 })}`);
+export const criarLancamento = (corpo: LancamentoRequest) =>
+  requisicao<LancamentoResponse>('/financeiro/lancamentos', { metodo: 'POST', corpo });
+export const alterarLancamento = (id: string, corpo: LancamentoRequest) =>
+  requisicao<LancamentoResponse>(`/financeiro/lancamentos/${seg(id)}`, { metodo: 'PUT', corpo });
+/** A versão vai na query, não no corpo. */
+export const excluirLancamento = (id: string, versao: number) =>
+  requisicao<void>(`/financeiro/lancamentos/${seg(id)}${consultaFinanceiro({ versao })}`, { metodo: 'DELETE' });
+
+/** O que o aluno vê do próprio plano e das cobranças. `plano` nulo = nada contratado. */
+export const financeiroDoAluno = () => requisicao<FinanceiroDoAluno>('/aluno/financeiro');

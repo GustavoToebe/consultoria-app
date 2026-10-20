@@ -72,6 +72,26 @@ describe('catálogo de telas', () => {
     expect(tituloDaPagina('/treinador/numeros', 'Saraiva Team')).toBe('Números · Saraiva Team');
   });
 
+  it('Financeiro pede FINANCEIRO_LER e o módulo ligado; some do catálogo e da busca sem um dos dois', () => {
+    const pagador = ['ALUNO_LER', 'FINANCEIRO_LER'];
+    expect(ids(telasPermitidas(com(pagador)))).not.toContain('financeiro');
+    expect(ids(telasPermitidas(com(['ALUNO_LER']), undefined, undefined, true))).not.toContain('financeiro');
+    const tudo = telasPermitidas(com(pagador), undefined, undefined, true);
+    expect(ids(tudo)).toContain('financeiro');
+    expect(ids(buscarTelas('mensalidade', tudo))).toEqual(['financeiro']);
+    expect(ids(buscarTelas('inadimplência', tudo))).toEqual(['financeiro']);
+    expect(ids(buscarTelas('faturas', tudo))).toEqual([]);
+    expect(TELAS.find((t) => t.id === 'financeiro')?.secao).toBe('Consultoria');
+    expect(nomeDaTela('/treinador/financeiro')).toBe('Financeiro');
+    expect(tituloDaPagina('/treinador/financeiro', 'Saraiva Team')).toBe('Financeiro · Saraiva Team');
+  });
+
+  it('"faturas" e "assinatura" acham a Minha conta, não o Financeiro', () => {
+    const conta = telasPermitidas(com(['CONTA_LER']));
+    expect(ids(buscarTelas('faturas', conta))).toEqual(['minha-conta']);
+    expect(ids(buscarTelas('assinatura', conta))).toEqual(['minha-conta']);
+  });
+
   it('ação com permissão extra exige a permissão além da tela', () => {
     // Pode ver o planejamento e a equipe, mas não criar modelo nem convidar.
     const leitor = ids(telasPermitidas(com(['MODELO_LER', 'EQUIPE_LER'])));
@@ -214,6 +234,8 @@ describe('voltar e item aceso fora da barra inferior', () => {
     expect(voltarAutomatico('/treinador/agenda', true)).toBe('/treinador');
     expect(voltarAutomatico('/treinador/agenda', false)).toBeUndefined();
     expect(telasDaOrigem('/treinador/perfil')).toContain('/treinador/interessados');
+    expect(telasDaOrigem('/treinador/perfil')).toContain('/treinador/financeiro');
+    expect(voltarAutomatico('/treinador/financeiro', true)).toBe('/treinador/perfil');
   });
 });
 

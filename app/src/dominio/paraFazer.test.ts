@@ -1,5 +1,6 @@
 import type { Atualizacao } from '../api/tipos';
-import { ITEM_ANAMNESE, itemDaAtualizacao } from './paraFazer';
+import type { CobrancaDoAluno } from '../api/financeiroTipos';
+import { ITEM_ANAMNESE, itemDaAtualizacao, itemDoPagamento } from './paraFazer';
 
 const base = { id: 'a', pastaId: 'p', alunoId: 'x', nomeAluno: null, dataAtualizacao: '2026-10-20', fase: 'AVISO', diasParaData: 3, diasDeAtraso: 0,
   atrasoAte: null, atrasoMotivo: null, questionarioVersaoNumero: 1, questionarioVersaoId: 'v', questionarioNome: null, modelo: null, respostas: null,
@@ -36,5 +37,38 @@ describe('atualização nas pendências', () => {
     expect(itemDaAtualizacao(base)).toMatchObject({ detalhe: 'Abre em 3 dias (20/10). Toque para ver as perguntas.', selo: null, responder: false });
     expect(itemDaAtualizacao({ ...base, diasParaData: 1 }).detalhe).toContain('amanhã');
     expect(itemDaAtualizacao({ ...base, atrasoAte: '2026-10-25' }).selo).toEqual({ texto: 'Até 25/10', tipo: 'neutro' });
+  });
+});
+
+describe('pagamento nas pendências', () => {
+  const hoje = '2026-10-20';
+  const cobranca = (extra: Partial<CobrancaDoAluno>): CobrancaDoAluno => ({
+    id: 'c', competencia: '2026-10-01', vencimento: '2026-10-25', valorCentavos: 15000, situacao: 'ABERTA', vencida: false, forma: null, pagoEm: null, ...extra,
+  });
+  const semEspaco = (t: string) => t.replace(/ /g, ' ');
+
+  it('sem cobrança em aberto (ou longe de vencer), não há pendência', () => {
+    expect(itemDoPagamento([], hoje)).toBeNull();
+    expect(itemDoPagamento(null, hoje)).toBeNull();
+    expect(itemDoPagamento([cobranca({ vencimento: '2026-11-10' })], hoje)).toBeNull();
+  });
+  it('vence em até 3 dias: selo neutro com a data', () => {
+    const item = itemDoPagamento([cobranca({ vencimento: '2026-10-23' })], hoje);
+    expect(item).toMatchObject({ titulo: 'Pagamento em aberto', selo: { texto: 'Vence 23/10', tipo: 'neutro' }, responder: false });
+    expect(semEspaco(item?.detalhe ?? '')).toBe('R$ 150,00, vence em 23/10.');
+  });
+  it('vencida (a API decide): selo âmbar, nunca vermelho, e manda falar com o treinador', () => {
+    const item = itemDoPagamento([cobranca({ vencida: true, vencimento: '2026-10-05' })], hoje);
+    expect(item?.selo).toEqual({ texto: 'Vencida', tipo: 'atencao' });
+    expect(item?.detalhe).toContain('Fale com o seu treinador');
+  });
+  it('várias: a mais antiga primeiro, com a contagem das outras', () => {
+    const item = itemDoPagamento([cobranca({ id: 'b', vencimento: '2026-10-22' }), cobranca({ id: 'a', vencida: true, vencimento: '2026-09-10' })], hoje);
+    expect(item?.detalhe).toContain('e mais 1');
+    expect(item?.detalhe).toContain('10/09');
+  });
+  it('não tem botão de pagar nem texto de cobrança por link', () => {
+    const item = itemDoPagamento([cobranca({ vencimento: '2026-10-21' })], hoje);
+    expect(JSON.stringify(item).toLowerCase()).not.toContain('pagar');
   });
 });

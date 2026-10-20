@@ -20,6 +20,7 @@ import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
 import { CartaoPastas, useRenovarPasta } from '../../../treinador/CartaoPastas';
 import { CartaoAnamnese } from '../../../treinador/anamnese/CartaoAnamnese';
+import { CartaoPlanoContratado } from '../../../treinador/financeiro/CartaoPlanoContratado';
 import { FormAluno } from '../../../treinador/FormAluno';
 import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
 import { ResponsavelAluno } from '../../../treinador/equipe/ResponsavelAluno';
@@ -46,7 +47,7 @@ import { useCarregar } from '../../../ui/useCarregar';
  */
 export default function FichaAluno() {
   const { id, pastaId } = useLocalSearchParams<{ id: string; pastaId?: string }>();
-  const { pode } = useSessao();
+  const { pode, pagamentosHabilitados } = useSessao();
   const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
   // Ciclo padrão da consultoria (V009). Quem não pode ler a consultoria fica só com o do aluno.
   const padrao = useCarregar('consultoria-ciclo', () => buscarConsultoria().then((c) => c.diasAtualizacaoPadrao ?? null, () => null)).dados ?? null;
@@ -98,6 +99,7 @@ export default function FichaAluno() {
           )}
           {pode('ANAMNESE_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoAnamnese alunoId={aluno.id} anonimizado={aluno.anonimizado}
             aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} /> : null}
+          {pagamentosHabilitados && pode('FINANCEIRO_LER') ? <CartaoPlanoContratado alunoId={aluno.id} ativo={aluno.ativo} anonimizado={aluno.anonimizado} /> : null}
           {renovacao.painel}
           {menu ? (
             <FolhaDeAcoes titulo={aluno.nome} aoFechar={() => setMenu(false)} acoes={[

@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChartColumn, CircleUserRound, ClipboardCheck, ContactRound, House, Inbox, NotebookTabs, Palette, UsersRound, History, LifeBuoy } from 'lucide-react-native';
+import { BookOpen, CalendarDays, ChartColumn, CircleUserRound, ClipboardCheck, ContactRound, House, Inbox, NotebookTabs, Palette, UsersRound, History, LifeBuoy, Wallet } from 'lucide-react-native';
 
 import { Navigator, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
@@ -31,6 +31,7 @@ const ITENS: ItemMenu[] = [
   { rotulo: 'Números', href: '/treinador/numeros', caminho: '/treinador/numeros', Icone: ChartColumn, soLateral: true },
   { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen },
   { rotulo: 'Planejamento', rotuloCurto: 'Planos', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
+  { rotulo: 'Financeiro', href: '/treinador/financeiro', caminho: '/treinador/financeiro', Icone: Wallet, soLateral: true },
   { rotulo: 'Marca', href: '/treinador/marca', caminho: '/treinador/marca', Icone: Palette, soLateral: true },
   // A barra de topo (com o cartão do usuário) é só da web; num tablet nativo largo o Perfil continua no menu lateral.
   { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', tambem: ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/ajustes', '/treinador/minha-conta'], tambemNoCelular: telasDaOrigem('/treinador/perfil') },
@@ -41,7 +42,7 @@ const ITENS: ItemMenu[] = [
 ];
 
 export default function LayoutTreinador() {
-  const {pode,recarregarPerfil,usuario}=useSessao();const caminho=usePathname();
+  const {pode,recarregarPerfil,usuario,pagamentosHabilitados}=useSessao();const caminho=usePathname();
   useLimparFavoritosAoSair();
   useEffect(()=>{if(caminho.startsWith('/treinador')) void recarregarPerfil().catch(()=>undefined);},[recarregarPerfil,caminho]);
   // Ponto em Atualizações quando há alguma para revisar (no celular, no Início, que leva a elas) e em Interessados quando
@@ -63,7 +64,7 @@ export default function LayoutTreinador() {
     <Navigator><GuardaDePapel papel="TREINADOR"><GuardaDeSaida>
       {/* Passeio pelo menu no primeiro acesso (depois dos termos, que a GuardaDePapel cobra); revisto pela Ajuda. */}
       <ProvedorDoPasseio key={usuario?.id ?? ''} usuarioId={usuario?.id ?? ''} passos={usuario ? GUIAS.treinador.passeio : []}>
-        <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+        <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode,pagamentosHabilitados)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
       </ProvedorDoPasseio>
     </GuardaDeSaida></GuardaDePapel></Navigator>
   );

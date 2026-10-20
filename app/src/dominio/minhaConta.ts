@@ -16,14 +16,6 @@ import { SEM_DADO } from './formatos';
 
 export type TipoDeSelo = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
 
-/** `1234.5` → `R$ 1.234,50`. Nulo → "—". Não depende de `Intl` (o Hermes do celular pode não ter pt-BR). */
-export function moedaParaTela(valor: number | null | undefined): string {
-  if (valor === null || valor === undefined || Number.isNaN(valor)) return SEM_DADO;
-  const [inteiro, centavos] = Math.abs(valor).toFixed(2).split('.');
-  const milhares = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `${valor < 0 ? '-' : ''}R$ ${milhares},${centavos}`;
-}
-
 export function periodicidadeParaTela(p: PeriodicidadeDaConta | null | undefined): string {
   switch (p) {
     case 'MENSAL': return 'Mensal';
@@ -68,9 +60,9 @@ export function competenciaParaTela(inicio: string, fim: string): string {
   return de === ate ? de : `${de} a ${ate}`;
 }
 
-/** Cobranças em aberto (a vencer ou vencidas), para o resumo do topo da aba Financeiro. */
+/** Cobranças em aberto (a vencer ou vencidas), para o resumo do topo da aba Faturas. */
 /**
- * Contagens do topo do Financeiro. "Em aberto" são as abertas **ainda no prazo**: a vencida conta só em "vencidas",
+ * Contagens do topo das Faturas. "Em aberto" são as abertas **ainda no prazo**: a vencida conta só em "vencidas",
  * senão o resumo dizia "1 vencida · 2 em aberto" com uma vencida e uma aberta na lista (visto na reunião de 17/10).
  */
 export function resumoFinanceiro(cobrancas: CobrancaDaConta[]): { emAberto: number; vencidas: number } {

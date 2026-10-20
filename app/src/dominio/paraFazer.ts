@@ -1,6 +1,8 @@
+import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { Atualizacao } from '../api/tipos';
 import type { TipoSelo } from '../ui/Selo';
-import { dataCurta } from './formatos';
+import { pagamentoPendente } from './financeiro';
+import { centavosParaTela, dataCurta } from './formatos';
 
 export interface ItemParaFazer {
   titulo: string;
@@ -47,4 +49,24 @@ export function itemDaAtualizacao(a: Atualizacao): ItemParaFazer {
   }
   const quando = a.diasParaData === 1 ? 'amanhã' : `em ${a.diasParaData} dias`;
   return { titulo, detalhe: `Abre ${quando} (${dia}). Toque para ver as perguntas.`, selo: null, responder: false };
+}
+
+/**
+ * "Pagamento em aberto" em "Suas pendências": cobrança vencida (a API decide) ou que vence em até 3 dias. É um aviso, não
+ * uma cobrança: não há botão de pagar (o treinador combina a forma de pagamento). Vencida em âmbar, a vencer em neutro;
+ * vermelho continua só da atualização atrasada. Sem pendência, `null`.
+ */
+export function itemDoPagamento(abertas: readonly CobrancaDoAluno[] | null | undefined, hoje: string): ItemParaFazer | null {
+  const pendentes = pagamentoPendente(abertas, hoje).sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+  if (pendentes.length === 0) return null;
+  const primeira = pendentes[0];
+  const vencidas = pendentes.filter((c) => c.vencida).length;
+  const titulo = 'Pagamento em aberto';
+  const valor = centavosParaTela(primeira.valorCentavos);
+  const quando = dataCurta(primeira.vencimento);
+  const mais = pendentes.length > 1 ? ` (e mais ${pendentes.length - 1})` : '';
+  if (vencidas > 0) {
+    return { titulo, detalhe: `${valor}${mais}, venceu em ${quando}. Fale com o seu treinador.`, selo: { texto: 'Vencida', tipo: 'atencao' }, responder: false };
+  }
+  return { titulo, detalhe: `${valor}${mais}, vence em ${quando}.`, selo: { texto: `Vence ${quando}`, tipo: 'neutro' }, responder: false };
 }
