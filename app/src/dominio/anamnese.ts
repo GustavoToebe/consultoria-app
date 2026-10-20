@@ -37,12 +37,13 @@ export const mostrarCartaoAnamnese = (a: Pick<AnamneseDetalhe, 'situacao'> | nul
 
 /**
  * Respostas com que o formulário abre: as do rascunho do aparelho, se forem da mesma versão (a da atribuição, que não
- * muda); senão, nada. Já enviada: as enviadas.
+ * muda); senão, nada. Já enviada: as enviadas. `secao` é a página em que o aluno parou (0 sem rascunho).
  */
 export function respostasIniciais(anamnese: Pick<AnamneseDetalhe, 'situacao' | 'questionarioVersaoId' | 'respostas'>, rascunho: RascunhoAtualizacao | null) {
-  if (anamnese.situacao !== 'PENDENTE') return { respostas: anamnese.respostas ?? {}, locais: {} as Record<string, string[]> };
-  if (!rascunho || rascunho.questionarioVersaoId !== anamnese.questionarioVersaoId) return { respostas: {}, locais: {} as Record<string, string[]> };
-  return { respostas: rascunho.respostas, locais: rascunho.fotosLocais ?? {} };
+  if (anamnese.situacao !== 'PENDENTE') return { respostas: anamnese.respostas ?? {}, locais: {} as Record<string, string[]>, secao: 0 };
+  if (!rascunho || rascunho.questionarioVersaoId !== anamnese.questionarioVersaoId) return { respostas: {}, locais: {} as Record<string, string[]>, secao: 0 };
+  const secao = typeof rascunho.secao === 'number' && Number.isInteger(rascunho.secao) && rascunho.secao >= 0 ? rascunho.secao : 0;
+  return { respostas: rascunho.respostas, locais: rascunho.fotosLocais ?? {}, secao };
 }
 
 // ---------------------------------------------------------------- respostas que alimentam o cadastro (fase C)

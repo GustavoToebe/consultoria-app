@@ -151,3 +151,126 @@ test('treinador vê a anamnese respondida no cartão da ficha, com "Não se apli
   // A ficha pede outras rotas (pastas, peso...), que a API falsa responde 404: aqui só importa não quebrar a tela.
   expect(errosDaPagina).toEqual([]);
 });
+
+/**
+ * Anamnese em páginas (como o formulário do treinador): três seções, a primeira com descrição formatada, nota de 1 a 10
+ * com os textos das pontas, duas perguntas de foto (desligadas na configuração falsa), grade de três colunas e aceite.
+ */
+const MODELO_EM_PAGINAS: ConteudoQuestionario = {
+  formato: 2,
+  instrucoes: ['Responda com calma; dá para continuar depois.'],
+  secoes: [
+    {
+      uid: 'p1',
+      titulo: 'Dados pessoais',
+      descricao: 'Apenas para **fins fiscais**.\n\n__Leia com atenção__ antes de responder.',
+      perguntas: [
+        { id: 'nome', tipo: 'TEXTO', rotulo: 'Nome completo', obrigatoria: true },
+        { id: 'sono', tipo: 'NOTA', rotulo: 'Quão reparador é o seu sono?', obrigatoria: true, min: 1, max: 10, rotuloMin: 'Nada', rotuloMax: 'Muito' },
+      ],
+    },
+    {
+      uid: 'p2',
+      titulo: 'Fotos',
+      perguntas: [
+        { id: 'frente', tipo: 'FOTOS', rotulo: 'Foto de frente', obrigatoria: true, max: 1 },
+        { id: 'costas', tipo: 'FOTOS', rotulo: 'Foto de costas', obrigatoria: true, max: 1 },
+      ],
+    },
+    {
+      uid: 'p3',
+      titulo: 'Sintomas e regras',
+      perguntas: [
+        {
+          id: 'sintomas', tipo: 'GRADE', rotulo: 'Com que frequência você sente', obrigatoria: true,
+          linhas: [{ id: 'azia', rotulo: 'Azia' }, { id: 'insonia', rotulo: 'Insônia' }],
+          colunas: [{ id: 'nunca', rotulo: 'Nunca' }, { id: 'ocasionalmente', rotulo: 'Ocasionalmente' }, { id: 'sempre', rotulo: 'Sempre' }],
+        },
+        { id: 'regras', tipo: 'ACEITE', rotulo: 'Regras da consultoria', obrigatoria: true, texto: 'O plano é **individual**.', declaracao: 'Li e concordo com as regras.' },
+      ],
+    },
+  ],
+};
+
+test('anamnese em páginas: avançar confere a página, voltar mantém as respostas, o rascunho reabre na página e o envio vai na última', async ({ page }) => {
+  const pendente: AnamneseDetalhe = { ...PENDENTE, modelo: MODELO_EM_PAGINAS };
+  const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+    ...(await sessaoDeAluno(page)),
+    'GET /aluno/anamnese': { corpo: pendente },
+    [`POST /aluno/anamnese/${ANAMNESE_ID}/enviar`]: (p, route) => {
+      const corpo = p.corpo as { respostas: AnamneseDetalhe['respostas'] };
+      return json(route, { ...pendente, situacao: 'ENVIADA', respostas: corpo.respostas, enviadaEm: '2026-10-19T12:00:00Z', versao: 2 });
+    },
+  });
+  const envios = () => pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/enviar'));
+  const avancar = page.getByRole('button', { name: 'Avançar para a próxima parte' });
+  const voltar = page.getByRole('button', { name: 'Voltar à parte anterior' });
+  await page.goto('/aluno/anamnese');
+
+  // Página 1: instruções, descrição com negrito e sublinhado, sem "Voltar".
+  await expect(page.getByText('Parte 1 de 3')).toBeVisible();
+  await expect(page.getByText('Responda com calma; dá para continuar depois.')).toBeVisible();
+  const negrito = page.getByText('fins fiscais', { exact: true });
+  await expect(negrito).toHaveCSS('font-family', /Inter_700Bold/);
+  await expect(page.getByText('Leia com atenção', { exact: true })).toHaveCSS('text-decoration-line', 'underline');
+  await expect(voltar).toHaveCount(0);
+
+  // Avançar com obrigatória vazia: mostra o erro e fica na página.
+  await avancar.click();
+  await expect(page.getByText('Preencha este campo.').first()).toBeVisible();
+  await expect(page.getByText('Parte 1 de 3')).toBeVisible();
+
+  await page.getByLabel('Nome completo *').fill('Fulano Fictício');
+  await expect(page.getByText('1 = Nada')).toBeVisible();
+  await expect(page.getByText('10 = Muito')).toBeVisible();
+  await expect(page.getByRole('radio', { name: /^0 de/ })).toHaveCount(0);
+  await page.getByRole('radio', { name: '7 de 10' }).click();
+  await expect(page.getByRole('radio', { name: '7 de 10' })).toHaveAttribute('aria-checked', 'true');
+  await avancar.click();
+
+  // Página 2: as duas perguntas de foto, cada uma com o aviso (fotos desligadas no servidor).
+  await expect(page.getByText('Parte 2 de 3')).toBeVisible();
+  await expect(page.getByText('Fotos ainda não disponíveis.')).toHaveCount(2);
+  await expect(page.getByText('Responda com calma; dá para continuar depois.')).toHaveCount(0);
+
+  // Voltar mantém o que foi respondido.
+  await voltar.click();
+  await expect(page.getByText('Parte 1 de 3')).toBeVisible();
+  await expect(page.getByLabel('Nome completo *')).toHaveValue('Fulano Fictício');
+  await expect(page.getByRole('radio', { name: '7 de 10' })).toHaveAttribute('aria-checked', 'true');
+  await avancar.click();
+  await expect(page.getByText('Parte 2 de 3')).toBeVisible();
+
+  // O rascunho guarda a página: reabrindo, volta à parte 2 com as respostas.
+  await page.reload();
+  await expect(page.getByText('Parte 2 de 3')).toBeVisible();
+  await avancar.click();
+
+  // Página 3: grade de três colunas e o aceite; a grade incompleta não envia.
+  await expect(page.getByText('Parte 3 de 3')).toBeVisible();
+  await expect(avancar).toHaveCount(0);
+  await expect(page.getByText('individual', { exact: true })).toHaveCSS('font-family', /Inter_700Bold/);
+  await opcao(page, 'Azia', 'Ocasionalmente').click();
+  await page.getByRole('checkbox', { name: 'Li e concordo com as regras.' }).click();
+  await page.getByRole('button', { name: 'Enviar anamnese' }).click();
+  await expect(page.getByText('Responda todas as linhas.')).toBeVisible();
+  await expect(page.getByText('Falta responder esta linha.')).toBeVisible();
+  expect(envios()).toHaveLength(0);
+
+  await opcao(page, 'Insônia', 'Nunca').click();
+  await page.getByRole('button', { name: 'Enviar anamnese' }).click();
+  await expect(page.getByText('Anamnese enviada. Seu treinador vai ver as respostas.')).toBeVisible();
+  expect(envios()).toHaveLength(1);
+  expect(envios()[0].corpo).toEqual({
+    questionarioVersaoId: PENDENTE.questionarioVersaoId,
+    respostas: { nome: 'Fulano Fictício', sono: 7, sintomas: { azia: 'ocasionalmente', insonia: 'nunca' }, regras: true },
+  });
+
+  // Enviada: tudo numa rolagem, só leitura, a grade como lista.
+  await expect(page.getByText('Parte 1 de 3')).toHaveCount(0);
+  await expect(page.getByText('Sintomas e regras')).toBeVisible();
+  await expect(page.getByText('7 de 10')).toBeVisible();
+  await expect(page.getByText('Ocasionalmente')).toBeVisible();
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
