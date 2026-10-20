@@ -5,7 +5,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { aplicarImagens, chaveDeImagem, COLUNAS_DOS_SINTOMAS, conteudoDaAnamnese, imagensDoConteudo, resumo } from './anamnese-saraiva-lib.mjs';
+import {
+  ARQUIVO_DA_IMAGEM, aplicarImagens, chaveDeImagem, COLUNAS_DOS_SINTOMAS, comImagensEnviadas, conteudoDaAnamnese, imagensDoConteudo, resumo,
+} from './anamnese-saraiva-lib.mjs';
 
 const limites = JSON.parse(readFileSync(new URL('../../api/src/test/resources/paridade-questionario/limites.json', import.meta.url), 'utf8'));
 const L = (nome, padrao) => limites[nome] ?? padrao;
@@ -85,4 +87,16 @@ test('as imagens da versão publicada são reaproveitadas pelo texto, e o que fa
   // Nenhuma chave "imagem" sobra para a API.
   assert.ok(!JSON.stringify(novo).includes('"imagem"'));
   assert.equal(resumo(novo).imagens, 4);
+});
+
+test('toda imagem do conteúdo tem arquivo, e as enviadas preenchem tudo', () => {
+  const vazio = imagensDoConteudo(undefined);
+  const { chavesFaltando } = aplicarImagens(conteudoDaAnamnese(), vazio);
+  assert.equal(chavesFaltando.length, 22);
+  for (const f of chavesFaltando) assert.ok(ARQUIVO_DA_IMAGEM[f.imagem], f.imagem);
+  assert.equal(new Set(Object.values(ARQUIVO_DA_IMAGEM)).size, 22);
+  const enviadas = chavesFaltando.map((f, i) => ({ ...f, imagemId: `id-${i}` }));
+  const { conteudo, faltando } = aplicarImagens(conteudoDaAnamnese(), comImagensEnviadas(vazio, enviadas));
+  assert.deepEqual(faltando, []);
+  assert.equal(resumo(conteudo).imagens, 22);
 });

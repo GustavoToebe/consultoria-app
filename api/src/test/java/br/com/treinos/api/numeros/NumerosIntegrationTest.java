@@ -239,6 +239,21 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
         assertThat(mes(deA, 5).path("alunosAtivos").asLong()).isEqualTo(1);
     }
 
+    /** criado_em vem do relógio do banco; se ele estiver adiantado em relação ao da API, quem acabou de entrar ainda conta. */
+    @Test
+    void alunoECriadosComRelogioDoBancoAdiantadoContamNoMesCorrente() throws Exception {
+        UUID aluno = api.criarAluno(admin, "Aluno criado com o relógio do banco adiantado");
+        UUID consultoria = consultoriaDe(aluno);
+        banco.update("update consultoria set criado_em=now() + interval '5 seconds' where id=?", consultoria);
+        banco.update("update aluno set criado_em=now() + interval '5 seconds' where id=?", aluno);
+
+        JsonNode corpo = numeros(admin);
+        for (int i = 0; i < 5; i++) {
+            assertThat(mes(corpo, i).path("alunosAtivos").isNull()).as("mês %s", i).isTrue();
+        }
+        assertThat(mes(corpo, 5).path("alunosAtivos").asLong()).isEqualTo(1);
+    }
+
     @Test
     void pastaVencidaSemLinhaContaComoAtrasadaSemContarDuasVezes() throws Exception {
         // Um aluno por situação: duas pastas sobrepostas do mesmo aluno disputariam a vigência (ver os testes de renovação).

@@ -1,9 +1,12 @@
-import { UFS } from '@plataforma/web';
+import { somenteDigitos, UFS } from '@plataforma/web';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { ErroApi } from '../api/cliente';
+import { buscarCep } from '../api/rotas';
 import { useTema } from '../tema/TemaProvider';
 
-import { LIMITES_ENDERECO, mascaraCep, type CampoDoEndereco, type EnderecoNoForm } from '../dominio/cadastroDoAluno';
+import { enderecoComCep, LIMITES_ENDERECO, mascaraCep, type CampoDoEndereco, type EnderecoNoForm } from '../dominio/cadastroDoAluno';
 import { espaco } from '../tema/tokens';
 import { Campo } from './Campo';
 import { Texto } from './Texto';
@@ -22,17 +25,49 @@ interface Props {
 /**
  * Os sete campos do endereço: o endereço inteiro é opcional, mas preenchido qualquer campo, CEP, rua, número (ou "s/n"),
  * cidade e UF são obrigatórios (marcados com *); complemento e bairro são opcionais. CEP com máscara, UF numa folha
- * de escolha. Sem busca de CEP na internet (o app só fala com a própria API). Usado na ficha do aluno e na pergunta de
- * endereço da anamnese.
+ * de escolha. Ao completar um CEP novo (8 dígitos), rua, bairro, cidade e UF vêm da busca de CEP da própria API (o app
+ * não fala com serviço de fora); se a busca falha, a pessoa preenche à mão. Um CEP que já veio preenchido (edição) não é
+ * buscado de novo, para não trocar um endereço salvo. Usado na ficha do aluno e na pergunta de endereço da anamnese.
  */
 export function CamposDeEndereco({ valor, aoMudar, erros = {}, desabilitado }: Props) {
   const { cores } = useTema();
   const mudar = (campo: CampoDoEndereco) => (texto: string) => aoMudar({ ...valor, [campo]: texto });
+  const [buscando, setBuscando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  // `tratado`: CEP (só dígitos) que já veio preenchido ou já foi buscado: apagar um dígito e digitar o mesmo não busca de novo
+  // (não troca um endereço que a pessoa corrigiu). `busca`: número da busca em curso; qualquer digitação ou sair da tela o
+  // muda, e a resposta de uma busca antiga é descartada.
+  const tratado = useRef(somenteDigitos(valor.cep));
+  const busca = useRef(0);
+  const atual = useRef(valor);
+  useEffect(() => { atual.current = valor; });
+  useEffect(() => () => { busca.current += 1; }, []);
+  const mudarCep = (texto: string) => {
+    const cep = mascaraCep(texto);
+    aoMudar({ ...valor, cep });
+    const digitos = somenteDigitos(cep);
+    const id = ++busca.current;
+    setAviso(null);
+    if (digitos.length !== 8 || digitos === tratado.current) {
+      setBuscando(false);
+      return;
+    }
+    tratado.current = digitos;
+    setBuscando(true);
+    buscarCep(digitos)
+      .then((achado) => { if (busca.current === id) aoMudar(enderecoComCep(atual.current, achado)); })
+      .catch((erro: unknown) => {
+        if (busca.current !== id) return;
+        tratado.current = '';
+        if (erro instanceof ErroApi && erro.status === 404) setAviso('CEP não encontrado. Confira o número ou preencha o endereço.');
+      })
+      .finally(() => { if (busca.current === id) setBuscando(false); });
+  };
   return (
     <View style={estilos.grupo}>
       <Texto variante="pequeno">Endereço (opcional). Se preencher, informe CEP, rua, número, cidade e UF (* obrigatório).</Texto>
-      <Campo rotulo="CEP *" valor={valor.cep} aoMudar={(t) => mudar('cep')(mascaraCep(t))} erro={erros.cep} keyboardType="number-pad" inputMode="numeric"
-        autoComplete="postal-code" maxLength={LIMITES_ENDERECO.cep} editable={!desabilitado} />
+      <Campo rotulo="CEP *" valor={valor.cep} aoMudar={mudarCep} erro={erros.cep} ajuda={buscando ? 'Buscando o endereço…' : aviso ?? undefined}
+        keyboardType="number-pad" inputMode="numeric" autoComplete="postal-code" maxLength={LIMITES_ENDERECO.cep} editable={!desabilitado} />
       <Campo rotulo="Rua, avenida… *" valor={valor.logradouro} aoMudar={mudar('logradouro')} erro={erros.logradouro} autoComplete="street-address"
         maxLength={LIMITES_ENDERECO.logradouro} editable={!desabilitado} />
       <View style={estilos.linha}>

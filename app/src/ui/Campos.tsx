@@ -78,6 +78,7 @@ export function CampoNumerico({
   sufixo,
   ajuda,
   erro,
+  mascara,
 }: {
   rotulo: string;
   valor: number | null;
@@ -86,8 +87,10 @@ export function CampoNumerico({
   sufixo?: string;
   ajuda?: string;
   erro?: string | null;
+  /** Ajusta o texto a cada digitação (ex.: `mascaraDeNumero`); sem ela, vale o que foi digitado. */
+  mascara?: (texto: string) => string;
 }) {
-  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro);
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, undefined, mascara);
   return (
     <Campo
       numerico
@@ -103,7 +106,7 @@ export function CampoNumerico({
 }
 
 /** Texto do campo numérico: guarda o que foi digitado e só repassa quando é número (ou vazio = `null`). */
-function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean, aoValidade?: (valido: boolean) => void) {
+function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean, aoValidade?: (valido: boolean) => void, mascara?: (texto: string) => string) {
   const [texto, setTexto] = useState(valor === null ? '' : numeroParaTela(valor, 3));
   const [anterior, setAnterior] = useState(valor);
   if (valor !== anterior) {
@@ -111,7 +114,8 @@ function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null)
     setAnterior(valor);
     if (numeroDaTela(texto, inteiro) !== valor) setTexto(valor === null ? '' : numeroParaTela(valor, 3));
   }
-  const mudar = (t: string) => {
+  const mudar = (digitado: string) => {
+    const t = mascara ? mascara(digitado) : digitado;
     setTexto(t);
     const n = numeroDaTela(t, inteiro);
     aoValidade?.(n !== undefined);

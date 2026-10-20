@@ -2,7 +2,7 @@ import { ToggleGroup, ToggleGroupItem } from '../components/ui/toggle-group';
 import { StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
 export interface OpcaoEscolha<T> {
@@ -23,16 +23,18 @@ interface Props<T> {
   descricao?: string;
   /** Tocar na opção ativa desmarca e devolve `null` (resposta opcional). Sem isto, a opção ativa não muda. */
   limpavel?: boolean;
+  /** Botões mais justos (vão e margem menores, fonte 13), para a GRADE do questionário caber em duas fileiras no celular. O alvo de toque continua de 44. */
+  compacta?: boolean;
 }
 
 /** Escolha entre poucas opções (dia da semana, tipo de série, tema): botões lado a lado que quebram linha. */
-export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao, limpavel }: Props<T>) {
+export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao, limpavel, compacta }: Props<T>) {
   const { cores } = useTema();
   const motivos = opcoes.filter((o) => o.desabilitada && o.motivo).map((o) => o.motivo as string);
   return (
     <View style={estilos.campo}>
       {rotulo ? <Texto variante="rotulo">{rotulo}</Texto> : null}
-      <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { if (v === undefined || v === '') { if (limpavel) aoMudar(null as T); return; } const opcao = opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={estilos.linha} accessibilityLabel={rotulo ?? descricao}>
+      <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { if (v === undefined || v === '') { if (limpavel) aoMudar(null as T); return; } const opcao = opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={[estilos.linha, compacta && estilos.linhaCompacta]} accessibilityLabel={rotulo ?? descricao}>
         {opcoes.map((o, indice) => {
           const ativo = o.valor === valor;
           return (
@@ -44,13 +46,14 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
               disabled={o.desabilitada}
               style={[
                 estilos.opcao,
+                compacta && estilos.opcaoCompacta,
                 {
                   backgroundColor: ativo ? cores.texto : cores.superficie2,
                   borderColor: ativo ? cores.texto : cores.borda,
                   opacity: o.desabilitada ? 0.5 : 1,
                 },
               ]}>
-              <Texto style={[estilos.texto, { color: ativo ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>
+              <Texto style={[estilos.texto, compacta && estilos.textoCompacto, { color: ativo ? cores.fundo : cores.texto }]}>{o.rotulo}</Texto>
             </ToggleGroupItem>
           );
         })}
@@ -70,8 +73,8 @@ const estilos = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
     flexBasis: 'auto',
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: ALVO_TOQUE,
+    minWidth: ALVO_TOQUE,
     paddingHorizontal: espaco(1.5),
     borderRadius: RAIO,
     borderWidth: 1,
@@ -79,4 +82,7 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
   },
   texto: { fontFamily: fontes.semi, fontSize: 14, flexShrink: 1, paddingVertical: 4 },
+  linhaCompacta: { gap: espaco(0.5) },
+  opcaoCompacta: { paddingHorizontal: espaco(1) },
+  textoCompacto: { fontSize: 13 },
 });

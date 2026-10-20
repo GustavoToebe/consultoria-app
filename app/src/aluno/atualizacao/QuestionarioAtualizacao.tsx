@@ -9,11 +9,11 @@ import {
   ajudaDoNumero, alternarMarcado, colunasDasOpcoes, escolhaParaSimNao, NAO_SE_APLICA, progressoDasSecoes,
   respostasDaGrade, simNaoParaEscolha, textoDaNota, textoDaResposta, textoDoProgresso, type SimNao,
 } from '../../dominio/atualizacaoQuestionario';
-import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
+import { dataDaTela, dataParaTela, mascaraDeNumero, numeroParaTela } from '../../dominio/formatos';
 import { textoDaParte } from '../../dominio/paginasDoQuestionario';
 import { escalaDaNota, LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
 import { notaDoCadastro } from '../../dominio/anamnese';
-import { enderecoParaForm, errosDoEndereco, respostaDeEndereco } from '../../dominio/cadastroDoAluno';
+import { enderecoParaForm, errosDoEndereco, mascaraCpf, mascaraTelefone, respostaDeEndereco } from '../../dominio/cadastroDoAluno';
 import { avaliarRespostas, tamanhoDoTexto } from '../../dominio/respostasAtualizacao';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
@@ -172,7 +172,10 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   if (p.tipo === 'PESO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null}
     aoMudar={aoMudar} ajuda={['Em kg, de 20 a 400, com uma casa decimal.', nota].filter(Boolean).join(' ')} erro={erro} />;
   if (p.tipo === 'NUMERO') return <CampoNumerico rotulo={rotulo} valor={typeof valor === 'number' ? valor : null} aoMudar={aoMudar}
-    sufixo={p.unidade} inteiro={(p.casas ?? 0) === 0} ajuda={[ajudaDoNumero(p), ajuda].filter(Boolean).join(' ')} erro={erro} />;
+    sufixo={p.unidade} inteiro={(p.casas ?? 0) === 0} mascara={(t) => mascaraDeNumero(t, p.casas ?? 0, {
+      // Altura: em metros e com teto abaixo de 10, os algarismos viram "1,75". Outra medida em metros digita a vírgula.
+      emMetros: p.unidade === 'm' && typeof p.max === 'number' && p.max < 10, negativo: typeof p.min === 'number' && p.min < 0,
+    })} ajuda={[ajudaDoNumero(p), ajuda].filter(Boolean).join(' ')} erro={erro} />;
   if (p.tipo === 'NOTA') {
     const { min: minimo, max: maximo } = escalaDaNota(p);
     return <View style={estilos.pergunta}>
@@ -250,8 +253,12 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
     {ajudaTexto}{mensagemErro}
   </View>;
   if (p.tipo === 'DATA') return <CampoDeData rotulo={rotulo} valor={valor} ajuda={ajuda ?? (p.somentePassado ? 'Hoje ou antes.' : undefined)} erro={erro} aoMudar={aoMudar} />;
-  if (p.tipo === 'TELEFONE') return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? valor : ''} aoMudar={aoMudar}
-    keyboardType="phone-pad" autoComplete="tel" maxLength={L.telefoneTamanho} erro={erro} ajuda={[ajuda ?? 'Com DDD, ex.: (45) 99999-8888.', nota].filter(Boolean).join(' ')} />;
+  // Telefone e CPF só aceitam números e se formatam enquanto se digita ("(45) 99999-8888", "123.456.789-09"): o servidor aceita
+  // exatamente essas formas.
+  if (p.tipo === 'TELEFONE') return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? mascaraTelefone(valor) : ''} aoMudar={(t) => aoMudar(mascaraTelefone(t))}
+    keyboardType="phone-pad" inputMode="tel" autoComplete="tel" maxLength={L.telefoneTamanho} erro={erro} ajuda={[ajuda ?? 'Com DDD, ex.: (45) 99999-8888.', nota].filter(Boolean).join(' ')} />;
+  if (p.tipo === 'TEXTO' && p.destino === 'CPF') return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? mascaraCpf(valor) : ''} aoMudar={(t) => aoMudar(mascaraCpf(t))}
+    keyboardType="number-pad" inputMode="numeric" maxLength={14} erro={erro} ajuda={[ajuda ?? 'Só números, ex.: 123.456.789-09.', nota].filter(Boolean).join(' ')} />;
   if (p.tipo === 'EMAIL') return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? valor : ''} aoMudar={aoMudar}
     keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" maxLength={L.emailTamanho} erro={erro} ajuda={ajuda} />;
   return <Campo rotulo={rotulo} valor={typeof valor === 'string' ? valor : ''} aoMudar={aoMudar}
@@ -281,9 +288,9 @@ function Leitura({ p, valor, ajuda }: { p: PerguntaAtualizacao; valor: RespostaA
 }
 
 /**
- * GRADE para responder: uma linha da tabela por bloco, com o item em destaque, os botões das colunas embaixo (quebram
- * linha no celular, mesmo com "Ocasionalmente" e "Frequentemente") e um divisor entre os blocos. Com o erro de
- * "responda todas as linhas", cada linha vazia diz que falta.
+ * GRADE para responder: uma linha da tabela por bloco, com o item em destaque, os botões das colunas embaixo, na
+ * `Escolha` compacta (cinco colunas em duas fileiras em 390 px, mesmo com "Ocasionalmente" e "Frequentemente") e um
+ * divisor entre os blocos. Com o erro de "responda todas as linhas", cada linha vazia diz que falta.
  */
 function GradeParaResponder({ p, valor, aoMudar, faltando }: {
   p: PerguntaAtualizacao; valor: RespostaAtualizacao; aoMudar: (valor: RespostaAtualizacao) => void; faltando: boolean;
@@ -295,7 +302,7 @@ function GradeParaResponder({ p, valor, aoMudar, faltando }: {
     {(p.linhas ?? []).map((l, i) => <View key={l.id} style={[estilos.linhaDaGrade, i > 0 && { borderTopWidth: 1, borderTopColor: cores.borda }]}>
       <Texto style={estilos.rotuloDaLinha}>{l.rotulo}</Texto>
       {faltando && marcadas[l.id] == null ? <Texto variante="pequeno" cor={cores.perigo}>Falta responder esta linha.</Texto> : null}
-      <Escolha descricao={l.rotulo} opcoes={colunas} valor={marcadas[l.id] ?? null} limpavel
+      <Escolha compacta descricao={l.rotulo} opcoes={colunas} valor={marcadas[l.id] ?? null} limpavel
         aoMudar={(coluna) => {
           const nova = { ...marcadas };
           if (coluna == null) delete nova[l.id]; else nova[l.id] = coluna;

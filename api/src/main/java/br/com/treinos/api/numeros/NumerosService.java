@@ -27,7 +27,8 @@ import java.util.UUID;
  * ({@code Aluno.alterarSituacao(true, ...)}) zera {@code inativado_em}; por isso um aluno inativado em março e reativado em
  * junho conta como ativo desde {@code criado_em}, inclusive em abril e maio. Um aluno inativado e ainda inativo conta como
  * ativo nos meses anteriores à inativação. Mês que termina antes de a consultoria existir ({@code consultoria.criado_em})
- * é {@code null}. No mês corrente vale também a situação de hoje ({@code ativo}), a mesma do painel.
+ * é {@code null}. No mês corrente vale também a situação de hoje ({@code ativo}), a mesma do painel, e o limite é o fim do
+ * mês (não o instante da chamada).
  *
  * <p><b>Atualizações</b> entram pelo mês do prazo ({@code RegrasAtualizacao.prazo}). Enviada (data de Brasília de
  * {@code enviada_em}) até o prazo = no prazo; depois do prazo = atrasada; não enviada com prazo anterior a hoje = atrasada;
@@ -86,7 +87,6 @@ public class NumerosService {
         }
         Instant criadaEm = consultorias.findById(consultoriaId)
                 .orElseThrow(() -> new NaoEncontradoException("Consultoria não encontrada.")).getCriadoEm();
-        Instant agora = Instant.now();
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         YearMonth corrente = YearMonth.from(hoje);
         YearMonth primeiro = corrente.minusMonths(MESES - 1L);
@@ -97,7 +97,9 @@ public class NumerosService {
         List<MesNumeros> meses = new ArrayList<>();
         for (YearMonth mes = primeiro; !mes.isAfter(corrente); mes = mes.plusMonths(1)) {
             boolean parcial = mes.equals(corrente);
-            Instant limite = parcial ? agora : mes.plusMonths(1).atDay(1).atStartOfDay(Fuso.BRASILIA).toInstant();
+            // O mês corrente também vai até o fim do mês, nunca até o "agora" da JVM: criado_em vem do relógio do banco, e
+            // comparar os dois relógios derrubaria da contagem quem acabou de ser criado se o do banco estiver adiantado.
+            Instant limite = mes.plusMonths(1).atDay(1).atStartOfDay(Fuso.BRASILIA).toInstant();
             Long ativos = null;
             if (!criadaEm.isAfter(limite)) {
                 ativos = parcial ? repositorio.ativosAgora(limite) : repositorio.ativosEm(limite);

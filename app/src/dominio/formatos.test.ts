@@ -1,4 +1,4 @@
-import { centavosDaTela, centavosParaCampo, centavosParaTela, moedaParaTela } from './formatos';
+import { centavosDaTela, centavosParaCampo, centavosParaTela, mascaraDeNumero, moedaParaTela } from './formatos';
 
 describe('moeda em reais', () => {
   it('usa vírgula, ponto de milhar e duas casas', () => {
@@ -61,5 +61,37 @@ describe('centavos da tela', () => {
     for (const c of [1, 99, 100, 15050, 123456789]) {
       expect(centavosDaTela(centavosParaCampo(c))).toBe(c);
     }
+  });
+});
+
+describe('máscara de número enquanto digita', () => {
+  it('altura em metros: os algarismos viram "1,75"', () => {
+    const m = { emMetros: true };
+    expect(mascaraDeNumero('1', 2, m)).toBe('1');
+    expect(mascaraDeNumero('17', 2, m)).toBe('1,7');
+    expect(mascaraDeNumero('175', 2, m)).toBe('1,75');
+    expect(mascaraDeNumero('1759', 2, m)).toBe('1,75');
+    expect(mascaraDeNumero('1,75', 2, m)).toBe('1,75');
+    expect(mascaraDeNumero('1.75', 2, m)).toBe('1,75');
+    expect(mascaraDeNumero('abc', 2, m)).toBe('');
+  });
+  it('sinal de menos só com `negativo` e só no começo', () => {
+    expect(mascaraDeNumero('-2', 0)).toBe('2');
+    expect(mascaraDeNumero('-2', 0, { negativo: true })).toBe('-2');
+    expect(mascaraDeNumero('-', 1, { negativo: true })).toBe('-');
+    expect(mascaraDeNumero('-2.55', 1, { negativo: true })).toBe('-2,5');
+    expect(mascaraDeNumero('2-3', 0, { negativo: true })).toBe('23');
+    expect(mascaraDeNumero('-175', 2, { negativo: true, emMetros: true })).toBe('-1,75');
+  });
+  it('decimal comum: vírgula única e no máximo as casas pedidas', () => {
+    expect(mascaraDeNumero('72.55', 1)).toBe('72,5');
+    expect(mascaraDeNumero('8,', 2)).toBe('8,');
+    expect(mascaraDeNumero('1,2,3', 2)).toBe('1,23');
+    expect(mascaraDeNumero('7a2', 2)).toBe('72');
+  });
+  it('sem casas: só a parte inteira, nunca juntando os dígitos depois da vírgula', () => {
+    expect(mascaraDeNumero('12,5', 0)).toBe('12');
+    expect(mascaraDeNumero('2.5', 0)).toBe('2');
+    expect(mascaraDeNumero('x', 0)).toBe('');
   });
 });

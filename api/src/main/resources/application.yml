@@ -74,6 +74,13 @@ treinos:
     segredo: ${TREINOS_TURNSTILE_SEGREDO:}
     # Site em que o token precisa ter sido resolvido (resposta do siteverify). Vazio = o host do APP_URL.
     hostname: ${TREINOS_TURNSTILE_HOSTNAME:}
+  # Busca de CEP (GET /enderecos/cep/{cep}, logado): a API consulta o ViaCEP e, se ele falhar, a BrasilAPI, para o app preencher
+  # rua, bairro, cidade e UF. Só o CEP sai da API (nunca nome, CPF nem telefone); sem segredo. Desligada, a rota responde 503
+  # CEP_INDISPONIVEL e o app segue com o endereço digitado à mão. Os endereços levam {cep}.
+  cep:
+    habilitado: ${TREINOS_CEP_HABILITADO:true}
+    url-principal: ${TREINOS_CEP_URL_PRINCIPAL:}
+    url-reserva: ${TREINOS_CEP_URL_RESERVA:}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:

@@ -35,6 +35,24 @@ export function normalizarEndereco(e: Partial<Record<CampoDoEndereco, string | n
   return Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, (e?.[c] ?? '').trim()])) as EnderecoNoForm;
 }
 
+/**
+ * Preenche rua, bairro, cidade e UF com o que a busca de CEP achou. Só entra o que veio preenchido (CEP geral de cidade
+ * vem sem rua: o que a pessoa já digitou fica) e a UF só se for uma sigla válida; CEP, número e complemento nunca mudam.
+ */
+export function enderecoComCep(atual: EnderecoNoForm, achado: { logradouro: string; bairro: string; cidade: string; uf: string }): EnderecoNoForm {
+  const preencher = (campo: 'logradouro' | 'bairro' | 'cidade', max: number) => {
+    const valor = achado[campo].trim().slice(0, max);
+    return valor ? valor : atual[campo];
+  };
+  return {
+    ...atual,
+    logradouro: preencher('logradouro', LIMITES_ENDERECO.logradouro),
+    bairro: preencher('bairro', LIMITES_ENDERECO.bairro),
+    cidade: preencher('cidade', LIMITES_ENDERECO.cidade),
+    uf: ufValida(achado.uf) ? achado.uf.toUpperCase() : atual.uf,
+  };
+}
+
 /** Endereço vazio (todos os campos em branco) é válido: o endereço é opcional. */
 export const enderecoEmBranco = (e: Partial<Record<CampoDoEndereco, string | null | undefined>> | null | undefined) =>
   CAMPOS_DO_ENDERECO.every((c) => normalizarEndereco(e)[c] === '');

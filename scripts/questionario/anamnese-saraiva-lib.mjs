@@ -17,7 +17,8 @@
 // - as regras da consultoria são um aceite (o aluno marca a declaração), com o texto formatado.
 //
 // Imagens: não ficam no git (algumas são de terceiros, com marca d'água). O script reaproveita as que já estão na
-// anamnese publicada pelo `imagem` de cada item (`chaveDeImagem`).
+// anamnese publicada pelo `imagem` de cada item (`chaveDeImagem`) e, com `--imagens <pasta>`, envia as que faltam a
+// partir dos arquivos de `ARQUIVO_DA_IMAGEM` (a pasta fica fora do repositório).
 
 export const NOME = 'Anamnese Saraiva Team';
 export const DESCRICAO = 'Anamnese inicial do aluno (igual ao formulário "Anamnese Online" do Saraiva Team).';
@@ -35,8 +36,8 @@ const SINTOMAS = [
   'Dor articular (não induzida por exercício)', 'Fadiga', 'Hiperatividade', 'Ansiedade', 'Depressão', 'Frequentemente doente',
 ];
 
-/** Colunas da grade de sintomas. As três primeiras aparecem no Forms; as duas últimas estão cortadas nos prints. */
-export const COLUNAS_DOS_SINTOMAS = ['Nunca', 'Raramente', 'Ocasionalmente', 'Frequentemente', 'Sempre'];
+/** Colunas da grade de sintomas, as quatro do Forms (conferidas no print inteiro em 20/10). */
+export const COLUNAS_DOS_SINTOMAS = ['Nunca', 'Raramente', 'Ocasionalmente', 'Frequentemente'];
 
 const REGRAS = [
   '**REGRAS DA CONSULTORIA**',
@@ -266,6 +267,7 @@ function acharOpcao(lista, rotulo) {
  */
 export function aplicarImagens(conteudo, imagens) {
   const faltando = [];
+  const chavesFaltando = [];
   const secoes = conteudo.secoes.map((secao) => ({
     ...secao,
     perguntas: secao.perguntas.map((p) => {
@@ -273,7 +275,7 @@ export function aplicarImagens(conteudo, imagens) {
       if (imagem) {
         const achada = imagens.perguntas.find((i) => i.chave.includes(chaveDeImagem(imagem)));
         if (achada) pergunta.imagemId = achada.imagemId;
-        else faltando.push(`pergunta "${p.rotulo}"`);
+        else { faltando.push(`pergunta "${p.rotulo}"`); chavesFaltando.push({ tipo: 'pergunta', imagem }); }
       }
       if (pergunta.opcoes) {
         pergunta.opcoes = pergunta.opcoes.map((o) => {
@@ -281,7 +283,7 @@ export function aplicarImagens(conteudo, imagens) {
           if (imagemDaOpcao) {
             const achada = acharOpcao(imagens.opcoes, imagemDaOpcao);
             if (achada) opcao.imagemId = achada.imagemId;
-            else faltando.push(`opção "${o.rotulo}"`);
+            else { faltando.push(`opção "${o.rotulo}"`); chavesFaltando.push({ tipo: 'opcao', imagem: imagemDaOpcao }); }
           }
           return opcao;
         });
@@ -289,7 +291,44 @@ export function aplicarImagens(conteudo, imagens) {
       return pergunta;
     }),
   }));
-  return { conteudo: { ...conteudo, secoes }, faltando };
+  return { conteudo: { ...conteudo, secoes }, faltando, chavesFaltando };
+}
+
+/**
+ * Nome do arquivo de cada imagem na pasta de `--imagens` (os recortes do Forms do Saraiva). A chave é o `imagem` do
+ * conteúdo: palavra-chave na pergunta, rótulo na opção.
+ */
+export const ARQUIVO_DA_IMAGEM = {
+  modelo: 'modelo-poses.jpg',
+  bristol: 'bristol.jpg',
+  armstrong: 'armstrong.jpg',
+  'Pullover Machine': 'costas-pullover.jpg',
+  'T-Bar Row': 'costas-tbar.jpg',
+  'Remada pronada e/ou neutra': 'costas-remada-pronada.jpg',
+  'Remada alta': 'costas-remada-alta.jpg',
+  'Remada baixa': 'costas-remada-baixa.jpg',
+  'Supino reto máquina': 'peito-supino-reto.jpg',
+  'Supino declinado máquina': 'peito-supino-declinado.jpg',
+  'Supino reto deitado máquina': 'peito-supino-reto-deitado.jpg',
+  'Supino inclinado máquina': 'peito-supino-inclinado.jpg',
+  'Chest Dips': 'peito-chest-dips.jpg',
+  'Desenvolvimento máquina (bateria de pesos)': 'deltoide-desenv-bateria.jpg',
+  'Desenvolvimento máquina (plate loaded)': 'deltoide-desenv-plate.jpg',
+  'Elevação lateral máquina': 'deltoide-elev-lateral.jpg',
+  'Pendulum Squat': 'inferior-pendulum.jpg',
+  'Hack Squat': 'inferior-hack-squat.jpg',
+  'Leg Press Horizontal': 'inferior-leg-press-horizontal.jpg',
+  'Elevação Pélvica': 'inferior-elevacao-pelvica.jpg',
+  'Hip Press': 'inferior-hip-press.jpg',
+  'Belt Squat': 'inferior-belt-squat.jpg',
+};
+
+/** Junta as imagens recém-enviadas (`[{tipo, imagem, imagemId}]`) às já encontradas, no formato de `imagensDoConteudo`. */
+export function comImagensEnviadas(imagens, enviadas) {
+  return {
+    perguntas: [...imagens.perguntas, ...enviadas.filter((e) => e.tipo === 'pergunta').map((e) => ({ chave: chaveDeImagem(e.imagem), imagemId: e.imagemId }))],
+    opcoes: [...imagens.opcoes, ...enviadas.filter((e) => e.tipo === 'opcao').map((e) => ({ chave: chaveDeImagem(e.imagem), imagemId: e.imagemId }))],
+  };
 }
 
 /** Contagens para o resumo do script (sem nenhuma resposta: o questionário não tem dado de aluno). */
