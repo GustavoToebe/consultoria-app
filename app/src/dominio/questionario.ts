@@ -12,6 +12,8 @@ export const LIMITES_QUESTIONARIO = {
   instrucoes: 10,
   instrucaoTamanho: 300,
   tituloTamanho: 80,
+  /** Descrição da seção (opcional; formato simples do `dominio/textoFormatado`). */
+  descricaoSecaoTamanho: 4000,
   rotuloTamanho: 200,
   ajudaTamanho: 300,
   rotuloCurtoTamanho: 20,
@@ -31,6 +33,15 @@ export const LIMITES_QUESTIONARIO = {
   respostasBytes: 256 * 1024,
   /** Fotos por pergunta FOTOS (o servidor limita também o tamanho de cada uma e o total por dia). */
   fotosPorPergunta: 6,
+  /** Perguntas FOTOS num questionário (cada uma com o seu `max`, de 1 a `fotosPorPergunta`). */
+  perguntasFotos: 6,
+  /** Escala da NOTA: ponta de baixo 0 ou 1 (padrão 0), ponta de cima de 2 a 10 (padrão 10). NOTAS_POR_DIA segue 0 a 10. */
+  notaMinPadrao: 0,
+  notaMinMaximo: 1,
+  notaMaxMinimo: 2,
+  notaMaxPadrao: 10,
+  /** Texto embaixo de cada ponta da escala da NOTA (`rotuloMin`, `rotuloMax`). */
+  rotuloPontaTamanho: 40,
   idTamanho: 40,
   /** Mínimo, máximo e resposta de NUMERO ficam em [-N, N] (igual a `LimitesQuestionario.NUMERO_ABSOLUTO`). */
   numeroAbsoluto: 1_000_000_000,
@@ -77,9 +88,23 @@ export const TIPOS_DE_PERGUNTA: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'P
 const TIPOS = TIPOS_DE_PERGUNTA;
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
-const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA', 'FOTOS'];
+const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA'];
 /** Tipo de pergunta que alimenta cada campo do cadastro (igual a `DestinoNoPerfil` do Java). */
 export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = { PESO: 'PESO', OBJETIVO: 'TEXTO', CPF: 'TEXTO', TELEFONE: 'TELEFONE', ENDERECO: 'ENDERECO' };
+
+/** Escala da NOTA: `min` (0 ou 1) e `max` (2 a 10) da pergunta; sem eles (ou fora da regra), 0 a 10. */
+export function escalaDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>): { min: number; max: number } {
+  const L = LIMITES_QUESTIONARIO;
+  const min = Number.isInteger(p.min) && (p.min as number) >= 0 && (p.min as number) <= L.notaMinMaximo ? (p.min as number) : L.notaMinPadrao;
+  const max = Number.isInteger(p.max) && (p.max as number) >= L.notaMaxMinimo && (p.max as number) <= L.notaMaxPadrao ? (p.max as number) : L.notaMaxPadrao;
+  return { min, max };
+}
+
+/** Fotos que a pergunta FOTOS aceita: o `max` dela (1 a 6) ou, sem ele, `fotosPorPergunta`. */
+export function maximoDeFotos(p: Pick<PerguntaAtualizacao, 'max'>): number {
+  const L = LIMITES_QUESTIONARIO;
+  return Number.isInteger(p.max) && (p.max as number) >= 1 && (p.max as number) <= L.fotosPorPergunta ? (p.max as number) : L.fotosPorPergunta;
+}
 
 /** Tipos que carregam a lista de opções. */
 export function temOpcoes(tipo: TipoPergunta) {
@@ -109,6 +134,8 @@ interface Estado {
   capacidadeDeTexto: number;
   ids: Set<string>;
   tipos: Set<TipoPergunta>;
+  /** Perguntas FOTOS já vistas: até `perguntasFotos` por questionário. */
+  fotos: number;
   /** Campos do perfil já alimentados: um destino por questionário. */
   destinos: Set<DestinoNoPerfil>;
   /** Caminho da pergunta PESO → id da DATA da pesagem, conferido no fim (a DATA pode vir depois). */
@@ -136,7 +163,7 @@ export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>, fin
   const secoes = conteudo.secoes ?? [];
   if (secoes.length === 0) erro('secoes', 'O questionário não tem nenhuma seção.');
   if (secoes.length > L.secoes) erro('secoes', 'Seções demais.');
-  const estado: Estado = { finalidade, anteriores: new Map(), total: 0, destaques: 0, capacidadeDeTexto: 0, ids: new Set(), tipos: new Set(), destinos: new Set(), pesagens: [] };
+  const estado: Estado = { finalidade, anteriores: new Map(), total: 0, destaques: 0, capacidadeDeTexto: 0, ids: new Set(), tipos: new Set(), fotos: 0, destinos: new Set(), pesagens: [] };
   const uids = new Set<string>();
   secoes.forEach((s, i) => {
     const cs = `secoes[${i}]`;
@@ -145,6 +172,7 @@ export function validarQuestionario(conteudo: Partial<ConteudoQuestionario>, fin
     else uids.add(s.uid as string);
     if (vazio(s.titulo)) erro(`${cs}.titulo`, 'Seção sem título.');
     else if (s.titulo.length > L.tituloTamanho) erro(`${cs}.titulo`, 'Título longo demais.');
+    if (s.descricao != null && s.descricao.length > L.descricaoSecaoTamanho) erro(`${cs}.descricao`, 'Descrição longa demais.');
     condicao(s.mostrarSe, cs, estado, erro);
     const perguntas = s.perguntas ?? [];
     if (perguntas.length === 0) erro(`${cs}.perguntas`, 'Seção sem pergunta.');
@@ -187,12 +215,14 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   if (estado.finalidade === 'ANAMNESE' && p.tipo === 'DATA_AUTOMATICA') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de atualização.');
   if (estado.finalidade !== 'ANAMNESE' && p.tipo === 'ENDERECO') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de anamnese.');
   if (UNICOS.includes(p.tipo) && estado.tipos.has(p.tipo)) erro(`${cp}.tipo`, 'Este tipo só pode aparecer uma vez.');
+  if (p.tipo === 'FOTOS' && ++estado.fotos > L.perguntasFotos) erro(`${cp}.tipo`, `No máximo ${L.perguntasFotos} perguntas de fotos.`);
   estado.tipos.add(p.tipo);
   if (p.tipo === 'TEXTO') estado.capacidadeDeTexto += L.textoCurtoCapacidade;
   else if (p.tipo === 'TEXTO_LONGO') estado.capacidadeDeTexto += L.textoLongoCapacidade;
   opcoes(p, cp, erro);
   dias(p, cp, erro);
   numero(p, cp, erro);
+  escala(p, cp, erro);
   destaque(p, cp, estado, erro);
   if (p.ajudaAutomatica != null && !COM_AJUDA_AUTOMATICA.includes(p.tipo)) {
     erro(`${cp}.ajudaAutomatica`, 'Este tipo não tem ajuda automática.');
@@ -313,13 +343,19 @@ function dias(p: PerguntaAtualizacao, cp: string, erro: Erro) {
   });
 }
 
+/** `min`/`max`: faixa do NUMERO, pontas da escala da NOTA e (só `max`) fotos aceitas na FOTOS. `casas` e `unidade` só no NUMERO. */
 function numero(p: PerguntaAtualizacao, cp: string, erro: Erro) {
   const L = LIMITES_QUESTIONARIO;
   if (p.tipo !== 'NUMERO') {
-    if (p.min != null) erro(`${cp}.min`, 'Este tipo não tem mínimo.');
-    if (p.max != null) erro(`${cp}.max`, 'Este tipo não tem máximo.');
+    if (p.min != null && p.tipo !== 'NOTA') erro(`${cp}.min`, 'Este tipo não tem mínimo.');
+    if (p.max != null && p.tipo !== 'NOTA' && p.tipo !== 'FOTOS') erro(`${cp}.max`, 'Este tipo não tem máximo.');
     if (p.casas != null) erro(`${cp}.casas`, 'Este tipo não tem casas decimais.');
     if (p.unidade != null) erro(`${cp}.unidade`, 'Este tipo não tem unidade.');
+    if (p.tipo === 'NOTA') {
+      if (p.min != null && !inteiroEntre(p.min, 0, L.notaMinMaximo)) erro(`${cp}.min`, 'A escala começa em 0 ou 1.');
+      if (p.max != null && !inteiroEntre(p.max, L.notaMaxMinimo, L.notaMaxPadrao)) erro(`${cp}.max`, `A escala termina entre ${L.notaMaxMinimo} e ${L.notaMaxPadrao}.`);
+    }
+    if (p.tipo === 'FOTOS' && p.max != null && !inteiroEntre(p.max, 1, L.fotosPorPergunta)) erro(`${cp}.max`, `Use de 1 a ${L.fotosPorPergunta} fotos.`);
     return;
   }
   if (p.casas != null && (!Number.isInteger(p.casas) || p.casas < 0 || p.casas > L.casasMaximo)) {
@@ -331,6 +367,20 @@ function numero(p: PerguntaAtualizacao, cp: string, erro: Erro) {
   if (p.min != null && p.max != null && p.min > p.max) erro(`${cp}.max`, 'O máximo é menor que o mínimo.');
   if (p.unidade != null && p.unidade.length > L.unidadeTamanho) erro(`${cp}.unidade`, 'Unidade longa demais.');
 }
+
+/** Texto embaixo das pontas da escala: só na NOTA, até `rotuloPontaTamanho` cada. */
+function escala(p: PerguntaAtualizacao, cp: string, erro: Erro) {
+  const ponta = (texto: string | undefined, caminho: string, foraDoTipo: string) => {
+    if (texto == null) return;
+    if (p.tipo !== 'NOTA') erro(caminho, foraDoTipo);
+    else if (texto.length > LIMITES_QUESTIONARIO.rotuloPontaTamanho) erro(caminho, 'Texto longo demais.');
+  };
+  ponta(p.rotuloMin, `${cp}.rotuloMin`, 'Este tipo não tem texto na ponta de baixo.');
+  ponta(p.rotuloMax, `${cp}.rotuloMax`, 'Este tipo não tem texto na ponta de cima.');
+}
+
+/** Inteiro de `minimo` a `maximo`: 1,5 não é ponta de escala nem quantidade de fotos. */
+const inteiroEntre = (v: number, minimo: number, maximo: number) => Number.isInteger(v) && v >= minimo && v <= maximo;
 
 function destaque(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro) {
   const L = LIMITES_QUESTIONARIO;

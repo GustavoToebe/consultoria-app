@@ -11,7 +11,7 @@ import {
 } from '../../dominio/editorQuestionario';
 import { ROTULO_DO_DESTINO } from '../../dominio/anamnese';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
-import { LIMITES_QUESTIONARIO as L, temOpcoes } from '../../dominio/questionario';
+import { escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos, temOpcoes } from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -27,6 +27,8 @@ import { textoDoErro } from '../../ui/erros';
 import { escolherEEnviarImagem } from './enviarImagem';
 
 const CASAS = [{ valor: 0, rotulo: '0' }, { valor: 1, rotulo: '1' }, { valor: 2, rotulo: '2' }];
+const INICIO_DA_ESCALA = [{ valor: 0, rotulo: '0' }, { valor: 1, rotulo: '1' }];
+const QUANTAS_FOTOS = Array.from({ length: L.fotosPorPergunta }, (_, i) => ({ valor: i + 1, rotulo: String(i + 1) }));
 const DIAS = Array.from({ length: L.diaValorMaximo }, (_, i) => ({ valor: String(i + 1), rotulo: `Dia ${i + 1}` }));
 const AVISO_LICENCA = 'Use só imagens suas ou com licença de uso: você responde pelo que envia.';
 
@@ -52,7 +54,12 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
     {p.tipo === 'PESO' && finalidade === 'ATUALIZACAO' ? <Texto variante="suave">A resposta vai para o registro de peso do aluno.</Texto> : null}
     {destinosPossiveis(p.tipo, finalidade).length > 0 ? <DestinoNoCadastro pergunta={p} conteudo={conteudo} finalidade={finalidade} aoMudar={aoMudar} /> : null}
     {p.tipo === 'DATA_AUTOMATICA' ? <Texto variante="suave">Mostra a data da atualização; o aluno não responde.</Texto> : null}
-    {p.tipo === 'FOTOS' ? <Texto variante="suave">O aluno anexa até 6 fotos. Elas só aparecem para você depois do envio, e só com o envio de fotos ligado no servidor.</Texto> : null}
+    {p.tipo === 'FOTOS' ? <>
+      <Escolha rotulo="Quantas fotos o aluno pode anexar" opcoes={QUANTAS_FOTOS} valor={maximoDeFotos(p)}
+        aoMudar={(n) => aoMudar({ max: n === L.fotosPorPergunta ? undefined : n })} />
+      <Texto variante="suave">Elas só aparecem para você depois do envio, e só com o envio de fotos ligado no servidor.</Texto>
+    </> : null}
+    {p.tipo === 'NOTA' ? <EscalaDaNota pergunta={p} aoMudar={aoMudar} /> : null}
     {p.tipo === 'DATA' ? <Interruptor rotulo="Só hoje ou antes (ex.: nascimento, última pesagem)" valor={p.somentePassado === true}
       aoMudar={(somentePassado) => aoMudar({ somentePassado: somentePassado || undefined })} /> : null}
     {p.tipo === 'ACEITE' ? <>
@@ -92,6 +99,26 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
     <ImagemDoItem imagemId={p.imagemId} rotulo={p.tipo === 'INFORMATIVO' ? 'Imagem (opcional)' : 'Imagem de referência (opcional)'}
       aoMudar={(imagemId) => aoMudar({ imagemId })} />
     <EditorDeCondicao conteudo={conteudo} perguntaId={p.id} condicao={p.mostrarSe} aoMudar={(mostrarSe) => aoMudar({ mostrarSe })} />
+  </View>;
+}
+
+/**
+ * Escala da NOTA: começa em 0 ou 1 e termina de 2 a 10 (vazio = 10), com texto opcional embaixo de cada ponta ("Nada",
+ * "Muito"). O padrão (0 a 10) não é gravado, para o JSON ficar igual ao de sempre.
+ */
+function EscalaDaNota({ pergunta: p, aoMudar }: { pergunta: PerguntaAtualizacao; aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void }) {
+  const { min } = escalaDaNota(p);
+  const fimInvalido = p.max != null && !(Number.isInteger(p.max) && p.max >= L.notaMaxMinimo && p.max <= L.notaMaxPadrao);
+  return <View style={estilos.bloco}>
+    <Escolha rotulo="A escala começa em" opcoes={INICIO_DA_ESCALA} valor={min}
+      aoMudar={(n) => aoMudar({ min: n === L.notaMinPadrao ? undefined : n })} />
+    <CampoNumerico rotulo="E termina em" inteiro valor={p.max ?? null} ajuda={`De ${L.notaMaxMinimo} a ${L.notaMaxPadrao}; vazio = ${L.notaMaxPadrao}.`}
+      erro={fimInvalido ? `Use de ${L.notaMaxMinimo} a ${L.notaMaxPadrao}.` : null}
+      aoMudar={(max) => aoMudar({ max: max == null || max === L.notaMaxPadrao ? undefined : max })} />
+    <Campo rotulo="Texto na ponta de baixo (opcional, ex.: Nada)" valor={p.rotuloMin ?? ''} maxLength={L.rotuloPontaTamanho}
+      aoMudar={(rotuloMin) => aoMudar({ rotuloMin })} />
+    <Campo rotulo="Texto na ponta de cima (opcional, ex.: Muito)" valor={p.rotuloMax ?? ''} maxLength={L.rotuloPontaTamanho}
+      aoMudar={(rotuloMax) => aoMudar({ rotuloMax })} />
   </View>;
 }
 

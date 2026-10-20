@@ -73,6 +73,13 @@ class ParidadeQuestionarioTest {
         daqui.put("idTamanho", LimitesQuestionario.ID_TAMANHO);
         daqui.put("numeroAbsoluto", LimitesQuestionario.NUMERO_ABSOLUTO);
         daqui.put("fotosPorPergunta", LimitesQuestionario.FOTOS_POR_PERGUNTA);
+        daqui.put("perguntasFotos", LimitesQuestionario.PERGUNTAS_FOTOS);
+        daqui.put("notaMinPadrao", LimitesQuestionario.NOTA_MIN_PADRAO);
+        daqui.put("notaMinMaximo", LimitesQuestionario.NOTA_MIN_MAXIMO);
+        daqui.put("notaMaxMinimo", LimitesQuestionario.NOTA_MAX_MINIMO);
+        daqui.put("notaMaxPadrao", LimitesQuestionario.NOTA_MAX_PADRAO);
+        daqui.put("rotuloPontaTamanho", LimitesQuestionario.ROTULO_PONTA_TAMANHO);
+        daqui.put("descricaoSecaoTamanho", LimitesQuestionario.DESCRICAO_SECAO_TAMANHO);
         daqui.put("linhasMinimo", LimitesQuestionario.LINHAS_MINIMO);
         daqui.put("linhasMaximo", LimitesQuestionario.LINHAS_MAXIMO);
         daqui.put("colunasMinimo", LimitesQuestionario.COLUNAS_MINIMO);

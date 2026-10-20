@@ -13,6 +13,7 @@ export interface ControleDeFotos {
   usuarioId: string;
   /** `null` = ainda não se sabe (primeira abertura sem internet); `false` = desligado no servidor. */
   habilitado: boolean | null;
+  /** Teto do servidor por pergunta; cada pergunta pode aceitar menos (`fotosAceitas`). */
   maximoPorPergunta: number;
   online: boolean;
   /** Celular: guarda a foto no aparelho e sobe no envio. Web: precisa de internet e sobe na hora. */
@@ -21,7 +22,8 @@ export interface ControleDeFotos {
   editavel: boolean;
   ocupado: boolean;
   locais: Readonly<Record<string, string[]>>;
-  anexar: (perguntaId: string, origem: OrigemDaFoto) => Promise<void>;
+  /** `limite`: fotos que esta pergunta aceita (o `max` dela, já limitado pelo teto do servidor). */
+  anexar: (perguntaId: string, origem: OrigemDaFoto, limite: number) => Promise<void>;
   remover: (perguntaId: string, item: ItemDeFoto) => Promise<void>;
 }
 

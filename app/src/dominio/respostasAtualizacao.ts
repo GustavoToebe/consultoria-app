@@ -3,9 +3,16 @@ import { cpfValido, telefoneValido as telefoneDoCadastroValido } from '@platafor
 
 import { CAMPOS_DO_ENDERECO, errosDoEndereco } from './cadastroDoAluno';
 import { hojeIso } from './formatos';
-import { LIMITES_QUESTIONARIO } from './questionario';
+import { escalaDaNota, LIMITES_QUESTIONARIO, maximoDeFotos } from './questionario';
 
-const nota = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 10;
+const nota = (v: unknown, min: number = LIMITES_QUESTIONARIO.notaMinPadrao, max: number = LIMITES_QUESTIONARIO.notaMaxPadrao) =>
+  typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
+
+/** NOTA dentro da escala da pergunta (de `min` a `max`; sem elas, de 0 a 10). */
+function notaValida(p: PerguntaAtualizacao, v: unknown) {
+  const { min, max } = escalaDaNota(p);
+  return nota(v, min, max);
+}
 
 function numeroValido(p: PerguntaAtualizacao, v: unknown) {
   if (typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > LIMITES_QUESTIONARIO.numeroAbsoluto) return false;
@@ -27,9 +34,9 @@ const DATA = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TELEFONE = /^[0-9()+\-. ]+$/;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Lista de ids (UUID) de fotos já enviadas, sem repetir, até o limite da pergunta. */
-function fotosValidas(v: unknown) {
-  if (!Array.isArray(v) || v.length > LIMITES_QUESTIONARIO.fotosPorPergunta) return false;
+/** Lista de ids (UUID) de fotos já enviadas, sem repetir, até o `max` da pergunta (sem ele, `fotosPorPergunta`). */
+function fotosValidas(p: PerguntaAtualizacao, v: unknown) {
+  if (!Array.isArray(v) || v.length > maximoDeFotos(p)) return false;
   const vistos = new Set<string>();
   return v.every((id) => typeof id === 'string' && UUID.test(id) && !vistos.has(id.toLowerCase()) && !!vistos.add(id.toLowerCase()));
 }
@@ -91,7 +98,7 @@ export function tamanhoDoTexto(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino'>)
 /** Uma resposta (já presente) respeita o tipo e os limites da pergunta. Mesmas regras do `ValidadorAtualizacao`. */
 export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string = hojeIso()) {
   switch (p.tipo) {
-    case 'NOTA': return nota(v);
+    case 'NOTA': return notaValida(p, v);
     case 'PESO': return typeof v === 'number' && Number.isFinite(v) && v >= 20 && v <= 400 && Math.abs(v * 10 - Math.round(v * 10)) < 1e-8;
     case 'TEXTO': return typeof v === 'string' && v.length <= tamanhoDoTexto(p) && (p.destino !== 'CPF' || cpfValido(v));
     case 'TEXTO_LONGO': return typeof v === 'string' && v.length <= tamanhoDoTexto(p);
@@ -102,7 +109,7 @@ export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string 
     case 'MULTIPLA_ESCOLHA': return multiplaValida(p, v);
     case 'NUMERO': return numeroValido(p, v);
     case 'SIM_NAO': return typeof v === 'boolean';
-    case 'FOTOS': return fotosValidas(v);
+    case 'FOTOS': return fotosValidas(p, v);
     case 'DATA': return dataValida(p, v, hoje);
     case 'TELEFONE': return telefoneValido(v) && (p.destino !== 'TELEFONE' || (typeof v === 'string' && telefoneDoCadastroValido(v)));
     case 'EMAIL': return emailValido(v);
@@ -178,7 +185,7 @@ export function avaliarRespostas(
       if (noAparelho > 0) {
         const enviadas = Array.isArray(v) ? v.length : 0;
         if (respondidaNaPergunta(p, v) && !respostaValida(p, v, hoje)) erros[p.id] = 'Confira o formato e os limites deste campo.';
-        else if (enviadas + noAparelho > LIMITES_QUESTIONARIO.fotosPorPergunta) erros[p.id] = 'Há fotos demais nesta pergunta.';
+        else if (enviadas + noAparelho > maximoDeFotos(p)) erros[p.id] = 'Há fotos demais nesta pergunta.';
         else if (respondidaNaPergunta(p, v)) aceitasMapa.set(p.id, v as RespostaAtualizacao);
         continue;
       }

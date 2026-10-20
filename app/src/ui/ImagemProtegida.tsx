@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
@@ -34,11 +34,18 @@ interface Props {
   altura?: number;
   /** `contain` mostra a imagem inteira (escala, aparelho); padrão `cover` (foto em miniatura). */
   ajuste?: 'cover' | 'contain';
+  /**
+   * A caixa segue a proporção da imagem depois de carregada (largura = `tamanho`; até `alturaMaxima`): imagem de
+   * referência inteira, sem faixas vazias em volta. Antes de carregar, usa `altura`.
+   */
+  proporcional?: boolean;
+  alturaMaxima?: number;
 }
 
 /** Miniatura de foto que só existe atrás da API: baixa com o token, mostra e solta o endereço ao sair da tela. */
-export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTocar, altura, ajuste = 'cover' }: Props) {
+export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTocar, altura, ajuste = 'cover', proporcional, alturaMaxima }: Props) {
   const { cores } = useTema();
+  const [razao, setRazao] = useState<number | null>(null);
   const { dados: endereco, erro, carregando, recarregar } = useCarregar(chave, async () => enderecoDaImagem(await carregar()));
   useEffect(
     () => () => {
@@ -46,7 +53,8 @@ export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTo
     },
     [endereco],
   );
-  const caixa = [estilos.caixa, { width: tamanho, height: altura ?? tamanho, maxWidth: '100%' as const, borderColor: cores.borda, backgroundColor: cores.superficie2 }];
+  const alturaDaCaixa = proporcional && razao ? Math.min(alturaMaxima ?? Number.POSITIVE_INFINITY, Math.round(tamanho / razao)) : altura ?? tamanho;
+  const caixa = [estilos.caixa, { width: tamanho, height: alturaDaCaixa, maxWidth: '100%' as const, borderColor: cores.borda, backgroundColor: cores.superficie2 }];
   if (erro) {
     return (
       <Pressable accessibilityRole="button" accessibilityLabel={`${descricao}: não foi possível carregar. Tocar para tentar de novo`}
@@ -58,7 +66,8 @@ export function ImagemProtegida({ chave, carregar, descricao, tamanho = 96, aoTo
   if (carregando || !endereco) {
     return <View accessibilityRole="progressbar" accessibilityLabel={`Carregando: ${descricao}`} style={caixa} />;
   }
-  const imagem = <Image source={{ uri: endereco }} cachePolicy="none" accessibilityLabel={descricao} contentFit={ajuste} style={estilos.imagem} />;
+  const imagem = <Image source={{ uri: endereco }} cachePolicy="none" accessibilityLabel={descricao} contentFit={ajuste} style={estilos.imagem}
+    onLoad={proporcional ? (e) => { const { width, height } = e.source; if (width > 0 && height > 0) setRazao(width / height); } : undefined} />;
   return aoTocar ? (
     <Pressable accessibilityRole="imagebutton" accessibilityLabel={descricao} onPress={aoTocar}
       style={[caixa, { minWidth: ALVO_TOQUE, minHeight: ALVO_TOQUE }]}>{imagem}</Pressable>

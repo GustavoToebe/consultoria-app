@@ -13,6 +13,8 @@ public final class LimitesQuestionario {
     public static final int INSTRUCOES = 10;
     public static final int INSTRUCAO_TAMANHO = 300;
     public static final int TITULO_TAMANHO = 80;
+    /** Descrição da seção (opcional, com o formato simples do texto do INFORMATIVO: negrito, sublinhado e quebras de linha). */
+    public static final int DESCRICAO_SECAO_TAMANHO = 4000;
     public static final int ROTULO_TAMANHO = 200;
     public static final int AJUDA_TAMANHO = 300;
     public static final int ROTULO_CURTO_TAMANHO = 20;
@@ -26,6 +28,18 @@ public final class LimitesQuestionario {
     public static final int DESTAQUES_MAXIMO = 4;
     /** Fotos por pergunta FOTOS (o limite por dia e o tamanho de cada foto são do {@code FotoService} e vêm de {@code GET /aluno/fotos/configuracao}). */
     public static final int FOTOS_POR_PERGUNTA = 6;
+    /** Perguntas FOTOS num questionário (cada uma com o seu {@code max}, de 1 a {@link #FOTOS_POR_PERGUNTA}). */
+    public static final int PERGUNTAS_FOTOS = 6;
+    /**
+     * Escala da NOTA: ponta de baixo ({@code min}) 0 ou 1, padrão 0; ponta de cima ({@code max}) de 2 a 10, padrão 10.
+     * NOTAS_POR_DIA continua de 0 a 10, sem escala.
+     */
+    public static final int NOTA_MIN_PADRAO = 0;
+    public static final int NOTA_MIN_MAXIMO = 1;
+    public static final int NOTA_MAX_MINIMO = 2;
+    public static final int NOTA_MAX_PADRAO = 10;
+    /** Texto embaixo de cada ponta da escala da NOTA ({@code rotuloMin}, {@code rotuloMax}). */
+    public static final int ROTULO_PONTA_TAMANHO = 40;
     public static final int TEXTO_CURTO_CAPACIDADE = 500;
     public static final int TEXTO_LONGO_CAPACIDADE = 2000;
     /** Resposta do TEXTO com destino OBJETIVO: o tamanho de {@code aluno.objetivo} (o mesmo do cadastro na ficha). */

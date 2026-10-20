@@ -55,8 +55,9 @@ public class ValidadorAtualizacao {
     }
 
     /**
-     * Com as fotos ligadas, a resposta de FOTOS é a lista de ids das fotos já enviadas (sem repetir, no máximo
-     * {@link LimitesQuestionario#FOTOS_POR_PERGUNTA}); quem as liga é o {@code FotoService}, no envio.
+     * Com as fotos ligadas, a resposta de cada FOTOS é a lista de ids das fotos já enviadas (sem repetir, no máximo o
+     * {@code max} da pergunta, que vai até {@link LimitesQuestionario#FOTOS_POR_PERGUNTA}); quem as liga é o
+     * {@code FotoService}, no envio.
      */
     public JsonNode validar(JsonNode modelo, JsonNode respostas, boolean fotosLigadas) {
         return validar(modelo, respostas, fotosLigadas, "ATUALIZACAO_INVALIDA", LocalDate.now(Fuso.BRASILIA));
@@ -158,18 +159,18 @@ public class ValidadorAtualizacao {
 
     private static boolean valida(String tipo, JsonNode p, JsonNode v, LocalDate hoje) {
         return switch (tipo) {
-            case "NOTA" -> nota(v);
+            case "NOTA" -> nota(v, p);
             case "PESO" -> v.isNumber() && v.asDouble() >= 20 && v.asDouble() <= 400 && v.decimalValue().stripTrailingZeros().scale() <= 1;
             case "TEXTO", "TEXTO_LONGO" -> v.isString() && v.asString().length() <= tamanhoDoTexto(tipo, p)
                     && (!"CPF".equals(p.path("destino").asString("")) || formatoAceito(() -> Formatos.cpf(v.asString())));
             case "NOTAS_POR_DIA" -> v.isObject() && v.properties().stream().allMatch(e ->
                     p.path("dias").valueStream().anyMatch(d -> String.valueOf(d.asInt()).equals(e.getKey()))
-                            && (e.getValue().isNull() || nota(e.getValue())));
+                            && (e.getValue().isNull() || nota(e.getValue(), LimitesQuestionario.NOTA_MIN_PADRAO, LimitesQuestionario.NOTA_MAX_PADRAO)));
             case "ESCOLHA_UNICA" -> v.isString() && ids(p.path("opcoes")).contains(v.asString());
             case "MULTIPLA_ESCOLHA" -> multiplaEscolha(p, v);
             case "NUMERO" -> numero(p, v);
             case "SIM_NAO" -> v.isBoolean();
-            case "FOTOS" -> fotos(v);
+            case "FOTOS" -> fotos(v, p);
             case "DATA" -> data(p, v, hoje);
             case "TELEFONE" -> telefone(v)
                     && (!"TELEFONE".equals(p.path("destino").asString("")) || formatoAceito(() -> Formatos.telefone(v.asString())));
@@ -267,9 +268,13 @@ public class ValidadorAtualizacao {
                 && e.getValue().isString() && colunas.contains(e.getValue().asString()));
     }
 
-    /** Lista de ids (UUID) sem repetição, de 1 a {@code FOTOS_POR_PERGUNTA}. A lista vazia já foi tratada como "não respondida". */
-    private static boolean fotos(JsonNode v) {
-        if (!v.isArray() || v.size() > LimitesQuestionario.FOTOS_POR_PERGUNTA) {
+    /**
+     * Lista de ids (UUID) sem repetição, de 1 ao {@code max} da pergunta (sem ele, {@code FOTOS_POR_PERGUNTA}). A lista
+     * vazia já foi tratada como "não respondida".
+     */
+    private static boolean fotos(JsonNode v, JsonNode p) {
+        int maximo = inteiroOu(p.path("max"), 1, LimitesQuestionario.FOTOS_POR_PERGUNTA, LimitesQuestionario.FOTOS_POR_PERGUNTA);
+        if (!v.isArray() || v.size() > maximo) {
             return false;
         }
         Set<String> vistos = new HashSet<>();
@@ -292,8 +297,30 @@ public class ValidadorAtualizacao {
         return lista;
     }
 
-    private static boolean nota(JsonNode v) {
-        return v.isIntegralNumber() && v.asLong() >= 0 && v.asLong() <= 10;
+    /** Inteiro dentro da escala da pergunta: de {@code min} (0 ou 1) a {@code max} (2 a 10); sem elas, de 0 a 10. */
+    private static boolean nota(JsonNode v, JsonNode p) {
+        int min = inteiroOu(p.path("min"), 0, LimitesQuestionario.NOTA_MIN_MAXIMO, LimitesQuestionario.NOTA_MIN_PADRAO);
+        int max = inteiroOu(p.path("max"), LimitesQuestionario.NOTA_MAX_MINIMO, LimitesQuestionario.NOTA_MAX_PADRAO,
+                LimitesQuestionario.NOTA_MAX_PADRAO);
+        return nota(v, min, max);
+    }
+
+    /**
+     * O inteiro do campo da pergunta, se estiver de {@code minimo} a {@code maximo}; senão (ausente ou fora da regra de
+     * publicação), o {@code padrao}. Igual a {@code escalaDaNota}/{@code maximoDeFotos} de {@code dominio/questionario.ts}.
+     */
+    private static int inteiroOu(JsonNode n, int minimo, int maximo, int padrao) {
+        if (!n.isNumber() || (n.isFloatingPointNumber() && !Double.isFinite(n.doubleValue()))) {
+            return padrao;
+        }
+        BigDecimal v = n.decimalValue();
+        boolean valido = v.stripTrailingZeros().scale() <= 0 && v.compareTo(BigDecimal.valueOf(minimo)) >= 0
+                && v.compareTo(BigDecimal.valueOf(maximo)) <= 0;
+        return valido ? v.intValueExact() : padrao;
+    }
+
+    private static boolean nota(JsonNode v, int min, int max) {
+        return v.isIntegralNumber() && v.asLong() >= min && v.asLong() <= max;
     }
 
     private static Set<String> ids(JsonNode lista) {

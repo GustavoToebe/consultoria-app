@@ -421,7 +421,7 @@ public class QuestionarioService {
     /** Rascunho incompleto é aceito; aqui só se fixa o formato e o que o JSON gravado precisa ter. */
     static ConteudoQuestionario normalizar(ConteudoQuestionario c) {
         List<Secao> secoes = c.secoes() == null ? List.of() : c.secoes().stream()
-                .map(s -> new Secao(s.uid(), s.titulo(), s.perguntas() == null ? List.<Pergunta>of()
+                .map(s -> new Secao(s.uid(), s.titulo(), s.descricao(), s.perguntas() == null ? List.<Pergunta>of()
                         : s.perguntas().stream().map(QuestionarioService::normalizar).toList(), s.mostrarSe()))
                 .toList();
         return new ConteudoQuestionario(FORMATO, c.instrucoes() == null ? List.of() : c.instrucoes(), secoes);
@@ -431,7 +431,7 @@ public class QuestionarioService {
         return new Pergunta(p.id(), p.tipo(), p.rotulo(), Boolean.TRUE.equals(p.obrigatoria()), p.ajuda(),
                 p.destaque(), p.rotuloCurto(), p.ajudaAutomatica(), p.dias(), p.opcoes(), p.unidade(), p.min(),
                 p.max(), p.casas(), p.imagemId(), p.somentePassado(), p.linhas(), p.colunas(), p.texto(),
-                p.declaracao(), p.mostrarSe(), p.destino(), p.destinoData());
+                p.declaracao(), p.mostrarSe(), p.destino(), p.destinoData(), p.rotuloMin(), p.rotuloMax());
     }
 
     private ConteudoQuestionario ler(String conteudo) {

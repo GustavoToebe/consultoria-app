@@ -13,7 +13,7 @@ import { novoUid } from './uid';
 export const ROTULO_DO_TIPO: Record<TipoPergunta, string> = {
   DATA_AUTOMATICA: 'Data da atualização',
   PESO: 'Peso',
-  NOTA: 'Nota de 0 a 10',
+  NOTA: 'Nota',
   NOTAS_POR_DIA: 'Notas por dia',
   TEXTO: 'Texto curto',
   TEXTO_LONGO: 'Texto longo',
@@ -31,9 +31,9 @@ export const ROTULO_DO_TIPO: Record<TipoPergunta, string> = {
   INFORMATIVO: 'Texto ou imagem (sem resposta)',
 };
 
-/** Tipos do menu "Adicionar pergunta". FOTOS só aparece no menu enquanto o questionário não tem uma (é única). */
+/** Tipos do menu "Adicionar pergunta". PESO e DATA_AUTOMATICA são únicos; FOTOS vai até `perguntasFotos` por questionário. */
 export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: string; soAtualizacao?: boolean; soAnamnese?: boolean }[] = [
-  { tipo: 'NOTA', descricao: 'O aluno escolhe uma nota de 0 a 10.' },
+  { tipo: 'NOTA', descricao: 'O aluno escolhe uma nota numa escala (de 0 ou 1 até 2 a 10), com texto opcional nas pontas.' },
   { tipo: 'SIM_NAO', descricao: 'Resposta Sim ou Não.' },
   { tipo: 'ESCOLHA_UNICA', descricao: 'Uma opção entre as que você definir.' },
   { tipo: 'MULTIPLA_ESCOLHA', descricao: 'Uma ou mais opções entre as que você definir.' },
@@ -50,7 +50,7 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
   { tipo: 'NOTAS_POR_DIA', descricao: 'Uma nota para cada dia da semana de treino.' },
   { tipo: 'PESO', descricao: 'O peso informado. Na atualização, vai para o registro de peso do aluno. Só uma por questionário.' },
   { tipo: 'DATA_AUTOMATICA', descricao: 'Mostra a data da atualização. Só uma por questionário.', soAtualizacao: true },
-  { tipo: 'FOTOS', descricao: 'O aluno anexa até 6 fotos. Só aparece para o aluno quando o envio de fotos está ligado no servidor. Só uma por questionário.' },
+  { tipo: 'FOTOS', descricao: 'O aluno anexa de 1 a 6 fotos (você escolhe quantas). Só aparece para o aluno quando o envio de fotos está ligado no servidor.' },
 ];
 
 /** Os tipos que valem para a finalidade (a anamnese não tem data da atualização; o endereço só existe na anamnese). */
@@ -82,7 +82,7 @@ export function gruposParaAdicionar(finalidade: FinalidadeQuestionario): { rotul
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
 const SEM_OBRIGATORIA: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'INFORMATIVO'];
-const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA', 'FOTOS'];
+const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA'];
 
 export const aceitaDestaque = (tipo: TipoPergunta) => COM_DESTAQUE.includes(tipo);
 export const aceitaAjudaAutomatica = (tipo: TipoPergunta, finalidade: FinalidadeQuestionario = 'ATUALIZACAO') =>
@@ -119,6 +119,7 @@ export function normalizarQuestionario(c: Partial<ConteudoQuestionario> | null |
     secoes: (c?.secoes ?? []).map((s) => ({
       uid: s.uid ?? novoUid(),
       titulo: s.titulo ?? '',
+      ...(s.descricao != null ? { descricao: s.descricao } : {}),
       perguntas: (s.perguntas ?? []).map((p) => ({ ...p, obrigatoria: p.obrigatoria === true })),
       ...(s.mostrarSe ? { mostrarSe: s.mostrarSe } : {}),
     })),
@@ -138,10 +139,12 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
     secoes: c.secoes.map((s) => ({
       uid: s.uid,
       titulo: s.titulo,
+      descricao: texto(s.descricao),
       mostrarSe: s.mostrarSe,
       perguntas: s.perguntas.map((p): PerguntaAtualizacao => {
         const destacada = aceitaDestaque(p.tipo) && p.destaque === true;
         const numerico = p.tipo === 'NUMERO';
+        const nota = p.tipo === 'NOTA';
         return {
           id: p.id,
           tipo: p.tipo,
@@ -154,9 +157,11 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
           dias: p.tipo === 'NOTAS_POR_DIA' ? p.dias : undefined,
           opcoes: temOpcoes(p.tipo) ? p.opcoes?.map((o) => opcao(o, true)) : undefined,
           unidade: numerico ? texto(p.unidade) : undefined,
-          min: numerico ? p.min : undefined,
-          max: numerico ? p.max : undefined,
+          min: numerico || nota ? p.min : undefined,
+          max: numerico || nota || p.tipo === 'FOTOS' ? p.max : undefined,
           casas: numerico ? p.casas : undefined,
+          rotuloMin: nota ? texto(p.rotuloMin) : undefined,
+          rotuloMax: nota ? texto(p.rotuloMax) : undefined,
           imagemId: texto(p.imagemId),
           somentePassado: p.tipo === 'DATA' && p.somentePassado === true ? true : undefined,
           linhas: p.tipo === 'GRADE' ? p.linhas?.map((o) => opcao(o, false)) : undefined,
@@ -177,17 +182,20 @@ const todas = (c: ConteudoQuestionario) => c.secoes.flatMap((s) => s.perguntas);
 
 export interface Permissao { pode: boolean; motivo?: string }
 
-/** O que a publicação recusaria, avisado antes: tipos únicos e limites de quantidade. */
+/** O que a publicação recusaria, avisado antes: tipos únicos, teto das FOTOS e limites de quantidade. */
 export function podeAdicionar(c: ConteudoQuestionario, secao: number, tipo: TipoPergunta): Permissao {
   if (UNICOS.includes(tipo) && todas(c).some((p) => p.tipo === tipo)) {
     return { pode: false, motivo: tipo === 'PESO' ? 'Já existe uma pergunta de peso.' : 'Já existe uma pergunta deste tipo.' };
+  }
+  if (tipo === 'FOTOS' && todas(c).filter((p) => p.tipo === 'FOTOS').length >= L.perguntasFotos) {
+    return { pode: false, motivo: `O questionário já tem ${L.perguntasFotos} perguntas de fotos.` };
   }
   if ((c.secoes[secao]?.perguntas.length ?? 0) >= L.perguntasPorSecao) return { pode: false, motivo: `A seção já tem ${L.perguntasPorSecao} perguntas.` };
   if (totalDePerguntas(c) >= L.perguntasTotal) return { pode: false, motivo: `O questionário já tem ${L.perguntasTotal} perguntas.` };
   return { pode: true };
 }
 
-/** Duplicar cria uma cópia do mesmo tipo: tipo único não duplica. */
+/** Duplicar cria uma cópia do mesmo tipo: tipo único (e FOTOS no teto) não duplica. */
 export function podeDuplicar(c: ConteudoQuestionario, secao: number, indice: number): Permissao {
   const p = c.secoes[secao]?.perguntas[indice];
   if (!p) return { pode: false };
@@ -229,6 +237,9 @@ export function moverParaSecao(c: ConteudoQuestionario, de: { secao: number; per
 export const adicionarSecao = (c: ConteudoQuestionario) => ({ ...c, secoes: [...c.secoes, novaSecao()] });
 export const alterarSecao = (c: ConteudoQuestionario, secao: number, titulo: string) =>
   ({ ...c, secoes: c.secoes.map((s, i) => (i === secao ? { ...s, titulo } : s)) });
+/** Descrição da seção (texto embaixo do título); vazia sai no `paraApi`. */
+export const alterarDescricaoDaSecao = (c: ConteudoQuestionario, secao: number, descricao: string) =>
+  ({ ...c, secoes: c.secoes.map((s, i) => (i === secao ? { ...s, descricao } : s)) });
 export const removerSecao = (c: ConteudoQuestionario, secao: number) => ({ ...c, secoes: remover(c.secoes, secao) });
 export const moverSecao = (c: ConteudoQuestionario, secao: number, delta: -1 | 1) => ({ ...c, secoes: mover(c.secoes, secao, delta) });
 

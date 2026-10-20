@@ -24,23 +24,28 @@ public record ConteudoQuestionario(
         @Size(max = LimitesQuestionario.INSTRUCOES) List<@NotNull @Size(max = LimitesQuestionario.INSTRUCAO_TAMANHO) String> instrucoes,
         @NotNull @Size(max = LimitesQuestionario.SECOES) List<@NotNull @Valid Secao> secoes) {
 
-    /** {@code mostrarSe} nulo = seção sempre visível. */
+    /**
+     * {@code descricao} (opcional) é o texto embaixo do título, no formato simples do INFORMATIVO ({@code **negrito**},
+     * {@code __sublinhado__}, quebras de linha); {@code mostrarSe} nulo = seção sempre visível.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Secao(
             @Pattern(regexp = LimitesQuestionario.ID_PADRAO) String uid,
             @Size(max = LimitesQuestionario.TITULO_TAMANHO) String titulo,
+            @Size(max = LimitesQuestionario.DESCRICAO_SECAO_TAMANHO) String descricao,
             @NotNull @Size(max = LimitesQuestionario.PERGUNTAS_POR_SECAO) List<@NotNull @Valid Pergunta> perguntas,
             @Valid Condicao mostrarSe) {
 
         public Secao(String uid, String titulo, List<Pergunta> perguntas) {
-            this(uid, titulo, perguntas, null);
+            this(uid, titulo, null, perguntas, null);
         }
     }
 
     /**
-     * Campos que só valem para alguns tipos: {@code dias} (NOTAS_POR_DIA), {@code opcoes} (escolhas), {@code unidade},
-     * {@code min}, {@code max} e {@code casas} (NUMERO), {@code somentePassado} (DATA), {@code linhas} e {@code colunas}
+     * Campos que só valem para alguns tipos: {@code dias} (NOTAS_POR_DIA), {@code opcoes} (escolhas), {@code unidade} e
+     * {@code casas} (NUMERO), {@code min} e {@code max} (NUMERO: faixa; NOTA: pontas da escala, 0 ou 1 e de 2 a 10; FOTOS:
+     * só {@code max}, fotos aceitas de 1 a 6), {@code rotuloMin} e {@code rotuloMax} (NOTA), {@code somentePassado} (DATA), {@code linhas} e {@code colunas}
      * (GRADE), {@code texto} (ACEITE e INFORMATIVO) e {@code declaracao} (ACEITE). {@code imagemId} e {@code mostrarSe}
      * valem para todos. Só na anamnese: {@code destino} (campo do cadastro que a resposta alimenta) e, no PESO com destino,
      * {@code destinoData} (id da pergunta DATA com a data da pesagem; sem ela, vale a data do envio).
@@ -70,7 +75,9 @@ public record ConteudoQuestionario(
             @Size(max = LimitesQuestionario.DECLARACAO_TAMANHO) String declaracao,
             @Valid Condicao mostrarSe,
             DestinoNoPerfil destino,
-            @Size(max = LimitesQuestionario.ID_TAMANHO) String destinoData) {
+            @Size(max = LimitesQuestionario.ID_TAMANHO) String destinoData,
+            @Size(max = LimitesQuestionario.ROTULO_PONTA_TAMANHO) String rotuloMin,
+            @Size(max = LimitesQuestionario.ROTULO_PONTA_TAMANHO) String rotuloMax) {
 
         /** Pergunta sem destino no perfil. */
         public Pergunta(String id, TipoPergunta tipo, String rotulo, Boolean obrigatoria, String ajuda, Boolean destaque,
@@ -79,7 +86,7 @@ public record ConteudoQuestionario(
                         Boolean somentePassado, List<Opcao> linhas, List<Opcao> colunas, String texto, String declaracao,
                         Condicao mostrarSe) {
             this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
-                    max, casas, imagemId, somentePassado, linhas, colunas, texto, declaracao, mostrarSe, null, null);
+                    max, casas, imagemId, somentePassado, linhas, colunas, texto, declaracao, mostrarSe, null, null, null, null);
         }
 
         /** Pergunta sem os campos da anamnese (imagem, data, grade, aceite, condição, destino). */
@@ -87,7 +94,7 @@ public record ConteudoQuestionario(
                         String rotuloCurto, AjudaAutomatica ajudaAutomatica, List<Integer> dias, List<Opcao> opcoes,
                         String unidade, BigDecimal min, BigDecimal max, Integer casas) {
             this(id, tipo, rotulo, obrigatoria, ajuda, destaque, rotuloCurto, ajudaAutomatica, dias, opcoes, unidade, min,
-                    max, casas, null, null, null, null, null, null, null, null, null);
+                    max, casas, null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 

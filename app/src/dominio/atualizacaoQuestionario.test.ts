@@ -1,7 +1,8 @@
 import type { ConteudoQuestionario, PerguntaAtualizacao } from '../api/tipos';
 import {
   ajudaDoNumero, alternarMarcado, escolhaParaSimNao, perguntaPeso, perguntasDestaque, rascunhoVigente, respostasCompativeis,
-  progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso,
+  progressoDasSecoes, resumoDoTreinador, simNaoParaEscolha, textoDaResposta, textoDoProgresso, textoDaNota, respostasDaGrade,
+  colunasDasOpcoes,
 } from './atualizacaoQuestionario';
 import { errosRespostasAtualizacao, respondida } from './respostasAtualizacao';
 
@@ -193,5 +194,33 @@ describe('tipos da anamnese', () => {
     expect(progressoDasSecoes(modelo, { s: false })).toEqual([{ respondidas: 1, total: 1 }, { respondidas: 0, total: 1 }]);
     expect(textoDoProgresso({ respondidas: 1, total: 2 })).toBe('1 de 2 respondidas');
     expect(textoDoProgresso({ respondidas: 0, total: 0 })).toBe('');
+  });
+});
+
+describe('apoio da nota, da grade e das opções com imagem', () => {
+  it('nota na leitura leva a ponta de cima; sem resposta, "—"', () => {
+    expect(textoDaNota({ min: 1, max: 5 }, 4)).toBe('4 de 5');
+    expect(textoDaNota({}, 0)).toBe('0 de 10');
+    expect(textoDaNota({}, null)).toBe('—');
+  });
+
+  it('grade na leitura: uma linha por item, "—" na linha sem resposta', () => {
+    const p = { linhas: [{ id: 'l1', rotulo: 'Azia' }, { id: 'l2', rotulo: 'Insônia' }], colunas: [{ id: 'c1', rotulo: 'Nunca' }, { id: 'c2', rotulo: 'Sempre' }] };
+    expect(respostasDaGrade(p, { l2: 'c2' })).toEqual([{ id: 'l1', linha: 'Azia', resposta: '—' }, { id: 'l2', linha: 'Insônia', resposta: 'Sempre' }]);
+    expect(respostasDaGrade(p, null).map((x) => x.resposta)).toEqual(['—', '—']);
+    expect(respostasDaGrade(p, { l1: 'outra' })[0].resposta).toBe('—');
+  });
+
+  it('grade obrigatória só conta no progresso com todas as linhas', () => {
+    const m: ConteudoQuestionario = { instrucoes: [], secoes: [{ titulo: 'S', perguntas: [{ id: 'g', tipo: 'GRADE', rotulo: 'G', obrigatoria: true,
+      linhas: [{ id: 'a', rotulo: 'A' }, { id: 'b', rotulo: 'B' }], colunas: [{ id: 'x', rotulo: 'X' }] }] }] };
+    expect(progressoDasSecoes(m, { g: { a: 'x' } })).toEqual([{ respondidas: 0, total: 1 }]);
+    expect(progressoDasSecoes(m, { g: { a: 'x', b: 'x' } })).toEqual([{ respondidas: 1, total: 1 }]);
+  });
+
+  it('opções com imagem: 2 por linha no celular, 3 ou 4 no PC', () => {
+    expect(colunasDasOpcoes(326)).toBe(2);
+    expect(colunasDasOpcoes(640)).toBe(3);
+    expect(colunasDasOpcoes(960)).toBe(4);
   });
 });

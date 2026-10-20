@@ -423,6 +423,54 @@ class QuestionariosIntegrationTest extends AbstractIntegrationTest {
                 .isEqualTo("Respondido fictício");
     }
 
+    @Test
+    void descricaoDaSecaoEscalaDaNotaEVariasFotosSaoGuardadasEValemNoEnvio() throws Exception {
+        JsonNode q = criar("Escala fictícia", "FABRICA");
+        ObjectNode rascunho = (ObjectNode) q.path("rascunho").deepCopy();
+        ObjectNode secao = (ObjectNode) rascunho.path("secoes").get(0);
+        secao.put("descricao", "**Leia** com calma.\n__Responda__ tudo.");
+        ((ObjectNode) pergunta(rascunho, "sono")).put("min", 1).put("max", 5).put("rotuloMin", "Péssimo").put("rotuloMax", "Ótimo");
+        var perguntas = (tools.jackson.databind.node.ArrayNode) secao.path("perguntas");
+        perguntas.addObject().put("id", "frente").put("tipo", "FOTOS").put("rotulo", "Foto de frente").put("max", 2);
+        perguntas.addObject().put("id", "lado").put("tipo", "FOTOS").put("rotulo", "Foto de lado");
+        JsonNode salvo = salvar(q, rascunho, 200);
+        JsonNode guardado = salvo.path("rascunho");
+        assertThat(guardado.path("secoes").get(0).path("descricao").asString()).isEqualTo("**Leia** com calma.\n__Responda__ tudo.");
+        JsonNode sono = pergunta((ObjectNode) guardado, "sono");
+        assertThat(sono.path("min").asInt()).isEqualTo(1);
+        assertThat(sono.path("max").asInt()).isEqualTo(5);
+        assertThat(sono.path("rotuloMin").asString()).isEqualTo("Péssimo");
+        assertThat(sono.path("rotuloMax").asString()).isEqualTo("Ótimo");
+        assertThat(pergunta((ObjectNode) guardado, "frente").path("max").asInt()).isEqualTo(2);
+        JsonNode publicadoV1 = publicar(salvo, true, 200);
+        assertThat(publicadoV1.path("versaoPublicada").asInt()).isEqualTo(1);
+
+        String pasta = pastaComTreino();
+        JsonNode loginAluno = api.convidarEEntrar(treinador, aluno);
+        api.put("/alunos/" + aluno + "/questionario", treinador, Map.of("questionarioId", q.path("id").asString()), 200);
+        JsonNode vigente = api.get("/aluno/atualizacao", loginAluno, 200);
+        String versao = vigente.path("questionarioVersaoId").asString();
+        JsonNode recusado = api.post("/aluno/atualizacao/enviar", loginAluno, Map.of("pastaId", pasta, "questionarioVersaoId", versao,
+                "respostas", Map.of("peso", 80.5, "sono", 7, "alim_desempenho", 8, "treino_desempenho", 6)), 422);
+        assertThat(recusado.path("fieldErrors").valueStream().map(f -> f.path("field").asString())).containsExactly("sono");
+        api.post("/aluno/atualizacao/enviar", loginAluno, Map.of("pastaId", pasta, "questionarioVersaoId", versao,
+                "respostas", Map.of("peso", 80.5, "sono", 5, "alim_desempenho", 8, "treino_desempenho", 6)), 200);
+    }
+
+    @Test
+    void seteFotosEEscalaForaDaRegraNaoPublicam() throws Exception {
+        JsonNode q = criar("Fotos demais fictício", "FABRICA");
+        ObjectNode rascunho = (ObjectNode) q.path("rascunho").deepCopy();
+        ((ObjectNode) pergunta(rascunho, "sono")).put("max", 11);
+        var perguntas = (tools.jackson.databind.node.ArrayNode) rascunho.path("secoes").get(0).path("perguntas");
+        for (int i = 1; i <= 7; i++) {
+            perguntas.addObject().put("id", "foto" + i).put("tipo", "FOTOS").put("rotulo", "Foto " + i);
+        }
+        JsonNode erro = publicar(salvar(q, rascunho, 200), true, 422);
+        assertThat(erro.path("fieldErrors").valueStream().map(f -> f.path("field").asString()).toList())
+                .anyMatch(c -> c.endsWith(".max")).anyMatch(c -> c.endsWith(".tipo"));
+    }
+
     // ---- escolha no aluno e na pasta ----
 
     @Test
