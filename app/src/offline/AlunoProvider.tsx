@@ -6,11 +6,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import { enviarRegistros, mobilidadeAluno, painelAluno, planosDaPastaAluno } from '../api/rotas';
+import { enviarRegistros, historicoAluno, mobilidadeAluno, painelAluno, planosDaPastaAluno } from '../api/rotas';
 import type { Atualizacao, ConteudoMobilidadeApi, PastaDoAluno, PlanosDaPasta, VersaoDetalhe } from '../api/tipos';
+import { hojeIso, somarDias } from '../dominio/formatos';
+import { periodoDaSemana } from '../dominio/progressoSemana';
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
+import { fundirComServidor, registrosDoServidor, trocarPeriodo } from './execucoesDoServidor';
 import { limparDadosDoAluno } from './limparDadosDoAluno';
 import type { DadosRegistro, PacoteSalvo, RegistroLocal, RepositorioLocal } from './repositorioLocal';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
@@ -43,7 +46,15 @@ interface ValorAluno {
   carregando: boolean;
   /** Não deu para baixar o pacote e não há nada salvo. */
   erroPacote: unknown;
+  /**
+   * Registros do aparelho mais as séries que já estão no servidor e o aparelho não tem (outro aparelho, ou antes de
+   * sair e entrar de novo), estas com situação `ENVIADO`. Na mesma série e dia, o do aparelho ganha.
+   */
   registros: RegistroLocal[];
+  /** A semana de `data` ainda não veio do servidor nesta abertura: busca (sem conexão, a semana atual sai do aparelho). */
+  carregarSemanaDoServidor: (data: string) => Promise<void>;
+  /** A semana atual não veio do servidor: a tela mostra o que ficou salvo no aparelho. */
+  semanaDoAparelho: boolean;
   /** Por `planoVersaoId|serieUid|data`. */
   registroDe: (planoVersaoId: string, serieUid: string, data: string) => RegistroLocal | undefined;
   cargasDeTrabalho: Record<string, number>;
@@ -59,6 +70,12 @@ interface ValorAluno {
 }
 
 const Contexto = createContext<ValorAluno | null>(null);
+
+/** Desde quando buscar as séries do servidor ao abrir: o início do plano, no máximo os 60 dias que o registro aceita. */
+function desdeDoPlano(inicio: string | null): string {
+  const limite = somarDias(hojeIso(), -60);
+  return inicio && inicio > limite ? inicio : limite;
+}
 const ESPERA_APOS_GRAVAR_MS = 2_000;
 const INTERVALO_COM_PENDENCIA_MS = 60_000;
 
@@ -107,6 +124,9 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const [carregando, setCarregando] = useState(true);
   const [erroPacote, setErroPacote] = useState<unknown>(null);
   const [registros, setRegistros] = useState<RegistroLocal[]>([]);
+  const [doServidor, setDoServidor] = useState<RegistroLocal[]>([]);
+  const [semanaDoAparelho, setSemanaDoAparelho] = useState(false);
+  const semanasPedidas = useRef(new Set<string>());
   const [cargas, setCargas] = useState<Record<string, number>>({});
   const [envio, setEnvio] = useState<EstadoEnvio>('ocioso');
   const [mensagemEnvio, setMensagemEnvio] = useState<string | null>(null);
@@ -130,6 +150,38 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     }
   }, [repositorio]);
 
+  // Séries já no servidor, por semana (segunda a domingo). Só leitura: nada disso entra na fila nem no repositório, a não
+  // ser a semana atual guardada para abrir sem internet (a mesma cópia que o "Sua semana" já usava). `desde` alarga a
+  // busca para trás numa chamada só (o período do plano, para as datas das divisões).
+  const carregarSemanaDoServidor = useCallback(async (data: string, forcar = false, desde?: string) => {
+    const { inicio: inicioDaData, fim } = periodoDaSemana(data);
+    const inicio = desde && desde < inicioDaData ? periodoDaSemana(desde).inicio : inicioDaData;
+    const semanaAtual = periodoDaSemana(hojeIso());
+    const semanas: string[] = [];
+    for (let s = inicio; s <= fim; s = somarDias(s, 7)) semanas.push(s);
+    if (!forcar && semanas.every((s) => semanasPedidas.current.has(s))) return;
+    for (const s of semanas) semanasPedidas.current.add(s);
+    const temAtual = semanas.includes(semanaAtual.inicio);
+    try {
+      const dias = await historicoAluno(inicio, fim);
+      setDoServidor((antes) => trocarPeriodo(antes, inicio, fim, registrosDoServidor(dias)));
+      if (temAtual) {
+        setSemanaDoAparelho(false);
+        const daSemana = dias.filter((d) => d.data >= semanaAtual.inicio && d.data <= semanaAtual.fim);
+        await repositorio.salvarHistoricoSemana({ inicio: semanaAtual.inicio, dias: daSemana }).catch(() => undefined);
+      }
+    } catch {
+      // Sem conexão ou erro: tenta de novo na próxima vez que alguém pedir; a semana atual sai da cópia do aparelho.
+      for (const s of semanas) semanasPedidas.current.delete(s);
+      if (!temAtual) return;
+      setSemanaDoAparelho(true);
+      const salvo = await repositorio.lerHistoricoSemana().catch(() => null);
+      if (salvo?.inicio === semanaAtual.inicio) {
+        setDoServidor((antes) => trocarPeriodo(antes, semanaAtual.inicio, semanaAtual.fim, registrosDoServidor(salvo.dias)));
+      }
+    }
+  }, [repositorio]);
+
   const baixarPacote = useCallback(async () => {
     try {
       const novo = await painelAluno();
@@ -139,12 +191,14 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       setErroPacote(null);
       atualizarMarca(novo.marca);
       await baixarMobilidade();
+      await carregarSemanaDoServidor(hojeIso(), true, desdeDoPlano(novo.treino?.inicio ?? null));
     } catch (erro) {
       // Sem conexão: segue com o pacote salvo. Sem pacote salvo, a tela explica.
       if (!(erro instanceof ErroApi && erro.semConexao)) setErroPacote(erro);
       else setErroPacote((atual: unknown) => atual ?? erro);
+      await carregarSemanaDoServidor(hojeIso(), true);
     }
-  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade]);
+  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, carregarSemanaDoServidor]);
 
   const sincronizar = useCallback(async () => {
     if (espera.current) {
@@ -277,7 +331,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   }, [repositorio, sincronizar]);
 
   const valor = useMemo<ValorAluno>(() => {
-    const indice = new Map(registros.map((r) => [`${r.planoVersaoId}|${r.serieUid}|${r.data}`, r]));
+    const todos = fundirComServidor(registros, doServidor);
+    const indice = new Map(todos.map((r) => [`${r.planoVersaoId}|${r.serieUid}|${r.data}`, r]));
     return {
       atualizacao,atualizarAtualizacao,
       descanso, iniciarDescanso, ajustarDescanso, pularDescanso,
@@ -288,7 +343,9 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       mobilidade,
       carregando,
       erroPacote,
-      registros,
+      registros: todos,
+      carregarSemanaDoServidor,
+      semanaDoAparelho,
       registroDe: (v, s, d) => indice.get(`${v}|${s}|${d}`),
       cargasDeTrabalho: cargas,
       pendentes,
@@ -301,7 +358,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, carregando, erroPacote, registros, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, carregando, erroPacote, registros, doServidor, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

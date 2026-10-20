@@ -1,6 +1,7 @@
 import { useAviso } from '../ui/Aviso';
 import { textoDoErro } from '../ui/erros';
 import type { Href } from 'expo-router';
+import { useEffect } from 'react';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { normalizarTreino } from '../dominio/editorTreino';
@@ -23,6 +24,11 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const treino = aluno.pacote?.pacote.treino ?? null;
   const sessao = treino ? normalizarTreino(treino.conteudo).sessoes.find((s) => s.uid === uid) : undefined;
   const config = aluno.pacote?.pacote.configuracao ?? { arredondamentoKg: 0.5, tipoTrabalho: 'WS' };
+  // O que já foi registrado no servidor (outro aparelho, ou antes de sair e entrar de novo) aparece como feito.
+  const { carregarSemanaDoServidor } = aluno;
+  useEffect(() => {
+    void carregarSemanaDoServidor(data);
+  }, [carregarSemanaDoServidor, data]);
 
   const registroDe = (serieUid: string) => (treino ? aluno.registroDe(treino.versaoId, serieUid, data) : undefined);
   const feitas = (e: ExercicioPlano) => e.series.filter((s) => registroDe(s.uid)?.concluida).length;

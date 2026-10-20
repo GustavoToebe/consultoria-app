@@ -2,6 +2,7 @@ import { CalendarDays, Check, ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Sessao } from '../api/tipos';
+import { contagem } from '../dominio/contagens';
 import { dataCurta } from '../dominio/formatos';
 import { datasDaSessao, nomeComDia, podeRegistrarEm, rotuloDoDia, rotuloDoTipo } from '../dominio/semana';
 import { useTema } from '../tema/TemaProvider';
@@ -9,8 +10,9 @@ import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Texto } from '../ui/Texto';
 
 /**
- * Uma divisão do plano ("Quarta · Pernas") com as datas dela no período em chips: hoje na cor da marca, dia com
- * série registrada com ✓ verde, dia fora da janela de 60 dias apagado.
+ * Uma divisão do plano ("Quarta · Pernas") com as datas dela no período em chips: hoje com borda forte e "Hoje" escrito
+ * (a cor da marca fica só no cartão Hoje, que é a ação principal), dia com série registrada com ✓ verde, dia fora da
+ * janela de 60 dias apagado.
  */
 export function CartaoDivisao({
   sessao,
@@ -32,7 +34,7 @@ export function CartaoDivisao({
   const temExercicios = sessao.exercicios.length > 0;
   const titulo = nomeComDia(sessao);
   const detalhe = [
-    temExercicios ? `${sessao.exercicios.length} exercícios` : rotuloDoTipo(sessao),
+    temExercicios ? contagem(sessao.exercicios.length, 'exercício', 'exercícios') : rotuloDoTipo(sessao),
     sessao.diaSemana ? null : rotuloDoDia(sessao),
     sessao.cardio,
     temExercicios && datas.length ? `${datas.length} ${datas.length === 1 ? 'dia' : 'dias'} no período` : null,
@@ -49,7 +51,7 @@ export function CartaoDivisao({
           {(datas.length ? datas : [hoje]).map((d) => (
             <ChipData
               key={d}
-              rotulo={datas.length ? dataCurta(d) : 'Abrir hoje'}
+              rotulo={d === hoje ? `Hoje · ${dataCurta(d)}` : dataCurta(d)}
               descricao={`${titulo}, ${dataCurta(d)}`}
               hoje={d === hoje}
               feito={treinouEm(d)}
@@ -71,7 +73,7 @@ export function CartaoDivisaoLeitura({ sessao }: { sessao: Sessao }) {
       <View style={estilos.textos}>
         <Texto numerico style={estilos.titulo}>{nomeComDia(sessao)}</Texto>
         <Texto numerico variante="suave">
-          {[sessao.exercicios.length ? `${sessao.exercicios.length} exercícios` : rotuloDoTipo(sessao), sessao.cardio].filter(Boolean).join(' · ')}
+          {[sessao.exercicios.length ? contagem(sessao.exercicios.length, 'exercício', 'exercícios') : rotuloDoTipo(sessao), sessao.cardio].filter(Boolean).join(' · ')}
         </Texto>
       </View>
       {sessao.exercicios.map((e) => (
@@ -98,11 +100,11 @@ function ChipData({
   ativo: boolean;
   aoTocar: () => void;
 }) {
-  const { cores, marca, marcaTexto, sobreMarca } = useTema();
-  const fundo = hoje ? marca : cores.superficie2;
-  const texto = hoje ? sobreMarca : cores.texto;
+  const { cores } = useTema();
+  const fundo = cores.superficie2;
+  const texto = cores.texto;
   const Icone = feito ? Check : CalendarDays;
-  const corIcone = hoje ? sobreMarca : feito ? cores.sucesso : marcaTexto;
+  const corIcone = feito ? cores.sucesso : cores.textoSuave;
   return (
     <Pressable
       accessibilityRole="button"
@@ -114,13 +116,14 @@ function ChipData({
         estilos.chip,
         {
           backgroundColor: fundo,
-          borderColor: feito && !hoje ? cores.sucesso : fundo,
+          borderColor: feito ? cores.sucesso : hoje ? cores.texto : fundo,
+          borderWidth: hoje ? 2 : 1,
           opacity: !ativo ? 0.45 : pressed ? 0.75 : 1,
         },
       ]}>
       <Icone size={16} color={corIcone} strokeWidth={2.5} />
       <Texto numerico style={[estilos.chipTexto, { color: texto }]}>{rotulo}</Texto>
-      {ativo ? <ChevronRight size={16} color={hoje ? sobreMarca : cores.textoSuave} /> : null}
+      {ativo ? <ChevronRight size={16} color={cores.textoSuave} /> : null}
     </Pressable>
   );
 }

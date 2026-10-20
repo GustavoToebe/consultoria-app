@@ -79,7 +79,8 @@ export function EscalaDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10 }
     <View style={estilos.campo}>
       <View style={estilos.cabecalho}>
         <Texto variante="rotulo" style={estilos.rotulo}>{rotulo}</Texto>
-        <Texto variante="destaque" cor={valor === null ? 'suave' : undefined}>{valor === null ? '—' : String(valor)}</Texto>
+        {/* Sem nota, o "—" e o trilho sem marcador pareciam controle desligado: diz o que fazer. */}
+        {valor === null ? <Texto variante="pequeno">Toque para dar a nota</Texto> : <Texto variante="destaque">{String(valor)}</Texto>}
       </View>
       <GestureDetector gesture={gesto} touchAction="pan-y">
       <View

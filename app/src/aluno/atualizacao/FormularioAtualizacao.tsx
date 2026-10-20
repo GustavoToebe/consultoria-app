@@ -182,7 +182,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
       </Cartao>
       <ContextoDeFotos.Provider value={fotos.controle}>
         <QuestionarioAtualizacao modelo={atual.modelo} dataAtualizacao={atual.dataAtualizacao} resumo={atual.resumo} respostas={respostas}
-          aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} />
+          aoMudar={!leitura&&liberada&&!ocupado?mudar:undefined} erros={erros} campos={campos} progresso={!leitura&&liberada} />
       </ContextoDeFotos.Provider>
       {!leitura&&liberada?<Botao rotulo="Enviar atualização" carregando={ocupado} aoTocar={()=>void enviar()} />:null}
       {!leitura?<Botao rotulo="Vou atrasar" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setAtraso(true)} />:null}

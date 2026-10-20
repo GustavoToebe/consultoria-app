@@ -106,7 +106,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
 
   it('histórico da semana fica isolado, sobrevive à reabertura e sai ao desconectar a conta', async () => {
     const repo = aparelho('u1');
-    const salvo = {versaoId:'v1',inicio:'2026-10-05',dias:[{data:'2026-10-05',sessoes:[]}]};
+    const salvo = {inicio:'2026-10-05',dias:[{data:'2026-10-05',sessoes:[]}]};
     await repo.salvarHistoricoSemana(salvo);
     expect(await aparelho('u2').lerHistoricoSemana()).toBeNull();
     expect(await aparelho('u1').lerHistoricoSemana()).toEqual(salvo);
@@ -294,7 +294,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       await repo.salvarMobilidade({ id: 'm1' } as never);
       await repo.salvarCargaDeTrabalho('e1', '2026-10-07', 30);
       await repo.salvarRascunhoAtualizacao('p1', { questionarioVersaoId: 'q1', respostas: { peso: 80 } });
-      await repo.salvarHistoricoSemana({ versaoId: 'v1', inicio: '2026-10-05', dias: [] });
+      await repo.salvarHistoricoSemana({ inicio: '2026-10-05', dias: [] });
       return todos;
     }
 

@@ -139,3 +139,29 @@ export function tecnicasDoExercicio(series: readonly Serie[]): TecnicaParaOAluno
   }
   return [...vistas.values()];
 }
+
+const NOME_DA_TECNICA: Record<Tecnica['tipo'], string> = { CLUSTER: 'Cluster', REST_PAUSE: 'Rest pause', DROP_SET: 'Drop-set' };
+
+function listaDeNumeros(numeros: number[]): string {
+  if (numeros.length === 1) return `na série ${numeros[0]}`;
+  return `nas séries ${numeros.slice(0, -1).join(', ')} e ${numeros[numeros.length - 1]}`;
+}
+
+/**
+ * Resumo do exercício na lista do dia: em que série está cada técnica e o descanso ("Cluster na série 4 · descanso
+ * 90 s"). A lista não mostrava nada disso e o aluno só descobria dentro do exercício. Nulo quando não há nenhum dos dois.
+ */
+export function resumoTecnicasEDescanso(series: readonly Serie[]): string | null {
+  const porTecnica = new Map<Tecnica['tipo'], number[]>();
+  series.forEach((s, i) => {
+    if (!s.tecnica) return;
+    porTecnica.set(s.tecnica.tipo, [...(porTecnica.get(s.tecnica.tipo) ?? []), i + 1]);
+  });
+  const partes = [...porTecnica].map(([tipo, numeros]) => `${NOME_DA_TECNICA[tipo]} ${listaDeNumeros(numeros)}`);
+  const descansos = series.map((s) => s.descansoSegundos ?? 0).filter((d) => d > 0);
+  if (descansos.length) {
+    const menor = Math.min(...descansos), maior = Math.max(...descansos);
+    partes.push(menor === maior ? `descanso ${menor} s` : `descanso ${menor} a ${maior} s`);
+  }
+  return partes.length ? partes.join(' · ') : null;
+}
