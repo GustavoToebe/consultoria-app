@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { avisoDeNaoEnviados, EXPLICACAO_DA_EXCLUSAO, motivoParaNaoExcluir, PALAVRA_DE_CONFIRMACAO } from '../dominio/excluirConta';
-import { treinosNaoEnviados } from '../dominio/treinosNaoEnviados';
+import { diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../dominio/treinosNaoEnviados';
 import { useAluno } from '../offline/AlunoProvider';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useAviso } from '../ui/Aviso';
@@ -23,7 +23,7 @@ import { PainelConfirmacao } from '../ui/PainelConfirmacao';
  */
 export function CartaoExcluirConta() {
   const sessao = useSessao();
-  const { registros } = useAluno();
+  const { registros, mobilidadeNoAparelho } = useAluno();
   const { avisar } = useAviso();
   const [aberto, setAberto] = useState(false);
   const [senha, setSenha] = useState('');
@@ -56,7 +56,7 @@ export function CartaoExcluirConta() {
   };
 
   const motivo = motivoParaNaoExcluir(senha, palavra);
-  const mensagem = [EXPLICACAO_DA_EXCLUSAO, avisoDeNaoEnviados(treinosNaoEnviados(registros))].filter(Boolean).join(' ');
+  const mensagem = [EXPLICACAO_DA_EXCLUSAO, avisoDeNaoEnviados(treinosNaoEnviados(registros), diasDeMobilidadeNaoEnviados(mobilidadeNoAparelho))].filter(Boolean).join(' ');
 
   return (
     <Cartao titulo="Excluir minha conta" descricao="Apaga os seus dados pessoais desta consultoria. Não tem volta.">

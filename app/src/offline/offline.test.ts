@@ -1,13 +1,14 @@
 import { ErroApi } from '../api/cliente';
-import type { LoteResponse, RegistroEnvio } from '../api/tipos';
+import type { LoteResponse, RegistroEnvio, RegistroMobilidadeEnvio } from '../api/tipos';
 import { chavePasseio } from '../dominio/passeio';
 import { chaveDasPreferencias } from '../dominio/preferencias';
 import { emMemoria } from './armazenamento';
 import { fabricaNode, type FabricaDeTeste } from './bancoNode.apoioTeste';
 import { CHAVE_FILAS_RETIDAS, registrarFilaRetida, varrerFilasRetidas } from './filasRetidas';
-import { DIAS_FILA_RETIDA, RepositorioChaveValor, type DadosRegistro, type RepositorioLocal } from './repositorioLocal';
+import { VERSAO_ESQUEMA } from './banco';
+import { DIAS_FILA_RETIDA, RepositorioChaveValor, type DadosMobilidade, type DadosRegistro, type RepositorioLocal } from './repositorioLocal';
 import { RepositorioSqlite } from './repositorioSqlite';
-import { Sincronizador } from './sincronizacao';
+import { MOTIVO_MOBILIDADE_FORA_DO_PLANO, Sincronizador } from './sincronizacao';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   // O mock oficial só existe em CommonJS (fábrica do jest.mock não aceita import).
@@ -37,9 +38,17 @@ function serie(serieUid: string, extra: Partial<DadosRegistro> = {}): DadosRegis
   };
 }
 
+const aceitaTudoMobilidade = async (registros: RegistroMobilidadeEnvio[]): Promise<LoteResponse> => ({
+  resultados: registros.map((r) => ({ id: r.id, situacao: 'ACEITO', motivo: null })),
+});
+
 const aceitaTudo = async (registros: RegistroEnvio[]): Promise<LoteResponse> => ({
   resultados: registros.map((r) => ({ id: r.id, situacao: 'ACEITO', motivo: null })),
 });
+
+/** Sincronizador que aceita toda a mobilidade: os testes das séries não mexem nela. */
+const sincronizadorDe = (repo: RepositorioLocal, enviar: (registros: RegistroEnvio[]) => Promise<LoteResponse>) =>
+  new Sincronizador(repo, enviar, aceitaTudoMobilidade);
 
 /**
  * Um "aparelho": cria repositórios por usuário que compartilham o mesmo armazenamento. A mesma bateria roda nas duas
@@ -128,7 +137,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
   it('envio repetido não duplica: o mesmo id vai de novo', async () => {
     const repo = aparelho('u1');
     const enviados: string[] = [];
-    const sync = new Sincronizador(repo, async (r) => {
+    const sync = sincronizadorDe(repo, async (r) => {
       enviados.push(...r.map((x) => x.id));
       return aceitaTudo(r);
     });
@@ -143,7 +152,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
   it('registro alterado durante o envio continua pendente', async () => {
     const repo = aparelho('u1');
     await repo.registrar(serie('x'));
-    const sync = new Sincronizador(repo, async (r) => {
+    const sync = sincronizadorDe(repo, async (r) => {
       await repo.registrar(serie('x', { carga: 25 }));
       return aceitaTudo(r);
     });
@@ -156,7 +165,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
   it('RECUSADO vira FALHOU com motivo, e "tentar de novo" volta para a fila', async () => {
     const repo = aparelho('u1');
     await repo.registrar(serie('x'));
-    const sync = new Sincronizador(repo, async (r) => ({
+    const sync = sincronizadorDe(repo, async (r) => ({
       resultados: r.map((x) => ({ id: x.id, situacao: 'RECUSADO' as const, motivo: 'Data fora do período aceito.' })),
     }));
     await sync.sincronizar();
@@ -170,7 +179,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
   it('falha de rede mantém LOCAL', async () => {
     const repo = aparelho('u1');
     await repo.registrar(serie('x'));
-    const sync = new Sincronizador(repo, async () => {
+    const sync = sincronizadorDe(repo, async () => {
       throw new ErroApi(0, 'SEM_CONEXAO', 'Sem conexão');
     });
     expect(await sync.sincronizar()).toEqual({ tipo: 'semConexao' });
@@ -192,7 +201,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     const repo = aparelho('u1');
     await repo.registrar(serie('x'));
     let chamadas = 0;
-    const sync = new Sincronizador(repo, async (r) => {
+    const sync = sincronizadorDe(repo, async (r) => {
       chamadas++;
       return aceitaTudo(r);
     });
@@ -353,7 +362,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       expect(await volta.retomarFilaRetida()).toBe(false);
 
       const enviados: RegistroEnvio[] = [];
-      const sincronizador = new Sincronizador(volta, async (registros) => {
+      const sincronizador = sincronizadorDe(volta, async (registros) => {
         enviados.push(...registros);
         return aceitaTudo(registros);
       });
@@ -379,12 +388,12 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       expect(await bia.listar()).toEqual([]);
       expect(await bia.pendentes()).toEqual([]);
       const enviar = jest.fn(aceitaTudo);
-      expect(await new Sincronizador(bia, enviar).sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+      expect(await sincronizadorDe(bia, enviar).sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
       expect(enviar).not.toHaveBeenCalled();
 
       // A fila da Ana continua separada e retida, mesmo depois de a Bia registrar e enviar.
       await bia.registrar(serie('da-bia'));
-      await new Sincronizador(bia, enviar).sincronizar();
+      await sincronizadorDe(bia, enviar).sincronizar();
       expect(enviar.mock.calls.flatMap(([lote]) => lote.map((r) => r.serieUid))).toEqual(['da-bia']);
       const anaDepois = aparelho('ana');
       expect(await anaDepois.descartarFilaRetidaVencida()).toBe('retida');
@@ -581,5 +590,427 @@ describe('sair da conta na web (chave-valor)', () => {
     const restam = (await kv.chaves()).filter((c) => c.startsWith('treinos:'));
     expect([...restam].sort()).toEqual([...mantidas, 'treinos:bia:favoritos'].sort());
     expect(await ana.listar()).toEqual([]);
+  });
+});
+
+function item(itemUid: string, extra: Partial<DadosMobilidade> = {}): DadosMobilidade {
+  return { planoVersaoId: 'mv1', secaoUid: 'sec1', itemUid, data: '2026-10-07', feito: true, ...extra };
+}
+
+/**
+ * Mobilidade marcada: a mesma bateria nas duas implementações. Ela entra na mesma fila de envio das séries (mesmo
+ * repositório, sincronizador, ciclo e retenção), mas num depósito próprio que o treino não enxerga.
+ */
+describe.each(implementacoes)('mobilidade na fila de envio – %s', (_nome, criarAparelho) => {
+  let aparelho: Aparelho;
+  beforeEach(() => {
+    aparelho = criarAparelho();
+  });
+
+  const instante = (t0: number, ms: number) => () => new Date(t0 + ms);
+
+  it('marcar e desmarcar o mesmo item no mesmo dia é o mesmo registro (mesmo id, o último valor vale)', async () => {
+    const repo = aparelho('u1');
+    const a = await repo.registrarMobilidade(item('i1'));
+    const b = await repo.registrarMobilidade(item('i1', { feito: false }));
+    expect(b.id).toBe(a.id);
+    expect(b.alteradoEm > a.alteradoEm).toBe(true);
+    expect(b).toMatchObject({ feito: false, situacao: 'LOCAL', motivo: null });
+    // Outro dia, outro item e outra versão são registros diferentes.
+    const outroDia = await repo.registrarMobilidade(item('i1', { data: '2026-10-08' }));
+    const outroItem = await repo.registrarMobilidade(item('i2'));
+    const outraVersao = await repo.registrarMobilidade(item('i1', { planoVersaoId: 'mv2' }));
+    expect(new Set([a.id, outroDia.id, outroItem.id, outraVersao.id]).size).toBe(4);
+    expect(await repo.listarMobilidade()).toHaveLength(4);
+  });
+
+  it('é um depósito à parte: não aparece como série nem entra nos pendentes do treino', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrar(serie('s1'));
+    expect((await repo.listar()).map((r) => r.serieUid)).toEqual(['s1']);
+    expect((await repo.pendentes()).map((r) => r.serieUid)).toEqual(['s1']);
+    expect((await repo.pendentesMobilidade()).map((r) => r.itemUid)).toEqual(['i1']);
+  });
+
+  it('pendentes vêm do mais antigo para o mais novo, até o limite', async () => {
+    const repo = aparelho('u1');
+    for (const uid of ['a', 'b', 'c']) await repo.registrarMobilidade(item(uid));
+    await repo.registrarMobilidade(item('a', { feito: false })); // mexeu de novo: agora é o mais novo
+    expect((await repo.pendentesMobilidade()).map((r) => r.itemUid)).toEqual(['b', 'c', 'a']);
+    expect((await repo.pendentesMobilidade(2)).map((r) => r.itemUid)).toEqual(['b', 'c']);
+  });
+
+  it('volta com o tipo certo (feito é booleano) depois de fechar e reabrir', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrarMobilidade(item('i2', { feito: false }));
+    await repo.fechar();
+    const lista = await aparelho('u1').listarMobilidade();
+    expect(lista.map((r) => [r.itemUid, r.feito])).toEqual([['i1', true], ['i2', false]]);
+  });
+
+  it('o mesmo ciclo envia séries e mobilidade, e reenviar não manda de novo o que foi aceito', async () => {
+    const repo = aparelho('u1');
+    const marcado = await repo.registrarMobilidade(item('i1'));
+    await repo.registrar(serie('s1'));
+    const series: RegistroEnvio[] = [];
+    const itens: RegistroMobilidadeEnvio[] = [];
+    const sync = new Sincronizador(
+      repo,
+      async (r) => {
+        series.push(...r);
+        return aceitaTudo(r);
+      },
+      async (r) => {
+        itens.push(...r);
+        return aceitaTudoMobilidade(r);
+      },
+    );
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
+    expect(series.map((r) => r.serieUid)).toEqual(['s1']);
+    expect(itens).toEqual([
+      { id: marcado.id, planoVersaoId: 'mv1', secaoUid: 'sec1', itemUid: 'i1', data: '2026-10-07', feito: true, alteradoNoAparelhoEm: marcado.alteradoEm },
+    ]);
+    expect((await repo.listarMobilidade()).map((r) => r.situacao)).toEqual(['ENVIADO']);
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(itens).toHaveLength(1);
+  });
+
+  it('desmarcar depois de enviado manda o mesmo id com feito falso', async () => {
+    const repo = aparelho('u1');
+    const marcado = await repo.registrarMobilidade(item('i1'));
+    const itens: RegistroMobilidadeEnvio[] = [];
+    const sync = new Sincronizador(repo, aceitaTudo, async (r) => {
+      itens.push(...r);
+      return aceitaTudoMobilidade(r);
+    });
+    await sync.sincronizar();
+    await repo.registrarMobilidade(item('i1', { feito: false }));
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect(itens.map((r) => [r.id, r.feito])).toEqual([[marcado.id, true], [marcado.id, false]]);
+  });
+
+  it('item alterado durante o envio continua pendente', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('i1'));
+    const sync = new Sincronizador(repo, aceitaTudo, async (r) => {
+      await repo.registrarMobilidade(item('i1', { feito: false }));
+      return aceitaTudoMobilidade(r);
+    });
+    await sync.sincronizar();
+    const [i1] = await repo.listarMobilidade();
+    expect(i1).toMatchObject({ feito: false, situacao: 'LOCAL' });
+    expect(await repo.pendentesMobilidade()).toHaveLength(1);
+  });
+
+  it('RECUSADO vira FALHOU com motivo, e "tentar de novo" põe séries e mobilidade de volta na fila', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrar(serie('s1'));
+    const sync = new Sincronizador(
+      repo,
+      async (r) => ({ resultados: r.map((x) => ({ id: x.id, situacao: 'RECUSADO' as const, motivo: 'Série recusada.' })) }),
+      async (r) => ({ resultados: r.map((x) => ({ id: x.id, situacao: 'RECUSADO' as const, motivo: 'Item não existe nesta versão da mobilidade.' })) }),
+    );
+    await sync.sincronizar();
+    const [recusado] = await repo.listarMobilidade();
+    expect(recusado).toMatchObject({ situacao: 'FALHOU', motivo: 'Item não existe nesta versão da mobilidade.' });
+    expect(await repo.pendentesMobilidade()).toEqual([]);
+    expect(await repo.reenviarFalhas()).toBe(2);
+    expect((await repo.pendentesMobilidade()).map((r) => r.itemUid)).toEqual(['i1']);
+    expect((await repo.pendentes()).map((r) => r.serieUid)).toEqual(['s1']);
+  });
+
+  it('mobilidade fora do plano (403) falha com o motivo, sem derrubar o ciclo nem as séries', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrarMobilidade(item('i2'));
+    await repo.registrar(serie('s1'));
+    let tentativas = 0;
+    const sync = new Sincronizador(repo, aceitaTudo, async () => {
+      tentativas++;
+      throw new ErroApi(403, 'FUNCIONALIDADE_FORA_DO_PLANO', 'Funcionalidade fora do plano.');
+    });
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect(tentativas).toBe(1);
+    expect((await repo.listarMobilidade()).map((r) => [r.situacao, r.motivo])).toEqual([
+      ['FALHOU', MOTIVO_MOBILIDADE_FORA_DO_PLANO],
+      ['FALHOU', MOTIVO_MOBILIDADE_FORA_DO_PLANO],
+    ]);
+    expect((await repo.listar()).map((r) => r.situacao)).toEqual(['ENVIADO']);
+    // Não repete em laço: sem pendência, o próximo ciclo nem chama a rota.
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(tentativas).toBe(1);
+  });
+
+  it('sem conexão a mobilidade continua LOCAL; outro 4xx é erro do lote', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('i1'));
+    const semRede = new Sincronizador(repo, aceitaTudo, async () => {
+      throw new ErroApi(0, 'SEM_CONEXAO', 'Sem conexão');
+    });
+    expect(await semRede.sincronizar()).toEqual({ tipo: 'semConexao' });
+    const recusa = new Sincronizador(repo, aceitaTudo, async () => {
+      throw new ErroApi(400, 'REQUISICAO_INVALIDA', 'Lote inválido.');
+    });
+    expect(await recusa.sincronizar()).toEqual({ tipo: 'erro', mensagem: 'Lote inválido.' });
+    expect((await repo.listarMobilidade())[0].situacao).toBe('LOCAL');
+  });
+
+  it('séries com falha de rede não deixam a mobilidade passar na frente', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrar(serie('s1'));
+    const enviarMobilidade = jest.fn(aceitaTudoMobilidade);
+    const sync = new Sincronizador(
+      repo,
+      async () => {
+        throw new ErroApi(0, 'SEM_CONEXAO', 'Sem conexão');
+      },
+      enviarMobilidade,
+    );
+    expect(await sync.sincronizar()).toEqual({ tipo: 'semConexao' });
+    expect(enviarMobilidade).not.toHaveBeenCalled();
+  });
+
+  it('lote de 300 por vez', async () => {
+    const repo = aparelho('u1');
+    for (let i = 0; i < 305; i++) await repo.registrarMobilidade(item(`i${i}`));
+    const tamanhos: number[] = [];
+    const sync = new Sincronizador(repo, aceitaTudo, async (r) => {
+      tamanhos.push(r.length);
+      return aceitaTudoMobilidade(r);
+    });
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 305 });
+    expect(tamanhos).toEqual([300, 5]);
+  });
+
+  it('dois alunos no mesmo aparelho não se misturam, e sair apaga só a mobilidade de quem saiu', async () => {
+    const ana = aparelho('ana');
+    const bia = aparelho('bia');
+    await ana.registrarMobilidade(item('i1'));
+    expect(await bia.listarMobilidade()).toEqual([]);
+    await bia.registrarMobilidade(item('i2'));
+    await ana.apagarTudo();
+    expect(await ana.listarMobilidade()).toEqual([]);
+    expect((await bia.listarMobilidade()).map((r) => r.itemUid)).toEqual(['i2']);
+    // Depois de sair, o repositório antigo não grava mais nada.
+    await ana.registrarMobilidade(item('i3'));
+    expect(await aparelho('ana').listarMobilidade()).toEqual([]);
+  });
+
+  it('enviados há mais de 60 dias saem do aparelho; pendentes antigos ficam', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('velho', { data: '2026-07-01' }));
+    await repo.registrarMobilidade(item('pendente', { data: '2026-07-01' }));
+    await repo.registrarMobilidade(item('novo'));
+    const [velho, , novo] = await repo.listarMobilidade();
+    await repo.aplicarResultadosMobilidade(
+      [velho, novo],
+      [velho, novo].map((r) => ({ id: r.id, situacao: 'ACEITO' as const, motivo: null })),
+    );
+    expect((await repo.listarMobilidade()).map((r) => [r.itemUid, r.situacao])).toEqual([
+      ['pendente', 'LOCAL'],
+      ['novo', 'ENVIADO'],
+    ]);
+  });
+
+  describe('sessão recusada pelo servidor', () => {
+    it('com só mobilidade na fila retém o que está LOCAL, apaga o resto e o mesmo usuário envia ao voltar', async () => {
+      const repo = aparelho('u1');
+      const fila1 = await repo.registrarMobilidade(item('fila-1'));
+      const fila2 = await repo.registrarMobilidade(item('fila-2', { feito: false }));
+      await repo.registrarMobilidade(item('enviado'));
+      await repo.registrarMobilidade(item('recusado'));
+      const todos = await repo.listarMobilidade();
+      const [, , enviado, recusado] = todos;
+      await repo.aplicarResultadosMobilidade(
+        [enviado, recusado],
+        [
+          { id: enviado.id, situacao: 'ACEITO', motivo: null },
+          { id: recusado.id, situacao: 'RECUSADO', motivo: 'Item não existe nesta versão da mobilidade.' },
+        ],
+      );
+      // Uma série já enviada não é fila: não pode segurar o arquivo nem ficar no aparelho.
+      await repo.registrar(serie('s-enviada'));
+      const [s] = await repo.listar();
+      await repo.aplicarResultados([s], [{ id: s.id, situacao: 'ACEITO', motivo: null }]);
+      await repo.salvarMobilidade({ id: 'm1' } as never);
+
+      expect(await repo.reterSoAFila()).toBe(2);
+
+      const volta = aparelho('u1');
+      expect(await volta.lerMobilidade()).toBeNull();
+      expect(await volta.listar()).toEqual([]);
+      expect(await volta.listarMobilidade()).toEqual([fila1, fila2]);
+      expect(await volta.descartarFilaRetidaVencida()).toBe('retida');
+      expect(await volta.retomarFilaRetida()).toBe(true);
+
+      const itens: RegistroMobilidadeEnvio[] = [];
+      const sync = new Sincronizador(volta, aceitaTudo, async (r) => {
+        itens.push(...r);
+        return aceitaTudoMobilidade(r);
+      });
+      expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
+      // Os mesmos ids de antes da recusa: o servidor reconhece o reenvio.
+      expect(itens.map((r) => [r.id, r.feito])).toEqual([[fila1.id, true], [fila2.id, false]]);
+      expect(await aparelho('u1').descartarFilaRetidaVencida()).toBe('nenhuma');
+    });
+
+    it('série e mobilidade na fila ficam juntas; sem nenhuma das duas apaga tudo', async () => {
+      const repo = aparelho('u1');
+      await repo.registrar(serie('s1'));
+      await repo.registrarMobilidade(item('i1'));
+      expect(await repo.reterSoAFila()).toBe(2);
+      const volta = aparelho('u1');
+      expect((await volta.listar()).map((r) => r.serieUid)).toEqual(['s1']);
+      expect((await volta.listarMobilidade()).map((r) => r.itemUid)).toEqual(['i1']);
+
+      const vazio = aparelho('vazio');
+      await vazio.registrarMobilidade(item('i1'));
+      const [i1] = await vazio.listarMobilidade();
+      await vazio.aplicarResultadosMobilidade([i1], [{ id: i1.id, situacao: 'ACEITO', motivo: null }]);
+      expect(await vazio.reterSoAFila()).toBe(0);
+      const depois = aparelho('vazio');
+      expect(await depois.listarMobilidade()).toEqual([]);
+      expect(await depois.descartarFilaRetidaVencida()).toBe('nenhuma');
+    });
+
+    it(`a fila só de mobilidade vence em ${DIAS_FILA_RETIDA} dias e some inteira; o repositório segue usável`, async () => {
+      const t0 = Date.parse('2026-10-07T12:00:00Z');
+      const repo = aparelho('u1', instante(t0, 0));
+      await repo.registrarMobilidade(item('i1'));
+      await repo.reterSoAFila();
+
+      const quase = aparelho('u1', instante(t0, DIAS_FILA_RETIDA * DIA_MS - 1000));
+      expect(await quase.descartarFilaRetidaVencida()).toBe('retida');
+      expect(await quase.listarMobilidade()).toHaveLength(1);
+
+      const vencida = aparelho('u1', instante(t0, DIAS_FILA_RETIDA * DIA_MS));
+      expect(await vencida.descartarFilaRetidaVencida()).toBe('vencida');
+      expect(await vencida.listarMobilidade()).toEqual([]);
+      expect(await vencida.pendentesMobilidade()).toEqual([]);
+      await vencida.registrarMobilidade(item('novo'));
+      expect((await vencida.listarMobilidade()).map((r) => r.itemUid)).toEqual(['novo']);
+    });
+
+    it('a varredura do aparelho apaga a fila de mobilidade vencida sem enviar nada', async () => {
+      const listaDeFilas = emMemoria();
+      const t0 = Date.parse('2026-10-07T12:00:00Z');
+      const repo = aparelho('ana', instante(t0, 0));
+      await repo.registrarMobilidade(item('i1'));
+      await repo.reterSoAFila();
+      await registrarFilaRetida('ana', { kv: listaDeFilas });
+      const abrir = (id: string) => aparelho(id, instante(t0, DIAS_FILA_RETIDA * DIA_MS + 1000));
+      expect(await varrerFilasRetidas({ kv: listaDeFilas, abrir })).toBe(1);
+      expect(await aparelho('ana').listarMobilidade()).toEqual([]);
+    });
+  });
+});
+
+describe('mobilidade no SQLite do celular', () => {
+  let fabrica: FabricaDeTeste;
+  beforeEach(() => {
+    fabrica = fabricaNode();
+  });
+
+  it('o mesmo item no mesmo dia é uma linha só (chave única: versão, item e dia)', async () => {
+    const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora);
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrarMobilidade(item('i1', { feito: false }));
+    await repo.registrarMobilidade(item('i1', { data: '2026-10-08' }));
+    const linhas = await fabrica.banco('treinos-u1.db').todos<{ data: string; feito: number }>(
+      'select data, feito from registro_mobilidade order by data',
+    );
+    expect(linhas).toEqual([
+      { data: '2026-10-07', feito: 0 },
+      { data: '2026-10-08', feito: 1 },
+    ]);
+  });
+
+  it('sessão recusada: a tabela de mobilidade guarda só o que está na fila', async () => {
+    const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora);
+    await repo.registrarMobilidade(item('fila'));
+    await repo.registrarMobilidade(item('enviado'));
+    const [, enviado] = await repo.listarMobilidade();
+    await repo.aplicarResultadosMobilidade([enviado], [{ id: enviado.id, situacao: 'ACEITO', motivo: null }]);
+    await repo.reterSoAFila();
+    const banco = fabrica.banco('treinos-u1.db');
+    expect((await banco.todos<{ item_uid: string }>('select item_uid from registro_mobilidade')).map((l) => l.item_uid)).toEqual(['fila']);
+    expect(await banco.todos('select * from registro')).toEqual([]);
+    expect(fabrica.abertas()).toBe(0);
+  });
+
+  it('fila vencida esvazia a tabela de mobilidade sem apagar o arquivo', async () => {
+    const t0 = Date.parse('2026-10-07T12:00:00Z');
+    const com = new RepositorioSqlite(fabrica, 'com', novoId, () => new Date(t0));
+    await com.registrarMobilidade(item('i1'));
+    await com.reterSoAFila();
+    const tarde = new RepositorioSqlite(fabrica, 'com', novoId, () => new Date(t0 + DIAS_FILA_RETIDA * DIA_MS));
+    expect(await tarde.descartarFilaRetidaVencida()).toBe('vencida');
+    expect(await fabrica.banco('treinos-com.db').todos('select * from registro_mobilidade')).toEqual([]);
+  });
+
+  it('esquema 1 → 2: o banco antigo ganha a tabela nova ao abrir e não perde o que tinha', async () => {
+    // Um aparelho com o app da versão anterior: esquema 1 (sem `registro_mobilidade`) e uma série na fila.
+    const antigo = fabrica.banco('treinos-u1.db');
+    await antigo.executar(`
+      create table kv (chave text primary key, valor text not null);
+      create table registro (
+        id text primary key, plano_versao_id text not null, sessao_uid text not null, exercicio_uid text not null,
+        serie_uid text not null, exercicio_id text, trabalho integer not null, data text not null, carga real,
+        repeticoes integer, concluida integer not null, observacao text, alterado_em text not null,
+        situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')), motivo text,
+        unique (plano_versao_id, serie_uid, data)
+      );
+      create table carga_trabalho (exercicio_uid text not null, data text not null, carga real not null, primary key (exercicio_uid, data));
+      insert into registro values ('r-antigo', 'v1', 's1', 'e1', 'x', 'x1', 0, '2026-10-07', 20, 8, 1, null, '2026-10-07T12:00:00.000Z', 'LOCAL', null);
+      pragma user_version = 1;
+    `);
+    expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(1);
+
+    const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora);
+    expect((await repo.pendentes()).map((r) => r.id)).toEqual(['r-antigo']);
+    expect(await repo.listarMobilidade()).toEqual([]);
+    const marcado = await repo.registrarMobilidade(item('i1'));
+    expect((await repo.listarMobilidade()).map((r) => r.id)).toEqual([marcado.id]);
+    expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(VERSAO_ESQUEMA);
+    expect(VERSAO_ESQUEMA).toBe(2);
+  });
+});
+
+describe('mobilidade na web (chave-valor)', () => {
+  it('sessão recusada: a chave da mobilidade fica junto com a marca; sem fila de mobilidade a chave sai', async () => {
+    const kv = emMemoria();
+    const ana = new RepositorioChaveValor(kv, 'ana', novoId, agora);
+    await ana.registrarMobilidade(item('i1'));
+    await ana.registrarMobilidade(item('i2'));
+    const [, i2] = await ana.listarMobilidade();
+    await ana.aplicarResultadosMobilidade([i2], [{ id: i2.id, situacao: 'ACEITO', motivo: null }]);
+    await ana.reterSoAFila();
+    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:')).sort()).toEqual(
+      ['treinos:ana:filaRetida', 'treinos:ana:registrosMobilidade'].sort(),
+    );
+    expect(JSON.parse((await kv.ler('treinos:ana:registrosMobilidade')) ?? '[]')).toHaveLength(1);
+
+    // Só série na fila: a chave da mobilidade (com itens já enviados) não pode sobrar.
+    const bia = new RepositorioChaveValor(kv, 'bia', novoId, agora);
+    await bia.registrar(serie('s1'));
+    await bia.registrarMobilidade(item('i1'));
+    const [i1] = await bia.listarMobilidade();
+    await bia.aplicarResultadosMobilidade([i1], [{ id: i1.id, situacao: 'ACEITO', motivo: null }]);
+    await bia.reterSoAFila();
+    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:bia:')).sort()).toEqual(
+      ['treinos:bia:filaRetida', 'treinos:bia:registros'].sort(),
+    );
+  });
+
+  it('"Sair" apaga a mobilidade junto com o resto', async () => {
+    const kv = emMemoria();
+    const ana = new RepositorioChaveValor(kv, 'ana', novoId, agora);
+    await ana.registrarMobilidade(item('i1'));
+    await ana.apagarTudo();
+    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:'))).toEqual([]);
   });
 });

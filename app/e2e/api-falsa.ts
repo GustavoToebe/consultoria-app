@@ -76,6 +76,8 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'POST /auth/refresh': erroApi(401, 'Sessão expirada.'),
     // O app do aluno busca as séries já gravadas no servidor ao abrir; sem histórico nos testes.
     'GET /aluno/execucoes': { corpo: [] },
+    // Idem para os itens de mobilidade já marcados no servidor.
+    'GET /aluno/mobilidade/registros': { corpo: [] },
     // O ponto da aba do aluno pergunta pela anamnese; 404 = nenhuma atribuída (o teste da anamnese troca).
     'GET /aluno/anamnese': erroApi(404, 'Nenhuma anamnese.', 'NAO_ENCONTRADO'),
     ...respostas,

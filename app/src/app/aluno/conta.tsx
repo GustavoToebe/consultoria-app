@@ -6,7 +6,7 @@ import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
 import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { dataParaTela } from '../../dominio/formatos';
-import { avisoAoSairComPendencias, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
+import { avisoAoSairComPendencias, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from '../../dominio/treinosNaoEnviados';
 import { useAluno } from '../../offline/AlunoProvider';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
@@ -29,10 +29,11 @@ import { TrocarSenha } from '../../ui/TrocarSenha';
  */
 export default function ContaAluno() {
   const sessao = useSessao();
-  const { pendentes, falhas, registros, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
+  const { pendentes, falhas, falhasDeMobilidade, mobilidadeNoAparelho, registros, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
   const [preferencias, abrirPreferencias] = useState(false);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
-  const naoEnviados = pendentes + falhas.length;
+  const totalDeFalhas = falhas.length + falhasDeMobilidade.length;
+  const naoEnviados = pendentes + totalDeFalhas;
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Conta" subtitulo={[sessao.usuario?.nome, sessao.usuario?.email].filter(Boolean).join(' · ') || undefined} />
@@ -41,7 +42,7 @@ export default function ContaAluno() {
         <SeloSincronizacao />
         <Texto variante="suave">
           {naoEnviados
-            ? `${pendentes} aguardando envio${falhas.length ? `, ${falhas.length} com falha` : ''}.`
+            ? `${pendentes} aguardando envio${totalDeFalhas ? `, ${totalDeFalhas} com falha` : ''}.`
             : 'Tudo o que você registrou já está com o seu treinador.'}
         </Texto>
         {mensagemEnvio ? <Texto variante="suave">{mensagemEnvio}</Texto> : null}
@@ -50,9 +51,14 @@ export default function ContaAluno() {
             {dataParaTela(f.data)}: {f.motivo}
           </Texto>
         ))}
+        {falhasDeMobilidade.map((f) => (
+          <Texto key={f.id} variante="suave">
+            Mobilidade, {dataParaTela(f.data)}: {f.motivo}
+          </Texto>
+        ))}
         <View style={estilos.botoes}>
           <Botao rotulo="Sincronizar agora" tipo="secundario" Icone={RefreshCw} carregando={envio === 'enviando'} aoTocar={() => void sincronizarAgora()} />
-          {falhas.length ? <Botao rotulo="Tentar de novo" aoTocar={() => void tentarDeNovo()} /> : null}
+          {totalDeFalhas ? <Botao rotulo="Tentar de novo" aoTocar={() => void tentarDeNovo()} /> : null}
         </View>
       </Cartao>
       <TrocarSenha />
@@ -62,7 +68,7 @@ export default function ContaAluno() {
         <ItemDeLista titulo="Termos e privacidade" Icone={FileText} href="/aluno/termos" />
       </View>
       <Botao rotulo="Sair" tipo="secundario" Icone={LogOut} cheio aoTocar={() => setConfirmandoSaida(true)} />
-      <ConfirmarSaida visivel={confirmandoSaida} aoFechar={() => setConfirmandoSaida(false)} aviso={avisoAoSairComPendencias(treinosNaoEnviados(registros))} />
+      <ConfirmarSaida visivel={confirmandoSaida} aoFechar={() => setConfirmandoSaida(false)} aviso={avisoAoSairComPendencias(treinosNaoEnviados(registros), diasDeMobilidadeNaoEnviados(mobilidadeNoAparelho))} />
       <CartaoExcluirConta />
       <Folha visivel={preferencias} titulo="Aparência e preferências" aoFechar={() => abrirPreferencias(false)}>
         <PreferenciasDoApp comTitulo={false} />

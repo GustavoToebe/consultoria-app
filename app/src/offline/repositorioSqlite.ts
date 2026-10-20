@@ -7,8 +7,10 @@ import {
   type DadosRegistro,
   type HistoricoSemanaSalvo,
   type MarcaDaFilaRetida,
+  type DadosMobilidade,
   type PacoteSalvo,
   type RegistroLocal,
+  type RegistroMobilidadeLocal,
   type RepositorioLocal,
   type RascunhoAtualizacao,
   type ResultadoEnvio,
@@ -50,6 +52,32 @@ const paraRegistro = (l: LinhaRegistro): RegistroLocal => ({
   repeticoes: l.repeticoes,
   concluida: l.concluida === 1,
   observacao: l.observacao,
+  alteradoEm: l.alterado_em,
+  situacao: l.situacao,
+  motivo: l.motivo,
+});
+
+interface LinhaMobilidade {
+  id: string;
+  plano_versao_id: string;
+  secao_uid: string;
+  item_uid: string;
+  data: string;
+  feito: number;
+  alterado_em: string;
+  situacao: RegistroMobilidadeLocal['situacao'];
+  motivo: string | null;
+}
+
+const COLUNAS_MOBILIDADE = 'id, plano_versao_id, secao_uid, item_uid, data, feito, alterado_em, situacao, motivo';
+
+const paraMobilidade = (l: LinhaMobilidade): RegistroMobilidadeLocal => ({
+  id: l.id,
+  planoVersaoId: l.plano_versao_id,
+  secaoUid: l.secao_uid,
+  itemUid: l.item_uid,
+  data: l.data,
+  feito: l.feito === 1,
   alteradoEm: l.alterado_em,
   situacao: l.situacao,
   motivo: l.motivo,
@@ -186,7 +214,7 @@ export class RepositorioSqlite implements RepositorioLocal {
     return this.emFila(undefined, (b) => this.gravarDocumento(b, 'dieta', dieta));
   }
 
-  // Mesma tabela kv da dieta: documento novo, sem mudar o esquema (VERSAO_ESQUEMA fica como está).
+  // Mesma tabela kv da dieta: o documento da mobilidade vista (só leitura) não precisa de tabela própria.
   lerMobilidade(): Promise<VersaoDetalhe<ConteudoMobilidadeApi> | null> {
     return this.emFila(null, (b) => this.lerDocumento<VersaoDetalhe<ConteudoMobilidadeApi>>(b, 'mobilidade'));
   }
@@ -312,13 +340,109 @@ export class RepositorioSqlite implements RepositorioLocal {
     );
   }
 
-  reenviarFalhas(): Promise<number> {
-    return this.emFila(0, async (b) => {
-      const { alteradas } = await b.rodar(
-        "update registro set situacao = 'LOCAL', motivo = null where situacao = 'FALHOU'",
-      );
-      return alteradas;
+  // ---- Mobilidade (tabela própria, mesma fila de envio) ----
+
+  listarMobilidade(): Promise<RegistroMobilidadeLocal[]> {
+    return this.emFila([], async (b) =>
+      (await b.todos<LinhaMobilidade>(`select ${COLUNAS_MOBILIDADE} from registro_mobilidade order by rowid`)).map(
+        paraMobilidade,
+      ),
+    );
+  }
+
+  registrarMobilidade(dados: DadosMobilidade): Promise<RegistroMobilidadeLocal> {
+    const semBanco: RegistroMobilidadeLocal = { ...dados, id: '', alteradoEm: '', situacao: 'LOCAL', motivo: null };
+    return this.emFila(semBanco, (b) =>
+      b.transacao(async (t) => {
+        const anterior = await t.primeiro<{ id: string; alterado_em: string }>(
+          'select id, alterado_em from registro_mobilidade where plano_versao_id = ? and item_uid = ? and data = ?',
+          [dados.planoVersaoId, dados.itemUid, dados.data],
+        );
+        const registro: RegistroMobilidadeLocal = {
+          ...dados,
+          id: anterior?.id ?? this.novoId(),
+          alteradoEm: proximoInstante(this.agora(), anterior?.alterado_em),
+          situacao: 'LOCAL',
+          motivo: null,
+        };
+        if (anterior) {
+          await t.rodar(
+            "update registro_mobilidade set secao_uid = ?, feito = ?, alterado_em = ?, situacao = 'LOCAL', motivo = null " +
+              'where id = ?',
+            [registro.secaoUid, registro.feito ? 1 : 0, registro.alteradoEm, registro.id],
+          );
+        } else {
+          await t.rodar(
+            `insert into registro_mobilidade (${COLUNAS_MOBILIDADE}) values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              registro.id,
+              registro.planoVersaoId,
+              registro.secaoUid,
+              registro.itemUid,
+              registro.data,
+              registro.feito ? 1 : 0,
+              registro.alteradoEm,
+              registro.situacao,
+              registro.motivo,
+            ],
+          );
+        }
+        return registro;
+      }),
+    );
+  }
+
+  pendentesMobilidade(limite = 300): Promise<RegistroMobilidadeLocal[]> {
+    return this.emFila([], async (b) =>
+      (
+        await b.todos<LinhaMobilidade>(
+          `select ${COLUNAS_MOBILIDADE} from registro_mobilidade where situacao = 'LOCAL' order by alterado_em, rowid limit ?`,
+          [limite],
+        )
+      ).map(paraMobilidade),
+    );
+  }
+
+  aplicarResultadosMobilidade(
+    enviados: Pick<RegistroMobilidadeLocal, 'id' | 'alteradoEm'>[],
+    resultados: ResultadoEnvio[],
+  ): Promise<void> {
+    return this.emFila(undefined, (b) =>
+      b.transacao(async (t) => {
+        const enviadoEm = new Map(enviados.map((e) => [e.id, e.alteradoEm]));
+        for (const r of resultados) {
+          const alteradoEm = enviadoEm.get(r.id);
+          if (alteradoEm === undefined) continue;
+          const [situacao, motivo] =
+            r.situacao === 'RECUSADO' ? ['FALHOU', r.motivo ?? 'Recusado pelo servidor.'] : ['ENVIADO', null];
+          await t.rodar(
+            "update registro_mobilidade set situacao = ?, motivo = ? where id = ? and situacao = 'LOCAL' and alterado_em = ?",
+            [situacao, motivo, r.id, alteradoEm],
+          );
+        }
+        await t.rodar("delete from registro_mobilidade where situacao = 'ENVIADO' and data < ?", [
+          limiteGuardados(this.agora()),
+        ]);
+      }),
+    );
+  }
+
+  recusarPendentesDaMobilidade(motivo: string): Promise<void> {
+    return this.emFila(undefined, async (b) => {
+      await b.rodar("update registro_mobilidade set situacao = 'FALHOU', motivo = ? where situacao = 'LOCAL'", [motivo]);
     });
+  }
+
+  reenviarFalhas(): Promise<number> {
+    return this.emFila(0, (b) =>
+      b.transacao(async (t) => {
+        const series = await t.rodar("update registro set situacao = 'LOCAL', motivo = null where situacao = 'FALHOU'");
+        const mobilidade = await t.rodar(
+          "update registro_mobilidade set situacao = 'LOCAL', motivo = null where situacao = 'FALHOU'",
+        );
+        return series.alteradas + mobilidade.alteradas;
+      }),
+    );
   }
 
   apagarTudo(): Promise<void> {
@@ -349,7 +473,10 @@ export class RepositorioSqlite implements RepositorioLocal {
       const retidos = await banco.transacao(async (t) => {
         await this.apagarDadosDaPessoa(t);
         await t.rodar("delete from registro where situacao <> 'LOCAL'");
-        const { n } = (await t.primeiro<{ n: number }>('select count(*) as n from registro')) ?? { n: 0 };
+        await t.rodar("delete from registro_mobilidade where situacao <> 'LOCAL'");
+        const { n } = (await t.primeiro<{ n: number }>(
+          'select (select count(*) from registro) + (select count(*) from registro_mobilidade) as n',
+        )) ?? { n: 0 };
         if (n > 0) await this.gravarDocumento(t, 'filaRetida', { desde: this.agora().toISOString() });
         return n;
       });
@@ -381,6 +508,7 @@ export class RepositorioSqlite implements RepositorioLocal {
       await banco.transacao(async (t) => {
         await this.apagarDadosDaPessoa(t);
         await t.rodar('delete from registro');
+        await t.rodar('delete from registro_mobilidade');
       });
       await banco.executar('vacuum').catch(() => undefined);
       return 'vencida';

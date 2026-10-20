@@ -13,6 +13,7 @@ import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
+import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
 import { ResumoDoAluno } from '../../../treinador/ResumoDoAluno';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
@@ -76,6 +77,7 @@ export default function FichaAluno() {
           <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
             geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           <Permitido codigo="REGISTRO_LER"><CartaoFrequencia acompanhamento={acompanhamento} /></Permitido>
+          {pode('REGISTRO_LER') && pode('TREINO_LER') ? <CartaoMobilidade alunoId={aluno.id} acompanhamento={acompanhamento} /> : null}
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
           {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoEvolucaoRespostas alunoId={aluno.id} /> : null}

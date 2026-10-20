@@ -27,11 +27,15 @@ export interface FabricaBanco {
 /** Um banco por usuário: trocar de conta não mistura dados, e sair apaga o arquivo inteiro. */
 export const nomeDoBanco = (usuarioId: string) => `treinos-${usuarioId}.db`;
 
-const VERSAO_ESQUEMA = 1;
+/** 2: tabela `registro_mobilidade` (item de mobilidade marcado, na mesma fila de envio das séries). */
+export const VERSAO_ESQUEMA = 2;
 
 /**
  * Esquema local. `kv` guarda documentos que só são lidos inteiros (pacote do plano, dieta);
- * `registro` é a fila de envio, com a mesma chave única do servidor (versão, série, dia).
+ * `registro` é a fila de envio, com a mesma chave única do servidor (versão, série, dia);
+ * `registro_mobilidade` é a mesma fila para a mobilidade (versão, item, dia), em tabela própria.
+ * Tudo é `create ... if not exists`: subir a versão do esquema é só acrescentar o que falta (banco antigo ganha a
+ * tabela nova na próxima abertura, sem perder o que já tinha).
  */
 const ESQUEMA = `
   create table if not exists kv (
@@ -57,6 +61,19 @@ const ESQUEMA = `
     unique (plano_versao_id, serie_uid, data)
   );
   create index if not exists ix_registro_situacao on registro (situacao, alterado_em);
+  create table if not exists registro_mobilidade (
+    id text primary key,
+    plano_versao_id text not null,
+    secao_uid text not null,
+    item_uid text not null,
+    data text not null,
+    feito integer not null,
+    alterado_em text not null,
+    situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')),
+    motivo text,
+    unique (plano_versao_id, item_uid, data)
+  );
+  create index if not exists ix_registro_mobilidade_situacao on registro_mobilidade (situacao, alterado_em);
   create table if not exists carga_trabalho (
     exercicio_uid text not null,
     data text not null,

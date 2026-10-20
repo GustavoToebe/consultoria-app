@@ -694,6 +694,26 @@ export interface RegistroEnvio {
   alteradoNoAparelhoEm: string;
 }
 
+/** Item da mobilidade marcado (ou desmarcado) no aparelho; o `id` nasce no aparelho e torna o reenvio idempotente. */
+export interface RegistroMobilidadeEnvio {
+  id: string;
+  planoVersaoId: string;
+  secaoUid: string;
+  itemUid: string;
+  data: string;
+  feito: boolean;
+  alteradoNoAparelhoEm: string;
+}
+
+/** O que o servidor devolve de um item: só a marca, sem id nem situação. */
+export interface RegistroMobilidadeFeito {
+  planoVersaoId: string;
+  secaoUid: string;
+  itemUid: string;
+  data: string;
+  feito: boolean;
+}
+
 export type SituacaoEnvio = 'ACEITO' | 'IGNORADO_ANTIGO' | 'RECUSADO';
 
 export interface LoteResponse {

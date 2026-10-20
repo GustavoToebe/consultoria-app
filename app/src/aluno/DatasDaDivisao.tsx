@@ -48,7 +48,7 @@ export function DatasDaDivisao({
   );
 }
 
-function ChipData({
+export function ChipData({
   rotulo,
   descricao,
   hoje,

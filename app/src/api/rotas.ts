@@ -74,6 +74,8 @@ import type {
   ProgressoPonto,
   Receita,
   RegistroEnvio,
+  RegistroMobilidadeEnvio,
+  RegistroMobilidadeFeito,
   RegistroPeso,
   ResultadoValidacao,
   SituacaoFiltro,
@@ -401,6 +403,9 @@ export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/$
 export const execucoesDoAluno = (id: string, de: string, ate: string) =>
   requisicao<DiaDeTreino[]>(`/alunos/${seg(id)}/execucoes?de=${de}&ate=${ate}`);
 
+export const mobilidadeFeitaDoAluno = (id: string, de: string, ate: string) =>
+  requisicao<RegistroMobilidadeFeito[]>(`/alunos/${seg(id)}/mobilidade/registros?de=${de}&ate=${ate}`);
+
 export const progressoDoAluno = (id: string, exercicioId: string) =>
   requisicao<ProgressoPonto[]>(`/alunos/${seg(id)}/progresso?exercicioId=${encodeURIComponent(exercicioId)}`);
 
@@ -574,6 +579,12 @@ export const dietaAluno = () => requisicao<{ dieta: VersaoDetalhe<ConteudoDieta>
 
 export const enviarRegistros = (registros: RegistroEnvio[]) =>
   requisicao<LoteResponse>('/aluno/execucoes/lote', { metodo: 'POST', corpo: { registros } });
+
+export const enviarRegistrosMobilidade = (registros: RegistroMobilidadeEnvio[]) =>
+  requisicao<LoteResponse>('/aluno/mobilidade/registros', { metodo: 'POST', corpo: { registros } });
+
+export const registrosMobilidadeDoAluno = (de: string, ate: string) =>
+  requisicao<RegistroMobilidadeFeito[]>(`/aluno/mobilidade/registros?de=${de}&ate=${ate}`);
 
 export const historicoAluno = (de: string, ate: string) => requisicao<DiaDeTreino[]>(`/aluno/execucoes?de=${de}&ate=${ate}`);
 

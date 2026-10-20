@@ -21,5 +21,7 @@ describe('excluir a própria conta', () => {
     expect(avisoDeNaoEnviados(0)).toBeNull();
     expect(avisoDeNaoEnviados(1)).toContain('1 treino ainda não enviado');
     expect(avisoDeNaoEnviados(3)).toContain('3 treinos ainda não enviados');
+    expect(avisoDeNaoEnviados(0, 2)).toContain('mobilidade de 2 dias ainda não enviada');
+    expect(avisoDeNaoEnviados(1, 1)).toContain('1 treino e mobilidade de 1 dia ainda não enviados');
   });
 });

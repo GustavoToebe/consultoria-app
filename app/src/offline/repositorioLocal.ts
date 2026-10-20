@@ -1,4 +1,4 @@
-import type { AnamneseDetalhe, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DiaDeTreino, PainelAluno, RegistroEnvio, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 
 /**
@@ -36,6 +36,26 @@ export interface RegistroLocal {
 }
 
 export type DadosRegistro = Omit<RegistroLocal, 'id' | 'alteradoEm' | 'situacao' | 'motivo'>;
+
+/**
+ * Item da mobilidade marcado (ou desmarcado) no aparelho. Entra na mesma fila de envio das séries (mesmo repositório,
+ * mesmo sincronizador, mesma retenção), mas num depósito próprio: o que lê `registros` como treino (cargas, frequência,
+ * histórico) não vê isto. Desmarcar é o mesmo registro com `feito = false`.
+ */
+export interface RegistroMobilidadeLocal {
+  id: string;
+  planoVersaoId: string;
+  secaoUid: string;
+  itemUid: string;
+  data: string;
+  feito: boolean;
+  /** Instante da última mudança no aparelho (ISO); decide o mais novo no servidor. */
+  alteradoEm: string;
+  situacao: SituacaoLocal;
+  motivo: string | null;
+}
+
+export type DadosMobilidade = Omit<RegistroMobilidadeLocal, 'id' | 'alteradoEm' | 'situacao' | 'motivo'>;
 
 export interface PacoteSalvo {
   pacote: PainelAluno;
@@ -113,7 +133,23 @@ export interface RepositorioLocal {
    * continua LOCAL para ir de novo com o valor novo. Enviados há mais de 60 dias saem do aparelho.
    */
   aplicarResultados(enviados: Pick<RegistroLocal, 'id' | 'alteradoEm'>[], resultados: ResultadoEnvio[]): Promise<void>;
-  /** "Tentar de novo": os que falharam voltam para a fila de envio. Devolve quantos. */
+  /** Mobilidade marcada, na ordem em que foi criada. */
+  listarMobilidade(): Promise<RegistroMobilidadeLocal[]>;
+  /**
+   * Grava o item no aparelho na hora. O mesmo item no mesmo dia (mesma versão) mantém o mesmo id e só troca `feito`:
+   * marcar, desmarcar e reenviar não duplicam no servidor.
+   */
+  registrarMobilidade(dados: DadosMobilidade): Promise<RegistroMobilidadeLocal>;
+  /** Até `limite` pendentes (LOCAL) da mobilidade, os mais antigos primeiro. */
+  pendentesMobilidade(limite?: number): Promise<RegistroMobilidadeLocal[]>;
+  /** Como `aplicarResultados`, para a mobilidade. */
+  aplicarResultadosMobilidade(
+    enviados: Pick<RegistroMobilidadeLocal, 'id' | 'alteradoEm'>[],
+    resultados: ResultadoEnvio[],
+  ): Promise<void>;
+  /** O servidor recusou a mobilidade inteira (fora do plano): os pendentes viram FALHOU com o motivo, para não repetir em laço. */
+  recusarPendentesDaMobilidade(motivo: string): Promise<void>;
+  /** "Tentar de novo": os que falharam (séries e mobilidade) voltam para a fila de envio. Devolve quantos. */
   reenviarFalhas(): Promise<number>;
   /** Ao sair da conta: apaga tudo deste usuário no aparelho. Depois disso o repositório não grava mais nada. */
   apagarTudo(): Promise<void>;
@@ -148,6 +184,10 @@ export function limiteGuardados(agora: Date): string {
 
 const chaveDoRegistro = (r: Pick<RegistroLocal, 'planoVersaoId' | 'serieUid' | 'data'>) =>
   `${r.planoVersaoId}|${r.serieUid}|${r.data}`;
+
+/** Chave natural do servidor para a mobilidade (a seção não entra: o item é único na versão). */
+export const chaveDaMobilidade = (r: Pick<RegistroMobilidadeLocal, 'planoVersaoId' | 'itemUid' | 'data'>) =>
+  `${r.planoVersaoId}|${r.itemUid}|${r.data}`;
 
 export class RepositorioChaveValor implements RepositorioLocal {
   lerAtualizacao(): Promise<Atualizacao | null> { return this.emFila(() => this.lerJson('atualizacao', null)); }
@@ -327,18 +367,98 @@ export class RepositorioChaveValor implements RepositorioLocal {
     });
   }
 
-  reenviarFalhas(): Promise<number> {
+  // ---- Mobilidade (depósito próprio, mesma fila de envio) ----
+
+  listarMobilidade(): Promise<RegistroMobilidadeLocal[]> {
+    return this.emFila(() => this.lerJson<RegistroMobilidadeLocal[]>('registrosMobilidade', []));
+  }
+
+  registrarMobilidade(dados: DadosMobilidade): Promise<RegistroMobilidadeLocal> {
     return this.emFila(async () => {
-      const lista = await this.lerJson<RegistroLocal[]>('registros', []);
-      let n = 0;
+      const lista = await this.lerJson<RegistroMobilidadeLocal[]>('registrosMobilidade', []);
+      const chave = chaveDaMobilidade(dados);
+      const i = lista.findIndex((r) => chaveDaMobilidade(r) === chave);
+      const anterior = i >= 0 ? lista[i] : null;
+      const registro: RegistroMobilidadeLocal = {
+        ...dados,
+        id: anterior?.id ?? this.novoId(),
+        alteradoEm: proximoInstante(this.agora(), anterior?.alteradoEm),
+        situacao: 'LOCAL',
+        motivo: null,
+      };
+      if (i >= 0) lista[i] = registro;
+      else lista.push(registro);
+      await this.gravarJson('registrosMobilidade', lista);
+      return registro;
+    });
+  }
+
+  pendentesMobilidade(limite = 300): Promise<RegistroMobilidadeLocal[]> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroMobilidadeLocal[]>('registrosMobilidade', []);
+      return lista
+        .filter((r) => r.situacao === 'LOCAL')
+        .sort((a, b) => a.alteradoEm.localeCompare(b.alteradoEm))
+        .slice(0, limite);
+    });
+  }
+
+  aplicarResultadosMobilidade(
+    enviados: Pick<RegistroMobilidadeLocal, 'id' | 'alteradoEm'>[],
+    resultados: ResultadoEnvio[],
+  ): Promise<void> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroMobilidadeLocal[]>('registrosMobilidade', []);
+      const enviadoEm = new Map(enviados.map((e) => [e.id, e.alteradoEm]));
+      const porId = new Map(resultados.map((r) => [r.id, r]));
       for (const r of lista) {
-        if (r.situacao === 'FALHOU') {
-          r.situacao = 'LOCAL';
+        const resultado = porId.get(r.id);
+        if (!resultado || r.situacao !== 'LOCAL' || enviadoEm.get(r.id) !== r.alteradoEm) continue;
+        if (resultado.situacao === 'RECUSADO') {
+          r.situacao = 'FALHOU';
+          r.motivo = resultado.motivo ?? 'Recusado pelo servidor.';
+        } else {
+          r.situacao = 'ENVIADO';
           r.motivo = null;
-          n++;
         }
       }
-      await this.gravarJson('registros', lista);
+      const limite = limiteGuardados(this.agora());
+      await this.gravarJson(
+        'registrosMobilidade',
+        lista.filter((r) => r.situacao !== 'ENVIADO' || r.data >= limite),
+      );
+    });
+  }
+
+  recusarPendentesDaMobilidade(motivo: string): Promise<void> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroMobilidadeLocal[]>('registrosMobilidade', []);
+      for (const r of lista) {
+        if (r.situacao === 'LOCAL') {
+          r.situacao = 'FALHOU';
+          r.motivo = motivo;
+        }
+      }
+      await this.gravarJson('registrosMobilidade', lista);
+    });
+  }
+
+  reenviarFalhas(): Promise<number> {
+    return this.emFila(async () => {
+      let n = 0;
+      for (const nome of ['registros', 'registrosMobilidade']) {
+        const lista = await this.lerJson<{ situacao: SituacaoLocal; motivo: string | null }[]>(nome, []);
+        let mudou = false;
+        for (const r of lista) {
+          if (r.situacao === 'FALHOU') {
+            r.situacao = 'LOCAL';
+            r.motivo = null;
+            n++;
+            mudou = true;
+          }
+        }
+        if (mudou) await this.gravarJson(nome, lista);
+      }
       return n;
     });
   }
@@ -352,15 +472,23 @@ export class RepositorioChaveValor implements RepositorioLocal {
 
   reterSoAFila(): Promise<number> {
     return this.emFila(async () => {
-      const fila = (await this.lerJson<RegistroLocal[]>('registros', [])).filter((r) => r.situacao === 'LOCAL');
-      // Grava a fila e a marca antes de apagar o resto: uma falha no meio não perde registro.
-      if (fila.length) {
-        await this.kv.gravar(this.chave('registros'), JSON.stringify(fila));
+      const series = (await this.lerJson<RegistroLocal[]>('registros', [])).filter((r) => r.situacao === 'LOCAL');
+      const mobilidade = (await this.lerJson<RegistroMobilidadeLocal[]>('registrosMobilidade', [])).filter(
+        (r) => r.situacao === 'LOCAL',
+      );
+      const total = series.length + mobilidade.length;
+      // Grava a fila e a marca antes de apagar o resto: uma falha no meio não perde registro. Os dois depósitos ficam
+      // só com o que está LOCAL (um vazio sai de vez: a chave entra na lista do que fica e levaria os enviados junto).
+      if (total) {
+        for (const [nome, lista] of [['registros', series], ['registrosMobilidade', mobilidade]] as const) {
+          if (lista.length) await this.kv.gravar(this.chave(nome), JSON.stringify(lista));
+          else await this.kv.apagar([this.chave(nome)]);
+        }
         await this.kv.gravar(this.chave('filaRetida'), JSON.stringify({ desde: this.agora().toISOString() }));
       }
       this.encerrado = true;
-      await apagarChavesDoUsuario(this.kv, this.usuarioId, fila.length ? CHAVES_DA_FILA_RETIDA : []);
-      return fila.length;
+      await apagarChavesDoUsuario(this.kv, this.usuarioId, total ? CHAVES_DA_FILA_RETIDA : []);
+      return total;
     });
   }
 
@@ -408,8 +536,8 @@ export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
  */
 export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'passeioVisto'];
 
-/** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados e a marca com a data. */
-export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'filaRetida'];
+/** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados (séries e mobilidade) e a marca com a data. */
+export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'registrosMobilidade', 'filaRetida'];
 
 /** `tambemFicam` = nomes (sem o prefixo do usuário) que `SOBREVIVEM_AO_SAIR` não cobre e que não devem sair. */
 export async function apagarChavesDoUsuario(
@@ -434,6 +562,18 @@ export function paraEnvio(r: RegistroLocal): RegistroEnvio {
     repeticoes: r.repeticoes,
     concluida: r.concluida,
     observacao: r.observacao,
+    alteradoNoAparelhoEm: r.alteradoEm,
+  };
+}
+
+export function paraEnvioMobilidade(r: RegistroMobilidadeLocal): RegistroMobilidadeEnvio {
+  return {
+    id: r.id,
+    planoVersaoId: r.planoVersaoId,
+    secaoUid: r.secaoUid,
+    itemUid: r.itemUid,
+    data: r.data,
+    feito: r.feito,
     alteradoNoAparelhoEm: r.alteradoEm,
   };
 }
