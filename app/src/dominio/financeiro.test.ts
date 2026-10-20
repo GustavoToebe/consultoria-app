@@ -35,6 +35,9 @@ import {
   podeCancelarCobranca,
   podeCopiarLink,
   podeDesfazerBaixa,
+  podeManterPaga,
+  podeMarcarContestacao,
+  podeMarcarEstorno,
   podeRegistrarPagamento,
   resultadoDoMesParaTela,
   rotuloDaForma,
@@ -44,6 +47,7 @@ import {
   seloDaCobranca,
   seloDaContratacao,
   serieDoGrafico,
+  temBaixaRegistrada,
   temChaveParaJuros,
   TEXTO_CHAVE_DO_RECEBIMENTO,
   TEXTO_COMBINE_COM_O_TREINADOR,
@@ -87,10 +91,11 @@ describe('selos', () => {
     expect(seloDaCobranca({ situacao: 'PAGA', vencida: true }).tom).toBe('sucesso');
     expect(seloDaCobranca({ situacao: 'CANCELADA', vencida: true }).tom).toBe('neutro');
   });
-  it('cancelada, estornada e contestada são cinza', () => {
-    for (const situacao of ['CANCELADA', 'ESTORNADA', 'CONTESTADA'] as const) {
+  it('cancelada e estornada são cinza; contestada é atenção (espera o banco)', () => {
+    for (const situacao of ['CANCELADA', 'ESTORNADA'] as const) {
       expect(seloDaCobranca({ situacao }).tom).toBe('neutro');
     }
+    expect(seloDaCobranca({ situacao: 'CONTESTADA' })).toEqual({ tom: 'atencao', rotulo: 'Contestada' });
     expect(seloDaCobranca({ situacao: 'ESTORNADA' }).rotulo).toBe('Estornada');
   });
   it('contratação', () => {
@@ -150,6 +155,21 @@ describe('botões da cobrança', () => {
     expect(podeDesfazerBaixa({ situacao: 'PAGA', provedor: 'ASAAS' })).toBe(false);
     expect(podeDesfazerBaixa({ situacao: 'PAGA', provedor: null })).toBe(false);
     expect(podeDesfazerBaixa({ situacao: 'ABERTA', provedor: 'MANUAL' })).toBe(false);
+  });
+  it('contestação só em paga; estorno em paga ou contestada; manter paga só em contestada', () => {
+    const casos = [
+      ['ABERTA', false, false, false, false],
+      ['PAGA', true, true, false, true],
+      ['CONTESTADA', false, true, true, true],
+      ['ESTORNADA', false, false, false, true],
+      ['CANCELADA', false, false, false, false],
+    ] as const;
+    for (const [situacao, contestar, estornar, manter, baixa] of casos) {
+      expect(podeMarcarContestacao({ situacao })).toBe(contestar);
+      expect(podeMarcarEstorno({ situacao })).toBe(estornar);
+      expect(podeManterPaga({ situacao })).toBe(manter);
+      expect(temBaixaRegistrada({ situacao })).toBe(baixa);
+    }
   });
 });
 

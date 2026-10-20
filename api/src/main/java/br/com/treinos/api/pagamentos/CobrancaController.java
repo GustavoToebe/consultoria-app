@@ -21,8 +21,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Cobranças. As listas mostram aluno, então pedem também {@code ALUNO_LER}; baixa, desfazer e cancelar pedem
- * {@code FINANCEIRO_ALTERAR}. O corpo nunca traz valor: ele sai da contratação.
+ * Cobranças. As listas mostram aluno, então pedem também {@code ALUNO_LER}; baixa, desfazer, cancelar, estorno e
+ * contestação pedem {@code FINANCEIRO_ALTERAR}. O corpo nunca traz valor: ele sai da contratação. Estorno e contestação só
+ * registram o que aconteceu fora do app (na InfinitePay ou no banco): nada aqui move dinheiro.
  */
 @RestController
 @ExigePagamentos
@@ -72,5 +73,24 @@ public class CobrancaController {
     @PostMapping("/cobrancas/{id}/cancelar")
     public CobrancaResponse cancelar(@PathVariable UUID id, @Valid @RequestBody MotivoRequest r) {
         return cobrancas.cancelar(id, r);
+    }
+
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/cobrancas/{id}/estornar")
+    public CobrancaResponse estornar(@PathVariable UUID id, @Valid @RequestBody MotivoRequest r) {
+        return cobrancas.estornar(id, r);
+    }
+
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/cobrancas/{id}/contestar")
+    public CobrancaResponse contestar(@PathVariable UUID id, @Valid @RequestBody MotivoRequest r) {
+        return cobrancas.contestar(id, r);
+    }
+
+    /** A contestação terminou a favor do treinador: a cobrança volta a ficar paga, com a mesma baixa. */
+    @PreAuthorize(ALTERAR)
+    @PostMapping("/cobrancas/{id}/manter-paga")
+    public CobrancaResponse manterPaga(@PathVariable UUID id, @Valid @RequestBody MotivoRequest r) {
+        return cobrancas.manterPaga(id, r);
     }
 }

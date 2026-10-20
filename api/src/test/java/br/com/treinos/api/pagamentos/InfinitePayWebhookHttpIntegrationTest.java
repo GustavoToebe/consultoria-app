@@ -28,7 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * O aviso da InfinitePay chega como chega de verdade: um servidor HTTP real (Tomcat, porta aleatória) e um cliente cru, sem
  * cookie, sem {@code Authorization}, sem {@code X-XSRF-TOKEN}, sem {@code X-Treinos-Cliente} e sem {@code Origin}. O
  * {@code ApiDeTeste} anexa cabeçalhos de cliente do app; aqui ele só prepara a conta. Prova que {@code /publico/**} não pede
- * CSRF nem login, que o tipo do corpo não importa (a InfinitePay não promete {@code application/json}) e que o aviso grava.
+ * CSRF nem login, que o tipo do corpo não importa (a InfinitePay não promete {@code application/json}; formulário também
+ * vale) e que o aviso grava.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -85,9 +86,9 @@ class InfinitePayWebhookHttpIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void avisoCruComJsonTextoOuSemTipoDeCorpoResponde200EGravaSemCsrfNemLogin() throws Exception {
-        // Formulário (application/x-www-form-urlencoded) fica de fora de propósito: o Tomcat consome o corpo ao ler parâmetros
-        // e o aviso chegaria vazio (400). A InfinitePay documenta o aviso como JSON, então não é um caso real.
-        for (String tipo : new String[] {"application/json", "text/plain", null}) {
+        // Inclui um JSON com o rótulo de formulário: o servidor o lê como um parâmetro só, e a rota o recupera.
+        for (String tipo : new String[] {"application/json", "text/plain", null,
+                "application/x-www-form-urlencoded", "application/x-www-form-urlencoded; charset=UTF-8"}) {
             String transacao = "TX-HTTP-" + UUID.randomUUID();
 
             HttpResponse<String> resposta = avisar(tipo, aviso(transacao));
@@ -96,6 +97,30 @@ class InfinitePayWebhookHttpIntegrationTest extends AbstractIntegrationTest {
             assertThat(resposta.body()).as("Content-Type %s", tipo).isEmpty();
             assertThat(gravados(transacao)).as("Content-Type %s", tipo).isEqualTo(1);
         }
+    }
+
+    @Test
+    void avisoEmFormularioDeVerdadeGravaComoOJsonERepeticaoDeCampoEInvalida() throws Exception {
+        String transacao = "TX-FORM-" + UUID.randomUUID();
+        String campos = "order_nsu=" + UUID.randomUUID() + "&transaction_nsu=" + transacao + "&invoice_slug=slug-fake"
+                + "&amount=15000&event=paid";
+
+        HttpResponse<String> resposta = avisar("application/x-www-form-urlencoded", campos);
+
+        assertThat(resposta.statusCode()).isEqualTo(200);
+        assertThat(gravados(transacao)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select slug from aviso_de_pagamento where consultoria_id = ? and transacao = ?",
+                String.class, consultoria, transacao)).isEqualTo("slug-fake");
+
+        // O mesmo campo duas vezes não é um identificador: 400 e nada gravado.
+        String repetida = "TX-FORM-" + UUID.randomUUID();
+        HttpResponse<String> duplicado = avisar("application/x-www-form-urlencoded",
+                "order_nsu=" + UUID.randomUUID() + "&transaction_nsu=" + repetida + "&transaction_nsu=" + repetida);
+        assertThat(duplicado.statusCode()).isEqualTo(400);
+        assertThat(gravados(repetida)).isZero();
+
+        // Formulário vazio é aviso inválido, como o JSON vazio.
+        assertThat(avisar("application/x-www-form-urlencoded", "").statusCode()).isEqualTo(400);
     }
 
     @Test

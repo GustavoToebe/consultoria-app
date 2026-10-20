@@ -15,7 +15,8 @@ import {
  * inadimplentes, o fluxo completo (plano → contratação na ficha → baixa manual → o aluno vê a cobrança paga em Conta) e
  * o módulo desligado. Recebimento online (InfinitePay): o "Pagar" do aluno na web (no celular, a regra da chave da plataforma
  * está no Jest), a aba do treinador (a chave nunca volta à tela) com os juros do parcelamento, o link da cobrança, o selo
- * "Online", os pagamentos para conferir (estorno informado incluído) e a volta do navegador depois do pagamento. O relógio
+ * "Online", contestação e estorno marcados pelo treinador, os pagamentos para conferir (estorno informado incluído) e a volta
+ * do navegador depois do pagamento. O relógio
  * fica em 19/10/2026. Só dados fictícios; a API é simulada em `financeiro-falso.ts`.
  */
 
@@ -543,6 +544,77 @@ test('cobrança paga pelo provedor ganha o selo "Online", sem botão de link; a 
   await expect(manual.getByRole('button', { name: /^Abrir cobrança de/ })).toBeVisible();
   await expect(manual.getByText('Online', { exact: true })).toHaveCount(0);
   expect(doManual.errosDaPagina).toEqual([]);
+});
+
+test('cobrança paga: marcar contestação, manter como paga e marcar estorno, sempre com motivo e a versão vista', async ({ page }) => {
+  await fixarHoje(page);
+  const paga = {
+    ...COBRANCA_ATRASADA, situacao: 'PAGA' as const, vencida: false, diasDeAtraso: null, pagoEm: '2026-10-18', forma: 'PIX' as const,
+    provedor: 'INFINITEPAY', versao: 3,
+  };
+  const estado = estadoFinanceiro({ cobrancas: [paga], recebimento: { ...RECEBIMENTO_CONFIGURADO } });
+  const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=cobrancas');
+  const abrir = () => page.getByRole('button', { name: /^Abrir cobrança de/ }).click();
+  const caminho = (acao: string) => `/cobrancas/${paga.id}/${acao}`;
+
+  // Paga online: não há desfazer baixa, mas contestação e estorno valem.
+  await abrir();
+  let folha = page.getByRole('dialog');
+  await expect(folha.getByRole('button', { name: 'Desfazer baixa' })).toHaveCount(0);
+  await expect(folha.getByRole('button', { name: 'Manter como paga' })).toHaveCount(0);
+  await folha.getByRole('button', { name: 'Marcar contestação' }).click();
+  let painel = page.getByRole('alertdialog', { name: 'Marcar como contestada?' });
+  await expect(painel.getByRole('button', { name: 'Marcar contestação' })).toBeDisabled();
+  await painel.getByRole('textbox', { name: 'Motivo' }).fill('Aluno contestou no cartão');
+  await painel.getByRole('button', { name: 'Marcar contestação' }).click();
+  await expect(page.getByText('Cobrança marcada como contestada.')).toBeVisible();
+  expect(pedidos.find((p) => p.caminho === caminho('contestar'))?.corpo).toEqual({ motivo: 'Aluno contestou no cartão', versao: 3 });
+  await expect(page.getByText('Contestada', { exact: true }).first()).toBeVisible();
+
+  // Contestada: a baixa continua na ficha; manter como paga volta a "Paga".
+  await abrir();
+  folha = page.getByRole('dialog');
+  await expect(folha.getByText('Pago em')).toBeVisible();
+  await expect(folha.getByRole('button', { name: 'Marcar contestação' })).toHaveCount(0);
+  await folha.getByRole('button', { name: 'Manter como paga' }).click();
+  painel = page.getByRole('alertdialog', { name: 'Manter como paga?' });
+  await painel.getByRole('textbox', { name: 'Motivo' }).fill('Banco decidiu a favor');
+  await painel.getByRole('button', { name: 'Manter como paga' }).click();
+  await expect(page.getByText('Cobrança mantida como paga.')).toBeVisible();
+  expect(pedidos.find((p) => p.caminho === caminho('manter-paga'))?.corpo).toEqual({ motivo: 'Banco decidiu a favor', versao: 4 });
+
+  // Estorno: perigo, sem volta; depois dele nenhuma ação sobra.
+  await abrir();
+  await page.getByRole('dialog').getByRole('button', { name: 'Marcar estorno' }).click();
+  painel = page.getByRole('alertdialog', { name: 'Marcar como estornada?' });
+  await expect(painel.getByText(/não volta a ficar paga/)).toBeVisible();
+  await painel.getByRole('textbox', { name: 'Motivo' }).fill('Devolvido na InfinitePay');
+  await painel.getByRole('button', { name: 'Marcar estorno' }).click();
+  await expect(page.getByText('Cobrança marcada como estornada.')).toBeVisible();
+  expect(pedidos.find((p) => p.caminho === caminho('estornar'))?.corpo).toEqual({ motivo: 'Devolvido na InfinitePay', versao: 5 });
+  await abrir();
+  folha = page.getByRole('dialog');
+  await expect(folha.getByText('Estornada', { exact: true })).toBeVisible();
+  for (const rotulo of ['Marcar estorno', 'Marcar contestação', 'Manter como paga', 'Desfazer baixa']) {
+    await expect(folha.getByRole('button', { name: rotulo })).toHaveCount(0);
+  }
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('cobrança paga sem permissão de alterar: nenhuma ação de contestação ou estorno', async ({ page }) => {
+  await fixarHoje(page);
+  const paga = { ...COBRANCA_ATRASADA, situacao: 'PAGA' as const, vencida: false, diasDeAtraso: null, pagoEm: '2026-10-18', versao: 1 };
+  const estado = estadoFinanceiro({ cobrancas: [{ ...paga, forma: 'PIX_DIRETO', provedor: 'MANUAL' }] });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page, ['FINANCEIRO_LER'])), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=cobrancas');
+  await page.getByRole('button', { name: /^Abrir cobrança de/ }).click();
+  const folha = page.getByRole('dialog');
+  await expect(folha.getByText('Paga', { exact: true })).toBeVisible();
+  for (const rotulo of ['Marcar estorno', 'Marcar contestação', 'Desfazer baixa']) {
+    await expect(folha.getByRole('button', { name: rotulo })).toHaveCount(0);
+  }
+  expect(errosDaPagina).toEqual([]);
 });
 
 test('pagamentos para conferir: lista com "—" onde não há dado, marcar como conferido tira da lista e o cartão some no fim', async ({ page }) => {

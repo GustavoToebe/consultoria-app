@@ -704,6 +704,13 @@ export const desfazerBaixaDaCobranca = (id: string, corpo: MotivoRequest) =>
   requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/desfazer-baixa`, { metodo: 'POST', corpo });
 export const cancelarCobranca = (id: string, corpo: MotivoRequest) =>
   requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/cancelar`, { metodo: 'POST', corpo });
+export const estornarCobranca = (id: string, corpo: MotivoRequest) =>
+  requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/estornar`, { metodo: 'POST', corpo });
+export const contestarCobranca = (id: string, corpo: MotivoRequest) =>
+  requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/contestar`, { metodo: 'POST', corpo });
+/** A contestação terminou a favor do treinador: a cobrança volta a ficar paga. */
+export const manterCobrancaPaga = (id: string, corpo: MotivoRequest) =>
+  requisicao<CobrancaResponse>(`/cobrancas/${seg(id)}/manter-paga`, { metodo: 'POST', corpo });
 
 export const painelFinanceiro = (filtro: { de: string; ate: string; meus: boolean }) =>
   requisicao<Painel>(`/financeiro/painel${consultaFinanceiro({ de: filtro.de, ate: filtro.ate, meus: filtro.meus ? true : undefined })}`);

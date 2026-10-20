@@ -155,6 +155,12 @@ public class CobrancaAluno {
         this.motivo = motivo;
     }
 
+    /** Contestação resolvida a favor do treinador: volta a PAGA com a mesma baixa; só o motivo muda. */
+    void manterPaga(String motivo) {
+        this.situacao = Situacao.PAGA;
+        this.motivo = motivo;
+    }
+
     /** Anonimização do aluno: observação, motivos e o link do pagador saem; valor, datas e situação ficam. */
     void limparDadosPessoais() {
         this.observacao = null;

@@ -4,10 +4,14 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import type { CobrancaResponse, FormaDePagamento, RecebimentoOnline } from '../../api/financeiroTipos';
-import { buscarRecebimentoOnline, cancelarCobranca, desfazerBaixaDaCobranca, linkDaCobranca, registrarPagamentoManual } from '../../api/rotas';
+import {
+  buscarRecebimentoOnline, cancelarCobranca, contestarCobranca, desfazerBaixaDaCobranca, estornarCobranca, linkDaCobranca,
+  manterCobrancaPaga, registrarPagamentoManual,
+} from '../../api/rotas';
 import {
   atrasoParaTela, ehPagamentoOnline, FORMAS_MANUAIS, hojeEmBrasilia, LIMITES, podeCancelarCobranca, podeCopiarLink, podeDesfazerBaixa,
-  podeRegistrarPagamento, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
+  podeManterPaga, podeMarcarContestacao, podeMarcarEstorno, podeRegistrarPagamento, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca,
+  temBaixaRegistrada, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { linkParaAbrir } from '../../dominio/links';
@@ -31,13 +35,45 @@ import { useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, ehConflito } from './comum';
 
 type Modo = 'detalhe' | 'baixa';
-type Pergunta = 'desfazer' | 'cancelar' | null;
+type Pergunta = 'desfazer' | 'cancelar' | 'contestar' | 'estornar' | 'manterPaga' | null;
 
 /**
- * Uma cobrança: os dados, o selo, e (com `FINANCEIRO_ALTERAR`) Registrar pagamento, Desfazer a baixa e Cancelar. Registrar
- * e cancelar só em cobrança em aberto; desfazer só em baixa manual. A API confere de novo. O app nunca envia valor de
- * cobrança: só data, forma, observação e a versão que viu. O treinador não paga nem recebe por aqui: "Copiar link de
- * pagamento" pede o link da InfinitePay (cobrança em aberto, recebimento online configurado) para ele mandar ao aluno.
+ * O painel de cada ação que pede motivo. Estorno e contestação só registram o que aconteceu fora do app: nenhum move
+ * dinheiro, e o estorno não tem volta.
+ */
+const PERGUNTAS: Record<Exclude<Pergunta, null>, { titulo: string; mensagem: string; confirmar: string; sucesso: string; perigo: boolean }> = {
+  desfazer: {
+    titulo: 'Desfazer a baixa?', mensagem: 'A cobrança volta a ficar em aberto. O motivo fica registrado.',
+    confirmar: 'Desfazer baixa', sucesso: 'Baixa desfeita.', perigo: false,
+  },
+  cancelar: {
+    titulo: 'Cancelar esta cobrança?', mensagem: 'A cobrança deixa de valer e sai das contas de recebimento. O motivo é obrigatório.',
+    confirmar: 'Cancelar cobrança', sucesso: 'Cobrança cancelada.', perigo: true,
+  },
+  contestar: {
+    titulo: 'Marcar como contestada?',
+    mensagem: 'Use quando o aluno contestou o pagamento no banco ou no cartão. A cobrança continua contando o período até a contestação terminar. O motivo é obrigatório.',
+    confirmar: 'Marcar contestação', sucesso: 'Cobrança marcada como contestada.', perigo: false,
+  },
+  estornar: {
+    titulo: 'Marcar como estornada?',
+    mensagem: 'Use quando o dinheiro voltou ao aluno (estorno feito na InfinitePay ou no banco, ou contestação perdida). O app não devolve dinheiro: só registra. A cobrança deixa de contar o período e não volta a ficar paga. O motivo é obrigatório.',
+    confirmar: 'Marcar estorno', sucesso: 'Cobrança marcada como estornada.', perigo: true,
+  },
+  manterPaga: {
+    titulo: 'Manter como paga?',
+    mensagem: 'Use quando a contestação terminou a seu favor. A cobrança volta a ficar paga, com a mesma data e forma. O motivo é obrigatório.',
+    confirmar: 'Manter como paga', sucesso: 'Cobrança mantida como paga.', perigo: false,
+  },
+};
+
+/**
+ * Uma cobrança: os dados, o selo, e (com `FINANCEIRO_ALTERAR`) Registrar pagamento, Desfazer a baixa, Cancelar, Marcar
+ * contestação, Marcar estorno e Manter como paga. Registrar e cancelar só em cobrança em aberto; desfazer só em baixa
+ * manual; contestação e estorno em paga (o estorno também em contestada); manter paga só em contestada. A API confere
+ * de novo. O app nunca envia valor de cobrança: só data, forma, observação e a versão que viu. O treinador não paga nem
+ * recebe por aqui: "Copiar link de pagamento" pede o link da InfinitePay (cobrança em aberto, recebimento online
+ * configurado) para ele mandar ao aluno.
  */
 export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
   cobranca: CobrancaResponse | null;
@@ -73,6 +109,8 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
   const { avisar } = useAviso();
   const [modo, setModo] = useState<Modo>(abrirEmBaixa && podeAlterar && podeRegistrarPagamento(cobranca) ? 'baixa' : 'detalhe');
   const [pergunta, setPergunta] = useState<Pergunta>(null);
+  // O painel continua com o texto da última pergunta enquanto fecha.
+  const [ultimaPergunta, setUltimaPergunta] = useState<Exclude<Pergunta, null>>('desfazer');
   const [data, setData] = useState(dataParaTela(hojeEmBrasilia()));
   const [forma, setForma] = useState<FormaDePagamento | null>('PIX_DIRETO');
   const [observacao, setObservacao] = useState('');
@@ -125,9 +163,14 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
 
   const confirmarPergunta = () => {
     const texto = motivo.trim();
-    if (!texto) return;
-    if (pergunta === 'desfazer') concluir(() => desfazerBaixaDaCobranca(cobranca.id, { motivo: texto, versao: cobranca.versao }), 'Baixa desfeita.');
-    else concluir(() => cancelarCobranca(cobranca.id, { motivo: texto, versao: cobranca.versao }), 'Cobrança cancelada.');
+    if (!texto || !pergunta) return;
+    const corpo = { motivo: texto, versao: cobranca.versao };
+    const acoes = {
+      desfazer: desfazerBaixaDaCobranca, cancelar: cancelarCobranca, contestar: contestarCobranca, estornar: estornarCobranca,
+      manterPaga: manterCobrancaPaga,
+    };
+    const acao = acoes[pergunta];
+    concluir(() => acao(cobranca.id, corpo), PERGUNTAS[pergunta].sucesso);
   };
 
   const copiarLink = () => {
@@ -162,7 +205,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
     router.push({ pathname: '/treinador/financeiro', params: { aba: 'recebimento' } });
   };
 
-  const perguntar = (p: Pergunta) => { setMotivo(''); setErro(null); setPergunta(p); };
+  const perguntar = (p: Exclude<Pergunta, null>) => { setMotivo(''); setErro(null); setUltimaPergunta(p); setPergunta(p); };
 
   const titulo = modo === 'baixa' ? 'Registrar pagamento' : 'Cobrança';
   const rodape = modo === 'baixa' ? (
@@ -177,6 +220,9 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
         <Botao rotulo="Copiar link de pagamento" tipo="secundario" carregando={copiando} aoTocar={copiarLink} />
       ) : null}
       {podeDesfazerBaixa(cobranca) ? <Botao rotulo="Desfazer baixa" tipo="secundario" aoTocar={() => perguntar('desfazer')} /> : null}
+      {podeManterPaga(cobranca) ? <Botao rotulo="Manter como paga" tipo="secundario" aoTocar={() => perguntar('manterPaga')} /> : null}
+      {podeMarcarContestacao(cobranca) ? <Botao rotulo="Marcar contestação" tipo="secundario" aoTocar={() => perguntar('contestar')} /> : null}
+      {podeMarcarEstorno(cobranca) ? <Botao rotulo="Marcar estorno" tipo="perigoTexto" aoTocar={() => perguntar('estornar')} /> : null}
       {podeCancelarCobranca(cobranca) ? <Botao rotulo="Cancelar cobrança" tipo="perigoTexto" aoTocar={() => perguntar('cancelar')} /> : null}
     </LinhaDeAcoes>
   ) : undefined;
@@ -200,7 +246,7 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
             <CampoLeitura rotulo="Competência" valor={rotuloDoMes(cobranca.competencia)} />
             <CampoLeitura rotulo="Vencimento" valor={dataParaTela(cobranca.vencimento)} numerico />
             {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <CampoLeitura rotulo="Atraso" valor={atrasoParaTela(cobranca.diasDeAtraso)} /> : null}
-            {cobranca.situacao === 'PAGA' ? (
+            {temBaixaRegistrada(cobranca) ? (
               <>
                 <CampoLeitura rotulo="Pago em" valor={dataParaTela(cobranca.pagoEm)} numerico />
                 <CampoLeitura rotulo="Forma" valor={rotuloDaForma(cobranca.forma)} />
@@ -228,12 +274,10 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
         {erro && !pergunta ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
       </View>
       <PainelConfirmacao visivel={pergunta !== null}
-        titulo={pergunta === 'desfazer' ? 'Desfazer a baixa?' : 'Cancelar esta cobrança?'}
-        mensagem={pergunta === 'desfazer'
-          ? 'A cobrança volta a ficar em aberto. O motivo fica registrado.'
-          : 'A cobrança deixa de valer e sai das contas de recebimento. O motivo é obrigatório.'}
-        rotuloConfirmar={pergunta === 'desfazer' ? 'Desfazer baixa' : 'Cancelar cobrança'} rotuloCancelar="Voltar"
-        perigo={pergunta === 'cancelar'} carregando={enviando} desabilitado={!motivo.trim()} motivo="Informe o motivo."
+        titulo={PERGUNTAS[ultimaPergunta].titulo}
+        mensagem={PERGUNTAS[ultimaPergunta].mensagem}
+        rotuloConfirmar={PERGUNTAS[ultimaPergunta].confirmar} rotuloCancelar="Voltar"
+        perigo={PERGUNTAS[ultimaPergunta].perigo} carregando={enviando} desabilitado={!motivo.trim()} motivo="Informe o motivo."
         aoConfirmar={confirmarPergunta} aoCancelar={() => setPergunta(null)}>
         <Campo rotulo="Motivo" valor={motivo} aoMudar={setMotivo} linhas={3} maxLength={LIMITES.motivo} />
         {erro && pergunta ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}

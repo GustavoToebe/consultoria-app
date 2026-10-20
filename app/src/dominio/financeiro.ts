@@ -126,7 +126,8 @@ export function seloDaCobranca(c: { situacao: SituacaoDaCobranca; vencida?: bool
     case 'ESTORNADA':
       return { tom: 'neutro', rotulo: 'Estornada' };
     case 'CONTESTADA':
-      return { tom: 'neutro', rotulo: 'Contestada' };
+      // Ainda espera o banco decidir: atenção, não encerrada.
+      return { tom: 'atencao', rotulo: 'Contestada' };
     default:
       return { tom: 'neutro', rotulo: SEM_DADO };
   }
@@ -178,6 +179,28 @@ export function podeCancelarCobranca(c: Pick<CobrancaResponse, 'situacao'>): boo
 /** Desfazer: só uma baixa manual. Pagamento de provedor não se desfaz por aqui. */
 export function podeDesfazerBaixa(c: Pick<CobrancaResponse, 'situacao' | 'provedor'>): boolean {
   return c.situacao === 'PAGA' && c.provedor === 'MANUAL';
+}
+
+/**
+ * Estorno e contestação só registram o que aconteceu fora do app (na InfinitePay ou no banco), qualquer que seja a forma da
+ * baixa. Contestar: só paga. Estornar: paga ou contestada (contestação perdida), e não tem volta. Manter paga: só
+ * contestada (contestação ganha). A API confere de novo.
+ */
+export function podeMarcarContestacao(c: Pick<CobrancaResponse, 'situacao'>): boolean {
+  return c.situacao === 'PAGA';
+}
+
+export function podeMarcarEstorno(c: Pick<CobrancaResponse, 'situacao'>): boolean {
+  return c.situacao === 'PAGA' || c.situacao === 'CONTESTADA';
+}
+
+export function podeManterPaga(c: Pick<CobrancaResponse, 'situacao'>): boolean {
+  return c.situacao === 'CONTESTADA';
+}
+
+/** A baixa (data, forma, quem deu) continua guardada na contestada e na estornada: a ficha da cobrança a mostra. */
+export function temBaixaRegistrada(c: Pick<CobrancaResponse, 'situacao'>): boolean {
+  return c.situacao === 'PAGA' || c.situacao === 'CONTESTADA' || c.situacao === 'ESTORNADA';
 }
 
 // ---- Recebimento online (InfinitePay) ----

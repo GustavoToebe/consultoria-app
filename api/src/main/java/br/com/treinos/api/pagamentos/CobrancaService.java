@@ -124,6 +124,34 @@ public class CobrancaService {
         return resposta(id, LocalDate.now(Fuso.BRASILIA));
     }
 
+    @Transactional
+    public CobrancaResponse estornar(UUID id, MotivoRequest r) {
+        var resultado = baixa.estornar(id, r.motivo().trim(), r.versao());
+        if (resultado.mudou()) {
+            auditoria.registrarEvento("COBRANCA_ESTORNADA", "COBRANCA", id, "Marcou uma cobrança como estornada.");
+        }
+        return resposta(id, LocalDate.now(Fuso.BRASILIA));
+    }
+
+    @Transactional
+    public CobrancaResponse contestar(UUID id, MotivoRequest r) {
+        var resultado = baixa.contestar(id, r.motivo().trim(), r.versao());
+        if (resultado.mudou()) {
+            auditoria.registrarEvento("COBRANCA_CONTESTADA", "COBRANCA", id, "Marcou uma cobrança como contestada.");
+        }
+        return resposta(id, LocalDate.now(Fuso.BRASILIA));
+    }
+
+    @Transactional
+    public CobrancaResponse manterPaga(UUID id, MotivoRequest r) {
+        var resultado = baixa.manterPaga(id, r.motivo().trim(), r.versao());
+        if (resultado.mudou()) {
+            auditoria.registrarEvento("COBRANCA_CONTESTACAO_ENCERRADA", "COBRANCA", id,
+                    "Encerrou a contestação de uma cobrança, que continua paga.");
+        }
+        return resposta(id, LocalDate.now(Fuso.BRASILIA));
+    }
+
     private CobrancaResponse resposta(UUID id, LocalDate hoje) {
         return Respostas.cobranca(cobrancas.linha(id).orElseThrow(Travas::cobrancaNaoEncontrada), hoje);
     }

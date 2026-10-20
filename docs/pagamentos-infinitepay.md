@@ -67,6 +67,10 @@ Gustavo nem da plataforma. Isto não tem relação com o Mercado Pago da Central
   com conferência de `paid`, do valor (`amount` igual ao da cobrança no servidor) e da referência (`order_nsu` = id da cobrança).
   `paid_amount` pode ser maior que `amount` (repasse de taxa ao aluno): isso não é divergência. O retorno do navegador
   (`redirect_url`) nunca dá baixa. Webhook repetido não duplica (idempotente por `transaction_nsu`).
+- **Formato do corpo:** documentado como JSON, mas a rota aceita qualquer `Content-Type`. Um corpo de formulário
+  (`application/x-www-form-urlencoded`) é lido pelo servidor como parâmetros antes da rota; ela os remonta como um objeto
+  JSON (campo repetido vira lista e é recusado como identificador) e segue o mesmo caminho, com o mesmo teto de 16 KiB. Um
+  JSON mandado com o rótulo de formulário também é recuperado. Teste: `InfinitePayWebhookHttpIntegrationTest`.
 - Retentativas: o texto diz que a entrega "pode ser tentada novamente"; número e intervalo **não encontrados**.
 
 ## 4. Taxas e simulação de parcelas
@@ -94,8 +98,19 @@ Gustavo nem da plataforma. Isto não tem relação com o Mercado Pago da Central
   O treinador só saberia pelo app ou pelos recebíveis.
 - **Consequência (versão implementada):** estorno nunca é automático. Consulta que vira "não paga" para transação já
   aplicada, ou `refunded` para ela, gera aviso CONFERIR `ESTORNO_INFORMADO`; a cobrança continua PAGA e a baixa não é
-  apagada. `CONTESTADA` só pode ser marcada à mão pelo treinador. **Agenda de recebimentos e
-  tela de contestações não entram na Fase 2:** a API não dá esses dados, e não vamos simular.
+  apagada. **Agenda de recebimentos e uma lista de contestações vinda da InfinitePay não entram na Fase 2:** a API não dá
+  esses dados, e não vamos simular.
+- **Marcação à mão pelo treinador** (na cobrança, com `FINANCEIRO_ALTERAR`, motivo obrigatório e a `versao` vista; nada
+  aqui move dinheiro, só registra o que aconteceu fora do app):
+  - `POST /cobrancas/{id}/contestar`: PAGA → CONTESTADA (continua cobrindo o período). Auditoria `COBRANCA_CONTESTADA`.
+  - `POST /cobrancas/{id}/manter-paga`: CONTESTADA → PAGA, com a mesma baixa (contestação a favor do treinador).
+    Auditoria `COBRANCA_CONTESTACAO_ENCERRADA`; outra situação = 409 `COBRANCA_NAO_CONTESTADA`.
+  - `POST /cobrancas/{id}/estornar`: PAGA ou CONTESTADA → ESTORNADA (deixa de cobrir o período, sem volta; o app não gera
+    outra cobrança para o período). Auditoria `COBRANCA_ESTORNADA`.
+  - Valem para qualquer forma de baixa (manual ou online). A mesma situação de novo responde 200 sem nova auditoria; outra
+    situação de partida = 409 `COBRANCA_NAO_PAGA`; versão diferente = 409 `CONFLITO_EDICAO`. A baixa (data, forma, quem
+    deu) fica guardada na contestada e na estornada. O aviso `ESTORNO_INFORMADO` continua separado: o treinador confere na
+    InfinitePay, marca o estorno na cobrança e depois marca o aviso como conferido.
 
 ## 7. Termos de uso para integração por terceiros
 - [Termos de Uso](https://www.infinitepay.io/legal/termos-de-uso) (CloudWalk Instituição de Pagamento): **não tratam de

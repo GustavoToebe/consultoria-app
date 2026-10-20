@@ -146,21 +146,21 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
                 cobranca.get("id").asString());
     }
 
-    /** Estorna pelo serviço comum de baixa (ainda sem chamador HTTP), na consultoria do aluno. */
+    /** Estorna pelo serviço comum de baixa, sem conferir a versão, na consultoria do aluno. */
     private void estornar(UUID aluno, JsonNode cobranca) {
         UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class, aluno.toString());
         UUID cobrancaId = UUID.fromString(cobranca.get("id").asString());
         var tx = new TransactionTemplate(transacoes);
-        var resultado = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Devolvido")));
+        var resultado = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Devolvido", null)));
         assertThat(resultado.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.ESTORNADA);
     }
 
-    /** Contesta pelo serviço comum de baixa (ainda sem chamador HTTP), na consultoria do aluno. */
+    /** Contesta pelo serviço comum de baixa, sem conferir a versão, na consultoria do aluno. */
     private void contestar(UUID aluno, JsonNode cobranca) {
         UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class, aluno.toString());
         UUID cobrancaId = UUID.fromString(cobranca.get("id").asString());
         var tx = new TransactionTemplate(transacoes);
-        var resultado = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.contestar(cobrancaId, "Contestou")));
+        var resultado = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.contestar(cobrancaId, "Contestou", null)));
         assertThat(resultado.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.CONTESTADA);
     }
 
@@ -1676,7 +1676,7 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
 
         // Pelo caminho manual a trava recusa aluno inativo...
         assertThatThrownBy(() -> TenantContext.executarComo(consultoria,
-                () -> tx.execute(s -> baixaDeCobranca.estornar(pagaId, "Devolvido"))))
+                () -> tx.execute(s -> baixaDeCobranca.estornar(pagaId, "Devolvido", null))))
                 .isInstanceOfSatisfying(ConflictException.class, e -> assertThat(e.getCodigo()).isEqualTo("ALUNO_INATIVO"));
 
         // O estorno nunca é automático: não existe caminho do provedor para ele (a consulta só gera aviso para conferir).
@@ -1701,31 +1701,31 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         var tx = new TransactionTemplate(transacoes);
 
         assertThatThrownBy(() -> TenantContext.executarComo(consultoria,
-                () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Sem pagamento"))))
+                () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Sem pagamento", null))))
                 .isInstanceOf(ConflictException.class);
         assertThatThrownBy(() -> TenantContext.executarComo(consultoria,
-                () -> tx.execute(s -> baixaDeCobranca.contestar(cobrancaId, "Sem pagamento"))))
+                () -> tx.execute(s -> baixaDeCobranca.contestar(cobrancaId, "Sem pagamento", null))))
                 .isInstanceOf(ConflictException.class);
 
         baixar(aberta, hoje, 200);
-        var estornada = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Devolvido")));
+        var estornada = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Devolvido", null)));
         assertThat(estornada.mudou()).isTrue();
         assertThat(estornada.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.ESTORNADA);
-        var repetida = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Devolvido")));
+        var repetida = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.estornar(cobrancaId, "Devolvido", null)));
         assertThat(repetida.mudou()).isFalse();
         // Estornada não conta no recebido.
         assertThat(nulo(api.get("/financeiro/painel", admin, 200).get("cartoes").get("recebidoCentavos"))).isTrue();
         assertThatThrownBy(() -> TenantContext.executarComo(consultoria,
-                () -> tx.execute(s -> baixaDeCobranca.contestar(cobrancaId, "Contestou"))))
+                () -> tx.execute(s -> baixaDeCobranca.contestar(cobrancaId, "Contestou", null))))
                 .isInstanceOf(ConflictException.class);
 
         // Contestação em outra cobrança paga.
         JsonNode segunda = cobrancas(aluno).get(0);
         UUID segundaId = UUID.fromString(segunda.get("id").asString());
         baixar(segunda, hoje, 200);
-        var contestada = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.contestar(segundaId, "Contestou")));
+        var contestada = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.contestar(segundaId, "Contestou", null)));
         assertThat(contestada.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.CONTESTADA);
-        assertThat(TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.contestar(segundaId, "Contestou")))
+        assertThat(TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.contestar(segundaId, "Contestou", null)))
                 .mudou()).isFalse();
 
         // Provedor que o registro não conhece não baixa nada.
@@ -1733,5 +1733,60 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThatThrownBy(() -> TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.baixar(terceiraId,
                 new BaixaDeCobranca.Baixa("NAO_EXISTE", FormaDePagamento.PIX, hoje, null, null, null)))))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void treinadorMarcaContestacaoEstornoEContestacaoEncerradaComMotivoEVersao() throws Exception {
+        UUID aluno = aluno();
+        contratarHoje(aluno, plano("Plano da contestação", 10000, "MENSAL"));
+        JsonNode aberta = cobrancas(aluno).get(0);
+        String id = aberta.get("id").asString();
+
+        // Em aberto nada disso vale.
+        assertThat(codigo(motivo("/cobrancas/" + id + "/estornar", aberta, 409))).isEqualTo("COBRANCA_NAO_PAGA");
+        assertThat(codigo(motivo("/cobrancas/" + id + "/contestar", aberta, 409))).isEqualTo("COBRANCA_NAO_PAGA");
+        assertThat(codigo(motivo("/cobrancas/" + id + "/manter-paga", aberta, 409))).isEqualTo("COBRANCA_NAO_CONTESTADA");
+
+        JsonNode paga = baixar(aberta, hoje, 200);
+        api.post("/cobrancas/" + id + "/contestar", admin, Map.of("versao", paga.get("versao").asLong()), 400);
+        api.post("/cobrancas/" + id + "/contestar", admin, Map.of("motivo", " ", "versao", paga.get("versao").asLong()), 400);
+        assertThat(codigo(api.post("/cobrancas/" + id + "/contestar", admin,
+                Map.of("motivo", "Contestou", "versao", paga.get("versao").asLong() + 5), 409))).isEqualTo("CONFLITO_EDICAO");
+        JsonNode leitor = membro("Leitor da contestação", Set.of("FINANCEIRO_LER", "ALUNO_LER"));
+        motivo(leitor, "/cobrancas/" + id + "/contestar", paga, 403);
+        motivo(leitor, "/cobrancas/" + id + "/estornar", paga, 403);
+        motivo(leitor, "/cobrancas/" + id + "/manter-paga", paga, 403);
+
+        // Contestada: a baixa fica e a repetição não audita de novo.
+        JsonNode contestada = motivo("/cobrancas/" + id + "/contestar", paga, 200);
+        assertThat(contestada.get("situacao").asString()).isEqualTo("CONTESTADA");
+        assertThat(contestada.get("pagoEm").asString()).isEqualTo(hoje.toString());
+        assertThat(contestada.get("forma").asString()).isEqualTo("PIX_DIRETO");
+        assertThat(contestada.get("motivo").asString()).isEqualTo("Motivo fictício");
+        motivo("/cobrancas/" + id + "/contestar", contestada, 200);
+        assertThat(auditorias("COBRANCA_CONTESTADA", id)).isEqualTo(1);
+
+        // A contestação terminou a favor: volta a paga, com a mesma baixa.
+        JsonNode mantida = motivo("/cobrancas/" + id + "/manter-paga", contestada, 200);
+        assertThat(mantida.get("situacao").asString()).isEqualTo("PAGA");
+        assertThat(mantida.get("pagoEm").asString()).isEqualTo(hoje.toString());
+        motivo("/cobrancas/" + id + "/manter-paga", mantida, 200);
+        assertThat(auditorias("COBRANCA_CONTESTACAO_ENCERRADA", id)).isEqualTo(1);
+
+        // Contestada de novo e perdida: estornada, sem volta.
+        JsonNode outraVez = motivo("/cobrancas/" + id + "/contestar", mantida, 200);
+        JsonNode estornada = motivo("/cobrancas/" + id + "/estornar", outraVez, 200);
+        assertThat(estornada.get("situacao").asString()).isEqualTo("ESTORNADA");
+        assertThat(estornada.get("pagoEm").asString()).isEqualTo(hoje.toString());
+        motivo("/cobrancas/" + id + "/estornar", estornada, 200);
+        assertThat(auditorias("COBRANCA_ESTORNADA", id)).isEqualTo(1);
+        assertThat(codigo(motivo("/cobrancas/" + id + "/manter-paga", estornada, 409))).isEqualTo("COBRANCA_NAO_CONTESTADA");
+        assertThat(codigo(motivo("/cobrancas/" + id + "/contestar", estornada, 409))).isEqualTo("COBRANCA_NAO_PAGA");
+        assertThat(codigo(motivo("/cobrancas/" + id + "/desfazer-baixa", estornada, 409))).isEqualTo("COBRANCA_NAO_PAGA");
+
+        // Paga direto para estornada também vale.
+        JsonNode segunda = baixar(cobrancas(aluno).get(0), hoje, 200);
+        assertThat(motivo("/cobrancas/" + segunda.get("id").asString() + "/estornar", segunda, 200).get("situacao").asString())
+                .isEqualTo("ESTORNADA");
     }
 }

@@ -136,31 +136,61 @@ public class BaixaDeCobranca {
     }
 
     /**
-     * PAGA vira ESTORNADA (o registro da baixa fica). Pelo caminho do treinador, que recusa aluno que saiu. Ainda não há rota
-     * que o chame, e o provedor nunca estorna sozinho: um estorno informado só vai para a conferência.
+     * O dinheiro voltou ao pagador (estorno feito pelo treinador na InfinitePay ou no banco, ou contestação perdida): PAGA ou
+     * CONTESTADA vira ESTORNADA. O registro da baixa (data, forma, quem deu) fica, e a cobrança deixa de cobrir o período. Não
+     * tem volta: ESTORNADA não muda mais. Só pelo treinador ({@code POST /cobrancas/{id}/estornar}); o provedor nunca estorna
+     * sozinho (um estorno informado só vai para a conferência). A mesma situação de novo é idempotente.
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public Resultado estornar(UUID cobrancaId, String motivo) {
+    public Resultado estornar(UUID cobrancaId, String motivo, Long versaoEsperada) {
         Travas.DaCobranca t = travas.daCobranca(cobrancaId);
         CobrancaAluno c = t.cobranca();
         if (c.getSituacao() == CobrancaAluno.Situacao.ESTORNADA) {
             return resultado(t, false);
         }
-        exigirPaga(c);
+        if (c.getSituacao() != CobrancaAluno.Situacao.PAGA && c.getSituacao() != CobrancaAluno.Situacao.CONTESTADA) {
+            throw new ConflictException("Só uma cobrança paga ou contestada pode ser marcada como estornada.",
+                    "COBRANCA_NAO_PAGA");
+        }
+        conferirVersao(c, versaoEsperada);
         c.estornar(motivo);
         return resultado(t, true);
     }
 
-    /** O pagador contestou a cobrança no banco: PAGA vira CONTESTADA. Ainda sem chamador (a InfinitePay não avisa contestação). */
+    /**
+     * O pagador contestou o pagamento no banco ou no cartão: PAGA vira CONTESTADA e continua cobrindo o período até o banco
+     * decidir. A InfinitePay não avisa contestação pela API, então só o treinador marca
+     * ({@code POST /cobrancas/{id}/contestar}). A mesma situação de novo é idempotente.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
-    public Resultado contestar(UUID cobrancaId, String motivo) {
+    public Resultado contestar(UUID cobrancaId, String motivo, Long versaoEsperada) {
         Travas.DaCobranca t = travas.daCobranca(cobrancaId);
         CobrancaAluno c = t.cobranca();
         if (c.getSituacao() == CobrancaAluno.Situacao.CONTESTADA) {
             return resultado(t, false);
         }
         exigirPaga(c);
+        conferirVersao(c, versaoEsperada);
         c.contestar(motivo);
+        return resultado(t, true);
+    }
+
+    /**
+     * A contestação terminou a favor do treinador: CONTESTADA volta a PAGA, com a mesma baixa (data, forma, quem deu). PAGA de
+     * novo é idempotente; qualquer outra situação é 409 (estornada não volta).
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Resultado manterPaga(UUID cobrancaId, String motivo, Long versaoEsperada) {
+        Travas.DaCobranca t = travas.daCobranca(cobrancaId);
+        CobrancaAluno c = t.cobranca();
+        if (c.getSituacao() == CobrancaAluno.Situacao.PAGA) {
+            return resultado(t, false);
+        }
+        if (c.getSituacao() != CobrancaAluno.Situacao.CONTESTADA) {
+            throw new ConflictException("Só uma cobrança contestada pode voltar a ficar paga.", "COBRANCA_NAO_CONTESTADA");
+        }
+        conferirVersao(c, versaoEsperada);
+        c.manterPaga(motivo);
         return resultado(t, true);
     }
 

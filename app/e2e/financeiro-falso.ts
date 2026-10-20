@@ -4,7 +4,7 @@ import type {
   CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, Inadimplente, JurosDoParcelamento,
   LancamentoResponse, Painel, PlanoResponse, RecebimentoOnline,
 } from '../src/api/financeiroTipos';
-import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, TREINADOR, type RespostasApi } from './api-falsa';
+import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
 /**
  * API falsa do financeiro (pagamentos do aluno ao treinador), com estado em memória: criar plano, contratar (gera a
@@ -165,8 +165,24 @@ const HOJE = '2026-10-19';
 
 const conflito = (route: Route) => json(route, erroApi(409, 'Alguém alterou este registro.', 'CONFLITO_EDICAO').corpo, 409);
 
+/** Contestar, estornar e manter paga: muda a situação se a atual permite, como a API (motivo e versão no corpo). */
+function marcarSituacao(estado: EstadoFinanceiro, p: PedidoFalso, route: Route, de: CobrancaResponse['situacao'][],
+                        para: CobrancaResponse['situacao'], codigo: string) {
+  const id = p.caminho.split('/')[2];
+  const c = p.corpo as { motivo: string; versao: number };
+  const cobranca = estado.cobrancas.find((x) => x.id === id);
+  if (!cobranca) return json(route, erroApi(404, 'Cobrança não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
+  if (cobranca.situacao === para) return json(route, cobranca);
+  if (!de.includes(cobranca.situacao)) return json(route, erroApi(409, 'Não vale nesta situação.', codigo).corpo, 409);
+  if (cobranca.versao !== c.versao) return conflito(route);
+  Object.assign(cobranca, { situacao: para, motivo: c.motivo, versao: cobranca.versao + 1 });
+  return json(route, cobranca);
+}
+
 /** Rotas do financeiro para somar ao mapa de `simularApi`. */
 export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
+  const marcar = (p: PedidoFalso, route: Route, de: CobrancaResponse['situacao'][], para: CobrancaResponse['situacao'], codigo: string) =>
+    marcarSituacao(estado, p, route, de, para, codigo);
   return {
     'GET /financeiro/planos': (p, route) =>
       json(route, estado.planos.filter((x) => p.busca.get('arquivados') === 'true' || !x.arquivado)),
@@ -251,6 +267,9 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       });
       return json(route, cobranca);
     },
+    'POST /cobrancas/{id}/contestar': (p, route) => marcar(p, route, ['PAGA'], 'CONTESTADA', 'COBRANCA_NAO_PAGA'),
+    'POST /cobrancas/{id}/estornar': (p, route) => marcar(p, route, ['PAGA', 'CONTESTADA'], 'ESTORNADA', 'COBRANCA_NAO_PAGA'),
+    'POST /cobrancas/{id}/manter-paga': (p, route) => marcar(p, route, ['CONTESTADA'], 'PAGA', 'COBRANCA_NAO_CONTESTADA'),
     'GET /aluno/financeiro': (_p, route) => {
       const vigente = estado.contratacoes.find((x) => x.situacao !== 'ENCERRADA') ?? null;
       const doAluno = (c: CobrancaResponse): CobrancaDoAluno => ({
