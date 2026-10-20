@@ -1,6 +1,6 @@
 import { useSessao } from '../sessao/SessaoProvider';
 import { Permitido } from '../ui/Permitido';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { AlunoDetalhe, AlunoRequest } from '../api/tipos';
@@ -27,6 +27,8 @@ interface Props {
   aoCancelar?: () => void;
   /** Ciclo padrão da consultoria: aparece no campo vazio ("Padrão: 30 dias"), para não parecer "sem prazo". */
   diasPadrao?: number | null;
+  /** Controle extra no começo da seção "Acompanhamento" (na ficha, a escolha do questionário, que grava na hora). */
+  noAcompanhamento?: ReactNode;
 }
 
 /** Texto do campo em número de 1 a 365; vazio = sem prazo (undefined → null no envio) e inválido = null. */
@@ -44,7 +46,7 @@ function diasDoCampo(texto: string): number | null {
  * escolhe o dele ao aceitar o convite). O telefone é do usuário do aluno, então só aparece na edição de quem já tem
  * acesso. Objetivo, observações, CPF e endereço são dado sensível: ficam só no banco, nunca em log.
  */
-export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null }: Props) {
+export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null, noAcompanhamento }: Props) {
   const {pode,usuario}=useSessao();
   const [responsavelId,setResponsavelId]=useState(inicial?.responsavelId??usuario?.id??'');
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
@@ -126,6 +128,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
           erros={Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, errosEndereco[c] ?? campos[`endereco.${c}`]]))} />
       </Permitido>
       <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
+      {noAcompanhamento}
       {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
       {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
       <Campo

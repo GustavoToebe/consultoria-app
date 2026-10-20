@@ -12,7 +12,7 @@ import { Campo } from './Campo';
 import { Texto } from './Texto';
 import { EscolhaEmFolha, type OpcaoDaFolha } from './EscolhaEmFolha';
 
-const OPCOES_UF: readonly OpcaoDaFolha<string>[] = [{ valor: '', rotulo: 'Não informar' }, ...UFS.map((uf) => ({ valor: uf as string, rotulo: uf as string }))];
+const OPCOES_UF: readonly OpcaoDaFolha<string | null>[] = [{ valor: '', rotulo: 'Não informar' }, ...UFS.map((uf) => ({ valor: uf as string, rotulo: uf as string }))];
 
 interface Props {
   valor: EnderecoNoForm;
@@ -72,7 +72,7 @@ export function CamposDeEndereco({ valor, aoMudar, erros = {}, desabilitado }: P
         maxLength={LIMITES_ENDERECO.logradouro} editable={!desabilitado} />
       <View style={estilos.linha}>
         <View style={estilos.estreito}>
-          <Campo rotulo="Número * (ou s/n)" valor={valor.numero} aoMudar={mudar('numero')} erro={erros.numero} maxLength={LIMITES_ENDERECO.numero} editable={!desabilitado} />
+          <Campo rotulo="Número *" placeholder="ou s/n" valor={valor.numero} aoMudar={mudar('numero')} erro={erros.numero} maxLength={LIMITES_ENDERECO.numero} editable={!desabilitado} />
         </View>
         <View style={estilos.largo}>
           <Campo rotulo="Complemento (opcional)" valor={valor.complemento} aoMudar={mudar('complemento')} erro={erros.complemento}
@@ -80,11 +80,20 @@ export function CamposDeEndereco({ valor, aoMudar, erros = {}, desabilitado }: P
         </View>
       </View>
       <Campo rotulo="Bairro (opcional)" valor={valor.bairro} aoMudar={mudar('bairro')} erro={erros.bairro} maxLength={LIMITES_ENDERECO.bairro} editable={!desabilitado} />
-      <Campo rotulo="Cidade *" valor={valor.cidade} aoMudar={mudar('cidade')} erro={erros.cidade} autoComplete="off" maxLength={LIMITES_ENDERECO.cidade}
-        editable={!desabilitado} />
-      <EscolhaEmFolha rotulo="UF *" titulo="Escolha a UF" valor={valor.uf} opcoes={OPCOES_UF} aoMudar={mudar('uf')} rotuloDoValor="Não informada"
-        desabilitado={desabilitado} />
-      {erros.uf ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erros.uf}</Texto> : null}
+      {/* Cidade e UF na mesma linha; o rótulo vazio em cima da UF alinha o botão com o campo da cidade. Sem UF o botão diz
+          só "—" ("Não informar" fica na folha), para a cidade não ficar espremida no celular. */}
+      <View style={estilos.linha}>
+        <View style={estilos.largo}>
+          <Campo rotulo="Cidade *" valor={valor.cidade} aoMudar={mudar('cidade')} erro={erros.cidade} autoComplete="off" maxLength={LIMITES_ENDERECO.cidade}
+            editable={!desabilitado} />
+        </View>
+        <View style={estilos.uf}>
+          <Texto variante="rotulo" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"> </Texto>
+          <EscolhaEmFolha<string | null> rotulo="UF *" titulo="Escolha a UF" valor={valor.uf || null} opcoes={OPCOES_UF} aoMudar={(uf) => mudar('uf')(uf ?? '')} rotuloDoValor="—"
+            desabilitado={desabilitado} />
+          {erros.uf ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erros.uf}</Texto> : null}
+        </View>
+      </View>
     </View>
   );
 }
@@ -94,4 +103,5 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', gap: espaco(1.5) },
   estreito: { flex: 1 },
   largo: { flex: 2 },
+  uf: { gap: espaco(0.5) },
 });

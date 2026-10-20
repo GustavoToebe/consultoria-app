@@ -77,8 +77,13 @@ export default function FichaAluno() {
           <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir} />
           <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
             geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
-          <Permitido codigo="REGISTRO_LER"><CartaoFrequencia acompanhamento={acompanhamento} /></Permitido>
-          {pode('REGISTRO_LER') && pode('TREINO_LER') ? <CartaoMobilidade alunoId={aluno.id} acompanhamento={acompanhamento} /> : null}
+          {/* Frequência e Mobilidade são o mesmo tipo de contagem (semana e pasta): lado a lado no PC, uma embaixo da outra no celular. */}
+          {pode('REGISTRO_LER') ? (
+            <View style={estilos.contagens}>
+              <View style={estilos.contagem}><CartaoFrequencia acompanhamento={acompanhamento} /></View>
+              {pode('TREINO_LER') && !acompanhamento.erro ? <View style={estilos.contagem}><CartaoMobilidade alunoId={aluno.id} acompanhamento={acompanhamento} /></View> : null}
+            </View>
+          ) : null}
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
           {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoEvolucaoRespostas alunoId={aluno.id} /> : null}
@@ -177,33 +182,36 @@ function CartaoDados({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao
         editando || aluno.anonimizado || !pode('ALUNO_ALTERAR') ? null : <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />
       }>
       {editando ? (
-        <View style={estilos.dados}>
-          <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={pode('ALUNO_ALTERAR')}
-            aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); avisar('Questionário trocado.', 'sucesso'); }} />
-          <FormAluno
-            inicial={aluno}
-            diasPadrao={padrao}
-            rotuloSalvar="Salvar"
-            aoCancelar={() => setEditando(false)}
-            aoSalvar={async (dados) => {
-              const a = await alterarAluno(aluno.id, dados);
-              aoAlterar(a);
-              setEditando(false);
-              avisar('Dados salvos.', 'sucesso');
-            }}
-          />
-        </View>
+        <FormAluno
+          inicial={aluno}
+          diasPadrao={padrao}
+          rotuloSalvar="Salvar"
+          aoCancelar={() => setEditando(false)}
+          // O questionário fica na seção Acompanhamento, mas grava na hora (não espera o Salvar), como antes.
+          noAcompanhamento={<SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={pode('ALUNO_ALTERAR')}
+            aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); avisar('Questionário trocado.', 'sucesso'); }} />}
+          aoSalvar={async (dados) => {
+            const a = await alterarAluno(aluno.id, dados);
+            aoAlterar(a);
+            setEditando(false);
+            avisar('Dados salvos.', 'sucesso');
+          }}
+        />
       ) : (
+        // As mesmas três seções do formulário de edição, para o que se lê estar onde se edita.
         <View style={estilos.dados}>
+          <Texto variante="secao">Cadastro</Texto>
           <CampoLeitura rotulo="E-mail" valor={aluno.email} />
           <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
           {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
-          <ResponsavelAluno id={aluno.responsavelId} />
           <Permitido codigo="ALUNO_SENSIVEL_LER">
             <CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} />
+            <Texto variante="secao" style={estilos.secao}>Dados pessoais</Texto>
             <CampoLeitura rotulo="CPF" valor={aluno.cpf} />
             <CampoLeitura rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} />
           </Permitido>
+          <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
+          <ResponsavelAluno id={aluno.responsavelId} />
           <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
           <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
             aoEscolher={async () => {}} />
@@ -218,4 +226,7 @@ const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
   coluna: { flex: 1, gap: espaco(3) },
   dados: { gap: espaco(1.5) },
+  secao: { marginTop: espaco(1) },
+  contagens: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3) },
+  contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
 });
