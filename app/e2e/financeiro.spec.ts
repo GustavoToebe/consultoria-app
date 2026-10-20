@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import type { CobrancaResponse, ContratacaoResponse } from '../src/api/financeiroTipos';
 import type { AlunoDetalhe } from '../src/api/tipos';
 import { ALUNO, sessao, simularApi, TREINADOR } from './api-falsa';
 import { fixarHoje, sessaoDeAluno } from './aluno';
@@ -197,6 +198,60 @@ test('fluxo completo: o treinador cria o plano, contrata na ficha e dá a baixa;
   await expect(aluno.getByText('Pago na academia')).toHaveCount(0);
   await expect(aluno.getByRole('button', { name: /pagar/i })).toHaveCount(0);
   expect(doAluno.errosDaPagina).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+const CONTRATACAO_ATIVA: ContratacaoResponse = {
+  id: 'e0000000-0000-4000-8000-0000000000dd', alunoId: ALUNO_FINANCEIRO_ID, planoComercialId: 'b0000000-0000-4000-8000-0000000000f1',
+  planoNome: 'Consultoria mensal', periodicidade: 'MENSAL', valorCentavos: 15_000, motivoValor: null, inicio: '2026-08-05', diaVencimento: 5,
+  situacao: 'ATIVA', encerradaEm: null, criadoEm: '2026-08-05T12:00:00Z', versao: 0,
+};
+
+const abertaDaContratacao = (id: string, vencimento: string, vencida: boolean): CobrancaResponse => ({
+  ...COBRANCA_ATRASADA, id, contratacaoId: CONTRATACAO_ATIVA.id, alunoId: ALUNO_FINANCEIRO_ID, competencia: vencimento, vencimento, vencida,
+  diasDeAtraso: vencida ? 14 : null,
+});
+
+test('Pausar e Encerrar avisam das cobranças abertas (as vencidas incluídas) só quando há alguma', async ({ page, context }) => {
+  await fixarHoje(page);
+  const comAbertas = estadoFinanceiro({
+    contratacoes: [{ ...CONTRATACAO_ATIVA }],
+    cobrancas: [
+      abertaDaContratacao('c0000000-0000-4000-8000-0000000000a1', '2026-10-05', true),
+      abertaDaContratacao('c0000000-0000-4000-8000-0000000000a2', '2026-11-05', false),
+      { ...abertaDaContratacao('c0000000-0000-4000-8000-0000000000a3', '2026-09-05', false), situacao: 'PAGA', vencida: false },
+    ],
+  });
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(comAbertas),
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } }, [`GET /alunos/${ALUNO_FINANCEIRO_ID}`]: { corpo: FICHA },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}`);
+  const aviso = 'Há 2 cobranças abertas; elas continuam valendo. Cancele uma a uma se precisar.';
+
+  await page.getByRole('button', { name: 'Pausar', exact: true }).click();
+  const pausar = page.getByRole('alertdialog', { name: 'Pausar este plano?' });
+  await expect(pausar.getByText(aviso)).toBeVisible();
+  await pausar.getByRole('button', { name: 'Voltar' }).click();
+
+  await page.getByRole('button', { name: 'Encerrar', exact: true }).click();
+  await expect(page.getByRole('alertdialog', { name: 'Encerrar este plano?' }).getByText(aviso)).toBeVisible();
+  await page.getByRole('alertdialog', { name: 'Encerrar este plano?' }).getByRole('button', { name: 'Voltar' }).click();
+
+  // Sem cobrança aberta: nenhum texto sobre cobranças abertas no painel.
+  const outra = await context.newPage();
+  await fixarHoje(outra);
+  const semAbertas = estadoFinanceiro({ contratacoes: [{ ...CONTRATACAO_ATIVA }], cobrancas: [] });
+  const daOutra = await simularApi(outra, {
+    ...(await sessaoComFinanceiro(outra)), ...rotasDoFinanceiro(semAbertas),
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } }, [`GET /alunos/${ALUNO_FINANCEIRO_ID}`]: { corpo: FICHA },
+  });
+  await outra.goto(`/treinador/alunos/${ALUNO_FINANCEIRO_ID}`);
+  await outra.getByRole('button', { name: 'Pausar', exact: true }).click();
+  const painel = outra.getByRole('alertdialog', { name: 'Pausar este plano?' });
+  await expect(painel).toBeVisible();
+  await expect(painel).not.toContainText(/cobranças? abertas?/);
+  expect(daOutra.errosDaPagina).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
 

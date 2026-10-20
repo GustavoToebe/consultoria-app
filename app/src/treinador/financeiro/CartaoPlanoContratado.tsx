@@ -8,7 +8,8 @@ import {
   mudarSituacaoDaContratacao,
 } from '../../api/rotas';
 import {
-  hojeEmBrasilia, LIMITES, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao, validarContratacao,
+  abertasDaContratacao, hojeEmBrasilia, LIMITES, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao, textoDeAbertasQueContinuam,
+  validarContratacao,
 } from '../../dominio/financeiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMes } from '../../dominio/numeros';
@@ -52,21 +53,23 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId
   useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
   const [formulario, setFormulario] = useState<'contratar' | 'alterar' | null>(null);
   const [cobrancaAberta, setCobrancaAberta] = useState<CobrancaResponse | null>(null);
-  const [encerrando, setEncerrando] = useState(false);
+  const [confirmando, setConfirmando] = useState<'pausar' | 'encerrar' | null>(null);
   const [mudando, setMudando] = useState<string | null>(null);
 
   const lista = contratacoes.dados;
   const vigente = lista?.find((c) => c.situacao !== 'ENCERRADA') ?? null;
   const anteriores = lista ? lista.filter((c) => c.situacao === 'ENCERRADA').length : 0;
+  // Pausar e encerrar mantêm as cobranças abertas da contratação (inclui as vencidas); o painel avisa só quando há alguma.
+  const avisoDasAbertas = vigente ? textoDeAbertasQueContinuam(abertasDaContratacao(cobrancas.dados, vigente.id)) : null;
 
   const mudarSituacao = (acao: 'pausar' | 'retomar' | 'encerrar', mensagem: string) => {
     if (!vigente) return;
     setMudando(acao);
     mudarSituacaoDaContratacao(vigente.id, acao, vigente.versao).then(
-      () => { setMudando(null); setEncerrando(false); avisar(mensagem, 'sucesso'); recarregar(); },
+      () => { setMudando(null); setConfirmando(null); avisar(mensagem, 'sucesso'); recarregar(); },
       (e: unknown) => {
         setMudando(null);
-        setEncerrando(false);
+        setConfirmando(null);
         if (ehConflito(e)) {
           avisar(avisoDeConflito('A contratação foi alterada'), 'neutro');
           recarregar();
@@ -102,9 +105,9 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId
           {podeAlterar ? (
             <LinhaDeAcoes>
               <Botao rotulo="Alterar" tipo="secundario" aoTocar={() => setFormulario('alterar')} desabilitado={vigente.situacao === 'ENCERRADA'} />
-              {vigente.situacao === 'ATIVA' ? <Botao rotulo="Pausar" tipo="secundario" carregando={mudando === 'pausar'} aoTocar={() => mudarSituacao('pausar', 'Contratação pausada.')} /> : null}
+              {vigente.situacao === 'ATIVA' ? <Botao rotulo="Pausar" tipo="secundario" aoTocar={() => setConfirmando('pausar')} /> : null}
               {vigente.situacao === 'PAUSADA' ? <Botao rotulo="Retomar" tipo="secundario" carregando={mudando === 'retomar'} aoTocar={() => mudarSituacao('retomar', 'Contratação retomada.')} /> : null}
-              <Botao rotulo="Encerrar" tipo="perigoTexto" aoTocar={() => setEncerrando(true)} />
+              <Botao rotulo="Encerrar" tipo="perigoTexto" aoTocar={() => setConfirmando('encerrar')} />
             </LinhaDeAcoes>
           ) : null}
         </View>
@@ -129,10 +132,18 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId
           aoFechar={() => setFormulario(null)} aoMudar={recarregar} />
       ) : null}
       <FolhaDaCobranca cobranca={cobrancaAberta} podeAlterar={podeAlterar} aoFechar={() => setCobrancaAberta(null)} aoMudar={recarregar} />
-      <PainelConfirmacao visivel={encerrando} titulo="Encerrar este plano?"
+      <PainelConfirmacao visivel={confirmando === 'pausar'} titulo="Pausar este plano?"
+        mensagem="Enquanto estiver pausado, o aluno não recebe novas cobranças. Você pode retomar quando quiser."
+        rotuloConfirmar="Pausar plano" rotuloCancelar="Voltar" carregando={mudando === 'pausar'}
+        aoConfirmar={() => mudarSituacao('pausar', 'Contratação pausada.')} aoCancelar={() => setConfirmando(null)}>
+        {avisoDasAbertas ? <Texto variante="suave">{avisoDasAbertas}</Texto> : null}
+      </PainelConfirmacao>
+      <PainelConfirmacao visivel={confirmando === 'encerrar'} titulo="Encerrar este plano?"
         mensagem="O aluno deixa de receber novas cobranças. As que já existem continuam e podem ser pagas ou canceladas. Para voltar, será preciso contratar de novo."
         rotuloConfirmar="Encerrar plano" rotuloCancelar="Voltar" perigo carregando={mudando === 'encerrar'}
-        aoConfirmar={() => mudarSituacao('encerrar', 'Contratação encerrada.')} aoCancelar={() => setEncerrando(false)} />
+        aoConfirmar={() => mudarSituacao('encerrar', 'Contratação encerrada.')} aoCancelar={() => setConfirmando(null)}>
+        {avisoDasAbertas ? <Texto variante="suave">{avisoDasAbertas}</Texto> : null}
+      </PainelConfirmacao>
     </Cartao>
   );
 }

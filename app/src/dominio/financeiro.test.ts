@@ -1,5 +1,6 @@
 import type { CobrancaDoAluno, MesDoPainel } from '../api/financeiroTipos';
 import {
+  abertasDaContratacao,
   atrasoParaTela,
   cartoesDoPainel,
   descricaoDoGrafico,
@@ -25,6 +26,7 @@ import {
   seloDaCobranca,
   seloDaContratacao,
   serieDoGrafico,
+  textoDeAbertasQueContinuam,
   validarBaixa,
   validarContratacao,
   validarLancamento,
@@ -85,6 +87,23 @@ describe('rótulos', () => {
     expect(atrasoParaTela(12)).toBe('12 dias de atraso');
     expect(atrasoParaTela(null)).toBe('—');
     expect(atrasoParaTela(0)).toBe('—');
+  });
+});
+
+describe('aviso de cobranças abertas ao pausar e encerrar', () => {
+  it('sem cobrança aberta não há texto', () => {
+    expect(textoDeAbertasQueContinuam(0)).toBeNull();
+    expect(textoDeAbertasQueContinuam(-1)).toBeNull();
+  });
+  it('singular e plural', () => {
+    expect(textoDeAbertasQueContinuam(1)).toBe('Há 1 cobrança aberta; ela continua valendo. Cancele-a se precisar.');
+    expect(textoDeAbertasQueContinuam(2)).toBe('Há 2 cobranças abertas; elas continuam valendo. Cancele uma a uma se precisar.');
+    expect(textoDeAbertasQueContinuam(5)).toBe('Há 5 cobranças abertas; elas continuam valendo. Cancele uma a uma se precisar.');
+  });
+  it('conta só as ABERTAS da contratação (vencida é ABERTA; paga e cancelada não; outra contratação não)', () => {
+    const c = (contratacaoId: string, situacao: 'ABERTA' | 'PAGA' | 'CANCELADA') => ({ contratacaoId, situacao });
+    expect(abertasDaContratacao([c('x', 'ABERTA'), c('x', 'ABERTA'), c('x', 'PAGA'), c('x', 'CANCELADA'), c('y', 'ABERTA')], 'x')).toBe(2);
+    expect(abertasDaContratacao(null, 'x')).toBe(0);
   });
 });
 

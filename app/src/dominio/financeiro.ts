@@ -176,6 +176,24 @@ export function podeDesfazerBaixa(c: Pick<CobrancaResponse, 'situacao' | 'proved
   return c.situacao === 'PAGA' && c.provedor === 'MANUAL';
 }
 
+/**
+ * Aviso do painel de Pausar e de Encerrar: as cobranças abertas (as vencidas incluídas) continuam valendo. `null` quando
+ * não há nenhuma (o painel não mostra linha vazia).
+ */
+export function textoDeAbertasQueContinuam(n: number): string | null {
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (n === 1) return 'Há 1 cobrança aberta; ela continua valendo. Cancele-a se precisar.';
+  return `Há ${n} cobranças abertas; elas continuam valendo. Cancele uma a uma se precisar.`;
+}
+
+/** Cobranças em situação ABERTA de uma contratação (`vencida` é só um sinal de uma ABERTA, então entra). */
+export function abertasDaContratacao(
+  cobrancas: readonly Pick<CobrancaResponse, 'contratacaoId' | 'situacao'>[] | null | undefined,
+  contratacaoId: string,
+): number {
+  return (cobrancas ?? []).filter((c) => c.contratacaoId === contratacaoId && c.situacao === 'ABERTA').length;
+}
+
 // ---- Período do painel ----
 
 export type AtalhoDePeriodo = '3m' | '6m' | '12m' | 'ano';
