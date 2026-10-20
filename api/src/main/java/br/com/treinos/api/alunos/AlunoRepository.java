@@ -37,6 +37,11 @@ public interface AlunoRepository extends JpaRepository<Aluno, UUID> {
     @Query("select a from Aluno a where a.conviteHash = :hash")
     Optional<Aluno> buscarPorConvite(String hash);
 
+    /** CPF já formatado; a consulta fica só na consultoria da sessão. */
+    boolean existsByCpf(String cpf);
+
+    boolean existsByCpfAndIdNot(String cpf, UUID id);
+
     long countByAtivoTrue();
 
     List<Aluno> findByAtivoTrueOrderByNomeAsc();

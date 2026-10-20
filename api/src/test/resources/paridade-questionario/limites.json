@@ -38,5 +38,13 @@
  "dataAnoMaximo": 2100,
  "imagemBytes": 300000,
  "imagemLado": 1600,
- "objetivoTamanho": 200
+ "objetivoTamanho": 200,
+ "cpfTamanho": 14,
+ "enderecoCepTamanho": 9,
+ "enderecoLogradouroTamanho": 200,
+ "enderecoNumeroTamanho": 20,
+ "enderecoComplementoTamanho": 100,
+ "enderecoBairroTamanho": 100,
+ "enderecoCidadeTamanho": 100,
+ "enderecoUfTamanho": 2
 }

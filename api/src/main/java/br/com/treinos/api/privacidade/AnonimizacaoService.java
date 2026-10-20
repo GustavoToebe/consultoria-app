@@ -89,7 +89,8 @@ public class AnonimizacaoService {
             throw new ValidacaoException("O nome digitado não confere com o do aluno.", "NOME_NAO_CONFERE",
                     List.of(new ApiError.FieldError("nomeConfirmado", "Digite o nome do aluno exatamente como está no cadastro.")));
         }
-        return AlunoDetalhe.de(apagar(aluno));
+        // O telefone do usuário acabou de ser apagado (Usuario.anonimizar): não há o que mostrar.
+        return AlunoDetalhe.de(apagar(aluno), null);
     }
 
     /**

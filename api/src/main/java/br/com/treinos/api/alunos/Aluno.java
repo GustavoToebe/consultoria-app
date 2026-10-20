@@ -1,5 +1,6 @@
 package br.com.treinos.api.alunos;
 
+import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -16,7 +17,8 @@ import java.util.UUID;
 
 /**
  * Aluno de uma consultoria. "Ativo" é decisão do treinador e base da futura cobrança; não depende de login.
- * {@code observacoes} e {@code objetivo} podem ter dado de saúde: nunca em log.
+ * {@code observacoes} e {@code objetivo} podem ter dado de saúde, e {@code cpf} e o endereço são dado pessoal: nunca em log.
+ * O telefone fica em {@code Usuario} (o aluno só o tem depois de criar o acesso).
  */
 @Entity
 @Table(name = "aluno")
@@ -40,6 +42,18 @@ public class Aluno {
     private String objetivo;
 
     private String observacoes;
+
+    /** CPF formatado ({@code 123.456.789-09}), único por consultoria quando preenchido. Dado pessoal: nunca em log. */
+    private String cpf;
+
+    /** Endereço em sete colunas, todas opcionais e independentes. Dado pessoal: nunca em log. */
+    private String cep;
+    private String logradouro;
+    private String numero;
+    private String complemento;
+    private String bairro;
+    private String cidade;
+    private String uf;
 
     @Column(name = "dias_atualizacao")
     private Integer diasAtualizacao;
@@ -173,6 +187,35 @@ public class Aluno {
         this.atualizadoEm = Instant.now();
     }
 
+    public String getCpf() {
+        return cpf;
+    }
+
+    /** CPF já validado e formatado por {@code Formatos.cpf} (ou nulo para apagar). */
+    public void alterarCpf(String cpf) {
+        this.cpf = cpf;
+        this.atualizadoEm = Instant.now();
+    }
+
+    /** O endereço de hoje, ou nulo se os sete campos estão vazios. */
+    public Endereco endereco() {
+        Endereco e = new Endereco(cep, logradouro, numero, complemento, bairro, cidade, uf);
+        return e.vazio() ? null : e;
+    }
+
+    /** Substitui os sete campos (já normalizados); nulo apaga todos. */
+    public void alterarEndereco(Endereco e) {
+        Endereco novo = e == null ? new Endereco(null, null, null, null, null, null, null) : e;
+        this.cep = novo.cep();
+        this.logradouro = novo.logradouro();
+        this.numero = novo.numero();
+        this.complemento = novo.complemento();
+        this.bairro = novo.bairro();
+        this.cidade = novo.cidade();
+        this.uf = novo.uf();
+        this.atualizadoEm = Instant.now();
+    }
+
     public void alterarSituacao(boolean ativo, Instant quando) {
         this.ativo = ativo;
         this.inativadoEm = ativo ? null : quando;
@@ -189,6 +232,14 @@ public class Aluno {
         this.email = null;
         this.objetivo = null;
         this.observacoes = null;
+        this.cpf = null;
+        this.cep = null;
+        this.logradouro = null;
+        this.numero = null;
+        this.complemento = null;
+        this.bairro = null;
+        this.cidade = null;
+        this.uf = null;
         this.conviteHash = null;
         this.conviteExpiraEm = null;
         this.ativo = false;

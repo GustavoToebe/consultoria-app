@@ -44,6 +44,7 @@ public class QuestionarioService {
     private final QuestionarioVersaoRepository versoes;
     private final AtualizacaoModeloRepository fabrica;
     private final AlunoRepository alunos;
+    private final br.com.treinos.api.alunos.AlunoService alunoService;
     private final PastaRepository pastas;
     private final ValidadorQuestionario validador;
     private final JsonMapper json;
@@ -53,7 +54,8 @@ public class QuestionarioService {
     public QuestionarioService(QuestionarioRepository questionarios, QuestionarioVersaoRepository versoes,
                                AtualizacaoModeloRepository fabrica, AlunoRepository alunos, PastaRepository pastas,
                                ValidadorQuestionario validador, JsonMapper json, Auditoria auditoria,
-                               QuestionarioImagemService imagens) {
+                               QuestionarioImagemService imagens, br.com.treinos.api.alunos.AlunoService alunoService) {
+        this.alunoService = alunoService;
         this.auditoria = auditoria;
         this.imagens = imagens;
         this.questionarios = questionarios;
@@ -258,7 +260,7 @@ public class QuestionarioService {
         br.com.treinos.api.alunos.AlunoService.exigirNaoAnonimizado(aluno);
         exigirEscolhivel(questionarioId);
         aluno.alterarQuestionario(questionarioId);
-        return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
+        return alunoService.detalheDe(alunos.saveAndFlush(aluno));
     }
 
     @Transactional

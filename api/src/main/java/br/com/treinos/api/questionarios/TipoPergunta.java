@@ -7,6 +7,11 @@ public enum TipoPergunta {
     /** Data (AAAA-MM-DD); com {@code somentePassado}, hoje ou antes. */
     DATA,
     TELEFONE, EMAIL,
+    /**
+     * Endereço postal: objeto de textos {@code {cep, logradouro, numero, complemento, bairro, cidade, uf}}, todos opcionais.
+     * Só na anamnese (o alvo é o endereço do cadastro do aluno).
+     */
+    ENDERECO,
     /** Linhas e colunas do treinador; uma coluna por linha. Obrigatória = todas as linhas. */
     GRADE,
     /** Texto longo e frase de declaração; a resposta é {@code true} (a versão respondida fica na anamnese/atualização). */

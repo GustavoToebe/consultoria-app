@@ -20,8 +20,9 @@ import java.util.UUID;
 /**
  * Alteração do cadastro proposta por uma anamnese enviada (fase C, 19/10): PENDENTE quando o campo já tinha outro
  * valor; já APLICADA e {@code automatica} quando o campo estava vazio e o envio o preencheu (fica como origem). A
- * resposta original continua na anamnese; aqui fica só o valor proposto ({@code {"texto": ...}} no objetivo,
- * {@code {"pesoKg": ..., "data": ...}} no peso), dado sensível (LGPD): nunca em log, exceção nem {@code toString}.
+ * resposta original continua na anamnese; aqui fica só o valor proposto ({@code {"texto": ...}} no objetivo, no CPF e
+ * no telefone; {@code {"pesoKg": ..., "data": ...}} no peso; {@code {"endereco": {cep, logradouro, numero, complemento,
+ * bairro, cidade, uf}}} no endereço), dado sensível (LGPD): nunca em log, exceção nem {@code toString}.
  * A equipe aplica ou descarta; uma por campo em cada anamnese.
  */
 @Entity

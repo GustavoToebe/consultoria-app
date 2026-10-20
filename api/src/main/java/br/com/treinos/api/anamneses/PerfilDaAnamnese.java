@@ -1,14 +1,19 @@
 package br.com.treinos.api.anamneses;
 
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
+import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
+import br.com.treinos.api.auth.Usuario;
+import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
 import br.com.treinos.api.questionarios.DestinoNoPerfil;
 import br.com.treinos.api.questionarios.TipoPergunta;
+import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
@@ -31,11 +36,19 @@ import java.util.UUID;
  * {@link DestinoNoPerfil}; no envio, na mesma transação: campo vazio é preenchido (e fica registrado como origem), valor
  * igual não muda nada e valor diferente vira uma alteração PENDENTE que a equipe aplica ou descarta. Nada é apagado em
  * silêncio e o histórico de pesos nunca é sobrescrito sem alguém da equipe aplicar. Nome e e-mail nunca mudam por aqui
- * (o e-mail é o login). Valores são dado sensível: nada daqui vai a log nem à auditoria (resumos fixos).
+ * (o e-mail é o login). Valores são dado sensível (CPF, endereço e telefone também): nada daqui vai a log, a exceção nem à
+ * auditoria (resumos fixos).
  *
- * <p>Ordem de travas: no envio, a anamnese (já travada pelo {@link AnamneseService}) e depois o aluno; ao aplicar ou
- * descartar, o aluno (só ao aplicar) e depois a pendência, lida já com a trava para nunca agir sobre um estado velho. O envio só cria pendências de uma anamnese ainda não enviada, e aplicar só mexe nas de uma já
- * enviada: as duas ordens nunca disputam as mesmas linhas.
+ * <p>Destinos e comparação (tudo normalizado antes de comparar): {@code OBJETIVO} e {@code CPF} (texto; o CPF por
+ * {@code Formatos.cpf}); {@code TELEFONE} ({@code Formatos.telefone}, guardado no {@code Usuario} do aluno, que quem
+ * responde sempre tem); {@code ENDERECO} (campo a campo: sem espaços nas pontas, CEP formatado, UF maiúscula; cadastro
+ * "vazio" = os sete campos nulos; aplicar substitui os sete). Um CPF que já é de outro aluno da consultoria não preenche
+ * sozinho: vira PENDENTE (o aluno não fica sabendo) e, ao aplicar, a equipe recebe 409 {@code ALUNO_CPF_EM_USO}.
+ *
+ * <p>Ordem de travas: no envio, a anamnese (já travada pelo {@link AnamneseService}), depois o aluno e, no telefone, o
+ * usuário dele; ao aplicar ou descartar, o aluno (só ao aplicar), o usuário (só no telefone) e depois a pendência, lida já
+ * com a trava para nunca agir sobre um estado velho. O envio só cria pendências de uma anamnese ainda não enviada, e
+ * aplicar só mexe nas de uma já enviada: as duas ordens nunca disputam as mesmas linhas.
  */
 @Component
 public class PerfilDaAnamnese {
@@ -43,13 +56,15 @@ public class PerfilDaAnamnese {
     private final AnamnesePendenciaRepository pendencias;
     private final AlunoRepository alunos;
     private final RegistroPesoRepository pesos;
+    private final UsuarioRepository usuarios;
     private final JsonMapper json;
 
     public PerfilDaAnamnese(AnamnesePendenciaRepository pendencias, AlunoRepository alunos, RegistroPesoRepository pesos,
-                            JsonMapper json) {
+                            UsuarioRepository usuarios, JsonMapper json) {
         this.pendencias = pendencias;
         this.alunos = alunos;
         this.pesos = pesos;
+        this.usuarios = usuarios;
         this.json = json;
     }
 
@@ -76,6 +91,9 @@ public class PerfilDaAnamnese {
                 Resultado r = switch (destino) {
                     case OBJETIVO -> objetivoNoEnvio(a.getAlunoId(), resposta);
                     case PESO -> pesoNoEnvio(a.getAlunoId(), resposta, dataDaPesagem(p, respostas, hoje), registradoPor);
+                    case CPF -> cpfNoEnvio(a.getAlunoId(), resposta);
+                    case TELEFONE -> telefoneNoEnvio(a.getAlunoId(), resposta);
+                    case ENDERECO -> enderecoNoEnvio(a.getAlunoId(), resposta);
                 };
                 if (r.situacao() == Resultado.Situacao.PREENCHIDO) {
                     pendencias.save(AnamnesePendencia.automatica(a.getId(), a.getAlunoId(), destino, perguntaId, r.valor(), agora));
@@ -107,7 +125,8 @@ public class PerfilDaAnamnese {
 
     /**
      * O que o cadastro tem hoje para comparar com o proposto (só das abertas; resolvida = nulo). Mesmo formato do
-     * {@code valor}: {@code {"texto"}} ou {@code {"pesoKg", "data"}}; campo vazio = nulo.
+     * {@code valor}: {@code {"texto"}} (objetivo, CPF, telefone), {@code {"pesoKg", "data"}} ou {@code {"endereco": {...}}};
+     * campo vazio = nulo.
      */
     @Transactional(readOnly = true)
     public JsonNode valorAtual(AnamnesePendencia p) {
@@ -121,6 +140,11 @@ public class PerfilDaAnamnese {
                 LocalDate data = LocalDate.parse(json.readTree(p.getValor()).path("data").asString());
                 yield pesos.findByAlunoIdAndData(p.getAlunoId(), data).map(r -> paraJson(peso(r.getPesoKg(), data))).orElse(null);
             }
+            case CPF -> alunos.findById(p.getAlunoId()).map(Aluno::getCpf).filter(t -> !t.isBlank())
+                    .map(PerfilDaAnamnese::texto).map(this::paraJson).orElse(null);
+            case TELEFONE -> alunos.findById(p.getAlunoId()).map(Aluno::getUsuarioId).flatMap(usuarios::findById)
+                    .map(Usuario::getTelefone).filter(t -> !t.isBlank()).map(PerfilDaAnamnese::texto).map(this::paraJson).orElse(null);
+            case ENDERECO -> alunos.findById(p.getAlunoId()).map(Aluno::endereco).map(this::enderecoEmJson).orElse(null);
         };
     }
 
@@ -144,9 +168,19 @@ public class PerfilDaAnamnese {
         switch (p.getDestino()) {
             case OBJETIVO -> aluno.alterarObjetivo(valor.path("texto").asString());
             case PESO -> gravarPeso(aluno.getId(), LocalDate.parse(valor.path("data").asString()), valor.path("pesoKg").decimalValue(), usuarioId);
+            case CPF -> aplicarCpf(aluno, valor.path("texto").asString());
+            case TELEFONE -> aplicarTelefone(aluno, valor.path("texto").asString());
+            case ENDERECO -> aluno.alterarEndereco(enderecoDoJson(valor.path("endereco")));
         }
         p.resolver(AnamnesePendencia.Situacao.APLICADA, usuarioId, Instant.now());
-        alunos.flush();
+        try {
+            alunos.flush();
+        } catch (DataIntegrityViolationException corrida) {
+            if (AlunoService.violouCpf(corrida)) {
+                throw AlunoService.cpfEmUso();
+            }
+            throw corrida;
+        }
         pendencias.flush();
         return true;
     }
@@ -222,6 +256,72 @@ public class PerfilDaAnamnese {
     }
 
     /**
+     * CPF: já validado (e formatado) na resposta. Cadastro sem CPF é preenchido, salvo se o CPF já é de outro aluno da
+     * consultoria (então fica PENDENTE e ninguém é avisado: o aluno não pode descobrir CPF alheio). A checagem vem antes de
+     * mexer no aluno: uma violação do índice abortaria a transação inteira do envio.
+     */
+    private Resultado cpfNoEnvio(UUID alunoId, JsonNode resposta) {
+        String proposto = cpfOuNulo(resposta.asString(""));
+        if (proposto == null) {
+            return new Resultado(Resultado.Situacao.IGUAL, null);
+        }
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        String valor = json.writeValueAsString(texto(proposto));
+        if (aluno.getCpf() == null || aluno.getCpf().isBlank()) {
+            if (alunos.existsByCpfAndIdNot(proposto, alunoId)) {
+                return new Resultado(Resultado.Situacao.DIFERENTE, valor);
+            }
+            aluno.alterarCpf(proposto);
+            try {
+                alunos.flush();
+            } catch (DataIntegrityViolationException corrida) {
+                if (AlunoService.violouCpf(corrida)) {
+                    throw new ConflictException("Não foi possível concluir o envio agora. Tente de novo.", "ANAMNESE_TENTE_DE_NOVO");
+                }
+                throw corrida;
+            }
+            return new Resultado(Resultado.Situacao.PREENCHIDO, valor);
+        }
+        return new Resultado(aluno.getCpf().equals(proposto) ? Resultado.Situacao.IGUAL : Resultado.Situacao.DIFERENTE, valor);
+    }
+
+    /** Telefone do usuário do aluno (quem responde sempre o tem); comparado já no formato de {@code Formatos.telefone}. */
+    private Resultado telefoneNoEnvio(UUID alunoId, JsonNode resposta) {
+        String proposto = formatoOuNulo(() -> Formatos.telefone(resposta.asString("")));
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        Usuario usuario = proposto == null || aluno.getUsuarioId() == null ? null
+                : usuarios.buscarParaAlterar(aluno.getUsuarioId()).orElse(null);
+        if (usuario == null) {
+            return new Resultado(Resultado.Situacao.IGUAL, null);
+        }
+        String atual = telefoneNormalizado(usuario.getTelefone());
+        String valor = json.writeValueAsString(texto(proposto));
+        if (atual == null) {
+            usuario.alterarTelefone(proposto);
+            usuarios.flush();
+            return new Resultado(Resultado.Situacao.PREENCHIDO, valor);
+        }
+        return new Resultado(atual.equals(proposto) ? Resultado.Situacao.IGUAL : Resultado.Situacao.DIFERENTE, valor);
+    }
+
+    /** Endereço: comparado campo a campo, normalizado; cadastro vazio = os sete campos nulos. */
+    private Resultado enderecoNoEnvio(UUID alunoId, JsonNode resposta) {
+        Endereco proposto = enderecoDaResposta(resposta);
+        if (proposto.vazio()) {
+            return new Resultado(Resultado.Situacao.IGUAL, null);
+        }
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        String valor = json.writeValueAsString(enderecoEmJson(proposto));
+        Endereco atual = aluno.endereco();
+        if (atual == null) {
+            aluno.alterarEndereco(proposto);
+            alunos.flush();
+            return new Resultado(Resultado.Situacao.PREENCHIDO, valor);
+        }
+        return new Resultado(atual.equals(proposto) ? Resultado.Situacao.IGUAL : Resultado.Situacao.DIFERENTE, valor);
+    }
+
+    /**
      * Data da pesagem: a resposta da pergunta DATA que o treinador indicou ({@code destinoData}, só hoje ou antes, conferido
      * ao publicar); sem ela (não indicada, sem resposta ou escondida), a data do envio. A tela diz qual vale.
      */
@@ -275,6 +375,76 @@ public class PerfilDaAnamnese {
         if (p.getSituacao() != AnamnesePendencia.Situacao.PENDENTE) {
             throw new ConflictException("Esta alteração já foi resolvida. Recarregue.", "ANAMNESE_ALTERACAO_RESOLVIDA");
         }
+    }
+
+    /** Aplicar: o CPF proposto não pode ter virado de outro aluno desde o envio (409, sem repetir o valor). */
+    private void aplicarCpf(Aluno aluno, String cpf) {
+        if (!cpf.equals(aluno.getCpf()) && alunos.existsByCpfAndIdNot(cpf, aluno.getId())) {
+            throw AlunoService.cpfEmUso();
+        }
+        aluno.alterarCpf(cpf);
+    }
+
+    /** Aplicar: o telefone mora no usuário do aluno; sem acesso não há onde guardar (409 {@code ALUNO_SEM_ACESSO}). */
+    private void aplicarTelefone(Aluno aluno, String telefone) {
+        if (aluno.getUsuarioId() == null) {
+            throw AlunoService.semAcesso();
+        }
+        usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarTelefone(telefone));
+    }
+
+    private static String cpfOuNulo(String texto) {
+        return formatoOuNulo(() -> Formatos.cpf(texto));
+    }
+
+    /** Resposta já validada: formato inválido não deveria chegar aqui; se chegar, vale como "sem resposta". */
+    private static String formatoOuNulo(java.util.function.Supplier<String> formato) {
+        try {
+            return formato.get();
+        } catch (BadRequestException invalido) {
+            return null;
+        }
+    }
+
+    private static String telefoneNormalizado(String telefone) {
+        if (telefone == null || telefone.isBlank()) {
+            return null;
+        }
+        String normalizado = formatoOuNulo(() -> Formatos.telefone(telefone));
+        return normalizado != null ? normalizado : telefone.strip();
+    }
+
+    private static String campo(JsonNode objeto, String chave) {
+        JsonNode n = objeto.path(chave);
+        return n.isString() && !n.asString().isBlank() ? n.asString().strip() : null;
+    }
+
+    /** Resposta ENDERECO (já validada) normalizada: sem espaços nas pontas, CEP formatado, UF maiúscula, em branco = nulo. */
+    private static Endereco enderecoDaResposta(JsonNode resposta) {
+        return new Endereco(formatoOuNulo(() -> Formatos.cep(campo(resposta, "cep"))), campo(resposta, "logradouro"),
+                campo(resposta, "numero"), campo(resposta, "complemento"), campo(resposta, "bairro"), campo(resposta, "cidade"),
+                formatoOuNulo(() -> Formatos.uf(campo(resposta, "uf"))));
+    }
+
+    /** O {@code endereco} do valor guardado: já normalizado, sete chaves com texto ou nulo. */
+    private static Endereco enderecoDoJson(JsonNode e) {
+        return new Endereco(campo(e, "cep"), campo(e, "logradouro"), campo(e, "numero"), campo(e, "complemento"),
+                campo(e, "bairro"), campo(e, "cidade"), campo(e, "uf"));
+    }
+
+    /** {@code {"endereco": {cep, logradouro, numero, complemento, bairro, cidade, uf}}}, as sete chaves sempre (texto ou nulo). */
+    private ObjectNode enderecoEmJson(Endereco e) {
+        ObjectNode interno = json.createObjectNode();
+        interno.put("cep", e.cep());
+        interno.put("logradouro", e.logradouro());
+        interno.put("numero", e.numero());
+        interno.put("complemento", e.complemento());
+        interno.put("bairro", e.bairro());
+        interno.put("cidade", e.cidade());
+        interno.put("uf", e.uf());
+        ObjectNode raiz = json.createObjectNode();
+        raiz.set("endereco", interno);
+        return raiz;
     }
 
     private static Map<String, Object> texto(String t) {

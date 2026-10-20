@@ -2,6 +2,7 @@ package br.com.treinos.api.privacidade;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.Documentos;
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.dieta.ConteudoDieta.Item;
 import br.com.treinos.api.dieta.ConteudoDieta.Opcao;
@@ -247,6 +248,45 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
         api.get("/alunos/" + alunoId + "/exportacao", outraConsultoria, 404);
         api.post("/alunos/" + alunoId + "/anonimizar", outraConsultoria, Map.of("nomeConfirmado", NOME), 404);
         api.get("/alunos/" + alunoId + "/exportacao", null, 401);
+    }
+
+    @Test
+    void exportarLevaCpfEnderecoETelefoneEAnonimizarApagaOsTres() throws Exception {
+        String cpf = Documentos.cpf();
+        JsonNode ficha = api.get("/alunos/" + alunoId, admin, 200);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("nome", NOME);
+        corpo.put("email", emailDoAluno);
+        corpo.put("objetivo", OBJETIVO);
+        corpo.put("telefone", "(45) 99999-8888");
+        corpo.put("cpf", cpf);
+        corpo.put("endereco", Map.of("cep", "85800-000", "logradouro", "Rua Fictícia Quinze", "numero", "15", "cidade", "Cidade Exemplo", "uf", "PR"));
+        corpo.put("versao", ficha.get("versao").asLong());
+        api.put("/alunos/" + alunoId, admin, corpo, 200);
+
+        // A exportação leva os três (cada um atrás da permissão da ficha: telefone com ALUNO_LER, CPF e endereço com SENSIVEL_LER).
+        for (JsonNode quem : List.of(admin, membro("Exportador mínimo com cadastro", Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER", "ALUNO_EXPORTAR")))) {
+            JsonNode cadastro = api.get("/alunos/" + alunoId + "/exportacao", quem, 200).get("cadastro");
+            assertThat(cadastro.get("cpf").asString()).isEqualTo(cpf);
+            assertThat(cadastro.get("telefone").asString()).isEqualTo("(45) 99999-8888");
+            assertThat(cadastro.get("endereco").get("logradouro").asString()).isEqualTo("Rua Fictícia Quinze");
+            assertThat(cadastro.get("endereco").get("cep").asString()).isEqualTo("85800-000");
+        }
+        // Nenhum dos três foi parar na auditoria.
+        assertThat(jdbc.queryForObject("select count(*) from auditoria where entidade_id = ?::uuid and (resumo like '%Quinze%' or resumo like '%' || ? || '%' or resumo like '%99999%')",
+                Integer.class, alunoId.toString(), cpf)).isZero();
+
+        api.patch("/alunos/" + alunoId + "/situacao", admin, Map.of("ativo", false), 200);
+        api.post("/alunos/" + alunoId + "/anonimizar", admin, Map.of("nomeConfirmado", NOME), 200);
+
+        String id = alunoId.toString();
+        assertThat(jdbc.queryForObject("select count(*) from aluno where id = ?::uuid and cpf is null and cep is null and logradouro is null"
+                + " and numero is null and complemento is null and bairro is null and cidade is null and uf is null", Integer.class, id)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select telefone from usuario where id = (select usuario_id from aluno where id = ?::uuid)", String.class, id)).isNull();
+        String exportado = api.get("/alunos/" + alunoId + "/exportacao", admin, 200).toString();
+        for (String texto : List.of(cpf, Documentos.semPontuacao(cpf), "Quinze", "99999-8888", "85800-000", "Cidade Exemplo")) {
+            assertThat(exportado).as("exportação sem o dado apagado").doesNotContain(texto);
+        }
     }
 
     @Test

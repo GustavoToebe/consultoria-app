@@ -1,6 +1,7 @@
 package br.com.treinos.api.alunos;
 
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
+import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoResumo;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PaginaAlunos;
@@ -9,15 +10,20 @@ import br.com.treinos.api.alunos.dto.AlunoDtos.SituacaoAtualizacao;
 import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
 import br.com.treinos.api.atualizacoes.RegrasAtualizacao;
 import br.com.plataforma.comum.auth.Autenticador;
+import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.treino.PlanoTreino;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
+import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
+import br.com.treinos.api.web.ValidacaoException;
 import br.com.treinos.api.web.NaoEncontradoException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -25,12 +31,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 /** Alunos da consultoria do treinador. Aluno de outra consultoria não é encontrado (404). */
@@ -114,18 +122,36 @@ public class AlunoService {
     public AlunoDetalhe criar(AlunoRequest r) {
         exigirEscritaSensivel(r);
         plano.exigirVagaDeAluno();
+        boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR");
+        Dados dados = Dados.de(r, sensivel);
+        if (dados.telefone() != null) throw semAcesso(); // aluno novo nunca tem acesso
         Aluno aluno = new Aluno(r.nome().trim(), email(r.email()), Buscas.opcional(r.objetivo()),
                 Buscas.opcional(r.observacoes()), r.diasAtualizacao());
+        if (sensivel) {
+            exigirCpfLivre(dados.cpf(), null);
+            aluno.alterarCpf(dados.cpf());
+            aluno.alterarEndereco(dados.endereco());
+        }
         var auth=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if(auth!=null && auth.getPrincipal() instanceof br.com.treinos.api.security.UsuarioAutenticado eu) aluno.alterarResponsavel(eu.usuarioId());
         else usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(br.com.treinos.api.tenant.TenantContext.get(),br.com.treinos.api.auth.Papel.TREINADOR).stream().findFirst().ifPresent(u -> aluno.alterarResponsavel(u.getId()));
         definirResponsavel(aluno,r.responsavelId());
-        return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
+        return detalheDe(gravar(aluno));
     }
 
     @Transactional(readOnly = true)
     public AlunoDetalhe detalhe(UUID id) {
-        return AlunoDetalhe.de(buscar(id));
+        return detalheDe(buscar(id));
+    }
+
+    /**
+     * A ficha com o telefone do usuário do aluno (nulo se ele ainda não criou o acesso). Toda resposta que devolve o aluno
+     * passa por aqui, para o telefone nunca sumir de uma tela que o mostra.
+     */
+    public AlunoDetalhe detalheDe(Aluno aluno) {
+        String telefone = aluno.getUsuarioId() == null ? null
+                : usuarios.findById(aluno.getUsuarioId()).map(Usuario::getTelefone).orElse(null);
+        return AlunoDetalhe.de(aluno, telefone);
     }
 
     @Transactional
@@ -139,13 +165,20 @@ public class AlunoService {
         }
         exigirEscritaSensivel(r);
         boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR");
+        Dados dados = Dados.de(r, sensivel);
         aluno.alterarDados(r.nome().trim(), email(r.email()), sensivel ? Buscas.opcional(r.objetivo()) : aluno.getObjetivo(),
                 sensivel ? Buscas.opcional(r.observacoes()) : aluno.getObservacoes(), r.diasAtualizacao());
+        if (sensivel) { // sem a permissão, CPF e endereço do corpo são ignorados e o que está gravado fica
+            if (dados.cpf() != null && !dados.cpf().equals(aluno.getCpf())) exigirCpfLivre(dados.cpf(), aluno.getId());
+            aluno.alterarCpf(dados.cpf());
+            aluno.alterarEndereco(dados.endereco());
+        }
+        trocarTelefone(aluno, r.telefone(), dados.telefone());
         UUID anterior=aluno.getResponsavelId();
         definirResponsavel(aluno,r.responsavelId());
         if(!java.util.Objects.equals(anterior,aluno.getResponsavelId()))
             auditoria.registrarEvento("ALUNO_RESPONSAVEL_ALTERADO","ALUNO",aluno.getId(),"Alterou o responsável do aluno.");
-        return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
+        return detalheDe(gravar(aluno));
     }
 
     /**
@@ -161,7 +194,7 @@ public class AlunoService {
             if (!aluno.isAtivo()) plano.exigirVagaDeAluno(); // reativar ocupa uma vaga; PATCH em quem já está ativo não
         }
         aplicarSituacao(aluno, ativo);
-        return AlunoDetalhe.de(alunos.saveAndFlush(aluno));
+        return detalheDe(alunos.saveAndFlush(aluno));
     }
 
     /** Muda a situação do aluno e do acesso dele; inativar encerra as sessões. Usado também pelo lote. */
@@ -190,9 +223,98 @@ public class AlunoService {
         aluno.alterarResponsavel(u.getId());
     }
 
+    /** Objetivo e observações sem a permissão são recusados (403). CPF e endereço, ao contrário, são ignorados (ver {@link AlunoRequest}). */
     private static void exigirEscritaSensivel(AlunoRequest r) {
         if (r.objetivo() != null || r.observacoes() != null)
             br.com.treinos.api.equipe.AcessoAtual.exigir("ALUNO_SENSIVEL_ALTERAR");
+    }
+
+    /**
+     * Telefone, CPF e endereço do corpo já conferidos e normalizados ({@code Formatos}). Falha de formato vira 422
+     * {@code ALUNO_INVALIDO} com o campo em {@code fieldErrors} ({@code telefone}, {@code cpf}, {@code endereco.cep},
+     * {@code endereco.uf}) e a mensagem fixa do {@code Formatos}, nunca o valor enviado. CPF e endereço só são lidos
+     * (e conferidos) com {@code ALUNO_SENSIVEL_ALTERAR}.
+     */
+    private record Dados(String telefone, String cpf, Endereco endereco) {
+        static Dados de(AlunoRequest r, boolean sensivel) {
+            var erros = new ArrayList<ApiError.FieldError>();
+            String telefone = formato(erros, "telefone", Formatos::telefone, r.telefone());
+            String cpf = sensivel ? formato(erros, "cpf", Formatos::cpf, r.cpf()) : null;
+            Endereco endereco = sensivel ? endereco(erros, r.endereco()) : null;
+            if (!erros.isEmpty()) {
+                throw new ValidacaoException("Confira os dados do aluno.", "ALUNO_INVALIDO", erros);
+            }
+            return new Dados(telefone, cpf, endereco);
+        }
+
+        private static Endereco endereco(List<ApiError.FieldError> erros, Endereco e) {
+            if (e == null || e.vazio()) return null;
+            return new Endereco(formato(erros, "endereco.cep", Formatos::cep, e.cep()), Buscas.opcional(e.logradouro()),
+                    Buscas.opcional(e.numero()), Buscas.opcional(e.complemento()), Buscas.opcional(e.bairro()),
+                    Buscas.opcional(e.cidade()), formato(erros, "endereco.uf", Formatos::uf, e.uf()));
+        }
+
+        private static String formato(List<ApiError.FieldError> erros, String campo, UnaryOperator<String> formatar, String valor) {
+            try {
+                return formatar.apply(valor);
+            } catch (BadRequestException recusado) {
+                erros.add(new ApiError.FieldError(campo, recusado.getMessage()));
+                return null;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "Dados[...]";
+        }
+    }
+
+    /** Antes de gravar: o CPF não pode ser de outro aluno da consultoria ({@code @TenantId} filtra). Nunca repete o valor. */
+    private void exigirCpfLivre(String cpf, UUID alunoId) {
+        if (cpf == null) return;
+        if (alunoId == null ? alunos.existsByCpf(cpf) : alunos.existsByCpfAndIdNot(cpf, alunoId)) throw cpfEmUso();
+    }
+
+    /** O mesmo 409 vale para a checagem prévia e para a corrida que só o índice {@code ux_aluno_cpf} pega. */
+    public static ConflictException cpfEmUso() {
+        return new ConflictException("Este CPF já está no cadastro de outro aluno.", "ALUNO_CPF_EM_USO");
+    }
+
+    /** Violação do índice único do CPF. Só olha o nome da restrição: a mensagem do banco pode trazer o valor. */
+    public static boolean violouCpf(DataIntegrityViolationException e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof org.hibernate.exception.ConstraintViolationException c && "ux_aluno_cpf".equals(c.getConstraintName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static ConflictException semAcesso() {
+        return new ConflictException("O telefone entra depois que o aluno criar o acesso.", "ALUNO_SEM_ACESSO");
+    }
+
+    /** Grava e traduz a corrida do CPF (a checagem prévia não pega duas gravações ao mesmo tempo) sem repetir o valor. */
+    private Aluno gravar(Aluno aluno) {
+        try {
+            return alunos.saveAndFlush(aluno);
+        } catch (DataIntegrityViolationException e) {
+            if (violouCpf(e)) throw cpfEmUso();
+            throw e;
+        }
+    }
+
+    /**
+     * O telefone mora no usuário do aluno. Nulo no corpo = não mexe; em branco = apaga; preenchido = grava (já
+     * normalizado). Preenchido para quem não tem acesso é 409 {@code ALUNO_SEM_ACESSO}; apagar o que não existe não é erro.
+     */
+    private void trocarTelefone(Aluno aluno, String bruto, String normalizado) {
+        if (bruto == null) return;
+        if (aluno.getUsuarioId() == null) {
+            if (normalizado != null) throw semAcesso();
+            return;
+        }
+        usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarTelefone(normalizado));
     }
 
     private Aluno buscar(UUID id) {

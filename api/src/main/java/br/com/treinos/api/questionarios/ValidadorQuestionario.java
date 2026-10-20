@@ -199,6 +199,9 @@ public class ValidadorQuestionario {
         if (estado.finalidade == Finalidade.ANAMNESE && tipo == DATA_AUTOMATICA) {
             c.erro(cp + ".tipo", "Este tipo só vale no questionário de atualização.");
         }
+        if (estado.finalidade == Finalidade.ATUALIZACAO && tipo == TipoPergunta.ENDERECO) {
+            c.erro(cp + ".tipo", "Este tipo só vale no questionário de anamnese.");
+        }
         if (UNICOS.contains(tipo) && !estado.tipos.add(tipo)) {
             c.erro(cp + ".tipo", "Este tipo só pode aparecer uma vez.");
         }

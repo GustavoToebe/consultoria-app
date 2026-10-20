@@ -2,6 +2,7 @@ package br.com.treinos.api.anamneses;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.Documentos;
 import br.com.treinos.api.equipe.CatalogoPermissoes;
 import br.com.treinos.api.web.Fuso;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +25,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Fase C da anamnese: respostas com destino no cadastro (peso e objetivo). Campo vazio é preenchido no envio, igual não
+ * Fase C da anamnese: respostas com destino no cadastro (peso, objetivo, CPF, telefone e endereço). Campo vazio é preenchido no envio, igual não
  * muda nada, diferente vira alteração para revisar (aplicar ou descartar), com permissão do campo, isolamento, reenvio
  * idempotente, data da pesagem, exportação e anonimização. Só dados fictícios.
  */
@@ -75,7 +76,7 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
         corpo.put("versao", q.path("versao").asLong());
         JsonNode salvo = api.put("/questionarios/" + q.path("id").asString(), quem, corpo, 200);
         // O destino sobrevive à gravação (o conteúdo descarta chave desconhecida).
-        assertThat(api.get("/questionarios/" + q.path("id").asString(), quem, 200).toString()).contains("\"destino\":\"PESO\"");
+        assertThat(api.get("/questionarios/" + q.path("id").asString(), quem, 200).toString()).contains("\"destino\":\"");
         return api.post("/questionarios/" + q.path("id").asString() + "/publicar", quem,
                 Map.of("versao", salvo.path("versao").asLong(), "confirmarAvisos", false), 200);
     }
@@ -139,7 +140,294 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
                 Map.of("senha", ApiDeTeste.SENHA), 200);
     }
 
+    // ---- apoio: CPF, telefone e endereço ----
+
+    private static final Map<String, Object> ENDERECO = Map.of("cep", "85800-000", "logradouro", "Rua das Flores",
+            "numero", "100", "bairro", "Centro", "cidade", "Cidade Exemplo", "uf", "PR");
+
+    /** Um destino de cada: CPF (texto), telefone e endereço. */
+    private static Map<String, Object> conteudoCadastro() {
+        return Map.of("instrucoes", List.of(), "secoes", List.of(Map.of("uid", "s1", "titulo", "Cadastro", "perguntas", List.of(
+                Map.of("id", "cpf", "tipo", "TEXTO", "rotulo", "CPF", "obrigatoria", false, "destino", "CPF"),
+                Map.of("id", "tel", "tipo", "TELEFONE", "rotulo", "Telefone", "obrigatoria", false, "destino", "TELEFONE"),
+                Map.of("id", "end", "tipo", "ENDERECO", "rotulo", "Endereço", "obrigatoria", false, "destino", "ENDERECO")))));
+    }
+
+    private static Map<String, Object> cadastro(String cpf, String telefone, Map<String, Object> endereco) {
+        Map<String, Object> r = new LinkedHashMap<>();
+        if (cpf != null) r.put("cpf", cpf);
+        if (telefone != null) r.put("tel", telefone);
+        if (endereco != null) r.put("end", endereco);
+        return r;
+    }
+
+    /** Aluno com o corpo dado (CPF e endereço de partida), anamnese atribuída e login (o aluno só tem telefone depois do acesso). */
+    private JsonNode[] alunoComCadastro(Map<String, Object> extras, JsonNode q) throws Exception {
+        Map<String, Object> corpo = new HashMap<>(extras);
+        corpo.put("nome", "Aluno Fictício " + UUID.randomUUID().toString().substring(0, 8));
+        UUID aluno = UUID.fromString(api.post("/alunos", treinador, corpo, 200).path("id").asString());
+        JsonNode a = api.post("/alunos/" + aluno + "/anamneses", treinador, Map.of("questionarioId", q.path("id").asString()), 200);
+        return new JsonNode[] {a, api.convidarEEntrar(treinador, aluno)};
+    }
+
+    /** Põe o telefone do usuário do aluno sem perder o CPF e o endereço que a ficha já tem (o PUT substitui tudo). */
+    private void definirTelefone(JsonNode a, String telefone) throws Exception {
+        JsonNode ficha = api.get("/alunos/" + alunoId(a), treinador, 200);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("nome", ficha.path("nome").asString());
+        corpo.put("versao", ficha.path("versao").asLong());
+        corpo.put("telefone", telefone);
+        if (ficha.has("cpf")) corpo.put("cpf", ficha.path("cpf").asString());
+        if (ficha.has("endereco")) corpo.put("endereco", ficha.path("endereco"));
+        api.put("/alunos/" + alunoId(a), treinador, corpo, 200);
+    }
+
+    private JsonNode ficha(JsonNode a) throws Exception {
+        return api.get("/alunos/" + alunoId(a), treinador, 200);
+    }
+
+    private static boolean semValor(JsonNode n) {
+        return n.isMissingNode() || n.isNull();
+    }
+
     // ---- testes ----
+
+    @Test
+    void cpfTelefoneEEnderecoVaziosPreenchemNoEnvioJaNormalizadosEReenvioNaoMuda() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        JsonNode[] x = alunoComCadastro(Map.of(), cad);
+        JsonNode a = x[0];
+        String cpf = Documentos.cpf();
+
+        Map<String, Object> digitado = new LinkedHashMap<>(Map.of("cep", "85800000", "logradouro", " Rua das Flores ", "numero", "100",
+                "cidade", "Cidade Exemplo", "uf", "pr"));
+        enviar(x[1], a, cadastro(Documentos.semPontuacao(cpf), "+55 45 99999-8888", digitado), 200);
+
+        JsonNode f = ficha(a);
+        assertThat(f.path("cpf").asString()).isEqualTo(cpf);
+        assertThat(f.path("telefone").asString()).isEqualTo("(45) 99999-8888");
+        JsonNode e = f.path("endereco");
+        assertThat(e.path("cep").asString()).isEqualTo("85800-000");
+        assertThat(e.path("logradouro").asString()).isEqualTo("Rua das Flores");
+        assertThat(e.path("numero").asString()).isEqualTo("100");
+        assertThat(e.path("cidade").asString()).isEqualTo("Cidade Exemplo");
+        assertThat(e.path("uf").asString()).isEqualTo("PR");
+        assertThat(semValor(e.path("complemento"))).isTrue();
+        assertThat(semValor(e.path("bairro"))).isTrue();
+
+        // Registradas como origem, já aplicadas no envio e sem autor da equipe; nada para revisar; uma auditoria só.
+        JsonNode d = detalhe(a, treinador);
+        assertThat(d.path("alteracoes")).hasSize(3);
+        assertThat(d.path("alteracoes").valueStream().allMatch(p -> "APLICADA".equals(p.path("situacao").asString())
+                && p.path("automatica").asBoolean() && p.path("resolvidaPorNome").isNull())).isTrue();
+        assertThat(alteracao(d, "CPF").path("valor").path("texto").asString()).isEqualTo(cpf);
+        assertThat(alteracao(d, "TELEFONE").path("valor").path("texto").asString()).isEqualTo("(45) 99999-8888");
+        assertThat(alteracao(d, "ENDERECO").path("valor").path("endereco").path("cep").asString()).isEqualTo("85800-000");
+        assertThat(api.get("/alunos/" + alunoId(a) + "/anamneses", treinador, 200).get(0).path("alteracoesParaRevisar").asLong()).isZero();
+        assertThat(auditorias(a, "ANAMNESE_CADASTRO_PREENCHIDO")).isEqualTo(1);
+
+        // Reenvio, até com outros valores: nada muda.
+        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", Map.of("cidade", "Outra Cidade")), 200);
+        assertThat(ficha(a).path("cpf").asString()).isEqualTo(cpf);
+        assertThat(ficha(a).path("telefone").asString()).isEqualTo("(45) 99999-8888");
+        assertThat(ficha(a).path("endereco").path("cidade").asString()).isEqualTo("Cidade Exemplo");
+        assertThat(detalhe(a, treinador).path("alteracoes")).hasSize(3);
+    }
+
+    @Test
+    void cadastroIgualNaoFazNadaMesmoDigitadoDeOutroJeito() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        String cpf = Documentos.cpf();
+        JsonNode[] x = alunoComCadastro(Map.of("cpf", cpf, "endereco", ENDERECO), cad);
+        JsonNode a = x[0];
+        definirTelefone(a, "(45) 99999-8888");
+
+        enviar(x[1], a, cadastro(Documentos.semPontuacao(cpf), "45999998888",
+                Map.of("cep", "85800000", "logradouro", " Rua das Flores ", "numero", "100", "bairro", "Centro",
+                        "cidade", "Cidade Exemplo", "uf", "pr")), 200);
+
+        assertThat(detalhe(a, treinador).path("alteracoes")).isEmpty();
+        assertThat(ficha(a).path("cpf").asString()).isEqualTo(cpf);
+        assertThat(ficha(a).path("telefone").asString()).isEqualTo("(45) 99999-8888");
+        assertThat(auditorias(a, "ANAMNESE_CADASTRO_PREENCHIDO")).isZero();
+    }
+
+    @Test
+    void cadastroDiferenteViraAlteracaoEAplicarGravaCadaCampo() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        String cpf = Documentos.cpf();
+        String novoCpf = Documentos.cpf();
+        JsonNode[] x = alunoComCadastro(Map.of("cpf", cpf, "endereco", ENDERECO), cad);
+        JsonNode a = x[0];
+        definirTelefone(a, "(45) 99999-8888");
+        Map<String, Object> novoEndereco = new LinkedHashMap<>(ENDERECO);
+        novoEndereco.put("cidade", "Cidade Nova");
+        novoEndereco.put("complemento", "Apto 2");
+
+        enviar(x[1], a, cadastro(novoCpf, "(45) 98888-7777", novoEndereco), 200);
+
+        // Nada mudou no cadastro; as três esperam revisão, com o valor proposto e o de hoje no mesmo formato.
+        assertThat(ficha(a).path("cpf").asString()).isEqualTo(cpf);
+        JsonNode d = detalhe(a, treinador);
+        assertThat(d.path("alteracoes")).hasSize(3);
+        JsonNode pc = alteracao(d, "CPF");
+        assertThat(pc.path("situacao").asString()).isEqualTo("PENDENTE");
+        assertThat(pc.path("valor").path("texto").asString()).isEqualTo(novoCpf);
+        assertThat(pc.path("valorAtual").path("texto").asString()).isEqualTo(cpf);
+        JsonNode pt = alteracao(d, "TELEFONE");
+        assertThat(pt.path("valor").path("texto").asString()).isEqualTo("(45) 98888-7777");
+        assertThat(pt.path("valorAtual").path("texto").asString()).isEqualTo("(45) 99999-8888");
+        JsonNode pe = alteracao(d, "ENDERECO");
+        assertThat(pe.path("valor").path("endereco").path("cidade").asString()).isEqualTo("Cidade Nova");
+        assertThat(pe.path("valor").path("endereco").path("complemento").asString()).isEqualTo("Apto 2");
+        assertThat(pe.path("valorAtual").path("endereco").path("cidade").asString()).isEqualTo("Cidade Exemplo");
+        assertThat(semValor(pe.path("valorAtual").path("endereco").path("complemento"))).isTrue();
+        assertThat(api.get("/alunos/" + alunoId(a) + "/anamneses", treinador, 200).get(0).path("alteracoesParaRevisar").asLong()).isEqualTo(3);
+
+        for (JsonNode p : List.of(pc, pt, pe)) {
+            JsonNode depois = api.post(acao(a, p.path("id").asString(), "aplicar"), treinador, null, 200);
+            assertThat(alteracao(depois, p.path("destino").asString()).path("situacao").asString()).isEqualTo("APLICADA");
+        }
+        JsonNode f = ficha(a);
+        assertThat(f.path("cpf").asString()).isEqualTo(novoCpf);
+        assertThat(f.path("telefone").asString()).isEqualTo("(45) 98888-7777");
+        assertThat(f.path("endereco").path("cidade").asString()).isEqualTo("Cidade Nova");
+        assertThat(f.path("endereco").path("complemento").asString()).isEqualTo("Apto 2");
+        // O endereço é substituído por inteiro: os sete campos são os da resposta.
+        assertThat(f.path("endereco").path("logradouro").asString()).isEqualTo("Rua das Flores");
+        assertThat(auditorias(a, "ANAMNESE_ALTERACAO_APLICADA")).isEqualTo(3);
+        api.post(acao(a, pc.path("id").asString(), "aplicar"), treinador, null, 200);
+        assertThat(auditorias(a, "ANAMNESE_ALTERACAO_APLICADA")).isEqualTo(3);
+    }
+
+    @Test
+    void descartarCpfTelefoneEEnderecoNaoMexeNoCadastro() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        String cpf = Documentos.cpf();
+        JsonNode[] x = alunoComCadastro(Map.of("cpf", cpf, "endereco", ENDERECO), cad);
+        JsonNode a = x[0];
+        definirTelefone(a, "(45) 99999-8888");
+        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", Map.of("cidade", "Cidade Nova")), 200);
+
+        for (JsonNode p : detalhe(a, treinador).path("alteracoes")) {
+            api.post(acao(a, p.path("id").asString(), "descartar"), treinador, null, 200);
+        }
+        JsonNode f = ficha(a);
+        assertThat(f.path("cpf").asString()).isEqualTo(cpf);
+        assertThat(f.path("telefone").asString()).isEqualTo("(45) 99999-8888");
+        assertThat(f.path("endereco").path("cidade").asString()).isEqualTo("Cidade Exemplo");
+    }
+
+    @Test
+    void permissaoDeCadaDestinoDoCadastro() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        JsonNode[] x = alunoComCadastro(Map.of("cpf", Documentos.cpf(), "endereco", ENDERECO), cad);
+        JsonNode a = x[0];
+        definirTelefone(a, "(45) 99999-8888");
+        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", Map.of("cidade", "Cidade Nova")), 200);
+        JsonNode d = detalhe(a, treinador);
+        String cpf = alteracao(d, "CPF").path("id").asString();
+        String telefone = alteracao(d, "TELEFONE").path("id").asString();
+        String endereco = alteracao(d, "ENDERECO").path("id").asString();
+
+        // Telefone pede ALUNO_ALTERAR; CPF e endereço pedem ALUNO_SENSIVEL_ALTERAR.
+        JsonNode soCadastro = membro(CatalogoPermissoes.comDependencias(Set.of("ANAMNESE_ALTERAR", "ALUNO_ALTERAR", "ALUNO_SENSIVEL_LER")));
+        api.post(acao(a, cpf, "aplicar"), soCadastro, null, 403);
+        api.post(acao(a, endereco, "aplicar"), soCadastro, null, 403);
+        api.post(acao(a, cpf, "descartar"), soCadastro, null, 403);
+        api.post(acao(a, telefone, "aplicar"), soCadastro, null, 200);
+        assertThat(ficha(a).path("telefone").asString()).isEqualTo("(45) 98888-7777");
+
+        JsonNode soSensivel = membro(CatalogoPermissoes.comDependencias(Set.of("ANAMNESE_ALTERAR", "ALUNO_SENSIVEL_ALTERAR")));
+        api.post(acao(a, telefone, "descartar"), soSensivel, null, 403); // a permissão do campo vale também para descartar
+        api.post(acao(a, cpf, "aplicar"), soSensivel, null, 200);
+        api.post(acao(a, endereco, "aplicar"), soSensivel, null, 200);
+        assertThat(ficha(a).path("endereco").path("cidade").asString()).isEqualTo("Cidade Nova");
+    }
+
+    @Test
+    void cpfQueJaEDeOutroAlunoNaoPreencheViraPendenteEAplicarDa409SemRepetirOValor() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        String cpf = Documentos.cpf();
+        api.post("/alunos", treinador, Map.of("nome", "Outro Aluno Fictício", "cpf", cpf), 200);
+        JsonNode[] x = alunoComCadastro(Map.of(), cad);
+        JsonNode a = x[0];
+
+        // O envio dá certo (o aluno não descobre de quem é o CPF) e o cadastro continua sem CPF.
+        enviar(x[1], a, cadastro(Documentos.semPontuacao(cpf), null, null), 200);
+        assertThat(ficha(a).has("cpf")).isFalse();
+        JsonNode p = alteracao(detalhe(a, treinador), "CPF");
+        assertThat(p.path("situacao").asString()).isEqualTo("PENDENTE");
+        assertThat(p.path("valorAtual").isNull()).isTrue();
+        assertThat(auditorias(a, "ANAMNESE_CADASTRO_PREENCHIDO")).isZero();
+
+        JsonNode erro = api.post(acao(a, p.path("id").asString(), "aplicar"), treinador, null, 409);
+        assertThat(erro.path("codigo").asString()).isEqualTo("ALUNO_CPF_EM_USO");
+        assertThat(erro.toString()).doesNotContain(cpf).doesNotContain(Documentos.semPontuacao(cpf));
+        assertThat(alteracao(detalhe(a, treinador), "CPF").path("situacao").asString()).isEqualTo("PENDENTE");
+        assertThat(ficha(a).has("cpf")).isFalse();
+        api.post(acao(a, p.path("id").asString(), "descartar"), treinador, null, 200);
+    }
+
+    @Test
+    void cpfQueViraDeOutroAlunoDepoisDoEnvioTambemDa409AoAplicar() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        JsonNode[] x = alunoComCadastro(Map.of("cpf", Documentos.cpf()), cad);
+        JsonNode a = x[0];
+        String novo = Documentos.cpf();
+        enviar(x[1], a, cadastro(novo, null, null), 200);
+        JsonNode p = alteracao(detalhe(a, treinador), "CPF");
+        assertThat(p.path("situacao").asString()).isEqualTo("PENDENTE");
+
+        api.post("/alunos", treinador, Map.of("nome", "Outro Aluno Fictício", "cpf", novo), 200);
+        JsonNode erro = api.post(acao(a, p.path("id").asString(), "aplicar"), treinador, null, 409);
+        assertThat(erro.path("codigo").asString()).isEqualTo("ALUNO_CPF_EM_USO");
+        assertThat(erro.toString()).doesNotContain(novo);
+    }
+
+    @Test
+    void cpfEmUsoEmOutraConsultoriaNaoImpede() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        String cpf = Documentos.cpf();
+        JsonNode outro = api.novoTreinador();
+        api.post("/alunos", outro, Map.of("nome", "Aluno de Outra Consultoria", "cpf", cpf), 200);
+        JsonNode[] x = alunoComCadastro(Map.of(), cad);
+
+        enviar(x[1], x[0], cadastro(cpf, null, null), 200);
+
+        assertThat(ficha(x[0]).path("cpf").asString()).isEqualTo(cpf);
+    }
+
+    @Test
+    void respostaDeCpfTelefoneEEnderecoInvalidosNaoPassaESemRepetirOValor() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        JsonNode[] x = alunoComCadastro(Map.of(), cad);
+
+        JsonNode cpfRuim = enviar(x[1], x[0], cadastro("111.111.111-11", null, null), 422);
+        assertThat(cpfRuim.toString()).contains("\"field\":\"cpf\"").doesNotContain("111.111.111-11");
+        // Fixo com 9 na frente: a pergunta de telefone comum aceita, a que alimenta o cadastro não.
+        assertThat(enviar(x[1], x[0], cadastro(null, "(45) 9999-8888", null), 422).toString()).contains("\"field\":\"tel\"");
+        assertThat(enviar(x[1], x[0], cadastro(null, null, Map.of("uf", "XX")), 422).toString()).contains("\"field\":\"end\"");
+        assertThat(enviar(x[1], x[0], cadastro(null, null, Map.of("cep", "123")), 422).toString()).contains("\"field\":\"end\"");
+        assertThat(enviar(x[1], x[0], cadastro(null, null, Map.of("pais", "BR")), 422).toString()).contains("\"field\":\"end\"");
+        assertThat(ficha(x[0]).has("cpf")).isFalse();
+    }
+
+    @Test
+    void publicacaoConfereOsDestinosNovos() throws Exception {
+        Map<String, Object> cpfNoTextoLongo = Map.of("id", "cpf", "tipo", "TEXTO_LONGO", "rotulo", "CPF", "obrigatoria", false, "destino", "CPF");
+        JsonNode q = api.post("/questionarios", treinador, Map.of("nome", "Anamnese ruim", "origem", "VAZIO", "finalidade", "ANAMNESE"), 200);
+        Map<String, Object> corpo = new LinkedHashMap<>();
+        corpo.put("nome", "Anamnese ruim");
+        corpo.put("conteudo", Map.of("instrucoes", List.of(), "secoes", List.of(Map.of("uid", "s1", "titulo", "A", "perguntas", List.of(cpfNoTextoLongo)))));
+        corpo.put("versao", q.path("versao").asLong());
+        JsonNode salvo = api.put("/questionarios/" + q.path("id").asString(), treinador, corpo, 200);
+        JsonNode erro = api.post("/questionarios/" + q.path("id").asString() + "/publicar", treinador,
+                Map.of("versao", salvo.path("versao").asLong(), "confirmarAvisos", true), 422);
+        assertThat(erro.toString()).contains("secoes[0].perguntas[0].destino");
+    }
+
+    // ---- testes (peso e objetivo) ----
 
     @Test
     void campoVazioPreencheNoEnvioComADataInformadaEReenvioNaoDuplica() throws Exception {

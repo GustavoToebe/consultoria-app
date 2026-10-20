@@ -30,6 +30,19 @@ public final class LimitesQuestionario {
     public static final int TEXTO_LONGO_CAPACIDADE = 2000;
     /** Resposta do TEXTO com destino OBJETIVO: o tamanho de {@code aluno.objetivo} (o mesmo do cadastro na ficha). */
     public static final int OBJETIVO_TAMANHO = 200;
+    /** Resposta do TEXTO com destino CPF: o CPF formatado (123.456.789-09) tem 14 caracteres, o tamanho de {@code aluno.cpf}. */
+    public static final int CPF_TAMANHO = 14;
+    /**
+     * Campos da resposta ENDERECO e do endereço do aluno (colunas de {@code aluno}, V015; o mesmo limite vale no
+     * {@code AlunoDtos.Endereco}). O CEP formatado (85800-000) tem 9 caracteres.
+     */
+    public static final int ENDERECO_CEP_TAMANHO = 9;
+    public static final int ENDERECO_LOGRADOURO_TAMANHO = 200;
+    public static final int ENDERECO_NUMERO_TAMANHO = 20;
+    public static final int ENDERECO_COMPLEMENTO_TAMANHO = 100;
+    public static final int ENDERECO_BAIRRO_TAMANHO = 100;
+    public static final int ENDERECO_CIDADE_TAMANHO = 100;
+    public static final int ENDERECO_UF_TAMANHO = 2;
     /** Soma das capacidades de TEXTO e TEXTO_LONGO: garante que as respostas cabem em {@link #RESPOSTAS_BYTES}. */
     public static final int CAPACIDADE_DE_TEXTO_TOTAL = 40_000;
     public static final int RASCUNHO_BYTES = 256 * 1024;

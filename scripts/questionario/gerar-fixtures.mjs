@@ -176,6 +176,23 @@ ca('destino_data_inexistente_e_de_texto', { formato: 2, instrucoes: [], secoes: 
   ['secoes[0].perguntas[1].destinoData', 'secoes[1].perguntas[1].destinoData']);
 ca('destino_data_aponta_para_texto', so(P('t', 'TEXTO'), DP({ destinoData: 't' })), ['secoes[0].perguntas[1].destinoData']);
 
+// CPF, telefone e endereço no cadastro (destinos novos) e o tipo ENDERECO, que só existe na anamnese.
+const DCPF = (id = 'cpf', extra = {}) => P(id, 'TEXTO', { destino: 'CPF', ...extra });
+const DTEL = (id = 'tel', extra = {}) => P(id, 'TELEFONE', { destino: 'TELEFONE', ...extra });
+const DEND = (id = 'end', extra = {}) => P(id, 'ENDERECO', { destino: 'ENDERECO', ...extra });
+ca('destino_cpf_telefone_endereco_ok', so(DCPF(), DTEL(), DEND()));
+ca('endereco_sem_destino_ok', so(P('end', 'ENDERECO', { obrigatoria: true })));
+ca('destino_tipo_errado_dos_novos', so(DCPF('a', { tipo: 'TEXTO_LONGO' }), DTEL('b', { tipo: 'TEXTO' }), DEND('c', { tipo: 'TEXTO' })),
+  ['secoes[0].perguntas[0].destino', 'secoes[0].perguntas[1].destino', 'secoes[0].perguntas[2].destino']);
+ca('destino_cpf_em_pergunta_de_endereco', so(DEND('a', { destino: 'CPF' }), P('b', 'TELEFONE', { destino: 'CPF' })),
+  ['secoes[0].perguntas[0].destino', 'secoes[0].perguntas[1].destino']);
+ca('destino_cpf_telefone_endereco_repetidos', so(DCPF('a'), DCPF('b'), DTEL('c'), DTEL('d'), DEND('e'), DEND('f')),
+  ['secoes[0].perguntas[1].destino', 'secoes[0].perguntas[3].destino', 'secoes[0].perguntas[5].destino']);
+ca('destino_data_em_cpf', so(DS(), DCPF('c', { destinoData: 'pesagem' })), ['secoes[0].perguntas[1].destinoData']);
+c('endereco_na_atualizacao', com(P('e', 'ENDERECO')), [`${pp(1)}.tipo`]);
+c('endereco_com_destino_na_atualizacao', com(DEND('e')), [`${pp(1)}.tipo`, `${pp(1)}.destino`]);
+c('destino_cpf_e_telefone_na_atualizacao', com(DCPF('a'), DTEL('b')), [`${pp(1)}.destino`, `${pp(2)}.destino`]);
+
 // Fábrica: o questionário de onde sai o Padrão de cada consultoria, como está no V001 (o teste de integração confere o banco).
 {
   const sql = readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V001__inicial.sql`, 'utf8');
@@ -315,6 +332,60 @@ r('objetivo_200_ok', Q(OB()), { o: 'x'.repeat(200) });
 r('objetivo_201', Q(OB()), { o: 'x'.repeat(201) }, ['o']);
 r('texto_sem_destino_500_ok', Q(TX('t')), { t: 'x'.repeat(500) });
 
+// CPF, telefone e endereço que alimentam o cadastro (dados fictícios; os CPFs têm dígitos verificadores corretos).
+const CP = (extra = {}) => ({ id: 'c', tipo: 'TEXTO', rotulo: 'c', obrigatoria: false, destino: 'CPF', ...extra });
+r('cpf_destino_formatado_ok', Q(CP()), { c: '529.982.247-25' });
+r('cpf_destino_so_digitos_ok', Q(CP()), { c: '52998224725' });
+r('cpf_destino_outro_valido_ok', Q(CP()), { c: '123.456.789-09' });
+r('cpf_destino_digito_errado', Q(CP()), { c: '529.982.247-26' }, ['c']);
+r('cpf_destino_digitos_iguais', Q(CP()), { c: '111.111.111-11' }, ['c']);
+r('cpf_destino_15_caracteres', Q(CP()), { c: '529.982.247-250' }, ['c']);
+r('cpf_destino_curto', Q(CP()), { c: '5299822472' }, ['c']);
+r('cpf_destino_texto', Q(CP()), { c: 'abc' }, ['c']);
+r('cpf_destino_obrigatorio_ausente', Q(CP({ obrigatoria: true })), {}, ['c']);
+r('cpf_destino_opcional_em_branco_ok', Q(CP()), { c: '  ' });
+r('texto_sem_destino_nao_confere_cpf', Q(TX('c')), { c: '123' });
+const TD = (extra = {}) => ({ id: 'f', tipo: 'TELEFONE', rotulo: 'f', obrigatoria: false, destino: 'TELEFONE', ...extra });
+r('telefone_destino_celular_ok', Q(TD()), { f: '(45) 99999-8888' });
+r('telefone_destino_com_55_ok', Q(TD()), { f: '+55 45 99999-8888' });
+r('telefone_destino_fixo_ok', Q(TD()), { f: '(45) 3333-8888' });
+r('telefone_destino_fixo_com_9_recusado', Q(TD()), { f: '(45) 9999-8888' }, ['f']);
+r('telefone_sem_destino_fixo_com_9_ok', Q(T()), { f: '(45) 9999-8888' });
+r('telefone_destino_ddd_com_zero_recusado', Q(TD()), { f: '(05) 99999-8888' }, ['f']);
+r('telefone_sem_destino_ddd_com_zero_ok', Q(T()), { f: '(05) 99999-8888' });
+const EN = (extra = {}) => ({ id: 'e', tipo: 'ENDERECO', rotulo: 'e', obrigatoria: false, ...extra });
+const ENDERECO_OK = { cep: '85800-000', logradouro: 'Rua das Flores', numero: '100', complemento: 'Apto 2', bairro: 'Centro', cidade: 'Cidade Exemplo', uf: 'PR' };
+r('endereco_completo_ok', Q(EN({ obrigatoria: true })), { e: ENDERECO_OK });
+r('endereco_parcial_ok', Q(EN({ obrigatoria: true })), { e: { cidade: 'Cidade Exemplo', uf: 'sp' } });
+r('endereco_cep_so_digitos_ok', Q(EN()), { e: { cep: '85800000' } });
+r('endereco_pontas_com_espaco_ok', Q(EN()), { e: { cep: ' 85800-000 ', uf: ' PR ', cidade: ' Cidade ' } });
+r('endereco_chave_desconhecida', Q(EN()), { e: { rua: 'x' } }, ['e']);
+r('endereco_chave_desconhecida_junto_de_valida', Q(EN()), { e: { cidade: 'x', pais: 'BR' } }, ['e']);
+r('endereco_cep_curto', Q(EN()), { e: { cep: '1234' } }, ['e']);
+r('endereco_cep_10_caracteres', Q(EN()), { e: { cep: '85800-0000' } }, ['e']);
+r('endereco_uf_inexistente', Q(EN()), { e: { uf: 'XX' } }, ['e']);
+r('endereco_uf_3_letras', Q(EN()), { e: { uf: 'sps' } }, ['e']);
+r('endereco_vazio_opcional_ok', Q(EN()), { e: {} });
+r('endereco_vazio_obrigatorio', Q(EN({ obrigatoria: true })), { e: {} }, ['e']);
+r('endereco_ausente_obrigatorio', Q(EN({ obrigatoria: true })), {}, ['e']);
+r('endereco_em_branco_opcional_ok', Q(EN()), { e: { cep: '', cidade: ' ' } });
+r('endereco_em_branco_obrigatorio', Q(EN({ obrigatoria: true })), { e: { cep: '', cidade: ' ' } }, ['e']);
+r('endereco_valor_nao_texto', Q(EN()), { e: { numero: 10 } }, ['e']);
+r('endereco_valor_nulo', Q(EN()), { e: { numero: null } }, ['e']);
+r('endereco_nao_e_objeto', Q(EN()), { e: 'Rua das Flores, 100' }, ['e']);
+r('endereco_lista', Q(EN()), { e: ['Rua'] }, ['e']);
+r('endereco_logradouro_200_ok', Q(EN()), { e: { logradouro: 'x'.repeat(200) } });
+r('endereco_logradouro_201', Q(EN()), { e: { logradouro: 'x'.repeat(201) } }, ['e']);
+r('endereco_logradouro_200_com_espacos_nas_pontas_ok', Q(EN()), { e: { logradouro: ` ${'x'.repeat(200)} ` } });
+r('endereco_numero_20_ok', Q(EN()), { e: { numero: '1'.repeat(20) } });
+r('endereco_numero_21', Q(EN()), { e: { numero: '1'.repeat(21) } }, ['e']);
+r('endereco_complemento_100_ok', Q(EN()), { e: { complemento: 'x'.repeat(100) } });
+r('endereco_complemento_101', Q(EN()), { e: { complemento: 'x'.repeat(101) } }, ['e']);
+r('endereco_bairro_100_ok', Q(EN()), { e: { bairro: 'x'.repeat(100) } });
+r('endereco_bairro_101', Q(EN()), { e: { bairro: 'x'.repeat(101) } }, ['e']);
+r('endereco_cidade_100_ok', Q(EN()), { e: { cidade: 'x'.repeat(100) } });
+r('endereco_cidade_101', Q(EN()), { e: { cidade: 'x'.repeat(101) } }, ['e']);
+
 writeFileSync(`${SAIDA}/respostas.json`, JSON.stringify(respostas, null, 1) + '\n');
 
 const limites = {
@@ -325,7 +396,8 @@ const limites = {
   numeroAbsoluto: 1000000000, fotosPorPergunta: 6, linhasMinimo: 1, linhasMaximo: 30, colunasMinimo: 2, colunasMaximo: 10,
   textoInformativoTamanho: 4000, declaracaoTamanho: 200, telefoneTamanho: 25, telefoneDigitosMinimo: 10,
   telefoneDigitosMaximo: 13, emailTamanho: 254, dataAnoMinimo: 1900, dataAnoMaximo: 2100, imagemBytes: 300000, imagemLado: 1600,
-  objetivoTamanho: 200,
+  objetivoTamanho: 200, cpfTamanho: 14, enderecoCepTamanho: 9, enderecoLogradouroTamanho: 200, enderecoNumeroTamanho: 20,
+  enderecoComplementoTamanho: 100, enderecoBairroTamanho: 100, enderecoCidadeTamanho: 100, enderecoUfTamanho: 2,
 };
 writeFileSync(`${SAIDA}/limites.json`, JSON.stringify(limites, null, 1) + '\n');
 console.log(`${casos.length} casos de questionário, ${respostas.length} de respostas`);

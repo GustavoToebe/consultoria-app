@@ -6409,6 +6409,350 @@
   "finalidade": "ANAMNESE"
  },
  {
+  "nome": "destino_cpf_telefone_endereco_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "cpf",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta cpf",
+       "obrigatoria": false,
+       "destino": "CPF"
+      },
+      {
+       "id": "tel",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta tel",
+       "obrigatoria": false,
+       "destino": "TELEFONE"
+      },
+      {
+       "id": "end",
+       "tipo": "ENDERECO",
+       "rotulo": "Pergunta end",
+       "obrigatoria": false,
+       "destino": "ENDERECO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "endereco_sem_destino_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "end",
+       "tipo": "ENDERECO",
+       "rotulo": "Pergunta end",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_tipo_errado_dos_novos",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "TEXTO_LONGO",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "destino": "CPF"
+      },
+      {
+       "id": "b",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta b",
+       "obrigatoria": false,
+       "destino": "TELEFONE"
+      },
+      {
+       "id": "c",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta c",
+       "obrigatoria": false,
+       "destino": "ENDERECO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].destino",
+   "secoes[0].perguntas[1].destino",
+   "secoes[0].perguntas[2].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_cpf_em_pergunta_de_endereco",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "ENDERECO",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "destino": "CPF"
+      },
+      {
+       "id": "b",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta b",
+       "obrigatoria": false,
+       "destino": "CPF"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].destino",
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_cpf_telefone_endereco_repetidos",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "destino": "CPF"
+      },
+      {
+       "id": "b",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta b",
+       "obrigatoria": false,
+       "destino": "CPF"
+      },
+      {
+       "id": "c",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta c",
+       "obrigatoria": false,
+       "destino": "TELEFONE"
+      },
+      {
+       "id": "d",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta d",
+       "obrigatoria": false,
+       "destino": "TELEFONE"
+      },
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "destino": "ENDERECO"
+      },
+      {
+       "id": "f",
+       "tipo": "ENDERECO",
+       "rotulo": "Pergunta f",
+       "obrigatoria": false,
+       "destino": "ENDERECO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino",
+   "secoes[0].perguntas[3].destino",
+   "secoes[0].perguntas[5].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_data_em_cpf",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "pesagem",
+       "tipo": "DATA",
+       "rotulo": "Pergunta pesagem",
+       "obrigatoria": false,
+       "somentePassado": true
+      },
+      {
+       "id": "c",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta c",
+       "obrigatoria": false,
+       "destino": "CPF",
+       "destinoData": "pesagem"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destinoData"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "endereco_na_atualizacao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].tipo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "endereco_com_destino_na_atualizacao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "Pergunta e",
+       "obrigatoria": false,
+       "destino": "ENDERECO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino",
+   "secoes[0].perguntas[1].tipo"
+  ],
+  "avisos": []
+ },
+ {
+  "nome": "destino_cpf_e_telefone_na_atualizacao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "a",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "destino": "CPF"
+      },
+      {
+       "id": "b",
+       "tipo": "TELEFONE",
+       "rotulo": "Pergunta b",
+       "obrigatoria": false,
+       "destino": "TELEFONE"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino",
+   "secoes[0].perguntas[2].destino"
+  ],
+  "avisos": []
+ },
+ {
   "nome": "fabrica_v2",
   "conteudo": {
    "secoes": [

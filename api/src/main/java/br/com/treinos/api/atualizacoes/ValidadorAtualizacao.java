@@ -1,7 +1,9 @@
 package br.com.treinos.api.atualizacoes;
 
 import br.com.plataforma.comum.web.ApiError;
+import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.questionarios.LimitesQuestionario;
+import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.stereotype.Component;
@@ -79,7 +81,7 @@ public class ValidadorAtualizacao {
                     continue;
                 }
                 var v = respostas.path(id);
-                if (vazio(v)) {
+                if (vazio(v) || ("ENDERECO".equals(tipo) && enderecoEmBranco(v))) {
                     if (p.path("obrigatoria").asBoolean(false)) {
                         erros.add(new ApiError.FieldError(id, "Preencha este campo."));
                     }
@@ -145,7 +147,8 @@ public class ValidadorAtualizacao {
         return switch (tipo) {
             case "NOTA" -> nota(v);
             case "PESO" -> v.isNumber() && v.asDouble() >= 20 && v.asDouble() <= 400 && v.decimalValue().stripTrailingZeros().scale() <= 1;
-            case "TEXTO", "TEXTO_LONGO" -> v.isString() && v.asString().length() <= tamanhoDoTexto(tipo, p);
+            case "TEXTO", "TEXTO_LONGO" -> v.isString() && v.asString().length() <= tamanhoDoTexto(tipo, p)
+                    && (!"CPF".equals(p.path("destino").asString("")) || formatoAceito(() -> Formatos.cpf(v.asString())));
             case "NOTAS_POR_DIA" -> v.isObject() && v.properties().stream().allMatch(e ->
                     p.path("dias").valueStream().anyMatch(d -> String.valueOf(d.asInt()).equals(e.getKey()))
                             && (e.getValue().isNull() || nota(e.getValue())));
@@ -155,7 +158,9 @@ public class ValidadorAtualizacao {
             case "SIM_NAO" -> v.isBoolean();
             case "FOTOS" -> fotos(v);
             case "DATA" -> data(p, v, hoje);
-            case "TELEFONE" -> telefone(v);
+            case "TELEFONE" -> telefone(v)
+                    && (!"TELEFONE".equals(p.path("destino").asString("")) || formatoAceito(() -> Formatos.telefone(v.asString())));
+            case "ENDERECO" -> endereco(v);
             case "EMAIL" -> v.isString() && v.asString().strip().length() <= LimitesQuestionario.EMAIL_TAMANHO
                     && EMAIL.matcher(v.asString().strip()).matches();
             case "GRADE" -> gradeValida(p, v);
@@ -164,10 +169,17 @@ public class ValidadorAtualizacao {
         };
     }
 
-    /** O texto que vai para o objetivo do cadastro cabe nele (anamnese com destino OBJETIVO). */
+    /**
+     * O texto que vai para o cadastro cabe nele (anamnese com destino OBJETIVO ou CPF). O CPF ainda precisa ser válido
+     * ({@link Formatos#cpf}: dígitos verificadores, com ou sem pontuação).
+     */
     private static int tamanhoDoTexto(String tipo, JsonNode p) {
-        if ("OBJETIVO".equals(p.path("destino").asString(""))) {
+        String destino = p.path("destino").asString("");
+        if ("OBJETIVO".equals(destino)) {
             return LimitesQuestionario.OBJETIVO_TAMANHO;
+        }
+        if ("CPF".equals(destino)) {
+            return LimitesQuestionario.CPF_TAMANHO;
         }
         return "TEXTO".equals(tipo) ? LimitesQuestionario.TEXTO_CURTO_CAPACIDADE : LimitesQuestionario.TEXTO_LONGO_CAPACIDADE;
     }
@@ -200,6 +212,63 @@ public class ValidadorAtualizacao {
         }
         long digitos = t.chars().filter(Character::isDigit).count();
         return digitos >= LimitesQuestionario.TELEFONE_DIGITOS_MINIMO && digitos <= LimitesQuestionario.TELEFONE_DIGITOS_MAXIMO;
+    }
+
+    /** Chaves da resposta ENDERECO com o limite de cada uma (contado sem os espaços das pontas). */
+    private static final Map<String, Integer> CAMPOS_DO_ENDERECO = Map.of(
+            "cep", LimitesQuestionario.ENDERECO_CEP_TAMANHO,
+            "logradouro", LimitesQuestionario.ENDERECO_LOGRADOURO_TAMANHO,
+            "numero", LimitesQuestionario.ENDERECO_NUMERO_TAMANHO,
+            "complemento", LimitesQuestionario.ENDERECO_COMPLEMENTO_TAMANHO,
+            "bairro", LimitesQuestionario.ENDERECO_BAIRRO_TAMANHO,
+            "cidade", LimitesQuestionario.ENDERECO_CIDADE_TAMANHO,
+            "uf", LimitesQuestionario.ENDERECO_UF_TAMANHO);
+
+    /**
+     * Objeto só com chaves conhecidas e todos os valores em branco (e há ao menos um): conta como "não respondida", como o
+     * objeto vazio. Chave desconhecida ou valor que não é texto continua sendo resposta inválida.
+     */
+    private static boolean enderecoEmBranco(JsonNode v) {
+        return v.isObject() && !v.isEmpty() && v.properties().stream().allMatch(e ->
+                CAMPOS_DO_ENDERECO.containsKey(e.getKey()) && e.getValue().isString() && e.getValue().asString().isBlank());
+    }
+
+    /**
+     * Objeto só com as chaves conhecidas ({@code cep, logradouro, numero, complemento, bairro, cidade, uf}), cada valor um
+     * texto de até o limite do campo (contado sem os espaços das pontas). Campo em branco é ignorado; CEP e UF, quando
+     * preenchidos, passam por {@link Formatos#cep} e {@link Formatos#uf}.
+     */
+    private static boolean endereco(JsonNode v) {
+        if (!v.isObject()) {
+            return false;
+        }
+        for (var e : v.properties()) {
+            Integer limite = CAMPOS_DO_ENDERECO.get(e.getKey());
+            if (limite == null || !e.getValue().isString()) {
+                return false;
+            }
+            String texto = e.getValue().asString().strip();
+            if (texto.length() > limite) {
+                return false;
+            }
+            if (!texto.isEmpty() && "cep".equals(e.getKey()) && !formatoAceito(() -> Formatos.cep(texto))) {
+                return false;
+            }
+            if (!texto.isEmpty() && "uf".equals(e.getKey()) && !formatoAceito(() -> Formatos.uf(texto))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** O formato é aceito pelo {@link Formatos} (que recusa com {@code BadRequestException}, sem repetir o valor). */
+    private static boolean formatoAceito(Runnable formato) {
+        try {
+            formato.run();
+            return true;
+        } catch (BadRequestException recusado) {
+            return false;
+        }
     }
 
     /** Objeto linha → coluna, só com linhas e colunas da pergunta. Obrigatória (todas as linhas) é conferida antes. */

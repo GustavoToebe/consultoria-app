@@ -2,6 +2,8 @@ package br.com.treinos.api.alunos.dto;
 
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.consultoria.MarcaPublica;
+import br.com.treinos.api.questionarios.LimitesQuestionario;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -13,20 +15,64 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /** Contratos HTTP de alunos e convite. */
 public final class AlunoDtos {
 
     private AlunoDtos() { }
 
-    /** {@code versao} só no PUT (lock otimista); no POST vai nulo. */
+    /**
+     * Endereço do aluno: sete campos de texto, todos opcionais e independentes (vale endereço parcial). Os limites são os
+     * de {@code aluno} (V015) e os mesmos da resposta ENDERECO da anamnese ({@link LimitesQuestionario}). CEP e UF só são
+     * conferidos quando preenchidos, pelo serviço (422 no campo). Dado pessoal: nunca em log nem em mensagem de erro.
+     */
+    public record Endereco(
+            @Size(max = LimitesQuestionario.ENDERECO_CEP_TAMANHO) String cep,
+            @Size(max = LimitesQuestionario.ENDERECO_LOGRADOURO_TAMANHO) String logradouro,
+            @Size(max = LimitesQuestionario.ENDERECO_NUMERO_TAMANHO) String numero,
+            @Size(max = LimitesQuestionario.ENDERECO_COMPLEMENTO_TAMANHO) String complemento,
+            @Size(max = LimitesQuestionario.ENDERECO_BAIRRO_TAMANHO) String bairro,
+            @Size(max = LimitesQuestionario.ENDERECO_CIDADE_TAMANHO) String cidade,
+            @Size(max = LimitesQuestionario.ENDERECO_UF_TAMANHO) String uf) {
+
+        /** Os sete campos em branco ou nulos. */
+        public boolean vazio() {
+            return Stream.of(cep, logradouro, numero, complemento, bairro, cidade, uf).allMatch(t -> t == null || t.isBlank());
+        }
+
+        @Override
+        public String toString() {
+            return "Endereco[...]";
+        }
+    }
+
+    /**
+     * {@code versao} só no PUT (lock otimista); no POST vai nulo. {@code telefone}, {@code cpf} e {@code endereco} são
+     * dados pessoais; {@code cpf} e {@code endereco} exigem {@code ALUNO_SENSIVEL_ALTERAR} (sem ela são ignorados e o que
+     * está gravado fica). {@code telefone}: nulo = não mexe; em branco = apaga; só vale para aluno que já tem acesso
+     * (409 {@code ALUNO_SEM_ACESSO} se vier preenchido para quem não tem).
+     */
     public record AlunoRequest(
             @NotBlank @Size(max = 120) String nome,
             @Email @Size(max = 254) String email,
+            @Size(max = 25) String telefone,
             @Size(max = 200) String objetivo,
             @Size(max = 4000) String observacoes,
+            @Size(max = 20) String cpf,
+            @Valid Endereco endereco,
             Long versao,
             @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId) {
+
+        /** Dado pessoal e de saúde: o texto padrão do record os mostraria. */
+        @Override
+        public String toString() {
+            return "AlunoRequest[...]";
+        }
+
+        public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao,UUID responsavelId) {
+            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId);
+        }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao) {
             this(nome,email,objetivo,observacoes,versao,diasAtualizacao,null);
@@ -53,15 +99,26 @@ public final class AlunoDtos {
     public record PaginaAlunos(List<AlunoResumo> itens, long total) {
     }
 
-    public record AlunoDetalhe(UUID id, String nome, String email,
+    /**
+     * Ficha do aluno. {@code telefone} (do usuário do aluno; nulo se ele ainda não criou o acesso) sai com
+     * {@code ALUNO_LER}. Objetivo, observações, {@code cpf} e {@code endereco} são omitidos do JSON sem
+     * {@code ALUNO_SENSIVEL_LER} (e quando não há valor); {@code endereco} traz os sete campos (nulos os vazios).
+     */
+    public record AlunoDetalhe(UUID id, String nome, String email, String telefone,
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String cpf,
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) Endereco endereco,
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String objetivo,
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String observacoes, boolean ativo,
                                boolean temAcesso, Instant conviteExpiraEm, Long versao,
                                Integer diasAtualizacao,UUID responsavelId,UUID questionarioId,boolean anonimizado) {
-        public static AlunoDetalhe de(Aluno a) {
+        /** {@code telefone} é o do usuário do aluno (o chamador o busca pelo {@code usuarioId}); nulo se não há. */
+        public static AlunoDetalhe de(Aluno a, String telefone) {
             boolean conviteValido = a.getConviteExpiraEm() != null && a.getConviteExpiraEm().isAfter(Instant.now());
-            return new AlunoDetalhe(a.getId(), a.getNome(), a.getEmail(), br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER") ? a.getObjetivo() : null,
-                    br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER") ? a.getObservacoes() : null,
+            boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
+            return new AlunoDetalhe(a.getId(), a.getNome(), a.getEmail(),
+                    br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_LER") ? telefone : null,
+                    sensivel ? a.getCpf() : null, sensivel ? a.endereco() : null,
+                    sensivel ? a.getObjetivo() : null, sensivel ? a.getObservacoes() : null,
                     a.isAtivo(), a.getUsuarioId() != null, conviteValido ? a.getConviteExpiraEm() : null,
                     a.getVersao(), a.getDiasAtualizacao(),a.getResponsavelId(),a.getQuestionarioId(),a.isAnonimizado());
         }

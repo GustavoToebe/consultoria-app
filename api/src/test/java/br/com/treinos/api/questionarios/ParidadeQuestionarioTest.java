@@ -88,6 +88,14 @@ class ParidadeQuestionarioTest {
         daqui.put("imagemBytes", LimitesQuestionario.IMAGEM_BYTES);
         daqui.put("imagemLado", LimitesQuestionario.IMAGEM_LADO);
         daqui.put("objetivoTamanho", LimitesQuestionario.OBJETIVO_TAMANHO);
+        daqui.put("cpfTamanho", LimitesQuestionario.CPF_TAMANHO);
+        daqui.put("enderecoCepTamanho", LimitesQuestionario.ENDERECO_CEP_TAMANHO);
+        daqui.put("enderecoLogradouroTamanho", LimitesQuestionario.ENDERECO_LOGRADOURO_TAMANHO);
+        daqui.put("enderecoNumeroTamanho", LimitesQuestionario.ENDERECO_NUMERO_TAMANHO);
+        daqui.put("enderecoComplementoTamanho", LimitesQuestionario.ENDERECO_COMPLEMENTO_TAMANHO);
+        daqui.put("enderecoBairroTamanho", LimitesQuestionario.ENDERECO_BAIRRO_TAMANHO);
+        daqui.put("enderecoCidadeTamanho", LimitesQuestionario.ENDERECO_CIDADE_TAMANHO);
+        daqui.put("enderecoUfTamanho", LimitesQuestionario.ENDERECO_UF_TAMANHO);
 
         JsonNode fixture = fixture("limites.json");
         Map<String, Integer> esperado = new LinkedHashMap<>();
