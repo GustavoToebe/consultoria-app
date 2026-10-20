@@ -53,6 +53,7 @@ public class ExportacaoService {
     private final FotoPerfilService fotoPerfil;
     private final br.com.treinos.api.anamneses.AnamneseService anamneses;
     private final InscricaoDoAluno inscricao;
+    private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
     private final JsonMapper json;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
@@ -60,9 +61,10 @@ public class ExportacaoService {
                              PesoService pesos, LesaoService lesoes, AtualizacaoRepository atualizacoes,
                              FotoService fotos, FotoPerfilService fotoPerfil,
                              br.com.treinos.api.anamneses.AnamneseService anamneses, InscricaoDoAluno inscricao,
-                             JsonMapper json) {
+                             br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos, JsonMapper json) {
         this.anamneses = anamneses;
         this.inscricao = inscricao;
+        this.pagamentos = pagamentos;
         this.alunos = alunos;
         this.pastas = pastas;
         this.treinos = treinos;
@@ -101,9 +103,14 @@ public class ExportacaoService {
         // A inscrição pelo link que virou o aluno, com quem atende a fila (INSCRICAO_LER).
         var inscricaoDoAluno = secao(AcessoAtual.pode("INSCRICAO_LER"), "inscricao", omitidas,
                 () -> inscricao.exportar(alunoId));
+        // Contratações e cobranças do aluno (sem os lançamentos avulsos, que são da consultoria). Roda com o módulo desligado.
+        var financeiro = AcessoAtual.pode("FINANCEIRO_LER") ? pagamentos.exportar(alunoId) : null;
+        if (financeiro == null) {
+            omitidas.add("financeiro");
+        }
         var fotoDePerfil = fotoPerfil.atualizadaEm(alunoId).map(PrivacidadeDtos.FotoPerfilExportada::new).orElse(null);
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
-                registros, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, fotoDePerfil);
+                registros, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

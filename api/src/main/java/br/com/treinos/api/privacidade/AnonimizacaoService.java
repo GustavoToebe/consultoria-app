@@ -55,14 +55,17 @@ public class AnonimizacaoService {
     private final FotoPerfilService fotoPerfil;
     private final InscricaoDoAluno inscricao;
     private final br.com.treinos.api.anamneses.AnamneseService anamneses;
+    private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
 
     public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
                                LesaoRepository lesoes, AtualizacaoRepository atualizacoes, PlanoDietaRepository dietas,
                                PlanoDietaVersaoRepository versoesDeDieta, AnonimizacaoRepositorio nativo,
                                FotoService fotos, FotoPerfilService fotoPerfil, InscricaoDoAluno inscricao,
-                               br.com.treinos.api.anamneses.AnamneseService anamneses) {
+                               br.com.treinos.api.anamneses.AnamneseService anamneses,
+                               br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos) {
         this.anamneses = anamneses;
+        this.pagamentos = pagamentos;
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
@@ -133,6 +136,9 @@ public class AnonimizacaoService {
         fotoPerfil.removerDoAluno(alunoId);
         // A inscrição pelo link que virou este aluno (nome, contato, objetivo e notas) sai inteira.
         inscricao.apagarDoAluno(alunoId);
+        // Contratação encerrada, abertas canceladas e o texto livre do treinador sobre a cobrança apagado; valores ficam.
+        pagamentos.encerrarPorSaida(alunoId);
+        pagamentos.apagarDoAluno(alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
         nativo.apagarNomesDosTitulos(consultoriaId, alunoId);
         nativo.apagarTextoLivreDosPlanos(consultoriaId, alunoId);

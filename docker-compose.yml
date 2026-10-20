@@ -78,6 +78,7 @@ services:
       TREINOS_FOTOS_CHAVE: ${TREINOS_FOTOS_CHAVE:-}
       TREINOS_FOTOS_SEGREDO: ${TREINOS_FOTOS_SEGREDO:-}
       TREINOS_FOTOS_REGIAO: ${TREINOS_FOTOS_REGIAO:-auto}
+      TREINOS_PAGAMENTOS_HABILITADO: ${TREINOS_PAGAMENTOS_HABILITADO:-false}
     depends_on:
       db:
         condition: service_healthy

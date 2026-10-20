@@ -47,7 +47,9 @@ public final class CatalogoPermissoes {
         new Permissao("USUARIO_ALTERAR","Consultoria","Equipe","Criar e editar: equipe.",false),
         new Permissao("PERFIL_ALTERAR","Consultoria","Equipe","Criar e editar: equipe.",false),
         new Permissao("AUDITORIA_LER","Consultoria","Auditoria","Consultar: auditoria.",false),
-        new Permissao("CONTA_LER","Consultoria","Conta","Consultar: plano e cobranças.",false));
+        new Permissao("CONTA_LER","Consultoria","Conta","Consultar: plano e cobranças.",false),
+        new Permissao("FINANCEIRO_LER","Consultoria","Financeiro","Consultar: planos comerciais, cobranças dos alunos, painel e lançamentos.",true),
+        new Permissao("FINANCEIRO_ALTERAR","Consultoria","Financeiro","Criar, editar e registrar pagamento: planos comerciais, contratações, cobranças e lançamentos.",true));
     public static final Set<String> CODIGOS=CATALOGO.stream().map(Permissao::codigo).collect(Collectors.toUnmodifiableSet());
     public static final Map<String,Set<String>> DEPENDENCIAS=Map.ofEntries(
         Map.entry("ALUNO_ALTERAR",Set.of("ALUNO_LER")),
@@ -58,6 +60,8 @@ public final class CatalogoPermissoes {
         Map.entry("ALUNO_ANONIMIZAR",Set.of("ALUNO_ALTERAR","ALUNO_SENSIVEL_ALTERAR")),
         Map.entry("PASTA_ALTERAR",Set.of("ALUNO_LER")),
         Map.entry("INSCRICAO_ALTERAR",Set.of("INSCRICAO_LER")),
+        Map.entry("FINANCEIRO_LER",Set.of("ALUNO_LER")),
+        Map.entry("FINANCEIRO_ALTERAR",Set.of("FINANCEIRO_LER")),
         Map.entry("TREINO_ALTERAR",Set.of("TREINO_LER")),
         Map.entry("TREINO_PUBLICAR",Set.of("TREINO_LER","TREINO_ALTERAR")),
         Map.entry("DIETA_ALTERAR",Set.of("DIETA_LER")),

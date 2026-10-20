@@ -53,6 +53,7 @@ public class AuthService {
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
     private final LimiteLogin limite;
     private final Auditoria auditoria;
+    private final br.com.treinos.api.pagamentos.PagamentosProperties pagamentos;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -61,7 +62,9 @@ public class AuthService {
                        br.com.treinos.api.equipe.PerfilRepository perfis,
                        br.com.treinos.api.equipe.PermissoesDoUsuario permissoes, AcessoPorDireitos acesso,
                        TermosService termos, AberturaDeSessao abertura, PlatformTransactionManager transacoes,
-                       br.com.treinos.api.conta.PlanoDaConsultoria plano, LimiteLogin limite, Auditoria auditoria) {
+                       br.com.treinos.api.conta.PlanoDaConsultoria plano, LimiteLogin limite, Auditoria auditoria,
+                       br.com.treinos.api.pagamentos.PagamentosProperties pagamentos) {
+        this.pagamentos = pagamentos;
         this.plano = plano;
         this.limite = limite;
         this.auditoria = auditoria;
@@ -130,7 +133,7 @@ public class AuthService {
         return new EuResponse(UsuarioResumo.de(usuario), marca(usuario), aluno, perfil,
                 usuario.getPapel() == Papel.TREINADOR ? permissoes.codigos(usuario) : null,
                 termos.pendente(usuario.getId()), Termos.VERSAO,
-                plano.funcionalidadesLiberadas(usuario.getConsultoriaId()));
+                plano.funcionalidadesLiberadas(usuario.getConsultoriaId()), pagamentos.habilitado());
     }
 
     /**

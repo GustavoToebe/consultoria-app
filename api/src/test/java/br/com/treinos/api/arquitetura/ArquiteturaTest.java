@@ -2,6 +2,7 @@ package br.com.treinos.api.arquitetura;
 
 import com.tngtech.archunit.base.DescribedPredicate;
 import br.com.plataforma.comum.teste.RegrasDeArquitetura;
+import br.com.treinos.api.pagamentos.ExigePagamentos;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaMethod;
@@ -144,7 +145,9 @@ class ArquiteturaTest {
                                 // Anamnese do próprio aluno e imagens das perguntas que ele responde (hasRole ALUNO, sempre a da sessão).
                                 "AnamneseAlunoController",
                                 // "Excluir minha conta" (hasRole ALUNO, sempre a conta da sessão, com a senha dela).
-                                "ExclusaoDeContaController").contains(c.getSimpleName())))
+                                "ExclusaoDeContaController",
+                                // Plano comercial e cobranças do próprio aluno (hasRole ALUNO, sempre o da sessão, só leitura).
+                                "AlunoFinanceiroController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {
@@ -154,6 +157,16 @@ class ArquiteturaTest {
                         });
                     }
                 }).check(codigo);
+    }
+
+    @Test
+    void controllerDePagamentosExigePagamentosHabilitados() {
+        classes().that().areAnnotatedWith(RestController.class)
+                .and().resideInAPackage("br.com.treinos.api.pagamentos..")
+                .should().beAnnotatedWith(ExigePagamentos.class)
+                .because("com TREINOS_PAGAMENTOS_HABILITADO=false toda rota do financeiro responde 503 (PagamentosInterceptor); "
+                        + "controller novo sem a anotação ficaria aberto com o módulo desligado")
+                .check(codigo);
     }
 
     @Test

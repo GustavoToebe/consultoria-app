@@ -49,6 +49,7 @@ public final class PrivacidadeDtos {
                              Secao<AtualizacaoExportada> atualizacoes,
                              Secao<br.com.treinos.api.anamneses.AnamneseDtos.AnamneseExportada> anamneses,
                              Secao<br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoExportada> inscricao,
+                             br.com.treinos.api.pagamentos.PagamentosDtos.FinanceiroExportado financeiro,
                              FotoPerfilExportada fotoDePerfil) { }
 
     /** Só a data em que a foto de perfil foi trocada; a imagem não vai no arquivo. Sem foto: {@code null}. */

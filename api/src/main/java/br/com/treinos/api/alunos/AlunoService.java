@@ -55,11 +55,14 @@ public class AlunoService {
     private final br.com.treinos.api.auditoria.Auditoria auditoria;
     private final AtualizacaoRepository atualizacoes;
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
+    private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
-                        AtualizacaoRepository atualizacoes, br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+                        AtualizacaoRepository atualizacoes, br.com.treinos.api.conta.PlanoDaConsultoria plano,
+                        br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos) {
         this.plano = plano;
+        this.pagamentos = pagamentos;
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
@@ -205,6 +208,9 @@ public class AlunoService {
             if (!ativo) {
                 autenticador.encerrarSessoes(aluno.getUsuarioId().toString());
             }
+        }
+        if (!ativo) {
+            pagamentos.encerrarPorSaida(aluno.getId()); // quem saiu não fica na receita recorrente nem na inadimplência
         }
     }
 

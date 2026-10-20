@@ -83,6 +83,10 @@ treinos:
     chave: ${TREINOS_FOTOS_CHAVE:}
     segredo: ${TREINOS_FOTOS_SEGREDO:}
     regiao: ${TREINOS_FOTOS_REGIAO:auto}
+  # Pagamentos do aluno ao treinador (planos comerciais, contratações, cobranças e painel financeiro). Desligado por padrão:
+  # as rotas respondem 503 FINANCEIRO_INDISPONIVEL e o app esconde a área (GET /eu traz pagamentosHabilitados).
+  pagamentos:
+    habilitado: ${TREINOS_PAGAMENTOS_HABILITADO:false}
 
 # Coleta de métricas (docs/biblioteca-comum.md): fechada sem um token de 32 a 128 caracteres [A-Za-z0-9_-].
 monitoramento:

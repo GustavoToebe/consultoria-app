@@ -47,4 +47,12 @@ class CatalogoPermissoesTest {
                 .containsExactlyInAnyOrder("INSCRICAO_ALTERAR","INSCRICAO_LER");
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("INSCRICAO_ALTERAR"))).isInstanceOf(BadRequestException.class);
     }
+    @Test void financeiroESensivelEAlterarDependeDeLerQueDependeDeLerAluno() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("FINANCEIRO_"))
+                .extracting(CatalogoPermissoes.Permissao::codigo,CatalogoPermissoes.Permissao::sensivel)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("FINANCEIRO_LER",true),org.assertj.core.groups.Tuple.tuple("FINANCEIRO_ALTERAR",true));
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("FINANCEIRO_ALTERAR"))))
+                .containsExactlyInAnyOrder("FINANCEIRO_ALTERAR","FINANCEIRO_LER","ALUNO_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("FINANCEIRO_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
+    }
 }
