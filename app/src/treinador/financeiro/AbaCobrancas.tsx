@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { CobrancaResponse, FiltroDeSituacao } from '../../api/financeiroTipos';
 import { listarCobrancas } from '../../api/rotas';
-import { atrasoParaTela, ehPagamentoOnline, FILTROS_DE_SITUACAO, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca } from '../../dominio/financeiro';
+import { atrasoParaTela, ehPagamentoOnline, FILTROS_DE_SITUACAO, resumoDaCobranca, ROTULO_ONLINE, rotuloDaForma, seloDaCobranca } from '../../dominio/financeiro';
 import { centavosParaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMes } from '../../dominio/numeros';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -47,6 +47,7 @@ export function AbaCobrancas({ escopo, aoMudarEscopo, podeAlterar }: {
   const dados = lista.dados;
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
   const mudar = (aplicar: () => void) => { aplicar(); setPagina(0); };
+  const rotuloDoFiltro = FILTROS_DE_SITUACAO.find((f) => f.valor === filtro)?.rotulo ?? 'Todas';
 
   return (
     <View style={estilos.coluna}>
@@ -65,7 +66,7 @@ export function AbaCobrancas({ escopo, aoMudarEscopo, podeAlterar }: {
           texto={filtro === 'TODAS' ? 'As cobranças aparecem quando um aluno tem um plano comercial contratado na ficha.' : 'Tente outra situação.'} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
-        <Cartao descricao={`${dados.total} ${dados.total === 1 ? 'cobrança' : 'cobranças'}. Toque na linha para abrir.`}>
+        <Cartao descricao={`${rotuloDoFiltro}: ${dados.total} ${dados.total === 1 ? 'cobrança' : 'cobranças'}, por vencimento. Toque na linha para abrir.`}>
           <View style={lista.carregando ? estilos.esmaecido : null}>
             <ListaOuTabela rotulo="Cobranças" linhas={dados.itens} chave={(c) => c.id} aoTocar={setAberta}
               rotuloDaLinha={(c) => `Abrir cobrança de ${c.alunoNome ?? 'aluno'}`}
@@ -73,7 +74,7 @@ export function AbaCobrancas({ escopo, aoMudarEscopo, podeAlterar }: {
                 const selo = seloDaCobranca(c);
                 return {
                   titulo: c.alunoNome ?? '—',
-                  detalhe: `${centavosParaTela(c.valorCentavos)} · vence ${dataParaTela(c.vencimento)}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
+                  detalhe: `${resumoDaCobranca(c)}${c.situacao === 'PAGA' && ehPagamentoOnline(c) ? ` · ${ROTULO_ONLINE}` : ''}`,
                   selo: { texto: selo.rotulo, tipo: selo.tom },
                 };
               }}
@@ -96,7 +97,7 @@ export function AbaCobrancas({ escopo, aoMudarEscopo, podeAlterar }: {
           ) : null}
         </Cartao>
       ) : null}
-      <FolhaDaCobranca cobranca={aberta} podeAlterar={podeAlterar} aoFechar={() => setAberta(null)} aoMudar={recarregar} />
+      <FolhaDaCobranca cobranca={aberta} podeAlterar={podeAlterar} mostrarFicha aoFechar={() => setAberta(null)} aoMudar={recarregar} />
     </View>
   );
 }

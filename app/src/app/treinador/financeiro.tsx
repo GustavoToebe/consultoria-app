@@ -52,8 +52,8 @@ export default function FinanceiroDoTreinador() {
       <Cabecalho titulo="Financeiro" mostrarMarca="celular"
         acoes={pode('FINANCEIRO_LER') ? <Botao rotulo="Exportar CSV" tipo="secundario" Icone={Download} aoTocar={() => setExportando(true)} /> : undefined} />
       <Texto variante="suave">
-        Planos comerciais, cobranças e recebimentos dos seus alunos. O aluno vê o plano e as cobranças; com o recebimento
-        online configurado ele paga pela web por Pix ou cartão. O app não recebe nem guarda dinheiro.
+        O que os seus alunos pagam a você: planos, cobranças e recebimentos. O aluno vê o plano e as cobranças na Conta dele.
+        O app não recebe nem guarda dinheiro.
       </Texto>
       <Abas abas={abas} ativa={aba} aoMudar={setAba} />
       <View style={{ gap: espaco(2) }}>

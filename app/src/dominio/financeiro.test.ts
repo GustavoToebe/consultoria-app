@@ -40,6 +40,7 @@ import {
   podeMarcarEstorno,
   podeRegistrarPagamento,
   resultadoDoMesParaTela,
+  resumoDaCobranca,
   rotuloDaForma,
   rotuloDaPeriodicidade,
   rotuloDoMotivoDaConferencia,
@@ -170,6 +171,25 @@ describe('botões da cobrança', () => {
       expect(podeManterPaga({ situacao })).toBe(manter);
       expect(temBaixaRegistrada({ situacao })).toBe(baixa);
     }
+  });
+});
+
+describe('resumoDaCobranca (linha das listas do treinador)', () => {
+  const base = { valorCentavos: 15000, situacao: 'ABERTA' as const, vencida: false, vencimento: '2026-11-05', diasDeAtraso: null, pagoEm: null, forma: null };
+  const hoje = '2026-10-19';
+  it('em aberto diz quando vence, sem o ano corrente', () => {
+    expect(espacos(resumoDaCobranca(base, hoje))).toBe('R$ 150,00 · vence 05/11');
+  });
+  it('vencida diz quando venceu e o atraso da API', () => {
+    expect(espacos(resumoDaCobranca({ ...base, vencida: true, vencimento: '2026-10-05', diasDeAtraso: 14 }, hoje))).toBe('R$ 150,00 · venceu 05/10 · 14 dias de atraso');
+    expect(espacos(resumoDaCobranca({ ...base, vencida: true, vencimento: '2026-10-05', diasDeAtraso: null }, hoje))).toBe('R$ 150,00 · venceu 05/10');
+  });
+  it('com baixa diz quando foi paga e a forma; outro ano leva o ano', () => {
+    expect(espacos(resumoDaCobranca({ ...base, situacao: 'PAGA', pagoEm: '2026-09-04', forma: 'PIX' }, hoje))).toBe('R$ 150,00 · paga em 04/09 · Pix');
+    expect(espacos(resumoDaCobranca({ ...base, situacao: 'CONTESTADA', pagoEm: '2025-12-30', forma: null }, hoje))).toBe('R$ 150,00 · paga em 30/12/2025');
+  });
+  it('cancelada diz o vencimento que tinha; sem valor fica "—"', () => {
+    expect(espacos(resumoDaCobranca({ ...base, situacao: 'CANCELADA', vencimento: '2026-07-05', valorCentavos: null as unknown as number }, hoje))).toBe('— · vencia 05/07');
   });
 });
 

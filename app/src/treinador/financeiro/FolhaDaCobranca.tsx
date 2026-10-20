@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import type { CobrancaResponse, FormaDePagamento, RecebimentoOnline } from '../../api/financeiroTipos';
 import {
@@ -22,6 +22,7 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
+import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { CampoData } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { MensagemErro } from '../../ui/Estados';
@@ -75,11 +76,13 @@ const PERGUNTAS: Record<Exclude<Pergunta, null>, { titulo: string; mensagem: str
  * recebe por aqui: "Copiar link de pagamento" pede o link da InfinitePay (cobrança em aberto, recebimento online
  * configurado) para ele mandar ao aluno.
  */
-export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, aoFechar, aoMudar }: {
+export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, aoFechar, aoMudar }: {
   cobranca: CobrancaResponse | null;
   podeAlterar: boolean;
   /** Abre direto no formulário de pagamento (atalho da lista de inadimplentes). */
   abrirEmBaixa?: boolean;
+  /** "Abrir ficha do aluno" no detalhe: em toda lista fora da ficha (na própria ficha seria voltar ao mesmo lugar). */
+  mostrarFicha?: boolean;
   aoFechar: () => void;
   /** Depois de qualquer mudança (ou conflito): quem chamou recarrega as listas. */
   aoMudar: () => void;
@@ -92,13 +95,14 @@ export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, aoFechar,
   if (!cobranca) return null;
   // A chave reinicia o formulário a cada cobrança aberta.
   return <Conteudo key={`${cobranca.id}:${cobranca.versao}:${abrirEmBaixa ? 'b' : 'd'}`} cobranca={cobranca} podeAlterar={podeAlterar}
-    abrirEmBaixa={!!abrirEmBaixa} querLink={querLink} recebimento={recebimento.dados} aoFechar={aoFechar} aoMudar={aoMudar} />;
+    abrirEmBaixa={!!abrirEmBaixa} mostrarFicha={!!mostrarFicha} querLink={querLink} recebimento={recebimento.dados} aoFechar={aoFechar} aoMudar={aoMudar} />;
 }
 
-function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, aoFechar, aoMudar }: {
+function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink, recebimento, aoFechar, aoMudar }: {
   cobranca: CobrancaResponse;
   podeAlterar: boolean;
   abrirEmBaixa: boolean;
+  mostrarFicha: boolean;
   /** Mostra o "Copiar link de pagamento" (ou o aviso de que falta configurar). */
   querLink: boolean;
   /** Estado do recebimento online; `undefined` enquanto carrega ou se a busca falhou (então nada é oferecido). */
@@ -207,23 +211,29 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
 
   const perguntar = (p: Exclude<Pergunta, null>) => { setMotivo(''); setErro(null); setUltimaPergunta(p); setPergunta(p); };
 
-  const titulo = modo === 'baixa' ? 'Registrar pagamento' : 'Cobrança';
+  const abrirFicha = () => {
+    aoFechar();
+    router.push(`/treinador/alunos/${cobranca.alunoId}`);
+  };
+
+  const titulo = modo === 'baixa' ? 'Registrar pagamento' : `Cobrança de ${rotuloDoMes(cobranca.competencia)}`;
   const rodape = modo === 'baixa' ? (
     <>
       <Botao rotulo="Voltar" tipo="secundario" aoTocar={() => (abrirEmBaixa ? aoFechar() : setModo('detalhe'))} desabilitado={enviando} />
       <Botao rotulo="Registrar pagamento" aoTocar={registrar} carregando={enviando} />
     </>
   ) : podeAlterar ? (
+    // Ordem de todo rodapé: o que destrói à esquerda, os secundários e a ação principal por último, à direita.
     <LinhaDeAcoes alinhar="fim">
-      {podeRegistrarPagamento(cobranca) ? <Botao rotulo="Registrar pagamento" aoTocar={() => setModo('baixa')} /> : null}
+      {podeCancelarCobranca(cobranca) ? <Botao rotulo="Cancelar cobrança" tipo="perigoTexto" aoTocar={() => perguntar('cancelar')} /> : null}
+      {podeMarcarEstorno(cobranca) ? <Botao rotulo="Marcar estorno" tipo="perigoTexto" aoTocar={() => perguntar('estornar')} /> : null}
+      {podeDesfazerBaixa(cobranca) ? <Botao rotulo="Desfazer baixa" tipo="secundario" aoTocar={() => perguntar('desfazer')} /> : null}
+      {podeMarcarContestacao(cobranca) ? <Botao rotulo="Marcar contestação" tipo="secundario" aoTocar={() => perguntar('contestar')} /> : null}
+      {podeManterPaga(cobranca) ? <Botao rotulo="Manter como paga" tipo="secundario" aoTocar={() => perguntar('manterPaga')} /> : null}
       {querLink && recebimento && podeCopiarLink(cobranca, recebimento.configurado) ? (
         <Botao rotulo="Copiar link de pagamento" tipo="secundario" carregando={copiando} aoTocar={copiarLink} />
       ) : null}
-      {podeDesfazerBaixa(cobranca) ? <Botao rotulo="Desfazer baixa" tipo="secundario" aoTocar={() => perguntar('desfazer')} /> : null}
-      {podeManterPaga(cobranca) ? <Botao rotulo="Manter como paga" tipo="secundario" aoTocar={() => perguntar('manterPaga')} /> : null}
-      {podeMarcarContestacao(cobranca) ? <Botao rotulo="Marcar contestação" tipo="secundario" aoTocar={() => perguntar('contestar')} /> : null}
-      {podeMarcarEstorno(cobranca) ? <Botao rotulo="Marcar estorno" tipo="perigoTexto" aoTocar={() => perguntar('estornar')} /> : null}
-      {podeCancelarCobranca(cobranca) ? <Botao rotulo="Cancelar cobrança" tipo="perigoTexto" aoTocar={() => perguntar('cancelar')} /> : null}
+      {podeRegistrarPagamento(cobranca) ? <Botao rotulo="Registrar pagamento" aoTocar={() => setModo('baixa')} /> : null}
     </LinhaDeAcoes>
   ) : undefined;
 
@@ -231,44 +241,50 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
 
   return (
     <Folha visivel titulo={titulo} aoFechar={aoFechar} rodape={rodape}>
-      <View style={{ gap: espaco(1.5) }}>
-        <LinhaDeAcoes alinhar="entre">
-          <CampoLeitura rotulo="Aluno" valor={cobranca.alunoNome} />
-          <View style={{ gap: espaco(0.5), alignItems: 'flex-end' }}>
+      <View style={estilos.coluna}>
+        {/* Quem, quanto e a situação, num bloco só: o resto são os detalhes, lado a lado. */}
+        <View style={estilos.topo}>
+          <View style={estilos.quem}>
+            <Texto variante="bloco">{cobranca.alunoNome ?? '—'}</Texto>
+            <Texto variante="suave">{cobranca.planoNome ?? '—'}{modo === 'baixa' ? ` · ${rotuloDoMes(cobranca.competencia)}` : ''}</Texto>
+          </View>
+          <View style={estilos.selos}>
             <Selo texto={selo.rotulo} tipo={selo.tom} />
             {cobranca.situacao === 'PAGA' && ehPagamentoOnline(cobranca) ? <Selo texto={ROTULO_ONLINE} tipo="neutro" /> : null}
           </View>
-        </LinhaDeAcoes>
-        <CampoLeitura rotulo="Valor" valor={centavosParaTela(cobranca.valorCentavos)} numerico />
+        </View>
+        <Texto variante="destaque" numerico accessibilityLabel={`Valor: ${centavosParaTela(cobranca.valorCentavos)}`}>{centavosParaTela(cobranca.valorCentavos)}</Texto>
         {modo === 'detalhe' ? (
           <>
-            <CampoLeitura rotulo="Plano" valor={cobranca.planoNome} />
-            <CampoLeitura rotulo="Competência" valor={rotuloDoMes(cobranca.competencia)} />
-            <CampoLeitura rotulo="Vencimento" valor={dataParaTela(cobranca.vencimento)} numerico />
-            {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <CampoLeitura rotulo="Atraso" valor={atrasoParaTela(cobranca.diasDeAtraso)} /> : null}
-            {temBaixaRegistrada(cobranca) ? (
-              <>
-                <CampoLeitura rotulo="Pago em" valor={dataParaTela(cobranca.pagoEm)} numerico />
-                <CampoLeitura rotulo="Forma" valor={rotuloDaForma(cobranca.forma)} />
-                <CampoLeitura rotulo="Baixa dada por" valor={cobranca.baixaPorNome} />
-              </>
-            ) : null}
-            <CampoLeitura rotulo="Observação" valor={cobranca.observacao} />
+            <CamposEmLinha>
+              <CampoLeitura rotulo="Vencimento" valor={dataParaTela(cobranca.vencimento)} numerico />
+              {cobranca.situacao === 'ABERTA' && cobranca.vencida ? <CampoLeitura rotulo="Atraso" valor={atrasoParaTela(cobranca.diasDeAtraso)} /> : null}
+              {temBaixaRegistrada(cobranca) ? <CampoLeitura rotulo="Pago em" valor={dataParaTela(cobranca.pagoEm)} numerico /> : null}
+              {temBaixaRegistrada(cobranca) ? <CampoLeitura rotulo="Forma" valor={rotuloDaForma(cobranca.forma)} /> : null}
+              {temBaixaRegistrada(cobranca) ? (
+                <CampoLeitura rotulo="Baixa dada por" valor={ehPagamentoOnline(cobranca) ? 'Automática (pagamento online)' : cobranca.baixaPorNome} />
+              ) : null}
+            </CamposEmLinha>
+            {cobranca.observacao ? <CampoLeitura rotulo="Observação" valor={cobranca.observacao} /> : null}
             {cobranca.motivo ? <CampoLeitura rotulo="Motivo" valor={cobranca.motivo} /> : null}
             {querLink && recebimento && !recebimento.configurado ? (
-              <View style={{ gap: espaco(0.5) }}>
+              <View style={estilos.aviso}>
                 <Texto variante="suave">{TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO}</Texto>
-                <LinhaDeAcoes><Botao rotulo="Abrir Recebimento online" tipo="fantasma" aoTocar={irParaORecebimento} /></LinhaDeAcoes>
+                <LinhaDeAcoes><Botao rotulo="Abrir Recebimento online" tipo="secundario" aoTocar={irParaORecebimento} /></LinhaDeAcoes>
               </View>
             ) : null}
             {linkParaCopiarAMao ? <Texto selectable>{linkParaCopiarAMao}</Texto> : null}
+            {mostrarFicha ? (
+              <LinhaDeAcoes><Botao rotulo="Abrir ficha do aluno" tipo="secundario" rotuloAcessivel={`Abrir ficha de ${cobranca.alunoNome ?? 'aluno'}`} aoTocar={abrirFicha} /></LinhaDeAcoes>
+            ) : null}
           </>
         ) : (
           <>
             <CampoData rotulo="Data do pagamento" valor={data} aoMudar={setData} erro={dataInvalida} />
             <Escolha rotulo="Forma de pagamento" opcoes={FORMAS_MANUAIS.map((f) => ({ valor: f.valor as FormaDePagamento | null, rotulo: f.rotulo }))}
               valor={forma} aoMudar={setForma} />
-            <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} linhas={3} maxLength={LIMITES.observacao} />
+            <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} linhas={3} maxLength={LIMITES.observacao}
+              ajuda="Só a equipe vê; o aluno não." />
           </>
         )}
         {erro && !pergunta ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
@@ -285,3 +301,11 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, querLink, recebimento, 
     </Folha>
   );
 }
+
+const estilos = StyleSheet.create({
+  coluna: { gap: espaco(2) },
+  topo: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: espaco(1.5) },
+  quem: { flex: 1, gap: 2 },
+  selos: { alignItems: 'flex-end', gap: espaco(0.5) },
+  aviso: { gap: espaco(0.5) },
+});

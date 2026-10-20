@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -8,8 +9,8 @@ import {
   mudarSituacaoDaContratacao,
 } from '../../api/rotas';
 import {
-  abertasDaContratacao, hojeEmBrasilia, LIMITES, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao, textoDeAbertasQueContinuam,
-  validarContratacao,
+  abertasDaContratacao, hojeEmBrasilia, LIMITES, resumoDaCobranca, rotuloDaPeriodicidade, seloDaCobranca, seloDaContratacao,
+  textoDeAbertasQueContinuam, validarContratacao,
 } from '../../dominio/financeiro';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { rotuloDoMes } from '../../dominio/numeros';
@@ -19,6 +20,7 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
+import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { CampoData, CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
@@ -26,6 +28,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
+import { Grade } from '../../ui/Grade';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -34,6 +37,16 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
 import { FolhaDaCobranca } from './FolhaDaCobranca';
+
+/** Cobranças à vista no cartão; "Ver todas" mostra o resto (a lista do aluno só cresce, um item por competência). */
+const COBRANCAS_VISIVEIS = 4;
+
+/** Em aberto primeiro (a que vence antes no topo), depois as outras da mais nova para a mais antiga. */
+function emOrdemDeAtencao(lista: readonly CobrancaResponse[]): CobrancaResponse[] {
+  const abertas = lista.filter((c) => c.situacao === 'ABERTA').sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+  const outras = lista.filter((c) => c.situacao !== 'ABERTA').sort((a, b) => b.vencimento.localeCompare(a.vencimento));
+  return [...abertas, ...outras];
+}
 
 /**
  * Cartão "Plano contratado" da ficha do aluno (`FINANCEIRO_LER` e módulo de pagamentos ligado; quem chama confere os
@@ -55,12 +68,16 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId
   const [cobrancaAberta, setCobrancaAberta] = useState<CobrancaResponse | null>(null);
   const [confirmando, setConfirmando] = useState<'pausar' | 'encerrar' | null>(null);
   const [mudando, setMudando] = useState<string | null>(null);
+  const [todas, setTodas] = useState(false);
 
   const lista = contratacoes.dados;
   const vigente = lista?.find((c) => c.situacao !== 'ENCERRADA') ?? null;
   const anteriores = lista ? lista.filter((c) => c.situacao === 'ENCERRADA').length : 0;
   // Pausar e encerrar mantêm as cobranças abertas da contratação (inclui as vencidas); o painel avisa só quando há alguma.
   const avisoDasAbertas = vigente ? textoDeAbertasQueContinuam(abertasDaContratacao(cobrancas.dados, vigente.id)) : null;
+  const ordenadas = emOrdemDeAtencao(cobrancas.dados ?? []);
+  const visiveis = todas ? ordenadas : ordenadas.slice(0, COBRANCAS_VISIVEIS);
+  const podeContratar = !!lista && !vigente && podeAlterar && ativo;
 
   const mudarSituacao = (acao: 'pausar' | 'retomar' | 'encerrar', mensagem: string) => {
     if (!vigente) return;
@@ -81,27 +98,29 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId
   };
 
   return (
-    <Cartao titulo="Plano contratado" descricao="Plano comercial deste aluno com você (não é a assinatura da consultoria).">
+    <Cartao titulo="Plano contratado" descricao="O plano comercial deste aluno com você."
+      acoes={podeContratar ? <Botao rotulo="Contratar plano" tipo="secundario" Icone={Plus} aoTocar={() => setFormulario('contratar')} /> : undefined}>
       {contratacoes.erro ? <MensagemErro texto={textoDoErro(contratacoes.erro)} erro={contratacoes.erro} tentarDeNovo={recarregarContratacoes} /> : null}
       {!lista && contratacoes.carregando ? <Esqueleto /> : null}
       {lista && !vigente ? (
         <View style={estilos.bloco}>
           <Texto variante="suave">Nenhum plano comercial contratado.{anteriores > 0 ? ` ${anteriores} ${anteriores === 1 ? 'contratação encerrada' : 'contratações encerradas'}.` : ''}</Texto>
-          {podeAlterar && ativo ? <LinhaDeAcoes><Botao rotulo="Contratar plano" aoTocar={() => setFormulario('contratar')} /></LinhaDeAcoes> : null}
           {podeAlterar && !ativo ? <Texto variante="pequeno">Reative o aluno para contratar um plano.</Texto> : null}
         </View>
       ) : null}
       {vigente ? (
         <View style={estilos.bloco}>
-          <LinhaDeAcoes alinhar="entre">
-            <Texto variante="bloco">{vigente.planoNome ?? 'Plano'}</Texto>
+          <View style={estilos.linha}>
+            <Texto variante="bloco" style={estilos.encolher}>{vigente.planoNome ?? 'Plano'}</Texto>
             <Selo texto={seloDaContratacao(vigente.situacao).rotulo} tipo={seloDaContratacao(vigente.situacao).tom} />
-          </LinhaDeAcoes>
-          <CampoLeitura rotulo="Valor" valor={centavosParaTela(vigente.valorCentavos)} numerico />
+          </View>
+          <CamposEmLinha>
+            <CampoLeitura rotulo="Valor" valor={centavosParaTela(vigente.valorCentavos)} numerico />
+            <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(vigente.periodicidade)} />
+            <CampoLeitura rotulo="Vencimento" valor={`Todo dia ${vigente.diaVencimento}`} />
+            <CampoLeitura rotulo="Início" valor={dataParaTela(vigente.inicio)} numerico />
+          </CamposEmLinha>
           {vigente.motivoValor ? <CampoLeitura rotulo="Motivo do valor" valor={vigente.motivoValor} /> : null}
-          <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(vigente.periodicidade)} />
-          <CampoLeitura rotulo="Início" valor={dataParaTela(vigente.inicio)} numerico />
-          <CampoLeitura rotulo="Vencimento" valor={`Todo dia ${vigente.diaVencimento}`} />
           {podeAlterar ? (
             <LinhaDeAcoes>
               <Botao rotulo="Alterar" tipo="secundario" aoTocar={() => setFormulario('alterar')} desabilitado={vigente.situacao === 'ENCERRADA'} />
@@ -113,17 +132,22 @@ export function CartaoPlanoContratado({ alunoId, ativo, anonimizado }: { alunoId
         </View>
       ) : null}
       {cobrancas.erro ? <MensagemErro texto={textoDoErro(cobrancas.erro)} erro={cobrancas.erro} tentarDeNovo={recarregarCobrancas} /> : null}
-      {cobrancas.dados && cobrancas.dados.length > 0 ? (
+      {ordenadas.length > 0 ? (
         <View style={estilos.bloco}>
-          <Texto variante="rotulo">Cobranças</Texto>
-          <View style={estilos.lista}>
-            {cobrancas.dados.map((c) => {
+          <Texto variante="secao">Cobranças</Texto>
+          <Grade>
+            {visiveis.map((c) => {
               const selo = seloDaCobranca(c);
-              return <ItemDeLista key={c.id} titulo={rotuloDoMes(c.competencia)} detalhe={`${centavosParaTela(c.valorCentavos)} · vence ${dataParaTela(c.vencimento)}`}
+              return <ItemDeLista key={c.id} titulo={rotuloDoMes(c.competencia)} detalhe={resumoDaCobranca(c)}
                 selo={{ texto: selo.rotulo, tipo: selo.tom }} aoTocar={() => setCobrancaAberta(c)}
                 rotulo={`Abrir cobrança de ${rotuloDoMes(c.competencia)}, ${selo.rotulo}`} />;
             })}
-          </View>
+          </Grade>
+          {ordenadas.length > COBRANCAS_VISIVEIS ? (
+            <LinhaDeAcoes>
+              <Botao rotulo={todas ? 'Ver menos' : `Ver todas (${ordenadas.length})`} tipo="fantasma" aoTocar={() => setTodas((v) => !v)} />
+            </LinhaDeAcoes>
+          ) : null}
         </View>
       ) : null}
       {cobrancas.dados && cobrancas.dados.length === 0 && vigente ? <Texto variante="suave">Ainda não há cobranças geradas.</Texto> : null}
@@ -237,6 +261,7 @@ function FolhaDeContratacao({ alunoId, contratacao, aoFechar, aoMudar }: {
 }
 
 const estilos = StyleSheet.create({
-  bloco: { gap: espaco(1) },
-  lista: { gap: espaco(1) },
+  bloco: { gap: espaco(1.5) },
+  linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  encolher: { flexShrink: 1 },
 });
