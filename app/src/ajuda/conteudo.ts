@@ -146,6 +146,7 @@ const TREINADOR: Guia = {
       itens: [
         { titulo: 'Por divisão e por dia', texto: 'As duas visões têm um botão para minimizar cada divisão ou cada dia, para achar o que procura mais rápido.' },
         { titulo: 'Frequência', texto: 'Na ficha, o cartão Frequência (para quem vê registros) conta os treinos com registro do aluno: os desta semana (segunda até hoje) e os da pasta vigente, do início até hoje (ou até o fim da pasta, se ela já terminou). É só a contagem: sem meta, previsto ou porcentagem. Cada treino de um dia conta uma vez, se tiver ao menos uma série marcada como feita. Sem pasta com período aparece "—"; sem registro, "Nenhum registro". A conta é diferente do "treinos da semana" que o aluno vê no app, que usa o dia marcado no plano.' },
+        { titulo: 'Mobilidade', texto: 'Na ficha, o cartão Mobilidade (para quem vê registros e treino) conta os dias em que o aluno marcou algo como feito na mobilidade: nesta semana (segunda até hoje) e na pasta vigente. É só a contagem. Sem plano de mobilidade publicado na pasta aparece "—"; sem marcas, "Nenhum registro".' },
         { titulo: 'Progresso por exercício', texto: 'Fica na ficha do aluno, fora das pastas, e soma o histórico de todas elas. Toque em "Escolher exercícios", busque pelo nome, filtre pelo grupo muscular e marque até 10 de uma vez. Cada um vira um bloco com o primeiro e o último registro, o gráfico da carga e as 5 datas mais recentes (com "Ver todos os registros"). O × tira o exercício da comparação sem apagar nada.' },
         { titulo: 'PDF das cargas', texto: 'Gera o relatório de cargas do período da pasta. Dado ausente aparece como "—", nunca como zero.' },
       ],
@@ -220,10 +221,10 @@ const ALUNO: Guia = {
     { titulo: 'Registrar uma série', rota: '/aluno', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano; o que você digita é gravado como digitou. Os botões − e + mudam o peso de passo em passo, e "Repetir a série anterior" copia peso e repetições da série de cima e já marca como feita. Embaixo, Próximo leva ao exercício seguinte; Anterior volta e Lista do dia mostra todos: dá para fazer fora de ordem. A tela fica acesa enquanto você treina.' },
     { titulo: 'Descanso', texto: 'Quando o plano define descanso, o contador começa ao marcar a série. Ele não usa notificação com o app fechado.' },
     { titulo: 'Dieta', texto: TEXTO_DIETA, rota: '/aluno/dieta' },
-    { titulo: 'Mobilidade', texto: 'Aparece só se o treinador publicou um plano de mobilidade. Vídeos abrem fora do app.', rota: '/aluno/mobilidade' },
+    { titulo: 'Mobilidade', texto: 'Aparece só se o treinador publicou um plano de mobilidade. Toque no ✓ de cada item para marcar como feito no dia; no topo você vê "Hoje: N de M feitos" e pode escolher outro dia recente. Vídeos abrem fora do app.', rota: '/aluno/mobilidade' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', rota: '/aluno/historico' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, rota: '/aluno' },
-    { titulo: 'Sem internet', texto: 'Pode treinar sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
+    { titulo: 'Sem internet', texto: 'Pode treinar e marcar a mobilidade sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
     { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam foto de perfil, tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
   ],
   passeio: [
@@ -253,15 +254,15 @@ const ALUNO: Guia = {
       itens: [
         { titulo: 'Dieta', texto: 'Mostra o que foi publicado pelo treinador, refeição por refeição, e a água por dia quando ele escreveu. O cartão Dieta no início do app mostra quantas refeições e a água.' },
         { titulo: 'Lista de compras', texto: 'Na Dieta, toque em Lista de compras e escolha Semana (7 dias) ou Mês (30 dias). Nas refeições com mais de uma opção, escolha a que vai comprar (a primeira já vem marcada). A quantidade é arredondada para cima; "cru" quer dizer que o treinador cadastrou o fator de cocção e a lista já converteu o alimento cozido para cru. Sem fator, vale a quantidade da dieta. Funciona sem internet com a última dieta salva, e dá para baixar em PDF.' },
-        { titulo: 'Mobilidade', texto: 'Aba só de consulta, visível quando existe plano publicado. Dá para baixar em PDF.' },
+        { titulo: 'Mobilidade', texto: 'Aba visível quando existe plano publicado. Toque no ✓ de cada item para marcar como feito; desmarcar é tocar de novo. Dá para marcar hoje e os dias recentes (até 60 dias para trás ou para frente, dentro do período), e a marca vale na mobilidade em uso, não numa pasta antiga. Dá para baixar em PDF.' },
       ],
     },
     {
       titulo: 'Sem internet',
       itens: [
-        { titulo: 'Registro no aparelho', texto: 'Cada série marcada é gravada na hora no aparelho.' },
+        { titulo: 'Registro no aparelho', texto: 'Cada série marcada e cada item de mobilidade marcado é gravado na hora no aparelho.' },
         { titulo: 'Envio', texto: 'Com conexão, o app envia sozinho. Reenviar não duplica o registro.' },
-        { titulo: 'Antes de sair da conta', texto: 'Sincronize antes: registros não enviados são apagados do aparelho ao sair.' },
+        { titulo: 'Antes de sair da conta', texto: 'Sincronize antes: treinos e marcas de mobilidade não enviados são apagados do aparelho ao sair.' },
       ],
     },
     {
@@ -299,6 +300,7 @@ const ALUNO: Guia = {
     { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
     { pergunta: 'Como vejo de novo o passeio pelo menu?', resposta: 'Ele aparece uma vez em cada aparelho, no primeiro acesso, e dá para pular. Para rever, abra a Ajuda (em Conta) e toque em "Conhecer o menu".' },
     { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
+    { pergunta: 'Não consigo marcar a mobilidade.', resposta: 'Só dá para marcar na mobilidade em uso (as de pastas antigas são só para consultar), dentro do período dela e se a mobilidade estiver incluída no plano da consultoria. Se o aviso de envio mostrar uma falha, abra Conta para ver o motivo e toque em tentar de novo.' },
   ],
 };
 
