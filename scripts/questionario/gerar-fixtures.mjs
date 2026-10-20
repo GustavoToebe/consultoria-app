@@ -45,8 +45,9 @@ c('ajuda_300_aceita', com(P('x', 'NOTA', { ajuda: 'a'.repeat(300) })));
 c('ajuda_301_recusada', com(P('x', 'NOTA', { ajuda: 'a'.repeat(301) })), [`${pp(1)}.ajuda`]);
 { const x = com(P('x', 'NOTA')); x.instrucoes = Array.from({ length: 11 }, () => 'a'); c('instrucoes_11', x, ['instrucoes']); }
 { const x = com(P('x', 'NOTA')); x.instrucoes = ['', 'a'.repeat(301), 'ok']; c('instrucoes_vazia_e_longa', x, ['instrucoes[0]', 'instrucoes[1]']); }
+// FOTOS deixou de ser única (até 6 perguntas): as duas daqui passam.
 c('tipo_unico_repetido', com(P('peso2', 'PESO'), P('f1', 'FOTOS'), P('f2', 'FOTOS'), P('d1', 'DATA_AUTOMATICA'), P('d2', 'DATA_AUTOMATICA')),
-  [`${pp(1)}.tipo`, `${pp(3)}.tipo`, `${pp(5)}.tipo`]);
+  [`${pp(1)}.tipo`, `${pp(5)}.tipo`]);
 c('tipo_ausente', com({ id: 'x', rotulo: 'Sem tipo', obrigatoria: false }), [`${pp(1)}.tipo`]);
 
 c('escolha_unica_valida', com(P('e', 'ESCOLHA_UNICA', { opcoes: opts(3) })));
@@ -80,6 +81,41 @@ c('numero_unidade_12_ok', com(P('n', 'NUMERO', { unidade: 'a'.repeat(12) })));
 c('numero_unidade_13', com(P('n', 'NUMERO', { unidade: 'a'.repeat(13) })), [`${pp(1)}.unidade`]);
 c('campos_de_numero_fora_de_numero', com(P('t', 'TEXTO', { min: 0, max: 1, casas: 1, unidade: 'x' })),
   [`${pp(1)}.min`, `${pp(1)}.max`, `${pp(1)}.casas`, `${pp(1)}.unidade`]);
+
+// Descrição da seção (até 4000), escala da NOTA (min 0 ou 1, max de 2 a 10, texto nas pontas até 40) e FOTOS (até 6
+// perguntas, cada uma com max de 1 a 6).
+{ const x = com(P('x', 'NOTA')); x.secoes[0].descricao = 'a'.repeat(4000); c('secao_descricao_4000_ok', x); }
+{ const x = com(P('x', 'NOTA')); x.secoes[0].descricao = 'a'.repeat(4001); c('secao_descricao_4001', x, ['secoes[0].descricao']); }
+{ const x = com(P('x', 'NOTA')); x.secoes[0].descricao = '**Atenção**\n__leia__ antes'; c('secao_descricao_formatada_ok', x); }
+c('nota_escala_1_a_5_com_pontas_ok', com(P('n', 'NOTA', { min: 1, max: 5, rotuloMin: 'Nada', rotuloMax: 'Muito' })));
+c('nota_escala_0_a_2_ok', com(P('n', 'NOTA', { min: 0, max: 2 })));
+c('nota_escala_padrao_explicita_ok', com(P('n', 'NOTA', { min: 0, max: 10 })));
+c('nota_min_2', com(P('n', 'NOTA', { min: 2 })), [`${pp(1)}.min`]);
+c('nota_min_negativo', com(P('n', 'NOTA', { min: -1 })), [`${pp(1)}.min`]);
+c('nota_min_fracionado', com(P('n', 'NOTA', { min: 0.5 })), [`${pp(1)}.min`]);
+c('nota_max_11', com(P('n', 'NOTA', { max: 11 })), [`${pp(1)}.max`]);
+c('nota_max_fracionado', com(P('n', 'NOTA', { max: 4.5 })), [`${pp(1)}.max`]);
+c('nota_min_igual_max', com(P('n', 'NOTA', { min: 1, max: 1 })), [`${pp(1)}.max`]);
+c('nota_casas_e_unidade', com(P('n', 'NOTA', { casas: 0, unidade: 'x' })), [`${pp(1)}.casas`, `${pp(1)}.unidade`]);
+c('rotulos_das_pontas_em_texto', com(P('t', 'TEXTO', { rotuloMin: 'a', rotuloMax: 'b' })), [`${pp(1)}.rotuloMin`, `${pp(1)}.rotuloMax`]);
+c('rotulos_das_pontas_em_numero', com(P('n', 'NUMERO', { rotuloMin: 'a' })), [`${pp(1)}.rotuloMin`]);
+c('rotulo_min_41', com(P('n', 'NOTA', { rotuloMin: 'a'.repeat(41), rotuloMax: 'b'.repeat(40) })), [`${pp(1)}.rotuloMin`]);
+c('rotulo_max_41', com(P('n', 'NOTA', { rotuloMax: 'b'.repeat(41) })), [`${pp(1)}.rotuloMax`]);
+c('min_e_max_em_notas_por_dia', com(P('d', 'NOTAS_POR_DIA', { dias: [1], min: 1, max: 5 })), [`${pp(1)}.min`, `${pp(1)}.max`]);
+c('min_e_max_em_sim_nao', com(P('s', 'SIM_NAO', { min: 0, max: 1 })), [`${pp(1)}.min`, `${pp(1)}.max`]);
+c('fotos_duas_perguntas_ok', com(P('f1', 'FOTOS'), P('f2', 'FOTOS', { max: 2 })));
+c('fotos_seis_perguntas_ok', com(...[1, 2, 3, 4, 5, 6].map((i) => P(`f${i}`, 'FOTOS'))));
+c('fotos_sete_perguntas', com(...[1, 2, 3, 4, 5, 6, 7].map((i) => P(`f${i}`, 'FOTOS'))), [`${pp(7)}.tipo`]);
+c('fotos_sete_em_secoes_diferentes', { formato: 2, instrucoes: [], secoes: [
+  secao(1, [P('peso', 'PESO'), ...[1, 2, 3, 4].map((i) => P(`f${i}`, 'FOTOS'))]),
+  secao(2, [5, 6, 7].map((i) => P(`f${i}`, 'FOTOS')))] }, ['secoes[1].perguntas[2].tipo']);
+c('fotos_max_1_e_6_ok', com(P('f1', 'FOTOS', { max: 1 }), P('f2', 'FOTOS', { max: 6 })));
+c('fotos_max_0', com(P('f', 'FOTOS', { max: 0 })), [`${pp(1)}.max`]);
+c('fotos_max_7', com(P('f', 'FOTOS', { max: 7 })), [`${pp(1)}.max`]);
+c('fotos_max_fracionado', com(P('f', 'FOTOS', { max: 2.5 })), [`${pp(1)}.max`]);
+c('fotos_com_min', com(P('f', 'FOTOS', { min: 1 })), [`${pp(1)}.min`]);
+c('fotos_com_casas_e_pontas', com(P('f', 'FOTOS', { casas: 0, rotuloMin: 'a' })), [`${pp(1)}.casas`, `${pp(1)}.rotuloMin`]);
+ca('anamnese_fotos_duas_e_nota_escala_ok', { formato: 2, instrucoes: [], secoes: [secao(1, [P('f1', 'FOTOS', { max: 3 }), P('f2', 'FOTOS'), P('n', 'NOTA', { min: 1, max: 5 })])] });
 
 c('destaques_4_ok', com(...notas(1, 4).map((p) => ({ ...p, destaque: true }))));
 c('destaques_5', com(...notas(1, 5).map((p) => ({ ...p, destaque: true }))), [`${pp(5)}.destaque`]);
@@ -245,6 +281,14 @@ r('nota_valida_e_invalida', Q({ id: 'a', tipo: 'NOTA', rotulo: 'a', obrigatoria:
 r('peso_invalido', Q({ id: 'peso', tipo: 'PESO', rotulo: 'p', obrigatoria: true }), { peso: 80.55 }, ['peso']);
 r('texto_501', Q({ id: 't', tipo: 'TEXTO', rotulo: 't', obrigatoria: false }), { t: 'x'.repeat(501) }, ['t']);
 r('texto_longo_2000_ok', Q({ id: 't', tipo: 'TEXTO_LONGO', rotulo: 't', obrigatoria: false }), { t: 'x'.repeat(2000) });
+const NT = (extra = {}) => ({ id: 'n', tipo: 'NOTA', rotulo: 'n', obrigatoria: false, ...extra });
+r('nota_escala_1_a_5_nas_pontas', Q(NT({ min: 1, max: 5 }), NT({ id: 'm', min: 1, max: 5 })), { n: 1, m: 5 });
+r('nota_zero_com_min_1', Q(NT({ min: 1 })), { n: 0 }, ['n']);
+r('nota_10_com_max_5', Q(NT({ max: 5 })), { n: 10 }, ['n']);
+r('nota_6_com_escala_1_a_5', Q(NT({ min: 1, max: 5 })), { n: 6 }, ['n']);
+r('nota_0_e_10_sem_escala', Q(NT(), NT({ id: 'm' })), { n: 0, m: 10 });
+r('nota_fracionada_na_escala', Q(NT({ min: 1, max: 5 })), { n: 2.5 }, ['n']);
+r('nota_2_com_escala_0_a_2', Q(NT({ min: 0, max: 2 })), { n: 2 });
 r('notas_por_dia_vazia_obrigatoria', Q({ id: 'd', tipo: 'NOTAS_POR_DIA', rotulo: 'd', obrigatoria: true, dias: [1, 2] }), { d: {} }, ['d']);
 r('notas_por_dia_dia_fora', Q({ id: 'd', tipo: 'NOTAS_POR_DIA', rotulo: 'd', obrigatoria: false, dias: [1, 2] }), { d: { 3: 5 } }, ['d']);
 r('resposta_desconhecida_e_ignorada', Q(E('e')), { e: 'a', fantasma: 'x' });
@@ -261,6 +305,11 @@ r('fotos_repetida_em_maiuscula', Q(F()), { f: [U(10), U(10).toUpperCase()] }, ['
 r('fotos_nao_e_uuid', Q(F()), { f: ['foto.jpg'] }, ['f']);
 r('fotos_item_nao_texto', Q(F()), { f: [1] }, ['f']);
 r('fotos_nao_e_lista', Q(F()), { f: U(1) }, ['f']);
+r('fotos_duas_com_max_1', Q(F({ max: 1 })), { f: [U(1), U(2)] }, ['f']);
+r('fotos_uma_com_max_1', Q(F({ max: 1 })), { f: [U(1)] });
+r('fotos_tres_com_max_3', Q(F({ max: 3 })), { f: [U(1), U(2), U(3)] });
+r('fotos_duas_perguntas', Q(F(), F({ id: 'g', max: 2 })), { f: [U(1)], g: [U(2), U(3)] });
+r('fotos_duas_perguntas_uma_acima', Q(F({ max: 2 }), F({ id: 'g', max: 2 })), { f: [U(1), U(2)], g: [U(3), U(4), U(5)] }, ['g']);
 r('fotos_desligadas_ignora_a_pergunta', Q(F({ obrigatoria: true })), { f: 'lixo' }, [], { fotosLigadas: false });
 r('fotos_desligadas_sem_resposta_obrigatoria', Q(F({ obrigatoria: true })), {}, [], { fotosLigadas: false });
 
@@ -419,7 +468,8 @@ const limites = {
   rotuloTamanho: 200, ajudaTamanho: 300, rotuloCurtoTamanho: 20, opcoesMinimo: 2, opcoesMaximo: 20, opcaoTamanho: 80,
   unidadeTamanho: 12, casasMaximo: 2, diasMaximo: 7, diaValorMaximo: 14, destaquesMaximo: 4, textoCurtoCapacidade: 500,
   textoLongoCapacidade: 2000, capacidadeDeTextoTotal: 40000, rascunhoBytes: 262144, respostasBytes: 262144, idTamanho: 40,
-  numeroAbsoluto: 1000000000, fotosPorPergunta: 6, linhasMinimo: 1, linhasMaximo: 30, colunasMinimo: 2, colunasMaximo: 10,
+  numeroAbsoluto: 1000000000, fotosPorPergunta: 6, perguntasFotos: 6, notaMinPadrao: 0, notaMinMaximo: 1, notaMaxMinimo: 2,
+  notaMaxPadrao: 10, rotuloPontaTamanho: 40, descricaoSecaoTamanho: 4000, linhasMinimo: 1, linhasMaximo: 30, colunasMinimo: 2, colunasMaximo: 10,
   textoInformativoTamanho: 4000, declaracaoTamanho: 200, telefoneTamanho: 25, telefoneDigitosMinimo: 10,
   telefoneDigitosMaximo: 13, emailTamanho: 254, dataAnoMinimo: 1900, dataAnoMaximo: 2100, imagemBytes: 300000, imagemLado: 1600,
   objetivoTamanho: 200, cpfTamanho: 14, enderecoCepTamanho: 9, enderecoLogradouroTamanho: 200, enderecoNumeroTamanho: 20,

@@ -48,7 +48,7 @@ public class ValidadorQuestionario {
     private static final Set<String> SIM_NAO_VALORES = Set.of("sim", "nao");
     private static final Set<TipoPergunta> COM_DESTAQUE = EnumSet.of(NOTA, NUMERO, SIM_NAO, ESCOLHA_UNICA);
     private static final Set<TipoPergunta> COM_AJUDA_AUTOMATICA = EnumSet.of(TEXTO, NUMERO);
-    private static final Set<TipoPergunta> UNICOS = EnumSet.of(PESO, DATA_AUTOMATICA, FOTOS);
+    private static final Set<TipoPergunta> UNICOS = EnumSet.of(PESO, DATA_AUTOMATICA);
 
     /** Questionário de atualização (o de sempre). */
     public ResultadoValidacao validar(ConteudoQuestionario conteudo) {
@@ -119,6 +119,8 @@ public class ValidadorQuestionario {
         int total;
         int destaques;
         int capacidadeDeTexto;
+        /** Perguntas FOTOS já vistas: até {@link LimitesQuestionario#PERGUNTAS_FOTOS} por questionário. */
+        int fotos;
         final Set<String> ids = new HashSet<>();
         final Set<TipoPergunta> tipos = EnumSet.noneOf(TipoPergunta.class);
         /** Campos do perfil já alimentados: um destino por questionário. */
@@ -155,6 +157,9 @@ public class ValidadorQuestionario {
             c.erro(cs + ".titulo", "Seção sem título.");
         } else if (s.titulo().length() > LimitesQuestionario.TITULO_TAMANHO) {
             c.erro(cs + ".titulo", "Título longo demais.");
+        }
+        if (s.descricao() != null && s.descricao().length() > LimitesQuestionario.DESCRICAO_SECAO_TAMANHO) {
+            c.erro(cs + ".descricao", "Descrição longa demais.");
         }
         condicao(c, estado, s.mostrarSe(), cs);
         List<Pergunta> perguntas = s.perguntas() == null ? List.of() : s.perguntas();
@@ -205,6 +210,9 @@ public class ValidadorQuestionario {
         if (UNICOS.contains(tipo) && !estado.tipos.add(tipo)) {
             c.erro(cp + ".tipo", "Este tipo só pode aparecer uma vez.");
         }
+        if (tipo == FOTOS && ++estado.fotos > LimitesQuestionario.PERGUNTAS_FOTOS) {
+            c.erro(cp + ".tipo", "No máximo " + LimitesQuestionario.PERGUNTAS_FOTOS + " perguntas de fotos.");
+        }
         estado.tipos.add(tipo);
         if (tipo == TEXTO) {
             estado.capacidadeDeTexto += LimitesQuestionario.TEXTO_CURTO_CAPACIDADE;
@@ -214,6 +222,7 @@ public class ValidadorQuestionario {
         opcoes(c, p, cp);
         dias(c, p, cp);
         numero(c, p, cp);
+        escala(c, p, cp);
         destaque(c, estado, p, cp);
         if (p.ajudaAutomatica() != null && !COM_AJUDA_AUTOMATICA.contains(tipo)) {
             c.erro(cp + ".ajudaAutomatica", "Este tipo não tem ajuda automática.");
@@ -396,12 +405,17 @@ public class ValidadorQuestionario {
         }
     }
 
+    /**
+     * {@code min}/{@code max}: faixa do NUMERO, pontas da escala da NOTA e (só {@code max}) fotos aceitas na FOTOS.
+     * {@code casas} e {@code unidade} só no NUMERO.
+     */
     private static void numero(ResultadoValidacao.Coletor c, Pergunta p, String cp) {
-        if (p.tipo() != NUMERO) {
-            if (p.min() != null) {
+        TipoPergunta tipo = p.tipo();
+        if (tipo != NUMERO) {
+            if (p.min() != null && tipo != NOTA) {
                 c.erro(cp + ".min", "Este tipo não tem mínimo.");
             }
-            if (p.max() != null) {
+            if (p.max() != null && tipo != NOTA && tipo != FOTOS) {
                 c.erro(cp + ".max", "Este tipo não tem máximo.");
             }
             if (p.casas() != null) {
@@ -409,6 +423,18 @@ public class ValidadorQuestionario {
             }
             if (p.unidade() != null) {
                 c.erro(cp + ".unidade", "Este tipo não tem unidade.");
+            }
+            if (tipo == NOTA) {
+                if (p.min() != null && !inteiroEntre(p.min(), 0, LimitesQuestionario.NOTA_MIN_MAXIMO)) {
+                    c.erro(cp + ".min", "A escala começa em 0 ou 1.");
+                }
+                if (p.max() != null && !inteiroEntre(p.max(), LimitesQuestionario.NOTA_MAX_MINIMO, LimitesQuestionario.NOTA_MAX_PADRAO)) {
+                    c.erro(cp + ".max", "A escala termina entre " + LimitesQuestionario.NOTA_MAX_MINIMO + " e "
+                            + LimitesQuestionario.NOTA_MAX_PADRAO + ".");
+                }
+            }
+            if (tipo == FOTOS && p.max() != null && !inteiroEntre(p.max(), 1, LimitesQuestionario.FOTOS_POR_PERGUNTA)) {
+                c.erro(cp + ".max", "Use de 1 a " + LimitesQuestionario.FOTOS_POR_PERGUNTA + " fotos.");
             }
             return;
         }
@@ -428,6 +454,29 @@ public class ValidadorQuestionario {
         if (p.unidade() != null && p.unidade().length() > LimitesQuestionario.UNIDADE_TAMANHO) {
             c.erro(cp + ".unidade", "Unidade longa demais.");
         }
+    }
+
+    /** Texto embaixo das pontas da escala: só na NOTA, até {@link LimitesQuestionario#ROTULO_PONTA_TAMANHO} cada. */
+    private static void escala(ResultadoValidacao.Coletor c, Pergunta p, String cp) {
+        ponta(c, p, p.rotuloMin(), cp + ".rotuloMin", "Este tipo não tem texto na ponta de baixo.");
+        ponta(c, p, p.rotuloMax(), cp + ".rotuloMax", "Este tipo não tem texto na ponta de cima.");
+    }
+
+    private static void ponta(ResultadoValidacao.Coletor c, Pergunta p, String texto, String caminho, String foraDoTipo) {
+        if (texto == null) {
+            return;
+        }
+        if (p.tipo() != NOTA) {
+            c.erro(caminho, foraDoTipo);
+        } else if (texto.length() > LimitesQuestionario.ROTULO_PONTA_TAMANHO) {
+            c.erro(caminho, "Texto longo demais.");
+        }
+    }
+
+    /** Inteiro (2, 2.0) de {@code minimo} a {@code maximo}: 1,5 não é ponta de escala nem quantidade de fotos. */
+    private static boolean inteiroEntre(BigDecimal v, int minimo, int maximo) {
+        return v.stripTrailingZeros().scale() <= 0 && v.compareTo(BigDecimal.valueOf(minimo)) >= 0
+                && v.compareTo(BigDecimal.valueOf(maximo)) <= 0;
     }
 
     private static void destaque(ResultadoValidacao.Coletor c, Estado estado, Pergunta p, String cp) {

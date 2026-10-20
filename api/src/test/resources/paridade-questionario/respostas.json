@@ -802,6 +802,187 @@
   "camposComErro": []
  },
  {
+  "nome": "nota_escala_1_a_5_nas_pontas",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false,
+       "min": 1,
+       "max": 5
+      },
+      {
+       "id": "m",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false,
+       "min": 1,
+       "max": 5
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "n": 1,
+   "m": 5
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "nota_zero_com_min_1",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false,
+       "min": 1
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "n": 0
+  },
+  "camposComErro": [
+   "n"
+  ]
+ },
+ {
+  "nome": "nota_10_com_max_5",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false,
+       "max": 5
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "n": 10
+  },
+  "camposComErro": [
+   "n"
+  ]
+ },
+ {
+  "nome": "nota_6_com_escala_1_a_5",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false,
+       "min": 1,
+       "max": 5
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "n": 6
+  },
+  "camposComErro": [
+   "n"
+  ]
+ },
+ {
+  "nome": "nota_0_e_10_sem_escala",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false
+      },
+      {
+       "id": "m",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "n": 0,
+   "m": 10
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "nota_fracionada_na_escala",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false,
+       "min": 1,
+       "max": 5
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "n": 2.5
+  },
+  "camposComErro": [
+   "n"
+  ]
+ },
+ {
+  "nome": "nota_2_com_escala_0_a_2",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "n",
+       "tipo": "NOTA",
+       "rotulo": "n",
+       "obrigatoria": false,
+       "min": 0,
+       "max": 2
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "n": 2
+  },
+  "camposComErro": []
+ },
+ {
   "nome": "notas_por_dia_vazia_obrigatoria",
   "modelo": {
    "secoes": [
@@ -1202,6 +1383,156 @@
   },
   "camposComErro": [
    "f"
+  ]
+ },
+ {
+  "nome": "fotos_duas_com_max_1",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "max": 1
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002"
+   ]
+  },
+  "camposComErro": [
+   "f"
+  ]
+ },
+ {
+  "nome": "fotos_uma_com_max_1",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "max": 1
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_tres_com_max_3",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "max": 3
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_duas_perguntas",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false
+      },
+      {
+       "id": "g",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "max": 2
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001"
+   ],
+   "g": [
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003"
+   ]
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "fotos_duas_perguntas_uma_acima",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "f",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "max": 2
+      },
+      {
+       "id": "g",
+       "tipo": "FOTOS",
+       "rotulo": "f",
+       "obrigatoria": false,
+       "max": 2
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "f": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002"
+   ],
+   "g": [
+    "00000000-0000-4000-8000-000000000003",
+    "00000000-0000-4000-8000-000000000004",
+    "00000000-0000-4000-8000-000000000005"
+   ]
+  },
+  "camposComErro": [
+   "g"
   ]
  },
  {
