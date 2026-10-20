@@ -197,9 +197,9 @@ const TREINADOR: Guia = {
 };
 
 /** Explicações do aluno que aparecem em mais de um lugar (primeiros passos, tutorial e passeio pelo menu): um texto só. */
-const TEXTO_TREINO_DE_HOJE = 'Na aba Treino, o cartão Treino de hoje mostra a divisão do dia. Toque nele para começar.';
+const TEXTO_TREINO_DE_HOJE = 'No Início, o cartão Hoje mostra a divisão do dia. Toque em "Ver meu treino" para abrir a lista de exercícios.';
 const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador e a água do dia, quando ele escreveu. Só consulta. No início do app, o cartão Dieta leva até ela. O botão Lista de compras soma o que comprar na semana ou no mês.';
-const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer: uma atualização ou uma anamnese para responder.';
+const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Início quando houver algo a fazer, e o item fica em "Suas pendências": uma atualização ou uma anamnese para responder.';
 
 const ALUNO: Guia = {
   titulo: 'Guia do aluno',
@@ -215,7 +215,7 @@ const ALUNO: Guia = {
   ],
   tutorial: [
     { titulo: 'Boas-vindas', texto: 'Este tutorial mostra as abas do app. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
-    { titulo: 'Treino', texto: 'Mostra o treino de hoje e as divisões do período. Os chips de data deixam registrar dias próximos (até 60 dias para trás ou para frente).', rota: '/aluno' },
+    { titulo: 'Início', texto: 'Mostra a dieta e a água do dia, o treino de hoje, suas pendências e as divisões da semana. Na tela de uma divisão, "Outras datas" deixa registrar dias próximos (até 60 dias para trás ou para frente).', rota: '/aluno' },
     { titulo: 'Registrar uma série', rota: '/aluno', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano; o que você digita é gravado como digitou. Os botões − e + mudam o peso de passo em passo, e "Repetir a série anterior" copia peso e repetições da série de cima e já marca como feita. Embaixo, Próximo leva ao exercício seguinte; Anterior volta e Lista do dia mostra todos: dá para fazer fora de ordem. A tela fica acesa enquanto você treina.' },
     { titulo: 'Descanso', texto: 'Quando o plano define descanso, o contador começa ao marcar a série. Ele não usa notificação com o app fechado.' },
     { titulo: 'Dieta', texto: TEXTO_DIETA, rota: '/aluno/dieta' },
@@ -226,7 +226,7 @@ const ALUNO: Guia = {
     { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam foto de perfil, tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
   ],
   passeio: [
-    { titulo: 'Treino de hoje', texto: TEXTO_TREINO_DE_HOJE, alvo: 'menu:/aluno' },
+    { titulo: 'Início', texto: TEXTO_TREINO_DE_HOJE, alvo: 'menu:/aluno' },
     { titulo: 'Dieta', texto: TEXTO_DIETA, alvo: 'menu:/aluno/dieta' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, alvo: 'menu:/aluno' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', alvo: 'menu:/aluno/historico' },
@@ -236,7 +236,7 @@ const ALUNO: Guia = {
     {
       titulo: 'Treino',
       itens: [
-        { titulo: 'Treino de hoje', texto: 'O cartão em destaque abre a divisão do dia.' },
+        { titulo: 'Treino de hoje', texto: 'No Início, o cartão Hoje tem o botão "Ver meu treino", que abre a lista de exercícios da divisão do dia. Em "Divisões da semana" você abre as outras.' },
         { titulo: 'Trocar de plano', texto: 'Se houver mais de uma pasta, o seletor no topo mostra as outras. Pasta antiga é só para consultar.' },
         { titulo: 'Peso e repetições', texto: 'Deixe em branco o que não souber: aparece "—". O app não presume valor.' },
         { titulo: 'Cluster e rest pause', texto: 'Quando a série tem uma técnica, o exercício explica antes das séries (por exemplo, quantos blocos e a pausa entre eles). Registre a série inteira, como as outras. Se quiser, toque em "Iniciar pausa" para o cronômetro contar a pausa entre os blocos ou antes da retomada.' },
@@ -244,7 +244,7 @@ const ALUNO: Guia = {
         { titulo: 'Cadência e isometria', texto: 'Cadência são 4 tempos em segundos: descendo, parado embaixo, subindo e parado em cima (X = o mais rápido que puder). Isometria é segurar parado pelos segundos indicados, no ponto que a observação disser. Os dois aparecem antes das séries.' },
         { titulo: 'Bi-set, supersérie, tri-set e circuito', texto: 'Exercícios em grupo são feitos um depois do outro, sem descanso entre eles: bi-set ou supersérie (2), tri-set (3) e circuito (4 ou mais). Na lista do dia eles aparecem juntos, e cada exercício diz qual vem em seguida. Descanse depois do último do grupo e repita, até completar as séries.' },
         { titulo: 'Vídeos', texto: 'O link do vídeo abre fora do app, no navegador ou aplicativo de vídeo.' },
-        { titulo: 'PDF do treino', texto: 'Baixe o treino em PDF na aba Treino.' },
+        { titulo: 'PDF do treino', texto: 'Baixe o treino em PDF na aba Início.' },
       ],
     },
     {

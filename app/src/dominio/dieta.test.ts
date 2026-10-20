@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta } from '../api/tipos';
-import { aguaValida, itensSemValorNoTotal, normalizarDieta, novoItem, recalcularItem, resumoDaDietaNoInicio, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
+import { aguaValida, itensSemValorNoTotal, normalizarDieta, novoItem, recalcularItem, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -101,13 +101,6 @@ describe('água por dia (reunião de 17/10)', () => {
   it('mesma faixa do servidor: 0,1 a 20 L, uma casa decimal', () => {
     expect([0.1, 2.5, 20].map(aguaValida)).toEqual([true, true, true]);
     expect([0.05, 21, 2.25, -1].map(aguaValida)).toEqual([false, false, false, false]);
-  });
-
-  it('resumo do cartão do início', () => {
-    const base = normalizarDieta({ refeicoes: [{}, {}, {}] });
-    expect(resumoDaDietaNoInicio(base)).toBe('3 refeições');
-    expect(resumoDaDietaNoInicio({ ...base, aguaLitros: 3.5 })).toBe('3 refeições · Água: 3,5 L por dia');
-    expect(resumoDaDietaNoInicio(normalizarDieta({ refeicoes: [{}] }))).toBe('1 refeição');
   });
 });
 

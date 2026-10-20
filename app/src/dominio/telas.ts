@@ -249,7 +249,7 @@ const TITULOS_FORA_DO_CATALOGO: readonly [string, string][] = [
  */
 export function tituloDaPagina(caminho: string, nomeDaConsultoria: string | null | undefined): string {
   const sufixo = nomeDaConsultoria?.trim() || 'Treinos';
-  const fora = caminho === '/aluno' ? 'Treino' : TITULOS_FORA_DO_CATALOGO.find(([p]) => caminho === p || caminho.startsWith(`${p}/`))?.[1];
+  const fora = caminho === '/aluno' ? 'Início' : TITULOS_FORA_DO_CATALOGO.find(([p]) => caminho === p || caminho.startsWith(`${p}/`))?.[1];
   const tela = fora ?? (caminho.startsWith('/treinador') ? nomeDaTela(caminho) : null);
   return tela ? `${tela} · ${sufixo}` : sufixo;
 }

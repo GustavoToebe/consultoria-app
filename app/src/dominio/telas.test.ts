@@ -197,7 +197,7 @@ describe('voltar e item aceso fora da barra inferior', () => {
 describe('título da aba do navegador', () => {
   it('"Tela · Consultoria" logado e "Tela · Treinos" sem consultoria', () => {
     expect(tituloDaPagina('/treinador/alunos/um-id', 'Saraiva Team')).toBe('Alunos · Saraiva Team');
-    expect(tituloDaPagina('/aluno', 'Saraiva Team')).toBe('Treino · Saraiva Team');
+    expect(tituloDaPagina('/aluno', 'Saraiva Team')).toBe('Início · Saraiva Team');
     expect(tituloDaPagina('/aluno/sessao/x/y', 'Saraiva Team')).toBe('Treino do dia · Saraiva Team');
     expect(tituloDaPagina('/entrar', null)).toBe('Entrar · Treinos');
     expect(tituloDaPagina('/convite-equipe', null)).toBe('Convite da equipe · Treinos');

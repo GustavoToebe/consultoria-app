@@ -1,21 +1,25 @@
 import { ClipboardList, FileText } from 'lucide-react-native';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { mostrarCartaoAnamnese } from '../dominio/anamnese';
 import { mostrarCartaoAtualizacao } from '../dominio/atualizacao';
-import { itemDaAtualizacao } from '../dominio/paraFazer';
-import { espaco } from '../tema/tokens';
-import { Cartao } from '../ui/Cartao';
+import { contagem } from '../dominio/contagens';
+import { ITEM_ANAMNESE, itemDaAtualizacao } from '../dominio/paraFazer';
+import { useTema } from '../tema/TemaProvider';
+import { espaco, fontes, RAIO } from '../tema/tokens';
+import { Grade } from '../ui/Grade';
 import { ItemDeLista } from '../ui/ItemDeLista';
 import { LinkTexto } from '../ui/LinkTexto';
+import { Texto } from '../ui/Texto';
 import { useAnamnese } from './anamnese/useAnamnese';
 import { PermissaoLembrete } from './atualizacao/PermissaoLembrete';
 import { useAtualizacao } from './atualizacao/useAtualizacao';
+import { SecaoDoInicio } from './SecaoDoInicio';
 
 /**
- * "Para fazer" no início do aluno, abaixo do Hoje e da semana: anamnese pendente e atualização, cada uma um item
- * inteiro tocável (`ItemDeLista`). Antes eram dois cartões com botão vermelho "Responder" acima do Hoje, que saía da
- * primeira tela em 390/360 e dividia o primário. Sem nada pendente, o bloco não aparece.
+ * "Suas pendências" no início do aluno, abaixo do Hoje: anamnese inicial e atualização do período, cada uma um item
+ * inteiro tocável (`ItemDeLista`: ícone, uma linha de contexto, selo curto e seta). Só a atualização atrasada é vermelha;
+ * o resto é neutro, para a lista não gritar. A contagem fica à direita do título. Sem nada pendente, o bloco some.
  */
 export function ParaFazer() {
   const anamnese = useAnamnese().dados;
@@ -24,26 +28,39 @@ export function ParaFazer() {
   const comAtualizacao = !!atualizacao && mostrarCartaoAtualizacao(atualizacao);
   if (!comAnamnese && !comAtualizacao) return null;
   const item = comAtualizacao ? itemDaAtualizacao(atualizacao) : null;
+  const total = (comAnamnese ? 1 : 0) + (item ? 1 : 0);
   return (
-    <Cartao titulo="Para fazer">
-      <View style={{ gap: espaco(1) }}>
+    <SecaoDoInicio titulo="Suas pendências" direita={<Contador total={total} />}>
+      <Grade>
         {comAnamnese ? (
           <ItemDeLista
-            titulo="Responder a anamnese"
-            detalhe="Seu treinador pediu algumas informações. O rascunho fica salvo neste aparelho."
+            titulo={ITEM_ANAMNESE.titulo}
+            detalhe={ITEM_ANAMNESE.detalhe}
             Icone={ClipboardList}
-            selo={{ texto: 'Pendente', tipo: 'atencao' }}
+            selo={ITEM_ANAMNESE.selo ?? undefined}
             href="/aluno/anamnese"
           />
         ) : null}
-        {item && atualizacao ? (
-          <>
-            <ItemDeLista titulo={item.titulo} detalhe={item.detalhe} Icone={FileText} selo={item.selo ?? undefined} href="/aluno/atualizacao" />
-            {item.responder ? <LinkTexto texto="Vou atrasar" href="/aluno/atualizacao?atraso=sim" /> : null}
-            <PermissaoLembrete atualizacao={atualizacao} />
-          </>
-        ) : null}
-      </View>
-    </Cartao>
+        {item ? <ItemDeLista titulo={item.titulo} detalhe={item.detalhe} Icone={FileText} selo={item.selo ?? undefined} href="/aluno/atualizacao" /> : null}
+      </Grade>
+      {item?.responder ? <LinkTexto texto="Vou atrasar" href="/aluno/atualizacao?atraso=sim" /> : null}
+      {atualizacao && item ? <PermissaoLembrete atualizacao={atualizacao} /> : null}
+    </SecaoDoInicio>
   );
 }
+
+function Contador({ total }: { total: number }) {
+  const { cores } = useTema();
+  return (
+    <View
+      accessibilityLabel={contagem(total, 'pendência', 'pendências')}
+      style={[estilos.contador, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
+      <Texto numerico style={estilos.numero}>{total}</Texto>
+    </View>
+  );
+}
+
+const estilos = StyleSheet.create({
+  contador: { minWidth: 28, height: 28, paddingHorizontal: espaco(0.75), borderRadius: RAIO, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  numero: { fontFamily: fontes.semi, fontSize: 14, lineHeight: 20 },
+});

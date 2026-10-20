@@ -12,9 +12,10 @@ import { Texto } from './Texto';
  * (o Saraiva gosta de logo estilo death/black metal). O nome usa a cor da marca em variante legível sobre o fundo
  * (`marcaParaTexto`). `nivel` faz dele o título da tela para o leitor de tela (h1 nas telas públicas e do aluno).
  */
-export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca | null; tamanho?: 'medio' | 'grande'; nivel?: 1 | 2 | 3 }) {
+export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca | null; tamanho?: 'pequeno' | 'medio' | 'grande'; nivel?: 1 | 2 | 3 }) {
   const { cores, marcaTexto } = useTema();
   const grande = tamanho === 'grande';
+  const pequeno = tamanho === 'pequeno';
   if (!marca) {
     return <Texto variante="titulo" nivel={nivel}>Treinos</Texto>;
   }
@@ -25,7 +26,7 @@ export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca 
       <View accessibilityRole="image" accessibilityLabel={marca.nome}>
         <Image
           source={{ uri: urlDaApi(marca.logoUrl) }}
-          style={grande ? estilos.logoGrande : estilos.logo}
+          style={grande ? estilos.logoGrande : pequeno ? estilos.logoPequena : estilos.logo}
           contentFit="contain"
           contentPosition="left"
         />
@@ -40,7 +41,7 @@ export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca 
       numberOfLines={2}
       style={[
         { color: cor, fontFamily: familia },
-        grande ? estilos.nomeGrande : estilos.nome,
+        grande ? estilos.nomeGrande : pequeno ? estilos.nomePequeno : estilos.nome,
         metal && estilos.nomeMetal,
       ]}>
       {marca.nome}
@@ -60,7 +61,10 @@ const estilos = StyleSheet.create({
   // Logo em selo (quase quadrada, como a do Saraiva Team) precisa de altura para o nome ser legível.
   logo: { height: 64, width: 160 },
   logoGrande: { height: 112, width: 260 },
+  // Linha de topo do início do aluno: a marca discreta ao lado da foto.
+  logoPequena: { height: 44, width: 120 },
   nome: { fontSize: 22, lineHeight: 28 },
+  nomePequeno: { fontSize: 18, lineHeight: 24 },
   nomeGrande: { fontSize: 34, lineHeight: 42 },
   nomeMetal: { letterSpacing: 1 },
 });

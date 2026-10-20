@@ -1,6 +1,6 @@
 /**
  * Design flat utilitário: cores sólidas, sem sombra nem gradiente, cantos de 8 px, bordas de
- * 1 px, grade de 8 px. A cor da marca só aparece em ação principal, menu e aba ativos, "Treino de hoje" e título da
+ * 1 px, grade de 8 px. A cor da marca só aparece em ação principal, menu e aba ativos, cartão "Hoje" e título da
  * marca; seleção (chips, escolhas) é invertida (fundo `texto`, letra `fundo`); status nunca usa a cor da marca (verde
  * ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto.
  *

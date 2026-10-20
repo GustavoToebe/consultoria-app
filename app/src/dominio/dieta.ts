@@ -188,14 +188,6 @@ export function textoDaAgua(litros: number | null | undefined): string | null {
   return `${numeroParaTela(litros, 1)} L por dia`;
 }
 
-/** Linha do cartão da dieta no início do aluno: "5 refeições · Água: 3,5 L por dia" (sem água, só as refeições). */
-export function resumoDaDietaNoInicio(c: ConteudoDieta): string {
-  const n = c.refeicoes.length;
-  const refeicoes = `${n} ${n === 1 ? 'refeição' : 'refeições'}`;
-  const agua = textoDaAgua(c.aguaLitros);
-  return agua ? `${refeicoes} · Água: ${agua}` : refeicoes;
-}
-
 /** Item da opção A que deixa o total do dia incompleto (algum valor vazio): onde ele está, para o editor levar até lá. */
 export interface ItemSemValor {
   refeicaoUid: string;

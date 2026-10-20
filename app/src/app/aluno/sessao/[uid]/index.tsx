@@ -7,12 +7,13 @@ import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
+import { DatasDaDivisao } from '../../../../aluno/DatasDaDivisao';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { gruposDaSessao } from '../../../../dominio/combinacoes';
 import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
-import { nomeComDia, totalDeSeries } from '../../../../dominio/semana';
+import { datasDaSessao, nomeComDia, totalDeSeries } from '../../../../dominio/semana';
 import { useTema } from '../../../../tema/TemaProvider';
 import { espaco, RAIO } from '../../../../tema/tokens';
 import { BarraProgresso } from '../../../../ui/BarraProgresso';
@@ -55,6 +56,7 @@ export default function SessaoAluno() {
   const total = totalDeSeries(sessao);
   const feitas = sessao.exercicios.reduce((n, e) => n + dia.feitas(e), 0);
   const pendente = sessao.exercicios.find((e) => dia.feitas(e) < e.series.length);
+  const datas = sessao.exercicios.length ? datasDaSessao(sessao, dia.treino.inicio, dia.treino.fim, hoje) : [];
   const abrir = (exercicioUid: string) => router.push(caminhoDaSessao(sessao.uid, data, exercicioUid));
 
   return (
@@ -76,6 +78,19 @@ export default function SessaoAluno() {
         <BarraProgresso feitas={feitas} total={total} />
         {data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
       </Cartao>
+      {datas.length > 1 ? (
+        <Cartao titulo="Outras datas">
+          <Texto variante="suave">Para registrar este treino em outro dia do período, escolha a data.</Texto>
+          <DatasDaDivisao
+            sessao={sessao}
+            datas={datas}
+            hoje={hoje}
+            atual={data}
+            treinouEm={dia.treinouEm}
+            aoAbrir={(d) => router.replace(caminhoDaSessao(sessao.uid, d))}
+          />
+        </Cartao>
+      ) : null}
       {sessao.cardio || sessao.observacao ? (
         <Cartao>
           {sessao.cardio ? <Texto>Cardio: {sessao.cardio}</Texto> : null}

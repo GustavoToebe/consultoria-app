@@ -2,7 +2,7 @@ import { BarraDescanso } from '../../aluno/BarraDescanso';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { StyleSheet, View } from 'react-native';
 import { espaco } from '../../tema/tokens';
-import { CalendarDays, Dumbbell, PersonStanding, Salad, UserRound } from 'lucide-react-native';
+import { CalendarDays, House, PersonStanding, Salad, UserRound } from 'lucide-react-native';
 
 import { AlunoProvider, useAluno } from '../../offline/AlunoProvider';
 import { faseAtualizacao, temAcaoAtualizacao } from '../../dominio/atualizacao';
@@ -20,7 +20,7 @@ import { useAnamnese } from '../../aluno/anamnese/useAnamnese';
 
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
-  { rotulo: 'Treino', href: '/aluno', caminho: '/aluno', Icone: Dumbbell, exato: true },
+  { rotulo: 'Início', href: '/aluno', caminho: '/aluno', Icone: House, exato: true },
   { rotulo: 'Dieta', href: '/aluno/dieta', caminho: '/aluno/dieta', Icone: Salad, tambem: ['/aluno/lista-de-compras'] },
   // Só aparece com mobilidade publicada (veja MenuAluno); fica antes do Histórico para a barra de 5 abas.
   { rotulo: 'Mobilidade', href: '/aluno/mobilidade', caminho: '/aluno/mobilidade', Icone: PersonStanding },
@@ -52,7 +52,7 @@ export default function LayoutAluno() {
 function MenuAluno() {
   const {atualizacao,mobilidade,escolhida}=useAluno();
   const comMobilidade=temAbaMobilidade(mobilidade,escolhida?{mobilidade:escolhida.planos.mobilidade}:null);
-  // O ponto no Treino conta as duas pendências do início: a atualização a enviar e a anamnese a responder.
+  // O ponto no Início conta as duas pendências: a atualização a enviar e a anamnese a responder.
   const anamnese=useAnamnese();
   const anamnesePendente=anamnese.dados?.situacao==='PENDENTE';
   const ponto=anamnesePendente || (!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)}));

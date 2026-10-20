@@ -27,7 +27,7 @@ function SeloStatus({ pasta }: { pasta: PastaDoAluno }) {
  * nada) e o selo só aparece quando o plano já foi concluído (o normal é estar ativo). Com mais de um, vira botão para
  * trocar: a escolha vale para o treino e para a dieta. Sem conexão a lista não carrega e fica só o rótulo.
  */
-export function SeletorPlano({ rotulo }: { rotulo: string | null }) {
+export function SeletorPlano({ rotulo, soComVarios }: { rotulo: string | null; /** Início: sem outro plano para trocar, não mostra nada. */ soComVarios?: boolean }) {
   const { cores } = useTema();
   const { avisar } = useAviso();
   const { pacote, escolhida, escolherPasta } = useAluno();
@@ -39,7 +39,7 @@ export function SeletorPlano({ rotulo }: { rotulo: string | null }) {
   const emUso = escolhida?.pasta ?? pastas.find((p) => p.atual) ?? null;
   const podeTrocar = pastas.length > 1;
   const texto = emUso ? [emUso.titulo, periodoDa(emUso)].filter(Boolean).join(' · ') : rotulo;
-  if (!texto) return null;
+  if (!texto || (soComVarios && !podeTrocar)) return null;
 
   const escolher = (p: PastaDoAluno) => {
     setAbrindo(p.id);

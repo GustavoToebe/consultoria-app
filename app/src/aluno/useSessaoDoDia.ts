@@ -33,6 +33,9 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const registroDe = (serieUid: string) => (treino ? aluno.registroDe(treino.versaoId, serieUid, data) : undefined);
   const feitas = (e: ExercicioPlano) => e.series.filter((s) => registroDe(s.uid)?.concluida).length;
   const cargaDoDia = (e: ExercicioPlano) => aluno.cargasDeTrabalho[`${e.uid}|${data}`] ?? null;
+  /** A divisão tem alguma série feita nesta data (o ✓ do chip em "Outras datas"). */
+  const treinouEm = (d: string) =>
+    !!sessao && !!treino && aluno.registros.some((r) => r.data === d && r.sessaoUid === sessao.uid && r.planoVersaoId === treino.versaoId && r.concluida);
 
   /** Última carga de trabalho antes desta data: a mais recente entre o servidor e o que ficou no aparelho. */
   const ultimaCarga = (exercicioId: string | null): UltimaCarga | null => {
@@ -76,6 +79,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     registroDe,
     feitas,
     cargaDoDia,
+    treinouEm,
     ultimaCarga,
     registrar,
     salvarCargaDoDia: (e: ExercicioPlano, carga: number | null) => void aluno.salvarCargaDeTrabalho(e.uid, data, carga),
