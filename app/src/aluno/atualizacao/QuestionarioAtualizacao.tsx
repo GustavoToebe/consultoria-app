@@ -288,9 +288,9 @@ function Leitura({ p, valor, ajuda }: { p: PerguntaAtualizacao; valor: RespostaA
 }
 
 /**
- * GRADE para responder: uma linha da tabela por bloco, com o item em destaque, os botões das colunas embaixo (quebram
- * linha no celular, mesmo com "Ocasionalmente" e "Frequentemente") e um divisor entre os blocos. Com o erro de
- * "responda todas as linhas", cada linha vazia diz que falta.
+ * GRADE para responder: uma linha da tabela por bloco, com o item em destaque, os botões das colunas embaixo, na
+ * `Escolha` compacta (cinco colunas em duas fileiras em 390 px, mesmo com "Ocasionalmente" e "Frequentemente") e um
+ * divisor entre os blocos. Com o erro de "responda todas as linhas", cada linha vazia diz que falta.
  */
 function GradeParaResponder({ p, valor, aoMudar, faltando }: {
   p: PerguntaAtualizacao; valor: RespostaAtualizacao; aoMudar: (valor: RespostaAtualizacao) => void; faltando: boolean;
@@ -302,7 +302,7 @@ function GradeParaResponder({ p, valor, aoMudar, faltando }: {
     {(p.linhas ?? []).map((l, i) => <View key={l.id} style={[estilos.linhaDaGrade, i > 0 && { borderTopWidth: 1, borderTopColor: cores.borda }]}>
       <Texto style={estilos.rotuloDaLinha}>{l.rotulo}</Texto>
       {faltando && marcadas[l.id] == null ? <Texto variante="pequeno" cor={cores.perigo}>Falta responder esta linha.</Texto> : null}
-      <Escolha descricao={l.rotulo} opcoes={colunas} valor={marcadas[l.id] ?? null} limpavel
+      <Escolha compacta descricao={l.rotulo} opcoes={colunas} valor={marcadas[l.id] ?? null} limpavel
         aoMudar={(coluna) => {
           const nova = { ...marcadas };
           if (coluna == null) delete nova[l.id]; else nova[l.id] = coluna;

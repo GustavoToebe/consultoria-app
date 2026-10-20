@@ -274,3 +274,36 @@ test('anamnese em páginas: avançar confere a página, voltar mantém as respos
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+/** Grade de sintomas (cinco colunas, como a anamnese real): no celular cada linha cabe em duas fileiras sem quebrar o alvo de toque. */
+test('grade de cinco colunas no celular (390 px): duas fileiras, alvo de 44 px e fonte de 12 px ou mais', async ({ page }) => {
+  const modelo: ConteudoQuestionario = {
+    formato: 2,
+    instrucoes: [],
+    secoes: [{
+      uid: 's1', titulo: 'Sintomas',
+      perguntas: [{
+        id: 'sintomas', tipo: 'GRADE', rotulo: 'Com que frequência você sente', obrigatoria: true,
+        linhas: [{ id: 'azia', rotulo: 'Azia' }, { id: 'insonia', rotulo: 'Insônia' }],
+        colunas: ['Nunca', 'Raramente', 'Ocasionalmente', 'Frequentemente', 'Sempre'].map((r) => ({ id: r.toLowerCase(), rotulo: r })),
+      }],
+    }],
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await simularApi(page, { ...(await sessaoDeAluno(page)), 'GET /aluno/anamnese': { corpo: { ...PENDENTE, modelo } } });
+  await page.goto('/aluno/anamnese');
+  await page.getByRole('radiogroup', { name: 'Azia' }).waitFor();
+  for (const linha of ['Azia', 'Insônia']) {
+    const medidas = await page.getByRole('radiogroup', { name: linha }).getByRole('button').evaluateAll((botoes) => botoes.map((b) => {
+      const caixa = b.getBoundingClientRect();
+      return { topo: Math.round(caixa.top), altura: caixa.height, largura: caixa.width, fonte: parseFloat(getComputedStyle(b.querySelector('*') ?? b).fontSize) };
+    }));
+    expect(medidas).toHaveLength(5);
+    expect(new Set(medidas.map((m) => m.topo)).size, `fileiras de ${linha}`).toBe(2);
+    for (const m of medidas) {
+      expect(m.altura).toBeGreaterThanOrEqual(44);
+      expect(m.largura).toBeGreaterThanOrEqual(44);
+      expect(m.fonte).toBeGreaterThanOrEqual(12);
+    }
+  }
+});
