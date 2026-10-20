@@ -2,9 +2,10 @@ import type {
   Atualizacao, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao, TipoPergunta,
 } from '../api/tipos';
 import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
+import { enderecoDaResposta, enderecoParaLeitura } from './cadastroDoAluno';
 import { dataParaTela, numeroParaTela } from './formatos';
 import { LIMITES_QUESTIONARIO, semResposta } from './questionario';
-import { avaliarRespostas, respondida, respostaValida } from './respostasAtualizacao';
+import { avaliarRespostas, respondida, respondidaNaPergunta, respostaValida } from './respostasAtualizacao';
 
 const SEM_DADO = '—';
 /** Pergunta escondida por condição (na leitura): diferente de "não respondida" e de "não". */
@@ -50,6 +51,7 @@ export function textoDaResposta(p: PerguntaAtualizacao, valor: RespostaAtualizac
       const marcadas = valor as Record<string, unknown>;
       return (p.linhas ?? []).map((l) => `${l.rotulo}: ${(p.colunas ?? []).find((c) => c.id === marcadas[l.id])?.rotulo ?? SEM_DADO}`).join('\n');
     }
+    case 'ENDERECO': return enderecoParaLeitura(enderecoDaResposta(valor)) ?? SEM_DADO;
     default: return SEM_DADO;
   }
 }
@@ -126,7 +128,7 @@ export function progressoDasSecoes(modelo: ConteudoQuestionario, respostas: Resp
   return modelo.secoes.map((secao, i) => {
     if (secoesEscondidas.has(i)) return null;
     const contam = secao.perguntas.filter((p) => !semResposta(p.tipo) && !escondidas.has(p.id) && (p.tipo !== 'FOTOS' || fotosLigadas));
-    return { respondidas: contam.filter((p) => respondida(respostas[p.id])).length, total: contam.length };
+    return { respondidas: contam.filter((p) => respondidaNaPergunta(p, respostas[p.id])).length, total: contam.length };
   });
 }
 

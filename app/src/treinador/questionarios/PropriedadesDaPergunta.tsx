@@ -2,13 +2,14 @@ import { ArrowDown, ArrowUp, ImagePlus, Plus, Trash2 } from 'lucide-react-native
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { ConteudoQuestionario, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao } from '../../api/tipos';
+import type { ConteudoQuestionario, DestinoNoPerfil, FinalidadeQuestionario, OpcaoPergunta, PerguntaAtualizacao } from '../../api/tipos';
 import { ImagemDaPergunta } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { FotoRecusada } from '../../aluno/atualizacao/fotos/prepararFoto';
 import {
-  aceitaAjudaAutomatica, aceitaDestaque, aceitaObrigatoria, condicaoPara, controlesAnteriores, datasDaPesagem, destinoPossivel, novaOpcao,
+  aceitaAjudaAutomatica, aceitaDestaque, aceitaObrigatoria, condicaoPara, controlesAnteriores, datasDaPesagem, destinosPossiveis, novaOpcao,
   podeDestacar, podeUsarDestino, posicaoDaPergunta,
 } from '../../dominio/editorQuestionario';
+import { ROTULO_DO_DESTINO } from '../../dominio/anamnese';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { LIMITES_QUESTIONARIO as L, temOpcoes } from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
@@ -49,7 +50,7 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
     {aceitaObrigatoria(p.tipo) ? <Interruptor rotulo={p.tipo === 'GRADE' ? 'Obrigatória (todas as linhas)' : 'Obrigatória'} valor={p.obrigatoria}
       aoMudar={(obrigatoria) => aoMudar({ obrigatoria })} /> : null}
     {p.tipo === 'PESO' && finalidade === 'ATUALIZACAO' ? <Texto variante="suave">A resposta vai para o registro de peso do aluno.</Texto> : null}
-    {destinoPossivel(p.tipo, finalidade) ? <DestinoNoCadastro pergunta={p} conteudo={conteudo} finalidade={finalidade} aoMudar={aoMudar} /> : null}
+    {destinosPossiveis(p.tipo, finalidade).length > 0 ? <DestinoNoCadastro pergunta={p} conteudo={conteudo} finalidade={finalidade} aoMudar={aoMudar} /> : null}
     {p.tipo === 'DATA_AUTOMATICA' ? <Texto variante="suave">Mostra a data da atualização; o aluno não responde.</Texto> : null}
     {p.tipo === 'FOTOS' ? <Texto variante="suave">O aluno anexa até 6 fotos. Elas só aparecem para você depois do envio, e só com o envio de fotos ligado no servidor.</Texto> : null}
     {p.tipo === 'DATA' ? <Interruptor rotulo="Só hoje ou antes (ex.: nascimento, última pesagem)" valor={p.somentePassado === true}
@@ -96,29 +97,51 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
 
 const SEM_DATA = '__envio__';
 
+/** Rótulo do interruptor (um destino possível) e do item da escolha (vários) para cada campo do cadastro. */
+const ROTULO_DO_INTERRUPTOR: Record<DestinoNoPerfil, string> = {
+  PESO: 'Guardar no registro de peso do aluno', OBJETIVO: 'Guardar no objetivo do cadastro do aluno', CPF: 'Guardar no CPF do cadastro do aluno',
+  TELEFONE: 'Guardar no telefone do cadastro do aluno', ENDERECO: 'Guardar no endereço do cadastro do aluno',
+};
+const AJUDA_DO_DESTINO: Record<Exclude<DestinoNoPerfil, 'PESO'>, string> = {
+  OBJETIVO: `Até ${L.objetivoTamanho} caracteres. Objetivo vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.`,
+  CPF: 'A resposta precisa ser um CPF válido. CPF vazio é preenchido; se já houver outro, ou se for de outro aluno, a mudança fica para você revisar na ficha.',
+  TELEFONE: 'Vale para quem já tem acesso. Telefone vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.',
+  ENDERECO: 'Endereço vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.',
+};
+const SEM_DESTINO = '__nenhum__';
+
 /**
- * "Guardar no cadastro do aluno" (só na anamnese): peso → registro de peso, texto curto → objetivo. Campo vazio é
- * preenchido no envio; com outro valor, a mudança fica para a equipe revisar na ficha. No peso, escolhe a data: a de
- * uma pergunta de data "só hoje ou antes" ou a do envio (o aluno vê qual vale).
+ * "Guardar no cadastro do aluno" (só na anamnese): peso → registro de peso, texto curto → objetivo ou CPF, telefone →
+ * telefone, endereço → endereço. Campo vazio é preenchido no envio; com outro valor, a mudança fica para a equipe
+ * revisar na ficha. No peso, escolhe a data: a de uma pergunta de data "só hoje ou antes" ou a do envio (o aluno vê
+ * qual vale). Um destino possível = interruptor; mais de um (texto curto) = escolha entre eles.
  */
 function DestinoNoCadastro({ pergunta: p, conteudo, finalidade, aoMudar }: {
   pergunta: PerguntaAtualizacao; conteudo: ConteudoQuestionario; finalidade: FinalidadeQuestionario;
   aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void;
 }) {
-  const destino = destinoPossivel(p.tipo, finalidade);
-  const permissao = podeUsarDestino(conteudo, p.id, finalidade);
-  if (!destino) return null;
-  const ligado = p.destino === destino;
-  const peso = destino === 'PESO';
+  const possiveis = destinosPossiveis(p.tipo, finalidade);
+  if (possiveis.length === 0) return null;
+  const peso = p.destino === 'PESO';
   const datas = datasDaPesagem(conteudo);
   const dataEscolhida = datas.find((d) => d.id === p.destinoData);
-  const rotulo = peso ? 'Guardar no registro de peso do aluno' : 'Guardar no objetivo do cadastro do aluno';
-  if (!ligado && !permissao.pode) return <Texto variante="pequeno">{permissao.motivo}</Texto>;
+  const ajudaDe = (d: DestinoNoPerfil) => (d === 'PESO'
+    ? 'Sem peso na data, entra no registro. Com outro peso na mesma data, nada é trocado: a mudança fica para você revisar na ficha.' : AJUDA_DO_DESTINO[d]);
+  const escolha = possiveis.length > 1;
+  const livres = possiveis.filter((d) => d === p.destino || podeUsarDestino(conteudo, p.id, d, finalidade).pode);
+  // Um destino só: se outra pergunta já o usa, o motivo no lugar do interruptor. Vários: só os livres entram na escolha.
+  if (!escolha && !p.destino && livres.length === 0) return <Texto variante="pequeno">{podeUsarDestino(conteudo, p.id, possiveis[0], finalidade).motivo}</Texto>;
   return <View style={estilos.bloco}>
-    <Interruptor rotulo={rotulo} valor={ligado} aoMudar={(ligar) => aoMudar({ destino: ligar ? destino : undefined, destinoData: undefined })}
-      ajuda={peso ? 'Sem peso na data, entra no registro. Com outro peso na mesma data, nada é trocado: a mudança fica para você revisar na ficha.'
-        : `Até ${L.objetivoTamanho} caracteres. Objetivo vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.`} />
-    {ligado && peso ? <>
+    {escolha ? (
+      <Escolha rotulo="Guardar no cadastro do aluno" valor={p.destino ?? SEM_DESTINO}
+        opcoes={[{ valor: SEM_DESTINO, rotulo: 'Não guardar' }, ...livres.map((d) => ({ valor: d as string, rotulo: ROTULO_DO_DESTINO[d] }))]}
+        aoMudar={(v) => aoMudar({ destino: v === SEM_DESTINO ? undefined : (v as DestinoNoPerfil), destinoData: undefined })} />
+    ) : (
+      <Interruptor rotulo={ROTULO_DO_INTERRUPTOR[possiveis[0]]} valor={p.destino === possiveis[0]}
+        aoMudar={(ligar) => aoMudar({ destino: ligar ? possiveis[0] : undefined, destinoData: undefined })} ajuda={ajudaDe(possiveis[0])} />
+    )}
+    {escolha && p.destino ? <Texto variante="pequeno">{ajudaDe(p.destino)}</Texto> : null}
+    {p.destino && peso ? <>
       <EscolhaEmFolha rotulo="Data da pesagem" titulo="Data da pesagem" valor={dataEscolhida ? dataEscolhida.id : SEM_DATA}
         opcoes={[{ valor: SEM_DATA, rotulo: 'Data do envio' }, ...datas.map((d) => ({ valor: d.id, rotulo: d.rotulo }))]}
         aoMudar={(id) => aoMudar({ destinoData: id === SEM_DATA ? undefined : id })} />

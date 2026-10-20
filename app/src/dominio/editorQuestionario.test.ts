@@ -3,7 +3,7 @@ import {
   adicionarPergunta, adicionarSecao, agruparProblemas, alterarPergunta, descricaoDoLocal, duplicarPergunta, duplicarPerguntaNaSecao, localDoProblema,
   moverParaSecao, moverPergunta, moverSecao, normalizarQuestionario, novaOpcao, novaPergunta, novaSecao, paraApi, podeAdicionar,
   podeAdicionarSecao, podeDestacar, podeDuplicar, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR, tiposParaAdicionar,
-  controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinoPossivel, podeUsarDestino,
+  controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinosPossiveis, podeUsarDestino,
   gruposParaAdicionar,
 } from './editorQuestionario';
 import { errosDoQuestionario, LIMITES_QUESTIONARIO, validarQuestionario } from './questionario';
@@ -12,7 +12,7 @@ let mockContador = 0;
 jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContador}` }));
 
 const TODOS: TipoPergunta[] = ['DATA_AUTOMATICA', 'PESO', 'NOTA', 'TEXTO', 'TEXTO_LONGO', 'NOTAS_POR_DIA', 'FOTOS', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO',
-  'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ACEITE', 'INFORMATIVO'];
+  'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ENDERECO', 'ACEITE', 'INFORMATIVO'];
 const p = (id: string, tipo: TipoPergunta = 'TEXTO', extra: Partial<PerguntaAtualizacao> = {}): PerguntaAtualizacao => ({ id, tipo, rotulo: `Pergunta ${id}`, obrigatoria: false, ...extra });
 const base = (): ConteudoQuestionario => ({
   formato: 2, instrucoes: [],
@@ -27,7 +27,9 @@ describe('fábricas', () => {
       const preenchida = { ...nova, rotulo: 'Texto', opcoes: rotular(nova.opcoes), linhas: rotular(nova.linhas), colunas: rotular(nova.colunas),
         texto: tipo === 'ACEITE' ? 'Regras fictícias.' : nova.texto };
       const c: ConteudoQuestionario = { instrucoes: [], secoes: [{ uid: 'x', titulo: 'Seção', perguntas: [preenchida] }] };
-      expect(errosDoQuestionario(paraApi(c))).toEqual([]);
+      // O endereço só existe na anamnese; os demais valem na atualização.
+      const finalidade = tipo === 'ENDERECO' ? 'ANAMNESE' : 'ATUALIZACAO';
+      expect(errosDoQuestionario(paraApi(c, finalidade), finalidade)).toEqual([]);
     }
   });
   it('o menu cobre todos os tipos, inclusive FOTOS', () => {
@@ -161,9 +163,10 @@ describe('descrição do local', () => {
 });
 
 describe('anamnese', () => {
-  it('a anamnese não oferece a data da atualização; a atualização oferece tudo', () => {
+  it('a anamnese não oferece a data da atualização; a atualização oferece tudo, menos o endereço', () => {
     expect(tiposParaAdicionar('ANAMNESE').map((t) => t.tipo)).not.toContain('DATA_AUTOMATICA');
-    expect(tiposParaAdicionar('ATUALIZACAO')).toHaveLength(TODOS.length);
+    expect(tiposParaAdicionar('ATUALIZACAO')).toHaveLength(TODOS.length - 1);
+    expect(tiposParaAdicionar('ANAMNESE')).toHaveLength(TODOS.length - 1);
   });
   it('grade nasce com uma linha e duas colunas; aceite obrigatório com a frase pronta', () => {
     const g = novaPergunta('GRADE');
@@ -226,17 +229,29 @@ describe('condição', () => {
 describe('destino no cadastro (anamnese)', () => {
   const P = (id: string, tipo: TipoPergunta, extra: Partial<PerguntaAtualizacao> = {}): PerguntaAtualizacao => ({ id, tipo, rotulo: `Pergunta ${id}`, obrigatoria: false, ...extra });
   const c = (...perguntas: PerguntaAtualizacao[]): ConteudoQuestionario => ({ formato: 2, instrucoes: [], secoes: [{ uid: 's1', titulo: 'A', perguntas }] });
-  it('só na anamnese: peso → registro de peso, texto curto → objetivo', () => {
-    expect(destinoPossivel('PESO', 'ANAMNESE')).toBe('PESO');
-    expect(destinoPossivel('TEXTO', 'ANAMNESE')).toBe('OBJETIVO');
-    expect(destinoPossivel('TEXTO_LONGO', 'ANAMNESE')).toBeNull();
-    expect(destinoPossivel('PESO', 'ATUALIZACAO')).toBeNull();
+  it('só na anamnese: peso → registro de peso, texto curto → objetivo ou CPF, telefone, endereço', () => {
+    expect(destinosPossiveis('PESO', 'ANAMNESE')).toEqual(['PESO']);
+    expect(destinosPossiveis('TEXTO', 'ANAMNESE')).toEqual(['OBJETIVO', 'CPF']);
+    expect(destinosPossiveis('TELEFONE', 'ANAMNESE')).toEqual(['TELEFONE']);
+    expect(destinosPossiveis('ENDERECO', 'ANAMNESE')).toEqual(['ENDERECO']);
+    expect(destinosPossiveis('TEXTO_LONGO', 'ANAMNESE')).toEqual([]);
+    expect(destinosPossiveis('PESO', 'ATUALIZACAO')).toEqual([]);
+    expect(destinosPossiveis('ENDERECO', 'ATUALIZACAO')).toEqual([]);
   });
   it('um campo por questionário', () => {
     const x = c(P('a', 'TEXTO', { destino: 'OBJETIVO' }), P('b', 'TEXTO'), P('n', 'NOTA'));
-    expect(podeUsarDestino(x, 'a', 'ANAMNESE').pode).toBe(true);
-    expect(podeUsarDestino(x, 'b', 'ANAMNESE')).toEqual({ pode: false, motivo: 'Outra pergunta já alimenta este campo do cadastro.' });
-    expect(podeUsarDestino(x, 'n', 'ANAMNESE').pode).toBe(false);
+    expect(podeUsarDestino(x, 'a', 'OBJETIVO', 'ANAMNESE').pode).toBe(true);
+    expect(podeUsarDestino(x, 'b', 'OBJETIVO', 'ANAMNESE')).toEqual({ pode: false, motivo: 'Outra pergunta já alimenta este campo do cadastro.' });
+    expect(podeUsarDestino(x, 'b', 'CPF', 'ANAMNESE').pode).toBe(true);
+    expect(podeUsarDestino(x, 'b', 'ENDERECO', 'ANAMNESE').pode).toBe(false);
+    expect(podeUsarDestino(x, 'n', 'OBJETIVO', 'ANAMNESE').pode).toBe(false);
+  });
+  it('o endereço só entra no menu da anamnese e só na anamnese', () => {
+    expect(tiposParaAdicionar('ANAMNESE').map((t) => t.tipo)).toContain('ENDERECO');
+    expect(tiposParaAdicionar('ATUALIZACAO').map((t) => t.tipo)).not.toContain('ENDERECO');
+    const x = c(P('e', 'ENDERECO'));
+    expect(validarQuestionario(x, 'ANAMNESE').erros).toEqual([]);
+    expect(validarQuestionario(x, 'ATUALIZACAO').erros.map((e) => e.caminho)).toEqual(['secoes[0].perguntas[0].tipo']);
   });
   it('a data da pesagem é uma DATA só no passado', () => {
     const x = c(P('d1', 'DATA', { somentePassado: true, rotulo: 'Pesagem' }), P('d2', 'DATA'));

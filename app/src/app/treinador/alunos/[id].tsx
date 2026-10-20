@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
+import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/cadastroDoAluno';
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
@@ -35,6 +36,7 @@ import { textoDoErro } from '../../../ui/erros';
 import { useAvisoDoPlano } from '../../../ui/useAvisoDoPlano';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { Tela } from '../../../ui/Tela';
+import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
 /**
@@ -190,8 +192,14 @@ function CartaoDados({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao
       ) : (
         <View style={estilos.dados}>
           <CampoLeitura rotulo="E-mail" valor={aluno.email} />
+          <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
+          {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
           <ResponsavelAluno id={aluno.responsavelId} />
-          <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
+          <Permitido codigo="ALUNO_SENSIVEL_LER">
+            <CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} />
+            <CampoLeitura rotulo="CPF" valor={aluno.cpf} />
+            <CampoLeitura rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} />
+          </Permitido>
           <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
           <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
             aoEscolher={async () => {}} />

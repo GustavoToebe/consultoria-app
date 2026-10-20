@@ -1,5 +1,5 @@
 import {
-  linhaDaAnamnese, mostrarCartaoAnamnese, notaDoCadastro, respostasIniciais, seloDaAlteracao, seloDaAnamnese, temPendente, textoDoValor, textoParaRevisar,
+  linhaDaAnamnese, mostrarCartaoAnamnese, notaDoCadastro, permissaoDeLeituraDoDestino, permissaoDoDestino, respostasIniciais, seloDaAlteracao, seloDaAnamnese, temPendente, textoDoValor, textoParaRevisar,
 } from './anamnese';
 
 describe('anamnese', () => {
@@ -45,12 +45,22 @@ describe('anamnese', () => {
       expect(notaDoCadastro({ tipo: 'TEXTO', destino: 'OBJETIVO' }, modelo)).toBe('Esta resposta vai para o objetivo do seu cadastro.');
       expect(notaDoCadastro({ tipo: 'PESO' }, modelo)).toBeNull();
       expect(notaDoCadastro({ tipo: 'TEXTO_LONGO', destino: 'OBJETIVO' }, modelo)).toBeNull();
+      expect(notaDoCadastro({ tipo: 'TEXTO', destino: 'CPF' }, modelo)).toBe('Esta resposta vai para o CPF do seu cadastro.');
+      expect(notaDoCadastro({ tipo: 'TELEFONE', destino: 'TELEFONE' }, modelo)).toBe('Esta resposta vai para o telefone do seu cadastro.');
+      expect(notaDoCadastro({ tipo: 'ENDERECO', destino: 'ENDERECO' }, modelo)).toBe('Esta resposta vai para o endereço do seu cadastro.');
+      expect(notaDoCadastro({ tipo: 'TEXTO', destino: 'ENDERECO' }, modelo)).toBeNull();
     });
     it('valor em texto, "—" sem dado', () => {
       expect(textoDoValor('PESO', { pesoKg: 80.5, data: '2026-01-10' })).toBe('80,5 kg em 10/01/2026');
       expect(textoDoValor('OBJETIVO', { texto: ' Objetivo fictício ' })).toBe('Objetivo fictício');
       expect(textoDoValor('OBJETIVO', null)).toBe('—');
       expect(textoDoValor('PESO', {})).toBe('—');
+      expect(textoDoValor('CPF', { texto: '529.982.247-25' })).toBe('529.982.247-25');
+      expect(textoDoValor('TELEFONE', { texto: '(45) 99999-8888' })).toBe('(45) 99999-8888');
+      expect(textoDoValor('ENDERECO', { endereco: { cep: '01310-100', logradouro: 'Rua Exemplo', numero: '100', complemento: null, bairro: 'Centro', cidade: 'Cidade Exemplo', uf: 'SP' } }))
+        .toBe('Rua Exemplo, 100 - Centro · Cidade Exemplo/SP - 01310-100');
+      expect(textoDoValor('ENDERECO', {})).toBe('—');
+      expect(textoDoValor('CPF', null)).toBe('—');
     });
     it('selo e contagem das alterações', () => {
       expect(seloDaAlteracao({ situacao: 'PENDENTE', automatica: false })).toEqual({ texto: 'Para revisar', tipo: 'atencao' });
@@ -61,5 +71,16 @@ describe('anamnese', () => {
       expect(textoParaRevisar(1)).toBe('1 alteração do cadastro para revisar');
       expect(textoParaRevisar(2)).toBe('2 alterações do cadastro para revisar');
     });
+  });
+});
+
+describe('permissão por destino (igual a DestinoNoPerfil.permissao() na API)', () => {
+  it('telefone é contato (ALUNO_ALTERAR/ALUNO_LER); os demais são dado sensível', () => {
+    expect(permissaoDoDestino('TELEFONE')).toBe('ALUNO_ALTERAR');
+    expect(permissaoDeLeituraDoDestino('TELEFONE')).toBe('ALUNO_LER');
+    for (const d of ['PESO', 'OBJETIVO', 'CPF', 'ENDERECO'] as const) {
+      expect(permissaoDoDestino(d)).toBe('ALUNO_SENSIVEL_ALTERAR');
+      expect(permissaoDeLeituraDoDestino(d)).toBe('ALUNO_SENSIVEL_LER');
+    }
   });
 });

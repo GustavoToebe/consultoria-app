@@ -1,4 +1,6 @@
 import type { CondicaoPergunta, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../api/tipos';
+import { cepValido, cpfValido, telefoneValido as telefoneDoCadastroValido, ufValida } from '@plataforma/web';
+
 import { hojeIso } from './formatos';
 import { LIMITES_QUESTIONARIO } from './questionario';
 
@@ -62,9 +64,40 @@ function gradeValida(p: PerguntaAtualizacao, v: unknown) {
   return Object.entries(v).every(([linha, coluna]) => linhas.has(linha) && typeof coluna === 'string' && colunas.has(coluna));
 }
 
-/** Tamanho máximo da resposta de texto: o do objetivo do cadastro quando a resposta vai para lá (anamnese). */
+/** Campos da resposta ENDERECO e o tamanho de cada um (os mesmos das colunas do cadastro). */
+const CAMPOS_DO_ENDERECO = {
+  cep: LIMITES_QUESTIONARIO.enderecoCepTamanho, logradouro: LIMITES_QUESTIONARIO.enderecoLogradouroTamanho,
+  numero: LIMITES_QUESTIONARIO.enderecoNumeroTamanho, complemento: LIMITES_QUESTIONARIO.enderecoComplementoTamanho,
+  bairro: LIMITES_QUESTIONARIO.enderecoBairroTamanho, cidade: LIMITES_QUESTIONARIO.enderecoCidadeTamanho, uf: LIMITES_QUESTIONARIO.enderecoUfTamanho,
+} as const;
+
+/**
+ * ENDERECO: objeto só com as chaves do endereço, cada uma um texto; o limite de cada uma conta depois do strip (como na
+ * API). CEP (8 dígitos) e UF (uma das 27) só são conferidos quando preenchidos. Chave desconhecida ou valor que não é
+ * texto (incluindo `null`) é inválido.
+ */
+function enderecoValido(v: unknown) {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+  return Object.entries(v).every(([campo, texto]) => {
+    if (!(campo in CAMPOS_DO_ENDERECO) || typeof texto !== 'string') return false;
+    const limpo = texto.trim();
+    if (limpo.length > CAMPOS_DO_ENDERECO[campo as keyof typeof CAMPOS_DO_ENDERECO]) return false;
+    if (limpo === '') return true;
+    if (campo === 'cep') return cepValido(limpo);
+    if (campo === 'uf') return ufValida(limpo.toUpperCase());
+    return true;
+  });
+}
+
+/** Objeto só com chaves do endereço e todos os valores em branco: a API conta como "não respondido" (some, ou falta se obrigatória). */
+const enderecoEmBranco = (v: unknown) =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+  && Object.entries(v).every(([campo, texto]) => campo in CAMPOS_DO_ENDERECO && typeof texto === 'string' && texto.trim() === '');
+
+/** Tamanho máximo da resposta de texto: o do objetivo ou do CPF do cadastro quando a resposta vai para lá (anamnese). */
 export function tamanhoDoTexto(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino'>) {
   if (p.destino === 'OBJETIVO') return LIMITES_QUESTIONARIO.objetivoTamanho;
+  if (p.destino === 'CPF') return LIMITES_QUESTIONARIO.cpfTamanho;
   return p.tipo === 'TEXTO' ? LIMITES_QUESTIONARIO.textoCurtoCapacidade : LIMITES_QUESTIONARIO.textoLongoCapacidade;
 }
 
@@ -73,7 +106,7 @@ export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string 
   switch (p.tipo) {
     case 'NOTA': return nota(v);
     case 'PESO': return typeof v === 'number' && Number.isFinite(v) && v >= 20 && v <= 400 && Math.abs(v * 10 - Math.round(v * 10)) < 1e-8;
-    case 'TEXTO': return typeof v === 'string' && v.length <= tamanhoDoTexto(p);
+    case 'TEXTO': return typeof v === 'string' && v.length <= tamanhoDoTexto(p) && (p.destino !== 'CPF' || cpfValido(v));
     case 'TEXTO_LONGO': return typeof v === 'string' && v.length <= tamanhoDoTexto(p);
     case 'NOTAS_POR_DIA':
       return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -84,9 +117,10 @@ export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string 
     case 'SIM_NAO': return typeof v === 'boolean';
     case 'FOTOS': return fotosValidas(v);
     case 'DATA': return dataValida(p, v, hoje);
-    case 'TELEFONE': return telefoneValido(v);
+    case 'TELEFONE': return telefoneValido(v) && (p.destino !== 'TELEFONE' || (typeof v === 'string' && telefoneDoCadastroValido(v)));
     case 'EMAIL': return emailValido(v);
     case 'GRADE': return gradeValida(p, v);
+    case 'ENDERECO': return enderecoValido(v);
     case 'ACEITE': return v === true;
     default: return false;
   }
@@ -96,6 +130,10 @@ export function respostaValida(p: PerguntaAtualizacao, v: unknown, hoje: string 
 export const respondida = (v: unknown) =>
   !(v == null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0)
     || (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0));
+
+/** `respondida` da pergunta: um endereço todo em branco também não conta como resposta. */
+export const respondidaNaPergunta = (p: Pick<PerguntaAtualizacao, 'tipo'>, v: unknown) =>
+  respondida(v) && !(p.tipo === 'ENDERECO' && enderecoEmBranco(v));
 
 /**
  * Sem condição, visível. Com ela, a resposta (já aceita e visível) da pergunta de controle precisa ser um dos valores:
@@ -152,12 +190,12 @@ export function avaliarRespostas(
       const noAparelho = p.tipo === 'FOTOS' ? (fotosNoAparelho[p.id] ?? 0) : 0;
       if (noAparelho > 0) {
         const enviadas = Array.isArray(v) ? v.length : 0;
-        if (respondida(v) && !respostaValida(p, v, hoje)) erros[p.id] = 'Confira o formato e os limites deste campo.';
+        if (respondidaNaPergunta(p, v) && !respostaValida(p, v, hoje)) erros[p.id] = 'Confira o formato e os limites deste campo.';
         else if (enviadas + noAparelho > LIMITES_QUESTIONARIO.fotosPorPergunta) erros[p.id] = 'Há fotos demais nesta pergunta.';
-        else if (respondida(v)) aceitasMapa.set(p.id, v as RespostaAtualizacao);
+        else if (respondidaNaPergunta(p, v)) aceitasMapa.set(p.id, v as RespostaAtualizacao);
         continue;
       }
-      if (!respondida(v)) {
+      if (!respondidaNaPergunta(p, v)) {
         if (p.obrigatoria) erros[p.id] = 'Preencha este campo.';
         continue;
       }

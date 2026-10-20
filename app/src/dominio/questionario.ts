@@ -54,6 +54,16 @@ export const LIMITES_QUESTIONARIO = {
   imagemLado: 1600,
   /** Resposta do TEXTO com destino OBJETIVO: o tamanho do objetivo do cadastro. */
   objetivoTamanho: 200,
+  /** Resposta do TEXTO com destino CPF: o CPF formatado (123.456.789-09) tem 14 caracteres. */
+  cpfTamanho: 14,
+  /** Campos da resposta ENDERECO e do endereço do aluno (colunas de `aluno`, V015). */
+  enderecoCepTamanho: 9,
+  enderecoLogradouroTamanho: 200,
+  enderecoNumeroTamanho: 20,
+  enderecoComplementoTamanho: 100,
+  enderecoBairroTamanho: 100,
+  enderecoCidadeTamanho: 100,
+  enderecoUfTamanho: 2,
 } as const;
 
 export interface ProblemaDoQuestionario { caminho: string; mensagem: string }
@@ -63,13 +73,13 @@ const ID = /^[A-Za-z0-9_-]{1,40}$/;
 /** Id de imagem: UUID em minúsculas, como a API devolve (igual a `LimitesQuestionario.IMAGEM_PADRAO`). */
 const IMAGEM = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const TIPOS_DE_PERGUNTA: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'PESO', 'NOTA', 'TEXTO', 'TEXTO_LONGO', 'NOTAS_POR_DIA', 'FOTOS',
-  'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO', 'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ACEITE', 'INFORMATIVO'];
+  'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'NUMERO', 'SIM_NAO', 'DATA', 'TELEFONE', 'EMAIL', 'GRADE', 'ENDERECO', 'ACEITE', 'INFORMATIVO'];
 const TIPOS = TIPOS_DE_PERGUNTA;
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
 const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA', 'FOTOS'];
 /** Tipo de pergunta que alimenta cada campo do cadastro (igual a `DestinoNoPerfil` do Java). */
-export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = { PESO: 'PESO', OBJETIVO: 'TEXTO' };
+export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = { PESO: 'PESO', OBJETIVO: 'TEXTO', CPF: 'TEXTO', TELEFONE: 'TELEFONE', ENDERECO: 'ENDERECO' };
 
 /** Tipos que carregam a lista de opções. */
 export function temOpcoes(tipo: TipoPergunta) {
@@ -175,6 +185,7 @@ function pergunta(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro
   if (p.tipo == null || !TIPOS.includes(p.tipo)) { erro(`${cp}.tipo`, 'Falta o tipo.'); return; }
   if (p.id != null && !estado.anteriores.has(p.id)) estado.anteriores.set(p.id, p);
   if (estado.finalidade === 'ANAMNESE' && p.tipo === 'DATA_AUTOMATICA') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de atualização.');
+  if (estado.finalidade !== 'ANAMNESE' && p.tipo === 'ENDERECO') erro(`${cp}.tipo`, 'Este tipo só vale no questionário de anamnese.');
   if (UNICOS.includes(p.tipo) && estado.tipos.has(p.tipo)) erro(`${cp}.tipo`, 'Este tipo só pode aparecer uma vez.');
   estado.tipos.add(p.tipo);
   if (p.tipo === 'TEXTO') estado.capacidadeDeTexto += L.textoCurtoCapacidade;

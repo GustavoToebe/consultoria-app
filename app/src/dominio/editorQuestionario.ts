@@ -26,12 +26,13 @@ export const ROTULO_DO_TIPO: Record<TipoPergunta, string> = {
   TELEFONE: 'Telefone',
   EMAIL: 'E-mail',
   GRADE: 'Grade (linhas e colunas)',
+  ENDERECO: 'Endereço',
   ACEITE: 'Aceite de regras',
   INFORMATIVO: 'Texto ou imagem (sem resposta)',
 };
 
 /** Tipos do menu "Adicionar pergunta". FOTOS só aparece no menu enquanto o questionário não tem uma (é única). */
-export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: string; soAtualizacao?: boolean }[] = [
+export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: string; soAtualizacao?: boolean; soAnamnese?: boolean }[] = [
   { tipo: 'NOTA', descricao: 'O aluno escolhe uma nota de 0 a 10.' },
   { tipo: 'SIM_NAO', descricao: 'Resposta Sim ou Não.' },
   { tipo: 'ESCOLHA_UNICA', descricao: 'Uma opção entre as que você definir.' },
@@ -43,6 +44,7 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
   { tipo: 'TELEFONE', descricao: 'Telefone com DDD.' },
   { tipo: 'EMAIL', descricao: 'Endereço de e-mail.' },
   { tipo: 'GRADE', descricao: 'Linhas e colunas que você define; o aluno marca uma coluna em cada linha (ex.: frequência de cada item).' },
+  { tipo: 'ENDERECO', descricao: 'CEP, rua, número, complemento, bairro, cidade e UF, todos opcionais. Pode alimentar o endereço do cadastro.', soAnamnese: true },
   { tipo: 'ACEITE', descricao: 'Um texto (regras da consultoria) e a frase que o aluno marca para aceitar.' },
   { tipo: 'INFORMATIVO', descricao: 'Só texto e/ou imagem para o aluno ler, sem resposta (orientação, referência).' },
   { tipo: 'NOTAS_POR_DIA', descricao: 'Uma nota para cada dia da semana de treino.' },
@@ -51,9 +53,9 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
   { tipo: 'FOTOS', descricao: 'O aluno anexa até 6 fotos. Só aparece para o aluno quando o envio de fotos está ligado no servidor. Só uma por questionário.' },
 ];
 
-/** Os tipos que valem para a finalidade (a anamnese não tem data da atualização). */
+/** Os tipos que valem para a finalidade (a anamnese não tem data da atualização; o endereço só existe na anamnese). */
 export const tiposParaAdicionar = (finalidade: FinalidadeQuestionario) =>
-  TIPOS_PARA_ADICIONAR.filter((t) => finalidade === 'ATUALIZACAO' || !t.soAtualizacao);
+  TIPOS_PARA_ADICIONAR.filter((t) => (finalidade === 'ATUALIZACAO' || !t.soAtualizacao) && (finalidade === 'ANAMNESE' || !t.soAnamnese));
 
 /**
  * Grupos da folha "Adicionar pergunta" (revisão de telas de 19/10: eram 17 botões soltos). Todo tipo do menu está em
@@ -61,7 +63,7 @@ export const tiposParaAdicionar = (finalidade: FinalidadeQuestionario) =>
  */
 const GRUPOS_DE_TIPOS: readonly { rotulo: string; tipos: readonly TipoPergunta[] }[] = [
   { rotulo: 'Escolha', tipos: ['SIM_NAO', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'GRADE'] },
-  { rotulo: 'Texto', tipos: ['TEXTO', 'TEXTO_LONGO', 'TELEFONE', 'EMAIL'] },
+  { rotulo: 'Texto', tipos: ['TEXTO', 'TEXTO_LONGO', 'TELEFONE', 'EMAIL', 'ENDERECO'] },
   { rotulo: 'Número e data', tipos: ['NOTA', 'NOTAS_POR_DIA', 'NUMERO', 'PESO', 'DATA', 'DATA_AUTOMATICA'] },
   { rotulo: 'Especiais', tipos: ['FOTOS', 'ACEITE', 'INFORMATIVO'] },
 ];
@@ -162,7 +164,7 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
           texto: p.tipo === 'ACEITE' ? (p.texto ?? '') : p.tipo === 'INFORMATIVO' ? texto(p.texto) : undefined,
           declaracao: p.tipo === 'ACEITE' ? (p.declaracao ?? '') : undefined,
           mostrarSe: p.mostrarSe,
-          destino: p.destino != null && destinoPossivel(p.tipo, finalidade) === p.destino ? p.destino : undefined,
+          destino: p.destino != null && destinosPossiveis(p.tipo, finalidade).includes(p.destino) ? p.destino : undefined,
           destinoData: p.tipo === 'PESO' && p.destino === 'PESO' && finalidade === 'ANAMNESE' ? texto(p.destinoData) : undefined,
         };
       }),
@@ -321,20 +323,21 @@ export function textoDaCondicao(c: ConteudoQuestionario, condicao: CondicaoPergu
 export const alterarCondicaoDaSecao = (c: ConteudoQuestionario, secao: number, mostrarSe: CondicaoPergunta | undefined) =>
   ({ ...c, secoes: c.secoes.map((s, i) => (i === secao ? { ...s, mostrarSe } : s)) });
 
-/** Campo do cadastro que este tipo pode alimentar (só na anamnese): PESO → registro de peso, TEXTO → objetivo. */
-export function destinoPossivel(tipo: TipoPergunta, finalidade: FinalidadeQuestionario): DestinoNoPerfil | null {
-  if (finalidade !== 'ANAMNESE') return null;
-  const d = (Object.keys(TIPO_DO_DESTINO) as DestinoNoPerfil[]).find((x) => TIPO_DO_DESTINO[x] === tipo);
-  return d ?? null;
+/**
+ * Campos do cadastro que este tipo pode alimentar (só na anamnese): PESO → registro de peso, TEXTO → objetivo ou CPF,
+ * TELEFONE → telefone, ENDERECO → endereço. A ordem é a do menu.
+ */
+export function destinosPossiveis(tipo: TipoPergunta, finalidade: FinalidadeQuestionario): DestinoNoPerfil[] {
+  if (finalidade !== 'ANAMNESE') return [];
+  return (Object.keys(TIPO_DO_DESTINO) as DestinoNoPerfil[]).filter((x) => TIPO_DO_DESTINO[x] === tipo);
 }
 
-/** Ligar o destino nesta pergunta: só um por campo no questionário. */
-export function podeUsarDestino(c: ConteudoQuestionario, id: string, finalidade: FinalidadeQuestionario): Permissao {
+/** Ligar este destino nesta pergunta: só um por campo no questionário. */
+export function podeUsarDestino(c: ConteudoQuestionario, id: string, destino: DestinoNoPerfil, finalidade: FinalidadeQuestionario): Permissao {
   const p = todas(c).find((x) => x.id === id);
-  const d = p ? destinoPossivel(p.tipo, finalidade) : null;
-  if (!p || !d) return { pode: false, motivo: 'Este tipo não alimenta o cadastro.' };
-  if (p.destino === d) return { pode: true };
-  return todas(c).some((x) => x.id !== id && x.destino === d)
+  if (!p || !destinosPossiveis(p.tipo, finalidade).includes(destino)) return { pode: false, motivo: 'Este tipo não alimenta o cadastro.' };
+  if (p.destino === destino) return { pode: true };
+  return todas(c).some((x) => x.id !== id && x.destino === destino)
     ? { pode: false, motivo: 'Outra pergunta já alimenta este campo do cadastro.' } : { pode: true };
 }
 

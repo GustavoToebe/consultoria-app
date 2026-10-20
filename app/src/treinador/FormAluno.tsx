@@ -5,13 +5,18 @@ import { StyleSheet, View } from 'react-native';
 
 import type { AlunoDetalhe, AlunoRequest } from '../api/tipos';
 import { responsaveisEquipe } from '../api/rotas';
+import {
+  CPF_EM_USO, ENDERECO_VAZIO, MENSAGEM_CPF_EM_USO, enderecoParaEnvio, enderecoParaForm, erroDoCpf, erroDoTelefone, errosDoEndereco,
+  mascaraCpf, mascaraTelefone,
+} from '../dominio/cadastroDoAluno';
+import { CamposDeEndereco } from '../ui/CamposDeEndereco';
 import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { MensagemErro } from '../ui/Estados';
-import { errosPorCampo, textoDoErro } from '../ui/erros';
+import { codigoApi, errosPorCampo, textoDoErro } from '../ui/erros';
 import { Texto } from '../ui/Texto';
 import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 
@@ -34,9 +39,10 @@ function diasDoCampo(texto: string): number | null {
 }
 
 /**
- * Dados do aluno em duas seções: "Cadastro" (nome, e-mail, objetivo) e "Acompanhamento" (responsável, ciclo,
- * observações). O e-mail é opcional (o aluno escolhe o dele ao aceitar o convite). Objetivo e observações são dado
- * sensível: ficam só no banco, nunca em log, e a nota aparece nos dois.
+ * Dados do aluno em três seções: "Cadastro" (nome, e-mail, telefone, objetivo), "Dados pessoais" (CPF e endereço, só
+ * com permissão de dados sensíveis) e "Acompanhamento" (responsável, ciclo, observações). O e-mail é opcional (o aluno
+ * escolhe o dele ao aceitar o convite). O telefone é do usuário do aluno, então só aparece na edição de quem já tem
+ * acesso. Objetivo, observações, CPF e endereço são dado sensível: ficam só no banco, nunca em log.
  */
 export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null }: Props) {
   const {pode,usuario}=useSessao();
@@ -44,7 +50,10 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [email, setEmail] = useState(inicial?.email ?? '');
+  const [telefone, setTelefone] = useState(inicial?.telefone ?? '');
   const [objetivo, setObjetivo] = useState(inicial?.objetivo ?? '');
+  const [cpf, setCpf] = useState(inicial?.cpf ?? '');
+  const [endereco, setEndereco] = useState(() => (inicial ? enderecoParaForm(inicial.endereco) : ENDERECO_VAZIO));
   const [observacoes, setObservacoes] = useState(inicial?.observacoes ?? '');
   const [dias, setDias] = useState(inicial?.diasAtualizacao ? String(inicial.diasAtualizacao) : '');
   const [salvando, setSalvando] = useState(false);
@@ -52,9 +61,17 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const avisarDoPlano = useAvisoDoPlano();
   const campos = errosPorCampo(erro);
   const diasInvalidos = dias.trim() !== '' && diasDoCampo(dias) === null;
+  // O telefone é do usuário do aluno (só existe depois do convite); CPF e endereço seguem a permissão de dados sensíveis.
+  const comTelefone = !!inicial?.temAcesso && !inicial.anonimizado;
+  const comSensivel = pode('ALUNO_SENSIVEL_ALTERAR');
+  const erroTelefone = comTelefone ? erroDoTelefone(telefone) : undefined;
+  const erroCpf = comSensivel ? erroDoCpf(cpf) : undefined;
+  const errosEndereco = comSensivel ? errosDoEndereco(endereco) : {};
+  const dadosInvalidos = !!erroTelefone || !!erroCpf || Object.keys(errosEndereco).length > 0;
+  const cpfEmUso = codigoApi(erro) === CPF_EM_USO ? MENSAGEM_CPF_EM_USO : undefined;
 
   const salvar = () => {
-    if (!nome.trim() || diasInvalidos) {
+    if (!nome.trim() || diasInvalidos || dadosInvalidos) {
       setErro(null);
       return;
     }
@@ -63,7 +80,11 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
     aoSalvar({
       nome: nome.trim(),
       email: email.trim() || null,
-      ...(pode("ALUNO_SENSIVEL_ALTERAR") ? {objetivo:objetivo.trim()||null,observacoes:observacoes.trim()||null} : {}),
+      ...(comTelefone ? { telefone: telefone.trim() ? mascaraTelefone(telefone) : '' } : {}),
+      ...(comSensivel ? {
+        objetivo: objetivo.trim() || null, observacoes: observacoes.trim() || null,
+        cpf: cpf.trim() ? mascaraCpf(cpf) : null, endereco: enderecoParaEnvio(endereco),
+      } : {}),
       versao: inicial?.versao ?? null,
       diasAtualizacao: diasDoCampo(dias),
       responsavelId:responsavelId||null,
@@ -91,8 +112,19 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         autoComplete="off"
         maxLength={254}
       />
+      {comTelefone ? (
+        <Campo rotulo="Telefone (opcional)" valor={telefone} aoMudar={(t) => setTelefone(mascaraTelefone(t))} erro={erroTelefone ?? campos.telefone}
+          keyboardType="phone-pad" autoComplete="tel" maxLength={15} />
+      ) : null}
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo rotulo="Objetivo (opcional)" valor={objetivo} aoMudar={setObjetivo} erro={campos.objetivo} maxLength={200}
         ajuda={SENSIVEL} /></Permitido>
+      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
+        <Texto variante="secao" style={estilos.secao}>Dados pessoais</Texto>
+        <Campo rotulo="CPF (opcional)" valor={cpf} aoMudar={(t) => setCpf(mascaraCpf(t))} erro={erroCpf ?? cpfEmUso ?? campos.cpf} keyboardType="number-pad"
+          inputMode="numeric" maxLength={14} ajuda={SENSIVEL} />
+        <CamposDeEndereco valor={endereco} aoMudar={setEndereco}
+          erros={{ ...errosEndereco, cep: errosEndereco.cep ?? campos['endereco.cep'], uf: errosEndereco.uf ?? campos['endereco.uf'] }} />
+      </Permitido>
       <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
       {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
       {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
@@ -117,10 +149,11 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         maxLength={4000}
         ajuda={SENSIVEL}
       /></Permitido>
-      {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
+      {erro && Object.keys(campos).length === 0 && !cpfEmUso ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
         {aoCancelar ? <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} /> : null}
-        <Botao rotulo={rotuloSalvar} aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || diasInvalidos} motivo={!nome.trim() ? 'Informe o nome do aluno.' : 'Os dias de atualização vão de 1 a 365.'} />
+        <Botao rotulo={rotuloSalvar} aoTocar={salvar} carregando={salvando} desabilitado={!nome.trim() || diasInvalidos || dadosInvalidos}
+          motivo={!nome.trim() ? 'Informe o nome do aluno.' : diasInvalidos ? 'Os dias de atualização vão de 1 a 365.' : 'Corrija os campos marcados.'} />
       </View>
     </View>
   );

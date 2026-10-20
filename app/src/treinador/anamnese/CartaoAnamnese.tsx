@@ -10,7 +10,7 @@ import {
 import type { AlteracaoDoCadastro, AnamneseDetalhe } from '../../api/tipos';
 import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
 import {
-  linhaDaAnamnese, ROTULO_DO_DESTINO, seloDaAlteracao, seloDaAnamnese, temPendente, textoDoValor, textoParaRevisar,
+  linhaDaAnamnese, permissaoDeLeituraDoDestino, permissaoDoDestino, ROTULO_DO_DESTINO, seloDaAlteracao, seloDaAnamnese, temPendente, textoDoValor, textoParaRevisar,
 } from '../../dominio/anamnese';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -159,8 +159,10 @@ function AlteracoesDoCadastro({ anamnese: a, podeAlterar, aoMudar, aoConflito }:
   const { avisar } = useAviso();
   const [confirmar, setConfirmar] = useState<{ alteracao: AlteracaoDoCadastro; acao: 'aplicar' | 'descartar' } | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const podeAgir = podeAlterar && pode('ALUNO_SENSIVEL_ALTERAR');
-  const pendentes = (a.alteracoes ?? []).filter((x) => x.situacao === 'PENDENTE').length;
+  // CPF e endereço são dado sensível mesmo só para ler (a API já limita a lista a quem lê a anamnese, que depende dessa permissão).
+  const alteracoes = (a.alteracoes ?? []).filter((x) => pode(permissaoDeLeituraDoDestino(x.destino)));
+  const podeAgirEm = (x: AlteracaoDoCadastro) => podeAlterar && pode(permissaoDoDestino(x.destino));
+  const pendentes = alteracoes.filter((x) => x.situacao === 'PENDENTE').length;
   const agir = () => {
     if (!confirmar) return;
     const { alteracao, acao } = confirmar;
@@ -180,7 +182,7 @@ function AlteracoesDoCadastro({ anamnese: a, podeAlterar, aoMudar, aoConflito }:
     <Texto variante="suave">{pendentes
       ? 'A anamnese trouxe valores diferentes dos que já estão no cadastro. Nada foi trocado: aplique ou descarte cada um.'
       : 'Respostas que alimentam o cadastro. Campo vazio é preenchido no envio; nada é trocado sem você aplicar.'}</Texto>
-    {(a.alteracoes ?? []).map((x) => <View key={x.id} style={estilos.alteracao}>
+    {alteracoes.map((x) => <View key={x.id} style={estilos.alteracao}>
       <View style={estilos.selos}>
         <Texto variante="rotulo">{ROTULO_DO_DESTINO[x.destino]}</Texto>
         <Selo {...seloDaAlteracao(x)} />
@@ -188,10 +190,10 @@ function AlteracoesDoCadastro({ anamnese: a, podeAlterar, aoMudar, aoConflito }:
       {x.situacao === 'PENDENTE' ? <>
         <Texto>{`No cadastro: ${textoDoValor(x.destino, x.valorAtual)}`}</Texto>
         <Texto>{`Na anamnese: ${textoDoValor(x.destino, x.valor)}`}</Texto>
-        {podeAgir ? <LinhaDeAcoes>
+        {podeAgirEm(x) ? <LinhaDeAcoes>
           <Botao rotulo="Aplicar ao cadastro" tipo="secundario" aoTocar={() => setConfirmar({ alteracao: x, acao: 'aplicar' })} />
           <Botao rotulo="Descartar" tipo="perigoTexto" aoTocar={() => setConfirmar({ alteracao: x, acao: 'descartar' })} />
-        </LinhaDeAcoes> : <Texto variante="pequeno">Seu perfil não permite alterar dados sensíveis do aluno.</Texto>}
+        </LinhaDeAcoes> : <Texto variante="pequeno">{x.destino === 'TELEFONE' ? 'Seu perfil não permite alterar os dados do aluno.' : 'Seu perfil não permite alterar dados sensíveis do aluno.'}</Texto>}
       </> : <>
         <Texto>{textoDoValor(x.destino, x.valor)}</Texto>
         {x.resolvidaEm && !x.automatica ? <Texto variante="pequeno">{`${x.situacao === 'APLICADA' ? 'Aplicada' : 'Descartada'} em ${dataHoraParaTela(x.resolvidaEm)}${x.resolvidaPorNome ? ` por ${x.resolvidaPorNome}` : ''}.`}</Texto> : null}

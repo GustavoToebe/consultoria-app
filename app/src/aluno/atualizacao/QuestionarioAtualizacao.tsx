@@ -10,6 +10,7 @@ import {
 import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
 import { notaDoCadastro } from '../../dominio/anamnese';
+import { enderecoParaForm, respostaDeEndereco } from '../../dominio/cadastroDoAluno';
 import { avaliarRespostas, tamanhoDoTexto } from '../../dominio/respostasAtualizacao';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -17,6 +18,7 @@ import { BarraProgresso } from '../../ui/BarraProgresso';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
+import { CamposDeEndereco } from '../../ui/CamposDeEndereco';
 import { CampoData, CampoNumerico } from '../../ui/Campos';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { Cartao } from '../../ui/Cartao';
@@ -184,6 +186,16 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
           if (coluna == null) delete nova[l.id]; else nova[l.id] = coluna;
           aoMudar(Object.keys(nova).length ? nova : null);
         }} />)}
+      {mensagemErro}
+    </View>;
+  }
+  if (p.tipo === 'ENDERECO') {
+    const atual = enderecoParaForm(typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor as Record<string, string> : null);
+    return <View style={estilos.pergunta}>
+      <Texto variante="rotulo">{rotulo}</Texto>
+      {ajudaTexto}
+      {nota ? <Texto variante="pequeno">{nota}</Texto> : null}
+      <CamposDeEndereco valor={atual} aoMudar={(e) => aoMudar(respostaDeEndereco(e))} />
       {mensagemErro}
     </View>;
   }

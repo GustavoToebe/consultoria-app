@@ -135,12 +135,23 @@ export interface PaginaAlunos {
   total: number;
 }
 
+/** Endereço do aluno (`alunos/dto/AlunoDtos.Endereco`): todos os campos são opcionais; CEP e UF vêm formatados. */
+export interface EnderecoDoAluno {
+  cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null;
+  bairro: string | null; cidade: string | null; uf: string | null;
+}
+
 export interface AlunoDetalhe {
   id: string;
   nome: string;
   email: string | null;
+  /** Do usuário do aluno (só depois que ele cria o acesso); visível com `ALUNO_LER`. */
+  telefone?: string | null;
   objetivo?: string | null;
   observacoes?: string | null;
+  /** Dados sensíveis (`ALUNO_SENSIVEL_LER`): a API omite sem a permissão. */
+  cpf?: string | null;
+  endereco?: EnderecoDoAluno | null;
   ativo: boolean;
   temAcesso: boolean;
   conviteExpiraEm: string | null;
@@ -157,8 +168,13 @@ export interface AlunoRequest {
   responsavelId?:string|null;
   nome: string;
   email: string | null;
+  /** Só vale com acesso (a API recusa com 409 `ALUNO_SEM_ACESSO`). Ausente/`null` não mexe; texto em branco apaga. */
+  telefone?: string | null;
   objetivo?: string | null;
   observacoes?: string | null;
+  /** CPF e endereço só seguem com `ALUNO_SENSIVEL_ALTERAR`; sem a permissão a API ignora e preserva o que está salvo. */
+  cpf?: string | null;
+  endereco?: EnderecoDoAluno | null;
   versao?: number | null;
   /** Dias do ciclo do aluno (1 a 365): sugere o fim do período ao criar uma pasta. */
   diasAtualizacao?: number | null;
@@ -665,13 +681,13 @@ export interface LoteResponse {
 export interface PastaModelo { id: string; nome: string; versao: number }
 export type FaseAtualizacao = 'NENHUMA' | 'AVISO' | 'ABERTA' | 'ATRASADA' | 'ENVIADA' | 'REVISADA';
 export type SituacaoAtualizacao = 'PARA_REVISAR' | 'ATRASADAS' | 'AVISARAM_ATRASO' | 'PROXIMAS';
-/** NOTAS_POR_DIA = dia → nota; GRADE = linha → coluna. */
+/** NOTAS_POR_DIA = dia → nota; GRADE = linha → coluna; ENDERECO = campo do endereço → texto. */
 export type RespostaAtualizacao = string | number | boolean | string[] | null | Record<string, number | null> | Record<string, string>;
 export type RespostasAtualizacao = Record<string, RespostaAtualizacao>;
 /** Mesmos valores de `TipoPergunta` no Java (`questionarios/TipoPergunta`). */
 export type TipoPergunta = 'DATA_AUTOMATICA' | 'PESO' | 'NOTA' | 'TEXTO' | 'TEXTO_LONGO' | 'NOTAS_POR_DIA' | 'FOTOS'
   | 'ESCOLHA_UNICA' | 'MULTIPLA_ESCOLHA' | 'NUMERO' | 'SIM_NAO'
-  | 'DATA' | 'TELEFONE' | 'EMAIL' | 'GRADE' | 'ACEITE' | 'INFORMATIVO';
+  | 'DATA' | 'TELEFONE' | 'EMAIL' | 'GRADE' | 'ENDERECO' | 'ACEITE' | 'INFORMATIVO';
 /** Opção de escolha (com imagem opcional) e também linha/coluna da GRADE (sem imagem). */
 export interface OpcaoPergunta { id: string; rotulo: string; imagemId?: string }
 /**
@@ -681,9 +697,10 @@ export interface OpcaoPergunta { id: string; rotulo: string; imagemId?: string }
 export interface CondicaoPergunta { perguntaId: string; valores: string[] }
 /**
  * Campo do cadastro que uma pergunta da anamnese alimenta (`questionarios/DestinoNoPerfil`): PESO (pergunta PESO →
- * registro de peso) e OBJETIVO (pergunta TEXTO → objetivo do aluno). Nome e e-mail nunca.
+ * registro de peso), OBJETIVO e CPF (pergunta TEXTO → objetivo ou CPF do aluno), TELEFONE (pergunta TELEFONE → telefone do
+ * usuário do aluno) e ENDERECO (pergunta ENDERECO → os 7 campos do endereço). Nome e e-mail nunca.
  */
-export type DestinoNoPerfil = 'PESO' | 'OBJETIVO';
+export type DestinoNoPerfil = 'PESO' | 'OBJETIVO' | 'CPF' | 'TELEFONE' | 'ENDERECO';
 export interface PerguntaAtualizacao {
   id: string;
   tipo: TipoPergunta;
@@ -792,8 +809,8 @@ export interface AnamneseResumo {
   alteracoesParaRevisar: number;
 }
 export type SituacaoAlteracaoDoCadastro = 'PENDENTE' | 'APLICADA' | 'DESCARTADA';
-/** Valor de uma alteração do cadastro: `{texto}` no objetivo, `{pesoKg, data}` no peso. */
-export interface ValorDoCadastro { texto?: string; pesoKg?: number; data?: string }
+/** Valor de uma alteração do cadastro: `{texto}` no objetivo, CPF e telefone, `{pesoKg, data}` no peso, `{endereco}` no endereço. */
+export interface ValorDoCadastro { texto?: string; pesoKg?: number; data?: string; endereco?: EnderecoDoAluno }
 /**
  * O que a anamnese fez no cadastro (`AnamneseDtos.AlteracaoDoCadastro`): PENDENTE = o cadastro tinha outro valor
  * (`valorAtual`), APLICADA (`automatica` = campo vazio preenchido no envio) ou DESCARTADA. Só para a equipe.
