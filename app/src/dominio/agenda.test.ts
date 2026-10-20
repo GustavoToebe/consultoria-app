@@ -1,5 +1,5 @@
 import type { AtualizacaoDaLista } from '../api/tipos';
-import { agruparPorDia, compararItens, DIAS_DA_AGENDA, diaDaSemana, hojeDoServidor, resumoDeAtrasadas, rotuloDoDia } from './agenda';
+import { agruparPorDia, compararItens, DIAS_DA_AGENDA, diaDaSemana, contagemDoDia, hojeDoServidor, resumoDeAtrasadas, rotuloDoDia } from './agenda';
 
 // 2026-10-20 é uma terça-feira.
 const HOJE = '2026-10-20';
@@ -148,5 +148,13 @@ describe('resumoDeAtrasadas', () => {
     expect(resumoDeAtrasadas(undefined)).toBeNull();
     expect(resumoDeAtrasadas(null)).toBeNull();
     expect(resumoDeAtrasadas(Number.NaN)).toBeNull();
+  });
+});
+
+describe('contagemDoDia', () => {
+  it('diz quantas atualizações o dia tem, sem número inventado no dia vazio', () => {
+    expect(contagemDoDia(0)).toBe('Nenhuma atualização');
+    expect(contagemDoDia(1)).toBe('1 atualização');
+    expect(contagemDoDia(4)).toBe('4 atualizações');
   });
 });

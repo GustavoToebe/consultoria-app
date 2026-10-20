@@ -83,15 +83,13 @@ export default function InicioTreinador() {
       />
       <View style={estilos.topo}>
         <EscolhaResponsabilidade valor={escopo} aoMudar={setEscopo} />
-        {dados && pode('ALUNO_LER') ? (
-          <View style={estilos.ativos}>
+        {/* Atalhos do dia a dia num grupo só, à direita do filtro. Números e Financeiro não cabem na barra do celular e abrem
+            daqui (a origem deles, `dominio/telas`); a Agenda abre pelo contador "Atualizações em 7 dias". */}
+        <View style={estilos.ativos}>
+          {dados && pode('ALUNO_LER') ? <>
             <Texto numerico>{dados.alunosAtivos} {dados.alunosAtivos === 1 ? 'aluno ativo' : 'alunos ativos'}</Texto>
             <LinkTexto texto="Ver alunos" href="/treinador/alunos" />
-          </View>
-        ) : null}
-        {/* Agenda e Números não cabem na barra do celular: abrem daqui, que é a origem deles (`dominio/telas`). O Financeiro tem o atalho no Perfil (a origem dele) e este link. */}
-        <View style={estilos.ativos}>
-          {verAtualizacoes ? <LinkTexto texto="Agenda" href="/treinador/agenda" /> : null}
+          </> : null}
           <LinkTexto texto="Números" href="/treinador/numeros" />
           {podeAcessarTela('/treinador/financeiro', pode, pagamentosHabilitados) ? <LinkTexto texto="Financeiro" href="/treinador/financeiro" /> : null}
         </View>
@@ -116,9 +114,9 @@ export default function InicioTreinador() {
                 )) : null}
                 {verInteressados ? <Contador titulo="Interessados novos" numero={novos.dados ?? 0} tom={tomDoContador(novos.dados ?? 0)}
                   aoTocar={() => router.push('/treinador/interessados?situacao=NOVA' as Href)} /> : null}
-                {/* Próximas é agenda, não pendência: nunca acende. */}
-                {verAtualizacoes ? <Contador titulo="Atualizações em 7 dias" numero={dados.atualizacoesProximas ?? 0} tom="suave"
-                  aoTocar={() => router.push(caminhoListaAtualizacoes('PROXIMAS', escopo === 'meus'))} /> : null}
+                {/* Próximas é agenda, não pendência: nunca acende. Abre a Agenda, que mostra as mesmas dia a dia. */}
+                {verAtualizacoes ? <Contador titulo="Atualizações em 7 dias" numero={dados.atualizacoesProximas ?? 0} tom="suave" destino="Ver na agenda"
+                  aoTocar={() => router.push(escopo === 'meus' ? '/treinador/agenda?meus=true' as Href : '/treinador/agenda')} /> : null}
               </View>
             </View>
           ) : null}
@@ -175,14 +173,14 @@ function ProximoPasso({ texto, rotulo, aoTocar }: { texto: string; rotulo: strin
 }
 
 /** Número do painel que leva à lista: o cartão inteiro é o toque. Acende só com algo (cor de status, nunca a marca). */
-function Contador({ titulo, numero, aoTocar, tom }: { titulo: string; numero: number; aoTocar: () => void; tom: 'perigo' | 'atencao' | 'suave' }) {
+function Contador({ titulo, numero, aoTocar, tom, destino = 'Ver lista' }: { titulo: string; numero: number; aoTocar: () => void; tom: 'perigo' | 'atencao' | 'suave'; destino?: string }) {
   const { cores } = useTema();
   const acesa = tom !== 'suave';
   const cor = tom === 'perigo' ? cores.perigo : tom === 'atencao' ? cores.atencao : cores.borda;
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`${titulo}: ${numero}. Ver lista.`}
+      accessibilityLabel={`${titulo}: ${numero}. ${destino}.`}
       onPress={aoTocar}
       style={(estado) => [estilos.contador, { borderColor: acesa ? cor : cores.borda, borderLeftWidth: acesa ? 4 : 1, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
       <View style={estilos.contadorTextos}>
@@ -196,7 +194,7 @@ function Contador({ titulo, numero, aoTocar, tom }: { titulo: string; numero: nu
 
 const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: espaco(1.5) },
-  ativos: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5) },
+  ativos: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1.5) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(2) },
   grupo: { flexBasis: '100%', gap: espaco(1) },
   contadores: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },

@@ -70,7 +70,7 @@ export function compararItens(a: ItemDaAgenda, b: ItemDaAgenda): number {
 
 /**
  * Agrupa por `dataAtualizacao` na ordem do calendário e, dentro do dia, por nome. Os `DIAS_DA_AGENDA` dias a partir de
- * `hoje` sempre aparecem (dia sem atualização vem com `itens` vazio: a tela diz "Sem atualizações", não inventa total).
+ * `hoje` sempre aparecem (dia sem atualização vem com `itens` vazio: a faixa do dia diz "Nenhuma atualização").
  * Atualização fora dessa janela (relógios discordando perto da meia-noite) ganha o próprio dia em vez de sumir, e a que
  * não tem data vai para um grupo no fim.
  */
@@ -103,4 +103,10 @@ export function agruparPorDia<T extends ItemDaAgenda>(itens: readonly T[], hoje:
 export function resumoDeAtrasadas(total: number | null | undefined): string | null {
   if (typeof total !== 'number' || !Number.isFinite(total) || total <= 0) return null;
   return `${total} ${total === 1 ? 'atrasada' : 'atrasadas'}`;
+}
+
+/** Resumo na faixa do dia: "Nenhuma atualização", "1 atualização", "3 atualizações". */
+export function contagemDoDia(n: number): string {
+  if (n <= 0) return 'Nenhuma atualização';
+  return `${n} ${n === 1 ? 'atualização' : 'atualizações'}`;
 }

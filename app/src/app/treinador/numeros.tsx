@@ -1,7 +1,8 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { numerosDaConsultoria } from '../../api/rotas';
-import { contagemParaTela, REGRA_ALUNOS_ATIVOS, REGRA_ATUALIZACOES, resumoDasAtualizacoes, rotuloDoMesCompleto, textoDoResumo, totalDoMes } from '../../dominio/numeros';
+import { View } from 'react-native';
+import { contagemParaTela, MARCA_PARCIAL, REGRA_ALUNOS_ATIVOS, REGRA_ATUALIZACOES, resumoDasAtualizacoes, rotuloDoMes, textoDoResumo, totalDoMes } from '../../dominio/numeros';
 import { LARGURA_EDITOR } from '../../tema/tokens';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
@@ -25,6 +26,8 @@ export default function NumerosDoTreinador() {
 
   const meses = numeros.dados?.meses;
   const resumo = meses ? resumoDasAtualizacoes(meses) : null;
+  // Uma tabela só, um mês por linha e o mais recente em cima (antes eram duas tabelas com a coluna do mês repetida).
+  const linhas = meses ? [...meses].reverse() : [];
 
   return <Tela largura={LARGURA_EDITOR} bordas={['top']}>
     <Cabecalho titulo="Números" mostrarMarca="celular" />
@@ -33,20 +36,22 @@ export default function NumerosDoTreinador() {
     {numeros.carregando && !meses ? <Esqueleto /> : null}
     {meses && meses.length === 0 ? <Vazio titulo="Sem números ainda" texto="Quando houver alunos e atualizações, as contagens aparecem aqui." /> : null}
     {meses && meses.length > 0 ? <>
-      <Cartao titulo="Alunos ativos no fim do mês" descricao={REGRA_ALUNOS_ATIVOS}>
-        <Tabela rotulo="Alunos ativos no fim de cada mês" larguraMinima={760} linhas={meses} chave={m => m.mes} colunas={[
-          { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: m => <Texto>{rotuloDoMesCompleto(m)}</Texto> },
+      <Cartao titulo="Mês a mês" descricao="Do mês atual para o mais antigo.">
+        <Tabela rotulo="Alunos ativos e atualizações de cada mês" larguraMinima={640} linhas={linhas} chave={m => m.mes} colunas={[
+          { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: m => <View>
+            <Texto numerico>{rotuloDoMes(m.mes)}</Texto>
+            {m.parcial ? <Texto variante="pequeno">{MARCA_PARCIAL}</Texto> : null}
+          </View> },
           { chave: 'ativos', titulo: 'Alunos ativos', alinhar: 'direita', render: m => <Texto numerico>{contagemParaTela(m.alunosAtivos)}</Texto> },
-        ]} />
-      </Cartao>
-      <Cartao titulo="Atualizações do mês" descricao={REGRA_ATUALIZACOES}>
-        <Tabela rotulo="Atualizações de cada mês, no prazo e atrasadas" larguraMinima={760} linhas={meses} chave={m => m.mes} colunas={[
-          { chave: 'mes', titulo: 'Mês', principal: true, flex: 1.4, render: m => <Texto>{rotuloDoMesCompleto(m)}</Texto> },
           { chave: 'prazo', titulo: 'No prazo', alinhar: 'direita', render: m => <Texto numerico>{contagemParaTela(m.atualizacoesNoPrazo)}</Texto> },
           { chave: 'atrasadas', titulo: 'Atrasadas', alinhar: 'direita', render: m => <Texto numerico>{contagemParaTela(m.atualizacoesAtrasadas)}</Texto> },
-          { chave: 'total', titulo: 'Total', alinhar: 'direita', render: m => <Texto numerico>{contagemParaTela(totalDoMes(m))}</Texto> },
+          { chave: 'total', titulo: 'Atualizações', alinhar: 'direita', render: m => <Texto numerico>{contagemParaTela(totalDoMes(m))}</Texto> },
         ]} />
         {resumo ? <Texto variante="suave">{textoDoResumo(resumo)}</Texto> : null}
+      </Cartao>
+      <Cartao titulo="Como contamos">
+        <Texto variante="suave">{REGRA_ALUNOS_ATIVOS}</Texto>
+        <Texto variante="suave">{REGRA_ATUALIZACOES}</Texto>
       </Cartao>
     </> : null}
   </Tela>;
