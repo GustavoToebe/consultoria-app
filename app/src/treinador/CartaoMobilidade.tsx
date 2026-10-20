@@ -34,6 +34,8 @@ export function CartaoMobilidade({ alunoId, acompanhamento }: { alunoId: string;
       return contagemDaMobilidadeNoTreinador(marcas, semana, pasta, true);
     },
   );
+  // Sem o resumo da ficha não há pasta para consultar; o erro já aparece no cartão Frequência e no resumo do topo.
+  if (acompanhamento.erro) return null;
   return (
     <Cartao titulo="Mobilidade" descricao="Dias em que o aluno marcou algo como feito. Só contagem.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
