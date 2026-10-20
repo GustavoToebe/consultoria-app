@@ -1,6 +1,6 @@
-import { ChevronDown, ChevronUp, Minus, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Minus, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ModoIntensidade, Serie, Tecnica } from '../../api/tipos';
 import { agrupar, descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
@@ -20,9 +20,11 @@ import {
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
+import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
+import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
@@ -36,8 +38,9 @@ interface Props {
 }
 
 /**
- * Séries agrupadas como no PDF ("3x3 - FS 50/70/85%"), cada grupo com tipo, quantidade (− +), faixa de repetições,
- * intensidade e descanso, e ↑↓ para mudar a ordem dos grupos. Em "% da <série de trabalho>" (ex.: "% da WS") cada série tem o próprio percentual.
+ * Séries agrupadas como no PDF ("3x3 - FS 50/70/85%"). Cada grupo fechado é uma linha de resumo (↑↓ mudam a ordem,
+ * a seta abre, a lixeira remove); aberto, edita nome da série, quantidade (− +), faixa de repetições, descanso e
+ * intensidade, com alvo e técnica em "Mais opções" (revisão de telas de 19/10: cada grupo aberto ocupava ~300 px). Em "% da <série de trabalho>" (ex.: "% da WS") cada série tem o próprio percentual.
  * Mudar a quantidade de FS reaplica a regra da consultoria. "Adicionar série" pergunta o tipo (o FS novo pode subir
  * para antes da WS pelo ↑). O limite de séries vale para o exercício todo, como no servidor.
  */
@@ -55,8 +58,14 @@ export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) 
   const [tecnicaNova, setTecnicaNova] = useState<'SIMPLES' | Tecnica['tipo']>('SIMPLES');
   const cheio = series.length >= LIMITE_SERIES;
   const tipos = [...new Set([...(config?.tiposSerie ?? []), ...series.map((x) => x.tipo)].filter(Boolean))];
+  // Grupos abertos pela primeira série (o uid não muda ao somar séries ao grupo); o grupo novo já abre.
+  const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set());
+  const alternar = (chave: string) => setAbertos((a) => { const novo = new Set(a); if (novo.has(chave)) novo.delete(chave); else novo.add(chave); return novo; });
   const adicionar = (tipo?: string) => {
-    aoMudar(adicionarSerie(series, config, tipo, tecnicaNova === 'SIMPLES' ? null : tecnicaNova));
+    const novas = adicionarSerie(series, config, tipo, tecnicaNova === 'SIMPLES' ? null : tecnicaNova);
+    const ultimo = agrupar(novas).at(-1);
+    aoMudar(novas);
+    if (ultimo) setAbertos((a) => new Set(a).add(ultimo.series[0].uid));
     setEscolhendoTipo(false);
     setTecnicaNova('SIMPLES');
   };
@@ -70,6 +79,8 @@ export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) 
           podeMais={!cheio}
           primeiro={indice === 0}
           ultimo={indice === grupos.length - 1}
+          aberto={abertos.has(g.series[0].uid)}
+          aoAlternar={() => alternar(g.series[0].uid)}
           aoMover={(delta) => aoMudar(moverGrupo(series, indice, delta))}
           aoAlterar={(m) => aoMudar(alterarGrupo(series, g, m, config))}
           aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, config))}
@@ -79,8 +90,8 @@ export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) 
       ))}
       {escolhendoTipo ? (
         <View style={estilos.escolhaTipo}>
-          <Escolha rotulo="Técnica da série nova" opcoes={TECNICAS_NOVAS} valor={tecnicaNova} aoMudar={setTecnicaNova} />
-          <Texto variante="rotulo">Tipo da série nova</Texto>
+          <Escolha rotulo="Técnica (estrutura da série)" opcoes={TECNICAS_NOVAS} valor={tecnicaNova} aoMudar={setTecnicaNova} />
+          <Texto variante="rotulo">Nome da série (da metodologia)</Texto>
           <LinhaDeAcoes>
             {tipos.map((t) => (
               <Botao key={t} rotulo={t} tipo="secundario" aoTocar={() => adicionar(t)} />
@@ -115,6 +126,8 @@ function EditorGrupo({
   podeMais,
   primeiro,
   ultimo,
+  aberto,
+  aoAlternar,
   aoMover,
   aoAlterar,
   aoQuantidade,
@@ -126,6 +139,8 @@ function EditorGrupo({
   podeMais: boolean;
   primeiro: boolean;
   ultimo: boolean;
+  aberto: boolean;
+  aoAlternar: () => void;
   aoMover: (delta: -1 | 1) => void;
   aoAlterar: (m: AlteracaoDeGrupo) => void;
   aoQuantidade: (n: number) => void;
@@ -140,16 +155,31 @@ function EditorGrupo({
   const porTempo = primeira.repsMin === null && primeira.repsMax === null;
   const descansoInvalido =
     primeira.descansoSegundos != null && (primeira.descansoSegundos < 0 || primeira.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS);
+  // "Mais opções" (alvo extra e técnica) abre sozinho quando um dos dois já está preenchido.
+  const [maisAberto, setMaisAberto] = useState(!!(primeira.tecnica || (!porTempo && primeira.alvoTexto)));
+  const resumoDoMais = [primeira.tecnica ? `Técnica: ${TECNICAS.find((t) => t.valor === primeira.tecnica?.tipo)?.rotulo ?? ''}` : null, !porTempo && primeira.alvoTexto ? `Alvo: ${primeira.alvoTexto}` : null]
+    .filter(Boolean).join(' · ') || 'Alvo extra e técnica';
+
+  const Seta = aberto ? ChevronUp : ChevronDown;
+  const opcoesDeNome = tipos.map((t) => ({ valor: t, rotulo: t }));
+  const resumo = descreverGrupo(grupo);
 
   return (
     <View style={[estilos.grupo, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
       <View style={estilos.topo}>
-        <Texto style={estilos.resumo}>{descreverGrupo(grupo)}</Texto>
-        <IconeBotao Icone={ChevronUp} rotulo="Subir este grupo de séries" desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
-        <IconeBotao Icone={ChevronDown} rotulo="Descer este grupo de séries" desabilitado={ultimo} aoTocar={() => aoMover(1)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={`${resumo}, ${aberto ? 'aberto' : 'fechado'}`} accessibilityState={{ expanded: aberto }}
+          onPress={aoAlternar} style={({ pressed }) => [estilos.resumoBotao, { opacity: pressed ? 0.7 : 1 }]}>
+          <Texto style={estilos.resumo} numerico>{resumo}</Texto>
+        </Pressable>
+        <IconeBotao Icone={ArrowUp} rotulo="Subir este grupo de séries" desabilitado={primeiro} aoTocar={() => aoMover(-1)} />
+        <IconeBotao Icone={ArrowDown} rotulo="Descer este grupo de séries" desabilitado={ultimo} aoTocar={() => aoMover(1)} />
+        <IconeBotao Icone={Seta} rotulo={aberto ? 'Fechar este grupo de séries' : 'Abrir este grupo de séries'} aoTocar={aoAlternar} />
         <IconeBotao Icone={Trash2} rotulo="Remover este grupo de séries" cor={cores.perigo} aoTocar={aoRemover} />
       </View>
-      <Escolha rotulo="Tipo" opcoes={tipos.map((t) => ({ valor: t, rotulo: t }))} valor={primeira.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />
+      {aberto ? <>
+      {opcoesDeNome.length > OPCOES_PARA_BUSCAR
+        ? <EscolhaEmFolha rotulo="Nome da série" opcoes={opcoesDeNome} valor={primeira.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />
+        : <Escolha rotulo="Nome da série (da metodologia)" opcoes={opcoesDeNome} valor={primeira.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />}
       <View style={estilos.linha}>
         <View style={estilos.quantidade}>
           <Texto variante="pequeno" style={estilos.rotulo}>Séries</Texto>
@@ -176,13 +206,9 @@ function EditorGrupo({
           />
         </View>
       </View>
-      <Campo
-        rotulo={porTempo ? 'Alvo (tempo, distância…)' : 'Alvo extra (opcional)'}
-        valor={primeira.alvoTexto ?? ''}
-        aoMudar={(t) => aoAlterar({ alvoTexto: t })}
-        placeholder={porTempo ? 'Ex.: 50 min' : 'Ex.: até a falha'}
-        maxLength={120}
-      />
+      {porTempo ? (
+        <Campo rotulo="Alvo (tempo, distância…)" valor={primeira.alvoTexto ?? ''} aoMudar={(t) => aoAlterar({ alvoTexto: t })} placeholder="Ex.: 50 min" maxLength={120} />
+      ) : null}
       <Escolha rotulo="Intensidade" opcoes={modosDeIntensidade(config?.tipoTrabalho)} valor={modo} aoMudar={(m) => aoAlterar({ modo: m })} />
       {modo === 'PERCENTUAL_WS' ? (
         <View style={estilos.linha}>
@@ -216,7 +242,14 @@ function EditorGrupo({
           maxLength={120}
         />
       ) : null}
-      <CamposDaTecnica tecnica={primeira.tecnica ?? null} aoMudar={(tecnica) => aoAlterar({ tecnica })} />
+      <CabecalhoDeGrupo titulo="Mais opções" resumo={maisAberto ? undefined : resumoDoMais} aberto={maisAberto} aoAlternar={() => setMaisAberto((v) => !v)} />
+      {maisAberto ? <>
+        {porTempo ? null : (
+          <Campo rotulo="Alvo extra (opcional)" valor={primeira.alvoTexto ?? ''} aoMudar={(t) => aoAlterar({ alvoTexto: t })} placeholder="Ex.: até a falha" maxLength={120} />
+        )}
+        <CamposDaTecnica tecnica={primeira.tecnica ?? null} nomeDaSerie={primeira.tipo} aoMudar={(tecnica) => aoAlterar({ tecnica })} />
+      </> : null}
+      </> : null}
     </View>
   );
 }
@@ -233,12 +266,16 @@ const TECNICAS: { valor: Tecnica['tipo'] | 'NENHUMA'; rotulo: string }[] = [
  * entre blocos; rest pause = pausa, retomadas e repetições por retomada (vazio = até a falha); drop-set = quedas,
  * redução da carga em % (vazio = sem fixar) e repetições por queda (vazio = até a falha). Nasce sem números.
  */
-function CamposDaTecnica({ tecnica, aoMudar }: { tecnica: Tecnica | null; aoMudar: (t: Tecnica | null) => void }) {
+function CamposDaTecnica({ tecnica, nomeDaSerie, aoMudar }: { tecnica: Tecnica | null; nomeDaSerie: string; aoMudar: (t: Tecnica | null) => void }) {
   const mudar = (parte: Partial<Tecnica>) => tecnica && aoMudar({ ...tecnica, ...parte });
+  // A metodologia pode ter um nome de série igual ao de uma técnica ("Cluster", "Rest pause"): o nome não liga a técnica.
+  const homonima = !tecnica ? TECNICAS.find((t) => t.valor !== 'NENHUMA' && semAcentoNemCaixa(t.rotulo) === semAcentoNemCaixa(nomeDaSerie)) : undefined;
   return (
     <>
+      <Texto variante="pequeno">A técnica divide a série em blocos, pausas ou quedas. O nome da série vem da metodologia e não muda a técnica.</Texto>
+      {homonima ? <Texto variante="pequeno">O nome “{nomeDaSerie}” não liga a técnica: escolha {homonima.rotulo} abaixo para o aluno ver os blocos.</Texto> : null}
       <Escolha
-        rotulo="Técnica"
+        rotulo="Técnica (estrutura da série)"
         opcoes={TECNICAS}
         valor={tecnica?.tipo ?? 'NENHUMA'}
         aoMudar={(v) => aoMudar(v === 'NENHUMA' ? null : tecnica?.tipo === v ? tecnica : tecnicaVazia(v))}
@@ -305,11 +342,14 @@ function CamposDaTecnica({ tecnica, aoMudar }: { tecnica: Tecnica | null; aoMuda
   );
 }
 
+const semAcentoNemCaixa = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[-\s]+/g, ' ').trim().toLocaleLowerCase();
+
 const estilos = StyleSheet.create({
   lista: { gap: espaco(1) },
-  grupo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1.25) },
-  topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
-  resumo: { fontFamily: fontes.semi, flex: 1 },
+  grupo: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), gap: espaco(1.25) },
+  topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(0.5) },
+  resumoBotao: { flex: 1, minHeight: 44, justifyContent: 'center' },
+  resumo: { fontFamily: fontes.semi },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-end' },
   quantidade: { gap: espaco(0.5) },
   rotulo: { fontFamily: fontes.semi },

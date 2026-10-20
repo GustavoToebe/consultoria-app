@@ -70,7 +70,8 @@ export interface ResultadoEnvio {
   motivo: string | null;
 }
 
-export interface HistoricoSemanaSalvo { versaoId: string; inicio: string; dias: DiaDeTreino[] }
+/** Semana atual de execuções do servidor (segunda a domingo), para abrir sem internet. */
+export interface HistoricoSemanaSalvo { inicio: string; dias: DiaDeTreino[] }
 
 export interface RepositorioLocal {
   lerAtualizacao(): Promise<Atualizacao | null>;

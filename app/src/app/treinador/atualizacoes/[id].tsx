@@ -2,14 +2,17 @@ import { Permitido } from '../../../ui/Permitido';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { FeedbackAtualizacao } from '../../../aluno/atualizacao/FeedbackAtualizacao';
 import { QuestionarioAtualizacao } from '../../../aluno/atualizacao/QuestionarioAtualizacao';
 import { ErroApi } from '../../../api/cliente';
 import { atualizacaoDoAluno, baixarFotoDoTreinador, detalheAtualizacao, listarAtualizacoes, responderAtualizacao } from '../../../api/rotas';
 import type { Atualizacao } from '../../../api/tipos';
 import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, filaDosParametros, type FilaDeAtualizacoes, proximaDaFila, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
+import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
 import { dataParaTela } from '../../../dominio/formatos';
-import { LARGURA_EDITOR } from '../../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_LISTA } from '../../../tema/tokens';
+import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
 import { ResumoDaAtualizacao } from '../../../treinador/ResumoDaAtualizacao';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
@@ -25,6 +28,11 @@ import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
+/**
+ * Detalhe da atualização para o treinador: o nome do aluno no título, o resumo (com a situação e o questionário no
+ * cabeçalho dele) e o feedback ao alcance: no PC numa coluna à direita, no celular logo depois do resumo, antes das
+ * respostas pergunta a pergunta. "Abrir pasta" e "Próxima ›" ficam juntos, logo abaixo do feedback.
+ */
 export default function AtualizacaoTreinador() {
   const {pode}=useSessao();
   const {id,alunoId,situacao,meus}=useLocalSearchParams<{id:string;alunoId?:string;situacao?:string;meus?:string}>();
@@ -32,32 +40,51 @@ export default function AtualizacaoTreinador() {
   const detalhe=useCarregar(id==='previa'?alunoId??null:id??null,()=>
     id==='previa' ? atualizacaoDoAluno(alunoId!) : detalheAtualizacao(id));
   const a=detalhe.dados;
-  return <Tela largura={LARGURA_EDITOR} bordas={['top']}>
-    <Cabecalho titulo={`Atualização${a?.dataAtualizacao?` · ${dataParaTela(a.dataAtualizacao)}`:''}`}
+  const {width}=useWindowDimensions();
+  const duasColunas=width>=1100;
+  const data=a?.dataAtualizacao?dataSemAnoCorrente(a.dataAtualizacao):'';
+  const titulo=a?`${a.nomeAluno??'Aluno'} · Atualização${data?` ${data}`:''}`:'Atualização';
+  const selo=a?.dataAtualizacao?statusAtualizacaoTreinador(a):null;
+  const questionario=a?.questionarioNome?`Questionário: ${a.questionarioNome} · versão ${a.questionarioVersaoNumero}`:undefined;
+  const feedback=a?.modelo&&a.enviadaEm?(pode('ATUALIZACAO_RESPONDER')
+    ?<EditorFeedback key={`${a.id}:${a.versao}`} atualizacao={a} aoSalvar={detalhe.definir} recarregar={detalhe.recarregar} />
+    :<FeedbackAtualizacao feedback={a.feedback}/>):null;
+  const navegacao=a?<LinhaDeAcoes alinhar="entre">
+    <Botao rotulo="Abrir pasta" tipo="secundario" aoTocar={()=>router.push(`/treinador/alunos/${a.alunoId}?pastaId=${a.pastaId}` as never)} />
+    {fila?<ProximaDaFila fila={fila} pastaAtual={a.pastaId} />:null}
+  </LinhaDeAcoes>:null;
+  const resumo=a?.modelo?<>
+    {a.enviadaEm?<ResumoDaAtualizacao atualizacao={a} modelo={a.modelo} selo={selo?{texto:selo.curto,tipo:selo.tipo}:null} descricao={questionario} />
+      :<Cartao titulo="Aguardando envio" descricao={questionario} acoes={selo?<Selo texto={selo.curto} tipo={selo.tipo} />:undefined}><Texto>O aluno ainda não enviou suas respostas.</Texto></Cartao>}
+    {a.atrasoAte?<Cartao titulo="Atraso avisado">
+      <Texto>Nova data: {dataParaTela(a.atrasoAte)}</Texto>
+      <Texto>{a.atrasoMotivo??'Sem motivo informado.'}</Texto>
+    </Cartao>:null}
+  </>:null;
+  const respostas=a?.modelo?<QuestionarioAtualizacao modelo={a.modelo} dataAtualizacao={a.dataAtualizacao} resumo={a.resumo} respostas={a.respostas??{}}
+    carregarFotoDaEquipe={a.id?(foto)=>baixarFotoDoTreinador(a.id??'',foto):undefined} />:null;
+  return <Tela largura={duasColunas?LARGURA_LISTA:LARGURA_EDITOR} bordas={['top']}>
+    <Cabecalho titulo={titulo}
       voltar="/treinador/atualizacoes" trilha={[
         {rotulo:'Alunos',href:'/treinador/alunos'},
         {rotulo:a?.nomeAluno??'Aluno',href:a?`/treinador/alunos/${a.alunoId}`:undefined},
-        {rotulo:`Atualização ${dataParaTela(a?.dataAtualizacao??null)}`},
+        {rotulo:`Atualização ${data}`},
       ]} />
-    <Texto variante="suave">Respostas do aluno nesta pasta e o seu feedback.</Texto>
-    {a?.questionarioNome?<Texto variante="pequeno">Questionário: {a.questionarioNome} · versão {a.questionarioVersaoNumero}</Texto>:null}
     {detalhe.erro?<MensagemErro texto={textoDoErro(detalhe.erro)} tentarDeNovo={detalhe.recarregar} />:null}
     {detalhe.carregando?<Esqueleto />:null}
-    {a?.modelo?<>
-      <Selo {...statusAtualizacaoTreinador(a)} />
-      {a.enviadaEm?<ResumoDaAtualizacao atualizacao={a} modelo={a.modelo} />:<Cartao titulo="Aguardando envio" descricao="As respostas aparecem aqui quando o aluno enviar."><Texto>O aluno ainda não enviou suas respostas.</Texto></Cartao>}
-      {a.atrasoAte?<Cartao titulo="Atraso avisado">
-        <Texto>Nova data: {dataParaTela(a.atrasoAte)}</Texto>
-        <Texto>{a.atrasoMotivo??'Sem motivo informado.'}</Texto>
-      </Cartao>:null}
-      <QuestionarioAtualizacao modelo={a.modelo} dataAtualizacao={a.dataAtualizacao} resumo={a.resumo} respostas={a.respostas??{}}
-        carregarFotoDaEquipe={a.id?(foto)=>baixarFotoDoTreinador(a.id??'',foto):undefined} />
-      {a.enviadaEm?pode('ATUALIZACAO_RESPONDER')?<EditorFeedback key={`${a.id}:${a.versao}`} atualizacao={a} aoSalvar={detalhe.definir} recarregar={detalhe.recarregar} />:<FeedbackAtualizacao feedback={a.feedback}/>:null}
-      <LinkTexto texto="Abrir pasta do aluno" href={`/treinador/alunos/${a.alunoId}?pastaId=${a.pastaId}`} />
-      {fila?<ProximaDaFila fila={fila} pastaAtual={a.pastaId} />:null}
-    </>:a && !detalhe.carregando?<Vazio titulo="Sem atualização" texto="Não há pasta vigente com data de atualização." />:null}
+    {a?.modelo?(duasColunas?<View style={estilos.colunas}>
+      <View style={estilos.principal}>{resumo}{respostas}</View>
+      <View style={estilos.lateral}>{feedback}{navegacao}</View>
+    </View>:<>{resumo}{feedback}{navegacao}{respostas}</>)
+    :a && !detalhe.carregando?<Vazio titulo="Sem atualização" texto="Não há pasta vigente com data de atualização." />:null}
   </Tela>;
 }
+
+const estilos=StyleSheet.create({
+  colunas:{flexDirection:'row',alignItems:'flex-start',gap:espaco(3)},
+  principal:{flex:3,minWidth:0,gap:espaco(3)},
+  lateral:{flex:2,minWidth:0,gap:espaco(2)},
+});
 
 function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
   atualizacao:Atualizacao;aoSalvar:(a:Atualizacao)=>void;recarregar:()=>void;

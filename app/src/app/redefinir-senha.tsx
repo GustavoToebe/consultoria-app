@@ -6,14 +6,13 @@ import { redefinirSenha } from '../api/rotas';
 import { normalizarCodigo, pedeCodigoMfa } from '../dominio/mfa';
 import { problemaDaNovaSenha, tokenDoFragmento } from '../dominio/redefinirSenha';
 import { espaco } from '../tema/tokens';
-import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
-import { Tela } from '../ui/Tela';
+import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { Texto } from '../ui/Texto';
 
 const WEB = Platform.OS === 'web' && typeof window !== 'undefined';
@@ -68,41 +67,31 @@ export default function RedefinirSenha() {
 
   if (!token || linkPerdido) {
     return (
-      <Tela largura={440}>
-        <View style={estilos.topo}>
-          <Texto variante="titulo" nivel={1}>Link inválido ou vencido</Texto>
-        </View>
+      <TelaPublica titulo="Link inválido ou vencido">
         <Cartao>
           <Texto>{erro ?? 'Este link não funciona mais. Peça um novo para criar a senha.'}</Texto>
-          <Botao rotulo="Pedir um novo link" aoTocar={() => router.replace('/esqueci-senha')} cheio />
+          <BotaoPublico rotulo="Pedir um novo link" aoTocar={() => router.replace('/esqueci-senha')} />
         </Cartao>
         <View style={estilos.links}>
           <LinkTexto href="/entrar" texto="Voltar para entrar" />
         </View>
-      </Tela>
+      </TelaPublica>
     );
   }
 
   if (concluido) {
     return (
-      <Tela largura={440}>
-        <View style={estilos.topo}>
-          <Texto variante="titulo" nivel={1}>Senha redefinida</Texto>
-        </View>
+      <TelaPublica titulo="Senha redefinida">
         <Cartao>
           <Texto>Pronto. Por segurança, você saiu de todos os aparelhos. Entre com a senha nova.</Texto>
-          <Botao rotulo="Entrar" aoTocar={() => router.replace('/entrar')} cheio />
+          <BotaoPublico rotulo="Entrar" aoTocar={() => router.replace('/entrar')} />
         </Cartao>
-      </Tela>
+      </TelaPublica>
     );
   }
 
   return (
-    <Tela largura={440}>
-      <View style={estilos.topo}>
-        <Texto variante="titulo" nivel={1}>Criar senha nova</Texto>
-        <Texto variante="suave">Escolha uma senha que você não use em outro lugar.</Texto>
-      </View>
+    <TelaPublica titulo="Criar senha nova" subtitulo="Escolha uma senha que você não use em outro lugar.">
       <Cartao>
         <CampoSenha rotulo="Senha nova" valor={senha} aoMudar={setSenha} autoComplete="new-password" textContentType="newPassword"
           ajuda="Mínimo de 8 caracteres." />
@@ -114,16 +103,15 @@ export default function RedefinirSenha() {
             onSubmitEditing={enviar} returnKeyType="go" />
         ) : null}
         {erro ? <MensagemErro texto={erro} /> : null}
-        <Botao rotulo="Salvar senha nova" aoTocar={enviar} carregando={enviando} cheio />
+        <BotaoPublico rotulo="Salvar senha nova" aoTocar={enviar} carregando={enviando} />
       </Cartao>
       <View style={estilos.links}>
         <LinkTexto href="/entrar" texto="Voltar para entrar" />
       </View>
-    </Tela>
+    </TelaPublica>
   );
 }
 
 const estilos = StyleSheet.create({
-  topo: { gap: espaco(0.5), marginTop: espaco(6) },
   links: { alignItems: 'center', marginTop: espaco(1) },
 });

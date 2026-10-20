@@ -3,13 +3,12 @@ import { Check, Download } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { catalogoAlimentos, catalogoExercicios, gruposDoCatalogo, importarDoCatalogo, type TipoBiblioteca } from '../../api/rotas';
+import { catalogoAlimentos, catalogoExercicios, gruposDoCatalogo, importarDoCatalogo, listarAlimentos, listarExercicios, type TipoBiblioteca } from '../../api/rotas';
 import { CREDITOS_CATALOGO, passosDasInstrucoes, resumoNutrientes, textoMostrando } from '../../dominio/catalogo';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -17,7 +16,10 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
-import { MODALIDADES } from '../treino/FolhaBiblioteca';
+import { MODALIDADES } from '../../dominio/modalidades';
+import { normalizar } from '../treino/FolhaBiblioteca';
+import { Selo } from '../../ui/Selo';
+import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
 
 interface ItemCatalogo {
   id: string;
@@ -54,7 +56,8 @@ export function AbaCatalogo() {
           itens: r.itens.map((e) => ({
             id: e.id,
             nome: e.nome,
-            detalhe: [MODALIDADES[e.modalidade] ?? e.modalidade, e.grupoMuscular, e.equipamento].filter(Boolean).join(' · '),
+            // Sem repetir ("Peso corporal · Abdômen · Peso corporal": modalidade e equipamento iguais).
+            detalhe: [...new Set([MODALIDADES[e.modalidade] ?? e.modalidade, e.grupoMuscular, e.equipamento].filter(Boolean))].join(' · '),
             passos: passosDasInstrucoes(e.instrucoes),
           })),
         };
@@ -72,6 +75,9 @@ export function AbaCatalogo() {
     },
   );
 
+  // O que já está na biblioteca (mesmo nome, como a importação compara) aparece marcado e não se escolhe de novo.
+  const daBiblioteca = useCarregar(tipo === 'exercicios' ? 'biblioteca-exercicios' : 'biblioteca-alimentos', (): Promise<{ nome: string }[]> => tipo === 'exercicios' ? listarExercicios() : listarAlimentos());
+  const nomesNaBiblioteca = new Set((daBiblioteca.dados ?? []).map((x) => normalizar(x.nome.trim())));
   const alternar = (id: string) =>
     setMarcados((m) => {
       const novo = new Set(m);
@@ -86,6 +92,7 @@ export function AbaCatalogo() {
       (r) => {
         setImportando(false);
         setMarcados(new Set());
+        daBiblioteca.recarregar();
         avisar(`${r.importados} importado(s)${r.ignorados ? `, ${r.ignorados} já estava(m) na biblioteca` : ''}.`, 'sucesso');
       },
       (e: unknown) => {
@@ -120,31 +127,26 @@ export function AbaCatalogo() {
           setMarcados(new Set());
         }}
       />
-      {grupos.dados?.length ? (
-        <Escolha
-          descricao="Grupo"
-          opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.dados.map((g) => ({ valor: g, rotulo: g }))]}
-          valor={grupo}
-          aoMudar={setGrupo}
-        />
-      ) : null}
-      <View style={estilos.busca}>
-        <Campo rotulo="Buscar no catálogo" valor={busca} aoMudar={setBusca} />
-      </View>
+      <BarraDaBiblioteca rotulo="Buscar no catálogo" placeholder={tipo === 'exercicios' ? 'Nome do exercício' : 'Nome do alimento'} valor={busca} aoMudar={setBusca}>
+        {grupos.dados?.length ? <FiltroDaBiblioteca rotulo="Grupo" valor={grupo} aoMudar={setGrupo}
+          opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.dados.map((g) => ({ valor: g, rotulo: g }))]} /> : null}
+      </BarraDaBiblioteca>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo." /> : null}
       {dados?.itens.map((item) => {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;
+        const jaTem = nomesNaBiblioteca.has(normalizar(item.nome.trim()));
         return (
           <View key={item.id} style={[estilos.item, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: cores.superficie2 }]}>
             <Pressable
               accessibilityRole="checkbox"
-              accessibilityState={{ checked: sel }}
-              accessibilityLabel={item.nome}
+              accessibilityState={{ checked: sel, disabled: jaTem }}
+              accessibilityLabel={jaTem ? `${item.nome}, já na biblioteca` : item.nome}
+              disabled={jaTem}
               onPress={() => alternar(item.id)}
-              style={estilos.linha}>
+              style={[estilos.linha, jaTem && { opacity: 0.6 }]}>
               <View style={[estilos.caixa, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: sel ? cores.texto : 'transparent' }]}>
                 {sel ? <Check size={16} color={cores.fundo} strokeWidth={3} /> : null}
               </View>
@@ -152,6 +154,7 @@ export function AbaCatalogo() {
                 <Texto variante="bloco">{item.nome}</Texto>
                 <Texto variante="suave">{item.detalhe}</Texto>
               </View>
+              {jaTem ? <Selo texto="Já na biblioteca" tipo="neutro" /> : null}
             </Pressable>
             {item.passos.length ? (
               <Pressable
@@ -184,7 +187,6 @@ export function AbaCatalogo() {
 }
 
 const estilos = StyleSheet.create({
-  busca: { flex: 1, minWidth: 220, maxWidth: 480 },
   item: { borderWidth: 1, borderRadius: RAIO },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), padding: espaco(1.25) },
   verInstrucoes: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.25) },

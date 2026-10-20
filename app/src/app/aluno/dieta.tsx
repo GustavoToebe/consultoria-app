@@ -1,6 +1,6 @@
 import { TotaisAnimados } from '../../ui/TotaisAnimados';
 import { router } from 'expo-router';
-import { ExternalLink, FileDown, ShoppingCart } from 'lucide-react-native';
+import { Droplet, ExternalLink, FileDown, ShoppingCart } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -108,21 +108,19 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
       <Cartao>
         <Texto numerico variante="subtitulo">{versao.titulo}</Texto>
         {c.objetivo ? <Texto numerico>Objetivo: {c.objetivo}</Texto> : null}
-        {textoDaAgua(c.aguaLitros) ? <Texto numerico>Água: {textoDaAgua(c.aguaLitros)}</Texto> : null}
+        {textoDaAgua(c.aguaLitros) ? (
+          <View style={estilos.agua}>
+            <Droplet size={20} color={cores.texto} />
+            <Texto numerico style={estilos.forte}>Água: {textoDaAgua(c.aguaLitros)}</Texto>
+          </View>
+        ) : null}
         <Texto numerico variante="suave">
           {[c.dataInicio ? `Início: ${dataParaTela(c.dataInicio)}` : null, c.profissional].filter(Boolean).join(' · ') || ' '}
         </Texto>
       </Cartao>
-      <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} aoTocar={() => router.push('/aluno/lista-de-compras')} />
-      <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
-        <TotaisAnimados totais={totalDoDia(c)} />
-        {Object.values(totalDoDia(c)).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
-      </Cartao>
-      {c.refeicoes.map((r) => (
-        <CartaoRefeicaoAluno key={r.uid} refeicao={r} />
-      ))}
+      {/* Orientações e observações logo abaixo do plano (ficavam no fim, depois de todas as refeições), recolhíveis. */}
       {c.orientacoes.length ? (
-        <Cartao titulo="Orientações">
+        <Cartao titulo="Orientações" recolhivel recolhido>
           {c.orientacoes.map((o, i) => (
             <View key={i} style={estilos.orientacao}>
               {o.titulo ? <Texto numerico style={estilos.forte}>{o.titulo}</Texto> : null}
@@ -131,6 +129,20 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
+      {c.observacoes ? (
+        <Cartao titulo="Observações" recolhivel recolhido>
+          <Texto numerico>{c.observacoes}</Texto>
+        </Cartao>
+      ) : null}
+      <Botao rotulo="Lista de compras" tipo="secundario" cheio Icone={ShoppingCart} aoTocar={() => router.push('/aluno/lista-de-compras')} />
+      <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+        <TotaisAnimados totais={totalDoDia(c)} />
+        <Texto variante="pequeno">P = proteína · C = carboidrato · G = gordura</Texto>
+        {Object.values(totalDoDia(c)).some((v) => v === null) ? <Incompleto texto="Há itens sem valor nutricional informado; o total não os soma." /> : null}
+      </Cartao>
+      {c.refeicoes.map((r) => (
+        <CartaoRefeicaoAluno key={r.uid} refeicao={r} />
+      ))}
       {ergogenicos.length ? (
         <Cartao titulo="Medicação e ergogênicos">
           {ergogenicos.map((e) => (
@@ -145,11 +157,6 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
-      {c.observacoes ? (
-        <Cartao titulo="Observações">
-          <Texto numerico>{c.observacoes}</Texto>
-        </Cartao>
-      ) : null}
       {c.suplementacao.length ? (
         <Cartao titulo="Suplementação">
           {c.suplementacao.map((s) => (
@@ -162,9 +169,6 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
         </Cartao>
       ) : null}
       <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
-      <Texto variante="suave">
-        {versao.titulo} (v{versao.numero})
-      </Texto>
     </>
   );
 }
@@ -191,10 +195,7 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
   return (
     <Cartao
       cabecalho={
-        <CabecalhoDeGrupo
-          titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`}
-          acoes={<Texto numerico style={estilos.forte}>{somarKcal(refeicao)}</Texto>}
-        />
+        <CabecalhoDeGrupo titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`} />
       }>
       {refeicao.observacao ? <Texto numerico variante="suave">{refeicao.observacao}</Texto> : null}
       {refeicao.opcoes.length > 1 ? (
@@ -217,13 +218,9 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
   );
 }
 
-/** Kcal da opção A da refeição ("—" quando falta valor; nada é inventado). */
-function somarKcal(r: Refeicao): string {
-  const kcal = somar(r.opcoes[0]?.itens ?? []).kcal;
-  return `${kcal === null ? '—' : numeroParaTela(kcal, 0)} kcal`;
-}
 
 const estilos = StyleSheet.create({
+  agua: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
   total: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(0.5) },
   textoTotal: { fontFamily: fontes.semi, fontSize: 16 },
   orientacao: { gap: 2 },

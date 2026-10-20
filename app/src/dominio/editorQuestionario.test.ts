@@ -4,6 +4,7 @@ import {
   moverParaSecao, moverPergunta, moverSecao, normalizarQuestionario, novaOpcao, novaPergunta, novaSecao, paraApi, podeAdicionar,
   podeAdicionarSecao, podeDestacar, podeDuplicar, removerPergunta, removerSecao, TIPOS_PARA_ADICIONAR, tiposParaAdicionar,
   controlesAnteriores, posicaoDaPergunta, textoDaCondicao, alterarCondicaoDaSecao, datasDaPesagem, destinoPossivel, podeUsarDestino,
+  gruposParaAdicionar,
 } from './editorQuestionario';
 import { errosDoQuestionario, LIMITES_QUESTIONARIO, validarQuestionario } from './questionario';
 
@@ -251,5 +252,18 @@ describe('destino no cadastro (anamnese)', () => {
     expect(validarQuestionario(paraApi(x, 'ANAMNESE'), 'ANAMNESE').erros).toEqual([]);
     expect(paraApi(x, 'ATUALIZACAO').secoes[0].perguntas[1].destino).toBeUndefined();
     expect(duplicarPergunta(peso).destino).toBeUndefined();
+  });
+});
+
+describe('grupos da folha "Adicionar pergunta"', () => {
+  it('cada tipo da finalidade aparece uma vez, em grupos', () => {
+    for (const finalidade of ['ATUALIZACAO', 'ANAMNESE'] as const) {
+      const grupos = gruposParaAdicionar(finalidade);
+      const tipos = grupos.flatMap((g) => g.itens.map((i) => i.tipo));
+      expect(new Set(tipos).size).toBe(tipos.length);
+      expect([...tipos].sort()).toEqual(tiposParaAdicionar(finalidade).map((t) => t.tipo).sort());
+    }
+    expect(gruposParaAdicionar('ATUALIZACAO').map((g) => g.rotulo)).toEqual(['Escolha', 'Texto', 'Número e data', 'Especiais']);
+    expect(gruposParaAdicionar('ANAMNESE').flatMap((g) => g.itens.map((i) => i.tipo))).not.toContain('DATA_AUTOMATICA');
   });
 });

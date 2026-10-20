@@ -18,10 +18,12 @@ const MARGEM_BASE = { topo: 14, base: 24, esq: 58, dir: 18 };
 
 /**
  * Gráfico de linha (SVG): curva suave com a área abaixo preenchida, pontos nos registros e eixo vertical com a
- * unidade ("82 kg"). Pontos já na ordem do eixo horizontal; só desenha o que foi registrado.
+ * unidade ("82 kg"). Pontos já na ordem do eixo horizontal; só desenha o que foi registrado. A linha é da cor do texto,
+ * nunca da marca (a marca não é dado). `semUltimo`: quem já mostra o resumo "Último…" acima não repete a linha de baixo.
  */
-export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGrafico[]; unidade: string; descricao: string }) {
-  const { cores, marca, fatorTexto } = useTema();
+export function GraficoLinha({ pontos, unidade, descricao, semUltimo }: { pontos: PontoGrafico[]; unidade: string; descricao: string; semUltimo?: boolean }) {
+  const { cores, fatorTexto } = useTema();
+  const linha = cores.texto;
   // Os rótulos do eixo acompanham o tamanho do texto; margens e altura crescem junto para não cortar.
   const fonte = escalar(11, fatorTexto);
   const MARGEM = { ...MARGEM_BASE, base: escalar(MARGEM_BASE.base, fatorTexto), esq: escalar(MARGEM_BASE.esq, fatorTexto) };
@@ -56,10 +58,10 @@ export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGraf
               {formato(m)} {unidade}
             </SvgTexto>
           ))}
-          <Path d={`${curva}L${x(pontos.length - 1)},${y(min)}L${x(0)},${y(min)}Z`} fill={marca} fillOpacity={0.12} />
-          <Path d={curva} fill="none" stroke={marca} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+          <Path d={`${curva}L${x(pontos.length - 1)},${y(min)}L${x(0)},${y(min)}Z`} fill={linha} fillOpacity={0.08} />
+          <Path d={curva} fill="none" stroke={linha} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
           {pontos.map((p, i) => (
-            <Circle key={`${p.rotulo}${i}`} cx={x(i)} cy={y(p.valor)} r={4} fill={marca} stroke={cores.superficie} strokeWidth={1.5} />
+            <Circle key={`${p.rotulo}${i}`} cx={x(i)} cy={y(p.valor)} r={4} fill={linha} stroke={cores.superficie} strokeWidth={1.5} />
           ))}
           {pontos.map((p, i) =>
             i % passoRotulo === 0 || i === pontos.length - 1 ? (
@@ -72,9 +74,11 @@ export function GraficoLinha({ pontos, unidade, descricao }: { pontos: PontoGraf
       ) : (
         <View style={{ height: ALTURA }} />
       )}
-      <Texto variante="pequeno">
-        Último: {formato(pontos[pontos.length - 1].valor)} {unidade} em {pontos[pontos.length - 1].rotulo}
-      </Texto>
+      {semUltimo ? null : (
+        <Texto variante="pequeno">
+          Último: {formato(pontos[pontos.length - 1].valor)} {unidade} em {pontos[pontos.length - 1].rotulo}
+        </Texto>
+      )}
     </View>
   );
 }

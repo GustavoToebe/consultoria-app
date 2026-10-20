@@ -1,20 +1,20 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { FiltroInscricoes, InscricaoResumo } from '../../api/inscricoesTipos';
 import { listarInscricoes, responsaveisEquipe } from '../../api/rotas';
-import { dataHoraParaTela } from '../../dominio/formatos';
+import { instanteRelativo } from '../../dominio/datasRelativas';
 import { FILTROS_INSCRICOES, resumoDoObjetivo, seloDaSituacao } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { CartaoLinkInscricao } from '../../treinador/interessados/CartaoLinkInscricao';
 import { FolhaDaInscricao } from '../../treinador/interessados/FolhaDaInscricao';
+import { EscolhaResponsabilidade, type Responsabilidade } from '../../treinador/EscolhaResponsabilidade';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
-import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -33,8 +33,10 @@ const TAMANHO_PAGINA = 30;
  */
 export default function Interessados() {
   const { pode } = useSessao();
-  const [filtro, setFiltro] = useState<FiltroInscricoes>('ABERTAS');
-  const [escopo, setEscopo] = useState<'meus' | 'todos'>('todos');
+  // `?situacao=NOVA` vem do contador "Interessados novos" do Início.
+  const { situacao: situacaoInicial } = useLocalSearchParams<{ situacao?: string }>();
+  const [filtro, setFiltro] = useState<FiltroInscricoes>(FILTROS_INSCRICOES.find((f) => f.valor === situacaoInicial)?.valor ?? 'ABERTAS');
+  const [escopo, setEscopo] = useState<Responsabilidade>('todos');
   const [pagina, setPagina] = useState(0);
   const [aberta, setAberta] = useState<string | null>(null);
   const lista = useCarregar(`${filtro}|${escopo}|${pagina}`, () =>
@@ -55,15 +57,13 @@ export default function Interessados() {
         Quem se inscreveu pelo link da consultoria. Converse pelo WhatsApp, registre o andamento e, quando fechar, aceite:
         o aluno é cadastrado na hora.
       </Texto>
+      {/* A fila vem antes da configuração: o link é uma faixa compacta (copiar e situação) e "Configurar" abre a folha. */}
       <CartaoLinkInscricao podeAlterar={pode('INSCRICAO_ALTERAR')} responsaveis={responsaveis.dados ?? []} />
-      <Cartao titulo="Filtros">
-        <View style={estilos.filtros}>
-          <EscolhaEmFolha rotulo="Situação" titulo="Filtrar por situação" valor={filtro} opcoes={FILTROS_INSCRICOES}
-            aoMudar={(v) => mudarFiltro(() => setFiltro(v))} />
-          <Escolha rotulo="Responsabilidade" opcoes={[{ valor: 'todos', rotulo: 'Todas' }, { valor: 'meus', rotulo: 'Meus' }]}
-            valor={escopo} aoMudar={(v) => mudarFiltro(() => setEscopo(v))} />
-        </View>
-      </Cartao>
+      <View style={estilos.filtros}>
+        <EscolhaResponsabilidade valor={escopo} aoMudar={(v) => mudarFiltro(() => setEscopo(v))} />
+        {/* Oito situações: a escolha quebra linha dentro da largura da tela (sem a caixa, ela passava da borda no celular). */}
+        <View style={estilos.caber}><Escolha rotulo="Situação" opcoes={FILTROS_INSCRICOES} valor={filtro} aoMudar={(v) => mudarFiltro(() => setFiltro(v))} /></View>
+      </View>
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
@@ -71,17 +71,15 @@ export default function Interessados() {
           texto={filtro === 'ABERTAS' ? 'Divulgue o link de inscrição: quem se inscrever aparece aqui.' : 'Tente outra situação.'} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
-        <Cartao titulo={rotuloDoFiltro} descricao={`${dados.total} ${dados.total === 1 ? 'inscrição' : 'inscrições'} nesta lista.`}>
+        <Cartao descricao={`${rotuloDoFiltro}: ${dados.total} ${dados.total === 1 ? 'inscrição' : 'inscrições'}. Toque na linha para abrir.`}>
           <View style={lista.carregando ? estilos.esmaecido : null}>
-            <Tabela rotulo="Inscrições" larguraMinima={760} linhas={dados.itens} chave={(i) => i.id} colunas={[
+            <Tabela rotulo="Inscrições" larguraMinima={760} linhas={dados.itens} chave={(i) => i.id}
+              aoTocarLinha={(i) => setAberta(i.id)} rotuloDaLinha={(i) => `Abrir inscrição de ${i.nome}`} colunas={[
               { chave: 'nome', titulo: 'Nome', flex: 1.4, principal: true, render: (i) => <Texto variante="bloco" numberOfLines={2}>{i.nome}</Texto> },
               { chave: 'objetivo', titulo: 'Objetivo', flex: 2, render: (i) => <Texto numberOfLines={2}>{resumoDoObjetivo(i.objetivo)}</Texto> },
               { chave: 'responsavel', titulo: 'Responsável', flex: 1.1, render: (i) => <Texto>{nomeDoResponsavel(i)}</Texto> },
-              { chave: 'entrada', titulo: 'Entrada', flex: 1, render: (i) => <Texto numerico>{dataHoraParaTela(i.criadaEm)}</Texto> },
-              { chave: 'situacao', titulo: 'Situação', flex: 1.2, render: (i) => <Situacao inscricao={i} /> },
-              { chave: 'abrir', titulo: 'Abrir', acao: true, largura: 96, render: (i) => (
-                <Botao rotulo="Abrir" rotuloAcessivel={`Abrir inscrição de ${i.nome}`} tipo="secundario" aoTocar={() => setAberta(i.id)} />
-              ) },
+              { chave: 'entrada', titulo: 'Entrada', flex: 1, render: (i) => <Texto numerico>{instanteRelativo(i.criadaEm)}</Texto> },
+              { chave: 'situacao', titulo: 'Situação', flex: 1.6, render: (i) => <Situacao inscricao={i} /> },
             ]} />
           </View>
           {paginas > 1 ? (
@@ -117,6 +115,7 @@ function Situacao({ inscricao }: { inscricao: InscricaoResumo }) {
 const estilos = StyleSheet.create({
   filtros: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5), alignItems: 'flex-end' },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap' },
+  caber: { flexShrink: 1, maxWidth: '100%' },
   esmaecido: { opacity: 0.6 },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

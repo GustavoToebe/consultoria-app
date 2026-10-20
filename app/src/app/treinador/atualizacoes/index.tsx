@@ -3,7 +3,8 @@ import { useCallback } from 'react';
 import { listarAtualizacoes, painelTreinador } from '../../../api/rotas';
 import type { SituacaoAtualizacao } from '../../../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
-import { dataParaTela } from '../../../dominio/formatos';
+import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
+import { EscolhaResponsabilidade } from '../../../treinador/EscolhaResponsabilidade';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { Abas } from '../../../ui/Abas';
 import { Cabecalho } from '../../../ui/Cabecalho';
@@ -34,16 +35,20 @@ export default function ListaAtualizacoes() {
   const painel=useCarregar(pode('PAINEL_VER')?`painel-atualizacoes:${meus}`:null,()=>painelTreinador(meus));
   const contagens:Partial<Record<SituacaoAtualizacao,number>>=painel.dados?{PARA_REVISAR:painel.dados.atualizacoesParaRevisar,ATRASADAS:painel.dados.atualizacoesAtrasadas,AVISARAM_ATRASO:painel.dados.atualizacoesAvisaramAtraso,PROXIMAS:painel.dados.atualizacoesProximas}:{};
   const recarregarPainel=painel.recarregar;
+  const itens=[...(lista.dados??[])].sort((x,y)=>(x.dataAtualizacao??'').localeCompare(y.dataAtualizacao??''));
   useFocusEffect(useCallback(()=>{recarregar();recarregarPainel();},[recarregar,recarregarPainel]));
   return <Tela largura={LARGURA_LISTA} bordas={['top']}>
     <Cabecalho titulo="Atualizações" mostrarMarca="celular" />
-    <Texto variante="suave">Atualizações enviadas pelos alunos em cada pasta: revise, acompanhe os atrasos e responda com feedback.{meus?' Mostrando só os seus alunos.':''}</Texto>
+    <Texto variante="suave">Atualizações enviadas pelos alunos em cada pasta: revise, acompanhe os atrasos e responda com feedback.</Texto>
+    {/* "Todos / Meus" mora no endereço, como a aba: o voltar desfaz e a revisão em fila segue o mesmo recorte. */}
+    <EscolhaResponsabilidade valor={meus?'meus':'todos'} aoMudar={v=>router.replace({pathname:'/treinador/atualizacoes',params:v==='meus'?{situacao:filtro,meus:'true'}:{situacao:filtro}})} />
     <Abas abas={ABAS.map(a=>({...a,contagem:contagens[a.valor]}))} ativa={filtro} aoMudar={valor=>{ if(valor!==filtro) router.push({pathname:'/treinador/atualizacoes',params:meus?{situacao:valor,meus:'true'}:{situacao:valor}}); }} />
     {lista.erro?<MensagemErro texto={textoDoErro(lista.erro)} tentarDeNovo={recarregar} />:null}
     {lista.carregando?<Esqueleto />:null}
     {!lista.carregando && lista.dados?.length===0?<Vazio titulo="Nenhuma atualização nesta lista" texto="As atualizações aparecem conforme o período da pasta e o envio do aluno." />:null}
-    {lista.dados?.length?<Cartao titulo={ABAS.find(a=>a.valor===filtro)?.rotulo} descricao={`${lista.dados.length} ${lista.dados.length===1?'atualização':'atualizações'} nesta lista.`}>
-      <Grade gap={espaco(2)}>{lista.dados.map(a=><ItemDeLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} detalhe={`Atualização · ${dataParaTela(a.dataAtualizacao)}`} selo={statusAtualizacaoTreinador(a)} href={caminhoAtualizacaoTreinador(a,{situacao:filtro,meus})} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${dataParaTela(a.dataAtualizacao)}, ${statusAtualizacaoTreinador(a).texto}`} />)}</Grade>
+    {/* A aba já diz a lista: o cartão não repete o título. Mais antiga primeiro (é a que espera há mais tempo). */}
+    {itens.length?<Cartao descricao={`${itens.length} ${itens.length===1?'atualização':'atualizações'}, da mais antiga para a mais nova.`}>
+      <Grade gap={espaco(2)}>{itens.map(a=>{const selo=statusAtualizacaoTreinador(a);const data=dataSemAnoCorrente(a.dataAtualizacao);return <ItemDeLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} detalhe={`Data: ${data}`} selo={{texto:selo.curto,tipo:selo.tipo}} href={caminhoAtualizacaoTreinador(a,{situacao:filtro,meus})} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${data}, ${selo.curto}`} />;})}</Grade>
     </Cartao>:null}
   </Tela>;
 }

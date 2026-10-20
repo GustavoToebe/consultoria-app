@@ -1,56 +1,48 @@
 import { NoPlano } from '../../ui/NoPlano';
 import { Permitido } from '../../ui/Permitido';
-import { CheckCircle2, FileDown, Save, Send } from 'lucide-react-native';
+import { CheckCircle2, FileDown, Loader, Save, Send } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Problema, ResultadoValidacao, TipoPlano } from '../../api/tipos';
 import { localizar } from '../../dominio/caminhos';
 import { textoDosProblemas, uidsDoPrimeiroProblema } from '../../dominio/problemasDoPlano';
-import { textoDoSalvo } from '../../dominio/estadoDoRascunho';
-import { dataHoraParaTela } from '../../dominio/formatos';
+import { infoDoPlano, seloDoEditor } from '../../dominio/barraDoEditor';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../../tema/tokens';
+import { espaco, fontes, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
+import { IconeBotao } from '../../ui/IconeBotao';
 import { textoDoErro } from '../../ui/erros';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { useRolagem } from '../../ui/RolagemComTopo';
-import { Selo, type TipoSelo } from '../../ui/Selo';
+import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
-import { SelosDoPlano } from '../CartaoPlanos';
 import { gerarPdfDoPlano } from '../gerarPdf';
 import { PERMISSOES_DO_PLANO } from '../../dominio/permissoes';
-import type { SituacaoRascunho, usePlanoEditor } from './usePlanoEditor';
-
-const SITUACOES: Record<SituacaoRascunho, { texto: string; tipo: TipoSelo }> = {
-  salvo: { texto: 'Rascunho salvo', tipo: 'sucesso' },
-  pendente: { texto: 'Alterações não salvas', tipo: 'atencao' },
-  salvando: { texto: 'Salvando…', tipo: 'neutro' },
-  erro: { texto: 'Falha ao salvar', tipo: 'perigo' },
-  conflito: { texto: 'Alterado em outra aba', tipo: 'perigo' },
-  dataInvalida: { texto: 'Data inválida: não salvo', tipo: 'perigo' },
-};
+import { BarraDoEditor } from './BarraDoEditor';
+import type { usePlanoEditor } from './usePlanoEditor';
 
 type Editor<C> = ReturnType<typeof usePlanoEditor<C>>;
 
 interface Props<C> {
   tipo: TipoPlano;
   editor: Editor<C>;
-  /** Problemas da última validação/publicação (o editor destaca os cartões). */
-  problemas: ResultadoValidacao | null;
+  /** Resultado da última validação/publicação (o editor destaca os cartões e mostra o `ProblemasDoPlano`). */
   aoProblemas: (r: ResultadoValidacao | null) => void;
-  /** Antes de rolar até o primeiro erro: o editor seleciona a sessão e abre o cartão dele (recebe os uids, do mais específico ao mais geral). */
-  aoIrAoPrimeiro?: (uids: string[]) => void;
 }
 
-/** Título, período, estado do rascunho e as ações Salvar rascunho, Validar e Publicar, com o resultado do validador da API. Nada é salvo sozinho. */
-export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrimeiro }: Props<C>) {
+/**
+ * Barra fixa do editor do plano do aluno: um selo de estado (`seloDoEditor`), uma linha com período e publicação e as
+ * ações PDF, Validar, Salvar rascunho e Publicar (o único primário). No celular PDF e Validar viram ícones. O
+ * resultado da validação vai para o pai (`aoProblemas`) e aparece no `ProblemasDoPlano`. Nada é salvo sozinho.
+ */
+export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
   const { avisar } = useAviso();
-  const { rolarAte } = useRolagem();
-  const { cores } = useTema();
+  const { width } = useWindowDimensions();
+  const estreito = width < LARGURA_MENU_LATERAL;
   const { temFuncionalidade } = useSessao();
   // Mobilidade fora do plano: a API só bloqueia escrita, então o editor abre para consulta, sem salvar nem publicar.
   const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
@@ -60,7 +52,6 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
   const [avisos, setAvisos] = useState<Problema[] | null>(null);
   const e = editor.estado;
   if (!e) return null;
-  const situacao = editor.situacao === 'salvo' ? { ...SITUACOES.salvo, texto: textoDoSalvo(editor.salvoAs, SITUACOES.salvo.texto) } : SITUACOES[editor.situacao];
   const ultima = e.versoes[e.versoes.length - 1];
 
   const validar = () => {
@@ -114,62 +105,39 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
     });
   };
 
+  const selo = seloDoEditor(editor.situacao, editor.salvoAs, { versao: e.plano.versaoPublicada, alterado: e.plano.rascunhoAlteradoDepoisDePublicar });
+  const info = escritaLiberada
+    ? infoDoPlano({ inicio: e.inicio, fim: e.fim, daPasta: !!e.plano.pastaId, publicadoEm: ultima?.publicadoEm ?? null })
+    : 'Disponível em outro plano: dá para consultar, mas não salvar nem publicar.';
+  const salvar = () => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : (editor.falhaAoSalvar() ?? 'Não foi possível salvar o rascunho. Confira o título e as datas.'), ok ? 'sucesso' : 'perigo'));
+
   return (
     <>
-      <Cartao
-        titulo={e.titulo.trim() || 'Plano sem título'}
-        descricao="Monte o plano, salve o rascunho, valide e publique para o aluno ver. Nada é salvo sozinho."
-        acoes={
+      <BarraDoEditor selo={selo} info={info} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null}>
+        <NoPlano funcionalidade="PDF">
+          {estreito
+            ? <IconeBotao Icone={gerandoPdf ? Loader : FileDown} rotulo={e.plano.versaoPublicada ? `PDF da versão ${e.plano.versaoPublicada}` : 'PDF do rascunho'} desabilitado={gerandoPdf} aoTocar={() => void pdf()} />
+            : <Botao rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'} tipo="fantasma" Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} />}
+        </NoPlano>
+        {escritaLiberada ? (
           <>
-            {escritaLiberada ? (
+            {estreito
+              ? <IconeBotao Icone={validando ? Loader : CheckCircle2} rotulo="Validar" desabilitado={validando} aoTocar={validar} />
+              : <Botao rotulo="Validar" tipo="fantasma" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />}
             <Botao
-              rotulo="Salvar rascunho"
+              rotulo={estreito ? 'Salvar' : 'Salvar rascunho'}
+              rotuloAcessivel="Salvar rascunho"
               tipo="secundario"
               Icone={Save}
               carregando={editor.situacao === 'salvando'}
               desabilitado={editor.situacao === 'salvo' || editor.situacao === 'dataInvalida' || editor.situacao === 'conflito'}
-              motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : 'Nada a salvar.'}
-              aoTocar={() => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : (editor.falhaAoSalvar() ?? 'Não foi possível salvar o rascunho. Confira o título e as datas.'), ok ? 'sucesso' : 'perigo'))}
+              motivo={editor.situacao === 'dataInvalida' ? 'Confira o título e as datas.' : editor.situacao === 'conflito' ? 'Recarregue o plano antes.' : undefined}
+              aoTocar={salvar}
             />
-            ) : null}
-            <NoPlano funcionalidade="PDF">
-            <Botao
-              rotulo={e.plano.versaoPublicada ? `PDF v${e.plano.versaoPublicada}` : 'PDF (rascunho)'}
-              tipo="secundario"
-              Icone={FileDown}
-              carregando={gerandoPdf}
-              aoTocar={() => void pdf()}
-            />
-            </NoPlano>
-            {escritaLiberada ? (
-              <>
-            <Botao rotulo="Validar" tipo="secundario" Icone={CheckCircle2} carregando={validando} aoTocar={validar} />
             <Permitido codigo={PERMISSOES_DO_PLANO[tipo].publicar}><Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => publicar(false)} /></Permitido>
-              </>
-            ) : null}
           </>
-        }>
-        <View style={estilos.selos}>
-          <Selo texto={situacao.texto} tipo={situacao.tipo} />
-          <SelosDoPlano plano={e.plano} />
-        </View>
-        {escritaLiberada ? null : <Texto variante="suave">Disponível em outro plano: dá para consultar este plano, mas não salvar nem publicar.</Texto>}
-        {editor.situacao === 'erro' && editor.mensagemDeErro ? <Texto variante="pequeno" cor={cores.perigo}>{editor.mensagemDeErro}</Texto> : null}
-        <Texto variante="suave" numerico>
-          Período: {e.inicio || e.fim ? `${e.inicio || '—'} a ${e.fim || '—'}` : '—'}
-          {e.plano.pastaId ? ' (da pasta)' : ''}
-        </Texto>
-        {ultima ? (
-          <Texto variante="suave">
-            Última publicação: v{ultima.numero} em {dataHoraParaTela(ultima.publicadoEm)}. Editar aqui mexe só no
-            rascunho; o aluno continua vendo a versão publicada até você publicar de novo.
-          </Texto>
-        ) : (
-          <Texto variante="suave">Ainda não publicado: o aluno não vê este plano.</Texto>
-        )}
-      </Cartao>
-      {problemas ? <ListaProblemas conteudo={e.conteudo} resultado={problemas} aoFechar={() => aoProblemas(null)}
-        aoIrAoPrimeiro={aoIrAoPrimeiro ? () => { const uids = uidsDoPrimeiroProblema(e.conteudo, problemas.erros); aoIrAoPrimeiro(uids); rolarAte(uids); } : undefined} /> : null}
+        ) : null}
+      </BarraDoEditor>
       <PainelConfirmacao
         visivel={avisos !== null}
         titulo="Publicar com avisos?"
@@ -195,35 +163,49 @@ export function TopoPlano<C>({ tipo, editor, problemas, aoProblemas, aoIrAoPrime
   );
 }
 
-function ListaProblemas({ conteudo, resultado, aoFechar, aoIrAoPrimeiro }: { conteudo: unknown; resultado: ResultadoValidacao; aoFechar: () => void; aoIrAoPrimeiro?: () => void }) {
+/**
+ * Resultado da validação, logo abaixo do cabeçalho (dentro da rolagem): "N problemas para publicar · ir ao primeiro"
+ * seleciona a sessão/abre o cartão (`aoIrAoPrimeiro`) e rola até ele.
+ */
+export function ProblemasDoPlano<C>({ editor, problemas, aoProblemas, aoIrAoPrimeiro }: { editor: Editor<C>; problemas: ResultadoValidacao | null; aoProblemas: (r: ResultadoValidacao | null) => void; aoIrAoPrimeiro?: (uids: string[]) => void }) {
+  const { rolarAte } = useRolagem();
+  const e = editor.estado;
+  if (!e || !problemas) return null;
+  // Cada erro e aviso leva ao lugar dele (sessão/exercício ou refeição), não só o primeiro.
+  const irPara = aoIrAoPrimeiro ? (lista: Problema[]) => { const uids = uidsDoPrimeiroProblema(e.conteudo, lista); aoIrAoPrimeiro(uids); rolarAte(uids); } : undefined;
+  return <ListaProblemas conteudo={e.conteudo} resultado={problemas} aoFechar={() => aoProblemas(null)} irPara={irPara} />;
+}
+
+function ListaProblemas({ conteudo, resultado, aoFechar, irPara }: { conteudo: unknown; resultado: ResultadoValidacao; aoFechar: () => void; irPara?: (lista: Problema[]) => void }) {
   const limpo = !resultado.erros.length && !resultado.avisos.length;
   return (
     <Cartao titulo="Resultado da validação" acoes={<Botao rotulo="Fechar" tipo="fantasma" aoTocar={aoFechar} />}>
       {limpo ? <Selo texto="Sem erros nem avisos" tipo="sucesso" /> : null}
-      {resultado.erros.length ? (aoIrAoPrimeiro
-        ? <Botao rotulo={`${textoDosProblemas(resultado.erros.length)} · ir ao primeiro`} tipo="perigoTexto" aoTocar={aoIrAoPrimeiro} />
+      {resultado.erros.length ? (irPara
+        ? <Botao rotulo={`${textoDosProblemas(resultado.erros.length)} · ir ao primeiro`} tipo="perigoTexto" aoTocar={() => irPara(resultado.erros)} />
         : <Selo texto={textoDosProblemas(resultado.erros.length)} tipo="perigo" />) : null}
       {resultado.erros.map((p, i) => (
-        <ItemProblema key={`e${i}`} conteudo={conteudo} problema={p} tipo="perigo" />
+        <ItemProblema key={`e${i}`} conteudo={conteudo} problema={p} tipo="perigo" aoIr={irPara ? () => irPara([p]) : undefined} />
       ))}
       {resultado.avisos.map((p, i) => (
-        <ItemProblema key={`a${i}`} conteudo={conteudo} problema={p} tipo="atencao" />
+        <ItemProblema key={`a${i}`} conteudo={conteudo} problema={p} tipo="atencao" aoIr={irPara ? () => irPara([p]) : undefined} />
       ))}
     </Cartao>
   );
 }
 
-function ItemProblema({ conteudo, problema, tipo }: { conteudo: unknown; problema: Problema; tipo: 'perigo' | 'atencao' }) {
+function ItemProblema({ conteudo, problema, tipo, aoIr }: { conteudo: unknown; problema: Problema; tipo: 'perigo' | 'atencao'; aoIr?: () => void }) {
   const { cores } = useTema();
   const onde = localizar(conteudo, problema.caminho).texto;
   return (
-    <View style={[estilos.problema, { borderColor: cores[tipo] }]}>
+    <Pressable disabled={!aoIr} onPress={aoIr} accessibilityRole={aoIr ? 'link' : undefined} accessibilityLabel={aoIr ? `Ir até: ${onde || problema.mensagem}` : undefined}
+      style={({ pressed }) => [estilos.problema, { borderColor: cores[tipo], backgroundColor: pressed ? cores.superficie3 : 'transparent' }]}>
       <Selo texto={tipo === 'perigo' ? 'Erro' : 'Aviso'} tipo={tipo} />
       <View style={estilos.textoProblema}>
         {onde ? <Texto style={estilos.onde}>{onde}</Texto> : null}
         <Texto variante="suave">{problema.mensagem}</Texto>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -237,6 +219,7 @@ const estilos = StyleSheet.create({
     borderRadius: RAIO,
     paddingLeft: espaco(1),
     paddingVertical: 2,
+    minHeight: 44,
   },
   textoProblema: { flex: 1, gap: 2 },
   onde: { fontFamily: fontes.semi, fontSize: 14 },

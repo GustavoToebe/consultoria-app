@@ -4,16 +4,13 @@ import { StyleSheet, View } from 'react-native';
 
 import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../dominio/verificacaoHumana';
 import { useSessao } from '../sessao/SessaoProvider';
-import { espaco } from '../tema/tokens';
-import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
-import { Tela } from '../ui/Tela';
-import { Texto } from '../ui/Texto';
+import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
 import { VerificacaoHumana } from '../ui/VerificacaoHumana';
 
@@ -67,11 +64,7 @@ export default function Cadastro() {
   };
 
   return (
-    <Tela largura={480}>
-      <View style={estilos.topo}>
-        <Texto variante="titulo" nivel={1}>Criar conta de treinador</Texto>
-        <Texto variante="suave">Sua consultoria nasce com receitas de séries, semanas de treino e dieta prontas para editar.</Texto>
-      </View>
+    <TelaPublica titulo="Criar conta de treinador" subtitulo="Sua consultoria nasce com receitas de séries, semanas de treino e dieta prontas para editar.">
       <Cartao>
         <Campo rotulo="Nome da consultoria" valor={dados.nomeConsultoria} aoMudar={mudar('nomeConsultoria')}
           erro={campos.nomeConsultoria} maxLength={120} />
@@ -87,17 +80,16 @@ export default function Cadastro() {
         {verificacao.exigida ? (
           <VerificacaoHumana siteKey={verificacao.siteKey} onToken={verificacao.aoReceberToken} chave={verificacao.chave} aoReconferir={verificacao.reconferir} />
         ) : null}
-        <Botao rotulo={rotuloDoEnvio('Criar conta', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
-          desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} cheio />
+        <BotaoPublico rotulo={rotuloDoEnvio('Criar conta', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
+          desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} />
       </Cartao>
       <View style={estilos.links}>
         <LinkTexto href="/entrar" texto="Já tenho conta" />
       </View>
-    </Tela>
+    </TelaPublica>
   );
 }
 
 const estilos = StyleSheet.create({
-  topo: { gap: espaco(0.5), marginTop: espaco(4) },
   links: { alignItems: 'center' },
 });

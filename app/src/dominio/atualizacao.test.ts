@@ -1,5 +1,5 @@
 import type { Atualizacao } from '../api/tipos';
-import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, proximaDaFila } from './atualizacao';
+import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, faseAtualizacao, filaDosParametros, formularioSomenteLeitura, limitesNovaDataAtraso, linkCartaoAtualizacao, mostrarCartaoAtualizacao, novaDataAtrasoValida, emDias, proximaDaFila, statusAtualizacaoTreinador } from './atualizacao';
 
 describe('datas da atualização iguais às do servidor', () => {
   it.each([['2026-10-05','NENHUMA',4,0],['2026-10-06','AVISO',3,0],['2026-10-07','AVISO',2,0],
@@ -96,5 +96,23 @@ describe('revisão em fila', () => {
     expect(proximaDaFila(itens, null)?.pastaId).toBe('p1');
     expect(proximaDaFila([{ pastaId: 'p1' }], 'p1')).toBeNull();
     expect(proximaDaFila([], 'p1')).toBeNull();
+  });
+});
+
+describe('selo da atualização para o treinador', () => {
+  const base = { fase: 'NENHUMA' as const, diasDeAtraso: 0, diasParaData: 15, atrasoAte: null };
+  it('diz de quê no texto e fica curto onde o assunto já é a atualização', () => {
+    expect(statusAtualizacaoTreinador(base, '2026-10-19')).toEqual({ texto: 'Atualização em 15 dias', curto: 'Em 15 dias', tipo: 'neutro' });
+    expect(statusAtualizacaoTreinador({ ...base, fase: 'ENVIADA' })).toMatchObject({ texto: 'Atualização para revisar', curto: 'Para revisar', tipo: 'atencao' });
+    expect(statusAtualizacaoTreinador({ ...base, fase: 'REVISADA' })).toMatchObject({ curto: 'Revisada', tipo: 'sucesso' });
+  });
+  it('atraso, adiamento e distância relativa', () => {
+    expect(statusAtualizacaoTreinador({ ...base, fase: 'ATRASADA', diasDeAtraso: 1 })).toMatchObject({ texto: 'Atualização atrasada há 1 dia', tipo: 'perigo' });
+    expect(statusAtualizacaoTreinador({ ...base, fase: 'ABERTA', atrasoAte: '2026-10-20' }, '2026-10-19')).toMatchObject({ texto: 'Atualização adiada para amanhã', curto: 'Adiada para amanhã' });
+    expect(statusAtualizacaoTreinador({ ...base, fase: 'ABERTA', diasParaData: 0 })).toMatchObject({ texto: 'Atualização hoje', curto: 'Hoje' });
+    expect(statusAtualizacaoTreinador({ ...base, fase: 'ABERTA', diasParaData: 1 })).toMatchObject({ curto: 'Amanhã' });
+  });
+  it('emDias', () => {
+    expect([emDias(0), emDias(1), emDias(-1), emDias(4), emDias(-3)]).toEqual(['hoje', 'amanhã', 'ontem', 'em 4 dias', 'há 3 dias']);
   });
 });

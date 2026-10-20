@@ -92,7 +92,7 @@ function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }
         </Cartao>
       ))}
       <Texto variante="suave">
-        {versao.titulo} (v{versao.numero})
+        {versao.titulo}
       </Texto>
       <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da mobilidade" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
     </>

@@ -1,6 +1,4 @@
 import { ProgressoSemana } from '../../aluno/ProgressoSemana';
-import { CartaoAtualizacao } from '../../aluno/atualizacao/CartaoAtualizacao';
-import { CartaoAnamnese } from '../../aluno/anamnese/CartaoAnamnese';
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { router } from 'expo-router';
 import { FileDown } from 'lucide-react-native';
@@ -10,6 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { CartaoDivisao, CartaoDivisaoLeitura } from '../../aluno/CartaoDivisao';
 import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
+import { ParaFazer } from '../../aluno/ParaFazer';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import { caminhoDaSessao } from '../../aluno/useSessaoDoDia';
 import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
@@ -17,7 +16,8 @@ import { useVersaoDaFotoDePerfil } from '../../aluno/versaoDaFotoDePerfil';
 import { baixarFotoDePerfil } from '../../api/rotas';
 import type { Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
-import { dataHoraParaTela, dataParaTela, diaDaSemana, hojeIso } from '../../dominio/formatos';
+import { dataHoraParaTela, diaDaSemana, hojeIso } from '../../dominio/formatos';
+import { periodoCurto } from '../../dominio/periodoCurto';
 import { sessaoDoDia, sessoesDaSemana } from '../../dominio/semana';
 import { useAluno } from '../../offline/AlunoProvider';
 import { espaco } from '../../tema/tokens';
@@ -37,8 +37,10 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
 /**
- * Treino do aluno: "Treino de hoje" em destaque e as divisões do plano com as datas do período. Funciona com o pacote
- * salvo, sem internet.
+ * Treino do aluno, nesta ordem (revisão de 19/10: em 390/360 o Hoje ficava abaixo da anamnese e da atualização):
+ * saudação e plano em uso, Dieta compacta (refeições e água de cara, pedido do Saraiva, R15), Hoje (o único primário
+ * da tela), Sua semana, "Para fazer" (anamnese e atualização) e as divisões do plano com as datas do período. Funciona
+ * com o pacote salvo, sem internet.
  */
 export default function TreinoAluno() {
   const { pacote, carregando, erroPacote, registros, escolhida } = useAluno();
@@ -97,7 +99,7 @@ export default function TreinoAluno() {
   const registrosDe = (s: Sessao, data: string) =>
     registros.filter((r) => r.data === data && r.sessaoUid === s.uid && r.planoVersaoId === treino?.versaoId && r.concluida);
   const periodo =
-    treino && (treino.inicio || treino.fim) ? `${dataParaTela(treino.inicio) || '—'} a ${dataParaTela(treino.fim) || '—'}` : null;
+    treino ? periodoCurto(treino, hoje) : null;
 
   return (
     <Tela bordas={['top']} largura={720}>
@@ -106,16 +108,17 @@ export default function TreinoAluno() {
         <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={pacote.pacote.aluno.nome} />
         <Texto variante="titulo" style={estilos.ola}>Olá, {pacote.pacote.aluno.nome.split(' ')[0]}</Texto>
       </View>
-      <Texto variante="suave">Seu treino da semana: abra o de hoje e registre carga e repetições. Funciona sem internet.</Texto>
       <SeletorPlano rotulo={treino ? `${treino.titulo}${periodo ? ` · ${periodo}` : ''}` : null} />
-      <CartaoAnamnese />
-      <CartaoAtualizacao />
+      {/* Dieta e água "de cara", logo abaixo do Olá (pedido do Saraiva, R15): uma linha só, para o Hoje caber na 1ª tela. */}
       <CartaoDietaDoInicio versao={escolhida ? escolhida.planos.dieta : dietaVigente} />
       {!treino || !conteudo ? (
-        <Vazio
-          titulo={escolhida ? 'Sem treino neste plano' : 'Sem plano de treino'}
-          texto={escolhida ? 'Este plano só tem dieta publicada.' : 'Seu treinador ainda não publicou um treino para você.'}
-        />
+        <>
+          <Vazio
+            titulo={escolhida ? 'Sem treino neste plano' : 'Sem plano de treino'}
+            texto={escolhida ? 'Este plano só tem dieta publicada.' : 'Seu treinador ainda não publicou um treino para você.'}
+          />
+          <ParaFazer />
+        </>
       ) : (
         <>
           {somenteLeitura ? (
@@ -131,6 +134,7 @@ export default function TreinoAluno() {
               <ProgressoSemana hoje={hoje} />
             </>
           )}
+          <ParaFazer />
           <Texto variante="bloco">Divisões da semana</Texto>
           {sessoesDaSemana(conteudo).map((s, i) => (
             <EntradaEmCascata key={s.uid} indice={i} animar={animar}>
@@ -151,9 +155,7 @@ export default function TreinoAluno() {
             </Cartao>
           ) : null}
           <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF do treino" tipo="secundario" cheio Icone={FileDown} carregando={gerandoPdf} aoTocar={() => void pdf()} /></NoPlano>
-          <Texto variante="suave">
-            {treino.titulo} (v{treino.numero}) · atualizado em {dataHoraParaTela(pacote.salvoEm)}
-          </Texto>
+          <Texto variante="suave">Plano baixado em {dataHoraParaTela(pacote.salvoEm)}. Funciona sem internet.</Texto>
         </>
       )}
     </Tela>

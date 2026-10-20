@@ -1,6 +1,6 @@
 import type { ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
-import { alimentosDaDieta, comFatoresDaBiblioteca, DIAS_DO_PERIODO, listaDeCompras, quantidadeParaTela, refeicoesComEscolha, textoDoPeriodo } from './listaDeCompras';
+import { alimentosDaDieta, comFatoresDaBiblioteca, DIAS_DO_PERIODO, listaDeCompras, marcaSemFator, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, textoDoPeriodo } from './listaDeCompras';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
 
@@ -157,5 +157,14 @@ describe('quantidadeParaTela', () => {
   it('texto do período', () => {
     expect(textoDoPeriodo('semana')).toBe('Semana (7 dias)');
     expect(textoDoPeriodo('mes')).toBe('Mês (30 dias)');
+  });
+});
+
+describe('textos da lista pelo papel', () => {
+  it('aluno lê "como na dieta"; treinador, "Sem fator" e onde cadastrar', () => {
+    expect(marcaSemFator('aluno')).toBe('como na dieta');
+    expect(marcaSemFator('treinador')).toBe('Sem fator');
+    expect(NOTA_DA_LISTA_ALUNO).toMatch(/seu treinador/);
+    expect(NOTA_DA_LISTA_TREINADOR).toMatch(/Biblioteca › Alimentos/);
   });
 });

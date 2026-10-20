@@ -1,13 +1,12 @@
-import { TotaisAnimados } from '../../ui/TotaisAnimados';
 import { useLocalSearchParams } from 'expo-router';
 import { ChevronsDownUp, ChevronsUpDown, ExternalLink, Link2Off, Library, NotebookTabs, Plus, ShoppingCart, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { listarAlimentos, listarErgogenicos, listarSuplementos, salvarPlanoComoReceita, criarReceita } from '../../api/rotas';
-import type { Alimento, ConteudoDieta, ResultadoValidacao } from '../../api/tipos';
+import type { Alimento, ConteudoDieta, Receita, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
-import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, novaRefeicao, novoItem, normalizarDieta, totalDoDia } from '../../dominio/dieta';
+import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, itensSemValorNoTotal, type ItemSemValor, novaRefeicao, novoItem, normalizarDieta, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
 import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
@@ -24,8 +23,12 @@ import { FolhaSuplementos } from '../../treinador/dieta/FolhaSuplementos';
 import { FolhaReceitas } from '../../treinador/FolhaReceitas';
 import { FolhaSalvarReceita } from '../../treinador/FolhaSalvarReceita';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
-import { TopoModelo } from '../../treinador/plano/TopoModelo';
-import { TopoPlano } from '../../treinador/plano/TopoPlano';
+import { BarraDoModeloDoEditor, NomeDoModelo } from '../../treinador/plano/TopoModelo';
+import { BarraDoPlano, ProblemasDoPlano } from '../../treinador/plano/TopoPlano';
+import { TelaDoEditor } from '../plano/TelaDoEditor';
+import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
+import { useRolagem } from '../../ui/RolagemComTopo';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { useAviso } from '../../ui/Aviso';
@@ -35,7 +38,7 @@ import { Campo } from '../../ui/Campo';
 import { CampoData, CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { MensagemErro, Vazio } from '../../ui/Estados';
+import { Incompleto, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Tela } from '../../ui/Tela';
@@ -54,7 +57,7 @@ type FolhaAberta = { tipo: 'alimento'; refeicao: number; opcao: number } | { tip
  * biblioteca e são gravados no item; o total do dia soma só a opção A de cada refeição. Suplementação é texto livre (nome e link podem vir da biblioteca de suplementos).
  * "Lista de compras" abre a prévia da lista do aluno sobre o que está na tela (`FolhaListaDeCompras`).
  */
-export default function EditorDeDieta({ modelo = false, unica = false }: { modelo?: boolean; unica?: boolean }) {
+export default function EditorDeDieta({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { cores } = useTema();
   const { avisar } = useAviso();
@@ -106,11 +109,16 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
 
   const titulo = modelo ? tituloDoModelo(unica ? 'REFEICAO' : 'PLANO_DIETA') : tituloDoPlanoDoAluno('dieta', nomeDoAluno);
 
+  const semValor = itensSemValorNoTotal(c);
+  /** Abre a refeição do primeiro item sem valor (a rolagem é do `TotalDoDia`, que está dentro dela). */
+  const abrirRefeicao = (uid: string) => setAbertas((a) => new Set(a).add(uid));
+
   return (
-    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
+    <TelaDoEditor
+      cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
+      barra={modelo ? <BarraDoModeloDoEditor editor={editor} receita={receita} /> : <BarraDoPlano tipo="dieta" editor={editor} aoProblemas={setProblemas} />}>
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="dieta" />}
-      {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="dieta" editor={editor} problemas={problemas} aoProblemas={setProblemas}
+      {modelo ? <NomeDoModelo editor={editor} /> : <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
         aoIrAoPrimeiro={(uids) => setAbertas((a) => new Set([...a, ...c.refeicoes.filter((r) => uids.includes(r.uid)).map((r) => r.uid)]))} />}
       {desfazer ? (
         <BarraDesfazer
@@ -123,49 +131,47 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
           aoFechar={() => setDesfazer(null)}
         />
       ) : null}
-      <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
-        <TotaisAnimados totais={totalDoDia(c)} />
-      </Cartao>
-      <ConfiguracaoDoPlano
+      <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} />
+      {unica ? null : <ConfiguracaoDoPlano
         editor={editor}
         modelo={modelo}
         recolhido={c.refeicoes.length > 0 && estado.titulo.trim() !== ''}
-        descricao="Título, período, objetivo e profissional da dieta.">
+        descricao="Título, período, objetivo, profissional e água da dieta.">
         <CamposDaDieta conteudo={c} aoMudar={mudar} />
-      </ConfiguracaoDoPlano>
-      <View style={estilos.barra}>
-        <Texto variante="bloco">Refeições ({c.refeicoes.length})</Texto>
-        <View style={estilos.acoes}>
+      </ConfiguracaoDoPlano>}
+      <View style={estilos.cabecalhoRefeicoes}>
+        <Texto variante="bloco" nivel={2}>Refeições ({c.refeicoes.length})</Texto>
+        {c.refeicoes.length > 1 ? (
           <Botao
-            rotulo="Adicionar refeição"
-            desabilitado={unica && c.refeicoes.length >= 1}
-            tipo="secundario"
-            Icone={Plus}
-            aoTocar={() => {
-              const nova = novaRefeicao();
-              mudarRefeicoes((r) => [...r, nova]);
-              setAbertas((a) => new Set(a).add(nova.uid));
-            }}
+            rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'}
+            tipo="fantasma"
+            Icone={todasAbertas ? ChevronsDownUp : ChevronsUpDown}
+            aoTocar={() => setAbertas(todasAbertas ? new Set() : new Set(c.refeicoes.map((r) => r.uid)))}
           />
-          <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />
-          <Botao
-            rotulo="Lista de compras"
-            tipo="secundario"
-            Icone={ShoppingCart}
-            desabilitado={c.refeicoes.length === 0}
-            motivo="Adicione uma refeição primeiro."
-            aoTocar={() => setFolha({ tipo: 'compras' })}
-          />
-          {c.refeicoes.length > 1 ? (
-            <Botao
-              rotulo={todasAbertas ? 'Fechar todas' : 'Abrir todas'}
-              tipo="fantasma"
-              Icone={todasAbertas ? ChevronsDownUp : ChevronsUpDown}
-              aoTocar={() => setAbertas(todasAbertas ? new Set() : new Set(c.refeicoes.map((r) => r.uid)))}
-            />
-          ) : null}
-        </View>
+        ) : null}
       </View>
+      {/* Em 390 px os quatro botões não cabiam numa linha e "Lista de compras" e "Abrir todas" saíam cortados. */}
+      <LinhaDeAcoes>
+        {unica ? null : <Botao
+          rotulo="Adicionar refeição"
+          tipo="secundario"
+          Icone={Plus}
+          aoTocar={() => {
+            const nova = novaRefeicao();
+            mudarRefeicoes((r) => [...r, nova]);
+            setAbertas((a) => new Set(a).add(nova.uid));
+          }}
+        />}
+        {unica ? null : <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />}
+        <Botao
+          rotulo="Lista de compras"
+          tipo="secundario"
+          Icone={ShoppingCart}
+          desabilitado={c.refeicoes.length === 0}
+          motivo="Adicione uma refeição primeiro."
+          aoTocar={() => setFolha({ tipo: 'compras' })}
+        />
+      </LinhaDeAcoes>
       {c.refeicoes.length === 0 ? <Vazio texto="Nenhuma refeição ainda. Adicione uma ou comece de um modelo." /> : null}
       {c.refeicoes.map((r, ri) => (
         <CartaoRefeicao
@@ -185,8 +191,8 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
           aoEscolherAlimento={(opcao) => setFolha({ tipo: 'alimento', refeicao: ri, opcao })}
         />
       ))}
-      <Cartao titulo="Complementos" descricao="Orientações, observações e suplementação que acompanham a dieta.">
-      <Cartao titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={c.orientacoes.length === 0}>
+      <Texto variante="bloco" nivel={2}>Complementos</Texto>
+      <Cartao titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." nivel={3} recolhivel recolhido={c.orientacoes.length === 0}>
         {c.orientacoes.map((o, oi) => (
           <View key={oi} style={[estilos.orientacao, { borderColor: cores.borda }]}>
             <View style={estilos.cresce}>
@@ -201,11 +207,11 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
         </View>
       </Cartao>
 
-      <Cartao titulo="Observações" style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={!c.observacoes}>
+      <Cartao titulo="Observações" nivel={3} recolhivel recolhido={!c.observacoes}>
         <Campo rotulo="Observações (opcional)" valor={c.observacoes ?? ''} aoMudar={(t) => mudar({ observacoes: t || null })} linhas={4} maxLength={8000} />
       </Cartao>
 
-      <Cartao titulo="Suplementação" style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={c.suplementacao.length === 0}>
+      <Cartao titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
         <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
@@ -246,7 +252,7 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
         </View>
       </Cartao>
       {veErgogenicos ? (
-        <Cartao titulo="Medicação e ergogênicos" style={{ backgroundColor: cores.superficie2 }} recolhivel recolhido={(c.ergogenicos ?? []).length === 0}>
+        <Cartao titulo="Outros (medicação e ergogênicos)" nivel={3} recolhivel recolhido={(c.ergogenicos ?? []).length === 0}>
           <Texto variante="suave">
             Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só nome, princípio ativo e concentração.
             {editaErgogenicos ? '' : ' Seu perfil só pode ler esta lista.'}
@@ -298,25 +304,24 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
           ) : null}
         </Cartao>
       ) : null}
-      </Cartao>
 
       {modelos ? (
         <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>
           <OpcaoDeModelo titulo="Usar modelo de dieta" descricao="Troca as refeições do plano pelas do modelo (orientações, observações e suplementação ficam). Dá para desfazer." desabilitado={unica} aoEscolher={() => { setModelos(false); setFolha({ tipo: 'receita' }); }} />
-          <OpcaoDeModelo titulo="Usar modelo de refeição" descricao="Acrescenta ao plano as refeições de um modelo." desabilitado={unica} aoEscolher={() => { setModelos(false); setFolha({ tipo: 'refeicao' }); }} />
-          {!modelo && c.refeicoes.length ? <OpcaoDeModelo titulo="Salvar a dieta como modelo" descricao="Guarda as refeições, opções e itens deste rascunho para reutilizar. O plano continua igual." aoEscolher={() => { setModelos(false); setFolha({ tipo: 'salvar' }); }} /> : null}
+          <OpcaoDeModelo titulo="Adicionar refeição" descricao="Acrescenta ao plano as refeições de um modelo de refeição." desabilitado={unica} aoEscolher={() => { setModelos(false); setFolha({ tipo: 'refeicao' }); }} />
+          {!modelo && c.refeicoes.length ? <OpcaoDeModelo titulo={rotuloSalvarComo('PLANO_DIETA')} descricao="Guarda as refeições, opções e itens deste rascunho para reutilizar. O plano continua igual." aoEscolher={() => { setModelos(false); setFolha({ tipo: 'salvar' }); }} /> : null}
         </Folha>
       ) : null}
 
       {folha?.tipo === 'compras' ? (
         <FolhaListaDeCompras conteudo={c} titulo={estado.titulo} aluno={modelo ? null : nomeDoAluno} aoFechar={() => setFolha(null)} />
       ) : null}
-      {folha?.tipo === 'refeicao' ? <FolhaReceitas tipo="REFEICAO" titulo="Adicionar refeição do modelo" aoFechar={() => setFolha(null)} aoUsar={(r) => {
+      {folha?.tipo === 'refeicao' ? <FolhaReceitas tipo="REFEICAO" titulo="Adicionar refeição" aoFechar={() => setFolha(null)} aoUsar={(r) => {
         setFolha(null); comDesfazer('Refeição adicionada.', (a) => ({ ...a, refeicoes: [...a.refeicoes, ...aplicarReceitaDeDieta(normalizarDieta(null), r.conteudo).refeicoes] }));
       }} /> : null}
-      {folha?.tipo === 'salvarRefeicao' ? <FolhaSalvarReceita titulo="Salvar refeição como modelo" aoFechar={() => setFolha(null)} aoSalvar={async (nome, descricao) => {
+      {folha?.tipo === 'salvarRefeicao' ? <FolhaSalvarReceita titulo={rotuloSalvarComo('REFEICAO')} aoFechar={() => setFolha(null)} aoSalvar={async (nome, descricao) => {
         await criarReceita({ tipo: 'REFEICAO', nome, descricao, conteudo: { ...normalizarDieta(null), refeicoes: [c.refeicoes[folha.indice]] } });
-        setFolha(null); avisar('Modelo de refeição salvo.', 'sucesso');
+        setFolha(null); avisar(avisoModeloSalvo('REFEICAO'), 'sucesso');
       }} /> : null}
       {folha?.tipo === 'alimento' ? (
         <FolhaAlimentos
@@ -362,24 +367,51 @@ export default function EditorDeDieta({ modelo = false, unica = false }: { model
           aoFechar={() => setFolha(null)}
           aoUsar={(r) => {
             setFolha(null);
-            comDesfazer(`Modelo “${r.nome}” aplicada.`, (a) => aplicarReceitaDeDieta(a, r.conteudo));
+            comDesfazer(`Modelo “${r.nome}” aplicado.`, (a) => aplicarReceitaDeDieta(a, r.conteudo));
           }}
         />
       ) : null}
       {folha?.tipo === 'salvar' && id ? (
         <FolhaSalvarReceita
-          titulo="Salvar dieta como modelo"
-          explicacao="Guarda as refeições, opções e itens do rascunho como modelo de dieta. O plano continua igual."
+          titulo={rotuloSalvarComo('PLANO_DIETA')}
+          explicacao="Guarda as refeições, opções e itens do rascunho como modelo de dieta no Planejamento. O plano continua igual."
           aoFechar={() => setFolha(null)}
           aoSalvar={async (nome, descricao) => {
             if (!(await editor.salvar())) throw new Error('Não deu para salvar o rascunho antes.');
             await salvarPlanoComoReceita('dieta', id, nome, descricao);
             setFolha(null);
-            avisar('Modelo de dieta salva.', 'sucesso');
+            avisar(avisoModeloSalvo('PLANO_DIETA'), 'sucesso');
           }}
         />
       ) : null}
-    </Tela>
+    </TelaDoEditor>
+  );
+}
+
+/**
+ * "Total do dia" (opção A de cada refeição): kcal em destaque, macros com o nome por extenso ("Proteína —" sem
+ * unidade quando falta valor), a água do plano e, se algum item deixa o total incompleto, quantos são e um atalho
+ * para o primeiro (antes só aparecia "— g de proteína" sem dizer por quê).
+ */
+function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao }: { conteudo: ConteudoDieta; semValor: ItemSemValor[]; aoAbrirRefeicao: (uid: string) => void }) {
+  const { rolarAte } = useRolagem();
+  const t = totalDoDia(c);
+  const primeiro = semValor[0];
+  return (
+    <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+      <Texto variante="destaque" numerico>{t.kcal === null ? 'kcal —' : `${numeroParaTela(t.kcal, 0)} kcal`}</Texto>
+      <Texto numerico>
+        {[textoDoMacro('Proteína', t.proteina, 'g'), textoDoMacro('Carboidrato', t.carboidrato, 'g'), textoDoMacro('Gordura', t.gordura, 'g')].join(' · ')}
+      </Texto>
+      <Texto variante="suave" numerico>Água: {textoDaAgua(c.aguaLitros) ?? '—'}</Texto>
+      {primeiro ? (
+        <View style={estilos.semValor}>
+          <Incompleto texto={textoItensSemValor(semValor.length)} />
+          <Botao rotulo="Ir ao primeiro" rotuloAcessivel={`Ir ao primeiro item sem valor: ${primeiro.nome || 'sem nome'}`} tipo="fantasma"
+            aoTocar={() => { aoAbrirRefeicao(primeiro.refeicaoUid); rolarAte([primeiro.refeicaoUid]); }} />
+        </View>
+      ) : null}
+    </Cartao>
   );
 }
 
@@ -440,7 +472,9 @@ function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo
 
 const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-  barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
+  cabecalhoRefeicoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), marginBottom: -espaco(1.5) },
+  // Coluna: o aviso de item sem valor ocupa a linha toda (em 390 px cortava ao lado do botão).
+  semValor: { gap: espaco(0.5), alignItems: 'flex-start' },
   opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
   orientacao: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), borderTopWidth: 1, paddingTop: espaco(1) },
   cresce: { flex: 1, gap: espaco(1) },

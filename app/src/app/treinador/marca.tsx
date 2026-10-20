@@ -9,7 +9,6 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
-import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 /** Marca (nome, cor, fonte, tema, logo) com prévia ao vivo. */
@@ -19,8 +18,7 @@ export default function Marca() {
   const [conflitos, setConflitos] = useState(0);
   return (
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo="Marca" mostrarMarca="celular" />
-      <Texto variante="suave">Nome, logo, cor e tema que os seus alunos veem no app.</Texto>
+      <Cabecalho titulo="Marca" subtitulo="Nome, logo, cor e tema que os seus alunos veem no app." />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados ? (

@@ -107,6 +107,23 @@ describe('cliente HTTP: refresh compartilhado', () => {
     expect(encerrada).not.toHaveBeenCalled();
   });
 
+  it('renovação em 429 ou 5xx não encerra a sessão: vira "sem conexão" com a mensagem do servidor', async () => {
+    for (const status of [429, 503]) {
+      fetchSimulado.mockReset();
+      fetchSimulado.mockImplementation((url: string) =>
+        String(url).endsWith('/auth/refresh')
+          ? Promise.resolve(json(status, { status, message: 'Muitas tentativas.', codigo: 'LIMITE', fieldErrors: null }))
+          : Promise.resolve(erro401('TOKEN_EXPIRADO')));
+      const { requisicao, renovarSessao, aoEncerrar } = carregarCliente();
+      const encerrada = jest.fn();
+      aoEncerrar(encerrada);
+
+      await expect(renovarSessao()).rejects.toMatchObject({ status: 0, semConexao: true, message: 'Muitas tentativas.' });
+      await expect(requisicao('/aluno/painel')).rejects.toMatchObject({ status: 0 });
+      expect(encerrada).not.toHaveBeenCalled();
+    }
+  });
+
   it('CONFLITO_EDICAO não renova a sessão nem repete', async () => {
     fetchSimulado.mockResolvedValue(erro401('CONFLITO_EDICAO'));
     const { requisicao, aoEncerrar } = carregarCliente();

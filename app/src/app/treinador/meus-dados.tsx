@@ -1,26 +1,26 @@
-import { useWindowDimensions, View } from 'react-native';
+import { View } from 'react-native';
 
-import { espaco, LARGURA_FORMULARIO, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { MeuPerfilEquipe } from '../../treinador/equipe/MeuPerfilEquipe';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { voltarDasTelasDaConta } from '../../dominio/menuDoUsuario';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
+import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Tela } from '../../ui/Tela';
-import { Texto } from '../../ui/Texto';
 import { TrocarSenha } from '../../ui/TrocarSenha';
 
-/** Meus dados: e-mail, nome e telefone (perfil pessoal na equipe) e troca de senha. Aberta pelo cartão do usuário. */
+/**
+ * Meus dados: acesso (e-mail de entrada), seus dados na equipe (nome e telefone) e troca de senha. Aberta pelo cartão
+ * do usuário. "Conta" ficou só para a assinatura ("Minha conta"); aqui o cartão do e-mail se chama "Acesso".
+ */
 export default function MeusDados() {
   const { usuario } = useSessao();
-  const { width } = useWindowDimensions();
   return (
-    <Tela bordas={['top']} largura={LARGURA_FORMULARIO}>
-      <Cabecalho titulo="Meus dados" voltar={voltarDasTelasDaConta(width, LARGURA_MENU_LATERAL)} />
+    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
+      <Cabecalho titulo="Meus dados" subtitulo="Seu acesso, seu nome na equipe e sua senha." />
       <View style={{ gap: espaco(3) }}>
-        <Cartao titulo="Conta">
-          <Texto variante="bloco">{usuario?.nome}</Texto>
-          <Texto variante="suave">{usuario?.email}</Texto>
+        <Cartao titulo="Acesso">
+          <CampoLeitura rotulo="E-mail de entrada" valor={usuario?.email} />
         </Cartao>
         <MeuPerfilEquipe />
         <TrocarSenha />

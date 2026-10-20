@@ -1,9 +1,10 @@
-import { BookOpen, CircleUserRound, ContactRound, House, NotebookTabs, Palette, UsersRound, History, LifeBuoy, UserPlus } from 'lucide-react-native';
+import { BookOpen, CircleUserRound, ClipboardCheck, ContactRound, House, Inbox, NotebookTabs, Palette, UsersRound, History, LifeBuoy } from 'lucide-react-native';
 
 import { Navigator, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
-import { painelTreinador } from '../../api/rotas';
+import { listarInscricoes, painelTreinador } from '../../api/rotas';
+import { telasDaOrigem } from '../../dominio/telas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useCarregar } from '../../ui/useCarregar';
 import { podeAcessarTela } from '../../dominio/permissoes';
@@ -18,19 +19,22 @@ import { GUIAS } from '../../ajuda/conteudo';
 
 /**
  * Só aparecem no menu as telas que já existem (nada de recurso fingido). A barra do celular leva Início, Alunos,
- * Biblioteca, Planejamento e Perfil; Interessados, Marca, Equipe, Ajuda e Auditoria ficam no menu lateral e nos atalhos do Perfil.
+ * Biblioteca, Planejamento e Perfil; Atualizações, Interessados, Marca, Equipe, Ajuda e Auditoria ficam no menu lateral e
+ * no celular abrem pelo Início (Atualizações) ou pelos atalhos do Perfil, que ficam acesos enquanto elas estão abertas.
  */
 const ITENS: ItemMenu[] = [
-  { rotulo: 'Início', href: '/treinador', caminho: '/treinador', Icone: House, exato: true },
+  { rotulo: 'Início', href: '/treinador', caminho: '/treinador', Icone: House, exato: true, tambemNoCelular: telasDaOrigem('/treinador') },
   { rotulo: 'Alunos', href: '/treinador/alunos', caminho: '/treinador/alunos', Icone: ContactRound },
-  { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: UserPlus, soLateral: true },
+  { rotulo: 'Atualizações', href: '/treinador/atualizacoes', caminho: '/treinador/atualizacoes', Icone: ClipboardCheck, soLateral: true },
+  { rotulo: 'Interessados', href: '/treinador/interessados', caminho: '/treinador/interessados', Icone: Inbox, soLateral: true },
   { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen },
-  { rotulo: 'Planejamento', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
+  { rotulo: 'Planejamento', rotuloCurto: 'Planos', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
   { rotulo: 'Marca', href: '/treinador/marca', caminho: '/treinador/marca', Icone: Palette, soLateral: true },
   // A barra de topo (com o cartão do usuário) é só da web; num tablet nativo largo o Perfil continua no menu lateral.
-  { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', tambem: ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/ajustes', '/treinador/minha-conta'] },
+  { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', tambem: ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/ajustes', '/treinador/minha-conta'], tambemNoCelular: telasDaOrigem('/treinador/perfil') },
   { rotulo: 'Equipe', href: '/treinador/equipe', caminho: '/treinador/equipe', Icone: UsersRound, soLateral:true },
-  { rotulo: 'Ajuda', href: '/treinador/ajuda', caminho: '/treinador/ajuda', Icone: LifeBuoy, soLateral: true },
+  // Termos e privacidade abre pela Ajuda no PC.
+  { rotulo: 'Ajuda', href: '/treinador/ajuda', caminho: '/treinador/ajuda', Icone: LifeBuoy, soLateral: true, tambem: ['/treinador/termos'] },
   { rotulo: 'Auditoria', href: '/treinador/auditoria', caminho: '/treinador/auditoria', Icone: History, soLateral:true },
 ];
 
@@ -38,15 +42,26 @@ export default function LayoutTreinador() {
   const {pode,recarregarPerfil,usuario}=useSessao();const caminho=usePathname();
   useLimparFavoritosAoSair();
   useEffect(()=>{if(caminho.startsWith('/treinador')) void recarregarPerfil().catch(()=>undefined);},[recarregarPerfil,caminho]);
-  // Ponto no Início quando há atualização para revisar (só quem pode vê-las); falha silenciosa, sem travar o menu.
+  // Ponto em Atualizações quando há alguma para revisar (no celular, no Início, que leva a elas) e em Interessados quando
+  // há inscrição nova (no celular, no Perfil, que tem o atalho). Só para quem pode ver; falha silenciosa, sem travar o menu.
   const verAtualizacoes=pode('PAINEL_VER')&&pode('ATUALIZACAO_LER')&&pode('ALUNO_SENSIVEL_LER');
   const painel=useCarregar(verAtualizacoes?`ponto-atualizacoes:${caminho}`:null,()=>painelTreinador(false));
-  const ponto=verAtualizacoes&&(painel.dados?.atualizacoesParaRevisar??0)>0;
+  const pontoAtualizacoes=verAtualizacoes&&(painel.dados?.atualizacoesParaRevisar??0)>0;
+  const verInscricoes=pode('INSCRICAO_LER');
+  const novas=useCarregar(verInscricoes?`ponto-interessados:${caminho}`:null,()=>listarInscricoes({situacao:'NOVA',meus:false,pagina:0}));
+  const pontoInteressados=verInscricoes&&(novas.dados?.total??0)>0;
+  const comPontos=(i:ItemMenu):ItemMenu=>{
+    if(i.caminho==='/treinador') return {...i,ponto:pontoAtualizacoes?'inferior':false};
+    if(i.caminho==='/treinador/atualizacoes') return {...i,ponto:pontoAtualizacoes};
+    if(i.caminho==='/treinador/interessados') return {...i,ponto:pontoInteressados};
+    if(i.caminho==='/treinador/perfil') return {...i,ponto:pontoInteressados?'inferior':false};
+    return i;
+  };
   return (
     <Navigator><GuardaDePapel papel="TREINADOR"><GuardaDeSaida>
       {/* Passeio pelo menu no primeiro acesso (depois dos termos, que a GuardaDePapel cobra); revisto pela Ajuda. */}
       <ProvedorDoPasseio key={usuario?.id ?? ''} usuarioId={usuario?.id ?? ''} passos={usuario ? GUIAS.treinador.passeio : []}>
-        <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode)).map(i=>i.caminho==='/treinador'?{...i,ponto}:i)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
+        <Navegacao topo={Platform.OS === 'web' ? <BarraTopo /> : undefined} itens={ITENS.filter(i=>podeAcessarTela(i.caminho,pode)).map(comPontos)} conteudo={<GuardaDePermissao><Slot /></GuardaDePermissao>} />
       </ProvedorDoPasseio>
     </GuardaDeSaida></GuardaDePapel></Navigator>
   );

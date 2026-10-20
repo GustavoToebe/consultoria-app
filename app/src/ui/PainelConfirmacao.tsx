@@ -56,10 +56,12 @@ export function PainelConfirmacao(props: Props) {
               tipo={props.perigo ? 'perigo' : 'primario'}
               carregando={props.carregando}
               desabilitado={props.desabilitado}
-              motivo={props.motivo}
+              rotuloAcessivel={props.desabilitado && props.motivo ? `${props.rotuloConfirmar}. ${props.motivo}` : undefined}
               aoTocar={props.aoConfirmar}
             />
           </View>
+          {/* O motivo fica abaixo da linha dos botões: dentro do botão ele esticava a altura e o Cancelar crescia junto. */}
+          {props.desabilitado && props.motivo && !props.carregando ? <Texto variante="pequeno" style={estilos.motivo}>{props.motivo}</Texto> : null}
       </AlertDialogContent>
     </AlertDialog>
   );
@@ -75,7 +77,8 @@ const estilos = StyleSheet.create({
     padding: espaco(2.5),
     gap: espaco(1.5),
   },
-  botoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco(1), flexWrap: 'wrap', marginTop: espaco(1) },
+  botoes: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap', marginTop: espaco(1) },
+  motivo: { textAlign: 'right' },
   cancelar: { minHeight: ALVO_TOQUE, borderRadius: RAIO, borderWidth: 1, paddingHorizontal: espaco(2), alignItems: 'center', justifyContent: 'center' },
   textoCancelar: { fontFamily: fontes.semi },
 });

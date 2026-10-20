@@ -7,10 +7,14 @@ import { baixarFotoDoTreinador } from '../api/rotas';
 import { idsDeFotos } from '../dominio/fotosAtualizacao';
 import { Cartao } from '../ui/Cartao';
 import { ImagemProtegida } from '../ui/ImagemProtegida';
+import { Selo, type TipoSelo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 
-/** Resumo do período: peso e variação (se o questionário pergunta o peso), perguntas em destaque e dados do sistema. */
-export function ResumoDaAtualizacao({atualizacao:a,modelo}: {atualizacao:Atualizacao;modelo:ConteudoQuestionario}) {
+/**
+ * Resumo do período: peso e variação (se o questionário pergunta o peso), perguntas em destaque e dados do sistema. A
+ * situação (selo) e o questionário em uso ficam no cabeçalho do cartão, não soltos na tela.
+ */
+export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atualizacao:Atualizacao;modelo:ConteudoQuestionario;selo?:{texto:string;tipo:TipoSelo}|null;descricao?:string}) {
   const resumo=resumoDoTreinador(modelo,a.respostas,a.resumo);
   const sinal=(valor:number)=>`${valor>0?'+':''}${numeroParaTela(valor,1)}`;
   const numeros:[string,string][]=[
@@ -23,7 +27,7 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo}: {atualizacao:Atualiz
   // Fotos da atualização (se o questionário tem a pergunta): miniaturas pela rota do treinador, "—" sem nenhuma.
   const perguntaFotos=modelo.secoes.flatMap(s=>s.perguntas).find(p=>p.tipo==='FOTOS');
   const fotos=perguntaFotos?idsDeFotos(a.respostas?.[perguntaFotos.id]):[];
-  return <Cartao titulo="Resumo do período">
+  return <Cartao titulo="Resumo do período" descricao={descricao} acoes={selo?<Selo texto={selo.texto} tipo={selo.tipo} />:undefined}>
     {numeros.length?<View style={estilos.numeros}>
       {numeros.map(([rotulo,valor],i)=><View key={`${i}:${rotulo}`} style={estilos.numero}>
         <Texto variante="rotulo">{rotulo}</Texto><Texto variante="destaque" numerico>{valor}</Texto>

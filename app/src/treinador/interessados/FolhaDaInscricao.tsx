@@ -57,14 +57,30 @@ export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
   /** A lista recarrega depois de qualquer alteração. */
   aoMudar: () => void;
 }) {
+  const { pode } = useSessao();
   const detalhe = useCarregar(id ? `inscricao:${id}` : null, () => inscricao(id ?? ''));
   const dados = detalhe.dados && detalhe.dados.id === id ? detalhe.dados : null;
+  // A decisão (Aceitar/Recusar) fica no rodapé fixo da folha, sempre ao alcance; a confirmação continua no conteúdo.
+  const [pedido, setPedido] = useState<Decisao | null>(null);
+  const [decidindo, setDecidindo] = useState<Decisao | null>(null);
+  const [aceitaId, setAceitaId] = useState<string | null>(null);
+  const fechar = () => { setPedido(null); aoFechar(); };
+  const decide = !!dados && aceitaId !== dados.id && dados.situacao !== 'ACEITA' && pode('INSCRICAO_ALTERAR');
+  const podeAceitarAqui = decide && !!dados && pode('ALUNO_ALTERAR') && podeAceitar(dados.situacao);
+  const podeRecusarAqui = decide && !!dados && podeRecusar(dados.situacao);
+  const rodape = podeAceitarAqui || podeRecusarAqui ? (
+    <>
+      {podeRecusarAqui ? <Botao rotulo="Recusar" tipo="perigoTexto" aoTocar={() => setPedido('recusar')} carregando={decidindo === 'recusar'} desabilitado={!!decidindo} /> : null}
+      {podeAceitarAqui ? <Botao rotulo="Aceitar" aoTocar={() => setPedido('aceitar')} carregando={decidindo === 'aceitar'} desabilitado={!!decidindo} /> : null}
+    </>
+  ) : undefined;
   return (
-    <Folha visivel={!!id} titulo={dados?.nome ?? 'Inscrição'} aoFechar={aoFechar}>
+    <Folha visivel={!!id} titulo={dados?.nome ?? 'Inscrição'} aoFechar={fechar} rodape={rodape}>
       {detalhe.erro ? <MensagemErro texto={textoDoErro(detalhe.erro)} tentarDeNovo={detalhe.recarregar} erro={detalhe.erro} /> : null}
       {!dados && !detalhe.erro ? <Esqueleto /> : null}
       {dados ? (
-        <Conteudo key={`${dados.id}:${dados.versao}`} dados={dados} responsaveis={responsaveis} aoFechar={aoFechar}
+        <Conteudo key={`${dados.id}:${dados.versao}`} dados={dados} responsaveis={responsaveis} aoFechar={fechar}
+          pedido={pedido} aoFecharPedido={() => setPedido(null)} aoDecidindo={setDecidindo} aoAceitar={() => setAceitaId(dados.id)}
           aoMudarLista={aoMudar} aoAtualizar={(d) => { detalhe.definir(d); aoMudar(); }}
           aoRecarregar={() => { detalhe.recarregar(); aoMudar(); }} />
       ) : null}
@@ -72,8 +88,16 @@ export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
   );
 }
 
-function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, aoRecarregar }: {
+type Decisao = 'aceitar' | 'recusar';
+
+function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, aoRecarregar, pedido, aoFecharPedido, aoDecidindo, aoAceitar }: {
   dados: InscricaoDetalhe;
+  /** Botão do rodapé tocado: abre a confirmação correspondente. */
+  pedido: Decisao | null;
+  aoFecharPedido: () => void;
+  /** Mantém o rodapé em "carregando" enquanto a decisão vai à API. */
+  aoDecidindo: (d: Decisao | null) => void;
+  aoAceitar: () => void;
   responsaveis: readonly ResponsavelEquipe[];
   aoFechar: () => void;
   aoMudarLista: () => void;
@@ -95,9 +119,7 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
   const [ocupado, setOcupado] = useState<'andamento' | 'nota' | 'aceitar' | 'recusar' | null>(null);
   const [erro, setErro] = useState<unknown>(null);
   const [alunoExistente, setAlunoExistente] = useState<string | null>(null);
-  const [confirmarAceite, setConfirmarAceite] = useState(false);
   const [convidar, setConvidar] = useState(podeConvidar);
-  const [confirmarRecusa, setConfirmarRecusa] = useState(false);
   const [aceite, setAceite] = useState<AceiteInscricao | null>(null);
 
   const mudouAndamento = situacao !== dados.situacao || pagamento !== dados.pagamento
@@ -110,6 +132,7 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
   /** Erro comum: conflito de versão recarrega; limite do plano vai para o aviso do plano; o resto fica na folha. */
   const falhou = (e: unknown) => {
     setOcupado(null);
+    aoDecidindo(null);
     const aluno = alunoDoConflito(e);
     if (aluno) {
       setAlunoExistente(aluno);
@@ -131,6 +154,7 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
     setAlunoExistente(null);
     acao().then((d) => {
       setOcupado(null);
+      aoDecidindo(null);
       if (tipo === 'nota') setNota('');
       avisar(sucesso, 'sucesso');
       aoAtualizar(d);
@@ -147,17 +171,21 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
   };
 
   const recusar = () => {
-    setConfirmarRecusa(false);
+    aoFecharPedido();
+    aoDecidindo('recusar');
     executar('recusar', () => recusarInscricao(dados.id, dados.versao), 'Inscrição recusada.');
   };
 
   const aceitar = () => {
-    setConfirmarAceite(false);
+    aoFecharPedido();
+    aoDecidindo('aceitar');
     setOcupado('aceitar');
     setErro(null);
     setAlunoExistente(null);
     aceitarInscricao(dados.id, convidar && podeConvidar, dados.versao).then((r) => {
       setOcupado(null);
+      aoDecidindo(null);
+      aoAceitar();
       // O código do convite só existe nesta resposta: fica na folha até ela fechar (nada de recarregar o detalhe agora).
       setAceite(r);
       avisar('Inscrição aceita: o aluno foi cadastrado.', 'sucesso');
@@ -190,7 +218,8 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
     <View style={estilos.corpo}>
       <View style={estilos.selos}>
         <Selo texto={situacaoTela.texto} tipo={situacaoTela.tipo} />
-        <Selo texto={`Pagamento: ${pagamentoTela.texto}`} tipo={pagamentoTela.tipo} />
+        {/* "Não controlado" é o padrão: o selo só aparece quando o pagamento está sendo acompanhado. */}
+        {dados.pagamento !== 'NAO_CONTROLADO' ? <Selo texto={`Pagamento: ${pagamentoTela.texto}`} tipo={pagamentoTela.tipo} /> : null}
       </View>
       {duplicidade ? (
         <Cartao titulo="Possível duplicidade" descricao="Só um aviso: nada é juntado sozinho. Confira antes de aceitar.">
@@ -218,7 +247,7 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
         <CampoLeitura rotulo="Objetivo" valor={dados.objetivo} />
         <CampoLeitura rotulo="Observação" valor={dados.observacao} />
         <CampoLeitura rotulo="Ciência do texto da consultoria"
-          valor={dados.cienciaEm ? `Marcada em ${dataHoraParaTela(dados.cienciaEm)}` : 'Sem texto na época'} />
+          valor={dados.cienciaEm ? `Marcada em ${dataHoraParaTela(dados.cienciaEm)}` : 'Não havia texto de privacidade'} />
       </Cartao>
 
       <Cartao titulo="Andamento">
@@ -285,28 +314,19 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
             <LinhaDeAcoes><Botao rotulo="Abrir ficha" aoTocar={() => abrirFicha(dados.alunoId ?? '')} /></LinhaDeAcoes>
           ) : null}
         </Cartao>
-      ) : podeAlterar ? (
-        <LinhaDeAcoes>
-          {podeCadastrar && podeAceitar(dados.situacao) ? (
-            <Botao rotulo="Aceitar" aoTocar={() => setConfirmarAceite(true)} carregando={ocupado === 'aceitar'} />
-          ) : null}
-          {podeRecusar(dados.situacao) ? (
-            <Botao rotulo="Recusar" tipo="perigoTexto" aoTocar={() => setConfirmarRecusa(true)} carregando={ocupado === 'recusar'} />
-          ) : null}
-        </LinhaDeAcoes>
       ) : null}
 
-      <PainelConfirmacao visivel={confirmarAceite} titulo="Aceitar inscrição?"
+      <PainelConfirmacao visivel={pedido === 'aceitar' && podeCadastrar} titulo="Aceitar inscrição?"
         mensagem={`${dados.nome} vira aluno da consultoria, com o nome${dados.email ? ' e o e-mail' : ''} da inscrição. O app não confere pagamento.`}
-        rotuloConfirmar="Aceitar e cadastrar" aoConfirmar={aceitar} aoCancelar={() => setConfirmarAceite(false)}>
+        rotuloConfirmar="Aceitar e cadastrar" aoConfirmar={aceitar} aoCancelar={aoFecharPedido}>
         {podeConvidar ? (
           <CaixaSelecao rotulo="Enviar convite de acesso ao app" marcado={convidar} aoMudar={setConvidar}
             ajuda="Gera o link para a pessoa criar a senha. Você copia e manda." />
         ) : null}
       </PainelConfirmacao>
-      <PainelConfirmacao visivel={confirmarRecusa} titulo="Recusar inscrição?" perigo
+      <PainelConfirmacao visivel={pedido === 'recusar' && podeAlterar} titulo="Recusar inscrição?" perigo
         mensagem="A inscrição sai da fila de atendimento. Recusadas e desistentes são apagadas sozinhas depois de 180 dias."
-        rotuloConfirmar="Recusar" aoConfirmar={recusar} aoCancelar={() => setConfirmarRecusa(false)} />
+        rotuloConfirmar="Recusar" aoConfirmar={recusar} aoCancelar={aoFecharPedido} />
     </View>
   );
 }

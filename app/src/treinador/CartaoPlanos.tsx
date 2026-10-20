@@ -1,8 +1,7 @@
-import { NoPlano } from '../ui/NoPlano';
 import { Permitido } from '../ui/Permitido';
 import { EntradaEmCascata, usePrimeiraLista } from '../ui/EntradaEmCascata';
 import { router } from 'expo-router';
-import { Copy, FileDown, Pencil, Plus, Users } from 'lucide-react-native';
+import { Copy, Ellipsis, FileDown, Pencil, Plus, Trash2, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -23,6 +22,8 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { IconeBotao } from '../ui/IconeBotao';
+import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
@@ -32,6 +33,7 @@ import { mensagemPlanoCopiado, rotuloAbrirFicha, rotuloEditarPlano } from '../do
 import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 import { useCarregar } from '../ui/useCarregar';
 import { CopiarParaAluno } from './CopiarParaAluno';
+import { FolhaDeAcoes, type AcaoDoMenu } from './FolhaDeAcoes';
 
 const NOMES: Record<TipoPlano, { titulo: string; plural: string; novo: string; receita: 'PLANO_TREINO' | 'PLANO_DIETA' | 'MOBILIDADE'; rota: string }> = {
   treino: { titulo: 'Treino', plural: 'Treinos', novo: 'Novo treino', receita: 'PLANO_TREINO', rota: '/treinador/treinos' },
@@ -81,13 +83,23 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
   const dados = todos.dados ? todos.dados.filter((p) => p.pastaId === pasta.id) : null;
   const animar = usePrimeiraLista(!!dados);
   const { avisar } = useAviso();
-  const { temFuncionalidade } = useSessao();
+  const { temFuncionalidade, pode } = useSessao();
   // Mobilidade fora do plano: a API só bloqueia escrita; o que já existe continua em leitura e pode ser excluído.
   const escritaLiberada = tipo !== 'mobilidade' || temFuncionalidade('MOBILIDADE');
   const [excluir, setExcluir] = useState<PlanoResumo | null>(null);
   const [novo, setNovo] = useState(false);
   const [replicando, setReplicando] = useState<PlanoResumo | null>(null);
   const [copiando, setCopiando] = useState<PlanoResumo | null>(null);
+  const [menu, setMenu] = useState<PlanoResumo | null>(null);
+  const podeAlterar = pode(PERMISSOES_DO_PLANO[tipo].alterar);
+  const pdf = (p: PlanoResumo) => gerarPdfDoPlano(tipo, p).catch((e: unknown) => avisar(textoDoErro(e), 'perigo'));
+  // Ações do ⋯ (a ordem é a da folha); nenhuma liberada = sem ⋯.
+  const acoesDoMenu = (p: PlanoResumo): (AcaoDoMenu | null)[] => [
+    p.versaoPublicada > 0 && temFuncionalidade('PDF') ? { rotulo: 'Baixar PDF', detalhe: 'Da versão publicada.', Icone: FileDown, aoTocar: () => void pdf(p) } : null,
+    p.versaoPublicada > 0 && escritaLiberada && podeAlterar ? { rotulo: p.pastaId ? 'Duplicar nesta pasta' : 'Replicar para o próximo ciclo', detalhe: 'Cria um rascunho com o conteúdo publicado.', Icone: Copy, aoTocar: () => setReplicando(p) } : null,
+    escritaLiberada && podeAlterar && pode('ALUNO_LER') ? { rotulo: 'Copiar para outro aluno', Icone: Users, aoTocar: () => setCopiando(p) } : null,
+    podeAlterar ? { rotulo: 'Excluir plano', Icone: Trash2, perigo: true, aoTocar: () => setExcluir(p) } : null,
+  ];
 
   return (
     <Cartao
@@ -102,20 +114,18 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
         <EntradaEmCascata indice={i} animar={animar} key={p.id} style={[estilos.plano, { borderColor: cores.borda }]}>
           <View style={estilos.dadosPlano}>
             <Texto variante="subtitulo">{p.titulo}</Texto>
-            <Texto variante="suave">{periodo(p)}</Texto>
+            <Texto variante="suave" numerico>{periodo(p)}</Texto>
             <SelosDoPlano plano={p} />
           </View>
-          <View style={estilos.botoes}>
-            {p.versaoPublicada > 0 ? <NoPlano funcionalidade="PDF"><BotaoPdf tipo={tipo} plano={p} /></NoPlano> : null}
-            {p.versaoPublicada > 0 && escritaLiberada ? (
-              <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Replicar" tipo="secundario" Icone={Copy} aoTocar={() => setReplicando(p)} /></Permitido>
-            ) : null}
-            {escritaLiberada ? <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Permitido codigo="ALUNO_LER"><Botao rotulo="Copiar para outro aluno" tipo="secundario" Icone={Users} aoTocar={() => setCopiando(p)} /></Permitido></Permitido> : null}
-            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /></Permitido>
-            <Permitido codigo={PERMISSOES_DO_PLANO[tipo].alterar}><Botao rotulo="Excluir plano" tipo="perigoTexto" aoTocar={() => setExcluir(p)} /></Permitido>
-          </View>
+          {/* "Editar" é o que se faz todo dia e vem primeiro; o resto (PDF, duplicar, copiar, excluir) fica no ⋯.
+              `LinhaDeAcoes` nunca passa da largura do cartão (em 390 px os cinco botões estouravam a folha). */}
+          <LinhaDeAcoes>
+            {podeAlterar ? <Botao rotulo={rotuloCurto ? 'Editar' : rotuloEditarPlano(tipo)} rotuloAcessivel={rotuloEditarPlano(tipo)} tipo="secundario" Icone={Pencil} aoTocar={() => { aoNavegar?.(); router.push(rotaDoEditor(tipo, p.id)); }} /> : null}
+            {acoesDoMenu(p).some(Boolean) ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${p.titulo}`} aoTocar={() => setMenu(p)} /> : null}
+          </LinhaDeAcoes>
         </EntradaEmCascata>
       ))}
+      {menu ? <FolhaDeAcoes titulo={menu.titulo} acoes={acoesDoMenu(menu)} aoFechar={() => setMenu(null)} /> : null}
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.titulo ?? ''}”?`} mensagem="O plano sai da lista e deixa de estar ativo. As versões publicadas e o histórico de registros são preservados." rotuloConfirmar="Excluir plano" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
         if (!excluir) return; const id = excluir.id; setExcluir(null);
         excluirPlano(tipo, id).then(recarregar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
@@ -127,26 +137,6 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
         avisar(mensagemPlanoCopiado(tipo, nome), 'sucesso', { rotulo: rotuloAbrirFicha(nome), aoTocar: () => { aoNavegar?.(); router.push(`/treinador/alunos/${destinoId}`); } });
       }} /> : null}
     </Cartao>
-  );
-}
-
-/** PDF da versão publicada, direto da ficha. */
-function BotaoPdf({ tipo, plano }: { tipo: TipoPlano; plano: PlanoResumo }) {
-  const { avisar } = useAviso();
-  const [gerando, setGerando] = useState(false);
-  return (
-    <Botao
-      rotulo="PDF"
-      tipo="secundario"
-      Icone={FileDown}
-      carregando={gerando}
-      aoTocar={() => {
-        setGerando(true);
-        gerarPdfDoPlano(tipo, plano)
-          .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'))
-          .finally(() => setGerando(false));
-      }}
-    />
   );
 }
 
@@ -336,7 +326,6 @@ const estilos = StyleSheet.create({
   },
   dadosPlano: { gap: espaco(0.5), flexShrink: 1, minWidth: 200 },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap', flexShrink: 1, maxWidth: '100%' },
-  botoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap' },
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
   data: { flex: 1, minWidth: 190 },
 });

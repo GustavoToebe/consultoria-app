@@ -74,6 +74,10 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /actuator/health': { corpo: { status: 'UP' } },
     'GET /publico/configuracao': { corpo: { verificacaoHumana: false, siteKey: '', cadastroAberto: false } },
     'POST /auth/refresh': erroApi(401, 'Sessão expirada.'),
+    // O app do aluno busca as séries já gravadas no servidor ao abrir; sem histórico nos testes.
+    'GET /aluno/execucoes': { corpo: [] },
+    // O ponto da aba do aluno pergunta pela anamnese; 404 = nenhuma atribuída (o teste da anamnese troca).
+    'GET /aluno/anamnese': erroApi(404, 'Nenhuma anamnese.', 'NAO_ENCONTRADO'),
     ...respostas,
   };
   const rotas = Object.keys(mapa).sort((a, b) => b.length - a.length);

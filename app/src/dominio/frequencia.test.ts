@@ -1,5 +1,5 @@
 import type { DiaDeTreino } from '../api/tipos';
-import { frequenciaDe, planejarFrequencia, textoDaContagem, treinosComRegistro } from './frequencia';
+import { frequenciaDe, planejarFrequencia, textoDaContagem, treinosComRegistro, ultimoDiaComRegistro } from './frequencia';
 
 const serie = (concluida: boolean) => ({ id: 's', serieUid: 'su', tipo: 'WS', trabalho: true, carga: null, unidade: null, repeticoes: null, concluida, observacao: null });
 const dia = (data: string, ...sessoes: [string, boolean[]][]): DiaDeTreino => ({
@@ -66,11 +66,23 @@ describe('frequenciaDe e textoDaContagem', () => {
     expect(frequenciaDe(dias, plano)).toMatchObject({ semana: 1, pasta: { treinos: 2, titulo: 'Plano' } });
   });
   it('sem pasta contável a pasta fica nula', () => {
-    expect(frequenciaDe([], planejarFrequencia('2026-10-14', null))).toEqual({ semana: 0, pasta: null });
+    expect(frequenciaDe([], planejarFrequencia('2026-10-14', null))).toEqual({ semana: 0, ultimo: null, pasta: null });
   });
   it('texto: — para ausente, Nenhum registro para zero', () => {
     expect(textoDaContagem(null)).toBe('—');
     expect(textoDaContagem(0)).toBe('Nenhum registro');
-    expect(textoDaContagem(4)).toBe('4');
+    expect(textoDaContagem(4)).toBe('4 treinos');
+    expect(textoDaContagem(1)).toBe('1 treino');
+  });
+});
+
+describe('ultimoDiaComRegistro', () => {
+  it('a data mais recente com série concluída, em qualquer ordem', () => {
+    const dias = [dia('2026-10-13', ['a', [true]]), dia('2026-10-06', ['a', [true]]), dia('2026-10-14', ['a', [false]])];
+    expect(ultimoDiaComRegistro(dias)).toBe('2026-10-13');
+  });
+  it('nenhum concluído = nulo', () => {
+    expect(ultimoDiaComRegistro([dia('2026-10-14', ['a', [false]])])).toBeNull();
+    expect(ultimoDiaComRegistro([])).toBeNull();
   });
 });

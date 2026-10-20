@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react';
-import { ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { espaco, LARGURA_MENU_LATERAL } from '../tema/tokens';
@@ -30,12 +30,7 @@ export function FaixaDeChips({ children, fundo, contentContainerStyle, accessibi
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const cor = fundo ?? cores.fundo;
-  const [visivel, setVisivel] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [posicao, setPosicao] = useState(0);
-  const sobra = total - visivel;
-  const direita = sobra > 1 && posicao < sobra - 1;
-  const esquerda = sobra > 1 && posicao > 1;
+  const { direita, esquerda, medidas } = useEsmaecimento();
   if (quebrar && width >= LARGURA_MENU_LATERAL) {
     return (
       <View accessibilityRole={accessibilityRole} accessibilityLabel={accessibilityLabel} style={[estilos.chips, estilos.quebrada, contentContainerStyle]}>
@@ -50,10 +45,7 @@ export function FaixaDeChips({ children, fundo, contentContainerStyle, accessibi
         showsHorizontalScrollIndicator={false}
         accessibilityRole={accessibilityRole}
         accessibilityLabel={accessibilityLabel}
-        onLayout={(e) => setVisivel(e.nativeEvent.layout.width)}
-        onContentSizeChange={(w) => setTotal(w)}
-        scrollEventThrottle={50}
-        onScroll={(e) => setPosicao(e.nativeEvent.contentOffset.x)}
+        {...medidas}
         contentContainerStyle={[estilos.chips, contentContainerStyle]}>
         {children}
       </ScrollView>
@@ -63,7 +55,29 @@ export function FaixaDeChips({ children, fundo, contentContainerStyle, accessibi
   );
 }
 
-function Esmaecido({ cor, lado }: { cor: string; lado: 'esquerda' | 'direita' }) {
+/**
+ * Mede uma rolagem horizontal e diz de que lado sobra conteúdo; `medidas` vai direto no `ScrollView`. Também usado
+ * pelas `Abas`, que no celular rolam do mesmo jeito.
+ */
+export function useEsmaecimento() {
+  const [visivel, setVisivel] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [posicao, setPosicao] = useState(0);
+  const sobra = total - visivel;
+  return {
+    direita: sobra > 1 && posicao < sobra - 1,
+    esquerda: sobra > 1 && posicao > 1,
+    medidas: {
+      onLayout: (e: LayoutChangeEvent) => setVisivel(e.nativeEvent.layout.width),
+      onContentSizeChange: (w: number) => setTotal(w),
+      scrollEventThrottle: 50,
+      onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => setPosicao(e.nativeEvent.contentOffset.x),
+    },
+  };
+}
+
+/** Faixa que esmaece a borda de uma rolagem horizontal, indicando que há mais conteúdo daquele lado. */
+export function Esmaecido({ cor, lado }: { cor: string; lado: 'esquerda' | 'direita' }) {
   const faixas = lado === 'direita' ? [0.25, 0.5, 0.75, 1] : [1, 0.75, 0.5, 0.25];
   return (
     <View pointerEvents="none" style={[estilos.esmaecido, lado === 'direita' ? estilos.direita : estilos.esquerda]}>

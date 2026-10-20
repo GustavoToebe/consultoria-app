@@ -55,6 +55,28 @@ export const TIPOS_PARA_ADICIONAR: readonly { tipo: TipoPergunta; descricao: str
 export const tiposParaAdicionar = (finalidade: FinalidadeQuestionario) =>
   TIPOS_PARA_ADICIONAR.filter((t) => finalidade === 'ATUALIZACAO' || !t.soAtualizacao);
 
+/**
+ * Grupos da folha "Adicionar pergunta" (revisão de telas de 19/10: eram 17 botões soltos). Todo tipo do menu está em
+ * exatamente um grupo; tipo novo sem grupo cai em "Especiais" (`gruposParaAdicionar`).
+ */
+const GRUPOS_DE_TIPOS: readonly { rotulo: string; tipos: readonly TipoPergunta[] }[] = [
+  { rotulo: 'Escolha', tipos: ['SIM_NAO', 'ESCOLHA_UNICA', 'MULTIPLA_ESCOLHA', 'GRADE'] },
+  { rotulo: 'Texto', tipos: ['TEXTO', 'TEXTO_LONGO', 'TELEFONE', 'EMAIL'] },
+  { rotulo: 'Número e data', tipos: ['NOTA', 'NOTAS_POR_DIA', 'NUMERO', 'PESO', 'DATA', 'DATA_AUTOMATICA'] },
+  { rotulo: 'Especiais', tipos: ['FOTOS', 'ACEITE', 'INFORMATIVO'] },
+];
+
+/** Tipos da finalidade em grupos, na ordem dos grupos; grupo vazio some. */
+export function gruposParaAdicionar(finalidade: FinalidadeQuestionario): { rotulo: string; itens: { tipo: TipoPergunta; descricao: string }[] }[] {
+  const disponiveis = tiposParaAdicionar(finalidade);
+  const agrupados = new Set(GRUPOS_DE_TIPOS.flatMap((g) => g.tipos));
+  return GRUPOS_DE_TIPOS.map((g) => ({
+    rotulo: g.rotulo,
+    itens: [...g.tipos.flatMap((t) => disponiveis.filter((d) => d.tipo === t)),
+      ...(g.rotulo === 'Especiais' ? disponiveis.filter((d) => !agrupados.has(d.tipo)) : [])].map(({ tipo, descricao }) => ({ tipo, descricao })),
+  })).filter((g) => g.itens.length > 0);
+}
+
 const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESCOLHA_UNICA'];
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
 const SEM_OBRIGATORIA: readonly TipoPergunta[] = ['DATA_AUTOMATICA', 'INFORMATIVO'];

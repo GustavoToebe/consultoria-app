@@ -1,0 +1,50 @@
+/**
+ * Regras do Início do treinador (padrão das telas, 19/10): por onde começar e o que mostrar sem repetir.
+ * Só leitura do painel; nada é feito sozinho.
+ */
+
+export type DestinoDoInicio = 'PARA_REVISAR' | 'ATRASADAS' | 'INTERESSADOS' | 'PLANOS_TERMINANDO' | 'SEM_REGISTRO';
+
+export interface PendenciasDoInicio {
+  /** Nulo = sem permissão para ver (o item não entra na conta). */
+  paraRevisar: number | null;
+  atrasadas: number | null;
+  interessadosNovos: number | null;
+  planosTerminando: number | null;
+  semRegistro: number | null;
+  diasSemRegistro: number;
+}
+
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+
+/**
+ * A primeira pendência, na ordem do trabalho do dia: atualização para revisar (o aluno espera o feedback), atrasadas,
+ * interessados novos (quem espera contato), planos que terminam e alunos sem registro. Nada pendente = nulo.
+ */
+export function proximoPassoDoInicio(p: PendenciasDoInicio): { texto: string; acao: string; destino: DestinoDoInicio } | null {
+  if (p.paraRevisar) return { texto: `${plural(p.paraRevisar, 'atualização chegou', 'atualizações chegaram')} para revisar.`, acao: 'Revisar agora', destino: 'PARA_REVISAR' };
+  if (p.atrasadas) return { texto: `${plural(p.atrasadas, 'atualização está atrasada', 'atualizações estão atrasadas')}.`, acao: 'Ver atrasadas', destino: 'ATRASADAS' };
+  if (p.interessadosNovos) return { texto: `${plural(p.interessadosNovos, 'interessado novo espera', 'interessados novos esperam')} contato.`, acao: 'Ver interessados', destino: 'INTERESSADOS' };
+  if (p.planosTerminando) return { texto: `${plural(p.planosTerminando, 'plano termina', 'planos terminam')} nos próximos 7 dias.`, acao: 'Ver planos', destino: 'PLANOS_TERMINANDO' };
+  if (p.semRegistro) return { texto: `${plural(p.semRegistro, 'aluno está', 'alunos estão')} sem registro há ${p.diasSemRegistro} dias.`, acao: 'Ver alunos', destino: 'SEM_REGISTRO' };
+  return null;
+}
+
+/** "Últimos registros": o mais recente de cada aluno (a lista do painel vinha quase toda do mesmo aluno), até `limite`. */
+export function umPorAluno<T extends { aluno: { id: string }; data: string }>(itens: readonly T[], limite = 5): T[] {
+  const vistos = new Set<string>();
+  const saida: T[] = [];
+  for (const item of [...itens].sort((a, b) => b.data.localeCompare(a.data))) {
+    if (vistos.has(item.aluno.id)) continue;
+    vistos.add(item.aluno.id);
+    saida.push(item);
+    if (saida.length === limite) break;
+  }
+  return saida;
+}
+
+/** Tom do contador: com algo, atenção (atrasadas, perigo); zerado, suave. */
+export function tomDoContador(numero: number, perigo = false): 'perigo' | 'atencao' | 'suave' {
+  if (numero <= 0) return 'suave';
+  return perigo ? 'perigo' : 'atencao';
+}

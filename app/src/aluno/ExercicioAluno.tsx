@@ -1,25 +1,30 @@
-import { Cartao } from '../ui/Cartao';
-import { PlayCircle, Repeat, Timer } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, PlayCircle, Repeat, Timer } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
-import { tecnicasDoExercicio } from '../dominio/agrupamento';
-import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { textoTecnicaPorExtenso } from '../dominio/agrupamento';
+import { ajustarCarga, calcularCargasDoExercicio, metaDaSerie, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { rotuloDescanso } from '../dominio/descanso';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { repeticaoDaAnterior } from '../dominio/repetirSerie';
 import { videoValido } from '../dominio/video';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { AjusteDeCarga, BotaoDePasso } from '../ui/AjusteDeCarga';
 import { useAviso } from '../ui/Aviso';
-import { AjusteDeCarga } from '../ui/AjusteDeCarga';
 import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
-import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 import { CampoNumericoGrande } from '../ui/Campos';
+import { Cartao } from '../ui/Cartao';
+import { IconeBotao } from '../ui/IconeBotao';
+import { Selo } from '../ui/Selo';
+import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
+import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 
 export interface DadosSerie {
   carga: number | null;
@@ -39,26 +44,37 @@ interface Props {
   config: { arredondamentoKg: number; tipoTrabalho: string };
   aoMudarCargaDoDia: (carga: number | null) => void;
   aoRegistrar: (serieUid: string, dados: DadosSerie) => void;
-  /** Ao lado do botão de vídeo, cada um com metade da largura (o descanso). */
-  acaoAoLadoDoVideo?: ReactNode;
+  /** Botão de descanso (ícone) na linha do "Como fazer", ao lado do vídeo. */
+  acaoDescanso?: ReactNode;
   /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. */
   aoIniciarPausa?: (segundos: number) => void;
 }
 
 /**
- * Exercício na tela do aluno: observação do treinador, vídeo, carga de trabalho do dia e um cartão por série com a
- * meta, a carga sugerida (editável) e as repetições vazias até o aluno digitar. O ✓ grava no aparelho na hora.
+ * Exercício na tela do aluno, enxuto para a academia (revisão de 19/10: em 390/360 a primeira série ficava abaixo da
+ * dobra). Uma linha com "Como fazer" (observação, cadência, isometria; fechado mostra só o começo da observação), vídeo e
+ * descanso como ícones; a carga de trabalho do dia em uma linha `[−] campo [+]`; e um cartão por série com a meta, o
+ * descanso e a técnica da própria série. Os −/+ do peso aparecem só na próxima série a fazer. O ✓ grava no aparelho.
  */
 export function ExercicioAluno(p: Props) {
   const { cores } = useTema();
   const { avisar } = useAviso();
   const e = p.exercicio;
+  const [comoFazerAberto, abrirComoFazer] = useState(false);
   const base = p.cargaDoDia ?? p.ultima?.carga ?? null;
   const cargasDoDia: Record<string, number | null> = {};
   for (const s of e.series) cargasDoDia[s.uid] = p.registroDe(s.uid)?.carga ?? null;
   const calculadas = calcularCargasDoExercicio(e, base, cargasDoDia, p.config);
   const feitas = e.series.filter((s) => p.registroDe(s.uid)?.concluida).length;
+  const proximaAFazer = e.series.findIndex((s) => !p.registroDe(s.uid)?.concluida);
   const passo = passoDaCarga(e, p.config.arredondamentoKg);
+  const semCarga = e.unidade === 'nenhuma';
+  const video = videoValido(e.videoUrl);
+  const comoFazer = [
+    ...(!e.progressao ? ['Foco em controle, não em carga.'] : []),
+    ...textosDeExecucao(e),
+  ];
+  const temComoFazer = !!e.observacao || comoFazer.length > 0;
 
   const abrirVideo = () => {
     if (!e.videoUrl || !videoValido(e.videoUrl)) return;
@@ -68,59 +84,66 @@ export function ExercicioAluno(p: Props) {
 
   return (
     <View style={estilos.exercicio}>
-      {e.observacao ? (
-        <Cartao style={{ borderColor: cores.atencao }}>
-          <Texto numerico variante="suave" style={estilos.obsTexto}>{e.observacao}</Texto>
-        </Cartao>
+      {temComoFazer || video || p.acaoDescanso ? (
+        <View style={estilos.linhaComoFazer}>
+          {temComoFazer ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: comoFazerAberto }}
+              accessibilityLabel={comoFazerAberto ? 'Fechar como fazer' : 'Abrir como fazer'}
+              onPress={() => abrirComoFazer((a) => !a)}
+              style={(estado) => [estilos.comoFazer, { backgroundColor: sobre(estado) ? cores.superficie3 : 'transparent' }]}>
+              <View style={estilos.comoFazerTextos}>
+                <Texto style={estilos.comoFazerTitulo}>Como fazer</Texto>
+                {!comoFazerAberto && e.observacao ? (
+                  <Texto variante="pequeno" numberOfLines={1}>{e.observacao}</Texto>
+                ) : null}
+              </View>
+              {comoFazerAberto ? <ChevronUp size={20} color={cores.texto} /> : <ChevronDown size={20} color={cores.texto} />}
+            </Pressable>
+          ) : (
+            <View style={estilos.espaco} />
+          )}
+          {video ? <IconeBotao Icone={PlayCircle} rotulo={`Ver vídeo de ${e.nome}`} aoTocar={abrirVideo} /> : null}
+          {p.acaoDescanso}
+        </View>
       ) : null}
-      {!e.progressao ? <Texto numerico style={estilos.destaque}>Foco em controle, não em carga.</Texto> : null}
-      {textosDeExecucao(e).map((t) => (
-        <Texto key={t} numerico style={estilos.destaque}>{t}</Texto>
-      ))}
-      {tecnicasDoExercicio(e.series).map((t) => (
-        <View key={t.texto} style={estilos.tecnica}>
-          <Texto numerico style={estilos.destaque}>{t.texto}</Texto>
-          {t.pausaSegundos !== null && p.aoIniciarPausa ? (
-            <Botao
-              rotulo={`Iniciar pausa de ${t.pausaSegundos} s`}
-              tipo="secundario"
-              Icone={Timer}
-              aoTocar={() => p.aoIniciarPausa?.(t.pausaSegundos as number)}
-            />
-          ) : null}
-        </View>
-      ))}
-      {videoValido(e.videoUrl) || p.acaoAoLadoDoVideo ? (
-        <View style={estilos.acoesRapidas}>
-          {videoValido(e.videoUrl) ? (
-            <View style={estilos.metade}>
-              <Botao rotulo="Vídeo" tipo="secundario" Icone={PlayCircle} cheio aoTocar={abrirVideo} />
-            </View>
-          ) : null}
-          {p.acaoAoLadoDoVideo ? <View style={estilos.metade}>{p.acaoAoLadoDoVideo}</View> : null}
-        </View>
+      {comoFazerAberto && temComoFazer ? (
+        <Cartao>
+          {e.observacao ? <Texto numerico style={estilos.observacao}>{e.observacao}</Texto> : null}
+          {comoFazer.map((t) => (
+            <Texto key={t} numerico>{t}</Texto>
+          ))}
+        </Cartao>
       ) : null}
       {usaCargaDeTrabalho(e) ? (
         <Cartao>
-          <CampoNumericoGrande
-            rotulo={`Carga de trabalho (${p.config.tipoTrabalho}) · ${dataCurta(p.data)}`}
-            sufixo="kg"
-            destaque
-            valor={base}
-            aoMudar={p.aoMudarCargaDoDia}
-          />
-          {passo !== null ? (
-            <AjusteDeCarga passo={passo} rotulo="carga de trabalho" aoAjustar={(sentido) => p.aoMudarCargaDoDia(ajustarCarga(base, null, passo, sentido))} />
-          ) : null}
+          <Texto variante="rotulo">Carga de trabalho ({p.config.tipoTrabalho}) · {dataCurta(p.data)}</Texto>
+          <View style={estilos.linhaPasso}>
+            {passo !== null ? (
+              <BotaoDePasso sentido={-1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => p.aoMudarCargaDoDia(ajustarCarga(base, null, passo, s))} />
+            ) : null}
+            <CampoNumericoGrande
+              rotulo="Carga de trabalho do dia"
+              rotuloOculto
+              sufixo="kg"
+              valor={base}
+              aoMudar={p.aoMudarCargaDoDia}
+            />
+            {passo !== null ? (
+              <BotaoDePasso sentido={1} passo={passo} rotulo="carga de trabalho" aoAjustar={(s) => p.aoMudarCargaDoDia(ajustarCarga(base, null, passo, s))} />
+            ) : null}
+          </View>
           <Texto numerico variante="pequeno">
             {p.ultima?.carga != null
-              ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}`
-              : 'Sem registro anterior: digite a carga que vai usar.'}
+              ? `Última vez: ${numeroParaTela(p.ultima.carga)} kg × ${p.ultima.repeticoes ?? '—'} em ${dataParaTela(p.ultima.data)}. `
+              : 'Sem registro anterior. '}
+            {`É a carga das séries ${p.config.tipoTrabalho}; "% da ${p.config.tipoTrabalho}" é uma parte dela.`}
           </Texto>
         </Cartao>
       ) : null}
       <View style={estilos.tituloSeries}>
-        <Texto numerico variante="secao">Séries do plano</Texto>
+        <Texto variante="bloco">Séries</Texto>
         <Texto numerico variante="pequeno">
           {feitas} de {e.series.length} feitas
         </Texto>
@@ -130,12 +153,15 @@ export function ExercicioAluno(p: Props) {
           key={c.serie.uid}
           calculada={c}
           indice={i}
-          semCarga={e.unidade === 'nenhuma'}
-          passo={passo}
+          semCarga={semCarga}
+          tipoTrabalho={p.config.tipoTrabalho}
+          passo={i === proximaAFazer ? passo : null}
+          ativa={i === proximaAFazer}
           registro={p.registroDe(c.serie.uid)}
-          anterior={i > 0 ? p.registroDe(e.series[i - 1]!.uid) : undefined}
+          repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga) : null}
           ultimaDoExercicio={feitas === e.series.length - 1}
           aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
+          aoIniciarPausa={p.aoIniciarPausa}
         />
       ))}
     </View>
@@ -146,27 +172,38 @@ function CartaoSerie({
   calculada,
   indice,
   semCarga,
+  tipoTrabalho,
   passo,
+  ativa,
   registro,
-  anterior,
+  repetir,
   aoRegistrar,
   ultimaDoExercicio,
+  aoIniciarPausa,
 }: {
   calculada: SerieCalculada;
   indice: number;
   semCarga: boolean;
-  /** Passo dos botões + e − do peso; `null` esconde os botões. */
+  tipoTrabalho: string;
+  /** Passo dos botões + e − do peso; `null` esconde os botões (só a próxima série a fazer os mostra). */
   passo: number | null;
+  /** É a próxima série a fazer: mostra a dica da carga sugerida. */
+  ativa: boolean;
   registro: RegistroLocal | undefined;
-  /** Registro da série anterior do mesmo exercício e dia, se houver (para "Repetir a série anterior"). */
-  anterior: RegistroLocal | undefined;
+  /** "Repetir 40 kg × 6": só quando a anterior tem a mesma prescrição e algo registrado (`repeticaoDaAnterior`). */
+  repetir: ReturnType<typeof repeticaoDaAnterior>;
   aoRegistrar: (d: DadosSerie) => void;
   ultimaDoExercicio: boolean;
+  aoIniciarPausa?: (segundos: number) => void;
 }) {
-  const { cores, marca, sobreMarca } = useTema();
+  const { cores } = useTema();
   // Antes de gravar, a carga acompanha a sugestão até o aluno mexer; as repetições começam vazias.
   const [cargaDigitada, setCargaDigitada] = useState<number | null | undefined>(undefined);
   const [repsDigitadas, setRepsDigitadas] = useState<number | null>(null);
+  // Texto que não é número ("abc") deixava marcar a série com o valor nulo: o ✓ fica travado até corrigir.
+  const [cargaInvalida, setCargaInvalida] = useState(false);
+  const [repsInvalidas, setRepsInvalidas] = useState(false);
+  const invalido = cargaInvalida || repsInvalidas;
   const carga = registro ? registro.carga : cargaDigitada !== undefined ? cargaDigitada : calculada.sugestao;
   const reps = registro ? registro.repeticoes : repsDigitadas;
   const feita = !!registro?.concluida;
@@ -177,7 +214,12 @@ function CartaoSerie({
   }, [feita, reduzido, progresso]);
   const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie2, `${cores.sucesso}29`]) }));
   const s = calculada.serie;
-  const trabalho = s.intensidade?.modo === 'CARGA_TRABALHO';
+  const numero = indice + 1;
+  // A técnica sai da meta e vai por extenso na própria série ("Na série 3" deixa de ser adivinhação).
+  const meta = metaDaSerie({ ...s, tecnica: null }, tipoTrabalho, semCarga);
+  const descanso = s.descansoSegundos && s.descansoSegundos > 0 ? `Descanso ${rotuloDescanso(s.descansoSegundos)}` : null;
+  const tecnica = textoTecnicaPorExtenso(s.tecnica);
+  const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
 
   const mudar = (parcial: Partial<DadosSerie>) => {
     if (registro) {
@@ -189,55 +231,62 @@ function CartaoSerie({
   };
 
   return (
-    <Animated.View
-      style={[
-        estilos.serie,
-        { borderColor: feita ? cores.sucesso : cores.borda }, fundo,
-      ]}>
+    <Animated.View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, fundo]}>
       <View style={estilos.cabecaSerie}>
-        <View style={[estilos.etiqueta, { backgroundColor: trabalho ? marca : cores.superficie2 }]}>
-          <Texto numerico style={[estilos.etiquetaTexto, { color: trabalho ? sobreMarca : cores.textoSuave }]}>
-            {trabalho ? s.tipo : `Série ${indice + 1}`}
-          </Texto>
-        </View>
-        <Texto
-          style={[estilos.nomeSerie, feita && { textDecorationLine: 'line-through', color: cores.textoSuave }]}>
-          {trabalho ? `Série ${indice + 1}` : s.tipo}
-        </Texto>
-        <Texto numerico variante="pequeno" style={estilos.meta}>
-          {calculada.meta}
-        </Texto>
+        <Texto style={estilos.nomeSerie}>Série {numero}</Texto>
+        {s.tipo ? <Selo texto={s.tipo} tipo="neutro" /> : null}
       </View>
+      <Texto numerico variante="pequeno">
+        {descanso ? `${meta} · ${descanso}` : meta}
+      </Texto>
+      {tecnica ? (
+        <View style={estilos.tecnica}>
+          <Texto numerico style={estilos.tecnicaTexto}>{tecnica}</Texto>
+          {pausa !== null && aoIniciarPausa ? (
+            <Botao rotulo={`Pausa de ${pausa} s`} rotuloAcessivel={`Iniciar pausa de ${pausa} segundos da série ${numero}`} tipo="secundario" Icone={Timer} aoTocar={() => aoIniciarPausa(pausa)} />
+          ) : null}
+        </View>
+      ) : null}
       <View style={estilos.campos}>
         {semCarga ? null : (
           <CampoNumericoGrande
             rotulo="Peso"
-            rotuloAcessivel={`Peso da série ${indice + 1}`}
+            rotuloOculto
+            rotuloAcessivel={`Peso da série ${numero}, em quilos`}
             sufixo="kg"
             valor={carga}
             aoMudar={(v) => mudar({ carga: v })}
+            aoValidade={(v) => setCargaInvalida(!v)}
           />
         )}
         <CampoNumericoGrande
           rotulo="Reps"
-          rotuloAcessivel={`Repetições da série ${indice + 1}`}
+          rotuloOculto
+          rotuloAcessivel={`Repetições da série ${numero}`}
           sufixo="reps"
           inteiro
           valor={reps}
           aoMudar={(v) => mudar({ repeticoes: v })}
+          aoValidade={(v) => setRepsInvalidas(!v)}
         />
-        <BotaoMarcar feito={feita} ultimaDoExercicio={ultimaDoExercicio} rotulo={`Série ${indice + 1} ${s.tipo} feita`}
-          aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })} />
+        <BotaoMarcar
+          feito={feita}
+          ultimaDoExercicio={ultimaDoExercicio}
+          desabilitado={invalido}
+          rotulo={invalido ? `Série ${numero} feita: corrija o número antes de marcar` : `Série ${numero} feita`}
+          aoTocar={() => aoRegistrar({ carga: semCarga ? null : carga, repeticoes: reps, concluida: !feita })}
+        />
       </View>
+      {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar a série.</Texto> : null}
       {!semCarga && passo !== null ? (
-        <AjusteDeCarga passo={passo} rotulo={`peso da série ${indice + 1}`}
+        <AjusteDeCarga passo={passo} rotulo={`peso da série ${numero}`}
           aoAjustar={(sentido) => mudar({ carga: ajustarCarga(carga, calculada.sugestao, passo, sentido) })} />
       ) : null}
-      {anterior && !feita ? (
-        <Botao rotulo="Repetir a série anterior" rotuloAcessivel={`Repetir a série ${indice} na série ${indice + 1}`} tipo="fantasma" Icone={Repeat}
-          aoTocar={() => aoRegistrar({ carga: semCarga ? null : anterior.carga, repeticoes: anterior.repeticoes, concluida: true })} />
+      {repetir && !feita ? (
+        <Botao rotulo={repetir.rotulo} rotuloAcessivel={`${repetir.rotulo} da série ${indice} e marcar a série ${numero} como feita`} tipo="fantasma" Icone={Repeat}
+          aoTocar={() => aoRegistrar({ carga: repetir.carga, repeticoes: repetir.repeticoes, concluida: true })} />
       ) : null}
-      {!semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <Texto numerico variante="pequeno">Peso sugerido pelo plano; mude se usar outro.</Texto> : null}
+      {ativa && !semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <Texto numerico variante="pequeno">Peso sugerido pelo plano; mude se usar outro.</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </Animated.View>
   );
@@ -245,25 +294,18 @@ function CartaoSerie({
 
 const estilos = StyleSheet.create({
   exercicio: { gap: espaco(1.5) },
-  obsTexto: { fontStyle: 'italic' },
-  destaque: { fontFamily: fontes.semi },
-  tecnica: { gap: espaco(1), alignItems: 'flex-start' },
-  acoesRapidas: { flexDirection: 'row', gap: espaco(1) },
-  metade: { flex: 1, minWidth: 0 },
-  tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: espaco(1), gap: espaco(1) },
-  serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.75), gap: espaco(1.25) },
+  linhaComoFazer: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  comoFazer: { flex: 1, minWidth: 0, minHeight: ALVO_TOQUE, flexDirection: 'row', alignItems: 'center', gap: espaco(1), borderRadius: RAIO, paddingHorizontal: espaco(0.5) },
+  comoFazerTextos: { flex: 1, minWidth: 0 },
+  comoFazerTitulo: { fontFamily: fontes.semi },
+  espaco: { flex: 1 },
+  observacao: { fontStyle: 'italic' },
+  linhaPasso: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), maxWidth: 360 },
+  tituloSeries: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: espaco(0.5), gap: espaco(1) },
+  serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   cabecaSerie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
-  etiqueta: { borderRadius: 4, paddingHorizontal: espaco(0.75), paddingVertical: 3 },
-  etiquetaTexto: { fontFamily: fontes.negrito, fontSize: 12, lineHeight: 16, letterSpacing: 0.4, textTransform: 'uppercase' },
-  nomeSerie: { fontFamily: fontes.semi, fontSize: 16, flexShrink: 1 },
-  meta: { flexGrow: 1, flexShrink: 1, textAlign: 'right' },
-  campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: '100%' },
-  check: {
-    width: 56,
-    height: 52,
-    borderWidth: 2,
-    borderRadius: RAIO,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  nomeSerie: { fontFamily: fontes.semi, fontSize: 16 },
+  tecnica: { gap: espaco(1), alignItems: 'flex-start' },
+  tecnicaTexto: { fontFamily: fontes.semi },
+  campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: 480 },
 });

@@ -64,7 +64,7 @@ function Lista({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
     <>
       {salva ? <Selo texto="Sem conexão — usando a última dieta salva" tipo="neutro" /> : null}
       <Texto variante="suave">
-        {versao.titulo} (v{versao.numero})
+        {versao.titulo}
       </Texto>
       <ListaDeCompras conteudo={normalizarDieta(versao.conteudo)} aoGerarPdf={pdf} />
     </>

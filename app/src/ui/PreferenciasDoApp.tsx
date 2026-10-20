@@ -34,6 +34,8 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
   const [confirmandoRestaurar, setConfirmandoRestaurar] = useState(false);
   const mudar = (parcial: Partial<Preferencias>) => escolherPreferencia(parcial);
   const temaDaConsultoria = sessao.marca?.temaPadrao === 'CLARO' ? CLARO : ESCURO;
+  // O texto fala com quem lê: o aluno recebe o tema do treinador; o treinador é quem o escolhe, em Marca.
+  const aluno = sessao.usuario?.papel === 'ALUNO';
 
   return (
     <View style={estilos.coluna}>
@@ -44,11 +46,11 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
         </View>
       ) : null}
 
-      <Cartao titulo="Tema" descricao="Como o app fica: escuro, claro, o da consultoria ou o do aparelho.">
+      <Cartao titulo="Tema" descricao="Escuro, claro, o da consultoria ou o do aparelho.">
         <GradeDeOpcoes rotulo="Tema">
           <OpcaoCartao
             titulo="Padrão da consultoria"
-            descricao="O tema que o seu treinador escolheu"
+            descricao={aluno ? 'O tema que o seu treinador escolheu' : 'O tema escolhido em Marca'}
             selecionada={preferencias.tema === 'CONSULTORIA'}
             aoEscolher={() => mudar({ tema: 'CONSULTORIA' })}
             amostra={<AmostraDoTema esquerda={temaDaConsultoria} cor={marca} />}
@@ -77,9 +79,9 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
         </GradeDeOpcoes>
       </Cartao>
 
-      <Cartao titulo="Contraste das bordas" descricao="Deixa bordas de cartões, campos e divisões mais nítidas, e textos secundários mais fortes.">
+      <Cartao titulo="Contraste" descricao="Alto deixa bordas, campos e textos secundários mais nítidos.">
         <Escolha
-          descricao="Contraste das bordas"
+          descricao="Contraste"
           opcoes={[
             { valor: 'PADRAO', rotulo: 'Padrão' },
             { valor: 'ALTO', rotulo: 'Alto' },
@@ -89,7 +91,7 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
         />
       </Cartao>
 
-      <Cartao titulo="Tamanho do texto" descricao="Aumenta todos os textos do app. Botões e campos continuam fáceis de tocar.">
+      <Cartao titulo="Tamanho do texto" descricao="Vale para todos os textos do app.">
         <GradeDeOpcoes rotulo="Tamanho do texto">
           {TAMANHOS.map((t) => (
             <OpcaoCartao
@@ -127,9 +129,9 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
       </Cartao>
 
       {Platform.OS === 'web' ? (
-        <Cartao titulo="Barras de rolagem">
+        <Cartao titulo="Navegador">
           <Interruptor
-            rotulo="Barras escuras no tema escuro"
+            rotulo="Barras de rolagem escuras no tema escuro"
             ajuda="Desligado, as barras de rolagem ficam claras mesmo com o tema escuro."
             valor={preferencias.barrasEscuras}
             aoMudar={(barrasEscuras) => mudar({ barrasEscuras })}
@@ -137,10 +139,11 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
         </Cartao>
       ) : null}
 
-      {Platform.OS !== 'web' ? (
+      {/* A vibração só acontece no treino do aluno (marcar série e fim do descanso): o treinador não a vê. */}
+      {Platform.OS !== 'web' && aluno ? (
         <Cartao titulo="Vibração">
           <Interruptor
-            rotulo="Vibrar ao marcar série e no fim do descanso"
+            rotulo="Ao marcar série e no fim do descanso"
             valor={preferencias.vibracao}
             aoMudar={(vibracao) => mudar({ vibracao })}
           />

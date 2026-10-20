@@ -26,6 +26,8 @@ export interface PlanoDaFrequencia {
 
 export interface Frequencia {
   semana: number;
+  /** Data do último treino com série concluída dentro do que foi consultado (semana e pasta); nulo se nenhum. */
+  ultimo: string | null;
   /** Nulo: sem pasta contável (aparece como "—"). */
   pasta: { titulo: string; de: string; ate: string; limitada: boolean; treinos: number } | null;
 }
@@ -66,12 +68,24 @@ export function treinosComRegistro(dias: DiaDeTreino[], de: string, ate: string)
 export function frequenciaDe(dias: DiaDeTreino[], plano: PlanoDaFrequencia): Frequencia {
   return {
     semana: treinosComRegistro(dias, plano.semana.de, plano.semana.ate),
+    ultimo: ultimoDiaComRegistro(dias),
     pasta: plano.pasta ? { ...plano.pasta, treinos: treinosComRegistro(dias, plano.pasta.de, plano.pasta.ate) } : null,
   };
 }
 
-/** "—" sem período contável; zero é "Nenhum registro"; senão o número. */
+/** Última data com pelo menos uma série concluída (os dias podem vir em qualquer ordem). */
+export function ultimoDiaComRegistro(dias: DiaDeTreino[]): string | null {
+  let ultimo: string | null = null;
+  for (const dia of dias) {
+    const feito = dia.sessoes.some((s) => s.exercicios.some((e) => e.series.some((x) => x.concluida)));
+    if (feito && (ultimo === null || dia.data > ultimo)) ultimo = dia.data;
+  }
+  return ultimo;
+}
+
+/** "—" sem período contável; zero é "Nenhum registro"; senão "1 treino", "16 treinos" (o número sozinho não diz de quê). */
 export function textoDaContagem(n: number | null): string {
   if (n === null) return '—';
-  return n === 0 ? 'Nenhum registro' : String(n);
+  if (n === 0) return 'Nenhum registro';
+  return `${n} ${n === 1 ? 'treino' : 'treinos'}`;
 }

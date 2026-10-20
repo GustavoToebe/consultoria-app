@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { desativarEmLote, opcoesDeQuestionario, responsaveisEquipe, trocarQuestionarioEmLote, trocarResponsavelEmLote } from '../api/rotas';
 import type { ResultadoLote } from '../api/tipos';
 import { type AcaoDoLote, mensagemDaConfirmacao, textoDoResultado } from '../dominio/loteDeAlunos';
-import { espaco } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { Escolha } from '../ui/Escolha';
+import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { textoDoErro } from '../ui/erros';
 import { MensagemErro } from '../ui/Estados';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
@@ -68,7 +67,7 @@ export function AcoesEmLote({ alunoIds, aoConcluir }: Props) {
   const faltaEscolher = (aberta === 'responsavel' && !responsavel) || (aberta === 'questionario' && !questionario);
 
   return (
-    <View style={estilos.acoes}>
+    <LinhaDeAcoes>
       <Botao rotulo="Trocar responsável" tipo="secundario" desabilitado={quantos === 0} motivo={semMarcados} aoTocar={() => abrir('responsavel')} />
       <Botao rotulo="Trocar questionário" tipo="secundario" desabilitado={quantos === 0} motivo={semMarcados} aoTocar={() => abrir('questionario')} />
       <Botao rotulo="Desativar" tipo="perigoTexto" desabilitado={quantos === 0} motivo={semMarcados} aoTocar={() => abrir('desativar')} />
@@ -94,10 +93,6 @@ export function AcoesEmLote({ alunoIds, aoConcluir }: Props) {
               : <Texto variante="suave">Carregando os questionários…</Texto>
         ) : null}
       </PainelConfirmacao>
-    </View>
+    </LinhaDeAcoes>
   );
 }
-
-const estilos = StyleSheet.create({
-  acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
-});

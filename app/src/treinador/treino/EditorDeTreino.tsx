@@ -4,7 +4,7 @@ import { Fragment, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
-import type { Configuracao, ConteudoTreino, ResultadoValidacao } from '../../api/tipos';
+import type { Configuracao, ConteudoTreino, Receita, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import { gruposDaSessao, podeJuntar } from '../../dominio/combinacoes';
 import {
@@ -23,8 +23,10 @@ import {
   unidadeDaModalidade,
 } from '../../dominio/editorTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
-import { TopoModelo } from '../../treinador/plano/TopoModelo';
-import { TopoPlano } from '../../treinador/plano/TopoPlano';
+import { BarraDoModeloDoEditor, NomeDoModelo } from '../../treinador/plano/TopoModelo';
+import { BarraDoPlano, ProblemasDoPlano } from '../../treinador/plano/TopoPlano';
+import { TelaDoEditor } from '../plano/TelaDoEditor';
+import { avisoModeloSalvo, rotuloSalvarComo } from '../planejamento/modelos';
 import { usePlanoEditor } from '../../treinador/plano/usePlanoEditor';
 import { FolhaReceitas } from '../../treinador/FolhaReceitas';
 import { FolhaSalvarReceita } from '../../treinador/FolhaSalvarReceita';
@@ -50,16 +52,18 @@ import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 
-type Alvo = { sessao: number; exercicio: number };
+/** Exercício alvo da folha; `exercicio` nulo = um novo no fim da sessão, criado só quando se escolhe algo. */
+type Alvo = { sessao: number; exercicio: number | null };
+type AlvoExistente = { sessao: number; exercicio: number };
 type FolhaAberta =
   | { tipo: 'biblioteca'; alvo: Alvo }
-  | { tipo: 'receitaSeries'; alvo: Alvo }
-  | { tipo: 'salvarSeries'; alvo: Alvo }
+  | { tipo: 'receitaSeries'; alvo: AlvoExistente }
+  | { tipo: 'salvarSeries'; alvo: AlvoExistente }
   | { tipo: 'receitaPlano' }
   | { tipo: 'salvarPlano' } | { tipo: 'metodologia' } | { tipo: 'sessao' } | { tipo: 'salvarSessao'; indice: number };
 
 /** Editor do plano de treino: a tela mais importante do treinador. */
-export default function EditorDeTreino({ modelo = false, unica = false }: { modelo?: boolean; unica?: boolean }) {
+export default function EditorDeTreino({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { avisar } = useAviso();
   const editor = usePlanoEditor<ConteudoTreino>('treino', id, normalizarTreino, modelo);
@@ -132,20 +136,17 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
     setSelecionadaUid(nova.uid);
   };
 
-  const adicionarExercicio = (si: number) => {
-    const novo = novoExercicio();
-    mudarExercicios(si, (e) => [...e, novo]);
-    abrir(novo.uid);
-    setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: c.sessoes[si].exercicios.length } });
-  };
+  // O exercício novo só nasce quando se escolhe algo na folha: fechar a folha não deixa um "5." vazio nem rascunho pendente.
+  const adicionarExercicio = (si: number) => setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: null } });
 
   const titulo = modelo ? tituloDoModelo(unica ? 'SESSAO_TREINO' : 'PLANO_TREINO') : tituloDoPlanoDoAluno('treino', nomeDoAluno);
 
   return (
-    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />
+    <TelaDoEditor
+      cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
+      barra={modelo ? <BarraDoModeloDoEditor editor={editor} receita={receita} /> : <BarraDoPlano tipo="treino" editor={editor} aoProblemas={aoProblemas} />}>
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
-      {modelo ? <TopoModelo editor={editor} /> : <TopoPlano tipo="treino" editor={editor} problemas={problemas} aoProblemas={aoProblemas} aoIrAoPrimeiro={irAoPrimeiro} />}
+      {modelo ? <NomeDoModelo editor={editor} /> : <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={aoProblemas} aoIrAoPrimeiro={irAoPrimeiro} />}
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}
@@ -157,7 +158,7 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
           aoFechar={() => setDesfazer(null)}
         />
       ) : null}
-      <ConfiguracaoDoPlano
+      {unica ? null :       <ConfiguracaoDoPlano
         editor={editor}
         modelo={modelo}
         recolhido={c.sessoes.length > 0 && estado.titulo.trim() !== ''}
@@ -180,18 +181,24 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
           linhas={4}
           maxLength={8000}
         />
-      </ConfiguracaoDoPlano>
-      <SeletorDeSessoes
-        sessoes={c.sessoes}
-        selecionada={sessaoAtual?.uid ?? null}
-        comProblema={sessoesComProblema}
-        aoSelecionar={setSelecionadaUid}
-        aoAdicionar={adicionarSessao}
-        adicionarDesabilitado={unica && c.sessoes.length >= 1}
-        acao={<Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />}
-      />
+      </ConfiguracaoDoPlano>}
+      {unica ? null : (
+        <View style={estilos.cabecalhoSessoes}>
+          <Texto variante="bloco" nivel={2}>Sessões ({c.sessoes.length})</Texto>
+          <Botao rotulo="Modelos" tipo="secundario" Icone={NotebookTabs} aoTocar={() => setModelos(true)} />
+        </View>
+      )}
+      {unica ? null : (
+        <SeletorDeSessoes
+          sessoes={c.sessoes}
+          selecionada={sessaoAtual?.uid ?? null}
+          comProblema={sessoesComProblema}
+          aoSelecionar={setSelecionadaUid}
+          aoAdicionar={adicionarSessao}
+        />
+      )}
       {c.sessoes.length === 0 ? (
-        <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de um modelo de semana (botão Modelos)." />
+        <Vazio texto="O plano ainda não tem sessões. Adicione uma ou comece de uma semana de treino pronta (botão Modelos)." />
       ) : null}
       {sessaoAtual ? (
         <CartaoSessao
@@ -262,20 +269,20 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
       {modelos ? (
         <Folha visivel titulo="Modelos" aoFechar={() => setModelos(false)}>
           <OpcaoDeModelo
-            titulo="Usar modelo de semana"
-            descricao="Troca as sessões do plano pelas do modelo (objetivo e orientações ficam). Dá para desfazer."
+            titulo="Usar semana de treino"
+            descricao="Troca as sessões do plano pelas da semana escolhida (objetivo e orientações ficam). Dá para desfazer."
             desabilitado={unica}
             aoEscolher={() => { setModelos(false); setFolha({ tipo: 'receitaPlano' }); }}
           />
           <OpcaoDeModelo
-            titulo="Adicionar treino de um modelo"
-            descricao="Acrescenta ao plano as sessões de um modelo de treino."
+            titulo="Adicionar dia de treino"
+            descricao="Acrescenta ao plano as sessões de um dia de treino pronto."
             desabilitado={unica}
             aoEscolher={() => { setModelos(false); setFolha({ tipo: 'sessao' }); }}
           />
           {!modelo && c.sessoes.length ? (
             <OpcaoDeModelo
-              titulo="Salvar a semana como modelo"
+              titulo={rotuloSalvarComo('PLANO_TREINO')}
               descricao="Guarda as sessões, os exercícios e as séries deste rascunho para reutilizar. O plano continua igual."
               aoEscolher={() => { setModelos(false); setFolha({ tipo: 'salvarPlano' }); }}
             />
@@ -286,12 +293,12 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
       {folha?.tipo === 'metodologia' ? <FolhaReceitas tipo="METODOLOGIA" titulo="Vincular metodologia" aoFechar={() => setFolha(null)} aoUsar={(r) => {
         setFolha(null); comDesfazer('Metodologia vinculada.', (a) => ({ ...a, metodologia: { id: r.id, nome: r.nome, configuracao: JSON.parse(JSON.stringify(r.conteudo)) as Configuracao } }));
       }} /> : null}
-      {folha?.tipo === 'sessao' ? <FolhaReceitas tipo="SESSAO_TREINO" titulo="Adicionar treino do modelo" aoFechar={() => setFolha(null)} aoUsar={(r) => {
-        setFolha(null); comDesfazer('Treino adicionado.', (a) => ({ ...a, sessoes: [...a.sessoes, ...comUidsNovos(normalizarTreino(r.conteudo)).sessoes] }));
+      {folha?.tipo === 'sessao' ? <FolhaReceitas tipo="SESSAO_TREINO" titulo="Adicionar dia de treino" aoFechar={() => setFolha(null)} aoUsar={(r) => {
+        setFolha(null); comDesfazer('Dia de treino adicionado.', (a) => ({ ...a, sessoes: [...a.sessoes, ...comUidsNovos(normalizarTreino(r.conteudo)).sessoes] }));
       }} /> : null}
-      {folha?.tipo === 'salvarSessao' ? <FolhaSalvarReceita titulo="Salvar treino como modelo" aoFechar={() => setFolha(null)} aoSalvar={async (nome, descricao) => {
+      {folha?.tipo === 'salvarSessao' ? <FolhaSalvarReceita titulo={rotuloSalvarComo('SESSAO_TREINO')} aoFechar={() => setFolha(null)} aoSalvar={async (nome, descricao) => {
         await criarReceita({ tipo: 'SESSAO_TREINO', nome, descricao, conteudo: { ...c, sessoes: [c.sessoes[folha.indice]] } });
-        setFolha(null); avisar('Modelo de treino salvo.', 'sucesso');
+        setFolha(null); avisar(avisoModeloSalvo('SESSAO_TREINO'), 'sucesso');
       }} /> : null}
       <FolhaBiblioteca
         visivel={folha?.tipo === 'biblioteca'}
@@ -300,8 +307,10 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
           if (folha?.tipo !== 'biblioteca') return;
           const { sessao: si, exercicio: ei } = folha.alvo;
           setFolha(null);
+          const novo = ei === null ? novoExercicio() : null;
+          if (novo) abrir(novo.uid);
           mudarExercicios(si, (lista) => {
-            const atual = lista[ei];
+            const atual = novo ?? lista[ei ?? -1];
             if (!atual) return lista;
             const daBiblioteca =
               'id' in escolhido
@@ -313,20 +322,20 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
                     unidade: unidadeDaModalidade(escolhido.modalidade),
                   }
                 : { exercicioId: null, nome: escolhido.nome, modalidade: null };
-            return substituir(lista, ei, { ...atual, ...daBiblioteca });
+            return novo ? [...lista, { ...novo, ...daBiblioteca }] : substituir(lista, ei ?? -1, { ...atual, ...daBiblioteca });
           });
         }}
       />
       {folha?.tipo === 'receitaSeries' ? (
         <FolhaReceitas
           tipo="SERIES"
-          titulo="Modelo de séries"
-          explicacao="As séries do exercício são trocadas pelas do modelo. Dá para desfazer logo depois."
+          titulo="Usar receita de séries"
+          explicacao="As séries do exercício são trocadas pelas da receita. Dá para desfazer logo depois."
           aoFechar={() => setFolha(null)}
           aoUsar={(r) => {
             const { sessao: si, exercicio: ei } = folha.alvo;
             setFolha(null);
-            comDesfazer(`Modelo “${r.nome}” aplicada.`, (a) => {
+            comDesfazer(`Receita “${r.nome}” aplicada.`, (a) => {
               const sessao = a.sessoes[si];
               const exercicio = sessao?.exercicios[ei];
               if (!exercicio) return a;
@@ -339,18 +348,18 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
       {folha?.tipo === 'receitaPlano' ? (
         <FolhaReceitas
           tipo="PLANO_TREINO"
-          titulo="Modelo de semana"
-          explicacao="As sessões do plano são trocadas pelas do modelo (o objetivo e as orientações ficam). Dá para desfazer logo depois."
+          titulo="Usar semana de treino"
+          explicacao="As sessões do plano são trocadas pelas da semana escolhida (o objetivo e as orientações ficam). Dá para desfazer logo depois."
           aoFechar={() => setFolha(null)}
           aoUsar={(r) => {
             setFolha(null);
-            comDesfazer(`Modelo “${r.nome}” aplicada.`, (a) => aplicarReceitaDePlano(a, r.conteudo));
+            comDesfazer(`Semana “${r.nome}” aplicada.`, (a) => aplicarReceitaDePlano(a, r.conteudo));
           }}
         />
       ) : null}
       {folha?.tipo === 'salvarSeries' ? (
         <FolhaSalvarReceita
-          titulo="Salvar séries como modelo"
+          titulo={rotuloSalvarComo('SERIES')}
           explicacao="Guarda a estrutura das séries deste exercício (tipos, quantidades, faixas e intensidade) para usar em outros exercícios e planos."
           aoFechar={() => setFolha(null)}
           aoSalvar={async (nome, descricao) => {
@@ -358,24 +367,24 @@ export default function EditorDeTreino({ modelo = false, unica = false }: { mode
             if (!exercicio) return;
             await criarReceita({ tipo: 'SERIES', nome, descricao, conteudo: seriesParaReceita(exercicio.series) });
             setFolha(null);
-            avisar('Modelo de séries salva.', 'sucesso');
+            avisar(avisoModeloSalvo('SERIES'), 'sucesso');
           }}
         />
       ) : null}
       {folha?.tipo === 'salvarPlano' && id ? (
         <FolhaSalvarReceita
-          titulo="Salvar plano como modelo"
-          explicacao="Guarda as sessões, os exercícios e as séries do rascunho como modelo de semana. O plano continua igual."
+          titulo={rotuloSalvarComo('PLANO_TREINO')}
+          explicacao="Guarda as sessões, os exercícios e as séries do rascunho como semana de treino no Planejamento. O plano continua igual."
           aoFechar={() => setFolha(null)}
           aoSalvar={async (nome, descricao) => {
             if (!(await editor.salvar())) throw new Error('Não deu para salvar o rascunho antes.');
             await salvarPlanoComoReceita('treino', id, nome, descricao);
             setFolha(null);
-            avisar('Modelo de semana salva.', 'sucesso');
+            avisar(avisoModeloSalvo('PLANO_TREINO'), 'sucesso');
           }}
         />
       ) : null}
-    </Tela>
+    </TelaDoEditor>
   );
 }
 
@@ -410,6 +419,7 @@ function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo
 }
 
 const estilos = StyleSheet.create({
+  cabecalhoSessoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   metodologia: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   metodologiaTexto: { flexShrink: 1 },
   opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
