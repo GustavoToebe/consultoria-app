@@ -9,6 +9,7 @@ import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Escolha } from '../../ui/Escolha';
+import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -61,16 +62,13 @@ export function FolhaBiblioteca({
     <Folha visivel={visivel} titulo="Escolher exercício" aoFechar={aoFechar}>
       <Campo rotulo="Buscar na biblioteca" valor={busca} aoMudar={setBusca} placeholder="Nome, grupo ou equipamento" autoFocus />
       {grupos.length ? (
-        <Escolha
-          descricao="Grupo muscular"
-          opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]}
-          valor={grupo}
-          aoMudar={setGrupo}
-        />
+        grupos.length + 1 > OPCOES_PARA_BUSCAR
+          ? <EscolhaEmFolha rotulo="Grupo muscular" opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={setGrupo} />
+          : <Escolha descricao="Grupo muscular" opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} valor={grupo} aoMudar={setGrupo} />
       ) : null}
       {busca.trim() ? (
-        <Botao rotulo={`Usar só o nome “${busca.trim()}”`} tipo="secundario" aoTocar={() => aoEscolher({ nome: busca.trim() })} />
-      ) : null}
+        <Botao rotulo={`Exercício manual: “${busca.trim()}”`} rotuloAcessivel={`Usar só o nome ${busca.trim()}, fora da biblioteca`} tipo="secundario" aoTocar={() => aoEscolher({ nome: busca.trim() })} />
+      ) : <Texto variante="pequeno">Não está na biblioteca? Digite o nome na busca para usar um exercício manual.</Texto>}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && filtrados.length === 0 ? (

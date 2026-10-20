@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta } from '../api/tipos';
-import { aguaValida, normalizarDieta, novoItem, recalcularItem, resumoDaDietaNoInicio, somar, textoDaAgua, totalDoDia } from './dieta';
+import { aguaValida, itensSemValorNoTotal, normalizarDieta, novoItem, recalcularItem, resumoDaDietaNoInicio, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -108,5 +108,22 @@ describe('água por dia (reunião de 17/10)', () => {
     expect(resumoDaDietaNoInicio(base)).toBe('3 refeições');
     expect(resumoDaDietaNoInicio({ ...base, aguaLitros: 3.5 })).toBe('3 refeições · Água: 3,5 L por dia');
     expect(resumoDaDietaNoInicio(normalizarDieta({ refeicoes: [{}] }))).toBe('1 refeição');
+  });
+});
+
+describe('total do dia incompleto', () => {
+  it('aponta só os itens da opção A sem valor', () => {
+    const manual = { ...novoItem(), uid: 'm', nome: 'Item manual' };
+    const comValor = { ...recalcularItem({ ...novoItem(pao), uid: 'c', quantidade: 50, unidade: 'g' as const }, pao) };
+    const c: ConteudoDieta = normalizarDieta({ refeicoes: [
+      { uid: 'r1', nome: 'Café', opcoes: [{ uid: 'a', rotulo: 'A', itens: [comValor, manual] }, { uid: 'b', rotulo: 'B', itens: [{ ...manual, uid: 'x' }] }] },
+    ] });
+    expect(itensSemValorNoTotal(c)).toEqual([{ refeicaoUid: 'r1', itemUid: 'm', nome: 'Item manual' }]);
+    expect(textoItensSemValor(1)).toBe('1 item da opção A sem kcal, proteína, carboidrato ou gordura');
+    expect(textoItensSemValor(2)).toMatch(/^2 itens/);
+  });
+  it('valor ausente não leva unidade', () => {
+    expect(textoDoMacro('Proteína', null, 'g')).toBe('Proteína —');
+    expect(textoDoMacro('Proteína', 180.25, 'g')).toBe('Proteína 180,3 g');
   });
 });

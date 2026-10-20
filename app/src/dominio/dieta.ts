@@ -195,3 +195,30 @@ export function resumoDaDietaNoInicio(c: ConteudoDieta): string {
   const agua = textoDaAgua(c.aguaLitros);
   return agua ? `${refeicoes} · Água: ${agua}` : refeicoes;
 }
+
+/** Item da opção A que deixa o total do dia incompleto (algum valor vazio): onde ele está, para o editor levar até lá. */
+export interface ItemSemValor {
+  refeicaoUid: string;
+  itemUid: string;
+  nome: string;
+}
+
+/**
+ * Itens que fazem o "Total do dia" ficar "—": só a opção A de cada refeição entra no total (`totalDoDia`), então só ela
+ * é conferida. O editor diz quantos são e leva ao primeiro, em vez de mostrar "— g de proteína" sem explicar.
+ */
+export function itensSemValorNoTotal(conteudo: ConteudoDieta): ItemSemValor[] {
+  return conteudo.refeicoes.flatMap((r) => (r.opcoes[0]?.itens ?? [])
+    .filter((i) => MACROS.some((m) => i[m] === null || i[m] === undefined))
+    .map((i) => ({ refeicaoUid: r.uid, itemUid: i.uid, nome: i.nome })));
+}
+
+/** "Proteína 180,2 g"; sem valor, só "Proteína —" (valor ausente não leva unidade). */
+export function textoDoMacro(rotulo: string, valor: number | null, unidade: string, casas = 1): string {
+  return valor === null ? `${rotulo} —` : `${rotulo} ${numeroParaTela(valor, casas)} ${unidade}`;
+}
+
+/** "1 item sem valor nutricional completo" / "3 itens …". */
+export function textoItensSemValor(n: number): string {
+  return `${n} ${n === 1 ? 'item' : 'itens'} da opção A sem kcal, proteína, carboidrato ou gordura`;
+}

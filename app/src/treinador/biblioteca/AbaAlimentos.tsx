@@ -22,7 +22,9 @@ import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
 import { Grade } from '../../ui/Grade';
 import { normalizar } from '../treino/FolhaBiblioteca';
@@ -45,10 +47,14 @@ export function AbaAlimentos() {
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-alimentos', () => listarAlimentos());
   const [busca, setBusca] = useState('');
+  // Filtro da lista de compras: quem ainda não tem FC/FCc aparece com o selo "Sem fatores" e dá para listar só eles.
+  const [fatores, setFatores] = useState<'todos' | 'com' | 'sem'>('todos');
   const [editando, setEditando] = useState<Alimento | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Alimento | null>(null);
   const termo = normalizar(busca.trim());
-  const lista = (dados ?? []).filter((a) => !termo || normalizar(a.nome).includes(termo));
+  const semFatores = (a: Alimento) => a.fatorCorrecao === null && a.fatorCoccao === null;
+  const lista = (dados ?? []).filter((a) => (!termo || normalizar(a.nome).includes(termo))
+    && (fatores === 'todos' || (fatores === 'sem') === semFatores(a)));
 
   const confirmarInativar = () => {
     const alvo = inativar;
@@ -68,20 +74,21 @@ export function AbaAlimentos() {
       titulo="Alimentos da biblioteca"
       descricao="Os alimentos que você escolhe ao montar a dieta, com os valores por quantidade-base."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo alimento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <View style={estilos.busca}>
-        <Campo rotulo="Buscar alimento" valor={busca} aoMudar={setBusca} />
-      </View>
+      <BarraDaBiblioteca rotulo="Buscar alimento" placeholder="Nome do alimento" valor={busca} aoMudar={setBusca}>
+        <FiltroDaBiblioteca rotulo="Fatores da lista de compras" valor={fatores} aoMudar={setFatores}
+          opcoes={[{ valor: 'todos', rotulo: 'Todos' }, { valor: 'com', rotulo: 'Com fatores' }, { valor: 'sem', rotulo: 'Sem fatores' }]} />
+      </BarraDaBiblioteca>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
-        <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => setBusca('') } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined} />
+        <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca ou filtro.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => { setBusca(''); setFatores('todos'); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
       <Grade gap={espaco(2)}>{lista.map((a) => (
         <View key={a.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
           <View style={estilos.dados}>
             <Texto variante="bloco">{a.nome}</Texto>
             <Texto variante="suave">{resumoAlimento(a)}</Texto>
-            {textoDosFatores(a) ? <Texto variante="suave">{textoDosFatores(a)}</Texto> : null}
+            {textoDosFatores(a) ? <Texto variante="suave" numerico>{textoDosFatores(a)}</Texto> : <View style={estilos.selo}><Selo texto="Sem fatores" tipo="neutro" /></View>}
           </View>
           <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>
         </View>
@@ -196,13 +203,14 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
         />
       </View>
       <Campo rotulo="Fonte dos valores (opcional)" valor={fonte} aoMudar={setFonte} maxLength={200} />
-      <Texto variante="suave">Para a lista de compras do aluno. Use os fatores que você adota; vazio = a lista usa a quantidade da dieta.</Texto>
+      <Texto variante="secao">Lista de compras (opcional)</Texto>
+      <Texto variante="suave">Use os fatores que você adota. Vazio = a lista do aluno usa a quantidade da dieta, como está.</Texto>
       <View style={estilos.grade}>
         <View style={estilos.campo}>
-          <CampoNumerico rotulo="Fator de correção (opcional)" valor={fc} aoMudar={setFc} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
+          <CampoNumerico rotulo="Fator de correção (FC)" valor={fc} aoMudar={setFc} ajuda={AJUDA_FC} erro={campos.fatorCorrecao ?? erroFc} />
         </View>
         <View style={estilos.campo}>
-          <CampoNumerico rotulo="Fator de cocção (opcional)" valor={fcc} aoMudar={setFcc} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
+          <CampoNumerico rotulo="Fator de cocção (FCc)" valor={fcc} aoMudar={setFcc} ajuda={AJUDA_FCC} erro={campos.fatorCoccao ?? erroFcc} />
         </View>
       </View>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
@@ -212,7 +220,7 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
 }
 
 const estilos = StyleSheet.create({
-  busca: { flex: 1, minWidth: 220, maxWidth: 480 },
+  selo: { flexDirection: 'row' },
   linha: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
   dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-end' },

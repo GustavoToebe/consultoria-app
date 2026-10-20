@@ -39,7 +39,7 @@ export function AplicarAoAluno({ modelo, alunoInicial, aoFechar, aoAplicar }: {
   return <Folha visivel titulo={`Aplicar: ${modelo.nome}`} aoFechar={aoFechar} rodape={<Botao rotulo="Criar cópia para o aluno" aoTocar={() => void salvar()} carregando={salvando} desabilitado={!!motivo} motivo={motivo} />}>
     <Texto variante="suave">Cria rascunhos independentes. Revise e publique os planos na ficha do aluno.</Texto>
     <EscolhaDeAlunoEPasta escolha={escolha} />
-    <Campo rotulo={destino ? 'Título do plano' : 'Título da nova pasta / plano'} valor={titulo} aoMudar={setTitulo} maxLength={120} />
+    <Campo rotulo={destino ? 'Título do plano' : 'Título da pasta nova (o plano usa o mesmo)'} valor={titulo} aoMudar={setTitulo} maxLength={120} />
     {!destino ? <><CampoData rotulo="Início (opcional)" valor={inicio} aoMudar={setInicio} /><CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} /></> : <Texto variante="pequeno">O período será o da pasta selecionada.</Texto>}
     {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
   </Folha>;

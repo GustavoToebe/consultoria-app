@@ -138,6 +138,15 @@ export function quantidadeParaTela(quantidade: number, unidade: UnidadeAlimento)
 /** Nota do rodapé da tela e do PDF. */
 export const NOTA_DA_LISTA = 'Quantidades calculadas com os fatores que o treinador cadastrou; sem fator, vale a quantidade da dieta.';
 
+/** Rodapé da lista na tela, pelo papel de quem vê (o do aluno falava "o treinador" também para o treinador). */
+export const NOTA_DA_LISTA_ALUNO = 'Quantidades calculadas com os fatores que seu treinador cadastrou. "Como na dieta" = sem fator: vale a quantidade da dieta.';
+export const NOTA_DA_LISTA_TREINADOR = 'Quantidades calculadas com os fatores da biblioteca. "Sem fator" = o alimento não tem FC nem FCc: cadastre em Biblioteca › Alimentos.';
+
+/** Marca da linha sem fator: o aluno lê "(como na dieta)" ao lado da quantidade; o treinador vê o selo "Sem fator". */
+export function marcaSemFator(papel: 'aluno' | 'treinador'): string {
+  return papel === 'aluno' ? 'como na dieta' : 'Sem fator';
+}
+
 /** Aviso da prévia no editor do treinador (a lista do aluno sai dos fatores copiados na publicação). */
 export const NOTA_DA_PREVIA = 'Prévia com os fatores atuais da biblioteca; o aluno vê os fatores que estiverem na biblioteca quando você publicar.';
 

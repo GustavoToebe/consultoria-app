@@ -11,7 +11,8 @@ import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Tela } from '../../ui/Tela';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
-import { TopoPlano } from '../plano/TopoPlano';
+import { BarraDoPlano, ProblemasDoPlano } from '../plano/TopoPlano';
+import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 import { usePlanoEditor } from '../plano/usePlanoEditor';
@@ -40,12 +41,13 @@ export default function EditorDeMobilidade() {
   const titulo = tituloDoPlanoDoAluno('mobilidade', nomeDoAluno);
 
   return (
-    <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-      <Cabecalho titulo={titulo} trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />
+    <TelaDoEditor
+      cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(false, estado.plano.alunoId, titulo)} subtitulo={estado.plano.titulo} voltar={`/treinador/alunos/${estado.plano.alunoId}`} />}
+      barra={<BarraDoPlano tipo="mobilidade" editor={editor} aoProblemas={setProblemas} />}>
       <FaixaDoPlanoDoAluno tipo="mobilidade" />
-      <TopoPlano tipo="mobilidade" editor={editor} problemas={problemas} aoProblemas={setProblemas} />
+      <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas} />
       <ConfiguracaoDoPlano editor={editor} recolhido={estado.titulo.trim() !== ''} descricao="Título e período da mobilidade." />
       <SecoesDeMobilidade conteudo={estado.conteudo} aoMudar={(c) => editor.alterarConteudo(() => c)} />
-    </Tela>
+    </TelaDoEditor>
   );
 }

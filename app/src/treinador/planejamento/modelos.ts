@@ -1,6 +1,7 @@
 import type { Configuracao, TipoReceita } from '../../api/tipos';
-import { normalizarDieta, novaRefeicao } from '../../dominio/dieta';
-import { normalizarTreino, novaSerie, novaSessao } from '../../dominio/editorTreino';
+import { normalizarDieta, novaRefeicao, totalDoDia } from '../../dominio/dieta';
+import { numeroParaTela } from '../../dominio/formatos';
+import { normalizarTreino, novaSerie, novaSessao, seriesDaReceita } from '../../dominio/editorTreino';
 import { temFuncionalidade } from '../../dominio/funcionalidadesDoPlano';
 import { mobilidadeParaApi, normalizarMobilidade } from '../../dominio/mobilidade';
 
@@ -59,12 +60,44 @@ const USO: Record<TipoReceita, { aplicavel: boolean; linha: string | null }> = {
   PLANO_TREINO: { aplicavel: true, linha: null },
   PLANO_DIETA: { aplicavel: true, linha: null },
   PASTA_PLANO: { aplicavel: true, linha: null },
-  SESSAO_TREINO: { aplicavel: false, linha: 'Use dentro do editor de treino: "Adicionar treino do modelo".' },
-  SERIES: { aplicavel: false, linha: 'Use dentro do editor de treino: "Usar receita" em cada exercício.' },
-  METODOLOGIA: { aplicavel: false, linha: 'Use dentro do editor de treino: "Vincular" na configuração do plano.' },
-  REFEICAO: { aplicavel: false, linha: 'Use dentro do editor de dieta, ao acrescentar uma refeição.' },
+  SESSAO_TREINO: { aplicavel: false, linha: 'Entra numa semana pelo editor de treino: Modelos › "Adicionar dia de treino".' },
+  SERIES: { aplicavel: false, linha: 'Entra num exercício pelo editor de treino: "Usar receita".' },
+  METODOLOGIA: { aplicavel: false, linha: 'É vinculada à semana em "Configuração do plano" do editor de treino.' },
+  REFEICAO: { aplicavel: false, linha: 'Entra numa dieta pelo editor de dieta: Modelos › "Adicionar refeição".' },
   MOBILIDADE: { aplicavel: true, linha: null },
 };
+
+/**
+ * Um nome por tipo de modelo, o mesmo de `tituloDoModelo` ("Modelo: dia de treino"), usado no botão que salva, no título
+ * da folha e no aviso (revisão de telas de 19/10: antes o mesmo dia de treino aparecia como "sessão", "treino",
+ * "modelo de treino" e "Dias de treino"). Dieta, refeição e mobilidade levam "modelo de" para não confundir com a
+ * dieta do aluno. `feminino` concorda "Nova"/"salva".
+ */
+const NOME: Record<TipoReceita, { nome: string; feminino: boolean }> = {
+  PLANO_TREINO: { nome: 'semana de treino', feminino: true },
+  SESSAO_TREINO: { nome: 'dia de treino', feminino: false },
+  SERIES: { nome: 'receita de séries', feminino: true },
+  METODOLOGIA: { nome: 'metodologia', feminino: true },
+  PLANO_DIETA: { nome: 'modelo de dieta', feminino: false },
+  REFEICAO: { nome: 'modelo de refeição', feminino: false },
+  PASTA_PLANO: { nome: 'pacote', feminino: false },
+  MOBILIDADE: { nome: 'modelo de mobilidade', feminino: false },
+};
+
+/** "dia de treino". */
+export const nomeDoModelo = (tipo: TipoReceita): string => NOME[tipo].nome;
+
+/** Ação principal do Planejamento pelo tipo do chip: "Nova semana de treino", "Novo dia de treino". */
+export const rotuloNovoModelo = (tipo: TipoReceita): string => `${NOME[tipo].feminino ? 'Nova' : 'Novo'} ${NOME[tipo].nome}`;
+
+/** Botão e título da folha que guardam parte de um plano como modelo: "Salvar como dia de treino". */
+export const rotuloSalvarComo = (tipo: TipoReceita): string => `Salvar como ${NOME[tipo].nome}`;
+
+/** Aviso depois de salvar: "Dia de treino salvo no Planejamento." */
+export function avisoModeloSalvo(tipo: TipoReceita): string {
+  const { nome, feminino } = NOME[tipo];
+  return `${nome.charAt(0).toUpperCase()}${nome.slice(1)} ${feminino ? 'salva' : 'salvo'} no Planejamento.`;
+}
 
 /** Semanas, dietas e pacotes são aplicados ao aluno; as peças entram dentro dos editores. */
 export const usoDoModelo = (tipo: TipoReceita) => USO[tipo];
@@ -79,5 +112,33 @@ export function conteudoInicial(tipo: TipoReceita, config: Configuracao): unknow
     case 'REFEICAO': return { ...normalizarDieta(null), refeicoes: [novaRefeicao()] };
     case 'PASTA_PLANO': return { planos: [] };
     case 'MOBILIDADE': return mobilidadeParaApi(normalizarMobilidade(null));
+  }
+}
+
+const contar = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+
+/**
+ * Linha de metadados do cartão do modelo no Planejamento ("6 sessões · 32 exercícios", "5 refeições · 1803 kcal"):
+ * antes o cartão só tinha a descrição e todos pareciam iguais. Só conta o que o modelo tem; nada é estimado.
+ */
+export function metadadosDoModelo(tipo: TipoReceita, conteudo: unknown): string {
+  switch (tipo) {
+    case 'PLANO_TREINO': case 'SESSAO_TREINO': {
+      const t = normalizarTreino(conteudo);
+      const exercicios = t.sessoes.reduce((n, x) => n + x.exercicios.length, 0);
+      return `${contar(t.sessoes.length, 'sessão', 'sessões')} · ${exercicios ? contar(exercicios, 'exercício', 'exercícios') : 'sem exercícios'}`;
+    }
+    case 'SERIES': return contar(seriesDaReceita(conteudo).length, 'série', 'séries');
+    case 'PLANO_DIETA': case 'REFEICAO': {
+      const d = normalizarDieta(conteudo);
+      const kcal = totalDoDia(d).kcal;
+      return [contar(d.refeicoes.length, 'refeição', 'refeições'), kcal === null || d.refeicoes.length === 0 ? null : `${numeroParaTela(kcal, 0)} kcal`].filter(Boolean).join(' · ');
+    }
+    case 'PASTA_PLANO': return contar((conteudo as { planos?: unknown[] } | null)?.planos?.length ?? 0, 'plano', 'planos');
+    case 'MOBILIDADE': {
+      const m = normalizarMobilidade(conteudo);
+      return `${contar(m.secoes.length, 'seção', 'seções')} · ${contar(m.secoes.reduce((n, x) => n + x.itens.length, 0), 'item', 'itens')}`;
+    }
+    case 'METODOLOGIA': return contar((conteudo as Partial<Configuracao> | null)?.tiposSerie?.length ?? 0, 'tipo de série', 'tipos de série');
   }
 }

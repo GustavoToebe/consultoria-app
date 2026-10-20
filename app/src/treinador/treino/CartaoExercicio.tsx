@@ -18,6 +18,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { Selo } from '../../ui/Selo';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
+import { rotuloSalvarComo } from '../planejamento/modelos';
 import { EditorSeries } from './EditorSeries';
 import { MODALIDADES } from './FolhaBiblioteca';
 
@@ -191,7 +192,7 @@ export function CartaoExercicio(p: Props) {
           ) : null}
           <View style={estilos.rodape}>
             {e.series.length ? (
-              <Botao rotulo="Salvar séries como receita" tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
+              <Botao rotulo={rotuloSalvarComo('SERIES')} tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
             ) : null}
             <Botao rotulo="Remover exercício" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} />
           </View>

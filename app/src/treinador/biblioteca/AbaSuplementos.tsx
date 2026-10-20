@@ -22,7 +22,6 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
-import { Escolha } from '../../ui/Escolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
@@ -32,6 +31,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
 import { Texto } from '../../ui/Texto';
+import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
 
 /** Suplementos da consultoria: nome, marca, categoria, porção, sabores e link do produto. Não somam nada na dieta. */
@@ -71,17 +71,10 @@ export function AbaSuplementos() {
       titulo="Suplementos da biblioteca"
       descricao="Os produtos que você escolhe na sugestão de suplementação da dieta. Só nome, porção e link: nada é somado."
       acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><Botao rotulo="Novo suplemento" Icone={Plus} aoTocar={() => setEditando('novo')} /></Permitido>}>
-      <View style={estilos.busca}>
-        <Campo rotulo="Buscar suplemento" valor={busca} aoMudar={setBusca} />
-      </View>
-      {categorias.length ? (
-        <Escolha
-          descricao="Categoria"
-          valor={categoria}
-          aoMudar={setCategoria}
-          opcoes={[{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))]}
-        />
-      ) : null}
+      <BarraDaBiblioteca rotulo="Buscar suplemento" placeholder="Nome, marca ou categoria" valor={busca} aoMudar={setBusca}>
+        {categorias.length ? <FiltroDaBiblioteca rotulo="Categoria" valor={categoria} aoMudar={setCategoria}
+          opcoes={[{ valor: '', rotulo: 'Todas' }, ...categorias.map((c) => ({ valor: c, rotulo: c }))]} /> : null}
+      </BarraDaBiblioteca>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
@@ -99,8 +92,8 @@ export function AbaSuplementos() {
             <Texto variante="bloco">{s.nome}</Texto>
             <Texto variante="suave">{marcaECategoria(s)}</Texto>
             <Texto variante="suave" numerico>Porção: {descricaoDaPorcao(s)}</Texto>
-            <Texto variante="suave">Sabores: {saboresParaTela(s)}</Texto>
-            {s.link ? <Botao rotulo="Ver produto" tipo="secundario" Icone={ExternalLink} aoTocar={() => abrir(s)} /> : null}
+            {saboresParaTela(s) !== '—' ? <Texto variante="suave">Sabores: {saboresParaTela(s)}</Texto> : null}
+            {s.link ? <Botao rotulo="Ver produto" tipo="fantasma" Icone={ExternalLink} aoTocar={() => abrir(s)} /> : null}
           </View>
           <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${s.nome}`} aoTocar={() => setEditando(s)} /></Permitido>
         </View>

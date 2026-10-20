@@ -1,19 +1,19 @@
 import { Plus, Save, Send, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { RespostasAtualizacao } from '../../api/tipos';
 import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
 import {
   agruparProblemas, alterarInstrucoes, descricaoDoLocal, type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
-import { textoDoSalvo } from '../../dominio/estadoDoRascunho';
-import { dataHoraParaTela, hojeIso } from '../../dominio/formatos';
+import { quandoPublicado, seloDoEditor } from '../../dominio/barraDoEditor';
+import { hojeIso } from '../../dominio/formatos';
 import { LIMITES_QUESTIONARIO as L, type ProblemaDoQuestionario } from '../../dominio/questionario';
 import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -26,19 +26,13 @@ import { textoDoErro } from '../../ui/erros';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
-import { Selo, type TipoSelo } from '../../ui/Selo';
+import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
+import { BarraDoEditor } from '../plano/BarraDoEditor';
+import { TelaDoEditor } from '../plano/TelaDoEditor';
 import { SecoesDoQuestionario } from './SecoesDoQuestionario';
-import { useQuestionarioEditor, type SituacaoDoQuestionario } from './useQuestionarioEditor';
-
-const SITUACOES: Record<SituacaoDoQuestionario, { texto: string; tipo: TipoSelo }> = {
-  salvo: { texto: 'Rascunho salvo', tipo: 'sucesso' },
-  pendente: { texto: 'Alterações não salvas', tipo: 'atencao' },
-  salvando: { texto: 'Salvando…', tipo: 'neutro' },
-  erro: { texto: 'Falha ao salvar', tipo: 'perigo' },
-  conflito: { texto: 'Alterado em outra aba', tipo: 'perigo' },
-};
+import { useQuestionarioEditor } from './useQuestionarioEditor';
 
 const ABA_ATUALIZACAO = '/treinador/planejamento?aba=atualizacao' as const;
 const ABA_ANAMNESE = '/treinador/planejamento?aba=anamnese' as const;
@@ -51,8 +45,9 @@ export function EditorQuestionario({ id }: { id: string }) {
   const editor = useQuestionarioEditor(id);
   const { pode } = useSessao();
   const { avisar } = useAviso();
-  const { cores } = useTema();
   const [aba, setAba] = useState<'editar' | 'previa'>('editar');
+  const { width } = useWindowDimensions();
+  const estreito = width < LARGURA_MENU_LATERAL;
   const [abertas, setAbertas] = useState<Set<string>>(new Set());
   const [problemas, setProblemas] = useState<ProblemaDoQuestionario[] | null>(null);
   const [avisos, setAvisos] = useState<ProblemaDoQuestionario[] | null>(null);
@@ -75,7 +70,6 @@ export function EditorQuestionario({ id }: { id: string }) {
   const editavel = pode('QUESTIONARIO_ALTERAR') && !d.arquivado;
   const abaAtiva = editavel ? aba : 'previa';
   const agrupados: ProblemasAgrupados = agruparProblemas(e.conteudo, problemas ?? []);
-  const situacao = editor.situacao === 'salvo' ? { ...SITUACOES.salvo, texto: textoDoSalvo(editor.salvoAs, SITUACOES.salvo.texto) } : SITUACOES[editor.situacao];
 
   const alternar = (pid: string) => setAbertas((a) => { const novo = new Set(a); if (novo.has(pid)) novo.delete(pid); else novo.add(pid); return novo; });
   const todasAsPerguntas = e.conteudo.secoes.flatMap((s) => s.perguntas.map((p) => p.id));
@@ -112,39 +106,37 @@ export function EditorQuestionario({ id }: { id: string }) {
   const salvar = () => void editor.salvar().then((ok) => avisar(ok ? 'Rascunho salvo.' : 'Não foi possível salvar o rascunho. Veja o motivo no topo.', ok ? 'sucesso' : 'perigo'));
   const instrucoes = e.conteudo.instrucoes;
 
-  return <Tela bordas={['top']} largura={LARGURA_EDITOR}>
-    <Cabecalho titulo={anamnese ? 'Anamnese' : 'Questionário'} subtitulo={e.nome}
-      trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: anamnese ? 'Anamnese' : 'Atualização', href: ABA_VOLTAR }, { rotulo: e.nome || 'Questionário' }]}
-      voltar={ABA_VOLTAR} />
+  const ultima = d.versoes[d.versoes.length - 1];
+  const selo = seloDoEditor(editavel ? editor.situacao : 'salvo', editavel ? editor.salvoAs : null, { versao: d.versaoPublicada, alterado: d.alteradoDesdePublicacao || (d.versaoPublicada > 0 && editor.pendente) });
+  const info = [d.padrao ? 'Padrão' : null, d.arquivado ? 'Arquivado' : null,
+    ultima ? `publicado em ${quandoPublicado(ultima.publicadoEm)}` : anamnese ? 'ainda não dá para enviar a um aluno' : 'nenhum aluno vê ainda']
+    .filter(Boolean).join(' · ');
+  const titulo = anamnese ? 'Anamnese' : 'Questionário de atualização';
 
-    <Cartao titulo={e.nome.trim() || 'Questionário sem nome'}
-      descricao={editavel ? 'Monte o questionário, salve o rascunho e publique para o aluno ver. Nada é salvo sozinho.' : undefined}
-      acoes={editavel ? <>
-        <Botao rotulo="Salvar rascunho" tipo="secundario" Icone={Save} carregando={editor.situacao === 'salvando'}
+  return <TelaDoEditor
+    cabecalho={<Cabecalho titulo={titulo}
+      trilha={[{ rotulo: 'Planejamento', href: '/treinador/planejamento' }, { rotulo: anamnese ? 'Anamnese' : 'Atualização', href: ABA_VOLTAR }, { rotulo: e.nome || 'Questionário' }]}
+      voltar={ABA_VOLTAR} />}
+    barra={<BarraDoEditor selo={selo} info={info.charAt(0).toUpperCase() + info.slice(1)} erro={editor.situacao === 'erro' ? editor.mensagemDeErro : null}>
+      {editavel ? <>
+        <Botao rotulo={estreito ? 'Salvar' : 'Salvar rascunho'} rotuloAcessivel="Salvar rascunho" tipo="secundario" Icone={Save} carregando={editor.situacao === 'salvando'}
           desabilitado={editor.situacao === 'salvo' || editor.situacao === 'conflito'}
-          motivo={editor.situacao === 'conflito' ? 'Recarregue o questionário antes.' : 'Nada a salvar.'} aoTocar={salvar} />
+          motivo={editor.situacao === 'conflito' ? 'Recarregue o questionário antes.' : undefined} aoTocar={salvar} />
         <Botao rotulo="Publicar" Icone={Send} carregando={publicando} aoTocar={() => setConfirmando(true)} />
-      </> : undefined}>
-      <View style={estilos.selos}>
-        {editavel ? <Selo texto={situacao.texto} tipo={situacao.tipo} /> : null}
-        {d.padrao ? <Selo texto="Padrão" tipo="sucesso" /> : null}
-        {d.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
-        <Selo texto={d.versaoPublicada ? `Publicado v${d.versaoPublicada}` : 'Nunca publicado'} tipo={d.versaoPublicada ? 'neutro' : 'atencao'} />
-        {d.alteradoDesdePublicacao || (d.versaoPublicada > 0 && editor.pendente) ? <Selo texto="Alterado desde a publicação" tipo="atencao" /> : null}
-      </View>
+      </> : null}
+    </BarraDoEditor>}>
+    <Cartao>
       {editavel ? <>
         <Campo rotulo="Nome do questionário" valor={e.nome} maxLength={120} aoMudar={(nome) => editor.alterar(() => ({ nome }))} />
         <Campo rotulo="Descrição (opcional)" valor={e.descricao} maxLength={400} linhas={2} aoMudar={(descricao) => editor.alterar(() => ({ descricao }))} />
       </> : <>
+        <Texto variante="bloco" nivel={2}>{e.nome.trim() || 'Questionário sem nome'}</Texto>
         {d.descricao ? <Texto variante="suave">{d.descricao}</Texto> : null}
         {d.arquivado ? <Texto variante="suave">Arquivado. Desarquive na lista para editar.</Texto> : !pode('QUESTIONARIO_ALTERAR') ? <Texto variante="suave">Você pode ver o questionário, mas não alterá-lo.</Texto> : null}
       </>}
-      <Texto variante="suave">
-        {d.versoes.length
-          ? `Última publicação: v${d.versoes[d.versoes.length - 1].numero} em ${dataHoraParaTela(d.versoes[d.versoes.length - 1].publicadoEm)}. Editar aqui mexe só no rascunho; ${anamnese ? 'cada anamnese enviada fica com a versão publicada no momento do envio.' : 'o aluno continua vendo a versão publicada até você publicar de novo.'}`
-          : anamnese ? 'Ainda não publicada: não dá para enviar esta anamnese a um aluno.' : 'Ainda não publicado: nenhum aluno vê este questionário.'}
-      </Texto>
-      {editor.mensagemDeErro && editor.situacao === 'erro' ? <Texto variante="pequeno" cor={cores.perigo}>{editor.mensagemDeErro}</Texto> : null}
+      {ultima ? <Texto variante="pequeno">
+        Editar aqui mexe só no rascunho; {anamnese ? 'cada anamnese enviada fica com a versão publicada no momento do envio.' : 'o aluno continua vendo a versão publicada até você publicar de novo.'}
+      </Texto> : null}
     </Cartao>
 
     {problemas && problemas.length ? <Cartao titulo="Corrija antes de publicar" acoes={<Botao rotulo="Fechar" tipo="fantasma" aoTocar={() => setProblemas(null)} />}>
@@ -167,8 +159,8 @@ export function EditorQuestionario({ id }: { id: string }) {
       </Cartao>
       <SecoesDoQuestionario conteudo={e.conteudo} aoMudar={editor.alterarConteudo} abertas={abertas} aoAlternar={alternar} aoAlternarTodas={alternarTodas}
         aoAbrir={(pid) => setAbertas((a) => new Set(a).add(pid))} problemas={agrupados} finalidade={d.finalidade} />
-    </> : <>
-      <Cartao titulo="Prévia" descricao="É assim que o aluno vê o rascunho. As respostas daqui não são salvas nem enviadas a ninguém.">
+    </> : <View style={estilos.previa}>
+      <Cartao titulo="Prévia" descricao="É assim que o aluno vê o rascunho, na largura da tela dele. As respostas daqui não são salvas nem enviadas a ninguém.">
         {e.conteudo.instrucoes.map((texto, i) => <Texto key={i}>{texto}</Texto>)}
       </Cartao>
       <QuestionarioAtualizacao modelo={e.conteudo} dataAtualizacao={hojeIso()} respostas={respostas} erros={errosPrevia ?? {}} progresso={anamnese}
@@ -181,7 +173,7 @@ export function EditorQuestionario({ id }: { id: string }) {
         }} />
         <Botao rotulo="Limpar respostas" tipo="fantasma" aoTocar={() => { setRespostas({}); setErrosPrevia(null); }} />
       </LinhaDeAcoes>
-    </>}
+    </View>}
 
     <PainelConfirmacao visivel={confirmando && avisos === null} titulo={anamnese ? 'Publicar esta anamnese?' : 'Publicar este questionário?'}
       mensagem={anamnese ? 'As próximas anamneses enviadas usam a versão nova. Quem já recebeu continua com a versão que recebeu.'
@@ -194,7 +186,7 @@ export function EditorQuestionario({ id }: { id: string }) {
     <PainelConfirmacao visivel={editor.situacao === 'conflito'} titulo="Este questionário foi alterado em outra aba"
       mensagem="Outra pessoa ou outra aba salvou este rascunho depois de você. Recarregue para ver a versão atual; as mudanças feitas aqui desde o último salvamento serão perdidas."
       rotuloConfirmar="Recarregar" rotuloCancelar="Fechar" aoConfirmar={editor.recarregar} aoCancelar={() => undefined} />
-  </Tela>;
+  </TelaDoEditor>;
 }
 
 function ItemProblema({ onde, mensagem, tipo }: { onde: string; mensagem: string; tipo: 'perigo' | 'atencao' }) {
@@ -209,7 +201,8 @@ function ItemProblema({ onde, mensagem, tipo }: { onde: string; mensagem: string
 }
 
 const estilos = StyleSheet.create({
-  selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
+  // O aluno vê o questionário em até 720 px: a prévia usa a mesma largura.
+  previa: { width: '100%', maxWidth: 720, alignSelf: 'center', gap: espaco(3) },
   instrucao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(0.5) },
   campoInstrucao: { flex: 1 },
   problema: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start', borderLeftWidth: 3, borderRadius: RAIO, paddingLeft: espaco(1), paddingVertical: 2 },

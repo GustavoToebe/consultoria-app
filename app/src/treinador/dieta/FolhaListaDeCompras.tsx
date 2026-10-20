@@ -69,7 +69,7 @@ export function FolhaListaDeCompras({
       <Texto variante="suave">{NOTA_DA_PREVIA}</Texto>
       {fatores.erro ? <MensagemErro texto={textoDoErro(fatores.erro)} erro={fatores.erro} tentarDeNovo={fatores.recarregar} /> : null}
       {!fatores.erro && !prontos ? <Esqueleto /> : null}
-      {!fatores.erro && prontos ? <ListaDeCompras conteudo={comFatoresDaBiblioteca(conteudo, prontos)} aoGerarPdf={pdf} /> : null}
+      {!fatores.erro && prontos ? <ListaDeCompras papel="treinador" conteudo={comFatoresDaBiblioteca(conteudo, prontos)} aoGerarPdf={pdf} /> : null}
     </Folha>
   );
 }

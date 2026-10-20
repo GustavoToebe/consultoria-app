@@ -1,4 +1,4 @@
-import { BedDouble, Dumbbell, Footprints, Plus, type LucideIcon } from 'lucide-react-native';
+import { BedDouble, Dumbbell, Footprints, Layers, Plus, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -13,7 +13,8 @@ const ICONES: Record<TipoSessao, LucideIcon> = {
   TREINO: Dumbbell,
   DESCANSO_ATIVO: Footprints,
   DESCANSO: BedDouble,
-  ACESSORIOS: Plus,
+  // Ícone próprio: o "+" confundia o chip de acessórios com o de adicionar sessão.
+  ACESSORIOS: Layers,
 };
 
 interface Props {
@@ -30,7 +31,7 @@ interface Props {
 
 /**
  * Uma sessão por vez: chips ("Seg · Costas") que quebram linha no PC e rolam no celular, o selecionado invertido,
- * ponto vermelho nas sessões com erro e o chip "+ Sessão" no fim. O botão "Modelos" fica à direita, na primeira linha.
+ * ponto vermelho nas sessões com erro e o chip "+ Sessão" no fim. "Modelos" fica no cabeçalho "Sessões", acima.
  */
 export function SeletorDeSessoes({ sessoes, selecionada, comProblema, aoSelecionar, aoAdicionar, adicionarDesabilitado, acao }: Props) {
   const { cores } = useTema();
