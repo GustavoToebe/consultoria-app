@@ -1,6 +1,7 @@
 import type { CondicaoPergunta, ConteudoQuestionario, PerguntaAtualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../api/tipos';
-import { cepValido, cpfValido, telefoneValido as telefoneDoCadastroValido, ufValida } from '@plataforma/web';
+import { cpfValido, telefoneValido as telefoneDoCadastroValido } from '@plataforma/web';
 
+import { CAMPOS_DO_ENDERECO, errosDoEndereco } from './cadastroDoAluno';
 import { hojeIso } from './formatos';
 import { LIMITES_QUESTIONARIO } from './questionario';
 
@@ -64,35 +65,21 @@ function gradeValida(p: PerguntaAtualizacao, v: unknown) {
   return Object.entries(v).every(([linha, coluna]) => linhas.has(linha) && typeof coluna === 'string' && colunas.has(coluna));
 }
 
-/** Campos da resposta ENDERECO e o tamanho de cada um (os mesmos das colunas do cadastro). */
-const CAMPOS_DO_ENDERECO = {
-  cep: LIMITES_QUESTIONARIO.enderecoCepTamanho, logradouro: LIMITES_QUESTIONARIO.enderecoLogradouroTamanho,
-  numero: LIMITES_QUESTIONARIO.enderecoNumeroTamanho, complemento: LIMITES_QUESTIONARIO.enderecoComplementoTamanho,
-  bairro: LIMITES_QUESTIONARIO.enderecoBairroTamanho, cidade: LIMITES_QUESTIONARIO.enderecoCidadeTamanho, uf: LIMITES_QUESTIONARIO.enderecoUfTamanho,
-} as const;
-
 /**
- * ENDERECO: objeto só com as chaves do endereço, cada uma um texto; o limite de cada uma conta depois do strip (como na
- * API). CEP (8 dígitos) e UF (uma das 27) só são conferidos quando preenchidos. Chave desconhecida ou valor que não é
- * texto (incluindo `null`) é inválido.
+ * ENDERECO: objeto só com as chaves do endereço, cada uma um texto (chave desconhecida ou valor que não é texto, incluindo
+ * `null`, é inválido). O resto é a regra única do endereço (`errosDoEndereco`): vazio vale; preenchido, os cinco campos
+ * obrigatórios, CEP e UF válidos e o limite de cada um contado depois do strip.
  */
 function enderecoValido(v: unknown) {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
-  return Object.entries(v).every(([campo, texto]) => {
-    if (!(campo in CAMPOS_DO_ENDERECO) || typeof texto !== 'string') return false;
-    const limpo = texto.trim();
-    if (limpo.length > CAMPOS_DO_ENDERECO[campo as keyof typeof CAMPOS_DO_ENDERECO]) return false;
-    if (limpo === '') return true;
-    if (campo === 'cep') return cepValido(limpo);
-    if (campo === 'uf') return ufValida(limpo.toUpperCase());
-    return true;
-  });
+  if (!Object.entries(v).every(([campo, texto]) => (CAMPOS_DO_ENDERECO as readonly string[]).includes(campo) && typeof texto === 'string')) return false;
+  return Object.keys(errosDoEndereco(v as Record<string, string>)).length === 0;
 }
 
 /** Objeto só com chaves do endereço e todos os valores em branco: a API conta como "não respondido" (some, ou falta se obrigatória). */
 const enderecoEmBranco = (v: unknown) =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
-  && Object.entries(v).every(([campo, texto]) => campo in CAMPOS_DO_ENDERECO && typeof texto === 'string' && texto.trim() === '');
+  && Object.entries(v).every(([campo, texto]) => (CAMPOS_DO_ENDERECO as readonly string[]).includes(campo) && typeof texto === 'string' && texto.trim() === '');
 
 /** Tamanho máximo da resposta de texto: o do objetivo ou do CPF do cadastro quando a resposta vai para lá (anamnese). */
 export function tamanhoDoTexto(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino'>) {

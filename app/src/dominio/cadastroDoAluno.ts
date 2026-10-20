@@ -27,12 +27,35 @@ export function enderecoParaForm(e: Partial<EnderecoDoAluno> | null | undefined)
   return Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, e?.[c] ?? ''])) as EnderecoNoForm;
 }
 
-/** Corpo do envio: campo vazio vira `null`; tudo vazio vira `null` (sem endereço). CEP sai com a máscara, UF em maiúsculas. */
+/**
+ * Normalização única do endereço (a mesma da API, na ficha e na anamnese): cada campo perde os espaços das pontas e o que
+ * sobrar em branco fica vazio. O tamanho de cada campo conta depois disso.
+ */
+export function normalizarEndereco(e: Partial<Record<CampoDoEndereco, string | null | undefined>> | null | undefined): EnderecoNoForm {
+  return Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, (e?.[c] ?? '').trim()])) as EnderecoNoForm;
+}
+
+/** Endereço vazio (todos os campos em branco) é válido: o endereço é opcional. */
+export const enderecoEmBranco = (e: Partial<Record<CampoDoEndereco, string | null | undefined>> | null | undefined) =>
+  CAMPOS_DO_ENDERECO.every((c) => normalizarEndereco(e)[c] === '');
+
+/** Preenchido qualquer campo, estes cinco são obrigatórios (o número aceita "s/n"); complemento e bairro são opcionais. */
+export const CAMPOS_OBRIGATORIOS_DO_ENDERECO: readonly CampoDoEndereco[] = ['cep', 'logradouro', 'numero', 'cidade', 'uf'];
+
+const FALTA_NO_ENDERECO: Partial<Record<CampoDoEndereco, string>> = {
+  cep: 'Informe o CEP.', logradouro: 'Informe a rua ou avenida.', numero: 'Informe o número (ou s/n).', cidade: 'Informe a cidade.', uf: 'Escolha a UF.',
+};
+
+/**
+ * Corpo do envio: campo vazio vira `null`; tudo vazio vira `null` (sem endereço). Normalizado (sem espaços nas pontas),
+ * CEP com a máscara e UF em maiúsculas.
+ */
 export function enderecoParaEnvio(e: EnderecoNoForm): EnderecoDoAluno | null {
-  const texto = (v: string) => v.trim() || null;
+  const n = normalizarEndereco(e);
+  const texto = (c: CampoDoEndereco) => n[c] || null;
   const envio: EnderecoDoAluno = {
-    cep: texto(e.cep) && formatarCep(e.cep), logradouro: texto(e.logradouro), numero: texto(e.numero),
-    complemento: texto(e.complemento), bairro: texto(e.bairro), cidade: texto(e.cidade), uf: texto(e.uf)?.toUpperCase() ?? null,
+    cep: n.cep ? formatarCep(n.cep) : null, logradouro: texto('logradouro'), numero: texto('numero'),
+    complemento: texto('complemento'), bairro: texto('bairro'), cidade: texto('cidade'), uf: n.uf ? n.uf.toUpperCase() : null,
   };
   return CAMPOS_DO_ENDERECO.every((c) => envio[c] === null) ? null : envio;
 }
@@ -53,11 +76,20 @@ export function enderecoDaResposta(valor: unknown): EnderecoDoAluno | null {
   return Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, typeof o[c] === 'string' && o[c].trim() ? o[c].trim() : null])) as unknown as EnderecoDoAluno;
 }
 
-/** Erro de cada campo do endereço preenchido (CEP de 8 dígitos e UF da lista); vazio é válido. */
-export function errosDoEndereco(e: EnderecoNoForm): Partial<Record<CampoDoEndereco, string>> {
+/**
+ * Regra única do endereço (a mesma da API): vazio é válido; com qualquer campo preenchido, CEP, logradouro, número, cidade
+ * e UF são obrigatórios, o CEP tem 8 dígitos, a UF é uma das 27 e cada campo cabe no limite (contado sem os espaços das pontas).
+ */
+export function errosDoEndereco(e: Partial<Record<CampoDoEndereco, string | null | undefined>>): Partial<Record<CampoDoEndereco, string>> {
+  const n = normalizarEndereco(e);
   const erros: Partial<Record<CampoDoEndereco, string>> = {};
-  if (e.cep.trim() && !cepValido(e.cep)) erros.cep = 'CEP inválido. Use 8 dígitos.';
-  if (e.uf.trim() && !ufValida(e.uf.trim().toUpperCase())) erros.uf = 'Escolha a UF.';
+  if (enderecoEmBranco(n)) return erros;
+  for (const c of CAMPOS_DO_ENDERECO) {
+    if (n[c].length > LIMITES_ENDERECO[c]) erros[c] = `Use no máximo ${LIMITES_ENDERECO[c]} caracteres.`;
+    else if (!n[c]) { if (CAMPOS_OBRIGATORIOS_DO_ENDERECO.includes(c)) erros[c] = FALTA_NO_ENDERECO[c]; }
+    else if (c === 'cep' && !cepValido(n.cep)) erros.cep = 'CEP inválido. Use 8 dígitos.';
+    else if (c === 'uf' && !ufValida(n.uf.toUpperCase())) erros.uf = 'Escolha a UF.';
+  }
   return erros;
 }
 

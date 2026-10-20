@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import type { AlunoDetalhe, AlunoRequest } from '../api/tipos';
 import { responsaveisEquipe } from '../api/rotas';
 import {
-  CPF_EM_USO, ENDERECO_VAZIO, MENSAGEM_CPF_EM_USO, enderecoParaEnvio, enderecoParaForm, erroDoCpf, erroDoTelefone, errosDoEndereco,
+  CAMPOS_DO_ENDERECO, CPF_EM_USO, ENDERECO_VAZIO, MENSAGEM_CPF_EM_USO, enderecoParaEnvio, enderecoParaForm, erroDoCpf, erroDoTelefone, errosDoEndereco,
   mascaraCpf, mascaraTelefone,
 } from '../dominio/cadastroDoAluno';
 import { CamposDeEndereco } from '../ui/CamposDeEndereco';
@@ -123,7 +123,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         <Campo rotulo="CPF (opcional)" valor={cpf} aoMudar={(t) => setCpf(mascaraCpf(t))} erro={erroCpf ?? cpfEmUso ?? campos.cpf} keyboardType="number-pad"
           inputMode="numeric" maxLength={14} ajuda={SENSIVEL} />
         <CamposDeEndereco valor={endereco} aoMudar={setEndereco}
-          erros={{ ...errosEndereco, cep: errosEndereco.cep ?? campos['endereco.cep'], uf: errosEndereco.uf ?? campos['endereco.uf'] }} />
+          erros={Object.fromEntries(CAMPOS_DO_ENDERECO.map((c) => [c, errosEndereco[c] ?? campos[`endereco.${c}`]]))} />
       </Permitido>
       <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
       {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}

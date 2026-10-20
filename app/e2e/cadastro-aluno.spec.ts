@@ -69,6 +69,52 @@ test('ficha: telefone, CPF e endereço na leitura; edição valida, envia e most
   expect(errosDaPagina).toEqual([]);
 });
 
+test('ficha: endereço parcial é recusado (só a cidade), "s/n" vale e tudo em branco apaga o endereço', async ({ page }) => {
+  const { pedidos, errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: { ...FICHA, endereco: null } },
+    [`PUT /alunos/${ALUNO_ID}`]: (p, route) => json(route, { ...FICHA, ...(p.corpo as object), versao: 2 }),
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  const salvar = page.getByRole('button', { name: 'Salvar', exact: true });
+  await expect(salvar).toBeEnabled();
+
+  // Só a cidade: cada campo obrigatório que falta é marcado embaixo dele e o salvar não sai.
+  await page.getByLabel('Cidade').fill('Cidade Exemplo');
+  for (const falta of ['Informe o CEP.', 'Informe a rua ou avenida.', 'Informe o número (ou s/n).', 'Escolha a UF.']) {
+    await expect(page.getByText(falta)).toBeVisible();
+  }
+  await expect(salvar).toBeDisabled();
+
+  // Completo, com "s/n" e sem complemento nem bairro (opcionais).
+  await page.getByLabel('CEP').fill('01310100');
+  await page.getByLabel('Rua, avenida…').fill('Rua Exemplo');
+  await page.getByLabel('Número').fill('s/n');
+  await page.getByRole('button', { name: /^UF/ }).click();
+  await page.getByRole('dialog').getByRole('radio', { name: 'SP', exact: true }).click();
+  await expect(page.getByText('Informe o CEP.')).toHaveCount(0);
+  await expect(salvar).toBeEnabled();
+  await salvar.click();
+  await expect(page.getByText('Dados salvos.')).toBeVisible();
+  const envio = pedidos.find((p) => p.metodo === 'PUT')?.corpo as { endereco: unknown };
+  expect(envio.endereco).toEqual({
+    cep: '01310-100', logradouro: 'Rua Exemplo', numero: 's/n', complemento: null, bairro: null, cidade: 'Cidade Exemplo', uf: 'SP',
+  });
+
+  // Tudo em branco: o endereço é opcional e o envio leva null.
+  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  for (const rotulo of ['CEP', 'Rua, avenida…', 'Número', 'Cidade']) await page.getByLabel(rotulo).fill('');
+  await page.getByRole('button', { name: /^UF/ }).click();
+  await page.getByRole('dialog').getByRole('radio', { name: 'Não informar' }).click();
+  await expect(salvar).toBeEnabled();
+  await salvar.click();
+  const ultimo = pedidos.filter((p) => p.metodo === 'PUT').at(-1)?.corpo as { endereco: unknown };
+  expect(ultimo.endereco).toBeNull();
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('ficha sem permissão de dados sensíveis: CPF e endereço não aparecem e o corpo não os leva', async ({ page }) => {
   const semSensivel = await sessao(page, TREINADOR);
   const { permissoes } = (semSensivel['GET /eu'] as { corpo: { permissoes: string[] } }).corpo;
@@ -126,7 +172,7 @@ const PENDENTE: AnamneseDetalhe = {
   enviadaEm: null, revisadaEm: null, revisadaPorNome: null, dispensadaEm: null, dispensadaPorNome: null, alteracoes: [], dispensaMotivo: null, versao: 1,
 };
 
-test('aluno responde o endereço na anamnese: CEP com máscara e só os campos preenchidos no envio', async ({ page }) => {
+test('aluno responde o endereço na anamnese: só a cidade é recusada; completo, com CEP em máscara e "s/n", é enviado', async ({ page }) => {
   const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessaoDeAluno(page)),
     'GET /aluno/anamnese': { corpo: PENDENTE },
@@ -137,16 +183,28 @@ test('aluno responde o endereço na anamnese: CEP com máscara e só os campos p
   });
   await page.goto('/aluno/anamnese');
   await expect(page.getByText('Esta resposta vai para o endereço do seu cadastro.')).toBeVisible();
+
+  // Só a cidade: a anamnese não sai e cada campo que falta é marcado.
+  await page.getByLabel('Cidade').fill('Cidade Exemplo');
+  await page.getByRole('button', { name: 'Enviar anamnese' }).click();
+  await expect(page.getByText('Informe o CEP.')).toBeVisible();
+  await expect(page.getByText('Informe a rua ou avenida.')).toBeVisible();
+  await expect(page.getByText('Informe o número (ou s/n).')).toBeVisible();
+  await expect(page.getByText('Escolha a UF.')).toBeVisible();
+  expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/enviar'))).toHaveLength(0);
+
   await page.getByLabel('CEP').fill('01310100');
   await expect(page.getByLabel('CEP')).toHaveValue('01310-100');
   await page.getByLabel('Rua, avenida…').fill('Rua Exemplo');
-  await page.getByLabel('Cidade').fill('Cidade Exemplo');
+  await page.getByLabel('Número').fill('s/n');
+  await page.getByRole('button', { name: /^UF/ }).click();
+  await page.getByRole('dialog').getByRole('radio', { name: 'SP', exact: true }).click();
   await page.getByRole('button', { name: 'Enviar anamnese' }).click();
   await expect(page.getByText('Anamnese enviada. Seu treinador vai ver as respostas.')).toBeVisible();
   const envio = pedidos.find((p) => p.metodo === 'POST' && p.caminho.endsWith('/enviar'));
   expect(envio?.corpo).toEqual({
     questionarioVersaoId: PENDENTE.questionarioVersaoId,
-    respostas: { end: { cep: '01310-100', logradouro: 'Rua Exemplo', cidade: 'Cidade Exemplo' } },
+    respostas: { end: { cep: '01310-100', logradouro: 'Rua Exemplo', numero: 's/n', cidade: 'Cidade Exemplo', uf: 'SP' } },
   });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);

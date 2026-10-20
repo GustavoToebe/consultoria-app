@@ -1,5 +1,5 @@
 import {
-  enderecoDaResposta, enderecoParaEnvio, enderecoParaForm, enderecoParaLeitura, ENDERECO_VAZIO, erroDoCpf, erroDoTelefone, errosDoEndereco,
+  enderecoDaResposta, enderecoEmBranco, normalizarEndereco, enderecoParaEnvio, enderecoParaForm, enderecoParaLeitura, ENDERECO_VAZIO, erroDoCpf, erroDoTelefone, errosDoEndereco,
   mascaraCep, mascaraCpf, mascaraTelefone, respostaDeEndereco,
 } from './cadastroDoAluno';
 
@@ -32,12 +32,25 @@ describe('validação do que o formulário mostra (a API decide de verdade)', ()
     expect(erroDoTelefone('(45) 99999-8888')).toBeUndefined();
     expect(erroDoTelefone('9999')).toMatch(/Telefone inválido/);
   });
-  it('endereço: CEP de 8 dígitos e UF da lista só quando preenchidos', () => {
+  it('endereço: vazio vale; preenchido, CEP, rua, número, cidade e UF são obrigatórios (complemento e bairro não)', () => {
     expect(errosDoEndereco(ENDERECO_VAZIO)).toEqual({});
+    expect(errosDoEndereco({ ...ENDERECO_VAZIO, bairro: '   ' })).toEqual({});
     expect(errosDoEndereco(enderecoParaForm(ENDERECO))).toEqual({});
-    expect(errosDoEndereco({ ...ENDERECO_VAZIO, cep: '123' }).cep).toMatch(/CEP inválido/);
-    expect(errosDoEndereco({ ...ENDERECO_VAZIO, uf: 'XX' }).uf).toBeDefined();
-    expect(errosDoEndereco({ ...ENDERECO_VAZIO, uf: 'sp' })).toEqual({});
+    expect(errosDoEndereco({ ...ENDERECO, complemento: '', bairro: '' })).toEqual({});
+    expect(errosDoEndereco({ ...ENDERECO, numero: 's/n' })).toEqual({});
+    expect(Object.keys(errosDoEndereco({ ...ENDERECO_VAZIO, cidade: 'Cidade Exemplo' })).sort()).toEqual(['cep', 'logradouro', 'numero', 'uf']);
+    expect(errosDoEndereco({ ...ENDERECO, numero: ' ' }).numero).toMatch(/número/i);
+    expect(Object.keys(errosDoEndereco({ ...ENDERECO_VAZIO, bairro: 'Centro' })).sort()).toEqual(['cep', 'cidade', 'logradouro', 'numero', 'uf']);
+  });
+  it('endereço: CEP de 8 dígitos e UF da lista', () => {
+    expect(errosDoEndereco({ ...ENDERECO, cep: '123' }).cep).toMatch(/CEP inválido/);
+    expect(errosDoEndereco({ ...ENDERECO, uf: 'XX' }).uf).toBeDefined();
+    expect(errosDoEndereco({ ...ENDERECO, uf: 'sp' })).toEqual({});
+  });
+  it('endereço: o limite conta depois de tirar os espaços das pontas', () => {
+    expect(errosDoEndereco({ ...ENDERECO, logradouro: ` ${'a'.repeat(200)} ` })).toEqual({});
+    expect(errosDoEndereco({ ...ENDERECO, logradouro: 'a'.repeat(201) }).logradouro).toMatch(/200/);
+    expect(errosDoEndereco({ ...ENDERECO, cep: ' 01310-100 ' })).toEqual({});
   });
 });
 
@@ -46,11 +59,18 @@ describe('endereço no formulário e no envio', () => {
     expect(enderecoParaForm(null)).toEqual(ENDERECO_VAZIO);
     expect(enderecoParaForm({ cep: '01310-100', uf: null })).toEqual({ ...ENDERECO_VAZIO, cep: '01310-100' });
   });
-  it('do formulário para o envio: vazio vira null, tudo vazio vira sem endereço, CEP com máscara e UF em maiúsculas', () => {
+  it('do formulário para o envio: normalizado, vazio vira null, tudo vazio vira sem endereço, CEP com máscara e UF em maiúsculas', () => {
     expect(enderecoParaEnvio(ENDERECO_VAZIO)).toBeNull();
-    expect(enderecoParaEnvio({ ...ENDERECO_VAZIO, cep: '01310100', uf: 'sp', bairro: '  Centro ' })).toEqual({
-      cep: '01310-100', logradouro: null, numero: null, complemento: null, bairro: 'Centro', cidade: null, uf: 'SP',
+    expect(enderecoParaEnvio({ ...ENDERECO_VAZIO, bairro: '   ' })).toBeNull();
+    expect(enderecoParaEnvio({ ...ENDERECO, cep: ' 01310100 ', uf: 'sp', bairro: '  Centro ', complemento: '  ' })).toEqual({
+      cep: '01310-100', logradouro: 'Rua Exemplo', numero: '100', complemento: null, bairro: 'Centro', cidade: 'Cidade Exemplo', uf: 'SP',
     });
+  });
+  it('normalização única: tira os espaços das pontas e o que sobra em branco fica vazio', () => {
+    expect(normalizarEndereco({ cidade: '  Cidade Exemplo ', bairro: '   ', uf: null })).toEqual({ ...ENDERECO_VAZIO, cidade: 'Cidade Exemplo' });
+    expect(normalizarEndereco(null)).toEqual(ENDERECO_VAZIO);
+    expect(enderecoEmBranco({ cep: ' ', uf: '' })).toBe(true);
+    expect(enderecoEmBranco({ cep: ' 1 ' })).toBe(false);
   });
   it('resposta da anamnese: só as chaves preenchidas, texto como digitado; nada preenchido = sem resposta', () => {
     expect(respostaDeEndereco(ENDERECO_VAZIO)).toBeNull();

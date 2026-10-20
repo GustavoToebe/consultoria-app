@@ -10,7 +10,7 @@ import {
 import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { LIMITES_QUESTIONARIO as L, TIPOS_DE_PERGUNTA } from '../../dominio/questionario';
 import { notaDoCadastro } from '../../dominio/anamnese';
-import { enderecoParaForm, respostaDeEndereco } from '../../dominio/cadastroDoAluno';
+import { enderecoParaForm, errosDoEndereco, respostaDeEndereco } from '../../dominio/cadastroDoAluno';
 import { avaliarRespostas, tamanhoDoTexto } from '../../dominio/respostasAtualizacao';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -195,7 +195,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
       <Texto variante="rotulo">{rotulo}</Texto>
       {ajudaTexto}
       {nota ? <Texto variante="pequeno">{nota}</Texto> : null}
-      <CamposDeEndereco valor={atual} aoMudar={(e) => aoMudar(respostaDeEndereco(e))} />
+      <CamposDeEndereco valor={atual} aoMudar={(e) => aoMudar(respostaDeEndereco(e))} erros={erro ? errosDoEndereco(atual) : undefined} />
       {mensagemErro}
     </View>;
   }
