@@ -1,5 +1,5 @@
 import { CreditCard } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import type { CobrancaDoAluno } from '../../api/financeiroTipos';
@@ -16,9 +16,11 @@ import { abrirPagamento } from '../../ui/abrirPagamento';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
+import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { codigoApi, textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
@@ -62,30 +64,34 @@ export function CartaoMeuPlano() {
                 <Texto variante="bloco" style={estilos.nome}>{dados.plano.planoNome ?? 'Plano'}</Texto>
                 <Selo texto={seloDaContratacao(dados.plano.situacao).rotulo} tipo={seloDaContratacao(dados.plano.situacao).tom} />
               </View>
-              <CampoLeitura rotulo="Valor" valor={centavosParaTela(dados.plano.valorCentavos)} numerico />
-              <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(dados.plano.periodicidade)} />
-              <CampoLeitura rotulo="Próximo vencimento" valor={dados.plano.proximoVencimento ? dataParaTela(dados.plano.proximoVencimento) : null} numerico />
+              <CamposEmLinha minimo={110}>
+                <CampoLeitura rotulo="Valor" valor={centavosParaTela(dados.plano.valorCentavos)} numerico />
+                <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(dados.plano.periodicidade)} />
+                <CampoLeitura rotulo="Próximo vencimento" valor={dados.plano.proximoVencimento ? dataParaTela(dados.plano.proximoVencimento) : null} numerico />
+              </CamposEmLinha>
             </View>
           ) : (
             <Texto variante="suave">Você ainda não tem um plano comercial contratado com o seu treinador.</Texto>
           )}
           {dados.abertas.length > 0 ? (
             <View style={estilos.bloco}>
-              <Texto variante="rotulo">Em aberto</Texto>
+              <Texto variante="secao">Em aberto</Texto>
+              {/* O "Pagar" mora dentro da própria cobrança: solto embaixo, parecia de outra. */}
               {dados.abertas.map((c) => (
-                <View key={c.id} style={estilos.bloco}>
-                  <LinhaDaCobranca cobranca={c} modo={modo} />
+                <LinhaDaCobranca key={c.id} cobranca={c} modo={modo}>
                   {modo === 'botao' ? <BotaoPagar cobranca={c} aoMudar={recarregar} /> : null}
-                </View>
+                </LinhaDaCobranca>
               ))}
               {textoDoModo ? <Texto variante="suave">{textoDoModo}</Texto> : null}
             </View>
           ) : null}
           {historico.length > 0 ? (
             <View style={estilos.bloco}>
-              <Texto variante="rotulo">Histórico</Texto>
+              <Texto variante="secao">Histórico</Texto>
               {visiveis.map((c) => <LinhaDaCobranca key={c.id} cobranca={c} modo={modo} />)}
-              {historico.length > HISTORICO_VISIVEL && !todas ? <Botao rotulo="Ver todas" tipo="fantasma" aoTocar={() => setTodas(true)} /> : null}
+              {historico.length > HISTORICO_VISIVEL && !todas ? (
+                <LinhaDeAcoes><Botao rotulo={`Ver todas (${historico.length})`} tipo="fantasma" aoTocar={() => setTodas(true)} /></LinhaDeAcoes>
+              ) : null}
             </View>
           ) : null}
           {dados.plano && dados.abertas.length === 0 && historico.length === 0 ? <Texto variante="suave">Ainda não há cobranças.</Texto> : null}
@@ -133,30 +139,45 @@ function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar:
   );
 }
 
-function LinhaDaCobranca({ cobranca, modo }: { cobranca: CobrancaDoAluno; modo: ComoPagar }) {
+/**
+ * Uma cobrança: mês e selo na primeira linha; valor e a data que importa na segunda ("R$ 150,00 · Vence em 05/11/2026").
+ * Em aberto, o "Pagar" (quando há) vem dentro do mesmo cartão, alinhado à direita.
+ */
+function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAluno; modo: ComoPagar; children?: ReactNode }) {
   const { cores } = useTema();
   const selo = seloDaCobranca(cobranca);
   // Celular sem o "Pagar" (`informar`): só a linha de informação; sem ela (cancelada...), o texto de sempre.
-  const detalhe = (modo === 'informar' ? informacaoDaCobranca(cobranca) : null) ?? (cobranca.situacao === 'PAGA'
-    ? `Pago em ${dataParaTela(cobranca.pagoEm)}${cobranca.forma ? ` · ${rotuloDaForma(cobranca.forma)}` : ''}`
-    : `Vence em ${dataParaTela(cobranca.vencimento)}`);
+  const detalhe = (modo === 'informar' ? informacaoDaCobranca(cobranca) : null) ?? textoDaData(cobranca);
   const mes = rotuloDoMes(cobranca.competencia);
+  const valor = centavosParaTela(cobranca.valorCentavos);
   return (
-    <View accessible accessibilityLabel={`${mes}, ${centavosParaTela(cobranca.valorCentavos)}, ${selo.rotulo}. ${detalhe}`}
-      style={[estilos.cobranca, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-      <View style={estilos.linha}>
-        <Texto variante="bloco">{mes}</Texto>
-        <Selo texto={selo.rotulo} tipo={selo.tom} />
+    <View style={[estilos.cobranca, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+      <View accessible accessibilityLabel={`${mes}, ${valor}, ${selo.rotulo}. ${detalhe}`} style={estilos.textos}>
+        <View style={estilos.linha}>
+          <Texto variante="bloco">{mes}</Texto>
+          <Selo texto={selo.rotulo} tipo={selo.tom} />
+        </View>
+        <Texto numerico>{valor}</Texto>
+        <Texto variante="suave">{detalhe}</Texto>
       </View>
-      <Texto numerico>{centavosParaTela(cobranca.valorCentavos)}</Texto>
-      <Texto variante="suave">{detalhe}</Texto>
+      {children ? <LinhaDeAcoes alinhar="fim">{children}</LinhaDeAcoes> : null}
     </View>
   );
+}
+
+/** A data que importa para a situação: paga (também contestada e estornada, que já tiveram baixa), vencida, cancelada ou a vencer. */
+function textoDaData(c: CobrancaDoAluno): string {
+  if ((c.situacao === 'PAGA' || c.situacao === 'CONTESTADA' || c.situacao === 'ESTORNADA') && c.pagoEm) {
+    return `Pago em ${dataParaTela(c.pagoEm)}${c.forma ? ` · ${rotuloDaForma(c.forma)}` : ''}`;
+  }
+  if (c.situacao === 'CANCELADA') return `Vencia em ${dataParaTela(c.vencimento)}`;
+  return `${c.situacao === 'ABERTA' && c.vencida ? 'Venceu' : 'Vence'} em ${dataParaTela(c.vencimento)}`;
 }
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   nome: { flexShrink: 1 },
-  cobranca: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(0.25) },
+  cobranca: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
+  textos: { gap: espaco(0.25) },
 });
