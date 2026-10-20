@@ -6,11 +6,14 @@ import { StyleSheet, View } from 'react-native';
 import type { LancamentoResponse, TipoDeLancamento } from '../../api/financeiroTipos';
 import { alterarLancamento, criarLancamento, excluirLancamento, listarLancamentos, painelFinanceiro } from '../../api/rotas';
 import { hojeEmBrasilia, LIMITES, periodoDoMes, validarLancamento } from '../../dominio/financeiro';
+import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { centavosDaTela, centavosParaCampo, centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { CampoLeitura } from '../../ui/CampoLeitura';
+import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { CampoData } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
@@ -53,25 +56,26 @@ export function AbaLancamentos({ podeAlterar }: { podeAlterar: boolean }) {
 
   return (
     <View style={estilos.coluna}>
+      <View style={estilos.topo}>
+        <Texto variante="suave" style={estilos.explicacao}>Entradas e saídas da consultoria que não vêm do plano de um aluno, como aluguel e equipamentos.</Texto>
+        {podeAlterar ? <Botao rotulo="Novo lançamento" Icone={Plus} aoTocar={() => setAberto('novo')} /> : null}
+      </View>
       {resultado.erro ? <MensagemErro texto={textoDoErro(resultado.erro)} erro={resultado.erro} tentarDeNovo={recarregarResultado} /> : null}
       {resultado.dados ? <ResultadoDoMes resultado={resultado.dados.resultadoDoMes} /> : null}
-      {podeAlterar ? (
-        <LinhaDeAcoes alinhar="fim"><Botao rotulo="Novo lançamento" Icone={Plus} aoTocar={() => setAberto('novo')} /></LinhaDeAcoes>
-      ) : null}
       {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregarLista} /> : null}
       {!dados && lista.carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? (
-        <Vazio titulo="Nenhum lançamento" texto="Registre saídas (aluguel, equipamentos) e entradas que não vêm de um plano de aluno." />
+        <Vazio titulo="Nenhum lançamento" texto={podeAlterar ? 'Toque em Novo lançamento para registrar a primeira entrada ou saída.' : 'Os lançamentos registrados pela equipe aparecem aqui.'} />
       ) : null}
       {dados && dados.itens.length > 0 ? (
-        <Cartao descricao={`${dados.total} ${dados.total === 1 ? 'lançamento' : 'lançamentos'}. Toque na linha para abrir.`}>
+        <Cartao descricao={`${dados.total} ${dados.total === 1 ? 'lançamento' : 'lançamentos'}, do mais recente ao mais antigo. Toque na linha para abrir.`}>
           <View style={lista.carregando ? estilos.esmaecido : null}>
             <ListaOuTabela rotulo="Lançamentos avulsos" linhas={dados.itens} chave={(l) => l.id} aoTocar={setAberto}
               rotuloDaLinha={(l) => `Abrir lançamento ${l.descricao}`}
+              // Entrada e saída não são status: vão no texto, sem selo colorido.
               item={(l) => ({
                 titulo: l.descricao,
-                detalhe: `${rotuloDoTipo(l.tipo)} · ${centavosParaTela(l.valorCentavos)} · ${dataParaTela(l.data)}`,
-                selo: { texto: rotuloDoTipo(l.tipo), tipo: l.tipo === 'SAIDA' ? 'atencao' : 'sucesso' },
+                detalhe: `${rotuloDoTipo(l.tipo)} de ${centavosParaTela(l.valorCentavos)} · ${dataSemAnoCorrente(l.data, hojeEmBrasilia())}${l.categoria ? ` · ${l.categoria}` : ''}`,
               })}
               colunas={[
                 { chave: 'descricao', titulo: 'Descrição', flex: 2, principal: true, render: (l) => <Texto variante="bloco" numberOfLines={2}>{l.descricao}</Texto> },
@@ -186,9 +190,13 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
           </>
         ) : lancamento ? (
           <>
-            <Texto>{lancamento.descricao}</Texto>
-            <Texto variante="suave">{rotuloDoTipo(lancamento.tipo)} · {centavosParaTela(lancamento.valorCentavos)} · {dataParaTela(lancamento.data)}</Texto>
-            <Texto variante="suave">Categoria: {lancamento.categoria ?? '—'}</Texto>
+            <CampoLeitura rotulo="Descrição" valor={lancamento.descricao} />
+            <CamposEmLinha>
+              <CampoLeitura rotulo="Tipo" valor={rotuloDoTipo(lancamento.tipo)} />
+              <CampoLeitura rotulo="Valor" valor={centavosParaTela(lancamento.valorCentavos)} numerico />
+              <CampoLeitura rotulo="Data" valor={dataParaTela(lancamento.data)} numerico />
+              <CampoLeitura rotulo="Categoria" valor={lancamento.categoria} />
+            </CamposEmLinha>
           </>
         ) : null}
         {tentou && problema && iso && descricao.trim() && centavos !== null ? <MensagemErro texto={problema} /> : null}
@@ -206,6 +214,8 @@ function Formulario({ lancamento, podeAlterar, aoFechar, aoMudar }: {
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
+  explicacao: { flexGrow: 1, flexShrink: 1, flexBasis: 260 },
   esmaecido: { opacity: 0.6 },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

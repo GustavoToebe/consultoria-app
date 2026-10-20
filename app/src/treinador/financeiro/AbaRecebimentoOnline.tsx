@@ -9,11 +9,12 @@ import {
   validarJurosDoParcelamento, validarRecebimentoOnline,
 } from '../../dominio/financeiro';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_FORMULARIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoLeitura } from '../../ui/CampoLeitura';
+import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { CampoSenha } from '../../ui/CampoSenha';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
@@ -144,50 +145,60 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
   return (
     <>
       <Cartao titulo="Recebimento online" descricao={TEXTO_RECEBIMENTO_ONLINE}
-        acoes={<Selo texto={dados.configurado ? 'Configurado' : 'Ainda não configurado'} tipo={dados.configurado ? 'sucesso' : 'neutro'} />}>
+        acoes={<Selo texto={dados.configurado ? 'Configurado' : 'Ainda não configurado'} tipo={dados.configurado ? 'sucesso' : 'neutro'} />}
+        rodape={podeAlterar ? (
+          <LinhaDeAcoes alinhar="entre">
+            {dados.configurado ? <Botao rotulo="Remover recebimento online" tipo="perigoTexto" aoTocar={() => { setErro(null); setPergunta('tudo'); }} /> : <View />}
+            <Botao rotulo="Salvar" carregando={enviando} desabilitado={semMudanca} motivo="Nada foi alterado." aoTocar={salvar} />
+          </LinhaDeAcoes>
+        ) : undefined}>
         {!dados.configurado ? (
           <Texto variante="suave">Informe a sua InfiniteTag para o aluno poder pagar pelo link. Enquanto isso, você segue registrando os pagamentos à mão.</Texto>
         ) : null}
         {podeAlterar ? (
           <>
-            <Campo rotulo="InfiniteTag" valor={tag} aoMudar={(t) => setTag(normalizarInfiniteTag(t))} erro={erroDaTag}
-              ajuda="É o seu identificador na InfinitePay. Pode digitar com ou sem o $; aqui ele aparece sem."
-              autoCapitalize="none" autoCorrect={false} maxLength={60} />
-            {campoDaChave ? (
-              <>
-                <CampoSenha rotulo={trocando ? 'Nova API Key' : 'API Key (opcional)'} valor={chave} aoMudar={mudarChave} erro={erroDaChave}
-                  autoComplete="off" maxLength={300} />
-                {trocando ? <Botao rotulo="Cancelar a troca" tipo="fantasma" aoTocar={() => { setTrocando(false); setChave(''); }} /> : null}
-              </>
-            ) : (
+            <View style={estilos.secao}>
+              <Texto variante="secao">Conta InfinitePay</Texto>
+              <Campo rotulo="InfiniteTag" valor={tag} aoMudar={(t) => setTag(normalizarInfiniteTag(t))} erro={erroDaTag}
+                ajuda="É o seu identificador na InfinitePay. Pode digitar com ou sem o $; aqui ele aparece sem."
+                autoCapitalize="none" autoCorrect={false} maxLength={60} />
+              {campoDaChave ? (
+                <>
+                  <CampoSenha rotulo={trocando ? 'Nova API Key' : 'API Key (opcional)'} valor={chave} aoMudar={mudarChave} erro={erroDaChave}
+                    autoComplete="off" maxLength={300} />
+                  {trocando ? <LinhaDeAcoes><Botao rotulo="Cancelar a troca" tipo="fantasma" aoTocar={() => { setTrocando(false); setChave(''); }} /></LinhaDeAcoes> : null}
+                </>
+              ) : (
+                <View style={estilos.chave}>
+                  <Texto variante="rotulo">API Key</Texto>
+                  <Texto>Chave configurada</Texto>
+                  <LinhaDeAcoes>
+                    <Botao rotulo="Trocar chave" tipo="secundario" aoTocar={() => { setChave(''); setTrocando(true); }} />
+                    <Botao rotulo="Remover chave" tipo="perigoTexto" aoTocar={() => { setErro(null); setPergunta('chave'); }} />
+                  </LinhaDeAcoes>
+                </View>
+              )}
+              <Texto variante="suave">{TEXTO_CHAVE_DO_RECEBIMENTO}</Texto>
+            </View>
+            <View style={estilos.secao}>
+              <Texto variante="secao">Parcelamento no cartão</Texto>
               <View style={estilos.chave}>
-                <Texto variante="rotulo">API Key</Texto>
-                <Texto>Chave configurada</Texto>
-                <LinhaDeAcoes>
-                  <Botao rotulo="Trocar chave" tipo="secundario" aoTocar={() => { setChave(''); setTrocando(true); }} />
-                  <Botao rotulo="Remover chave" tipo="perigoTexto" aoTocar={() => { setErro(null); setPergunta('chave'); }} />
-                </LinhaDeAcoes>
+                <Escolha rotulo={TITULO_JUROS_DO_PARCELAMENTO} valor={jurosEscolhidos} aoMudar={setJuros}
+                  opcoes={OPCOES_DE_JUROS.map((o) => (o.valor === 'TREINADOR'
+                    ? { ...o, desabilitada: !temChave, motivo: MOTIVO_JUROS_SEM_CHAVE }
+                    : { ...o }))} />
+                <Texto variante="suave">{TEXTO_JUROS_DO_PARCELAMENTO}</Texto>
+                {erroDosJuros ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erroDosJuros}</Texto> : null}
               </View>
-            )}
-            <Texto variante="suave">{TEXTO_CHAVE_DO_RECEBIMENTO}</Texto>
-            <View style={estilos.chave}>
-              <Escolha rotulo={TITULO_JUROS_DO_PARCELAMENTO} valor={jurosEscolhidos} aoMudar={setJuros}
-                opcoes={OPCOES_DE_JUROS.map((o) => (o.valor === 'TREINADOR'
-                  ? { ...o, desabilitada: !temChave, motivo: MOTIVO_JUROS_SEM_CHAVE }
-                  : { ...o }))} />
-              <Texto variante="suave">{TEXTO_JUROS_DO_PARCELAMENTO}</Texto>
-              {erroDosJuros ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erroDosJuros}</Texto> : null}
             </View>
             {erro && !pergunta && Object.keys(doServidor).length === 0 ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
-            <LinhaDeAcoes>
-              <Botao rotulo="Salvar" carregando={enviando} desabilitado={semMudanca} motivo="Nada foi alterado." aoTocar={salvar} />
-              {dados.configurado ? <Botao rotulo="Remover recebimento online" tipo="perigoTexto" aoTocar={() => { setErro(null); setPergunta('tudo'); }} /> : null}
-            </LinhaDeAcoes>
           </>
         ) : (
           <>
-            <CampoLeitura rotulo="InfiniteTag" valor={dados.infiniteTag} />
-            <CampoLeitura rotulo="API Key" valor={dados.apiKeyConfigurada ? 'Chave configurada' : 'Sem chave'} />
+            <CamposEmLinha>
+              <CampoLeitura rotulo="InfiniteTag" valor={dados.infiniteTag} />
+              <CampoLeitura rotulo="API Key" valor={dados.apiKeyConfigurada ? 'Chave configurada' : 'Sem chave'} />
+            </CamposEmLinha>
             <CampoLeitura rotulo={TITULO_JUROS_DO_PARCELAMENTO} valor={dados.configurado ? rotuloDosJurosParaLeitura(dados.jurosDoParcelamento) : null} />
             <Texto variante="suave">{TEXTO_CHAVE_DO_RECEBIMENTO}</Texto>
             <Texto variante="suave">Para mudar o recebimento online, peça a quem administra o financeiro.</Texto>
@@ -211,6 +222,8 @@ function Formulario({ dados, podeAlterar, aoMudar, aoRecarregar }: {
 }
 
 const estilos = StyleSheet.create({
-  coluna: { gap: espaco(2) },
+  // Formulário curto: numa coluna de leitura confortável, não na largura toda da lista (o campo da Tag ia de ponta a ponta).
+  coluna: { gap: espaco(2), width: '100%', maxWidth: LARGURA_FORMULARIO },
+  secao: { gap: espaco(1.5) },
   chave: { gap: espaco(0.5) },
 });

@@ -11,6 +11,8 @@ import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
+import { CampoLeitura } from '../../ui/CampoLeitura';
+import { CamposEmLinha } from '../../ui/CamposEmLinha';
 import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
@@ -20,6 +22,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
+import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { avisoDeConflito, CampoMoeda, ehConflito } from './comum';
@@ -50,7 +53,7 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
           texto={arquivados ? 'Os planos arquivados aparecem aqui.' : podeAlterar ? 'Crie um plano (nome, valor e periodicidade) para depois contratá-lo na ficha de um aluno.' : 'Peça a quem gerencia o financeiro para criar os planos.'} />
       ) : null}
       {dados && dados.length > 0 ? (
-        <Cartao descricao="Toque no plano para ver os detalhes.">
+        <Cartao descricao={`${dados.length} ${dados.length === 1 ? 'plano' : 'planos'}. Toque no plano para ${podeAlterar ? 'editar' : 'ver os detalhes'}.`}>
           <ListaOuTabela rotulo="Planos comerciais" linhas={dados} chave={(p) => p.id} aoTocar={setAberto}
             rotuloDaLinha={(p) => `Abrir plano ${p.nome}`}
             item={(p) => ({
@@ -59,10 +62,15 @@ export function AbaPlanos({ podeAlterar }: { podeAlterar: boolean }) {
               selo: p.arquivado ? { texto: 'Arquivado', tipo: 'neutro' } : undefined,
             })}
             colunas={[
-              { chave: 'nome', titulo: 'Plano', flex: 2, principal: true, render: (p) => <Texto variante="bloco" numberOfLines={2}>{p.nome}</Texto> },
-              { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (p) => <Texto numerico>{centavosParaTela(p.valorCentavos)}</Texto> },
+              // Selo só na exceção (arquivado), como na lista de alunos.
+              { chave: 'nome', titulo: 'Plano', flex: 2, principal: true, render: (p) => (
+                <View style={estilos.nome}>
+                  <Texto variante="bloco" numberOfLines={2} style={estilos.encolher}>{p.nome}</Texto>
+                  {p.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
+                </View>
+              ) },
               { chave: 'periodicidade', titulo: 'Periodicidade', flex: 1, render: (p) => <Texto>{rotuloDaPeriodicidade(p.periodicidade)}</Texto> },
-              { chave: 'situacao', titulo: 'Situação', flex: 1, render: (p) => <Texto>{p.arquivado ? 'Arquivado' : 'Ativo'}</Texto> },
+              { chave: 'valor', titulo: 'Valor', flex: 1, alinhar: 'direita', render: (p) => <Texto numerico>{centavosParaTela(p.valorCentavos)}</Texto> },
             ]} />
         </Cartao>
       ) : null}
@@ -148,18 +156,21 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
       ) : undefined}>
       <View style={{ gap: espaco(1.5) }}>
         {plano?.arquivado ? <Texto variante="suave">Plano arquivado: não aceita novas contratações nem edição.</Texto> : null}
-        <Campo rotulo="Nome do plano" valor={nome} aoMudar={setNome} maxLength={LIMITES.nomeDoPlano} editable={editavel}
-          erro={tentou && !nome.trim() ? 'Informe o nome do plano.' : null} />
         {editavel ? (
-          <CampoMoeda rotulo="Valor (R$)" texto={valor} aoMudar={setValor} erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null}
-            ajuda="Valor de cada cobrança do plano. Na ficha do aluno dá para combinar outro valor, com o motivo." />
-        ) : (
-          <Texto>Valor: {centavosParaTela(plano?.valorCentavos)}</Texto>
-        )}
+          <Campo rotulo="Nome do plano" valor={nome} aoMudar={setNome} maxLength={LIMITES.nomeDoPlano}
+            erro={tentou && !nome.trim() ? 'Informe o nome do plano.' : null} />
+        ) : <CampoLeitura rotulo="Nome do plano" valor={plano?.nome} />}
         {editavel ? (
-          <Escolha rotulo="Periodicidade" opcoes={OPCOES_DE_PERIODICIDADE.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))} valor={periodicidade} aoMudar={setPeriodicidade} />
+          <>
+            <CampoMoeda rotulo="Valor (R$)" texto={valor} aoMudar={setValor} erro={tentou && centavos === null ? 'Informe um valor maior que zero, por exemplo 150,00.' : null}
+              ajuda="Valor de cada cobrança do plano. Na ficha do aluno dá para combinar outro valor, com o motivo." />
+            <Escolha rotulo="Periodicidade" opcoes={OPCOES_DE_PERIODICIDADE.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))} valor={periodicidade} aoMudar={setPeriodicidade} />
+          </>
         ) : (
-          <Texto>Periodicidade: {rotuloDaPeriodicidade(plano?.periodicidade)}</Texto>
+          <CamposEmLinha>
+            <CampoLeitura rotulo="Valor" valor={centavosParaTela(plano?.valorCentavos)} numerico />
+            <CampoLeitura rotulo="Periodicidade" valor={rotuloDaPeriodicidade(plano?.periodicidade)} />
+          </CamposEmLinha>
         )}
         {tentou && problema && centavos !== null && nome.trim() ? <MensagemErro texto={problema} /> : null}
         {erro && !arquivando ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
@@ -176,4 +187,6 @@ function Formulario({ plano, podeAlterar, aoFechar, aoMudar }: {
 
 const estilos = StyleSheet.create({
   coluna: { gap: espaco(2) },
+  nome: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
+  encolher: { flexShrink: 1 },
 });
