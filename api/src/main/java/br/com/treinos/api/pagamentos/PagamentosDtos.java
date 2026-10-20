@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -27,21 +28,55 @@ public final class PagamentosDtos {
 
     // ---- Plano comercial ----
 
-    /** Opcionais nulos viram o padrão: Pix, cartão e manual aceitos, boleto não, 1 parcela, taxa do cartão do treinador. */
     public record PlanoRequest(
             @NotBlank @Size(max = 80) String nome,
             @NotNull @Positive @Max(VALOR_MAXIMO) Long valorCentavos,
             @NotNull PeriodoDoPlano periodicidade,
-            Boolean aceitaPix, Boolean aceitaBoleto, Boolean aceitaCartao, Boolean aceitaManual,
-            @Min(1) @Max(12) Integer maxParcelas,
-            TaxaDoCartao taxaCartao,
             Long versao) { }
 
-    public record PlanoResponse(UUID id, String nome, long valorCentavos, PeriodoDoPlano periodicidade, boolean aceitaPix,
-                                boolean aceitaBoleto, boolean aceitaCartao, boolean aceitaManual, int maxParcelas,
-                                TaxaDoCartao taxaCartao, boolean arquivado, Instant criadoEm, Long versao) { }
+    public record PlanoResponse(UUID id, String nome, long valorCentavos, PeriodoDoPlano periodicidade, boolean arquivado,
+                                Instant criadoEm, Long versao) { }
 
     public record VersaoRequest(@NotNull Long versao) { }
+
+    // ---- Recebimento online ----
+
+    /**
+     * {@code apiKey} ausente mantém a que existe; {@code removerApiKey} a apaga. {@code versao} é a da credencial e só falta
+     * ao criar. A chave nunca volta em resposta nenhuma. {@code jurosDoParcelamento} ({@code ALUNO} ou {@code TREINADOR}):
+     * ausente = {@code ALUNO} ao criar e "não muda" ao alterar; {@code TREINADOR} exige API Key (conferido no serviço).
+     */
+    /**
+     * A chave não leva {@code @Size}: o erro do Bean Validation carrega o valor recusado, e ela nunca pode aparecer em erro
+     * nem log. O limite (10 a 200) é conferido no serviço, que não repete o valor.
+     */
+    public record RecebimentoOnlineRequest(
+            @NotBlank @Size(max = 100) String infiniteTag,
+            String apiKey,
+            Boolean removerApiKey,
+            Long versao,
+            @Size(max = 20) String jurosDoParcelamento) {
+
+        @Override
+        public String toString() {
+            return "RecebimentoOnlineRequest[apiKey=" + (apiKey == null ? "ausente" : "***") + "]";
+        }
+    }
+
+    /** {@code jurosDoParcelamento} é nulo quando não há credencial. */
+    public record RecebimentoOnlineResponse(boolean habilitado, boolean configurado, String infiniteTag,
+                                            boolean apiKeyConfigurada, Long versao, String jurosDoParcelamento) { }
+
+    /**
+     * O que o app lê da URL de volta da InfinitePay (order_nsu, transaction_nsu, slug, capture_method). Vale só como "consulte
+     * de novo": nenhum campo vira dado de pagamento, e quem confirma é a consulta ao provedor. Os formatos são os do webhook;
+     * {@code receipt_url} não entra aqui nem em lugar nenhum.
+     */
+    public record RetornoDoPagamentoRequest(
+            @NotBlank @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$") String orderNsu,
+            @NotBlank @Pattern(regexp = "^[A-Za-z0-9._-]{1,100}$") String transactionNsu,
+            @Pattern(regexp = "^[A-Za-z0-9._-]{1,100}$") String slug,
+            @Pattern(regexp = "^[A-Za-z0-9_-]{1,20}$") String captureMethod) { }
 
     // ---- Contratação ----
 
@@ -161,7 +196,24 @@ public final class PagamentosDtos {
                                   CobrancaAluno.Situacao situacao, boolean vencida, FormaDePagamento forma,
                                   LocalDate pagoEm) { }
 
-    public record FinanceiroDoAluno(PlanoDoAluno plano, List<CobrancaDoAluno> abertas, List<CobrancaDoAluno> historico) { }
+    /** {@code pagamentoOnline}: o aluno pode pedir o link de pagamento (módulo, InfinitePay e credencial do treinador). A Tag nunca vem. */
+    public record FinanceiroDoAluno(PlanoDoAluno plano, List<CobrancaDoAluno> abertas, List<CobrancaDoAluno> historico,
+                                    boolean pagamentoOnline) { }
+
+    /** O link de pagamento de uma cobrança aberta. */
+    public record LinkDePagamento(String url) { }
+
+    // ---- Pagamentos para conferir ----
+
+    /**
+     * Um pagamento online confirmado que não se aplicou sozinho. Cobrança, competência, valores e aluno vêm nulos quando a
+     * cobrança não existe nesta consultoria. {@code valorPagoCentavos} é o valor que o provedor confirmou (o do link).
+     */
+    public record ConferenciaDePagamento(UUID id, UUID alunoId, String alunoNome, UUID cobrancaId, LocalDate competencia,
+                                         Long valorCobrancaCentavos, Long valorPagoCentavos, String motivo,
+                                         Instant recebidoEm) { }
+
+    public record Conferencias(List<ConferenciaDePagamento> itens) { }
 
     // ---- Exportação do aluno (LGPD) ----
 

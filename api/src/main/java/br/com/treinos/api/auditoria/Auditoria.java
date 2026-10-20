@@ -69,6 +69,10 @@ public class Auditoria {
             gravar(autor,acao,entidade,id,resumo);
         }
     }
+    /** Evento sem usuário (conciliação do provedor, tarefa interna): grava com autor nulo, na transação de quem chama. */
+    public void registrarDoSistema(UUID consultoriaId,String acao,String entidade,UUID entidadeId,String resumo) {
+        gravacao.gravar(consultoriaId,null,acao,entidade,entidadeId,resumo,null,null);
+    }
     @Transactional
     public void bloqueioLogin(String email) {
         usuarios.buscarPorEmail(Emails.normalizar(email)).ifPresent(u -> gravar(u,"LOGIN_BLOQUEADO","USUARIO",u.getId(),"Login bloqueado por excesso de tentativas."));
@@ -112,9 +116,13 @@ public class Auditoria {
         Instant inicio=de==null?Instant.EPOCH:de.atStartOfDay(Fuso.BRASILIA).toInstant();
         Instant fim=ate==null?Instant.now().plus(1,ChronoUnit.DAYS):ate.plusDays(1).atStartOfDay(Fuso.BRASILIA).toInstant();
         var lista=eventos.buscar(inicio,fim,usuarioId,Buscas.opcional(acao),PageRequest.of(Math.max(0,pagina),50));
-        return new Pagina(lista.stream().map(a -> new Evento(a.getId(),a.getUsuarioId(),usuarios.findById(a.getUsuarioId())
-                .filter(u -> u.getConsultoriaId().equals(TenantContext.get())).map(Usuario::getNome).orElse("—"),
+        return new Pagina(lista.stream().map(a -> new Evento(a.getId(),a.getUsuarioId(),nomeDoAutor(a.getUsuarioId()),
                 a.getAcao(),a.getEntidade(),a.getEntidadeId(),a.getResumo(),a.getCriadoEm())).toList(),lista.getTotalElements(),Math.max(0,pagina));
+    }
+    /** Sem usuário é evento do sistema (ver {@link #registrarDoSistema}). */
+    private String nomeDoAutor(UUID usuarioId) {
+        if(usuarioId==null) return "Sistema";
+        return usuarios.findById(usuarioId).filter(u -> u.getConsultoriaId().equals(TenantContext.get())).map(Usuario::getNome).orElse("—");
     }
     @Scheduled(cron="0 20 3 * * *",zone="America/Sao_Paulo") @Transactional
     public void limparAntigos() {

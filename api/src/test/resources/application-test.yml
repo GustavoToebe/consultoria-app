@@ -47,6 +47,17 @@ treinos:
   # Pagamentos ligados em toda a suíte; o modo desligado tem a sua classe (PagamentosDesligadosIntegrationTest).
   pagamentos:
     habilitado: true
+    # Chaves só desta suíte (32 bytes cada; a segunda é a "antiga" que ainda decifra); não servem fora do teste.
+    chaves: "teste:Y2hhdmUtcGFnYW1lbnRvcy1zby1kYS1zdWl0ZS10cyE=,antiga:b3V0cmEtY2hhdmUtcGFnYW1lbnRvcy10ZXN0ZS0zMmI="
+    chave-ativa: teste
+    pagar-no-ios: false
+    pagar-no-android: false
+    # InfinitePay ligada em toda a suíte (PapeisBancoIntegrationTest sobe com test,docker); o modo desligado tem a sua classe.
+    # Nenhuma chamada real: o cliente aponta para um servidor falso. O conciliador agendado fica desligado.
+    infinitepay:
+      habilitado: true
+      url-publica: https://api.teste.local
+      conciliacao-ativa: false
   # A suíte cria treinadores pelo cadastro público; o modo fechado (o de produção) tem a sua classe.
   cadastro:
     aberto: true

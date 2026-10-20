@@ -129,8 +129,9 @@ public class ContratacaoService {
     }
 
     /**
-     * Recomeça a contar em max(hoje, dia seguinte ao fim do período da última cobrança NÃO CANCELADA, paga ou aberta): o
-     * período parado não é cobrado e retomar nunca sobrepõe período pago nem o de uma cobrança já aberta. Gera a seguinte
+     * Recomeça a contar em max(hoje, dia seguinte ao fim do período da última cobrança que COBRE período: paga, aberta ou
+     * contestada; cancelada e estornada não cobrem): o período parado não é cobrado e retomar nunca sobrepõe período pago
+     * nem o de uma cobrança já aberta. Gera a seguinte
      * se a de maior competência não está aberta.
      */
     @Transactional
@@ -141,10 +142,10 @@ public class ContratacaoService {
         }
         exigirNaoEncerrada(c);
         conferirVersao(c, versao);
-        LocalDate maiorNaoCancelada = cobrancas.maiorCompetenciaExceto(c.getId(), CobrancaAluno.Situacao.CANCELADA)
+        LocalDate maiorCoberta = cobrancas.maiorCompetenciaCoberta(c.getId(), CobrancaAluno.NAO_COBREM_PERIODO)
                 .orElse(null);
         c.retomar(CalendarioDeCobranca.ancoraDaRetomada(LocalDate.now(Fuso.BRASILIA), c.getPeriodicidade(),
-                maiorNaoCancelada));
+                maiorCoberta));
         contratacoes.flush();
         gerador.garantirSeguinte(c);
         return mudou(c, "CONTRATACAO_RETOMADA", "Retomou a contratação de um aluno.");

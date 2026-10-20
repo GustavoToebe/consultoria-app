@@ -47,9 +47,25 @@ class Travas {
 
     @Transactional(propagation = Propagation.MANDATORY)
     DaCobranca daCobranca(UUID cobrancaId) {
+        return travar(cobrancaId, true);
+    }
+
+    /**
+     * A mesma ordem (aluno, contratação, cobrança), mas sem recusar aluno inativo ou anonimizado: o provedor confirma um
+     * pagamento que já aconteceu, e quem saiu depois não pode deixar a baixa ou a conferência em 409 para sempre. Só o caminho
+     * que vem do provedor usa; o do treinador segue por {@link #daCobranca}.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    DaCobranca daCobrancaDoProvedor(UUID cobrancaId) {
+        return travar(cobrancaId, false);
+    }
+
+    private DaCobranca travar(UUID cobrancaId, boolean exigirAlunoAtivo) {
         var travas = cobrancas.referenciasDe(cobrancaId).orElseThrow(Travas::cobrancaNaoEncontrada);
         Aluno aluno = alunos.buscarParaAlterar(travas.getAlunoId()).orElseThrow(Travas::alunoNaoEncontrado);
-        exigirAlunoNaConsultoria(aluno);
+        if (exigirAlunoAtivo) {
+            exigirAlunoNaConsultoria(aluno);
+        }
         ContratacaoAluno contratacao = contratacoes.buscarParaAlterar(travas.getContratacaoId())
                 .orElseThrow(Travas::contratacaoNaoEncontrada);
         CobrancaAluno cobranca = cobrancas.buscarParaAlterar(cobrancaId).orElseThrow(Travas::cobrancaNaoEncontrada);

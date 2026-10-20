@@ -87,6 +87,23 @@ treinos:
   # as rotas respondem 503 FINANCEIRO_INDISPONIVEL e o app esconde a área (GET /eu traz pagamentosHabilitados).
   pagamentos:
     habilitado: ${TREINOS_PAGAMENTOS_HABILITADO:false}
+    # Chaves AES-256 que cifram a API Key do recebimento online (id:base64 de 32 bytes, separadas por vírgula; a ativa cifra o
+    # novo e as outras só decifram). Sem valor padrão, como todo segredo. Obrigatórias com a InfinitePay ligada.
+    chaves: ${TREINOS_PAGAMENTOS_CHAVES:}
+    chave-ativa: ${TREINOS_PAGAMENTOS_CHAVE_ATIVA:}
+    # Chaves da plataforma para o botão "Pagar" no celular (só UI: GET /eu traz pagarNoIos e pagarNoAndroid; o servidor não
+    # distingue plataforma). Desligadas por padrão; quem decide ligar é o dono, conforme as regras de cada loja.
+    pagar-no-ios: ${TREINOS_PAGAMENTOS_PAGAR_NO_IOS:false}
+    pagar-no-android: ${TREINOS_PAGAMENTOS_PAGAR_NO_ANDROID:false}
+    # Recebimento online pela InfinitePay (o aluno paga por um link na conta do treinador). Desligado por padrão: as rotas dele
+    # respondem 503 RECEBIMENTO_ONLINE_INDISPONIVEL e GET /eu traz recebimentoOnlineHabilitado=false. Ligado, a API só sobe com as
+    # chaves acima e com TREINOS_PAGAMENTOS_URL_PUBLICA (https, a URL pela qual a internet chega nesta API: é a base do webhook).
+    infinitepay:
+      habilitado: ${TREINOS_PAGAMENTOS_INFINITEPAY_HABILITADO:false}
+      api-url: ${TREINOS_PAGAMENTOS_INFINITEPAY_API_URL:https://api.checkout.infinitepay.io}
+      url-publica: ${TREINOS_PAGAMENTOS_URL_PUBLICA:}
+      # Só os testes desligam o conciliador agendado (eles o chamam à mão).
+      conciliacao-ativa: ${TREINOS_PAGAMENTOS_CONCILIACAO_ATIVA:true}
 
 # Coleta de métricas (docs/biblioteca-comum.md): fechada sem um token de 32 a 128 caracteres [A-Za-z0-9_-].
 monitoramento:

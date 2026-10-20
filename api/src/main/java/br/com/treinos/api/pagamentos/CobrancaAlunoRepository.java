@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDate;
@@ -82,9 +83,20 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
     @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId")
     Optional<LocalDate> maiorCompetencia(UUID contratacaoId);
 
-    /** Maior competência da contratação que não está na situação dada (a das não canceladas dá o fim do último período em uso). */
-    @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.situacao <> :situacao")
-    Optional<LocalDate> maiorCompetenciaExceto(UUID contratacaoId, CobrancaAluno.Situacao situacao);
+    /** Maior competência da contratação fora das situações dadas (sem as que não cobrem período, dá o fim do último período em uso). */
+    @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.situacao not in :excluidas")
+    Optional<LocalDate> maiorCompetenciaCoberta(UUID contratacaoId, Collection<CobrancaAluno.Situacao> excluidas);
+
+    /**
+     * Esquece o link das cobranças abertas da consultoria (a pagas, canceladas e as demais guardam o histórico). Serve para
+     * quando a conta do recebimento online muda ou some: o link velho aponta para a conta antiga ou foi gerado com outra
+     * regra (com ou sem chave). Update em lote, sem {@code versioned}: o link é metadado do provedor e não edição do
+     * treinador (como {@code registrarLink}), então a versão da cobrança não sobe. O {@code @TenantId} filtra a consultoria.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update CobrancaAluno c set c.linkUrl = null, c.linkSlug = null, c.linkValorCentavos = null, "
+            + "c.linkGeradoEm = null, c.linkValidoAte = null where c.situacao = :aberta")
+    int esquecerLinksDasAbertas(CobrancaAluno.Situacao aberta);
 
     boolean existsByContratacaoIdAndCompetencia(UUID contratacaoId, LocalDate competencia);
 

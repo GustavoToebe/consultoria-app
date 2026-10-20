@@ -27,12 +27,17 @@ public class AlunoFinanceiroService {
     private final ContratacaoAlunoRepository contratacoes;
     private final CobrancaAlunoRepository cobrancas;
     private final PlanoComercialRepository planos;
+    private final CredencialPagamentoRepository credenciais;
+    private final InfinitePayProperties infinitePay;
 
     public AlunoFinanceiroService(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
-                                  PlanoComercialRepository planos) {
+                                  PlanoComercialRepository planos, CredencialPagamentoRepository credenciais,
+                                  InfinitePayProperties infinitePay) {
         this.contratacoes = contratacoes;
         this.cobrancas = cobrancas;
         this.planos = planos;
+        this.credenciais = credenciais;
+        this.infinitePay = infinitePay;
     }
 
     @Transactional(readOnly = true)
@@ -50,6 +55,9 @@ public class AlunoFinanceiroService {
         List<CobrancaDoAluno> historico = cobrancas
                 .findTop24ByAlunoIdAndSituacaoInOrderByCompetenciaDescIdDesc(alunoId, NO_HISTORICO).stream()
                 .map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList();
-        return new FinanceiroDoAluno(plano, abertas.stream().map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList(), historico);
+        // O módulo ligado já vale (o controller é fechado por ele); falta a InfinitePay ligada e a credencial do treinador.
+        boolean pagamentoOnline = infinitePay.habilitado() && credenciais.existsByProvedor(RecebimentoOnlineService.PROVEDOR);
+        return new FinanceiroDoAluno(plano, abertas.stream().map(c -> Respostas.cobrancaDoAluno(c, hoje)).toList(), historico,
+                pagamentoOnline);
     }
 }

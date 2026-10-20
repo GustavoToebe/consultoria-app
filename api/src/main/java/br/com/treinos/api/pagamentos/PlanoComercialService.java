@@ -42,9 +42,6 @@ public class PlanoComercialService {
         String nome = r.nome().trim();
         exigirNomeLivre(nome, null);
         PlanoComercial plano = new PlanoComercial(nome, r.valorCentavos(), r.periodicidade());
-        plano.alterar(nome, r.valorCentavos(), r.periodicidade(), ou(r.aceitaPix(), true), ou(r.aceitaBoleto(), false),
-                ou(r.aceitaCartao(), true), ou(r.aceitaManual(), true), r.maxParcelas() == null ? 1 : r.maxParcelas(),
-                r.taxaCartao() == null ? TaxaDoCartao.TREINADOR : r.taxaCartao());
         return Respostas.plano(gravar(plano));
     }
 
@@ -58,11 +55,7 @@ public class PlanoComercialService {
         conferirVersao(plano, r.versao());
         String nome = r.nome().trim();
         exigirNomeLivre(nome, id);
-        plano.alterar(nome, r.valorCentavos(), r.periodicidade(), ou(r.aceitaPix(), plano.isAceitaPix()),
-                ou(r.aceitaBoleto(), plano.isAceitaBoleto()), ou(r.aceitaCartao(), plano.isAceitaCartao()),
-                ou(r.aceitaManual(), plano.isAceitaManual()),
-                r.maxParcelas() == null ? plano.getMaxParcelas() : r.maxParcelas(),
-                r.taxaCartao() == null ? plano.getTaxaCartao() : r.taxaCartao());
+        plano.alterar(nome, r.valorCentavos(), r.periodicidade());
         return Respostas.plano(gravar(plano));
     }
 
@@ -114,9 +107,5 @@ public class PlanoComercialService {
             throw new ConflictException("Outra pessoa ou aba alterou este plano. Recarregue para ver a versão atual.",
                     "CONFLITO_EDICAO");
         }
-    }
-
-    private static boolean ou(Boolean valor, boolean padrao) {
-        return valor == null ? padrao : valor;
     }
 }

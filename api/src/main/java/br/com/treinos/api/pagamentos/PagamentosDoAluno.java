@@ -3,6 +3,7 @@ package br.com.treinos.api.pagamentos;
 import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaExportada;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoExportada;
 import br.com.treinos.api.pagamentos.PagamentosDtos.FinanceiroExportado;
+import br.com.treinos.api.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,12 +30,14 @@ public class PagamentosDoAluno {
     private final ContratacaoAlunoRepository contratacoes;
     private final CobrancaAlunoRepository cobrancas;
     private final PlanoComercialRepository planos;
+    private final AvisoDePagamentoRepositorio avisos;
 
-    public PagamentosDoAluno(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
-                             PlanoComercialRepository planos) {
+    PagamentosDoAluno(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
+                      PlanoComercialRepository planos, AvisoDePagamentoRepositorio avisos) {
         this.contratacoes = contratacoes;
         this.cobrancas = cobrancas;
         this.planos = planos;
+        this.avisos = avisos;
     }
 
     @Transactional(readOnly = true)
@@ -69,12 +72,17 @@ public class PagamentosDoAluno {
         cobrancas.flush();
     }
 
-    /** Anonimização: observação e motivos (texto do treinador) saem; valores, datas e situações ficam. */
+    /**
+     * Anonimização: observação, motivos (texto do treinador) e o link do pagador saem; valores, datas e situações ficam. Na
+     * caixa de entrada da InfinitePay o slug do aviso é o do link do pagador e sai junto; a transação, a referência (id da
+     * cobrança) e o hash do corpo são só identificadores e não dizem nada de ninguém, então ficam até a limpeza de 180 dias.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public void apagarDoAluno(UUID alunoId) {
         contratacoes.findByAlunoIdOrderByCriadoEmDescIdDesc(alunoId).forEach(ContratacaoAluno::limparDadosPessoais);
         cobrancas.findByAlunoId(alunoId).forEach(CobrancaAluno::limparDadosPessoais);
         contratacoes.flush();
         cobrancas.flush();
+        avisos.limparSlugsDoAluno(TenantContext.get(), alunoId);
     }
 }

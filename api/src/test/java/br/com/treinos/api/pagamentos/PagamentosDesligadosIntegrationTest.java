@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -64,6 +65,19 @@ class PagamentosDesligadosIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/aluno/financeiro", login, 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
         assertThat(api.get("/eu", admin, 200).get("pagamentosHabilitados").asBoolean()).isFalse();
         assertThat(api.get("/eu", login, 200).get("pagamentosHabilitados").asBoolean()).isFalse();
+        // Com os pagamentos desligados o recebimento online também some, mesmo com a InfinitePay ligada: vale o 503 do financeiro.
+        assertThat(api.get("/eu", admin, 200).get("recebimentoOnlineHabilitado").asBoolean()).isFalse();
+        assertThat(api.get("/financeiro/recebimento-online", admin, 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
+        api.put("/financeiro/recebimento-online", admin, Map.of("infiniteTag", "treinador-fake"), 503);
+        api.delete("/financeiro/recebimento-online", admin, 503);
+        // A caixa de entrada dos avisos da InfinitePay e a conferência também ficam atrás do financeiro.
+        assertThat(api.get("/financeiro/conferencias", admin, 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
+        assertThat(api.post("/financeiro/conferencias/" + UUID.randomUUID() + "/conferido", admin, Map.of(), 503)
+                .path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
+        var aviso = mvc.perform(MockMvcRequestBuilders.post("/publico/pagamentos/infinitepay/" + "A".repeat(43))
+                .contentType("application/json").content("{}")).andReturn().getResponse();
+        assertThat(aviso.getStatus()).isEqualTo(503);
+        assertThat(json.readTree(aviso.getContentAsString()).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
     }
 
     @Test

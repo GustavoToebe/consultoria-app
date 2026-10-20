@@ -15,19 +15,20 @@ final class CalendarioDeCobranca {
 
     /**
      * A primeira competência da âncora, em passos da periodicidade, que vem depois de {@code maior} e não antes do fim do
-     * período da última cobrança não cancelada ({@code maiorNaoCancelada + período}, que a grade antiga de uma âncora
+     * período da última cobrança que cobre período ({@code maiorCoberta + período}, que a grade antiga de uma âncora
      * anterior poderia deixar para trás, sobrepondo períodos).
      *
-     * @param maior             maior competência de TODAS as linhas, canceladas incluídas; nula = nenhuma cobrança ainda
-     * @param maiorNaoCancelada maior competência PAGA ou ABERTA (qualquer não cancelada); nula = nenhuma
+     * @param maior        maior competência de TODAS as linhas, canceladas e estornadas incluídas; nula = nenhuma cobrança ainda
+     * @param maiorCoberta maior competência de cobrança que cobre período (fora {@link CobrancaAluno#NAO_COBREM_PERIODO}:
+     *                     paga, aberta ou contestada); nula = nenhuma
      */
     static LocalDate proximaCompetencia(LocalDate ancora, PeriodoDoPlano periodo, LocalDate maior,
-                                        LocalDate maiorNaoCancelada) {
+                                        LocalDate maiorCoberta) {
         if (!periodo.recorrente()) {
             throw new IllegalArgumentException("Parcela única não tem próxima competência.");
         }
         long passo = periodo.meses();
-        LocalDate piso = maiorNaoCancelada == null ? null : maiorNaoCancelada.plusMonths(passo);
+        LocalDate piso = maiorCoberta == null ? null : maiorCoberta.plusMonths(passo);
         for (long n = 0;; n++) {
             LocalDate competencia = ancora.plusMonths(n * passo);
             if ((maior == null || competencia.isAfter(maior)) && (piso == null || !competencia.isBefore(piso))) {
@@ -37,18 +38,19 @@ final class CalendarioDeCobranca {
     }
 
     /**
-     * A âncora de uma retomada: hoje, ou o dia seguinte ao fim do período da última cobrança não cancelada (paga ou
-     * aberta), o que vier depois: retomar não sobrepõe período pago nem o de uma cobrança já aberta. O período de uma
+     * A âncora de uma retomada: hoje, ou o dia seguinte ao fim do período da última cobrança que cobre período (paga,
+     * aberta ou contestada), o que vier depois: retomar não sobrepõe período pago nem o de uma cobrança já aberta. A
+     * estornada, como a cancelada, não cobre: o dinheiro voltou. O período de uma
      * competência {@code c} vai até {@code c + meses − 1 dia}, então o dia seguinte é {@code c + meses} (mesma conta de
      * meses das competências, que limita ao último dia do mês).
      *
-     * @param maiorNaoCancelada maior competência com cobrança PAGA ou ABERTA da contratação; nula = nenhuma (vale hoje)
+     * @param maiorCoberta maior competência de cobrança que cobre período da contratação; nula = nenhuma (vale hoje)
      */
-    static LocalDate ancoraDaRetomada(LocalDate hoje, PeriodoDoPlano periodo, LocalDate maiorNaoCancelada) {
-        if (maiorNaoCancelada == null || !periodo.recorrente()) {
+    static LocalDate ancoraDaRetomada(LocalDate hoje, PeriodoDoPlano periodo, LocalDate maiorCoberta) {
+        if (maiorCoberta == null || !periodo.recorrente()) {
             return hoje;
         }
-        LocalDate livre = maiorNaoCancelada.plusMonths(periodo.meses());
+        LocalDate livre = maiorCoberta.plusMonths(periodo.meses());
         return livre.isAfter(hoje) ? livre : hoje;
     }
 

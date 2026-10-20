@@ -47,8 +47,8 @@ class GeradorDeCobrancas {
     }
 
     /**
-     * A próxima competência depois da maior que existe (e nunca antes do fim do período da última não cancelada); nada
-     * para contratação parada, encerrada ou parcela única.
+     * A próxima competência depois da maior que existe (e nunca antes do fim do período da última que cobre período);
+     * nada para contratação parada, encerrada ou parcela única.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     Optional<CobrancaAluno> proxima(ContratacaoAluno contratacao) {
@@ -56,10 +56,10 @@ class GeradorDeCobrancas {
             return Optional.empty();
         }
         LocalDate maior = cobrancas.maiorCompetencia(contratacao.getId()).orElse(null);
-        LocalDate maiorNaoCancelada = cobrancas
-                .maiorCompetenciaExceto(contratacao.getId(), CobrancaAluno.Situacao.CANCELADA).orElse(null);
+        LocalDate maiorCoberta = cobrancas
+                .maiorCompetenciaCoberta(contratacao.getId(), CobrancaAluno.NAO_COBREM_PERIODO).orElse(null);
         LocalDate competencia = CalendarioDeCobranca.proximaCompetencia(contratacao.getAncora(),
-                contratacao.getPeriodicidade(), maior, maiorNaoCancelada);
+                contratacao.getPeriodicidade(), maior, maiorCoberta);
         if (cobrancas.existsByContratacaoIdAndCompetencia(contratacao.getId(), competencia)) {
             return Optional.empty();
         }

@@ -8,7 +8,8 @@ import java.util.UUID;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo aluno, PerfilResumo perfil, java.util.Set<String> permissoes,
                          boolean termosPendentes, String termosVersao, java.util.List<String> funcionalidadesDoPlano,
-                         boolean pagamentosHabilitados) {
+                         boolean pagamentosHabilitados, boolean recebimentoOnlineHabilitado,
+                         boolean pagarNoIos, boolean pagarNoAndroid) {
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 

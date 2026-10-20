@@ -13,14 +13,22 @@ public interface ProvedorDePagamento {
 
     CapacidadesDoProvedor capacidades();
 
-    CobrancaGerada gerarCobranca(PedidoDeCobranca pedido);
+    /**
+     * Cria a cobrança (o link) no provedor. A credencial vem de quem chama: o adaptador é HTTP puro, sem banco, e não
+     * guarda nem loga o segredo. Faz chamada de rede: nunca dentro de uma transação.
+     */
+    CobrancaGerada gerarCobranca(CredencialDoProvedor credencial, PedidoDeCobranca pedido);
 
-    /** O estado de uma cobrança no provedor, perguntado a ele. É a fonte da baixa, nunca o corpo de um webhook. */
-    ConsultaDeCobranca consultar(String idExterno);
+    /**
+     * O estado de uma cobrança no provedor, perguntado a ele. É a fonte da baixa, nunca o corpo de um webhook. Faz
+     * chamada de rede: nunca dentro de uma transação.
+     */
+    ConsultaDeCobranca consultar(CredencialDoProvedor credencial, PedidoDeConsulta pedido);
 
     /**
      * Lê um aviso do provedor. O resultado é só um gatilho (qual cobrança conferir): a baixa vem de {@link #consultar}.
-     * Aviso que não passa na conferência do adaptador lança {@link WebhookInvalidoException}.
+     * Aviso que não passa na conferência do adaptador lança {@link WebhookInvalidoException}; aviso válido que ainda não
+     * traz transação volta com {@link EventoDeWebhook#temTransacao()} falso.
      */
     EventoDeWebhook lerWebhook(RequisicaoDeWebhook requisicao);
 }

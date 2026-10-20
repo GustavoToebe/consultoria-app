@@ -155,6 +155,15 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(resultado.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.ESTORNADA);
     }
 
+    /** Contesta pelo serviço comum de baixa (ainda sem chamador HTTP), na consultoria do aluno. */
+    private void contestar(UUID aluno, JsonNode cobranca) {
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class, aluno.toString());
+        UUID cobrancaId = UUID.fromString(cobranca.get("id").asString());
+        var tx = new TransactionTemplate(transacoes);
+        var resultado = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.contestar(cobrancaId, "Contestou")));
+        assertThat(resultado.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.CONTESTADA);
+    }
+
     /** Os valores de um campo em cada item de uma lista. */
     private static Set<String> campo(JsonNode itens, String campo) {
         Set<String> valores = new java.util.HashSet<>();
@@ -191,9 +200,9 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
     void planoComercialValidaOsLimitesENomeEmUsoEArquivar() throws Exception {
         JsonNode plano = plano("Consultoria mensal", 25000, "MENSAL");
         assertThat(plano.get("valorCentavos").asLong()).isEqualTo(25000);
-        assertThat(plano.get("aceitaPix").asBoolean()).isTrue();
-        assertThat(plano.get("aceitaBoleto").asBoolean()).isFalse();
-        assertThat(plano.get("maxParcelas").asInt()).isEqualTo(1);
+        assertThat(plano.has("aceitaPix")).isFalse();
+        assertThat(plano.has("maxParcelas")).isFalse();
+        assertThat(plano.has("taxaCartao")).isFalse();
         assertThat(plano.get("arquivado").asBoolean()).isFalse();
 
         Map<String, Object> repetido = new LinkedHashMap<>();
@@ -209,8 +218,6 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         api.post("/financeiro/planos", admin,
                 Map.of("nome", "No teto " + UUID.randomUUID(), "valorCentavos", PagamentosDtos.VALOR_MAXIMO,
                         "periodicidade", "ANUAL"), 200);
-        api.post("/financeiro/planos", admin, Map.of("nome", "Parcelas " + UUID.randomUUID(), "valorCentavos", 1000,
-                "periodicidade", "MENSAL", "maxParcelas", 13), 400);
 
         Map<String, Object> alteracao = new LinkedHashMap<>();
         alteracao.put("nome", plano.get("nome").asString());
@@ -957,6 +964,58 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(porCompetencia(aluno, pulada).get("situacao").asString()).isEqualTo("CANCELADA");
     }
 
+    /**
+     * A montagem comum do par estornada x contestada: trimestral que começou em "1/10" (há 31 dias), pausada em "15/10" com a
+     * 1ª paga (a pausa vem antes da baixa para a seguinte não nascer: sem aberta depois da paga, só a situação final da 1ª
+     * decide a retomada em "1/11", que é hoje). A situação da 1ª é aplicada pelo teste; a retomada e a conferência também.
+     */
+    private record PagaEPausada(UUID aluno, JsonNode contratacao, JsonNode pausada, JsonNode paga, LocalDate inicio) { }
+
+    private PagaEPausada trimestralPagaEPausada() throws Exception {
+        UUID aluno = aluno();
+        LocalDate inicio = hoje.minusDays(31);
+        JsonNode contratacao = contratar(aluno, plano("Plano trimestral do período coberto", 30000, "TRIMESTRAL"), inicio, 10);
+        JsonNode pausada = pausar(contratacao);
+        JsonNode paga = baixar(cobrancas(aluno).get(0), hoje, 200);
+        assertThat(competencias(aluno)).containsExactly(inicio.toString());
+        return new PagaEPausada(aluno, contratacao, pausada, paga, inicio);
+    }
+
+    @Test
+    void retomarComAPrimeiraEstornadaNaoRespeitaOPeriodoEstornadoEComecaHoje() throws Exception {
+        PagaEPausada m = trimestralPagaEPausada();
+        estornar(m.aluno(), m.paga());
+
+        retomar(m.pausada());
+
+        // O dinheiro voltou: o período estornado não cobre nada. A âncora é a retomada (1/11) e a ESTORNADA segue ocupando a
+        // competência dela (sem duplicar).
+        assertThat(ancoraDe(m.contratacao())).isEqualTo(hoje);
+        assertThat(competencias(m.aluno())).containsExactly(hoje.toString(), m.inicio().toString());
+        assertThat(porCompetencia(m.aluno(), m.inicio()).get("situacao").asString()).isEqualTo("ESTORNADA");
+        JsonNode nova = porCompetencia(m.aluno(), hoje);
+        assertThat(nova.get("situacao").asString()).isEqualTo("ABERTA");
+        assertThat(nova.get("vencimento").asString()).isEqualTo(CalendarioDeCobranca.vencimento(hoje, 10, null).toString());
+        exigirSeguinteAberta(m.aluno());
+    }
+
+    @Test
+    void retomarComAPrimeiraContestadaRespeitaOPeriodoPorqueContestadaCobre() throws Exception {
+        PagaEPausada m = trimestralPagaEPausada();
+        contestar(m.aluno(), m.paga());
+
+        retomar(m.pausada());
+
+        // Contestada ainda cobre o período ("1/10" a "31/12"): a âncora e a próxima competência são "1/1", sem duplicar.
+        LocalDate seguinte = m.inicio().plusMonths(3);
+        assertThat(ancoraDe(m.contratacao())).isEqualTo(seguinte);
+        assertThat(competencias(m.aluno())).containsExactly(seguinte.toString(), m.inicio().toString());
+        assertThat(porCompetencia(m.aluno(), m.inicio()).get("situacao").asString()).isEqualTo("CONTESTADA");
+        assertThat(porCompetencia(m.aluno(), seguinte).get("situacao").asString()).isEqualTo("ABERTA");
+        assertThat(competencias(m.aluno())).doesNotHaveDuplicates().doesNotContain(hoje.toString());
+        exigirSeguinteAberta(m.aluno());
+    }
+
     @Test
     void retomarMensalSemNenhumaPagaContinuaGerandoAPartirDeHoje() throws Exception {
         UUID aluno = aluno();
@@ -1589,7 +1648,48 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/eu", loginAluno, 200).get("pagamentosHabilitados").asBoolean()).isTrue();
     }
 
+    @Test
+    void euTrazAsChavesDePagarNoCelularSempreComoBooleanEDesligadasPorPadrao() throws Exception {
+        for (JsonNode login : new JsonNode[] {admin, api.convidarEEntrar(admin, aluno())}) {
+            JsonNode eu = api.get("/eu", login, 200);
+            assertThat(eu.get("pagarNoIos").isBoolean()).isTrue();
+            assertThat(eu.get("pagarNoAndroid").isBoolean()).isTrue();
+            assertThat(eu.get("pagarNoIos").asBoolean()).isFalse();
+            assertThat(eu.get("pagarNoAndroid").asBoolean()).isFalse();
+        }
+    }
+
     // ---- serviço comum de baixa (estorno e contestação ainda sem chamador HTTP) ----
+
+    @Test
+    void caminhoDoProvedorBaixaEEstornaComAlunoInativoMasOManualContinuaRecusando() throws Exception {
+        UUID aluno = aluno();
+        contratarHoje(aluno, plano("Plano do aluno que saiu", 10000, "MENSAL"));
+        JsonNode paga = baixar(cobrancas(aluno).get(0), hoje, 200);
+        UUID pagaId = UUID.fromString(paga.get("id").asString());
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class, aluno.toString());
+        var tx = new TransactionTemplate(transacoes);
+        // Sai da consultoria: a contratação encerra e a seguinte (aberta) é cancelada; a paga fica.
+        api.patch("/alunos/" + aluno + "/situacao", admin, Map.of("ativo", false), 200);
+        UUID seguinteId = UUID.fromString(cobrancas(aluno).get(0).get("id").asString());
+        assertThat(cobrancas(aluno).get(0).get("situacao").asString()).isEqualTo("CANCELADA");
+
+        // Pelo caminho manual a trava recusa aluno inativo...
+        assertThatThrownBy(() -> TenantContext.executarComo(consultoria,
+                () -> tx.execute(s -> baixaDeCobranca.estornar(pagaId, "Devolvido"))))
+                .isInstanceOfSatisfying(ConflictException.class, e -> assertThat(e.getCodigo()).isEqualTo("ALUNO_INATIVO"));
+
+        // O estorno nunca é automático: não existe caminho do provedor para ele (a consulta só gera aviso para conferir).
+        // A baixa: o manual recusa, o provedor grava a transação (id_externo).
+        jdbc.update("update cobranca_aluno set situacao = 'ABERTA', motivo = null where id = ?::uuid", seguinteId.toString());
+        var baixa = new BaixaDeCobranca.Baixa(CobrancaAluno.MANUAL, FormaDePagamento.PIX, hoje, null, null, null, "transacao-fake-1");
+        assertThatThrownBy(() -> TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.baixar(seguinteId, baixa))))
+                .isInstanceOfSatisfying(ConflictException.class, e -> assertThat(e.getCodigo()).isEqualTo("ALUNO_INATIVO"));
+        var baixada = TenantContext.executarComo(consultoria, () -> tx.execute(s -> baixaDeCobranca.baixarDoProvedor(seguinteId, baixa)));
+        assertThat(baixada.cobranca().getSituacao()).isEqualTo(CobrancaAluno.Situacao.PAGA);
+        assertThat(jdbc.queryForObject("select id_externo from cobranca_aluno where id = ?::uuid", String.class,
+                seguinteId.toString())).isEqualTo("transacao-fake-1");
+    }
 
     @Test
     void estornarEContestarSaoIdempotentesESoValemParaCobrancaPaga() throws Exception {

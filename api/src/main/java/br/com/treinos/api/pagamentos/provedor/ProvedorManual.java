@@ -21,12 +21,12 @@ public class ProvedorManual implements ProvedorDePagamento {
     }
 
     @Override
-    public CobrancaGerada gerarCobranca(PedidoDeCobranca pedido) {
+    public CobrancaGerada gerarCobranca(CredencialDoProvedor credencial, PedidoDeCobranca pedido) {
         throw new OperacaoNaoSuportadaException(codigo(), "gerar cobrança");
     }
 
     @Override
-    public ConsultaDeCobranca consultar(String idExterno) {
+    public ConsultaDeCobranca consultar(CredencialDoProvedor credencial, PedidoDeConsulta pedido) {
         throw new OperacaoNaoSuportadaException(codigo(), "consultar cobrança");
     }
 

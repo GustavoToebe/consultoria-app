@@ -57,7 +57,12 @@ class ArquiteturaTest {
      * {@code FotoRemocaoRepositorio} (fila durável de remoção das fotos no bucket e limpeza das fotos pendentes vencidas: roda no job, sem tenant,
      * e só mexe em ids de objeto e em linhas ainda não ligadas a nenhuma atualização; nenhum método devolve dado de pessoa);
      * {@code InscricaoBusca} (link público de inscrição: descobre só a consultoria de um link aberto pelo código, antes de abrir a
-     * sessão nela).
+     * sessão nela);
+     * {@code VerificacaoDasCredenciais} (na subida, sem tenant: lê só os ids de chave das API Keys cifradas do recebimento online,
+     * de todas as consultorias, para a API não subir sem a chave que decifra o que já está gravado; nunca lê o segredo);
+     * {@code AvisoDePagamentoRepositorio} (caixa de entrada dos avisos da InfinitePay: a busca do token do webhook roda antes de
+     * se saber a consultoria, e a fila do conciliador e a limpeza dos avisos antigos são globais, sem tenant; todo o resto
+     * leva {@code consultoria_id} explícito e nada guarda nem devolve o corpo do aviso, só ids, o hash e o andamento).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of(
             "br.com.treinos.api.auth.ContadorBanco",
@@ -71,7 +76,9 @@ class ArquiteturaTest {
             "br.com.treinos.api.integracao.IntegracaoRepositorio",
             "br.com.treinos.api.privacidade.AnonimizacaoRepositorio",
             "br.com.treinos.api.fotos.FotoRemocaoRepositorio",
-            "br.com.treinos.api.inscricoes.InscricaoBusca");
+            "br.com.treinos.api.inscricoes.InscricaoBusca",
+            "br.com.treinos.api.pagamentos.VerificacaoDasCredenciais",
+            "br.com.treinos.api.pagamentos.AvisoDePagamentoRepositorio");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario}
@@ -81,10 +88,10 @@ class ArquiteturaTest {
     private static final Set<String> ENTIDADES_GLOBAIS = Set.of("Consultoria", "Usuario",
             "CatalogoExercicio", "CatalogoAlimento", "AtualizacaoModelo");
 
-    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link). */
+    /** Controllers das rotas públicas (login, refresh, cadastro, convite, logo, inscrição pelo link, aviso da InfinitePay). */
     private static final Set<String> CONTROLLERS_PUBLICOS = Set.of("AuthController", "ConvitePublicoController",
             "MarcaPublicaController", "ConviteEquipePublicoController", "ConfiguracaoPublicaController",
-            "InscricaoPublicaController");
+            "InscricaoPublicaController", "AvisoInfinitePayController");
 
     @BeforeAll
     static void importar() {
@@ -172,6 +179,18 @@ class ArquiteturaTest {
                 .because("com TREINOS_PAGAMENTOS_HABILITADO=false toda rota do financeiro responde 503 (PagamentosInterceptor); "
                         + "controller novo sem a anotação ficaria aberto com o módulo desligado")
                 .check(codigo);
+    }
+
+    @Test
+    void nadaForaDoModuloDePagamentosLeCobrancaOuContratacaoDoAluno() {
+        // Cobrança em atraso nunca bloqueia treino, dieta, mobilidade nem registro: quem decide acesso não pode nem ler a dívida.
+        // Fora de pagamentos/ só se fala com PagamentosDoAluno (encerrar quem saiu) e a exportação financeira.
+        for (String prefixo : new String[] {"CobrancaAluno", "ContratacaoAluno"}) {
+            noClasses().that().resideOutsideOfPackage("br.com.treinos.api.pagamentos..")
+                    .should().dependOnClassesThat().haveSimpleNameStartingWith(prefixo)
+                    .because("o financeiro do aluno é só informação: nenhum acesso é negado por cobrança aberta ou vencida")
+                    .check(codigo);
+        }
     }
 
     @Test
