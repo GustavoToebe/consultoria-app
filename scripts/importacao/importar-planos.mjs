@@ -32,7 +32,7 @@ import { join } from 'node:path';
 import { chaveDoNome } from './alunos-lib.mjs';
 import { lerBibliotecaLocal, lerReferenciasDeSuplementos } from './biblioteca-local.mjs';
 import { ARQUIVO_CLASSIFICACAO, aplicarClassificacao, destinosClassificados, destinosNaoEntendidos, lerClassificacao } from './classificacao-suplementos-lib.mjs';
-import { ARQUIVO_CORRESPONDENCIAS, decodificarCsv, lerCorrespondencias, origemDosVinculos, vinculosConfirmados } from './correspondencias-lib.mjs';
+import { ARQUIVO_CORRESPONDENCIAS, decodificarCsv, lerCorrespondencias, origemDosVinculos, respostasEmDuvida, vinculosConfirmados } from './correspondencias-lib.mjs';
 import { dentroDoRepositorio, real } from './fora-do-repositorio.mjs';
 import { chaveDoExercicio, exerciciosDoTreino, lerArquivoDePlano, resumoDaImportacao, treinoComBiblioteca } from './planos-lib.mjs';
 
@@ -81,6 +81,7 @@ function lerDaPasta(arquivo, ler) {
 const correspondenciasLidas = lerDaPasta(ARQUIVO_CORRESPONDENCIAS, lerCorrespondencias) ?? new Map();
 const vinculos = vinculosConfirmados(correspondenciasLidas);
 const origemDosVinculosLidos = origemDosVinculos(correspondenciasLidas);
+const duvidasLidas = respostasEmDuvida(correspondenciasLidas);
 
 // Destinos escolhidos pelo treinador (`destino` = suplemento ou sensivel, ou como ele escreve) no arquivo de classificação, se
 // ele existir na pasta. Os itens que nenhuma lista reconhece mudam para a Suplementação antes de qualquer contagem ou gravação.
@@ -97,6 +98,9 @@ if (SIMULAR) {
   console.log(`Criaria ${c.alunos} pasta(s) "${planos[0].pasta.titulo}", ${c.comTreino} rascunho(s) de treino e ${c.comDieta} de dieta. Nunca publica.`);
   console.log(`Exercícios: ${c.exercicios} (${c.naBiblioteca} na biblioteca do Saraiva, ${c.soNoCatalogo} só no catálogo público, ${c.semPar} sem par; ${c.nomesSemPar.size} nomes diferentes sem par).`);
   console.log(`Vínculos (confirmado = sim ou nome certo escrito): ${vinculos.size} nomes no arquivo (${origemDosVinculosLidos.sim} por "sim", ${origemDosVinculosLidos.corrigidos} por nome corrigido); ${c.vinculados} exercícios ligados por eles (já contados acima) e ${c.vinculosSemDestino} cujo destino não está na biblioteca nem no catálogo (ficam sem par).`);
+  if (duvidasLidas.size) {
+    console.log(`Resposta em dúvida: ${duvidasLidas.size} nomes no ${ARQUIVO_CORRESPONDENCIAS} (linhas ${[...duvidasLidas.values()].join(', ')}) têm "sim" e um nome certo ao mesmo tempo; nenhum dos dois foi usado. O Saraiva precisa confirmar.`);
+  }
   console.log(`Dieta: ${c.refeicoes} refeições, ${c.itens} itens; medicação e ergogênicos: ${c.ergogenicos} itens (no modo real exigem ERGOGENICO_ALTERAR).`);
   console.log(`Classificação de suplementos (${ARQUIVO_CLASSIFICACAO}, ${destinosDeSuplemento.size} nomes com destino válido): ${classificados.suplemento} itens classificados como suplemento (já levados para a Suplementação), ${classificados.sensivel} como sensível, ${classificados.naoClassificado} não classificados (em branco ou destino não entendido; ficam na lista sensível)${classificados.semVaga ? `; ${classificados.semVaga} como suplemento ficaram na lista sensível por falta de vaga na Suplementação` : ''}.`);
   if (destinosNaoEntendidosLidos.size) {

@@ -34,7 +34,7 @@ import { join } from 'node:path';
 
 import { lerBibliotecaLocal, lerReferenciasDeSuplementos } from './biblioteca-local.mjs';
 import { ARQUIVO_CLASSIFICACAO, csvDeClassificacao, destinosNaoEntendidos, lerClassificacao, linhasDeClassificacao } from './classificacao-suplementos-lib.mjs';
-import { ARQUIVO_CORRESPONDENCIAS, csvDeCorrespondencias, decodificarCsv, lerCorrespondencias, linhasDeCorrespondencia } from './correspondencias-lib.mjs';
+import { ARQUIVO_CORRESPONDENCIAS, csvDeCorrespondencias, decodificarCsv, lerCorrespondencias, linhasDeCorrespondencia, respostasEmDuvida } from './correspondencias-lib.mjs';
 import { dentroDoRepositorio, real } from './fora-do-repositorio.mjs';
 import { PASTA_DO_PACOTE, csvDeExerciciosParaConferir, csvDeSuplementosParaConferir, csvDoQueCorrigir, textoDaMensagem } from './pacote-saraiva-lib.mjs';
 import { arquivosCsv, lerXlsx } from './planilha-lib.mjs';
@@ -87,7 +87,8 @@ function lerAnterior(arquivo, ler) {
     return sair(`Planilha não convertida: ${e.message}. Corrija ou apague esse arquivo da pasta de saída.`);
   }
 }
-const correspondencias = linhasDeCorrespondencia(resultado.arquivos, lerBibliotecaLocal(), lerAnterior(ARQUIVO_CORRESPONDENCIAS, lerCorrespondencias));
+const correspondenciasAnteriores = lerAnterior(ARQUIVO_CORRESPONDENCIAS, lerCorrespondencias);
+const correspondencias = linhasDeCorrespondencia(resultado.arquivos, lerBibliotecaLocal(), correspondenciasAnteriores);
 const classificacaoAnterior = lerAnterior(ARQUIVO_CLASSIFICACAO, lerClassificacao);
 const classificacao = linhasDeClassificacao(resultado.arquivos, refs, classificacaoAnterior);
 // Destino que ninguém entende: vira problema (só a linha do arquivo, nunca o valor) junto com os da planilha.
@@ -95,6 +96,10 @@ const problemas = [
   ...resultado.problemas,
   ...[...destinosNaoEntendidos(classificacaoAnterior).values()].map((linha) => ({
     aba: ARQUIVO_CLASSIFICACAO, linha, tipo: 'destino não entendido', motivo: 'destino não entendido', codigo: null,
+  })),
+  // "sim" e um nome certo na mesma linha de correspondências: não vincula nada; o Saraiva confirma qual vale.
+  ...[...respostasEmDuvida(correspondenciasAnteriores).values()].map((linha) => ({
+    aba: ARQUIVO_CORRESPONDENCIAS, linha, tipo: 'resposta em dúvida', motivo: 'resposta em dúvida', codigo: null,
   })),
 ];
 
@@ -129,7 +134,7 @@ if (PACOTE) {
 }
 for (const linha of resumoDosPlanos({ ...resultado, problemas })) console.log(linha);
 const r = correspondencias.resumo;
-console.log(`Exercícios sem par exato na biblioteca nem no catálogo: ${r.nomesSemPar} nomes diferentes (${r.comSugestao} com sugestão da biblioteca, ${r.semSugestao} sem); ${r.confirmadosNoArquivo} linhas já respondidas no arquivo (${r.confirmadosSim} "sim", ${r.comNomeCorreto} com o nome certo escrito).`);
+console.log(`Exercícios sem par exato na biblioteca nem no catálogo: ${r.nomesSemPar} nomes diferentes (${r.comSugestao} com sugestão da biblioteca, ${r.semSugestao} sem); ${r.confirmadosNoArquivo} linhas já respondidas no arquivo (${r.confirmadosSim} "sim", ${r.comNomeCorreto} com o nome certo escrito)${r.emDuvida ? `; ${r.emDuvida} respostas em dúvida (sim e nome certo na mesma linha: não vinculam; listadas em problemas.csv, com a linha)` : ''}.`);
 const s = classificacao.resumo;
 console.log(`Suplementos que nenhuma lista reconhece (hoje na lista sensível): ${s.itens} itens, ${s.nomesDistintos} nomes diferentes; ${s.comDestinoNoArquivo} linhas já com "destino" entendido no arquivo${s.naoEntendidos ? ` e ${s.naoEntendidos} com destino não entendido (listadas em problemas.csv, com a linha)` : ''}.${s.semNome ? ` Mais ${s.semNome} itens sem nome aproveitável (ficam na lista sensível).` : ''}`);
 if (pacote) {

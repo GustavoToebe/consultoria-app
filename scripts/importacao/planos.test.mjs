@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { lerBibliotecaLocal, lerReferenciasDeSuplementos } from './biblioteca-local.mjs';
 import {
   ARQUIVO_CORRESPONDENCIAS, csvDeCorrespondencias, decodificarCsv, lerCorrespondencias, linhasDeCorrespondencia, notaDeSemelhanca,
-  origemDosVinculos, respostaDeConfirmacao, sugerirDaBiblioteca, vinculosConfirmados,
+  origemDosVinculos, respostaDeConfirmacao, respostaEmDuvida, respostasEmDuvida, sugerirDaBiblioteca, vinculosConfirmados,
 } from './correspondencias-lib.mjs';
 import {
   ARQUIVO_CLASSIFICACAO, aplicarClassificacao, csvDeClassificacao, destinoEscolhido, destinosClassificados, destinosNaoEntendidos, lerClassificacao,
@@ -568,29 +568,36 @@ test('correspondências: respostaDeConfirmacao entende sim e não sem acento, se
   for (const v of ['', '  ', 'talvez', 'sim?', 'ss', 'xx', 'okay', '1', undefined, null]) assert.equal(respostaDeConfirmacao(v), '', String(v));
 });
 
-test('correspondências: nome_correto vincula pelo nome sem acento nem caixa; "sim" vence; nome que não existe fica sem destino', () => {
+test('correspondências: nome_correto vincula pelo nome sem acento nem caixa; "sim" junto com o nome é dúvida e não vincula; nome que não existe fica sem destino', () => {
   const pares = paresFicticios();
   const arquivos = [arquivoComExercicios('Remada curvadda', 'Rosca diretta', 'Puxada altta polia', 'Xyzzy qwerty', 'Supino torto')];
   const { linhas } = linhasDeCorrespondencia(arquivos, pares);
   let csv = csvDeCorrespondencias(linhas);
   csv = corrigir(csv, 'Xyzzy qwerty', 'REMADA CURVÁDA'); // sem sugestão: só o nome certo vale
   csv = corrigir(csv, 'Supino torto', 'Exercício que não existe');
-  csv = corrigir(confirmar(csv, 'Remada curvadda', 'sim'), 'Remada curvadda', 'Rosca direta'); // os dois: o sim vence
+  csv = corrigir(confirmar(csv, 'Remada curvadda', 'sim'), 'Remada curvadda', 'Rosca direta'); // os dois: resposta em dúvida, nenhum vale
   csv = corrigir(confirmar(csv, 'Rosca diretta', 'não'), 'Rosca diretta', 'Rosca direta'); // não + nome certo: o nome certo vale
   const lidas = lerCorrespondencias(csv);
   assert.deepEqual([...vinculosConfirmados(lidas)].sort(), [
-    [chaveDoExercicio('Remada curvadda'), chaveDoExercicio('Remada curvada')], // a sugestão, não o nome escrito
     [chaveDoExercicio('Rosca diretta'), chaveDoExercicio('Rosca direta')],
     [chaveDoExercicio('Supino torto'), chaveDoExercicio('Exercício que não existe')],
     [chaveDoExercicio('Xyzzy qwerty'), chaveDoExercicio('Remada curvada')],
   ].sort());
-  assert.deepEqual(origemDosVinculos(lidas), { sim: 1, corrigidos: 3 });
+  assert.deepEqual(origemDosVinculos(lidas), { sim: 0, corrigidos: 3 });
+  // "sim" + nome certo: nem a sugestão nem o nome escrito; a linha do arquivo vai para o resumo
+  const duvidas = respostasEmDuvida(lidas);
+  assert.deepEqual([...duvidas.keys()], [chaveDoExercicio('Remada curvadda')]);
+  assert.ok(Number.isInteger([...duvidas.values()][0]) && [...duvidas.values()][0] >= 2);
+  assert.equal(respostaEmDuvida({ confirmado: ' OK ', correcao: ' x ' }), true);
+  for (const l of [{ confirmado: 'sim', correcao: ' ' }, { confirmado: 'não', correcao: 'x' }, { confirmado: '', correcao: 'x' }, { confirmado: 'talvez', correcao: 'x' }]) {
+    assert.equal(respostaEmDuvida(l), false, JSON.stringify(l));
+  }
   // a importação: o que existe na biblioteca liga; o que não existe é contado e nunca cria exercício
   const c = resumoDaImportacao(arquivos, pares, vinculosConfirmados(lidas));
-  assert.deepEqual([c.vinculados, c.vinculosSemDestino], [3, 1]);
+  assert.deepEqual([c.vinculados, c.vinculosSemDestino], [2, 1]);
   // a linha só com nome_correto (confirmado em branco) conta como respondida ao regerar
   const de_novo = linhasDeCorrespondencia(arquivos, pares, lidas);
-  assert.equal(de_novo.resumo.comNomeCorreto, 4);
+  assert.deepEqual([de_novo.resumo.comNomeCorreto, de_novo.resumo.emDuvida], [4, 1]);
   assert.equal(de_novo.linhas.find((l) => l.nome === 'Xyzzy qwerty').correcao, 'REMADA CURVÁDA');
   assert.equal(lerCorrespondencias(csvDeCorrespondencias(de_novo.linhas)).get(chaveDoExercicio('Xyzzy qwerty')).correcao, 'REMADA CURVÁDA');
 });
@@ -895,6 +902,20 @@ test('converter-planos: grava correspondencias-exercicios.csv (0600) só com nom
   assert.match(segunda.stdout, /2 linhas já respondidas no arquivo \(1 "sim", 0 com o nome certo escrito\)/);
   const depois = lerCorrespondencias(readFileSync(caminho, 'utf8'));
   assert.deepEqual([depois.get(chaveDoExercicio('Remada fictícia')).confirmado, depois.get(chaveDoExercicio('Puxada fictícia')).confirmado], ['Sim', 'não']);
+  assert.ok(!/em dúvida/.test(segunda.stdout));
+
+  // "sim" e um nome certo na mesma linha: resposta em dúvida, contada no resumo e listada no problemas.csv com a linha (nunca o conteúdo)
+  const emDuvida = readFileSync(caminho, 'utf8').replace(/^(Remada fictícia;[^\n]*;Sim);$/m, '$1;Rosca qualquer');
+  assert.notEqual(emDuvida, readFileSync(caminho, 'utf8'));
+  writeFileSync(caminho, emDuvida);
+  const terceira = rodar();
+  assert.equal(terceira.status, 0, terceira.stderr);
+  assert.match(terceira.stdout, /; 1 respostas em dúvida \(sim e nome certo na mesma linha/);
+  assert.ok(!/Rosca qualquer|Remada/.test(terceira.stdout + terceira.stderr));
+  const problemas = readFileSync(join(saida, 'problemas.csv'), 'utf8');
+  assert.match(problemas, /correspondencias-exercicios\.csv;\d+;resposta em dúvida/);
+  assert.ok(!/Rosca qualquer/.test(problemas));
+  assert.equal(readFileSync(caminho, 'utf8'), emDuvida); // a resposta da pessoa não é mexida
 
   writeFileSync(caminho, 'isto;nao;e;o;arquivo\n1;2;3;4;5\n');
   const quebrado = rodar();
@@ -1105,8 +1126,10 @@ test('importar-planos --simular: usa as linhas com confirmado = sim (ou s, x, ok
   escreverComNomeCerto([`Remada fictícia;1;;;;${destino.toUpperCase()}`, 'Puxada fictícia;1;;;;Exercício que não existe', `Exercício data;1;${destino};0,9;sim;Outro nome`]);
   const c = await rodarImportador(['--pasta', pasta, '--simular'], {});
   assert.equal(c.status, 0, c.saida);
-  assert.match(c.saida, /3 nomes no arquivo \(1 por "sim", 2 por nome corrigido\); 2 exercícios ligados por eles \(já contados acima\) e 1 cujo destino não está/);
-  assert.ok(!/Remada|Puxada|fictíci/.test(c.saida));
+  // "sim" e nome certo na mesma linha (a 4 do arquivo): nenhum dos dois vale, o resumo conta e diz a linha
+  assert.match(c.saida, /2 nomes no arquivo \(0 por "sim", 2 por nome corrigido\); 1 exercícios ligados por eles \(já contados acima\) e 1 cujo destino não está/);
+  assert.match(c.saida, /Resposta em dúvida: 1 nomes no correspondencias-exercicios\.csv \(linhas 4\) têm "sim" e um nome certo ao mesmo tempo; nenhum dos dois foi usado\./);
+  assert.ok(!/Remada|Puxada|fictíci|Outro nome/.test(c.saida));
   // arquivo que não é o de correspondências: erro sem conteúdo
   writeFileSync(arquivo, 'a;b\n1;2\n');
   const ruim = await rodarImportador(['--pasta', pasta, '--simular'], {});
@@ -1298,6 +1321,7 @@ test('pacote: textoDoProblema escreve em português simples, sem código nem con
   assert.equal(t('observação com mais de 1000 letras (cortado)'), 'o texto passa de 1000 letras; encurte');
   assert.match(t('quantidade de WS acima de 10 (ignorada)'), /mais de 10 séries WS/);
   assert.equal(t('destino não entendido'), 'o destino não foi entendido; escreva suplemento ou medicamento');
+  assert.match(t('resposta em dúvida'), /"sim" e um nome em "Se não, qual é" ao mesmo tempo/);
   // um tipo que a tabela não conhece vira um texto genérico com o motivo
   assert.equal(textoDoProblema({ tipo: 'coisa nova', motivo: 'coisa nova' }), 'confira esta linha (coisa nova)');
   // todos os tipos que a conversão de fato produz têm texto próprio (nenhum cai no genérico), sem o código do aluno

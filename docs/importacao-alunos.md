@@ -147,7 +147,7 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
   **O vínculo é aplicado pelo importador, não pelo conversor** (o conversor não conhece os ids da API e os JSON continuam
   com `exercicioId` nulo): `importar-planos.mjs` lê o arquivo se ele estiver na pasta e usa **só** as linhas com `sim`
   (vale a sugestão) ou com `nome_correto` (vale esse nome, procurado na biblioteca sem acento nem diferença de maiúsculas);
-  se as duas estiverem preenchidas, o `sim` vence. Vale só para nome sem par exato. O exercício ganha o
+  se as duas estiverem preenchidas na mesma linha (`sim` e um nome), é uma **resposta em dúvida**: nenhum dos dois é usado, o resumo (conversor e `--simular`) conta e o conversor lista a linha do arquivo no `problemas.csv` (nunca o conteúdo), para o Saraiva confirmar. `não` com nome certo não é dúvida: vale o nome. Vale só para nome sem par exato. O exercício ganha o
   `exercicioId`, a modalidade e (se a planilha não trouxe) o vídeo do exercício da biblioteca, e **mantém o nome da
   planilha**. Nome certo que não existe na biblioteca (ou só no catálogo, que precisa ser importado antes) deixa o
   exercício sem par, e o resumo conta esses casos: **nunca nasce exercício novo**. Linha sem `sim` nem `nome_correto` não
@@ -168,7 +168,7 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
   ficam fora do repositório, nunca vão para log, chat nem grupo; seguem para o Saraiva por canal privado (e-mail ou
   WhatsApp direto). O terminal mostra só as contagens. Como o Saraiva preenche: em `1-suplementos.csv`, escreve
   `suplemento` ou `medicamento` em cada linha (em branco entra como medicamento); em `2-exercicios.csv`, escreve `sim` se
-  a sugestão está certa ou o nome certo na última coluna (em branco: entra com o nome da planilha, sem vídeo); em
+  a sugestão está certa ou o nome certo na última coluna, nunca os dois na mesma linha (em branco: entra com o nome da planilha, sem vídeo); em
   `3-o-que-corrigir.csv` só lê e ajusta a planilha original. Como volta: salvar o `1-suplementos.csv` preenchido como
   `classificacao-suplementos.csv` e o `2-exercicios.csv` como `correspondencias-exercicios.csv` na pasta do conversor
   (substituem os gerados) e rodar `importar-planos.mjs --simular`.

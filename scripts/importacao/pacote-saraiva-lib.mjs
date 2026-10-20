@@ -89,6 +89,7 @@ const TEXTOS = [
   [/^.+ com mais de (\d+) letras \(cortado\)$/, (m) => `o texto passa de ${quantos(m)} letras; encurte`],
   // arquivos de decisão
   [/^destino não entendido$/, () => 'o destino não foi entendido; escreva suplemento ou medicamento'],
+  [/^resposta em dúvida$/, () => 'tem "sim" e um nome em "Se não, qual é" ao mesmo tempo; deixe só um dos dois'],
 ];
 
 /**
@@ -127,7 +128,7 @@ export function textoDaMensagem({ suplementos, exercicios, problemas }) {
     `1. *Suplementos* (${suplementos} nomes): na coluna "Destino", escreva _suplemento_ ou _medicamento_ em cada um. Os que ficarem em`,
     '   branco entram como medicamento, e você pode mudar depois no app.',
     `2. *Exercícios* (${exercicios} nomes que o app não achou na biblioteca): confira a sugestão. Se estiver certa, escreva _sim_. Se`,
-    '   não, escreva o nome certo na última coluna. Os que ficarem em branco entram com o nome da planilha mesmo, sem vídeo.',
+    '   não, escreva o nome certo na última coluna (nunca os dois na mesma linha). Os que ficarem em branco entram com o nome da planilha mesmo, sem vídeo.',
     `3. *O que corrigir* (${problemas} linhas): ajuste direto na sua planilha original e me mande de novo, junto com as correções dos`,
     '   alunos que já te pedi.',
     '',

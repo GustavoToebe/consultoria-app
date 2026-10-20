@@ -4,7 +4,9 @@
  * O arquivo fica na pasta de saída do conversor (fora do repositório). O treinador escreve `sim` (ou `s`, `x`, `ok`) na
  * coluna `confirmado` das sugestões certas, ou o nome certo na coluna `nome_correto`; o `importar-planos.mjs` lê o arquivo e
  * usa **só** essas linhas para ligar o exercício ao da biblioteca (`exercicioId`, modalidade e vídeo; o nome da planilha
- * fica). Sugestão não confirmada nunca vincula nada, e nunca nasce exercício novo. Os cabeçalhos do arquivo que o Saraiva
+ * fica). Sugestão não confirmada nunca vincula nada, e nunca nasce exercício novo. Linha com `sim` **e** o nome certo ao mesmo
+ * tempo é "resposta em dúvida": não vincula nada, é contada no resumo e vai para o `problemas.csv` com a linha, para o
+ * Saraiva confirmar. Os cabeçalhos do arquivo que o Saraiva
  * recebe ("Nome na planilha", "Quantas vezes aparece", "Sugestão do app", "Está certo?", "Se não, qual é") também são lidos.
  *
  * Nada aqui lê ou grava arquivo. Os exercícios são os do JSON já convertido (`exerciciosDoTreino`), na mesma chave que a
@@ -76,6 +78,8 @@ export function sugerirDaBiblioteca(chave, biblioteca) {
 
 const notaEmTexto = (n) => String(n).replace('.', ',');
 /** A linha que a pessoa já respondeu (`confirmado` ou `nome_correto`): fica como está ao gerar de novo. */
+/** "sim" e um nome em `nome_correto` na mesma linha: ninguém sabe qual vale, então nenhum vale (o Saraiva confirma). */
+export const respostaEmDuvida = (l) => respostaDeConfirmacao(l?.confirmado) === 'sim' && Boolean(l?.correcao?.trim());
 const preenchida = (l) => Boolean(l?.confirmado?.trim() || l?.correcao?.trim());
 
 /**
@@ -125,6 +129,7 @@ export function linhasDeCorrespondencia(arquivos, pares, anteriores = new Map())
       confirmadosNoArquivo: linhas.filter(preenchida).length,
       confirmadosSim: linhas.filter((l) => respostaDeConfirmacao(l.confirmado) === 'sim').length,
       comNomeCorreto: linhas.filter((l) => l.correcao.trim()).length,
+      emDuvida: linhas.filter(respostaEmDuvida).length,
     },
   };
 }
@@ -137,7 +142,7 @@ export function csvDeCorrespondencias(linhas) {
 export { decodificarCsv };
 
 /**
- * Lê o arquivo (já decodificado) em `Map` chave do nome -> `{ nome, ocorrencias, sugestao, nota, confirmado, correcao }`. As
+ * Lê o arquivo (já decodificado) em `Map` chave do nome -> `{ nome, ocorrencias, sugestao, nota, confirmado, correcao, linha }` (`linha` = a do arquivo). As
  * colunas vêm pelo cabeçalho (a ordem pode mudar; vale também o do arquivo que o Saraiva recebe). `nome_correto` pode faltar
  * (arquivos gerados antes dela): vira em branco. Linha repetida para o mesmo nome: vale a primeira. Erro com mensagem
  * fixa, sem conteúdo do arquivo.
@@ -165,6 +170,7 @@ export function lerCorrespondencias(texto) {
       nota: l.nota_de_semelhanca ?? '',
       confirmado: l[confirmadoCol],
       correcao: semApostrofoDeFormula(l[correcaoCol] ?? ''),
+      linha: l.n,
     });
   }
   return lidas;
@@ -173,14 +179,16 @@ export function lerCorrespondencias(texto) {
 /**
  * Os vínculos que valem: `Map` chave do nome da planilha -> chave do nome da biblioteca. Duas origens:
  * - `confirmado` igual a `sim` (`sim`, `s`, `x` ou `ok`, com ou sem acento, em qualquer caixa) e com sugestão: vale a
- *   sugestão; é a que vale mesmo se `nome_correto` também estiver preenchido;
- * - senão, `nome_correto` preenchido: vale esse nome, procurado na biblioteca pela mesma chave da importação (sem acento
+ *   sugestão;
+ * - `nome_correto` preenchido (e `confirmado` que não é `sim`): vale esse nome, procurado na biblioteca pela mesma chave da importação (sem acento
  *   nem diferença de caixa). Se ele não existir na biblioteca nem no catálogo, o exercício fica sem vínculo e o resumo da
  *   importação conta (`vinculosSemDestino`); exercício novo nunca é criado.
+ * Linha com `sim` **e** `nome_correto` é {@link respostaEmDuvida}: não vincula nada.
  */
 export function vinculosConfirmados(lidas) {
   const vinculos = new Map();
   for (const [k, l] of lidas) {
+    if (respostaEmDuvida(l)) continue;
     const nome = respostaDeConfirmacao(l.confirmado) === 'sim' && l.sugestao ? l.sugestao : l.correcao?.trim();
     if (!nome) continue;
     const destino = chaveDoExercicio(nome);
@@ -189,11 +197,19 @@ export function vinculosConfirmados(lidas) {
   return vinculos;
 }
 
+/** As linhas em dúvida (ver {@link respostaEmDuvida}): `Map` chave do nome -> número da linha no arquivo. */
+export function respostasEmDuvida(lidas) {
+  const duvidas = new Map();
+  for (const [k, l] of lidas) if (respostaEmDuvida(l)) duvidas.set(k, l.linha);
+  return duvidas;
+}
+
 /** Quantos vínculos vêm de `sim` e quantos de `nome_correto` (os mesmos de {@link vinculosConfirmados}). */
 export function origemDosVinculos(lidas) {
   let sim = 0;
   let corrigidos = 0;
   for (const l of lidas.values()) {
+    if (respostaEmDuvida(l)) continue;
     if (respostaDeConfirmacao(l.confirmado) === 'sim' && l.sugestao) sim++;
     else if (l.correcao?.trim()) corrigidos++;
   }
