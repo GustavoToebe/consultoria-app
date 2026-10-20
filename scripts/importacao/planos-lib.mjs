@@ -35,8 +35,6 @@ export const METODOLOGIA = {
   repeticoes: { FS: [3, 3], 'Back off': [6, 8] },
 };
 const MAX_SERIES_POR_TIPO = 10;
-/** Faixa que o Excel tinha virado em data e foi recuperada (dia e mês, do menor para o maior): anotada para o treinador conferir. */
-export const MOTIVO_FAIXA_RECUPERADA = 'faixa de repetições recuperada de uma data do Excel (conferir os números)';
 const TEXTO_TOP_SET = 'Mais pesada que a série anterior';
 
 /** Limites do `@Size` dos records Java: passou, o `PUT` do rascunho do aluno inteiro seria recusado. */
@@ -45,6 +43,8 @@ const L = {
   refeicoes: 12, refeicaoNome: 80, refeicaoObs: 1000, opcoes: 6, rotulo: 10, itens: 40, itemNome: 160,
   orientacoes: 30, orientacaoTexto: 2000, observacoes: 8000, suplementos: 40, ergogenicos: 40, campo: 120, suplObs: 500, titulo: 120,
 };
+/** Máximo de itens de suplementação por dieta na API (o que passar disso derrubaria o `PUT` do rascunho). */
+export const LIMITE_DE_SUPLEMENTOS = L.suplementos;
 
 const INTENSIDADE = (modo, extra = {}) => ({ modo, percentual: null, rir: null, rpe: null, texto: null, ...extra });
 const linhaUnica = (t) => t.replace(/\s+/g, ' ').trim();
@@ -231,8 +231,7 @@ export function converterPlanos(planilha, hoje, refs = { suplementos: [], ergoge
   };
 
   const alunos = new Map(converter(planilha, hoje).alunos.map((a) => [a.codigo, a]));
-  const treinos = treinosDosAlunos(planilha, alunos, problema, cortar);
-  const dietas = dietasDosAlunos(planilha, alunos, refs, problema, cortar);
+  const treinos = treinosDosAlunos(planilha, alunos, problema, cortar);  const dietas = dietasDosAlunos(planilha, alunos, refs, problema, cortar);
 
   const arquivos = [];
   for (const [codigo, aluno] of alunos) {
@@ -253,7 +252,6 @@ export function converterPlanos(planilha, hoje, refs = { suplementos: [], ergoge
     alunosComTreino: arquivos.filter((a) => a.treino).length,
     alunosComDieta: arquivos.filter((a) => a.dieta).length,
     alunosComAmbos: arquivos.filter((a) => a.treino && a.dieta).length,
-    faixasRecuperadas: problemas.filter((p) => p.tipo === MOTIVO_FAIXA_RECUPERADA).length,
     ...treinos.contagens,
     ...dietas.contagens,
   };
@@ -312,7 +310,8 @@ function treinosDosAlunos(planilha, alunos, problema, cortar) {
   }
 
   const porAluno = new Map();
-  const contagens = { exercicios: 0, series: 0, sessoes: 0 };
+  const contagens = { exercicios: 0, series: 0, sessoes: 0, faixasRecuperadas: 0 };
+  const aoRecuperarFaixa = () => { contagens.faixasRecuperadas++; };
   for (const [codigo, { id, linha: linhaRotina }] of rotinas) {
     const linhas = exerciciosPorRotina.get(id) ?? [];
     const porLetra = new Map();
@@ -336,7 +335,7 @@ function treinosDosAlunos(planilha, alunos, problema, cortar) {
       const exercicios = [];
       for (const { linha } of ordenados) {
         if (exercicios.length === L.exerciciosPorSessao) { problema(ABA_EX, linha.n, `treino com mais de ${L.exerciciosPorSessao} exercícios (o resto ficou fora)`); break; }
-        const ex = exercicioDaLinha(linha, e, problema, cortar, ABA_EX, planilha.data1904 === true);
+        const ex = exercicioDaLinha(linha, e, problema, cortar, ABA_EX, planilha.data1904 === true, aoRecuperarFaixa);
         if (ex) exercicios.push(ex);
       }
       if (exercicios.length === 0) continue;
@@ -357,7 +356,7 @@ function treinosDosAlunos(planilha, alunos, problema, cortar) {
   return { porAluno, contagens };
 }
 
-function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904) {
+function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904, aoRecuperarFaixa) {
   const completo = linhaUnica(texto(celula(linha, e.nome)));
   if (!completo) { problema(abaNome, linha.n, 'exercício sem nome (ignorado)'); return null; }
   let nome = completo;
@@ -381,7 +380,7 @@ function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904) {
     bo: logico(celula(linha, e.bo)),
     backoff: numero(celula(linha, e.backoff)),
     faixa: faixaDeRepeticoes(celula(linha, e.reps), data1904),
-  }, avisar);
+  }, avisar, aoRecuperarFaixa);
   if (series.length === 0) avisar('exercício ficou sem série (preencher à mão)');
   return {
     uid: randomUUID(), exercicioId: null, nome, modalidade: null, videoUrl, observacao: obs, progressao: true, unidade: 'kg', series,
@@ -389,8 +388,11 @@ function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904) {
   };
 }
 
-/** Séries na ordem FS, WS, Top set, Back off. Rep Range vale só para a WS; FS e Back off pegam a faixa da metodologia. */
-export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar) {
+/**
+ * Séries na ordem FS, WS, Top set, Back off. Rep Range vale só para a WS; FS e Back off pegam a faixa da metodologia.
+ * `aoRecuperarFaixa` é chamado quando a faixa da WS foi recuperada de uma data do Excel: só conta, não vira problema.
+ */
+export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecuperarFaixa = () => {}) {
   const serie = (tipo, reps, intensidade) => ({
     uid: randomUUID(), tipo, repsMin: reps?.[0] ?? null, repsMax: reps?.[1] ?? null, alvoTexto: null, intensidade, descansoSegundos: null, tecnica: null,
   });
@@ -415,7 +417,7 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar) {
         : faixa.erro === 'vazia' ? 'faixa de repetições vazia' : 'faixa de repetições inválida (repetições ficaram em branco)');
     } else {
       reps = [faixa.min, faixa.max];
-      if (faixa.deData) avisar(MOTIVO_FAIXA_RECUPERADA);
+      if (faixa.deData) aoRecuperarFaixa();
     }
   }
   for (let i = 0; i < nWs; i++) series.push(serie('WS', reps, INTENSIDADE('CARGA_TRABALHO')));

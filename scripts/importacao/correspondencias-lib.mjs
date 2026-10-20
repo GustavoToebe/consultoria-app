@@ -9,6 +9,7 @@
  * importação usa (`chaveDoExercicio`: sem acento, caixa, pontuação e artigos, mais os apelidos do `importar.mjs`).
  */
 import { coluna, lerCsv } from './alunos-lib.mjs';
+import { decodificarCsv, semApostrofoDeFormula, textoDeCsv } from './csv-apoio-lib.mjs';
 import { chaveDoExercicio, exerciciosDoTreino } from './planos-lib.mjs';
 
 export const ARQUIVO_CORRESPONDENCIAS = 'correspondencias-exercicios.csv';
@@ -107,30 +108,12 @@ export function linhasDeCorrespondencia(arquivos, pares, anteriores = new Map())
   };
 }
 
-/** Campo CSV com `;`. Texto que começaria uma fórmula no Excel (`=`, `+`, `-`, `@`) ganha um apóstrofo, tirado na leitura. */
-const campoCsv = (v) => {
-  let t = String(v ?? '').replace(/[\r\n]+/g, ' ');
-  if (/^[=+\-@\t]/.test(t)) t = `'${t}`;
-  return /[;"]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
-};
-
 /** O arquivo, em UTF-8 com BOM (o Excel reconhece os acentos) e `;`. */
 export function csvDeCorrespondencias(linhas) {
-  const corpo = linhas.map((l) => [l.nome, l.ocorrencias, l.sugestao, l.nota, l.confirmado]);
-  return `﻿${[CABECALHO, ...corpo].map((l) => l.map(campoCsv).join(';')).join('\n')}\n`;
+  return textoDeCsv(CABECALHO, linhas.map((l) => [l.nome, l.ocorrencias, l.sugestao, l.nota, l.confirmado]));
 }
 
-/**
- * Texto de um CSV: UTF-8 estrito e, se os bytes não forem UTF-8 válido, windows-1252 (o "CSV" comum do Excel salva assim,
- * e sem isso os nomes com acento deixariam de casar).
- */
-export function decodificarCsv(bytes) {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  } catch {
-    return new TextDecoder('windows-1252').decode(bytes);
-  }
-}
+export { decodificarCsv };
 
 /**
  * Lê o arquivo (já decodificado) em `Map` chave do nome -> `{ nome, ocorrencias, sugestao, nota, confirmado }`. As colunas
@@ -143,13 +126,13 @@ export function lerCorrespondencias(texto) {
   if (faltam.length) throw new Error(`o ${ARQUIVO_CORRESPONDENCIAS} não tem as colunas: ${faltam.join(', ')}`);
   const lidas = new Map();
   for (const l of linhas) {
-    const nome = l.nome_na_planilha.replace(/^'(?=[=+\-@])/, '');
+    const nome = semApostrofoDeFormula(l.nome_na_planilha);
     const k = chaveDoExercicio(nome);
     if (!k || lidas.has(k)) continue;
     lidas.set(k, {
       nome,
       ocorrencias: l.ocorrencias ?? '',
-      sugestao: l.sugestao_da_biblioteca.replace(/^'(?=[=+\-@])/, ''),
+      sugestao: semApostrofoDeFormula(l.sugestao_da_biblioteca),
       nota: l.nota_de_semelhanca ?? '',
       confirmado: l.confirmado,
     });

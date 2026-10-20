@@ -77,7 +77,8 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
 
 - **Conversor:** grava um JSON por aluno (o nome do arquivo é o código do aluno na planilha, nunca o nome; permissão 0600)
   e um `problemas.csv` só com aba, linha e motivo. Recusa planilha e pasta dentro do repositório. O terminal mostra só
-  contagens. `--simular` não grava nada. Grava também o `correspondencias-exercicios.csv` (abaixo).
+  contagens. `--simular` não grava nada. Grava também o `correspondencias-exercicios.csv` e o
+  `classificacao-suplementos.csv` (abaixo).
 - **Regras:** só entra plano ou rotina **ativo** e **único** por aluno (plano inativo, repetido ou de aluno que não está
   na aba Alunos vai para os problemas; o conversor nunca escolhe um). Valor ausente é "—" (nulo), nunca zero: quantidade 0
   na dieta fica sem quantidade. Intra-treino, hidratação e refeição livre viram orientações da dieta; "Obs Gerais", a
@@ -95,9 +96,9 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
   faixa do **menor para o maior** (6/8 e 8/6 dão 6 a 8; 12/10 dá 10 a 12). Também vale a data escrita em texto (`6/8`,
   `06/08/2026`, `2026-08-06`). Se a data tem ano, ele precisa estar entre 2015 e 2040 (o Excel põe o ano em que se
   digitou); fora disso, ou com dia ou mês acima de 50, **nada é recuperado**: as repetições ficam em branco e o motivo é
-  "faixa de repetições virou data no Excel". Cada faixa recuperada também entra no `problemas.csv` (motivo "faixa de
-  repetições recuperada de uma data do Excel (conferir os números)", sem os números), para o treinador conferir; o resumo
-  do terminal conta quantas foram. Número pequeno (8) continua sendo repetição fixa.
+  "faixa de repetições virou data no Excel" (esse, sim, vai para o `problemas.csv`). A faixa recuperada **não** entra no
+  `problemas.csv`: o resumo do terminal (conversor e `--simular`) só conta quantas foram. Número pequeno (8) continua sendo
+  repetição fixa.
 - **Suplementos:** vai para a suplementação o que a lista de ergogênicos **não** reconhece e que (1) casa com um
   suplemento conhecido (lista do fornecedor e `dados/suplementos-comuns.json`) por palavras contidas, como sempre foi, ou
   (2) começa, em palavras inteiras, com um item da lista comum. **Todo o resto** (inclusive o que não for reconhecido) vai
@@ -109,8 +110,25 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
   ("Citrato de Magnésio"), então na planilha real o começo do nome não reconheceu nada a mais (o prefixo é um caso
   particular das palavras contidas). Para tornar a lista comum estrita (só pelo começo), tire `...comuns` de
   `suplementos` em `biblioteca-local.mjs`; na planilha real isso passa para a lista sensível os itens que têm "Magnésio"
-  depois de outra palavra. O que sobra na lista sensível são poucos nomes distintos: o remédio é acrescentá-los a
-  `suplementos-comuns.json`. O nome do suplemento na dieta não muda; a regra só decide o destino.
+  depois de outra palavra. O nome do suplemento na dieta não muda; a regra só decide o destino. O que sobra na lista
+  sensível o treinador classifica no `classificacao-suplementos.csv` (próximo item), sem mexer em `suplementos-comuns.json`.
+- **Classificação de suplementos (`classificacao-suplementos.csv`):** o conversor grava, na pasta de saída, os itens da aba
+  "Suplementos" que **nenhuma lista reconhece** (os que hoje vão para Medicação e ergogênicos), um por linha, pelo nome
+  normalizado (sem acento, em minúsculas, sem dose, unidade nem parênteses). Colunas (`;`, UTF-8 com BOM): `nome_normalizado`,
+  `ocorrencias` e `destino` (em branco). Quem a lista de ergogênicos ou a de suplementos reconhece **não** entra; nome que
+  fica vazio depois de normalizar ("500 mg") também não, e continua na lista sensível. O arquivo é sempre gravado (só com o
+  cabeçalho quando não há nada a classificar). O treinador escreve em `destino` `suplemento` ou `sensivel` (maiúsculas,
+  minúsculas e espaços não importam; qualquer outro valor, inclusive "sensível" com acento, é ignorado e o item conta como
+  não classificado). **A decisão é aplicada pelo importador, não pelo conversor** (os JSON não mudam): `importar-planos.mjs`
+  lê o arquivo se ele estiver na pasta, recalcula o destino de cada item da lista sensível com as mesmas listas do conversor
+  e só move o que nenhuma lista reconhece (a lista de ergogênicos vence sempre, mesmo se o nome normalizado for igual ao de
+  uma linha `suplemento`): `suplemento` leva o item para a Suplementação (sem princípio ativo, concentração nem prescrição);
+  `sensivel`, em branco, valor estranho ou arquivo ausente deixa na lista sensível. A Suplementação tem teto de 40 itens por
+  dieta: o excedente fica na lista sensível e o resumo conta. Quem fica sem nenhum item sensível não exige
+  `ERGOGENICO_ALTERAR`. Rodar o conversor de novo **preserva o `destino` já preenchido** dos nomes que continuam na planilha
+  e não apaga linha preenchida de nome que sumiu (fica com 0 ocorrências); as linhas em branco são geradas de novo. Aceita o
+  "CSV" comum do Excel (ANSI); arquivo sem as colunas esperadas é recusado. O resumo do `--simular` traz as contagens de itens
+  classificados como suplemento, como sensível e não classificados.
 - **Correspondência de exercícios (`correspondencias-exercicios.csv`):** o conversor grava, na pasta de saída, os
   exercícios da planilha **sem par exato** (fora da biblioteca do Saraiva e do catálogo; mesma chave da importação: sem
   acento, caixa, pontuação e artigos, mais os apelidos do `importar.mjs`). Colunas (`;`, UTF-8 com BOM, abre no Excel):
@@ -129,7 +147,8 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
   novo. Se o Excel salvar o arquivo como "CSV" comum (ANSI), a leitura aceita; arquivo sem as colunas esperadas é recusado.
 - **Importador:** `--simular` lê só os arquivos e o repositório e mostra contagens, entre elas quantos exercícios têm par
   na biblioteca do Saraiva, quantos só no catálogo público (precisam ser importados para a biblioteca) e quantos não têm
-  par (e quantos foram ligados por `confirmado = sim`). `--gravar` cria, para cada aluno, a pasta "Importada da planilha (rascunho)" (sem datas), os planos e o rascunho
+  par (e quantos foram ligados por `confirmado = sim`) e quantos suplementos foram classificados como suplemento, como
+  sensível e não classificados. `--gravar` cria, para cada aluno, a pasta "Importada da planilha (rascunho)" (sem datas), os planos e o rascunho
   de cada um (com o `exercicioId` quando o nome casa com a biblioteca; exercício sem par fica só com o nome, nunca é
   criado). Confere as permissões em `GET /eu` antes de gravar qualquer coisa (inclusive `ERGOGENICO_ALTERAR` quando há
   medicação) e para no primeiro erro. Rodar de novo não duplica. Nunca chama `/publicar`.
