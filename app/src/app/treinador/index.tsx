@@ -88,6 +88,11 @@ export default function InicioTreinador() {
             <LinkTexto texto="Ver alunos" href="/treinador/alunos" />
           </View>
         ) : null}
+        {/* Agenda e Números não cabem na barra do celular: abrem daqui, que é a origem deles (`dominio/telas`). */}
+        <View style={estilos.ativos}>
+          {verAtualizacoes ? <LinkTexto texto="Agenda" href="/treinador/agenda" /> : null}
+          <LinkTexto texto="Números" href="/treinador/numeros" />
+        </View>
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
