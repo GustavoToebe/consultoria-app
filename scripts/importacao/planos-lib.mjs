@@ -35,6 +35,8 @@ export const METODOLOGIA = {
   repeticoes: { FS: [3, 3], 'Back off': [6, 8] },
 };
 const MAX_SERIES_POR_TIPO = 10;
+/** Faixa que o Excel tinha virado em data e foi recuperada (dia e mês, do menor para o maior): anotada para o treinador conferir. */
+export const MOTIVO_FAIXA_RECUPERADA = 'faixa de repetições recuperada de uma data do Excel (conferir os números)';
 const TEXTO_TOP_SET = 'Mais pesada que a série anterior';
 
 /** Limites do `@Size` dos records Java: passou, o `PUT` do rascunho do aluno inteiro seria recusado. */
@@ -74,16 +76,51 @@ function logico(c) {
   return null;
 }
 
+/** Faixa de repetições recuperada de uma data: o dia e o mês da data (um deles pode ser o "mínimo" ou o "máximo"). */
+const PARTE_MAXIMA_DA_DATA = 50;
+/** Janela de ano de uma data que o Excel fez de "6-8": o Excel põe o ano em que se digitou. Fora dela, não é um "6-8" que virou data. */
+export const ANO_MINIMO_DA_DATA = 2015;
+export const ANO_MAXIMO_DA_DATA = 2040;
+
+/**
+ * Faixa de repetições a partir de dia e mês de uma data que o Excel fez de "8-12" (ou "12-8"). Não importa se o Excel leu
+ * dia/mês ou mês/dia: a faixa é sempre do menor para o maior. Só vale se os dois estão entre 1 e 50 e, quando a data tem
+ * ano, se o ano está na janela razoável. Senão `{ erro: 'data' }` (vai para os problemas, repetições em branco).
+ */
+function faixaDaData(a, b, ano) {
+  if (ano !== null && (ano < ANO_MINIMO_DA_DATA || ano > ANO_MAXIMO_DA_DATA)) return { erro: 'data' };
+  if (![a, b].every((n) => Number.isInteger(n) && n >= 1 && n <= PARTE_MAXIMA_DA_DATA)) return { erro: 'data' };
+  return { min: Math.min(a, b), max: Math.max(a, b), deData: true };
+}
+
+/**
+ * Data escrita em texto (`6/8`, `06/08/2026`, `06-08-2026`, `2026-08-06`, com hora opcional): `{ a, b, ano }` com os dois
+ * números que não são o ano, na ordem em que aparecem; `null` se o texto não tem cara de data.
+ */
+function partesDeDataEmTexto(t) {
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[t ]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?z?)?$/.exec(t);
+  if (m) return { a: Number(m[2]), b: Number(m[3]), ano: Number(m[1]) };
+  m = /^(\d{1,2})\s*([/-])\s*(\d{1,2})(?:\s*\2\s*(\d{4}|\d{2}))?$/.exec(t);
+  if (!m || (m[2] === '-' && m[4] === undefined)) return null; // "6-8" sem ano é faixa escrita, tratada antes
+  return { a: Number(m[1]), b: Number(m[3]), ano: m[4] === undefined ? null : m[4].length === 2 ? 2000 + Number(m[4]) : Number(m[4]) };
+}
+
 /**
  * Faixa de repetições da célula "Rep Range": `{ min, max }` ou `{ erro }`. "6a8", "6-8" e "6 à 8" são faixa; número
- * solto (8) é fixo (mínimo = máximo). O Excel costuma transformar "8-12" em data (08/12): isso chega como número grande
- * e **não é decodificado** (adivinhar o que a pessoa quis digitar seria inventar); vira `{ erro: 'data' }`.
+ * solto (8) é fixo (mínimo = máximo). O Excel costuma transformar "8-12" em data (08/12, no ano em que se digitou): a
+ * data (número de série ou texto) é recuperada como faixa do menor para o maior entre o dia e o mês (`deData: true`, para
+ * o aviso), desde que os dois estejam entre 1 e 50 e o ano esteja entre {@link ANO_MINIMO_DA_DATA} e
+ * {@link ANO_MAXIMO_DA_DATA}; senão `{ erro: 'data' }`. O serial é convertido em UTC (`dataDoExcel`), sem fuso local;
+ * `data1904` vem da planilha (o sistema de 1904 desloca o serial em 1462 dias).
  */
-export function faixaDeRepeticoes(c) {
+export function faixaDeRepeticoes(c, data1904 = false) {
   if (vazia(c)) return { erro: 'vazia' };
   if (c.tipo === 'numero') {
     if (Number.isInteger(c.valor) && c.valor >= 0 && c.valor <= 500) return { min: c.valor, max: c.valor };
-    return { erro: dataDoExcel(c.valor) ? 'data' : 'invalida' };
+    const iso = dataDoExcel(c.valor, data1904);
+    if (!iso) return { erro: 'invalida' };
+    const [ano, mes, dia] = iso.split('-').map(Number);
+    return faixaDaData(dia, mes, ano);
   }
   if (c.tipo !== 'texto') return { erro: 'invalida' };
   const t = c.valor.trim().toLowerCase();
@@ -91,6 +128,8 @@ export function faixaDeRepeticoes(c) {
   if (m) return { min: Number(m[1]), max: Number(m[1]) };
   m = /^(\d{1,3})\s*(?:a|à|-|–)\s*(\d{1,3})$/.exec(t);
   if (m && Number(m[1]) <= Number(m[2]) && Number(m[2]) <= 500) return { min: Number(m[1]), max: Number(m[2]) };
+  const data = partesDeDataEmTexto(t);
+  if (data) return faixaDaData(data.a, data.b, data.ano);
   return { erro: 'invalida' };
 }
 
@@ -121,14 +160,55 @@ const contido = (a, b) => a.length > 0 && a.every((x) => b.includes(x));
 const parecido = (nome, ref) => { const a = tokens(nome); const b = tokens(ref); return contido(a, b) || contido(b, a); };
 
 /**
+ * Dose ou unidade escrita junto do nome ("5g", "10.000ui", "2 caps", "500 mg", "1 scoop"): número seguido de unidade. Exige
+ * a unidade, para "Ômega 3", "D3", "B12" e "K2" não perderem o número. Roda no texto já sem acento e em minúsculas.
+ */
+const DOSE = /\b\d+(?:[.,]\d+)*\s*(?:mg|mcg|ug|g|kg|ml|l|ui|iu|kcal|cap|caps|capsulas?|cps|comp|comprimidos?|tab|tabs|tabletes?|scoops?|doses?|gotas?|saches?|porcoes?|unid|unidades?|un|x)\b/g;
+
+/**
+ * Nome de suplemento comparável: sem acento, em minúsculas, sem texto entre parênteses, sem dose ou unidade e só com
+ * letras e números separados por espaço ("Creatina monohidratada (5g) - 5 g" = "creatina monohidratada"). A mesma
+ * função normaliza o nome da planilha e os itens da lista comum.
+ */
+export function nomeDeSuplementoNormalizado(nome) {
+  return nome.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\([^)]*(?:\)|$)/g, ' ')
+    .replace(DOSE, ' ')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/**
+ * O item da lista comum (`dados/suplementos-comuns.json`) que o nome da planilha traz como palavras inteiras **no começo**
+ * ("Whey Protein isolado" -> "Whey Protein"; "Zincoxxx" e "Comprimido de Zinco" não casam com "Zinco"). Entre vários, o
+ * mais longo (mais palavras). Devolve o item como está na lista, ou `null`. O nome do suplemento na dieta não muda: isto
+ * só decide o destino.
+ */
+export function suplementoComumNoComeco(nome, comuns) {
+  const palavras = nomeDeSuplementoNormalizado(nome).split(' ').filter(Boolean);
+  let melhor = null;
+  let tamanho = 0;
+  for (const item of comuns) {
+    const alvo = nomeDeSuplementoNormalizado(item).split(' ').filter(Boolean);
+    if (alvo.length === 0 || alvo.length > palavras.length || !alvo.every((p, i) => p === palavras[i])) continue;
+    if (alvo.length > tamanho) { melhor = item; tamanho = alvo.length; }
+  }
+  return melhor;
+}
+
+/**
  * Para onde vai uma linha de "Suplemento / Medicamento". Medicação e ergogênico é dado sensível (só quem tem
- * `ERGOGENICO_LER` vê), então o conservador é: só vai para `suplementacao` o que parece um suplemento conhecido
- * (`refs.suplementos`); o que casa com a lista de ergogênicos **ou não casa com nenhuma** vai para `ergogenicos`.
- * O treinador move o que estiver no lugar errado.
+ * `ERGOGENICO_LER` vê), então o conservador é: só vai para `suplementacao` o que parece um suplemento conhecido; o que
+ * casa com a lista de ergogênicos **ou não casa com nenhuma** vai para `ergogenicos`. O treinador move o que estiver no
+ * lugar errado. Ordem (a de ergogênicos sempre vence): ergogênicos (`refs.ergogenicos`, por palavras contidas);
+ * suplementos conhecidos (`refs.suplementos`, por palavras contidas: o nome tem todas as palavras do item, em qualquer
+ * posição, ou o contrário); lista comum pelo começo do nome normalizado (`refs.comuns`, {@link suplementoComumNoComeco}).
+ * Na planilha real o começo do nome não reconhece nada que as palavras contidas já não reconheçam (o prefixo é um caso
+ * particular da contenção); ele só decide sozinho quando `refs.suplementos` não traz a lista comum.
  */
 export function destinoDoSuplemento(nome, refs) {
   if (refs.ergogenicos.some((r) => parecido(nome, r))) return 'ergogenico';
   if (refs.suplementos.some((r) => parecido(nome, r))) return 'suplemento';
+  if (suplementoComumNoComeco(nome, refs.comuns ?? [])) return 'suplemento-comum';
   return 'ergogenico-nao-reconhecido';
 }
 
@@ -173,6 +253,7 @@ export function converterPlanos(planilha, hoje, refs = { suplementos: [], ergoge
     alunosComTreino: arquivos.filter((a) => a.treino).length,
     alunosComDieta: arquivos.filter((a) => a.dieta).length,
     alunosComAmbos: arquivos.filter((a) => a.treino && a.dieta).length,
+    faixasRecuperadas: problemas.filter((p) => p.tipo === MOTIVO_FAIXA_RECUPERADA).length,
     ...treinos.contagens,
     ...dietas.contagens,
   };
@@ -255,7 +336,7 @@ function treinosDosAlunos(planilha, alunos, problema, cortar) {
       const exercicios = [];
       for (const { linha } of ordenados) {
         if (exercicios.length === L.exerciciosPorSessao) { problema(ABA_EX, linha.n, `treino com mais de ${L.exerciciosPorSessao} exercícios (o resto ficou fora)`); break; }
-        const ex = exercicioDaLinha(linha, e, problema, cortar, ABA_EX);
+        const ex = exercicioDaLinha(linha, e, problema, cortar, ABA_EX, planilha.data1904 === true);
         if (ex) exercicios.push(ex);
       }
       if (exercicios.length === 0) continue;
@@ -276,7 +357,7 @@ function treinosDosAlunos(planilha, alunos, problema, cortar) {
   return { porAluno, contagens };
 }
 
-function exercicioDaLinha(linha, e, problema, cortar, abaNome) {
+function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904) {
   const completo = linhaUnica(texto(celula(linha, e.nome)));
   if (!completo) { problema(abaNome, linha.n, 'exercício sem nome (ignorado)'); return null; }
   let nome = completo;
@@ -299,7 +380,7 @@ function exercicioDaLinha(linha, e, problema, cortar, abaNome) {
     ts: logico(celula(linha, e.ts)),
     bo: logico(celula(linha, e.bo)),
     backoff: numero(celula(linha, e.backoff)),
-    faixa: faixaDeRepeticoes(celula(linha, e.reps)),
+    faixa: faixaDeRepeticoes(celula(linha, e.reps), data1904),
   }, avisar);
   if (series.length === 0) avisar('exercício ficou sem série (preencher à mão)');
   return {
@@ -332,7 +413,10 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar) {
     if (faixa.erro) {
       avisar(faixa.erro === 'data' ? 'faixa de repetições virou data no Excel (repetições ficaram em branco)'
         : faixa.erro === 'vazia' ? 'faixa de repetições vazia' : 'faixa de repetições inválida (repetições ficaram em branco)');
-    } else reps = [faixa.min, faixa.max];
+    } else {
+      reps = [faixa.min, faixa.max];
+      if (faixa.deData) avisar(MOTIVO_FAIXA_RECUPERADA);
+    }
   }
   for (let i = 0; i < nWs; i++) series.push(serie('WS', reps, INTENSIDADE('CARGA_TRABALHO')));
   if (ts === null) avisar('TS inválido (ignorado)');
@@ -385,7 +469,7 @@ function dietasDosAlunos(planilha, alunos, refs, problema, cortar) {
   }
 
   const porAluno = new Map();
-  const contagens = { refeicoes: 0, itens: 0, suplementos: 0, ergogenicosReconhecidos: 0, ergogenicosNaoReconhecidos: 0 };
+  const contagens = { refeicoes: 0, itens: 0, suplementos: 0, suplementosPorPrefixo: 0, ergogenicosReconhecidos: 0, ergogenicosNaoReconhecidos: 0 };
   for (const [id, { codigo, linha: linhaPlano }] of porIdPlano) {
     const refeicoes = refeicoesDaDieta(refeicoesDoPlano.get(id) ?? [], r, problema, cortar, ABA_R);
     if (refeicoes.length === 0) { problema(ABA_P, linhaPlano.n, 'plano sem refeições aproveitáveis'); continue; }
@@ -406,8 +490,10 @@ function dietasDosAlunos(planilha, alunos, refs, problema, cortar) {
       const cortado = (rotulo, v, max) => (v === null ? null : cortar(ABA_S, linha.n, rotulo, v, max));
       const destino = destinoDoSuplemento(nome, refs);
       const comum = { uid: randomUUID(), nome: cortar(ABA_S, linha.n, 'nome', nome, L.campo), dose: cortado('dose', dose, L.campo), horario: cortado('horário', horario, L.campo), observacao: cortado('observação', obs, L.suplObs) };
-      if (destino === 'suplemento') suplementacao.push({ ...comum, link: null });
-      else {
+      if (destino === 'suplemento' || destino === 'suplemento-comum') {
+        suplementacao.push({ ...comum, link: null });
+        if (destino === 'suplemento-comum') contagens.suplementosPorPrefixo++;
+      } else {
         ergogenicos.push({ ...comum, principioAtivo: null, concentracao: null, prescricao: null });
         contagens[destino === 'ergogenico' ? 'ergogenicosReconhecidos' : 'ergogenicosNaoReconhecidos']++;
       }
@@ -533,7 +619,7 @@ export function problemasPorTipo(problemas) {
 export function resumoDosPlanos({ contagens: c, problemas }) {
   const linhas = [
     `Convertido: ${c.alunosComTreino} alunos com treino, ${c.alunosComDieta} com dieta (${c.alunosComAmbos} com os dois), de ${c.alunosNaPlanilha} alunos convertidos.`,
-    `Treino: ${c.sessoes} treinos, ${c.exercicios} exercícios, ${c.series} séries. Dieta: ${c.refeicoes} refeições, ${c.itens} itens, ${c.suplementos} suplementos.`,
+    `Treino: ${c.sessoes} treinos, ${c.exercicios} exercícios, ${c.series} séries (${c.faixasRecuperadas} faixas de repetições recuperadas de datas do Excel). Dieta: ${c.refeicoes} refeições, ${c.itens} itens, ${c.suplementos} suplementos (${c.suplementosPorPrefixo} reconhecidos pela lista comum, pelo começo do nome).`,
     `Medicação e ergogênicos (sensível): ${c.ergogenicosReconhecidos + c.ergogenicosNaoReconhecidos} itens (${c.ergogenicosReconhecidos} da lista conhecida e ${c.ergogenicosNaoReconhecidos} não reconhecidos como suplemento).`,
   ];
   if (problemas.length === 0) return [...linhas, 'Problemas: nenhum.'];
@@ -569,15 +655,27 @@ export const exerciciosDoTreino = (treino) => treino.conteudo.sessoes.flatMap((s
  * ({@link chaveDoExercicio}): "na biblioteca" = o que o `importar.mjs` deixa na biblioteca do Saraiva (lista de vídeos e
  * modelos); "só no catálogo" = existe no catálogo público mas precisa ser importado para a biblioteca; "sem par" = em
  * nenhum. Nunca cria exercício.
+ *
+ * `vinculos` = `Map` chave do nome da planilha -> chave do nome da biblioteca, só das linhas `confirmado = sim` do
+ * `correspondencias-exercicios.csv` ({@link vinculosConfirmados}). Vale só para quem **não** tem par exato; o destino
+ * conta como qualquer par (`vinculados`). Vínculo cujo destino não está na biblioteca nem no catálogo fica sem par
+ * (`vinculosSemDestino`).
  */
-export function resumoDaImportacao(planos, pares) {
-  const c = { alunos: planos.length, comTreino: 0, comDieta: 0, exercicios: 0, naBiblioteca: 0, soNoCatalogo: 0, semPar: 0, nomesSemPar: new Set(), refeicoes: 0, itens: 0, ergogenicos: 0 };
+export function resumoDaImportacao(planos, pares, vinculos = new Map()) {
+  const c = {
+    alunos: planos.length, comTreino: 0, comDieta: 0, exercicios: 0, naBiblioteca: 0, soNoCatalogo: 0, semPar: 0, vinculados: 0, vinculosSemDestino: 0,
+    nomesSemPar: new Set(), refeicoes: 0, itens: 0, ergogenicos: 0,
+  };
   for (const a of planos) {
     if (a.treino) {
       c.comTreino++;
       for (const e of exerciciosDoTreino(a.treino)) {
         c.exercicios++;
-        const k = chaveDoExercicio(e.nome);
+        let k = chaveDoExercicio(e.nome);
+        if (!pares.biblioteca.has(k) && !pares.catalogo.has(k) && vinculos.has(k)) {
+          const destino = vinculos.get(k);
+          if (pares.biblioteca.has(destino) || pares.catalogo.has(destino)) { c.vinculados++; k = destino; } else c.vinculosSemDestino++;
+        }
         if (pares.biblioteca.has(k)) c.naBiblioteca++;
         else if (pares.catalogo.has(k)) c.soNoCatalogo++;
         else { c.semPar++; c.nomesSemPar.add(k); }
@@ -593,14 +691,19 @@ export function resumoDaImportacao(planos, pares) {
   return c;
 }
 
-/** Treino com `exercicioId`, modalidade e (se a planilha não trouxe) vídeo da biblioteca, pelo nome. `biblioteca` = Map chave -> exercício da API. */
-export function treinoComBiblioteca(conteudo, biblioteca) {
+/**
+ * Treino com `exercicioId`, modalidade e (se a planilha não trouxe) vídeo da biblioteca, pelo nome. `biblioteca` = Map
+ * chave -> exercício da API. `vinculos` (ver {@link resumoDaImportacao}) só entra quando não há par exato; o exercício
+ * confirmado mantém o nome da planilha e ganha o id, a modalidade e o vídeo do exercício da biblioteca.
+ */
+export function treinoComBiblioteca(conteudo, biblioteca, vinculos = new Map()) {
   return {
     ...conteudo,
     sessoes: conteudo.sessoes.map((s) => ({
       ...s,
       exercicios: s.exercicios.map((e) => {
-        const par = biblioteca.get(chaveDoExercicio(e.nome));
+        const k = chaveDoExercicio(e.nome);
+        const par = biblioteca.get(k) ?? (vinculos.has(k) ? biblioteca.get(vinculos.get(k)) : undefined);
         return par ? { ...e, exercicioId: par.id, modalidade: par.modalidade ?? e.modalidade, videoUrl: e.videoUrl ?? par.videoUrl ?? null } : e;
       }),
     })),

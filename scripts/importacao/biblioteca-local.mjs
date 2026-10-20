@@ -17,11 +17,16 @@ import { chaveDoExercicio } from './planos-lib.mjs';
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const lerJson = (...partes) => JSON.parse(readFileSync(join(AQUI, ...partes), 'utf8'));
 
+/**
+ * `biblioteca` é um `Map` chave -> nome (o da lista de vídeos quando existe, senão o do modelo): `.has` serve para saber
+ * se há par, e o nome alimenta as sugestões do `correspondencias-exercicios.csv`. `catalogo` é um `Set` de chaves.
+ */
 export function lerBibliotecaLocal() {
-  const biblioteca = new Set();
-  for (const [, nome] of lerJson('dados', 'videos.json').linhas) biblioteca.add(chaveDoExercicio(nome));
+  const biblioteca = new Map();
+  const incluir = (nome) => { const k = chaveDoExercicio(nome); if (!biblioteca.has(k)) biblioteca.set(k, nome); };
+  for (const [, nome] of lerJson('dados', 'videos.json').linhas) incluir(nome);
   for (const m of lerJson('dados', 'modelos.json').modelos) {
-    for (const s of m.sessoes ?? []) for (const x of s.exercicios ?? []) biblioteca.add(chaveDoExercicio(x.nome));
+    for (const s of m.sessoes ?? []) for (const x of s.exercicios ?? []) incluir(x.nome);
   }
   const sql = readFileSync(join(AQUI, '..', '..', 'api', 'src', 'main', 'resources', 'db', 'migration', 'V003__catalogo_exercicios_ptbr.sql'), 'utf8');
   const catalogo = new Set();
@@ -30,14 +35,14 @@ export function lerBibliotecaLocal() {
 }
 
 /**
- * Nomes de referência: suplementos conhecidos (parte antes do " - " do produto da lista da Heavy Suppz, mais
- * `dados/suplementos-comuns.json`) e medicação/ergogênicos (nome e princípio ativo).
+ * Nomes de referência: `suplementos` = lista da Heavy Suppz (parte antes do " - " do produto) mais a lista comum de
+ * `dados/suplementos-comuns.json`, que casam por palavras contidas (a regra de sempre); `comuns` = só a lista comum, que
+ * também casa pelo começo do nome normalizado (sem dose, unidade nem parênteses); e medicação/ergogênicos (nome e
+ * princípio ativo). Regra mais estrita (a lista comum só pelo começo do nome): tirar `...comuns` de `suplementos`.
  */
 export function lerReferenciasDeSuplementos() {
-  const suplementos = [
-    ...lerJson('dados', 'suplementos-heavysuppz.json').itens.map((i) => i.nome.split(' - ')[0]),
-    ...lerJson('dados', 'suplementos-comuns.json').itens,
-  ];
+  const comuns = lerJson('dados', 'suplementos-comuns.json').itens;
+  const suplementos = [...lerJson('dados', 'suplementos-heavysuppz.json').itens.map((i) => i.nome.split(' - ')[0]), ...comuns];
   const ergogenicos = lerJson('dados', 'medicacao-ergogenicos.json').itens.flatMap((i) => [i.nome, i.principioAtivo].filter(Boolean));
-  return { suplementos, ergogenicos };
+  return { suplementos, comuns, ergogenicos };
 }

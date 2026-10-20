@@ -16,14 +16,17 @@
  * por `importar-alunos.mjs`; nome repetido ou ausente é pulado). Por aluno: `POST /alunos/{id}/pastas` (título fixo, sem
  * datas), `POST /alunos/{id}/planos-treino` e `PUT /planos-treino/{id}/rascunho` (o mesmo para a dieta). Rodar de novo
  * não duplica: pasta com o título fixo é reaproveitada e o plano que já está nela é mantido. Os exercícios ganham o
- * `exercicioId` da biblioteca pelo nome; exercício sem par fica só com o nome (nunca é criado). Para no primeiro erro.
+ * `exercicioId` da biblioteca pelo nome; exercício sem par fica só com o nome (nunca é criado). Se a pasta tem o
+ * `correspondencias-exercicios.csv` (gerado pelo conversor), as linhas com `confirmado = sim` também ligam o exercício ao
+ * da biblioteca (só quando não há par exato; o nome da planilha fica); o resto do arquivo é ignorado. Para no primeiro erro.
  * O terminal mostra só contagens e o código do aluno na planilha, nunca nome, dieta ou observação.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { chaveDoNome } from './alunos-lib.mjs';
 import { lerBibliotecaLocal } from './biblioteca-local.mjs';
+import { ARQUIVO_CORRESPONDENCIAS, decodificarCsv, lerCorrespondencias, vinculosConfirmados } from './correspondencias-lib.mjs';
 import { dentroDoRepositorio, real } from './fora-do-repositorio.mjs';
 import { chaveDoExercicio, exerciciosDoTreino, lerArquivoDePlano, resumoDaImportacao, treinoComBiblioteca } from './planos-lib.mjs';
 
@@ -58,13 +61,24 @@ const planos = nomes.map((n) => {
   }
 });
 
-const contagem = (a) => resumoDaImportacao(a, lerBibliotecaLocal());
+// Vínculos confirmados pelo treinador (`confirmado = sim`) no arquivo de correspondências, se ele existir na pasta.
+let vinculos = new Map();
+if (existsSync(join(pasta, ARQUIVO_CORRESPONDENCIAS))) {
+  try {
+    vinculos = vinculosConfirmados(lerCorrespondencias(decodificarCsv(readFileSync(join(pasta, ARQUIVO_CORRESPONDENCIAS)))));
+  } catch (e) {
+    sair(`Arquivo ${ARQUIVO_CORRESPONDENCIAS}: ${e.message}.`);
+  }
+}
+
+const contagem = (a) => resumoDaImportacao(a, lerBibliotecaLocal(), vinculos);
 
 if (SIMULAR) {
   const c = contagem(planos);
   console.log(`Simulação (nenhuma API foi chamada, nada foi gravado): ${c.alunos} alunos, ${c.comTreino} com treino e ${c.comDieta} com dieta.`);
   console.log(`Criaria ${c.alunos} pasta(s) "${planos[0].pasta.titulo}", ${c.comTreino} rascunho(s) de treino e ${c.comDieta} de dieta. Nunca publica.`);
   console.log(`Exercícios: ${c.exercicios} (${c.naBiblioteca} na biblioteca do Saraiva, ${c.soNoCatalogo} só no catálogo público, ${c.semPar} sem par; ${c.nomesSemPar.size} nomes diferentes sem par).`);
+  console.log(`Vínculos confirmados (confirmado = sim): ${vinculos.size} nomes no arquivo; ${c.vinculados} exercícios ligados por eles (já contados acima) e ${c.vinculosSemDestino} cujo destino não está na biblioteca nem no catálogo (ficam sem par).`);
   console.log(`Dieta: ${c.refeicoes} refeições, ${c.itens} itens; medicação e ergogênicos: ${c.ergogenicos} itens (no modo real exigem ERGOGENICO_ALTERAR).`);
   process.exit(0);
 }
@@ -136,7 +150,7 @@ async function gravar() {
   const biblioteca = new Map();
   for (const e of await chamar('GET', '/exercicios')) if (!biblioteca.has(chaveDoExercicio(e.nome))) biblioteca.set(chaveDoExercicio(e.nome), e);
 
-  const total = { semAluno: 0, jaFeitos: 0, pastas: 0, treinos: 0, dietas: 0, semPar: 0 };
+  const total = { semAluno: 0, jaFeitos: 0, pastas: 0, treinos: 0, dietas: 0, semPar: 0, vinculados: 0 };
   for (const plano of planos) {
     const alunoId = alunos.get(chaveDoNome(plano.nome));
     if (!alunoId) { total.semAluno++; continue; }
@@ -154,8 +168,12 @@ async function gravar() {
         const jaTem = !pastaNova && (await chamar('GET', `/alunos/${alunoId}/planos-${tipo}`)).some((p) => p.pastaId === pastaPronta.id);
         if (jaTem) continue;
         algo = true;
-        const conteudo = tipo === 'treino' ? treinoComBiblioteca(plano.treino.conteudo, biblioteca) : plano.dieta.conteudo;
-        if (tipo === 'treino') total.semPar += exerciciosDoTreino({ conteudo }).filter((e) => !e.exercicioId).length;
+        const conteudo = tipo === 'treino' ? treinoComBiblioteca(plano.treino.conteudo, biblioteca, vinculos) : plano.dieta.conteudo;
+        if (tipo === 'treino') {
+          const exercicios = exerciciosDoTreino({ conteudo });
+          total.semPar += exercicios.filter((e) => !e.exercicioId).length;
+          total.vinculados += exercicios.filter((e) => e.exercicioId && !biblioteca.has(chaveDoExercicio(e.nome))).length;
+        }
         await criarRascunho(tipo, alunoId, pastaPronta.id, plano[tipo], conteudo);
         total[tipo === 'treino' ? 'treinos' : 'dietas']++;
       }
@@ -165,7 +183,7 @@ async function gravar() {
     }
   }
   console.log(`Gravado como rascunho (nada publicado): ${total.pastas} pastas novas, ${total.treinos} treinos e ${total.dietas} dietas.`);
-  console.log(`Pulados: ${total.semAluno} sem aluno de mesmo nome na consultoria (importe os alunos antes) e ${total.jaFeitos} já importados. Exercícios gravados sem par na biblioteca: ${total.semPar}.`);
+  console.log(`Pulados: ${total.semAluno} sem aluno de mesmo nome na consultoria (importe os alunos antes) e ${total.jaFeitos} já importados. Exercícios gravados sem par na biblioteca: ${total.semPar}; ligados por vínculo confirmado: ${total.vinculados}.`);
 }
 
 gravar().catch((e) => sair(`ERRO: ${e.message}`));

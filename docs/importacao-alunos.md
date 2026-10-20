@@ -77,7 +77,7 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
 
 - **Conversor:** grava um JSON por aluno (o nome do arquivo é o código do aluno na planilha, nunca o nome; permissão 0600)
   e um `problemas.csv` só com aba, linha e motivo. Recusa planilha e pasta dentro do repositório. O terminal mostra só
-  contagens. `--simular` não grava nada.
+  contagens. `--simular` não grava nada. Grava também o `correspondencias-exercicios.csv` (abaixo).
 - **Regras:** só entra plano ou rotina **ativo** e **único** por aluno (plano inativo, repetido ou de aluno que não está
   na aba Alunos vai para os problemas; o conversor nunca escolhe um). Valor ausente é "—" (nulo), nunca zero: quantidade 0
   na dieta fica sem quantidade. Intra-treino, hidratação e refeição livre viram orientações da dieta; "Obs Gerais", a
@@ -88,13 +88,48 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
 - **Séries (padrão do Saraiva, igual à metodologia padrão):** FS segue a regra de preparação (1 FS = 85%; 2 = 70 e 85;
   3 = 50, 70 e 85; outra quantidade fica sem intensidade e vai para os problemas), 3 repetições; WS usa a faixa da coluna
   "Rep Range" (`3a6`); TS vira um "Top set" livre; BO vira "Back off" com o percentual da coluna "Back Off %" e 6 a 8
-  repetições. "Rep Range" que o Excel transformou em data **não é decodificado**: as repetições ficam em branco e o
-  problema é anotado. Exercício sem nenhuma série entra vazio, para o treinador preencher.
-- **Suplementos:** o que a lista de suplementos comuns reconhece vai para a suplementação; **todo o resto** (inclusive o
-  que não for reconhecido) vai para medicação e ergogênicos, que é dado sensível. Na dúvida, a escolha mais conservadora.
+  repetições. Exercício sem nenhuma série entra vazio, para o treinador preencher.
+- **Faixa de repetições que o Excel virou data:** "6-8" digitado numa célula vira a data 06/08 (ou 8 de junho, conforme a
+  configuração do Excel) e chega como número de série. O conversor pega o dia e o mês da data (converte o serial em UTC, sem
+  depender do fuso do computador, e respeita o sistema de datas de 1904 da planilha) e, se os dois estão entre 1 e 50, usa a
+  faixa do **menor para o maior** (6/8 e 8/6 dão 6 a 8; 12/10 dá 10 a 12). Também vale a data escrita em texto (`6/8`,
+  `06/08/2026`, `2026-08-06`). Se a data tem ano, ele precisa estar entre 2015 e 2040 (o Excel põe o ano em que se
+  digitou); fora disso, ou com dia ou mês acima de 50, **nada é recuperado**: as repetições ficam em branco e o motivo é
+  "faixa de repetições virou data no Excel". Cada faixa recuperada também entra no `problemas.csv` (motivo "faixa de
+  repetições recuperada de uma data do Excel (conferir os números)", sem os números), para o treinador conferir; o resumo
+  do terminal conta quantas foram. Número pequeno (8) continua sendo repetição fixa.
+- **Suplementos:** vai para a suplementação o que a lista de ergogênicos **não** reconhece e que (1) casa com um
+  suplemento conhecido (lista do fornecedor e `dados/suplementos-comuns.json`) por palavras contidas, como sempre foi, ou
+  (2) começa, em palavras inteiras, com um item da lista comum. **Todo o resto** (inclusive o que não for reconhecido) vai
+  para medicação e ergogênicos, que é dado sensível. A lista de ergogênicos sempre tem precedência. Na dúvida, a escolha
+  mais conservadora. Para a regra (2) o nome é normalizado: sem acento, em minúsculas, sem texto entre parênteses e sem dose
+  ou unidade (`5g`, `10.000ui`, `2 caps`, `500 mg`, `1 scoop`; "Ômega 3", "D3" e "B12" mantêm o número); entre os itens
+  que casam vale o mais longo ("Whey Protein isolado" é "Whey Protein", não "Whey"); pedaço de palavra ("Zincoxxx") e
+  palavra no meio do nome não casam **por esta regra**. Atenção: a regra (1) continua valendo e reconhece a palavra no meio
+  ("Citrato de Magnésio"), então na planilha real o começo do nome não reconheceu nada a mais (o prefixo é um caso
+  particular das palavras contidas). Para tornar a lista comum estrita (só pelo começo), tire `...comuns` de
+  `suplementos` em `biblioteca-local.mjs`; na planilha real isso passa para a lista sensível os itens que têm "Magnésio"
+  depois de outra palavra. O que sobra na lista sensível são poucos nomes distintos: o remédio é acrescentá-los a
+  `suplementos-comuns.json`. O nome do suplemento na dieta não muda; a regra só decide o destino.
+- **Correspondência de exercícios (`correspondencias-exercicios.csv`):** o conversor grava, na pasta de saída, os
+  exercícios da planilha **sem par exato** (fora da biblioteca do Saraiva e do catálogo; mesma chave da importação: sem
+  acento, caixa, pontuação e artigos, mais os apelidos do `importar.mjs`). Colunas (`;`, UTF-8 com BOM, abre no Excel):
+  `nome_na_planilha`, `ocorrencias`, `sugestao_da_biblioteca`, `nota_de_semelhanca` e `confirmado` (em branco). A sugestão
+  é o nome da biblioteca do Saraiva mais parecido, com nota de 0 a 1 (média da semelhança de edição, `1 - distância de
+  edição / tamanho`, com o coeficiente de Dice das palavras); abaixo de 0,5 não há sugestão (ficam em branco, nunca 0).
+  O treinador escreve `sim` em `confirmado` nas sugestões certas (pode corrigir a coluna de sugestão antes). **O vínculo é
+  aplicado pelo importador, não pelo conversor** (o conversor não conhece os ids da API e os JSON continuam com
+  `exercicioId` nulo): `importar-planos.mjs` lê o arquivo se ele estiver na pasta e usa **só** as linhas `sim` (maiúsculas,
+  minúsculas e espaços não importam; "s", "x" ou "talvez" não valem), e só para nome sem par exato. O exercício ganha o
+  `exercicioId`, a modalidade e (se a planilha não trouxe) o vídeo do exercício da biblioteca, e **mantém o nome da
+  planilha**. Vínculo cujo destino não existe na biblioteca (ou só no catálogo, que precisa ser importado antes) fica sem
+  par; o resumo conta esses casos. Linha sem `sim` não muda nada. Rodar o conversor de novo **não mexe nas linhas que já
+  têm `confirmado` preenchido** (`sim` ou `não`; nem a sugestão e a nota delas, porque o `sim` vale para o que o
+  treinador viu) e não apaga linha preenchida de nome que sumiu da planilha (fica com 0 ocorrências); o resto é gerado de
+  novo. Se o Excel salvar o arquivo como "CSV" comum (ANSI), a leitura aceita; arquivo sem as colunas esperadas é recusado.
 - **Importador:** `--simular` lê só os arquivos e o repositório e mostra contagens, entre elas quantos exercícios têm par
   na biblioteca do Saraiva, quantos só no catálogo público (precisam ser importados para a biblioteca) e quantos não têm
-  par. `--gravar` cria, para cada aluno, a pasta "Importada da planilha (rascunho)" (sem datas), os planos e o rascunho
+  par (e quantos foram ligados por `confirmado = sim`). `--gravar` cria, para cada aluno, a pasta "Importada da planilha (rascunho)" (sem datas), os planos e o rascunho
   de cada um (com o `exercicioId` quando o nome casa com a biblioteca; exercício sem par fica só com o nome, nunca é
   criado). Confere as permissões em `GET /eu` antes de gravar qualquer coisa (inclusive `ERGOGENICO_ALTERAR` quando há
   medicação) e para no primeiro erro. Rodar de novo não duplica. Nunca chama `/publicar`.

@@ -11,17 +11,23 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { lerBibliotecaLocal, lerReferenciasDeSuplementos } from './biblioteca-local.mjs';
+import {
+  ARQUIVO_CORRESPONDENCIAS, csvDeCorrespondencias, decodificarCsv, lerCorrespondencias, linhasDeCorrespondencia, notaDeSemelhanca,
+  sugerirDaBiblioteca, vinculosConfirmados,
+} from './correspondencias-lib.mjs';
 import { lerXlsx } from './planilha-lib.mjs';
 import {
-  ABAS_LIDAS, TITULO_PASTA, chaveDoExercicio, converterPlanos, destinoDoSuplemento, diaDaSemana, faixaDeRepeticoes, lerArquivoDePlano,
-  montarSeries, nomeDoArquivo, resumoDaImportacao, resumoDosPlanos, treinoComBiblioteca, videoValido,
+  ABAS_LIDAS, MOTIVO_FAIXA_RECUPERADA, TITULO_PASTA, chaveDoExercicio, converterPlanos, destinoDoSuplemento, diaDaSemana, faixaDeRepeticoes,
+  lerArquivoDePlano, montarSeries, nomeDeSuplementoNormalizado, nomeDoArquivo, resumoDaImportacao, resumoDosPlanos, suplementoComumNoComeco,
+  treinoComBiblioteca, videoValido,
 } from './planos-lib.mjs';
 import { xlsx, serie } from './xlsx-apoio-teste.mjs';
 
 const HOJE = '2026-10-20';
 const CONVERSOR = fileURLToPath(new URL('./converter-planos.mjs', import.meta.url));
 const IMPORTADOR = fileURLToPath(new URL('./importar-planos.mjs', import.meta.url));
-const REFS = { suplementos: ['Creatina Monohidratada'], ergogenicos: ['Droga Ficticia'] };
+const REFS = { suplementos: ['Creatina Monohidratada'], comuns: ['Creatina', 'Zinco', 'Whey', 'Whey Protein'], ergogenicos: ['Droga Ficticia'] };
 
 const CAB_ALUNOS = ['ID', 'Nome', 'Email', 'Telefone', 'Peso Inicial (kg)', 'Objetivo', 'Data Início', 'Status', 'Obs'];
 const CAB_PESOS = ['ID', 'ID Aluno', 'Nome Aluno', 'Data', 'Semana Nº', 'Peso (kg)', 'Variação (kg)', 'Observação'];
@@ -172,13 +178,14 @@ test('treino: sessões por letra, exercícios pela Ordem, séries FS/WS/Top set/
   assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null));
 });
 
-test('treino: Rep Range que virou data, WS absurdo, FS sem regra, nome comprido, link ruim e exercício sem série', () => {
+test('treino: Rep Range que virou data (recuperada), WS absurdo, FS sem regra, nome comprido, link ruim e exercício sem série', () => {
   const r = converter();
   const [data, ws23, gigante] = doAluno(r, 'AL1').treino.conteudo.sessoes[1].exercicios;
-  // data do Excel: nunca decodificada
-  assert.deepEqual(data.series.map((s) => [s.tipo, s.repsMin, s.intensidade.percentual]), [['FS', null, 70], ['FS', null, 85], ['WS', null, null], ['Back off', null, 90]].map(([t, , p]) => [t, t === 'FS' ? 3 : t === 'Back off' ? 6 : null, p]));
-  assert.equal(data.series.find((s) => s.tipo === 'WS').repsMin, null);
-  assert.equal(problemasDe(r, 'Treinos_Exercicios', 'virou data no Excel').length, 1);
+  // data do Excel (08/12/2026): faixa 8 a 12 na WS, anotada para conferir; FS e Back off seguem a metodologia
+  assert.deepEqual(data.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.intensidade.percentual]), [['FS', 3, 3, 70], ['FS', 3, 3, 85], ['WS', 8, 12, null], ['Back off', 6, 8, 90]]);
+  assert.equal(problemasDe(r, 'Treinos_Exercicios', 'recuperada de uma data do Excel').length, 1);
+  assert.equal(problemasDe(r, 'Treinos_Exercicios', 'virou data no Excel').length, 0);
+  assert.equal(r.contagens.faixasRecuperadas, 1);
   // WS 23: nenhuma série de WS; FS 4: sem regra
   assert.ok(!ws23.series.some((s) => s.tipo === 'WS'));
   assert.deepEqual(ws23.series.map((s) => [s.tipo, s.intensidade.modo]), Array(4).fill(['FS', 'NENHUMA']));
@@ -287,7 +294,8 @@ test('regras pequenas: faixa de repetições, dia da semana, vídeo, séries e n
   assert.deepEqual(t('6a8'), { min: 6, max: 8 });
   assert.deepEqual(t('3 - 6'), { min: 3, max: 6 });
   assert.deepEqual(t(8), { min: 8, max: 8 });
-  assert.deepEqual(t(serie('2026-12-08')), { erro: 'data' });
+  assert.deepEqual(t(serie('2026-12-08')), { min: 8, max: 12, deData: true });
+  assert.deepEqual(t(serie('1999-05-06')), { erro: 'data' });
   assert.deepEqual(t('8a6'), { erro: 'invalida' });
   assert.deepEqual(t('abc'), { erro: 'invalida' });
   assert.deepEqual(t(null), { erro: 'vazia' });
@@ -321,6 +329,270 @@ test('importação: pares da biblioteca, só no catálogo e sem par; treino ganh
   assert.throws(() => lerArquivoDePlano('nada'), /JSON/);
 });
 
+// -------------------------------------------------------------------------- a) faixa que o Excel virou data
+
+const numero = (valor) => ({ tipo: 'numero', valor });
+const textoCel = (valor) => ({ tipo: 'texto', valor });
+
+test('faixa que virou data: dia e mês do menor para o maior, não importa se o Excel leu dia/mês ou mês/dia', () => {
+  // 6/8 lido como 6 de agosto, 8/6 como 8 de junho (ou o contrário): sempre 6 a 8
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2026-08-06'))), { min: 6, max: 8, deData: true });
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2026-06-08'))), { min: 6, max: 8, deData: true });
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2026-10-12'))), { min: 10, max: 12, deData: true });
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2026-12-10'))), { min: 10, max: 12, deData: true });
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2026-12-10') + 0.75)), { min: 10, max: 12, deData: true }); // com hora
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2026-06-20'))), { min: 6, max: 20, deData: true }); // dia acima de 12
+  // janela de ano: bordas
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2015-01-02'))), { min: 1, max: 2, deData: true });
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2040-12-31'))), { min: 12, max: 31, deData: true });
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2014-12-31'))), { erro: 'data' });
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('2041-01-01'))), { erro: 'data' });
+  assert.deepEqual(faixaDeRepeticoes(numero(serie('1999-05-06'))), { erro: 'data' });
+  assert.deepEqual(faixaDeRepeticoes(numero(600)), { erro: 'data' }); // inteiro acima de 500 que seria uma data de 1901
+  assert.deepEqual(faixaDeRepeticoes(numero(-3)), { erro: 'invalida' });
+  assert.deepEqual(faixaDeRepeticoes(numero(8)), { min: 8, max: 8 }); // número pequeno continua sendo repetição fixa
+});
+
+test('faixa que virou data: texto de data, dia ou mês acima de 50, ano impossível e sistema de datas de 1904', () => {
+  const t = (v) => faixaDeRepeticoes(textoCel(v));
+  for (const [escrito, esperado] of [
+    ['6/8', [6, 8]], ['8/6', [6, 8]], ['12/10', [10, 12]], ['06/08/2026', [6, 8]], ['10/12/26', [10, 12]], ['2026-08-06', [6, 8]],
+    ['2026-08-06T00:00:00', [6, 8]], ['2026-08-06 00:00:00', [6, 8]], ['06-08-2026', [6, 8]], [' 6 / 8 ', [6, 8]], ['8/50', [8, 50]],
+  ]) assert.deepEqual(t(escrito), { min: esperado[0], max: esperado[1], deData: true }, escrito);
+  for (const impossivel of ['6/60', '51/8', '0/8', '6/8/1999', '6/8/2099', '2026-13-60']) assert.deepEqual(t(impossivel), { erro: 'data' }, impossivel);
+  // o que já era faixa escrita continua como era; "12-10" (invertida, sem ano) não é data
+  assert.deepEqual(t('6-8'), { min: 6, max: 8 });
+  assert.deepEqual(t('12-10'), { erro: 'invalida' });
+  assert.deepEqual(t('6a8'), { min: 6, max: 8 });
+  // sistema de 1904: o mesmo dia tem serial 1462 a menos; sem a flag o dia e o mês sairiam errados
+  const em1904 = serie('2026-08-06') - 1462;
+  assert.deepEqual(faixaDeRepeticoes(numero(em1904), true), { min: 6, max: 8, deData: true });
+  assert.notDeepEqual(faixaDeRepeticoes(numero(em1904), false), { min: 6, max: 8, deData: true });
+});
+
+test('faixa que virou data: a conversão não depende do fuso do computador', (t) => {
+  // O script roda em outro processo, com o fuso trocado, e fica numa pasta temporária fora do repositório.
+  const pasta = pastaTemporaria(t, 'planos-fuso-');
+  const script = join(pasta, 'fuso.mjs');
+  writeFileSync(script, `import { faixaDeRepeticoes } from ${JSON.stringify(new URL('./planos-lib.mjs', import.meta.url).href)};
+    console.log(JSON.stringify(faixaDeRepeticoes({ tipo: 'numero', valor: ${serie('2026-08-06') + 0.99} })));`);
+  for (const TZ of ['Pacific/Kiritimati', 'Pacific/Pago_Pago', 'America/Sao_Paulo', 'UTC']) {
+    const r = spawnSync(process.execPath, [script], { encoding: 'utf8', env: { ...process.env, TZ } });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(JSON.parse(r.stdout), { min: 6, max: 8, deData: true }, TZ);
+  }
+});
+
+test('faixa que virou data na planilha: recuperada vira aviso para conferir; impossível continua indo para os problemas', () => {
+  const a = abas();
+  const linhas = [
+    ['Recuperada A', { data: '2026-08-06' }, 1], ['Recuperada B', { data: '2026-06-08' }, 1], ['Recuperada C', { data: '2026-10-12' }, 1],
+    ['Texto de data', '6/8', 1], ['Impossível', { data: '1999-05-06' }, 1], ['Texto impossível', '6/60', 1], ['Sem WS', { data: '2026-08-06' }, null],
+  ];
+  a.Treinos_Exercicios = [CAB_EX, ...linhas.map(([nome, rep, ws], i) => [`x${i}`, 'R1', 'A', 'Treino A', 'Principal', i + 1, nome, ws, null, false, false, rep, null, null, 0])];
+  const r = converterPlanos(lerXlsx(xlsx(a), { abas: ABAS_LIDAS }), HOJE, REFS);
+  const reps = Object.fromEntries(doAluno(r, 'AL1').treino.conteudo.sessoes[0].exercicios.map((e) => [e.nome, e.series.map((x) => [x.repsMin, x.repsMax])]));
+  assert.deepEqual(reps['Recuperada A'], [[6, 8]]);
+  assert.deepEqual(reps['Recuperada B'], [[6, 8]]);
+  assert.deepEqual(reps['Recuperada C'], [[10, 12]]);
+  assert.deepEqual(reps['Texto de data'], [[6, 8]]);
+  assert.deepEqual(reps['Impossível'], [[null, null]]);
+  assert.deepEqual(reps['Texto impossível'], [[null, null]]);
+  assert.deepEqual(reps['Sem WS'], []);
+  assert.equal(r.problemas.filter((p) => p.tipo === MOTIVO_FAIXA_RECUPERADA).length, 4);
+  assert.equal(problemasDe(r, 'Treinos_Exercicios', 'virou data no Excel').length, 2);
+  assert.equal(r.contagens.faixasRecuperadas, 4);
+  assert.match(resumoDosPlanos(r).join('\n'), /4 faixas de repetições recuperadas/);
+  // o aviso não leva os números nem o nome do exercício
+  assert.ok(!/Recuperada|\d/.test(MOTIVO_FAIXA_RECUPERADA));
+});
+
+// ---------------------------------------------------------------------------------------- c) suplementos
+
+test('suplementos: normalização sem acento, caixa, parênteses, dose e unidade', () => {
+  for (const [entrada, esperado] of [
+    ['Creatina monohidratada 5g', 'creatina monohidratada'],
+    ['Ômega 3 (2 caps) 1000 mg', 'omega 3'],
+    ['Vitamina D3 10.000UI', 'vitamina d3'],
+    ['Vitamina B12', 'vitamina b12'],
+    ['Whey Protein isolado - 1 scoop', 'whey protein isolado'],
+    ['  Cafeína  200 MG ', 'cafeina'],
+    ['Beta-Alanina 3,2 g', 'beta alanina'],
+    ['Zinco (quelato', 'zinco'],
+  ]) assert.equal(nomeDeSuplementoNormalizado(entrada), esperado, entrada);
+});
+
+test('suplementos: item da lista comum como palavras inteiras no começo do nome; o mais longo vence', () => {
+  const comuns = ['Creatina', 'Whey', 'Whey Protein', 'Zinco', 'Ômega 3', 'Pasta de Amendoim', 'Vitamina D3'];
+  const casa = (nome) => suplementoComumNoComeco(nome, comuns);
+  assert.equal(casa('Creatina monohidratada 5g'), 'Creatina');
+  assert.equal(casa('CREATINA'), 'Creatina');
+  assert.equal(casa('Whey Protein isolado'), 'Whey Protein'); // o mais longo, não "Whey"
+  assert.equal(casa('whey concentrado (sabor baunilha)'), 'Whey');
+  assert.equal(casa('Ômega-3 1000mg 2 caps'), 'Ômega 3');
+  assert.equal(casa('Omega 3'), 'Ômega 3');
+  assert.equal(casa('Pasta de amendoim integral'), 'Pasta de Amendoim');
+  assert.equal(casa('Vitamina D3 10.000UI'), 'Vitamina D3');
+  // não casa: palavra no meio, substring, só parte da palavra, item incompleto e vazio
+  assert.equal(casa('Comprimido de Zinco'), null);
+  assert.equal(casa('Zincoxxx'), null);
+  assert.equal(casa('Creatinina'), null);
+  assert.equal(casa('Vitamina D 2000UI'), null);
+  assert.equal(casa('Pasta'), null);
+  assert.equal(casa('5g'), null);
+  assert.equal(casa(''), null);
+  assert.equal(suplementoComumNoComeco('Creatina', []), null);
+});
+
+test('suplementos na conversão: lista comum pelo começo do nome; ergogênico vence; o resto fica na lista sensível', () => {
+  const sem = { suplementos: [], comuns: REFS.comuns, ergogenicos: [] };
+  assert.equal(destinoDoSuplemento('Creatina monohidratada 5g', sem), 'suplemento-comum');
+  assert.equal(destinoDoSuplemento('Comprimido de Zinco', sem), 'ergogenico-nao-reconhecido');
+  assert.equal(destinoDoSuplemento('Zincoxxx', sem), 'ergogenico-nao-reconhecido');
+  // a lista de ergogênicos continua tendo precedência, mesmo com a palavra da lista comum no começo
+  assert.equal(destinoDoSuplemento('Creatina Droga Ficticia', REFS), 'ergogenico');
+  assert.equal(destinoDoSuplemento('Zinco com Droga Ficticia 10 mg', REFS), 'ergogenico');
+  // sem a lista comum (refs só com as duas listas antigas), nada quebra
+  assert.equal(destinoDoSuplemento('Qualquer coisa', { suplementos: [], ergogenicos: [] }), 'ergogenico-nao-reconhecido');
+  // com as listas do repositório, a lista comum também casa por palavras contidas (como sempre foi): a palavra no meio ainda vale
+  const doRepositorio = lerReferenciasDeSuplementos();
+  assert.ok(doRepositorio.suplementos.includes('Magnésio') && doRepositorio.comuns.includes('Magnésio'));
+  assert.equal(destinoDoSuplemento('Citrato de Magnésio 400 mg', doRepositorio), 'suplemento');
+  assert.equal(destinoDoSuplemento('Magnésio dimalato 400 mg', doRepositorio), 'suplemento');
+  assert.equal(destinoDoSuplemento('Zincoxxx', doRepositorio), 'ergogenico-nao-reconhecido');
+  assert.equal(destinoDoSuplemento('Remédio Fictício XYZ', doRepositorio), 'ergogenico-nao-reconhecido');
+
+  const a = abas();
+  a.Suplementos = [CAB_SUP,
+    ['s1', 'P1', 'x', 'Whey Protein isolado 30 g', '1 scoop', null, null],
+    ['s2', 'P1', 'x', 'Creatina monohidratada (5g)', null, null, null],
+    ['s3', 'P1', 'x', 'Zincoxxx 10 mg', null, null, null],
+    ['s4', 'P1', 'x', 'Comprimido de Zinco', null, null, null],
+    ['s5', 'P1', 'x', 'Zinco com Droga Ficticia', null, null, null],
+    ['s6', 'P1', 'x', 'Remédio Fictício XYZ', null, null, null],
+  ];
+  const r = converterPlanos(lerXlsx(xlsx(a), { abas: ABAS_LIDAS }), HOJE, REFS);
+  const dieta = doAluno(r, 'AL1').dieta.conteudo;
+  assert.deepEqual(dieta.suplementacao.map((x) => x.nome), ['Whey Protein isolado 30 g', 'Creatina monohidratada (5g)']); // o nome da planilha não muda
+  assert.deepEqual(dieta.ergogenicos.map((x) => x.nome), ['Zincoxxx 10 mg', 'Comprimido de Zinco', 'Zinco com Droga Ficticia', 'Remédio Fictício XYZ']);
+  // 'Creatina monohidratada (5g)' casa por palavras contidas com a lista do fornecedor; 'Whey Protein isolado' só pelo começo
+  assert.deepEqual([r.contagens.suplementos, r.contagens.suplementosPorPrefixo, r.contagens.ergogenicosReconhecidos, r.contagens.ergogenicosNaoReconhecidos], [2, 1, 1, 3]);
+});
+
+// ------------------------------------------------------------------- b) correspondencias-exercicios.csv
+
+/** Biblioteca e catálogo fictícios: `biblioteca` = Map chave -> nome, como o `lerBibliotecaLocal`. */
+function paresFicticios() {
+  const nomes = ['Supino reto com barra', 'Remada curvada', 'Puxada alta na polia', 'Rosca direta'];
+  return { biblioteca: new Map(nomes.map((nome) => [chaveDoExercicio(nome), nome])), catalogo: new Set([chaveDoExercicio('Agachamento livre')]) };
+}
+const arquivoComExercicios = (...nomes) => ({ treino: { conteudo: { sessoes: [{ exercicios: nomes.map((nome) => ({ nome })) }] } } });
+/** Preenche a coluna `confirmado` da linha do nome. */
+const confirmar = (csv, nome, valor) => csv.replace(new RegExp(`(^${nome};[^\\n]*;)$`, 'm'), `$1${valor}`);
+
+test('correspondências: só nomes sem par exato; sugestão sem acento e sem diferença de caixa; nota de 0 a 1; sem sugestão abaixo do piso', () => {
+  const pares = paresFicticios();
+  const { linhas, resumo } = linhasDeCorrespondencia([
+    arquivoComExercicios('Supino reto com barra', 'Agachamento livre', 'SUPÍNO RETO COM BARRA  ', 'Remada Curvadda', 'Remada curvadda', 'Xyzzy qwerty'),
+    arquivoComExercicios('Remada curvadda', 'Puxada altta polia'),
+  ], pares);
+  // par exato (biblioteca, mesmo com acento e caixa) e catálogo ficam de fora; nomes que só mudam na caixa somam
+  assert.deepEqual(linhas.map((l) => [l.nome, l.ocorrencias, l.sugestao, l.confirmado]), [
+    ['Remada Curvadda', 3, 'Remada curvada', ''],
+    ['Puxada altta polia', 1, 'Puxada alta na polia', ''],
+    ['Xyzzy qwerty', 1, '', ''],
+  ]);
+  assert.deepEqual([resumo.nomesSemPar, resumo.comSugestao, resumo.semSugestao], [3, 2, 1]);
+  assert.equal(linhas.find((l) => l.nome === 'Xyzzy qwerty').nota, ''); // ausente nunca é 0
+  for (const l of linhas.filter((x) => x.sugestao)) { const n = Number(l.nota.replace(',', '.')); assert.ok(n >= 0.5 && n <= 1, l.nota); }
+  // sugestão sem acento nem caixa: a chave é a mesma
+  assert.equal(sugerirDaBiblioteca(chaveDoExercicio('RÓSCA DIRÉTA'), pares.biblioteca).nome, 'Rosca direta');
+  assert.equal(sugerirDaBiblioteca(chaveDoExercicio('RÓSCA DIRÉTA'), pares.biblioteca).nota, 1);
+  // a nota: igual = 1, nada em comum = 0, palavras trocadas de ordem ainda pontuam
+  assert.equal(notaDeSemelhanca('rosca direta', 'rosca direta'), 1);
+  assert.equal(notaDeSemelhanca('abc', 'xyz'), 0);
+  assert.ok(notaDeSemelhanca('rosca direta', 'direta rosca') > 0.5);
+  assert.equal(sugerirDaBiblioteca('qqqq', pares.biblioteca), null);
+  assert.equal(sugerirDaBiblioteca('qqqq', new Map()), null);
+});
+
+test('correspondências: o arquivo tem BOM, ; e confirmado vazio; lê de volta; só "sim" (caixa e espaços tolerados) vincula', () => {
+  const pares = paresFicticios();
+  const { linhas } = linhasDeCorrespondencia([arquivoComExercicios('Remada curvadda', 'Rosca diretta', '=Fórmula; "estranha"', 'Puxada altta polia')], pares);
+  const csv = csvDeCorrespondencias(linhas);
+  assert.ok(csv.startsWith('﻿nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado\n'));
+  assert.ok(csv.includes("'=Fórmula"));
+  const lidas = lerCorrespondencias(csv);
+  assert.deepEqual([...lidas.values()].map((l) => l.confirmado), ['', '', '', '']);
+  assert.ok(lidas.has(chaveDoExercicio('=Fórmula; "estranha"'))); // o apóstrofo contra fórmula não faz parte do nome
+  assert.equal(vinculosConfirmados(lidas).size, 0);
+
+  const preenchido = confirmar(confirmar(confirmar(csv, 'Remada curvadda', ' SIM '), 'Rosca diretta', 'Sim'), 'Puxada altta polia', 'não');
+  assert.deepEqual([...vinculosConfirmados(lerCorrespondencias(preenchido))], [
+    [chaveDoExercicio('Remada curvadda'), chaveDoExercicio('Remada curvada')],
+    [chaveDoExercicio('Rosca diretta'), chaveDoExercicio('Rosca direta')],
+  ]);
+  for (const outro of ['s', 'x', 'talvez', 'sim?', '1', 'true', 'nao']) {
+    assert.equal(vinculosConfirmados(lerCorrespondencias(confirmar(csv, 'Remada curvadda', outro))).size, 0, outro);
+  }
+  assert.throws(() => lerCorrespondencias('a;b\n1;2\n'), /não tem as colunas/);
+});
+
+test('correspondências: ler o CSV salvo como ANSI (windows-1252) pelo Excel mantém os acentos', () => {
+  const csv = 'nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado\r\nExtensão fictícia;2;Extensão de pernas;0,8;sim\r\n';
+  const ansi = Buffer.from(csv, 'latin1');
+  assert.throws(() => new TextDecoder('utf-8', { fatal: true }).decode(ansi));
+  assert.equal(decodificarCsv(ansi), csv);
+  assert.equal(decodificarCsv(Buffer.from(`﻿${csv}`, 'utf8')), csv); // BOM do UTF-8 sai
+  assert.deepEqual([...vinculosConfirmados(lerCorrespondencias(decodificarCsv(ansi)))], [[chaveDoExercicio('Extensão fictícia'), chaveDoExercicio('Extensão de pernas')]]);
+});
+
+test('correspondências: regerar preserva o confirmado (e a sugestão confirmada) e não perde linha preenchida', () => {
+  const pares = paresFicticios();
+  const arquivos = [arquivoComExercicios('Remada curvadda', 'Rosca diretta', 'Puxada altta polia')];
+  const primeira = csvDeCorrespondencias(linhasDeCorrespondencia(arquivos, pares).linhas);
+  // o treinador confirma uma, recusa outra, troca a sugestão da terceira e confirma; e há uma linha de nome que sumiu da planilha
+  const editado = `${confirmar(confirmar(primeira, 'Remada curvadda', 'sim'), 'Rosca diretta', 'não')
+    .replace(/^Puxada altta polia;.*$/m, 'Puxada altta polia;1;Remada curvada;0,1;sim')}Nome que sumiu;4;Rosca direta;0,3;sim\n`;
+  const anteriores = lerCorrespondencias(editado);
+
+  // a biblioteca ganhou um nome mais parecido e a planilha ganhou uma ocorrência: o que foi confirmado não muda de sugestão
+  const maior = { biblioteca: new Map([...pares.biblioteca, [chaveDoExercicio('Remada curvadda com barra'), 'Remada curvadda com barra']]), catalogo: pares.catalogo };
+  const segunda = linhasDeCorrespondencia([...arquivos, arquivoComExercicios('Remada curvadda')], maior, anteriores);
+  const por = Object.fromEntries(segunda.linhas.map((l) => [l.nome, l]));
+  assert.deepEqual([por['Remada curvadda'].confirmado, por['Remada curvadda'].sugestao, por['Remada curvadda'].ocorrencias], ['sim', 'Remada curvada', 2]);
+  assert.deepEqual([por['Rosca diretta'].confirmado, por['Rosca diretta'].sugestao], ['não', 'Rosca direta']);
+  assert.deepEqual([por['Puxada altta polia'].confirmado, por['Puxada altta polia'].sugestao], ['sim', 'Remada curvada']); // sugestão trocada à mão
+  assert.deepEqual([por['Nome que sumiu'].confirmado, por['Nome que sumiu'].ocorrencias], ['sim', 0]);
+  assert.deepEqual([segunda.resumo.confirmadosNoArquivo, segunda.resumo.confirmadosSim], [4, 3]);
+  // escrever e ler de novo dá os mesmos vínculos
+  const volta = vinculosConfirmados(lerCorrespondencias(csvDeCorrespondencias(segunda.linhas)));
+  assert.deepEqual([...volta].sort(), [...vinculosConfirmados(anteriores)].sort());
+  // sem nada confirmado, o arquivo é gerado de novo por inteiro
+  assert.deepEqual(linhasDeCorrespondencia(arquivos, maior, lerCorrespondencias(primeira)).linhas.map((l) => l.confirmado), ['', '', '']);
+});
+
+test('importação com vínculos confirmados: só vale sem par exato; destino que não existe fica sem par', () => {
+  const r = converter();
+  const pares = { biblioteca: new Map([[chaveDoExercicio('Remada fictícia'), 'Remada fictícia']]), catalogo: new Set([chaveDoExercicio('Puxada fictícia')]) };
+  const vinculos = new Map([
+    [chaveDoExercicio('Exercício data'), chaveDoExercicio('Remada fictícia')], // sem par -> biblioteca
+    [chaveDoExercicio('Exercício WS 23'), chaveDoExercicio('Puxada fictícia')], // sem par -> só no catálogo
+    [chaveDoExercicio('Remada fictícia'), chaveDoExercicio('Puxada fictícia')], // já tem par exato: ignorado
+    [chaveDoExercicio('Sem série'), chaveDoExercicio('Nome que não existe')], // destino inexistente
+  ]);
+  const c = resumoDaImportacao(r.arquivos, pares, vinculos);
+  assert.deepEqual([c.exercicios, c.naBiblioteca, c.soNoCatalogo, c.semPar, c.vinculados, c.vinculosSemDestino], [6, 2, 2, 2, 2, 1]);
+
+  const mapa = new Map([[chaveDoExercicio('Remada fictícia'), { id: 'id-remada', modalidade: 'MAQUINA', videoUrl: 'https://youtu.be/da-biblioteca' }]]);
+  const dados = Object.fromEntries(treinoComBiblioteca(doAluno(r, 'AL1').treino.conteudo, mapa, vinculos).sessoes.flatMap((s) => s.exercicios).map((e) => [e.nome, e]));
+  assert.deepEqual([dados['Exercício data'].exercicioId, dados['Exercício data'].modalidade, dados['Exercício data'].videoUrl], ['id-remada', 'MAQUINA', 'https://youtu.be/da-biblioteca']);
+  assert.equal(dados['Remada fictícia'].exercicioId, 'id-remada');
+  assert.equal(dados['Remada fictícia'].videoUrl, 'https://youtu.be/abc123'); // o vídeo da planilha vence
+  assert.equal(dados['Exercício WS 23'].exercicioId, null); // destino só no catálogo: não está na biblioteca da API
+  assert.equal(dados['Puxada fictícia'].exercicioId, null);
+});
+
 // ------------------------------------------------------------------------------------ linha de comando
 
 function pastaTemporaria(t, prefixo) {
@@ -351,7 +623,7 @@ test('converter-planos: recusa planilha ou saída dentro do repositório; grava 
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /Convertido: 2 alunos com treino, 2 com dieta \(1 com os dois\), de 5 alunos convertidos/);
   assert.ok(!/Aluno Um|Aluno Dois|fictíci/.test(ok.stdout + ok.stderr));
-  assert.deepEqual(readdirSync(join(pasta, 'saida')).sort(), ['AL1.json', 'AL2.json', 'AL6.json', 'problemas.csv']);
+  assert.deepEqual(readdirSync(join(pasta, 'saida')).sort(), ['AL1.json', 'AL2.json', 'AL6.json', 'correspondencias-exercicios.csv', 'problemas.csv']);
   const csv = readFileSync(join(pasta, 'saida', 'problemas.csv'), 'utf8');
   assert.match(csv, /^aba;linha;motivo\n/);
   assert.ok(!/Aluno|fictíci/.test(csv));
@@ -362,6 +634,44 @@ test('converter-planos: recusa planilha ou saída dentro do repositório; grava 
   const naoXlsx = join(pasta, 'texto.xlsx');
   writeFileSync(naoXlsx, 'não é planilha');
   assert.match(rodar('--planilha', naoXlsx, '--saida', join(pasta, 'outra')).stderr, /Planilha não convertida/);
+});
+
+test('converter-planos: grava correspondencias-exercicios.csv (0600) só com nomes sem par; regerar não mexe no que foi confirmado', (t) => {
+  const pasta = pastaTemporaria(t, 'planos-correspondencias-');
+  const arquivo = join(pasta, 'planilha.xlsx');
+  writeFileSync(arquivo, planilhaFicticia());
+  const saida = join(pasta, 'saida');
+  const rodar = (...extra) => spawnSync(process.execPath, [CONVERSOR, '--planilha', arquivo, '--saida', saida, ...extra], { encoding: 'utf8' });
+
+  const simulado = rodar('--simular');
+  assert.equal(simulado.status, 0, simulado.stderr);
+  assert.match(simulado.stdout, /Exercícios sem par exato na biblioteca nem no catálogo: 6 nomes diferentes \(\d+ com sugestão da biblioteca, \d+ sem\); 0 linhas já com "confirmado" preenchido no arquivo \(0 "sim"\)/);
+  assert.throws(() => readdirSync(saida));
+
+  const primeira = rodar();
+  assert.equal(primeira.status, 0, primeira.stderr);
+  assert.ok(!/Remada fictícia|Puxada fictícia/.test(primeira.stdout + primeira.stderr));
+  const caminho = join(saida, ARQUIVO_CORRESPONDENCIAS);
+  const csv = readFileSync(caminho, 'utf8');
+  assert.ok(csv.startsWith('﻿nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado\n'));
+  assert.equal(csv.trim().split('\n').length, 1 + 6);
+  assert.ok(lerCorrespondencias(csv).has(chaveDoExercicio('Remada fictícia')));
+  if (process.platform !== 'win32') assert.equal(statSync(caminho).mode & 0o077, 0);
+
+  // o treinador confirma uma linha (em ANSI, como o Excel grava) e o conversor roda de novo
+  const editado = csv.replace(/^(Remada fictícia;[^\n]*;)$/m, '$1Sim').replace(/^(Puxada fictícia;[^\n]*;)$/m, '$1não');
+  assert.notEqual(editado, csv);
+  writeFileSync(caminho, Buffer.from(editado.replace(/^﻿/, ''), 'latin1')); // o ANSI do Excel não tem BOM
+  const segunda = rodar();
+  assert.equal(segunda.status, 0, segunda.stderr);
+  assert.match(segunda.stdout, /2 linhas já com "confirmado" preenchido no arquivo \(1 "sim"\)/);
+  const depois = lerCorrespondencias(readFileSync(caminho, 'utf8'));
+  assert.deepEqual([depois.get(chaveDoExercicio('Remada fictícia')).confirmado, depois.get(chaveDoExercicio('Puxada fictícia')).confirmado], ['Sim', 'não']);
+
+  writeFileSync(caminho, 'isto;nao;e;o;arquivo\n1;2;3;4;5\n');
+  const quebrado = rodar();
+  assert.equal(quebrado.status, 1);
+  assert.match(quebrado.stderr, /não tem as colunas/);
 });
 
 /** API falsa: guarda as requisições, confere o lock otimista e os limites do `@Size`, e lembra pastas e planos criados. */
@@ -538,4 +848,52 @@ test('importar-planos --gravar: sem IMPORT_EMAIL/IMPORT_SENHA não chama a API',
   assert.equal(r.status, 1);
   assert.match(r.saida, /Defina IMPORT_EMAIL e IMPORT_SENHA/);
   assert.equal(api.requisicoes.length, 0);
+});
+
+test('importar-planos --simular: usa só as linhas confirmado = sim do correspondencias-exercicios.csv da pasta', async (t) => {
+  const pasta = pastaDePlanos(t);
+  const destino = lerBibliotecaLocal().biblioteca.values().next().value; // um nome qualquer da biblioteca do repositório
+  const arquivo = join(pasta, ARQUIVO_CORRESPONDENCIAS);
+  const escrever = (linhas) => writeFileSync(arquivo, `nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado\n${linhas.join('\n')}\n`);
+
+  // sem o arquivo: nada ligado
+  assert.match((await rodarImportador(['--pasta', pasta, '--simular'], {})).saida, /Vínculos confirmados \(confirmado = sim\): 0 nomes no arquivo; 0 exercícios ligados/);
+  // confirmado vazio, "não" e "talvez" não vinculam; " SIM " vincula (e o destino que não existe fica sem par)
+  escrever([`Remada fictícia;1;${destino};0,9;`, `Puxada fictícia;1;${destino};0,9;não`, `Exercício data;1;${destino};0,9;talvez`]);
+  assert.match((await rodarImportador(['--pasta', pasta, '--simular'], {})).saida, /0 nomes no arquivo; 0 exercícios ligados/);
+  escrever([`Remada fictícia;1;${destino};0,9; SIM `, 'Puxada fictícia;1;Nome que não existe na biblioteca;0,9;sim']);
+  const r = await rodarImportador(['--pasta', pasta, '--simular'], {});
+  assert.equal(r.status, 0, r.saida);
+  assert.match(r.saida, /Exercícios: 6 \(1 na biblioteca do Saraiva, 0 só no catálogo público, 5 sem par; 5 nomes diferentes sem par\)/);
+  assert.match(r.saida, /2 nomes no arquivo; 1 exercícios ligados por eles \(já contados acima\) e 1 cujo destino não está/);
+  assert.ok(!/Remada|Puxada|fictíci/.test(r.saida));
+  // arquivo que não é o de correspondências: erro sem conteúdo
+  writeFileSync(arquivo, 'a;b\n1;2\n');
+  const ruim = await rodarImportador(['--pasta', pasta, '--simular'], {});
+  assert.equal(ruim.status, 1);
+  assert.match(ruim.saida, /Arquivo correspondencias-exercicios\.csv: o correspondencias-exercicios\.csv não tem as colunas/);
+});
+
+test('importar-planos --gravar: o exercício confirmado ganha o id, a modalidade e o vídeo da biblioteca; o não confirmado, não', async (t) => {
+  const api = await apiFalsa();
+  t.after(() => api.servidor.close());
+  const pasta = pastaDePlanos(t);
+  // salvo em ANSI, como o "CSV" comum do Excel
+  const csv = [
+    'nome_na_planilha;ocorrencias;sugestao_da_biblioteca;nota_de_semelhanca;confirmado',
+    'Puxada fictícia;1;Remada fictícia;0,5;sim',
+    'Exercício data;1;Remada fictícia;0,5;não',
+    'Exercício WS 23;1;Remada fictícia;0,5;',
+  ].join('\r\n');
+  writeFileSync(join(pasta, ARQUIVO_CORRESPONDENCIAS), Buffer.from(`${csv}\r\n`, 'latin1'));
+  const r = await rodarImportador(['--pasta', pasta, '--gravar'], { API_URL: api.url, IMPORT_EMAIL: 'treinador@example.com', IMPORT_SENHA: 'senha-falsa' });
+  assert.equal(r.status, 0, r.saida);
+  assert.match(r.saida, /Exercícios gravados sem par na biblioteca: 3; ligados por vínculo confirmado: 1\./);
+  assert.ok(!/Remada|Puxada|fictíci/.test(r.saida));
+  const exercicios = api.rascunhos.get('id-plano-2').corpo.conteudo.sessoes.flatMap((s) => s.exercicios);
+  const por = Object.fromEntries(exercicios.map((e) => [e.nome, e]));
+  assert.deepEqual([por['Remada fictícia'].exercicioId, por['Puxada fictícia'].exercicioId, por['Puxada fictícia'].modalidade], ['id-remada', 'id-remada', 'MAQUINA']);
+  assert.equal(por['Puxada fictícia'].nome, 'Puxada fictícia'); // o nome da planilha fica
+  assert.equal(por['Exercício data'].exercicioId, null);
+  assert.equal(por['Exercício WS 23'].exercicioId, null);
 });
