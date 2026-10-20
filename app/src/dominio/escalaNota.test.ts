@@ -1,4 +1,4 @@
-import { posicaoDoValor, valorAposPasso, valorDaPosicao } from './escalaNota';
+import { disposicaoDaEscala, posicaoDoValor, valorAposPasso, valorDaPosicao } from './escalaNota';
 
 describe('escalaNota', () => {
   // largura 300, margem 20: o centro do botão anda de 20 a 280 (260 px para 10 passos).
@@ -35,5 +35,22 @@ describe('escalaNota', () => {
     expect(valorAposPasso(10, 1, 0, 10)).toBe(10);
     expect(valorAposPasso(0, -1, 0, 10)).toBe(0);
     expect(valorAposPasso(4, 1, 0, 10)).toBe(5);
+  });
+});
+
+describe('disposicaoDaEscala', () => {
+  it('no celular (326 px), 1 a 10 fica em duas linhas de 5 e 0 a 10 em 6 + 5', () => {
+    expect(disposicaoDaEscala(10, 326, 8)).toEqual({ porLinha: 5, lado: 56 });
+    expect(disposicaoDaEscala(11, 326, 8)).toEqual({ porLinha: 6, lado: 47 });
+  });
+
+  it('no PC cabe tudo numa linha, sem passar do lado máximo', () => {
+    expect(disposicaoDaEscala(11, 640, 8)).toEqual({ porLinha: 11, lado: 50 });
+    expect(disposicaoDaEscala(5, 640, 8)).toEqual({ porLinha: 5, lado: 56 });
+  });
+
+  it('nunca desce do alvo de toque; sem largura, uma linha só com o lado mínimo', () => {
+    expect(disposicaoDaEscala(11, 30, 8)).toEqual({ porLinha: 1, lado: 44 });
+    expect(disposicaoDaEscala(11, 0, 8)).toEqual({ porLinha: 11, lado: 44 });
   });
 });
