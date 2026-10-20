@@ -180,6 +180,21 @@ const TREINADOR: Guia = {
         { titulo: 'Tema claro/escuro', texto: 'Qualquer pessoa troca em Ajustes (menu do seu nome, no topo; no celular, em Perfil). Vale só para o seu usuário.' },
       ],
     },
+    {
+      titulo: 'Financeiro (cobrar seus alunos)',
+      itens: [
+        { titulo: 'Quem vê', texto: 'Financeiro aparece no menu (em Consultoria) só quando o módulo está ligado para a consultoria e para quem tem a permissão Financeiro.' },
+        { titulo: 'O que é', texto: 'Aqui você cobra os seus alunos: cria planos comerciais, contrata um plano na ficha do aluno e registra os pagamentos. O app não cobra nem recebe dinheiro; você registra o que recebeu. Não tem nada a ver com o plano de treino nem com a assinatura da Central.' },
+        { titulo: 'Planos comerciais', texto: 'Em Planos, toque em Novo plano e informe o nome, o valor e a periodicidade (mensal, trimestral, semestral, anual ou parcela única). Arquivar guarda o plano sem apagá-lo; os arquivados aparecem em Mostrar arquivados.' },
+        { titulo: 'Contratar na ficha', texto: 'Na ficha do aluno, toque em Contratar plano e escolha o plano. Se deixar o valor em branco, vale o do plano; um valor diferente pede o motivo. Escolha o dia do vencimento (de 1 a 31); em meses mais curtos, vale o último dia do mês.' },
+        { titulo: 'Registrar pagamento', texto: 'Na cobrança em aberto, toque em Registrar pagamento e informe a data (até hoje), a forma (Dinheiro, Pix direto, Transferência ou Outro) e uma observação, se quiser. Desfazer baixa só vale para baixa feita à mão e pede o motivo. Cancelar cobrança só vale para cobrança em aberto e também pede o motivo.' },
+        { titulo: 'Próxima cobrança', texto: 'Nenhuma cobrança nasce sozinha por data. A próxima só é gerada quando a anterior é paga ou cancelada, ou quando você retoma a contratação. Por isso, atraso e inadimplência consideram só as cobranças já geradas.' },
+        { titulo: 'Pausar, retomar e encerrar', texto: 'Na contratação, Pausar e Retomar mudam a situação do plano do aluno. Encerrar pede confirmação e termina esse plano.' },
+        { titulo: 'Visão geral', texto: 'Mostra o recebido, o a receber, o em atraso, a inadimplência, a receita recorrente mensal e um gráfico por mês. Em Como calculamos estes números, dá para ver cada regra. “Líquido para você” aparece como “indisponível”: o app não desconta taxa nenhuma; sem taxa informada, os valores são só os brutos.' },
+        { titulo: 'Lançamentos', texto: 'Entradas e saídas avulsas da consultoria, sem aluno, com descrição, valor, data e categoria livre (opcional). “Resultado do mês” é entradas menos saídas registradas, somando os recebimentos das cobranças. Não é resultado contábil.' },
+        { titulo: 'Exportar CSV', texto: 'Em Exportar CSV, baixe as cobranças (por vencimento) e os lançamentos (por data) do período. A exportação aceita até 5.000 linhas; se passar disso, escolha um período menor. O arquivo tem dados financeiros dos alunos: guarde com cuidado.' },
+      ],
+    },
   ],
   perguntas: [
     { pergunta: 'Editei um plano e o aluno ainda vê o antigo.', resposta: 'O aluno só vê o que está publicado. Toque em Publicar para gerar a versão nova.' },
@@ -288,6 +303,16 @@ const ALUNO: Guia = {
         { titulo: 'Tema e texto', texto: 'Claro, escuro ou do sistema; tamanho do texto, contraste, animações e vibração.' },
         { titulo: 'Senha', texto: 'Trocar a senha encerra as outras sessões.' },
         { titulo: 'Excluir minha conta', texto: 'O último cartão de Conta apaga a sua conta, com internet. Digite a sua senha e a palavra EXCLUIR. Seu nome, e-mail e senha, o peso, a dieta, as respostas das atualizações e da anamnese, as observações dos treinos e as fotos são apagados; os treinos e as cargas que você registrou ficam com a consultoria, sem o seu nome. Não tem volta: para usar o app de novo, peça um convite novo ao treinador.' },
+      ],
+    },
+    {
+      titulo: 'Meu plano e pagamentos',
+      itens: [
+        { titulo: 'Onde ver', texto: 'Em Conta, no cartão Meu plano. Ele só aparece quando a consultoria tem o módulo de pagamentos ligado.' },
+        { titulo: 'O que aparece', texto: 'O plano comercial com o seu treinador (nome, valor, periodicidade e próximo vencimento), as cobranças em aberto e o histórico. O histórico mostra as últimas; “Ver todas” mostra o resto.' },
+        { titulo: 'Como pagar', texto: 'O pagamento é combinado com o seu treinador, fora do app. Não há botão de pagar no app: quando ele recebe, registra o pagamento e a cobrança fica como paga.' },
+        { titulo: 'Sem internet', texto: 'Os dados do plano só aparecem com internet e não são guardados no aparelho.' },
+        { titulo: 'Pagamento em aberto', texto: 'Uma cobrança vencida, ou que vence em até 3 dias, aparece em Suas pendências como “Pagamento em aberto”. É só um aviso.' },
       ],
     },
   ],
