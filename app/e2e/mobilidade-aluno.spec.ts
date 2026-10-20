@@ -90,7 +90,8 @@ test('mobilidade: o dia escolhido nos chips tem a própria contagem', async ({ p
   });
   await page.goto('/aluno/mobilidade');
   await expect(page.getByText('Hoje: 0 de 3 feitos')).toBeVisible();
-  await page.getByRole('button', { name: /14\/10/ }).click();
+  await page.getByRole('radio', { name: /14\/10/ }).click();
+  await expect(page.getByRole('radio', { name: /14\/10/ })).toBeChecked();
   await expect(page.getByText('Em 14/10: 2 de 3 feitos')).toBeVisible();
   expect(errosDaPagina).toEqual([]);
 });

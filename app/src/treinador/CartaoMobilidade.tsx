@@ -1,8 +1,11 @@
 import { listarPlanos, mobilidadeFeitaDoAluno } from '../api/rotas';
 import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
-import { hojeIso, somarDias } from '../dominio/formatos';
-import { contagemDaMobilidadeNoTreinador, textoDaMobilidade } from '../dominio/mobilidadeFeita';
+import { dataCurta, hojeIso, somarDias } from '../dominio/formatos';
+import { contagemDaMobilidadeNoTreinador, textoDosDiasDeMobilidade } from '../dominio/mobilidadeFeita';
 import { periodoDaSemana } from '../dominio/progressoSemana';
+import { StyleSheet, View } from 'react-native';
+
+import { espaco } from '../tema/tokens';
 import { Cartao } from '../ui/Cartao';
 import { CampoLeitura } from '../ui/CampoLeitura';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -36,11 +39,26 @@ export function CartaoMobilidade({ alunoId, acompanhamento }: { alunoId: string;
   );
   // Sem o resumo da ficha não há pasta para consultar; o erro já aparece no cartão Frequência e no resumo do topo.
   if (acompanhamento.erro) return null;
+  const inicio = pasta?.inicio ?? null;
+  const comPeriodo = !!inicio && !!pasta?.fim;
+  // A pasta conta do início até hoje (as marcas só vão até hoje), como no cartão Frequência.
+  const ate = pasta?.fim && pasta.fim < hoje ? pasta.fim : hoje;
   return (
-    <Cartao titulo="Mobilidade" descricao="Dias em que o aluno marcou algo como feito. Só contagem.">
+    <Cartao titulo="Mobilidade" descricao="Dias com algum item marcado como feito. Só contagem.">
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {dados === undefined && !erro ? <Esqueleto /> : null}
-      {dados !== undefined ? <CampoLeitura rotulo="Mobilidade" valor={textoDaMobilidade(dados)} numerico /> : null}
+      {dados !== undefined ? (
+        <View style={estilos.linha}>
+          <CampoLeitura rotulo="Esta semana" valor={textoDosDiasDeMobilidade(dados ? dados.naSemana : null)} numerico />
+          <CampoLeitura
+            rotulo={pasta && inicio && comPeriodo ? `Na pasta ${pasta.titulo} (${dataCurta(inicio)} a ${dataCurta(ate)})` : 'Na pasta vigente'}
+            valor={textoDosDiasDeMobilidade(dados && comPeriodo ? dados.naPasta : null)}
+            numerico
+          />
+        </View>
+      ) : null}
     </Cartao>
   );
 }
+
+const estilos = StyleSheet.create({ linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3) } });

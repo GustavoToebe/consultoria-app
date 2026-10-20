@@ -91,22 +91,25 @@ function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }
   };
   return (
     <>
-      {podeMarcar && data ? (
-        <Cartao>
-          <Texto numerico style={estilos.contagem} accessibilityLiveRegion="polite">
-            {textoDaContagem(contagem, data === hoje, dataCurta(data))}
-          </Texto>
-          <DatasDaMobilidade
-            datas={datas}
-            hoje={hoje}
-            atual={data}
-            comAlgoFeito={(d) => feitosDoDia(marcasDeMobilidade, versao.id, d).size > 0}
-            aoAbrir={setDataEscolhida}
-          />
-        </Cartao>
-      ) : (
-        <Texto variante="suave" cor={cores.textoSuave}>{semMarcar(vigente, noPlano, datas.length > 0)}</Texto>
-      )}
+      {/* O plano em uso e o dia que se marca num cartão só, no topo (o título ficava solto no fim da tela). */}
+      <Cartao titulo={versao.titulo} descricao={versao.inicio && versao.fim ? `${dataCurta(versao.inicio)} a ${dataCurta(versao.fim)}` : undefined}>
+        {podeMarcar && data ? (
+          <>
+            <Texto numerico style={estilos.contagem} accessibilityLiveRegion="polite">
+              {textoDaContagem(contagem, data === hoje, dataCurta(data))}
+            </Texto>
+            <DatasDaMobilidade
+              datas={datas}
+              hoje={hoje}
+              atual={data}
+              comAlgoFeito={(d) => feitosDoDia(marcasDeMobilidade, versao.id, d).size > 0}
+              aoAbrir={setDataEscolhida}
+            />
+          </>
+        ) : (
+          <Texto variante="suave" cor={cores.textoSuave}>{semMarcar(vigente, noPlano, datas.length > 0)}</Texto>
+        )}
+      </Cartao>
       {c.orientacoes?.trim() ? (
         <Cartao titulo="Orientações">
           <Texto numerico>{c.orientacoes}</Texto>
@@ -136,9 +139,6 @@ function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }
           })}
         </Cartao>
       ))}
-      <Texto variante="suave">
-        {versao.titulo}
-      </Texto>
       <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da mobilidade" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
     </>
   );

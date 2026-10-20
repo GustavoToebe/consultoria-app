@@ -113,11 +113,12 @@ export function contagemDaMobilidadeNoTreinador(
   };
 }
 
-const dias = (n: number) => `${n} ${n === 1 ? 'dia' : 'dias'}`;
-
-/** "—" sem mobilidade, "Nenhum registro" com zero nos dois, senão "N dias com algo feito nesta semana · N na pasta". */
-export function textoDaMobilidade(c: ContagemDaMobilidade | null): string {
-  if (!c) return '—';
-  if (c.naSemana === 0 && c.naPasta === 0) return 'Nenhum registro';
-  return `${dias(c.naSemana)} com algo feito nesta semana · ${c.naPasta} na pasta`;
+/**
+ * Cada número do cartão (semana ou pasta), no molde do cartão Frequência: "—" sem mobilidade publicada na pasta,
+ * "Nenhum registro" com zero, senão "N dias".
+ */
+export function textoDosDiasDeMobilidade(n: number | null): string {
+  if (n === null) return '—';
+  if (n === 0) return 'Nenhum registro';
+  return `${n} ${n === 1 ? 'dia' : 'dias'}`;
 }

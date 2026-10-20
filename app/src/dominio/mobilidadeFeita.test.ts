@@ -9,7 +9,7 @@ import {
   fundirMarcas,
   itensDaMobilidade,
   textoDaContagem,
-  textoDaMobilidade,
+  textoDosDiasDeMobilidade,
   type MarcaDeMobilidade,
   type MarcaLocalDeMobilidade,
 } from './mobilidadeFeita';
@@ -129,10 +129,9 @@ describe('contagem no treinador', () => {
   });
 
   it('o texto: "—", "Nenhum registro" ou as contagens', () => {
-    expect(textoDaMobilidade(null)).toBe('—');
-    expect(textoDaMobilidade({ naSemana: 0, naPasta: 0 })).toBe('Nenhum registro');
-    expect(textoDaMobilidade({ naSemana: 3, naPasta: 12 })).toBe('3 dias com algo feito nesta semana · 12 na pasta');
-    expect(textoDaMobilidade({ naSemana: 1, naPasta: 1 })).toBe('1 dia com algo feito nesta semana · 1 na pasta');
-    expect(textoDaMobilidade({ naSemana: 0, naPasta: 4 })).toBe('0 dias com algo feito nesta semana · 4 na pasta');
+    expect(textoDosDiasDeMobilidade(null)).toBe('—');
+    expect(textoDosDiasDeMobilidade(0)).toBe('Nenhum registro');
+    expect(textoDosDiasDeMobilidade(1)).toBe('1 dia');
+    expect(textoDosDiasDeMobilidade(12)).toBe('12 dias');
   });
 });

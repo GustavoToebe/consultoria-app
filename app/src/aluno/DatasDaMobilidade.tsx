@@ -1,12 +1,15 @@
-import { StyleSheet, View } from 'react-native';
+import { Check } from 'lucide-react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { dataCurta } from '../dominio/formatos';
-import { espaco } from '../tema/tokens';
-import { ChipData } from './DatasDaDivisao';
+import { useTema } from '../tema/TemaProvider';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { Texto } from '../ui/Texto';
 
 /**
- * Chips com os últimos dias para marcar a mobilidade ("Hoje · 19/10", "18/10"...), no estilo das "Outras datas" do
- * treino. O ✓ verde diz que o dia tem algum item feito; o dia aberto fica marcado e não toca de novo.
+ * Escolha do dia para marcar a mobilidade ("Hoje · 19/10", "18/10"...): é um seletor na própria tela, então o dia aberto
+ * segue a seleção invertida do app (fundo `texto`, letra `fundo`), como as `Escolha`, e não tem seta de navegar (que os
+ * chips do treino têm, porque lá cada data abre outra tela). O ✓ diz que o dia tem algum item feito.
  */
 export function DatasDaMobilidade({
   datas,
@@ -22,22 +25,48 @@ export function DatasDaMobilidade({
   comAlgoFeito: (data: string) => boolean;
   aoAbrir: (data: string) => void;
 }) {
+  const { cores } = useTema();
   return (
-    <View style={estilos.chips}>
-      {datas.map((d) => (
-        <ChipData
-          key={d}
-          rotulo={d === hoje ? `Hoje · ${dataCurta(d)}` : dataCurta(d)}
-          descricao={`Mobilidade, ${dataCurta(d)}`}
-          hoje={d === hoje}
-          atual={d === atual}
-          feito={comAlgoFeito(d)}
-          ativo
-          aoTocar={() => aoAbrir(d)}
-        />
-      ))}
+    <View style={estilos.chips} accessibilityRole="radiogroup" accessibilityLabel="Dia da mobilidade">
+      {datas.map((d) => {
+        const escolhido = d === atual;
+        const feito = comAlgoFeito(d);
+        const rotulo = d === hoje ? `Hoje · ${dataCurta(d)}` : dataCurta(d);
+        return (
+          <Pressable
+            key={d}
+            accessibilityRole="radio"
+            accessibilityLabel={`Mobilidade, ${dataCurta(d)}${d === hoje ? ', hoje' : ''}${feito ? ', com algo feito' : ''}`}
+            aria-checked={escolhido}
+            accessibilityState={{ checked: escolhido }}
+            onPress={() => { if (!escolhido) aoAbrir(d); }}
+            style={({ pressed }) => [
+              estilos.chip,
+              {
+                backgroundColor: escolhido ? cores.texto : cores.superficie2,
+                borderColor: escolhido ? cores.texto : cores.borda,
+                opacity: pressed && !escolhido ? 0.75 : 1,
+              },
+            ]}>
+            {feito ? <Check size={16} color={escolhido ? cores.fundo : cores.sucesso} strokeWidth={2.5} /> : null}
+            <Texto numerico style={[estilos.texto, { color: escolhido ? cores.fundo : cores.texto }]}>{rotulo}</Texto>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
-const estilos = StyleSheet.create({ chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) } });
+const estilos = StyleSheet.create({
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espaco(0.75),
+    minHeight: ALVO_TOQUE,
+    paddingHorizontal: espaco(1.5),
+    borderRadius: RAIO,
+    borderWidth: 1,
+  },
+  texto: { fontFamily: fontes.semi, fontSize: 15 },
+});
