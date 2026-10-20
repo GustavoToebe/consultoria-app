@@ -1,6 +1,6 @@
 import { Switch } from '../components/ui/switch';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from '../dominio/formatos';
 import { escalar } from '../dominio/preferencias';
@@ -103,7 +103,7 @@ export function CampoNumerico({
 }
 
 /** Texto do campo numérico: guarda o que foi digitado e só repassa quando é número (ou vazio = `null`). */
-function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean) {
+function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null) => void, inteiro?: boolean, aoValidade?: (valido: boolean) => void) {
   const [texto, setTexto] = useState(valor === null ? '' : numeroParaTela(valor, 3));
   const [anterior, setAnterior] = useState(valor);
   if (valor !== anterior) {
@@ -114,6 +114,7 @@ function useNumeroDigitado(valor: number | null, aoMudar: (valor: number | null)
   const mudar = (t: string) => {
     setTexto(t);
     const n = numeroDaTela(t, inteiro);
+    aoValidade?.(n !== undefined);
     if (n !== undefined) {
       setAnterior(n);
       aoMudar(n);
@@ -135,12 +136,18 @@ export function CampoNumericoGrande({
   rotuloAcessivel,
   destaque,
   ajuda,
+  rotuloOculto,
+  aoValidade,
 }: {
   rotulo: string;
   valor: number | null;
   aoMudar: (valor: number | null) => void;
   inteiro?: boolean;
   sufixo?: string;
+  /** Sem o rótulo em cima (a unidade dentro da caixa já diz o que é; o leitor de tela lê `rotuloAcessivel`). */
+  rotuloOculto?: boolean;
+  /** Avisa a cada digitação se o texto é número (ou vazio): quem grava trava o ✓ enquanto não for. */
+  aoValidade?: (valido: boolean) => void;
   /** Rótulo completo para o leitor de tela ("Peso da série 2"). */
   rotuloAcessivel?: string;
   /** Caixa maior (carga de trabalho do dia). */
@@ -150,12 +157,12 @@ export function CampoNumericoGrande({
 }) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
-  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro);
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade);
   const corBorda = lido === undefined ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
   const destaqueBorda = foco || lido === undefined ? 1 : 0;
   return (
     <View style={estilos.grande}>
-      <Texto variante="rotulo">{rotulo}</Texto>
+      {rotuloOculto ? null : <Texto variante="rotulo">{rotulo}</Texto>}
       <View style={[estilos.caixa, destaque && estilos.caixaDestaque, { backgroundColor: cores.campo, borderColor: corBorda, borderWidth: 1 + destaqueBorda, paddingHorizontal: espaco(1.5) - destaqueBorda }]}>
         <TextInput
           accessibilityLabel={rotuloAcessivel ?? rotulo}
@@ -169,7 +176,7 @@ export function CampoNumericoGrande({
           keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}
           inputMode={inteiro ? 'numeric' : 'decimal'}
           selectTextOnFocus
-          style={[estilos.numero, destaque && estilos.numeroDestaque, { color: cores.texto, fontSize: escalar(destaque ? 28 : 22, fatorTexto) }]}
+          style={[estilos.numero, destaque && estilos.numeroDestaque, semContornoNaWeb, { color: cores.texto, fontSize: escalar(destaque ? 28 : 22, fatorTexto) }]}
         />
         {sufixo ? <Texto variante="suave" style={estilos.sufixo}>{sufixo}</Texto> : null}
       </View>
@@ -181,6 +188,12 @@ export function CampoNumericoGrande({
     </View>
   );
 }
+
+/**
+ * Na web o anel de foco do navegador ficava dentro da caixa, atravessando o número e a unidade; quem mostra o foco é a
+ * borda da caixa (cor `anelFoco`, mais grossa).
+ */
+const semContornoNaWeb = Platform.OS === 'web' ? { outlineWidth: 0 } : null;
 
 /** Liga/desliga com o texto ao lado (o rótulo inteiro também alterna). */
 export function Interruptor({
@@ -217,7 +230,7 @@ const estilos = StyleSheet.create({
     borderRadius: RAIO,
     minHeight: 52,
   },
-  caixaDestaque: { minHeight: 64, alignSelf: 'stretch', minWidth: 0, maxWidth: '100%' },
+  caixaDestaque: { minHeight: 64, alignSelf: 'stretch', minWidth: 0, maxWidth: 320 },
   numero: { flex: 1, width: 0, minWidth: 0, fontFamily: fontes.negrito, fontSize: 22, fontVariant: ['tabular-nums'], paddingVertical: espaco(1) },
   numeroDestaque: { fontSize: 28 },
   sufixo: { fontFamily: fontes.semi, marginLeft: espaco(0.5) },

@@ -110,7 +110,7 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
   const { cores } = useTema();
   const rotulo = `${p.rotulo}${p.obrigatoria ? ' *' : ''}`;
   const ajuda = p.ajudaAutomatica === 'MEDIA_DIAS_TREINO' && resumo?.mediaDiasPorSemana != null
-    ? `No app: média de ${numeroParaTela(resumo.mediaDiasPorSemana, 1)} dias com treino por semana neste período`
+    ? `Pelo app, você treinou em média ${numeroParaTela(resumo.mediaDiasPorSemana, 1)} ${resumo.mediaDiasPorSemana < 2 ? 'dia' : 'dias'} por semana neste período.`
     : p.ajuda;
   const ajudaTexto = ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null;
   const mensagemErro = erro ? <Texto cor={cores.perigo}>{erro}</Texto> : null;

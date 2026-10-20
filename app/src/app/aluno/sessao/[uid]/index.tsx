@@ -10,6 +10,7 @@ import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { gruposDaSessao } from '../../../../dominio/combinacoes';
+import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
 import { nomeComDia, totalDeSeries } from '../../../../dominio/semana';
 import { useTema } from '../../../../tema/TemaProvider';
@@ -61,15 +62,15 @@ export default function SessaoAluno() {
       <Animated.View entering={reduzido ? undefined : FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}>
       <Cabecalho
         titulo={nomeComDia(sessao)}
-        subtitulo={`${sessao.exercicios.length} exercícios programados`}
+        subtitulo={contagem(sessao.exercicios.length, 'exercício programado', 'exercícios programados')}
         voltar="/aluno"
       />
       </Animated.View>
       <Cartao>
         <View style={estilos.linhaResumo}>
           <Selo texto={data === hoje ? `Hoje · ${dataParaTela(data)}` : dataParaTela(data)} tipo="neutro" />
-          <Texto variante="suave">
-            {feitas} de {total} séries feitas
+          <Texto variante="suave" numerico>
+            {feitas} de {contagem(total, 'série feita', 'séries feitas')}
           </Texto>
         </View>
         <BarraProgresso feitas={feitas} total={total} />
@@ -103,8 +104,9 @@ export default function SessaoAluno() {
         });
         // Exercícios feitos juntos (bi-set, tri-set, circuito) aparecem numa moldura com o nome do grupo.
         return g.nome ? (
-          <View key={`grupo-${g.exercicios[0].uid}`} style={[estilos.grupo, { borderColor: cores.borda }]}>
-            <Texto variante="rotulo">{g.nome}: {g.exercicios.length} exercícios, um depois do outro, sem descanso</Texto>
+          <View key={`grupo-${g.exercicios[0].uid}`} style={[estilos.grupo, { borderColor: cores.bordaCampo }]}>
+            <Texto variante="bloco">{g.nome}</Texto>
+            <Texto variante="pequeno">{contagem(g.exercicios.length, 'exercício', 'exercícios')}, um depois do outro, sem descanso entre eles.</Texto>
             {cartoes}
           </View>
         ) : (
@@ -117,6 +119,7 @@ export default function SessaoAluno() {
 }
 
 const estilos = StyleSheet.create({
-  grupo: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1), gap: espaco(1) },
+  // Moldura do bi-set/supersérie com `bordaCampo` (a `borda` de cartão quase sumia no tema escuro).
+  grupo: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

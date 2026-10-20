@@ -1,5 +1,5 @@
 import type { Serie, Tecnica } from '../api/tipos';
-import { agrupar, descreverSeries, tecnicasDoExercicio, textosDeTecnica, textoTecnica, textoTecnicaPorExtenso } from './agrupamento';
+import { agrupar, descreverSeries, resumoTecnicasEDescanso, tecnicasDoExercicio, textosDeTecnica, textoTecnica, textoTecnicaPorExtenso } from './agrupamento';
 
 const cluster: Tecnica = { tipo: 'CLUSTER', blocos: 3, repsPorBloco: 2, pausaSegundos: 20, retomadas: null, repsPorRetomada: null };
 const restPause: Tecnica = { tipo: 'REST_PAUSE', blocos: null, repsPorBloco: null, pausaSegundos: 20, retomadas: 2, repsPorRetomada: null };
@@ -78,5 +78,17 @@ describe('drop-set', () => {
     expect(tecnicasDoExercicio([serie('a', dropSet)])[0].pausaSegundos).toBeNull();
     expect(agrupar([serie('a'), serie('b', dropSet), serie('c', dropSet), serie('d', cluster)]).map((g) => g.series.length)).toEqual([1, 2, 1]);
     expect(descreverSeries([serie('a', dropSet)])).toEqual(['1x6 - WS · Drop-set 2× −20%']);
+  });
+});
+
+describe('resumo de técnicas e descanso na lista do dia', () => {
+  const s = (tecnica?: Tecnica | null, descansoSegundos: number | null = null): Serie =>
+    ({ uid: 'x', tipo: 'WS', repsMin: 6, repsMax: 8, alvoTexto: null, intensidade: null, descansoSegundos, tecnica }) as Serie;
+  const cluster: Tecnica = { tipo: 'CLUSTER', blocos: 3, repsPorBloco: 4, pausaSegundos: 20, retomadas: null, repsPorRetomada: null };
+  const drop: Tecnica = { tipo: 'DROP_SET', blocos: null, repsPorBloco: null, pausaSegundos: null, retomadas: null, repsPorRetomada: null, quedas: 2 };
+  it('diz a série de cada técnica e o descanso', () => {
+    expect(resumoTecnicasEDescanso([s(), s(), s(), s(cluster, 90)])).toBe('Cluster na série 4 · descanso 90 s');
+    expect(resumoTecnicasEDescanso([s(null, 60), s(drop, 90), s(drop, 90)])).toBe('Drop-set nas séries 2 e 3 · descanso 60 a 90 s');
+    expect(resumoTecnicasEDescanso([s(), s()])).toBeNull();
   });
 });

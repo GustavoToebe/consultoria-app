@@ -2,9 +2,10 @@ import { CheckCircle2, ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
+import { resumoTecnicasEDescanso } from '../dominio/agrupamento';
 import { usaCargaDeTrabalho } from '../dominio/cargas';
 import { numeroParaTela } from '../dominio/formatos';
-import { MODALIDADES } from '../treinador/treino/FolhaBiblioteca';
+import { MODALIDADES } from '../dominio/modalidades';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
 import { Selo } from '../ui/Selo';
@@ -12,7 +13,8 @@ import { Texto } from '../ui/Texto';
 
 /**
  * Exercício na lista do dia: nome, modalidade, a carga de trabalho (a do dia ou, sem ela, a última registrada) e
- * quantas séries já foram feitas. Toque abre o exercício.
+ * quantas séries já foram feitas, com a técnica de cada série e o descanso ("Cluster na série 4 · descanso 90 s").
+ * Toque abre o exercício.
  */
 export function CartaoExercicioDoDia({
   exercicio: e,
@@ -34,9 +36,10 @@ export function CartaoExercicioDoDia({
   const { cores } = useTema();
   const total = e.series.length;
   const completo = total > 0 && feitas >= total;
+  const resumo = resumoTecnicasEDescanso(e.series);
   const carga = usaCargaDeTrabalho(e)
     ? cargaDoDia !== null
-      ? { rotulo: `Carga de trabalho (${tipoTrabalho})`, valor: `${numeroParaTela(cargaDoDia)} kg` }
+      ? { rotulo: `Carga de trabalho (${tipoTrabalho}) hoje`, valor: `${numeroParaTela(cargaDoDia)} kg` }
       : { rotulo: 'Última carga', valor: ultima?.carga != null ? `${numeroParaTela(ultima.carga)} kg` : '—' }
     : null;
 
@@ -55,6 +58,7 @@ export function CartaoExercicioDoDia({
             {posicao + 1}. {e.nome}
           </Texto>
           {e.modalidade ? <Texto numerico variante="suave">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
+          {resumo ? <Texto numerico variante="pequeno">{resumo}</Texto> : null}
         </View>
         {completo ? <CheckCircle2 size={22} color={cores.sucesso} /> : <ChevronRight size={22} color={cores.textoSuave} />}
       </View>

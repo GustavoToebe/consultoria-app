@@ -45,13 +45,15 @@ export default function HistoricoAluno() {
   const animar = usePrimeiraLista(true);
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
   const [gerando, setGerando] = useState(false);
+  // Pasta nova ainda sem treino: "Sem treinos no período" escondia a semana anterior. O aluno pode ver os últimos 30 dias.
+  const [ultimosDias, setUltimosDias] = useState(false);
   const hoje = hojeIso();
   // Plano em uso (o escolhido para consulta ou o vigente), como no seletor de plano. O período é o da pasta; sem
   // conexão ou sem período, valem os últimos 30 dias. A busca espera a lista de pastas para não consultar duas vezes.
   const pastas = useCarregar(`pastas-aluno:${pacote?.pacote.geradoEm ?? ''}`, () => pastasDoAluno());
   const pasta = escolhida?.pasta ?? pastas.dados?.find((p) => p.atual) ?? null;
-  const daPasta = !!pasta?.inicio && !!pasta.fim;
-  const { de, ate } = intervaloDeRegistros(hoje, DIAS, pasta ?? undefined);
+  const daPasta = !!pasta?.inicio && !!pasta.fim && !ultimosDias;
+  const { de, ate } = intervaloDeRegistros(hoje, DIAS, daPasta ? (pasta ?? undefined) : undefined);
   const aguardandoPastas = pastas.carregando && !pastas.dados;
   const historico = useCarregar(aguardandoPastas ? null : `hist:${de}:${ate}`, () => historicoAluno(de, ate));
   const pesos = useCarregar('pesos-aluno', () => pesosAluno());
@@ -130,7 +132,17 @@ export default function HistoricoAluno() {
         {semConexao ? <Texto numerico variante="suave">Sem conexão: o histórico do servidor aparece quando voltar a internet.</Texto> : null}
         {historico.erro && !semConexao ? <MensagemErro texto={textoDoErro(historico.erro)} erro={historico.erro} tentarDeNovo={historico.recarregar} /> : null}
         {!historico.dados && historico.carregando ? <Esqueleto /> : null}
-        {historico.dados && historico.dados.length === 0 ? <Vazio titulo="Sem treinos no período" texto="Os treinos registrados aparecem aqui." /> : null}
+        {historico.dados && historico.dados.length === 0 ? (
+          daPasta ? (
+            <>
+              <Vazio titulo="Nenhum treino neste plano ainda" texto="Os treinos que você registrar aparecem aqui." />
+              <Botao rotulo={`Ver os últimos ${DIAS} dias`} tipo="secundario" aoTocar={() => setUltimosDias(true)} />
+            </>
+          ) : (
+            <Vazio titulo="Sem treinos no período" texto="Os treinos registrados aparecem aqui." />
+          )
+        ) : null}
+        {ultimosDias ? <Botao rotulo="Voltar ao período do plano" tipo="fantasma" aoTocar={() => setUltimosDias(false)} /> : null}
         {historico.dados && visao === 'divisao' ? <CargasPorDivisao divisoes={divisoes} /> : null}
         {historico.dados && visao === 'dia'
           ? [...historico.dados].sort((a, b) => b.data.localeCompare(a.data)).map((d, i) => <EntradaEmCascata key={d.data} indice={i} animar={animar}><DiaRegistros dia={d} /></EntradaEmCascata>)
@@ -141,7 +153,8 @@ export default function HistoricoAluno() {
 
       <Cartao titulo="Peso">
         {pesos.dados?.length ? (
-          [...pesos.dados].reverse().map((p) => (
+          // Mais recente primeiro, como nas outras listas do aluno.
+          [...pesos.dados].sort((a, b) => b.data.localeCompare(a.data)).map((p) => (
             <LinhaPeso key={p.id} data={p.data} peso={p.pesoKg} variacao={p.variacao} />
           ))
         ) : pesos.carregando ? (
