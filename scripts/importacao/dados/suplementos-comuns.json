@@ -1,0 +1,11 @@
+{
+  "fonte": "lista curta escrita para a importação de planos (converter-planos.mjs): só nomes genéricos de suplemento alimentar, sem marca, dose ou indicação; serve para separar o que vai em Suplementação do que vai em Medicação e ergogênicos",
+  "aviso": "Palavra que não casa aqui nem com a lista de ergogênicos cai na lista sensível (Medicação e ergogênicos): o treinador move. Não é opinião sobre o que o item é.",
+  "itens": [
+    "Creatina", "Whey", "Whey Protein", "Albumina", "Caseína", "Proteína", "Hipercalórico", "Maltodextrina", "Dextrose", "Waxy Maize",
+    "BCAA", "Glutamina", "Beta Alanina", "Citrulina", "Taurina", "Cafeína", "Pré Treino", "Intra Treino", "Pré Sono",
+    "Multivitamínico", "Vitamina C", "Vitamina D", "Vitamina D3", "Vitamina B12", "Vitamina E", "Vitamina K2", "Complexo B",
+    "Ômega 3", "Óleo de Peixe", "Magnésio", "Zinco", "Colágeno", "Probiótico", "Psyllium", "Fibra", "Pasta de Amendoim", "Creme de Amendoim",
+    "Eletrólitos", "Sal Rosa"
+  ]
+}

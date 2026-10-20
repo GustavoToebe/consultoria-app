@@ -62,6 +62,44 @@ repositório. Não fala com a API: depois de ler os problemas, rode o importador
   salva antes como cópia sem senha. Testes: `node --test scripts/importacao/planilha.test.mjs`, com uma planilha
   fictícia montada no próprio teste.
 
+## Dieta e treino da planilha do treinador (rascunhos)
+
+Além dos alunos, a planilha tem as abas **Planos**, **Refeições**, **Suplementos**, **Treinos_Rotinas** e
+**Treinos_Exercicios**. Dois scripts levam isso para a plataforma como **rascunho**, nunca publicado: o treinador revisa
+e publica na tela. A aba **TACO** (tabela de terceiros) nunca é lida: o conversor pede ao leitor só as abas de que
+precisa e a TACO nem é descomprimida. Os alunos precisam ter sido importados antes (o plano é ligado ao aluno pelo nome).
+
+```
+node scripts/importacao/converter-planos.mjs --planilha <fora do repositório>/planilha.xlsx --saida <pasta fora do repositório> [--simular]
+node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --simular      (sem rede e sem login)
+node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar       (grava; exige API_URL, IMPORT_EMAIL, IMPORT_SENHA)
+```
+
+- **Conversor:** grava um JSON por aluno (o nome do arquivo é o código do aluno na planilha, nunca o nome; permissão 0600)
+  e um `problemas.csv` só com aba, linha e motivo. Recusa planilha e pasta dentro do repositório. O terminal mostra só
+  contagens. `--simular` não grava nada.
+- **Regras:** só entra plano ou rotina **ativo** e **único** por aluno (plano inativo, repetido ou de aluno que não está
+  na aba Alunos vai para os problemas; o conversor nunca escolhe um). Valor ausente é "—" (nulo), nunca zero: quantidade 0
+  na dieta fica sem quantidade. Intra-treino, hidratação e refeição livre viram orientações da dieta; "Obs Gerais", a
+  observação geral. Treino: uma sessão por letra, exercícios pela coluna Ordem, e as observações da rotina (divisão
+  semanal, acessórios, recomendações, gerais) viram as orientações do treino. Os limites de tamanho da API são respeitados
+  (nome de exercício com mais de 120 letras é cortado e o nome inteiro vai para a observação; link de vídeo só https do
+  YouTube).
+- **Séries (padrão do Saraiva, igual à metodologia padrão):** FS segue a regra de preparação (1 FS = 85%; 2 = 70 e 85;
+  3 = 50, 70 e 85; outra quantidade fica sem intensidade e vai para os problemas), 3 repetições; WS usa a faixa da coluna
+  "Rep Range" (`3a6`); TS vira um "Top set" livre; BO vira "Back off" com o percentual da coluna "Back Off %" e 6 a 8
+  repetições. "Rep Range" que o Excel transformou em data **não é decodificado**: as repetições ficam em branco e o
+  problema é anotado. Exercício sem nenhuma série entra vazio, para o treinador preencher.
+- **Suplementos:** o que a lista de suplementos comuns reconhece vai para a suplementação; **todo o resto** (inclusive o
+  que não for reconhecido) vai para medicação e ergogênicos, que é dado sensível. Na dúvida, a escolha mais conservadora.
+- **Importador:** `--simular` lê só os arquivos e o repositório e mostra contagens, entre elas quantos exercícios têm par
+  na biblioteca do Saraiva, quantos só no catálogo público (precisam ser importados para a biblioteca) e quantos não têm
+  par. `--gravar` cria, para cada aluno, a pasta "Importada da planilha (rascunho)" (sem datas), os planos e o rascunho
+  de cada um (com o `exercicioId` quando o nome casa com a biblioteca; exercício sem par fica só com o nome, nunca é
+  criado). Confere as permissões em `GET /eu` antes de gravar qualquer coisa (inclusive `ERGOGENICO_ALTERAR` quando há
+  medicação) e para no primeiro erro. Rodar de novo não duplica. Nunca chama `/publicar`.
+- Testes (planilha e servidor falsos montados no próprio teste): `node --test scripts/importacao/*.test.mjs`.
+
 ## Como rodar
 
 1. Gere os dois CSV numa pasta **fora do repositório** (o script recusa uma pasta de dentro): pelo conversor (seção

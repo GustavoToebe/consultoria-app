@@ -73,7 +73,7 @@ const ALIAS_NOME = {
   'Elevação lateral na polia baixa': 'Elevação lateral na polia',
   'Tríceps na polia alta com corda': 'Tríceps com corda na polia',
 };
-const ALIAS = Object.fromEntries(Object.entries(ALIAS_NOME).map(([de, para]) => [chave(de), para]));
+export const ALIAS = Object.fromEntries(Object.entries(ALIAS_NOME).map(([de, para]) => [chave(de), para]));
 
 /** Parecidos o bastante para serem o mesmo exercício (mesmas palavras, uma lista dentro da outra). */
 function parecidos(a, b) {

@@ -104,8 +104,13 @@ const indiceDaColuna = (letras) => [...letras.toUpperCase()].reduce((n, c) => n 
  * número da linha no Excel (o que a pessoa vê) e `celulas[coluna]` = `{ tipo: 'texto'|'numero'|'erro'|'logico', valor }`
  * (coluna sem nada fica vazia no array). Datas chegam como número; quem sabe que a coluna é data converte
  * ({@link dataDoExcel}).
+ *
+ * `abas` (opcional) limita a leitura às abas dessa lista (comparadas sem acento e caixa, como em {@link aba}): as outras
+ * nem são descomprimidas. É o que o conversor de planos usa para nunca abrir a aba "TACO" (tabela de terceiros). Os
+ * textos compartilhados (`sharedStrings.xml`) são um arquivo só do livro e precisam ser lidos, mas nenhuma célula das
+ * abas de fora é montada.
  */
-export function lerXlsx(buf) {
+export function lerXlsx(buf, { abas: soAbas = null } = {}) {
   const zip = lerZip(buf);
   const xml = (nome) => zip.ler(nome)?.toString('utf8') ?? null;
   const livro = xml('xl/workbook.xml');
@@ -116,6 +121,7 @@ export function lerXlsx(buf) {
 
   const abas = new Map();
   for (const [a] of elementos(livro, 'sheet')) {
+    if (soAbas && !soAbas.some((n) => coluna(n) === coluna(a.name ?? ''))) continue;
     const alvo = destinos.get(a.id);
     if (!alvo) continue;
     const caminho = alvo.startsWith('/') ? alvo.slice(1) : `xl/${alvo.replace(/^\.\//, '')}`;
@@ -163,14 +169,14 @@ export function dataDoExcel(serial, data1904 = false) {
 }
 
 /** Texto da célula: número sem notação estranha (45 e não 45.0), vazio para erro, lógico e célula vazia. */
-function texto(celula) {
+export function texto(celula) {
   if (!celula) return '';
   if (celula.tipo === 'texto') return celula.valor.trim();
   if (celula.tipo === 'numero') return String(celula.valor);
   return '';
 }
 
-const vazia = (celula) => !celula || (celula.tipo === 'texto' && celula.valor.trim() === '');
+export const vazia = (celula) => !celula || (celula.tipo === 'texto' && celula.valor.trim() === '');
 
 /** Data da célula: `undefined` se vazia, `null` se não é data (texto estranho, erro de fórmula, série impossível). */
 function dataDaCelula(celula, data1904) {
@@ -194,7 +200,7 @@ function pesoDaCelula(celula) {
 }
 
 /** Acha a aba pelo nome sem acento e caixa ("Histórico Pesos" = "historico_pesos"). */
-function aba(planilha, nomes, rotulo) {
+export function aba(planilha, nomes, rotulo) {
   for (const [nome, linhas] of planilha.abas) if (nomes.includes(coluna(nome))) return linhas;
   throw new Error(`não achei a aba "${rotulo}" na planilha.`);
 }
@@ -205,7 +211,7 @@ function aba(planilha, nomes, rotulo) {
  * célula do cabeçalho (na planilha do Saraiva ela às vezes guarda um ID em vez do título "ID"), desde que não seja uma
  * coluna conhecida.
  */
-function cabecalho(linhas, exigidas, conhecidas, rotulo) {
+export function cabecalho(linhas, exigidas, conhecidas, rotulo) {
   for (const [i, linha] of linhas.slice(0, 20).entries()) {
     const indices = new Map();
     let primeira = -1;
