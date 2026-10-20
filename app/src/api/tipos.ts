@@ -758,9 +758,13 @@ export interface PerguntaAtualizacao {
   dias?: number[];
   opcoes?: OpcaoPergunta[];
   unidade?: string;
+  /** NUMERO: faixa da resposta. NOTA: ponta de baixo (0 ou 1) e de cima (2 a 10); sem elas, 0 a 10. FOTOS: `max` = fotos aceitas (1 a 6; sem ele, 6). */
   min?: number;
   max?: number;
   casas?: number;
+  /** NOTA: texto curto embaixo das pontas da escala ("Nada", "Muito"); até 40 cada. */
+  rotuloMin?: string;
+  rotuloMax?: string;
   /** Imagem (PNG/JPEG da consultoria), vista pela API com token. */
   imagemId?: string;
   /** DATA: só hoje ou antes. */
@@ -778,7 +782,11 @@ export interface PerguntaAtualizacao {
   /** PESO com destino: id da pergunta DATA ("só hoje ou antes") com a data da pesagem; sem ela, a data do envio. */
   destinoData?: string;
 }
-export interface SecaoAtualizacao { uid?: string; titulo: string; perguntas: PerguntaAtualizacao[]; mostrarSe?: CondicaoPergunta }
+/**
+ * `descricao`: texto da seção (até 4000), mostrado embaixo do título, com o mesmo formato simples do texto do INFORMATIVO e do
+ * ACEITE (`dominio/textoFormatado`: `**negrito**`, `__sublinhado__`, quebras de linha).
+ */
+export interface SecaoAtualizacao { uid?: string; titulo: string; descricao?: string; perguntas: PerguntaAtualizacao[]; mostrarSe?: CondicaoPergunta }
 /** Conteúdo (formato 2) de um questionário: o rascunho e cada versão publicada. */
 export interface ConteudoQuestionario { formato?: number; instrucoes: string[]; secoes: SecaoAtualizacao[] }
 export interface Atualizacao {
