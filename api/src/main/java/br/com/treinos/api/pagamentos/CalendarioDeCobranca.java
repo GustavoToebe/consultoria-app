@@ -28,6 +28,21 @@ final class CalendarioDeCobranca {
     }
 
     /**
+     * A âncora de uma retomada: hoje, ou o dia seguinte ao fim do último período pago, o que vier depois (retomar não
+     * sobrepõe período pago). O período pago de uma competência {@code c} vai até {@code c + meses − 1 dia}, então o dia
+     * seguinte é {@code c + meses} (mesma conta de meses das competências, que limita ao último dia do mês).
+     *
+     * @param maiorCompetenciaPaga maior competência com cobrança PAGA da contratação; nula = nenhuma paga (vale hoje)
+     */
+    static LocalDate ancoraDaRetomada(LocalDate hoje, PeriodoDoPlano periodo, LocalDate maiorCompetenciaPaga) {
+        if (maiorCompetenciaPaga == null || !periodo.recorrente()) {
+            return hoje;
+        }
+        LocalDate livre = maiorCompetenciaPaga.plusMonths(periodo.meses());
+        return livre.isAfter(hoje) ? livre : hoje;
+    }
+
+    /**
      * @param piso data abaixo da qual o vencimento não pode cair (hoje, ao refazer uma cobrança que ainda não venceu); nulo =
      *             só a competência vale como piso
      */

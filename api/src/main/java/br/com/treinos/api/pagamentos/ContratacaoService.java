@@ -128,7 +128,10 @@ public class ContratacaoService {
         return mudou(c, "CONTRATACAO_PAUSADA", "Pausou a contratação de um aluno.");
     }
 
-    /** Recomeça a contar na data da retomada (o período parado não é cobrado) e gera a seguinte se não há aberta. */
+    /**
+     * Recomeça a contar em max(hoje, dia seguinte ao fim do último período PAGO desta contratação): o período parado não é
+     * cobrado e retomar nunca sobrepõe período pago. Gera a seguinte se não há aberta.
+     */
     @Transactional
     public ContratacaoResponse retomar(UUID id, Long versao) {
         ContratacaoAluno c = travas.daContratacao(id).contratacao();
@@ -137,7 +140,8 @@ public class ContratacaoService {
         }
         exigirNaoEncerrada(c);
         conferirVersao(c, versao);
-        c.retomar(LocalDate.now(Fuso.BRASILIA));
+        LocalDate ultimaPaga = cobrancas.maiorCompetenciaDaSituacao(c.getId(), CobrancaAluno.Situacao.PAGA).orElse(null);
+        c.retomar(CalendarioDeCobranca.ancoraDaRetomada(LocalDate.now(Fuso.BRASILIA), c.getPeriodicidade(), ultimaPaga));
         contratacoes.flush();
         if (!cobrancas.existsByContratacaoIdAndSituacao(c.getId(), CobrancaAluno.Situacao.ABERTA)) {
             gerador.proxima(c);

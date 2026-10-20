@@ -86,10 +86,10 @@ public class ContratacaoAluno {
         this.situacao = Situacao.PAUSADA;
     }
 
-    /** Recomeça na data da retomada: o período pausado não é cobrado. */
-    void retomar(LocalDate hoje) {
+    /** Recomeça na âncora dada (hoje, ou depois do último período pago): o período pausado não é cobrado. */
+    void retomar(LocalDate novaAncora) {
         this.situacao = Situacao.ATIVA;
-        this.ancora = hoje;
+        this.ancora = novaAncora;
     }
 
     void encerrar(Instant quando) {

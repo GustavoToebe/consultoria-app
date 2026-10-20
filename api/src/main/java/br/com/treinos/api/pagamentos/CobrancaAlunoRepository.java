@@ -82,6 +82,10 @@ public interface CobrancaAlunoRepository extends JpaRepository<CobrancaAluno, UU
     @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId")
     Optional<LocalDate> maiorCompetencia(UUID contratacaoId);
 
+    /** Maior competência da contratação numa situação (a das PAGAS dá o fim do último período pago). */
+    @Query("select max(c.competencia) from CobrancaAluno c where c.contratacaoId = :contratacaoId and c.situacao = :situacao")
+    Optional<LocalDate> maiorCompetenciaDaSituacao(UUID contratacaoId, CobrancaAluno.Situacao situacao);
+
     boolean existsByContratacaoIdAndCompetencia(UUID contratacaoId, LocalDate competencia);
 
     boolean existsByContratacaoIdAndSituacao(UUID contratacaoId, CobrancaAluno.Situacao situacao);

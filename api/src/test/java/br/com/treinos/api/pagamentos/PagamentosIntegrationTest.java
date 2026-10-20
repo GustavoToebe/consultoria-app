@@ -836,6 +836,132 @@ class PagamentosIntegrationTest extends AbstractIntegrationTest {
         assertThat(parcela.get("periodicidade").asString()).isEqualTo("PARCELA_UNICA");
     }
 
+    // ---- retomar não sobrepõe período pago ----
+
+    private JsonNode pausar(JsonNode contratacao) throws Exception {
+        return api.post("/contratacoes/" + contratacao.get("id").asString() + "/pausar", admin,
+                Map.of("versao", contratacao.get("versao").asLong()), 200);
+    }
+
+    private JsonNode retomar(JsonNode pausada) throws Exception {
+        return api.post("/contratacoes/" + pausada.get("id").asString() + "/retomar", admin,
+                Map.of("versao", pausada.get("versao").asLong()), 200);
+    }
+
+    /** As competências das cobranças do aluno, da mais nova para a mais antiga, em texto ISO. */
+    private List<String> competencias(UUID aluno) throws Exception {
+        List<String> lista = new ArrayList<>();
+        cobrancas(aluno).forEach(c -> lista.add(c.get("competencia").asString()));
+        return lista;
+    }
+
+    private LocalDate ancoraDe(JsonNode contratacao) {
+        return jdbc.queryForObject("select ancora from contratacao_aluno where id = ?::uuid", LocalDate.class,
+                contratacao.get("id").asString());
+    }
+
+    @Test
+    void retomarTrimestralPagoPulaParaOFimDoPeriodoPagoSemDuplicarNemCobrarOsMesesPausados() throws Exception {
+        UUID aluno = aluno();
+        // O cenário do treinador: início em 1/10, paga a 1ª, pausa em 15/10 e retoma em 1/11 (aqui: início há 31 dias).
+        LocalDate inicio = hoje.minusDays(31);
+        LocalDate seguinte = inicio.plusMonths(3);
+        JsonNode contratacao = contratar(aluno, plano("Plano trimestral da retomada", 30000, "TRIMESTRAL"), inicio, 10);
+        baixar(cobrancas(aluno).get(0), hoje, 200);
+        // Pagar a 1ª já gera a seguinte, aberta.
+        assertThat(competencias(aluno)).containsExactly(seguinte.toString(), inicio.toString());
+
+        JsonNode pausada = pausar(contratacao);
+        JsonNode retomada = retomar(pausada);
+        assertThat(retomada.get("situacao").asString()).isEqualTo("ATIVA");
+
+        // A âncora vai para o dia seguinte ao fim do período pago, não para hoje.
+        assertThat(ancoraDe(contratacao)).isEqualTo(seguinte);
+        assertThat(competencias(aluno)).as("exatamente uma de %s e nenhuma nos meses parados", seguinte)
+                .containsExactly(seguinte.toString(), inicio.toString());
+        for (int meses = 1; meses <= 2; meses++) {
+            assertThat(competencias(aluno)).doesNotContain(inicio.plusMonths(meses).toString());
+        }
+        assertThat(competencias(aluno)).doesNotContain(hoje.toString(), hoje.plusMonths(1).toString());
+        JsonNode aberta = porCompetencia(aluno, seguinte);
+        assertThat(aberta.get("situacao").asString()).isEqualTo("ABERTA");
+        assertThat(aberta.get("vencimento").asString()).isEqualTo(CalendarioDeCobranca.vencimento(seguinte, 10, null).toString());
+        assertThat(LocalDate.parse(aberta.get("vencimento").asString())).isAfterOrEqualTo(seguinte);
+        assertThat(porCompetencia(aluno, inicio).get("situacao").asString()).isEqualTo("PAGA");
+
+        // Repetir não muda nada; e a seguinte, depois de paga, continua a grade a partir da nova âncora.
+        retomar(retomada);
+        assertThat(competencias(aluno)).hasSize(2);
+        assertThat(auditorias("CONTRATACAO_RETOMADA", contratacao.get("id").asString())).isEqualTo(1);
+        baixar(porCompetencia(aluno, seguinte), hoje, 200);
+        assertThat(competencias(aluno)).containsExactly(seguinte.plusMonths(3).toString(), seguinte.toString(), inicio.toString());
+    }
+
+    @Test
+    void retomarComAAbertaCanceladaAntesDaPausaMantemOPisoEAUnicidadeDaCompetencia() throws Exception {
+        UUID aluno = aluno();
+        LocalDate inicio = hoje.minusDays(31);
+        LocalDate pulada = inicio.plusMonths(3);
+        LocalDate seguinte = inicio.plusMonths(6);
+        JsonNode contratacao = contratar(aluno, plano("Plano trimestral do pulo", 30000, "TRIMESTRAL"), inicio, 10);
+        baixar(cobrancas(aluno).get(0), hoje, 200);
+        // Cancelar a aberta (pular o período) gera a seguinte: pulada CANCELADA e inicio+6 meses ABERTA.
+        motivo("/cobrancas/" + porCompetencia(aluno, pulada).get("id").asString() + "/cancelar", porCompetencia(aluno, pulada), 200);
+        assertThat(competencias(aluno)).containsExactly(seguinte.toString(), pulada.toString(), inicio.toString());
+
+        retomar(pausar(contratacao));
+
+        // Piso = fim do período pago de `inicio`; a pulada continua ocupando a competência e nada nasce dentro do período pago.
+        assertThat(ancoraDe(contratacao)).isEqualTo(pulada);
+        assertThat(competencias(aluno)).containsExactly(seguinte.toString(), pulada.toString(), inicio.toString());
+        assertThat(porCompetencia(aluno, pulada).get("situacao").asString()).isEqualTo("CANCELADA");
+        assertThat(porCompetencia(aluno, seguinte).get("situacao").asString()).isEqualTo("ABERTA");
+    }
+
+    @Test
+    void retomarSemAbertaComACanceladaOcupandoOPisoGeraAProximaDaGrade() throws Exception {
+        UUID aluno = aluno();
+        LocalDate inicio = hoje.minusDays(31);
+        LocalDate pulada = inicio.plusMonths(3);
+        LocalDate seguinte = inicio.plusMonths(6);
+        JsonNode contratacao = contratar(aluno, plano("Plano trimestral cancelado pausado", 30000, "TRIMESTRAL"), inicio, 10);
+        baixar(cobrancas(aluno).get(0), hoje, 200);
+        JsonNode pausada = pausar(contratacao);
+        // Pausada, cancelar a aberta não gera a seguinte: ao retomar, não há aberta e a conta precisa gerar uma.
+        motivo("/cobrancas/" + porCompetencia(aluno, pulada).get("id").asString() + "/cancelar", porCompetencia(aluno, pulada), 200);
+        assertThat(competencias(aluno)).containsExactly(pulada.toString(), inicio.toString());
+
+        retomar(pausada);
+
+        // max(hoje, fim do pago) = `pulada`, mas ela já existe (cancelada, ainda ocupa): vem a seguinte, nunca dentro do período pago.
+        assertThat(ancoraDe(contratacao)).isEqualTo(pulada);
+        assertThat(competencias(aluno)).containsExactly(seguinte.toString(), pulada.toString(), inicio.toString());
+        JsonNode nova = porCompetencia(aluno, seguinte);
+        assertThat(nova.get("situacao").asString()).isEqualTo("ABERTA");
+        assertThat(nova.get("vencimento").asString()).isEqualTo(CalendarioDeCobranca.vencimento(seguinte, 10, null).toString());
+        assertThat(porCompetencia(aluno, pulada).get("situacao").asString()).isEqualTo("CANCELADA");
+    }
+
+    @Test
+    void retomarMensalSemNenhumaPagaContinuaGerandoAPartirDeHoje() throws Exception {
+        UUID aluno = aluno();
+        LocalDate inicio = hoje.minusMonths(2);
+        JsonNode contratacao = contratar(aluno, plano("Plano mensal sem paga", 10000, "MENSAL"), inicio, hoje.getDayOfMonth());
+        JsonNode primeira = cobrancas(aluno).get(0);
+        JsonNode pausada = pausar(contratacao);
+        motivo("/cobrancas/" + primeira.get("id").asString() + "/cancelar", primeira, 200);
+        assertThat(competencias(aluno)).containsExactly(inicio.toString());
+
+        retomar(pausada);
+
+        // Sem PAGA, o comportamento é o de sempre: âncora = hoje e a competência nova é hoje.
+        assertThat(ancoraDe(contratacao)).isEqualTo(hoje);
+        assertThat(competencias(aluno)).containsExactly(hoje.toString(), inicio.toString());
+        JsonNode nova = porCompetencia(aluno, hoje);
+        assertThat(nova.get("situacao").asString()).isEqualTo("ABERTA");
+        assertThat(nova.get("vencimento").asString()).isEqualTo(hoje.toString());
+    }
+
     @Test
     void competenciasSeguemAAncoraEODia31VaiAoUltimoDiaDoMes() throws Exception {
         UUID aluno = aluno();
