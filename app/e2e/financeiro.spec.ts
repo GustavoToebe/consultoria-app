@@ -833,7 +833,9 @@ test('juros do parcelamento: "Você" fica apagado sem chave, com o motivo; com a
   await opcao(page, JUROS, 'Aluno').click();
   await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
-  await expect(page.getByText('Recebimento online salvo.')).toBeVisible();
+  // O aviso do primeiro salvar ainda pode estar na tela: espera o segundo PUT chegar antes de conferir o corpo.
+  await expect.poll(() => pedidos.filter(ehSalvar).length).toBe(2);
+  await expect(page.getByText('Recebimento online salvo.').first()).toBeVisible();
   expect(pedidos.filter(ehSalvar).at(-1)?.corpo).toEqual({ infiniteTag: 'saraiva.team', versao: 0, jurosDoParcelamento: 'ALUNO' });
   expect(estado.recebimento.jurosDoParcelamento).toBe('ALUNO');
   expect(errosDaPagina).toEqual([]);
