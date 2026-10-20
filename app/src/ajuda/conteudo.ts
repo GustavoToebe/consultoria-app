@@ -8,8 +8,10 @@ export type Publico = 'treinador' | 'aluno';
 export interface PassoGuia {
   titulo: string;
   texto: string;
-  /** Tela onde o passo acontece; vira o botão "Abrir esta tela". */
+  /** Tela onde o passo acontece; vira o botão "Abrir" (todo passo que acontece numa tela tem uma). */
   rota?: string;
+  /** Só no guia em PDF: passo de quem ainda não entrou (o convite), que não serve a quem já está no app. */
+  soNoPdf?: boolean;
 }
 
 /** Um passo do passeio pelo menu: `alvo` = `menu:<caminho do item>`; sem alvo, o balão fica no meio da tela. */
@@ -43,35 +45,37 @@ const TREINADOR: Guia = {
     'Aqui você cadastra os alunos, monta treino, dieta e mobilidade em pastas por período e acompanha as cargas que eles registram. Cada consultoria é isolada: você só vê os dados da sua.',
   primeirosPassos: [
     { titulo: 'Cadastre o primeiro aluno', texto: 'Em Alunos, toque em Novo aluno e preencha nome e e-mail. O ciclo de atualização (em dias) define o período sugerido das pastas; vazio usa o padrão da consultoria (Marca › Acompanhamento).', rota: '/treinador/alunos' },
-    { titulo: 'Convide o aluno para o app', texto: 'Na ficha do aluno, no cartão Acesso ao app, toque em Gerar convite e envie o código ou o link. O aluno cria a senha por ele.' },
-    { titulo: 'Crie a pasta do período', texto: 'Na ficha, em Pastas de plano, toque em Nova pasta. A pasta junta treino, dieta e mobilidade e dá o período a todos.' },
-    { titulo: 'Monte e publique o treino', texto: 'Abra a pasta, crie o plano de treino, adicione exercícios da biblioteca e toque em Publicar. O que foi publicado não muda: editar cria uma versão nova.' },
-    { titulo: 'Acompanhe os registros', texto: 'Na pasta, o cartão Registros e cargas mostra o que o aluno fez, por divisão ou por dia. Dá para baixar o PDF das cargas.' },
+    { titulo: 'Convide o aluno para o app', texto: 'Na ficha do aluno, no cartão Acesso ao app, toque em Gerar convite e envie o código ou o link. O aluno cria a senha por ele.', rota: '/treinador/alunos' },
+    { titulo: 'Crie a pasta do período', texto: 'Na ficha, em Pastas de plano, toque em Nova pasta. A pasta junta treino, dieta e mobilidade e dá o período a todos.', rota: '/treinador/alunos' },
+    { titulo: 'Monte e publique o treino', texto: 'Abra a pasta, crie o plano de treino, adicione exercícios da biblioteca e toque em Publicar. O que foi publicado não muda: editar cria uma versão nova.', rota: '/treinador/alunos' },
+    { titulo: 'Acompanhe os registros', texto: 'Na pasta, o cartão Registros e cargas mostra o que o aluno fez, por divisão ou por dia. Dá para baixar o PDF das cargas. As atualizações enviadas ficam em Atualizações, no menu.', rota: '/treinador/atualizacoes' },
   ],
   tutorial: [
     { titulo: 'Boas-vindas', texto: 'Este tutorial passa pelas telas principais na ordem em que você vai usá-las. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
-    { titulo: 'Menu e barra de topo', texto: 'No computador o menu fica à esquerda (dá para minimizar) e a barra de topo traz a busca "O que você deseja fazer?" (atalho Ctrl+K), o botão Todas as telas, onde dá para marcar favoritas, e o seu usuário. No celular, a barra de baixo tem Início, Alunos, Biblioteca, Planejamento e Perfil; Interessados, Marca, Equipe e Auditoria ficam nos atalhos do Perfil. Só aparece o que o seu perfil permite.', rota: '/treinador' },
+    { titulo: 'Menu e barra de topo', texto: 'No computador o menu fica à esquerda (dá para minimizar) e a barra de topo traz a busca "O que você deseja fazer?" (atalho Ctrl+K), o botão Todas as telas, onde dá para marcar favoritas, e o seu usuário. No celular, a barra de baixo tem Início, Alunos, Biblioteca, Planos e Perfil; Atualizações abre pelo Início, e Interessados, Marca, Equipe, Auditoria e a busca de telas ficam no Perfil, com a seta de voltar. Um ponto no ícone avisa que há algo a fazer. Só aparece o que o seu perfil permite.', rota: '/treinador' },
     { titulo: 'Alunos', texto: 'Lista os alunos da consultoria, com busca e o filtro "Meus alunos". Cada linha mostra a situação da atualização da pasta atual (para quem pode ver atualizações). Toque em um aluno para abrir a ficha.', rota: '/treinador/alunos' },
     { titulo: 'Interessados', texto: 'O link de inscrição da consultoria e a fila de quem se inscreveu por ele. Ligue o link, copie e divulgue; cada inscrição chega para o responsável escolhido. Abra a inscrição para conversar pelo WhatsApp, registrar o andamento e aceitar (o aluno é cadastrado na hora) ou recusar.', rota: '/treinador/interessados' },
     { titulo: 'Ficha do aluno', texto: 'Reúne dados, acesso ao app, lesões, pastas de plano, frequência, progresso por exercício, peso e a evolução das respostas das atualizações. Atualizações do aluno ficam dentro de cada pasta.', rota: '/treinador/alunos' },
-    { titulo: 'Pastas de plano', texto: 'Cada pasta tem período e agrupa treino, dieta e mobilidade. Use o filtro Todas, Ativas ou Concluídas para achar uma pasta. Finalize a pasta ao fim do ciclo e replique para o próximo; em Mais ações (⋯), Renovar pasta faz isso de uma vez, com o próximo período e os planos em rascunho.' },
-    { titulo: 'Editores de plano', texto: 'Nada é salvo sozinho: toque em Salvar rascunho (Validar e Publicar também salvam antes). O selo do topo diz "Alterações não salvas" e, depois de salvar, "Salvo às HH:MM". Se sair com alterações não salvas, o app pergunta antes. Plano publicado é imutável.' },
+    { titulo: 'Pastas de plano', texto: 'Cada pasta tem período e agrupa treino, dieta e mobilidade. Use o filtro Todas, Ativas ou Concluídas para achar uma pasta. Finalize a pasta ao fim do ciclo e replique para o próximo; em Mais ações (⋯), Renovar pasta faz isso de uma vez, com o próximo período e os planos em rascunho.', rota: '/treinador/alunos' },
+    { titulo: 'Atualizações', texto: 'As atualizações que os alunos enviam ao fim de cada período, separadas em para revisar, atrasadas e todas. Abra uma, leia as respostas e escreva o retorno; "Próxima" passa para a seguinte da fila. O ponto no menu avisa quando há alguma para revisar.', rota: '/treinador/atualizacoes' },
+    { titulo: 'Editores de plano', texto: 'Nada é salvo sozinho: toque em Salvar rascunho (Validar e Publicar também salvam antes). O selo do topo diz "Alterações não salvas" e, depois de salvar, "Salvo às HH:MM". Se sair com alterações não salvas, o app pergunta antes. Plano publicado é imutável.', rota: '/treinador/planejamento' },
     { titulo: 'Biblioteca', texto: 'Exercícios (com filtro por grupo muscular), alimentos, suplementos, catálogo público e importação por CSV. A aba Outros (medicação e ergogênicos) só aparece para quem tem a permissão; as categorias dela são você quem escreve.', rota: '/treinador/biblioteca' },
     { titulo: 'Planejamento', texto: 'Modelos reutilizáveis de treino, dieta e mobilidade, e pacotes de pasta inteira. Aplique o modelo a um aluno quando quiser. A aba Atualização guarda os questionários que o aluno responde ao fim de cada período, e a aba Anamnese, os questionários iniciais que você envia pela ficha do aluno.', rota: '/treinador/planejamento' },
-    { titulo: 'Marca, Equipe e Auditoria', texto: 'Marca (cor, fonte e logo) aparece só a quem tem permissão para alterá-la. Equipe gerencia perfis e permissões; Auditoria lista o que foi feito. Aparecem conforme o seu perfil, no menu lateral do computador e nos atalhos do Perfil no celular.' },
+    { titulo: 'Marca, Equipe e Auditoria', texto: 'Marca (cor, fonte e logo) aparece só a quem tem permissão para alterá-la. Equipe gerencia membros e perfis de acesso; Auditoria lista o que foi feito. Aparecem conforme o seu perfil, no menu lateral do computador e nos atalhos do Perfil no celular.', rota: '/treinador/equipe' },
     { titulo: 'Seu usuário e Ajuda', texto: 'No cartão com o seu nome (canto superior direito; no celular, em Perfil) ficam Meus dados (nome, telefone e senha), Segurança (verificação em duas etapas com aplicativo autenticador, códigos de recuperação), Minha conta (plano, cobranças com o botão "Pagar" nas que estão em aberto, e consumo; só aparece para quem tem permissão), Ajustes (tema claro/escuro e tamanho do texto) e Sair. Esta Ajuda fica sempre à mão.', rota: '/treinador/ajustes' },
   ],
   passeio: [
     { titulo: 'Boas-vindas', texto: 'Um passeio rápido pelo menu, item por item. Leva menos de um minuto. Dá para pular agora e rever quando quiser em Ajuda.' },
     { titulo: 'Início', texto: 'O resumo da consultoria: atualizações para revisar e alunos sem registro há alguns dias.', alvo: 'menu:/treinador' },
     { titulo: 'Alunos', texto: 'Cadastre os alunos e abra a ficha de cada um: convite para o app, pastas com treino, dieta e mobilidade, registros, peso e atualizações.', alvo: 'menu:/treinador/alunos' },
-    { titulo: 'Interessados', texto: 'O link de inscrição da consultoria e a fila de quem se inscreveu por ele: contato pelo WhatsApp, notas, aceitar (vira aluno) ou recusar.', alvo: 'menu:/treinador/interessados' },
+    { titulo: 'Atualizações', texto: 'As atualizações que os alunos enviam ao fim de cada período. Um ponto aparece aqui quando há alguma para revisar.', alvo: 'menu:/treinador/atualizacoes' },
+    { titulo: 'Interessados', texto: 'O link de inscrição da consultoria e a fila de quem se inscreveu por ele: contato pelo WhatsApp, notas, aceitar (vira aluno) ou recusar. Um ponto avisa de inscrição nova.', alvo: 'menu:/treinador/interessados' },
     { titulo: 'Biblioteca', texto: 'Exercícios, alimentos, suplementos e Outros (medicação e ergogênicos). Tudo o que entra nos planos sai daqui.', alvo: 'menu:/treinador/biblioteca' },
-    { titulo: 'Planejamento', texto: 'Modelos de treino, dieta e mobilidade para aplicar aos alunos, e os questionários da atualização e da anamnese.', alvo: 'menu:/treinador/planejamento' },
+    { titulo: 'Planejamento', texto: 'Modelos de treino, dieta e mobilidade para aplicar aos alunos, e os questionários da atualização e da anamnese. No celular, "Planos".', alvo: 'menu:/treinador/planejamento' },
     { titulo: 'Marca', texto: 'Cor, logo, tema e o ciclo padrão de atualização da consultoria.', alvo: 'menu:/treinador/marca' },
     { titulo: 'Equipe', texto: 'Convide quem trabalha com você e escolha o que cada perfil pode ver e fazer.', alvo: 'menu:/treinador/equipe' },
-    { titulo: 'Perfil', texto: 'Seus dados, senha, ajustes de tela e os atalhos para Interessados, Marca, Equipe, Ajuda e Auditoria.', alvo: 'menu:/treinador/perfil' },
-    { titulo: 'Ajuda', texto: 'Guia, tutorial e perguntas frequentes. Este passeio também fica lá, para rever quando quiser.', alvo: 'menu:/treinador/ajuda' },
+    { titulo: 'Perfil', texto: 'Seus dados, senha, ajustes de tela, a busca de telas e os atalhos para Interessados, Marca, Equipe, Ajuda e Auditoria.', alvo: 'menu:/treinador/perfil' },
+    { titulo: 'Ajuda', texto: 'Guia, tutorial e perguntas frequentes. Para rever este passeio, toque em "Conhecer o menu" na Ajuda.', alvo: 'menu:/treinador/ajuda' },
   ],
   secoes: [
     {
@@ -195,7 +199,7 @@ const TREINADOR: Guia = {
 /** Explicações do aluno que aparecem em mais de um lugar (primeiros passos, tutorial e passeio pelo menu): um texto só. */
 const TEXTO_TREINO_DE_HOJE = 'Na aba Treino, o cartão Treino de hoje mostra a divisão do dia. Toque nele para começar.';
 const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador e a água do dia, quando ele escreveu. Só consulta. No início do app, o cartão Dieta leva até ela. O botão Lista de compras soma o que comprar na semana ou no mês.';
-const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer.';
+const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Treino quando houver algo a fazer: uma atualização ou uma anamnese para responder.';
 
 const ALUNO: Guia = {
   titulo: 'Guia do aluno',
@@ -203,21 +207,21 @@ const ALUNO: Guia = {
   introducao:
     'Aqui você vê o treino e a dieta que o seu treinador montou e registra a carga e as repetições de cada série. Funciona também sem internet: o que você marca fica no aparelho e é enviado depois.',
   primeirosPassos: [
-    { titulo: 'Entre com o convite', texto: 'Use o código ou o link que o treinador enviou, crie a sua senha e entre.' },
+    { titulo: 'Entre com o convite', texto: 'Use o código ou o link que o treinador enviou, crie a sua senha e entre.', soNoPdf: true },
     { titulo: 'Veja o treino de hoje', texto: TEXTO_TREINO_DE_HOJE, rota: '/aluno' },
-    { titulo: 'Registre cada série', texto: 'Em cada exercício, informe o peso e as repetições feitas e toque no botão de marcar a série.' },
+    { titulo: 'Registre cada série', texto: 'Em cada exercício, informe o peso e as repetições feitas e toque no botão de marcar a série.', rota: '/aluno' },
     { titulo: 'Confira o histórico', texto: 'Na aba Histórico você revê o que já registrou.', rota: '/aluno/historico' },
     { titulo: 'Escolha o tema', texto: 'Em Conta, deixe o app claro ou escuro e ajuste o tamanho do texto.', rota: '/aluno/conta' },
   ],
   tutorial: [
     { titulo: 'Boas-vindas', texto: 'Este tutorial mostra as abas do app. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
     { titulo: 'Treino', texto: 'Mostra o treino de hoje e as divisões do período. Os chips de data deixam registrar dias próximos (até 60 dias para trás ou para frente).', rota: '/aluno' },
-    { titulo: 'Registrar uma série', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano; o que você digita é gravado como digitou. Os botões − e + mudam o peso de passo em passo, e "Repetir a série anterior" copia peso e repetições da série de cima e já marca como feita. Embaixo, Próximo leva ao exercício seguinte; Anterior volta e Lista do dia mostra todos: dá para fazer fora de ordem. A tela fica acesa enquanto você treina.' },
+    { titulo: 'Registrar uma série', rota: '/aluno', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano; o que você digita é gravado como digitou. Os botões − e + mudam o peso de passo em passo, e "Repetir a série anterior" copia peso e repetições da série de cima e já marca como feita. Embaixo, Próximo leva ao exercício seguinte; Anterior volta e Lista do dia mostra todos: dá para fazer fora de ordem. A tela fica acesa enquanto você treina.' },
     { titulo: 'Descanso', texto: 'Quando o plano define descanso, o contador começa ao marcar a série. Ele não usa notificação com o app fechado.' },
     { titulo: 'Dieta', texto: TEXTO_DIETA, rota: '/aluno/dieta' },
     { titulo: 'Mobilidade', texto: 'Aparece só se o treinador publicou um plano de mobilidade. Vídeos abrem fora do app.', rota: '/aluno/mobilidade' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', rota: '/aluno/historico' },
-    { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO },
+    { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, rota: '/aluno' },
     { titulo: 'Sem internet', texto: 'Pode treinar sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
     { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam foto de perfil, tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
   ],
@@ -226,7 +230,7 @@ const ALUNO: Guia = {
     { titulo: 'Dieta', texto: TEXTO_DIETA, alvo: 'menu:/aluno/dieta' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, alvo: 'menu:/aluno' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', alvo: 'menu:/aluno/historico' },
-    { titulo: 'Conta', texto: 'Foto de perfil, tema, senha, sincronização e a Ajuda, onde dá para rever este passeio.', alvo: 'menu:/aluno/conta' },
+    { titulo: 'Conta', texto: 'Foto de perfil, tema, senha, sincronização e a Ajuda, onde "Conhecer o menu" mostra este passeio de novo.', alvo: 'menu:/aluno/conta' },
   ],
   secoes: [
     {
@@ -292,7 +296,7 @@ const ALUNO: Guia = {
     { pergunta: 'Esqueci a senha.', resposta: 'Na tela de entrar, toque em "Esqueci minha senha" e siga o link que chega no seu e-mail. Se não chegar, fale com o seu treinador.' },
     { pergunta: 'Errei a carga de uma série.', resposta: 'Abra o exercício e altere o valor no campo da série: o registro é atualizado.' },
     { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
-    { pergunta: 'Como vejo de novo o passeio pelo menu?', resposta: 'Ele aparece uma vez em cada aparelho, no primeiro acesso, e dá para pular. Para rever, em Conta toque em "Ajuda, primeiros passos e tutorial" e depois em "Rever o passeio".' },
+    { pergunta: 'Como vejo de novo o passeio pelo menu?', resposta: 'Ele aparece uma vez em cada aparelho, no primeiro acesso, e dá para pular. Para rever, abra a Ajuda (em Conta) e toque em "Conhecer o menu".' },
     { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
   ],
 };

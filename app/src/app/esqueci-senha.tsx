@@ -12,7 +12,7 @@ import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
-import { Tela } from '../ui/Tela';
+import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { Texto } from '../ui/Texto';
 import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
 import { VerificacaoHumana } from '../ui/VerificacaoHumana';
@@ -54,11 +54,7 @@ export default function EsqueciSenha() {
   };
 
   return (
-    <Tela largura={440}>
-      <View style={estilos.topo}>
-        <Texto variante="titulo" nivel={1}>Esqueci minha senha</Texto>
-        <Texto variante="suave">Enviaremos um link para você criar uma senha nova.</Texto>
-      </View>
+    <TelaPublica titulo="Esqueci minha senha" subtitulo="Enviaremos um link para você criar uma senha nova.">
       {pedido ? (
         <Cartao>
           <Texto variante="bloco" nivel={2}>Confira seu e-mail</Texto>
@@ -77,18 +73,17 @@ export default function EsqueciSenha() {
           {verificacao.exigida ? (
             <VerificacaoHumana siteKey={verificacao.siteKey} onToken={verificacao.aoReceberToken} chave={verificacao.chave} aoReconferir={verificacao.reconferir} />
           ) : null}
-          <Botao rotulo={rotuloDoEnvio('Enviar link', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
-            desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} cheio />
+          <BotaoPublico rotulo={rotuloDoEnvio('Enviar link', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
+            desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} />
         </Cartao>
       )}
       <View style={estilos.links}>
         <LinkTexto href="/entrar" texto="Voltar para entrar" />
       </View>
-    </Tela>
+    </TelaPublica>
   );
 }
 
 const estilos = StyleSheet.create({
-  topo: { gap: espaco(0.5), marginTop: espaco(6) },
   links: { alignItems: 'center', marginTop: espaco(1) },
 });

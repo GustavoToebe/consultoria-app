@@ -22,3 +22,9 @@ test('divide em seções, itens e parágrafos, juntando linhas seguidas', () => 
 test('texto vazio não gera blocos', () => {
   expect(blocosDoTexto('')).toEqual([]);
 });
+
+test('linha recuada depois de um item continua o item', () => {
+  const blocos = blocosDoTexto('- Você é responsável. Se achar que alguém usou a conta, avise e\n  troque a senha.\n- Outro item\nParágrafo.');
+  expect(blocos.map((b) => b.tipo)).toEqual(['item', 'item', 'paragrafo']);
+  expect(blocos[0].trechos[0].texto).toBe('Você é responsável. Se achar que alguém usou a conta, avise e troque a senha.');
+});

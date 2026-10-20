@@ -1,84 +1,110 @@
 import { router, type Href } from 'expo-router';
-import { FileDown, MousePointerClick, PlayCircle } from 'lucide-react-native';
-import { useState } from 'react';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { ChevronDown, ChevronUp, FileDown, MousePointerClick, PlayCircle } from 'lucide-react-native';
+import { useState, type ReactNode } from 'react';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { LARGURA_EDITOR, espaco } from '../tema/tokens';
+import { useTema } from '../tema/TemaProvider';
+import { ALVO_TOQUE, espaco, LARGURA_EDITOR } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Cabecalho } from '../ui/Cabecalho';
 import { Cartao } from '../ui/Cartao';
+import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
+import { usePasseio } from '../ui/Passeio';
+import { sobre } from '../ui/sobre';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
-import { usePasseio } from '../ui/Passeio';
 import { GUIAS, type Publico } from './conteudo';
 import { TutorialGuiado } from './TutorialGuiado';
 
-/** Ajuda de cada área: primeiros passos, tutorial guiado, guia em PDF (web), seções de uso e perguntas frequentes. */
+/**
+ * Ajuda de cada área: "Conhecer o app" (o passeio pelo menu e o tutorial passo a passo, que antes eram dois cartões com
+ * nomes parecidos), primeiros passos com "Abrir" em todo passo que acontece numa tela, guia em PDF (web) e um cartão só
+ * com as seções e as perguntas, cada uma numa linha que abre (antes eram vários cartões de ~85 px). Passo só do PDF (o
+ * convite, para quem ainda não entrou) não aparece aqui. A seta de voltar vem do `Cabecalho` (origem: Perfil ou Conta).
+ */
 export function TelaAjuda({ publico }: { publico: Publico }) {
   const guia = GUIAS[publico];
   const [tutorial, setTutorial] = useState(false);
   const { rever } = usePasseio();
+  const passos = guia.primeirosPassos.filter((p) => !p.soNoPdf);
   return (
     <Tela bordas={['top']} largura={publico === 'aluno' ? 720 : LARGURA_EDITOR}>
-      <Cabecalho titulo="Ajuda" mostrarMarca={publico === 'aluno' ? 'sempre' : 'celular'} />
-      <Texto variante="suave">{guia.introducao}</Texto>
-      <Cartao
-        titulo="Passeio pelo menu"
-        descricao="O mesmo do primeiro acesso: o app destaca cada item do menu e explica para que serve."
-        acoes={<Botao rotulo="Rever o passeio" tipo="secundario" Icone={MousePointerClick} aoTocar={rever} />}>
-        <Texto variante="pequeno">Dá para pular a qualquer momento.</Texto>
-      </Cartao>
-      <Cartao
-        titulo="Tutorial guiado"
-        descricao="Um passeio rápido pelas telas, na ordem em que você vai usá-las."
-        acoes={<Botao rotulo="Iniciar tutorial" Icone={PlayCircle} aoTocar={() => setTutorial(true)} />}>
-        <Texto variante="pequeno">{guia.tutorial.length} passos. Dá para sair e voltar quando quiser.</Texto>
+      <Cabecalho titulo="Ajuda" subtitulo={guia.introducao} />
+      <Cartao titulo="Conhecer o app">
+        <Texto variante="suave">
+          {`O tutorial passa pelas telas, na ordem em que você vai usá-las (${guia.tutorial.length} passos). "Conhecer o menu" destaca cada item do menu, como no primeiro acesso. Dá para sair dos dois a qualquer momento.`}
+        </Texto>
+        <LinhaDeAcoes>
+          <Botao rotulo="Tutorial passo a passo" Icone={PlayCircle} aoTocar={() => setTutorial(true)} />
+          <Botao rotulo="Conhecer o menu" tipo="secundario" Icone={MousePointerClick} aoTocar={rever} />
+        </LinhaDeAcoes>
       </Cartao>
       <Cartao titulo="Primeiros passos">
-        {guia.primeirosPassos.map((p, i) => (
+        {passos.map((p, i) => (
           <View key={p.titulo} style={estilos.passo}>
-            <Texto numerico variante="bloco">{i + 1}. {p.titulo}</Texto>
-            <Texto variante="suave">{p.texto}</Texto>
+            <View style={estilos.textoDoPasso}>
+              <Texto numerico variante="bloco">{i + 1}. {p.titulo}</Texto>
+              <Texto variante="suave">{p.texto}</Texto>
+            </View>
             {p.rota ? (
-              <View style={estilos.acao}>
-                <Botao rotulo="Abrir" tipo="secundario" aoTocar={() => router.navigate(p.rota as Href)} />
-              </View>
+              <Botao rotulo="Abrir" rotuloAcessivel={`Abrir: ${p.titulo}`} tipo="secundario" aoTocar={() => router.navigate(p.rota as Href)} />
             ) : null}
           </View>
         ))}
       </Cartao>
       {Platform.OS === 'web' ? (
-        <Cartao titulo="Guia do usuário em PDF" descricao="Para ler com calma, imprimir ou enviar.">
-          <View style={estilos.acao}>
-            <Botao rotulo={`Abrir ${guia.titulo.toLowerCase()}`} tipo="secundario" Icone={FileDown} aoTocar={() => void Linking.openURL(`/guias/${guia.arquivoPdf}`)} />
-          </View>
-        </Cartao>
+        <Cartao titulo="Guia do usuário em PDF" descricao="Para ler com calma, imprimir ou enviar."
+          acoes={<Botao rotulo="Abrir o guia" rotuloAcessivel={`Abrir ${guia.titulo.toLowerCase()}`} tipo="secundario" Icone={FileDown} aoTocar={() => void Linking.openURL(`/guias/${guia.arquivoPdf}`)} />}>{null}</Cartao>
       ) : null}
-      {guia.secoes.map((s) => (
-        <Cartao key={s.titulo} titulo={s.titulo} recolhivel recolhido>
-          {s.itens.map((item) => (
-            <View key={item.titulo} style={estilos.item}>
-              <Texto variante="rotulo">{item.titulo}</Texto>
-              <Texto>{item.texto}</Texto>
+      <Cartao titulo="Como usar">
+        {guia.secoes.map((s) => (
+          <LinhaRecolhivel key={s.titulo} titulo={s.titulo}>
+            {s.itens.map((item) => (
+              <View key={item.titulo} style={estilos.item}>
+                <Texto variante="rotulo">{item.titulo}</Texto>
+                <Texto>{item.texto}</Texto>
+              </View>
+            ))}
+          </LinhaRecolhivel>
+        ))}
+        <LinhaRecolhivel titulo="Perguntas frequentes">
+          {guia.perguntas.map((p) => (
+            <View key={p.pergunta} style={estilos.item}>
+              <Texto variante="rotulo">{p.pergunta}</Texto>
+              <Texto>{p.resposta}</Texto>
             </View>
           ))}
-        </Cartao>
-      ))}
-      <Cartao titulo="Perguntas frequentes" recolhivel recolhido>
-        {guia.perguntas.map((p) => (
-          <View key={p.pergunta} style={estilos.item}>
-            <Texto variante="rotulo">{p.pergunta}</Texto>
-            <Texto>{p.resposta}</Texto>
-          </View>
-        ))}
+        </LinhaRecolhivel>
       </Cartao>
       {tutorial ? <TutorialGuiado passos={guia.tutorial} aoFechar={() => setTutorial(false)} /> : null}
     </Tela>
   );
 }
 
+/** Linha que abre e fecha o conteúdo, com divisor; o título é o botão (alvo de 44 px). */
+function LinhaRecolhivel({ titulo, children }: { titulo: string; children: ReactNode }) {
+  const { cores } = useTema();
+  const [aberta, setAberta] = useState(false);
+  const Seta = aberta ? ChevronUp : ChevronDown;
+  return (
+    <View style={[estilos.linha, { borderColor: cores.divisor }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={titulo} accessibilityState={{ expanded: aberta }}
+        onPress={() => setAberta((v) => !v)}
+        style={(estado) => [estilos.cabecaLinha, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
+        <Texto variante="bloco" nivel={3} style={estilos.tituloLinha}>{titulo}</Texto>
+        <Seta size={18} color={cores.textoSuave} />
+      </Pressable>
+      {aberta ? <View style={estilos.corpoLinha}>{children}</View> : null}
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
-  passo: { gap: espaco(0.5) },
+  passo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), flexWrap: 'wrap' },
+  textoDoPasso: { flex: 1, minWidth: 220, gap: espaco(0.5) },
   item: { gap: espaco(0.25) },
-  acao: { flexDirection: 'row' },
+  linha: { borderTopWidth: 1 },
+  cabecaLinha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), minHeight: ALVO_TOQUE, paddingHorizontal: espaco(0.5) },
+  tituloLinha: { flexShrink: 1 },
+  corpoLinha: { gap: espaco(1.5), paddingHorizontal: espaco(0.5), paddingBottom: espaco(2) },
 });

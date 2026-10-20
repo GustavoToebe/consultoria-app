@@ -23,7 +23,7 @@ export function TutorialGuiado({ passos, aoFechar }: Props) {
   return (
     <Folha
       visivel
-      titulo="Tutorial guiado"
+      titulo="Tutorial passo a passo"
       aoFechar={aoFechar}
       rodape={
         <>

@@ -168,7 +168,13 @@ async function fazerRefresh(): Promise<LoginResponse | null> {
     await limparSessaoLocal();
     return null;
   }
-  // 5xx e afins não encerram a sessão: `tratar` lança o erro e o app segue com o que tem salvo.
+  // 429 (limite por IP) e 5xx não encerram a sessão: o servidor não recusou a credencial, só não atendeu agora. Saem
+  // como "sem conexão" (status 0) com a mensagem do servidor, para a abertura do app seguir com o perfil salvo e tentar
+  // de novo em 30 s, como sem internet. Antes a abertura caía em "Entrar" sem aviso (e a sessão ainda valia).
+  if (resposta.status === 429 || resposta.status >= 500) {
+    const erro = erroApiDaResposta(resposta.status, await lerCorpo(resposta));
+    throw new ErroApi(0, erro.codigo, erro.message);
+  }
   const sessao = await tratar<LoginResponse>(resposta);
   if (usuarioEsperado && sessao.usuario?.id && sessao.usuario.id !== usuarioEsperado) {
     recusaPorTroca = true;

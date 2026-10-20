@@ -1,24 +1,22 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { normalizarCodigo, pedeCodigoMfa } from '../dominio/mfa';
 import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../dominio/verificacaoHumana';
 import { useSessao } from '../sessao/SessaoProvider';
 import { espaco } from '../tema/tokens';
-import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
-import { Tela } from '../ui/Tela';
-import { Texto } from '../ui/Texto';
+import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 import { useVerificacaoHumana } from '../ui/useVerificacaoHumana';
 import { VerificacaoHumana } from '../ui/VerificacaoHumana';
 
-/** Entrar (marca neutra: a do treinador só aparece depois do login). */
+/** Entrar (símbolo e nome do produto: a marca do treinador só aparece depois do login). */
 export default function Entrar() {
   const sessao = useSessao();
   const verificacao = useVerificacaoHumana();
@@ -29,10 +27,6 @@ export default function Entrar() {
   const [codigo, setCodigo] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  // Em telas altas (PC), o formulário fica no meio em vez de colado no topo.
-  const { height } = useWindowDimensions();
-  const centrado = height >= 700;
-
   if (sessao.situacao === 'autenticado') {
     return <Redirect href="/" />;
   }
@@ -69,11 +63,7 @@ export default function Entrar() {
   };
 
   return (
-    <Tela largura={440} centrado={centrado}>
-      <View style={centrado ? estilos.topoCentrado : estilos.topo}>
-        <Texto variante="titulo" nivel={1}>Entrar</Texto>
-        <Texto variante="suave">Treinos e dieta da sua consultoria.</Texto>
-      </View>
+    <TelaPublica titulo="Entrar" subtitulo="Treinos e dieta da sua consultoria.">
       <Cartao>
         <Campo rotulo="E-mail" valor={email} aoMudar={setEmail} autoCapitalize="none" autoComplete="email"
           keyboardType="email-address" inputMode="email" textContentType="emailAddress" />
@@ -88,20 +78,18 @@ export default function Entrar() {
         {verificacao.exigida ? (
           <VerificacaoHumana siteKey={verificacao.siteKey} onToken={verificacao.aoReceberToken} chave={verificacao.chave} aoReconferir={verificacao.reconferir} />
         ) : null}
-        <Botao rotulo={rotuloDoEnvio('Entrar', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
-          desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} cheio />
+        <BotaoPublico rotulo={rotuloDoEnvio('Entrar', verificacao.aguardando, enviando)} aoTocar={enviar} carregando={enviando}
+          desabilitado={verificacao.aguardando} motivo={MOTIVO_VERIFICANDO} />
       </Cartao>
       <View style={estilos.links}>
         <LinkTexto href="/esqueci-senha" texto="Esqueci minha senha" />
         <LinkTexto href="/convite" texto="Tenho um convite" />
         {verificacao.cadastroAberto ? <LinkTexto href="/cadastro" texto="Sou treinador, criar conta" /> : null}
       </View>
-    </Tela>
+    </TelaPublica>
   );
 }
 
 const estilos = StyleSheet.create({
-  topo: { gap: espaco(0.5), marginTop: espaco(6) },
-  topoCentrado: { gap: espaco(0.5) },
   links: { alignItems: 'center', marginTop: espaco(1) },
 });

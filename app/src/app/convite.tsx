@@ -6,17 +6,13 @@ import * as rotas from '../api/rotas';
 import type { ConvitePublico } from '../api/tipos';
 import { codigoDoFragmento } from '../dominio/linkDeConvite';
 import { useSessao } from '../sessao/SessaoProvider';
-import { espaco } from '../tema/tokens';
-import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoSenha } from '../ui/CampoSenha';
 import { Cartao } from '../ui/Cartao';
 import { Carregando, MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { LinkTexto } from '../ui/LinkTexto';
-import { MarcaTitulo } from '../ui/MarcaTitulo';
-import { Tela } from '../ui/Tela';
-import { Texto } from '../ui/Texto';
+import { BotaoPublico, TelaPublica } from '../ui/TelaPublica';
 
 /**
  * Convite do aluno: abre pelo link (`/convite#codigo=...`, o código no fragmento, tirado do endereço logo depois de
@@ -98,47 +94,38 @@ export default function Convite() {
   };
 
   return (
-    <Tela largura={480}>
+    <TelaPublica
+      titulo={convite ? `Olá, ${convite.primeiroNomeAluno}!` : 'Convite'}
+      subtitulo={convite ? 'Crie seu acesso para ver seus treinos e registrar suas cargas.' : 'Digite o código que seu treinador enviou.'}
+      marca={convite?.consultoria}>
       {!convite ? (
-        <>
-          <View style={estilos.topo}>
-            <Texto variante="titulo" nivel={1}>Convite</Texto>
-            <Texto variante="suave">Digite o código que seu treinador enviou.</Texto>
-          </View>
-          <Cartao>
-            <Campo rotulo="Código do convite" valor={codigo} aoMudar={setCodigo} autoCapitalize="characters"
-              autoCorrect={false} maxLength={20} onSubmitEditing={() => consultar(codigo)} />
-            {erro ? <MensagemErro texto={erro} /> : null}
-            {carregando ? <Carregando /> : <Botao rotulo="Continuar" aoTocar={() => consultar(codigo)} cheio />}
-          </Cartao>
-        </>
+        <Cartao>
+          <Campo rotulo="Código do convite" valor={codigo} aoMudar={setCodigo} autoCapitalize="characters"
+            autoCorrect={false} maxLength={20} onSubmitEditing={() => consultar(codigo)} />
+          {erro ? <MensagemErro texto={erro} /> : null}
+          {carregando ? <Carregando /> : <BotaoPublico rotulo="Continuar" aoTocar={() => consultar(codigo)} />}
+        </Cartao>
       ) : (
-        <>
-          <View style={estilos.topo}>
-            <MarcaTitulo marca={convite.consultoria} tamanho="grande" nivel={1} />
-            <Texto variante="subtitulo">Olá, {convite.primeiroNomeAluno}!</Texto>
-            <Texto variante="suave">Crie seu acesso para ver seus treinos e registrar suas cargas.</Texto>
-          </View>
-          <Cartao>
-            <Campo rotulo="Seu e-mail" valor={email} aoMudar={setEmail} autoCapitalize="none"
-              keyboardType="email-address" inputMode="email" autoComplete="email" />
-            <CampoSenha rotulo="Crie uma senha" valor={senha} aoMudar={setSenha} autoComplete="new-password"
-              ajuda="Mínimo de 8 caracteres." />
-            <CampoSenha rotulo="Confirmar senha" valor={confirmar} aoMudar={setConfirmar}
-              autoComplete="new-password" />
-            {erro ? <MensagemErro texto={erro} /> : null}
-            <Botao rotulo="Criar meu acesso" aoTocar={aceitar} carregando={enviando} cheio />
-          </Cartao>
-        </>
+        <Cartao>
+          <Campo rotulo="Seu e-mail" valor={email} aoMudar={setEmail} autoCapitalize="none"
+            keyboardType="email-address" inputMode="email" autoComplete="email" />
+          <CampoSenha rotulo="Crie uma senha" valor={senha} aoMudar={setSenha} autoComplete="new-password"
+            ajuda="Mínimo de 8 caracteres." />
+          <CampoSenha rotulo="Confirmar senha" valor={confirmar} aoMudar={setConfirmar}
+            autoComplete="new-password" />
+          {erro ? <MensagemErro texto={erro} /> : null}
+          <BotaoPublico rotulo="Criar meu acesso" aoTocar={aceitar} carregando={enviando} cor={convite.consultoria.corPrimaria} />
+        </Cartao>
       )}
       <View style={estilos.links}>
+        {/* O convite da equipe da consultoria é outro (outro código e outra tela). */}
+        {convite ? null : <LinkTexto href="/convite-equipe" texto="Sou da equipe da consultoria" />}
         <LinkTexto href="/entrar" texto="Já tenho conta" />
       </View>
-    </Tela>
+    </TelaPublica>
   );
 }
 
 const estilos = StyleSheet.create({
-  topo: { gap: espaco(1), marginTop: espaco(4) },
   links: { alignItems: 'center' },
 });
