@@ -674,8 +674,8 @@ export const exerciciosDoTreino = (treino) => treino.conteudo.sessoes.flatMap((s
  * modelos); "só no catálogo" = existe no catálogo público mas precisa ser importado para a biblioteca; "sem par" = em
  * nenhum. Nunca cria exercício.
  *
- * `vinculos` = `Map` chave do nome da planilha -> chave do nome da biblioteca, só das linhas `confirmado = sim` do
- * `correspondencias-exercicios.csv` ({@link vinculosConfirmados}). Vale só para quem **não** tem par exato; o destino
+ * `vinculos` = `Map` chave do nome da planilha -> chave do nome da biblioteca, só das linhas com `confirmado` = sim ou
+ * `nome_correto` do `correspondencias-exercicios.csv` ({@link vinculosConfirmados}). Vale só para quem **não** tem par exato; o destino
  * conta como qualquer par (`vinculados`). Vínculo cujo destino não está na biblioteca nem no catálogo fica sem par
  * (`vinculosSemDestino`).
  */

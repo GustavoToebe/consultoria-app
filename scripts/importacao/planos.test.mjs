@@ -527,7 +527,7 @@ test('correspondências: só nomes sem par exato; sugestão sem acento e sem dif
   assert.equal(sugerirDaBiblioteca('qqqq', new Map()), null);
 });
 
-test('correspondências: o arquivo tem BOM, ; e confirmado vazio; lê de volta; só "sim" (caixa e espaços tolerados) vincula', () => {
+test('correspondências: o arquivo tem BOM, ; e confirmado vazio; lê de volta; só sim/s/x/ok (caixa, acento e espaços tolerados) vincula', () => {
   const pares = paresFicticios();
   const { linhas } = linhasDeCorrespondencia([arquivoComExercicios('Remada curvadda', 'Rosca diretta', '=Fórmula; "estranha"', 'Puxada altta polia')], pares);
   const csv = csvDeCorrespondencias(linhas);
@@ -1204,7 +1204,7 @@ function pastaDePlanosComSuplementos(t, nomes) {
   return pasta;
 }
 
-test('importar-planos --simular: usa só as linhas destino = suplemento ou sensivel do classificacao-suplementos.csv da pasta', async (t) => {
+test('importar-planos --simular: usa só os destinos entendidos (suplemento ou sensível, em qualquer grafia) do classificacao-suplementos.csv da pasta', async (t) => {
   const pasta = pastaDePlanosComSuplementos(t, ['Creatina', 'Zincoxxx 10 mg', 'Remédio Fictício XYZ', 'Xilofone Fictício']);
   const arquivo = join(pasta, ARQUIVO_CLASSIFICACAO);
   const escrever = (...linhas) => writeFileSync(arquivo, `nome_normalizado;ocorrencias;destino\r\n${linhas.join('\r\n')}\r\n`);
