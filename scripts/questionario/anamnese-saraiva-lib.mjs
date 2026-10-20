@@ -36,8 +36,8 @@ const SINTOMAS = [
   'Dor articular (não induzida por exercício)', 'Fadiga', 'Hiperatividade', 'Ansiedade', 'Depressão', 'Frequentemente doente',
 ];
 
-/** Colunas da grade de sintomas. As três primeiras aparecem no Forms; as duas últimas estão cortadas nos prints. */
-export const COLUNAS_DOS_SINTOMAS = ['Nunca', 'Raramente', 'Ocasionalmente', 'Frequentemente', 'Sempre'];
+/** Colunas da grade de sintomas, as quatro do Forms (conferidas no print inteiro em 20/10). */
+export const COLUNAS_DOS_SINTOMAS = ['Nunca', 'Raramente', 'Ocasionalmente', 'Frequentemente'];
 
 const REGRAS = [
   '**REGRAS DA CONSULTORIA**',
