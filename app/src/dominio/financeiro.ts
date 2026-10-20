@@ -15,6 +15,7 @@ import type {
   SituacaoDaContratacao,
   ValorEQuantidade,
 } from '../api/financeiroTipos';
+import { dataSemAnoCorrente } from './datasRelativas';
 import { centavosParaTela, dataCurta, SEM_DADO } from './formatos';
 import { contagemParaTela, rotuloDoMes, rotuloDoMesCompleto } from './numeros';
 
@@ -151,6 +152,26 @@ export function atrasoParaTela(dias: number | null | undefined): string {
   if (typeof dias !== 'number' || !Number.isFinite(dias)) return SEM_DADO;
   if (dias <= 0) return SEM_DADO;
   return dias === 1 ? '1 dia de atraso' : `${dias} dias de atraso`;
+}
+
+/**
+ * Linha curta de uma cobrança nas listas do treinador (celular e ficha): valor e a data que importa para a situação.
+ * Em aberto: "vence 05/11" ou "venceu 05/10 · 14 dias de atraso"; com baixa (paga, contestada, estornada): "paga em
+ * 04/09 · Pix"; cancelada: "vencia 05/07". Sem o ano quando é o ano corrente. Dado ausente vira "—", nunca zero.
+ */
+export function resumoDaCobranca(
+  c: Pick<CobrancaResponse, 'valorCentavos' | 'situacao' | 'vencida' | 'vencimento' | 'diasDeAtraso' | 'pagoEm' | 'forma'>,
+  hoje: string = hojeEmBrasilia(),
+): string {
+  const valor = centavosParaTela(c.valorCentavos);
+  const data = (iso: string | null | undefined) => dataSemAnoCorrente(iso, hoje);
+  if (c.situacao === 'ABERTA') {
+    if (!c.vencida) return `${valor} · vence ${data(c.vencimento)}`;
+    const atraso = atrasoParaTela(c.diasDeAtraso);
+    return `${valor} · venceu ${data(c.vencimento)}${atraso === SEM_DADO ? '' : ` · ${atraso}`}`;
+  }
+  if (temBaixaRegistrada(c)) return `${valor} · paga em ${data(c.pagoEm)}${c.forma ? ` · ${rotuloDaForma(c.forma)}` : ''}`;
+  return `${valor} · vencia ${data(c.vencimento)}`;
 }
 
 // ---- Filtros da lista de cobranças ----
@@ -504,7 +525,7 @@ export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
       valor: centavosParaTela(c.emAtraso?.valorCentavos),
       detalhe:
         c.emAtraso && c.emAtraso.valorCentavos !== null
-          ? `${contagemParaTela(c.emAtraso.cobrancas)} ${c.emAtraso.cobrancas === 1 ? 'cobrança' : 'cobranças'} - ${NOTA_CONSIDERA_GERADAS}`
+          ? `${contagemParaTela(c.emAtraso.cobrancas)} ${c.emAtraso.cobrancas === 1 ? 'cobrança' : 'cobranças'} · ${NOTA_CONSIDERA_GERADAS}`
           : NOTA_CONSIDERA_GERADAS,
     },
     {
@@ -521,7 +542,7 @@ export function cartoesDoPainel(c: CartoesDoPainel): CartaoDoPainel[] {
   ];
 }
 
-/** Linha de inadimplência: `12,5% - R$ 300,00 vencidos de R$ 2.400,00 cobrados`. */
+/** Linha de inadimplência: `12,5%` e `R$ 300,00 em aberto de R$ 2.400,00 que já venceram · considera...`. */
 export function inadimplenciaParaTela(i: Painel['inadimplencia'] | null | undefined): {
   percentual: string;
   detalhe: string;
@@ -529,11 +550,11 @@ export function inadimplenciaParaTela(i: Painel['inadimplencia'] | null | undefi
   if (!i) return { percentual: SEM_DADO, detalhe: NOTA_CONSIDERA_GERADAS };
   const percentual = percentualParaTela(i.percentual);
   if (i.percentual === null || i.vencidoCentavos === null || i.cobradoCentavos === null) {
-    return { percentual, detalhe: `Nada venceu no período - ${NOTA_CONSIDERA_GERADAS}` };
+    return { percentual, detalhe: `Nada venceu no período · ${NOTA_CONSIDERA_GERADAS}` };
   }
   return {
     percentual,
-    detalhe: `${centavosParaTela(i.vencidoCentavos)} em aberto de ${centavosParaTela(i.cobradoCentavos)} que já venceram - ${NOTA_CONSIDERA_GERADAS}`,
+    detalhe: `${centavosParaTela(i.vencidoCentavos)} em aberto de ${centavosParaTela(i.cobradoCentavos)} que já venceram · ${NOTA_CONSIDERA_GERADAS}`,
   };
 }
 
