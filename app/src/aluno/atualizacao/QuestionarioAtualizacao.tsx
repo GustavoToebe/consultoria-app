@@ -239,7 +239,8 @@ function Controle({ p, valor, dataAtualizacao, resumo, erro, nota, carregarFotoD
       <Texto variante="rotulo">{rotulo}</Texto>
       {ajudaTexto}
       {nota ? <Texto variante="pequeno">{nota}</Texto> : null}
-      <CamposDeEndereco valor={atual} aoMudar={(e) => aoMudar(respostaDeEndereco(e))} erros={erro ? errosDoEndereco(atual) : undefined} />
+      <CamposDeEndereco valor={atual} aoMudar={(e) => aoMudar(respostaDeEndereco(e))} erros={erro ? errosDoEndereco(atual) : undefined}
+        naPergunta={{ obrigatoria: p.obrigatoria }} />
       {mensagemErro}
     </View>;
   }

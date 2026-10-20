@@ -20,6 +20,11 @@ interface Props {
   /** Erro por campo (o servidor e a conferência local usam os mesmos nomes). */
   erros?: Partial<Record<CampoDoEndereco, string | undefined>>;
   desabilitado?: boolean;
+  /**
+   * Dentro de uma pergunta de endereço (que já tem o rótulo "Endereço" em cima): a linha de instrução não repete
+   * "Endereço" e diz se a pergunta é obrigatória. Sem isto (ficha do aluno), a linha começa por "Endereço (opcional)".
+   */
+  naPergunta?: { obrigatoria: boolean };
 }
 
 /**
@@ -29,7 +34,7 @@ interface Props {
  * não fala com serviço de fora); se a busca falha, a pessoa preenche à mão. Um CEP que já veio preenchido (edição) não é
  * buscado de novo, para não trocar um endereço salvo. Usado na ficha do aluno e na pergunta de endereço da anamnese.
  */
-export function CamposDeEndereco({ valor, aoMudar, erros = {}, desabilitado }: Props) {
+export function CamposDeEndereco({ valor, aoMudar, erros = {}, desabilitado, naPergunta }: Props) {
   const { cores } = useTema();
   const mudar = (campo: CampoDoEndereco) => (texto: string) => aoMudar({ ...valor, [campo]: texto });
   const [buscando, setBuscando] = useState(false);
@@ -65,7 +70,9 @@ export function CamposDeEndereco({ valor, aoMudar, erros = {}, desabilitado }: P
   };
   return (
     <View style={estilos.grupo}>
-      <Texto variante="pequeno">Endereço (opcional). Se preencher, informe CEP, rua, número, cidade e UF (* obrigatório).</Texto>
+      <Texto variante="pequeno">{!naPergunta ? 'Endereço (opcional). Se preencher, informe CEP, rua, número, cidade e UF (* obrigatório).'
+        : naPergunta.obrigatoria ? 'Informe CEP, rua, número, cidade e UF; complemento e bairro são opcionais.'
+          : 'Opcional. Se preencher, informe CEP, rua, número, cidade e UF (* obrigatório).'}</Texto>
       <Campo rotulo="CEP *" valor={valor.cep} aoMudar={mudarCep} erro={erros.cep} ajuda={buscando ? 'Buscando o endereço…' : aviso ?? undefined}
         keyboardType="number-pad" inputMode="numeric" autoComplete="postal-code" maxLength={LIMITES_ENDERECO.cep} editable={!desabilitado} />
       <Campo rotulo="Rua, avenida… *" valor={valor.logradouro} aoMudar={mudar('logradouro')} erro={erros.logradouro} autoComplete="street-address"
