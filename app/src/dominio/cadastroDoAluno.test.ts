@@ -1,5 +1,5 @@
 import {
-  enderecoDaResposta, enderecoEmBranco, normalizarEndereco, enderecoParaEnvio, enderecoParaForm, enderecoParaLeitura, ENDERECO_VAZIO, erroDoCpf, erroDoTelefone, errosDoEndereco,
+  enderecoComCep, enderecoDaResposta, enderecoEmBranco, normalizarEndereco, enderecoParaEnvio, enderecoParaForm, enderecoParaLeitura, ENDERECO_VAZIO, erroDoCpf, erroDoTelefone, errosDoEndereco,
   mascaraCep, mascaraCpf, mascaraTelefone, respostaDeEndereco,
 } from './cadastroDoAluno';
 
@@ -82,5 +82,24 @@ describe('endereço no formulário e no envio', () => {
     expect(enderecoParaLeitura(ENDERECO)).toBe('Rua Exemplo, 100 - Sala 2 - Centro\nCidade Exemplo/SP - 01310-100');
     expect(enderecoDaResposta('texto')).toBeNull();
     expect(enderecoDaResposta({ cidade: ' Cidade Exemplo ', uf: '', desconhecido: 'x' })).toMatchObject({ cidade: 'Cidade Exemplo', uf: null });
+  });
+});
+
+describe('endereço preenchido pela busca de CEP', () => {
+  const ACHADO = { logradouro: 'Rua Achada', bairro: 'Centro', cidade: 'Cascavel', uf: 'PR' };
+  it('preenche rua, bairro, cidade e UF e deixa CEP, número e complemento como estão', () => {
+    const atual = { ...ENDERECO_VAZIO, cep: '85807-677', numero: '10', complemento: 'Ap 2' };
+    expect(enderecoComCep(atual, ACHADO)).toEqual({ cep: '85807-677', logradouro: 'Rua Achada', numero: '10', complemento: 'Ap 2', bairro: 'Centro', cidade: 'Cascavel', uf: 'PR' });
+  });
+  it('troca o que já estava preenchido por um CEP anterior', () => {
+    expect(enderecoComCep(ENDERECO, ACHADO)).toMatchObject({ logradouro: 'Rua Achada', cidade: 'Cascavel', uf: 'PR', numero: '100' });
+  });
+  it('CEP geral sem rua nem bairro não apaga o que a pessoa digitou', () => {
+    const atual = { ...ENDERECO_VAZIO, cep: '85800-000', logradouro: 'Minha rua', bairro: 'Meu bairro' };
+    expect(enderecoComCep(atual, { logradouro: '', bairro: ' ', cidade: 'Cascavel', uf: 'PR' })).toMatchObject({ logradouro: 'Minha rua', bairro: 'Meu bairro', cidade: 'Cascavel' });
+  });
+  it('UF inválida não entra', () => {
+    expect(enderecoComCep({ ...ENDERECO_VAZIO, uf: 'SP' }, { ...ACHADO, uf: 'ZZ' }).uf).toBe('SP');
+    expect(enderecoComCep(ENDERECO_VAZIO, { ...ACHADO, uf: 'pr' }).uf).toBe('PR');
   });
 });

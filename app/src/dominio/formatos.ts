@@ -83,6 +83,24 @@ export function numeroDaTela(texto: string, inteiro = false): number | null | un
   return valido ? Number(t) : undefined;
 }
 
+/**
+ * Máscara de número enquanto digita (pergunta NUMERO): só dígitos e uma vírgula, no máximo `casas` decimais (ponto vira
+ * vírgula). Sem casas, vale a parte antes da vírgula (nunca junta os dígitos: "2,5" não vira 25). O `-` só passa no começo e
+ * só com `negativo` (pergunta que aceita mínimo abaixo de zero). Em metros (`emMetros`, para altura) basta digitar os
+ * algarismos: `175` vira `1,75` (um dígito antes da vírgula).
+ */
+export function mascaraDeNumero(texto: string, casas: number, opcoes: { emMetros?: boolean; negativo?: boolean } = {}): string {
+  const sinal = opcoes.negativo && texto.trimStart().startsWith('-') ? '-' : '';
+  if (casas <= 0) return sinal + (texto.split(/[.,]/)[0] ?? '').replace(/\D/g, '');
+  if (opcoes.emMetros) {
+    const digitos = texto.replace(/\D/g, '').slice(0, 1 + casas);
+    return sinal + (digitos.length <= 1 ? digitos : `${digitos[0]},${digitos.slice(1)}`);
+  }
+  const [inteiro, ...resto] = texto.replace(/[^\d.,]/g, '').split(/[.,]/);
+  if (resto.length === 0) return sinal + inteiro;
+  return `${sinal}${inteiro},${resto.join('').slice(0, casas)}`;
+}
+
 /** Dia da semana como no plano: 1 = segunda ... 7 = domingo. */
 export function diaDaSemana(agora: Date = new Date()): number {
   return ((agora.getDay() + 6) % 7) + 1;

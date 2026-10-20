@@ -21,11 +21,15 @@ const FICHA: AlunoDetalhe = {
 
 const ROTAS_DA_FICHA = { 'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } } };
 
+/** Busca de CEP que não acha nada: nos testes que só digitam o CEP, o resto do endereço fica como foi digitado. */
+const CEP_SEM_RESULTADO = { 'POST /enderecos/cep/consultar': erroApi(404, 'CEP não encontrado.', 'CEP_NAO_ENCONTRADO') };
+
 test('ficha: telefone, CPF e endereço na leitura; edição valida, envia e mostra o CPF repetido no campo', async ({ page }) => {
   let tentativas = 0;
   const { pedidos, errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR)),
     ...ROTAS_DA_FICHA,
+    ...CEP_SEM_RESULTADO,
     [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
     [`PUT /alunos/${ALUNO_ID}`]: (p, route) => {
       tentativas++;
@@ -69,10 +73,45 @@ test('ficha: telefone, CPF e endereço na leitura; edição valida, envia e most
   expect(errosDaPagina).toEqual([]);
 });
 
+test('ficha: o CEP completo preenche rua, bairro, cidade e UF sem tocar no número e no complemento; CEP que não existe só avisa', async ({ page }) => {
+  const { pedidos, errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: { ...FICHA, endereco: null } },
+    'POST /enderecos/cep/consultar': (p, route) => (p.corpo as { cep: string }).cep === '01310100'
+      ? json(route, { logradouro: 'Avenida Exemplo', bairro: 'Bela Vista', cidade: 'Cidade Exemplo', uf: 'SP' })
+      : json(route, erroApi(404, 'CEP não encontrado.', 'CEP_NAO_ENCONTRADO').corpo, 404),
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.getByRole('button', { name: 'Editar', exact: true }).click();
+  await page.getByRole('textbox', { name: /^Número/ }).fill('s/n');
+  await page.getByLabel('Complemento').fill('Sala 2');
+
+  await page.getByLabel('CEP').fill('01310100');
+  await expect(page.getByLabel('Rua, avenida…')).toHaveValue('Avenida Exemplo');
+  await expect(page.getByLabel('Bairro')).toHaveValue('Bela Vista');
+  await expect(page.getByLabel('Cidade')).toHaveValue('Cidade Exemplo');
+  await expect(page.getByRole('button', { name: /^UF/ })).toContainText('SP');
+  await expect(page.getByRole('textbox', { name: /^Número/ })).toHaveValue('s/n');
+  await expect(page.getByLabel('Complemento')).toHaveValue('Sala 2');
+  // Só os dígitos saem do aparelho, numa busca só.
+  const buscas = pedidos.filter((p) => p.caminho === '/enderecos/cep/consultar');
+  expect(buscas).toHaveLength(1);
+  expect(buscas[0].metodo).toBe('POST');
+  expect(buscas[0].corpo).toEqual({ cep: '01310100' });
+
+  // CEP que não existe: aviso no campo e o que estava na tela continua.
+  await page.getByLabel('CEP').fill('99999999');
+  await expect(page.getByText('CEP não encontrado.')).toBeVisible();
+  await expect(page.getByLabel('Rua, avenida…')).toHaveValue('Avenida Exemplo');
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('ficha: endereço parcial é recusado (só a cidade), "s/n" vale e tudo em branco apaga o endereço', async ({ page }) => {
   const { pedidos, errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR)),
     ...ROTAS_DA_FICHA,
+    ...CEP_SEM_RESULTADO,
     [`GET /alunos/${ALUNO_ID}`]: { corpo: { ...FICHA, endereco: null } },
     [`PUT /alunos/${ALUNO_ID}`]: (p, route) => json(route, { ...FICHA, ...(p.corpo as object), versao: 2 }),
   });
@@ -177,6 +216,7 @@ const PENDENTE: AnamneseDetalhe = {
 test('aluno responde o endereço na anamnese: só a cidade é recusada; completo, com CEP em máscara e "s/n", é enviado', async ({ page }) => {
   const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
     ...(await sessaoDeAluno(page)),
+    ...CEP_SEM_RESULTADO,
     'GET /aluno/anamnese': { corpo: PENDENTE },
     [`POST /aluno/anamnese/${ANAMNESE_ID}/enviar`]: (p, route) => {
       const corpo = p.corpo as { respostas: AnamneseDetalhe['respostas'] };

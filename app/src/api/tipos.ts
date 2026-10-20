@@ -142,6 +142,9 @@ export interface PaginaAlunos {
   total: number;
 }
 
+/** Rua, bairro, cidade e UF de um CEP (`GET /enderecos/cep/{cep}`, `cep/EnderecoDoCep`); rua e bairro podem vir vazios (CEP geral da cidade). */
+export interface EnderecoDoCep { logradouro: string; bairro: string; cidade: string; uf: string }
+
 /** Endereço do aluno (`alunos/dto/AlunoDtos.Endereco`): todos os campos são opcionais; CEP e UF vêm formatados. */
 export interface EnderecoDoAluno {
   cep: string | null; logradouro: string | null; numero: string | null; complemento: string | null;

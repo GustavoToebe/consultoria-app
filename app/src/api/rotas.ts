@@ -101,6 +101,7 @@ import type {
   SuplementoDaBibliotecaRequest,
   ErgogenicoDaBiblioteca,
   ErgogenicoDaBibliotecaRequest,
+  EnderecoDoCep,
   Tema,
   TipoPlano,
   TipoReceita,
@@ -112,6 +113,9 @@ import type {
  * virar outra rota da API com o token de quem abriu o link.
  */
 const seg = (valor: string | number) => encodeURIComponent(String(valor));
+
+/** Rua, bairro, cidade e UF de um CEP de 8 dígitos (a API consulta o serviço de CEP; 404 `CEP_NAO_ENCONTRADO`, 503 se fora do ar). */
+export const buscarCep = (cep: string) => requisicao<EnderecoDoCep>('/enderecos/cep/consultar', { metodo: 'POST', corpo: { cep } });
 
 export const perfisEquipe = () => requisicao<PerfilEquipe[]>('/perfis');
 export const catalogoPermissoes = () => requisicao<PermissaoEquipe[]>('/permissoes/catalogo');
