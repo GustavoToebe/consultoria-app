@@ -57,7 +57,7 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   });
   await page.goto('/aluno/lista-de-compras');
   await expect(page.getByRole('heading', { name: 'Lista de compras', level: 1 })).toBeVisible();
-  await expect(page.getByText('Dieta de teste (v2)')).toBeVisible();
+  await expect(page.getByText('Dieta de teste', { exact: true })).toBeVisible();
 
   // Semana (padrão): arroz cozido 150 g ÷ 2,5 = 60 g cru por dia, 420 g na semana; frango sem fator, como na dieta.
   await expect(page.getByText('Lista da semana')).toBeVisible();

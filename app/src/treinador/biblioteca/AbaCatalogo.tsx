@@ -16,7 +16,8 @@ import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
-import { MODALIDADES, normalizar } from '../treino/FolhaBiblioteca';
+import { MODALIDADES } from '../../dominio/modalidades';
+import { normalizar } from '../treino/FolhaBiblioteca';
 import { Selo } from '../../ui/Selo';
 import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
 

@@ -25,7 +25,8 @@ import { useCarregar } from '../../ui/useCarregar';
 import { Grade } from '../../ui/Grade';
 import { gruposDosExercicios } from '../../dominio/catalogo';
 import { erroDoVideo } from '../../dominio/video';
-import { MODALIDADES, normalizar } from '../treino/FolhaBiblioteca';
+import { MODALIDADES } from '../../dominio/modalidades';
+import { normalizar } from '../treino/FolhaBiblioteca';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
 

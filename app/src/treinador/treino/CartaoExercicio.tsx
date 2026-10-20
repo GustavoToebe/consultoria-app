@@ -20,7 +20,7 @@ import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Texto } from '../../ui/Texto';
 import { rotuloSalvarComo } from '../planejamento/modelos';
 import { EditorSeries } from './EditorSeries';
-import { MODALIDADES } from './FolhaBiblioteca';
+import { MODALIDADES } from '../../dominio/modalidades';
 
 interface Props {
   exercicio: ExercicioPlano;

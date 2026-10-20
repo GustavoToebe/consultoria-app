@@ -129,9 +129,9 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
       </Cartao>
 
       {Platform.OS === 'web' ? (
-        <Cartao titulo="Barras de rolagem">
+        <Cartao titulo="Navegador">
           <Interruptor
-            rotulo="Escuras no tema escuro"
+            rotulo="Barras de rolagem escuras no tema escuro"
             ajuda="Desligado, as barras de rolagem ficam claras mesmo com o tema escuro."
             valor={preferencias.barrasEscuras}
             aoMudar={(barrasEscuras) => mudar({ barrasEscuras })}

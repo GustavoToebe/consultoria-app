@@ -19,6 +19,8 @@ export interface ColunaDaTabela<T> {
   principal?: boolean;
   /** Coluna de ação (ícone): no modo empilhado vai para o canto do cartão, sem rótulo. */
   acao?: boolean;
+  /** Coluna `acao` que é dado (não botão): mostra o título no cabeçalho da tabela larga; no cartão continua sem rótulo. */
+  tituloNaTabela?: boolean;
 }
 
 interface Props<T> {
@@ -87,7 +89,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
           <View role="row" style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie3, borderColor: cores.borda }]}>
             {colunas.map((c) => (
               <View key={c.chave} role="columnheader" style={estiloColuna(c)}>
-                {c.acao ? null : (
+                {c.acao && !c.tituloNaTabela ? null : (
                   <Texto variante="secao" style={c.alinhar === 'centro' ? estilos.textoCentro : c.alinhar === 'direita' ? estilos.textoDireita : null}>
                     {c.titulo}
                   </Texto>

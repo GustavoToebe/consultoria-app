@@ -49,6 +49,7 @@ function colunas(papel: 'aluno' | 'treinador'): ColunaDaTabela<LinhaDaLista>[] {
       titulo: 'Quantidade',
       alinhar: 'direita',
       acao: true,
+      tituloNaTabela: true,
       render: (l) => (
         <Texto numerico style={estilos.forte}>
           {quantidadeParaTela(l.quantidade, l.unidade)}

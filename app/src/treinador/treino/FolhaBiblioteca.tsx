@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { listarExercicios } from '../../api/rotas';
 import type { Exercicio } from '../../api/tipos';
 import { gruposDosExercicios } from '../../dominio/catalogo';
+import { MODALIDADES } from '../../dominio/modalidades';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -17,14 +18,6 @@ import { Folha } from '../../ui/Folha';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
-export const MODALIDADES: Record<string, string> = {
-  LIVRE: 'Peso livre',
-  MAQUINA: 'Máquina',
-  ELASTICO: 'Elástico',
-  PESO_CORPORAL: 'Peso corporal',
-  CARDIO: 'Cardio',
-  OUTRO: 'Outro',
-};
 
 /** Compara sem acento e sem caixa ("rosca" acha "Rosca Direta"). */
 export function normalizar(texto: string): string {
