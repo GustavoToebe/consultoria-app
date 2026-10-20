@@ -1,5 +1,6 @@
 import type { Atualizacao, AtualizacaoDaLista, FaseAtualizacao, SituacaoAtualizacao } from '../api/tipos';
-import { dataParaTela, somarDias } from './formatos';
+import { comMaiuscula, dataRelativa } from './datasRelativas';
+import { dataParaTela, hojeIso, somarDias } from './formatos';
 
 export const DIAS_MAXIMOS_DE_ATRASO = 15;
 const diasEntre = (de: string, ate: string) => Math.round((Date.parse(ate) - Date.parse(de)) / 86_400_000);
@@ -66,12 +67,25 @@ export const proximaDaFila = <T extends { pastaId: string | null }>(itens: reado
 /** Lista aberta a partir de um contador do Início: leva junto o escopo "Meus alunos", para o total bater com a lista. */
 export const caminhoListaAtualizacoes = (situacao: string, meus: boolean) =>
   `/treinador/atualizacoes?situacao=${situacao}${meus ? '&meus=true' : ''}`;
-export function statusAtualizacaoTreinador(a:Pick<AtualizacaoDaLista,'fase'|'diasDeAtraso'|'diasParaData'|'atrasoAte'>) {
-  if(a.fase==='ENVIADA')return {texto:'Para revisar',tipo:'atencao' as const};
-  if(a.fase==='REVISADA')return {texto:'Revisada',tipo:'sucesso' as const};
-  if(a.fase==='ATRASADA')return {texto:`Atrasada há ${a.diasDeAtraso} ${a.diasDeAtraso===1?'dia':'dias'}`,tipo:'perigo' as const};
-  if(a.atrasoAte)return {texto:`Avisou: nova data ${dataParaTela(a.atrasoAte)}`,tipo:'atencao' as const};
-  return {texto:a.fase==='ABERTA'?'Aguardando envio':`Em ${a.diasParaData} dias`,tipo:'neutro' as const};
+/**
+ * Selo da atualização para o treinador. `texto` diz de quê ("Atualização em 15 dias") e serve fora das telas de
+ * atualização (lista de alunos, pastas, resumo da ficha); `curto` ("Em 15 dias") serve onde o assunto já é a
+ * atualização (lista e detalhe de atualizações). Selo curto: a frase longa vai no corpo do cartão.
+ */
+export function statusAtualizacaoTreinador(a:Pick<AtualizacaoDaLista,'fase'|'diasDeAtraso'|'diasParaData'|'atrasoAte'>, hoje:string=hojeIso()) {
+  const selo=(curto:string,tipo:'atencao'|'sucesso'|'perigo'|'neutro',texto=`Atualização ${curto[0].toLowerCase()}${curto.slice(1)}`)=>({texto,curto,tipo});
+  if(a.fase==='ENVIADA')return selo('Para revisar','atencao');
+  if(a.fase==='REVISADA')return selo('Revisada','sucesso');
+  if(a.fase==='ATRASADA')return selo(`Atrasada há ${a.diasDeAtraso} ${a.diasDeAtraso===1?'dia':'dias'}`,'perigo');
+  if(a.atrasoAte)return selo(`Adiada para ${dataRelativa(a.atrasoAte,hoje)}`,'atencao');
+  return selo(comMaiuscula(emDias(a.diasParaData)),'neutro');
+}
+/** Distância em dias a partir de hoje: "hoje", "amanhã", "em 3 dias"; no passado, "há 2 dias". */
+export function emDias(dias:number):string {
+  if(dias===0)return 'hoje';
+  if(dias===1)return 'amanhã';
+  if(dias===-1)return 'ontem';
+  return dias>0?`em ${dias} dias`:`há ${-dias} dias`;
 }
 export const podeResponderAtualizacao = (a: Atualizacao, hoje: string) =>
   !!a.dataAtualizacao && a.fase !== 'ENVIADA' && a.fase !== 'REVISADA' && hoje >= somarDias(a.dataAtualizacao, -1);

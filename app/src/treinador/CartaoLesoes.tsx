@@ -73,7 +73,7 @@ export function CartaoLesoes({ alunoId }: { alunoId: string }) {
             </View>
             <View style={estilos.acoes}>
               <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar lesão em ${l.regiao}`} aoTocar={() => setEditando(l)} /></Permitido>
-              <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Trash2} rotulo={`Excluir lesão em ${l.regiao}`} cor={cores.perigo} aoTocar={() => setExcluir(l)} /></Permitido>
+              <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><IconeBotao Icone={Trash2} rotulo={`Excluir lesão em ${l.regiao}`} cor={cores.textoSuave} aoTocar={() => setExcluir(l)} /></Permitido>
             </View>
           </View>
         );

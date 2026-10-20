@@ -22,14 +22,15 @@ const DATAS_RECENTES = 5;
 
 /**
  * Um exercício do Progresso: nome e grupo, resumo do primeiro e do último registro com carga, gráfico (2 pontos ou
- * mais) e tabela das 5 datas mais recentes. Mostra só o que foi registrado; o que falta é "—".
+ * mais) e tabela das 5 datas mais recentes. Mostra só o que foi registrado; o que falta é "—". Cargas na cor do texto
+ * (a marca não é dado); o "Último…" aparece uma vez só, no resumo.
  * O × só tira o exercício da comparação; não apaga nada.
  */
 export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTirar }: {
   /** Treinador: o aluno da ficha. Ausente = o próprio aluno logado (app do aluno). */
   alunoId?: string; exercicioId: string; nome: string; grupo: string; aoTirar: () => void;
 }) {
-  const { cores, marcaTexto, preferencias, fatorTexto } = useTema();
+  const { cores, preferencias, fatorTexto } = useTema();
   const colData = { width: larguraDaData(fatorTexto), flexShrink: 0 } as const;
   const { dados, erro, carregando, recarregar } = useCarregar(`prog:${alunoId ?? 'eu'}:${exercicioId}`, () =>
     alunoId ? progressoDoAluno(alunoId, exercicioId) : progressoAluno(exercicioId));
@@ -55,6 +56,7 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
           pontos={pontos.map((p) => ({ rotulo: dataCurta(p.data), valor: p.carga }))}
           unidade="kg"
           descricao={`Maior carga de trabalho de ${nome} por data`}
+          semUltimo
         />
       ) : null}
       {dados && dados.length > 0 ? (
@@ -67,7 +69,7 @@ export function ProgressoDoExercicio({ alunoId, exercicioId, nome, grupo, aoTira
           {linhas.map((p) => (
             <View key={p.data} style={[estilos.linha, estilos.linhaDeDados, { borderColor: cores.borda }]}>
               <Texto numerico style={[colData, estilos.forte]}>{dataParaTela(p.data)}</Texto>
-              <Texto numerico style={[estilos.colNumero, estilos.carga, p.maiorCargaTrabalho !== null && { color: marcaTexto }]}>
+              <Texto numerico style={[estilos.colNumero, estilos.carga]}>
                 {p.maiorCargaTrabalho === null ? SEM_DADO : `${numeroParaTela(p.maiorCargaTrabalho)} kg`}
               </Texto>
               <Texto numerico style={estilos.colNumero}>{p.repeticoes ?? SEM_DADO}</Texto>
