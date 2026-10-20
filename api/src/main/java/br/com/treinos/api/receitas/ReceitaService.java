@@ -34,7 +34,7 @@ public class ReceitaService {
     public record ReceitaRequest(
             @NotNull Receita.Tipo tipo,
             @NotBlank @Size(max = 120) String nome,
-            @Size(max = 400) String descricao,
+            @Size(max = 300) String descricao,
             @NotNull JsonNode conteudo, UUID pastaId, Long versao) {
         public ReceitaRequest(Receita.Tipo tipo, String nome, String descricao, JsonNode conteudo) {
             this(tipo, nome, descricao, conteudo, null, null);

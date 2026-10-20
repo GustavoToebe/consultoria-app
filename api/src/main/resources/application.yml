@@ -23,6 +23,8 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+        # Uma consulta por coleção em lote (até 50 pais por vez) em vez de uma por pai: tira o N+1 sem mudar o mapeamento.
+        default_batch_fetch_size: 50
   flyway:
     locations: classpath:db/migration
     baseline-on-migrate: false
@@ -113,7 +115,7 @@ plataforma:
       secure: ${REFRESH_COOKIE_SECURE:true}
       somente-com-cookie-de-refresh: true
     login:
-      limite-ip: ${TREINOS_AUTH_LIMITE_IP:60}
+      limite-ip: ${TREINOS_AUTH_LIMITE_IP:200}
       limite-conta: ${TREINOS_AUTH_LIMITE_CONTA:10}
       janela-segundos: ${TREINOS_AUTH_JANELA_SEGUNDOS:600}
       sal: ${TREINOS_LOGIN_SAL}

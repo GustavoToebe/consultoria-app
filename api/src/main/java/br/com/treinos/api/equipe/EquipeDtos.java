@@ -1,4 +1,5 @@
 package br.com.treinos.api.equipe;
+import br.com.treinos.api.consultoria.MarcaPublica;
 import jakarta.validation.constraints.*;
 import java.time.Instant;
 import java.util.Set;
@@ -19,5 +20,9 @@ public final class EquipeDtos {
     }
     public record UsuarioRequest(@NotBlank @Size(max=120) String nome,@NotNull UUID perfilId,@NotNull Boolean ativo) { }
     public record AceitarRequest(@NotBlank @Size(max=200) String senha) { }
+    /** Código só no corpo, nunca no caminho (log de acesso, histórico, prévia de link). */
+    public record ConsultarConviteRequest(@NotBlank @Size(max=64) String codigo) { }
+    /** Só a marca da consultoria: nenhum dado de quem foi convidado. */
+    public record ConviteEquipePublico(MarcaPublica consultoria) { }
     public record MeuPerfilRequest(@NotBlank @Size(max=120) String nome,@Size(max=30) String telefone) { }
 }

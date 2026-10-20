@@ -127,6 +127,11 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
         UUID autor = UUID.fromString(treinador.path("usuario").path("id").asString());
         try (var executor = Executors.newVirtualThreadPerTaskExecutor(); var conexao = dataSource.getConnection()) {
             conexao.setAutoCommit(false);
+            int pidDestaConexao;
+            try (var st = conexao.createStatement(); var rs = st.executeQuery("select pg_backend_pid()")) {
+                rs.next();
+                pidDestaConexao = rs.getInt(1);
+            }
             try (var insert = conexao.prepareStatement("insert into registro_peso (id,consultoria_id,aluno_id,data,peso_kg,registrado_por) "
                     + "values (gen_random_uuid(),?,?,?,79,?)")) {
                 insert.setObject(1,consultoria); insert.setObject(2,aluno); insert.setObject(3,hoje); insert.setObject(4,autor);
@@ -134,7 +139,8 @@ class AtualizacoesIntegrationTest extends AbstractIntegrationTest {
             }
             var envio = executor.submit(() -> enviar(respostas(),409));
             long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
-            while (banco.queryForObject("select count(*) from pg_stat_activity where wait_event_type='Lock' and query like '%registro_peso%'",Integer.class) == 0) {
+            // Só conta quem está barrado por ESTA conexão (não qualquer espera por lock no banco compartilhado).
+            while (banco.queryForObject("select count(*) from pg_stat_activity where wait_event_type='Lock' and ? = any(pg_blocking_pids(pid))",Integer.class,pidDestaConexao) == 0) {
                 assertThat(System.nanoTime()).as("o envio precisa esperar a outra transação").isLessThan(limite);
                 Thread.sleep(50);
             }

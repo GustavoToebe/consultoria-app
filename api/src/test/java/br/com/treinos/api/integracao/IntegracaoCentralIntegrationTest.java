@@ -375,10 +375,11 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         var loginAluno = api.convidarEEntrar(treinador, api.criarAluno(treinador, "Aluno Teste"));
         String emailAluno = loginAluno.path("usuario").path("email").asString();
         UUID c = UUID.randomUUID();
-        Long antes = jdbc.queryForObject("select count(*) from consultoria", Long.class);
-        assertCodigo(central("POST", "/integracao/v1/instancias", pedido(c, emailAluno, slugUnico()), c),
+        String slugRecusado = slugUnico();
+        assertCodigo(central("POST", "/integracao/v1/instancias", pedido(c, emailAluno, slugRecusado), c),
                 422, "ADMINISTRADOR_INVALIDO");
-        assertThat(jdbc.queryForObject("select count(*) from consultoria", Long.class)).isEqualTo(antes);
+        // Filtra pelo slug deste pedido: não depende de quantas consultorias os outros testes já criaram.
+        assertThat(jdbc.queryForObject("select count(*) from consultoria where slug = ?", Long.class, slugRecusado)).isZero();
     }
 
     @Test

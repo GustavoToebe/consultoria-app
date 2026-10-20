@@ -1,3 +1,11 @@
+spring:
+  datasource:
+    hikari:
+      # A suíte guarda vários contextos do Spring ao mesmo tempo (cada combinação de configuração é um), todos no mesmo Postgres
+      # de teste (max_connections 100). Com o pool de produção (10) o mvn verify local estourava as conexões; 3 com nenhuma
+      # ociosa por padrão sobra para o teste e deixa o Postgres respirar.
+      maximum-pool-size: 3
+      minimum-idle: 0
 # Segredo só desta suíte. O valor decodifica para 37 bytes; não serve fora do teste.
 plataforma:
   auth:
@@ -28,6 +36,7 @@ treinos:
     cadastro-ip: 100000
     logo-ip: 100000
     convite-ip: 100000
+    convite-equipe-consulta-ip: 100000
     refresh-ip: 100000
     inscricao-ip: 100000
     inscricao-consulta-ip: 100000

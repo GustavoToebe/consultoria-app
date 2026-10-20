@@ -231,6 +231,16 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         api.get("/receitas", login, 403);
     }
 
+    @Test void descricaoDoModeloVaiAte300EFicaForaDoPlanoAplicado() throws Exception {
+        var conteudo = ApiDeTeste.treino().conteudo();
+        String descricao = "d".repeat(300);
+        var criado = api.post("/receitas", treinador, Map.of("tipo", "PLANO_TREINO", "nome", "Com descrição", "descricao", descricao, "conteudo", conteudo), 200);
+        assertThat(criado.get("descricao").asString()).isEqualTo(descricao);
+        api.post("/receitas", treinador, Map.of("tipo", "PLANO_TREINO", "nome", "Longa", "descricao", descricao + "d", "conteudo", conteudo), 400);
+        var aplicado = aplicar(criado, aluno);
+        assertThat(plano(aplicado).toString()).doesNotContain(descricao);
+    }
+
     @Test void modeloDeMobilidadeGuardaItensComVideoValidadoEAplicaComoRascunho() throws Exception {
         var item = Map.of("nome", "Lunge Stretch", "prescricao", "2 x 20s cada lado", "videoUrl", "https://www.youtube.com/watch?v=tsGPYSQbZx4");
         var conteudo = Map.of("orientacoes", "Podem ser feitos todos os dias.", "secoes", List.of(Map.of("titulo", "Alongamentos", "itens", List.of(item))));

@@ -35,11 +35,13 @@ public class LimiteTentativas {
                      @Value("${treinos.limites.logo-ip:300}") int logoIp,
                      @Value("${treinos.limites.inscricao-ip:20}") int inscricaoIp,
                      @Value("${treinos.limites.inscricao-consulta-ip:300}") int inscricaoConsultaIp,
+                     @Value("${treinos.limites.convite-equipe-consulta-ip:30}") int conviteEquipeConsultaIp,
                      @Value("${treinos.limites.janela-segundos:600}") long janelaSegundos,
                      @Value("${plataforma.auth.login.sal:}") String sal) {
-        this.limites = new Limites(cadastroIp, conviteIp, refreshIp, verificacaoIp, logoIp, inscricaoIp, inscricaoConsultaIp);
+        this.limites = new Limites(cadastroIp, conviteIp, refreshIp, verificacaoIp, logoIp, inscricaoIp, inscricaoConsultaIp,
+                conviteEquipeConsultaIp);
         if (cadastroIp < 1 || conviteIp < 1 || refreshIp < 1 || verificacaoIp < 1 || logoIp < 1 || inscricaoIp < 1
-                || inscricaoConsultaIp < 1 || janelaSegundos < 1 || janelaSegundos > 86400) {
+                || inscricaoConsultaIp < 1 || conviteEquipeConsultaIp < 1 || janelaSegundos < 1 || janelaSegundos > 86400) {
             throw new IllegalArgumentException("Limites de tentativas inválidos.");
         }
         this.contador = contador;
@@ -69,6 +71,14 @@ public class LimiteTentativas {
     /** Consulta da página pública da inscrição (marca e texto da consultoria). */
     public void inscricaoConsulta(String ip) {
         porIp("inscricao-consulta-ip", ip, limites.inscricaoConsultaIp());
+    }
+
+    /**
+     * Consulta pública do convite de equipe (marca da consultoria antes do aceite). Contador próprio: não gasta o do aceite
+     * nem o do convite do aluno, e quem chuta códigos aqui esbarra no teto sem travar quem está aceitando.
+     */
+    public void conviteEquipeConsulta(String ip) {
+        porIp("convite-equipe-consulta-ip", ip, limites.conviteEquipeConsultaIp());
     }
 
     public void refresh(String ip) {
@@ -115,6 +125,6 @@ public class LimiteTentativas {
     }
 
     private record Limites(int cadastroIp, int conviteIp, int refreshIp, int verificacaoIp, int logoIp, int inscricaoIp,
-                           int inscricaoConsultaIp) {
+                           int inscricaoConsultaIp, int conviteEquipeConsultaIp) {
     }
 }

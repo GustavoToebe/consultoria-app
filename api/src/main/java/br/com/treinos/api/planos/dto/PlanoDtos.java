@@ -61,7 +61,7 @@ public final class PlanoDtos {
     public record CopiaResposta(UUID pastaId, UUID planoId) {
     }
 
-    public record SalvarComoReceitaRequest(@NotBlank @Size(max = 120) String nome, @Size(max = 400) String descricao) {
+    public record SalvarComoReceitaRequest(@NotBlank @Size(max = 120) String nome, @Size(max = 300) String descricao) {
     }
 
     public record PlanoResumo(UUID id, UUID alunoId, UUID pastaId, String titulo, LocalDate inicio, LocalDate fim,

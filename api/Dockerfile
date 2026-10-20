@@ -35,5 +35,5 @@ WORKDIR /app
 COPY --from=build /src/target/treinos-api-*.jar app.jar
 USER treinos
 EXPOSE 8080
-ENV JAVA_TOOL_OPTIONS="-XX:+UseCompactObjectHeaders -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75"
+ENV JAVA_TOOL_OPTIONS="-XX:+UseG1GC -XX:+UseCompactObjectHeaders -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75"
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
