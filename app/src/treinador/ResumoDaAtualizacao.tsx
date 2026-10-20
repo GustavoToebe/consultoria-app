@@ -24,9 +24,8 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
     ]:[]),
     ...resumo.destaques.map(d=>[d.rotulo,d.texto] as [string,string]),
   ];
-  // Fotos da atualização (se o questionário tem a pergunta): miniaturas pela rota do treinador, "—" sem nenhuma.
-  const perguntaFotos=modelo.secoes.flatMap(s=>s.perguntas).find(p=>p.tipo==='FOTOS');
-  const fotos=perguntaFotos?idsDeFotos(a.respostas?.[perguntaFotos.id]):[];
+  // Fotos da atualização (um bloco por pergunta FOTOS, até 6): miniaturas pela rota do treinador, "—" sem nenhuma.
+  const perguntasFotos=modelo.secoes.flatMap(s=>s.perguntas).filter(p=>p.tipo==='FOTOS');
   return <Cartao titulo="Resumo do período" descricao={descricao} acoes={selo?<Selo texto={selo.texto} tipo={selo.tipo} />:undefined}>
     {numeros.length?<View style={estilos.numeros}>
       {numeros.map(([rotulo,valor],i)=><View key={`${i}:${rotulo}`} style={estilos.numero}>
@@ -34,11 +33,15 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
       </View>)}
     </View>:null}
     <Texto>Média de {numeroParaTela(resumo.mediaDiasPorSemana,1)} dias com treino por semana (registrado no app)</Texto>
-    {perguntaFotos?<View style={estilos.fotos}>
-      <Texto variante="rotulo">Fotos</Texto>
-      {fotos.length&&a.id?<View style={estilos.faixa}>{fotos.map(id=><ImagemProtegida key={id} chave={`resumo:${id}`} descricao="Foto da atualização"
-        carregar={()=>baixarFotoDoTreinador(a.id!,id)} />)}</View>:<Texto>—</Texto>}
-    </View>:null}
+    {perguntasFotos.map(p=>{
+      const fotos=idsDeFotos(a.respostas?.[p.id]);
+      const rotulo=perguntasFotos.length>1?(p.rotulo.trim()||'Fotos'):'Fotos';
+      return <View key={p.id} style={estilos.fotos}>
+        <Texto variante="rotulo">{rotulo}</Texto>
+        {fotos.length&&a.id?<View style={estilos.faixa}>{fotos.map(id=><ImagemProtegida key={id} chave={`resumo:${id}`} descricao={`Foto: ${rotulo}`}
+          carregar={()=>baixarFotoDoTreinador(a.id!,id)} />)}</View>:<Texto>—</Texto>}
+      </View>;
+    })}
     {resumo.peso?<Texto variante="pequeno">Peso anterior: {resumo.pesoAnterior==null?'—':`${numeroParaTela(resumo.pesoAnterior,1)} kg`}</Texto>:null}
   </Cartao>;
 }

@@ -4,11 +4,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { ConteudoQuestionario, FinalidadeQuestionario, PerguntaAtualizacao, TipoPergunta } from '../../api/tipos';
 import {
-  adicionarPergunta, adicionarSecao, alterarCondicaoDaSecao, alterarPergunta, alterarSecao, duplicarPerguntaNaSecao, moverParaSecao, moverPergunta, moverSecao,
+  adicionarPergunta, adicionarSecao, alterarCondicaoDaSecao, alterarDescricaoDaSecao, alterarPergunta, alterarSecao, duplicarPerguntaNaSecao, moverParaSecao, moverPergunta, moverSecao,
   gruposParaAdicionar, novaPergunta, podeAdicionar, podeAdicionarSecao, podeDuplicar, removerPergunta, removerSecao, ROTULO_DO_TIPO, textoDaCondicao,
   type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
-import { LIMITES_QUESTIONARIO as L } from '../../dominio/questionario';
+import { escalaDaNota, LIMITES_QUESTIONARIO as L, maximoDeFotos } from '../../dominio/questionario';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -40,7 +40,7 @@ interface Props {
 
 /**
  * Seções e perguntas do questionário (molde: `SecoesDeMobilidade`). Cada pergunta é um cartão recolhível, como o
- * exercício no treino; PESO e Data só uma vez. Nada é salvo aqui: o pai guarda o rascunho.
+ * exercício no treino; PESO e Data só uma vez, FOTOS até 6. Nada é salvo aqui: o pai guarda o rascunho.
  */
 export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar, aoAlternarTodas, aoAbrir, problemas, somenteLeitura, finalidade = 'ATUALIZACAO' }: Props) {
   const { cores } = useTema();
@@ -80,6 +80,9 @@ export function SecoesDoQuestionario({ conteudo: c, aoMudar, abertas, aoAlternar
           </> : null}
         </View>
       </View>}
+      {somenteLeitura ? null : <Campo rotulo="Descrição (opcional)" valor={sec.descricao ?? ''} maxLength={L.descricaoSecaoTamanho} linhas={3}
+        ajuda={`Use **negrito** e __sublinhado__. Quebra de linha vale. ${(sec.descricao ?? '').length} de ${L.descricaoSecaoTamanho} caracteres.`}
+        aoMudar={(descricao) => aoMudar((x) => alterarDescricaoDaSecao(x, si, descricao))} />}
       {somenteLeitura ? (sec.mostrarSe ? <Texto variante="pequeno">{textoDaCondicao(c, sec.mostrarSe)}</Texto> : null)
         : <EditorDeCondicao conteudo={c} secao={si} condicao={sec.mostrarSe} aoMudar={(m) => aoMudar((x) => alterarCondicaoDaSecao(x, si, m))} />}
       {sec.perguntas.length === 0 ? <Texto variante="suave">Seção sem pergunta. Adicione ao menos uma.</Texto> : null}
@@ -136,7 +139,7 @@ function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, probl
   aoDuplicar: () => void; aoMoverParaSecao: (para: number) => void; aoRemover: () => void;
 }) {
   const { cores } = useTema();
-  const resumo = [ROTULO_DO_TIPO[p.tipo] ?? p.tipo, p.obrigatoria ? 'obrigatória' : null, p.destaque ? 'no resumo' : null,
+  const resumo = [resumoDoTipo(p), p.obrigatoria ? 'obrigatória' : null, p.destaque ? 'no resumo' : null,
     p.mostrarSe ? 'com condição' : null, p.imagemId ? 'com imagem' : null].filter(Boolean).join(' · ');
   const outras = secoes.filter((s) => s.i !== secaoAtual).map((s) => ({ valor: String(s.i), rotulo: s.titulo }));
   // Mesma gramática dos outros editores: setas ↑↓ movem, chevron abre, lixeira remove (antes as setas ficavam no rodapé).
@@ -149,11 +152,18 @@ function CartaoDaPergunta({ pergunta: p, conteudo, posicao, total, aberta, probl
       {p.mostrarSe && somenteLeitura ? <Texto variante="pequeno">{textoDaCondicao(conteudo, p.mostrarSe)}</Texto> : null}
       <PropriedadesDaPergunta pergunta={p} conteudo={conteudo} problemas={problemas} somenteLeitura={somenteLeitura} finalidade={finalidade} aoMudar={aoMudar} />
       {somenteLeitura ? null : <LinhaDeAcoes>
-        <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={!duplicavel} motivo="Este tipo só pode aparecer uma vez." aoTocar={aoDuplicar} />
+        <Botao rotulo="Duplicar" tipo="secundario" Icone={Copy} desabilitado={!duplicavel} motivo={p.tipo === 'FOTOS' ? `No máximo ${L.perguntasFotos} perguntas de fotos.` : 'Este tipo só pode aparecer uma vez.'} aoTocar={aoDuplicar} />
         {outras.length ? <EscolhaEmFolha rotulo="Mover para a seção" valor="" opcoes={outras} rotuloDoValor="escolher" aoMudar={(v) => aoMoverParaSecao(Number(v))} /> : null}
       </LinhaDeAcoes>}
     </View> : null}
   </View>;
+}
+
+/** "Nota de 1 a 5", "Fotos (até 3)": o tipo com o que mais o distingue no cartão fechado. */
+function resumoDoTipo(p: PerguntaAtualizacao): string {
+  if (p.tipo === 'NOTA') { const { min, max } = escalaDaNota(p); return `Nota de ${min} a ${max}`; }
+  if (p.tipo === 'FOTOS') { const n = maximoDeFotos(p); return `Fotos (até ${n})`; }
+  return ROTULO_DO_TIPO[p.tipo] ?? p.tipo;
 }
 
 /** Opção da folha "Adicionar pergunta": título e o que faz (ou por que não dá), como as opções da folha "Modelos". */
