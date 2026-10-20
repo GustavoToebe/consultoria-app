@@ -135,6 +135,20 @@ describe('cliente HTTP: refresh compartilhado', () => {
     expect(encerrada).not.toHaveBeenCalled();
   });
 
+  it('403 de regra do plano (mobilidade fora do plano) não renova a sessão, não repete e não a encerra', async () => {
+    fetchSimulado.mockResolvedValue(json(403, { status: 403, message: 'Funcionalidade fora do plano.', codigo: 'FUNCIONALIDADE_FORA_DO_PLANO', fieldErrors: null }));
+    const { requisicao, aoEncerrar } = carregarCliente();
+    const encerrada = jest.fn();
+    aoEncerrar(encerrada);
+
+    await expect(requisicao('/aluno/mobilidade/registros', { metodo: 'POST', corpo: { registros: [] } })).rejects.toMatchObject({
+      status: 403,
+      codigo: 'FUNCIONALIDADE_FORA_DO_PLANO',
+    });
+    expect(chamados(fetchSimulado)).toEqual(['/aluno/mobilidade/registros']);
+    expect(encerrada).not.toHaveBeenCalled();
+  });
+
   it('código de verificação errado (401) não renova a sessão nem a encerra', async () => {
     fetchSimulado.mockResolvedValue(erro401('MFA_CODIGO_INVALIDO'));
     const { requisicao, aoEncerrar } = carregarCliente();

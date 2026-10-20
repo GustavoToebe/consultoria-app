@@ -744,6 +744,25 @@ describe.each(implementacoes)('mobilidade na fila de envio – %s', (_nome, cria
     expect(tentativas).toBe(1);
   });
 
+  it('depois do 403, uma marcação nova é tentada uma vez no ciclo seguinte e o aluno lê um texto neutro', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarMobilidade(item('i1'));
+    let tentativas = 0;
+    const sync = new Sincronizador(repo, aceitaTudo, async () => {
+      tentativas++;
+      throw new ErroApi(403, 'FUNCIONALIDADE_FORA_DO_PLANO', 'Funcionalidade fora do plano.');
+    });
+    await sync.sincronizar();
+    await repo.registrarMobilidade(item('i2'));
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(tentativas).toBe(2);
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(tentativas).toBe(2);
+    const motivos = (await repo.listarMobilidade()).map((r) => r.motivo ?? '');
+    expect(motivos).toEqual([MOTIVO_MOBILIDADE_FORA_DO_PLANO, MOTIVO_MOBILIDADE_FORA_DO_PLANO]);
+    expect(MOTIVO_MOBILIDADE_FORA_DO_PLANO).not.toMatch(/403|FUNCIONALIDADE|plano|API/i);
+  });
+
   it('sem conexão a mobilidade continua LOCAL; outro 4xx é erro do lote', async () => {
     const repo = aparelho('u1');
     await repo.registrarMobilidade(item('i1'));

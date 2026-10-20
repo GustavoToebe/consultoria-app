@@ -147,7 +147,7 @@ function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }
 /** Por que a tela não oferece marcar (o aluno vê o conteúdo, mas sem os botões). */
 function semMarcar(vigente: boolean, noPlano: boolean, temDatas: boolean): string {
   if (!vigente) return 'Este plano é só para consulta: marcar como feito vale na mobilidade em uso.';
-  if (!noPlano) return 'A mobilidade não está no plano da consultoria: dá para ver, mas não para marcar como feito.';
+  if (!noPlano) return 'A marcação da mobilidade não está disponível agora: dá para ver, mas não para marcar como feito. Fale com o seu treinador.';
   if (!temDatas) return 'Fora do período desta mobilidade: não há dia para marcar.';
   return '';
 }

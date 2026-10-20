@@ -300,7 +300,7 @@ const ALUNO: Guia = {
     { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
     { pergunta: 'Como vejo de novo o passeio pelo menu?', resposta: 'Ele aparece uma vez em cada aparelho, no primeiro acesso, e dá para pular. Para rever, abra a Ajuda (em Conta) e toque em "Conhecer o menu".' },
     { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
-    { pergunta: 'Não consigo marcar a mobilidade.', resposta: 'Só dá para marcar na mobilidade em uso (as de pastas antigas são só para consultar), dentro do período dela e se a mobilidade estiver incluída no plano da consultoria. Se o aviso de envio mostrar uma falha, abra Conta para ver o motivo e toque em tentar de novo.' },
+    { pergunta: 'Não consigo marcar a mobilidade.', resposta: 'Só dá para marcar na mobilidade em uso (as de pastas antigas são só para consultar), dentro do período dela e se a marcação estiver disponível (se não estiver, fale com o seu treinador). Se o aviso de envio mostrar uma falha, abra Conta para ver o motivo e toque em tentar de novo.' },
   ],
 };
 

@@ -17,7 +17,8 @@ const LOTE = 300;
 
 /** Código que a API devolve (403) quando o plano da consultoria não inclui a mobilidade. */
 const FORA_DO_PLANO = 'FUNCIONALIDADE_FORA_DO_PLANO';
-export const MOTIVO_MOBILIDADE_FORA_DO_PLANO = 'A mobilidade não está no plano da consultoria.';
+/** O que o aluno lê: neutro, sem falar de plano nem de código de erro. */
+export const MOTIVO_MOBILIDADE_FORA_DO_PLANO = 'Não foi possível enviar esta marcação agora. Fale com o seu treinador.';
 
 /**
  * Envia os registros LOCAL em lotes de até 300, os mais antigos primeiro, e aplica a resposta: ACEITO e
