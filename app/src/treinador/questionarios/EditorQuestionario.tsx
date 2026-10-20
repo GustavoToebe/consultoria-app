@@ -3,14 +3,11 @@ import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { RespostasAtualizacao } from '../../api/tipos';
-import { QuestionarioAtualizacao } from '../../aluno/atualizacao/QuestionarioAtualizacao';
 import {
   agruparProblemas, alterarInstrucoes, descricaoDoLocal, type ProblemasAgrupados,
 } from '../../dominio/editorQuestionario';
 import { quandoPublicado, seloDoEditor } from '../../dominio/barraDoEditor';
-import { hojeIso } from '../../dominio/formatos';
 import { LIMITES_QUESTIONARIO as L, type ProblemaDoQuestionario } from '../../dominio/questionario';
-import { errosRespostasAtualizacao } from '../../dominio/respostasAtualizacao';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
@@ -31,6 +28,7 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { BarraDoEditor } from '../plano/BarraDoEditor';
 import { TelaDoEditor } from '../plano/TelaDoEditor';
+import { PreviaDoQuestionario } from './PreviaDoQuestionario';
 import { SecoesDoQuestionario } from './SecoesDoQuestionario';
 import { useQuestionarioEditor } from './useQuestionarioEditor';
 
@@ -159,21 +157,9 @@ export function EditorQuestionario({ id }: { id: string }) {
       </Cartao>
       <SecoesDoQuestionario conteudo={e.conteudo} aoMudar={editor.alterarConteudo} abertas={abertas} aoAlternar={alternar} aoAlternarTodas={alternarTodas}
         aoAbrir={(pid) => setAbertas((a) => new Set(a).add(pid))} problemas={agrupados} finalidade={d.finalidade} />
-    </> : <View style={estilos.previa}>
-      <Cartao titulo="Prévia" descricao="É assim que o aluno vê o rascunho, na largura da tela dele. As respostas daqui não são salvas nem enviadas a ninguém.">
-        {e.conteudo.instrucoes.map((texto, i) => <Texto key={i}>{texto}</Texto>)}
-      </Cartao>
-      <QuestionarioAtualizacao modelo={e.conteudo} dataAtualizacao={hojeIso()} respostas={respostas} erros={errosPrevia ?? {}} progresso={anamnese}
-        aoMudar={(pid, valor) => { setRespostas((r) => ({ ...r, [pid]: valor })); setErrosPrevia(null); }} />
-      <LinhaDeAcoes>
-        <Botao rotulo="Conferir respostas" tipo="secundario" aoTocar={() => {
-          const erros = errosRespostasAtualizacao(e.conteudo, respostas);
-          setErrosPrevia(erros);
-          avisar(Object.keys(erros).length ? 'Há respostas que o aluno não conseguiria enviar.' : 'Estas respostas seriam aceitas.', Object.keys(erros).length ? 'perigo' : 'sucesso');
-        }} />
-        <Botao rotulo="Limpar respostas" tipo="fantasma" aoTocar={() => { setRespostas({}); setErrosPrevia(null); }} />
-      </LinhaDeAcoes>
-    </View>}
+    </> : <PreviaDoQuestionario conteudo={e.conteudo} anamnese={anamnese} respostas={respostas} erros={errosPrevia}
+      aoMudar={(pid, valor) => { setRespostas((r) => ({ ...r, [pid]: valor })); setErrosPrevia(null); }}
+      aoMudarErros={setErrosPrevia} aoLimpar={() => { setRespostas({}); setErrosPrevia(null); }} />}
 
     <PainelConfirmacao visivel={confirmando && avisos === null} titulo={anamnese ? 'Publicar esta anamnese?' : 'Publicar este questionário?'}
       mensagem={anamnese ? 'As próximas anamneses enviadas usam a versão nova. Quem já recebeu continua com a versão que recebeu.'
@@ -201,8 +187,6 @@ function ItemProblema({ onde, mensagem, tipo }: { onde: string; mensagem: string
 }
 
 const estilos = StyleSheet.create({
-  // O aluno vê o questionário em até 720 px: a prévia usa a mesma largura.
-  previa: { width: '100%', maxWidth: 720, alignSelf: 'center', gap: espaco(3) },
   instrucao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(0.5) },
   campoInstrucao: { flex: 1 },
   problema: { flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start', borderLeftWidth: 3, borderRadius: RAIO, paddingLeft: espaco(1), paddingVertical: 2 },

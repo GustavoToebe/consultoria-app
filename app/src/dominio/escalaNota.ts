@@ -21,3 +21,17 @@ export function valorAposPasso(atual: number | null, passo: 1 | -1, minimo: numb
   if (atual === null) return Math.round((minimo + maximo) / 2);
   return Math.min(maximo, Math.max(minimo, atual + passo));
 }
+
+/**
+ * Botões da nota em linhas equilibradas (1 a 10 no celular: 5 + 5, não 6 + 4): quantos por linha e o lado de cada
+ * botão, entre `menor` (o alvo de toque) e `maior`. Sem largura medida ainda, todos numa linha com o lado mínimo.
+ */
+export function disposicaoDaEscala(quantidade: number, largura: number, vao: number, menor = 44, maior = 56): { porLinha: number; lado: number } {
+  if (quantidade <= 0) return { porLinha: 1, lado: menor };
+  if (!(largura > 0)) return { porLinha: quantidade, lado: menor };
+  const cabem = Math.max(1, Math.floor((largura + vao) / (menor + vao)));
+  const linhas = Math.ceil(quantidade / cabem);
+  const porLinha = Math.ceil(quantidade / linhas);
+  const lado = Math.floor((largura - (porLinha - 1) * vao) / porLinha);
+  return { porLinha, lado: Math.max(menor, Math.min(maior, lado)) };
+}

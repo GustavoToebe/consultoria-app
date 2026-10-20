@@ -524,6 +524,8 @@ export interface RascunhoAtualizacao {
    * Sobem no envio da atualização; as já enviadas ficam em `respostas` como ids.
    */
   fotosLocais?: Record<string, string[]>;
+  /** Só a anamnese (em páginas): a seção (índice em `secoes`) em que o aluno parou, para reabrir nela. */
+  secao?: number;
 }
 
 /** Chaves que o repositório chave-valor usa para um usuário. */

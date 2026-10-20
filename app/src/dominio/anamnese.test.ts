@@ -29,9 +29,11 @@ describe('anamnese', () => {
   it('o rascunho só vale para a mesma versão; enviada abre com as enviadas', () => {
     const a = { situacao: 'PENDENTE' as const, questionarioVersaoId: 'v1', respostas: {} };
     const rascunho = { questionarioVersaoId: 'v1', respostas: { x: 'fictício' }, fotosLocais: { f: ['a.jpg'] } };
-    expect(respostasIniciais(a, rascunho)).toEqual({ respostas: { x: 'fictício' }, locais: { f: ['a.jpg'] } });
-    expect(respostasIniciais(a, { ...rascunho, questionarioVersaoId: 'v2' })).toEqual({ respostas: {}, locais: {} });
-    expect(respostasIniciais({ ...a, situacao: 'ENVIADA', respostas: { y: true } }, rascunho)).toEqual({ respostas: { y: true }, locais: {} });
+    expect(respostasIniciais(a, rascunho)).toEqual({ respostas: { x: 'fictício' }, locais: { f: ['a.jpg'] }, secao: 0 });
+    expect(respostasIniciais(a, { ...rascunho, secao: 3 }).secao).toBe(3);
+    expect(respostasIniciais(a, { ...rascunho, secao: -1 }).secao).toBe(0);
+    expect(respostasIniciais(a, { ...rascunho, questionarioVersaoId: 'v2', secao: 3 })).toEqual({ respostas: {}, locais: {}, secao: 0 });
+    expect(respostasIniciais({ ...a, situacao: 'ENVIADA', respostas: { y: true } }, rascunho)).toEqual({ respostas: { y: true }, locais: {}, secao: 0 });
   });
 
   describe('respostas que alimentam o cadastro', () => {

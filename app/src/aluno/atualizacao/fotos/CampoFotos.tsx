@@ -5,7 +5,9 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { baixarFotoDoAluno } from '../../../api/rotas';
 import type { PerguntaAtualizacao, RespostaAtualizacao } from '../../../api/tipos';
-import { contagemDeFotos, idsDeFotos, TEXTO_FOTOS_INDISPONIVEIS, TEXTO_FOTOS_SEM_CONEXAO, vagasDeFoto } from '../../../dominio/fotosAtualizacao';
+import {
+  contagemDeFotos, idsDeFotos, maximoDeFotos, TEXTO_FOTOS_INDISPONIVEIS, TEXTO_FOTOS_SEM_CONEXAO, vagasDeFoto,
+} from '../../../dominio/fotosAtualizacao';
 import { useTema } from '../../../tema/TemaProvider';
 import { espaco, RAIO } from '../../../tema/tokens';
 import { Botao } from '../../../ui/Botao';
@@ -88,10 +90,14 @@ export function CampoFotos({ pergunta: p, valor, carregarDaEquipe, rotulo }: Pro
     );
   }
 
-  const vagas = vagasDeFoto(enviadas.length, locais.length, controle.maximoPorPergunta);
+  // Cada pergunta tem o próprio limite (frente, costas e lado com uma foto cada); o servidor confere de novo no envio.
+  const limite = maximoDeFotos(p.max, controle.maximoPorPergunta);
+  const vagas = vagasDeFoto(enviadas.length, locais.length, limite);
   const semConexao = !controle.guardaNoAparelho && !controle.online;
-  const motivo = vagas === 0 ? `Você já anexou ${controle.maximoPorPergunta} fotos.` : semConexao ? TEXTO_FOTOS_SEM_CONEXAO : undefined;
+  const motivo = vagas === 0 ? `Esta pergunta aceita até ${limite} fotos.` : semConexao ? TEXTO_FOTOS_SEM_CONEXAO : undefined;
   const bloqueado = vagas === 0 || semConexao;
+  // Uma foto só: depois de anexar os botões somem (trocar = remover e anexar de novo); com várias, ficam com o motivo.
+  const mostrarBotoes = !(limite === 1 && vagas === 0);
   return (
     <View style={estilos.pergunta}>
       {cabecalho}
@@ -111,18 +117,16 @@ export function CampoFotos({ pergunta: p, valor, carregarDaEquipe, rotulo }: Pro
             </View>
           ))}
         </View>
-      ) : (
-        <Texto>—</Texto>
-      )}
-      <Texto variante="pequeno" numerico>{contagemDeFotos(itens.length, controle.maximoPorPergunta)}</Texto>
-      <LinhaDeAcoes>
-        <Botao rotulo={controle.guardaNoAparelho ? 'Escolher da galeria' : 'Escolher foto'} tipo="secundario" Icone={ImagePlus}
-          carregando={controle.ocupado} desabilitado={bloqueado} motivo={motivo} aoTocar={() => void controle.anexar(p.id, 'galeria')} />
+      ) : null}
+      {limite > 1 ? <Texto variante="pequeno" numerico>{contagemDeFotos(itens.length, limite)}</Texto> : null}
+      {mostrarBotoes ? <LinhaDeAcoes>
+        <Botao rotulo={controle.guardaNoAparelho ? 'Escolher da galeria' : 'Adicionar foto'} tipo="secundario" Icone={ImagePlus}
+          carregando={controle.ocupado} desabilitado={bloqueado} motivo={motivo} aoTocar={() => void controle.anexar(p.id, 'galeria', limite)} />
         {controle.guardaNoAparelho ? (
-          <Botao rotulo="Tirar foto" tipo="secundario" Icone={Camera} carregando={controle.ocupado} desabilitado={bloqueado}
-            aoTocar={() => void controle.anexar(p.id, 'camera')} />
+          <Botao rotulo="Tirar foto" tipo="secundario" Icone={Camera} carregando={controle.ocupado} desabilitado={bloqueado} motivo={motivo}
+            aoTocar={() => void controle.anexar(p.id, 'camera', limite)} />
         ) : null}
-      </LinhaDeAcoes>
+      </LinhaDeAcoes> : null}
       <Ampliada item={ampliada} lado={lado} aoFechar={() => setAmpliada(null)} carregarDe={carregar} usuarioId={controle.usuarioId} />
       <PainelConfirmacao visivel={removendo !== null} titulo="Remover esta foto?"
         mensagem={removendo?.tipo === 'local' ? 'Ela sai deste aparelho.' : 'Ela é apagada do servidor e não volta.'}

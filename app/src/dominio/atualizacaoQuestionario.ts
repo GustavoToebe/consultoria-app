@@ -128,8 +128,15 @@ export function progressoDasSecoes(modelo: ConteudoQuestionario, respostas: Resp
   return modelo.secoes.map((secao, i) => {
     if (secoesEscondidas.has(i)) return null;
     const contam = secao.perguntas.filter((p) => !semResposta(p.tipo) && !escondidas.has(p.id) && (p.tipo !== 'FOTOS' || fotosLigadas));
-    return { respondidas: contam.filter((p) => respondidaNaPergunta(p, respostas[p.id])).length, total: contam.length };
+    return { respondidas: contam.filter((p) => respondidaNaPergunta(p, respostas[p.id]) && gradeCompleta(p, respostas[p.id])).length, total: contam.length };
   });
+}
+
+/** GRADE obrigatória só conta como respondida com todas as linhas (como a conferência do envio); as outras, sempre. */
+function gradeCompleta(p: PerguntaAtualizacao, valor: RespostaAtualizacao | undefined) {
+  if (p.tipo !== 'GRADE' || !p.obrigatoria) return true;
+  const marcadas = typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor as Record<string, unknown> : {};
+  return (p.linhas ?? []).every((l) => marcadas[l.id] != null);
 }
 
 /** "2 de 4 respondidas"; sem pergunta para responder, vazio. */
@@ -158,3 +165,31 @@ export function ajudaDoNumero(p: PerguntaAtualizacao): string {
   const decimais = casas === 0 ? 'número inteiro' : `até ${casas} ${casas === 1 ? 'casa decimal' : 'casas decimais'}`;
   return faixa ? `${faixa}, ${decimais}.` : `${decimais[0].toUpperCase()}${decimais.slice(1)}.`;
 }
+
+/**
+ * Escala da NOTA: ponta de baixo 0 ou 1 e de cima 2 a 10 (padrão 0 a 10). Valor fora disso, que a publicação recusa,
+ * volta ao padrão em vez de desenhar uma escala sem sentido.
+ */
+export function escalaDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>): { minimo: number; maximo: number } {
+  const minimo = p.min === 1 ? 1 : 0;
+  const maximo = typeof p.max === 'number' && Number.isInteger(p.max) && p.max >= 2 && p.max <= 10 ? p.max : 10;
+  return { minimo, maximo };
+}
+
+/** "7 de 10": a nota na leitura, com a ponta de cima (uma escala de 1 a 5 não se confunde com uma de 0 a 10). */
+export function textoDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>, valor: RespostaAtualizacao | undefined): string {
+  return typeof valor === 'number' ? `${numeroParaTela(valor, 0)} de ${escalaDaNota(p).maximo}` : SEM_DADO;
+}
+
+/** GRADE na leitura: uma linha por item, com a coluna escolhida ou "—". */
+export function respostasDaGrade(p: Pick<PerguntaAtualizacao, 'linhas' | 'colunas'>, valor: RespostaAtualizacao | undefined) {
+  const marcadas = typeof valor === 'object' && valor !== null && !Array.isArray(valor) ? valor as Record<string, unknown> : {};
+  return (p.linhas ?? []).map((l) => ({
+    id: l.id,
+    linha: l.rotulo,
+    resposta: (p.colunas ?? []).find((c) => c.id === marcadas[l.id])?.rotulo ?? SEM_DADO,
+  }));
+}
+
+/** Opções com imagem por linha, pela largura da área: 2 no celular, 3 numa coluna média, 4 numa larga. */
+export const colunasDasOpcoes = (largura: number) => (largura < 480 ? 2 : largura < 760 ? 3 : 4);

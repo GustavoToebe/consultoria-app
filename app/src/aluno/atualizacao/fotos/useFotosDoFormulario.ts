@@ -44,7 +44,7 @@ export function useFotosDoFormulario({ usuarioId, destino, online, editavel, loc
   const habilitado = configuracao.carregando ? null : configuracao.dados ? configuracao.dados.habilitado : null;
   const maximo = configuracao.dados?.maximoPorPergunta ?? 6;
 
-  const anexar = async (perguntaId: string, origem: OrigemDaFoto) => {
+  const anexar = async (perguntaId: string, origem: OrigemDaFoto, limite: number) => {
     if (!editavel || ocupado || !destino) return;
     if (habilitado !== true) {
       avisar(TEXTO_FOTOS_INDISPONIVEIS);
@@ -52,8 +52,9 @@ export function useFotosDoFormulario({ usuarioId, destino, online, editavel, loc
     }
     const { respostas, locais } = ler();
     const enviadas = idsDeFotos(respostas[perguntaId]);
-    if (vagasDeFoto(enviadas.length, (locais[perguntaId] ?? []).length, maximo) === 0) {
-      avisar(`Esta pergunta aceita até ${maximo} fotos.`);
+    const teto = Math.min(limite, maximo);
+    if (vagasDeFoto(enviadas.length, (locais[perguntaId] ?? []).length, teto) === 0) {
+      avisar(teto === 1 ? 'Esta pergunta aceita uma foto. Remova a atual para trocar.' : `Esta pergunta aceita até ${teto} fotos.`);
       return;
     }
     if (!fotosLocaisDisponiveis && !online) {
