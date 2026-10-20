@@ -135,6 +135,31 @@ public final class ApiDeTeste {
         return new TreinoDeTeste(c, sessao, exercicio, exercicioId, fs, ws, backOff);
     }
 
+    /** Mobilidade válida com uids conhecidos: uma seção com dois itens. */
+    public record MobilidadeDeTeste(Map<String, Object> conteudo, UUID secaoUid, UUID itemUid, UUID outroItemUid) {
+    }
+
+    public static MobilidadeDeTeste mobilidade() {
+        UUID secao = UUID.randomUUID();
+        UUID item = UUID.randomUUID();
+        UUID outro = UUID.randomUUID();
+        Map<String, Object> primeiro = Map.of("uid", item, "nome", "Lunge Stretch", "prescricao", "2 x 20s");
+        Map<String, Object> segundo = Map.of("uid", outro, "nome", "Gato e vaca", "prescricao", "10 repetições");
+        Map<String, Object> conteudo = Map.of("orientacoes", "Todos os dias.",
+                "secoes", List.of(Map.of("uid", secao, "titulo", "Alongamentos", "itens", List.of(primeiro, segundo))));
+        return new MobilidadeDeTeste(conteudo, secao, item, outro);
+    }
+
+    /** Cria o plano de mobilidade, salva o conteúdo no rascunho e publica. Devolve o detalhe publicado. */
+    public JsonNode publicarMobilidade(JsonNode treinador, UUID alunoId, Map<String, Object> conteudo) throws Exception {
+        JsonNode plano = post("/alunos/" + alunoId + "/planos-mobilidade", treinador, Map.of("titulo", "Mobilidade de teste"), 200);
+        String id = plano.get("plano").get("id").asString();
+        JsonNode salvo = put("/planos-mobilidade/" + id + "/rascunho", treinador,
+                rascunho("Mobilidade de teste", conteudo, plano.get("plano").get("versao").asLong()), 200);
+        return post("/planos-mobilidade/" + id + "/publicar", treinador,
+                Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+    }
+
     /** Cria o plano, salva o conteúdo no rascunho e publica. Devolve o detalhe publicado. */
     public JsonNode publicarTreino(JsonNode treinador, UUID alunoId, ConteudoTreino conteudo) throws Exception {
         JsonNode plano = post("/alunos/" + alunoId + "/planos-treino", treinador, Map.of("titulo", "Plano de teste"), 200);

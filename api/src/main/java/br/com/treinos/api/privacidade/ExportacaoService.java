@@ -46,6 +46,7 @@ public class ExportacaoService {
     private final PlanoDietaService dietas;
     private final PlanoMobilidadeService mobilidades;
     private final HistoricoService historico;
+    private final br.com.treinos.api.mobilidade.MobilidadeRegistroService mobilidadeRegistros;
     private final PesoService pesos;
     private final LesaoService lesoes;
     private final AtualizacaoRepository atualizacoes;
@@ -58,6 +59,7 @@ public class ExportacaoService {
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
+                             br.com.treinos.api.mobilidade.MobilidadeRegistroService mobilidadeRegistros,
                              PesoService pesos, LesaoService lesoes, AtualizacaoRepository atualizacoes,
                              FotoService fotos, FotoPerfilService fotoPerfil,
                              br.com.treinos.api.anamneses.AnamneseService anamneses, InscricaoDoAluno inscricao,
@@ -71,6 +73,7 @@ public class ExportacaoService {
         this.dietas = dietas;
         this.mobilidades = mobilidades;
         this.historico = historico;
+        this.mobilidadeRegistros = mobilidadeRegistros;
         this.pesos = pesos;
         this.lesoes = lesoes;
         this.atualizacoes = atualizacoes;
@@ -94,6 +97,8 @@ public class ExportacaoService {
                 () -> mobilidades.publicadosDoAluno(alunoId));
         var registros = secao(AcessoAtual.pode("REGISTRO_LER"), "registros", omitidas,
                 () -> historico.completoDoAluno(alunoId));
+        var mobilidadeFeita = secao(AcessoAtual.pode("REGISTRO_LER"), "mobilidadeRegistros", omitidas,
+                () -> mobilidadeRegistros.completoDoAluno(alunoId));
         var peso = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "pesos", omitidas, () -> pesos.listar(alunoId));
         var lesao = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "lesoes", omitidas, () -> lesoes.listar(alunoId));
         var atualizacao = secao(AcessoAtual.pode("ATUALIZACAO_LER") && AcessoAtual.pode("ALUNO_SENSIVEL_LER"),
@@ -110,7 +115,7 @@ public class ExportacaoService {
         }
         var fotoDePerfil = fotoPerfil.atualizadaEm(alunoId).map(PrivacidadeDtos.FotoPerfilExportada::new).orElse(null);
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
-                registros, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil);
+                registros, mobilidadeFeita, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

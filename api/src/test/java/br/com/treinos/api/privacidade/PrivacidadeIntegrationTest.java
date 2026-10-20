@@ -212,13 +212,42 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void exportarLevaOsItensDeMobilidadeMarcadosEAAnonimizacaoOsMantem() throws Exception {
+        var mobilidade = ApiDeTeste.mobilidade();
+        api.publicarMobilidade(admin, alunoId, mobilidade.conteudo());
+        String versao = api.get("/aluno/mobilidade", loginDoAluno, 200).get("mobilidade").get("id").asString();
+        api.post("/aluno/mobilidade/registros", loginDoAluno, Map.of("registros", List.of(Map.of(
+                "id", UUID.randomUUID().toString(), "planoVersaoId", versao, "secaoUid", mobilidade.secaoUid().toString(),
+                "itemUid", mobilidade.itemUid().toString(), "data", hoje.toString(), "feito", true,
+                "alteradoNoAparelhoEm", Instant.now().toString()))), 200);
+
+        JsonNode dados = api.get("/alunos/" + alunoId + "/exportacao", admin, 200);
+        assertThat(dados.get("mobilidadeRegistros").get("itens")).hasSize(1);
+        assertThat(dados.get("mobilidadeRegistros").get("itens").get(0).get("itemUid").asString())
+                .isEqualTo(mobilidade.itemUid().toString());
+        assertThat(dados.get("mobilidadeRegistros").get("itens").get(0).get("feito").asBoolean()).isTrue();
+
+        // Sem REGISTRO_LER a seção sai da exportação (e vem listada como omitida), como os registros do treino.
+        JsonNode semRegistro = membro("Exportador sem registro",
+                Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER", "ALUNO_EXPORTAR"));
+        JsonNode omitida = api.get("/alunos/" + alunoId + "/exportacao", semRegistro, 200);
+        assertThat(omitida.has("mobilidadeRegistros")).isFalse();
+
+        // A anonimização mantém os registros: não têm conteúdo pessoal, só feito ou não feito.
+        api.patch("/alunos/" + alunoId + "/situacao", admin, Map.of("ativo", false), 200);
+        api.post("/alunos/" + alunoId + "/anonimizar", admin, Map.of("nomeConfirmado", NOME), 200);
+        assertThat(jdbc.queryForObject("select count(*) from mobilidade_registro where aluno_id = ?::uuid", Integer.class,
+                alunoId.toString())).isEqualTo(1);
+    }
+
+    @Test
     void exportarSoLeOQueAPermissaoDeCadaSecaoDeixa() throws Exception {
         // Só as três permissões que a dependência garante: nada de plano, registro, atualização, anamnese nem inscrição.
         JsonNode minimo = membro("Exportador mínimo", Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER", "ALUNO_EXPORTAR"));
         JsonNode dados = api.get("/alunos/" + alunoId + "/exportacao", minimo, 200);
         assertThat(dados.get("secoesOmitidas").valueStream().map(JsonNode::asString))
-                .containsExactlyInAnyOrder("treinos", "dietas", "mobilidades", "registros", "atualizacoes", "anamneses",
-                        "inscricao", "financeiro");
+                .containsExactlyInAnyOrder("treinos", "dietas", "mobilidades", "registros", "mobilidadeRegistros", "atualizacoes",
+                        "anamneses", "inscricao", "financeiro");
         assertThat(dados.has("treinos")).isFalse();
         assertThat(dados.has("anamneses")).isFalse();
         assertThat(dados.has("dietas")).isFalse();

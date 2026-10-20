@@ -110,6 +110,8 @@ test('ficha: endereço parcial é recusado (só a cidade), "s/n" vale e tudo em 
   await page.getByRole('dialog').getByRole('radio', { name: 'Não informar' }).click();
   await expect(salvar).toBeEnabled();
   await salvar.click();
+  // O PUT sai depois do clique: espera o segundo envio chegar antes de ler o último.
+  await expect.poll(() => pedidos.filter((p) => p.metodo === 'PUT').length).toBe(2);
   const ultimo = pedidos.filter((p) => p.metodo === 'PUT').at(-1)?.corpo as { endereco: unknown };
   expect(ultimo.endereco).toBeNull();
   expect(errosDaPagina).toEqual([]);

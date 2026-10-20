@@ -86,7 +86,10 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
         return v;
     }
 
-    /** Uma pasta por atualização (a atualização é única por pasta). */
+    /**
+     * Uma pasta por atualização (a atualização é única por pasta), com treino publicado: na vida real a linha só nasce da
+     * pasta vigente, que tem plano ativo, e a regra de Números só conta atrasada a pasta que era a vigente no prazo.
+     */
     private UUID atualizacao(UUID consultoria, UUID aluno, UUID versao, LocalDate data, LocalDate atrasoAte, Timestamp enviadaEm) {
         UUID pasta = UUID.randomUUID();
         banco.update("insert into pasta_plano(id,consultoria_id,aluno_id,titulo,inicio,fim) values (?,?,?,'Período fictício',?,?)",
@@ -95,6 +98,7 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
                         + "atraso_ate,questionario_versao_id) values (?,?,?,?,?,?,'{}'::jsonb,?,?,?)",
                 UUID.randomUUID(), consultoria, aluno, pasta, data, enviadaEm == null ? "ABERTA" : "ENVIADA", enviadaEm,
                 atrasoAte, enviadaEm == null ? null : versao);
+        planoPublicado(consultoria, aluno, pasta, "plano_treino");
         return pasta;
     }
 
@@ -111,6 +115,16 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
         banco.update("insert into " + tabela + "(id,consultoria_id,aluno_id,titulo,fim,rascunho,versao_publicada,publicado_em,pasta_id) "
                 + "values (?,?,?,'Plano fictício',(select fim from pasta_plano where id=?),'{}'::jsonb,1,now(),?)",
                 UUID.randomUUID(), consultoria, aluno, pasta, pasta);
+    }
+
+    /** Pasta com {@code inicio}, {@code fim} e {@code criado_em} explícitos (desempate de início), sem linha de atualização. */
+    private UUID pastaComDatas(UUID consultoria, UUID aluno, LocalDate inicio, LocalDate fim, Timestamp criadoEm,
+                               String tabelaDoPlano) {
+        UUID pasta = UUID.randomUUID();
+        banco.update("insert into pasta_plano(id,consultoria_id,aluno_id,titulo,inicio,fim,criado_em) values (?,?,?,'Período fictício',?,?,?)",
+                pasta, consultoria, aluno, inicio, fim, criadoEm);
+        planoPublicado(consultoria, aluno, pasta, tabelaDoPlano);
+        return pasta;
     }
 
     /** Pasta com {@code fim} e plano publicado, sem linha de atualização (ninguém enviou nem avisou atraso). */
@@ -227,20 +241,21 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void pastaVencidaSemLinhaContaComoAtrasadaSemContarDuasVezes() throws Exception {
-        UUID aluno = alunoAntigo(admin, "Aluno com pastas vencidas");
+        // Um aluno por situação: duas pastas sobrepostas do mesmo aluno disputariam a vigência (ver os testes de renovação).
+        UUID aluno = alunoAntigo(admin, "Aluno com pasta de treino vencida");
+        UUID alunoDieta = alunoAntigo(admin, "Aluno com pasta de dieta vencida");
+        UUID alunoEnvio = alunoAntigo(admin, "Aluno com envio e aviso");
         UUID consultoria = consultoriaDe(aluno);
         UUID versao = versaoDoQuestionario(consultoria);
         YearMonth m2 = atual.minusMonths(2);
         YearMonth m1 = atual.minusMonths(1);
         // M-2: uma pasta com treino publicado e outra só com dieta publicada, nenhuma com linha: duas atrasadas.
         pastaSemLinha(consultoria, aluno, m2.atDay(10), "plano_treino");
-        pastaSemLinha(consultoria, aluno, m2.atDay(12), "plano_dieta");
+        pastaSemLinha(consultoria, alunoDieta, m2.atDay(12), "plano_dieta");
         // M-2: pasta com envio no prazo e plano publicado: no prazo, e a pasta não conta de novo como sem linha.
-        UUID comEnvio = atualizacao(consultoria, aluno, versao, m2.atDay(20), null, quando(m2, 19, 12, 0));
-        planoPublicado(consultoria, aluno, comEnvio, "plano_treino");
+        atualizacao(consultoria, alunoEnvio, versao, m2.atDay(20), null, quando(m2, 19, 12, 0));
         // M-1: pasta com linha aberta e vencida (aviso de atraso) e plano publicado: atrasada uma vez só.
-        UUID comAviso = atualizacao(consultoria, aluno, versao, m1.atDay(3), m1.atDay(6), null);
-        planoPublicado(consultoria, aluno, comAviso, "plano_treino");
+        atualizacao(consultoria, alunoEnvio, versao, m1.atDay(3), m1.atDay(6), null);
         // M-1: pasta sem plano publicado não é "atualização" do painel: não conta.
         pastaSemLinha(consultoria, aluno, m1.atDay(8), null);
 
@@ -254,13 +269,88 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
         assertThat(mes(corpo, 2).path("atualizacoesNoPrazo").isNull()).isTrue();
     }
 
+    // Pasta vigente no prazo: a pasta só conta como atrasada se era a vigente do aluno na data do prazo (o fim dela).
+
+    @Test
+    void renovacaoQueComecaDepoisDoPrazoNaoTiraAPastaAntigaDasAtrasadas() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno que renovou depois");
+        UUID consultoria = consultoriaDe(aluno);
+        YearMonth m2 = atual.minusMonths(2);
+        // A: 1 a 30 do mês, sem envio. B começa no dia seguinte ao fim de A: A segue a vigente em 30.
+        pastaComDatas(consultoria, aluno, m2.atDay(1), m2.atEndOfMonth(), quando(m2, 1, 9, 0), "plano_treino");
+        pastaComDatas(consultoria, aluno, m2.plusMonths(1).atDay(1), m2.plusMonths(1).atEndOfMonth(),
+                quando(m2, 20, 9, 0), "plano_treino");
+
+        JsonNode corpo = numeros(admin);
+        assertThat(mes(corpo, 3).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    void renovacaoAntesDoFimTiraAPastaSubstituidaDasAtrasadas() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno que renovou antes do fim");
+        UUID consultoria = consultoriaDe(aluno);
+        YearMonth m2 = atual.minusMonths(2);
+        // A: 1 a 30, sem envio. B (renovada antes) começa em 20: B é a vigente em 30, A não conta.
+        pastaComDatas(consultoria, aluno, m2.atDay(1), m2.atEndOfMonth(), quando(m2, 1, 9, 0), "plano_treino");
+        pastaComDatas(consultoria, aluno, m2.atDay(20), m2.plusMonths(1).atDay(15), quando(m2, 18, 9, 0), "plano_treino");
+
+        JsonNode corpo = numeros(admin);
+        // B vence no mês seguinte e é a única atrasada contada (em M-1); M-2 fica sem atualização contável.
+        assertThat(mes(corpo, 3).path("atualizacoesAtrasadas").isNull()).isTrue();
+        assertThat(mes(corpo, 4).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    void pastaAntigaEnviadaNoPrazoSegueNoPrazoMesmoComRenovacaoAntes() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno que enviou e renovou antes");
+        UUID consultoria = consultoriaDe(aluno);
+        YearMonth m2 = atual.minusMonths(2);
+        UUID versao = versaoDoQuestionario(consultoria);
+        atualizacao(consultoria, aluno, versao, m2.atEndOfMonth(), null, quando(m2, 25, 12, 0));
+        pastaComDatas(consultoria, aluno, m2.atDay(20), m2.plusMonths(1).atDay(15), quando(m2, 18, 9, 0), "plano_treino");
+
+        JsonNode corpo = numeros(admin);
+        assertThat(mes(corpo, 3).path("atualizacoesNoPrazo").asLong()).isEqualTo(1);
+        assertThat(mes(corpo, 3).path("atualizacoesAtrasadas").asLong())
+                .isZero();
+    }
+
+    @Test
+    void comMesmoInicioSoAPastaCriadaPorUltimoEAvaliada() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno com duas pastas no mesmo início");
+        UUID consultoria = consultoriaDe(aluno);
+        YearMonth m2 = atual.minusMonths(2);
+        pastaComDatas(consultoria, aluno, m2.atDay(1), m2.atDay(25), quando(m2, 1, 9, 0), "plano_treino");
+        pastaComDatas(consultoria, aluno, m2.atDay(1), m2.atDay(25), quando(m2, 1, 10, 0), "plano_treino");
+
+        JsonNode corpo = numeros(admin);
+        assertThat(mes(corpo, 3).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    void pastaComAvisoDeAtrasoSubstituidaPorRenovacaoTambemSaiDasAtrasadas() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno que avisou atraso e renovou");
+        UUID consultoria = consultoriaDe(aluno);
+        YearMonth m2 = atual.minusMonths(2);
+        UUID versao = versaoDoQuestionario(consultoria);
+        // A (fim 25) avisou atraso até 28 e nunca enviou; B começou em 20, antes do fim de A: B era a vigente em 25.
+        UUID a = atualizacao(consultoria, aluno, versao, m2.atDay(25), m2.atDay(28), null);
+        banco.update("update pasta_plano set inicio=?, criado_em=? where id=?", m2.atDay(1), quando(m2, 1, 9, 0), a);
+        pastaComDatas(consultoria, aluno, m2.atDay(20), m2.plusMonths(1).atDay(15), quando(m2, 18, 9, 0), "plano_treino");
+        // Outro aluno na mesma situação, sem renovação: segue atrasada.
+        UUID outro = alunoAntigo(admin, "Aluno que avisou atraso sem renovar");
+        atualizacao(consultoria, outro, versao, m2.atDay(25), m2.atDay(28), null);
+
+        JsonNode corpo = numeros(admin);
+        assertThat(mes(corpo, 3).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+    }
+
     @Test
     void pastaVencidaComEnvioNoPrazoNaoContaComoAtrasada() throws Exception {
         UUID aluno = alunoAntigo(admin, "Aluno que enviou no prazo");
         UUID consultoria = consultoriaDe(aluno);
         YearMonth m1 = atual.minusMonths(1);
-        UUID pasta = atualizacao(consultoria, aluno, versaoDoQuestionario(consultoria), m1.atDay(10), null, quando(m1, 9, 12, 0));
-        planoPublicado(consultoria, aluno, pasta, "plano_treino");
+        atualizacao(consultoria, aluno, versaoDoQuestionario(consultoria), m1.atDay(10), null, quando(m1, 9, 12, 0));
 
         JsonNode corpo = numeros(admin);
         assertThat(mes(corpo, 4).path("atualizacoesNoPrazo").asLong()).isEqualTo(1);

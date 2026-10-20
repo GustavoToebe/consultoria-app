@@ -1,4 +1,4 @@
-import { avisoAoSairComPendencias, treinosNaoEnviados } from './treinosNaoEnviados';
+import { avisoAoSairComPendencias, descreverNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from './treinosNaoEnviados';
 
 const r = (situacao: 'LOCAL' | 'ENVIADO' | 'FALHOU', data: string, sessaoUid: string) => ({ situacao, data, sessaoUid });
 
@@ -34,5 +34,34 @@ describe('avisoAoSairComPendencias', () => {
     expect(avisoAoSairComPendencias(3)).toBe(
       'Você tem 3 treinos ainda não enviados. Sair apaga esses registros. Conecte-se e sincronize antes, se puder.',
     );
+  });
+});
+
+describe('mobilidade não enviada', () => {
+  const m = (situacao: 'LOCAL' | 'ENVIADO' | 'FALHOU', data: string) => ({ situacao, data });
+
+  it('conta dias, não itens, e ignora o que já foi enviado', () => {
+    expect(
+      diasDeMobilidadeNaoEnviados([m('LOCAL', '2026-10-07'), m('FALHOU', '2026-10-07'), m('LOCAL', '2026-10-08'), m('ENVIADO', '2026-10-09')]),
+    ).toBe(2);
+    expect(diasDeMobilidadeNaoEnviados([])).toBe(0);
+    expect(diasDeMobilidadeNaoEnviados([m('ENVIADO', '2026-10-07')])).toBe(0);
+  });
+
+  it('o aviso fala da mobilidade sozinha e junto com os treinos', () => {
+    expect(avisoAoSairComPendencias(0, 1)).toBe(
+      'Você tem mobilidade de 1 dia ainda não enviada. Sair apaga esse registro. Conecte-se e sincronize antes, se puder.',
+    );
+    expect(avisoAoSairComPendencias(0, 3)).toBe(
+      'Você tem mobilidade de 3 dias ainda não enviada. Sair apaga esses registros. Conecte-se e sincronize antes, se puder.',
+    );
+    expect(avisoAoSairComPendencias(2, 1)).toBe(
+      'Você tem 2 treinos e mobilidade de 1 dia ainda não enviados. Sair apaga esses registros. Conecte-se e sincronize antes, se puder.',
+    );
+  });
+
+  it('sem nada pendente não há o que descrever', () => {
+    expect(descreverNaoEnviados(0, 0)).toBeNull();
+    expect(avisoAoSairComPendencias(0, 0)).toBeNull();
   });
 });

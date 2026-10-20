@@ -195,6 +195,30 @@ class PlanoAplicadoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void mobilidadeDesligadaBarraOAlunoDeMarcarFeitoMasAindaLeOQueJaExiste() throws Exception {
+        direitos(consultoria, Map.of(), TODAS);
+        UUID aluno = api.criarAluno(admin, "Aluno Fictício");
+        var mobilidade = ApiDeTeste.mobilidade();
+        api.publicarMobilidade(admin, aluno, mobilidade.conteudo());
+        JsonNode login = api.convidarEEntrar(admin, aluno);
+        String versao = api.get("/aluno/mobilidade", login, 200).path("mobilidade").path("id").asString();
+        Map<String, Object> registro = Map.of("id", UUID.randomUUID().toString(), "planoVersaoId", versao,
+                "secaoUid", mobilidade.secaoUid().toString(), "itemUid", mobilidade.itemUid().toString(),
+                "data", java.time.LocalDate.now(br.com.treinos.api.web.Fuso.BRASILIA).toString(), "feito", true,
+                "alteradoNoAparelhoEm", Instant.now().toString());
+
+        // Com a funcionalidade, grava normalmente.
+        api.post("/aluno/mobilidade/registros", login, Map.of("registros", List.of(registro)), 200);
+
+        // Desligada: gravar dá 403 (o lote inteiro), ler o que já existe continua valendo.
+        direitos(consultoria, Map.of(), List.of("PDF", "EQUIPE"));
+        erro(api.post("/aluno/mobilidade/registros", login, Map.of("registros", List.of(registro)), 403),
+                "FUNCIONALIDADE_FORA_DO_PLANO", "MOBILIDADE");
+        assertThat(api.get("/aluno/mobilidade/registros", login, 200)).hasSize(1);
+        assertThat(api.get("/alunos/" + aluno + "/mobilidade/registros", admin, 200)).hasSize(1);
+    }
+
+    @Test
     void alunoRecebeAsFuncionalidadesDaConsultoriaNoEu() throws Exception {
         direitos(consultoria, Map.of(), List.of("PDF"));
         UUID aluno = api.criarAluno(admin, "Aluno Fictício");

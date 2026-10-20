@@ -1,3 +1,5 @@
+import { descreverNaoEnviados } from './treinosNaoEnviados';
+
 /**
  * "Excluir minha conta" do aluno (App Store 5.1.1(v), LGPD). A API confere de novo a palavra e a senha
  * (`ExclusaoDeContaService`): aqui só se decide quando o botão final libera e o que a tela explica.
@@ -25,9 +27,8 @@ export const EXPLICACAO_DA_EXCLUSAO =
   'com a consultoria, sem o seu nome. Você sai deste e de todos os aparelhos e não consegue mais entrar com este e-mail.';
 
 /** Registros deste aparelho que ainda não chegaram ao treinador também se perdem: avisa só quando existem. */
-export function avisoDeNaoEnviados(quantidade: number): string | null {
-  if (quantidade <= 0) return null;
-  return quantidade === 1
-    ? 'Você tem 1 treino ainda não enviado neste aparelho; ele também será apagado.'
-    : `Você tem ${quantidade} treinos ainda não enviados neste aparelho; eles também serão apagados.`;
+export function avisoDeNaoEnviados(treinos: number, diasDeMobilidade = 0): string | null {
+  const d = descreverNaoEnviados(treinos, diasDeMobilidade);
+  if (!d) return null;
+  return `Você tem ${d.texto} ainda não ${d.enviado} neste aparelho; ${d.ele} também ${d.sera}.`;
 }

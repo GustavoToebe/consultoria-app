@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Relatório "Números" da consultoria: seis meses (cinco fechados e o corrente, parcial, "até hoje") só com contagens,
@@ -33,15 +34,26 @@ import java.util.Map;
  * aberta com prazo de hoje em diante não entra. Mês sem nenhuma atualização contável = os dois campos {@code null}.
  * Cada pasta tem no máximo uma atualização e conta uma vez.
  *
+ * <p><b>Pasta vigente no prazo.</b> Atrasada sem envio só conta a pasta que era a <i>vigente do aluno na data do prazo</i>,
+ * como o painel, que só olha a vigente. Renovar antes do fim não deve inflar "atrasadas": a pasta substituída não conta. Vigente
+ * na data D = entre as pastas do aluno não arquivadas, com {@code inicio} e {@code fim} e com treino ou dieta publicado e não
+ * arquivado, a de maior {@code inicio} menor ou igual a D; empate de {@code inicio}, a de {@code criado_em} mais recente
+ * ({@link VigenciaNaData}). Pasta que começa depois de D não tira a anterior. D é sempre o {@code fim} da pasta (o prazo
+ * original), mesmo quando o aluno avisou atraso: o {@code atrasoAte} adia o prazo, mas a pasta seguinte (que começa no dia
+ * seguinte ao fim) não pode tirar a vigência da anterior só por isso.
+ *
  * <p><b>Pasta vencida sem linha</b> (ninguém enviou nem avisou atraso) também é atrasada, como no painel: o prazo é o
- * {@code fim} da pasta e vale o mesmo "prazo antes de hoje e sem envio". Entram as pastas que o painel trata como "tem
- * atualização" (não arquivada, com {@code fim}, de aluno ativo, com plano publicado). <b>Aproximação:</b> o painel olha só
- * a pasta vigente hoje (a do treino ativo ou, sem ele, a da dieta ativa), e isso não existe para pastas de meses passados,
- * cujo plano deixou de ser o ativo. Em vez disso vale "tem treino ou dieta já publicado e não arquivado" (qualquer pasta,
- * vigente ou não), e "aluno ativo" vira o mesmo critério dos alunos ativos aplicado à data do prazo: criado até o fim do dia
- * do prazo, sem inativação nem anonimização até lá (a situação de hoje não entra, para o número de um mês não mudar quando
- * ele fecha). Plano de mobilidade não conta (o painel também ignora). Pasta com linha segue só a linha, como antes (inclusive
- * pasta arquivada que já tenha envio ou aviso).
+ * {@code fim} da pasta, vale o mesmo "prazo antes de hoje e sem envio" e a pasta tem de ser a vigente nesse prazo. Entram as
+ * pastas que o painel trata como "tem atualização" (não arquivada, com {@code fim}, de aluno ativo, com plano publicado).
+ * "Aluno ativo" vira o mesmo critério dos alunos ativos aplicado à data do prazo: criado até o fim do dia do prazo, sem
+ * inativação nem anonimização até lá (a situação de hoje não entra, para o número de um mês não mudar quando ele fecha).
+ * Plano de mobilidade não conta (o painel também ignora). Pasta com linha enviada segue só a linha, como antes; pasta com
+ * linha não enviada (aviso de atraso) segue a linha e também tem de ser a vigente no prazo, então a que foi arquivada ou
+ * não tem plano publicado deixa de contar.
+ *
+ * <p><b>Continua aproximado:</b> não existe histórico de "plano ativo". A vigência no passado é deduzida só das datas
+ * ({@code inicio}, {@code criado_em}) e de "tem plano publicado e não arquivado hoje"; a data de publicação não é comparada ao
+ * prazo e pasta sem {@code inicio} nunca é vigente. Alunos ativos no prazo e reativação seguem como descrito acima.
  *
  * <p>Os dois campos de atualização seguem o painel: sem {@code ATUALIZACAO_LER} e {@code ALUNO_SENSIVEL_LER} saem
  * {@code null} (o painel também não mostra esses contadores a quem não tem as duas).
@@ -100,6 +112,7 @@ public class NumerosService {
     /** {@code [noPrazo, atrasadas]} por mês do prazo; mês sem atualização contável não aparece no mapa. */
     private Map<YearMonth, long[]> contarAtualizacoes(YearMonth primeiro, YearMonth corrente, LocalDate hoje) {
         Map<YearMonth, long[]> porMes = new HashMap<>();
+        VigenciaNaData vigencia = new VigenciaNaData(repositorio.pastasCandidatasAVigente(corrente.atEndOfMonth()));
         List<LinhaPrazo> linhas = repositorio.prazosNaJanela(primeiro.atDay(1), corrente.atEndOfMonth());
         for (LinhaPrazo linha : linhas) {
             LocalDate prazo = RegrasAtualizacao.prazo(linha.dataAtualizacao(), linha.atrasoAte());
@@ -111,7 +124,9 @@ public class NumerosService {
             if (linha.enviadaEm() != null) {
                 LocalDate enviada = linha.enviadaEm().atZone(Fuso.BRASILIA).toLocalDate();
                 indice = enviada.isAfter(prazo) ? 1 : 0;
-            } else if (prazo.isBefore(hoje)) {
+            } else if (prazo.isBefore(hoje)
+                    && eVigenteNoPrazo(vigencia, linha.alunoId(), linha.pastaId(),
+                            linha.pastaFim() != null ? linha.pastaFim() : linha.dataAtualizacao())) {
                 indice = 1;
             } else {
                 continue;
@@ -120,12 +135,18 @@ public class NumerosService {
         }
         for (PastaSemLinha pasta : repositorio.pastasSemLinhaNaJanela(primeiro.atDay(1), corrente.atEndOfMonth())) {
             LocalDate prazo = pasta.fim();
-            if (!prazo.isBefore(hoje) || !alunoAtivoNoPrazo(pasta, prazo)) {
+            if (!prazo.isBefore(hoje) || !alunoAtivoNoPrazo(pasta, prazo)
+                    || !eVigenteNoPrazo(vigencia, pasta.alunoId(), pasta.pastaId(), prazo)) {
                 continue;
             }
             porMes.computeIfAbsent(YearMonth.from(prazo), m -> new long[2])[1]++;
         }
         return porMes;
+    }
+
+    /** A pasta era a vigente do aluno em {@code data}? Ver {@link VigenciaNaData}. */
+    private static boolean eVigenteNoPrazo(VigenciaNaData vigencia, UUID alunoId, UUID pastaId, LocalDate data) {
+        return vigencia.vigente(alunoId, data).filter(pastaId::equals).isPresent();
     }
 
     /** Mesma regra dos alunos ativos, na data do prazo (fim do dia de Brasília). */

@@ -6,16 +6,25 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
-import { enviarRegistros, historicoAluno, mobilidadeAluno, painelAluno, planosDaPastaAluno } from '../api/rotas';
-import type { Atualizacao, ConteudoMobilidadeApi, PastaDoAluno, PlanosDaPasta, VersaoDetalhe } from '../api/tipos';
+import {
+  enviarRegistros,
+  enviarRegistrosMobilidade,
+  historicoAluno,
+  mobilidadeAluno,
+  painelAluno,
+  planosDaPastaAluno,
+  registrosMobilidadeDoAluno,
+} from '../api/rotas';
+import type { Atualizacao, ConteudoMobilidadeApi, PastaDoAluno, PlanosDaPasta, RegistroMobilidadeFeito, VersaoDetalhe } from '../api/tipos';
 import { hojeIso, somarDias } from '../dominio/formatos';
 import { periodoDaSemana } from '../dominio/progressoSemana';
+import { fundirMarcas, type MarcaDeMobilidade } from '../dominio/mobilidadeFeita';
 import { novoUid } from '../dominio/uid';
 import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
 import { fundirComServidor, registrosDoServidor, trocarPeriodo } from './execucoesDoServidor';
 import { limparDadosDoAluno } from './limparDadosDoAluno';
-import type { DadosRegistro, PacoteSalvo, RegistroLocal, RepositorioLocal } from './repositorioLocal';
+import type { DadosMobilidade, DadosRegistro, PacoteSalvo, RegistroLocal, RegistroMobilidadeLocal, RepositorioLocal } from './repositorioLocal';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
 
 /** Plano que o aluno escolheu só para consultar (não é o vigente). */
@@ -58,8 +67,17 @@ interface ValorAluno {
   /** Por `planoVersaoId|serieUid|data`. */
   registroDe: (planoVersaoId: string, serieUid: string, data: string) => RegistroLocal | undefined;
   cargasDeTrabalho: Record<string, number>;
+  /** Marcas de mobilidade: as do aparelho mais as que o servidor já tem (a do aparelho ganha). Só leitura. */
+  marcasDeMobilidade: MarcaDeMobilidade[];
+  /** O que a mobilidade tem no aparelho (inclui o que ainda não foi enviado). */
+  mobilidadeNoAparelho: RegistroMobilidadeLocal[];
+  /** Grava na hora e entra na mesma fila de envio das séries. Desmarcar é marcar com `feito: false`. */
+  marcarMobilidade: (dados: DadosMobilidade) => Promise<void>;
+  /** Séries e itens de mobilidade ainda na fila (LOCAL). */
   pendentes: number;
+  /** Séries recusadas (a mobilidade recusada está em `falhasDeMobilidade`). */
   falhas: RegistroLocal[];
+  falhasDeMobilidade: RegistroMobilidadeLocal[];
   envio: EstadoEnvio;
   mensagemEnvio: string | null;
   online: boolean;
@@ -95,7 +113,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     setAtualizacao(atual);
     await reagendarLembretesAtualizacao(usuarioId,atual).catch(()=>undefined);
   },[repositorio,usuarioId]);
-  const sincronizador = useMemo(() => new Sincronizador(repositorio, enviarRegistros), [repositorio]);
+  const sincronizador = useMemo(() => new Sincronizador(repositorio, enviarRegistros, enviarRegistrosMobilidade), [repositorio]);
 
   const [descanso, definirDescanso] = useState<Descanso | null>(null);
   const notificado = useRef<number | null>(null);
@@ -124,6 +142,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const [carregando, setCarregando] = useState(true);
   const [erroPacote, setErroPacote] = useState<unknown>(null);
   const [registros, setRegistros] = useState<RegistroLocal[]>([]);
+  const [mobilidadeLocal, setMobilidadeLocal] = useState<RegistroMobilidadeLocal[]>([]);
+  const [marcasDoServidor, setMarcasDoServidor] = useState<RegistroMobilidadeFeito[]>([]);
   const [doServidor, setDoServidor] = useState<RegistroLocal[]>([]);
   const [semanaDoAparelho, setSemanaDoAparelho] = useState(false);
   const semanasPedidas = useRef(new Set<string>());
@@ -134,7 +154,10 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const falhasSeguidas = useRef(0);
   const espera = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const recarregarRegistros = useCallback(() => repositorio.listar().then(setRegistros), [repositorio]);
+  const recarregarRegistros = useCallback(
+    () => Promise.all([repositorio.listar().then(setRegistros), repositorio.listarMobilidade().then(setMobilidadeLocal)]).then(() => undefined),
+    [repositorio],
+  );
 
   // Mobilidade vigente: 404 = o aluno não tem (some do aparelho); sem conexão ou erro = segue com a última salva.
   const baixarMobilidade = useCallback(async () => {
@@ -149,6 +172,17 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       }
     }
   }, [repositorio]);
+
+  // Itens de mobilidade que o servidor já tem (60 dias para trás e para frente, a janela que ele aceita): só leitura.
+  // Sem conexão ou erro, a tela segue com o que está no aparelho.
+  const baixarMarcasDeMobilidade = useCallback(async () => {
+    try {
+      const hoje = hojeIso();
+      setMarcasDoServidor(await registrosMobilidadeDoAluno(somarDias(hoje, -60), somarDias(hoje, 60)));
+    } catch {
+      // Fica como está.
+    }
+  }, []);
 
   // Séries já no servidor, por semana (segunda a domingo). Só leitura: nada disso entra na fila nem no repositório, a não
   // ser a semana atual guardada para abrir sem internet (a mesma cópia que o "Sua semana" já usava). `desde` alarga a
@@ -191,6 +225,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       setErroPacote(null);
       atualizarMarca(novo.marca);
       await baixarMobilidade();
+      await baixarMarcasDeMobilidade();
       await carregarSemanaDoServidor(hojeIso(), true, desdeDoPlano(novo.treino?.inicio ?? null));
     } catch (erro) {
       // Sem conexão: segue com o pacote salvo. Sem pacote salvo, a tela explica.
@@ -198,7 +233,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       else setErroPacote((atual: unknown) => atual ?? erro);
       await carregarSemanaDoServidor(hojeIso(), true);
     }
-  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, carregarSemanaDoServidor]);
+  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, baixarMarcasDeMobilidade, carregarSemanaDoServidor]);
 
   const sincronizar = useCallback(async () => {
     if (espera.current) {
@@ -216,8 +251,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       if (r.tipo === 'ok' && r.enviados > 0) void baixarPacote();
     } else if (r.tipo === 'semConexao') {
       setEnvio('semConexao');
-      const pendentes = await repositorio.pendentes(1);
-      if (pendentes.length) {
+      const [series, mobilidade] = await Promise.all([repositorio.pendentes(1), repositorio.pendentesMobilidade(1)]);
+      if (series.length || mobilidade.length) {
         const ms = ESPERAS_MS[Math.min(falhasSeguidas.current, ESPERAS_MS.length - 1)];
         falhasSeguidas.current++;
         espera.current = setTimeout(() => void sincronizar(), ms);
@@ -232,12 +267,13 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   // normal deste usuário), lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
   useEffect(() => {
     let vivo = true;
-    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade()])).then(
-      ([p, r, c, a, m]) => {
+    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade(),repositorio.listarMobilidade()])).then(
+      ([p, r, c, a, m, ml]) => {
         if (!vivo) return;
         setPacote(p);
         setMobilidade(m);
         setRegistros(r);
+        setMobilidadeLocal(ml);
         setCargas(c);
         const atual=a??p?.pacote.atualizacao??null;
         setAtualizacao(atual);
@@ -280,7 +316,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     }
   }, [sessaoOffline, sincronizar]);
 
-  const pendentes = registros.filter((r) => r.situacao === 'LOCAL').length;
+  const pendentes = registros.filter((r) => r.situacao === 'LOCAL').length + mobilidadeLocal.filter((r) => r.situacao === 'LOCAL').length;
 
   useEffect(() => {
     if (!pendentes) return;
@@ -318,6 +354,16 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     [repositorio, recarregarRegistros, sincronizar],
   );
 
+  const marcarMobilidade = useCallback(
+    async (dados: DadosMobilidade) => {
+      await repositorio.registrarMobilidade(dados);
+      await recarregarRegistros();
+      if (envioAgendado.current) clearTimeout(envioAgendado.current);
+      envioAgendado.current = setTimeout(() => void sincronizar(), ESPERA_APOS_GRAVAR_MS);
+    },
+    [repositorio, recarregarRegistros, sincronizar],
+  );
+
   const salvarCargaDeTrabalho = useCallback(
     async (exercicioUid: string, data: string, carga: number | null) => {
       setCargas(await repositorio.salvarCargaDeTrabalho(exercicioUid, data, carga));
@@ -348,8 +394,12 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       semanaDoAparelho,
       registroDe: (v, s, d) => indice.get(`${v}|${s}|${d}`),
       cargasDeTrabalho: cargas,
+      marcasDeMobilidade: fundirMarcas(mobilidadeLocal, marcasDoServidor),
+      mobilidadeNoAparelho: mobilidadeLocal,
+      marcarMobilidade,
       pendentes,
       falhas: registros.filter((r) => r.situacao === 'FALHOU'),
+      falhasDeMobilidade: mobilidadeLocal.filter((r) => r.situacao === 'FALHOU'),
       envio,
       mensagemEnvio,
       online,
@@ -358,7 +408,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, carregando, erroPacote, registros, doServidor, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
