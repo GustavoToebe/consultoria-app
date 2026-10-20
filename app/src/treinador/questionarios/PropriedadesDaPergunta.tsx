@@ -28,6 +28,7 @@ import { escolherEEnviarImagem } from './enviarImagem';
 
 const CASAS = [{ valor: 0, rotulo: '0' }, { valor: 1, rotulo: '1' }, { valor: 2, rotulo: '2' }];
 const INICIO_DA_ESCALA = [{ valor: 0, rotulo: '0' }, { valor: 1, rotulo: '1' }];
+const FIM_DA_ESCALA = Array.from({ length: L.notaMaxPadrao - L.notaMaxMinimo + 1 }, (_, i) => ({ valor: L.notaMaxMinimo + i, rotulo: String(L.notaMaxMinimo + i) }));
 const QUANTAS_FOTOS = Array.from({ length: L.fotosPorPergunta }, (_, i) => ({ valor: i + 1, rotulo: String(i + 1) }));
 const DIAS = Array.from({ length: L.diaValorMaximo }, (_, i) => ({ valor: String(i + 1), rotulo: `Dia ${i + 1}` }));
 const AVISO_LICENCA = 'Use só imagens suas ou com licença de uso: você responde pelo que envia.';
@@ -103,22 +104,33 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
 }
 
 /**
- * Escala da NOTA: começa em 0 ou 1 e termina de 2 a 10 (vazio = 10), com texto opcional embaixo de cada ponta ("Nada",
- * "Muito"). O padrão (0 a 10) não é gravado, para o JSON ficar igual ao de sempre.
+ * Escala da NOTA: começa em 0 ou 1 e termina de 2 a 10, as duas como escolha (como "Quantas fotos": nada a digitar nem
+ * valor fora da faixa), com texto opcional embaixo de cada ponta ("Nada", "Muito"), lado a lado quando cabe. O padrão
+ * (0 a 10) não é gravado, para o JSON ficar igual ao de sempre.
  */
 function EscalaDaNota({ pergunta: p, aoMudar }: { pergunta: PerguntaAtualizacao; aoMudar: (parcial: Partial<PerguntaAtualizacao>) => void }) {
-  const { min } = escalaDaNota(p);
-  const fimInvalido = p.max != null && !(Number.isInteger(p.max) && p.max >= L.notaMaxMinimo && p.max <= L.notaMaxPadrao);
+  const { min, max } = escalaDaNota(p);
   return <View style={estilos.bloco}>
-    <Escolha rotulo="A escala começa em" opcoes={INICIO_DA_ESCALA} valor={min}
-      aoMudar={(n) => aoMudar({ min: n === L.notaMinPadrao ? undefined : n })} />
-    <CampoNumerico rotulo="E termina em" inteiro valor={p.max ?? null} ajuda={`De ${L.notaMaxMinimo} a ${L.notaMaxPadrao}; vazio = ${L.notaMaxPadrao}.`}
-      erro={fimInvalido ? `Use de ${L.notaMaxMinimo} a ${L.notaMaxPadrao}.` : null}
-      aoMudar={(max) => aoMudar({ max: max == null || max === L.notaMaxPadrao ? undefined : max })} />
-    <Campo rotulo="Texto na ponta de baixo (opcional, ex.: Nada)" valor={p.rotuloMin ?? ''} maxLength={L.rotuloPontaTamanho}
-      aoMudar={(rotuloMin) => aoMudar({ rotuloMin })} />
-    <Campo rotulo="Texto na ponta de cima (opcional, ex.: Muito)" valor={p.rotuloMax ?? ''} maxLength={L.rotuloPontaTamanho}
-      aoMudar={(rotuloMax) => aoMudar({ rotuloMax })} />
+    <View style={estilos.lado}>
+      <View style={estilos.inicioDaEscala}>
+        <Escolha rotulo="A escala começa em" opcoes={INICIO_DA_ESCALA} valor={min}
+          aoMudar={(n) => aoMudar({ min: n === L.notaMinPadrao ? undefined : n })} />
+      </View>
+      <View style={estilos.metade}>
+        <Escolha rotulo="E termina em" opcoes={FIM_DA_ESCALA} valor={max}
+          aoMudar={(n) => aoMudar({ max: n === L.notaMaxPadrao ? undefined : n })} />
+      </View>
+    </View>
+    <View style={estilos.lado}>
+      <View style={estilos.metade}>
+        <Campo rotulo="Texto na ponta de baixo (opcional)" placeholder="ex.: Nada" valor={p.rotuloMin ?? ''} maxLength={L.rotuloPontaTamanho}
+          aoMudar={(rotuloMin) => aoMudar({ rotuloMin })} />
+      </View>
+      <View style={estilos.metade}>
+        <Campo rotulo="Texto na ponta de cima (opcional)" placeholder="ex.: Muito" valor={p.rotuloMax ?? ''} maxLength={L.rotuloPontaTamanho}
+          aoMudar={(rotuloMax) => aoMudar({ rotuloMax })} />
+      </View>
+    </View>
   </View>;
 }
 
@@ -258,6 +270,10 @@ export function EditorDeCondicao({ conteudo, perguntaId, secao, condicao, aoMuda
 
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1.5) },
+  // Dois campos lado a lado no PC; no celular cada um ocupa a linha.
+  lado: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
+  metade: { flexGrow: 1, flexShrink: 1, flexBasis: 240, minWidth: 0 },
+  inicioDaEscala: { flexShrink: 0 },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   opcao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(0.5) },
   campoOpcao: { flex: 1 },
