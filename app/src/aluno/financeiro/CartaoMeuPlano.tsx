@@ -141,7 +141,7 @@ function BotaoPagar({ cobranca, aoMudar }: { cobranca: CobrancaDoAluno; aoMudar:
 
 /**
  * Uma cobrança: mês e selo na primeira linha; valor e a data que importa na segunda ("R$ 150,00 · Vence em 05/11/2026").
- * Em aberto, o "Pagar" (quando há) vem dentro do mesmo cartão, alinhado à direita.
+ * Em aberto, o "Pagar" (quando há) vem dentro do mesmo cartão, à direita.
  */
 function LinhaDaCobranca({ cobranca, modo, children }: { cobranca: CobrancaDoAluno; modo: ComoPagar; children?: ReactNode }) {
   const { cores } = useTema();
@@ -178,6 +178,7 @@ const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   linha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   nome: { flexShrink: 1 },
-  cobranca: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
-  textos: { gap: espaco(0.25) },
+  // Texto e "Pagar" lado a lado quando cabem (PC), o botão embaixo e à direita quando não (celular).
+  cobranca: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'flex-end' },
+  textos: { gap: espaco(0.25), flexGrow: 1, flexShrink: 1, flexBasis: 240 },
 });
