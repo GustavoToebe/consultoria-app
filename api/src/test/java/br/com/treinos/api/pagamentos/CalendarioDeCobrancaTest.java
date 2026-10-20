@@ -17,8 +17,8 @@ class CalendarioDeCobrancaTest {
     @Test
     void competenciaContaSempreDaAncoraSemEncadearDatas() {
         LocalDate ancora = d("2027-01-31");
-        LocalDate fevereiro = CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, d("2027-01-31"));
-        LocalDate marco = CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, fevereiro);
+        LocalDate fevereiro = CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, d("2027-01-31"), null);
+        LocalDate marco = CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, fevereiro, null);
         assertThat(fevereiro).isEqualTo(d("2027-02-28"));
         // Encadeando, 28/02 + 1 mês daria 28/03; a conta correta volta ao dia 31.
         assertThat(marco).isEqualTo(d("2027-03-31"));
@@ -26,31 +26,31 @@ class CalendarioDeCobrancaTest {
 
     @Test
     void anoBissextoAceitaVinteENoveDeFevereiro() {
-        assertThat(CalendarioDeCobranca.proximaCompetencia(d("2028-01-29"), PeriodoDoPlano.MENSAL, d("2028-01-29")))
+        assertThat(CalendarioDeCobranca.proximaCompetencia(d("2028-01-29"), PeriodoDoPlano.MENSAL, d("2028-01-29"), null))
                 .isEqualTo(d("2028-02-29"));
-        assertThat(CalendarioDeCobranca.proximaCompetencia(d("2027-01-29"), PeriodoDoPlano.MENSAL, d("2027-01-29")))
+        assertThat(CalendarioDeCobranca.proximaCompetencia(d("2027-01-29"), PeriodoDoPlano.MENSAL, d("2027-01-29"), null))
                 .isEqualTo(d("2027-02-28"));
     }
 
     @Test
     void periodicidadeAndaEmPassosDeMesesDoPlano() {
         LocalDate ancora = d("2027-01-15");
-        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.TRIMESTRAL, ancora)).isEqualTo(d("2027-04-15"));
-        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.SEMESTRAL, ancora)).isEqualTo(d("2027-07-15"));
-        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.ANUAL, ancora)).isEqualTo(d("2028-01-15"));
+        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.TRIMESTRAL, ancora, null)).isEqualTo(d("2027-04-15"));
+        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.SEMESTRAL, ancora, null)).isEqualTo(d("2027-07-15"));
+        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.ANUAL, ancora, null)).isEqualTo(d("2028-01-15"));
     }
 
     @Test
     void semCobrancaAindaComecaNaAncoraEPulaOQueJaExiste() {
         LocalDate ancora = d("2027-01-10");
-        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, null)).isEqualTo(ancora);
+        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, null, null)).isEqualTo(ancora);
         // A maior competência existente é a de abril: a próxima é maio.
-        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, d("2027-04-10"))).isEqualTo(d("2027-05-10"));
+        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, d("2027-04-10"), null)).isEqualTo(d("2027-05-10"));
     }
 
     @Test
     void parcelaUnicaNaoTemProximaCompetencia() {
-        assertThatThrownBy(() -> CalendarioDeCobranca.proximaCompetencia(d("2027-01-10"), PeriodoDoPlano.PARCELA_UNICA, null))
+        assertThatThrownBy(() -> CalendarioDeCobranca.proximaCompetencia(d("2027-01-10"), PeriodoDoPlano.PARCELA_UNICA, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -140,10 +140,31 @@ class CalendarioDeCobrancaTest {
     }
 
     @Test
+    void proximaNuncaFicaAntesDoFimDoPeriodoDaUltimaNaoCancelada() {
+        // Grade antiga em 15 de cada mês, mas a última não cancelada é 10/02: a próxima não pode vir antes de 10/03.
+        LocalDate ancora = d("2027-01-15");
+        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, d("2027-02-10"), d("2027-02-10")))
+                .isEqualTo(d("2027-03-15"));
+        // Mesma âncora, sem piso: 15/02 seria devolvida, sobrepondo o período de 10/02.
+        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, d("2027-02-10"), null))
+                .isEqualTo(d("2027-02-15"));
+        // A cancelada maior continua pesando em "maior", mas o piso vem da não cancelada anterior.
+        assertThat(CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.TRIMESTRAL, d("2027-04-15"), d("2027-01-15")))
+                .isEqualTo(d("2027-07-15"));
+    }
+
+    @Test
+    void retomadaNaoSobrepoeOPeriodoDeCobrancaAbertaTambem() {
+        // O argumento é a maior não cancelada (paga ou aberta): mensal aberta de 10/02, retomar em 15/02 vai para 10/03.
+        assertThat(CalendarioDeCobranca.ancoraDaRetomada(d("2027-02-15"), PeriodoDoPlano.MENSAL, d("2027-02-10")))
+                .isEqualTo(d("2027-03-10"));
+    }
+
+    @Test
     void retomadaRecolocaAAncoraNoDiaDaRetomada() {
         // Depois de uma pausa a âncora é o dia da retomada: as competências seguem dele, não do início antigo.
         LocalDate ancora = d("2027-06-17");
-        LocalDate competencia = CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, d("2027-02-10"));
+        LocalDate competencia = CalendarioDeCobranca.proximaCompetencia(ancora, PeriodoDoPlano.MENSAL, d("2027-02-10"), null);
         assertThat(competencia).isEqualTo(ancora);
         assertThat(CalendarioDeCobranca.vencimento(competencia, 5, null)).isEqualTo(d("2027-07-05"));
     }

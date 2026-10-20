@@ -41,7 +41,7 @@ public class BaixaDeCobranca {
         this.cobrancas = cobrancas;
     }
 
-    /** ABERTA vira PAGA; parcela única encerra a contratação, as demais geram a seguinte se esta for a última. */
+    /** ABERTA vira PAGA; parcela única encerra a contratação, as demais geram a seguinte se a de maior competência não está aberta. */
     @Transactional(propagation = Propagation.MANDATORY)
     public Resultado baixar(UUID cobrancaId, Baixa baixa) {
         if (!provedores.conhece(baixa.provedor())) {
@@ -60,12 +60,15 @@ public class BaixaDeCobranca {
                 t.contratacao().encerrar(Instant.now());
             }
         } else {
-            gerador.aposUltima(t.contratacao(), c);
+            gerador.garantirSeguinte(t.contratacao());
         }
         return resultado(t, true);
     }
 
-    /** Volta a baixa manual: PAGA vira ABERTA. Baixa de provedor não se desfaz aqui (409). Já ABERTA: nada muda. */
+    /**
+     * Volta a baixa manual: PAGA vira ABERTA. Baixa de provedor não se desfaz aqui (409), nem a da parcela única de uma
+     * contratação já encerrada (409 PARCELA_UNICA_ENCERRADA: reabrir cobraria de novo sem contratação). Já ABERTA: nada muda.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public Resultado desfazerBaixa(UUID cobrancaId, String motivo, Long versaoEsperada) {
         Travas.DaCobranca t = travas.daCobranca(cobrancaId);
@@ -79,12 +82,20 @@ public class BaixaDeCobranca {
         if (!CobrancaAluno.MANUAL.equals(c.getProvedor())) {
             throw new ConflictException("Só a baixa manual pode ser desfeita.", "BAIXA_NAO_MANUAL");
         }
+        if (!t.contratacao().getPeriodicidade().recorrente()
+                && t.contratacao().getSituacao() == ContratacaoAluno.Situacao.ENCERRADA) {
+            throw new ConflictException("Esta cobrança era a parcela única de um plano já encerrado; para cobrar de novo, "
+                    + "contrate o plano outra vez.", "PARCELA_UNICA_ENCERRADA");
+        }
         conferirVersao(c, versaoEsperada);
         c.reabrir(motivo);
         return resultado(t, true);
     }
 
-    /** ABERTA vira CANCELADA e vale como "pular o período": gera a seguinte se esta for a última. Já cancelada: nada muda. */
+    /**
+     * ABERTA vira CANCELADA e vale como "pular o período": gera a seguinte se a de maior competência não ficou aberta; na
+     * parcela única encerra a contratação. Já cancelada: nada muda.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public Resultado cancelar(UUID cobrancaId, String motivo, Long versaoEsperada) {
         Travas.DaCobranca t = travas.daCobranca(cobrancaId);
@@ -96,7 +107,10 @@ public class BaixaDeCobranca {
         conferirVersao(c, versaoEsperada);
         c.cancelar(motivo);
         if (t.contratacao().getPeriodicidade().recorrente()) {
-            gerador.aposUltima(t.contratacao(), c);
+            gerador.garantirSeguinte(t.contratacao());
+        } else if (t.contratacao().isVigente()) {
+            // Parcela única cancelada: não há mais o que cobrar, e a contratação vigente bloquearia uma nova.
+            t.contratacao().encerrar(Instant.now());
         }
         return resultado(t, true);
     }

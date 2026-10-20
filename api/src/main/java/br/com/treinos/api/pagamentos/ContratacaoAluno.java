@@ -9,7 +9,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.TenantId;
+import org.hibernate.generator.EventType;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -55,6 +57,8 @@ public class ContratacaoAluno {
     private Situacao situacao;
     @Column(name = "encerrada_em")
     private Instant encerradaEm;
+    /** Do {@code default now()} da coluna; o Hibernate lê de volta no insert, para a resposta de criação já trazer. */
+    @Generated(event = EventType.INSERT)
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
     @Version
