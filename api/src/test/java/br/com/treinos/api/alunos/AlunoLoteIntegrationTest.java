@@ -40,8 +40,8 @@ class AlunoLoteIntegrationTest extends AbstractIntegrationTest {
                 "permissoes", Set.of("ALUNO_LER", "ALUNO_ALTERAR")), 200).path("id").asString();
         JsonNode convite = api.post("/usuarios/convites", admin, Map.of("nome", "Membro do lote",
                 "email", ApiDeTeste.emailUnico("lote"), "perfilId", perfil), 200);
-        membro = api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        membro = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
         a1 = api.criarAluno(admin, "Aluno um do lote");
         a2 = api.criarAluno(admin, "Aluno dois do lote");
     }
@@ -165,8 +165,8 @@ class AlunoLoteIntegrationTest extends AbstractIntegrationTest {
                 "permissoes", Set.of("ALUNO_LER")), 200).path("id").asString();
         JsonNode convite = api.post("/usuarios/convites", admin, Map.of("nome", "Leitor do lote",
                 "email", ApiDeTeste.emailUnico("leitor"), "perfilId", perfil), 200);
-        JsonNode leitor = api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        JsonNode leitor = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
         api.post("/alunos/lote/desativar", leitor, Map.of("alunoIds", List.of(a1)), 403);
         assertThat(detalhe(a1).path("ativo").asBoolean()).isTrue();
     }

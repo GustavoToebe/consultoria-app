@@ -20,7 +20,8 @@ import { Texto } from '../ui/Texto';
  * endereço logo depois de lido. Vindo do link, o campo do código fica escondido (antes a tela pedia o código mesmo
  * assim); "Usar outro código" o mostra. Com o código na mão (do link ou digitado, 43 caracteres), a tela consulta a marca da
  * consultoria (`POST /publico/convites-equipe/consultar`, código no corpo) e mostra nome e logo, como o convite do aluno;
- * código inválido, vencido ou já aceito dá a mesma resposta, e a tela só segue sem a marca.
+ * código inválido, vencido ou já aceito dá a mesma resposta, e a tela só segue sem a marca. O aceite
+ * (`POST /publico/convites-equipe/aceitar`) também leva o código no corpo, nunca no caminho.
  */
 export default function ConviteEquipe() {
   const [doLink] = useState(() => (Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.hash.slice(1) : ''));

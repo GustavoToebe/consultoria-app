@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Consultas agregadas do relatório "Números". Só JPQL: o {@code @TenantId} de {@code Aluno} e de {@code Atualizacao}
- * vale nas duas consultas, então a consultoria nunca vem do cliente. Nada aqui devolve id, nome ou dado de pessoa.
+ * Consultas agregadas do relatório "Números". Só JPQL: o {@code @TenantId} das entidades vale em todas as consultas,
+ * então a consultoria nunca vem do cliente. Nada aqui devolve id, nome ou dado de pessoa.
  */
 public interface NumerosRepository extends Repository<Aluno, UUID> {
 
@@ -38,4 +38,19 @@ public interface NumerosRepository extends Repository<Aluno, UUID> {
     @Query("select new br.com.treinos.api.numeros.LinhaPrazo(u.dataAtualizacao, u.atrasoAte, u.enviadaEm) "
             + "from Atualizacao u where u.dataAtualizacao <= :fim and (u.dataAtualizacao >= :inicio or u.atrasoAte >= :inicio)")
     List<LinhaPrazo> prazosNaJanela(LocalDate inicio, LocalDate fim);
+
+    /**
+     * Pastas da janela sem linha de atualização, que o painel trataria como "tem atualização": não arquivada, com
+     * {@code fim} e com treino ou dieta publicado (e não arquivado). Cada pasta aparece uma vez. O recorte por mês e
+     * "prazo antes de hoje" é feito em Java; aqui só o filtro grosso por {@code fim}.
+     */
+    @Query("select new br.com.treinos.api.numeros.PastaSemLinha(p.fim, a.criadoEm, a.inativadoEm, a.anonimizadoEm) "
+            + "from PastaPlano p join Aluno a on a.id = p.alunoId "
+            + "where p.arquivado = false and p.fim between :inicio and :fim "
+            + "and not exists (select u.id from Atualizacao u where u.pastaId = p.id) "
+            + "and (exists (select t.id from PlanoTreino t where t.pastaId = p.id and t.arquivado = false "
+            + "and t.publicadoEm is not null) "
+            + "or exists (select d.id from PlanoDieta d where d.pastaId = p.id and d.arquivado = false "
+            + "and d.publicadoEm is not null))")
+    List<PastaSemLinha> pastasSemLinhaNaJanela(LocalDate inicio, LocalDate fim);
 }

@@ -307,8 +307,8 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         assertThat(instancia.path("contratacaoId").asString()).isEqualTo(contratacao.toString());
         assertThat(instancia.path("acessoEfetivo").asBoolean()).isTrue();
 
-        JsonNode login = api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        JsonNode login = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", codigoDoConvite(resposta), "senha", ApiDeTeste.SENHA), 200);
         assertThat(jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
                 login.path("usuario").path("id").asString())).isEqualTo(tenant);
         api.get("/eu", login, 200);
@@ -414,7 +414,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
             reset(receitas);
         }
         // O administrador aceita o convite do sistema: as receitas padrão passam a existir, uma vez cada.
-        api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigoDoConvite(resposta), "senha", ApiDeTeste.SENHA), 200);
         Long modelos = jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant);
         assertThat(modelos).isEqualTo(13L);
         assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and tipo = 'METODOLOGIA'",
@@ -440,8 +440,8 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         String codigoNovo = link.substring(link.indexOf('#') + 1);
         assertThat(codigoNovo).isNotEqualTo(codigoAntigo);
 
-        api.post("/publico/convites-equipe/" + codigoAntigo, null, Map.of("senha", ApiDeTeste.SENHA), 404);
-        api.post("/publico/convites-equipe/" + codigoNovo, null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigoAntigo, "senha", ApiDeTeste.SENHA), 404);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigoNovo, "senha", ApiDeTeste.SENHA), 200);
         // Já tem acesso: não há mais o que reemitir.
         assertThat(central("POST", "/integracao/v1/instancias/" + tenant + "/convite-administrador", null, null)
                 .getResponse().getStatus()).isEqualTo(409);
@@ -469,7 +469,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
                 .until(() -> EmailDeTeste.para(email).size() == 1);
 
         // O código do e-mail aceita o convite.
-        api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigoDoConvite(resposta), "senha", ApiDeTeste.SENHA), 200);
     }
 
     @Test
@@ -510,7 +510,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
             assertThat(resposta.path("administrador").path("convite").path("link").asString()).contains("/convite-equipe#");
             assertThat(EmailDeTeste.para(email)).isEmpty();
             // Convite válido mesmo sem o e-mail: o administrador entra pelo link da resposta.
-            api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null, Map.of("senha", ApiDeTeste.SENHA), 200);
+            api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigoDoConvite(resposta), "senha", ApiDeTeste.SENHA), 200);
         } finally {
             EmailDeTeste.FALHAR.set(false);
         }
@@ -570,8 +570,8 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         String email = ApiDeTeste.emailUnico("admin");
         JsonNode resposta = provisionar(contratacao, email);
         UUID tenant = UUID.fromString(resposta.path("tenantId").asString());
-        JsonNode login = api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        JsonNode login = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", codigoDoConvite(resposta), "senha", ApiDeTeste.SENHA), 200);
         api.get("/eu", login, 200);
 
         central("PUT", "/integracao/v1/instancias/" + tenant + "/direitos", direitos(contratacao, tenant, 2, "BLOQUEADA", false),
@@ -594,7 +594,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         String email = ApiDeTeste.emailUnico("admin");
         JsonNode resposta = provisionar(contratacao, email);
         UUID tenant = UUID.fromString(resposta.path("tenantId").asString());
-        api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigoDoConvite(resposta), "senha", ApiDeTeste.SENHA), 200);
 
         jdbc.update("update direitos_locais set confirmado_em = ? where consultoria_id = ?",
                 Timestamp.from(Instant.now().minus(73, ChronoUnit.HOURS)), tenant);
@@ -667,7 +667,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
 
     private JsonNode loginDoAdministrador() throws Exception {
         JsonNode resposta = provisionar(UUID.randomUUID(), ApiDeTeste.emailUnico("admin"));
-        return api.post("/publico/convites-equipe/" + codigoDoConvite(resposta), null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        return api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigoDoConvite(resposta), "senha", ApiDeTeste.SENHA), 200);
     }
 
     @Test

@@ -19,9 +19,10 @@ public class ConviteEquipePublicoController {
         limite.conviteEquipeConsulta(http.getRemoteAddr());
         return convites.consultar(r.codigo());
     }
-    @PostMapping("/publico/convites-equipe/{codigo}")
-    public LoginResponse aceitar(@PathVariable String codigo,@RequestBody @Valid EquipeDtos.AceitarRequest r,HttpServletRequest http,HttpServletResponse resposta) {
+    /** Aceite com o código e a senha no corpo; a mesma regra e o mesmo 404 da consulta para código inválido, vencido ou já aceito. */
+    @PostMapping("/publico/convites-equipe/aceitar")
+    public LoginResponse aceitar(@RequestBody @Valid EquipeDtos.AceitarRequest r,HttpServletRequest http,HttpServletResponse resposta) {
         limite.convite(http.getRemoteAddr());var cliente=DestinoCliente.de(http);
-        return sessao.responder(convites.aceitar(codigo,r.senha()),cliente,resposta);
+        return sessao.responder(convites.aceitar(r.codigo(),r.senha()),cliente,resposta);
     }
 }

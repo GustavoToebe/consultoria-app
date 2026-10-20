@@ -198,8 +198,8 @@ class RedefinicaoSenhaIntegrationTest extends AbstractIntegrationTest {
                 .contains("/convite-equipe#" + convite.path("codigo").asString())
                 .doesNotContain("Nova Pessoa");
         // O código do e-mail aceita o convite.
-        api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
     }
 
     @Test
@@ -213,8 +213,8 @@ class RedefinicaoSenhaIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(convite.path("emailEnviado").asBoolean()).isFalse();
         assertThat(convite.path("link").asString()).contains("/convite-equipe#");
-        api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
     }
 
     // ---- HTTP ----

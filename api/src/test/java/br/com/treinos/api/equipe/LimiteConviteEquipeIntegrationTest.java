@@ -14,9 +14,9 @@ class LimiteConviteEquipeIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Test void rotaPublicaLimitaTentativasAntesDoAceite() throws Exception {
         for(int i=0;i<3;i++) {
-            mvc.perform(post("/publico/convites-equipe/incorreto").with(req -> {req.setRemoteAddr("198.51.100.70");return req;})
+            mvc.perform(post("/publico/convites-equipe/aceitar").with(req -> {req.setRemoteAddr("198.51.100.70");return req;})
                             .header("X-Treinos-Cliente","nativo").contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"senha\":\""+ApiDeTeste.SENHA+"\"}"))
+                            .content("{\"codigo\":\"incorreto\",\"senha\":\""+ApiDeTeste.SENHA+"\"}"))
                     .andExpect(status().is(i<2?404:429));
         }
     }

@@ -19,7 +19,8 @@ public final class EquipeDtos {
         public ConviteResponse comEmailEnviado(boolean enviado) { return new ConviteResponse(codigo,link,expiraEm,enviado); }
     }
     public record UsuarioRequest(@NotBlank @Size(max=120) String nome,@NotNull UUID perfilId,@NotNull Boolean ativo) { }
-    public record AceitarRequest(@NotBlank @Size(max=200) String senha) { }
+    /** Código e senha só no corpo, nunca o código no caminho (log de acesso, histórico, prévia de link). */
+    public record AceitarRequest(@NotBlank @Size(max=64) String codigo,@NotBlank @Size(max=200) String senha) { }
     /** Código só no corpo, nunca no caminho (log de acesso, histórico, prévia de link). */
     public record ConsultarConviteRequest(@NotBlank @Size(max=64) String codigo) { }
     /** Só a marca da consultoria: nenhum dado de quem foi convidado. */

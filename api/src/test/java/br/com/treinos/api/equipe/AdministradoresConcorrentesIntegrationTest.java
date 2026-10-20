@@ -29,7 +29,7 @@ class AdministradoresConcorrentesIntegrationTest extends AbstractIntegrationTest
         var api=new ApiDeTeste(mvc,json);var um=api.novoTreinador();var eu=api.get("/eu",um,200);
         UUID perfil=UUID.fromString(eu.path("perfil").path("id").asString());
         var convite=api.post("/usuarios/convites",um,Map.of("nome","Segundo administrador fictício","email",ApiDeTeste.emailUnico("admin"),"perfilId",perfil),200);
-        var dois=api.post("/publico/convites-equipe/"+convite.path("codigo").asString(),null,Map.of("senha",ApiDeTeste.SENHA),200);
+        var dois=api.post("/publico/convites-equipe/aceitar",null,Map.of("codigo", convite.path("codigo").asString(), "senha",ApiDeTeste.SENHA),200);
         UUID a=UUID.fromString(um.path("usuario").path("id").asString());UUID b=UUID.fromString(dois.path("usuario").path("id").asString());
         UUID cid=banco.queryForObject("select consultoria_id from usuario where id=?",UUID.class,a);
         var inicio=new CountDownLatch(1);

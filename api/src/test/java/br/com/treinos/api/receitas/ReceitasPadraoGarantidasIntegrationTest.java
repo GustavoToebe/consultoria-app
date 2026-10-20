@@ -72,8 +72,8 @@ class ReceitasPadraoGarantidasIntegrationTest extends AbstractIntegrationTest {
         UUID perfil = UUID.fromString(api.get("/eu", treinador, 200).path("perfil").path("id").asString());
         var convite = api.post("/usuarios/convites", treinador, Map.of("nome", "Membro fictício",
                 "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
-        api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
         assertThat(receitasDe(consultoria)).isEqualTo(antes);
     }
 }

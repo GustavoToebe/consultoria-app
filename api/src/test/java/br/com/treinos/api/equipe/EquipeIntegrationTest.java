@@ -29,7 +29,7 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         return api.post("/usuarios/convites",admin,Map.of("nome",nome,"email",email,"perfilId",perfil),200);
     }
     private JsonNode aceitar(JsonNode convite,int status) throws Exception {
-        return api.post("/publico/convites-equipe/"+convite.path("codigo").asString(),null,Map.of("senha",ApiDeTeste.SENHA),status);
+        return api.post("/publico/convites-equipe/aceitar",null,Map.of("codigo", convite.path("codigo").asString(), "senha",ApiDeTeste.SENHA),status);
     }
     @Test void administradorESistemaNaoPodemSerRemovidos() throws Exception {
         var p=perfil("Administrador");String pid=p.path("id").asString();String uid=admin.path("usuario").path("id").asString();
@@ -120,7 +120,7 @@ class EquipeIntegrationTest extends AbstractIntegrationTest {
         aceitar(antigo,404);
         String hash=br.com.treinos.api.security.OpaqueTokenGenerator.hash(novo.path("codigo").asString());
         banco.update("update usuario_convite set expira_em=now()-interval '1 second' where codigo_hash=?",hash);
-        var expirado=aceitar(novo,404);var errado=api.post("/publico/convites-equipe/incorreto",null,Map.of("senha",ApiDeTeste.SENHA),404);
+        var expirado=aceitar(novo,404);var errado=api.post("/publico/convites-equipe/aceitar",null,Map.of("codigo","incorreto","senha",ApiDeTeste.SENHA),404);
         assertThat(expirado.path("message").asString()).isEqualTo(errado.path("message").asString());
         api.post("/usuarios/convites",admin,Map.of("nome","Duplicado","email",admin.path("usuario").path("email").asString(),"perfilId",pid),409);
     }

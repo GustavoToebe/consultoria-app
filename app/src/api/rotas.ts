@@ -106,7 +106,7 @@ export const cancelarConviteEquipe = (id:string) => requisicao<void>(`/usuarios/
 export const alterarMembro = (id:string,corpo:{nome:string;perfilId:string;ativo:boolean}) => requisicao<MembroEquipe>(`/usuarios/${seg(id)}`,{metodo:'PUT',corpo});
 /** Marca da consultoria do convite de equipe; o código vai só no corpo. Código inválido, vencido ou aceito = 404 igual. */
 export const consultarConviteEquipe = (codigo:string) => requisicao<ConviteEquipePublico>('/publico/convites-equipe/consultar',{metodo:'POST',corpo:{codigo},semRenovar:true});
-export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>(`/publico/convites-equipe/${encodeURIComponent(codigo)}`,{metodo:'POST',corpo:{senha},semRenovar:true});
+export const aceitarConviteEquipe = (codigo:string,senha:string) => requisicao<LoginResponse>('/publico/convites-equipe/aceitar',{metodo:'POST',corpo:{codigo,senha},semRenovar:true});
 /** "Esqueci a senha": a API responde 202 exista a conta ou não. `turnstileToken` (uso único) só quando a verificação humana está ligada. */
 export const pedirRedefinicaoDeSenha = (email:string,turnstileToken?:string) => requisicao<void>('/auth/esqueci-senha',{metodo:'POST',corpo:turnstileToken?{email,turnstileToken}:{email},semRenovar:true});
 /** Com o token do link do e-mail; não abre sessão. Com MFA ativo a API pede `codigoMfa` (401 `MFA_NECESSARIO`). */

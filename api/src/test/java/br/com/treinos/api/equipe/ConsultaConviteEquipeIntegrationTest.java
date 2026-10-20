@@ -59,7 +59,7 @@ class ConsultaConviteEquipeIntegrationTest extends AbstractIntegrationTest {
         String codigo = novoConvite();
         consultar(codigo, 200);
         consultar(codigo, 200);
-        api.post("/publico/convites-equipe/" + codigo, null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigo, "senha", ApiDeTeste.SENHA), 200);
     }
 
     @Test void inexistenteVencidoAceitoEForaDoFormatoDaoOMesmo404() throws Exception {
@@ -67,7 +67,7 @@ class ConsultaConviteEquipeIntegrationTest extends AbstractIntegrationTest {
         String vencido = novoConvite(emailVencido);
         banco.update("update usuario_convite set expira_em = now() - interval '1 day' where email = ?", emailVencido);
         String aceito = novoConvite();
-        api.post("/publico/convites-equipe/" + aceito, null, Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", aceito, "senha", ApiDeTeste.SENHA), 200);
 
         var inexistente = consultar("a".repeat(43), 404);
         var respostas = new JsonNode[] { consultar(vencido, 404), consultar(aceito, 404), consultar("curto", 404), consultar("a".repeat(64), 404) };
@@ -76,5 +76,28 @@ class ConsultaConviteEquipeIntegrationTest extends AbstractIntegrationTest {
             assertThat(r.path("message").asString()).isEqualTo(inexistente.path("message").asString());
             assertThat(r.path("status").asInt()).isEqualTo(404);
         }
+    }
+
+    @Test void aceiteComCodigoInvalidoDaOMesmo404DaConsultaEValidaOCorpo() throws Exception {
+        var consulta = consultar("a".repeat(43), 404);
+        for (String codigo : new String[] { "a".repeat(43), "curto", "a".repeat(64) }) {
+            var aceite = api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigo, "senha", ApiDeTeste.SENHA), 404);
+            assertThat(aceite.path("codigo").asString()).isEqualTo(consulta.path("codigo").asString());
+            assertThat(aceite.path("message").asString()).isEqualTo(consulta.path("message").asString());
+        }
+        // Código em branco ou grande demais é recusado na validação do corpo, sem chegar ao convite.
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", " ", "senha", ApiDeTeste.SENHA), 400);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", "a".repeat(65), "senha", ApiDeTeste.SENHA), 400);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("senha", ApiDeTeste.SENHA), 400);
+    }
+
+    @Test void rotaAntigaComOCodigoNoCaminhoNaoExisteMaisENaoAceitaOConvite() throws Exception {
+        String codigo = novoConvite();
+        // Sem rota com o código no caminho: o Spring responde 404 (nenhum handler casa) e nada é aceito.
+        api.post("/publico/convites-equipe/" + codigo, null, Map.of("senha", ApiDeTeste.SENHA), 404);
+        api.post("/publico/convites-equipe/" + codigo, null, Map.of("codigo", codigo, "senha", ApiDeTeste.SENHA), 404);
+        // O convite continua válido e só o aceite novo o consome.
+        consultar(codigo, 200);
+        api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigo, "senha", ApiDeTeste.SENHA), 200);
     }
 }

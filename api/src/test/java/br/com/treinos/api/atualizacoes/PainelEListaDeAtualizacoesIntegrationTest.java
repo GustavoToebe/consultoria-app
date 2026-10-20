@@ -51,8 +51,8 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
                 .path("id").asString();
         JsonNode convite = api.post("/usuarios/convites", admin, Map.of("nome", "Membro fictício",
                 "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
-        membro = api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        membro = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
     }
 
     private UUID alunoDe(JsonNode responsavel, String nome, LocalDate fimDaPasta) throws Exception {
@@ -227,8 +227,8 @@ class PainelEListaDeAtualizacoesIntegrationTest extends AbstractIntegrationTest 
                 "permissoes", Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER")), 200).path("id").asString();
         JsonNode convite = api.post("/usuarios/convites", admin, Map.of("nome", "Sem atualização",
                 "email", ApiDeTeste.emailUnico("sematu"), "perfilId", perfil), 200);
-        JsonNode sem = api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        JsonNode sem = api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
         JsonNode item = itemDaLista(sem, aluno);
         assertThat(item.path("atualizacao").isNull()).isTrue();
         assertThat(itemDaLista(admin, aluno).path("atualizacao").path("fase").asString()).isEqualTo("ATRASADA");

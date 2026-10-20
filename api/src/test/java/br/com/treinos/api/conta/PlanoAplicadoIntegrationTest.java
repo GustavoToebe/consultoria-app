@@ -123,8 +123,8 @@ class PlanoAplicadoIntegrationTest extends AbstractIntegrationTest {
         JsonNode conviteA = convidar("Membro A", emailA, perfil, 200);
         assertThat(consumoMembros()).isEqualTo(2);
         // Aceitar troca convite por usuário: a soma não muda.
-        api.post("/publico/convites-equipe/" + conviteA.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", conviteA.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
         assertThat(consumoMembros()).isEqualTo(2);
         String idA = idDoUsuario(emailA);
         // Desativar nunca é barrado e abre vaga; reativar volta a ocupar.
@@ -144,8 +144,8 @@ class PlanoAplicadoIntegrationTest extends AbstractIntegrationTest {
         direitos(consultoria, Map.of(), TODAS);
         String perfil = perfilAssistente();
         JsonNode convite = convidar("Membro A", emailA, perfil, 200);
-        api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
         String idA = idDoUsuario(emailA);
         direitos(consultoria, Map.of(), List.of("MOBILIDADE", "PDF"));
         erro(convidar("Membro B", emailB, perfil, 403), "FUNCIONALIDADE_FORA_DO_PLANO", "EQUIPE");

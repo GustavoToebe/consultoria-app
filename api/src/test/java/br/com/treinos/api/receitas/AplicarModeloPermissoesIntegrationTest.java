@@ -60,8 +60,8 @@ class AplicarModeloPermissoesIntegrationTest extends AbstractIntegrationTest {
                 .get("id").asString();
         JsonNode convite = api.post("/usuarios/convites", admin,
                 Map.of("nome", "Membro fictício", "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
-        return api.post("/publico/convites-equipe/" + convite.get("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        return api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.get("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
     }
 
     private int criados() throws Exception {

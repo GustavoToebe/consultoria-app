@@ -41,7 +41,7 @@ public class SecurityConfig {
     private static final Set<String> METODOS_SEGUROS = Set.of("GET", "HEAD", "TRACE", "OPTIONS");
 
     private static final String[] ROTAS_PUBLICAS_POST = {
-            "/publico/convites-equipe/*", "/auth/login", "/auth/refresh", "/auth/logout", "/auth/cadastro-treinador", "/auth/esqueci-senha",
+            "/auth/login", "/auth/refresh", "/auth/logout", "/auth/cadastro-treinador", "/auth/esqueci-senha",
             "/auth/redefinir-senha"};
 
     private static final String[] ROTAS_PUBLICAS = {"/publico/**", "/actuator/health", "/error"};

@@ -73,8 +73,8 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
                 "permissoes", permissoes), 200).path("id").asString();
         JsonNode convite = api.post("/usuarios/convites", admin, Map.of("nome", "Membro fictício",
                 "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
-        return api.post("/publico/convites-equipe/" + convite.path("codigo").asString(), null,
-                Map.of("senha", ApiDeTeste.SENHA), 200);
+        return api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.path("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
     }
 
     private UUID versaoDoQuestionario(UUID consultoria) {
@@ -87,7 +87,7 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
     }
 
     /** Uma pasta por atualização (a atualização é única por pasta). */
-    private void atualizacao(UUID consultoria, UUID aluno, UUID versao, LocalDate data, LocalDate atrasoAte, Timestamp enviadaEm) {
+    private UUID atualizacao(UUID consultoria, UUID aluno, UUID versao, LocalDate data, LocalDate atrasoAte, Timestamp enviadaEm) {
         UUID pasta = UUID.randomUUID();
         banco.update("insert into pasta_plano(id,consultoria_id,aluno_id,titulo,inicio,fim) values (?,?,?,'Período fictício',?,?)",
                 pasta, consultoria, aluno, data.minusDays(27), data);
@@ -95,6 +95,33 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
                         + "atraso_ate,questionario_versao_id) values (?,?,?,?,?,?,'{}'::jsonb,?,?,?)",
                 UUID.randomUUID(), consultoria, aluno, pasta, data, enviadaEm == null ? "ABERTA" : "ENVIADA", enviadaEm,
                 atrasoAte, enviadaEm == null ? null : versao);
+        return pasta;
+    }
+
+    /** Aluno e consultoria já existentes há cinco meses, para os prazos passados caberem na vida do aluno. */
+    private UUID alunoAntigo(JsonNode treinador, String nome) throws Exception {
+        UUID aluno = api.criarAluno(treinador, nome);
+        banco.update("update consultoria set criado_em=? where id=?", quando(atual.minusMonths(5), 1, 12, 0), consultoriaDe(aluno));
+        banco.update("update aluno set criado_em=? where id=?", quando(atual.minusMonths(5), 2, 12, 0), aluno);
+        return aluno;
+    }
+
+    /** Plano publicado (treino ou dieta) ligado à pasta; é o que faz o painel tratar a pasta como "com atualização". */
+    private void planoPublicado(UUID consultoria, UUID aluno, UUID pasta, String tabela) {
+        banco.update("insert into " + tabela + "(id,consultoria_id,aluno_id,titulo,fim,rascunho,versao_publicada,publicado_em,pasta_id) "
+                + "values (?,?,?,'Plano fictício',(select fim from pasta_plano where id=?),'{}'::jsonb,1,now(),?)",
+                UUID.randomUUID(), consultoria, aluno, pasta, pasta);
+    }
+
+    /** Pasta com {@code fim} e plano publicado, sem linha de atualização (ninguém enviou nem avisou atraso). */
+    private UUID pastaSemLinha(UUID consultoria, UUID aluno, LocalDate fim, String tabelaDoPlano) {
+        UUID pasta = UUID.randomUUID();
+        banco.update("insert into pasta_plano(id,consultoria_id,aluno_id,titulo,inicio,fim) values (?,?,?,'Período fictício',?,?)",
+                pasta, consultoria, aluno, fim.minusDays(27), fim);
+        if (tabelaDoPlano != null) {
+            planoPublicado(consultoria, aluno, pasta, tabelaDoPlano);
+        }
+        return pasta;
     }
 
     @Test
@@ -199,10 +226,139 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void pastaVencidaSemLinhaContaComoAtrasadaSemContarDuasVezes() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno com pastas vencidas");
+        UUID consultoria = consultoriaDe(aluno);
+        UUID versao = versaoDoQuestionario(consultoria);
+        YearMonth m2 = atual.minusMonths(2);
+        YearMonth m1 = atual.minusMonths(1);
+        // M-2: uma pasta com treino publicado e outra só com dieta publicada, nenhuma com linha: duas atrasadas.
+        pastaSemLinha(consultoria, aluno, m2.atDay(10), "plano_treino");
+        pastaSemLinha(consultoria, aluno, m2.atDay(12), "plano_dieta");
+        // M-2: pasta com envio no prazo e plano publicado: no prazo, e a pasta não conta de novo como sem linha.
+        UUID comEnvio = atualizacao(consultoria, aluno, versao, m2.atDay(20), null, quando(m2, 19, 12, 0));
+        planoPublicado(consultoria, aluno, comEnvio, "plano_treino");
+        // M-1: pasta com linha aberta e vencida (aviso de atraso) e plano publicado: atrasada uma vez só.
+        UUID comAviso = atualizacao(consultoria, aluno, versao, m1.atDay(3), m1.atDay(6), null);
+        planoPublicado(consultoria, aluno, comAviso, "plano_treino");
+        // M-1: pasta sem plano publicado não é "atualização" do painel: não conta.
+        pastaSemLinha(consultoria, aluno, m1.atDay(8), null);
+
+        JsonNode corpo = numeros(admin);
+        assertThat(mes(corpo, 3).path("atualizacoesAtrasadas").asLong()).isEqualTo(2);
+        assertThat(mes(corpo, 3).path("atualizacoesNoPrazo").asLong()).isEqualTo(1);
+        assertThat(mes(corpo, 4).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+        assertThat(mes(corpo, 4).path("atualizacoesNoPrazo").asLong()).isZero();
+        // Mês sem pasta nenhuma continua sem dado.
+        assertThat(mes(corpo, 2).path("atualizacoesAtrasadas").isNull()).isTrue();
+        assertThat(mes(corpo, 2).path("atualizacoesNoPrazo").isNull()).isTrue();
+    }
+
+    @Test
+    void pastaVencidaComEnvioNoPrazoNaoContaComoAtrasada() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno que enviou no prazo");
+        UUID consultoria = consultoriaDe(aluno);
+        YearMonth m1 = atual.minusMonths(1);
+        UUID pasta = atualizacao(consultoria, aluno, versaoDoQuestionario(consultoria), m1.atDay(10), null, quando(m1, 9, 12, 0));
+        planoPublicado(consultoria, aluno, pasta, "plano_treino");
+
+        JsonNode corpo = numeros(admin);
+        assertThat(mes(corpo, 4).path("atualizacoesNoPrazo").asLong()).isEqualTo(1);
+        assertThat(mes(corpo, 4).path("atualizacoesAtrasadas").asLong()).isZero();
+    }
+
+    @Test
+    void pastaArquivadaOuPrazoDeHojeEmDianteNaoContaComoAtrasada() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno com pastas que não contam");
+        UUID consultoria = consultoriaDe(aluno);
+        YearMonth m1 = atual.minusMonths(1);
+        UUID arquivada = pastaSemLinha(consultoria, aluno, m1.atDay(10), "plano_treino");
+        banco.update("update pasta_plano set arquivado=true where id=?", arquivada);
+        // Plano arquivado numa pasta não arquivada: o painel também não a trata como pasta com atualização.
+        UUID planoArquivado = pastaSemLinha(consultoria, aluno, m1.atDay(11), "plano_treino");
+        banco.update("update plano_treino set arquivado=true where pasta_id=?", planoArquivado);
+        // Prazo de hoje e do futuro: ainda não venceu.
+        pastaSemLinha(consultoria, aluno, hoje, "plano_treino");
+        pastaSemLinha(consultoria, aluno, hoje.plusDays(10), "plano_dieta");
+
+        JsonNode corpo = numeros(admin);
+        for (int i = 0; i < 6; i++) {
+            assertThat(mes(corpo, i).path("atualizacoesAtrasadas").isNull()).as("mês %s", i).isTrue();
+            assertThat(mes(corpo, i).path("atualizacoesNoPrazo").isNull()).as("mês %s", i).isTrue();
+        }
+    }
+
+    @Test
+    void pastaVencidaDeOntemContaNoMesDoPrazo() throws Exception {
+        UUID aluno = alunoAntigo(admin, "Aluno com pasta vencida ontem");
+        UUID consultoria = consultoriaDe(aluno);
+        LocalDate ontem = hoje.minusDays(1);
+        pastaSemLinha(consultoria, aluno, ontem, "plano_treino");
+
+        JsonNode corpo = numeros(admin);
+        int indice = YearMonth.from(ontem).equals(atual) ? 5 : 4;
+        assertThat(mes(corpo, indice).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+        assertThat(mes(corpo, indice).path("atualizacoesNoPrazo").asLong()).isZero();
+    }
+
+    @Test
+    void alunoInativadoOuAnonimizadoAntesDoPrazoNaoTemPastaAtrasada() throws Exception {
+        UUID inativado = alunoAntigo(admin, "Aluno inativado antes do prazo");
+        UUID anonimizado = api.criarAluno(admin, "Aluno anonimizado antes do prazo");
+        UUID inativadoDepois = api.criarAluno(admin, "Aluno inativado depois do prazo");
+        UUID consultoria = consultoriaDe(inativado);
+        YearMonth m2 = atual.minusMonths(2);
+        banco.update("update aluno set criado_em=? where id in (?,?)", quando(atual.minusMonths(5), 2, 12, 0), anonimizado,
+                inativadoDepois);
+        banco.update("update aluno set ativo=false, inativado_em=? where id=?", quando(m2, 5, 12, 0), inativado);
+        banco.update("update aluno set ativo=false, inativado_em=?, anonimizado_em=? where id=?", quando(m2, 6, 12, 0),
+                quando(m2, 6, 12, 0), anonimizado);
+        banco.update("update aluno set ativo=false, inativado_em=? where id=?", quando(m2, 20, 12, 0), inativadoDepois);
+        pastaSemLinha(consultoria, inativado, m2.atDay(10), "plano_treino");
+        pastaSemLinha(consultoria, anonimizado, m2.atDay(10), "plano_treino");
+        // Inativado só depois do prazo: no prazo estava ativo, então a pasta vencida conta naquele mês.
+        pastaSemLinha(consultoria, inativadoDepois, m2.atDay(10), "plano_treino");
+
+        JsonNode corpo = numeros(admin);
+        assertThat(mes(corpo, 3).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+    }
+
+    @Test
+    void pastaVencidaDeAlunoCriadoDepoisDoPrazoNaoConta() throws Exception {
+        UUID aluno = api.criarAluno(admin, "Aluno que chegou depois");
+        UUID consultoria = consultoriaDe(aluno);
+        banco.update("update consultoria set criado_em=? where id=?", quando(atual.minusMonths(5), 1, 12, 0), consultoria);
+        YearMonth m2 = atual.minusMonths(2);
+        banco.update("update aluno set criado_em=? where id=?", quando(m2, 20, 12, 0), aluno);
+        pastaSemLinha(consultoria, aluno, m2.atDay(10), "plano_treino");
+
+        JsonNode corpo = numeros(admin);
+        assertThat(mes(corpo, 3).path("atualizacoesAtrasadas").isNull()).isTrue();
+    }
+
+    @Test
+    void pastaVencidaDeOutraConsultoriaNaoEntraNaContagem() throws Exception {
+        UUID meu = alunoAntigo(admin, "Aluno da consultoria A");
+        pastaSemLinha(consultoriaDe(meu), meu, atual.minusMonths(1).atDay(10), "plano_treino");
+
+        JsonNode outro = api.novoTreinador();
+        alunoAntigo(outro, "Aluno da consultoria B");
+        JsonNode deB = numeros(outro);
+        for (int i = 0; i < 6; i++) {
+            assertThat(mes(deB, i).path("atualizacoesAtrasadas").isNull()).as("B, mês %s", i).isTrue();
+        }
+        assertThat(mes(numeros(admin), 4).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+    }
+
+    @Test
     void semAsPermissoesDoPainelNegaEFechaOQueOPainelFecha() throws Exception {
         UUID aluno = api.criarAluno(admin, "Aluno para o relatório");
         UUID consultoria = consultoriaDe(aluno);
         atualizacao(consultoria, aluno, versaoDoQuestionario(consultoria), hoje, null, Timestamp.from(java.time.Instant.now()));
+        // Pasta vencida sem linha no mês passado: também fica fechada sem as permissões do painel.
+        banco.update("update consultoria set criado_em=? where id=?", quando(atual.minusMonths(5), 1, 12, 0), consultoria);
+        banco.update("update aluno set criado_em=? where id=?", quando(atual.minusMonths(5), 2, 12, 0), aluno);
+        pastaSemLinha(consultoria, aluno, atual.minusMonths(1).atDay(10), "plano_treino");
 
         JsonNode semPainel = membroComPermissoes(Set.of("ALUNO_LER"));
         api.get("/numeros", semPainel, 403);
@@ -217,6 +373,8 @@ class NumerosIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode completo = membroComPermissoes(Set.of("PAINEL_VER", "ALUNO_LER", "ATUALIZACAO_LER", "ALUNO_SENSIVEL_LER"));
         assertThat(mes(numeros(completo), 5).path("atualizacoesNoPrazo").asLong()).isEqualTo(1);
+        assertThat(mes(numeros(completo), 4).path("atualizacoesAtrasadas").asLong()).isEqualTo(1);
+        assertThat(mes(numeros(soPainel), 4).path("atualizacoesAtrasadas").isNull()).isTrue();
     }
 
     @Test
