@@ -37,7 +37,7 @@ public final class AnamneseDtos {
      *       telefone {@code (45) 99999-8888}, já normalizados);</li>
      *   <li>{@code PESO}: {@code {"pesoKg": 80.5, "data": "AAAA-MM-DD"}};</li>
      *   <li>{@code ENDERECO}: {@code {"endereco": {"cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf"}}},
-     *       sempre as sete chaves, cada uma texto ou nulo (CEP {@code 85800-000}, UF em maiúsculas).</li>
+     *       sempre as sete chaves; endereço completo (CEP, logradouro, número, cidade e UF preenchidos), complemento e bairro texto ou nulo (CEP {@code 85800-000}, UF em maiúsculas).</li>
      * </ul>
      * Só para a equipe (a rota exige {@code ANAMNESE_LER}, que depende de {@code ALUNO_SENSIVEL_LER}).
      */

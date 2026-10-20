@@ -3,7 +3,6 @@ package br.com.treinos.api.alunos.dto;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.consultoria.MarcaPublica;
 import br.com.treinos.api.questionarios.LimitesQuestionario;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -23,18 +22,12 @@ public final class AlunoDtos {
     private AlunoDtos() { }
 
     /**
-     * Endereço do aluno: sete campos de texto, todos opcionais e independentes (vale endereço parcial). Os limites são os
-     * de {@code aluno} (V015) e os mesmos da resposta ENDERECO da anamnese ({@link LimitesQuestionario}). CEP e UF só são
-     * conferidos quando preenchidos, pelo serviço (422 no campo). Dado pessoal: nunca em log nem em mensagem de erro.
+     * Endereço do aluno: sete campos de texto. Sem validação no record: a regra única (strip, limites depois do strip,
+     * obrigatórios quando há endereço, CEP e UF) é {@code alunos/RegrasDoEndereco}, a mesma da resposta ENDERECO da
+     * anamnese; limites em {@link LimitesQuestionario}. Dado pessoal: nunca em log nem em mensagem de erro.
      */
-    public record Endereco(
-            @Size(max = LimitesQuestionario.ENDERECO_CEP_TAMANHO) String cep,
-            @Size(max = LimitesQuestionario.ENDERECO_LOGRADOURO_TAMANHO) String logradouro,
-            @Size(max = LimitesQuestionario.ENDERECO_NUMERO_TAMANHO) String numero,
-            @Size(max = LimitesQuestionario.ENDERECO_COMPLEMENTO_TAMANHO) String complemento,
-            @Size(max = LimitesQuestionario.ENDERECO_BAIRRO_TAMANHO) String bairro,
-            @Size(max = LimitesQuestionario.ENDERECO_CIDADE_TAMANHO) String cidade,
-            @Size(max = LimitesQuestionario.ENDERECO_UF_TAMANHO) String uf) {
+    public record Endereco(String cep, String logradouro, String numero, String complemento, String bairro, String cidade,
+                           String uf) {
 
         /** Os sete campos em branco ou nulos. */
         public boolean vazio() {
@@ -60,7 +53,7 @@ public final class AlunoDtos {
             @Size(max = 200) String objetivo,
             @Size(max = 4000) String observacoes,
             @Size(max = 20) String cpf,
-            @Valid Endereco endereco,
+            Endereco endereco,
             Long versao,
             @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId) {
 

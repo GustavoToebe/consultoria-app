@@ -232,7 +232,7 @@ public class AlunoService {
     /**
      * Telefone, CPF e endereço do corpo já conferidos e normalizados ({@code Formatos}). Falha de formato vira 422
      * {@code ALUNO_INVALIDO} com o campo em {@code fieldErrors} ({@code telefone}, {@code cpf}, {@code endereco.cep},
-     * {@code endereco.uf}) e a mensagem fixa do {@code Formatos}, nunca o valor enviado. CPF e endereço só são lidos
+     * {@code endereco.uf}, {@code endereco.logradouro}...) e uma mensagem fixa do {@code Formatos} ou da {@code RegrasDoEndereco}, nunca o valor enviado. CPF e endereço só são lidos
      * (e conferidos) com {@code ALUNO_SENSIVEL_ALTERAR}.
      */
     private record Dados(String telefone, String cpf, Endereco endereco) {
@@ -247,11 +247,11 @@ public class AlunoService {
             return new Dados(telefone, cpf, endereco);
         }
 
+        /** A regra única do endereço ({@link RegrasDoEndereco}); cada erro vira um campo {@code endereco.*}. */
         private static Endereco endereco(List<ApiError.FieldError> erros, Endereco e) {
-            if (e == null || e.vazio()) return null;
-            return new Endereco(formato(erros, "endereco.cep", Formatos::cep, e.cep()), Buscas.opcional(e.logradouro()),
-                    Buscas.opcional(e.numero()), Buscas.opcional(e.complemento()), Buscas.opcional(e.bairro()),
-                    Buscas.opcional(e.cidade()), formato(erros, "endereco.uf", Formatos::uf, e.uf()));
+            RegrasDoEndereco.Resultado r = RegrasDoEndereco.normalizar(e);
+            r.erros().forEach(x -> erros.add(new ApiError.FieldError("endereco." + x.campo(), x.mensagem())));
+            return r.endereco();
         }
 
         private static String formato(List<ApiError.FieldError> erros, String campo, UnaryOperator<String> formatar, String valor) {

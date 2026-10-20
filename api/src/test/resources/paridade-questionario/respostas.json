@@ -3223,7 +3223,7 @@
   "camposComErro": []
  },
  {
-  "nome": "endereco_parcial_ok",
+  "nome": "endereco_so_cidade_e_uf",
   "modelo": {
    "secoes": [
     {
@@ -3242,6 +3242,411 @@
    "e": {
     "cidade": "Cidade Exemplo",
     "uf": "sp"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_so_cidade",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cidade": "Cidade Exemplo"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_so_cep",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800000"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_sem_numero",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_numero_em_branco",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "   ",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_numero_sn_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "s/n",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "endereco_sem_cep",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_sem_logradouro",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_logradouro_em_branco",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": " ",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_sem_cidade",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_sem_uf",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_sem_complemento_e_bairro_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "endereco_com_complemento_sem_bairro_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "endereco_sem_complemento_com_bairro_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": []
+ },
+ {
+  "nome": "endereco_complemento_e_bairro_em_branco_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": " ",
+    "bairro": "",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": []
@@ -3264,7 +3669,13 @@
   },
   "respostas": {
    "e": {
-    "cep": "85800000"
+    "cep": "85800000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": []
@@ -3288,8 +3699,12 @@
   "respostas": {
    "e": {
     "cep": " 85800-000 ",
-    "uf": " PR ",
-    "cidade": " Cidade "
+    "logradouro": "Rua das Flores",
+    "numero": " 10 ",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": " Cidade ",
+    "uf": " PR "
    }
   },
   "camposComErro": []
@@ -3337,7 +3752,13 @@
   },
   "respostas": {
    "e": {
-    "cidade": "x",
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR",
     "pais": "BR"
    }
   },
@@ -3363,7 +3784,13 @@
   },
   "respostas": {
    "e": {
-    "cep": "1234"
+    "cep": "1234",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": [
@@ -3388,7 +3815,44 @@
   },
   "respostas": {
    "e": {
-    "cep": "85800-0000"
+    "cep": "85800-0000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
+  "nome": "endereco_cep_com_letras",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "abcde-fgh",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": [
@@ -3413,6 +3877,12 @@
   },
   "respostas": {
    "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
     "uf": "XX"
    }
   },
@@ -3438,12 +3908,47 @@
   },
   "respostas": {
    "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
     "uf": "sps"
    }
   },
   "camposComErro": [
    "e"
   ]
+ },
+ {
+  "nome": "endereco_uf_minuscula_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "sp"
+   }
+  },
+  "camposComErro": []
  },
  {
   "nome": "endereco_vazio_opcional_ok",
@@ -3464,7 +3969,8 @@
   "respostas": {
    "e": {}
   },
-  "camposComErro": []
+  "camposComErro": [],
+  "chavesAceitas": []
  },
  {
   "nome": "endereco_vazio_obrigatorio",
@@ -3532,7 +4038,8 @@
     "cidade": " "
    }
   },
-  "camposComErro": []
+  "camposComErro": [],
+  "chavesAceitas": []
  },
  {
   "nome": "endereco_em_branco_obrigatorio",
@@ -3561,6 +4068,67 @@
   ]
  },
  {
+  "nome": "endereco_sete_campos_em_branco_opcional_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "",
+    "logradouro": " ",
+    "numero": "",
+    "complemento": "  ",
+    "bairro": "",
+    "cidade": " ",
+    "uf": ""
+   }
+  },
+  "camposComErro": [],
+  "chavesAceitas": []
+ },
+ {
+  "nome": "endereco_sete_campos_em_branco_obrigatorio",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": true
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "",
+    "logradouro": " ",
+    "numero": "",
+    "complemento": "  ",
+    "bairro": "",
+    "cidade": " ",
+    "uf": ""
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
+ },
+ {
   "nome": "endereco_valor_nao_texto",
   "modelo": {
    "secoes": [
@@ -3578,7 +4146,13 @@
   },
   "respostas": {
    "e": {
-    "numero": 10
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": 10,
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": [
@@ -3603,7 +4177,13 @@
   },
   "respostas": {
    "e": {
-    "numero": null
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": null,
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": [
@@ -3676,7 +4256,13 @@
   },
   "respostas": {
    "e": {
-    "logradouro": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "cep": "85800-000",
+    "logradouro": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": []
@@ -3699,7 +4285,13 @@
   },
   "respostas": {
    "e": {
-    "logradouro": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "cep": "85800-000",
+    "logradouro": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": [
@@ -3724,10 +4316,47 @@
   },
   "respostas": {
    "e": {
-    "logradouro": " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "
+    "cep": "85800-000",
+    "logradouro": " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": []
+ },
+ {
+  "nome": "endereco_logradouro_201_com_espacos_nas_pontas",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": [
+   "e"
+  ]
  },
  {
   "nome": "endereco_numero_20_ok",
@@ -3747,7 +4376,13 @@
   },
   "respostas": {
    "e": {
-    "numero": "11111111111111111111"
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "11111111111111111111",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": []
@@ -3770,12 +4405,47 @@
   },
   "respostas": {
    "e": {
-    "numero": "111111111111111111111"
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "111111111111111111111",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": [
    "e"
   ]
+ },
+ {
+  "nome": "endereco_numero_20_com_espacos_nas_pontas_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "  11111111111111111111  ",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": []
  },
  {
   "nome": "endereco_complemento_100_ok",
@@ -3795,7 +4465,13 @@
   },
   "respostas": {
    "e": {
-    "complemento": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": []
@@ -3818,7 +4494,13 @@
   },
   "respostas": {
    "e": {
-    "complemento": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "bairro": "Centro",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": [
@@ -3843,7 +4525,13 @@
   },
   "respostas": {
    "e": {
-    "bairro": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": []
@@ -3866,7 +4554,13 @@
   },
   "respostas": {
    "e": {
-    "bairro": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "cidade": "Cidade Exemplo",
+    "uf": "PR"
    }
   },
   "camposComErro": [
@@ -3891,7 +4585,13 @@
   },
   "respostas": {
    "e": {
-    "cidade": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "uf": "PR"
    }
   },
   "camposComErro": []
@@ -3914,11 +4614,46 @@
   },
   "respostas": {
    "e": {
-    "cidade": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "uf": "PR"
    }
   },
   "camposComErro": [
    "e"
   ]
+ },
+ {
+  "nome": "endereco_cidade_100_com_espacos_nas_pontas_ok",
+  "modelo": {
+   "secoes": [
+    {
+     "perguntas": [
+      {
+       "id": "e",
+       "tipo": "ENDERECO",
+       "rotulo": "e",
+       "obrigatoria": false
+      }
+     ]
+    }
+   ]
+  },
+  "respostas": {
+   "e": {
+    "cep": "85800-000",
+    "logradouro": "Rua das Flores",
+    "numero": "100",
+    "complemento": "Apto 2",
+    "bairro": "Centro",
+    "cidade": " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx ",
+    "uf": "PR"
+   }
+  },
+  "camposComErro": []
  }
 ]

@@ -2,6 +2,8 @@ package br.com.treinos.api.atualizacoes;
 
 import br.com.plataforma.comum.web.ApiError;
 import br.com.plataforma.comum.web.BadRequestException;
+import br.com.treinos.api.alunos.RegrasDoEndereco;
+import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import br.com.treinos.api.questionarios.LimitesQuestionario;
 import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
@@ -9,6 +11,7 @@ import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +20,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -81,7 +85,16 @@ public class ValidadorAtualizacao {
                     continue;
                 }
                 var v = respostas.path(id);
-                if (vazio(v) || ("ENDERECO".equals(tipo) && enderecoEmBranco(v))) {
+                if ("ENDERECO".equals(tipo) && !vazio(v)) {
+                    // A regra única do endereço (a mesma da ficha): inválido = erro; todos os campos em branco = não respondida.
+                    var endereco = RegrasDoEndereco.daResposta(v);
+                    if (!endereco.valido()) {
+                        erros.add(new ApiError.FieldError(id, "Confira o formato e os limites deste campo."));
+                        continue;
+                    }
+                    v = endereco.endereco() == null ? json.missingNode() : enderecoEmJson(endereco.endereco());
+                }
+                if (vazio(v)) {
                     if (p.path("obrigatoria").asBoolean(false)) {
                         erros.add(new ApiError.FieldError(id, "Preencha este campo."));
                     }
@@ -160,7 +173,7 @@ public class ValidadorAtualizacao {
             case "DATA" -> data(p, v, hoje);
             case "TELEFONE" -> telefone(v)
                     && (!"TELEFONE".equals(p.path("destino").asString("")) || formatoAceito(() -> Formatos.telefone(v.asString())));
-            case "ENDERECO" -> endereco(v);
+            case "ENDERECO" -> true; // já conferido e normalizado por RegrasDoEndereco antes de chegar aqui
             case "EMAIL" -> v.isString() && v.asString().strip().length() <= LimitesQuestionario.EMAIL_TAMANHO
                     && EMAIL.matcher(v.asString().strip()).matches();
             case "GRADE" -> gradeValida(p, v);
@@ -214,51 +227,23 @@ public class ValidadorAtualizacao {
         return digitos >= LimitesQuestionario.TELEFONE_DIGITOS_MINIMO && digitos <= LimitesQuestionario.TELEFONE_DIGITOS_MAXIMO;
     }
 
-    /** Chaves da resposta ENDERECO com o limite de cada uma (contado sem os espaços das pontas). */
-    private static final Map<String, Integer> CAMPOS_DO_ENDERECO = Map.of(
-            "cep", LimitesQuestionario.ENDERECO_CEP_TAMANHO,
-            "logradouro", LimitesQuestionario.ENDERECO_LOGRADOURO_TAMANHO,
-            "numero", LimitesQuestionario.ENDERECO_NUMERO_TAMANHO,
-            "complemento", LimitesQuestionario.ENDERECO_COMPLEMENTO_TAMANHO,
-            "bairro", LimitesQuestionario.ENDERECO_BAIRRO_TAMANHO,
-            "cidade", LimitesQuestionario.ENDERECO_CIDADE_TAMANHO,
-            "uf", LimitesQuestionario.ENDERECO_UF_TAMANHO);
-
-    /**
-     * Objeto só com chaves conhecidas e todos os valores em branco (e há ao menos um): conta como "não respondida", como o
-     * objeto vazio. Chave desconhecida ou valor que não é texto continua sendo resposta inválida.
-     */
-    private static boolean enderecoEmBranco(JsonNode v) {
-        return v.isObject() && !v.isEmpty() && v.properties().stream().allMatch(e ->
-                CAMPOS_DO_ENDERECO.containsKey(e.getKey()) && e.getValue().isString() && e.getValue().asString().isBlank());
-    }
-
-    /**
-     * Objeto só com as chaves conhecidas ({@code cep, logradouro, numero, complemento, bairro, cidade, uf}), cada valor um
-     * texto de até o limite do campo (contado sem os espaços das pontas). Campo em branco é ignorado; CEP e UF, quando
-     * preenchidos, passam por {@link Formatos#cep} e {@link Formatos#uf}.
-     */
-    private static boolean endereco(JsonNode v) {
-        if (!v.isObject()) {
-            return false;
-        }
-        for (var e : v.properties()) {
-            Integer limite = CAMPOS_DO_ENDERECO.get(e.getKey());
-            if (limite == null || !e.getValue().isString()) {
-                return false;
+    /** O endereço normalizado como resposta: só as chaves com texto (as outras ficam de fora). */
+    private ObjectNode enderecoEmJson(Endereco e) {
+        ObjectNode n = json.createObjectNode();
+        Map<String, String> campos = new LinkedHashMap<>();
+        campos.put("cep", e.cep());
+        campos.put("logradouro", e.logradouro());
+        campos.put("numero", e.numero());
+        campos.put("complemento", e.complemento());
+        campos.put("bairro", e.bairro());
+        campos.put("cidade", e.cidade());
+        campos.put("uf", e.uf());
+        campos.forEach((chave, valor) -> {
+            if (valor != null) {
+                n.put(chave, valor);
             }
-            String texto = e.getValue().asString().strip();
-            if (texto.length() > limite) {
-                return false;
-            }
-            if (!texto.isEmpty() && "cep".equals(e.getKey()) && !formatoAceito(() -> Formatos.cep(texto))) {
-                return false;
-            }
-            if (!texto.isEmpty() && "uf".equals(e.getKey()) && !formatoAceito(() -> Formatos.uf(texto))) {
-                return false;
-            }
-        }
-        return true;
+        });
+        return n;
     }
 
     /** O formato é aceito pelo {@link Formatos} (que recusa com {@code BadRequestException}, sem repetir o valor). */

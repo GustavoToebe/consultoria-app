@@ -33,8 +33,8 @@ public final class LimitesQuestionario {
     /** Resposta do TEXTO com destino CPF: o CPF formatado (123.456.789-09) tem 14 caracteres, o tamanho de {@code aluno.cpf}. */
     public static final int CPF_TAMANHO = 14;
     /**
-     * Campos da resposta ENDERECO e do endereço do aluno (colunas de {@code aluno}, V015; o mesmo limite vale no
-     * {@code AlunoDtos.Endereco}). O CEP formatado (85800-000) tem 9 caracteres.
+     * Campos da resposta ENDERECO e do endereço do aluno (colunas de {@code aluno}, V015; os limites contam depois do strip, na regra única
+     * {@code alunos.RegrasDoEndereco}). O CEP formatado (85800-000) tem 9 caracteres.
      */
     public static final int ENDERECO_CEP_TAMANHO = 9;
     public static final int ENDERECO_LOGRADOURO_TAMANHO = 200;

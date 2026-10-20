@@ -31,6 +31,17 @@ class AlunoCadastroIntegrationTest extends AbstractIntegrationTest {
     private static final Map<String, Object> ENDERECO = Map.of("cep", "85800-000", "logradouro", "Rua das Flores", "numero", "100",
             "complemento", "Apto 2", "bairro", "Centro", "cidade", "Cidade Exemplo", "uf", "PR");
 
+    /** O endereço completo de {@link #ENDERECO} sem complemento e bairro, com as chaves trocadas (pares chave, valor). */
+    private static Map<String, Object> enderecoCom(String... trocas) {
+        Map<String, Object> e = new LinkedHashMap<>(ENDERECO);
+        e.remove("complemento");
+        e.remove("bairro");
+        for (int i = 0; i < trocas.length; i += 2) {
+            e.put(trocas[i], trocas[i + 1]);
+        }
+        return e;
+    }
+
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate banco;
@@ -88,14 +99,18 @@ class AlunoCadastroIntegrationTest extends AbstractIntegrationTest {
     void criarGravaCpfFormatadoEEnderecoNormalizado() throws Exception {
         String cpf = Documentos.cpf();
         JsonNode criado = criar(treinador, "Aluno Fictício", Documentos.semPontuacao(cpf),
-                Map.of("cep", "85800000", "logradouro", " Rua das Flores ", "uf", "pr"), 200);
+                Map.of("cep", "85800000", "logradouro", " Rua das Flores ", "numero", " s/n ", "cidade", " Cidade Exemplo ", "uf", "pr"), 200);
 
         assertThat(criado.path("cpf").asString()).isEqualTo(cpf);
         JsonNode e = criado.path("endereco");
         assertThat(e.path("cep").asString()).isEqualTo("85800-000");
         assertThat(e.path("logradouro").asString()).isEqualTo("Rua das Flores");
         assertThat(e.path("uf").asString()).isEqualTo("PR");
-        assertThat(semValor(e.path("numero"))).isTrue();
+        assertThat(e.path("numero").asString()).isEqualTo("s/n");
+        assertThat(e.path("cidade").asString()).isEqualTo("Cidade Exemplo");
+        assertThat(semValor(e.path("complemento"))).isTrue();
+        assertThat(semValor(e.path("bairro"))).isTrue();
+        assertThat(sql("cidade", criado.path("id").asString())).isEqualTo("Cidade Exemplo"); // gravado já sem os espaços
         assertThat(sql("cpf", criado.path("id").asString())).isEqualTo(cpf);
         assertThat(api.get("/alunos/" + criado.path("id").asString(), treinador, 200).path("cpf").asString()).isEqualTo(cpf);
     }
@@ -147,11 +162,13 @@ class AlunoCadastroIntegrationTest extends AbstractIntegrationTest {
         String id = criar(treinador, "Aluno Fictício", cpf, ENDERECO, 200).path("id").asString();
         String outro = Documentos.cpf();
 
-        JsonNode trocado = alterar(treinador, id, corpo("Aluno Fictício", outro, Map.of("cidade", "Cidade Nova")), 200);
+        JsonNode trocado = alterar(treinador, id, corpo("Aluno Fictício", outro, enderecoCom("cidade", "Cidade Nova", "logradouro", "Rua Nova")), 200);
         assertThat(trocado.path("cpf").asString()).isEqualTo(outro);
         assertThat(trocado.path("endereco").path("cidade").asString()).isEqualTo("Cidade Nova");
-        // O endereço é substituído por inteiro.
-        assertThat(semValor(trocado.path("endereco").path("logradouro"))).isTrue();
+        // O endereço é substituído por inteiro (o complemento e o bairro que a ficha tinha não sobram).
+        assertThat(trocado.path("endereco").path("logradouro").asString()).isEqualTo("Rua Nova");
+        assertThat(semValor(trocado.path("endereco").path("complemento"))).isTrue();
+        assertThat(semValor(trocado.path("endereco").path("bairro"))).isTrue();
 
         JsonNode limpo = alterar(treinador, id, corpo("Aluno Fictício", null, null), 200);
         assertThat(limpo.has("cpf")).isFalse();
@@ -175,28 +192,87 @@ class AlunoCadastroIntegrationTest extends AbstractIntegrationTest {
         String errado = cpf.substring(0, 13) + (cpf.charAt(13) == '0' ? '1' : '0');
         assertThat(criar(treinador, nome, errado, null, 422).toString()).doesNotContain(errado);
 
-        JsonNode cep = criar(treinador, nome, null, Map.of("cep", "123"), 422);
-        assertThat(cep.toString()).contains("\"field\":\"endereco.cep\"");
-        JsonNode uf = criar(treinador, nome, null, Map.of("uf", "XX"), 422);
-        assertThat(uf.toString()).contains("\"field\":\"endereco.uf\"");
+        JsonNode cep = criar(treinador, nome, null, enderecoCom("cep", "123"), 422);
+        assertThat(cep.toString()).contains("\"field\":\"endereco.cep\"").contains("CEP inválido.");
+        JsonNode uf = criar(treinador, nome, null, enderecoCom("uf", "XX"), 422);
+        assertThat(uf.toString()).contains("\"field\":\"endereco.uf\"").contains("UF inválida.");
         // Mais de um problema de uma vez, cada um no seu campo.
-        JsonNode dois = criar(treinador, nome, ruim, Map.of("cep", "123", "uf", "XX"), 422);
+        JsonNode dois = criar(treinador, nome, ruim, enderecoCom("cep", "123", "uf", "XX"), 422);
         assertThat(dois.path("fieldErrors")).hasSize(3);
 
-        // Acima do limite do campo (bean validation) é erro de requisição.
-        // Os 400 do bean validation também não devolvem o valor recusado.
+        // Acima do limite do campo, depois do strip: 422 no campo, com mensagem fixa e sem o valor recusado.
         String longoCpf = "9".repeat(21);
         String longoCep = "12345-6789";
+        String longoLogradouro = "Rua Comprida Fictícia " + "x".repeat(201);
         assertThat(criar(treinador, nome, longoCpf, null, 400).toString()).doesNotContain(longoCpf);
-        assertThat(criar(treinador, nome, null, Map.of("cep", longoCep), 400).toString()).doesNotContain(longoCep);
-        assertThat(criar(treinador, nome, null, Map.of("logradouro", "Rua Comprida Fictícia " + "x".repeat(201)), 400).toString())
-                .doesNotContain("Rua Comprida Fictícia");
+        JsonNode cepLongo = criar(treinador, nome, null, enderecoCom("cep", longoCep), 422);
+        assertThat(cepLongo.toString()).contains("\"field\":\"endereco.cep\"").doesNotContain(longoCep);
+        JsonNode logradouroLongo = criar(treinador, nome, null, enderecoCom("logradouro", longoLogradouro), 422);
+        assertThat(logradouroLongo.toString()).contains("\"field\":\"endereco.logradouro\"")
+                .contains("Use no máximo 200 caracteres.").doesNotContain("Rua Comprida Fictícia");
         assertThat(alterar(treinador, criar(treinador, "Aluno Para Editar " + UUID.randomUUID(), null, null, 200).path("id").asString(),
                 Map.of("nome", nome, "telefone", "1".repeat(26)), 400).toString()).doesNotContain("1".repeat(26));
-        criar(treinador, nome, null, Map.of("logradouro", "x".repeat(201)), 400);
-        criar(treinador, nome, null, Map.of("numero", "1".repeat(21)), 400);
-        criar(treinador, nome, null, Map.of("uf", "SPS"), 400);
+        criar(treinador, nome, null, enderecoCom("numero", "1".repeat(21)), 422);
+        criar(treinador, nome, null, enderecoCom("uf", "SPS"), 422);
         assertThat(banco.queryForObject("select count(*) from aluno where nome = ?", Integer.class, nome)).isZero();
+    }
+
+    @Test
+    void enderecoNaoVazioFaltandoCampoObrigatorioMarcaCadaUmComMensagemFixa() throws Exception {
+        String nome = "Aluno Parcial " + UUID.randomUUID();
+        // Só a cidade (e um complemento): faltam CEP, logradouro, número e UF, cada um com a sua mensagem.
+        JsonNode erro = criar(treinador, nome, null, Map.of("cidade", "Cidade Exemplo", "complemento", "Apto 2"), 422);
+        assertThat(erro.path("codigo").asString()).isEqualTo("ALUNO_INVALIDO");
+        Map<String, String> porCampo = new LinkedHashMap<>();
+        erro.path("fieldErrors").forEach(f -> porCampo.put(f.path("field").asString(), f.path("message").asString()));
+        assertThat(porCampo).containsOnly(
+                Map.entry("endereco.cep", "Informe o CEP."),
+                Map.entry("endereco.uf", "Informe a UF."),
+                Map.entry("endereco.logradouro", "Informe a rua, avenida ou logradouro."),
+                Map.entry("endereco.numero", "Informe o número (ou s/n)."));
+        assertThat(erro.toString()).doesNotContain("Cidade Exemplo").doesNotContain("Apto 2");
+
+        // Sem cidade.
+        Map<String, Object> semCidade = enderecoCom();
+        semCidade.remove("cidade");
+        assertThat(criar(treinador, nome, null, semCidade, 422).toString()).contains("\"field\":\"endereco.cidade\"")
+                .contains("Informe a cidade.");
+        // Campo obrigatório só com espaços conta como faltando.
+        assertThat(criar(treinador, nome, null, enderecoCom("numero", "   "), 422).toString())
+                .contains("\"field\":\"endereco.numero\"");
+        // Na edição também, e o endereço gravado fica como estava.
+        String id = criar(treinador, "Aluno Fictício", null, ENDERECO, 200).path("id").asString();
+        assertThat(alterar(treinador, id, corpo("Aluno Fictício", null, Map.of("cep", "85800-000")), 422).toString())
+                .contains("\"field\":\"endereco.logradouro\"");
+        assertThat(sql("cidade", id)).isEqualTo("Cidade Exemplo");
+        assertThat(banco.queryForObject("select count(*) from aluno where nome = ?", Integer.class, nome)).isZero();
+    }
+
+    @Test
+    void enderecoVazioOuEmBrancoEValidoEApagaOGravado() throws Exception {
+        String id = criar(treinador, "Aluno Fictício", null, ENDERECO, 200).path("id").asString();
+        Map<String, Object> branco = new LinkedHashMap<>();
+        for (String campo : new String[] {"cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf"}) {
+            branco.put(campo, "  ");
+        }
+        JsonNode limpo = alterar(treinador, id, corpo("Aluno Fictício", null, branco), 200);
+        assertThat(limpo.has("endereco")).isFalse();
+        assertThat(sql("cep", id)).isNull();
+        assertThat(sql("logradouro", id)).isNull();
+
+        // Objeto vazio e sem a chave também valem, na criação.
+        assertThat(criar(treinador, "Aluno Sem Endereço " + UUID.randomUUID(), null, Map.of(), 200).has("endereco")).isFalse();
+        assertThat(criar(treinador, "Aluno Sem Chave " + UUID.randomUUID(), null, null, 200).has("endereco")).isFalse();
+    }
+
+    @Test
+    void enderecoComNumeroSnEComLimiteContadoDepoisDoStrip() throws Exception {
+        String logradouro200 = "x".repeat(200);
+        JsonNode criado = criar(treinador, "Aluno Fictício", null, enderecoCom("numero", "s/n", "logradouro", "  " + logradouro200 + "  "), 200);
+        assertThat(criado.path("endereco").path("numero").asString()).isEqualTo("s/n");
+        assertThat(criado.path("endereco").path("logradouro").asString()).isEqualTo(logradouro200);
+        assertThat(sql("logradouro", criado.path("id").asString())).isEqualTo(logradouro200);
+        criar(treinador, "Aluno Fictício", null, enderecoCom("logradouro", "x".repeat(201)), 422);
     }
 
     // ---- CPF único ----
@@ -205,15 +281,17 @@ class AlunoCadastroIntegrationTest extends AbstractIntegrationTest {
     void cpfDuplicadoNaConsultoriaDa409SemRepetirOValorMasOMesmoAlunoPodeManter() throws Exception {
         String cpf = Documentos.cpf();
         String primeiro = criar(treinador, "Primeiro Aluno", cpf, null, 200).path("id").asString();
+        // O banco é compartilhado entre as classes de teste: nome fixo não serve para contar; este é único por execução.
+        String nomeDoSegundo = "Segundo Aluno " + UUID.randomUUID();
 
         // Digitado sem pontuação é o mesmo CPF.
-        JsonNode repetido = criar(treinador, "Segundo Aluno", Documentos.semPontuacao(cpf), null, 409);
+        JsonNode repetido = criar(treinador, nomeDoSegundo, Documentos.semPontuacao(cpf), null, 409);
         assertThat(repetido.path("codigo").asString()).isEqualTo("ALUNO_CPF_EM_USO");
         assertThat(repetido.toString()).doesNotContain(cpf).doesNotContain(Documentos.semPontuacao(cpf));
-        assertThat(banco.queryForObject("select count(*) from aluno where nome = 'Segundo Aluno'", Integer.class)).isZero();
+        assertThat(banco.queryForObject("select count(*) from aluno where nome = ?", Integer.class, nomeDoSegundo)).isZero();
 
-        String segundo = criar(treinador, "Segundo Aluno", null, null, 200).path("id").asString();
-        JsonNode emEdicao = alterar(treinador, segundo, corpo("Segundo Aluno", cpf, null), 409);
+        String segundo = criar(treinador, nomeDoSegundo, null, null, 200).path("id").asString();
+        JsonNode emEdicao = alterar(treinador, segundo, corpo(nomeDoSegundo, cpf, null), 409);
         assertThat(emEdicao.path("codigo").asString()).isEqualTo("ALUNO_CPF_EM_USO");
         assertThat(emEdicao.toString()).doesNotContain(cpf);
         assertThat(sql("cpf", segundo)).isNull();

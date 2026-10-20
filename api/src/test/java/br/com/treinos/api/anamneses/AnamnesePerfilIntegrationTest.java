@@ -145,6 +145,13 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
     private static final Map<String, Object> ENDERECO = Map.of("cep", "85800-000", "logradouro", "Rua das Flores",
             "numero", "100", "bairro", "Centro", "cidade", "Cidade Exemplo", "uf", "PR");
 
+    /** O {@link #ENDERECO} completo com outra cidade (não existe endereço parcial: a resposta precisa vir inteira). */
+    private static Map<String, Object> enderecoComCidade(String cidade) {
+        Map<String, Object> e = new LinkedHashMap<>(ENDERECO);
+        e.put("cidade", cidade);
+        return e;
+    }
+
     /** Um destino de cada: CPF (texto), telefone e endereço. */
     private static Map<String, Object> conteudoCadastro() {
         return Map.of("instrucoes", List.of(), "secoes", List.of(Map.of("uid", "s1", "titulo", "Cadastro", "perguntas", List.of(
@@ -227,7 +234,7 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
         assertThat(auditorias(a, "ANAMNESE_CADASTRO_PREENCHIDO")).isEqualTo(1);
 
         // Reenvio, até com outros valores: nada muda.
-        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", Map.of("cidade", "Outra Cidade")), 200);
+        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", enderecoComCidade("Outra Cidade")), 200);
         assertThat(ficha(a).path("cpf").asString()).isEqualTo(cpf);
         assertThat(ficha(a).path("telefone").asString()).isEqualTo("(45) 99999-8888");
         assertThat(ficha(a).path("endereco").path("cidade").asString()).isEqualTo("Cidade Exemplo");
@@ -307,7 +314,7 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
         JsonNode[] x = alunoComCadastro(Map.of("cpf", cpf, "endereco", ENDERECO), cad);
         JsonNode a = x[0];
         definirTelefone(a, "(45) 99999-8888");
-        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", Map.of("cidade", "Cidade Nova")), 200);
+        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", enderecoComCidade("Cidade Nova")), 200);
 
         for (JsonNode p : detalhe(a, treinador).path("alteracoes")) {
             api.post(acao(a, p.path("id").asString(), "descartar"), treinador, null, 200);
@@ -324,7 +331,7 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
         JsonNode[] x = alunoComCadastro(Map.of("cpf", Documentos.cpf(), "endereco", ENDERECO), cad);
         JsonNode a = x[0];
         definirTelefone(a, "(45) 99999-8888");
-        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", Map.of("cidade", "Cidade Nova")), 200);
+        enviar(x[1], a, cadastro(Documentos.cpf(), "(45) 98888-7777", enderecoComCidade("Cidade Nova")), 200);
         JsonNode d = detalhe(a, treinador);
         String cpf = alteracao(d, "CPF").path("id").asString();
         String telefone = alteracao(d, "TELEFONE").path("id").asString();
@@ -410,7 +417,62 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
         assertThat(enviar(x[1], x[0], cadastro(null, null, Map.of("uf", "XX")), 422).toString()).contains("\"field\":\"end\"");
         assertThat(enviar(x[1], x[0], cadastro(null, null, Map.of("cep", "123")), 422).toString()).contains("\"field\":\"end\"");
         assertThat(enviar(x[1], x[0], cadastro(null, null, Map.of("pais", "BR")), 422).toString()).contains("\"field\":\"end\"");
+        // Não existe endereço parcial: sem um obrigatório (CEP, logradouro, número, cidade, UF) a resposta é recusada.
+        for (String falta : new String[] {"cep", "logradouro", "numero", "cidade", "uf"}) {
+            Map<String, Object> parcial = new LinkedHashMap<>(ENDERECO);
+            parcial.remove(falta);
+            JsonNode erro = enviar(x[1], x[0], cadastro(null, null, parcial), 422);
+            assertThat(erro.path("codigo").asString()).as(falta).isEqualTo("ANAMNESE_INVALIDA");
+            assertThat(erro.toString()).as(falta).contains("\"field\":\"end\"").contains("Confira o formato e os limites deste campo.")
+                    .doesNotContain("Rua das Flores");
+        }
+        assertThat(enviar(x[1], x[0], cadastro(null, null, Map.of("cidade", "Cidade Exemplo", "uf", "pr")), 422).toString())
+                .contains("\"field\":\"end\"");
+        // Obrigatório só com espaços também falta; logradouro com 201 caracteres depois do strip passa do limite.
+        assertThat(enviar(x[1], x[0], cadastro(null, null, enderecoComCidade("   ")), 422).toString()).contains("\"field\":\"end\"");
+        Map<String, Object> longo = new LinkedHashMap<>(ENDERECO);
+        longo.put("logradouro", " " + "x".repeat(201) + " ");
+        assertThat(enviar(x[1], x[0], cadastro(null, null, longo), 422).toString()).contains("\"field\":\"end\"");
         assertThat(ficha(x[0]).has("cpf")).isFalse();
+    }
+
+    @Test
+    void enderecoCompletoComSnELimiteDepoisDoStripPreencheNormalizado() throws Exception {
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        JsonNode[] x = alunoComCadastro(Map.of(), cad);
+        Map<String, Object> digitado = new LinkedHashMap<>(ENDERECO);
+        digitado.put("numero", " s/n ");
+        digitado.put("logradouro", "  " + "x".repeat(200) + "  ");
+        enviar(x[1], x[0], cadastro(null, null, digitado), 200);
+
+        JsonNode e = ficha(x[0]).path("endereco");
+        assertThat(e.path("numero").asString()).isEqualTo("s/n");
+        assertThat(e.path("logradouro").asString()).isEqualTo("x".repeat(200));
+        assertThat(e.path("cep").asString()).isEqualTo("85800-000");
+        assertThat(semValor(e.path("complemento"))).isTrue();
+    }
+
+    @Test
+    void enderecoEmBrancoNaoObrigatorioEAceitoESomeObrigatorioPedePreenchimento() throws Exception {
+        // Opcional (conteudoCadastro): tudo em branco é aceito, nada vira alteração e o cadastro continua sem endereço.
+        JsonNode cad = publicar(treinador, conteudoCadastro());
+        JsonNode[] x = alunoComCadastro(Map.of(), cad);
+        Map<String, Object> branco = new LinkedHashMap<>();
+        for (String campo : new String[] {"cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf"}) {
+            branco.put(campo, " ");
+        }
+        enviar(x[1], x[0], cadastro(null, null, branco), 200);
+        assertThat(ficha(x[0]).has("endereco")).isFalse();
+        assertThat(detalhe(x[0], treinador).path("alteracoes")).isEmpty();
+
+        // Obrigatória: em branco continua "Preencha este campo.".
+        Map<String, Object> obrigatoria = new LinkedHashMap<>(Map.of("id", "end", "tipo", "ENDERECO", "rotulo", "Endereço",
+                "obrigatoria", true, "destino", "ENDERECO"));
+        JsonNode cadObrigatorio = publicar(treinador, Map.of("instrucoes", List.of(),
+                "secoes", List.of(Map.of("uid", "s1", "titulo", "Cadastro", "perguntas", List.of(obrigatoria)))));
+        JsonNode[] y = alunoComCadastro(Map.of(), cadObrigatorio);
+        JsonNode erro = enviar(y[1], y[0], cadastro(null, null, branco), 422);
+        assertThat(erro.toString()).contains("\"field\":\"end\"").contains("Preencha este campo.");
     }
 
     @Test

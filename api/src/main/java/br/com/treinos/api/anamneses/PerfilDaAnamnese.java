@@ -5,6 +5,7 @@ import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
+import br.com.treinos.api.alunos.RegrasDoEndereco;
 import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
@@ -41,8 +42,8 @@ import java.util.UUID;
  *
  * <p>Destinos e comparação (tudo normalizado antes de comparar): {@code OBJETIVO} e {@code CPF} (texto; o CPF por
  * {@code Formatos.cpf}); {@code TELEFONE} ({@code Formatos.telefone}, guardado no {@code Usuario} do aluno, que quem
- * responde sempre tem); {@code ENDERECO} (campo a campo: sem espaços nas pontas, CEP formatado, UF maiúscula; cadastro
- * "vazio" = os sete campos nulos; aplicar substitui os sete). Um CPF que já é de outro aluno da consultoria não preenche
+ * responde sempre tem); {@code ENDERECO} (a regra única {@link RegrasDoEndereco}, a mesma da ficha e da validação da
+ * resposta; endereço sempre completo; cadastro "vazio" = os sete campos nulos; aplicar substitui os sete). Um CPF que já é de outro aluno da consultoria não preenche
  * sozinho: vira PENDENTE (o aluno não fica sabendo) e, ao aplicar, a equipe recebe 409 {@code ALUNO_CPF_EM_USO}.
  *
  * <p>Ordem de travas: no envio, a anamnese (já travada pelo {@link AnamneseService}), depois o aluno e, no telefone, o
@@ -306,8 +307,8 @@ public class PerfilDaAnamnese {
 
     /** Endereço: comparado campo a campo, normalizado; cadastro vazio = os sete campos nulos. */
     private Resultado enderecoNoEnvio(UUID alunoId, JsonNode resposta) {
-        Endereco proposto = enderecoDaResposta(resposta);
-        if (proposto.vazio()) {
+        Endereco proposto = RegrasDoEndereco.daResposta(resposta).endereco(); // já validada; inválida/vazia = sem endereço
+        if (proposto == null) {
             return new Resultado(Resultado.Situacao.IGUAL, null);
         }
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
@@ -414,22 +415,18 @@ public class PerfilDaAnamnese {
         return normalizado != null ? normalizado : telefone.strip();
     }
 
-    private static String campo(JsonNode objeto, String chave) {
-        JsonNode n = objeto.path(chave);
-        return n.isString() && !n.asString().isBlank() ? n.asString().strip() : null;
-    }
-
-    /** Resposta ENDERECO (já validada) normalizada: sem espaços nas pontas, CEP formatado, UF maiúscula, em branco = nulo. */
-    private static Endereco enderecoDaResposta(JsonNode resposta) {
-        return new Endereco(formatoOuNulo(() -> Formatos.cep(campo(resposta, "cep"))), campo(resposta, "logradouro"),
-                campo(resposta, "numero"), campo(resposta, "complemento"), campo(resposta, "bairro"), campo(resposta, "cidade"),
-                formatoOuNulo(() -> Formatos.uf(campo(resposta, "uf"))));
-    }
-
-    /** O {@code endereco} do valor guardado: já normalizado, sete chaves com texto ou nulo. */
-    private static Endereco enderecoDoJson(JsonNode e) {
-        return new Endereco(campo(e, "cep"), campo(e, "logradouro"), campo(e, "numero"), campo(e, "complemento"),
-                campo(e, "bairro"), campo(e, "cidade"), campo(e, "uf"));
+    /**
+     * O {@code endereco} do valor guardado: já normalizado pela regra única, que passa de novo por ela ao aplicar (sem
+     * efeito sobre o que já está normalizado). Nunca é nulo: o valor só é gravado a partir de um endereço completo.
+     */
+    private Endereco enderecoDoJson(JsonNode e) {
+        ObjectNode soComTexto = json.createObjectNode(); // o valor guardado traz as sete chaves, as vazias nulas
+        e.properties().stream().filter(c -> c.getValue().isString()).forEach(c -> soComTexto.put(c.getKey(), c.getValue().asString()));
+        Endereco endereco = RegrasDoEndereco.daResposta(soComTexto).endereco();
+        if (endereco == null) {
+            throw new IllegalStateException("Endereço guardado na alteração é inválido.");
+        }
+        return endereco;
     }
 
     /** {@code {"endereco": {cep, logradouro, numero, complemento, bairro, cidade, uf}}}, as sete chaves sempre (texto ou nulo). */
