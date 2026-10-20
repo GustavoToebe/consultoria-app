@@ -176,6 +176,7 @@ function CartaoDados({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao
             aoEscolher={async (questionarioId) => { aoAlterar(await escolherQuestionarioDoAluno(aluno.id, questionarioId)); avisar('Questionário trocado.', 'sucesso'); }} />
           <FormAluno
             inicial={aluno}
+            diasPadrao={padrao}
             rotuloSalvar="Salvar"
             aoCancelar={() => setEditando(false)}
             aoSalvar={async (dados) => {

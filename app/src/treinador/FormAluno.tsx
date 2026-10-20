@@ -12,6 +12,7 @@ import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { MensagemErro } from '../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../ui/erros';
+import { Texto } from '../ui/Texto';
 import { useAvisoDoPlano } from '../ui/useAvisoDoPlano';
 
 interface Props {
@@ -19,19 +20,25 @@ interface Props {
   rotuloSalvar: string;
   aoSalvar: (dados: AlunoRequest) => Promise<void>;
   aoCancelar?: () => void;
+  /** Ciclo padrão da consultoria: aparece no campo vazio ("Padrão: 30 dias"), para não parecer "sem prazo". */
+  diasPadrao?: number | null;
 }
 
 /** Texto do campo em número de 1 a 365; vazio = sem prazo (undefined → null no envio) e inválido = null. */
+/** Objetivo e observações são dados sensíveis (LGPD): a nota é a mesma nos dois campos. */
+const SENSIVEL = 'Dado sensível: só membros com permissão de dados sensíveis veem.';
+
 function diasDoCampo(texto: string): number | null {
   const n = Number(texto.trim());
   return Number.isInteger(n) && n >= 1 && n <= 365 ? n : null;
 }
 
 /**
- * Dados do aluno. O e-mail é opcional (o aluno escolhe o dele ao aceitar o convite). Observações são dado sensível:
- * ficam só no banco, nunca em log.
+ * Dados do aluno em duas seções: "Cadastro" (nome, e-mail, objetivo) e "Acompanhamento" (responsável, ciclo,
+ * observações). O e-mail é opcional (o aluno escolhe o dele ao aceitar o convite). Objetivo e observações são dado
+ * sensível: ficam só no banco, nunca em log, e a nota aparece nos dois.
  */
-export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props) {
+export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPadrao = null }: Props) {
   const {pode,usuario}=useSessao();
   const [responsavelId,setResponsavelId]=useState(inicial?.responsavelId??usuario?.id??'');
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
@@ -72,9 +79,8 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
 
   return (
     <View style={estilos.form}>
+      <Texto variante="secao">Cadastro</Texto>
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} autoComplete="off" maxLength={120} />
-      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
-      {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
       <Campo
         rotulo="E-mail (opcional)"
         valor={email}
@@ -85,13 +91,18 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
         autoComplete="off"
         maxLength={254}
       />
-      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo rotulo="Objetivo (opcional)" valor={objetivo} aoMudar={setObjetivo} erro={campos.objetivo} maxLength={200} /></Permitido>
+      <Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Campo rotulo="Objetivo (opcional)" valor={objetivo} aoMudar={setObjetivo} erro={campos.objetivo} maxLength={200}
+        ajuda={SENSIVEL} /></Permitido>
+      <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
+      {responsaveis?<Escolha rotulo="Treinador responsável" opcoes={responsaveis.map(r=>({valor:r.id,rotulo:r.nome}))} valor={responsavelId} aoMudar={setResponsavelId}/>:null}
+      {erroResponsaveis?<MensagemErro texto={textoDoErro(erroResponsaveis)} tentarDeNovo={recarregar}/>:null}
       <Campo
         numerico
         rotulo="Dias para nova atualização (opcional)"
         valor={dias}
         aoMudar={(t) => setDias(t.replace(/\D/g, '').slice(0, 3))}
         erro={diasInvalidos ? 'Use de 1 a 365 dias.' : campos.diasAtualizacao}
+        placeholder={diasPadrao ? `Padrão: ${diasPadrao} dias` : undefined}
         ajuda="Ao criar uma pasta de plano, o fim do período já vem preenchido com esses dias (você pode mudar). Vazio usa o padrão da consultoria, se houver (Marca › Acompanhamento)."
         keyboardType="number-pad"
         inputMode="numeric"
@@ -104,7 +115,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
         erro={campos.observacoes}
         linhas={4}
         maxLength={4000}
-        ajuda="Visível para membros com permissão de dados sensíveis."
+        ajuda={SENSIVEL}
       /></Permitido>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       <View style={estilos.botoes}>
@@ -117,5 +128,6 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar }: Props
 
 const estilos = StyleSheet.create({
   form: { gap: espaco(1.5) },
+  secao: { marginTop: espaco(1) },
   botoes: { flexDirection: 'row', justifyContent: 'flex-end', gap: espaco(1), flexWrap: 'wrap' },
 });

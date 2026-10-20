@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
-import { Copy, RefreshCw } from 'lucide-react-native';
+import { Copy, RefreshCw, Settings } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -16,6 +16,7 @@ import { CampoLeitura } from '../../ui/CampoLeitura';
 import { Interruptor } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
+import { Folha } from '../../ui/Folha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { MensagemErro } from '../../ui/Estados';
@@ -28,7 +29,8 @@ import { useCarregar } from '../../ui/useCarregar';
 const SEM_RESPONSAVEL = '';
 
 /**
- * Link de inscrição da consultoria: ligar/desligar, copiar, gerar novo (o anterior para de valer), responsável padrão
+ * Link de inscrição da consultoria, em faixa compacta (a fila de interessados é o que importa na tela): situação,
+ * copiar e "Configurar", que abre a folha com ligar/desligar, gerar novo (o anterior para de valer), responsável padrão
  * das inscrições novas e o texto de apresentação e privacidade (com texto, o interessado marca a ciência). Quem só lê
  * vê a situação e copia o link aberto.
  */
@@ -62,6 +64,15 @@ function Formulario({ config, podeAlterar, responsaveis, aoGravar, aoConflito }:
   const [texto, setTexto] = useState(config.texto ?? '');
   const [salvando, setSalvando] = useState(false);
   const [confirmarNovo, setConfirmarNovo] = useState(false);
+  const [configurando, setConfigurando] = useState(false);
+  // Fechar sem salvar volta os campos ao que está gravado.
+  const fecharConfiguracao = () => {
+    setConfigurando(false);
+    setAberta(config.aberta);
+    setResponsavelId(config.responsavelId ?? SEM_RESPONSAVEL);
+    setTexto(config.texto ?? '');
+    setErro(null);
+  };
   const [erro, setErro] = useState<unknown>(null);
 
   const mudou = aberta !== config.aberta || responsavelId !== (config.responsavelId ?? SEM_RESPONSAVEL)
@@ -74,6 +85,7 @@ function Formulario({ config, podeAlterar, responsaveis, aoGravar, aoConflito }:
     acao().then(
       (c) => {
         setSalvando(false);
+        setConfigurando(false);
         aoGravar(c);
         avisar(sucesso, 'sucesso');
       },
@@ -107,17 +119,29 @@ function Formulario({ config, podeAlterar, responsaveis, aoGravar, aoConflito }:
 
   return (
     <Cartao titulo="Link de inscrição"
-      descricao="Divulgue o link (Instagram, WhatsApp, site). Quem se inscreve aparece na lista abaixo; ninguém vira aluno sem você aceitar.">
-      <View style={estilos.selos}>
-        <Selo texto={config.aberta ? 'Recebendo inscrições' : 'Desligado'} tipo={config.aberta ? 'sucesso' : 'neutro'} />
-      </View>
+      acoes={<Selo texto={config.aberta ? 'Recebendo inscrições' : 'Desligado'} tipo={config.aberta ? 'sucesso' : 'neutro'} />}>
       {config.link ? (
-        <LinkDestacado link={config.link} aberto={config.aberta} aoCopiar={() => copiar(config.link ?? '')} />
+        <LinkDestacado link={config.link} aberto={config.aberta} aoCopiar={() => copiar(config.link ?? '')}
+          aoConfigurar={podeAlterar ? () => setConfigurando(true) : undefined} />
       ) : (
-        <Texto variante="suave">{podeAlterar ? 'Ligue a inscrição e salve para gerar o link.' : 'O link ainda não foi gerado.'}</Texto>
+        <LinhaDeAcoes alinhar="entre">
+          <Texto variante="suave">{podeAlterar ? 'Ligue a inscrição para gerar o link.' : 'O link ainda não foi gerado.'}</Texto>
+          {podeAlterar ? <Botao rotulo="Configurar" tipo="secundario" Icone={Settings} aoTocar={() => setConfigurando(true)} /> : null}
+        </LinhaDeAcoes>
       )}
-      {podeAlterar ? (
-        <View style={estilos.formulario}>
+      {!podeAlterar ? (
+        <CampoLeitura rotulo="Responsável pelas novas" valor={config.responsavelId ? nomeDoResponsavel ?? 'Membro inativo' : 'Sem responsável'} />
+      ) : null}
+      {configurando ? (
+        <Folha visivel titulo="Configurar o link de inscrição" aoFechar={fecharConfiguracao} rodape={<>
+          {config.codigo ? (
+            <Botao rotulo="Gerar novo link" tipo="secundario" Icone={RefreshCw} desabilitado={mudou || salvando}
+              motivo="Salve ou desfaça as alterações antes." aoTocar={() => setConfirmarNovo(true)} />
+          ) : null}
+          <Botao rotulo="Salvar configuração" aoTocar={salvar} carregando={salvando} desabilitado={!mudou}
+            motivo="Nada mudou desde o último salvar." />
+        </>}>
+          <Texto variante="suave">Divulgue o link (Instagram, WhatsApp, site). Quem se inscreve aparece na lista; ninguém vira aluno sem você aceitar.</Texto>
           <Interruptor rotulo="Receber inscrições pelo link" valor={aberta} aoMudar={setAberta}
             ajuda="Desligado, o link mostra que a inscrição está encerrada." />
           <EscolhaEmFolha rotulo="Responsável pelas novas" titulo="Responsável padrão" valor={responsavelId}
@@ -128,41 +152,33 @@ function Formulario({ config, podeAlterar, responsaveis, aoGravar, aoConflito }:
             maxLength={LIMITES_INSCRICAO.texto}
             ajuda="Aparece na página de inscrição; com texto, a pessoa marca que leu antes de enviar. Diga como a consultoria usa os dados." />
           {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
-          <LinhaDeAcoes>
-            <Botao rotulo="Salvar link" aoTocar={salvar} carregando={salvando} desabilitado={!mudou}
-              motivo="Nada mudou desde o último salvar." />
-            {config.codigo ? (
-              <Botao rotulo="Gerar novo link" tipo="secundario" Icone={RefreshCw} desabilitado={mudou || salvando}
-                motivo="Salve ou desfaça as alterações antes." aoTocar={() => setConfirmarNovo(true)} />
-            ) : null}
-          </LinhaDeAcoes>
-        </View>
-      ) : (
-        <CampoLeitura rotulo="Responsável pelas novas" valor={config.responsavelId ? nomeDoResponsavel ?? 'Membro inativo' : 'Sem responsável'} />
-      )}
-      <PainelConfirmacao visivel={confirmarNovo} titulo="Gerar novo link?"
-        mensagem="O link atual para de funcionar na hora: quem tiver o antigo vê a inscrição encerrada. As inscrições já recebidas não mudam."
-        rotuloConfirmar="Gerar novo link" aoConfirmar={gerarNovo} aoCancelar={() => setConfirmarNovo(false)} />
+          <PainelConfirmacao visivel={confirmarNovo} titulo="Gerar novo link?"
+            mensagem="O link atual para de funcionar na hora: quem tiver o antigo vê a inscrição encerrada. As inscrições já recebidas não mudam."
+            rotuloConfirmar="Gerar novo link" aoConfirmar={gerarNovo} aoCancelar={() => setConfirmarNovo(false)} />
+        </Folha>
+      ) : null}
     </Cartao>
   );
 }
 
-function LinkDestacado({ link, aberto, aoCopiar }: { link: string; aberto: boolean; aoCopiar: () => void }) {
+/** Faixa compacta: o link numa linha (cortado se não couber; copiar leva o inteiro), Copiar e Configurar. */
+function LinkDestacado({ link, aberto, aoCopiar, aoConfigurar }: { link: string; aberto: boolean; aoCopiar: () => void; aoConfigurar?: () => void }) {
   const { cores } = useTema();
   return (
     <View style={[estilos.destaque, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
       <View style={estilos.textoDestaque}>
         <Texto variante="pequeno">{aberto ? 'Link para divulgar' : 'Link (desligado)'}</Texto>
-        <Texto selectable style={estilos.link}>{link}</Texto>
+        <Texto selectable numberOfLines={1} style={estilos.link}>{link}</Texto>
       </View>
-      <Botao rotulo="Copiar link" tipo="secundario" Icone={Copy} aoTocar={aoCopiar} />
+      <LinhaDeAcoes>
+        <Botao rotulo="Copiar link" tipo="secundario" Icone={Copy} aoTocar={aoCopiar} />
+        {aoConfigurar ? <Botao rotulo="Configurar" tipo="secundario" Icone={Settings} aoTocar={aoConfigurar} /> : null}
+      </LinhaDeAcoes>
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap' },
-  formulario: { gap: espaco(1.5) },
   destaque: {
     flexDirection: 'row',
     alignItems: 'center',
