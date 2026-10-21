@@ -5,7 +5,7 @@ import { useMovimentoReduzido } from './useMovimentoReduzido';
 import { X } from 'lucide-react-native';
 import { PortalHost } from '@rn-primitives/portal';
 import { createContext, useContext, useEffect, useCallback, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
@@ -51,7 +51,7 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, ac
   </Modal>;
 }
 
-/** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo. */
+/** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
 function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,'visivel'>) {
   const { cores } = useTema();
   const { width, height } = useWindowDimensions();
@@ -70,8 +70,23 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
   // Sem animação de entrada: o painel aparece pronto. O deslocamento só existe para o arrastar-para-fechar no celular.
   const deslocamento = useSharedValue(0);
   const altura = useSharedValue(height * 0.88);
-  const movimento=useAnimatedStyle(()=>({transform:[{translateY:deslocamento.get()}]}));
-  const gesto=Gesture.Pan().enabled(Platform.OS !== 'web' && !centralizado)
+  // No PC o painel também anda para os lados: o cabeçalho é a alça para mover a folha e ver o que está por trás dela.
+  const deslocamentoX = useSharedValue(0);
+  const baseX = useSharedValue(0);
+  const baseY = useSharedValue(0);
+  const larguraDoPainel = useSharedValue(largura ?? LARGURA_FOLHA);
+  const movimento=useAnimatedStyle(()=>({transform:[{translateX:deslocamentoX.get()},{translateY:deslocamento.get()}]}));
+  // O cabeçalho nunca sai da janela: sobram ao menos 64 px na horizontal e a barra de título na vertical.
+  const mover=Gesture.Pan().enabled(centralizado).minDistance(4)
+    .onStart(()=>{baseX.set(deslocamentoX.get());baseY.set(deslocamento.get());})
+    .onUpdate(evento=>{
+      const folgaX=(width+larguraDoPainel.get())/2-64;
+      const topo=-(height-altura.get())/2;
+      const base=(height+altura.get())/2-48;
+      deslocamentoX.set(Math.min(folgaX,Math.max(-folgaX,baseX.get()+evento.translationX)));
+      deslocamento.set(Math.min(base,Math.max(topo,baseY.get()+evento.translationY)));
+    });
+  const gestoDeFechar=Gesture.Pan().enabled(Platform.OS !== 'web' && !centralizado)
     .activeOffsetY(10)
     .onUpdate(evento=>{deslocamento.set(Math.max(0,evento.translationY));})
     .onEnd(evento=>{
@@ -97,7 +112,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
       <View style={[estilos.fundo, centralizado ? estilos.fundoCentral : estilos.fundoInferior]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={aoFechar} accessibilityLabel="Fechar painel" importantForAccessibility="no-hide-descendants" />
         <Animated.View
-          onLayout={evento => altura.set(evento.nativeEvent.layout.height)}
+          onLayout={evento => { altura.set(evento.nativeEvent.layout.height); larguraDoPainel.set(evento.nativeEvent.layout.width); }}
           accessibilityViewIsModal
           role="dialog"
           aria-modal
@@ -109,13 +124,16 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
               : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }],
             { backgroundColor: cores.superficie, borderColor: cores.borda },
           ]}>
-          <GestureDetector gesture={gesto}><View style={estilos.topo}>
-            <Texto variante="bloco" nivel={2} style={estilos.titulo}>{titulo}</Texto>
+          <View style={estilos.topo}>
+            {/* A alça é só a área do título: arrastar a partir do X ou do menu ⋯ não move nem fecha a folha. */}
+            <GestureDetector gesture={centralizado ? mover : gestoDeFechar}><View style={[estilos.alca, centralizado && estilos.topoArrastavel]}>
+              <Texto variante="bloco" nivel={2}>{titulo}</Texto>
+            </View></GestureDetector>
             <View style={estilos.acoesTopo}>
               {acaoNoTopo}
               <View ref={fechar} collapsable={false}><IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} /></View>
             </View>
-          </View></GestureDetector>
+          </View>
           <View ref={conteudo} collapsable={false} style={estilos.area}>
             <RolagemComTopo contentContainerStyle={estilos.conteudo}>{children}</RolagemComTopo>
           </View>
@@ -145,7 +163,11 @@ const estilos = StyleSheet.create({
     paddingRight: espaco(1),
     paddingVertical: espaco(1),
   },
-  titulo: { flex: 1 },
+  // Alça de arrastar no PC: cursor de mão e sem selecionar o título ao puxar.
+  // Os tipos do RN só conhecem `auto` e `pointer` no cursor; o react-native-web aceita qualquer valor do CSS.
+  topoArrastavel: { cursor: 'grab', userSelect: 'none' } as unknown as ViewStyle,
+  // Ocupa a altura toda do cabeçalho (as margens negativas anulam o respiro vertical do `topo`).
+  alca: { flex: 1, alignSelf: 'stretch', justifyContent: 'center', marginVertical: -espaco(1), paddingVertical: espaco(1) },
   acoesTopo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   // O botão "voltar ao início" do `RolagemComTopo` é absoluto dentro desta área, logo nunca sai do painel.
   area: { flexShrink: 1, minHeight: 0 },

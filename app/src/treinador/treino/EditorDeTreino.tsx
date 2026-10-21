@@ -307,27 +307,32 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       }} /> : null}
       <FolhaBiblioteca
         visivel={folha?.tipo === 'biblioteca'}
+        multiplo={folha?.tipo === 'biblioteca' && folha.alvo.exercicio === null}
         aoFechar={() => setFolha(null)}
-        aoEscolher={(escolhido) => {
-          if (folha?.tipo !== 'biblioteca') return;
+        aoEscolher={(escolhidos) => {
+          if (folha?.tipo !== 'biblioteca' || escolhidos.length === 0) return;
           const { sessao: si, exercicio: ei } = folha.alvo;
           setFolha(null);
-          const novo = ei === null ? novoExercicio() : null;
-          if (novo) abrir(novo.uid);
+          const daBiblioteca = (escolhido: (typeof escolhidos)[number]) =>
+            'id' in escolhido
+              ? {
+                  exercicioId: escolhido.id,
+                  nome: escolhido.nome,
+                  modalidade: escolhido.modalidade,
+                  videoUrl: escolhido.videoUrl,
+                  unidade: unidadeDaModalidade(escolhido.modalidade),
+                }
+              : { exercicioId: null, nome: escolhido.nome, modalidade: null };
+          if (ei === null) {
+            // Exercícios novos no fim da sessão, na ordem marcada; abre o primeiro para continuar de onde a lista começa.
+            const novos = escolhidos.map((e) => ({ ...novoExercicio(), ...daBiblioteca(e) }));
+            abrir(novos[0].uid);
+            mudarExercicios(si, (lista) => [...lista, ...novos]);
+            return;
+          }
           mudarExercicios(si, (lista) => {
-            const atual = novo ?? lista[ei ?? -1];
-            if (!atual) return lista;
-            const daBiblioteca =
-              'id' in escolhido
-                ? {
-                    exercicioId: escolhido.id,
-                    nome: escolhido.nome,
-                    modalidade: escolhido.modalidade,
-                    videoUrl: escolhido.videoUrl,
-                    unidade: unidadeDaModalidade(escolhido.modalidade),
-                  }
-                : { exercicioId: null, nome: escolhido.nome, modalidade: null };
-            return novo ? [...lista, { ...novo, ...daBiblioteca }] : substituir(lista, ei ?? -1, { ...atual, ...daBiblioteca });
+            const atual = lista[ei];
+            return atual ? substituir(lista, ei, { ...atual, ...daBiblioteca(escolhidos[0]) }) : lista;
           });
         }}
       />
