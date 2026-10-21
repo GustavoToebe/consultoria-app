@@ -1,6 +1,7 @@
 package br.com.treinos.api.consultoria;
 
 import br.com.plataforma.comum.web.BadRequestException;
+import br.com.treinos.api.web.Buscas;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -15,7 +16,9 @@ import java.util.Set;
  * regra de FS do Saraiva (3 FS = 50/70/85; 2 FS = 70/85; 1 FS = 85): o editor usa para preencher os percentuais
  * quando muda a quantidade de séries de preparação; depois cada série pode ser editada. {@code repeticoes} é a faixa de
  * repetições de cada tipo de série (chave = nome do tipo): o editor preenche ao criar a série ou trocar o tipo. Tipo sem
- * faixa não preenche nada.
+ * faixa não preenche nada. O tipo diz para que a série serve (aquecimento, preparação, trabalho…); a técnica (cluster,
+ * rest pause, drop-set) diz como executar e fica na própria série ({@code ConteudoTreino.Tecnica}), por isso nome de
+ * técnica não entra na lista de tipos.
  */
 public record ConfiguracaoConsultoria(
         List<String> tiposSerie,
@@ -38,6 +41,34 @@ public record ConfiguracaoConsultoria(
     private static final Set<BigDecimal> ARREDONDAMENTOS = Set.of(new BigDecimal("0.25"), new BigDecimal("0.5"),
             BigDecimal.ONE, new BigDecimal("2.5"));
 
+    /** Nomes que são técnica, não tipo de série, na forma de {@link #chaveDeTipo}. Espelho em {@code dominio/tiposDeSerie.ts}. */
+    public static final Set<String> NOMES_DE_TECNICA = Set.of("cluster", "rest pause", "restpause", "drop set", "dropset");
+
+    /** Chave de comparação de um nome de tipo: sem acento, minúsculas, hífen/travessão/NBSP viram espaço, espaços colapsados. */
+    public static String chaveDeTipo(String tipo) {
+        return Buscas.semAcento(tipo == null ? "" : tipo.replaceAll("[\\-–— ]", " "));
+    }
+
+    /**
+     * Regra da lista de tipos da consultoria (receita METODOLOGIA): além de {@link #validar}, nome de técnica não entra.
+     * A cópia dentro do plano passa só por {@link #validar}: o tipo da série é texto livre, e a lista fica onde o
+     * treinador a edita.
+     */
+    public static void validarComoMetodologia(ConfiguracaoConsultoria c) {
+        validar(c);
+        for (String t : c.tiposSerie()) {
+            if (nomeDeTecnica(t)) {
+                throw new BadRequestException("\"" + t.trim()
+                        + "\" é uma técnica, não um tipo de série: escolha a técnica na própria série.");
+            }
+        }
+    }
+
+    /** "Cluster", "Rest-pause", "DROP SET"… são técnicas da série, não tipos. */
+    public static boolean nomeDeTecnica(String tipo) {
+        return NOMES_DE_TECNICA.contains(chaveDeTipo(tipo));
+    }
+
     /** Valores de um plano sem metodologia vinculada e da metodologia criada com a consultoria. */
     public static ConfiguracaoConsultoria padrao() {
         Map<String, List<Integer>> regra = new LinkedHashMap<>();
@@ -50,7 +81,7 @@ public record ConfiguracaoConsultoria(
         repeticoes.put("WS", new Repeticoes(3, 6));
         repeticoes.put("Back off", new Repeticoes(6, 8));
         return new ConfiguracaoConsultoria(
-                List.of("Aquecimento", "FS", "WS", "Back off", "Top set", "Rest pause", "Cluster"),
+                List.of("Aquecimento", "FS", "WS", "Back off", "Top set", "Cardio"),
                 "WS",
                 "FS",
                 regra,

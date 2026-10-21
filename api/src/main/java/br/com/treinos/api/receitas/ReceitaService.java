@@ -197,7 +197,7 @@ public class ReceitaService {
             throw new BadRequestException("Conteúdo da receita inválido: " + violacoes.iterator().next().getPropertyPath()
                     + " " + violacoes.iterator().next().getMessage());
         }
-        if (valor instanceof ConfiguracaoConsultoria c) ConfiguracaoConsultoria.validar(c);
+        if (valor instanceof ConfiguracaoConsultoria c) ConfiguracaoConsultoria.validarComoMetodologia(c);
         if (valor instanceof ConteudoTreino t) {
             validarMetodologia(t);
             if (tipo == Receita.Tipo.SESSAO_TREINO && t.sessoes().size() != 1)

@@ -168,6 +168,11 @@ describe('adicionar e reordenar séries (reunião de 17/10)', () => {
     expect(adicionarSerie([], CONFIG).map((s) => s.tipo)).toEqual(['WS']);
   });
 
+  it('tipo fora de config.tiposSerie é aceito: a série nasce com ele', () => {
+    const [serie] = adicionarSerie([], CONFIG, 'Pirâmide', null);
+    expect(serie.tipo).toBe('Pirâmide');
+  });
+
   it('o limite de séries vale para o exercício todo', () => {
     const muitas = Array.from({ length: LIMITE_SERIES - 1 }, (_, i) => ws(`w${i}`));
     const series = [fs('a', 85), ...muitas];

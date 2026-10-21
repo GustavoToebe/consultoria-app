@@ -431,7 +431,7 @@ public class SeedDemo {
     }
 
     private static Serie simples() {
-        return new Serie(UUID.randomUUID(), "Série", 8, 12, null, new Intensidade("RIR", null, 2, null, null), null);
+        return new Serie(UUID.randomUUID(), "WS", 8, 12, null, new Intensidade("RIR", null, 2, null, null), null);
     }
 
     // ---- Comum ----

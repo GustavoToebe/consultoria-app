@@ -37,7 +37,7 @@ final class ReceitasPadrao {
                 junta(fs(70, 85), List.of(ws(), ws()))));
         lista.add(series("1 FS + 2 WS", "FS 1x3-5 (85%), WS 2x3-6.",
                 List.of(new Serie(null, "FS", 3, 5, null, percentual(85), null), ws(), ws())));
-        lista.add(series("Séries simples 3x8-12", "Para quem não usa FS/WS: 3 séries de 8 a 12, 2 RIR.",
+        lista.add(series("Séries simples 3x8-12", "Sem FS: 3 séries de trabalho de 8 a 12, 2 RIR.",
                 List.of(simples(), simples(), simples())));
         lista.add(series("Cardio", "Cardio por tempo, sem carga.",
                 List.of(new Serie(null, "Cardio", null, null, "50 min ou HIIT 25 min", nenhuma(), null))));
@@ -114,7 +114,7 @@ final class ReceitasPadrao {
     }
 
     private static Serie simples() {
-        return new Serie(null, "Série", 8, 12, null, new Intensidade("RIR", null, 2, null, null), null);
+        return new Serie(null, "WS", 8, 12, null, new Intensidade("RIR", null, 2, null, null), null);
     }
 
     private static Intensidade percentual(int valor) {

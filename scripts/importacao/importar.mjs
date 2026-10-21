@@ -2,7 +2,8 @@
 /**
  * Importa para a consultoria do Saraiva (pela API, como treinador) os vídeos da biblioteca de exercícios, os modelos
  * de semana de treino, os modelos de mobilidade, os suplementos e a lista de medicação e ergogênicos que estão em ./dados. Pode rodar de novo à vontade: só cria o que
- * ainda não existe e nunca troca um vídeo que já está na biblioteca.
+ * ainda não existe e nunca troca um vídeo que já está na biblioteca. Série "Rest pause" do PDF vira WS com o alvo
+ * "Rest pause" (a técnica é completada no editor; o resumo conta quantas).
  *
  *   node scripts/importacao/importar.mjs --simular     (só lê; mostra o que faria)
  *   node scripts/importacao/importar.mjs               (grava)
@@ -133,7 +134,8 @@ export function modalidadeDe(nome) {
 }
 
 // ---------------------------------------------------------------- séries
-const TIPOS = { aquecimento: 'Aquecimento', fs: 'FS', ws: 'WS', 'back off': 'Back off', 'top set': 'Top set', 'rest pause': 'Rest pause', cluster: 'Cluster' };
+// "Rest pause" fica aqui só para o PDF ser lido: não é tipo de série, é técnica (`montarSeries` converte).
+const TIPOS = { aquecimento: 'Aquecimento', fs: 'FS', ws: 'WS', 'back off': 'Back off', 'top set': 'Top set', 'rest pause': 'Rest pause' };
 const REGRA_PADRAO = { 1: [85], 2: [70, 85], 3: [50, 70, 85] };
 
 /** Texto do PDF ("2x3 a 5 - FS", "1x6-8 – WS", "1x5-10 (Aquecimento)") em itens {n, min, max, tipo}. */
@@ -158,7 +160,10 @@ export function lerSeries(linhas) {
 
 const percentual = (obs, re) => { const m = re.exec(obs); return m ? Number(m[1]) : null; };
 
-/** Séries do exercício no formato da API (uma por série), com % da WS lidos da observação. */
+/**
+ * Séries do exercício no formato da API (uma por série), com % da WS lidos da observação. "1x8-12 Rest pause" vira WS
+ * com o alvo "Rest pause" e sem técnica: o PDF não traz pausa nem retomadas, e nada é inventado (o treinador completa).
+ */
 export function montarSeries(linhas, obs, regra) {
   const itens = lerSeries(linhas);
   const totalFs = itens.filter((i) => i.tipo === 'FS').reduce((t, i) => t + i.n, 0);
@@ -171,7 +176,8 @@ export function montarSeries(linhas, obs, regra) {
     for (let k = 0; k < i.n; k++) {
       const serie = { uid: randomUUID(), tipo: i.tipo, repsMin: i.min ?? null, repsMax: i.max ?? null, alvoTexto: i.alvoTexto ?? null, descansoSegundos: null };
       let inten = { modo: 'NENHUMA' };
-      if (i.tipo === 'FS' && faixa) inten = { modo: 'PERCENTUAL_WS', percentual: faixa[fs++] };
+      if (i.tipo === 'Rest pause') { serie.tipo = 'WS'; serie.alvoTexto = 'Rest pause'; inten = { modo: 'CARGA_TRABALHO' }; rel.restPause++; }
+      else if (i.tipo === 'FS' && faixa) inten = { modo: 'PERCENTUAL_WS', percentual: faixa[fs++] };
       else if (i.tipo === 'FS') fs++;
       else if (i.tipo === 'WS') inten = { modo: 'CARGA_TRABALHO' };
       else if (i.tipo === 'Back off' && pBack) inten = { modo: 'PERCENTUAL_WS', percentual: pBack };
@@ -193,7 +199,7 @@ export function obsLimpa(obs) {
 }
 
 // ---------------------------------------------------------------- relatório
-const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '' };
+const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', restPause: 0 };
 const falar = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------- biblioteca
@@ -468,6 +474,7 @@ async function principal() {
   lista('Nomes parecidos na biblioteca (conferir se são o mesmo exercício)', rel.quase);
   falar(`\nInstruções do Plano 16: ${rel.instrucoes}.`);
   lista('Modelos de treino', rel.modelos);
+  if (rel.restPause) falar(`Séries "Rest pause" lidas: ${rel.restPause} (cada uma vira WS com o alvo "Rest pause", sem técnica: complete no editor).`);
   lista('Modelos de mobilidade', rel.mobilidade);
   lista('Suplementos', rel.suplementos);
   lista('Medicação e ergogênicos', rel.ergogenicos);

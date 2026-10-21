@@ -126,9 +126,9 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
         JsonNode plano = api.post("/alunos/" + aluno + "/planos-treino", treinador, Map.of("titulo", "Plano"), 200);
         String id = plano.get("plano").get("id").asString();
         ConteudoTreino.Intensidade carga = new ConteudoTreino.Intensidade("CARGA_TRABALHO", null, null, null, null);
-        Serie clusterRuim = new Serie(UUID.randomUUID(), "Cluster", 6, 6, null, carga, null,
+        Serie clusterRuim = new Serie(UUID.randomUUID(), "WS", 6, 6, null, carga, null,
                 new ConteudoTreino.Tecnica("CLUSTER", 1, 0, 2, null, null));
-        Serie restPauseRuim = new Serie(UUID.randomUUID(), "Rest pause", 6, 8, null, carga, null,
+        Serie restPauseRuim = new Serie(UUID.randomUUID(), "WS", 6, 8, null, carga, null,
                 new ConteudoTreino.Tecnica("REST_PAUSE", null, null, 700, 9, 0));
         Serie desconhecida = new Serie(UUID.randomUUID(), "WS", 3, 6, null, carga, null,
                 new ConteudoTreino.Tecnica("PIRAMIDE", null, null, null, null, null));
@@ -142,9 +142,9 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
                 base + "2].tecnica.tipo");
 
         // Corretas: 3 blocos de 2 com 20 s; rest pause de 20 s com 2 retomadas até a falha. Chegam iguais na leitura.
-        Serie cluster = new Serie(UUID.randomUUID(), "Cluster", 6, 6, null, carga, 120,
+        Serie cluster = new Serie(UUID.randomUUID(), "WS", 6, 6, null, carga, 120,
                 new ConteudoTreino.Tecnica("CLUSTER", 3, 2, 20, null, null));
-        Serie restPause = new Serie(UUID.randomUUID(), "Rest pause", 6, 8, null, carga, null,
+        Serie restPause = new Serie(UUID.randomUUID(), "WS", 6, 8, null, carga, null,
                 new ConteudoTreino.Tecnica("REST_PAUSE", null, null, 20, 2, null));
         salvo = api.put("/planos-treino/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Plano",
                 comSeries(List.of(cluster, restPause)), salvo.get("plano").get("versao").asLong()), 200);

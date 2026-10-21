@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,7 +21,8 @@ import java.util.regex.Pattern;
 
 /**
  * Regras de publicação do treino. O app mostra o mesmo resultado antes de publicar. Não opina sobre
- * carga nem volume: só confere que o plano é executável e coerente.
+ * carga nem volume: só confere que o plano é executável e coerente. O tipo da série é nome livre: fora da lista da
+ * metodologia copiada no plano vira aviso, nunca erro.
  */
 @Component
 public class ValidadorTreino {
@@ -42,6 +44,7 @@ public class ValidadorTreino {
         Set<UUID> uids = new HashSet<>();
         Map<Integer, Integer> sessoesPorDia = new HashMap<>();
         boolean temDescanso = false;
+        Set<String> tiposDaMetodologia = tiposDaMetodologia(conteudo);
         List<Sessao> sessoes = conteudo.sessoesOuVazio();
         if (sessoes.isEmpty()) {
             c.erro("sessoes", "O plano não tem nenhuma sessão.");
@@ -74,7 +77,7 @@ public class ValidadorTreino {
             }
             List<ExercicioPlano> exercicios = s.exerciciosOuVazio();
             for (int j = 0; j < exercicios.size(); j++) {
-                exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]");
+                exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]", tiposDaMetodologia);
             }
             agrupamento(c, exercicios, cs);
         }
@@ -87,7 +90,23 @@ public class ValidadorTreino {
         return c.resultado();
     }
 
-    private void exercicio(ResultadoValidacao.Coletor c, Set<UUID> uids, ExercicioPlano e, String ce) {
+    /** Tipos da metodologia copiada no plano (sem espaços nas pontas), ou {@code null} quando o plano não tem metodologia. */
+    private static Set<String> tiposDaMetodologia(ConteudoTreino conteudo) {
+        if (conteudo.metodologia() == null || conteudo.metodologia().configuracao() == null
+                || conteudo.metodologia().configuracao().tiposSerie() == null) {
+            return null;
+        }
+        Set<String> tipos = new LinkedHashSet<>();
+        for (String t : conteudo.metodologia().configuracao().tiposSerie()) {
+            if (t != null) {
+                tipos.add(t.trim());
+            }
+        }
+        return tipos;
+    }
+
+    private void exercicio(ResultadoValidacao.Coletor c, Set<UUID> uids, ExercicioPlano e, String ce,
+                           Set<String> tiposDaMetodologia) {
         uid(c, uids, e.uid(), ce);
         if (vazio(e.nome())) {
             c.erro(ce + ".nome", "Exercício sem nome.");
@@ -113,11 +132,13 @@ public class ValidadorTreino {
         }
         boolean temTrabalho = series.stream().anyMatch(Serie::deTrabalho);
         boolean temPercentual = false;
+        Set<String> tiposAvisados = new HashSet<>();
         for (int k = 0; k < series.size(); k++) {
             Serie x = series.get(k);
             String cx = ce + ".series[" + k + "]";
             uid(c, uids, x.uid(), cx);
             serie(c, x, cx);
+            tipoForaDaMetodologia(c, x, cx, tiposDaMetodologia, tiposAvisados);
             temPercentual |= ConteudoTreino.PERCENTUAL_WS.equals(x.modo());
         }
         if (temPercentual && !temTrabalho) {
@@ -185,6 +206,19 @@ public class ValidadorTreino {
                               String mensagem) {
         if (valor == null || valor < min || valor > max) {
             c.erro(caminho, mensagem);
+        }
+    }
+
+    /** Um aviso por tipo desconhecido em cada exercício (na primeira série que o usa), não um por série. */
+    private static void tipoForaDaMetodologia(ResultadoValidacao.Coletor c, Serie x, String cx,
+                                              Set<String> tiposDaMetodologia, Set<String> tiposAvisados) {
+        if (tiposDaMetodologia == null || vazio(x.tipo())) {
+            return;
+        }
+        String tipo = x.tipo().trim();
+        if (!tiposDaMetodologia.contains(tipo) && tiposAvisados.add(tipo)) {
+            c.aviso(cx + ".tipo", "O tipo \"" + tipo + "\" não está na metodologia do plano ("
+                    + String.join(", ", tiposDaMetodologia) + "). A série continua válida.");
         }
     }
 

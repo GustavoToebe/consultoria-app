@@ -32,7 +32,7 @@
       "nome": "Rest-pause",
       "descricao": "Série pesada até a falha, pausa curta e mais repetições até a falha.",
       "configuracao": {
-        "tiposSerie": ["Aquecimento", "FS", "WS", "Rest pause"],
+        "tiposSerie": ["Aquecimento", "FS", "WS"],
         "tipoTrabalho": "WS",
         "tipoPreparacao": "FS",
         "regraPreparacao": { "1": [85], "2": [70, 85] },
@@ -60,7 +60,7 @@
       "nome": "Drop-set e Cluster",
       "descricao": "Drop-set, cluster e bi-set como técnicas de intensificação.",
       "configuracao": {
-        "tiposSerie": ["Aquecimento", "FS", "WS", "Drop set", "Cluster", "Bi-set"],
+        "tiposSerie": ["Aquecimento", "FS", "WS"],
         "tipoTrabalho": "WS",
         "tipoPreparacao": "FS",
         "regraPreparacao": { "1": [85], "2": [70, 85] },

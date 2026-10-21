@@ -17,6 +17,7 @@ import {
   tecnicaVazia,
   type AlteracaoDeGrupo,
 } from '../../dominio/editorTreino';
+import { tecnicaHomonima } from '../../dominio/tiposDeSerie';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -41,8 +42,11 @@ interface Props {
  * Séries agrupadas como no PDF ("3x3 - FS 50/70/85%"). Cada grupo fechado é uma linha de resumo (↑↓ mudam a ordem,
  * a seta abre, a lixeira remove); aberto, edita nome da série, quantidade (− +), faixa de repetições, descanso e
  * intensidade, com alvo e técnica em "Mais opções" (revisão de telas de 19/10: cada grupo aberto ocupava ~300 px). Em "% da <série de trabalho>" (ex.: "% da WS") cada série tem o próprio percentual.
- * Mudar a quantidade de FS reaplica a regra da consultoria. "Adicionar série" pergunta o tipo (o FS novo pode subir
- * para antes da WS pelo ↑). O limite de séries vale para o exercício todo, como no servidor.
+ * Mudar a quantidade de FS reaplica a regra da consultoria. "Adicionar série" abre um painel com o tipo (para que a
+ * série serve, da metodologia; já vem a de trabalho), depois a técnica (como executar; padrão simples) e o botão
+ * "Adicionar"; o FS novo pode subir para antes da WS pelo ↑.
+ * Tipo fora da metodologia continua nos chips (séries já gravadas) com a marca "fora da metodologia": a publicação
+ * avisa, não recusa. O limite de séries vale para o exercício todo, como no servidor.
  */
 /** Ao adicionar: série simples ou já com a técnica (um grupo próprio, para "1 WS + 1 WS em cluster"). */
 const TECNICAS_NOVAS: { valor: 'SIMPLES' | Tecnica['tipo']; rotulo: string }[] = [
@@ -55,19 +59,28 @@ const TECNICAS_NOVAS: { valor: 'SIMPLES' | Tecnica['tipo']; rotulo: string }[] =
 export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) {
   const grupos = agrupar(series);
   const [escolhendoTipo, setEscolhendoTipo] = useState(false);
+  const [tipoNovo, setTipoNovo] = useState<string | null>(null);
   const [tecnicaNova, setTecnicaNova] = useState<'SIMPLES' | Tecnica['tipo']>('SIMPLES');
   const cheio = series.length >= LIMITE_SERIES;
   const tipos = [...new Set([...(config?.tiposSerie ?? []), ...series.map((x) => x.tipo)].filter(Boolean))];
+  const foraDaMetodologia = tiposForaDaMetodologia(tipos, config);
+  const opcoesDeTipo = tipos.map((t) => ({ valor: t, rotulo: t, detalhe: foraDaMetodologia.includes(t) ? 'fora da metodologia' : undefined }));
   // Grupos abertos pela primeira série (o uid não muda ao somar séries ao grupo); o grupo novo já abre.
   const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set());
   const alternar = (chave: string) => setAbertos((a) => { const novo = new Set(a); if (novo.has(chave)) novo.delete(chave); else novo.add(chave); return novo; });
-  const adicionar = (tipo?: string) => {
-    const novas = adicionarSerie(series, config, tipo, tecnicaNova === 'SIMPLES' ? null : tecnicaNova);
+  // O painel abre sempre com a série de trabalho e a técnica simples; cancelar não guarda a escolha anterior.
+  const abrirPainel = () => {
+    setTipoNovo(tipos.includes(config?.tipoTrabalho ?? '') ? config!.tipoTrabalho : tipos[0] ?? null);
+    setTecnicaNova('SIMPLES');
+    setEscolhendoTipo(true);
+  };
+  const fecharPainel = () => { setEscolhendoTipo(false); setTecnicaNova('SIMPLES'); };
+  const adicionar = () => {
+    const novas = adicionarSerie(series, config, tipoNovo ?? undefined, tecnicaNova === 'SIMPLES' ? null : tecnicaNova);
     const ultimo = agrupar(novas).at(-1);
     aoMudar(novas);
     if (ultimo) setAbertos((a) => new Set(a).add(ultimo.series[0].uid));
-    setEscolhendoTipo(false);
-    setTecnicaNova('SIMPLES');
+    fecharPainel();
   };
   return (
     <View style={estilos.lista}>
@@ -90,13 +103,17 @@ export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) 
       ))}
       {escolhendoTipo ? (
         <View style={estilos.escolhaTipo}>
-          <Escolha rotulo="Técnica (estrutura da série)" opcoes={TECNICAS_NOVAS} valor={tecnicaNova} aoMudar={setTecnicaNova} />
-          <Texto variante="rotulo">Nome da série (da metodologia)</Texto>
+          {opcoesDeTipo.length > OPCOES_PARA_BUSCAR
+            ? <EscolhaEmFolha rotulo="Tipo da série" opcoes={opcoesDeTipo} valor={tipoNovo} aoMudar={setTipoNovo} />
+            : <Escolha rotulo="Tipo da série" opcoes={opcoesDeTipo} valor={tipoNovo} aoMudar={setTipoNovo} />}
+          <Texto variante="pequeno">
+            Para que a série serve, segundo a metodologia.{foraDaMetodologia.length ? ` ${textoForaDaMetodologia(foraDaMetodologia)}` : ''}
+          </Texto>
+          <Escolha rotulo="Técnica" opcoes={TECNICAS_NOVAS} valor={tecnicaNova} aoMudar={setTecnicaNova} />
+          <Texto variante="pequeno">Como executar: simples, cluster, rest pause ou drop-set.</Texto>
           <LinhaDeAcoes>
-            {tipos.map((t) => (
-              <Botao key={t} rotulo={t} tipo="secundario" aoTocar={() => adicionar(t)} />
-            ))}
-            <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setEscolhendoTipo(false)} />
+            <Botao rotulo="Adicionar" tipo="secundario" Icone={Plus} desabilitado={!tipoNovo} motivo={tipoNovo ? undefined : 'Escolha o tipo da série.'} aoTocar={adicionar} />
+            <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={fecharPainel} />
           </LinhaDeAcoes>
         </View>
       ) : null}
@@ -109,7 +126,7 @@ export function EditorSeries({ series, config, aoMudar, aoUsarReceita }: Props) 
             cheio={!!aoUsarReceita}
             desabilitado={cheio}
             motivo={cheio ? `O exercício já tem ${LIMITE_SERIES} séries, o máximo.` : undefined}
-            aoTocar={() => setEscolhendoTipo((v) => !v)}
+            aoTocar={() => (escolhendoTipo ? fecharPainel() : abrirPainel())}
           />
         </View>
         {aoUsarReceita ? <View style={estilos.metade}>
@@ -151,6 +168,7 @@ function EditorGrupo({
   const primeira = grupo.series[0];
   const modo: ModoIntensidade = primeira.intensidade?.modo ?? 'NENHUMA';
   const tipos = [...new Set([...(config?.tiposSerie ?? []), primeira.tipo].filter(Boolean))];
+  const foraDaMetodologia = tiposForaDaMetodologia(tipos, config);
   const n = grupo.series.length;
   const porTempo = primeira.repsMin === null && primeira.repsMax === null;
   const descansoInvalido =
@@ -161,7 +179,7 @@ function EditorGrupo({
     .filter(Boolean).join(' · ') || 'Alvo extra e técnica';
 
   const Seta = aberto ? ChevronUp : ChevronDown;
-  const opcoesDeNome = tipos.map((t) => ({ valor: t, rotulo: t }));
+  const opcoesDeTipo = tipos.map((t) => ({ valor: t, rotulo: t, detalhe: foraDaMetodologia.includes(t) ? 'fora da metodologia' : undefined }));
   const resumo = descreverGrupo(grupo);
 
   return (
@@ -177,9 +195,10 @@ function EditorGrupo({
         <IconeBotao Icone={Trash2} rotulo="Remover este grupo de séries" cor={cores.perigo} aoTocar={aoRemover} />
       </View>
       {aberto ? <>
-      {opcoesDeNome.length > OPCOES_PARA_BUSCAR
-        ? <EscolhaEmFolha rotulo="Nome da série" opcoes={opcoesDeNome} valor={primeira.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />
-        : <Escolha rotulo="Nome da série (da metodologia)" opcoes={opcoesDeNome} valor={primeira.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />}
+      {opcoesDeTipo.length > OPCOES_PARA_BUSCAR
+        ? <EscolhaEmFolha rotulo="Tipo da série" opcoes={opcoesDeTipo} valor={primeira.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />
+        : <Escolha rotulo="Tipo da série" opcoes={opcoesDeTipo} valor={primeira.tipo} aoMudar={(tipo) => aoAlterar({ tipo })} />}
+      {foraDaMetodologia.length ? <Texto variante="pequeno">{textoForaDaMetodologia(foraDaMetodologia)}</Texto> : null}
       <View style={estilos.linha}>
         <View style={estilos.quantidade}>
           <Texto variante="pequeno" style={estilos.rotulo}>Séries</Texto>
@@ -268,14 +287,14 @@ const TECNICAS: { valor: Tecnica['tipo'] | 'NENHUMA'; rotulo: string }[] = [
  */
 function CamposDaTecnica({ tecnica, nomeDaSerie, aoMudar }: { tecnica: Tecnica | null; nomeDaSerie: string; aoMudar: (t: Tecnica | null) => void }) {
   const mudar = (parte: Partial<Tecnica>) => tecnica && aoMudar({ ...tecnica, ...parte });
-  // A metodologia pode ter um nome de série igual ao de uma técnica ("Cluster", "Rest pause"): o nome não liga a técnica.
-  const homonima = !tecnica ? TECNICAS.find((t) => t.valor !== 'NENHUMA' && semAcentoNemCaixa(t.rotulo) === semAcentoNemCaixa(nomeDaSerie)) : undefined;
+  // Série gravada com tipo "Cluster"/"Rest pause" (metodologia antiga ou importação): o tipo não liga a técnica.
+  const homonima = !tecnica ? TECNICAS.find((t) => t.valor === tecnicaHomonima(nomeDaSerie)) : undefined;
   return (
     <>
-      <Texto variante="pequeno">A técnica divide a série em blocos, pausas ou quedas. O nome da série vem da metodologia e não muda a técnica.</Texto>
-      {homonima ? <Texto variante="pequeno">O nome “{nomeDaSerie}” não liga a técnica: escolha {homonima.rotulo} abaixo para o aluno ver os blocos.</Texto> : null}
+      <Texto variante="pequeno">A técnica é como executar (blocos, pausas ou quedas). O tipo da série é para que ela serve, segundo a metodologia.</Texto>
+      {homonima ? <Texto variante="pequeno">O tipo “{nomeDaSerie}” não liga a técnica: escolha {homonima.rotulo} abaixo para o aluno ver os blocos.</Texto> : null}
       <Escolha
-        rotulo="Técnica (estrutura da série)"
+        rotulo="Técnica"
         opcoes={TECNICAS}
         valor={tecnica?.tipo ?? 'NENHUMA'}
         aoMudar={(v) => aoMudar(v === 'NENHUMA' ? null : tecnica?.tipo === v ? tecnica : tecnicaVazia(v))}
@@ -342,7 +361,17 @@ function CamposDaTecnica({ tecnica, nomeDaSerie, aoMudar }: { tecnica: Tecnica |
   );
 }
 
-const semAcentoNemCaixa = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[-\s]+/g, ' ').trim().toLocaleLowerCase();
+/** Tipos usados nas séries que a metodologia do plano não lista (ficam nos chips; a publicação avisa). */
+function tiposForaDaMetodologia(tipos: string[], config: Configuracao | null): string[] {
+  if (!config) return [];
+  const daMetodologia = new Set(config.tiposSerie.map((t) => t.trim()));
+  return tipos.filter((t) => !daMetodologia.has(t.trim()));
+}
+
+function textoForaDaMetodologia(tipos: string[]): string {
+  const lista = tipos.map((t) => `“${t}”`).join(', ');
+  return tipos.length === 1 ? `${lista} não está na metodologia do plano: a publicação vai avisar.` : `${lista} não estão na metodologia do plano: a publicação vai avisar.`;
+}
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(1) },

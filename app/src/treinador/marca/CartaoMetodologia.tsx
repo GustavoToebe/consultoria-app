@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Configuracao } from '../../api/tipos';
+import { mensagemTipoETecnica, nomeDeTecnica } from '../../dominio/tiposDeSerie';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
@@ -29,6 +30,8 @@ export type MetodologiaEmEdicao = Omit<Configuracao, 'regraPreparacao' | 'repeti
 
 /** Por que ainda não dá para salvar (texto do `motivo` do "Salvar modelo"); `null` = pode salvar. */
 export function problemaDaMetodologia(c: MetodologiaEmEdicao): string | null {
+  const tecnica = c.tiposSerie.find(nomeDeTecnica);
+  if (tecnica) return mensagemTipoETecnica(tecnica);
   if (!Object.values(c.regraPreparacao).every((v) => v.every((p) => p !== null && p >= 1 && p <= 200))) return 'Preencha todos os percentuais da regra de preparação.';
   if (!c.tiposSerie.every((t) => faixaValida(c.repeticoes?.[t]))) return 'Confira as repetições por tipo.';
   return null;
@@ -49,13 +52,17 @@ export function metodologiaParaSalvar(c: MetodologiaEmEdicao): Configuracao {
 /**
  * Metodologia da consultoria: tipos de série, qual é a de trabalho (WS) e a de preparação (FS), a regra
  * que preenche os percentuais de FS no editor, as repetições de cada tipo (preenchidas ao criar a série ou trocar o tipo), o arredondamento da sugestão de carga do aluno e os textos do PDF.
- * O sistema só guarda e aplica o que o treinador definiu. Controlado: quem salva é o "Salvar modelo" da barra do editor
- * (antes havia um "Salvar metodologia" só aqui dentro, num lugar diferente de todos os outros modelos).
+ * O tipo diz para que a série serve; a técnica (cluster, rest pause, drop-set) é de cada série, por isso nome de
+ * técnica não entra como tipo (a API também recusa). O sistema só guarda e aplica o que o treinador definiu.
+ * Controlado: quem salva é o "Salvar modelo" da barra do editor (antes havia um "Salvar metodologia" só aqui dentro,
+ * num lugar diferente de todos os outros modelos).
  */
 export function CartaoMetodologia({ configuracao: c, aoMudar }: { configuracao: MetodologiaEmEdicao; aoMudar: (c: MetodologiaEmEdicao) => void }) {
   const { cores } = useTema();
   const [novoTipo, setNovoTipo] = useState('');
+  const [erroDoTipo, setErroDoTipo] = useState<string | null>(null);
   const [renomeando, setRenomeando] = useState<string | null>(null);
+  const digitarTipo = (t: string) => { setNovoTipo(t); setErroDoTipo(null); };
   const tipos = c.tiposSerie;
   const regra = c.regraPreparacao;
   const faixas: Faixas = c.repeticoes ?? {};
@@ -69,6 +76,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar }: { configuracao: 
   const adicionarTipo = () => {
     const t = novoTipo.trim();
     if (!t || (tipos.includes(t) && t !== renomeando) || (!renomeando && tipos.length >= 20)) return;
+    if (nomeDeTecnica(t)) { setErroDoTipo(mensagemTipoETecnica(t)); return; }
     let novasFaixas = faixas;
     if (renomeando && renomeando !== t && faixas[renomeando]) {
       const { [renomeando]: faixa, ...resto } = faixas;
@@ -87,13 +95,17 @@ export function CartaoMetodologia({ configuracao: c, aoMudar }: { configuracao: 
   return (
     <Cartao titulo="Metodologia">
       <Texto variante="secao">Tipos de série</Texto>
-      <Texto variante="pequeno">Toque num tipo para renomear.</Texto>
+      <Texto variante="pequeno">
+        O tipo diz para que a série serve (aquecimento, preparação, trabalho…). Cluster, rest pause e drop-set não são
+        tipos: são técnicas, escolhidas em cada série. Toque num tipo para renomear; renomear ou remover um tipo não muda
+        séries já gravadas.
+      </Texto>
       <View style={estilos.chips}>
         {tipos.map((t) => {
           const emUso = t === trabalho || t === preparacao;
           return (
             <View key={t} style={[estilos.chip, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-              <Pressable accessibilityRole="button" accessibilityLabel={`Renomear tipo ${t}`} onPress={() => { setRenomeando(t); setNovoTipo(t); }} style={estilos.renomear}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Renomear tipo ${t}`} onPress={() => { setRenomeando(t); digitarTipo(t); }} style={estilos.renomear}>
                 <Texto style={estilos.textoChip} numberOfLines={1}>{t}</Texto>
                 <Pencil size={14} color={cores.textoSuave} />
               </Pressable>
@@ -111,7 +123,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar }: { configuracao: 
       </View>
       <View style={estilos.novoTipo}>
         <View style={estilos.campoTipo}>
-          <Campo rotulo={renomeando ? "Renomear tipo" : "Novo tipo"} valor={novoTipo} aoMudar={setNovoTipo} maxLength={30} onSubmitEditing={adicionarTipo} />
+          <Campo rotulo={renomeando ? "Renomear tipo" : "Novo tipo"} valor={novoTipo} aoMudar={digitarTipo} erro={erroDoTipo} maxLength={30} onSubmitEditing={adicionarTipo} />
         </View>
         <Botao rotulo={renomeando ? "Renomear" : "Adicionar"} tipo="secundario" Icone={Plus} aoTocar={adicionarTipo} desabilitado={!novoTipo.trim()} style={estilos.aoPeDoCampo} />
       </View>

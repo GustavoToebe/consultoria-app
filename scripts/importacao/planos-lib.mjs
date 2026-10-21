@@ -15,6 +15,10 @@
  * `app/src/dominio/metodologiaPadrao.ts` e usada por `importar.mjs`): série de tipo "FS" com `PERCENTUAL_WS` pela regra
  * de preparação do total de FS (1 FS = 85; 2 = 70/85; 3 = 50/70/85); "WS" = `CARGA_TRABALHO`; "Top set" sem número
  * = `LIVRE`; "Back off" = `PERCENTUAL_WS` com o % da coluna "Back Off %".
+ *
+ * O **tipo** da série (Aquecimento, FS, WS, Back off, Top set) diz para que ela serve; a **técnica** (cluster, rest pause,
+ * drop-set) diz como executar e fica em `serie.tecnica`. O "Rest pause" do PDF não é tipo: vira WS com `alvoTexto`
+ * "Rest pause" (sem técnica; `importar.mjs` faz a mesma conversão).
  */
 import { randomUUID } from 'node:crypto';
 

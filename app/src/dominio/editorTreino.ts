@@ -107,6 +107,7 @@ export function novaSerie(config: Configuracao | null, tipoEscolhido?: string): 
 /**
  * "Adicionar série" com o tipo (e, se quiser, a técnica) escolhido: entra no fim do exercício. Se o último grupo já é
  * desse tipo e dessa técnica, soma uma série a ele pelo mesmo caminho do "+" (copia a última e a regra de preparação continua valendo); senão nasce um grupo novo.
+ * Tipo (para que a série serve, da metodologia) e técnica (como executar) são independentes: um tipo fora de `config.tiposSerie` é aceito (a publicação avisa).
  * No limite de séries do exercício, nada muda. Para pôr o grupo novo antes de outro, o treinador usa ↑ (`moverGrupo`).
  */
 export function adicionarSerie(
