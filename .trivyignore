@@ -5,3 +5,6 @@
 CVE-2026-78667 exp:2026-11-14
 CVE-2026-78669 exp:2026-11-14
 CVE-2026-97031 exp:2026-11-14
+# CVE-2026-111943 (Go crypto/x509, corrigida no Go 1.26.10): mesmo binário do Caddy oficial. Este contêiner não termina TLS nem
+# valida certificado de cliente (só HTTP atrás do proxy da VPS), então crypto/x509 não é exercitado. Mesma validade.
+CVE-2026-111943 exp:2026-11-14
