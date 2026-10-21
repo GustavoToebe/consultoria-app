@@ -11,11 +11,16 @@ export type Acerto =
   /** Volta `passos` entradas (as que ficaram para trás de uma Folha que fechou). */
   | { tipo: 'voltar'; passos: number };
 
-/** O que fazer para o histórico ficar com tantas entradas de Folha quanto Folhas abertas. */
-export function planejarAcerto(abertas: number, nivelAtual: number): Acerto {
-  if (abertas === nivelAtual) return { tipo: 'nada' };
-  if (abertas > nivelAtual) return { tipo: 'empilhar', niveis: Array.from({ length: abertas - nivelAtual }, (_, i) => nivelAtual + i + 1) };
-  return { tipo: 'voltar', passos: nivelAtual - abertas };
+/**
+ * O que fazer para o histórico ficar com tantas entradas de Folha quanto Folhas abertas. Com uma volta nossa ainda a
+ * caminho (`pendente`), conta com ela (`nivelParaAcertar`) e não empilha nada: a volta, ao chegar, desfaria a entrada
+ * nova; o `popstate` dela acerta de novo.
+ */
+export function planejarAcerto(abertas: number, nivelAtual: number, pendente: VoltaPendente | null = null): Acerto {
+  const nivel = nivelParaAcertar(nivelAtual, pendente);
+  if (abertas === nivel || (abertas > nivel && pendente)) return { tipo: 'nada' };
+  if (abertas > nivel) return { tipo: 'empilhar', niveis: Array.from({ length: abertas - nivel }, (_, i) => nivel + i + 1) };
+  return { tipo: 'voltar', passos: nivel - abertas };
 }
 
 /** Quantas Folhas (do topo) fecham quando o navegador cai num nível menor que o de Folhas abertas. */
@@ -48,6 +53,40 @@ export function podeRegistrarGuarda(folhasAbertas: number, guardaRegistrada: boo
  */
 export function passosParaSairDoEditor(nivelAtual: number): number {
   return nivelAtual + 1;
+}
+
+/**
+ * Voltas (`history.go(-n)`) que a gente pediu e cujo `popstate` ainda não chegou: o nível em que o histórico estava quando
+ * a primeira saiu e quantos passos, somados, ainda vão acontecer. O navegador faz as voltas em fila, cada uma a partir da
+ * entrada em que a anterior parou, então uma volta pedida de novo enquanto a primeira não chegou soma, não substitui.
+ */
+export interface VoltaPendente {
+  nivel: number;
+  passos: number;
+}
+
+/**
+ * Nível a usar no acerto. Com uma volta ainda em curso (o histórico continua no nível de quando ela saiu), conta como se ela
+ * já tivesse chegado: sem isso, o acerto que roda antes do `popstate` (o navegador demorou, ex.: máquina carregada) vê a
+ * entrada da Folha que já fechou, pede outra volta e as duas juntas tiram a pessoa da tela (ou do app).
+ */
+export function nivelParaAcertar(nivelAtual: number, pendente: VoltaPendente | null): number {
+  return pendente && nivelAtual === pendente.nivel ? Math.max(0, nivelAtual - pendente.passos) : nivelAtual;
+}
+
+/** Registra mais uma volta pedida: soma à que ainda não chegou (o histórico não saiu do lugar) ou começa uma nova. */
+export function somarVolta(pendente: VoltaPendente | null, nivelAtual: number, passos: number): VoltaPendente {
+  return pendente && nivelAtual === pendente.nivel ? { nivel: pendente.nivel, passos: pendente.passos + passos } : { nivel: nivelAtual, passos };
+}
+
+/**
+ * O que sobra da volta pendente depois de um `popstate`: o quanto o nível desceu já aconteceu. Ao sair da tela (outro `id`)
+ * ou chegar ao nível 0, a conta acaba (não há mais entradas de Folha desta tela por baixo).
+ */
+export function voltaDepoisDoPopstate(pendente: VoltaPendente | null, nivelNovo: number, mesmaTela: boolean): VoltaPendente | null {
+  if (!pendente || !mesmaTela || nivelNovo === 0) return null;
+  const restante = pendente.passos - Math.max(0, pendente.nivel - nivelNovo);
+  return restante > 0 ? { nivel: nivelNovo, passos: restante } : null;
 }
 
 /** Nível guardado numa entrada do histórico; entrada sem marca (ou estado estranho) é nível 0. */

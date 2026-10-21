@@ -1,7 +1,10 @@
 import { useEffect, useId, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { folhasParaFechar, nivelDoEstado, passosParaSairDeEntradasSobrando, passosParaSairDoEditor, planejarAcerto, podeRegistrarGuarda } from '../dominio/historicoDasFolhas';
+import {
+  folhasParaFechar, nivelDoEstado, passosParaSairDeEntradasSobrando, passosParaSairDoEditor, planejarAcerto, podeRegistrarGuarda,
+  somarVolta, voltaDepoisDoPopstate, type VoltaPendente,
+} from '../dominio/historicoDasFolhas';
 import type { PortalDaFolhaValor } from './Folha';
 
 /**
@@ -30,6 +33,12 @@ const abertas: Aberta[] = [];
 let agendado = false;
 /** `history.go` é assíncrono: até o `popstate` dele chegar, nada novo é acertado. */
 let aguardando = false;
+/**
+ * A volta pedida que ainda não chegou. O `aguardando` se solta sozinho depois de um tempo (para o caso de o `popstate`
+ * nunca vir), mas a volta continua a caminho: o acerto conta com ela (`nivelParaAcertar`) em vez de pedir outra, senão
+ * as duas somadas voltam uma entrada a mais e tiram a pessoa da tela.
+ */
+let voltaPendente: VoltaPendente | null = null;
 let escutando = false;
 /** Entradas de Folha que ficaram para trás de uma tela quando a Folha navegou sem fechar: `id` da tela → quantas. */
 const sobrando = new Map<string, number>();
@@ -46,11 +55,15 @@ const web = () => Platform.OS === 'web' && typeof window !== 'undefined';
 
 const idDoEstado = () => (window.history.state as { id?: string } | null)?.id;
 
-/** Espera o `popstate` do `history.go` que a gente mesmo pediu; se ele não vier, solta depois de um tempo. */
-function irPara(passos: number) {
+/**
+ * Volta `passos` entradas e espera o `popstate` desse `history.go`; se ele não vier (ou demorar: navegador ocupado), solta o
+ * acerto depois de um tempo, mas a volta segue contada em `voltaPendente` até o `popstate` chegar.
+ */
+function voltar(passos: number) {
   aguardando = true;
+  voltaPendente = somarVolta(voltaPendente, nivelDoEstado(window.history.state), passos);
   setTimeout(() => { if (aguardando) { aguardando = false; agendar(); executarAoChegar(); } }, 400);
-  window.history.go(passos);
+  window.history.go(-passos);
 }
 
 function executarAoChegar() {
@@ -72,11 +85,11 @@ function acertar() {
   if (nivelAoRemover > 0 && idAtual !== undefined && idDoEstado() !== idAtual) sobrando.set(idAtual, Math.max(sobrando.get(idAtual) ?? 0, nivelAoRemover));
   nivelAoRemover = 0;
   if (aguardando) return;
-  const acerto = planejarAcerto(abertas.length, nivelDoEstado(window.history.state));
+  const acerto = planejarAcerto(abertas.length, nivelDoEstado(window.history.state), voltaPendente);
   if (acerto.tipo === 'empilhar') {
     for (const folhaNivel of acerto.niveis) window.history.pushState({ ...(window.history.state as object | null), folhaNivel }, '');
   } else if (acerto.tipo === 'voltar') {
-    irPara(-acerto.passos);
+    voltar(acerto.passos);
   }
   idAtual = idDoEstado();
 }
@@ -92,18 +105,22 @@ function aoVoltarOuAvancar() {
   const id = idDoEstado();
   const veioDeOutraTela = id !== idAtual;
   idAtual = id;
+  // Chegou a volta que a gente pediu (mesmo que o `aguardando` já tenha se soltado por tempo): não é a pessoa voltando.
+  const nossa = aguardando || voltaPendente !== null;
+  voltaPendente = voltaDepoisDoPopstate(voltaPendente, proximoNivel, !veioDeOutraTela);
   // Voltou de outra tela para a entrada que uma Folha deixou ao navegar sem fechar: ela não tem Folha, então pula.
-  const sobra = aguardando || id === undefined ? 0 : passosParaSairDeEntradasSobrando(sobrando.get(id) ?? 0, abertas.length, veioDeOutraTela);
-  if (sobra > 0) { sobrando.delete(id!); irPara(-sobra); return; }
+  const sobra = nossa || id === undefined ? 0 : passosParaSairDeEntradasSobrando(sobrando.get(id) ?? 0, abertas.length, veioDeOutraTela);
+  if (sobra > 0) { sobrando.delete(id!); voltar(sobra); return; }
   // Avançou (botão avançar) para uma entrada de Folha que já não está aberta: tira a marca em vez de voltar, senão o avançar
   // ficaria preso nela e nunca chegaria à tela seguinte.
-  if (!aguardando && proximoNivel > abertas.length && regravarSemEnvolver) {
+  if (!nossa && proximoNivel > abertas.length && regravarSemEnvolver) {
     const resto = { ...(window.history.state as Record<string, unknown>) };
     delete resto.folhaNivel;
     regravarSemEnvolver(resto, '');
   }
   // O voltar caiu num nível menor que o de Folhas abertas: fecha as do topo (a lista só encolhe quando elas desmontam).
-  const n = folhasParaFechar(abertas.length, proximoNivel);
+  // Na volta que a gente pediu, não: Folha aberta enquanto ela vinha é nova e ganha a entrada no acerto a seguir.
+  const n = nossa ? 0 : folhasParaFechar(abertas.length, proximoNivel);
   if (n > 0) abertas.slice(-n).reverse().forEach((a) => a.fechar());
   aguardando = false;
   agendar();
@@ -203,7 +220,7 @@ export function devolverGuardaDoHistorico(depois: () => void) {
   abertas.splice(i, 1);
   nivelAoRemover = 0;
   aoChegar = depois;
-  irPara(-1);
+  voltar(1);
 }
 
 /**
@@ -219,5 +236,5 @@ function sairDoEditorPeloNavegador(id: string) {
   const i = abertas.findIndex((a) => a.id === id);
   if (i >= 0) abertas.splice(i, 1);
   nivelAoRemover = 0;
-  irPara(-passosParaSairDoEditor(nivelDoEstado(window.history.state)));
+  voltar(passosParaSairDoEditor(nivelDoEstado(window.history.state)));
 }

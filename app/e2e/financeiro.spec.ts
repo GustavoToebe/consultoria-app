@@ -583,6 +583,8 @@ test('cobrança paga: marcar contestação, manter como paga e marcar estorno, s
   await painel.getByRole('button', { name: 'Manter como paga' }).click();
   await expect(page.getByText('Cobrança mantida como paga.')).toBeVisible();
   expect(pedidos.find((p) => p.caminho === caminho('manter-paga'))?.corpo).toEqual({ motivo: 'Banco decidiu a favor', versao: 4 });
+  // A folha abre com a linha da lista: espera a lista recarregada, senão abre a cobrança ainda contestada.
+  await expect(page.getByText('Paga', { exact: true }).first()).toBeVisible();
 
   // Estorno: perigo, sem volta; depois dele nenhuma ação sobra.
   await abrir();
@@ -593,6 +595,7 @@ test('cobrança paga: marcar contestação, manter como paga e marcar estorno, s
   await painel.getByRole('button', { name: 'Marcar estorno' }).click();
   await expect(page.getByText('Cobrança marcada como estornada.')).toBeVisible();
   expect(pedidos.find((p) => p.caminho === caminho('estornar'))?.corpo).toEqual({ motivo: 'Devolvido na InfinitePay', versao: 5 });
+  await expect(page.getByText('Estornada', { exact: true }).first()).toBeVisible();
   await abrir();
   folha = page.getByRole('dialog');
   await expect(folha.getByText('Estornada', { exact: true })).toBeVisible();
