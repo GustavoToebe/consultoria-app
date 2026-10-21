@@ -18,6 +18,18 @@ export function categoriasDosErgogenicos(lista: readonly Pick<ErgogenicoDaBiblio
   return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
+/**
+ * Sugestões do campo Categoria: as que já existem e contêm o que foi digitado (sem acento e sem caixa); campo vazio =
+ * todas. Some a que já é exatamente o texto digitado (não há o que sugerir).
+ */
+export function sugerirCategorias(categorias: readonly string[], digitado: string): string[] {
+  const termo = semAcentoMinusculo(digitado);
+  return categorias.filter((c) => {
+    const nome = semAcentoMinusculo(c);
+    return nome !== termo && nome.includes(termo);
+  });
+}
+
 export interface GrupoDeErgogenicos {
   categoria: string | null;
   rotulo: string;

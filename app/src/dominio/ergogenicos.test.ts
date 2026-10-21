@@ -8,6 +8,7 @@ import {
   nomeEPrincipio,
   resumoDoGrupo,
   SEM_CATEGORIA,
+  sugerirCategorias,
   textoOuTraco,
 } from './ergogenicos';
 
@@ -21,6 +22,17 @@ describe('categorias', () => {
       'Injetáveis',
       'Orais',
     ]);
+  });
+
+  it('sugere as existentes que contêm o que foi digitado, sem acento nem caixa; vazio sugere todas', () => {
+    const todas = ['Injetáveis', 'Medicamentos', 'Orais'];
+    expect(sugerirCategorias(todas, '')).toEqual(todas);
+    expect(sugerirCategorias(todas, '  ')).toEqual(todas);
+    expect(sugerirCategorias(todas, 'med')).toEqual(['Medicamentos']);
+    expect(sugerirCategorias(todas, 'INJETAVEIS')).toEqual([]);
+    expect(sugerirCategorias(todas, 'ais')).toEqual(['Orais']);
+    expect(sugerirCategorias(todas, 'xyz')).toEqual([]);
+    expect(sugerirCategorias([], 'a')).toEqual([]);
   });
 
   it('agrupa por categoria em ordem alfabética, "Sem categoria" por último, mantendo a ordem de dentro', () => {

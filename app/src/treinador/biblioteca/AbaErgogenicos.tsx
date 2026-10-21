@@ -10,6 +10,7 @@ import {
   filtrarErgogenicos,
   nomeEPrincipio,
   resumoDoGrupo,
+  sugerirCategorias,
   textoOuTraco,
 } from '../../dominio/ergogenicos';
 import { useTema } from '../../tema/TemaProvider';
@@ -174,6 +175,7 @@ function FolhaErgogenico({
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
   const completo = nome.trim() !== '';
+  const sugestoes = sugerirCategorias(categorias, categoria);
 
   const salvar = () => {
     if (!completo) return;
@@ -204,6 +206,21 @@ function FolhaErgogenico({
           <Botao rotulo="Salvar" aoTocar={salvar} carregando={salvando} desabilitado={!completo} />
         </>
       }>
+      <Campo
+        rotulo="Categoria (opcional)"
+        valor={categoria}
+        aoMudar={setCategoria}
+        erro={campos.categoria}
+        maxLength={60}
+        ajuda="Escreva o nome da categoria ou toque numa sugestão. Vazio fica em “Sem categoria”."
+      />
+      {sugestoes.length ? (
+        <LinhaDeAcoes>
+          {sugestoes.map((c) => (
+            <Botao key={c} rotulo={c} tipo="secundario" aoTocar={() => setCategoria(c)} />
+          ))}
+        </LinhaDeAcoes>
+      ) : null}
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={120} />
       <Campo rotulo="Princípio ativo (opcional)" valor={principio} aoMudar={setPrincipio} erro={campos.principioAtivo} maxLength={160} />
       <Campo rotulo="Concentração (opcional)" valor={concentracao} aoMudar={setConcentracao} erro={campos.concentracao} maxLength={40}
@@ -211,21 +228,6 @@ function FolhaErgogenico({
       <Campo rotulo="Apresentação (opcional)" valor={apresentacao} aoMudar={setApresentacao} erro={campos.apresentacao} maxLength={40}
         ajuda="Por exemplo “10 ml” ou “50 caps”." />
       <Campo rotulo="Observação (opcional)" valor={observacao} aoMudar={setObservacao} erro={campos.observacao} maxLength={500} linhas={3} />
-      <Campo
-        rotulo="Categoria (opcional)"
-        valor={categoria}
-        aoMudar={setCategoria}
-        erro={campos.categoria}
-        maxLength={60}
-        ajuda="Escreva o nome da categoria ou toque numa que você já usa. Vazio fica em “Sem categoria”."
-      />
-      {categorias.length ? (
-        <LinhaDeAcoes>
-          {categorias.map((c) => (
-            <Botao key={c} rotulo={c} tipo="secundario" aoTocar={() => setCategoria(c)} />
-          ))}
-        </LinhaDeAcoes>
-      ) : null}
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
     </Folha>
