@@ -26,3 +26,12 @@ Baixados em 08/10/2026 pelo Gustavo.
   (873 exercícios).
 - Origem: <https://github.com/joao-gugel/exercicios-bd-ptbr>, tradução do `yuhonas/free-exercise-db`.
 - Licença: CC0 1.0 (domínio público); a base original é Unlicense (domínio público).
+
+## free-exercise-db — fotos dos exercícios
+
+- Origem: <https://github.com/yuhonas/free-exercise-db>, pasta `exercises/<id>/0.jpg` e `1.jpg`, fixada no commit
+  `f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5`. Nada é guardado aqui: o manifesto (`scripts/catalogo/imagens-exercicios.json`,
+  com o sha256 de cada foto já reduzida) é o registro, e a web baixa e confere na construção.
+- Licença: o repositório é Unlicense (domínio público), mas o README **não declara a licença das imagens separadamente**.
+  Decisão do Gustavo em 21/10: usar as imagens dessa base. Se algum dia o autor ou um titular pedir a retirada, tirar o
+  `gerar` do fluxo, regenerar o manifesto sem elas e subir uma migration que zere `catalogo_exercicio.imagens`.

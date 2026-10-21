@@ -55,6 +55,10 @@ public class Exercicio {
     @Column(nullable = false, updatable = false)
     private Origem origem;
 
+    /** Exercício do catálogo de onde veio (nulo = não veio do catálogo). Só a importação preenche; o corpo nunca traz. */
+    @Column(name = "catalogo_id", updatable = false)
+    private UUID catalogoId;
+
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 
@@ -73,6 +77,12 @@ public class Exercicio {
         this.videoUrl = videoUrl;
         this.observacoes = observacoes;
         this.origem = origem;
+    }
+
+    public Exercicio(String nome, String grupoMuscular, String equipamento, Modalidade modalidade, String videoUrl,
+                     String observacoes, Origem origem, UUID catalogoId) {
+        this(nome, grupoMuscular, equipamento, modalidade, videoUrl, observacoes, origem);
+        this.catalogoId = catalogoId;
     }
 
     public void alterar(String nome, String grupoMuscular, String equipamento, Modalidade modalidade, String videoUrl,
@@ -127,6 +137,10 @@ public class Exercicio {
 
     public Origem getOrigem() {
         return origem;
+    }
+
+    public UUID getCatalogoId() {
+        return catalogoId;
     }
 
     public Instant getCriadoEm() {

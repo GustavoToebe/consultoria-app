@@ -23,11 +23,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -49,22 +52,56 @@ public class BibliotecaService {
     private final CatalogoExercicioRepository catalogoExercicios;
     private final CatalogoAlimentoRepository catalogoAlimentos;
     private final VideoUrls videoUrls;
+    private final ExercicioImagemRepository imagensProprias;
 
     public BibliotecaService(ExercicioRepository exercicios, AlimentoRepository alimentos,
                              CatalogoExercicioRepository catalogoExercicios,
-                             CatalogoAlimentoRepository catalogoAlimentos, VideoUrls videoUrls) {
+                             CatalogoAlimentoRepository catalogoAlimentos, VideoUrls videoUrls,
+                             ExercicioImagemRepository imagensProprias) {
         this.exercicios = exercicios;
         this.alimentos = alimentos;
         this.catalogoExercicios = catalogoExercicios;
         this.catalogoAlimentos = catalogoAlimentos;
         this.videoUrls = videoUrls;
+        this.imagensProprias = imagensProprias;
     }
 
     // ---- Exercícios ----
 
     @Transactional(readOnly = true)
     public List<ExercicioResponse> listarExercicios(String busca) {
-        return exercicios.buscarAtivos(Buscas.padrao(busca)).stream().map(ExercicioResponse::de).toList();
+        return responder(exercicios.buscarAtivos(Buscas.padrao(busca)));
+    }
+
+    /**
+     * Resposta dos exercícios com as fotos do catálogo de origem e a marca da imagem própria, em duas consultas para a
+     * lista toda (sem uma por exercício).
+     */
+    List<ExercicioResponse> responder(List<Exercicio> lista) {
+        if (lista.isEmpty()) {
+            return List.of();
+        }
+        Set<UUID> deCatalogo = new HashSet<>();
+        Set<UUID> todos = new HashSet<>();
+        for (Exercicio e : lista) {
+            todos.add(e.getId());
+            if (e.getCatalogoId() != null) {
+                deCatalogo.add(e.getCatalogoId());
+            }
+        }
+        Map<UUID, List<String>> fotos = new HashMap<>();
+        if (!deCatalogo.isEmpty()) {
+            catalogoExercicios.findAllById(deCatalogo).forEach(c -> fotos.put(c.getId(), c.getImagens()));
+        }
+        Map<UUID, Instant> proprias = new HashMap<>();
+        imagensProprias.marcas(todos).forEach(m -> proprias.put(m.exercicioId(), m.atualizadaEm()));
+        return lista.stream().map(e -> ExercicioResponse.de(e,
+                e.getCatalogoId() == null ? List.of() : fotos.getOrDefault(e.getCatalogoId(), List.of()),
+                proprias.get(e.getId()))).toList();
+    }
+
+    ExercicioResponse responder(Exercicio e) {
+        return responder(List.of(e)).getFirst();
     }
 
     @Transactional
@@ -74,7 +111,7 @@ public class BibliotecaService {
         Exercicio e = new Exercicio(nome, Buscas.opcional(r.grupoMuscular()), Buscas.opcional(r.equipamento()),
                 r.modalidade(), videoUrls.normalizar(r.videoUrl()), Buscas.opcional(r.observacoes()),
                 Exercicio.Origem.MANUAL);
-        return ExercicioResponse.de(exercicios.saveAndFlush(e));
+        return responder(exercicios.saveAndFlush(e));
     }
 
     @Transactional
@@ -84,7 +121,7 @@ public class BibliotecaService {
         exigirNomeLivreExercicio(nome, id);
         e.alterar(nome, Buscas.opcional(r.grupoMuscular()), Buscas.opcional(r.equipamento()), r.modalidade(),
                 videoUrls.normalizar(r.videoUrl()), Buscas.opcional(r.observacoes()));
-        return ExercicioResponse.de(exercicios.saveAndFlush(e));
+        return responder(exercicios.saveAndFlush(e));
     }
 
     @Transactional
@@ -122,7 +159,7 @@ public class BibliotecaService {
                 continue;
             }
             exercicios.save(new Exercicio(c.getNome(), c.getGrupoMuscular(), c.getEquipamento(),
-                    Exercicio.Modalidade.valueOf(c.getModalidade()), null, null, Exercicio.Origem.CATALOGO));
+                    Exercicio.Modalidade.valueOf(c.getModalidade()), null, null, Exercicio.Origem.CATALOGO, c.getId()));
             importados++;
         }
         // Ignorados = já existiam na biblioteca ou id fora do catálogo.

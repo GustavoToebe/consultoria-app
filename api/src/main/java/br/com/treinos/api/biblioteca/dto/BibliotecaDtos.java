@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,11 +31,18 @@ public final class BibliotecaDtos {
             @Size(max = 4000) String observacoes) {
     }
 
+    /**
+     * {@code imagens}: caminhos relativos das fotos do exercício do catálogo de onde este veio (vazio = nenhuma); o app
+     * as pede ao proxy da web, a API nunca as serve. {@code imagemPropriaEm}: quando o treinador enviou imagem ou GIF
+     * próprio (nulo = não há; serve também para o app renovar a imagem trocada).
+     */
     public record ExercicioResponse(UUID id, String nome, String grupoMuscular, String equipamento,
-                                    String modalidade, String videoUrl, String observacoes, String origem) {
-        public static ExercicioResponse de(Exercicio e) {
+                                    String modalidade, String videoUrl, String observacoes, String origem,
+                                    List<String> imagens, Instant imagemPropriaEm) {
+        public static ExercicioResponse de(Exercicio e, List<String> imagens, Instant imagemPropriaEm) {
             return new ExercicioResponse(e.getId(), e.getNome(), e.getGrupoMuscular(), e.getEquipamento(),
-                    e.getModalidade().name(), e.getVideoUrl(), e.getObservacoes(), e.getOrigem().name());
+                    e.getModalidade().name(), e.getVideoUrl(), e.getObservacoes(), e.getOrigem().name(),
+                    imagens, imagemPropriaEm);
         }
     }
 
@@ -78,10 +86,11 @@ public final class BibliotecaDtos {
     }
 
     public record CatalogoExercicioResponse(UUID id, String nome, String grupoMuscular, String equipamento,
-                                            String modalidade, String instrucoes, String fonte) {
+                                            String modalidade, String instrucoes, String fonte,
+                                            List<String> imagens) {
         public static CatalogoExercicioResponse de(CatalogoExercicio c) {
             return new CatalogoExercicioResponse(c.getId(), c.getNome(), c.getGrupoMuscular(), c.getEquipamento(),
-                    c.getModalidade(), c.getInstrucoes(), c.getFonte());
+                    c.getModalidade(), c.getInstrucoes(), c.getFonte(), c.getImagens());
         }
     }
 

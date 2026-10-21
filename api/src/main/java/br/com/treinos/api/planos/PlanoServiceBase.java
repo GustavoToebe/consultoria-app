@@ -276,6 +276,19 @@ public abstract class PlanoServiceBase<P extends PlanoBase, V extends VersaoBase
                 .toList();
     }
 
+    /**
+     * Conteúdo da versão publicada de cada plano publicado e não arquivado que o aluno consegue abrir: o ativo e os de
+     * qualquer pasta (o app deixa consultar a pasta antiga).
+     */
+    @Transactional(readOnly = true)
+    public List<C> conteudosPublicados(UUID alunoId) {
+        return planos.findByAlunoIdOrderByCriadoEmDesc(alunoId).stream()
+                .filter(p -> !p.isArquivado() && p.getVersaoPublicada() > 0 && (p.isAtivo() || p.getPastaId() != null))
+                .flatMap(p -> versoes.findByPlanoIdAndNumero(p.getId(), p.getVersaoPublicada()).stream())
+                .map(v -> ler(v.getConteudo()))
+                .toList();
+    }
+
     /** Versão publicada mais recente entre os planos do aluno na pasta; sem plano publicado, vazio. */
     @Transactional(readOnly = true)
     public Optional<VersaoAtiva<P, V, C>> versaoPublicadaDaPasta(UUID alunoId, UUID pastaId) {

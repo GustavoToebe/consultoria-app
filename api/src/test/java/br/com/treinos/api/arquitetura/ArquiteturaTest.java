@@ -159,7 +159,9 @@ class ArquiteturaTest {
                                 // "Excluir minha conta" (hasRole ALUNO, sempre a conta da sessão, com a senha dela).
                                 "ExclusaoDeContaController",
                                 // Plano comercial e cobranças do próprio aluno (hasRole ALUNO, sempre o da sessão, só leitura).
-                                "AlunoFinanceiroController").contains(c.getSimpleName())))
+                                "AlunoFinanceiroController",
+                                // Demonstração dos exercícios do plano do próprio aluno (hasRole ALUNO, sempre o da sessão); a da equipe declara PERM_BIBLIOTECA_LER.
+                                "AlunoExercicioController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

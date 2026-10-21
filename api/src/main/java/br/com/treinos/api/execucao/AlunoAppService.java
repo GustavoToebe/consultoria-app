@@ -168,7 +168,7 @@ public class AlunoAppService {
         return eu.alunoId();
     }
 
-    private static Set<UUID> exerciciosDaBiblioteca(ConteudoTreino conteudo) {
+    public static Set<UUID> exerciciosDaBiblioteca(ConteudoTreino conteudo) {
         return conteudo.sessoesOuVazio().stream()
                 .flatMap(s -> s.exerciciosOuVazio().stream())
                 .map(ConteudoTreino.ExercicioPlano::exercicioId)

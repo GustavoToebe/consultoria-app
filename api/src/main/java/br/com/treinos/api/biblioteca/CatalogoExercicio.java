@@ -4,7 +4,10 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Catálogo público, igual para todos e só leitura: sem {@code @TenantId}. O treinador importa o que quiser. */
@@ -32,6 +35,11 @@ public class CatalogoExercicio {
 
     @Column(name = "nome_busca", nullable = false)
     private String nomeBusca;
+
+    /** Caminhos relativos das fotos (V020), ex.: {@code Air_Bike/0.jpg}; quem as serve é o proxy da web, nunca a API. */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "imagens", nullable = false)
+    private List<String> imagens;
 
     protected CatalogoExercicio() {
     }
@@ -66,5 +74,9 @@ public class CatalogoExercicio {
 
     public String getNomeBusca() {
         return nomeBusca;
+    }
+
+    public List<String> getImagens() {
+        return imagens == null ? List.of() : List.copyOf(imagens);
     }
 }

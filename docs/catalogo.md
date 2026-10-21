@@ -11,6 +11,8 @@ O treinador importa itens do catálogo para a própria biblioteca (aba **Catálo
 | Alimentos | TACO 4ª edição (NEPA/UNICAMP), valores por 100 g | Reprodução permitida **citando a fonte**; a licença não fala de uso comercial. Pergunta enviada a `taco@unicamp.br`. |
 | Exercícios | Os exercícios próprios do app mais o `exercicios-bd-ptbr` (`joao-gugel/exercicios-bd-ptbr`, tradução do `yuhonas/free-exercise-db`) | CC0 e Unlicense (domínio público) |
 
+| Fotos dos exercícios | `yuhonas/free-exercise-db`, pasta `exercises/<id>/0.jpg` e `1.jpg`, fixado no commit `f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5` | Unlicense (domínio público) para a base; **o README de lá não diz nada das imagens à parte**. Decisão do Gustavo (21/10): usar mesmo assim. |
+
 Não usar: TBCA/USP (CC BY-NC-ND), ExerciseDB (proíbe guardar dados), FatSecret e APIs de texto livre (mandariam dado
 de aluno para fora). Não consultar nenhuma API ao vivo.
 
@@ -27,6 +29,26 @@ de aluno para fora). Não consultar nenhuma API ao vivo.
 7. Fator de correção e de cocção (lista de compras) **não** vêm do catálogo nem da importação por CSV: são dado de cada
    consultoria, digitados pelo treinador no alimento. Nenhuma tabela de fatores de terceiros (livros, planilhas) entra
    no repositório, em seed ou em migration.
+
+## Fotos dos exercícios
+
+Cada exercício do catálogo pode ter duas fotos (início e fim do movimento). As imagens **não ficam no git**:
+
+- `scripts/catalogo/imagens_exercicios.py gerar` baixa só as fotos dos exercícios aceitos, no commit fixo, reduz a 600 px
+  no maior lado, regrava em JPEG qualidade 75 sem metadados e escreve o manifesto `scripts/catalogo/imagens-exercicios.json`
+  (caminho, sha256, tamanho; no git) e a migration `V020` (coluna `catalogo_exercicio.imagens`, só os caminhos). O mesmo
+  Pillow (versão fixa) dá o mesmo sha256 em qualquer máquina.
+- O `app/Dockerfile` da web roda `baixar` na construção: baixa, reduz, confere o sha256 contra o manifesto e copia para
+  `/srv/catalogo/exercicios`. Sem rede ou com hash diferente, **a construção falha** (nada de pasta pela metade). O
+  `docker-compose.yml` e o `deploy.yml` passam `scripts/catalogo` como contexto extra (`catalogo`).
+- O Caddy serve `/catalogo/exercicios/*` com `Cache-Control: public, max-age=2592000`, sem o fallback da SPA (arquivo
+  inexistente = 404, não o `index.html`). O Caddy de produção (`central-api-back/deploy`) precisa da mesma regra.
+- A API só devolve os **caminhos** (`imagens` no exercício do catálogo e no da biblioteca, via `exercicio.catalogo_id`);
+  ela nunca chama o GitHub em execução, e o app nunca baixa de lá.
+- Trocar a fonte ou o commit: mudar `COMMIT` no script, rodar `gerar`, versionar manifesto e migration nova (a `V020`
+  não se edita depois de publicada).
+- O app pode guardar essas fotos no cache de disco do `expo-image`: são públicas e iguais para todos. A imagem própria do
+  treinador não (ver `AGENTS.md`).
 
 ## Como gerar
 
