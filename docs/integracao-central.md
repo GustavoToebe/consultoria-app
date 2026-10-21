@@ -12,7 +12,7 @@ dados de demonstração.
 | `HmacAssinatura` | Assinatura HMAC-SHA256 do contrato 2.3 (`MÉTODO\nCAMINHO(+query)\nTIMESTAMP\nNONCE\nSHA256(corpo)`). Testada com os dois vetores da 2.5. Biblioteca própria e pequena: o `servirea-comum` exige token do GitHub Packages no build do Docker. |
 | `ChavesDeIntegracao` | Lê as chaves uma vez, na subida; configuração errada derruba a API com mensagem clara. Segredo Base64 de no mínimo 32 bytes, no máximo duas chaves de entrada (troca sem parada). Chave com **três campos** (`id:segredo:PRODUTO`) é recusada: no Saraiva o escopo é da Central. |
 | `IntegracaoSecurityConfig` / `IntegracaoFiltro` | Cadeia própria para `/integracao/**`: sem JWT, sem cookie, sem CSRF, sem sessão. Confere chave, janela de ±300 s, formato, corpo (máx. 1 MiB) e assinatura; só então grava o nonce (tabela `integracao_nonce`, única por chave+nonce). Erros: `401` com `CHAVE_DESCONHECIDA`, `TIMESTAMP_FORA_DA_JANELA`, `ASSINATURA_INVALIDA`, `NONCE_INVALIDO`, `NONCE_REPETIDO`; `503 INTEGRACAO_NAO_CONFIGURADA` se desligada. A autoridade `PERM_INTEGRACAO` só existe para quem passou pelo HMAC; nenhum usuário a tem. |
-| `IntegracaoController` | `GET /integracao/v1/saude`, `GET /recursos`, `POST /instancias` (provisionamento), `GET /instancias/{tenantId}`, `PUT /instancias/{tenantId}/direitos`, e a extensão `POST /instancias/{tenantId}/convite-administrador`. |
+| `IntegracaoController` | `GET /integracao/v1/saude`, `GET /recursos`, `POST /instancias` (provisionamento), `GET /instancias/{tenantId}`, `PUT /instancias/{tenantId}/direitos`, e `POST /instancias/{tenantId}/convite-administrador` (contrato v1, seção 5.6, obrigatória para todo aplicativo). |
 | `ProvisionamentoService` | Provisionamento idempotente (seção 3). |
 | `DireitosService` | Webhook e sincronização: só versão **maior** altera o snapshot; igual ou menor só atualiza `confirmado_em`. |
 | `SincronizacaoDireitosService` | `GET /integracao/v1/produtos/{produto}/direitos` na subida (em outra thread), a cada 8 h e a cada 30 min enquanto a última rodada falhou. Nunca lança. |
@@ -53,8 +53,8 @@ Gerar um segredo: `openssl rand -base64 48`.
   chamada que cria a consultoria envia: repetição idempotente e adoção (`VINCULADO`) não mandam nada. Falha do provedor não
   desfaz o provisionamento (só a classe do erro vai para o log) e a resposta para a Central não muda. O link (`{APP_URL}/convite-equipe#código`) vem **uma única vez**, na primeira resposta, em
   `administrador.convite` (campo aditivo; a Central ignora o que não conhece). Não é gravado em repouso e não volta numa
-  repetição idempotente. Para ver de novo: `POST /integracao/v1/instancias/{tenantId}/convite-administrador` (extensão do
-  Saraiva, fora do contrato v1): invalida o anterior e devolve um novo, enquanto o administrador não aceitou.
+  repetição idempotente. Para ver de novo: `POST /integracao/v1/instancias/{tenantId}/convite-administrador` (contrato v1,
+  seção 5.6, obrigatória para todo aplicativo): invalida o anterior e devolve um novo, enquanto o administrador não aceitou.
   `409 ADMINISTRADOR_JA_ATIVO` depois disso. Com o e-mail desligado, o link continua sendo entregue por quem opera a Central.
 - **Idempotência.** `Idempotency-Key` igual ao `contratacaoId`; mesma chave com o mesmo corpo devolve `200` +
   `Idempotency-Replayed: true`; com outro corpo, `409`. Duas chamadas simultâneas: a perdedora refaz e cai no replay.
