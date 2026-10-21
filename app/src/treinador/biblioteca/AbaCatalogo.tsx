@@ -21,7 +21,9 @@ import { MODALIDADES } from '../../dominio/modalidades';
 import { normalizar } from '../treino/FolhaBiblioteca';
 import { Selo } from '../../ui/Selo';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
-import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
+import { marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
+import { BarraDaBiblioteca } from './BarraDaBiblioteca';
 
 interface ItemCatalogo {
   id: string;
@@ -44,17 +46,20 @@ export function AbaCatalogo() {
   const { avisar } = useAviso();
   const [tipo, setTipo] = useState<TipoBiblioteca>('exercicios');
   const [busca, setBusca] = useState('');
-  const [grupo, setGrupo] = useState('');
+  const [gruposMarcados, setGruposMarcados] = useState<Set<string>>(new Set());
   const [aberto, setAberto] = useState<string | null>(null);
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
   const [importando, setImportando] = useState(false);
   const termo = useAtrasado(busca.trim(), 300);
   const grupos = useCarregar(`catalogo-grupos:${tipo}`, () => gruposDoCatalogo(tipo));
+  const opcoesDeGrupo = (grupos.dados ?? []).map((g) => ({ valor: g, rotulo: g }));
+  // Só vale o que a lista de grupos do tipo atual ainda tem (trocar Exercícios/Alimentos não deixa filtro escondido).
+  const gruposDoFiltro = [...marcadosExistentes(opcoesDeGrupo, gruposMarcados)].sort();
   const { dados, erro, carregando, recarregar } = useCarregar(
-    `catalogo:${tipo}:${grupo}:${termo}`,
+    `catalogo:${tipo}:${gruposDoFiltro.join('|')}:${termo}`,
     async (): Promise<ListaCatalogo> => {
       if (tipo === 'exercicios') {
-        const r = await catalogoExercicios(termo, grupo || undefined);
+        const r = await catalogoExercicios(termo, gruposDoFiltro);
         return {
           total: r.total,
           itens: r.itens.map((e) => ({
@@ -67,7 +72,7 @@ export function AbaCatalogo() {
           })),
         };
       }
-      const r = await catalogoAlimentos(termo, grupo || undefined);
+      const r = await catalogoAlimentos(termo, gruposDoFiltro);
       return {
         total: r.total,
         itens: r.itens.map((a) => ({
@@ -128,14 +133,13 @@ export function AbaCatalogo() {
         valor={tipo}
         aoMudar={(t) => {
           setTipo(t);
-          setGrupo('');
+          setGruposMarcados(new Set());
           setAberto(null);
           setMarcados(new Set());
         }}
       />
       <BarraDaBiblioteca rotulo="Buscar no catálogo" placeholder={tipo === 'exercicios' ? 'Nome do exercício' : 'Nome do alimento'} valor={busca} aoMudar={setBusca}>
-        {grupos.dados?.length ? <FiltroDaBiblioteca rotulo="Grupo" valor={grupo} aoMudar={setGrupo}
-          opcoes={[{ valor: '', rotulo: 'Todos' }, ...grupos.dados.map((g) => ({ valor: g, rotulo: g }))]} /> : null}
+        {opcoesDeGrupo.length ? <SelecaoMultiplaSuspensa rotulo="Grupo" opcoes={opcoesDeGrupo} marcados={gruposMarcados} aoMudar={setGruposMarcados} /> : null}
       </BarraDaBiblioteca>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
@@ -146,23 +150,27 @@ export function AbaCatalogo() {
         const jaTem = nomesNaBiblioteca.has(normalizar(item.nome.trim()));
         return (
           <View key={item.id} style={[estilos.item, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: cores.superficie2 }]}>
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: sel, disabled: jaTem }}
-              accessibilityLabel={jaTem ? `${item.nome}, já na biblioteca` : item.nome}
-              disabled={jaTem}
-              onPress={() => alternar(item.id)}
-              style={[estilos.linha, jaTem && { opacity: 0.6 }]}>
-              <View style={[estilos.caixa, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: sel ? cores.texto : 'transparent' }]}>
+            {/* A foto é irmã (não filha) do toque que marca o item: tocar nela só amplia. */}
+            <View style={[estilos.linha, jaTem && { opacity: 0.6 }]}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: sel, disabled: jaTem }}
+                accessibilityLabel={jaTem ? `${item.nome}, já na biblioteca` : item.nome}
+                disabled={jaTem}
+                hitSlop={10}
+                onPress={() => alternar(item.id)}
+                style={[estilos.caixa, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: sel ? cores.texto : 'transparent' }]}>
                 {sel ? <Check size={16} color={cores.fundo} strokeWidth={3} /> : null}
-              </View>
-              {item.imagens.length ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={56} altura={56} /> : null}
-              <View style={estilos.dados}>
-                <Texto variante="bloco">{item.nome}</Texto>
-                <Texto variante="suave">{item.detalhe}</Texto>
-              </View>
-              {jaTem ? <Selo texto="Já na biblioteca" tipo="neutro" /> : null}
-            </Pressable>
+              </Pressable>
+              {item.imagens.length ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={56} altura={56} preencher ampliavel /> : null}
+              <Pressable focusable={false} accessible={false} disabled={jaTem} onPress={() => alternar(item.id)} style={estilos.dadosToque}>
+                <View style={estilos.dados}>
+                  <Texto variante="bloco">{item.nome}</Texto>
+                  <Texto variante="suave">{item.detalhe}</Texto>
+                </View>
+                {jaTem ? <Selo texto="Já na biblioteca" tipo="neutro" /> : null}
+              </Pressable>
+            </View>
             {item.passos.length ? (
               <Pressable
                 accessibilityRole="button"
@@ -201,4 +209,5 @@ const estilos = StyleSheet.create({
   creditos: { marginTop: espaco(2) },
   caixa: { width: 22, height: 22, borderWidth: 2, borderRadius: 3, alignItems: 'center', justifyContent: 'center' },
   dados: { flex: 1, gap: 2 },
+  dadosToque: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE },
 });

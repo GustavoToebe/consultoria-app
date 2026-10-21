@@ -148,7 +148,7 @@ test('aluno: demonstração acima do Como fazer; imagem própria só pela API; s
 
   // Tocar amplia numa folha.
   await page.getByRole('button', { name: /Demonstração: Remada baixa\. Tocar para ampliar/ }).click();
-  await expect(page.getByRole('dialog').getByText('Demonstração', { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByText('Demonstração: Remada baixa', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
 
   // Exercício com imagem própria: baixada com o token, pela rota do aluno.

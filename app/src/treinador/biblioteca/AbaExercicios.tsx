@@ -13,7 +13,6 @@ import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
-import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
@@ -28,6 +27,8 @@ import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { normalizar } from '../treino/FolhaBiblioteca';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
+import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
+import { marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
 import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
@@ -41,12 +42,14 @@ export function AbaExercicios() {
   const [busca, setBusca] = useState('');
   const [editando, setEditando] = useState<Exercicio | 'novo' | null>(null);
   const [inativar, setInativar] = useState<Exercicio | null>(null);
-  const [grupo, setGrupo] = useState('todos');
+  const [gruposMarcados, setGruposMarcados] = useState<Set<string>>(new Set());
   const termo = normalizar(busca.trim());
   const grupos = gruposDosExercicios(dados ?? []);
-  const grupoAtivo = grupo === 'todos' || grupos.includes(grupo) ? grupo : 'todos';
+  const opcoesDeGrupo = grupos.map((g) => ({ valor: g, rotulo: g }));
+  // Grupo que já não existe na lista (o último exercício dele saiu) não filtra: sem isso a lista ficaria vazia sem explicação.
+  const gruposAtivos = marcadosExistentes(opcoesDeGrupo, gruposMarcados);
   const lista = (dados ?? []).filter(
-    (e) => (grupoAtivo === 'todos' || e.grupoMuscular?.trim() === grupoAtivo) && (!termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''}`).includes(termo)),
+    (e) => (gruposAtivos.size === 0 || gruposAtivos.has(e.grupoMuscular?.trim() ?? '')) && (!termo || normalizar(`${e.nome} ${e.grupoMuscular ?? ''}`).includes(termo)),
   );
 
   const confirmarInativar = () => {
@@ -72,17 +75,17 @@ export function AbaExercicios() {
           <Campo rotulo="Buscar exercício" valor={busca} aoMudar={setBusca} placeholder="Nome ou grupo" />
         </View>
         {/* Os grupos passam de uma dúzia: lista em folha com busca em vez de cinco linhas de chips. */}
-        {grupos.length > 0 ? <EscolhaEmFolha rotulo="Grupo muscular" valor={grupoAtivo} aoMudar={setGrupo} opcoes={[{ valor: 'todos', rotulo: 'Todos os grupos' }, ...grupos.map((g) => ({ valor: g, rotulo: g }))]} style={estilos.aoPeDoCampo} /> : null}
+        {grupos.length > 0 ? <SelecaoMultiplaSuspensa rotulo="Grupo muscular" rotuloDeTodos="Todos os grupos" opcoes={opcoesDeGrupo} marcados={gruposMarcados} aoMudar={setGruposMarcados} style={estilos.aoPeDoCampo} /> : null}
       </View>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && lista.length === 0 ? (
-        <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGrupo('todos'); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
+        <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGruposMarcados(new Set()); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
       <Grade gap={espaco(2)}>{lista.map((e) => (
         <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
           <View style={estilos.miniatura}>
-            <DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} />
+            <DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />
           </View>
           <View style={estilos.dados}>
             <Texto variante="bloco">{e.nome}</Texto>

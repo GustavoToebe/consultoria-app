@@ -69,7 +69,7 @@ export function CartaoExercicio(p: Props) {
       <View style={estilos.topo}>
         {p.demonstracao ? (
           <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
-            imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} />
+            imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />
         ) : null}
         <Pressable
           accessibilityRole="button"

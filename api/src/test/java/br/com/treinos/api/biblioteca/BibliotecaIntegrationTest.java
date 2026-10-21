@@ -113,6 +113,20 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(arroz.get("total").asInt()).isLessThanOrEqualTo(cereais.get("total").asInt());
         assertThat(api.get("/catalogo/alimentos?grupo=Inexistente", treinador, 200).get("total").asInt()).isZero();
 
+        // Vários grupos valem "ou": o total é a soma dos totais de cada um; vazio não filtra; vírgula no nome não separa.
+        int carnes = api.get("/catalogo/alimentos?grupo=Carnes e derivados&limite=1", treinador, 200).get("total").asInt();
+        assertThat(api.get("/catalogo/alimentos?grupo=Cereais e derivados&grupo=Carnes e derivados&grupo=Carnes e derivados&limite=1",
+                treinador, 200).get("total").asInt()).isEqualTo(cereais.get("total").asInt() + carnes);
+        assertThat(api.get("/catalogo/alimentos?grupo=&limite=1", treinador, 200).get("total").asInt())
+                .isEqualTo(api.get("/catalogo/alimentos?limite=1", treinador, 200).get("total").asInt());
+        JsonNode verduras = api.get("/catalogo/alimentos?grupo=Verduras, hortaliças e derivados&limite=200", treinador, 200);
+        assertThat(verduras.get("total").asInt()).isGreaterThan(0);
+        assertThat(verduras.get("itens").valueStream().map(a -> a.get("grupo").asString()))
+                .containsOnly("Verduras, hortaliças e derivados");
+        String muitos = "?" + java.util.stream.IntStream.rangeClosed(1, 51).mapToObj(i -> "grupo=g" + i)
+                .collect(java.util.stream.Collectors.joining("&"));
+        api.get("/catalogo/alimentos" + muitos, treinador, 400);
+
         JsonNode comTraco = api.get("/catalogo/alimentos?busca=cerveja&limite=200", treinador, 200).get("itens");
         assertThat(comTraco.valueStream().anyMatch(a -> a.get("tracos").size() > 0)).isTrue();
         assertThat(comTraco.get(0).get("codigoFonte").asString()).isNotBlank();
@@ -120,6 +134,9 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/catalogo/exercicios/grupos", treinador, 200).valueStream().map(JsonNode::asString))
                 .contains("Peito", "Costas", "Quadríceps");
         JsonNode peito = api.get("/catalogo/exercicios?grupo=Peito&modalidade=MAQUINA&limite=200", treinador, 200);
+        int costas = api.get("/catalogo/exercicios?grupo=Costas&limite=1", treinador, 200).get("total").asInt();
+        assertThat(api.get("/catalogo/exercicios?grupo=Peito&grupo=Costas&limite=1", treinador, 200).get("total").asInt())
+                .isEqualTo(api.get("/catalogo/exercicios?grupo=Peito&limite=1", treinador, 200).get("total").asInt() + costas);
         assertThat(peito.get("total").asInt()).isGreaterThan(0);
         assertThat(peito.get("itens").valueStream().map(e -> e.get("modalidade").asString()))
                 .containsOnly("MAQUINA");

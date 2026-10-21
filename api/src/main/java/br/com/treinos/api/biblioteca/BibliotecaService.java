@@ -31,6 +31,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -42,6 +43,10 @@ public class BibliotecaService {
     private static final UUID NENHUM = new UUID(0L, 0L);
     private static final int LIMITE_PADRAO = 50;
     private static final int LIMITE_MAXIMO = 200;
+    /** Quantos grupos o filtro do catálogo aceita de uma vez (o catálogo tem bem menos). */
+    private static final int LIMITE_GRUPOS = 50;
+    /** Valor de enchimento quando não há filtro de grupo: o {@code in} da consulta não aceita lista vazia. */
+    private static final List<String> SEM_GRUPO = List.of("");
     private static final BigDecimal FC_MINIMO = new BigDecimal("1.00");
     private static final BigDecimal FC_MAXIMO = new BigDecimal("20.00");
     private static final BigDecimal FCC_MINIMO = new BigDecimal("0.10");
@@ -130,16 +135,29 @@ public class BibliotecaService {
     }
 
     @Transactional(readOnly = true)
-    public CatalogoPagina<CatalogoExercicioResponse> catalogoExercicios(String busca, String grupo,
+    public CatalogoPagina<CatalogoExercicioResponse> catalogoExercicios(String busca, List<String> grupos,
                                                                          String modalidade, Integer limite) {
+        List<String> filtro = gruposDoFiltro(grupos);
         Page<CatalogoExercicio> pagina = catalogoExercicios.buscar(Buscas.padraoSemAcento(busca),
-                Buscas.opcional(grupo), Buscas.opcional(modalidade), primeiraPagina(limite));
+                filtro.isEmpty(), filtro.isEmpty() ? SEM_GRUPO : filtro, Buscas.opcional(modalidade), primeiraPagina(limite));
         return new CatalogoPagina<>(pagina.map(CatalogoExercicioResponse::de).getContent(), pagina.getTotalElements());
     }
 
     @Transactional(readOnly = true)
     public List<String> gruposDoCatalogoDeExercicios() {
         return catalogoExercicios.grupos();
+    }
+
+    /** Grupos do filtro: sem espaços nas pontas, sem vazios nem repetidos; vazio = não filtra. */
+    private static List<String> gruposDoFiltro(List<String> grupos) {
+        if (grupos == null) {
+            return List.of();
+        }
+        List<String> limpos = grupos.stream().map(Buscas::opcional).filter(Objects::nonNull).distinct().toList();
+        if (limpos.size() > LIMITE_GRUPOS) {
+            throw new BadRequestException("Escolha no máximo " + LIMITE_GRUPOS + " grupos por vez.");
+        }
+        return limpos;
     }
 
     /** Limite padrão 50 e máximo 200 (o catálogo tem mais de mil itens). */
@@ -211,9 +229,10 @@ public class BibliotecaService {
     }
 
     @Transactional(readOnly = true)
-    public CatalogoPagina<CatalogoAlimentoResponse> catalogoAlimentos(String busca, String grupo, Integer limite) {
+    public CatalogoPagina<CatalogoAlimentoResponse> catalogoAlimentos(String busca, List<String> grupos, Integer limite) {
+        List<String> filtro = gruposDoFiltro(grupos);
         Page<CatalogoAlimento> pagina = catalogoAlimentos.buscar(Buscas.padraoSemAcento(busca),
-                Buscas.opcional(grupo), primeiraPagina(limite));
+                filtro.isEmpty(), filtro.isEmpty() ? SEM_GRUPO : filtro, primeiraPagina(limite));
         return new CatalogoPagina<>(pagina.map(CatalogoAlimentoResponse::de).getContent(), pagina.getTotalElements());
     }
 

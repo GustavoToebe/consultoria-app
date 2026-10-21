@@ -492,17 +492,19 @@ export const alterarAlimento = (id: string, dados: AlimentoRequest) =>
   requisicao<Alimento>(`/alimentos/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 export const inativarAlimento = (id: string) => requisicao<void>(`/alimentos/${seg(id)}`, { metodo: 'DELETE' });
 
-const consulta = (filtros: Record<string, string | undefined>) => {
-  const partes = Object.entries(filtros)
-    .filter(([, v]) => v)
-    .map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`);
-  return partes.length ? `?${partes.join('&')}` : '';
+/** `grupo` repetido, um por grupo (vale "ou"); a vírgula do nome ("Verduras, hortaliças e derivados") vai codificada. */
+const consultaDoCatalogo = (texto: string | undefined, grupos: readonly string[]) => {
+  const q = new URLSearchParams();
+  if (texto) q.append('busca', texto);
+  for (const g of grupos) q.append('grupo', g);
+  const montada = q.toString();
+  return montada ? `?${montada}` : '';
 };
 
-export const catalogoExercicios = (texto?: string, grupo?: string) =>
-  requisicao<PaginaCatalogo<CatalogoExercicio>>(`/catalogo/exercicios${consulta({ busca: texto, grupo })}`);
-export const catalogoAlimentos = (texto?: string, grupo?: string) =>
-  requisicao<PaginaCatalogo<CatalogoAlimento>>(`/catalogo/alimentos${consulta({ busca: texto, grupo })}`);
+export const catalogoExercicios = (texto?: string, grupos: readonly string[] = []) =>
+  requisicao<PaginaCatalogo<CatalogoExercicio>>(`/catalogo/exercicios${consultaDoCatalogo(texto, grupos)}`);
+export const catalogoAlimentos = (texto?: string, grupos: readonly string[] = []) =>
+  requisicao<PaginaCatalogo<CatalogoAlimento>>(`/catalogo/alimentos${consultaDoCatalogo(texto, grupos)}`);
 export const gruposDoCatalogo = (tipo: TipoBiblioteca) => requisicao<string[]>(`/catalogo/${seg(tipo)}/grupos`);
 
 export type TipoBiblioteca = 'exercicios' | 'alimentos';
