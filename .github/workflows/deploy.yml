@@ -238,6 +238,9 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./app
+          # Pasta do script que baixa as fotos dos exercícios do catálogo na construção (app/Dockerfile).
+          build-contexts: |
+            catalogo=./scripts/catalogo
           load: true
           # Já com a tag final: o que vai ao GHCR é esta imagem, a mesma que o Trivy varre (nada é construído de novo).
           tags: ghcr.io/gustavotoebe/consultoria-web:${{ steps.meta.outputs.sha }}

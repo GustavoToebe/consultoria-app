@@ -37,6 +37,15 @@
 		}
 	}
 
+	# Fotos dos exercícios do catálogo (baixadas na construção da web; app/Dockerfile). Públicas, sem token. Fora do
+	# fallback do app: arquivo que não existe é 404, não o index.html. Cache longo, mas sem `immutable`: o caminho não leva
+	# hash, e uma foto trocada (commit novo do free-exercise-db) precisa chegar em algum dia.
+	handle /catalogo/exercicios/* {
+		root * /srv
+		file_server
+		header Cache-Control "public, max-age=2592000"
+	}
+
 	handle {
 		root * /srv
 		encode zstd gzip

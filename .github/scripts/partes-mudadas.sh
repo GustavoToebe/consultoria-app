@@ -28,6 +28,8 @@ while IFS= read -r f; do
   case "$f" in
     api/*) api=true ;;
     app/*) app=true ;;
+    # Fotos dos exercícios do catálogo: o Dockerfile da web baixa por este script e confere o manifesto.
+    scripts/catalogo/imagens*|scripts/catalogo/comum.py) app=true ;;
   esac
 done <<< "$arquivos"
 

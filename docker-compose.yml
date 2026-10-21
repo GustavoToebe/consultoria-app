@@ -123,7 +123,11 @@ services:
       - minio
 
   web:
-    build: ./app
+    build:
+      context: ./app
+      # As fotos dos exercícios do catálogo são baixadas na construção pelo script desta pasta (app/Dockerfile).
+      additional_contexts:
+        catalogo: ./scripts/catalogo
     restart: unless-stopped
     ports:
       - "8088:80"

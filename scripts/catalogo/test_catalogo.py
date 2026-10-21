@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comum  # noqa: E402
 import gerar_exercicios  # noqa: E402
 import gerar_taco  # noqa: E402
+import imagens_exercicios  # noqa: E402
 
 
 def alimento(codigo, nome, kcal=100.0, proteina=1.0, gordura=1.0, carboidrato=1.0, grupo="Grupo"):
@@ -292,6 +293,107 @@ class ExerciciosTest(unittest.TestCase):
         nomes = [comum.normalizar(a["nome"]) for a in aceitos]
         self.assertEqual(len(nomes), len(set(nomes)))
         self.assertTrue(all(len(a["nome"]) <= 120 for a in aceitos))
+
+
+class ImagensDosExerciciosTest(unittest.TestCase):
+    """Sem Pillow e sem rede: o que se testa aqui é a conferência, o SQL e a ligação com o catálogo."""
+
+    def manifesto(self, **hashes):
+        itens = [{"caminho": c, "sha256": imagens_exercicios.sha256_de(d), "tamanho": len(d)} for c, d in hashes.items()]
+        return {"commit": imagens_exercicios.COMMIT, "imagens": itens}
+
+    def test_conferir_aceita_o_que_bate(self):
+        arquivos = {"A_B/0.jpg": b"um", "A_B/1.jpg": b"dois"}
+        imagens_exercicios.conferir(self.manifesto(**arquivos), arquivos)
+
+    def test_conferir_recusa_arquivo_faltando_sobrando_e_hash_diferente(self):
+        manifesto = self.manifesto(**{"A/0.jpg": b"um", "A/1.jpg": b"dois"})
+        for arquivos, trecho in (({"A/0.jpg": b"um"}, "A/1.jpg: faltou"),
+                                 ({"A/0.jpg": b"um", "A/1.jpg": b"dois", "B/0.jpg": b"x"}, "B/0.jpg: fora do manifesto"),
+                                 ({"A/0.jpg": b"um", "A/1.jpg": b"DOIS"}, "A/1.jpg: sha256")):
+            with self.assertRaises(imagens_exercicios.ImagensErro) as erro:
+                imagens_exercicios.conferir(manifesto, arquivos)
+            self.assertIn(trecho, str(erro.exception))
+
+    def test_caminhos_so_no_formato_id_barra_0_ou_1_jpg(self):
+        imagens_exercicios.caminhos_validos(["3_4_Sit-Up/0.jpg", "Air_Bike/1.jpg"])
+        for ruim in ("../x/0.jpg", "A/2.jpg", "A/0.png", "A B/0.jpg", "A/B/0.jpg", "/A/0.jpg"):
+            with self.assertRaises(imagens_exercicios.ImagensErro, msg=ruim):
+                imagens_exercicios.caminhos_validos([ruim])
+
+    def test_gravar_tudo_ou_nada_nao_deixa_pasta_pela_metade(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            saida = Path(tmp) / "exercicios"
+            imagens_exercicios.gravar_tudo_ou_nada(saida, {"A/0.jpg": b"1", "A/1.jpg": b"2"})
+            self.assertEqual((saida / "A/1.jpg").read_bytes(), b"2")
+            with self.assertRaises(TypeError):
+                imagens_exercicios.gravar_tudo_ou_nada(saida, {"A/0.jpg": b"novo", "A/1.jpg": "não é bytes"})
+            self.assertEqual((saida / "A/0.jpg").read_bytes(), b"1")
+            self.assertEqual([p.name for p in Path(tmp).iterdir()], ["exercicios"])
+
+    def test_sql_liga_cada_exercicio_aos_seus_caminhos(self):
+        sql = imagens_exercicios.gerar_sql([("Air_Bike", ["Air_Bike/0.jpg", "Air_Bike/1.jpg"])])
+        self.assertIn("alter table catalogo_exercicio add column imagens text[] not null default '{}';", sql)
+        self.assertIn("(md5('catalogo-exercicio:fedb:' || 'Air_Bike')::uuid, "
+                      "array['Air_Bike/0.jpg', 'Air_Bike/1.jpg']::text[])", sql)
+
+    def test_manifesto_e_sql_commitados_batem_com_o_catalogo(self):
+        if not imagens_exercicios.MANIFESTO.exists() or not gerar_exercicios.JSON.exists():
+            self.skipTest("manifesto ou dataset fora do repositório")
+        manifesto = imagens_exercicios.ler_manifesto()
+        pares = [(i, c) for i, c in imagens_exercicios.caminhos_do_catalogo() if c]
+        todos = sorted({c for _, caminhos in pares for c in caminhos})
+        self.assertEqual([i["caminho"] for i in manifesto["imagens"]], todos)
+        self.assertEqual(imagens_exercicios.gerar_sql(pares), imagens_exercicios.SQL.read_text(encoding="utf-8"))
+        self.assertTrue(all(i["tamanho"] > 0 and len(i["sha256"]) == 64 for i in manifesto["imagens"]))
+
+
+try:
+    import PIL  # noqa: F401
+except ImportError:
+    PIL = None
+
+
+@unittest.skipIf(PIL is None, "sem Pillow neste Python (o Dockerfile da web e o `gerar` rodam com ele)")
+class ReduzirImagemTest(unittest.TestCase):
+    def jpeg(self, largura, altura, **extra):
+        import io
+        from PIL import Image
+        saida = io.BytesIO()
+        Image.new("RGB", (largura, altura), (200, 30, 30)).save(saida, format="JPEG", **extra)
+        return saida.getvalue()
+
+    def test_reduz_o_maior_lado_para_600_e_mantem_a_proporcao(self):
+        import io
+        from PIL import Image
+        with Image.open(io.BytesIO(imagens_exercicios.reduzir(self.jpeg(1200, 800)))) as imagem:
+            self.assertEqual(imagem.format, "JPEG")
+            self.assertEqual(imagem.size, (600, 400))
+
+    def test_nao_amplia_imagem_pequena(self):
+        import io
+        from PIL import Image
+        with Image.open(io.BytesIO(imagens_exercicios.reduzir(self.jpeg(300, 200)))) as imagem:
+            self.assertEqual(imagem.size, (300, 200))
+
+    def test_sai_sem_metadados(self):
+        import io
+        from PIL import Image
+        exif = Image.Exif()
+        exif[0x010E] = "descrição que não pode sobrar"
+        saida = imagens_exercicios.reduzir(self.jpeg(800, 800, exif=exif.tobytes()))
+        self.assertNotIn("descrição".encode("utf-8"), saida)
+        with Image.open(io.BytesIO(saida)) as imagem:
+            self.assertEqual(len(imagem.getexif()), 0)
+
+    def test_recusa_o_que_nao_e_jpeg(self):
+        import io
+        from PIL import Image
+        png = io.BytesIO()
+        Image.new("RGB", (10, 10)).save(png, format="PNG")
+        for ruim in (png.getvalue(), b"", b"nao e imagem"):
+            with self.assertRaises(imagens_exercicios.ImagensErro):
+                imagens_exercicios.reduzir(ruim)
 
 
 if __name__ == "__main__":
