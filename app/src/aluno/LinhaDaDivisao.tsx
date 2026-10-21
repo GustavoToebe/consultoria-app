@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -7,6 +8,7 @@ import { detalheDaDivisao } from '../dominio/inicioDoAluno';
 import { nomeComDia, rotuloDoTipo } from '../dominio/semana';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { propsDeLink } from '../ui/propsDeLink';
 import { Selo } from '../ui/Selo';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
@@ -15,7 +17,7 @@ import { Texto } from '../ui/Texto';
  * Uma divisão da semana no início: a letra num quadrado neutro, o nome, "Segunda · 5 exercícios" (ou "Sem dia fixo") e a
  * seta. O cartão inteiro abre o dia; a divisão de hoje ganha o selo neutro "Hoje" (a cor da marca fica só no cartão Hoje).
  */
-export function LinhaDaDivisao({ sessao, letra, hoje, aoAbrir }: { sessao: Sessao; letra: string; hoje: boolean; /** Sem ele (descanso, sem exercício) a linha só informa. */ aoAbrir?: () => void }) {
+export function LinhaDaDivisao({ sessao, letra, hoje, href, aoAbrir }: { sessao: Sessao; letra: string; hoje: boolean; /** Destino do dia; na web vira `<a href>`. */ href?: Href; /** Sem ele (descanso, sem exercício) a linha só informa. */ aoAbrir?: () => void }) {
   const { cores } = useTema();
   const detalhe = detalheDaDivisao(sessao);
   const conteudo = (
@@ -37,9 +39,9 @@ export function LinhaDaDivisao({ sessao, letra, hoje, aoAbrir }: { sessao: Sessa
   }
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={rotulo}
-      onPress={aoAbrir}
+      {...(href ? propsDeLink(href, aoAbrir) : { onPress: aoAbrir })}
       style={(estado) => [estilos.linha, { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie, borderColor: cores.borda }]}>
       {conteudo}
     </Pressable>

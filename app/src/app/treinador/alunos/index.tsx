@@ -28,6 +28,7 @@ import { Escolha } from '../../../ui/Escolha';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
+import { propsDeLink } from '../../../ui/propsDeLink';
 import { Selo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
@@ -178,7 +179,9 @@ function LinhaAluno({ aluno, selecionando, marcado, aoMarcar }: { aluno: AlunoRe
       accessibilityRole={selecionando ? 'checkbox' : 'link'}
       accessibilityLabel={selecionando ? aluno.nome : `Abrir ${aluno.nome}${atualizacao ? `. ${atualizacao.texto}` : ''}`}
       accessibilityState={selecionando ? { checked: marcado } : undefined}
-      onPress={() => (selecionando ? aoMarcar() : router.push(`/treinador/alunos/${aluno.id}`))}
+      {...(selecionando
+        ? { onPress: aoMarcar }
+        : propsDeLink(`/treinador/alunos/${aluno.id}`, () => router.push(`/treinador/alunos/${aluno.id}`)))}
       style={(estado) => [
         estilos.linha,
         { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },

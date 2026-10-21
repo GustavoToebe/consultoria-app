@@ -10,6 +10,7 @@ import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { ConfirmarSaida } from './ConfirmarSaida';
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { sobre } from './sobre';
+import { propsDeLink } from './propsDeLink';
 import { Texto } from './Texto';
 import { useCliqueFora, useTeclado } from './usoWeb';
 
@@ -93,7 +94,9 @@ export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boole
                 {perigo ? <View style={[estilos.separador, { backgroundColor: cores.divisor }]} /> : null}
                 <Pressable
                   accessibilityRole="menuitem"
-                  onPress={() => escolher(item.id, item.href)}
+                  {...(item.href !== null
+                    ? propsDeLink(item.href as Href, () => escolher(item.id, item.href))
+                    : { onPress: () => escolher(item.id, item.href) })}
                   onHoverIn={() => setAtivo(i)}
                   style={(estado) => [estilos.item, (i === ativo || sobre(estado)) && { backgroundColor: cores.superficie3 }]}>
                   <Icone size={18} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} />

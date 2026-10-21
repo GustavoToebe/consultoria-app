@@ -112,9 +112,9 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta →
 
   // Divisões: A, B e C, "Hoje" só na de segunda.
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Divisão A, Peito e tríceps, Segunda · 5 exercícios, hoje/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Divisão B, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Divisão C, Pernas, Sexta · 6 exercícios$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Divisão A, Peito e tríceps, Segunda · 5 exercícios, hoje/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Divisão B, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Divisão C, Pernas, Sexta · 6 exercícios$/ })).toBeVisible();
 
   // A ordem na página.
   const y = [
@@ -138,7 +138,7 @@ test('"Ver meu treino" abre a lista do dia de hoje', async ({ page }) => {
 
 test('a divisão de outro dia abre a próxima vez dela e a tela do dia deixa escolher outra data', async ({ page }) => {
   await abrirInicio(page);
-  await page.getByRole('button', { name: /^Divisão B,/ }).click();
+  await page.getByRole('link', { name: /^Divisão B,/ }).click();
   await expect(page).toHaveURL(/\/aluno\/sessao\/sb\?data=2026-10-21$/);
   await expect(page.getByRole('heading', { name: 'Outras datas' })).toBeVisible();
   await page.getByRole('button', { name: /Quarta · Costas e bíceps, 14\/10/ }).click();
@@ -185,7 +185,7 @@ test('dia de descanso: "Hoje é dia de descanso." e nenhum botão de treino', as
   await expect(page.getByText('Hoje é dia de descanso.')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Ver meu treino/ })).toHaveCount(0);
   // As divisões continuam na lista, sem "Hoje".
-  await expect(page.getByRole('button', { name: /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
 });
 
 test('plano sem dia fixo: "Qual é o treino de hoje?" e "Escolher treino" leva às divisões', async ({ page }) => {
@@ -194,12 +194,12 @@ test('plano sem dia fixo: "Qual é o treino de hoje?" e "Escolher treino" leva �
   await expect(page.getByText('Qual é o treino de hoje?')).toBeVisible();
   await expect(page.getByText('TREINO A')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Ver meu treino' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /^Divisão A, Corpo todo 1, Sem dia fixo · 5 exercícios$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Divisão A, Corpo todo 1, Sem dia fixo · 5 exercícios$/ })).toBeVisible();
   await page.getByRole('button', { name: 'Escolher treino' }).click();
   // A tela rola até as divisões: o título delas fica à vista.
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toBeInViewport();
   // Divisão sem dia fixo abre hoje.
-  await page.getByRole('button', { name: /^Divisão B,/ }).click();
+  await page.getByRole('link', { name: /^Divisão B,/ }).click();
   await expect(page).toHaveURL(/\/aluno\/sessao\/sb\?data=2026-10-19$/);
 });
 

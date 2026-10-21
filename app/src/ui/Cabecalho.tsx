@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { deixarParaONavegador, type CliqueDoNavegador } from '../dominio/cliqueDeLink';
 import { voltarAutomatico } from '../dominio/telas';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
@@ -75,8 +76,9 @@ export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, volt
                   {p.href && i < trilha.length - 1 ? (
                     <Link href={p.href} accessibilityRole="link" style={estilos.alvoPasso}
                       onPress={(e) => {
-                        // Com alteração pendente a trilha pergunta antes; sem, o link segue como sempre.
-                        if (!pendente() || !p.href) return;
+                        // Com alteração pendente a trilha pergunta antes; sem, o link segue como sempre. Ctrl/Cmd+clique abre
+                        // outra guia, e a guia atual não perde nada.
+                        if (!pendente() || !p.href || deixarParaONavegador(e as unknown as CliqueDoNavegador)) return;
                         e.preventDefault();
                         const destino = p.href;
                         confirmar(() => router.navigate(destino));

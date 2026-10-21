@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
+import { propsDeLink } from './propsDeLink';
 import { Selo, type TipoSelo } from './Selo';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
@@ -15,9 +16,9 @@ interface Props {
   detalhe?: string;
   Icone?: LucideIcon;
   selo?: { texto: string; tipo: TipoSelo };
-  /** Abre esta rota (o item é um link). */
+  /** Abre esta rota (o item é um link; na web é um `<a href>`, que abre em nova guia pelo botão direito). */
   href?: Href;
-  /** Ou executa esta ação (o item é um botão). */
+  /** Ou executa esta ação (o item é um botão). Com `href`, é a navegação do clique simples (ex.: passa pela guarda). */
   aoTocar?: () => void;
   /** Rótulo completo para o leitor de tela; padrão "título, detalhe, selo". */
   rotulo?: string;
@@ -41,9 +42,9 @@ export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotul
   const corTexto = perigo ? cores.perigo : cores.texto;
   return (
     <Pressable
-      accessibilityRole={href && !aoTocar ? 'link' : 'button'}
+      accessibilityRole={href ? 'link' : 'button'}
       accessibilityLabel={rotulo ?? [titulo, detalhe, selo?.texto].filter(Boolean).join(', ')}
-      onPress={abrir}
+      {...(href ? propsDeLink(href, abrir) : { onPress: abrir })}
       style={(estado) => [estilos.item, { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda }]}>
       {Icone ? <Icone size={20} color={perigo ? cores.perigo : cores.textoSuave} strokeWidth={2} /> : null}
       <View style={estilos.textos}>

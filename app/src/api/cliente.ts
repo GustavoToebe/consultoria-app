@@ -152,10 +152,28 @@ export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promi
   return tratar<T>(resposta, opcoes);
 }
 
-const renovacaoCompartilhada = umaPorVez(fazerRefresh);
+const NOME_TRAVA_RENOVACAO = 'treinos:renovacao';
+
+/** O que o cliente usa do `navigator.locks` (Web Locks API). */
+interface GerenteDeTravas {
+  request<T>(nome: string, tarefa: () => Promise<T>): Promise<T>;
+}
 
 /**
- * Um refresh por vez: chamadas simultâneas esperam o mesmo. Devolve a sessão nova, `null` se o servidor recusou
+ * Na web, o cookie de renovação é um só por navegador e gira a cada refresh; duas abas renovando ao mesmo tempo
+ * mandam o mesmo cookie, e a segunda conta como reuso (todas as sessões caem). Com a trava, a aba que chega depois
+ * espera a primeira gravar o cookie novo e manda o refresh já rotacionado. Sem `navigator.locks` (e no nativo, que tem
+ * um só processo) segue direto.
+ */
+function entreAbas<T>(tarefa: () => Promise<T>): Promise<T> {
+  const travas = WEB && typeof navigator !== 'undefined' ? (navigator as { locks?: GerenteDeTravas }).locks : undefined;
+  return travas ? travas.request(NOME_TRAVA_RENOVACAO, tarefa) : tarefa();
+}
+
+const renovacaoCompartilhada = umaPorVez(() => entreAbas(fazerRefresh));
+
+/**
+ * Um refresh por vez: chamadas simultâneas da aba esperam o mesmo e, na web, as outras abas esperam a vez. Devolve a sessão nova, `null` se o servidor recusou
  * (sessão encerrada) e lança {@link ErroApi} com `semConexao` se não deu para falar com o servidor.
  */
 export function renovarSessao(): Promise<LoginResponse | null> {

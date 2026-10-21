@@ -15,6 +15,7 @@ import { ALVO_TOQUE, espaco, fontes, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERA
 import { useSaidaGuardada } from './GuardaDeSaida';
 import { MarcaTitulo } from './MarcaTitulo';
 import { useAlvoDoPasseio } from './Passeio';
+import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 
@@ -147,7 +148,7 @@ function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?:
       accessibilityState={{ selected: ativo }}
       // O leitor de tela da web não recebe o `selected` de um link: `aria-current` diz qual é a página atual.
       aria-current={ativo ? 'page' : undefined}
-      onPress={() => confirmar(() => router.navigate(item.href))}
+      {...propsDeLink(item.href, () => confirmar(() => router.navigate(item.href)))}
       onHoverIn={comDica ? () => setDica(true) : undefined}
       onHoverOut={comDica ? () => setDica(false) : undefined}
       onFocus={comDica ? () => setDica(true) : undefined}

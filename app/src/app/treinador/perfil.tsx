@@ -41,6 +41,7 @@ export default function PerfilTreinador() {
         <View style={estilos.lista}>
           {itensDoMenuDoUsuario(pode).map((item) => (
             <ItemDeLista key={item.id} titulo={item.rotulo} Icone={ICONES_DO_MENU[item.id]} perigo={item.id === 'sair'}
+              href={item.href === null ? undefined : (item.href as Href)}
               aoTocar={() => (item.href === null ? setSaindo(true) : router.navigate(item.href as Href))} />
           ))}
         </View>

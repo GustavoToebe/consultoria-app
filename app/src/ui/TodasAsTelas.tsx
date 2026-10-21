@@ -9,6 +9,7 @@ import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Campo } from './Campo';
 import { Folha } from './Folha';
 import { useSaidaGuardada } from './GuardaDeSaida';
+import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 
@@ -62,7 +63,7 @@ function LinhaDaTela({ tela, favorita, aoAbrir, aoAlternar }: { tela: TelaDoCata
   const { cores } = useTema();
   return (
     <View style={[estilos.linha, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-      <Pressable accessibilityRole="link" accessibilityLabel={tela.rotulo} onPress={aoAbrir}
+      <Pressable accessibilityRole="link" accessibilityLabel={tela.rotulo} {...propsDeLink(tela.href as Href, aoAbrir)}
         style={(estado) => [estilos.abrir, sobre(estado) && { backgroundColor: cores.superficie3 }]}>
         <Texto style={estilos.nome}>{tela.rotulo}</Texto>
       </Pressable>

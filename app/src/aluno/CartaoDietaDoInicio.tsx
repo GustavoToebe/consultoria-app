@@ -6,6 +6,7 @@ import type { DietaNoInicio } from '../dominio/inicioDoAluno';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
+import { propsDeLink } from '../ui/propsDeLink';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 
@@ -48,7 +49,7 @@ export function CartaoDietaDoInicio({ estado, aoTentarDeNovo }: { estado: DietaN
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={`Dieta, ${refeicoes}${agua ? `, água do dia ${agua}` : ''}. Ver dieta.`}
-      onPress={() => router.navigate('/aluno/dieta')}
+      {...propsDeLink('/aluno/dieta', () => router.navigate('/aluno/dieta'))}
       style={(e) => [estilos.cartao, estilos.linha, { backgroundColor: sobre(e) ? cores.superficie3 : cores.superficie, borderColor: cores.borda }]}>
       {width >= LARGURA_COM_ICONE ? (
         <View style={[estilos.icone, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>

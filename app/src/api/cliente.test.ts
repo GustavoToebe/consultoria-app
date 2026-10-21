@@ -230,3 +230,152 @@ describe('cliente HTTP: imagem protegida', () => {
     await expect(requisicao('/aluno/fotos/x', { binario: true })).rejects.toBeInstanceOf(ErroApi);
   });
 });
+
+describe('cliente HTTP: renovação entre abas (Web Locks)', () => {
+  const descritorNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const descritorLocation = typeof window === 'undefined' ? undefined : Object.getOwnPropertyDescriptor(window, 'location');
+  let fetchSimulado: jest.Mock;
+
+  /** Gerente de travas simulado: uma fila por nome, como o `navigator.locks` do navegador (compartilhado entre as abas). */
+  function travasSimuladas() {
+    const filas = new Map<string, Promise<unknown>>();
+    return {
+      request: <T,>(nome: string, tarefa: () => Promise<T>): Promise<T> => {
+        const anterior = filas.get(nome) ?? Promise.resolve();
+        const atual = anterior.then(tarefa, tarefa);
+        filas.set(nome, atual.catch(() => undefined));
+        return atual;
+      },
+    };
+  }
+
+  function definirNavigator(valor: unknown) {
+    Object.defineProperty(globalThis, 'navigator', { value: valor, configurable: true, writable: true });
+  }
+
+  /** Cada "aba" é uma cópia isolada do módulo (token e refresh em andamento próprios), na plataforma pedida. */
+  function carregarAba(os: 'web' | 'android'): Cliente {
+    let cliente!: Cliente;
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { Platform } = require('react-native') as typeof import('react-native');
+      jest.replaceProperty(Platform, 'OS', os);
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      cliente = require('./cliente') as Cliente;
+    });
+    return cliente;
+  }
+
+  /** `fetch` em que cada `/auth/refresh` fica pendente até o teste liberar; devolve os liberadores, na ordem de chegada. */
+  function refreshesManuais() {
+    const liberar: (() => void)[] = [];
+    fetchSimulado.mockImplementation((url: string) => {
+      const caminho = String(url).replace(API, '');
+      if (caminho === '/auth/refresh') {
+        return new Promise<Response>((resolve) => liberar.push(() => resolve(json(200, SESSAO_NOVA))));
+      }
+      return Promise.resolve(json(200, {}));
+    });
+    return liberar;
+  }
+
+  const darVez = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+  const refreshesIniciados = () => chamados(fetchSimulado).filter((c) => c === '/auth/refresh').length;
+
+  beforeEach(() => {
+    process.env.EXPO_PUBLIC_API_URL = API;
+    mockLerRefresh.mockResolvedValue('refresh-velho');
+    fetchSimulado = jest.fn();
+    global.fetch = fetchSimulado as unknown as typeof fetch;
+    // Na web a base das URLs relativas é a origem da página.
+    if (typeof window !== 'undefined') Object.defineProperty(window, 'location', { value: { origin: 'http://app.teste' }, configurable: true });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (descritorNavigator) Object.defineProperty(globalThis, 'navigator', descritorNavigator);
+    else delete (globalThis as { navigator?: unknown }).navigator;
+    if (typeof window !== 'undefined') {
+      if (descritorLocation) Object.defineProperty(window, 'location', descritorLocation);
+      else delete (window as { location?: unknown }).location;
+    }
+  });
+
+  it('na web, a renovação de outra aba só começa depois que a primeira termina', async () => {
+    definirNavigator({ locks: travasSimuladas() });
+    const liberar = refreshesManuais();
+    const abaA = carregarAba('web');
+    const abaB = carregarAba('web');
+
+    const a = abaA.renovarSessao();
+    const b = abaB.renovarSessao();
+    await darVez();
+    expect(refreshesIniciados()).toBe(1);
+
+    liberar[0]();
+    await a;
+    await darVez();
+    // A segunda só saiu depois de a primeira resolver (e de gravar o cookie novo).
+    expect(refreshesIniciados()).toBe(2);
+    expect(liberar).toHaveLength(2);
+
+    liberar[1]();
+    await expect(b).resolves.toMatchObject({ accessToken: 'acesso-novo' });
+  });
+
+  it('na mesma aba, chamadas simultâneas continuam esperando o mesmo refresh', async () => {
+    definirNavigator({ locks: travasSimuladas() });
+    const liberar = refreshesManuais();
+    const aba = carregarAba('web');
+
+    const chamadas = [aba.renovarSessao(), aba.renovarSessao(), aba.renovarSessao()];
+    await darVez();
+    liberar[0]();
+    await Promise.all(chamadas);
+
+    expect(refreshesIniciados()).toBe(1);
+  });
+
+  it('a trava é liberada quando o refresh falha: a próxima aba renova mesmo assim', async () => {
+    definirNavigator({ locks: travasSimuladas() });
+    let tentativa = 0;
+    fetchSimulado.mockImplementation((url: string) => {
+      if (!String(url).endsWith('/auth/refresh')) return Promise.resolve(json(200, {}));
+      tentativa += 1;
+      return Promise.resolve(tentativa === 1 ? json(503, { message: 'Indisponível.' }) : json(200, SESSAO_NOVA));
+    });
+    const abaA = carregarAba('web');
+    const abaB = carregarAba('web');
+
+    const a = abaA.renovarSessao();
+    const b = abaB.renovarSessao();
+
+    await expect(a).rejects.toBeDefined();
+    await expect(b).resolves.toMatchObject({ accessToken: 'acesso-novo' });
+  });
+
+  it('sem navigator.locks na web, segue como antes: as abas renovam sem esperar umas pelas outras', async () => {
+    definirNavigator({});
+    const liberar = refreshesManuais();
+    const abaA = carregarAba('web');
+    const abaB = carregarAba('web');
+
+    const a = abaA.renovarSessao();
+    const b = abaB.renovarSessao();
+    await darVez();
+    expect(refreshesIniciados()).toBe(2);
+
+    liberar.forEach((l) => l());
+    await Promise.all([a, b]);
+  });
+
+  it('no celular não usa trava, mesmo que exista navigator.locks', async () => {
+    const travas = { request: jest.fn() };
+    definirNavigator({ locks: travas });
+    fetchSimulado.mockImplementation(() => Promise.resolve(json(200, SESSAO_NOVA)));
+    const aba = carregarAba('android');
+
+    await expect(aba.renovarSessao()).resolves.toMatchObject({ accessToken: 'acesso-novo' });
+    expect(travas.request).not.toHaveBeenCalled();
+  });
+});

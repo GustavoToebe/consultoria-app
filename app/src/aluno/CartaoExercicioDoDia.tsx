@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 import { CheckCircle2, ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -8,6 +9,7 @@ import { numeroParaTela } from '../dominio/formatos';
 import { MODALIDADES } from '../dominio/modalidades';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
+import { propsDeLink } from '../ui/propsDeLink';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 
@@ -23,6 +25,7 @@ export function CartaoExercicioDoDia({
   cargaDoDia,
   ultima,
   tipoTrabalho,
+  href,
   aoAbrir,
 }: {
   exercicio: ExercicioPlano;
@@ -31,6 +34,8 @@ export function CartaoExercicioDoDia({
   cargaDoDia: number | null;
   ultima: UltimaCarga | null;
   tipoTrabalho: string;
+  /** Destino do exercício; na web vira `<a href>`. */
+  href?: Href;
   aoAbrir: () => void;
 }) {
   const { cores } = useTema();
@@ -47,7 +52,7 @@ export function CartaoExercicioDoDia({
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={`Abrir ${e.nome}, ${feitas} de ${total} séries feitas`}
-      onPress={aoAbrir}
+      {...(href ? propsDeLink(href, aoAbrir) : { onPress: aoAbrir })}
       style={({ pressed }) => [
         estilos.cartao,
         { backgroundColor: pressed ? cores.superficie3 : cores.superficie2, borderColor: completo ? cores.sucesso : cores.borda },

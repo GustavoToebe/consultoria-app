@@ -1,13 +1,14 @@
 import { router, type Href } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import { useId, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View, type Role, type TextInput } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View, type PressableProps, type Role, type TextInput } from 'react-native';
 
 import { Input } from '../components/ui/input';
 import { atalhosPadrao, buscarTelas, favoritosVisiveis, type TelaDoCatalogo } from '../dominio/telas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { useSaidaGuardada } from './GuardaDeSaida';
+import { propsDeLink } from './propsDeLink';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 import { useCliqueFora, useTeclado } from './usoWeb';
@@ -130,14 +131,15 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
             <ScrollView style={estilos.rolagem} keyboardShouldPersistTaps="handled">
               {digitando ? null : <Texto variante="rotulo" style={estilos.cabecaLista}>{marcados.length > 0 ? 'Favoritos' : 'Atalhos'}</Texto>}
               {resultados.map((tela, i) => (
-                <Pressable
+                <LinkDeTela
                   key={tela.id}
+                  href={tela.acao ? undefined : (tela.href as Href)}
+                  navegar={() => abrir(tela)}
                   nativeID={idDaOpcao(i)}
                   role="option"
                   accessibilityLabel={`${tela.rotulo}, ${tela.secao}`}
                   accessibilityState={{ selected: i === indice }}
                   aria-selected={i === indice}
-                  onPress={() => abrir(tela)}
                   onHoverIn={() => setAtivo(i)}
                   style={(estado) => [
                     estilos.item,
@@ -145,7 +147,7 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
                   ]}>
                   <Texto style={estilos.nome} numberOfLines={1}>{tela.rotulo}</Texto>
                   <Texto variante="pequeno" numberOfLines={1}>{tela.acao ? `Ação · ${tela.secao}` : tela.secao}</Texto>
-                </Pressable>
+                </LinkDeTela>
               ))}
             </ScrollView>
           )}
@@ -153,6 +155,15 @@ export function BuscaGlobal({ permitidas, favoritos = [], largura = 440 }: Props
       ) : null}
     </View>
   );
+}
+
+/**
+ * Resultado da busca. Tela (com `href`) é link (`<a href>` na web); ação segue como botão. A navegação entra por prop e
+ * só é chamada no clique: assim o `abrir`, que lê a referência do campo, não é chamado na renderização (regra do React
+ * Compiler).
+ */
+function LinkDeTela({ href, navegar, ...resto }: PressableProps & { href?: Href; navegar: () => void }) {
+  return <Pressable {...resto} {...(href ? propsDeLink(href, navegar) : { onPress: navegar })} />;
 }
 
 const estilos = StyleSheet.create({

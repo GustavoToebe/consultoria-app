@@ -6,6 +6,7 @@ import { dataPorExtenso, primeiroNome } from '../dominio/inicioDoAluno';
 import { useSessao } from '../sessao/SessaoProvider';
 import { ALVO_TOQUE, espaco } from '../tema/tokens';
 import { FotoDePerfil } from '../ui/FotoDePerfil';
+import { propsDeLink } from '../ui/propsDeLink';
 import { MarcaTitulo } from '../ui/MarcaTitulo';
 import { Texto } from '../ui/Texto';
 import { useVersaoDaFotoDePerfil } from './versaoDaFotoDePerfil';
@@ -25,7 +26,7 @@ export function CabecalhoDoInicio({ nome, hoje }: { nome: string | null; hoje: s
         <View style={estilos.marca}>
           <MarcaTitulo marca={marca} tamanho="pequeno" />
         </View>
-        <Pressable accessibilityRole="link" accessibilityLabel="Minha conta" onPress={() => router.navigate('/aluno/conta')} style={estilos.foto}>
+        <Pressable accessibilityRole="link" accessibilityLabel="Minha conta" {...propsDeLink('/aluno/conta', () => router.navigate('/aluno/conta'))} style={estilos.foto}>
           <FotoDePerfil chave={`perfil:${versaoDaFoto}`} carregar={baixarFotoDePerfil} nome={nome} tamanho={36} />
         </Pressable>
       </View>

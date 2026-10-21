@@ -128,6 +128,7 @@ export default function InicioAluno() {
                         sessao={s}
                         letra={letraDaDivisao(conteudo, s)}
                         hoje={ehDeHoje(s, diaDaSemana())}
+                        href={s.exercicios.length ? caminhoDaSessao(s.uid, dataParaAbrir(s, treino.inicio, treino.fim, hoje)) : undefined}
                         aoAbrir={s.exercicios.length ? () => router.push(caminhoDaSessao(s.uid, dataParaAbrir(s, treino.inicio, treino.fim, hoje))) : undefined}
                       />
                     )}

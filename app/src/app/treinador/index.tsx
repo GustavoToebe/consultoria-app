@@ -24,6 +24,7 @@ import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
+import { propsDeLink } from '../../ui/propsDeLink';
 import { ItemDeLista } from '../../ui/ItemDeLista';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
@@ -110,12 +111,15 @@ export default function InicioTreinador() {
                   ['Avisaram atraso', dados.atualizacoesAvisaramAtraso, 'AVISARAM_ATRASO', false],
                 ] as [string, number, SituacaoAtualizacao, boolean][]).map(([titulo, numero, situacao, perigo]) => (
                   <Contador key={situacao} titulo={titulo} numero={numero ?? 0} tom={tomDoContador(numero ?? 0, perigo)}
+                    href={caminhoListaAtualizacoes(situacao, escopo === 'meus')}
                     aoTocar={() => router.push(caminhoListaAtualizacoes(situacao, escopo === 'meus'))} />
                 )) : null}
                 {verInteressados ? <Contador titulo="Interessados novos" numero={novos.dados ?? 0} tom={tomDoContador(novos.dados ?? 0)}
+                  href={'/treinador/interessados?situacao=NOVA' as Href}
                   aoTocar={() => router.push('/treinador/interessados?situacao=NOVA' as Href)} /> : null}
                 {/* Próximas é agenda, não pendência: nunca acende. Abre a Agenda, que mostra as mesmas dia a dia. */}
                 {verAtualizacoes ? <Contador titulo="Atualizações em 7 dias" numero={dados.atualizacoesProximas ?? 0} tom="suave" destino="Ver na agenda"
+                  href={escopo === 'meus' ? '/treinador/agenda?meus=true' as Href : '/treinador/agenda'}
                   aoTocar={() => router.push(escopo === 'meus' ? '/treinador/agenda?meus=true' as Href : '/treinador/agenda')} /> : null}
               </View>
             </View>
@@ -125,7 +129,7 @@ export default function InicioTreinador() {
             {dados.planosTerminando.length === 0 ? <Texto variante="suave">Nenhum plano terminando.</Texto> : null}
             {dados.planosTerminando.map((p) => (
               <ItemDeLista key={p.plano.id} titulo={p.aluno.nome} detalhe={`${p.plano.titulo} · termina ${dataRelativa(p.fim)}`}
-                aoTocar={() => abrirAluno(p.aluno.id)} rotulo={`Abrir ${p.aluno.nome} para renovar ${p.plano.titulo}`} />
+                href={`/treinador/alunos/${p.aluno.id}`} aoTocar={() => abrirAluno(p.aluno.id)} rotulo={`Abrir ${p.aluno.nome} para renovar ${p.plano.titulo}`} />
             ))}
           </Cartao>
           </Permitido><Permitido codigo="REGISTRO_LER"><Cartao titulo={`Sem registro há ${dias} dias`} descricao="Pode ter treinado sem registrar no app." style={estilos.metade}>
@@ -134,7 +138,7 @@ export default function InicioTreinador() {
             {dados.alunosSemRegistro.length === 0 ? <Texto variante="suave">Todos registraram nesse período.</Texto> : null}
             {dados.alunosSemRegistro.map((a) => (
               <ItemDeLista key={a.id} titulo={a.nome} detalhe={a.ultimoRegistro ? `Último registro ${dataRelativa(a.ultimoRegistro)}` : 'Nunca registrou'}
-                aoTocar={() => abrirAluno(a.id)} rotulo={`Abrir ${a.nome}`} />
+                href={`/treinador/alunos/${a.id}`} aoTocar={() => abrirAluno(a.id)} rotulo={`Abrir ${a.nome}`} />
             ))}
           </Cartao>
           <Cartao titulo="Últimos registros" descricao="O registro mais recente de cada aluno." style={estilos.metade}
@@ -145,7 +149,7 @@ export default function InicioTreinador() {
             {ultimos.map((e, i) => (
               <ItemDeLista key={`${e.aluno.id}:${e.data}:${i}`} titulo={e.aluno.nome}
                 detalhe={`${dataRelativa(e.data)} · ${e.sessao} · ${e.series} ${e.series === 1 ? 'série' : 'séries'}`}
-                aoTocar={() => abrirAluno(e.aluno.id)} rotulo={`Abrir ${e.aluno.nome}`} />
+                href={`/treinador/alunos/${e.aluno.id}`} aoTocar={() => abrirAluno(e.aluno.id)} rotulo={`Abrir ${e.aluno.nome}`} />
             ))}
           </Cartao>
           </Permitido></Permitido>
@@ -173,7 +177,7 @@ function ProximoPasso({ texto, rotulo, aoTocar }: { texto: string; rotulo: strin
 }
 
 /** Número do painel que leva à lista: o cartão inteiro é o toque. Acende só com algo (cor de status, nunca a marca). */
-function Contador({ titulo, numero, aoTocar, tom, destino = 'Ver lista' }: { titulo: string; numero: number; aoTocar: () => void; tom: 'perigo' | 'atencao' | 'suave'; destino?: string }) {
+function Contador({ titulo, numero, href, aoTocar, tom, destino = 'Ver lista' }: { titulo: string; numero: number; href?: Href; aoTocar: () => void; tom: 'perigo' | 'atencao' | 'suave'; destino?: string }) {
   const { cores } = useTema();
   const acesa = tom !== 'suave';
   const cor = tom === 'perigo' ? cores.perigo : tom === 'atencao' ? cores.atencao : cores.borda;
@@ -181,7 +185,7 @@ function Contador({ titulo, numero, aoTocar, tom, destino = 'Ver lista' }: { tit
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={`${titulo}: ${numero}. ${destino}.`}
-      onPress={aoTocar}
+      {...(href ? propsDeLink(href, aoTocar) : { onPress: aoTocar })}
       style={(estado) => [estilos.contador, { borderColor: acesa ? cor : cores.borda, borderLeftWidth: acesa ? 4 : 1, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
       <View style={estilos.contadorTextos}>
         <Texto variante={acesa ? 'corpo' : 'suave'}>{titulo}</Texto>
