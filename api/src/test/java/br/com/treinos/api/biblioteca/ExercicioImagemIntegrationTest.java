@@ -132,6 +132,15 @@ class ExercicioImagemIntegrationTest extends AbstractIntegrationTest {
         api.publicarTreino(login, aluno, json.treeToValue(arvore, ConteudoTreino.class));
     }
 
+    /** Plano de treino do aluno com este exercício, salvo só como rascunho (nunca publicado). */
+    private void rascunhoComExercicio(JsonNode login, UUID aluno, UUID exercicioId) throws Exception {
+        ObjectNode arvore = (ObjectNode) json.valueToTree(ApiDeTeste.treino().conteudo());
+        ((ObjectNode) arvore.get("sessoes").get(0).get("exercicios").get(0)).put("exercicioId", exercicioId.toString());
+        JsonNode plano = api.post("/alunos/" + aluno + "/planos-treino", login, Map.of("titulo", "Rascunho de teste"), 200);
+        api.put("/planos-treino/" + plano.get("plano").get("id").asString() + "/rascunho", login,
+                ApiDeTeste.rascunho("Rascunho de teste", arvore, plano.get("plano").get("versao").asLong()), 200);
+    }
+
     private int auditorias(String acao, UUID exercicio) {
         return jdbc.queryForObject("select count(*) from auditoria where acao = ? and entidade_id = ?::uuid", Integer.class, acao, exercicio);
     }
@@ -315,6 +324,30 @@ class ExercicioImagemIntegrationTest extends AbstractIntegrationTest {
         api.delete("/exercicios/" + noPlano + "/imagem", treinador, 200);
         assertThat(api.get("/aluno/exercicios/demonstracoes", loginAluno, 200)).isEmpty();
         ver("/aluno/exercicios/" + noPlano + "/imagem", loginAluno, 404);
+    }
+
+    @Test
+    void exercicioSoEmRascunhoOuNoPlanoDeOutroAlunoDa404() throws Exception {
+        UUID soNoRascunho = novoExercicio(treinador, "Exercício fictício só no rascunho");
+        UUID noPlanoDeOutro = novoExercicio(treinador, "Exercício fictício no plano de outro aluno");
+        enviar("/exercicios/" + soNoRascunho + "/imagem", treinador, "a.gif", gifComComentario(), 200);
+        enviar("/exercicios/" + noPlanoDeOutro + "/imagem", treinador, "b.gif", gifComComentario(), 200);
+
+        // Rascunho nunca conta: o plano existe, mas nenhuma versão foi publicada.
+        UUID aluno = api.criarAluno(treinador, "Aluno Fictício Rascunho");
+        JsonNode loginAluno = api.convidarEEntrar(treinador, aluno);
+        rascunhoComExercicio(treinador, aluno, soNoRascunho);
+        ver("/aluno/exercicios/" + soNoRascunho + "/imagem", loginAluno, 404);
+        assertThat(api.get("/aluno/exercicios/demonstracoes", loginAluno, 200)).isEmpty();
+
+        // Plano publicado de OUTRO aluno da mesma consultoria não abre a imagem para quem tem plano próprio.
+        UUID outroAluno = api.criarAluno(treinador, "Outro Aluno Fictício Publicado");
+        publicarComExercicio(treinador, outroAluno, noPlanoDeOutro);
+        ver("/aluno/exercicios/" + noPlanoDeOutro + "/imagem", loginAluno, 404);
+        assertThat(api.get("/aluno/exercicios/demonstracoes", loginAluno, 200)).isEmpty();
+        JsonNode loginOutro = api.convidarEEntrar(treinador, outroAluno);
+        ver("/aluno/exercicios/" + noPlanoDeOutro + "/imagem", loginOutro, 200);
+        ver("/aluno/exercicios/" + soNoRascunho + "/imagem", loginOutro, 404);
     }
 
     @Test
