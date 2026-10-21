@@ -30,5 +30,6 @@ export const ACOES_AUDITORIA:Record<string,string>={
   RECEBIMENTO_ONLINE_CONFIGURADO:'Recebimento online configurado',RECEBIMENTO_ONLINE_REMOVIDO:'Recebimento online removido',
   LINK_DE_PAGAMENTO_GERADO:'Link de pagamento gerado',PAGAMENTO_ONLINE_CONFIRMADO:'Pagamento online confirmado',PAGAMENTO_ESTORNADO:'Estorno informado pela InfinitePay',
   PAGAMENTO_PARA_CONFERIR:'Pagamento enviado para conferir',PAGAMENTO_CONFERIDO:'Pagamento conferido',
+  EXERCICIO_IMAGEM_ALTERADA:'Imagem do exercício enviada',EXERCICIO_IMAGEM_REMOVIDA:'Imagem do exercício removida',
   CSV_EXERCICIOS_IMPORTADO:'CSV de exercícios importado',CSV_ALIMENTOS_IMPORTADO:'CSV de alimentos importado',
 };

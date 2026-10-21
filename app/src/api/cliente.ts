@@ -97,6 +97,14 @@ export async function limparSessaoLocal(): Promise<void> {
   await apagarRefresh();
 }
 
+/**
+ * Origem do próprio site (sem `/api`), de onde saem os arquivos públicos como as fotos do catálogo. Na web vazia
+ * quando a API é `/api` (o caminho relativo fica na mesma origem); no celular, o host de `EXPO_PUBLIC_API_URL`.
+ */
+export function origemDoSite(): string {
+  return API_URL.replace(/\/api$/, '');
+}
+
 export function urlDaApi(caminho: string): string {
   return `${API_URL}${caminho.startsWith('/') ? caminho : `/${caminho}`}`;
 }

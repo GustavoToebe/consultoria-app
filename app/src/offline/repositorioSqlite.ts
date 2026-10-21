@@ -1,4 +1,4 @@
-import type { AnamneseDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, PainelAluno, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
 import {
   filaRetidaVenceu,
@@ -221,6 +221,14 @@ export class RepositorioSqlite implements RepositorioLocal {
 
   salvarMobilidade(mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null): Promise<void> {
     return this.emFila(undefined, (b) => this.gravarDocumento(b, 'mobilidade', mobilidade));
+  }
+
+  lerDemonstracoes(): Promise<DemonstracaoDoAluno[]> {
+    return this.emFila([], async (b) => (await this.lerDocumento<DemonstracaoDoAluno[]>(b, 'demonstracoes')) ?? []);
+  }
+
+  salvarDemonstracoes(demonstracoes: DemonstracaoDoAluno[]): Promise<void> {
+    return this.emFila(undefined, (b) => this.gravarDocumento(b, 'demonstracoes', demonstracoes));
   }
 
   lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null> {

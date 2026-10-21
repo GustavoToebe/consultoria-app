@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
+import type { DemonstracaoDoAluno, ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { textoTecnicaPorExtenso } from '../dominio/agrupamento';
 import { ajustarCarga, calcularCargasDoExercicio, metaDaSerie, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
@@ -20,6 +20,7 @@ import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
+import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
 import { IconeBotao } from '../ui/IconeBotao';
 import { Selo } from '../ui/Selo';
 import { sobre } from '../ui/sobre';
@@ -48,6 +49,8 @@ interface Props {
   acaoDescanso?: ReactNode;
   /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. */
   aoIniciarPausa?: (segundos: number) => void;
+  /** Imagem ou GIF do exercício (própria ou do catálogo); nulo = nada para mostrar. */
+  demonstracao?: DemonstracaoDoAluno | null;
 }
 
 /**
@@ -84,6 +87,10 @@ export function ExercicioAluno(p: Props) {
 
   return (
     <View style={estilos.exercicio}>
+      {p.demonstracao ? (
+        <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
+          imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="ALUNO" largura={240} altura={180} ampliavel />
+      ) : null}
       {temComoFazer || video || p.acaoDescanso ? (
         <View style={estilos.linhaComoFazer}>
           {temComoFazer ? (

@@ -214,6 +214,17 @@ export interface Exercicio {
   videoUrl: string | null;
   observacoes: string | null;
   origem: string;
+  /** Fotos do catálogo de onde veio (`<id>/0.jpg`, no máximo duas); vazio = não veio do catálogo. */
+  imagens: string[];
+  /** Quando a imagem ou GIF próprio foi enviado; nulo = não tem. Os bytes só pela rota autenticada. */
+  imagemPropriaEm: string | null;
+}
+
+/** O que o aluno pode mostrar de um exercício do plano dele (só entram os que têm alguma imagem). */
+export interface DemonstracaoDoAluno {
+  exercicioId: string;
+  imagens: string[];
+  imagemPropriaEm: string | null;
 }
 
 export interface ExercicioRequest {
@@ -255,6 +266,8 @@ export interface CatalogoExercicio {
   modalidade: string;
   instrucoes: string | null;
   fonte: string | null;
+  /** Caminhos das fotos (`<id>/0.jpg` e `1.jpg`), servidas pelo próprio site em `/catalogo/exercicios/`. */
+  imagens: string[];
 }
 
 export interface CatalogoAlimento {

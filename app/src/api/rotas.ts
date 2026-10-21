@@ -106,6 +106,7 @@ import type {
   ErgogenicoDaBiblioteca,
   ErgogenicoDaBibliotecaRequest,
   EnderecoDoCep,
+  DemonstracaoDoAluno,
   Tema,
   TipoPlano,
   TipoReceita,
@@ -464,6 +465,22 @@ export const criarExercicio = (dados: ExercicioRequest) =>
 export const alterarExercicio = (id: string, dados: ExercicioRequest) =>
   requisicao<Exercicio>(`/exercicios/${seg(id)}`, { metodo: 'PUT', corpo: dados });
 export const inativarExercicio = (id: string) => requisicao<void>(`/exercicios/${seg(id)}`, { metodo: 'DELETE' });
+
+// ---- Imagem ou GIF do exercício (bytes só pela API, com token; as fotos do catálogo vêm do próprio site) ----
+
+/** `arquivo`: FormData com o campo `arquivo`. GIF vai como está (a API tira os metadados e confere pelos bytes). */
+export const enviarImagemDoExercicio = (id: string, arquivo: FormData) =>
+  requisicao<Exercicio>(`/exercicios/${seg(id)}/imagem`, { metodo: 'PUT', corpoBruto: arquivo, limiteMs: 60000 });
+export const removerImagemDoExercicio = (id: string) =>
+  requisicao<Exercicio>(`/exercicios/${seg(id)}/imagem`, { metodo: 'DELETE' });
+/** Equipe (BIBLIOTECA_LER); 404 = sem imagem própria. */
+export const baixarImagemDoExercicio = (id: string) =>
+  requisicao<Blob>(`/exercicios/${seg(id)}/imagem`, { binario: true, limiteMs: 30000 });
+/** Aluno: o que há para mostrar dos exercícios dos planos dele. */
+export const demonstracoesDoAluno = () => requisicao<DemonstracaoDoAluno[]>('/aluno/exercicios/demonstracoes');
+/** Aluno: 404 se o exercício não está num plano publicado dele ou não tem imagem própria. */
+export const baixarImagemDoExercicioDoAluno = (id: string) =>
+  requisicao<Blob>(`/aluno/exercicios/${seg(id)}/imagem`, { binario: true, limiteMs: 30000 });
 
 export const listarAlimentos = (texto?: string) => requisicao<Alimento[]>(`/alimentos${busca(texto)}`);
 /** Fatores atuais dos alimentos (até 200 ids) para a lista de compras do editor da dieta; id de fora fica sem resposta. */

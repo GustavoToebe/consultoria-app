@@ -3,7 +3,7 @@ import { NotebookTabs } from 'lucide-react-native';
 import { Fragment, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { criarReceita, salvarPlanoComoReceita } from '../../api/rotas';
+import { criarReceita, listarExercicios, salvarPlanoComoReceita } from '../../api/rotas';
 import type { Configuracao, ConteudoTreino, Receita, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
 import { gruposDaSessao, podeJuntar } from '../../dominio/combinacoes';
@@ -44,6 +44,7 @@ import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
 import { Esqueleto } from '../../ui/Esqueleto';
+import { useCarregar } from '../../ui/useCarregar';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
@@ -76,6 +77,9 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // Uma sessão aparece por vez. Se o uid sumiu (desfazer, recarregar), vale a primeira.
   const [selecionadaUid, setSelecionadaUid] = useState<string | null>(null);
   const [modelos, setModelos] = useState(false);
+  // Miniatura da demonstração: vem da biblioteca, pelo vínculo `exercicioId`. Sem permissão ou sem internet, fica sem miniatura.
+  const biblioteca = useCarregar('biblioteca-exercicios', () => listarExercicios());
+  const demonstracoes = new Map((biblioteca.dados ?? []).map((x) => [x.id, { imagens: x.imagens, imagemPropriaEm: x.imagemPropriaEm }]));
 
   const estado = editor.estado;
   if (!estado) {
@@ -237,6 +241,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
                   config={config}
                   podeJuntar={podeJuntar(sessaoAtual.exercicios, ei)}
                   primeiroDeDupla={i === 0 && g.exercicios.length === 2}
+                  demonstracao={e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null}
                   aoAbrir={() => alternar(e.uid)}
                   aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
                   aoMover={(d) => mudarExercicios(indiceSelecionado, (lista) => moverExercicio(lista, ei, d))}

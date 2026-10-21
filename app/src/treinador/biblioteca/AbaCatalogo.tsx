@@ -20,6 +20,7 @@ import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { normalizar } from '../treino/FolhaBiblioteca';
 import { Selo } from '../../ui/Selo';
+import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
 import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
 
 interface ItemCatalogo {
@@ -28,6 +29,8 @@ interface ItemCatalogo {
   detalhe: string;
   /** Passos de execução (só exercícios; a fonte já vem em português). */
   passos: string[];
+  /** Fotos do catálogo (`<id>/0.jpg`); vazio nos alimentos. */
+  imagens: string[];
 }
 
 interface ListaCatalogo {
@@ -60,6 +63,7 @@ export function AbaCatalogo() {
             // Sem repetir ("Peso corporal · Abdômen · Peso corporal": modalidade e equipamento iguais).
             detalhe: [...new Set([MODALIDADES[e.modalidade] ?? e.modalidade, e.grupoMuscular, e.equipamento].filter(Boolean))].join(' · '),
             passos: passosDasInstrucoes(e.instrucoes),
+            imagens: e.imagens,
           })),
         };
       }
@@ -71,6 +75,7 @@ export function AbaCatalogo() {
           nome: a.nome,
           detalhe: [a.grupo, resumoNutrientes(a)].filter(Boolean).join(' · '),
           passos: [],
+          imagens: [],
         })),
       };
     },
@@ -151,6 +156,7 @@ export function AbaCatalogo() {
               <View style={[estilos.caixa, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: sel ? cores.texto : 'transparent' }]}>
                 {sel ? <Check size={16} color={cores.fundo} strokeWidth={3} /> : null}
               </View>
+              {item.imagens.length ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={56} altura={56} /> : null}
               <View style={estilos.dados}>
                 <Texto variante="bloco">{item.nome}</Texto>
                 <Texto variante="suave">{item.detalhe}</Texto>

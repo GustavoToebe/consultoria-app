@@ -1,4 +1,4 @@
-import type { AnamneseDetalhe, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 
 /**
@@ -116,6 +116,12 @@ export interface RepositorioLocal {
   /** Última mobilidade publicada vista online (só leitura); nulo = o aluno não tem. */
   lerMobilidade(): Promise<VersaoDetalhe<ConteudoMobilidadeApi> | null>;
   salvarMobilidade(mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null): Promise<void>;
+  /**
+   * Última lista de demonstrações (fotos do catálogo e se há imagem própria) dos exercícios dos planos, vista online.
+   * Só os caminhos e a data: a imagem própria nunca fica no aparelho (só pela API, com token).
+   */
+  lerDemonstracoes(): Promise<DemonstracaoDoAluno[]>;
+  salvarDemonstracoes(demonstracoes: DemonstracaoDoAluno[]): Promise<void>;
   /** Por `exercicioUid|data`. */
   lerCargasDeTrabalho(): Promise<Record<string, number>>;
   salvarCargaDeTrabalho(exercicioUid: string, data: string, carga: number | null): Promise<Record<string, number>>;
@@ -278,6 +284,14 @@ export class RepositorioChaveValor implements RepositorioLocal {
 
   salvarMobilidade(mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null): Promise<void> {
     return this.emFila(() => this.gravarJson('mobilidade', mobilidade));
+  }
+
+  lerDemonstracoes(): Promise<DemonstracaoDoAluno[]> {
+    return this.emFila(() => this.lerJson<DemonstracaoDoAluno[]>('demonstracoes', []));
+  }
+
+  salvarDemonstracoes(demonstracoes: DemonstracaoDoAluno[]): Promise<void> {
+    return this.emFila(() => this.gravarJson('demonstracoes', demonstracoes));
   }
 
   lerHistoricoSemana(): Promise<HistoricoSemanaSalvo | null> {

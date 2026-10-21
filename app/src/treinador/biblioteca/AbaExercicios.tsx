@@ -27,6 +27,8 @@ import { gruposDosExercicios } from '../../dominio/catalogo';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { normalizar } from '../treino/FolhaBiblioteca';
+import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
+import { ImagemDoExercicioEditor } from './ImagemDoExercicioEditor';
 
 const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor: valor as Modalidade, rotulo }));
 
@@ -79,6 +81,9 @@ export function AbaExercicios() {
       ) : null}
       <Grade gap={espaco(2)}>{lista.map((e) => (
         <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+          <View style={estilos.miniatura}>
+            <DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} />
+          </View>
           <View style={estilos.dados}>
             <Texto variante="bloco">{e.nome}</Texto>
             <Texto variante="suave">
@@ -93,6 +98,7 @@ export function AbaExercicios() {
           inicial={editando === 'novo' ? null : editando}
           aoTirar={editando === 'novo' ? undefined : () => { const alvo = editando; setEditando(null); setInativar(alvo); }}
           aoFechar={() => setEditando(null)}
+          aoImagemMudou={recarregar}
           aoSalvar={() => {
             setEditando(null);
             recarregar();
@@ -113,7 +119,9 @@ export function AbaExercicios() {
   );
 }
 
-function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () => void; inicial: Exercicio | null; aoFechar: () => void; aoSalvar: () => void }) {
+function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar, aoImagemMudou }: { aoTirar?: () => void; inicial: Exercicio | null; aoFechar: () => void; aoSalvar: () => void; aoImagemMudou: () => void }) {
+  const { pode } = useSessao();
+  const [atual, setAtual] = useState<Exercicio | null>(inicial);
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [grupo, setGrupo] = useState(inicial?.grupoMuscular ?? '');
   const [equipamento, setEquipamento] = useState(inicial?.equipamento ?? '');
@@ -166,6 +174,11 @@ function FolhaExercicio({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: ()
         maxLength={500}
       />
       <Campo rotulo="Observações (opcional)" valor={observacoes} aoMudar={setObservacoes} linhas={3} maxLength={4000} />
+      {atual ? (
+        <ImagemDoExercicioEditor exercicio={atual} podeAlterar={pode('BIBLIOTECA_ALTERAR')} aoMudar={(e) => { setAtual(e); aoImagemMudou(); }} />
+      ) : (
+        <Texto variante="suave">Depois de salvar, você pode enviar uma imagem ou GIF deste exercício.</Texto>
+      )}
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {inicial && aoTirar ? <Botao rotulo="Tirar da biblioteca" tipo="perigoTexto" Icone={Trash2} aoTocar={aoTirar} /> : null}
     </Folha>
@@ -178,4 +191,5 @@ const estilos = StyleSheet.create({
   busca: { flexGrow: 1, flexBasis: 220, maxWidth: 480 },
   linha: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
   dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },
+  miniatura: { marginRight: espaco(1.5) },
 });

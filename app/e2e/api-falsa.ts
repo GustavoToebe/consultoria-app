@@ -78,6 +78,8 @@ export async function simularApi(page: Page, respostas: RespostasApi = {}) {
     'GET /aluno/execucoes': { corpo: [] },
     // Idem para os itens de mobilidade já marcados no servidor.
     'GET /aluno/mobilidade/registros': { corpo: [] },
+    // Imagens dos exercícios do plano (própria ou do catálogo); nenhuma nos testes que não conferem isso.
+    'GET /aluno/exercicios/demonstracoes': { corpo: [] },
     // O ponto da aba do aluno pergunta pela anamnese; 404 = nenhuma atribuída (o teste da anamnese troca).
     'GET /aluno/anamnese': erroApi(404, 'Nenhuma anamnese.', 'NAO_ENCONTRADO'),
     ...respostas,

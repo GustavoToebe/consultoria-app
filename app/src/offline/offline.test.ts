@@ -237,6 +237,20 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect(await aparelho('ana').lerMobilidade()).toBeNull();
   });
 
+  it('demonstrações voltam iguais, não se misturam entre alunos e somem quando o aluno sai da conta', async () => {
+    const lista = [
+      { exercicioId: 'e1', imagens: ['Air_Bike/0.jpg', 'Air_Bike/1.jpg'], imagemPropriaEm: null },
+      { exercicioId: 'e2', imagens: [], imagemPropriaEm: '2026-10-20T12:00:00Z' },
+    ];
+    const ana = aparelho('ana');
+    expect(await ana.lerDemonstracoes()).toEqual([]);
+    await ana.salvarDemonstracoes(lista);
+    expect(await ana.lerDemonstracoes()).toEqual(lista);
+    expect(await aparelho('bia').lerDemonstracoes()).toEqual([]);
+    await ana.apagarTudo();
+    expect(await aparelho('ana').lerDemonstracoes()).toEqual([]);
+  });
+
   it('valores voltam com o tipo certo (carga decimal, repetições vazias, booleanos)', async () => {
     const repo = aparelho('u1');
     await repo.registrar(serie('x', { carga: 25.5, repeticoes: null, trabalho: true, concluida: false }));
@@ -301,6 +315,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       await repo.salvarPacote({ aluno: { nome: 'Fictício' } } as never);
       await repo.salvarDieta({ id: 'd1' } as never);
       await repo.salvarMobilidade({ id: 'm1' } as never);
+      await repo.salvarDemonstracoes([{ exercicioId: 'e1', imagens: ['A/0.jpg'], imagemPropriaEm: null }]);
       await repo.salvarCargaDeTrabalho('e1', '2026-10-07', 30);
       await repo.salvarRascunhoAtualizacao('p1', { questionarioVersaoId: 'q1', respostas: { peso: 80 } });
       await repo.salvarHistoricoSemana({ inicio: '2026-10-05', dias: [] });
@@ -316,6 +331,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       expect(await depois.lerPacote()).toBeNull();
       expect(await depois.lerDieta()).toBeNull();
       expect(await depois.lerMobilidade()).toBeNull();
+      expect(await depois.lerDemonstracoes()).toEqual([]);
       expect(await depois.lerAtualizacao()).toBeNull();
       expect(await depois.lerRascunhoAtualizacao('p1')).toBeNull();
       expect(await depois.lerHistoricoSemana()).toBeNull();

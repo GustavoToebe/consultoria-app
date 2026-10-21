@@ -10,12 +10,13 @@ import {
   enviarRegistros,
   enviarRegistrosMobilidade,
   historicoAluno,
+  demonstracoesDoAluno,
   mobilidadeAluno,
   painelAluno,
   planosDaPastaAluno,
   registrosMobilidadeDoAluno,
 } from '../api/rotas';
-import type { Atualizacao, ConteudoMobilidadeApi, PastaDoAluno, PlanosDaPasta, RegistroMobilidadeFeito, VersaoDetalhe } from '../api/tipos';
+import type { Atualizacao, ConteudoMobilidadeApi, DemonstracaoDoAluno, PastaDoAluno, PlanosDaPasta, RegistroMobilidadeFeito, VersaoDetalhe } from '../api/tipos';
 import { hojeIso, somarDias } from '../dominio/formatos';
 import { periodoDaSemana } from '../dominio/progressoSemana';
 import { fundirMarcas, type MarcaDeMobilidade } from '../dominio/mobilidadeFeita';
@@ -51,6 +52,8 @@ interface ValorAluno {
   pacote: PacoteSalvo | null;
   /** Mobilidade publicada vigente (última vista neste aparelho); nulo = o aluno não tem e a aba não aparece. */
   mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null;
+  /** Demonstração (fotos do catálogo e se há imagem própria) dos exercícios dos planos; a última vista neste aparelho. */
+  demonstracoes: DemonstracaoDoAluno[];
   /** Ainda lendo o aparelho na abertura. */
   carregando: boolean;
   /** Não deu para baixar o pacote e não há nada salvo. */
@@ -135,6 +138,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
 
   const [pacote, setPacote] = useState<PacoteSalvo | null>(null);
   const [mobilidade, setMobilidade] = useState<VersaoDetalhe<ConteudoMobilidadeApi> | null>(null);
+  const [demonstracoes, setDemonstracoes] = useState<DemonstracaoDoAluno[]>([]);
   const [escolhida, setEscolhida] = useState<PlanoEscolhido | null>(null);
   const escolherPasta = useCallback(async (pasta: PastaDoAluno) => {
     setEscolhida(pasta.atual ? null : { pasta, planos: await planosDaPastaAluno(pasta.id) });
@@ -170,6 +174,18 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
         await repositorio.salvarMobilidade(null);
         setMobilidade(null);
       }
+    }
+  }, [repositorio]);
+
+  // Demonstrações dos exercícios do plano: sem conexão ou erro, segue com a última lista salva (a imagem própria some,
+  // as fotos do catálogo ficam no cache de disco do aparelho); com resposta, a lista nova substitui a antiga.
+  const baixarDemonstracoes = useCallback(async () => {
+    try {
+      const nova = await demonstracoesDoAluno();
+      await repositorio.salvarDemonstracoes(nova);
+      setDemonstracoes(nova);
+    } catch {
+      // Mantém a última lista.
     }
   }, [repositorio]);
 
@@ -225,6 +241,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       setErroPacote(null);
       atualizarMarca(novo.marca);
       await baixarMobilidade();
+      await baixarDemonstracoes();
       await baixarMarcasDeMobilidade();
       await carregarSemanaDoServidor(hojeIso(), true, desdeDoPlano(novo.treino?.inicio ?? null));
     } catch (erro) {
@@ -233,7 +250,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       else setErroPacote((atual: unknown) => atual ?? erro);
       await carregarSemanaDoServidor(hojeIso(), true);
     }
-  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, baixarMarcasDeMobilidade, carregarSemanaDoServidor]);
+  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, baixarDemonstracoes, baixarMarcasDeMobilidade, carregarSemanaDoServidor]);
 
   const sincronizar = useCallback(async () => {
     if (espera.current) {
@@ -267,11 +284,12 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   // normal deste usuário), lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
   useEffect(() => {
     let vivo = true;
-    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade(),repositorio.listarMobilidade()])).then(
-      ([p, r, c, a, m, ml]) => {
+    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade(),repositorio.listarMobilidade(),repositorio.lerDemonstracoes()])).then(
+      ([p, r, c, a, m, ml, dem]) => {
         if (!vivo) return;
         setPacote(p);
         setMobilidade(m);
+        setDemonstracoes(dem);
         setRegistros(r);
         setMobilidadeLocal(ml);
         setCargas(c);
@@ -387,6 +405,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       escolherPasta,
       pacote,
       mobilidade,
+      demonstracoes,
       carregando,
       erroPacote,
       registros: todos,
@@ -408,7 +427,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

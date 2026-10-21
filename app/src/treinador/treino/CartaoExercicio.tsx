@@ -13,6 +13,7 @@ import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
+import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { Selo } from '../../ui/Selo';
@@ -40,6 +41,8 @@ interface Props {
   podeJuntar: boolean;
   /** Primeiro de um grupo de exatamente 2: oferece "Bi-set" ou "Supersérie". */
   primeiroDeDupla: boolean;
+  /** Imagem do exercício na biblioteca (nulo = fora dela ou sem imagem). */
+  demonstracao?: { imagens: string[]; imagemPropriaEm: string | null } | null;
 }
 
 const NOMES_DA_DUPLA: { valor: 'BISET' | 'SUPERSERIE'; rotulo: string }[] = [
@@ -64,6 +67,10 @@ export function CartaoExercicio(p: Props) {
         { borderColor: p.comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie2 },
       ]}>
       <View style={estilos.topo}>
+        {p.demonstracao ? (
+          <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
+            imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} />
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${p.aberto ? 'Fechar' : 'Editar'} ${e.nome || 'exercício sem nome'}`}
