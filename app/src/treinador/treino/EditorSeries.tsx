@@ -201,7 +201,7 @@ function EditorGrupo({
       {foraDaMetodologia.length ? <Texto variante="pequeno">{textoForaDaMetodologia(foraDaMetodologia)}</Texto> : null}
       <View style={estilos.linha}>
         <View style={estilos.quantidade}>
-          <Texto variante="pequeno" style={estilos.rotulo}>Séries</Texto>
+          <Texto variante="rotulo">Séries</Texto>
           <View style={estilos.contador}>
             <IconeBotao Icone={Minus} rotulo="Uma série a menos" desabilitado={n <= 1} aoTocar={() => aoQuantidade(n - 1)} />
             <Texto style={estilos.numero} accessibilityLabel={`${n} séries`}>{n}</Texto>
@@ -379,9 +379,9 @@ const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(0.5) },
   resumoBotao: { flex: 1, minHeight: 44, justifyContent: 'center' },
   resumo: { fontFamily: fontes.semi },
-  linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-end' },
+  // Alinhada pelo topo: o erro de um campo (dentro do próprio Campo) cresce para baixo sem empurrar os irmãos.
+  linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   quantidade: { gap: espaco(0.5) },
-  rotulo: { fontFamily: fontes.semi },
   contador: { flexDirection: 'row', alignItems: 'center' },
   numero: { fontFamily: fontes.negrito, fontSize: 18, minWidth: 28, textAlign: 'center' },
   reps: { width: 110 },
