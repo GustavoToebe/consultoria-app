@@ -32,6 +32,7 @@ import {
   treinoComBiblioteca, videoValido,
 } from './planos-lib.mjs';
 import { xlsx, serie } from './xlsx-apoio-teste.mjs';
+import { verificarContratoDoTreino } from './contrato-apoio-teste.mjs';
 
 const HOJE = '2026-10-20';
 const CONVERSOR = fileURLToPath(new URL('./converter-planos.mjs', import.meta.url));
@@ -126,7 +127,7 @@ function violacoes(tipo, c) {
       max(s.nome, 80, 'sessao.nome'); lista(s.exercicios, 40, 'exercicios');
       for (const e of s.exercicios) {
         max(e.nome, 120, 'exercicio.nome'); max(e.observacao, 1000, 'exercicio.obs'); max(e.videoUrl, 500, 'video'); lista(e.series, 30, 'series');
-        for (const x of e.series) { max(x.tipo, 30, 'serie.tipo'); max(x.intensidade.texto, 120, 'intensidade.texto'); }
+        for (const x of e.series) { max(x.tipo, 30, 'serie.tipo'); max(x.alvoExtra, 120, 'serie.alvoExtra'); }
       }
     }
   } else {
@@ -172,32 +173,33 @@ test('treino: sessões por letra, exercícios pela Ordem, séries FS/WS/Top set/
 
   const [puxada, remada] = sessoes[0].exercicios;
   assert.deepEqual([puxada.nome, remada.nome], ['Puxada fictícia', 'Remada fictícia']);
-  assert.deepEqual(puxada.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.intensidade.modo]), Array(3).fill(['WS', 6, 8, 'CARGA_TRABALHO']));
+  assert.deepEqual(puxada.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.carga.modo]), Array(3).fill(['WORKING', 6, 8, 'CARGA_TRABALHO']));
   // BO falso ignora o % da coluna Back Off
-  assert.ok(!puxada.series.some((s) => s.tipo === 'Back off'));
+  assert.ok(!puxada.series.some((s) => s.tipo === 'BACK_OFF'));
   assert.deepEqual(
-    remada.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.intensidade.modo, s.intensidade.percentualMin]),
-    [['FS', 3, 3, 'PERCENTUAL_WS', 50], ['FS', 3, 3, 'PERCENTUAL_WS', 70], ['FS', 3, 3, 'PERCENTUAL_WS', 85], ['WS', 3, 6, 'CARGA_TRABALHO', null], ['Back off', 6, 8, 'PERCENTUAL_WS', 85]],
+    remada.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.carga.modo, s.carga.percentualMin]),
+    [['FEEDER', 3, 3, 'PERCENTUAL_WS', 50], ['FEEDER', 3, 3, 'PERCENTUAL_WS', 70], ['FEEDER', 3, 3, 'PERCENTUAL_WS', 85], ['WORKING', 3, 6, 'CARGA_TRABALHO', null], ['BACK_OFF', 6, 8, 'PERCENTUAL_WS', 85]],
   );
   assert.equal(remada.videoUrl, 'https://youtu.be/abc123');
   assert.equal(remada.observacao, 'Obs fictícia');
   assert.equal(remada.unidade, 'kg');
   assert.equal(remada.progressao, true);
   assert.equal(remada.exercicioId, null);
-  assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null));
+  assert.ok(remada.series.every((s) => s.descansoSegundos === null && s.tecnica === null && s.esforco === null && s.cardio === null && s.carga.referenciaUid === null));
+  verificarContratoDoTreino(doAluno(r, 'AL1').treino.conteudo);
 });
 
 test('treino: Rep Range que virou data (recuperada, só contada), WS absurdo, FS sem regra, nome comprido, link ruim e exercício sem série', () => {
   const r = converter();
   const [data, ws23, gigante] = doAluno(r, 'AL1').treino.conteudo.sessoes[1].exercicios;
   // data do Excel (08/12/2026): faixa 8 a 12 na WS, só contada (não vai para os problemas); FS e Back off seguem a metodologia
-  assert.deepEqual(data.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.intensidade.percentualMin]), [['FS', 3, 3, 70], ['FS', 3, 3, 85], ['WS', 8, 12, null], ['Back off', 6, 8, 90]]);
+  assert.deepEqual(data.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.carga.percentualMin]), [['FEEDER', 3, 3, 70], ['FEEDER', 3, 3, 85], ['WORKING', 8, 12, null], ['BACK_OFF', 6, 8, 90]]);
   assert.equal(r.problemas.filter((p) => /recuperada/i.test(p.motivo)).length, 0);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'virou data no Excel').length, 0);
   assert.equal(r.contagens.faixasRecuperadas, 1);
   // WS 23: nenhuma série de WS; FS 4: sem regra
-  assert.ok(!ws23.series.some((s) => s.tipo === 'WS'));
-  assert.deepEqual(ws23.series.map((s) => [s.tipo, s.intensidade.modo]), Array(4).fill(['FS', 'NENHUMA']));
+  assert.ok(!ws23.series.some((s) => s.tipo === 'WORKING'));
+  assert.deepEqual(ws23.series.map((s) => [s.tipo, s.carga.modo]), Array(4).fill(['FEEDER', 'NENHUMA']));
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'quantidade de WS acima de 10').length, 1);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'FS sem regra').length, 1);
   // nome > 120: cortado, inteiro na observação; link http recusado; TS verdadeiro vira Top set livre; BO com % 0 não é problema se BO falso
@@ -206,9 +208,11 @@ test('treino: Rep Range que virou data (recuperada, só contada), WS absurdo, FS
   assert.equal(gigante.videoUrl, null);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'link de vídeo não aceito').length, 1);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'nome do exercício com mais de 120').length, 1);
-  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.intensidade.modo]), [['FS', 'PERCENTUAL_WS'], ['WS', 'CARGA_TRABALHO'], ['WS', 'CARGA_TRABALHO'], ['Top set', 'ACIMA_DA_ANTERIOR']]);
-  assert.equal(gigante.series.find((s) => s.tipo === 'Top set').repsMin, null);
-  assert.equal(gigante.series.find((s) => s.tipo === 'FS').intensidade.percentualMin, 85);
+  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.carga.modo]), [['FEEDER', 'PERCENTUAL_WS'], ['WORKING', 'CARGA_TRABALHO'], ['WORKING', 'CARGA_TRABALHO'], ['TOP_SET', 'ACIMA_DA_ANTERIOR']]);
+  assert.equal(gigante.series.find((s) => s.tipo === 'TOP_SET').repsMin, null);
+  // Top set sem número: sobe sobre a anterior, sem inventar percentual
+  assert.deepEqual(gigante.series.find((s) => s.tipo === 'TOP_SET').carga, { modo: 'ACIMA_DA_ANTERIOR', percentualMin: null, percentualMax: null, referenciaUid: null });
+  assert.equal(gigante.series.find((s) => s.tipo === 'FEEDER').carga.percentualMin, 85);
   // sem série (aluno AL6): o exercício fica no plano, sem séries, para o treinador preencher à mão
   const semSerie = doAluno(r, 'AL6').treino.conteudo.sessoes[0].exercicios;
   assert.deepEqual(semSerie.map((e) => [e.nome, e.series.length]), [['Sem série', 0]]);
@@ -286,7 +290,13 @@ test('o JSON respeita os limites da API, tem uids únicos e não tem zero no lug
   }
   // campos que a planilha não tem ficam nulos
   const e = doAluno(r, 'AL1').treino.conteudo.sessoes[0].exercicios[0];
-  assert.deepEqual([e.cadencia, e.isometriaSegundos, e.juntoComAnterior, e.combinacao, e.modalidade], [null, null, null, null, null]);
+  assert.deepEqual([e.cadencia, e.isometriaSegundos, e.grupoUid, e.modalidade], [null, null, null, null]);
+  // formato novo: sem as chaves do contrato anterior, sem grupos nem cardio (a planilha não os tem)
+  assert.ok(!Object.hasOwn(e, 'juntoComAnterior') && !Object.hasOwn(e, 'combinacao'));
+  for (const a of r.arquivos) if (a.treino) {
+    verificarContratoDoTreino(a.treino.conteudo);
+    assert.ok(a.treino.conteudo.sessoes.every((s) => Array.isArray(s.grupos) && s.grupos.length === 0));
+  }
   const item = doAluno(r, 'AL2').dieta.conteudo.refeicoes[0].opcoes[0].itens[0];
   assert.deepEqual([item.fatorCorrecao, item.fatorCoccao, item.alimentoId], [null, null, null]);
 });
@@ -315,10 +325,12 @@ test('regras pequenas: faixa de repetições, dia da semana, vídeo, séries e n
   assert.equal(videoValido('https://user:senha@youtu.be/abc'), false);
   const avisos = [];
   const base = { ws: undefined, fs: undefined, ts: undefined, bo: undefined, backoff: undefined, faixa: { min: 3, max: 6 } };
-  assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, bo: true, backoff: 0.9 }, (a) => avisos.push(a)).map((s) => s.intensidade.percentualMin), [85, null, 90]);
+  assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, bo: true, backoff: 0.9 }, (a) => avisos.push(a)).map((s) => s.carga.percentualMin), [85, null, 90]);
+  assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, ts: true, bo: true, backoff: 0.9 }, () => {}).map((s) => [s.tipo, s.carga.modo, s.carga.referenciaUid]),
+    [['FEEDER', 'PERCENTUAL_WS', null], ['WORKING', 'CARGA_TRABALHO', null], ['TOP_SET', 'ACIMA_DA_ANTERIOR', null], ['BACK_OFF', 'PERCENTUAL_WS', null]]);
   const semPercentual = montarSeries({ ...base, ws: 1, bo: true, backoff: 0 }, (a) => avisos.push(a));
-  assert.equal(semPercentual[1].intensidade.modo, 'NENHUMA');
-  assert.deepEqual(avisos, ['back off sem percentual válido (série sem intensidade)']);
+  assert.equal(semPercentual[1].carga.modo, 'NENHUMA');
+  assert.deepEqual(avisos, ['back off sem percentual válido (série sem carga)']);
   assert.deepEqual(montarSeries({ ...base, ws: -1, fs: 1.5 }, () => {}), []);
   const usados = new Set();
   assert.deepEqual(['ALU/1', 'ALU_1', '../x'].map((c) => nomeDoArquivo(c, usados)), ['ALU_1.json', 'ALU_1_2.json', '___x.json']);
@@ -1308,7 +1320,7 @@ test('conversão: cada problema leva o código do aluno dono da linha, e o resul
 test('pacote: textoDoProblema escreve em português simples, sem código nem conteúdo da planilha, e conhece todos os tipos da conversão', () => {
   const t = (tipo) => textoDoProblema({ tipo, motivo: tipo });
   // os textos pedidos
-  assert.match(t('FS sem regra de percentual na metodologia (séries sem intensidade)'), /série FS.*porcentagem/);
+  assert.match(t('FS sem regra de percentual na metodologia (séries sem carga)'), /série FS.*porcentagem/);
   assert.match(t('quantidade ausente, zero ou inválida (item mantido sem quantidade)'), /falta a quantidade/);
   assert.match(t('aluno do plano não está entre os alunos convertidos'), /aluno que não está na aba Alunos/);
   assert.match(t('aluno do rotina não está entre os alunos convertidos'), /treino é de um aluno/);

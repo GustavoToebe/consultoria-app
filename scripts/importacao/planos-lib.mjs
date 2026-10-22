@@ -12,18 +12,21 @@
  * - Só rascunho. Nada aqui publica; quem revisa e publica é o treinador.
  *
  * Como a metodologia do Saraiva aparece nas séries (a mesma de `ConfiguracaoConsultoria.padrao()`, espelhada em
- * `app/src/dominio/metodologiaPadrao.ts` e usada por `importar.mjs`): série de tipo "FS" com `PERCENTUAL_WS` pela regra
- * de preparação do total de FS (1 FS = 85; 2 = 70/85; 3 = 50/70/85); "WS" = `CARGA_TRABALHO`; "Top set" sem número
- * = `ACIMA_DA_ANTERIOR` sem percentual; "Back off" = `PERCENTUAL_WS` com o % da coluna "Back Off %".
+ * `app/src/dominio/metodologiaPadrao.ts` e usada por `importar.mjs`): o `tipo` da série é o **código** do tipo (`FEEDER`,
+ * `WORKING`, `TOP_SET`, `BACK_OFF`). "FS" tem `carga` `PERCENTUAL_WS` pela regra de preparação do total de FS (1 FS = 85; 2 =
+ * 70/85; 3 = 50/70/85); "WS" = `CARGA_TRABALHO`; "Top set" sem número = `ACIMA_DA_ANTERIOR` sem percentual; "Back off" =
+ * `PERCENTUAL_WS` com o % da coluna "Back Off %" (a planilha não aponta uma série de referência, então nunca
+ * `ABAIXO_DA_REFERENCIA`). Esforço (RIR/RPE) é separado da carga e a planilha não o traz: `esforco` fica nulo.
  *
  * O **tipo** da série (Aquecimento, FS, WS, Back off, Top set) diz para que ela serve; a **técnica** (cluster, rest pause,
- * drop-set) diz como executar e fica em `serie.tecnica`. Rest pause e cluster são técnicas, com pausa e referência de carga próprias (`importar.mjs`).
+ * drop-set) diz como executar e fica em `serie.tecnica`, dentro da série de trabalho (`importar.mjs`). A planilha não tem
+ * grupos de exercícios nem cardio: `sessao.grupos` sai vazio e `grupoUid` nulo.
  */
 import METODOLOGIA_PADRAO from './metodologia-padrao.json' with { type: 'json' };
 import { randomUUID } from 'node:crypto';
 
 import { chaveDoNome } from './alunos-lib.mjs';
-import { ALIAS, chave } from './importar.mjs';
+import { ALIAS, cargaDe, chave, codigoDoTipo } from './importar.mjs';
 import { aba, cabecalho, converter, dataDoExcel, texto, vazia } from './planilha-lib.mjs';
 
 /** Abas que o conversor abre. Qualquer outra (a "TACO" em especial) nem é descomprimida. */
@@ -48,7 +51,6 @@ const L = {
 /** Máximo de itens de suplementação por dieta na API (o que passar disso derrubaria o `PUT` do rascunho). */
 export const LIMITE_DE_SUPLEMENTOS = L.suplementos;
 
-const INTENSIDADE = (modo, extra = {}) => ({ modo, percentualMin: null, percentualMax: null, rir: null, rpe: null, ...extra });
 const linhaUnica = (t) => t.replace(/\s+/g, ' ').trim();
 const bloco = (t) => t.replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 const celula = (linha, i) => (i < 0 ? undefined : linha.celulas[i]);
@@ -356,7 +358,7 @@ function treinosDosAlunos(planilha, alunos, problema, cortar, dono) {
       }
       if (exercicios.length === 0) continue;
       sessoes.push({
-        uid: randomUUID(), nome, diaSemana: diaDaSemana(nome), tipo: 'TREINO', frequenciaSemanal: null, observacao: null, cardio: null, exercicios,
+        uid: randomUUID(), nome, diaSemana: diaDaSemana(nome), tipo: 'TREINO', frequenciaSemanal: null, observacao: null, cardio: null, exercicios, grupos: [],
       });
     }
     if (sessoes.length === 0) { problema(ABA_ROT, linhaRotina.n, 'rotina sem exercícios aproveitáveis'); continue; }
@@ -400,7 +402,7 @@ function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904, aoRecup
   if (series.length === 0) avisar('exercício ficou sem série (preencher à mão)');
   return {
     uid: randomUUID(), exercicioId: null, nome, modalidade: null, videoUrl, observacao: obs, progressao: true, unidade: 'kg', series,
-    cadencia: null, isometriaSegundos: null, juntoComAnterior: null, combinacao: null,
+    cadencia: null, isometriaSegundos: null, grupoUid: null,
   };
 }
 
@@ -409,8 +411,9 @@ function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904, aoRecup
  * `aoRecuperarFaixa` é chamado quando a faixa da WS foi recuperada de uma data do Excel: só conta, não vira problema.
  */
 export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecuperarFaixa = () => {}) {
-  const serie = (tipo, reps, intensidade) => ({
-    uid: randomUUID(), tipo, repsMin: reps?.[0] ?? null, repsMax: reps?.[1] ?? null, intensidade, descansoSegundos: null, tecnica: null,
+  const serie = (nomeDoTipo, reps, carga) => ({
+    uid: randomUUID(), tipo: codigoDoTipo(nomeDoTipo), repsMin: reps?.[0] ?? null, repsMax: reps?.[1] ?? null, amrap: null, carga, esforco: null,
+    descansoSegundos: null, tecnica: null, cardio: null, alvoExtra: null,
   });
   const quantidade = (v, rotulo) => {
     if (v === undefined) return 0;
@@ -421,9 +424,9 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecup
   const series = [];
   const nFs = quantidade(fs, 'FS');
   const regra = tipoDaMetodologia('FS').regraPercentuais[nFs];
-  if (nFs > 0 && !regra) avisar('FS sem regra de percentual na metodologia (séries sem intensidade)');
+  if (nFs > 0 && !regra) avisar('FS sem regra de percentual na metodologia (séries sem carga)');
   for (let i = 0; i < nFs; i++) {
-    series.push(serie('FS', repsDoTipo('FS'), regra ? INTENSIDADE('PERCENTUAL_WS', { percentualMin: regra[i].min, percentualMax: regra[i].max }) : INTENSIDADE('NENHUMA')));
+    series.push(serie('FS', repsDoTipo('FS'), regra ? cargaDe('PERCENTUAL_WS', { percentualMin: regra[i].min, percentualMax: regra[i].max }) : cargaDe('NENHUMA')));
   }
   const nWs = quantidade(ws, 'WS');
   let reps = null;
@@ -436,15 +439,15 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecup
       if (faixa.deData) aoRecuperarFaixa();
     }
   }
-  for (let i = 0; i < nWs; i++) series.push(serie('WS', reps, INTENSIDADE('CARGA_TRABALHO')));
+  for (let i = 0; i < nWs; i++) series.push(serie('WS', reps, cargaDe('CARGA_TRABALHO')));
   if (ts === null) avisar('TS inválido (ignorado)');
-  if (ts === true) { series.push(serie('Top set', null, INTENSIDADE('ACIMA_DA_ANTERIOR'))); avisar('top set sem percentual prescrito (complete no editor)'); }
+  if (ts === true) { series.push(serie('Top set', null, cargaDe('ACIMA_DA_ANTERIOR'))); avisar('top set sem percentual prescrito (complete no editor)'); }
   if (bo === null) avisar('BO inválido (ignorado)');
   if (bo === true) {
-    // A planilha diz só se há back off, não quantas séries: uma. Percentual: fração da planilha (0,85) vira 85.
+    // A planilha diz só se há back off, não quantas séries: uma. Percentual da WS: fração da planilha (0,85) vira 85.
     const p = Number.isFinite(backoff) && backoff > 0 && backoff <= 2 ? Math.round(backoff * 100) : null;
-    if (p === null) avisar('back off sem percentual válido (série sem intensidade)');
-    series.push(serie('Back off', repsDoTipo('Back off'), p === null ? INTENSIDADE('NENHUMA') : INTENSIDADE('PERCENTUAL_WS', { percentualMin: p })));
+    if (p === null) avisar('back off sem percentual válido (série sem carga)');
+    series.push(serie('Back off', repsDoTipo('Back off'), p === null ? cargaDe('NENHUMA') : cargaDe('PERCENTUAL_WS', { percentualMin: p })));
   }
   return series;
 }
@@ -724,7 +727,10 @@ export function treinoComBiblioteca(conteudo, biblioteca, vinculos = new Map()) 
       exercicios: s.exercicios.map((e) => {
         const k = chaveDoExercicio(e.nome);
         const par = biblioteca.get(k) ?? (vinculos.has(k) ? biblioteca.get(vinculos.get(k)) : undefined);
-        return par ? { ...e, exercicioId: par.id, modalidade: par.modalidade ?? e.modalidade, videoUrl: e.videoUrl ?? par.videoUrl ?? null } : e;
+        if (!par) return e;
+        // A planilha traz séries de força (tipo, carga): num exercício da biblioteca de cardio elas ficariam inválidas, então a modalidade fica a da planilha.
+        const modalidade = par.modalidade === 'CARDIO' ? e.modalidade : par.modalidade ?? e.modalidade;
+        return { ...e, exercicioId: par.id, modalidade, videoUrl: e.videoUrl ?? par.videoUrl ?? null };
       }),
     })),
   };

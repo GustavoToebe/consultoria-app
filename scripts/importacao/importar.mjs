@@ -2,7 +2,9 @@
 /**
  * Importa para a consultoria do Saraiva (pela API, como treinador) os vídeos da biblioteca de exercícios, os modelos
  * de semana de treino, os modelos de mobilidade, os suplementos e a lista de medicação e ergogênicos que estão em ./dados. Pode rodar de novo à vontade: só cria o que
- * ainda não existe e nunca troca um vídeo que já está na biblioteca. Séries com rest pause e cluster mantêm a técnica e a referência de carga; o resumo conta quantas.
+ * ainda não existe e nunca troca um vídeo que já está na biblioteca. As séries saem no formato atual (`ConteudoTreino.Serie`):
+ * `tipo` é o código da metodologia (`WORKING`, `FEEDER`...), `carga` e `esforco` são separados, e rest pause, cluster e drop-set
+ * entram na própria série de trabalho (`tecnica`); o resumo conta quantas.
  *
  *   node scripts/importacao/importar.mjs --simular     (só lê; mostra o que faria)
  *   node scripts/importacao/importar.mjs               (grava)
@@ -140,7 +142,48 @@ export function modalidadeDe(nome) {
 // ---------------------------------------------------------------- séries
 const TIPOS = { aquecimento: 'Aquecimento', fs: 'FS', ws: 'WS', 'back off': 'Back off', 'top set': 'Top set' };
 const REGRA_PADRAO = METODOLOGIA_PADRAO.tipos.find((t) => t.papel === 'PREPARACAO').regraPercentuais;
-const tecnicaVazia = (tipo) => ({ tipo, pausaSegundos: null, pausaRespiracoes: null, pausas: null, blocos: null, quedas: null, reducaoPercentual: null, repsPorQueda: null });
+const tecnicaVazia = (tipo) => ({
+  tipo, pausaSegundos: null, pausaRespiracoes: null, pausas: null, blocos: null, quedas: null, reducaoPercentual: null, repsPorQueda: null,
+  miniSeries: null, repsPorMiniSerie: null, repsParciais: null, regiao: null, repsAssistidas: null,
+});
+
+const tipoPadrao = (nome) => METODOLOGIA_PADRAO.tipos.find((t) => t.nome === nome);
+/** Código que a série grava (`WARM_UP`, `FEEDER`, `WORKING`, `TOP_SET`, `BACK_OFF`), pelo nome do tipo na metodologia padrão. */
+export function codigoDoTipo(nome) {
+  const t = tipoPadrao(nome);
+  if (!t) throw new Error(`Tipo de série fora da metodologia padrão: ${nome}.`);
+  return t.codigo;
+}
+/** Carga da série, com todos os campos do record (nenhum a mais, nenhum a menos). */
+export const cargaDe = (modo, extra = {}) => ({ modo, percentualMin: null, percentualMax: null, referenciaUid: null, ...extra });
+const TECNICAS_DE_GRUPO = new Set(METODOLOGIA_PADRAO.combinacoes.map((c) => c.tipo));
+const CODIGO_TOP_SET = codigoDoTipo('Top set');
+
+/** Série de cardio (exercício `CARDIO`): só `cardio` vale; tipo, repetições, carga, esforço e técnica ficam nulos. */
+export function serieDeCardio(cardio) {
+  if (cardio?.duracaoMin == null && cardio?.distanciaKm == null && cardio?.intervalos == null) throw new Error('Série de cardio sem duração, distância nem intervalos.');
+  const vazio = { duracaoMin: null, distanciaKm: null, ritmo: null, zona: null, intervalos: null };
+  return {
+    uid: randomUUID(), tipo: null, repsMin: null, repsMax: null, amrap: null, carga: null, esforco: null, descansoSegundos: null,
+    tecnica: null, cardio: { ...vazio, ...cardio }, alvoExtra: null,
+  };
+}
+
+/**
+ * Grupos de uma sessão (`[{ id, tecnica, descansoAposSegundos?, voltas? }]`, o `id` é só para ligar os exercícios no arquivo de
+ * dados): devolve os `Sessao.grupos` com uid novo e o `Map` id -> uid, para o `ExercicioPlano.grupoUid`.
+ */
+export function montarGrupos(entrada = []) {
+  const uidDe = new Map();
+  const grupos = entrada.map((g) => {
+    if (!g.id || uidDe.has(g.id)) throw new Error('Grupo de exercícios sem id ou com id repetido.');
+    if (!TECNICAS_DE_GRUPO.has(g.tecnica)) throw new Error(`Técnica de grupo desconhecida: ${g.tecnica}.`);
+    const uid = randomUUID();
+    uidDe.set(g.id, uid);
+    return { uid, tecnica: g.tecnica, descansoAposSegundos: g.descansoAposSegundos ?? null, voltas: g.voltas ?? null };
+  });
+  return { grupos, uidDe };
+}
 
 /** Lê as prescrições como escritas; tipo e técnica são independentes. */
 export function lerSeries(linhas) {
@@ -162,6 +205,10 @@ export function lerSeries(linhas) {
         const blocos = desigual ? desigual[1].split('+').map(Number) : iguais ? Array(+iguais[1]).fill(+iguais[2]) : null;
         tecnica = { ...tecnicaVazia('CLUSTER'), blocos, pausaSegundos: segundos ? +segundos[1] : null, pausaRespiracoes: respiracoes ? +respiracoes[1] : null };
       }
+      if (/drop[ -]?set/i.test(linha)) {
+        const quedas = /(\d+)\s*quedas?/i.exec(linha);
+        tecnica = { ...tecnicaVazia('DROP_SET'), quedas: quedas ? +quedas[1] : METODOLOGIA_PADRAO.tecnicas.find((t) => t.tipo === 'DROP_SET').padrao.quedas };
+      }
       const nome = (reps ? linha.slice(reps[0].length) : linha).replace(/^[\s–-]+/, '');
       const tipo = Object.entries(TIPOS).find(([k]) => new RegExp(`^(?:\\()?${k}\\b`, 'i').test(nome))?.[1] ?? null;
       if (!tipo && !tecnica && Object.hasOwn(TIPOS, linha.toLowerCase()) && itens.at(-1)?.tipo == null) { itens.at(-1).tipo = TIPOS[linha.toLowerCase()]; continue; }
@@ -170,33 +217,66 @@ export function lerSeries(linhas) {
       itens.push({ n: reps ? +reps[1] : 1, min: soma ?? (reps ? +reps[2] : null), max: soma ?? (reps ? +(reps[3] ?? reps[2]) : null), tipo, tecnica });
     }
   }
-  for (const i of itens) if (!i.tipo && !i.tecnica) throw new Error('Série sem tipo nem técnica.');
+  for (const i of itens) if (!i.tipo && !i.tecnica && !i.cardio) throw new Error('Série sem tipo nem técnica.');
   return itens;
+}
+
+/**
+ * "Back off: reduzir 10% da Top set" / "da série anterior" / "10% a menos que a anterior": a redução e de onde ela parte
+ * (`TOP`, `ANTERIOR` ou `null` quando o texto não aponta). "Back off com 85% da carga da WS" não é isto: é `PERCENTUAL_WS`.
+ */
+export function reducaoDoBackOff(texto) {
+  const m = /back off[^%\d]*?(?:reduz\w*|redu[cç][aã]o|diminu\w*|menos|abaixo)[^%\d]*?(\d+)\s*%([^.;\n]*)/i.exec(texto)
+    ?? /back off[^%\d]*?(\d+)\s*%\s*(?:a\s+)?(?:menos|abaixo)([^.;\n]*)/i.exec(texto);
+  if (!m) return null;
+  const resto = m[2].toLowerCase();
+  return { percentual: Number(m[1]), referencia: /top set/.test(resto) ? 'TOP' : /anterior/.test(resto) ? 'ANTERIOR' : null };
 }
 
 const percentual = (obs, re) => { const m = re.exec(obs ?? ''); return m ? Number(m[1]) : null; };
 
 export function montarSeries(linhas, obs, regra = REGRA_PADRAO, modalidade = null) {
   const itens = lerSeries(linhas);
+  const deCardio = itens.filter((i) => i.cardio).length;
+  if (deCardio > 0 && deCardio !== itens.length) throw new Error('Exercício de cardio só leva séries de cardio.');
   const totalFs = itens.filter((i) => i.tipo === 'FS').reduce((t, i) => t + i.n, 0);
-  const pBack = percentual(obs, /back off[^%\d]*?(\d+)\s*%/i) ?? percentual(linhas.filter((x) => typeof x === 'string').join(' '), /back off[^%\d]*?(\d+)\s*%/i);
+  const texto = [obs ?? '', ...linhas.filter((x) => typeof x === 'string')].join(' ');
+  const reducao = reducaoDoBackOff(texto);
+  // "Back off, reduzir 10%" não é "10% da WS": com redução escrita, o percentual da WS não vale.
+  const pBack = reducao ? null : percentual(obs, /back off[^%\d]*?(\d+)\s*%/i) ?? percentual(linhas.filter((x) => typeof x === 'string').join(' '), /back off[^%\d]*?(\d+)\s*%/i);
   const pTop = percentual(obs, /(?:top set[^%\d+]*)?\+\s*(\d+)\s*%/i);
+  const porModalidade = (nome) => structuredClone(tipoPadrao(nome).porModalidade?.[modalidade] ?? null);
   let fs = 0;
   const series = [];
   for (const i of itens) for (let k = 0; k < i.n; k++) {
-    let intensidade = { modo: 'NENHUMA' };
-    if (i.tipo === 'FS') {
+    if (i.cardio) { series.push(serieDeCardio(i.cardio)); continue; }
+    // Rest pause, cluster e drop-set são técnicas da série de trabalho: sem tipo escrito, é uma WS com a técnica.
+    const tipo = i.tipo ?? 'WS';
+    let carga = cargaDe('NENHUMA');
+    let esforco = null;
+    if (tipo === 'FS') {
       const faixa = regra[totalFs]?.[fs++];
-      if (faixa != null) intensidade = { modo: 'PERCENTUAL_WS', percentualMin: faixa.min, percentualMax: faixa.max ?? null };
-    } else if (i.tipo === 'WS') intensidade = { modo: 'CARGA_TRABALHO', rir: modalidade === 'MAQUINA' ? 0 : modalidade === 'LIVRE' ? 1 : null };
-    else if (i.tipo === 'Back off' && pBack) intensidade = { modo: 'PERCENTUAL_WS', percentualMin: pBack, percentualMax: null };
-    else if (i.tipo === 'Top set') {
-      const padrao = METODOLOGIA_PADRAO.tipos.find((t) => t.nome === 'Top set').intensidadePorModalidade?.[modalidade];
-      intensidade = pTop != null ? { modo: 'ACIMA_DA_ANTERIOR', percentualMin: pTop, percentualMax: null } : padrao ? { ...padrao } : { modo: 'ACIMA_DA_ANTERIOR', percentualMin: null, percentualMax: null };
-      if (intensidade.percentualMin == null) rel.topSemPercentual++;
-    } else if (!i.tipo && i.tecnica && series.some((s) => s.intensidade.modo === 'CARGA_TRABALHO')) intensidade = { modo: 'MESMA_CARGA' };
+      if (faixa != null) carga = cargaDe('PERCENTUAL_WS', { percentualMin: faixa.min, percentualMax: faixa.max ?? null });
+    } else if (tipo === 'WS') {
+      carga = cargaDe('CARGA_TRABALHO');
+      esforco = porModalidade('WS')?.esforco ?? null;
+    } else if (tipo === 'Back off') {
+      if (reducao) {
+        // O número é a redução (1 a 50), não o que sobra; a referência é a série que o texto aponta, nunca uma suposta.
+        const referencia = reducao.referencia === 'TOP' ? series.findLast((s) => s.tipo === CODIGO_TOP_SET) : reducao.referencia === 'ANTERIOR' ? series.at(-1) : undefined;
+        if (referencia && reducao.percentual >= 1 && reducao.percentual <= 50) carga = cargaDe('ABAIXO_DA_REFERENCIA', { percentualMin: reducao.percentual, referenciaUid: referencia.uid });
+        else rel.backOffSemReferencia++;
+      } else if (pBack) carga = cargaDe('PERCENTUAL_WS', { percentualMin: pBack });
+    } else if (tipo === 'Top set') {
+      const padrao = porModalidade('Top set');
+      carga = pTop != null ? cargaDe('ACIMA_DA_ANTERIOR', { percentualMin: pTop }) : padrao?.carga ?? cargaDe('ACIMA_DA_ANTERIOR');
+      if (carga.percentualMin == null) rel.topSemPercentual++;
+    }
     if (i.tecnica) rel.tecnicas++;
-    series.push({ uid: randomUUID(), tipo: i.tipo, repsMin: i.min ?? null, repsMax: i.max ?? null, descansoSegundos: null, intensidade, tecnica: i.tecnica ? structuredClone(i.tecnica) : null });
+    series.push({
+      uid: randomUUID(), tipo: codigoDoTipo(tipo), repsMin: i.min ?? null, repsMax: i.max ?? null, amrap: null, carga, esforco, descansoSegundos: null,
+      tecnica: i.tecnica ? structuredClone(i.tecnica) : null, cardio: null, alvoExtra: null,
+    });
   }
   return series;
 }
@@ -215,7 +295,7 @@ export function obsLimpa(obs) {
 }
 
 // ---------------------------------------------------------------- relatório
-const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', tecnicas: 0, topSemPercentual: 0 };
+const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', tecnicas: 0, topSemPercentual: 0, backOffSemReferencia: 0 };
 const falar = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------- biblioteca
@@ -328,17 +408,21 @@ async function conteudoTreino(m, regra) {
   const sessoes = [];
   for (const s of m.sessoes) {
     const exercicios = [];
+    const { grupos, uidDe } = montarGrupos(s.grupos);
     for (const x of s.exercicios) {
-      const e = await exercicioDoPlano(x.nome, x.url, m.nome.replace(/ - .*/, ''));
+      // Exercício de cardio (todas as séries com `cardio`) não passa pela biblioteca: não há o que criar nela.
+      const cardio = x.series.length > 0 && x.series.every((i) => typeof i !== 'string' && i.cardio);
+      const e = cardio ? null : await exercicioDoPlano(x.nome, x.url, m.nome.replace(/ - .*/, ''));
       const timed = x.series.some((i) => typeof i !== 'string');
-      const series = montarSeries(x.series.map((i) => (typeof i === 'string' ? i : { n: i.count, min: null, max: null, tipo: i.tipo })), x.obs ?? '', regra, e.modalidade);
+      const series = montarSeries(x.series.map((i) => (typeof i === 'string' ? i : { n: i.count ?? 1, min: null, max: null, tipo: i.tipo ?? null, cardio: i.cardio })), x.obs ?? '', regra, e?.modalidade ?? null);
+      if (x.grupo && !uidDe.has(x.grupo)) throw new Error(`Exercício num grupo que a sessão não tem: ${x.grupo}.`);
       exercicios.push({
-        uid: randomUUID(), exercicioId: SIMULAR && String(e.id).startsWith('sim-') ? null : e.id, nome: x.nome.replace(/\*/g, '').trim(),
-        modalidade: e.modalidade, videoUrl: e.videoUrl ?? null, observacao: obsLimpa(x.obs), progressao: x.progressao ?? !timed,
-        unidade: x.unidade ?? 'kg', series,
+        uid: randomUUID(), exercicioId: !e || (SIMULAR && String(e.id).startsWith('sim-')) ? null : e.id, nome: x.nome.replace(/\*/g, '').trim(),
+        modalidade: cardio ? 'CARDIO' : e.modalidade, videoUrl: e?.videoUrl ?? null, observacao: obsLimpa(x.obs), progressao: x.progressao ?? !timed,
+        unidade: x.unidade ?? 'kg', series, cadencia: null, isometriaSegundos: null, grupoUid: x.grupo ? uidDe.get(x.grupo) : null,
       });
     }
-    sessoes.push({ uid: randomUUID(), nome: s.nome, diaSemana: s.diaSemana, tipo: s.tipo, frequenciaSemanal: null, observacao: s.observacao ?? null, cardio: s.cardio ?? null, exercicios });
+    sessoes.push({ uid: randomUUID(), nome: s.nome, diaSemana: s.diaSemana, tipo: s.tipo, frequenciaSemanal: null, observacao: s.observacao ?? null, cardio: s.cardio ?? null, exercicios, grupos });
   }
   return { objetivo: m.objetivo ?? null, orientacoes: m.orientacoes ?? null, sessoes };
 }
@@ -357,7 +441,7 @@ function mostrar(nome, c) {
     falar(`\n[${s.diaSemana}] ${s.nome} (${s.tipo}) cardio: ${s.cardio ?? '-'}`);
     for (const e of s.exercicios) {
       falar(`  * ${e.nome} {${e.modalidade}} vídeo:${e.videoUrl ? 'sim' : '-'} obs: ${e.observacao ?? '-'}`);
-      falar('     ' + e.series.map((x) => `${x.tipo} ${x.repsMin ?? ''}${x.repsMax && x.repsMax !== x.repsMin ? '-' + x.repsMax : ''}${x.tecnica ? ' ' + x.tecnica.tipo : ''}${x.intensidade.percentualMin ? ' @' + x.intensidade.percentualMin : x.intensidade.modo === 'ACIMA_DA_ANTERIOR' ? ' (acima da anterior)' : ''}`).join(' | '));
+      falar('     ' + e.series.map((x) => `${x.tipo ?? 'cardio'} ${x.repsMin ?? ''}${x.repsMax && x.repsMax !== x.repsMin ? '-' + x.repsMax : ''}${x.tecnica ? ' ' + x.tecnica.tipo : ''}${x.carga?.percentualMin ? ' @' + x.carga.percentualMin : x.carga?.modo === 'ACIMA_DA_ANTERIOR' ? ' (acima da anterior)' : ''}${x.carga?.modo === 'ABAIXO_DA_REFERENCIA' ? ' (abaixo da referência)' : ''}`).join(' | '));
     }
   }
 }
@@ -506,6 +590,7 @@ async function principal() {
   lista('Modelos de treino', rel.modelos);
   if (rel.tecnicas) falar(`Séries com técnicas: ${rel.tecnicas}.`);
   if (rel.topSemPercentual) falar(`Top set sem percentual prescrito: ${rel.topSemPercentual}; complete no editor.`);
+  if (rel.backOffSemReferencia) falar(`Back off com redução sem referência clara: ${rel.backOffSemReferencia}; escolha a série de referência no editor.`);
   lista('Modelos de mobilidade', rel.mobilidade);
   lista('Suplementos', rel.suplementos);
   lista('Medicação e ergogênicos', rel.ergogenicos);
