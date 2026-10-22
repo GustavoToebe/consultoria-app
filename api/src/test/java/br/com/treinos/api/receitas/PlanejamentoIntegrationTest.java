@@ -226,6 +226,18 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         api.post("/receitas", treinador, Map.of("tipo", "METODOLOGIA", "nome", "Inválido", "conteudo", Map.of()), 400);
         api.post("/receitas", treinador, Map.of("tipo", "SESSAO_TREINO", "nome", "Inválido", "conteudo", ApiDeTeste.treino().conteudo()), 400);
         api.post("/receitas", treinador, Map.of("tipo", "REFEICAO", "nome", "Inválido", "conteudo", Map.of("refeicoes", List.of())), 400);
+        // Modelo de séries: cada série passa pelas regras da série (tipo obrigatório, esforço, técnica).
+        api.post("/receitas", treinador, Map.of("tipo", "SERIES", "nome", "Inválido", "conteudo",
+                Map.of("series", List.of(Map.of("repsMin", 3, "repsMax", 6)))), 400);
+        api.post("/receitas", treinador, Map.of("tipo", "SERIES", "nome", "Inválido", "conteudo", Map.of("series",
+                List.of(Map.of("tipo", "WORKING", "esforco", Map.of("rir", 9))))), 400);
+        api.post("/receitas", treinador, Map.of("tipo", "SERIES", "nome", "Série boa", "conteudo", Map.of("series",
+                List.of(Map.of("tipo", "WORKING", "repsMin", 3, "repsMax", 6, "carga", Map.of("modo", "CARGA_TRABALHO"),
+                        "esforco", Map.of("rir", 1),
+                        "tecnica", Map.of("tipo", "REST_PAUSE", "pausaSegundos", 20, "pausas", 1))))), 200);
+        // Série de cardio (com prescrição de cardio) entra sem tipo.
+        api.post("/receitas", treinador, Map.of("tipo", "SERIES", "nome", "Cardio do treinador", "conteudo", Map.of("series",
+                List.of(Map.of("cardio", Map.of("duracaoMin", 30, "zona", 2))))), 200);
         api.post("/receitas", treinador, Map.of("tipo", "PASTA_PLANO", "nome", "Inválido", "conteudo", Map.of("planos", List.of(Map.of("titulo", "Sem conteúdo")))), 400);
         var login = api.convidarEEntrar(treinador, aluno);
         api.get("/pastas-modelos", login, 403);

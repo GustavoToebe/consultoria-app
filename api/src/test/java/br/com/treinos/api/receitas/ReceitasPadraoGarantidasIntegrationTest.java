@@ -4,7 +4,7 @@ import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.tenant.TenantContext;
-import db.migration.V023__receitas_padrao_do_formato_novo;
+import db.migration.V024__contrato_de_series_e_tecnicas;
 import org.flywaydb.core.api.configuration.Configuration;
 import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.Test;
@@ -67,31 +67,53 @@ class ReceitasPadraoGarantidasIntegrationTest extends AbstractIntegrationTest {
         });
     }
 
-    /** A V023 recria o que a V022 apagou, com a regra do {@code garantirPadrao}: só o que falta, e sem duplicar ao repetir. */
+    /**
+     * A V024 apaga o formato antigo (planos, versões e os modelos de treino, inclusive o que o treinador criou) e recria as
+     * receitas padrão com a regra do {@code garantirPadrao}: só o que falta, e sem duplicar ao repetir. A dieta fica.
+     */
     @Test
-    void migrationV023RecriaAsReceitasDeTreinoQueAV022ApagouSemDuplicar() throws Exception {
+    void migrationV024ApagaOFormatoAntigoERecriaAsReceitasDeTreinoSemDuplicar() throws Exception {
         var api = new ApiDeTeste(mvc, json);
         var treinador = api.novoTreinador();
         UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?", UUID.class,
                 UUID.fromString(treinador.path("usuario").path("id").asString()));
-        jdbc.update("delete from receita where consultoria_id = ? and tipo in ('METODOLOGIA', 'SERIES', 'SESSAO_TREINO', "
-                + "'PLANO_TREINO', 'PASTA_PLANO')", consultoria);
-        long dieta = receitasDe(consultoria);
-        assertThat(dieta).isPositive().isLessThan(ReceitasPadrao.todas().size());
-        rodarV023();
+        UUID aluno = api.criarAluno(treinador, "Aluno fictício");
+        api.publicarTreino(treinador, aluno, ApiDeTeste.treino().conteudo());
+        api.post("/receitas", treinador, Map.of("tipo", "SERIES", "nome", "Série do treinador", "conteudo", Map.of("series",
+                java.util.List.of(Map.of("tipo", "WORKING", "repsMin", 3, "repsMax", 6,
+                        "carga", Map.of("modo", "CARGA_TRABALHO"))))), 200);
+        assertThat(jdbc.queryForObject("select count(*) from plano_treino where consultoria_id = ?", Long.class, consultoria))
+                .isPositive();
+        jdbc.update("delete from receita where consultoria_id = ? and tipo = 'METODOLOGIA'", consultoria);
+        long dieta = jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and tipo in "
+                + "('PLANO_DIETA', 'REFEICAO')", Long.class, consultoria);
+        assertThat(dieta).isPositive();
+
+        rodarV024();
+        assertThat(jdbc.queryForObject("select count(*) from plano_treino where consultoria_id = ?", Long.class, consultoria))
+                .isZero();
+        assertThat(jdbc.queryForObject("select count(*) from plano_treino_versao where consultoria_id = ?", Long.class,
+                consultoria)).isZero();
+        assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and nome = 'Série do treinador'",
+                Long.class, consultoria)).isZero();
         assertThat(receitasDe(consultoria)).isEqualTo((long) ReceitasPadrao.todas().size());
-        rodarV023();
+        assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and tipo in "
+                + "('PLANO_DIETA', 'REFEICAO')", Long.class, consultoria)).isEqualTo(dieta);
+        rodarV024();
         assertThat(receitasDe(consultoria)).isEqualTo((long) ReceitasPadrao.todas().size());
         String metodologia = jdbc.queryForObject(
                 "select conteudo from receita where consultoria_id = ? and tipo = 'METODOLOGIA'", String.class, consultoria);
         assertThat(json.readValue(metodologia, ConfiguracaoConsultoria.class)).isEqualTo(ConfiguracaoConsultoria.padrao());
         assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and ordem = 0", Long.class,
                 consultoria)).isZero();
+        // Nenhuma receita de séries do padrão usa o contrato antigo (tipo por nome, intensidade, tipo Cardio).
+        assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and (conteudo::text like "
+                + "'%intensidade%' or conteudo::text like '%\"Cardio\"%')", Long.class, consultoria)).isZero();
     }
 
-    private void rodarV023() throws Exception {
+    private void rodarV024() throws Exception {
         try (Connection conexao = dataSource.getConnection()) {
-            new V023__receitas_padrao_do_formato_novo().migrate(new Context() {
+            new V024__contrato_de_series_e_tecnicas().migrate(new Context() {
                 @Override
                 public Configuration getConfiguration() {
                     return null;

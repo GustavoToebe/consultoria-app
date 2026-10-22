@@ -2,9 +2,13 @@ package br.com.treinos.api.treino;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.treino.ConteudoTreino.Carga;
+import br.com.treinos.api.treino.ConteudoTreino.Esforco;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
+import br.com.treinos.api.treino.ConteudoTreino.Grupo;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ConteudoTreino.Sessao;
+import br.com.treinos.api.treino.ConteudoTreino.Tecnica;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,23 +98,21 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
         String id = plano.get("plano").get("id").asString();
 
         // Erros: série com repsMax < repsMin e percentual fora de 1–200.
-        Serie ruim = new Serie(UUID.randomUUID(), "FS", 6, 3,
-                new ConteudoTreino.Intensidade("PERCENTUAL_WS", new java.math.BigDecimal("250"), null, null, null), null, null);
+        Serie ruim = Serie.de(UUID.randomUUID(), "FEEDER", 6, 3, Carga.percentual("PERCENTUAL_WS", 250, null));
         ConteudoTreino comErro = comSeries(List.of(ruim));
         JsonNode salvo = api.put("/planos-treino/" + id + "/rascunho", treinador,
                 ApiDeTeste.rascunho("Plano", comErro, plano.get("plano").get("versao").asLong()), 200);
         JsonNode validacao = api.post("/planos-treino/" + id + "/validar", treinador, null, 200);
         assertThat(validacao.get("erros").valueStream().map(e -> e.get("caminho").asString()))
                 .contains("sessoes[0].exercicios[0].series[0].repsMax",
-                        "sessoes[0].exercicios[0].series[0].intensidade.percentualMin");
+                        "sessoes[0].exercicios[0].series[0].carga.percentualMin");
         JsonNode invalido = api.post("/planos-treino/" + id + "/publicar", treinador,
                 Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 422);
         assertThat(invalido.get("codigo").asString()).isEqualTo("PLANO_INVALIDO");
         assertThat(invalido.get("fieldErrors")).isNotEmpty();
 
         // Só avisos (sem dia de descanso): exige confirmação.
-        Serie ws = new Serie(UUID.randomUUID(), "WS", 3, 6,
-                new ConteudoTreino.Intensidade("CARGA_TRABALHO", null, null, null, null), null, null);
+        Serie ws = Serie.de(UUID.randomUUID(), "WORKING", 3, 6, Carga.de("CARGA_TRABALHO"));
         ConteudoTreino soAvisos = new ConteudoTreino(null, null, List.of(comSeries(List.of(ws)).sessoes().get(0)));
         salvo = api.put("/planos-treino/" + id + "/rascunho", treinador,
                 ApiDeTeste.rascunho("Plano", soAvisos, salvo.get("plano").get("versao").asLong()), 200);
@@ -125,58 +127,58 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
     void clusterERestPauseTemCamposPropriosConferidosAoPublicar() throws Exception {
         JsonNode plano = api.post("/alunos/" + aluno + "/planos-treino", treinador, Map.of("titulo", "Plano"), 200);
         String id = plano.get("plano").get("id").asString();
-        ConteudoTreino.Intensidade carga = new ConteudoTreino.Intensidade("CARGA_TRABALHO", null, null, null, null);
-        // Cluster com um bloco de 0 e pausa de 2 s; rest pause com 700 s e 9 pausas; técnica desconhecida; série só
-        // técnica em "mesma carga da WS" sem série de trabalho antes.
-        Serie clusterRuim = new Serie(UUID.randomUUID(), "WS", 6, 6, carga, null,
-                new ConteudoTreino.Tecnica("CLUSTER", 2, null, null, List.of(0), null, null, null));
-        Serie restPauseRuim = new Serie(UUID.randomUUID(), "WS", 6, 8, carga, null,
-                new ConteudoTreino.Tecnica("REST_PAUSE", 700, null, 9, null, null, null, null));
-        Serie desconhecida = new Serie(UUID.randomUUID(), "WS", 3, 6, carga, null,
-                new ConteudoTreino.Tecnica("PIRAMIDE", null, null, null, null, null, null, null));
-        ConteudoTreino.Intensidade mesmaCarga = new ConteudoTreino.Intensidade("MESMA_CARGA", null, null, null, null);
-        Serie semTrabalhoAntes = new Serie(UUID.randomUUID(), null, 6, 8, mesmaCarga, null,
-                new ConteudoTreino.Tecnica("REST_PAUSE", 20, null, 1, null, null, null, null));
+        Carga carga = Carga.de("CARGA_TRABALHO");
+        // Cluster com um bloco de 0 e pausa de 2 s; rest pause com 700 s e 9 pausas; técnica desconhecida; série em
+        // "mesma carga da WS" sem série de trabalho antes.
+        Serie clusterRuim = Serie.de(UUID.randomUUID(), "WORKING", 6, 6, carga)
+                .comTecnica(Tecnica.cluster(List.of(0), 2, null));
+        Serie restPauseRuim = Serie.de(UUID.randomUUID(), "WORKING", 6, 8, carga)
+                .comTecnica(Tecnica.restPause(700, null, 9));
+        Serie desconhecida = Serie.de(UUID.randomUUID(), "WORKING", 3, 6, carga).comTecnica(Tecnica.vazia("PIRAMIDE"));
+        Serie semTrabalhoAntes = Serie.de(UUID.randomUUID(), "WORKING", 6, 8, Carga.de("MESMA_CARGA"));
         JsonNode salvo = api.put("/planos-treino/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Plano",
                 comSeries(List.of(semTrabalhoAntes, clusterRuim, restPauseRuim, desconhecida)),
                 plano.get("plano").get("versao").asLong()), 200);
         String base = "sessoes[0].exercicios[0].series[";
         assertThat(api.post("/planos-treino/" + id + "/validar", treinador, null, 200).get("erros").valueStream()
                 .map(e -> e.get("caminho").asString())).contains(
-                base + "0].intensidade.modo",
+                base + "0].carga.modo",
                 base + "1].tecnica.blocos", base + "1].tecnica.pausaSegundos",
                 base + "2].tecnica.pausaSegundos", base + "2].tecnica.pausas",
                 base + "3].tecnica.tipo");
 
-        // Corretas: WS em cluster 2+2+2 com 20 s (6 repetições = soma dos blocos) e, depois dela, uma série só técnica:
-        // rest pause de 20 s com 2 pausas e a mesma carga da WS. Chegam iguais na leitura.
-        Serie cluster = new Serie(UUID.randomUUID(), "WS", 6, 6, carga, 120,
-                new ConteudoTreino.Tecnica("CLUSTER", 20, null, null, List.of(2, 2, 2), null, null, null));
-        Serie restPause = new Serie(UUID.randomUUID(), null, 6, 8, mesmaCarga, null,
-                new ConteudoTreino.Tecnica("REST_PAUSE", 20, null, 2, null, null, null, null));
+        // Corretas: WS em cluster 2+2+2 com 20 s (6 repetições = soma dos blocos) e, em outra WS, rest pause de 20 s com
+        // 2 pausas, as duas na própria série de trabalho. Chegam iguais na leitura.
+        Serie cluster = Serie.de(UUID.randomUUID(), "WORKING", 6, 6, carga).comDescanso(120)
+                .comTecnica(Tecnica.cluster(List.of(2, 2, 2), 20, null));
+        Serie restPause = Serie.de(UUID.randomUUID(), "WORKING", 6, 8, carga)
+                .comTecnica(Tecnica.restPause(20, null, 2));
         salvo = api.put("/planos-treino/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Plano",
                 comSeries(List.of(cluster, restPause)), salvo.get("plano").get("versao").asLong()), 200);
         assertThat(api.post("/planos-treino/" + id + "/validar", treinador, null, 200).get("erros").isEmpty()).isTrue();
         JsonNode series = salvo.get("rascunho").get("sessoes").get(0).get("exercicios").get(0).get("series");
         assertThat(series.get(0).get("tecnica").get("blocos").size()).isEqualTo(3);
-        assertThat(series.get(1).get("tipo").isNull()).isTrue();
-        assertThat(series.get(1).get("intensidade").get("modo").asString()).isEqualTo("MESMA_CARGA");
+        assertThat(series.get(1).get("tipo").asString()).isEqualTo("WORKING");
+        assertThat(series.get(1).get("carga").get("modo").asString()).isEqualTo("CARGA_TRABALHO");
         assertThat(series.get(1).get("tecnica").get("pausas").asInt()).isEqualTo(2);
     }
 
     @Test
-    void dropSetCadenciaEBiSetChegamIguaisNaLeituraENaReplica() throws Exception {
+    void dropSetCadenciaEGrupoChegamIguaisNaLeituraENaReplica() throws Exception {
         JsonNode plano = api.post("/alunos/" + aluno + "/planos-treino", treinador, Map.of("titulo", "Plano"), 200);
         String id = plano.get("plano").get("id").asString();
-        ConteudoTreino.Intensidade carga = new ConteudoTreino.Intensidade("CARGA_TRABALHO", null, null, null, null);
-        Serie drop = new Serie(UUID.randomUUID(), "WS", 6, 8, carga, null,
-                new ConteudoTreino.Tecnica("DROP_SET", null, null, null, null, 2, 20, null));
+        Carga carga = Carga.de("CARGA_TRABALHO");
+        Serie drop = Serie.de(UUID.randomUUID(), "WORKING", 6, 8, carga).comTecnica(Tecnica.dropSet(2, 20, null, 0))
+                .comEsforco(Esforco.deRir(0)).comAlvoExtra("até a falha");
+        Grupo grupo = new Grupo(UUID.randomUUID(), "SUPERSET", 90, null);
         ExercicioPlano primeiro = new ExercicioPlano(UUID.randomUUID(), null, "Supino reto com barra", "LIVRE", null,
-                null, true, "kg", List.of(drop), "3-1-1-0", null, null, "SUPERSERIE");
+                null, true, "kg", List.of(drop), "3-1-1-0", null, grupo.uid());
         ExercicioPlano segundo = new ExercicioPlano(UUID.randomUUID(), null, "Remada curvada", "LIVRE", null, null,
-                true, "kg", List.of(new Serie(UUID.randomUUID(), "WS", 6, 8, carga, 90, null)), null, 10, true, null);
+                true, "kg", List.of(Serie.de(UUID.randomUUID(), "WORKING", 6, 8, carga).comDescanso(90)), null, 10,
+                grupo.uid());
         ConteudoTreino conteudo = new ConteudoTreino(null, null, List.of(
-                new Sessao(UUID.randomUUID(), "Treino A", 1, "TREINO", null, null, null, List.of(primeiro, segundo)),
+                new Sessao(UUID.randomUUID(), "Treino A", 1, "TREINO", null, null, null, List.of(primeiro, segundo),
+                        List.of(grupo)),
                 new Sessao(UUID.randomUUID(), "Descanso", 7, "DESCANSO", null, null, null, List.of())));
         JsonNode salvo = api.put("/planos-treino/" + id + "/rascunho", treinador,
                 ApiDeTeste.rascunho("Plano", conteudo, plano.get("plano").get("versao").asLong()), 200);
@@ -185,13 +187,23 @@ class PlanosIntegrationTest extends AbstractIntegrationTest {
                 Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
 
         JsonNode copia = api.post("/planos-treino/" + id + "/replicar", treinador, Map.of("titulo", "Próximo"), 200);
-        JsonNode exercicios = copia.get("rascunho").get("sessoes").get(0).get("exercicios");
+        JsonNode sessao = copia.get("rascunho").get("sessoes").get(0);
+        JsonNode exercicios = sessao.get("exercicios");
         assertThat(exercicios.get(0).get("cadencia").asString()).isEqualTo("3-1-1-0");
-        assertThat(exercicios.get(0).get("combinacao").asString()).isEqualTo("SUPERSERIE");
-        assertThat(exercicios.get(0).get("series").get(0).get("tecnica").get("quedas").asInt()).isEqualTo(2);
-        assertThat(exercicios.get(0).get("series").get(0).get("tecnica").get("reducaoPercentual").asInt()).isEqualTo(20);
-        assertThat(exercicios.get(1).get("juntoComAnterior").asBoolean()).isTrue();
+        JsonNode serie = exercicios.get(0).get("series").get(0);
+        assertThat(serie.get("tecnica").get("quedas").asInt()).isEqualTo(2);
+        assertThat(serie.get("tecnica").get("reducaoPercentual").asInt()).isEqualTo(20);
+        assertThat(serie.get("tecnica").get("pausaSegundos").asInt()).isZero();
+        assertThat(serie.get("esforco").get("rir").asInt()).isZero();
+        assertThat(serie.get("alvoExtra").asString()).isEqualTo("até a falha");
         assertThat(exercicios.get(1).get("isometriaSegundos").asInt()).isEqualTo(10);
+        // O grupo vem com uid novo, e os dois exercícios apontam o uid novo.
+        JsonNode grupoCopia = sessao.get("grupos").get(0);
+        assertThat(grupoCopia.get("tecnica").asString()).isEqualTo("SUPERSET");
+        assertThat(grupoCopia.get("descansoAposSegundos").asInt()).isEqualTo(90);
+        assertThat(grupoCopia.get("uid").asString()).isNotEqualTo(grupo.uid().toString());
+        assertThat(exercicios.get(0).get("grupoUid").asString()).isEqualTo(grupoCopia.get("uid").asString());
+        assertThat(exercicios.get(1).get("grupoUid").asString()).isEqualTo(grupoCopia.get("uid").asString());
     }
 
     @Test

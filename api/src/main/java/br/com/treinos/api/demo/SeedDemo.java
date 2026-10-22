@@ -34,7 +34,8 @@ import br.com.treinos.api.receitas.ReceitaService.ReceitaResponse;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
-import br.com.treinos.api.treino.ConteudoTreino.Intensidade;
+import br.com.treinos.api.treino.ConteudoTreino.Carga;
+import br.com.treinos.api.treino.ConteudoTreino.Esforco;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ConteudoTreino.Sessao;
 import br.com.treinos.api.treino.ConteudoTreino.Tecnica;
@@ -240,17 +241,20 @@ public class SeedDemo {
         Integer rir = e.limite() == Plano16.Limite.FALHA ? Integer.valueOf(0) : e.limite() == Plano16.Limite.UM_RIR ? Integer.valueOf(1) : null;
         return new ExercicioPlano(UUID.randomUUID(), ids.get(e.nome()), e.nome(), e.modalidade().name(),
                 VIDEOS.get(e.nome()), obs.isEmpty() ? null : String.join(" ", obs), e.progressao(), e.unidade(),
-                e.series().stream().map(SeedDemo::serie).map(serie -> rir != null && serie.deTrabalho()
-                        ? new Serie(serie.uid(), serie.tipo(), serie.repsMin(), serie.repsMax(),
-                        new Intensidade(serie.intensidade().modo(), serie.intensidade().percentualMin(), serie.intensidade().percentualMax(), serie.intensidade().rpe(), rir), serie.descansoSegundos(), serie.tecnica()) : serie).toList());
+                e.series().stream().map(SeedDemo::serie)
+                        .map(serie -> rir != null && serie.deTrabalho() ? serie.comEsforco(Esforco.deRir(rir)) : serie)
+                        .toList());
     }
 
-    /** Notação do Plano 16 e dos exemplos: R pausas, C blocos desiguais, M blocos iguais, T acima da anterior. */
+    /**
+     * Notação do Plano 16 e dos exemplos: A aquecimento, F feeder, W working, B back off, T top set (acima da anterior),
+     * R pausas, C blocos desiguais, M blocos iguais. R, C e M são a própria série de trabalho com a técnica; {@code +R}
+     * acrescenta o rest pause à série anterior da notação.
+     */
     static Serie serie(String spec) {
         if (spec.contains("+R")) {
             int i = spec.indexOf("+R");
-            Serie base = serie(spec.substring(0, i));
-            return new Serie(base.uid(), base.tipo(), base.repsMin(), base.repsMax(), base.intensidade(), null, serie(spec.substring(i + 1)).tecnica());
+            return serie(spec.substring(0, i)).comTecnica(serie(spec.substring(i + 1)).tecnica());
         }
         char tipo = spec.charAt(0);
         String[] partes = spec.substring(1).split("@", 2);
@@ -260,8 +264,8 @@ public class SeedDemo {
             String[] repsEPausas = valor.split(":", 2);
             Integer reps = repsEPausas.length > 1 ? Integer.valueOf(repsEPausas[0]) : null;
             int pausas = repsEPausas.length > 1 ? Integer.parseInt(repsEPausas[1]) : valor.isEmpty() ? 1 : Integer.parseInt(valor);
-            return new Serie(UUID.randomUUID(), null, reps, reps, intensidade("MESMA_CARGA", null), null,
-                    new Tecnica("REST_PAUSE", parametro.isEmpty() ? 20 : Integer.valueOf(parametro), null, pausas, null, null, null, null));
+            return trabalho(reps, reps).comTecnica(
+                    Tecnica.restPause(parametro.isEmpty() ? 20 : Integer.valueOf(parametro), null, pausas));
         }
         if (tipo == 'C' || tipo == 'M') {
             List<Integer> blocos;
@@ -278,25 +282,28 @@ public class SeedDemo {
                 segundos = parametro.isEmpty() ? null : Integer.valueOf(parametro);
             }
             int soma = blocos.stream().mapToInt(Integer::intValue).sum();
-            return new Serie(UUID.randomUUID(), null, soma, soma, intensidade("MESMA_CARGA", null), null,
-                    new Tecnica("CLUSTER", segundos, respiracoes, null, blocos, null, null, null));
+            return trabalho(soma, soma).comTecnica(Tecnica.cluster(blocos, segundos, respiracoes));
         }
         String[] percentuais = parametro.split("-", 2);
-        BigDecimal percentualMin = parametro.isEmpty() ? null : new BigDecimal(percentuais[0]);
-        BigDecimal percentualMax = percentuais.length > 1 ? new BigDecimal(percentuais[1]) : null;
-        if (tipo == 'T') return new Serie(UUID.randomUUID(), "Top set", null, null,
-                new Intensidade("ACIMA_DA_ANTERIOR", percentualMin, percentualMax, null, null), null, null);
+        int percentualMin = parametro.isEmpty() ? 0 : Integer.parseInt(percentuais[0]);
+        Integer percentualMax = percentuais.length > 1 ? Integer.valueOf(percentuais[1]) : null;
+        if (tipo == 'T') {
+            return Serie.de(UUID.randomUUID(), "TOP_SET", null, null,
+                    Carga.percentual("ACIMA_DA_ANTERIOR", percentualMin, percentualMax));
+        }
         String[] reps = valor.split("-", 2);
         int min = Integer.parseInt(reps[0]);
         int max = reps.length > 1 ? Integer.parseInt(reps[1]) : min;
-        String nome = switch (tipo) { case 'A' -> "Aquecimento"; case 'F' -> "FS"; case 'W' -> "WS"; case 'B' -> "Back off";
+        String codigo = switch (tipo) { case 'A' -> "WARM_UP"; case 'F' -> "FEEDER"; case 'W' -> "WORKING"; case 'B' -> "BACK_OFF";
             default -> throw new IllegalArgumentException("Tipo de série desconhecido."); };
-        String modo = tipo == 'A' ? "NENHUMA" : tipo == 'W' ? "CARGA_TRABALHO" : "PERCENTUAL_WS";
-        return new Serie(UUID.randomUUID(), nome, min, max, new Intensidade(modo, percentualMin, percentualMax, null, null), null, null);
+        Carga carga = tipo == 'A' ? Carga.de("NENHUMA") : tipo == 'W' ? Carga.de("CARGA_TRABALHO")
+                : Carga.percentual("PERCENTUAL_WS", percentualMin, percentualMax);
+        return Serie.de(UUID.randomUUID(), codigo, min, max, carga);
     }
 
-    private static Intensidade intensidade(String modo, BigDecimal percentual) {
-        return new Intensidade(modo, percentual, null, null, null);
+    /** Série de trabalho (WS) com a carga de trabalho; rest pause e cluster entram nela como técnica. */
+    private static Serie trabalho(Integer repsMin, Integer repsMax) {
+        return Serie.de(UUID.randomUUID(), "WORKING", repsMin, repsMax, Carga.de("CARGA_TRABALHO"));
     }
 
     /**
@@ -342,7 +349,7 @@ public class SeedDemo {
                     reps = repsTrabalho;
                 }
                 case "PERCENTUAL_WS" -> {
-                    carga = arredondar(cargaTrabalho.multiply(s.intensidade().percentualMin())
+                    carga = arredondar(cargaTrabalho.multiply(s.carga().percentualMin())
                             .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP));
                     reps = s.repsMax();
                 }
@@ -460,7 +467,7 @@ public class SeedDemo {
     }
 
     private static Serie simples() {
-        return new Serie(UUID.randomUUID(), "WS", 8, 12, new Intensidade("CARGA_TRABALHO", null, null, null, 2), null, null);
+        return trabalho(8, 12).comEsforco(Esforco.deRir(2));
     }
 
     // ---- Comum ----

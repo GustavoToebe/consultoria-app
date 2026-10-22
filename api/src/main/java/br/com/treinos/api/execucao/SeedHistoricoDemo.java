@@ -339,13 +339,12 @@ public class SeedHistoricoDemo {
                 new CriarPlanoRequest(titulo, inicio, fim, semana.id(), null, pasta));
         ConfiguracaoConsultoria cfg = json.treeToValue(met.conteudo(), ConfiguracaoConsultoria.class);
         ConteudoTreino base = criado.rascunho();
-        // A série de trabalho do guia vem como "WS"; com outra metodologia ela passa a ter o nome de trabalho dela.
+        // A série de trabalho do guia vem como WORKING; com outra metodologia ela passa a ter o código de trabalho dela.
         List<Sessao> sessoes = base.sessoesOuVazio().stream().map(s -> new Sessao(s.uid(), s.nome(), s.diaSemana(),
                 s.tipo(), s.frequenciaSemanal(), s.observacao(), s.cardio(),
                 s.exerciciosOuVazio().stream().map(e -> e.comSeries(e.uid(),
-                        e.seriesOuVazio().stream().map(x -> x.deTrabalho()
-                                ? new Serie(x.uid(), cfg.tipoTrabalho(), x.repsMin(), x.repsMax(), x.intensidade(),
-                                x.descansoSegundos(), x.tecnica()) : x).toList())).toList())).toList();
+                        e.seriesOuVazio().stream().map(x -> x.deTrabalho() ? x.comTipo(cfg.codigoTrabalho()) : x)
+                                .toList())).toList())).toList();
         ConteudoTreino conteudo = new ConteudoTreino(base.objetivo(), base.orientacoes(), sessoes,
                 new Metodologia(met.id(), met.nome(), cfg));
         PlanoDetalhe<ConteudoTreino> salvo = treinos.salvarRascunho(criado.plano().id(),
@@ -417,8 +416,8 @@ public class SeedHistoricoDemo {
             for (Serie x : e.seriesOuVazio()) {
                 BigDecimal carga = null;
                 if (ws != null) {
-                    carga = "PERCENTUAL_WS".equals(x.modo()) && x.intensidade().percentualMin() != null
-                            ? arredondar(ws.doubleValue() * x.intensidade().percentualMin().doubleValue() / 100, ws.doubleValue())
+                    carga = "PERCENTUAL_WS".equals(x.modo()) && x.carga().percentualMin() != null
+                            ? arredondar(ws.doubleValue() * x.carga().percentualMin().doubleValue() / 100, ws.doubleValue())
                             : ws;
                 }
                 int max = x.repsMax() != null ? x.repsMax() : 10;

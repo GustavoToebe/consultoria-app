@@ -1,5 +1,6 @@
 package br.com.treinos.api.execucao;
 
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
@@ -12,7 +13,9 @@ import java.util.UUID;
 
 /**
  * Mapa dos uids de uma versão publicada do treino: onde está cada série (sessão e exercício), se é de trabalho, a
- * unidade e a posição no plano. Serve para conferir o registro do aluno e para mostrar o histórico com nomes.
+ * unidade e a posição no plano. Serve para conferir o registro do aluno e para mostrar o histórico com nomes: o tipo da
+ * série sai como o NOME que a metodologia da versão dá ao código (sem metodologia na versão, a padrão; se o código não
+ * existe nela, o próprio código).
  */
 public final class IndiceVersao {
 
@@ -27,6 +30,8 @@ public final class IndiceVersao {
 
     IndiceVersao(UUID alunoId, ConteudoTreino conteudo) {
         this.alunoId = alunoId;
+        ConfiguracaoConsultoria metodologia = conteudo.metodologia() != null && conteudo.metodologia().configuracao() != null
+                ? conteudo.metodologia().configuracao() : ConfiguracaoConsultoria.padrao();
         int ordem = 0;
         for (Sessao s : conteudo.sessoesOuVazio()) {
             if (s.uid() != null) {
@@ -40,11 +45,16 @@ public final class IndiceVersao {
                 for (Serie x : e.seriesOuVazio()) {
                     if (x.uid() != null) {
                         series.put(x.uid(), new LocalSerie(s.uid(), e.uid(), e.exercicioId(), x.deTrabalho(), unidade,
-                                x.tipo(), ordem++));
+                                nomeDoTipo(metodologia, x.tipo()), ordem++));
                     }
                 }
             }
         }
+    }
+
+    private static String nomeDoTipo(ConfiguracaoConsultoria metodologia, String codigo) {
+        ConfiguracaoConsultoria.TipoDeSerie tipo = metodologia.tipoPorCodigo(codigo);
+        return tipo == null || tipo.nome() == null || tipo.nome().isBlank() ? codigo : tipo.nome().trim();
     }
 
     /** Aluno dono do plano desta versão: registro de outro aluno nesta versão é recusado. */

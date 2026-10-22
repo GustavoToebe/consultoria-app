@@ -69,7 +69,7 @@ class SeedDemoIntegrationTest extends AbstractIntegrationTest {
         assertThat(sessoes.get(7).get("tipo").asString()).isEqualTo("ACESSORIOS");
         JsonNode remada = sessoes.get(0).get("exercicios").get(0);
         assertThat(remada.get("series")).hasSize(7);
-        assertThat(remada.at("/series/4/intensidade/rir").asInt()).isZero();
+        assertThat(remada.at("/series/4/esforco/rir").asInt()).isZero();
         // Última carga de trabalho da remada: a da semana passada (42,5 kg).
         assertThat(painel.get("ultimasCargas").get(remada.get("exercicioId").asString()).get("carga").decimalValue())
                 .isEqualByComparingTo("42.5");

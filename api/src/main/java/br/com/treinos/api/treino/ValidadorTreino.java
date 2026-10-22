@@ -1,38 +1,52 @@
 package br.com.treinos.api.treino;
 
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria.Papel;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
-import br.com.treinos.api.treino.ConteudoTreino.Intensidade;
+import br.com.treinos.api.treino.ConteudoTreino.Grupo;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ConteudoTreino.Sessao;
 import br.com.treinos.api.web.VideoUrls;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Regras de publicação do treino. O app mostra o mesmo resultado antes de publicar. Não opina sobre
- * carga nem volume: só confere que o plano é executável e coerente. O tipo da série é nome livre: fora da lista da
- * metodologia copiada no plano vira aviso, nunca erro. As faixas de intensidade e de técnica ficam nos próprios records
- * ({@code Intensidade.problemas}, {@code Tecnica.problemas}); aqui entram as regras que dependem da posição da série
- * no exercício (mesma carga da WS, acima da anterior) e as repetições do cluster.
+ * carga nem volume: só confere que o plano é executável e coerente. O tipo da série é o código de um tipo da metodologia
+ * copiada no plano: um código fora dela vira aviso, nunca erro. As faixas de carga, esforço, técnica e cardio ficam nos
+ * próprios records ({@code Carga.problemas}, {@code Esforco.problemas}, {@code Tecnica.problemas},
+ * {@code Cardio.problemas}); aqui entram as regras que dependem da série inteira (tipo, repetições, cardio), da posição
+ * dela no exercício (mesma carga da WS, acima da anterior, referência do back off) e dos grupos da sessão.
  */
 @Component
 public class ValidadorTreino {
 
     /** Cadência em 4 partes (descida-pausa embaixo-subida-pausa em cima), cada uma 0 a 9 segundos ou X (explosivo). */
     private static final Pattern CADENCIA = Pattern.compile("[0-9X](-[0-9X]){3}");
-    /** Bi-set, tri-set ou circuito: até 6 exercícios feitos em sequência. */
+    /** Superset, tri-set, giant set ou circuito: até 6 exercícios feitos em sequência. */
     static final int MAXIMO_POR_GRUPO = 6;
+    /** Mínimo de exercícios de cada técnica de grupo (pré e pós-exaustão: exatamente 2). */
+    private static final Map<String, Integer> MINIMO_POR_GRUPO = Map.of(
+            ConteudoTreino.SUPERSET, 2,
+            ConteudoTreino.AGONISTA_ANTAGONISTA, 2,
+            ConteudoTreino.TRI_SET, 3,
+            ConteudoTreino.GIANT_SET, 4,
+            ConteudoTreino.CIRCUITO, 3,
+            ConteudoTreino.PRE_EXAUSTAO, 2,
+            ConteudoTreino.POS_EXAUSTAO, 2);
+    private static final int MAXIMO_DE_VOLTAS = 20;
 
     private final VideoUrls videoUrls;
 
@@ -45,7 +59,7 @@ public class ValidadorTreino {
         Set<UUID> uids = new HashSet<>();
         Map<Integer, Integer> sessoesPorDia = new HashMap<>();
         boolean temDescanso = false;
-        Set<String> tiposDaMetodologia = tiposDaMetodologia(conteudo);
+        ConfiguracaoConsultoria metodologia = conteudo.metodologia() == null ? null : conteudo.metodologia().configuracao();
         List<Sessao> sessoes = conteudo.sessoesOuVazio();
         if (sessoes.isEmpty()) {
             c.erro("sessoes", "O plano não tem nenhuma sessão.");
@@ -78,9 +92,9 @@ public class ValidadorTreino {
             }
             List<ExercicioPlano> exercicios = s.exerciciosOuVazio();
             for (int j = 0; j < exercicios.size(); j++) {
-                exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]", tiposDaMetodologia);
+                exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]", metodologia);
             }
-            agrupamento(c, exercicios, cs);
+            grupos(c, uids, s, cs);
         }
         if (!sessoes.isEmpty() && !temDescanso) {
             c.aviso("sessoes", "O plano não tem dia de descanso.");
@@ -91,22 +105,8 @@ public class ValidadorTreino {
         return c.resultado();
     }
 
-    /** Nomes dos tipos da metodologia copiada no plano (sem espaços nas pontas), ou {@code null} sem metodologia. */
-    private static Set<String> tiposDaMetodologia(ConteudoTreino conteudo) {
-        if (conteudo.metodologia() == null || conteudo.metodologia().configuracao() == null) {
-            return null;
-        }
-        Set<String> tipos = new LinkedHashSet<>();
-        for (ConfiguracaoConsultoria.TipoDeSerie t : conteudo.metodologia().configuracao().tipos()) {
-            if (t != null && t.nome() != null) {
-                tipos.add(t.nome().trim());
-            }
-        }
-        return tipos;
-    }
-
     private void exercicio(ResultadoValidacao.Coletor c, Set<UUID> uids, ExercicioPlano e, String ce,
-                           Set<String> tiposDaMetodologia) {
+                           ConfiguracaoConsultoria metodologia) {
         uid(c, uids, e.uid(), ce);
         if (vazio(e.nome())) {
             c.erro(ce + ".nome", "Exercício sem nome.");
@@ -123,34 +123,46 @@ public class ValidadorTreino {
         if (e.isometriaSegundos() != null && (e.isometriaSegundos() < 1 || e.isometriaSegundos() > 120)) {
             c.erro(ce + ".isometriaSegundos", "Isometria de 1 a 120 segundos.");
         }
-        if (e.combinacao() != null && !ConteudoTreino.SUPERSERIE.equals(e.combinacao())) {
-            c.erro(ce + ".combinacao", "Nome do grupo inválido: use bi-set ou supersérie.");
-        }
         List<Serie> series = e.seriesOuVazio();
         if (series.isEmpty()) {
             c.erro(ce + ".series", "Exercício sem série.");
         }
+        boolean cardio = e.deCardio();
         boolean temTrabalho = series.stream().anyMatch(Serie::deTrabalho);
         boolean temPercentual = false;
         boolean trabalhoAntes = false;
         Set<String> tiposAvisados = new HashSet<>();
+        Set<UUID> anteriores = new HashSet<>();
         for (int k = 0; k < series.size(); k++) {
             Serie x = series.get(k);
             String cx = ce + ".series[" + k + "]";
             uid(c, uids, x.uid(), cx);
-            serie(c, x, cx);
-            tipoForaDaMetodologia(c, x, cx, tiposDaMetodologia, tiposAvisados);
-            String modo = x.modo();
-            temPercentual |= ConteudoTreino.PERCENTUAL_WS.equals(modo);
-            if (ConteudoTreino.MESMA_CARGA.equals(modo) && !trabalhoAntes) {
-                c.erro(cx + ".intensidade.modo",
-                        "Mesma carga da WS: precisa de uma série de trabalho antes, no mesmo exercício.");
-            }
-            if (ConteudoTreino.ACIMA_DA_ANTERIOR.equals(modo) && k == 0) {
-                c.aviso(cx + ".intensidade.modo",
-                        "Acima da anterior na primeira série do exercício: o aluno não terá carga anterior de referência.");
+            problemasDaSerie(x, cardio).forEach((campo, mensagem) -> c.erro(cx + "." + campo, mensagem));
+            if (!cardio) {
+                tipoDaSerie(c, x, cx, metodologia, tiposAvisados);
+                String modo = x.modo();
+                temPercentual |= ConteudoTreino.PERCENTUAL_WS.equals(modo);
+                if (ConteudoTreino.MESMA_CARGA.equals(modo) && !trabalhoAntes) {
+                    c.erro(cx + ".carga.modo",
+                            "Mesma carga da WS: precisa de uma série de trabalho antes, no mesmo exercício.");
+                }
+                if (ConteudoTreino.ACIMA_DA_ANTERIOR.equals(modo) && k == 0) {
+                    c.aviso(cx + ".carga.modo",
+                            "Acima da anterior na primeira série do exercício: o aluno não terá carga anterior de referência.");
+                }
+                if (ConteudoTreino.ABAIXO_DA_REFERENCIA.equals(modo) && x.carga().referenciaUid() != null
+                        && !anteriores.contains(x.carga().referenciaUid())) {
+                    c.erro(cx + ".carga.referenciaUid",
+                            "A referência precisa ser uma série anterior, no mesmo exercício.");
+                }
+                if (x.tecnica() != null && ConteudoTreino.FORCED_REPS.equals(x.tecnica().tipo())) {
+                    c.aviso(cx + ".tecnica", "Forced reps precisa de um parceiro para ajudar nas repetições.");
+                }
             }
             trabalhoAntes |= x.deTrabalho();
+            if (x.uid() != null) {
+                anteriores.add(x.uid());
+            }
         }
         if (temPercentual && !temTrabalho) {
             c.aviso(ce + ".series", "Há série em % da WS sem série de trabalho: a referência será a carga de trabalho "
@@ -162,69 +174,184 @@ public class ValidadorTreino {
     }
 
     /**
-     * Exercícios ligados por {@code juntoComAnterior} formam um grupo feito em sequência (bi-set, tri-set, circuito). O
-     * primeiro da sessão não tem anterior e o grupo vai até {@link #MAXIMO_POR_GRUPO}; o erro aponta o exercício que
-     * passou do limite. O nome do grupo ({@code combinacao}) só conta no primeiro de um grupo de 2: nos outros é ignorado.
+     * Grupos da sessão: cada exercício aponta o grupo em {@code grupoUid}; os membros de um grupo ficam um ao lado do
+     * outro, na quantidade mínima da técnica (pré e pós-exaustão: exatamente 2) e até {@link #MAXIMO_POR_GRUPO}. O
+     * descanso depois do grupo não vale em pré e pós-exaustão e as voltas só contam no circuito.
      */
-    private static void agrupamento(ResultadoValidacao.Coletor c, List<ExercicioPlano> exercicios, String cs) {
-        int tamanho = 0;
-        for (int j = 0; j < exercicios.size(); j++) {
-            ExercicioPlano e = exercicios.get(j);
-            if (j == 0 && e.junto()) {
-                c.erro(cs + ".exercicios[0].juntoComAnterior",
-                        "O primeiro exercício da sessão não tem um anterior para fazer junto.");
+    private static void grupos(ResultadoValidacao.Coletor c, Set<UUID> uids, Sessao s, String cs) {
+        Map<UUID, Integer> posicaoDoGrupo = new LinkedHashMap<>();
+        List<Grupo> grupos = s.gruposOuVazio();
+        for (int g = 0; g < grupos.size(); g++) {
+            Grupo grupo = grupos.get(g);
+            String cg = cs + ".grupos[" + g + "]";
+            uid(c, uids, grupo.uid(), cg);
+            if (grupo.uid() != null) {
+                posicaoDoGrupo.putIfAbsent(grupo.uid(), g);
             }
-            tamanho = j > 0 && e.junto() ? tamanho + 1 : 1;
-            if (tamanho == MAXIMO_POR_GRUPO + 1) {
-                c.erro(cs + ".exercicios[" + j + "].juntoComAnterior",
-                        "Um grupo de exercícios feitos juntos vai até " + MAXIMO_POR_GRUPO + " exercícios.");
+            if (grupo.tecnica() == null || !ConteudoTreino.TECNICAS_DE_GRUPO.contains(grupo.tecnica())) {
+                c.erro(cg + ".tecnica", "Técnica de grupo inválida: use superset, agonista-antagonista, tri-set, giant "
+                        + "set, circuito, pré-exaustão ou pós-exaustão.");
+            }
+            boolean semDescansoDoGrupo = ConteudoTreino.PRE_EXAUSTAO.equals(grupo.tecnica())
+                    || ConteudoTreino.POS_EXAUSTAO.equals(grupo.tecnica());
+            if (grupo.descansoAposSegundos() != null) {
+                if (semDescansoDoGrupo) {
+                    c.erro(cg + ".descansoAposSegundos",
+                            "Pré e pós-exaustão não têm descanso depois do grupo: cada série mantém o próprio.");
+                } else if (grupo.descansoAposSegundos() < 0 || grupo.descansoAposSegundos() > 3600) {
+                    c.erro(cg + ".descansoAposSegundos", "Descanso depois do grupo entre 0 e 3600 segundos.");
+                }
+            }
+            if (ConteudoTreino.CIRCUITO.equals(grupo.tecnica())
+                    && (grupo.voltas() == null || grupo.voltas() < 1 || grupo.voltas() > MAXIMO_DE_VOLTAS)) {
+                c.erro(cg + ".voltas", "Circuito: de 1 a " + MAXIMO_DE_VOLTAS + " voltas.");
+            }
+        }
+        List<List<Integer>> membros = new ArrayList<>();
+        for (int g = 0; g < grupos.size(); g++) {
+            membros.add(new ArrayList<>());
+        }
+        List<ExercicioPlano> exercicios = s.exerciciosOuVazio();
+        for (int j = 0; j < exercicios.size(); j++) {
+            UUID grupoUid = exercicios.get(j).grupoUid();
+            if (grupoUid == null) {
+                continue;
+            }
+            Integer posicao = posicaoDoGrupo.get(grupoUid);
+            if (posicao == null) {
+                c.erro(cs + ".exercicios[" + j + "].grupoUid", "O grupo do exercício não existe na sessão.");
+            } else {
+                membros.get(posicao).add(j);
+            }
+        }
+        for (int g = 0; g < grupos.size(); g++) {
+            Grupo grupo = grupos.get(g);
+            List<Integer> indices = membros.get(g);
+            String cg = cs + ".grupos[" + g + "]";
+            if (indices.isEmpty()) {
+                c.erro(cg, "Grupo sem exercícios.");
+                continue;
+            }
+            int primeiro = indices.get(0);
+            int ultimo = indices.get(indices.size() - 1);
+            if (ultimo - primeiro + 1 != indices.size()) {
+                c.erro(cg, "Os exercícios de um grupo precisam ficar um ao lado do outro na sessão.");
+            }
+            Integer minimo = grupo.tecnica() == null ? null : MINIMO_POR_GRUPO.get(grupo.tecnica());
+            if (minimo == null) {
+                continue;
+            }
+            boolean exato = ConteudoTreino.PRE_EXAUSTAO.equals(grupo.tecnica())
+                    || ConteudoTreino.POS_EXAUSTAO.equals(grupo.tecnica());
+            if (exato && indices.size() != 2) {
+                c.erro(cg, "Pré e pós-exaustão têm exatamente 2 exercícios.");
+            } else if (!exato && indices.size() < minimo) {
+                c.erro(cg, "Esse grupo precisa de pelo menos " + minimo + " exercícios.");
+            } else if (indices.size() > MAXIMO_POR_GRUPO) {
+                c.erro(cg, "Um grupo de exercícios feitos juntos vai até " + MAXIMO_POR_GRUPO + " exercícios.");
             }
         }
     }
 
-    /** Um aviso por tipo desconhecido em cada exercício (na primeira série que o usa), não um por série. */
-    private static void tipoForaDaMetodologia(ResultadoValidacao.Coletor c, Serie x, String cx,
-                                              Set<String> tiposDaMetodologia, Set<String> tiposAvisados) {
-        if (tiposDaMetodologia == null || x.semTipo()) {
+    /** Avisos que dependem da metodologia do plano: tipo fora dela (um por tipo, no exercício) e RIR 0 em aquecimento. */
+    private static void tipoDaSerie(ResultadoValidacao.Coletor c, Serie x, String cx, ConfiguracaoConsultoria metodologia,
+                                    Set<String> tiposAvisados) {
+        if (metodologia == null || x.semTipo()) {
             return;
         }
         String tipo = x.tipo().trim();
-        if (!tiposDaMetodologia.contains(tipo) && tiposAvisados.add(tipo)) {
-            c.aviso(cx + ".tipo", "O tipo \"" + tipo + "\" não está na metodologia do plano ("
-                    + String.join(", ", tiposDaMetodologia) + "). A série continua válida.");
+        ConfiguracaoConsultoria.TipoDeSerie definicao = metodologia.tipoPorCodigo(tipo);
+        if (definicao == null) {
+            if (tiposAvisados.add(tipo)) {
+                c.aviso(cx + ".tipo", "O tipo \"" + tipo + "\" não está na metodologia do plano ("
+                        + metodologia.tipos().stream().map(t -> t.codigo()).collect(Collectors.joining(", "))
+                        + "). A série continua válida.");
+            }
+            return;
+        }
+        if (x.esforco() != null && Integer.valueOf(0).equals(x.esforco().rir())
+                && (definicao.papel() == Papel.AQUECIMENTO || definicao.papel() == Papel.PREPARACAO)) {
+            c.aviso(cx + ".esforco.rir", "RIR 0 (até a falha) em série de aquecimento ou preparação: confira se é isso mesmo.");
         }
     }
 
     /**
-     * Série sem tipo só com técnica. Repetições mínima e máxima juntas (ou nenhuma, série por tempo); no cluster são a
-     * soma dos blocos. Faixas da intensidade e da técnica vêm dos records, com o caminho do campo.
+     * Problemas de uma série sozinha, por campo (caminho a partir da série, como {@code carga.percentualMin}; vazio =
+     * válida). {@code exercicioCardio}: a série leva {@code cardio} e não tem tipo, carga, esforço, repetições nem técnica;
+     * fora do cardio o tipo é obrigatório e {@code cardio} não existe. Repetições mínima e máxima juntas (ou nenhuma, série
+     * por tempo ou {@code amrap}); no cluster são a soma dos blocos. Usado também pelas receitas de séries.
      */
-    private static void serie(ResultadoValidacao.Coletor c, Serie x, String cx) {
-        if (x.semTipo() && x.tecnica() == null) {
-            c.erro(cx + ".tipo", "Série sem tipo nem técnica.");
-        }
-        if ((x.repsMin() == null) != (x.repsMax() == null)) {
-            c.erro(cx + ".repsMax", "Informe repetições mínima e máxima, ou nenhuma (série por tempo).");
-        } else if (x.repsMin() != null) {
-            if (x.repsMin() < 0 || x.repsMax() > 500) {
-                c.erro(cx + ".repsMin", "Repetições precisam ficar entre 0 e 500.");
-            } else if (x.repsMax() < x.repsMin()) {
-                c.erro(cx + ".repsMax", "Repetição máxima menor que a mínima.");
-            }
-        }
+    public static Map<String, String> problemasDaSerie(Serie x, boolean exercicioCardio) {
+        Map<String, String> p = new LinkedHashMap<>();
         if (x.descansoSegundos() != null && (x.descansoSegundos() < 0 || x.descansoSegundos() > 3600)) {
-            c.erro(cx + ".descansoSegundos", "Descanso precisa ficar entre 0 e 3600 segundos.");
+            p.put("descansoSegundos", "Descanso precisa ficar entre 0 e 3600 segundos.");
         }
+        if (x.alvoExtra() != null && x.alvoExtra().length() > 120) {
+            p.put("alvoExtra", "Alvo extra com no máximo 120 caracteres.");
+        }
+        if (exercicioCardio) {
+            cardio(p, x);
+            return p;
+        }
+        if (x.cardio() != null) {
+            p.put("cardio", "A prescrição de cardio só vale em exercício de cardio.");
+        }
+        if (x.semTipo()) {
+            p.put("tipo", "Série sem tipo.");
+        }
+        reps(p, x);
         if (x.tecnica() != null) {
-            x.tecnica().problemas().forEach((campo, mensagem) -> c.erro(cx + ".tecnica." + campo, mensagem));
+            x.tecnica().problemas().forEach((campo, mensagem) -> p.put("tecnica." + campo, mensagem));
             Integer soma = x.tecnica().somaDosBlocos();
             if (soma != null && (!soma.equals(x.repsMin()) || !soma.equals(x.repsMax()))) {
-                c.erro(cx + ".repsMin", "Cluster: as repetições são a soma dos blocos (" + soma + ").");
+                p.putIfAbsent("repsMin", "Cluster: as repetições são a soma dos blocos (" + soma + ").");
             }
         }
-        Intensidade i = x.intensidade();
-        if (i != null) {
-            i.problemas().forEach((campo, mensagem) -> c.erro(cx + ".intensidade." + campo, mensagem));
+        if (x.carga() != null) {
+            x.carga().problemas().forEach((campo, mensagem) -> p.put("carga." + campo, mensagem));
+        }
+        if (x.esforco() != null) {
+            x.esforco().problemas().forEach((campo, mensagem) -> p.put("esforco." + campo, mensagem));
+        }
+        return p;
+    }
+
+    private static void reps(Map<String, String> p, Serie x) {
+        boolean temReps = x.repsMin() != null || x.repsMax() != null;
+        if (x.amrapExplicito() && temReps) {
+            p.put("amrap", "AMRAP é o máximo de repetições: tire as repetições mínima e máxima.");
+        } else if ((x.repsMin() == null) != (x.repsMax() == null)) {
+            p.put("repsMax", "Informe repetições mínima e máxima, ou nenhuma (série por tempo).");
+        } else if (x.repsMin() != null) {
+            if (x.repsMin() < 0 || x.repsMax() > 500) {
+                p.put("repsMin", "Repetições precisam ficar entre 0 e 500.");
+            } else if (x.repsMax() < x.repsMin()) {
+                p.put("repsMax", "Repetição máxima menor que a mínima.");
+            }
+        }
+    }
+
+    /** Série de exercício de cardio: só {@code cardio}; tipo, carga, esforço, repetições e técnica não existem. */
+    private static void cardio(Map<String, String> p, Serie x) {
+        if (x.cardio() == null) {
+            p.put("cardio", "Série de cardio sem prescrição (duração, distância ou intervalos).");
+        } else {
+            x.cardio().problemas().forEach((campo, mensagem) -> p.put("cardio." + campo, mensagem));
+        }
+        if (!x.semTipo()) {
+            p.put("tipo", "Série de cardio não tem tipo.");
+        }
+        if (x.carga() != null && !ConteudoTreino.NENHUMA.equals(x.modo())) {
+            p.put("carga", "Série de cardio não tem carga.");
+        }
+        if (x.esforco() != null && !x.esforco().vazio()) {
+            p.put("esforco", "Série de cardio não tem esforço (RIR ou RPE).");
+        }
+        if (x.repsMin() != null || x.repsMax() != null || x.amrapExplicito()) {
+            p.put("repsMin", "Série de cardio não tem repetições.");
+        }
+        if (x.tecnica() != null) {
+            p.put("tecnica", "Série de cardio não tem técnica.");
         }
     }
 

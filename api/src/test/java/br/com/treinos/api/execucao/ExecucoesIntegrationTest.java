@@ -2,6 +2,7 @@ package br.com.treinos.api.execucao;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.web.Fuso;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -196,6 +197,59 @@ class ExecucoesIntegrationTest extends AbstractIntegrationTest {
             grande.add(registro(UUID.randomUUID(), treino.wsUid(), "30", 5, Instant.now()));
         }
         api.post("/aluno/execucoes/lote", aluno, Map.of("registros", grande), 400);
+    }
+
+    /**
+     * O histórico mostra o NOME do tipo, resolvido pela metodologia copiada na versão publicada: renomear o tipo na
+     * receita METODOLOGIA depois não muda o que o aluno e o treinador veem na ficha já publicada (critério de aceitação),
+     * e a ficha publicada depois leva o nome novo.
+     */
+    @Test
+    void historicoMostraONomeDoTipoDaMetodologiaDaVersaoNaoDaReceitaDeHoje() throws Exception {
+        enviar(List.of(
+                registro(UUID.randomUUID(), treino.fsUid(), "15", 3, Instant.now()),
+                registro(UUID.randomUUID(), treino.wsUid(), "30", 6, Instant.now()),
+                registro(UUID.randomUUID(), treino.backOffUid(), "25.5", 6, Instant.now())));
+        JsonNode metodologia = api.get("/receitas?tipo=METODOLOGIA", treinador, 200).get(0);
+        ConfiguracaoConsultoria padrao = ConfiguracaoConsultoria.padrao();
+        List<ConfiguracaoConsultoria.TipoDeSerie> renomeados = padrao.tipos().stream()
+                .map(t -> t.codigo().equals("WORKING")
+                        ? new ConfiguracaoConsultoria.TipoDeSerie(t.codigo(), "Série de trabalho", t.papel(), t.repeticoes(),
+                        t.cargaPadrao(), t.esforcoPadrao(), t.porModalidade(), t.regraPercentuais(), t.explicacao())
+                        : t).toList();
+        ConfiguracaoConsultoria nova = new ConfiguracaoConsultoria(renomeados, padrao.tecnicas(), padrao.combinacoes(),
+                padrao.arredondamentoKg(), padrao.instrucoesTreino(), padrao.rodapePdf());
+        api.put("/receitas/" + metodologia.get("id").asString() + "/conteudo", treinador,
+                Map.of("nome", metodologia.get("nome").asString(), "conteudo", nova, "versao", metodologia.get("versao").asLong()),
+                200);
+
+        // A ficha já publicada continua com a metodologia que foi copiada nela.
+        JsonNode historico = api.get("/alunos/" + alunoId + "/execucoes", treinador, 200);
+        JsonNode exercicio = historico.get(0).get("sessoes").get(0).get("exercicios").get(0);
+        assertThat(exercicio.get("series").valueStream().map(x -> x.get("tipo").asString()))
+                .containsExactly("FS", "WS", "Back off");
+        assertThat(api.get("/aluno/painel", aluno, 200).at("/treino/conteudo/metodologia/configuracao/tipos/2/nome").asString())
+                .isEqualTo("WS");
+        assertThat(api.get("/aluno/painel", aluno, 200).at("/configuracao/tipoTrabalho").asString()).isEqualTo("WS");
+
+        // Um plano publicado depois copia a metodologia nova, e o histórico dele mostra o nome novo.
+        UUID outroId = api.criarAluno(treinador, "Outro Aluno Fictício");
+        ApiDeTeste.TreinoDeTeste outroTreino = ApiDeTeste.treino();
+        api.publicarTreino(treinador, outroId, outroTreino.conteudo());
+        JsonNode outro = api.convidarEEntrar(treinador, outroId);
+        JsonNode painelOutro = api.get("/aluno/painel", outro, 200);
+        List<Map<String, Object>> registros = new java.util.ArrayList<>();
+        for (UUID serie : List.of(outroTreino.fsUid(), outroTreino.wsUid(), outroTreino.backOffUid())) {
+            Map<String, Object> r = new LinkedHashMap<>(registro(UUID.randomUUID(), serie, "40", 5, Instant.now()));
+            r.put("planoVersaoId", painelOutro.get("treino").get("versaoId").asString());
+            r.put("sessaoUid", outroTreino.sessaoUid().toString());
+            r.put("exercicioUid", outroTreino.exercicioUid().toString());
+            registros.add(r);
+        }
+        api.post("/aluno/execucoes/lote", outro, Map.of("registros", registros), 200);
+        JsonNode historicoOutro = api.get("/alunos/" + outroId + "/execucoes", treinador, 200);
+        assertThat(historicoOutro.get(0).get("sessoes").get(0).get("exercicios").get(0).get("series").valueStream()
+                .map(x -> x.get("tipo").asString())).containsExactly("FS", "Série de trabalho", "Back off");
     }
 
     private Map<String, Object> registro(UUID id, UUID serieUid, String carga, Integer reps, Instant quando) {

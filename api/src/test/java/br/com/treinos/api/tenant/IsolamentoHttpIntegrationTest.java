@@ -75,9 +75,9 @@ class IsolamentoHttpIntegrationTest extends AbstractIntegrationTest {
     @Test
     void receitasEBibliotecaSaoDeCadaConsultoria() throws Exception {
         JsonNode receitaB = api.post("/receitas", treinadorB, Map.of("tipo", "SERIES", "nome", "Receita só do B",
-                "conteudo", Map.of("series", java.util.List.of(Map.of("tipo", "WS", "repsMin", 3, "repsMax", 6)))), 200);
+                "conteudo", Map.of("series", java.util.List.of(Map.of("tipo", "WORKING", "repsMin", 3, "repsMax", 6)))), 200);
         api.put("/receitas/" + receitaB.get("id").asString(), treinadorA, Map.of("tipo", "SERIES", "nome", "x",
-                "conteudo", Map.of("series", java.util.List.of(Map.of("tipo", "WS")))), 404);
+                "conteudo", Map.of("series", java.util.List.of(Map.of("tipo", "WORKING")))), 404);
         assertThat(api.get("/receitas", treinadorA, 200).valueStream().map(r -> r.get("nome").asString()))
                 .doesNotContain("Receita só do B");
 

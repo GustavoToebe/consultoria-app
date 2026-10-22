@@ -16,7 +16,7 @@ final class TextoLivreDosPlanos {
 
     /** Chaves que guardam texto digitado pelo treinador para aquele aluno. */
     static final Set<String> CAMPOS = Set.of("objetivo", "orientacoes", "observacao", "observacoes", "cardio", "prescricao",
-            "texto", "descricao", "nota", "notas", "comentario", "comentarios");
+            "texto", "descricao", "nota", "notas", "comentario", "comentarios", "alvoExtra", "ritmo");
     private static final String METODOLOGIA = "metodologia";
 
     private TextoLivreDosPlanos() {

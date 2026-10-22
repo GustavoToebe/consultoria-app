@@ -1,8 +1,8 @@
 package br.com.treinos.api;
 
 import br.com.treinos.api.treino.ConteudoTreino;
+import br.com.treinos.api.treino.ConteudoTreino.Carga;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
-import br.com.treinos.api.treino.ConteudoTreino.Intensidade;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ConteudoTreino.Sessao;
 import org.springframework.http.HttpHeaders;
@@ -124,9 +124,9 @@ public final class ApiDeTeste {
         UUID ws = UUID.randomUUID();
         UUID backOff = UUID.randomUUID();
         List<Serie> series = List.of(
-                new Serie(fs, "FS", 3, 3, new Intensidade("PERCENTUAL_WS", new BigDecimal("50"), null, null, null), null, null),
-                new Serie(ws, "WS", 3, 6, new Intensidade("CARGA_TRABALHO", null, null, null, null), null, null),
-                new Serie(backOff, "Back off", 6, 8, new Intensidade("PERCENTUAL_WS", new BigDecimal("85"), null, null, null), null, null));
+                Serie.de(fs, "FEEDER", 3, 3, Carga.percentual("PERCENTUAL_WS", 50, null)),
+                Serie.de(ws, "WORKING", 3, 6, Carga.de("CARGA_TRABALHO")),
+                Serie.de(backOff, "BACK_OFF", 6, 8, Carga.percentual("PERCENTUAL_WS", 85, null)));
         ExercicioPlano ex = new ExercicioPlano(exercicio, exercicioId, "Remada baixa na polia", "MAQUINA",
                 "https://www.youtube.com/watch?v=exemplo", null, true, "kg", series);
         ConteudoTreino c = new ConteudoTreino("Objetivo fictício", null, List.of(

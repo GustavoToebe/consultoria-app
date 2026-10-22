@@ -6,6 +6,7 @@ import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.treino.ConteudoTreino;
+import br.com.treinos.api.treino.ValidadorTreino;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Exigir;
@@ -24,6 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -198,6 +200,9 @@ public class ReceitaService {
                     + " " + violacoes.iterator().next().getMessage());
         }
         if (valor instanceof ConfiguracaoConsultoria c) ConfiguracaoConsultoria.validarComoMetodologia(c);
+        if (valor instanceof ReceitaSeries s) {
+            validarSeries(s);
+        }
         if (valor instanceof ConteudoTreino t) {
             validarMetodologia(t);
             if (tipo == Receita.Tipo.SESSAO_TREINO && t.sessoes().size() != 1)
@@ -232,6 +237,20 @@ public class ReceitaService {
                 .anyMatch(i -> i.nome() == null || i.nome().isBlank()))
             throw new BadRequestException("Todo item de mobilidade precisa de nome.");
         return m.comVideos(videoUrls::normalizar);
+    }
+
+    /**
+     * Modelo de séries: cada série passa pelas regras da série sozinha (tipo, repetições, carga, esforço, técnica). A
+     * série com {@code cardio} é de exercício de cardio; as regras que dependem do exercício (mesma carga, referência do
+     * back off) ficam para o plano.
+     */
+    private static void validarSeries(ReceitaSeries s) {
+        for (ConteudoTreino.Serie x : s.series()) {
+            Map<String, String> problemas = ValidadorTreino.problemasDaSerie(x, x.cardio() != null);
+            if (!problemas.isEmpty()) {
+                throw new BadRequestException("Série do modelo inválida: " + problemas.values().iterator().next());
+            }
+        }
     }
 
     public static void validarMetodologia(ConteudoTreino t) {
