@@ -80,6 +80,13 @@
     ],
     "experiments": {
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c5919905-ffe1-4183-a4ff-21e8f20a04b7"
+      }
+    },
+    "owner": "gustavotoebe"
   }
 }

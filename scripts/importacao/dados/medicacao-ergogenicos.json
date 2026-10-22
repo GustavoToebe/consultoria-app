@@ -43,7 +43,6 @@
     { "categoria": "Peptídeos", "nome": "SLUP", "principioAtivo": "SLU-PP-332", "concentracao": "5 mg", "apresentacao": null },
     { "categoria": "Peptídeos", "nome": "IGF", "principioAtivo": "IGF-1 LR3", "concentracao": "1 mg", "apresentacao": null },
     { "categoria": "Peptídeos", "nome": "MOTS-c", "principioAtivo": "Mitochondrial Open Reading Frame", "concentracao": "10 mg", "apresentacao": null },
-    { "categoria": "Peptídeos", "nome": "GHRP-6", "principioAtivo": "Growth Hormone-Releasing Peptide-6", "concentracao": "10 mg", "apresentacao": null },
-    { "categoria": "Outros", "nome": "Água Bacteriostática", "principioAtivo": null, "concentracao": "0,93%", "apresentacao": "10 ml" }
+    { "categoria": "Peptídeos", "nome": "GHRP-6", "principioAtivo": "Growth Hormone-Releasing Peptide-6", "concentracao": "10 mg", "apresentacao": null }
   ]
 }

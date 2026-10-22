@@ -139,7 +139,7 @@ export function AbaCatalogo() {
         }}
       />
       <BarraDaBiblioteca rotulo="Buscar no catálogo" placeholder={tipo === 'exercicios' ? 'Nome do exercício' : 'Nome do alimento'} valor={busca} aoMudar={setBusca}>
-        {opcoesDeGrupo.length ? <SelecaoMultiplaSuspensa rotulo="Grupo" opcoes={opcoesDeGrupo} marcados={gruposMarcados} aoMudar={setGruposMarcados} /> : null}
+        {opcoesDeGrupo.length ? <SelecaoMultiplaSuspensa rotulo="Grupo" opcoes={opcoesDeGrupo} marcados={gruposMarcados} aoMudar={setGruposMarcados} style={estilos.aoPeDoCampo} /> : null}
       </BarraDaBiblioteca>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
@@ -210,4 +210,6 @@ const estilos = StyleSheet.create({
   caixa: { width: 22, height: 22, borderWidth: 2, borderRadius: 3, alignItems: 'center', justifyContent: 'center' },
   dados: { flex: 1, gap: 2 },
   dadosToque: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE },
+  /** O seletor nasce com alignSelf flex-start; na barra (alinhada pela base) ele subia e ficava fora do lugar. */
+  aoPeDoCampo: { alignSelf: 'flex-end' },
 });
