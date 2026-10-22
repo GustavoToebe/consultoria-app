@@ -1,15 +1,16 @@
+import { tecnicaVazia } from './editorTreino';
 import type { Serie } from '../api/tipos';
 import { mesmaPrescricao, repeticaoDaAnterior } from './repetirSerie';
 
-const ws: Serie = { uid: 'a', tipo: 'WS', repsMin: 6, repsMax: 8, alvoTexto: null, intensidade: { modo: 'CARGA_TRABALHO' } as Serie['intensidade'], descansoSegundos: 90 };
-const fs = (percentual: number): Serie => ({ ...ws, uid: `f${percentual}`, tipo: 'FS', repsMin: 3, repsMax: 3, intensidade: { modo: 'PERCENTUAL_WS', percentual } as Serie['intensidade'] });
+const ws: Serie = { uid: 'a', tipo: 'WS', repsMin: 6, repsMax: 8, intensidade: { modo: 'CARGA_TRABALHO' } as Serie['intensidade'], descansoSegundos: 90 };
+const fs = (percentualMin: number): Serie => ({ ...ws, uid: `f${percentualMin}`, tipo: 'FS', repsMin: 3, repsMax: 3, intensidade: { modo: 'PERCENTUAL_WS', percentualMin } as Serie['intensidade'] });
 
 describe('repetir a série anterior', () => {
   it('só entre séries com a mesma prescrição', () => {
     expect(mesmaPrescricao(ws, { ...ws, uid: 'b' })).toBe(true);
     expect(mesmaPrescricao(fs(50), fs(70))).toBe(false);
     expect(mesmaPrescricao(fs(85), ws)).toBe(false);
-    expect(mesmaPrescricao(ws, { ...ws, tecnica: { tipo: 'CLUSTER', blocos: 3, repsPorBloco: 4, pausaSegundos: 20, retomadas: null, repsPorRetomada: null } })).toBe(false);
+    expect(mesmaPrescricao(ws, { ...ws, tecnica: { ...tecnicaVazia('CLUSTER'), blocos: [4,4,4], pausaSegundos: 20 } })).toBe(false);
   });
 
   it('mostra os valores no rótulo e some sem nada registrado', () => {

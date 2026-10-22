@@ -15,7 +15,7 @@ export async function sessaoDeAluno(page: Page): Promise<RespostasApi> {
 function exercicioFalso(uid: string): ExercicioPlano {
   return {
     uid, exercicioId: null, nome: `Exercício ${uid}`, modalidade: null, videoUrl: null, observacao: null, progressao: false, unidade: 'kg',
-    series: [1, 2, 3].map((n) => ({ uid: `${uid}-s${n}`, tipo: 'WS', repsMin: 8, repsMax: 10, alvoTexto: null, intensidade: null, descansoSegundos: null })),
+    series: [1, 2, 3].map((n) => ({ uid: `${uid}-s${n}`, tipo: 'WS', repsMin: 8, repsMax: 10, intensidade: null, descansoSegundos: null })),
   };
 }
 

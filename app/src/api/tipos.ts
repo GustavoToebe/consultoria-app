@@ -95,22 +95,56 @@ export interface ConfiguracaoPublica {
 
 // ---- Marca e configuração ----
 
-export interface Configuracao {
-  tiposSerie: string[];
-  tipoTrabalho: string;
-  tipoPreparacao: string;
-  /** Chave = quantidade de séries de preparação; valor = percentuais de cada uma. */
-  regraPreparacao: Record<string, number[]>;
-  arredondamentoKg: number;
-  instrucoesTreino: string | null;
-  rodapePdf: string | null;
-  /** Faixa de repetições de cada tipo de série (chave = tipo); o editor preenche ao criar a série ou trocar o tipo. */
-  repeticoes?: Record<string, FaixaRepeticoes> | null;
-}
+/** Papel fixo de um tipo de série: decide a intensidade padrão no editor e quem dá nome ao "% da WS". */
+export type PapelDaSerie = 'AQUECIMENTO' | 'PREPARACAO' | 'TRABALHO' | 'POS_TRABALHO' | 'OUTRO';
+
+/** Modalidades com intensidade padrão própria na metodologia; as outras (e sem modalidade) caem em `intensidadePadrao`. */
+export type ModalidadeComPadrao = 'LIVRE' | 'MAQUINA';
 
 export interface FaixaRepeticoes {
   min: number;
   max: number;
+}
+
+/** Uma série da regra de percentuais: "85" (`max` nulo) ou "85 a 90", sempre em % da série de trabalho. */
+export interface FaixaPercentual {
+  min: number;
+  max: number | null;
+}
+
+/**
+ * Tipo de série da metodologia (formato de 22/10): nome livre, papel fixo e os padrões que o editor preenche ao criar a
+ * série ou trocar o tipo (repetições, intensidade, variação por modalidade e, só em preparação, a regra de % por
+ * quantidade de séries). A explicação é o que o aluno lê ao tocar no tipo. Espelho de `ConfiguracaoConsultoria.TipoDeSerie`.
+ */
+export interface TipoDeSerie {
+  nome: string;
+  papel: PapelDaSerie;
+  repeticoes: FaixaRepeticoes | null;
+  intensidadePadrao: Intensidade | null;
+  intensidadePorModalidade: Partial<Record<ModalidadeComPadrao, Intensidade>> | null;
+  /** Só `PREPARACAO`: chave = quantas séries ("1" a "10"); valor = a faixa de cada uma. */
+  regraPercentuais: Record<string, FaixaPercentual[]> | null;
+  explicacao: string | null;
+}
+
+/** Nome exibido, explicação e padrão (parcial) de uma das três técnicas; a metodologia tem uma de cada. */
+export interface TecnicaDaMetodologia {
+  tipo: TipoDeTecnica;
+  nome: string;
+  explicacao: string | null;
+  padrao: Tecnica | null;
+}
+
+/** Metodologia da consultoria (receita `METODOLOGIA` e cópia em `ConteudoTreino.metodologia`). */
+export interface Configuracao {
+  /** 1 a 20 tipos; ao menos um `TRABALHO` (o primeiro dá nome ao "% da WS"). */
+  tipos: TipoDeSerie[];
+  /** As três técnicas, uma de cada. */
+  tecnicas: TecnicaDaMetodologia[];
+  arredondamentoKg: number;
+  instrucoesTreino: string | null;
+  rodapePdf: string | null;
 }
 
 export interface ConsultoriaResponse {
@@ -321,44 +355,50 @@ export interface Receita {
 // ---- Planos ----
 
 export type TipoSessao = 'TREINO' | 'DESCANSO_ATIVO' | 'DESCANSO' | 'ACESSORIOS';
-export type ModoIntensidade = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'RIR' | 'RPE' | 'LIVRE' | 'NENHUMA';
+export type ModoIntensidade = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'ACIMA_DA_ANTERIOR' | 'MESMA_CARGA' | 'RPE' | 'NENHUMA';
 
+/**
+ * Intensidade da série (formato de 22/10). `PERCENTUAL_WS` e `ACIMA_DA_ANTERIOR` usam a faixa `percentualMin`/`percentualMax`
+ * (máximo nulo = valor único), sempre em % da série de trabalho, com a referência escrita no modo. `MESMA_CARGA` = a carga da série de
+ * trabalho feita antes no exercício. `rir` vale em qualquer modo (0 = até a falha). Nulo = `NENHUMA`.
+ */
 export interface Intensidade {
   modo: ModoIntensidade;
-  percentual?: number | null;
-  rir?: number | null;
+  percentualMin?: number | null;
+  percentualMax?: number | null;
   rpe?: number | null;
-  texto?: string | null;
+  rir?: number | null;
 }
 
 export interface Serie {
   uid: string;
-  tipo: string;
+  /** Para que a série serve (tipo da metodologia); nulo só quando há técnica ("1x8 - Rest pause"). */
+  tipo: string | null;
   repsMin: number | null;
   repsMax: number | null;
-  alvoTexto: string | null;
   intensidade: Intensidade | null;
   descansoSegundos: number | null;
-  /** Estrutura da série com campos próprios (cluster, rest pause, drop-set); nulo = série simples. */
+  /** Como executar (cluster, rest pause, drop-set), com campos próprios; nulo = série simples. */
   tecnica?: Tecnica | null;
 }
 
+export type TipoDeTecnica = 'CLUSTER' | 'REST_PAUSE' | 'DROP_SET';
+
 /**
- * Cluster: `blocos` de `repsPorBloco` com `pausaSegundos` entre eles. Rest pause: a série, `pausaSegundos` de pausa e
- * `retomadas` de `repsPorRetomada` (nulo = até a falha). Drop-set: ao terminar, reduz a carga (`reducaoPercentual`,
- * nulo = sem fixar) e continua, `quedas` vezes, com `repsPorQueda` (nulo = até a falha). Só números do treinador; o
- * aluno registra a série inteira.
+ * Técnica da série (formato de 22/10). A pausa é em `pausaSegundos` ou `pausaRespiracoes` (ao menos uma). Rest pause:
+ * `pausas` (1 a 5, padrão 1), sem repetições prescritas nas retomadas. Cluster: `blocos` de repetições ("4+2" =
+ * `[4, 2]`); as repetições da série são a soma. Drop-set: `quedas`, `reducaoPercentual` (nulo = sem fixar) e
+ * `repsPorQueda` (nulo = até a falha). O que não vale para a técnica fica nulo. O aluno registra a série inteira.
  */
 export interface Tecnica {
-  tipo: 'CLUSTER' | 'REST_PAUSE' | 'DROP_SET';
-  blocos: number | null;
-  repsPorBloco: number | null;
+  tipo: TipoDeTecnica;
   pausaSegundos: number | null;
-  retomadas: number | null;
-  repsPorRetomada: number | null;
-  quedas?: number | null;
-  reducaoPercentual?: number | null;
-  repsPorQueda?: number | null;
+  pausaRespiracoes: number | null;
+  pausas: number | null;
+  blocos: number[] | null;
+  quedas: number | null;
+  reducaoPercentual: number | null;
+  repsPorQueda: number | null;
 }
 
 /** Nome que o treinador escolhe para um grupo de 2 exercícios (sem ele, "Bi-set"). */

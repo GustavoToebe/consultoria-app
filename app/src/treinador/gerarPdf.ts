@@ -1,3 +1,4 @@
+import { tipoTrabalho } from '../dominio/metodologia';
 import { aluno as buscarAluno, consultoria, listarPlanos, pesosDoAluno, versaoPlano } from '../api/rotas';
 import type { ConteudoDieta, ConteudoTreino, PlanoResumo, Sessao, TipoPlano } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
@@ -37,7 +38,7 @@ export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascu
         inicio: versao?.inicio ?? plano.inicio,
         fim: versao?.fim ?? plano.fim,
         conteudo: normalizarTreino(conteudo) as ConteudoTreino,
-        tipoTrabalho: CONFIGURACAO_PADRAO.tipoTrabalho,
+        tipoTrabalho: tipoTrabalho(CONFIGURACAO_PADRAO) ?? 'série de trabalho',
         instrucoesTreino: CONFIGURACAO_PADRAO.instrucoesTreino,
       }),
     );

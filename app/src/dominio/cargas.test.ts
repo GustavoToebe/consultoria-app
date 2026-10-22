@@ -6,15 +6,15 @@ const serie = (uid: string, tipo: string, extra: Partial<Serie>): Serie => ({
   tipo,
   repsMin: 3,
   repsMax: 3,
-  alvoTexto: null,
+
   intensidade: null,
   descansoSegundos: null,
   ...extra,
 });
-const fs = (uid: string, p: number) => serie(uid, 'FS', { intensidade: { modo: 'PERCENTUAL_WS', percentual: p } });
+const fs = (uid: string, p: number) => serie(uid, 'FS', { intensidade: { modo: 'PERCENTUAL_WS', percentualMin: p } });
 const ws = (uid: string) => serie(uid, 'WS', { repsMax: 6, intensidade: { modo: 'CARGA_TRABALHO' } });
 const backOff = (uid: string, p: number) =>
-  serie(uid, 'Back off', { repsMin: 6, repsMax: 8, intensidade: { modo: 'PERCENTUAL_WS', percentual: p } });
+  serie(uid, 'Back off', { repsMin: 6, repsMax: 8, intensidade: { modo: 'PERCENTUAL_WS', percentualMin: p } });
 
 const exercicio = (series: Serie[], extra: Partial<ExercicioPlano> = {}): ExercicioPlano => ({
   uid: 'e',
@@ -66,10 +66,10 @@ describe('cargas do aluno', () => {
   it('meta em texto, sem parse de faixa', () => {
     expect(metaDaSerie(fs('a', 50), 'WS')).toBe('Meta: 3 reps · 50% da WS');
     expect(metaDaSerie(ws('d'), 'WS')).toBe('Meta: 3 a 6 reps · carga de trabalho');
-    expect(metaDaSerie(serie('r', 'Série', { repsMin: 8, repsMax: 12, intensidade: { modo: 'RIR', rir: 1 } }), 'WS')).toBe(
+    expect(metaDaSerie(serie('r', 'Série', { repsMin: 8, repsMax: 12, intensidade: { modo: 'NENHUMA', rir: 1 } }), 'WS')).toBe(
       'Meta: 8 a 12 reps · 1 RIR',
     );
-    expect(metaDaSerie(serie('c', 'Cardio', { repsMin: null, repsMax: null, alvoTexto: '50 min' }), 'WS')).toBe('Meta: 50 min');
+    expect(metaDaSerie(serie('c', 'Cardio', { repsMin: null, repsMax: null, }), 'WS')).toBe('Meta: —');
   });
 });
 
@@ -79,7 +79,7 @@ describe('drop-set', () => {
     const drop = serie('d', 'WS', {
       repsMax: 6,
       intensidade: { modo: 'CARGA_TRABALHO' },
-      tecnica: { tipo: 'DROP_SET', blocos: null, repsPorBloco: null, pausaSegundos: null, retomadas: null, repsPorRetomada: null, quedas: 2, reducaoPercentual: 20, repsPorQueda: null },
+      tecnica: { tipo: 'DROP_SET', blocos: null, pausaSegundos: null, pausaRespiracoes: null, pausas: null, quedas: 2, reducaoPercentual: 20, repsPorQueda: null },
     });
     const [r] = calcularCargasDoExercicio(exercicio([drop]), 30, {}, CONFIG);
     expect(r.sugestao).toBe(30);

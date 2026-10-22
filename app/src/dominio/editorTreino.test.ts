@@ -1,3 +1,5 @@
+import { repeticoesDoTipo } from './metodologia';
+import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import type { Configuracao, ExercicioPlano, Serie } from '../api/tipos';
 import { agrupar, descreverGrupo, descreverSeries } from './agrupamento';
 import { localizar, uidsComProblema } from './caminhos';
@@ -15,7 +17,6 @@ import {
   removerExercicio,
   tecnicaVazia,
   novaSerie,
-  repeticoesDoTipo,
   seriesDaReceita,
   seriesParaReceita,
   resumoDaSessao,
@@ -27,26 +28,26 @@ let mockContador = 0;
 jest.mock('./uid', () => ({ novoUid: () => `uid-${++mockContador}` }));
 
 const CONFIG: Configuracao = {
-  tiposSerie: ['Aquecimento', 'FS', 'WS', 'Back off'],
-  tipoTrabalho: 'WS',
-  tipoPreparacao: 'FS',
-  regraPreparacao: { '1': [85], '2': [70, 85], '3': [50, 70, 85] },
-  arredondamentoKg: 0.5,
-  instrucoesTreino: null,
-  rodapePdf: null,
+  ...CONFIGURACAO_PADRAO,
+  tipos: CONFIGURACAO_PADRAO.tipos.map((t) => ({ ...t, repeticoes: null,
+    intensidadePadrao: t.nome === 'WS' ? { modo: 'CARGA_TRABALHO' } : t.intensidadePadrao,
+    intensidadePorModalidade: null,
+    regraPercentuais: t.papel === 'PREPARACAO' ? { '1': [{ min: 85, max: null }], '2': [{ min: 70, max: null }, { min: 85, max: null }], '3': [{ min: 50, max: null }, { min: 70, max: null }, { min: 85, max: null }] } : null,
+  })),
 };
+const configComFaixas = (faixas: Record<string, { min: number; max: number }>): Configuracao => ({ ...CONFIG, tipos: CONFIG.tipos.map((t) => ({ ...t, repeticoes: faixas[t.nome] ?? null })) });
 
 function serie(uid: string, tipo: string, min: number | null, max: number | null, extra: Partial<Serie> = {}): Serie {
-  return { uid, tipo, repsMin: min, repsMax: max, alvoTexto: null, intensidade: null, descansoSegundos: null, ...extra };
+  return { uid, tipo, repsMin: min, repsMax: max, intensidade: null, descansoSegundos: null, tecnica: null, ...extra };
 }
 
-const fs = (uid: string, p: number) => serie(uid, 'FS', 3, 3, { intensidade: { modo: 'PERCENTUAL_WS', percentual: p } });
+const fs = (uid: string, p: number) => serie(uid, 'FS', 3, 3, { intensidade: { modo: 'PERCENTUAL_WS', percentualMin: p } });
 const ws = (uid: string) => serie(uid, 'WS', 3, 6, { intensidade: { modo: 'CARGA_TRABALHO' } });
-const backOff = (uid: string) => serie(uid, 'Back off', 6, 8, { intensidade: { modo: 'PERCENTUAL_WS', percentual: 85 } });
+const backOff = (uid: string) => serie(uid, 'Back off', 6, 8, { intensidade: { modo: 'PERCENTUAL_WS', percentualMin: 85 } });
 
 describe('intensidade', () => {
   it('o % diz a base pelo nome da série de trabalho', () => {
-    expect(modosDeIntensidade('WS').find((m) => m.valor === 'PERCENTUAL_WS')?.rotulo).toBe('% da WS');
+    expect(modosDeIntensidade(CONFIG).find((m) => m.valor === 'PERCENTUAL_WS')?.rotulo).toBe('% da WS');
     expect(modosDeIntensidade(null).find((m) => m.valor === 'PERCENTUAL_WS')?.rotulo).toBe('% da série de trabalho');
   });
 });
@@ -54,13 +55,13 @@ describe('intensidade', () => {
 describe('agrupamento', () => {
   it('junta séries consecutivas iguais como no PDF', () => {
     const series = [fs('a', 50), fs('b', 70), fs('c', 85), ws('d'), backOff('e'), backOff('f')];
-    expect(descreverSeries(series)).toEqual(['3x3 - FS 50/70/85%', '1x3 a 6 - WS', '2x6 a 8 - Back off 85/85%']);
+    expect(descreverSeries(series)).toEqual(['3x3 - FS 50/70/85%', '1x3 a 6 - WS', '2x6 a 8 - Back off 85%']);
     expect(agrupar(series).map((g) => g.inicio)).toEqual([0, 3, 4]);
   });
 
-  it('série por tempo mostra o alvo em vez da faixa', () => {
-    const cardio = serie('x', 'Cardio', null, null, { alvoTexto: '50 min', intensidade: { modo: 'NENHUMA' } });
-    expect(descreverGrupo(agrupar([cardio])[0])).toBe('1x - Cardio 50 min');
+  it('série por tempo fica sem faixa; a duração vai na observação', () => {
+    const cardio = serie('x', 'Cardio', null, null, { intensidade: { modo: 'NENHUMA' } });
+    expect(descreverGrupo(agrupar([cardio])[0])).toBe('1x - Cardio');
   });
 });
 
@@ -73,14 +74,14 @@ describe('editor de treino', () => {
     const series = [fs('a', 50), fs('b', 70), fs('c', 85), ws('d')];
     const grupo = agrupar(series)[0];
     const novas = mudarQuantidade(series, grupo, 2, CONFIG);
-    expect(novas.map((s) => s.intensidade?.percentual ?? null)).toEqual([70, 85, null]);
+    expect(novas.map((s) => s.intensidade?.percentualMin ?? null)).toEqual([70, 85, null]);
     expect(novas.map((s) => s.uid)).toEqual(['a', 'b', 'd']);
   });
 
   it('FS de 2 para 3 cria série com uid novo e aplica 50/70/85', () => {
     const series = [fs('a', 70), fs('b', 85), ws('d')];
     const novas = mudarQuantidade(series, agrupar(series)[0], 3, CONFIG);
-    expect(novas.map((s) => s.intensidade?.percentual ?? null)).toEqual([50, 70, 85, null]);
+    expect(novas.map((s) => s.intensidade?.percentualMin ?? null)).toEqual([50, 70, 85, null]);
     expect(novas[2].uid).toBe('uid-1');
   });
 
@@ -102,13 +103,13 @@ describe('editor de treino', () => {
     const series = [ws('a'), ws('b')];
     const novas = alterarGrupo(series, agrupar(series)[0], { tipo: 'FS' }, CONFIG);
     expect(novas.map((s) => s.intensidade)).toEqual([
-      { modo: 'PERCENTUAL_WS', percentual: 70 },
-      { modo: 'PERCENTUAL_WS', percentual: 85 },
+      expect.objectContaining({ modo: 'PERCENTUAL_WS', percentualMin: 70 }),
+      expect.objectContaining({ modo: 'PERCENTUAL_WS', percentualMin: 85 }),
     ]);
   });
 
   it('com faixas na metodologia, trocar o tipo preenche as repetições do tipo novo', () => {
-    const comFaixas: Configuracao = { ...CONFIG, repeticoes: { FS: { min: 3, max: 3 }, 'Back off': { min: 6, max: 8 } } };
+    const comFaixas: Configuracao = configComFaixas({ FS: { min: 3, max: 3 }, 'Back off': { min: 6, max: 8 } });
     const series = [ws('a'), ws('b')];
     expect(alterarGrupo(series, agrupar(series)[0], { tipo: 'Back off' }, comFaixas).map((s) => [s.repsMin, s.repsMax])).toEqual([[6, 8], [6, 8]]);
     // Tipo sem faixa mantém as repetições que já estavam; sem metodologia de faixas também.
@@ -117,9 +118,9 @@ describe('editor de treino', () => {
   });
 
   it('série nova nasce com a faixa do tipo de trabalho, se a metodologia tiver', () => {
-    expect(novaSerie({ ...CONFIG, repeticoes: { WS: { min: 3, max: 6 } } })).toMatchObject({ tipo: 'WS', repsMin: 3, repsMax: 6 });
+    expect(novaSerie(configComFaixas({ WS: { min: 3, max: 6 } }))).toMatchObject({ tipo: 'WS', repsMin: 3, repsMax: 6 });
     expect(novaSerie(CONFIG)).toMatchObject({ tipo: 'WS', repsMin: null, repsMax: null });
-    expect(repeticoesDoTipo(null, 'WS')).toBeNull();
+    expect(repeticoesDoTipo(null)).toBeNull();
   });
 
   it('receita de séries ganha uids novos e volta sem uids ao salvar', () => {
@@ -197,7 +198,7 @@ describe('composições da pesquisa de técnicas (19/10)', () => {
   beforeEach(() => {
     mockContador = 0;
   });
-  const cluster = { tipo: 'CLUSTER' as const, blocos: 3, repsPorBloco: 4, pausaSegundos: 20, retomadas: null, repsPorRetomada: null };
+  const cluster = { ...tecnicaVazia('CLUSTER'), blocos: [4,4,4], pausaSegundos: 20 };
   const comCluster = (series: Serie[]) => {
     const grupos = agrupar(series);
     return alterarGrupo(series, grupos[grupos.length - 1], { tecnica: cluster }, CONFIG);
@@ -213,8 +214,8 @@ describe('composições da pesquisa de técnicas (19/10)', () => {
 
     const esperado = {
       simples: ['1x - WS'],
-      wsMaisCluster: ['1x - WS', '1x - WS · Cluster 3×4, 20 s'],
-      doisCluster: ['2x - WS · Cluster 3×4, 20 s'],
+      wsMaisCluster: ['1x - WS', '1x12 (3×4) - WS + Cluster 20 s'],
+      doisCluster: ['2x12 (3×4) - WS + Cluster 20 s'],
     };
     for (const [nome, series] of Object.entries({ simples, wsMaisCluster, doisCluster })) {
       const quer = esperado[nome as keyof typeof esperado];
@@ -228,7 +229,7 @@ describe('composições da pesquisa de técnicas (19/10)', () => {
     const wsMaisCluster = comCluster(adicionarSerie(adicionarSerie([], CONFIG, 'WS'), CONFIG, 'WS', 'CLUSTER'));
     expect(descreverSeries(adicionarSerie(wsMaisCluster, CONFIG, 'WS'))).toEqual([
       '1x - WS',
-      '1x - WS · Cluster 3×4, 20 s',
+      '1x12 (3×4) - WS + Cluster 20 s',
       '1x - WS',
     ]);
   });
@@ -236,18 +237,18 @@ describe('composições da pesquisa de técnicas (19/10)', () => {
   it('trocar de 3 para 4 blocos muda só a técnica, sem virar séries', () => {
     const doisCluster = adicionarSerie(comCluster(adicionarSerie([], CONFIG, 'WS', 'CLUSTER')), CONFIG, 'WS', 'CLUSTER');
     const grupo = agrupar(doisCluster)[0];
-    const quatro = alterarGrupo(doisCluster, grupo, { tecnica: { ...cluster, blocos: 4 } }, CONFIG);
+    const quatro = alterarGrupo(doisCluster, grupo, { tecnica: { ...cluster, blocos: [4,4,4,4] } }, CONFIG);
     expect(quatro).toHaveLength(2);
     expect(quatro.map((s) => s.uid)).toEqual(doisCluster.map((s) => s.uid));
-    expect(descreverSeries(quatro)).toEqual(['2x - WS · Cluster 4×4, 20 s']);
+    expect(descreverSeries(quatro)).toEqual(['2x16 (4×4) - WS + Cluster 20 s']);
   });
 
   it('receita aplicada é cópia: mudar a origem depois não muda o exercício', () => {
     const origem = comCluster(adicionarSerie([], CONFIG, 'WS', 'CLUSTER'));
     const receita = seriesParaReceita(origem);
     const aplicada = seriesDaReceita(JSON.parse(JSON.stringify(receita)));
-    (receita.series[0].tecnica as { blocos: number }).blocos = 9;
-    expect(descreverSeries(aplicada)).toEqual(['1x - WS · Cluster 3×4, 20 s']);
+    receita.series[0].tecnica!.blocos![0] = 9;
+    expect(descreverSeries(aplicada)).toEqual(['1x12 (3×4) - WS + Cluster 20 s']);
   });
 });
 
@@ -324,28 +325,28 @@ describe('drop-set no editor (pesquisa de técnicas de 19/10)', () => {
     return alterarGrupo(series, grupos[grupos.length - 1], { tecnica: drop }, CONFIG);
   };
 
-  it('nasce sem números, como as outras técnicas', () => {
+  it('nasce com as quedas definidas na metodologia', () => {
     const [s] = adicionarSerie([], CONFIG, 'WS', 'DROP_SET');
-    expect(s.tecnica).toEqual(expect.objectContaining({ tipo: 'DROP_SET', quedas: null, reducaoPercentual: null, repsPorQueda: null }));
+    expect(s.tecnica).toEqual(expect.objectContaining({ tipo: 'DROP_SET', quedas: 1, reducaoPercentual: null, repsPorQueda: null }));
   });
 
   it('soma ao último grupo só com o mesmo tipo e o mesmo drop-set', () => {
     const wsMaisDrop = comDrop(adicionarSerie(adicionarSerie([], CONFIG, 'WS'), CONFIG, 'WS', 'DROP_SET'));
-    expect(descreverSeries(wsMaisDrop)).toEqual(['1x - WS', '1x - WS · Drop-set 2× −20%']);
-    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WS', 'DROP_SET'))).toEqual(['1x - WS', '2x - WS · Drop-set 2× −20%']);
+    expect(descreverSeries(wsMaisDrop)).toEqual(['1x - WS', '1x - WS + Drop-set 2× −20%']);
+    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WS', 'DROP_SET'))).toEqual(['1x - WS', '2x - WS + Drop-set 2× −20%']);
     expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WS', 'CLUSTER'))).toEqual([
       '1x - WS',
-      '1x - WS · Drop-set 2× −20%',
-      '1x - WS · Cluster ?×?, ? s',
+      '1x - WS + Drop-set 2× −20%',
+      '1x - WS + Cluster 15 s',
     ]);
-    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WS'))).toEqual(['1x - WS', '1x - WS · Drop-set 2× −20%', '1x - WS']);
+    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WS'))).toEqual(['1x - WS', '1x - WS + Drop-set 2× −20%', '1x - WS']);
   });
 
   it('continua igual ao reabrir e ao virar receita', () => {
     const series = comDrop(adicionarSerie([], CONFIG, 'WS', 'DROP_SET'));
     const reaberto = normalizarTreino(JSON.parse(JSON.stringify({ sessoes: [{ exercicios: [{ series }] }] }))).sessoes[0].exercicios[0].series;
-    expect(descreverSeries(reaberto)).toEqual(['1x - WS · Drop-set 2× −20%']);
-    expect(descreverSeries(seriesDaReceita(JSON.parse(JSON.stringify(seriesParaReceita(series)))))).toEqual(['1x - WS · Drop-set 2× −20%']);
+    expect(descreverSeries(reaberto)).toEqual(['1x - WS + Drop-set 2× −20%']);
+    expect(descreverSeries(seriesDaReceita(JSON.parse(JSON.stringify(seriesParaReceita(series)))))).toEqual(['1x - WS + Drop-set 2× −20%']);
   });
 });
 

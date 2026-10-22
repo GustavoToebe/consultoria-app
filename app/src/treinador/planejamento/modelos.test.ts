@@ -79,7 +79,7 @@ describe('Planejamento e as funcionalidades do plano', () => {
     expect(metadadosDoModelo('PLANO_TREINO', { sessoes: [{ nome: 'A', exercicios: [] }] })).toBe('1 sessão · sem exercícios');
     expect(metadadosDoModelo('PASTA_PLANO', { planos: [{}, {}] })).toBe('2 planos');
     expect(metadadosDoModelo('PLANO_DIETA', { refeicoes: [] })).toBe('0 refeições');
-    expect(metadadosDoModelo('METODOLOGIA', { tiposSerie: ['FS', 'WS'] })).toBe('2 tipos de série');
+    expect(metadadosDoModelo('METODOLOGIA', { tipos: [{nome:'FS'}, {nome:'WS'}] })).toBe('2 tipos de série');
     expect(metadadosDoModelo('MOBILIDADE', { orientacoes: '', secoes: [{ titulo: 'A', itens: [{ nome: 'x', prescricao: '', videoUrl: '' }] }] })).toBe('1 seção · 1 item');
   });
 });

@@ -1,3 +1,4 @@
+import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import type { ConteudoDieta, ConteudoTreino, Marca, Serie } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { normalizarTreino } from '../dominio/editorTreino';
@@ -40,12 +41,12 @@ const treino: ConteudoTreino = normalizarTreino({
           videoUrl: 'https://youtu.be/abc"onmouseover="x',
           observacao: 'Tronco inclinado',
           series: [
-            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentual: 50 }),
-            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentual: 70 }),
-            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentual: 85 }),
+            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentualMin: 50 }),
+            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentualMin: 70 }),
+            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentualMin: 85 }),
             s('WS', 3, 6, { modo: 'CARGA_TRABALHO' }),
-            s('Back off', 6, 8, { modo: 'PERCENTUAL_WS', percentual: 85 }),
-            s('Back off', 6, 8, { modo: 'PERCENTUAL_WS', percentual: 85 }),
+            s('Back off', 6, 8, { modo: 'PERCENTUAL_WS', percentualMin: 85 }),
+            s('Back off', 6, 8, { modo: 'PERCENTUAL_WS', percentualMin: 85 }),
           ],
         },
       ],
@@ -58,7 +59,7 @@ const base = { marca, logoDataUri: null, aluno: 'Aluno Demonstração', titulo: 
 
 test('PDF usa a metodologia copiada para o treino, mesmo quando a configuração global muda', () => {
   const conteudo = { ...treino, metodologia: { id: 'metodo', nome: 'Método fictício', configuracao: {
-    tiposSerie: ['Trabalho', 'FS'], tipoTrabalho: 'Trabalho', tipoPreparacao: 'FS', regraPreparacao: {},
+    ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => ({ ...t, nome: t.nome === 'WS' ? 'Trabalho' : t.nome })),
     arredondamentoKg: 1, instrucoesTreino: 'Instrução da versão', rodapePdf: 'Rodapé da versão',
   } } };
   const doc = documentoTreino({ ...base, inicio: null, fim: null, versao: 1, conteudo, tipoTrabalho: 'GLOBAL', instrucoesTreino: 'Global alterada' });
@@ -122,7 +123,7 @@ describe('PDF do treino: técnicas da pesquisa de 19/10', () => {
             series: [
               {
                 ...s('WS', 6, 8, { modo: 'CARGA_TRABALHO' }),
-                tecnica: { tipo: 'DROP_SET', blocos: null, repsPorBloco: null, pausaSegundos: null, retomadas: null, repsPorRetomada: null, quedas: 2, reducaoPercentual: 20, repsPorQueda: null },
+                tecnica: { tipo: 'DROP_SET', blocos: null, pausaSegundos: null, pausaRespiracoes: null, pausas: null, quedas: 2, reducaoPercentual: 20, repsPorQueda: null },
               },
             ],
           },

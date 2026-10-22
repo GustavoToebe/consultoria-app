@@ -1,3 +1,4 @@
+import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import type { Configuracao, ConteudoTreino } from '../api/tipos';
 import { aplicarReceitaDePlano, normalizarTreino, novaSerie, novaSessao } from './editorTreino';
 import { destinosParaAplicar, detalheDoModelo, podeAplicarModelo, podeSalvarPastaComoModelo, SEM_PASTA_PARA_APLICAR, temAcaoNoMenuDaPasta, descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO } from './modelos';
@@ -6,7 +7,7 @@ import { conteudoInicial } from '../treinador/planejamento/modelos';
 let mockContador = 0;
 jest.mock('./uid', () => ({ novoUid: () => `modelo-uid-${++mockContador}` }));
 
-const configuracao: Configuracao = { tiposSerie: ['Trabalho', 'Preparação'], tipoTrabalho: 'Trabalho', tipoPreparacao: 'Preparação', regraPreparacao: { '1': [60] }, arredondamentoKg: 1, instrucoesTreino: 'Instrução fictícia', rodapePdf: 'Modelo fictício' };
+const configuracao: Configuracao = { ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => ({ ...t, nome: t.nome === 'WS' ? 'Trabalho' : t.nome, repeticoes: null })), arredondamentoKg: 1, instrucoesTreino: 'Instrução fictícia', rodapePdf: 'Modelo fictício' };
 
 test('normalizar e aplicar semana preservam metodologia independente e renovam os identificadores', () => {
   const origem: ConteudoTreino = { ...normalizarTreino(null), sessoes: [novaSessao(1)], metodologia: { id: 'metodo', nome: 'Método', configuracao } };
@@ -18,8 +19,8 @@ test('normalizar e aplicar semana preservam metodologia independente e renovam o
   expect(a.metodologia).not.toBe(origem.metodologia);
   expect(a.sessoes[0].uid).not.toBe(b.sessoes[0].uid);
   expect(a.sessoes[0].uid).not.toBe(origem.sessoes[0].uid);
-  a.metodologia!.configuracao.regraPreparacao['1'][0] = 90;
-  expect(origem.metodologia!.configuracao.regraPreparacao['1']).toEqual([60]);
+  a.metodologia!.configuracao.tipos[1].regraPercentuais!['1'][0].min = 90;
+  expect(origem.metodologia!.configuracao.tipos[1].regraPercentuais!['1']).toEqual([{ min: 85, max: null }]);
   expect(novaSerie(b.metodologia!.configuracao).tipo).toBe('Trabalho');
 });
 
@@ -33,8 +34,8 @@ test('conteúdos iniciais não inventam prescrições e modelos avulsos têm exa
   expect(conteudoInicial('REFEICAO', configuracao)).toMatchObject({ refeicoes: [expect.any(Object)] });
   expect(conteudoInicial('SERIES', configuracao)).toMatchObject({ series: [{ repsMin: null, repsMax: null }] });
   const copia = conteudoInicial('METODOLOGIA', configuracao) as Configuracao;
-  copia.tiposSerie.push('Novo');
-  expect(configuracao.tiposSerie).not.toContain('Novo');
+  copia.tipos[0].nome = 'Novo';
+  expect(configuracao.tipos[0].nome).not.toBe('Novo');
 });
 
 test('adapter conserva revisão otimista sem simular publicação nem associar aluno', () => {

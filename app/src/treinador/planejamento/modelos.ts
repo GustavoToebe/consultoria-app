@@ -139,6 +139,6 @@ export function metadadosDoModelo(tipo: TipoReceita, conteudo: unknown): string 
       const m = normalizarMobilidade(conteudo);
       return `${contar(m.secoes.length, 'seção', 'seções')} · ${contar(m.secoes.reduce((n, x) => n + x.itens.length, 0), 'item', 'itens')}`;
     }
-    case 'METODOLOGIA': return contar((conteudo as Partial<Configuracao> | null)?.tiposSerie?.length ?? 0, 'tipo de série', 'tipos de série');
+    case 'METODOLOGIA': return contar((conteudo as Partial<Configuracao> | null)?.tipos?.length ?? 0, 'tipo de série', 'tipos de série');
   }
 }

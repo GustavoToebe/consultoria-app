@@ -143,7 +143,7 @@ export function CartaoExercicio(p: Props) {
             valor={e.unidade}
             aoMudar={(unidade) => mudar({ unidade })}
           />
-          <EditorSeries series={e.series} config={p.config} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
+          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
           <Interruptor
             rotulo="Progressão de carga"
             ajuda={e.progressao ? 'O aluno busca subir a carga.' : 'O aluno vê "Foco em controle, não em carga".'}

@@ -150,6 +150,9 @@ test('aluno: demonstração acima do Como fazer; imagem própria só pela API; s
   await page.getByRole('button', { name: /Demonstração: Remada baixa\. Tocar para ampliar/ }).click();
   await expect(page.getByRole('dialog').getByText('Demonstração: Remada baixa', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Fechar a folha devolve uma entrada do histórico de forma assíncrona; aguardar antes de navegar.
+  await expect.poll(() => page.evaluate(() => window.history.state?.folhaNivel ?? 0)).toBe(0);
 
   // Exercício com imagem própria: baixada com o token, pela rota do aluno.
   await page.goto(`/aluno/sessao/sa/${sessoes[0].exercicios[1].uid}?data=2026-10-19`);

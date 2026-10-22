@@ -75,7 +75,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
     </Cartao>
     {erro ? <Botao rotulo="Recarregar modelo (descartar alterações)" tipo="secundario" aoTocar={aoRecarregar} /> : null}
     {metodologia ? <CartaoMetodologia configuracao={metodologia} aoMudar={mudarConteudo} /> : null}
-    {r.tipo === 'SERIES' ? <Cartao titulo="Séries"><EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={configDaConsultoria} aoMudar={(series) => mudarConteudo({ series })} /></Cartao> : null}
+    {r.tipo === 'SERIES' ? <Cartao titulo="Séries"><EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={configDaConsultoria} modalidade={null} aoMudar={(series) => mudarConteudo({ series })} /></Cartao> : null}
     {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={mudarConteudo} /> : null}
     {r.tipo === 'PASTA_PLANO' ? <Cartao titulo="Planos do pacote" descricao="Cópias dos modelos de semana, dieta e mobilidade. Mudar o modelo original depois não muda o pacote: para atualizar um item, remova e adicione de novo.">
       {pasta.planos.length === 0 ? <Texto variante="suave">Pacote vazio. Adicione uma semana de treino, uma dieta ou uma mobilidade.</Texto> : null}

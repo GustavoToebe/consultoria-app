@@ -2,19 +2,25 @@ import type {
   Configuracao,
   ConteudoTreino,
   ExercicioPlano,
+  FaixaPercentual,
   Intensidade,
   ModoIntensidade,
+  PapelDaSerie,
   Serie,
   Sessao,
   Tecnica,
+  TipoDeTecnica,
   TipoSessao,
 } from '../api/tipos';
 import { agrupar, type GrupoDeSeries } from './agrupamento';
+import { somaDosBlocos } from './blocos';
+import { intensidadeInicial, padraoDaTecnica, percentuaisDaRegra, repeticoesDoTipo, tipoDaMetodologia, tipoTrabalho } from './metodologia';
 import { novoUid } from './uid';
 
 /**
  * Operações do editor de treino. Todas puras (devolvem cópia), para o "Desfazer" e os testes. Nenhuma inventa carga
- * nem repetição: séries novas nascem sem faixa; os percentuais só vêm da regra de preparação da própria consultoria.
+ * nem repetição: o que a série nova traz vem só da metodologia da consultoria (repetições, intensidade e regra de
+ * percentuais do tipo; padrão da técnica), e depois quem manda é o que está gravado na série.
  */
 
 export const DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
@@ -30,19 +36,33 @@ export const TIPOS_SESSAO: { valor: TipoSessao; rotulo: string }[] = [
 export const MODOS: { valor: ModoIntensidade; rotulo: string }[] = [
   { valor: 'CARGA_TRABALHO', rotulo: 'Carga de trabalho' },
   { valor: 'PERCENTUAL_WS', rotulo: '% da série de trabalho' },
-  { valor: 'RIR', rotulo: 'RIR' },
+  { valor: 'ACIMA_DA_ANTERIOR', rotulo: 'Acima da anterior' },
+  { valor: 'MESMA_CARGA', rotulo: 'Mesma carga da série de trabalho' },
   { valor: 'RPE', rotulo: 'RPE' },
-  { valor: 'LIVRE', rotulo: 'Texto livre' },
   { valor: 'NENHUMA', rotulo: 'Sem intensidade' },
 ];
 
 /**
- * As opções de intensidade com o "% de quê" escrito pelo nome da série de trabalho da metodologia ("% da WS"): o
- * levantamento de 19/10 pede que o percentual sempre diga a base, para não ser confundido com % do 1RM.
+ * As opções de intensidade com o "% de quê" escrito pelo nome da série de trabalho da metodologia ("% da WS", "Mesma
+ * carga da WS"): o percentual sempre diz a base, para deixar a referência explícita.
  */
-export function modosDeIntensidade(tipoTrabalho: string | null | undefined): { valor: ModoIntensidade; rotulo: string }[] {
-  const base = tipoTrabalho?.trim();
-  return base ? MODOS.map((m) => (m.valor === 'PERCENTUAL_WS' ? { ...m, rotulo: `% da ${base}` } : m)) : MODOS;
+export function modosDeIntensidade(config: Configuracao | null | undefined, papel?: PapelDaSerie | null): { valor: ModoIntensidade; rotulo: string }[] {
+  const base = tipoTrabalho(config);
+  const preferidos: Partial<Record<PapelDaSerie, ModoIntensidade[]>> = {
+    AQUECIMENTO: ['NENHUMA', 'PERCENTUAL_WS', 'CARGA_TRABALHO', 'RPE'],
+    PREPARACAO: ['PERCENTUAL_WS', 'NENHUMA', 'RPE', 'CARGA_TRABALHO'],
+    TRABALHO: ['CARGA_TRABALHO', 'ACIMA_DA_ANTERIOR', 'MESMA_CARGA', 'RPE', 'NENHUMA'],
+    POS_TRABALHO: ['PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'CARGA_TRABALHO', 'RPE', 'NENHUMA'],
+  };
+  const ordem = papel ? preferidos[papel] : undefined;
+  // O papel prioriza as opções, sem proibir um modo que a API aceita nesse tipo.
+  const opcoes = ordem ? [...ordem.map((valor) => MODOS.find((m) => m.valor === valor)!), ...MODOS.filter((m) => !ordem.includes(m.valor))] : MODOS;
+  return opcoes.map((m) => {
+    if (!base) return { ...m };
+    if (m.valor === 'PERCENTUAL_WS') return { ...m, rotulo: `% da ${base}` };
+    if (m.valor === 'MESMA_CARGA') return { ...m, rotulo: `Mesma carga da ${base}` };
+    return m;
+  });
 }
 
 export function novaSessao(diaSemana: number | null): Sessao {
@@ -72,58 +92,105 @@ export function novoExercicio(): ExercicioPlano {
   };
 }
 
-/** Faixa de repetições que a metodologia define para o tipo de série, se houver. */
-export function repeticoesDoTipo(config: Configuracao | null, tipo: string): { repsMin: number; repsMax: number } | null {
-  const r = config?.repeticoes?.[tipo];
-  return r && r.min != null && r.max != null ? { repsMin: r.min, repsMax: r.max } : null;
-}
-
 /** Limite de séries por exercício, o mesmo do servidor (`ConteudoTreino`, `@Size(max = 30)`): contado no exercício todo. */
 export const LIMITE_SERIES = 30;
 
 /** Descanso aceito pelo servidor (`ValidadorTreino`): de 0 a 1 hora, em segundos. */
 export const DESCANSO_MAXIMO_SEGUNDOS = 3600;
 
-/**
- * Série nova de um tipo (sem tipo, o de trabalho da consultoria), com a faixa de repetições da metodologia (ou sem, para
- * o treinador preencher). O de preparação nasce em "% da série de trabalho" com a regra de 1 série; os outros, em carga de trabalho.
- */
-export function novaSerie(config: Configuracao | null, tipoEscolhido?: string): Serie {
-  const tipo = tipoEscolhido ?? config?.tipoTrabalho ?? 'Série';
-  const reps = repeticoesDoTipo(config, tipo);
-  const preparacao = !!config && tipo === config.tipoPreparacao && tipo !== config.tipoTrabalho;
-  const percentual = preparacao ? (percentuaisDaRegra(config, 1)?.[0] ?? null) : null;
+/** Intensidade só com o modo (os números o treinador preenche); `NENHUMA` é `null`, como o servidor aceita. */
+export function intensidadeDoModo(modo: ModoIntensidade): Intensidade | null {
+  if (modo === 'NENHUMA') return null;
+  return { modo, percentualMin: null, percentualMax: null, rpe: null, rir: null };
+}
+
+/** Técnica nova com o padrão da metodologia (pausa, pausas, quedas); o resto o treinador preenche e a publicação cobra o que faltar. */
+export function tecnicaVazia(tipo: TipoDeTecnica, padrao?: Tecnica | null): Tecnica {
   return {
-    uid: novoUid(),
+    pausaSegundos: null,
+    pausaRespiracoes: null,
+    pausas: null,
+    blocos: null,
+    quedas: null,
+    reducaoPercentual: null,
+    repsPorQueda: null,
+    ...(padrao ?? {}),
     tipo,
-    repsMin: reps?.repsMin ?? null,
-    repsMax: reps?.repsMax ?? null,
-    alvoTexto: null,
-    intensidade: preparacao ? { modo: 'PERCENTUAL_WS', percentual } : { modo: 'CARGA_TRABALHO' },
-    descansoSegundos: null,
+    ...(padrao?.blocos ? { blocos: [...padrao.blocos] } : {}),
   };
+}
+
+/** Cluster: as repetições da série são a soma dos blocos (o servidor confere). Sem blocos, as repetições ficam como estão. */
+function comRepsDoCluster(s: Serie): Serie {
+  if (s.tecnica?.tipo !== 'CLUSTER') return s;
+  const soma = somaDosBlocos(s.tecnica.blocos);
+  return soma == null ? s : { ...s, repsMin: soma, repsMax: soma };
+}
+
+/**
+ * Série nova. `tipo` ausente = o tipo de trabalho da metodologia (sem ela, "Série"); `null` = série só com técnica
+ * ("1x8 - Rest pause"), que nasce em "mesma carga da série de trabalho" quando já há uma série de carga de trabalho
+ * antes no exercício e, senão, sem intensidade. Tipo da metodologia traz as repetições e a intensidade com que ele
+ * nasce (a da modalidade do exercício, se houver variação); o de preparação, a regra de 1 série; tipo fora da
+ * metodologia nasce em carga de trabalho. A técnica vem com o padrão da metodologia; cluster com blocos no padrão já
+ * tem as repetições somadas.
+ */
+export function novaSerie(
+  config: Configuracao | null | undefined,
+  tipo?: string | null,
+  modalidade: string | null = null,
+  tecnica: TipoDeTecnica | null = null,
+  temTrabalhoAntes = false,
+): Serie {
+  const nome = tipo === undefined ? (tipoTrabalho(config) ?? 'Série') : tipo;
+  const daMetodologia = tipoDaMetodologia(config, nome);
+  const reps = repeticoesDoTipo(daMetodologia);
+  let intensidade: Intensidade | null;
+  if (nome === null) {
+    intensidade = temTrabalhoAntes ? intensidadeDoModo('MESMA_CARGA') : null;
+  } else if (daMetodologia) {
+    intensidade = intensidadeInicial(daMetodologia, modalidade);
+    const regra = daMetodologia.papel === 'PREPARACAO' ? percentuaisDaRegra(daMetodologia, 1) : null;
+    if (regra && (intensidade == null || intensidade.modo === 'PERCENTUAL_WS')) {
+      intensidade = { ...(intensidade ?? intensidadeDoModo('PERCENTUAL_WS')!), percentualMin: regra[0].min, percentualMax: regra[0].max };
+    }
+  } else {
+    intensidade = intensidadeDoModo('CARGA_TRABALHO');
+  }
+  const serie: Serie = {
+    uid: novoUid(),
+    tipo: nome,
+    repsMin: reps?.min ?? null,
+    repsMax: reps?.max ?? null,
+    intensidade,
+    descansoSegundos: null,
+    tecnica: tecnica ? tecnicaVazia(tecnica, padraoDaTecnica(config, tecnica)) : null,
+  };
+  return comRepsDoCluster(serie);
 }
 
 /**
  * "Adicionar série" com o tipo (e, se quiser, a técnica) escolhido: entra no fim do exercício. Se o último grupo já é
- * desse tipo e dessa técnica, soma uma série a ele pelo mesmo caminho do "+" (copia a última e a regra de preparação continua valendo); senão nasce um grupo novo.
- * Tipo (para que a série serve, da metodologia) e técnica (como executar) são independentes: um tipo fora de `config.tiposSerie` é aceito (a publicação avisa).
- * No limite de séries do exercício, nada muda. Para pôr o grupo novo antes de outro, o treinador usa ↑ (`moverGrupo`).
+ * desse tipo e dessa técnica, soma uma série a ele pelo mesmo caminho do "+" (copia a última e a regra de preparação
+ * continua valendo); senão nasce um grupo novo. Tipo (para que a série serve) e técnica (como executar) são
+ * independentes: um tipo fora de `config.tipos` é aceito (a publicação avisa). No limite de séries do exercício, nada
+ * muda. Para pôr o grupo novo antes de outro, o treinador usa ↑ (`moverGrupo`).
  */
 export function adicionarSerie(
   series: Serie[],
-  config: Configuracao | null,
-  tipo?: string,
-  tecnica: Tecnica['tipo'] | null = null,
+  config: Configuracao | null | undefined,
+  tipo?: string | null,
+  tecnica: TipoDeTecnica | null = null,
+  modalidade: string | null = null,
 ): Serie[] {
   if (series.length >= LIMITE_SERIES) return series;
-  const nova = novaSerie(config, tipo);
-  if (tecnica) nova.tecnica = tecnicaVazia(tecnica);
+  const temTrabalhoAntes = series.some((s) => s.intensidade?.modo === 'CARGA_TRABALHO');
+  const nova = novaSerie(config, tipo, modalidade, tecnica, temTrabalhoAntes);
   const grupos = agrupar(series);
   const ultimo = grupos[grupos.length - 1];
-  // Soma ao último grupo só se for o mesmo tipo com a mesma técnica: "1 WS + 1 WS em cluster" (exemplo da pesquisa de
-  // 19/10) precisa de dois grupos, senão a técnica escolhida depois valeria para as duas.
-  if (ultimo && ultimo.series[0].tipo === nova.tipo && (ultimo.series[0].tecnica?.tipo ?? null) === tecnica) {
+  // Soma ao último grupo só se for o mesmo tipo com a mesma técnica: "1 WS + 1 WS em rest pause" precisa de dois
+  // grupos, senão a técnica escolhida depois valeria para as duas.
+  if (ultimo && (ultimo.series[0].tipo ?? null) === (nova.tipo ?? null) && (ultimo.series[0].tecnica?.tipo ?? null) === tecnica) {
     return mudarQuantidade(series, ultimo, ultimo.series.length + 1, config);
   }
   return [...series, nova];
@@ -178,46 +245,48 @@ export function removerExercicio(exercicios: ExercicioPlano[], indice: number): 
   return ajustarLigacoes(remover(exercicios, indice));
 }
 
-/** Percentuais da regra de preparação para `n` séries, se a consultoria tiver regra para esse número. */
-export function percentuaisDaRegra(config: Configuracao | null, n: number): number[] | null {
-  const regra = config?.regraPreparacao?.[String(n)];
-  return regra && regra.length === n ? regra : null;
-}
-
-function comPercentuais(series: Serie[], percentuais: number[]): Serie[] {
-  return series.map((s, i) => ({ ...s, intensidade: { modo: 'PERCENTUAL_WS', percentual: percentuais[i] } }));
+function comPercentuais(series: Serie[], faixas: FaixaPercentual[]): Serie[] {
+  return series.map((s, i) => ({
+    ...s,
+    intensidade: { ...(s.intensidade ?? intensidadeDoModo('PERCENTUAL_WS')!), modo: 'PERCENTUAL_WS', percentualMin: faixas[i].min, percentualMax: faixas[i].max },
+  }));
 }
 
 function trocarGrupo(series: Serie[], grupo: GrupoDeSeries, novas: Serie[]): Serie[] {
   return [...series.slice(0, grupo.inicio), ...novas, ...series.slice(grupo.inicio + grupo.series.length)];
 }
 
+/** A regra de percentuais do tipo (só preparação) para `n` séries, se a série está em "% da série de trabalho". */
+function regraDoGrupo(config: Configuracao | null | undefined, primeira: Serie, n: number): FaixaPercentual[] | null {
+  if (primeira.intensidade?.modo !== 'PERCENTUAL_WS') return null;
+  const tipo = tipoDaMetodologia(config, primeira.tipo);
+  return tipo?.papel === 'PREPARACAO' ? percentuaisDaRegra(tipo, n) : null;
+}
+
 /**
  * Muda a quantidade de séries de um grupo: acrescenta cópias da última (uids novos) ou tira do fim. Se o grupo é de
- * preparação em % (FS) e a consultoria tem regra para a nova quantidade, os percentuais são preenchidos por ela
- * (3 FS = 50/70/85; 2 FS = 70/85). Depois cada série pode ser editada.
+ * preparação em % (FS) e a metodologia tem regra para a nova quantidade, os percentuais são preenchidos por ela
+ * (3 FS = 50/70/85–90; 2 FS = 70/85–90). Depois cada série pode ser editada.
  */
-export function mudarQuantidade(series: Serie[], grupo: GrupoDeSeries, n: number, config: Configuracao | null): Serie[] {
+export function mudarQuantidade(series: Serie[], grupo: GrupoDeSeries, n: number, config: Configuracao | null | undefined): Serie[] {
   if (n < 1 || series.length - grupo.series.length + n > LIMITE_SERIES) return series;
   const ultima = grupo.series[grupo.series.length - 1];
   let novas =
     n <= grupo.series.length
       ? grupo.series.slice(0, n)
-      : [...grupo.series, ...Array.from({ length: n - grupo.series.length }, () => ({ ...ultima, uid: novoUid() }))];
-  const regra = percentuaisDaRegra(config, n);
-  if (regra && ultima.tipo === config?.tipoPreparacao && ultima.intensidade?.modo === 'PERCENTUAL_WS') {
-    novas = comPercentuais(novas, regra);
-  }
+      : [...grupo.series, ...Array.from({ length: n - grupo.series.length }, () => serieNormalizada(ultima, novoUid()))];
+  const regra = regraDoGrupo(config, ultima, n);
+  if (regra) novas = comPercentuais(novas, regra);
   return trocarGrupo(series, grupo, novas);
 }
 
 export interface AlteracaoDeGrupo {
-  tipo?: string;
+  /** Tipo da metodologia (ou fora dela); `null` = série só com técnica. */
+  tipo?: string | null;
   repsMin?: number | null;
   repsMax?: number | null;
-  alvoTexto?: string | null;
   modo?: ModoIntensidade;
-  /** Valor da intensidade para todas as séries do grupo (RIR, RPE, texto ou um % único). */
+  /** Valores da intensidade para todas as séries do grupo (RIR, RPE ou uma faixa de % única). */
   intensidade?: Partial<Intensidade>;
   /** Descanso depois de cada série do grupo, em segundos (vazio = sem descanso definido). */
   descansoSegundos?: number | null;
@@ -225,89 +294,93 @@ export interface AlteracaoDeGrupo {
   tecnica?: Tecnica | null;
 }
 
-/** Técnica nova sem números: o treinador preenche (nada é inventado) e a publicação cobra o que faltar. */
-export function tecnicaVazia(tipo: Tecnica['tipo']): Tecnica {
-  return {
-    tipo,
-    blocos: null,
-    repsPorBloco: null,
-    pausaSegundos: null,
-    retomadas: null,
-    repsPorRetomada: null,
-    quedas: null,
-    reducaoPercentual: null,
-    repsPorQueda: null,
-  };
-}
-
-function intensidadeDoModo(modo: ModoIntensidade): Intensidade {
-  return { modo };
-}
-
 /**
- * Aplica a mudança a todas as séries do grupo. Trocar o tipo para o de trabalho (WS) põe "carga de trabalho"; para o
- * de preparação (FS) põe "% da série de trabalho" com a regra da consultoria; e a faixa de repetições do tipo, se a metodologia
- * tiver. Tudo continua editável.
+ * Aplica a mudança a todas as séries do grupo. Trocar o tipo põe a intensidade e as repetições com que esse tipo
+ * nasce na metodologia (preparação com a regra para a quantidade do grupo; tipo fora dela mantém o que estava); tirar
+ * o tipo (série só com técnica) põe "mesma carga" se há série de carga de trabalho antes no exercício. Trocar o modo
+ * parte do padrão do tipo quando ele é desse modo (Back off de volta a "% da WS" volta aos 85%). Cluster mantém as
+ * repetições iguais à soma dos blocos. Tudo continua editável.
  */
 export function alterarGrupo(
   series: Serie[],
   grupo: GrupoDeSeries,
   mudanca: AlteracaoDeGrupo,
-  config: Configuracao | null,
+  config: Configuracao | null | undefined,
+  modalidade: string | null = null,
 ): Serie[] {
-  let modo = mudanca.modo;
-  if (mudanca.tipo !== undefined && modo === undefined && config) {
-    if (mudanca.tipo === config.tipoTrabalho) modo = 'CARGA_TRABALHO';
-    else if (mudanca.tipo === config.tipoPreparacao) modo = 'PERCENTUAL_WS';
+  const primeira = grupo.series[0];
+  const trocouTipo = mudanca.tipo !== undefined && (mudanca.tipo ?? null) !== (primeira.tipo ?? null);
+  const tipoFinal = tipoDaMetodologia(config, trocouTipo ? mudanca.tipo : primeira.tipo);
+  let intensidadeDoTipo: Intensidade | null | undefined;
+  if (trocouTipo && mudanca.modo === undefined && mudanca.intensidade === undefined) {
+    if (mudanca.tipo === null) {
+      const temTrabalhoAntes = series.slice(0, grupo.inicio).some((s) => s.intensidade?.modo === 'CARGA_TRABALHO');
+      intensidadeDoTipo = temTrabalhoAntes ? intensidadeDoModo('MESMA_CARGA') : null;
+    } else if (tipoFinal) {
+      intensidadeDoTipo = intensidadeInicial(tipoFinal, modalidade);
+    }
   }
   // Trocar o tipo preenche a faixa de repetições que a metodologia define para ele (se a mudança não trouxer outra).
-  const repsDoNovoTipo =
-    mudanca.tipo !== undefined && mudanca.repsMin === undefined && mudanca.repsMax === undefined ? repeticoesDoTipo(config, mudanca.tipo) : null;
+  const repsDoNovoTipo = trocouTipo && mudanca.repsMin === undefined && mudanca.repsMax === undefined ? repeticoesDoTipo(tipoFinal) : null;
   let novas = grupo.series.map((s) => {
     const nova: Serie = { ...s };
     if (mudanca.tipo !== undefined) nova.tipo = mudanca.tipo;
-    if (repsDoNovoTipo) Object.assign(nova, repsDoNovoTipo);
+    if (repsDoNovoTipo) {
+      nova.repsMin = repsDoNovoTipo.min;
+      nova.repsMax = repsDoNovoTipo.max;
+    }
     if (mudanca.repsMin !== undefined) nova.repsMin = mudanca.repsMin;
     if (mudanca.repsMax !== undefined) nova.repsMax = mudanca.repsMax;
-    if (mudanca.alvoTexto !== undefined) nova.alvoTexto = mudanca.alvoTexto || null;
     if (mudanca.descansoSegundos !== undefined) nova.descansoSegundos = mudanca.descansoSegundos;
     if (mudanca.tecnica !== undefined) nova.tecnica = mudanca.tecnica;
-    if (modo !== undefined && modo !== (s.intensidade?.modo ?? 'NENHUMA')) nova.intensidade = intensidadeDoModo(modo);
+    if (intensidadeDoTipo !== undefined) nova.intensidade = intensidadeDoTipo ? { ...intensidadeDoTipo } : null;
+    if (mudanca.modo !== undefined && mudanca.modo !== (s.intensidade?.modo ?? 'NENHUMA')) {
+      const padrao = intensidadeInicial(tipoFinal, modalidade);
+      const base = padrao?.modo === mudanca.modo ? { ...padrao } : intensidadeDoModo(mudanca.modo);
+      const rir = s.intensidade?.rir ?? base?.rir ?? null;
+      nova.intensidade = base || rir != null ? { ...(base ?? { modo: 'NENHUMA' }), rir } : null;
+    }
     if (mudanca.intensidade) {
       nova.intensidade = { ...(nova.intensidade ?? { modo: 'NENHUMA' }), ...mudanca.intensidade };
     }
-    return nova;
+    return comRepsDoCluster(nova);
   });
-  const virouPercentual = modo === 'PERCENTUAL_WS' && grupo.series[0].intensidade?.modo !== 'PERCENTUAL_WS';
-  const regra = percentuaisDaRegra(config, novas.length);
-  if (virouPercentual && regra) {
-    novas = comPercentuais(novas, regra);
-  }
+  const modoAntes = primeira.intensidade?.modo ?? 'NENHUMA';
+  const virouPercentual = novas[0].intensidade?.modo === 'PERCENTUAL_WS' && (modoAntes !== 'PERCENTUAL_WS' || trocouTipo);
+  const regra = virouPercentual ? regraDoGrupo(config, novas[0], novas.length) : null;
+  if (regra) novas = comPercentuais(novas, regra);
   return trocarGrupo(series, grupo, novas);
 }
 
-/** Percentual de uma série só (o grupo expandido). */
-export function alterarPercentual(series: Serie[], indice: number, percentual: number | null): Serie[] {
-  return series.map((s, i) => (i === indice ? { ...s, intensidade: { modo: 'PERCENTUAL_WS', percentual } } : s));
+/** Faixa de % de uma série só (o grupo expandido): mantém o modo se já é por %, senão vira "% da série de trabalho". */
+export function alterarPercentuais(series: Serie[], indice: number, min: number | null, max: number | null): Serie[] {
+  return series.map((s, i) => {
+    if (i !== indice) return s;
+    const base = s.intensidade?.modo === 'PERCENTUAL_WS' || s.intensidade?.modo === 'ACIMA_DA_ANTERIOR' ? s.intensidade : intensidadeDoModo('PERCENTUAL_WS')!;
+    return { ...s, intensidade: { ...base, percentualMin: min, percentualMax: max } };
+  });
 }
 
 export function removerGrupo(series: Serie[], grupo: GrupoDeSeries): Serie[] {
   return trocarGrupo(series, grupo, []);
 }
 
+function serieNormalizada(s: Partial<Serie>, uid: string): Serie {
+  return {
+    uid,
+    tipo: s.tipo ?? null,
+    repsMin: s.repsMin ?? null,
+    repsMax: s.repsMax ?? null,
+    intensidade: s.intensidade ? { ...s.intensidade } : null,
+    descansoSegundos: s.descansoSegundos ?? null,
+    tecnica: s.tecnica ? { ...s.tecnica, blocos: s.tecnica.blocos ? [...s.tecnica.blocos] : null } : null,
+  };
+}
+
 /** Séries de uma receita (sem uids) aplicadas no exercício: substituem as atuais, cada uma com uid novo. */
 export function seriesDaReceita(conteudo: unknown): Serie[] {
   const lista = (conteudo as { series?: Partial<Serie>[] } | null)?.series ?? [];
-  return lista.map((s) => ({
-    uid: novoUid(),
-    tipo: s.tipo ?? '',
-    repsMin: s.repsMin ?? null,
-    repsMax: s.repsMax ?? null,
-    alvoTexto: s.alvoTexto ?? null,
-    intensidade: s.intensidade ?? null,
-    descansoSegundos: s.descansoSegundos ?? null,
-    tecnica: s.tecnica ?? null,
-  }));
+  return lista.map((s) => serieNormalizada(s, novoUid()));
 }
 
 /** Séries prontas para virar receita (sem uids: eles nascem ao aplicar). */
@@ -325,7 +398,7 @@ export function comUidsNovos(conteudo: ConteudoTreino): ConteudoTreino {
       exercicios: (s.exercicios ?? []).map((e) => ({
         ...e,
         uid: novoUid(),
-        series: (e.series ?? []).map((x) => ({ ...x, uid: novoUid() })),
+        series: (e.series ?? []).map((x) => serieNormalizada(x, novoUid())),
       })),
     })),
   };
@@ -337,7 +410,7 @@ export function aplicarReceitaDePlano(atual: ConteudoTreino, receita: unknown): 
   return { ...atual, sessoes: daReceita.sessoes, ...(daReceita.metodologia ? { metodologia: daReceita.metodologia } : {}) };
 }
 
-/** Garante listas e campos que o editor espera (receita parcial). */
+/** Garante listas e campos que o editor espera (receita parcial). Campo que o formato não tem mais (`alvoTexto`) cai fora. */
 export function normalizarTreino(conteudo: unknown): ConteudoTreino {
   const c = (conteudo ?? {}) as Partial<ConteudoTreino>;
   return {
@@ -365,16 +438,7 @@ export function normalizarTreino(conteudo: unknown): ConteudoTreino {
         isometriaSegundos: e.isometriaSegundos ?? null,
         juntoComAnterior: e.juntoComAnterior ?? null,
         combinacao: e.combinacao ?? null,
-        series: (e.series ?? []).map((x) => ({
-          uid: x.uid ?? novoUid(),
-          tipo: x.tipo ?? '',
-          repsMin: x.repsMin ?? null,
-          repsMax: x.repsMax ?? null,
-          alvoTexto: x.alvoTexto ?? null,
-          intensidade: x.intensidade ?? null,
-          descansoSegundos: x.descansoSegundos ?? null,
-          tecnica: x.tecnica ?? null,
-        })),
+        series: (e.series ?? []).map((x) => serieNormalizada(x, x.uid ?? novoUid())),
       })),
     })),
   };

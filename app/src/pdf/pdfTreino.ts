@@ -1,5 +1,6 @@
 import type { ConteudoTreino, ExercicioPlano, Marca, Sessao } from '../api/tipos';
 import { agrupar, faixa, textoIntensidade, textoTecnica, type GrupoDeSeries } from '../dominio/agrupamento';
+import { tipoTrabalho as tipoTrabalhoDaMetodologia } from '../dominio/metodologia';
 import { gruposDaSessao } from '../dominio/combinacoes';
 import { DIAS_SEMANA } from '../dominio/editorTreino';
 import { textoExecucao } from '../dominio/execucaoDoExercicio';
@@ -23,11 +24,11 @@ export interface DadosPdfTreino {
   emitidoEm: Date;
 }
 
-/** Coluna "Séries x reps": "3x3 - FS", "1x3 a 6 - WS", "1x - Cardio (50 min)". */
+/** Coluna "Séries x reps": "3x3 - FS", "1x3 a 6 - WS", "1x - Cardio". */
 export function linhaDoGrupo(g: GrupoDeSeries): string {
   const s = g.series[0];
   const tecnica = textoTecnica(s.tecnica);
-  return `${g.series.length}x${faixa(s)} - ${s.tipo || 'Série'}${s.alvoTexto ? ` (${s.alvoTexto})` : ''}${tecnica ? ` · ${tecnica}` : ''}`;
+  return `${g.series.length}x${faixa(s)} - ${s.tipo || 'Série'}${tecnica ? ` · ${tecnica}` : ''}`;
 }
 
 /** Intensidade escrita na coluna OBS: "Back off - 85% da WS", "FS - 50/70/85% da WS", "Série - 2 RIR". */
@@ -35,8 +36,8 @@ export function obsDoGrupo(g: GrupoDeSeries, tipoTrabalho: string): string | nul
   const s = g.series[0];
   const modo = s.intensidade?.modo ?? 'NENHUMA';
   if (modo === 'PERCENTUAL_WS') {
-    const valores = [...new Set(g.series.map((x) => (x.intensidade?.percentual == null ? '?' : numeroParaTela(x.intensidade.percentual))))];
-    const lista = g.series.length > 1 && valores.length > 1 ? g.series.map((x) => numeroParaTela(x.intensidade?.percentual ?? null)).join('/') : valores[0];
+    const valores = [...new Set(g.series.map((x) => (x.intensidade?.percentualMin == null ? '—' : numeroParaTela(x.intensidade.percentualMin))))];
+    const lista = g.series.length > 1 && valores.length > 1 ? g.series.map((x) => numeroParaTela(x.intensidade?.percentualMin ?? null)).join('/') : valores[0];
     return `${s.tipo} - ${lista}% da ${tipoTrabalho}`;
   }
   const t = textoIntensidade(s.intensidade);
@@ -118,7 +119,7 @@ export function blocoInstrucoes(texto: string): string {
 /** PDF do treino no formato do Saraiva: semana, sessões com tabela e, no fim, as instruções. */
 export function documentoTreino(d: DadosPdfTreino): Documento {
   const metodologia = d.conteudo.metodologia?.configuracao;
-  if (metodologia) d = { ...d, tipoTrabalho: metodologia.tipoTrabalho, instrucoesTreino: metodologia.instrucoesTreino, rodapePdf: metodologia.rodapePdf };
+  if (metodologia) d = { ...d, tipoTrabalho: tipoTrabalhoDaMetodologia(metodologia) ?? 'série de trabalho', instrucoesTreino: metodologia.instrucoesTreino, rodapePdf: metodologia.rodapePdf };
   const c = d.conteudo;
   const periodo = d.inicio || d.fim ? `${dataParaTela(d.inicio) || '—'} a ${dataParaTela(d.fim) || '—'}` : null;
   const semana = DIAS_SEMANA.map((dia, i) => {

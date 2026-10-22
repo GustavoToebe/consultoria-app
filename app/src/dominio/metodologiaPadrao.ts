@@ -1,21 +1,97 @@
-import type { Configuracao } from '../api/tipos';
+import type { Configuracao, Intensidade } from '../api/tipos';
+
+const cargaDeTrabalho = (rir: number): Intensidade => ({ modo: 'CARGA_TRABALHO', percentualMin: null, percentualMax: null, rpe: null, rir });
+const percentual = (min: number, max: number | null = null): Intensidade => ({ modo: 'PERCENTUAL_WS', percentualMin: min, percentualMax: max, rpe: null, rir: null });
+const acimaDaAnterior = (min: number, max: number): Intensidade => ({ modo: 'ACIMA_DA_ANTERIOR', percentualMin: min, percentualMax: max, rpe: null, rir: null });
 
 /**
- * Regras de um plano sem metodologia vinculada e ponto de partida de um modelo de metodologia ou de séries novo.
- * Espelho de `ConfiguracaoConsultoria.padrao()` na API: mudou lá, mude aqui.
+ * Metodologia padrão (regras do Saraiva), usada quando o plano ou a consultoria não tem nenhuma. Espelho de
+ * `ConfiguracaoConsultoria.padrao()` na API: mudou um, mude o outro. Todo percentual é da série de trabalho (WS).
  */
 export const CONFIGURACAO_PADRAO: Configuracao = {
-  tiposSerie: ['Aquecimento', 'FS', 'WS', 'Back off', 'Top set', 'Cardio'],
-  tipoTrabalho: 'WS',
-  tipoPreparacao: 'FS',
-  regraPreparacao: { '1': [85], '2': [70, 85], '3': [50, 70, 85] },
+  tipos: [
+    {
+      nome: 'Aquecimento',
+      papel: 'AQUECIMENTO',
+      repeticoes: { min: 10, max: 15 },
+      intensidadePadrao: null,
+      intensidadePorModalidade: null,
+      regraPercentuais: null,
+      explicacao: 'Série leve, só para preparar o movimento. Fica longe da falha.',
+    },
+    {
+      nome: 'FS',
+      papel: 'PREPARACAO',
+      repeticoes: { min: 3, max: 3 },
+      intensidadePadrao: percentual(85),
+      intensidadePorModalidade: null,
+      regraPercentuais: {
+        '1': [{ min: 85, max: null }],
+        '2': [{ min: 70, max: null }, { min: 85, max: 90 }],
+        '3': [{ min: 50, max: null }, { min: 70, max: null }, { min: 85, max: 90 }],
+      },
+      explicacao:
+        'Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha.',
+    },
+    {
+      nome: 'WS',
+      papel: 'TRABALHO',
+      repeticoes: { min: 3, max: 6 },
+      intensidadePadrao: cargaDeTrabalho(1),
+      intensidadePorModalidade: { LIVRE: cargaDeTrabalho(1), MAQUINA: cargaDeTrabalho(0) },
+      regraPercentuais: null,
+      explicacao:
+        'Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte.',
+    },
+    {
+      nome: 'Top set',
+      papel: 'TRABALHO',
+      repeticoes: null,
+      intensidadePadrao: acimaDaAnterior(1, 5),
+      intensidadePorModalidade: { LIVRE: acimaDaAnterior(1, 5), MAQUINA: acimaDaAnterior(5, 10) },
+      regraPercentuais: null,
+      explicacao: 'Uma série mais pesada que a anterior: suba a carga de 1 a 5% no peso livre ou de 5 a 10% na máquina.',
+    },
+    {
+      nome: 'Back off',
+      papel: 'POS_TRABALHO',
+      repeticoes: { min: 6, max: 8 },
+      intensidadePadrao: percentual(85),
+      intensidadePorModalidade: null,
+      regraPercentuais: null,
+      explicacao: 'Depois da série de trabalho, com 85% da carga dela.',
+    },
+    {
+      nome: 'Cardio',
+      papel: 'OUTRO',
+      repeticoes: null,
+      intensidadePadrao: null,
+      intensidadePorModalidade: null,
+      regraPercentuais: null,
+      explicacao: 'Cardio por tempo, sem carga. O tempo e o ritmo ficam na observação do exercício.',
+    },
+  ],
+  tecnicas: [
+    {
+      tipo: 'REST_PAUSE',
+      nome: 'Rest pause',
+      explicacao: 'Faça a série, pause 20 segundos e continue com a mesma carga até a falha.',
+      padrao: { tipo: 'REST_PAUSE', pausaSegundos: 20, pausaRespiracoes: null, pausas: 1, blocos: null, quedas: null, reducaoPercentual: null, repsPorQueda: null },
+    },
+    {
+      tipo: 'CLUSTER',
+      nome: 'Cluster',
+      explicacao: 'Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a mesma carga.',
+      padrao: { tipo: 'CLUSTER', pausaSegundos: 15, pausaRespiracoes: null, pausas: null, blocos: null, quedas: null, reducaoPercentual: null, repsPorQueda: null },
+    },
+    {
+      tipo: 'DROP_SET',
+      nome: 'Drop-set',
+      explicacao: 'Ao terminar a série, reduza a carga e continue sem descanso.',
+      padrao: { tipo: 'DROP_SET', pausaSegundos: null, pausaRespiracoes: null, pausas: null, blocos: null, quedas: 1, reducaoPercentual: null, repsPorQueda: null },
+    },
+  ],
   arredondamentoKg: 0.5,
   instrucoesTreino: '',
   rodapePdf: '',
-  repeticoes: {
-    Aquecimento: { min: 10, max: 15 },
-    FS: { min: 3, max: 3 },
-    WS: { min: 3, max: 6 },
-    'Back off': { min: 6, max: 8 },
-  },
 };

@@ -1,6 +1,5 @@
 import type { ExercicioPlano, Serie } from '../api/tipos';
-import { faixa, textoIntensidade, textoTecnica } from './agrupamento';
-import { numeroParaTela } from './formatos';
+import { faixa, textoIntensidade, textoRir, textoTecnica } from './agrupamento';
 
 /**
  * Sugestão de carga do aluno. Só aplica o que o treinador escreveu no plano sobre a carga de
@@ -12,7 +11,7 @@ export interface SerieCalculada {
   serie: Serie;
   /** Carga sugerida em kg; `null` quando não há base ou a série não é por carga. */
   sugestao: number | null;
-  /** Texto da meta: "Meta: 3 a 6 reps · 50% da WS", "1 RIR", "50 min". */
+  /** Texto da meta: "Meta: 3 a 6 reps · 50% da WS", "1 RIR", "—". */
   meta: string;
 }
 
@@ -30,15 +29,15 @@ export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false): s
   const partes: string[] = [];
   const f = faixa(s);
   if (f) partes.push(`${f} reps`);
-  if (s.alvoTexto) partes.push(s.alvoTexto);
   if (semCarga && (modo(s) === 'PERCENTUAL_WS' || modo(s) === 'CARGA_TRABALHO')) {
-    // Exercício sem carga (elástico, peso corporal): não fala de kg nem de %.
-  } else if (modo(s) === 'PERCENTUAL_WS' && s.intensidade?.percentual != null) {
-    partes.push(`${numeroParaTela(s.intensidade.percentual)}% da ${tipoTrabalho}`);
+    const rir = textoRir(s.intensidade);
+    if (rir) partes.push(rir);
   } else if (modo(s) === 'CARGA_TRABALHO') {
     partes.push('carga de trabalho');
+    const rir = textoRir(s.intensidade);
+    if (rir) partes.push(rir);
   } else {
-    const t = textoIntensidade(s.intensidade);
+    const t = textoIntensidade(s.intensidade, tipoTrabalho);
     if (t) partes.push(t);
   }
   const tecnica = textoTecnica(s.tecnica);
@@ -69,8 +68,8 @@ export function calcularCargasDoExercicio(
     if (!semCarga) {
       if (modo(serie) === 'CARGA_TRABALHO') {
         sugestao = cargaTrabalho;
-      } else if (modo(serie) === 'PERCENTUAL_WS' && serie.intensidade?.percentual != null && referencia != null) {
-        sugestao = arredondar((referencia * serie.intensidade.percentual) / 100, config.arredondamentoKg);
+      } else if (modo(serie) === 'PERCENTUAL_WS' && serie.intensidade?.percentualMin != null && referencia != null) {
+        sugestao = arredondar((referencia * serie.intensidade.percentualMin) / 100, config.arredondamentoKg);
       }
     }
     return { serie, sugestao, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga) };

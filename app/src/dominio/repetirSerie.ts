@@ -1,13 +1,12 @@
 import type { Serie } from '../api/tipos';
 import { numeroParaTela } from './formatos';
 
-/** Mesma prescrição: tipo, repetições, alvo, intensidade e técnica iguais (o % de cada série de aquecimento muda). */
+/** Mesma prescrição: tipo, repetições, intensidade e técnica iguais (o % de cada série de preparação muda). */
 export function mesmaPrescricao(a: Serie, b: Serie): boolean {
   return (
     a.tipo === b.tipo &&
     a.repsMin === b.repsMin &&
     a.repsMax === b.repsMax &&
-    (a.alvoTexto ?? null) === (b.alvoTexto ?? null) &&
     JSON.stringify(a.intensidade ?? null) === JSON.stringify(b.intensidade ?? null) &&
     JSON.stringify(a.tecnica ?? null) === JSON.stringify(b.tecnica ?? null)
   );
