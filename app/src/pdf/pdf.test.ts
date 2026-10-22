@@ -1,15 +1,16 @@
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
-import type { ConteudoDieta, ConteudoTreino, Marca, Serie } from '../api/tipos';
+import type { Configuracao, ConteudoDieta, ConteudoTreino, Marca, Serie } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
 import { agrupar } from '../dominio/agrupamento';
-import { novaSerie, tecnicaVazia, normalizarTreino } from '../dominio/editorTreino';
+import { normalizarTreino } from '../dominio/editorTreino';
+import { carga, exercicio, grupo, rir, rpe, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import { esc, link, type Documento } from './html';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
-import { blocoGlossario, linhaDoGrupo, obsDoGrupo, blocoInstrucoes, documentoTreino } from './pdfTreino';
+import { blocoGlossario, blocoInstrucoes, documentoTreino, linhasDeSeries, obsDoExercicio } from './pdfTreino';
 
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
@@ -22,49 +23,49 @@ const marca: Marca = {
   logoUrl: null,
 };
 
-const s = (tipo: string, min: number | null, max: number | null, intensidade: Serie['intensidade']): Partial<Serie> => ({
-  tipo,
-  repsMin: min,
-  repsMax: max,
-  intensidade,
-});
+/** Série com o tipo (código), as repetições, a carga e o esforço; o resto vem da fábrica de teste. */
+const s = (uid: string, tipo: string, min: number | null, max: number | null, cargaDaSerie: Serie['carga'], esforco: Serie['esforco'] = null): Serie =>
+  serie(uid, { tipo, repsMin: min, repsMax: max, carga: cargaDaSerie, esforco });
 
 const treino: ConteudoTreino = normalizarTreino({
   objetivo: 'Secar <script>alert(1)</script>',
   sessoes: [
-    {
-      nome: 'Segunda - Costas',
-      diaSemana: 1,
-      tipo: 'TREINO',
-      exercicios: [
-        {
+    sessao(
+      'seg',
+      [
+        exercicio('remada', {
           nome: 'Remada baixa',
           videoUrl: 'https://youtu.be/abc"onmouseover="x',
           observacao: 'Tronco inclinado',
           series: [
-            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentualMin: 50 }),
-            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentualMin: 70 }),
-            s('FS', 3, 3, { modo: 'PERCENTUAL_WS', percentualMin: 85 }),
-            s('WS', 3, 6, { modo: 'CARGA_TRABALHO' }),
-            s('Back off', 6, 8, { modo: 'PERCENTUAL_WS', percentualMin: 85 }),
-            s('Back off', 6, 8, { modo: 'PERCENTUAL_WS', percentualMin: 85 }),
+            s('f1', 'FEEDER', 3, 3, carga('PERCENTUAL_WS', 50)),
+            s('f2', 'FEEDER', 3, 3, carga('PERCENTUAL_WS', 70)),
+            s('f3', 'FEEDER', 3, 3, carga('PERCENTUAL_WS', 85)),
+            s('w', 'WORKING', 3, 6, carga('CARGA_TRABALHO'), rir(1)),
+            s('b1', 'BACK_OFF', 6, 8, carga('PERCENTUAL_WS', 85)),
+            s('b2', 'BACK_OFF', 6, 8, carga('PERCENTUAL_WS', 85)),
           ],
-        },
+        }),
       ],
-    },
-    { nome: 'Quinta - Off ativo', diaSemana: 4, tipo: 'DESCANSO_ATIVO', cardio: 'Cardio 50 min', exercicios: [] },
+      [],
+      { nome: 'Segunda - Costas', diaSemana: 1 },
+    ),
+    sessao('qui', [], [], { nome: 'Quinta - Off ativo', diaSemana: 4, tipo: 'DESCANSO_ATIVO', cardio: 'Cardio 50 min' }),
   ],
 });
 
 const base = { marca, logoDataUri: null, aluno: 'Aluno Demonstração', titulo: 'Plano 16', rodapePdf: null, emitidoEm: new Date('2026-10-11T19:30:00Z') };
+const dadosDoTreino = (conteudo: ConteudoTreino) => ({ ...base, inicio: null, fim: null, versao: 1, conteudo, instrucoesTreino: null });
+const treinoCom = (...exercicios: ReturnType<typeof exercicio>[]) => normalizarTreino({ sessoes: [sessao('s', exercicios, [], { nome: 'Terça - Peito', diaSemana: 2 })] });
 
 test('PDF usa a metodologia copiada para o treino, mesmo quando a configuração global muda', () => {
   const conteudo = { ...treino, metodologia: { id: 'metodo', nome: 'Método fictício', configuracao: {
-    ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => ({ ...t, nome: t.nome === 'WS' ? 'Trabalho' : t.nome })),
+    ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => ({ ...t, nome: t.codigo === 'WORKING' ? 'Trabalho' : t.nome })),
     arredondamentoKg: 1, instrucoesTreino: 'Instrução da versão', rodapePdf: 'Rodapé da versão',
   } } };
   const doc = documentoTreino({ ...base, inicio: null, fim: null, versao: 1, conteudo, tipoTrabalho: 'GLOBAL', instrucoesTreino: 'Global alterada' });
   expect(doc.corpo).toContain('85% da Trabalho');
+  expect(doc.corpo).toContain('1x3 a 6 - Trabalho');
   expect(doc.corpo).toContain('Instrução da versão');
   expect(doc.corpo).not.toContain('Global alterada');
 });
@@ -76,17 +77,15 @@ describe('PDF do treino', () => {
     fim: '2026-10-20',
     versao: 2,
     conteudo: treino,
-    tipoTrabalho: 'WS',
     instrucoesTreino: 'Linha 1\nLinha 2',
   }).corpo;
 
-  it('agrupa as séries como no PDF do Saraiva', () => {
-    expect(html).toContain('3x3 - FS<br>1x3 a 6 - WS<br>2x6 a 8 - Back off');
+  it('escreve as séries em linguagem natural: faixa de percentual, esforço e tipo pelo nome', () => {
+    expect(html).toContain('3x3 - FS 50/70/85% da WS<br>1x3 a 6 - WS · 1 RIR<br>2x6 a 8 - Back off 85% da WS');
   });
 
-  it('escreve a intensidade na coluna OBS', () => {
-    expect(html).toContain('FS - 50/70/85% da WS');
-    expect(html).toContain('Back off - 85% da WS');
+  it('nunca mostra o código do tipo', () => {
+    for (const codigo of ['FEEDER', 'WORKING', 'BACK_OFF']) expect(html).not.toContain(codigo);
   });
 
   it('escapa todo texto do usuário, inclusive o link do vídeo', () => {
@@ -104,49 +103,167 @@ describe('PDF do treino', () => {
   });
 
   it('rascunho sai marcado', () => {
-    const rascunho = documentoTreino({ ...base, inicio: null, fim: null, versao: null, conteudo: treino, tipoTrabalho: 'WS', instrucoesTreino: null }).corpo;
+    const rascunho = documentoTreino({ ...dadosDoTreino(treino), versao: null }).corpo;
     expect(rascunho).toContain('RASCUNHO');
+  });
+
+  it('glossário traz só os tipos usados e o RIR (sem RPE), e vem antes das instruções', () => {
+    expect(html).toContain('Como ler este treino');
+    expect(html).toContain('<td class="termo">FS</td>');
+    expect(html).toContain('<td class="termo">WS</td>');
+    expect(html).toContain('<td class="termo">RIR</td>');
+    expect(html).toContain('RIR 0 = até a falha técnica');
+    expect(html).not.toContain('<td class="termo">RPE</td>');
+    expect(html).not.toContain('<td class="termo">Aquecimento</td>');
+    expect(html).not.toContain('<td class="termo">Top set</td>');
+    expect(html.indexOf('Como ler este treino')).toBeLessThan(html.indexOf('Instruções'));
   });
 });
 
-describe('PDF do treino: técnicas da pesquisa de 19/10', () => {
-  const conteudo = normalizarTreino({
-    sessoes: [
-      {
-        nome: 'Terça - Peito',
-        diaSemana: 2,
-        tipo: 'TREINO',
-        exercicios: [
-          {
-            nome: 'Supino reto',
-            cadencia: '3-1-1-0',
-            combinacao: 'SUPERSERIE',
-            series: [
-              {
-                ...s('WS', 6, 8, { modo: 'CARGA_TRABALHO' }),
-                tecnica: { tipo: 'DROP_SET', blocos: null, pausaSegundos: null, pausaRespiracoes: null, pausas: null, quedas: 2, reducaoPercentual: 20, repsPorQueda: null },
-              },
-            ],
-          },
-          { nome: 'Remada <curvada>', juntoComAnterior: true, isometriaSegundos: 10, series: [s('WS', 8, 10, { modo: 'CARGA_TRABALHO' })] },
-          { nome: 'Rosca direta', series: [s('WS', 8, 10, { modo: 'CARGA_TRABALHO' })] },
-        ],
-      },
+describe('PDF do treino: técnica separada do tipo, descanso e alvos', () => {
+  const comDropSet = exercicio('supino', {
+    nome: 'Supino reto',
+    cadencia: '3-1-1-0',
+    isometriaSegundos: 10,
+    series: [
+      serie('a', { repsMin: 6, repsMax: 8, descansoSegundos: 90, alvoExtra: 'Subir a carga se passar de 8', tecnica: tecnica('DROP_SET', { quedas: 2, reducaoPercentual: 20 }) }),
+      serie('b', { repsMin: null, repsMax: null, amrap: true, descansoSegundos: 90 }),
     ],
   });
-  const html = documentoTreino({ ...base, inicio: null, fim: null, versao: 1, conteudo, tipoTrabalho: 'WS', instrucoesTreino: null }).corpo;
+  const html = documentoTreino(dadosDoTreino(treinoCom(comDropSet))).corpo;
 
-  it('drop-set na coluna de séries, cadência e isometria junto do exercício', () => {
-    expect(html).toContain('1x6 a 8 - WS · Drop-set 2× −20%');
+  it('o tipo continua WS e a técnica aparece separada, por extenso, na coluna Obs', () => {
+    expect(html).toContain('1x6 a 8 - WS + Drop-set 2× −20% · Subir a carga se passar de 8 · descanso 1 min 30 s');
+    expect(html).toContain('Drop-set: ao terminar, reduza a carga cerca de 20% e continue até a falha, 2 vezes.');
+  });
+
+  it('AMRAP explícito aparece como AMRAP', () => {
+    expect(html).toContain('1xAMRAP - WS');
+  });
+
+  it('cadência e isometria ficam junto do exercício', () => {
     expect(html).toContain('Cadência 3-1-1-0');
     expect(html).toContain('Isometria 10 s');
   });
 
-  it('rótulo do grupo antes dos exercícios feitos juntos, e só deles', () => {
-    expect(html).toContain('<strong>Supersérie</strong>');
-    expect(html.indexOf('Supersérie')).toBeLessThan(html.indexOf('Supino reto'));
-    expect(html.match(/em sequência/g)).toHaveLength(1);
-    expect(html).toContain('Remada &lt;curvada&gt;');
+  it('o glossário explica a técnica usada e não as outras', () => {
+    expect(html).toContain('<td class="termo">Drop-set</td>');
+    expect(html).not.toContain('<td class="termo">Rest pause</td>');
+  });
+});
+
+describe('PDF do treino: esforço (RIR e RPE)', () => {
+  it('RIR 0 vira "até a falha" e o glossário diz que RIR 0 é a falha técnica', () => {
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WORKING', 3, 6, carga('CARGA_TRABALHO'), rir(0))] })))).corpo;
+    expect(html).toContain('1x3 a 6 - WS · até a falha');
+    expect(html).toContain('<td class="termo">RIR</td>');
+    expect(html).toContain('RIR 0 = até a falha técnica');
+  });
+
+  it('RPE aparece como RPE e só ele entra no glossário', () => {
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WORKING', 8, 10, carga('CARGA_TRABALHO'), rpe(8.5))] })))).corpo;
+    expect(html).toContain('1x8 a 10 - WS · RPE 8,5');
+    expect(html).toContain('<td class="termo">RPE</td>');
+    expect(html).not.toContain('<td class="termo">RIR</td>');
+    expect(html).not.toContain('RIR 0');
+  });
+
+  it('sem RIR nem RPE, o glossário não fala deles', () => {
+    const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'FEEDER', 3, 3, carga('PERCENTUAL_WS', 85))] })))).corpo;
+    expect(html).not.toContain('<td class="termo">RIR</td>');
+    expect(html).not.toContain('<td class="termo">RPE</td>');
+    expect(html).not.toContain('RIR 0');
+  });
+});
+
+describe('PDF do treino: top set e back off pela referência', () => {
+  const top = s('top', 'TOP_SET', null, null, carga('ACIMA_DA_ANTERIOR', 1, 5));
+  const back = [s('b1', 'BACK_OFF', 6, 8, carga('ABAIXO_DA_REFERENCIA', 15, null, 'top')), s('b2', 'BACK_OFF', 6, 8, carga('ABAIXO_DA_REFERENCIA', 15, null, 'top'))];
+
+  it('escreve "abaixo da referência" com o nome do tipo da série de referência', () => {
+    const linhas = linhasDeSeries({ series: [top, ...back] }, CONFIGURACAO_PADRAO);
+    expect(linhas).toEqual(['1x - Top set +1 a 5% sobre a anterior', '2x6 a 8 - Back off 15% abaixo da referência (Top set)']);
+  });
+});
+
+describe('PDF do treino: grupos de exercícios', () => {
+  const dois = (tecnicaDoGrupo: 'SUPERSET' | 'PRE_EXAUSTAO', extra: Parameters<typeof grupo>[2]) =>
+    normalizarTreino({
+      sessoes: [
+        sessao(
+          's',
+          [
+            exercicio('a', { nome: 'Supino reto', grupoUid: 'g', series: [serie('a1', { descansoSegundos: 60 }), serie('a2', { descansoSegundos: 60 })] }),
+            exercicio('b', { nome: 'Remada <curvada>', grupoUid: 'g', series: [serie('b1', { descansoSegundos: 60 })] }),
+            exercicio('c', { nome: 'Rosca direta', series: [serie('c1', { descansoSegundos: 45 })] }),
+          ],
+          [grupo('g', tecnicaDoGrupo, extra)],
+          { nome: 'Terça - Peito', diaSemana: 2 },
+        ),
+      ],
+    });
+
+  it('superset: linha do grupo com ordem e descanso após o par; os membros não repetem o descanso por série', () => {
+    const html = documentoTreino(dadosDoTreino(dois('SUPERSET', { descansoAposSegundos: 90 }))).corpo;
+    expect(html).toContain('<strong>Superset</strong> · 2 exercícios, nesta ordem: Supino reto → Remada &lt;curvada&gt; · descanso de 1 min 30 s depois de cada volta do grupo');
+    expect(html.indexOf('Superset')).toBeLessThan(html.indexOf('Supino reto'));
+    const grupoHtml = html.slice(html.indexOf('Supino reto'), html.indexOf('Rosca direta'));
+    expect(grupoHtml).not.toContain('descanso 1 min');
+    // O exercício solto depois do grupo mantém o descanso da própria série.
+    expect(html.slice(html.indexOf('Rosca direta'))).toContain('descanso 45 s');
+    expect(html.match(/nesta ordem/g)).toHaveLength(1);
+  });
+
+  it('superset: o glossário explica a combinação usada', () => {
+    const html = documentoTreino(dadosDoTreino(dois('SUPERSET', { descansoAposSegundos: 90 }))).corpo;
+    expect(html).toContain('<td class="termo">Superset</td>');
+    expect(html).not.toContain('<td class="termo">Circuito</td>');
+  });
+
+  it('pré-exaustão: cada série mantém o seu descanso', () => {
+    const html = documentoTreino(dadosDoTreino(dois('PRE_EXAUSTAO', {}))).corpo;
+    expect(html).toContain('<strong>Pré-exaustão</strong> · 2 exercícios, nesta ordem: Supino reto → Remada &lt;curvada&gt; · cada série mantém o seu descanso');
+    expect(html.slice(html.indexOf('Supino reto'), html.indexOf('Rosca direta'))).toContain('descanso 1 min');
+  });
+
+  it('circuito mostra as voltas', () => {
+    const conteudo = normalizarTreino({
+      sessoes: [
+        sessao(
+          's',
+          ['a', 'b', 'c'].map((u) => exercicio(u, { nome: `Exercício ${u}`, grupoUid: 'g', series: [serie(`${u}1`)] })),
+          [grupo('g', 'CIRCUITO', { descansoAposSegundos: 120, voltas: 3 })],
+          { nome: 'Sexta - Corpo todo', diaSemana: 5 },
+        ),
+      ],
+    });
+    const html = documentoTreino(dadosDoTreino(conteudo)).corpo;
+    expect(html).toContain('<strong>Circuito</strong> · 3 exercícios, nesta ordem: Exercício a → Exercício b → Exercício c · 3 voltas · descanso de 2 min depois de cada volta do grupo');
+  });
+});
+
+describe('PDF do treino: cardio', () => {
+  const cardio = exercicio('c', {
+    nome: 'Esteira <leve>',
+    modalidade: 'CARDIO',
+    unidade: 'nenhuma',
+    series: [
+      serie('c1', { tipo: null, repsMin: null, repsMax: null, carga: null, cardio: { duracaoMin: 30, distanciaKm: 5, ritmo: '6:00', zona: 2, intervalos: null } }),
+      serie('c2', { tipo: null, repsMin: null, repsMax: null, carga: null, cardio: { intervalos: { trabalhoSeg: 30, descansoSeg: 60, voltas: 8 } } }),
+    ],
+  });
+  const html = documentoTreino(dadosDoTreino(treinoCom(cardio))).corpo;
+
+  it('mostra a prescrição de cardio, sem kg, repetições nem esforço', () => {
+    expect(html).toContain('1x 30 min · 5 km · ritmo 6:00 · zona 2');
+    expect(html).toContain('1x 8× 30 s / 60 s de descanso');
+    expect(html).not.toContain(' kg');
+    expect(html).not.toContain('reps');
+    expect(html).toContain('Esteira &lt;leve&gt;');
+  });
+
+  it('cardio sozinho não gera glossário', () => {
+    expect(html).not.toContain('Como ler este treino');
   });
 });
 
@@ -453,25 +570,41 @@ describe('faixa da marca no alto dos cinco PDFs', () => {
   });
 });
 
-test('PDF: série sem repetições mostra "—" no lugar delas ("1x— - Top set")', () => {
-  const topSet = { ...novaSerie(CONFIGURACAO_PADRAO, 'Top set'), repsMin: null, repsMax: null, intensidade: { modo: 'ACIMA_DA_ANTERIOR' as const, percentualMin: 1, percentualMax: 5 } };
-  expect(linhaDoGrupo(agrupar([topSet])[0], CONFIGURACAO_PADRAO)).toBe('1x— - Top set');
-  const comReps = { ...topSet, repsMin: 3, repsMax: 6 };
-  expect(linhaDoGrupo(agrupar([comReps])[0], CONFIGURACAO_PADRAO)).toBe('1x3 a 6 - Top set');
+
+
+test('PDF: série sem repetições mostra "—" no lugar delas ("1x - Top set") e com repetições mostra a faixa', () => {
+  const topSet = s('t', 'TOP_SET', null, null, carga('ACIMA_DA_ANTERIOR', 1, 5));
+  expect(linhasDeSeries({ series: [topSet] }, CONFIGURACAO_PADRAO)).toEqual(['1x - Top set +1 a 5% sobre a anterior']);
+  expect(linhasDeSeries({ series: [{ ...topSet, repsMin: 3, repsMax: 6 }] }, CONFIGURACAO_PADRAO)).toEqual(['1x3 a 6 - Top set +1 a 5% sobre a anterior']);
 });
 
-test('PDF: técnica sem tipo, faixas e RIR zero; glossário só com prescrições usadas e texto escapado', () => {
-  const config = { ...CONFIGURACAO_PADRAO, tecnicas: CONFIGURACAO_PADRAO.tecnicas.map((t) => t.tipo === 'CLUSTER' ? { ...t, nome: 'Muscle <Round>' } : t) };
-  const tecnica = { ...novaSerie(config, null), repsMin: 6, repsMax: 6, intensidade: { modo: 'MESMA_CARGA' as const, rir: 0 }, tecnica: { ...tecnicaVazia('CLUSTER'), blocos: [4, 2], pausaSegundos: 15 } };
-  const grupo = agrupar([tecnica])[0];
-  expect(linhaDoGrupo(grupo, config)).toContain('Muscle <Round>');
-  expect(obsDoGrupo(grupo, 'WS', config)).toBe('Muscle <Round> - mesma carga da WS · até a falha');
-  const fs = { ...novaSerie(config, 'FS'), intensidade: { modo: 'PERCENTUAL_WS' as const, percentualMin: 85, percentualMax: 90, rir: 0 } };
-  expect(obsDoGrupo(agrupar([fs])[0], 'WS')).toBe('FS - 85 a 90% da WS · até a falha');
-  const conteudo = normalizarTreino({ sessoes: [{ exercicios: [{ series: [tecnica] }] }] });
+test('PDF: glossário só com o que o treino usa, com o nome da metodologia e todo texto escapado', () => {
+  const config: Configuracao = {
+    ...CONFIGURACAO_PADRAO,
+    tecnicas: CONFIGURACAO_PADRAO.tecnicas.map((t) => (t.tipo === 'CLUSTER' ? { ...t, nome: 'Muscle <Round>', explicacao: 'Blocos <b>curtos</b>' } : t)),
+  };
+  const comCluster = serie('c', { tipo: 'FEEDER', carga: carga('MESMA_CARGA'), esforco: rir(0), tecnica: tecnica('CLUSTER', { blocos: [4, 2], pausaSegundos: 15 }), repsMin: 6, repsMax: 6 });
+  const conteudo = { ...treinoCom(exercicio('e', { series: [comCluster] })), metodologia: { id: 'm', nome: 'M', configuracao: config } };
   const glossario = blocoGlossario(conteudo, config);
   expect(glossario).toContain('Como ler este treino');
   expect(glossario).toContain('Muscle &lt;Round&gt;');
-  expect(glossario).not.toContain('Feeder set');
+  expect(glossario).toContain('Blocos &lt;b&gt;curtos&lt;/b&gt;');
+  expect(glossario).not.toContain('<b>curtos</b>');
+  expect(glossario).toContain('<td class="termo">FS</td>');
   expect(glossario).not.toContain('Rest pause');
+  expect(glossario).not.toContain('Drop-set');
+  expect(glossario).not.toContain('Top set');
+  expect(glossario).not.toContain('FEEDER');
+  const e = conteudo.sessoes[0].exercicios[0];
+  expect(linhasDeSeries(e, config)[0]).toBe('1x6 (4+2) - FS + Muscle <Round> 15 s · mesma carga da WS · até a falha');
+  expect(obsDoExercicio(e, config)[0]).toContain('Muscle <Round>: blocos de 4 e 2 repetições, 15 s de pausa entre os blocos.');
+});
+
+test('PDF: treino sem nenhum item com explicação não gera glossário', () => {
+  const vazio: Configuracao = { ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => ({ ...t, explicacao: null })) };
+  expect(blocoGlossario(treinoCom(exercicio('e', { series: [serie('a')] })), vazio)).toBe('');
+});
+
+test('PDF: agrupar continua juntando séries iguais', () => {
+  expect(agrupar([serie('a'), serie('b')])).toHaveLength(1);
 });

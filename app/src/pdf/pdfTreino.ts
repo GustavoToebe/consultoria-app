@@ -1,12 +1,22 @@
-import type { Configuracao, ConteudoTreino, ExercicioPlano, Marca, Sessao } from '../api/tipos';
-import { agrupar, textoDasRepeticoes, textoDaFaixaPercentual, textoIntensidade, textoRir, textoTecnica, type GrupoDeSeries } from '../dominio/agrupamento';
-import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
-import { explicacaoDaTecnica, explicacaoDoTipo, nomeDaTecnica, tiposETecnicasUsados, tipoTrabalho as tipoTrabalhoDaMetodologia } from '../dominio/metodologia';
+import type { Configuracao, ConteudoTreino, ExercicioPlano, Marca, Serie, Sessao } from '../api/tipos';
+import { agrupar, descreverGrupo, textosDeTecnica } from '../dominio/agrupamento';
 import { gruposDaSessao } from '../dominio/combinacoes';
+import { rotuloDescanso } from '../dominio/descanso';
 import { DIAS_SEMANA } from '../dominio/editorTreino';
 import { textoExecucao } from '../dominio/execucaoDoExercicio';
 import { dataHoraParaTela, dataParaTela } from '../dominio/formatos';
+import {
+  explicacaoDaCombinacao,
+  explicacaoDaTecnica,
+  explicacaoDoTipo,
+  nomeDaCombinacao,
+  nomeDaTecnica,
+  nomeDoTipo,
+  tiposETecnicasUsados,
+} from '../dominio/metodologia';
+import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { rotuloDoDia, rotuloDoTipo, sessoesDaSemana } from '../dominio/semana';
+import { descansoSoDoGrupo, detalheDoBloco } from '../dominio/textoDoGrupo';
 import { cssBase, esc, escLinhas, link, topo, type Documento } from './html';
 
 export interface DadosPdfTreino {
@@ -19,67 +29,110 @@ export interface DadosPdfTreino {
   /** Número da versão publicada; `null` = rascunho (sai marcado). */
   versao: number | null;
   conteudo: ConteudoTreino;
-  tipoTrabalho: string;
+  /**
+   * Sem uso: os nomes ("WS", "Top set", "Superset") saem da metodologia copiada na versão do treino (ou da padrão, sem
+   * ela). Fica opcional para quem ainda o passa.
+   */
+  tipoTrabalho?: string;
   instrucoesTreino: string | null;
   rodapePdf: string | null;
   emitidoEm: Date;
 }
 
-/** Coluna "Séries x reps": "3x3 - FS", "1x3 a 6 - WS", "1x— - Top set" (sem repetições, "—"). */
-export function linhaDoGrupo(g: GrupoDeSeries, config?: Configuracao): string {
-  const s = g.series[0];
-  const tecnica = textoTecnica(s.tecnica, config);
-  return `${g.series.length}x${textoDasRepeticoes(s)} - ${s.tipo || tecnica || 'Série'}${s.tipo && tecnica ? ` · ${tecnica}` : ''}`;
+/** Descanso das séries do grupo: "descanso 1 min" ou "descanso 1 min a 1 min 30 s"; vazio quando nenhuma tem. */
+function textoDoDescansoDasSeries(series: readonly Serie[]): string {
+  const valores = series.map((s) => s.descansoSegundos ?? 0).filter((d) => d > 0);
+  if (!valores.length) return '';
+  const menor = Math.min(...valores);
+  const maior = Math.max(...valores);
+  return menor === maior ? `descanso ${rotuloDescanso(menor)}` : `descanso ${rotuloDescanso(menor)} a ${rotuloDescanso(maior)}`;
 }
 
-/** Intensidade escrita na coluna OBS: "Back off - 85% da WS", "FS - 50/70/85% da WS", "Série - 2 RIR". */
-export function obsDoGrupo(g: GrupoDeSeries, tipoTrabalho: string, config?: Configuracao): string | null {
-  const s = g.series[0];
-  const quem = s.tipo ?? (s.tecnica ? nomeDaTecnica(config, s.tecnica.tipo) : 'Série');
-  const modo = s.intensidade?.modo;
-  if (modo === 'PERCENTUAL_WS' || modo === 'ACIMA_DA_ANTERIOR') {
-    const valores = g.series.map((x) => textoDaFaixaPercentual(x.intensidade?.percentualMin, x.intensidade?.percentualMax));
-    const lista = valores.every((x) => x === valores[0]) ? valores[0] : valores.join('/');
-    const texto = modo === 'PERCENTUAL_WS' ? `${lista}% da ${tipoTrabalho}` : `+${lista}% sobre a anterior`;
-    const rir = textoRir(s.intensidade);
-    return `${quem} - ${texto}${rir ? ` · ${rir}` : ''}`;
+/**
+ * Coluna "Séries": uma linha por grupo de séries iguais, com o nome do tipo da metodologia (nunca o código), as repetições
+ * ("AMRAP" quando pedido), a carga em faixa de percentual, o esforço (RIR/RPE, "até a falha" para RIR 0), a técnica, o alvo
+ * extra, a prescrição de cardio e o descanso. `comDescanso` falso nos membros de grupo cujo descanso é o do grupo (a linha
+ * do grupo o diz).
+ */
+export function linhasDeSeries(e: Pick<ExercicioPlano, 'series'>, config: Configuracao, comDescanso = true): string[] {
+  return agrupar(e.series).map((g) => {
+    const descanso = comDescanso ? textoDoDescansoDasSeries(g.series) : '';
+    return `${descreverGrupo(g, config, e.series)}${descanso ? ` · ${descanso}` : ''}`;
+  });
+}
+
+/** Coluna "Obs": a observação do exercício e cada técnica por extenso (uma vez). */
+export function obsDoExercicio(e: ExercicioPlano, config: Configuracao): string[] {
+  return [e.observacao, ...textosDeTecnica(e.series, config), e.progressao ? null : 'Foco em controle, não em carga'].filter((x): x is string => !!x);
+}
+
+const TEXTO_RIR =
+  'Repetições na reserva: quantas repetições você ainda conseguiria fazer ao terminar a série. 2 RIR = parar com 2 repetições sobrando.\nRIR 0 = até a falha técnica: faça até não conseguir mais repetir com boa técnica.';
+const TEXTO_RPE = 'Percepção de esforço, de 1 a 10 (de meio em meio ponto). 10 é o esforço máximo, sem nenhuma repetição sobrando.';
+
+/** O treino usa RIR e/ou RPE em alguma série? Só então o glossário os explica. */
+function esforcosUsados(conteudo: Pick<ConteudoTreino, 'sessoes'>): { rir: boolean; rpe: boolean } {
+  let rir = false;
+  let rpe = false;
+  for (const s of conteudo.sessoes ?? []) {
+    for (const e of s.exercicios ?? []) {
+      for (const x of e.series ?? []) {
+        if (x.esforco?.rir != null) rir = true;
+        if (x.esforco?.rpe != null) rpe = true;
+      }
+    }
   }
-  const t = textoIntensidade(s.intensidade, tipoTrabalho);
-  return t ? `${quem} - ${t}` : null;
+  return { rir, rpe };
 }
 
+/**
+ * "Como ler este treino": só o que o treino usa, na ordem tipos, técnicas, combinações de exercícios e, quando aparecem,
+ * RIR (com "RIR 0 = até a falha técnica") e RPE. Nome e explicação vêm da metodologia da versão; sem explicação, o item
+ * não entra.
+ */
 export function blocoGlossario(conteudo: ConteudoTreino, config: Configuracao): string {
   const usados = tiposETecnicasUsados(conteudo);
-  const itens = [...usados.tipos.map((nome) => ({ nome, texto: explicacaoDoTipo(config, nome) })),
-    ...usados.tecnicas.map((t) => ({ nome: nomeDaTecnica(config, t), texto: explicacaoDaTecnica(config, t) }))].filter((x) => x.texto);
-  return itens.length ? `<section><h2>Como ler este treino</h2><table class="instrucoes"><tbody>${itens.map((x) => `<tr><td class="termo">${esc(x.nome)}</td><td>${escLinhas(x.texto!)}</td></tr>`).join('')}</tbody></table></section>` : '';
+  const esforcos = esforcosUsados(conteudo);
+  const itens: { nome: string; texto: string | null }[] = [
+    ...usados.tipos.map((codigo) => ({ nome: nomeDoTipo(config, codigo), texto: explicacaoDoTipo(config, codigo) })),
+    ...usados.tecnicas.map((t) => ({ nome: nomeDaTecnica(config, t), texto: explicacaoDaTecnica(config, t) })),
+    ...usados.combinacoes.map((c) => ({ nome: nomeDaCombinacao(config, c), texto: explicacaoDaCombinacao(config, c) })),
+    ...(esforcos.rir ? [{ nome: 'RIR', texto: TEXTO_RIR }] : []),
+    ...(esforcos.rpe ? [{ nome: 'RPE', texto: TEXTO_RPE }] : []),
+  ].filter((x) => x.texto);
+  if (!itens.length) return '';
+  const linhas = itens.map((x) => `<tr><td class="termo">${esc(x.nome)}</td><td>${escLinhas(x.texto!)}</td></tr>`).join('');
+  return `<section><h2>Como ler este treino</h2><table class="instrucoes"><tbody>${linhas}</tbody></table></section>`;
 }
 
-function linhaExercicio(e: ExercicioPlano, tipoTrabalho: string, config: Configuracao): string {
-  const grupos = agrupar(e.series);
-  const obs = [e.observacao, ...grupos.map((g) => obsDoGrupo(g, tipoTrabalho, config)), e.progressao ? null : 'Foco em controle, não em carga']
-    .filter((x): x is string => !!x);
+function linhaExercicio(e: ExercicioPlano, config: Configuracao, comDescanso: boolean): string {
+  const obs = obsDoExercicio(e, config);
   const execucao = textoExecucao(e);
   return `<tr>
 <td><strong>${esc(e.nome)}</strong>${execucao ? `<div class="suave">${esc(execucao)}</div>` : ''}</td>
-<td>${grupos.map((g) => esc(linhaDoGrupo(g, config))).join('<br>') || '—'}</td>
+<td>${linhasDeSeries(e, config, comDescanso).map(esc).join('<br>') || '—'}</td>
 <td>${obs.map(esc).join('<br>') || '—'}</td>
 <td>${link(e.videoUrl, 'Vídeo')}</td>
 </tr>`;
 }
 
-/** Exercícios da sessão; os feitos juntos (bi-set, tri-set, circuito) ganham uma linha com o nome do grupo antes. */
-function linhasDosExercicios(s: Sessao, tipoTrabalho: string, config: Configuracao): string {
-  return gruposDaSessao(s.exercicios)
+/**
+ * Exercícios da sessão. Os feitos juntos (superset, circuito, pré e pós-exaustão...) ganham uma linha com o nome da
+ * combinação, a ordem, as voltas e o descanso depois do grupo; nos grupos com descanso depois da volta, a coluna das séries
+ * não repete o descanso por série.
+ */
+function linhasDosExercicios(s: Sessao, config: Configuracao): string {
+  return gruposDaSessao(s, config)
     .map((g) => {
-      const linhas = g.exercicios.map((e) => linhaExercicio(e, tipoTrabalho, config)).join('');
+      const comDescanso = !(g.nome && g.grupo && descansoSoDoGrupo(g.grupo));
+      const linhas = g.exercicios.map((e) => linhaExercicio(e, config, comDescanso)).join('');
       if (!g.nome) return linhas;
-      return `<tr><td colspan="4"><strong>${esc(g.nome)}</strong> · ${g.exercicios.length} exercícios em sequência, sem descanso entre eles</td></tr>${linhas}`;
+      return `<tr><td colspan="4"><strong>${esc(g.nome)}</strong> · ${esc(detalheDoBloco(g))}</td></tr>${linhas}`;
     })
     .join('');
 }
 
-function blocoSessao(s: Sessao, tipoTrabalho: string, config: Configuracao): string {
+function blocoSessao(s: Sessao, config: Configuracao): string {
   // Sem dia fixo: acrescenta "2x na semana" só se o nome ainda não diz.
   const dia = rotuloDoDia(s);
   const titulo = s.diaSemana || s.nome.toLowerCase().includes(dia.toLowerCase()) ? s.nome : `${s.nome} (${dia})`;
@@ -90,8 +143,8 @@ function blocoSessao(s: Sessao, tipoTrabalho: string, config: Configuracao): str
   // Título preso à tabela: sessão curta vai inteira para a página seguinte em vez de deixar o título sozinho.
   return `<section class="${s.exercicios.length <= 8 ? 'bloco' : ''}">
 <h2>${esc(titulo)}</h2>${extras}
-<table><thead><tr><th style="width:34%">Exercício</th><th style="width:24%">Séries x reps</th><th>Obs</th><th style="width:9%">Vídeo</th></tr></thead>
-<tbody>${linhasDosExercicios(s, tipoTrabalho, config)}</tbody></table>
+<table><thead><tr><th style="width:34%">Exercício</th><th style="width:26%">Séries</th><th>Obs</th><th style="width:9%">Vídeo</th></tr></thead>
+<tbody>${linhasDosExercicios(s, config)}</tbody></table>
 </section>`;
 }
 
@@ -127,10 +180,10 @@ export function blocoInstrucoes(texto: string): string {
   return `<section><h2>Instruções</h2><table class="instrucoes"><tbody>${linhas}</tbody></table></section>`;
 }
 
-/** PDF do treino no formato do Saraiva: semana, sessões com tabela e, no fim, as instruções. */
+/** PDF do treino no formato do Saraiva: semana, sessões com tabela e, no fim, o glossário e as instruções. */
 export function documentoTreino(d: DadosPdfTreino): Documento {
   const metodologia = d.conteudo.metodologia?.configuracao;
-  if (metodologia) d = { ...d, tipoTrabalho: tipoTrabalhoDaMetodologia(metodologia) ?? 'série de trabalho', instrucoesTreino: metodologia.instrucoesTreino, rodapePdf: metodologia.rodapePdf };
+  if (metodologia) d = { ...d, instrucoesTreino: metodologia.instrucoesTreino, rodapePdf: metodologia.rodapePdf };
   const c = d.conteudo;
   const periodo = d.inicio || d.fim ? `${dataParaTela(d.inicio) || '—'} a ${dataParaTela(d.fim) || '—'}` : null;
   const semana = DIAS_SEMANA.map((dia, i) => {
@@ -150,7 +203,7 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
     `<div class="bloco"><h2>Semana</h2><table><thead><tr><th style="width:25%">Dia</th><th>Treino</th></tr></thead><tbody>${semana}${semDia
       .map((s) => `<tr><td><strong>${esc(rotuloDoDia(s))}</strong></td><td>${esc(s.nome)}</td></tr>`)
       .join('')}</tbody></table></div>`,
-    ...sessoesDaSemana(c).map((s) => blocoSessao(s, d.tipoTrabalho, metodologia ?? CONFIGURACAO_PADRAO)),
+    ...sessoesDaSemana(c).map((s) => blocoSessao(s, metodologia ?? CONFIGURACAO_PADRAO)),
     blocoGlossario(c, metodologia ?? CONFIGURACAO_PADRAO),
     d.instrucoesTreino?.trim() ? blocoInstrucoes(d.instrucoesTreino) : '',
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',

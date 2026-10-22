@@ -3,7 +3,7 @@ import { CheckCircle2, ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano, UltimaCarga } from '../api/tipos';
-import { resumoTecnicasEDescanso } from '../dominio/agrupamento';
+import { resumoTecnicasEDescanso, textoCardio } from '../dominio/agrupamento';
 import { usaCargaDeTrabalho } from '../dominio/cargas';
 import { numeroParaTela } from '../dominio/formatos';
 import { MODALIDADES } from '../dominio/modalidades';
@@ -12,6 +12,7 @@ import { espaco, fontes, RAIO } from '../tema/tokens';
 import { propsDeLink } from '../ui/propsDeLink';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
+import { ehExercicioDeCardio } from './serieDoAluno';
 
 /**
  * Exercício na lista do dia: nome, modalidade, a carga de trabalho (a do dia ou, sem ela, a última registrada) e
@@ -27,6 +28,7 @@ export function CartaoExercicioDoDia({
   tipoTrabalho,
   metodologia,
   href,
+  descansoNaSerie = true,
   aoAbrir,
 }: {
   exercicio: ExercicioPlano;
@@ -38,12 +40,19 @@ export function CartaoExercicioDoDia({
   metodologia?: Configuracao;
   /** Destino do exercício; na web vira `<a href>`. */
   href?: Href;
+  /** Falso nos membros de grupo cujo descanso é o do grupo (depois da volta): o resumo não mostra o descanso por série. */
+  descansoNaSerie?: boolean;
   aoAbrir: () => void;
 }) {
   const { cores } = useTema();
   const total = e.series.length;
   const completo = total > 0 && feitas >= total;
-  const resumo = resumoTecnicasEDescanso(e.series, metodologia);
+  const cardio = ehExercicioDeCardio(e);
+  const resumo = cardio
+    ? null
+    : resumoTecnicasEDescanso(descansoNaSerie ? e.series : e.series.map((s) => ({ ...s, descansoSegundos: null })), metodologia);
+  // Cardio: a prescrição da primeira série no lugar da carga (o aluno só marca "feito").
+  const prescricaoDeCardio = cardio && e.series[0]?.cardio ? textoCardio(e.series[0].cardio) : null;
   const carga = usaCargaDeTrabalho(e)
     ? cargaDoDia !== null
       ? { rotulo: `Carga de trabalho (${tipoTrabalho}) hoje`, valor: `${numeroParaTela(cargaDoDia)} kg` }
@@ -66,6 +75,7 @@ export function CartaoExercicioDoDia({
           </Texto>
           {e.modalidade ? <Texto numerico variante="suave">{MODALIDADES[e.modalidade] ?? e.modalidade}</Texto> : null}
           {resumo ? <Texto numerico variante="pequeno">{resumo}</Texto> : null}
+          {prescricaoDeCardio ? <Texto numerico variante="pequeno">{prescricaoDeCardio}</Texto> : null}
         </View>
         {completo ? <CheckCircle2 size={22} color={cores.sucesso} /> : <ChevronRight size={22} color={cores.textoSuave} />}
       </View>

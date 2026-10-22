@@ -1,5 +1,6 @@
 import { EntradaEmCascata, usePrimeiraLista } from '../../ui/EntradaEmCascata';
 import { HistoricoAtualizacoes } from '../../aluno/atualizacao/HistoricoAtualizacoes';
+import { nomeDaSerieNoHistorico } from '../../aluno/serieDoAluno';
 import { FileDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -9,6 +10,7 @@ import { historicoAluno, pastasDoAluno, pesosAluno } from '../../api/rotas';
 import type { ExercicioPlano, Sessao } from '../../api/tipos';
 import { normalizarTreino } from '../../dominio/editorTreino';
 import { dataParaTela, hojeIso, numeroParaTela } from '../../dominio/formatos';
+import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { cargasPorDivisao, intervaloDeRegistros } from '../../dominio/relatorio';
 import { useAluno } from '../../offline/AlunoProvider';
 import type { RegistroLocal } from '../../offline/repositorioLocal';
@@ -62,6 +64,8 @@ export default function HistoricoAluno() {
   // Nomes vêm do plano salvo (o registro guarda só os uids).
   const nomes = new Map<string, { sessao: Sessao; exercicio: ExercicioPlano }>();
   const treinoEmUso = escolhida ? escolhida.planos.treino : pacote?.pacote.treino;
+  // O tipo da série é um código: o nome sai da metodologia copiada na versão do treino.
+  const metodologia = treinoEmUso?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
   if (treinoEmUso) {
     for (const s of normalizarTreino(treinoEmUso.conteudo).sessoes) {
       for (const e of s.exercicios) nomes.set(e.uid, { sessao: s, exercicio: e });
@@ -113,7 +117,8 @@ export default function HistoricoAluno() {
                   {lista
                     .map((r) => {
                       const serie = info?.exercicio.series.find((s) => s.uid === r.serieUid);
-                      return textoSerie({ ...r, tipo: serie?.tipo ?? 'Série', unidade: info?.exercicio.unidade ?? 'kg' });
+                      if (serie?.cardio) return 'Cardio feito';
+                      return textoSerie({ ...r, tipo: nomeDaSerieNoHistorico(serie, metodologia), unidade: info?.exercicio.unidade ?? 'kg' });
                     })
                     .join(' · ')}
                 </Texto>

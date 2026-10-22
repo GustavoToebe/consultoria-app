@@ -6,6 +6,7 @@ import { Play } from 'lucide-react-native';
 import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
 import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
 import { DatasDaDivisao } from '../../../../aluno/DatasDaDivisao';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
@@ -13,6 +14,7 @@ import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDi
 import { gruposDaSessao } from '../../../../dominio/combinacoes';
 import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
+import { descansoSoDoGrupo } from '../../../../dominio/textoDoGrupo';
 import { datasDaSessao, nomeComDia, totalDeSeries } from '../../../../dominio/semana';
 import { useTema } from '../../../../tema/TemaProvider';
 import { espaco, RAIO } from '../../../../tema/tokens';
@@ -100,7 +102,9 @@ export default function SessaoAluno() {
       {pendente ? (
         <Botao rotulo={feitas ? `Continuar: ${pendente.nome}` : 'Começar treino'} Icone={Play} cheio aoTocar={() => abrir(pendente.uid)} />
       ) : null}
-      {gruposDaSessao(sessao.exercicios).map((g) => {
+      {gruposDaSessao(sessao, dia.config.metodologia).map((g) => {
+        // Nos grupos em que o descanso é depois da volta, a série não mostra o descanso dela.
+        const descansoNaSerie = !(g.nome && g.grupo && descansoSoDoGrupo(g.grupo));
         const cartoes = g.exercicios.map((e, j) => {
           const i = g.inicio + j;
           return (
@@ -113,17 +117,18 @@ export default function SessaoAluno() {
               ultima={dia.ultimaCarga(e.exercicioId)}
               tipoTrabalho={dia.config.tipoTrabalho}
               metodologia={dia.config.metodologia}
+              descansoNaSerie={descansoNaSerie}
               href={caminhoDaSessao(sessao.uid, data, e.uid)}
               aoAbrir={() => abrir(e.uid)}
             />
             </EntradaEmCascata>
           );
         });
-        // Exercícios feitos juntos (bi-set, tri-set, circuito) aparecem numa moldura com o nome do grupo.
+        // Exercícios feitos juntos (superset, circuito, pré e pós-exaustão...) aparecem numa moldura com o nome da combinação,
+        // a ordem, as voltas e o descanso depois do grupo.
         return g.nome ? (
           <View key={`grupo-${g.exercicios[0].uid}`} style={[estilos.grupo, { borderColor: cores.bordaCampo }]}>
-            <Texto variante="bloco">{g.nome}</Texto>
-            <Texto variante="pequeno">{contagem(g.exercicios.length, 'exercício', 'exercícios')}, um depois do outro, sem descanso entre eles.</Texto>
+            <CabecalhoDoGrupo bloco={g} metodologia={dia.config.metodologia} />
             {cartoes}
           </View>
         ) : (

@@ -1,3 +1,4 @@
+import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
 import { DescansoManual } from '../../../../aluno/DescansoManual';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, Check, List } from 'lucide-react-native';
@@ -58,7 +59,7 @@ export default function ExercicioDaSessao() {
 
   const anterior = posicao > 0 ? sessao.exercicios[posicao - 1] : undefined;
   const nomeDoDia = nomeComDia(sessao);
-  const noGrupo = posicaoNoGrupo(sessao.exercicios, posicao);
+  const noGrupo = posicaoNoGrupo(sessao, posicao, dia.config.metodologia);
   const vez = vezNoGrupo(noGrupo, (x) => dia.feitas(x) < x.series.length);
   const depoisDoGrupo = sessao.exercicios[noGrupo ? noGrupo.grupo.inicio + noGrupo.tamanho : posicao + 1];
   const proximo = vez ?? depoisDoGrupo;
@@ -67,7 +68,11 @@ export default function ExercicioDaSessao() {
   const totalNoDia = totalDeSeries(sessao);
   // Descanso do plano: o da próxima série a fazer (ou o da primeira que tiver), primeira opção da folha.
   const aFazer = e.series.find((s) => !dia.registroDe(s.uid)?.concluida);
-  const descansoDoPlano = (aFazer?.descansoSegundos || e.series.find((s) => s.descansoSegundos)?.descansoSegundos) ?? null;
+  // Em superset, circuito etc. o descanso do plano é o do grupo (depois da volta); em pré e pós-exaustão, o de cada série.
+  const descansoDoPlano =
+    noGrupo && !noGrupo.descansoPorSerie
+      ? noGrupo.descansoAposSegundos
+      : ((aFazer?.descansoSegundos || e.series.find((s) => s.descansoSegundos)?.descansoSegundos) ?? null);
   const modalidade = e.modalidade ? `${MODALIDADES[e.modalidade] ?? e.modalidade} · ` : '';
 
   return (
@@ -80,10 +85,15 @@ export default function ExercicioDaSessao() {
       {noGrupo ? (
         <Cartao>
           <View style={estilos.linhaGrupo}>
-            <Texto numerico style={estilos.faixa}>
-              {noGrupo.nome} {noGrupo.posicao} de {noGrupo.tamanho} · sem descanso
-              {vez ? <Texto numerico variante="suave">{`\nDepois: ${vez.nome || 'próximo do grupo'}`}</Texto> : <Texto numerico variante="suave">{'\nGrupo feito.'}</Texto>}
-            </Texto>
+            <View style={estilos.textosDoGrupo}>
+              <CabecalhoDoGrupo bloco={noGrupo.grupo} metodologia={dia.config.metodologia} />
+              <Texto numerico style={estilos.faixa}>
+                Exercício {noGrupo.posicao} de {noGrupo.tamanho}
+              </Texto>
+              <Texto numerico variante="suave">
+                {vez ? `Depois: ${vez.nome || 'próximo do grupo'}` : 'Grupo feito.'}
+              </Texto>
+            </View>
             {vez ? <Botao rotulo="Ir" rotuloAcessivel={`Ir para ${vez.nome || 'o próximo do grupo'}`} tipo="secundario" Icone={ArrowRight} aoTocar={() => ir(vez.uid)} /> : null}
           </View>
         </Cartao>
@@ -100,6 +110,7 @@ export default function ExercicioDaSessao() {
         aoMudarCargaDoDia={(c) => dia.salvarCargaDoDia(e, c)}
         aoRegistrar={(serieUid, d) => dia.registrar(e, serieUid, d)}
         aoIniciarPausa={iniciarDescanso}
+        descansoNaSerie={!noGrupo || noGrupo.descansoPorSerie}
         demonstracao={e.exercicioId ? demonstracoes.find((d) => d.exercicioId === e.exercicioId) ?? null : null}
       />
       <View style={estilos.fim}>
@@ -129,6 +140,7 @@ export default function ExercicioDaSessao() {
 
 const estilos = StyleSheet.create({
   fim: { marginTop: espaco(1), gap: espaco(1) },
-  faixa: { fontFamily: fontes.semi, flex: 1 },
+  faixa: { fontFamily: fontes.semi },
+  textosDoGrupo: { flex: 1, gap: espaco(0.5) },
   linhaGrupo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
 });

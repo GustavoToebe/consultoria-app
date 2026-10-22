@@ -4,11 +4,14 @@ import type { Href } from 'expo-router';
 import { useEffect } from 'react';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
+import { ehSerieDeTrabalho } from '../dominio/cargas';
+import { tipoTrabalho as tipoTrabalhoDaMetodologia } from '../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { hojeIso } from '../dominio/formatos';
 import { podeRegistrarEm } from '../dominio/semana';
 import { useAluno } from '../offline/AlunoProvider';
+import { descansoAoMarcar } from './descansoDoGrupo';
 import type { DadosSerie } from './ExercicioAluno';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -24,7 +27,10 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const data = dataDaRota && ISO.test(dataDaRota) && podeRegistrarEm(dataDaRota, hoje) ? dataDaRota : hoje;
   const treino = aluno.pacote?.pacote.treino ?? null;
   const sessao = treino ? normalizarTreino(treino.conteudo).sessoes.find((s) => s.uid === uid) : undefined;
-  const config = { ...(aluno.pacote?.pacote.configuracao ?? { arredondamentoKg: 0.5, tipoTrabalho: 'WS' }), metodologia: treino?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO };
+  // O nome da série de trabalho ("WS") sai da metodologia copiada na versão do treino; o do pacote é só a reserva.
+  const base = aluno.pacote?.pacote.configuracao ?? { arredondamentoKg: 0.5, tipoTrabalho: 'WS' };
+  const metodologia = treino?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
+  const config = { ...base, tipoTrabalho: tipoTrabalhoDaMetodologia(metodologia) ?? base.tipoTrabalho, metodologia };
   // O que já foi registrado no servidor (outro aparelho, ou antes de sair e entrar de novo) aparece como feito.
   const { carregarSemanaDoServidor } = aluno;
   useEffect(() => {
@@ -54,20 +60,23 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const registrar = (e: ExercicioPlano, serieUid: string, d: DadosSerie) => {
     if (!treino || !sessao) return;
     const serie = e.series.find((s) => s.uid === serieUid);
-    const iniciar = d.concluida && !registroDe(serieUid)?.concluida && (serie?.descansoSegundos ?? 0) > 0;
+    // Descanso da série, ou o do grupo quando a marcação fecha uma volta (superset, circuito...); ver `descansoAoMarcar`.
+    const descanso = d.concluida
+      ? descansoAoMarcar({ sessao, exercicioUid: e.uid, serieUid, concluida: (uid) => !!registroDe(uid)?.concluida, metodologia: config.metodologia })
+      : null;
     void aluno.registrar({
       planoVersaoId: treino.versaoId,
       sessaoUid: sessao.uid,
       exercicioUid: e.uid,
       serieUid,
       exercicioId: e.exercicioId,
-      trabalho: serie?.intensidade?.modo === 'CARGA_TRABALHO',
+      trabalho: serie ? ehSerieDeTrabalho(serie) : false,
       data,
       carga: d.carga,
       repeticoes: d.repeticoes,
       concluida: d.concluida,
       observacao: null,
-    }).then(() => { if (iniciar) aluno.iniciarDescanso(serie!.descansoSegundos!); }).catch(erro => avisar(textoDoErro(erro), 'perigo'));
+    }).then(() => { if (descanso) aluno.iniciarDescanso(descanso); }).catch(erro => avisar(textoDoErro(erro), 'perigo'));
   };
 
   return {

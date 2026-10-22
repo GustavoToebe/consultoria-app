@@ -3,12 +3,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import type { Configuracao, DemonstracaoDoAluno, ExercicioPlano, UltimaCarga } from '../api/tipos';
-import { explicacaoDaTecnica, explicacaoDoTipo, nomeDaTecnica } from '../dominio/metodologia';
-import { Folha } from '../ui/Folha';
-import { textoTecnicaPorExtenso } from '../dominio/agrupamento';
-import { ajustarCarga, calcularCargasDoExercicio, metaDaSerie, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
-import { rotuloDescanso } from '../dominio/descanso';
+import type { Configuracao, DemonstracaoDoAluno, ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
+import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
@@ -24,10 +20,12 @@ import { CampoNumericoGrande } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
 import { IconeBotao } from '../ui/IconeBotao';
-import { Selo } from '../ui/Selo';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
+import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
+import { SeloComExplicacao } from './SeloComExplicacao';
+import { dicaDaCarga, ehExercicioDeCardio, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
 export interface DadosSerie {
   carga: number | null;
@@ -53,6 +51,11 @@ interface Props {
   aoIniciarPausa?: (segundos: number) => void;
   /** Imagem ou GIF do exercício (própria ou do catálogo); nulo = nada para mostrar. */
   demonstracao?: DemonstracaoDoAluno | null;
+  /**
+   * O descanso por série vale (padrão). Falso nos membros de superset, tri-set, giant set, circuito e
+   * agonista-antagonista: o descanso é o do grupo, depois da volta, e não aparece na série.
+   */
+  descansoNaSerie?: boolean;
 }
 
 /**
@@ -74,6 +77,7 @@ export function ExercicioAluno(p: Props) {
   const proximaAFazer = e.series.findIndex((s) => !p.registroDe(s.uid)?.concluida);
   const passo = passoDaCarga(e, p.config.arredondamentoKg);
   const semCarga = e.unidade === 'nenhuma';
+  const cardio = ehExercicioDeCardio(e);
   const video = videoValido(e.videoUrl);
   const comoFazer = [
     ...(!e.progressao ? ['Foco em controle, não em carga.'] : []),
@@ -157,23 +161,36 @@ export function ExercicioAluno(p: Props) {
           {feitas} de {e.series.length} feitas
         </Texto>
       </View>
-      {calculadas.map((c, i) => (
-        <CartaoSerie
-          key={c.serie.uid}
-          calculada={c}
-          indice={i}
-          semCarga={semCarga}
-          tipoTrabalho={p.config.tipoTrabalho}
-          metodologia={p.config.metodologia}
-          passo={i === proximaAFazer ? passo : null}
-          ativa={i === proximaAFazer}
-          registro={p.registroDe(c.serie.uid)}
-          repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga) : null}
-          ultimaDoExercicio={feitas === e.series.length - 1}
-          aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
-          aoIniciarPausa={p.aoIniciarPausa}
-        />
-      ))}
+      {calculadas.map((c, i) =>
+        cardio ? (
+          <CartaoSerieDeCardio
+            key={c.serie.uid}
+            serie={c.serie}
+            numero={i + 1}
+            feita={!!p.registroDe(c.serie.uid)?.concluida}
+            ultimaDoExercicio={feitas === e.series.length - 1}
+            aoMarcar={(concluida) => p.aoRegistrar(c.serie.uid, { carga: null, repeticoes: null, concluida })}
+          />
+        ) : (
+          <CartaoSerie
+            key={c.serie.uid}
+            calculada={c}
+            indice={i}
+            semCarga={semCarga}
+            tipoTrabalho={p.config.tipoTrabalho}
+            metodologia={p.config.metodologia}
+            seriesDoExercicio={e.series}
+            descansoNaSerie={p.descansoNaSerie ?? true}
+            passo={i === proximaAFazer ? passo : null}
+            ativa={i === proximaAFazer}
+            registro={p.registroDe(c.serie.uid)}
+            repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga) : null}
+            ultimaDoExercicio={feitas === e.series.length - 1}
+            aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
+            aoIniciarPausa={p.aoIniciarPausa}
+          />
+        ),
+      )}
     </View>
   );
 }
@@ -184,6 +201,8 @@ function CartaoSerie({
   semCarga,
   tipoTrabalho,
   metodologia,
+  seriesDoExercicio,
+  descansoNaSerie,
   passo,
   ativa,
   registro,
@@ -197,6 +216,10 @@ function CartaoSerie({
   semCarga: boolean;
   tipoTrabalho: string;
   metodologia?: Configuracao;
+  /** As séries do exercício: dão o nome da série de referência do back off. */
+  seriesDoExercicio: readonly Serie[];
+  /** Mostra o "Descanso X" da série (falso nos membros de grupo cujo descanso é o do grupo). */
+  descansoNaSerie: boolean;
   /** Passo dos botões + e − do peso; `null` esconde os botões (só a próxima série a fazer os mostra). */
   passo: number | null;
   /** É a próxima série a fazer: mostra a dica da carga sugerida. */
@@ -227,13 +250,11 @@ function CartaoSerie({
   const fundo = useAnimatedStyle(() => ({ backgroundColor: interpolateColor(progresso.get(), [0, 1], [cores.superficie2, `${cores.sucesso}29`]) }));
   const s = calculada.serie;
   const numero = indice + 1;
-  // A técnica sai da meta e vai por extenso na própria série ("Na série 3" deixa de ser adivinhação).
-  const meta = metaDaSerie({ ...s, tecnica: null }, tipoTrabalho, semCarga);
-  const descanso = s.descansoSegundos && s.descansoSegundos > 0 ? `Descanso ${rotuloDescanso(s.descansoSegundos)}` : null;
-  const tecnica = textoTecnicaPorExtenso(s.tecnica, metodologia);
-  const [explicando, setExplicando] = useState(false);
-  const explicacoes = [s.tipo ? { nome: s.tipo, texto: explicacaoDoTipo(metodologia, s.tipo) } : null, s.tecnica ? { nome: nomeDaTecnica(metodologia, s.tecnica.tipo), texto: explicacaoDaTecnica(metodologia, s.tecnica.tipo) } : null].filter((x): x is { nome: string; texto: string } => !!x?.texto);
+  const textos = textosDaSerie(s, { tipoTrabalho, semCarga, metodologia, seriesDoExercicio, descansoPorSerie: descansoNaSerie });
+  const selos = selosDaSerie(s, metodologia);
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
+
+  const dica = ativa && !semCarga && !registro ? dicaDaCarga(s, { sugestao: calculada.sugestao, digitou: cargaDigitada !== undefined, tipoTrabalho, metodologia, seriesDoExercicio }) : null;
 
   const mudar = (parcial: Partial<DadosSerie>) => {
     if (registro) {
@@ -248,17 +269,17 @@ function CartaoSerie({
     <Animated.View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, fundo]}>
       <View style={estilos.cabecaSerie}>
         <Texto style={estilos.nomeSerie}>Série {numero}</Texto>
-        {s.tipo || s.tecnica ? <Pressable accessibilityRole="button" accessibilityLabel={`Explicação de ${s.tipo ?? nomeDaTecnica(metodologia, s.tecnica!.tipo)} da série ${numero}`} onPress={() => setExplicando(true)} style={{ minHeight: ALVO_TOQUE, justifyContent: 'center' }}><Selo texto={s.tipo ?? nomeDaTecnica(metodologia, s.tecnica!.tipo)} tipo="neutro" /></Pressable> : null}
+        {selos.tipo ? <SeloComExplicacao nome={selos.tipo.nome} explicacao={selos.tipo.explicacao} rotuloAcessivel={`Explicação de ${selos.tipo.nome}, série ${numero}`} /> : null}
+        {selos.tecnica ? <SeloComExplicacao nome={selos.tecnica.nome} explicacao={selos.tecnica.explicacao} rotuloAcessivel={`Explicação de ${selos.tecnica.nome}, série ${numero}`} /> : null}
       </View>
-      <Folha visivel={explicando} titulo="Como ler esta série" aoFechar={() => setExplicando(false)}>
-        {explicacoes.length ? explicacoes.map((x) => <View key={x.nome}><Texto variante="secao">{x.nome}</Texto><Texto>{x.texto}</Texto></View>) : <Texto>—</Texto>}
-      </Folha>
       <Texto numerico variante="pequeno">
-        {descanso ? `${meta} · ${descanso}` : meta}
+        {textos.descanso ? `${textos.meta} · ${textos.descanso}` : textos.meta}
       </Texto>
-      {tecnica ? (
+      {textos.alvoExtra ? <Texto numerico variante="pequeno">Alvo extra: {textos.alvoExtra}</Texto> : null}
+      {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}
+      {textos.tecnica ? (
         <View style={estilos.tecnica}>
-          <Texto numerico style={estilos.tecnicaTexto}>{tecnica}</Texto>
+          <Texto numerico style={estilos.tecnicaTexto}>{textos.tecnica}</Texto>
           {pausa !== null && aoIniciarPausa ? (
             <Botao rotulo={`Pausa de ${pausa} s`} rotuloAcessivel={`Iniciar pausa de ${pausa} segundos da série ${numero}`} tipo="secundario" Icone={Timer} aoTocar={() => aoIniciarPausa(pausa)} />
           ) : null}
@@ -303,7 +324,7 @@ function CartaoSerie({
         <Botao rotulo={repetir.rotulo} rotuloAcessivel={`${repetir.rotulo} da série ${indice} e marcar a série ${numero} como feita`} tipo="fantasma" Icone={Repeat}
           aoTocar={() => aoRegistrar({ carga: repetir.carga, repeticoes: repetir.repeticoes, concluida: true })} />
       ) : null}
-      {ativa && !semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <Texto numerico variante="pequeno">{s.intensidade?.modo === 'MESMA_CARGA' ? `Mesma carga da ${tipoTrabalho}; mude se usar outra.` : 'Peso sugerido pelo plano; mude se usar outro.'}</Texto> : null}
+      {dica ? <Texto numerico variante="pequeno">{dica}</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </Animated.View>
   );
