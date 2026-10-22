@@ -24,9 +24,15 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Criar e editar', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Salvar modelo', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Adicionar tipo', exact: true }).click();
+    // O formulário só pede nome e papel; a regra de percentuais mora no cartão do tipo, depois de criado.
     await page.getByRole('textbox', { name: 'Nome do tipo', exact: true }).fill('Preparação técnica');
     await page.getByRole('button', { name: 'Preparação', exact: true }).click();
-    await page.getByRole('button', { name: 'Regra para 1 séries', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Regra para \d+ séries?$/ })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Criar tipo', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Preparação técnica, aberto', exact: true })).toBeVisible();
+    await expect(page.getByText('PREPARACAO_TECNICA', { exact: true })).toBeVisible();
+    await expect(page.getByText('Regra de percentuais por quantidade', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Regra para 1 série', exact: true }).click();
     await page.getByRole('textbox', { name: '1ª mín. (%)', exact: true }).fill('80');
     await page.getByRole('textbox', { name: '1ª máx. (%)', exact: true }).fill('90');
     await page.getByRole('textbox', { name: 'Explicação para o aluno', exact: true }).fill('Preparação do exemplo fictício.');
@@ -39,7 +45,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
     const salvo = modelo!.conteudo as Configuracao;
-    expect(salvo.tipos.at(-1)).toMatchObject({ nome: 'Preparação técnica', papel: 'PREPARACAO', regraPercentuais: { '1': [{ min: 80, max: 90 }] } });
+    expect(salvo.tipos.at(-1)).toMatchObject({ codigo: 'PREPARACAO_TECNICA', nome: 'Preparação técnica', papel: 'PREPARACAO', regraPercentuais: { '1': [{ min: 80, max: 90 }] } });
     expect(salvo.tecnicas[0].padrao).toMatchObject({ pausaSegundos: 30, pausas: 2 });
     expect(api.errosDaPagina).toEqual([]);
     expect(api.naoTratadas).toEqual([]);

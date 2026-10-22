@@ -3,7 +3,7 @@ import { fixarHoje, sessaoComTecnicas, sessaoDeAlunoComTreino } from './aluno';
 import { json, simularApi } from './api-falsa';
 import type { RegistroEnvio } from '../src/api/tipos';
 
-for (const largura of [390, 1280]) test(`aluno: mesma carga editável, gravação, explicação e pausa só em segundos (${largura}px)`, async ({ page }) => {
+for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, gravação, explicação e pausa só em segundos (${largura}px)`, async ({ page }) => {
   await page.setViewportSize({ width: largura, height: 900 });
   await fixarHoje(page);
   const enviados: RegistroEnvio[] = [];
@@ -24,7 +24,7 @@ for (const largura of [390, 1280]) test(`aluno: mesma carga editável, gravaçã
   await expect(page.getByRole('button', { name: 'Iniciar pausa de 20 segundos da série 2', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Iniciar pausa.*série 3/ })).toHaveCount(0);
   await expect(page.getByText(/até a falha/).last()).toBeVisible();
-  await page.getByRole('button', { name: 'Explicação de WS da série 1', exact: true }).click();
+  await page.getByRole('button', { name: 'Explicação de WS, série 1', exact: true }).click();
   await expect(page.getByRole('dialog').getByText(/Working set:/)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
