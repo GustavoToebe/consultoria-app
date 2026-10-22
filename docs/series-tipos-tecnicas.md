@@ -72,7 +72,7 @@ node scripts/guias/gerar.mjs
 
 Neste Windows, o Maven precisou de `-Djdk.net.unixdomain.tmpdir=C:/Users/GustavoToebe/Documents/consultoria-app/api/target/tmp` para os sockets locais do JDK (o caminho longo do temporário padrão fazia os testes falharem antes da aplicação). Nenhuma configuração global foi alterada e nenhum teste foi excluído.
 
-Resultado final: a preencher no fecho (Bloco 6): API (`mvn verify`, testes e cobertura), app (typecheck, lint, suítes e testes), Playwright, importadores e exportação Android. Já medido no bloco de documentação: o guia do treinador gerado a partir do `conteudo.ts` novo tem 12 páginas e o do aluno, 6; o teste `app/src/ajuda/conteudo.test.ts` cobre os termos do contrato anterior e a presença dos itens novos. O Chromium configurado por `NAVEGADOR_PDF` gera os guias nesta máquina (o Edge não gerou).
+Resultado final local em 22/10: API com 1.269 testes e cobertura aprovada (`mvn verify`); app com typecheck e lint limpos e 130 suítes/1.789 testes; Playwright com 119 testes; importadores e demo com 102 testes (89 de importação e 13 de metodologias demo). A exportação Android não foi repetida neste lote. Já medido no bloco de documentação: o guia do treinador gerado a partir do `conteudo.ts` novo tem 12 páginas e o do aluno, 6; o teste `app/src/ajuda/conteudo.test.ts` cobre os termos do contrato anterior e a presença dos itens novos. O Chromium configurado por `NAVEGADOR_PDF` gera os guias nesta máquina (o Edge não gerou).
 
 ## Publicação e pendências
 
@@ -94,6 +94,6 @@ Pendências:
 - Teste em aparelho Android e iOS físico.
 - `Sessao.cardio` (texto livre) continua no contrato, mas a tela o esconde nas sessões novas (só aparece em sessão que já o tem); o cardio novo é um exercício de modalidade Cardio.
 - O `codigo` do tipo é imutável só por regra de UI: a API aceita a mudança e não vigia o que as séries gravaram. Se isso virar risco, a trava passa para o servidor.
-- Números finais dos testes e a conferência no compose (porta 8088, Playwright, 390 e 1280 px): a preencher no fecho (Bloco 6).
+- A conferência visual no compose (porta 8088, Playwright, 390 e 1280 px) e a exportação Android **não foram feitas** neste lote: o e2e roda contra API falsa. Falta subir o compose com a V024 e conferir as telas novas com a API real.
 
 Nenhum workflow foi disparado ou reexecutado, e não houve acesso à VPS.
