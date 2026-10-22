@@ -92,7 +92,8 @@ class PlanejamentoIntegrationTest extends AbstractIntegrationTest {
         var padrao = api.get("/receitas?tipo=METODOLOGIA", treinador, 200).get(0);
         var vazio = api.post("/alunos/" + aluno + "/planos-treino", treinador, Map.of("titulo", "Plano vazio fictício"), 200);
         assertThat(vazio.at("/rascunho/metodologia/id").asString()).isEqualTo(padrao.get("id").asString());
-        assertThat(vazio.at("/rascunho/metodologia/configuracao/tipoTrabalho").asString()).isEqualTo("WS");
+        assertThat(vazio.at("/rascunho/metodologia/configuracao/tipos/2/nome").asString()).isEqualTo("WS");
+        assertThat(vazio.at("/rascunho/metodologia/configuracao/tipos/2/papel").asString()).isEqualTo("TRABALHO");
 
         // Modelo de semana sem metodologia e pacote: o plano aplicado também recebe a padrão.
         var semana = aplicar(modelo("PLANO_TREINO", ApiDeTeste.treino().conteudo()), aluno);

@@ -18,12 +18,12 @@ class FlywayMigrationIntegrationTest extends AbstractIntegrationTest {
     @Test
     void aplicouTodasAsMigrations() {
         Integer total = jdbcTemplate.queryForObject(
-                "select count(*) from flyway_schema_history where type = 'SQL' and success = true", Integer.class);
+                "select count(*) from flyway_schema_history where type in ('SQL', 'JDBC') and success = true", Integer.class);
         List<String> descricoes = jdbcTemplate.queryForList(
-                "select description from flyway_schema_history where type = 'SQL' order by installed_rank",
+                "select description from flyway_schema_history where type in ('SQL', 'JDBC') order by installed_rank",
                 String.class);
-        assertThat(total).isEqualTo(21);
-        assertThat(descricoes).containsExactly("inicial", "catalogo taco", "catalogo exercicios ptbr", "aceite termo", "aluno anonimizado", "auth da plataforma", "fotos de atualizacao", "chave da foto por consultoria", "pedidos da reuniao de 17 10", "foto de perfil do aluno", "fatores dos alimentos", "inscricoes", "anamnese", "anamnese pendencia", "aluno cpf endereco", "mobilidade registro", "pagamentos do aluno", "pagamentos infinitepay", "aviso estorno avisado", "catalogo exercicio imagens", "exercicio catalogo e imagem");
+        assertThat(total).isEqualTo(23);
+        assertThat(descricoes).containsExactly("inicial", "catalogo taco", "catalogo exercicios ptbr", "aceite termo", "aluno anonimizado", "auth da plataforma", "fotos de atualizacao", "chave da foto por consultoria", "pedidos da reuniao de 17 10", "foto de perfil do aluno", "fatores dos alimentos", "inscricoes", "anamnese", "anamnese pendencia", "aluno cpf endereco", "mobilidade registro", "pagamentos do aluno", "pagamentos infinitepay", "aviso estorno avisado", "catalogo exercicio imagens", "exercicio catalogo e imagem", "formato novo de series", "receitas padrao do formato novo");
     }
 
     @Test

@@ -124,9 +124,9 @@ public final class ApiDeTeste {
         UUID ws = UUID.randomUUID();
         UUID backOff = UUID.randomUUID();
         List<Serie> series = List.of(
-                new Serie(fs, "FS", 3, 3, null, new Intensidade("PERCENTUAL_WS", new BigDecimal("50"), null, null, null), null),
-                new Serie(ws, "WS", 3, 6, null, new Intensidade("CARGA_TRABALHO", null, null, null, null), null),
-                new Serie(backOff, "Back off", 6, 8, null, new Intensidade("PERCENTUAL_WS", new BigDecimal("85"), null, null, null), null));
+                new Serie(fs, "FS", 3, 3, new Intensidade("PERCENTUAL_WS", new BigDecimal("50"), null, null, null), null, null),
+                new Serie(ws, "WS", 3, 6, new Intensidade("CARGA_TRABALHO", null, null, null, null), null, null),
+                new Serie(backOff, "Back off", 6, 8, new Intensidade("PERCENTUAL_WS", new BigDecimal("85"), null, null, null), null, null));
         ExercicioPlano ex = new ExercicioPlano(exercicio, exercicioId, "Remada baixa na polia", "MAQUINA",
                 "https://www.youtube.com/watch?v=exemplo", null, true, "kg", series);
         ConteudoTreino c = new ConteudoTreino("Objetivo fictício", null, List.of(

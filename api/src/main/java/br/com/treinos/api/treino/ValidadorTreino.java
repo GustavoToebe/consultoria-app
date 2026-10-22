@@ -1,5 +1,6 @@
 package br.com.treinos.api.treino;
 
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
 import br.com.treinos.api.treino.ConteudoTreino.Intensidade;
@@ -8,7 +9,6 @@ import br.com.treinos.api.treino.ConteudoTreino.Sessao;
 import br.com.treinos.api.web.VideoUrls;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,12 +22,13 @@ import java.util.regex.Pattern;
 /**
  * Regras de publicação do treino. O app mostra o mesmo resultado antes de publicar. Não opina sobre
  * carga nem volume: só confere que o plano é executável e coerente. O tipo da série é nome livre: fora da lista da
- * metodologia copiada no plano vira aviso, nunca erro.
+ * metodologia copiada no plano vira aviso, nunca erro. As faixas de intensidade e de técnica ficam nos próprios records
+ * ({@code Intensidade.problemas}, {@code Tecnica.problemas}); aqui entram as regras que dependem da posição da série
+ * no exercício (mesma carga da WS, acima da anterior) e as repetições do cluster.
  */
 @Component
 public class ValidadorTreino {
 
-    private static final BigDecimal MEIO = new BigDecimal("0.5");
     /** Cadência em 4 partes (descida-pausa embaixo-subida-pausa em cima), cada uma 0 a 9 segundos ou X (explosivo). */
     private static final Pattern CADENCIA = Pattern.compile("[0-9X](-[0-9X]){3}");
     /** Bi-set, tri-set ou circuito: até 6 exercícios feitos em sequência. */
@@ -90,16 +91,15 @@ public class ValidadorTreino {
         return c.resultado();
     }
 
-    /** Tipos da metodologia copiada no plano (sem espaços nas pontas), ou {@code null} quando o plano não tem metodologia. */
+    /** Nomes dos tipos da metodologia copiada no plano (sem espaços nas pontas), ou {@code null} sem metodologia. */
     private static Set<String> tiposDaMetodologia(ConteudoTreino conteudo) {
-        if (conteudo.metodologia() == null || conteudo.metodologia().configuracao() == null
-                || conteudo.metodologia().configuracao().tiposSerie() == null) {
+        if (conteudo.metodologia() == null || conteudo.metodologia().configuracao() == null) {
             return null;
         }
         Set<String> tipos = new LinkedHashSet<>();
-        for (String t : conteudo.metodologia().configuracao().tiposSerie()) {
-            if (t != null) {
-                tipos.add(t.trim());
+        for (ConfiguracaoConsultoria.TipoDeSerie t : conteudo.metodologia().configuracao().tipos()) {
+            if (t != null && t.nome() != null) {
+                tipos.add(t.nome().trim());
             }
         }
         return tipos;
@@ -120,8 +120,8 @@ public class ValidadorTreino {
         if (e.cadencia() != null && !e.cadencia().isBlank() && !CADENCIA.matcher(e.cadencia()).matches()) {
             c.erro(ce + ".cadencia", "Cadência em 4 partes separadas por hífen, cada uma de 0 a 9 ou X (ex.: 3-1-1-0).");
         }
-        if (e.isometriaSegundos() != null) {
-            faixa(c, e.isometriaSegundos(), 1, 120, ce + ".isometriaSegundos", "Isometria de 1 a 120 segundos.");
+        if (e.isometriaSegundos() != null && (e.isometriaSegundos() < 1 || e.isometriaSegundos() > 120)) {
+            c.erro(ce + ".isometriaSegundos", "Isometria de 1 a 120 segundos.");
         }
         if (e.combinacao() != null && !ConteudoTreino.SUPERSERIE.equals(e.combinacao())) {
             c.erro(ce + ".combinacao", "Nome do grupo inválido: use bi-set ou supersérie.");
@@ -132,6 +132,7 @@ public class ValidadorTreino {
         }
         boolean temTrabalho = series.stream().anyMatch(Serie::deTrabalho);
         boolean temPercentual = false;
+        boolean trabalhoAntes = false;
         Set<String> tiposAvisados = new HashSet<>();
         for (int k = 0; k < series.size(); k++) {
             Serie x = series.get(k);
@@ -139,7 +140,17 @@ public class ValidadorTreino {
             uid(c, uids, x.uid(), cx);
             serie(c, x, cx);
             tipoForaDaMetodologia(c, x, cx, tiposDaMetodologia, tiposAvisados);
-            temPercentual |= ConteudoTreino.PERCENTUAL_WS.equals(x.modo());
+            String modo = x.modo();
+            temPercentual |= ConteudoTreino.PERCENTUAL_WS.equals(modo);
+            if (ConteudoTreino.MESMA_CARGA.equals(modo) && !trabalhoAntes) {
+                c.erro(cx + ".intensidade.modo",
+                        "Mesma carga da WS: precisa de uma série de trabalho antes, no mesmo exercício.");
+            }
+            if (ConteudoTreino.ACIMA_DA_ANTERIOR.equals(modo) && k == 0) {
+                c.aviso(cx + ".intensidade.modo",
+                        "Acima da anterior na primeira série do exercício: o aluno não terá carga anterior de referência.");
+            }
+            trabalhoAntes |= x.deTrabalho();
         }
         if (temPercentual && !temTrabalho) {
             c.aviso(ce + ".series", "Há série em % da WS sem série de trabalho: a referência será a carga de trabalho "
@@ -171,48 +182,10 @@ public class ValidadorTreino {
         }
     }
 
-    /** Cluster: 2 a 10 blocos, 1 a 50 repetições por bloco e 5 a 600 s entre blocos. Rest pause: 5 a 600 s de pausa,
-     * 1 a 5 retomadas e, se informadas, 1 a 50 repetições por retomada (vazio = até a falha). Drop-set: 1 a 5 quedas
-     * e, se informadas, 5% a 50% de redução e 1 a 50 repetições por queda (vazio = até a falha). Campos de outra técnica
-     * são ignorados. */
-    private static void tecnica(ResultadoValidacao.Coletor c, ConteudoTreino.Tecnica t, String ct) {
-        if (ConteudoTreino.CLUSTER.equals(t.tipo())) {
-            faixa(c, t.blocos(), 2, 10, ct + ".blocos", "Blocos do cluster entre 2 e 10.");
-            faixa(c, t.repsPorBloco(), 1, 50, ct + ".repsPorBloco", "Repetições por bloco entre 1 e 50.");
-            faixa(c, t.pausaSegundos(), 5, 600, ct + ".pausaSegundos", "Pausa entre blocos de 5 a 600 segundos.");
-        } else if (ConteudoTreino.REST_PAUSE.equals(t.tipo())) {
-            faixa(c, t.pausaSegundos(), 5, 600, ct + ".pausaSegundos", "Pausa do rest pause de 5 a 600 segundos.");
-            faixa(c, t.retomadas(), 1, 5, ct + ".retomadas", "Retomadas do rest pause entre 1 e 5.");
-            if (t.repsPorRetomada() != null) {
-                faixa(c, t.repsPorRetomada(), 1, 50, ct + ".repsPorRetomada",
-                        "Repetições por retomada entre 1 e 50 (ou vazio, até a falha).");
-            }
-        } else if (ConteudoTreino.DROP_SET.equals(t.tipo())) {
-            faixa(c, t.quedas(), 1, 5, ct + ".quedas", "Quedas do drop-set entre 1 e 5.");
-            if (t.reducaoPercentual() != null) {
-                faixa(c, t.reducaoPercentual(), 5, 50, ct + ".reducaoPercentual",
-                        "Redução da carga entre 5% e 50% (ou vazio, sem fixar).");
-            }
-            if (t.repsPorQueda() != null) {
-                faixa(c, t.repsPorQueda(), 1, 50, ct + ".repsPorQueda",
-                        "Repetições por queda entre 1 e 50 (ou vazio, até a falha).");
-            }
-        } else {
-            c.erro(ct + ".tipo", "Técnica desconhecida: use cluster, rest pause ou drop-set.");
-        }
-    }
-
-    private static void faixa(ResultadoValidacao.Coletor c, Integer valor, int min, int max, String caminho,
-                              String mensagem) {
-        if (valor == null || valor < min || valor > max) {
-            c.erro(caminho, mensagem);
-        }
-    }
-
     /** Um aviso por tipo desconhecido em cada exercício (na primeira série que o usa), não um por série. */
     private static void tipoForaDaMetodologia(ResultadoValidacao.Coletor c, Serie x, String cx,
                                               Set<String> tiposDaMetodologia, Set<String> tiposAvisados) {
-        if (tiposDaMetodologia == null || vazio(x.tipo())) {
+        if (tiposDaMetodologia == null || x.semTipo()) {
             return;
         }
         String tipo = x.tipo().trim();
@@ -222,9 +195,13 @@ public class ValidadorTreino {
         }
     }
 
+    /**
+     * Série sem tipo só com técnica. Repetições mínima e máxima juntas (ou nenhuma, série por tempo); no cluster são a
+     * soma dos blocos. Faixas da intensidade e da técnica vêm dos records, com o caminho do campo.
+     */
     private static void serie(ResultadoValidacao.Coletor c, Serie x, String cx) {
-        if (vazio(x.tipo())) {
-            c.erro(cx + ".tipo", "Série sem tipo.");
+        if (x.semTipo() && x.tecnica() == null) {
+            c.erro(cx + ".tipo", "Série sem tipo nem técnica.");
         }
         if ((x.repsMin() == null) != (x.repsMax() == null)) {
             c.erro(cx + ".repsMax", "Informe repetições mínima e máxima, ou nenhuma (série por tempo).");
@@ -239,41 +216,15 @@ public class ValidadorTreino {
             c.erro(cx + ".descansoSegundos", "Descanso precisa ficar entre 0 e 3600 segundos.");
         }
         if (x.tecnica() != null) {
-            tecnica(c, x.tecnica(), cx + ".tecnica");
+            x.tecnica().problemas().forEach((campo, mensagem) -> c.erro(cx + ".tecnica." + campo, mensagem));
+            Integer soma = x.tecnica().somaDosBlocos();
+            if (soma != null && (!soma.equals(x.repsMin()) || !soma.equals(x.repsMax()))) {
+                c.erro(cx + ".repsMin", "Cluster: as repetições são a soma dos blocos (" + soma + ").");
+            }
         }
         Intensidade i = x.intensidade();
-        String modo = x.modo();
-        if (!ConteudoTreino.MODOS.contains(modo)) {
-            c.erro(cx + ".intensidade.modo", "Forma de intensidade inválida.");
-            return;
-        }
-        switch (modo) {
-            case ConteudoTreino.PERCENTUAL_WS -> {
-                if (i.percentual() == null || i.percentual().compareTo(BigDecimal.ONE) < 0
-                        || i.percentual().compareTo(new BigDecimal("200")) > 0) {
-                    c.erro(cx + ".intensidade.percentual", "Percentual precisa ficar entre 1 e 200.");
-                }
-            }
-            case "RIR" -> {
-                if (i.rir() == null || i.rir() < 0 || i.rir() > 10) {
-                    c.erro(cx + ".intensidade.rir", "RIR precisa ficar entre 0 e 10.");
-                }
-            }
-            case "RPE" -> {
-                if (i.rpe() == null || i.rpe().compareTo(BigDecimal.ONE) < 0
-                        || i.rpe().compareTo(BigDecimal.TEN) > 0
-                        || i.rpe().remainder(MEIO).signum() != 0) {
-                    c.erro(cx + ".intensidade.rpe", "RPE precisa ficar entre 1 e 10, de meio em meio.");
-                }
-            }
-            case "LIVRE" -> {
-                if (vazio(i.texto())) {
-                    c.erro(cx + ".intensidade.texto", "Escreva a intensidade.");
-                }
-            }
-            default -> {
-                // CARGA_TRABALHO e NENHUMA não têm parâmetro.
-            }
+        if (i != null) {
+            i.problemas().forEach((campo, mensagem) -> c.erro(cx + ".intensidade." + campo, mensagem));
         }
     }
 

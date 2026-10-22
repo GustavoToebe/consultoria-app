@@ -416,7 +416,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         // O administrador aceita o convite do sistema: as receitas padrão passam a existir, uma vez cada.
         api.post("/publico/convites-equipe/aceitar", null, Map.of("codigo", codigoDoConvite(resposta), "senha", ApiDeTeste.SENHA), 200);
         Long modelos = jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, tenant);
-        assertThat(modelos).isEqualTo(13L);
+        assertThat(modelos).isEqualTo(14L);
         assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and tipo = 'METODOLOGIA'",
                 Long.class, tenant)).isEqualTo(1L);
         // Garantir de novo não duplica nem recria o que já existe.

@@ -196,9 +196,7 @@ public class SeedDemo {
     private void instrucoesDoPlano16NaMetodologiaPadrao() {
         ReceitaResponse padrao = receitas.listar(Receita.Tipo.METODOLOGIA).get(0);
         ConfiguracaoConsultoria base = json.treeToValue(padrao.conteudo(), ConfiguracaoConsultoria.class);
-        ConfiguracaoConsultoria comInstrucoes = new ConfiguracaoConsultoria(base.tiposSerie(), base.tipoTrabalho(),
-                base.tipoPreparacao(), base.regraPreparacao(), base.arredondamentoKg(), Plano16.INSTRUCOES,
-                base.rodapePdf(), base.repeticoes());
+        ConfiguracaoConsultoria comInstrucoes = base.comInstrucoes(Plano16.INSTRUCOES);
         receitas.alterar(padrao.id(), new ReceitaRequest(Receita.Tipo.METODOLOGIA, padrao.nome(), padrao.descricao(),
                 json.valueToTree(comInstrucoes), null, padrao.versao()));
     }
@@ -257,11 +255,11 @@ public class SeedDemo {
         int min = Integer.parseInt(traco < 0 ? resto : resto.substring(0, traco));
         int max = traco < 0 ? min : Integer.parseInt(resto.substring(traco + 1));
         return switch (tipo) {
-            case 'A' -> new Serie(UUID.randomUUID(), "Aquecimento", min, max, null, intensidade("NENHUMA", null), null);
-            case 'F' -> new Serie(UUID.randomUUID(), "FS", min, max, null, intensidade("PERCENTUAL_WS", percentual), null);
-            case 'W' -> new Serie(UUID.randomUUID(), "WS", min, max, null, intensidade("CARGA_TRABALHO", null), null);
-            case 'B' -> new Serie(UUID.randomUUID(), "Back off", min, max, null,
-                    intensidade("PERCENTUAL_WS", percentual), null);
+            case 'A' -> new Serie(UUID.randomUUID(), "Aquecimento", min, max, intensidade("NENHUMA", null), null, null);
+            case 'F' -> new Serie(UUID.randomUUID(), "FS", min, max, intensidade("PERCENTUAL_WS", percentual), null, null);
+            case 'W' -> new Serie(UUID.randomUUID(), "WS", min, max, intensidade("CARGA_TRABALHO", null), null, null);
+            case 'B' -> new Serie(UUID.randomUUID(), "Back off", min, max,
+                    intensidade("PERCENTUAL_WS", percentual), null, null);
             default -> throw new IllegalArgumentException("Série desconhecida: " + spec);
         };
     }
@@ -313,7 +311,7 @@ public class SeedDemo {
                     reps = repsTrabalho;
                 }
                 case "PERCENTUAL_WS" -> {
-                    carga = arredondar(cargaTrabalho.multiply(s.intensidade().percentual())
+                    carga = arredondar(cargaTrabalho.multiply(s.intensidade().percentualMin())
                             .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP));
                     reps = s.repsMax();
                 }
@@ -431,7 +429,7 @@ public class SeedDemo {
     }
 
     private static Serie simples() {
-        return new Serie(UUID.randomUUID(), "WS", 8, 12, null, new Intensidade("RIR", null, 2, null, null), null);
+        return new Serie(UUID.randomUUID(), "WS", 8, 12, new Intensidade("CARGA_TRABALHO", null, null, null, 2), null, null);
     }
 
     // ---- Comum ----

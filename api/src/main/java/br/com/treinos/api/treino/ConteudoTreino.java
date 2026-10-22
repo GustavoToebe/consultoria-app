@@ -6,7 +6,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -34,13 +36,22 @@ public record ConteudoTreino(
     public static final String ACESSORIOS = "ACESSORIOS";
     public static final List<String> TIPOS_SESSAO = List.of(TREINO, DESCANSO_ATIVO, DESCANSO, ACESSORIOS);
 
+    /** Formas de intensidade. Percentual é sempre da carga da série de trabalho (WS); 1RM não existe em lugar nenhum. */
     public static final String CARGA_TRABALHO = "CARGA_TRABALHO";
     public static final String PERCENTUAL_WS = "PERCENTUAL_WS";
-    public static final List<String> MODOS = List.of(CARGA_TRABALHO, PERCENTUAL_WS, "RIR", "RPE", "LIVRE", "NENHUMA");
-    /** Técnicas da série com campos próprios (reunião de 17/10): o tipo da série tem nome livre, a técnica não. */
-    public static final String CLUSTER = "CLUSTER";
+    /** Carga acima da série imediatamente anterior do exercício, em % (top set). */
+    public static final String ACIMA_DA_ANTERIOR = "ACIMA_DA_ANTERIOR";
+    /** A mesma carga da última série de trabalho do exercício (rest pause ou cluster depois da WS). */
+    public static final String MESMA_CARGA = "MESMA_CARGA";
+    public static final String RPE = "RPE";
+    public static final String NENHUMA = "NENHUMA";
+    public static final List<String> MODOS = List.of(CARGA_TRABALHO, PERCENTUAL_WS, ACIMA_DA_ANTERIOR, MESMA_CARGA, RPE,
+            NENHUMA);
+    /** Técnicas da série: lista fixa com campos próprios. O tipo da série tem nome livre, a técnica não. */
     public static final String REST_PAUSE = "REST_PAUSE";
+    public static final String CLUSTER = "CLUSTER";
     public static final String DROP_SET = "DROP_SET";
+    public static final List<String> TECNICAS = List.of(REST_PAUSE, CLUSTER, DROP_SET);
     /** Nome escolhido pelo treinador para um grupo de 2 exercícios (sem ele, "Bi-set"). */
     public static final String SUPERSERIE = "SUPERSERIE";
 
@@ -97,61 +108,167 @@ public record ConteudoTreino(
         }
     }
 
+    /**
+     * Uma série. {@code tipo} nulo só com técnica (a série que é só "rest pause" depois da WS). {@code repsMin} e
+     * {@code repsMax} nulos = série por tempo (cardio); no cluster são a soma dos blocos. Não há texto livre aqui: o que
+     * não cabe nos campos vai na observação do exercício.
+     */
     public record Serie(
             UUID uid,
             @Size(max = 30) String tipo,
             Integer repsMin,
             Integer repsMax,
-            @Size(max = 120) String alvoTexto,
             @Valid Intensidade intensidade,
             Integer descansoSegundos,
             @Valid Tecnica tecnica) {
 
-        /** Sem técnica (a maior parte das séries). */
-        public Serie(UUID uid, String tipo, Integer repsMin, Integer repsMax, String alvoTexto, Intensidade intensidade,
-                     Integer descansoSegundos) {
-            this(uid, tipo, repsMin, repsMax, alvoTexto, intensidade, descansoSegundos, null);
-        }
-
         public String modo() {
-            return intensidade == null || intensidade.modo() == null ? "NENHUMA" : intensidade.modo();
+            return intensidade == null || intensidade.modo() == null ? NENHUMA : intensidade.modo();
         }
 
+        /** Série de trabalho: a referência da carga do dia (histórico, % da WS e mesma carga). */
         public boolean deTrabalho() {
             return CARGA_TRABALHO.equals(modo());
+        }
+
+        public boolean semTipo() {
+            return tipo == null || tipo.isBlank();
         }
     }
 
     /**
-     * Estrutura da série: cluster (blocos de repetições com pausa entre eles), rest pause (série, pausa e retomadas) ou
-     * drop-set (ao terminar, reduz a carga e continua). Só números que o treinador escreve; o aluno vê a estrutura e
-     * registra a série inteira, como nas outras. {@code repsPorRetomada} e {@code repsPorQueda} nulos = "até a falha";
-     * {@code reducaoPercentual} nulo = o treinador não fixou quanto reduzir.
+     * Intensidade da série. {@code percentualMin}/{@code percentualMax} formam a faixa de {@code PERCENTUAL_WS} ("85 a
+     * 90% da WS") e de {@code ACIMA_DA_ANTERIOR} ("+1 a 5% sobre a anterior"); máximo nulo = valor único. {@code rir}
+     * (0 a 5) vale em qualquer modo e 0 é "até a falha". Nula = {@code NENHUMA}.
+     */
+    public record Intensidade(
+            @Size(max = 20) String modo,
+            BigDecimal percentualMin,
+            BigDecimal percentualMax,
+            BigDecimal rpe,
+            Integer rir) {
+
+        private static final BigDecimal MEIO = new BigDecimal("0.5");
+
+        /** Problemas por campo (vazio = válida). A chave é o nome do campo, para o app apontar onde está o erro. */
+        public Map<String, String> problemas() {
+            Map<String, String> p = new LinkedHashMap<>();
+            String m = modo == null ? NENHUMA : modo;
+            if (!MODOS.contains(m)) {
+                p.put("modo", "Forma de intensidade inválida.");
+                return p;
+            }
+            switch (m) {
+                case PERCENTUAL_WS -> faixa(p, 200, "Percentual da WS entre 1 e 200.");
+                case ACIMA_DA_ANTERIOR -> faixa(p, 100, "Acima da anterior: percentual entre 1 e 100.");
+                case RPE -> {
+                    if (rpe == null || rpe.compareTo(BigDecimal.ONE) < 0 || rpe.compareTo(BigDecimal.TEN) > 0
+                            || rpe.remainder(MEIO).signum() != 0) {
+                        p.put("rpe", "RPE precisa ficar entre 1 e 10, de meio em meio.");
+                    }
+                }
+                default -> {
+                    // CARGA_TRABALHO, MESMA_CARGA e NENHUMA não têm parâmetro além do RIR.
+                }
+            }
+            if (rir != null && (rir < 0 || rir > 5)) {
+                p.put("rir", "RIR entre 0 (até a falha) e 5.");
+            }
+            return p;
+        }
+
+        private void faixa(Map<String, String> p, int maximo, String mensagem) {
+            BigDecimal max = BigDecimal.valueOf(maximo);
+            if (percentualMin == null || percentualMin.compareTo(BigDecimal.ONE) < 0 || percentualMin.compareTo(max) > 0) {
+                p.put("percentualMin", mensagem);
+            } else if (percentualMax != null
+                    && (percentualMax.compareTo(percentualMin) < 0 || percentualMax.compareTo(max) > 0)) {
+                p.put("percentualMax", "Percentual máximo entre o mínimo e " + maximo + ".");
+            }
+        }
+    }
+
+    /**
+     * Técnica da série. Rest pause: a série, uma pausa curta e a retomada com a mesma carga, {@code pausas} vezes
+     * (padrão 1; as repetições das retomadas não se prescrevem). Cluster: {@code blocos} de repetições ("4+2") com a
+     * pausa entre eles. Drop-set: ao terminar, reduz a carga ({@code reducaoPercentual}, nulo = sem fixar) e continua
+     * ({@code repsPorQueda}, nulo = até a falha), {@code quedas} vezes. A pausa é em segundos, em respirações ou nos
+     * dois ("5 respirações ou 10 s"). O aluno registra a série inteira, como nas outras.
      */
     public record Tecnica(
             @Size(max = 20) String tipo,
-            Integer blocos,
-            Integer repsPorBloco,
             Integer pausaSegundos,
-            Integer retomadas,
-            Integer repsPorRetomada,
+            Integer pausaRespiracoes,
+            Integer pausas,
+            @Size(max = 10) List<Integer> blocos,
             Integer quedas,
             Integer reducaoPercentual,
             Integer repsPorQueda) {
 
-        /** Cluster ou rest pause (sem os campos do drop-set). */
-        public Tecnica(String tipo, Integer blocos, Integer repsPorBloco, Integer pausaSegundos, Integer retomadas,
-                       Integer repsPorRetomada) {
-            this(tipo, blocos, repsPorBloco, pausaSegundos, retomadas, repsPorRetomada, null, null, null);
+        /** Problemas por campo de uma técnica completa, a da série (vazio = válida). */
+        public Map<String, String> problemas() {
+            return problemas(true);
         }
-    }
 
-    public record Intensidade(
-            @Size(max = 20) String modo,
-            BigDecimal percentual,
-            Integer rir,
-            BigDecimal rpe,
-            @Size(max = 120) String texto) {
+        /** Problemas só dos valores presentes: os padrões da metodologia são parciais (cluster sem blocos, por exemplo). */
+        public Map<String, String> problemasDosValores() {
+            return problemas(false);
+        }
+
+        private Map<String, String> problemas(boolean completa) {
+            Map<String, String> p = new LinkedHashMap<>();
+            if (tipo == null || !TECNICAS.contains(tipo)) {
+                p.put("tipo", "Técnica desconhecida: use rest pause, cluster ou drop-set.");
+                return p;
+            }
+            switch (tipo) {
+                case REST_PAUSE -> {
+                    pausa(p, completa);
+                    faixa(p, pausas, 1, 5, "pausas", "Pausas do rest pause entre 1 e 5.", false);
+                }
+                case CLUSTER -> {
+                    pausa(p, completa);
+                    if ((completa || blocos != null) && (blocos == null || blocos.size() < 2 || blocos.size() > 10
+                            || blocos.stream().anyMatch(b -> b == null || b < 1 || b > 50))) {
+                        p.put("blocos", "Cluster: de 2 a 10 blocos, cada um com 1 a 50 repetições.");
+                    }
+                }
+                case DROP_SET -> {
+                    faixa(p, quedas, 1, 5, "quedas", "Quedas do drop-set entre 1 e 5.", completa);
+                    faixa(p, reducaoPercentual, 5, 50, "reducaoPercentual",
+                            "Redução da carga entre 5% e 50% (ou vazio, sem fixar).", false);
+                    faixa(p, repsPorQueda, 1, 50, "repsPorQueda",
+                            "Repetições por queda entre 1 e 50 (ou vazio, até a falha).", false);
+                }
+                default -> {
+                    // Coberto pela lista TECNICAS.
+                }
+            }
+            return p;
+        }
+
+        private void pausa(Map<String, String> p, boolean obrigatoria) {
+            if (obrigatoria && pausaSegundos == null && pausaRespiracoes == null) {
+                p.put("pausaSegundos", "Informe a pausa em segundos ou em respirações.");
+            }
+            faixa(p, pausaSegundos, 5, 600, "pausaSegundos", "Pausa de 5 a 600 segundos.", false);
+            faixa(p, pausaRespiracoes, 1, 30, "pausaRespiracoes", "Pausa de 1 a 30 respirações.", false);
+        }
+
+        private static void faixa(Map<String, String> p, Integer valor, int min, int max, String campo, String mensagem,
+                                  boolean obrigatorio) {
+            if (valor == null ? obrigatorio : valor < min || valor > max) {
+                p.put(campo, mensagem);
+            }
+        }
+
+        /** Repetições de um cluster: a soma dos blocos ({@code null} se não é cluster ou não tem blocos). */
+        public Integer somaDosBlocos() {
+            if (!CLUSTER.equals(tipo) || blocos == null || blocos.isEmpty() || blocos.stream().anyMatch(b -> b == null)) {
+                return null;
+            }
+            return blocos.stream().mapToInt(Integer::intValue).sum();
+        }
     }
 
     public static ConteudoTreino vazio() {
@@ -177,7 +294,7 @@ public record ConteudoTreino(
                 s.tipo(), s.frequenciaSemanal(), s.observacao(), s.cardio(),
                 s.exerciciosOuVazio().stream().map(e -> e.comSeries(novo.get(),
                         e.seriesOuVazio().stream().map(x -> new Serie(novo.get(), x.tipo(), x.repsMin(), x.repsMax(),
-                                x.alvoTexto(), x.intensidade(), x.descansoSegundos(), x.tecnica())).toList())).toList()))
+                                x.intensidade(), x.descansoSegundos(), x.tecnica())).toList())).toList()))
                 .toList();
         return new ConteudoTreino(objetivo, orientacoes, novas, metodologia);
     }

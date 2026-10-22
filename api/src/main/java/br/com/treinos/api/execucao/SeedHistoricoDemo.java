@@ -344,8 +344,8 @@ public class SeedHistoricoDemo {
                 s.tipo(), s.frequenciaSemanal(), s.observacao(), s.cardio(),
                 s.exerciciosOuVazio().stream().map(e -> e.comSeries(e.uid(),
                         e.seriesOuVazio().stream().map(x -> x.deTrabalho()
-                                ? new Serie(x.uid(), cfg.tipoTrabalho(), x.repsMin(), x.repsMax(), x.alvoTexto(),
-                                x.intensidade(), x.descansoSegundos()) : x).toList())).toList())).toList();
+                                ? new Serie(x.uid(), cfg.tipoTrabalho(), x.repsMin(), x.repsMax(), x.intensidade(),
+                                x.descansoSegundos(), x.tecnica()) : x).toList())).toList())).toList();
         ConteudoTreino conteudo = new ConteudoTreino(base.objetivo(), base.orientacoes(), sessoes,
                 new Metodologia(met.id(), met.nome(), cfg));
         PlanoDetalhe<ConteudoTreino> salvo = treinos.salvarRascunho(criado.plano().id(),
@@ -417,8 +417,8 @@ public class SeedHistoricoDemo {
             for (Serie x : e.seriesOuVazio()) {
                 BigDecimal carga = null;
                 if (ws != null) {
-                    carga = "PERCENTUAL_WS".equals(x.modo()) && x.intensidade().percentual() != null
-                            ? arredondar(ws.doubleValue() * x.intensidade().percentual().doubleValue() / 100, ws.doubleValue())
+                    carga = "PERCENTUAL_WS".equals(x.modo()) && x.intensidade().percentualMin() != null
+                            ? arredondar(ws.doubleValue() * x.intensidade().percentualMin().doubleValue() / 100, ws.doubleValue())
                             : ws;
                 }
                 int max = x.repsMax() != null ? x.repsMax() : 10;

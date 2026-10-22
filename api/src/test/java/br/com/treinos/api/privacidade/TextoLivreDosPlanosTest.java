@@ -16,8 +16,9 @@ class TextoLivreDosPlanosTest {
                 {"objetivo":"Meta fictícia","orientacoes":"Texto fictício","sessoes":[
                   {"uid":"s1","nome":"Segunda - Costas","observacao":"Obs fictícia","cardio":"20 min","exercicios":[
                     {"uid":"e1","nome":"Remada","videoUrl":"https://exemplo.test/v","observacao":"Dor fictícia","series":[
-                      {"uid":"x1","repsMin":3,"repsMax":6,"descansoSegundos":90,"alvoTexto":"até a falha",
-                       "intensidade":{"modo":"LIVRE","percentual":50,"texto":"sentir leve"}}]}]}],
+                      {"uid":"x1","tipo":"FS","repsMin":3,"repsMax":6,"descansoSegundos":90,
+                       "intensidade":{"modo":"PERCENTUAL_WS","percentualMin":85,"percentualMax":90,"rir":1},
+                       "tecnica":{"tipo":"CLUSTER","blocos":[4,2],"pausaSegundos":15}}]}]}],
                  "metodologia":{"nome":"Metodologia da consultoria","configuracao":{"observacao":"da consultoria"}},
                  "secoes":[{"uid":"m1","titulo":"Quadril","itens":[{"uid":"i1","nome":"Alongamento","prescricao":"2x30s"}]}]}
                 """);
@@ -32,15 +33,12 @@ class TextoLivreDosPlanosTest {
         JsonNode exercicio = sessao.path("exercicios").get(0);
         assertThat(exercicio.path("observacao").isNull()).isTrue();
         assertThat(exercicio.path("videoUrl").asString()).isEqualTo("https://exemplo.test/v");
+        // A série é só número e nome de tipo: passa inteira.
         JsonNode serie = exercicio.path("series").get(0);
-        assertThat(serie.path("alvoTexto").isNull()).isTrue();
-        assertThat(serie.path("intensidade").path("texto").isNull()).isTrue();
-        assertThat(serie.path("uid").asString()).isEqualTo("x1");
-        assertThat(serie.path("repsMin").asInt()).isEqualTo(3);
-        assertThat(serie.path("repsMax").asInt()).isEqualTo(6);
-        assertThat(serie.path("descansoSegundos").asInt()).isEqualTo(90);
-        assertThat(serie.path("intensidade").path("percentual").asInt()).isEqualTo(50);
-        assertThat(serie.path("intensidade").path("modo").asString()).isEqualTo("LIVRE");
+        assertThat(serie).isEqualTo(antes.path("sessoes").get(0).path("exercicios").get(0).path("series").get(0));
+        assertThat(serie.path("tipo").asString()).isEqualTo("FS");
+        assertThat(serie.path("intensidade").path("percentualMin").asInt()).isEqualTo(85);
+        assertThat(serie.path("tecnica").path("blocos").size()).isEqualTo(2);
         assertThat(depois.path("secoes").get(0).path("itens").get(0).path("prescricao").isNull()).isTrue();
         assertThat(depois.path("secoes").get(0).path("itens").get(0).path("nome").asString()).isEqualTo("Alongamento");
         // A metodologia é da consultoria e passa intacta; o original não é alterado.

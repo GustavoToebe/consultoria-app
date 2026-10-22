@@ -2,7 +2,11 @@ package br.com.treinos.api.receitas;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.tenant.TenantContext;
+import db.migration.V023__receitas_padrao_do_formato_novo;
+import org.flywaydb.core.api.configuration.Configuration;
+import org.flywaydb.core.api.migration.Context;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -10,6 +14,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
+import javax.sql.DataSource;
+
+import java.sql.Connection;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -26,6 +33,7 @@ class ReceitasPadraoGarantidasIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private ReceitaService receitas;
+    @Autowired private DataSource dataSource;
 
     private long receitasDe(UUID consultoria) {
         return jdbc.queryForObject("select count(*) from receita where consultoria_id = ?", Long.class, consultoria);
@@ -57,6 +65,44 @@ class ReceitasPadraoGarantidasIntegrationTest extends AbstractIntegrationTest {
             receitas.garantirPadrao();
             return null;
         });
+    }
+
+    /** A V023 recria o que a V022 apagou, com a regra do {@code garantirPadrao}: só o que falta, e sem duplicar ao repetir. */
+    @Test
+    void migrationV023RecriaAsReceitasDeTreinoQueAV022ApagouSemDuplicar() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var treinador = api.novoTreinador();
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?", UUID.class,
+                UUID.fromString(treinador.path("usuario").path("id").asString()));
+        jdbc.update("delete from receita where consultoria_id = ? and tipo in ('METODOLOGIA', 'SERIES', 'SESSAO_TREINO', "
+                + "'PLANO_TREINO', 'PASTA_PLANO')", consultoria);
+        long dieta = receitasDe(consultoria);
+        assertThat(dieta).isPositive().isLessThan(ReceitasPadrao.todas().size());
+        rodarV023();
+        assertThat(receitasDe(consultoria)).isEqualTo((long) ReceitasPadrao.todas().size());
+        rodarV023();
+        assertThat(receitasDe(consultoria)).isEqualTo((long) ReceitasPadrao.todas().size());
+        String metodologia = jdbc.queryForObject(
+                "select conteudo from receita where consultoria_id = ? and tipo = 'METODOLOGIA'", String.class, consultoria);
+        assertThat(json.readValue(metodologia, ConfiguracaoConsultoria.class)).isEqualTo(ConfiguracaoConsultoria.padrao());
+        assertThat(jdbc.queryForObject("select count(*) from receita where consultoria_id = ? and ordem = 0", Long.class,
+                consultoria)).isZero();
+    }
+
+    private void rodarV023() throws Exception {
+        try (Connection conexao = dataSource.getConnection()) {
+            new V023__receitas_padrao_do_formato_novo().migrate(new Context() {
+                @Override
+                public Configuration getConfiguration() {
+                    return null;
+                }
+
+                @Override
+                public Connection getConnection() {
+                    return conexao;
+                }
+            });
+        }
     }
 
     @Test

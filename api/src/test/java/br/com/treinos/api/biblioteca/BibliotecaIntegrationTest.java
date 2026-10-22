@@ -186,7 +186,7 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
     @Test
     void consultoriaNovaJaTemAsReceitasPadrao() throws Exception {
         JsonNode receitas = api.get("/receitas", treinador, 200);
-        assertThat(receitas).hasSize(13);
+        assertThat(receitas).hasSize(14);
         assertThat(api.get("/receitas?tipo=METODOLOGIA", treinador, 200)).hasSize(1);
         assertThat(api.get("/receitas?tipo=SERIES", treinador, 200).valueStream().map(r -> r.get("nome").asString()))
                 .contains("Aquecimento + 3 FS + WS + 2 Back off 85%", "Séries simples 3x8-12", "Cardio");

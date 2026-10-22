@@ -8,7 +8,7 @@ import java.util.Set;
 
 /**
  * Tira o texto livre de dentro do JSON de um plano de treino ou de mobilidade (rascunho e versões publicadas), em qualquer
- * nível: objetivo, orientações, observações, cardio, prescrição e alvos escritos à mão podem citar a pessoa. Ids, séries,
+ * nível: objetivo, orientações, observações, cardio e prescrição escritos à mão podem citar a pessoa. Ids, séries,
  * repetições, cargas, descanso, nomes de sessão/exercício/seção e links de vídeo ficam. A {@code metodologia} é da
  * consultoria (copiada no plano, nunca da pessoa) e não é tocada.
  */
@@ -16,7 +16,7 @@ final class TextoLivreDosPlanos {
 
     /** Chaves que guardam texto digitado pelo treinador para aquele aluno. */
     static final Set<String> CAMPOS = Set.of("objetivo", "orientacoes", "observacao", "observacoes", "cardio", "prescricao",
-            "alvoTexto", "texto", "descricao", "nota", "notas", "comentario", "comentarios");
+            "texto", "descricao", "nota", "notas", "comentario", "comentarios");
     private static final String METODOLOGIA = "metodologia";
 
     private TextoLivreDosPlanos() {
