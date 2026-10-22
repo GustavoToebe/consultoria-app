@@ -47,6 +47,11 @@ export function faixa(s: Pick<Serie, 'repsMin' | 'repsMax'>): string {
   return s.repsMin === s.repsMax ? String(s.repsMin) : `${s.repsMin} a ${s.repsMax}`;
 }
 
+/** Repetições para exibir: a faixa, ou "—" quando a série não tem (dado ausente nunca fica em branco). */
+export function textoDasRepeticoes(s: Pick<Serie, 'repsMin' | 'repsMax'>): string {
+  return faixa(s) || '—';
+}
+
 /** "85" ou "85 a 90" (sem o %); "—" sem mínimo. */
 export function textoDaFaixaPercentual(min: number | null | undefined, max: number | null | undefined): string {
   if (min == null) return '—';

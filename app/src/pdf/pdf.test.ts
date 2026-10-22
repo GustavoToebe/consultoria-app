@@ -453,6 +453,13 @@ describe('faixa da marca no alto dos cinco PDFs', () => {
   });
 });
 
+test('PDF: série sem repetições mostra "—" no lugar delas ("1x— - Top set")', () => {
+  const topSet = { ...novaSerie(CONFIGURACAO_PADRAO, 'Top set'), repsMin: null, repsMax: null, intensidade: { modo: 'ACIMA_DA_ANTERIOR' as const, percentualMin: 1, percentualMax: 5 } };
+  expect(linhaDoGrupo(agrupar([topSet])[0], CONFIGURACAO_PADRAO)).toBe('1x— - Top set');
+  const comReps = { ...topSet, repsMin: 3, repsMax: 6 };
+  expect(linhaDoGrupo(agrupar([comReps])[0], CONFIGURACAO_PADRAO)).toBe('1x3 a 6 - Top set');
+});
+
 test('PDF: técnica sem tipo, faixas e RIR zero; glossário só com prescrições usadas e texto escapado', () => {
   const config = { ...CONFIGURACAO_PADRAO, tecnicas: CONFIGURACAO_PADRAO.tecnicas.map((t) => t.tipo === 'CLUSTER' ? { ...t, nome: 'Muscle <Round>' } : t) };
   const tecnica = { ...novaSerie(config, null), repsMin: 6, repsMax: 6, intensidade: { modo: 'MESMA_CARGA' as const, rir: 0 }, tecnica: { ...tecnicaVazia('CLUSTER'), blocos: [4, 2], pausaSegundos: 15 } };

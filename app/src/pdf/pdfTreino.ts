@@ -1,5 +1,5 @@
 import type { Configuracao, ConteudoTreino, ExercicioPlano, Marca, Sessao } from '../api/tipos';
-import { agrupar, faixa, textoDaFaixaPercentual, textoIntensidade, textoRir, textoTecnica, type GrupoDeSeries } from '../dominio/agrupamento';
+import { agrupar, textoDasRepeticoes, textoDaFaixaPercentual, textoIntensidade, textoRir, textoTecnica, type GrupoDeSeries } from '../dominio/agrupamento';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { explicacaoDaTecnica, explicacaoDoTipo, nomeDaTecnica, tiposETecnicasUsados, tipoTrabalho as tipoTrabalhoDaMetodologia } from '../dominio/metodologia';
 import { gruposDaSessao } from '../dominio/combinacoes';
@@ -25,11 +25,11 @@ export interface DadosPdfTreino {
   emitidoEm: Date;
 }
 
-/** Coluna "Séries x reps": "3x3 - FS", "1x3 a 6 - WS", "1x - Cardio". */
+/** Coluna "Séries x reps": "3x3 - FS", "1x3 a 6 - WS", "1x— - Top set" (sem repetições, "—"). */
 export function linhaDoGrupo(g: GrupoDeSeries, config?: Configuracao): string {
   const s = g.series[0];
   const tecnica = textoTecnica(s.tecnica, config);
-  return `${g.series.length}x${faixa(s)} - ${s.tipo || tecnica || 'Série'}${s.tipo && tecnica ? ` · ${tecnica}` : ''}`;
+  return `${g.series.length}x${textoDasRepeticoes(s)} - ${s.tipo || tecnica || 'Série'}${s.tipo && tecnica ? ` · ${tecnica}` : ''}`;
 }
 
 /** Intensidade escrita na coluna OBS: "Back off - 85% da WS", "FS - 50/70/85% da WS", "Série - 2 RIR". */

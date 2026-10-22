@@ -69,7 +69,9 @@ describe('cargas do aluno', () => {
     expect(metaDaSerie(serie('r', 'Série', { repsMin: 8, repsMax: 12, intensidade: { modo: 'NENHUMA', rir: 1 } }), 'WS')).toBe(
       'Meta: 8 a 12 reps · 1 RIR',
     );
-    expect(metaDaSerie(serie('c', 'Cardio', { repsMin: null, repsMax: null, }), 'WS')).toBe('Meta: —');
+    expect(metaDaSerie(serie('c', 'Cardio', { repsMin: null, repsMax: null, }), 'WS')).toBe('Meta: — reps');
+    const topSet = serie('t', 'Top set', { repsMin: null, repsMax: null, intensidade: { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 1, percentualMax: 5 } });
+    expect(metaDaSerie(topSet, 'WS')).toBe('Meta: — reps · +1 a 5% sobre a anterior');
   });
 });
 

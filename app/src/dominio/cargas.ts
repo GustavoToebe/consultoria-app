@@ -1,5 +1,5 @@
 import type { Configuracao, ExercicioPlano, Serie } from '../api/tipos';
-import { faixa, textoIntensidade, textoRir, textoTecnica } from './agrupamento';
+import { textoDasRepeticoes, textoIntensidade, textoRir, textoTecnica } from './agrupamento';
 
 /**
  * Sugestão de carga do aluno. Só aplica o que o treinador escreveu no plano sobre a carga de
@@ -11,7 +11,7 @@ export interface SerieCalculada {
   serie: Serie;
   /** Carga sugerida em kg; `null` quando não há base ou a série não é por carga. */
   sugestao: number | null;
-  /** Texto da meta: "Meta: 3 a 6 reps · 50% da WS", "1 RIR", "—". */
+  /** Texto da meta: "Meta: 3 a 6 reps · 50% da WS", "— reps · 1 RIR". */
   meta: string;
 }
 
@@ -27,8 +27,7 @@ const modo = (s: Serie) => s.intensidade?.modo ?? 'NENHUMA';
 /** Texto da meta da série, como o aluno vê na tela. */
 export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao): string {
   const partes: string[] = [];
-  const f = faixa(s);
-  if (f) partes.push(`${f} reps`);
+  partes.push(`${textoDasRepeticoes(s)} reps`);
   if (semCarga && ['PERCENTUAL_WS', 'CARGA_TRABALHO', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR'].includes(modo(s))) {
     const rir = textoRir(s.intensidade);
     if (rir) partes.push(rir);
@@ -42,7 +41,7 @@ export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, me
   }
   const tecnica = textoTecnica(s.tecnica, metodologia);
   if (tecnica) partes.push(tecnica);
-  return partes.length ? `Meta: ${partes.join(' · ')}` : 'Meta: —';
+  return `Meta: ${partes.join(' · ')}`;
 }
 
 /**
