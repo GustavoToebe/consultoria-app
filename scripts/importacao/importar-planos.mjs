@@ -10,8 +10,8 @@
  * contagens (exercícios com e sem par na biblioteca, refeições, itens): não chama a API nem faz login. A pasta precisa
  * ficar **fora do repositório**.
  *
- * Modo `--gravar`: variáveis API_URL (padrão http://localhost:8088/api), IMPORT_EMAIL e a senha em IMPORT_SENHA (nunca na
- * linha de comando). Confere as permissões em `GET /eu` antes de gravar qualquer coisa (inclusive `ERGOGENICO_ALTERAR` se
+ * Modo `--gravar`: variáveis API_URL (padrão http://localhost:8088/api; só https, ou http em localhost/127.0.0.1), IMPORT_EMAIL e
+ * a senha em IMPORT_SENHA (nunca na linha de comando); CODIGO_MFA, se a conta tem verificação em duas etapas. Confere as permissões em `GET /eu` antes de gravar qualquer coisa (inclusive `ERGOGENICO_ALTERAR` se
  * houver medicação: sem ela a API mantém a lista antiga calada). Acha o aluno pelo nome (que já precisa ter sido importado
  * por `importar-alunos.mjs`; nome repetido ou ausente é pulado). Por aluno: `POST /alunos/{id}/pastas` (título fixo, sem
  * datas), `POST /alunos/{id}/planos-treino` e `PUT /planos-treino/{id}/rascunho` (o mesmo para a dieta). Rodar de novo
@@ -29,6 +29,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { baseDaApiOuSair, corpoDoLogin, permissoesQueFaltam } from './acesso-lib.mjs';
 import { chaveDoNome } from './alunos-lib.mjs';
 import { lerBibliotecaLocal, lerReferenciasDeSuplementos } from './biblioteca-local.mjs';
 import { ARQUIVO_CLASSIFICACAO, aplicarClassificacao, destinosClassificados, destinosNaoEntendidos, lerClassificacao } from './classificacao-suplementos-lib.mjs';
@@ -40,7 +41,7 @@ const SIMULAR = process.argv.includes('--simular');
 const GRAVAR = process.argv.includes('--gravar');
 const indicePasta = process.argv.indexOf('--pasta');
 const PASTA = indicePasta > 0 ? process.argv[indicePasta + 1] : null;
-const BASE = process.env.API_URL ?? 'http://localhost:8088/api';
+const BASE = baseDaApiOuSair('http://localhost:8088/api');
 
 function sair(mensagem) {
   console.error(mensagem);
@@ -131,7 +132,7 @@ async function entrar() {
   const email = process.env.IMPORT_EMAIL;
   const senha = process.env.IMPORT_SENHA;
   if (!email || !senha) sair('Defina IMPORT_EMAIL e IMPORT_SENHA no ambiente (não na linha de comando).');
-  const j = await chamar('POST', '/auth/login', { email, senha });
+  const j = await chamar('POST', '/auth/login', corpoDoLogin(email, senha));
   token = j.accessToken;
   if (!token) sair('Login sem token de acesso.');
 }
@@ -169,7 +170,7 @@ async function gravar() {
   if (planos.some((p) => p.dieta?.conteudo.ergogenicos?.length)) exigidas.add('ERGOGENICO_ALTERAR');
   await entrar();
   const eu = await chamar('GET', '/eu');
-  const faltam = [...exigidas].filter((p) => !eu.permissoes?.includes(p));
+  const faltam = permissoesQueFaltam(eu, exigidas);
   if (faltam.length) sair(`Faltam permissões para este login: ${faltam.join(', ')}. Nada foi gravado.`);
 
   const alunos = await alunosExistentes();

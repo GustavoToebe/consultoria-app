@@ -17,11 +17,12 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative, resolve, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { baseDaApiOuSair, corpoDoLogin } from '../importacao/acesso-lib.mjs';
 import {
   ARQUIVO_DA_IMAGEM, DESCRICAO, NOME, aplicarImagens, comImagensEnviadas, conteudoDaAnamnese, imagensDoConteudo, resumo,
 } from './anamnese-saraiva-lib.mjs';
 
-const BASE = (process.env.API_URL ?? 'https://consultoria.servirea.com.br/api').replace(/\/$/, '');
+const BASE = baseDaApiOuSair('https://consultoria.servirea.com.br/api');
 const gravar = process.argv.includes('--gravar');
 const indiceImagens = process.argv.indexOf('--imagens');
 const pastaImagens = indiceImagens > 0 ? process.argv[indiceImagens + 1] : null;
@@ -81,8 +82,7 @@ async function entrar() {
   const email = process.env.ANAMNESE_EMAIL;
   const senha = process.env.ANAMNESE_SENHA;
   if (!email || !senha) sair('Defina ANAMNESE_EMAIL e ANAMNESE_SENHA no ambiente (não na linha de comando).');
-  const corpo = { email, senha, ...(process.env.CODIGO_MFA ? { codigoMfa: process.env.CODIGO_MFA } : {}) };
-  const j = await chamar('POST', '/auth/login', corpo);
+  const j = await chamar('POST', '/auth/login', corpoDoLogin(email, senha));
   token = j.accessToken;
   if (!token) sair('Login sem token de acesso.');
 }

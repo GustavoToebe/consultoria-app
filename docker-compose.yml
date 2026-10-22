@@ -151,6 +151,10 @@ services:
     environment:
       # Dentro da rede do compose a API responde na raiz (o /api é só do Caddy).
       API_URL: http://api:8080
+      # O script só aceita https (ou http em localhost); este http fica liberado só aqui, dentro da rede do compose.
+      IMPORT_PERMITIR_HTTP: "sim"
+      # O login do script não tem mais e-mail padrão: o da demo é o do treinador de demonstração.
+      IMPORT_EMAIL: saraiva@demo.local
       # Serviço só do perfil demo; sem a senha o script avisa e sai.
       DEMO_SENHA: ${DEMO_SENHA:-}
     command: ["node", "importar.mjs"]

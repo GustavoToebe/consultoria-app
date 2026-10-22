@@ -72,7 +72,7 @@ precisa e a TACO nem é descomprimida. Os alunos precisam ter sido importados an
 ```
 node scripts/importacao/converter-planos.mjs --planilha <fora do repositório>/planilha.xlsx --saida <pasta fora do repositório> [--simular] [--pacote]
 node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --simular      (sem rede e sem login)
-node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar       (grava; exige API_URL, IMPORT_EMAIL, IMPORT_SENHA)
+node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar       (grava; exige API_URL, IMPORT_EMAIL, IMPORT_SENHA e, com verificação em duas etapas, CODIGO_MFA)
 ```
 
 - **Conversor:** grava um JSON por aluno (o nome do arquivo é o código do aluno na planilha, nunca o nome; permissão 0600)
@@ -185,10 +185,34 @@ node scripts/importacao/importar-planos.mjs  --pasta <a mesma pasta> --gravar   
 
 1. Gere os dois CSV numa pasta **fora do repositório** (o script recusa uma pasta de dentro): pelo conversor (seção
    anterior) ou exportando as duas abas à mão.
-2. Defina no terminal `API_URL`, `IMPORT_EMAIL` e `IMPORT_SENHA` de um Administrador (senha nunca na linha de comando;
-   com a verificação em duas etapas ligada, o login do script não passa).
+2. Defina no terminal `API_URL`, `IMPORT_EMAIL` e `IMPORT_SENHA` de um Administrador (senha nunca na linha de comando). Com a
+   verificação em duas etapas ligada, defina também `CODIGO_MFA` (o código de 6 dígitos do momento; vale por pouco tempo, então
+   defina logo antes de rodar). Veja "Acesso dos scripts" abaixo.
 3. Confira: `node scripts/importacao/importar-alunos.mjs --pasta <pasta> --simular`.
 4. Sem problemas na conferência, grave: o mesmo comando sem `--simular`.
+
+## Acesso dos scripts à API
+
+Vale para os quatro scripts que falam com a API (`importar-alunos.mjs`, `importar.mjs`, `importar-planos.mjs` e
+`../questionario/anamnese-saraiva.mjs`); as regras ficam em `scripts/importacao/acesso-lib.mjs`.
+
+- **Só https.** `API_URL` com `http` é recusado antes de qualquer conexão (a senha iria em claro), exceto para `localhost` e
+  `127.0.0.1`. Endereço com usuário e senha dentro também é recusado, e a mensagem de erro não repete o endereço. Sem
+  `API_URL`, o padrão é `http://localhost:8088/api` (a anamnese: a produção). Exceção deliberada: o serviço `importacao` do
+  compose fala com a API pelo nome do contêiner (`http://api:8080`), então ele passa `IMPORT_PERMITIR_HTTP=sim`; não use isso
+  fora da rede interna do compose.
+- **Verificação em duas etapas.** Os quatro scripts mandam `CODIGO_MFA` no login quando a variável existe (a anamnese usa
+  `ANAMNESE_EMAIL`/`ANAMNESE_SENHA` no lugar de `IMPORT_EMAIL`/`IMPORT_SENHA`).
+- **Sem login padrão.** `importar.mjs` não assume mais `saraiva@demo.local`: sem `IMPORT_EMAIL` ele para antes de qualquer
+  chamada. A senha é `IMPORT_SENHA` (ou `DEMO_SENHA`, só nesse script).
+- **Permissões conferidas antes de gravar.** Depois do login, `importar-alunos.mjs` e `importar.mjs` chamam `GET /eu` (como
+  `importar-planos.mjs` já fazia) e param, sem gravar nada, se o login não tiver o necessário:
+  `importar-alunos.mjs` exige `ALUNO_LER`, `ALUNO_ALTERAR`, `ALUNO_SENSIVEL_LER` e `ALUNO_SENSIVEL_ALTERAR` (o peso é dado
+  sensível; na simulação só avisa, porque simular só precisa de `ALUNO_LER`); `importar.mjs` exige `BIBLIOTECA_LER`,
+  `BIBLIOTECA_ALTERAR`, `MODELO_LER` e `MODELO_ALTERAR`, mais `ERGOGENICO_ALTERAR` quando o login lê ergogênicos (sem
+  `ERGOGENICO_LER` essa etapa é pulada, como na demonstração).
+- Testes: `node --test scripts/importacao/acesso.test.mjs scripts/importacao/acesso-scripts.test.mjs` (os scripts rodam de
+  verdade contra uma API falsa em `127.0.0.1`).
 
 ## O que ele garante
 

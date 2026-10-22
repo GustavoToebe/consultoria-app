@@ -10,10 +10,12 @@
  *   node scripts/importacao/importar.mjs --trocar-videos  (troca o vídeo de exercício que já tinha outro; a lista de vídeos vale mais que os planos)
  *   node scripts/importacao/importar.mjs --simular --ver "Plano 10"  (mostra o conteúdo que seria gravado do modelo)
  *
- * Variáveis: API_URL (padrão http://localhost:8088/api), IMPORT_EMAIL (padrão saraiva@demo.local) e a senha em
- * IMPORT_SENHA ou DEMO_SENHA. Dados só de treino (nada de aluno).
+ * Variáveis: API_URL (padrão http://localhost:8088/api; só https, ou http em localhost/127.0.0.1), IMPORT_EMAIL (sem
+ * padrão: sem ele o script para) e a senha em IMPORT_SENHA ou DEMO_SENHA; CODIGO_MFA, se a conta tem verificação em duas
+ * etapas. Antes de gravar, confere as permissões do login em GET /eu. Dados só de treino (nada de aluno).
  */
 import METODOLOGIA_PADRAO from './metodologia-padrao.json' with { type: 'json' };
+import { baseDaApiOuSair, corpoDoLogin, permissoesQueFaltam } from './acesso-lib.mjs';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -24,7 +26,7 @@ const SIMULAR = process.argv.includes('--simular');
 const SUBSTITUIR = process.argv.includes('--substituir');
 const TROCAR_VIDEOS = process.argv.includes('--trocar-videos');
 const VER = process.argv.includes('--ver') ? process.argv[process.argv.indexOf('--ver') + 1] : null;
-const BASE = process.env.API_URL ?? 'http://localhost:8088/api';
+const BASE = baseDaApiOuSair('http://localhost:8088/api');
 const lerJson = (nome) => JSON.parse(readFileSync(join(AQUI, 'dados', nome), 'utf8'));
 
 // ---------------------------------------------------------------- API
@@ -40,9 +42,11 @@ async function chamar(metodo, caminho, corpo) {
   return texto ? JSON.parse(texto) : null;
 }
 async function entrar() {
+  const email = process.env.IMPORT_EMAIL;
   const senha = process.env.IMPORT_SENHA ?? process.env.DEMO_SENHA;
+  if (!email) throw new Error('Defina IMPORT_EMAIL no ambiente (o login de quem importa).');
   if (!senha) throw new Error('Defina IMPORT_SENHA (ou DEMO_SENHA) no ambiente.');
-  const j = await chamar('POST', '/auth/login', { email: process.env.IMPORT_EMAIL ?? 'saraiva@demo.local', senha });
+  const j = await chamar('POST', '/auth/login', corpoDoLogin(email, senha));
   token = j.accessToken ?? j.token ?? j.access_token;
   if (!token) throw new Error('Login sem token de acesso.');
 }
@@ -461,9 +465,23 @@ async function importarInstrucoes(padrao) {
 }
 
 // ---------------------------------------------------------------- principal
+/** O que a gravação usa (rotas de biblioteca e de modelos); ERGOGENICO_ALTERAR entra só se o login lê ergogênicos (sem ERGOGENICO_LER a etapa é pulada). */
+const PERMISSOES_PARA_GRAVAR = ['BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR', 'MODELO_LER', 'MODELO_ALTERAR'];
+
+/** GET /eu antes de gravar: login sem permissão para na hora, em vez de no meio da importação. Na simulação só avisa. */
+async function conferirPermissoes() {
+  const eu = await chamar('GET', '/eu');
+  const exigidas = [...PERMISSOES_PARA_GRAVAR, ...(eu.permissoes?.includes('ERGOGENICO_LER') ? ['ERGOGENICO_ALTERAR'] : [])];
+  const faltam = permissoesQueFaltam(eu, exigidas);
+  if (faltam.length === 0) return;
+  if (!SIMULAR) throw new Error(`Faltam permissões para este login: ${faltam.join(', ')}. Nada foi gravado.`);
+  falar(`ATENÇÃO: este login não poderia gravar; faltam as permissões ${faltam.join(', ')}.`);
+}
+
 async function principal() {
   await entrar();
   falar(SIMULAR ? 'SIMULAÇÃO: nada será gravado.' : 'Gravando na API', BASE);
+  await conferirPermissoes();
   // A metodologia padrão é a primeira do tipo METODOLOGIA (a mesma que a API vincula a todo plano novo).
   const padrao = (await chamar('GET', '/receitas?tipo=METODOLOGIA'))?.[0] ?? null;
   const regra = Object.fromEntries(Object.entries(padrao?.conteudo?.tipos?.find((t) => t.papel === 'PREPARACAO')?.regraPercentuais ?? REGRA_PADRAO).map(([k, v]) => [Number(k), v]));

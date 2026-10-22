@@ -12,20 +12,22 @@
  * duplica: aluno com o mesmo nome é reaproveitado e o peso da mesma data é atualizado (a API guarda um por dia). Não
  * manda convite: o acesso de cada aluno sai pela ficha, quando o treinador quiser.
  *
- * Variáveis: API_URL (padrão http://localhost:8088/api), IMPORT_EMAIL e a senha em IMPORT_SENHA (nunca na linha de
- * comando). O terminal mostra só contagens e o número da linha com problema, nunca nome, e-mail ou peso.
+ * Variáveis: API_URL (padrão http://localhost:8088/api; só https, ou http em localhost/127.0.0.1), IMPORT_EMAIL e a senha em
+ * IMPORT_SENHA (nunca na linha de comando); CODIGO_MFA, se a conta tem verificação em duas etapas. Antes de gravar, confere as
+ * permissões do login em GET /eu. O terminal mostra só contagens e o número da linha com problema, nunca nome, e-mail ou peso.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { baseDaApiOuSair, corpoDoLogin, permissoesQueFaltam } from './acesso-lib.mjs';
 import { chaveDoNome, lerCsv, planejar } from './alunos-lib.mjs';
 
 const REPOSITORIO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SIMULAR = process.argv.includes('--simular');
 const indicePasta = process.argv.indexOf('--pasta');
 const PASTA = indicePasta > 0 ? process.argv[indicePasta + 1] : null;
-const BASE = process.env.API_URL ?? 'http://localhost:8088/api';
+const BASE = baseDaApiOuSair('http://localhost:8088/api');
 
 function sair(mensagem) {
   console.error(mensagem);
@@ -58,7 +60,7 @@ async function entrar() {
   const email = process.env.IMPORT_EMAIL;
   const senha = process.env.IMPORT_SENHA;
   if (!email || !senha) sair('Defina IMPORT_EMAIL e IMPORT_SENHA no ambiente (não na linha de comando).');
-  const j = await chamar('POST', '/auth/login', { email, senha });
+  const j = await chamar('POST', '/auth/login', corpoDoLogin(email, senha));
   token = j.accessToken;
   if (!token) sair('Login sem token de acesso.');
 }
@@ -89,6 +91,9 @@ const ler = (nome) => {
 const alunosCsv = ler('alunos.csv');
 const pesosCsv = ler('pesos.csv');
 await entrar();
+// O peso exige as duas permissões sensíveis (ler e alterar). Sem elas o treinador criaria alunos e pararia no primeiro peso.
+const faltam = permissoesQueFaltam(await chamar('GET', '/eu'), ['ALUNO_LER', 'ALUNO_ALTERAR', 'ALUNO_SENSIVEL_LER', 'ALUNO_SENSIVEL_ALTERAR']);
+if (faltam.length && !SIMULAR) sair(`Faltam permissões para este login: ${faltam.join(', ')}. Nada foi gravado.`);
 const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 const plano = planejar(alunosCsv, pesosCsv, await alunosExistentes(), hoje);
 
@@ -100,6 +105,7 @@ if (plano.erros.length) {
 const novos = plano.alunos.filter((a) => !a.idExistente).length;
 console.log(`Conferência ok: ${plano.alunos.length} alunos (${novos} novos, ${plano.alunos.length - novos} já existem) e ${plano.pesos.length} pesos.`);
 if (SIMULAR) {
+  if (faltam.length) console.log(`ATENÇÃO: este login não poderia gravar; faltam as permissões ${faltam.join(', ')}.`);
   console.log('Simulação: nada foi gravado.');
   process.exit(0);
 }
