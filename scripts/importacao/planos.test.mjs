@@ -176,7 +176,7 @@ test('treino: sessões por letra, exercícios pela Ordem, séries FS/WS/Top set/
   // BO falso ignora o % da coluna Back Off
   assert.ok(!puxada.series.some((s) => s.tipo === 'Back off'));
   assert.deepEqual(
-    remada.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.intensidade.modo, s.intensidade.percentual]),
+    remada.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.intensidade.modo, s.intensidade.percentualMin]),
     [['FS', 3, 3, 'PERCENTUAL_WS', 50], ['FS', 3, 3, 'PERCENTUAL_WS', 70], ['FS', 3, 3, 'PERCENTUAL_WS', 85], ['WS', 3, 6, 'CARGA_TRABALHO', null], ['Back off', 6, 8, 'PERCENTUAL_WS', 85]],
   );
   assert.equal(remada.videoUrl, 'https://youtu.be/abc123');
@@ -191,7 +191,7 @@ test('treino: Rep Range que virou data (recuperada, só contada), WS absurdo, FS
   const r = converter();
   const [data, ws23, gigante] = doAluno(r, 'AL1').treino.conteudo.sessoes[1].exercicios;
   // data do Excel (08/12/2026): faixa 8 a 12 na WS, só contada (não vai para os problemas); FS e Back off seguem a metodologia
-  assert.deepEqual(data.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.intensidade.percentual]), [['FS', 3, 3, 70], ['FS', 3, 3, 85], ['WS', 8, 12, null], ['Back off', 6, 8, 90]]);
+  assert.deepEqual(data.series.map((s) => [s.tipo, s.repsMin, s.repsMax, s.intensidade.percentualMin]), [['FS', 3, 3, 70], ['FS', 3, 3, 85], ['WS', 8, 12, null], ['Back off', 6, 8, 90]]);
   assert.equal(r.problemas.filter((p) => /recuperada/i.test(p.motivo)).length, 0);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'virou data no Excel').length, 0);
   assert.equal(r.contagens.faixasRecuperadas, 1);
@@ -206,9 +206,9 @@ test('treino: Rep Range que virou data (recuperada, só contada), WS absurdo, FS
   assert.equal(gigante.videoUrl, null);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'link de vídeo não aceito').length, 1);
   assert.equal(problemasDe(r, 'Treinos_Exercicios', 'nome do exercício com mais de 120').length, 1);
-  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.intensidade.modo]), [['FS', 'PERCENTUAL_WS'], ['WS', 'CARGA_TRABALHO'], ['WS', 'CARGA_TRABALHO'], ['Top set', 'LIVRE']]);
+  assert.deepEqual(gigante.series.map((s) => [s.tipo, s.intensidade.modo]), [['FS', 'PERCENTUAL_WS'], ['WS', 'CARGA_TRABALHO'], ['WS', 'CARGA_TRABALHO'], ['Top set', 'ACIMA_DA_ANTERIOR']]);
   assert.equal(gigante.series.find((s) => s.tipo === 'Top set').repsMin, null);
-  assert.equal(gigante.series.find((s) => s.tipo === 'FS').intensidade.percentual, 85);
+  assert.equal(gigante.series.find((s) => s.tipo === 'FS').intensidade.percentualMin, 85);
   // sem série (aluno AL6): o exercício fica no plano, sem séries, para o treinador preencher à mão
   const semSerie = doAluno(r, 'AL6').treino.conteudo.sessoes[0].exercicios;
   assert.deepEqual(semSerie.map((e) => [e.nome, e.series.length]), [['Sem série', 0]]);
@@ -315,7 +315,7 @@ test('regras pequenas: faixa de repetições, dia da semana, vídeo, séries e n
   assert.equal(videoValido('https://user:senha@youtu.be/abc'), false);
   const avisos = [];
   const base = { ws: undefined, fs: undefined, ts: undefined, bo: undefined, backoff: undefined, faixa: { min: 3, max: 6 } };
-  assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, bo: true, backoff: 0.9 }, (a) => avisos.push(a)).map((s) => s.intensidade.percentual), [85, null, 90]);
+  assert.deepEqual(montarSeries({ ...base, fs: 1, ws: 1, bo: true, backoff: 0.9 }, (a) => avisos.push(a)).map((s) => s.intensidade.percentualMin), [85, null, 90]);
   const semPercentual = montarSeries({ ...base, ws: 1, bo: true, backoff: 0 }, (a) => avisos.push(a));
   assert.equal(semPercentual[1].intensidade.modo, 'NENHUMA');
   assert.deepEqual(avisos, ['back off sem percentual válido (série sem intensidade)']);
@@ -1402,7 +1402,7 @@ test('converter-planos --pacote: grava a pasta para-o-saraiva com os 4 arquivos;
 
   const simulado = rodar('--simular', '--pacote');
   assert.equal(simulado.status, 0, simulado.stderr);
-  assert.match(simulado.stdout, /Pacote do Saraiva: \d+ suplementos, 6 exercícios \(\d+ sem sugestão\) e 15 linhas a corrigir \(nada gravado\)\./);
+  assert.match(simulado.stdout, /Pacote do Saraiva: \d+ suplementos, 6 exercícios \(\d+ sem sugestão\) e 16 linhas a corrigir \(nada gravado\)\./);
   assert.throws(() => readdirSync(saida));
 
   const sem = rodar();
@@ -1419,11 +1419,11 @@ test('converter-planos --pacote: grava a pasta para-o-saraiva com os 4 arquivos;
   for (const nome of ARQUIVOS_DO_PACOTE.filter((n) => n.endsWith('.csv'))) assert.ok(readFileSync(join(dentro, nome), 'utf8').startsWith('﻿'), nome);
   if (process.platform !== 'win32') for (const nome of ARQUIVOS_DO_PACOTE) assert.equal(statSync(join(dentro, nome)).mode & 0o077, 0, nome);
   const corrigir = readFileSync(join(dentro, '3-o-que-corrigir.csv'), 'utf8');
-  assert.equal(corrigir.trimEnd().split('\n').length, 1 + 15);
+  assert.equal(corrigir.trimEnd().split('\n').length, 1 + 16);
   assert.ok(corrigir.includes('Aluno Um;Treinos_Exercicios;5;'));
   const exercicios = readFileSync(join(dentro, '2-exercicios.csv'), 'utf8');
   assert.equal(exercicios.trimEnd().split('\n').length, 1 + 6);
-  assert.match(readFileSync(join(dentro, 'mensagem.txt'), 'utf8'), /\*O que corrigir\* \(15 linhas\)/);
+  assert.match(readFileSync(join(dentro, 'mensagem.txt'), 'utf8'), /\*O que corrigir\* \(16 linhas\)/);
 
   // o destino que a pessoa escreveu e ninguém entende entra no "o que corrigir" desta rodada
   const a = abas();

@@ -14,6 +14,7 @@ export async function imprimir(d: Documento): Promise<void> {
   estilo.textContent = `${d.css}
 #${ID} { display: none; color-scheme: light; }
 @media print {
+  html, body { background: #fff !important; color: #000 !important; color-scheme: light !important; }
   body > *:not(#${ID}) { display: none !important; }
   #${ID} { display: block; }
 }`;

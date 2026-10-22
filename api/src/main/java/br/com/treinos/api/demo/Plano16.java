@@ -15,7 +15,7 @@ import java.util.List;
  */
 final class Plano16 {
 
-    /** "Falha" ou "1 RIR" vêm do texto de reps do PDF e viram observação, não número. */
+    /** Limite prescrito no PDF, gravado como RIR na série de trabalho. */
     enum Limite { FALHA, UM_RIR, NENHUM }
 
     record Ex(String nome, Exercicio.Modalidade modalidade, String observacao, Limite limite, boolean progressao,
@@ -98,16 +98,24 @@ final class Plano16 {
                 Limite.NENHUM, true, "kg", List.of("W6-8", "W6-8"));
     }
 
-    /** Texto de instruções do PDF do treino (resumo das regras do Saraiva). */
-    static final String INSTRUCOES = """
-            Feeder Set (FS): série de reconhecimento. O objetivo é aumentar a carga a cada série dentro das reps \
-            propostas para buscar a série de trabalho (WS). Não pode chegar na falha.
-            Cálculo FS: se 3 FS, 1º 50% | 2º 70% | 3º 85~90% da WS. Se 2 FS, 1º 70% | 2º 85~90% da WS. Se 1 FS, 85% da WS.
-            Working Set (WS): série de trabalho. Utilizar a carga máxima do dia nas reps propostas. Se passar do \
-            número, aumentar carga na semana seguinte. Deve estar pesada a ponto da última rep ser difícil.
-            Pesos livres: 1 RIR. Máquinas: até a falha.
-            Back off: percentual do maior peso feito na WS.
-            Anote a carga de cada série no app.""";
+    /** Todos os casos da tabela aprovada; WS por modalidade conta como dois exemplos (onze no total). */
+    static Dia exemplos() {
+        return new Dia("Exemplos de séries e técnicas", 1, "TREINO", null, List.of(
+                ex("Exemplo 01 - Aquecimento", LIVRE, null, Limite.NENHUM, "A10-15"),
+                ex("Exemplo 02 - Três FS", LIVRE, null, Limite.NENHUM, "F3@50", "F3@70", "F3@85-90"),
+                ex("Exemplo 03 - Duas FS", LIVRE, null, Limite.NENHUM, "F3-5@70", "F3-5@85-90"),
+                ex("Exemplo 04 - WS livre", LIVRE, null, Limite.UM_RIR, "W3-6"),
+                ex("Exemplo 05 - WS máquina", MAQ, null, Limite.FALHA, "W3-6"),
+                ex("Exemplo 06 - Back off", MAQ, null, Limite.NENHUM, "W3-6", "B6-8@85", "B6-8@85"),
+                ex("Exemplo 07 - WS e rest pause", MAQ, null, Limite.NENHUM, "W8", "W8", "R8:1@20"),
+                ex("Exemplo 08 - Três micro-séries", MAQ, null, Limite.NENHUM, "W4-6+R2@15"),
+                ex("Exemplo 09 - Cluster desigual", MAQ, null, Limite.NENHUM, "W6", "C4+2@15"),
+                ex("Exemplo 10 - Muscle Round", MAQ, null, Limite.NENHUM, "W16", "M4x4@5r/10"),
+                ex("Exemplo 11 - Top set", LIVRE, null, Limite.NENHUM, "W6", "T@1-5")));
+    }
+
+    /** Explicações dos tipos e das técnicas ficam na metodologia e no glossário do PDF. */
+    static final String INSTRUCOES = "Anote a carga e as repetições de cada série no app.\n";
 
     private static Ex ex(String nome, Exercicio.Modalidade modalidade, String observacao, Limite limite,
                          String... series) {

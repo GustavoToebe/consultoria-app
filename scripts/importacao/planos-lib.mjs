@@ -14,12 +14,12 @@
  * Como a metodologia do Saraiva aparece nas séries (a mesma de `ConfiguracaoConsultoria.padrao()`, espelhada em
  * `app/src/dominio/metodologiaPadrao.ts` e usada por `importar.mjs`): série de tipo "FS" com `PERCENTUAL_WS` pela regra
  * de preparação do total de FS (1 FS = 85; 2 = 70/85; 3 = 50/70/85); "WS" = `CARGA_TRABALHO`; "Top set" sem número
- * = `LIVRE`; "Back off" = `PERCENTUAL_WS` com o % da coluna "Back Off %".
+ * = `ACIMA_DA_ANTERIOR` sem percentual; "Back off" = `PERCENTUAL_WS` com o % da coluna "Back Off %".
  *
  * O **tipo** da série (Aquecimento, FS, WS, Back off, Top set) diz para que ela serve; a **técnica** (cluster, rest pause,
- * drop-set) diz como executar e fica em `serie.tecnica`. O "Rest pause" do PDF não é tipo: vira WS com `alvoTexto`
- * "Rest pause" (sem técnica; `importar.mjs` faz a mesma conversão).
+ * drop-set) diz como executar e fica em `serie.tecnica`. Rest pause e cluster são técnicas, com pausa e referência de carga próprias (`importar.mjs`).
  */
+import METODOLOGIA_PADRAO from './metodologia-padrao.json' with { type: 'json' };
 import { randomUUID } from 'node:crypto';
 
 import { chaveDoNome } from './alunos-lib.mjs';
@@ -34,12 +34,10 @@ export const FORMATO = 'planos-saraiva/1';
 export const TITULO_PASTA = 'Importada da planilha (rascunho)';
 
 /** Espelho de `ConfiguracaoConsultoria.padrao()` (mudou um, mude o outro). */
-export const METODOLOGIA = {
-  regraPreparacao: { 1: [85], 2: [70, 85], 3: [50, 70, 85] },
-  repeticoes: { FS: [3, 3], 'Back off': [6, 8] },
-};
+export const METODOLOGIA = METODOLOGIA_PADRAO;
 const MAX_SERIES_POR_TIPO = 10;
-const TEXTO_TOP_SET = 'Mais pesada que a série anterior';
+const tipoDaMetodologia = (nome) => METODOLOGIA.tipos.find((t) => t.nome === nome);
+const repsDoTipo = (nome) => { const r = tipoDaMetodologia(nome).repeticoes; return r ? [r.min, r.max] : null; };
 
 /** Limites do `@Size` dos records Java: passou, o `PUT` do rascunho do aluno inteiro seria recusado. */
 const L = {
@@ -50,7 +48,7 @@ const L = {
 /** Máximo de itens de suplementação por dieta na API (o que passar disso derrubaria o `PUT` do rascunho). */
 export const LIMITE_DE_SUPLEMENTOS = L.suplementos;
 
-const INTENSIDADE = (modo, extra = {}) => ({ modo, percentual: null, rir: null, rpe: null, texto: null, ...extra });
+const INTENSIDADE = (modo, extra = {}) => ({ modo, percentualMin: null, percentualMax: null, rir: null, rpe: null, ...extra });
 const linhaUnica = (t) => t.replace(/\s+/g, ' ').trim();
 const bloco = (t) => t.replace(/\r\n?/g, '\n').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 const celula = (linha, i) => (i < 0 ? undefined : linha.celulas[i]);
@@ -412,7 +410,7 @@ function exercicioDaLinha(linha, e, problema, cortar, abaNome, data1904, aoRecup
  */
 export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecuperarFaixa = () => {}) {
   const serie = (tipo, reps, intensidade) => ({
-    uid: randomUUID(), tipo, repsMin: reps?.[0] ?? null, repsMax: reps?.[1] ?? null, alvoTexto: null, intensidade, descansoSegundos: null, tecnica: null,
+    uid: randomUUID(), tipo, repsMin: reps?.[0] ?? null, repsMax: reps?.[1] ?? null, intensidade, descansoSegundos: null, tecnica: null,
   });
   const quantidade = (v, rotulo) => {
     if (v === undefined) return 0;
@@ -422,10 +420,10 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecup
   };
   const series = [];
   const nFs = quantidade(fs, 'FS');
-  const regra = METODOLOGIA.regraPreparacao[nFs];
+  const regra = tipoDaMetodologia('FS').regraPercentuais[nFs];
   if (nFs > 0 && !regra) avisar('FS sem regra de percentual na metodologia (séries sem intensidade)');
   for (let i = 0; i < nFs; i++) {
-    series.push(serie('FS', METODOLOGIA.repeticoes.FS, regra ? INTENSIDADE('PERCENTUAL_WS', { percentual: regra[i] }) : INTENSIDADE('NENHUMA')));
+    series.push(serie('FS', repsDoTipo('FS'), regra ? INTENSIDADE('PERCENTUAL_WS', { percentualMin: regra[i].min, percentualMax: regra[i].max }) : INTENSIDADE('NENHUMA')));
   }
   const nWs = quantidade(ws, 'WS');
   let reps = null;
@@ -440,13 +438,13 @@ export function montarSeries({ ws, fs, ts, bo, backoff, faixa }, avisar, aoRecup
   }
   for (let i = 0; i < nWs; i++) series.push(serie('WS', reps, INTENSIDADE('CARGA_TRABALHO')));
   if (ts === null) avisar('TS inválido (ignorado)');
-  if (ts === true) series.push(serie('Top set', null, INTENSIDADE('LIVRE', { texto: TEXTO_TOP_SET })));
+  if (ts === true) { series.push(serie('Top set', null, INTENSIDADE('ACIMA_DA_ANTERIOR'))); avisar('top set sem percentual prescrito (complete no editor)'); }
   if (bo === null) avisar('BO inválido (ignorado)');
   if (bo === true) {
     // A planilha diz só se há back off, não quantas séries: uma. Percentual: fração da planilha (0,85) vira 85.
     const p = Number.isFinite(backoff) && backoff > 0 && backoff <= 2 ? Math.round(backoff * 100) : null;
     if (p === null) avisar('back off sem percentual válido (série sem intensidade)');
-    series.push(serie('Back off', METODOLOGIA.repeticoes['Back off'], p === null ? INTENSIDADE('NENHUMA') : INTENSIDADE('PERCENTUAL_WS', { percentual: p })));
+    series.push(serie('Back off', repsDoTipo('Back off'), p === null ? INTENSIDADE('NENHUMA') : INTENSIDADE('PERCENTUAL_WS', { percentualMin: p })));
   }
   return series;
 }

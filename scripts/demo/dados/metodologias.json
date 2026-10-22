@@ -4,13 +4,80 @@
       "nome": "Séries tradicionais",
       "descricao": "Número fixo de séries e repetições, com descanso padronizado.",
       "configuracao": {
-        "tiposSerie": ["Aquecimento", "Série"],
-        "tipoTrabalho": "Série",
-        "tipoPreparacao": "Aquecimento",
-        "regraPreparacao": {},
+        "tipos": [
+          {
+            "nome": "Aquecimento",
+            "papel": "AQUECIMENTO",
+            "repeticoes": {
+              "min": 10,
+              "max": 15
+            },
+            "intensidadePadrao": null,
+            "intensidadePorModalidade": null,
+            "regraPercentuais": null,
+            "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
+          },
+          {
+            "nome": "Série",
+            "papel": "TRABALHO",
+            "repeticoes": null,
+            "intensidadePadrao": {
+              "modo": "CARGA_TRABALHO"
+            },
+            "intensidadePorModalidade": null,
+            "regraPercentuais": null,
+            "explicacao": "Série de trabalho conforme a prescrição do treinador."
+          }
+        ],
+        "tecnicas": [
+          {
+            "tipo": "REST_PAUSE",
+            "nome": "Rest pause",
+            "explicacao": "Faça a série, pause 20 segundos e continue com a mesma carga até a falha.",
+            "padrao": {
+              "tipo": "REST_PAUSE",
+              "pausaSegundos": 20,
+              "pausaRespiracoes": null,
+              "pausas": 1,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "CLUSTER",
+            "nome": "Cluster",
+            "explicacao": "Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a mesma carga.",
+            "padrao": {
+              "tipo": "CLUSTER",
+              "pausaSegundos": 15,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "DROP_SET",
+            "nome": "Drop-set",
+            "explicacao": "Ao terminar a série, reduza a carga e continue sem descanso.",
+            "padrao": {
+              "tipo": "DROP_SET",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": 1,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          }
+        ],
         "arredondamentoKg": 1,
-        "repeticoes": { "Aquecimento": { "min": 10, "max": 15 } },
-        "instrucoesTreino": "Séries tradicionais: número fixo de séries e de repetições, com descanso padronizado (por exemplo, 3x10 com 90 segundos).\nA carga sobe de forma gradual, de uma semana para outra.\nCadência controlada: de 2 a 3 segundos na descida.\nAnote a carga de cada série no app.",
+        "instrucoesTreino": "Anote a carga e as repetições da série inteira no app.",
         "rodapePdf": null
       }
     },
@@ -18,13 +85,151 @@
       "nome": "Feeder + Working sets",
       "descricao": "Séries preparatórias com carga crescente e uma ou duas séries principais pesadas.",
       "configuracao": {
-        "tiposSerie": ["Aquecimento", "FS", "WS"],
-        "tipoTrabalho": "WS",
-        "tipoPreparacao": "FS",
-        "regraPreparacao": { "1": [85], "2": [70, 85], "3": [50, 70, 85] },
+        "tipos": [
+          {
+            "nome": "Aquecimento",
+            "papel": "AQUECIMENTO",
+            "repeticoes": {
+              "min": 10,
+              "max": 15
+            },
+            "intensidadePadrao": null,
+            "intensidadePorModalidade": null,
+            "regraPercentuais": null,
+            "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
+          },
+          {
+            "nome": "FS",
+            "papel": "PREPARACAO",
+            "repeticoes": {
+              "min": 3,
+              "max": 3
+            },
+            "intensidadePadrao": {
+              "modo": "PERCENTUAL_WS",
+              "percentualMin": 85,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": null
+            },
+            "intensidadePorModalidade": null,
+            "regraPercentuais": {
+              "1": [
+                {
+                  "min": 85,
+                  "max": null
+                }
+              ],
+              "2": [
+                {
+                  "min": 70,
+                  "max": null
+                },
+                {
+                  "min": 85,
+                  "max": 90
+                }
+              ],
+              "3": [
+                {
+                  "min": 50,
+                  "max": null
+                },
+                {
+                  "min": 70,
+                  "max": null
+                },
+                {
+                  "min": 85,
+                  "max": 90
+                }
+              ]
+            },
+            "explicacao": "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha."
+          },
+          {
+            "nome": "WS",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 3,
+              "max": 6
+            },
+            "intensidadePadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": 1
+            },
+            "intensidadePorModalidade": {
+              "LIVRE": {
+                "modo": "CARGA_TRABALHO",
+                "percentualMin": null,
+                "percentualMax": null,
+                "rpe": null,
+                "rir": 1
+              },
+              "MAQUINA": {
+                "modo": "CARGA_TRABALHO",
+                "percentualMin": null,
+                "percentualMax": null,
+                "rpe": null,
+                "rir": 0
+              }
+            },
+            "regraPercentuais": null,
+            "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
+          }
+        ],
+        "tecnicas": [
+          {
+            "tipo": "REST_PAUSE",
+            "nome": "Rest pause",
+            "explicacao": "Faça a série, pause 20 segundos e continue com a mesma carga até a falha.",
+            "padrao": {
+              "tipo": "REST_PAUSE",
+              "pausaSegundos": 20,
+              "pausaRespiracoes": null,
+              "pausas": 1,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "CLUSTER",
+            "nome": "Cluster",
+            "explicacao": "Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a mesma carga.",
+            "padrao": {
+              "tipo": "CLUSTER",
+              "pausaSegundos": 15,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "DROP_SET",
+            "nome": "Drop-set",
+            "explicacao": "Ao terminar a série, reduza a carga e continue sem descanso.",
+            "padrao": {
+              "tipo": "DROP_SET",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": 1,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          }
+        ],
         "arredondamentoKg": 0.5,
-        "repeticoes": { "Aquecimento": { "min": 10, "max": 15 }, "FS": { "min": 3, "max": 3 }, "WS": { "min": 3, "max": 6 } },
-        "instrucoesTreino": "Feeder Set (FS): séries preparatórias com carga crescente, sem chegar à falha.\nWorking Set (WS): uma ou duas séries principais, pesadas, com a carga de trabalho do dia.\nCálculo FS: se 3 FS, 1º 50% | 2º 70% | 3º 85% da WS. Se 2 FS, 1º 70% | 2º 85%. Se 1 FS, 85% da WS.\nAnote a carga de cada série no app.",
+        "instrucoesTreino": "Anote a carga e as repetições da série inteira no app.",
         "rodapePdf": null
       }
     },
@@ -32,13 +237,151 @@
       "nome": "Rest-pause",
       "descricao": "Série pesada até a falha, pausa curta e mais repetições até a falha.",
       "configuracao": {
-        "tiposSerie": ["Aquecimento", "FS", "WS"],
-        "tipoTrabalho": "WS",
-        "tipoPreparacao": "FS",
-        "regraPreparacao": { "1": [85], "2": [70, 85] },
+        "tipos": [
+          {
+            "nome": "Aquecimento",
+            "papel": "AQUECIMENTO",
+            "repeticoes": {
+              "min": 10,
+              "max": 15
+            },
+            "intensidadePadrao": null,
+            "intensidadePorModalidade": null,
+            "regraPercentuais": null,
+            "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
+          },
+          {
+            "nome": "FS",
+            "papel": "PREPARACAO",
+            "repeticoes": {
+              "min": 3,
+              "max": 3
+            },
+            "intensidadePadrao": {
+              "modo": "PERCENTUAL_WS",
+              "percentualMin": 85,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": null
+            },
+            "intensidadePorModalidade": null,
+            "regraPercentuais": {
+              "1": [
+                {
+                  "min": 85,
+                  "max": null
+                }
+              ],
+              "2": [
+                {
+                  "min": 70,
+                  "max": null
+                },
+                {
+                  "min": 85,
+                  "max": 90
+                }
+              ],
+              "3": [
+                {
+                  "min": 50,
+                  "max": null
+                },
+                {
+                  "min": 70,
+                  "max": null
+                },
+                {
+                  "min": 85,
+                  "max": 90
+                }
+              ]
+            },
+            "explicacao": "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha."
+          },
+          {
+            "nome": "WS",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 3,
+              "max": 6
+            },
+            "intensidadePadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": 1
+            },
+            "intensidadePorModalidade": {
+              "LIVRE": {
+                "modo": "CARGA_TRABALHO",
+                "percentualMin": null,
+                "percentualMax": null,
+                "rpe": null,
+                "rir": 1
+              },
+              "MAQUINA": {
+                "modo": "CARGA_TRABALHO",
+                "percentualMin": null,
+                "percentualMax": null,
+                "rpe": null,
+                "rir": 0
+              }
+            },
+            "regraPercentuais": null,
+            "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
+          }
+        ],
+        "tecnicas": [
+          {
+            "tipo": "REST_PAUSE",
+            "nome": "Rest pause",
+            "explicacao": "Faça a série, pause 20 segundos e continue com a mesma carga até a falha.",
+            "padrao": {
+              "tipo": "REST_PAUSE",
+              "pausaSegundos": 20,
+              "pausaRespiracoes": null,
+              "pausas": 1,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "CLUSTER",
+            "nome": "Cluster",
+            "explicacao": "Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a mesma carga.",
+            "padrao": {
+              "tipo": "CLUSTER",
+              "pausaSegundos": 15,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "DROP_SET",
+            "nome": "Drop-set",
+            "explicacao": "Ao terminar a série, reduza a carga e continue sem descanso.",
+            "padrao": {
+              "tipo": "DROP_SET",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": 1,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          }
+        ],
         "arredondamentoKg": 0.5,
-        "repeticoes": { "Aquecimento": { "min": 10, "max": 15 }, "FS": { "min": 3, "max": 3 }, "WS": { "min": 3, "max": 6 } },
-        "instrucoesTreino": "Rest-pause: faça a série pesada até a falha.\nDescanse de 10 a 20 segundos e faça mais repetições, até a falha de novo.\nAnote a carga e as repetições de cada parte da série no app.",
+        "instrucoesTreino": "Anote a carga e as repetições da série inteira no app.",
         "rodapePdf": null
       }
     },
@@ -46,13 +389,169 @@
       "nome": "Back-off sets",
       "descricao": "Depois das séries principais, uma ou duas séries com carga menor e mais repetições.",
       "configuracao": {
-        "tiposSerie": ["Aquecimento", "FS", "WS", "Back off"],
-        "tipoTrabalho": "WS",
-        "tipoPreparacao": "FS",
-        "regraPreparacao": { "1": [85], "2": [70, 85], "3": [50, 70, 85] },
+        "tipos": [
+          {
+            "nome": "Aquecimento",
+            "papel": "AQUECIMENTO",
+            "repeticoes": {
+              "min": 10,
+              "max": 15
+            },
+            "intensidadePadrao": null,
+            "intensidadePorModalidade": null,
+            "regraPercentuais": null,
+            "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
+          },
+          {
+            "nome": "FS",
+            "papel": "PREPARACAO",
+            "repeticoes": {
+              "min": 3,
+              "max": 3
+            },
+            "intensidadePadrao": {
+              "modo": "PERCENTUAL_WS",
+              "percentualMin": 85,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": null
+            },
+            "intensidadePorModalidade": null,
+            "regraPercentuais": {
+              "1": [
+                {
+                  "min": 85,
+                  "max": null
+                }
+              ],
+              "2": [
+                {
+                  "min": 70,
+                  "max": null
+                },
+                {
+                  "min": 85,
+                  "max": 90
+                }
+              ],
+              "3": [
+                {
+                  "min": 50,
+                  "max": null
+                },
+                {
+                  "min": 70,
+                  "max": null
+                },
+                {
+                  "min": 85,
+                  "max": 90
+                }
+              ]
+            },
+            "explicacao": "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha."
+          },
+          {
+            "nome": "WS",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 3,
+              "max": 6
+            },
+            "intensidadePadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": 1
+            },
+            "intensidadePorModalidade": {
+              "LIVRE": {
+                "modo": "CARGA_TRABALHO",
+                "percentualMin": null,
+                "percentualMax": null,
+                "rpe": null,
+                "rir": 1
+              },
+              "MAQUINA": {
+                "modo": "CARGA_TRABALHO",
+                "percentualMin": null,
+                "percentualMax": null,
+                "rpe": null,
+                "rir": 0
+              }
+            },
+            "regraPercentuais": null,
+            "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
+          },
+          {
+            "nome": "Back off",
+            "papel": "POS_TRABALHO",
+            "repeticoes": {
+              "min": 6,
+              "max": 8
+            },
+            "intensidadePadrao": {
+              "modo": "PERCENTUAL_WS",
+              "percentualMin": 85,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": null
+            },
+            "intensidadePorModalidade": null,
+            "regraPercentuais": null,
+            "explicacao": "Depois da série de trabalho, com 85% da carga dela."
+          }
+        ],
+        "tecnicas": [
+          {
+            "tipo": "REST_PAUSE",
+            "nome": "Rest pause",
+            "explicacao": "Faça a série, pause 20 segundos e continue com a mesma carga até a falha.",
+            "padrao": {
+              "tipo": "REST_PAUSE",
+              "pausaSegundos": 20,
+              "pausaRespiracoes": null,
+              "pausas": 1,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "CLUSTER",
+            "nome": "Cluster",
+            "explicacao": "Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a mesma carga.",
+            "padrao": {
+              "tipo": "CLUSTER",
+              "pausaSegundos": 15,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "DROP_SET",
+            "nome": "Drop-set",
+            "explicacao": "Ao terminar a série, reduza a carga e continue sem descanso.",
+            "padrao": {
+              "tipo": "DROP_SET",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": 1,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          }
+        ],
         "arredondamentoKg": 0.5,
-        "repeticoes": { "Aquecimento": { "min": 10, "max": 15 }, "FS": { "min": 3, "max": 3 }, "WS": { "min": 3, "max": 6 }, "Back off": { "min": 6, "max": 8 } },
-        "instrucoesTreino": "Back-off sets: depois das séries principais (WS), reduza de 10 a 20% da carga e faça uma ou duas séries com mais repetições.\nO percentual do Back off é sobre a maior carga feita na WS.\nAnote a carga de cada série no app.",
+        "instrucoesTreino": "Anote a carga e as repetições da série inteira no app.",
         "rodapePdf": null
       }
     },
@@ -60,13 +559,151 @@
       "nome": "Drop-set e Cluster",
       "descricao": "Drop-set, cluster e bi-set como técnicas de intensificação.",
       "configuracao": {
-        "tiposSerie": ["Aquecimento", "FS", "WS"],
-        "tipoTrabalho": "WS",
-        "tipoPreparacao": "FS",
-        "regraPreparacao": { "1": [85], "2": [70, 85] },
+        "tipos": [
+          {
+            "nome": "Aquecimento",
+            "papel": "AQUECIMENTO",
+            "repeticoes": {
+              "min": 10,
+              "max": 15
+            },
+            "intensidadePadrao": null,
+            "intensidadePorModalidade": null,
+            "regraPercentuais": null,
+            "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
+          },
+          {
+            "nome": "FS",
+            "papel": "PREPARACAO",
+            "repeticoes": {
+              "min": 3,
+              "max": 3
+            },
+            "intensidadePadrao": {
+              "modo": "PERCENTUAL_WS",
+              "percentualMin": 85,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": null
+            },
+            "intensidadePorModalidade": null,
+            "regraPercentuais": {
+              "1": [
+                {
+                  "min": 85,
+                  "max": null
+                }
+              ],
+              "2": [
+                {
+                  "min": 70,
+                  "max": null
+                },
+                {
+                  "min": 85,
+                  "max": 90
+                }
+              ],
+              "3": [
+                {
+                  "min": 50,
+                  "max": null
+                },
+                {
+                  "min": 70,
+                  "max": null
+                },
+                {
+                  "min": 85,
+                  "max": 90
+                }
+              ]
+            },
+            "explicacao": "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha."
+          },
+          {
+            "nome": "WS",
+            "papel": "TRABALHO",
+            "repeticoes": {
+              "min": 3,
+              "max": 6
+            },
+            "intensidadePadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null,
+              "rpe": null,
+              "rir": 1
+            },
+            "intensidadePorModalidade": {
+              "LIVRE": {
+                "modo": "CARGA_TRABALHO",
+                "percentualMin": null,
+                "percentualMax": null,
+                "rpe": null,
+                "rir": 1
+              },
+              "MAQUINA": {
+                "modo": "CARGA_TRABALHO",
+                "percentualMin": null,
+                "percentualMax": null,
+                "rpe": null,
+                "rir": 0
+              }
+            },
+            "regraPercentuais": null,
+            "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
+          }
+        ],
+        "tecnicas": [
+          {
+            "tipo": "REST_PAUSE",
+            "nome": "Rest pause",
+            "explicacao": "Faça a série, pause 20 segundos e continue com a mesma carga até a falha.",
+            "padrao": {
+              "tipo": "REST_PAUSE",
+              "pausaSegundos": 20,
+              "pausaRespiracoes": null,
+              "pausas": 1,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "CLUSTER",
+            "nome": "Cluster",
+            "explicacao": "Muscle Round: a série é dividida em blocos de repetições com uma pausa curta entre eles, com a mesma carga.",
+            "padrao": {
+              "tipo": "CLUSTER",
+              "pausaSegundos": 15,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          },
+          {
+            "tipo": "DROP_SET",
+            "nome": "Drop-set",
+            "explicacao": "Ao terminar a série, reduza a carga e continue sem descanso.",
+            "padrao": {
+              "tipo": "DROP_SET",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": 1,
+              "reducaoPercentual": null,
+              "repsPorQueda": null
+            }
+          }
+        ],
         "arredondamentoKg": 0.5,
-        "repeticoes": { "Aquecimento": { "min": 10, "max": 15 }, "FS": { "min": 3, "max": 3 }, "WS": { "min": 3, "max": 6 } },
-        "instrucoesTreino": "Drop-set: faça a série até a falha, reduza de 20 a 30% da carga e continue; repita de 2 a 3 vezes.\nCluster: carga alta, com pausas de cerca de 15 segundos dentro da série.\nBi-set: dois exercícios seguidos, sem pausa entre eles.\nAnote a carga de cada série no app.",
+        "instrucoesTreino": "Anote a carga e as repetições da série inteira no app.",
         "rodapePdf": null
       }
     }

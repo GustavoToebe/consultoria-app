@@ -2,8 +2,7 @@
 /**
  * Importa para a consultoria do Saraiva (pela API, como treinador) os vídeos da biblioteca de exercícios, os modelos
  * de semana de treino, os modelos de mobilidade, os suplementos e a lista de medicação e ergogênicos que estão em ./dados. Pode rodar de novo à vontade: só cria o que
- * ainda não existe e nunca troca um vídeo que já está na biblioteca. Série "Rest pause" do PDF vira WS com o alvo
- * "Rest pause" (a técnica é completada no editor; o resumo conta quantas).
+ * ainda não existe e nunca troca um vídeo que já está na biblioteca. Séries com rest pause e cluster mantêm a técnica e a referência de carga; o resumo conta quantas.
  *
  *   node scripts/importacao/importar.mjs --simular     (só lê; mostra o que faria)
  *   node scripts/importacao/importar.mjs               (grava)
@@ -14,6 +13,7 @@
  * Variáveis: API_URL (padrão http://localhost:8088/api), IMPORT_EMAIL (padrão saraiva@demo.local) e a senha em
  * IMPORT_SENHA ou DEMO_SENHA. Dados só de treino (nada de aluno).
  */
+import METODOLOGIA_PADRAO from './metodologia-padrao.json' with { type: 'json' };
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -134,56 +134,65 @@ export function modalidadeDe(nome) {
 }
 
 // ---------------------------------------------------------------- séries
-// "Rest pause" fica aqui só para o PDF ser lido: não é tipo de série, é técnica (`montarSeries` converte).
-const TIPOS = { aquecimento: 'Aquecimento', fs: 'FS', ws: 'WS', 'back off': 'Back off', 'top set': 'Top set', 'rest pause': 'Rest pause' };
-const REGRA_PADRAO = { 1: [85], 2: [70, 85], 3: [50, 70, 85] };
+const TIPOS = { aquecimento: 'Aquecimento', fs: 'FS', ws: 'WS', 'back off': 'Back off', 'top set': 'Top set' };
+const REGRA_PADRAO = METODOLOGIA_PADRAO.tipos.find((t) => t.papel === 'PREPARACAO').regraPercentuais;
+const tecnicaVazia = (tipo) => ({ tipo, pausaSegundos: null, pausaRespiracoes: null, pausas: null, blocos: null, quedas: null, reducaoPercentual: null, repsPorQueda: null });
 
-/** Texto do PDF ("2x3 a 5 - FS", "1x6-8 – WS", "1x5-10 (Aquecimento)") em itens {n, min, max, tipo}. */
+/** Lê as prescrições como escritas; tipo e técnica são independentes. */
 export function lerSeries(linhas) {
   const itens = [];
-  const ER = /^(\d+)\s*x\s*(\d+)(?:\s*(?:a|-|–)\s*(\d+))?\s*[-–]?\s*\(?\s*([A-Za-zÀ-ú ]*?)\s*\)?\s*$/;
   for (const bruta of linhas) {
     if (typeof bruta !== 'string') { itens.push(bruta); continue; }
-    const linha = bruta.trim();
-    const m = ER.exec(linha);
-    if (m) {
-      itens.push({ n: +m[1], min: +m[2], max: m[3] ? +m[3] : +m[2], tipo: m[4] ? TIPOS[m[4].toLowerCase()] ?? null : null, original: linha });
-    } else if (TIPOS[linha.toLowerCase()] && itens.length && !itens[itens.length - 1].tipo) {
-      itens[itens.length - 1].tipo = TIPOS[linha.toLowerCase()];
-    } else {
-      throw new Error(`Série não reconhecida: "${linha}"`);
+    for (const texto of bruta.split(/\s*\/\s*(?=\d+\s*x)/i)) {
+      const linha = texto.trim();
+      if (TIPOS[linha.toLowerCase()] && itens.length && !itens.at(-1).tipo) { itens.at(-1).tipo = TIPOS[linha.toLowerCase()]; continue; }
+      const reps = /^(\d+)\s*x\s*(\d+)(?:\s*(?:a|-|–)\s*(\d+))?/i.exec(linha);
+      const micro = /(\d+)\s*micro[ -]?s[eé]ries/i.exec(linha);
+      const segundos = /(\d+)\s*s(?:egundos?)?\b/i.exec(linha);
+      const respiracoes = /(\d+)\s*respira[çc][õo]es/i.exec(linha);
+      let tecnica = null;
+      if (/rest[ -]?pause/i.test(linha)) tecnica = { ...tecnicaVazia('REST_PAUSE'), pausaSegundos: segundos ? +segundos[1] : 20, pausaRespiracoes: respiracoes ? +respiracoes[1] : null, pausas: micro ? +micro[1] - 1 : 1 };
+      if (/cluster|muscle round/i.test(linha)) {
+        const desigual = /\((\d+(?:\s*\+\s*\d+)+)\)/.exec(linha);
+        const iguais = /(\d+)\s*blocos?\s*de\s*(\d+)/i.exec(linha);
+        const blocos = desigual ? desigual[1].split('+').map(Number) : iguais ? Array(+iguais[1]).fill(+iguais[2]) : null;
+        tecnica = { ...tecnicaVazia('CLUSTER'), blocos, pausaSegundos: segundos ? +segundos[1] : null, pausaRespiracoes: respiracoes ? +respiracoes[1] : null };
+      }
+      const nome = (reps ? linha.slice(reps[0].length) : linha).replace(/^[\s–-]+/, '');
+      const tipo = Object.entries(TIPOS).find(([k]) => new RegExp(`^(?:\\()?${k}\\b`, 'i').test(nome))?.[1] ?? null;
+      if (!tipo && !tecnica && Object.hasOwn(TIPOS, linha.toLowerCase()) && itens.at(-1)?.tipo == null) { itens.at(-1).tipo = TIPOS[linha.toLowerCase()]; continue; }
+      if (!reps && !tecnica && !tipo) throw new Error('Série não reconhecida. Confira a prescrição.');
+      const soma = tecnica?.tipo === 'CLUSTER' && tecnica.blocos ? tecnica.blocos.reduce((a, b) => a + b, 0) : null;
+      itens.push({ n: reps ? +reps[1] : 1, min: soma ?? (reps ? +reps[2] : null), max: soma ?? (reps ? +(reps[3] ?? reps[2]) : null), tipo, tecnica });
     }
   }
-  for (const i of itens) if (!i.tipo && !i.alvoTexto) throw new Error(`Série sem tipo: "${i.original}"`);
+  for (const i of itens) if (!i.tipo && !i.tecnica) throw new Error('Série sem tipo nem técnica.');
   return itens;
 }
 
-const percentual = (obs, re) => { const m = re.exec(obs); return m ? Number(m[1]) : null; };
+const percentual = (obs, re) => { const m = re.exec(obs ?? ''); return m ? Number(m[1]) : null; };
 
-/**
- * Séries do exercício no formato da API (uma por série), com % da WS lidos da observação. "1x8-12 Rest pause" vira WS
- * com o alvo "Rest pause" e sem técnica: o PDF não traz pausa nem retomadas, e nada é inventado (o treinador completa).
- */
-export function montarSeries(linhas, obs, regra) {
+export function montarSeries(linhas, obs, regra = REGRA_PADRAO, modalidade = null) {
   const itens = lerSeries(linhas);
   const totalFs = itens.filter((i) => i.tipo === 'FS').reduce((t, i) => t + i.n, 0);
-  const pBack = percentual(obs, /back off[^%\d]*?(\d+)\s*%/i);
-  const pTop = percentual(obs, /top set[^%\d+]*\+\s*(\d+)\s*%/i);
-  const faixa = regra[totalFs] ?? null;
+  const pBack = percentual(obs, /back off[^%\d]*?(\d+)\s*%/i) ?? percentual(linhas.filter((x) => typeof x === 'string').join(' '), /back off[^%\d]*?(\d+)\s*%/i);
+  const pTop = percentual(obs, /(?:top set[^%\d+]*)?\+\s*(\d+)\s*%/i);
   let fs = 0;
   const series = [];
-  for (const i of itens) {
-    for (let k = 0; k < i.n; k++) {
-      const serie = { uid: randomUUID(), tipo: i.tipo, repsMin: i.min ?? null, repsMax: i.max ?? null, alvoTexto: i.alvoTexto ?? null, descansoSegundos: null };
-      let inten = { modo: 'NENHUMA' };
-      if (i.tipo === 'Rest pause') { serie.tipo = 'WS'; serie.alvoTexto = 'Rest pause'; inten = { modo: 'CARGA_TRABALHO' }; rel.restPause++; }
-      else if (i.tipo === 'FS' && faixa) inten = { modo: 'PERCENTUAL_WS', percentual: faixa[fs++] };
-      else if (i.tipo === 'FS') fs++;
-      else if (i.tipo === 'WS') inten = { modo: 'CARGA_TRABALHO' };
-      else if (i.tipo === 'Back off' && pBack) inten = { modo: 'PERCENTUAL_WS', percentual: pBack };
-      else if (i.tipo === 'Top set') inten = pTop ? { modo: 'PERCENTUAL_WS', percentual: 100 + pTop } : { modo: 'LIVRE', texto: 'Mais pesada que a série anterior' };
-      series.push({ ...serie, intensidade: inten });
-    }
+  for (const i of itens) for (let k = 0; k < i.n; k++) {
+    let intensidade = { modo: 'NENHUMA' };
+    if (i.tipo === 'FS') {
+      const faixa = regra[totalFs]?.[fs++];
+      if (faixa != null) intensidade = { modo: 'PERCENTUAL_WS', percentualMin: faixa.min, percentualMax: faixa.max ?? null };
+    } else if (i.tipo === 'WS') intensidade = { modo: 'CARGA_TRABALHO', rir: modalidade === 'MAQUINA' ? 0 : modalidade === 'LIVRE' ? 1 : null };
+    else if (i.tipo === 'Back off' && pBack) intensidade = { modo: 'PERCENTUAL_WS', percentualMin: pBack, percentualMax: null };
+    else if (i.tipo === 'Top set') {
+      const padrao = METODOLOGIA_PADRAO.tipos.find((t) => t.nome === 'Top set').intensidadePorModalidade?.[modalidade];
+      intensidade = pTop != null ? { modo: 'ACIMA_DA_ANTERIOR', percentualMin: pTop, percentualMax: null } : padrao ? { ...padrao } : { modo: 'ACIMA_DA_ANTERIOR', percentualMin: null, percentualMax: null };
+      if (intensidade.percentualMin == null) rel.topSemPercentual++;
+    } else if (!i.tipo && i.tecnica && series.some((s) => s.intensidade.modo === 'CARGA_TRABALHO')) intensidade = { modo: 'MESMA_CARGA' };
+    if (i.tecnica) rel.tecnicas++;
+    series.push({ uid: randomUUID(), tipo: i.tipo, repsMin: i.min ?? null, repsMax: i.max ?? null, descansoSegundos: null, intensidade, tecnica: i.tecnica ? structuredClone(i.tecnica) : null });
   }
   return series;
 }
@@ -194,12 +203,15 @@ export function obsLimpa(obs) {
     .replace(/Top set\s*-\s*Faça com \+\d+%\s*da carga usada na WS\.?/gi, '')
     .replace(/Back off\s*-\s*Faça com \d+%\s*da carga realizada na WS\.?/gi, '')
     .replace(/Back off com \d+%\s*da carga da WS\.?/gi, '')
+    .replace(/(?:WS\s*\+\s*)?Rest[ -]?pause\s*(?:\(\d+\s*micro[ -]?s[eé]ries\))?\s*,?\s*\d+\s*s\b/gi, '')
+    .replace(/Cluster Set\s*,?\s*\d+\s*s\b/gi, '')
+    .replace(/Muscle Round\s*\d+\s*blocos de\s*\d+\s*,?\s*pausa\s*\d+\s*respirações\s*ou\s*\d+\s*s\b/gi, '')
     .replace(/\s+/g, ' ').trim();
   return t || null;
 }
 
 // ---------------------------------------------------------------- relatório
-const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', restPause: 0 };
+const rel = { suplementos: [], ergogenicos: [], criados: new Set(), ligados: new Set(), grupos: 0, obsDicas: 0, conflitos: new Set(), linksIgnorados: new Set(), semLink: [], quase: [], modelos: [], mobilidade: [], trocados: new Set(), instrucoes: '', tecnicas: 0, topSemPercentual: 0 };
 const falar = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------- biblioteca
@@ -315,7 +327,7 @@ async function conteudoTreino(m, regra) {
     for (const x of s.exercicios) {
       const e = await exercicioDoPlano(x.nome, x.url, m.nome.replace(/ - .*/, ''));
       const timed = x.series.some((i) => typeof i !== 'string');
-      const series = montarSeries(x.series.map((i) => (typeof i === 'string' ? i : { n: i.count, min: null, max: null, tipo: i.tipo, alvoTexto: i.alvoTexto })), x.obs ?? '', regra);
+      const series = montarSeries(x.series.map((i) => (typeof i === 'string' ? i : { n: i.count, min: null, max: null, tipo: i.tipo })), x.obs ?? '', regra, e.modalidade);
       exercicios.push({
         uid: randomUUID(), exercicioId: SIMULAR && String(e.id).startsWith('sim-') ? null : e.id, nome: x.nome.replace(/\*/g, '').trim(),
         modalidade: e.modalidade, videoUrl: e.videoUrl ?? null, observacao: obsLimpa(x.obs), progressao: x.progressao ?? !timed,
@@ -341,7 +353,7 @@ function mostrar(nome, c) {
     falar(`\n[${s.diaSemana}] ${s.nome} (${s.tipo}) cardio: ${s.cardio ?? '-'}`);
     for (const e of s.exercicios) {
       falar(`  * ${e.nome} {${e.modalidade}} vídeo:${e.videoUrl ? 'sim' : '-'} obs: ${e.observacao ?? '-'}`);
-      falar('     ' + e.series.map((x) => `${x.tipo} ${x.repsMin ?? ''}${x.repsMax && x.repsMax !== x.repsMin ? '-' + x.repsMax : ''}${x.alvoTexto ? ' ' + x.alvoTexto : ''}${x.intensidade.percentual ? ' @' + x.intensidade.percentual : x.intensidade.modo === 'LIVRE' ? ' (livre)' : ''}`).join(' | '));
+      falar('     ' + e.series.map((x) => `${x.tipo} ${x.repsMin ?? ''}${x.repsMax && x.repsMax !== x.repsMin ? '-' + x.repsMax : ''}${x.tecnica ? ' ' + x.tecnica.tipo : ''}${x.intensidade.percentualMin ? ' @' + x.intensidade.percentualMin : x.intensidade.modo === 'ACIMA_DA_ANTERIOR' ? ' (acima da anterior)' : ''}`).join(' | '));
     }
   }
 }
@@ -454,7 +466,7 @@ async function principal() {
   falar(SIMULAR ? 'SIMULAÇÃO: nada será gravado.' : 'Gravando na API', BASE);
   // A metodologia padrão é a primeira do tipo METODOLOGIA (a mesma que a API vincula a todo plano novo).
   const padrao = (await chamar('GET', '/receitas?tipo=METODOLOGIA'))?.[0] ?? null;
-  const regra = Object.fromEntries(Object.entries(padrao?.conteudo?.regraPreparacao ?? REGRA_PADRAO).map(([k, v]) => [Number(k), v]));
+  const regra = Object.fromEntries(Object.entries(padrao?.conteudo?.tipos?.find((t) => t.papel === 'PREPARACAO')?.regraPercentuais ?? REGRA_PADRAO).map(([k, v]) => [Number(k), v]));
   await importarInstrucoes(padrao);
   await carregarBiblioteca();
   await importarVideos();
@@ -474,12 +486,13 @@ async function principal() {
   lista('Nomes parecidos na biblioteca (conferir se são o mesmo exercício)', rel.quase);
   falar(`\nInstruções do Plano 16: ${rel.instrucoes}.`);
   lista('Modelos de treino', rel.modelos);
-  if (rel.restPause) falar(`Séries "Rest pause" lidas: ${rel.restPause} (cada uma vira WS com o alvo "Rest pause", sem técnica: complete no editor).`);
+  if (rel.tecnicas) falar(`Séries com técnicas: ${rel.tecnicas}.`);
+  if (rel.topSemPercentual) falar(`Top set sem percentual prescrito: ${rel.topSemPercentual}; complete no editor.`);
   lista('Modelos de mobilidade', rel.mobilidade);
   lista('Suplementos', rel.suplementos);
   lista('Medicação e ergogênicos', rel.ergogenicos);
 }
 
-if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || process.argv[1].endsWith('importar.mjs')) {
+if (process.argv[1]?.endsWith('importar.mjs')) {
   principal().catch((e) => { console.error('ERRO:', e.message); process.exit(1); });
 }

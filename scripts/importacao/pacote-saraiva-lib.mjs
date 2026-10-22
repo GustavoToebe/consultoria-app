@@ -58,6 +58,7 @@ const TEXTOS = [
   [/^exercício sem nome/, () => 'falta o nome do exercício'],
   [/^nome do exercício com mais de (\d+) letras/, (m) => `o nome passa de ${quantos(m)} letras; encurte`],
   [/^link de vídeo não aceito/, () => 'o link do vídeo precisa ser um link https do YouTube; confira ou apague'],
+  [/^top set sem percentual prescrito/, () => 'falta a porcentagem de aumento do Top set sobre a série anterior; preencha no editor'],
   [/^FS sem regra de percentual/, () => 'a série FS não tem a porcentagem da WS; diga a porcentagem ou troque o tipo da série'],
   [/^quantidade de (WS|FS) acima de (\d+)/, (m) => `mais de ${quantos(m, 2)} séries ${m[1]}; confira o número`],
   [/^quantidade de (WS|FS) inválida/, (m) => `o número de séries ${m[1]} não é um número inteiro válido; confira`],

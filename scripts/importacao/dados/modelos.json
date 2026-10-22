@@ -2047,11 +2047,10 @@
        "series": [
         {
          "count": 5,
-         "tipo": "WS",
-         "alvoTexto": "1 min"
+         "tipo": "WS"
         }
        ],
-       "obs": "",
+       "obs": "1 min",
        "url": "",
        "unidade": "nenhuma",
        "progressao": true
@@ -2413,11 +2412,10 @@
        "series": [
         {
          "count": 5,
-         "tipo": "WS",
-         "alvoTexto": "1 min"
+         "tipo": "WS"
         }
        ],
-       "obs": "",
+       "obs": "1 min",
        "url": "",
        "unidade": "nenhuma",
        "progressao": true

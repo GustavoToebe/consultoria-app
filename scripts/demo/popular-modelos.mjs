@@ -75,7 +75,7 @@ const PESADO = /^(agachamento livre|levantamento terra|supino reto|remada curvad
 function series(nome) {
   const pesado = PESADO.test(chave(nome));
   return Array.from({ length: pesado ? 4 : 3 }, () => ({
-    uid: randomUUID(), tipo: 'WS', repsMin: pesado ? 6 : 8, repsMax: pesado ? 10 : 12, alvoTexto: null,
+    uid: randomUUID(), tipo: 'WS', repsMin: pesado ? 6 : 8, repsMax: pesado ? 10 : 12, tecnica: null,
     descansoSegundos: pesado ? 90 : 75, intensidade: { modo: 'CARGA_TRABALHO' },
   }));
 }

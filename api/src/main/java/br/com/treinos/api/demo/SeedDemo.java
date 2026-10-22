@@ -37,6 +37,7 @@ import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
 import br.com.treinos.api.treino.ConteudoTreino.Intensidade;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ConteudoTreino.Sessao;
+import br.com.treinos.api.treino.ConteudoTreino.Tecnica;
 import br.com.treinos.api.treino.PlanoTreinoService;
 import br.com.treinos.api.web.Fuso;
 import org.springframework.stereotype.Service;
@@ -174,6 +175,11 @@ public class SeedDemo {
             darAcesso(aluno, ALUNO, senha);
 
             LocalDate segunda = LocalDate.now(Fuso.BRASILIA).with(DayOfWeek.MONDAY);
+            Plano16.Dia exemplos = Plano16.exemplos();
+            UUID pastaExemplos = pastas.criar(aluno, new PastaRequest("Exemplos do PDF (22/10)", segunda, segunda.plusDays(15))).id();
+            publicarTreino(aluno, pastaExemplos, "Exemplos do PDF (22/10)", segunda, segunda.plusDays(15),
+                    new ConteudoTreino(null, null, List.of(new Sessao(UUID.randomUUID(), exemplos.nome(), 1, "TREINO", null,
+                            null, null, exemplos.exercicios().stream().map(e -> exercicio(e, exercicios)).toList()))), treinador.getId());
             ConteudoTreino plano16 = plano16(exercicios);
             UUID pasta = pastas.criar(aluno, new PastaRequest("Plano 16", segunda, segunda.plusDays(15))).id();
             PlanoDetalhe<ConteudoTreino> publicado = publicarTreino(aluno, pasta, "Plano 16", segunda,
@@ -231,37 +237,62 @@ public class SeedDemo {
         if (e.observacao() != null) {
             obs.add(e.observacao());
         }
-        if (e.limite() == Plano16.Limite.FALHA) {
-            obs.add("Máquina: até a falha.");
-        } else if (e.limite() == Plano16.Limite.UM_RIR) {
-            obs.add("Livre: 1 RIR.");
-        }
+        Integer rir = e.limite() == Plano16.Limite.FALHA ? Integer.valueOf(0) : e.limite() == Plano16.Limite.UM_RIR ? Integer.valueOf(1) : null;
         return new ExercicioPlano(UUID.randomUUID(), ids.get(e.nome()), e.nome(), e.modalidade().name(),
                 VIDEOS.get(e.nome()), obs.isEmpty() ? null : String.join(" ", obs), e.progressao(), e.unidade(),
-                e.series().stream().map(SeedDemo::serie).toList());
+                e.series().stream().map(SeedDemo::serie).map(serie -> rir != null && serie.deTrabalho()
+                        ? new Serie(serie.uid(), serie.tipo(), serie.repsMin(), serie.repsMax(),
+                        new Intensidade(serie.intensidade().modo(), serie.intensidade().percentualMin(), serie.intensidade().percentualMax(), serie.intensidade().rpe(), rir), serie.descansoSegundos(), serie.tecnica()) : serie).toList());
     }
 
-    /** Notação curta do {@link Plano16}: A aquecimento, F feeder, W trabalho, B back off. */
+    /** Notação do Plano 16 e dos exemplos: R pausas, C blocos desiguais, M blocos iguais, T acima da anterior. */
     static Serie serie(String spec) {
-        char tipo = spec.charAt(0);
-        String resto = spec.substring(1);
-        BigDecimal percentual = null;
-        int arroba = resto.indexOf('@');
-        if (arroba >= 0) {
-            percentual = new BigDecimal(resto.substring(arroba + 1));
-            resto = resto.substring(0, arroba);
+        if (spec.contains("+R")) {
+            int i = spec.indexOf("+R");
+            Serie base = serie(spec.substring(0, i));
+            return new Serie(base.uid(), base.tipo(), base.repsMin(), base.repsMax(), base.intensidade(), null, serie(spec.substring(i + 1)).tecnica());
         }
-        int traco = resto.indexOf('-');
-        int min = Integer.parseInt(traco < 0 ? resto : resto.substring(0, traco));
-        int max = traco < 0 ? min : Integer.parseInt(resto.substring(traco + 1));
-        return switch (tipo) {
-            case 'A' -> new Serie(UUID.randomUUID(), "Aquecimento", min, max, intensidade("NENHUMA", null), null, null);
-            case 'F' -> new Serie(UUID.randomUUID(), "FS", min, max, intensidade("PERCENTUAL_WS", percentual), null, null);
-            case 'W' -> new Serie(UUID.randomUUID(), "WS", min, max, intensidade("CARGA_TRABALHO", null), null, null);
-            case 'B' -> new Serie(UUID.randomUUID(), "Back off", min, max,
-                    intensidade("PERCENTUAL_WS", percentual), null, null);
-            default -> throw new IllegalArgumentException("Série desconhecida: " + spec);
-        };
+        char tipo = spec.charAt(0);
+        String[] partes = spec.substring(1).split("@", 2);
+        String valor = partes[0];
+        String parametro = partes.length > 1 ? partes[1] : "";
+        if (tipo == 'R') {
+            String[] repsEPausas = valor.split(":", 2);
+            Integer reps = repsEPausas.length > 1 ? Integer.valueOf(repsEPausas[0]) : null;
+            int pausas = repsEPausas.length > 1 ? Integer.parseInt(repsEPausas[1]) : valor.isEmpty() ? 1 : Integer.parseInt(valor);
+            return new Serie(UUID.randomUUID(), null, reps, reps, intensidade("MESMA_CARGA", null), null,
+                    new Tecnica("REST_PAUSE", parametro.isEmpty() ? 20 : Integer.valueOf(parametro), null, pausas, null, null, null, null));
+        }
+        if (tipo == 'C' || tipo == 'M') {
+            List<Integer> blocos;
+            Integer respiracoes = null;
+            Integer segundos;
+            if (tipo == 'M') {
+                String[] quantidade = valor.split("x");
+                blocos = java.util.Collections.nCopies(Integer.parseInt(quantidade[0]), Integer.valueOf(quantidade[1]));
+                String[] pausa = parametro.split("r/", 2);
+                respiracoes = Integer.valueOf(pausa[0]);
+                segundos = Integer.valueOf(pausa[1]);
+            } else {
+                blocos = java.util.Arrays.stream(valor.split("\\+")).map(Integer::valueOf).toList();
+                segundos = parametro.isEmpty() ? null : Integer.valueOf(parametro);
+            }
+            int soma = blocos.stream().mapToInt(Integer::intValue).sum();
+            return new Serie(UUID.randomUUID(), null, soma, soma, intensidade("MESMA_CARGA", null), null,
+                    new Tecnica("CLUSTER", segundos, respiracoes, null, blocos, null, null, null));
+        }
+        String[] percentuais = parametro.split("-", 2);
+        BigDecimal percentualMin = parametro.isEmpty() ? null : new BigDecimal(percentuais[0]);
+        BigDecimal percentualMax = percentuais.length > 1 ? new BigDecimal(percentuais[1]) : null;
+        if (tipo == 'T') return new Serie(UUID.randomUUID(), "Top set", null, null,
+                new Intensidade("ACIMA_DA_ANTERIOR", percentualMin, percentualMax, null, null), null, null);
+        String[] reps = valor.split("-", 2);
+        int min = Integer.parseInt(reps[0]);
+        int max = reps.length > 1 ? Integer.parseInt(reps[1]) : min;
+        String nome = switch (tipo) { case 'A' -> "Aquecimento"; case 'F' -> "FS"; case 'W' -> "WS"; case 'B' -> "Back off";
+            default -> throw new IllegalArgumentException("Tipo de série desconhecido."); };
+        String modo = tipo == 'A' ? "NENHUMA" : tipo == 'W' ? "CARGA_TRABALHO" : "PERCENTUAL_WS";
+        return new Serie(UUID.randomUUID(), nome, min, max, new Intensidade(modo, percentualMin, percentualMax, null, null), null, null);
     }
 
     private static Intensidade intensidade(String modo, BigDecimal percentual) {

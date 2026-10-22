@@ -60,8 +60,8 @@ class SeedDemoIntegrationTest extends AbstractIntegrationTest {
         JsonNode alunoLogado = entrar(SeedDemo.ALUNO);
         JsonNode painel = api.get("/aluno/painel", alunoLogado, 200);
         // As instruções do Plano 16 chegam ao aluno pela metodologia do plano (a padrão do Saraiva).
-        assertThat(painel.at("/configuracao/instrucoesTreino").asString()).contains("Feeder Set");
-        assertThat(painel.at("/treino/conteudo/metodologia/configuracao/instrucoesTreino").asString()).contains("Feeder Set");
+        assertThat(painel.at("/configuracao/instrucoesTreino").asString()).contains("Anote a carga");
+        assertThat(painel.at("/treino/conteudo/metodologia/configuracao/instrucoesTreino").asString()).contains("Anote a carga");
         JsonNode sessoes = painel.get("treino").get("conteudo").get("sessoes");
         assertThat(sessoes).hasSize(8);
         assertThat(sessoes.get(3).get("nome").asString()).isEqualTo("Quinta - Off ativo");
@@ -69,10 +69,20 @@ class SeedDemoIntegrationTest extends AbstractIntegrationTest {
         assertThat(sessoes.get(7).get("tipo").asString()).isEqualTo("ACESSORIOS");
         JsonNode remada = sessoes.get(0).get("exercicios").get(0);
         assertThat(remada.get("series")).hasSize(7);
-        assertThat(remada.get("observacao").asString()).contains("Máquina: até a falha");
+        assertThat(remada.at("/series/4/intensidade/rir").asInt()).isZero();
         // Última carga de trabalho da remada: a da semana passada (42,5 kg).
         assertThat(painel.get("ultimasCargas").get(remada.get("exercicioId").asString()).get("carga").decimalValue())
                 .isEqualByComparingTo("42.5");
+        JsonNode pastas = api.get("/alunos/" + alunoId + "/pastas", saraiva, 200);
+        JsonNode exemplos = java.util.stream.StreamSupport.stream(pastas.spliterator(), false)
+                .filter(p -> p.get("titulo").asString().equals("Exemplos do PDF (22/10)")).findFirst().orElseThrow();
+        JsonNode pacoteExemplos = api.get("/aluno/pastas/" + exemplos.get("id").asString(), alunoLogado, 200);
+        JsonNode linhas = pacoteExemplos.at("/treino/conteudo/sessoes/0/exercicios");
+        assertThat(linhas).hasSize(11);
+        assertThat(linhas.get(7).at("/series/0/tecnica/pausas").asInt()).isEqualTo(2);
+        assertThat(linhas.get(8).at("/series/1/tecnica/blocos")).hasSize(2);
+        assertThat(linhas.get(8).at("/series/1/repsMin").asInt()).isEqualTo(6);
+        assertThat(linhas.get(9).at("/series/1/tecnica/pausaRespiracoes").asInt()).isEqualTo(5);
         JsonNode dieta = api.get("/aluno/dieta", alunoLogado, 200).get("dieta");
         assertThat(dieta.get("conteudo").get("refeicoes")).hasSize(5);
         assertThat(dieta.get("conteudo").get("suplementacao")).isEmpty();
