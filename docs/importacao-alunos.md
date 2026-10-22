@@ -208,7 +208,7 @@ Vale para os quatro scripts que falam com a API (`importar-alunos.mjs`, `importa
 - **Permissões conferidas antes de gravar.** Depois do login, `importar-alunos.mjs` e `importar.mjs` chamam `GET /eu` (como
   `importar-planos.mjs` já fazia) e param, sem gravar nada, se o login não tiver o necessário:
   `importar-alunos.mjs` exige `ALUNO_LER`, `ALUNO_ALTERAR`, `ALUNO_SENSIVEL_LER` e `ALUNO_SENSIVEL_ALTERAR` (o peso é dado
-  sensível; na simulação só avisa, porque simular só precisa de `ALUNO_LER`); `importar.mjs` exige `BIBLIOTECA_LER`,
+  sensível; na simulação só avisa, porque simular só precisa de `ALUNO_LER`); `importar.mjs` (na simulação também confere, mas só avisa) exige `BIBLIOTECA_LER`,
   `BIBLIOTECA_ALTERAR`, `MODELO_LER` e `MODELO_ALTERAR`, mais `ERGOGENICO_ALTERAR` quando o login lê ergogênicos (sem
   `ERGOGENICO_LER` essa etapa é pulada, como na demonstração).
 - Testes: `node --test scripts/importacao/acesso.test.mjs scripts/importacao/acesso-scripts.test.mjs` (os scripts rodam de
