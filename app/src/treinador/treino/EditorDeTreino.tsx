@@ -1,27 +1,38 @@
 import { useLocalSearchParams } from 'expo-router';
 import { NotebookTabs } from 'lucide-react-native';
-import { Fragment, useState, type ReactNode } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { criarReceita, listarExercicios, salvarPlanoComoReceita } from '../../api/rotas';
-import type { Configuracao, ConteudoTreino, Receita, ResultadoValidacao } from '../../api/tipos';
+import type { Configuracao, ConteudoTreino, ExercicioPlano, Receita, ResultadoValidacao, Sessao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
-import { gruposDaSessao, podeJuntar } from '../../dominio/combinacoes';
+import {
+  alterarGrupoDaSessao,
+  desfazerGrupo,
+  gruposDaSessao,
+  juntarAoGrupo,
+  moverExercicio,
+  moverGrupoDeExercicios,
+  removerExercicio,
+  tirarDoGrupo,
+  type ExerciciosEGrupos,
+  type MudancaDoGrupo,
+} from '../../dominio/combinacoes';
 import {
   aplicarReceitaDePlano,
+  comModalidade,
   comUidsNovos,
   mover,
-  moverExercicio,
   normalizarTreino,
   novaSessao,
   novoExercicio,
-  removerExercicio,
   sessaoSelecionadaDepois,
   seriesDaReceita,
   seriesParaReceita,
   substituir,
-  unidadeDaModalidade,
+  trocaApagaSeries,
 } from '../../dominio/editorTreino';
+import { validarTreino } from '../../dominio/validacaoDoTreino';
 import { BarraDesfazer, type Desfazer } from '../../treinador/plano/BarraDesfazer';
 import { BarraDoModeloDoEditor, NomeDoModelo } from '../../treinador/plano/TopoModelo';
 import { BarraDoPlano, ProblemasDoPlano } from '../../treinador/plano/TopoPlano';
@@ -32,15 +43,21 @@ import { FolhaReceitas } from '../../treinador/FolhaReceitas';
 import { FolhaSalvarReceita } from '../../treinador/FolhaSalvarReceita';
 import { useAviso } from '../../ui/Aviso';
 import { CartaoExercicio } from '../../treinador/treino/CartaoExercicio';
+import { CartaoGrupo } from '../../treinador/treino/CartaoGrupo';
 import { CartaoSessao } from '../../treinador/treino/CartaoSessao';
 import { FolhaBiblioteca } from '../../treinador/treino/FolhaBiblioteca';
+import { FolhaCriarGrupo } from '../../treinador/treino/FolhaCriarGrupo';
+import { criarGrupoPronto, dicaDoGrupo, motivoSemCandidatos, vizinhosQuePodemEntrar } from '../../treinador/treino/acoesDeGrupo';
+import { juntarProblemas, problemasDoExercicio, problemasDoGrupo } from '../../treinador/treino/problemasDaSessao';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { nomeDaCombinacao } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
 import { Folha } from '../../ui/Folha';
 import { Botao } from '../../ui/Botao';
+import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Campo } from '../../ui/Campo';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -61,7 +78,15 @@ type FolhaAberta =
   | { tipo: 'receitaSeries'; alvo: AlvoExistente }
   | { tipo: 'salvarSeries'; alvo: AlvoExistente }
   | { tipo: 'receitaPlano' }
-  | { tipo: 'salvarPlano' } | { tipo: 'metodologia' } | { tipo: 'sessao' } | { tipo: 'salvarSessao'; indice: number };
+  | { tipo: 'salvarPlano' } | { tipo: 'metodologia' } | { tipo: 'sessao' } | { tipo: 'salvarSessao'; indice: number } | { tipo: 'grupo' };
+
+/** Troca de exercício da biblioteca que apagaria as séries (de ou para cardio): espera a confirmação. */
+interface TrocaPendente {
+  sessaoUid: string;
+  exercicioUid: string;
+  novo: ExercicioPlano;
+  apagadas: number;
+}
 
 /** Editor do plano de treino: a tela mais importante do treinador. */
 export default function EditorDeTreino({ modelo = false, unica = false, receita }: { modelo?: boolean; unica?: boolean; receita?: Receita }) {
@@ -71,7 +96,12 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const nomeDoAluno = useNomeDoAluno(modelo ? null : editor.estado?.plano.alunoId);
   const config = editor.estado?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO;
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
-  const [problemas, setProblemas] = useState<ResultadoValidacao | null>(null);
+  // Resultado do servidor (Validar, Publicar) com o conteúdo a que se refere: ao editar, as marcas dele saem e ficam só as da validação local.
+  const [servidor, setServidor] = useState<{ resultado: ResultadoValidacao; para: ConteudoTreino } | null>(null);
+  const problemas = servidor?.resultado ?? null;
+  // Depois da primeira tentativa de salvar, validar ou publicar, `validarTreino` roda a cada edição: erros por campo e avisos, sem bloquear.
+  const [verificando, setVerificando] = useState(false);
+  const [trocaPendente, setTrocaPendente] = useState<TrocaPendente | null>(null);
   const [folha, setFolha] = useState<FolhaAberta | null>(null);
   const [desfazer, setDesfazer] = useState<Desfazer<ConteudoTreino> | null>(null);
   // Uma sessão aparece por vez. Se o uid sumiu (desfazer, recarregar), vale a primeira.
@@ -80,6 +110,9 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // Miniatura da demonstração: vem da biblioteca, pelo vínculo `exercicioId`. Sem permissão ou sem internet, fica sem miniatura.
   const biblioteca = useCarregar('biblioteca-exercicios', () => listarExercicios());
   const demonstracoes = new Map((biblioteca.dados ?? []).map((x) => [x.id, { imagens: x.imagens, imagemPropriaEm: x.imagemPropriaEm }]));
+
+  const conteudoDaTela = editor.estado?.conteudo ?? null;
+  const validacaoLocal = useMemo(() => (verificando && conteudoDaTela ? validarTreino(conteudoDaTela) : null), [verificando, conteudoDaTela]);
 
   const estado = editor.estado;
   if (!estado) {
@@ -92,7 +125,17 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   }
 
   const c = estado.conteudo;
-  const comErro = uidsComProblema(c, (problemas?.erros ?? []).map((p) => p.caminho));
+  const errosDoServidor = servidor && servidor.para === c ? servidor.resultado.erros : [];
+  const errosVivos = juntarProblemas(validacaoLocal?.erros ?? [], errosDoServidor);
+  const avisosVivos = validacaoLocal?.avisos ?? [];
+  const comErro = uidsComProblema(c, errosVivos.map((p) => p.caminho));
+  // O "Validar", o "Salvar rascunho", o "Publicar" e o "Salvar modelo" ligam a validação local antes de agir; nenhum é travado por ela.
+  const comVerificacao = {
+    ...editor,
+    salvar: () => { setVerificando(true); return editor.salvar(); },
+    validar: () => { setVerificando(true); return editor.validar(); },
+    publicar: (...args: Parameters<typeof editor.publicar>) => { setVerificando(true); return editor.publicar(...args); },
+  };
   const alternar = (uid: string) =>
     setAbertos((a) => {
       const novo = new Set(a);
@@ -106,16 +149,21 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const sessoesComProblema = new Set(c.sessoes.filter((x) => comErro.has(x.uid) || x.exercicios.some((e) => comErro.has(e.uid))).map((x) => x.uid));
   /** Resultado da validação: com erro, abre a primeira sessão que precisa de correção. */
   const aoProblemas = (r: ResultadoValidacao | null) => {
-    setProblemas(r);
+    setServidor(r ? { resultado: r, para: c } : null);
     if (r?.erros.length) {
       const uids = uidsComProblema(c, r.erros.map((p) => p.caminho));
       setSelecionadaUid(sessaoSelecionadaDepois(c.sessoes, sessaoAtual?.uid ?? null, { tipo: 'erros', uidsComErro: uids }));
     }
   };
 
+  /** "Fechar" a lista de resultados desliga a validação ao vivo; qualquer outro resultado segue o fluxo do servidor. */
+  const fecharVerificacao = (r: ResultadoValidacao | null) => {
+    if (r === null) { setServidor(null); setVerificando(false); } else aoProblemas(r);
+  };
+
   /** "Ir ao primeiro" da lista de erros: seleciona a sessão dele e abre o exercício; a rolagem é do `TopoPlano`. */
   const irAoPrimeiro = (uids: string[]) => {
-    const sessao = c.sessoes.find((x) => uids.includes(x.uid) || x.exercicios.some((e) => uids.includes(e.uid)));
+    const sessao = c.sessoes.find((x) => uids.includes(x.uid) || x.exercicios.some((e) => uids.includes(e.uid)) || (x.grupos ?? []).some((g) => uids.includes(g.uid)));
     if (sessao) setSelecionadaUid(sessao.uid);
     for (const u of uids) if (c.sessoes.some((x) => x.exercicios.some((e) => e.uid === u))) abrir(u);
   };
@@ -132,6 +180,16 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const mudarExercicios = (si: number, fn: (e: ConteudoTreino['sessoes'][number]['exercicios']) => ConteudoTreino['sessoes'][number]['exercicios']) =>
     mudarSessoes((sessoes) => substituir(sessoes, si, { ...sessoes[si], exercicios: fn(sessoes[si].exercicios) }));
 
+  /** Operação sobre os exercícios e os grupos da sessão aberta (mover, tirar do grupo, criar, alterar...). */
+  const mudarGrupos = (fn: (s: Sessao) => ExerciciosEGrupos) =>
+    mudarSessoes((sessoes) => substituir(sessoes, indiceSelecionado, { ...sessoes[indiceSelecionado], ...fn(sessoes[indiceSelecionado]) }));
+
+  /** Troca um exercício pelo uid (a confirmação da troca de modalidade chega depois de o conteúdo poder ter mudado). */
+  const trocarExercicioPorUid = (a: ConteudoTreino, sessaoUid: string, exercicioUid: string, novo: ExercicioPlano): ConteudoTreino => ({
+    ...a,
+    sessoes: a.sessoes.map((s) => (s.uid === sessaoUid ? { ...s, exercicios: s.exercicios.map((x) => (x.uid === exercicioUid ? novo : x)) } : s)),
+  });
+
   const adicionarSessao = () => {
     const usados = new Set(c.sessoes.map((s) => s.diaSemana));
     const dia = [1, 2, 3, 4, 5, 6, 7].find((d) => !usados.has(d)) ?? null;
@@ -143,14 +201,47 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   // O exercício novo só nasce quando se escolhe algo na folha: fechar a folha não deixa um "5." vazio nem rascunho pendente.
   const adicionarExercicio = (si: number) => setFolha({ tipo: 'biblioteca', alvo: { sessao: si, exercicio: null } });
 
+  const blocos = sessaoAtual ? gruposDaSessao(sessaoAtual, config) : [];
+
+  const cartaoDoExercicio = (sessao: Sessao, e: ExercicioPlano, ei: number, noGrupo: boolean) => (
+    <CartaoExercicio
+      key={e.uid}
+      exercicio={e}
+      posicao={ei}
+      total={sessao.exercicios.length}
+      aberto={abertos.has(e.uid)}
+      comProblema={comErro.has(e.uid)}
+      config={config}
+      erros={problemasDoExercicio(errosVivos, indiceSelecionado, ei)}
+      avisos={problemasDoExercicio(avisosVivos, indiceSelecionado, ei)}
+      noGrupo={noGrupo}
+      demonstracao={e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null}
+      aoAbrir={() => alternar(e.uid)}
+      aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
+      aoMudarApagandoSeries={(novo) => comDesfazer(`Modalidade de “${e.nome || ei + 1}” trocada; séries apagadas.`, (a) => trocarExercicioPorUid(a, sessao.uid, e.uid, novo))}
+      aoMover={(d) => mudarGrupos((s) => moverExercicio(s, ei, d))}
+      aoRemover={() =>
+        comDesfazer(`Exercício “${e.nome || ei + 1}” removido.`, (a) => ({
+          ...a,
+          sessoes: substituir(a.sessoes, indiceSelecionado, { ...a.sessoes[indiceSelecionado], ...removerExercicio(a.sessoes[indiceSelecionado], ei) }),
+        }))
+      }
+      aoTirarDoGrupo={() => mudarGrupos((s) => tirarDoGrupo(s, ei))}
+      aoEscolherDaBiblioteca={() => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
+      aoUsarReceita={() => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
+      aoSalvarReceita={() => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
+    />
+  );
+
   const titulo = modelo ? tituloDoModelo(unica ? 'SESSAO_TREINO' : 'PLANO_TREINO') : tituloDoPlanoDoAluno('treino', nomeDoAluno);
 
   return (
     <TelaDoEditor
       cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
-      barra={modelo ? <BarraDoModeloDoEditor editor={editor} receita={receita} /> : <BarraDoPlano tipo="treino" editor={editor} aoProblemas={aoProblemas} />}>
+      barra={modelo ? <BarraDoModeloDoEditor editor={comVerificacao} receita={receita} /> : <BarraDoPlano tipo="treino" editor={comVerificacao} aoProblemas={aoProblemas} />}>
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
-      {modelo ? <NomeDoModelo editor={editor} /> : <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={aoProblemas} aoIrAoPrimeiro={irAoPrimeiro} />}
+      {modelo ? <NomeDoModelo editor={editor} /> : null}
+      <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
       {desfazer ? (
         <BarraDesfazer
           desfazer={desfazer}
@@ -221,51 +312,40 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           }}
           aoSalvarModelo={() => setFolha({ tipo: 'salvarSessao', indice: indiceSelecionado })}
           aoNovoExercicio={() => adicionarExercicio(indiceSelecionado)}
+          aoCriarGrupo={() => setFolha({ tipo: 'grupo' })}
+          motivoSemGrupo={motivoSemCandidatos(sessaoAtual)}
           todosAbertos={sessaoAtual.exercicios.length > 0 && sessaoAtual.exercicios.every((e) => abertos.has(e.uid))}
           aoAlternarTodos={() => {
             const uids = sessaoAtual.exercicios.map((e) => e.uid);
             const todos = uids.every((u) => abertos.has(u));
             setAbertos((a) => { const novo = new Set(a); uids.forEach((u) => (todos ? novo.delete(u) : novo.add(u))); return novo; });
           }}>
-          {gruposDaSessao(sessaoAtual.exercicios).map((g) => {
-            const cartoes = g.exercicios.map((e, i) => {
-              const ei = g.inicio + i;
-              return (
-                <CartaoExercicio
-                  key={e.uid}
-                  exercicio={e}
-                  posicao={ei}
-                  total={sessaoAtual.exercicios.length}
-                  aberto={abertos.has(e.uid)}
-                  comProblema={comErro.has(e.uid)}
-                  config={config}
-                  podeJuntar={podeJuntar(sessaoAtual.exercicios, ei)}
-                  primeiroDeDupla={i === 0 && g.exercicios.length === 2}
-                  demonstracao={e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null}
-                  aoAbrir={() => alternar(e.uid)}
-                  aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
-                  aoMover={(d) => mudarExercicios(indiceSelecionado, (lista) => moverExercicio(lista, ei, d))}
-                  aoRemover={() =>
-                    comDesfazer(`Exercício “${e.nome || ei + 1}” removido.`, (a) => ({
-                      ...a,
-                      sessoes: substituir(a.sessoes, indiceSelecionado, {
-                        ...a.sessoes[indiceSelecionado],
-                        exercicios: removerExercicio(a.sessoes[indiceSelecionado].exercicios, ei),
-                      }),
-                    }))
-                  }
-                  aoEscolherDaBiblioteca={() => setFolha({ tipo: 'biblioteca', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-                  aoUsarReceita={() => setFolha({ tipo: 'receitaSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-                  aoSalvarReceita={() => setFolha({ tipo: 'salvarSeries', alvo: { sessao: indiceSelecionado, exercicio: ei } })}
-                />
-              );
-            });
-            return g.nome ? (
-              <GrupoDeExercicios key={`grupo-${g.exercicios[0].uid}`} nome={g.nome} tamanho={g.exercicios.length}>
+          {blocos.map((g, bi) => {
+            const cartoes = g.exercicios.map((e, i) => cartaoDoExercicio(sessaoAtual, e, g.inicio + i, g.grupo !== null));
+            const grupo = g.grupo;
+            if (!grupo) return <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>;
+            return (
+              <CartaoGrupo
+                key={`grupo-${g.exercicios[0].uid}`}
+                grupo={grupo}
+                config={config}
+                tamanho={g.exercicios.length}
+                primeiro={bi === 0}
+                ultimo={bi === blocos.length - 1}
+                erros={problemasDoGrupo(errosVivos, indiceSelecionado, sessaoAtual.grupos.findIndex((x) => x.uid === grupo.uid))}
+                vizinhos={vizinhosQuePodemEntrar(sessaoAtual, grupo.uid)}
+                dica={dicaDoGrupo(sessaoAtual, grupo.uid, grupo.tecnica)}
+                aoMudar={(m: MudancaDoGrupo) => mudarGrupos((s) => alterarGrupoDaSessao(s, grupo.uid, m))}
+                aoMover={(d) => mudarGrupos((s) => moverGrupoDeExercicios(s, grupo.uid, d))}
+                aoIncluir={(indice) => mudarGrupos((s) => juntarAoGrupo(s, indice, grupo.uid))}
+                aoDesfazer={() =>
+                  comDesfazer(`${nomeDaCombinacao(config, grupo.tecnica)} desfeito.`, (a) => ({
+                    ...a,
+                    sessoes: substituir(a.sessoes, indiceSelecionado, { ...a.sessoes[indiceSelecionado], ...desfazerGrupo(a.sessoes[indiceSelecionado], grupo.uid) }),
+                  }))
+                }>
                 {cartoes}
-              </GrupoDeExercicios>
-            ) : (
-              <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>
+              </CartaoGrupo>
             );
           })}
         </CartaoSessao>
@@ -315,27 +395,58 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           setFolha(null);
           const daBiblioteca = (escolhido: (typeof escolhidos)[number]) =>
             'id' in escolhido
-              ? {
-                  exercicioId: escolhido.id,
-                  nome: escolhido.nome,
-                  modalidade: escolhido.modalidade,
-                  videoUrl: escolhido.videoUrl,
-                  unidade: unidadeDaModalidade(escolhido.modalidade),
-                }
-              : { exercicioId: null, nome: escolhido.nome, modalidade: null };
+              ? { campos: { exercicioId: escolhido.id, nome: escolhido.nome, videoUrl: escolhido.videoUrl }, modalidade: escolhido.modalidade as string | null }
+              : { campos: { exercicioId: null, nome: escolhido.nome }, modalidade: null as string | null };
           if (ei === null) {
             // Exercícios novos no fim da sessão, na ordem marcada; abre o primeiro para continuar de onde a lista começa.
-            const novos = escolhidos.map((e) => ({ ...novoExercicio(), ...daBiblioteca(e) }));
+            const novos = escolhidos.map((e) => {
+              const d = daBiblioteca(e);
+              return comModalidade({ ...novoExercicio(), ...d.campos }, d.modalidade);
+            });
             abrir(novos[0].uid);
             mudarExercicios(si, (lista) => [...lista, ...novos]);
             return;
           }
-          mudarExercicios(si, (lista) => {
-            const atual = lista[ei];
-            return atual ? substituir(lista, ei, { ...atual, ...daBiblioteca(escolhidos[0]) }) : lista;
-          });
+          const sessao = c.sessoes[si];
+          const atual = sessao?.exercicios[ei];
+          if (!sessao || !atual) return;
+          const d = daBiblioteca(escolhidos[0]);
+          const base = { ...atual, ...d.campos };
+          const novo = d.modalidade === atual.modalidade ? base : comModalidade(base, d.modalidade);
+          // De ou para cardio as séries não servem mais: pergunta antes de apagar.
+          if (trocaApagaSeries(atual, d.modalidade)) {
+            setTrocaPendente({ sessaoUid: sessao.uid, exercicioUid: atual.uid, novo, apagadas: atual.series.length });
+            return;
+          }
+          mudarExercicios(si, (lista) => substituir(lista, ei, novo));
         }}
       />
+      {trocaPendente ? (
+        <PainelConfirmacao
+          visivel
+          titulo="Trocar o exercício apaga as séries?"
+          mensagem={`O novo exercício ${trocaPendente.novo.modalidade === 'CARDIO' ? 'é de cardio' : 'não é de cardio'}, e a prescrição de cardio é outra. ${trocaPendente.apagadas === 1 ? 'A série atual será apagada' : `As ${trocaPendente.apagadas} séries atuais serão apagadas`}. Dá para desfazer logo depois.`}
+          rotuloConfirmar="Apagar séries e trocar"
+          perigo
+          aoCancelar={() => setTrocaPendente(null)}
+          aoConfirmar={() => {
+            const t = trocaPendente;
+            setTrocaPendente(null);
+            comDesfazer(`Exercício trocado por “${t.novo.nome || 'sem nome'}”; séries apagadas.`, (a) => trocarExercicioPorUid(a, t.sessaoUid, t.exercicioUid, t.novo));
+          }}
+        />
+      ) : null}
+      {folha?.tipo === 'grupo' && sessaoAtual ? (
+        <FolhaCriarGrupo
+          sessao={sessaoAtual}
+          config={config}
+          aoFechar={() => setFolha(null)}
+          aoCriar={(indices, tecnica, voltas) => {
+            setFolha(null);
+            mudarGrupos((s) => criarGrupoPronto(s, indices, tecnica, voltas));
+          }}
+        />
+      ) : null}
       {folha?.tipo === 'receitaSeries' ? (
         <FolhaReceitas
           tipo="SERIES"
@@ -370,7 +481,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       {folha?.tipo === 'salvarSeries' ? (
         <FolhaSalvarReceita
           titulo={rotuloSalvarComo('SERIES')}
-          explicacao="Guarda a estrutura das séries deste exercício (tipos, quantidades, faixas e intensidade) para usar em outros exercícios e planos."
+          explicacao="Guarda a estrutura das séries deste exercício (tipos, repetições, carga, esforço e técnica) para usar em outros exercícios e planos."
           aoFechar={() => setFolha(null)}
           aoSalvar={async (nome, descricao) => {
             const exercicio = c.sessoes[folha.alvo.sessao]?.exercicios[folha.alvo.exercicio];
@@ -398,17 +509,6 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   );
 }
 
-/** Exercícios feitos juntos (bi-set, tri-set, circuito): cartões numa moldura com o nome do grupo. */
-function GrupoDeExercicios({ nome, tamanho, children }: { nome: string; tamanho: number; children: ReactNode }) {
-  const { cores } = useTema();
-  return (
-    <View style={[estilos.grupo, { borderColor: cores.borda }]} accessibilityLabel={`${nome}, ${tamanho} exercícios feitos juntos`}>
-      <Texto variante="rotulo">{nome} · {tamanho} exercícios sem descanso entre eles</Texto>
-      {children}
-    </View>
-  );
-}
-
 /** Linha de ação da folha "Modelos": título, o que faz e um toque para escolher. */
 function OpcaoDeModelo({ titulo, descricao, desabilitado, aoEscolher }: { titulo: string; descricao: string; desabilitado?: boolean; aoEscolher: () => void }) {
   const { cores } = useTema();
@@ -433,5 +533,4 @@ const estilos = StyleSheet.create({
   metodologia: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   metodologiaTexto: { flexShrink: 1 },
   opcaoModelo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: 4, minHeight: 56 },
-  grupo: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1), gap: espaco(1) },
 });

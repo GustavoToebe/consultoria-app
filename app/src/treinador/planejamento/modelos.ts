@@ -12,7 +12,7 @@ import { mobilidadeParaApi, normalizarMobilidade } from '../../dominio/mobilidad
 const INFORMACOES: Record<TipoReceita, { rotulo: string; descricao: string }> = {
   PLANO_TREINO: { rotulo: 'Semanas de treino', descricao: 'A semana inteira de treino. Aplicada ao aluno, vira o treino de uma pasta dele.' },
   SESSAO_TREINO: { rotulo: 'Dias de treino', descricao: 'Um dia de treino pronto, com exercícios e séries. Entra numa semana pelo editor de treino.' },
-  SERIES: { rotulo: 'Receitas de séries', descricao: 'Estrutura de séries (tipos, faixas e intensidade). Entra num exercício pelo editor de treino.' },
+  SERIES: { rotulo: 'Receitas de séries', descricao: 'Estrutura de séries (tipos, repetições, carga, esforço e técnica). Entra num exercício pelo editor de treino.' },
   METODOLOGIA: { rotulo: 'Metodologias', descricao: 'Regras de séries e preparação. É vinculada à semana na configuração do editor de treino.' },
   PLANO_DIETA: { rotulo: 'Dietas', descricao: 'A dieta inteira, com refeições, opções e itens. Aplicada ao aluno, vira a dieta de uma pasta dele.' },
   REFEICAO: { rotulo: 'Refeições', descricao: 'Uma refeição pronta. Entra numa dieta pelo editor de dieta.' },

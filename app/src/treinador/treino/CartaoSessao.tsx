@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Link2, Plus, Trash2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -34,6 +34,10 @@ interface Props {
   removivel?: boolean;
   aoSalvarModelo?: () => void;
   aoNovoExercicio: () => void;
+  /** "Criar grupo" (superset, circuito...): abre a escolha do tipo e dos exercícios. */
+  aoCriarGrupo?: () => void;
+  /** Por que não dá para criar grupo agora (poucos exercícios soltos); vazio = pode. */
+  motivoSemGrupo?: string | null;
   /** Todos os exercícios da sessão estão abertos; com `aoAlternarTodos`, o botão "Fechar todos"/"Abrir todos". */
   todosAbertos?: boolean;
   aoAlternarTodos?: () => void;
@@ -43,8 +47,8 @@ interface Props {
 
 /**
  * A sessão selecionada do plano (um dia): faixa de grupo com nome, resumo e ordem (← →, só com mais de uma sessão);
- * uma linha Nome · Dia · Tipo, "Cardio e observação" recolhível, os exercícios (nível 3) e, no rodapé, adicionar
- * exercício à esquerda e as ações da sessão à direita.
+ * uma linha Nome · Dia · Tipo, "Observação" recolhível, os exercícios e os grupos (nível 3) e, no rodapé, adicionar
+ * exercício e criar grupo à esquerda e as ações da sessão à direita. O cardio é um exercício de modalidade Cardio.
  */
 export function CartaoSessao(p: Props) {
   const { cores } = useTema();
@@ -52,8 +56,10 @@ export function CartaoSessao(p: Props) {
   const largo = width >= LARGURA_MENU_LATERAL;
   const s = p.sessao;
   const mudar = (parcial: Partial<Sessao>) => p.aoMudar({ ...s, ...parcial });
-  // Cardio e observação ficam em "Mais da sessão", aberto quando um dos dois já tem texto: os exercícios sobem.
+  // A observação fica recolhida, aberta quando já tem texto: os exercícios sobem.
   const [maisAberto, setMaisAberto] = useState(!!(s.cardio || s.observacao));
+  // O texto livre de cardio da sessão só aparece enquanto existir; cardio novo é um exercício de modalidade Cardio.
+  const [comTextoDeCardio] = useState(!!s.cardio);
 
   return (
     <AlvoDeRolagem chave={s.uid}><Cartao
@@ -86,16 +92,18 @@ export function CartaoSessao(p: Props) {
           <CampoNumerico rotulo="Vezes por semana" inteiro valor={s.frequenciaSemanal} aoMudar={(frequenciaSemanal) => mudar({ frequenciaSemanal })} />
         </View>
       ) : null}
-      <CabecalhoDeGrupo titulo="Cardio e observação" resumo={maisAberto ? undefined : resumoDoMais(s)} aberto={maisAberto} aoAlternar={() => setMaisAberto((v) => !v)} />
+      <CabecalhoDeGrupo titulo={comTextoDeCardio ? 'Cardio (texto) e observação' : 'Observação'} resumo={maisAberto ? undefined : resumoDoMais(s)} aberto={maisAberto} aoAlternar={() => setMaisAberto((v) => !v)} />
       {maisAberto ? (
         <>
-          <Campo
-            rotulo="Cardio (opcional)"
-            valor={s.cardio ?? ''}
-            aoMudar={(t) => mudar({ cardio: t || null })}
-            placeholder="Ex.: Cardio 50 min ou HIIT de 25 min"
-            maxLength={500}
-          />
+          {comTextoDeCardio ? (
+            <Campo
+              rotulo="Cardio da sessão (texto)"
+              valor={s.cardio ?? ''}
+              aoMudar={(t) => mudar({ cardio: t || null })}
+              ajuda="Texto livre. Para prescrever duração, ritmo e zona, adicione um exercício com modalidade Cardio."
+              maxLength={500}
+            />
+          ) : null}
           <Campo
             rotulo="Observação da sessão (opcional)"
             valor={s.observacao ?? ''}
@@ -115,6 +123,7 @@ export function CartaoSessao(p: Props) {
       <LinhaDeAcoes alinhar="entre">
         <LinhaDeAcoes>
           <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+          {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
           {p.aoSalvarModelo ? <Botao rotulo={rotuloSalvarComo('SESSAO_TREINO')} rotuloAcessivel={`${rotuloSalvarComo('SESSAO_TREINO')} no Planejamento`} tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : null}
         </LinhaDeAcoes>
         {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
@@ -125,7 +134,7 @@ export function CartaoSessao(p: Props) {
 
 /** Resumo de "Cardio e observação" fechado: o que tem, sem repetir o texto. */
 function resumoDoMais(s: Sessao): string {
-  const partes = [s.cardio ? 'com cardio' : null, s.observacao ? 'com observação' : null].filter(Boolean);
+  const partes = [s.cardio ? 'com texto de cardio' : null, s.observacao ? 'com observação' : null].filter(Boolean);
   return partes.length ? partes.join(' · ') : 'Nada preenchido';
 }
 

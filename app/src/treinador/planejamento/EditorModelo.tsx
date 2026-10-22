@@ -13,7 +13,8 @@ import type { Configuracao, ConteudoPastaModelo, Receita } from '../../api/tipos
 import { normalizarDieta } from '../../dominio/dieta';
 import { LIMITE_DESCRICAO_DO_MODELO } from '../../dominio/modelos';
 import { tituloDoModelo } from '../../dominio/planoDoAluno';
-import { mover, normalizarTreino, seriesDaReceita, seriesParaReceita } from '../../dominio/editorTreino';
+import { mover, normalizarTreino, novoExercicio, seriesDaReceita, seriesParaReceita } from '../../dominio/editorTreino';
+import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { type ConteudoMobilidade, mobilidadeParaApi, mobilidadeValida, normalizarMobilidade } from '../../dominio/mobilidade';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -28,7 +29,9 @@ import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { useGuardaDeSaida } from '../../ui/GuardaDeSaida';
 import { useCarregar } from '../../ui/useCarregar';
 import { FolhaReceitas } from '../FolhaReceitas';
-import { CartaoMetodologia, metodologiaParaSalvar, problemaDaMetodologia, type MetodologiaEmEdicao } from '../marca/CartaoMetodologia';
+import { metodologiaParaSalvar, problemasDaMetodologia, type MetodologiaEmEdicao } from '../../dominio/edicaoMetodologia';
+import { CartaoMetodologia } from '../marca/CartaoMetodologia';
+import { listaDeProblemas, motivoDoSalvar } from '../marca/problemasDaTela';
 import { FaixaDoModelo } from '../plano/FaixaDoPlano';
 import { SecoesDeMobilidade } from '../mobilidade/SecoesDeMobilidade';
 import { EditorSeries } from '../treino/EditorSeries';
@@ -50,11 +53,16 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
   const pasta = conteudo as ConteudoPastaModelo;
   const mob = r.tipo === 'MOBILIDADE' ? (conteudo as ConteudoMobilidade) : null;
   const metodologia = r.tipo === 'METODOLOGIA' ? (conteudo as MetodologiaEmEdicao) : null;
+  // Séries do modelo: as mesmas regras da publicação (a API as confere também na receita), por campo no editor.
+  const errosDasSeries = r.tipo === 'SERIES'
+    ? validarExercicio({ ...novoExercicio(), nome: 'Modelo', series: (conteudo as { series: ReturnType<typeof seriesDaReceita> }).series }, configDaConsultoria).erros.filter((e) => e.caminho.startsWith('series[')).length
+    : 0;
   // Um só motivo para o "Salvar modelo" desabilitado, o mesmo em todo tipo.
   const motivo = !nome.trim() ? 'Informe o nome do modelo.'
     : r.tipo === 'SERIES' && !(conteudo as { series: unknown[] }).series.length ? 'Adicione ao menos uma série.'
+      : r.tipo === 'SERIES' && errosDasSeries > 0 ? `Corrija ${errosDasSeries === 1 ? '1 problema' : `${errosDasSeries} problemas`} nas séries (marcados em vermelho) antes de salvar.`
       : mob && !mobilidadeValida(mob) ? 'Toda seção precisa de item, todo item de nome e o vídeo precisa ser do YouTube.'
-        : metodologia ? problemaDaMetodologia(metodologia) : null;
+        : metodologia ? motivoDoSalvar(listaDeProblemas(metodologia, problemasDaMetodologia(metodologia))) : null;
   const paraApi = (c: unknown) => r.tipo === 'SERIES' ? seriesParaReceita((c as { series: ReturnType<typeof seriesDaReceita> }).series)
     : r.tipo === 'MOBILIDADE' ? mobilidadeParaApi(c as ConteudoMobilidade)
       : r.tipo === 'METODOLOGIA' ? metodologiaParaSalvar(c as MetodologiaEmEdicao) : c;
