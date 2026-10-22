@@ -6,25 +6,32 @@
       "configuracao": {
         "tipos": [
           {
+            "codigo": "WARM_UP",
             "nome": "Aquecimento",
             "papel": "AQUECIMENTO",
             "repeticoes": {
               "min": 10,
               "max": 15
             },
-            "intensidadePadrao": null,
-            "intensidadePorModalidade": null,
+            "cargaPadrao": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": null,
             "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
           },
           {
+            "codigo": "WORKING",
             "nome": "Série",
             "papel": "TRABALHO",
             "repeticoes": null,
-            "intensidadePadrao": {
-              "modo": "CARGA_TRABALHO"
+            "cargaPadrao": {
+              "modo": "CARGA_TRABALHO",
+              "percentualMin": null,
+              "percentualMax": null,
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": null,
             "explicacao": "Série de trabalho conforme a prescrição do treinador."
           }
@@ -42,7 +49,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -57,7 +69,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -72,8 +89,110 @@
               "blocos": null,
               "quedas": 1,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
+          },
+          {
+            "tipo": "MYO_REPS",
+            "nome": "Myo-reps",
+            "explicacao": "Uma série de ativação até perto da falha e, depois de poucas respirações, várias mini-séries curtas com a mesma carga.",
+            "padrao": {
+              "tipo": "MYO_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": 5,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "PARTIAL_REPS",
+            "nome": "Partial reps",
+            "explicacao": "Ao chegar à falha, continue com repetições parciais, sem completar o movimento.",
+            "padrao": {
+              "tipo": "PARTIAL_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": "LIVRE",
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "FORCED_REPS",
+            "nome": "Forced reps",
+            "explicacao": "Ao chegar à falha, um parceiro ajuda só o necessário para você fazer mais repetições.",
+            "padrao": {
+              "tipo": "FORCED_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          }
+        ],
+        "combinacoes": [
+          {
+            "tipo": "SUPERSET",
+            "nome": "Superset",
+            "explicacao": "Dois exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do par."
+          },
+          {
+            "tipo": "AGONISTA_ANTAGONISTA",
+            "nome": "Agonista-antagonista",
+            "explicacao": "Dois exercícios de músculos opostos (por exemplo, peito e costas) feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "TRI_SET",
+            "nome": "Tri-set",
+            "explicacao": "Três exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do trio."
+          },
+          {
+            "tipo": "GIANT_SET",
+            "nome": "Giant set",
+            "explicacao": "Quatro ou mais exercícios feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "CIRCUITO",
+            "nome": "Circuito",
+            "explicacao": "Três ou mais exercícios feitos em sequência e repetidos pelo número de voltas, com o descanso depois de cada volta."
+          },
+          {
+            "tipo": "PRE_EXAUSTAO",
+            "nome": "Pré-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro um que isola o músculo e depois o composto. Cada série mantém o próprio descanso."
+          },
+          {
+            "tipo": "POS_EXAUSTAO",
+            "nome": "Pós-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro o composto e depois um que isola o músculo. Cada série mantém o próprio descanso."
           }
         ],
         "arredondamentoKg": 1,
@@ -87,32 +206,35 @@
       "configuracao": {
         "tipos": [
           {
+            "codigo": "WARM_UP",
             "nome": "Aquecimento",
             "papel": "AQUECIMENTO",
             "repeticoes": {
               "min": 10,
               "max": 15
             },
-            "intensidadePadrao": null,
-            "intensidadePorModalidade": null,
+            "cargaPadrao": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": null,
             "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
           },
           {
+            "codigo": "FEEDER",
             "nome": "FS",
             "papel": "PREPARACAO",
             "repeticoes": {
               "min": 3,
               "max": 3
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "PERCENTUAL_WS",
               "percentualMin": 85,
               "percentualMax": null,
-              "rpe": null,
-              "rir": null
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": {
               "1": [
                 {
@@ -148,33 +270,47 @@
             "explicacao": "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha."
           },
           {
+            "codigo": "WORKING",
             "nome": "WS",
             "papel": "TRABALHO",
             "repeticoes": {
               "min": 3,
               "max": 6
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "CARGA_TRABALHO",
               "percentualMin": null,
               "percentualMax": null,
-              "rpe": null,
-              "rir": 1
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": {
+            "esforcoPadrao": {
+              "rir": 1,
+              "rpe": null
+            },
+            "porModalidade": {
               "LIVRE": {
-                "modo": "CARGA_TRABALHO",
-                "percentualMin": null,
-                "percentualMax": null,
-                "rpe": null,
-                "rir": 1
+                "carga": {
+                  "modo": "CARGA_TRABALHO",
+                  "percentualMin": null,
+                  "percentualMax": null,
+                  "referenciaUid": null
+                },
+                "esforco": {
+                  "rir": 1,
+                  "rpe": null
+                }
               },
               "MAQUINA": {
-                "modo": "CARGA_TRABALHO",
-                "percentualMin": null,
-                "percentualMax": null,
-                "rpe": null,
-                "rir": 0
+                "carga": {
+                  "modo": "CARGA_TRABALHO",
+                  "percentualMin": null,
+                  "percentualMax": null,
+                  "referenciaUid": null
+                },
+                "esforco": {
+                  "rir": 0,
+                  "rpe": null
+                }
               }
             },
             "regraPercentuais": null,
@@ -194,7 +330,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -209,7 +350,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -224,8 +370,110 @@
               "blocos": null,
               "quedas": 1,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
+          },
+          {
+            "tipo": "MYO_REPS",
+            "nome": "Myo-reps",
+            "explicacao": "Uma série de ativação até perto da falha e, depois de poucas respirações, várias mini-séries curtas com a mesma carga.",
+            "padrao": {
+              "tipo": "MYO_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": 5,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "PARTIAL_REPS",
+            "nome": "Partial reps",
+            "explicacao": "Ao chegar à falha, continue com repetições parciais, sem completar o movimento.",
+            "padrao": {
+              "tipo": "PARTIAL_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": "LIVRE",
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "FORCED_REPS",
+            "nome": "Forced reps",
+            "explicacao": "Ao chegar à falha, um parceiro ajuda só o necessário para você fazer mais repetições.",
+            "padrao": {
+              "tipo": "FORCED_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          }
+        ],
+        "combinacoes": [
+          {
+            "tipo": "SUPERSET",
+            "nome": "Superset",
+            "explicacao": "Dois exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do par."
+          },
+          {
+            "tipo": "AGONISTA_ANTAGONISTA",
+            "nome": "Agonista-antagonista",
+            "explicacao": "Dois exercícios de músculos opostos (por exemplo, peito e costas) feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "TRI_SET",
+            "nome": "Tri-set",
+            "explicacao": "Três exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do trio."
+          },
+          {
+            "tipo": "GIANT_SET",
+            "nome": "Giant set",
+            "explicacao": "Quatro ou mais exercícios feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "CIRCUITO",
+            "nome": "Circuito",
+            "explicacao": "Três ou mais exercícios feitos em sequência e repetidos pelo número de voltas, com o descanso depois de cada volta."
+          },
+          {
+            "tipo": "PRE_EXAUSTAO",
+            "nome": "Pré-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro um que isola o músculo e depois o composto. Cada série mantém o próprio descanso."
+          },
+          {
+            "tipo": "POS_EXAUSTAO",
+            "nome": "Pós-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro o composto e depois um que isola o músculo. Cada série mantém o próprio descanso."
           }
         ],
         "arredondamentoKg": 0.5,
@@ -239,32 +487,35 @@
       "configuracao": {
         "tipos": [
           {
+            "codigo": "WARM_UP",
             "nome": "Aquecimento",
             "papel": "AQUECIMENTO",
             "repeticoes": {
               "min": 10,
               "max": 15
             },
-            "intensidadePadrao": null,
-            "intensidadePorModalidade": null,
+            "cargaPadrao": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": null,
             "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
           },
           {
+            "codigo": "FEEDER",
             "nome": "FS",
             "papel": "PREPARACAO",
             "repeticoes": {
               "min": 3,
               "max": 3
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "PERCENTUAL_WS",
               "percentualMin": 85,
               "percentualMax": null,
-              "rpe": null,
-              "rir": null
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": {
               "1": [
                 {
@@ -300,33 +551,47 @@
             "explicacao": "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha."
           },
           {
+            "codigo": "WORKING",
             "nome": "WS",
             "papel": "TRABALHO",
             "repeticoes": {
               "min": 3,
               "max": 6
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "CARGA_TRABALHO",
               "percentualMin": null,
               "percentualMax": null,
-              "rpe": null,
-              "rir": 1
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": {
+            "esforcoPadrao": {
+              "rir": 1,
+              "rpe": null
+            },
+            "porModalidade": {
               "LIVRE": {
-                "modo": "CARGA_TRABALHO",
-                "percentualMin": null,
-                "percentualMax": null,
-                "rpe": null,
-                "rir": 1
+                "carga": {
+                  "modo": "CARGA_TRABALHO",
+                  "percentualMin": null,
+                  "percentualMax": null,
+                  "referenciaUid": null
+                },
+                "esforco": {
+                  "rir": 1,
+                  "rpe": null
+                }
               },
               "MAQUINA": {
-                "modo": "CARGA_TRABALHO",
-                "percentualMin": null,
-                "percentualMax": null,
-                "rpe": null,
-                "rir": 0
+                "carga": {
+                  "modo": "CARGA_TRABALHO",
+                  "percentualMin": null,
+                  "percentualMax": null,
+                  "referenciaUid": null
+                },
+                "esforco": {
+                  "rir": 0,
+                  "rpe": null
+                }
               }
             },
             "regraPercentuais": null,
@@ -346,7 +611,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -361,7 +631,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -376,8 +651,110 @@
               "blocos": null,
               "quedas": 1,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
+          },
+          {
+            "tipo": "MYO_REPS",
+            "nome": "Myo-reps",
+            "explicacao": "Uma série de ativação até perto da falha e, depois de poucas respirações, várias mini-séries curtas com a mesma carga.",
+            "padrao": {
+              "tipo": "MYO_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": 5,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "PARTIAL_REPS",
+            "nome": "Partial reps",
+            "explicacao": "Ao chegar à falha, continue com repetições parciais, sem completar o movimento.",
+            "padrao": {
+              "tipo": "PARTIAL_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": "LIVRE",
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "FORCED_REPS",
+            "nome": "Forced reps",
+            "explicacao": "Ao chegar à falha, um parceiro ajuda só o necessário para você fazer mais repetições.",
+            "padrao": {
+              "tipo": "FORCED_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          }
+        ],
+        "combinacoes": [
+          {
+            "tipo": "SUPERSET",
+            "nome": "Superset",
+            "explicacao": "Dois exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do par."
+          },
+          {
+            "tipo": "AGONISTA_ANTAGONISTA",
+            "nome": "Agonista-antagonista",
+            "explicacao": "Dois exercícios de músculos opostos (por exemplo, peito e costas) feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "TRI_SET",
+            "nome": "Tri-set",
+            "explicacao": "Três exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do trio."
+          },
+          {
+            "tipo": "GIANT_SET",
+            "nome": "Giant set",
+            "explicacao": "Quatro ou mais exercícios feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "CIRCUITO",
+            "nome": "Circuito",
+            "explicacao": "Três ou mais exercícios feitos em sequência e repetidos pelo número de voltas, com o descanso depois de cada volta."
+          },
+          {
+            "tipo": "PRE_EXAUSTAO",
+            "nome": "Pré-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro um que isola o músculo e depois o composto. Cada série mantém o próprio descanso."
+          },
+          {
+            "tipo": "POS_EXAUSTAO",
+            "nome": "Pós-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro o composto e depois um que isola o músculo. Cada série mantém o próprio descanso."
           }
         ],
         "arredondamentoKg": 0.5,
@@ -391,32 +768,35 @@
       "configuracao": {
         "tipos": [
           {
+            "codigo": "WARM_UP",
             "nome": "Aquecimento",
             "papel": "AQUECIMENTO",
             "repeticoes": {
               "min": 10,
               "max": 15
             },
-            "intensidadePadrao": null,
-            "intensidadePorModalidade": null,
+            "cargaPadrao": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": null,
             "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
           },
           {
+            "codigo": "FEEDER",
             "nome": "FS",
             "papel": "PREPARACAO",
             "repeticoes": {
               "min": 3,
               "max": 3
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "PERCENTUAL_WS",
               "percentualMin": 85,
               "percentualMax": null,
-              "rpe": null,
-              "rir": null
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": {
               "1": [
                 {
@@ -452,53 +832,68 @@
             "explicacao": "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha."
           },
           {
+            "codigo": "WORKING",
             "nome": "WS",
             "papel": "TRABALHO",
             "repeticoes": {
               "min": 3,
               "max": 6
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "CARGA_TRABALHO",
               "percentualMin": null,
               "percentualMax": null,
-              "rpe": null,
-              "rir": 1
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": {
+            "esforcoPadrao": {
+              "rir": 1,
+              "rpe": null
+            },
+            "porModalidade": {
               "LIVRE": {
-                "modo": "CARGA_TRABALHO",
-                "percentualMin": null,
-                "percentualMax": null,
-                "rpe": null,
-                "rir": 1
+                "carga": {
+                  "modo": "CARGA_TRABALHO",
+                  "percentualMin": null,
+                  "percentualMax": null,
+                  "referenciaUid": null
+                },
+                "esforco": {
+                  "rir": 1,
+                  "rpe": null
+                }
               },
               "MAQUINA": {
-                "modo": "CARGA_TRABALHO",
-                "percentualMin": null,
-                "percentualMax": null,
-                "rpe": null,
-                "rir": 0
+                "carga": {
+                  "modo": "CARGA_TRABALHO",
+                  "percentualMin": null,
+                  "percentualMax": null,
+                  "referenciaUid": null
+                },
+                "esforco": {
+                  "rir": 0,
+                  "rpe": null
+                }
               }
             },
             "regraPercentuais": null,
             "explicacao": "Working set: a série de trabalho, com a carga máxima do dia nas repetições propostas. Peso livre: 1 repetição na reserva. Máquina: até a falha. Se passar das repetições, aumente a carga na semana seguinte."
           },
           {
+            "codigo": "BACK_OFF",
             "nome": "Back off",
             "papel": "POS_TRABALHO",
             "repeticoes": {
               "min": 6,
               "max": 8
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "PERCENTUAL_WS",
               "percentualMin": 85,
               "percentualMax": null,
-              "rpe": null,
-              "rir": null
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": null,
             "explicacao": "Depois da série de trabalho, com 85% da carga dela."
           }
@@ -516,7 +911,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -531,7 +931,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -546,8 +951,110 @@
               "blocos": null,
               "quedas": 1,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
+          },
+          {
+            "tipo": "MYO_REPS",
+            "nome": "Myo-reps",
+            "explicacao": "Uma série de ativação até perto da falha e, depois de poucas respirações, várias mini-séries curtas com a mesma carga.",
+            "padrao": {
+              "tipo": "MYO_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": 5,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "PARTIAL_REPS",
+            "nome": "Partial reps",
+            "explicacao": "Ao chegar à falha, continue com repetições parciais, sem completar o movimento.",
+            "padrao": {
+              "tipo": "PARTIAL_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": "LIVRE",
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "FORCED_REPS",
+            "nome": "Forced reps",
+            "explicacao": "Ao chegar à falha, um parceiro ajuda só o necessário para você fazer mais repetições.",
+            "padrao": {
+              "tipo": "FORCED_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          }
+        ],
+        "combinacoes": [
+          {
+            "tipo": "SUPERSET",
+            "nome": "Superset",
+            "explicacao": "Dois exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do par."
+          },
+          {
+            "tipo": "AGONISTA_ANTAGONISTA",
+            "nome": "Agonista-antagonista",
+            "explicacao": "Dois exercícios de músculos opostos (por exemplo, peito e costas) feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "TRI_SET",
+            "nome": "Tri-set",
+            "explicacao": "Três exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do trio."
+          },
+          {
+            "tipo": "GIANT_SET",
+            "nome": "Giant set",
+            "explicacao": "Quatro ou mais exercícios feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "CIRCUITO",
+            "nome": "Circuito",
+            "explicacao": "Três ou mais exercícios feitos em sequência e repetidos pelo número de voltas, com o descanso depois de cada volta."
+          },
+          {
+            "tipo": "PRE_EXAUSTAO",
+            "nome": "Pré-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro um que isola o músculo e depois o composto. Cada série mantém o próprio descanso."
+          },
+          {
+            "tipo": "POS_EXAUSTAO",
+            "nome": "Pós-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro o composto e depois um que isola o músculo. Cada série mantém o próprio descanso."
           }
         ],
         "arredondamentoKg": 0.5,
@@ -561,32 +1068,35 @@
       "configuracao": {
         "tipos": [
           {
+            "codigo": "WARM_UP",
             "nome": "Aquecimento",
             "papel": "AQUECIMENTO",
             "repeticoes": {
               "min": 10,
               "max": 15
             },
-            "intensidadePadrao": null,
-            "intensidadePorModalidade": null,
+            "cargaPadrao": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": null,
             "explicacao": "Série leve, só para preparar o movimento. Fica longe da falha."
           },
           {
+            "codigo": "FEEDER",
             "nome": "FS",
             "papel": "PREPARACAO",
             "repeticoes": {
               "min": 3,
               "max": 3
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "PERCENTUAL_WS",
               "percentualMin": 85,
               "percentualMax": null,
-              "rpe": null,
-              "rir": null
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": null,
+            "esforcoPadrao": null,
+            "porModalidade": null,
             "regraPercentuais": {
               "1": [
                 {
@@ -622,33 +1132,47 @@
             "explicacao": "Feeder set: série de reconhecimento. Aumente a carga a cada série, dentro das repetições, para chegar à carga da série de trabalho. Não chega na falha."
           },
           {
+            "codigo": "WORKING",
             "nome": "WS",
             "papel": "TRABALHO",
             "repeticoes": {
               "min": 3,
               "max": 6
             },
-            "intensidadePadrao": {
+            "cargaPadrao": {
               "modo": "CARGA_TRABALHO",
               "percentualMin": null,
               "percentualMax": null,
-              "rpe": null,
-              "rir": 1
+              "referenciaUid": null
             },
-            "intensidadePorModalidade": {
+            "esforcoPadrao": {
+              "rir": 1,
+              "rpe": null
+            },
+            "porModalidade": {
               "LIVRE": {
-                "modo": "CARGA_TRABALHO",
-                "percentualMin": null,
-                "percentualMax": null,
-                "rpe": null,
-                "rir": 1
+                "carga": {
+                  "modo": "CARGA_TRABALHO",
+                  "percentualMin": null,
+                  "percentualMax": null,
+                  "referenciaUid": null
+                },
+                "esforco": {
+                  "rir": 1,
+                  "rpe": null
+                }
               },
               "MAQUINA": {
-                "modo": "CARGA_TRABALHO",
-                "percentualMin": null,
-                "percentualMax": null,
-                "rpe": null,
-                "rir": 0
+                "carga": {
+                  "modo": "CARGA_TRABALHO",
+                  "percentualMin": null,
+                  "percentualMax": null,
+                  "referenciaUid": null
+                },
+                "esforco": {
+                  "rir": 0,
+                  "rpe": null
+                }
               }
             },
             "regraPercentuais": null,
@@ -668,7 +1192,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -683,7 +1212,12 @@
               "blocos": null,
               "quedas": null,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
           },
           {
@@ -698,8 +1232,110 @@
               "blocos": null,
               "quedas": 1,
               "reducaoPercentual": null,
-              "repsPorQueda": null
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
             }
+          },
+          {
+            "tipo": "MYO_REPS",
+            "nome": "Myo-reps",
+            "explicacao": "Uma série de ativação até perto da falha e, depois de poucas respirações, várias mini-séries curtas com a mesma carga.",
+            "padrao": {
+              "tipo": "MYO_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": 5,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "PARTIAL_REPS",
+            "nome": "Partial reps",
+            "explicacao": "Ao chegar à falha, continue com repetições parciais, sem completar o movimento.",
+            "padrao": {
+              "tipo": "PARTIAL_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": "LIVRE",
+              "repsAssistidas": null
+            }
+          },
+          {
+            "tipo": "FORCED_REPS",
+            "nome": "Forced reps",
+            "explicacao": "Ao chegar à falha, um parceiro ajuda só o necessário para você fazer mais repetições.",
+            "padrao": {
+              "tipo": "FORCED_REPS",
+              "pausaSegundos": null,
+              "pausaRespiracoes": null,
+              "pausas": null,
+              "blocos": null,
+              "quedas": null,
+              "reducaoPercentual": null,
+              "repsPorQueda": null,
+              "miniSeries": null,
+              "repsPorMiniSerie": null,
+              "repsParciais": null,
+              "regiao": null,
+              "repsAssistidas": null
+            }
+          }
+        ],
+        "combinacoes": [
+          {
+            "tipo": "SUPERSET",
+            "nome": "Superset",
+            "explicacao": "Dois exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do par."
+          },
+          {
+            "tipo": "AGONISTA_ANTAGONISTA",
+            "nome": "Agonista-antagonista",
+            "explicacao": "Dois exercícios de músculos opostos (por exemplo, peito e costas) feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "TRI_SET",
+            "nome": "Tri-set",
+            "explicacao": "Três exercícios feitos em sequência, sem descanso entre eles. O descanso vem depois do trio."
+          },
+          {
+            "tipo": "GIANT_SET",
+            "nome": "Giant set",
+            "explicacao": "Quatro ou mais exercícios feitos em sequência, sem descanso entre eles."
+          },
+          {
+            "tipo": "CIRCUITO",
+            "nome": "Circuito",
+            "explicacao": "Três ou mais exercícios feitos em sequência e repetidos pelo número de voltas, com o descanso depois de cada volta."
+          },
+          {
+            "tipo": "PRE_EXAUSTAO",
+            "nome": "Pré-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro um que isola o músculo e depois o composto. Cada série mantém o próprio descanso."
+          },
+          {
+            "tipo": "POS_EXAUSTAO",
+            "nome": "Pós-exaustão",
+            "explicacao": "Dois exercícios em sequência: primeiro o composto e depois um que isola o músculo. Cada série mantém o próprio descanso."
           }
         ],
         "arredondamentoKg": 0.5,

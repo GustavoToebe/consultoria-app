@@ -21,7 +21,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { chave, grupoDe, modalidadeDe } from '../importacao/importar.mjs';
+import { cargaDe, chave, codigoDoTipo, grupoDe, modalidadeDe } from '../importacao/importar.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const SIMULAR = process.argv.includes('--simular');
@@ -70,13 +70,19 @@ async function exercicio(nome) {
   return e;
 }
 
-/** Composto pesado (agachamento, terra, supino, remada): 4 séries de 6 a 10; os demais, 3 séries de 8 a 12. */
+/** Código da série de trabalho (`WORKING`): existe nas cinco metodologias demo, então o plano vale em qualquer uma. */
+export const TIPO_DE_TRABALHO = codigoDoTipo('WS');
+
+/**
+ * Composto pesado (agachamento, terra, supino, remada): 4 séries de 6 a 10; os demais, 3 séries de 8 a 12. Todas são séries
+ * de trabalho no contrato de 22/10: `tipo` é o código, `carga` e `esforco` são separados (sem esforço prescrito), sem AMRAP.
+ */
 const PESADO = /^(agachamento livre|levantamento terra|supino reto|remada curvada)\b/;
-function series(nome) {
+export function series(nome) {
   const pesado = PESADO.test(chave(nome));
   return Array.from({ length: pesado ? 4 : 3 }, () => ({
-    uid: randomUUID(), tipo: 'WS', repsMin: pesado ? 6 : 8, repsMax: pesado ? 10 : 12, tecnica: null,
-    descansoSegundos: pesado ? 90 : 75, intensidade: { modo: 'CARGA_TRABALHO' },
+    uid: randomUUID(), tipo: TIPO_DE_TRABALHO, repsMin: pesado ? 6 : 8, repsMax: pesado ? 10 : 12, amrap: null,
+    carga: cargaDe('CARGA_TRABALHO'), esforco: null, descansoSegundos: pesado ? 90 : 75, tecnica: null, cardio: null, alvoExtra: null,
   }));
 }
 
@@ -87,12 +93,13 @@ async function sessao(nome, dia, diaSemana) {
     exercicios.push({
       uid: randomUUID(), exercicioId: String(e.id).startsWith('sim-') ? null : e.id, nome: e.nome, modalidade: e.modalidade,
       videoUrl: e.videoUrl ?? null, observacao: null, progressao: true, unidade: 'kg', series: series(x),
+      cadencia: null, isometriaSegundos: null, grupoUid: null,
     });
   }
-  return { uid: randomUUID(), nome, diaSemana, tipo: 'TREINO', frequenciaSemanal: null, observacao: dia.obs, cardio: null, exercicios };
+  return { uid: randomUUID(), nome, diaSemana, tipo: 'TREINO', frequenciaSemanal: null, observacao: dia.obs, cardio: null, exercicios, grupos: [] };
 }
 
-const descanso = (diaSemana) => ({ uid: randomUUID(), nome: 'Descanso', diaSemana, tipo: 'DESCANSO', frequenciaSemanal: null, observacao: null, cardio: null, exercicios: [] });
+const descanso = (diaSemana) => ({ uid: randomUUID(), nome: 'Descanso', diaSemana, tipo: 'DESCANSO', frequenciaSemanal: null, observacao: null, cardio: null, exercicios: [], grupos: [] });
 
 // ---------------------------------------------------------------- alimentos
 const alimentos = new Map(); // chave do nome -> alimento da biblioteca da consultoria
