@@ -8,6 +8,7 @@ import { explicacaoDaCombinacao, nomeDaCombinacao } from '../../dominio/metodolo
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO } from '../../tema/tokens';
+import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { CampoNumerico } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
@@ -15,7 +16,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
-import { type Vizinho, opcoesDeGrupo } from './acoesDeGrupo';
+import { type Vizinho, motivoParaTrocarTipoDoGrupo, opcoesDeGrupo } from './acoesDeGrupo';
 import { ErroDoCampo } from './CamposDaPrescricao';
 
 interface Props {
@@ -52,6 +53,7 @@ export function CartaoGrupo(p: Props) {
   const emSequencia = grupoEmSequencia(g.tecnica);
   const quantosErros = Object.keys(p.erros).length;
   return (
+    <AlvoDeRolagem chave={g.uid}>
     <View style={[estilos.grupo, { borderColor: quantosErros ? cores.perigo : cores.borda }]} role="group" accessibilityLabel={`${nome}, ${p.tamanho} exercícios feitos juntos`}>
       <View style={estilos.topo}>
         <View style={estilos.titulo}>
@@ -67,7 +69,10 @@ export function CartaoGrupo(p: Props) {
       {explicacao ? <Texto variante="suave">{explicacao}</Texto> : null}
       <ErroDoCampo mensagem={p.erros.geral} />
 
-      <Escolha rotulo="Tipo de grupo" compacta opcoes={opcoesDeGrupo(p.config).map((o) => ({ valor: o.valor, rotulo: o.rotulo }))} valor={g.tecnica} aoMudar={(tecnica) => p.aoMudar({ tecnica })} />
+      <Escolha rotulo="Tipo de grupo" compacta opcoes={opcoesDeGrupo(p.config).map((o) => {
+        const motivo = o.valor === g.tecnica ? null : motivoParaTrocarTipoDoGrupo(p.tamanho, o.valor, p.config);
+        return { valor: o.valor, rotulo: o.rotulo, desabilitada: !!motivo, motivo: motivo ?? undefined };
+      })} valor={g.tecnica} aoMudar={(tecnica) => p.aoMudar({ tecnica })} />
       <ErroDoCampo mensagem={p.erros.tecnica} />
 
       <View style={estilos.campos}>
@@ -99,6 +104,7 @@ export function CartaoGrupo(p: Props) {
       </LinhaDeAcoes>
       {!p.vizinhos.length && p.dica ? <Texto variante="pequeno">{p.dica}</Texto> : null}
     </View>
+    </AlvoDeRolagem>
   );
 }
 

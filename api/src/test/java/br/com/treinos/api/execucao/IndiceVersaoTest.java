@@ -59,6 +59,7 @@ class IndiceVersaoTest {
         assertThat(tipoDe(indice, ws)).isEqualTo("WS");
         assertThat(tipoDe(indice, desconhecida)).isEqualTo("PIRAMIDE");
         assertThat(tipoDe(indice, semTipo)).isNull();
-        assertThat(tipoDe(indice, cardio)).isNull();
+        assertThat(tipoDe(indice, cardio)).isEqualTo("Cardio");
+        assertThat(indice.serie(cardio).orElseThrow().unidade()).isEqualTo("nenhuma");
     }
 }

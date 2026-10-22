@@ -18,10 +18,14 @@ export interface SerieCalculada {
   meta: string;
 }
 
-/** Arredonda ao múltiplo mais próximo do passo (0,25 / 0,5 / 1 / 2,5 kg), sem erro de ponto flutuante. */
-export function arredondar(valor: number, passo: number): number {
+/**
+ * Arredonda ao múltiplo do passo (0,25 / 0,5 / 1 / 2,5 kg), sem erro de ponto flutuante: ao mais próximo, ou para cima
+ * ou para baixo quando a sugestão precisa ficar de um lado da carga de origem ("acima da anterior" nunca sugere a mesma).
+ */
+export function arredondar(valor: number, passo: number, sentido: 'proximo' | 'cima' | 'baixo' = 'proximo'): number {
   if (!passo || passo <= 0) return valor;
-  const n = Math.round(valor / passo);
+  const q = Math.round((valor / passo) * 1e6) / 1e6;
+  const n = sentido === 'cima' ? Math.ceil(q) : sentido === 'baixo' ? Math.floor(q) : Math.round(q);
   return Math.round(n * passo * 1000) / 1000;
 }
 
@@ -104,13 +108,13 @@ export function calcularCargasDoExercicio(
         }
         case 'ACIMA_DA_ANTERIOR': {
           const anterior = indice > 0 ? cargasDoDia[series[indice - 1].uid] : null;
-          if (percentual != null && typeof anterior === 'number') sugestao = arredondar(anterior * (1 + percentual / 100), config.arredondamentoKg);
+          if (percentual != null && typeof anterior === 'number') sugestao = arredondar(anterior * (1 + percentual / 100), config.arredondamentoKg, 'cima');
           break;
         }
         case 'ABAIXO_DA_REFERENCIA': {
           const posicao = carga?.referenciaUid ? series.findIndex((x) => x.uid === carga.referenciaUid) : -1;
           const registrada = posicao >= 0 && posicao < indice ? cargasDoDia[series[posicao].uid] : null;
-          if (percentual != null && typeof registrada === 'number') sugestao = arredondar(registrada * (1 - percentual / 100), config.arredondamentoKg);
+          if (percentual != null && typeof registrada === 'number') sugestao = Math.max(0, arredondar(registrada * (1 - percentual / 100), config.arredondamentoKg, 'baixo'));
           break;
         }
         default:

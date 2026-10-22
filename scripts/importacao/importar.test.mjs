@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { cargaDe, codigoDoTipo, lerSeries, montarGrupos, montarSeries, obsLimpa, reducaoDoBackOff, serieDeCardio } from './importar.mjs';
+import { cargaDe, codigoDoTipo, lerSeries, montarGrupos, montarSeries, problemasDosGrupos, obsLimpa, reducaoDoBackOff, serieDeCardio } from './importar.mjs';
 import { CODIGOS, TECNICAS_DE_GRUPO, verificarContratoDoTreino, verificarSerie } from './contrato-apoio-teste.mjs';
 import METODOLOGIA from './metodologia-padrao.json' with { type: 'json' };
 const REGRA = METODOLOGIA.tipos.find((t) => t.papel === 'PREPARACAO').regraPercentuais;
@@ -260,4 +260,17 @@ test('todos os modelos estáticos geram séries somente com o contrato atual', (
 test('o padrão do importador é igual ao padrão do app', async () => {
   const { CONFIGURACAO_PADRAO } = await import('../../app/src/dominio/metodologiaPadrao.ts');
   assert.deepEqual(METODOLOGIA, CONFIGURACAO_PADRAO);
+});
+
+test('problemasDosGrupos recusa, antes de gravar, o grupo que o ValidadorTreino recusaria', () => {
+  const ex = (grupoUid) => ({ uid: randomUUID(), grupoUid });
+  const sup = { uid: 'g1', tecnica: 'SUPERSET', descansoAposSegundos: 90, voltas: null };
+  assert.deepEqual(problemasDosGrupos([sup], [ex('g1'), ex('g1'), ex(null)]), []);
+  assert.match(problemasDosGrupos([sup], [ex('g1'), ex(null), ex('g1')]).join(), /um ao lado do outro/);
+  assert.match(problemasDosGrupos([sup], [ex('g1')]).join(), /pelo menos 2/);
+  assert.match(problemasDosGrupos([{ ...sup, tecnica: 'GIANT_SET' }], [ex('g1'), ex('g1'), ex('g1')]).join(), /pelo menos 4/);
+  assert.match(problemasDosGrupos([{ ...sup, tecnica: 'PRE_EXAUSTAO' }], [ex('g1'), ex('g1')]).join(), /não tem descanso/);
+  assert.match(problemasDosGrupos([{ ...sup, tecnica: 'CIRCUITO' }], [ex('g1'), ex('g1'), ex('g1')]).join(), /1 a 20 voltas/);
+  assert.match(problemasDosGrupos([sup], Array.from({ length: 7 }, () => ex('g1'))).join(), /até 6/);
+  assert.match(problemasDosGrupos([sup], []).join(), /sem exercícios/);
 });

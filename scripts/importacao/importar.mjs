@@ -185,6 +185,34 @@ export function montarGrupos(entrada = []) {
   return { grupos, uidDe };
 }
 
+const MINIMO_DO_GRUPO = { SUPERSET: 2, AGONISTA_ANTAGONISTA: 2, TRI_SET: 3, GIANT_SET: 4, CIRCUITO: 3, PRE_EXAUSTAO: 2, POS_EXAUSTAO: 2 };
+const EM_SEQUENCIA = new Set(['PRE_EXAUSTAO', 'POS_EXAUSTAO']);
+
+/**
+ * Problemas dos grupos de uma sessão já montada, com as regras do `ValidadorTreino` (o modelo é gravado sem passar por
+ * ele: um grupo errado só apareceria ao aplicar e publicar). Vazio = certo. Só erros; o aviso das voltas fica para a API.
+ */
+export function problemasDosGrupos(grupos, exercicios) {
+  const problemas = [];
+  grupos.forEach((g, i) => {
+    const nome = `grupo ${i + 1} (${g.tecnica})`;
+    const membros = exercicios.map((e, j) => (e.grupoUid === g.uid ? j : -1)).filter((j) => j >= 0);
+    if (!membros.length) { problemas.push(`${nome}: sem exercícios.`); return; }
+    if (membros.at(-1) - membros[0] + 1 !== membros.length) problemas.push(`${nome}: os exercícios precisam ficar um ao lado do outro.`);
+    if (EM_SEQUENCIA.has(g.tecnica)) {
+      if (membros.length !== 2) problemas.push(`${nome}: tem exatamente 2 exercícios.`);
+      if (g.descansoAposSegundos != null) problemas.push(`${nome}: não tem descanso depois do grupo (cada série mantém o seu).`);
+    } else if (membros.length < MINIMO_DO_GRUPO[g.tecnica]) problemas.push(`${nome}: precisa de pelo menos ${MINIMO_DO_GRUPO[g.tecnica]} exercícios.`);
+    else if (membros.length > 6) problemas.push(`${nome}: vai até 6 exercícios.`);
+    if (g.descansoAposSegundos != null && !EM_SEQUENCIA.has(g.tecnica)
+      && (!Number.isInteger(g.descansoAposSegundos) || g.descansoAposSegundos < 0 || g.descansoAposSegundos > 3600)) {
+      problemas.push(`${nome}: descanso depois do grupo de 0 a 3600 segundos.`);
+    }
+    if (g.tecnica === 'CIRCUITO' && (!Number.isInteger(g.voltas) || g.voltas < 1 || g.voltas > 20)) problemas.push(`${nome}: circuito de 1 a 20 voltas.`);
+  });
+  return problemas;
+}
+
 /** Lê as prescrições como escritas; tipo e técnica são independentes. */
 export function lerSeries(linhas) {
   const itens = [];
@@ -422,6 +450,8 @@ async function conteudoTreino(m, regra) {
         unidade: x.unidade ?? 'kg', series, cadencia: null, isometriaSegundos: null, grupoUid: x.grupo ? uidDe.get(x.grupo) : null,
       });
     }
+    const problemas = problemasDosGrupos(grupos, exercicios);
+    if (problemas.length) throw new Error(`${m.nome} › ${s.nome}: ${problemas.join(' ')}`);
     sessoes.push({ uid: randomUUID(), nome: s.nome, diaSemana: s.diaSemana, tipo: s.tipo, frequenciaSemanal: null, observacao: s.observacao ?? null, cardio: s.cardio ?? null, exercicios, grupos });
   }
   return { objetivo: m.objetivo ?? null, orientacoes: m.orientacoes ?? null, sessoes };

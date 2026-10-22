@@ -106,10 +106,11 @@ class ConteudoTreinoTest {
     }
 
     @Test
-    void sessaoSemGruposContinuaSemGrupos() {
-        ConteudoTreino depois = new ConteudoTreino(null, null, List.of(new Sessao(UUID.randomUUID(), "Treino A", 1, "TREINO",
-                null, null, null, List.of()))).comUidsNovos();
-        assertThat(depois.sessoes().get(0).grupos()).isNull();
-        assertThat(depois.sessoes().get(0).gruposOuVazio()).isEmpty();
+    void sessaoSemGruposTemListaVaziaNuncaNula() {
+        // O pacote offline e o editor do app leem `grupos` como lista: nulo no JSON fazia o app descartar o pacote.
+        Sessao semGrupos = new Sessao(UUID.randomUUID(), "Treino A", 1, "TREINO", null, null, null, List.of());
+        assertThat(semGrupos.grupos()).isEmpty();
+        ConteudoTreino depois = new ConteudoTreino(null, null, List.of(semGrupos)).comUidsNovos();
+        assertThat(depois.sessoes().get(0).grupos()).isNotNull().isEmpty();
     }
 }

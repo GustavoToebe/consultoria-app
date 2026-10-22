@@ -57,7 +57,7 @@ describe('cargas do aluno', () => {
 
   it('AMRAP e alvo extra entram na meta', () => {
     const s = serie('a', 'WORKING', { repsMin: null, repsMax: null, amrap: true, carga: carga('CARGA_TRABALHO'), esforco: rir(0), alvoExtra: 'Sem pausa' });
-    expect(metaDaSerie(s, 'WS')).toBe('Meta: AMRAP · carga de trabalho · até a falha · Sem pausa');
+    expect(metaDaSerie(s, 'WS')).toBe('Meta: AMRAP · carga de trabalho · até a falha técnica · Sem pausa');
   });
 
   it('série de trabalho é a de carga de trabalho, não a de tipo com o nome do rótulo', () => {
@@ -75,6 +75,15 @@ describe('Top set + 2 back off (abaixo da referência)', () => {
     expect(r[1].sugestao).toBe(42); // top set: 40 + 5% (mínimo da faixa) = 42
     expect(r[2].sugestao).toBe(35.5); // 42 - 15% = 35,7 → passo de 0,5
     expect(r[3].sugestao).toBe(35.5); // o segundo também parte do top set, não do primeiro back off
+  });
+
+  it('acima da anterior arredonda para cima e abaixo da referência para baixo: nunca sugere a mesma carga', () => {
+    const pouco = exercicio([ws('a'), topSet('t', 1, null), backOffDe('b', 't', 1)]);
+    const r = calcularCargasDoExercicio(pouco, 20, { a: 20, t: 20.5 }, CONFIG);
+    expect(r[1].sugestao).toBe(20.5); // 20 + 1% = 20,2: ao mais próximo daria 20, a mesma da anterior
+    expect(r[2].sugestao).toBe(20); // 20,5 - 1% = 20,295: ao mais próximo daria 20,5, a mesma da referência
+    expect(arredondar(42, 0.5, 'cima')).toBe(42); // múltiplo exato fica como está
+    expect(arredondar(100.000000001, 2.5, 'cima')).toBe(100); // resto de ponto flutuante não sobe um passo
   });
 
   it('sem registro da referência não há sugestão; referência que vem depois ou não existe também não', () => {
@@ -156,7 +165,7 @@ describe('modos de carga do formato novo', () => {
   it('percentual em faixa usa o mínimo, arredonda e não inventa carga sem referência', () => {
     const faixa = serie('c', 'FEEDER', { carga: carga('PERCENTUAL_WS', 85, 90), esforco: rir(0) });
     expect(calcularCargasDoExercicio(exercicio([faixa]), 31, {}, CONFIG)[0].sugestao).toBe(26.5);
-    expect(metaDaSerie(faixa, 'WS')).toBe('Meta: 3 reps · 85 a 90% da WS · até a falha');
+    expect(metaDaSerie(faixa, 'WS')).toBe('Meta: 3 reps · 85 a 90% da WS · até a falha técnica');
     expect(calcularCargasDoExercicio(exercicio([faixa]), null, {}, CONFIG)[0].sugestao).toBeNull();
     expect(metaDaSerie(igual('c'), 'WS')).toContain('mesma carga da WS');
   });

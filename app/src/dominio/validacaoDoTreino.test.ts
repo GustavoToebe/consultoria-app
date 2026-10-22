@@ -101,6 +101,14 @@ describe('grupos da sessão', () => {
     expect(erros(sessao('s', [ex('a', 'g'), ex('b', 'g'), ex('c', 'g')], [grupo('g', 'CIRCUITO', { voltas: 3, descansoAposSegundos: 60 })]))).toEqual([]);
   });
 
+  it('circuito: voltas diferentes das séries de um membro só avisa (o aluno registra uma série por volta)', () => {
+    const tres = [ex('a', 'g'), ex('b', 'g'), ex('c', 'g')];
+    const r = validarSessao(sessao('s', tres, [grupo('g', 'CIRCUITO', { voltas: 2, descansoAposSegundos: 60 })]), null);
+    expect(r.erros).toEqual([]);
+    expect(r.avisos.map((a) => [a.caminho, a.mensagem])).toContainEqual(['grupos[0].voltas', 'Circuito de 2 voltas: o aluno registra uma série por volta, então cada exercício precisa de 2 séries (Remada tem 1).']);
+    expect(validarSessao(sessao('s', tres, [grupo('g', 'CIRCUITO', { voltas: 1 })]), null).avisos.filter((a) => a.caminho.startsWith('grupos'))).toEqual([]);
+  });
+
   it('o caminho das séries leva o índice do exercício dentro da sessão', () => {
     const s = sessao('s', [ex('a'), comSeries([ws('x', { carga: carga('PERCENTUAL_WS', 0) })], { uid: 'b' })]);
     expect(caminhos(validarSessao(s, null).erros)).toEqual(['exercicios[1].series[0].carga.percentualMin']);

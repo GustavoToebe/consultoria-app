@@ -88,7 +88,7 @@ export function textoDaFaixaPercentual(min: number | null | undefined, max: numb
 /** RIR em texto: 0 = "até a falha", 1 = "1 RIR"; vazio sem RIR. */
 export function textoRir(e: Esforco | null | undefined): string {
   if (e?.rir == null) return '';
-  return e.rir === 0 ? 'até a falha' : `${e.rir} RIR`;
+  return e.rir === 0 ? 'até a falha técnica' : `${e.rir} RIR`;
 }
 
 /** Esforço em texto: "1 RIR", "até a falha" (RIR 0) ou "RPE 8,5"; vazio sem esforço. */

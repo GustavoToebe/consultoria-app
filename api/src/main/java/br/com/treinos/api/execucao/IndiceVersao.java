@@ -15,9 +15,12 @@ import java.util.UUID;
  * Mapa dos uids de uma versão publicada do treino: onde está cada série (sessão e exercício), se é de trabalho, a
  * unidade e a posição no plano. Serve para conferir o registro do aluno e para mostrar o histórico com nomes: o tipo da
  * série sai como o NOME que a metodologia da versão dá ao código (sem metodologia na versão, a padrão; se o código não
- * existe nela, o próprio código).
+ * existe nela, o próprio código; série de exercício de cardio, "Cardio").
  */
 public final class IndiceVersao {
+
+    /** Nome da série de um exercício de cardio no histórico (ela não tem tipo). */
+    static final String CARDIO = "Cardio";
 
     public record LocalSerie(UUID sessaoUid, UUID exercicioUid, UUID exercicioId, boolean trabalho, String unidade,
                              String tipo, int ordem) {
@@ -41,11 +44,13 @@ public final class IndiceVersao {
                 if (e.uid() != null) {
                     nomesExercicio.put(e.uid(), e.nome());
                 }
-                String unidade = "nenhuma".equals(e.unidade()) ? "nenhuma" : "kg";
+                // Cardio não tem tipo nem carga: no histórico a série se chama "Cardio" e não leva "kg".
+                boolean cardio = e.deCardio();
+                String unidade = cardio || "nenhuma".equals(e.unidade()) ? "nenhuma" : "kg";
                 for (Serie x : e.seriesOuVazio()) {
                     if (x.uid() != null) {
                         series.put(x.uid(), new LocalSerie(s.uid(), e.uid(), e.exercicioId(), x.deTrabalho(), unidade,
-                                nomeDoTipo(metodologia, x.tipo()), ordem++));
+                                cardio ? CARDIO : nomeDoTipo(metodologia, x.tipo()), ordem++));
                     }
                 }
             }

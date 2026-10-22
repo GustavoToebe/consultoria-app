@@ -80,7 +80,6 @@ export default function InicioAluno() {
           fim: treino.fim,
           versao: treino.numero,
           conteudo: normalizarTreino(treino.conteudo),
-          tipoTrabalho: pacote.pacote.configuracao.tipoTrabalho,
           instrucoesTreino: pacote.pacote.configuracao.instrucoesTreino ?? null,
           rodapePdf: null,
           emitidoEm: new Date(),

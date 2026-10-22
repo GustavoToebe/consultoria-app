@@ -82,7 +82,7 @@ export function EditorModelo({ receita: r, aoRecarregar, salvoAs, aoSalvar }: { 
       <Campo rotulo="Descrição (opcional)" valor={descricao} aoMudar={(v) => { setDescricao(v); setPendente(true); }} linhas={2} maxLength={LIMITE_DESCRICAO_DO_MODELO} />
     </Cartao>
     {erro ? <Botao rotulo="Recarregar modelo (descartar alterações)" tipo="secundario" aoTocar={aoRecarregar} /> : null}
-    {metodologia ? <CartaoMetodologia configuracao={metodologia} aoMudar={mudarConteudo} /> : null}
+    {metodologia ? <CartaoMetodologia configuracao={metodologia} aoMudar={mudarConteudo} codigosSalvos={codigosDaVersaoSalva(r.conteudo)} /> : null}
     {r.tipo === 'SERIES' ? <Cartao titulo="Séries"><EditorSeries series={(conteudo as { series: ReturnType<typeof seriesDaReceita> }).series} config={configDaConsultoria} modalidade={null} aoMudar={(series) => mudarConteudo({ series })} /></Cartao> : null}
     {mob ? <SecoesDeMobilidade conteudo={mob} aoMudar={mudarConteudo} /> : null}
     {r.tipo === 'PASTA_PLANO' ? <Cartao titulo="Planos do pacote" descricao="Cópias dos modelos de semana, dieta e mobilidade. Mudar o modelo original depois não muda o pacote: para atualizar um item, remova e adicione de novo.">
@@ -128,3 +128,9 @@ const estilos = StyleSheet.create({
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   item: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5), gap: espaco(1), paddingBottom: espaco(1) },
 });
+
+/** Códigos dos tipos da metodologia como estão salvos (o `r.conteudo` da receita, antes da edição). */
+function codigosDaVersaoSalva(conteudo: unknown): string[] {
+  const tipos = (conteudo as { tipos?: unknown } | null)?.tipos;
+  return Array.isArray(tipos) ? tipos.map((t) => (t as { codigo?: unknown })?.codigo).filter((x): x is string => typeof x === 'string') : [];
+}

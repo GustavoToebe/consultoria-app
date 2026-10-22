@@ -7,6 +7,7 @@ import {
   exercicioSolto,
   exigenciaDoGrupo,
   motivoParaCriarGrupo,
+  motivoParaTrocarTipoDoGrupo,
   motivoSemCandidatos,
   opcoesDeGrupo,
   vizinhosQuePodemEntrar,
@@ -127,5 +128,17 @@ describe('quem pode entrar num grupo', () => {
     const s = sessaoCom(['a', ' ', 'c'], [grupo('g1', 'SUPERSET')], { c: 'g1' });
     s.exercicios[1] = { ...s.exercicios[1], nome: ' ' };
     expect(vizinhosQuePodemEntrar(s, 'g1')[0].nome).toBe('Exercício sem nome');
+  });
+});
+
+describe('trocar o tipo de um grupo pronto', () => {
+  it('só oferece o que cabe no tamanho atual, com o porquê', () => {
+    expect(motivoParaTrocarTipoDoGrupo(2, 'AGONISTA_ANTAGONISTA')).toBeNull();
+    expect(motivoParaTrocarTipoDoGrupo(2, 'PRE_EXAUSTAO')).toBeNull();
+    expect(motivoParaTrocarTipoDoGrupo(2, 'GIANT_SET')).toMatch(/pelo menos 4/);
+    expect(motivoParaTrocarTipoDoGrupo(2, 'CIRCUITO')).toMatch(/pelo menos 3/);
+    expect(motivoParaTrocarTipoDoGrupo(3, 'POS_EXAUSTAO')).toMatch(/exatamente 2/);
+    expect(motivoParaTrocarTipoDoGrupo(4, 'GIANT_SET')).toBeNull();
+    expect(motivoParaTrocarTipoDoGrupo(3, 'SUPERSET')).toBeNull();
   });
 });

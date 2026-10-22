@@ -63,7 +63,7 @@ test('PDF usa a metodologia copiada para o treino, mesmo quando a configuração
     ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => ({ ...t, nome: t.codigo === 'WORKING' ? 'Trabalho' : t.nome })),
     arredondamentoKg: 1, instrucoesTreino: 'Instrução da versão', rodapePdf: 'Rodapé da versão',
   } } };
-  const doc = documentoTreino({ ...base, inicio: null, fim: null, versao: 1, conteudo, tipoTrabalho: 'GLOBAL', instrucoesTreino: 'Global alterada' });
+  const doc = documentoTreino({ ...base, inicio: null, fim: null, versao: 1, conteudo, instrucoesTreino: 'Global alterada' });
   expect(doc.corpo).toContain('85% da Trabalho');
   expect(doc.corpo).toContain('1x3 a 6 - Trabalho');
   expect(doc.corpo).toContain('Instrução da versão');
@@ -155,7 +155,7 @@ describe('PDF do treino: técnica separada do tipo, descanso e alvos', () => {
 describe('PDF do treino: esforço (RIR e RPE)', () => {
   it('RIR 0 vira "até a falha" e o glossário diz que RIR 0 é a falha técnica', () => {
     const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WORKING', 3, 6, carga('CARGA_TRABALHO'), rir(0))] })))).corpo;
-    expect(html).toContain('1x3 a 6 - WS · até a falha');
+    expect(html).toContain('1x3 a 6 - WS · até a falha técnica');
     expect(html).toContain('<td class="termo">RIR</td>');
     expect(html).toContain('RIR 0 = até a falha técnica');
   });
@@ -521,7 +521,7 @@ describe('PDF da lista de compras', () => {
 describe('faixa da marca no alto dos cinco PDFs', () => {
   const dados = (m: Marca) => ({ ...base, marca: m });
   const geradores: Record<string, (m: Marca) => Documento> = {
-    treino: (m) => documentoTreino({ ...dados(m), inicio: null, fim: null, versao: 1, conteudo: treino, tipoTrabalho: 'WS', instrucoesTreino: null }),
+    treino: (m) => documentoTreino({ ...dados(m), inicio: null, fim: null, versao: 1, conteudo: treino, instrucoesTreino: null }),
     dieta: (m) => documentoDieta({ ...dados(m), versao: 1, conteudo: normalizarDieta({ refeicoes: [] }), pesos: [] }),
     mobilidade: (m) => documentoMobilidade({ ...dados(m), versao: 1, conteudo: normalizarMobilidade({ secoes: [] }) }),
     cargas: (m) => documentoCargas({ ...dados(m), de: '2026-10-01', ate: '2026-10-14', divisoes: [] }),
@@ -596,7 +596,7 @@ test('PDF: glossário só com o que o treino usa, com o nome da metodologia e to
   expect(glossario).not.toContain('Top set');
   expect(glossario).not.toContain('FEEDER');
   const e = conteudo.sessoes[0].exercicios[0];
-  expect(linhasDeSeries(e, config)[0]).toBe('1x6 (4+2) - FS + Muscle <Round> 15 s · mesma carga da WS · até a falha');
+  expect(linhasDeSeries(e, config)[0]).toBe('1x6 (4+2) - FS + Muscle <Round> 15 s · mesma carga da WS · até a falha técnica');
   expect(obsDoExercicio(e, config)[0]).toContain('Muscle <Round>: blocos de 4 e 2 repetições, 15 s de pausa entre os blocos.');
 });
 

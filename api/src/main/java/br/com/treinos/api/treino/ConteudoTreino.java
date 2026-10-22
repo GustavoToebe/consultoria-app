@@ -99,6 +99,14 @@ public record ConteudoTreino(
             @Size(max = 40) List<@Valid @NotNull ExercicioPlano> exercicios,
             @Size(max = 20) List<@Valid @NotNull Grupo> grupos) {
 
+        /**
+         * Sem grupos = lista vazia, nunca nulo: o JSON sai sempre com {@code "grupos": []} e o app (pacote offline e editor)
+         * lê a lista sem conferir nulo. Um corpo sem o campo também vira lista vazia.
+         */
+        public Sessao {
+            grupos = grupos == null ? List.of() : grupos;
+        }
+
         /** Sessão sem grupos de exercícios (a maior parte). */
         public Sessao(UUID uid, String nome, Integer diaSemana, String tipo, Integer frequenciaSemanal, String observacao,
                       String cardio, List<ExercicioPlano> exercicios) {
@@ -353,7 +361,7 @@ public record ConteudoTreino(
         public Map<String, String> problemas() {
             Map<String, String> p = new LinkedHashMap<>();
             if (rir != null && (rir < 0 || rir > 5)) {
-                p.put("rir", "RIR entre 0 (até a falha) e 5.");
+                p.put("rir", "RIR entre 0 (até a falha técnica) e 5.");
             }
             if (rpe != null && (rpe.compareTo(BigDecimal.ONE) < 0 || rpe.compareTo(BigDecimal.TEN) > 0
                     || rpe.remainder(MEIO).signum() != 0)) {

@@ -47,6 +47,7 @@ export function localizar(conteudo: unknown, caminho: string): Localizacao {
     const posicao = Number(indice) + 1;
     if (campo === 'series') partes.push(`série ${posicao}`);
     else if (campo === 'opcoes') partes.push(`opção ${item.rotulo || posicao}`);
+    else if (campo === 'grupos') partes.push(`grupo ${posicao}`);
     else partes.push(item.nome?.trim() || `${campo === 'sessoes' ? 'sessão' : 'item'} ${posicao}`);
     atual = item;
   }

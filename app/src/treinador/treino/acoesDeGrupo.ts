@@ -79,6 +79,18 @@ export function motivoParaCriarGrupo(
   return criarGrupo(s, marcados, tecnica) === s ? 'Não foi possível formar o grupo com esses exercícios.' : null;
 }
 
+/**
+ * Por que um grupo que já tem `tamanho` exercícios não pode virar `tecnica`; `null` quando pode. A troca do tipo de um grupo
+ * pronto segue a mesma regra da criação, para nenhum grupo passar a ter erro só por trocar o tipo (o circuito ainda pede as
+ * voltas, que o campo aparece pedindo logo abaixo).
+ */
+export function motivoParaTrocarTipoDoGrupo(tamanho: number, tecnica: TecnicaDeGrupo, config?: Configuracao | null): string | null {
+  const nome = nomeDaCombinacao(config, tecnica);
+  if (grupoEmSequencia(tecnica)) return tamanho === 2 ? null : `${nome} tem exatamente 2 exercícios.`;
+  if (tamanho < MINIMO_POR_GRUPO[tecnica]) return `${nome} precisa de pelo menos ${MINIMO_POR_GRUPO[tecnica]} exercícios.`;
+  return null;
+}
+
 /** Cria o grupo com os exercícios marcados; no circuito, já com as voltas. Devolve o mesmo objeto se não for possível. */
 export function criarGrupoPronto(
   s: ExerciciosEGrupos,

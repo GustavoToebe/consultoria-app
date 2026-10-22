@@ -140,7 +140,7 @@ public record ConfiguracaoConsultoria(
 
     /** Chave de comparação de um nome de tipo: sem acento, minúsculas, hífen/travessão/NBSP viram espaço, espaços colapsados. */
     public static String chaveDeTipo(String tipo) {
-        return Buscas.semAcento(tipo == null ? "" : tipo.replaceAll("[\\-–—  ]", " "));
+        return Buscas.semAcento(tipo == null ? "" : tipo.replaceAll("[\\-–— \\u202F ]", " "));
     }
 
     /**

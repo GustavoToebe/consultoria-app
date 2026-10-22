@@ -359,6 +359,7 @@ class MetodologiaTest {
     void chaveDeTipoNormaliza() {
         assertThat(ConfiguracaoConsultoria.chaveDeTipo("Rest-Pause")).isEqualTo("rest pause");
         assertThat(ConfiguracaoConsultoria.chaveDeTipo("  Drop   set ")).isEqualTo("drop set");
+        assertThat(ConfiguracaoConsultoria.chaveDeTipo("Back\u202Foff")).isEqualTo("back off");
         assertThat(ConfiguracaoConsultoria.chaveDeTipo("Clúster")).isEqualTo("cluster");
         assertThat(ConfiguracaoConsultoria.chaveDeTipo("Pré–exaustão")).isEqualTo("pre exaustao");
     }

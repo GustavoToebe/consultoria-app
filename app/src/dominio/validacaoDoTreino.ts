@@ -63,7 +63,7 @@ function avisosDoTipo(c: Coletor, s: Serie, caminho: string, metodologia: Config
     return;
   }
   if (s.esforco?.rir === 0 && (definicao.papel === 'AQUECIMENTO' || definicao.papel === 'PREPARACAO')) {
-    c.aviso(junta(caminho, 'esforco.rir'), 'RIR 0 (até a falha) em série de aquecimento ou preparação: confira se é isso mesmo.');
+    c.aviso(junta(caminho, 'esforco.rir'), 'RIR 0 (até a falha técnica) em série de aquecimento ou preparação: confira se é isso mesmo.');
   }
 }
 
@@ -149,6 +149,12 @@ function validarGruposNoColetor(c: Coletor, s: Sessao, caminho: string) {
     }
     if (indices[indices.length - 1] - indices[0] + 1 !== indices.length) {
       c.erro(cg, 'Os exercícios de um grupo precisam ficar um ao lado do outro na sessão.');
+    }
+    if (g.tecnica === 'CIRCUITO' && Number.isInteger(g.voltas) && (g.voltas as number) >= 1) {
+      const diferente = indices.map((j) => exercicios[j]).find((e) => (e.series ?? []).length !== g.voltas);
+      if (diferente) {
+        c.aviso(junta(cg, 'voltas'), `Circuito de ${g.voltas} ${g.voltas === 1 ? 'volta' : 'voltas'}: o aluno registra uma série por volta, então cada exercício precisa de ${g.voltas} ${g.voltas === 1 ? 'série' : 'séries'} (${diferente.nome?.trim() || 'um exercício'} tem ${(diferente.series ?? []).length}).`);
+      }
     }
     const minimo = MINIMO_POR_GRUPO[g.tecnica as TecnicaDeGrupo] as number | undefined;
     if (minimo === undefined) return;

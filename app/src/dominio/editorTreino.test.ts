@@ -631,6 +631,11 @@ describe('caminhos do validador', () => {
     expect(localizar(conteudo, 'sessoes').texto).toBe('Sessões');
     expect(uidsComProblema(conteudo, ['sessoes[0].nome'])).toEqual(new Set(['s1']));
   });
+
+  it('o problema de um grupo de exercícios diz "grupo N" (o grupo não tem nome) e leva o uid dele', () => {
+    const comGrupo = { ...conteudo, sessoes: [{ ...conteudo.sessoes[0], grupos: [{ uid: 'g1', tecnica: 'SUPERSET', descansoAposSegundos: null, voltas: null }] }] };
+    expect(localizar(comGrupo, 'sessoes[0].grupos[0].descansoAposSegundos')).toEqual({ texto: 'Segunda - Costas › grupo 1', uids: ['s1', 'g1'] });
+  });
 });
 
 describe('sessão selecionada do editor', () => {

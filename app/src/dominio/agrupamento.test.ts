@@ -88,7 +88,7 @@ describe('carga e esforço em texto', () => {
 
   it('RIR 0 é até a falha, RPE sai com o valor, vazio sai vazio', () => {
     expect(textoEsforco(rir(1))).toBe('1 RIR');
-    expect(textoEsforco(rir(0))).toBe('até a falha');
+    expect(textoEsforco(rir(0))).toBe('até a falha técnica');
     expect(textoEsforco(rpe(8.5))).toBe('RPE 8,5');
     expect(textoEsforco(null)).toBe('');
   });
@@ -130,7 +130,7 @@ test.each([
     '2x3 a 5 - FS 70/85 a 90% da WS',
   ],
   ['WS livre', [exemplo('WORKING', {}, 'LIVRE')], '1x3 a 6 - WS · 1 RIR'],
-  ['WS máquina', [exemplo('WORKING', {}, 'MAQUINA')], '1x3 a 6 - WS · até a falha'],
+  ['WS máquina', [exemplo('WORKING', {}, 'MAQUINA')], '1x3 a 6 - WS · até a falha técnica'],
   ['back off', [exemplo('BACK_OFF'), exemplo('BACK_OFF')], '2x6 a 8 - Back off 85% da WS'],
   ['rest pause só técnica', [exemplo(undefined, { tipo: null, repsMin: 8, repsMax: 8, carga: carga('MESMA_CARGA'), esforco: null, tecnica: tecnicaDe('REST_PAUSE', { pausaSegundos: 20, pausas: 1 }) })], '1x8 - Rest pause 20 s · mesma carga da WS'],
   ['3 micro-séries', [exemplo('WORKING', { repsMin: 4, esforco: null, tecnica: tecnicaDe('REST_PAUSE', { pausaSegundos: 15, pausas: 2 }) })], '1x4 a 6 - WS + Rest pause 15 s, 2 pausas'],

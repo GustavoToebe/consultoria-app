@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { execucoesDoAluno } from '../api/rotas';
-import type { DiaDeTreino, PastaResumo, SerieFeita } from '../api/tipos';
-import { dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
-import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros } from '../dominio/relatorio';
+import type { DiaDeTreino, PastaResumo } from '../api/tipos';
+import { dataParaTela, hojeIso } from '../dominio/formatos';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, textoSerie } from '../dominio/relatorio';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
@@ -24,11 +24,6 @@ import { CargasPorDivisao } from './CargasPorDivisao';
 import { NoPlano } from '../ui/NoPlano';
 import { gerarPdfDeCargas, sessoesPorUid, treinosDoAluno } from './gerarPdf';
 
-/** "WS 32 kg × 5"; o que o aluno não informou aparece como "—" (nunca presumido). */
-export function textoSerie(s: SerieFeita): string {
-  const carga = s.unidade === 'nenhuma' ? '' : `${numeroParaTela(s.carga)} kg × `;
-  return `${s.tipo} ${carga}${s.repeticoes ?? '—'}`;
-}
 
 export const PERIODOS = [
   { valor: '14', rotulo: '14 dias' },

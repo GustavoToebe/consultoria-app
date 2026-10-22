@@ -31,7 +31,11 @@ const chaveDoAlvo = (alvo: string) => `metodologia:${alvo}`;
  * campo e numa lista no topo, que leva ao cartão; "Salvar modelo" (na barra) só trava com essa lista à vista. Tudo é salvo
  * pela barra do modelo.
  */
-export function CartaoMetodologia({ configuracao: c, aoMudar }: { configuracao: MetodologiaEmEdicao; aoMudar: (c: MetodologiaEmEdicao) => void }) {
+/**
+ * `codigosSalvos`: os códigos da versão salva do modelo. Um tipo novo nunca reaproveita um deles, nem o de um tipo removido
+ * nesta edição: séries e modelos já gravados com aquele código passariam a mostrar o nome e o papel do tipo novo.
+ */
+export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = [] }: { configuracao: MetodologiaEmEdicao; aoMudar: (c: MetodologiaEmEdicao) => void; codigosSalvos?: readonly string[] }) {
   const { rolarAte } = useRolagem();
   const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set());
   const [novo, setNovo] = useState<{ nome: string; papel: PapelDaSerie } | null>(null);
@@ -45,7 +49,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar }: { configuracao: 
   const mudarTipo = (i: number, parte: Partial<TipoEmEdicao>) => aoMudar({ ...c, tipos: c.tipos.map((t, n) => (n === i ? { ...t, ...parte } : t)) });
   const adicionar = () => {
     if (!novo?.nome.trim()) return;
-    const tipo = novoTipoDeSerie(novo.nome.trim(), c.tipos, novo.papel);
+    const tipo = novoTipoDeSerie(novo.nome.trim(), [...c.tipos, ...codigosSalvos.map((codigo) => ({ codigo }))], novo.papel);
     aoMudar({ ...c, tipos: [...c.tipos, tipo] });
     abrir(`tipo:${tipo.codigo}`);
     setNovo(null);

@@ -76,24 +76,30 @@ Resultado final local em 22/10: API com 1.269 testes e cobertura aprovada (`mvn 
 
 ## Publicação e pendências
 
-**Nenhum push está autorizado.** Push na `main` publica em produção, e a API e o app mudam o contrato juntos: os seis commits locais à frente do `origin/main` (incluindo os de API e app do contrato novo) precisam entrar no mesmo push.
+**Nenhum push na `main` está autorizado.** Push na `main` publica em produção, e a API e o app mudam o contrato juntos: o lote inteiro (branch `feat/contrato-series`) entra num push só.
 
 Três migrations apagam dados, em **todas as consultorias**:
 
-- V022 (já no `origin/main`): registros de execução, treinos e suas versões, modelos de treino, séries e metodologia, e pacotes (que levam dieta junto). Mantém pastas dos alunos, dietas independentes, mobilidade e outros modelos.
-- V023 (já no `origin/main`): recria as metodologias padrão; não recupera o conteúdo apagado.
-- V024 (nova, só local): apaga de novo `execucao_serie`, as versões e os planos de treino e as receitas dos tipos metodologia, séries, dia de treino, semana e pacote, e recria as receitas padrão no contrato novo. O que for criado depois da V022 e da V023 também se perde. Não foi verificado aqui se a produção já aplicou a V022 e a V023 (sem acesso à VPS).
+- V022 (já no `origin/main` e em produção): registros de execução, treinos e suas versões, modelos de treino, séries e metodologia, e pacotes (que levam dieta junto). Mantém pastas dos alunos, dietas independentes, mobilidade e outros modelos.
+- V023 (já em produção): recria as metodologias padrão; não recupera o conteúdo apagado.
+- V024 (nova, só na branch): apaga de novo `execucao_serie`, as versões e os planos de treino e as receitas dos tipos metodologia, séries, dia de treino, semana e pacote, e recria as receitas padrão no contrato novo. O que for criado depois da V023 também se perde.
 
-Antes de qualquer push, Gustavo precisa confirmar que não há nada a guardar e alguém precisa conferir que o backup do dia rodou. Sem isso, o lote permanece local. A importação real de treinos e dietas do Saraiva só acontece **depois do contrato novo em produção**. Alunos e pesos podem ser importados antes, em operação separada e autorizada.
+Antes do push, Gustavo confirma que não há nada a guardar (contagem só de leitura em produção) e alguém confere que o backup do dia rodou. A importação real de treinos e dietas do Saraiva só acontece **depois do contrato novo em produção**: as simulações podem rodar antes, `--gravar` não (a V024 apagaria o que fosse gravado).
 
 Riscos do lote: perda de conteúdo coberta pela V022 e pela V024, incompatibilidade de app antigo com o contrato novo (a whitelist do pacote offline mudou), necessidade de conexão para baixar de novo um pacote descartado e Top sets importados que precisam de revisão quando faltam dados.
+
+Revisão e conferência de 22/10 (na nuvem, sobre a branch):
+
+- `mvn verify` 1.270 testes, app 131 suítes e 1.795 testes, scripts 139 testes e 22 e2e (grupos, cardio, editor de séries, metodologia e aluno), todos verdes.
+- Pilha local com a V024 aplicada (Postgres 18, API do commit, web exportada, demonstração ligada): metodologia padrão com Aquecimento no papel Aquecimento e "Salvar modelo" livre; editor do plano "Exemplos do PDF" aberto e validado pela API (só avisos esperados); início e plano do aluno em 390 px; nenhuma exceção de página nem 5xx.
+- Corrigido: `Sessao.grupos` nulo no JSON (o pacote offline do aluno era descartado e o editor quebraria ao abrir plano do seed); cardio no histórico ("Cardio feito", não "null —"); "acima da anterior" e "abaixo da referência" arredondam para o lado certo (não sugerem a mesma carga); RIR 0 = "até a falha técnica" no app, na API e no PDF; aviso de circuito com voltas diferentes das séries; tipo de grupo que não cabe no tamanho atual fica desabilitado com o porquê; problema de grupo aparece como "grupo N" e o "ir ao primeiro" rola até ele; tipo novo da metodologia não reaproveita código salvo; `tipoTrabalho` sem uso saiu do PDF; importador confere os grupos antes de gravar; U+202F igual na API e no app.
 
 Pendências:
 
 - Confirmação do padrão de rest pause pelo Saraiva (hoje uma pausa de 20 segundos, sem repetições por retomada; três micro-séries são duas pausas).
-- Teste em aparelho Android e iOS físico.
+- Teste em aparelho Android e iOS físico (e a exportação Android).
 - `Sessao.cardio` (texto livre) continua no contrato, mas a tela o esconde nas sessões novas (só aparece em sessão que já o tem); o cardio novo é um exercício de modalidade Cardio.
-- O `codigo` do tipo é imutável só por regra de UI: a API aceita a mudança e não vigia o que as séries gravaram. Se isso virar risco, a trava passa para o servidor.
-- A conferência visual no compose (porta 8088, Playwright, 390 e 1280 px) e a exportação Android **não foram feitas** neste lote: o e2e roda contra API falsa. Falta subir o compose com a V024 e conferir as telas novas com a API real.
+- O `codigo` do tipo é imutável por regra de UI e um tipo novo não reaproveita código da versão salva; a API ainda aceita trocar ou remover um código. Plano e versão levam cópia da metodologia, então o histórico não muda; o efeito ficaria só em modelos de séries gravados com o código antigo (aviso "fora da metodologia").
+- Código cru (ex.: `BACK_OFF`) ainda aparece quando a série usa um tipo que não está na metodologia copiada (caso raro: só com aviso na publicação).
 
 Nenhum workflow foi disparado ou reexecutado, e não houve acesso à VPS.

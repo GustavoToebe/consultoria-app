@@ -29,11 +29,6 @@ export interface DadosPdfTreino {
   /** Número da versão publicada; `null` = rascunho (sai marcado). */
   versao: number | null;
   conteudo: ConteudoTreino;
-  /**
-   * Sem uso: os nomes ("WS", "Top set", "Superset") saem da metodologia copiada na versão do treino (ou da padrão, sem
-   * ela). Fica opcional para quem ainda o passa.
-   */
-  tipoTrabalho?: string;
   instrucoesTreino: string | null;
   rodapePdf: string | null;
   emitidoEm: Date;
@@ -50,7 +45,7 @@ function textoDoDescansoDasSeries(series: readonly Serie[]): string {
 
 /**
  * Coluna "Séries": uma linha por grupo de séries iguais, com o nome do tipo da metodologia (nunca o código), as repetições
- * ("AMRAP" quando pedido), a carga em faixa de percentual, o esforço (RIR/RPE, "até a falha" para RIR 0), a técnica, o alvo
+ * ("AMRAP" quando pedido), a carga em faixa de percentual, o esforço (RIR/RPE, "até a falha técnica" para RIR 0), a técnica, o alvo
  * extra, a prescrição de cardio e o descanso. `comDescanso` falso nos membros de grupo cujo descanso é o do grupo (a linha
  * do grupo o diz).
  */

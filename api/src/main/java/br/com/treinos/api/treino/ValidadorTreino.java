@@ -237,6 +237,15 @@ public class ValidadorTreino {
             if (ultimo - primeiro + 1 != indices.size()) {
                 c.erro(cg, "Os exercícios de um grupo precisam ficar um ao lado do outro na sessão.");
             }
+            if (ConteudoTreino.CIRCUITO.equals(grupo.tecnica()) && grupo.voltas() != null && grupo.voltas() >= 1) {
+                int voltas = grupo.voltas();
+                indices.stream().map(exercicios::get).filter(e -> e.seriesOuVazio().size() != voltas).findFirst()
+                        .ifPresent(e -> c.aviso(cg + ".voltas", "Circuito de " + voltas + (voltas == 1 ? " volta" : " voltas")
+                                + ": o aluno registra uma série por volta, então cada exercício precisa de " + voltas
+                                + (voltas == 1 ? " série" : " séries") + " ("
+                                + (e.nome() == null || e.nome().isBlank() ? "um exercício" : e.nome().trim()) + " tem "
+                                + e.seriesOuVazio().size() + ")."));
+            }
             Integer minimo = grupo.tecnica() == null ? null : MINIMO_POR_GRUPO.get(grupo.tecnica());
             if (minimo == null) {
                 continue;
@@ -271,7 +280,7 @@ public class ValidadorTreino {
         }
         if (x.esforco() != null && Integer.valueOf(0).equals(x.esforco().rir())
                 && (definicao.papel() == Papel.AQUECIMENTO || definicao.papel() == Papel.PREPARACAO)) {
-            c.aviso(cx + ".esforco.rir", "RIR 0 (até a falha) em série de aquecimento ou preparação: confira se é isso mesmo.");
+            c.aviso(cx + ".esforco.rir", "RIR 0 (até a falha técnica) em série de aquecimento ou preparação: confira se é isso mesmo.");
         }
     }
 

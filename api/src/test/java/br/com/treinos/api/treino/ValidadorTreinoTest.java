@@ -425,6 +425,20 @@ class ValidadorTreinoTest {
     }
 
     @Test
+    void circuitoComVoltasDiferentesDasSeriesDeUmMembroSoAvisa() {
+        Grupo c = grupo("CIRCUITO", 60, 3);
+        ResultadoValidacao r = validador.validar(conteudoComGrupos(List.of(noGrupo(c), noGrupo(c), noGrupo(c)), List.of(c)),
+                null, null);
+        assertThat(r.erros()).isEmpty();
+        assertThat(r.avisos()).anyMatch(a -> a.caminho().equals(GRUPO0 + ".voltas") && a.mensagem().contains("3 séries")
+                && a.mensagem().contains("Rosca direta tem 1"));
+        Grupo umaVolta = grupo("CIRCUITO", 60, 1);
+        ResultadoValidacao certo = validador.validar(conteudoComGrupos(
+                List.of(noGrupo(umaVolta), noGrupo(umaVolta), noGrupo(umaVolta)), List.of(umaVolta)), null, null);
+        assertThat(certo.avisos()).noneMatch(a -> a.caminho().startsWith(GRUPO0));
+    }
+
+    @Test
     void preEPosExaustaoTemExatamenteDoisExerciciosESemDescansoDoGrupo() {
         for (String tecnica : List.of("PRE_EXAUSTAO", "POS_EXAUSTAO")) {
             Grupo g = grupo(tecnica, null, null);

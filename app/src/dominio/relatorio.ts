@@ -1,6 +1,6 @@
-import type { DiaDeTreino, Sessao } from '../api/tipos';
+import type { DiaDeTreino, SerieFeita, Sessao } from '../api/tipos';
 import { DIAS_SEMANA } from './editorTreino';
-import { diaDaSemanaIso, somarDias } from './formatos';
+import { diaDaSemanaIso, numeroParaTela, somarDias } from './formatos';
 import { nomeComDia } from './semana';
 
 /**
@@ -139,4 +139,15 @@ export function ultimoRegistroDaDivisao(d: DivisaoRelatorio): string | null {
   let ultima: string | null = null;
   for (const e of d.exercicios) for (const l of e.linhas) if (!ultima || l.data > ultima) ultima = l.data;
   return ultima;
+}
+
+/**
+ * "WS 32 kg × 5"; o que o aluno não informou aparece como "—" (nunca presumido). Série sem carga e sem repetições (cardio,
+ * que o aluno só marca) sai "Cardio feito"; não marcada, "Cardio —".
+ */
+export function textoSerie(s: SerieFeita): string {
+  const tipo = s.tipo?.trim() || 'Série';
+  if (s.unidade === 'nenhuma' && s.repeticoes == null && s.carga == null) return `${tipo} ${s.concluida ? 'feito' : '—'}`;
+  const carga = s.unidade === 'nenhuma' ? '' : `${numeroParaTela(s.carga)} kg × `;
+  return `${tipo} ${carga}${s.repeticoes ?? '—'}`;
 }
