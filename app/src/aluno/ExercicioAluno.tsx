@@ -3,7 +3,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import type { DemonstracaoDoAluno, ExercicioPlano, UltimaCarga } from '../api/tipos';
+import type { Configuracao, DemonstracaoDoAluno, ExercicioPlano, UltimaCarga } from '../api/tipos';
+import { explicacaoDaTecnica, explicacaoDoTipo, nomeDaTecnica } from '../dominio/metodologia';
+import { Folha } from '../ui/Folha';
 import { textoTecnicaPorExtenso } from '../dominio/agrupamento';
 import { ajustarCarga, calcularCargasDoExercicio, metaDaSerie, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
@@ -42,7 +44,7 @@ interface Props {
   /** Última carga de trabalho registrada (servidor ou aparelho) para sugerir a base. */
   ultima: UltimaCarga | null;
   registroDe: (serieUid: string) => RegistroLocal | undefined;
-  config: { arredondamentoKg: number; tipoTrabalho: string };
+  config: { arredondamentoKg: number; tipoTrabalho: string; metodologia?: Configuracao };
   aoMudarCargaDoDia: (carga: number | null) => void;
   aoRegistrar: (serieUid: string, dados: DadosSerie) => void;
   /** Botão de descanso (ícone) na linha do "Como fazer", ao lado do vídeo. */
@@ -162,6 +164,7 @@ export function ExercicioAluno(p: Props) {
           indice={i}
           semCarga={semCarga}
           tipoTrabalho={p.config.tipoTrabalho}
+          metodologia={p.config.metodologia}
           passo={i === proximaAFazer ? passo : null}
           ativa={i === proximaAFazer}
           registro={p.registroDe(c.serie.uid)}
@@ -180,6 +183,7 @@ function CartaoSerie({
   indice,
   semCarga,
   tipoTrabalho,
+  metodologia,
   passo,
   ativa,
   registro,
@@ -192,6 +196,7 @@ function CartaoSerie({
   indice: number;
   semCarga: boolean;
   tipoTrabalho: string;
+  metodologia?: Configuracao;
   /** Passo dos botões + e − do peso; `null` esconde os botões (só a próxima série a fazer os mostra). */
   passo: number | null;
   /** É a próxima série a fazer: mostra a dica da carga sugerida. */
@@ -225,7 +230,9 @@ function CartaoSerie({
   // A técnica sai da meta e vai por extenso na própria série ("Na série 3" deixa de ser adivinhação).
   const meta = metaDaSerie({ ...s, tecnica: null }, tipoTrabalho, semCarga);
   const descanso = s.descansoSegundos && s.descansoSegundos > 0 ? `Descanso ${rotuloDescanso(s.descansoSegundos)}` : null;
-  const tecnica = textoTecnicaPorExtenso(s.tecnica);
+  const tecnica = textoTecnicaPorExtenso(s.tecnica, metodologia);
+  const [explicando, setExplicando] = useState(false);
+  const explicacoes = [s.tipo ? { nome: s.tipo, texto: explicacaoDoTipo(metodologia, s.tipo) } : null, s.tecnica ? { nome: nomeDaTecnica(metodologia, s.tecnica.tipo), texto: explicacaoDaTecnica(metodologia, s.tecnica.tipo) } : null].filter((x): x is { nome: string; texto: string } => !!x?.texto);
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
 
   const mudar = (parcial: Partial<DadosSerie>) => {
@@ -241,8 +248,11 @@ function CartaoSerie({
     <Animated.View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, fundo]}>
       <View style={estilos.cabecaSerie}>
         <Texto style={estilos.nomeSerie}>Série {numero}</Texto>
-        {s.tipo ? <Selo texto={s.tipo} tipo="neutro" /> : null}
+        {s.tipo || s.tecnica ? <Pressable accessibilityRole="button" accessibilityLabel={`Explicação de ${s.tipo ?? nomeDaTecnica(metodologia, s.tecnica!.tipo)} da série ${numero}`} onPress={() => setExplicando(true)} style={{ minHeight: ALVO_TOQUE, justifyContent: 'center' }}><Selo texto={s.tipo ?? nomeDaTecnica(metodologia, s.tecnica!.tipo)} tipo="neutro" /></Pressable> : null}
       </View>
+      <Folha visivel={explicando} titulo="Como ler esta série" aoFechar={() => setExplicando(false)}>
+        {explicacoes.length ? explicacoes.map((x) => <View key={x.nome}><Texto variante="secao">{x.nome}</Texto><Texto>{x.texto}</Texto></View>) : <Texto>—</Texto>}
+      </Folha>
       <Texto numerico variante="pequeno">
         {descanso ? `${meta} · ${descanso}` : meta}
       </Texto>
@@ -293,7 +303,7 @@ function CartaoSerie({
         <Botao rotulo={repetir.rotulo} rotuloAcessivel={`${repetir.rotulo} da série ${indice} e marcar a série ${numero} como feita`} tipo="fantasma" Icone={Repeat}
           aoTocar={() => aoRegistrar({ carga: repetir.carga, repeticoes: repetir.repeticoes, concluida: true })} />
       ) : null}
-      {ativa && !semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <Texto numerico variante="pequeno">Peso sugerido pelo plano; mude se usar outro.</Texto> : null}
+      {ativa && !semCarga && !registro && cargaDigitada === undefined && calculada.sugestao !== null ? <Texto numerico variante="pequeno">{s.intensidade?.modo === 'MESMA_CARGA' ? `Mesma carga da ${tipoTrabalho}; mude se usar outra.` : 'Peso sugerido pelo plano; mude se usar outro.'}</Texto> : null}
       {registro?.situacao === 'FALHOU' ? <Texto numerico variante="pequeno" cor={cores.perigo}>Não enviado: {registro.motivo}</Texto> : null}
     </Animated.View>
   );

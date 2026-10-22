@@ -1,14 +1,15 @@
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import type { ConteudoDieta, ConteudoTreino, Marca, Serie } from '../api/tipos';
 import { normalizarDieta } from '../dominio/dieta';
-import { normalizarTreino } from '../dominio/editorTreino';
+import { agrupar } from '../dominio/agrupamento';
+import { novaSerie, tecnicaVazia, normalizarTreino } from '../dominio/editorTreino';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import { esc, link, type Documento } from './html';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
-import { blocoInstrucoes, documentoTreino } from './pdfTreino';
+import { blocoGlossario, linhaDoGrupo, obsDoGrupo, blocoInstrucoes, documentoTreino } from './pdfTreino';
 
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
@@ -450,4 +451,20 @@ describe('faixa da marca no alto dos cinco PDFs', () => {
     expect(d.corpo.indexOf('faixa-marca')).toBeLessThan(d.corpo.indexOf('<img'));
     expect(d.corpo).toMatch(/<\/div><div class="topo"><div><img src="data:image\/png;base64,AAAA"/);
   });
+});
+
+test('PDF: técnica sem tipo, faixas e RIR zero; glossário só com prescrições usadas e texto escapado', () => {
+  const config = { ...CONFIGURACAO_PADRAO, tecnicas: CONFIGURACAO_PADRAO.tecnicas.map((t) => t.tipo === 'CLUSTER' ? { ...t, nome: 'Muscle <Round>' } : t) };
+  const tecnica = { ...novaSerie(config, null), repsMin: 6, repsMax: 6, intensidade: { modo: 'MESMA_CARGA' as const, rir: 0 }, tecnica: { ...tecnicaVazia('CLUSTER'), blocos: [4, 2], pausaSegundos: 15 } };
+  const grupo = agrupar([tecnica])[0];
+  expect(linhaDoGrupo(grupo, config)).toContain('Muscle <Round>');
+  expect(obsDoGrupo(grupo, 'WS', config)).toBe('Muscle <Round> - mesma carga da WS · até a falha');
+  const fs = { ...novaSerie(config, 'FS'), intensidade: { modo: 'PERCENTUAL_WS' as const, percentualMin: 85, percentualMax: 90, rir: 0 } };
+  expect(obsDoGrupo(agrupar([fs])[0], 'WS')).toBe('FS - 85 a 90% da WS · até a falha');
+  const conteudo = normalizarTreino({ sessoes: [{ exercicios: [{ series: [tecnica] }] }] });
+  const glossario = blocoGlossario(conteudo, config);
+  expect(glossario).toContain('Como ler este treino');
+  expect(glossario).toContain('Muscle &lt;Round&gt;');
+  expect(glossario).not.toContain('Feeder set');
+  expect(glossario).not.toContain('Rest pause');
 });

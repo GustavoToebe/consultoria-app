@@ -4,6 +4,7 @@ import type { Href } from 'expo-router';
 import { useEffect } from 'react';
 
 import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
+import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { hojeIso } from '../dominio/formatos';
 import { podeRegistrarEm } from '../dominio/semana';
@@ -23,7 +24,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   const data = dataDaRota && ISO.test(dataDaRota) && podeRegistrarEm(dataDaRota, hoje) ? dataDaRota : hoje;
   const treino = aluno.pacote?.pacote.treino ?? null;
   const sessao = treino ? normalizarTreino(treino.conteudo).sessoes.find((s) => s.uid === uid) : undefined;
-  const config = aluno.pacote?.pacote.configuracao ?? { arredondamentoKg: 0.5, tipoTrabalho: 'WS' };
+  const config = { ...(aluno.pacote?.pacote.configuracao ?? { arredondamentoKg: 0.5, tipoTrabalho: 'WS' }), metodologia: treino?.conteudo.metodologia?.configuracao ?? CONFIGURACAO_PADRAO };
   // O que já foi registrado no servidor (outro aparelho, ou antes de sair e entrar de novo) aparece como feito.
   const { carregarSemanaDoServidor } = aluno;
   useEffect(() => {

@@ -81,6 +81,19 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     aparelho = criarAparelho();
   });
 
+  it('descarta pacote antigo sem apagar a fila e permite baixar o formato atual', async () => {
+    const repo = aparelho('u1');
+    await repo.registrar(serie('fila'));
+    const atual = { treino: { conteudo: { sessoes: [{ exercicios: [{ series: [{ uid: 's1', tipo: 'WS', repsMin: 3, repsMax: 6, intensidade: { modo: 'CARGA_TRABALHO', rir: 0 }, descansoSegundos: null, tecnica: null }] }] }] } }, configuracao: { tipoTrabalho: 'WS', arredondamentoKg: 0.5 } };
+    const antigo = JSON.parse(JSON.stringify(atual));
+    antigo.treino.conteudo.sessoes[0].exercicios[0].series[0].alvoTexto = 'formato antigo';
+    await repo.salvarPacote(antigo);
+    expect(await repo.lerPacote()).toBeNull();
+    expect(await repo.listar()).toHaveLength(1);
+    await repo.salvarPacote(atual as never);
+    expect((await repo.lerPacote())?.pacote).toEqual(atual);
+  });
+
   it('rascunho da atualização persiste por pasta, fica isolado e some ao enviar ou sair', async () => {
     const repo = aparelho('u1');
     const salvo = {questionarioVersaoId:'v-uuid-1',respostas:{peso:80.5,sono:7,dor:false,extras:['a','b']}};
@@ -211,7 +224,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
 
   it('pacote, dieta e carga de trabalho voltam iguais', async () => {
     const repo = aparelho('u1');
-    const pacote = { treino: null, marca: { nome: 'X' } } as unknown as Parameters<RepositorioLocal['salvarPacote']>[0];
+    const pacote = { treino: null, marca: { nome: 'X' }, configuracao: { tipoTrabalho: 'WS', arredondamentoKg: 0.5 } } as unknown as Parameters<RepositorioLocal['salvarPacote']>[0];
     await repo.salvarPacote(pacote);
     expect((await repo.lerPacote())?.pacote).toEqual(pacote);
     expect(await repo.lerDieta()).toBeNull();

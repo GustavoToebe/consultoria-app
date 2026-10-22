@@ -112,6 +112,7 @@ export default function SessaoAluno() {
               cargaDoDia={dia.cargaDoDia(e)}
               ultima={dia.ultimaCarga(e.exercicioId)}
               tipoTrabalho={dia.config.tipoTrabalho}
+              metodologia={dia.config.metodologia}
               href={caminhoDaSessao(sessao.uid, data, e.uid)}
               aoAbrir={() => abrir(e.uid)}
             />

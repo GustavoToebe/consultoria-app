@@ -1,5 +1,6 @@
 import type { AnamneseDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
+import { pacoteNoFormatoAtual } from './formatoDoPacote';
 import {
   filaRetidaVenceu,
   limiteGuardados,
@@ -197,7 +198,12 @@ export class RepositorioSqlite implements RepositorioLocal {
   }
 
   lerPacote(): Promise<PacoteSalvo | null> {
-    return this.emFila(null, (b) => this.lerDocumento<PacoteSalvo>(b, 'pacote'));
+    return this.emFila(null, async (b) => {
+      const salvo = await this.lerDocumento<unknown>(b, 'pacote');
+      if (pacoteNoFormatoAtual(salvo)) return salvo;
+      await b.rodar('delete from kv where chave = ?', ['pacote']);
+      return null;
+    });
   }
 
   salvarPacote(pacote: PainelAluno): Promise<void> {

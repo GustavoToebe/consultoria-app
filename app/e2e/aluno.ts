@@ -1,3 +1,4 @@
+import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import type { Page } from '@playwright/test';
 
 import type { ConteudoDieta, ExercicioPlano, PainelAluno, Sessao, TipoSessao } from '../src/api/tipos';
@@ -63,7 +64,7 @@ export async function sessaoDeAlunoComTreino(page: Page, sessoes: Sessao[] | nul
           inicio: '2026-10-05',
           fim: '2026-11-01',
           publicadoEm: '2026-10-05T12:00:00Z',
-          conteudo: { objetivo: null, orientacoes: null, sessoes },
+          conteudo: { metodologia: { id: 'metodo-ficticio', nome: 'Metodologia de teste', configuracao: CONFIGURACAO_PADRAO }, objetivo: null, orientacoes: null, sessoes },
         }
       : null,
     ultimasCargas: {},
@@ -82,4 +83,18 @@ export async function sessaoDeAlunoComTreino(page: Page, sessoes: Sessao[] | nul
 /** Segunda-feira, 19/10/2026, meio-dia em São Paulo: o "hoje" do aparelho. Os temporizadores seguem reais. */
 export async function fixarHoje(page: Page): Promise<void> {
   await page.clock.setFixedTime(new Date('2026-10-19T12:00:00-03:00'));
+}
+
+/** Exercício fictício para conferir carga, pausas e explicações do formato atual. */
+export function sessaoComTecnicas(): Sessao[] {
+  const sessao = sessaoFalsa('tecnicas', 'Treino de técnicas', 1, 1);
+  const base = { repsMin: 6, repsMax: 8, descansoSegundos: null };
+  const tecnica = { pausaSegundos: null, pausaRespiracoes: null, pausas: null, blocos: null, quedas: null, reducaoPercentual: null, repsPorQueda: null };
+  sessao.exercicios[0] = { ...sessao.exercicios[0], uid: 'exemplo', nome: 'Remada de teste', series: [
+    { ...base, uid: 'ws', tipo: 'WS', intensidade: { modo: 'CARGA_TRABALHO', rir: 1 }, tecnica: null },
+    { ...base, uid: 'rest', tipo: null, intensidade: { modo: 'MESMA_CARGA' }, tecnica: { ...tecnica, tipo: 'REST_PAUSE', pausaSegundos: 20, pausas: 1 } },
+    { ...base, uid: 'cluster', tipo: null, repsMin: 6, repsMax: 6, intensidade: { modo: 'MESMA_CARGA' }, tecnica: { ...tecnica, tipo: 'CLUSTER', blocos: [4, 2], pausaRespiracoes: 5 } },
+    { ...base, uid: 'falha', tipo: 'WS', intensidade: { modo: 'CARGA_TRABALHO', rir: 0 }, tecnica: null },
+  ] };
+  return [sessao];
 }

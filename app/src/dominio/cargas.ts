@@ -1,4 +1,4 @@
-import type { ExercicioPlano, Serie } from '../api/tipos';
+import type { Configuracao, ExercicioPlano, Serie } from '../api/tipos';
 import { faixa, textoIntensidade, textoRir, textoTecnica } from './agrupamento';
 
 /**
@@ -25,11 +25,11 @@ export function arredondar(valor: number, passo: number): number {
 const modo = (s: Serie) => s.intensidade?.modo ?? 'NENHUMA';
 
 /** Texto da meta da série, como o aluno vê na tela. */
-export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false): string {
+export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao): string {
   const partes: string[] = [];
   const f = faixa(s);
   if (f) partes.push(`${f} reps`);
-  if (semCarga && (modo(s) === 'PERCENTUAL_WS' || modo(s) === 'CARGA_TRABALHO')) {
+  if (semCarga && ['PERCENTUAL_WS', 'CARGA_TRABALHO', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR'].includes(modo(s))) {
     const rir = textoRir(s.intensidade);
     if (rir) partes.push(rir);
   } else if (modo(s) === 'CARGA_TRABALHO') {
@@ -40,7 +40,7 @@ export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false): s
     const t = textoIntensidade(s.intensidade, tipoTrabalho);
     if (t) partes.push(t);
   }
-  const tecnica = textoTecnica(s.tecnica);
+  const tecnica = textoTecnica(s.tecnica, metodologia);
   if (tecnica) partes.push(tecnica);
   return partes.length ? `Meta: ${partes.join(' · ')}` : 'Meta: —';
 }
@@ -53,26 +53,31 @@ export function calcularCargasDoExercicio(
   exercicio: ExercicioPlano,
   cargaTrabalho: number | null,
   cargasDoDia: Record<string, number | null | undefined>,
-  config: { arredondamentoKg: number; tipoTrabalho: string },
+  config: { arredondamentoKg: number; tipoTrabalho: string; metodologia?: Configuracao },
 ): SerieCalculada[] {
   const semCarga = exercicio.unidade === 'nenhuma';
   const registradasTrabalho = exercicio.series
     .filter((s) => modo(s) === 'CARGA_TRABALHO')
     .map((s) => cargasDoDia[s.uid])
     .filter((c): c is number => typeof c === 'number');
-  // Referência do %: maior carga já feita hoje nas séries de trabalho; sem nenhuma, a base do dia.
-  const referencia = registradasTrabalho.length ? Math.max(...registradasTrabalho) : cargaTrabalho;
+  // Referência da WS: última série de trabalho com carga registrada hoje, na ordem do exercício.
+  const referencia = registradasTrabalho.at(-1) ?? cargaTrabalho;
 
-  return exercicio.series.map((serie) => {
+  return exercicio.series.map((serie, indice) => {
     let sugestao: number | null = null;
     if (!semCarga) {
       if (modo(serie) === 'CARGA_TRABALHO') {
         sugestao = cargaTrabalho;
+      } else if (modo(serie) === 'MESMA_CARGA') {
+        sugestao = referencia;
       } else if (modo(serie) === 'PERCENTUAL_WS' && serie.intensidade?.percentualMin != null && referencia != null) {
         sugestao = arredondar((referencia * serie.intensidade.percentualMin) / 100, config.arredondamentoKg);
+      } else if (modo(serie) === 'ACIMA_DA_ANTERIOR' && serie.intensidade?.percentualMin != null && indice > 0) {
+        const anterior = cargasDoDia[exercicio.series[indice - 1].uid];
+        if (anterior != null) sugestao = arredondar(anterior * (1 + serie.intensidade.percentualMin / 100), config.arredondamentoKg);
       }
     }
-    return { serie, sugestao, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga) };
+    return { serie, sugestao, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia) };
   });
 }
 
@@ -80,7 +85,7 @@ export function calcularCargasDoExercicio(
 export function usaCargaDeTrabalho(exercicio: ExercicioPlano): boolean {
   return (
     exercicio.unidade !== 'nenhuma' &&
-    exercicio.series.some((s) => modo(s) === 'CARGA_TRABALHO' || modo(s) === 'PERCENTUAL_WS')
+    exercicio.series.some((s) => ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA'].includes(modo(s)))
   );
 }
 

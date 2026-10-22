@@ -1,5 +1,6 @@
 import type { AnamneseDetalhe, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
+import { pacoteNoFormatoAtual } from './formatoDoPacote';
 
 /**
  * Dados do aluno no aparelho, separados por usuário: trocar de conta não mistura nada.
@@ -261,7 +262,12 @@ export class RepositorioChaveValor implements RepositorioLocal {
   // ---- Pacote (plano publicado, marca, últimas cargas) ----
 
   lerPacote(): Promise<PacoteSalvo | null> {
-    return this.emFila(() => this.lerJson<PacoteSalvo | null>('pacote', null));
+    return this.emFila(async () => {
+      const salvo = await this.lerJson<unknown>('pacote', null);
+      if (pacoteNoFormatoAtual(salvo)) return salvo;
+      await this.kv.apagar([this.chave('pacote')]);
+      return null;
+    });
   }
 
   salvarPacote(pacote: PainelAluno): Promise<void> {

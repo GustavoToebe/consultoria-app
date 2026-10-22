@@ -2,7 +2,7 @@ import type { Href } from 'expo-router';
 import { CheckCircle2, ChevronRight } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
+import type { Configuracao, ExercicioPlano, UltimaCarga } from '../api/tipos';
 import { resumoTecnicasEDescanso } from '../dominio/agrupamento';
 import { usaCargaDeTrabalho } from '../dominio/cargas';
 import { numeroParaTela } from '../dominio/formatos';
@@ -25,6 +25,7 @@ export function CartaoExercicioDoDia({
   cargaDoDia,
   ultima,
   tipoTrabalho,
+  metodologia,
   href,
   aoAbrir,
 }: {
@@ -34,6 +35,7 @@ export function CartaoExercicioDoDia({
   cargaDoDia: number | null;
   ultima: UltimaCarga | null;
   tipoTrabalho: string;
+  metodologia?: Configuracao;
   /** Destino do exercício; na web vira `<a href>`. */
   href?: Href;
   aoAbrir: () => void;
@@ -41,7 +43,7 @@ export function CartaoExercicioDoDia({
   const { cores } = useTema();
   const total = e.series.length;
   const completo = total > 0 && feitas >= total;
-  const resumo = resumoTecnicasEDescanso(e.series);
+  const resumo = resumoTecnicasEDescanso(e.series, metodologia);
   const carga = usaCargaDeTrabalho(e)
     ? cargaDoDia !== null
       ? { rotulo: `Carga de trabalho (${tipoTrabalho}) hoje`, valor: `${numeroParaTela(cargaDoDia)} kg` }

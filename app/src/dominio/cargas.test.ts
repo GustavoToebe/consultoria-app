@@ -1,5 +1,5 @@
 import type { ExercicioPlano, Serie } from '../api/tipos';
-import { ajustarCarga, arredondar, calcularCargasDoExercicio, metaDaSerie, passoDaCarga } from './cargas';
+import { ajustarCarga, arredondar, calcularCargasDoExercicio, metaDaSerie, passoDaCarga, usaCargaDeTrabalho } from './cargas';
 
 const serie = (uid: string, tipo: string, extra: Partial<Serie>): Serie => ({
   uid,
@@ -107,5 +107,30 @@ describe('botões + e − da carga', () => {
   it('nunca fica abaixo de zero', () => {
     expect(ajustarCarga(1, null, 2.5, -1)).toBe(0);
     expect(ajustarCarga(0, null, 0.5, -1)).toBe(0);
+  });
+});
+
+describe('modos de carga do formato novo', () => {
+  const igual = (uid: string) => serie(uid, 'Técnica', { intensidade: { modo: 'MESMA_CARGA' } });
+  const acima = (uid: string) => serie(uid, 'Top set', { intensidade: { modo: 'ACIMA_DA_ANTERIOR', percentualMin: 5, percentualMax: 10 } });
+  it('mesma carga usa a última WS registrada, e não a maior; sem registro usa a base', () => {
+    const e = exercicio([ws('a'), ws('b'), igual('c')]);
+    expect(calcularCargasDoExercicio(e, 30, { a: 50, b: 40 }, CONFIG)[2].sugestao).toBe(40);
+    expect(calcularCargasDoExercicio(e, 30, {}, CONFIG)[2].sugestao).toBe(30);
+    expect(calcularCargasDoExercicio(e, null, {}, CONFIG)[2].sugestao).toBeNull();
+    expect(usaCargaDeTrabalho(exercicio([igual('c')]))).toBe(true);
+  });
+  it('acima da anterior usa só a carga registrada na série imediatamente anterior e o mínimo da faixa', () => {
+    const e = exercicio([ws('a'), acima('b')]);
+    expect(calcularCargasDoExercicio(e, 100, { a: 40 }, CONFIG)[1].sugestao).toBe(42);
+    expect(calcularCargasDoExercicio(e, 100, {}, CONFIG)[1].sugestao).toBeNull();
+    expect(calcularCargasDoExercicio(exercicio([acima('b')]), 100, {}, CONFIG)[0].sugestao).toBeNull();
+  });
+  it('percentual em faixa usa o mínimo, arredonda e não inventa carga sem referência', () => {
+    const faixa = serie('c', 'FS', { intensidade: { modo: 'PERCENTUAL_WS', percentualMin: 85, percentualMax: 90, rir: 0 } });
+    expect(calcularCargasDoExercicio(exercicio([faixa]), 31, {}, CONFIG)[0].sugestao).toBe(26.5);
+    expect(metaDaSerie(faixa, 'WS')).toBe('Meta: 3 reps · 85 a 90% da WS · até a falha');
+    expect(calcularCargasDoExercicio(exercicio([faixa]), null, {}, CONFIG)[0].sugestao).toBeNull();
+    expect(metaDaSerie(igual('c'), 'WS')).toContain('mesma carga da WS');
   });
 });
