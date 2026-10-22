@@ -203,6 +203,9 @@ export function conteudoDaAnamnese() {
         uid: P + 'rotina', titulo: 'Sua rotina', descricao: ROTINA,
         perguntas: [
           q('rotina', 'TEXTO_LONGO', 'Preencha abaixo a sua rotina, com detalhes das refeições e horários, seguindo o exemplo acima.', true),
+          q('dieta-atual', 'TEXTO_LONGO', 'Qual é a sua dieta atual? Escreva cada refeição com os alimentos e as quantidades.', true, {
+            ajuda: 'Exemplo: "Refeição 1: 3 ovos, 2 fatias de pão integral e 1 banana". Se não segue dieta, escreva o que costuma comer em cada refeição.',
+          }),
         ],
       },
       {
