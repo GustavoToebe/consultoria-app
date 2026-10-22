@@ -19,7 +19,7 @@ const exercicio = (uid: string): ExercicioPlano => ({
 
 const sessao = (uid: string, diaSemana: number | null, exercicios = 5, tipo: TipoSessao = 'TREINO', extra: Partial<Sessao> = {}): Sessao => ({
   uid, nome: `Sessão ${uid}`, diaSemana, tipo, frequenciaSemanal: null, observacao: null, cardio: null,
-  exercicios: Array.from({ length: exercicios }, (_, i) => exercicio(`${uid}${i}`)), ...extra,
+  grupos: [], exercicios: Array.from({ length: exercicios }, (_, i) => exercicio(`${uid}${i}`)), ...extra,
 });
 
 const treino = (...sessoes: Sessao[]): ConteudoTreino => ({ objetivo: null, orientacoes: null, sessoes });

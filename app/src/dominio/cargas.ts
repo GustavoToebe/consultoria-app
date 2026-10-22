@@ -1,17 +1,20 @@
 import type { Configuracao, ExercicioPlano, Serie } from '../api/tipos';
-import { textoDasRepeticoes, textoIntensidade, textoRir, textoTecnica } from './agrupamento';
+import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
 
 /**
  * Sugestão de carga do aluno. Só aplica o que o treinador escreveu no plano sobre a carga de
- * trabalho que o próprio aluno informa: nunca inventa carga nem repetição. Sugestão é só sugestão; o que o aluno
- * digita é gravado exatamente como digitou.
+ * trabalho que o próprio aluno informa e sobre o que ele já registrou hoje: nunca inventa carga nem repetição.
+ * Sugestão é só sugestão; o que o aluno digita é gravado exatamente como digitou.
+ *
+ * Série de trabalho = `carga.modo === 'CARGA_TRABALHO'` (espelho de `Serie.deTrabalho()` da API). O rótulo
+ * `tipoTrabalho` ("WS") só aparece nos textos; nunca se compara com `Serie.tipo`, que é código.
  */
 
 export interface SerieCalculada {
   serie: Serie;
   /** Carga sugerida em kg; `null` quando não há base ou a série não é por carga. */
   sugestao: number | null;
-  /** Texto da meta: "Meta: 3 a 6 reps · 50% da WS", "— reps · 1 RIR". */
+  /** Texto da meta: "Meta: 3 a 6 reps · 50% da WS", "Meta: AMRAP reps · 1 RIR". */
   meta: string;
 }
 
@@ -22,31 +25,56 @@ export function arredondar(valor: number, passo: number): number {
   return Math.round(n * passo * 1000) / 1000;
 }
 
-const modo = (s: Serie) => s.intensidade?.modo ?? 'NENHUMA';
+const modo = (s: Serie) => s.carga?.modo ?? 'NENHUMA';
 
-/** Texto da meta da série, como o aluno vê na tela. */
-export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao): string {
+/** Série de trabalho: a referência da carga do dia. */
+export const ehSerieDeTrabalho = (s: Serie): boolean => modo(s) === 'CARGA_TRABALHO';
+
+/**
+ * Texto da meta da série, como o aluno vê na tela. `series` (as do exercício) dá o nome da série de referência do back off;
+ * série de cardio mostra a prescrição de cardio.
+ */
+export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, metodologia?: Configuracao, series: readonly Serie[] = []): string {
+  if (s.cardio) return `Meta: ${textoCardio(s.cardio)}`;
   const partes: string[] = [];
-  partes.push(`${textoDasRepeticoes(s)} reps`);
-  if (semCarga && ['PERCENTUAL_WS', 'CARGA_TRABALHO', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR'].includes(modo(s))) {
-    const rir = textoRir(s.intensidade);
-    if (rir) partes.push(rir);
-  } else if (modo(s) === 'CARGA_TRABALHO') {
+  partes.push(s.amrap ? 'AMRAP' : `${textoDasRepeticoes(s)} reps`);
+  const esforco = textoEsforco(s.esforco);
+  if (!semCarga && modo(s) === 'CARGA_TRABALHO') {
     partes.push('carga de trabalho');
-    const rir = textoRir(s.intensidade);
-    if (rir) partes.push(rir);
-  } else {
-    const t = textoIntensidade(s.intensidade, tipoTrabalho);
-    if (t) partes.push(t);
+  } else if (!semCarga) {
+    const carga = textoCarga(s.carga, tipoTrabalho, nomeDaReferencia(s, series, metodologia));
+    if (carga) partes.push(carga);
   }
+  if (esforco) partes.push(esforco);
   const tecnica = textoTecnica(s.tecnica, metodologia);
   if (tecnica) partes.push(tecnica);
+  const alvo = s.alvoExtra?.trim();
+  if (alvo) partes.push(alvo);
   return `Meta: ${partes.join(' · ')}`;
+}
+
+/**
+ * Referência do "% da WS" e da "mesma carga" da série `indice`: a carga registrada hoje na última série de trabalho
+ * ANTERIOR a ela no exercício; sem ela (a FS vem antes da WS, ou a WS ainda não foi feita), a carga de trabalho do dia.
+ */
+function referenciaDaWs(series: readonly Serie[], indice: number, cargaTrabalho: number | null, cargasDoDia: Record<string, number | null | undefined>): number | null {
+  for (let i = indice - 1; i >= 0; i--) {
+    if (!ehSerieDeTrabalho(series[i])) continue;
+    const registrada = cargasDoDia[series[i].uid];
+    if (typeof registrada === 'number') return registrada;
+  }
+  return cargaTrabalho;
 }
 
 /**
  * @param cargaTrabalho base do dia que o aluno digitou (ou `null`).
  * @param cargasDoDia cargas já registradas hoje, por `serieUid` (para a referência das séries em %).
+ *
+ * Por forma de carga: `CARGA_TRABALHO` = a carga de trabalho do dia; `PERCENTUAL_WS` = % da referência da WS (acima);
+ * `MESMA_CARGA` = a própria referência da WS; `ACIMA_DA_ANTERIOR` = a série imediatamente anterior mais o percentual;
+ * `ABAIXO_DA_REFERENCIA` = a carga registrada hoje na série `referenciaUid` (anterior no exercício) menos o percentual,
+ * e sem registro dela não há sugestão; `NENHUMA` = nada. Em faixa ("85 a 90%", "1 a 5%") vale o percentual MÍNIMO.
+ * Resultado arredondado pelo passo da metodologia (exceto carga de trabalho e mesma carga, que repetem o número).
  */
 export function calcularCargasDoExercicio(
   exercicio: ExercicioPlano,
@@ -55,28 +83,41 @@ export function calcularCargasDoExercicio(
   config: { arredondamentoKg: number; tipoTrabalho: string; metodologia?: Configuracao },
 ): SerieCalculada[] {
   const semCarga = exercicio.unidade === 'nenhuma';
-  const registradasTrabalho = exercicio.series
-    .filter((s) => modo(s) === 'CARGA_TRABALHO')
-    .map((s) => cargasDoDia[s.uid])
-    .filter((c): c is number => typeof c === 'number');
-  // Referência da WS: última série de trabalho com carga registrada hoje, na ordem do exercício.
-  const referencia = registradasTrabalho.at(-1) ?? cargaTrabalho;
+  const series = exercicio.series;
 
-  return exercicio.series.map((serie, indice) => {
+  return series.map((serie, indice) => {
     let sugestao: number | null = null;
-    if (!semCarga) {
-      if (modo(serie) === 'CARGA_TRABALHO') {
-        sugestao = cargaTrabalho;
-      } else if (modo(serie) === 'MESMA_CARGA') {
-        sugestao = referencia;
-      } else if (modo(serie) === 'PERCENTUAL_WS' && serie.intensidade?.percentualMin != null && referencia != null) {
-        sugestao = arredondar((referencia * serie.intensidade.percentualMin) / 100, config.arredondamentoKg);
-      } else if (modo(serie) === 'ACIMA_DA_ANTERIOR' && serie.intensidade?.percentualMin != null && indice > 0) {
-        const anterior = cargasDoDia[exercicio.series[indice - 1].uid];
-        if (anterior != null) sugestao = arredondar(anterior * (1 + serie.intensidade.percentualMin / 100), config.arredondamentoKg);
+    const carga = serie.carga;
+    const percentual = carga?.percentualMin ?? null;
+    if (!semCarga && !serie.cardio) {
+      switch (modo(serie)) {
+        case 'CARGA_TRABALHO':
+          sugestao = cargaTrabalho;
+          break;
+        case 'MESMA_CARGA':
+          sugestao = referenciaDaWs(series, indice, cargaTrabalho, cargasDoDia);
+          break;
+        case 'PERCENTUAL_WS': {
+          const referencia = referenciaDaWs(series, indice, cargaTrabalho, cargasDoDia);
+          if (percentual != null && referencia != null) sugestao = arredondar((referencia * percentual) / 100, config.arredondamentoKg);
+          break;
+        }
+        case 'ACIMA_DA_ANTERIOR': {
+          const anterior = indice > 0 ? cargasDoDia[series[indice - 1].uid] : null;
+          if (percentual != null && typeof anterior === 'number') sugestao = arredondar(anterior * (1 + percentual / 100), config.arredondamentoKg);
+          break;
+        }
+        case 'ABAIXO_DA_REFERENCIA': {
+          const posicao = carga?.referenciaUid ? series.findIndex((x) => x.uid === carga.referenciaUid) : -1;
+          const registrada = posicao >= 0 && posicao < indice ? cargasDoDia[series[posicao].uid] : null;
+          if (percentual != null && typeof registrada === 'number') sugestao = arredondar(registrada * (1 - percentual / 100), config.arredondamentoKg);
+          break;
+        }
+        default:
+          break;
       }
     }
-    return { serie, sugestao, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia) };
+    return { serie, sugestao, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia, series) };
   });
 }
 
@@ -84,6 +125,7 @@ export function calcularCargasDoExercicio(
 export function usaCargaDeTrabalho(exercicio: ExercicioPlano): boolean {
   return (
     exercicio.unidade !== 'nenhuma' &&
+    !exercicio.series.some((s) => s.cardio) &&
     exercicio.series.some((s) => ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA'].includes(modo(s)))
   );
 }

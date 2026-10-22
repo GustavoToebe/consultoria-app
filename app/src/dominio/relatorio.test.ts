@@ -31,6 +31,7 @@ const sessao = (uid: string, nome: string, diaSemana: number | null): Sessao => 
   observacao: null,
   cardio: null,
   exercicios: [],
+  grupos: [],
 });
 
 describe('datas da semana', () => {

@@ -95,10 +95,10 @@ export interface ConfiguracaoPublica {
 
 // ---- Marca e configuração ----
 
-/** Papel fixo de um tipo de série: decide a intensidade padrão no editor e quem dá nome ao "% da WS". */
+/** Papel fixo de um tipo de série: decide a carga e o esforço padrão no editor e quem dá nome ao "% da WS". */
 export type PapelDaSerie = 'AQUECIMENTO' | 'PREPARACAO' | 'TRABALHO' | 'POS_TRABALHO' | 'OUTRO';
 
-/** Modalidades com intensidade padrão própria na metodologia; as outras (e sem modalidade) caem em `intensidadePadrao`. */
+/** Modalidades com carga e esforço padrão próprios na metodologia; as outras (e sem modalidade) caem no padrão do tipo. */
 export type ModalidadeComPadrao = 'LIVRE' | 'MAQUINA';
 
 export interface FaixaRepeticoes {
@@ -112,23 +112,32 @@ export interface FaixaPercentual {
   max: number | null;
 }
 
+/** Carga e esforço sugeridos para exercício `LIVRE` ou `MAQUINA` (cada um pode faltar). Espelho de `PadraoPorModalidade`. */
+export interface PadraoPorModalidade {
+  carga: Carga | null;
+  esforco: Esforco | null;
+}
+
 /**
- * Tipo de série da metodologia (formato de 22/10): nome livre, papel fixo e os padrões que o editor preenche ao criar a
- * série ou trocar o tipo (repetições, intensidade, variação por modalidade e, só em preparação, a regra de % por
- * quantidade de séries). A explicação é o que o aluno lê ao tocar no tipo. Espelho de `ConfiguracaoConsultoria.TipoDeSerie`.
+ * Tipo de série da metodologia: `codigo` estável (o que `Serie.tipo` grava; `[A-Z0-9_]`, até 30, único; gerado do nome
+ * na criação e imutável), nome livre exibido, papel fixo e os padrões que o editor preenche ao criar a série ou trocar
+ * o tipo (repetições, carga, esforço, variação por modalidade e, só em preparação, a regra de % por quantidade de
+ * séries). A explicação é o que o aluno lê ao tocar no tipo. Espelho de `ConfiguracaoConsultoria.TipoDeSerie`.
  */
 export interface TipoDeSerie {
+  codigo: string;
   nome: string;
   papel: PapelDaSerie;
   repeticoes: FaixaRepeticoes | null;
-  intensidadePadrao: Intensidade | null;
-  intensidadePorModalidade: Partial<Record<ModalidadeComPadrao, Intensidade>> | null;
+  cargaPadrao: Carga | null;
+  esforcoPadrao: Esforco | null;
+  porModalidade: Partial<Record<ModalidadeComPadrao, PadraoPorModalidade>> | null;
   /** Só `PREPARACAO`: chave = quantas séries ("1" a "10"); valor = a faixa de cada uma. */
   regraPercentuais: Record<string, FaixaPercentual[]> | null;
   explicacao: string | null;
 }
 
-/** Nome exibido, explicação e padrão (parcial) de uma das três técnicas; a metodologia tem uma de cada. */
+/** Nome exibido, explicação e padrão (parcial) de uma das seis técnicas; a metodologia tem uma de cada. */
 export interface TecnicaDaMetodologia {
   tipo: TipoDeTecnica;
   nome: string;
@@ -136,12 +145,21 @@ export interface TecnicaDaMetodologia {
   padrao: Tecnica | null;
 }
 
+/** Nome exibido e explicação de uma das sete técnicas de grupo de exercícios; a metodologia tem uma de cada. */
+export interface CombinacaoDaMetodologia {
+  tipo: TecnicaDeGrupo;
+  nome: string;
+  explicacao: string | null;
+}
+
 /** Metodologia da consultoria (receita `METODOLOGIA` e cópia em `ConteudoTreino.metodologia`). */
 export interface Configuracao {
   /** 1 a 20 tipos; ao menos um `TRABALHO` (o primeiro dá nome ao "% da WS"). */
   tipos: TipoDeSerie[];
-  /** As três técnicas, uma de cada. */
+  /** As seis técnicas, uma de cada. */
   tecnicas: TecnicaDaMetodologia[];
+  /** As sete combinações de exercícios (superset, circuito...), uma de cada. */
+  combinacoes: CombinacaoDaMetodologia[];
   arredondamentoKg: number;
   instrucoesTreino: string | null;
   rodapePdf: string | null;
@@ -355,59 +373,120 @@ export interface Receita {
 // ---- Planos ----
 
 export type TipoSessao = 'TREINO' | 'DESCANSO_ATIVO' | 'DESCANSO' | 'ACESSORIOS';
-export type ModoIntensidade = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'ACIMA_DA_ANTERIOR' | 'MESMA_CARGA' | 'RPE' | 'NENHUMA';
 
 /**
- * Intensidade da série (formato de 22/10). `PERCENTUAL_WS` e `ACIMA_DA_ANTERIOR` usam a faixa `percentualMin`/`percentualMax`
- * (máximo nulo = valor único), sempre em % da série de trabalho, com a referência escrita no modo. `MESMA_CARGA` = a carga da série de
- * trabalho feita antes no exercício. `rir` vale em qualquer modo (0 = até a falha). Nulo = `NENHUMA`.
+ * Formas de carga. Percentual é sempre da série de trabalho (WS); 1RM não existe. `CARGA_TRABALHO` é a série de trabalho
+ * (a referência do dia). `MESMA_CARGA` = a da última série de trabalho feita antes no exercício. `ACIMA_DA_ANTERIOR` =
+ * a série imediatamente anterior mais um percentual (top set). `ABAIXO_DA_REFERENCIA` = a carga registrada hoje na
+ * série `referenciaUid`, menos um percentual (back off).
  */
-export interface Intensidade {
-  modo: ModoIntensidade;
+export type ModoDeCarga = 'CARGA_TRABALHO' | 'PERCENTUAL_WS' | 'MESMA_CARGA' | 'ACIMA_DA_ANTERIOR' | 'ABAIXO_DA_REFERENCIA' | 'NENHUMA';
+
+/**
+ * Carga da série. `percentualMin`/`percentualMax` formam a faixa de `PERCENTUAL_WS` (1 a 200), `ACIMA_DA_ANTERIOR` (1 a
+ * 100) e `ABAIXO_DA_REFERENCIA` (redução de 1 a 50); máximo nulo = valor único. `referenciaUid` só vale em
+ * `ABAIXO_DA_REFERENCIA`: uma série anterior do mesmo exercício. Nula (a série inteira) = `NENHUMA`.
+ */
+export interface Carga {
+  modo: ModoDeCarga;
   percentualMin?: number | null;
   percentualMax?: number | null;
-  rpe?: number | null;
-  rir?: number | null;
+  referenciaUid?: string | null;
 }
 
+/** Esforço da série: `rir` (0 a 5; 0 = até a falha técnica) ou `rpe` (1 a 10, de meio em meio), nunca os dois. */
+export interface Esforco {
+  rir?: number | null;
+  rpe?: number | null;
+}
+
+/** Intervalado de uma série de cardio: `voltas` de `trabalhoSeg` de esforço e `descansoSeg` de descanso. */
+export interface IntervalosDeCardio {
+  trabalhoSeg: number | null;
+  descansoSeg: number | null;
+  voltas: number | null;
+}
+
+/** Prescrição de uma série de cardio (só em exercício `CARDIO`): ao menos duração, distância ou intervalos. */
+export interface Cardio {
+  duracaoMin?: number | null;
+  distanciaKm?: number | null;
+  ritmo?: string | null;
+  zona?: number | null;
+  intervalos?: IntervalosDeCardio | null;
+}
+
+/**
+ * Uma série. `tipo` é o CÓDIGO do tipo na metodologia (`WORKING`, `BACK_OFF`...), obrigatório fora do cardio; nunca o
+ * nome exibido. `repsMin`/`repsMax` juntos ou nenhum; `amrap` (o máximo de repetições, só quando pedido) exclui as
+ * repetições. Em série de cardio (exercício `CARDIO`) só `cardio` vale: `tipo`, `repsMin`, `repsMax`, `carga`, `esforco` e
+ * `tecnica` ficam nulos. `alvoExtra`: texto curto do treinador (até 120).
+ */
 export interface Serie {
   uid: string;
-  /** Para que a série serve (tipo da metodologia); nulo só quando há técnica ("1x8 - Rest pause"). */
   tipo: string | null;
   repsMin: number | null;
   repsMax: number | null;
-  intensidade: Intensidade | null;
+  amrap?: boolean | null;
+  carga: Carga | null;
+  esforco: Esforco | null;
   descansoSegundos: number | null;
-  /** Como executar (cluster, rest pause, drop-set), com campos próprios; nulo = série simples. */
+  /** Como executar (cluster, rest pause, drop-set, myo-reps, partial reps, forced reps); nulo = série simples. */
   tecnica?: Tecnica | null;
+  cardio?: Cardio | null;
+  alvoExtra?: string | null;
 }
 
-export type TipoDeTecnica = 'CLUSTER' | 'REST_PAUSE' | 'DROP_SET';
+export type TipoDeTecnica = 'REST_PAUSE' | 'CLUSTER' | 'DROP_SET' | 'MYO_REPS' | 'PARTIAL_REPS' | 'FORCED_REPS';
+
+/** Região das repetições parciais. */
+export type RegiaoDasParciais = 'ALONGADA' | 'ENCURTADA' | 'LIVRE';
 
 /**
- * Técnica da série (formato de 22/10). A pausa é em `pausaSegundos` ou `pausaRespiracoes` (ao menos uma). Rest pause:
- * `pausas` (1 a 5, padrão 1), sem repetições prescritas nas retomadas. Cluster: `blocos` de repetições ("4+2" =
- * `[4, 2]`); as repetições da série são a soma. Drop-set: `quedas`, `reducaoPercentual` (nulo = sem fixar) e
- * `repsPorQueda` (nulo = até a falha). O que não vale para a técnica fica nulo. O aluno registra a série inteira.
+ * Técnica da série. A pausa é em `pausaSegundos` ou `pausaRespiracoes` (ao menos uma no rest pause, cluster e
+ * myo-reps). Rest pause: `pausas` (1 a 5, padrão 1), sem repetições prescritas nas retomadas. Cluster: `blocos` de
+ * repetições ("4+2" = `[4, 2]`); as repetições da série são a soma. Drop-set: `quedas`, `reducaoPercentual` (nulo = sem
+ * fixar), `repsPorQueda` (nulo = até a falha) e `pausaSegundos` entre as quedas (0 = sem pausa). Myo-reps:
+ * `miniSeries` (2 a 10) de `repsPorMiniSerie` (1 a 50); a ativação é a própria série. Partial reps: `repsParciais` (1 a
+ * 30) na `regiao`. Forced reps: `repsAssistidas` (1 a 5; exige parceiro). O que não vale para a técnica fica nulo. O
+ * aluno registra a série inteira.
  */
 export interface Tecnica {
   tipo: TipoDeTecnica;
-  pausaSegundos: number | null;
-  pausaRespiracoes: number | null;
-  pausas: number | null;
-  blocos: number[] | null;
-  quedas: number | null;
-  reducaoPercentual: number | null;
-  repsPorQueda: number | null;
+  pausaSegundos?: number | null;
+  pausaRespiracoes?: number | null;
+  pausas?: number | null;
+  blocos?: number[] | null;
+  quedas?: number | null;
+  reducaoPercentual?: number | null;
+  repsPorQueda?: number | null;
+  miniSeries?: number | null;
+  repsPorMiniSerie?: number | null;
+  repsParciais?: number | null;
+  regiao?: RegiaoDasParciais | null;
+  repsAssistidas?: number | null;
 }
 
-/** Nome que o treinador escolhe para um grupo de 2 exercícios (sem ele, "Bi-set"). */
-export type Combinacao = 'SUPERSERIE';
+/** Técnicas de grupo de exercícios da sessão. */
+export type TecnicaDeGrupo = 'SUPERSET' | 'AGONISTA_ANTAGONISTA' | 'TRI_SET' | 'GIANT_SET' | 'CIRCUITO' | 'PRE_EXAUSTAO' | 'POS_EXAUSTAO';
+
+/**
+ * Grupo de exercícios feitos em sequência. Os membros (`ExercicioPlano.grupoUid`) ficam um ao lado do outro na sessão.
+ * `descansoAposSegundos` é o descanso depois de cada volta do grupo (não vale em pré/pós-exaustão, onde cada série
+ * mantém o próprio descanso); `voltas` só conta no circuito.
+ */
+export interface Grupo {
+  uid: string;
+  tecnica: TecnicaDeGrupo;
+  descansoAposSegundos: number | null;
+  voltas: number | null;
+}
 
 export interface ExercicioPlano {
   uid: string;
   exercicioId: string | null;
   nome: string;
+  /** `CARDIO` troca a prescrição das séries por `Serie.cardio`. */
   modalidade: string | null;
   videoUrl: string | null;
   observacao: string | null;
@@ -418,10 +497,8 @@ export interface ExercicioPlano {
   cadencia?: string | null;
   /** Segundos de isometria ("segure N s", no ponto que a observação disser); nulo = sem isometria. */
   isometriaSegundos?: number | null;
-  /** Feito em sequência com o exercício anterior, sem descanso (bi-set, tri-set, circuito). */
-  juntoComAnterior?: boolean | null;
-  /** Só no primeiro de um grupo de 2: "Supersérie" em vez de "Bi-set". */
-  combinacao?: Combinacao | null;
+  /** Grupo da sessão a que o exercício pertence (`Sessao.grupos`); nulo = feito sozinho. */
+  grupoUid?: string | null;
 }
 
 export interface Sessao {
@@ -431,8 +508,10 @@ export interface Sessao {
   tipo: TipoSessao;
   frequenciaSemanal: number | null;
   observacao: string | null;
+  /** Texto livre antigo: fica só como observação existente; a prescrição de cardio é a da série do exercício `CARDIO`. */
   cardio: string | null;
   exercicios: ExercicioPlano[];
+  grupos: Grupo[];
 }
 
 export interface ConteudoTreino {
@@ -718,6 +797,17 @@ export interface PlanosDaPasta {
   mobilidade?: VersaoDetalhe<ConteudoMobilidadeApi> | null;
 }
 
+/**
+ * Configuração do pacote do aluno. `tipoTrabalho` é só o RÓTULO do tipo de trabalho ("WS") para os textos de % da WS: NUNCA
+ * comparar com `Serie.tipo` (que é código); a série de trabalho é a de `carga.modo === 'CARGA_TRABALHO'`.
+ */
+export interface ConfiguracaoAluno {
+  arredondamentoKg: number;
+  tipoTrabalho: string;
+  /** Falta em pacote salvo antes desta versão. */
+  instrucoesTreino?: string | null;
+}
+
 /** Tudo o que o app guarda para o aluno treinar sem internet. `treino` nulo = sem plano publicado. */
 export interface PainelAluno {
   /** Ausente nos pacotes anteriores ao check-in. */
@@ -728,7 +818,7 @@ export interface PainelAluno {
   /** Por `exercicioId` da biblioteca: última carga em série de trabalho. */
   ultimasCargas: Record<string, UltimaCarga>;
   /** `instrucoesTreino` falta em pacote salvo antes desta versão. */
-  configuracao: { arredondamentoKg: number; tipoTrabalho: string; instrucoesTreino?: string | null };
+  configuracao: ConfiguracaoAluno;
   geradoEm: string;
 }
 

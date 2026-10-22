@@ -2,6 +2,7 @@ import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import type { Configuracao, ConteudoTreino } from '../api/tipos';
 import { aplicarReceitaDePlano, normalizarTreino, novaSerie, novaSessao } from './editorTreino';
 import { destinosParaAplicar, detalheDoModelo, podeAplicarModelo, podeSalvarPastaComoModelo, SEM_PASTA_PARA_APLICAR, temAcaoNoMenuDaPasta, descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO } from './modelos';
+import { nomeDoTipo } from './metodologia';
 import { conteudoInicial } from '../treinador/planejamento/modelos';
 
 let mockContador = 0;
@@ -21,7 +22,9 @@ test('normalizar e aplicar semana preservam metodologia independente e renovam o
   expect(a.sessoes[0].uid).not.toBe(origem.sessoes[0].uid);
   a.metodologia!.configuracao.tipos[1].regraPercentuais!['1'][0].min = 90;
   expect(origem.metodologia!.configuracao.tipos[1].regraPercentuais!['1']).toEqual([{ min: 85, max: null }]);
-  expect(novaSerie(b.metodologia!.configuracao).tipo).toBe('Trabalho');
+  const nova = novaSerie(b.metodologia!.configuracao);
+  expect(nova.tipo).toBe('WORKING');
+  expect(nomeDoTipo(b.metodologia!.configuracao, nova.tipo)).toBe('Trabalho');
 });
 
 test('modelo sem metodologia mantém a metodologia já vinculada ao aluno', () => {

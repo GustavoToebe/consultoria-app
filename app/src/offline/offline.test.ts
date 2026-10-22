@@ -84,8 +84,9 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
   it('descarta pacote antigo sem apagar a fila e permite baixar o formato atual', async () => {
     const repo = aparelho('u1');
     await repo.registrar(serie('fila'));
-    const atual = { treino: { conteudo: { sessoes: [{ exercicios: [{ series: [{ uid: 's1', tipo: 'WS', repsMin: 3, repsMax: 6, intensidade: { modo: 'CARGA_TRABALHO', rir: 0 }, descansoSegundos: null, tecnica: null }] }] }] } }, configuracao: { tipoTrabalho: 'WS', arredondamentoKg: 0.5 } };
+    const atual = { treino: { conteudo: { sessoes: [{ uid: 'x', exercicios: [{ uid: 'e', series: [{ uid: 's1', tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: { modo: 'CARGA_TRABALHO' }, esforco: { rir: 0 }, descansoSegundos: null, tecnica: null }] }], grupos: [] }] } }, configuracao: { tipoTrabalho: 'WS', arredondamentoKg: 0.5 } };
     const antigo = JSON.parse(JSON.stringify(atual));
+    antigo.treino.conteudo.sessoes[0].exercicios[0].series[0] = { uid: 's1', tipo: 'WS', repsMin: 3, repsMax: 6, intensidade: { modo: 'CARGA_TRABALHO', rir: 0 }, descansoSegundos: null, tecnica: null };
     antigo.treino.conteudo.sessoes[0].exercicios[0].series[0].alvoTexto = 'formato antigo';
     await repo.salvarPacote(antigo);
     expect(await repo.lerPacote()).toBeNull();

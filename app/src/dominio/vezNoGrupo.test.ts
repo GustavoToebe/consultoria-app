@@ -1,15 +1,12 @@
 import type { ExercicioPlano } from '../api/tipos';
 import { posicaoNoGrupo } from './combinacoes';
-import { novoExercicio } from './editorTreino';
+import { exercicio, grupo } from './exemplosDeTreino.apoioTeste';
 import { vezNoGrupo } from './vezNoGrupo';
 
-let mockUid = 0;
-jest.mock('./uid', () => ({ novoUid: () => `u${++mockUid}` }));
-
-const ex = (nome: string, juntoComAnterior = false): ExercicioPlano => ({ ...novoExercicio(), nome, juntoComAnterior });
+const ex = (nome: string, grupoUid: string | null = null): ExercicioPlano => exercicio(nome, { nome, grupoUid });
 
 describe('vez no grupo', () => {
-  const sessao = [ex('Sozinho'), ex('Puxada'), ex('Remada', true), ex('Rosca', true)];
+  const sessao = { exercicios: [ex('Sozinho'), ex('Puxada', 'g'), ex('Remada', 'g'), ex('Rosca', 'g')], grupos: [grupo('g', 'TRI_SET')] };
   const pendentes = new Set(['Puxada', 'Remada', 'Rosca']);
   const pendente = (e: ExercicioPlano) => pendentes.has(e.nome);
 
