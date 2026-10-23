@@ -7,22 +7,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Seção 15.1, item 7 (links de vídeo), mais biblioteca, catálogo, CSV e receitas padrão. */
+/** Seção 15.1, item 7 (links de vídeo), mais biblioteca, catálogo e receitas padrão. */
 @AutoConfigureMockMvc
 class BibliotecaIntegrationTest extends AbstractIntegrationTest {
 
@@ -154,39 +151,10 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void catalogoExigeTreinador() throws Exception {
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/catalogo/alimentos"))
+        mvc.perform(get("/catalogo/alimentos"))
                 .andExpect(status().isUnauthorized());
-        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/catalogo/exercicios/grupos"))
+        mvc.perform(get("/catalogo/exercicios/grupos"))
                 .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void csvTemPreviaComErrosEConfirmacaoPeloHash() throws Exception {
-        String csv = """
-                nome;grupo;equipamento;modalidade;video
-                Remada cavalinho;Costas;Barra T;livre;
-                Pulldown teste;Costas;Polia;Máquina;https://www.youtube.com/watch?v=1
-                ;Costas;;;
-                Remada cavalinho;Costas;;;
-                Agachamento teste;Pernas;;voador;
-                """;
-        JsonNode previa = csv("/exercicios/importar-csv", csv, 200);
-        assertThat(previa.get("validas")).hasSize(2);
-        assertThat(previa.get("erros").valueStream().map(e -> e.get("linha").asInt())).containsExactly(4, 5, 6);
-        String hash = previa.get("hash").asString();
-
-        csv("/exercicios/importar-csv?confirmar=true&hash=outro", csv, 409);
-        JsonNode feito = csv("/exercicios/importar-csv?confirmar=true&hash=" + hash, csv, 200);
-        assertThat(feito.get("importados").asInt()).isEqualTo(2);
-        assertThat(api.get("/exercicios", treinador, 200)).hasSize(2);
-
-        String alimentos = "nome;quantidade_base;unidade;kcal;proteina;carboidrato;gordura;fonte\n"
-                + "Arroz teste;100;g;127,8;2,5;28,1;0,22;Rótulo\n"
-                + "Sem unidade;100;kg;1;1;1;1;\n";
-        JsonNode previaAlimentos = csv("/alimentos/importar-csv", alimentos, 200);
-        assertThat(previaAlimentos.get("validas")).hasSize(1);
-        assertThat(previaAlimentos.get("validas").get(0).get("kcal").decimalValue()).isEqualByComparingTo("127.8");
-        csv("/alimentos/importar-csv", "nome,errado\nx,y\n", 400);
     }
 
     @Test
@@ -207,12 +175,5 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
         m.put("modalidade", "LIVRE");
         m.put("videoUrl", video);
         return m;
-    }
-
-    private JsonNode csv(String caminho, String texto, int esperado) throws Exception {
-        return api.ler(mvc.perform(post(caminho).header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador))
-                        .contentType(new MediaType("text", "plain", StandardCharsets.UTF_8))
-                        .content(texto.getBytes(StandardCharsets.UTF_8)))
-                .andExpect(status().is(esperado)).andReturn());
     }
 }

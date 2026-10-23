@@ -13,4 +13,10 @@ describe('menu do usuário', () => {
     expect(com[2].href).toBe('/treinador/minha-conta');
     expect(itensDoMenuDoUsuario(() => false).some((i) => i.id === 'minha-conta')).toBe(false);
   });
+  it('Marca entra antes de Ajustes só para o perfil Administrador', () => {
+    const admin = itensDoMenuDoUsuario(() => false, true);
+    expect(admin.map((i) => i.id)).toEqual(['meus-dados', 'seguranca', 'marca', 'ajustes', 'sair']);
+    expect(admin.find((i) => i.id === 'marca')?.href).toBe('/treinador/marca');
+    expect(itensDoMenuDoUsuario((c) => c === 'MARCA_ALTERAR').some((i) => i.id === 'marca')).toBe(false);
+  });
 });

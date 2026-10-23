@@ -26,7 +26,8 @@ test('menu lateral: cada item é um link com href e o Ctrl+clique abre em outra 
   const nova = context.waitForEvent('page');
   await biblioteca.click({ modifiers: ['Control'] });
   const guia = await nova;
-  await guia.waitForLoadState();
+  // A guia nasce em branco e só depois carrega o href; esperar o load pega o about:blank.
+  await guia.waitForURL(/\/treinador\/biblioteca/);
   expect(new URL(guia.url()).pathname).toBe('/treinador/biblioteca');
   // A guia de origem não saiu do lugar.
   expect(new URL(page.url()).pathname).toBe(`/treinador/planejamento/modelo/${ID}`);

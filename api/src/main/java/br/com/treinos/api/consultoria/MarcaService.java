@@ -2,7 +2,10 @@ package br.com.treinos.api.consultoria;
 
 import br.com.plataforma.comum.web.ApiException;
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.equipe.PerfilRepository;
 import br.com.treinos.api.web.NaoEncontradoException;
+import org.springframework.security.access.AccessDeniedException;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -46,10 +49,23 @@ public class MarcaService {
 
     private final ConsultoriaRepository consultorias;
     private final LogoRepositorio logos;
+    private final UsuarioRepository usuarios;
+    private final PerfilRepository perfis;
 
-    public MarcaService(ConsultoriaRepository consultorias, LogoRepositorio logos) {
+    public MarcaService(ConsultoriaRepository consultorias, LogoRepositorio logos, UsuarioRepository usuarios, PerfilRepository perfis) {
         this.consultorias = consultorias;
         this.logos = logos;
+        this.usuarios = usuarios;
+        this.perfis = perfis;
+    }
+
+    /** A tela e a gravação da marca são do perfil Administrador (acesso total), não de quem só tem a permissão. */
+    public void exigirAdministrador(UUID usuarioId) {
+        var usuario = usuarios.findById(usuarioId).orElseThrow(() -> new AccessDeniedException("Seu perfil não permite esta ação."));
+        var perfil = usuario.getPerfilId() == null ? null : perfis.buscar(usuario.getPerfilId(), usuario.getConsultoriaId()).orElse(null);
+        if (perfil == null || !perfil.isAcessoTotal()) {
+            throw new AccessDeniedException("Seu perfil não permite esta ação.");
+        }
     }
 
     @Transactional(readOnly = true)

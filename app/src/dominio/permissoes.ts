@@ -15,7 +15,7 @@ export function pode(permissoes:readonly string[]|undefined,codigo:string):boole
  * `pagamentosHabilitados`: módulo de pagamentos ligado para a consultoria (vem de `GET /eu`). Ausente = desligado: o
  * Financeiro some do menu mesmo para quem tem a permissão.
  */
-export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,pagamentosHabilitados:boolean=false):boolean {
+export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,pagamentosHabilitados:boolean=false,administrador:boolean=false):boolean {
   if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos'].includes(caminho)) return true;
   if(caminho==='/treinador/minha-conta') return tem('CONTA_LER');
   if(caminho==='/treinador') return tem('PAINEL_VER');
@@ -38,8 +38,10 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   // Qualquer outra subrota segue falhando fechado, com a permissão de modelos.
   if(caminho==='/treinador/planejamento'||caminho==='/treinador/receitas') return tem('MODELO_LER')||tem('QUESTIONARIO_LER');
   if(caminho.startsWith('/treinador/planejamento')) return tem('MODELO_LER');
-  if(caminho==='/treinador/marca') return tem('MARCA_ALTERAR');
+  // A tela da marca fica no menu da conta e só o perfil Administrador (acesso total) abre.
+  if(caminho==='/treinador/marca') return administrador;
   if(caminho==='/treinador/equipe') return tem('EQUIPE_LER');
   if(caminho==='/treinador/auditoria') return tem('AUDITORIA_LER');
+  if(caminho==='/treinador/importacao') return tem('ALUNO_ALTERAR')||tem('ALUNO_SENSIVEL_ALTERAR')||tem('BIBLIOTECA_ALTERAR')||tem('ERGOGENICO_ALTERAR');
   return false;
 }

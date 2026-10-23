@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChartColumn, CircleUserRound, ClipboardCheck, ContactRound, House, Inbox, NotebookTabs, Palette, UsersRound, History, LifeBuoy, Wallet } from 'lucide-react-native';
+import { BookOpen, CalendarDays, ChartColumn, CircleUserRound, ClipboardCheck, ContactRound, FileUp, House, Inbox, NotebookTabs, UsersRound, History, LifeBuoy, Wallet } from 'lucide-react-native';
 
 import { Navigator, Slot, usePathname } from 'expo-router';
 import { Platform } from 'react-native';
@@ -19,8 +19,8 @@ import { GUIAS } from '../../ajuda/conteudo';
 
 /**
  * Só aparecem no menu as telas que já existem (nada de recurso fingido). A barra do celular leva Início, Alunos,
- * Biblioteca, Planejamento e Perfil; Atualizações, Interessados, Marca, Equipe, Ajuda e Auditoria ficam no menu lateral e
- * no celular abrem pelo Início (Atualizações) ou pelos atalhos do Perfil, que ficam acesos enquanto elas estão abertas.
+ * Biblioteca, Planejamento e Perfil; Atualizações, Interessados, Equipe, Importação, Ajuda e Auditoria ficam no menu lateral e
+ * no celular abrem pelo Início (Atualizações) ou pelos atalhos do Perfil. Marca fica no menu da conta, só para o Administrador.
  */
 const ITENS: ItemMenu[] = [
   { rotulo: 'Início', href: '/treinador', caminho: '/treinador', Icone: House, exato: true, tambemNoCelular: telasDaOrigem('/treinador') },
@@ -32,10 +32,10 @@ const ITENS: ItemMenu[] = [
   { rotulo: 'Biblioteca', href: '/treinador/biblioteca', caminho: '/treinador/biblioteca', Icone: BookOpen },
   { rotulo: 'Planejamento', rotuloCurto: 'Planos', href: '/treinador/planejamento', caminho: '/treinador/planejamento', Icone: NotebookTabs },
   { rotulo: 'Financeiro', href: '/treinador/financeiro', caminho: '/treinador/financeiro', Icone: Wallet, soLateral: true },
-  { rotulo: 'Marca', href: '/treinador/marca', caminho: '/treinador/marca', Icone: Palette, soLateral: true },
   // A barra de topo (com o cartão do usuário) é só da web; num tablet nativo largo o Perfil continua no menu lateral.
-  { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', tambem: ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/ajustes', '/treinador/minha-conta'], tambemNoCelular: telasDaOrigem('/treinador/perfil') },
+  { rotulo: 'Perfil', href: '/treinador/perfil', caminho: '/treinador/perfil', Icone: CircleUserRound, soCelular: Platform.OS === 'web', tambem: ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/ajustes', '/treinador/minha-conta', '/treinador/marca'], tambemNoCelular: telasDaOrigem('/treinador/perfil') },
   { rotulo: 'Equipe', href: '/treinador/equipe', caminho: '/treinador/equipe', Icone: UsersRound, soLateral:true },
+  { rotulo: 'Importação', href: '/treinador/importacao', caminho: '/treinador/importacao', Icone: FileUp, soLateral: true },
   // Termos e privacidade abre pela Ajuda no PC.
   { rotulo: 'Ajuda', href: '/treinador/ajuda', caminho: '/treinador/ajuda', Icone: LifeBuoy, soLateral: true, tambem: ['/treinador/termos'] },
   { rotulo: 'Auditoria', href: '/treinador/auditoria', caminho: '/treinador/auditoria', Icone: History, soLateral:true },

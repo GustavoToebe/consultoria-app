@@ -1,5 +1,11 @@
 # Importação de alunos e histórico de peso
 
+No dia a dia, a tela **Importação** (`/treinador/importacao`) é o caminho: prévia, confirmação e histórico, por
+`.xlsx` ou `.csv`, sem guardar o arquivo. Os modelos dessa tela ficam em `app/public/modelos/importacao/`.
+
+O script abaixo continua para migração grande (a planilha do Saraiva e pastas fora do repositório). O formato dele
+(`scripts/importacao/modelos/`, com `codigo`) é outro contrato e não muda.
+
 Pedido da reunião de 17/10 (R25, R26 e R51): trazer os alunos de outra planilha **com as datas dos pesos**, para a
 curva de evolução já aparecer na ficha. Planos, dietas e treinos antigos ficam de fora nesta etapa.
 

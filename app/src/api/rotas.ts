@@ -93,7 +93,10 @@ import type {
   PastaResumo,
   PastaVigenteResposta,
   PlanoResumo,
-  PreviaCsv,
+  ColunasDaImportacao,
+  DetalheDeImportacao,
+  PaginaDeImportacao,
+  PreviaDeImportacao,
   ProgressoPonto,
   Receita,
   RegistroEnvio,
@@ -531,19 +534,22 @@ export type TipoBiblioteca = 'exercicios' | 'alimentos';
 export const importarDoCatalogo = (tipo: TipoBiblioteca, ids: string[]) =>
   requisicao<ImportacaoResultado>(`/${seg(tipo)}/importar-catalogo`, { metodo: 'POST', corpo: { ids } });
 
-export const previaCsv = (tipo: TipoBiblioteca, texto: string) =>
-  requisicao<PreviaCsv>(`/${seg(tipo)}/importar-csv?confirmar=false`, {
-    metodo: 'POST',
-    corpoBruto: texto,
-    tipoConteudo: 'text/plain;charset=UTF-8',
-  });
-
-export const confirmarCsv = (tipo: TipoBiblioteca, texto: string, hash: string) =>
-  requisicao<ImportacaoResultado>(`/${seg(tipo)}/importar-csv?confirmar=true&hash=${encodeURIComponent(hash)}`, {
-    metodo: 'POST',
-    corpoBruto: texto,
-    tipoConteudo: 'text/plain;charset=UTF-8',
-  });
+export const listarImportacoes = (filtro: { destino?: string; situacao?: string; busca?: string; pagina: number }) => {
+  const q = new URLSearchParams();
+  if (filtro.destino) q.set('destino', filtro.destino);
+  if (filtro.situacao) q.set('situacao', filtro.situacao);
+  if (filtro.busca) q.set('busca', filtro.busca);
+  q.set('pagina', String(filtro.pagina));
+  return requisicao<PaginaDeImportacao>(`/importacoes?${q}`);
+};
+export const detalheDaImportacao = (id: string) => requisicao<DetalheDeImportacao>(`/importacoes/${seg(id)}`);
+export const csvDeErrosDaImportacao = (id: string) => requisicao<string>(`/importacoes/${seg(id)}/erros.csv`, { aceita: 'text/csv' });
+export const colunasDaImportacao = (destino: string, arquivo: FormData, aba: number, cabecalho: boolean) =>
+  requisicao<ColunasDaImportacao>(`/importacoes/${seg(destino)}/colunas?aba=${aba}&cabecalho=${cabecalho}`, { metodo: 'POST', corpoBruto: arquivo });
+export const previaDaImportacao = (destino: string, arquivo: FormData) =>
+  requisicao<PreviaDeImportacao>(`/importacoes/${seg(destino)}/previa`, { metodo: 'POST', corpoBruto: arquivo });
+export const confirmarImportacao = (destino: string, arquivo: FormData, hash: string) =>
+  requisicao<DetalheDeImportacao>(`/importacoes/${seg(destino)}?hash=${encodeURIComponent(hash)}`, { metodo: 'POST', corpoBruto: arquivo });
 
 // ---- Treinador: receitas ----
 

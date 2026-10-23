@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { ChevronDown, CreditCard, LogOut, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
+import { ChevronDown, CreditCard, LogOut, Palette, ShieldCheck, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -19,22 +19,24 @@ export const ICONES_DO_MENU: Record<IdDoItemDoMenu, LucideIcon> = {
   seguranca: ShieldCheck,
   // A assinatura (plano e cobranças) tem ícone próprio: com o mesmo de Meus dados as duas linhas pareciam iguais.
   'minha-conta': CreditCard,
+  marca: Palette,
   ajustes: SlidersHorizontal,
   sair: LogOut,
 };
 
 /**
- * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Minha conta, Ajustes,
- * Sair). Fecha com Esc e com clique fora; setas escolhem e Enter abre. Sair pede a confirmação de sempre.
+ * Cartão do usuário na barra de topo: nome, perfil na equipe e seta. Abre o menu (Meus dados, Minha conta, Marca
+ * para o Administrador, Ajustes, Sair). Fecha com Esc e com clique fora; setas escolhem e Enter abre. Sair pede a confirmação de sempre.
  */
 export function CartaoDoUsuario({ compacto, ativo: naConta }: { compacto?: boolean; ativo?: boolean } = {}) {
   const { usuario, perfilEquipe, pode } = useSessao();
+  const administrador = !!perfilEquipe?.acessoTotal;
   const { cores } = useTema();
   const [aberto, setAberto] = useState(false);
   const [ativo, setAtivo] = useState(-1);
   const [saindo, setSaindo] = useState(false);
   const caixa = useRef<View>(null);
-  const itens = itensDoMenuDoUsuario(pode);
+  const itens = itensDoMenuDoUsuario(pode, administrador);
 
   const { confirmar } = useSaidaGuardada();
   const fechar = () => {

@@ -4,7 +4,6 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioRequest;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ExercicioResponse;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportarCatalogoRequest;
-import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.PreviaCsv;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,11 +25,9 @@ import java.util.UUID;
 public class ExercicioController {
 
     private final BibliotecaService biblioteca;
-    private final ImportacaoCsvService csv;
 
-    public ExercicioController(BibliotecaService biblioteca, ImportacaoCsvService csv) {
+    public ExercicioController(BibliotecaService biblioteca) {
         this.biblioteca = biblioteca;
-        this.csv = csv;
     }
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
@@ -63,17 +60,5 @@ public class ExercicioController {
     @PostMapping("/importar-catalogo")
     public ImportacaoResultado importarCatalogo(@RequestBody @Valid ImportarCatalogoRequest request) {
         return biblioteca.importarCatalogoExercicios(request.ids());
-    }
-
-    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
-    @PostMapping(value = "/importar-csv", consumes = {"text/plain", "text/csv"})
-    public PreviaCsv<ImportacaoCsvService.ExercicioCsv> previaCsv(@RequestBody String texto) {
-        return csv.previaExercicios(texto);
-    }
-
-    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
-    @PostMapping(value = "/importar-csv", params = "confirmar=true", consumes = {"text/plain", "text/csv"})
-    public ImportacaoResultado confirmarCsv(@RequestBody String texto, @RequestParam String hash) {
-        return csv.confirmarExercicios(texto, hash);
     }
 }

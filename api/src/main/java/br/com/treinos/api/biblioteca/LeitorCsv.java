@@ -14,11 +14,11 @@ import java.util.Locale;
  * CSV colado ou enviado pelo treinador (planilha do Sheets/Excel). Separador {@code ;} ou {@code ,}, decidido pelo
  * cabeçalho; aceita campos entre aspas. Até {@value #LINHAS_MAXIMAS} linhas de dados.
  */
-final class LeitorCsv {
+public final class LeitorCsv {
 
     static final int LINHAS_MAXIMAS = 1000;
 
-    record Linha(int numero, List<String> campos) {
+    public record Linha(int numero, List<String> campos) {
         String campo(int i) {
             return i < campos.size() ? campos.get(i).trim() : "";
         }
@@ -28,6 +28,31 @@ final class LeitorCsv {
     }
 
     private LeitorCsv() {
+    }
+
+    /**
+     * Todas as linhas não vazias, inclusive a primeira, sem exigir cabeçalho. O chamador decide o que é cabeçalho.
+     * Passou de {@code maximo} linhas (contando a primeira) recusa o arquivo.
+     */
+    public static List<Linha> lerLivre(String texto, int maximo) {
+        String normalizado = normalizar(texto);
+        if (normalizado.isBlank()) {
+            throw new BadRequestException("O arquivo está vazio.");
+        }
+        String[] brutas = normalizado.split("\n", -1);
+        char separador = brutas[0].chars().filter(c -> c == ';').count()
+                >= brutas[0].chars().filter(c -> c == ',').count() ? ';' : ',';
+        List<Linha> linhas = new ArrayList<>();
+        for (int i = 0; i < brutas.length; i++) {
+            if (brutas[i].isBlank()) {
+                continue;
+            }
+            if (linhas.size() == maximo) {
+                throw new BadRequestException("O arquivo passa de 5.000 linhas.");
+            }
+            linhas.add(new Linha(i + 1, campos(brutas[i], separador).stream().map(String::trim).toList()));
+        }
+        return linhas;
     }
 
     static Tabela ler(String texto, List<String> cabecalhoEsperado) {

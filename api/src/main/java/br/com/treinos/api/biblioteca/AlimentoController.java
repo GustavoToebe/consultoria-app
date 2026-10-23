@@ -5,7 +5,6 @@ import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.AlimentoResponse;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.FatoresDoAlimento;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportacaoResultado;
 import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.ImportarCatalogoRequest;
-import br.com.treinos.api.biblioteca.dto.BibliotecaDtos.PreviaCsv;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,11 +26,9 @@ import java.util.UUID;
 public class AlimentoController {
 
     private final BibliotecaService biblioteca;
-    private final ImportacaoCsvService csv;
 
-    public AlimentoController(BibliotecaService biblioteca, ImportacaoCsvService csv) {
+    public AlimentoController(BibliotecaService biblioteca) {
         this.biblioteca = biblioteca;
-        this.csv = csv;
     }
 
     @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_LER')")
@@ -73,17 +70,5 @@ public class AlimentoController {
     @PostMapping("/importar-catalogo")
     public ImportacaoResultado importarCatalogo(@RequestBody @Valid ImportarCatalogoRequest request) {
         return biblioteca.importarCatalogoAlimentos(request.ids());
-    }
-
-    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
-    @PostMapping(value = "/importar-csv", consumes = {"text/plain", "text/csv"})
-    public PreviaCsv<ImportacaoCsvService.AlimentoCsv> previaCsv(@RequestBody String texto) {
-        return csv.previaAlimentos(texto);
-    }
-
-    @PreAuthorize("hasAuthority('PERM_BIBLIOTECA_ALTERAR')")
-    @PostMapping(value = "/importar-csv", params = "confirmar=true", consumes = {"text/plain", "text/csv"})
-    public ImportacaoResultado confirmarCsv(@RequestBody String texto, @RequestParam String hash) {
-        return csv.confirmarAlimentos(texto, hash);
     }
 }

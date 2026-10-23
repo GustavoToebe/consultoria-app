@@ -53,10 +53,11 @@ export function CartaoLesoes({ alunoId }: { alunoId: string }) {
     <Cartao
       titulo="Histórico de lesões"
       recolhivel
-      acoes={<Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Botao rotulo="Registrar lesão" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} /></Permitido>}>
+      acoes={<Permitido codigo="ALUNO_SENSIVEL_ALTERAR"><Botao rotulo="Registrar lesão" tipo="secundario" Icone={Plus} aoTocar={() => setEditando('nova')} /></Permitido>}
+      style={estilos.cartao}>
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {erroExcluir ? <MensagemErro texto={textoDoErro(erroExcluir)} /> : null}
-      {!dados && carregando ? <Esqueleto /> : null}
+      {!dados && carregando ? <Esqueleto cartoes={1} texto="Carregando lesões" /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhuma lesão registrada.</Texto> : null}
       {dados?.map((l) => {
         const situacao = SITUACOES.find((s) => s.valor === l.situacao);
@@ -162,6 +163,7 @@ function FolhaLesao({ alunoId, lesao, aoFechar, aoSalvar }: { alunoId: string; l
 }
 
 const estilos = StyleSheet.create({
+  cartao: { alignSelf: 'flex-start', width: '100%', flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), flexDirection: 'row', gap: espaco(1), alignItems: 'flex-start', justifyContent: 'space-between' },
   dados: { flexShrink: 1, gap: espaco(0.5) },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap' },

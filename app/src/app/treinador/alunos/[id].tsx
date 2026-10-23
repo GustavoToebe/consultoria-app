@@ -99,7 +99,7 @@ export default function FichaAluno() {
               <View style={estilos.coluna}>
                 <CartaoAcesso aluno={aluno} aoAlterar={definir} />
               </View>
-              <View style={estilos.coluna}>
+              <View style={estilos.colunaLesoes}>
                 <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
               </View>
             </View>
@@ -241,6 +241,7 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
 const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
   coluna: { flex: 1, gap: espaco(3) },
+  colunaLesoes: { flex: 1, alignSelf: 'flex-start' },
   dados: { gap: espaco(1.5) },
   tituloDados: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1) },
   titulo: { flexShrink: 1 },

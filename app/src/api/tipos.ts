@@ -375,10 +375,19 @@ export interface ImportacaoResultado {
   ignorados: number;
 }
 
-export interface PreviaCsv {
-  validas: ({ linha: number; nome: string } & Record<string, unknown>)[];
-  erros: { linha: number; motivo: string }[];
-  hash: string;
+export interface ErroDeImportacao { linha: number; campo: string; motivo: string }
+export interface ItemDeImportacao {
+  id: string; destino: string; nomeArquivo: string; criadoEm: string;
+  linhas: number; novos: number; atualizados: number; ignorados: number; comErro: number; situacao: string;
+}
+export interface PaginaDeImportacao { itens: ItemDeImportacao[]; total: number; pagina: number }
+export interface PreviaDeImportacao {
+  hash: string; linhas: number; novos: number; atualizados: number; ignorados: number; comErro: number;
+  erros: ErroDeImportacao[]; errosAlem: number; amostra: { linha: number; campos: Record<string, string> }[];
+}
+export interface ColunasDaImportacao { abas: string[]; aba: number; colunas: string[] }
+export interface DetalheDeImportacao extends ItemDeImportacao {
+  configuracao: Record<string, unknown>; erros: ErroDeImportacao[];
 }
 
 // ---- Receitas ----

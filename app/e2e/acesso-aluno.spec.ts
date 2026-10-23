@@ -96,6 +96,30 @@ test('aluno com conta: "Definir nova senha" confirma que as sessões serão ence
   expect(errosDaPagina).toEqual([]);
 });
 
+test('cartão de lesões vazio acompanha o conteúdo, ao lado de Acesso ao app', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    ...ROTAS_DA_FICHA,
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: SEM_CONTA },
+    [`GET /alunos/${ALUNO_ID}/lesoes`]: { corpo: [] },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  const lesoes = page.locator('div')
+    .filter({ has: page.getByRole('heading', { name: 'Histórico de lesões' }) })
+    .filter({ hasNot: page.getByRole('heading', { name: 'Acesso ao app' }) })
+    .first();
+  await expect(lesoes.getByText('Nenhuma lesão registrada.')).toBeVisible();
+  await expect(lesoes.getByRole('button', { name: 'Registrar lesão' })).toBeVisible();
+  await expect(page.getByRole('progressbar', { name: 'Carregando lesões' })).toHaveCount(0);
+  const acessoBox = await cartao(page).boundingBox();
+  const lesoesBox = await lesoes.boundingBox();
+  expect(acessoBox && lesoesBox).toBeTruthy();
+  expect(lesoesBox!.height).toBeLessThan(acessoBox!.height + 8);
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('aluno aguardando o primeiro acesso: "Definir outra senha"; inativo não mostra as ações', async ({ page }) => {
   let ficha: AlunoDetalhe = { ...COM_CONTA, aguardandoPrimeiroAcesso: true };
   await simularApi(page, {

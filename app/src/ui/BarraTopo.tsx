@@ -18,14 +18,15 @@ import { useFavoritos } from './useFavoritos';
  * Barra de topo do treinador na web (o `Navegacao` só a monta com o menu lateral): busca "O que você deseja fazer?"
  * à esquerda, o botão "Todas as telas" (com favoritos; só ícone no trilho até 1024 px) e o cartão do usuário à
  * direita. O nome da tela não se repete aqui: ele é o h1 da própria tela e o título da aba do navegador. O cartão do
- * usuário fica realçado nas telas da conta (Meus dados, Segurança, Minha conta, Ajustes). No celular não existe.
+ * usuário fica realçado nas telas da conta (Meus dados, Segurança, Minha conta, Marca, Ajustes). No celular não existe.
  */
 export function BarraTopo() {
   const caminho = usePathname();
-  const { pode, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
+  const { pode, perfilEquipe, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
   const { cores } = useTema();
   const { width } = useWindowDimensions();
-  const permitidas = useMemo(() => telasPermitidas(pode, undefined, funcionalidadesDoPlano, pagamentosHabilitados), [pode, funcionalidadesDoPlano, pagamentosHabilitados]);
+  const administrador = !!perfilEquipe?.acessoTotal;
+  const permitidas = useMemo(() => telasPermitidas(pode, undefined, funcionalidadesDoPlano, pagamentosHabilitados, administrador), [pode, funcionalidadesDoPlano, pagamentosHabilitados, administrador]);
   const { favoritos, alternar } = useFavoritos();
   const [todas, setTodas] = useState(false);
   const estreita = width < LARGURA_MENU_EXPANDIDO;
@@ -47,7 +48,7 @@ export function BarraTopo() {
 }
 
 /** Telas abertas pelo cartão do usuário: com elas abertas o cartão fica realçado, como um item ativo do menu. */
-const TELAS_DA_CONTA = ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/minha-conta', '/treinador/ajustes'];
+const TELAS_DA_CONTA = ['/treinador/meus-dados', '/treinador/seguranca', '/treinador/minha-conta', '/treinador/marca', '/treinador/ajustes'];
 
 const estilos = StyleSheet.create({
   barra: {

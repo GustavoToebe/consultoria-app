@@ -46,6 +46,8 @@ class ArquiteturaTest {
      * {@code ON CONFLICT ... WHERE} mais novo; consultoria e aluno vêm da sessão, como no {@code ExecucaoUpsert});
      * {@code LogoRepositorio} (bytes da logo fora da entidade, filtrado pelo id da consultoria);
      * {@code AuditoriaGravacao} (insert na transação global do login e limpeza diária, sempre com consultoria explícita);
+     * {@code ImportacaoRetencao} (limpeza diária das importações com mais de um ano: um delete por consultoria, sempre com
+     * {@code consultoria_id} explícito; a linha não guarda o arquivo nem valor de célula);
      * {@code ConviteEquipeBusca} (descobre apenas o tenant pelo hash, e se o convite é do sistema, para o aceite público da equipe);
      * {@code ConviteBusca} (convite público: descobre só a consultoria do convite antes de abrir a sessão nela);
      * {@code ContaLocalRepositorio} (tabelas globais da Minha conta, lidas também fora do tenant pela integração futura:
@@ -72,6 +74,7 @@ class ArquiteturaTest {
             "br.com.treinos.api.alunos.ConviteBusca",
             "br.com.treinos.api.equipe.ConviteEquipeBusca",
             "br.com.treinos.api.auditoria.AuditoriaGravacao",
+            "br.com.treinos.api.importacao.ImportacaoRetencao",
             "br.com.treinos.api.conta.ContaLocalRepositorio",
             "br.com.treinos.api.integracao.IntegracaoRepositorio",
             "br.com.treinos.api.privacidade.AnonimizacaoRepositorio",

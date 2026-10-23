@@ -61,6 +61,19 @@ public class PlanoDaConsultoria {
         return alunos.countByAtivoTrue();
     }
 
+    /**
+     * Vagas de aluno ativo ainda livres. {@code null} = sem limite (chave desligada, consultoria sem direitos ou limite
+     * ausente). A importação reserva uma vaga por linha nova ativa nesta conta, e na gravação chama
+     * {@link #exigirVagaDeAluno()} de novo.
+     */
+    public Long vagasDeAluno() {
+        Long limite = limiteAplicado(RecursosDoApp.LIMITE_ALUNOS_ATIVOS);
+        if (limite == null) {
+            return null;
+        }
+        return Math.max(0, limite - alunosAtivos());
+    }
+
     /** Treinadores ativos mais convites ainda válidos. */
     public long membrosDaEquipe(UUID consultoria) {
         return usuarios.countByConsultoriaIdAndPapelAndAtivoTrue(consultoria, Papel.TREINADOR)

@@ -91,6 +91,15 @@ public class LimiteTentativas {
         porIp("refresh-ip", ip, limites.refreshIp());
     }
 
+    /** Prévia, colunas e confirmação da importação: por usuário, janela de uma hora, separadas uma da outra. */
+    public void previaDeImportacao(java.util.UUID usuarioId) {
+        porUsuario("importacao-previa", usuarioId, 30);
+    }
+
+    public void confirmacaoDeImportacao(java.util.UUID usuarioId) {
+        porUsuario("importacao-confirmacao", usuarioId, 10);
+    }
+
     /** Imagem de comparação de fotos: 60 por usuário por hora. A janela é desta ação, não a das rotas públicas. */
     public void comparacaoDeFotos(java.util.UUID usuarioId) {
         long agora = clock.millis();
@@ -115,6 +124,14 @@ public class LimiteTentativas {
     /** Conta uma verificação humana que falhou (token ausente ou recusado); a que cruza o limite já recebe o 429. */
     public void verificacaoFalhou(String ip) {
         porIp("verificacao-ip", ip, limites.verificacaoIp());
+    }
+
+    private void porUsuario(String acao, java.util.UUID usuarioId, int limite) {
+        long agora = clock.millis();
+        var estado = contador.tentar(chave(acao, usuarioId == null ? "" : usuarioId.toString()), agora, 3_600_000L);
+        if (estado.tentativas() > limite) {
+            throw new MuitasRequisicoesException(segundosAte(estado.ateMs(), agora));
+        }
     }
 
     private void porIp(String acao, String ip, int limite) {

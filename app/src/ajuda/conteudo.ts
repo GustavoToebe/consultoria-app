@@ -52,7 +52,7 @@ const TREINADOR: Guia = {
   ],
   tutorial: [
     { titulo: 'Boas-vindas', texto: 'Este tutorial passa pelas telas principais na ordem em que você vai usá-las. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
-    { titulo: 'Menu e barra de topo', texto: 'No computador o menu fica à esquerda (dá para minimizar) e a barra de topo traz a busca "O que você deseja fazer?" (atalho Ctrl+K), o botão Todas as telas, onde dá para marcar favoritas, e o seu usuário. No celular, a barra de baixo tem Início, Alunos, Biblioteca, Planos e Perfil; Atualizações abre pelo Início, e Interessados, Marca, Equipe, Auditoria e a busca de telas ficam no Perfil, com a seta de voltar. Um ponto no ícone avisa que há algo a fazer. Só aparece o que o seu perfil permite.', rota: '/treinador' },
+    { titulo: 'Menu e barra de topo', texto: 'No computador o menu fica à esquerda (dá para minimizar) e a barra de topo traz a busca "O que você deseja fazer?" (atalho Ctrl+K), o botão Todas as telas, onde dá para marcar favoritas, e o seu usuário. No celular, a barra de baixo tem Início, Alunos, Biblioteca, Planos e Perfil; Atualizações abre pelo Início, e Interessados, Equipe, Importação, Auditoria e a busca de telas ficam no Perfil, com a seta de voltar. Marca fica no menu do seu usuário, só para o perfil Administrador. Um ponto no ícone avisa que há algo a fazer. Só aparece o que o seu perfil permite.', rota: '/treinador' },
     { titulo: 'Alunos', texto: 'Lista os alunos da consultoria, com busca e o filtro "Meus alunos". Cada linha mostra a situação da atualização da pasta atual (para quem pode ver atualizações). Toque em um aluno para abrir a ficha.', rota: '/treinador/alunos' },
     { titulo: 'Interessados', texto: 'O link de inscrição da consultoria e a fila de quem se inscreveu por ele. Ligue o link, copie e divulgue; cada inscrição chega para o responsável escolhido. Abra a inscrição para conversar pelo WhatsApp, registrar o andamento e aceitar (o aluno é cadastrado na hora) ou recusar.', rota: '/treinador/interessados' },
     { titulo: 'Ficha do aluno', texto: 'Reúne dados, acesso ao app, lesões, pastas de plano, frequência, progresso por exercício, peso e a evolução das respostas das atualizações. Atualizações do aluno ficam dentro de cada pasta.', rota: '/treinador/alunos' },
@@ -60,10 +60,11 @@ const TREINADOR: Guia = {
     { titulo: 'Atualizações', texto: 'As atualizações que os alunos enviam ao fim de cada período, separadas em para revisar, atrasadas e todas. Abra uma, leia as respostas e escreva o retorno; "Próxima" passa para a seguinte da fila. O ponto no menu avisa quando há alguma para revisar. A Agenda (no menu lateral, no contador "Atualizações em 7 dias" do Início e na busca de telas) mostra as dos próximos 7 dias dia a dia, com Hoje e Amanhã no topo e "Nenhuma atualização" nos dias vazios; vale o mesmo filtro Todos / Meus.', rota: '/treinador/atualizacoes' },
     { titulo: 'Números', texto: 'As contagens da consultoria nos últimos 6 meses, sem nomes: alunos ativos no fim de cada mês e atualizações do mês, no prazo e atrasadas. Fica tudo numa tabela, do mês atual para o mais antigo; o mês corrente vem marcado "até hoje". Onde aparece “—”, o número não está disponível (não é zero). Fica no menu lateral, no link ao lado de "Ver alunos" no Início e na busca de telas.', rota: '/treinador/numeros' },
     { titulo: 'Editores de plano', texto: 'Nada é salvo sozinho: toque em Salvar rascunho (Validar e Publicar também salvam antes). O selo do topo diz "Alterações não salvas" e, depois de salvar, "Salvo às HH:MM". Se sair com alterações não salvas, o app pergunta antes. Plano publicado é imutável.', rota: '/treinador/planejamento' },
-    { titulo: 'Biblioteca', texto: 'Exercícios (com filtro por um ou vários grupos musculares), alimentos, suplementos, catálogo público e importação por CSV. A aba Outros (medicação e ergogênicos) só aparece para quem tem a permissão; as categorias dela são você quem escreve.', rota: '/treinador/biblioteca' },
+    { titulo: 'Biblioteca', texto: 'Exercícios (com filtro por um ou vários grupos musculares), alimentos, suplementos e catálogo público. A aba Outros (medicação e ergogênicos) só aparece para quem tem a permissão; as categorias dela são você quem escreve. Planilha entra em Importação.', rota: '/treinador/biblioteca' },
+    { titulo: 'Importar planilhas', texto: 'Em Importação, escolha o destino, baixe o modelo (CSV ou Excel), envie o arquivo e confira a prévia. Nada é gravado antes de Importar. O arquivo não fica guardado. Quem já existe pode ser ignorado, completado ou atualizado; célula vazia não apaga e não vira zero. As linhas com erro ficam de fora e dá para baixar o CSV delas (só linha, campo e motivo). No celular, Importação fica em Perfil, nos atalhos.', rota: '/treinador/importacao' },
     { titulo: 'Planejamento', texto: 'Modelos reutilizáveis de treino, dieta e mobilidade, e pacotes de pasta inteira, agrupados por coleção. A busca procura em todas as coleções; recolha um grupo tocando no título e use o lápis para renomear a coleção. Aplique o modelo a um aluno quando quiser. A aba Atualização guarda os questionários que o aluno responde ao fim de cada período, e a aba Anamnese, os questionários iniciais que você envia pela ficha do aluno.', rota: '/treinador/planejamento' },
     { titulo: 'Marca, Equipe e Auditoria', texto: 'Marca (cor, fonte e logo) aparece só a quem tem permissão para alterá-la. Equipe gerencia membros e perfis de acesso; Auditoria lista o que foi feito. Aparecem conforme o seu perfil, no menu lateral do computador e nos atalhos do Perfil no celular.', rota: '/treinador/equipe' },
-    { titulo: 'Seu usuário e Ajuda', texto: 'No cartão com o seu nome (canto superior direito; no celular, em Perfil) ficam Meus dados (nome, telefone e senha), Segurança (verificação em duas etapas com aplicativo autenticador, códigos de recuperação), Minha conta (plano, cobranças com o botão "Pagar" nas que estão em aberto, e consumo; só aparece para quem tem permissão), Ajustes (tema claro/escuro e tamanho do texto) e Sair. Esta Ajuda fica sempre à mão.', rota: '/treinador/ajustes' },
+    { titulo: 'Seu usuário e Ajuda', texto: 'No cartão com o seu nome (canto superior direito; no celular, em Perfil) ficam Meus dados (nome, telefone e senha), Segurança (verificação em duas etapas com aplicativo autenticador, códigos de recuperação), Minha conta (plano, cobranças com o botão "Pagar" nas que estão em aberto, e consumo; só aparece para quem tem permissão), Marca (nome, logo, cor e tema; só o perfil Administrador), Ajustes (tema claro/escuro e tamanho do texto) e Sair. Esta Ajuda fica sempre à mão.', rota: '/treinador/ajustes' },
   ],
   passeio: [
     { titulo: 'Boas-vindas', texto: 'Um passeio rápido pelo menu, item por item. Leva menos de um minuto. Dá para pular agora e rever quando quiser em Ajuda.' },
@@ -73,9 +74,10 @@ const TREINADOR: Guia = {
     { titulo: 'Interessados', texto: 'O link de inscrição da consultoria e a fila de quem se inscreveu por ele: contato pelo WhatsApp, notas, aceitar (vira aluno) ou recusar. Um ponto avisa de inscrição nova.', alvo: 'menu:/treinador/interessados' },
     { titulo: 'Biblioteca', texto: 'Exercícios, alimentos, suplementos e Outros (medicação e ergogênicos). Tudo o que entra nos planos sai daqui.', alvo: 'menu:/treinador/biblioteca' },
     { titulo: 'Planejamento', texto: 'Modelos de treino, dieta e mobilidade agrupados por coleção para aplicar aos alunos, e os questionários da atualização e da anamnese. No celular, "Planos".', alvo: 'menu:/treinador/planejamento' },
-    { titulo: 'Marca', texto: 'Cor, logo, tema e o ciclo padrão de atualização da consultoria.', alvo: 'menu:/treinador/marca' },
+    { titulo: 'Marca', texto: 'Cor, logo, tema e o ciclo padrão de atualização da consultoria. Fica no menu do seu usuário e só o perfil Administrador vê.' },
     { titulo: 'Equipe', texto: 'Convide quem trabalha com você e escolha o que cada perfil pode ver e fazer.', alvo: 'menu:/treinador/equipe' },
-    { titulo: 'Perfil', texto: 'Seus dados, senha, ajustes de tela, a busca de telas e os atalhos para Interessados, Marca, Equipe, Ajuda e Auditoria.', alvo: 'menu:/treinador/perfil' },
+    { titulo: 'Importação', texto: 'Planilhas de alunos, pesos, exercícios, alimentos, suplementos e outros. A prévia mostra o que entra; o arquivo não fica guardado.', alvo: 'menu:/treinador/importacao' },
+    { titulo: 'Perfil', texto: 'Seus dados, senha, ajustes de tela, a busca de telas e os atalhos para Interessados, Equipe, Importação, Ajuda e Auditoria. Marca, quando o perfil é Administrador, fica junto de Meus dados.', alvo: 'menu:/treinador/perfil' },
     { titulo: 'Ajuda', texto: 'Guia, tutorial e perguntas frequentes. Para rever este passeio, toque em "Conhecer o menu" na Ajuda.', alvo: 'menu:/treinador/ajuda' },
   ],
   secoes: [
@@ -89,6 +91,15 @@ const TREINADOR: Guia = {
         { titulo: 'Inativar', texto: 'Inativar tira o aluno do app na hora; planos e registros ficam guardados e dá para reativar.' },
         { titulo: 'Ações em lote', texto: 'Na lista de Alunos, toque em Selecionar, marque os alunos (ou Marcar visíveis) e escolha Trocar responsável, Trocar questionário ou Desativar. Vale para até 100 alunos por vez, tudo ou nada, e cada ação pede confirmação. Desativar encerra as sessões dos alunos marcados; dá para reativar um por um na ficha.' },
         { titulo: 'Lesões e peso', texto: 'Ficam na ficha, só para quem pode ver dados sensíveis. O app apenas guarda o que você registra.' },
+      ],
+    },
+    {
+      titulo: 'Importar planilhas',
+      itens: [
+        { titulo: 'O que dá para trazer', texto: 'Alunos, pesos, exercícios, alimentos, suplementos e outros (medicação e ergogênicos). Treinos e dietas não entram por esta tela. Cada destino pede a permissão de alterar aquele cadastro; pesos pedem a de dados sensíveis.' },
+        { titulo: 'Como fazer', texto: 'Em Importação, toque em Nova importação, escolha o destino e baixe o CSV ou o Excel. A primeira linha é o cabeçalho. No passo seguinte, escolha a aba (quando a planilha tem mais de uma), a chave e o que fazer com quem já existe. O mapeamento sugere a coluna pelo nome. Campo obrigatório sem coluna não deixa continuar.' },
+        { titulo: 'Prévia e o que fica guardado', texto: 'A prévia não grava. Importar grava só as linhas válidas. As que têm erro ficam de fora; o histórico guarda até mil erros, só com linha, campo e motivo, e dá para baixar esse CSV. O arquivo enviado não fica no sistema. CPF, telefone e CEP precisam ser texto, para o zero à esquerda não sumir. Célula vazia não apaga o que já está e não vira zero.' },
+        { titulo: 'Modelos', texto: 'Modelos de planilha, no topo da tela, baixa três linhas fictícias de cada destino. Troque pelos seus dados antes de enviar. No celular o modelo abre no site, sem token.' },
       ],
     },
     {
@@ -180,7 +191,7 @@ const TREINADOR: Guia = {
     {
       titulo: 'Consultoria',
       itens: [
-        { titulo: 'Marca', texto: 'Cor, fonte do nome, tema padrão dos alunos (nasce claro) e logo. Só quem tem a permissão de marca altera.' },
+        { titulo: 'Marca', texto: 'Cor, fonte do nome, tema padrão dos alunos (nasce claro) e logo. Fica no menu do seu usuário e só o perfil Administrador altera.' },
         { titulo: 'Ciclo de atualização padrão', texto: 'Em Marca, no cartão Acompanhamento, "Nova atualização a cada (dias)" vale para os alunos sem ciclo próprio no cadastro: sugere o fim da pasta nova e da renovação. O ciclo escrito no aluno sempre vale mais.' },
         { titulo: 'Equipe', texto: 'Cada membro tem um perfil com permissões. Ninguém concede mais do que tem.' },
         { titulo: 'Auditoria', texto: 'Lista ações importantes por pessoa e período, guardadas por um ano.' },
@@ -213,7 +224,8 @@ const TREINADOR: Guia = {
   perguntas: [
     { pergunta: 'Editei um plano e o aluno ainda vê o antigo.', resposta: 'O aluno só vê o que está publicado. Toque em Publicar para gerar a versão nova.' },
     { pergunta: 'Se eu mudar o treino de um aluno, o modelo muda?', resposta: 'Não. Aplicar um modelo cria uma cópia só daquele aluno. Mudar a cópia não altera o modelo, e mudar o modelo não altera quem já recebeu.' },
-    { pergunta: 'Não vejo o menu Marca.', resposta: 'Marca aparece só para quem tem permissão de alterar a marca da consultoria. No celular, fica em Perfil, nos atalhos. Peça a um administrador.' },
+    { pergunta: 'Não vejo o menu Marca.', resposta: 'Marca fica no menu do seu usuário (no computador, o cartão com o seu nome; no celular, em Perfil, em Sua conta) e só aparece para o perfil Administrador.' },
+    { pergunta: 'Como importo uma planilha de alunos?', resposta: 'Em Importação (no celular, em Perfil › Atalhos), escolha Alunos, baixe o modelo e envie o arquivo. A prévia mostra o que entra; só o último botão grava. O arquivo não fica guardado.' },
     { pergunta: 'Como recebo interessados sem planilha nem formulário de fora?', resposta: 'Em Interessados, ligue o link de inscrição, copie e divulgue. Quem se inscreve aparece na lista; você conversa pelo WhatsApp e, quando fechar, toca em Aceitar.' },
     { pergunta: 'O aluno não consegue entrar.', resposta: 'Na ficha dele, no cartão Acesso ao app, gere um convite novo ou toque em Definir nova senha e passe a senha provisória (as sessões abertas dele são encerradas). Confirme também que o aluno está ativo.' },
     { pergunta: 'Aparece "Alterado em outra aba" no plano.', resposta: 'O mesmo plano foi alterado em outro lugar. Use a opção de recarregar, confira o que mudou e edite de novo.' },

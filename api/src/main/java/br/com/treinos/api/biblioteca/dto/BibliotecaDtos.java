@@ -118,11 +118,4 @@ public final class BibliotecaDtos {
 
     public record ImportacaoResultado(int importados, int ignorados) {
     }
-
-    public record ErroLinha(int linha, String motivo) {
-    }
-
-    /** Prévia da importação CSV: o que entra, o que não entra e o hash que a confirmação precisa repetir. */
-    public record PreviaCsv<T>(List<T> validas, List<ErroLinha> erros, String hash) {
-    }
 }

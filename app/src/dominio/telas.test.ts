@@ -134,7 +134,7 @@ describe('busca de telas', () => {
   it('ignora acento, caixa e usa sinônimos', () => {
     expect(semAcento('Atualizações')).toBe('atualizacoes');
     expect(ids(buscarTelas('ATUALIZAÇÕES', permitidas))[0]).toBe('atualizacoes');
-    expect(ids(buscarTelas('exercicios', permitidas))).toEqual(['biblioteca']);
+    expect(ids(buscarTelas('exercicios', permitidas))).toEqual(['biblioteca', 'importacao']);
     expect(ids(buscarTelas('check-in', permitidas))).toEqual(expect.arrayContaining(['atualizacoes', 'atualizacoes-revisar']));
     expect(ids(buscarTelas('criar modelo', permitidas))[0]).toBe('novo-modelo');
   });
@@ -159,11 +159,11 @@ describe('busca de telas', () => {
 });
 
 describe('Todas as telas e favoritos', () => {
-  const permitidas = telasPermitidas(com(ADMIN));
+  const permitidas = telasPermitidas(com(ADMIN), TELAS, undefined, false, true);
   it('agrupa na ordem do menu e deixa as ações de fora', () => {
     const grupos = agruparPorSecao(permitidas);
     expect(grupos.map((g) => g.secao)).toEqual(['Dia a dia', 'Planos', 'Consultoria', 'Ajuda', 'Sua conta']);
-    expect(grupos.flatMap((g) => ids(g.telas))).toEqual(['inicio', 'alunos', 'atualizacoes', 'agenda', 'numeros', 'biblioteca', 'planejamento', 'marca', 'equipe', 'auditoria', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'ajustes']);
+    expect(grupos.flatMap((g) => ids(g.telas))).toEqual(['inicio', 'alunos', 'atualizacoes', 'agenda', 'numeros', 'biblioteca', 'planejamento', 'equipe', 'auditoria', 'importacao', 'ajuda', 'termos', 'meus-dados', 'seguranca', 'marca', 'ajustes']);
     expect(agruparPorSecao(telasPermitidas(com([]))).map((g) => g.secao)).toEqual(['Ajuda', 'Sua conta']);
   });
   it('busca vazia sem favoritos sugere atalhos que o perfil pode abrir', () => {

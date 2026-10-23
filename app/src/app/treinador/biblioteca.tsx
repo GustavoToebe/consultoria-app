@@ -1,20 +1,21 @@
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { abaInicial, abasDaBiblioteca, type AbaDaBiblioteca } from '../../dominio/abasDaBiblioteca';
+import { destinosPermitidos } from '../../dominio/mapeamentoDaImportacao';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { LARGURA_LISTA } from '../../tema/tokens';
 import { AbaAlimentos } from '../../treinador/biblioteca/AbaAlimentos';
 import { AbaCatalogo } from '../../treinador/biblioteca/AbaCatalogo';
-import { AbaCsv } from '../../treinador/biblioteca/AbaCsv';
 import { AbaErgogenicos } from '../../treinador/biblioteca/AbaErgogenicos';
 import { AbaExercicios } from '../../treinador/biblioteca/AbaExercicios';
 import { AbaSuplementos } from '../../treinador/biblioteca/AbaSuplementos';
 import { Abas } from '../../ui/Abas';
 import { Cabecalho } from '../../ui/Cabecalho';
+import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
-/** Biblioteca da consultoria: exercícios, alimentos, suplementos e as abas de importação. */
+/** Biblioteca da consultoria: exercícios, alimentos, suplementos e o catálogo. Planilhas vão em Importação. */
 export default function Biblioteca() {
   const {pode}=useSessao();
   const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
@@ -26,14 +27,14 @@ export default function Biblioteca() {
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo="Biblioteca" mostrarMarca="celular" />
-      <Texto variante="suave">Exercícios, alimentos e suplementos que você usa nos planos: cadastre, importe do catálogo ou por CSV.</Texto>
+      <Texto variante="suave">Exercícios, alimentos e suplementos que você usa nos planos: cadastre ou importe do catálogo.</Texto>
+      {destinosPermitidos(pode).length > 0 ? <LinkTexto href="/treinador/importacao" texto="Importar planilha" /> : null}
       <Abas abas={abas} ativa={aba} aoMudar={setAba} />
       {aba === 'exercicios' ? <AbaExercicios /> : null}
       {aba === 'alimentos' ? <AbaAlimentos /> : null}
       {aba === 'suplementos' ? <AbaSuplementos /> : null}
       {aba === 'ergogenicos' && pode('ERGOGENICO_LER') ? <AbaErgogenicos /> : null}
       {aba === 'catalogo' ? <AbaCatalogo /> : null}
-      {aba === 'csv' && pode('BIBLIOTECA_ALTERAR') ? <AbaCsv /> : null}
     </Tela>
   );
 }

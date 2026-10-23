@@ -1,4 +1,4 @@
-export type AbaDaBiblioteca = 'exercicios' | 'alimentos' | 'suplementos' | 'ergogenicos' | 'catalogo' | 'csv';
+export type AbaDaBiblioteca = 'exercicios' | 'alimentos' | 'suplementos' | 'ergogenicos' | 'catalogo';
 
 /** Abas na ordem da tela; `permissao` é a que a aba exige além de ler a Biblioteca (a API autoriza de novo). */
 const ABAS: readonly { valor: AbaDaBiblioteca; rotulo: string; permissao: string | null }[] = [
@@ -7,7 +7,6 @@ const ABAS: readonly { valor: AbaDaBiblioteca; rotulo: string; permissao: string
   { valor: 'suplementos', rotulo: 'Suplementos', permissao: null },
   { valor: 'ergogenicos', rotulo: 'Outros', permissao: 'ERGOGENICO_LER' },
   { valor: 'catalogo', rotulo: 'Importar do catálogo', permissao: null },
-  { valor: 'csv', rotulo: 'Importar CSV', permissao: 'BIBLIOTECA_ALTERAR' },
 ];
 
 /** Só as abas que o perfil pode abrir: sem a permissão, a aba nem aparece. */

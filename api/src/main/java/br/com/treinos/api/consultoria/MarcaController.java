@@ -40,6 +40,7 @@ public class MarcaController {
     @PutMapping("/marca")
     public ConsultoriaResponse alterarMarca(@AuthenticationPrincipal UsuarioAutenticado eu,
                                            @RequestBody @Valid MarcaRequest request) {
+        marcas.exigirAdministrador(eu.usuarioId());
         return marcas.alterarMarca(eu.consultoriaId(), request);
     }
 
@@ -47,6 +48,7 @@ public class MarcaController {
     @PutMapping(value = "/marca/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public MarcaPublica enviarLogo(@AuthenticationPrincipal UsuarioAutenticado eu,
                                    @RequestPart("arquivo") MultipartFile arquivo) {
+        marcas.exigirAdministrador(eu.usuarioId());
         try {
             return marcas.enviarLogo(eu.consultoriaId(), arquivo.getBytes());
         } catch (IOException e) {
@@ -57,6 +59,7 @@ public class MarcaController {
     @PreAuthorize("hasAuthority('PERM_MARCA_ALTERAR')")
     @DeleteMapping("/marca/logo")
     public MarcaPublica removerLogo(@AuthenticationPrincipal UsuarioAutenticado eu) {
+        marcas.exigirAdministrador(eu.usuarioId());
         return marcas.removerLogo(eu.consultoriaId());
     }
 }

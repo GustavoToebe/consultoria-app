@@ -43,6 +43,11 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/financeiro', acesso(['ALUNO_LER','PAINEL_VER']), true)).toBe(false);
     expect(podeAcessarTela('/treinador/financeiro', acesso(['FINANCEIRO_ALTERAR']), true)).toBe(false);
   });
+  it('Marca só abre para o perfil Administrador, mesmo com a permissão de marca', () => {
+    expect(podeAcessarTela('/treinador/marca', acesso(['MARCA_ALTERAR']))).toBe(false);
+    expect(podeAcessarTela('/treinador/marca', acesso(['MARCA_ALTERAR']), false, true)).toBe(true);
+    expect(podeAcessarTela('/treinador/marca', acesso([]), false, true)).toBe(true);
+  });
   it('Meus dados e Ajustes são de todos; Minha conta exige CONTA_LER', () => {
     expect(podeAcessarTela('/treinador/meus-dados', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajustes', acesso([]))).toBe(true);
