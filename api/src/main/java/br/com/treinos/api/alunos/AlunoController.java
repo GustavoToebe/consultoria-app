@@ -3,6 +3,7 @@ package br.com.treinos.api.alunos;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.ConviteResponse;
+import br.com.treinos.api.alunos.dto.AlunoDtos.DefinirAcessoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.PaginaAlunos;
 import br.com.treinos.api.alunos.dto.AlunoDtos.SituacaoRequest;
 import jakarta.validation.Valid;
@@ -25,10 +26,12 @@ public class AlunoController {
 
     private final AlunoService alunos;
     private final ConviteService convites;
+    private final AcessoDoAlunoService acessos;
 
-    public AlunoController(AlunoService alunos, ConviteService convites) {
+    public AlunoController(AlunoService alunos, ConviteService convites, AcessoDoAlunoService acessos) {
         this.alunos = alunos;
         this.convites = convites;
+        this.acessos = acessos;
     }
 
     @PreAuthorize("hasAuthority('PERM_ALUNO_LER')")
@@ -69,5 +72,12 @@ public class AlunoController {
     @PostMapping("/{id}/convite")
     public ConviteResponse convite(@PathVariable UUID id) {
         return convites.gerar(id);
+    }
+
+    /** E-mail de login e senha provisória definidos pelo treinador; o aluno troca a senha no primeiro login. */
+    @PreAuthorize("hasAuthority('PERM_ALUNO_CONVITE')")
+    @PutMapping("/{id}/acesso")
+    public AlunoDetalhe acesso(@PathVariable UUID id, @RequestBody @Valid DefinirAcessoRequest request) {
+        return acessos.definir(id, request.email(), request.senha());
     }
 }

@@ -75,7 +75,7 @@ interface ValorSessao {
   marca: Marca | null;
   /** Aberta sem confirmar com o servidor (sem conexão). */
   offline: boolean;
-  entrar: (email: string, senha: string, codigoMfa?: string, turnstileToken?: string) => Promise<void>;
+  entrar: (email: string, senha: string, codigoMfa?: string, turnstileToken?: string, novaSenha?: string) => Promise<void>;
   cadastrarTreinador: (dados: { nomeConsultoria: string; nome: string; email: string; senha: string; turnstileToken?: string }) => Promise<void>;
   aceitarConvite: (codigo: string, email: string, senha: string) => Promise<void>;
   aceitarConviteEquipe: (codigo:string,senha:string) => Promise<void>;
@@ -309,7 +309,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       usuario: perfil?.usuario ?? null,
       marca: perfil?.marca ?? null,
       offline,
-      entrar: async (email, senha, codigoMfa, turnstileToken) => abrir(await rotas.entrar(email.trim(), senha, codigoMfa, turnstileToken)),
+      entrar: async (email, senha, codigoMfa, turnstileToken, novaSenha) =>
+        abrir(await rotas.entrar(email.trim(), senha, codigoMfa, turnstileToken, novaSenha)),
       cadastrarTreinador: async (dados) => abrir(await rotas.cadastrarTreinador(dados)),
       aceitarConvite: async (codigo, email, senha) => abrir(await rotas.aceitarConvite(codigo, email.trim(), senha)),
       trocarSenha: async (atual, nova) => abrir(await rotas.trocarSenha(atual, nova)),

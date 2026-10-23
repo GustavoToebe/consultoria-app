@@ -132,7 +132,7 @@ test('treinador vê a anamnese respondida no cartão da ficha, com "Não se apli
     [`GET /alunos/${ALUNO_ID}`]: {
       corpo: {
         id: ALUNO_ID, nome: ALUNO.nome, email: ALUNO.email, ativo: true, temAcesso: true, conviteExpiraEm: null, versao: 1,
-        diasAtualizacao: null, anonimizado: false,
+        diasAtualizacao: null, anonimizado: false, emailDeAcesso: ALUNO.email, aguardandoPrimeiroAcesso: false,
       },
     },
     [`GET /alunos/${ALUNO_ID}/anamneses`]: { corpo: [resumo] },

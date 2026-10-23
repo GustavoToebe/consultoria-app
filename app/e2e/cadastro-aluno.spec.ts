@@ -17,6 +17,7 @@ const FICHA: AlunoDetalhe = {
   id: ALUNO_ID, nome: ALUNO.nome, email: ALUNO.email, telefone: '(45) 99999-8888', objetivo: 'Objetivo fictício', cpf: CPF,
   endereco: { cep: '01310-100', logradouro: 'Rua Exemplo', numero: '100', complemento: 'Sala 2', bairro: 'Centro', cidade: 'Cidade Exemplo', uf: 'SP' },
   ativo: true, temAcesso: true, conviteExpiraEm: null, versao: 1, diasAtualizacao: null, anonimizado: false,
+  emailDeAcesso: ALUNO.email, aguardandoPrimeiroAcesso: false,
 };
 
 const ROTAS_DA_FICHA = { 'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } } };
@@ -289,3 +290,53 @@ test('folha da anamnese: endereço diferente do cadastro fica para revisar e apl
   expect(pedidos.filter((p) => p.metodo === 'POST' && p.caminho.endsWith('/aplicar'))).toHaveLength(1);
   expect(errosDaPagina).toEqual([]);
 });
+
+// Dados no cartão de cima (com o resumo), antes das pastas; "Editar" abre o formulário ali mesmo.
+for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 390, altura: 844 }]) {
+  test(`ficha em ${largura} px: dados do aluno no cartão de cima e "Editar" abre o formulário ali`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: largura, height: altura });
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR)),
+      ...ROTAS_DA_FICHA,
+      ...CEP_SEM_RESULTADO,
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+    });
+    await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+    const topo = async (alvo: ReturnType<typeof page.getByText>) => (await alvo.boundingBox())!.y;
+    const passo = page.getByText('Próximo passo', { exact: true });
+    const dados = page.getByRole('heading', { name: 'Dados do aluno' });
+    const acesso = page.getByRole('heading', { name: 'Acesso ao app' });
+    await expect(dados).toBeVisible();
+    await expect(passo).toBeVisible();
+    await expect(acesso).toBeAttached();
+    expect(await topo(passo)).toBeLessThan(await topo(dados));
+    expect(await topo(dados)).toBeLessThan(await topo(acesso));
+    await expect(page.getByText(CPF)).toBeVisible();
+    await expect(page.getByLabel('Acesso ao app: Com acesso')).toBeVisible();
+
+    // Grade: no PC as três seções lado a lado; no celular uma embaixo da outra.
+    const cadastro = await topo(page.getByText('Cadastro', { exact: true }));
+    const pessoais = await topo(page.getByText('Dados pessoais', { exact: true }));
+    const acompanhamento = await topo(page.getByText('Acompanhamento', { exact: true }));
+    if (largura >= 1100) {
+      expect(Math.abs(pessoais - cadastro)).toBeLessThan(2);
+      expect(Math.abs(acompanhamento - cadastro)).toBeLessThan(2);
+    } else {
+      expect(cadastro).toBeLessThan(pessoais);
+      expect(pessoais).toBeLessThan(acompanhamento);
+    }
+    // Nada passa da largura da tela.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(largura);
+
+    await page.screenshot({ path: testInfo.outputPath(`ficha-${largura}.png`), fullPage: true });
+
+    await page.getByRole('button', { name: 'Editar', exact: true }).click();
+    const cpf = page.getByLabel('CPF (opcional)');
+    await expect(cpf).toBeVisible();
+    expect(await topo(dados)).toBeLessThan(await topo(cpf));
+    expect(await topo(cpf)).toBeLessThan(await topo(acesso));
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await expect(cpf).toHaveCount(0);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

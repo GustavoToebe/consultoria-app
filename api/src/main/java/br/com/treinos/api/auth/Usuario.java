@@ -57,6 +57,10 @@ public class Usuario {
     @Column(name = "credenciais_versao", nullable = false)
     private long credenciaisVersao;
 
+    /** Senha provisória definida pelo treinador: o login só abre a sessão depois de o aluno escolher a dele. */
+    @Column(name = "trocar_senha", nullable = false)
+    private boolean trocarSenha;
+
     @Column(name = "criado_em", insertable = false, updatable = false)
     private Instant criadoEm;
 
@@ -147,8 +151,27 @@ public class Usuario {
         this.credenciaisVersao++;
     }
 
+    public boolean isTrocarSenha() {
+        return trocarSenha;
+    }
+
+    /** Toda troca de senha (a própria, pelo link do e-mail ou no primeiro acesso) desliga a senha provisória. */
     public void trocarSenha(String novoHash) {
         this.senhaHash = novoHash;
+        this.trocarSenha = false;
+        this.credenciaisVersao++;
+    }
+
+    /** Senha que o treinador definiu: vale só para o próximo login, que pede uma senha nova antes de abrir a sessão. */
+    public void definirSenhaProvisoria(String hash) {
+        this.senhaHash = hash;
+        this.trocarSenha = true;
+        this.credenciaisVersao++;
+    }
+
+    /** E-mail de login (o do cadastro do aluno é outro campo e não muda aqui). */
+    public void alterarEmail(String email) {
+        this.email = email;
         this.credenciaisVersao++;
     }
 
@@ -161,6 +184,7 @@ public class Usuario {
         this.email = emailMarcador;
         this.telefone = null;
         this.senhaHash = senhaHashInutil;
+        this.trocarSenha = false;
         this.ativo = false;
         this.credenciaisVersao++;
     }

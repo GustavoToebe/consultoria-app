@@ -10,7 +10,7 @@ import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
-import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
+import { CartaoAcesso, seloDoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
 import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
@@ -30,21 +30,22 @@ import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { CampoLeitura } from '../../../ui/CampoLeitura';
-import { Cartao } from '../../../ui/Cartao';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { IconeBotao } from '../../../ui/IconeBotao';
 import { MensagemErro } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
 import { useAvisoDoPlano } from '../../../ui/useAvisoDoPlano';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
+import { Selo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
 /**
- * Ficha do aluno, na ordem do uso diário: resumo com o próximo passo, pastas (planos e atualização do período),
- * frequência, progresso, peso e evolução das respostas; cadastro, acesso, lesões e anamnese vêm depois. Ações raras
- * (inativar, exportar, anonimizar) ficam no menu ⋯ do cabeçalho.
+ * Ficha do aluno, na ordem do uso diário: no cartão de cima o resumo com o próximo passo e os dados do aluno (com
+ * "Editar" ali mesmo); depois pastas (planos e atualização do período), frequência, progresso, peso e evolução das
+ * respostas; acesso ao app, lesões e anamnese vêm no fim. Ações raras (inativar, exportar, anonimizar) ficam no menu ⋯
+ * do cabeçalho.
  */
 export default function FichaAluno() {
   const { id, pastaId } = useLocalSearchParams<{ id: string; pastaId?: string }>();
@@ -61,7 +62,7 @@ export default function FichaAluno() {
   const renovacao = useRenovarPasta(aluno ? cicloDoAluno(aluno.diasAtualizacao, padrao) : null, mudouPastas);
   const [menu, setMenu] = useState(false);
   const [confirmarSituacao, setConfirmarSituacao] = useState(false);
-  // A partir de 1.100 px: Dados à esquerda; Acesso e Lesões à direita.
+  // A partir de 1.100 px: Acesso e Lesões lado a lado.
   const { width } = useWindowDimensions();
   const duasColunas = width >= 1100;
   const temMenu = !!aluno && ((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
@@ -74,7 +75,9 @@ export default function FichaAluno() {
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
         <>
-          <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir} />
+          <ResumoDoAluno aluno={aluno} acompanhamento={acompanhamento} aoRenovar={renovacao.pedir}>
+            <DadosDoAluno aluno={aluno} padrao={padrao} aoAlterar={definir} />
+          </ResumoDoAluno>
           <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
             geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
           {/* Frequência e Mobilidade são o mesmo tipo de contagem (semana e pasta): lado a lado no PC, uma embaixo da outra no celular. */}
@@ -90,17 +93,15 @@ export default function FichaAluno() {
           {duasColunas ? (
             <View style={estilos.colunas}>
               <View style={estilos.coluna}>
-                <CartaoDados aluno={aluno} padrao={padrao} aoAlterar={definir} />
+                <CartaoAcesso aluno={aluno} aoAlterar={definir} />
               </View>
               <View style={estilos.coluna}>
-                <CartaoAcesso aluno={aluno} />
                 <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
               </View>
             </View>
           ) : (
             <>
-              <CartaoDados aluno={aluno} padrao={padrao} aoAlterar={definir} />
-              <CartaoAcesso aluno={aluno} />
+              <CartaoAcesso aluno={aluno} aoAlterar={definir} />
               <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
             </>
           )}
@@ -167,20 +168,21 @@ function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: Alu
 }
 
 /**
- * Cadastro do aluno, só leitura até "Editar". O questionário de atualização também se troca no modo de edição
- * (fora dele é um campo de leitura, como os outros).
+ * Dados do aluno, dentro do cartão de cima da ficha: só leitura em grade (Cadastro, Dados pessoais e Acompanhamento,
+ * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. O questionário de atualização também
+ * se troca no modo de edição (fora dele é um campo de leitura, como os outros).
  */
-function CartaoDados({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void }) {
+function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
   const [editando, setEditando] = useState(false);
+  const acesso = seloDoAcesso(aluno);
   return (
-    <Cartao
-      titulo="Dados"
-      descricao="Cadastro do aluno e responsável pelo acompanhamento."
-      acoes={
-        editando || aluno.anonimizado || !pode('ALUNO_ALTERAR') ? null : <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />
-      }>
+    <View style={estilos.dados}>
+      <View style={estilos.tituloDados}>
+        <Texto variante="bloco" nivel={2} style={estilos.titulo}>Dados do aluno</Texto>
+        {editando || aluno.anonimizado || !pode('ALUNO_ALTERAR') ? null : <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />}
+      </View>
       {editando ? (
         <FormAluno
           inicial={aluno}
@@ -198,27 +200,37 @@ function CartaoDados({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao
           }}
         />
       ) : (
-        // As mesmas três seções do formulário de edição, para o que se lê estar onde se edita.
-        <View style={estilos.dados}>
-          <Texto variante="secao">Cadastro</Texto>
-          <CampoLeitura rotulo="E-mail" valor={aluno.email} />
-          <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
-          {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
+        // As mesmas três seções do formulário de edição, para o que se lê estar onde se edita; no celular, uma embaixo da outra.
+        <View style={estilos.grade}>
+          <View style={estilos.colunaDados}>
+            <Texto variante="secao">Cadastro</Texto>
+            <CampoLeitura rotulo="E-mail" valor={aluno.email} />
+            <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
+            {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
+            <View style={estilos.fato} accessibilityLabel={`Acesso ao app: ${acesso.texto}`}>
+              <Texto variante="rotulo">Acesso ao app</Texto>
+              <Selo texto={acesso.texto} tipo={acesso.tipo} />
+            </View>
+            <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
+          </View>
           <Permitido codigo="ALUNO_SENSIVEL_LER">
-            <CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} />
-            <Texto variante="secao" style={estilos.secao}>Dados pessoais</Texto>
-            <CampoLeitura rotulo="CPF" valor={aluno.cpf} />
-            <CampoLeitura rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} />
+            <View style={estilos.colunaDados}>
+              <Texto variante="secao">Dados pessoais</Texto>
+              <CampoLeitura rotulo="CPF" valor={aluno.cpf} />
+              <CampoLeitura rotulo="Endereço" valor={enderecoParaLeitura(aluno.endereco)} />
+            </View>
           </Permitido>
-          <Texto variante="secao" style={estilos.secao}>Acompanhamento</Texto>
-          <ResponsavelAluno id={aluno.responsavelId} />
-          <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
-          <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
-            aoEscolher={async () => {}} />
-          <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
+          <View style={estilos.colunaDados}>
+            <Texto variante="secao">Acompanhamento</Texto>
+            <ResponsavelAluno id={aluno.responsavelId} />
+            <CampoLeitura rotulo="Nova atualização a cada" valor={textoDoCiclo(aluno.diasAtualizacao, padrao)} numerico />
+            <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
+              aoEscolher={async () => {}} />
+            <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
+          </View>
         </View>
       )}
-    </Cartao>
+    </View>
   );
 }
 
@@ -226,7 +238,11 @@ const estilos = StyleSheet.create({
   colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
   coluna: { flex: 1, gap: espaco(3) },
   dados: { gap: espaco(1.5) },
-  secao: { marginTop: espaco(1) },
+  tituloDados: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1) },
+  titulo: { flexShrink: 1 },
+  grade: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(2) },
+  colunaDados: { flexBasis: 260, flexGrow: 1, flexShrink: 1, minWidth: 0, gap: espaco(1.5) },
+  fato: { gap: espaco(0.25) },
   contagens: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3) },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
 });

@@ -93,8 +93,8 @@ public final class AlunoDtos {
     }
 
     /**
-     * Ficha do aluno. {@code telefone} (do usuário do aluno; nulo se ele ainda não criou o acesso) sai com
-     * {@code ALUNO_LER}. Objetivo, observações, {@code cpf} e {@code endereco} são omitidos do JSON sem
+     * Ficha do aluno. {@code telefone} e {@code emailDeAcesso} (do usuário do aluno; nulos se ele ainda não tem acesso) saem
+     * com {@code ALUNO_LER}; {@code aguardandoPrimeiroAcesso} = a senha provisória do treinador ainda não foi trocada. Objetivo, observações, {@code cpf} e {@code endereco} são omitidos do JSON sem
      * {@code ALUNO_SENSIVEL_LER} (e quando não há valor); {@code endereco} traz os sete campos (nulos os vazios).
      */
     public record AlunoDetalhe(UUID id, String nome, String email, String telefone,
@@ -103,21 +103,37 @@ public final class AlunoDtos {
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String objetivo,
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String observacoes, boolean ativo,
                                boolean temAcesso, Instant conviteExpiraEm, Long versao,
-                               Integer diasAtualizacao,UUID responsavelId,UUID questionarioId,boolean anonimizado) {
-        /** {@code telefone} é o do usuário do aluno (o chamador o busca pelo {@code usuarioId}); nulo se não há. */
-        public static AlunoDetalhe de(Aluno a, String telefone) {
+                               Integer diasAtualizacao,UUID responsavelId,UUID questionarioId,boolean anonimizado,
+                               String emailDeAcesso, boolean aguardandoPrimeiroAcesso) {
+        /**
+         * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
+         * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
+         */
+        public static AlunoDetalhe de(Aluno a, br.com.treinos.api.auth.Usuario usuario) {
             boolean conviteValido = a.getConviteExpiraEm() != null && a.getConviteExpiraEm().isAfter(Instant.now());
             boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
+            boolean ler = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_LER");
             return new AlunoDetalhe(a.getId(), a.getNome(), a.getEmail(),
-                    br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_LER") ? telefone : null,
+                    ler && usuario != null ? usuario.getTelefone() : null,
                     sensivel ? a.getCpf() : null, sensivel ? a.endereco() : null,
                     sensivel ? a.getObjetivo() : null, sensivel ? a.getObservacoes() : null,
                     a.isAtivo(), a.getUsuarioId() != null, conviteValido ? a.getConviteExpiraEm() : null,
-                    a.getVersao(), a.getDiasAtualizacao(),a.getResponsavelId(),a.getQuestionarioId(),a.isAnonimizado());
+                    a.getVersao(), a.getDiasAtualizacao(),a.getResponsavelId(),a.getQuestionarioId(),a.isAnonimizado(),
+                    // Anonimizado: o e-mail do usuário é só o marcador da anonimização.
+                    ler && usuario != null && !a.isAnonimizado() ? usuario.getEmail() : null, usuario != null && usuario.isTrocarSenha());
         }
     }
 
     public record SituacaoRequest(@NotNull Boolean ativo) {
+    }
+
+    /** Acesso definido pelo treinador: e-mail de login e senha provisória (os 72 bytes são conferidos pela {@code RegrasSenha}). */
+    public record DefinirAcessoRequest(@NotBlank @Email @Size(max = 254) String email,
+                                       @NotBlank @Size(max = 200) String senha) {
+        @Override
+        public String toString() {
+            return "DefinirAcessoRequest[email=***, senha=***]";
+        }
     }
 
     /** O código só aparece nesta resposta; o banco guarda o SHA-256. */

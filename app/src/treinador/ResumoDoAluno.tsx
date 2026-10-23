@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { atualizacaoDoAluno, baixarFotoDePerfilDoAluno } from '../api/rotas';
@@ -24,13 +24,14 @@ import type { useAcompanhamentoDoAluno } from './CartaoFrequencia';
 /**
  * Topo da ficha: o que o treinador precisa ver primeiro (situação só se for exceção, pasta vigente, atualização,
  * treinos da semana e o último registro) e, numa faixa, o próximo passo com a ação direta (revisar a atualização ou
- * renovar a pasta). O resto da ficha vem abaixo, na ordem do uso diário.
+ * renovar a pasta). `children` (os dados do aluno) vem depois de uma linha fina, no mesmo cartão.
  */
-export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar }: {
+export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar, children }: {
   aluno: AlunoDetalhe;
   acompanhamento: ReturnType<typeof useAcompanhamentoDoAluno>;
   /** Abre a confirmação de "Renovar" (a mesma da lista de pastas). */
   aoRenovar: (pasta: PastaResumo) => void;
+  children?: ReactNode;
 }) {
   const { pode } = useSessao();
   const { cores } = useTema();
@@ -81,6 +82,12 @@ export function ResumoDoAluno({ aluno, acompanhamento, aoRenovar }: {
         </View>
         {acao}
       </View>
+      {children ? (
+        <>
+          <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
+          {children}
+        </>
+      ) : null}
     </Cartao>
   );
 }
@@ -95,4 +102,5 @@ const estilos = StyleSheet.create({
     borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1.5),
   },
   passoTexto: { flexGrow: 1, flexShrink: 1, flexBasis: 220, gap: 2 },
+  divisor: { height: StyleSheet.hairlineWidth, marginVertical: espaco(0.5) },
 });

@@ -23,6 +23,7 @@ import {
 const FICHA: AlunoDetalhe = {
   id: ALUNO_FINANCEIRO_ID, nome: ALUNO.nome, email: ALUNO.email, telefone: null, objetivo: null, cpf: null, endereco: null,
   ativo: true, temAcesso: true, conviteExpiraEm: null, versao: 1, diasAtualizacao: null, anonimizado: false,
+  emailDeAcesso: ALUNO.email, aguardandoPrimeiroAcesso: false,
 };
 
 /** Botão de uma opção dentro do grupo (`Escolha`) com o rótulo dado. */

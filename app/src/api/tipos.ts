@@ -229,6 +229,10 @@ export interface AlunoDetalhe {
   questionarioId?: string | null;
   /** Dados pessoais apagados (LGPD): o cadastro não é mais editado nem reativado. */
   anonimizado: boolean;
+  /** E-mail de login do aluno (pode ser outro que o do cadastro); nulo sem acesso ou sem `ALUNO_LER`. */
+  emailDeAcesso: string | null;
+  /** O treinador definiu uma senha provisória e o aluno ainda não entrou para trocá-la. */
+  aguardandoPrimeiroAcesso: boolean;
 }
 
 export interface AlunoRequest {

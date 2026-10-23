@@ -62,7 +62,8 @@ public class AuthController {
         DestinoCliente cliente = DestinoCliente.de(http);
         AuthService.Sessao sessao;
         try {
-            sessao = authService.entrar(request.email(), request.senha(), request.codigoMfa(), http.getRemoteAddr());
+            sessao = authService.entrar(request.email(), request.senha(), request.codigoMfa(), request.novaSenha(),
+                    http.getRemoteAddr());
         } catch (LimiteLoginException bloqueado) {
             // Só a tentativa que cruza o limite vira auditoria; as demais da janela só recebem o 429.
             if (bloqueado.primeiroBloqueio()) {

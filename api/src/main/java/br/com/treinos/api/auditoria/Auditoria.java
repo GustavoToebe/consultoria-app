@@ -82,6 +82,11 @@ public class Auditoria {
     public void senhaRedefinida(Usuario u) {
         gravar(u,"SENHA_REDEFINIDA","USUARIO",u.getId(),"Redefiniu a senha pelo link do e-mail.");
     }
+    /** Troca da senha provisória no primeiro login (rota global, sem {@code TenantContext}): o autor é o próprio usuário. */
+    @Transactional
+    public void senhaDoPrimeiroAcesso(Usuario u) {
+        gravar(u,"SENHA_ALTERADA","USUARIO",u.getId(),"Trocou a senha provisória no primeiro acesso.");
+    }
     private void gravar(Usuario u,String acao,String entidade,UUID id,String resumo) {
         String ip=null;String agente=null;
         if(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {

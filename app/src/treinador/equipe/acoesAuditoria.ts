@@ -7,7 +7,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   TREINO_PUBLICADO:'Treino publicado',DIETA_PUBLICADA:'Dieta publicada',MOBILIDADE_PUBLICADA:'Mobilidade publicada',
   TREINO_COPIADO:'Treino copiado para outro aluno',DIETA_COPIADA:'Dieta copiada para outro aluno',MOBILIDADE_COPIADA:'Mobilidade copiada para outro aluno',
   TERMOS_ACEITOS:'Termo de uso e aviso de privacidade aceitos',
-  ALUNO_EXPORTADO:'Dados do aluno exportados',ALUNO_ANONIMIZADO:'Aluno anonimizado',ALUNO_EXCLUIU_CONTA:'Aluno excluiu a própria conta pelo app',
+  ALUNO_EXPORTADO:'Dados do aluno exportados',ALUNO_ANONIMIZADO:'Aluno anonimizado',ALUNO_ACESSO_DEFINIDO:'Acesso do aluno definido pela equipe',ALUNO_EXCLUIU_CONTA:'Aluno excluiu a própria conta pelo app',
   INSCRICAO_ACEITA:'Inscrição aceita (aluno cadastrado)',INSCRICAO_RECUSADA:'Inscrição recusada',INSCRICAO_ALTERADA:'Andamento da inscrição alterado',
   INSCRICAO_PAGAMENTO_CONFIRMADO:'Pagamento da inscrição confirmado (manual)',INSCRICAO_NOTA_ADICIONADA:'Nota da inscrição',
   INSCRICAO_CONFIGURACAO_ALTERADA:'Link de inscrição alterado',INSCRICAO_LINK_RENOVADO:'Novo link de inscrição gerado',

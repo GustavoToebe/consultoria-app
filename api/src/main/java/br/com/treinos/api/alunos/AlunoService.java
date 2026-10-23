@@ -148,13 +148,12 @@ public class AlunoService {
     }
 
     /**
-     * A ficha com o telefone do usuário do aluno (nulo se ele ainda não criou o acesso). Toda resposta que devolve o aluno
+     * A ficha com o telefone e o e-mail de login do usuário do aluno (nulos se ele ainda não tem acesso). Toda resposta que devolve o aluno
      * passa por aqui, para o telefone nunca sumir de uma tela que o mostra.
      */
     public AlunoDetalhe detalheDe(Aluno aluno) {
-        String telefone = aluno.getUsuarioId() == null ? null
-                : usuarios.findById(aluno.getUsuarioId()).map(Usuario::getTelefone).orElse(null);
-        return AlunoDetalhe.de(aluno, telefone);
+        Usuario usuario = aluno.getUsuarioId() == null ? null : usuarios.findById(aluno.getUsuarioId()).orElse(null);
+        return AlunoDetalhe.de(aluno, usuario);
     }
 
     @Transactional

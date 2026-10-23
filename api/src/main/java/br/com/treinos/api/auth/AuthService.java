@@ -39,6 +39,7 @@ import java.util.UUID;
 public class AuthService {
 
     private static final String SESSAO_INVALIDA = "Sessão inválida ou expirada. Entre de novo.";
+    static final String TROCA_DE_SENHA_NECESSARIA = "TROCA_DE_SENHA_NECESSARIA";
 
     private final UsuarioRepository usuarios;
     private final ConsultoriaRepository consultorias;
@@ -86,7 +87,11 @@ public class AuthService {
         this.leitura.setReadOnly(true);
     }
 
-    public Sessao entrar(String email, String senha, String codigoMfa, String ip) {
+    /**
+     * Com a senha provisória do treinador ({@code trocarSenha}), a sessão só abre quando vem {@code novaSenha}: sem ela,
+     * 401 {@code TROCA_DE_SENHA_NECESSARIA} (nenhuma sessão, nenhum registro de login). Sem a marca, {@code novaSenha} é ignorada.
+     */
+    public Sessao entrar(String email, String senha, String codigoMfa, String novaSenha, String ip) {
         Autenticador.Identidade identidade;
         try {
             identidade = autenticador.verificarCredenciais(Emails.normalizar(email), senha, codigoMfa, ip);
@@ -95,14 +100,46 @@ public class AuthService {
         }
         Usuario usuario = carregar(identidade.sujeito());
         liberarAcesso(usuario);
+        long versao = identidade.versao();
+        if (usuario.isTrocarSenha()) {
+            if (novaSenha == null || novaSenha.isEmpty()) {
+                throw new UnauthorizedException("Crie a sua senha para entrar.", TROCA_DE_SENHA_NECESSARIA);
+            }
+            versao = trocarSenhaProvisoria(usuario.getId(), senha, novaSenha);
+        }
         Usuario registrado = abertura.entrou(usuario.getId());
-        return montar(registrado, autenticador.novaSessao(identidade.sujeito(), identidade.versao(), ip));
+        return montar(registrado, autenticador.novaSessao(identidade.sujeito(), versao, ip));
+    }
+
+    /**
+     * Primeiro acesso: troca a senha provisória pela do aluno e devolve a versão nova das credenciais (a da identidade
+     * ficou velha). Com o usuário travado confere de novo a marca e a senha: se o treinador definiu outra no meio, recusa.
+     */
+    private long trocarSenhaProvisoria(UUID usuarioId, String provisoria, String novaSenha) {
+        return transacao.execute(status -> {
+            Usuario usuario = usuarios.buscarParaAlterar(usuarioId).orElseThrow(AuthService::credenciaisInvalidas);
+            if (!usuario.isTrocarSenha() || !passwordEncoder.matches(provisoria, usuario.getSenhaHash())) {
+                throw credenciaisInvalidas();
+            }
+            RegrasSenha.validar(novaSenha, usuario.getEmail());
+            if (passwordEncoder.matches(novaSenha, usuario.getSenhaHash())) {
+                throw new BadRequestException("A nova senha precisa ser diferente da que o treinador passou.");
+            }
+            usuario.trocarSenha(passwordEncoder.encode(novaSenha));
+            usuarios.saveAndFlush(usuario);
+            auditoria.senhaDoPrimeiroAcesso(usuario);
+            return usuario.getCredenciaisVersao();
+        });
     }
 
     public Sessao renovar(String refreshTokenBruto, String ip) {
         // A conferência da consultoria roda dentro da rotação: se ela recusar, o refresh antigo continua valendo.
         Autenticador.Sessao sessao = autenticador.renovar(refreshTokenBruto, ip, sujeito -> {
-            liberarAcesso(carregar(sujeito));
+            Usuario usuario = carregar(sujeito);
+            if (usuario.isTrocarSenha()) { // não deveria acontecer: definir a senha provisória já encerra as sessões
+                throw new UnauthorizedException(SESSAO_INVALIDA);
+            }
+            liberarAcesso(usuario);
             return Map.of();
         });
         return montar(carregar(sessao.sujeito()), sessao);

@@ -254,11 +254,17 @@ export const responderAtualizacao = (id: string, texto: string, versao: number) 
 
 // ---- Sessão ----
 
-/** `turnstileToken`: token de uso único do widget, só quando a verificação humana está ligada (vale no 1º envio e no do MFA). */
-export const entrar = (email: string, senha: string, codigoMfa?: string, turnstileToken?: string) =>
+/**
+ * `turnstileToken`: token de uso único do widget, só quando a verificação humana está ligada (vale no 1º envio e no do MFA).
+ * `novaSenha`: só no passo "Crie sua senha" (a `senha` é a provisória que o treinador passou).
+ */
+export const entrar = (email: string, senha: string, codigoMfa?: string, turnstileToken?: string, novaSenha?: string) =>
   requisicao<LoginResponse>('/auth/login', {
     metodo: 'POST',
-    corpo: { email, senha, ...(codigoMfa ? { codigoMfa } : {}), ...(turnstileToken ? { turnstileToken } : {}) },
+    corpo: {
+      email, senha, ...(codigoMfa ? { codigoMfa } : {}), ...(turnstileToken ? { turnstileToken } : {}),
+      ...(novaSenha ? { novaSenha } : {}),
+    },
     semRenovar: true,
   });
 
@@ -426,6 +432,10 @@ export const anonimizarAluno = (id: string, nomeConfirmado: string) =>
   requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/anonimizar`, { metodo: 'POST', corpo: { nomeConfirmado } });
 
 export const gerarConvite = (id: string) => requisicao<ConviteGerado>(`/alunos/${seg(id)}/convite`, { metodo: 'POST' });
+
+/** Treinador define e-mail de login e senha provisória (o aluno troca no primeiro login); com conta, encerra as sessões dele. */
+export const definirAcessoDoAluno = (id: string, dados: { email: string; senha: string }) =>
+  requisicao<AlunoDetalhe>(`/alunos/${seg(id)}/acesso`, { metodo: 'PUT', corpo: dados });
 
 export const execucoesDoAluno = (id: string, de: string, ate: string) =>
   requisicao<DiaDeTreino[]>(`/alunos/${seg(id)}/execucoes?de=${de}&ate=${ate}`);
