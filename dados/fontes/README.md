@@ -58,7 +58,22 @@ reverte o trecho do `AGENTS.md`. Dieta já publicada guarda os fatores na versã
 
 ## Batel Grill — calorias
 
-Tabela de informação nutricional da casa (PDF no Desktop do Gustavo, fora do git). A transcrição é
-`batel/informacoes-nutricionais.csv`. A V030 grava o nome e a caloria. Proteína, carboidrato e gordura ficam vazios.
-Nome igual ao do catálogo e que já tem caloria (o Tabule da TACO) não muda. Suco entra por copo de 200 ml; o restante,
-por 100 g, com o KCAL/100g impresso. O relatório está em `dados/relatorios/batel-importacao.md`.
+- Arquivo: `batel/informacoes-nutricionais.csv` (SHA-256 `b78f260a0bf29cc531ca0d253545ee1e3b2ca861990346c9e12d2e36b2351484`).
+  Transcrição; o PDF não vai para o git.
+- Origem: tabela de informação nutricional do Batel Grill. A maior parte das linhas é de Andréa Lúcia Tetti, CRN 295,
+  8ª Região. Cheesecake, Torta Banoffi e Sorvete de queijo com calda de goiaba são de Juliana de Oliveira Ferreira,
+  CRN-8 3960.
+- Data: transcrição em 23/10/2026.
+- A V030 grava o nome e a caloria. Proteína, carboidrato e gordura ficam vazios: a tabela não traz esses números, e
+  ausente não vira zero. Nome igual ao do catálogo e que já tem caloria (o Tabule da TACO) não muda. Suco entra por
+  copo de 200 ml; o restante, por 100 g, com o KCAL/100g impresso.
+- Relatório: `dados/relatorios/batel-importacao.md`.
+
+## Heavy Suppz — suplementos
+
+- Arquivo: `api/src/main/resources/suplementos/heavysuppz.json` (22 itens).
+- Origem: páginas públicas de produto em heavysuppz.com. Só nome, marca, categoria, porção como no rótulo publicado,
+  sabores e link. Sem preço, descrição ou tabela nutricional. Porção que a página não publica fica nula.
+- Data: coletado em 21/10/2026.
+- A V028 entrega esses itens a cada consultoria que já existe, pelo nome, sem alterar o que o treinador já digitou.
+  Consultoria nova recebe a mesma lista. Outra marca entra como outro arquivo e outra migration.
