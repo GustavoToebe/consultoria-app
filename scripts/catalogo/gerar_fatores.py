@@ -528,6 +528,23 @@ def relatorio(guia, cumbaru, linhas, sem_base, conflitos):
     blocos = [
         "# Fatores de correção e cocção",
         "",
+        "## O que está no sistema local (23/10)",
+        "",
+        "Os FC e FCc da planilha do Cumbaru e do Guia Prático estão cadastrados como padrão do catálogo de alimentos. "
+        "Na base local, depois da V027, o catálogo tem 89 alimentos com FC e 8 com FCc.",
+        "",
+        "A tela Alimentos da demonstração mostra nove alimentos digitados à mão (arroz branco cozido, banana prata, "
+        "aveia, frango grelhado e os outros). Esses nomes não são os da planilha nem os da TACO, então o fator deles "
+        "continua vazio. Comida com outro nome não herda o fator.",
+        "",
+        "Para ver o padrão: Biblioteca, Importar do catálogo, Alimentos. Exemplos: Abobrinha, italiana, crua (FC 1,27), "
+        "Arroz, tipo 1, cozido (FCc 2,86), Kiwi, cru (FC 1,30), Batata, inglesa, cozida (FCc 0,97). "
+        "Importar um item grava o fator na biblioteca.",
+        "",
+        f"{len(sem_base)} linhas da planilha e do PDF ficaram de fora: não existe o mesmo alimento na TACO, e cadastrar "
+        "exigiria inventar caloria e macros. A lista está na seção \"NOVO sem base TACO\". "
+        "Feijão preto (FC 0,90) também ficou de fora, abaixo de 1,00.",
+        "",
         f"Guia Prático: {len(guia)} linhas.",
     ]
     for capitulo, total in capitulos.items():
