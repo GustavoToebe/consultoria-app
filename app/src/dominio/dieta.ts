@@ -30,7 +30,8 @@ export function recalcularItem(item: ItemDieta, alimento: Alimento | undefined):
   if (item.manual || !alimento) return item;
   const base = item.quantidade && item.quantidade > 0 ? quantidadeNaBase(alimento, item.quantidade, item.unidade) : null;
   const fator = base === null ? null : base / alimento.baseQuantidade;
-  const valor = (v: number) => (fator === null ? null : arredondar(v * fator));
+  const valor = (v: number | null | undefined) =>
+    (fator === null || v === null || v === undefined ? null : arredondar(v * fator));
   return {
     ...item,
     kcal: valor(alimento.kcal),

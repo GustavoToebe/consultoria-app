@@ -1,0 +1,246 @@
+secao,nome,peso_g,kcal_porcao,kcal_100g,nutricionista
+Carnes,Alcatra,30,103,344,andrea
+Carnes,Bife de Ancho sem crosta de gorgonzola,200,480,240,andrea
+Carnes,Bife de Ancho com crosta de gorgonzola,200,570,285,andrea
+Carnes,Carret T-Bone de Cordeiro,100,298,298,andrea
+Carnes,Coração de frango,200,308,154,andrea
+Carnes,Costela bovina,100,622,622,andrea
+Carnes,Costela de carneiro,40,143,357,andrea
+Carnes,Costelinha suína,40,113,282,andrea
+Carnes,Cupim,50,236,471,andrea
+Carnes,Fraldinha,40,62,154,andrea
+Carnes,Filé Argentino,200,350,175,andrea
+Carnes,Linguiça de pernil,50,163,326,andrea
+Carnes,Maminha,30,46,153,andrea
+Carnes,Mignon (chapa),80,195,244,andrea
+Carnes,Mignon a milanesa,80,200,250,andrea
+Carnes,Mignon a Parmegiana,150,395,263,andrea
+Carnes,Mignon com queijo,200,485,243,andrea
+Carnes,Mignon ao molho Carbonara,200,526,263,andrea
+Carnes,Mignon ao molho de Mostarda Dijon,200,436,218,andrea
+Carnes,Mignon (espeto),30,71,237,andrea
+Carnes,Mignon de cordeiro,40,96,239,andrea
+Carnes,Paleta de cordeiro,30,85,282,andrea
+Carnes,Peito de peru com bacon,30,52,172,andrea
+Carnes,Peito de frango grelhado,150,292,195,andrea
+Carnes,Picanha (fatiada),50,206,412,andrea
+Carnes,Picanha (medalhão),70,289,413,andrea
+Carnes,Picanha (nobre),20,83,413,andrea
+Carnes,Picanha de carneiro,30,69,231,andrea
+Pratos quentes e acompanhamentos,Arroz branco,50,55,110,andrea
+Pratos quentes e acompanhamentos,Arroz Biro Biro,50,98,195,andrea
+Pratos quentes e acompanhamentos,Batata doce chips,30,150,500,andrea
+Pratos quentes e acompanhamentos,Batata palito frita,50,135,270,andrea
+Pratos quentes e acompanhamentos,Batata palha,50,260,520,andrea
+Pratos quentes e acompanhamentos,Bolinha de queijo,85,212,249,andrea
+Pratos quentes e acompanhamentos,Camarão no champagne,50,112,222,andrea
+Pratos quentes e acompanhamentos,Coxinha de frango com requeijão,85,205,241,andrea
+Pratos quentes e acompanhamentos,Farofa com ovos,40,98,245,andrea
+Pratos quentes e acompanhamentos,Farofa com bacon,40,135,338,andrea
+Pratos quentes e acompanhamentos,Feijão preto,60,50,83,andrea
+Pratos quentes e acompanhamentos,Linguado empanado,50,350,699,andrea
+Pratos quentes e acompanhamentos,Lula empanada,50,187,374,andrea
+Pratos quentes e acompanhamentos,Pastel de carne,25,134,536,andrea
+Pratos quentes e acompanhamentos,Pastel de catupiry,25,103,412,andrea
+Pratos quentes e acompanhamentos,Polenta frita,30,153,510,andrea
+Pratos quentes e acompanhamentos,Salmão grelhado,50,176,353,andrea
+Pratos quentes e acompanhamentos,Strogonoff de mignon,50,86,172,andrea
+Pratos quentes e acompanhamentos,Mussarela com melado,40,161,402,andrea
+Pratos quentes e acompanhamentos,Mussarela nozinho,30,100,333,andrea
+Pratos quentes e acompanhamentos,Nhoque cozido,50,173,346,andrea
+Pratos quentes e acompanhamentos,Tilápia,50,66,131,andrea
+Massas com molhos,Conchiglione de abóbora com molho Alfredo,95,233,245,andrea
+Massas com molhos,Conchiglione de damasco com molho Alfredo,95,174,183,andrea
+Massas com molhos,Conchiglione de figo com molho funghi,95,210,221,andrea
+Massas com molhos,Conchiglione de camarão com molho,95,289,300,andrea
+Massas com molhos,Fettuccine com molho 4 queijos,100,283,283,andrea
+Massas com molhos,Fettuccine com molho alfredo,100,276,276,andrea
+Massas com molhos,Fettuccine com molho funghi,100,266,266,andrea
+Massas com molhos,Fettuccine com molho limão,100,253,253,andrea
+Massas com molhos,Fettuccine com molho pomodoro,100,194,194,andrea
+Massas com molhos,Fettuccine com molho shitake,100,238,238,andrea
+Massas com molhos,Nhoque + molho 4 queijos,100,283,283,andrea
+Massas com molhos,Nhoque + molho alfredo,100,276,276,andrea
+Massas com molhos,Nhoque + molho funghi,100,266,266,andrea
+Massas com molhos,Nhoque + molho limão,100,253,253,andrea
+Massas com molhos,Nhoque + molho pomodoro,100,194,194,andrea
+Massas com molhos,Nhoque + molho shitake,100,238,238,andrea
+Massas com molhos,Penne com molho 4 queijos,100,283,283,andrea
+Massas com molhos,Penne com molho alfredo,100,276,276,andrea
+Massas com molhos,Penne com molho funghi,100,266,266,andrea
+Massas com molhos,Penne com molho limão,100,253,253,andrea
+Massas com molhos,Penne com molho pomodoro,100,194,194,andrea
+Massas com molhos,Penne com molho shitake,100,238,238,andrea
+Massas com molhos,Spaghetti com molho 4 queijos,100,282,282,andrea
+Massas com molhos,Spaghetti com molho alfredo,100,276,276,andrea
+Massas com molhos,Spaghetti com molho funghi,100,266,266,andrea
+Massas com molhos,Spaghetti com molho limão,100,253,253,andrea
+Massas com molhos,Spaghetti com molho pomodoro,100,194,194,andrea
+Massas com molhos,Spaghetti com molho shitake,100,238,238,andrea
+Polentas com molhos,Polenta com molho 4 queijos,100,161,161,andrea
+Polentas com molhos,Polenta com molho alfredo,100,154,154,andrea
+Polentas com molhos,Polenta com molho funghi,100,144,144,andrea
+Polentas com molhos,Polenta com molho limão,100,130,130,andrea
+Polentas com molhos,Polenta com molho pomodoro,100,72,72,andrea
+Saladas,Abobrinha com alho,20,9,47,andrea
+Saladas,Abobrinha grelhada,10,15,152,andrea
+Saladas,Alface Americana,20,3,14,andrea
+Saladas,Alface Roxa,20,3,16,andrea
+Saladas,Aspargo,50,8,16,andrea
+Saladas,Azeitona preta,20,35,175,andrea
+Saladas,Azeitona verde,20,35,175,andrea
+Saladas,Batata bolinha temperada,50,57,113,andrea
+Saladas,Brócolis,50,4,8,andrea
+Saladas,Carpaccio,20,32,401,andrea
+Saladas,Cebola,20,4,20,andrea
+Saladas,Cebola Crocante,20,37,186,andrea
+Saladas,Cebola roxa,20,8,38,andrea
+Saladas,Cebolinha em conserva,50,20,40,andrea
+Saladas,Cenoura,20,9,45,andrea
+Saladas,Cereja,20,37,185,andrea
+Saladas,Champignon,50,8,16,andrea
+Saladas,Coalhada,20,19,95,andrea
+Saladas,Coalhada seca,20,19,48,andrea
+Saladas,Coração de alcachofra,50,18,36,andrea
+Saladas,Cuscuz Marroquino,50,83,166,andrea
+Saladas,Ervilha,35,35,100,andrea
+Saladas,Escarola,20,7,35,andrea
+Saladas,Grão de bico,20,39,194,andrea
+Saladas,Kani Kama,10,20,200,andrea
+Saladas,Maionese,50,36,71,andrea
+Saladas,Milho,20,25,124,andrea
+Saladas,Mussarela de búfala,30,59,197,andrea
+Saladas,Ovos de codorna,9,14,155,andrea
+Saladas,Palmito,50,27,54,andrea
+Saladas,Pasta de berinjela,20,10,52,andrea
+Saladas,Pasta de grão de bico,20,58,288,andrea
+Saladas,Pepino agridoce,20,31,156,andrea
+Saladas,Pepino Apimentado,20,34,172,andrea
+Saladas,Pepino Azedo,50,16,32,andrea
+Saladas,Pimentinha,15,5,33,andrea
+Saladas,Presunto tenro,100,179,179,andrea
+Saladas,Quibe cru,50,58,116,andrea
+Saladas,"Rúcula, tomate seco e mussarela de búfala",20,41,204,andrea
+Saladas,Salada de Lula,50,32,65,andrea
+Saladas,Salada Doce,50,23,45,andrea
+Saladas,Salada Grega,50,14,28,andrea
+Saladas,Salada Ratatouille,50,24,49,andrea
+Saladas,Salada Waldorff,50,217,434,andrea
+Saladas,Salame italiano,50,180,360,andrea
+Saladas,Salpicão,50,28,57,andrea
+Saladas,Tabule,50,22,45,andrea
+Saladas,Tartar de Salmão,50,77,154,andrea
+Saladas,Tomate,50,10,21,andrea
+Saladas,Tomate Seco,40,66,165,andrea
+Saladas,Vagem,20,10,50,andrea
+Saladas,Aspargo verde com mirtillo,50,40,80,andrea
+Risotos,Risoto de camarão,50,97,194,andrea
+Risotos,Risoto de funghi,50,78,156,andrea
+Risotos,Risoto napolitano,50,96,192,andrea
+Molhos frios,Molho italiano,15,21,162,andrea
+Molhos frios,Molho ceasar,15,78,528,andrea
+Molhos frios,Molho mostarda,15,46,354,andrea
+Molhos frios,Molho parmesão,15,38,292,andrea
+Molhos frios,Molho rosé,15,35,296,andrea
+Molhos frios,Molho Tartaro,15,16,160,andrea
+Molhos frios,Tempero de hortelã,50,10,20,andrea
+Molhos frios,Molho de maracujá,50,49,98,andrea
+Queijos,Asiago,30,114,380,andrea
+Queijos,Gorgonzola,30,105,350,andrea
+Queijos,Gouda,30,108,360,andrea
+Queijos,Gruyere,30,95,317,andrea
+Queijos,Provolone,30,106,353,andrea
+Sushis e yakissoba,Ceviche,50,30,60,andrea
+Sushis e yakissoba,Futamaki de pepino,32,10,31,andrea
+Sushis e yakissoba,Gunkan,30,57,190,andrea
+Sushis e yakissoba,Hossomaki de salmão,15,20,133,andrea
+Sushis e yakissoba,Hot Filadélfia,19,112,589,andrea
+Sushis e yakissoba,Niguiri kani kama,20,33,165,andrea
+Sushis e yakissoba,Salmão grelhado com alface e cenoura,17,6,35,andrea
+Sushis e yakissoba,Salmão skin,24,55,229,andrea
+Sushis e yakissoba,Sashimi de salmão,12,24,200,andrea
+Sushis e yakissoba,Sashimi de tilápia,10,10,100,andrea
+Sushis e yakissoba,Uramaki califórnia,17,17,100,andrea
+Sushis e yakissoba,Uramaki de acelga,20,26,130,andrea
+Sushis e yakissoba,Uramaki de aspargos com salmão e cream cheese,19,36,189,andrea
+Sushis e yakissoba,Uramaki de tomate seco e rúcula,17,46,271,andrea
+Sushis e yakissoba,Uramaki filadélfia,18,40,222,andrea
+Sushis e yakissoba,Uramaki romeu e julieta,19,22,116,andrea
+Sushis e yakissoba,Uramaki soboro,17,28,165,andrea
+Sushis e yakissoba,Yakissoba Vegetariano,100,202,202,andrea
+Sushis e yakissoba,Yakissoba de frango,100,122,122,andrea
+Sushis e yakissoba,Yakissoba de mignon,100,157,157,andrea
+Sushis e yakissoba,Yakissoba de camarão,100,110,110,andrea
+Sobremesas,Cheesecake com sorbet de amora e calda de frutas vermelhas,280,684,684,juliana
+Sobremesas,Churros Palito,85,101,119,andrea
+Sobremesas,Pudim de Leite,140,368,263,andrea
+Sobremesas,Banana frita com açúcar e canela,100,280,280,andrea
+Sobremesas,Torta Banoffi,163,516,516,juliana
+Sobremesas,Sorvete de queijo com calda de goiaba,100,408,408,juliana
+Sobremesas,Mousse de chocolate,90,257,286,andrea
+Sobremesas,Pana Cotta de Vanila Capivara,160,766,479,andrea
+Sobremesas,Sushi Soul de goiabada com cream cheese e morango,20,24,120,andrea
+Sobremesas,Sushi Soul de goiabada com cream cheese e Nutella,20,40,200,andrea
+Sobremesas,Hot Banana,100,176,176,andrea
+Sobremesas,Hot Nutella,100,204,204,andrea
+Sobremesas,Petit Gateau,60,255,425,andrea
+Sucos naturais,Limonada suíça,,133,,andrea
+Sucos naturais,Laranja,,89,,andrea
+Sucos de polpas com água,Abacaxi,,70,,andrea
+Sucos de polpas com água,Abacaxi com hortelã,,70,,andrea
+Sucos de polpas com água,Açaí,,82,,andrea
+Sucos de polpas com água,Acerola,,31,,andrea
+Sucos de polpas com água,Acerola com laranja,,133,,andrea
+Sucos de polpas com água,Amora,,56,,andrea
+Sucos de polpas com água,Cacau,,71,,andrea
+Sucos de polpas com água,Cajá,,67,,andrea
+Sucos de polpas com água,Caju,,60,,andrea
+Sucos de polpas com água,Coco,,67,,andrea
+Sucos de polpas com água,Cupuaçu,,60,,andrea
+Sucos de polpas com água,Framboesa,,54,,andrea
+Sucos de polpas com água,Goiaba,,74,,andrea
+Sucos de polpas com água,Graviola,,58,,andrea
+Sucos de polpas com água,Kiwi,,61,,andrea
+Sucos de polpas com água,Limão,,82,,andrea
+Sucos de polpas com água,Mamão,,62,,andrea
+Sucos de polpas com água,Mamão com laranja,,86,,andrea
+Sucos de polpas com água,Manga,,82,,andrea
+Sucos de polpas com água,Maracujá,,60,,andrea
+Sucos de polpas com água,"Polpa mista (maçã, mamão e banana)",,61,,andrea
+Sucos de polpas com água,Melão,,55,,andrea
+Sucos de polpas com água,Morango,,51,,andrea
+Sucos de polpas com água,Pêssego,,57,,andrea
+Sucos de polpas com água,Tangerina,,74,,andrea
+Sucos de polpas com água,Tamarindo,,69,,andrea
+Sucos de polpas com água,Umbu,,51,,andrea
+Sucos de polpas com água,Uva,,65,,andrea
+Sucos de polpas com leite condensado,Abacaxi,,99,,andrea
+Sucos de polpas com leite condensado,Abacaxi com hortelã,,99,,andrea
+Sucos de polpas com leite condensado,Açaí,,111,,andrea
+Sucos de polpas com leite condensado,Acerola,,91,,andrea
+Sucos de polpas com leite condensado,Acerola com laranja,,105,,andrea
+Sucos de polpas com leite condensado,Amora,,85,,andrea
+Sucos de polpas com leite condensado,Cacau,,100,,andrea
+Sucos de polpas com leite condensado,Cajá,,96,,andrea
+Sucos de polpas com leite condensado,Caju,,89,,andrea
+Sucos de polpas com leite condensado,Coco,,96,,andrea
+Sucos de polpas com leite condensado,Cupuaçu,,89,,andrea
+Sucos de polpas com leite condensado,Framboesa,,83,,andrea
+Sucos de polpas com leite condensado,Goiaba,,103,,andrea
+Sucos de polpas com leite condensado,Graviola,,87,,andrea
+Sucos de polpas com leite condensado,Kiwi,,90,,andrea
+Sucos de polpas com leite condensado,Laranja,,118,,andrea
+Sucos de polpas com leite condensado,Limão,,111,,andrea
+Sucos de polpas com leite condensado,Mamão,,91,,andrea
+Sucos de polpas com leite condensado,Mamão com laranja,,116,,andrea
+Sucos de polpas com leite condensado,Manga,,111,,andrea
+Sucos de polpas com leite condensado,Maracujá,,89,,andrea
+Sucos de polpas com leite condensado,"Polpa mista (maçã, mamão e banana)",,90,,andrea
+Sucos de polpas com leite condensado,Melão,,128,,andrea
+Sucos de polpas com leite condensado,Morango,,80,,andrea
+Sucos de polpas com leite condensado,Pêssego,,88,,andrea
+Sucos de polpas com leite condensado,Pitanga,,85,,andrea
+Sucos de polpas com leite condensado,Tangerina,,103,,andrea
+Sucos de polpas com leite condensado,Tamarindo,,98,,andrea
+Sucos de polpas com leite condensado,Umbu,,80,,andrea
+Sucos de polpas com leite condensado,Uva,,97,,andrea

@@ -28,13 +28,14 @@ public class CatalogoAlimento {
     @Column(nullable = false)
     private BigDecimal kcal;
 
-    @Column(nullable = false)
+    /** Nulo quando a fonte só publicou a caloria (Batel Grill). Ausente não vira zero. */
+    @Column(nullable = true)
     private BigDecimal proteina;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private BigDecimal carboidrato;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private BigDecimal gordura;
 
     @Column(name = "gramas_por_unidade")

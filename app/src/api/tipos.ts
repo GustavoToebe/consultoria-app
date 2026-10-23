@@ -314,9 +314,10 @@ export interface Alimento {
   baseQuantidade: number;
   baseUnidade: UnidadeAlimento;
   kcal: number;
-  proteina: number;
-  carboidrato: number;
-  gordura: number;
+  /** Nulo quando a fonte só publicou a caloria. Ausente não vira zero. */
+  proteina: number | null;
+  carboidrato: number | null;
+  gordura: number | null;
   gramasPorUnidade: number | null;
   fonte: string | null;
   origem: string;
@@ -346,9 +347,10 @@ export interface CatalogoAlimento {
   baseQuantidade: number;
   baseUnidade: string;
   kcal: number;
-  proteina: number;
-  carboidrato: number;
-  gordura: number;
+  /** Nulo quando a fonte só publicou a caloria. Ausente não vira zero. */
+  proteina: number | null;
+  carboidrato: number | null;
+  gordura: number | null;
   fonte: string | null;
   grupo: string | null;
   codigoFonte: string | null;

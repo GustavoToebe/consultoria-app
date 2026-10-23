@@ -2,7 +2,7 @@ import { numeroParaTela } from './formatos';
 
 export const CREDITOS_CATALOGO = {
   alimentos:
-    'Alimentos: Tabela Brasileira de Composição de Alimentos – TACO, 4ª ed. (2011), NEPA/UNICAMP. Valores por 100 g.',
+    'Alimentos: Tabela Brasileira de Composição de Alimentos – TACO, 4ª ed. (2011), NEPA/UNICAMP. Valores por 100 g. Preparações do Batel Grill: tabela da casa, só a caloria.',
   exercicios: 'Exercícios: exercicios-bd-ptbr (CC0), tradução do free-exercise-db (domínio público).',
 };
 
@@ -10,14 +10,14 @@ interface NutrientesDoCatalogo {
   baseQuantidade: number;
   baseUnidade: string;
   kcal: number;
-  proteina: number;
-  carboidrato: number;
-  gordura: number;
+  proteina: number | null;
+  carboidrato: number | null;
+  gordura: number | null;
   tracos: string[];
 }
 
 /** Nutriente que a fonte marca como traço (`Tr`) vem 0 da API e aparece como "Tr", nunca como 0. */
-function nutriente(valor: number, nome: string, tracos: string[], casas: number): string {
+function nutriente(valor: number | null, nome: string, tracos: string[], casas: number): string {
   return tracos.includes(nome) ? 'Tr' : numeroParaTela(valor, casas);
 }
 

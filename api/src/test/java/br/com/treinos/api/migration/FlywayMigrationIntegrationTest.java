@@ -23,8 +23,8 @@ class FlywayMigrationIntegrationTest extends AbstractIntegrationTest {
         List<String> descricoes = jdbcTemplate.queryForList(
                 "select description from flyway_schema_history where type in ('SQL', 'JDBC') order by installed_rank",
                 String.class);
-        assertThat(total).isEqualTo(29);
-        assertThat(descricoes).containsExactly("inicial", "catalogo taco", "catalogo exercicios ptbr", "aceite termo", "aluno anonimizado", "auth da plataforma", "fotos de atualizacao", "chave da foto por consultoria", "pedidos da reuniao de 17 10", "foto de perfil do aluno", "fatores dos alimentos", "inscricoes", "anamnese", "anamnese pendencia", "aluno cpf endereco", "mobilidade registro", "pagamentos do aluno", "pagamentos infinitepay", "aviso estorno avisado", "catalogo exercicio imagens", "exercicio catalogo e imagem", "formato novo de series", "receitas padrao do formato novo", "contrato de series e tecnicas", "senha provisoria", "receitas do catalogo", "fatores do catalogo", "suplementos heavy suppz", "uso de imagem");
+        assertThat(total).isEqualTo(30);
+        assertThat(descricoes).containsExactly("inicial", "catalogo taco", "catalogo exercicios ptbr", "aceite termo", "aluno anonimizado", "auth da plataforma", "fotos de atualizacao", "chave da foto por consultoria", "pedidos da reuniao de 17 10", "foto de perfil do aluno", "fatores dos alimentos", "inscricoes", "anamnese", "anamnese pendencia", "aluno cpf endereco", "mobilidade registro", "pagamentos do aluno", "pagamentos infinitepay", "aviso estorno avisado", "catalogo exercicio imagens", "exercicio catalogo e imagem", "formato novo de series", "receitas padrao do formato novo", "contrato de series e tecnicas", "senha provisoria", "receitas do catalogo", "fatores do catalogo", "suplementos heavy suppz", "uso de imagem", "calorias batel");
     }
 
     @Test
@@ -34,7 +34,8 @@ class FlywayMigrationIntegrationTest extends AbstractIntegrationTest {
                 .isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from catalogo_alimento where"
-                        + " (fonte <> 'TACO 4ª ed. (2011), NEPA/UNICAMP' and fonte not like 'TACO (nutrientes de %')"
+                        + " (fonte <> 'TACO 4ª ed. (2011), NEPA/UNICAMP' and fonte not like 'TACO (nutrientes de %'"
+                        + " and fonte not like 'Batel Grill.%')"
                         + " or kcal < 0 or proteina < 0 or carboidrato < 0 or gordura < 0"
                         + " or nome_busca is null or nome_busca = ''", Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForObject(
@@ -57,6 +58,15 @@ class FlywayMigrationIntegrationTest extends AbstractIntegrationTest {
                 Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "select tracos from catalogo_alimento where codigo_fonte = '9'", String.class)).isNull();
+        // Tabule já estava na TACO com caloria: a tabela do Batel Grill não substitui.
+        assertThat(jdbcTemplate.queryForObject(
+                "select kcal from catalogo_alimento where nome = 'Tabule'", BigDecimal.class))
+                .isEqualByComparingTo("57.45");
+        assertThat(jdbcTemplate.queryForObject(
+                "select proteina from catalogo_alimento where nome = 'Alcatra'", BigDecimal.class)).isNull();
+        assertThat(jdbcTemplate.queryForObject(
+                "select kcal from catalogo_alimento where nome = 'Alcatra'", BigDecimal.class))
+                .isEqualByComparingTo("344");
     }
 
     @Test
@@ -90,7 +100,7 @@ class FlywayMigrationIntegrationTest extends AbstractIntegrationTest {
         Integer exercicios = jdbcTemplate.queryForObject("select count(*) from catalogo_exercicio", Integer.class);
         Integer alimentos = jdbcTemplate.queryForObject("select count(*) from catalogo_alimento", Integer.class);
         assertThat(exercicios).isEqualTo(877); // 52 próprios + 825 do exercicios-bd-ptbr (dados/relatorios/exercicios-importacao.md)
-        assertThat(alimentos).isEqualTo(604); // 591 da TACO + 13 itens novos dos fatores (V027)
+        assertThat(alimentos).isEqualTo(848); // 591 da TACO + 13 dos fatores (V027) + 244 do Batel Grill (V030)
         String id = jdbcTemplate.queryForObject("select id::text from catalogo_exercicio where nome = 'Prancha'",
                 String.class);
         assertThat(id).isEqualTo(jdbcTemplate.queryForObject("select md5('catalogo-exercicio:Prancha')::uuid::text",

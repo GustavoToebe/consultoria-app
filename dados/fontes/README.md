@@ -55,3 +55,10 @@ Remoção, se a consulta jurídica pedir (ainda não executada): uma migration z
 `fonte_fatores` do catálogo; apaga os itens novos cuja `fonte` cita os fatores; zera os fatores do alimento só onde
 `fatores_do_catalogo` é verdadeiro e o valor ainda é igual ao do catálogo; apaga os CSVs e `scripts/catalogo/gerar_fatores.py`;
 reverte o trecho do `AGENTS.md`. Dieta já publicada guarda os fatores na versão imutável e não é reescrita.
+
+## Batel Grill — calorias
+
+Tabela de informação nutricional da casa (PDF no Desktop do Gustavo, fora do git). A transcrição é
+`batel/informacoes-nutricionais.csv`. A V030 grava o nome e a caloria. Proteína, carboidrato e gordura ficam vazios.
+Nome igual ao do catálogo e que já tem caloria (o Tabule da TACO) não muda. Suco entra por copo de 200 ml; o restante,
+por 100 g, com o KCAL/100g impresso. O relatório está em `dados/relatorios/batel-importacao.md`.

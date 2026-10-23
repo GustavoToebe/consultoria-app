@@ -31,6 +31,12 @@ describe('dieta', () => {
     expect(item.kcal).toBe(133);
   });
 
+  it('nutriente ausente não vira zero no item', () => {
+    const semMacro = { ...pao, proteina: null, carboidrato: null, gordura: null };
+    const item = recalcularItem({ ...novoItem(semMacro), quantidade: 50 }, semMacro);
+    expect(item).toMatchObject({ kcal: 133, proteina: null, carboidrato: null, gordura: null });
+  });
+
   it('sem como converter, o valor fica vazio (não inventa)', () => {
     const semGramas = { ...pao, gramasPorUnidade: null };
     const item = recalcularItem({ ...novoItem(semGramas), quantidade: 2, unidade: 'ml' }, semGramas);

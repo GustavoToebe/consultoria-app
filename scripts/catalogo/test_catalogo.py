@@ -10,6 +10,7 @@ import comum  # noqa: E402
 import gerar_exercicios  # noqa: E402
 import gerar_taco  # noqa: E402
 import gerar_fatores  # noqa: E402
+import gerar_batel  # noqa: E402
 import imagens_exercicios  # noqa: E402
 
 
@@ -451,6 +452,66 @@ class FatoresTest(unittest.TestCase):
         self.assertEqual(fc, Decimal("1.21"))
         self.assertEqual(fcc, Decimal("2.00"))
         self.assertEqual(len(conflitos), 1)
+
+
+class BatelTest(unittest.TestCase):
+    def _linha(self, secao, nome, kcal_100g="344", kcal_porcao="103", peso="30"):
+        return {"secao": secao, "nome": nome, "peso_g": peso, "kcal_porcao": kcal_porcao,
+                "kcal_100g": kcal_100g, "nutricionista": "andrea"}
+
+    def test_nome_com_caloria_nao_entra_de_novo(self):
+        item = gerar_batel.preparar([self._linha("Saladas", "Tabule", "45", "22", "50")])[0]
+        novos, ja, so = gerar_batel.classificar([item], {"tabule": Decimal("57.45")})
+        self.assertEqual(novos, [])
+        self.assertEqual(so, [])
+        self.assertEqual(ja[0]["nome"], "Tabule")
+
+    def test_nome_novo_sai_com_caloria_e_macros_vazios(self):
+        item = gerar_batel.preparar([self._linha("Carnes", "Alcatra")])[0]
+        novos, ja, so = gerar_batel.classificar([item], {"arroz, tipo 1, cozido": Decimal("128.00")})
+        self.assertEqual(ja, [])
+        self.assertEqual(so, [])
+        self.assertEqual(novos[0]["kcal"], Decimal("344.00"))
+        sql = gerar_batel.gerar_sql(novos, so, "abc")
+        self.assertIn("null::numeric", sql)
+        self.assertNotIn("update catalogo_alimento set kcal", sql)
+
+    def test_sem_caloria_grava_so_a_caloria(self):
+        item = gerar_batel.preparar([self._linha("Carnes", "Alcatra")])[0]
+        novos, _, so = gerar_batel.classificar([item], {"alcatra": None})
+        self.assertEqual(novos, [])
+        self.assertEqual(so[0]["kcal"], Decimal("344.00"))
+        sql = gerar_batel.gerar_sql(novos, so, "abc")
+        self.assertIn("set kcal = 344.00", sql)
+        self.assertIn("and kcal is null", sql)
+        self.assertNotIn("proteina =", sql)
+
+    def test_arroz_branco_nao_e_o_arroz_da_taco(self):
+        item = gerar_batel.preparar([self._linha(
+            "Pratos quentes e acompanhamentos", "Arroz branco", "110", "55", "50")])[0]
+        novos, ja, _ = gerar_batel.classificar([item], {"arroz, tipo 1, cozido": Decimal("128.00")})
+        self.assertEqual(len(novos), 1)
+        self.assertEqual(ja, [])
+
+    def test_suco_repetido_leva_o_tipo_no_nome(self):
+        linhas = gerar_batel.preparar([
+            self._linha("Sucos de polpas com água", "Abacaxi", "", "70", ""),
+            self._linha("Sucos de polpas com leite condensado", "Abacaxi", "", "99", ""),
+        ])
+        self.assertEqual(linhas[0]["nome"], "Abacaxi, suco de polpa com água")
+        self.assertEqual(linhas[1]["nome"], "Abacaxi, suco de polpa com leite condensado")
+        self.assertEqual(linhas[0]["unidade"], "ml")
+        self.assertEqual(linhas[0]["kcal"], Decimal("70.00"))
+        novos, _, _ = gerar_batel.classificar(linhas, {})
+        self.assertEqual(len(novos), 2)
+
+    def test_transcricao_contra_o_catalogo_atual(self):
+        itens = gerar_batel.preparar(gerar_batel.ler_transcricao())
+        novos, ja, so = gerar_batel.classificar(itens, gerar_batel.ler_catalogo())
+        self.assertEqual([i["nome"] for i in ja], ["Tabule"])
+        self.assertEqual(so, [])
+        self.assertEqual(len(novos), 244)
+        self.assertTrue(all(i["kcal"] > 0 for i in novos))
 
 
 if __name__ == "__main__":
