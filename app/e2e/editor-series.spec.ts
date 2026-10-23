@@ -15,9 +15,13 @@ for (const largura of [390, 1280]) {
       [`PUT /receitas/${modelo.id}`]: (p, route) => { modelo = { ...modelo, ...p.corpo as Receita, versao: 2 }; return json(route, modelo); },
     });
     await page.goto(`/treinador/planejamento/modelo/${modelo.id}`);
+    await expect(page.getByText('Nenhuma série ainda.', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
+    // O bloco "Nova série" toma o lugar dos botões de baixo: só um "Adicionar série" na tela.
+    await expect(page.getByText('Nova série', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Adicionar série', exact: true })).toHaveCount(1);
     await page.getByRole('button', { name: 'FS', exact: true }).click();
-    await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await page.getByRole('button', { name: 'Uma série a mais', exact: true }).click();
     await page.getByRole('button', { name: 'Uma série a mais', exact: true }).click();
     const campo = (nome: string) => page.getByRole('textbox', { name: nome, exact: true });
@@ -28,14 +32,14 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: /3x3 - FS.*aberto/ }).click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await page.getByRole('button', { name: 'WS', exact: true }).click();
-    await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await page.getByRole('button', { name: /1x3 a 6 - WS.*aberto/ }).click();
     // A técnica não é um tipo: a série é WS e o rest pause vai dentro dela.
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Só técnica', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'WS', exact: true }).click();
     await page.getByRole('button', { name: 'Rest pause', exact: true }).click();
-    await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await expect(page.getByRole('button', { name: /1x3 a 6 - WS \+ Rest pause.*aberto/ })).toBeVisible();
     await expect(page.getByText(/Série 5 · WS · 3 a 6 reps · carga de trabalho · 1 RIR · Rest pause 20 s/)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

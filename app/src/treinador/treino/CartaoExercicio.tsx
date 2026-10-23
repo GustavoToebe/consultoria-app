@@ -138,14 +138,9 @@ export function CartaoExercicio(p: Props) {
             <Botao rotulo="Trocar" tipo="secundario" Icone={ArrowLeftRight} style={estilos.trocar} aoTocar={p.aoEscolherDaBiblioteca} />
           </View>
           <Escolha rotulo="Modalidade" compacta opcoes={OPCOES_DE_MODALIDADE} valor={e.modalidade} aoMudar={trocarModalidade} />
-          {cardio ? <Texto variante="pequeno">Cardio tem prescrição própria: duração, distância, ritmo, zona e intervalos. Trocar de ou para cardio apaga as séries.</Texto> : null}
-          {p.noGrupo && p.aoTirarDoGrupo ? (
-            <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
-          ) : null}
-          <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
           {!cardio ? (
             <Escolha
-              rotulo="Carga"
+              rotulo="Carga do exercício"
               opcoes={[
                 { valor: 'kg', rotulo: 'Em kg' },
                 { valor: 'nenhuma', rotulo: 'Sem carga (elástico, peso corporal)' },
@@ -154,6 +149,12 @@ export function CartaoExercicio(p: Props) {
               aoMudar={(unidade) => mudar({ unidade })}
             />
           ) : null}
+          {cardio ? <Texto variante="pequeno">Cardio tem prescrição própria: duração, distância, ritmo, zona e intervalos. Trocar de ou para cardio apaga as séries.</Texto> : null}
+          {p.noGrupo && p.aoTirarDoGrupo ? (
+            <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
+          ) : null}
+          <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
+          <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
           <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
           {!cardio ? (
             <Interruptor
@@ -164,6 +165,7 @@ export function CartaoExercicio(p: Props) {
             />
           ) : null}
           {!cardio ? <AvisoDoCampo mensagem={avisos.progressao} /> : null}
+          <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
           <Texto variante="secao">Execução (opcional)</Texto>
           <View style={estilos.linhaExecucao}>
             <View style={estilos.cadencia}>
@@ -248,4 +250,6 @@ const estilos = StyleSheet.create({
   linhaExecucao: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   cadencia: { flexGrow: 1, flexBasis: 220 },
   isometria: { width: 180 },
+  // Separa as partes do exercício (dados, séries, execução).
+  divisor: { height: StyleSheet.hairlineWidth, marginVertical: espaco(0.5) },
 });

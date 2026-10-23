@@ -55,6 +55,7 @@ const MODOS_DE_REPETICAO = [
  * cardio.
  */
 export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceita, semCarga = false }: Props) {
+  const { cores } = useTema();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const cardio = modalidade === 'CARDIO';
   const grupos = agrupar(series);
@@ -103,22 +104,24 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
       aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, cfg))}
       aoPercentuais={(j, min, max) => aoMudar(alterarPercentuais(series, g.inicio + j, min, max))}
       aoRemover={() => aoMudar(removerGrupo(series, g))} />)}
+    {series.length === 0 ? <Texto variante="suave">Nenhuma série ainda.</Texto> : null}
     <ErroDoCampo mensagem={validacao.daLista.series} />
     <AvisoDoCampo mensagem={validacao.avisosDaLista.series} />
-    {painel && !cardio ? <View style={estilos.painel}>
+    {/* Bloco próprio, para não se confundir com os campos do exercício; enquanto aberto, os botões de baixo somem. */}
+    {painel && !cardio ? <View style={[estilos.painel, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+      <Texto variante="bloco">Nova série</Texto>
       <Tipos rotulo="Tipo da série" opcoes={tipos} valor={tipoNovo} aoMudar={setTipoNovo} />
       <Texto variante="pequeno">O tipo diz para que a série serve. A técnica diz como executar.</Texto>
       <Escolha rotulo="Técnica" opcoes={opcoesDeTecnica(cfg)} valor={tecnicaNova} aoMudar={setTecnicaNova} />
       <LinhaDeAcoes>
-        <Botao rotulo="Adicionar" tipo="secundario" Icone={Plus} aoTocar={adicionar} desabilitado={cheio || !tipoNovo} motivo={motivoCheio ?? (!tipoNovo ? 'Escolha o tipo da série.' : undefined)} />
+        <Botao rotulo="Adicionar série" tipo="secundario" Icone={Plus} aoTocar={adicionar} desabilitado={cheio || !tipoNovo} motivo={motivoCheio ?? (!tipoNovo ? 'Escolha o tipo da série.' : undefined)} />
         <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setPainel(false)} />
       </LinhaDeAcoes>
-    </View> : null}
-    <LinhaDeAcoes>
+    </View> : <LinhaDeAcoes>
       <Botao rotulo={cardio ? 'Adicionar cardio' : 'Adicionar série'} tipo="secundario" Icone={Plus} desabilitado={cheio} motivo={motivoCheio}
         aoTocar={cardio ? adicionarCardio : abrirPainel} />
       {aoUsarReceita && !cardio ? <Botao rotulo="Usar receita" tipo="secundario" Icone={NotebookTabs} aoTocar={aoUsarReceita} /> : null}
-    </LinhaDeAcoes>
+    </LinhaDeAcoes>}
   </View>;
 }
 
@@ -258,7 +261,7 @@ function PreviaDoAluno({ grupo: g, series, config, semCarga }: { grupo: GrupoDeS
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(1.5) },
-  painel: { gap: espaco(1.5) },
+  painel: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1.5) },
   grupo: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1), gap: espaco(1.5) },
   secao: { gap: espaco(1) },
   bloco: { gap: espaco(1) },

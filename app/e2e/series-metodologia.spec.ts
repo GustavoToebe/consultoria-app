@@ -53,7 +53,7 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Só técnica', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: 'WS', exact: true }).click();
     await page.getByRole('button', { name: 'Rest pause', exact: true }).click();
-    await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
+    await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await expect(page.getByText(/Série 2 · WS · 3 a 6 reps · carga de trabalho · 1 RIR · Rest pause 20 s/)).toBeVisible();
     await page.getByRole('button', { name: 'Cluster', exact: true }).click();
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
