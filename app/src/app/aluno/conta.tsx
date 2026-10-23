@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
+import { CartaoUsoDeImagem } from '../../aluno/CartaoUsoDeImagem';
 import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
 import { CartaoMeuPlano } from '../../aluno/financeiro/CartaoMeuPlano';
 import { useRetornoDoPagamento } from '../../aluno/financeiro/useRetornoDoPagamento';
@@ -74,6 +75,7 @@ export default function ContaAluno() {
       </View>
       <Botao rotulo="Sair" tipo="secundario" Icone={LogOut} cheio aoTocar={() => setConfirmandoSaida(true)} />
       <ConfirmarSaida visivel={confirmandoSaida} aoFechar={() => setConfirmandoSaida(false)} aviso={avisoAoSairComPendencias(treinosNaoEnviados(registros), diasDeMobilidadeNaoEnviados(mobilidadeNoAparelho))} />
+      <CartaoUsoDeImagem />
       <CartaoExcluirConta />
       <Folha visivel={preferencias} titulo="Aparência e preferências" aoFechar={() => abrirPreferencias(false)}>
         <PreferenciasDoApp comTitulo={false} />

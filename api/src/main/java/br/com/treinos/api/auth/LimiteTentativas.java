@@ -91,6 +91,15 @@ public class LimiteTentativas {
         porIp("refresh-ip", ip, limites.refreshIp());
     }
 
+    /** Imagem de comparação de fotos: 60 por usuário por hora. A janela é desta ação, não a das rotas públicas. */
+    public void comparacaoDeFotos(java.util.UUID usuarioId) {
+        long agora = clock.millis();
+        var estado = contador.tentar(chave("comparacao-fotos", usuarioId == null ? "" : usuarioId.toString()), agora, 3_600_000L);
+        if (estado.tentativas() > 60) {
+            throw new MuitasRequisicoesException(segundosAte(estado.ateMs(), agora));
+        }
+    }
+
     /**
      * Verificação humana: antes de chamar a Cloudflare, recusa o IP que já gastou as falhas da janela (não conta nada, assim
      * quem está bloqueado também não gera chamada ao siteverify).

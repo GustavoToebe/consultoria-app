@@ -233,6 +233,20 @@ export interface AlunoDetalhe {
   emailDeAcesso: string | null;
   /** O treinador definiu uma senha provisória e o aluno ainda não entrou para trocá-la. */
   aguardandoPrimeiroAcesso: boolean;
+  /** Quando o aluno autorizou o uso das fotos. Ausente ou nulo = não autorizado. Só com `ALUNO_SENSIVEL_LER`. */
+  usoDeImagemAutorizadoEm?: string | null;
+}
+
+/** Foto já enviada na linha do tempo (`GET /alunos/{id}/fotos` e `GET /aluno/fotos/linha-do-tempo`). */
+export interface FotoDaLinha {
+  fotoId: string;
+  origem: 'ATUALIZACAO' | 'ANAMNESE';
+  origemId: string;
+  data: string;
+  perguntaId: string;
+  posicao: string;
+  ordem: number;
+  pesoKg: number | null;
 }
 
 export interface AlunoRequest {

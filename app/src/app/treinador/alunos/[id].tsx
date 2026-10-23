@@ -17,6 +17,7 @@ import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
 import { ResumoDoAluno } from '../../../treinador/ResumoDoAluno';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
+import { CartaoFotos } from '../../../fotos/CartaoFotos';
 import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
 import { CartaoPastas, useRenovarPasta } from '../../../treinador/CartaoPastas';
@@ -89,6 +90,9 @@ export default function FichaAluno() {
           ) : null}
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
+          {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? (
+            <CartaoFotos alunoId={aluno.id} autorizadoEm={aluno.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />
+          ) : null}
           {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoEvolucaoRespostas alunoId={aluno.id} /> : null}
           {duasColunas ? (
             <View style={estilos.colunas}>

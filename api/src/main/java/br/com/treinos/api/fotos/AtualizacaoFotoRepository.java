@@ -24,6 +24,20 @@ interface AtualizacaoFotoRepository extends JpaRepository<AtualizacaoFoto, UUID>
     List<AtualizacaoFoto> findByAlunoIdOrderByCriadaEmAsc(UUID alunoId);
 
     /**
+     * Fotos já ligadas do aluno, com a atualização ou a anamnese e o conteúdo da versão respondida.
+     * Pendente (pergunta nula) e removida ficam de fora. Uma consulta só; o filtro de estado fecha no serviço.
+     */
+    @Query("select new br.com.treinos.api.fotos.LinhaDaFoto(f.id, f.perguntaId, f.criadaEm, a.id, a.dataAtualizacao, "
+            + "a.estado, a.respostas, va.conteudo, n.id, n.situacao, n.enviadaEm, n.respostas, vn.conteudo) "
+            + "from AtualizacaoFoto f "
+            + "left join Atualizacao a on a.id = f.atualizacaoId "
+            + "left join QuestionarioVersao va on va.id = a.questionarioVersaoId "
+            + "left join Anamnese n on n.id = f.anamneseId "
+            + "left join QuestionarioVersao vn on vn.id = n.questionarioVersaoId "
+            + "where f.alunoId = :alunoId and f.removidaEm is null and f.perguntaId is not null")
+    List<LinhaDaFoto> linhaDoTempo(UUID alunoId);
+
+    /**
      * Liga a foto pendente à resposta. Um UPDATE só, com a condição dentro: a foto precisa ser do aluno, da pasta, estar
      * pendente e não removida; zero linhas = recusa. Atômico contra a limpeza das pendentes (que também é um UPDATE).
      */

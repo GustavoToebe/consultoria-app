@@ -38,6 +38,7 @@ import type {
   AtualizacaoDaLista,
   EvolucaoRespostas,
   ConfiguracaoDeFotos,
+  FotoDaLinha,
   ConfiguracaoPublica,
   CriarQuestionarioRequest,
   AnamneseDetalhe,
@@ -246,6 +247,14 @@ export const baixarFotoDePerfilDoAluno = (alunoId: string) =>
 
 export const baixarFotoDoTreinador = (atualizacaoId: string, fotoId: string) =>
   requisicao<Blob>(`/atualizacoes/${seg(atualizacaoId)}/fotos/${seg(fotoId)}`, { binario: true, limiteMs: 60000 });
+
+export const fotosDoAluno = (id: string) => requisicao<FotoDaLinha[]>(`/alunos/${seg(id)}/fotos`);
+export const linhaDoTempoDeFotos = () => requisicao<FotoDaLinha[]>('/aluno/fotos/linha-do-tempo');
+export const usoDeImagem = () => requisicao<{ autorizadoEm: string | null }>('/aluno/uso-de-imagem');
+export const definirUsoDeImagem = (autorizado: boolean) =>
+  requisicao<{ autorizadoEm: string | null }>('/aluno/uso-de-imagem', { metodo: 'PUT', corpo: { autorizado } });
+export const gerarComparacao = (alunoId: string, fotoIds: string[], comLogo: boolean) =>
+  requisicao<Blob>(`/alunos/${seg(alunoId)}/fotos/comparacao`, { metodo: 'POST', corpo: { fotoIds, comLogo }, binario: true, limiteMs: 60000 });
 export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${seg(id)}`);
 export const responderAtualizacao = (id: string, texto: string, versao: number) =>
   requisicao<Atualizacao>(`/atualizacoes/${seg(id)}/feedback`, { metodo: 'PUT', corpo: { texto, versao } });

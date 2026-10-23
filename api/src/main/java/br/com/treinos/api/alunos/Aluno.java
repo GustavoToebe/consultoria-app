@@ -75,6 +75,10 @@ public class Aluno {
     @Column(name = "anonimizado_em")
     private Instant anonimizadoEm;
 
+    /** Quando o aluno autorizou o uso das fotos de evolução para divulgação. Nulo = não autorizado. */
+    @Column(name = "uso_de_imagem_autorizado_em")
+    private Instant usoDeImagemAutorizadoEm;
+
     @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "convite_hash", length = 64)
     private String conviteHash;
@@ -245,7 +249,17 @@ public class Aluno {
         this.ativo = false;
         if (this.inativadoEm == null) this.inativadoEm = quando;
         this.anonimizadoEm = quando;
+        this.usoDeImagemAutorizadoEm = null;
         this.atualizadoEm = quando;
+    }
+
+    public Instant getUsoDeImagemAutorizadoEm() {
+        return usoDeImagemAutorizadoEm;
+    }
+
+    /** Grava o instante da autorização, ou nulo quando o aluno desliga. */
+    public void definirUsoDeImagem(Instant quando) {
+        this.usoDeImagemAutorizadoEm = quando;
     }
 
     public void novoConvite(String hash, Instant expiraEm) {

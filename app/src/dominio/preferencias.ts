@@ -34,6 +34,8 @@ export interface Preferencias {
   diasSemRegistro: number;
   /** Folha do PDF da dieta: Simples ou Detalhado, período e colunas de fator. */
   pdfDieta: PdfDietaPreferida;
+  /** Folha "Gerar imagem": incluir a logo da consultoria. Sem logo, a caixinha fica desligada. */
+  logoNaComparacao: boolean;
 }
 
 /** Valores que o cartão "Sem registro" oferece; a API aceita de 1 a 90. */
@@ -52,6 +54,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   barrasEscuras: true,
   diasSemRegistro: 7,
   pdfDieta: { modo: 'simples', periodo: 'semana', fatores: true },
+  logoNaComparacao: true,
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'SISTEMA'];
@@ -84,6 +87,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     barrasEscuras: typeof o.barrasEscuras === 'boolean' ? o.barrasEscuras : PREFERENCIAS_PADRAO.barrasEscuras,
     diasSemRegistro: typeof o.diasSemRegistro === 'number' && OPCOES_DIAS_SEM_REGISTRO.includes(o.diasSemRegistro) ? o.diasSemRegistro : PREFERENCIAS_PADRAO.diasSemRegistro,
     pdfDieta: pdfDietaDe(o.pdfDieta),
+    logoNaComparacao: typeof o.logoNaComparacao === 'boolean' ? o.logoNaComparacao : PREFERENCIAS_PADRAO.logoNaComparacao,
   };
 }
 

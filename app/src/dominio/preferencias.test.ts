@@ -15,10 +15,15 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, barrasEscuras: false, diasSemRegistro: 14, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false } };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, barrasEscuras: false, diasSemRegistro: 14, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
+  });
+
+  it('logo na comparação: valor inválido volta ligada', () => {
+    expect(normalizarPreferencias({ logoNaComparacao: 'sim' }).logoNaComparacao).toBe(true);
+    expect(normalizarPreferencias({ logoNaComparacao: false }).logoNaComparacao).toBe(false);
   });
 
   it('pdf da dieta: valor inválido volta a simples, 7 dias e fatores ligados', () => {

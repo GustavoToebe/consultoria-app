@@ -26,6 +26,7 @@ import { Abas } from '../../ui/Abas';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { NoPlano } from '../../ui/NoPlano';
+import { CartaoFotos } from '../../fotos/CartaoFotos';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -102,6 +103,7 @@ export default function HistoricoAluno() {
   return (
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Histórico" />
+      <CartaoFotos />
       <HistoricoAtualizacoes />
       {naoEnviados.length ? (
         <Cartao titulo="Ainda não enviados">

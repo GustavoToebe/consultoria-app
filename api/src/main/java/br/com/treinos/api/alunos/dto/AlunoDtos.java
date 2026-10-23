@@ -104,7 +104,9 @@ public final class AlunoDtos {
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL) String observacoes, boolean ativo,
                                boolean temAcesso, Instant conviteExpiraEm, Long versao,
                                Integer diasAtualizacao,UUID responsavelId,UUID questionarioId,boolean anonimizado,
-                               String emailDeAcesso, boolean aguardandoPrimeiroAcesso) {
+                               String emailDeAcesso, boolean aguardandoPrimeiroAcesso,
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                               Instant usoDeImagemAutorizadoEm) {
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
@@ -120,7 +122,8 @@ public final class AlunoDtos {
                     a.isAtivo(), a.getUsuarioId() != null, conviteValido ? a.getConviteExpiraEm() : null,
                     a.getVersao(), a.getDiasAtualizacao(),a.getResponsavelId(),a.getQuestionarioId(),a.isAnonimizado(),
                     // Anonimizado: o e-mail do usuário é só o marcador da anonimização.
-                    ler && usuario != null && !a.isAnonimizado() ? usuario.getEmail() : null, usuario != null && usuario.isTrocarSenha());
+                    ler && usuario != null && !a.isAnonimizado() ? usuario.getEmail() : null, usuario != null && usuario.isTrocarSenha(),
+                    sensivel ? a.getUsoDeImagemAutorizadoEm() : null);
         }
     }
 
