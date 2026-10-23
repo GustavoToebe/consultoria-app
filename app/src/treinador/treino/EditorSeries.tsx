@@ -4,7 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import type { Configuracao, Serie } from '../../api/tipos';
 import { agrupar, descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { adicionarSerie, alterarGrupo, alterarPercentuais, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
-import { codigoTrabalho, explicacaoDaTecnica, explicacaoDoTipo, papelDe, padraoDaTecnica } from '../../dominio/metodologia';
+import { explicacaoDoCatalogo } from '../../dominio/catalogoMetodologia';
+import { codigoTrabalho, explicacaoDaTecnica, explicacaoDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { useTema } from '../../tema/TemaProvider';
@@ -112,7 +113,7 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
       <Texto variante="bloco">Nova série</Texto>
       <Tipos rotulo="Tipo da série" opcoes={tipos} valor={tipoNovo} aoMudar={setTipoNovo} />
       <Texto variante="pequeno">O tipo diz para que a série serve. A técnica diz como executar.</Texto>
-      <Escolha rotulo="Técnica" opcoes={opcoesDeTecnica(cfg)} valor={tecnicaNova} aoMudar={setTecnicaNova} />
+      <Tecnicas rotulo="Técnica" opcoes={opcoesDeTecnica(cfg)} valor={tecnicaNova} aoMudar={setTecnicaNova} />
       <LinhaDeAcoes>
         <Botao rotulo="Adicionar série" tipo="secundario" Icone={Plus} aoTocar={adicionar} desabilitado={cheio || !tipoNovo} motivo={motivoCheio ?? (!tipoNovo ? 'Escolha o tipo da série.' : undefined)} />
         <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setPainel(false)} />
@@ -135,6 +136,21 @@ function Tipos({ rotulo, opcoes, valor, aoMudar }: {
       valor={valor} aoMudar={aoEscolher} rotuloDoValor="Escolha o tipo" />;
   }
   return <Escolha rotulo={rotulo} opcoes={opcoes.map((o) => ({ valor: o.valor as string | null, rotulo: o.rotulo }))} valor={valor} aoMudar={aoEscolher} />;
+}
+
+/** "Nenhuma" e as técnicas da metodologia. Acima de oito, a mesma folha dos tipos; a de fora fica com o detalhe. */
+function Tecnicas({ rotulo, opcoes, valor, aoMudar }: {
+  rotulo: string; opcoes: ReturnType<typeof opcoesDeTecnica>; valor: EscolhaDeTecnica; aoMudar: (v: EscolhaDeTecnica) => void;
+}) {
+  const aoEscolher = (v: EscolhaDeTecnica | null) => { if (v) aoMudar(v); };
+  const fora = opcoes.find((o) => o.valor === valor)?.detalhe;
+  const escolha = opcoes.length > OPCOES_PARA_BUSCAR
+    ? <EscolhaEmFolha rotulo={rotulo} opcoes={opcoes.map((o) => ({ valor: o.valor, rotulo: o.rotulo, detalhe: o.detalhe }))} valor={valor} aoMudar={aoEscolher} rotuloDoValor="Escolha a técnica" />
+    : <Escolha rotulo={rotulo} opcoes={opcoes.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))} valor={valor} aoMudar={aoEscolher} />;
+  return <>
+    {escolha}
+    {fora ? <Texto variante="pequeno">{fora}</Texto> : null}
+  </>;
 }
 
 function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
@@ -164,7 +180,8 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMa
   const selo = campos.size > 0 ? { texto: `${campos.size} ${campos.size === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' as const }
     : Object.keys(avisos).length > 0 ? { texto: 'Aviso', tipo: 'atencao' as const } : undefined;
   const explicacao = explicacaoDoTipo(config, s.tipo);
-  const tecnicaTexto = explicacaoDaTecnica(config, s.tecnica?.tipo ?? 'REST_PAUSE');
+  const tecnicaTexto = s.tecnica ? (explicacaoDaTecnica(config, s.tecnica.tipo) || (tecnicaDescritiva(s.tecnica.tipo) ? explicacaoDoCatalogo(s.tecnica.tipo) : null)) : null;
+  const descritiva = tecnicaDescritiva(s.tecnica?.tipo);
   const errosDaTecnica = subProblemas(erros, 'tecnica');
   const aoTecnica = (v: EscolhaDeTecnica) => aoAlterar({ tecnica: v === 'NENHUMA' ? null : tecnicaVazia(v, padraoDaTecnica(config, v)) });
   const referencias = opcoesDeReferencia(series, g.inicio, config);
@@ -221,10 +238,10 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMa
       </Secao> : null}
 
       {secoes.tecnica ? <Secao titulo="Técnica">
-        <Escolha rotulo="Técnica da série" opcoes={opcoesDeTecnica(config)} valor={s.tecnica?.tipo ?? 'NENHUMA'} aoMudar={aoTecnica} />
+        <Tecnicas rotulo="Técnica da série" opcoes={opcoesDeTecnica(config, s.tecnica?.tipo)} valor={s.tecnica?.tipo ?? 'NENHUMA'} aoMudar={aoTecnica} />
         {s.tecnica ? <>
           {tecnicaTexto ? <Texto variante="pequeno">{tecnicaTexto}</Texto> : null}
-          <CamposDaTecnica tecnica={s.tecnica} erros={errosDaTecnica} aoMudar={(tecnica) => aoAlterar({ tecnica })} />
+          {descritiva ? null : <CamposDaTecnica tecnica={s.tecnica} erros={errosDaTecnica} aoMudar={(tecnica) => aoAlterar({ tecnica })} />}
         </> : null}
       </Secao> : null}
 

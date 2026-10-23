@@ -201,7 +201,7 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
             var primeira = Flyway.configure().dataSource(urlDe(banco), migrador, SENHA_MIGRADOR).locations("classpath:db/migration")
                     .placeholders(papel).load().migrate();
             assertThat(primeira.success).isTrue();
-            assertThat(primeira.migrationsExecuted).isEqualTo(25);
+            assertThat(primeira.migrationsExecuted).isEqualTo(26);
             try (Connection c = como(banco, app, SENHA_APP); Statement st = c.createStatement()) {
                 assertThatThrownBy(() -> st.executeQuery("SELECT * FROM flyway_schema_history")).hasMessageContaining("permission denied");
             }

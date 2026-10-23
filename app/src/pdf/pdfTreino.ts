@@ -1,5 +1,6 @@
 import type { Configuracao, ConteudoTreino, ExercicioPlano, Marca, Serie, Sessao } from '../api/tipos';
 import { agrupar, descreverGrupo, textosDeTecnica } from '../dominio/agrupamento';
+import { explicacaoDoCatalogo } from '../dominio/catalogoMetodologia';
 import { gruposDaSessao } from '../dominio/combinacoes';
 import { rotuloDescanso } from '../dominio/descanso';
 import { DIAS_SEMANA } from '../dominio/editorTreino';
@@ -90,7 +91,7 @@ export function blocoGlossario(conteudo: ConteudoTreino, config: Configuracao): 
   const esforcos = esforcosUsados(conteudo);
   const itens: { nome: string; texto: string | null }[] = [
     ...usados.tipos.map((codigo) => ({ nome: nomeDoTipo(config, codigo), texto: explicacaoDoTipo(config, codigo) })),
-    ...usados.tecnicas.map((t) => ({ nome: nomeDaTecnica(config, t), texto: explicacaoDaTecnica(config, t) })),
+    ...usados.tecnicas.map((t) => ({ nome: nomeDaTecnica(config, t), texto: explicacaoDaTecnica(config, t) || explicacaoDoCatalogo(t) })),
     ...usados.combinacoes.map((c) => ({ nome: nomeDaCombinacao(config, c), texto: explicacaoDaCombinacao(config, c) })),
     ...(esforcos.rir ? [{ nome: 'RIR', texto: TEXTO_RIR }] : []),
     ...(esforcos.rpe ? [{ nome: 'RPE', texto: TEXTO_RPE }] : []),

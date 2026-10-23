@@ -69,7 +69,7 @@ export function CartaoGrupo(p: Props) {
       {explicacao ? <Texto variante="suave">{explicacao}</Texto> : null}
       <ErroDoCampo mensagem={p.erros.geral} />
 
-      <Escolha rotulo="Tipo de grupo" compacta opcoes={opcoesDeGrupo(p.config).map((o) => {
+      <Escolha rotulo="Tipo de grupo" compacta opcoes={opcoesDeGrupo(p.config, g.tecnica).map((o) => {
         const motivo = o.valor === g.tecnica ? null : motivoParaTrocarTipoDoGrupo(p.tamanho, o.valor, p.config);
         return { valor: o.valor, rotulo: o.rotulo, desabilitada: !!motivo, motivo: motivo ?? undefined };
       })} valor={g.tecnica} aoMudar={(tecnica) => p.aoMudar({ tecnica })} />

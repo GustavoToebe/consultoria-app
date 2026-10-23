@@ -1,5 +1,6 @@
 import type { Cardio, Carga, Esforco, ModoDeCarga, Serie, Tecnica } from '../api/tipos';
 import { somaDosBlocos } from './blocos';
+import { tecnicaDescritiva, TIPOS_DE_TECNICA } from './metodologia';
 
 /**
  * Regras de uma série SOZINHA, as mesmas do servidor (`Carga.problemas`, `Esforco.problemas`, `Tecnica.problemas`,
@@ -89,6 +90,8 @@ export function problemasDoCardio(c: Cardio | null | undefined): Problemas {
 export function problemasDaTecnica(t: Tecnica | null | undefined, completa = true): Problemas {
   const p: Problemas = {};
   if (!t) return p;
+  if (!(TIPOS_DE_TECNICA as readonly string[]).includes(t.tipo)) return { tipo: 'Técnica desconhecida.' };
+  if (tecnicaDescritiva(t.tipo)) return p;
   const faixa = (campo: keyof Tecnica, min: number, max: number, mensagem: string, obrigatorio: boolean) => {
     const v = t[campo] as number | null | undefined;
     if (v == null ? obrigatorio : !dentro(v, min, max)) p[campo] = mensagem;
@@ -133,7 +136,7 @@ export function problemasDaTecnica(t: Tecnica | null | undefined, completa = tru
       faixa('repsAssistidas', 1, 5, 'Repetições assistidas entre 1 e 5.', completa);
       break;
     default:
-      return { tipo: 'Técnica desconhecida: use rest pause, cluster, drop-set, myo-reps, partial reps ou forced reps.' };
+      return p;
   }
   return p;
 }

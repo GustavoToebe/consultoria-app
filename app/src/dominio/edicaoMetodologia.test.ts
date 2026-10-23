@@ -102,13 +102,14 @@ test('reps vazias somem ao salvar; reps incompletas, explicação longa e técni
   expect(problemasDaMetodologia(config)['tipos[0].explicacao']).toContain('500');
   config.tipos[0].explicacao = null;
   config.tecnicas[1] = config.tecnicas[0];
-  expect(problemasDaMetodologia(config).tecnicas).toContain('seis técnicas');
+  expect(problemasDaMetodologia(config).tecnicas).toContain('sem repetir');
 });
 
-test('as sete combinações, uma de cada', () => {
+test('zero técnicas e zero combinações são válidas; repetir combinação não', () => {
   const config = copia();
-  config.combinacoes = config.combinacoes.slice(1);
-  expect(problemasDaMetodologia(config).combinacoes).toContain('sete combinações');
+  config.tecnicas = [];
+  config.combinacoes = [];
+  expect(problemasDaMetodologia(config)).toEqual({});
   const repetida = copia();
   repetida.combinacoes[1] = repetida.combinacoes[0];
   expect(problemasDaMetodologia(repetida).combinacoes).toBeDefined();

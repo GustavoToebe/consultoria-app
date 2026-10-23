@@ -22,10 +22,17 @@ interface Props {
 /** Escolhe o tipo do grupo e os exercícios (soltos, um ao lado do outro). O botão só liga quando o grupo é válido e diz por quê. */
 export function FolhaCriarGrupo({ sessao, config, aoFechar, aoCriar }: Props) {
   const opcoes = opcoesDeGrupo(config);
-  const [tecnica, setTecnica] = useState<TecnicaDeGrupo>('SUPERSET');
+  const [tecnica, setTecnica] = useState<TecnicaDeGrupo>(opcoes[0]?.valor ?? 'SUPERSET');
   const [marcados, setMarcados] = useState<ReadonlySet<number>>(new Set());
   const [voltas, setVoltas] = useState<number | null>(null);
   const escolhida = opcoes.find((o) => o.valor === tecnica) ?? opcoes[0];
+  if (!escolhida) {
+    return (
+      <Folha visivel titulo="Criar grupo de exercícios" aoFechar={aoFechar}>
+        <Texto variante="suave">A metodologia não tem combinações.</Texto>
+      </Folha>
+    );
+  }
   const indices = [...marcados].sort((a, b) => a - b);
   const motivo = motivoParaCriarGrupo(sessao, indices, tecnica, voltas, config);
   const alternar = (i: number, marcar: boolean) => setMarcados((atual) => { const novo = new Set(atual); if (marcar) novo.add(i); else novo.delete(i); return novo; });

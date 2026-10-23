@@ -9,7 +9,11 @@ const lista = (v: unknown, conferir: (x: unknown) => boolean) => Array.isArray(v
 const todos = (v: Objeto, chaves: readonly string[], conferir: (x: unknown) => boolean) => chaves.every((k) => conferir(v[k]));
 
 const MODOS_DE_CARGA = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'NENHUMA'];
-const TIPOS_DE_TECNICA = ['REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS'];
+const TIPOS_DE_TECNICA = [
+  'REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS',
+  'NEGATIVA', 'SUPER_SLOW', 'VINTE_E_UM', 'EMOM', 'PIRAMIDE_CRESCENTE', 'PIRAMIDE_DECRESCENTE',
+  'PIRAMIDE_TRUNCADA', 'DUPLA_PROGRESSAO', 'GVT', 'FST7', 'ESPECIALIZACAO',
+];
 const TECNICAS_DE_GRUPO = ['SUPERSET', 'AGONISTA_ANTAGONISTA', 'TRI_SET', 'GIANT_SET', 'CIRCUITO', 'PRE_EXAUSTAO', 'POS_EXAUSTAO'];
 const PAPEIS = ['AQUECIMENTO', 'PREPARACAO', 'TRABALHO', 'POS_TRABALHO', 'OUTRO'];
 const REGIOES = ['ALONGADA', 'ENCURTADA', 'LIVRE'];
@@ -88,7 +92,9 @@ function metodologia(v: unknown): boolean {
     objeto(v) &&
     campos(v, ['tipos', 'tecnicas', 'combinacoes', 'arredondamentoKg', 'instrucoesTreino', 'rodapePdf']) &&
     lista(v.tipos, tipoDeSerie) &&
+    Array.isArray(v.tecnicas) && v.tecnicas.length <= 17 &&
     lista(v.tecnicas, (t) => objeto(t) && campos(t, ['tipo', 'nome', 'explicacao', 'padrao']) && TIPOS_DE_TECNICA.includes(String(t.tipo)) && typeof t.nome === 'string' && texto(t.explicacao) && tecnica(t.padrao)) &&
+    Array.isArray(v.combinacoes) && v.combinacoes.length <= 7 &&
     lista(v.combinacoes, (c) => objeto(c) && campos(c, ['tipo', 'nome', 'explicacao']) && TECNICAS_DE_GRUPO.includes(String(c.tipo)) && typeof c.nome === 'string' && texto(c.explicacao)) &&
     typeof v.arredondamentoKg === 'number' &&
     texto(v.instrucoesTreino) &&

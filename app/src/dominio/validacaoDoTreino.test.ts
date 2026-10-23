@@ -70,6 +70,23 @@ describe('exercício', () => {
     expect(caminhos(validarExercicio(comSeries([forced]), null).avisos)).toEqual(['series[0].tecnica']);
   });
 
+  it('técnica fora da metodologia é aviso, não erro; sem metodologia não avisa', () => {
+    const e = comSeries([ws('a', { tecnica: { tipo: 'NEGATIVA' } }), ws('b', { tecnica: { tipo: 'NEGATIVA' } })]);
+    const r = validarExercicio(e, CONFIGURACAO_PADRAO);
+    expect(r.erros).toEqual([]);
+    expect(r.avisos).toHaveLength(1);
+    expect(r.avisos[0].caminho).toBe('series[0].tecnica');
+    expect(r.avisos[0].mensagem).toContain('não está na metodologia do plano');
+    expect(validarExercicio(e, null).avisos.filter((a) => a.mensagem.includes('não está na metodologia'))).toEqual([]);
+  });
+
+  it('cada técnica descritiva, mesmo com campos de outra, publica sem erro de técnica', () => {
+    for (const tipo of ['NEGATIVA', 'SUPER_SLOW', 'VINTE_E_UM', 'EMOM', 'PIRAMIDE_CRESCENTE', 'PIRAMIDE_DECRESCENTE', 'PIRAMIDE_TRUNCADA', 'DUPLA_PROGRESSAO', 'GVT', 'FST7', 'ESPECIALIZACAO'] as const) {
+      const e = comSeries([ws('a', { tecnica: { tipo, pausaSegundos: 20, pausas: 2, blocos: [4, 2], quedas: 1 } })]);
+      expect(validarExercicio(e, null).erros.filter((x) => x.caminho.startsWith('series[0].tecnica'))).toEqual([]);
+    }
+  });
+
   it('exercício de cardio: só a prescrição de cardio e nada das regras de carga', () => {
     const cardio = serie('c', { tipo: null, repsMin: null, repsMax: null, carga: null, cardio: { duracaoMin: 20 } });
     expect(validarExercicio(comSeries([cardio], { modalidade: 'CARDIO', progressao: false }), CONFIGURACAO_PADRAO)).toEqual({ erros: [], avisos: [] });
@@ -99,6 +116,15 @@ describe('grupos da sessão', () => {
     expect(erros(sessao('s', [ex('a', 'g'), ex('b', 'g'), ex('c')], [grupo('g', 'SUPERSET')]))).toEqual([]);
     expect(erros(sessao('s', [ex('a', 'g'), ex('b', 'g')], [grupo('g', 'PRE_EXAUSTAO')]))).toEqual([]);
     expect(erros(sessao('s', [ex('a', 'g'), ex('b', 'g'), ex('c', 'g')], [grupo('g', 'CIRCUITO', { voltas: 3, descansoAposSegundos: 60 })]))).toEqual([]);
+  });
+
+  it('combinação fora da metodologia é aviso, não erro', () => {
+    const config = { ...CONFIGURACAO_PADRAO, combinacoes: [] };
+    const r = validarSessao(sessao('s', [ex('a', 'g'), ex('b', 'g')], [grupo('g', 'SUPERSET')]), config);
+    expect(r.erros).toEqual([]);
+    expect(r.avisos[0]?.caminho).toBe('grupos[0].tecnica');
+    expect(r.avisos[0]?.mensagem).toContain('não está na metodologia do plano');
+    expect(validarSessao(sessao('s', [ex('a', 'g'), ex('b', 'g')], [grupo('g', 'SUPERSET')]), null).avisos.filter((a) => a.mensagem.includes('não está na metodologia'))).toEqual([]);
   });
 
   it('circuito: voltas diferentes das séries de um membro só avisa (o aluno registra uma série por volta)', () => {

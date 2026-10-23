@@ -113,7 +113,8 @@ class MetodologiaTest {
 
     @Test
     void padraoTemAsSeisTecnicasEAsSeteCombinacoesEPassaNaValidacao() {
-        assertThat(PADRAO.tecnicas()).extracting(TecnicaDaMetodologia::tipo).containsExactlyElementsOf(ConteudoTreino.TECNICAS);
+        assertThat(PADRAO.tecnicas()).extracting(TecnicaDaMetodologia::tipo)
+                .containsExactlyElementsOf(ConteudoTreino.ESTRUTURADAS);
         assertThat(PADRAO.tecnica("REST_PAUSE").padrao().pausaSegundos()).isEqualTo(20);
         assertThat(PADRAO.tecnica("REST_PAUSE").padrao().pausas()).isEqualTo(1);
         assertThat(PADRAO.tecnica("CLUSTER").explicacao()).contains("Muscle Round");
@@ -251,8 +252,9 @@ class MetodologiaTest {
     void tecnicasSaoAsSeisSemRepetirComPadraoDoProprioTipo() {
         TecnicaDaMetodologia restPause = PADRAO.tecnica("REST_PAUSE");
         List<TecnicaDaMetodologia> outras = PADRAO.tecnicas().stream().filter(t -> !t.tipo().equals("REST_PAUSE")).toList();
-        recusa(comTecnicas(outras), "precisa das seis");
-        recusa(comTecnicas(List.of(restPause)), "precisa das seis");
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTecnicas(List.of())));
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTecnicas(List.of(restPause))));
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTecnicas(outras)));
         List<TecnicaDaMetodologia> repetida = new ArrayList<>(PADRAO.tecnicas());
         repetida.add(restPause);
         recusa(comTecnicas(repetida), "sem repetir");
@@ -281,6 +283,26 @@ class MetodologiaTest {
                         Tecnica.cluster(null, 10, 5))))));
     }
 
+    @Test
+    void tecnicaDescritivaNaoTemPadraoETipoDesconhecidoERecusado() {
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comTecnicas(List.of(
+                new TecnicaDaMetodologia("NEGATIVA", "Negativa", "Desça a carga devagar.", null)))));
+        recusa(comTecnicas(List.of(new TecnicaDaMetodologia("NEGATIVA", "Negativa", null, Tecnica.vazia("NEGATIVA")))),
+                "não tem padrão");
+        recusa(comTecnicas(List.of(new TecnicaDaMetodologia("PIRAMIDE", "Pirâmide", null, null))), "desconhecida");
+        List<TecnicaDaMetodologia> repetida = List.of(
+                new TecnicaDaMetodologia("NEGATIVA", "Negativa", null, null),
+                new TecnicaDaMetodologia("NEGATIVA", "Outra negativa", null, null));
+        recusa(comTecnicas(repetida), "sem repetir");
+    }
+
+    @Test
+    void zeroTecnicasEZeroCombinacoesEValido() {
+        ConfiguracaoConsultoria vazia = new ConfiguracaoConsultoria(PADRAO.tipos(), List.of(), List.of(),
+                PADRAO.arredondamentoKg(), "", "");
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(vazia));
+    }
+
     private static List<TecnicaDaMetodologia> trocando(String tipo, TecnicaDaMetodologia nova) {
         return PADRAO.tecnicas().stream().map(t -> t.tipo().equals(tipo) ? nova : t).toList();
     }
@@ -288,7 +310,8 @@ class MetodologiaTest {
     @Test
     void combinacoesSaoAsSeteSemRepetirComNomeEExplicacao() {
         List<Combinacao> semCircuito = PADRAO.combinacoes().stream().filter(c -> !c.tipo().equals("CIRCUITO")).toList();
-        recusa(comCombinacoes(semCircuito), "precisa das sete");
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comCombinacoes(List.of())));
+        assertThatNoException().isThrownBy(() -> ConfiguracaoConsultoria.validar(comCombinacoes(semCircuito)));
         List<Combinacao> repetida = new ArrayList<>(PADRAO.combinacoes());
         repetida.add(PADRAO.combinacao("SUPERSET"));
         recusa(comCombinacoes(repetida), "sem repetir");
@@ -312,7 +335,8 @@ class MetodologiaTest {
     @Test
     void recusaTipoComNomeDeTecnicaFixaOuConfigurada() {
         for (String nome : List.of("Cluster", "rest-pause", "Rest  pause", "DROP SET", "Drop-set", "Clúster", "Restpause",
-                "Myo-reps", "Myoreps", "Partial reps", "Forced reps")) {
+                "Myo-reps", "Myoreps", "Partial reps", "Forced reps", "Negativa", "Super-slow", "21s",
+                "Pirâmide crescente", "GVT (10×10)", "FST-7", "EMOM")) {
             assertThatThrownBy(() -> ConfiguracaoConsultoria.validarComoMetodologia(comTipos(padraoMais(tipo(nome, Papel.OUTRO)))))
                     .as(nome)
                     .isInstanceOf(BadRequestException.class)

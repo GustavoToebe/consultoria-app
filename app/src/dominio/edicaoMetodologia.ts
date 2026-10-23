@@ -1,6 +1,6 @@
 import type { Carga, Configuracao, Esforco, PapelDaSerie, PadraoPorModalidade, TipoDeSerie } from '../api/tipos';
-import { TIPOS_DE_GRUPO, TIPOS_DE_TECNICA, PAPEIS } from './metodologia';
-import { chaveDeTipo, codigoDoNovoTipo, codigoValido, MAXIMO_DO_NOME, mensagemTipoECombinacao, mensagemTipoETecnica, nomeDeCombinacao, nomeDeTecnica } from './tiposDeSerie';
+import { PAPEIS, tecnicaDescritiva, TIPOS_DE_GRUPO, TIPOS_DE_TECNICA } from './metodologia';
+import { chaveDeTipo, codigoDoNovoTipo, codigoValido, MAXIMO_DO_NOME, mensagemTipoECombinacao, mensagemTipoETecnica, nomeDeCombinacao, nomeDeTecnica, NOMES_DE_COMBINACAO, NOMES_DE_TECNICA } from './tiposDeSerie';
 import { esforcoVazio, problemasDaCarga, problemasDaTecnica, problemasDoEsforco, type Problemas } from './validacaoDeSerie';
 
 type FaixaEmEdicao = { min: number | null; max: number | null };
@@ -57,7 +57,7 @@ function problemasDoPadrao(destino: Problemas, prefixo: string, carga: Carga | n
 export function problemasDaMetodologia(c: MetodologiaEmEdicao): Problemas {
   const p: Problemas = {};
   if (!c.tipos.length || c.tipos.length > 20) p.tipos = 'Informe de 1 a 20 tipos de série.';
-  const nomesDeTecnica = new Set(c.tecnicas.map((t) => chaveDeTipo(t.nome)));
+  const chavesConfiguradasDeTecnica = new Set(c.tecnicas.map((t) => chaveDeTipo(t.nome)));
   const nomesDeCombinacao = new Set((c.combinacoes ?? []).map((k) => chaveDeTipo(k.nome)));
   const nomes = new Set<string>();
   const codigos = new Set<string>();
@@ -68,7 +68,7 @@ export function problemasDaMetodologia(c: MetodologiaEmEdicao): Problemas {
     if (!nome) p[`${em}.nome`] = 'Dê um nome ao tipo.';
     else if (t.nome.length > MAXIMO_DO_NOME) p[`${em}.nome`] = `Nome com no máximo ${MAXIMO_DO_NOME} letras.`;
     else if (nomes.has(chave)) p[`${em}.nome`] = 'Já existe um tipo com esse nome (mesmo com outra caixa, acento ou hífen).';
-    else if (nomeDeTecnica(nome) || nomesDeTecnica.has(chave)) p[`${em}.nome`] = mensagemTipoETecnica(nome);
+    else if (nomeDeTecnica(nome) || chavesConfiguradasDeTecnica.has(chave)) p[`${em}.nome`] = mensagemTipoETecnica(nome);
     else if (nomeDeCombinacao(nome) || nomesDeCombinacao.has(chave)) p[`${em}.nome`] = mensagemTipoECombinacao(nome);
     nomes.add(chave);
     if (!codigoValido(t.codigo)) p[`${em}.codigo`] = 'O código precisa ter de 1 a 30 letras maiúsculas, números ou sublinhado.';
@@ -99,24 +99,50 @@ export function problemasDaMetodologia(c: MetodologiaEmEdicao): Problemas {
   });
   if (!c.tipos.some((t) => t.papel === 'TRABALHO') && !p.tipos) p.tipos = 'A metodologia precisa de pelo menos um tipo de série de trabalho.';
 
-  if (c.tecnicas.length !== TIPOS_DE_TECNICA.length || TIPOS_DE_TECNICA.some((tipo) => c.tecnicas.filter((t) => t.tipo === tipo).length !== 1)) {
-    p.tecnicas = 'A metodologia precisa das seis técnicas (rest pause, cluster, drop-set, myo-reps, partial reps e forced reps), uma de cada.';
-  }
+  if (c.tecnicas.length > TIPOS_DE_TECNICA.length) p.tecnicas = `Técnicas: no máximo ${TIPOS_DE_TECNICA.length}.`;
+  const tiposDeTecnica = new Set<string>();
+  const chavesDeTecnica = new Set<string>();
   c.tecnicas.forEach((t, i) => {
     const em = `tecnicas[${i}]`;
-    if (!t.nome.trim() || t.nome.length > MAXIMO_DO_NOME) p[`${em}.nome`] = `Nome da técnica: de 1 a ${MAXIMO_DO_NOME} letras.`;
+    if (!(TIPOS_DE_TECNICA as readonly string[]).includes(t.tipo)) p[`${em}.tipo`] = 'Técnica desconhecida.';
+    else if (tiposDeTecnica.has(t.tipo)) p.tecnicas = 'Técnicas: sem repetir.';
+    tiposDeTecnica.add(t.tipo);
+    const nome = t.nome.trim();
+    const chave = chaveDeTipo(nome);
+    const nomeRepetido = !!chave && chavesDeTecnica.has(chave);
+    if (chave) chavesDeTecnica.add(chave);
+    if (!nome || t.nome.length > MAXIMO_DO_NOME) p[`${em}.nome`] = `Nome da técnica: de 1 a ${MAXIMO_DO_NOME} letras.`;
+    else if (nomeRepetido || nomes.has(chave) || (NOMES_DE_COMBINACAO as readonly string[]).includes(chave)) {
+      p[`${em}.nome`] = `Nome da técnica "${nome}" já é de um tipo, de outra técnica ou de uma combinação.`;
+    }
     if ((t.explicacao?.length ?? 0) > 500) p[`${em}.explicacao`] = 'Explicação com no máximo 500 caracteres.';
+    if (tecnicaDescritiva(t.tipo)) {
+      if (t.padrao) p[`${em}.padrao`] = `Padrão da técnica ${t.tipo}: técnica descritiva não tem padrão.`;
+      return;
+    }
     if (t.padrao && t.padrao.tipo !== t.tipo) p[`${em}.padrao`] = 'O padrão precisa ser da própria técnica.';
     else comPrefixo(p, `${em}.padrao`, problemasDaTecnica(t.padrao, false));
   });
 
   const combinacoes = c.combinacoes ?? [];
-  if (combinacoes.length !== TIPOS_DE_GRUPO.length || TIPOS_DE_GRUPO.some((tipo) => combinacoes.filter((k) => k.tipo === tipo).length !== 1)) {
-    p.combinacoes = 'A metodologia precisa das sete combinações (superset, agonista-antagonista, tri-set, giant set, circuito, pré-exaustão e pós-exaustão), uma de cada.';
-  }
+  if (combinacoes.length > TIPOS_DE_GRUPO.length) p.combinacoes = `Combinações: no máximo ${TIPOS_DE_GRUPO.length}.`;
+  const tiposDeCombinacao = new Set<string>();
+  const chavesDeCombinacao = new Set<string>();
+  const nomesDeTecnica = new Set<string>([...NOMES_DE_TECNICA, ...c.tecnicas.map((t) => chaveDeTipo(t.nome))]);
   combinacoes.forEach((k, i) => {
     const em = `combinacoes[${i}]`;
-    if (!k.nome.trim() || k.nome.length > MAXIMO_DO_NOME) p[`${em}.nome`] = `Nome da combinação: de 1 a ${MAXIMO_DO_NOME} letras.`;
+    if (!(TIPOS_DE_GRUPO as readonly string[]).includes(k.tipo)) {
+      p.combinacoes = 'Combinações: uma de cada do catálogo (superset, agonista-antagonista, tri-set, giant set, circuito, pré-exaustão e pós-exaustão), sem tipo desconhecido.';
+    } else if (tiposDeCombinacao.has(k.tipo)) p.combinacoes = 'Combinações: sem repetir.';
+    tiposDeCombinacao.add(k.tipo);
+    const nome = k.nome.trim();
+    const chave = chaveDeTipo(nome);
+    const nomeRepetido = !!chave && chavesDeCombinacao.has(chave);
+    if (chave) chavesDeCombinacao.add(chave);
+    if (!nome || k.nome.length > MAXIMO_DO_NOME) p[`${em}.nome`] = `Nome da combinação: de 1 a ${MAXIMO_DO_NOME} letras.`;
+    else if (nomeRepetido || nomes.has(chave) || nomesDeTecnica.has(chave)) {
+      p[`${em}.nome`] = `Nome da combinação "${nome}" já é de um tipo, de uma técnica ou de outra combinação.`;
+    }
     if ((k.explicacao?.length ?? 0) > 500) p[`${em}.explicacao`] = 'Explicação com no máximo 500 caracteres.';
   });
 
@@ -155,7 +181,7 @@ export function metodologiaParaSalvar(c: MetodologiaEmEdicao): Configuracao {
         explicacao: t.explicacao?.trim() || null,
       };
     }),
-    tecnicas: c.tecnicas.map((t) => ({ ...t, nome: t.nome.trim(), explicacao: t.explicacao?.trim() || null })),
+    tecnicas: c.tecnicas.map((t) => ({ ...t, nome: t.nome.trim(), explicacao: t.explicacao?.trim() || null, padrao: tecnicaDescritiva(t.tipo) ? null : t.padrao })),
     combinacoes: (c.combinacoes ?? []).map((k) => ({ ...k, nome: k.nome.trim(), explicacao: k.explicacao?.trim() || null })),
   };
 }

@@ -544,6 +544,49 @@ class ValidadorTreinoTest {
     }
 
     @Test
+    void tecnicaForaDaMetodologiaEAvisoNaoErro() {
+        Serie negativa = serie(Tecnica.vazia(ConteudoTreino.NEGATIVA));
+        ResultadoValidacao r = validador.validar(conteudoComMetodologia(List.of(exercicio(negativa))), null, null);
+        assertThat(r.erros()).isEmpty();
+        assertThat(r.avisos()).anySatisfy(a -> {
+            assertThat(a.caminho()).isEqualTo(SERIE0 + ".tecnica");
+            assertThat(a.mensagem()).contains("não está na metodologia do plano");
+        });
+    }
+
+    @Test
+    void semMetodologiaNaoAvisaDaTecnica() {
+        ResultadoValidacao r = validador.validar(conteudo(List.of(exercicio(serie(Tecnica.vazia(ConteudoTreino.GVT))))), null, null);
+        assertThat(r.erros()).isEmpty();
+        assertThat(r.avisos()).noneMatch(a -> a.mensagem().contains("não está na metodologia"));
+    }
+
+    @Test
+    void combinacaoForaDaMetodologiaEAvisoNaoErro() {
+        ConfiguracaoConsultoria semCombinacao = new ConfiguracaoConsultoria(ConfiguracaoConsultoria.padrao().tipos(),
+                ConfiguracaoConsultoria.padrao().tecnicas(), List.of(), ConfiguracaoConsultoria.padrao().arredondamentoKg(),
+                "", "");
+        Grupo g = grupo("SUPERSET", 60, null);
+        ConteudoTreino conteudo = conteudoComGrupos(List.of(noGrupo(g), noGrupo(g)), List.of(g))
+                .comMetodologia(new ConteudoTreino.Metodologia(null, "M", semCombinacao));
+        ResultadoValidacao r = validador.validar(conteudo, null, null);
+        assertThat(r.erros()).isEmpty();
+        assertThat(r.avisos()).anySatisfy(a -> {
+            assertThat(a.caminho()).isEqualTo(GRUPO0 + ".tecnica");
+            assertThat(a.mensagem()).contains("não está na metodologia do plano");
+        });
+    }
+
+    @Test
+    void cadaTecnicaDescritivaPublicaSemErro() {
+        for (String tipo : ConteudoTreino.DESCRITIVAS) {
+            Tecnica cheia = new Tecnica(tipo, 20, 5, 2, List.of(4, 2), 2, 20, 8, 3, 5, 4, "LIVRE", 2);
+            assertThat(cheia.problemas()).as(tipo).isEmpty();
+            assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie(Tecnica.vazia(tipo))))))).as(tipo).isEmpty();
+        }
+    }
+
+    @Test
     void semMetodologiaNaoAvisaDoTipo() {
         ResultadoValidacao r = validador.validar(conteudo(List.of(exercicio(serieDoTipo("PIRAMIDE")))), null, null);
         assertThat(r.avisos()).noneMatch(a -> a.caminho().endsWith(".tipo"));

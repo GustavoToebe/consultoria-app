@@ -94,7 +94,7 @@ public class ValidadorTreino {
             for (int j = 0; j < exercicios.size(); j++) {
                 exercicio(c, uids, exercicios.get(j), cs + ".exercicios[" + j + "]", metodologia);
             }
-            grupos(c, uids, s, cs);
+            grupos(c, uids, s, cs, metodologia);
         }
         if (!sessoes.isEmpty() && !temDescanso) {
             c.aviso("sessoes", "O plano não tem dia de descanso.");
@@ -132,6 +132,7 @@ public class ValidadorTreino {
         boolean temPercentual = false;
         boolean trabalhoAntes = false;
         Set<String> tiposAvisados = new HashSet<>();
+        Set<String> tecnicasAvisadas = new HashSet<>();
         Set<UUID> anteriores = new HashSet<>();
         for (int k = 0; k < series.size(); k++) {
             Serie x = series.get(k);
@@ -158,6 +159,7 @@ public class ValidadorTreino {
                 if (x.tecnica() != null && ConteudoTreino.FORCED_REPS.equals(x.tecnica().tipo())) {
                     c.aviso(cx + ".tecnica", "Forced reps precisa de um parceiro para ajudar nas repetições.");
                 }
+                tecnicaDaSerie(c, x, cx, metodologia, tecnicasAvisadas);
             }
             trabalhoAntes |= x.deTrabalho();
             if (x.uid() != null) {
@@ -178,7 +180,8 @@ public class ValidadorTreino {
      * outro, na quantidade mínima da técnica (pré e pós-exaustão: exatamente 2) e até {@link #MAXIMO_POR_GRUPO}. O
      * descanso depois do grupo não vale em pré e pós-exaustão e as voltas só contam no circuito.
      */
-    private static void grupos(ResultadoValidacao.Coletor c, Set<UUID> uids, Sessao s, String cs) {
+    private static void grupos(ResultadoValidacao.Coletor c, Set<UUID> uids, Sessao s, String cs,
+                               ConfiguracaoConsultoria metodologia) {
         Map<UUID, Integer> posicaoDoGrupo = new LinkedHashMap<>();
         List<Grupo> grupos = s.gruposOuVazio();
         for (int g = 0; g < grupos.size(); g++) {
@@ -191,6 +194,10 @@ public class ValidadorTreino {
             if (grupo.tecnica() == null || !ConteudoTreino.TECNICAS_DE_GRUPO.contains(grupo.tecnica())) {
                 c.erro(cg + ".tecnica", "Técnica de grupo inválida: use superset, agonista-antagonista, tri-set, giant "
                         + "set, circuito, pré-exaustão ou pós-exaustão.");
+            } else if (metodologia != null && metodologia.combinacao(grupo.tecnica()) == null) {
+                c.aviso(cg + ".tecnica", "A combinação \"" + grupo.tecnica() + "\" não está na metodologia do plano ("
+                        + metodologia.combinacoes().stream().map(k -> k.tipo()).collect(Collectors.joining(", "))
+                        + "). O grupo continua válido.");
             }
             boolean semDescansoDoGrupo = ConteudoTreino.PRE_EXAUSTAO.equals(grupo.tecnica())
                     || ConteudoTreino.POS_EXAUSTAO.equals(grupo.tecnica());
@@ -260,6 +267,21 @@ public class ValidadorTreino {
                 c.erro(cg, "Um grupo de exercícios feitos juntos vai até " + MAXIMO_POR_GRUPO + " exercícios.");
             }
         }
+    }
+
+    /** Aviso, um por técnica no exercício: a série usa uma técnica que a metodologia do plano não tem. Plano sem metodologia não avisa. */
+    private static void tecnicaDaSerie(ResultadoValidacao.Coletor c, Serie x, String cx, ConfiguracaoConsultoria metodologia,
+                                       Set<String> tecnicasAvisadas) {
+        if (metodologia == null || x.tecnica() == null || x.tecnica().tipo() == null) {
+            return;
+        }
+        String tipo = x.tecnica().tipo();
+        if (metodologia.tecnica(tipo) != null || !tecnicasAvisadas.add(tipo)) {
+            return;
+        }
+        c.aviso(cx + ".tecnica", "A técnica \"" + tipo + "\" não está na metodologia do plano ("
+                + metodologia.tecnicas().stream().map(t -> t.tipo()).collect(Collectors.joining(", "))
+                + "). A série continua válida.");
     }
 
     /** Avisos que dependem da metodologia do plano: tipo fora dela (um por tipo, no exercício) e RIR 0 em aquecimento. */

@@ -25,7 +25,7 @@ export function exercicioSolto(s: ExerciciosEGrupos, indice: number): boolean {
   return !e.grupoUid || !(s.grupos ?? []).some((g) => g.uid === e.grupoUid);
 }
 
-/** Os sete tipos de grupo com o nome da metodologia, a explicação e quantos exercícios pedem. */
+/** Combinações da metodologia (ou as sete, quando não há metodologia). A atual fora da lista entra no fim. */
 export interface OpcaoDeGrupo {
   valor: TecnicaDeGrupo;
   rotulo: string;
@@ -38,8 +38,21 @@ export function exigenciaDoGrupo(tecnica: TecnicaDeGrupo): string {
   return grupoEmSequencia(tecnica) ? 'exatamente 2 exercícios' : `de ${MINIMO_POR_GRUPO[tecnica]} a ${MAXIMO_POR_GRUPO} exercícios`;
 }
 
-export function opcoesDeGrupo(config: Configuracao | null | undefined): OpcaoDeGrupo[] {
-  return TIPOS_DE_GRUPO.map((t) => ({ valor: t, rotulo: nomeDaCombinacao(config, t), explicacao: explicacaoDaCombinacao(config, t), exigencia: exigenciaDoGrupo(t) }));
+function opcao(config: Configuracao | null | undefined, t: TecnicaDeGrupo): OpcaoDeGrupo {
+  return { valor: t, rotulo: nomeDaCombinacao(config, t), explicacao: explicacaoDaCombinacao(config, t), exigencia: exigenciaDoGrupo(t) };
+}
+
+export function opcoesDeGrupo(config: Configuracao | null | undefined, atual?: TecnicaDeGrupo | null): OpcaoDeGrupo[] {
+  if (!config) return TIPOS_DE_GRUPO.map((t) => opcao(config, t));
+  const daMetodologia = (config.combinacoes ?? []).map((k) => opcao(config, k.tipo));
+  if (atual && !daMetodologia.some((o) => o.valor === atual)) daMetodologia.push(opcao(config, atual));
+  return daMetodologia;
+}
+
+/** Metodologia sem combinação trava o "Criar grupo" antes de olhar os exercícios. */
+export function motivoSemGrupo(s: ExerciciosEGrupos, config: Configuracao | null | undefined): string | null {
+  if (config && (config.combinacoes ?? []).length === 0) return 'A metodologia não tem combinações.';
+  return motivoSemCandidatos(s);
 }
 
 /** Há dois exercícios soltos, um ao lado do outro? Sem isso o botão "Criar grupo" fica travado, com o motivo. */

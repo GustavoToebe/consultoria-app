@@ -1,10 +1,13 @@
-import { Plus } from 'lucide-react-native';
+import { Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { CombinacaoDaMetodologia, Configuracao, PapelDaSerie, TecnicaDaMetodologia } from '../../api/tipos';
+import { CATALOGO_DE_COMBINACOES, CATALOGO_DE_TECNICAS, CATALOGO_DE_TIPOS, papelDoTipo, primeiraLinha } from '../../dominio/catalogoMetodologia';
 import { novoTipoDeSerie, problemasDaMetodologia, type MetodologiaEmEdicao, type TipoEmEdicao } from '../../dominio/edicaoMetodologia';
 import { mover, tecnicaVazia } from '../../dominio/editorTreino';
-import { NOME_FIXO_DA_COMBINACAO, NOME_FIXO_DA_TECNICA, PAPEIS } from '../../dominio/metodologia';
+import { NOME_FIXO_DA_COMBINACAO, NOME_FIXO_DA_TECNICA, PAPEIS, tecnicaDescritiva } from '../../dominio/metodologia';
+import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
+import { FolhaDoCatalogo, type ItemDoCatalogo } from './FolhaDoCatalogo';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
@@ -13,6 +16,7 @@ import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
+import { IconeBotao } from '../../ui/IconeBotao';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
 import { CamposDaTecnica, ErroDoCampo } from '../treino/CamposDaPrescricao';
@@ -26,10 +30,9 @@ const MAXIMO_DE_TIPOS = 20;
 const chaveDoAlvo = (alvo: string) => `metodologia:${alvo}`;
 
 /**
- * A metodologia da consultoria, em seções: tipos de série (identificação, prescrição padrão, variação por modalidade,
- * regra de percentuais e explicação), as seis técnicas, as sete combinações de exercícios e o geral. O erro aparece no
- * campo e numa lista no topo, que leva ao cartão; "Salvar modelo" (na barra) só trava com essa lista à vista. Tudo é salvo
- * pela barra do modelo.
+ * A metodologia da consultoria, em seções: tipos de série, as técnicas e as combinações que ela usa, e o geral.
+ * O catálogo acrescenta; a lixeira tira na hora e a faixa oferece desfazer. O erro aparece no campo e numa lista no
+ * topo; "Salvar modelo" (na barra) só trava com essa lista à vista. Tudo é salvo pela barra do modelo.
  */
 /**
  * `codigosSalvos`: os códigos da versão salva do modelo. Um tipo novo nunca reaproveita um deles, nem o de um tipo removido
@@ -39,6 +42,8 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
   const { rolarAte } = useRolagem();
   const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set());
   const [novo, setNovo] = useState<{ nome: string; papel: PapelDaSerie } | null>(null);
+  const [folha, setFolha] = useState<'tipos' | 'tecnicas' | 'combinacoes' | null>(null);
+  const [desfazer, setDesfazer] = useState<Desfazer<MetodologiaEmEdicao> | null>(null);
   const problemas = problemasDaMetodologia(c);
   const linhas = listaDeProblemas(c, problemas);
   // Os campos de carga e esforço leem a metodologia só para os nomes; as faixas ainda incompletas em edição não importam.
@@ -56,7 +61,45 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
     rolarAte([chaveDoAlvo(`tipo:${tipo.codigo}`)]);
   };
   const cheio = c.tipos.length >= MAXIMO_DE_TIPOS;
+  const retirar = (rotulo: string, proxima: MetodologiaEmEdicao) => {
+    setDesfazer({ rotulo, conteudo: structuredClone(c) });
+    aoMudar(proxima);
+  };
+  const itensDeTipo: ItemDoCatalogo[] = CATALOGO_DE_TIPOS.map((t) => ({
+    id: t.codigo,
+    nome: t.nome,
+    detalhe: `${papelDoTipo(t)} · ${primeiraLinha(t.explicacao)}`,
+    presente: c.tipos.some((x) => x.codigo === t.codigo),
+  }));
+  const itensDeTecnica: ItemDoCatalogo[] = CATALOGO_DE_TECNICAS.map((t) => ({
+    id: t.tipo,
+    nome: t.item.nome,
+    detalhe: `${t.grupo} · ${primeiraLinha(t.item.explicacao)}`,
+    grupo: t.grupo,
+    presente: c.tecnicas.some((x) => x.tipo === t.tipo),
+  }));
+  const itensDeCombinacao: ItemDoCatalogo[] = CATALOGO_DE_COMBINACOES.map((k) => ({
+    id: k.tipo,
+    nome: k.nome,
+    detalhe: primeiraLinha(k.explicacao),
+    presente: (c.combinacoes ?? []).some((x) => x.tipo === k.tipo),
+  }));
+  const adicionarDoCatalogo = (ids: string[]) => {
+    if (folha === 'tipos') {
+      const novos = CATALOGO_DE_TIPOS.filter((t) => ids.includes(t.codigo) && !c.tipos.some((x) => x.codigo === t.codigo));
+      aoMudar({ ...c, tipos: [...c.tipos, ...novos.map((t) => structuredClone(t))] });
+    } else if (folha === 'tecnicas') {
+      const novos = CATALOGO_DE_TECNICAS.filter((t) => ids.includes(t.tipo) && !c.tecnicas.some((x) => x.tipo === t.tipo));
+      aoMudar({ ...c, tecnicas: [...c.tecnicas, ...novos.map((t) => structuredClone(t.item))] });
+    } else if (folha === 'combinacoes') {
+      const novos = CATALOGO_DE_COMBINACOES.filter((k) => ids.includes(k.tipo) && !(c.combinacoes ?? []).some((x) => x.tipo === k.tipo));
+      aoMudar({ ...c, combinacoes: [...(c.combinacoes ?? []), ...novos.map((k) => structuredClone(k))] });
+    }
+    setFolha(null);
+  };
+  const catalogoAberto = folha === 'tipos' ? itensDeTipo : folha === 'tecnicas' ? itensDeTecnica : folha === 'combinacoes' ? itensDeCombinacao : null;
   return <View style={estilos.lista}>
+    {desfazer ? <BarraDesfazer desfazer={desfazer} aoDesfazer={() => { aoMudar(desfazer.conteudo); setDesfazer(null); }} aoFechar={() => setDesfazer(null)} /> : null}
     <ListaDeProblemas linhas={linhas} aoIr={ir} />
 
     <AlvoDeRolagem chave={chaveDoAlvo('tipos')}>
@@ -67,7 +110,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
       <CartaoDoTipo tipo={t} config={config} problemas={problemasDoItem(problemas, 'tipos', i)} posicao={i} total={c.tipos.length}
         aberto={abertos.has(`tipo:${t.codigo}`)} aoAlternar={() => alternar(`tipo:${t.codigo}`)}
         aoMover={(d) => aoMudar({ ...c, tipos: mover(c.tipos, i, d) })}
-        aoRemover={() => aoMudar({ ...c, tipos: c.tipos.filter((_, n) => n !== i) })}
+        aoRemover={() => retirar(`Tipo “${t.nome.trim() || t.codigo}” retirado.`, { ...c, tipos: c.tipos.filter((_, n) => n !== i) })}
         aoMudar={(parte) => mudarTipo(i, parte)} />
     </AlvoDeRolagem>)}
     {novo ? <Cartao titulo="Novo tipo" nivel={3}>
@@ -77,25 +120,35 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
         <Botao rotulo="Criar tipo" tipo="secundario" Icone={Plus} aoTocar={adicionar} desabilitado={!novo.nome.trim()} motivo={!novo.nome.trim() ? 'Dê um nome ao tipo.' : undefined} />
         <Botao rotulo="Cancelar" tipo="fantasma" aoTocar={() => setNovo(null)} />
       </View>
-    </Cartao> : <Botao rotulo="Adicionar tipo" tipo="secundario" Icone={Plus} aoTocar={() => setNovo({ nome: '', papel: 'OUTRO' })} desabilitado={cheio} motivo={cheio ? `O máximo é ${MAXIMO_DE_TIPOS} tipos.` : undefined} />}
+    </Cartao> : null}
+    <View style={estilos.acoes}>
+      {novo ? null : <Botao rotulo="Adicionar tipo" tipo="secundario" Icone={Plus} aoTocar={() => setNovo({ nome: '', papel: 'OUTRO' })} desabilitado={cheio} motivo={cheio ? `O máximo é ${MAXIMO_DE_TIPOS} tipos.` : undefined} />}
+      <Botao rotulo="Adicionar da lista" tipo="secundario" aoTocar={() => setFolha('tipos')} desabilitado={cheio || itensDeTipo.every((i) => i.presente)} motivo={cheio ? `O máximo é ${MAXIMO_DE_TIPOS} tipos.` : itensDeTipo.every((i) => i.presente) ? 'Todos os tipos do catálogo já estão na metodologia.' : undefined} />
+    </View>
 
     <AlvoDeRolagem chave={chaveDoAlvo('tecnicas')}>
       <Texto variante="secao">Técnicas</Texto>
-      <Texto variante="pequeno">As seis técnicas de série. O nome exibido e a explicação são o que o aluno lê; o padrão preenche a técnica nova de uma série.</Texto>
+      <Texto variante="pequeno">Técnicas que esta consultoria usa. O nome exibido e a explicação são o que o aluno lê.</Texto>
     </AlvoDeRolagem>
+    {c.tecnicas.length === 0 ? <Texto variante="suave">{"Nenhuma técnica. As séries ficam só com 'Nenhuma'."}</Texto> : null}
     {c.tecnicas.map((t, i) => <AlvoDeRolagem key={t.tipo} chave={chaveDoAlvo(`tecnica:${t.tipo}`)}>
       <CartaoDaTecnica tecnica={t} problemas={problemasDoItem(problemas, 'tecnicas', i)} aberto={abertos.has(`tecnica:${t.tipo}`)} aoAlternar={() => alternar(`tecnica:${t.tipo}`)}
-        aoMudar={(nova) => aoMudar({ ...c, tecnicas: c.tecnicas.map((x, n) => (n === i ? nova : x)) })} />
+        aoMudar={(nova) => aoMudar({ ...c, tecnicas: c.tecnicas.map((x, n) => (n === i ? nova : x)) })}
+        aoRemover={() => retirar(`Técnica “${t.nome.trim() || t.tipo}” retirada.`, { ...c, tecnicas: c.tecnicas.filter((_, n) => n !== i) })} />
     </AlvoDeRolagem>)}
+    <Botao rotulo="Adicionar da lista" tipo="secundario" aoTocar={() => setFolha('tecnicas')} desabilitado={itensDeTecnica.every((i) => i.presente)} motivo={itensDeTecnica.every((i) => i.presente) ? 'Todas as técnicas do catálogo já estão na metodologia.' : undefined} />
 
     <AlvoDeRolagem chave={chaveDoAlvo('combinacoes')}>
       <Texto variante="secao">Combinações de exercícios</Texto>
       <Texto variante="pequeno">Superset, circuito e as outras formas de juntar exercícios na sessão. O nome e a explicação aparecem para o aluno.</Texto>
     </AlvoDeRolagem>
+    {(c.combinacoes ?? []).length === 0 ? <Texto variante="suave">{"Nenhuma combinação. O 'Criar grupo' fica indisponível."}</Texto> : null}
     {(c.combinacoes ?? []).map((k, i) => <AlvoDeRolagem key={k.tipo} chave={chaveDoAlvo(`combinacao:${k.tipo}`)}>
       <CartaoDaCombinacao combinacao={k} problemas={problemasDoItem(problemas, 'combinacoes', i)} aberto={abertos.has(`combinacao:${k.tipo}`)} aoAlternar={() => alternar(`combinacao:${k.tipo}`)}
-        aoMudar={(nova) => aoMudar({ ...c, combinacoes: (c.combinacoes ?? []).map((x, n) => (n === i ? nova : x)) })} />
+        aoMudar={(nova) => aoMudar({ ...c, combinacoes: (c.combinacoes ?? []).map((x, n) => (n === i ? nova : x)) })}
+        aoRemover={() => retirar(`Combinação “${k.nome.trim() || k.tipo}” retirada.`, { ...c, combinacoes: (c.combinacoes ?? []).filter((_, n) => n !== i) })} />
     </AlvoDeRolagem>)}
+    <Botao rotulo="Adicionar da lista" tipo="secundario" aoTocar={() => setFolha('combinacoes')} desabilitado={itensDeCombinacao.every((i) => i.presente)} motivo={itensDeCombinacao.every((i) => i.presente) ? 'Todas as combinações do catálogo já estão na metodologia.' : undefined} />
 
     <AlvoDeRolagem chave={chaveDoAlvo('geral')}>
       <Cartao titulo="Geral">
@@ -105,6 +158,9 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
         <Campo rotulo="Rodapé do PDF (opcional)" valor={c.rodapePdf ?? ''} aoMudar={(rodapePdf) => aoMudar({ ...c, rodapePdf })} maxLength={500} erro={problemas.rodapePdf} />
       </Cartao>
     </AlvoDeRolagem>
+    {catalogoAberto ? <FolhaDoCatalogo visivel titulo={folha === 'tipos' ? 'Tipos do catálogo' : folha === 'tecnicas' ? 'Técnicas do catálogo' : 'Combinações do catálogo'}
+      itens={catalogoAberto} nota={folha === 'tecnicas' ? 'AMRAP, cadência e isometria já são campos da série e do exercício' : undefined}
+      aoFechar={() => setFolha(null)} aoAdicionar={adicionarDoCatalogo} /> : null}
   </View>;
 }
 
@@ -125,30 +181,39 @@ function ListaDeProblemas({ linhas, aoIr }: { linhas: LinhaDeProblema[]; aoIr: (
   </View>;
 }
 
-function CartaoDaTecnica({ tecnica: t, problemas: p, aberto, aoAlternar, aoMudar }: {
-  tecnica: TecnicaDaMetodologia; problemas: Record<string, string>; aberto: boolean; aoAlternar: () => void; aoMudar: (t: TecnicaDaMetodologia) => void;
+function CartaoDaTecnica({ tecnica: t, problemas: p, aberto, aoAlternar, aoMudar, aoRemover }: {
+  tecnica: TecnicaDaMetodologia; problemas: Record<string, string>; aberto: boolean; aoAlternar: () => void; aoMudar: (t: TecnicaDaMetodologia) => void; aoRemover: () => void;
 }) {
+  const { cores } = useTema();
   const quantos = Object.keys(p).length;
-  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={t.nome.trim() || NOME_FIXO_DA_TECNICA[t.tipo]} resumo={`Técnica · ${NOME_FIXO_DA_TECNICA[t.tipo]}`}
-    selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined} aberto={aberto} aoAlternar={aoAlternar} />}>
+  const nome = t.nome.trim() || NOME_FIXO_DA_TECNICA[t.tipo];
+  const descritiva = tecnicaDescritiva(t.tipo);
+  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={`Técnica · ${NOME_FIXO_DA_TECNICA[t.tipo]}`}
+    selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined} aberto={aberto} aoAlternar={aoAlternar}
+    acoes={<IconeBotao Icone={Trash2} rotulo={`Remover a técnica ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />} />}>
     {aberto ? <>
       <Campo rotulo="Nome exibido da técnica" valor={t.nome} aoMudar={(nome) => aoMudar({ ...t, nome })} maxLength={30} erro={p.nome} />
       <Campo rotulo="Explicação para o aluno" valor={t.explicacao ?? ''} aoMudar={(explicacao) => aoMudar({ ...t, explicacao })} linhas={3} maxLength={LIMITE_EXPLICACAO}
         ajuda={`${(t.explicacao ?? '').length}/${LIMITE_EXPLICACAO}.`} erro={p.explicacao} />
-      <Texto variante="secao">Padrão</Texto>
-      <Texto variante="pequeno">Campos vazios ficam para o treinador preencher em cada série.</Texto>
-      <CamposDaTecnica tecnica={t.padrao ?? tecnicaVazia(t.tipo)} completa={false} erros={subProblemas(p, 'padrao')} aoMudar={(padrao) => aoMudar({ ...t, padrao })} />
-      {p.padrao ? <Texto variante="pequeno">{p.padrao}</Texto> : null}
+      {descritiva ? null : <>
+        <Texto variante="secao">Padrão</Texto>
+        <Texto variante="pequeno">Campos vazios ficam para o treinador preencher em cada série.</Texto>
+        <CamposDaTecnica tecnica={t.padrao ?? tecnicaVazia(t.tipo)} completa={false} erros={subProblemas(p, 'padrao')} aoMudar={(padrao) => aoMudar({ ...t, padrao })} />
+        {p.padrao ? <Texto variante="pequeno">{p.padrao}</Texto> : null}
+      </>}
     </> : null}
   </Cartao>;
 }
 
-function CartaoDaCombinacao({ combinacao: k, problemas: p, aberto, aoAlternar, aoMudar }: {
-  combinacao: CombinacaoDaMetodologia; problemas: Record<string, string>; aberto: boolean; aoAlternar: () => void; aoMudar: (k: CombinacaoDaMetodologia) => void;
+function CartaoDaCombinacao({ combinacao: k, problemas: p, aberto, aoAlternar, aoMudar, aoRemover }: {
+  combinacao: CombinacaoDaMetodologia; problemas: Record<string, string>; aberto: boolean; aoAlternar: () => void; aoMudar: (k: CombinacaoDaMetodologia) => void; aoRemover: () => void;
 }) {
+  const { cores } = useTema();
   const quantos = Object.keys(p).length;
-  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={k.nome.trim() || NOME_FIXO_DA_COMBINACAO[k.tipo]} resumo={`Combinação · ${NOME_FIXO_DA_COMBINACAO[k.tipo]}`}
-    selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined} aberto={aberto} aoAlternar={aoAlternar} />}>
+  const nome = k.nome.trim() || NOME_FIXO_DA_COMBINACAO[k.tipo];
+  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={`Combinação · ${NOME_FIXO_DA_COMBINACAO[k.tipo]}`}
+    selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined} aberto={aberto} aoAlternar={aoAlternar}
+    acoes={<IconeBotao Icone={Trash2} rotulo={`Remover a combinação ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />} />}>
     {aberto ? <>
       <Campo rotulo="Nome exibido da combinação" valor={k.nome} aoMudar={(nome) => aoMudar({ ...k, nome })} maxLength={30} erro={p.nome} />
       <Campo rotulo="Explicação para o aluno" valor={k.explicacao ?? ''} aoMudar={(explicacao) => aoMudar({ ...k, explicacao })} linhas={3} maxLength={LIMITE_EXPLICACAO}

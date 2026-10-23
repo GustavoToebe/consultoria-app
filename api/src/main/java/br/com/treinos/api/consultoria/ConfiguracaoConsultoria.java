@@ -82,7 +82,10 @@ public record ConfiguracaoConsultoria(
 
     /** Nomes que são técnica, não tipo de série, na forma de {@link #chaveDeTipo}. Espelho em {@code dominio/tiposDeSerie.ts}. */
     public static final Set<String> NOMES_DE_TECNICA = Set.of("cluster", "rest pause", "restpause", "drop set", "dropset",
-            "myo reps", "myoreps", "partial reps", "partialreps", "forced reps", "forcedreps");
+            "myo reps", "myoreps", "partial reps", "partialreps", "forced reps", "forcedreps", "negativa", "super slow",
+            "superslow", "21s", "piramide crescente", "piramidecrescente", "piramide decrescente", "piramidedecrescente",
+            "piramide truncada", "piramidetruncada", "dupla progressao", "duplaprogressao", "gvt", "gvt (10×10)",
+            "gvt (10x10)", "gvt 10x10", "fst 7", "fst7", "especializacao", "emom");
 
     /** Nomes que são combinação de exercícios, não tipo de série, na forma de {@link #chaveDeTipo}. */
     public static final Set<String> NOMES_DE_COMBINACAO = Set.of("superset", "super set", "agonista antagonista",
@@ -314,7 +317,7 @@ public record ConfiguracaoConsultoria(
             throw new BadRequestException("A metodologia precisa de pelo menos um tipo de série de trabalho.");
         }
         tecnicas(c.tecnicas());
-        combinacoes(c.combinacoes());
+        combinacoes(c.combinacoes(), c.tecnicas());
         if (c.arredondamentoKg() == null || ARREDONDAMENTOS.stream().noneMatch(a -> a.compareTo(c.arredondamentoKg()) == 0)) {
             throw new BadRequestException("Arredondamento precisa ser 0,25, 0,5, 1 ou 2,5 kg.");
         }
@@ -379,19 +382,38 @@ public record ConfiguracaoConsultoria(
                 && (f.max() == null || (f.max() >= f.min() && f.max() <= 200));
     }
 
-    /** As seis técnicas, uma de cada, com nome exibido e padrão (parcial) do próprio tipo. */
+    /**
+     * De zero a dezessete técnicas do catálogo, sem repetir o tipo. O nome é único e não pode ser o de uma combinação.
+     * Colisão com nome de tipo fica em {@link #validarComoMetodologia}: a cópia do plano pode ter um tipo com o nome
+     * de uma técnica. O padrão só existe nas seis estruturadas.
+     */
     private static void tecnicas(List<TecnicaDaMetodologia> tecnicas) {
         Set<String> vistas = new HashSet<>();
+        Set<String> nomes = new HashSet<>();
         for (TecnicaDaMetodologia t : tecnicas) {
-            if (t == null || t.tipo() == null || !ConteudoTreino.TECNICAS.contains(t.tipo()) || !vistas.add(t.tipo())) {
-                throw new BadRequestException("Técnicas: uma de cada (rest pause, cluster, drop-set, myo-reps, "
-                        + "partial reps e forced reps), sem repetir.");
+            if (t == null || t.tipo() == null || !ConteudoTreino.TECNICAS.contains(t.tipo())) {
+                throw new BadRequestException("Técnica desconhecida.");
+            }
+            if (!vistas.add(t.tipo())) {
+                throw new BadRequestException("Técnicas: sem repetir.");
             }
             if (t.nome() == null || t.nome().isBlank() || t.nome().length() > 30) {
                 throw new BadRequestException("Nome da técnica " + t.tipo() + ": de 1 a 30 letras.");
             }
+            String chave = chaveDeTipo(t.nome());
+            if (!nomes.add(chave) || NOMES_DE_COMBINACAO.contains(chave)) {
+                throw new BadRequestException("Nome da técnica \"" + t.nome().trim()
+                        + "\" já é de um tipo, de outra técnica ou de uma combinação.");
+            }
             if (t.explicacao() != null && t.explicacao().length() > 500) {
                 throw new BadRequestException("Explicação da técnica " + t.nome().trim() + " com no máximo 500 caracteres.");
+            }
+            if (ConteudoTreino.DESCRITIVAS.contains(t.tipo())) {
+                if (t.padrao() != null) {
+                    throw new BadRequestException("Padrão da técnica " + t.nome().trim()
+                            + ": técnica descritiva não tem padrão.");
+                }
+                continue;
             }
             if (t.padrao() != null) {
                 if (!t.tipo().equals(t.padrao().tipo())) {
@@ -404,31 +426,47 @@ public record ConfiguracaoConsultoria(
                 }
             }
         }
-        if (vistas.size() != ConteudoTreino.TECNICAS.size()) {
-            throw new BadRequestException("Técnicas: a metodologia precisa das seis (rest pause, cluster, drop-set, "
-                    + "myo-reps, partial reps e forced reps).");
+        if (tecnicas.size() > ConteudoTreino.TECNICAS.size()) {
+            throw new BadRequestException("Técnicas: no máximo " + ConteudoTreino.TECNICAS.size() + ".");
         }
     }
 
-    /** As sete combinações de exercícios, uma de cada, com nome exibido (até 30) e explicação (até 500). */
-    private static void combinacoes(List<Combinacao> combinacoes) {
+    /**
+     * De zero a sete combinações do catálogo, sem repetir o tipo, com nome exibido (até 30) e explicação (até 500).
+     * O nome não pode ser o de uma técnica. Colisão com nome de tipo fica em {@link #validarComoMetodologia}.
+     */
+    private static void combinacoes(List<Combinacao> combinacoes, List<TecnicaDaMetodologia> tecnicas) {
+        Set<String> nomesDeTecnica = new HashSet<>(NOMES_DE_TECNICA);
+        for (TecnicaDaMetodologia t : tecnicas) {
+            if (t != null && t.nome() != null) {
+                nomesDeTecnica.add(chaveDeTipo(t.nome()));
+            }
+        }
         Set<String> vistas = new HashSet<>();
+        Set<String> nomes = new HashSet<>();
         for (Combinacao k : combinacoes) {
-            if (k == null || k.tipo() == null || !ConteudoTreino.TECNICAS_DE_GRUPO.contains(k.tipo()) || !vistas.add(k.tipo())) {
-                throw new BadRequestException("Combinações: uma de cada (superset, agonista-antagonista, tri-set, "
-                        + "giant set, circuito, pré-exaustão e pós-exaustão), sem repetir.");
+            if (k == null || k.tipo() == null || !ConteudoTreino.TECNICAS_DE_GRUPO.contains(k.tipo())) {
+                throw new BadRequestException("Combinações: uma de cada do catálogo (superset, agonista-antagonista, "
+                        + "tri-set, giant set, circuito, pré-exaustão e pós-exaustão), sem tipo desconhecido.");
+            }
+            if (!vistas.add(k.tipo())) {
+                throw new BadRequestException("Combinações: sem repetir.");
             }
             if (k.nome() == null || k.nome().isBlank() || k.nome().length() > 30) {
                 throw new BadRequestException("Nome da combinação " + k.tipo() + ": de 1 a 30 letras.");
+            }
+            String chave = chaveDeTipo(k.nome());
+            if (!nomes.add(chave) || nomesDeTecnica.contains(chave)) {
+                throw new BadRequestException("Nome da combinação \"" + k.nome().trim()
+                        + "\" já é de um tipo, de uma técnica ou de outra combinação.");
             }
             if (k.explicacao() != null && k.explicacao().length() > 500) {
                 throw new BadRequestException("Explicação da combinação " + k.nome().trim()
                         + " com no máximo 500 caracteres.");
             }
         }
-        if (vistas.size() != ConteudoTreino.TECNICAS_DE_GRUPO.size()) {
-            throw new BadRequestException("Combinações: a metodologia precisa das sete (superset, "
-                    + "agonista-antagonista, tri-set, giant set, circuito, pré-exaustão e pós-exaustão).");
+        if (combinacoes.size() > ConteudoTreino.TECNICAS_DE_GRUPO.size()) {
+            throw new BadRequestException("Combinações: no máximo " + ConteudoTreino.TECNICAS_DE_GRUPO.size() + ".");
         }
     }
 }

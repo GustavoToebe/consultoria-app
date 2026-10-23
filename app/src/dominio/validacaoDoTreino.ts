@@ -84,6 +84,7 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
   let temPercentual = false;
   let trabalhoAntes = false;
   const tiposAvisados = new Set<string>();
+  const tecnicasAvisadas = new Set<string>();
   const anteriores = new Set<string>();
   series.forEach((s, k) => {
     const cs = junta(caminho, `series[${k}]`);
@@ -100,6 +101,7 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
         c.erro(junta(cs, 'carga.referenciaUid'), 'A referência precisa ser uma série anterior, no mesmo exercício.');
       }
       if (s.tecnica?.tipo === 'FORCED_REPS') c.aviso(junta(cs, 'tecnica'), 'Forced reps precisa de um parceiro para ajudar nas repetições.');
+      avisoDaTecnica(c, s, cs, metodologia, tecnicasAvisadas);
     }
     if (serieDeTrabalho(s)) trabalhoAntes = true;
     if (s.uid) anteriores.add(s.uid);
@@ -110,8 +112,18 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
   if (e.progressao === false && temTrabalho) c.aviso(junta(caminho, 'progressao'), 'Exercício sem progressão de carga, mas com série de trabalho.');
 }
 
+/** Aviso (não erro) quando a técnica da série não está na metodologia do plano. Uma vez por código, no exercício. */
+function avisoDaTecnica(c: Coletor, s: Serie, caminho: string, metodologia: Configuracao | null, avisadas: Set<string>) {
+  const tipo = s.tecnica?.tipo;
+  if (!metodologia || !tipo) return;
+  if (metodologia.tecnicas?.some((t) => t.tipo === tipo) || avisadas.has(tipo)) return;
+  avisadas.add(tipo);
+  const codigos = (metodologia.tecnicas ?? []).map((t) => t.tipo).join(', ');
+  c.aviso(junta(caminho, 'tecnica'), `A técnica "${tipo}" não está na metodologia do plano (${codigos}). A série continua válida.`);
+}
+
 /** Grupos da sessão: técnica, descanso após o grupo, voltas, e os membros (existem, seguidos, quantidade da técnica). */
-function validarGruposNoColetor(c: Coletor, s: Sessao, caminho: string) {
+function validarGruposNoColetor(c: Coletor, s: Sessao, caminho: string, metodologia: Configuracao | null) {
   const grupos = s.grupos ?? [];
   const exercicios = s.exercicios ?? [];
   const posicaoDoGrupo = new Map<string, number>();
@@ -121,6 +133,9 @@ function validarGruposNoColetor(c: Coletor, s: Sessao, caminho: string) {
     if (g.uid && !posicaoDoGrupo.has(g.uid)) posicaoDoGrupo.set(g.uid, i);
     if (!g.tecnica || !TIPOS_DE_GRUPO.includes(g.tecnica)) {
       c.erro(junta(cg, 'tecnica'), 'Técnica de grupo inválida: use superset, agonista-antagonista, tri-set, giant set, circuito, pré-exaustão ou pós-exaustão.');
+    } else if (metodologia && !(metodologia.combinacoes ?? []).some((k) => k.tipo === g.tecnica)) {
+      const codigos = (metodologia.combinacoes ?? []).map((k) => k.tipo).join(', ');
+      c.aviso(junta(cg, 'tecnica'), `A combinação "${g.tecnica}" não está na metodologia do plano (${codigos}). O grupo continua válido.`);
     }
     if (g.descansoAposSegundos != null) {
       if (grupoEmSequencia(g.tecnica)) {
@@ -192,7 +207,7 @@ function validarSessaoNoColetor(c: Coletor, s: Sessao, caminho: string, metodolo
   const exercicios = s.exercicios ?? [];
   if (s.tipo === 'TREINO' && exercicios.length === 0) c.erro(junta(caminho, 'exercicios'), 'Sessão de treino sem exercício.');
   exercicios.forEach((e, j) => validarExercicioNoColetor(c, e, junta(caminho, `exercicios[${j}]`), metodologia));
-  validarGruposNoColetor(c, s, caminho);
+  validarGruposNoColetor(c, s, caminho, metodologia);
 }
 
 /** Validação de uma sessão, com os exercícios, as séries e os grupos. Caminhos como `exercicios[1].series[0].tipo`. */

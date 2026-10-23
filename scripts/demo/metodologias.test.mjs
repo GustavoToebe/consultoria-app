@@ -16,9 +16,11 @@ const padrao = JSON.parse(readFileSync(join(AQUI, '..', 'importacao', 'metodolog
 
 const PAPEIS = ['AQUECIMENTO', 'PREPARACAO', 'TRABALHO', 'POS_TRABALHO', 'OUTRO'];
 const MODOS = ['CARGA_TRABALHO', 'PERCENTUAL_WS', 'MESMA_CARGA', 'ACIMA_DA_ANTERIOR', 'ABAIXO_DA_REFERENCIA', 'NENHUMA'];
-const TECNICAS = ['REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS'];
+const ESTRUTURADAS = ['REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS'];
+const DESCRITIVAS = ['NEGATIVA', 'SUPER_SLOW', 'VINTE_E_UM', 'EMOM', 'PIRAMIDE_CRESCENTE', 'PIRAMIDE_DECRESCENTE', 'PIRAMIDE_TRUNCADA', 'DUPLA_PROGRESSAO', 'GVT', 'FST7', 'ESPECIALIZACAO'];
+const TECNICAS = [...ESTRUTURADAS, ...DESCRITIVAS];
 const COMBINACOES = ['SUPERSET', 'AGONISTA_ANTAGONISTA', 'TRI_SET', 'GIANT_SET', 'CIRCUITO', 'PRE_EXAUSTAO', 'POS_EXAUSTAO'];
-const NOMES_DE_TECNICA = ['cluster', 'rest pause', 'restpause', 'drop set', 'dropset', 'myo reps', 'myoreps', 'partial reps', 'partialreps', 'forced reps', 'forcedreps'];
+const NOMES_DE_TECNICA = ['cluster', 'rest pause', 'restpause', 'drop set', 'dropset', 'myo reps', 'myoreps', 'partial reps', 'partialreps', 'forced reps', 'forcedreps', 'negativa', 'super slow', 'superslow', '21s', 'piramide crescente', 'piramidecrescente', 'piramide decrescente', 'piramidedecrescente', 'piramide truncada', 'piramidetruncada', 'dupla progressao', 'duplaprogressao', 'gvt', 'gvt (10×10)', 'gvt (10x10)', 'gvt 10x10', 'fst 7', 'fst7', 'especializacao', 'emom'];
 const NOMES_DE_COMBINACAO = ['superset', 'super set', 'agonista antagonista', 'agonistaantagonista', 'tri set', 'triset', 'giant set', 'giantset', 'circuito', 'pre exaustao', 'preexaustao', 'pos exaustao', 'posexaustao'];
 const ARREDONDAMENTOS = [0.25, 0.5, 1, 2.5];
 
@@ -60,7 +62,7 @@ function problemasDaTecnica(t) {
     case 'MYO_REPS': faixa(t.miniSeries, 2, 10, 'miniSeries'); faixa(t.repsPorMiniSerie, 1, 50, 'repsPorMiniSerie'); pausa(); break;
     case 'PARTIAL_REPS': faixa(t.repsParciais, 1, 30, 'repsParciais'); if (t.regiao != null && !['ALONGADA', 'ENCURTADA', 'LIVRE'].includes(t.regiao)) p.push('regiao'); break;
     case 'FORCED_REPS': faixa(t.repsAssistidas, 1, 5, 'repsAssistidas'); break;
-    default: p.push('tipo');
+    default: if (!DESCRITIVAS.includes(t.tipo)) p.push('tipo');
   }
   return p;
 }
@@ -107,16 +109,17 @@ function problemasDaMetodologia(c) {
     if (!TECNICAS.includes(t?.tipo) || vistasT.has(t.tipo)) e.push(`técnica ${t?.tipo}`);
     vistasT.add(t?.tipo);
     if (!t.nome?.trim() || t.nome.length > 30 || (t.explicacao ?? '').length > 500) e.push(`técnica texto ${t.tipo}`);
-    if (t.padrao && (t.padrao.tipo !== t.tipo || problemasDaTecnica(t.padrao).length)) e.push(`padrão da técnica ${t.tipo}`);
+    if (DESCRITIVAS.includes(t.tipo) && t.padrao) e.push(`padrão da técnica ${t.tipo}`);
+    else if (t.padrao && (t.padrao.tipo !== t.tipo || problemasDaTecnica(t.padrao).length)) e.push(`padrão da técnica ${t.tipo}`);
   }
-  if (vistasT.size !== TECNICAS.length) e.push('faltam técnicas');
+  if (vistasT.size > TECNICAS.length) e.push('técnicas demais');
   const vistasC = new Set();
   for (const k of c.combinacoes ?? []) {
     if (!COMBINACOES.includes(k?.tipo) || vistasC.has(k.tipo)) e.push(`combinação ${k?.tipo}`);
     vistasC.add(k?.tipo);
     if (!k.nome?.trim() || k.nome.length > 30 || (k.explicacao ?? '').length > 500) e.push(`combinação texto ${k.tipo}`);
   }
-  if (vistasC.size !== COMBINACOES.length) e.push('faltam combinações');
+  if (vistasC.size > COMBINACOES.length) e.push('combinações demais');
   if (!ARREDONDAMENTOS.includes(Number(c.arredondamentoKg))) e.push('arredondamento');
   if ((c.instrucoesTreino ?? '').length > 20000) e.push('instruções');
   if ((c.rodapePdf ?? '').length > 500) e.push('rodapé');
@@ -158,7 +161,8 @@ test('o validador espelhado recusa o que a API recusa', () => {
   assert.ok(com((c) => { c.tipos[2].esforcoPadrao = { rir: null, rpe: 7.3 }; }).length);
   assert.ok(com((c) => { c.tipos[2].regraPercentuais = { 1: [{ min: 85, max: null }] }; }).length);
   assert.ok(com((c) => { c.tipos[0].nome = 'Rest pause'; }).length);
-  assert.ok(com((c) => { c.tecnicas.pop(); }).length);
+  assert.equal(com((c) => { c.tecnicas = []; }).length, 0);
+  assert.ok(com((c) => { c.tecnicas.push(c.tecnicas[0]); }).length);
   assert.ok(com((c) => { c.combinacoes[0].nome = 'x'.repeat(31); }).length);
   assert.deepEqual(com(() => {}), []);
 });

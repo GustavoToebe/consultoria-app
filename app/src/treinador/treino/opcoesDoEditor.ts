@@ -7,7 +7,6 @@ import {
   nomeDaTecnica,
   nomeDoTipo,
   TIPOS_DE_GRUPO,
-  TIPOS_DE_TECNICA,
   tipoPorCodigo,
 } from '../../dominio/metodologia';
 import { serieDeTrabalho } from '../../dominio/validacaoDoTreino';
@@ -71,14 +70,26 @@ export function opcoesDeTipo(config: Configuracao | null | undefined, series: re
 
 export type EscolhaDeTecnica = 'NENHUMA' | TipoDeTecnica;
 
-/** "Nenhuma" e as seis técnicas, com o nome que a metodologia dá a cada uma. */
-export function opcoesDeTecnica(config: Configuracao | null | undefined): { valor: EscolhaDeTecnica; rotulo: string }[] {
-  return [{ valor: 'NENHUMA', rotulo: 'Nenhuma' }, ...TIPOS_DE_TECNICA.map((t) => ({ valor: t, rotulo: nomeDaTecnica(config, t) }))];
+export interface OpcaoDeTecnica {
+  valor: EscolhaDeTecnica;
+  rotulo: string;
+  detalhe?: string;
 }
 
-/** As sete combinações de exercícios, com o nome da metodologia. */
+/** "Nenhuma" e só as técnicas da metodologia do plano, pelo nome configurado. A já gravada fora da metodologia fica marcada. */
+export function opcoesDeTecnica(config: Configuracao | null | undefined, atual?: TipoDeTecnica | null): OpcaoDeTecnica[] {
+  const daMetodologia = (config?.tecnicas ?? []).map((t) => ({ valor: t.tipo, rotulo: t.nome.trim() || nomeDaTecnica(config, t.tipo) }));
+  const opcoes: OpcaoDeTecnica[] = [{ valor: 'NENHUMA', rotulo: 'Nenhuma' }, ...daMetodologia];
+  if (atual && !daMetodologia.some((o) => o.valor === atual)) {
+    opcoes.push({ valor: atual, rotulo: nomeDaTecnica(config, atual), detalhe: 'Fora da metodologia' });
+  }
+  return opcoes;
+}
+
+/** Combinações da metodologia, com o nome configurado. Sem metodologia, as sete. */
 export function opcoesDeCombinacao(config: Configuracao | null | undefined): { valor: TecnicaDeGrupo; rotulo: string }[] {
-  return TIPOS_DE_GRUPO.map((t) => ({ valor: t, rotulo: nomeDaCombinacao(config, t) }));
+  const tipos = config ? (config.combinacoes ?? []).map((k) => k.tipo) : [...TIPOS_DE_GRUPO];
+  return tipos.map((t) => ({ valor: t, rotulo: nomeDaCombinacao(config, t) }));
 }
 
 /** Séries ANTES da posição `ate`, para a série de referência do "abaixo da referência": "Série 2 · Top set". */

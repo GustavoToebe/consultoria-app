@@ -2,13 +2,13 @@ import { chaveDeTipo, codigoDoNome, codigoDoNovoTipo, codigoValido, mensagemTipo
 
 describe('tiposDeSerie', () => {
   it('reconhece nome de técnica, sem caixa, hífen, espaço repetido ou acento', () => {
-    for (const nome of ['Cluster', 'rest-pause', 'Rest  pause', 'DROP SET', 'Drop-set', 'Clúster', 'Restpause', 'Myo-reps', 'Partial reps', 'Forced reps']) {
+    for (const nome of ['Cluster', 'rest-pause', 'Rest  pause', 'DROP SET', 'Drop-set', 'Clúster', 'Restpause', 'Myo-reps', 'Partial reps', 'Forced reps', 'Negativa', 'Super-slow', '21s', 'Pirâmide crescente', 'GVT (10×10)', 'FST-7', 'EMOM']) {
       expect(nomeDeTecnica(nome)).toBe(true);
     }
   });
 
   it('não confunde tipo de série com técnica', () => {
-    for (const nome of ['Top set', 'Back off', 'Cardio', 'WS', 'Drop', 'Cluster A']) {
+    for (const nome of ['Top set', 'Back off', 'Cardio', 'WS', 'Drop', 'Cluster A', 'Pirâmide']) {
       expect(nomeDeTecnica(nome)).toBe(false);
     }
   });

@@ -57,15 +57,36 @@ public record ConteudoTreino(
     public static final List<String> MODOS = List.of(CARGA_TRABALHO, PERCENTUAL_WS, MESMA_CARGA, ACIMA_DA_ANTERIOR,
             ABAIXO_DA_REFERENCIA, NENHUMA);
 
-    /** Técnicas da série: lista fixa com campos próprios. O tipo da série vem da metodologia, a técnica não. */
+    /**
+     * Técnicas da série. As seis estruturadas têm campos próprios. As onze descritivas só levam o tipo: o aluno lê a
+     * explicação da metodologia. O tipo da série vem da metodologia, a técnica não.
+     */
     public static final String REST_PAUSE = "REST_PAUSE";
     public static final String CLUSTER = "CLUSTER";
     public static final String DROP_SET = "DROP_SET";
     public static final String MYO_REPS = "MYO_REPS";
     public static final String PARTIAL_REPS = "PARTIAL_REPS";
     public static final String FORCED_REPS = "FORCED_REPS";
-    public static final List<String> TECNICAS = List.of(REST_PAUSE, CLUSTER, DROP_SET, MYO_REPS, PARTIAL_REPS,
+    public static final String NEGATIVA = "NEGATIVA";
+    public static final String SUPER_SLOW = "SUPER_SLOW";
+    public static final String VINTE_E_UM = "VINTE_E_UM";
+    public static final String EMOM = "EMOM";
+    public static final String PIRAMIDE_CRESCENTE = "PIRAMIDE_CRESCENTE";
+    public static final String PIRAMIDE_DECRESCENTE = "PIRAMIDE_DECRESCENTE";
+    public static final String PIRAMIDE_TRUNCADA = "PIRAMIDE_TRUNCADA";
+    public static final String DUPLA_PROGRESSAO = "DUPLA_PROGRESSAO";
+    public static final String GVT = "GVT";
+    public static final String FST7 = "FST7";
+    public static final String ESPECIALIZACAO = "ESPECIALIZACAO";
+    /** As seis com campos próprios. Só nelas a metodologia pode gravar {@code padrao}. */
+    public static final List<String> ESTRUTURADAS = List.of(REST_PAUSE, CLUSTER, DROP_SET, MYO_REPS, PARTIAL_REPS,
             FORCED_REPS);
+    /** Sem campo próprio: a explicação da metodologia é o que o aluno lê. */
+    public static final List<String> DESCRITIVAS = List.of(NEGATIVA, SUPER_SLOW, VINTE_E_UM, EMOM, PIRAMIDE_CRESCENTE,
+            PIRAMIDE_DECRESCENTE, PIRAMIDE_TRUNCADA, DUPLA_PROGRESSAO, GVT, FST7, ESPECIALIZACAO);
+    public static final List<String> TECNICAS = List.of(REST_PAUSE, CLUSTER, DROP_SET, MYO_REPS, PARTIAL_REPS,
+            FORCED_REPS, NEGATIVA, SUPER_SLOW, VINTE_E_UM, EMOM, PIRAMIDE_CRESCENTE, PIRAMIDE_DECRESCENTE,
+            PIRAMIDE_TRUNCADA, DUPLA_PROGRESSAO, GVT, FST7, ESPECIALIZACAO);
 
     /** Região do alongamento/encurtamento das repetições parciais. */
     public static final String ALONGADA = "ALONGADA";
@@ -433,7 +454,7 @@ public record ConteudoTreino(
      * nas outras.
      */
     public record Tecnica(
-            @Size(max = 20) String tipo,
+            @Size(max = 30) String tipo,
             Integer pausaSegundos,
             Integer pausaRespiracoes,
             Integer pausas,
@@ -497,8 +518,10 @@ public record ConteudoTreino(
         private Map<String, String> problemas(boolean completa) {
             Map<String, String> p = new LinkedHashMap<>();
             if (tipo == null || !TECNICAS.contains(tipo)) {
-                p.put("tipo", "Técnica desconhecida: use rest pause, cluster, drop-set, myo-reps, partial reps ou "
-                        + "forced reps.");
+                p.put("tipo", "Técnica desconhecida.");
+                return p;
+            }
+            if (DESCRITIVAS.contains(tipo)) {
                 return p;
             }
             switch (tipo) {

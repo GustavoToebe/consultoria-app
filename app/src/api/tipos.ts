@@ -137,7 +137,7 @@ export interface TipoDeSerie {
   explicacao: string | null;
 }
 
-/** Nome exibido, explicação e padrão (parcial) de uma das seis técnicas; a metodologia tem uma de cada. */
+/** Nome exibido, explicação e padrão (parcial) de uma técnica do catálogo. Descritiva leva `padrao` nulo. */
 export interface TecnicaDaMetodologia {
   tipo: TipoDeTecnica;
   nome: string;
@@ -145,7 +145,7 @@ export interface TecnicaDaMetodologia {
   padrao: Tecnica | null;
 }
 
-/** Nome exibido e explicação de uma das sete técnicas de grupo de exercícios; a metodologia tem uma de cada. */
+/** Nome exibido e explicação de uma combinação de exercícios do catálogo (as sete de sempre; a metodologia escolhe quais usa). */
 export interface CombinacaoDaMetodologia {
   tipo: TecnicaDeGrupo;
   nome: string;
@@ -156,9 +156,9 @@ export interface CombinacaoDaMetodologia {
 export interface Configuracao {
   /** 1 a 20 tipos; ao menos um `TRABALHO` (o primeiro dá nome ao "% da WS"). */
   tipos: TipoDeSerie[];
-  /** As seis técnicas, uma de cada. */
+  /** De zero a dezessete técnicas do catálogo, sem repetir o tipo. */
   tecnicas: TecnicaDaMetodologia[];
-  /** As sete combinações de exercícios (superset, circuito...), uma de cada. */
+  /** De zero a sete combinações do catálogo, sem repetir o tipo. */
   combinacoes: CombinacaoDaMetodologia[];
   arredondamentoKg: number;
   instrucoesTreino: string | null;
@@ -435,13 +435,30 @@ export interface Serie {
   carga: Carga | null;
   esforco: Esforco | null;
   descansoSegundos: number | null;
-  /** Como executar (cluster, rest pause, drop-set, myo-reps, partial reps, forced reps); nulo = série simples. */
+  /** Como executar (catálogo de técnicas); nulo = série simples. */
   tecnica?: Tecnica | null;
   cardio?: Cardio | null;
   alvoExtra?: string | null;
 }
 
-export type TipoDeTecnica = 'REST_PAUSE' | 'CLUSTER' | 'DROP_SET' | 'MYO_REPS' | 'PARTIAL_REPS' | 'FORCED_REPS';
+export type TipoDeTecnica =
+  | 'REST_PAUSE'
+  | 'CLUSTER'
+  | 'DROP_SET'
+  | 'MYO_REPS'
+  | 'PARTIAL_REPS'
+  | 'FORCED_REPS'
+  | 'NEGATIVA'
+  | 'SUPER_SLOW'
+  | 'VINTE_E_UM'
+  | 'EMOM'
+  | 'PIRAMIDE_CRESCENTE'
+  | 'PIRAMIDE_DECRESCENTE'
+  | 'PIRAMIDE_TRUNCADA'
+  | 'DUPLA_PROGRESSAO'
+  | 'GVT'
+  | 'FST7'
+  | 'ESPECIALIZACAO';
 
 /** Região das repetições parciais. */
 export type RegiaoDasParciais = 'ALONGADA' | 'ENCURTADA' | 'LIVRE';
@@ -452,8 +469,9 @@ export type RegiaoDasParciais = 'ALONGADA' | 'ENCURTADA' | 'LIVRE';
  * repetições ("4+2" = `[4, 2]`); as repetições da série são a soma. Drop-set: `quedas`, `reducaoPercentual` (nulo = sem
  * fixar), `repsPorQueda` (nulo = até a falha) e `pausaSegundos` entre as quedas (0 = sem pausa). Myo-reps:
  * `miniSeries` (2 a 10) de `repsPorMiniSerie` (1 a 50); a ativação é a própria série. Partial reps: `repsParciais` (1 a
- * 30) na `regiao`. Forced reps: `repsAssistidas` (1 a 5; exige parceiro). O que não vale para a técnica fica nulo. O
- * aluno registra a série inteira.
+ * 30) na `regiao`. Forced reps: `repsAssistidas` (1 a 5; exige parceiro). As onze descritivas (negativa, super-slow,
+ * 21s, EMOM, pirâmides, dupla progressão, GVT, FST-7, especialização) não têm campo próprio: o que não vale fica nulo.
+ * O aluno registra a série inteira.
  */
 export interface Tecnica {
   tipo: TipoDeTecnica;

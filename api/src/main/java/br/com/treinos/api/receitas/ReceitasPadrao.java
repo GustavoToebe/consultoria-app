@@ -19,7 +19,7 @@ import java.util.UUID;
  * identifique outra consultoria). São só estrutura (séries, dias, refeições); nenhuma carga nem alimento é sugerido.
  * As séries seguem a metodologia padrão, pelo código do tipo: FEEDER em % da WS pela regra 50/70/85–90, WORKING na carga
  * de trabalho sem RIR fixo (a metodologia explica: livre 1 RIR, máquina até a falha), BACK_OFF a 85% da WS. Rest pause é
- * técnica da própria série de trabalho, não um tipo. A receita do top set é a única com uids (o back off aponta o top set).
+ * técnica da própria série de trabalho, não um tipo. A receita do top set e a pirâmide decrescente têm uids (a referência aponta outra série).
  */
 public final class ReceitasPadrao {
 
@@ -50,6 +50,7 @@ public final class ReceitasPadrao {
                 List.of(ws().comTecnica(Tecnica.restPause(20, null, 1)))));
         lista.add(series("WS + Top set + 2 Back off", "WS 1x3-6, Top set 1x1-3 (1 a 5% acima da WS) e 2 Back off de 6-8 "
                 + "com 15% a menos que o top set.", comTopSet()));
+        lista.addAll(doCatalogo());
 
         lista.add(new Padrao(Receita.Tipo.PLANO_TREINO, "Semana 5 treinos + 2 off ativos",
                 "Seg Costas, Ter Peito+Ombros, Qua Pernas, Qui Off ativo, Sex Upper, Sáb Pernas, Dom Off ativo.",
@@ -132,10 +133,28 @@ public final class ReceitasPadrao {
         return serie("WORKING", 8, 12, Carga.de(ConteudoTreino.CARGA_TRABALHO)).comEsforco(Esforco.deRir(2));
     }
 
+    /** Nomes das seis receitas de série do catálogo. A V026 grava só estas nas consultorias que já existem. */
+    public static final List<String> NOMES_DO_CATALOGO = List.of("Pirâmide crescente", "Pirâmide decrescente",
+            "Pirâmide truncada", "Dupla progressão", "GVT 10×10", "FST-7");
+
+    /** As seis receitas de série do catálogo, na ordem dos nomes. */
+    public static List<Padrao> doCatalogo() {
+        return List.of(
+                series("Pirâmide crescente", "A cada série a carga sobe e as repetições diminuem.", piramideCrescente()),
+                series("Pirâmide decrescente",
+                        "Comece pela série mais pesada (depois do aquecimento) e, a cada série, reduza a carga e faça mais repetições.",
+                        piramideDecrescente()),
+                series("Pirâmide truncada", "Só a parte que sobe: a carga aumenta aos poucos a cada série, sem descer depois.",
+                        piramideTruncada()),
+                series("Dupla progressão", "Trabalhe dentro da faixa de repetições.", duplaProgressao()),
+                series("GVT 10×10", "10 séries de 10 repetições com a mesma carga e o mesmo descanso entre as séries.", gvt()),
+                series("FST-7", "No fim do treino do músculo, 7 séries do mesmo exercício com descanso curto entre elas.", fst7()));
+    }
+
     /**
      * WS, top set e 2 back off: cada back off tira 15% da carga registrada no top set ({@code ABAIXO_DA_REFERENCIA}). É a
-     * única receita com uid nas séries, porque a referência aponta uma série; os uids são fixos (nascem do nome) para o
-     * JSON da receita ser sempre o mesmo, e o app os troca por uids novos ao aplicar.
+     * única receita antiga com uid nas séries, porque a referência aponta uma série; os uids são fixos (nascem do nome)
+     * para o JSON da receita ser sempre o mesmo, e o app os troca por uids novos ao aplicar.
      */
     private static List<Serie> comTopSet() {
         UUID topSet = uidFixo("top-set");
@@ -151,6 +170,66 @@ public final class ReceitasPadrao {
 
     private static UUID uidFixo(String nome) {
         return UUID.nameUUIDFromBytes(("receita-top-set/" + nome).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static UUID uidDoCatalogo(String nome) {
+        return UUID.nameUUIDFromBytes(("receita-catalogo/" + nome).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static Serie comCatalogo(String tipo, Integer min, Integer max, Carga carga, String tecnica) {
+        return serie(tipo, min, max, carga).comTecnica(Tecnica.vazia(tecnica));
+    }
+
+    private static List<Serie> piramideCrescente() {
+        return List.of(
+                comCatalogo("WORKING", 12, 12, null, ConteudoTreino.PIRAMIDE_CRESCENTE).comAlvoExtra("Carga leve"),
+                comCatalogo("WORKING", 10, 10, null, ConteudoTreino.PIRAMIDE_CRESCENTE).comAlvoExtra("Carga moderada"),
+                comCatalogo("WORKING", 8, 8, null, ConteudoTreino.PIRAMIDE_CRESCENTE).comAlvoExtra("Carga pesada"));
+    }
+
+    /** A 2ª aponta a 1ª e a 3ª aponta a 2ª. Uids fixos porque a referência precisa de um uid estável. */
+    private static List<Serie> piramideDecrescente() {
+        UUID primeira = uidDoCatalogo("piramide-decrescente-1");
+        UUID segunda = uidDoCatalogo("piramide-decrescente-2");
+        UUID terceira = uidDoCatalogo("piramide-decrescente-3");
+        Tecnica tecnica = Tecnica.vazia(ConteudoTreino.PIRAMIDE_DECRESCENTE);
+        return List.of(
+                new Serie(primeira, "WORKING", 8, 8, null, Carga.de(ConteudoTreino.CARGA_TRABALHO), null, null, tecnica, null, null),
+                new Serie(segunda, "WORKING", 10, 10, null, Carga.abaixoDa(primeira, 10, 15), null, null, tecnica, null, null),
+                new Serie(terceira, "WORKING", 12, 12, null, Carga.abaixoDa(segunda, 10, 15), null, null, tecnica, null, null));
+    }
+
+    private static List<Serie> piramideTruncada() {
+        return List.of(
+                comCatalogo("WORKING", 15, 15, null, ConteudoTreino.PIRAMIDE_TRUNCADA),
+                comCatalogo("WORKING", 12, 12, null, ConteudoTreino.PIRAMIDE_TRUNCADA).comAlvoExtra("Aumente levemente a carga"),
+                comCatalogo("WORKING", 10, 10, null, ConteudoTreino.PIRAMIDE_TRUNCADA).comAlvoExtra("Aumente levemente a carga"));
+    }
+
+    private static List<Serie> duplaProgressao() {
+        Carga mesma = Carga.de(ConteudoTreino.MESMA_CARGA);
+        return List.of(
+                comCatalogo("WORKING", 8, 12, Carga.de(ConteudoTreino.CARGA_TRABALHO), ConteudoTreino.DUPLA_PROGRESSAO),
+                comCatalogo("WORKING", 8, 12, mesma, ConteudoTreino.DUPLA_PROGRESSAO),
+                comCatalogo("WORKING", 8, 12, mesma, ConteudoTreino.DUPLA_PROGRESSAO));
+    }
+
+    private static List<Serie> gvt() {
+        List<Serie> series = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            Carga carga = i == 0 ? Carga.de(ConteudoTreino.CARGA_TRABALHO) : Carga.de(ConteudoTreino.MESMA_CARGA);
+            series.add(comCatalogo("WORKING", 10, 10, carga, ConteudoTreino.GVT).comDescanso(90));
+        }
+        return series;
+    }
+
+    private static List<Serie> fst7() {
+        List<Serie> series = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            Carga carga = i == 0 ? Carga.de(ConteudoTreino.CARGA_TRABALHO) : Carga.de(ConteudoTreino.MESMA_CARGA);
+            series.add(comCatalogo("WORKING", 10, 12, carga, ConteudoTreino.FST7).comDescanso(30));
+        }
+        return series;
     }
 
     private static Carga percentual(int min, Integer max) {

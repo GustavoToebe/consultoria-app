@@ -23,6 +23,16 @@ Os blocos A a F (formato de 22/10, com papéis, regras de faixas e técnicas por
 | Ajuda | Texto do formato de A–F | Guias do treinador e do aluno reescritos para o contrato novo (o PDF sai do mesmo `conteudo.ts`). |
 | Migrations | 23 (V022 e V023 já no `origin/main`) | 24: a V024 apaga os dados de treino e as receitas no formato anterior e recria as receitas padrão no contrato novo. |
 
+## Catálogo
+
+A metodologia padrão continua com 5 tipos, 6 técnicas e 7 combinações. O catálogo só acrescenta, e cada consultoria escolhe o que usa.
+
+- Tipos: os 5 da padrão e mais Ativação, Reconhecimento, Série de teste, Finalizadora, Série técnica e Descarga (estes sem faixa, sem carga, sem esforço e sem variação por modalidade). "Adicionar tipo" continua livre e não reaproveita código. "Adicionar da lista" usa o código do catálogo, mesmo que aquele tipo já tenha sido removido.
+- Técnicas: as 6 estruturadas e 11 descritivas (negativa, super-slow, 21s, EMOM, pirâmide crescente, pirâmide decrescente, pirâmide truncada, dupla progressão, GVT, FST-7 e especialização). Descritiva não tem padrão nem campo próprio. A metodologia aceita de 0 a 17, sem repetir. Série cuja técnica não está na metodologia do plano só avisa.
+- Combinações: as 7 de sempre, de 0 a 7, sem repetir e sem combinação nova. Sem nenhuma, "Criar grupo" fica desabilitado. Grupo cuja combinação não está na metodologia só avisa.
+- Receitas de série novas (tipo WORKING, técnica em toda série): Pirâmide crescente, Pirâmide decrescente (a 2ª aponta a 1ª e a 3ª aponta a 2ª), Pirâmide truncada, Dupla progressão, GVT 10×10 (descanso 90 s) e FST-7 (descanso 30 s). Consultoria nova recebe por `ReceitasPadrao.todas()`. Consultoria que já existe recebe só pela V026, e só se ainda não houver receita de séries com o mesmo nome.
+- AMRAP, cadência e isometria continuam sendo campos da série e do exercício, não técnicas.
+
 ## Decisões e diferenças em relação ao plano
 
 - Tipo é sempre obrigatório (a técnica nunca o substitui). Rest pause, cluster e as demais entram na própria série WS, como nos exemplos do guia de métodos; some o "Só técnica" e a série `MESMA_CARGA` sem tipo.

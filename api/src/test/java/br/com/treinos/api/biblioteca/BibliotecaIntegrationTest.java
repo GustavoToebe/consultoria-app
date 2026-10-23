@@ -2,6 +2,7 @@ package br.com.treinos.api.biblioteca;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.receitas.ReceitasPadrao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -186,7 +187,7 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
     @Test
     void consultoriaNovaJaTemAsReceitasPadrao() throws Exception {
         JsonNode receitas = api.get("/receitas", treinador, 200);
-        assertThat(receitas).hasSize(14);
+        assertThat(receitas).hasSize(ReceitasPadrao.todas().size());
         assertThat(api.get("/receitas?tipo=METODOLOGIA", treinador, 200)).hasSize(1);
         assertThat(api.get("/receitas?tipo=SERIES", treinador, 200).valueStream().map(r -> r.get("nome").asString()))
                 .contains("Aquecimento + 3 FS + WS + 2 Back off 85%", "Séries simples 3x8-12", "WS + Rest pause", "WS + Top set + 2 Back off")

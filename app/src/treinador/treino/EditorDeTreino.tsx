@@ -47,7 +47,7 @@ import { CartaoGrupo } from '../../treinador/treino/CartaoGrupo';
 import { CartaoSessao } from '../../treinador/treino/CartaoSessao';
 import { FolhaBiblioteca } from '../../treinador/treino/FolhaBiblioteca';
 import { FolhaCriarGrupo } from '../../treinador/treino/FolhaCriarGrupo';
-import { criarGrupoPronto, dicaDoGrupo, motivoSemCandidatos, vizinhosQuePodemEntrar } from '../../treinador/treino/acoesDeGrupo';
+import { criarGrupoPronto, dicaDoGrupo, motivoSemGrupo, vizinhosQuePodemEntrar } from '../../treinador/treino/acoesDeGrupo';
 import { juntarProblemas, problemasDoExercicio, problemasDoGrupo } from '../../treinador/treino/problemasDaSessao';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
@@ -313,7 +313,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           aoSalvarModelo={() => setFolha({ tipo: 'salvarSessao', indice: indiceSelecionado })}
           aoNovoExercicio={() => adicionarExercicio(indiceSelecionado)}
           aoCriarGrupo={() => setFolha({ tipo: 'grupo' })}
-          motivoSemGrupo={motivoSemCandidatos(sessaoAtual)}
+          motivoSemGrupo={motivoSemGrupo(sessaoAtual, config)}
           todosAbertos={sessaoAtual.exercicios.length > 0 && sessaoAtual.exercicios.every((e) => abertos.has(e.uid))}
           aoAlternarTodos={() => {
             const uids = sessaoAtual.exercicios.map((e) => e.uid);

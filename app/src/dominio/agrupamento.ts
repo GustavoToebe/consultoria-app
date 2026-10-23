@@ -1,7 +1,8 @@
 import type { Cardio, Carga, Configuracao, Esforco, Serie, Tecnica } from '../api/tipos';
 import { textoDeBlocos } from './blocos';
 import { numeroParaTela } from './formatos';
-import { nomeDaTecnica, nomeDoTipo, tipoTrabalho } from './metodologia';
+import { explicacaoDoCatalogo } from './catalogoMetodologia';
+import { explicacaoDaTecnica, nomeDaTecnica, nomeDoTipo, tecnicaDescritiva, tipoTrabalho } from './metodologia';
 
 /**
  * Séries consecutivas iguais (tipo, faixa de repetições, forma de carga, esforço, técnica, alvo extra) aparecem juntas
@@ -176,6 +177,7 @@ const REGIAO_POR_EXTENSO = { ALONGADA: ' na parte alongada do movimento', ENCURT
 export function textoTecnica(t: Tecnica | null | undefined, config?: Configuracao | null, comBlocos = true): string {
   if (!t) return '';
   const nome = nomeDaTecnica(config, t.tipo);
+  if (tecnicaDescritiva(t.tipo)) return nome;
   switch (t.tipo) {
     case 'CLUSTER': {
       const blocos = comBlocos && t.blocos?.length ? ` ${textoDeBlocos(t.blocos)},` : '';
@@ -205,6 +207,7 @@ export function textoTecnica(t: Tecnica | null | undefined, config?: Configuraca
 export function textoTecnicaPorExtenso(t: Tecnica | null | undefined, config?: Configuracao | null): string {
   if (!t) return '';
   const nome = nomeDaTecnica(config, t.tipo);
+  if (tecnicaDescritiva(t.tipo)) return explicacaoDaTecnica(config, t.tipo) || explicacaoDoCatalogo(t.tipo) || nome;
   switch (t.tipo) {
     case 'CLUSTER': {
       const b = t.blocos ?? [];

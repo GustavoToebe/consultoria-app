@@ -33,8 +33,31 @@ export function rotuloDoPapel(papel: PapelDaSerie): string {
   return PAPEIS.find((p) => p.valor === papel)?.rotulo ?? papel;
 }
 
-/** As seis técnicas da série, na ordem da API (`ConteudoTreino.TECNICAS`). */
-export const TIPOS_DE_TECNICA: readonly TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS'];
+/** As seis técnicas com campos próprios, na ordem da API (`ConteudoTreino.ESTRUTURADAS`). */
+export const TECNICAS_ESTRUTURADAS: readonly TipoDeTecnica[] = ['REST_PAUSE', 'CLUSTER', 'DROP_SET', 'MYO_REPS', 'PARTIAL_REPS', 'FORCED_REPS'];
+
+/** As onze técnicas descritivas: não têm campo próprio (`ConteudoTreino.DESCRITIVAS`). */
+export const TECNICAS_DESCRITIVAS: readonly TipoDeTecnica[] = [
+  'NEGATIVA',
+  'SUPER_SLOW',
+  'VINTE_E_UM',
+  'EMOM',
+  'PIRAMIDE_CRESCENTE',
+  'PIRAMIDE_DECRESCENTE',
+  'PIRAMIDE_TRUNCADA',
+  'DUPLA_PROGRESSAO',
+  'GVT',
+  'FST7',
+  'ESPECIALIZACAO',
+];
+
+/** As dezessete técnicas do catálogo, na ordem da API (`ConteudoTreino.TECNICAS`). */
+export const TIPOS_DE_TECNICA: readonly TipoDeTecnica[] = [...TECNICAS_ESTRUTURADAS, ...TECNICAS_DESCRITIVAS];
+
+/** Técnica descritiva: a explicação basta; padrão e campos de outra técnica são ignorados. */
+export function tecnicaDescritiva(tipo: string | null | undefined): boolean {
+  return !!tipo && (TECNICAS_DESCRITIVAS as readonly string[]).includes(tipo);
+}
 
 /** Nome fixo de cada técnica: vale onde não há metodologia à mão (`nomeDaTecnica`). */
 export const NOME_FIXO_DA_TECNICA: Record<TipoDeTecnica, string> = {
@@ -44,6 +67,17 @@ export const NOME_FIXO_DA_TECNICA: Record<TipoDeTecnica, string> = {
   MYO_REPS: 'Myo-reps',
   PARTIAL_REPS: 'Partial reps',
   FORCED_REPS: 'Forced reps',
+  NEGATIVA: 'Negativa',
+  SUPER_SLOW: 'Super-slow',
+  VINTE_E_UM: '21s',
+  EMOM: 'EMOM',
+  PIRAMIDE_CRESCENTE: 'Pirâmide crescente',
+  PIRAMIDE_DECRESCENTE: 'Pirâmide decrescente',
+  PIRAMIDE_TRUNCADA: 'Pirâmide truncada',
+  DUPLA_PROGRESSAO: 'Dupla progressão',
+  GVT: 'GVT (10×10)',
+  FST7: 'FST-7',
+  ESPECIALIZACAO: 'Especialização',
 };
 
 /** As sete técnicas de grupo de exercícios, na ordem da API (`ConteudoTreino.TECNICAS_DE_GRUPO`). */

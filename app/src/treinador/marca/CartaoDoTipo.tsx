@@ -1,5 +1,4 @@
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { Configuracao, ModalidadeComPadrao, PadraoPorModalidade } from '../../api/tipos';
 import type { TipoEmEdicao } from '../../dominio/edicaoMetodologia';
@@ -16,7 +15,6 @@ import { CampoNumerico } from '../../ui/Campos';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
-import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { CamposDoEsforco, EscolhaDeCarga, ErroDoCampo, FaixaDeCarga } from '../treino/CamposDaPrescricao';
 import { subProblemas } from '../treino/opcoesDoEditor';
@@ -45,7 +43,6 @@ interface Props {
 /** Um tipo de série: identificação, prescrição padrão (repetições, carga, esforço, variação por modalidade, regra) e explicação. */
 export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, aberto, aoAlternar, aoMover, aoRemover, aoMudar }: Props) {
   const { cores } = useTema();
-  const [removendo, setRemovendo] = useState(false);
   const nome = t.nome.trim() || 'Novo tipo';
   const quantos = Object.keys(p).length;
   const mudarPadraoDaModalidade = (m: ModalidadeComPadrao, parte: Partial<PadraoPorModalidade>) => {
@@ -65,7 +62,7 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
     aberto={aberto} aoAlternar={aoAlternar} acoes={<>
       <IconeBotao Icone={ArrowUp} rotulo={`Subir o tipo ${nome}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
       <IconeBotao Icone={ArrowDown} rotulo={`Descer o tipo ${nome}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />
-      <IconeBotao Icone={Trash2} rotulo={`Remover o tipo ${nome}`} cor={cores.perigo} aoTocar={() => setRemovendo(true)} />
+      <IconeBotao Icone={Trash2} rotulo={`Remover o tipo ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />
     </>} />}>
     {aberto ? <>
       <View style={estilos.secao}>
@@ -120,9 +117,6 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
           ajuda={`O aluno lê ao tocar no tipo. ${(t.explicacao ?? '').length}/${LIMITE_EXPLICACAO}.`} erro={p.explicacao} />
       </View>
     </> : null}
-    <PainelConfirmacao visivel={removendo} titulo={`Remover o tipo “${nome}”?`}
-      mensagem="As séries que já usam esse tipo continuam válidas, mas passam a aparecer pelo código e a publicação avisa. Nada é salvo até você tocar em Salvar modelo."
-      rotuloConfirmar="Remover tipo" perigo aoCancelar={() => setRemovendo(false)} aoConfirmar={() => { setRemovendo(false); aoRemover(); }} />
   </Cartao>;
 }
 
