@@ -77,9 +77,14 @@ class BibliotecaIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode alimentos = api.get("/catalogo/alimentos?busca=arroz", treinador, 200).get("itens");
         assertThat(alimentos.size()).isGreaterThanOrEqualTo(6);
-        assertThat(alimentos.get(0).get("fonte").asString()).contains("TACO");
+        // A busca também devolve preparações do Batel Grill, que vêm antes na ordem alfabética.
+        JsonNode taco = alimentos.valueStream()
+                .filter(a -> "Arroz, tipo 1, cozido".equals(a.get("nome").asString()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(taco.get("fonte").asString()).contains("TACO");
         api.post("/alimentos/importar-catalogo", treinador,
-                Map.of("ids", List.of(alimentos.get(0).get("id").asString())), 200);
+                Map.of("ids", List.of(taco.get("id").asString())), 200);
         assertThat(api.get("/alimentos", treinador, 200)).hasSize(1);
     }
 
