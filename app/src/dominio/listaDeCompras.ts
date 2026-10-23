@@ -35,6 +35,14 @@ export interface LinhaDaLista {
   bruto: boolean;
   /** Nenhum fator foi aplicado: a quantidade é a da dieta, como está. */
   semFator: boolean;
+  /** Quantidade da dieta no período, antes dos fatores. Some das partes do mesmo alimento. */
+  naDieta: number;
+  /** Peso cru no período quando todas as partes têm o mesmo FCc; senão `null` (a coluna mostra "—"). */
+  quantidadeCru: number | null;
+  /** FC comum do grupo; `null` se falta ou se as partes divergem (não se inventa um número). */
+  fatorCorrecao: number | null;
+  /** FCc comum do grupo; `null` se falta ou se as partes divergem. */
+  fatorCoccao: number | null;
 }
 
 /** Opção que entra na lista para a refeição: a escolhida, se ainda existe; senão a primeira. */
@@ -71,18 +79,43 @@ export function listaDeCompras(conteudo: ConteudoDieta, escolhas: EscolhasDeOpca
       if (!nome || !positivo(item.quantidade)) continue;
       const chave = `${item.alimentoId ? `a:${item.alimentoId}` : `n:${semAcento(nome)}`}:${item.unidade}`;
       const dia = porDia({ ...item, quantidade: item.quantidade });
+      const fc = item.unidade === 'g' && positivo(item.fatorCorrecao) ? item.fatorCorrecao : null;
+      const fcc = item.unidade === 'g' && positivo(item.fatorCoccao) ? item.fatorCoccao : null;
+      const cruQ = fcc ? (item.quantidade / fcc) * dias : null;
+      const naDieta = item.quantidade * dias;
       const atual = linhas.get(chave);
       if (atual) {
         atual.quantidade += dia.quantidade * dias;
+        atual.naDieta += naDieta;
         atual.cru ||= dia.cru;
         atual.bruto ||= dia.bruto;
         atual.semFator = !atual.cru && !atual.bruto;
+        atual.fatorCorrecao = mesmoFator(atual.fatorCorrecao, fc);
+        atual.fatorCoccao = mesmoFator(atual.fatorCoccao, fcc);
+        atual.quantidadeCru = atual.quantidadeCru !== null && cruQ !== null ? atual.quantidadeCru + cruQ : null;
       } else {
-        linhas.set(chave, { chave, nome, unidade: item.unidade, quantidade: dia.quantidade * dias, cru: dia.cru, bruto: dia.bruto, semFator: !dia.cru && !dia.bruto });
+        linhas.set(chave, {
+          chave, nome, unidade: item.unidade, quantidade: dia.quantidade * dias, cru: dia.cru, bruto: dia.bruto,
+          semFator: !dia.cru && !dia.bruto, naDieta, quantidadeCru: cruQ, fatorCorrecao: fc, fatorCoccao: fcc,
+        });
       }
     }
   }
   return [...linhas.values()].sort((a, b) => semAcento(a.nome).localeCompare(semAcento(b.nome)) || a.unidade.localeCompare(b.unidade));
+}
+
+/** Dois fatores só viram um número quando são o mesmo; falta ou divergência fica `null`. */
+function mesmoFator(atual: number | null, novo: number | null): number | null {
+  return atual !== null && novo !== null && atual === novo ? atual : null;
+}
+
+/** "Café da manhã: opção B" para cada refeição com mais de uma opção. */
+export function textosDasOpcoes(conteudo: ConteudoDieta, escolhas: EscolhasDeOpcao): string[] {
+  return refeicoesComEscolha(conteudo).map((r) => {
+    const uid = escolhas[r.uid];
+    const opcao = r.opcoes.find((o) => o.uid === uid) ?? r.opcoes[0];
+    return `${r.nome || 'Refeição'}: opção ${opcao?.rotulo ?? '—'}`;
+  });
 }
 
 /** Refeições com mais de uma opção: só nelas o aluno escolhe qual entra na lista. */

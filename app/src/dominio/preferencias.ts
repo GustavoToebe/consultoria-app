@@ -1,3 +1,4 @@
+import type { PeriodoDaLista } from './listaDeCompras';
 import type { Cores } from '../tema/tokens';
 
 /**
@@ -8,6 +9,15 @@ export type TemaEscolhido = 'CONSULTORIA' | 'ESCURO' | 'CLARO' | 'SISTEMA';
 export type Contraste = 'PADRAO' | 'ALTO';
 export type TamanhoTexto = 'PADRAO' | 'MEDIO' | 'GRANDE' | 'EXTRA';
 export type Movimento = 'SISTEMA' | 'REDUZIDO';
+export type ModoPdfDieta = 'simples' | 'detalhado';
+
+/** Última escolha da folha "PDF da dieta". Fica no aparelho, como as outras preferências. */
+export interface PdfDietaPreferida {
+  modo: ModoPdfDieta;
+  periodo: PeriodoDaLista;
+  /** Só mostra as colunas. A conta da lista usa os fatores mesmo com isto desligado. */
+  fatores: boolean;
+}
 
 export interface Preferencias {
   tema: TemaEscolhido;
@@ -22,6 +32,8 @@ export interface Preferencias {
   barrasEscuras: boolean;
   /** Só treinador: "Sem registro há N dias" no Início. Informação, nunca inativa ninguém. */
   diasSemRegistro: number;
+  /** Folha do PDF da dieta: Simples ou Detalhado, período e colunas de fator. */
+  pdfDieta: PdfDietaPreferida;
 }
 
 /** Valores que o cartão "Sem registro" oferece; a API aceita de 1 a 90. */
@@ -39,6 +51,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   graficos: true,
   barrasEscuras: true,
   diasSemRegistro: 7,
+  pdfDieta: { modo: 'simples', periodo: 'semana', fatores: true },
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'SISTEMA'];
@@ -70,6 +83,19 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     graficos: typeof o.graficos === 'boolean' ? o.graficos : PREFERENCIAS_PADRAO.graficos,
     barrasEscuras: typeof o.barrasEscuras === 'boolean' ? o.barrasEscuras : PREFERENCIAS_PADRAO.barrasEscuras,
     diasSemRegistro: typeof o.diasSemRegistro === 'number' && OPCOES_DIAS_SEM_REGISTRO.includes(o.diasSemRegistro) ? o.diasSemRegistro : PREFERENCIAS_PADRAO.diasSemRegistro,
+    pdfDieta: pdfDietaDe(o.pdfDieta),
+  };
+}
+
+const MODOS_PDF: readonly ModoPdfDieta[] = ['simples', 'detalhado'];
+const PERIODOS_PDF: readonly PeriodoDaLista[] = ['semana', 'mes'];
+
+function pdfDietaDe(valor: unknown): PdfDietaPreferida {
+  const o = valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {};
+  return {
+    modo: entre(o.modo, MODOS_PDF, PREFERENCIAS_PADRAO.pdfDieta.modo),
+    periodo: entre(o.periodo, PERIODOS_PDF, PREFERENCIAS_PADRAO.pdfDieta.periodo),
+    fatores: typeof o.fatores === 'boolean' ? o.fatores : PREFERENCIAS_PADRAO.pdfDieta.fatores,
   };
 }
 

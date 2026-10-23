@@ -1,7 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import type { ConteudoDieta, ItemDieta, VersaoDetalhe } from '../src/api/tipos';
-import { simularApi } from './api-falsa';
+import type { PlanoDetalhe } from '../src/api/tipos';
+import { MARCA, PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
 
 function item(uid: string, nome: string, quantidade: number, unidade: ItemDieta['unidade'], fatores: Partial<ItemDieta> = {}): ItemDieta {
@@ -82,3 +83,80 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+async function baixarDietaDetalhada(page: Page) {
+  await page.addInitScript(() => { window.print = () => undefined; });
+  const { naoTratadas, errosDaPagina } = await simularApi(page, {
+    ...(await sessaoDeAluno(page)),
+    'GET /aluno/dieta': { corpo: { dieta: DIETA } },
+    'GET /aluno/pesos': { corpo: [] },
+  });
+  await page.goto('/aluno/dieta');
+  await page.getByRole('button', { name: 'Baixar PDF da dieta' }).click();
+  const folha = page.getByRole('dialog', { name: 'PDF da dieta' });
+  await expect(folha).toBeVisible();
+  await folha.getByRole('radiogroup', { name: 'Forma do PDF' }).getByRole('button', { name: 'Detalhado' }).click();
+  await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Mês' }).click();
+  await folha.getByRole('button', { name: 'Baixar PDF', exact: true }).click();
+  const bloco = page.locator('#treinos-impressao');
+  await expect(bloco).toContainText('Lista de compras · 30 dias');
+  await expect(bloco).toContainText('FCc');
+  await expect(bloco).toContainText('FC');
+  await expect(bloco).toContainText('Arroz branco cozido');
+
+  await page.getByRole('button', { name: 'Baixar PDF da dieta' }).click();
+  await expect(folha.getByRole('button', { name: 'Detalhado' })).toHaveAttribute('aria-checked', 'true');
+  await expect(folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Mês' })).toHaveAttribute('aria-checked', 'true');
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+}
+
+for (const largura of [390, 1280]) {
+  test(`pdf da dieta: aluno escolhe Detalhado e 30 dias em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 800 });
+    await baixarDietaDetalhada(page);
+  });
+}
+
+const PLANO_ID = 'p0000000-0000-4000-8000-000000000001';
+const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
+
+const DETALHE: PlanoDetalhe<ConteudoDieta> = {
+  plano: {
+    id: PLANO_ID, alunoId: ALUNO_ID, pastaId: null, titulo: 'Dieta de teste',
+    inicio: '2026-10-01', fim: '2026-10-31', ativo: true, versaoPublicada: 1,
+    publicadoEm: '2026-10-01T12:00:00Z', rascunhoAlteradoDepoisDePublicar: false, versao: 1,
+  },
+  rascunho: CONTEUDO,
+  versoes: [{ id: 'v0000000-0000-4000-8000-000000000001', numero: 1, publicadoEm: '2026-10-01T12:00:00Z' }],
+};
+
+for (const largura of [390, 1280]) {
+  test(`pdf da dieta: treinador na ficha do plano escolhe Detalhado em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 800 });
+    await page.addInitScript(() => { window.print = () => undefined; });
+    const { naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /alimentos': { corpo: [] },
+      'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluno Teste' } },
+      [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: [] },
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: DETALHE },
+      [`GET /planos-dieta/${PLANO_ID}/versoes/1`]: { corpo: { ...DIETA, planoId: PLANO_ID, numero: 1 } },
+    });
+    await page.goto(`/treinador/dietas/${PLANO_ID}`);
+    await page.getByRole('button', { name: /PDF/ }).click();
+    const folha = page.getByRole('dialog', { name: 'PDF da dieta' });
+    await expect(folha).toBeVisible();
+    await folha.getByRole('radiogroup', { name: 'Forma do PDF' }).getByRole('button', { name: 'Detalhado' }).click();
+    await folha.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Mês' }).click();
+    await folha.getByRole('button', { name: 'Baixar PDF', exact: true }).click();
+    const bloco = page.locator('#treinos-impressao');
+    await expect(bloco).toContainText('Lista de compras · 30 dias');
+    await expect(bloco).toContainText('Arroz branco cozido');
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

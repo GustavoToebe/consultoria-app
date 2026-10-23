@@ -10,6 +10,7 @@ import {
   NOTA_DA_LISTA_TREINADOR,
   quantidadeParaTela,
   refeicoesComEscolha,
+  textosDasOpcoes,
   type EscolhasDeOpcao,
   type LinhaDaLista,
   type PeriodoDaLista,
@@ -30,6 +31,43 @@ const PERIODOS: { valor: PeriodoDaLista; rotulo: string }[] = [
   { valor: 'semana', rotulo: 'Semana' },
   { valor: 'mes', rotulo: 'Mês' },
 ];
+
+/** Período e, quando a refeição tem mais de uma opção, qual entra na lista. A folha do PDF da dieta usa o mesmo controle. */
+export function EscolhasDaLista({
+  conteudo,
+  periodo,
+  aoMudarPeriodo,
+  escolhas,
+  aoMudarEscolhas,
+}: {
+  conteudo: ConteudoDieta;
+  periodo: PeriodoDaLista;
+  aoMudarPeriodo: (periodo: PeriodoDaLista) => void;
+  escolhas: EscolhasDeOpcao;
+  aoMudarEscolhas: (escolhas: EscolhasDeOpcao) => void;
+}) {
+  const comEscolha = refeicoesComEscolha(conteudo);
+  const opcaoDe = (r: (typeof comEscolha)[number]) => r.opcoes.find((o) => o.uid === escolhas[r.uid]) ?? r.opcoes[0];
+  return (
+    <>
+      <Escolha descricao="Período da lista" opcoes={PERIODOS} valor={periodo} aoMudar={aoMudarPeriodo} />
+      {comEscolha.length ? (
+        <View style={estilos.opcoes}>
+          <Texto variante="suave">Nas refeições com mais de uma opção, escolha a que vai comprar.</Texto>
+          {comEscolha.map((r) => (
+            <Escolha
+              key={r.uid}
+              rotulo={`${r.horario ? `${r.horario} · ` : ''}${r.nome || 'Refeição'}`}
+              opcoes={r.opcoes.map((o) => ({ valor: o.uid, rotulo: `Opção ${o.rotulo}` }))}
+              valor={opcaoDe(r)?.uid ?? ''}
+              aoMudar={(uid) => aoMudarEscolhas({ ...escolhas, [r.uid]: uid })}
+            />
+          ))}
+        </View>
+      ) : null}
+    </>
+  );
+}
 
 /**
  * Alimento e quantidade. A quantidade é coluna de "ação" da `Tabela`: no celular fica no canto do cartão, sem o rótulo
@@ -79,15 +117,13 @@ export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { cont
   const [periodo, setPeriodo] = useState<PeriodoDaLista>('semana');
   const [escolhas, setEscolhas] = useState<EscolhasDeOpcao>({});
   const [gerando, setGerando] = useState(false);
-  const comEscolha = refeicoesComEscolha(conteudo);
   const linhas = listaDeCompras(conteudo, escolhas, periodo);
-  const opcaoDe = (r: (typeof comEscolha)[number]) => r.opcoes.find((o) => o.uid === escolhas[r.uid]) ?? r.opcoes[0];
 
   const pdf = async () => {
     if (!aoGerarPdf) return;
     setGerando(true);
     try {
-      await aoGerarPdf({ periodo, opcoes: comEscolha.map((r) => `${r.nome || 'Refeição'}: opção ${opcaoDe(r)?.rotulo ?? '—'}`), linhas });
+      await aoGerarPdf({ periodo, opcoes: textosDasOpcoes(conteudo, escolhas), linhas });
     } catch (e) {
       avisar(textoDoErro(e), 'perigo');
     } finally {
@@ -98,21 +134,7 @@ export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { cont
   return (
     <>
       <Cartao titulo="Para quanto tempo">
-        <Escolha descricao="Período da lista" opcoes={PERIODOS} valor={periodo} aoMudar={setPeriodo} />
-        {comEscolha.length ? (
-          <View style={estilos.opcoes}>
-            <Texto variante="suave">Nas refeições com mais de uma opção, escolha a que vai comprar.</Texto>
-            {comEscolha.map((r) => (
-              <Escolha
-                key={r.uid}
-                rotulo={`${r.horario ? `${r.horario} · ` : ''}${r.nome || 'Refeição'}`}
-                opcoes={r.opcoes.map((o) => ({ valor: o.uid, rotulo: `Opção ${o.rotulo}` }))}
-                valor={opcaoDe(r)?.uid ?? ''}
-                aoMudar={(uid) => setEscolhas((atual) => ({ ...atual, [r.uid]: uid }))}
-              />
-            ))}
-          </View>
-        ) : null}
+        <EscolhasDaLista conteudo={conteudo} periodo={periodo} aoMudarPeriodo={setPeriodo} escolhas={escolhas} aoMudarEscolhas={setEscolhas} />
       </Cartao>
       <Cartao titulo={periodo === 'semana' ? 'Lista da semana' : 'Lista do mês'}>
         {linhas.length ? (

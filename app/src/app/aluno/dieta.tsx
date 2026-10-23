@@ -19,7 +19,8 @@ import { espaco, fontes, RAIO } from '../../tema/tokens';
 import { textoTotais } from '../../treinador/dieta/CartaoRefeicao';
 import { imprimir } from '../../pdf/imprimir';
 import { logoComoDataUri } from '../../pdf/logo';
-import { documentoDieta } from '../../pdf/pdfDieta';
+import { documentoDieta, type DadosPdfDieta } from '../../pdf/pdfDieta';
+import { FolhaPdfDieta } from '../../ui/FolhaPdfDieta';
 import { Abas } from '../../ui/Abas';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { useAviso } from '../../ui/Aviso';
@@ -71,36 +72,29 @@ export default function DietaAluno() {
 function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean }) {
   const { cores } = useTema();
   const { pacote } = useAluno();
-  const { avisar } = useAviso();
-  const [gerando, setGerando] = useState(false);
+  const [folhaPdf, setFolhaPdf] = useState(false);
   const c = normalizarDieta(versao.conteudo);
   const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
 
-  const pdf = async () => {
+  const pdf = async (lista?: DadosPdfDieta['lista']) => {
     if (!pacote) return;
-    setGerando(true);
-    try {
-      const marca = pacote.pacote.marca;
-      // Sem internet o PDF sai sem o acompanhamento de peso (que vem do servidor).
-      const pesos = await pesosAluno().catch(() => []);
-      await imprimir(
-        documentoDieta({
-          marca,
-          logoDataUri: await logoComoDataUri(marca),
-          aluno: pacote.pacote.aluno.nome,
-          titulo: versao.titulo,
-          versao: versao.numero,
-          conteudo: c,
-          pesos,
-          rodapePdf: null,
-          emitidoEm: new Date(),
-        }),
-      );
-    } catch (e) {
-      avisar(textoDoErro(e), 'perigo');
-    } finally {
-      setGerando(false);
-    }
+    const marca = pacote.pacote.marca;
+    // Sem internet o PDF sai sem o acompanhamento de peso (que vem do servidor).
+    const pesos = await pesosAluno().catch(() => []);
+    await imprimir(
+      documentoDieta({
+        marca,
+        logoDataUri: await logoComoDataUri(marca),
+        aluno: pacote.pacote.aluno.nome,
+        titulo: versao.titulo,
+        versao: versao.numero,
+        conteudo: c,
+        pesos,
+        rodapePdf: null,
+        emitidoEm: new Date(),
+        lista,
+      }),
+    );
   };
   return (
     <>
@@ -168,7 +162,8 @@ function Dieta({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
           ))}
         </Cartao>
       ) : null}
-      <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} carregando={gerando} aoTocar={() => void pdf()} /></NoPlano>
+      <NoPlano funcionalidade="PDF"><Botao rotulo="Baixar PDF da dieta" tipo="secundario" cheio Icone={FileDown} aoTocar={() => setFolhaPdf(true)} /></NoPlano>
+      <FolhaPdfDieta visivel={folhaPdf} aoFechar={() => setFolhaPdf(false)} conteudo={c} versao={versao.numero} aoBaixar={pdf} />
     </>
   );
 }

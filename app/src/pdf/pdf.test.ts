@@ -300,6 +300,55 @@ describe('PDF da dieta', () => {
     expect(html).not.toContain('Elaborado por');
   });
 
+  it('sem lista, o HTML é o da dieta simples', () => {
+    const simples = documentoDieta({ ...base, versao: 1, conteudo: dieta, pesos: [] }).corpo;
+    expect(simples).toBe(html);
+    expect(simples).not.toContain('Lista de compras');
+  });
+
+  it('detalhado acrescenta a lista no fim, com colunas ou sem elas', () => {
+    const linha = {
+      chave: 'a', nome: 'Arroz <script>', unidade: 'g' as const, quantidade: 420, cru: true, bruto: false, semFator: false,
+      naDieta: 1050, quantidadeCru: 420, fatorCorrecao: null, fatorCoccao: 2.5,
+    };
+    const semFator = {
+      chave: 'b', nome: 'Frango', unidade: 'g' as const, quantidade: 700, cru: false, bruto: false, semFator: true,
+      naDieta: 700, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null,
+    };
+    const com = documentoDieta({
+      ...base, versao: 1, conteudo: dieta, pesos: [],
+      lista: { periodo: 'mes', opcoes: ['Almoço: opção B'], linhas: [linha, semFator], mostrarFatores: true },
+    }).corpo;
+    expect(com.startsWith(html.split('<div class="fim">')[0])).toBe(true);
+    expect(com).toContain('Lista de compras · 30 dias');
+    expect(com).toContain('>FCc<');
+    expect(com).toContain('>FC<');
+    expect(com).toContain('Na dieta');
+    expect(com).toContain('Arroz &lt;script&gt;');
+    expect(com).not.toContain('<script>');
+    expect(com).toContain('(como na dieta)');
+    expect(com).toContain('—');
+    expect(com.indexOf('Lista de compras')).toBeGreaterThan(com.indexOf('Sugestão de plano alimentar'));
+    expect(com.indexOf('class="fim"')).toBeGreaterThan(com.indexOf('Lista de compras'));
+
+    const semColunas = documentoDieta({
+      ...base, versao: 1, conteudo: dieta, pesos: [],
+      lista: { periodo: 'semana', opcoes: [], linhas: [semFator], mostrarFatores: false },
+    }).corpo;
+    expect(semColunas).toContain('Lista de compras · 7 dias');
+    expect(semColunas).not.toContain('>FCc<');
+    expect(semColunas).not.toContain('>FC<');
+  });
+
+  it('prévia do detalhado diz prévia', () => {
+    const previa = documentoDieta({
+      ...base, versao: null, conteudo: dieta, pesos: [],
+      lista: { periodo: 'semana', opcoes: [], linhas: [], mostrarFatores: true },
+    }).corpo;
+    expect(previa).toContain('Prévia com os fatores atuais da biblioteca');
+    expect(previa).toContain('Lista de compras · 7 dias');
+  });
+
   describe('link da suplementação', () => {
     const comSuplementos = (itens: { nome: string; link: string | null }[]) =>
       documentoDieta({
@@ -487,8 +536,8 @@ describe('PDF da lista de compras', () => {
       periodo: 'semana',
       opcoes: ['Café <da> manhã: opção B'],
       linhas: [
-        { chave: 'a', nome: 'Arroz <b>cozido</b>', unidade: 'g', quantidade: 1225, cru: true, bruto: false, semFator: false },
-        { chave: 'b', nome: 'Ovo', unidade: 'un', quantidade: 20.5, cru: false, bruto: false, semFator: true },
+        { chave: 'a', nome: 'Arroz <b>cozido</b>', unidade: 'g', quantidade: 1225, cru: true, bruto: false, semFator: false, naDieta: 1050, quantidadeCru: 420, fatorCorrecao: null, fatorCoccao: 2.5 },
+        { chave: 'b', nome: 'Ovo', unidade: 'un', quantidade: 20.5, cru: false, bruto: false, semFator: true, naDieta: 20.5, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null },
       ],
     });
     expect(d.titulo).toBe('Lista de compras - Aluno <Fictício> - Dieta & ciclo');

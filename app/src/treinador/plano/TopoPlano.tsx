@@ -4,7 +4,9 @@ import { CheckCircle2, FileDown, Loader, Save, Send } from 'lucide-react-native'
 import { useState } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import type { Problema, ResultadoValidacao, TipoPlano } from '../../api/tipos';
+import { versaoPlano } from '../../api/rotas';
+import type { ConteudoDieta, Problema, ResultadoValidacao, TipoPlano } from '../../api/tipos';
+import { normalizarDieta } from '../../dominio/dieta';
 import { localizar } from '../../dominio/caminhos';
 import { textoDosProblemas, uidsDoPrimeiroProblema } from '../../dominio/problemasDoPlano';
 import { infoDoPlano, seloDoEditor } from '../../dominio/barraDoEditor';
@@ -21,6 +23,7 @@ import { useRolagem } from '../../ui/RolagemComTopo';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { gerarPdfDoPlano } from '../gerarPdf';
+import { FolhaPdfDieta } from '../../ui/FolhaPdfDieta';
 import { PERMISSOES_DO_PLANO } from '../../dominio/permissoes';
 import { BarraDoEditor } from './BarraDoEditor';
 import type { usePlanoEditor } from './usePlanoEditor';
@@ -49,6 +52,8 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
   const [validando, setValidando] = useState(false);
   const [publicando, setPublicando] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [folhaDieta, setFolhaDieta] = useState(false);
+  const [conteudoPdf, setConteudoPdf] = useState<ConteudoDieta | null>(null);
   const [avisos, setAvisos] = useState<Problema[] | null>(null);
   const e = editor.estado;
   if (!e) return null;
@@ -75,6 +80,18 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
 
   // PDF da última versão publicada (o que o aluno vê); nunca publicado, sai do rascunho marcado como tal.
   const pdf = async () => {
+    if (tipo === 'dieta') {
+      setFolhaDieta(true);
+      if (e.plano.versaoPublicada > 0) {
+        setConteudoPdf(null);
+        versaoPlano<unknown>('dieta', e.plano.id, e.plano.versaoPublicada)
+          .then((v) => setConteudoPdf(normalizarDieta(v.conteudo)))
+          .catch((erro: unknown) => avisar(textoDoErro(erro), 'perigo'));
+      } else {
+        setConteudoPdf(normalizarDieta(e.conteudo));
+      }
+      return;
+    }
     setGerandoPdf(true);
     try {
       if (e.plano.versaoPublicada === 0 && escritaLiberada) await editor.salvar();
@@ -159,6 +176,18 @@ export function BarraDoPlano<C>({ tipo, editor, aoProblemas }: Props<C>) {
         aoConfirmar={editor.recarregar}
         aoCancelar={() => undefined}
       />
+      {tipo === 'dieta' ? (
+        <FolhaPdfDieta
+          visivel={folhaDieta}
+          aoFechar={() => setFolhaDieta(false)}
+          conteudo={conteudoPdf}
+          versao={e.plano.versaoPublicada > 0 ? e.plano.versaoPublicada : null}
+          aoBaixar={async (lista) => {
+            if (e.plano.versaoPublicada === 0 && escritaLiberada) await editor.salvar();
+            await gerarPdfDoPlano(tipo, e.plano, e.conteudo, lista);
+          }}
+        />
+      ) : null}
     </>
   );
 }

@@ -1,5 +1,7 @@
 import type { ConteudoDieta, ItemDieta, Marca, RegistroPeso, Suplemento } from '../api/tipos';
 import { somar, textoDaAgua, totalDoDia, type Totais } from '../dominio/dieta';
+import { DIAS_DO_PERIODO, NOTA_DA_LISTA, NOTA_DA_PREVIA, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
+import { cabecalhoDaTabela, corpoDaTabela } from './pdfListaDeCompras';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
@@ -15,6 +17,16 @@ export interface DadosPdfDieta {
   pesos: RegistroPeso[];
   rodapePdf: string | null;
   emitidoEm: Date;
+  /**
+   * Lista de compras no fim do PDF. Sem este campo o HTML é o da dieta simples.
+   * Os fatores da conta já estão nas linhas; `mostrarFatores` só liga as colunas.
+   */
+  lista?: {
+    periodo: PeriodoDaLista;
+    opcoes: string[];
+    linhas: LinhaDaLista[];
+    mostrarFatores: boolean;
+  };
 }
 
 const g = (v: number | null) => (v === null ? '—' : `${numeroParaTela(v, 1)} g`);
@@ -38,6 +50,18 @@ const NAVY = '#1A1A2E';
 function linhaItem(i: ItemDieta, cor: string): string {
   const qtd = `${numeroParaTela(i.quantidade)} ${i.unidade}`;
   return `<div class="item">• ${esc(i.nome)} <strong style="color:${cor}">${esc(qtd)}</strong> <span class="macros">| ${esc(textoTotaisPdf(somar([i])))}</span></div>`;
+}
+
+function secaoDaLista(lista: NonNullable<DadosPdfDieta['lista']>, versao: number | null, cor: string): string {
+  const dias = DIAS_DO_PERIODO[lista.periodo];
+  const tabela = lista.linhas.length
+    ? `<table><thead>${cabecalhoDaTabela(lista.mostrarFatores)}</thead><tbody>${corpoDaTabela(lista.linhas, lista.mostrarFatores)}</tbody></table>`
+    : '<div class="suave">—</div>';
+  const previa = versao ? '' : `<div class="rodape">${esc(NOTA_DA_PREVIA)}</div>`;
+  return `<div class="lista-pdf"><h2 class="sec" style="color:${cor}">Lista de compras · ${dias} dias</h2>
+${lista.opcoes.length ? `<div class="pequeno">${lista.opcoes.map(esc).join(' · ')}</div>` : ''}
+${tabela}
+<div class="rodape">${esc(NOTA_DA_LISTA)}</div>${previa}</div>`;
 }
 
 function variacao(v: number | null): string {
@@ -71,6 +95,7 @@ const CSS_DIETA = `
 .doc table.dark td { border: 1px solid #ddd; font-weight: 700; }
 .doc table.dark tr:nth-child(even) td { background: #f4f4f4; }
 .doc .centro { text-align: center; }
+.doc .lista-pdf { break-inside: avoid; page-break-inside: avoid; }
 `;
 
 /** PDF da dieta no layout do Saraiva Team (capa com logo, barras da marca, refeições em faixas escuras). */
@@ -109,7 +134,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${op
   const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
   const comPrescricao = ergogenicos.some((e) => e.prescricao.trim() !== '');
   const marcaOuLogo = d.logoDataUri ? `<img src="${esc(d.logoDataUri)}" alt="${esc(d.marca.nome)}">` : `<h1>${esc(d.marca.nome)}</h1>`;
-  const corpo = [
+  const partes = [
     faixaDaMarca(d.marca),
     `<div class="capa">${marcaOuLogo}
 <div class="titulo">SUGESTÃO DE PLANO ALIMENTAR</div>${d.versao ? '' : '\n<div class="sub">RASCUNHO, não publicado</div>'}</div>`,
@@ -155,6 +180,7 @@ ${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${op
           .join('')}</tbody></table></div>`
       : '',
     `<div class="fim">${d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : ''}<div class="pequeno centro" style="margin-top:14pt">${esc(d.marca.nome)}</div></div>`,
-  ].join('\n');
-  return { titulo: `Dieta - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria) + CSS_DIETA, corpo };
+  ];
+  if (d.lista) partes.splice(partes.length - 1, 0, secaoDaLista(d.lista, d.versao, cor));
+  return { titulo: `Dieta - ${d.aluno} - ${d.titulo}`, css: cssBase(d.marca.corPrimaria) + CSS_DIETA, corpo: partes.join('\n') };
 }

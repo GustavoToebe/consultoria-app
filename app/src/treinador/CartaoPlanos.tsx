@@ -5,8 +5,9 @@ import { Copy, Ellipsis, FileDown, Pencil, Plus, Trash2, Users } from 'lucide-re
 import { useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano } from '../api/rotas';
-import type { PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
+import { excluirPlano, criarPlano, listarPlanos, listarReceitas, replicarPlano, versaoPlano } from '../api/rotas';
+import type { ConteudoDieta, PastaResumo, PlanoResumo, TipoPlano } from '../api/tipos';
+import { normalizarDieta } from '../dominio/dieta';
 import { dataDaTela, dataParaTela } from '../dominio/formatos';
 import { proximoPeriodo } from '../dominio/periodo';
 import { useSessao } from '../sessao/SessaoProvider';
@@ -22,6 +23,7 @@ import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { Folha } from '../ui/Folha';
+import { FolhaPdfDieta } from '../ui/FolhaPdfDieta';
 import { IconeBotao } from '../ui/IconeBotao';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
@@ -92,7 +94,19 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
   const [copiando, setCopiando] = useState<PlanoResumo | null>(null);
   const [menu, setMenu] = useState<PlanoResumo | null>(null);
   const podeAlterar = pode(PERMISSOES_DO_PLANO[tipo].alterar);
-  const pdf = (p: PlanoResumo) => gerarPdfDoPlano(tipo, p).catch((e: unknown) => avisar(textoDoErro(e), 'perigo'));
+  const [pdfDieta, setPdfDieta] = useState<PlanoResumo | null>(null);
+  const [conteudoPdf, setConteudoPdf] = useState<ConteudoDieta | null>(null);
+  const pdf = (p: PlanoResumo) => {
+    if (tipo === 'dieta') {
+      setPdfDieta(p);
+      setConteudoPdf(null);
+      versaoPlano<unknown>('dieta', p.id, p.versaoPublicada)
+        .then((v) => setConteudoPdf(normalizarDieta(v.conteudo)))
+        .catch((e: unknown) => avisar(textoDoErro(e), 'perigo'));
+      return;
+    }
+    gerarPdfDoPlano(tipo, p).catch((e: unknown) => avisar(textoDoErro(e), 'perigo'));
+  };
   // Ações do ⋯ (a ordem é a da folha); nenhuma liberada = sem ⋯.
   const acoesDoMenu = (p: PlanoResumo): (AcaoDoMenu | null)[] => [
     p.versaoPublicada > 0 && temFuncionalidade('PDF') ? { rotulo: 'Baixar PDF', detalhe: 'Da versão publicada.', Icone: FileDown, aoTocar: () => void pdf(p) } : null,
@@ -126,6 +140,15 @@ export function CartaoPlanos({ tipo, alunoId, pasta, geracao = 0, aoNavegar }: {
         </EntradaEmCascata>
       ))}
       {menu ? <FolhaDeAcoes titulo={menu.titulo} acoes={acoesDoMenu(menu)} aoFechar={() => setMenu(null)} /> : null}
+      {tipo === 'dieta' ? (
+        <FolhaPdfDieta
+          visivel={pdfDieta !== null}
+          aoFechar={() => setPdfDieta(null)}
+          conteudo={conteudoPdf}
+          versao={pdfDieta?.versaoPublicada ?? null}
+          aoBaixar={async (lista) => { if (pdfDieta) await gerarPdfDoPlano('dieta', pdfDieta, undefined, lista); }}
+        />
+      ) : null}
       <PainelConfirmacao visivel={!!excluir} titulo={`Excluir “${excluir?.titulo ?? ''}”?`} mensagem="O plano sai da lista e deixa de estar ativo. As versões publicadas e o histórico de registros são preservados." rotuloConfirmar="Excluir plano" perigo aoCancelar={() => setExcluir(null)} aoConfirmar={() => {
         if (!excluir) return; const id = excluir.id; setExcluir(null);
         excluirPlano(tipo, id).then(recarregar, (e: unknown) => avisar(textoDoErro(e), 'perigo'));
