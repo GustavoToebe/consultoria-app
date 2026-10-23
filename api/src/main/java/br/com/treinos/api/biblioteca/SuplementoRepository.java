@@ -16,4 +16,8 @@ public interface SuplementoRepository extends JpaRepository<Suplemento, UUID> {
 
     @Query("select count(s) > 0 from Suplemento s where s.ativo = true and s.nomeBusca = :nomeBusca and s.id <> :exceto")
     boolean existeNomeAtivo(String nomeBusca, UUID exceto);
+
+    /** Nomes já usados nesta consultoria, ativos ou não: o padrão não recria o que o treinador tirou. */
+    @Query("select s.nomeBusca from Suplemento s")
+    List<String> nomes();
 }

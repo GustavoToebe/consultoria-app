@@ -430,6 +430,13 @@ test('faixa que virou data na planilha: recuperada só entra na contagem do resu
 
 // ---------------------------------------------------------------------------------------- c) suplementos
 
+test('suplementos heavy suppz: 22 itens, sem preço, porção ausente continua nula', () => {
+  const dados = JSON.parse(readFileSync(new URL('./dados/suplementos-heavysuppz.json', import.meta.url), 'utf8'));
+  assert.equal(dados.itens.length, 22);
+  assert.equal(dados.itens.filter((i) => i.porcao == null).length, 8);
+  assert.ok(dados.itens.every((i) => i.marca === 'Heavy Suppz' && i.nome && i.link && !('preco' in i) && !('descricao' in i)));
+});
+
 test('suplementos: normalização sem acento, caixa, parênteses, dose e unidade', () => {
   for (const [entrada, esperado] of [
     ['Creatina monohidratada 5g', 'creatina monohidratada'],

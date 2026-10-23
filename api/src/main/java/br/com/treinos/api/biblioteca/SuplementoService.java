@@ -11,8 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /** Suplementos da biblioteca da consultoria. Tudo já isolado pelo {@code @TenantId}; registro de outra consultoria dá 404. */
@@ -50,6 +52,21 @@ public class SuplementoService {
         exigirNomeLivre(valores.nomeBusca(), id);
         s.alterar(valores);
         return resposta(suplementos.saveAndFlush(s));
+    }
+
+    /**
+     * Cria os suplementos padrão que esta consultoria ainda não tem. Nome que já existe (mesmo inativo) fica como está.
+     */
+    @Transactional
+    public void garantirPadrao() {
+        Set<String> nomes = new HashSet<>(suplementos.nomes());
+        for (SuplementosPadrao.Item item : SuplementosPadrao.itens(json)) {
+            String busca = Buscas.semAcento(item.nome());
+            if (!nomes.add(busca)) continue;
+            suplementos.save(new Suplemento(new Suplemento.Valores(item.nome(), busca, item.marca(), item.categoria(),
+                    item.porcao(), item.porcoesPorEmbalagem(), json.writeValueAsString(item.sabores()),
+                    item.link())));
+        }
     }
 
     @Transactional

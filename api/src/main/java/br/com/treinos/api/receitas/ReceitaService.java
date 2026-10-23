@@ -1,5 +1,6 @@
 package br.com.treinos.api.receitas;
 
+import br.com.treinos.api.biblioteca.SuplementoService;
 import br.com.treinos.api.dieta.ConteudoDieta;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
@@ -54,11 +55,13 @@ public class ReceitaService {
     private final ConsultoriaRepository consultorias;
 
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
+    private final SuplementoService suplementos;
 
     public ReceitaService(ReceitaRepository receitas, JsonMapper json, Validator validator, PastaModeloRepository pastas,
                           VideoUrls videoUrls, ConsultoriaRepository consultorias,
-                          br.com.treinos.api.conta.PlanoDaConsultoria plano) {
+                          br.com.treinos.api.conta.PlanoDaConsultoria plano, SuplementoService suplementos) {
         this.plano = plano;
+        this.suplementos = suplementos;
         this.receitas = receitas;
         this.json = json;
         this.validator = validator;
@@ -130,6 +133,7 @@ public class ReceitaService {
                 receitas.save(new Receita(p.tipo(), p.nome(), p.descricao(), json.writeValueAsString(p.conteudo()), ordem));
             }
         }
+        suplementos.garantirPadrao();
     }
 
     /**
