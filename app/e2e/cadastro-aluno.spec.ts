@@ -305,10 +305,10 @@ for (const { largura, altura } of [{ largura: 1280, altura: 900 }, { largura: 39
     const topo = async (alvo: ReturnType<typeof page.getByText>) => (await alvo.boundingBox())!.y;
     const passo = page.getByText('Próximo passo', { exact: true });
     const dados = page.getByRole('heading', { name: 'Dados do aluno' });
-    const acesso = page.getByRole('heading', { name: 'Acesso ao app' });
+    const acesso = page.getByLabel('Acesso ao app', { exact: true });
     await expect(dados).toBeVisible();
     await expect(passo).toBeVisible();
-    await expect(acesso).toBeAttached();
+    await expect(acesso).toBeVisible();
     expect(await topo(passo)).toBeLessThan(await topo(dados));
     expect(await topo(dados)).toBeLessThan(await topo(acesso));
     await expect(page.getByText(CPF)).toBeVisible();

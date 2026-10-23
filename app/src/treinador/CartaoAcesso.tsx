@@ -13,8 +13,9 @@ import { espaco, fontes, RAIO } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
+import { CampoLeitura } from '../ui/CampoLeitura';
 import { CampoSenha } from '../ui/CampoSenha';
-import { Cartao } from '../ui/Cartao';
+import { CamposEmLinha } from '../ui/CamposEmLinha';
 import { MensagemErro } from '../ui/Estados';
 import { codigoApi, errosPorCampo, textoDoErro } from '../ui/erros';
 import { LinhaDeAcoes } from '../ui/LinhaDeAcoes';
@@ -77,6 +78,7 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
   const selo = seloDoAcesso(aluno);
   // Inativo ou anonimizado: o acesso não muda daqui (reativar primeiro).
   const podeAgir = aluno.ativo && !aluno.anonimizado;
+  const mostrarAcoes = podeAgir && !definindo;
   const conviteAnterior = !convite && aluno.conviteExpiraEm;
 
   let explicacao: string;
@@ -93,8 +95,43 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
   }
 
   return (
-    <Cartao titulo="Acesso ao app" descricao="Como o aluno entra no app.">
-      <Selo texto={selo.texto} tipo={selo.tipo} />
+    <View accessibilityLabel="Acesso ao app" style={estilos.bloco}>
+      <CamposEmLinha minimo={180}>
+        <View style={estilos.campo} accessibilityLabel={`Acesso ao app: ${selo.texto}`}>
+          <Texto variante="rotulo">Acesso ao app</Texto>
+          <Selo texto={selo.texto} tipo={selo.tipo} />
+        </View>
+        <CampoLeitura rotulo="Usuário no app" valor={aluno.emailDeAcesso} />
+        {!definindo ? (
+          <View style={estilos.campo}>
+            <Texto variante="rotulo">Senha</Texto>
+            {mostrarAcoes ? (
+              <Permitido codigo="ALUNO_CONVITE">
+                <Botao
+                  rotulo={aluno.temAcesso ? (aluno.aguardandoPrimeiroAcesso ? 'Definir outra senha' : 'Definir nova senha') : 'Definir e-mail e senha'}
+                  tipo="secundario"
+                  aoTocar={abrirForm}
+                />
+              </Permitido>
+            ) : (
+              <Texto>—</Texto>
+            )}
+          </View>
+        ) : null}
+        {!aluno.temAcesso && mostrarAcoes ? (
+          <View style={estilos.campo}>
+            <Texto variante="rotulo">Convite</Texto>
+            <Permitido codigo="ALUNO_CONVITE">
+              <Botao
+                rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'}
+                tipo={convite ? 'secundario' : 'primario'}
+                carregando={gerando}
+                aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())}
+              />
+            </Permitido>
+          </View>
+        ) : null}
+      </CamposEmLinha>
       {definido ? (
         <View style={estilos.convite}>
           <Texto variante="suave">Passe ao aluno o e-mail e esta senha. Ela não aparece de novo.</Texto>
@@ -124,25 +161,6 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
             aoAlterar(novo);
           }}
         />
-      ) : podeAgir ? (
-        <Permitido codigo="ALUNO_CONVITE">
-          <LinhaDeAcoes alinhar="fim">
-            {aluno.temAcesso ? (
-              <Botao rotulo={aluno.aguardandoPrimeiroAcesso ? 'Definir outra senha' : 'Definir nova senha'} tipo="secundario"
-                aoTocar={abrirForm} />
-            ) : (
-              <>
-                <Botao rotulo="Definir e-mail e senha" tipo="secundario" aoTocar={abrirForm} />
-                <Botao
-                  rotulo={convite || conviteAnterior ? 'Gerar outro convite' : 'Gerar convite'}
-                  tipo={convite ? 'secundario' : 'primario'}
-                  carregando={gerando}
-                  aoTocar={() => (convite || conviteAnterior ? setConfirmar(true) : gerar())}
-                />
-              </>
-            )}
-          </LinhaDeAcoes>
-        </Permitido>
       ) : null}
       <PainelConfirmacao
         visivel={confirmar}
@@ -152,7 +170,7 @@ export function CartaoAcesso({ aluno, aoAlterar }: { aluno: AlunoDetalhe; aoAlte
         aoConfirmar={gerar}
         aoCancelar={() => setConfirmar(false)}
       />
-    </Cartao>
+    </View>
   );
 }
 
@@ -242,6 +260,8 @@ function Destaque({ rotulo, texto, aoCopiar, grande }: { rotulo: string; texto: 
 }
 
 const estilos = StyleSheet.create({
+  bloco: { gap: espaco(1.5) },
+  campo: { gap: espaco(0.25) },
   convite: { gap: espaco(1.5) },
   form: { gap: espaco(1.5) },
   destaque: {

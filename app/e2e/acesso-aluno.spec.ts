@@ -14,12 +14,8 @@ const SEM_CONTA: AlunoDetalhe = {
 const COM_CONTA: AlunoDetalhe = { ...SEM_CONTA, temAcesso: true, emailDeAcesso: ALUNO.email };
 
 const ROTAS_DA_FICHA = { 'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } } };
-/** O cartão: o maior bloco com o título "Acesso ao app" que não tem os outros cartões da ficha. */
-const cartao = (page: Page) => page.locator('div')
-  .filter({ has: page.getByRole('heading', { name: 'Acesso ao app' }) })
-  .filter({ hasNot: page.getByRole('heading', { name: 'Dados do aluno' }) })
-  .filter({ hasNot: page.getByRole('heading', { name: 'Histórico de lesões' }) })
-  .first();
+/** O acesso fica dentro de Dados do aluno. */
+const acessoDoAluno = (page: Page) => page.getByLabel('Acesso ao app', { exact: true });
 
 test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no campo e a senha uma vez', async ({ page }) => {
   let tentativas = 0;
@@ -35,7 +31,7 @@ test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no c
     },
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
-  const acesso = cartao(page);
+  const acesso = acessoDoAluno(page);
   await expect(acesso.getByText('Sem acesso', { exact: true })).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Gerar convite' })).toBeVisible();
   await acesso.getByRole('button', { name: 'Definir e-mail e senha' }).click();
@@ -58,7 +54,7 @@ test('aluno sem conta: define e-mail e senha gerada, mostra o e-mail em uso no c
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByText('Passe ao aluno o e-mail e esta senha. Ela não aparece de novo.')).toBeVisible();
   await expect(acesso.getByText(senha, { exact: true })).toBeVisible();
-  await expect(acesso.getByText(EMAIL_LOGIN, { exact: true })).toBeVisible();
+  await expect(acesso.getByLabel(`Usuário no app: ${EMAIL_LOGIN}`)).toBeVisible();
   await expect(acesso.getByText('Aguardando primeiro acesso', { exact: true })).toBeVisible();
   await expect(page.getByLabel('Acesso ao app: Aguardando primeiro acesso')).toBeVisible();
   const envios = pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === `/alunos/${ALUNO_ID}/acesso`);
@@ -78,7 +74,7 @@ test('aluno com conta: "Definir nova senha" confirma que as sessões serão ence
     [`PUT /alunos/${ALUNO_ID}/acesso`]: { corpo: { ...COM_CONTA, aguardandoPrimeiroAcesso: true } },
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
-  const acesso = cartao(page);
+  const acesso = acessoDoAluno(page);
   await expect(acesso.getByText('Com acesso', { exact: true })).toBeVisible();
   await expect(acesso.getByText(`Entra com ${ALUNO.email}.`)).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Gerar convite' })).toHaveCount(0);
@@ -96,7 +92,7 @@ test('aluno com conta: "Definir nova senha" confirma que as sessões serão ence
   expect(errosDaPagina).toEqual([]);
 });
 
-test('cartão de lesões vazio acompanha o conteúdo, ao lado de Acesso ao app', async ({ page }) => {
+test('cartão de lesões vazio segue o formato dos outros cartões da ficha', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   const { errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR)),
@@ -106,17 +102,18 @@ test('cartão de lesões vazio acompanha o conteúdo, ao lado de Acesso ao app',
     [`GET /alunos/${ALUNO_ID}/lesoes`]: { corpo: [] },
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
-  const lesoes = page.locator('div')
-    .filter({ has: page.getByRole('heading', { name: 'Histórico de lesões' }) })
-    .filter({ hasNot: page.getByRole('heading', { name: 'Acesso ao app' }) })
-    .first();
+  const cartaoDe = (nome: string) => page.getByRole('heading', { name: nome }).locator('xpath=ancestor::div[3]');
+  const lesoes = cartaoDe('Histórico de lesões');
+  const peso = cartaoDe('Peso');
+  await expect(lesoes.getByText('Lesões registradas na ficha do aluno.')).toBeVisible();
   await expect(lesoes.getByText('Nenhuma lesão registrada.')).toBeVisible();
   await expect(lesoes.getByRole('button', { name: 'Registrar lesão' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Histórico de lesões, (recolhido|expandido)/ })).toHaveCount(0);
   await expect(page.getByRole('progressbar', { name: 'Carregando lesões' })).toHaveCount(0);
-  const acessoBox = await cartao(page).boundingBox();
   const lesoesBox = await lesoes.boundingBox();
-  expect(acessoBox && lesoesBox).toBeTruthy();
-  expect(lesoesBox!.height).toBeLessThan(acessoBox!.height + 8);
+  const pesoBox = await peso.boundingBox();
+  expect(lesoesBox && pesoBox).toBeTruthy();
+  expect(Math.abs(lesoesBox!.width - pesoBox!.width)).toBeLessThan(8);
   expect(errosDaPagina).toEqual([]);
 });
 
@@ -128,13 +125,13 @@ test('aluno aguardando o primeiro acesso: "Definir outra senha"; inativo não mo
     [`GET /alunos/${ALUNO_ID}`]: (_p, route) => json(route, ficha),
   });
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
-  const acesso = cartao(page);
+  const acesso = acessoDoAluno(page);
   await expect(acesso.getByText(`O aluno entra com ${ALUNO.email} e a senha provisória e cria a senha dele.`)).toBeVisible();
   await expect(acesso.getByRole('button', { name: 'Definir outra senha' })).toBeVisible();
 
   ficha = { ...SEM_CONTA, ativo: false };
   await page.reload();
-  await expect(cartao(page).getByText('Sem acesso', { exact: true })).toBeVisible();
+  await expect(acessoDoAluno(page).getByText('Sem acesso', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Definir e-mail e senha' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Gerar convite' })).toHaveCount(0);
 });

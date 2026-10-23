@@ -3,14 +3,14 @@ import { Permitido } from '../../../ui/Permitido';
 import { useLocalSearchParams } from 'expo-router';
 import { Ellipsis, Pencil, UserCheck, UserMinus } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
 import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/cadastroDoAluno';
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
-import { CartaoAcesso, seloDoAcesso } from '../../../treinador/CartaoAcesso';
+import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
 import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
@@ -37,16 +37,15 @@ import { MensagemErro } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
 import { useAvisoDoPlano } from '../../../ui/useAvisoDoPlano';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
-import { Selo } from '../../../ui/Selo';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 
 /**
  * Ficha do aluno, na ordem do uso diário: no cartão de cima o resumo com o próximo passo e os dados do aluno (com
- * "Editar" ali mesmo); depois pastas (planos e atualização do período), frequência, progresso, peso e evolução das
- * respostas; acesso ao app, lesões e anamnese vêm no fim. Ações raras (inativar, exportar, anonimizar) ficam no menu ⋯
- * do cabeçalho.
+ * "Editar" ali mesmo, e o acesso ao app nessa mesma área); depois pastas (planos e atualização do período),
+ * frequência, progresso, peso, evolução das respostas e lesões; anamnese vem no fim. Ações raras (inativar, exportar,
+ * anonimizar) ficam no menu ⋯ do cabeçalho.
  */
 export default function FichaAluno() {
   const { id, pastaId } = useLocalSearchParams<{ id: string; pastaId?: string }>();
@@ -63,9 +62,6 @@ export default function FichaAluno() {
   const renovacao = useRenovarPasta(aluno ? cicloDoAluno(aluno.diasAtualizacao, padrao) : null, mudouPastas);
   const [menu, setMenu] = useState(false);
   const [confirmarSituacao, setConfirmarSituacao] = useState(false);
-  // A partir de 1.100 px: Acesso e Lesões lado a lado.
-  const { width } = useWindowDimensions();
-  const duasColunas = width >= 1100;
   const temMenu = !!aluno && ((pode('ALUNO_ALTERAR') && !aluno.anonimizado) || pode('ALUNO_EXPORTAR') || (pode('ALUNO_ANONIMIZAR') && !aluno.ativo && !aluno.anonimizado));
 
   return (
@@ -94,21 +90,7 @@ export default function FichaAluno() {
             <CartaoFotos alunoId={aluno.id} autorizadoEm={aluno.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />
           ) : null}
           {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoEvolucaoRespostas alunoId={aluno.id} /> : null}
-          {duasColunas ? (
-            <View style={estilos.colunas}>
-              <View style={estilos.coluna}>
-                <CartaoAcesso aluno={aluno} aoAlterar={definir} />
-              </View>
-              <View style={estilos.colunaLesoes}>
-                <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
-              </View>
-            </View>
-          ) : (
-            <>
-              <CartaoAcesso aluno={aluno} aoAlterar={definir} />
-              <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
-            </>
-          )}
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoLesoes alunoId={aluno.id} /></Permitido>
           {pode('ANAMNESE_LER') && pode('ALUNO_SENSIVEL_LER') ? <CartaoAnamnese alunoId={aluno.id} anonimizado={aluno.anonimizado}
             aoMudarCadastro={() => { recarregar(); setGeracaoPeso((g) => g + 1); }} /> : null}
           {pagamentosHabilitados && pode('FINANCEIRO_LER') ? <CartaoPlanoContratado alunoId={aluno.id} ativo={aluno.ativo} anonimizado={aluno.anonimizado} /> : null}
@@ -173,14 +155,14 @@ function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: Alu
 
 /**
  * Dados do aluno, dentro do cartão de cima da ficha: só leitura em grade (Cadastro, Dados pessoais e Acompanhamento,
- * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. O questionário de atualização também
- * se troca no modo de edição (fora dele é um campo de leitura, como os outros).
+ * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. O acesso ao app fica nessa mesma
+ * área, numa linha (situação, e-mail de acesso e senha). O questionário de atualização também se troca no modo de
+ * edição (fora dele é um campo de leitura, como os outros).
  */
 function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
   const [editando, setEditando] = useState(false);
-  const acesso = seloDoAcesso(aluno);
   return (
     <View style={estilos.dados}>
       <View style={estilos.tituloDados}>
@@ -211,10 +193,6 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
             <CampoLeitura rotulo="E-mail" valor={aluno.email} />
             <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
             {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
-            <View style={estilos.fato} accessibilityLabel={`Acesso ao app: ${acesso.texto}`}>
-              <Texto variante="rotulo">Acesso ao app</Texto>
-              <Selo texto={acesso.texto} tipo={acesso.tipo} />
-            </View>
             <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
           </View>
           <Permitido codigo="ALUNO_SENSIVEL_LER">
@@ -234,20 +212,17 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
           </View>
         </View>
       )}
+      <CartaoAcesso aluno={aluno} aoAlterar={aoAlterar} />
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
-  colunas: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(3) },
-  coluna: { flex: 1, gap: espaco(3) },
-  colunaLesoes: { flex: 1, alignSelf: 'flex-start' },
   dados: { gap: espaco(1.5) },
   tituloDados: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: espaco(1) },
   titulo: { flexShrink: 1 },
   grade: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(2) },
   colunaDados: { flexBasis: 260, flexGrow: 1, flexShrink: 1, minWidth: 0, gap: espaco(1.5) },
-  fato: { gap: espaco(0.25) },
   contagens: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(3) },
   contagem: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
 });
