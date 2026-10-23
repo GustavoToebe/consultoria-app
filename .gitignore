@@ -10,5 +10,8 @@ deploy-local/segredos/
 .expo/
 *.pdf
 !app/public/guias/*.pdf
+dados/fontes/fatores/Guia-Pratico-Fator-de-Correcao-e-Coccao.pdf
+dados/fontes/fatores/modelo-ficha-tecnica-cumbaru.xlsx
+dados/fontes/fatores/_extracao/
 docs/Aux.csv
 .idea/

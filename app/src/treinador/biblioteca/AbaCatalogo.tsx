@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { catalogoAlimentos, catalogoExercicios, gruposDoCatalogo, importarDoCatalogo, listarAlimentos, listarExercicios, type TipoBiblioteca } from '../../api/rotas';
 import { CREDITOS_CATALOGO, passosDasInstrucoes, resumoNutrientes, textoMostrando } from '../../dominio/catalogo';
+import { textoDosFatores } from '../../dominio/fatoresDoAlimento';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
@@ -33,6 +34,10 @@ interface ItemCatalogo {
   passos: string[];
   /** Fotos do catálogo (`<id>/0.jpg`); vazio nos alimentos. */
   imagens: string[];
+  /** "FC 1,75" quando o catálogo de alimentos traz fator; vazio nos exercícios. */
+  fatores: string | null;
+  /** Citação curta dos fatores do alimento. */
+  fonteFatores: string | null;
 }
 
 interface ListaCatalogo {
@@ -69,6 +74,8 @@ export function AbaCatalogo() {
             detalhe: [...new Set([MODALIDADES[e.modalidade] ?? e.modalidade, e.grupoMuscular, e.equipamento].filter(Boolean))].join(' · '),
             passos: passosDasInstrucoes(e.instrucoes),
             imagens: e.imagens,
+            fatores: null,
+            fonteFatores: null,
           })),
         };
       }
@@ -81,6 +88,8 @@ export function AbaCatalogo() {
           detalhe: [a.grupo, resumoNutrientes(a)].filter(Boolean).join(' · '),
           passos: [],
           imagens: [],
+          fatores: textoDosFatores(a),
+          fonteFatores: a.fonteFatores,
         })),
       };
     },
@@ -167,6 +176,8 @@ export function AbaCatalogo() {
                 <View style={estilos.dados}>
                   <Texto variante="bloco">{item.nome}</Texto>
                   <Texto variante="suave">{item.detalhe}</Texto>
+                  {item.fatores ? <Texto variante="pequeno" numerico>{item.fatores}</Texto> : null}
+                  {item.fonteFatores ? <Texto variante="pequeno">{item.fonteFatores}</Texto> : null}
                 </View>
                 {jaTem ? <Selo texto="Já na biblioteca" tipo="neutro" /> : null}
               </Pressable>

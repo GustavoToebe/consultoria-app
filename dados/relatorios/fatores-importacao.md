@@ -1,0 +1,360 @@
+# Fatores de correção e cocção
+
+Guia Prático: 94 linhas.
+- Cereais e Massas: 7
+- Carnes, Aves e Pescados: 18
+- Frutas: 8
+- Hortaliças: 35
+- Leguminosas e Oleaginosas: 8
+- Leite e Derivados: 15
+- Ovos: 3
+Cumbaru: 337 linhas.
+
+Correspondência:
+- FATOR_NO_CATALOGO: 89
+- NOVO: 341
+- IGNORAR: 1
+- por fonte: guia 94, cumbaru 337
+
+## Conflitos entre o PDF e a planilha
+
+Abobrinha, italiana, crua: FC da planilha (1.10) ignorado; fica 1.27
+Berinjela, crua: FC da planilha (1.10) ignorado; fica 1.21
+Brócolis, cru: FC da planilha (1.35) ignorado; fica 1.43
+Chuchu, cru: FC da planilha (1.30) ignorado; fica 1.47
+Morango, cru: FC da planilha (1.10) ignorado; fica 1.01
+
+## Ignorados
+
+- guia: Feijão, preto — FC fora da faixa 1.00 a 20.00
+
+## NOVO sem base TACO (não entram no catálogo)
+
+- guia: Arroz, arbóreo, cozido — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Arroz, parbolizado, cozido — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Macarrão, espaguete nº 8, cozido — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Macarrão, parafuso, cozido — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Macarrão, penne, cozido — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Carne bovina, colchão mole, bife — sem base TACO do mesmo alimento
+- guia: Carne bovina, patinho, moída — sem base TACO do mesmo alimento
+- guia: Carne de frango, peito, filé, desfiado — sem base TACO do mesmo alimento
+- guia: Carne de frango, peito, filé, inteiro — sem base TACO do mesmo alimento
+- guia: Carne suína, lombo — sem base TACO do mesmo alimento
+- guia: Carne suína, pernil — sem base TACO do mesmo alimento
+- guia: Peixe, filé, tilápia — sem base TACO do mesmo alimento
+- guia: Bacon — sem base TACO do mesmo alimento
+- guia: Calabresa — sem base TACO do mesmo alimento
+- guia: Linguiça de frango — sem base TACO do mesmo alimento
+- guia: Carne bovina, patinho, moída, refogada — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Carne de frango, peito, filé, desfiado, cozido — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Carne de frango, peito, filé, grelhado — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Carne suína, lombo, cozida — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Carne suína, pernil, grelhado — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Peixe, filé, tilápia, grelhado — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Bacon, frito — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Calabresa, frita — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Limão — sem base TACO do mesmo alimento
+- guia: Maçã, descascada — sem base TACO do mesmo alimento
+- guia: Manga — sem base TACO do mesmo alimento
+- guia: Pera, descascada — sem base TACO do mesmo alimento
+- guia: Maçã, descascada, cozida — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Alho, poró — sem base TACO do mesmo alimento
+- guia: Batata, doce, chips — sem base TACO do mesmo alimento
+- guia: Cebolinha/cheiro verde, ingrediente como condimento — sem base TACO do mesmo alimento
+- guia: Couve, fatiada — sem base TACO do mesmo alimento
+- guia: Pimentão — sem base TACO do mesmo alimento
+- guia: Repolho, cortado em tiras grossas — sem base TACO do mesmo alimento
+- guia: Repolho, picado — sem base TACO do mesmo alimento
+- guia: Tomate, com casca — sem base TACO do mesmo alimento
+- guia: Tomate, cereja — sem base TACO do mesmo alimento
+- guia: Tomate, cubos — sem base TACO do mesmo alimento
+- guia: Abobrinha, italiana, grelhada — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Batata, doce, chips, frita — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Batata, inglesa, assada — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Cebola, grelhada, rodelas — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Chuchu, refogado — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Pimentão, refogado — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Repolho, tiras grossas, cozido — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Tomate, cubos, cozido — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Nozes — sem base TACO do mesmo alimento
+- guia: Proteína de soja, texturizada — sem base TACO do mesmo alimento
+- guia: Feijão, carioca, cozido, caldo — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Feijão, carioca, tropeiro — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Feijão, preto, cozido, caldo — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Proteína de soja, texturizada — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- guia: Leite, vaca, integral — sem base TACO do mesmo alimento
+- guia: Leite, vaca, pó — sem base TACO do mesmo alimento
+- guia: Margarina — sem base TACO do mesmo alimento
+- guia: Queijo, gorgonzola — sem base TACO do mesmo alimento
+- guia: Queijo, parmesão, light — sem base TACO do mesmo alimento
+- guia: Ovo de galinha, inteiro, omelete — cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+- cumbaru: Abóbora — sem base TACO do mesmo alimento
+- cumbaru: Abóbora cabotiá — sem base TACO do mesmo alimento
+- cumbaru: Abóbora paulista — sem base TACO do mesmo alimento
+- cumbaru: Abobrinha — sem base TACO do mesmo alimento
+- cumbaru: Acém bovino — sem base TACO do mesmo alimento
+- cumbaru: Acém bovino em cubos — sem base TACO do mesmo alimento
+- cumbaru: Alcachofra fresca — sem base TACO do mesmo alimento
+- cumbaru: Alcatra — sem base TACO do mesmo alimento
+- cumbaru: Alecrim fresco — sem base TACO do mesmo alimento
+- cumbaru: Alface — sem base TACO do mesmo alimento
+- cumbaru: Amêijoa — sem base TACO do mesmo alimento
+- cumbaru: Amora — sem base TACO do mesmo alimento
+- cumbaru: Asa de frango — sem base TACO do mesmo alimento
+- cumbaru: Aspargo — sem base TACO do mesmo alimento
+- cumbaru: Aspargo fresco — sem base TACO do mesmo alimento
+- cumbaru: Atum fresco — sem base TACO do mesmo alimento
+- cumbaru: Atum fresco saku — sem base TACO do mesmo alimento
+- cumbaru: Bacalhau desfiado dessalgado — sem base TACO do mesmo alimento
+- cumbaru: Bacalhau dessalgado — sem base TACO do mesmo alimento
+- cumbaru: Bacuri — sem base TACO do mesmo alimento
+- cumbaru: Banana — sem base TACO do mesmo alimento
+- cumbaru: Barriga de porco — sem base TACO do mesmo alimento
+- cumbaru: Barriga suína para pulled pork — sem base TACO do mesmo alimento
+- cumbaru: Batata bolinha — sem base TACO do mesmo alimento
+- cumbaru: Batata doce roxa — sem base TACO do mesmo alimento
+- cumbaru: Bertalha — sem base TACO do mesmo alimento
+- cumbaru: Beterraba baby — sem base TACO do mesmo alimento
+- cumbaru: Bife ancho — sem base TACO do mesmo alimento
+- cumbaru: Bisteca bovina — sem base TACO do mesmo alimento
+- cumbaru: Bisteca suína — sem base TACO do mesmo alimento
+- cumbaru: Bochecha suína — sem base TACO do mesmo alimento
+- cumbaru: Broto de alfafa — sem base TACO do mesmo alimento
+- cumbaru: Broto de feijão — sem base TACO do mesmo alimento
+- cumbaru: Cação em postas — sem base TACO do mesmo alimento
+- cumbaru: Camarão com casca — sem base TACO do mesmo alimento
+- cumbaru: Camarão descascado — sem base TACO do mesmo alimento
+- cumbaru: Camarão pequeno descascado — sem base TACO do mesmo alimento
+- cumbaru: Camarão VG com casca — sem base TACO do mesmo alimento
+- cumbaru: Cambuci — sem base TACO do mesmo alimento
+- cumbaru: Camu-camu — sem base TACO do mesmo alimento
+- cumbaru: Capa de filé — sem base TACO do mesmo alimento
+- cumbaru: Caqui — sem base TACO do mesmo alimento
+- cumbaru: Carré de cordeiro — sem base TACO do mesmo alimento
+- cumbaru: Carré suíno — sem base TACO do mesmo alimento
+- cumbaru: Cauda de lagosta — sem base TACO do mesmo alimento
+- cumbaru: Cavala inteira — sem base TACO do mesmo alimento
+- cumbaru: Cebola baiana — sem base TACO do mesmo alimento
+- cumbaru: Cebola branca — sem base TACO do mesmo alimento
+- cumbaru: Cebola pérola — sem base TACO do mesmo alimento
+- cumbaru: Cebola roxa — sem base TACO do mesmo alimento
+- cumbaru: Cenoura baby — sem base TACO do mesmo alimento
+- cumbaru: Cerefólio — sem base TACO do mesmo alimento
+- cumbaru: Cereja — sem base TACO do mesmo alimento
+- cumbaru: Chalota — sem base TACO do mesmo alimento
+- cumbaru: Charque bovino — sem base TACO do mesmo alimento
+- cumbaru: Coco fresco ralado — sem base TACO do mesmo alimento
+- cumbaru: Coco seco inteiro — sem base TACO do mesmo alimento
+- cumbaru: Coco verde — sem base TACO do mesmo alimento
+- cumbaru: Codorna — sem base TACO do mesmo alimento
+- cumbaru: Coelho — sem base TACO do mesmo alimento
+- cumbaru: Coentro — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo champignon fresco — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo enoki fresco — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo eringi fresco — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo paris — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo Paris fresco — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo portobello — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo portobello fresco — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo shiitake — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo shiitake fresco — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo shimeji — sem base TACO do mesmo alimento
+- cumbaru: Cogumelo shimeji fresco — sem base TACO do mesmo alimento
+- cumbaru: Contrafilé — sem base TACO do mesmo alimento
+- cumbaru: Copa lombo suíno — sem base TACO do mesmo alimento
+- cumbaru: Coração de frango — sem base TACO do mesmo alimento
+- cumbaru: Corte denver — sem base TACO do mesmo alimento
+- cumbaru: Costela bovina — sem base TACO do mesmo alimento
+- cumbaru: Costela bovina em tiras — sem base TACO do mesmo alimento
+- cumbaru: Costela bovina para pulled beef — sem base TACO do mesmo alimento
+- cumbaru: Costela de cordeiro — sem base TACO do mesmo alimento
+- cumbaru: Costela suína — sem base TACO do mesmo alimento
+- cumbaru: Costela suína defumada — sem base TACO do mesmo alimento
+- cumbaru: Costela suína em tiras — sem base TACO do mesmo alimento
+- cumbaru: Costela suína para pulled pork — sem base TACO do mesmo alimento
+- cumbaru: Couve — sem base TACO do mesmo alimento
+- cumbaru: Couve chinesa — sem base TACO do mesmo alimento
+- cumbaru: Couve-de-bruxelas — sem base TACO do mesmo alimento
+- cumbaru: Coxa de frango — sem base TACO do mesmo alimento
+- cumbaru: Coxa de frango desossada para lanche — sem base TACO do mesmo alimento
+- cumbaru: Coxa e sobrecoxa — sem base TACO do mesmo alimento
+- cumbaru: Coxa e sobrecoxa desossada — sem base TACO do mesmo alimento
+- cumbaru: Coxão duro — sem base TACO do mesmo alimento
+- cumbaru: Coxão duro em cubos — sem base TACO do mesmo alimento
+- cumbaru: Coxão mole — sem base TACO do mesmo alimento
+- cumbaru: Cupim — sem base TACO do mesmo alimento
+- cumbaru: Cupim bovino para desfiar — sem base TACO do mesmo alimento
+- cumbaru: Damasco — sem base TACO do mesmo alimento
+- cumbaru: Dobradinha bovina — sem base TACO do mesmo alimento
+- cumbaru: Dourado inteiro — sem base TACO do mesmo alimento
+- cumbaru: Endívia — sem base TACO do mesmo alimento
+- cumbaru: Endro — sem base TACO do mesmo alimento
+- cumbaru: Enguia inteira — sem base TACO do mesmo alimento
+- cumbaru: Erva-doce — sem base TACO do mesmo alimento
+- cumbaru: Ervilha fresca — sem base TACO do mesmo alimento
+- cumbaru: Ervilha torta — sem base TACO do mesmo alimento
+- cumbaru: Escarola — sem base TACO do mesmo alimento
+- cumbaru: Espinafre — sem base TACO do mesmo alimento
+- cumbaru: Estragão — sem base TACO do mesmo alimento
+- cumbaru: Feijão-de-corda fresco — sem base TACO do mesmo alimento
+- cumbaru: Fígado bovino — sem base TACO do mesmo alimento
+- cumbaru: Fígado de frango — sem base TACO do mesmo alimento
+- cumbaru: Fígado de porco — sem base TACO do mesmo alimento
+- cumbaru: Filé de anchova — sem base TACO do mesmo alimento
+- cumbaru: Filé de badejo — sem base TACO do mesmo alimento
+- cumbaru: Filé de cavala — sem base TACO do mesmo alimento
+- cumbaru: Filé de congro — sem base TACO do mesmo alimento
+- cumbaru: Filé de costela — sem base TACO do mesmo alimento
+- cumbaru: Filé de dourado — sem base TACO do mesmo alimento
+- cumbaru: Filé de linguado — sem base TACO do mesmo alimento
+- cumbaru: Filé de merluza — sem base TACO do mesmo alimento
+- cumbaru: Filé de pargo — sem base TACO do mesmo alimento
+- cumbaru: Filé de peito de frango em tiras — sem base TACO do mesmo alimento
+- cumbaru: Filé de peixe-espada — sem base TACO do mesmo alimento
+- cumbaru: Filé de robalo — sem base TACO do mesmo alimento
+- cumbaru: Filé de salmão — sem base TACO do mesmo alimento
+- cumbaru: Filé de tilápia — sem base TACO do mesmo alimento
+- cumbaru: Filé de tilápia em tiras — sem base TACO do mesmo alimento
+- cumbaru: Filé de truta salmonada — sem base TACO do mesmo alimento
+- cumbaru: Filé mignon — sem base TACO do mesmo alimento
+- cumbaru: Filé mignon suíno para lanche — sem base TACO do mesmo alimento
+- cumbaru: Folha de mandioca (maniva) — sem base TACO do mesmo alimento
+- cumbaru: Fraldinha — sem base TACO do mesmo alimento
+- cumbaru: Framboesa — sem base TACO do mesmo alimento
+- cumbaru: Frango a passarinho — sem base TACO do mesmo alimento
+- cumbaru: Frango caipira inteiro — sem base TACO do mesmo alimento
+- cumbaru: Frango inteiro — sem base TACO do mesmo alimento
+- cumbaru: Frango temperado inteiro — sem base TACO do mesmo alimento
+- cumbaru: Fruta-do-conde — sem base TACO do mesmo alimento
+- cumbaru: Gengibre — sem base TACO do mesmo alimento
+- cumbaru: Gengibre fresco — sem base TACO do mesmo alimento
+- cumbaru: Goiaba — sem base TACO do mesmo alimento
+- cumbaru: Hortelã — sem base TACO do mesmo alimento
+- cumbaru: Hortela fresca — sem base TACO do mesmo alimento
+- cumbaru: Jalapeno fresco — sem base TACO do mesmo alimento
+- cumbaru: Jambu — sem base TACO do mesmo alimento
+- cumbaru: Lagarto bovino — sem base TACO do mesmo alimento
+- cumbaru: Lagosta inteira — sem base TACO do mesmo alimento
+- cumbaru: Laranja — sem base TACO do mesmo alimento
+- cumbaru: Laranja para suco — sem base TACO do mesmo alimento
+- cumbaru: Lichia — sem base TACO do mesmo alimento
+- cumbaru: Limão para suco — sem base TACO do mesmo alimento
+- cumbaru: Limão-siciliano — sem base TACO do mesmo alimento
+- cumbaru: Limão-tahiti — sem base TACO do mesmo alimento
+- cumbaru: Língua bovina — sem base TACO do mesmo alimento
+- cumbaru: Linguiça calabresa fresca — sem base TACO do mesmo alimento
+- cumbaru: Linguiça fresca — sem base TACO do mesmo alimento
+- cumbaru: Lombo suíno — sem base TACO do mesmo alimento
+- cumbaru: Louro fresco — sem base TACO do mesmo alimento
+- cumbaru: Lula inteira — sem base TACO do mesmo alimento
+- cumbaru: Lula inteira limpa — sem base TACO do mesmo alimento
+- cumbaru: Maçã — sem base TACO do mesmo alimento
+- cumbaru: Mamão com casca — sem base TACO do mesmo alimento
+- cumbaru: Mamão limpo — sem base TACO do mesmo alimento
+- cumbaru: Maminha — sem base TACO do mesmo alimento
+- cumbaru: Maminha suína — sem base TACO do mesmo alimento
+- cumbaru: Mandioquinha — sem base TACO do mesmo alimento
+- cumbaru: Manga com casca — sem base TACO do mesmo alimento
+- cumbaru: Manga descascada — sem base TACO do mesmo alimento
+- cumbaru: Manjericao fresco — sem base TACO do mesmo alimento
+- cumbaru: Manjericão genovês fresco — sem base TACO do mesmo alimento
+- cumbaru: Manjericão roxo — sem base TACO do mesmo alimento
+- cumbaru: Melancia inteira — sem base TACO do mesmo alimento
+- cumbaru: Melancia limpa — sem base TACO do mesmo alimento
+- cumbaru: Melão inteiro — sem base TACO do mesmo alimento
+- cumbaru: Melão limpo — sem base TACO do mesmo alimento
+- cumbaru: Mexilhão na concha — sem base TACO do mesmo alimento
+- cumbaru: Mexilhão sem casca — sem base TACO do mesmo alimento
+- cumbaru: Milho verde debulhado — sem base TACO do mesmo alimento
+- cumbaru: Mini alface — sem base TACO do mesmo alimento
+- cumbaru: Mirtilo — sem base TACO do mesmo alimento
+- cumbaru: Mocotó bovino — sem base TACO do mesmo alimento
+- cumbaru: Moela de frango — sem base TACO do mesmo alimento
+- cumbaru: Mostarda (folha) — sem base TACO do mesmo alimento
+- cumbaru: Músculo — sem base TACO do mesmo alimento
+- cumbaru: Músculo bovino em cubos — sem base TACO do mesmo alimento
+- cumbaru: Músculo bovino para desfiar — sem base TACO do mesmo alimento
+- cumbaru: Nabo japonês — sem base TACO do mesmo alimento
+- cumbaru: Nectarina — sem base TACO do mesmo alimento
+- cumbaru: Ora-pro-nóbis — sem base TACO do mesmo alimento
+- cumbaru: Oregano fresco — sem base TACO do mesmo alimento
+- cumbaru: Orelha de porco — sem base TACO do mesmo alimento
+- cumbaru: Ossobuco — sem base TACO do mesmo alimento
+- cumbaru: Ostra na concha — sem base TACO do mesmo alimento
+- cumbaru: Pacu — sem base TACO do mesmo alimento
+- cumbaru: Paleta bovina — sem base TACO do mesmo alimento
+- cumbaru: Paleta bovina em cubos — sem base TACO do mesmo alimento
+- cumbaru: Paleta de cordeiro — sem base TACO do mesmo alimento
+- cumbaru: Paleta suína — sem base TACO do mesmo alimento
+- cumbaru: Paleta suína para pulled pork — sem base TACO do mesmo alimento
+- cumbaru: Palmito fresco — sem base TACO do mesmo alimento
+- cumbaru: Patinho — sem base TACO do mesmo alimento
+- cumbaru: Pato inteiro — sem base TACO do mesmo alimento
+- cumbaru: Pé de porco — sem base TACO do mesmo alimento
+- cumbaru: Peito bovino — sem base TACO do mesmo alimento
+- cumbaru: Peito bovino defumado para pulled beef — sem base TACO do mesmo alimento
+- cumbaru: Peito bovino para desfiar — sem base TACO do mesmo alimento
+- cumbaru: Peito de frango — sem base TACO do mesmo alimento
+- cumbaru: Peito de frango em cubos — sem base TACO do mesmo alimento
+- cumbaru: Peito de frango para lanche — sem base TACO do mesmo alimento
+- cumbaru: Peito de pato — sem base TACO do mesmo alimento
+- cumbaru: Peito de peru fresco — sem base TACO do mesmo alimento
+- cumbaru: Peixe-agulha — sem base TACO do mesmo alimento
+- cumbaru: Peixe-manteiga — sem base TACO do mesmo alimento
+- cumbaru: Pepino comum — sem base TACO do mesmo alimento
+- cumbaru: Pepino japonês — sem base TACO do mesmo alimento
+- cumbaru: Pera — sem base TACO do mesmo alimento
+- cumbaru: Pernil de cordeiro — sem base TACO do mesmo alimento
+- cumbaru: Pernil suíno — sem base TACO do mesmo alimento
+- cumbaru: Pernil suíno para desfiar — sem base TACO do mesmo alimento
+- cumbaru: Pêssego — sem base TACO do mesmo alimento
+- cumbaru: Physalis — sem base TACO do mesmo alimento
+- cumbaru: Picanha — sem base TACO do mesmo alimento
+- cumbaru: Pimenta biquinho — sem base TACO do mesmo alimento
+- cumbaru: Pimenta-de-cheiro — sem base TACO do mesmo alimento
+- cumbaru: Pimenta dedo-de-moça — sem base TACO do mesmo alimento
+- cumbaru: Pimenta dedo-de-moca fresca — sem base TACO do mesmo alimento
+- cumbaru: Pimenta habanero — sem base TACO do mesmo alimento
+- cumbaru: Pimenta jalapeño — sem base TACO do mesmo alimento
+- cumbaru: Pimenta malagueta — sem base TACO do mesmo alimento
+- cumbaru: Pimentão — sem base TACO do mesmo alimento
+- cumbaru: Pintado inteiro — sem base TACO do mesmo alimento
+- cumbaru: Pitaya — sem base TACO do mesmo alimento
+- cumbaru: Pitomba — sem base TACO do mesmo alimento
+- cumbaru: Polpa de abacate — sem base TACO do mesmo alimento
+- cumbaru: Polvo fresco — sem base TACO do mesmo alimento
+- cumbaru: Ponta de agulha — sem base TACO do mesmo alimento
+- cumbaru: Posta de atum — sem base TACO do mesmo alimento
+- cumbaru: Rabada — sem base TACO do mesmo alimento
+- cumbaru: Rabanete daikon — sem base TACO do mesmo alimento
+- cumbaru: Radicchio — sem base TACO do mesmo alimento
+- cumbaru: Repolho — sem base TACO do mesmo alimento
+- cumbaru: Repolho crespo — sem base TACO do mesmo alimento
+- cumbaru: Repolho verde — sem base TACO do mesmo alimento
+- cumbaru: Rim bovino — sem base TACO do mesmo alimento
+- cumbaru: Robalo inteiro — sem base TACO do mesmo alimento
+- cumbaru: Rúcula selvagem — sem base TACO do mesmo alimento
+- cumbaru: Salmão inteiro — sem base TACO do mesmo alimento
+- cumbaru: Salsinha — sem base TACO do mesmo alimento
+- cumbaru: Salvia fresca — sem base TACO do mesmo alimento
+- cumbaru: Sardinha fresca — sem base TACO do mesmo alimento
+- cumbaru: Sassami de frango — sem base TACO do mesmo alimento
+- cumbaru: Seriguela — sem base TACO do mesmo alimento
+- cumbaru: Sobrecoxa de frango — sem base TACO do mesmo alimento
+- cumbaru: Sobrecoxa de frango desossada — sem base TACO do mesmo alimento
+- cumbaru: Tambaqui — sem base TACO do mesmo alimento
+- cumbaru: Tangerina — sem base TACO do mesmo alimento
+- cumbaru: Tilápia inteira — sem base TACO do mesmo alimento
+- cumbaru: Tomate — sem base TACO do mesmo alimento
+- cumbaru: Tomate cereja — sem base TACO do mesmo alimento
+- cumbaru: Tomate coração-de-boi — sem base TACO do mesmo alimento
+- cumbaru: Tomate italiano — sem base TACO do mesmo alimento
+- cumbaru: Tomilho fresco — sem base TACO do mesmo alimento
+- cumbaru: Tulipa de frango — sem base TACO do mesmo alimento
+- cumbaru: Uva — sem base TACO do mesmo alimento
+- cumbaru: Vagem macarrão — sem base TACO do mesmo alimento
+- cumbaru: Vagem manteiga — sem base TACO do mesmo alimento
+- cumbaru: Vazio bovino — sem base TACO do mesmo alimento
+- cumbaru: Vieira limpa — sem base TACO do mesmo alimento
+- cumbaru: Vieira na concha — sem base TACO do mesmo alimento
+- cumbaru: Yacon — sem base TACO do mesmo alimento

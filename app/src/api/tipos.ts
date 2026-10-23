@@ -340,6 +340,12 @@ export interface CatalogoAlimento {
   codigoFonte: string | null;
   /** Nutrientes que a fonte marca como traço (`Tr`); o valor vem 0 e a tela mostra "Tr". */
   tracos: string[];
+  /** Fator de correção que a fonte do catálogo publicou; nulo = não informado (nunca 1). */
+  fatorCorrecao: number | null;
+  /** Fator de cocção que a fonte do catálogo publicou; nulo = não informado. */
+  fatorCoccao: number | null;
+  /** Citação curta dos fatores; nula quando o item não tem fator. */
+  fonteFatores: string | null;
 }
 
 /** `total` é quantos itens casaram com a busca; `itens` vem limitado. */

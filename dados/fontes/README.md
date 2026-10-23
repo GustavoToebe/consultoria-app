@@ -35,3 +35,23 @@ Baixados em 08/10/2026 pelo Gustavo.
 - Licença: o repositório é Unlicense (domínio público), mas o README **não declara a licença das imagens separadamente**.
   Decisão do Gustavo em 21/10: usar as imagens dessa base. Se algum dia o autor ou um titular pedir a retirada, tirar o
   `gerar` do fluxo, regenerar o manifesto sem elas e subir uma migration que zere `catalogo_exercicio.imagens`.
+
+## Fatores de correção e cocção
+
+Decisão do Gustavo em 23/10: o catálogo público de alimentos passa a trazer fator de correção (FC) e fator de cocção (FCc)
+de duas fontes, com consulta jurídica pendente. O PDF diz “Todos os direitos reservados”. Tem de ser fácil de tirar.
+
+- Oliveira, D. F.; Santos, V. S.; Oliveira, T. C. *Guia Prático de Indicadores de Pré-preparo e Preparo dos Alimentos*.
+  São Carlos: Scienza, 2023. ISBN 978-65-5668-104-7.
+  SHA-256 `b7f6b4d00bf9c87adabc4f197b4c6e8cf2eebd317176fdcbe10e8a92ad778b98`.
+- Cumbaru. Tabela FC do modelo de ficha técnica (`modelo-ficha-tecnica-cumbaru.xlsx`, aba “Tabela FC”).
+  SHA-256 `2671e095f86c4fa70904dadd05009450a28b0b83dd7cfd95a77f6aced35cbf72`.
+
+Os originais não vão para o git; os CSVs são transcrição. Quando o PDF e a planilha divergem no mesmo alimento, fica o
+número do PDF e a diferença entra em `dados/relatorios/fatores-importacao.md`. Feijão preto com FC 0,90 fica de fora
+(a faixa do banco é 1,00 a 20,00); o valor não foi trocado por 1.
+
+Remoção, se a consulta jurídica pedir (ainda não executada): uma migration zera `fator_correcao`, `fator_coccao` e
+`fonte_fatores` do catálogo; apaga os itens novos cuja `fonte` cita os fatores; zera os fatores do alimento só onde
+`fatores_do_catalogo` é verdadeiro e o valor ainda é igual ao do catálogo; apaga os CSVs e `scripts/catalogo/gerar_fatores.py`;
+reverte o trecho do `AGENTS.md`. Dieta já publicada guarda os fatores na versão imutável e não é reescrita.

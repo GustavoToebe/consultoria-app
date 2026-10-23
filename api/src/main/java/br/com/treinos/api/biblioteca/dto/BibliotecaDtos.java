@@ -98,13 +98,14 @@ public final class BibliotecaDtos {
     public record CatalogoAlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                            BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato,
                                            BigDecimal gordura, String fonte, String grupo, String codigoFonte,
-                                           List<String> tracos) {
+                                           List<String> tracos, BigDecimal fatorCorrecao, BigDecimal fatorCoccao,
+                                           String fonteFatores) {
         public static CatalogoAlimentoResponse de(CatalogoAlimento c) {
             List<String> tracos = c.getTracos() == null || c.getTracos().isBlank()
                     ? List.of() : List.of(c.getTracos().split(","));
             return new CatalogoAlimentoResponse(c.getId(), c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
                     c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getFonte(), c.getGrupo(),
-                    c.getCodigoFonte(), tracos);
+                    c.getCodigoFonte(), tracos, c.getFatorCorrecao(), c.getFatorCoccao(), c.getFonteFatores());
         }
     }
 

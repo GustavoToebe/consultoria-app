@@ -40,7 +40,7 @@ public class CatalogoAlimento {
     @Column(name = "gramas_por_unidade")
     private BigDecimal gramasPorUnidade;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 400)
     private String fonte;
 
     private String grupo;
@@ -53,6 +53,18 @@ public class CatalogoAlimento {
 
     @Column(name = "nome_busca", nullable = false)
     private String nomeBusca;
+
+    /** Fator de correção do catálogo público; nulo = a fonte não informou (nunca 1). */
+    @Column(name = "fator_correcao")
+    private BigDecimal fatorCorrecao;
+
+    /** Fator de cocção do catálogo público; nulo = a fonte não informou. */
+    @Column(name = "fator_coccao")
+    private BigDecimal fatorCoccao;
+
+    /** Citação curta de onde vieram os fatores; nula quando o item não tem fator. */
+    @Column(name = "fonte_fatores", length = 300)
+    private String fonteFatores;
 
     protected CatalogoAlimento() {
     }
@@ -111,5 +123,17 @@ public class CatalogoAlimento {
 
     public String getNomeBusca() {
         return nomeBusca;
+    }
+
+    public BigDecimal getFatorCorrecao() {
+        return fatorCorrecao;
+    }
+
+    public BigDecimal getFatorCoccao() {
+        return fatorCoccao;
+    }
+
+    public String getFonteFatores() {
+        return fonteFatores;
     }
 }

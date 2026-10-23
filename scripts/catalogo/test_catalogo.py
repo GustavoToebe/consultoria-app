@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comum  # noqa: E402
 import gerar_exercicios  # noqa: E402
 import gerar_taco  # noqa: E402
+import gerar_fatores  # noqa: E402
 import imagens_exercicios  # noqa: E402
 
 
@@ -394,6 +395,62 @@ class ReduzirImagemTest(unittest.TestCase):
         for ruim in (png.getvalue(), b"", b"nao e imagem"):
             with self.assertRaises(imagens_exercicios.ImagensErro):
                 imagens_exercicios.reduzir(ruim)
+
+
+def _item(nome):
+    return {"nome": nome, "nome_busca": comum.normalizar(nome)}
+
+
+class FatoresTest(unittest.TestCase):
+    def _decidir(self, alimento, fc, fcc, catalogo):
+        return gerar_fatores.decidir(
+            alimento, fc, fcc, catalogo,
+            gerar_fatores.indice_por_busca(catalogo),
+            gerar_fatores.indice_por_nome(catalogo),
+        )
+
+    def test_virgula_nao_separa_e_o_fator_vai_no_item_cru(self):
+        acao, nome, base, fc, fcc, _ = self._decidir(
+            "Abobrinha italiana", Decimal("1.10"), None, [_item("Abobrinha, italiana, crua")])
+        self.assertEqual((acao, nome, base), ("FATOR_NO_CATALOGO", "Abobrinha, italiana, crua", "Abobrinha, italiana, crua"))
+        self.assertEqual(fc, Decimal("1.10"))
+        self.assertIsNone(fcc)
+
+    def test_desperdicio_e_item_novo_e_nao_poe_o_fator_no_cru(self):
+        acao, nome, base, fc, fcc, _ = self._decidir(
+            "Abacaxi com casca", Decimal("1.75"), None, [_item("Abacaxi, cru")])
+        self.assertEqual(acao, "NOVO")
+        self.assertEqual(nome, "")
+        self.assertEqual(base, "Abacaxi, cru")
+        self.assertEqual(fc, Decimal("1.75"))
+        self.assertIsNone(fcc)
+
+    def test_fcc_nao_vai_para_o_item_cru(self):
+        acao, nome, base, _, fcc, _ = self._decidir(
+            "Cenoura", None, Decimal("0.90"), [_item("Cenoura, crua")])
+        self.assertEqual(acao, "NOVO")
+        self.assertEqual(nome, "")
+        self.assertEqual(base, "")
+        self.assertEqual(fcc, Decimal("0.90"))
+
+    def test_fora_da_faixa_vira_ignorar_e_nao_vira_um(self):
+        acao, _, _, fc, fcc, obs = self._decidir("Feijão, preto", Decimal("0.90"), None, [])
+        self.assertEqual(acao, "IGNORAR")
+        self.assertIsNone(fc)
+        self.assertIsNone(fcc)
+        self.assertIn("fora da faixa", obs)
+        fc2, fcc2, _ = gerar_fatores.pdf_vence({"fc": None, "fcc": None}, {"fc": None, "fcc": None})
+        self.assertIsNone(fc2)
+        self.assertIsNone(fcc2)
+
+    def test_pdf_vence_e_a_planilha_so_preenche_o_que_falta(self):
+        fc, fcc, conflitos = gerar_fatores.pdf_vence(
+            {"fc": Decimal("1.21"), "fcc": None},
+            {"fc": Decimal("1.10"), "fcc": Decimal("2.00")},
+        )
+        self.assertEqual(fc, Decimal("1.21"))
+        self.assertEqual(fcc, Decimal("2.00"))
+        self.assertEqual(len(conflitos), 1)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,95 @@
+pagina,capitulo,alimento,fc,fcc
+35,Cereais e Massas,"Arroz, arbóreo, cozido",,2.40
+35,Cereais e Massas,"Arroz, branco, cozido",,2.86
+35,Cereais e Massas,"Arroz, integral, cozido",,2.39
+35,Cereais e Massas,"Arroz, parbolizado, cozido",,3.13
+35,Cereais e Massas,"Macarrão, espaguete nº 8, cozido",,2.44
+35,Cereais e Massas,"Macarrão, parafuso, cozido",,2.40
+35,Cereais e Massas,"Macarrão, penne, cozido",,2.70
+41,"Carnes, Aves e Pescados","Carne bovina, colchão mole, bife",1.01,
+41,"Carnes, Aves e Pescados","Carne bovina, patinho, moída",1.00,
+41,"Carnes, Aves e Pescados","Carne de frango, peito, filé, desfiado",1.02,
+41,"Carnes, Aves e Pescados","Carne de frango, peito, filé, inteiro",1.12,
+41,"Carnes, Aves e Pescados","Carne suína, lombo",1.14,
+41,"Carnes, Aves e Pescados","Carne suína, pernil",1.14,
+41,"Carnes, Aves e Pescados","Peixe, filé, tilápia",1.00,
+41,"Carnes, Aves e Pescados",Bacon,1.00,
+41,"Carnes, Aves e Pescados",Calabresa,1.03,
+41,"Carnes, Aves e Pescados",Linguiça de frango,1.40,
+42,"Carnes, Aves e Pescados","Carne bovina, patinho, moída, refogada",,0.74
+42,"Carnes, Aves e Pescados","Carne de frango, peito, filé, desfiado, cozido",,0.52
+42,"Carnes, Aves e Pescados","Carne de frango, peito, filé, grelhado",,0.82
+42,"Carnes, Aves e Pescados","Carne suína, lombo, cozida",,0.90
+42,"Carnes, Aves e Pescados","Carne suína, pernil, grelhado",,0.72
+42,"Carnes, Aves e Pescados","Peixe, filé, tilápia, grelhado",,0.76
+42,"Carnes, Aves e Pescados","Bacon, frito",,0.65
+42,"Carnes, Aves e Pescados","Calabresa, frita",,0.68
+48,Frutas,"Banana, prata, em rodelas",1.50,
+48,Frutas,Limão,1.54,
+48,Frutas,"Maçã, descascada",1.27,
+48,Frutas,Manga,1.41,
+48,Frutas,Melão,1.05,
+48,Frutas,Morango,1.01,
+48,Frutas,"Pera, descascada",1.18,
+48,Frutas,"Maçã, descascada, cozida",,0.94
+54,Hortaliças,"Abobrinha, italiana",1.27,
+54,Hortaliças,"Alface, americana, picada",1.45,
+54,Hortaliças,"Alho, ingrediente como condimento",1.11,
+54,Hortaliças,"Alho, poró",2.35,
+54,Hortaliças,"Batata, doce, chips",1.13,
+54,Hortaliças,"Batata, inglesa, descascada",1.21,
+54,Hortaliças,Berinjela,1.21,
+54,Hortaliças,Brócolis,1.43,
+54,Hortaliças,"Cebola, ingrediente como condimento",1.11,
+54,Hortaliças,"Cebola, descascada, cortada em rodelas",1.19,
+54,Hortaliças,"Cebolinha/cheiro verde, ingrediente como condimento",1.00,
+54,Hortaliças,"Cenoura, descascada, cortada em rodelas",1.23,
+54,Hortaliças,"Cenoura, descascada, ralada",2.00,
+55,Hortaliças,Chuchu,1.47,
+55,Hortaliças,"Couve, fatiada",1.61,
+55,Hortaliças,"Pepino, fatiado",1.01,
+55,Hortaliças,Pimentão,1.20,
+55,Hortaliças,"Repolho, cortado em tiras grossas",1.11,
+55,Hortaliças,"Repolho, picado",1.23,
+55,Hortaliças,"Tomate, com casca",1.14,
+55,Hortaliças,"Tomate, cereja",1.00,
+55,Hortaliças,"Tomate, cubos",1.04,
+55,Hortaliças,"Abobrinha, italiana, cozida",,0.85
+55,Hortaliças,"Abobrinha, italiana, grelhada",,0.89
+55,Hortaliças,"Batata, doce, chips, frita",,1.94
+55,Hortaliças,"Batata, inglesa, assada",,0.89
+55,Hortaliças,"Batata, inglesa, cozida",,0.97
+56,Hortaliças,"Berinjela, cozida",,1.08
+56,Hortaliças,"Brócolis, cozido",,1.25
+56,Hortaliças,"Cebola, grelhada, rodelas",,0.71
+56,Hortaliças,"Cenoura, cozida",,0.87
+56,Hortaliças,"Chuchu, refogado",,0.91
+56,Hortaliças,"Pimentão, refogado",,0.70
+56,Hortaliças,"Repolho, tiras grossas, cozido",,1.03
+56,Hortaliças,"Tomate, cubos, cozido",,0.83
+62,Leguminosas e Oleaginosas,"Feijão, carioca",1.00,
+62,Leguminosas e Oleaginosas,"Feijão, preto",0.90,
+62,Leguminosas e Oleaginosas,Nozes,1.00,
+62,Leguminosas e Oleaginosas,"Proteína de soja, texturizada",1.00,
+62,Leguminosas e Oleaginosas,"Feijão, carioca, cozido, caldo",,1.81
+62,Leguminosas e Oleaginosas,"Feijão, carioca, tropeiro",,2.15
+62,Leguminosas e Oleaginosas,"Feijão, preto, cozido, caldo",,1.89
+62,Leguminosas e Oleaginosas,"Proteína de soja, texturizada",,1.07
+69,Leite e Derivados,Creme de leite,1.00,
+69,Leite e Derivados,"Iogurte, natural",1.00,
+69,Leite e Derivados,"Leite, condensado",1.00,
+69,Leite e Derivados,"Leite, vaca, integral",1.00,
+69,Leite e Derivados,"Leite, vaca, pó",1.00,
+69,Leite e Derivados,"Manteiga, com sal",1.00,
+69,Leite e Derivados,"Manteiga, sem sal",1.00,
+69,Leite e Derivados,Margarina,1.00,
+69,Leite e Derivados,"Queijo, gorgonzola",1.00,
+69,Leite e Derivados,"Queijo, muçarela",1.00,
+69,Leite e Derivados,"Queijo, parmesão, light",1.00,
+69,Leite e Derivados,"Queijo, parmesão, ralado",1.00,
+69,Leite e Derivados,"Queijo, prato",1.00,
+69,Leite e Derivados,"Queijo, requeijão, cremoso",1.00,
+69,Leite e Derivados,"Queijo, ricota",1.00,
+74,Ovos,"Ovo de galinha, inteiro",1.00,
+74,Ovos,"Ovo de galinha, inteiro, cozido",,0.82
+74,Ovos,"Ovo de galinha, inteiro, omelete",,0.80

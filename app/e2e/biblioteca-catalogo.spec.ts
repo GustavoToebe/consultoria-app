@@ -102,6 +102,47 @@ test('catálogo: a foto preenche a miniatura e, ao tocar, abre grande sem marcar
   expect(errosDaPagina).toEqual([]);
 });
 
+test('catálogo de alimentos mostra o fator, a importação copia e a biblioteca exibe', async ({ page }) => {
+  const abacaxi = {
+    id: 'a0000001-0000-4000-8000-000000000000', nome: 'Abacaxi com casca', baseQuantidade: 100, baseUnidade: 'g',
+    kcal: 48, proteina: 0.9, carboidrato: 12.3, gordura: 0.1, fonte: 'TACO (nutrientes de Abacaxi, cru)', grupo: 'Frutas',
+    codigoFonte: null, tracos: [], fatorCorrecao: 1.75, fatorCoccao: null, fonteFatores: 'Cumbaru. Tabela FC do modelo de ficha técnica.',
+  };
+  let naBiblioteca: object[] = [];
+  const { naoTratadas, errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'BIBLIOTECA_LER', 'BIBLIOTECA_ALTERAR'] })),
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    'GET /exercicios': { corpo: [] },
+    'GET /alimentos': (_pedido, route) => json(route, naBiblioteca),
+    'GET /catalogo/exercicios/grupos': { corpo: [] },
+    'GET /catalogo/exercicios': { corpo: { itens: [], total: 0 } },
+    'GET /catalogo/alimentos/grupos': { corpo: ['Frutas'] },
+    'GET /catalogo/alimentos': { corpo: { itens: [abacaxi], total: 1 } },
+    'POST /alimentos/importar-catalogo': (_pedido, route) => {
+      naBiblioteca = [{
+        id: 'b0000001-0000-4000-8000-000000000000', nome: abacaxi.nome, baseQuantidade: 100, baseUnidade: 'g',
+        kcal: 48, proteina: 0.9, carboidrato: 12.3, gordura: 0.1, gramasPorUnidade: null, fonte: abacaxi.fonte,
+        origem: 'CATALOGO', fatorCorrecao: 1.75, fatorCoccao: null,
+      }];
+      return json(route, { importados: 1, ignorados: 0 });
+    },
+  });
+  await page.goto('/treinador/biblioteca?aba=catalogo');
+  await page.getByRole('radiogroup', { name: 'Catálogo' }).getByRole('button', { name: 'Alimentos' }).click();
+  await expect(page.getByText('Abacaxi com casca', { exact: true })).toBeVisible();
+  await expect(page.getByText('FC 1,75')).toBeVisible();
+  await expect(page.getByText('Cumbaru. Tabela FC do modelo de ficha técnica.')).toBeVisible();
+  await page.getByText('Abacaxi com casca', { exact: true }).click();
+  await page.getByRole('button', { name: 'Importar selecionados (1)' }).click();
+  await expect(page.getByText('1 importado(s).')).toBeVisible();
+
+  await page.goto('/treinador/biblioteca?aba=alimentos');
+  await expect(page.getByText('Abacaxi com casca', { exact: true })).toBeVisible();
+  await expect(page.getByText('FC 1,75')).toBeVisible();
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
 test('exercícios da biblioteca: filtro de vários grupos no cliente', async ({ page }) => {
   await servirFotos(page);
   const doTreinador = (n: number, nome: string, grupo: string): Exercicio => ({

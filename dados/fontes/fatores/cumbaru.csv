@@ -1,0 +1,338 @@
+linha,categoria,alimento,fc
+2,Frutas,Abacate com casca,1.40
+3,Frutas,Abacaxi com casca,1.75
+4,Frutas,Abacaxi descascado,1.05
+5,Hortifrúti,Abóbora,1.40
+6,Hortifrúti,Abóbora cabotiá,1.35
+7,Hortifrúti,Abobora moranga,1.35
+8,Hortifrúti,Abóbora paulista,1.45
+9,Hortifrúti,Abobrinha,1.15
+10,Hortifrúti,Abobrinha italiana,1.10
+11,Hortifrúti,Acelga,1.30
+12,Proteína,Acém bovino,1.10
+13,Proteína,Acém bovino em cubos,1.10
+14,Frutas,Acerola,1.15
+15,Hortifrúti,Agrião,1.30
+16,Hortifrúti,Aipo,1.30
+17,Hortifrúti,Alcachofra fresca,2.00
+18,Proteína,Alcatra,1.15
+19,Hortifrúti,Alecrim fresco,1.30
+20,Hortifrúti,Alface,1.30
+21,Hortifrúti,Alface americana,1.20
+22,Hortifrúti,Alface crespa,1.30
+23,Hortifrúti,Alface lisa,1.30
+24,Hortifrúti,Alface roxa,1.30
+25,Hortifrúti,Alho,1.45
+26,Hortifrúti,Alho-poró,1.40
+27,Hortifrúti,Almeirão,1.30
+28,Proteína,Amêijoa,2.30
+29,Frutas,Ameixa,1.15
+30,Frutas,Amora,1.10
+31,Proteína,Asa de frango,1.20
+32,Hortifrúti,Aspargo,1.30
+33,Hortifrúti,Aspargo fresco,1.40
+34,Proteína,Atum fresco,1.30
+35,Proteína,Atum fresco saku,1.05
+36,Proteína,Bacalhau desfiado dessalgado,1.05
+37,Proteína,Bacalhau dessalgado,1.20
+38,Frutas,Bacuri,1.90
+39,Frutas,Banana,1.35
+40,Proteína,Barriga de porco,1.10
+41,Proteína,Barriga suína para pulled pork,1.20
+42,Hortifrúti,Batata bolinha,1.20
+43,Hortifrúti,Batata doce,1.25
+44,Hortifrúti,Batata doce roxa,1.25
+45,Hortifrúti,Batata inglesa,1.33
+46,Hortifrúti,Berinjela,1.10
+47,Hortifrúti,Bertalha,1.30
+48,Hortifrúti,Beterraba,1.30
+49,Hortifrúti,Beterraba baby,1.20
+50,Proteína,Bife ancho,1.15
+51,Proteína,Bisteca bovina,1.40
+52,Proteína,Bisteca suína,1.15
+53,Proteína,Bochecha suína,1.15
+54,Hortifrúti,Brócolis,1.35
+55,Hortifrúti,Broto de alfafa,1.10
+56,Hortifrúti,Broto de feijão,1.10
+57,Proteína,Cação em postas,1.15
+58,Frutas,Cajá-manga,1.70
+59,Frutas,Caju,1.20
+60,Proteína,Camarão com casca,2.20
+61,Proteína,Camarão descascado,1.05
+62,Proteína,Camarão pequeno descascado,1.05
+63,Proteína,Camarão VG com casca,2.20
+64,Frutas,Cambuci,1.30
+65,Frutas,Camu-camu,1.30
+66,Proteína,Capa de filé,1.20
+67,Frutas,Caqui,1.12
+68,Hortifrúti,Cará,1.30
+69,Frutas,Carambola,1.20
+70,Proteína,Carré de cordeiro,1.30
+71,Proteína,Carré suíno,1.30
+72,Hortifrúti,Caruru,1.35
+73,Hortifrúti,Catalonha,1.30
+74,Proteína,Cauda de lagosta,1.35
+75,Proteína,Cavala inteira,2.00
+76,Hortifrúti,Cebola,1.15
+77,Hortifrúti,Cebola baiana,1.15
+78,Hortifrúti,Cebola branca,1.15
+79,Hortifrúti,Cebola pérola,1.15
+80,Hortifrúti,Cebola roxa,1.15
+81,Hortifrúti,Cebolinha,1.20
+82,Hortifrúti,Cenoura,1.20
+83,Hortifrúti,Cenoura baby,1.20
+84,Hortifrúti,Cerefólio,1.30
+85,Frutas,Cereja,1.15
+86,Hortifrúti,Chalota,1.20
+87,Proteína,Charque bovino,1.05
+88,Hortifrúti,Chicória,1.30
+89,Hortifrúti,Chuchu,1.30
+90,Frutas,Coco fresco ralado,1.05
+91,Frutas,Coco seco inteiro,1.70
+92,Frutas,Coco verde,2.30
+93,Proteína,Codorna,1.45
+94,Proteína,Coelho,1.30
+95,Hortifrúti,Coentro,1.30
+96,Hortifrúti,Cogumelo champignon fresco,1.25
+97,Hortifrúti,Cogumelo enoki fresco,1.05
+98,Hortifrúti,Cogumelo eringi fresco,1.05
+99,Hortifrúti,Cogumelo paris,1.20
+100,Hortifrúti,Cogumelo Paris fresco,1.05
+101,Hortifrúti,Cogumelo portobello,1.20
+102,Hortifrúti,Cogumelo portobello fresco,1.10
+103,Hortifrúti,Cogumelo shiitake,1.20
+104,Hortifrúti,Cogumelo shiitake fresco,1.15
+105,Hortifrúti,Cogumelo shimeji,1.15
+106,Hortifrúti,Cogumelo shimeji fresco,1.10
+107,Proteína,Contrafilé,1.15
+108,Proteína,Copa lombo suíno,1.10
+109,Proteína,Coração de frango,1.05
+110,Proteína,Corte denver,1.15
+111,Proteína,Costela bovina,1.35
+112,Proteína,Costela bovina em tiras,1.30
+113,Proteína,Costela bovina para pulled beef,1.40
+114,Proteína,Costela de cordeiro,1.35
+115,Proteína,Costela suína,1.30
+116,Proteína,Costela suína defumada,1.30
+117,Proteína,Costela suína em tiras,1.30
+118,Proteína,Costela suína para pulled pork,1.35
+119,Hortifrúti,Couve,1.35
+120,Hortifrúti,Couve chinesa,1.20
+121,Hortifrúti,Couve-de-bruxelas,1.25
+122,Hortifrúti,Couve-flor,1.40
+123,Proteína,Coxa de frango,1.25
+124,Proteína,Coxa de frango desossada para lanche,1.05
+125,Proteína,Coxa e sobrecoxa,1.35
+126,Proteína,Coxa e sobrecoxa desossada,1.08
+127,Proteína,Coxão duro,1.25
+128,Proteína,Coxão duro em cubos,1.05
+129,Proteína,Coxão mole,1.12
+130,Proteína,Cupim,1.30
+131,Proteína,Cupim bovino para desfiar,1.15
+132,Frutas,Cupuaçu,2.10
+133,Frutas,Damasco,1.20
+134,Proteína,Dobradinha bovina,1.10
+135,Proteína,Dourado inteiro,2.00
+136,Hortifrúti,Endívia,1.25
+137,Hortifrúti,Endro,1.30
+138,Proteína,Enguia inteira,1.90
+139,Hortifrúti,Erva-doce,1.30
+140,Hortifrúti,Ervilha fresca,1.20
+141,Hortifrúti,Ervilha torta,1.15
+142,Hortifrúti,Escarola,1.30
+143,Hortifrúti,Espinafre,1.35
+144,Hortifrúti,Estragão,1.30
+145,Hortifrúti,Feijão-de-corda fresco,1.15
+146,Proteína,Fígado bovino,1.05
+147,Proteína,Fígado de frango,1.05
+148,Proteína,Fígado de porco,1.05
+149,Frutas,Figo,1.15
+150,Proteína,Filé de anchova,1.05
+151,Proteína,Filé de badejo,1.05
+152,Proteína,Filé de cavala,1.10
+153,Proteína,Filé de congro,1.10
+154,Proteína,Filé de costela,1.15
+155,Proteína,Filé de dourado,1.05
+156,Proteína,Filé de linguado,1.15
+157,Proteína,Filé de merluza,1.10
+158,Proteína,Filé de pargo,1.05
+159,Proteína,Filé de peito de frango em tiras,1.05
+160,Proteína,Filé de peixe-espada,1.08
+161,Proteína,Filé de robalo,1.05
+162,Proteína,Filé de salmão,1.15
+163,Proteína,Filé de tilápia,1.10
+164,Proteína,Filé de tilápia em tiras,1.05
+165,Proteína,Filé de truta salmonada,1.05
+166,Proteína,Filé mignon,1.20
+167,Proteína,Filé mignon suíno para lanche,1.05
+168,Hortifrúti,Folha de mandioca (maniva),1.35
+169,Proteína,Fraldinha,1.20
+170,Frutas,Framboesa,1.10
+171,Proteína,Frango a passarinho,1.30
+172,Proteína,Frango caipira inteiro,1.50
+173,Proteína,Frango inteiro,1.45
+174,Proteína,Frango temperado inteiro,1.40
+175,Frutas,Fruta-do-conde,1.60
+176,Hortifrúti,Gengibre,1.15
+177,Hortifrúti,Gengibre fresco,1.15
+178,Frutas,Goiaba,1.15
+179,Frutas,Graviola,1.55
+180,Hortifrúti,Hortelã,1.30
+181,Hortifrúti,Hortela fresca,1.20
+182,Hortifrúti,Inhame,1.30
+183,Frutas,Jabuticaba,1.25
+184,Frutas,Jaca,1.60
+185,Hortifrúti,Jalapeno fresco,1.15
+186,Hortifrúti,Jambu,1.40
+187,Frutas,Jamelão,1.40
+188,Hortifrúti,Jiló,1.15
+189,Frutas,Kiwi,1.30
+190,Proteína,Lagarto bovino,1.08
+191,Proteína,Lagosta inteira,2.40
+192,Frutas,Laranja,1.35
+193,Frutas,Laranja para suco,2.20
+194,Frutas,Lichia,1.60
+195,Frutas,Limão para suco,2.50
+196,Frutas,Limão-siciliano,1.30
+197,Frutas,Limão-tahiti,1.35
+198,Proteína,Língua bovina,1.30
+199,Proteína,Linguiça calabresa fresca,1.05
+200,Proteína,Linguiça fresca,1.10
+201,Proteína,Lombo suíno,1.15
+202,Hortifrúti,Louro fresco,1.05
+203,Proteína,Lula inteira,1.90
+204,Proteína,Lula inteira limpa,1.25
+205,Frutas,Maçã,1.20
+206,Frutas,Mamão com casca,1.45
+207,Frutas,Mamão limpo,1.05
+208,Proteína,Maminha,1.15
+209,Proteína,Maminha suína,1.15
+210,Hortifrúti,Mandioca,1.45
+211,Hortifrúti,Mandioquinha,1.35
+212,Frutas,Manga com casca,1.55
+213,Frutas,Manga descascada,1.05
+214,Hortifrúti,Manjericão,1.25
+215,Hortifrúti,Manjericao fresco,1.25
+216,Hortifrúti,Manjericão genovês fresco,1.25
+217,Hortifrúti,Manjericão roxo,1.25
+218,Frutas,Maracujá,2.30
+219,Hortifrúti,Maxixe,1.15
+220,Frutas,Melancia inteira,1.65
+221,Frutas,Melancia limpa,1.05
+222,Frutas,Melão inteiro,1.60
+223,Frutas,Melão limpo,1.05
+224,Proteína,Mexilhão na concha,4.00
+225,Proteína,Mexilhão sem casca,1.05
+226,Hortifrúti,Milho verde,2.10
+227,Hortifrúti,Milho verde debulhado,1.15
+228,Hortifrúti,Mini alface,1.20
+229,Frutas,Mirtilo,1.03
+230,Proteína,Mocotó bovino,1.30
+231,Proteína,Moela de frango,1.10
+232,Frutas,Morango,1.10
+233,Hortifrúti,Mostarda (folha),1.30
+234,Proteína,Músculo,1.25
+235,Proteína,Músculo bovino em cubos,1.10
+236,Proteína,Músculo bovino para desfiar,1.15
+237,Hortifrúti,Nabo,1.25
+238,Hortifrúti,Nabo japonês,1.25
+239,Frutas,Nectarina,1.20
+240,Hortifrúti,Ora-pro-nóbis,1.30
+241,Hortifrúti,Oregano fresco,1.25
+242,Proteína,Orelha de porco,1.35
+243,Proteína,Ossobuco,1.45
+244,Proteína,Ostra na concha,4.50
+245,Proteína,Pacu,1.80
+246,Proteína,Paleta bovina,1.15
+247,Proteína,Paleta bovina em cubos,1.05
+248,Proteína,Paleta de cordeiro,1.25
+249,Proteína,Paleta suína,1.20
+250,Proteína,Paleta suína para pulled pork,1.15
+251,Hortifrúti,Palmito fresco,1.35
+252,Proteína,Patinho,1.15
+253,Proteína,Pato inteiro,1.50
+254,Proteína,Pé de porco,1.40
+255,Proteína,Peito bovino,1.30
+256,Proteína,Peito bovino defumado para pulled beef,1.20
+257,Proteína,Peito bovino para desfiar,1.15
+258,Proteína,Peito de frango,1.10
+259,Proteína,Peito de frango em cubos,1.05
+260,Proteína,Peito de frango para lanche,1.05
+261,Proteína,Peito de pato,1.15
+262,Proteína,Peito de peru fresco,1.10
+263,Proteína,Peixe-agulha,2.10
+264,Proteína,Peixe-manteiga,2.00
+265,Hortifrúti,Pepino,1.20
+266,Hortifrúti,Pepino comum,1.10
+267,Hortifrúti,Pepino japonês,1.10
+268,Frutas,Pequi,2.20
+269,Frutas,Pera,1.20
+270,Proteína,Pernil de cordeiro,1.25
+271,Proteína,Pernil suíno,1.20
+272,Proteína,Pernil suíno para desfiar,1.15
+273,Proteína,Pescada branca,1.10
+274,Frutas,Pêssego,1.20
+275,Frutas,Physalis,1.15
+276,Proteína,Picanha,1.10
+277,Hortifrúti,Pimenta biquinho,1.10
+278,Hortifrúti,Pimenta-de-cheiro,1.15
+279,Hortifrúti,Pimenta dedo-de-moça,1.15
+280,Hortifrúti,Pimenta dedo-de-moca fresca,1.10
+281,Hortifrúti,Pimenta habanero,1.15
+282,Hortifrúti,Pimenta jalapeño,1.15
+283,Hortifrúti,Pimenta malagueta,1.15
+284,Hortifrúti,Pimentão,1.25
+285,Hortifrúti,Pimentao amarelo,1.20
+286,Hortifrúti,Pimentao verde,1.20
+287,Hortifrúti,Pimentao vermelho,1.20
+288,Proteína,Pintado inteiro,1.90
+289,Frutas,Pitaya,1.30
+290,Frutas,Pitomba,1.65
+291,Frutas,Polpa de abacate,1.05
+292,Proteína,Polvo fresco,1.30
+293,Proteína,Ponta de agulha,1.35
+294,Proteína,Posta de atum,1.30
+295,Hortifrúti,Quiabo,1.10
+296,Proteína,Rabada,1.55
+297,Hortifrúti,Rabanete,1.20
+298,Hortifrúti,Rabanete daikon,1.20
+299,Hortifrúti,Radicchio,1.25
+300,Hortifrúti,Repolho,1.20
+301,Hortifrúti,Repolho crespo,1.20
+302,Hortifrúti,Repolho roxo,1.20
+303,Hortifrúti,Repolho verde,1.20
+304,Proteína,Rim bovino,1.05
+305,Proteína,Robalo inteiro,2.10
+306,Frutas,Romã,1.50
+307,Hortifrúti,Rúcula,1.30
+308,Hortifrúti,Rúcula selvagem,1.30
+309,Proteína,Salmão inteiro,2.00
+310,Hortifrúti,Salsinha,1.20
+311,Hortifrúti,Salvia fresca,1.20
+312,Proteína,Sardinha fresca,2.00
+313,Proteína,Sassami de frango,1.05
+314,Frutas,Seriguela,1.55
+315,Hortifrúti,Serralha,1.30
+316,Proteína,Sobrecoxa de frango,1.20
+317,Proteína,Sobrecoxa de frango desossada,1.05
+318,Hortifrúti,Taioba,1.35
+319,Frutas,Tamarindo,1.75
+320,Proteína,Tambaqui,1.80
+321,Frutas,Tangerina,1.40
+322,Proteína,Tilápia inteira,1.80
+323,Hortifrúti,Tomate,1.10
+324,Hortifrúti,Tomate cereja,1.10
+325,Hortifrúti,Tomate coração-de-boi,1.10
+326,Hortifrúti,Tomate italiano,1.10
+327,Hortifrúti,Tomilho fresco,1.30
+328,Proteína,Toucinho,1.10
+329,Proteína,Tulipa de frango,1.15
+330,Frutas,Umbu,1.45
+331,Frutas,Uva,1.10
+332,Hortifrúti,Vagem,1.10
+333,Hortifrúti,Vagem macarrão,1.10
+334,Hortifrúti,Vagem manteiga,1.10
+335,Proteína,Vazio bovino,1.15
+336,Proteína,Vieira limpa,1.10
+337,Proteína,Vieira na concha,4.00
+338,Hortifrúti,Yacon,1.25

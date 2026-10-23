@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -173,6 +174,63 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
         jdbc.update("delete from perfil_permissao pp using usuario u where u.id = ?::uuid and pp.perfil_id = u.perfil_id "
                 + "and pp.codigo = 'DIETA_LER'", usuario);
         api.get("/alimentos/fatores?ids=" + semFatores, treinador, 403);
+    }
+
+    @Test
+    void catalogoMostraFatorImportacaoCopiaEMigrationNaoApagaOQueOTreinadorDigitou() throws Exception {
+        ApiDeTeste api = new ApiDeTeste(mvc, json);
+        JsonNode treinador = api.novoTreinador();
+        String email = treinador.get("usuario").get("email").asString();
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where email = ?", UUID.class, email);
+
+        JsonNode abobrinha = api.get("/catalogo/alimentos?busca=Abobrinha&limite=50", treinador, 200);
+        JsonNode item = abobrinha.get("itens").valueStream()
+                .filter(a -> a.get("nome").asString().equals("Abobrinha, italiana, crua"))
+                .findFirst().orElseThrow();
+        assertThat(item.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.27");
+        assertThat(item.get("fatorCoccao").isNull()).isTrue();
+        assertThat(item.get("fonteFatores").asString()).contains("Oliveira");
+
+        JsonNode abacaxi = api.get("/catalogo/alimentos?busca=Abacaxi&limite=50", treinador, 200);
+        JsonNode cru = abacaxi.get("itens").valueStream()
+                .filter(a -> a.get("nome").asString().equals("Abacaxi, cru"))
+                .findFirst().orElseThrow();
+        assertThat(cru.get("fatorCorrecao").isNull()).isTrue();
+
+        api.post("/alimentos/importar-catalogo", treinador, Map.of("ids", List.of(item.get("id").asString())), 200);
+        JsonNode copiado = api.get("/alimentos", treinador, 200).get(0);
+        assertThat(copiado.get("fatorCorrecao").decimalValue()).isEqualByComparingTo("1.27");
+        assertThat(jdbc.queryForObject("select fatores_do_catalogo from alimento where id = ?::uuid", Boolean.class,
+                copiado.get("id").asString())).isNull();
+
+        UUID digitado = UUID.randomUUID();
+        jdbc.update("insert into alimento (id, consultoria_id, nome, kcal, proteina, carboidrato, gordura, origem, fator_correcao)"
+                + " values (?::uuid, ?::uuid, 'Arroz, tipo 1, cozido', 128, 2.5, 28.1, 0.2, 'CATALOGO', 3.00)",
+                digitado, consultoria);
+        UUID manual = UUID.randomUUID();
+        jdbc.update("insert into alimento (id, consultoria_id, nome, kcal, proteina, carboidrato, gordura, origem)"
+                + " values (?::uuid, ?::uuid, 'Morango, cru', 30, 0.9, 6.8, 0.3, 'MANUAL')", manual, consultoria);
+        jdbc.update("""
+                update alimento as a
+                set fator_correcao = case when a.fator_correcao is null then c.fator_correcao else a.fator_correcao end,
+                    fator_coccao = case when a.fator_coccao is null then c.fator_coccao else a.fator_coccao end,
+                    fatores_do_catalogo = true
+                from catalogo_alimento as c
+                where a.consultoria_id is not null
+                  and a.origem = 'CATALOGO'
+                  and lower(a.nome) = lower(c.nome)
+                  and ((a.fator_correcao is null and c.fator_correcao is not null)
+                    or (a.fator_coccao is null and c.fator_coccao is not null))
+                  and a.id = ?::uuid
+                """, digitado);
+        assertThat(jdbc.queryForObject("select fator_correcao from alimento where id = ?::uuid", BigDecimal.class, digitado))
+                .isEqualByComparingTo("3.00");
+        assertThat(jdbc.queryForObject("select fator_coccao from alimento where id = ?::uuid", BigDecimal.class, digitado))
+                .isEqualByComparingTo("2.86");
+        assertThat(jdbc.queryForObject("select fatores_do_catalogo from alimento where id = ?::uuid", Boolean.class, digitado))
+                .isTrue();
+        assertThat(jdbc.queryForObject("select fator_correcao from alimento where id = ?::uuid", BigDecimal.class, manual)).isNull();
+        assertThat(jdbc.queryForObject("select fatores_do_catalogo from alimento where id = ?::uuid", Boolean.class, manual)).isNull();
     }
 
     private static AlimentoRequest alimento(String nome, String fatorCorrecao, String fatorCoccao) {

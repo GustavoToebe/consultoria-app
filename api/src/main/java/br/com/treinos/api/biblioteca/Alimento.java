@@ -20,8 +20,8 @@ import java.util.UUID;
  * da dieta ao editar e grava o resultado; a versão publicada guarda os números e não recalcula depois.
  *
  * <p>{@code fatorCorrecao} (peso bruto ÷ líquido) e {@code fatorCoccao} (peso pronto ÷ cru) servem só à lista de compras
- * do aluno (reunião de 17/10, R13/R14/R32). São opcionais e digitados pelo treinador: nenhuma tabela de terceiros entra
- * no sistema (direitos autorais), e nulo quer dizer "não informado", nunca 1. A publicação da dieta copia os valores do
+ * do aluno (reunião de 17/10, R13/R14/R32). São opcionais. O catálogo público traz fator em parte dos alimentos
+ * (V027); a importação copia e o treinador pode mudar. Nulo quer dizer "não informado", nunca 1. A publicação da dieta copia os valores do
  * momento para os itens (ver {@code PlanoDietaService.paraPublicar}).
  */
 @Entity
@@ -60,6 +60,7 @@ public class Alimento {
     @Column(name = "gramas_por_unidade")
     private BigDecimal gramasPorUnidade;
 
+    @Column(length = 400)
     private String fonte;
 
     @Column(name = "fator_correcao")

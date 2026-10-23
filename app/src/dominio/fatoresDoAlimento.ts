@@ -1,7 +1,7 @@
 /**
  * Fator de correção (FC = peso bruto ÷ peso líquido) e fator de cocção (FCc = peso pronto ÷ peso cru) do alimento da
- * biblioteca. Só a lista de compras do aluno os usa. São digitados pelo treinador (nenhuma tabela de terceiros entra no
- * app, por direitos autorais) e opcionais: vazio = não informado, nunca 1. Faixas iguais às do servidor
+ * biblioteca. Só a lista de compras do aluno os usa. O catálogo público já traz fator em parte dos alimentos
+ * (V027); a importação copia e o treinador pode mudar. Opcionais: vazio = não informado, nunca 1. Faixas iguais às do servidor
  * (`BibliotecaService.exigirFatores` e o CHECK da V011).
  */
 

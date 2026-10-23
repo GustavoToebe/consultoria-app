@@ -1,0 +1,432 @@
+fonte,alimento_fonte,acao,nome_no_catalogo,base_taco,fc,fcc,observacao
+guia,"Arroz, arbóreo, cozido",NOVO,,,,2.40,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Arroz, branco, cozido",FATOR_NO_CATALOGO,"Arroz, tipo 1, cozido","Arroz, tipo 1, cozido",,2.86,"mesmo alimento, grafia diferente na revisão"
+guia,"Arroz, integral, cozido",FATOR_NO_CATALOGO,"Arroz, integral, cozido","Arroz, integral, cozido",,2.39,
+guia,"Arroz, parbolizado, cozido",NOVO,,,,3.13,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Macarrão, espaguete nº 8, cozido",NOVO,,,,2.44,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Macarrão, parafuso, cozido",NOVO,,,,2.40,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Macarrão, penne, cozido",NOVO,,,,2.70,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Carne bovina, colchão mole, bife",NOVO,,,1.01,,sem base TACO do mesmo alimento
+guia,"Carne bovina, patinho, moída",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Carne de frango, peito, filé, desfiado",NOVO,,,1.02,,sem base TACO do mesmo alimento
+guia,"Carne de frango, peito, filé, inteiro",NOVO,,,1.12,,sem base TACO do mesmo alimento
+guia,"Carne suína, lombo",NOVO,,,1.14,,sem base TACO do mesmo alimento
+guia,"Carne suína, pernil",NOVO,,,1.14,,sem base TACO do mesmo alimento
+guia,"Peixe, filé, tilápia",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,Bacon,NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,Calabresa,NOVO,,,1.03,,sem base TACO do mesmo alimento
+guia,Linguiça de frango,NOVO,,,1.40,,sem base TACO do mesmo alimento
+guia,"Carne bovina, patinho, moída, refogada",NOVO,,,,0.74,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Carne de frango, peito, filé, desfiado, cozido",NOVO,,,,0.52,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Carne de frango, peito, filé, grelhado",NOVO,,,,0.82,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Carne suína, lombo, cozida",NOVO,,,,0.90,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Carne suína, pernil, grelhado",NOVO,,,,0.72,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Peixe, filé, tilápia, grelhado",NOVO,,,,0.76,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Bacon, frito",NOVO,,,,0.65,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Calabresa, frita",NOVO,,,,0.68,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Banana, prata, em rodelas",NOVO,,"Banana, prata, crua",1.50,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,Limão,NOVO,,,1.54,,sem base TACO do mesmo alimento
+guia,"Maçã, descascada",NOVO,,,1.27,,sem base TACO do mesmo alimento
+guia,Manga,NOVO,,,1.41,,sem base TACO do mesmo alimento
+guia,Melão,FATOR_NO_CATALOGO,"Melão, cru","Melão, cru",1.05,,o catálogo traz o mesmo alimento cru
+guia,Morango,FATOR_NO_CATALOGO,"Morango, cru","Morango, cru",1.01,,o catálogo traz o mesmo alimento cru
+guia,"Pera, descascada",NOVO,,,1.18,,sem base TACO do mesmo alimento
+guia,"Maçã, descascada, cozida",NOVO,,,,0.94,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Abobrinha, italiana",FATOR_NO_CATALOGO,"Abobrinha, italiana, crua","Abobrinha, italiana, crua",1.27,,o catálogo traz o mesmo alimento cru
+guia,"Alface, americana, picada",NOVO,,"Alface, americana, crua",1.45,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,"Alho, ingrediente como condimento",NOVO,,"Alho, cru",1.11,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,"Alho, poró",NOVO,,,2.35,,sem base TACO do mesmo alimento
+guia,"Batata, doce, chips",NOVO,,,1.13,,sem base TACO do mesmo alimento
+guia,"Batata, inglesa, descascada",NOVO,,"Batata, inglesa, crua",1.21,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,Berinjela,FATOR_NO_CATALOGO,"Berinjela, crua","Berinjela, crua",1.21,,o catálogo traz o mesmo alimento cru
+guia,Brócolis,FATOR_NO_CATALOGO,"Brócolis, cru","Brócolis, cru",1.43,,o catálogo traz o mesmo alimento cru
+guia,"Cebola, ingrediente como condimento",NOVO,,"Cebola, crua",1.11,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,"Cebola, descascada, cortada em rodelas",NOVO,,"Cebola, crua",1.19,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,"Cebolinha/cheiro verde, ingrediente como condimento",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Cenoura, descascada, cortada em rodelas",NOVO,,"Cenoura, crua",1.23,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,"Cenoura, descascada, ralada",NOVO,,"Cenoura, crua",2.00,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,Chuchu,FATOR_NO_CATALOGO,"Chuchu, cru","Chuchu, cru",1.47,,o catálogo traz o mesmo alimento cru
+guia,"Couve, fatiada",NOVO,,,1.61,,sem base TACO do mesmo alimento
+guia,"Pepino, fatiado",NOVO,,"Pepino, cru",1.01,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,Pimentão,NOVO,,,1.20,,sem base TACO do mesmo alimento
+guia,"Repolho, cortado em tiras grossas",NOVO,,,1.11,,sem base TACO do mesmo alimento
+guia,"Repolho, picado",NOVO,,,1.23,,sem base TACO do mesmo alimento
+guia,"Tomate, com casca",NOVO,,,1.14,,sem base TACO do mesmo alimento
+guia,"Tomate, cereja",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Tomate, cubos",NOVO,,,1.04,,sem base TACO do mesmo alimento
+guia,"Abobrinha, italiana, cozida",FATOR_NO_CATALOGO,"Abobrinha, italiana, cozida","Abobrinha, italiana, cozida",,0.85,
+guia,"Abobrinha, italiana, grelhada",NOVO,,,,0.89,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Batata, doce, chips, frita",NOVO,,,,1.94,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Batata, inglesa, assada",NOVO,,,,0.89,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Batata, inglesa, cozida",FATOR_NO_CATALOGO,"Batata, inglesa, cozida","Batata, inglesa, cozida",,0.97,
+guia,"Berinjela, cozida",FATOR_NO_CATALOGO,"Berinjela, cozida","Berinjela, cozida",,1.08,
+guia,"Brócolis, cozido",FATOR_NO_CATALOGO,"Brócolis, cozido","Brócolis, cozido",,1.25,
+guia,"Cebola, grelhada, rodelas",NOVO,,,,0.71,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Cenoura, cozida",FATOR_NO_CATALOGO,"Cenoura, cozida","Cenoura, cozida",,0.87,
+guia,"Chuchu, refogado",NOVO,,,,0.91,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Pimentão, refogado",NOVO,,,,0.70,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Repolho, tiras grossas, cozido",NOVO,,,,1.03,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Tomate, cubos, cozido",NOVO,,,,0.83,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Feijão, carioca",FATOR_NO_CATALOGO,"Feijão, carioca, cru","Feijão, carioca, cru",1.00,,o catálogo traz o mesmo alimento cru
+guia,"Feijão, preto",IGNORAR,,,,,FC fora da faixa 1.00 a 20.00
+guia,Nozes,NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Proteína de soja, texturizada",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Feijão, carioca, cozido, caldo",NOVO,,,,1.81,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Feijão, carioca, tropeiro",NOVO,,,,2.15,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Feijão, preto, cozido, caldo",NOVO,,,,1.89,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,"Proteína de soja, texturizada",NOVO,,,,1.07,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+guia,Creme de leite,FATOR_NO_CATALOGO,Creme de Leite,Creme de Leite,1.00,,
+guia,"Iogurte, natural",FATOR_NO_CATALOGO,"Iogurte, natural","Iogurte, natural",1.00,,
+guia,"Leite, condensado",FATOR_NO_CATALOGO,"Leite, condensado","Leite, condensado",1.00,,
+guia,"Leite, vaca, integral",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Leite, vaca, pó",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Manteiga, com sal",FATOR_NO_CATALOGO,"Manteiga, com sal","Manteiga, com sal",1.00,,
+guia,"Manteiga, sem sal",FATOR_NO_CATALOGO,"Manteiga, sem sal","Manteiga, sem sal",1.00,,
+guia,Margarina,NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Queijo, gorgonzola",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Queijo, muçarela",FATOR_NO_CATALOGO,"Queijo, mozarela","Queijo, mozarela",1.00,,"mesmo alimento, grafia diferente na revisão"
+guia,"Queijo, parmesão, light",NOVO,,,1.00,,sem base TACO do mesmo alimento
+guia,"Queijo, parmesão, ralado",NOVO,,"Queijo, parmesão",1.00,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+guia,"Queijo, prato",FATOR_NO_CATALOGO,"Queijo, prato","Queijo, prato",1.00,,
+guia,"Queijo, requeijão, cremoso",FATOR_NO_CATALOGO,"Queijo, requeijão, cremoso","Queijo, requeijão, cremoso",1.00,,
+guia,"Queijo, ricota",FATOR_NO_CATALOGO,"Queijo, ricota","Queijo, ricota",1.00,,
+guia,"Ovo de galinha, inteiro",FATOR_NO_CATALOGO,"Ovo, de galinha, inteiro, cru","Ovo, de galinha, inteiro, cru",1.00,,"mesmo alimento, grafia diferente na revisão"
+guia,"Ovo de galinha, inteiro, cozido",FATOR_NO_CATALOGO,"Ovo, de galinha, inteiro, cozido/10minutos","Ovo, de galinha, inteiro, cozido/10minutos",,0.82,"mesmo alimento, grafia diferente na revisão"
+guia,"Ovo de galinha, inteiro, omelete",NOVO,,,,0.80,cozido sem o mesmo item no catálogo; sem base para não copiar nutriente cru
+cumbaru,Abacate com casca,NOVO,,"Abacate, cru",1.40,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+cumbaru,Abacaxi com casca,NOVO,,"Abacaxi, cru",1.75,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+cumbaru,Abacaxi descascado,NOVO,,"Abacaxi, cru",1.05,,"preparo diferente; nutrientes da base crua, o fator não vai para ela"
+cumbaru,Abóbora,NOVO,,,1.40,,sem base TACO do mesmo alimento
+cumbaru,Abóbora cabotiá,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Abobora moranga,FATOR_NO_CATALOGO,"Abóbora, moranga, crua","Abóbora, moranga, crua",1.35,,o catálogo traz o mesmo alimento cru
+cumbaru,Abóbora paulista,NOVO,,,1.45,,sem base TACO do mesmo alimento
+cumbaru,Abobrinha,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Abobrinha italiana,FATOR_NO_CATALOGO,"Abobrinha, italiana, crua","Abobrinha, italiana, crua",1.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Acelga,FATOR_NO_CATALOGO,"Acelga, crua","Acelga, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Acém bovino,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Acém bovino em cubos,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Acerola,FATOR_NO_CATALOGO,"Acerola, crua","Acerola, crua",1.15,,o catálogo traz o mesmo alimento cru
+cumbaru,Agrião,FATOR_NO_CATALOGO,"Agrião, cru","Agrião, cru",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Aipo,FATOR_NO_CATALOGO,"Aipo, cru","Aipo, cru",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Alcachofra fresca,NOVO,,,2.00,,sem base TACO do mesmo alimento
+cumbaru,Alcatra,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Alecrim fresco,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Alface,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Alface americana,FATOR_NO_CATALOGO,"Alface, americana, crua","Alface, americana, crua",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Alface crespa,FATOR_NO_CATALOGO,"Alface, crespa, crua","Alface, crespa, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Alface lisa,FATOR_NO_CATALOGO,"Alface, lisa, crua","Alface, lisa, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Alface roxa,FATOR_NO_CATALOGO,"Alface, roxa, crua","Alface, roxa, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Alho,FATOR_NO_CATALOGO,"Alho, cru","Alho, cru",1.45,,o catálogo traz o mesmo alimento cru
+cumbaru,Alho-poró,FATOR_NO_CATALOGO,"Alho-poró, cru","Alho-poró, cru",1.40,,o catálogo traz o mesmo alimento cru
+cumbaru,Almeirão,FATOR_NO_CATALOGO,"Almeirão, cru","Almeirão, cru",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Amêijoa,NOVO,,,2.30,,sem base TACO do mesmo alimento
+cumbaru,Ameixa,FATOR_NO_CATALOGO,"Ameixa, crua","Ameixa, crua",1.15,,o catálogo traz o mesmo alimento cru
+cumbaru,Amora,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Asa de frango,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Aspargo,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Aspargo fresco,NOVO,,,1.40,,sem base TACO do mesmo alimento
+cumbaru,Atum fresco,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Atum fresco saku,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Bacalhau desfiado dessalgado,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Bacalhau dessalgado,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Bacuri,NOVO,,,1.90,,sem base TACO do mesmo alimento
+cumbaru,Banana,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Barriga de porco,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Barriga suína para pulled pork,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Batata bolinha,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Batata doce,FATOR_NO_CATALOGO,"Batata, doce, crua","Batata, doce, crua",1.25,,o catálogo traz o mesmo alimento cru
+cumbaru,Batata doce roxa,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Batata inglesa,FATOR_NO_CATALOGO,"Batata, inglesa, crua","Batata, inglesa, crua",1.33,,o catálogo traz o mesmo alimento cru
+cumbaru,Berinjela,FATOR_NO_CATALOGO,"Berinjela, crua","Berinjela, crua",1.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Bertalha,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Beterraba,FATOR_NO_CATALOGO,"Beterraba, crua","Beterraba, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Beterraba baby,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Bife ancho,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Bisteca bovina,NOVO,,,1.40,,sem base TACO do mesmo alimento
+cumbaru,Bisteca suína,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Bochecha suína,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Brócolis,FATOR_NO_CATALOGO,"Brócolis, cru","Brócolis, cru",1.35,,o catálogo traz o mesmo alimento cru
+cumbaru,Broto de alfafa,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Broto de feijão,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Cação em postas,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Cajá-manga,FATOR_NO_CATALOGO,"Cajá-Manga, cru","Cajá-Manga, cru",1.70,,o catálogo traz o mesmo alimento cru
+cumbaru,Caju,FATOR_NO_CATALOGO,"Caju, cru","Caju, cru",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Camarão com casca,NOVO,,,2.20,,sem base TACO do mesmo alimento
+cumbaru,Camarão descascado,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Camarão pequeno descascado,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Camarão VG com casca,NOVO,,,2.20,,sem base TACO do mesmo alimento
+cumbaru,Cambuci,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Camu-camu,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Capa de filé,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Caqui,NOVO,,,1.12,,sem base TACO do mesmo alimento
+cumbaru,Cará,FATOR_NO_CATALOGO,"Cará, cru","Cará, cru",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Carambola,FATOR_NO_CATALOGO,"Carambola, crua","Carambola, crua",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Carré de cordeiro,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Carré suíno,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Caruru,FATOR_NO_CATALOGO,"Caruru, cru","Caruru, cru",1.35,,o catálogo traz o mesmo alimento cru
+cumbaru,Catalonha,FATOR_NO_CATALOGO,"Catalonha, crua","Catalonha, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Cauda de lagosta,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Cavala inteira,NOVO,,,2.00,,sem base TACO do mesmo alimento
+cumbaru,Cebola,FATOR_NO_CATALOGO,"Cebola, crua","Cebola, crua",1.15,,o catálogo traz o mesmo alimento cru
+cumbaru,Cebola baiana,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Cebola branca,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Cebola pérola,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Cebola roxa,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Cebolinha,FATOR_NO_CATALOGO,"Cebolinha, crua","Cebolinha, crua",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Cenoura,FATOR_NO_CATALOGO,"Cenoura, crua","Cenoura, crua",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Cenoura baby,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Cerefólio,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Cereja,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Chalota,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Charque bovino,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Chicória,FATOR_NO_CATALOGO,"Chicória, crua","Chicória, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Chuchu,FATOR_NO_CATALOGO,"Chuchu, cru","Chuchu, cru",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Coco fresco ralado,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Coco seco inteiro,NOVO,,,1.70,,sem base TACO do mesmo alimento
+cumbaru,Coco verde,NOVO,,,2.30,,sem base TACO do mesmo alimento
+cumbaru,Codorna,NOVO,,,1.45,,sem base TACO do mesmo alimento
+cumbaru,Coelho,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Coentro,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo champignon fresco,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo enoki fresco,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo eringi fresco,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo paris,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo Paris fresco,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo portobello,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo portobello fresco,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo shiitake,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo shiitake fresco,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo shimeji,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Cogumelo shimeji fresco,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Contrafilé,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Copa lombo suíno,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Coração de frango,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Corte denver,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Costela bovina,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Costela bovina em tiras,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Costela bovina para pulled beef,NOVO,,,1.40,,sem base TACO do mesmo alimento
+cumbaru,Costela de cordeiro,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Costela suína,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Costela suína defumada,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Costela suína em tiras,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Costela suína para pulled pork,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Couve,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Couve chinesa,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Couve-de-bruxelas,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Couve-flor,FATOR_NO_CATALOGO,"Couve-flor, crua","Couve-flor, crua",1.40,,o catálogo traz o mesmo alimento cru
+cumbaru,Coxa de frango,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Coxa de frango desossada para lanche,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Coxa e sobrecoxa,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Coxa e sobrecoxa desossada,NOVO,,,1.08,,sem base TACO do mesmo alimento
+cumbaru,Coxão duro,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Coxão duro em cubos,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Coxão mole,NOVO,,,1.12,,sem base TACO do mesmo alimento
+cumbaru,Cupim,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Cupim bovino para desfiar,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Cupuaçu,FATOR_NO_CATALOGO,"Cupuaçu, cru","Cupuaçu, cru",2.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Damasco,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Dobradinha bovina,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Dourado inteiro,NOVO,,,2.00,,sem base TACO do mesmo alimento
+cumbaru,Endívia,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Endro,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Enguia inteira,NOVO,,,1.90,,sem base TACO do mesmo alimento
+cumbaru,Erva-doce,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Ervilha fresca,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Ervilha torta,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Escarola,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Espinafre,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Estragão,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Feijão-de-corda fresco,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Fígado bovino,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Fígado de frango,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Fígado de porco,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Figo,FATOR_NO_CATALOGO,"Figo, cru","Figo, cru",1.15,,o catálogo traz o mesmo alimento cru
+cumbaru,Filé de anchova,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Filé de badejo,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Filé de cavala,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Filé de congro,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Filé de costela,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Filé de dourado,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Filé de linguado,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Filé de merluza,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Filé de pargo,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Filé de peito de frango em tiras,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Filé de peixe-espada,NOVO,,,1.08,,sem base TACO do mesmo alimento
+cumbaru,Filé de robalo,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Filé de salmão,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Filé de tilápia,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Filé de tilápia em tiras,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Filé de truta salmonada,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Filé mignon,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Filé mignon suíno para lanche,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Folha de mandioca (maniva),NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Fraldinha,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Framboesa,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Frango a passarinho,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Frango caipira inteiro,NOVO,,,1.50,,sem base TACO do mesmo alimento
+cumbaru,Frango inteiro,NOVO,,,1.45,,sem base TACO do mesmo alimento
+cumbaru,Frango temperado inteiro,NOVO,,,1.40,,sem base TACO do mesmo alimento
+cumbaru,Fruta-do-conde,NOVO,,,1.60,,sem base TACO do mesmo alimento
+cumbaru,Gengibre,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Gengibre fresco,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Goiaba,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Graviola,FATOR_NO_CATALOGO,"Graviola, crua","Graviola, crua",1.55,,o catálogo traz o mesmo alimento cru
+cumbaru,Hortelã,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Hortela fresca,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Inhame,FATOR_NO_CATALOGO,"Inhame, cru","Inhame, cru",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Jabuticaba,FATOR_NO_CATALOGO,"Jabuticaba, crua","Jabuticaba, crua",1.25,,o catálogo traz o mesmo alimento cru
+cumbaru,Jaca,FATOR_NO_CATALOGO,"Jaca, crua","Jaca, crua",1.60,,o catálogo traz o mesmo alimento cru
+cumbaru,Jalapeno fresco,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Jambu,NOVO,,,1.40,,sem base TACO do mesmo alimento
+cumbaru,Jamelão,FATOR_NO_CATALOGO,"Jamelão, cru","Jamelão, cru",1.40,,o catálogo traz o mesmo alimento cru
+cumbaru,Jiló,FATOR_NO_CATALOGO,"Jiló, cru","Jiló, cru",1.15,,o catálogo traz o mesmo alimento cru
+cumbaru,Kiwi,FATOR_NO_CATALOGO,"Kiwi, cru","Kiwi, cru",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Lagarto bovino,NOVO,,,1.08,,sem base TACO do mesmo alimento
+cumbaru,Lagosta inteira,NOVO,,,2.40,,sem base TACO do mesmo alimento
+cumbaru,Laranja,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Laranja para suco,NOVO,,,2.20,,sem base TACO do mesmo alimento
+cumbaru,Lichia,NOVO,,,1.60,,sem base TACO do mesmo alimento
+cumbaru,Limão para suco,NOVO,,,2.50,,sem base TACO do mesmo alimento
+cumbaru,Limão-siciliano,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Limão-tahiti,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Língua bovina,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Linguiça calabresa fresca,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Linguiça fresca,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Lombo suíno,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Louro fresco,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Lula inteira,NOVO,,,1.90,,sem base TACO do mesmo alimento
+cumbaru,Lula inteira limpa,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Maçã,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Mamão com casca,NOVO,,,1.45,,sem base TACO do mesmo alimento
+cumbaru,Mamão limpo,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Maminha,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Maminha suína,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Mandioca,FATOR_NO_CATALOGO,"Mandioca, crua","Mandioca, crua",1.45,,o catálogo traz o mesmo alimento cru
+cumbaru,Mandioquinha,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Manga com casca,NOVO,,,1.55,,sem base TACO do mesmo alimento
+cumbaru,Manga descascada,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Manjericão,FATOR_NO_CATALOGO,"Manjericão, cru","Manjericão, cru",1.25,,o catálogo traz o mesmo alimento cru
+cumbaru,Manjericao fresco,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Manjericão genovês fresco,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Manjericão roxo,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Maracujá,FATOR_NO_CATALOGO,"Maracujá, cru","Maracujá, cru",2.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Maxixe,FATOR_NO_CATALOGO,"Maxixe, cru","Maxixe, cru",1.15,,o catálogo traz o mesmo alimento cru
+cumbaru,Melancia inteira,NOVO,,,1.65,,sem base TACO do mesmo alimento
+cumbaru,Melancia limpa,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Melão inteiro,NOVO,,,1.60,,sem base TACO do mesmo alimento
+cumbaru,Melão limpo,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Mexilhão na concha,NOVO,,,4.00,,sem base TACO do mesmo alimento
+cumbaru,Mexilhão sem casca,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Milho verde,FATOR_NO_CATALOGO,"Milho, verde, cru","Milho, verde, cru",2.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Milho verde debulhado,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Mini alface,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Mirtilo,NOVO,,,1.03,,sem base TACO do mesmo alimento
+cumbaru,Mocotó bovino,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Moela de frango,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Morango,FATOR_NO_CATALOGO,"Morango, cru","Morango, cru",1.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Mostarda (folha),NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Músculo,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Músculo bovino em cubos,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Músculo bovino para desfiar,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Nabo,FATOR_NO_CATALOGO,"Nabo, cru","Nabo, cru",1.25,,o catálogo traz o mesmo alimento cru
+cumbaru,Nabo japonês,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Nectarina,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Ora-pro-nóbis,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Oregano fresco,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Orelha de porco,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Ossobuco,NOVO,,,1.45,,sem base TACO do mesmo alimento
+cumbaru,Ostra na concha,NOVO,,,4.50,,sem base TACO do mesmo alimento
+cumbaru,Pacu,NOVO,,,1.80,,sem base TACO do mesmo alimento
+cumbaru,Paleta bovina,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Paleta bovina em cubos,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Paleta de cordeiro,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Paleta suína,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Paleta suína para pulled pork,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Palmito fresco,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Patinho,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Pato inteiro,NOVO,,,1.50,,sem base TACO do mesmo alimento
+cumbaru,Pé de porco,NOVO,,,1.40,,sem base TACO do mesmo alimento
+cumbaru,Peito bovino,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Peito bovino defumado para pulled beef,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Peito bovino para desfiar,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Peito de frango,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Peito de frango em cubos,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Peito de frango para lanche,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Peito de pato,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Peito de peru fresco,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Peixe-agulha,NOVO,,,2.10,,sem base TACO do mesmo alimento
+cumbaru,Peixe-manteiga,NOVO,,,2.00,,sem base TACO do mesmo alimento
+cumbaru,Pepino,FATOR_NO_CATALOGO,"Pepino, cru","Pepino, cru",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Pepino comum,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Pepino japonês,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Pequi,FATOR_NO_CATALOGO,"Pequi, cru","Pequi, cru",2.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Pera,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Pernil de cordeiro,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Pernil suíno,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Pernil suíno para desfiar,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Pescada branca,FATOR_NO_CATALOGO,"Pescada, branca, crua","Pescada, branca, crua",1.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Pêssego,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Physalis,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Picanha,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Pimenta biquinho,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Pimenta-de-cheiro,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Pimenta dedo-de-moça,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Pimenta dedo-de-moca fresca,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Pimenta habanero,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Pimenta jalapeño,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Pimenta malagueta,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Pimentão,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Pimentao amarelo,FATOR_NO_CATALOGO,"Pimentão, amarelo, cru","Pimentão, amarelo, cru",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Pimentao verde,FATOR_NO_CATALOGO,"Pimentão, verde, cru","Pimentão, verde, cru",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Pimentao vermelho,FATOR_NO_CATALOGO,"Pimentão, vermelho, cru","Pimentão, vermelho, cru",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Pintado inteiro,NOVO,,,1.90,,sem base TACO do mesmo alimento
+cumbaru,Pitaya,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Pitomba,NOVO,,,1.65,,sem base TACO do mesmo alimento
+cumbaru,Polpa de abacate,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Polvo fresco,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Ponta de agulha,NOVO,,,1.35,,sem base TACO do mesmo alimento
+cumbaru,Posta de atum,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Quiabo,FATOR_NO_CATALOGO,"Quiabo, cru","Quiabo, cru",1.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Rabada,NOVO,,,1.55,,sem base TACO do mesmo alimento
+cumbaru,Rabanete,FATOR_NO_CATALOGO,"Rabanete, cru","Rabanete, cru",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Rabanete daikon,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Radicchio,NOVO,,,1.25,,sem base TACO do mesmo alimento
+cumbaru,Repolho,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Repolho crespo,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Repolho roxo,FATOR_NO_CATALOGO,"Repolho, roxo, cru","Repolho, roxo, cru",1.20,,o catálogo traz o mesmo alimento cru
+cumbaru,Repolho verde,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Rim bovino,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Robalo inteiro,NOVO,,,2.10,,sem base TACO do mesmo alimento
+cumbaru,Romã,FATOR_NO_CATALOGO,"Romã, crua","Romã, crua",1.50,,o catálogo traz o mesmo alimento cru
+cumbaru,Rúcula,FATOR_NO_CATALOGO,"Rúcula, crua","Rúcula, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Rúcula selvagem,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Salmão inteiro,NOVO,,,2.00,,sem base TACO do mesmo alimento
+cumbaru,Salsinha,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Salvia fresca,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Sardinha fresca,NOVO,,,2.00,,sem base TACO do mesmo alimento
+cumbaru,Sassami de frango,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Seriguela,NOVO,,,1.55,,sem base TACO do mesmo alimento
+cumbaru,Serralha,FATOR_NO_CATALOGO,"Serralha, crua","Serralha, crua",1.30,,o catálogo traz o mesmo alimento cru
+cumbaru,Sobrecoxa de frango,NOVO,,,1.20,,sem base TACO do mesmo alimento
+cumbaru,Sobrecoxa de frango desossada,NOVO,,,1.05,,sem base TACO do mesmo alimento
+cumbaru,Taioba,FATOR_NO_CATALOGO,"Taioba, crua","Taioba, crua",1.35,,o catálogo traz o mesmo alimento cru
+cumbaru,Tamarindo,FATOR_NO_CATALOGO,"Tamarindo, cru","Tamarindo, cru",1.75,,o catálogo traz o mesmo alimento cru
+cumbaru,Tambaqui,NOVO,,,1.80,,sem base TACO do mesmo alimento
+cumbaru,Tangerina,NOVO,,,1.40,,sem base TACO do mesmo alimento
+cumbaru,Tilápia inteira,NOVO,,,1.80,,sem base TACO do mesmo alimento
+cumbaru,Tomate,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Tomate cereja,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Tomate coração-de-boi,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Tomate italiano,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Tomilho fresco,NOVO,,,1.30,,sem base TACO do mesmo alimento
+cumbaru,Toucinho,FATOR_NO_CATALOGO,"Toucinho, cru","Toucinho, cru",1.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Tulipa de frango,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Umbu,FATOR_NO_CATALOGO,"Umbu, cru","Umbu, cru",1.45,,o catálogo traz o mesmo alimento cru
+cumbaru,Uva,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Vagem,FATOR_NO_CATALOGO,"Vagem, crua","Vagem, crua",1.10,,o catálogo traz o mesmo alimento cru
+cumbaru,Vagem macarrão,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Vagem manteiga,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Vazio bovino,NOVO,,,1.15,,sem base TACO do mesmo alimento
+cumbaru,Vieira limpa,NOVO,,,1.10,,sem base TACO do mesmo alimento
+cumbaru,Vieira na concha,NOVO,,,4.00,,sem base TACO do mesmo alimento
+cumbaru,Yacon,NOVO,,,1.25,,sem base TACO do mesmo alimento

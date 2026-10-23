@@ -252,7 +252,7 @@ public class BibliotecaService {
             }
             alimentos.save(new Alimento(new Alimento.Valores(c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
                     c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getGramasPorUnidade(),
-                    c.getFonte()), Exercicio.Origem.CATALOGO));
+                    c.getFonte(), c.getFatorCorrecao(), c.getFatorCoccao()), Exercicio.Origem.CATALOGO));
             importados++;
         }
         return new ImportacaoResultado(importados, pedidos.size() - importados);
