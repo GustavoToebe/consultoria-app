@@ -1,4 +1,4 @@
-import { blocosValidos, lerBlocos, somaDosBlocos, textoDeBlocos } from './blocos';
+import { blocosIguais, blocosValidos, lerBlocos, resumoDosBlocos, somaDosBlocos, textoDeBlocos } from './blocos';
 
 test.each([['4+2', [4, 2]], ['3×4', [4, 4, 4]], ['3 x 4', [4, 4, 4]], [' 4 + 2 ', [4, 2]]])('lê blocos %s', (texto, esperado) => {
   expect(lerBlocos(texto as string)).toEqual(esperado);
@@ -12,4 +12,9 @@ test('formata blocos iguais e desiguais e soma as repetições sem alterar a ent
   expect(blocosValidos([4, 2])).toBe(true);
   expect(somaDosBlocos([4, 2])).toBe(6);
   expect(somaDosBlocos(null)).toBeNull();
+  expect(blocosIguais([4, 4, 4])).toBe(true);
+  expect(blocosIguais([4, 2])).toBe(false);
+  expect(resumoDosBlocos([4, 4, 4, 4])).toEqual({ repeticoes: 16, blocos: 4, pausas: 3 });
+  expect(resumoDosBlocos([4])).toBeNull();
+  expect(resumoDosBlocos(null)).toBeNull();
 });

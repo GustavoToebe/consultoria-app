@@ -58,7 +58,8 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Cluster', exact: true }).click();
     await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
     await expect(page.getByRole('textbox', { name: 'Reps mín.', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /1x6 \(4\+2\) - WS \+ Cluster 15 s/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /1x6 \(4\+2\) - WS com Cluster 15 s/ })).toBeVisible();
+    await expect(page.getByText('6 repetições por série · 2 blocos · 1 pausa interna')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('tela-editada.png'), fullPage: true });
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();

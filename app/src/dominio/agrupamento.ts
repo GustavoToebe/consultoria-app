@@ -1,5 +1,5 @@
 import type { Cardio, Carga, Configuracao, Esforco, Serie, Tecnica } from '../api/tipos';
-import { textoDeBlocos } from './blocos';
+import { blocosValidos, somaDosBlocos, textoDeBlocos } from './blocos';
 import { numeroParaTela } from './formatos';
 import { explicacaoDoCatalogo } from './catalogoMetodologia';
 import { explicacaoDaTecnica, nomeDaTecnica, nomeDoTipo, tecnicaDescritiva, tipoTrabalho } from './metodologia';
@@ -211,10 +211,16 @@ export function textoTecnicaPorExtenso(t: Tecnica | null | undefined, config?: C
   switch (t.tipo) {
     case 'CLUSTER': {
       const b = t.blocos ?? [];
-      const pausa = `${textoPausa(t)} de pausa entre os blocos`;
-      if (b.length === 0) return `${nome}: a série dividida em blocos de repetições, com ${pausa}.`;
-      const blocos = b.every((x) => x === b[0]) ? `${b.length} blocos de ${b[0]} ${b[0] === 1 ? 'repetição' : 'repetições'}` : `blocos de ${listaComE(b)} repetições`;
-      return `${nome}: ${blocos}, ${pausa}.`;
+      if (!blocosValidos(b)) return `${nome}: complete os blocos para visualizar a prescrição.`;
+      const soma = somaDosBlocos(b)!;
+      const pausas = b.length - 1;
+      const estrutura = b.every((x) => x === b[0])
+        ? `${b.length} blocos de ${b[0]} ${b[0] === 1 ? 'repetição' : 'repetições'}`
+        : `blocos de ${listaComE(b)} repetições`;
+      const pausa = t.pausaSegundos == null && t.pausaRespiracoes == null
+        ? 'A pausa entre os blocos não foi informada.'
+        : `Pausa entre os blocos: ${textoPausa(t)}.`;
+      return `${nome}: faça ${estrutura}. São ${soma} repetições previstas no total e ${pausas} ${pausas === 1 ? 'pausa interna' : 'pausas internas'}. Encerre ao terminar o ${b.length}º bloco. ${pausa}`;
     }
     case 'DROP_SET': {
       const reduza = t.reducaoPercentual ? `reduza a carga cerca de ${t.reducaoPercentual}%` : 'reduza a carga';
@@ -245,7 +251,7 @@ export function textoTecnicaPorExtenso(t: Tecnica | null | undefined, config?: C
 
 /**
  * Resumo do grupo, na língua da planilha: "3x3 - FS 50/70/85 a 90% da WS", "1x3 a 6 - WS · 1 RIR", "1x - Top set +1 a
- * 5% sobre a anterior", "2x6 a 8 - Back off 15% abaixo da referência (Top set)", "1x6 (4+2) - WS + Cluster 15 s". O tipo
+ * 5% sobre a anterior", "2x6 a 8 - Back off 15% abaixo da referência (Top set)", "1x6 (4+2) - WS com Cluster 15 s". O tipo
  * sai pelo nome da metodologia (a série grava o código). `series` (as do exercício) dá o nome da série de referência.
  * Sem metodologia, o % sai sem "da WS" e a técnica com o nome fixo.
  */
@@ -256,7 +262,8 @@ export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | nul
   const tecnica = textoTecnica(primeira.tecnica, config, false);
   const blocos = primeira.tecnica?.tipo === 'CLUSTER' && primeira.tecnica.blocos?.length ? ` (${textoDeBlocos(primeira.tecnica.blocos)})` : '';
   const nome = nomeDoTipo(config, primeira.tipo);
-  const quem = nome ? `${nome}${tecnica ? ` + ${tecnica}` : ''}` : tecnica || 'Série';
+  const ligacao = primeira.tecnica?.tipo === 'CLUSTER' ? ' com ' : ' + ';
+  const quem = nome ? `${nome}${tecnica ? `${ligacao}${tecnica}` : ''}` : tecnica || 'Série';
   const reps = primeira.amrap ? 'AMRAP' : faixa(primeira);
   const partes = [`${grupo.series.length}x${reps}${blocos} - ${quem}`];
   const m = modo(primeira);

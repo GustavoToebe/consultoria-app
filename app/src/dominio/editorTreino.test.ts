@@ -253,6 +253,12 @@ describe('editor de treino', () => {
     expect(novas[0]).toMatchObject({ repsMin: 6, repsMax: 6, amrap: null });
   });
 
+  it('cluster sem blocos válidos não guarda o total anterior', () => {
+    const series = [ws('a')];
+    const novas = alterarGrupo(series, agrupar(series)[0], { tecnica: { ...tecnicaVazia('CLUSTER'), blocos: null, pausaSegundos: 15 } }, CONFIG);
+    expect(novas[0]).toMatchObject({ repsMin: null, repsMax: null, amrap: null });
+  });
+
   it('prescrição de cardio e alvo extra', () => {
     const series = [novaSerieDeCardio()];
     const c = alterarGrupo(series, agrupar(series)[0], { cardio: { duracaoMin: 30, zona: 2 }, alvoExtra: 'Leve' }, CONFIG, 'CARDIO');
@@ -551,8 +557,8 @@ describe('composições da pesquisa de técnicas (19/10)', () => {
 
     const esperado = {
       simples: ['1x3 a 6 - WS'],
-      wsMaisCluster: ['1x3 a 6 - WS', '1x12 (3×4) - WS + Cluster 20 s'],
-      doisCluster: ['2x12 (3×4) - WS + Cluster 20 s'],
+      wsMaisCluster: ['1x3 a 6 - WS', '1x12 (3×4) - WS com Cluster 20 s'],
+      doisCluster: ['2x12 (3×4) - WS com Cluster 20 s'],
     };
     for (const [nome, series] of Object.entries({ simples, wsMaisCluster, doisCluster })) {
       const quer = esperado[nome as keyof typeof esperado];
@@ -564,7 +570,7 @@ describe('composições da pesquisa de técnicas (19/10)', () => {
 
   it('série simples depois do cluster nasce num grupo próprio, sem herdar a técnica', () => {
     const wsMaisCluster = comCluster(adicionarSerie(adicionarSerie([], CONFIG, 'WORKING'), CONFIG, 'WORKING', 'CLUSTER'));
-    expect(descreverSeries(adicionarSerie(wsMaisCluster, CONFIG, 'WORKING'), CONFIG)).toEqual(['1x3 a 6 - WS', '1x12 (3×4) - WS + Cluster 20 s', '1x3 a 6 - WS']);
+    expect(descreverSeries(adicionarSerie(wsMaisCluster, CONFIG, 'WORKING'), CONFIG)).toEqual(['1x3 a 6 - WS', '1x12 (3×4) - WS com Cluster 20 s', '1x3 a 6 - WS']);
   });
 
   it('trocar de 3 para 4 blocos muda só a técnica, sem virar séries', () => {
@@ -572,7 +578,7 @@ describe('composições da pesquisa de técnicas (19/10)', () => {
     const quatro = alterarGrupo(doisCluster, agrupar(doisCluster)[0], { tecnica: { ...cluster, blocos: [4, 4, 4, 4] } }, CONFIG);
     expect(quatro).toHaveLength(2);
     expect(quatro.map((s) => s.uid)).toEqual(doisCluster.map((s) => s.uid));
-    expect(descreverSeries(quatro, CONFIG)).toEqual(['2x16 (4×4) - WS + Cluster 20 s']);
+    expect(descreverSeries(quatro, CONFIG)).toEqual(['2x16 (4×4) - WS com Cluster 20 s']);
   });
 
   it('receita aplicada é cópia: mudar a origem depois não muda o exercício', () => {
@@ -580,7 +586,7 @@ describe('composições da pesquisa de técnicas (19/10)', () => {
     const receita = seriesParaReceita(origem);
     const aplicada = seriesDaReceita(JSON.parse(JSON.stringify(receita)));
     receita.series[0].tecnica!.blocos![0] = 9;
-    expect(descreverSeries(aplicada, CONFIG)).toEqual(['1x12 (3×4) - WS + Cluster 20 s']);
+    expect(descreverSeries(aplicada, CONFIG)).toEqual(['1x12 (3×4) - WS com Cluster 20 s']);
   });
 });
 
@@ -600,7 +606,7 @@ describe('drop-set no editor (pesquisa de técnicas de 19/10)', () => {
     const wsMaisDrop = comDrop(adicionarSerie(adicionarSerie([], CONFIG, 'WORKING'), CONFIG, 'WORKING', 'DROP_SET'));
     expect(descreverSeries(wsMaisDrop, CONFIG)).toEqual(['1x3 a 6 - WS', '1x3 a 6 - WS + Drop-set 2× −20%']);
     expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WORKING', 'DROP_SET'), CONFIG)).toEqual(['1x3 a 6 - WS', '2x3 a 6 - WS + Drop-set 2× −20%']);
-    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WORKING', 'CLUSTER'), CONFIG)).toEqual(['1x3 a 6 - WS', '1x3 a 6 - WS + Drop-set 2× −20%', '1x3 a 6 - WS + Cluster 15 s']);
+    expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WORKING', 'CLUSTER'), CONFIG)).toEqual(['1x3 a 6 - WS', '1x3 a 6 - WS + Drop-set 2× −20%', '1x - WS com Cluster 15 s']);
     expect(descreverSeries(adicionarSerie(wsMaisDrop, CONFIG, 'WORKING'), CONFIG)).toEqual(['1x3 a 6 - WS', '1x3 a 6 - WS + Drop-set 2× −20%', '1x3 a 6 - WS']);
   });
 

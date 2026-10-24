@@ -22,8 +22,8 @@ for (const largura of [390, 1280]) {
     await expect(page.getByRole('button', { name: 'Adicionar série', exact: true })).toHaveCount(1);
     await page.getByRole('button', { name: 'FS', exact: true }).click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
-    await page.getByRole('button', { name: 'Uma série a mais', exact: true }).click();
-    await page.getByRole('button', { name: 'Uma série a mais', exact: true }).click();
+    await page.getByRole('button', { name: 'Uma série completa a mais', exact: true }).click();
+    await page.getByRole('button', { name: 'Uma série completa a mais', exact: true }).click();
     const campo = (nome: string) => page.getByRole('textbox', { name: nome, exact: true });
     await expect(campo('Série 1 · % da WS mín. (%)')).toHaveValue('50');
     await expect(campo('Série 2 · % da WS mín. (%)')).toHaveValue('70');

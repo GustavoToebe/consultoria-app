@@ -33,10 +33,24 @@ export function textoDeBlocos(blocos: readonly number[] | null | undefined): str
   return blocos.join('+');
 }
 
+/** Todos os blocos com o mesmo número de repetições, e pelo menos dois. */
+export function blocosIguais(blocos: readonly number[] | null | undefined): boolean {
+  return !!blocos && blocos.length >= 2 && blocos.every((b) => b === blocos[0]);
+}
+
 /** Repetições da série de um cluster: a soma dos blocos; `null` sem blocos. */
 export function somaDosBlocos(blocos: readonly number[] | null | undefined): number | null {
   if (!blocos || blocos.length === 0) return null;
   return blocos.reduce((soma, b) => soma + b, 0);
+}
+
+/**
+ * Leitura do cluster quando os blocos cabem no contrato. Sem blocos válidos, `null`:
+ * a prévia não reaproveita um total antigo.
+ */
+export function resumoDosBlocos(blocos: readonly number[] | null | undefined): { repeticoes: number; blocos: number; pausas: number } | null {
+  if (!blocosValidos(blocos)) return null;
+  return { repeticoes: somaDosBlocos(blocos)!, blocos: blocos!.length, pausas: blocos!.length - 1 };
 }
 
 /** De 2 a 10 blocos, cada um com 1 a 50 repetições inteiras (os limites do servidor). */

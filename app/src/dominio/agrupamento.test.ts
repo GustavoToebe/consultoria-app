@@ -19,16 +19,16 @@ describe('técnica da série (reunião de 17/10)', () => {
   });
 
   it('texto por extenso para o aluno, sem inventar número', () => {
-    expect(textoTecnicaPorExtenso(cluster)).toBe('Cluster: 3 blocos de 2 repetições, 20 s de pausa entre os blocos.');
+    expect(textoTecnicaPorExtenso(cluster)).toBe('Cluster: faça 3 blocos de 2 repetições. São 6 repetições previstas no total e 2 pausas internas. Encerre ao terminar o 3º bloco. Pausa entre os blocos: 20 s.');
     expect(textoTecnicaPorExtenso(restPause)).toBe('Rest pause: depois da série, 20 s de pausa e continue com a mesma carga até a falha, 2 vezes.');
     expect(textoTecnicaPorExtenso({ ...restPause, pausas: 1 })).toBe('Rest pause: depois da série, 20 s de pausa e continue com a mesma carga até a falha.');
-    expect(textoTecnicaPorExtenso({ ...cluster, blocos: null })).toBe('Cluster: a série dividida em blocos de repetições, com 20 s de pausa entre os blocos.');
+    expect(textoTecnicaPorExtenso({ ...cluster, blocos: null })).toBe('Cluster: complete os blocos para visualizar a prescrição.');
   });
 
   it('séries com técnicas diferentes não se juntam no mesmo grupo, e o resumo diz a técnica', () => {
     const series = [serie('a'), serie('b', cluster), serie('c', cluster)];
     expect(agrupar(series).map((g) => g.series.length)).toEqual([1, 2]);
-    expect(descreverSeries(series, config)).toEqual(['1x6 - WS', '2x6 (3×2) - WS + Cluster 20 s']);
+    expect(descreverSeries(series, config)).toEqual(['1x6 - WS', '2x6 (3×2) - WS com Cluster 20 s']);
   });
 
   it('cada técnica traz a pausa para o botão do cronômetro', () => {

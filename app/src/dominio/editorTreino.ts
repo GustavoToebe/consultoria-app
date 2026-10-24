@@ -15,7 +15,7 @@ import type {
   TipoSessao,
 } from '../api/tipos';
 import { agrupar, type GrupoDeSeries } from './agrupamento';
-import { somaDosBlocos } from './blocos';
+import { blocosValidos, somaDosBlocos } from './blocos';
 import { CONFIGURACAO_PADRAO } from './metodologiaPadrao';
 import {
   cargaInicial,
@@ -144,11 +144,12 @@ export function tecnicaVazia(tipo: TipoDeTecnica, padrao?: Tecnica | null): Tecn
   };
 }
 
-/** Cluster: as repetições da série são a soma dos blocos (o servidor confere). Sem blocos, as repetições ficam como estão. */
+/** Cluster: as repetições da série são a soma dos blocos válidos. Blocos incompletos não guardam o total anterior. */
 function comRepsDoCluster(s: Serie): Serie {
   if (s.tecnica?.tipo !== 'CLUSTER') return s;
-  const soma = somaDosBlocos(s.tecnica.blocos);
-  return soma == null ? s : { ...s, repsMin: soma, repsMax: soma, amrap: null };
+  if (!blocosValidos(s.tecnica.blocos)) return { ...s, repsMin: null, repsMax: null, amrap: null };
+  const soma = somaDosBlocos(s.tecnica.blocos)!;
+  return { ...s, repsMin: soma, repsMax: soma, amrap: null };
 }
 
 const ehTrabalho = (s: Serie) => s.carga?.modo === 'CARGA_TRABALHO';

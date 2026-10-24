@@ -199,18 +199,27 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMa
         <AvisoDoCampo mensagem={avisos.tipo} />
       </Secao> : null}
 
+      {secoes.tecnica ? <Secao titulo="Técnica">
+        <Tecnicas rotulo="Técnica da série" opcoes={opcoesDeTecnica(config, s.tecnica?.tipo)} valor={s.tecnica?.tipo ?? 'NENHUMA'} aoMudar={aoTecnica} />
+        {s.tecnica ? <>
+          {tecnicaTexto ? <Texto variante="pequeno">{tecnicaTexto}</Texto> : null}
+          {descritiva ? null : <CamposDaTecnica tecnica={s.tecnica} erros={errosDaTecnica} aoMudar={(tecnica) => aoAlterar({ tecnica })} />}
+        </> : null}
+      </Secao> : null}
+
       <Secao titulo={cardio ? 'Quantidade' : 'Prescrição'}>
         <View style={estilos.linha}>
-          <View><Texto variante="rotulo">Séries</Texto><View style={estilos.linha}>
-            <IconeBotao Icone={Minus} rotulo="Uma série a menos" desabilitado={g.series.length <= 1} aoTocar={() => aoQuantidade(g.series.length - 1)} />
-            <Texto style={estilos.numero} accessibilityLabel={`${g.series.length} séries`}>{g.series.length}</Texto>
-            <IconeBotao Icone={Plus} rotulo="Uma série a mais" desabilitado={!podeMais} aoTocar={() => aoQuantidade(g.series.length + 1)} />
+          <View><Texto variante="rotulo">Séries completas</Texto><View style={estilos.linha}>
+            <IconeBotao Icone={Minus} rotulo="Uma série completa a menos" desabilitado={g.series.length <= 1} aoTocar={() => aoQuantidade(g.series.length - 1)} />
+            <Texto style={estilos.numero} accessibilityLabel={`${g.series.length} séries completas`}>{g.series.length}</Texto>
+            <IconeBotao Icone={Plus} rotulo="Uma série completa a mais" desabilitado={!podeMais} aoTocar={() => aoQuantidade(g.series.length + 1)} />
           </View></View>
-          {secoes.prescricao ? <View style={estilos.campo}><CampoNumerico rotulo="Descanso" inteiro sufixo="s" valor={s.descansoSegundos} aoMudar={(descansoSegundos) => aoAlterar({ descansoSegundos })}
-            erro={erros.descansoSegundos ?? (s.descansoSegundos != null && s.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS ? `De 0 a ${DESCANSO_MAXIMO_SEGUNDOS} s.` : null)} /></View> : null}
+          {secoes.prescricao ? <View style={estilos.campo}><CampoNumerico rotulo="Descanso depois da série" inteiro sufixo="s" valor={s.descansoSegundos} aoMudar={(descansoSegundos) => aoAlterar({ descansoSegundos })}
+            erro={erros.descansoSegundos ?? (s.descansoSegundos != null && s.descansoSegundos > DESCANSO_MAXIMO_SEGUNDOS ? `De 0 a ${DESCANSO_MAXIMO_SEGUNDOS} s.` : null)}
+            ajuda="Vale depois da série inteira, não entre os blocos." /></View> : null}
         </View>
         {secoes.prescricao ? (cluster ? <>
-          <Texto variante="pequeno">No cluster as repetições são a soma dos blocos{s.repsMin != null ? ` (${s.repsMin})` : ''}.</Texto>
+          <Texto variante="pequeno">Uma WS contínua antes é outra série, sem técnica. O registro é um só, ao terminar o último bloco.</Texto>
           <ErroDoCampo mensagem={erros.repsMin} />
         </> : <>
           <Escolha rotulo="Repetições" opcoes={MODOS_DE_REPETICAO} valor={s.amrap ? 'AMRAP' : 'FAIXA'} aoMudar={(v) => aoAlterar({ amrap: v === 'AMRAP' })} />
@@ -229,20 +238,14 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMa
             aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} />)}
         </View> : null}
         {modo === 'ABAIXO_DA_REFERENCIA' ? <ReferenciaDaCarga opcoes={referencias} valor={s.carga?.referenciaUid} aoMudar={(referenciaUid) => aoAlterar({ carga: { referenciaUid } })} erro={erros['carga.referenciaUid']} /> : null}
+        {cluster && modo === 'CARGA_TRABALHO' ? <Texto variante="pequeno">A carga sugerida vem da base do dia, não da série anterior.</Texto> : null}
         <AvisoDoCampo mensagem={avisos['carga.modo']} />
       </Secao> : null}
 
       {secoes.esforco ? <Secao titulo="Esforço">
         <CamposDoEsforco esforco={s.esforco} aoMudar={(esforco) => aoAlterar({ esforco })} erros={subProblemas(erros, 'esforco')} rotulo="Esforço percebido" />
+        {cluster ? <Texto variante="pequeno">Revise o esforço desta série ao usar Cluster.</Texto> : null}
         <AvisoDoCampo mensagem={avisos['esforco.rir']} />
-      </Secao> : null}
-
-      {secoes.tecnica ? <Secao titulo="Técnica">
-        <Tecnicas rotulo="Técnica da série" opcoes={opcoesDeTecnica(config, s.tecnica?.tipo)} valor={s.tecnica?.tipo ?? 'NENHUMA'} aoMudar={aoTecnica} />
-        {s.tecnica ? <>
-          {tecnicaTexto ? <Texto variante="pequeno">{tecnicaTexto}</Texto> : null}
-          {descritiva ? null : <CamposDaTecnica tecnica={s.tecnica} erros={errosDaTecnica} aoMudar={(tecnica) => aoAlterar({ tecnica })} />}
-        </> : null}
       </Secao> : null}
 
       {secoes.alvoExtra ? <Secao titulo="Alvo extra">

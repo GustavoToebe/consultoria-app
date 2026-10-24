@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { Cardio, Carga, Configuracao, Esforco, ModoDeCarga, PapelDaSerie, RegiaoDasParciais, Tecnica } from '../../api/tipos';
-import { blocosValidos, lerBlocos, textoDeBlocos } from '../../dominio/blocos';
+import { blocosIguais, blocosValidos, lerBlocos, resumoDosBlocos, textoDeBlocos } from '../../dominio/blocos';
 import { modosDeCarga } from '../../dominio/editorTreino';
 import { REGIOES_DAS_PARCIAIS } from '../../dominio/metodologia';
 import { problemasDaTecnica, type Problemas } from '../../dominio/validacaoDeSerie';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
+import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
@@ -104,18 +105,89 @@ export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço' }
 
 // ---- Técnica ----
 
-function CampoBlocos({ valor, aoMudar, erro }: { valor: number[] | null | undefined; aoMudar: (v: number[] | null) => void; erro?: string | null }) {
+function CampoBlocos({ valor, aoMudar, erro, completa }: {
+  valor: number[] | null | undefined; aoMudar: (v: number[] | null) => void; erro?: string | null; completa: boolean;
+}) {
   const [texto, setTexto] = useState(textoDeBlocos(valor ?? null));
+  const [modo, setModo] = useState<'iguais' | 'diferentes'>(blocosIguais(valor) || !valor?.length ? 'iguais' : 'diferentes');
+  const [confirmar, setConfirmar] = useState(false);
+  const [quantidade, setQuantidade] = useState<number | null>(blocosIguais(valor) ? valor!.length : null);
+  const [repsCada, setRepsCada] = useState<number | null>(blocosIguais(valor) ? valor![0] : null);
   const chave = JSON.stringify(valor ?? null);
   const [anterior, setAnterior] = useState(chave);
   if (anterior !== chave) {
     setAnterior(chave);
+    setConfirmar(false);
+    if (blocosIguais(valor)) {
+      setQuantidade(valor!.length);
+      setRepsCada(valor![0]);
+    }
+    if (valor && !blocosIguais(valor)) setModo('diferentes');
     if (JSON.stringify(lerBlocos(texto)) !== chave) setTexto(textoDeBlocos(valor ?? null));
   }
-  return <Campo rotulo="Blocos de repetições" valor={texto} maxLength={60} placeholder="4+2 ou 4×4"
-    ajuda="As repetições da série são a soma dos blocos."
-    erro={erro ?? (texto && !blocosValidos(lerBlocos(texto)) ? 'De 2 a 10 blocos, cada um com 1 a 50 repetições.' : null)}
-    aoMudar={(t) => { setTexto(t); aoMudar(lerBlocos(t)); }} />;
+  const resumo = resumoDosBlocos(valor);
+  const aplicarIguais = (quantidade: number | null, reps: number | null) => {
+    if (quantidade == null || reps == null || quantidade < 2 || quantidade > 10 || reps < 1 || reps > 50) return;
+    aoMudar(Array.from({ length: quantidade }, () => reps));
+  };
+  const escolher = (proximo: 'iguais' | 'diferentes') => {
+    if (proximo === 'iguais' && valor && !blocosIguais(valor)) {
+      setConfirmar(true);
+      return;
+    }
+    setConfirmar(false);
+    setModo(proximo);
+  };
+  const alterarBloco = (indice: number, reps: number | null) => {
+    if (!valor || reps == null || reps < 1 || reps > 50) return;
+    const proximo = [...valor];
+    proximo[indice] = reps;
+    aoMudar(proximo);
+  };
+  return <View style={estilos.bloco}>
+    <Escolha rotulo="Distribuição dos blocos" opcoes={[{ valor: 'iguais', rotulo: 'Blocos iguais' }, { valor: 'diferentes', rotulo: 'Blocos diferentes' }]} valor={modo} aoMudar={escolher} />
+    {confirmar ? <View style={estilos.bloco}>
+      <Texto variante="pequeno">Isso substitui os blocos diferentes por blocos iguais, usando as repetições do primeiro.</Texto>
+      <Botao tipo="secundario" rotulo="Converter para blocos iguais" aoTocar={() => {
+        const primeiro = valor?.[0];
+        if (valor && primeiro != null) aoMudar(Array.from({ length: valor.length }, () => primeiro));
+        setModo('iguais');
+        setConfirmar(false);
+      }} />
+    </View> : null}
+    {modo === 'iguais' && !confirmar ? <View style={estilos.linha}>
+      <View style={estilos.campo}><CampoNumerico rotulo="Quantos blocos" inteiro valor={quantidade}
+        aoMudar={(q) => { setQuantidade(q); aplicarIguais(q, repsCada); }} ajuda="De 2 a 10." /></View>
+      <View style={estilos.campo}><CampoNumerico rotulo="Repetições em cada bloco" inteiro valor={repsCada}
+        aoMudar={(reps) => { setRepsCada(reps); aplicarIguais(quantidade, reps); }} ajuda="De 1 a 50." /></View>
+    </View> : null}
+    {modo === 'diferentes' && (!valor || valor.length < 2) ? <Texto variante="pequeno">Escreva a notação, como 4+2, para editar cada bloco.</Texto> : null}
+    {modo === 'diferentes' && valor && valor.length >= 2 ? <View style={estilos.bloco}>
+      {valor.map((reps, indice) => <View key={indice} style={estilos.campo}>
+        <CampoNumerico rotulo={`Bloco ${indice + 1}`} inteiro valor={reps} aoMudar={(v) => alterarBloco(indice, v)} />
+      </View>)}
+      <View style={estilos.linha}>
+        <Botao tipo="secundario" rotulo="Mais um bloco" desabilitado={valor.length >= 10} aoTocar={() => aoMudar([...valor, valor[valor.length - 1]])} />
+        <Botao tipo="fantasma" rotulo="Menos um bloco" desabilitado={valor.length <= 2} aoTocar={() => aoMudar(valor.slice(0, -1))} />
+      </View>
+    </View> : null}
+    <Campo rotulo="Blocos de repetições" valor={texto} maxLength={60} placeholder="4+2 ou 4×4"
+      ajuda="Notação compacta. Grava os mesmos blocos."
+      erro={erro ?? (texto && !blocosValidos(lerBlocos(texto)) ? 'De 2 a 10 blocos, cada um com 1 a 50 repetições.' : null)}
+      aoMudar={(t) => { setTexto(t); const lidos = lerBlocos(t); aoMudar(lidos); if (lidos && !blocosIguais(lidos)) setModo('diferentes'); }} />
+    {resumo ? <Texto variante="pequeno">{`${resumo.repeticoes} repetições por série · ${resumo.blocos} blocos · ${resumo.pausas} ${resumo.pausas === 1 ? 'pausa interna' : 'pausas internas'}`}</Texto> : null}
+    {completa && !resumo ? <Texto variante="pequeno">Complete os blocos para visualizar a prescrição.</Texto> : null}
+  </View>;
+}
+
+function CamposDePausa({ t, mudar, e, rotulo = 'Pausa', ajuda }: {
+  t: Tecnica; mudar: (parte: Partial<Tecnica>) => void; e: Problemas; rotulo?: string; ajuda?: string;
+}) {
+  return <View style={estilos.linha}>
+    <View style={estilos.campo}><CampoNumerico rotulo={rotulo} inteiro sufixo="s" valor={t.pausaSegundos ?? null} aoMudar={(pausaSegundos) => mudar({ pausaSegundos })} erro={e.pausaSegundos} ajuda={ajuda} /></View>
+    <View style={estilos.campo}><CampoNumerico rotulo="Pausa em respirações" inteiro valor={t.pausaRespiracoes ?? null} aoMudar={(pausaRespiracoes) => mudar({ pausaRespiracoes })}
+      erro={e.pausaRespiracoes} ajuda="Se preencher as duas, o aluno lê as duas." /></View>
+  </View>;
 }
 
 const OPCOES_DE_REGIAO: { valor: RegiaoDasParciais | null; rotulo: string }[] = REGIOES_DAS_PARCIAIS;
@@ -129,11 +201,7 @@ export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros }:
 }) {
   const e = erros ?? problemasDaTecnica(t, completa);
   const mudar = (parte: Partial<Tecnica>) => aoMudar({ ...t, ...parte });
-  const pausa = <View style={estilos.linha}>
-    <View style={estilos.campo}><CampoNumerico rotulo="Pausa" inteiro sufixo="s" valor={t.pausaSegundos ?? null} aoMudar={(pausaSegundos) => mudar({ pausaSegundos })} erro={e.pausaSegundos} /></View>
-    <View style={estilos.campo}><CampoNumerico rotulo="Pausa em respirações" inteiro valor={t.pausaRespiracoes ?? null} aoMudar={(pausaRespiracoes) => mudar({ pausaRespiracoes })}
-      erro={e.pausaRespiracoes} ajuda="Se preencher as duas, o aluno lê as duas." /></View>
-  </View>;
+  const pausa = <CamposDePausa t={t} mudar={mudar} e={e} />;
   switch (t.tipo) {
     case 'REST_PAUSE':
       return <View style={estilos.bloco}>
@@ -142,8 +210,8 @@ export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros }:
       </View>;
     case 'CLUSTER':
       return <View style={estilos.bloco}>
-        <CampoBlocos valor={t.blocos} aoMudar={(blocos) => mudar({ blocos })} erro={e.blocos} />
-        {pausa}
+        <CampoBlocos valor={t.blocos} completa={completa} aoMudar={(blocos) => mudar({ blocos })} erro={e.blocos} />
+        <CamposDePausa t={t} mudar={mudar} e={e} rotulo="Pausa entre blocos" ajuda="Não entra depois do último bloco. O descanso da série fica no outro campo." />
       </View>;
     case 'DROP_SET':
       return <View style={estilos.linha}>
