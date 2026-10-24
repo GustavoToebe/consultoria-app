@@ -7,7 +7,8 @@
 // - telefone, CPF, objetivo e peso também vão para o cadastro (o treinador confere o que mudou);
 // - altura e horas de sono são números (com unidade), não texto livre;
 // - o peso tem a data da pesagem e "tem balança em casa?" separados, em vez de três perguntas numa;
-// - as 4 fotos continuam separadas (frente, costas, lado, livre), uma foto cada; vídeo o app não recebe;
+// - as 4 fotos padrão (frente, costas, lado esquerdo e lado direito) e a livre ficam separadas, uma foto cada;
+//   vídeo o app não recebe;
 // - o sono vai de 1 a 10, como as estrelas do Forms (o texto dizia "0-10");
 // - "algum sintoma a adicionar" e "exercícios da divisão" deixaram de ser obrigatórias (o próprio texto dizia "deixe em
 //   branco");
@@ -115,7 +116,8 @@ export function conteudoDaAnamnese() {
           q('modelo-fotos', 'INFORMATIVO', 'Modelo de envio de fotos 1, 2 e 3', false, { imagem: 'modelo' }),
           q('foto-frente', 'FOTOS', 'Foto de frente, braços colados ao corpo, sem contrair a musculatura. Certifique-se de que é possível ver as coxas.', false, { max: 1 }),
           q('foto-costas', 'FOTOS', 'Foto de costas, braços colados ao corpo, sem contrair a musculatura. Certifique-se de que é possível ver as coxas.', false, { max: 1 }),
-          q('foto-lado', 'FOTOS', 'Foto de lado, braços levantados à frente do corpo, formando um ângulo de 90° com o tronco.', false, { max: 1 }),
+          q('foto-lado-esquerdo', 'FOTOS', 'Foto de lado esquerdo, braços levantados à frente do corpo, formando um ângulo de 90° com o tronco.', false, { max: 1 }),
+          q('foto-lado-direito', 'FOTOS', 'Foto de lado direito, braços levantados à frente do corpo, formando um ângulo de 90° com o tronco.', false, { max: 1 }),
           q('foto-livre', 'FOTOS', 'Foto livre (não obrigatória)', false, { max: 1 }),
         ],
       },

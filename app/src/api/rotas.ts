@@ -1,4 +1,5 @@
 import { requisicao } from './cliente';
+import type { PedidoDeComparacao } from '../dominio/comparacaoDeFotos';
 import type {
   AlterarContratacaoRequest,
   BaixaManualRequest,
@@ -256,8 +257,8 @@ export const linhaDoTempoDeFotos = () => requisicao<FotoDaLinha[]>('/aluno/fotos
 export const usoDeImagem = () => requisicao<{ autorizadoEm: string | null }>('/aluno/uso-de-imagem');
 export const definirUsoDeImagem = (autorizado: boolean) =>
   requisicao<{ autorizadoEm: string | null }>('/aluno/uso-de-imagem', { metodo: 'PUT', corpo: { autorizado } });
-export const gerarComparacao = (alunoId: string, fotoIds: string[], comLogo: boolean) =>
-  requisicao<Blob>(`/alunos/${seg(alunoId)}/fotos/comparacao`, { metodo: 'POST', corpo: { fotoIds, comLogo }, binario: true, limiteMs: 60000 });
+export const gerarComparacao = (alunoId: string, pedido: PedidoDeComparacao) =>
+  requisicao<Blob>(`/alunos/${seg(alunoId)}/fotos/comparacao`, { metodo: 'POST', corpo: pedido, binario: true, limiteMs: 60000 });
 export const detalheAtualizacao = (id: string) => requisicao<Atualizacao>(`/atualizacoes/${seg(id)}`);
 export const responderAtualizacao = (id: string, texto: string, versao: number) =>
   requisicao<Atualizacao>(`/atualizacoes/${seg(id)}/feedback`, { metodo: 'PUT', corpo: { texto, versao } });

@@ -16,6 +16,7 @@ import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -34,6 +35,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -42,13 +44,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Linha do tempo das fotos já enviadas e a imagem de comparação para divulgação.
  * A imagem nasce aqui e não fica gravada: o servidor já tem os bytes, a autorização é conferida num lugar só
- * e a web e o celular recebem o mesmo JPEG, sem texto e sem EXIF.
+ * e a web e o celular recebem o mesmo JPEG ou o mesmo ZIP, sem texto e sem EXIF.
  */
 @Service
 public class ComparacaoDeFotosService {
@@ -63,7 +69,33 @@ public class ComparacaoDeFotosService {
     public record PedidoDeUso(boolean autorizado) {
     }
 
-    public record Pedido(List<UUID> fotoIds, boolean comLogo) {
+    public enum FormatoPedido {
+        STORIES, FEED, AMBOS
+    }
+
+    /** JPEG único ou ZIP já nomeado. Nada disso fica gravado. Classe, e não record: o byte[] no record é recusado. */
+    public static final class ArquivoComparacao {
+        private final byte[] bytes;
+        private final String nome;
+        private final MediaType tipo;
+
+        ArquivoComparacao(byte[] bytes, String nome, MediaType tipo) {
+            this.bytes = bytes;
+            this.nome = nome;
+            this.tipo = tipo;
+        }
+
+        public byte[] bytes() {
+            return bytes;
+        }
+
+        public String nome() {
+            return nome;
+        }
+
+        public MediaType tipo() {
+            return tipo;
+        }
     }
 
     private static final String RESUMO_AUTORIZADO = "Autorizou o uso das fotos.";
@@ -132,25 +164,22 @@ public class ComparacaoDeFotosService {
     }
 
     /**
-     * JPEG da comparação, na ordem dos ids. Nada é gravado. Sem autorização do aluno, 409.
+     * JPEG ou ZIP da comparação, na ordem pedida. Nada é gravado. Sem autorização do aluno, 409.
      * Foto de outro aluno, pendente ou removida: 404. Logo pedida sem arquivo: 422.
+     * Cada imagem leva exatamente 2 fotos. De 1 a 6 imagens.
      */
     @Transactional
-    public byte[] gerar(UsuarioAutenticado eu, UUID alunoId, List<UUID> fotoIds, boolean comLogo) {
+    public ArquivoComparacao gerar(UsuarioAutenticado eu, UUID alunoId, FormatoPedido formato, boolean comLogo,
+                                   List<List<UUID>> imagens) {
         limite.comparacaoDeFotos(eu.usuarioId());
         Aluno aluno = alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         if (aluno.getUsoDeImagemAutorizadoEm() == null) {
             throw new ConflictException("O aluno não autorizou o uso das fotos.", "USO_DE_IMAGEM_NAO_AUTORIZADO");
         }
-        if (fotoIds == null || fotoIds.size() < 2 || fotoIds.size() > 4 || new HashSet<>(fotoIds).size() != fotoIds.size()) {
-            throw new br.com.plataforma.comum.web.BadRequestException("Escolha de 2 a 4 fotos.");
-        }
-        List<AtualizacaoFoto> escolhidas = new ArrayList<>();
-        for (UUID id : fotoIds) {
-            AtualizacaoFoto foto = fotos.findById(id).filter(f -> alunoId.equals(f.getAlunoId())
-                            && f.getPerguntaId() != null && f.getRemovidaEm() == null)
-                    .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
-            escolhidas.add(foto);
+        validarGrupos(imagens);
+        Map<UUID, String> posicoes = new HashMap<>();
+        for (Item item : montar(alunoId)) {
+            posicoes.put(item.fotoId(), item.posicao());
         }
         LogoRepositorio.Logo logo = null;
         if (comLogo) {
@@ -161,16 +190,110 @@ public class ComparacaoDeFotosService {
         if (bucket == null) {
             throw FotoException.indisponivel();
         }
-        List<BufferedImage> imagens = new ArrayList<>();
-        for (AtualizacaoFoto foto : escolhidas) {
-            imagens.add(lerImagem(bucket.ler(ObjetoDeFoto.de(foto).chave())));
-        }
         BufferedImage marca = logo == null ? null : lerImagem(logo.bytes());
-        LayoutDaComparacao.Layout layout = LayoutDaComparacao.montar(imagens.size(), marca != null,
-                marca == null ? 0 : marca.getWidth(), marca == null ? 0 : marca.getHeight());
-        byte[] jpeg = desenhar(layout, imagens, marca);
+        List<LayoutDaComparacao.Formato> quadros = formato == FormatoPedido.AMBOS
+                ? List.of(LayoutDaComparacao.Formato.STORIES, LayoutDaComparacao.Formato.FEED)
+                : List.of(formato == FormatoPedido.FEED ? LayoutDaComparacao.Formato.FEED : LayoutDaComparacao.Formato.STORIES);
+        List<String> caminhos = new ArrayList<>();
+        List<byte[]> arquivos = new ArrayList<>();
+        for (LayoutDaComparacao.Formato quadro : quadros) {
+            String pasta = quadro == LayoutDaComparacao.Formato.STORIES ? "Stories" : "Feed";
+            for (int i = 0; i < imagens.size(); i++) {
+                List<BufferedImage> fotosDoGrupo = new ArrayList<>();
+                for (UUID id : imagens.get(i)) {
+                    fotosDoGrupo.add(lerImagem(bucket.ler(ObjetoDeFoto.de(carregar(alunoId, id)).chave())));
+                }
+                LayoutDaComparacao.Layout layout = LayoutDaComparacao.montar(quadro, fotosDoGrupo.size(), marca != null,
+                        marca == null ? 0 : marca.getWidth(), marca == null ? 0 : marca.getHeight());
+                caminhos.add(pasta + "/" + nomeDaEntrada(i + 1, posicoes.get(imagens.get(i).getFirst())));
+                arquivos.add(desenhar(layout, fotosDoGrupo, marca));
+            }
+        }
         auditoria.registrarEvento("COMPARACAO_DE_FOTOS_GERADA", "ALUNO", alunoId, RESUMO_GERADA);
-        return jpeg;
+        if (imagens.size() == 1 && formato != FormatoPedido.AMBOS) {
+            String nome = formato == FormatoPedido.FEED ? "feed.jpg" : "stories.jpg";
+            return new ArquivoComparacao(arquivos.get(0), nome, MediaType.IMAGE_JPEG);
+        }
+        return new ArquivoComparacao(zip(caminhos, arquivos), "comparacao.zip", MediaType.parseMediaType("application/zip"));
+    }
+
+    private static void validarGrupos(List<List<UUID>> imagens) {
+        if (imagens == null || imagens.isEmpty() || imagens.size() > 6) {
+            throw new br.com.plataforma.comum.web.BadRequestException("A comparação usa de 1 a 6 imagens.");
+        }
+        Set<UUID> vistos = new HashSet<>();
+        for (List<UUID> ids : imagens) {
+            if (ids == null || ids.size() != 2 || ids.contains(null) || new HashSet<>(ids).size() != ids.size()) {
+                throw new br.com.plataforma.comum.web.BadRequestException("Cada imagem usa 2 fotos.");
+            }
+            for (UUID id : ids) {
+                if (!vistos.add(id)) {
+                    throw new br.com.plataforma.comum.web.BadRequestException("Cada imagem usa 2 fotos.");
+                }
+            }
+        }
+    }
+
+    private AtualizacaoFoto carregar(UUID alunoId, UUID id) {
+        return fotos.findById(id).filter(f -> alunoId.equals(f.getAlunoId())
+                        && f.getPerguntaId() != null && f.getRemovidaEm() == null)
+                .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
+    }
+
+    /**
+     * {@code 01-frente.jpg}. Pose conhecida vira nome curto; o resto vira slug.
+     * Só letras, números e hífen, para o nome não sair da pasta do ZIP.
+     */
+    static String nomeDaEntrada(int ordem, String posicao) {
+        String pose = poseDoTexto(posicao);
+        String normal = pose != null ? pose : slug(posicao);
+        return "%02d-%s.jpg".formatted(ordem, normal);
+    }
+
+    /** frente, costas, lado-esquerdo, lado ou lado-direito. Palavra inteira: "colados" não vira lado. */
+    static String poseDoTexto(String posicao) {
+        Set<String> palavras = new HashSet<>();
+        for (String palavra : semAcento(posicao).split("[^a-z0-9]+")) {
+            if (!palavra.isEmpty()) {
+                palavras.add(palavra);
+            }
+        }
+        if (palavras.contains("livre")) {
+            return null;
+        }
+        boolean lado = palavras.contains("lado");
+        if (lado && palavras.contains("esquerdo")) {
+            return "lado-esquerdo";
+        }
+        if (lado && palavras.contains("direito")) {
+            return "lado-direito";
+        }
+        if (lado) {
+            return "lado";
+        }
+        if (palavras.contains("frente")) {
+            return "frente";
+        }
+        if (palavras.contains("costas")) {
+            return "costas";
+        }
+        return null;
+    }
+
+    private static String slug(String posicao) {
+        String normal = semAcento(posicao).replaceAll("[^a-z0-9]+", "-").replaceAll("(^-+|-+$)", "");
+        return normal.isBlank() ? "foto" : normal;
+    }
+
+    private static String semAcento(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return "";
+        }
+        return Normalizer.normalize(texto, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replace('-', ' ')
+                .replace('_', ' ');
     }
 
     private List<Item> montar(UUID alunoId) {
@@ -272,11 +395,25 @@ public class ComparacaoDeFotosService {
         return JpegSemMetadados.limpar(jpeg(quadro));
     }
 
-    /** Recorte central 4:5, já no tamanho do lugar. */
+    private static byte[] zip(List<String> caminhos, List<byte[]> arquivos) {
+        ByteArrayOutputStream saida = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(saida)) {
+            for (int i = 0; i < caminhos.size(); i++) {
+                zip.putNextEntry(new ZipEntry(caminhos.get(i)));
+                zip.write(arquivos.get(i));
+                zip.closeEntry();
+            }
+        } catch (IOException e) {
+            throw new ValidacaoException("Não foi possível montar a imagem.", "IMAGEM_INVALIDA", List.of());
+        }
+        return saida.toByteArray();
+    }
+
+    /** Recorte central que cobre o lugar, já no tamanho dele. */
     private static BufferedImage recorte(BufferedImage origem, int destinoLargura, int destinoAltura) {
         int largura = origem.getWidth();
         int altura = origem.getHeight();
-        double alvo = 4.0 / 5.0;
+        double alvo = destinoLargura / (double) destinoAltura;
         int recorteLargura;
         int recorteAltura;
         int x;

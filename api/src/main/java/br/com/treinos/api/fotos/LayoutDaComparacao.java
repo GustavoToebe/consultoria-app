@@ -5,10 +5,26 @@ import java.util.List;
 
 /**
  * Onde cada foto e a logo entram na imagem de comparação. Função pura: não lê arquivo nem desenha.
- * A imagem final tem 1080 px de largura, fundo preto e cada foto em recorte 4:5. Duas e três ficam
- * em linha; quatro, em grade 2×2. A logo, quando entra, fica centralizada embaixo, com 30% da largura.
+ * O quadro tem 1080 px de largura: Stories 1920 (9:16) ou Feed retrato 1350 (4:5). De 1 a 4 fotos
+ * ficam numa fileira só, cobrindo a altura; uma foto ocupa o quadro inteiro. A logo, quando entra,
+ * fica centralizada embaixo, com 30% da largura.
  */
 public final class LayoutDaComparacao {
+
+    public enum Formato {
+        STORIES(1920),
+        FEED(1350);
+
+        private final int altura;
+
+        Formato(int altura) {
+            this.altura = altura;
+        }
+
+        public int altura() {
+            return altura;
+        }
+    }
 
     public static final int LARGURA = 1080;
     public static final int ESPACO = 8;
@@ -25,31 +41,23 @@ public final class LayoutDaComparacao {
     }
 
     /**
-     * @param quantidade de 2 a 4
-     * @param comLogo    se a logo deve ser posicionada
+     * @param formato     Stories ou Feed
+     * @param quantidade  de 1 a 4; 1 ocupa o quadro, 2 a 4 dividem a largura
+     * @param comLogo     se a logo deve ser posicionada
      * @param logoLargura largura natural da logo, em px (ignorada sem logo)
      * @param logoAltura  altura natural da logo, em px
      */
-    public static Layout montar(int quantidade, boolean comLogo, int logoLargura, int logoAltura) {
-        if (quantidade < 2 || quantidade > 4) {
-            throw new IllegalArgumentException("A comparação usa de 2 a 4 fotos.");
+    public static Layout montar(Formato formato, int quantidade, boolean comLogo, int logoLargura, int logoAltura) {
+        if (quantidade < 1 || quantidade > 4) {
+            throw new IllegalArgumentException("A imagem usa de 1 a 4 fotos.");
         }
-        int colunas = quantidade == 4 ? 2 : quantidade;
-        int linhas = quantidade == 4 ? 2 : 1;
-        int tileLargura = (LARGURA - (colunas - 1) * ESPACO) / colunas;
-        int tileAltura = tileLargura * 5 / 4;
-        int usado = colunas * tileLargura + (colunas - 1) * ESPACO;
+        int altura = formato.altura();
+        int tileLargura = (LARGURA - (quantidade - 1) * ESPACO) / quantidade;
+        int usado = quantidade * tileLargura + (quantidade - 1) * ESPACO;
         int origemX = (LARGURA - usado) / 2;
-        int altura = linhas * tileAltura + (linhas - 1) * ESPACO;
         List<Retangulo> fotos = new ArrayList<>();
         for (int i = 0; i < quantidade; i++) {
-            int coluna = quantidade == 4 ? i % 2 : i;
-            int linha = quantidade == 4 ? i / 2 : 0;
-            fotos.add(new Retangulo(
-                    origemX + coluna * (tileLargura + ESPACO),
-                    linha * (tileAltura + ESPACO),
-                    tileLargura,
-                    tileAltura));
+            fotos.add(new Retangulo(origemX + i * (tileLargura + ESPACO), 0, tileLargura, altura));
         }
         Retangulo logo = null;
         if (comLogo && logoLargura > 0 && logoAltura > 0) {

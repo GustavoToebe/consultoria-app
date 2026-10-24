@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -61,6 +62,7 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
     void linhaDoTempoPesoIsolamentoEImagem() throws Exception {
         AnamneseEnviada anamnese = anamneseComFoto();
         String fotoAnamnese = anamnese.foto();
+        String fotoCostas = anamnese.outra();
         banco.update("update anamnese set enviada_em = now() - interval '10 days' where id = ?::uuid", anamnese.id());
 
         UUID azul = subir(FotosDeTeste.jpeg(Color.BLUE));
@@ -72,21 +74,23 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
         banco.update("update atualizacao_foto set removida_em = now() where id = ?::uuid", extra);
 
         JsonNode linha = api.get("/alunos/" + aluno + "/fotos", treinador, 200);
-        assertThat(linha).hasSize(3);
+        assertThat(linha).hasSize(4);
         assertThat(linha.get(0).path("origem").asString()).isEqualTo("ANAMNESE");
         assertThat(linha.get(0).path("fotoId").asString()).isEqualTo(fotoAnamnese);
-        assertThat(linha.get(0).path("posicao").asString()).isEqualTo("Fotos fictícias");
+        assertThat(linha.get(0).path("posicao").asString()).isEqualTo("Foto de costas");
         assertThat(linha.get(0).path("pesoKg").isNull()).isTrue();
-        assertThat(linha.get(1).path("origem").asString()).isEqualTo("ATUALIZACAO");
-        assertThat(linha.get(1).path("origemId").asString()).isEqualTo(enviada.path("id").asString());
-        assertThat(linha.get(1).path("posicao").asString()).isEqualTo("Fotos em jejum");
-        assertThat(linha.get(1).path("ordem").asInt()).isZero();
-        assertThat(linha.get(1).path("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
-        assertThat(linha.get(2).path("ordem").asInt()).isEqualTo(1);
+        assertThat(linha.get(1).path("origem").asString()).isEqualTo("ANAMNESE");
+        assertThat(linha.get(1).path("fotoId").asString()).isEqualTo(fotoCostas);
+        assertThat(linha.get(2).path("origem").asString()).isEqualTo("ATUALIZACAO");
+        assertThat(linha.get(2).path("origemId").asString()).isEqualTo(enviada.path("id").asString());
+        assertThat(linha.get(2).path("posicao").asString()).isEqualTo("Fotos em jejum");
+        assertThat(linha.get(2).path("ordem").asInt()).isZero();
+        assertThat(linha.get(2).path("pesoKg").decimalValue()).isEqualByComparingTo("80.5");
+        assertThat(linha.get(3).path("ordem").asInt()).isEqualTo(1);
         assertThat(linha.valueStream().map(n -> n.path("fotoId").asString())).doesNotContain(pendente.toString(), extra.toString());
 
         JsonNode doAluno = api.get("/aluno/fotos/linha-do-tempo", loginAluno, 200);
-        assertThat(doAluno).hasSize(3);
+        assertThat(doAluno).hasSize(4);
         JsonNode outra = api.novoTreinador();
         api.get("/alunos/" + aluno + "/fotos", outra, 404);
 
@@ -104,26 +108,54 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
         MvcResult jpeg = comparar(List.of(azul, verde), false, 200);
         assertThat(jpeg.getResponse().getContentType()).isEqualTo("image/jpeg");
         assertThat(jpeg.getResponse().getHeader("Cache-Control")).contains("no-store");
-        assertThat(jpeg.getResponse().getHeader("Content-Disposition")).contains("comparacao.jpg");
+        assertThat(jpeg.getResponse().getHeader("Content-Disposition")).contains("stories.jpg");
         byte[] bytes = jpeg.getResponse().getContentAsByteArray();
         assertThat(JpegSemMetadados.temMetadados(bytes)).isFalse();
         BufferedImage imagem = ImageIO.read(new ByteArrayInputStream(bytes));
         assertThat(imagem.getWidth()).isEqualTo(1080);
-        assertThat(imagem.getHeight()).isGreaterThan(400);
+        assertThat(imagem.getHeight()).isEqualTo(1920);
 
         enviarLogo();
         MvcResult comLogo = comparar(List.of(azul, verde), true, 200);
         BufferedImage marcada = ImageIO.read(new ByteArrayInputStream(comLogo.getResponse().getContentAsByteArray()));
-        var layout = LayoutDaComparacao.montar(2, true, 20, 20);
+        var layout = LayoutDaComparacao.montar(LayoutDaComparacao.Formato.STORIES, 2, true, 20, 20);
         int px = marcada.getRGB(layout.logo().x() + layout.logo().largura() / 2, layout.logo().y() + layout.logo().altura() / 2);
         assertThat((px >> 16) & 0xFF).isGreaterThan(150);
         assertThat(px & 0xFF).isLessThan(80);
-        assertThat(contagem("COMPARACAO_DE_FOTOS_GERADA")).isEqualTo(2);
+
+        MvcResult ambos = postar(List.of(Map.of("fotoIds", List.of(azul, verde))), "AMBOS", false, 200);
+        assertThat(ambos.getResponse().getContentType()).isEqualTo("application/zip");
+        assertThat(ambos.getResponse().getHeader("Content-Disposition")).contains("comparacao.zip");
+        Map<String, byte[]> pacote = lerZip(ambos.getResponse().getContentAsByteArray());
+        assertThat(pacote).containsOnlyKeys("Stories/01-fotos-em-jejum.jpg", "Feed/01-fotos-em-jejum.jpg");
+        assertThat(JpegSemMetadados.temMetadados(pacote.get("Stories/01-fotos-em-jejum.jpg"))).isFalse();
+        assertThat(ImageIO.read(new ByteArrayInputStream(pacote.get("Stories/01-fotos-em-jejum.jpg"))).getHeight()).isEqualTo(1920);
+        assertThat(ImageIO.read(new ByteArrayInputStream(pacote.get("Feed/01-fotos-em-jejum.jpg"))).getHeight()).isEqualTo(1350);
+
+        MvcResult pares = postar(List.of(
+                Map.of("fotoIds", List.of(azul, verde)),
+                Map.of("fotoIds", List.of(UUID.fromString(fotoAnamnese), UUID.fromString(fotoCostas)))), "FEED", false, 200);
+        Map<String, byte[]> varias = lerZip(pares.getResponse().getContentAsByteArray());
+        assertThat(varias).containsOnlyKeys("Feed/01-fotos-em-jejum.jpg", "Feed/02-costas.jpg");
+        BufferedImage costas = ImageIO.read(new ByteArrayInputStream(varias.get("Feed/02-costas.jpg")));
+        assertThat(costas.getWidth()).isEqualTo(1080);
+        assertThat(costas.getHeight()).isEqualTo(1350);
+        var lugares = LayoutDaComparacao.montar(LayoutDaComparacao.Formato.FEED, 2, false, 0, 0).fotos();
+        int esquerda = costas.getRGB(lugares.get(0).x() + lugares.get(0).largura() / 2, 8);
+        int direita = costas.getRGB(lugares.get(1).x() + lugares.get(1).largura() / 2, 8);
+        assertThat((esquerda >> 16) & 0xFF).isLessThan(80);
+        assertThat(esquerda & 0xFF).isGreaterThan(150);
+        assertThat((direita >> 16) & 0xFF).isGreaterThan(150);
+        assertThat(direita & 0xFF).isLessThan(80);
+        postar(List.of(Map.of("fotoIds", List.of(azul, verde)), Map.of("fotoIds", List.of(azul))), "STORIES", false, 400);
+
+        assertThat(contagem("COMPARACAO_DE_FOTOS_GERADA")).isEqualTo(4);
         assertThat(banco.queryForObject(
                 "select count(*) from auditoria where acao = 'COMPARACAO_DE_FOTOS_GERADA' and entidade_id = ?::uuid and resumo = ?",
-                Integer.class, aluno, ComparacaoDeFotosService.RESUMO_GERADA)).isEqualTo(2);
+                Integer.class, aluno, ComparacaoDeFotosService.RESUMO_GERADA)).isEqualTo(4);
         comparar(List.of(azul, pendente), false, 404);
         comparar(List.of(azul), false, 400);
+        comparar(List.of(azul, verde, extra), false, 400);
         comparar(List.of(azul, verde, azul, verde, extra), false, 400);
 
         api.put("/aluno/uso-de-imagem", loginAluno, Map.of("autorizado", false), 200);
@@ -143,12 +175,28 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
     }
 
     private MvcResult comparar(List<UUID> ids, boolean comLogo, int esperado) throws Exception {
+        return postar(List.of(Map.of("fotoIds", ids)), "STORIES", comLogo, esperado);
+    }
+
+    private MvcResult postar(List<Map<String, Object>> imagens, String formato, boolean comLogo, int esperado) throws Exception {
         return mvc.perform(post("/alunos/" + aluno + "/fotos/comparacao")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of("fotoIds", ids, "comLogo", comLogo)))
+                        .content(json.writeValueAsString(Map.of("formato", formato, "comLogo", comLogo, "imagens", imagens)))
                         .header("X-Treinos-Cliente", "nativo")
                         .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador)))
                 .andExpect(status().is(esperado)).andReturn();
+    }
+
+    private static Map<String, byte[]> lerZip(byte[] bytes) throws Exception {
+        Map<String, byte[]> entradas = new LinkedHashMap<>();
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            var entrada = zip.getNextEntry();
+            while (entrada != null) {
+                entradas.put(entrada.getName(), zip.readAllBytes());
+                entrada = zip.getNextEntry();
+            }
+        }
+        return entradas;
     }
 
     private void enviarLogo() throws Exception {
@@ -194,7 +242,7 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
                 "questionarioVersaoId", atual.path("questionarioVersaoId").asString(), "respostas", respostas), esperado);
     }
 
-    private record AnamneseEnviada(String id, String foto) {
+    private record AnamneseEnviada(String id, String foto, String outra) {
     }
 
     private AnamneseEnviada anamneseComFoto() throws Exception {
@@ -202,7 +250,7 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
         Map<String, Object> corpo = new LinkedHashMap<>();
         corpo.put("nome", "Com fotos");
         corpo.put("conteudo", Map.of("instrucoes", List.of(), "secoes", List.of(Map.of("uid", "s1", "titulo", "A",
-                "perguntas", List.of(Map.of("id", "fotos", "tipo", "FOTOS", "rotulo", "Fotos fictícias", "obrigatoria", true))))));
+                "perguntas", List.of(Map.of("id", "fotos", "tipo", "FOTOS", "rotulo", "Foto de costas", "obrigatoria", true, "max", 2))))));
         corpo.put("versao", q.path("versao").asLong());
         JsonNode salvo = api.put("/questionarios/" + q.path("id").asString(), treinador, corpo, 200);
         JsonNode publicado = api.post("/questionarios/" + q.path("id").asString() + "/publicar", treinador,
@@ -215,8 +263,15 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(loginAluno)))
                 .andExpect(status().isOk()).andReturn();
         String foto = api.ler(r).path("id").asString();
+        MvcResult segunda = mvc.perform(multipart("/aluno/fotos")
+                        .file(new MockMultipartFile("arquivo", "q.jpg", "image/jpeg", FotosDeTeste.jpeg(Color.ORANGE)))
+                        .param("anamneseId", a.path("id").asString())
+                        .header("X-Treinos-Cliente", "nativo")
+                        .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(loginAluno)))
+                .andExpect(status().isOk()).andReturn();
+        String outra = api.ler(segunda).path("id").asString();
         api.post("/aluno/anamnese/" + a.path("id").asString() + "/enviar", loginAluno,
-                Map.of("questionarioVersaoId", a.path("questionarioVersaoId").asString(), "respostas", Map.of("fotos", List.of(foto))), 200);
-        return new AnamneseEnviada(a.path("id").asString(), foto);
+                Map.of("questionarioVersaoId", a.path("questionarioVersaoId").asString(), "respostas", Map.of("fotos", List.of(foto, outra))), 200);
+        return new AnamneseEnviada(a.path("id").asString(), foto, outra);
     }
 }

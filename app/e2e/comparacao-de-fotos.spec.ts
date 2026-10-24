@@ -35,9 +35,10 @@ function jpeg(_pedido: unknown, route: Parameters<typeof json>[0]) {
 
 const PERMISSOES = [...PERMISSOES_TREINADOR, 'ATUALIZACAO_LER'];
 
-for (const largura of [390, 1280]) {
+for (const largura of [390, 1280, 3440]) {
   test(`treinador compara fotos e gera a imagem em ${largura}px`, async ({ page }) => {
-    await page.setViewportSize({ width: largura, height: 900 });
+    const altura = largura === 3440 ? 1440 : 900;
+    await page.setViewportSize({ width: largura, height: altura });
     const marca = { ...MARCA, logoUrl: '/publico/marcas/c0000000-0000-4000-8000-000000000001/logo?v=1' };
     const { pedidos, errosDaPagina } = await simularApi(page, {
       ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES, marca })),
@@ -49,7 +50,9 @@ for (const largura of [390, 1280]) {
       'GET /anamneses/{id}/fotos/{fotoId}': jpeg,
       'GET /publico/marcas/{id}/logo': jpeg,
       [`POST /alunos/${ALUNO_ID}/fotos/comparacao`]: (pedido, route) => {
-        expect(pedido.corpo).toMatchObject({ comLogo: false, fotoIds: ['f1', 'f5'] });
+        expect(pedido.corpo).toMatchObject({
+          formato: 'STORIES', comLogo: false, imagens: [{ fotoIds: ['f1', 'f5'] }],
+        });
         return route.fulfill({ status: 200, contentType: 'image/jpeg', body: JPEG });
       },
     });
@@ -73,8 +76,10 @@ for (const largura of [390, 1280]) {
     expect(caixas.length).toBe(4);
     const pontos = await Promise.all(caixas.map(async (c) => c.boundingBox()));
     const ys = pontos.map((p) => p?.y ?? 0);
-    expect(Math.abs(ys[0] - ys[1])).toBeLessThan(8);
-    expect(ys[2]).toBeGreaterThan(ys[0] + 40);
+    const xs = pontos.map((p) => p?.x ?? 0);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(8);
+    expect(xs[1]).toBeGreaterThan(xs[0]);
+    expect(xs[3]).toBeGreaterThan(xs[2]);
 
     await page.getByRole('button', { name: 'Gerar imagem' }).click();
     await expect(page.getByRole('button', { name: 'Baixar imagem' })).toBeDisabled();
@@ -90,19 +95,35 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Primeira × última' }).click();
     await page.getByRole('button', { name: 'Gerar imagem' }).click();
     await expect(page.getByText('Aluno autorizou em 01/10/2026')).toBeVisible();
+    const dialog = page.getByRole('dialog', { name: 'Gerar imagem' });
+    const caixaDialog = await dialog.boundingBox();
+    expect(caixaDialog).not.toBeNull();
+    expect(caixaDialog!.x).toBeGreaterThanOrEqual(-1);
+    expect(caixaDialog!.y).toBeGreaterThanOrEqual(-1);
+    expect(caixaDialog!.width).toBeLessThanOrEqual(largura + 1);
+    expect(caixaDialog!.height).toBeLessThanOrEqual(altura + 1);
+    const imagens = await page.getByLabel('Prévia da imagem').getByRole('img').all();
+    expect(imagens.length).toBe(2);
+    const linhas = await Promise.all(imagens.map(async (c) => (await c.boundingBox())?.y ?? 0));
+    expect(Math.max(...linhas) - Math.min(...linhas)).toBeLessThan(8);
+    await expect(page.getByRole('button', { name: 'Stories' })).toHaveAttribute('aria-checked', 'true');
+    await page.getByRole('button', { name: 'Os dois' }).click();
+    await expect(page.getByRole('button', { name: 'Baixar zip' })).toBeVisible();
+    await expect(page.getByText('O Feed retrato sai junto, na pasta Feed.')).toBeVisible();
+    await page.getByRole('button', { name: 'Stories' }).click();
     const logo = page.getByRole('img', { name: 'Logo da consultoria', exact: true });
     await expect(logo).toBeVisible();
     await page.getByRole('switch', { name: 'Com a logo da consultoria' }).click();
     await expect(logo).toHaveCount(0);
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Baixar imagem' }).click();
-    expect((await download).suggestedFilename()).toBe('comparacao.jpg');
+    expect((await download).suggestedFilename()).toBe('stories.jpg');
     expect(errosDaPagina).toEqual([]);
     expect(pedidos.some((p) => p.caminho.endsWith('/fotos/comparacao'))).toBe(true);
   });
 
   test(`aluno autoriza na conta e compara no histórico em ${largura}px`, async ({ page }) => {
-    await page.setViewportSize({ width: largura, height: 900 });
+    await page.setViewportSize({ width: largura, height: largura === 3440 ? 1440 : 900 });
     let autorizado = false;
     const { errosDaPagina } = await simularApi(page, {
       ...(await sessaoDeAluno(page)),
@@ -128,3 +149,45 @@ for (const largura of [390, 1280]) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+test('o carrossel junta as poses e deixa a livre de fora', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const fotos = [
+    ...FOTOS,
+    { fotoId: 'c1', origem: 'ANAMNESE' as const, origemId: 'n1', data: '2026-01-01', perguntaId: 'a2-foto-costas', posicao: 'Foto de costas', ordem: 0, pesoKg: 80 },
+    { fotoId: 'c2', origem: 'ATUALIZACAO' as const, origemId: 'u9', data: '2026-02-20', perguntaId: 'a2-foto-costas', posicao: 'Foto de costas', ordem: 0, pesoKg: 78 },
+    { fotoId: 'l1', origem: 'ANAMNESE' as const, origemId: 'n1', data: '2026-01-01', perguntaId: 'a2-foto-livre', posicao: 'Foto livre (não obrigatória)', ordem: 0, pesoKg: 80 },
+    { fotoId: 'l2', origem: 'ATUALIZACAO' as const, origemId: 'u9', data: '2026-02-20', perguntaId: 'a2-foto-livre', posicao: 'Foto livre (não obrigatória)', ordem: 0, pesoKg: 78 },
+    { fotoId: 's1', origem: 'ATUALIZACAO' as const, origemId: 'u9', data: '2026-02-20', perguntaId: 'a2-foto-lado-esquerdo', posicao: 'Foto de lado esquerdo', ordem: 0, pesoKg: 78 },
+  ];
+  const { errosDaPagina } = await simularApi(page, {
+    ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES, marca: MARCA })),
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+    'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: { ...FICHA, usoDeImagemAutorizadoEm: '2026-10-01T12:00:00Z' } },
+    [`GET /alunos/${ALUNO_ID}/fotos`]: { corpo: fotos },
+    'GET /atualizacoes/{id}/fotos/{fotoId}': jpeg,
+    'GET /anamneses/{id}/fotos/{fotoId}': jpeg,
+    [`POST /alunos/${ALUNO_ID}/fotos/comparacao`]: (pedido, route) => {
+      expect(pedido.corpo).toMatchObject({
+        formato: 'STORIES',
+        comLogo: false,
+        imagens: [{ fotoIds: ['f1', 'f5'] }, { fotoIds: ['c1', 'c2'] }],
+      });
+      return route.fulfill({ status: 200, contentType: 'application/zip', body: Buffer.from('PK') });
+    },
+  });
+
+  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.getByRole('tab', { name: 'Comparar' }).click();
+  await page.getByRole('button', { name: 'Gerar imagem' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gerar imagem' });
+  await expect(dialog.getByLabel('Prévia da imagem')).toHaveCount(2);
+  await expect(dialog.getByText('Frente', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Costas', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Livre')).toHaveCount(0);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Baixar zip' }).click();
+  expect((await download).suggestedFilename()).toBe('comparacao.zip');
+  expect(errosDaPagina).toEqual([]);
+});

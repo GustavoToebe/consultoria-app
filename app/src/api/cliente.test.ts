@@ -220,7 +220,7 @@ describe('cliente HTTP: imagem protegida', () => {
     const imagem = await requisicao<Blob>('/aluno/fotos/abc', { binario: true });
     expect(imagem.size).toBeGreaterThan(0);
     const cabecalhos = fetchSimulado.mock.calls[0][1].headers as Record<string, string>;
-    expect(cabecalhos.Accept).toBe('image/jpeg, application/json');
+    expect(cabecalhos.Accept).toBe('image/jpeg, application/zip, application/json');
     expect(cabecalhos.Authorization).toBe('Bearer acesso');
   });
 

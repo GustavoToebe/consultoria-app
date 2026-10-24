@@ -3,9 +3,22 @@ import { dataCurta, numeroParaTela } from './formatos';
 
 export const MINIMO_DATAS = 2;
 export const MAXIMO_DATAS = 4;
+/** Teto de imagens do carrossel, o mesmo das perguntas de foto do questionário. */
+export const MAXIMO_IMAGENS = 6;
 export const LARGURA_IMAGEM = 1080;
+export const ALTURA_STORIES = 1920;
+export const ALTURA_FEED = 1350;
 export const ESPACO_IMAGEM = 8;
 export const MARGEM_LOGO = 24;
+
+export type FormatoDaImagem = 'STORIES' | 'FEED';
+export type FormatoComparacao = 'STORIES' | 'FEED' | 'AMBOS';
+
+export interface PedidoDeComparacao {
+  formato: FormatoComparacao;
+  comLogo: boolean;
+  imagens: { fotoIds: string[] }[];
+}
 
 export interface RetanguloDaImagem {
   x: number;
@@ -68,6 +81,76 @@ export function primeiraEUltima(datas: readonly string[]): string[] {
   return [datas[0], datas[datas.length - 1]];
 }
 
+/** Ordem do arquivo: frente, costas, lado esquerdo, lado antigo, lado direito. */
+export const POSES = ['frente', 'costas', 'lado-esquerdo', 'lado', 'lado-direito'] as const;
+export type PoseDoCarrossel = (typeof POSES)[number];
+
+export interface ParDoCarrossel {
+  pose: PoseDoCarrossel;
+  antes: FotoDaLinha;
+  depois: FotoDaLinha;
+}
+
+/**
+ * Pose pelo texto da pergunta e pelo id. "Livre" fica de fora. "Lado" sem esquerdo nem direito
+ * é a pergunta antiga e continua no carrossel.
+ */
+function palavrasDe(rotulo: string, perguntaId: string): Set<string> {
+  const texto = rotuloNormalizado(`${perguntaId} ${rotulo}`).replace(/[-_]/g, ' ');
+  return new Set(texto.split(/[^a-z0-9]+/).filter(Boolean));
+}
+
+/** Palavra inteira: "colados" não vira lado. */
+export function poseDe(rotulo: string, perguntaId: string): PoseDoCarrossel | null {
+  const palavras = palavrasDe(rotulo, perguntaId);
+  const tem = (palavra: string) => palavras.has(palavra);
+  if (tem('livre')) return null;
+  if (tem('lado') && tem('esquerdo')) return 'lado-esquerdo';
+  if (tem('lado') && tem('direito')) return 'lado-direito';
+  if (tem('lado')) return 'lado';
+  if (tem('frente')) return 'frente';
+  if (tem('costas')) return 'costas';
+  return null;
+}
+
+export function rotuloDaPose(pose: PoseDoCarrossel): string {
+  switch (pose) {
+    case 'frente': return 'Frente';
+    case 'costas': return 'Costas';
+    case 'lado-esquerdo': return 'Lado esquerdo';
+    case 'lado': return 'Lado';
+    case 'lado-direito': return 'Lado direito';
+  }
+}
+
+/**
+ * Um par por pose com duas datas: a foto da data mais antiga e a da mais nova.
+ * A mesma data não entra. No máximo {@link MAXIMO_IMAGENS}.
+ */
+export function paresDoCarrossel(fotos: readonly FotoDaLinha[]): ParDoCarrossel[] {
+  const porPose = new Map<PoseDoCarrossel, FotoDaLinha[]>();
+  for (const foto of fotos) {
+    const pose = poseDe(foto.posicao, foto.perguntaId);
+    if (!pose) continue;
+    const lista = porPose.get(pose) ?? [];
+    lista.push(foto);
+    porPose.set(pose, lista);
+  }
+  const pares: ParDoCarrossel[] = [];
+  for (const pose of POSES) {
+    const lista = porPose.get(pose);
+    if (!lista) continue;
+    lista.sort((a, b) => a.data.localeCompare(b.data) || a.ordem - b.ordem || a.fotoId.localeCompare(b.fotoId));
+    const datas = [...new Set(lista.map((f) => f.data))].sort();
+    if (datas.length < 2) continue;
+    const antes = fotoEmUso(lista, datas[0]);
+    const depois = fotoEmUso(lista, datas[datas.length - 1]);
+    if (!antes || !depois) continue;
+    pares.push({ pose, antes, depois });
+  }
+  return pares.slice(0, MAXIMO_IMAGENS);
+}
+
 export function fotosDaData(fotos: readonly FotoDaLinha[], data: string): FotoDaLinha[] {
   return fotos.filter((f) => f.data === data).sort((a, b) => a.ordem - b.ordem || a.fotoId.localeCompare(b.fotoId));
 }
@@ -111,25 +194,39 @@ export function diasEntre(de: string, ate: string): number {
   return Math.round((Date.UTC(a2, m2 - 1, d2) - Date.UTC(a1, m1 - 1, d1)) / 86_400_000);
 }
 
-/** Mesma conta de `LayoutDaComparacao` no servidor: 1080 px, 4:5, 8 px, logo a 30%. */
-export function layoutDaImagem(quantidade: number, comLogo: boolean, logoLargura = 0, logoAltura = 0): LayoutDaImagem {
-  if (quantidade < 2 || quantidade > 4) throw new Error('A comparação usa de 2 a 4 fotos.');
-  const colunas = quantidade === 4 ? 2 : quantidade;
-  const linhas = quantidade === 4 ? 2 : 1;
-  const tileLargura = Math.floor((LARGURA_IMAGEM - (colunas - 1) * ESPACO_IMAGEM) / colunas);
-  const tileAltura = Math.floor((tileLargura * 5) / 4);
-  const usado = colunas * tileLargura + (colunas - 1) * ESPACO_IMAGEM;
+export function alturaDoFormato(formato: FormatoDaImagem): number {
+  return formato === 'FEED' ? ALTURA_FEED : ALTURA_STORIES;
+}
+
+/** Com os dois formatos, a prévia mostra o Stories. */
+export function formatoDaPrevia(formato: FormatoComparacao): FormatoDaImagem {
+  return formato === 'FEED' ? 'FEED' : 'STORIES';
+}
+
+/** ZIP quando há mais de uma imagem ou os dois formatos. */
+export function comparacaoEmZip(formato: FormatoComparacao, imagens: number): boolean {
+  return imagens > 1 || formato === 'AMBOS';
+}
+
+export function nomeDaComparacao(formato: FormatoComparacao, imagens: number): string {
+  if (comparacaoEmZip(formato, imagens)) return 'comparacao.zip';
+  return formato === 'FEED' ? 'feed.jpg' : 'stories.jpg';
+}
+
+/** Mesma conta de `LayoutDaComparacao` no servidor: 1080 px, Stories ou Feed, 8 px, logo a 30%. */
+export function layoutDaImagem(formato: FormatoDaImagem, quantidade: number, comLogo: boolean, logoLargura = 0, logoAltura = 0): LayoutDaImagem {
+  if (quantidade < 1 || quantidade > 4) throw new Error('A imagem usa de 1 a 4 fotos.');
+  const altura = alturaDoFormato(formato);
+  const tileLargura = Math.floor((LARGURA_IMAGEM - (quantidade - 1) * ESPACO_IMAGEM) / quantidade);
+  const usado = quantidade * tileLargura + (quantidade - 1) * ESPACO_IMAGEM;
   const origemX = Math.floor((LARGURA_IMAGEM - usado) / 2);
-  const altura = linhas * tileAltura + (linhas - 1) * ESPACO_IMAGEM;
   const fotos: RetanguloDaImagem[] = [];
   for (let i = 0; i < quantidade; i++) {
-    const coluna = quantidade === 4 ? i % 2 : i;
-    const linha = quantidade === 4 ? Math.floor(i / 2) : 0;
     fotos.push({
-      x: origemX + coluna * (tileLargura + ESPACO_IMAGEM),
-      y: linha * (tileAltura + ESPACO_IMAGEM),
+      x: origemX + i * (tileLargura + ESPACO_IMAGEM),
+      y: 0,
       largura: tileLargura,
-      altura: tileAltura,
+      altura,
     });
   }
   let logo: RetanguloDaImagem | null = null;
@@ -146,9 +243,7 @@ export function layoutDaImagem(quantidade: number, comLogo: boolean, logoLargura
   return { largura: LARGURA_IMAGEM, altura, fotos, logo };
 }
 
-/** Na tela: 2 em linha; 3 ou 4 em grade 2×2 no celular; 3 em linha no PC; 4 sempre 2×2. */
-export function colunasNaTela(quantidade: number, estreita: boolean): number {
-  if (quantidade <= 2) return Math.max(quantidade, 1);
-  if (estreita || quantidade === 4) return 2;
-  return quantidade;
+/** Na tela, as fotos marcadas ficam sempre na mesma fileira. */
+export function colunasNaTela(quantidade: number): number {
+  return Math.max(quantidade, 1);
 }

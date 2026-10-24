@@ -75,7 +75,14 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
   const baseX = useSharedValue(0);
   const baseY = useSharedValue(0);
   const larguraDoPainel = useSharedValue(largura ?? LARGURA_FOLHA);
-  const movimento=useAnimatedStyle(()=>({transform:[{translateX:deslocamentoX.get()},{translateY:deslocamento.get()}]}));
+  // Na web, transform mesmo em zero cria uma camada. No monitor 21:9 essa camada pintava o painel cortado.
+  const web = Platform.OS === 'web';
+  const movimento = useAnimatedStyle(() => {
+    const x = deslocamentoX.get();
+    const y = deslocamento.get();
+    if (web && x === 0 && y === 0) return {};
+    return { transform: [{ translateX: x }, { translateY: y }] };
+  });
   // O cabeçalho nunca sai da janela: sobram ao menos 64 px na horizontal e a barra de título na vertical.
   const mover=Gesture.Pan().enabled(centralizado).minDistance(4)
     .onStart(()=>{baseX.set(deslocamentoX.get());baseY.set(deslocamento.get());})

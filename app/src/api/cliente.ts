@@ -225,7 +225,7 @@ async function enviar(caminho: string, opcoes: Opcoes): Promise<Response> {
   const daApi = caminhoDaApi(url, API_URL, base()) !== null;
   const headers: Record<string, string> = {
     // Imagem: o erro continua vindo em JSON, então o servidor precisa aceitar os dois tipos.
-    Accept: opcoes.binario ? 'image/jpeg, application/json' : opcoes.aceita ? `${opcoes.aceita}, application/json` : 'application/json',
+    Accept: opcoes.binario ? 'image/jpeg, application/zip, application/json' : opcoes.aceita ? `${opcoes.aceita}, application/json` : 'application/json',
     'X-Treinos-Cliente': WEB ? 'web' : 'nativo',
   };
   let body: BodyInit | undefined;

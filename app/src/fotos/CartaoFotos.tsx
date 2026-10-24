@@ -13,17 +13,27 @@ import {
 } from '../api/rotas';
 import type { FotoDaLinha } from '../api/tipos';
 import {
+  ALTURA_FEED,
+  ALTURA_STORIES,
+  LARGURA_IMAGEM,
   MAXIMO_DATAS,
   MINIMO_DATAS,
   colunasNaTela,
+  comparacaoEmZip,
   datasDaPosicao,
+  formatoDaPrevia,
   fotoEmUso,
   fotosDaData,
+  nomeDaComparacao,
+  paresDoCarrossel,
   posicoesDe,
   primeiraEUltima,
   proximaFoto,
   rotuloDaData,
+  rotuloDaPose,
   textoDaDiferenca,
+  type FormatoComparacao,
+  type PedidoDeComparacao,
 } from '../dominio/comparacaoDeFotos';
 import { dataParaTela, numeroParaTela, SEM_DADO } from '../dominio/formatos';
 import { alternarComLimite } from '../dominio/selecaoMultipla';
@@ -33,6 +43,7 @@ import { espaco, LARGURA_EDITOR, LARGURA_MENU_LATERAL, RAIO } from '../tema/toke
 import { Abas } from '../ui/Abas';
 import { Botao } from '../ui/Botao';
 import { Interruptor } from '../ui/Campos';
+import { Escolha } from '../ui/Escolha';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
@@ -74,7 +85,7 @@ export function CartaoFotos({ alunoId, autorizadoEm, aoRecarregar }: {
         <Corpo
           fotos={dados}
           baixar={baixar}
-          gerar={alunoId ? (ids, comLogo) => gerarComparacao(alunoId, ids, comLogo) : undefined}
+          gerar={alunoId ? (pedido) => gerarComparacao(alunoId, pedido) : undefined}
           autorizadoEm={autorizadoEm ?? null}
           aoRecarregar={aoRecarregar}
         />
@@ -86,7 +97,7 @@ export function CartaoFotos({ alunoId, autorizadoEm, aoRecarregar }: {
 function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
   fotos: FotoDaLinha[];
   baixar: (foto: FotoDaLinha) => Promise<Blob>;
-  gerar?: (fotoIds: string[], comLogo: boolean) => Promise<Blob>;
+  gerar?: (pedido: PedidoDeComparacao) => Promise<Blob>;
   autorizadoEm: string | null;
   aoRecarregar?: () => void;
 }) {
@@ -112,7 +123,8 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
     .map((data) => (grupo ? fotoEmUso(grupo.fotos, data, trocas[data]) : undefined))
     .filter((f): f is FotoDaLinha => !!f);
   const pontas = escolhidas.length >= MINIMO_DATAS ? textoDaDiferenca(escolhidas[0], escolhidas[escolhidas.length - 1]) : null;
-  const colunas = colunasNaTela(escolhidas.length, estreita);
+  const colunas = colunasNaTela(escolhidas.length);
+  const pares = paresDoCarrossel(fotos);
 
   const alternarData = (data: string) => {
     const { marcados } = alternarComLimite(datasMarcadas, data, !datasMarcadas.has(data), MAXIMO_DATAS);
@@ -150,16 +162,16 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
             aoTocar={() => setDatasMarcadas(new Set(primeiraEUltima(datas)))}
           />
           {escolhidas.length >= MINIMO_DATAS ? (
-            <View style={estilos.grade} accessibilityLabel="Prévia da comparação">
+            <View style={[estilos.grade, estilos.fileira]} accessibilityLabel="Prévia da comparação">
               {escolhidas.map((foto) => {
                 const varias = fotosDaData(grupo.fotos, foto.data).length > 1;
                 return (
-                  <View key={foto.fotoId} style={{ width: `${Math.floor(100 / colunas) - 2}%` }}>
+                  <View key={foto.fotoId} style={[estilos.celula, { maxWidth: `${Math.floor(100 / colunas)}%` }]}>
                     <ImagemProtegida
                       chave={`comparar:${foto.fotoId}`}
                       carregar={() => baixar(foto)}
                       descricao={`${foto.posicao} ${rotuloDaData(grupo.fotos, foto.data)}`}
-                      tamanho={estreita ? 140 : 180}
+                      tamanho={400}
                       altura={estreita ? 175 : 225}
                       aoTocar={varias ? () => setTrocas((atual) => ({ ...atual, [foto.data]: proximaFoto(grupo.fotos, foto.data, foto.fotoId) })) : undefined}
                     />
@@ -174,8 +186,9 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
           )}
           {pontas ? <Texto numerico>{pontas}</Texto> : null}
           {gerar ? (
-            <Botao rotulo="Gerar imagem" tipo="secundario" desabilitado={escolhidas.length < MINIMO_DATAS} aoTocar={() => setGerando(true)} />
+            <Botao rotulo="Gerar imagem" tipo="secundario" desabilitado={pares.length === 0} aoTocar={() => setGerando(true)} />
           ) : null}
+          {gerar && pares.length === 0 ? <Texto variante="suave">Cada pose precisa de duas datas.</Texto> : null}
         </View>
       ) : null}
       <Folha titulo="Foto" visivel={ampliada !== null} aoFechar={() => setAmpliada(null)} largura={LARGURA_EDITOR}>
@@ -187,7 +200,7 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
         <Folha titulo="Gerar imagem" visivel={gerando} aoFechar={() => setGerando(false)} largura={LARGURA_EDITOR}>
           {gerando ? (
             <FolhaGerar
-              fotos={escolhidas}
+              pares={pares}
               baixar={baixar}
               gerar={gerar}
               autorizadoEm={autorizadoEm}
@@ -257,10 +270,10 @@ function Chip({ rotulo, marcado, aoTocar }: { rotulo: string; marcado: boolean; 
   );
 }
 
-function FolhaGerar({ fotos, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar }: {
-  fotos: FotoDaLinha[];
+function FolhaGerar({ pares, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar }: {
+  pares: ReturnType<typeof paresDoCarrossel>;
   baixar: (foto: FotoDaLinha) => Promise<Blob>;
-  gerar: (fotoIds: string[], comLogo: boolean) => Promise<Blob>;
+  gerar: (pedido: PedidoDeComparacao) => Promise<Blob>;
   autorizadoEm: string | null;
   aoFechar: () => void;
   aoRecarregar?: () => void;
@@ -269,14 +282,19 @@ function FolhaGerar({ fotos, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar
   const { marca } = useSessao();
   const { cores } = useTema();
   const temLogo = !!marca?.logoUrl;
+  const [formato, setFormato] = useState<FormatoComparacao>('STORIES');
   const [comLogo, setComLogo] = useState(preferencias.logoNaComparacao && temLogo);
   const [baixando, setBaixando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const [recusado, setRecusado] = useState(false);
   const autorizado = !recusado && !!autorizadoEm;
-  const colunas = fotos.length === 4 ? 2 : fotos.length;
-  const [largura, setLargura] = useState(320);
-  const tile = Math.max(80, Math.floor((largura - (colunas - 1) * 8) / colunas));
+  const imagens = pares.map((par) => ({ fotoIds: [par.antes.fotoId, par.depois.fotoId] }));
+  const zip = comparacaoEmZip(formato, imagens.length);
+  const visual = formatoDaPrevia(formato);
+  const alturaCheia = visual === 'FEED' ? ALTURA_FEED : ALTURA_STORIES;
+  const alturaPrevia = pares.length > 1 ? 220 : 460;
+  const larguraPrevia = Math.max(1, Math.round((alturaPrevia * LARGURA_IMAGEM) / alturaCheia));
+  const tile = Math.max(1, Math.floor((larguraPrevia - 4) / 2));
 
   const mudarLogo = (ligada: boolean) => {
     if (!temLogo) return;
@@ -287,9 +305,10 @@ function FolhaGerar({ fotos, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar
   const baixarImagem = () => {
     setBaixando(true);
     setErro(null);
-    gerar(fotos.map((f) => f.fotoId), comLogo && temLogo).then(
+    const pedido: PedidoDeComparacao = { formato, comLogo: comLogo && temLogo, imagens };
+    gerar(pedido).then(
       async (blob) => {
-        await baixarComparacao(blob);
+        await baixarComparacao(blob, nomeDaComparacao(formato, imagens.length));
         setBaixando(false);
         aoFechar();
       },
@@ -305,31 +324,47 @@ function FolhaGerar({ fotos, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar
     );
   };
 
+  const rotuloBaixar = Platform.OS === 'web'
+    ? (zip ? 'Baixar zip' : 'Baixar imagem')
+    : (zip ? 'Compartilhar zip' : 'Compartilhar imagem');
+
   return (
     <View style={estilos.corpo}>
-      <View
-        accessibilityLabel="Prévia da imagem"
-        onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
-        style={[estilos.previa, { backgroundColor: '#000' }]}
-      >
-        <View style={[estilos.grade, { gap: 8 }]}>
-          {fotos.map((foto) => (
-            <ImagemProtegida
-              key={foto.fotoId}
-              chave={`gerar:${foto.fotoId}`}
-              carregar={() => baixar(foto)}
-              descricao={foto.posicao}
-              tamanho={tile}
-              altura={Math.floor(tile * 5 / 4)}
-            />
-          ))}
-        </View>
-        {comLogo && temLogo && marca?.logoUrl ? (
-          <View style={estilos.logo} pointerEvents="none">
-            <Image source={{ uri: urlDaApi(marca.logoUrl) }} style={estilos.logoImagem} contentFit="contain" accessibilityLabel="Logo da consultoria" />
+      {pares.map((par) => (
+        <View key={par.pose} style={estilos.corpo}>
+          <Texto variante="rotulo">{rotuloDaPose(par.pose)}</Texto>
+          <View style={[estilos.previa, { width: larguraPrevia, height: alturaPrevia, backgroundColor: '#000' }]}>
+            <View accessibilityLabel="Prévia da imagem" style={[estilos.grade, estilos.fileira, { gap: 4, height: '100%' }]}>
+              {[par.antes, par.depois].map((foto) => (
+                <ImagemProtegida
+                  key={foto.fotoId}
+                  chave={`gerar:${foto.fotoId}`}
+                  carregar={() => baixar(foto)}
+                  descricao={rotuloDaPose(par.pose)}
+                  tamanho={tile}
+                  altura={alturaPrevia}
+                />
+              ))}
+            </View>
+            {comLogo && temLogo && marca?.logoUrl ? (
+              <View style={estilos.logo} pointerEvents="none">
+                <Image source={{ uri: urlDaApi(marca.logoUrl) }} style={estilos.logoImagem} contentFit="contain" accessibilityLabel="Logo da consultoria" />
+              </View>
+            ) : null}
           </View>
-        ) : null}
-      </View>
+        </View>
+      ))}
+      {formato === 'AMBOS' ? <Texto variante="suave">O Feed retrato sai junto, na pasta Feed.</Texto> : null}
+      <Escolha
+        rotulo="Formato"
+        valor={formato}
+        aoMudar={setFormato}
+        opcoes={[
+          { valor: 'STORIES', rotulo: 'Stories' },
+          { valor: 'FEED', rotulo: 'Feed retrato' },
+          { valor: 'AMBOS', rotulo: 'Os dois' },
+        ]}
+      />
       <Interruptor
         rotulo="Com a logo da consultoria"
         valor={comLogo && temLogo}
@@ -343,8 +378,8 @@ function FolhaGerar({ fotos, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar
       )}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
       <Botao
-        rotulo={Platform.OS === 'web' ? 'Baixar imagem' : 'Compartilhar imagem'}
-        desabilitado={!autorizado || fotos.length < MINIMO_DATAS}
+        rotulo={rotuloBaixar}
+        desabilitado={!autorizado || pares.length === 0}
         motivo={autorizado ? undefined : AVISO_AUTORIZACAO}
         carregando={baixando}
         aoTocar={baixarImagem}
@@ -358,8 +393,10 @@ const estilos = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   chip: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(2), paddingVertical: espaco(1), minHeight: 44, justifyContent: 'center' },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
+  fileira: { flexWrap: 'nowrap' },
+  celula: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
   envio: { gap: espaco(1) },
-  previa: { position: 'relative', padding: 8, borderRadius: RAIO, overflow: 'hidden' },
+  previa: { position: 'relative', alignSelf: 'center', borderRadius: RAIO, overflow: 'hidden' },
   logo: { position: 'absolute', left: 0, right: 0, bottom: 12, alignItems: 'center' },
   logoImagem: { width: '30%', height: 48 },
 });

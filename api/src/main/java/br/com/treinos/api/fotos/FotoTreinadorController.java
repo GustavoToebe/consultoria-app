@@ -1,12 +1,13 @@
 package br.com.treinos.api.fotos;
 
+import br.com.treinos.api.fotos.ComparacaoDeFotosService.ArquivoComparacao;
+import br.com.treinos.api.fotos.ComparacaoDeFotosService.FormatoPedido;
 import br.com.treinos.api.fotos.ComparacaoDeFotosService.Item;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.CacheControl;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,7 +24,11 @@ import java.util.UUID;
 @RestController
 public class FotoTreinadorController {
 
-    public record PedidoComparacao(@NotNull @Size(min = 2, max = 4) List<@NotNull UUID> fotoIds, boolean comLogo) {
+    public record GrupoComparacao(@NotNull @Size(min = 2, max = 2) List<@NotNull UUID> fotoIds) {
+    }
+
+    public record PedidoComparacao(@NotNull FormatoPedido formato, boolean comLogo,
+                                   @NotNull @Size(min = 1, max = 6) List<@NotNull @Valid GrupoComparacao> imagens) {
     }
 
     private final FotoService fotos;
@@ -44,13 +49,14 @@ public class FotoTreinadorController {
     @PostMapping("/alunos/{alunoId}/fotos/comparacao")
     public ResponseEntity<byte[]> comparar(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID alunoId,
                                            @Valid @RequestBody PedidoComparacao pedido) {
-        byte[] jpeg = comparacao.gerar(eu, alunoId, pedido.fotoIds(), pedido.comLogo());
+        ArquivoComparacao arquivo = comparacao.gerar(eu, alunoId, pedido.formato(), pedido.comLogo(),
+                pedido.imagens().stream().map(GrupoComparacao::fotoIds).toList());
         return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_JPEG)
+                .contentType(arquivo.tipo())
                 .cacheControl(CacheControl.noStore())
                 .header("X-Content-Type-Options", "nosniff")
-                .header("Content-Disposition", "attachment; filename=\"comparacao.jpg\"")
-                .body(jpeg);
+                .header("Content-Disposition", "attachment; filename=\"" + arquivo.nome() + "\"")
+                .body(arquivo.bytes());
     }
 
     @PreAuthorize("hasAuthority('PERM_ATUALIZACAO_LER') and hasAuthority('PERM_ALUNO_SENSIVEL_LER')")

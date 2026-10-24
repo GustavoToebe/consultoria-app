@@ -45,7 +45,10 @@ test('ids únicos, um destino por campo e a data do peso aponta para uma DATA "s
 
 test('tipos com campos próprios dentro das faixas', () => {
   const fotos = perguntas.filter((p) => p.tipo === 'FOTOS');
-  assert.equal(fotos.length, 4);
+  assert.equal(fotos.length, 5);
+  assert.deepEqual(fotos.map((p) => p.id), [
+    'a2-foto-frente', 'a2-foto-costas', 'a2-foto-lado-esquerdo', 'a2-foto-lado-direito', 'a2-foto-livre',
+  ]);
   assert.ok(fotos.every((p) => p.max === 1));
   const nota = perguntas.find((p) => p.tipo === 'NOTA');
   assert.deepEqual([nota.min, nota.max], [1, 10]);
