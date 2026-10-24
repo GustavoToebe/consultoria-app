@@ -166,7 +166,7 @@ public class ComparacaoDeFotosService {
     /**
      * JPEG ou ZIP da comparação, na ordem pedida. Nada é gravado. Sem autorização do aluno, 409.
      * Foto de outro aluno, pendente ou removida: 404. Logo pedida sem arquivo: 422.
-     * Cada imagem leva exatamente 2 fotos. De 1 a 6 imagens.
+     * Cada imagem leva de 2 a 4 fotos. De 1 a 6 imagens.
      */
     @Transactional
     public ArquivoComparacao gerar(UsuarioAutenticado eu, UUID alunoId, FormatoPedido formato, boolean comLogo,
@@ -223,12 +223,12 @@ public class ComparacaoDeFotosService {
         }
         Set<UUID> vistos = new HashSet<>();
         for (List<UUID> ids : imagens) {
-            if (ids == null || ids.size() != 2 || ids.contains(null) || new HashSet<>(ids).size() != ids.size()) {
-                throw new br.com.plataforma.comum.web.BadRequestException("Cada imagem usa 2 fotos.");
+            if (ids == null || ids.size() < 2 || ids.size() > 4 || ids.contains(null) || new HashSet<>(ids).size() != ids.size()) {
+                throw new br.com.plataforma.comum.web.BadRequestException("Cada imagem usa de 2 a 4 fotos.");
             }
             for (UUID id : ids) {
                 if (!vistos.add(id)) {
-                    throw new br.com.plataforma.comum.web.BadRequestException("Cada imagem usa 2 fotos.");
+                    throw new br.com.plataforma.comum.web.BadRequestException("Cada imagem usa de 2 a 4 fotos.");
                 }
             }
         }

@@ -24,7 +24,7 @@ import java.util.UUID;
 @RestController
 public class FotoTreinadorController {
 
-    public record GrupoComparacao(@NotNull @Size(min = 2, max = 2) List<@NotNull UUID> fotoIds) {
+    public record GrupoComparacao(@NotNull @Size(min = 2, max = 4) List<@NotNull UUID> fotoIds) {
     }
 
     public record PedidoComparacao(@NotNull FormatoPedido formato, boolean comLogo,

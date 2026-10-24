@@ -81,74 +81,25 @@ export function primeiraEUltima(datas: readonly string[]): string[] {
   return [datas[0], datas[datas.length - 1]];
 }
 
-/** Ordem do arquivo: frente, costas, lado esquerdo, lado antigo, lado direito. */
-export const POSES = ['frente', 'costas', 'lado-esquerdo', 'lado', 'lado-direito'] as const;
-export type PoseDoCarrossel = (typeof POSES)[number];
-
-export interface ParDoCarrossel {
-  pose: PoseDoCarrossel;
-  antes: FotoDaLinha;
-  depois: FotoDaLinha;
+export interface ImagemDaComparacao {
+  chave: string;
+  rotulo: string;
+  fotos: FotoDaLinha[];
 }
 
 /**
- * Pose pelo texto da pergunta e pelo id. "Livre" fica de fora. "Lado" sem esquerdo nem direito
- * é a pergunta antiga e continua no carrossel.
+ * Uma imagem por posição da sequência, da mais antiga à esquerda e a outra à direita.
+ * Para na data que tiver menos fotos. No máximo {@link MAXIMO_IMAGENS}.
  */
-function palavrasDe(rotulo: string, perguntaId: string): Set<string> {
-  const texto = rotuloNormalizado(`${perguntaId} ${rotulo}`).replace(/[-_]/g, ' ');
-  return new Set(texto.split(/[^a-z0-9]+/).filter(Boolean));
-}
-
-/** Palavra inteira: "colados" não vira lado. */
-export function poseDe(rotulo: string, perguntaId: string): PoseDoCarrossel | null {
-  const palavras = palavrasDe(rotulo, perguntaId);
-  const tem = (palavra: string) => palavras.has(palavra);
-  if (tem('livre')) return null;
-  if (tem('lado') && tem('esquerdo')) return 'lado-esquerdo';
-  if (tem('lado') && tem('direito')) return 'lado-direito';
-  if (tem('lado')) return 'lado';
-  if (tem('frente')) return 'frente';
-  if (tem('costas')) return 'costas';
-  return null;
-}
-
-export function rotuloDaPose(pose: PoseDoCarrossel): string {
-  switch (pose) {
-    case 'frente': return 'Frente';
-    case 'costas': return 'Costas';
-    case 'lado-esquerdo': return 'Lado esquerdo';
-    case 'lado': return 'Lado';
-    case 'lado-direito': return 'Lado direito';
+export function paresNaOrdem(fotos: readonly FotoDaLinha[], dataAntes: string, dataDepois: string): ImagemDaComparacao[] {
+  const antes = fotosDaData(fotos, dataAntes);
+  const depois = fotosDaData(fotos, dataDepois);
+  const quantidade = Math.min(antes.length, depois.length, MAXIMO_IMAGENS);
+  const pares: ImagemDaComparacao[] = [];
+  for (let i = 0; i < quantidade; i++) {
+    pares.push({ chave: String(i + 1), rotulo: `Foto ${i + 1}`, fotos: [antes[i], depois[i]] });
   }
-}
-
-/**
- * Um par por pose com duas datas: a foto da data mais antiga e a da mais nova.
- * A mesma data não entra. No máximo {@link MAXIMO_IMAGENS}.
- */
-export function paresDoCarrossel(fotos: readonly FotoDaLinha[]): ParDoCarrossel[] {
-  const porPose = new Map<PoseDoCarrossel, FotoDaLinha[]>();
-  for (const foto of fotos) {
-    const pose = poseDe(foto.posicao, foto.perguntaId);
-    if (!pose) continue;
-    const lista = porPose.get(pose) ?? [];
-    lista.push(foto);
-    porPose.set(pose, lista);
-  }
-  const pares: ParDoCarrossel[] = [];
-  for (const pose of POSES) {
-    const lista = porPose.get(pose);
-    if (!lista) continue;
-    lista.sort((a, b) => a.data.localeCompare(b.data) || a.ordem - b.ordem || a.fotoId.localeCompare(b.fotoId));
-    const datas = [...new Set(lista.map((f) => f.data))].sort();
-    if (datas.length < 2) continue;
-    const antes = fotoEmUso(lista, datas[0]);
-    const depois = fotoEmUso(lista, datas[datas.length - 1]);
-    if (!antes || !depois) continue;
-    pares.push({ pose, antes, depois });
-  }
-  return pares.slice(0, MAXIMO_IMAGENS);
+  return pares;
 }
 
 export function fotosDaData(fotos: readonly FotoDaLinha[], data: string): FotoDaLinha[] {

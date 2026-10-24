@@ -149,13 +149,18 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
         assertThat(direita & 0xFF).isLessThan(80);
         postar(List.of(Map.of("fotoIds", List.of(azul, verde)), Map.of("fotoIds", List.of(azul))), "STORIES", false, 400);
 
-        assertThat(contagem("COMPARACAO_DE_FOTOS_GERADA")).isEqualTo(4);
+        MvcResult tres = comparar(List.of(azul, verde, UUID.fromString(fotoAnamnese)), false, 200);
+        BufferedImage larga = ImageIO.read(new ByteArrayInputStream(tres.getResponse().getContentAsByteArray()));
+        assertThat(larga.getWidth()).isEqualTo(1080);
+        assertThat(larga.getHeight()).isEqualTo(1920);
+
+        assertThat(contagem("COMPARACAO_DE_FOTOS_GERADA")).isEqualTo(5);
         assertThat(banco.queryForObject(
                 "select count(*) from auditoria where acao = 'COMPARACAO_DE_FOTOS_GERADA' and entidade_id = ?::uuid and resumo = ?",
-                Integer.class, aluno, ComparacaoDeFotosService.RESUMO_GERADA)).isEqualTo(4);
+                Integer.class, aluno, ComparacaoDeFotosService.RESUMO_GERADA)).isEqualTo(5);
         comparar(List.of(azul, pendente), false, 404);
         comparar(List.of(azul), false, 400);
-        comparar(List.of(azul, verde, extra), false, 400);
+        comparar(List.of(azul, verde, extra), false, 404);
         comparar(List.of(azul, verde, azul, verde, extra), false, 400);
 
         api.put("/aluno/uso-de-imagem", loginAluno, Map.of("autorizado", false), 200);

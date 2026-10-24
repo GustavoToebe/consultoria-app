@@ -6,7 +6,7 @@ import {
   datasDaPosicao,
   layoutDaImagem,
   nomeDaComparacao,
-  paresDoCarrossel,
+  paresNaOrdem,
   posicoesDe,
   primeiraEUltima,
   textoDaDiferenca,
@@ -53,29 +53,23 @@ describe('comparação de fotos', () => {
     expect(alternarComLimite(marcados, '2026-07-01', true, MAXIMO_DATAS).recusado).toBe(true);
   });
 
-  it('o carrossel pega a mais antiga e a mais nova de cada pose e deixa a livre de fora', () => {
-    const pares = paresDoCarrossel([
-      foto({ fotoId: 'livre-1', data: '2026-01-01', perguntaId: 'a2-foto-livre', posicao: 'Foto livre (não obrigatória)' }),
-      foto({ fotoId: 'livre-2', data: '2026-03-01', perguntaId: 'a2-foto-livre', posicao: 'Foto livre (não obrigatória)' }),
-      foto({ fotoId: 'jejum', data: '2026-01-01', perguntaId: 'fotos', posicao: 'Fotos em jejum' }),
-      foto({ fotoId: 'jejum-2', data: '2026-03-01', perguntaId: 'fotos', posicao: 'Fotos em jejum' }),
-      foto({ fotoId: 'frente-meio', data: '2026-02-01', perguntaId: 'a2-foto-frente', posicao: 'Foto de frente, braços colados ao corpo' }),
-      foto({ fotoId: 'frente-nova', data: '2026-03-01', perguntaId: 'frente-curta', posicao: 'Frente' }),
-      foto({ fotoId: 'frente-velha', data: '2026-01-01', perguntaId: 'a2-foto-frente', posicao: 'Foto de frente, braços colados ao corpo' }),
-      foto({ fotoId: 'costas-so', data: '2026-01-01', perguntaId: 'a2-foto-costas', posicao: 'Foto de costas' }),
-      foto({ fotoId: 'esq-1', data: '2026-01-01', perguntaId: 'a2-foto-lado-esquerdo', posicao: 'Foto de lado esquerdo, braços a 90°' }),
-      foto({ fotoId: 'esq-2', data: '2026-04-01', perguntaId: 'a2-foto-lado-esquerdo', posicao: 'Foto de lado esquerdo, braços a 90°' }),
-      foto({ fotoId: 'dir-1', data: '2026-01-15', perguntaId: 'a2-foto-lado-direito', posicao: 'Foto de lado direito' }),
-      foto({ fotoId: 'dir-2', data: '2026-04-01', perguntaId: 'a2-foto-lado-direito', posicao: 'Foto de lado direito' }),
-      foto({ fotoId: 'lado-1', data: '2026-01-01', perguntaId: 'a2-foto-lado', posicao: 'Foto de lado, braços levantados' }),
-      foto({ fotoId: 'lado-2', data: '2026-02-01', perguntaId: 'a2-foto-lado', posicao: 'Foto de lado, braços levantados' }),
-      foto({ fotoId: 'lado-mesmo-dia', data: '2026-01-01', perguntaId: 'a2-foto-lado', posicao: 'Foto de lado, braços levantados', ordem: 1 }),
-    ]);
-    expect(pares.map((p) => p.pose)).toEqual(['frente', 'lado-esquerdo', 'lado', 'lado-direito']);
-    expect(pares[0].antes.fotoId).toBe('frente-velha');
-    expect(pares[0].depois.fotoId).toBe('frente-nova');
-    expect(pares[2].antes.fotoId).toBe('lado-1');
-    expect(pares[2].depois.fotoId).toBe('lado-2');
+  it('o carrossel emparelha pela ordem e para na data mais curta', () => {
+    const fotos = [
+      foto({ fotoId: 'a2', data: '2026-01-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 2 }),
+      foto({ fotoId: 'a0', data: '2026-01-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 0 }),
+      foto({ fotoId: 'a1', data: '2026-01-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 1 }),
+      foto({ fotoId: 'b1', data: '2026-03-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 1 }),
+      foto({ fotoId: 'b0', data: '2026-03-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 0 }),
+    ];
+    const pares = paresNaOrdem(fotos, '2026-01-01', '2026-03-01');
+    expect(pares.map((p) => p.rotulo)).toEqual(['Foto 1', 'Foto 2']);
+    expect(pares[0].fotos.map((f) => f.fotoId)).toEqual(['a0', 'b0']);
+    expect(pares[1].fotos.map((f) => f.fotoId)).toEqual(['a1', 'b1']);
+    const muitas = [
+      ...Array.from({ length: 7 }, (_, i) => foto({ fotoId: `x${i}`, data: '2026-01-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: i })),
+      ...Array.from({ length: 7 }, (_, i) => foto({ fotoId: `y${i}`, data: '2026-03-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: i })),
+    ];
+    expect(paresNaOrdem(muitas, '2026-01-01', '2026-03-01')).toHaveLength(6);
   });
 
   it('diferença só com peso nas duas pontas', () => {

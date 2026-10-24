@@ -25,12 +25,12 @@ import {
   fotoEmUso,
   fotosDaData,
   nomeDaComparacao,
-  paresDoCarrossel,
+  paresNaOrdem,
   posicoesDe,
+  type ImagemDaComparacao,
   primeiraEUltima,
   proximaFoto,
   rotuloDaData,
-  rotuloDaPose,
   textoDaDiferenca,
   type FormatoComparacao,
   type PedidoDeComparacao,
@@ -109,7 +109,7 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
   const [posicaoDasDatas, setPosicaoDasDatas] = useState<string | null>(null);
   const [trocas, setTrocas] = useState<Record<string, string>>({});
   const [ampliada, setAmpliada] = useState<FotoDaLinha | null>(null);
-  const [gerando, setGerando] = useState(false);
+  const [folha, setFolha] = useState<'imagem' | 'carrossel' | null>(null);
   const grupos = posicoesDe(fotos);
   const grupo = grupos.find((g) => g.chave === posicaoEscolhida) ?? grupos[0];
   if (grupo && grupo.chave !== posicaoDasDatas) {
@@ -124,7 +124,12 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
     .filter((f): f is FotoDaLinha => !!f);
   const pontas = escolhidas.length >= MINIMO_DATAS ? textoDaDiferenca(escolhidas[0], escolhidas[escolhidas.length - 1]) : null;
   const colunas = colunasNaTela(escolhidas.length);
-  const pares = paresDoCarrossel(fotos);
+  const carrossel = grupo && marcadas.length === 2 ? paresNaOrdem(grupo.fotos, marcadas[0], marcadas[1]) : [];
+  const imagensDaFolha: ImagemDaComparacao[] = folha === 'carrossel'
+    ? carrossel
+    : (folha === 'imagem' && escolhidas.length >= MINIMO_DATAS
+      ? [{ chave: 'tela', rotulo: grupo?.rotulo ?? 'Comparação', fotos: escolhidas }]
+      : []);
 
   const alternarData = (data: string) => {
     const { marcados } = alternarComLimite(datasMarcadas, data, !datasMarcadas.has(data), MAXIMO_DATAS);
@@ -186,9 +191,18 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
           )}
           {pontas ? <Texto numerico>{pontas}</Texto> : null}
           {gerar ? (
-            <Botao rotulo="Gerar imagem" tipo="secundario" desabilitado={pares.length === 0} aoTocar={() => setGerando(true)} />
+            <View style={estilos.chips}>
+              <Botao
+                rotulo="Gerar imagem"
+                tipo="secundario"
+                desabilitado={escolhidas.length < MINIMO_DATAS}
+                aoTocar={() => setFolha('imagem')}
+              />
+              {carrossel.length >= 2 ? (
+                <Botao rotulo="Gerar carrossel" tipo="secundario" aoTocar={() => setFolha('carrossel')} />
+              ) : null}
+            </View>
           ) : null}
-          {gerar && pares.length === 0 ? <Texto variante="suave">Cada pose precisa de duas datas.</Texto> : null}
         </View>
       ) : null}
       <Folha titulo="Foto" visivel={ampliada !== null} aoFechar={() => setAmpliada(null)} largura={LARGURA_EDITOR}>
@@ -197,14 +211,14 @@ function Corpo({ fotos, baixar, gerar, autorizadoEm, aoRecarregar }: {
         ) : null}
       </Folha>
       {gerar ? (
-        <Folha titulo="Gerar imagem" visivel={gerando} aoFechar={() => setGerando(false)} largura={LARGURA_EDITOR}>
-          {gerando ? (
+        <Folha titulo={folha === 'carrossel' ? 'Gerar carrossel' : 'Gerar imagem'} visivel={folha !== null} aoFechar={() => setFolha(null)} largura={LARGURA_EDITOR}>
+          {folha ? (
             <FolhaGerar
-              pares={pares}
+              imagens={imagensDaFolha}
               baixar={baixar}
               gerar={gerar}
               autorizadoEm={autorizadoEm}
-              aoFechar={() => setGerando(false)}
+              aoFechar={() => setFolha(null)}
               aoRecarregar={aoRecarregar}
             />
           ) : null}
@@ -270,8 +284,8 @@ function Chip({ rotulo, marcado, aoTocar }: { rotulo: string; marcado: boolean; 
   );
 }
 
-function FolhaGerar({ pares, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar }: {
-  pares: ReturnType<typeof paresDoCarrossel>;
+function FolhaGerar({ imagens, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar }: {
+  imagens: ImagemDaComparacao[];
   baixar: (foto: FotoDaLinha) => Promise<Blob>;
   gerar: (pedido: PedidoDeComparacao) => Promise<Blob>;
   autorizadoEm: string | null;
@@ -288,13 +302,14 @@ function FolhaGerar({ pares, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar
   const [erro, setErro] = useState<unknown>(null);
   const [recusado, setRecusado] = useState(false);
   const autorizado = !recusado && !!autorizadoEm;
-  const imagens = pares.map((par) => ({ fotoIds: [par.antes.fotoId, par.depois.fotoId] }));
-  const zip = comparacaoEmZip(formato, imagens.length);
+  const grupos = imagens.map((imagem) => ({ fotoIds: imagem.fotos.map((foto) => foto.fotoId) }));
+  const zip = comparacaoEmZip(formato, grupos.length);
   const visual = formatoDaPrevia(formato);
   const alturaCheia = visual === 'FEED' ? ALTURA_FEED : ALTURA_STORIES;
-  const alturaPrevia = pares.length > 1 ? 220 : 460;
+  const alturaPrevia = imagens.length > 1 ? 220 : 460;
   const larguraPrevia = Math.max(1, Math.round((alturaPrevia * LARGURA_IMAGEM) / alturaCheia));
-  const tile = Math.max(1, Math.floor((larguraPrevia - 4) / 2));
+  const quantidade = Math.max(2, ...imagens.map((imagem) => imagem.fotos.length));
+  const tile = Math.max(1, Math.floor((larguraPrevia - 4 * (quantidade - 1)) / quantidade));
 
   const mudarLogo = (ligada: boolean) => {
     if (!temLogo) return;
@@ -305,10 +320,10 @@ function FolhaGerar({ pares, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar
   const baixarImagem = () => {
     setBaixando(true);
     setErro(null);
-    const pedido: PedidoDeComparacao = { formato, comLogo: comLogo && temLogo, imagens };
+    const pedido: PedidoDeComparacao = { formato, comLogo: comLogo && temLogo, imagens: grupos };
     gerar(pedido).then(
       async (blob) => {
-        await baixarComparacao(blob, nomeDaComparacao(formato, imagens.length));
+        await baixarComparacao(blob, nomeDaComparacao(formato, grupos.length));
         setBaixando(false);
         aoFechar();
       },
@@ -330,17 +345,17 @@ function FolhaGerar({ pares, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar
 
   return (
     <View style={estilos.corpo}>
-      {pares.map((par) => (
-        <View key={par.pose} style={estilos.corpo}>
-          <Texto variante="rotulo">{rotuloDaPose(par.pose)}</Texto>
+      {imagens.map((imagem) => (
+        <View key={imagem.chave} style={estilos.corpo}>
+          <Texto variante="rotulo">{imagem.rotulo}</Texto>
           <View style={[estilos.previa, { width: larguraPrevia, height: alturaPrevia, backgroundColor: '#000' }]}>
             <View accessibilityLabel="Prévia da imagem" style={[estilos.grade, estilos.fileira, { gap: 4, height: '100%' }]}>
-              {[par.antes, par.depois].map((foto) => (
+              {imagem.fotos.map((foto) => (
                 <ImagemProtegida
                   key={foto.fotoId}
-                  chave={`gerar:${foto.fotoId}`}
+                  chave={`gerar:${imagem.chave}:${foto.fotoId}`}
                   carregar={() => baixar(foto)}
-                  descricao={rotuloDaPose(par.pose)}
+                  descricao={imagem.rotulo}
                   tamanho={tile}
                   altura={alturaPrevia}
                 />
@@ -379,7 +394,7 @@ function FolhaGerar({ pares, baixar, gerar, autorizadoEm, aoFechar, aoRecarregar
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
       <Botao
         rotulo={rotuloBaixar}
-        desabilitado={!autorizado || pares.length === 0}
+        desabilitado={!autorizado || grupos.length === 0}
         motivo={autorizado ? undefined : AVISO_AUTORIZACAO}
         carregando={baixando}
         aoTocar={baixarImagem}

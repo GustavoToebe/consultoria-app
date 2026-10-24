@@ -150,15 +150,15 @@ for (const largura of [390, 1280, 3440]) {
   });
 }
 
-test('o carrossel junta as poses e deixa a livre de fora', async ({ page }) => {
+test('o carrossel emparelha as fotos das duas datas pela ordem', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  const fotos = [
-    ...FOTOS,
-    { fotoId: 'c1', origem: 'ANAMNESE' as const, origemId: 'n1', data: '2026-01-01', perguntaId: 'a2-foto-costas', posicao: 'Foto de costas', ordem: 0, pesoKg: 80 },
-    { fotoId: 'c2', origem: 'ATUALIZACAO' as const, origemId: 'u9', data: '2026-02-20', perguntaId: 'a2-foto-costas', posicao: 'Foto de costas', ordem: 0, pesoKg: 78 },
-    { fotoId: 'l1', origem: 'ANAMNESE' as const, origemId: 'n1', data: '2026-01-01', perguntaId: 'a2-foto-livre', posicao: 'Foto livre (não obrigatória)', ordem: 0, pesoKg: 80 },
-    { fotoId: 'l2', origem: 'ATUALIZACAO' as const, origemId: 'u9', data: '2026-02-20', perguntaId: 'a2-foto-livre', posicao: 'Foto livre (não obrigatória)', ordem: 0, pesoKg: 78 },
-    { fotoId: 's1', origem: 'ATUALIZACAO' as const, origemId: 'u9', data: '2026-02-20', perguntaId: 'a2-foto-lado-esquerdo', posicao: 'Foto de lado esquerdo', ordem: 0, pesoKg: 78 },
+  const fotos: FotoDaLinha[] = [
+    { fotoId: 'a1', origem: 'ATUALIZACAO', origemId: 'u1', data: '2026-01-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 0, pesoKg: 80 },
+    { fotoId: 'a2', origem: 'ATUALIZACAO', origemId: 'u1', data: '2026-01-01', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 1, pesoKg: 80 },
+    { fotoId: 'b1', origem: 'ATUALIZACAO', origemId: 'u2', data: '2026-02-20', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 0, pesoKg: 78 },
+    { fotoId: 'b2', origem: 'ATUALIZACAO', origemId: 'u2', data: '2026-02-20', perguntaId: 'fotos', posicao: 'Fotos em jejum', ordem: 1, pesoKg: 78 },
+    { fotoId: 'l1', origem: 'ATUALIZACAO', origemId: 'u1', data: '2026-01-01', perguntaId: 'livre', posicao: 'Foto livre', ordem: 0, pesoKg: 80 },
+    { fotoId: 'l2', origem: 'ATUALIZACAO', origemId: 'u2', data: '2026-02-20', perguntaId: 'livre', posicao: 'Foto livre', ordem: 0, pesoKg: 78 },
   ];
   const { errosDaPagina } = await simularApi(page, {
     ...(await sessao(page, TREINADOR, { permissoes: PERMISSOES, marca: MARCA })),
@@ -167,12 +167,11 @@ test('o carrossel junta as poses e deixa a livre de fora', async ({ page }) => {
     [`GET /alunos/${ALUNO_ID}`]: { corpo: { ...FICHA, usoDeImagemAutorizadoEm: '2026-10-01T12:00:00Z' } },
     [`GET /alunos/${ALUNO_ID}/fotos`]: { corpo: fotos },
     'GET /atualizacoes/{id}/fotos/{fotoId}': jpeg,
-    'GET /anamneses/{id}/fotos/{fotoId}': jpeg,
     [`POST /alunos/${ALUNO_ID}/fotos/comparacao`]: (pedido, route) => {
       expect(pedido.corpo).toMatchObject({
         formato: 'STORIES',
         comLogo: false,
-        imagens: [{ fotoIds: ['f1', 'f5'] }, { fotoIds: ['c1', 'c2'] }],
+        imagens: [{ fotoIds: ['a1', 'b1'] }, { fotoIds: ['a2', 'b2'] }],
       });
       return route.fulfill({ status: 200, contentType: 'application/zip', body: Buffer.from('PK') });
     },
@@ -180,11 +179,13 @@ test('o carrossel junta as poses e deixa a livre de fora', async ({ page }) => {
 
   await page.goto(`/treinador/alunos/${ALUNO_ID}`);
   await page.getByRole('tab', { name: 'Comparar' }).click();
-  await page.getByRole('button', { name: 'Gerar imagem' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Gerar imagem' });
+  await page.getByRole('button', { name: 'Fotos em jejum', exact: true }).click();
+  await page.getByRole('button', { name: 'Primeira × última' }).click();
+  await page.getByRole('button', { name: 'Gerar carrossel' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gerar carrossel' });
   await expect(dialog.getByLabel('Prévia da imagem')).toHaveCount(2);
-  await expect(dialog.getByText('Frente', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Costas', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Foto 1', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Foto 2', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Livre')).toHaveCount(0);
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Baixar zip' }).click();
