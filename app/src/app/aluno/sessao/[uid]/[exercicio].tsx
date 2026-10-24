@@ -51,7 +51,7 @@ export default function ExercicioDaSessao() {
   if (!dia.treino || !sessao || !e) {
     return (
       <Tela bordas={['top']} largura={720}>
-        <Cabecalho titulo="Exercício" voltar="/aluno" />
+        <Cabecalho titulo="Exercício" voltar="/aluno/treino" />
         <Vazio texto="Este exercício não está mais no seu plano. Volte para ver o treino atual." />
       </Tela>
     );

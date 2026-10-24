@@ -48,6 +48,16 @@ export function vagasDeFoto(enviadas: number, locais: number, maximo: number = L
 }
 
 /**
+ * Como o seletor abre. Galeria com mais de uma vaga marca várias de uma vez, até as vagas que restam. Câmera e a
+ * última vaga continuam uma foto por vez.
+ */
+export function selecaoDeFotos(origem: 'galeria' | 'camera', vagas: number): { varias: boolean; limite: number } {
+  const limite = Math.max(1, Math.floor(vagas));
+  const varias = origem === 'galeria' && limite > 1;
+  return { varias, limite: varias ? limite : 1 };
+}
+
+/**
  * Fotos que a pergunta aceita no aparelho: o `max` dela (`maximoDeFotos`, a mesma regra da validação), nunca acima
  * do teto que o servidor informou. Cada pergunta FOTOS tem o seu (frente, costas e lado com uma foto cada, por exemplo).
  */

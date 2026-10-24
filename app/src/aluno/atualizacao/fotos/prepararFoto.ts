@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
 import {
-  LIMITES_FOTO, MENSAGEM_FOTO_GRANDE, MENSAGEM_FOTO_NAO_LIDA, redimensionamento, reducoesDeFoto,
+  LIMITES_FOTO, MENSAGEM_FOTO_GRANDE, MENSAGEM_FOTO_NAO_LIDA, redimensionamento, reducoesDeFoto, selecaoDeFotos,
 } from '../../../dominio/fotosAtualizacao';
 import { apagarTemporaria } from './fotosLocais';
 import { blobDeBase64 } from './jpegDaWeb';
@@ -58,23 +58,46 @@ export async function prepararFoto(uri: string, largura: number, altura: number,
   throw new FotoRecusada(MENSAGEM_FOTO_GRANDE);
 }
 
+export interface FotosEscolhidas {
+  fotos: FotoPronta[];
+  /** Fotos que não couberam ou não foram lidas. As que deram certo continuam em `fotos`. */
+  recusa: string | null;
+}
+
 /** Abre a galeria (ou a câmera, no celular) e devolve a foto já reduzida; `null` se a pessoa desistiu. */
 export async function escolherFoto(origem: OrigemDaFoto, limites: LimitesDaReducao = {}): Promise<FotoPronta | null> {
+  const { fotos, recusa } = await escolherFotos(origem, 1, limites);
+  if (recusa) throw new FotoRecusada(recusa);
+  return fotos[0] ?? null;
+}
+
+/**
+ * Abre a galeria para marcar até `quantidade` fotos de uma vez (a câmera continua uma). Devolve as que couberam;
+ * `recusa` explica as que ficaram de fora. Lista vazia e sem recusa = a pessoa desistiu.
+ */
+export async function escolherFotos(origem: OrigemDaFoto, quantidade: number, limites: LimitesDaReducao = {}): Promise<FotosEscolhidas> {
   if (origem === 'camera') {
     const permissao = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissao.granted) throw new FotoRecusada('Sem permissão para usar a câmera. Libere nos ajustes do aparelho.');
   }
-  const opcoes: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1, allowsMultipleSelection: false, exif: false };
+  const { varias, limite } = selecaoDeFotos(origem, quantidade);
+  const opcoes: ImagePicker.ImagePickerOptions = {
+    mediaTypes: ['images'], quality: 1, allowsMultipleSelection: varias, selectionLimit: limite, exif: false,
+  };
   const r = origem === 'camera' ? await ImagePicker.launchCameraAsync(opcoes) : await ImagePicker.launchImageLibraryAsync(opcoes);
-  const asset = r.canceled ? undefined : r.assets[0];
-  if (!asset) return null;
-  try {
-    return await prepararFoto(asset.uri, asset.width, asset.height, limites);
-  } catch (erro) {
-    if (erro instanceof FotoRecusada) throw erro;
-    throw new FotoRecusada(MENSAGEM_FOTO_NAO_LIDA);
-  } finally {
-    // A cópia do seletor tem o EXIF original: não fica no cache.
-    if (Platform.OS !== 'web') await apagarTemporaria(asset.uri);
+  const assets = r.canceled ? [] : r.assets.slice(0, limite);
+  const fotos: FotoPronta[] = [];
+  const recusas: string[] = [];
+  for (const asset of assets) {
+    try {
+      fotos.push(await prepararFoto(asset.uri, asset.width, asset.height, limites));
+    } catch (erro) {
+      recusas.push(erro instanceof FotoRecusada ? erro.message : MENSAGEM_FOTO_NAO_LIDA);
+    } finally {
+      // A cópia do seletor tem o EXIF original: não fica no cache.
+      if (Platform.OS !== 'web') await apagarTemporaria(asset.uri);
+    }
   }
+  const recusa = recusas.length === 0 ? null : recusas.length === 1 ? recusas[0] : `${recusas.length} fotos não entraram. ${recusas[0]}`;
+  return { fotos, recusa };
 }

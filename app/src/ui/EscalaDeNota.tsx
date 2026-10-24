@@ -87,8 +87,7 @@ export function EscalaDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10 }
         {...teclado}
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel={rotulo}
-        accessibilityHint="Toque ou arraste para escolher a nota"
+        accessibilityLabel={valor === null ? `${rotulo}. Toque ou arraste para escolher a nota` : `${rotulo}, ${valor}`}
         accessibilityValue={{ min: minimo, max: maximo, now: valor ?? undefined, text: valor === null ? 'sem nota' : String(valor) }}
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={aoAcessibilidade}

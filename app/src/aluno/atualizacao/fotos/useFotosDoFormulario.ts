@@ -13,7 +13,7 @@ import { buscarConfiguracaoDeFotos } from './configuracaoSalva';
 import type { ControleDeFotos, ItemDeFoto } from './ControleDeFotos';
 import { enviarFotoDoAparelho } from './enviarFotoDoAparelho';
 import { apagarFotoLocal, fotoLocalExiste, fotosLocaisDisponiveis, guardarFotoLocal, uriDaFotoLocal } from './fotosLocais';
-import { escolherFoto, FotoRecusada, type OrigemDaFoto } from './prepararFoto';
+import { escolherFotos, FotoRecusada, type OrigemDaFoto } from './prepararFoto';
 
 export type FotosLocais = Record<string, string[]>;
 export interface EstadoDasFotos { respostas: RespostasAtualizacao; locais: FotosLocais }
@@ -53,7 +53,8 @@ export function useFotosDoFormulario({ usuarioId, destino, online, editavel, loc
     const { respostas, locais } = ler();
     const enviadas = idsDeFotos(respostas[perguntaId]);
     const teto = Math.min(limite, maximo);
-    if (vagasDeFoto(enviadas.length, (locais[perguntaId] ?? []).length, teto) === 0) {
+    const vagas = vagasDeFoto(enviadas.length, (locais[perguntaId] ?? []).length, teto);
+    if (vagas === 0) {
       avisar(teto === 1 ? 'Esta pergunta aceita uma foto. Remova a atual para trocar.' : `Esta pergunta aceita até ${teto} fotos.`);
       return;
     }
@@ -63,17 +64,21 @@ export function useFotosDoFormulario({ usuarioId, destino, online, editavel, loc
     }
     setOcupado(true);
     try {
-      const foto = await escolherFoto(origem);
-      if (!foto) return;
-      if (fotosLocaisDisponiveis) {
-        const nome = await guardarFotoLocal(usuarioId, foto.uri);
+      const { fotos, recusa } = await escolherFotos(origem, origem === 'galeria' ? vagas : 1);
+      for (const foto of fotos) {
         const agora = ler();
-        aplicar({ respostas: agora.respostas, locais: comFotoLocal(agora.locais, perguntaId, nome) });
-      } else {
-        const id = await enviarFotoDoAparelho(destino, foto);
-        const agora = ler();
-        aplicar({ respostas: { ...agora.respostas, [perguntaId]: [...idsDeFotos(agora.respostas[perguntaId]), id] }, locais: agora.locais });
+        if (vagasDeFoto(idsDeFotos(agora.respostas[perguntaId]).length, (agora.locais[perguntaId] ?? []).length, teto) === 0) break;
+        if (fotosLocaisDisponiveis) {
+          const nome = await guardarFotoLocal(usuarioId, foto.uri);
+          const depois = ler();
+          aplicar({ respostas: depois.respostas, locais: comFotoLocal(depois.locais, perguntaId, nome) });
+        } else {
+          const id = await enviarFotoDoAparelho(destino, foto);
+          const depois = ler();
+          aplicar({ respostas: { ...depois.respostas, [perguntaId]: [...idsDeFotos(depois.respostas[perguntaId]), id] }, locais: depois.locais });
+        }
       }
+      if (recusa) avisar(recusa, 'perigo');
     } catch (erro) {
       avisar(erro instanceof FotoRecusada ? erro.message : textoDoErro(erro), 'perigo');
     } finally {

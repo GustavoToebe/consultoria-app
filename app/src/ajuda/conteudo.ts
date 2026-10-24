@@ -240,6 +240,7 @@ const TREINADOR: Guia = {
 
 /** Explicações do aluno que aparecem em mais de um lugar (primeiros passos, tutorial e passeio pelo menu): um texto só. */
 const TEXTO_TREINO_DE_HOJE = 'No Início, o cartão Hoje mostra a divisão do dia. Toque em "Ver meu treino" para abrir a lista de exercícios.';
+const TEXTO_ABA_TREINO = 'Na aba Treino estão as divisões da semana, as orientações do treinador e o PDF. A mobilidade aparece aqui quando o treinador publica um plano.';
 const TEXTO_DIETA = 'Mostra as refeições publicadas pelo treinador e a água do dia, quando ele escreveu. Só consulta. No início do app, o cartão Dieta leva até ela. O botão Lista de compras soma o que comprar na semana ou no mês.';
 const TEXTO_ATUALIZACAO = 'Ao fim do período o treinador pede uma atualização. Um ponto aparece na aba Início quando houver algo a fazer, e o item fica em "Suas pendências": uma atualização ou uma anamnese para responder.';
 
@@ -257,11 +258,12 @@ const ALUNO: Guia = {
   ],
   tutorial: [
     { titulo: 'Boas-vindas', texto: 'Este tutorial mostra as abas do app. Use Próximo e Anterior; "Abrir esta tela" leva você até ela.' },
-    { titulo: 'Início', texto: 'Mostra a dieta e a água do dia, o treino de hoje, suas pendências e as divisões da semana. Na tela de uma divisão, "Outras datas" deixa registrar dias próximos (até 60 dias para trás ou para frente).', rota: '/aluno' },
+    { titulo: 'Início', texto: 'Mostra a dieta e a água do dia, o treino de hoje, suas pendências e o andamento da semana. Na tela de uma divisão, "Outras datas" deixa registrar dias próximos (até 60 dias para trás ou para frente).', rota: '/aluno' },
+    { titulo: 'Treino', texto: TEXTO_ABA_TREINO, rota: '/aluno/treino' },
     { titulo: 'Registrar uma série', rota: '/aluno', texto: 'Cada exercício tem uma tela. Preencha Peso e Reps e marque a série. A carga sugerida vem do plano: a carga de trabalho é a que você informa para o dia, e as séries em porcentagem, na mesma carga da WS, acima da anterior ou abaixo da referência já vêm calculadas a partir do que você registrou, e você pode ajustar. O valor usado é gravado no registro. Sem dado aparece "—". Toque no nome do tipo, da técnica ou do grupo para ler a explicação do treinador. Os botões − e + mudam o peso de passo em passo, e "Repetir a série anterior" copia peso e repetições da série de cima e já marca como feita. No cardio você só marca como feito. Embaixo, Próximo leva ao exercício seguinte; Anterior volta e Lista do dia mostra todos: dá para fazer fora de ordem. A tela fica acesa enquanto você treina.' },
     { titulo: 'Descanso', texto: 'Quando o plano define descanso, o contador começa ao marcar a série. Em superset, tri-set, circuito e outros grupos, o descanso é o do grupo e começa quando você termina a volta; na pré e na pós-exaustão, cada série mantém o próprio descanso. Ele não usa notificação com o app fechado.' },
     { titulo: 'Dieta', texto: TEXTO_DIETA, rota: '/aluno/dieta' },
-    { titulo: 'Mobilidade', texto: 'Aparece só se o treinador publicou um plano de mobilidade. Toque no ✓ de cada item para marcar como feito no dia; no topo você vê "Hoje: N de M feitos" e pode escolher outro dia recente. Vídeos abrem fora do app.', rota: '/aluno/mobilidade' },
+    { titulo: 'Mobilidade', texto: 'Fica na aba Treino, só se o treinador publicou um plano de mobilidade. Toque no ✓ de cada item para marcar como feito no dia; no topo você vê "Hoje: N de M feitos" e pode escolher outro dia recente. Vídeos abrem fora do app.', rota: '/aluno/treino' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão, com o nome do tipo de cada série.', rota: '/aluno/historico' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, rota: '/aluno' },
     { titulo: 'Sem internet', texto: 'Pode treinar e marcar a mobilidade sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
@@ -269,6 +271,7 @@ const ALUNO: Guia = {
   ],
   passeio: [
     { titulo: 'Início', texto: TEXTO_TREINO_DE_HOJE, alvo: 'menu:/aluno' },
+    { titulo: 'Treino', texto: TEXTO_ABA_TREINO, alvo: 'menu:/aluno/treino' },
     { titulo: 'Dieta', texto: TEXTO_DIETA, alvo: 'menu:/aluno/dieta' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, alvo: 'menu:/aluno' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão.', alvo: 'menu:/aluno/historico' },
@@ -278,8 +281,8 @@ const ALUNO: Guia = {
     {
       titulo: 'Treino',
       itens: [
-        { titulo: 'Treino de hoje', texto: 'No Início, o cartão Hoje tem o botão "Ver meu treino", que abre a lista de exercícios da divisão do dia. Em "Divisões da semana" você abre as outras.' },
-        { titulo: 'Trocar de plano', texto: 'Se houver mais de uma pasta, o seletor no topo mostra as outras. Pasta antiga é só para consultar.' },
+        { titulo: 'Treino de hoje', texto: 'No Início, o cartão Hoje tem o botão "Ver meu treino", que abre a lista de exercícios da divisão do dia. As outras divisões ficam na aba Treino.' },
+        { titulo: 'Trocar de plano', texto: 'Se houver mais de uma pasta, o seletor no topo da aba Treino mostra as outras. Pasta antiga é só para consultar.' },
         { titulo: 'Peso e repetições', texto: 'Deixe em branco o que não souber: aparece "—". O app não presume valor.' },
         { titulo: 'Tipos de série', texto: 'O nome do tipo indica para que a série serve (aquecimento, FS, WS, Top set, Back off...). Toque nele para ler a explicação do treinador. FS usa um percentual da carga da WS do dia; uma faixa como 85–90% mostra o intervalo prescrito. A sugestão de carga usa o menor percentual da faixa e o arredondamento do treinador; registre o peso que usou. Top set é "acima da anterior": a carga sobe um percentual sobre a série anterior. Back off pode vir "abaixo da referência", como "15% abaixo da referência (Top set)": a carga desce um percentual sobre o que você registrou na série indicada. Sem registro dela, ou sem valor informado, aparece "—".' },
         { titulo: 'Carga, esforço e repetições', texto: 'A meta da série mostra repetições, carga e esforço, cada um no seu lugar. Esforço é RIR (quantas repetições ainda sobrariam ao terminar: 2 RIR = parar com 2 sobrando) ou RPE (esforço de 1 a 10, em que 10 é nenhuma repetição sobrando), nunca os dois na mesma série. RIR 0 aparece como "até a falha": faça até não conseguir mais repetir com boa técnica. AMRAP é o máximo de repetições e só aparece quando o treinador pede. O treinador também pode escrever um alvo extra, um texto curto junto da série.' },
@@ -289,7 +292,7 @@ const ALUNO: Guia = {
         { titulo: 'Cardio', texto: 'No exercício de cardio a série mostra o que o treinador prescreveu (duração, distância, ritmo, zona e intervalos) e tem um único botão: marcar como feito. Não há peso, repetições nem esforço para preencher.' },
         { titulo: 'Imagem do exercício', texto: 'Quando o treinador põe uma imagem ou GIF no exercício (ou ele veio do catálogo, com duas fotos que se alternam), ela aparece acima do "Como fazer". Toque para ampliar. Sem internet, a foto do catálogo que você já viu continua aparecendo; a imagem do treinador some até a conexão voltar, e o resto da tela funciona igual. Se o seu aparelho está com movimento reduzido, a foto não alterna.' },
         { titulo: 'Vídeos', texto: 'O link do vídeo abre fora do app, no navegador ou aplicativo de vídeo.' },
-        { titulo: 'PDF do treino', texto: 'No Início, toque em "Baixar PDF do treino". O documento inclui o glossário "Como ler este treino", só com os tipos, as técnicas e os grupos de exercícios usados (e RIR e RPE, quando aparecem, com "RIR 0 = até a falha técnica"), e as instruções do treinador. Série de cardio sai com a prescrição, sem carga nem repetições.' },
+        { titulo: 'PDF do treino', texto: 'Na aba Treino, toque em "Baixar PDF do treino". O documento inclui o glossário "Como ler este treino", só com os tipos, as técnicas e os grupos de exercícios usados (e RIR e RPE, quando aparecem, com "RIR 0 = até a falha técnica"), e as instruções do treinador. Série de cardio sai com a prescrição, sem carga nem repetições.' },
       ],
     },
     {
@@ -297,7 +300,7 @@ const ALUNO: Guia = {
       itens: [
         { titulo: 'Dieta', texto: 'Mostra o que foi publicado pelo treinador, refeição por refeição, e a água por dia quando ele escreveu. O cartão Dieta no início do app mostra quantas refeições e a água.' },
         { titulo: 'Lista de compras', texto: 'Na Dieta, toque em Lista de compras e escolha Semana (7 dias) ou Mês (30 dias). Nas refeições com mais de uma opção, escolha a que vai comprar (a primeira já vem marcada). A quantidade é arredondada para cima; "cru" quer dizer que o treinador cadastrou o fator de cocção e a lista já converteu o alimento cozido para cru. Sem fator, vale a quantidade da dieta. Funciona sem internet com a última dieta salva, e dá para baixar em PDF. No PDF da dieta, Simples traz só a dieta e Detalhado acrescenta a lista no fim; "Mostrar FC e FCc" só liga as colunas.' },
-        { titulo: 'Mobilidade', texto: 'Aba visível quando existe plano publicado. Toque no ✓ de cada item para marcar como feito; desmarcar é tocar de novo. Dá para marcar hoje e os dias recentes (até 60 dias para trás ou para frente, dentro do período), e a marca vale na mobilidade em uso, não numa pasta antiga. Dá para baixar em PDF.' },
+        { titulo: 'Mobilidade', texto: 'Fica na aba Treino quando existe plano publicado. Toque no ✓ de cada item para marcar como feito; desmarcar é tocar de novo. Dá para marcar hoje e os dias recentes (até 60 dias para trás ou para frente, dentro do período), e a marca vale na mobilidade em uso, não numa pasta antiga. Dá para baixar em PDF.' },
       ],
     },
     {
@@ -312,7 +315,7 @@ const ALUNO: Guia = {
       titulo: 'Atualização',
       itens: [
         { titulo: 'Responder', texto: 'Abra a atualização, responda e envie. O peso informado entra no seu histórico.' },
-        { titulo: 'Fotos', texto: 'Quando a atualização pede fotos, escolha da galeria ou tire na hora (até 6 por pergunta). No celular elas ficam guardadas só dentro do app, sem ir para a galeria, e sobem quando você envia a atualização; na web é preciso estar conectado para anexar. Toque no X para remover antes de enviar. Só você e seu treinador veem as fotos. No Histórico, o cartão Fotos compara de 2 a 4 datas da mesma posição, com a data e o peso. Quem gera a imagem para divulgação é o treinador.' },
+        { titulo: 'Fotos', texto: 'Quando a atualização pede fotos, escolha da galeria ou tire na hora. Na galeria dá para marcar várias de uma vez, até o limite da pergunta (no máximo 6). No celular elas ficam guardadas só dentro do app, sem ir para a galeria, e sobem quando você envia a atualização; na web é preciso estar conectado para anexar. Toque no X para remover antes de enviar. Só você e seu treinador veem as fotos. No Histórico, o cartão Fotos compara de 2 a 4 datas da mesma posição, com a data e o peso. Quem gera a imagem para divulgação é o treinador.' },
         { titulo: 'Vou atrasar', texto: 'Se precisar de mais tempo, avise pelo botão. Isso só avisa o treinador.' },
         { titulo: 'Lembretes', texto: 'No celular, o app lembra 3 dias antes, no dia e 1 dia depois, às 9h. Na web, só aparece um cartão.' },
       ],
@@ -353,7 +356,7 @@ const ALUNO: Guia = {
     { pergunta: 'Errei a carga de uma série.', resposta: 'Abra o exercício e altere o valor no campo da série: o registro é atualizado.' },
     { pergunta: 'Onde leio de novo o termo de uso e o aviso de privacidade?', resposta: 'Em Conta, toque em Termos e privacidade. No primeiro acesso, e sempre que os textos mudam, o app pede o seu aceite antes de abrir.' },
     { pergunta: 'Como vejo de novo o passeio pelo menu?', resposta: 'Ele aparece uma vez em cada aparelho, no primeiro acesso, e dá para pular. Para rever, abra a Ajuda (em Conta) e toque em "Conhecer o menu".' },
-    { pergunta: 'Por que não tem aba Mobilidade?', resposta: 'Ela só aparece quando o treinador publica um plano de mobilidade.' },
+    { pergunta: 'Por que não vejo a mobilidade?', resposta: 'Ela fica na aba Treino e só aparece quando o treinador publica um plano de mobilidade.' },
     { pergunta: 'Não consigo marcar a mobilidade.', resposta: 'Só dá para marcar na mobilidade em uso (as de pastas antigas são só para consultar), dentro do período dela e se a marcação estiver disponível (se não estiver, fale com o seu treinador). Se o aviso de envio mostrar uma falha, abra Conta para ver o motivo e toque em tentar de novo.' },
   ],
 };

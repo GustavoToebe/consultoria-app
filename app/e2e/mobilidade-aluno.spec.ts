@@ -51,8 +51,8 @@ test('mobilidade: marcar e desmarcar um item grava o mesmo registro e a contagem
       await json(route, { resultados: lote.map((r) => ({ id: r.id, situacao: 'ACEITO', motivo: null })) });
     },
   });
-  await page.goto('/aluno/mobilidade');
-  await expect(page.getByRole('heading', { name: 'Mobilidade', level: 1 })).toBeVisible();
+  await page.goto('/aluno/treino');
+  await expect(page.getByRole('heading', { name: 'Mobilidade', level: 2, exact: true })).toBeVisible();
 
   // Só o item da versão vigente conta; o da versão antiga não aparece nem soma.
   await expect(page.getByText('Hoje: 1 de 3 feitos')).toBeVisible();
@@ -88,7 +88,7 @@ test('mobilidade: o dia escolhido nos chips tem a própria contagem', async ({ p
       ] satisfies RegistroMobilidadeFeito[],
     },
   });
-  await page.goto('/aluno/mobilidade');
+  await page.goto('/aluno/treino');
   await expect(page.getByText('Hoje: 0 de 3 feitos')).toBeVisible();
   await page.getByRole('radio', { name: /14\/10/ }).click();
   await expect(page.getByRole('radio', { name: /14\/10/ })).toBeChecked();

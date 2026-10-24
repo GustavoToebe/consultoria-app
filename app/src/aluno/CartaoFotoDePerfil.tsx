@@ -41,7 +41,7 @@ export function CartaoFotoDePerfil() {
       if (!pronta) return;
       uri = pronta.uri;
       const dados = new FormData();
-      anexarFoto(dados, pronta);
+      await anexarFoto(dados, pronta);
       await trocarFotoDePerfil(dados);
       avisarQueAFotoMudou();
       avisar('Foto de perfil salva.', 'sucesso');

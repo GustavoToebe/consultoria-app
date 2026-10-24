@@ -5,7 +5,7 @@ import { erroApi, simularApi, type RespostasApi } from './api-falsa';
 import { dietaFalsa, fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, SESSOES_COM_DIAS } from './aluno';
 
 /**
- * Início do aluno (proposta do Gustavo, 19/10): Dieta compacta → Hoje → Suas pendências → Divisões da semana → Sua semana.
+ * Início do aluno: Dieta compacta → Hoje → Suas pendências → Sua semana. As divisões ficam na aba Treino.
  * O relógio fica em segunda-feira, 19/10/2026 (o treino de hoje é o A).
  */
 
@@ -81,7 +81,7 @@ async function topo(page: Page, nome: string | RegExp, papel: 'heading' | 'link'
   return caixa!.y;
 }
 
-test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta → Hoje → pendências → divisões → Sua semana', async ({ page }) => {
+test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta → Hoje → pendências → Sua semana', async ({ page }) => {
   const { errosDaPagina } = await abrirInicio(page, {
     extra: { 'GET /aluno/anamnese': { corpo: ANAMNESE_PENDENTE }, 'GET /aluno/atualizacao': { corpo: ATUALIZACAO_ATRASADA } },
   });
@@ -110,21 +110,23 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta →
   await expect(page.getByRole('link', { name: /Anamnese inicial/ })).toContainText('Pendente');
   await expect(page.getByRole('link', { name: /Atualização do período/ })).toContainText(/Atrasada 2 dias/i);
 
-  // Divisões: A, B e C, "Hoje" só na de segunda.
-  await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Divisão A, Peito e tríceps, Segunda · 5 exercícios, hoje/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Divisão B, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /^Divisão C, Pernas, Sexta · 6 exercícios$/ })).toBeVisible();
+  // As divisões saíram do resumo.
+  await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toHaveCount(0);
 
-  // A ordem na página.
   const y = [
     await topo(page, /^Dieta,/, 'link'),
     await topo(page, 'Hoje'),
     await topo(page, 'Suas pendências'),
-    await topo(page, 'Divisões da semana'),
     await topo(page, 'Sua semana'),
   ];
   expect(y).toEqual([...y].sort((a, b) => a - b));
+
+  await page.getByRole('link', { name: 'Treino', exact: true }).click();
+  await expect(page).toHaveURL(/\/aluno\/treino$/);
+  await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Divisão A, Peito e tríceps, Segunda · 5 exercícios, hoje/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Divisão B, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Divisão C, Pernas, Sexta · 6 exercícios$/ })).toBeVisible();
 
   expect(errosDaPagina).toEqual([]);
 });
@@ -138,6 +140,7 @@ test('"Ver meu treino" abre a lista do dia de hoje', async ({ page }) => {
 
 test('a divisão de outro dia abre a próxima vez dela e a tela do dia deixa escolher outra data', async ({ page }) => {
   await abrirInicio(page);
+  await page.getByRole('link', { name: 'Treino', exact: true }).click();
   await page.getByRole('link', { name: /^Divisão B,/ }).click();
   await expect(page).toHaveURL(/\/aluno\/sessao\/sb\?data=2026-10-21$/);
   await expect(page.getByRole('heading', { name: 'Outras datas' })).toBeVisible();
@@ -158,6 +161,13 @@ test('no celular (390 px) o botão "Ver meu treino" aparece na primeira tela, co
   expect(dieta!.height).toBeLessThan(100);
   // Alvos de toque de 44 px.
   expect(caixa!.height).toBeGreaterThanOrEqual(44);
+  for (const nome of ['Início', 'Treino', 'Dieta', 'Histórico', 'Conta']) {
+    const aba = await page.getByRole('link', { name: nome, exact: true }).boundingBox();
+    expect(aba, nome).not.toBeNull();
+    expect(aba!.x).toBeGreaterThanOrEqual(0);
+    expect(aba!.x + aba!.width).toBeLessThanOrEqual(390);
+    expect(aba!.y + aba!.height).toBeLessThanOrEqual(844);
+  }
 });
 
 test('sem água, a coluna da água some', async ({ page }) => {
@@ -184,21 +194,22 @@ test('dia de descanso: "Hoje é dia de descanso." e nenhum botão de treino', as
   await abrirInicio(page, { sessoes: [sessaoFalsa('sb', 'Costas e bíceps', 3, 4), sessaoFalsa('sc', 'Pernas', 5, 6)] });
   await expect(page.getByText('Hoje é dia de descanso.')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Ver meu treino/ })).toHaveCount(0);
-  // As divisões continuam na lista, sem "Hoje".
+  await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Treino', exact: true }).click();
   await expect(page.getByRole('link', { name: /^Divisão A, Costas e bíceps, Quarta · 4 exercícios$/ })).toBeVisible();
 });
 
-test('plano sem dia fixo: "Qual é o treino de hoje?" e "Escolher treino" leva às divisões', async ({ page }) => {
+test('plano sem dia fixo: "Qual é o treino de hoje?" e "Escolher treino" abre a aba Treino', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 700 });
   await abrirInicio(page, { sessoes: [sessaoFalsa('sa', 'Corpo todo 1', null, 5), sessaoFalsa('sb', 'Corpo todo 2', null, 4)] });
   await expect(page.getByText('Qual é o treino de hoje?')).toBeVisible();
   await expect(page.getByText('TREINO A')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Ver meu treino' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /^Divisão A, Corpo todo 1, Sem dia fixo · 5 exercícios$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Escolher treino' }).click();
-  // A tela rola até as divisões: o título delas fica à vista.
+  await expect(page).toHaveURL(/\/aluno\/treino$/);
   await expect(page.getByRole('heading', { name: 'Divisões da semana' })).toBeInViewport();
-  // Divisão sem dia fixo abre hoje.
+  await expect(page.getByRole('link', { name: /^Divisão A, Corpo todo 1, Sem dia fixo · 5 exercícios$/ })).toBeVisible();
   await page.getByRole('link', { name: /^Divisão B,/ }).click();
   await expect(page).toHaveURL(/\/aluno\/sessao\/sb\?data=2026-10-19$/);
 });
@@ -224,8 +235,14 @@ test('só com a anamnese pendente: uma pendência, neutra', async ({ page }) => 
   await expect(page).toHaveURL(/\/aluno\/anamnese$/);
 });
 
-test('a aba de baixo se chama Início', async ({ page }) => {
+test('a barra tem Início, Treino, Dieta, Histórico e Conta', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
   await abrirInicio(page);
-  await expect(page.getByRole('link', { name: 'Início' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Treino', exact: true })).toHaveCount(0);
+  for (const nome of ['Início', 'Treino', 'Dieta', 'Histórico', 'Conta']) {
+    const aba = page.getByRole('link', { name: nome, exact: true });
+    await expect(aba).toBeVisible();
+    const caixa = await aba.boundingBox();
+    expect(caixa!.x + caixa!.width).toBeLessThanOrEqual(1280);
+  }
+  await expect(page.getByRole('link', { name: 'Mobilidade', exact: true })).toHaveCount(0);
 });

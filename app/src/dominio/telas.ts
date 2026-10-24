@@ -234,6 +234,7 @@ export function voltarAutomatico(caminho: string, comBarraInferior: boolean): st
 
 /** Nomes das telas do aluno e das públicas, para o título da aba do navegador. */
 const TITULOS_FORA_DO_CATALOGO: readonly [string, string][] = [
+  ['/aluno/treino', 'Treino'],
   ['/aluno/sessao', 'Treino do dia'],
   ['/aluno/dieta', 'Dieta'],
   ['/aluno/lista-de-compras', 'Lista de compras'],

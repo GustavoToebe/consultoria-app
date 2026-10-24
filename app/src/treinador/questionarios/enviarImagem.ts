@@ -22,7 +22,7 @@ export async function escolherEEnviarImagem(): Promise<string | null> {
   try {
     const dados = new FormData();
     // Sem fetch da blob: na web (a CSP recusa): o JPEG já vem em memória.
-    anexarFoto(dados, pronta);
+    await anexarFoto(dados, pronta);
     return (await enviarImagemDeQuestionario(dados)).id;
   } finally {
     if (Platform.OS !== 'web') await apagarTemporaria(pronta.uri);

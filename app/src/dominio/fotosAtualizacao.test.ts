@@ -1,5 +1,5 @@
 import {
-  comFotoLocal, contagemDeFotos, fotosAceitas, idsDeFotos, LIMITES_FOTO, redimensionamento, reducoesDeFoto, semFotoLocal, todasAsFotosLocais, vagasDeFoto,
+  comFotoLocal, contagemDeFotos, fotosAceitas, idsDeFotos, LIMITES_FOTO, redimensionamento, reducoesDeFoto, selecaoDeFotos, semFotoLocal, todasAsFotosLocais, vagasDeFoto,
 } from './fotosAtualizacao';
 
 describe('reducoesDeFoto', () => {
@@ -44,6 +44,11 @@ describe('listas de fotos', () => {
     expect(vagasDeFoto(2, 1, 6)).toBe(3);
     expect(vagasDeFoto(6, 0, 6)).toBe(0);
     expect(vagasDeFoto(5, 5, 6)).toBe(0);
+  });
+  it('a galeria marca várias até as vagas; a câmera e a última vaga marcam uma', () => {
+    expect(selecaoDeFotos('galeria', 4)).toEqual({ varias: true, limite: 4 });
+    expect(selecaoDeFotos('galeria', 1)).toEqual({ varias: false, limite: 1 });
+    expect(selecaoDeFotos('camera', 4)).toEqual({ varias: false, limite: 1 });
   });
   it('contagem no singular e no plural', () => {
     expect(contagemDeFotos(1, 6)).toBe('1 de 6 fotos');

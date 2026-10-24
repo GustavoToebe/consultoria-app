@@ -2,13 +2,12 @@ import { BarraDescanso } from '../../aluno/BarraDescanso';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
 import { StyleSheet, View } from 'react-native';
 import { espaco } from '../../tema/tokens';
-import { CalendarDays, House, PersonStanding, Salad, UserRound } from 'lucide-react-native';
+import { CalendarDays, Dumbbell, House, Salad, UserRound } from 'lucide-react-native';
 
 import { AlunoProvider, useAluno } from '../../offline/AlunoProvider';
 import { faseAtualizacao, temAcaoAtualizacao } from '../../dominio/atualizacao';
 import { pagamentoPendente, hojeEmBrasilia } from '../../dominio/financeiro';
 import { hojeIso } from '../../dominio/formatos';
-import { temAbaMobilidade } from '../../dominio/mobilidade';
 import { telasDaOrigem } from '../../dominio/telas';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { GuardaDePapel } from '../../ui/GuardaDePapel';
@@ -23,9 +22,9 @@ import { FinanceiroDoAlunoProvider, useFinanceiroDoAluno } from '../../aluno/fin
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
   { rotulo: 'Início', href: '/aluno', caminho: '/aluno', Icone: House, exato: true },
+  // A sessão e o endereço antigo da mobilidade continuam acendendo Treino.
+  { rotulo: 'Treino', href: '/aluno/treino', caminho: '/aluno/treino', Icone: Dumbbell, tambem: ['/aluno/sessao', '/aluno/mobilidade'] },
   { rotulo: 'Dieta', href: '/aluno/dieta', caminho: '/aluno/dieta', Icone: Salad, tambem: ['/aluno/lista-de-compras'] },
-  // Só aparece com mobilidade publicada (veja MenuAluno); fica antes do Histórico para a barra de 5 abas.
-  { rotulo: 'Mobilidade', href: '/aluno/mobilidade', caminho: '/aluno/mobilidade', Icone: PersonStanding },
   { rotulo: 'Histórico', href: '/aluno/historico', caminho: '/aluno/historico', Icone: CalendarDays },
   // Ajuda e Termos abrem pela Conta: o item fica aceso enquanto estão abertos.
   { rotulo: 'Conta', href: '/aluno/conta', caminho: '/aluno/conta', Icone: UserRound, tambem: telasDaOrigem('/aluno/conta') },
@@ -55,15 +54,14 @@ export default function LayoutAluno() {
 }
 
 function MenuAluno() {
-  const {atualizacao,mobilidade,escolhida}=useAluno();
-  const comMobilidade=temAbaMobilidade(mobilidade,escolhida?{mobilidade:escolhida.planos.mobilidade}:null);
+  const {atualizacao}=useAluno();
   // O ponto no Início conta as pendências: a atualização a enviar, a anamnese a responder e o pagamento em aberto.
   const anamnese=useAnamnese();
   const anamnesePendente=anamnese.dados?.situacao==='PENDENTE';
   const financeiro=useFinanceiroDoAluno();
   const pagamentoEmAberto=financeiro.habilitado&&pagamentoPendente(financeiro.dados?.abertas,hojeEmBrasilia()).length>0;
   const ponto=pagamentoEmAberto || anamnesePendente || (!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)}));
-  return <Navegacao itens={ITENS.filter(item=>item.caminho!=='/aluno/mobilidade'||comMobilidade).map(item=>item.caminho==='/aluno'?{...item,ponto}:item)} sempreInferior larguraInferior={720} rodape={<RodapeAluno />} />;
+  return <Navegacao itens={ITENS.map(item=>item.caminho==='/aluno'?{...item,ponto}:item)} sempreInferior larguraInferior={720} rodape={<RodapeAluno />} />;
 }
 
 /** Sincronização à vista em todas as telas do aluno, logo acima da barra de baixo; o descanso vem por último. */

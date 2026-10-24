@@ -41,7 +41,7 @@ export default function SessaoAluno() {
   if (!dia.carregado) {
     return (
       <Tela bordas={['top']} largura={720}>
-        <Cabecalho titulo="Treino" voltar="/aluno" />
+        <Cabecalho titulo="Treino" voltar="/aluno/treino" />
         <Esqueleto />
       </Tela>
     );
@@ -49,7 +49,7 @@ export default function SessaoAluno() {
   if (!dia.treino || !sessao) {
     return (
       <Tela bordas={['top']} largura={720}>
-        <Cabecalho titulo="Treino" voltar="/aluno" />
+        <Cabecalho titulo="Treino" voltar="/aluno/treino" />
         <Vazio texto="Esta sessão não está mais no seu plano. Volte para ver o treino atual." />
       </Tela>
     );
@@ -67,7 +67,7 @@ export default function SessaoAluno() {
       <Cabecalho
         titulo={nomeComDia(sessao)}
         subtitulo={contagem(sessao.exercicios.length, 'exercício programado', 'exercícios programados')}
-        voltar="/aluno"
+        voltar="/aluno/treino"
       />
       </Animated.View>
       <Cartao>

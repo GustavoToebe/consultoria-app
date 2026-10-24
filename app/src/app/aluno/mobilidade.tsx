@@ -40,12 +40,13 @@ export default function MobilidadeAluno() {
       <Cabecalho titulo="Mobilidade" />
       <Texto variante="suave">Mobilidade e alongamentos do seu treinador, com vídeo quando houver.</Texto>
       <SeletorPlano rotulo={null} />
-      {versao ? <Mobilidade versao={versao} /> : <Vazio titulo="Sem mobilidade" texto={escolhida ? 'Este plano não tem mobilidade publicada.' : 'Seu treinador ainda não publicou a mobilidade.'} />}
+      {versao ? <ConteudoDaMobilidade versao={versao} /> : <Vazio titulo="Sem mobilidade" texto={escolhida ? 'Este plano não tem mobilidade publicada.' : 'Seu treinador ainda não publicou a mobilidade.'} />}
     </Tela>
   );
 }
 
-function Mobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }) {
+/** O bloco da mobilidade, usado na aba Treino e no endereço antigo `/aluno/mobilidade`. */
+export function ConteudoDaMobilidade({ versao }: { versao: VersaoDetalhe<ConteudoMobilidadeApi> }) {
   const { avisar } = useAviso();
   const { cores } = useTema();
   const { temFuncionalidade } = useSessao();
