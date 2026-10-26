@@ -3,6 +3,7 @@ package br.com.treinos.api.importacao;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
+import br.com.treinos.api.alunos.AlunoService;
 import br.com.treinos.api.alunos.RegrasDoEndereco;
 import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import br.com.treinos.api.auth.Papel;
@@ -31,6 +32,7 @@ import br.com.treinos.api.web.Formatos;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.LinksExternos;
 import br.com.treinos.api.web.VideoUrls;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -41,6 +43,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -48,8 +51,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Valida e, na confirmação, grava as linhas válidas. Não chama serviço com {@code @Auditar}: a importação inteira
- * gera um único evento. Célula vazia não vira zero e não apaga o que já está.
+ * Valida e, na confirmação, grava as linhas válidas. Não chama serviço com {@code @Auditar}: a confirmação inteira
+ * gera um único {@code IMPORTACAO_CONCLUIDA}. A exceção é a situação do aluno, que segue as regras do cadastro e grava
+ * {@code ALUNO_SITUACAO} só de quem mudou ({@link AlunoService#aplicarSituacaoDaImportacao}). Célula vazia não vira zero
+ * e não apaga o que já está.
  */
 @Component
 class GravadorDaImportacao {
@@ -61,6 +66,7 @@ class GravadorDaImportacao {
             "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "responsavel", "dias", "situacao");
 
     private final AlunoRepository alunos;
+    private final AlunoService alunoService;
     private final UsuarioRepository usuarios;
     private final PlanoDaConsultoria plano;
     private final RegistroPesoRepository pesos;
@@ -71,11 +77,12 @@ class GravadorDaImportacao {
     private final VideoUrls videos;
     private final JsonMapper json;
 
-    GravadorDaImportacao(AlunoRepository alunos, UsuarioRepository usuarios, PlanoDaConsultoria plano,
-                         RegistroPesoRepository pesos, ExercicioRepository exercicios, AlimentoRepository alimentos,
-                         SuplementoRepository suplementos, ErgogenicoRepository ergogenicos, VideoUrls videos,
-                         JsonMapper json) {
+    GravadorDaImportacao(AlunoRepository alunos, AlunoService alunoService, UsuarioRepository usuarios,
+                         PlanoDaConsultoria plano, RegistroPesoRepository pesos, ExercicioRepository exercicios,
+                         AlimentoRepository alimentos, SuplementoRepository suplementos,
+                         ErgogenicoRepository ergogenicos, VideoUrls videos, JsonMapper json) {
         this.alunos = alunos;
+        this.alunoService = alunoService;
         this.usuarios = usuarios;
         this.plano = plano;
         this.pesos = pesos;
@@ -162,9 +169,12 @@ class GravadorDaImportacao {
         String observacoes = textoFinal(novo, atual == null ? null : atual.getObservacoes(), leitura(linha, config, "observacoes"), "observacoes", 4000, false);
         Integer dias = diasFinal(novo, atual == null ? null : atual.getDiasAtualizacao(), leitura(linha, config, "dias"));
         Boolean situacao = situacao(leitura(linha, config, "situacao"), linha.numero());
+        if (!novo && "COMPLETAR".equals(regra)) {
+            situacao = null; // completar só preenche vazio: a situação de quem já existe nunca muda
+        }
         boolean ativo = situacao == null ? (novo || atual.isAtivo()) : situacao;
         String cpf = cpfFinal(novo, atual, leitura(linha, config, "cpf"), indice, regra);
-        Endereco endereco = enderecoFinal(novo, atual == null ? null : atual.endereco(), linha, config, regra);
+        Endereco endereco = enderecoFinal(novo, atual, linha, config, regra);
         UUID responsavel = responsavelFinal(novo, atual == null ? null : atual.getResponsavelId(), leitura(linha, config, "responsavel"), equipe, usuarioId, linha.numero());
         String telefone = telefoneFinal(atual, leitura(linha, config, "telefone"), linha.numero());
         boolean reativa = !novo && !atual.isAtivo() && ativo;
@@ -187,7 +197,7 @@ class GravadorDaImportacao {
                 aluno.alterarEndereco(endereco);
             }
             if (gravar) {
-                alunos.saveAndFlush(aluno);
+                salvar(aluno);
             }
             indice.adicionar(aluno);
             conta.novos++;
@@ -195,24 +205,43 @@ class GravadorDaImportacao {
         }
         if (gravar) {
             atual.alterarDados(nome, email, objetivo, observacoes, dias);
-            if (situacao != null && situacao != atual.isAtivo()) {
-                atual.alterarSituacao(ativo, Instant.now());
-            }
             if (responsavel != null && config.mapeado("responsavel") && !leitura(linha, config, "responsavel").vazio()) {
                 atual.alterarResponsavel(responsavel);
             }
             if (config.mapeado("cpf") && !leitura(linha, config, "cpf").vazio()) {
                 atual.alterarCpf(cpf);
             }
-            if (enderecoInformado(linha, config)) {
+            if (endereco != null) {
                 atual.alterarEndereco(endereco);
             }
             if (telefone != null && atual.getUsuarioId() != null) {
-                usuarios.buscarParaAlterar(atual.getUsuarioId()).ifPresent(u -> u.alterarTelefone(telefone));
+                usuarios.buscarParaAlterar(atual.getUsuarioId()).ifPresent(u -> {
+                    if (!"COMPLETAR".equals(regra) || u.getTelefone() == null || u.getTelefone().isBlank()) {
+                        u.alterarTelefone(telefone);
+                    }
+                });
             }
-            alunos.saveAndFlush(atual);
+            salvar(atual);
+            if (situacao != null && situacao != atual.isAtivo()) {
+                // Por último: encerrar as sessões não se desfaz. Mesmas consequências da rota do cadastro.
+                alunoService.aplicarSituacaoDaImportacao(atual, ativo);
+                salvar(atual);
+            }
         }
+        indice.trocarCpf(atual, cpf);
         conta.atualizados++;
+    }
+
+    /** A rede de segurança do CPF: o índice da planilha já pega o repetido; isto cobre só a corrida com outra gravação. */
+    private void salvar(Aluno aluno) {
+        try {
+            alunos.saveAndFlush(aluno);
+        } catch (DataIntegrityViolationException e) {
+            if (AlunoService.violouCpf(e)) {
+                throw AlunoService.cpfEmUso();
+            }
+            throw e;
+        }
     }
 
     private void pesos(List<Linha> dados, ConfiguracaoDaImportacao config, UUID usuarioId, boolean gravar, Conta conta,
@@ -433,21 +462,28 @@ class GravadorDaImportacao {
         }
     }
 
+    /**
+     * A identidade na biblioteca é nome (sem acento) + concentração + apresentação, como no {@code existeIgual}: sem
+     * correspondência exata a linha cria a variante; com ela, a regra vale para categoria, princípio ativo e observação.
+     */
     private void outros(List<Linha> dados, ConfiguracaoDaImportacao config, boolean gravar, Conta conta) {
-        Map<String, List<Ergogenico>> porNome = new LinkedHashMap<>();
+        Map<String, List<Ergogenico>> porVariante = new LinkedHashMap<>();
         for (Ergogenico e : ergogenicos.findAll()) {
             if (e.isAtivo()) {
-                porNome.computeIfAbsent(Buscas.semAcento(e.getNome()), k -> new ArrayList<>()).add(e);
+                porVariante.computeIfAbsent(variante(e.getNome(), e.getConcentracao(), e.getApresentacao()), k -> new ArrayList<>()).add(e);
             }
         }
         for (Linha linha : dados) {
             conta.amostra(linha, config, List.of("nome", "categoria", "principio", "concentracao", "apresentacao", "observacao"));
             try {
                 marcar(linha);
-                String nome = textoFinal(true, null, obrigatoria(linha, config, "nome"), "nome", 120, true);
-                List<Ergogenico> achados = porNome.getOrDefault(Buscas.semAcento(nome), List.of());
+                String nomeLido = textoFinal(true, null, obrigatoria(linha, config, "nome"), "nome", 120, true);
+                String concentracao = identidade(leitura(linha, config, "concentracao"), "concentracao", 40);
+                String apresentacao = identidade(leitura(linha, config, "apresentacao"), "apresentacao", 40);
+                String chave = variante(nomeLido, concentracao, apresentacao);
+                List<Ergogenico> achados = porVariante.getOrDefault(chave, List.of());
                 if (achados.size() > 1) {
-                    throw falha(linha, "nome", "Há mais de um item com este nome.");
+                    throw falha(linha, "nome", "Há mais de um item com este nome, concentração e apresentação.");
                 }
                 Ergogenico atual = achados.isEmpty() ? null : achados.get(0);
                 if (atual != null && "IGNORAR".equals(config.existentes())) {
@@ -455,19 +491,14 @@ class GravadorDaImportacao {
                     continue;
                 }
                 boolean novo = atual == null;
+                String nome = novo ? nomeLido : textoFinal(false, atual.getNome(), leitura(linha, config, "nome"), "nome", 120, true);
                 String categoria = textoFinal(novo, atual == null ? null : atual.getCategoria(), leitura(linha, config, "categoria"), "categoria", 60, false);
                 String principio = textoFinal(novo, atual == null ? null : atual.getPrincipioAtivo(), leitura(linha, config, "principio"), "principio", 160, false);
-                String concentracao = textoFinal(novo, atual == null ? null : atual.getConcentracao(), leitura(linha, config, "concentracao"), "concentracao", 40, false);
-                String apresentacao = textoFinal(novo, atual == null ? null : atual.getApresentacao(), leitura(linha, config, "apresentacao"), "apresentacao", 40, false);
                 String observacao = textoFinal(novo, atual == null ? null : atual.getObservacao(), leitura(linha, config, "observacao"), "observacao", 500, false);
                 var valores = new Ergogenico.Valores(categoria, nome, Buscas.semAcento(nome), principio,
-                        Buscas.semAcento(principio), concentracao, apresentacao, observacao);
-                if (!novo && ergogenicos.existeIgual(Buscas.semAcento(nome), concentracao == null ? "" : concentracao,
-                        apresentacao == null ? "" : apresentacao, atual.getId())) {
-                    throw falha(linha, "nome", "Já existe um item com este nome.");
-                }
-                if (novo && ergogenicos.existeIgual(Buscas.semAcento(nome), concentracao == null ? "" : concentracao,
-                        apresentacao == null ? "" : apresentacao, UUID.randomUUID())) {
+                        Buscas.semAcento(principio), concentracao.isEmpty() ? null : concentracao,
+                        apresentacao.isEmpty() ? null : apresentacao, observacao);
+                if (novo && ergogenicos.existeIgual(Buscas.semAcento(nome), concentracao, apresentacao, UUID.randomUUID())) {
                     throw falha(linha, "nome", "Já existe um item com este nome.");
                 }
                 if (novo) {
@@ -475,7 +506,7 @@ class GravadorDaImportacao {
                     if (gravar) {
                         ergogenicos.saveAndFlush(criado);
                     }
-                    porNome.computeIfAbsent(Buscas.semAcento(nome), k -> new ArrayList<>()).add(criado);
+                    porVariante.computeIfAbsent(chave, k -> new ArrayList<>()).add(criado);
                     conta.novos++;
                 } else if (gravar) {
                     atual.alterar(valores);
@@ -488,6 +519,19 @@ class GravadorDaImportacao {
                 conta.falha(e.linha, e.campo, e.motivo);
             }
         }
+    }
+
+    /** Concentração e apresentação como identidade: ausente ou vazia é "" (o {@code existeIgual} compara assim). */
+    private String identidade(Leitura lida, String campo, int maximo) {
+        if (lida.erro()) {
+            throw falhaCampo(campo, "Célula com erro.");
+        }
+        return !lida.mapeado() || lida.vazio() ? "" : limitar(lida.texto(), maximo, -1, campo);
+    }
+
+    private static String variante(String nome, String concentracao, String apresentacao) {
+        return Buscas.semAcento(nome) + '\0' + (concentracao == null ? "" : concentracao) + '\0'
+                + (apresentacao == null ? "" : apresentacao);
     }
 
     private String textoFinal(boolean novo, String atual, Leitura lida, String campo, int maximo, boolean obrigatorio) {
@@ -581,22 +625,29 @@ class GravadorDaImportacao {
         return cpf;
     }
 
-    private Endereco enderecoFinal(boolean novo, Endereco atual, Linha linha, ConfiguracaoDaImportacao config, String regra) {
+    /**
+     * O endereço é um bloco, como na ficha: sem nenhuma coluna preenchida não mexe (nulo); com alguma, a linha traz o
+     * endereço completo (a mesma {@link RegrasDoEndereco}) e ele substitui o atual por inteiro, sem mesclar. Em COMPLETAR
+     * só grava se o atual está todo vazio.
+     */
+    private Endereco enderecoFinal(boolean novo, Aluno atual, Linha linha, ConfiguracaoDaImportacao config, String regra) {
         if (!enderecoInformado(linha, config)) {
-            return atual;
+            return null;
         }
-        Endereco base = atual == null ? new Endereco(null, null, null, null, null, null, null) : atual;
-        String cep = parteEndereco(novo, base.cep(), leitura(linha, config, "cep"), "cep", regra);
-        String logradouro = parteEndereco(novo, base.logradouro(), leitura(linha, config, "logradouro"), "logradouro", regra);
-        String numero = parteEndereco(novo, base.numero(), leitura(linha, config, "numero"), "numero", regra);
-        String complemento = parteEndereco(novo, base.complemento(), leitura(linha, config, "complemento"), "complemento", regra);
-        String bairro = parteEndereco(novo, base.bairro(), leitura(linha, config, "bairro"), "bairro", regra);
-        String cidade = parteEndereco(novo, base.cidade(), leitura(linha, config, "cidade"), "cidade", regra);
-        String uf = parteEndereco(novo, base.uf(), leitura(linha, config, "uf"), "uf", regra);
-        var resultado = RegrasDoEndereco.normalizar(new Endereco(cep, logradouro, numero, complemento, bairro, cidade, uf));
+        var resultado = RegrasDoEndereco.normalizar(new Endereco(
+                parteEndereco(leitura(linha, config, "cep"), "cep"),
+                parteEndereco(leitura(linha, config, "logradouro"), "logradouro"),
+                parteEndereco(leitura(linha, config, "numero"), "numero"),
+                parteEndereco(leitura(linha, config, "complemento"), "complemento"),
+                parteEndereco(leitura(linha, config, "bairro"), "bairro"),
+                parteEndereco(leitura(linha, config, "cidade"), "cidade"),
+                parteEndereco(leitura(linha, config, "uf"), "uf")));
         if (!resultado.valido()) {
             var erro = resultado.erros().get(0);
             throw falhaCampo(erro.campo() == null ? "cep" : erro.campo(), erro.mensagem());
+        }
+        if (!novo && "COMPLETAR".equals(regra) && atual.endereco() != null) {
+            return null;
         }
         return resultado.endereco();
     }
@@ -604,27 +655,18 @@ class GravadorDaImportacao {
     private static boolean enderecoInformado(Linha linha, ConfiguracaoDaImportacao config) {
         for (String campo : List.of("cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf")) {
             Leitura lida = leitura(linha, config, campo);
-            if (lida.mapeado() && !lida.vazio() && !lida.erro()) {
-                return true;
-            }
-            if (lida.erro()) {
+            if (lida.erro() || (lida.mapeado() && !lida.vazio())) {
                 return true;
             }
         }
         return false;
     }
 
-    private String parteEndereco(boolean novo, String atual, Leitura lida, String campo, String regra) {
+    private String parteEndereco(Leitura lida, String campo) {
         if (lida.erro()) {
             throw falhaCampo(campo, "Célula com erro.");
         }
-        if (!lida.mapeado() || lida.vazio()) {
-            return atual;
-        }
-        if (!novo && "COMPLETAR".equals(regra) && atual != null && !atual.isBlank()) {
-            return atual;
-        }
-        return lida.texto();
+        return !lida.mapeado() || lida.vazio() ? null : lida.texto();
     }
 
     private UUID responsavelFinal(boolean novo, UUID atual, Leitura lida, Map<String, Usuario> equipe, UUID usuarioId, int numero) {
@@ -1035,6 +1077,8 @@ class GravadorDaImportacao {
         private final Map<String, List<Aluno>> porEmail = new LinkedHashMap<>();
         private final Map<String, List<Aluno>> porCpf = new LinkedHashMap<>();
         private final Map<String, List<Aluno>> porNome = new LinkedHashMap<>();
+        /** O CPF com que cada aluno está no índice: na prévia a entidade não muda, então não dá para reler dela. */
+        private final Map<Aluno, String> cpfIndexado = new IdentityHashMap<>();
 
         Indice(List<Aluno> todos) {
             todos.forEach(this::adicionar);
@@ -1044,6 +1088,23 @@ class GravadorDaImportacao {
             por(porEmail, Emails.normalizar(aluno.getEmail()), aluno);
             por(porCpf, aluno.getCpf(), aluno);
             por(porNome, Buscas.semAcento(aluno.getNome()), aluno);
+            cpfIndexado.put(aluno, aluno.getCpf());
+        }
+
+        /** O índice acompanha as atualizações: o CPF antigo de quem mudou fica livre e o novo passa a ser dele. */
+        void trocarCpf(Aluno aluno, String novo) {
+            String antigo = cpfIndexado.get(aluno);
+            if (java.util.Objects.equals(antigo, novo)) {
+                return;
+            }
+            if (antigo != null) {
+                List<Aluno> donos = porCpf.get(antigo);
+                if (donos != null) {
+                    donos.removeIf(d -> d.equals(aluno));
+                }
+            }
+            por(porCpf, novo, aluno);
+            cpfIndexado.put(aluno, novo);
         }
 
         List<Aluno> buscar(String chave, String texto) {

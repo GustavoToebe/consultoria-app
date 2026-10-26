@@ -218,6 +218,20 @@ public class AlunoService {
         }
     }
 
+    /**
+     * A situação pela Importação: as mesmas consequências da rota ({@link #alterarSituacao}) e o mesmo evento
+     * {@code ALUNO_SITUACAO}, só que sem {@code @Auditar}, porque a confirmação já é uma transação que grava um único
+     * {@code IMPORTACAO_CONCLUIDA}. A vaga do plano NÃO é conferida aqui: o gravador já a reservou antes (conferir de novo
+     * contaria duas vezes). Só para aluno que já existe e cuja situação de fato muda.
+     */
+    public void aplicarSituacaoDaImportacao(Aluno aluno, boolean ativo) {
+        if (ativo) {
+            exigirNaoAnonimizado(aluno);
+        }
+        aplicarSituacao(aluno, ativo);
+        auditoria.registrarEvento("ALUNO_SITUACAO", "ALUNO", aluno.getId(), "Alterou a situação do aluno.");
+    }
+
     /** Nulo apaga. Valor fora do enum é 422 no campo, sem repetir o valor. */
     public void definirSexo(Aluno aluno, String informado) {
         exigirNaoAnonimizado(aluno);

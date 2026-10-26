@@ -2,8 +2,10 @@ package br.com.treinos.api.importacao;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.Documentos;
 import br.com.treinos.api.conta.ContaLocalRepositorio;
 import br.com.treinos.api.conta.DireitosLocais;
+import br.com.treinos.api.web.Fuso;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -238,6 +241,270 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
                 assertThat(previa.path("novos").asInt() + previa.path("ignorados").asInt()).isEqualTo(3);
             }
         }
+    }
+
+    // ---- Rodada 3a: situação, CPF repetido, COMPLETAR, endereço em bloco e "Outros" por variante ----
+
+    @Test
+    void situacaoPelaPlanilhaSegueAsRegrasDoCadastro() throws Exception {
+        String emailSai = unico("sai");
+        String emailJaInativo = unico("ja-inativo");
+        String emailFica = unico("fica");
+        UUID sai = alunoComEmail("Sai Fictício", emailSai);
+        UUID jaInativo = alunoComEmail("Já Inativo Fictício", emailJaInativo);
+        UUID fica = alunoComEmail("Fica Fictício", emailFica);
+        JsonNode login = api.convidarEEntrar(treinador, sai);
+        api.get("/aluno/painel", login, 200);
+        JsonNode plano = api.post("/financeiro/planos", treinador, Map.of("nome", "Mensal " + UUID.randomUUID(),
+                "valorCentavos", 25000, "periodicidade", "MENSAL"), 200);
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        api.post("/alunos/" + sai + "/contratacoes", treinador, Map.of("planoComercialId", plano.path("id").asString(),
+                "inicio", hoje.toString(), "diaVencimento", hoje.getDayOfMonth()), 200);
+        api.patch("/alunos/" + jaInativo + "/situacao", treinador, Map.of("ativo", false), 200);
+        int auditoriaJaInativo = auditorias("ALUNO_SITUACAO", jaInativo);
+
+        String csv = "nome;email;situacao\nSai Fictício;" + emailSai + ";inativo\nJá Inativo Fictício;" + emailJaInativo
+                + ";inativo\nFica Fictício;" + emailFica + ";ativo\n";
+        String config = config("email", "ATUALIZAR", Map.of("nome", 0, "email", 1, "situacao", 2));
+        JsonNode previa = previa("alunos", "situacao.csv", csv, config);
+        assertThat(previa.path("comErro").asInt()).isZero();
+        assertThat(usuarioAtivo(login)).isTrue();
+
+        JsonNode feito = confirmar("alunos", "situacao.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+
+        assertThat(usuarioAtivo(login)).as("usuário do aluno inativado").isFalse();
+        api.get("/aluno/painel", login, 401);
+        JsonNode cobrancas = api.get("/alunos/" + sai + "/cobrancas", treinador, 200);
+        assertThat(cobrancas).isNotEmpty();
+        cobrancas.forEach(c -> assertThat(c.path("situacao").asString()).isEqualTo("CANCELADA"));
+        assertThat(api.get("/alunos/" + sai + "/contratacoes", treinador, 200).get(0).path("situacao").asString())
+                .isEqualTo("ENCERRADA");
+        assertThat(auditorias("ALUNO_SITUACAO", sai)).isEqualTo(1);
+        assertThat(auditorias("ALUNO_SITUACAO", jaInativo)).isEqualTo(auditoriaJaInativo);
+        assertThat(auditorias("ALUNO_SITUACAO", fica)).isZero();
+        assertThat(auditorias("IMPORTACAO_CONCLUIDA", UUID.fromString(feito.path("id").asString()))).isEqualTo(1);
+    }
+
+    @Test
+    void reativarPelaPlanilhaReabreOLoginEAnonimizadoViraErroDaLinha() throws Exception {
+        String emailVolta = unico("volta");
+        String emailAnonimo = unico("anonimo");
+        UUID volta = alunoComEmail("Volta Fictício", emailVolta);
+        UUID anonimo = alunoComEmail("Anônimo Fictício", emailAnonimo);
+        JsonNode login = api.convidarEEntrar(treinador, volta);
+        String emailLogin = jdbc.queryForObject("select email from usuario where id = ?::uuid", String.class,
+                login.path("usuario").path("id").asString());
+        api.patch("/alunos/" + volta + "/situacao", treinador, Map.of("ativo", false), 200);
+        assertThat(usuarioAtivo(login)).isFalse();
+        jdbc.update("update aluno set ativo = false, inativado_em = now(), anonimizado_em = now() where id = ?::uuid",
+                anonimo.toString());
+
+        String csv = "nome;email;situacao\nVolta Fictício;" + emailVolta + ";ativo\nAnônimo Fictício;" + emailAnonimo + ";ativo\n";
+        String config = config("email", "ATUALIZAR", Map.of("nome", 0, "email", 1, "situacao", 2));
+        JsonNode previa = previa("alunos", "volta.csv", csv, config);
+        assertThat(previa.path("comErro").asInt()).isEqualTo(1);
+        assertThat(previa.path("erros").get(0).path("motivo").asString()).contains("anonimizado");
+        confirmar("alunos", "volta.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+
+        assertThat(api.get("/alunos/" + volta, treinador, 200).path("ativo").asBoolean()).isTrue();
+        assertThat(usuarioAtivo(login)).as("usuário reativado").isTrue();
+        api.post("/auth/login", null, Map.of("email", emailLogin, "senha", ApiDeTeste.SENHA), 200);
+        assertThat(auditorias("ALUNO_SITUACAO", volta)).isEqualTo(2);
+        assertThat(api.get("/alunos/" + anonimo, treinador, 200).path("ativo").asBoolean()).isFalse();
+        assertThat(auditorias("ALUNO_SITUACAO", anonimo)).isZero();
+    }
+
+    @Test
+    void cpfRepetidoEntreExistentesViraErroDaLinhaNaPreviaENaConfirmacao() throws Exception {
+        String emailA = unico("cpf-a");
+        String emailB = unico("cpf-b");
+        UUID a = alunoComEmail("Cpf A Fictício", emailA);
+        UUID b = alunoComEmail("Cpf B Fictício", emailB);
+        String cpf = Documentos.cpf();
+        String csv = "nome;email;cpf\nCpf A Fictício;" + emailA + ";" + cpf + "\nCpf B Fictício;" + emailB + ";" + cpf + "\n";
+        String config = config("email", "ATUALIZAR", Map.of("nome", 0, "email", 1, "cpf", 2));
+        JsonNode previa = previa("alunos", "cpf2.csv", csv, config);
+        assertThat(previa.path("atualizados").asInt()).isEqualTo(1);
+        assertThat(previa.path("comErro").asInt()).isEqualTo(1);
+        assertThat(previa.path("erros").get(0).path("campo").asString()).isEqualTo("cpf");
+        assertThat(previa.path("erros").toString()).doesNotContain(cpf).doesNotContain(cpf.replaceAll("\\D", ""));
+
+        JsonNode feito = confirmar("alunos", "cpf2.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+        assertThat(feito.path("situacao").asString()).isEqualTo("CONCLUIDA_COM_ERROS");
+        assertThat(feito.path("atualizados").asInt()).isEqualTo(1);
+        assertThat(feito.path("comErro").asInt()).isEqualTo(1);
+        assertThat(feito.path("erros").get(0).path("linha").asInt()).isEqualTo(previa.path("erros").get(0).path("linha").asInt());
+        assertThat(feito.toString()).doesNotContain(cpf);
+        assertThat(api.get("/alunos/" + a, treinador, 200).path("cpf").asString()).isEqualTo(cpf);
+        assertThat(api.get("/alunos/" + b, treinador, 200).path("cpf").isMissingNode()
+                || api.get("/alunos/" + b, treinador, 200).path("cpf").isNull()).isTrue();
+    }
+
+    @Test
+    void cpfAntigoLiberadoPorAtualizacaoETrocaEntreDoisNaoDa500() throws Exception {
+        String emailA = unico("troca-a");
+        String antigo = Documentos.cpf();
+        String novo = Documentos.cpf();
+        api.post("/alunos", treinador, Map.of("nome", "Troca A Fictício", "email", emailA, "cpf", antigo), 200);
+        String emailNovoUm = unico("novo-um");
+        String emailNovoDois = unico("novo-dois");
+        String csv = "nome;email;cpf\nTroca A Fictício;" + emailA + ";" + novo + "\nNovo Um Fictício;" + emailNovoUm + ";" + antigo
+                + "\nNovo Dois Fictício;" + emailNovoDois + ";" + novo + "\n";
+        String config = config("email", "ATUALIZAR", Map.of("nome", 0, "email", 1, "cpf", 2));
+        JsonNode previa = previa("alunos", "troca.csv", csv, config);
+        assertThat(previa.path("atualizados").asInt()).isEqualTo(1);
+        assertThat(previa.path("novos").asInt()).as("o CPF antigo de A ficou livre").isEqualTo(1);
+        assertThat(previa.path("comErro").asInt()).isEqualTo(1);
+        assertThat(previa.path("erros").get(0).path("linha").asInt()).as("só o novo com o CPF que A passou a ter").isEqualTo(4);
+        confirmar("alunos", "troca.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+        assertThat(jdbc.queryForObject("select cpf from aluno where email = ?", String.class, emailA)).isEqualTo(novo);
+        assertThat(jdbc.queryForObject("select cpf from aluno where email = ?", String.class, emailNovoUm)).isEqualTo(antigo);
+        assertThat(jdbc.queryForObject("select count(*) from aluno where email = ?", Integer.class, emailNovoDois)).isZero();
+
+        // Troca entre dois: processando em sequência, cada CPF ainda é do outro; as duas linhas são recusadas, sem 500.
+        String emailC = unico("troca-c");
+        String emailD = unico("troca-d");
+        String cpfC = Documentos.cpf();
+        String cpfD = Documentos.cpf();
+        api.post("/alunos", treinador, Map.of("nome", "Troca C Fictício", "email", emailC, "cpf", cpfC), 200);
+        api.post("/alunos", treinador, Map.of("nome", "Troca D Fictício", "email", emailD, "cpf", cpfD), 200);
+        String troca = "nome;email;cpf\nTroca C Fictício;" + emailC + ";" + cpfD + "\nTroca D Fictício;" + emailD + ";" + cpfC + "\n";
+        JsonNode previaTroca = previa("alunos", "troca2.csv", troca, config);
+        assertThat(previaTroca.path("comErro").asInt()).isEqualTo(2);
+        JsonNode feitoTroca = confirmar("alunos", "troca2.csv", troca.getBytes(StandardCharsets.UTF_8), config, previaTroca.path("hash").asString());
+        assertThat(feitoTroca.path("comErro").asInt()).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select cpf from aluno where email = ?", String.class, emailC)).isEqualTo(cpfC);
+        assertThat(jdbc.queryForObject("select cpf from aluno where email = ?", String.class, emailD)).isEqualTo(cpfD);
+    }
+
+    @Test
+    void completarNaoTrocaTelefoneNemSituacao() throws Exception {
+        String emailCom = unico("com-tel");
+        String emailSem = unico("sem-tel");
+        String emailInativo = unico("inativo-completar");
+        UUID com = alunoComEmail("Com Telefone Fictício", emailCom);
+        UUID sem = alunoComEmail("Sem Telefone Fictício", emailSem);
+        UUID inativo = alunoComEmail("Inativo Fictício", emailInativo);
+        JsonNode loginCom = api.convidarEEntrar(treinador, com);
+        JsonNode loginSem = api.convidarEEntrar(treinador, sem);
+        jdbc.update("update usuario set telefone = ? where id = ?::uuid", "(45) 99999-1111", loginCom.path("usuario").path("id").asString());
+        api.patch("/alunos/" + inativo + "/situacao", treinador, Map.of("ativo", false), 200);
+
+        String csv = "nome;email;telefone;situacao\nCom Telefone Fictício;" + emailCom + ";(45) 98888-2222;inativo\nSem Telefone Fictício;"
+                + emailSem + ";(45) 98888-2222;\nInativo Fictício;" + emailInativo + ";;ativo\n";
+        String config = config("email", "COMPLETAR", Map.of("nome", 0, "email", 1, "telefone", 2, "situacao", 3));
+        JsonNode previa = previa("alunos", "completar.csv", csv, config);
+        assertThat(previa.path("comErro").asInt()).isZero();
+        confirmar("alunos", "completar.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+
+        assertThat(telefoneDe(loginCom)).isEqualTo("45999991111");
+        assertThat(api.get("/alunos/" + com, treinador, 200).path("ativo").asBoolean()).isTrue();
+        assertThat(usuarioAtivo(loginCom)).isTrue();
+        assertThat(telefoneDe(loginSem)).as("o vazio é preenchido").isEqualTo("45988882222");
+        assertThat(api.get("/alunos/" + inativo, treinador, 200).path("ativo").asBoolean()).isFalse();
+    }
+
+    private static final Map<String, Integer> COLUNAS_COM_ENDERECO = colunas("nome", "email", "cep", "logradouro", "numero",
+            "complemento", "bairro", "cidade", "uf");
+
+    private UUID alunoComEndereco(String nome, String email) throws Exception {
+        Map<String, Object> endereco = Map.of("cep", "85800-000", "logradouro", "Rua Antiga Fictícia", "numero", "10",
+                "complemento", "Apto 1", "bairro", "Centro", "cidade", "Cidade Fictícia", "uf", "PR");
+        return UUID.fromString(api.post("/alunos", treinador, Map.of("nome", nome, "email", email, "endereco", endereco), 200)
+                .path("id").asString());
+    }
+
+    @Test
+    void enderecoDaPlanilhaEUmBlocoQueSubstituiOAtual() throws Exception {
+        String emailParcial = unico("end-parcial");
+        String emailCompleto = unico("end-completo");
+        UUID parcial = alunoComEndereco("Parcial Fictício", emailParcial);
+        UUID completo = alunoComEndereco("Completo Fictício", emailCompleto);
+        String csv = "nome;email;cep;logradouro;numero;complemento;bairro;cidade;uf\n"
+                + "Parcial Fictício;" + emailParcial + ";85900-111;;;;;;\n"
+                + "Completo Fictício;" + emailCompleto + ";85900-222;Rua Nova Fictícia;99;;Bairro Novo;Outra Cidade Fictícia;SC\n";
+        String config = config("email", "ATUALIZAR", COLUNAS_COM_ENDERECO);
+        JsonNode previa = previa("alunos", "endereco.csv", csv, config);
+        assertThat(previa.path("comErro").asInt()).isEqualTo(1);
+        assertThat(previa.path("atualizados").asInt()).isEqualTo(1);
+        assertThat(previa.path("erros").get(0).path("campo").asString()).isEqualTo("logradouro");
+        confirmar("alunos", "endereco.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+
+        JsonNode antigo = api.get("/alunos/" + parcial, treinador, 200).path("endereco");
+        assertThat(antigo.path("cep").asString()).isEqualTo("85800-000");
+        assertThat(antigo.path("logradouro").asString()).isEqualTo("Rua Antiga Fictícia");
+        JsonNode novo = api.get("/alunos/" + completo, treinador, 200).path("endereco");
+        assertThat(novo.path("cep").asString()).isEqualTo("85900-222");
+        assertThat(novo.path("logradouro").asString()).isEqualTo("Rua Nova Fictícia");
+        assertThat(novo.path("uf").asString()).isEqualTo("SC");
+        assertThat(novo.path("complemento").isMissingNode() || novo.path("complemento").isNull())
+                .as("o complemento antigo some junto com o resto").isTrue();
+    }
+
+    @Test
+    void completarSoGravaEnderecoSeOAtualEstaTodoVazio() throws Exception {
+        String emailCom = unico("end-com");
+        String emailSem = unico("end-sem");
+        UUID com = alunoComEndereco("Com Endereço Fictício", emailCom);
+        UUID sem = alunoComEmail("Sem Endereço Fictício", emailSem);
+        String csv = "nome;email;cep;logradouro;numero;complemento;bairro;cidade;uf\n"
+                + "Com Endereço Fictício;" + emailCom + ";85900-222;Rua Nova Fictícia;99;;Bairro Novo;Outra Cidade Fictícia;SC\n"
+                + "Sem Endereço Fictício;" + emailSem + ";85900-222;Rua Nova Fictícia;99;;Bairro Novo;Outra Cidade Fictícia;SC\n";
+        String config = config("email", "COMPLETAR", COLUNAS_COM_ENDERECO);
+        JsonNode previa = previa("alunos", "endereco2.csv", csv, config);
+        assertThat(previa.path("comErro").asInt()).isZero();
+        confirmar("alunos", "endereco2.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+        JsonNode intacto = api.get("/alunos/" + com, treinador, 200).path("endereco");
+        assertThat(intacto.path("cep").asString()).isEqualTo("85800-000");
+        assertThat(intacto.path("complemento").asString()).isEqualTo("Apto 1");
+        assertThat(api.get("/alunos/" + sem, treinador, 200).path("endereco").path("cep").asString()).isEqualTo("85900-222");
+    }
+
+    @Test
+    void outrosCasaPorNomeConcentracaoEApresentacao() throws Exception {
+        String nome = "Teste X " + UUID.randomUUID();
+        String config = config("nome", "ATUALIZAR", Map.of("nome", 0, "categoria", 1, "concentracao", 2));
+        String primeiro = "nome;categoria;concentracao\n" + nome + ";Categoria A;100 mg\n";
+        confirmar("outros", "o1.csv", primeiro.getBytes(StandardCharsets.UTF_8), config, hash("outros", "o1.csv", primeiro, config));
+
+        String segundo = "nome;categoria;concentracao\n" + nome + ";Categoria B;250 mg\n" + nome + ";Categoria C;100 mg\n";
+        JsonNode previa = previa("outros", "o2.csv", segundo, config);
+        assertThat(previa.path("novos").asInt()).isEqualTo(1);
+        assertThat(previa.path("atualizados").asInt()).isEqualTo(1);
+        confirmar("outros", "o2.csv", segundo.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+        Map<String, String> categorias = new LinkedHashMap<>();
+        for (JsonNode item : api.get("/ergogenicos", treinador, 200)) {
+            categorias.put(item.path("concentracao").asString(), item.path("categoria").asString());
+        }
+        assertThat(categorias).containsOnly(Map.entry("100 mg", "Categoria C"), Map.entry("250 mg", "Categoria B"));
+
+        // Duas linhas com a mesma tripla na própria planilha: a segunda cai no que a primeira criou (a regra vale).
+        String repetido = "nome;categoria;concentracao\nOutro " + nome + ";Categoria D;50 mg\nOutro " + nome + ";Categoria E;50 mg\n";
+        JsonNode previaRepetido = previa("outros", "o3.csv", repetido, config);
+        assertThat(previaRepetido.path("novos").asInt()).isEqualTo(1);
+        assertThat(previaRepetido.path("atualizados").asInt()).isEqualTo(1);
+        confirmar("outros", "o3.csv", repetido.getBytes(StandardCharsets.UTF_8), config, previaRepetido.path("hash").asString());
+        assertThat(api.get("/ergogenicos", treinador, 200)).hasSize(3);
+    }
+
+    private UUID alunoComEmail(String nome, String email) throws Exception {
+        return UUID.fromString(api.post("/alunos", treinador, Map.of("nome", nome, "email", email), 200).path("id").asString());
+    }
+
+    private int auditorias(String acao, UUID entidade) {
+        return jdbc.queryForObject("select count(*) from auditoria where acao = ? and entidade_id = ?::uuid", Integer.class,
+                acao, entidade.toString());
+    }
+
+    private boolean usuarioAtivo(JsonNode login) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("select ativo from usuario where id = ?::uuid", Boolean.class,
+                login.path("usuario").path("id").asString()));
+    }
+
+    private String telefoneDe(JsonNode login) {
+        String telefone = jdbc.queryForObject("select telefone from usuario where id = ?::uuid", String.class,
+                login.path("usuario").path("id").asString());
+        return telefone == null ? null : telefone.replaceAll("\\D", "");
     }
 
     private JsonNode previaArquivo(String destino, Path arquivo, String config) throws Exception {
