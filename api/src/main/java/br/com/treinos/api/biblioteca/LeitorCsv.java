@@ -39,20 +39,9 @@ public final class LeitorCsv {
         if (normalizado.isBlank()) {
             throw new BadRequestException("O arquivo está vazio.");
         }
-        String[] brutas = normalizado.split("\n", -1);
-        char separador = brutas[0].chars().filter(c -> c == ';').count()
-                >= brutas[0].chars().filter(c -> c == ',').count() ? ';' : ',';
-        List<Linha> linhas = new ArrayList<>();
-        for (int i = 0; i < brutas.length; i++) {
-            if (brutas[i].isBlank()) {
-                continue;
-            }
-            if (linhas.size() == maximo) {
-                throw new BadRequestException("O arquivo passa de 5.000 linhas.");
-            }
-            linhas.add(new Linha(i + 1, campos(brutas[i], separador).stream().map(String::trim).toList()));
-        }
-        return linhas;
+        return registros(normalizado, separador(normalizado), maximo, "O arquivo passa de 5.000 linhas.").stream()
+                .map(l -> new Linha(l.numero(), l.campos().stream().map(String::trim).toList()))
+                .toList();
     }
 
     static Tabela ler(String texto, List<String> cabecalhoEsperado) {
@@ -60,25 +49,16 @@ public final class LeitorCsv {
         if (normalizado.isBlank()) {
             throw new BadRequestException("O arquivo está vazio.");
         }
-        String[] brutas = normalizado.split("\n", -1);
-        char separador = brutas[0].chars().filter(c -> c == ';').count()
-                >= brutas[0].chars().filter(c -> c == ',').count() ? ';' : ',';
-        List<String> cabecalho = campos(brutas[0], separador).stream()
+        char separador = separador(normalizado);
+        // O cabeçalho conta como o primeiro registro; os de dados passam de LINHAS_MAXIMAS recusam o arquivo.
+        List<Linha> registros = registros(normalizado, separador, LINHAS_MAXIMAS + 1,
+                "Máximo de " + LINHAS_MAXIMAS + " linhas por importação.");
+        List<String> cabecalho = registros.get(0).campos().stream()
                 .map(c -> c.trim().toLowerCase(Locale.ROOT)).toList();
         if (!cabecalho.equals(cabecalhoEsperado)) {
             throw new BadRequestException("Cabeçalho esperado: " + String.join(String.valueOf(separador), cabecalhoEsperado));
         }
-        List<Linha> linhas = new ArrayList<>();
-        for (int i = 1; i < brutas.length; i++) {
-            if (brutas[i].isBlank()) {
-                continue;
-            }
-            if (linhas.size() == LINHAS_MAXIMAS) {
-                throw new BadRequestException("Máximo de " + LINHAS_MAXIMAS + " linhas por importação.");
-            }
-            linhas.add(new Linha(i + 1, campos(brutas[i], separador)));
-        }
-        return new Tabela(separador, linhas, hash(normalizado));
+        return new Tabela(separador, List.copyOf(registros.subList(1, registros.size())), hash(normalizado));
     }
 
     /** Sem BOM, quebras de linha unificadas e sem linhas vazias no fim: o mesmo arquivo dá sempre o mesmo hash. */
@@ -90,32 +70,94 @@ public final class LeitorCsv {
         return t.replace("\r\n", "\n").replace('\r', '\n').strip();
     }
 
-    private static List<String> campos(String linha, char separador) {
+    /** Decidido pela primeira linha, sem contar o que está entre aspas (a linha só termina fora delas). */
+    private static char separador(String normalizado) {
+        int pontoEVirgula = 0;
+        int virgula = 0;
+        boolean entreAspas = false;
+        boolean inicioDeCampo = true;
+        for (int i = 0; i < normalizado.length(); i++) {
+            char c = normalizado.charAt(i);
+            if (entreAspas) {
+                if (c == '"') {
+                    entreAspas = false;
+                }
+            } else if (c == '\n') {
+                break;
+            } else if (c == '"' && inicioDeCampo) {
+                entreAspas = true;
+            } else {
+                if (c == ';') {
+                    pontoEVirgula++;
+                } else if (c == ',') {
+                    virgula++;
+                }
+                inicioDeCampo = c == ';' || c == ',' || (inicioDeCampo && (c == ' ' || c == '\t'));
+            }
+        }
+        return pontoEVirgula >= virgula ? ';' : ',';
+    }
+
+    /**
+     * Registros não vazios, na ordem, com o número da linha onde cada um começa. Campo entre aspas pode ter quebra de
+     * linha, o separador e aspas duplicadas ({@code ""}); aspas sem fechar até o fim do arquivo recusam o arquivo.
+     * Linha só com espaços é pulada. Passou de {@code maximo} registros, recusa com {@code excesso}.
+     */
+    private static List<Linha> registros(String texto, char separador, int maximo, String excesso) {
+        List<Linha> registros = new ArrayList<>();
         List<String> campos = new ArrayList<>();
         StringBuilder atual = new StringBuilder();
         boolean entreAspas = false;
-        for (int i = 0; i < linha.length(); i++) {
-            char c = linha.charAt(i);
+        // Aspas só abrem um campo no começo dele (espaços antes são aceitos); no meio do campo são texto, como no Excel.
+        boolean inicioDeCampo = true;
+        int linha = 1;
+        int linhaDoRegistro = 1;
+        int inicio = 0;
+        for (int i = 0; i <= texto.length(); i++) {
+            boolean fim = i == texto.length();
+            char c = fim ? '\n' : texto.charAt(i);
             if (entreAspas) {
-                if (c == '"' && i + 1 < linha.length() && linha.charAt(i + 1) == '"') {
+                if (fim) {
+                    throw new BadRequestException("O CSV tem aspas sem fechar.");
+                }
+                if (c == '"' && i + 1 < texto.length() && texto.charAt(i + 1) == '"') {
                     atual.append('"');
                     i++;
                 } else if (c == '"') {
                     entreAspas = false;
                 } else {
                     atual.append(c);
+                    if (c == '\n') {
+                        linha++;
+                    }
                 }
-            } else if (c == '"') {
+            } else if (c == '"' && inicioDeCampo) {
                 entreAspas = true;
+                inicioDeCampo = false;
             } else if (c == separador) {
                 campos.add(atual.toString());
                 atual.setLength(0);
+                inicioDeCampo = true;
+            } else if (c == '\n') {
+                inicioDeCampo = true;
+                if (!texto.substring(inicio, i).isBlank()) {
+                    if (registros.size() == maximo) {
+                        throw new BadRequestException(excesso);
+                    }
+                    campos.add(atual.toString());
+                    registros.add(new Linha(linhaDoRegistro, List.copyOf(campos)));
+                }
+                campos.clear();
+                atual.setLength(0);
+                linha++;
+                linhaDoRegistro = linha;
+                inicio = i + 1;
             } else {
                 atual.append(c);
+                inicioDeCampo = inicioDeCampo && (c == ' ' || c == '\t');
             }
         }
-        campos.add(atual.toString());
-        return campos;
+        return registros;
     }
 
     static String hash(String texto) {
