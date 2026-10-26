@@ -146,9 +146,11 @@ public class CicloMenstrualService {
         registros.delete(registro);
     }
 
+    /** A titular apaga os próprios dados com qualquer sexo: o sexo pode ter mudado depois de ela gravar. */
     @Transactional
     public void apagarTudo(UUID alunoId) {
-        Aluno aluno = exigirFeminino(alunoId);
+        Aluno aluno = buscar(alunoId);
+        AlunoService.exigirNaoAnonimizado(aluno);
         registros.apagarDoAluno(alunoId);
         dias.apagarDoAluno(alunoId);
         desligar(aluno);
@@ -160,6 +162,17 @@ public class CicloMenstrualService {
         exigirLigado(alunoId);
         validarData(data, "data");
         DiaNormalizado normal = normalizarDia(pedido);
+        // O id é do cliente, como no registro: de outra aluna é 404 e nada é tocado; de outro dia da mesma aluna é conflito
+        // (o dia é identificado por aluna e data, e reaproveitar o id sobrescreveria o outro dia).
+        CicloDia doId = dias.findById(pedido.id()).orElse(null);
+        if (doId != null) {
+            if (!doId.getAlunoId().equals(alunoId)) {
+                throw new NaoEncontradoException("Registro não encontrado.");
+            }
+            if (!doId.getData().equals(data)) {
+                throw new ConflictException("Este registro já foi gravado.", "CONFLITO_EDICAO");
+            }
+        }
         CicloDia existente = dias.findByAlunoIdAndData(alunoId, data).orElse(null);
         if (existente != null) {
             if (existente.mesmoConteudo(normal.fluxo(), normal.colica(), normal.sintomas(), normal.observacao())) {

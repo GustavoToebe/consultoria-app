@@ -1,6 +1,6 @@
 # Ciclo menstrual
 
-O acompanhamento é opcional e só existe quando o sexo do cadastro é Feminino. Só a aluna liga, grava e apaga. O treinador lê, se tiver acesso a dados sensíveis.
+O acompanhamento é opcional e só existe quando o sexo do cadastro é Feminino. Só a aluna liga e grava; a titular apaga os próprios dados com qualquer sexo, mesmo depois de o sexo mudar. O treinador lê, se tiver acesso a dados sensíveis.
 
 A API guarda datas, fluxo, cólica, sintomas e observação. Ela não calcula fase, não avisa e não muda treino nem dieta.
 

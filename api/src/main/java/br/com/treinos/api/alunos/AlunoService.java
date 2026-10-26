@@ -179,7 +179,11 @@ public class AlunoService {
             aluno.alterarCpf(dados.cpf());
             aluno.alterarEndereco(dados.endereco());
         }
-        aplicarSexo(aluno, r.sexo());
+        // O JSON sem "sexo" chega aqui como nulo (o DTO não distingue ausente de nulo): nulo não altera o sexo nem desliga o ciclo.
+        // Quem apaga o sexo é a própria aluna (PUT /aluno/sexo); texto em branco ainda limpa, como em aplicarSexo.
+        if (r.sexo() != null) {
+            aplicarSexo(aluno, r.sexo());
+        }
         trocarTelefone(aluno, r.telefone(), dados.telefone());
         UUID anterior=aluno.getResponsavelId();
         definirResponsavel(aluno,r.responsavelId());
@@ -238,6 +242,7 @@ public class AlunoService {
         aplicarSexo(aluno, informado);
     }
 
+    @Transactional // buscarParaAlterar trava a linha e exige transação (sem ela, PUT /aluno/sexo dava 500)
     public void definirSexo(UUID id, String informado) {
         definirSexo(alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado), informado);
     }
