@@ -3,6 +3,7 @@ package br.com.treinos.api.importacao;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.importacao.ImportacaoDtos.Colunas;
 import br.com.treinos.api.importacao.ImportacaoDtos.Detalhe;
@@ -11,7 +12,9 @@ import br.com.treinos.api.importacao.ImportacaoDtos.Item;
 import br.com.treinos.api.importacao.ImportacaoDtos.Pagina;
 import br.com.treinos.api.importacao.ImportacaoDtos.Previa;
 import br.com.treinos.api.security.UsuarioAutenticado;
+import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.Exigir;
 import br.com.treinos.api.web.NaoEncontradoException;
 import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.data.domain.PageRequest;
@@ -65,6 +68,8 @@ public class ImportacaoService {
             "suplementos", List.of("nome", "marca"),
             "outros", List.of("nome"));
 
+    private static final Set<String> TRAVAM_A_CONSULTORIA = Set.of("alunos", "pesos");
+
     private static final TypeReference<List<Erro>> TIPO_ERROS = new TypeReference<>() { };
     private static final TypeReference<LinkedHashMap<String, Object>> TIPO_MAPA = new TypeReference<>() { };
 
@@ -73,9 +78,11 @@ public class ImportacaoService {
     private final Auditoria auditoria;
     private final UsuarioRepository usuarios;
     private final JsonMapper json;
+    private final ConsultoriaRepository consultorias;
 
     public ImportacaoService(ImportacaoRepository importacoes, GravadorDaImportacao gravador, Auditoria auditoria,
-                             UsuarioRepository usuarios, JsonMapper json) {
+                             UsuarioRepository usuarios, JsonMapper json, ConsultoriaRepository consultorias) {
+        this.consultorias = consultorias;
         this.importacoes = importacoes;
         this.gravador = gravador;
         this.auditoria = auditoria;
@@ -125,10 +132,15 @@ public class ImportacaoService {
                 hash.getBytes(StandardCharsets.UTF_8))) {
             throw new ConflictException("Algo mudou desde a prévia. Gere a prévia de novo.", "PREVIA_DESATUALIZADA");
         }
+        if (TRAVAM_A_CONSULTORIA.contains(destino)) {
+            // Antes de ler alunos e contar vagas: duas confirmações na mesma consultoria não correm por CPF, e-mail ou vaga.
+            // A prévia não passa por aqui (não tem transação e não grava).
+            Exigir.existe(consultorias.travar(TenantContext.get()), () -> new NaoEncontradoException("Importação não encontrada."));
+        }
         var resultado = gravador.processar(destino, planilha, config, eu.usuarioId(), true);
         String situacao = resultado.novos() + resultado.atualizados() + resultado.ignorados() == 0
                 ? "FALHOU" : resultado.comErro() > 0 ? "CONCLUIDA_COM_ERROS" : "CONCLUIDA";
-        Importacao gravada = importacoes.saveAndFlush(new Importacao(destino, nomeArquivo(nome), eu.usuarioId(),
+        Importacao gravada = importacoes.saveAndFlush(new Importacao(destino, nomeArquivo(nome, bytes), eu.usuarioId(),
                 resultado.linhas(), resultado.novos(), resultado.atualizados(), resultado.ignorados(),
                 resultado.comErro(), situacao, json.writeValueAsString(configJson(config)),
                 json.writeValueAsString(resultado.erros())));
@@ -320,20 +332,14 @@ public class ImportacaoService {
         return mapa;
     }
 
-    private static String nomeArquivo(String nome) {
-        String limpo = nome == null ? "" : nome.replace('\\', '/');
-        int barra = limpo.lastIndexOf('/');
-        if (barra >= 0) {
-            limpo = limpo.substring(barra + 1);
-        }
-        limpo = limpo.trim();
-        if (limpo.isEmpty()) {
-            throw new ValidacaoException("Informe o nome do arquivo.", "ARQUIVO_INVALIDO", List.of());
-        }
-        if (limpo.length() > 200) {
-            throw new ValidacaoException("O nome do arquivo passa de 200 caracteres.", "ARQUIVO_INVALIDO", List.of());
-        }
-        return limpo;
+    /**
+     * Só a extensão fica gravada: o nome do arquivo pode ter o nome de uma pessoa (LGPD). Segue a decisão do leitor:
+     * ".xlsx" pela extensão ou pelo conteúdo zipado, ".csv" no resto.
+     */
+    private static String nomeArquivo(String nome, byte[] bytes) {
+        String limpo = nome == null ? "" : nome.toLowerCase(java.util.Locale.ROOT).trim();
+        boolean zip = bytes != null && bytes.length >= 2 && bytes[0] == 'P' && bytes[1] == 'K';
+        return limpo.endsWith(".xlsx") || zip ? ".xlsx" : ".csv";
     }
 
     private String nomeDe(UUID usuarioId) {

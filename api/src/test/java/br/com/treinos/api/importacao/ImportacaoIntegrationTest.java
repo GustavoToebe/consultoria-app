@@ -14,6 +14,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
@@ -22,14 +25,21 @@ import tools.jackson.databind.json.JsonMapper;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,6 +52,8 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private ContaLocalRepositorio contas;
+    @Autowired private PlatformTransactionManager transacoes;
+    @MockitoSpyBean private br.com.treinos.api.conta.PlanoDaConsultoria plano;
 
     private ApiDeTeste api;
     private JsonNode treinador;
@@ -485,6 +497,186 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(previaRepetido.path("atualizados").asInt()).isEqualTo(1);
         confirmar("outros", "o3.csv", repetido.getBytes(StandardCharsets.UTF_8), config, previaRepetido.path("hash").asString());
         assertThat(api.get("/ergogenicos", treinador, 200)).hasSize(3);
+    }
+
+    private static final String AMBIGUO = "Número ambíguo: use vírgula para decimais.";
+
+    @Test
+    void numeroComPontoETresDigitosEAmbiguoNoPesoENoAlimento() throws Exception {
+        String email = unico("numero");
+        String alunos = "nome;email\nNumero Fictício;" + email + "\n";
+        String configAluno = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        confirmar("alunos", "n0.csv", alunos.getBytes(StandardCharsets.UTF_8), configAluno, hash("alunos", "n0.csv", alunos, configAluno));
+        UUID alunoId = UUID.fromString(api.get("/alunos", treinador, 200).path("itens").get(0).path("id").asString());
+
+        String pesos = "aluno;data;peso\n" + email + ";01/01/2026;1.500\n" + email + ";02/01/2026;70.5\n" + email
+                + ";03/01/2026;70,5\n" + email + ";04/01/2026;70.25\n";
+        String configPeso = config("email", "IGNORAR", Map.of("aluno", 0, "data", 1, "peso", 2));
+        JsonNode previaPeso = previa("pesos", "n1.csv", pesos, configPeso);
+        assertThat(previaPeso.path("comErro").asInt()).isEqualTo(1);
+        assertThat(previaPeso.path("novos").asInt()).isEqualTo(3);
+        assertThat(previaPeso.path("erros").get(0).path("campo").asString()).isEqualTo("peso");
+        assertThat(previaPeso.path("erros").get(0).path("motivo").asString()).isEqualTo(AMBIGUO);
+        JsonNode feitoPeso = confirmar("pesos", "n1.csv", pesos.getBytes(StandardCharsets.UTF_8), configPeso, previaPeso.path("hash").asString());
+        assertThat(feitoPeso.path("comErro").asInt()).isEqualTo(1);
+        assertThat(feitoPeso.path("novos").asInt()).isEqualTo(3);
+        assertThat(feitoPeso.path("erros").get(0).path("motivo").asString()).isEqualTo(AMBIGUO);
+        assertThat(feitoPeso.toString()).doesNotContain("1.500");
+        assertThat(api.get("/alunos/" + alunoId + "/pesos", treinador, 200)).hasSize(3);
+
+        String sufixo = UUID.randomUUID().toString();
+        String alimentos = "nome;quantidade;unidade;kcal;proteina;carboidrato;gordura;fc\n"
+                + "Ambíguo " + sufixo + ";100;g;1.500;1;1;1;\n"
+                + "Milhar " + sufixo + ";100;g;1.234,5;1;1;1;\n"
+                + "Tres casas " + sufixo + ";100;g;1,234;1;1;1;\n"
+                + "Virgula " + sufixo + ";100;g;1,5;1;1;1;\n"
+                + "Zero " + sufixo + ";100;g;0.500;1;1;1;\n"
+                + "Fator " + sufixo + ";100;g;10;1;1;1;2.500\n";
+        String configAl = config("nome", "IGNORAR", Map.of("nome", 0, "quantidade", 1, "unidade", 2, "kcal", 3, "proteina", 4,
+                "carboidrato", 5, "gordura", 6, "fc", 7));
+        JsonNode previaAl = previa("alimentos", "n2.csv", alimentos, configAl);
+        // "0.500" começa com zero: milhar não começa assim, então é decimal e grava (a recusa é só do "1.500").
+        assertThat(previaAl.path("novos").asInt()).isEqualTo(2);
+        assertThat(previaAl.path("comErro").asInt()).isEqualTo(4);
+        long ambiguos = 0;
+        for (JsonNode erro : previaAl.path("erros")) {
+            if (AMBIGUO.equals(erro.path("motivo").asString())) {
+                ambiguos++;
+            }
+        }
+        assertThat(ambiguos).isEqualTo(2);
+        assertThat(previaAl.path("erros").toString()).doesNotContain("1.500").doesNotContain("2.500");
+        JsonNode feitoAl = confirmar("alimentos", "n2.csv", alimentos.getBytes(StandardCharsets.UTF_8), configAl, previaAl.path("hash").asString());
+        assertThat(feitoAl.path("novos").asInt()).isEqualTo(2);
+        assertThat(feitoAl.path("comErro").asInt()).isEqualTo(4);
+    }
+
+    @Test
+    void confirmacaoDeAlunosEPesosTravaAConsultoriaEAPreviaNao() throws Exception {
+        String email = unico("trava");
+        String base = "nome;email\nTrava Fictícia;" + email + "\n";
+        String configAluno = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        confirmar("alunos", "t0.csv", base.getBytes(StandardCharsets.UTF_8), configAluno, hash("alunos", "t0.csv", base, configAluno));
+        String novo = "nome;email\nTrava Dois Fictícia;" + unico("trava2") + "\n";
+        String hashNovo = hash("alunos", "t1.csv", novo, configAluno);
+        String pesos = "aluno;data;peso\n" + email + ";01/01/2026;70,5\n";
+        String configPeso = config("email", "IGNORAR", Map.of("aluno", 0, "data", 1, "peso", 2));
+        String hashPeso = hash("pesos", "t2.csv", pesos, configPeso);
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
+                treinador.path("usuario").path("id").asString());
+        ExecutorService pool = Executors.newFixedThreadPool(3);
+        List<Future<JsonNode>> confirmacoes = new ArrayList<>();
+        try {
+            new TransactionTemplate(transacoes).executeWithoutResult(tx -> {
+                jdbc.queryForObject("select id from consultoria where id = ?::uuid for no key update", UUID.class, consultoria.toString());
+                try {
+                    Future<JsonNode> previa = pool.submit(() -> previa("alunos", "t3.csv", novo, configAluno));
+                    assertThat(previa.get(15, TimeUnit.SECONDS).path("novos").asInt()).as("a prévia não espera a trava").isEqualTo(1);
+                    confirmacoes.add(pool.submit(() -> confirmar("alunos", "t1.csv", novo.getBytes(StandardCharsets.UTF_8), configAluno, hashNovo)));
+                    confirmacoes.add(pool.submit(() -> confirmar("pesos", "t2.csv", pesos.getBytes(StandardCharsets.UTF_8), configPeso, hashPeso)));
+                    assertThat(sessoesEsperandoTrava(2)).as("as duas confirmações esperam a trava da consultoria").isTrue();
+                    assertThat(confirmacoes).noneMatch(Future::isDone);
+                } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException
+                         | InterruptedException e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            for (Future<JsonNode> confirmacao : confirmacoes) {
+                assertThat(confirmacao.get(30, TimeUnit.SECONDS).path("situacao").asString()).isEqualTo("CONCLUIDA");
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    private boolean sessoesEsperandoTrava(int minimo) throws InterruptedException {
+        long limite = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+        while (System.nanoTime() < limite) {
+            Integer esperando = jdbc.queryForObject("select count(*) from pg_stat_activity where datname = current_database() "
+                    + "and wait_event_type = 'Lock'", Integer.class);
+            if (esperando != null && esperando >= minimo) {
+                return true;
+            }
+            Thread.sleep(100);
+        }
+        return false;
+    }
+
+    @Test
+    void vagaQueSomeNaGravacaoViraConflitoDoPlanoSem500() throws Exception {
+        limiteDeAlunos(1);
+        String csv = "nome;email\nUm Fictício;" + unico("um") + "\nDois Fictício;" + unico("dois") + "\n";
+        String config = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        String hash = hash("alunos", "corrida.csv", csv, config);
+        // Outra gravação ocupou a vaga depois de a importação contá-la: a contagem local diz 2, o plano diz 1.
+        doReturn(2L).when(plano).vagasDeAluno();
+        JsonNode erro = enviar("alunos", "corrida.csv", csv.getBytes(StandardCharsets.UTF_8), config, hash, 409);
+        assertThat(erro.path("codigo").asString()).isEqualTo("LIMITE_DO_PLANO");
+        assertThat(erro.path("fieldErrors").get(0).path("field").asString()).isEqualTo("alunos_ativos");
+        assertThat(erro.toString()).doesNotContain("Fictício");
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
+        assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();
+    }
+
+    @Test
+    void linhaInvalidaAntesDasValidasNaoConsomeVagaDoPlano() throws Exception {
+        limiteDeAlunos(2);
+        String csv = "nome;email\nInvalido Fictício;sem-arroba\nUm Fictício;" + unico("um") + "\nDois Fictício;" + unico("dois") + "\n";
+        String config = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        JsonNode previa = previa("alunos", "vagas.csv", csv, config);
+        assertThat(previa.path("novos").asInt()).isEqualTo(2);
+        assertThat(previa.path("comErro").asInt()).isEqualTo(1);
+        JsonNode feito = confirmar("alunos", "vagas.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+        assertThat(feito.path("novos").asInt()).isEqualTo(2);
+        assertThat(feito.path("comErro").asInt()).isEqualTo(1);
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isEqualTo(2);
+    }
+
+    private void limiteDeAlunos(long limite) {
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
+                treinador.path("usuario").path("id").asString());
+        contas.gravarDireitos(new DireitosLocais(consultoria, UUID.randomUUID(), 1, "ATIVA", true, null, null, "PAGO", "Pago",
+                Map.of("alunos_ativos", limite), List.of("MOBILIDADE", "PDF", "EQUIPE"), Instant.now()));
+    }
+
+    @Test
+    void perfilComSensivelAlterarSemSensivelLerNaoPodeExistir() throws Exception {
+        api.post("/perfis", treinador, Map.of("nome", "Só alterar fictício", "permissoes",
+                java.util.Set.of("ALUNO_LER", "ALUNO_SENSIVEL_ALTERAR")), 400);
+        api.post("/perfis", treinador, Map.of("nome", "Só alterar dois fictício", "permissoes",
+                java.util.Set.of("ALUNO_SENSIVEL_ALTERAR")), 400);
+    }
+
+    @Test
+    void nomeDoArquivoNuncaFicaGuardadoSoAExtensao() throws Exception {
+        String config = config("email", "IGNORAR", Map.of("nome", 0, "email", 1));
+        String csv = "nome;email\nArquivo Fictício;" + unico("arq") + "\n";
+        byte[] planilha = xlsx(csv); // uma vez só: o zip leva a data da entrada e o hash exige os mesmos bytes
+        String hashX = enviar("alunos/previa", "Fulano Silva.xlsx", planilha, config, 200).path("hash").asString();
+        JsonNode feito = enviar("alunos", "Fulano Silva.xlsx", planilha, config, hashX, 200);
+        assertThat(feito.path("nomeArquivo").asString()).isEqualTo(".xlsx");
+        assertThat(nomeGravado(feito)).isEqualTo(".xlsx");
+
+        String outro = "nome;email\nOutro Fictício;" + unico("arq2") + "\n";
+        String hashC = hash("alunos", "Beltrano Souza.CSV", outro, config);
+        JsonNode feitoCsv = confirmar("alunos", "Beltrano Souza.CSV", outro.getBytes(StandardCharsets.UTF_8), config, hashC);
+        assertThat(nomeGravado(feitoCsv)).isEqualTo(".csv");
+
+        String sem = "nome;email\nTerceiro Fictício;" + unico("arq3") + "\n";
+        String hashS = hash("alunos", "Ciclana de Tal", sem, config);
+        JsonNode feitoSem = confirmar("alunos", "Ciclana de Tal", sem.getBytes(StandardCharsets.UTF_8), config, hashS);
+        assertThat(nomeGravado(feitoSem)).isEqualTo(".csv");
+
+        String lista = api.get("/importacoes", treinador, 200).toString();
+        String detalhe = api.get("/importacoes/" + feito.path("id").asString(), treinador, 200).toString();
+        String auditoria = api.get("/auditoria?acao=IMPORTACAO_CONCLUIDA", treinador, 200).toString();
+        assertThat(lista + detalhe + auditoria).doesNotContain("Fulano").doesNotContain("Silva").doesNotContain("Beltrano")
+                .doesNotContain("Ciclana");
+    }
+
+    private String nomeGravado(JsonNode importacao) {
+        return jdbc.queryForObject("select nome_arquivo from importacao where id = ?::uuid", String.class,
+                importacao.path("id").asString());
     }
 
     private UUID alunoComEmail(String nome, String email) throws Exception {

@@ -18,7 +18,6 @@ import br.com.treinos.api.biblioteca.ExercicioRepository;
 import br.com.treinos.api.biblioteca.Suplemento;
 import br.com.treinos.api.biblioteca.SuplementoRepository;
 import br.com.treinos.api.conta.PlanoDaConsultoria;
-import br.com.treinos.api.conta.PlanoException;
 import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
 import br.com.treinos.api.importacao.ImportacaoDtos.Amostra;
@@ -62,6 +61,8 @@ class GravadorDaImportacao {
     private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM/uuuu");
     private static final int ERROS_GUARDADOS = 1000;
     private static final int AMOSTRA = 20;
+    /** Um único ponto com exatamente três dígitos depois dele, sem vírgula: "1.500", "12.345". "0.500" é decimal: milhar não começa em zero. */
+    private static final java.util.regex.Pattern PONTO_E_TRES_DIGITOS = java.util.regex.Pattern.compile("[+-]?[1-9]\\d*\\.\\d{3}");
     private static final List<String> CAMPOS_ALUNO = List.of("nome", "email", "telefone", "cpf", "objetivo", "observacoes",
             "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf", "responsavel", "dias", "situacao");
 
@@ -846,6 +847,10 @@ class GravadorDaImportacao {
 
     private BigDecimal numero(Leitura lida, int numero, String campo, BigDecimal min, BigDecimal max, int escala, boolean zeroPermitido) {
         String texto = lida.texto().trim();
+        if (!lida.numero() && PONTO_E_TRES_DIGITOS.matcher(texto).matches()) {
+            // "1.500" em texto pode ser 1,5 ou 1500: sem como saber, a linha fica de fora (célula numérica nativa não passa aqui).
+            throw new FalhaDaLinha(numero, campo, "Número ambíguo: use vírgula para decimais.");
+        }
         if (!lida.numero() && texto.indexOf(',') >= 0 && texto.indexOf('.') < 0) {
             texto = texto.replace(',', '.');
         }
@@ -969,11 +974,9 @@ class GravadorDaImportacao {
                 return false;
             }
             if (gravar) {
-                try {
-                    plano.exigirVagaDeAluno();
-                } catch (PlanoException e) {
-                    return false;
-                }
+                // Não captura: a PlanoException (409 LIMITE_DO_PLANO) já marcou a transação como só-rollback ao atravessar
+                // o proxy; engolir aqui levaria ao UnexpectedRollbackException (500) no commit. A confirmação inteira recua.
+                plano.exigirVagaDeAluno();
             }
             if (restantes != null) {
                 restantes--;
