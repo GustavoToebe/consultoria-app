@@ -8,16 +8,16 @@ A API guarda datas, fluxo, cólica, sintomas e observação. Ela não calcula fa
 
 Arquivo `app/src/dominio/cicloMenstrual.ts`. Sem dado, a tela mostra "—".
 
-1. A duração do ciclo é a média das diferenças de 21 a 45 dias entre os inícios, usando até os seis últimos intervalos válidos. Sem nenhum, vale a duração habitual (21 a 45). Sem as duas, não há fase estimada: só "Dia N do ciclo", contado do último início.
+1. A duração do ciclo é a média das diferenças de 21 a 45 dias entre os inícios, usando até os seis últimos intervalos válidos. Sem nenhum, vale a duração habitual (21 a 45). Sem as duas, não há fase estimada: só "Dia N do ciclo", contado do último início (e, no último ciclo, só enquanto há registro recente: passados 60 dias a tela mostra "—").
 2. A duração da menstruação é a média dos registros que já têm fim. Ela só entra na previsão. O passado usa o fim registrado.
 3. Fases, do início `I` até a véspera do próximo início `P`:
-   - Menstrual: de `I` até o fim registrado. Em andamento, até hoje.
+   - Menstrual: de `I` até o fim registrado. Em andamento, até hoje e no máximo 15 dias depois do início (a API recusa fim além disso; passado o limite, o botão "terminou hoje" vira "Informar quando terminou" e abre a edição do período).
    - Ovulatória: o dia `P − 14`.
    - Folicular: do dia seguinte à menstrual até a véspera da ovulatória.
    - Lútea: do dia seguinte à ovulatória até `P − 1`.
    - No ciclo atual, `P` é o último início mais a duração. No ciclo passado, `P` é o próximo início real.
    - Ciclo real fora de 21 a 45 dias fica só com a menstrual.
-4. Último início há mais de 60 dias: sem previsão. A tela diz "Sem registro recente".
+4. Último início há mais de 60 dias: sem previsão. A tela diz "Sem registro recente". Só a previsão some: ciclos já fechados por um início real mantêm as fases.
 5. Com "Mostrar fases estimadas" desligado, só a menstruação registrada e o dia do ciclo.
 
 Exemplo de 28 dias, inícios em 01/01 e 29/01, menstruação até o dia 5: 03/01 é menstrual, 10/01 é folicular, 15/01 é ovulatória e 20/01 é lútea.

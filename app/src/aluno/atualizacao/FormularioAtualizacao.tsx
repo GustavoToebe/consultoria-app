@@ -6,7 +6,7 @@ import { avisarAtrasoAtualizacao, enviarAtualizacao, marcarFeedbackVisto } from 
 import type { Atualizacao, RespostaAtualizacao, RespostasAtualizacao } from '../../api/tipos';
 import { limitesNovaDataAtraso, novaDataAtrasoValida, podeResponderAtualizacao, statusAtualizacao } from '../../dominio/atualizacao';
 import { rascunhoVigente } from '../../dominio/atualizacaoQuestionario';
-import { temInicioRecente } from '../../dominio/cicloMenstrual';
+import { hojeDoCiclo, temInicioRecente } from '../../dominio/cicloMenstrual';
 import { dataDaTela, dataParaTela, hojeIso, somarDias } from '../../dominio/formatos';
 import { errosRespostasAtualizacao, respostasParaEnviar } from '../../dominio/respostasAtualizacao';
 import { useAluno } from '../../offline/AlunoProvider';
@@ -175,7 +175,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
     <ScrollView ref={scroll} onScroll={evento=>{deslocamento.current=evento.nativeEvent.contentOffset.y;}}
       scrollEventThrottle={16} keyboardShouldPersistTaps="handled" contentContainerStyle={estilos.conteudo}>
       <FeedbackAtualizacao feedback={atual.feedback} />
-      <AvisoDaMenstruacao />
+      {!leitura?<AvisoDaMenstruacao />:null}
       {!leitura&&!liberada&&atual.dataAtualizacao?<Bloqueado titulo={`Disponível a partir de ${dataParaTela(somarDias(atual.dataAtualizacao,-1))}`} texto="O formulário libera um dia antes da data da atualização. Até lá você pode consultar as perguntas." />:null}
       <Selo {...statusAtualizacao(atual)} />
       {rascunhoAdaptado&&vigente.mudou?<Cartao><Texto>Seu treinador atualizou o questionário. Confira as respostas.</Texto></Cartao>:null}
@@ -205,7 +205,7 @@ export function FormularioAtualizacao({atualizacao,somenteLeitura=false,rascunho
 function AvisoDaMenstruacao() {
   const ciclo = useCicloDaAluna();
   if (!ciclo.online || !ciclo.dados?.ativo) return null;
-  if (temInicioRecente(ciclo.dados.registros ?? [], hojeIso())) return null;
+  if (temInicioRecente(ciclo.dados.registros ?? [], hojeDoCiclo())) return null;
   return <ItemDeLista titulo="Confira se sua última menstruação está registrada" href="/aluno/ciclo" />;
 }
 

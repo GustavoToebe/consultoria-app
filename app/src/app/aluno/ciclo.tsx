@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
-  AJUDA_MOSTRAR_FASES, diferencaEmDias, faseNaData, registroEmAndamento, ROTULO_DA_COLICA, ROTULO_DO_FLUXO,
+  AJUDA_MOSTRAR_FASES, diferencaEmDias, faseNaData, hojeDoCiclo, podeTerminarHoje, registroEmAndamento, ROTULO_DA_COLICA, ROTULO_DO_FLUXO,
   ROTULO_DO_SINTOMA, SINTOMAS, textoDaLeitura, textoDaPrevisao, VERSAO_CONSENTIMENTO, type ConfigDoCiclo, type FaseDoCiclo,
 } from '../../dominio/cicloMenstrual';
-import { dataDaTela, dataParaTela, hojeIso } from '../../dominio/formatos';
+import { dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { novoUid } from '../../dominio/uid';
 import { useTema } from '../../tema/TemaProvider';
 import { ALVO_TOQUE, espaco } from '../../tema/tokens';
@@ -40,7 +40,7 @@ const CHAVE: Record<FaseDoCiclo, keyof TextosDasFases> = {
 export default function CicloDaAluna() {
   const ciclo = useCicloDaAluna();
   const { avisar } = useAviso();
-  const hoje = hojeIso();
+  const hoje = hojeDoCiclo();
   const [mes, setMes] = useState(`${hoje.slice(0, 8)}01`);
   const dados = ciclo.dados;
   const config: ConfigDoCiclo | null = dados?.ativo ? {
@@ -123,7 +123,13 @@ function Conteudo({ registros, dias, config, textos, mes, aoMes, aoRecarregar, a
     () => { avisar(ok, 'sucesso'); aoRecarregar(); },
     (e: unknown) => avisar(textoDoErro(e), 'perigo'),
   );
+  // Depois de 15 dias a API recusa o fim de hoje: a aluna informa o fim pela edição do período.
+  const podeTerminar = aberto != null && podeTerminarHoje(aberto, config.hoje);
   const comecarOuTerminar = () => {
+    if (aberto && !podeTerminar) {
+      setEditando(registros.find((r) => r.id === aberto.id) ?? null);
+      return;
+    }
     if (aberto?.id) {
       void agir(alterarRegistroDeCiclo(aberto.id, aberto.inicio, config.hoje), 'Menstruação registrada.');
       return;
@@ -136,7 +142,9 @@ function Conteudo({ registros, dias, config, textos, mes, aoMes, aoRecarregar, a
         <Texto variante="destaque">{textoDaLeitura(leitura)}</Texto>
         <Texto>{textoDaPrevisao(registros, config, dataParaTela)}</Texto>
         {textoFase ? <TextoFormatado texto={textoFase} /> : null}
-        <Botao rotulo={aberto ? 'Minha menstruação terminou hoje' : 'Minha menstruação começou hoje'} aoTocar={comecarOuTerminar} />
+        {aberto && !podeTerminar ? <Texto variante="suave">Esta menstruação ainda está sem data de fim. Informe quando terminou.</Texto> : null}
+        <Botao rotulo={aberto ? (podeTerminar ? 'Minha menstruação terminou hoje' : 'Informar quando terminou') : 'Minha menstruação começou hoje'}
+          aoTocar={comecarOuTerminar} />
         <Botao rotulo="Registrar outra data" tipo="secundario" aoTocar={() => setOutraData(true)} />
       </Cartao>
       <Cartao titulo={rotuloDoMes(mes)}>
@@ -161,7 +169,7 @@ function Conteudo({ registros, dias, config, textos, mes, aoMes, aoRecarregar, a
         <CampoNumerico rotulo="Duração habitual do ciclo (opcional)" inteiro valor={duracao} aoMudar={setDuracao} sufixo="dias"
           ajuda={AJUDA_MOSTRAR_FASES} />
         <Interruptor rotulo="Mostrar fases estimadas" valor={config.mostrarFases} ajuda={AJUDA_MOSTRAR_FASES}
-          aoMudar={(mostrarFases) => void agir(configurarCiclo(duracao, mostrarFases), 'Configuração salva.')} />
+          aoMudar={(mostrarFases) => void agir(configurarCiclo(config.duracaoHabitual, mostrarFases), 'Configuração salva.')} />
         <Botao rotulo="Salvar duração" tipo="secundario" aoTocar={() => void agir(configurarCiclo(duracao, config.mostrarFases), 'Configuração salva.')} />
         <Botao rotulo="Desligar acompanhamento" tipo="secundario" aoTocar={() => setDesligar(true)} />
         <Botao rotulo="Apagar todos os registros" tipo="perigo" aoTocar={() => setApagarTudo(true)} />

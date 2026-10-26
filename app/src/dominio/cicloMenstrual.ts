@@ -1,3 +1,4 @@
+import { hojeEmBrasilia } from './financeiro';
 import { somarDias } from './formatos';
 
 /** Estimativa só no app. A API guarda datas e nunca calcula fase. Sem dado, a tela mostra "—". */
@@ -86,6 +87,9 @@ export const ROTULO_DA_COLICA: Record<string, string> = {
 
 export const SINTOMAS = Object.keys(ROTULO_DO_SINTOMA);
 
+/** Igual à regra da API: o fim da menstruação vai até o início mais 15 dias. */
+export const DIAS_MAXIMOS_DA_MENSTRUACAO = 15;
+
 const DIA = 86_400_000;
 
 function ms(iso: string): number {
@@ -147,18 +151,20 @@ export function faseNaData(registros: readonly RegistroDeCiclo[], config: Config
   const anteriores = lista.filter((r) => r.inicio <= data);
   const atual = anteriores[anteriores.length - 1];
   if (!atual) return { fase: null, diaDoCiclo: null, estimada: false };
-  const diaDoCiclo = diferencaEmDias(atual.inicio, data) + 1;
-  const fimMenstrual = atual.fim ?? (atual.inicio <= config.hoje ? config.hoje : null);
+  const indice = lista.findIndex((r) => r.inicio === atual.inicio);
+  const seguinte = lista[indice + 1];
+  const real = seguinte != null;
+  // O último ciclo, sem próximo início registrado e já além da janela de registro recente, não tem como dizer em que dia está.
+  const diaDoCiclo = !real && semRegistroRecente(registros, data) ? null : diferencaEmDias(atual.inicio, data) + 1;
+  const fimMenstrual = atual.fim ?? fimDaMenstruacaoEmAndamento(atual.inicio, config.hoje);
   const naMenstrual = fimMenstrual != null && data >= atual.inicio && data <= fimMenstrual;
   if (!config.mostrarFases) {
     return { fase: naMenstrual ? 'MENSTRUAL' : null, diaDoCiclo, estimada: false };
   }
-  if (semRegistroRecente(registros, config.hoje) && data > (fimMenstrual ?? atual.inicio)) {
+  // Sem registro recente só a previsão (o ciclo depois do último início) some; ciclos fechados por um início real ficam.
+  if (!real && semRegistroRecente(registros, config.hoje) && data > (fimMenstrual ?? atual.inicio)) {
     return { fase: naMenstrual ? 'MENSTRUAL' : null, diaDoCiclo, estimada: false };
   }
-  const indice = lista.findIndex((r) => r.inicio === atual.inicio);
-  const seguinte = lista[indice + 1];
-  const real = seguinte != null;
   const duracao = duracaoDoCiclo(registros, config.duracaoHabitual);
   const proximo = real ? seguinte.inicio : duracao ? somarDias(atual.inicio, duracao) : null;
   if (!proximo || data >= proximo) {
@@ -200,7 +206,7 @@ export function contarSintomas(dias: readonly DiaDeSintomas[], de: string, ate: 
   for (const dia of dias) {
     if (dia.data < de || dia.data > ate) continue;
     somar(dia.fluxo ? ROTULO_DO_FLUXO[dia.fluxo] : undefined);
-    somar(dia.colica ? ROTULO_DA_COLICA[dia.colica] : undefined);
+    somar(colicaConta(dia.colica) ? ROTULO_DA_COLICA[dia.colica] : undefined);
     for (const sintoma of dia.sintomas ?? []) somar(ROTULO_DO_SINTOMA[sintoma]);
   }
   return [...contas.entries()]
@@ -267,4 +273,71 @@ export function faixasSobrePontos(
     if (de >= 0) saida.push({ de, ate, rotulo: faixa.rotulo, tom: faixa.tom });
   }
   return saida;
+}
+
+/** "Hoje" das telas do ciclo: data de Brasília (UTC−3), nunca a do fuso do aparelho. A API também confere por ela. */
+export function hojeDoCiclo(agora: Date = new Date()): string {
+  return hojeEmBrasilia(agora);
+}
+
+/** A cólica "nenhuma" é uma resposta registrada, não um sintoma. */
+const COLICA_NENHUMA = 'NENHUMA';
+
+function colicaConta(colica: string | null | undefined): colica is string {
+  return !!colica && colica !== COLICA_NENHUMA;
+}
+
+/** O dia tem algo registrado como sintoma (fluxo, cólica, observação ou sintoma)? "Sem cólica" não conta. */
+export function diaTemMarca(dia: { fluxo?: string | null; colica?: string | null; observacao?: string | null; sintomas?: readonly string[] | null } | undefined): boolean {
+  return !!dia && !!(dia.fluxo || colicaConta(dia.colica) || dia.observacao || (dia.sintomas && dia.sintomas.length > 0));
+}
+
+/** Fim da menstruação em andamento: hoje, no máximo `DIAS_MAXIMOS_DA_MENSTRUACAO` depois do início. Nulo se começa depois de hoje. */
+export function fimDaMenstruacaoEmAndamento(inicio: string, hoje: string): string | null {
+  if (inicio > hoje) return null;
+  const limite = somarDias(inicio, DIAS_MAXIMOS_DA_MENSTRUACAO);
+  return hoje < limite ? hoje : limite;
+}
+
+/** Dias de menstruação registrada. Em andamento vai até hoje, no máximo 15 dias depois do início. */
+export function diasDeMenstruacaoRegistrada(registros: readonly RegistroDeCiclo[], hoje: string): Set<string> {
+  const dias = new Set<string>();
+  for (const r of registros) {
+    const fim = r.fim ?? fimDaMenstruacaoEmAndamento(r.inicio, hoje) ?? r.inicio;
+    for (let dia = r.inicio; dia <= fim; dia = somarDias(dia, 1)) dias.add(dia);
+  }
+  return dias;
+}
+
+/** "Terminou hoje" só vale se a API aceita o fim de hoje: até o início mais 15 dias (e nunca antes do início). */
+export function podeTerminarHoje(registro: RegistroDeCiclo, hoje: string): boolean {
+  return registro.fim == null && hoje >= registro.inicio && hoje <= somarDias(registro.inicio, DIAS_MAXIMOS_DA_MENSTRUACAO);
+}
+
+export interface SegmentoDaFaixa {
+  de: string;
+  ate: string;
+  /** Nulo = trecho sem fase (espaçador). */
+  fase: FaseDoCiclo | null;
+  estimada: boolean;
+  dias: number;
+}
+
+/**
+ * Segmentos do período `de`..`ate` na ordem das datas: cada fase e, entre elas, os dias sem fase (espaçadores), para que a
+ * faixa desenhe cada fase na data certa. As faixas vêm de `fasesNoPeriodo` (ordenadas e dentro do período).
+ */
+export function segmentosDoPeriodo(faixas: readonly FaixaDeFase[], de: string, ate: string): SegmentoDaFaixa[] {
+  const segmentos: SegmentoDaFaixa[] = [];
+  const vazio = (inicio: string, fim: string) => {
+    if (inicio <= fim) segmentos.push({ de: inicio, ate: fim, fase: null, estimada: false, dias: diferencaEmDias(inicio, fim) + 1 });
+  };
+  let cursor = de;
+  for (const f of faixas) {
+    vazio(cursor, somarDias(f.de, -1));
+    segmentos.push({ ...f, dias: diferencaEmDias(f.de, f.ate) + 1 });
+    cursor = somarDias(f.ate, 1);
+  }
+  vazio(cursor, ate);
+  return segmentos;
 }

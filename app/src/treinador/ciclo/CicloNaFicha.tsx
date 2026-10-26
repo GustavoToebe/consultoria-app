@@ -4,10 +4,10 @@ import { StyleSheet, View } from 'react-native';
 import { cicloDoAluno, consultoria, listarPastas } from '../../api/rotas';
 import type { DiaDeCicloApi } from '../../api/tipos';
 import {
-  contarSintomas, faseNaData, fasesNoPeriodo, menstruacaoPrevista, ROTULO_DA_COLICA, ROTULO_DA_FASE, ROTULO_DO_FLUXO,
+  contarSintomas, faseNaData, fasesNoPeriodo, hojeDoCiclo, menstruacaoPrevista, ROTULO_DA_COLICA, ROTULO_DA_FASE, ROTULO_DO_FLUXO,
   ROTULO_DO_SINTOMA, textoDaContagem, textoDaLeitura, type ConfigDoCiclo, type FaixaDoGrafico,
 } from '../../dominio/cicloMenstrual';
-import { dataParaTela, hojeIso } from '../../dominio/formatos';
+import { dataParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -28,7 +28,7 @@ export function useCicloDoTreinador(alunoId: string | null | undefined) {
 }
 
 function configDe(dados: { duracaoHabitual: number | null; mostrarFases: boolean | null }): ConfigDoCiclo {
-  return { duracaoHabitual: dados.duracaoHabitual, mostrarFases: dados.mostrarFases !== false, hoje: hojeIso() };
+  return { duracaoHabitual: dados.duracaoHabitual, mostrarFases: dados.mostrarFases !== false, hoje: hojeDoCiclo() };
 }
 
 /** Linha da ficha. Some com o acompanhamento desligado ou sem permissão de dado sensível. */
@@ -51,7 +51,7 @@ export function LinhaDoCicloNaFicha({ alunoId }: { alunoId: string }) {
 /** Folha só de leitura: calendário, histórico e o dia tocado. O treinador não grava. */
 export function FolhaDoCiclo({ alunoId, aoFechar }: { alunoId: string; aoFechar: () => void }) {
   const ciclo = useCicloDoTreinador(alunoId);
-  const hoje = hojeIso();
+  const hoje = hojeDoCiclo();
   const [mes, setMes] = useState(`${hoje.slice(0, 8)}01`);
   const [dia, setDia] = useState<string | null>(null);
   const dados = ciclo.dados;

@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-import type { AlunoDetalhe, AnamneseDetalhe, CicloDaAluna, DiaDeCicloApi, EuResponse, PastaResumo, RegistroDeCicloApi, RegistroPeso } from '../src/api/tipos';
+import type { AlunoDetalhe, AnamneseDetalhe, Atualizacao, CicloDaAluna, DiaDeCicloApi, EuResponse, PastaResumo, RegistroDeCicloApi, RegistroPeso } from '../src/api/tipos';
 import { ALUNO, json, MARCA, sessao, simularApi, TREINADOR } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
 
@@ -38,6 +38,11 @@ function rotasDoCiclo(ciclo: { atual: CicloDaAluna }) {
       const registro = p.corpo as RegistroDeCicloApi;
       ciclo.atual = { ...ciclo.atual, registros: [registro, ...(ciclo.atual.registros ?? [])] };
       return json(route, registro);
+    },
+    'PUT /aluno/ciclo/configuracao': (p: { corpo: unknown }, route: Route) => {
+      const config = p.corpo as { duracaoHabitual: number | null; mostrarFases: boolean };
+      ciclo.atual = { ...ciclo.atual, duracaoHabitual: config.duracaoHabitual, mostrarFases: config.mostrarFases };
+      return json(route, ciclo.atual);
     },
     'PUT /aluno/ciclo/registros/{id}': (p: { corpo: unknown; caminho: string }, route: Route) => {
       const id = p.caminho.split('/').pop();
@@ -237,4 +242,139 @@ test('anamnese mostra o sexo trazido para o cadastro', async ({ page }) => {
   await expect(page.getByText('Cadastro do aluno')).toBeVisible();
   await expect(page.getByText('Na anamnese: Feminino')).toBeVisible();
   await expect(page.getByText('No cadastro: Masculino')).toBeVisible();
+});
+
+// ---- Correções de 26/10: limite da menstruação em andamento, faixa, dia futuro, aviso e interruptor ----
+
+const NOMES_DOS_MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+/** Nome acessível da célula do calendário: "05 de outubro de 2026" (com `^`, para não casar "15 de…"). */
+function celulaDoDia(page: Page, iso: string) {
+  const [ano, mes, dia] = iso.split('-');
+  return page.getByRole('button', { name: new RegExp(`^${dia} de ${NOMES_DOS_MESES[Number(mes) - 1]} de ${ano}`) });
+}
+
+function cicloAberto(inicio: string): { atual: CicloDaAluna } {
+  return {
+    atual: {
+      disponivel: true, ativo: true, consentimentoVersaoAtual: 1, duracaoHabitual: 28, mostrarFases: true,
+      registros: [{ id: 'r1', inicio, fim: null }], dias: [], textosDasFases: null,
+    },
+  };
+}
+
+for (const [dias, aindaPodeTerminar] of [[15, true], [16, false]] as const) {
+  test(`menstruação em andamento há ${dias} dias: ${aindaPodeTerminar ? 'ainda oferece "terminou hoje"' : 'pede o fim pela edição do período'}`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    const ciclo = cicloAberto(deslocar(hoje(), -dias));
+    const { errosDaPagina, pedidos } = await simularApi(page, { ...(await rotasDaAluna(page, 'FEMININO')), ...rotasDoCiclo(ciclo) });
+    await page.goto('/aluno/ciclo');
+    await expect(page.getByRole('heading', { name: 'Ciclo menstrual', level: 1 })).toBeVisible();
+    const alteracoes = () => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.startsWith('/aluno/ciclo/registros/'));
+    if (aindaPodeTerminar) {
+      await expect(page.getByText(`Dia ${dias + 1} do ciclo · Menstrual`)).toBeVisible();
+      await page.getByRole('button', { name: 'Minha menstruação terminou hoje' }).click();
+      await expect.poll(() => alteracoes().length).toBe(1);
+      return;
+    }
+    // Passou do limite da API: a menstruação não segue pintada nem o botão manda um fim que seria recusado (422).
+    await expect(page.getByText(`Dia ${dias + 1} do ciclo`).first()).toBeVisible();
+    await expect(page.getByText(`Dia ${dias + 1} do ciclo · Menstrual`)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Minha menstruação terminou hoje' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Informar quando terminou' }).click();
+    await expect(page.getByText('Editar ciclo', { exact: true })).toBeVisible();
+    await page.getByLabel('Fim (opcional)').fill(deslocar(hoje(), -dias + 4).split('-').reverse().join(''));
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await expect.poll(() => alteracoes().length).toBe(1);
+    expect(alteracoes()[0].corpo).toMatchObject({ inicio: deslocar(hoje(), -dias), fim: deslocar(hoje(), -dias + 4) });
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('calendário: o dia de amanhã fica desabilitado e o de hoje abre', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const ciclo = cicloAberto(deslocar(hoje(), -3));
+  await simularApi(page, { ...(await rotasDaAluna(page, 'FEMININO')), ...rotasDoCiclo(ciclo) });
+  await page.goto('/aluno/ciclo');
+  await expect(celulaDoDia(page, hoje())).toBeEnabled();
+  const amanha = deslocar(hoje(), 1);
+  const virouOMes = amanha.slice(0, 7) !== hoje().slice(0, 7);
+  if (virouOMes) await page.getByRole('button', { name: 'Próximo mês' }).click();
+  const futuro = celulaDoDia(page, amanha);
+  await expect(futuro).toBeDisabled();
+  await expect(futuro).toHaveAttribute('aria-label', /ainda não chegou/);
+  await futuro.click({ force: true });
+  await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
+  if (virouOMes) await page.getByRole('button', { name: 'Mês anterior' }).click();
+  await celulaDoDia(page, hoje()).click();
+  await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeVisible();
+});
+
+test('interruptor "Mostrar fases estimadas" grava a duração já salva, não a que está só no campo', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const ciclo = cicloAberto(deslocar(hoje(), -3));
+  const { pedidos } = await simularApi(page, { ...(await rotasDaAluna(page, 'FEMININO')), ...rotasDoCiclo(ciclo) });
+  await page.goto('/aluno/ciclo');
+  await page.getByText('Configurações', { exact: true }).click();
+  const gravacoes = () => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho === '/aluno/ciclo/configuracao');
+  await page.getByLabel('Duração habitual do ciclo (opcional)').fill('35');
+  await page.getByRole('switch', { name: 'Mostrar fases estimadas' }).click();
+  await expect.poll(() => gravacoes().length).toBe(1);
+  expect(gravacoes()[0].corpo).toEqual({ duracaoHabitual: 28, mostrarFases: false });
+  // "Salvar duração" continua gravando o que foi digitado.
+  await page.getByLabel('Duração habitual do ciclo (opcional)').fill('35');
+  await page.getByRole('button', { name: 'Salvar duração' }).click();
+  await expect.poll(() => gravacoes().length).toBe(2);
+  expect(gravacoes()[1].corpo).toEqual({ duracaoHabitual: 35, mostrarFases: false });
+});
+
+function atualizacaoDoCiclo(fase: 'ABERTA' | 'ENVIADA'): Atualizacao {
+  return {
+    id: 'z0000000-0000-4000-8000-000000000001', pastaId: 'p0000000-0000-4000-8000-000000000001', alunoId: ALUNO_ID, nomeAluno: null,
+    dataAtualizacao: hoje(), fase, diasParaData: 0, diasDeAtraso: 0, atrasoAte: null, atrasoMotivo: null,
+    questionarioVersaoNumero: 1, questionarioVersaoId: 'v0000000-0000-4000-8000-000000000001', questionarioNome: null,
+    modelo: { formato: 2, instrucoes: [], secoes: [] }, respostas: fase === 'ENVIADA' ? {} : null,
+    enviadaEm: fase === 'ENVIADA' ? `${hoje()}T12:00:00Z` : null, feedback: null, versao: 1, resumo: null,
+  };
+}
+
+for (const [fase, aparece] of [['ABERTA', true], ['ENVIADA', false]] as const) {
+  test(`aviso da última menstruação na atualização ${fase === 'ABERTA' ? 'em aberto' : 'já enviada'}: ${aparece ? 'aparece' : 'não aparece'}`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    const ciclo = cicloAberto(deslocar(hoje(), -50));
+    ciclo.atual = { ...ciclo.atual, registros: [{ id: 'r1', inicio: deslocar(hoje(), -50), fim: deslocar(hoje(), -46) }] };
+    const { errosDaPagina } = await simularApi(page, {
+      ...(await rotasDaAluna(page, 'FEMININO')), ...rotasDoCiclo(ciclo),
+      'GET /aluno/atualizacao': { corpo: atualizacaoDoCiclo(fase) },
+    });
+    await page.goto('/aluno/atualizacao');
+    await expect(page.getByText('Instruções', { exact: true })).toBeVisible();
+    await expect(page.getByText('Confira se sua última menstruação está registrada')).toHaveCount(aparece ? 1 : 0);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('faixa do ciclo na pasta: a menstruação fica na data certa, depois dos dias sem fase', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const pasta: PastaResumo = { ...PASTA, inicio: deslocar(INICIO_ANTERIOR, -10), fim: HOJE };
+  await simularApi(page, {
+    ...(await sessao(page, TREINADOR)),
+    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+    'GET /consultoria': { corpo: MARCA },
+    [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
+    [`GET /alunos/${ALUNO_ID}/ciclo`]: { corpo: CICLO_LIGADO },
+    [`GET /alunos/${ALUNO_ID}/pastas`]: { corpo: [pasta] },
+    [`GET /alunos/${ALUNO_ID}/pesos`]: { corpo: PESOS },
+  });
+  await page.goto(`/treinador/alunos/${ALUNO_ID}`);
+  await page.getByText('Pasta de janeiro').click();
+  await expect(page.getByText('Ciclo no período da pasta')).toBeVisible();
+  const menstrual = page.getByRole('button', { name: 'Menstrual', exact: true }).first();
+  await expect(menstrual).toBeVisible();
+  const trilho = menstrual.locator('xpath=..');
+  const [caixa, moldura] = [await menstrual.boundingBox(), await trilho.boundingBox()];
+  // O período tem 49 dias e a menstruação começa no 11º: cerca de 20% da largura, não colada à esquerda.
+  const deslocamento = ((caixa?.x ?? 0) - (moldura?.x ?? 0)) / (moldura?.width ?? 1);
+  expect(deslocamento).toBeGreaterThan(0.18);
+  expect(deslocamento).toBeLessThan(0.23);
 });

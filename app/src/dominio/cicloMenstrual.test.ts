@@ -1,7 +1,9 @@
 import {
-  contarSintomas, duracaoDoCiclo, faixasSobrePontos, faseNaData, fasesNoPeriodo, menstruacaoPrevista, proximaMenstruacaoPrevista,
-  semRegistroRecente, temInicioRecente, textoDaContagem, type ConfigDoCiclo, type RegistroDeCiclo,
+  contarSintomas, DIAS_MAXIMOS_DA_MENSTRUACAO, diaTemMarca, diasDeMenstruacaoRegistrada, duracaoDoCiclo, faixasSobrePontos, faseNaData,
+  fasesNoPeriodo, hojeDoCiclo, menstruacaoPrevista, podeTerminarHoje, proximaMenstruacaoPrevista, segmentosDoPeriodo,
+  semRegistroRecente, temInicioRecente, textoDaContagem, textoDaLeitura, type ConfigDoCiclo, type RegistroDeCiclo,
 } from './cicloMenstrual';
+import { hojeIso } from './formatos';
 
 const config = (parcial: Partial<ConfigDoCiclo> = {}): ConfigDoCiclo => ({
   duracaoHabitual: null, mostrarFases: true, hoje: '2026-02-10', ...parcial,
@@ -34,41 +36,115 @@ describe('fase do ciclo', () => {
     expect(faseNaData(registros, config({ hoje: '2026-01-25' }), '2026-01-02').fase).toBe('MENSTRUAL');
   });
 
-  it('menstruação em andamento vai até hoje', () => {
+  it('menstruação em andamento vai até hoje, no máximo 15 dias depois do início', () => {
     const registros = [{ inicio: '2026-02-08', fim: null }];
+    expect(DIAS_MAXIMOS_DA_MENSTRUACAO).toBe(15);
     expect(faseNaData(registros, config({ duracaoHabitual: 28 }), '2026-02-10').fase).toBe('MENSTRUAL');
     expect(faseNaData(registros, config({ duracaoHabitual: 28 }), '2026-02-11').fase).not.toBe('MENSTRUAL');
+    // Esquecida aberta: hoje está 40 dias depois e a menstruação não vale para sempre.
+    const tarde = config({ duracaoHabitual: 28, hoje: '2026-03-20' });
+    expect(faseNaData(registros, tarde, '2026-02-23').fase).toBe('MENSTRUAL');
+    expect(faseNaData(registros, tarde, '2026-02-24').fase).not.toBe('MENSTRUAL');
+    expect(faseNaData(registros, config({ mostrarFases: false, hoje: '2026-03-20' }), '2026-02-24').fase).toBeNull();
   });
 
-  it('um só registro, com e sem duração habitual', () => {
-    const registros = [{ inicio: '2026-01-01', fim: '2026-01-04' }];
-    expect(faseNaData(registros, config({ hoje: '2026-01-20' }), '2026-01-20')).toEqual({ fase: null, diaDoCiclo: 20, estimada: false });
-    expect(proximaMenstruacaoPrevista(registros, config({ hoje: '2026-01-20' }))).toBeNull();
-    expect(faseNaData(registros, config({ hoje: '2026-01-20', duracaoHabitual: 28 }), '2026-01-20').fase).toBe('LUTEA');
-    expect(proximaMenstruacaoPrevista(registros, config({ hoje: '2026-01-20', duracaoHabitual: 28 }))).toBe('2026-01-29');
+  it('o calendário pinta a menstruação em andamento só até o limite', () => {
+    const dias = diasDeMenstruacaoRegistrada([{ inicio: '2026-02-08', fim: null }], '2026-03-20');
+    expect(dias.size).toBe(16);
+    expect(dias.has('2026-02-23')).toBe(true);
+    expect(dias.has('2026-02-24')).toBe(false);
+    expect(diasDeMenstruacaoRegistrada([{ inicio: '2026-02-08', fim: null }], '2026-02-10').size).toBe(3);
+    expect(diasDeMenstruacaoRegistrada([{ inicio: '2026-02-08', fim: '2026-02-12' }], '2026-03-20').size).toBe(5);
   });
 
-  it('sem registro recente não prevê', () => {
+  it('"terminou hoje" só vale enquanto o fim de hoje é aceito pela API', () => {
+    const aberto = { id: 'r', inicio: '2026-02-08', fim: null };
+    expect(podeTerminarHoje(aberto, '2026-02-08')).toBe(true);
+    expect(podeTerminarHoje(aberto, '2026-02-23')).toBe(true);
+    expect(podeTerminarHoje(aberto, '2026-02-24')).toBe(false);
+    expect(podeTerminarHoje({ ...aberto, fim: '2026-02-12' }, '2026-02-10')).toBe(false);
+  });
+
+  it('sem registro recente apaga só a previsão: ciclos passados já fechados mantêm as fases', () => {
+    const antigos = [{ inicio: '2025-11-01', fim: '2025-11-05' }, { inicio: '2025-11-29', fim: '2025-12-03' }];
+    const hoje = config({ hoje: '2026-03-01' });
+    expect(semRegistroRecente(antigos, hoje.hoje)).toBe(true);
+    expect(faseNaData(antigos, hoje, '2025-11-03')).toMatchObject({ fase: 'MENSTRUAL', diaDoCiclo: 3 });
+    expect(faseNaData(antigos, hoje, '2025-11-10')).toMatchObject({ fase: 'FOLICULAR', estimada: true });
+    expect(faseNaData(antigos, hoje, '2025-11-15').fase).toBe('OVULATORIA');
+    expect(faseNaData(antigos, hoje, '2025-11-20').fase).toBe('LUTEA');
+    expect(fasesNoPeriodo(antigos, hoje, '2025-11-01', '2025-11-28').map((f) => f.fase)).toEqual(['MENSTRUAL', 'FOLICULAR', 'OVULATORIA', 'LUTEA']);
+    // O ciclo seguinte ao último registro é previsão: não aparece.
+    expect(faseNaData(antigos, hoje, '2025-12-20').fase).toBeNull();
+    expect(faseNaData(antigos, hoje, '2025-12-02').fase).toBe('MENSTRUAL');
+  });
+
+  it('sem registro recente não mostra "Dia N" do ciclo que não tem como ter acabado', () => {
     const registros = [{ inicio: '2025-12-01', fim: '2025-12-05' }];
-    expect(semRegistroRecente(registros, '2026-03-01')).toBe(true);
-    expect(proximaMenstruacaoPrevista(registros, config({ hoje: '2026-03-01', duracaoHabitual: 28 }))).toBeNull();
+    const hoje = config({ hoje: '2026-03-07' });
+    const leitura = faseNaData(registros, hoje, hoje.hoje);
+    expect(leitura.diaDoCiclo).toBeNull();
+    expect(textoDaLeitura(leitura)).toBe('—');
+    expect(faseNaData(registros, config({ hoje: '2026-03-07', mostrarFases: false }), '2026-03-07').diaDoCiclo).toBeNull();
+    // Os dias da janela de 60 dias seguem contados, e o limite é o mesmo de `semRegistroRecente`.
+    expect(faseNaData(registros, hoje, '2025-12-20').diaDoCiclo).toBe(20);
+    expect(faseNaData(registros, hoje, '2026-01-30').diaDoCiclo).toBe(61);
+    expect(faseNaData(registros, hoje, '2026-01-31').diaDoCiclo).toBeNull();
+    // Ciclo passado fechado por um início real continua com o dia.
+    const fechado = [{ inicio: '2025-12-01', fim: null }, { inicio: '2026-01-05', fim: null }];
+    expect(faseNaData(fechado, hoje, '2025-12-20').diaDoCiclo).toBe(20);
   });
 
-  it('mostrar fases desligado deixa só a menstruação e o dia', () => {
-    expect(faseNaData(regular, config({ mostrarFases: false }), '2026-01-20')).toEqual({ fase: null, diaDoCiclo: 20, estimada: false });
-    expect(faseNaData(regular, config({ mostrarFases: false }), '2026-01-03').fase).toBe('MENSTRUAL');
+  it('faixa do período: dias sem fase ocupam o lugar deles, e cada fase fica na data certa', () => {
+    const faixas = fasesNoPeriodo(regular, config(), '2025-12-25', '2026-01-08');
+    expect(segmentosDoPeriodo(faixas, '2025-12-25', '2026-01-08')).toEqual([
+      { de: '2025-12-25', ate: '2025-12-31', fase: null, estimada: false, dias: 7 },
+      { de: '2026-01-01', ate: '2026-01-05', fase: 'MENSTRUAL', estimada: false, dias: 5 },
+      { de: '2026-01-06', ate: '2026-01-08', fase: 'FOLICULAR', estimada: true, dias: 3 },
+    ]);
+    const meio = [
+      { de: '2026-01-03', ate: '2026-01-05', fase: 'MENSTRUAL' as const, estimada: false },
+      { de: '2026-01-10', ate: '2026-01-12', fase: 'FOLICULAR' as const, estimada: true },
+    ];
+    const segmentos = segmentosDoPeriodo(meio, '2026-01-01', '2026-01-14');
+    expect(segmentos.map((s) => [s.fase, s.dias])).toEqual([[null, 2], ['MENSTRUAL', 3], [null, 4], ['FOLICULAR', 3], [null, 2]]);
+    expect(segmentos.reduce((soma, s) => soma + s.dias, 0)).toBe(14);
+    expect(segmentosDoPeriodo([], '2026-01-01', '2026-01-04')).toEqual([{ de: '2026-01-01', ate: '2026-01-04', fase: null, estimada: false, dias: 4 }]);
   });
 
-  it('vira o ano', () => {
-    const registros = [{ inicio: '2025-12-20', fim: '2025-12-24' }, { inicio: '2026-01-17', fim: '2026-01-21' }];
-    expect(faseNaData(registros, config({ hoje: '2026-01-22' }), '2026-01-05').fase).toBe('LUTEA');
-  });
+  describe('"hoje" do ciclo é o de Brasília, não o do aparelho', () => {
+    // O `TZ` do processo não vale no Windows, então o aparelho em outro fuso é simulado: um `Date` do mesmo instante cujas
+    // leituras "locais" (as que `hojeIso` usa) respondem como num fuso de `deslocamentoHoras` em relação ao UTC.
+    class DateNoFuso extends Date {
+      constructor(instante: string, private readonly deslocamentoHoras: number) { super(instante); }
+      private local(): Date { return new Date(this.getTime() + this.deslocamentoHoras * 3_600_000); }
+      getFullYear() { return this.local().getUTCFullYear(); }
+      getMonth() { return this.local().getUTCMonth(); }
+      getDate() { return this.local().getUTCDate(); }
+    }
 
-  it('período que corta o meio de um ciclo', () => {
-    const faixas = fasesNoPeriodo(regular, config(), '2026-01-10', '2026-01-20');
-    expect(faixas.map((f) => f.fase)).toEqual(['FOLICULAR', 'OVULATORIA', 'LUTEA']);
-    expect(faixas[0]).toMatchObject({ de: '2026-01-10', ate: '2026-01-14' });
-    expect(faixas[2]).toMatchObject({ de: '2026-01-16', ate: '2026-01-20' });
+    it('aparelho em Tóquio (UTC+9), 01:00 UTC: lá já é dia 10, em Brasília ainda é dia 9', () => {
+      const aparelho = new DateNoFuso('2026-06-10T01:00:00Z', 9);
+      expect(aparelho.getDate()).toBe(10);
+      expect(hojeIso(aparelho)).toBe('2026-06-10');
+      expect(hojeDoCiclo(aparelho)).toBe('2026-06-09');
+    });
+
+    it('aparelho em Los Angeles (UTC−7), 03:00 UTC: lá é dia 9, em Brasília já é dia 10', () => {
+      const aparelho = new DateNoFuso('2026-06-10T03:00:00Z', -7);
+      expect(aparelho.getDate()).toBe(9);
+      expect(hojeIso(aparelho)).toBe('2026-06-09');
+      expect(hojeDoCiclo(aparelho)).toBe('2026-06-10');
+    });
+
+    it('sem argumento usa o relógio do sistema', () => {
+      jest.useFakeTimers({ now: new Date('2026-06-10T02:30:00Z') });
+      try {
+        expect(hojeDoCiclo()).toBe('2026-06-09');
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 
   it('conta sintomas do período e a previsão da menstruação', () => {
@@ -82,6 +158,23 @@ describe('fase do ciclo', () => {
     expect(menstruacaoPrevista(regular, config())).toEqual({ inicio: '2026-02-26', fim: '2026-03-02' });
     expect(temInicioRecente(regular, '2026-02-10')).toBe(true);
     expect(temInicioRecente(regular, '2026-04-01')).toBe(false);
+  });
+
+  it('"Sem cólica" não é sintoma: não entra na contagem nem marca o dia', () => {
+    const contas = contarSintomas([
+      { data: '2026-01-02', colica: 'NENHUMA' },
+      { data: '2026-01-03', colica: 'NENHUMA', sintomas: ['INCHACO'] },
+      { data: '2026-01-04', colica: 'LEVE' },
+    ], '2026-01-01', '2026-01-31');
+    expect(textoDaContagem(contas)).toBe('Cólica leve: 1 dia · Inchaço: 1 dia');
+    expect(textoDaContagem(contarSintomas([{ data: '2026-01-02', colica: 'NENHUMA' }], '2026-01-01', '2026-01-31'))).toBe('Nenhum sintoma registrado');
+    expect(diaTemMarca({ colica: 'NENHUMA' })).toBe(false);
+    expect(diaTemMarca({ colica: 'NENHUMA', sintomas: [] })).toBe(false);
+    expect(diaTemMarca({ colica: 'NENHUMA', fluxo: 'LEVE' })).toBe(true);
+    expect(diaTemMarca({ colica: 'LEVE' })).toBe(true);
+    expect(diaTemMarca({ sintomas: ['CANSACO'] })).toBe(true);
+    expect(diaTemMarca({ observacao: 'x' })).toBe(true);
+    expect(diaTemMarca(undefined)).toBe(false);
   });
 
   it('as faixas do gráfico acompanham a data de cada ponto', () => {

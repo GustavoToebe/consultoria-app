@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { TextosDasFases } from '../api/tipos';
-import { diferencaEmDias, ROTULO_DA_FASE, type FaixaDeFase, type FaseDoCiclo } from '../dominio/cicloMenstrual';
+import { diferencaEmDias, ROTULO_DA_FASE, segmentosDoPeriodo, type FaixaDeFase, type FaseDoCiclo } from '../dominio/cicloMenstrual';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, type Cores } from '../tema/tokens';
 import { Texto } from './Texto';
@@ -21,7 +21,7 @@ export function corDaFase(cores: Cores, fase: FaseDoCiclo): string {
 
 /**
  * Faixa do período com as fases estimadas e a legenda em texto. O toque numa fase mostra o texto do treinador,
- * quando houver. Sem fase no trecho, o fundo fica neutro.
+ * quando houver. Os dias sem fase ocupam o lugar deles, em fundo neutro, para cada fase ficar na data certa.
  */
 export function FaixaDoCiclo({ faixas, de, ate, textos, previsto }: {
   faixas: FaixaDeFase[];
@@ -38,12 +38,14 @@ export function FaixaDoCiclo({ faixas, de, ate, textos, previsto }: {
   return (
     <View style={estilos.bloco}>
       <View style={[estilos.trilho, { backgroundColor: cores.superficie2 }]}>
-        {faixas.map((f) => {
-          const dias = diferencaEmDias(f.de, f.ate) + 1;
+        {segmentosDoPeriodo(faixas, de, ate).map((segmento) => {
+          const largura = `${(segmento.dias / total) * 100}%` as const;
+          const fase = segmento.fase;
+          if (!fase) return <View key={`vazio:${segmento.de}`} accessibilityElementsHidden importantForAccessibility="no" style={{ width: largura, minHeight: ALVO_TOQUE }} />;
           return (
-            <Pressable key={`${f.fase}:${f.de}`} accessibilityRole="button" accessibilityLabel={ROTULO_DA_FASE[f.fase]}
-              onPress={() => setAberta((atual) => atual === f.fase ? null : f.fase)}
-              style={{ width: `${(dias / total) * 100}%`, backgroundColor: corDaFase(cores, f.fase), minHeight: ALVO_TOQUE }} />
+            <Pressable key={`${fase}:${segmento.de}`} accessibilityRole="button" accessibilityLabel={ROTULO_DA_FASE[fase]}
+              onPress={() => setAberta((atual) => atual === fase ? null : fase)}
+              style={{ width: largura, backgroundColor: corDaFase(cores, fase), minHeight: ALVO_TOQUE }} />
           );
         })}
       </View>

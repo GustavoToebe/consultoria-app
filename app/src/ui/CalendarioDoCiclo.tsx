@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { DiaDeCicloApi, RegistroDeCicloApi } from '../api/tipos';
 import {
-  faseNaData, menstruacaoPrevista, ROTULO_DA_FASE, type ConfigDoCiclo, type FaseDoCiclo,
+  diasDeMenstruacaoRegistrada, diaTemMarca, faseNaData, menstruacaoPrevista, ROTULO_DA_FASE, type ConfigDoCiclo, type FaseDoCiclo,
 } from '../dominio/cicloMenstrual';
 import { somarDias } from '../dominio/formatos';
 import { useTema } from '../tema/TemaProvider';
@@ -32,19 +32,6 @@ function celulas(mes: string): (string | null)[] {
   return [...Array.from({ length: folga }, () => null), ...dias];
 }
 
-function menstruacaoRegistrada(registros: readonly RegistroDeCicloApi[], hoje: string): Set<string> {
-  const dias = new Set<string>();
-  for (const r of registros) {
-    const fim = r.fim ?? (r.inicio <= hoje ? hoje : r.inicio);
-    for (let dia = r.inicio; dia <= fim; dia = somarDias(dia, 1)) dias.add(dia);
-  }
-  return dias;
-}
-
-function temMarca(dia: DiaDeCicloApi | undefined): boolean {
-  return !!dia && !!(dia.fluxo || dia.colica || dia.observacao || (dia.sintomas && dia.sintomas.length > 0));
-}
-
 /**
  * Mês do ciclo: menstruação registrada em tom próprio, previsto com contorno tracejado, fases estimadas e ponto
  * no dia que tem sintoma. A legenda é texto. O toque devolve a data.
@@ -57,7 +44,7 @@ export function CalendarioDoCiclo({ mes, registros, dias, config, aoTocarDia }: 
   aoTocarDia: (data: string) => void;
 }) {
   const { cores } = useTema();
-  const registrados = menstruacaoRegistrada(registros, config.hoje);
+  const registrados = diasDeMenstruacaoRegistrada(registros, config.hoje);
   const prevista = menstruacaoPrevista(registros, config);
   const previstos = new Set<string>();
   if (prevista) {
@@ -77,10 +64,13 @@ export function CalendarioDoCiclo({ mes, registros, dias, config, aoTocarDia }: 
           const registrada = registrados.has(data);
           const previsto = !registrada && previstos.has(data);
           const fase = leitura.fase;
+          // Dia depois de hoje (Brasília) não se registra: a API recusa (422). Fica desabilitado, com o motivo no rótulo.
+          const futuro = data > config.hoje;
           const fundo = registrada || (fase && !previsto) ? corDaFase(cores, registrada ? 'MENSTRUAL' : fase!) : cores.superficie2;
           const letra = registrada || (fase && !previsto) ? textoSobre(fundo) : cores.texto;
           return (
-            <Pressable key={data} accessibilityRole="button" accessibilityLabel={`${data.slice(8)} de ${rotuloDoMes(mes)}`}
+            <Pressable key={data} accessibilityRole="button" accessibilityState={{ disabled: futuro }} disabled={futuro}
+              accessibilityLabel={`${data.slice(8)} de ${rotuloDoMes(mes)}${futuro ? ', ainda não chegou' : ''}`}
               onPress={() => aoTocarDia(data)}
               style={[estilos.celula, {
                 backgroundColor: previsto ? cores.superficie : fundo,
@@ -89,7 +79,7 @@ export function CalendarioDoCiclo({ mes, registros, dias, config, aoTocarDia }: 
                 borderWidth: previsto ? 1 : 0,
               }]}>
               <Texto numerico style={{ color: previsto ? cores.texto : letra }}>{Number(data.slice(8))}</Texto>
-              {temMarca(porData.get(data)) ? <View style={[estilos.ponto, { backgroundColor: cores.texto }]} /> : null}
+              {diaTemMarca(porData.get(data)) ? <View style={[estilos.ponto, { backgroundColor: cores.texto }]} /> : null}
             </Pressable>
           );
         })}

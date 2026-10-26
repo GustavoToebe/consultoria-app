@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { baixarFotoDePerfil } from '../api/rotas';
 import { useCicloDaAluna } from './useCicloDaAluna';
-import { faseNaData, textoDaLeitura, type ConfigDoCiclo } from '../dominio/cicloMenstrual';
+import { faseNaData, hojeDoCiclo, textoDaLeitura, type ConfigDoCiclo } from '../dominio/cicloMenstrual';
 import { dataPorExtenso, primeiroNome } from '../dominio/inicioDoAluno';
 import { useSessao } from '../sessao/SessaoProvider';
 import { ALVO_TOQUE, espaco } from '../tema/tokens';
@@ -36,14 +36,16 @@ export function CabecalhoDoInicio({ nome, hoje }: { nome: string | null; hoje: s
         <Texto variante="titulo" nivel={1} style={estilos.ola}>{primeiro ? `Olá, ${primeiro}.` : 'Olá.'}</Texto>
         <Texto variante="suave" numerico style={estilos.data}>{dataPorExtenso(hoje)}</Texto>
       </View>
-      <LinhaDoCiclo hoje={hoje} />
+      <LinhaDoCiclo />
     </View>
   );
 }
 
-function LinhaDoCiclo({ hoje }: { hoje: string }) {
+function LinhaDoCiclo() {
   const ciclo = useCicloDaAluna();
   if (!ciclo.online || !ciclo.dados?.ativo) return null;
+  // O ciclo conta pelo dia de Brasília, não pelo fuso do aparelho (a data por extenso do cabeçalho é a do aparelho).
+  const hoje = hojeDoCiclo();
   const config: ConfigDoCiclo = {
     duracaoHabitual: ciclo.dados.duracaoHabitual ?? null,
     mostrarFases: ciclo.dados.mostrarFases !== false,

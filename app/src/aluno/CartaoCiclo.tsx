@@ -3,9 +3,8 @@ import { useState } from 'react';
 
 import { ativarCiclo, definirSexoDaAluna, eu } from '../api/rotas';
 import {
-  AJUDA_MOSTRAR_FASES, faseNaData, TEXTO_DO_CONSENTIMENTO, textoDaLeitura, VERSAO_CONSENTIMENTO, type ConfigDoCiclo,
+  AJUDA_MOSTRAR_FASES, faseNaData, hojeDoCiclo, TEXTO_DO_CONSENTIMENTO, textoDaLeitura, VERSAO_CONSENTIMENTO, type ConfigDoCiclo,
 } from '../dominio/cicloMenstrual';
-import { hojeIso } from '../dominio/formatos';
 import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
 import { useSessao } from '../sessao/SessaoProvider';
 import { Botao } from '../ui/Botao';
@@ -64,7 +63,7 @@ export function CartaoCiclo() {
   const config: ConfigDoCiclo = {
     duracaoHabitual: ciclo.dados.duracaoHabitual ?? null,
     mostrarFases: ciclo.dados.mostrarFases !== false,
-    hoje: hojeIso(),
+    hoje: hojeDoCiclo(),
   };
   const leitura = ligado ? faseNaData(ciclo.dados.registros ?? [], config, config.hoje) : null;
   const duracaoInvalida = duracao != null && (duracao < 21 || duracao > 45);
