@@ -7,6 +7,7 @@ import br.com.treinos.api.anamneses.Anamnese;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.consultoria.LogoRepositorio;
+import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.execucao.RegistroPeso;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
@@ -18,14 +19,20 @@ import br.com.treinos.api.web.ValidacaoException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
 import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageInputStream;
+import javax.imageio.stream.MemoryCacheImageInputStream;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -98,6 +105,12 @@ public class ComparacaoDeFotosService {
         }
     }
 
+    static {
+        // O padrão do JDK grava um arquivo temporário em disco para cada fluxo lido: dado de aluno não vai para o disco.
+        // Estado global da JVM (vale para todo ImageIO do processo); hoje só esta classe usa ImageIO no código de produção.
+        ImageIO.setUseCache(false);
+    }
+
     private static final String RESUMO_AUTORIZADO = "Autorizou o uso das fotos.";
     private static final String RESUMO_REVOGADO = "Revogou o uso das fotos.";
     static final String RESUMO_GERADA = "Gerou uma imagem de comparação de fotos.";
@@ -111,11 +124,16 @@ public class ComparacaoDeFotosService {
     private final Auditoria auditoria;
     private final LimiteTentativas limite;
     private final JsonMapper json;
+    private final TransactionTemplate leitura;
+    private final TransactionTemplate gravacao;
 
     public ComparacaoDeFotosService(AtualizacaoFotoRepository fotos, AlunoRepository alunos,
                                     RegistroPesoRepository pesos, ObjectProvider<ArmazenamentoDeFotos> armazenamento,
                                     FotosProperties propriedades, LogoRepositorio logos, Auditoria auditoria,
-                                    LimiteTentativas limite, JsonMapper json) {
+                                    LimiteTentativas limite, JsonMapper json, PlatformTransactionManager transacoes) {
+        this.leitura = new TransactionTemplate(transacoes);
+        this.leitura.setReadOnly(true);
+        this.gravacao = new TransactionTemplate(transacoes);
         this.fotos = fotos;
         this.alunos = alunos;
         this.pesos = pesos;
@@ -132,12 +150,12 @@ public class ComparacaoDeFotosService {
         if (alunos.findById(alunoId).isEmpty()) {
             throw new NaoEncontradoException("Aluno não encontrado.");
         }
-        return montar(alunoId);
+        return montar(alunoId, AcessoAtual.pode("ANAMNESE_LER"));
     }
 
     @Transactional(readOnly = true)
     public List<Item> linhaDoTempoDoAluno(UsuarioAutenticado eu) {
-        return montar(AlunoAppService.alunoDaSessao(eu));
+        return montar(AlunoAppService.alunoDaSessao(eu), true);
     }
 
     @Transactional(readOnly = true)
@@ -163,22 +181,77 @@ public class ComparacaoDeFotosService {
         return new UsoDeImagem(quando);
     }
 
+    /** O que a leitura do banco entrega ao resto: só chaves do bucket, nomes e a logo; nenhuma entidade. */
+    private record Preparo(ArmazenamentoDeFotos bucket, List<List<String>> chavesPorImagem, List<String> posicaoPorImagem,
+                           LogoRepositorio.Logo logo) {
+    }
+
     /**
      * JPEG ou ZIP da comparação, na ordem pedida. Nada é gravado. Sem autorização do aluno, 409.
-     * Foto de outro aluno, pendente ou removida: 404. Logo pedida sem arquivo: 422.
+     * Foto de outro aluno, pendente, removida ou (sem {@code ANAMNESE_LER}) de anamnese: 404. Logo pedida sem arquivo: 422.
      * Cada imagem leva de 2 a 4 fotos. De 1 a 6 imagens.
+     * <p>
+     * NÃO é transacional, de propósito. (1) O limite conta primeiro, sem transação: a tentativa que falha continua contada.
+     * (2) Uma transação curta só lê o banco. (3) O bucket, a decodificação, o desenho e o ZIP rodam sem transação nem conexão
+     * do banco presa. (4) A auditoria é uma escrita curta no fim, só se a imagem foi gerada.
      */
-    @Transactional
     public ArquivoComparacao gerar(UsuarioAutenticado eu, UUID alunoId, FormatoPedido formato, boolean comLogo,
                                    List<List<UUID>> imagens) {
         limite.comparacaoDeFotos(eu.usuarioId());
+        Preparo preparo = leitura.execute(status -> preparar(alunoId, comLogo, imagens));
+        BufferedImage marca = preparo.logo() == null ? null : decodificar(preparo.logo().bytes(), List.of());
+        List<LayoutDaComparacao.Formato> quadros = formato == FormatoPedido.AMBOS
+                ? List.of(LayoutDaComparacao.Formato.STORIES, LayoutDaComparacao.Formato.FEED)
+                : List.of(formato == FormatoPedido.FEED ? LayoutDaComparacao.Formato.FEED : LayoutDaComparacao.Formato.STORIES);
+        List<List<String>> caminhos = new ArrayList<>();
+        List<List<byte[]>> arquivos = new ArrayList<>();
+        for (int q = 0; q < quadros.size(); q++) {
+            caminhos.add(new ArrayList<>());
+            arquivos.add(new ArrayList<>());
+        }
+        // Uma imagem de cada vez: cada foto pertence a uma imagem só (validarGrupos), então é baixada e decodificada uma
+        // vez, mesmo com os dois formatos, e só as fotos da imagem em curso ficam na memória.
+        for (int i = 0; i < preparo.chavesPorImagem().size(); i++) {
+            List<String> chaves = preparo.chavesPorImagem().get(i);
+            List<BufferedImage> fotosDaImagem = new ArrayList<>();
+            for (int j = 0; j < chaves.size(); j++) {
+                fotosDaImagem.add(decodificar(preparo.bucket().ler(chaves.get(j)), alvosDaFoto(quadros, chaves.size(), j)));
+            }
+            for (int q = 0; q < quadros.size(); q++) {
+                LayoutDaComparacao.Formato quadro = quadros.get(q);
+                LayoutDaComparacao.Layout layout = LayoutDaComparacao.montar(quadro, fotosDaImagem.size(), marca != null,
+                        marca == null ? 0 : marca.getWidth(), marca == null ? 0 : marca.getHeight());
+                String pasta = quadro == LayoutDaComparacao.Formato.STORIES ? "Stories" : "Feed";
+                caminhos.get(q).add(pasta + "/" + nomeDaEntrada(i + 1, preparo.posicaoPorImagem().get(i)));
+                arquivos.get(q).add(desenhar(layout, fotosDaImagem, marca));
+            }
+        }
+        ArquivoComparacao arquivo;
+        if (imagens.size() == 1 && formato != FormatoPedido.AMBOS) {
+            String nome = formato == FormatoPedido.FEED ? "feed.jpg" : "stories.jpg";
+            arquivo = new ArquivoComparacao(arquivos.get(0).get(0), nome, MediaType.IMAGE_JPEG);
+        } else {
+            arquivo = new ArquivoComparacao(zip(caminhos.stream().flatMap(List::stream).toList(),
+                    arquivos.stream().flatMap(List::stream).toList()), "comparacao.zip", MediaType.parseMediaType("application/zip"));
+        }
+        gravacao.executeWithoutResult(status ->
+                auditoria.registrarEvento("COMPARACAO_DE_FOTOS_GERADA", "ALUNO", alunoId, RESUMO_GERADA));
+        return arquivo;
+    }
+
+    /**
+     * Tudo o que precisa do banco, numa transação curta e somente leitura. A ordem das recusas é a de sempre:
+     * aluno (404), autorização de uso (409), quantidades (400), logo (422), bucket (503), fotos (404).
+     */
+    private Preparo preparar(UUID alunoId, boolean comLogo, List<List<UUID>> imagens) {
         Aluno aluno = alunos.findById(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         if (aluno.getUsoDeImagemAutorizadoEm() == null) {
             throw new ConflictException("O aluno não autorizou o uso das fotos.", "USO_DE_IMAGEM_NAO_AUTORIZADO");
         }
         validarGrupos(imagens);
+        boolean comAnamnese = AcessoAtual.pode("ANAMNESE_LER");
         Map<UUID, String> posicoes = new HashMap<>();
-        for (Item item : montar(alunoId)) {
+        for (Item item : montar(alunoId, comAnamnese)) {
             posicoes.put(item.fotoId(), item.posicao());
         }
         LogoRepositorio.Logo logo = null;
@@ -190,31 +263,27 @@ public class ComparacaoDeFotosService {
         if (bucket == null) {
             throw FotoException.indisponivel();
         }
-        BufferedImage marca = logo == null ? null : lerImagem(logo.bytes());
-        List<LayoutDaComparacao.Formato> quadros = formato == FormatoPedido.AMBOS
-                ? List.of(LayoutDaComparacao.Formato.STORIES, LayoutDaComparacao.Formato.FEED)
-                : List.of(formato == FormatoPedido.FEED ? LayoutDaComparacao.Formato.FEED : LayoutDaComparacao.Formato.STORIES);
-        List<String> caminhos = new ArrayList<>();
-        List<byte[]> arquivos = new ArrayList<>();
-        for (LayoutDaComparacao.Formato quadro : quadros) {
-            String pasta = quadro == LayoutDaComparacao.Formato.STORIES ? "Stories" : "Feed";
-            for (int i = 0; i < imagens.size(); i++) {
-                List<BufferedImage> fotosDoGrupo = new ArrayList<>();
-                for (UUID id : imagens.get(i)) {
-                    fotosDoGrupo.add(lerImagem(bucket.ler(ObjetoDeFoto.de(carregar(alunoId, id)).chave())));
-                }
-                LayoutDaComparacao.Layout layout = LayoutDaComparacao.montar(quadro, fotosDoGrupo.size(), marca != null,
-                        marca == null ? 0 : marca.getWidth(), marca == null ? 0 : marca.getHeight());
-                caminhos.add(pasta + "/" + nomeDaEntrada(i + 1, posicoes.get(imagens.get(i).getFirst())));
-                arquivos.add(desenhar(layout, fotosDoGrupo, marca));
+        List<List<String>> chaves = new ArrayList<>();
+        List<String> posicaoPorImagem = new ArrayList<>();
+        for (List<UUID> ids : imagens) {
+            List<String> daImagem = new ArrayList<>();
+            for (UUID id : ids) {
+                daImagem.add(ObjetoDeFoto.de(carregar(alunoId, id, comAnamnese)).chave());
             }
+            chaves.add(List.copyOf(daImagem));
+            posicaoPorImagem.add(posicoes.get(ids.getFirst()));
         }
-        auditoria.registrarEvento("COMPARACAO_DE_FOTOS_GERADA", "ALUNO", alunoId, RESUMO_GERADA);
-        if (imagens.size() == 1 && formato != FormatoPedido.AMBOS) {
-            String nome = formato == FormatoPedido.FEED ? "feed.jpg" : "stories.jpg";
-            return new ArquivoComparacao(arquivos.get(0), nome, MediaType.IMAGE_JPEG);
+        return new Preparo(bucket, List.copyOf(chaves), posicaoPorImagem, logo);
+    }
+
+    /** Os lugares que a foto {@code indice} ocupa, um por formato pedido: a decodificação serve a todos. */
+    private static List<Alvo> alvosDaFoto(List<LayoutDaComparacao.Formato> quadros, int fotosNaImagem, int indice) {
+        List<Alvo> alvos = new ArrayList<>();
+        for (LayoutDaComparacao.Formato quadro : quadros) {
+            LayoutDaComparacao.Retangulo lugar = LayoutDaComparacao.montar(quadro, fotosNaImagem, false, 0, 0).fotos().get(indice);
+            alvos.add(new Alvo(lugar.largura(), lugar.altura()));
         }
-        return new ArquivoComparacao(zip(caminhos, arquivos), "comparacao.zip", MediaType.parseMediaType("application/zip"));
+        return alvos;
     }
 
     private static void validarGrupos(List<List<UUID>> imagens) {
@@ -234,9 +303,11 @@ public class ComparacaoDeFotosService {
         }
     }
 
-    private AtualizacaoFoto carregar(UUID alunoId, UUID id) {
+    /** Foto de anamnese sem {@code ANAMNESE_LER} é "não encontrada", como a de outro aluno: não revela que existe. */
+    private AtualizacaoFoto carregar(UUID alunoId, UUID id, boolean comAnamnese) {
         return fotos.findById(id).filter(f -> alunoId.equals(f.getAlunoId())
-                        && f.getPerguntaId() != null && f.getRemovidaEm() == null)
+                        && f.getPerguntaId() != null && f.getRemovidaEm() == null
+                        && (comAnamnese || f.getAnamneseId() == null))
                 .orElseThrow(() -> new NaoEncontradoException("Foto não encontrada."));
     }
 
@@ -296,7 +367,8 @@ public class ComparacaoDeFotosService {
                 .replace('_', ' ');
     }
 
-    private List<Item> montar(UUID alunoId) {
+    /** {@code comAnamnese} falso omite as fotos de anamnese (a equipe sem {@code ANAMNESE_LER}); o aluno vê as próprias. */
+    private List<Item> montar(UUID alunoId, boolean comAnamnese) {
         Map<LocalDate, BigDecimal> pesosDoDia = new HashMap<>();
         for (RegistroPeso peso : pesos.findByAlunoIdOrderByDataAsc(alunoId)) {
             pesosDoDia.putIfAbsent(peso.getData(), peso.getPesoKg());
@@ -304,7 +376,7 @@ public class ComparacaoDeFotosService {
         List<Item> itens = new ArrayList<>();
         for (LinhaDaFoto linha : fotos.linhaDoTempo(alunoId)) {
             Item item = itemDe(linha, pesosDoDia);
-            if (item != null) {
+            if (item != null && (comAnamnese || !"ANAMNESE".equals(item.origem()))) {
                 itens.add(item);
             }
         }
@@ -362,16 +434,59 @@ public class ComparacaoDeFotosService {
         return 0;
     }
 
-    private static BufferedImage lerImagem(byte[] bytes) {
-        try {
-            BufferedImage imagem = ImageIO.read(new ByteArrayInputStream(bytes));
-            if (imagem == null) {
-                throw new ValidacaoException("Não foi possível montar a imagem.", "IMAGEM_INVALIDA", List.of());
+    /** Tamanho em que a foto vai aparecer na imagem final. */
+    record Alvo(int largura, int altura) {
+    }
+
+    /**
+     * Decodifica uma vez, já reduzida: se a foto é muito maior do que o maior lugar que ela vai ocupar, o leitor pula
+     * linhas e colunas inteiras (subamostragem) e o bitmap grande nem chega a existir. O fator é inteiro e nunca passa de
+     * quantas vezes a foto excede o lugar, então o recorte que cobre o lugar continua com pelo menos o tamanho dele e o
+     * {@code recorte} só reduz o que sobra (menos de 2x). Sem alvos (a logo), decodifica inteira. Lê de um fluxo em
+     * memória: nenhum arquivo temporário.
+     */
+    static BufferedImage decodificar(byte[] bytes, List<Alvo> alvos) {
+        try (ImageInputStream entrada = new MemoryCacheImageInputStream(new ByteArrayInputStream(bytes))) {
+            Iterator<ImageReader> leitores = ImageIO.getImageReaders(entrada);
+            if (!leitores.hasNext()) {
+                throw imagemInvalida();
             }
-            return imagem;
-        } catch (IOException e) {
-            throw new ValidacaoException("Não foi possível montar a imagem.", "IMAGEM_INVALIDA", List.of());
+            ImageReader leitor = leitores.next();
+            try {
+                leitor.setInput(entrada, true, true);
+                ImageReadParam parametros = leitor.getDefaultReadParam();
+                int passo = passoDeSubamostragem(leitor.getWidth(0), leitor.getHeight(0), alvos);
+                if (passo > 1) {
+                    parametros.setSourceSubsampling(passo, passo, 0, 0);
+                }
+                BufferedImage imagem = leitor.read(0, parametros);
+                if (imagem == null) {
+                    throw imagemInvalida();
+                }
+                return imagem;
+            } finally {
+                leitor.dispose();
+            }
+        } catch (ValidacaoException e) {
+            throw e;
+        } catch (IOException | RuntimeException e) {
+            throw imagemInvalida();
         }
+    }
+
+    /** Quantas vezes a foto excede o menor lugar necessário (cobrir o lugar), arredondado para baixo; no mínimo 1. */
+    static int passoDeSubamostragem(int largura, int altura, List<Alvo> alvos) {
+        double menor = Double.MAX_VALUE;
+        for (Alvo alvo : alvos) {
+            if (alvo.largura() > 0 && alvo.altura() > 0) {
+                menor = Math.min(menor, Math.min(largura / (double) alvo.largura(), altura / (double) alvo.altura()));
+            }
+        }
+        return menor == Double.MAX_VALUE ? 1 : (int) Math.max(1, Math.floor(menor));
+    }
+
+    private static ValidacaoException imagemInvalida() {
+        return new ValidacaoException("Não foi possível montar a imagem.", "IMAGEM_INVALIDA", List.of());
     }
 
     private static byte[] desenhar(LayoutDaComparacao.Layout layout, List<BufferedImage> fotos, BufferedImage logo) {

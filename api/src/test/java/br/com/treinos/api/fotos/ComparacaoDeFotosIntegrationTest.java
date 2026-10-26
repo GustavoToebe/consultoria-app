@@ -2,7 +2,9 @@ package br.com.treinos.api.fotos;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.ApiDeTeste;
+import br.com.treinos.api.equipe.CatalogoPermissoes;
 import br.com.treinos.api.web.Fuso;
+import br.com.treinos.api.web.NaoEncontradoException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,8 +14,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -27,10 +31,19 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -42,6 +55,7 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate banco;
+    @MockitoSpyBean private ArmazenamentoDeFotos bucket;
 
     private ApiDeTeste api;
     private JsonNode treinador;
@@ -175,6 +189,109 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
         assertThat(banco.queryForObject("select uso_de_imagem_autorizado_em from aluno where id = ?::uuid", Object.class, aluno)).isNull();
     }
 
+    @Test
+    void limiteContaTambemAsTentativasQueFalham() throws Exception {
+        List<UUID> inexistentes = List.of(UUID.randomUUID(), UUID.randomUUID());
+        // 30 recusadas por falta de autorização do aluno (409) e 30 por foto inexistente (404): todas contam.
+        for (int i = 0; i < 30; i++) {
+            comparar(inexistentes, false, 409);
+        }
+        api.put("/aluno/uso-de-imagem", loginAluno, Map.of("autorizado", true), 200);
+        for (int i = 0; i < 30; i++) {
+            comparar(inexistentes, false, 404);
+        }
+        MvcResult limitada = comparar(inexistentes, false, 429);
+        assertThat(limitada.getResponse().getHeader("Retry-After")).isNotNull();
+    }
+
+    @Test
+    void bancoNaoFicaAbertoEnquantoAFotoEBaixadaDoBucket() throws Exception {
+        UUID[] fotos = autorizarEEnviarFotos(2);
+        List<Boolean> transacaoAtiva = new CopyOnWriteArrayList<>();
+        doAnswer(chamada -> {
+            transacaoAtiva.add(TransactionSynchronizationManager.isActualTransactionActive());
+            return chamada.callRealMethod();
+        }).when(bucket).ler(anyString());
+
+        postar(List.of(Map.of("fotoIds", List.of(fotos[0], fotos[1]))), "AMBOS", false, 200);
+
+        assertThat(transacaoAtiva).isNotEmpty().doesNotContain(true);
+    }
+
+    @Test
+    void auditoriaSoSaiQuandoAImagemFoiGerada() throws Exception {
+        UUID[] fotos = autorizarEEnviarFotos(2);
+        doThrow(new NaoEncontradoException("Foto não encontrada.")).when(bucket).ler(anyString());
+        comparar(List.of(fotos[0], fotos[1]), false, 404);
+        assertThat(contagem("COMPARACAO_DE_FOTOS_GERADA")).isZero();
+
+        reset(bucket);
+        comparar(List.of(fotos[0], fotos[1]), false, 200);
+        assertThat(contagem("COMPARACAO_DE_FOTOS_GERADA")).isEqualTo(1);
+    }
+
+    @Test
+    void cadaFotoELidaEDecodificadaUmaVezMesmoComOsDoisFormatos() throws Exception {
+        UUID[] fotos = autorizarEEnviarFotos(4);
+        clearInvocations(bucket);
+
+        MvcResult ambos = postar(List.of(Map.of("fotoIds", List.of(fotos[0], fotos[1])),
+                Map.of("fotoIds", List.of(fotos[2], fotos[3]))), "AMBOS", false, 200);
+
+        verify(bucket, times(4)).ler(anyString());
+        assertThat(lerZip(ambos.getResponse().getContentAsByteArray())).containsOnlyKeys(
+                "Stories/01-fotos-em-jejum.jpg", "Stories/02-fotos-em-jejum.jpg",
+                "Feed/01-fotos-em-jejum.jpg", "Feed/02-fotos-em-jejum.jpg");
+    }
+
+    @Test
+    void fotosDaAnamneseSoComAnamneseLer() throws Exception {
+        AnamneseEnviada anamnese = anamneseComFoto();
+        UUID deAnamnese = UUID.fromString(anamnese.foto());
+        UUID[] fotos = autorizarEEnviarFotos(2);
+
+        var semAnamnese = CatalogoPermissoes.comDependencias(Set.of("ATUALIZACAO_LER", "ALUNO_SENSIVEL_LER"));
+        assertThat(semAnamnese).doesNotContain("ANAMNESE_LER");
+        JsonNode soAtualizacao = membro(semAnamnese);
+        JsonNode comAnamnese = membro(CatalogoPermissoes.comDependencias(
+                Set.of("ATUALIZACAO_LER", "ALUNO_SENSIVEL_LER", "ANAMNESE_LER")));
+
+        JsonNode linhaSem = api.get("/alunos/" + aluno + "/fotos", soAtualizacao, 200);
+        assertThat(linhaSem).hasSize(2);
+        assertThat(linhaSem.valueStream().map(n -> n.path("origem").asString())).containsOnly("ATUALIZACAO");
+        assertThat(api.get("/alunos/" + aluno + "/fotos", comAnamnese, 200)).hasSize(4);
+        assertThat(api.get("/alunos/" + aluno + "/fotos", treinador, 200)).hasSize(4);
+
+        // Sem a permissão a foto da anamnese é "não encontrada", como foto de outro aluno: não revela que existe.
+        postarComo(soAtualizacao, List.of(Map.of("fotoIds", List.of(fotos[0], deAnamnese))), "STORIES", 404);
+        postarComo(soAtualizacao, List.of(Map.of("fotoIds", List.of(fotos[0], fotos[1]))), "STORIES", 200);
+        postarComo(comAnamnese, List.of(Map.of("fotoIds", List.of(fotos[0], deAnamnese))), "STORIES", 200);
+        // O aluno continua vendo as próprias fotos de anamnese.
+        assertThat(api.get("/aluno/fotos/linha-do-tempo", loginAluno, 200)).hasSize(4);
+    }
+
+    /** Sobe as fotos (uma cor para cada), envia a atualização com elas e liga a autorização de uso do aluno. */
+    private UUID[] autorizarEEnviarFotos(int quantidade) throws Exception {
+        Color[] cores = {Color.BLUE, Color.GREEN, Color.YELLOW, Color.MAGENTA, Color.PINK, Color.GRAY};
+        UUID[] ids = new UUID[quantidade];
+        for (int i = 0; i < quantidade; i++) {
+            ids[i] = subir(FotosDeTeste.jpeg(cores[i]));
+        }
+        enviar(Map.of("peso", 80.5, "sono", 7, "alim_desempenho", 8, "treino_desempenho", 6,
+                "fotos", java.util.Arrays.stream(ids).map(UUID::toString).toList()), 200);
+        api.put("/aluno/uso-de-imagem", loginAluno, Map.of("autorizado", true), 200);
+        return ids;
+    }
+
+    private JsonNode membro(Set<String> permissoes) throws Exception {
+        String perfil = api.post("/perfis", treinador,
+                Map.of("nome", "Perfil " + UUID.randomUUID(), "permissoes", permissoes), 200).get("id").asString();
+        JsonNode convite = api.post("/usuarios/convites", treinador,
+                Map.of("nome", "Membro fictício", "email", ApiDeTeste.emailUnico("membro"), "perfilId", perfil), 200);
+        return api.post("/publico/convites-equipe/aceitar", null,
+                Map.of("codigo", convite.get("codigo").asString(), "senha", ApiDeTeste.SENHA), 200);
+    }
+
     private int contagem(String acao) {
         return banco.queryForObject("select count(*) from auditoria where acao = ? and entidade_id = ?::uuid", Integer.class, acao, aluno);
     }
@@ -184,11 +301,20 @@ class ComparacaoDeFotosIntegrationTest extends AbstractIntegrationTest {
     }
 
     private MvcResult postar(List<Map<String, Object>> imagens, String formato, boolean comLogo, int esperado) throws Exception {
+        return postarComo(treinador, imagens, formato, comLogo, esperado);
+    }
+
+    private MvcResult postarComo(JsonNode login, List<Map<String, Object>> imagens, String formato, int esperado) throws Exception {
+        return postarComo(login, imagens, formato, false, esperado);
+    }
+
+    private MvcResult postarComo(JsonNode login, List<Map<String, Object>> imagens, String formato, boolean comLogo,
+                                 int esperado) throws Exception {
         return mvc.perform(post("/alunos/" + aluno + "/fotos/comparacao")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("formato", formato, "comLogo", comLogo, "imagens", imagens)))
                         .header("X-Treinos-Cliente", "nativo")
-                        .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador)))
+                        .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(login)))
                 .andExpect(status().is(esperado)).andReturn();
     }
 
