@@ -22,12 +22,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
  * Lê .xlsx (zip + StAX, sem Apache POI) ou .csv. Não devolve conteúdo de célula em erro: a mensagem é fixa.
- * Limites: 900 KB, 200 entradas no zip, 20 MB descompactados e 5.001 linhas (cabeçalho + 5.000).
+ * Limites: 900 KB, 200 entradas no zip, 20 MB descompactados, 5.001 linhas (cabeçalho + 5.000), 256 colunas, 500.000
+ * células guardadas e 4.000 caracteres por célula (acima disso a célula vira "com erro", nunca texto cortado).
  */
 public final class LeitorDePlanilha {
 
@@ -36,11 +38,19 @@ public final class LeitorDePlanilha {
     static final int ZIP_DESCOMPACTADO = 20 * 1024 * 1024;
     /** Cabeçalho + 5.000 linhas de dados. Quem chama confere as linhas de dados de novo. */
     static final int LINHAS_LIDAS = 5001;
+    /** Até a coluna IV. A referência {@code r="ZZZZZZ1"} não pode virar centenas de milhões de células vazias. */
+    static final int COLUNAS_MAXIMAS = 256;
+    /** Células guardadas na planilha toda (5.000 linhas x 100 colunas), conferido antes de preencher a linha. */
+    static final int CELULAS_MAXIMAS = 500_000;
+    /** Texto de uma célula ou de uma shared string; maior que isso a célula vira "com erro". */
+    static final int TEXTO_MAXIMO = 4000;
     private static final LocalDate EPOCA = LocalDate.of(1899, 12, 30);
 
     public record Celula(String texto, boolean numero, boolean erro) {
+        private static final Celula VAZIA = new Celula("", false, false);
+
         static Celula vazia() {
-            return new Celula("", false, false);
+            return VAZIA;
         }
 
         static Celula deTexto(String t) {
@@ -112,10 +122,18 @@ public final class LeitorDePlanilha {
         String texto = decodificar(bytes);
         List<LeitorCsv.Linha> lidas = LeitorCsv.lerLivre(texto, LINHAS_LIDAS);
         List<Linha> linhas = new ArrayList<>();
+        int total = 0;
         for (LeitorCsv.Linha l : lidas) {
+            if (l.campos().size() > COLUNAS_MAXIMAS) {
+                throw arquivo("A planilha passa de 256 colunas.");
+            }
+            total += l.campos().size();
+            if (total > CELULAS_MAXIMAS) {
+                throw arquivo("A planilha tem células demais.");
+            }
             List<Celula> celulas = new ArrayList<>();
             for (String c : l.campos()) {
-                celulas.add(Celula.deTexto(c));
+                celulas.add(c.length() > TEXTO_MAXIMO ? Celula.comErro() : Celula.deTexto(c));
             }
             linhas.add(new Linha(l.numero(), celulas));
         }
@@ -128,7 +146,7 @@ public final class LeitorDePlanilha {
         if (workbook == null) {
             throw arquivo("Não foi possível ler a planilha.");
         }
-        boolean data1904 = tem(workbook, "date1904", "1");
+        boolean data1904 = tem(workbook, "date1904", v -> "1".equals(v) || "true".equalsIgnoreCase(v));
         List<String> nomes = new ArrayList<>();
         List<String> relacoes = new ArrayList<>();
         elementos(workbook, "sheet", (nome, rid) -> {
@@ -201,11 +219,13 @@ public final class LeitorDePlanilha {
             XMLStreamReader r = leitor(xml);
             int numero = 0;
             List<Celula> celulas = null;
+            int guardadas = 0;
             int coluna = 0;
             String tipo = null;
             boolean formula = false;
             boolean valor = false;
             boolean erro = false;
+            boolean longo = false;
             StringBuilder texto = new StringBuilder();
             boolean emValor = false;
             boolean emInline = false;
@@ -215,11 +235,22 @@ public final class LeitorDePlanilha {
                     numero = inteiro(atributo(r, "r"), linhas.size() + 1);
                     celulas = new ArrayList<>();
                 } else if (ev == XMLStreamConstants.START_ELEMENT && "c".equals(r.getLocalName()) && celulas != null) {
-                    coluna = colunaDe(atributo(r, "r"));
+                    int posicao = colunaDe(atributo(r, "r"));
+                    if (posicao >= 0 && posicao < celulas.size()) {
+                        throw arquivo("A planilha tem células repetidas ou fora de ordem.");
+                    }
+                    coluna = posicao < 0 ? celulas.size() : posicao;
+                    if (coluna >= COLUNAS_MAXIMAS) {
+                        throw arquivo("A planilha passa de 256 colunas.");
+                    }
+                    if (guardadas + coluna + 1 > CELULAS_MAXIMAS) {
+                        throw arquivo("A planilha tem células demais.");
+                    }
                     tipo = atributo(r, "t");
                     formula = false;
                     valor = false;
                     erro = "e".equals(tipo);
+                    longo = false;
                     texto.setLength(0);
                 } else if (ev == XMLStreamConstants.START_ELEMENT && "f".equals(r.getLocalName())) {
                     formula = true;
@@ -234,19 +265,28 @@ public final class LeitorDePlanilha {
                     emInline = false;
                     valor = true;
                 } else if (ev == XMLStreamConstants.CHARACTERS || ev == XMLStreamConstants.CDATA) {
-                    if (emValor || emInline) {
-                        texto.append(r.getText());
+                    if ((emValor || emInline) && !longo) {
+                        if (texto.length() + r.getTextLength() > TEXTO_MAXIMO) {
+                            longo = true;
+                            texto.setLength(0);
+                        } else {
+                            texto.append(r.getText());
+                        }
                     }
                 } else if (ev == XMLStreamConstants.END_ELEMENT && "c".equals(r.getLocalName()) && celulas != null) {
+                    if (celulas.size() > coluna) {
+                        throw arquivo("A planilha tem células repetidas ou fora de ordem.");
+                    }
                     while (celulas.size() < coluna) {
                         celulas.add(Celula.vazia());
                     }
-                    celulas.add(celula(tipo, formula, valor, erro, texto.toString(), textos));
+                    celulas.add(longo ? Celula.comErro() : celula(tipo, formula, valor, erro, texto.toString(), textos));
                 } else if (ev == XMLStreamConstants.END_ELEMENT && "row".equals(r.getLocalName()) && celulas != null) {
                     if (celulas.stream().anyMatch(c -> !c.texto().isEmpty() || c.erro())) {
                         if (linhas.size() >= LINHAS_LIDAS) {
                             throw arquivo("O arquivo passa de 5.000 linhas.");
                         }
+                        guardadas += celulas.size();
                         linhas.add(new Linha(numero, List.copyOf(celulas)));
                     }
                     celulas = null;
@@ -270,7 +310,11 @@ public final class LeitorDePlanilha {
         String t = bruto == null ? "" : bruto;
         if ("s".equals(tipo)) {
             int i = inteiro(t, -1);
-            return i >= 0 && i < textos.size() ? Celula.deTexto(textos.get(i)) : Celula.deTexto("");
+            if (i < 0 || i >= textos.size()) {
+                return Celula.deTexto("");
+            }
+            String guardado = textos.get(i);
+            return guardado == null ? Celula.comErro() : Celula.deTexto(guardado);
         }
         if ("inlineStr".equals(tipo) || "str".equals(tipo)) {
             return Celula.deTexto(t);
@@ -289,6 +333,7 @@ public final class LeitorDePlanilha {
         }
     }
 
+    /** Shared string maior que {@link #TEXTO_MAXIMO} não é guardada: a posição fica {@code null} e a célula vira erro. */
     private static List<String> textos(byte[] xml) {
         if (xml == null) {
             return List.of();
@@ -297,19 +342,27 @@ public final class LeitorDePlanilha {
         try {
             XMLStreamReader r = leitor(xml);
             StringBuilder atual = null;
+            boolean longo = false;
             boolean emT = false;
             while (r.hasNext()) {
                 int ev = r.next();
                 if (ev == XMLStreamConstants.START_ELEMENT && "si".equals(r.getLocalName())) {
                     atual = new StringBuilder();
+                    longo = false;
                 } else if (ev == XMLStreamConstants.START_ELEMENT && "t".equals(r.getLocalName()) && atual != null) {
                     emT = true;
-                } else if ((ev == XMLStreamConstants.CHARACTERS || ev == XMLStreamConstants.CDATA) && emT && atual != null) {
-                    atual.append(r.getText());
+                } else if ((ev == XMLStreamConstants.CHARACTERS || ev == XMLStreamConstants.CDATA) && emT && atual != null
+                        && !longo) {
+                    if (atual.length() + r.getTextLength() > TEXTO_MAXIMO) {
+                        longo = true;
+                        atual.setLength(0);
+                    } else {
+                        atual.append(r.getText());
+                    }
                 } else if (ev == XMLStreamConstants.END_ELEMENT && "t".equals(r.getLocalName())) {
                     emT = false;
                 } else if (ev == XMLStreamConstants.END_ELEMENT && "si".equals(r.getLocalName()) && atual != null) {
-                    saida.add(atual.toString());
+                    saida.add(longo ? null : atual.toString());
                     atual = null;
                 }
             }
@@ -361,13 +414,13 @@ public final class LeitorDePlanilha {
         }
     }
 
-    private static boolean tem(byte[] xml, String atributo, String valor) {
+    private static boolean tem(byte[] xml, String atributo, Predicate<String> valido) {
         try {
             XMLStreamReader r = leitor(xml);
             while (r.hasNext()) {
                 if (r.next() == XMLStreamConstants.START_ELEMENT) {
                     String lido = atributo(r, atributo);
-                    if (valor.equals(lido)) {
+                    if (lido != null && valido.test(lido)) {
                         r.close();
                         return true;
                     }
@@ -396,9 +449,10 @@ public final class LeitorDePlanilha {
         return null;
     }
 
+    /** Índice da coluna (A = 0) ou -1 sem letras. Acima de {@link #COLUNAS_MAXIMAS} recusa antes de o int estourar. */
     static int colunaDe(String referencia) {
         if (referencia == null) {
-            return 0;
+            return -1;
         }
         int n = 0;
         for (int i = 0; i < referencia.length(); i++) {
@@ -410,8 +464,11 @@ public final class LeitorDePlanilha {
             } else {
                 break;
             }
+            if (n > COLUNAS_MAXIMAS) {
+                throw arquivo("A planilha passa de 256 colunas.");
+            }
         }
-        return Math.max(0, n - 1);
+        return n - 1;
     }
 
     public static String letra(int indice) {

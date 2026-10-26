@@ -1,10 +1,12 @@
 package br.com.treinos.api.importacao;
 
+import br.com.treinos.api.web.ValidacaoException;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -12,6 +14,7 @@ import java.util.zip.ZipOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 /** Leitor de xlsx (zip + StAX) e csv. A mensagem de erro não repete conteúdo da célula. */
 class LeitorDePlanilhaTest {
@@ -77,6 +80,193 @@ class LeitorDePlanilhaTest {
         var planilha = LeitorDePlanilha.ler("alunos.csv", csv, 0);
         assertThat(planilha.linhas()).hasSize(2);
         assertThat(planilha.linhas().get(1).celulas().get(1).texto()).isEqualTo("ana@exemplo.com");
+    }
+
+    @Test
+    void recusaColunaAcimaDe256SemCriarCelulasVazias() {
+        // IV = coluna 256 (limite); IW = 257. ZZZZZZ e acima estouravam a memória (e o int) ao preencher vazias.
+        assertThat(LeitorDePlanilha.ler("ok.xlsx", folha("<row r=\"1\"><c r=\"IV1\"><v>1</v></c></row>"), 0)
+                .linhas().get(0).celulas()).hasSize(256);
+        for (String referencia : new String[] {"IW1", "XFD1", "ZZ1"}) {
+            exigeColunasDemais(referencia);
+        }
+    }
+
+    @Test
+    void celulasSemReferenciaTambemRespeitamAsColunasMaximas() {
+        assertThat(LeitorDePlanilha.ler("ok.xlsx", folhaDensa(1, 256), 0).linhas().get(0).celulas()).hasSize(256);
+        byte[] demais = folhaDensa(1, 257);
+        assertThatThrownBy(() -> LeitorDePlanilha.ler("demais.xlsx", demais, 0))
+                .isInstanceOfSatisfying(ValidacaoException.class,
+                        e -> assertThat(e.getMessage()).isEqualTo("A planilha passa de 256 colunas."));
+    }
+
+    @Test
+    void celulaDentroDeOutraNaoGravaNoIndiceErrado() {
+        byte[] aninhada = folha("<row r=\"1\"><c r=\"A1\"><c r=\"C1\"><v>1</v></c><v>2</v></c></row>");
+        assertThatThrownBy(() -> LeitorDePlanilha.ler("aninhada.xlsx", aninhada, 0))
+                .isInstanceOfSatisfying(ValidacaoException.class,
+                        e -> assertThat(e.getCodigo()).isEqualTo("ARQUIVO_INVALIDO"));
+    }
+
+    @Test
+    void colunaAbsurdaNaoEstouraMemoriaNemOInt() {
+        // Hoje cria centenas de milhões de células (OutOfMemoryError); com 12 letras o int ainda estoura.
+        for (String referencia : new String[] {"ZZZZZZ1", "ZZZZZZZZZZZZ1"}) {
+            exigeColunasDemais(referencia);
+        }
+    }
+
+    private static void exigeColunasDemais(String referencia) {
+        byte[] arquivo = folha("<row r=\"1\"><c r=\"" + referencia + "\"><v>1</v></c></row>");
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertThatThrownBy(
+                () -> LeitorDePlanilha.ler("colunas.xlsx", arquivo, 0))
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                    assertThat(e.getCodigo()).isEqualTo("ARQUIVO_INVALIDO");
+                    assertThat(e.getMessage()).isEqualTo("A planilha passa de 256 colunas.");
+                }));
+    }
+
+    @Test
+    void celulasSemReferenciaSeguemEmOrdem() {
+        var celulas = LeitorDePlanilha.ler("sem-ref.xlsx",
+                folha("<row r=\"1\"><c><v>1</v></c><c><v>2</v></c><c r=\"D1\"><v>4</v></c></row>"), 0)
+                .linhas().get(0).celulas();
+        assertThat(celulas).extracting(LeitorDePlanilha.Celula::texto).containsExactly("1", "2", "", "4");
+    }
+
+    @Test
+    void recusaCelulaForaDeOrdemOuRepetida() {
+        for (String linha : new String[] {
+                "<c r=\"C1\"><v>1</v></c><c r=\"A1\"><v>2</v></c>",
+                "<c r=\"A1\"><v>1</v></c><c r=\"A1\"><v>2</v></c>"}) {
+            byte[] arquivo = folha("<row r=\"1\">" + linha + "</row>");
+            assertThatThrownBy(() -> LeitorDePlanilha.ler("ordem.xlsx", arquivo, 0))
+                    .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                        assertThat(e.getCodigo()).isEqualTo("ARQUIVO_INVALIDO");
+                        assertThat(e.getMessage()).isEqualTo("A planilha tem células repetidas ou fora de ordem.");
+                    });
+        }
+    }
+
+    @Test
+    void recusaTotalDeCelulasAcimaDoTetoAntesDeGuardar() {
+        // 5.000 linhas x 101 = 505.000 células, acima de 500.000; com 100 por linha ainda cabe.
+        assertThat(LeitorDePlanilha.ler("cabe.xlsx", folhaDensa(5000, 100), 0).linhas()).hasSize(5000);
+        byte[] demais = folhaDensa(5000, 101);
+        assertThatThrownBy(() -> LeitorDePlanilha.ler("demais.xlsx", demais, 0))
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                    assertThat(e.getCodigo()).isEqualTo("ARQUIVO_INVALIDO");
+                    assertThat(e.getMessage()).isEqualTo("A planilha tem células demais.");
+                });
+    }
+
+    @Test
+    void textoAcimaDe4000ViraCelulaComErroEnaoETruncado() {
+        String justo = "a".repeat(4000);
+        String longo = "b".repeat(4001);
+        byte[] arquivo = xlsx(Map.of(
+                "xl/sharedStrings.xml", """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+                        <si><t>%s</t></si><si><t>%s</t></si><si><r><t>%s</t></r><r><t>%s</t></r></si></sst>
+                        """.formatted(justo, longo, "c".repeat(2500), "d".repeat(2500)),
+                "xl/worksheets/sheet1.xml", planilhaXml("""
+                        <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c>
+                        <c r="D1" t="inlineStr"><is><t>%s</t></is></c><c r="E1" t="inlineStr"><is><t>%s</t></is></c>
+                        <c r="F1" t="str"><v>%s</v></c><c r="G1"><v>%s</v></c></row>
+                        """.formatted(justo, longo, longo, "9".repeat(4001)))));
+        var celulas = LeitorDePlanilha.ler("longo.xlsx", arquivo, 0).linhas().get(0).celulas();
+        assertThat(celulas.get(0).erro()).isFalse();
+        assertThat(celulas.get(0).texto()).hasSize(4000);
+        assertThat(celulas.get(1).erro()).isTrue();
+        assertThat(celulas.get(1).texto()).isEmpty();
+        assertThat(celulas.get(2).erro()).isTrue();
+        assertThat(celulas.get(3).erro()).isFalse();
+        assertThat(celulas.get(4).erro()).isTrue();
+        assertThat(celulas.get(4).texto()).isEmpty();
+        assertThat(celulas.get(5).erro()).isTrue();
+        assertThat(celulas.get(6).erro()).isTrue();
+        assertThat(celulas.get(6).numero()).isFalse();
+    }
+
+    @Test
+    void date1904AceitaUmETrueSemDiferencaDeCaixa() {
+        for (String valor : new String[] {"1", "true", "TRUE", "True"}) {
+            assertThat(LeitorDePlanilha.ler("d.xlsx", comWorkbookPr("date1904=\"" + valor + "\""), 0).data1904())
+                    .as(valor).isTrue();
+        }
+        for (String atributos : new String[] {"date1904=\"0\"", "date1904=\"false\"", "defaultThemeVersion=\"1\""}) {
+            assertThat(LeitorDePlanilha.ler("d.xlsx", comWorkbookPr(atributos), 0).data1904())
+                    .as(atributos).isFalse();
+        }
+    }
+
+    @Test
+    void csvRecusaAspasSemFecharSemRepetirOConteudo() {
+        byte[] csv = "nome;obs\nAna;\"segredo sem fechar\nBia;x\n".getBytes(StandardCharsets.UTF_8);
+        assertThatThrownBy(() -> LeitorDePlanilha.ler("alunos.csv", csv, 0))
+                .isInstanceOfSatisfying(ValidacaoException.class, e -> {
+                    assertThat(e.getCodigo()).isEqualTo("ARQUIVO_INVALIDO");
+                    assertThat(e.getMessage()).doesNotContain("segredo").doesNotContain("Ana");
+                });
+    }
+
+    @Test
+    void csvCelulaEntreAspasComQuebraDeLinhaNaoViraOutraLinha() {
+        byte[] csv = "nome;obs\nAna;\"linha 1\nlinha 2\"\nBia;x\n".getBytes(StandardCharsets.UTF_8);
+        var linhas = LeitorDePlanilha.ler("alunos.csv", csv, 0).linhas();
+        assertThat(linhas).hasSize(3);
+        assertThat(linhas.get(1).celulas().get(1).texto()).isEqualTo("linha 1\nlinha 2");
+        assertThat(linhas.get(2).celulas().get(0).texto()).isEqualTo("Bia");
+    }
+
+    @Test
+    void csvLimitaTextoEColunasComoOXlsx() {
+        byte[] longo = ("nome;obs\nAna;" + "x".repeat(4001) + "\nBia;" + "y".repeat(4000) + "\n")
+                .getBytes(StandardCharsets.UTF_8);
+        var linhas = LeitorDePlanilha.ler("alunos.csv", longo, 0).linhas();
+        assertThat(linhas.get(1).celulas().get(1).erro()).isTrue();
+        assertThat(linhas.get(1).celulas().get(1).texto()).isEmpty();
+        assertThat(linhas.get(2).celulas().get(1).texto()).hasSize(4000);
+        byte[] largo = ("a" + ";b".repeat(256) + "\n").getBytes(StandardCharsets.UTF_8);
+        assertThatThrownBy(() -> LeitorDePlanilha.ler("largo.csv", largo, 0))
+                .isInstanceOfSatisfying(ValidacaoException.class,
+                        e -> assertThat(e.getMessage()).isEqualTo("A planilha passa de 256 colunas."));
+    }
+
+    private static String planilhaXml(String linhas) {
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
+                %s
+                </sheetData></worksheet>
+                """.formatted(linhas);
+    }
+
+    private static byte[] folha(String linhas) {
+        return xlsx(Map.of("xl/worksheets/sheet1.xml", planilhaXml(linhas)));
+    }
+
+    /** Linhas de números sem {@code r} nas células (a posição é a ordem), para chegar ao teto sem arquivo enorme. */
+    private static byte[] folhaDensa(int linhas, int colunas) {
+        String celula = "<c><v>1</v></c>";
+        StringBuilder xml = new StringBuilder();
+        for (int i = 1; i <= linhas; i++) {
+            xml.append("<row r=\"").append(i).append("\">").append(celula.repeat(colunas)).append("</row>");
+        }
+        return folha(xml.toString());
+    }
+
+    private static byte[] comWorkbookPr(String atributos) {
+        return xlsx(Map.of(
+                "xl/workbook.xml", """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+                        xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                        <workbookPr %s/><sheets><sheet name="Dados" sheetId="1" r:id="rId1"/></sheets></workbook>
+                        """.formatted(atributos),
+                "xl/worksheets/sheet1.xml", planilhaXml("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>")));
     }
 
     private static byte[] xlsx(Map<String, String> extras) {
