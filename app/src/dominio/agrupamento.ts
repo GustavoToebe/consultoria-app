@@ -250,6 +250,25 @@ export function textoTecnicaPorExtenso(t: Tecnica | null | undefined, config?: C
 }
 
 /**
+ * A mesma leitura do Cluster para o editor, o aluno e o PDF. Com a série, o texto abre pelo nome do tipo.
+ * Descanso vazio fica explícito. Carga de trabalho diz que a sugestão é a base do dia.
+ */
+export function leituraDaTecnica(serie: Serie, config?: Configuracao | null): string {
+  const base = textoTecnicaPorExtenso(serie.tecnica, config);
+  if (serie.tecnica?.tipo !== 'CLUSTER' || !blocosValidos(serie.tecnica.blocos)) return base;
+  const nomeTipo = nomeDoTipo(config, serie.tipo) || 'Série de trabalho';
+  const nome = nomeDaTecnica(config, 'CLUSTER');
+  const corpo = base.slice(base.indexOf(':') + 1).trim();
+  const descanso = serie.descansoSegundos == null
+    ? 'Descanso depois da série: não informado.'
+    : `Descanso depois da série: ${serie.descansoSegundos} s.`;
+  const carga = serie.carga?.modo === 'CARGA_TRABALHO'
+    ? ' A sugestão de carga vem da base do dia. Ajuste a carga desta série.'
+    : '';
+  return `${nomeTipo} com ${nome}. ${corpo.charAt(0).toUpperCase()}${corpo.slice(1)} ${descanso}${carga}`;
+}
+
+/**
  * Resumo do grupo, na língua da planilha: "3x3 - FS 50/70/85 a 90% da WS", "1x3 a 6 - WS · 1 RIR", "1x - Top set +1 a
  * 5% sobre a anterior", "2x6 a 8 - Back off 15% abaixo da referência (Top set)", "1x6 (4+2) - WS com Cluster 15 s". O tipo
  * sai pelo nome da metodologia (a série grava o código). `series` (as do exercício) dá o nome da série de referência.
@@ -310,7 +329,7 @@ export interface TecnicaParaOAluno {
 export function tecnicasDoExercicio(series: readonly Serie[], config?: Configuracao | null): TecnicaParaOAluno[] {
   const vistas = new Map<string, TecnicaParaOAluno>();
   for (const s of series) {
-    const texto = textoTecnicaPorExtenso(s.tecnica, config);
+    const texto = leituraDaTecnica(s, config);
     if (!texto || vistas.has(texto)) continue;
     const pausa = s.tecnica?.pausaSegundos;
     vistas.set(texto, { texto, pausaSegundos: pausa != null && pausa > 0 ? pausa : null });

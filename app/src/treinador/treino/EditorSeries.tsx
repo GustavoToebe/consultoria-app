@@ -5,6 +5,7 @@ import type { Configuracao, Serie } from '../../api/tipos';
 import { agrupar, descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { adicionarSerie, alterarGrupo, alterarPercentuais, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { explicacaoDoCatalogo } from '../../dominio/catalogoMetodologia';
+import { acrescentarExemplo, codigoPreparacao, novaWsComRestPause, quantidadeDoExemplo, restPauseNestaSerie, TEXTO_DO_EXEMPLO, textoDaContagemDeSeries } from '../../dominio/exemplosDePrescricao';
 import { codigoTrabalho, explicacaoDaTecnica, explicacaoDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
@@ -95,6 +96,18 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
     setPainel(!painel);
   };
   const motivoCheio = cheio ? `O exercício já tem ${LIMITE_SERIES} séries, o máximo.` : undefined;
+  const grupoDeTrabalho = grupos.filter((g) => abertos.has(g.series[0].uid) && papelDe(cfg, g.series[0].tipo) === 'TRABALHO').at(-1) ?? null;
+  const motivoDoExemplo = (exemplo: 'fs-ws-cluster' | 'fs-cluster') => {
+    if (!codigoPreparacao(cfg) || !codigoTrabalho(cfg)) return 'A metodologia precisa de um tipo de preparação e de um tipo de trabalho.';
+    const quantidade = quantidadeDoExemplo(exemplo);
+    if (series.length + quantidade > LIMITE_SERIES) return `O exemplo usa ${quantidade} séries e o exercício já tem ${series.length}.`;
+    return undefined;
+  };
+  const aplicarExemplo = (exemplo: 'fs-ws-cluster' | 'fs-cluster') => {
+    const novas = acrescentarExemplo(series, cfg, exemplo, modalidade);
+    aoMudar(novas);
+    abrirUltimo(novas);
+  };
   return <View style={estilos.lista}>
     {grupos.map((g, i) => <EditorGrupo key={g.series[0].uid} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
       tipos={tipos} podeMais={!cheio} primeiro={i === 0} ultimo={i === grupos.length - 1}
@@ -123,6 +136,20 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
         aoTocar={cardio ? adicionarCardio : abrirPainel} />
       {aoUsarReceita && !cardio ? <Botao rotulo="Usar receita" tipo="secundario" Icone={NotebookTabs} aoTocar={aoUsarReceita} /> : null}
     </LinhaDeAcoes>}
+    <Texto variante="pequeno">{textoDaContagemDeSeries(series.length)}</Texto>
+    {!cardio ? <>
+      <Texto variante="pequeno">{TEXTO_DO_EXEMPLO}</Texto>
+      <LinhaDeAcoes>
+        <Botao rotulo="Exemplo: FS, WS e Cluster" tipo="secundario" aoTocar={() => aplicarExemplo('fs-ws-cluster')} desabilitado={!!motivoDoExemplo('fs-ws-cluster')} motivo={motivoDoExemplo('fs-ws-cluster')} />
+        <Botao rotulo="Exemplo: FS e Cluster" tipo="secundario" aoTocar={() => aplicarExemplo('fs-cluster')} desabilitado={!!motivoDoExemplo('fs-cluster')} motivo={motivoDoExemplo('fs-cluster')} />
+      </LinhaDeAcoes>
+      <LinhaDeAcoes>
+        <Botao rotulo="Rest-pause nesta série" tipo="secundario" aoTocar={() => { if (grupoDeTrabalho) aoMudar(restPauseNestaSerie(series, grupoDeTrabalho, cfg, modalidade)); }}
+          desabilitado={!grupoDeTrabalho} motivo="Abra a série de trabalho." />
+        <Botao rotulo="Nova WS com Rest-pause" tipo="secundario" aoTocar={() => { const novas = novaWsComRestPause(series, cfg, modalidade); aoMudar(novas); abrirUltimo(novas); }}
+          desabilitado={cheio || !codigoTrabalho(cfg)} motivo={motivoCheio ?? (!codigoTrabalho(cfg) ? 'A metodologia precisa de um tipo de trabalho.' : undefined)} />
+      </LinhaDeAcoes>
+    </> : null}
   </View>;
 }
 
@@ -244,7 +271,7 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMa
 
       {secoes.esforco ? <Secao titulo="Esforço">
         <CamposDoEsforco esforco={s.esforco} aoMudar={(esforco) => aoAlterar({ esforco })} erros={subProblemas(erros, 'esforco')} rotulo="Esforço percebido" />
-        {cluster ? <Texto variante="pequeno">Revise o esforço desta série ao usar Cluster.</Texto> : null}
+        {cluster ? <Texto variante="pequeno">Revise o esforço e o descanso. A técnica não calcula esses valores.</Texto> : null}
         <AvisoDoCampo mensagem={avisos['esforco.rir']} />
       </Secao> : null}
 

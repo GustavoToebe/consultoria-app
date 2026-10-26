@@ -646,7 +646,7 @@ test('PDF: glossário só com o que o treino usa, com o nome da metodologia e to
   expect(glossario).not.toContain('FEEDER');
   const e = conteudo.sessoes[0].exercicios[0];
   expect(linhasDeSeries(e, config)[0]).toBe('1x6 (4+2) - FS com Muscle <Round> 15 s · mesma carga da WS · até a falha técnica');
-  expect(obsDoExercicio(e, config)[0]).toContain('Muscle <Round>: faça blocos de 4 e 2 repetições. São 6 repetições previstas no total e 1 pausa interna. Encerre ao terminar o 2º bloco. Pausa entre os blocos: 15 s.');
+  expect(obsDoExercicio(e, config)[0]).toContain('FS com Muscle <Round>. Faça blocos de 4 e 2 repetições. São 6 repetições previstas no total e 1 pausa interna. Encerre ao terminar o 2º bloco. Pausa entre os blocos: 15 s. Descanso depois da série: não informado.');
 });
 
 test('PDF: treino sem nenhum item com explicação não gera glossário', () => {

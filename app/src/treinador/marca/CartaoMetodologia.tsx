@@ -19,6 +19,7 @@ import { Escolha } from '../../ui/Escolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { useRolagem } from '../../ui/RolagemComTopo';
 import { Texto } from '../../ui/Texto';
+import { TEXTO_SEQUENCIA_CLUSTER } from '../../dominio/exemplosDePrescricao';
 import { CamposDaTecnica, ErroDoCampo } from '../treino/CamposDaPrescricao';
 import { subProblemas } from '../treino/opcoesDoEditor';
 import { CartaoDoTipo } from './CartaoDoTipo';
@@ -99,6 +100,7 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
   };
   const catalogoAberto = folha === 'tipos' ? itensDeTipo : folha === 'tecnicas' ? itensDeTecnica : folha === 'combinacoes' ? itensDeCombinacao : null;
   return <View style={estilos.lista}>
+    <Texto variante="pequeno">Esta metodologia define nomes, explicações e padrões para montar novos treinos. Alterar este modelo não atualiza automaticamente as cópias já aplicadas.</Texto>
     {desfazer ? <BarraDesfazer desfazer={desfazer} aoDesfazer={() => { aoMudar(desfazer.conteudo); setDesfazer(null); }} aoFechar={() => setDesfazer(null)} /> : null}
     <ListaDeProblemas linhas={linhas} aoIr={ir} />
 
@@ -188,10 +190,12 @@ function CartaoDaTecnica({ tecnica: t, problemas: p, aberto, aoAlternar, aoMudar
   const quantos = Object.keys(p).length;
   const nome = t.nome.trim() || NOME_FIXO_DA_TECNICA[t.tipo];
   const descritiva = tecnicaDescritiva(t.tipo);
-  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={`Técnica · ${NOME_FIXO_DA_TECNICA[t.tipo]}`}
+  const cluster = t.tipo === 'CLUSTER';
+  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={cluster ? 'Organiza uma série em blocos de repetições' : `Técnica · ${NOME_FIXO_DA_TECNICA[t.tipo]}`}
     selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined} aberto={aberto} aoAlternar={aoAlternar}
     acoes={<IconeBotao Icone={Trash2} rotulo={`Remover a técnica ${nome}`} cor={cores.perigo} aoTocar={aoRemover} />} />}>
     {aberto ? <>
+      {cluster ? <Texto variante="pequeno">{TEXTO_SEQUENCIA_CLUSTER}</Texto> : null}
       <Campo rotulo="Nome exibido da técnica" valor={t.nome} aoMudar={(nome) => aoMudar({ ...t, nome })} maxLength={30} erro={p.nome} />
       <Campo rotulo="Explicação para o aluno" valor={t.explicacao ?? ''} aoMudar={(explicacao) => aoMudar({ ...t, explicacao })} linhas={3} maxLength={LIMITE_EXPLICACAO}
         ajuda={`${(t.explicacao ?? '').length}/${LIMITE_EXPLICACAO}.`} erro={p.explicacao} />

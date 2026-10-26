@@ -1,5 +1,5 @@
 import type { Cardio, Configuracao, Serie } from '../api/tipos';
-import { nomeDaReferencia, textoTecnicaPorExtenso } from '../dominio/agrupamento';
+import { leituraDaTecnica, nomeDaReferencia } from '../dominio/agrupamento';
 import { metaDaSerie } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
 import { numeroParaTela } from '../dominio/formatos';
@@ -46,7 +46,7 @@ export function textosDaSerie(
   return {
     meta: metaDaSerie({ ...serie, tecnica: null, alvoExtra: null }, contexto.tipoTrabalho, contexto.semCarga, contexto.metodologia, contexto.seriesDoExercicio),
     descanso,
-    tecnica: textoTecnicaPorExtenso(serie.tecnica, contexto.metodologia),
+    tecnica: leituraDaTecnica(serie, contexto.metodologia),
     alvoExtra: serie.alvoExtra?.trim() || null,
     amrap: !!serie.amrap,
   };

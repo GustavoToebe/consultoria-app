@@ -1,7 +1,7 @@
 import { CONFIGURACAO_PADRAO as config } from './metodologiaPadrao';
 import { novaSerie, mudarQuantidade, tecnicaVazia } from './editorTreino';
 import type { Serie, Tecnica } from '../api/tipos';
-import { agrupar, descreverSeries, resumoTecnicasEDescanso, tecnicasDoExercicio, textoCardio, textoCarga, textoEsforco, textosDeTecnica, textoTecnica, textoTecnicaPorExtenso } from './agrupamento';
+import { agrupar, descreverSeries, leituraDaTecnica, resumoTecnicasEDescanso, tecnicasDoExercicio, textoCardio, textoCarga, textoEsforco, textosDeTecnica, textoTecnica, textoTecnicaPorExtenso } from './agrupamento';
 import { carga, rir, rpe, serie as serieDeTeste } from './exemplosDeTreino.apoioTeste';
 
 const cluster: Tecnica = { ...tecnicaVazia('CLUSTER'), blocos: [2, 2, 2], pausaSegundos: 20 };
@@ -37,7 +37,11 @@ describe('técnica da série (reunião de 17/10)', () => {
   });
 
   it('o aluno lê cada técnica uma vez', () => {
-    expect(textosDeTecnica([serie('a', cluster), serie('b', cluster), serie('c', restPause), serie('d')])).toEqual([textoTecnicaPorExtenso(cluster), textoTecnicaPorExtenso(restPause)]);
+    expect(textosDeTecnica([serie('a', cluster), serie('b', cluster), serie('c', restPause), serie('d')], config)).toEqual([
+      leituraDaTecnica(serie('a', cluster), config),
+      leituraDaTecnica(serie('c', restPause), config),
+    ]);
+    expect(leituraDaTecnica(serie('a', cluster), config)).toBe('WS com Cluster. Faça 3 blocos de 2 repetições. São 6 repetições previstas no total e 2 pausas internas. Encerre ao terminar o 3º bloco. Pausa entre os blocos: 20 s. Descanso depois da série: não informado. A sugestão de carga vem da base do dia. Ajuste a carga desta série.');
   });
 });
 

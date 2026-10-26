@@ -1,6 +1,6 @@
 import type { Configuracao, Esforco, ModoDeCarga, Problema, Serie, TecnicaDeGrupo, TipoDeTecnica } from '../../api/tipos';
 import { metaDaSerie } from '../../dominio/cargas';
-import { textoTecnicaPorExtenso } from '../../dominio/agrupamento';
+import { leituraDaTecnica } from '../../dominio/agrupamento';
 import {
   nomeDaCombinacao,
   nomeDaSerieDeTrabalho,
@@ -196,7 +196,7 @@ export function previaDaSerie(series: readonly Serie[], indice: number, config: 
 }
 
 /** A técnica como o aluno lê (por extenso), ou `null` sem técnica. */
-export const tecnicaParaOAluno = (s: Serie, config: Configuracao | null | undefined): string | null => textoTecnicaPorExtenso(s.tecnica, config) || null;
+export const tecnicaParaOAluno = (s: Serie, config: Configuracao | null | undefined): string | null => leituraDaTecnica(s, config) || null;
 
 /** O tipo da série está na metodologia? (sem metodologia, não há o que comparar.) */
 export const tipoDaMetodologia = (config: Configuracao | null | undefined, s: Pick<Serie, 'tipo'>): boolean => !config || !s.tipo || !!tipoPorCodigo(config, s.tipo);
