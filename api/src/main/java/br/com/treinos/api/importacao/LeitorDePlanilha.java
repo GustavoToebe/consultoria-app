@@ -29,7 +29,7 @@ import java.util.zip.ZipInputStream;
 /**
  * Lê .xlsx (zip + StAX, sem Apache POI) ou .csv. Não devolve conteúdo de célula em erro: a mensagem é fixa.
  * Limites: 900 KB, 200 entradas no zip, 20 MB descompactados, 5.001 linhas (cabeçalho + 5.000), 256 colunas, 500.000
- * células guardadas e 4.000 caracteres por célula (acima disso a célula vira "com erro", nunca texto cortado).
+ * células guardadas (sem as vazias do fim da linha) e 4.000 caracteres por célula (acima disso a célula vira "com erro", nunca texto cortado).
  */
 public final class LeitorDePlanilha {
 
@@ -38,9 +38,12 @@ public final class LeitorDePlanilha {
     static final int ZIP_DESCOMPACTADO = 20 * 1024 * 1024;
     /** Cabeçalho + 5.000 linhas de dados. Quem chama confere as linhas de dados de novo. */
     static final int LINHAS_LIDAS = 5001;
-    /** Até a coluna IV. A referência {@code r="ZZZZZZ1"} não pode virar centenas de milhões de células vazias. */
+    /**
+     * Até a coluna IV. A referência {@code r="ZZZZZZ1"} não pode virar centenas de milhões de células vazias; célula vazia
+     * além dela é ignorada, com conteúdo recusa a planilha.
+     */
     static final int COLUNAS_MAXIMAS = 256;
-    /** Células guardadas na planilha toda (5.000 linhas x 100 colunas), conferido antes de preencher a linha. */
+    /** Células guardadas na planilha toda (5.000 linhas x 100 colunas), contadas no fim de cada linha, sem as vazias do fim. */
     static final int CELULAS_MAXIMAS = 500_000;
     /** Texto de uma célula ou de uma shared string; maior que isso a célula vira "com erro". */
     static final int TEXTO_MAXIMO = 4000;
@@ -226,6 +229,7 @@ public final class LeitorDePlanilha {
             boolean valor = false;
             boolean erro = false;
             boolean longo = false;
+            boolean foraDoLimite = false;
             StringBuilder texto = new StringBuilder();
             boolean emValor = false;
             boolean emInline = false;
@@ -240,12 +244,9 @@ public final class LeitorDePlanilha {
                         throw arquivo("A planilha tem células repetidas ou fora de ordem.");
                     }
                     coluna = posicao < 0 ? celulas.size() : posicao;
-                    if (coluna >= COLUNAS_MAXIMAS) {
-                        throw arquivo("A planilha passa de 256 colunas.");
-                    }
-                    if (guardadas + coluna + 1 > CELULAS_MAXIMAS) {
-                        throw arquivo("A planilha tem células demais.");
-                    }
+                    // Célula vazia só com formatação além da coluna IV (o Excel grava bordas e estilos assim) é
+                    // ignorada; só a que tem conteúdo recusa a planilha, no fim da célula.
+                    foraDoLimite = coluna >= COLUNAS_MAXIMAS;
                     tipo = atributo(r, "t");
                     formula = false;
                     valor = false;
@@ -274,19 +275,33 @@ public final class LeitorDePlanilha {
                         }
                     }
                 } else if (ev == XMLStreamConstants.END_ELEMENT && "c".equals(r.getLocalName()) && celulas != null) {
-                    if (celulas.size() > coluna) {
-                        throw arquivo("A planilha tem células repetidas ou fora de ordem.");
+                    Celula lida = longo ? Celula.comErro() : celula(tipo, formula, valor, erro, texto.toString(), textos);
+                    if (foraDoLimite) {
+                        if (!vazia(lida)) {
+                            throw arquivo("A planilha passa de 256 colunas.");
+                        }
+                    } else {
+                        if (celulas.size() > coluna) {
+                            throw arquivo("A planilha tem células repetidas ou fora de ordem.");
+                        }
+                        while (celulas.size() < coluna) {
+                            celulas.add(Celula.vazia());
+                        }
+                        celulas.add(lida);
                     }
-                    while (celulas.size() < coluna) {
-                        celulas.add(Celula.vazia());
-                    }
-                    celulas.add(longo ? Celula.comErro() : celula(tipo, formula, valor, erro, texto.toString(), textos));
                 } else if (ev == XMLStreamConstants.END_ELEMENT && "row".equals(r.getLocalName()) && celulas != null) {
-                    if (celulas.stream().anyMatch(c -> !c.texto().isEmpty() || c.erro())) {
+                    // As vazias do fim (borda ou estilo) não contam no teto nem ocupam a linha guardada.
+                    while (!celulas.isEmpty() && vazia(celulas.getLast())) {
+                        celulas.removeLast();
+                    }
+                    if (!celulas.isEmpty()) {
                         if (linhas.size() >= LINHAS_LIDAS) {
                             throw arquivo("O arquivo passa de 5.000 linhas.");
                         }
                         guardadas += celulas.size();
+                        if (guardadas > CELULAS_MAXIMAS) {
+                            throw arquivo("A planilha tem células demais.");
+                        }
                         linhas.add(new Linha(numero, List.copyOf(celulas)));
                     }
                     celulas = null;
@@ -450,6 +465,10 @@ public final class LeitorDePlanilha {
     }
 
     /** Índice da coluna (A = 0) ou -1 sem letras. Acima de {@link #COLUNAS_MAXIMAS} recusa antes de o int estourar. */
+    private static boolean vazia(Celula c) {
+        return c.texto().isEmpty() && !c.erro();
+    }
+
     static int colunaDe(String referencia) {
         if (referencia == null) {
             return -1;
@@ -465,7 +484,8 @@ public final class LeitorDePlanilha {
                 break;
             }
             if (n > COLUNAS_MAXIMAS) {
-                throw arquivo("A planilha passa de 256 colunas.");
+                // Fora do limite: para de somar (o int não estoura) e quem chama decide pelo conteúdo da célula.
+                return COLUNAS_MAXIMAS;
             }
         }
         return n - 1;

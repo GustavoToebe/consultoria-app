@@ -162,6 +162,28 @@ class LeitorDePlanilhaTest {
     }
 
     @Test
+    void celulaVaziaSoComEstiloAlemDaColunaIVEIgnorada() {
+        // O Excel grava borda ou estilo assim; antes recusava a planilha inteira.
+        var celulas = LeitorDePlanilha.ler("estilo.xlsx",
+                folha("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"XFD1\" s=\"3\"/></row>"), 0).linhas().get(0).celulas();
+        assertThat(celulas).extracting(LeitorDePlanilha.Celula::texto).containsExactly("1");
+        exigeColunasDemais("XFD1");
+    }
+
+    @Test
+    void vaziasDoFimDaLinhaNaoContamNoTetoDeCelulas() {
+        // 5.000 linhas com valor em A e borda até a coluna IV: antes contava 256 por linha e passava de 500.000.
+        StringBuilder xml = new StringBuilder();
+        for (int i = 1; i <= 5000; i++) {
+            xml.append("<row r=\"").append(i).append("\"><c r=\"A").append(i).append("\"><v>1</v></c><c r=\"IV")
+                    .append(i).append("\" s=\"2\"/></row>");
+        }
+        var linhas = LeitorDePlanilha.ler("bordas.xlsx", folha(xml.toString()), 0).linhas();
+        assertThat(linhas).hasSize(5000);
+        assertThat(linhas.get(0).celulas()).hasSize(1);
+    }
+
+    @Test
     void textoAcimaDe4000ViraCelulaComErroEnaoETruncado() {
         String justo = "a".repeat(4000);
         String longo = "b".repeat(4001);
