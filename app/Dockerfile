@@ -21,7 +21,7 @@ COPY . .
 RUN npx expo export --platform web
 
 FROM caddy:2-alpine
-# A imagem base ainda traz brotli-libs 1.2.0-r0 (CVE-2026-111497). A correção já está no Alpine.
-RUN apk upgrade --no-cache brotli-libs
+# A imagem base ainda traz brotli-libs 1.2.0-r0 (CVE-2026-111497) e curl/libcurl 8.22.0-r0 (CVE-2026-92392). A correção já está no Alpine.
+RUN apk upgrade --no-cache brotli-libs curl libcurl
 COPY --from=build /app/dist /srv
 COPY --from=imagens /imagens /srv/catalogo/exercicios
