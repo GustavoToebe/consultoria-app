@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { ImagePlus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { alterarMarca, consultoria as buscarConsultoria, enviarLogo, removerLogo } from '../../api/rotas';
@@ -22,6 +22,7 @@ import { FAMILIAS, MarcaTitulo } from '../../ui/MarcaTitulo';
 import { OpcaoCartao } from '../../ui/OpcaoCartao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
+import { anexarLogo } from './anexarLogo';
 
 const LOGO_MAXIMO = 512 * 1024;
 const HEX = /^#[0-9A-Fa-f]{6}$/;
@@ -115,14 +116,9 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
       return;
     }
     const dados = new FormData();
-    if (Platform.OS === 'web' && a.file) {
-      dados.append('arquivo', a.file);
-    } else {
-      // React Native aceita {uri, name, type} no FormData.
-      dados.append('arquivo', { uri: a.uri, name: a.fileName ?? (tipo === 'image/png' ? 'logo.png' : 'logo.jpg'), type: tipo } as unknown as Blob);
-    }
     setEnviando(true);
     try {
+      await anexarLogo(dados, a, tipo);
       const marca = await enviarLogo(dados);
       setLogoUrl(marca.logoUrl);
       atualizarMarca(marca);

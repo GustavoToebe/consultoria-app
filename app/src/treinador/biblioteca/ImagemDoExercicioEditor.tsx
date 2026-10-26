@@ -42,7 +42,7 @@ export function ImagemDoExercicioEditor({ exercicio, podeAlterar, aoMudar }: Pro
       escolhida = await escolherImagemDoExercicio();
       if (!escolhida) return;
       const dados = new FormData();
-      anexarImagemDoExercicio(dados, escolhida);
+      await anexarImagemDoExercicio(dados, escolhida);
       aoMudar(await enviarImagemDoExercicio(exercicio.id, dados));
       avisar('Imagem salva.', 'sucesso');
     } catch (erro) {

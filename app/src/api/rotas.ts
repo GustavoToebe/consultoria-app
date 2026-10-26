@@ -415,7 +415,7 @@ export const alterarMarca = (dados: {
   textosFasesCiclo?: import('./tipos').TextosDasFases | null;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 
-/** `arquivo`: FormData já montado (web: File; nativo: {uri, name, type}). */
+/** `arquivo`: FormData já montado (web: File; nativo: objeto com bytes(), `anexarArquivoDoAparelho`). */
 export const enviarLogo = (arquivo: FormData) =>
   requisicao<Marca>('/consultoria/marca/logo', { metodo: 'PUT', corpoBruto: arquivo });
 

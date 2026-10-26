@@ -26,14 +26,13 @@ import { Texto } from '../../ui/Texto';
 import { textoDoErro } from '../../ui/erros';
 import { useCarregar } from '../../ui/useCarregar';
 import { baixarCsv } from '../financeiro/baixarCsv';
+import { formulario, type ArquivoEscolhido } from './formularioDaImportacao';
 
 const SITUACAO: Record<string, { texto: string; tipo: TipoSelo }> = {
   CONCLUIDA: { texto: 'Concluída', tipo: 'sucesso' },
   CONCLUIDA_COM_ERROS: { texto: 'Concluída com erros', tipo: 'atencao' },
   FALHOU: { texto: 'Falhou', tipo: 'perigo' },
 };
-
-type ArquivoEscolhido = { nome: string; parte: Blob | { uri: string; name: string; type: string } };
 
 const BASE_MODELO = 'https://consultoria.servirea.com.br/modelos/importacao';
 
@@ -45,17 +44,6 @@ function abrirModelo(nome: string) {
     return;
   }
   void Linking.openURL(`${BASE_MODELO}/${nome}`);
-}
-
-function formulario(arquivo: ArquivoEscolhido, configuracao?: unknown): FormData {
-  const dados = new FormData();
-  if (Platform.OS === 'web') dados.append('arquivo', arquivo.parte as Blob, arquivo.nome);
-  else dados.append('arquivo', arquivo.parte as unknown as Blob);
-  if (configuracao !== undefined) {
-    const json = JSON.stringify(configuracao);
-    dados.append('configuracao', Platform.OS === 'web' ? new Blob([json], { type: 'application/json' }) : json);
-  }
-  return dados;
 }
 
 /** Lista do que já foi importado e o assistente de três passos. O arquivo não fica guardado. */
@@ -180,7 +168,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     if (!destino || !arquivo) return;
     setOcupado(true);
     setErro(null);
-    colunasDaImportacao(destino.id, formulario(arquivo), proxAba, proxCabecalho).then((c) => {
+    formulario(arquivo).then((dados) => colunasDaImportacao(destino.id, dados, proxAba, proxCabecalho)).then((c) => {
       setColunas(c);
       setAba(c.aba);
       const sugerido = sugerirMapeamento(c.colunas, destino.campos);
@@ -201,7 +189,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     if (!destino || !arquivo) return;
     setOcupado(true);
     setErro(null);
-    previaDaImportacao(destino.id, formulario(arquivo, configuracao())).then((p) => {
+    formulario(arquivo, configuracao()).then((dados) => previaDaImportacao(destino.id, dados)).then((p) => {
       setPrevia(p);
       setOcupado(false);
     }, (e: unknown) => { setOcupado(false); setErro(e); });
@@ -211,7 +199,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     if (!destino || !arquivo || !previa) return;
     setOcupado(true);
     setErro(null);
-    confirmarImportacao(destino.id, formulario(arquivo, configuracao()), previa.hash).then(aoConcluir, (e: unknown) => {
+    formulario(arquivo, configuracao()).then((dados) => confirmarImportacao(destino.id, dados, previa.hash)).then(aoConcluir, (e: unknown) => {
       setOcupado(false);
       setErro(e);
     });

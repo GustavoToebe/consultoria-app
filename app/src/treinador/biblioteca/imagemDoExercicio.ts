@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
+import { anexarArquivoDoAparelho } from '../../api/anexarArquivoDoAparelho';
 import { apagarTemporaria } from '../../aluno/atualizacao/fotos/fotosLocais';
 import { FotoRecusada, prepararFoto } from '../../aluno/atualizacao/fotos/prepararFoto';
 import {
@@ -66,13 +67,13 @@ async function tamanhoDe(uri: string): Promise<number> {
 }
 
 /** Põe a imagem no campo `arquivo`, com nome fixo (o nome original não sai do aparelho). */
-export function anexarImagemDoExercicio(dados: FormData, imagem: ImagemDoExercicioEscolhida): void {
+export async function anexarImagemDoExercicio(dados: FormData, imagem: ImagemDoExercicioEscolhida): Promise<void> {
   const nome = NOME_DO_ARQUIVO[imagem.tipo];
   if (Platform.OS === 'web') {
     if (!imagem.arquivo) throw new Error('Imagem sem conteúdo para enviar.');
     dados.append('arquivo', imagem.arquivo, nome);
   } else {
-    dados.append('arquivo', { uri: imagem.uri, name: nome, type: imagem.tipo } as unknown as Blob);
+    await anexarArquivoDoAparelho(dados, 'arquivo', { nome, tipo: imagem.tipo, uri: imagem.uri });
   }
 }
 
