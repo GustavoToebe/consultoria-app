@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import type { Configuracao, ModalidadeComPadrao, PadraoPorModalidade } from '../../api/tipos';
 import type { TipoEmEdicao } from '../../dominio/edicaoMetodologia';
 import { cargaDoModo } from '../../dominio/editorTreino';
-import { copiarCarga, copiarEsforco, PAPEIS, rotuloDoPapel } from '../../dominio/metodologia';
+import { copiarCarga, copiarEsforco, PAPEIS, resumoDoTipo, tipoTrabalho } from '../../dominio/metodologia';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
@@ -58,7 +58,7 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
       aoMudar({ porModalidade: Object.keys(variacoes).length ? variacoes : null });
     }
   };
-  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={rotuloDoPapel(t.papel)} selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined}
+  return <Cartao cabecalho={<CabecalhoDeGrupo titulo={nome} resumo={resumoDoTipo(t, tipoTrabalho(config))} selo={quantos > 0 ? { texto: `${quantos} ${quantos === 1 ? 'problema' : 'problemas'}`, tipo: 'perigo' } : undefined}
     aberto={aberto} aoAlternar={aoAlternar} acoes={<>
       <IconeBotao Icone={ArrowUp} rotulo={`Subir o tipo ${nome}`} desabilitado={posicao === 0} aoTocar={() => aoMover(-1)} />
       <IconeBotao Icone={ArrowDown} rotulo={`Descer o tipo ${nome}`} desabilitado={posicao === total - 1} aoTocar={() => aoMover(1)} />
@@ -74,6 +74,12 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
         <Escolha rotulo="Papel" valor={t.papel} opcoes={PAPEIS} aoMudar={(papel) => aoMudar({ papel, regraPercentuais: papel === 'PREPARACAO' ? t.regraPercentuais : null })} />
         <Texto variante="pequeno">O papel diz para que a série serve. O primeiro tipo de trabalho dá nome ao percentual da carga.</Texto>
         <ErroDoCampo mensagem={p.papel} />
+      </View>
+
+      <View style={estilos.secao}>
+        <Texto variante="secao">Explicação</Texto>
+        <Campo rotulo="Explicação para o aluno" valor={t.explicacao ?? ''} aoMudar={(explicacao) => aoMudar({ explicacao })} linhas={3} maxLength={LIMITE_EXPLICACAO}
+          ajuda={`O aluno lê ao tocar no tipo. ${(t.explicacao ?? '').length}/${LIMITE_EXPLICACAO}.`} erro={p.explicacao} />
       </View>
 
       <View style={estilos.secao}>
@@ -110,12 +116,6 @@ export function CartaoDoTipo({ tipo: t, config, problemas: p, posicao, total, ab
       </View>
 
       {t.papel === 'PREPARACAO' ? <RegraDePercentuais tipo={t} erros={p} aoMudar={(regraPercentuais) => aoMudar({ regraPercentuais })} /> : null}
-
-      <View style={estilos.secao}>
-        <Texto variante="secao">Explicação</Texto>
-        <Campo rotulo="Explicação para o aluno" valor={t.explicacao ?? ''} aoMudar={(explicacao) => aoMudar({ explicacao })} linhas={3} maxLength={LIMITE_EXPLICACAO}
-          ajuda={`O aluno lê ao tocar no tipo. ${(t.explicacao ?? '').length}/${LIMITE_EXPLICACAO}.`} erro={p.explicacao} />
-      </View>
     </> : null}
   </Cartao>;
 }

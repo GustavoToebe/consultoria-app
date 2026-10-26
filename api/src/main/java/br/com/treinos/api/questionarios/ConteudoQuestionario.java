@@ -104,10 +104,15 @@ public record ConteudoQuestionario(
     public record Opcao(
             @Pattern(regexp = LimitesQuestionario.ID_PADRAO) String id,
             @Size(max = LimitesQuestionario.OPCAO_TAMANHO) String rotulo,
-            @Size(max = LimitesQuestionario.ID_TAMANHO) String imagemId) {
+            @Size(max = LimitesQuestionario.ID_TAMANHO) String imagemId,
+            @Size(max = 10) String valorNoCadastro) {
+
+        public Opcao(String id, String rotulo, String imagemId) {
+            this(id, rotulo, imagemId, null);
+        }
 
         public Opcao(String id, String rotulo) {
-            this(id, rotulo, null);
+            this(id, rotulo, null, null);
         }
     }
 

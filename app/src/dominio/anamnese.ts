@@ -4,6 +4,7 @@ import type {
 import type { RascunhoAtualizacao } from '../offline/repositorioLocal';
 import { enderecoParaLeitura } from './cadastroDoAluno';
 import { dataParaTela, numeroParaTela, SEM_DADO } from './formatos';
+import { ROTULO_DO_SEXO, sexoDoCampo } from './sexo';
 
 /**
  * Regras de apresentação da anamnese (a decisão é sempre da API). Cor com significado: âmbar = falta alguém agir
@@ -57,6 +58,7 @@ export function notaDoCadastro(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino' |
   if (p.destino === 'CPF' && p.tipo === 'TEXTO') return 'Esta resposta vai para o CPF do seu cadastro.';
   if (p.destino === 'TELEFONE' && p.tipo === 'TELEFONE') return 'Esta resposta vai para o telefone do seu cadastro.';
   if (p.destino === 'ENDERECO' && p.tipo === 'ENDERECO') return 'Esta resposta vai para o endereço do seu cadastro.';
+  if (p.destino === 'SEXO' && p.tipo === 'ESCOLHA_UNICA') return 'Esta resposta vai para o sexo do seu cadastro.';
   if (p.destino !== 'PESO' || p.tipo !== 'PESO') return null;
   const data = p.destinoData ? modelo.secoes.flatMap((s) => s.perguntas).find((x) => x.id === p.destinoData && x.tipo === 'DATA') : undefined;
   return data
@@ -65,19 +67,23 @@ export function notaDoCadastro(p: Pick<PerguntaAtualizacao, 'tipo' | 'destino' |
 }
 
 /** Nome do campo do cadastro, para a equipe. */
-export const ROTULO_DO_DESTINO: Record<DestinoNoPerfil, string> = { PESO: 'Peso', OBJETIVO: 'Objetivo', CPF: 'CPF', TELEFONE: 'Telefone', ENDERECO: 'Endereço' };
+export const ROTULO_DO_DESTINO: Record<DestinoNoPerfil, string> = { PESO: 'Peso', OBJETIVO: 'Objetivo', CPF: 'CPF', TELEFONE: 'Telefone', ENDERECO: 'Endereço', SEXO: 'Sexo' };
 
 /**
  * Permissão que aplica ou descarta a alteração do destino (igual a `DestinoNoPerfil.permissao()` na API): o telefone é
  * contato do aluno (`ALUNO_ALTERAR`); peso, objetivo, CPF e endereço são dado sensível.
  */
-export const permissaoDeLeituraDoDestino = (d: DestinoNoPerfil): 'ALUNO_LER' | 'ALUNO_SENSIVEL_LER' => (d === 'TELEFONE' ? 'ALUNO_LER' : 'ALUNO_SENSIVEL_LER');
-export const permissaoDoDestino = (d: DestinoNoPerfil): 'ALUNO_ALTERAR' | 'ALUNO_SENSIVEL_ALTERAR' => (d === 'TELEFONE' ? 'ALUNO_ALTERAR' : 'ALUNO_SENSIVEL_ALTERAR');
+export const permissaoDeLeituraDoDestino = (d: DestinoNoPerfil): 'ALUNO_LER' | 'ALUNO_SENSIVEL_LER' => (d === 'TELEFONE' || d === 'SEXO' ? 'ALUNO_LER' : 'ALUNO_SENSIVEL_LER');
+export const permissaoDoDestino = (d: DestinoNoPerfil): 'ALUNO_ALTERAR' | 'ALUNO_SENSIVEL_ALTERAR' => (d === 'TELEFONE' || d === 'SEXO' ? 'ALUNO_ALTERAR' : 'ALUNO_SENSIVEL_ALTERAR');
 
 /** Valor do cadastro em texto: "80,5 kg em 10/01/2026" ou o objetivo; ausente, "—". */
 export function textoDoValor(destino: DestinoNoPerfil, v: ValorDoCadastro | null | undefined): string {
   if (!v) return SEM_DADO;
   if (destino === 'OBJETIVO' || destino === 'CPF' || destino === 'TELEFONE') return v.texto?.trim() || SEM_DADO;
+  if (destino === 'SEXO') {
+    const sexo = sexoDoCampo(v.texto);
+    return sexo ? ROTULO_DO_SEXO[sexo] : SEM_DADO;
+  }
   if (destino === 'ENDERECO') return enderecoParaLeitura(v.endereco)?.replace('\n', ' · ') || SEM_DADO;
   if (v.pesoKg == null) return SEM_DADO;
   const data = dataParaTela(v.data ?? null);

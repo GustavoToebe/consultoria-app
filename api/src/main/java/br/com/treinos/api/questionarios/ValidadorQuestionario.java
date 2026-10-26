@@ -1,5 +1,6 @@
 package br.com.treinos.api.questionarios;
 
+import br.com.treinos.api.alunos.Sexo;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.treinos.api.questionarios.ConteudoQuestionario.Opcao;
 import br.com.treinos.api.questionarios.ConteudoQuestionario.Pergunta;
@@ -251,6 +252,9 @@ public class ValidadorQuestionario {
             } else if (!estado.destinos.add(d)) {
                 c.erro(cp + ".destino", "Outra pergunta já alimenta este campo.");
             }
+            if (d == DestinoNoPerfil.SEXO) {
+                sexoNasOpcoes(c, p, cp);
+            }
         }
         if (p.destinoData() != null) {
             if (d != DestinoNoPerfil.PESO) {
@@ -258,6 +262,26 @@ public class ValidadorQuestionario {
             } else {
                 estado.pesagens.put(cp, p.destinoData());
             }
+        }
+    }
+
+    /** Destino SEXO: ao menos uma opção aponta para um valor do cadastro. Fora desse destino o campo é ignorado. */
+    private static void sexoNasOpcoes(ResultadoValidacao.Coletor c, Pergunta p, String cp) {
+        boolean algum = false;
+        List<Opcao> opcoes = p.opcoes() == null ? List.of() : p.opcoes();
+        for (int i = 0; i < opcoes.size(); i++) {
+            String valor = opcoes.get(i).valorNoCadastro();
+            if (valor == null || valor.isBlank()) {
+                continue;
+            }
+            if (Sexo.ler(valor) == null) {
+                c.erro(cp + ".opcoes[" + i + "].valorNoCadastro", "Escolha Masculino, Feminino ou Outro.");
+            } else {
+                algum = true;
+            }
+        }
+        if (!algum) {
+            c.erro(cp + ".opcoes", "Marque o sexo de ao menos uma opção.");
         }
     }
 

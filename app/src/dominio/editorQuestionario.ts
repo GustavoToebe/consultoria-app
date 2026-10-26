@@ -132,7 +132,10 @@ export function normalizarQuestionario(c: Partial<ConteudoQuestionario> | null |
  */
 export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestionario = 'ATUALIZACAO'): ConteudoQuestionario {
   const texto = (v: string | undefined) => (v != null && v.trim() !== '' ? v : undefined);
-  const opcao = (o: OpcaoPergunta, comImagem: boolean): OpcaoPergunta => ({ id: o.id, rotulo: o.rotulo, imagemId: comImagem ? texto(o.imagemId) : undefined });
+  const opcao = (o: OpcaoPergunta, comImagem: boolean, comSexo: boolean): OpcaoPergunta => ({
+    id: o.id, rotulo: o.rotulo, imagemId: comImagem ? texto(o.imagemId) : undefined,
+    valorNoCadastro: comSexo && (o.valorNoCadastro === 'MASCULINO' || o.valorNoCadastro === 'FEMININO' || o.valorNoCadastro === 'OUTRO') ? o.valorNoCadastro : undefined,
+  });
   return {
     formato: 2,
     instrucoes: c.instrucoes,
@@ -145,6 +148,7 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
         const destacada = aceitaDestaque(p.tipo) && p.destaque === true;
         const numerico = p.tipo === 'NUMERO';
         const nota = p.tipo === 'NOTA';
+        const destino = p.destino != null && destinosPossiveis(p.tipo, finalidade).includes(p.destino) ? p.destino : undefined;
         return {
           id: p.id,
           tipo: p.tipo,
@@ -155,7 +159,7 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
           rotuloCurto: destacada ? texto(p.rotuloCurto) : undefined,
           ajudaAutomatica: aceitaAjudaAutomatica(p.tipo, finalidade) ? p.ajudaAutomatica : undefined,
           dias: p.tipo === 'NOTAS_POR_DIA' ? p.dias : undefined,
-          opcoes: temOpcoes(p.tipo) ? p.opcoes?.map((o) => opcao(o, true)) : undefined,
+          opcoes: temOpcoes(p.tipo) ? p.opcoes?.map((o) => opcao(o, true, destino === 'SEXO')) : undefined,
           unidade: numerico ? texto(p.unidade) : undefined,
           min: numerico || nota ? p.min : undefined,
           max: numerico || nota || p.tipo === 'FOTOS' ? p.max : undefined,
@@ -164,12 +168,12 @@ export function paraApi(c: ConteudoQuestionario, finalidade: FinalidadeQuestiona
           rotuloMax: nota ? texto(p.rotuloMax) : undefined,
           imagemId: texto(p.imagemId),
           somentePassado: p.tipo === 'DATA' && p.somentePassado === true ? true : undefined,
-          linhas: p.tipo === 'GRADE' ? p.linhas?.map((o) => opcao(o, false)) : undefined,
-          colunas: p.tipo === 'GRADE' ? p.colunas?.map((o) => opcao(o, false)) : undefined,
+          linhas: p.tipo === 'GRADE' ? p.linhas?.map((o) => opcao(o, false, false)) : undefined,
+          colunas: p.tipo === 'GRADE' ? p.colunas?.map((o) => opcao(o, false, false)) : undefined,
           texto: p.tipo === 'ACEITE' ? (p.texto ?? '') : p.tipo === 'INFORMATIVO' ? texto(p.texto) : undefined,
           declaracao: p.tipo === 'ACEITE' ? (p.declaracao ?? '') : undefined,
           mostrarSe: p.mostrarSe,
-          destino: p.destino != null && destinosPossiveis(p.tipo, finalidade).includes(p.destino) ? p.destino : undefined,
+          destino,
           destinoData: p.tipo === 'PESO' && p.destino === 'PESO' && finalidade === 'ANAMNESE' ? texto(p.destinoData) : undefined,
         };
       }),
@@ -336,7 +340,7 @@ export const alterarCondicaoDaSecao = (c: ConteudoQuestionario, secao: number, m
 
 /**
  * Campos do cadastro que este tipo pode alimentar (só na anamnese): PESO → registro de peso, TEXTO → objetivo ou CPF,
- * TELEFONE → telefone, ENDERECO → endereço. A ordem é a do menu.
+ * TELEFONE → telefone, ENDERECO → endereço, ESCOLHA_UNICA → sexo. A ordem é a do menu.
  */
 export function destinosPossiveis(tipo: TipoPergunta, finalidade: FinalidadeQuestionario): DestinoNoPerfil[] {
   if (finalidade !== 'ANAMNESE') return [];

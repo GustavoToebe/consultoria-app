@@ -13,6 +13,7 @@ import {
   nomeDoTipo,
   padraoDaTecnica,
   papelDe,
+  resumoDoTipo,
   percentuaisDaRegra,
   repeticoesDoTipo,
   tipoPorCodigo,
@@ -26,6 +27,19 @@ import { carga, exercicio, grupo, rir, serie as serieDeTeste, sessao } from './e
 jest.mock('./uid', () => {
   let n = 0;
   return { novoUid: () => `novo-${++n}` };
+});
+
+test('o cartão fechado resume só o que o tipo já tem', () => {
+  expect(resumoDoTipo(c.tipos[1], 'WS')).toBe('Preparação · 3 reps · 85% da WS');
+  expect(resumoDoTipo(c.tipos[2], 'WS')).toBe('Trabalho · 3 a 6 reps · carga de trabalho · 1 RIR');
+  expect(resumoDoTipo(c.tipos[0], 'WS')).toBe('Aquecimento · 10 a 15 reps');
+  expect(resumoDoTipo(c.tipos[3], 'WS')).toBe('Trabalho · +1 a 5% sobre a anterior');
+  expect(resumoDoTipo({
+    papel: 'OUTRO',
+    repeticoes: { min: 4, max: null },
+    cargaPadrao: { modo: 'PERCENTUAL_WS', percentualMin: null, percentualMax: null, referenciaUid: null },
+    esforcoPadrao: { rir: 0, rpe: null },
+  }, null)).toBe('Outro · até a falha técnica');
 });
 
 test('o primeiro papel de trabalho dá nome à referência; o tipo é procurado pelo CÓDIGO', () => {

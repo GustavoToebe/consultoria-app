@@ -45,6 +45,7 @@ import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
+import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
@@ -118,6 +119,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
       cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
       barra={modelo ? <BarraDoModeloDoEditor editor={editor} receita={receita} /> : <BarraDoPlano tipo="dieta" editor={editor} aoProblemas={setProblemas} />}>
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="dieta" />}
+      {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       {modelo ? <NomeDoModelo editor={editor} /> : <ProblemasDoPlano editor={editor} problemas={problemas} aoProblemas={setProblemas}
         aoIrAoPrimeiro={(uids) => setAbertas((a) => new Set([...a, ...c.refeicoes.filter((r) => uids.includes(r.uid)).map((r) => r.uid)]))} />}
       {desfazer ? (

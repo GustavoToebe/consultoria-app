@@ -34,7 +34,8 @@ public final class InscricaoDtos {
             @Size(max = 1000) String observacao,
             Boolean cienciaPrivacidade,
             /** Token do Turnstile (uso único); só é exigido com a verificação humana ligada. */
-            @Size(max = 2048) String turnstileToken) {
+            @Size(max = 2048) String turnstileToken,
+            @Size(max = 10) String sexo) {
     }
 
     /** Resposta neutra: não diz nada sobre a fila nem sobre outras inscrições. */
@@ -82,7 +83,8 @@ public final class InscricaoDtos {
                                    SituacaoInscricao situacao, PagamentoInscricao pagamento,
                                    String pagamentoConfirmadoPorNome, Instant pagamentoConfirmadoEm,
                                    UUID responsavelId, String responsavelNome, UUID alunoId, Instant criadaEm,
-                                   Instant atualizadaEm, Long versao, Duplicidade duplicidade, List<Nota> notas) {
+                                   Instant atualizadaEm, Long versao, Duplicidade duplicidade, List<Nota> notas,
+                                   String sexo) {
     }
 
     /**
@@ -111,7 +113,7 @@ public final class InscricaoDtos {
      */
     public record InscricaoExportada(Instant criadaEm, String nome, String whatsapp, String email, String objetivo,
                                      String observacao, Instant cienciaEm, String cienciaTexto,
-                                     List<NotaExportada> notas) {
+                                     List<NotaExportada> notas, String sexo) {
     }
 
     public record NotaExportada(Instant criadaEm, String texto) {

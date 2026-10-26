@@ -55,7 +55,8 @@ public final class AlunoDtos {
             @Size(max = 20) String cpf,
             Endereco endereco,
             Long versao,
-            @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId) {
+            @Min(1) @Max(365) Integer diasAtualizacao, UUID responsavelId,
+            @Size(max = 10) String sexo) {
 
         /** Dado pessoal e de saúde: o texto padrão do record os mostraria. */
         @Override
@@ -64,7 +65,7 @@ public final class AlunoDtos {
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao,UUID responsavelId) {
-            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId);
+            this(nome,email,null,objetivo,observacoes,null,null,versao,diasAtualizacao,responsavelId,null);
         }
 
         public AlunoRequest(String nome,String email,String objetivo,String observacoes,Long versao,Integer diasAtualizacao) {
@@ -106,7 +107,9 @@ public final class AlunoDtos {
                                Integer diasAtualizacao,UUID responsavelId,UUID questionarioId,boolean anonimizado,
                                String emailDeAcesso, boolean aguardandoPrimeiroAcesso,
                                @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-                               Instant usoDeImagemAutorizadoEm) {
+                               Instant usoDeImagemAutorizadoEm,
+                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                               String sexo) {
         /**
          * {@code usuario} é o do aluno (o chamador o busca pelo {@code usuarioId}); nulo se ele ainda não tem acesso. Dele
          * saem o telefone e o e-mail de login (com {@code ALUNO_LER}) e se a senha provisória do treinador ainda não foi trocada.
@@ -123,7 +126,8 @@ public final class AlunoDtos {
                     a.getVersao(), a.getDiasAtualizacao(),a.getResponsavelId(),a.getQuestionarioId(),a.isAnonimizado(),
                     // Anonimizado: o e-mail do usuário é só o marcador da anonimização.
                     ler && usuario != null && !a.isAnonimizado() ? usuario.getEmail() : null, usuario != null && usuario.isTrocarSenha(),
-                    sensivel ? a.getUsoDeImagemAutorizadoEm() : null);
+                    sensivel ? a.getUsoDeImagemAutorizadoEm() : null,
+                    ler && a.getSexo() != null ? a.getSexo().name() : null);
         }
     }
 

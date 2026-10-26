@@ -665,4 +665,49 @@ class AnamnesePerfilIntegrationTest extends AbstractIntegrationTest {
                 alunoId(a))).isZero();
         assertThat(detalhe(a, treinador).path("alteracoes")).isEmpty();
     }
+
+    @Test
+    void sexoDaEscolhaPreencheOCadastroESexoDiferenteDesligaOCiclo() throws Exception {
+        String nome = "Sexo sem valor " + UUID.randomUUID();
+        JsonNode rascunho = api.post("/questionarios", treinador, Map.of("nome", nome, "origem", "VAZIO", "finalidade", "ANAMNESE"), 200);
+        Map<String, Object> semValor = new LinkedHashMap<>();
+        semValor.put("nome", nome);
+        semValor.put("conteudo", Map.of("instrucoes", List.of(), "secoes", List.of(Map.of("uid", "s1", "titulo", "Cadastro", "perguntas",
+                List.of(Map.of("id", "sexo", "tipo", "ESCOLHA_UNICA", "rotulo", "Sexo", "obrigatoria", false, "destino", "SEXO",
+                        "opcoes", List.of(Map.of("id", "n", "rotulo", "Prefiro não dizer"))))))));
+        semValor.put("versao", rascunho.path("versao").asLong());
+        JsonNode salvo = api.put("/questionarios/" + rascunho.path("id").asString(), treinador, semValor, 200);
+        JsonNode recusado = api.post("/questionarios/" + rascunho.path("id").asString() + "/publicar", treinador,
+                Map.of("versao", salvo.path("versao").asLong(), "confirmarAvisos", true), 422);
+        assertThat(recusado.path("codigo").asString()).isEqualTo("QUESTIONARIO_INVALIDO");
+        assertThat(recusado.toString()).contains("secoes[0].perguntas[0].opcoes");
+
+        Map<String, Object> conteudo = Map.of("instrucoes", List.of(), "secoes", List.of(Map.of(
+                "uid", "s1", "titulo", "Cadastro", "perguntas", List.of(Map.of(
+                        "id", "sexo", "tipo", "ESCOLHA_UNICA", "rotulo", "Sexo", "obrigatoria", false, "destino", "SEXO",
+                        "opcoes", List.of(
+                                Map.of("id", "f", "rotulo", "Feminino", "valorNoCadastro", "FEMININO"),
+                                Map.of("id", "m", "rotulo", "Masculino", "valorNoCadastro", "MASCULINO"),
+                                Map.of("id", "n", "rotulo", "Prefiro não dizer")))))));
+        JsonNode q = publicar(treinador, conteudo);
+        JsonNode[] x = alunoComAnamnese(null, q);
+        enviar(x[1], x[0], Map.of("sexo", "n"), 200);
+        assertThat(semValor(ficha(x[0]).path("sexo"))).isTrue();
+
+        JsonNode segunda = api.post("/alunos/" + alunoId(x[0]) + "/anamneses", treinador,
+                Map.of("questionarioId", q.path("id").asString()), 200);
+        enviar(x[1], segunda, Map.of("sexo", "f"), 200);
+        assertThat(ficha(x[0]).path("sexo").asString()).isEqualTo("FEMININO");
+        api.post("/aluno/ciclo/ativar", x[1], Map.of("consentimentoVersao", 1), 200);
+
+        JsonNode terceira = api.post("/alunos/" + alunoId(x[0]) + "/anamneses", treinador,
+                Map.of("questionarioId", q.path("id").asString()), 200);
+        enviar(x[1], terceira, Map.of("sexo", "m"), 200);
+        JsonNode pendente = alteracao(detalhe(terceira, treinador), "SEXO");
+        assertThat(pendente.path("situacao").asString()).isEqualTo("PENDENTE");
+        assertThat(pendente.path("valor").path("texto").asString()).isEqualTo("MASCULINO");
+        api.post(acao(terceira, pendente.path("id").asString(), "aplicar"), treinador, null, 200);
+        assertThat(ficha(x[0]).path("sexo").asString()).isEqualTo("MASCULINO");
+        assertThat(api.get("/aluno/ciclo", x[1], 200).path("disponivel").asBoolean()).isFalse();
+    }
 }

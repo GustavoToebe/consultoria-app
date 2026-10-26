@@ -9,6 +9,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -50,6 +52,11 @@ public class Consultoria {
     /** Ciclo de atualização padrão (V009): aluno sem valor próprio usa este; nulo = sem padrão. */
     @Column(name = "dias_atualizacao_padrao")
     private Integer diasAtualizacaoPadrao;
+
+    /** Textos das fases do ciclo, escritos pelo treinador. Nulo = nenhum. Nunca vai a log. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "textos_fases_ciclo", columnDefinition = "jsonb")
+    private String textosFasesCiclo;
 
     @Column(name = "logo_tipo", insertable = false, updatable = false)
     private String logoTipo;
@@ -97,6 +104,14 @@ public class Consultoria {
 
     public Integer getDiasAtualizacaoPadrao() {
         return diasAtualizacaoPadrao;
+    }
+
+    public String getTextosFasesCiclo() {
+        return textosFasesCiclo;
+    }
+
+    public void definirTextosFasesCiclo(String textosFasesCiclo) {
+        this.textosFasesCiclo = textosFasesCiclo;
     }
 
     public String getLogoTipo() {

@@ -39,6 +39,8 @@ interface Props {
   avisos?: Problemas;
   /** O exercício é de um grupo: oferece "Tirar do grupo". */
   noGrupo?: boolean;
+  /** `false` quando o descanso do grupo substitui o descanso de cada série. */
+  descansoPorSerie?: boolean;
   aoAbrir: () => void;
   aoMudar: (e: ExercicioPlano) => void;
   /** Troca de modalidade que apaga as séries (de ou para cardio), já confirmada: a tela guarda o conteúdo anterior para o "Desfazer". */
@@ -155,7 +157,7 @@ export function CartaoExercicio(p: Props) {
           ) : null}
           <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
           <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
-          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
+          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
           {!cardio ? (
             <Interruptor
               rotulo="Progressão de carga"

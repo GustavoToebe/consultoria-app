@@ -23,6 +23,7 @@ import { useAviso } from '../ui/Aviso';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData, CampoNumerico } from '../ui/Campos';
+import { CartaoCicloNoPeriodo } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
 import { Escolha } from '../ui/Escolha';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -157,6 +158,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
           acaoNoTopo={temAcaoNoMenuDaPasta(pode) ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações da pasta ${aberta.titulo}`} aoTocar={() => { setAbertaId(null); setMenuPasta(aberta); }} /> : undefined}>
           <View style={estilos.resumo}>
             <Texto numerico variante="suave">Período: {periodoCurto(aberta.inicio, aberta.fim, hoje)}</Texto>
+            <CartaoCicloNoPeriodo alunoId={alunoId} inicio={aberta.inicio} fim={aberta.fim} />
             {aberta.concluidaEm ? <Selo texto={`Concluída em ${dataSemAnoCorrente(hojeIso(new Date(aberta.concluidaEm)), hoje)}`} tipo="neutro" /> : null}
           </View>
           {/* Uma ação principal só na folha: com a atualização para revisar, é "Revisar atualização" (no cartão dela,

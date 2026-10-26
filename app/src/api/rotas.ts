@@ -242,6 +242,26 @@ export const trocarFotoDePerfil = (arquivo: FormData) =>
 
 export const removerFotoDePerfil = () => requisicao<void>('/aluno/foto-perfil', { metodo: 'DELETE' });
 
+export const definirSexoDaAluna = (sexo: string | null) =>
+  requisicao<void>('/aluno/sexo', { metodo: 'PUT', corpo: { sexo } });
+
+export const cicloDaAluna = () => requisicao<import('./tipos').CicloDaAluna>('/aluno/ciclo');
+export const ativarCiclo = (consentimentoVersao: number, duracaoHabitual: number | null) =>
+  requisicao<import('./tipos').CicloDaAluna>('/aluno/ciclo/ativar', { metodo: 'POST', corpo: { consentimentoVersao, duracaoHabitual } });
+export const desativarCiclo = () => requisicao<import('./tipos').CicloDaAluna>('/aluno/ciclo/desativar', { metodo: 'POST' });
+export const configurarCiclo = (duracaoHabitual: number | null, mostrarFases: boolean) =>
+  requisicao<import('./tipos').CicloDaAluna>('/aluno/ciclo/configuracao', { metodo: 'PUT', corpo: { duracaoHabitual, mostrarFases } });
+export const gravarRegistroDeCiclo = (id: string, inicio: string, fim: string | null) =>
+  requisicao<import('./tipos').RegistroDeCicloApi>('/aluno/ciclo/registros', { metodo: 'POST', corpo: { id, inicio, fim } });
+export const alterarRegistroDeCiclo = (id: string, inicio: string, fim: string | null) =>
+  requisicao<import('./tipos').RegistroDeCicloApi>(`/aluno/ciclo/registros/${seg(id)}`, { metodo: 'PUT', corpo: { id, inicio, fim } });
+export const apagarRegistroDeCiclo = (id: string) => requisicao<void>(`/aluno/ciclo/registros/${seg(id)}`, { metodo: 'DELETE' });
+export const apagarCiclo = () => requisicao<void>('/aluno/ciclo', { metodo: 'DELETE' });
+export const gravarDiaDeCiclo = (data: string, corpo: { id: string; fluxo: string | null; colica: string | null; sintomas: string[]; observacao: string | null }) =>
+  requisicao<import('./tipos').DiaDeCicloApi>(`/aluno/ciclo/dias/${seg(data)}`, { metodo: 'PUT', corpo });
+export const apagarDiaDeCiclo = (data: string) => requisicao<void>(`/aluno/ciclo/dias/${seg(data)}`, { metodo: 'DELETE' });
+export const cicloDoAluno = (alunoId: string) => requisicao<import('./tipos').CicloDoTreinador>(`/alunos/${seg(alunoId)}/ciclo`);
+
 /** 404 = sem foto. */
 export const baixarFotoDePerfil = () => requisicao<Blob>('/aluno/foto-perfil', { binario: true, limiteMs: 30000 });
 
@@ -392,6 +412,7 @@ export const alterarMarca = (dados: {
   temaPadrao: Tema;
   versao: number;
   diasAtualizacaoPadrao: number | null;
+  textosFasesCiclo?: import('./tipos').TextosDasFases | null;
 }) => requisicao<ConsultoriaResponse>('/consultoria/marca', { metodo: 'PUT', corpo: dados });
 
 /** `arquivo`: FormData já montado (web: File; nativo: {uri, name, type}). */

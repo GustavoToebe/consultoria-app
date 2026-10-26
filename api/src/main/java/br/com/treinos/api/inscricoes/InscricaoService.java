@@ -3,6 +3,7 @@ package br.com.treinos.api.inscricoes;
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.AlunoService;
+import br.com.treinos.api.alunos.Sexo;
 import br.com.treinos.api.alunos.ConviteService;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
@@ -115,8 +116,12 @@ public class InscricaoService {
         }
         String whatsapp = Formatos.telefone(r.whatsapp());
         UUID responsavel = responsaveis.ativo(link.getResponsavelId()) ? link.getResponsavelId() : null;
+        if (r.sexo() != null && !r.sexo().isBlank() && Sexo.ler(r.sexo()) == null) {
+            throw new br.com.treinos.api.web.ValidacaoException("Confira os campos.", "INSCRICAO_INVALIDA",
+                    List.of(new br.com.plataforma.comum.web.ApiError.FieldError("sexo", "Escolha Masculino, Feminino ou Outro.")));
+        }
         inscricoes.save(new Inscricao(r.nome().trim(), whatsapp, Buscas.opcional(r.email()), Buscas.opcional(r.objetivo()),
-                Buscas.opcional(r.observacao()), texto, responsavel));
+                Buscas.opcional(r.observacao()), texto, responsavel, Sexo.ler(r.sexo())));
     }
 
     private InscricaoConfiguracao linkAberto(String codigo) {
@@ -226,6 +231,9 @@ public class InscricaoService {
                 && i.getObjetivo().length() <= OBJETIVO_DO_ALUNO ? i.getObjetivo() : null;
         AlunoDetalhe aluno = alunos.criar(new AlunoRequest(i.getNome(), i.getEmail(), objetivo, null, null, null,
                 responsavel));
+        if (i.getSexo() != null) {
+            alunos.definirSexo(aluno.id(), i.getSexo().name());
+        }
         i.aceitar(aluno.id());
         inscricoes.saveAndFlush(i);
         ConviteResponse convite = convidar ? convites.gerar(aluno.id()) : null;
@@ -251,7 +259,7 @@ public class InscricaoService {
                 nomes.get(i.getResponsavelId()), alunoVisivel(i.getAlunoId()), i.getCriadaEm(), i.getAtualizadaEm(),
                 i.getVersao(), duplicidades(List.of(i)).getOrDefault(i.getId(), Duplicidade.NENHUMA),
                 lista.stream().map(n -> new Nota(n.getId(), n.getTexto(), n.getAutorId(), nomes.get(n.getAutorId()),
-                        n.getCriadaEm())).toList());
+                        n.getCriadaEm())).toList(), i.getSexo() == null ? null : i.getSexo().name());
     }
 
     /**

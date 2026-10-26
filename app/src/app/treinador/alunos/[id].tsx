@@ -7,6 +7,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
 import { enderecoParaLeitura, NOTA_TELEFONE_SEM_ACESSO } from '../../../dominio/cadastroDoAluno';
+import { rotuloDoSexo } from '../../../dominio/sexo';
 import { cicloDoAluno, textoDoCiclo } from '../../../dominio/periodo';
 import type { AlunoDetalhe } from '../../../api/tipos';
 import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
@@ -22,6 +23,7 @@ import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
 import { CartaoPastas, useRenovarPasta } from '../../../treinador/CartaoPastas';
 import { CartaoAnamnese } from '../../../treinador/anamnese/CartaoAnamnese';
+import { LinhaDoCicloNaFicha } from '../../../treinador/ciclo/CicloNaFicha';
 import { CartaoPlanoContratado } from '../../../treinador/financeiro/CartaoPlanoContratado';
 import { FormAluno } from '../../../treinador/FormAluno';
 import { AcoesDePrivacidade } from '../../../treinador/privacidade/AcoesDePrivacidade';
@@ -191,6 +193,7 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
           <View style={estilos.colunaDados}>
             <Texto variante="secao">Cadastro</Texto>
             <CampoLeitura rotulo="E-mail" valor={aluno.email} />
+            <CampoLeitura rotulo="Sexo" valor={rotuloDoSexo(aluno.sexo)} />
             <CampoLeitura rotulo="Telefone" valor={aluno.telefone} />
             {!aluno.temAcesso && !aluno.anonimizado ? <Texto variante="pequeno">{NOTA_TELEFONE_SEM_ACESSO}</Texto> : null}
             <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Objetivo" valor={aluno.objetivo} /></Permitido>
@@ -209,6 +212,7 @@ function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padra
             <SeletorDeQuestionario rotulo="Questionário de atualização" valor={aluno.questionarioId} rotuloDoNulo="Padrão da consultoria" podeAlterar={false}
               aoEscolher={async () => {}} />
             <Permitido codigo="ALUNO_SENSIVEL_LER"><CampoLeitura rotulo="Observações" valor={aluno.observacoes} /></Permitido>
+            <LinhaDoCicloNaFicha alunoId={aluno.id} />
           </View>
         </View>
       )}

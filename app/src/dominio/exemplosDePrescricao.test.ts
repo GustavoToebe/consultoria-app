@@ -3,10 +3,18 @@ import { agrupar, descreverSeries } from './agrupamento';
 import { novaSerie, tecnicaVazia } from './editorTreino';
 import {
   acrescentarExemplo,
+  assinaturaDoEsforco,
+  esforcoAindaEhODoTipo,
+  marcaConfere,
+  motivoDoExemploCluster,
+  motivoDoRestPause,
   novaWsComRestPause,
+  origemAposConteudo,
+  origemAoTrocarTipo,
   PAUSA_DO_EXEMPLO_CLUSTER,
   restPauseNestaSerie,
   textoDaContagemDeSeries,
+  textoDaRevisaoDoEsforco,
 } from './exemplosDePrescricao';
 
 const trabalho = () => novaSerie(CONFIGURACAO_PADRAO, 'WORKING');
@@ -54,7 +62,23 @@ describe('rest-pause nas duas montagens', () => {
     expect(nova.tecnica?.tipo).toBe('REST_PAUSE');
     expect(nova.esforco).toEqual({ rir: 2, rpe: null });
     expect(nova.descansoSegundos).toBe(90);
+    expect(nova.carga).toEqual(serie.carga);
     expect(nova.uid).toBe(serie.uid);
+  });
+
+  it('num cartão de duas ou três WS iguais, só a última recebe Rest-pause', () => {
+    const montar = (n: number) => Array.from({ length: n }, (_, i) => ({ ...trabalho(), uid: `s${i}`, esforco: { rir: 1, rpe: null } }));
+    for (const n of [2, 3]) {
+      const series = montar(n);
+      const grupo = agrupar(series)[0];
+      expect(grupo.series).toHaveLength(n);
+      const depois = restPauseNestaSerie(series, grupo, CONFIGURACAO_PADRAO);
+      depois.forEach((s, i) => {
+        expect(s.uid).toBe(series[i].uid);
+        expect(s.esforco).toEqual(series[i].esforco);
+        expect(s.tecnica?.tipo ?? null).toBe(i === n - 1 ? 'REST_PAUSE' : null);
+      });
+    }
   });
 
   it('uma WS nova com Rest-pause deixa a anterior sem técnica', () => {
@@ -80,6 +104,57 @@ describe('contagem', () => {
     expect(textoDaContagemDeSeries(1)).toBe('Este exercício fica com 1 série.');
     expect(textoDaContagemDeSeries(3)).toBe('Este exercício fica com 3 séries.');
   });
+});
+
+test('o aviso de esforço do Cluster usa o nome do tipo e não afirma origem sem ela', () => {
+  expect(textoDaRevisaoDoEsforco(true, 'WS')).toBe('Este esforço veio do padrão da WS. Revise a prescrição ao usar Cluster.');
+  expect(textoDaRevisaoDoEsforco(true, 'Trabalho pesado')).toBe('Este esforço veio do padrão da Trabalho pesado. Revise a prescrição ao usar Cluster.');
+  expect(textoDaRevisaoDoEsforco(true, '  ')).toBe('Este esforço veio do padrão deste tipo. Revise a prescrição ao usar Cluster.');
+  expect(textoDaRevisaoDoEsforco(false, 'WS')).toBe('Revise o esforço desta série ao usar Cluster.');
+});
+
+test('a marca do esforço cai quando o valor muda, mesmo no mesmo uid', () => {
+  const marca = assinaturaDoEsforco({ rir: 1, rpe: null });
+  expect(esforcoAindaEhODoTipo(marca, { rir: 1, rpe: null })).toBe(true);
+  expect(esforcoAindaEhODoTipo(marca, { rir: 2, rpe: null })).toBe(false);
+  expect(esforcoAindaEhODoTipo(undefined, { rir: 1, rpe: null })).toBe(false);
+});
+
+test('recarga A → B → A e troca externa de tipo não recriam a origem', () => {
+  const preenchida = new Map([['s', { assinatura: assinaturaDoEsforco({ rir: 1, rpe: null }), tipo: 'WORKING' }]]);
+  const comRir2 = origemAposConteudo(preenchida, [{ uid: 's', tipo: 'WORKING', esforco: { rir: 2, rpe: null } }]);
+  expect(comRir2.size).toBe(0);
+  const deVolta = origemAposConteudo(comRir2, [{ uid: 's', tipo: 'WORKING', esforco: { rir: 1, rpe: null } }]);
+  expect(marcaConfere(deVolta.get('s'), { tipo: 'WORKING', esforco: { rir: 1, rpe: null } })).toBe(false);
+  const tipoTrocado = origemAposConteudo(preenchida, [{ uid: 's', tipo: 'LEGADO', esforco: { rir: 1, rpe: null } }]);
+  expect(tipoTrocado.size).toBe(0);
+  expect(origemAoTrocarTipo([{ uid: 's', tipo: 'LEGADO', esforco: { rir: 2, rpe: null } }], null)).toBeNull();
+  const doPadrao = origemAoTrocarTipo([{ uid: 's', tipo: 'WORKING', esforco: { rir: 1, rpe: null } }], { rir: 1, rpe: null });
+  expect(marcaConfere(doPadrao?.get('s'), { tipo: 'WORKING', esforco: { rir: 1, rpe: null } })).toBe(true);
+});
+
+test('atalho de Cluster ou Rest-pause não entra se a técnica saiu da metodologia', () => {
+  const semCluster = { ...CONFIGURACAO_PADRAO, tecnicas: CONFIGURACAO_PADRAO.tecnicas.filter((t) => t.tipo !== 'CLUSTER') };
+  const semRest = { ...CONFIGURACAO_PADRAO, tecnicas: CONFIGURACAO_PADRAO.tecnicas.filter((t) => t.tipo !== 'REST_PAUSE') };
+  const semNenhuma = { ...CONFIGURACAO_PADRAO, tecnicas: [] };
+  const renomeada = {
+    ...CONFIGURACAO_PADRAO,
+    tecnicas: CONFIGURACAO_PADRAO.tecnicas.map((t) => (t.tipo === 'REST_PAUSE' ? { ...t, nome: 'Pausa ativa' } : t)),
+  };
+  expect(motivoDoExemploCluster({ config: semCluster, series: 0, exemplo: 'fs-cluster' })).toBe('Cluster não está na metodologia.');
+  expect(acrescentarExemplo([], semCluster, 'fs-cluster')).toEqual([]);
+  expect(acrescentarExemplo([], semNenhuma, 'fs-ws-cluster')).toEqual([]);
+  expect(motivoDoExemploCluster({ config: CONFIGURACAO_PADRAO, series: 0, exemplo: 'fs-cluster' })).toBeUndefined();
+  expect(motivoDoRestPause({ config: semRest, cartoesDeTrabalhoAbertos: 1 })).toBe('Rest-pause não está na metodologia.');
+  expect(motivoDoRestPause({ config: semNenhuma, cartoesDeTrabalhoAbertos: 1 })).toBe('Rest-pause não está na metodologia.');
+  expect(motivoDoRestPause({ config: CONFIGURACAO_PADRAO, cartoesDeTrabalhoAbertos: 0 })).toBe('Abra a série de trabalho.');
+  expect(motivoDoRestPause({ config: CONFIGURACAO_PADRAO, cartoesDeTrabalhoAbertos: 2 })).toMatch(/outros cartões/);
+  expect(motivoDoRestPause({ config: renomeada, cartoesDeTrabalhoAbertos: 1 })).toBeUndefined();
+  const serie = trabalho();
+  const grupo = agrupar([serie])[0];
+  expect(restPauseNestaSerie([serie], grupo, semRest)[0].tecnica).toBeNull();
+  expect(restPauseNestaSerie([serie], grupo, renomeada)[0].tecnica?.tipo).toBe('REST_PAUSE');
+  expect(novaWsComRestPause([serie], semRest)).toEqual([serie]);
 });
 
 test('técnica vazia de rest-pause continua com os campos do contrato', () => {

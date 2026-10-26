@@ -113,9 +113,10 @@ export interface DadosDaInscricao {
   email: string;
   objetivo: string;
   observacao: string;
+  sexo: string;
 }
 
-export const INSCRICAO_VAZIA: DadosDaInscricao = { nome: '', whatsapp: '', email: '', objetivo: '', observacao: '' };
+export const INSCRICAO_VAZIA: DadosDaInscricao = { nome: '', whatsapp: '', email: '', objetivo: '', observacao: '', sexo: '' };
 
 /** Máscara do WhatsApp enquanto digita: `(11) 98765-4321`. */
 export const mascaraWhatsapp = (texto: string) => formatarTelefone(texto);
@@ -147,6 +148,7 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
     email: opcional(d.email),
     objetivo: opcional(d.objetivo),
     observacao: opcional(d.observacao),
+    ...(d.sexo ? { sexo: d.sexo } : {}),
     cienciaPrivacidade: ciencia,
   };
   if (token) corpo.turnstileToken = token;

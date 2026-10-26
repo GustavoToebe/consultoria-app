@@ -7841,6 +7841,265 @@
   "avisos": []
  },
  {
+  "nome": "destino_sexo_ok",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "sexo",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta sexo",
+       "obrigatoria": false,
+       "destino": "SEXO",
+       "opcoes": [
+        {
+         "id": "m",
+         "rotulo": "Masculino",
+         "valorNoCadastro": "MASCULINO"
+        },
+        {
+         "id": "f",
+         "rotulo": "Feminino",
+         "valorNoCadastro": "FEMININO"
+        },
+        {
+         "id": "n",
+         "rotulo": "Prefiro não dizer"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_sexo_sem_valor",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "sexo",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta sexo",
+       "obrigatoria": false,
+       "destino": "SEXO",
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].opcoes"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_sexo_valor_invalido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "sexo",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta sexo",
+       "obrigatoria": false,
+       "destino": "SEXO",
+       "opcoes": [
+        {
+         "id": "a",
+         "rotulo": "A",
+         "valorNoCadastro": "X"
+        },
+        {
+         "id": "b",
+         "rotulo": "B"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].opcoes",
+   "secoes[0].perguntas[0].opcoes[0].valorNoCadastro"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_sexo_repetido",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "a",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta a",
+       "obrigatoria": false,
+       "destino": "SEXO",
+       "opcoes": [
+        {
+         "id": "m",
+         "rotulo": "Masculino",
+         "valorNoCadastro": "MASCULINO"
+        },
+        {
+         "id": "f",
+         "rotulo": "Feminino",
+         "valorNoCadastro": "FEMININO"
+        },
+        {
+         "id": "n",
+         "rotulo": "Prefiro não dizer"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta b",
+       "obrigatoria": false,
+       "destino": "SEXO",
+       "opcoes": [
+        {
+         "id": "m",
+         "rotulo": "Masculino",
+         "valorNoCadastro": "MASCULINO"
+        },
+        {
+         "id": "f",
+         "rotulo": "Feminino",
+         "valorNoCadastro": "FEMININO"
+        },
+        {
+         "id": "n",
+         "rotulo": "Prefiro não dizer"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_sexo_tipo_errado",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "t",
+       "tipo": "TEXTO",
+       "rotulo": "Pergunta t",
+       "obrigatoria": false,
+       "destino": "SEXO"
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[0].destino",
+   "secoes[0].perguntas[0].opcoes"
+  ],
+  "avisos": [],
+  "finalidade": "ANAMNESE"
+ },
+ {
+  "nome": "destino_sexo_na_atualizacao",
+  "conteudo": {
+   "formato": 2,
+   "instrucoes": [],
+   "secoes": [
+    {
+     "uid": "s1",
+     "titulo": "Geral",
+     "perguntas": [
+      {
+       "id": "peso",
+       "tipo": "PESO",
+       "rotulo": "Pergunta peso",
+       "obrigatoria": false
+      },
+      {
+       "id": "sexo",
+       "tipo": "ESCOLHA_UNICA",
+       "rotulo": "Pergunta sexo",
+       "obrigatoria": false,
+       "destino": "SEXO",
+       "opcoes": [
+        {
+         "id": "m",
+         "rotulo": "Masculino",
+         "valorNoCadastro": "MASCULINO"
+        },
+        {
+         "id": "f",
+         "rotulo": "Feminino",
+         "valorNoCadastro": "FEMININO"
+        },
+        {
+         "id": "n",
+         "rotulo": "Prefiro não dizer"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "erros": [
+   "secoes[0].perguntas[1].destino"
+  ],
+  "avisos": []
+ },
+ {
   "nome": "fabrica_v2",
   "conteudo": {
    "secoes": [

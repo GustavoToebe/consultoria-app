@@ -1,5 +1,6 @@
 package br.com.treinos.api.inscricoes;
 
+import br.com.treinos.api.alunos.Sexo;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -46,6 +47,9 @@ public class Inscricao {
 
     private String observacao;
 
+    @Enumerated(EnumType.STRING)
+    private Sexo sexo;
+
     @Column(name = "ciencia_em")
     private Instant cienciaEm;
 
@@ -83,13 +87,14 @@ public class Inscricao {
 
     /** {@code textoCiencia} nulo = a consultoria não tinha texto (sem ciência a registrar). */
     Inscricao(String nome, String whatsapp, String email, String objetivo, String observacao, String textoCiencia,
-              UUID responsavelId) {
+              UUID responsavelId, Sexo sexo) {
         this.nome = nome;
         this.whatsapp = whatsapp;
         this.email = email;
         this.objetivo = objetivo;
         this.observacao = observacao;
         this.responsavelId = responsavelId;
+        this.sexo = sexo;
         if (textoCiencia != null) {
             this.cienciaTexto = textoCiencia;
             this.cienciaEm = criadaEm;
@@ -104,6 +109,7 @@ public class Inscricao {
     public String getEmail() { return email; }
     public String getObjetivo() { return objetivo; }
     public String getObservacao() { return observacao; }
+    public Sexo getSexo() { return sexo; }
     public Instant getCienciaEm() { return cienciaEm; }
     public String getCienciaTexto() { return cienciaTexto; }
     public SituacaoInscricao getSituacao() { return situacao; }

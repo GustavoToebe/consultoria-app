@@ -11,6 +11,8 @@ RASCUNHO [REVISAR COM ADVOGADO]: este texto ainda não foi revisado por um advog
 - **Cadastro:** nome, e-mail e telefone.
 - **Dados de saúde e dados sensíveis:** peso, objetivo, observações, lesões, respostas das atualizações, feedback do
   treinador, dieta, suplementação e medicação cadastradas pelo treinador, e observações das séries.
+- **Ciclo menstrual (opcional):** só a própria aluna liga o acompanhamento. O treinador e a equipe com acesso a dados
+  sensíveis veem as datas, a fase estimada, os sintomas do dia e a observação. Dá para desligar e apagar.
 - **Treino:** planos publicados, cargas e repetições registradas.
 - **Uso do aplicativo:** data do último acesso e registros de segurança, como o endereço de rede e o aparelho usados nas
   ações de gestão.

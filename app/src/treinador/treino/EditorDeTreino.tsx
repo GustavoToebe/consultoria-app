@@ -52,6 +52,7 @@ import { juntarProblemas, problemasDoExercicio, problemasDoGrupo } from '../../t
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
 import { nomeDaCombinacao } from '../../dominio/metodologia';
+import { descansoSoDoGrupo } from '../../dominio/textoDoGrupo';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
@@ -67,6 +68,7 @@ import { textoDoErro } from '../../ui/erros';
 import { Texto } from '../../ui/Texto';
 import { Tela } from '../../ui/Tela';
 import { tituloDoModelo, tituloDoPlanoDoAluno } from '../../dominio/planoDoAluno';
+import { CartaoCicloNoPeriodo } from '../ciclo/CicloNaFicha';
 import { FaixaDoModelo, FaixaDoPlanoDoAluno, useNomeDoAluno } from '../plano/FaixaDoPlano';
 import { trilhaDoPlano } from '../plano/trilha';
 
@@ -203,7 +205,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
 
   const blocos = sessaoAtual ? gruposDaSessao(sessaoAtual, config) : [];
 
-  const cartaoDoExercicio = (sessao: Sessao, e: ExercicioPlano, ei: number, noGrupo: boolean) => (
+  const cartaoDoExercicio = (sessao: Sessao, e: ExercicioPlano, ei: number, noGrupo: boolean, descansoPorSerie = true) => (
     <CartaoExercicio
       key={e.uid}
       exercicio={e}
@@ -215,6 +217,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       erros={problemasDoExercicio(errosVivos, indiceSelecionado, ei)}
       avisos={problemasDoExercicio(avisosVivos, indiceSelecionado, ei)}
       noGrupo={noGrupo}
+      descansoPorSerie={descansoPorSerie}
       demonstracao={e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null}
       aoAbrir={() => alternar(e.uid)}
       aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
@@ -240,6 +243,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       cabecalho={<Cabecalho titulo={titulo} trilha={trilhaDoPlano(modelo, estado.plano.alunoId, titulo)} subtitulo={modelo ? undefined : estado.plano.titulo} voltar={modelo ? '/treinador/planejamento' : `/treinador/alunos/${estado.plano.alunoId}`} />}
       barra={modelo ? <BarraDoModeloDoEditor editor={comVerificacao} receita={receita} /> : <BarraDoPlano tipo="treino" editor={comVerificacao} aoProblemas={aoProblemas} />}>
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
+      {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       {modelo ? <NomeDoModelo editor={editor} /> : null}
       <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
       {desfazer ? (
@@ -321,7 +325,8 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
             setAbertos((a) => { const novo = new Set(a); uids.forEach((u) => (todos ? novo.delete(u) : novo.add(u))); return novo; });
           }}>
           {blocos.map((g, bi) => {
-            const cartoes = g.exercicios.map((e, i) => cartaoDoExercicio(sessaoAtual, e, g.inicio + i, g.grupo !== null));
+            const descansoPorSerie = !(g.grupo && descansoSoDoGrupo(g.grupo));
+            const cartoes = g.exercicios.map((e, i) => cartaoDoExercicio(sessaoAtual, e, g.inicio + i, g.grupo !== null, descansoPorSerie));
             const grupo = g.grupo;
             if (!grupo) return <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>;
             return (

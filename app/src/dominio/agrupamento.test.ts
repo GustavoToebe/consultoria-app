@@ -43,6 +43,22 @@ describe('técnica da série (reunião de 17/10)', () => {
     ]);
     expect(leituraDaTecnica(serie('a', cluster), config)).toBe('WS com Cluster. Faça 3 blocos de 2 repetições. São 6 repetições previstas no total e 2 pausas internas. Encerre ao terminar o 3º bloco. Pausa entre os blocos: 20 s. Descanso depois da série: não informado. A sugestão de carga vem da base do dia. Ajuste a carga desta série.');
   });
+
+  it('não repete o descanso da série quando ele é do grupo, nem pede carga no exercício sem carga', () => {
+    const comDescanso = serieDeTeste('a', { tipo: 'WORKING', tecnica: cluster, descansoSegundos: 90 });
+    const solta = leituraDaTecnica(comDescanso, config);
+    expect(solta).toContain('Pausa entre os blocos: 20 s.');
+    expect(solta).toContain('Descanso depois da série: 90 s.');
+    expect(solta).toContain('Ajuste a carga desta série.');
+    const noGrupo = leituraDaTecnica(comDescanso, config, { descansoPorSerie: false });
+    expect(noGrupo).toContain('Pausa entre os blocos: 20 s.');
+    expect(noGrupo).not.toContain('Descanso depois da série');
+    expect(noGrupo).toContain('Ajuste a carga desta série.');
+    const semCarga = leituraDaTecnica(comDescanso, config, { semCarga: true });
+    expect(semCarga).toContain('Descanso depois da série: 90 s.');
+    expect(semCarga).not.toContain('Ajuste a carga');
+    expect(semCarga).not.toContain('base do dia');
+  });
 });
 
 describe('drop-set', () => {

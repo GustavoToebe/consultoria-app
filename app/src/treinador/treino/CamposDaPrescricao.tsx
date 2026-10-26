@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { Cardio, Carga, Configuracao, Esforco, ModoDeCarga, PapelDaSerie, RegiaoDasParciais, Tecnica } from '../../api/tipos';
-import { blocosIguais, blocosValidos, lerBlocos, resumoDosBlocos, textoDeBlocos } from '../../dominio/blocos';
+import { blocosIguais, blocosSeValidos, blocosValidos, lerBlocos, listaDeBlocosIguaisSeValidos, rascunhoDoModoDiferente, resumoDosBlocos, textoDeBlocos } from '../../dominio/blocos';
 import { modosDeCarga } from '../../dominio/editorTreino';
 import { REGIOES_DAS_PARCIAIS } from '../../dominio/metodologia';
 import { problemasDaTecnica, type Problemas } from '../../dominio/validacaoDeSerie';
@@ -113,22 +113,52 @@ function CampoBlocos({ valor, aoMudar, erro, completa }: {
   const [confirmar, setConfirmar] = useState(false);
   const [quantidade, setQuantidade] = useState<number | null>(blocosIguais(valor) ? valor!.length : null);
   const [repsCada, setRepsCada] = useState<number | null>(blocosIguais(valor) ? valor![0] : null);
+  const [quantidadeInvalida, setQuantidadeInvalida] = useState(false);
+  const [repsInvalidas, setRepsInvalidas] = useState(false);
+  const [rascunho, setRascunho] = useState<(number | null)[]>(valor && !blocosIguais(valor) ? [...valor] : []);
+  const [invalidos, setInvalidos] = useState<ReadonlySet<number>>(() => new Set());
   const chave = JSON.stringify(valor ?? null);
   const [anterior, setAnterior] = useState(chave);
   if (anterior !== chave) {
     setAnterior(chave);
     setConfirmar(false);
-    if (blocosIguais(valor)) {
-      setQuantidade(valor!.length);
-      setRepsCada(valor![0]);
+    // Lista inválida zera o gravado e deixa o que a pessoa digitou. Só uma lista válida puxa os campos de volta.
+    if (valor && blocosValidos(valor)) {
+      setQuantidadeInvalida(false);
+      setRepsInvalidas(false);
+      setInvalidos(new Set());
+      setRascunho([...valor]);
+      if (blocosIguais(valor)) {
+        setModo('iguais');
+        setQuantidade(valor.length);
+        setRepsCada(valor[0]);
+      } else setModo('diferentes');
+      if (JSON.stringify(lerBlocos(texto)) !== chave) setTexto(textoDeBlocos(valor));
     }
-    if (valor && !blocosIguais(valor)) setModo('diferentes');
-    if (JSON.stringify(lerBlocos(texto)) !== chave) setTexto(textoDeBlocos(valor ?? null));
   }
   const resumo = resumoDosBlocos(valor);
-  const aplicarIguais = (quantidade: number | null, reps: number | null) => {
-    if (quantidade == null || reps == null || quantidade < 2 || quantidade > 10 || reps < 1 || reps > 50) return;
-    aoMudar(Array.from({ length: quantidade }, () => reps));
+  const erroFaixa = quantidade != null && (quantidade < 2 || quantidade > 10) ? 'De 2 a 10 blocos.' : null;
+  const erroReps = repsCada != null && (repsCada < 1 || repsCada > 50) ? 'De 1 a 50 repetições.' : null;
+  const aplicarIguais = (q: number | null, reps: number | null, qInvalida: boolean, rInvalida: boolean) => {
+    const lista = listaDeBlocosIguaisSeValidos(q, reps, qInvalida, rInvalida);
+    if (!qInvalida && !rInvalida && q != null && reps != null) setTexto(lista ? textoDeBlocos(lista) : `${q}×${reps}`);
+    else if (!qInvalida && !rInvalida && q == null && reps == null) setTexto('');
+    if (lista) setRascunho(lista);
+    aoMudar(lista);
+  };
+  const invalidarQuantidade = (ok: boolean) => {
+    if (ok) return;
+    setQuantidadeInvalida(true);
+    setRascunho([]);
+    setTexto('');
+    aoMudar(null);
+  };
+  const invalidarReps = (ok: boolean) => {
+    if (ok) return;
+    setRepsInvalidas(true);
+    setRascunho([]);
+    setTexto('');
+    aoMudar(null);
   };
   const escolher = (proximo: 'iguais' | 'diferentes') => {
     if (proximo === 'iguais' && valor && !blocosIguais(valor)) {
@@ -136,13 +166,26 @@ function CampoBlocos({ valor, aoMudar, erro, completa }: {
       return;
     }
     setConfirmar(false);
+    if (proximo === 'diferentes') setRascunho(rascunhoDoModoDiferente(valor, rascunho));
     setModo(proximo);
   };
+  const celulas = rascunho.length >= 2 ? rascunho : valor && valor.length >= 2 ? [...valor] : [];
+  const publicarCelulas = (lista: readonly (number | null)[], aindaInvalidos: ReadonlySet<number>) => {
+    setRascunho([...lista]);
+    setInvalidos(aindaInvalidos);
+    aoMudar(blocosSeValidos(lista, aindaInvalidos.size > 0));
+  };
   const alterarBloco = (indice: number, reps: number | null) => {
-    if (!valor || reps == null || reps < 1 || reps > 50) return;
-    const proximo = [...valor];
+    const proximo = [...celulas];
     proximo[indice] = reps;
-    aoMudar(proximo);
+    const ainda = new Set(invalidos);
+    ainda.delete(indice);
+    publicarCelulas(proximo, ainda);
+  };
+  const invalidarBloco = (indice: number, ok: boolean) => {
+    if (ok) return;
+    setInvalidos((atual) => new Set(atual).add(indice));
+    aoMudar(null);
   };
   return <View style={estilos.bloco}>
     <Escolha rotulo="Distribuição dos blocos" opcoes={[{ valor: 'iguais', rotulo: 'Blocos iguais' }, { valor: 'diferentes', rotulo: 'Blocos diferentes' }]} valor={modo} aoMudar={escolher} />
@@ -150,31 +193,58 @@ function CampoBlocos({ valor, aoMudar, erro, completa }: {
       <Texto variante="pequeno">Isso substitui os blocos diferentes por blocos iguais, usando as repetições do primeiro.</Texto>
       <Botao tipo="secundario" rotulo="Converter para blocos iguais" aoTocar={() => {
         const primeiro = valor?.[0];
-        if (valor && primeiro != null) aoMudar(Array.from({ length: valor.length }, () => primeiro));
+        if (valor && primeiro != null) {
+          const iguais = Array.from({ length: valor.length }, () => primeiro);
+          setRascunho(iguais);
+          setQuantidade(iguais.length);
+          setRepsCada(primeiro);
+          setQuantidadeInvalida(false);
+          setRepsInvalidas(false);
+          setInvalidos(new Set());
+          aoMudar(iguais);
+        }
         setModo('iguais');
         setConfirmar(false);
       }} />
     </View> : null}
     {modo === 'iguais' && !confirmar ? <View style={estilos.linha}>
-      <View style={estilos.campo}><CampoNumerico rotulo="Quantos blocos" inteiro valor={quantidade}
-        aoMudar={(q) => { setQuantidade(q); aplicarIguais(q, repsCada); }} ajuda="De 2 a 10." /></View>
-      <View style={estilos.campo}><CampoNumerico rotulo="Repetições em cada bloco" inteiro valor={repsCada}
-        aoMudar={(reps) => { setRepsCada(reps); aplicarIguais(quantidade, reps); }} ajuda="De 1 a 50." /></View>
+      <View style={estilos.campo}><CampoNumerico rotulo="Quantos blocos" inteiro valor={quantidade} erro={erroFaixa}
+        aoMudar={(q) => { setQuantidade(q); setQuantidadeInvalida(false); aplicarIguais(q, repsCada, false, repsInvalidas); }} aoValidade={invalidarQuantidade} ajuda="De 2 a 10." /></View>
+      <View style={estilos.campo}><CampoNumerico rotulo="Repetições em cada bloco" inteiro valor={repsCada} erro={erroReps}
+        aoMudar={(reps) => { setRepsCada(reps); setRepsInvalidas(false); aplicarIguais(quantidade, reps, quantidadeInvalida, false); }} aoValidade={invalidarReps} ajuda="De 1 a 50." /></View>
     </View> : null}
-    {modo === 'diferentes' && (!valor || valor.length < 2) ? <Texto variante="pequeno">Escreva a notação, como 4+2, para editar cada bloco.</Texto> : null}
-    {modo === 'diferentes' && valor && valor.length >= 2 ? <View style={estilos.bloco}>
-      {valor.map((reps, indice) => <View key={indice} style={estilos.campo}>
-        <CampoNumerico rotulo={`Bloco ${indice + 1}`} inteiro valor={reps} aoMudar={(v) => alterarBloco(indice, v)} />
+    {modo === 'diferentes' && celulas.length < 2 ? <Texto variante="pequeno">Escreva a notação, como 4+2, para editar cada bloco.</Texto> : null}
+    {modo === 'diferentes' && celulas.length >= 2 ? <View style={estilos.bloco}>
+      {celulas.map((reps, indice) => <View key={indice} style={estilos.campo}>
+        <CampoNumerico rotulo={`Bloco ${indice + 1}`} inteiro valor={reps} erro={reps != null && (reps < 1 || reps > 50) ? 'De 1 a 50 repetições.' : null}
+          aoMudar={(v) => alterarBloco(indice, v)} aoValidade={(ok) => invalidarBloco(indice, ok)} />
       </View>)}
       <View style={estilos.linha}>
-        <Botao tipo="secundario" rotulo="Mais um bloco" desabilitado={valor.length >= 10} aoTocar={() => aoMudar([...valor, valor[valor.length - 1]])} />
-        <Botao tipo="fantasma" rotulo="Menos um bloco" desabilitado={valor.length <= 2} aoTocar={() => aoMudar(valor.slice(0, -1))} />
+        <Botao tipo="secundario" rotulo="Mais um bloco" desabilitado={celulas.length >= 10 || invalidos.size > 0} motivo={invalidos.size > 0 ? 'Corrija o bloco com número inválido.' : undefined} aoTocar={() => publicarCelulas([...celulas, celulas[celulas.length - 1]], invalidos)} />
+        <Botao tipo="fantasma" rotulo="Menos um bloco" desabilitado={celulas.length <= 2 || invalidos.size > 0} motivo={invalidos.size > 0 ? 'Corrija o bloco com número inválido.' : undefined} aoTocar={() => publicarCelulas(celulas.slice(0, -1), invalidos)} />
       </View>
     </View> : null}
     <Campo rotulo="Blocos de repetições" valor={texto} maxLength={60} placeholder="4+2 ou 4×4"
       ajuda="Notação compacta. Grava os mesmos blocos."
       erro={erro ?? (texto && !blocosValidos(lerBlocos(texto)) ? 'De 2 a 10 blocos, cada um com 1 a 50 repetições.' : null)}
-      aoMudar={(t) => { setTexto(t); const lidos = lerBlocos(t); aoMudar(lidos); if (lidos && !blocosIguais(lidos)) setModo('diferentes'); }} />
+      aoMudar={(t) => {
+        setTexto(t);
+        const lidos = lerBlocos(t);
+        const gravados = blocosSeValidos(lidos, false);
+        aoMudar(gravados);
+        setQuantidadeInvalida(false);
+        setRepsInvalidas(false);
+        setInvalidos(new Set());
+        if (lidos && lidos.length >= 2 && !blocosIguais(lidos)) {
+          setModo('diferentes');
+          setRascunho(lidos);
+        } else if (gravados && blocosIguais(gravados)) {
+          setModo('iguais');
+          setQuantidade(gravados.length);
+          setRepsCada(gravados[0]);
+          setRascunho(gravados);
+        }
+      }} />
     {resumo ? <Texto variante="pequeno">{`${resumo.repeticoes} repetições por série · ${resumo.blocos} blocos · ${resumo.pausas} ${resumo.pausas === 1 ? 'pausa interna' : 'pausas internas'}`}</Texto> : null}
     {completa && !resumo ? <Texto variante="pequeno">Complete os blocos para visualizar a prescrição.</Texto> : null}
   </View>;

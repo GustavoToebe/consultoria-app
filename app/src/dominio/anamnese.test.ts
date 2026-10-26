@@ -79,7 +79,9 @@ describe('anamnese', () => {
 describe('permissão por destino (igual a DestinoNoPerfil.permissao() na API)', () => {
   it('telefone é contato (ALUNO_ALTERAR/ALUNO_LER); os demais são dado sensível', () => {
     expect(permissaoDoDestino('TELEFONE')).toBe('ALUNO_ALTERAR');
+    expect(permissaoDoDestino('SEXO')).toBe('ALUNO_ALTERAR');
     expect(permissaoDeLeituraDoDestino('TELEFONE')).toBe('ALUNO_LER');
+    expect(permissaoDeLeituraDoDestino('SEXO')).toBe('ALUNO_LER');
     for (const d of ['PESO', 'OBJETIVO', 'CPF', 'ENDERECO'] as const) {
       expect(permissaoDoDestino(d)).toBe('ALUNO_SENSIVEL_ALTERAR');
       expect(permissaoDeLeituraDoDestino(d)).toBe('ALUNO_SENSIVEL_LER');

@@ -13,6 +13,7 @@ import type {
   TipoDeSerie,
   TipoDeTecnica,
 } from '../api/tipos';
+import { numeroParaTela } from './formatos';
 
 /**
  * Leitura da metodologia para o editor, o aluno e o PDF. A metodologia só preenche padrões no editor (ao criar a série
@@ -31,6 +32,54 @@ export const PAPEIS: { valor: PapelDaSerie; rotulo: string }[] = [
 
 export function rotuloDoPapel(papel: PapelDaSerie): string {
   return PAPEIS.find((p) => p.valor === papel)?.rotulo ?? papel;
+}
+
+/** "3 a 6" quando os dois números existem; vazio se falta um. */
+function faixaPreenchida(min: number | null | undefined, max: number | null | undefined): string {
+  if (min == null || max == null || !Number.isFinite(min) || !Number.isFinite(max)) return '';
+  return min === max ? numeroParaTela(min) : `${numeroParaTela(min)} a ${numeroParaTela(max)}`;
+}
+
+/** Carga padrão já preenchida. Sem carga e percentual sem mínimo ficam de fora. */
+function textoDaCargaPadrao(c: Carga | null | undefined, nomeDaWs?: string | null): string {
+  if (!c || c.modo === 'NENHUMA') return '';
+  if (c.modo === 'CARGA_TRABALHO') return 'carga de trabalho';
+  const daWs = nomeDaWs ? ` da ${nomeDaWs}` : '';
+  if (c.modo === 'MESMA_CARGA') return `mesma carga${daWs}`;
+  const faixa = faixaPreenchida(c.percentualMin, c.percentualMax ?? c.percentualMin);
+  if (!faixa) return '';
+  if (c.modo === 'PERCENTUAL_WS') return `${faixa}%${daWs}`;
+  if (c.modo === 'ACIMA_DA_ANTERIOR') return `+${faixa}% sobre a anterior`;
+  if (c.modo === 'ABAIXO_DA_REFERENCIA') return `${faixa}% abaixo da referência`;
+  return '';
+}
+
+/** Esforço padrão já preenchido. Vazio sem RIR e sem RPE. */
+function textoDoEsforcoPadrao(e: Esforco | null | undefined): string {
+  if (e?.rir != null) return e.rir === 0 ? 'até a falha técnica' : `${e.rir} RIR`;
+  return e?.rpe != null ? `RPE ${numeroParaTela(e.rpe)}` : '';
+}
+
+/**
+ * Linha do cartão fechado: papel e só o que o tipo já tem (repetições, carga, esforço).
+ * Campo vazio não vira zero nem "—".
+ */
+export function resumoDoTipo(
+  tipo: {
+    papel: PapelDaSerie;
+    repeticoes: { min: number | null; max: number | null } | null;
+    cargaPadrao: Carga | null;
+    esforcoPadrao: Esforco | null;
+  },
+  nomeDaWs?: string | null,
+): string {
+  const reps = faixaPreenchida(tipo.repeticoes?.min, tipo.repeticoes?.max);
+  return [
+    rotuloDoPapel(tipo.papel),
+    reps ? `${reps} reps` : '',
+    textoDaCargaPadrao(tipo.cargaPadrao, nomeDaWs),
+    textoDoEsforcoPadrao(tipo.esforcoPadrao),
+  ].filter(Boolean).join(' · ');
 }
 
 /** As seis técnicas com campos próprios, na ordem da API (`ConteudoTreino.ESTRUTURADAS`). */
@@ -149,6 +198,11 @@ export function nomeDoTipo(config: Configuracao | null | undefined, codigo: stri
 
 export function papelDe(config: Configuracao | null | undefined, codigo: string | null | undefined): PapelDaSerie | null {
   return tipoPorCodigo(config, codigo)?.papel ?? null;
+}
+
+/** A técnica está na metodologia desta consultoria (pelo tipo, mesmo que o nome tenha sido trocado). */
+export function tecnicaNaMetodologia(config: Configuracao | null | undefined, tipo: TipoDeTecnica): boolean {
+  return (config?.tecnicas ?? []).some((t) => t.tipo === tipo);
 }
 
 /**

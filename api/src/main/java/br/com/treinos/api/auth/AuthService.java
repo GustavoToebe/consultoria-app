@@ -165,7 +165,7 @@ public class AuthService {
         EuResponse.AlunoResumo aluno = null;
         if (usuario.getAlunoId() != null) {
             aluno = alunos.findById(usuario.getAlunoId())
-                    .map(a -> new EuResponse.AlunoResumo(a.getId(), a.getNome()))
+                    .map(a -> new EuResponse.AlunoResumo(a.getId(), a.getNome(), a.getSexo() == null ? null : a.getSexo().name()))
                     .orElse(null);
         }
         var perfil = usuario.getPerfilId() == null ? null : perfis.buscar(usuario.getPerfilId(), usuario.getConsultoriaId())

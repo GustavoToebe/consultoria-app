@@ -58,8 +58,8 @@ export function linhasDeSeries(e: Pick<ExercicioPlano, 'series'>, config: Config
 }
 
 /** Coluna "Obs": a observação do exercício e cada técnica por extenso (uma vez). */
-export function obsDoExercicio(e: ExercicioPlano, config: Configuracao): string[] {
-  return [e.observacao, ...textosDeTecnica(e.series, config), e.progressao ? null : 'Foco em controle, não em carga'].filter((x): x is string => !!x);
+export function obsDoExercicio(e: ExercicioPlano, config: Configuracao, comDescanso = true): string[] {
+  return [e.observacao, ...textosDeTecnica(e.series, config, { descansoPorSerie: comDescanso, semCarga: e.unidade === 'nenhuma' }), e.progressao ? null : 'Foco em controle, não em carga'].filter((x): x is string => !!x);
 }
 
 const TEXTO_RIR =
@@ -102,7 +102,7 @@ export function blocoGlossario(conteudo: ConteudoTreino, config: Configuracao): 
 }
 
 function linhaExercicio(e: ExercicioPlano, config: Configuracao, comDescanso: boolean): string {
-  const obs = obsDoExercicio(e, config);
+  const obs = obsDoExercicio(e, config, comDescanso);
   const execucao = textoExecucao(e);
   return `<tr>
 <td><strong>${esc(e.nome)}</strong>${execucao ? `<div class="suave">${esc(execucao)}</div>` : ''}</td>

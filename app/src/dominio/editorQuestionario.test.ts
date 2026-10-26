@@ -309,6 +309,21 @@ describe('destino no cadastro (anamnese)', () => {
     expect(paraApi(x, 'ATUALIZACAO').secoes[0].perguntas[1].destino).toBeUndefined();
     expect(duplicarPergunta(peso).destino).toBeUndefined();
   });
+  it('paraApi leva o sexo da opção só com destino SEXO', () => {
+    const opcoes = [
+      { id: 'm', rotulo: 'Masculino', valorNoCadastro: 'MASCULINO' },
+      { id: 'n', rotulo: 'Prefiro não dizer', valorNoCadastro: 'TALVEZ' },
+    ];
+    const comDestino = paraApi(c(P('s', 'ESCOLHA_UNICA', { destino: 'SEXO', opcoes })), 'ANAMNESE').secoes[0].perguntas[0];
+    expect(comDestino.destino).toBe('SEXO');
+    expect(comDestino.opcoes?.map((o) => o.valorNoCadastro)).toEqual(['MASCULINO', undefined]);
+    const semDestino = paraApi(c(P('s', 'ESCOLHA_UNICA', { opcoes })), 'ANAMNESE').secoes[0].perguntas[0];
+    expect(semDestino.opcoes?.every((o) => o.valorNoCadastro == null)).toBe(true);
+    expect(validarQuestionario(paraApi(c(P('s', 'ESCOLHA_UNICA', { destino: 'SEXO', opcoes: [
+      { id: 'm', rotulo: 'Masculino', valorNoCadastro: 'MASCULINO' },
+      { id: 'f', rotulo: 'Feminino', valorNoCadastro: 'FEMININO' },
+    ] })), 'ANAMNESE'), 'ANAMNESE').erros).toEqual([]);
+  });
 });
 
 describe('grupos da folha "Adicionar pergunta"', () => {

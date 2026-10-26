@@ -31,7 +31,8 @@ public class InscricaoDoAluno {
         return inscricoes.findByAlunoId(alunoId).map(i -> List.of(new InscricaoExportada(i.getCriadaEm(), i.getNome(),
                 i.getWhatsapp(), i.getEmail(), i.getObjetivo(), i.getObservacao(), i.getCienciaEm(), i.getCienciaTexto(),
                 notas.findByInscricaoIdOrderByCriadaEmAsc(i.getId()).stream()
-                        .map(n -> new NotaExportada(n.getCriadaEm(), n.getTexto())).toList()))).orElse(List.of());
+                        .map(n -> new NotaExportada(n.getCriadaEm(), n.getTexto())).toList(),
+                i.getSexo() == null ? null : i.getSexo().name()))).orElse(List.of());
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

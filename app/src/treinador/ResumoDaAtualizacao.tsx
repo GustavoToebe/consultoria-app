@@ -5,6 +5,7 @@ import { numeroParaTela } from '../dominio/formatos';
 import { espaco } from '../tema/tokens';
 import { baixarFotoDoTreinador } from '../api/rotas';
 import { idsDeFotos } from '../dominio/fotosAtualizacao';
+import { LinhaDoCicloNaAtualizacao } from './ciclo/CicloNaFicha';
 import { Cartao } from '../ui/Cartao';
 import { ImagemProtegida } from '../ui/ImagemProtegida';
 import { Selo, type TipoSelo } from '../ui/Selo';
@@ -33,6 +34,7 @@ export function ResumoDaAtualizacao({atualizacao:a,modelo,selo,descricao}: {atua
       </View>)}
     </View>:null}
     <Texto>Média de {numeroParaTela(resumo.mediaDiasPorSemana,1)} dias com treino por semana (registrado no app)</Texto>
+    <LinhaDoCicloNaAtualizacao alunoId={a.alunoId} pastaId={a.pastaId} data={a.dataAtualizacao} />
     {perguntasFotos.map(p=>{
       const fotos=idsDeFotos(a.respostas?.[p.id]);
       const rotulo=perguntasFotos.length>1?(p.rotulo.trim()||'Fotos'):'Fotos';

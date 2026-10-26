@@ -12,7 +12,7 @@ import java.util.List;
  */
 public final class Termos {
 
-    public static final String VERSAO = "2026-10-13";
+    public static final String VERSAO = "2026-10-26";
     public static final boolean RASCUNHO = true;
 
     public record Documento(String id, String titulo, String texto) { }

@@ -193,7 +193,7 @@ function AlteracoesDoCadastro({ anamnese: a, podeAlterar, aoMudar, aoConflito }:
         {podeAgirEm(x) ? <LinhaDeAcoes>
           <Botao rotulo="Aplicar ao cadastro" tipo="secundario" aoTocar={() => setConfirmar({ alteracao: x, acao: 'aplicar' })} />
           <Botao rotulo="Descartar" tipo="perigoTexto" aoTocar={() => setConfirmar({ alteracao: x, acao: 'descartar' })} />
-        </LinhaDeAcoes> : <Texto variante="pequeno">{x.destino === 'TELEFONE' ? 'Seu perfil não permite alterar os dados do aluno.' : 'Seu perfil não permite alterar dados sensíveis do aluno.'}</Texto>}
+        </LinhaDeAcoes> : <Texto variante="pequeno">{x.destino === 'TELEFONE' || x.destino === 'SEXO' ? 'Seu perfil não permite alterar os dados do aluno.' : 'Seu perfil não permite alterar dados sensíveis do aluno.'}</Texto>}
       </> : <>
         <Texto>{textoDoValor(x.destino, x.valor)}</Texto>
         {x.resolvidaEm && !x.automatica ? <Texto variante="pequeno">{`${x.situacao === 'APLICADA' ? 'Aplicada' : 'Descartada'} em ${dataHoraParaTela(x.resolvidaEm)}${x.resolvidaPorNome ? ` por ${x.resolvidaPorNome}` : ''}.`}</Texto> : null}

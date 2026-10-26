@@ -2,6 +2,8 @@ package br.com.treinos.api.alunos;
 
 import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import jakarta.persistence.Column;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -78,6 +80,22 @@ public class Aluno {
     /** Quando o aluno autorizou o uso das fotos de evolução para divulgação. Nulo = não autorizado. */
     @Column(name = "uso_de_imagem_autorizado_em")
     private Instant usoDeImagemAutorizadoEm;
+
+    /** Nulo = não informado. Dado pessoal: nunca em log. */
+    @Enumerated(EnumType.STRING)
+    private Sexo sexo;
+
+    @Column(name = "ciclo_ativado_em")
+    private Instant cicloAtivadoEm;
+
+    @Column(name = "ciclo_consentimento_versao")
+    private Integer cicloConsentimentoVersao;
+
+    @Column(name = "ciclo_duracao_habitual")
+    private Integer cicloDuracaoHabitual;
+
+    @Column(name = "ciclo_mostrar_fases", nullable = false)
+    private boolean cicloMostrarFases = true;
 
     @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "convite_hash", length = 64)
@@ -250,7 +268,56 @@ public class Aluno {
         if (this.inativadoEm == null) this.inativadoEm = quando;
         this.anonimizadoEm = quando;
         this.usoDeImagemAutorizadoEm = null;
+        this.sexo = null;
+        this.cicloAtivadoEm = null;
+        this.cicloConsentimentoVersao = null;
+        this.cicloDuracaoHabitual = null;
+        this.cicloMostrarFases = true;
         this.atualizadoEm = quando;
+    }
+
+    public Sexo getSexo() {
+        return sexo;
+    }
+
+    /** Nulo apaga. A troca que sai de feminino desliga o ciclo no serviço, na mesma transação. */
+    public void alterarSexo(Sexo sexo) {
+        this.sexo = sexo;
+        this.atualizadoEm = Instant.now();
+    }
+
+    public Instant getCicloAtivadoEm() {
+        return cicloAtivadoEm;
+    }
+
+    public Integer getCicloConsentimentoVersao() {
+        return cicloConsentimentoVersao;
+    }
+
+    public Integer getCicloDuracaoHabitual() {
+        return cicloDuracaoHabitual;
+    }
+
+    public boolean isCicloMostrarFases() {
+        return cicloMostrarFases;
+    }
+
+    public void ativarCiclo(Instant quando, int versaoConsentimento, Integer duracaoHabitual) {
+        this.cicloAtivadoEm = quando;
+        this.cicloConsentimentoVersao = versaoConsentimento;
+        this.cicloDuracaoHabitual = duracaoHabitual;
+        this.atualizadoEm = quando;
+    }
+
+    public void desligarCiclo() {
+        this.cicloAtivadoEm = null;
+        this.atualizadoEm = Instant.now();
+    }
+
+    public void configurarCiclo(Integer duracaoHabitual, boolean mostrarFases) {
+        this.cicloDuracaoHabitual = duracaoHabitual;
+        this.cicloMostrarFases = mostrarFases;
+        this.atualizadoEm = Instant.now();
     }
 
     public Instant getUsoDeImagemAutorizadoEm() {

@@ -5,6 +5,8 @@ import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.Aluno;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.alunos.AlunoService;
+import br.com.treinos.api.alunos.Sexo;
+import br.com.treinos.api.ciclo.CicloMenstrualService;
 import br.com.treinos.api.alunos.RegrasDoEndereco;
 import br.com.treinos.api.alunos.dto.AlunoDtos.Endereco;
 import br.com.treinos.api.auth.Usuario;
@@ -59,14 +61,16 @@ public class PerfilDaAnamnese {
     private final RegistroPesoRepository pesos;
     private final UsuarioRepository usuarios;
     private final JsonMapper json;
+    private final CicloMenstrualService ciclo;
 
     public PerfilDaAnamnese(AnamnesePendenciaRepository pendencias, AlunoRepository alunos, RegistroPesoRepository pesos,
-                            UsuarioRepository usuarios, JsonMapper json) {
+                            UsuarioRepository usuarios, JsonMapper json, CicloMenstrualService ciclo) {
         this.pendencias = pendencias;
         this.alunos = alunos;
         this.pesos = pesos;
         this.usuarios = usuarios;
         this.json = json;
+        this.ciclo = ciclo;
     }
 
     /**
@@ -95,6 +99,7 @@ public class PerfilDaAnamnese {
                     case CPF -> cpfNoEnvio(a.getAlunoId(), resposta);
                     case TELEFONE -> telefoneNoEnvio(a.getAlunoId(), resposta);
                     case ENDERECO -> enderecoNoEnvio(a.getAlunoId(), resposta);
+                    case SEXO -> sexoNoEnvio(a.getAlunoId(), resposta, p);
                 };
                 if (r.situacao() == Resultado.Situacao.PREENCHIDO) {
                     pendencias.save(AnamnesePendencia.automatica(a.getId(), a.getAlunoId(), destino, perguntaId, r.valor(), agora));
@@ -146,6 +151,8 @@ public class PerfilDaAnamnese {
             case TELEFONE -> alunos.findById(p.getAlunoId()).map(Aluno::getUsuarioId).flatMap(usuarios::findById)
                     .map(Usuario::getTelefone).filter(t -> !t.isBlank()).map(PerfilDaAnamnese::texto).map(this::paraJson).orElse(null);
             case ENDERECO -> alunos.findById(p.getAlunoId()).map(Aluno::endereco).map(this::enderecoEmJson).orElse(null);
+            case SEXO -> alunos.findById(p.getAlunoId()).map(Aluno::getSexo).map(Enum::name)
+                    .map(PerfilDaAnamnese::texto).map(this::paraJson).orElse(null);
         };
     }
 
@@ -172,6 +179,10 @@ public class PerfilDaAnamnese {
             case CPF -> aplicarCpf(aluno, valor.path("texto").asString());
             case TELEFONE -> aplicarTelefone(aluno, valor.path("texto").asString());
             case ENDERECO -> aluno.alterarEndereco(enderecoDoJson(valor.path("endereco")));
+            case SEXO -> {
+                aluno.alterarSexo(Sexo.valueOf(valor.path("texto").asString()));
+                ciclo.desligarSeDeixouDeSerFeminino(aluno);
+            }
         }
         p.resolver(AnamnesePendencia.Situacao.APLICADA, usuarioId, Instant.now());
         try {
@@ -300,6 +311,31 @@ public class PerfilDaAnamnese {
         if (atual == null) {
             usuario.alterarTelefone(proposto);
             usuarios.flush();
+            return new Resultado(Resultado.Situacao.PREENCHIDO, valor);
+        }
+        return new Resultado(atual.equals(proposto) ? Resultado.Situacao.IGUAL : Resultado.Situacao.DIFERENTE, valor);
+    }
+
+    /** Opção sem valor no cadastro não mexe. Cadastro vazio preenche; diferente fica pendente. */
+    private Resultado sexoNoEnvio(UUID alunoId, JsonNode resposta, JsonNode pergunta) {
+        String escolhida = resposta.isString() ? resposta.asString() : "";
+        String proposto = null;
+        for (JsonNode opcao : pergunta.path("opcoes")) {
+            if (opcao.path("id").asString().equals(escolhida)) {
+                String valor = opcao.path("valorNoCadastro").asString("");
+                proposto = valor.isBlank() ? null : valor;
+            }
+        }
+        if (proposto == null || Sexo.ler(proposto) == null) {
+            return new Resultado(Resultado.Situacao.IGUAL, null);
+        }
+        Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        String atual = aluno.getSexo() == null ? "" : aluno.getSexo().name();
+        String valor = json.writeValueAsString(texto(proposto));
+        if (atual.isEmpty()) {
+            aluno.alterarSexo(Sexo.valueOf(proposto));
+            ciclo.desligarSeDeixouDeSerFeminino(aluno);
+            alunos.flush();
             return new Resultado(Resultado.Situacao.PREENCHIDO, valor);
         }
         return new Resultado(atual.equals(proposto) ? Resultado.Situacao.IGUAL : Resultado.Situacao.DIFERENTE, valor);

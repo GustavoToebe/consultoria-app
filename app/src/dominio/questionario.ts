@@ -90,7 +90,7 @@ const COM_DESTAQUE: readonly TipoPergunta[] = ['NOTA', 'NUMERO', 'SIM_NAO', 'ESC
 const COM_AJUDA_AUTOMATICA: readonly TipoPergunta[] = ['TEXTO', 'NUMERO'];
 const UNICOS: readonly TipoPergunta[] = ['PESO', 'DATA_AUTOMATICA'];
 /** Tipo de pergunta que alimenta cada campo do cadastro (igual a `DestinoNoPerfil` do Java). */
-export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = { PESO: 'PESO', OBJETIVO: 'TEXTO', CPF: 'TEXTO', TELEFONE: 'TELEFONE', ENDERECO: 'ENDERECO' };
+export const TIPO_DO_DESTINO: Record<DestinoNoPerfil, TipoPergunta> = { PESO: 'PESO', OBJETIVO: 'TEXTO', CPF: 'TEXTO', TELEFONE: 'TELEFONE', ENDERECO: 'ENDERECO', SEXO: 'ESCOLHA_UNICA' };
 
 /** Escala da NOTA: `min` (0 ou 1) e `max` (2 a 10) da pergunta; sem eles (ou fora da regra), 0 a 10. */
 export function escalaDaNota(p: Pick<PerguntaAtualizacao, 'min' | 'max'>): { min: number; max: number } {
@@ -243,11 +243,26 @@ function destino(p: PerguntaAtualizacao, cp: string, estado: Estado, erro: Erro)
     else if (TIPO_DO_DESTINO[d] !== p.tipo) erro(`${cp}.destino`, 'Este tipo de pergunta não alimenta este campo.');
     else if (estado.destinos.has(d)) erro(`${cp}.destino`, 'Outra pergunta já alimenta este campo.');
     else estado.destinos.add(d);
+    if (d === 'SEXO') sexoNasOpcoes(p, cp, erro);
   }
   if (p.destinoData != null) {
     if (d !== 'PESO') erro(`${cp}.destinoData`, 'Só o peso guardado no perfil usa a data da pesagem.');
     else estado.pesagens.push([cp, p.destinoData]);
   }
+}
+
+const SEXOS = new Set(['MASCULINO', 'FEMININO', 'OUTRO']);
+
+/** Destino SEXO: ao menos uma opção aponta para um valor do cadastro. Fora desse destino o campo é ignorado. */
+function sexoNasOpcoes(p: PerguntaAtualizacao, cp: string, erro: Erro) {
+  let algum = false;
+  (p.opcoes ?? []).forEach((o, i) => {
+    const valor = o.valorNoCadastro?.trim();
+    if (!valor) return;
+    if (!SEXOS.has(valor)) erro(`${cp}.opcoes[${i}].valorNoCadastro`, 'Escolha Masculino, Feminino ou Outro.');
+    else algum = true;
+  });
+  if (!algum) erro(`${cp}.opcoes`, 'Marque o sexo de ao menos uma opção.');
 }
 
 /** `texto` do ACEITE (obrigatório) e do INFORMATIVO (opcional); `declaracao` só do ACEITE (obrigatória). */

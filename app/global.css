@@ -31,6 +31,10 @@
    --color-atencao: #875710;
    --color-perigo: #B71C1C;
    --color-neutro: #616169;
+   --color-fase1: #C46B86;
+   --color-fase2: #5E8F8A;
+   --color-fase3: #A67C2E;
+   --color-fase4: #7A86C4;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
    --color-ring: #111114;
@@ -53,6 +57,10 @@
    --color-atencao: #D9962C;
    --color-perigo: #F0666B;
    --color-neutro: #9A9AA3;
+   --color-fase1: #E3A0B6;
+   --color-fase2: #7DCFC6;
+   --color-fase3: #E2C56A;
+   --color-fase4: #A9B6EA;
    --color-primary: #52525B;
    --color-primary-foreground: #FFFFFF;
    --color-ring: #F4F4F5;

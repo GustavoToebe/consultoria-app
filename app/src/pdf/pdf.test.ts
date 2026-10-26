@@ -649,6 +649,28 @@ test('PDF: glossário só com o que o treino usa, com o nome da metodologia e to
   expect(obsDoExercicio(e, config)[0]).toContain('FS com Muscle <Round>. Faça blocos de 4 e 2 repetições. São 6 repetições previstas no total e 1 pausa interna. Encerre ao terminar o 2º bloco. Pausa entre os blocos: 15 s. Descanso depois da série: não informado.');
 });
 
+test('PDF: observação do Cluster omite descanso da série no grupo e a carga quando o exercício não tem', () => {
+  const cluster = serie('c', {
+    tipo: 'WORKING',
+    carga: carga('CARGA_TRABALHO'),
+    tecnica: tecnica('CLUSTER', { blocos: [4, 4], pausaSegundos: 15 }),
+    descansoSegundos: 90,
+    repsMin: 8,
+    repsMax: 8,
+  });
+  const solto = exercicio('e', { series: [cluster], unidade: 'kg' });
+  const obsSolta = obsDoExercicio(solto, CONFIGURACAO_PADRAO).join(' ');
+  expect(obsSolta).toContain('Descanso depois da série: 90 s.');
+  expect(obsSolta).toContain('Ajuste a carga desta série.');
+  const noGrupo = obsDoExercicio(solto, CONFIGURACAO_PADRAO, false).join(' ');
+  expect(noGrupo).toContain('Pausa entre os blocos: 15 s.');
+  expect(noGrupo).not.toContain('Descanso depois da série');
+  expect(noGrupo).toContain('Ajuste a carga desta série.');
+  const semCarga = obsDoExercicio({ ...solto, unidade: 'nenhuma' }, CONFIGURACAO_PADRAO).join(' ');
+  expect(semCarga).toContain('Descanso depois da série: 90 s.');
+  expect(semCarga).not.toContain('Ajuste a carga');
+});
+
 test('PDF: treino sem nenhum item com explicação não gera glossário', () => {
   const vazio: Configuracao = { ...CONFIGURACAO_PADRAO, tipos: CONFIGURACAO_PADRAO.tipos.map((t) => ({ ...t, explicacao: null })) };
   expect(blocoGlossario(treinoCom(exercicio('e', { series: [serie('a')] })), vazio)).toBe('');

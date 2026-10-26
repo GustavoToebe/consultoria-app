@@ -70,7 +70,7 @@ export function PropriedadesDaPergunta({ pergunta: p, conteudo, problemas, somen
     </> : null}
 
     {temOpcoes(p.tipo) ? <ListaDeItens titulo="Opções" itens={opcoes} minimo={L.opcoesMinimo} maximo={L.opcoesMaximo} nome="opção" comImagem
-      aoMudar={(novas) => aoMudar({ opcoes: novas })} /> : null}
+      sexo={p.destino === 'SEXO'} aoMudar={(novas) => aoMudar({ opcoes: novas })} /> : null}
     {p.tipo === 'GRADE' ? <>
       <ListaDeItens titulo="Linhas" itens={p.linhas ?? []} minimo={L.linhasMinimo} maximo={L.linhasMaximo} nome="linha" aoMudar={(linhas) => aoMudar({ linhas })} />
       <ListaDeItens titulo="Colunas" itens={p.colunas ?? []} minimo={L.colunasMinimo} maximo={L.colunasMaximo} nome="coluna" aoMudar={(colunas) => aoMudar({ colunas })} />
@@ -140,12 +140,14 @@ const SEM_DATA = '__envio__';
 const ROTULO_DO_INTERRUPTOR: Record<DestinoNoPerfil, string> = {
   PESO: 'Guardar no registro de peso do aluno', OBJETIVO: 'Guardar no objetivo do cadastro do aluno', CPF: 'Guardar no CPF do cadastro do aluno',
   TELEFONE: 'Guardar no telefone do cadastro do aluno', ENDERECO: 'Guardar no endereço do cadastro do aluno',
+  SEXO: 'Guardar no sexo do cadastro do aluno',
 };
 const AJUDA_DO_DESTINO: Record<Exclude<DestinoNoPerfil, 'PESO'>, string> = {
   OBJETIVO: `Até ${L.objetivoTamanho} caracteres. Objetivo vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.`,
   CPF: 'A resposta precisa ser um CPF válido. CPF vazio é preenchido; se já houver outro, ou se for de outro aluno, a mudança fica para você revisar na ficha.',
   TELEFONE: 'Vale para quem já tem acesso. Telefone vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.',
   ENDERECO: 'Endereço vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha.',
+  SEXO: 'Sexo vazio é preenchido; se já houver outro, a mudança fica para você revisar na ficha. Uma opção sem valor, como “Prefiro não dizer”, não muda o cadastro.',
 };
 const SEM_DESTINO = '__nenhum__';
 
@@ -214,8 +216,8 @@ function ImagemDoItem({ imagemId, rotulo, aoMudar, compacta }: { imagemId?: stri
 }
 
 /** Opções de escolha, linhas e colunas da grade: texto, ordem e (só nas opções) imagem. */
-function ListaDeItens({ titulo, itens, minimo, maximo, nome, comImagem, aoMudar }: {
-  titulo: string; itens: OpcaoPergunta[]; minimo: number; maximo: number; nome: string; comImagem?: boolean;
+function ListaDeItens({ titulo, itens, minimo, maximo, nome, comImagem, sexo, aoMudar }: {
+  titulo: string; itens: OpcaoPergunta[]; minimo: number; maximo: number; nome: string; comImagem?: boolean; sexo?: boolean;
   aoMudar: (itens: OpcaoPergunta[]) => void;
 }) {
   const mudar = (i: number, parcial: Partial<OpcaoPergunta>) => aoMudar(substituir(itens, i, { ...itens[i], ...parcial }));
@@ -230,6 +232,8 @@ function ListaDeItens({ titulo, itens, minimo, maximo, nome, comImagem, aoMudar 
         <IconeBotao Icone={Trash2} rotulo={`Remover ${nome} ${i + 1}`} desabilitado={itens.length <= minimo} aoTocar={() => aoMudar(remover(itens, i))} />
       </View>
       {comImagem ? <ImagemDoItem imagemId={o.imagemId} rotulo={`Imagem da ${nome} ${i + 1}`} compacta aoMudar={(imagemId) => mudar(i, { imagemId })} /> : null}
+      {sexo ? <Escolha rotulo="No cadastro" valor={o.valorNoCadastro ?? ''} aoMudar={(valor) => mudar(i, { valorNoCadastro: valor || undefined })}
+        opcoes={[{ valor: '', rotulo: '—' }, { valor: 'MASCULINO', rotulo: 'Masculino' }, { valor: 'FEMININO', rotulo: 'Feminino' }, { valor: 'OUTRO', rotulo: 'Outro' }]} /> : null}
     </View>)}
     <View style={estilos.linha}>
       <Botao rotulo={`Adicionar ${nome}`} tipo="secundario" Icone={Plus} desabilitado={itens.length >= maximo}

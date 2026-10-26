@@ -5,8 +5,8 @@ import type { Configuracao, Serie } from '../../api/tipos';
 import { agrupar, descreverGrupo, type GrupoDeSeries } from '../../dominio/agrupamento';
 import { adicionarSerie, alterarGrupo, alterarPercentuais, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { explicacaoDoCatalogo } from '../../dominio/catalogoMetodologia';
-import { acrescentarExemplo, codigoPreparacao, novaWsComRestPause, quantidadeDoExemplo, restPauseNestaSerie, TEXTO_DO_EXEMPLO, textoDaContagemDeSeries } from '../../dominio/exemplosDePrescricao';
-import { codigoTrabalho, explicacaoDaTecnica, explicacaoDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva } from '../../dominio/metodologia';
+import { acrescentarExemplo, assinaturaDoEsforco, marcaConfere, motivoDoExemploCluster, motivoDoRestPause, novaWsComRestPause, origemAposConteudo, origemAoTrocarTipo, restPauseNestaSerie, TEXTO_DO_EXEMPLO, textoDaContagemDeSeries, textoDaRevisaoDoEsforco, type MarcaDeOrigem } from '../../dominio/exemplosDePrescricao';
+import { codigoTrabalho, esforcoInicial, explicacaoDaTecnica, explicacaoDoTipo, nomeDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva, tecnicaNaMetodologia, tipoPorCodigo } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { useTema } from '../../tema/TemaProvider';
@@ -43,6 +43,8 @@ interface Props {
   aoUsarReceita?: () => void;
   /** Exercício sem carga (elástico, peso corporal): a prévia não fala de carga. */
   semCarga?: boolean;
+  /** `false` no grupo cujo descanso é depois da volta: a leitura não repete o descanso da série. */
+  descansoPorSerie?: boolean;
 }
 
 const MODOS_DE_REPETICAO = [
@@ -56,7 +58,7 @@ const MODOS_DE_REPETICAO = [
  * aviso da validação (a mesma da publicação) e a prévia diz como o aluno vai ler. Exercício de cardio só tem a prescrição de
  * cardio.
  */
-export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceita, semCarga = false }: Props) {
+export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceita, semCarga = false, descansoPorSerie = true }: Props) {
   const { cores } = useTema();
   const cfg = config ?? CONFIGURACAO_PADRAO;
   const cardio = modalidade === 'CARDIO';
@@ -65,6 +67,13 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
   const [tipoNovo, setTipoNovo] = useState<string | null>(null);
   const [tecnicaNova, setTecnicaNova] = useState<EscolhaDeTecnica>('NENHUMA');
   const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set());
+  /**
+   * Esforço e tipo que a metodologia preencheu nesta abertura, por uid. Não vai para o JSON. Substituição externa
+   * apaga a marca; voltar ao mesmo número não a recria.
+   */
+  const [origemDoEsforco, setOrigemDoEsforco] = useState<ReadonlyMap<string, MarcaDeOrigem>>(() => new Map());
+  const origemVigente = origemAposConteudo(origemDoEsforco, series);
+  if (origemVigente !== origemDoEsforco) setOrigemDoEsforco(origemVigente);
   const cheio = series.length >= LIMITE_SERIES;
   const tipos = opcoesDeTipo(cfg, series);
   const validacao = useMemo(() => {
@@ -80,8 +89,29 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
     const ultimo = agrupar(novas).at(-1);
     if (ultimo) setAbertos((a) => new Set(a).add(ultimo.series[0].uid));
   };
+  const aindaDoTipo = (s: Serie) => marcaConfere(origemVigente.get(s.uid), s);
+  const gravarOrigem = (itens: readonly Serie[], ligar: boolean) => setOrigemDoEsforco((atual) => {
+    const n = new Map(origemAposConteudo(atual, series));
+    for (const s of itens) {
+      if (ligar && (s.esforco?.rir != null || s.esforco?.rpe != null)) n.set(s.uid, { assinatura: assinaturaDoEsforco(s.esforco), tipo: s.tipo ?? null });
+      else n.delete(s.uid);
+    }
+    return n;
+  });
+  const marcarNovasDoTipo = (antes: readonly Serie[], depois: readonly Serie[]) => {
+    const conhecidas = new Set(antes.map((s) => s.uid));
+    gravarOrigem(depois.filter((s) => !conhecidas.has(s.uid) && tipoPorCodigo(cfg, s.tipo)), true);
+  };
   const adicionar = () => {
     const novas = adicionarSerie(series, cfg, tipoNovo ?? undefined, tecnicaNova === 'NENHUMA' ? null : tecnicaNova, modalidade);
+    const conhecidas = new Set(series.map((s) => s.uid));
+    const criadas = novas.filter((s) => !conhecidas.has(s.uid));
+    const ultimo = grupos.at(-1);
+    const mesmoGrupo = !!ultimo && criadas.length > 0
+      && (ultimo.series[0].tipo ?? null) === (criadas[0].tipo ?? null)
+      && (ultimo.series[0].tecnica?.tipo ?? null) === (criadas[0].tecnica?.tipo ?? null);
+    if (mesmoGrupo) gravarOrigem(criadas, ultimo.series.every(aindaDoTipo));
+    else marcarNovasDoTipo(series, novas);
     aoMudar(novas);
     abrirUltimo(novas);
     setPainel(false);
@@ -96,26 +126,53 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
     setPainel(!painel);
   };
   const motivoCheio = cheio ? `O exercício já tem ${LIMITE_SERIES} séries, o máximo.` : undefined;
-  const grupoDeTrabalho = grupos.filter((g) => abertos.has(g.series[0].uid) && papelDe(cfg, g.series[0].tipo) === 'TRABALHO').at(-1) ?? null;
-  const motivoDoExemplo = (exemplo: 'fs-ws-cluster' | 'fs-cluster') => {
-    if (!codigoPreparacao(cfg) || !codigoTrabalho(cfg)) return 'A metodologia precisa de um tipo de preparação e de um tipo de trabalho.';
-    const quantidade = quantidadeDoExemplo(exemplo);
-    if (series.length + quantidade > LIMITE_SERIES) return `O exemplo usa ${quantidade} séries e o exercício já tem ${series.length}.`;
-    return undefined;
-  };
+  const cartoesDeTrabalhoAbertos = grupos.filter((g) => abertos.has(g.series[0].uid) && papelDe(cfg, g.series[0].tipo) === 'TRABALHO').length;
+  const grupoDeTrabalho = cartoesDeTrabalhoAbertos === 1
+    ? grupos.find((g) => abertos.has(g.series[0].uid) && papelDe(cfg, g.series[0].tipo) === 'TRABALHO') ?? null
+    : null;
+  const motivoRest = motivoDoRestPause({ config: cfg, cartoesDeTrabalhoAbertos });
+  const motivoNovaWs = !tecnicaNaMetodologia(cfg, 'REST_PAUSE')
+    ? 'Rest-pause não está na metodologia.'
+    : cheio ? motivoCheio : !codigoTrabalho(cfg) ? 'A metodologia precisa de um tipo de trabalho.' : undefined;
+  const motivoDoExemplo = (exemplo: 'fs-ws-cluster' | 'fs-cluster') => motivoDoExemploCluster({ config: cfg, series: series.length, exemplo });
   const aplicarExemplo = (exemplo: 'fs-ws-cluster' | 'fs-cluster') => {
     const novas = acrescentarExemplo(series, cfg, exemplo, modalidade);
+    marcarNovasDoTipo(series, novas);
     aoMudar(novas);
     abrirUltimo(novas);
   };
+  const alterar = (g: GrupoDeSeries, m: AlteracaoDeGrupo) => {
+    const novas = alterarGrupo(series, g, m, cfg, modalidade);
+    const uids = new Set(g.series.map((s) => s.uid));
+    const tocadas = novas.filter((s) => uids.has(s.uid));
+    if (m.esforco !== undefined) gravarOrigem(tocadas, false);
+    else if (m.tipo !== undefined && m.tipo !== (g.series[0].tipo ?? null)) {
+      const tipo = tipoPorCodigo(cfg, m.tipo);
+      const marcas = origemAoTrocarTipo(tocadas, tipo ? esforcoInicial(tipo, modalidade) : null);
+      setOrigemDoEsforco((atual) => {
+        const n = new Map(origemAposConteudo(atual, novas));
+        for (const s of tocadas) n.delete(s.uid);
+        if (marcas) for (const [uid, marca] of marcas) n.set(uid, marca);
+        return n;
+      });
+    }
+    aoMudar(novas);
+  };
+  const quantidade = (g: GrupoDeSeries, n: number) => {
+    const novas = mudarQuantidade(series, g, n, cfg);
+    const conhecidas = new Set(series.map((s) => s.uid));
+    gravarOrigem(novas.filter((s) => !conhecidas.has(s.uid)), g.series.every(aindaDoTipo));
+    aoMudar(novas);
+  };
   return <View style={estilos.lista}>
-    {grupos.map((g, i) => <EditorGrupo key={g.series[0].uid} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga}
+    {grupos.map((g, i) => <EditorGrupo key={g.series[0].uid} grupo={g} series={series} config={cfg} cardio={cardio} semCarga={semCarga} descansoPorSerie={descansoPorSerie}
       tipos={tipos} podeMais={!cheio} primeiro={i === 0} ultimo={i === grupos.length - 1}
       porSerie={validacao.porSerieErros}
       aberto={abertos.has(g.series[0].uid)} aoAlternar={() => alternar(g.series[0].uid)}
+      esforcoVeioDoPadrao={g.series.length > 0 && g.series.every(aindaDoTipo)}
       aoMover={(d) => aoMudar(moverGrupo(series, i, d))}
-      aoAlterar={(m) => aoMudar(alterarGrupo(series, g, m, cfg, modalidade))}
-      aoQuantidade={(n) => aoMudar(mudarQuantidade(series, g, n, cfg))}
+      aoAlterar={(m) => alterar(g, m)}
+      aoQuantidade={(n) => quantidade(g, n)}
       aoPercentuais={(j, min, max) => aoMudar(alterarPercentuais(series, g.inicio + j, min, max))}
       aoRemover={() => aoMudar(removerGrupo(series, g))} />)}
     {series.length === 0 ? <Texto variante="suave">Nenhuma série ainda.</Texto> : null}
@@ -144,10 +201,10 @@ export function EditorSeries({ series, config, modalidade, aoMudar, aoUsarReceit
         <Botao rotulo="Exemplo: FS e Cluster" tipo="secundario" aoTocar={() => aplicarExemplo('fs-cluster')} desabilitado={!!motivoDoExemplo('fs-cluster')} motivo={motivoDoExemplo('fs-cluster')} />
       </LinhaDeAcoes>
       <LinhaDeAcoes>
-        <Botao rotulo="Rest-pause nesta série" tipo="secundario" aoTocar={() => { if (grupoDeTrabalho) aoMudar(restPauseNestaSerie(series, grupoDeTrabalho, cfg, modalidade)); }}
-          desabilitado={!grupoDeTrabalho} motivo="Abra a série de trabalho." />
-        <Botao rotulo="Nova WS com Rest-pause" tipo="secundario" aoTocar={() => { const novas = novaWsComRestPause(series, cfg, modalidade); aoMudar(novas); abrirUltimo(novas); }}
-          desabilitado={cheio || !codigoTrabalho(cfg)} motivo={motivoCheio ?? (!codigoTrabalho(cfg) ? 'A metodologia precisa de um tipo de trabalho.' : undefined)} />
+        <Botao rotulo="Rest-pause na última série" tipo="secundario" aoTocar={() => { if (grupoDeTrabalho && !motivoRest) aoMudar(restPauseNestaSerie(series, grupoDeTrabalho, cfg)); }}
+          desabilitado={!!motivoRest} motivo={motivoRest} />
+        <Botao rotulo="Nova WS com Rest-pause" tipo="secundario" aoTocar={() => { const novas = novaWsComRestPause(series, cfg, modalidade); marcarNovasDoTipo(series, novas); aoMudar(novas); abrirUltimo(novas); }}
+          desabilitado={!!motivoNovaWs} motivo={motivoNovaWs} />
       </LinhaDeAcoes>
     </> : null}
   </View>;
@@ -188,14 +245,14 @@ function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
 }
 
 interface PropsDoGrupo {
-  grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean;
+  grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; cardio: boolean; semCarga: boolean; descansoPorSerie: boolean;
   tipos: { valor: string; rotulo: string; foraDaMetodologia: boolean }[]; podeMais: boolean; primeiro: boolean; ultimo: boolean;
   porSerie: ReturnType<typeof problemasPorSerie>;
-  aberto: boolean; aoAlternar: () => void; aoMover: (d: -1 | 1) => void; aoAlterar: (m: AlteracaoDeGrupo) => void;
+  aberto: boolean; esforcoVeioDoPadrao: boolean; aoAlternar: () => void; aoMover: (d: -1 | 1) => void; aoAlterar: (m: AlteracaoDeGrupo) => void;
   aoQuantidade: (n: number) => void; aoPercentuais: (i: number, min: number | null, max: number | null) => void; aoRemover: () => void;
 }
 
-function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMais, primeiro, ultimo, porSerie, aberto, aoAlternar, aoMover, aoAlterar, aoQuantidade, aoPercentuais, aoRemover }: PropsDoGrupo) {
+function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, porSerie, aberto, esforcoVeioDoPadrao, aoAlternar, aoMover, aoAlterar, aoQuantidade, aoPercentuais, aoRemover }: PropsDoGrupo) {
   const { cores } = useTema();
   const s = g.series[0];
   const secoes = secoesDaSerie(cardio ? 'CARDIO' : null);
@@ -236,7 +293,7 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMa
 
       <Secao titulo={cardio ? 'Quantidade' : 'Prescrição'}>
         <View style={estilos.linha}>
-          <View><Texto variante="rotulo">Séries completas</Texto><View style={estilos.linha}>
+          <View><Texto variante="rotulo">Número de séries completas</Texto><View style={estilos.linha}>
             <IconeBotao Icone={Minus} rotulo="Uma série completa a menos" desabilitado={g.series.length <= 1} aoTocar={() => aoQuantidade(g.series.length - 1)} />
             <Texto style={estilos.numero} accessibilityLabel={`${g.series.length} séries completas`}>{g.series.length}</Texto>
             <IconeBotao Icone={Plus} rotulo="Uma série completa a mais" desabilitado={!podeMais} aoTocar={() => aoQuantidade(g.series.length + 1)} />
@@ -265,13 +322,13 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMa
             aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} />)}
         </View> : null}
         {modo === 'ABAIXO_DA_REFERENCIA' ? <ReferenciaDaCarga opcoes={referencias} valor={s.carga?.referenciaUid} aoMudar={(referenciaUid) => aoAlterar({ carga: { referenciaUid } })} erro={erros['carga.referenciaUid']} /> : null}
-        {cluster && modo === 'CARGA_TRABALHO' ? <Texto variante="pequeno">A carga sugerida vem da base do dia, não da série anterior.</Texto> : null}
+        {cluster && modo === 'CARGA_TRABALHO' && !semCarga ? <Texto variante="pequeno">A carga sugerida vem da base do dia, não da série anterior.</Texto> : null}
         <AvisoDoCampo mensagem={avisos['carga.modo']} />
       </Secao> : null}
 
       {secoes.esforco ? <Secao titulo="Esforço">
         <CamposDoEsforco esforco={s.esforco} aoMudar={(esforco) => aoAlterar({ esforco })} erros={subProblemas(erros, 'esforco')} rotulo="Esforço percebido" />
-        {cluster ? <Texto variante="pequeno">Revise o esforço e o descanso. A técnica não calcula esses valores.</Texto> : null}
+        {cluster ? <Texto variante="pequeno">{textoDaRevisaoDoEsforco(esforcoVeioDoPadrao, nomeDoTipo(config, s.tipo))}</Texto> : null}
         <AvisoDoCampo mensagem={avisos['esforco.rir']} />
       </Secao> : null}
 
@@ -284,15 +341,15 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, tipos, podeMa
         <CamposDoCardio cardio={s.cardio} aoMudar={(c) => aoAlterar({ cardio: c })} erros={{ ...subProblemas(erros, 'cardio'), ...(erros.cardio ? { cardio: erros.cardio } : {}) }} />
       </Secao> : null}
 
-      <PreviaDoAluno grupo={g} series={series} config={config} semCarga={semCarga} />
+      <PreviaDoAluno grupo={g} series={series} config={config} semCarga={semCarga} descansoPorSerie={descansoPorSerie} />
     </> : null}
   </View>;
 }
 
 /** "Para o aluno": a meta de cada série como ela chega à tela do aluno, a técnica por extenso e de onde sai a carga. */
-function PreviaDoAluno({ grupo: g, series, config, semCarga }: { grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; semCarga: boolean }) {
+function PreviaDoAluno({ grupo: g, series, config, semCarga, descansoPorSerie }: { grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; semCarga: boolean; descansoPorSerie: boolean }) {
   const { cores } = useTema();
-  const tecnica = tecnicaParaOAluno(g.series[0], config);
+  const tecnica = tecnicaParaOAluno(g.series[0], config, { semCarga, descansoPorSerie });
   return <View style={[estilos.previa, { borderColor: cores.borda, backgroundColor: cores.superficie }]} accessibilityLabel="Para o aluno">
     <Texto variante="rotulo">Para o aluno</Texto>
     {g.series.map((x, j) => {

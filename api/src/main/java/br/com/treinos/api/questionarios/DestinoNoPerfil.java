@@ -16,7 +16,9 @@ public enum DestinoNoPerfil {
     /** Pergunta TELEFONE → {@code usuario.telefone} do aluno (só quem já criou o acesso tem onde guardar). */
     TELEFONE(TipoPergunta.TELEFONE, "ALUNO_ALTERAR"),
     /** Pergunta ENDERECO → as sete colunas de endereço de {@code aluno}. */
-    ENDERECO(TipoPergunta.ENDERECO, "ALUNO_SENSIVEL_ALTERAR");
+    ENDERECO(TipoPergunta.ENDERECO, "ALUNO_SENSIVEL_ALTERAR"),
+    /** Pergunta ESCOLHA_UNICA → {@code aluno.sexo}. A opção traz {@code valorNoCadastro}. */
+    SEXO(TipoPergunta.ESCOLHA_UNICA, "ALUNO_ALTERAR");
 
     private final TipoPergunta tipo;
     private final String permissao;
@@ -33,7 +35,7 @@ public enum DestinoNoPerfil {
 
     /**
      * Permissão de quem aplica ou descarta uma alteração proposta para este campo (além de {@code ANAMNESE_ALTERAR}): a
-     * mesma de quem edita o campo na ficha. O telefone é dado de contato ({@code ALUNO_ALTERAR}, como na ficha); peso,
+     * mesma de quem edita o campo na ficha. O telefone e o sexo são da ficha ({@code ALUNO_ALTERAR}); peso,
      * objetivo, CPF e endereço são dado sensível ({@code ALUNO_SENSIVEL_ALTERAR}).
      */
     public String permissao() {

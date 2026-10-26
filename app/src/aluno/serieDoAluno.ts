@@ -46,7 +46,7 @@ export function textosDaSerie(
   return {
     meta: metaDaSerie({ ...serie, tecnica: null, alvoExtra: null }, contexto.tipoTrabalho, contexto.semCarga, contexto.metodologia, contexto.seriesDoExercicio),
     descanso,
-    tecnica: leituraDaTecnica(serie, contexto.metodologia),
+    tecnica: leituraDaTecnica(serie, contexto.metodologia, { descansoPorSerie: contexto.descansoPorSerie, semCarga: contexto.semCarga }),
     alvoExtra: serie.alvoExtra?.trim() || null,
     amrap: !!serie.amrap,
   };

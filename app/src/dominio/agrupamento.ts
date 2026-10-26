@@ -249,23 +249,38 @@ export function textoTecnicaPorExtenso(t: Tecnica | null | undefined, config?: C
   }
 }
 
+/** O que muda a leitura longa sem mudar o que está gravado na série. */
+export interface ContextoDaLeitura {
+  /**
+   * `false` quando o descanso da série não vale (superset, circuito e as outras combinações em que o descanso é
+   * depois da volta). Pré e pós-exaustão, e o exercício solto, deixam o padrão `true`.
+   */
+  descansoPorSerie?: boolean;
+  /** Exercício sem carga (elástico, peso corporal): a leitura não pede ajuste de carga. */
+  semCarga?: boolean;
+}
+
 /**
  * A mesma leitura do Cluster para o editor, o aluno e o PDF. Com a série, o texto abre pelo nome do tipo.
- * Descanso vazio fica explícito. Carga de trabalho diz que a sugestão é a base do dia.
+ * O descanso por série sai só quando ele vale; vazio, fica explícito. Carga de trabalho diz que a sugestão é a
+ * base do dia, salvo no exercício sem carga.
  */
-export function leituraDaTecnica(serie: Serie, config?: Configuracao | null): string {
+export function leituraDaTecnica(serie: Serie, config?: Configuracao | null, contexto?: ContextoDaLeitura): string {
   const base = textoTecnicaPorExtenso(serie.tecnica, config);
   if (serie.tecnica?.tipo !== 'CLUSTER' || !blocosValidos(serie.tecnica.blocos)) return base;
   const nomeTipo = nomeDoTipo(config, serie.tipo) || 'Série de trabalho';
   const nome = nomeDaTecnica(config, 'CLUSTER');
   const corpo = base.slice(base.indexOf(':') + 1).trim();
-  const descanso = serie.descansoSegundos == null
-    ? 'Descanso depois da série: não informado.'
-    : `Descanso depois da série: ${serie.descansoSegundos} s.`;
-  const carga = serie.carga?.modo === 'CARGA_TRABALHO'
-    ? ' A sugestão de carga vem da base do dia. Ajuste a carga desta série.'
-    : '';
-  return `${nomeTipo} com ${nome}. ${corpo.charAt(0).toUpperCase()}${corpo.slice(1)} ${descanso}${carga}`;
+  const partes = [`${nomeTipo} com ${nome}. ${corpo.charAt(0).toUpperCase()}${corpo.slice(1)}`];
+  if (contexto?.descansoPorSerie !== false) {
+    partes.push(serie.descansoSegundos == null
+      ? 'Descanso depois da série: não informado.'
+      : `Descanso depois da série: ${serie.descansoSegundos} s.`);
+  }
+  if (!contexto?.semCarga && serie.carga?.modo === 'CARGA_TRABALHO') {
+    partes.push('A sugestão de carga vem da base do dia. Ajuste a carga desta série.');
+  }
+  return partes.join(' ');
 }
 
 /**
@@ -311,8 +326,8 @@ export function descreverSeries(series: Serie[], config?: Configuracao | null): 
 }
 
 /** Técnicas do exercício por extenso, sem repetir (o aluno lê uma vez, antes das séries). */
-export function textosDeTecnica(series: readonly Serie[], config?: Configuracao | null): string[] {
-  return tecnicasDoExercicio(series, config).map((t) => t.texto);
+export function textosDeTecnica(series: readonly Serie[], config?: Configuracao | null, contexto?: ContextoDaLeitura): string[] {
+  return tecnicasDoExercicio(series, config, contexto).map((t) => t.texto);
 }
 
 export interface TecnicaParaOAluno {
@@ -326,10 +341,10 @@ export interface TecnicaParaOAluno {
  * dela (opcional; nada começa sozinho e nada prende o aluno, pedido da reunião de 17/10). Pausa só em respirações não
  * liga o botão.
  */
-export function tecnicasDoExercicio(series: readonly Serie[], config?: Configuracao | null): TecnicaParaOAluno[] {
+export function tecnicasDoExercicio(series: readonly Serie[], config?: Configuracao | null, contexto?: ContextoDaLeitura): TecnicaParaOAluno[] {
   const vistas = new Map<string, TecnicaParaOAluno>();
   for (const s of series) {
-    const texto = leituraDaTecnica(s, config);
+    const texto = leituraDaTecnica(s, config, contexto);
     if (!texto || vistas.has(texto)) continue;
     const pausa = s.tecnica?.pausaSegundos;
     vistas.set(texto, { texto, pausaSegundos: pausa != null && pausa > 0 ? pausa : null });

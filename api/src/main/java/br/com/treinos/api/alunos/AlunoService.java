@@ -56,13 +56,16 @@ public class AlunoService {
     private final AtualizacaoRepository atualizacoes;
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
     private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
+    private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
                         AtualizacaoRepository atualizacoes, br.com.treinos.api.conta.PlanoDaConsultoria plano,
-                        br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos) {
+                        br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos,
+                        br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
         this.plano = plano;
         this.pagamentos = pagamentos;
+        this.ciclo = ciclo;
         this.alunos = alunos;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
@@ -139,6 +142,7 @@ public class AlunoService {
         if(auth!=null && auth.getPrincipal() instanceof br.com.treinos.api.security.UsuarioAutenticado eu) aluno.alterarResponsavel(eu.usuarioId());
         else usuarios.findByConsultoriaIdAndPapelOrderByNomeAsc(br.com.treinos.api.tenant.TenantContext.get(),br.com.treinos.api.auth.Papel.TREINADOR).stream().findFirst().ifPresent(u -> aluno.alterarResponsavel(u.getId()));
         definirResponsavel(aluno,r.responsavelId());
+        aplicarSexo(aluno, r.sexo());
         return detalheDe(gravar(aluno));
     }
 
@@ -175,6 +179,7 @@ public class AlunoService {
             aluno.alterarCpf(dados.cpf());
             aluno.alterarEndereco(dados.endereco());
         }
+        aplicarSexo(aluno, r.sexo());
         trocarTelefone(aluno, r.telefone(), dados.telefone());
         UUID anterior=aluno.getResponsavelId();
         definirResponsavel(aluno,r.responsavelId());
@@ -213,7 +218,25 @@ public class AlunoService {
         }
     }
 
-    /** Cadastro anonimizado não é editado nem reativado: os dados pessoais não podem voltar. */
+    /** Nulo apaga. Valor fora do enum é 422 no campo, sem repetir o valor. */
+    public void definirSexo(Aluno aluno, String informado) {
+        exigirNaoAnonimizado(aluno);
+        aplicarSexo(aluno, informado);
+    }
+
+    public void definirSexo(UUID id, String informado) {
+        definirSexo(alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado), informado);
+    }
+
+    private void aplicarSexo(Aluno aluno, String informado) {
+        if (informado != null && !informado.isBlank() && Sexo.ler(informado) == null) {
+            throw new ValidacaoException("Confira os campos.", "ALUNO_INVALIDO",
+                    List.of(new ApiError.FieldError("sexo", "Escolha Masculino, Feminino ou Outro.")));
+        }
+        aluno.alterarSexo(Sexo.ler(informado));
+        ciclo.desligarSeDeixouDeSerFeminino(aluno);
+    }
+
     public static void exigirNaoAnonimizado(Aluno aluno) {
         if (aluno.isAnonimizado())
             throw new ConflictException("Este aluno foi anonimizado e não pode mais ser alterado.", "ALUNO_ANONIMIZADO");

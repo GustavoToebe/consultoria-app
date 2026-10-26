@@ -13,6 +13,6 @@ public record EuResponse(UsuarioResumo usuario, MarcaPublica marca, AlunoResumo 
 
     public record PerfilResumo(UUID id,String nome,boolean acessoTotal) { }
 
-    public record AlunoResumo(UUID id, String nome) {
+    public record AlunoResumo(UUID id, String nome, String sexo) {
     }
 }

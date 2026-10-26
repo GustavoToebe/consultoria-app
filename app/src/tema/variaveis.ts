@@ -11,5 +11,6 @@ export function variaveisDoTema(cores: Cores, marca: string) {
   '--color-primary': marca, '--color-primary-foreground': textoSobre(marca),
   '--color-destructive': cores.perigoFundo, '--color-sucesso': cores.sucesso,
   '--color-atencao': cores.atencao, '--color-perigo': cores.perigo, '--color-neutro': cores.neutro,
+  '--color-fase1': cores.fase1, '--color-fase2': cores.fase2, '--color-fase3': cores.fase3, '--color-fase4': cores.fase4,
  };
 }

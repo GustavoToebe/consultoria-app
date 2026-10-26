@@ -55,7 +55,7 @@ export interface EuResponse {
   pagarNoAndroid?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
-  aluno?: { id: string; nome: string };
+  aluno?: { id: string; nome: string; sexo?: string | null };
   termosPendentes: boolean;
   termosVersao: string;
 }
@@ -170,6 +170,49 @@ export interface ConsultoriaResponse {
   versao: number;
   /** Ciclo de atualização padrão (1 a 365 dias): aluno sem valor próprio usa este; nulo = sem padrão. */
   diasAtualizacaoPadrao: number | null;
+  /** Textos opcionais das fases do ciclo. Ausente ou campo vazio = a fase aparece só com o nome. */
+  textosFasesCiclo?: TextosDasFases | null;
+}
+
+export interface TextosDasFases {
+  menstrual: string | null;
+  folicular: string | null;
+  ovulatoria: string | null;
+  lutea: string | null;
+}
+
+export interface RegistroDeCicloApi {
+  id: string;
+  inicio: string;
+  fim: string | null;
+}
+
+export interface DiaDeCicloApi {
+  id: string;
+  data: string;
+  fluxo: string | null;
+  colica: string | null;
+  sintomas: string[];
+  observacao: string | null;
+}
+
+export interface CicloDaAluna {
+  disponivel: boolean;
+  ativo?: boolean | null;
+  consentimentoVersaoAtual?: number | null;
+  duracaoHabitual?: number | null;
+  mostrarFases?: boolean | null;
+  registros?: RegistroDeCicloApi[] | null;
+  dias?: DiaDeCicloApi[] | null;
+  textosDasFases?: TextosDasFases | null;
+}
+
+export interface CicloDoTreinador {
+  ativo: boolean;
+  duracaoHabitual: number | null;
+  mostrarFases: boolean | null;
+  registros: RegistroDeCicloApi[];
+  dias: DiaDeCicloApi[];
 }
 
 // ---- Alunos ----
@@ -235,6 +278,8 @@ export interface AlunoDetalhe {
   aguardandoPrimeiroAcesso: boolean;
   /** Quando o aluno autorizou o uso das fotos. Ausente ou nulo = não autorizado. Só com `ALUNO_SENSIVEL_LER`. */
   usoDeImagemAutorizadoEm?: string | null;
+  /** `MASCULINO`, `FEMININO` ou `OUTRO`. Ausente ou nulo = não informado. Lê com `ALUNO_LER`. */
+  sexo?: string | null;
 }
 
 /** Foto já enviada na linha do tempo (`GET /alunos/{id}/fotos` e `GET /aluno/fotos/linha-do-tempo`). */
@@ -263,6 +308,8 @@ export interface AlunoRequest {
   versao?: number | null;
   /** Dias do ciclo do aluno (1 a 365): sugere o fim do período ao criar uma pasta. */
   diasAtualizacao?: number | null;
+  /** `null` apaga. Fora do enum a API responde 422 no campo. */
+  sexo?: string | null;
 }
 
 export interface ConviteGerado {
@@ -937,7 +984,7 @@ export type TipoPergunta = 'DATA_AUTOMATICA' | 'PESO' | 'NOTA' | 'TEXTO' | 'TEXT
   | 'ESCOLHA_UNICA' | 'MULTIPLA_ESCOLHA' | 'NUMERO' | 'SIM_NAO'
   | 'DATA' | 'TELEFONE' | 'EMAIL' | 'GRADE' | 'ENDERECO' | 'ACEITE' | 'INFORMATIVO';
 /** Opção de escolha (com imagem opcional) e também linha/coluna da GRADE (sem imagem). */
-export interface OpcaoPergunta { id: string; rotulo: string; imagemId?: string }
+export interface OpcaoPergunta { id: string; rotulo: string; imagemId?: string; valorNoCadastro?: string }
 /**
  * Condição simples: a pergunta (ou seção) só aparece se a resposta da pergunta `perguntaId` (anterior, de escolha) for um
  * dos `valores` (ids de opção; `sim`/`nao` no SIM_NAO). Escondida não é obrigatória e a resposta dela não é enviada.
@@ -948,7 +995,7 @@ export interface CondicaoPergunta { perguntaId: string; valores: string[] }
  * registro de peso), OBJETIVO e CPF (pergunta TEXTO → objetivo ou CPF do aluno), TELEFONE (pergunta TELEFONE → telefone do
  * usuário do aluno) e ENDERECO (pergunta ENDERECO → os 7 campos do endereço). Nome e e-mail nunca.
  */
-export type DestinoNoPerfil = 'PESO' | 'OBJETIVO' | 'CPF' | 'TELEFONE' | 'ENDERECO';
+export type DestinoNoPerfil = 'PESO' | 'OBJETIVO' | 'CPF' | 'TELEFONE' | 'ENDERECO' | 'SEXO';
 export interface PerguntaAtualizacao {
   id: string;
   tipo: TipoPergunta;

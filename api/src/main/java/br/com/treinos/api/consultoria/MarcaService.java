@@ -36,27 +36,37 @@ public class MarcaService {
             @NotNull Consultoria.Tema temaPadrao,
             @NotNull Long versao,
             /** Ciclo de atualização padrão da consultoria (1 a 365 dias); nulo = sem padrão. */
-            @Min(1) @Max(365) Integer diasAtualizacaoPadrao) {
+            @Min(1) @Max(365) Integer diasAtualizacaoPadrao,
+            br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo) {
 
         public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
                             Long versao) {
-            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null);
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, null, null);
+        }
+
+        public MarcaRequest(String nome, String corPrimaria, Consultoria.Fonte fonteTitulo, Consultoria.Tema temaPadrao,
+                            Long versao, Integer diasAtualizacaoPadrao) {
+            this(nome, corPrimaria, fonteTitulo, temaPadrao, versao, diasAtualizacaoPadrao, null);
         }
     }
 
-    public record ConsultoriaResponse(MarcaPublica marca, Long versao, Integer diasAtualizacaoPadrao) {
+    public record ConsultoriaResponse(MarcaPublica marca, Long versao, Integer diasAtualizacaoPadrao,
+                                     br.com.treinos.api.ciclo.CicloDtos.TextosDasFases textosFasesCiclo) {
     }
 
     private final ConsultoriaRepository consultorias;
     private final LogoRepositorio logos;
     private final UsuarioRepository usuarios;
     private final PerfilRepository perfis;
+    private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
 
-    public MarcaService(ConsultoriaRepository consultorias, LogoRepositorio logos, UsuarioRepository usuarios, PerfilRepository perfis) {
+    public MarcaService(ConsultoriaRepository consultorias, LogoRepositorio logos, UsuarioRepository usuarios, PerfilRepository perfis,
+                        br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
         this.consultorias = consultorias;
         this.logos = logos;
         this.usuarios = usuarios;
         this.perfis = perfis;
+        this.ciclo = ciclo;
     }
 
     /** A tela e a gravação da marca são do perfil Administrador (acesso total), não de quem só tem a permissão. */
@@ -85,6 +95,7 @@ public class MarcaService {
         exigirMesmaVersao(c, r.versao());
         c.alterarMarca(r.nome().trim(), r.corPrimaria().toUpperCase(java.util.Locale.ROOT),
                 r.fonteTitulo(), r.temaPadrao(), r.diasAtualizacaoPadrao());
+        c.definirTextosFasesCiclo(ciclo.textosParaGravar(r.textosFasesCiclo()));
         consultorias.saveAndFlush(c);
         return resposta(c);
     }
@@ -176,7 +187,7 @@ public class MarcaService {
     }
 
     private ConsultoriaResponse resposta(Consultoria c) {
-        return new ConsultoriaResponse(MarcaPublica.de(c), c.getVersao(), c.getDiasAtualizacaoPadrao());
+        return new ConsultoriaResponse(MarcaPublica.de(c), c.getVersao(), c.getDiasAtualizacaoPadrao(), ciclo.textos(c.getId()));
     }
 
     private Consultoria buscar(UUID consultoriaId) {

@@ -214,6 +214,7 @@ const ORIGEM_NO_CELULAR: readonly [string, string][] = [
   ['/treinador/seguranca', '/treinador/perfil'],
   ['/treinador/ajustes', '/treinador/perfil'],
   ['/treinador/minha-conta', '/treinador/perfil'],
+  ['/aluno/ciclo', '/aluno/conta'],
   ['/aluno/ajuda', '/aluno/conta'],
   ['/aluno/termos', '/aluno/conta'],
 ];
@@ -242,6 +243,7 @@ const TITULOS_FORA_DO_CATALOGO: readonly [string, string][] = [
   ['/aluno/historico', 'Histórico'],
   ['/aluno/atualizacao', 'Atualização'],
   ['/aluno/anamnese', 'Anamnese'],
+  ['/aluno/ciclo', 'Ciclo menstrual'],
   ['/aluno/conta', 'Conta'],
   ['/aluno/ajuda', 'Ajuda'],
   ['/aluno/termos', 'Termos e privacidade'],

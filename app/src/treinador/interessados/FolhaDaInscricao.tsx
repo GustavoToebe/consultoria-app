@@ -8,6 +8,7 @@ import type { ResponsavelEquipe } from '../../api/equipeTipos';
 import type { AceiteInscricao, InscricaoDetalhe, PagamentoInscricao, SituacaoInscricao } from '../../api/inscricoesTipos';
 import { aceitarInscricao, alterarInscricao, inscricao, notaNaInscricao, recusarInscricao } from '../../api/rotas';
 import { dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
+import { rotuloDoSexo } from '../../dominio/sexo';
 import {
   alunoDoConflito,
   LIMITES_INSCRICAO,
@@ -244,6 +245,7 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
       </Cartao>
 
       <Cartao titulo="O que a pessoa escreveu">
+        <CampoLeitura rotulo="Sexo" valor={dados.sexo ? rotuloDoSexo(dados.sexo) : 'Prefiro não informar'} />
         <CampoLeitura rotulo="Objetivo" valor={dados.objetivo} />
         <CampoLeitura rotulo="Observação" valor={dados.observacao} />
         <CampoLeitura rotulo="Ciência do texto da consultoria"

@@ -56,6 +56,17 @@ describe('textos da série', () => {
     expect(textosDaSerie(s, { ...contexto, descansoPorSerie: false, seriesDoExercicio: [s] }).descanso).toBeNull();
   });
 
+  it('Cluster no grupo não repete o descanso da série e, sem carga, não pede ajuste', () => {
+    const s = serie('a', { tecnica: tecnica('CLUSTER', { blocos: [4, 4], pausaSegundos: 15 }), descansoSegundos: 90, repsMin: 8, repsMax: 8 });
+    const noGrupo = textosDaSerie(s, { ...contexto, descansoPorSerie: false, seriesDoExercicio: [s] }).tecnica;
+    expect(noGrupo).toContain('Pausa entre os blocos: 15 s.');
+    expect(noGrupo).not.toContain('Descanso depois da série');
+    expect(noGrupo).toContain('Ajuste a carga desta série.');
+    const semCarga = textosDaSerie(s, { ...contexto, semCarga: true, seriesDoExercicio: [s] }).tecnica;
+    expect(semCarga).toContain('Descanso depois da série: 90 s.');
+    expect(semCarga).not.toContain('Ajuste a carga');
+  });
+
   it('AMRAP é explícito e RIR 0 é "até a falha"; RPE aparece como RPE', () => {
     const amrap = serie('a', { repsMin: null, repsMax: null, amrap: true, esforco: rir(0) });
     const t = textosDaSerie(amrap, { ...contexto, seriesDoExercicio: [amrap] });

@@ -12,6 +12,7 @@ import {
 import { CamposDeEndereco } from '../ui/CamposDeEndereco';
 import { Escolha } from '../ui/Escolha';
 import { useCarregar } from '../ui/useCarregar';
+import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
 import { espaco } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
@@ -51,6 +52,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
   const [responsavelId,setResponsavelId]=useState(inicial?.responsavelId??usuario?.id??'');
   const {dados:responsaveis,erro:erroResponsaveis,recarregar}=useCarregar('responsaveis-form',()=>responsaveisEquipe());
   const [nome, setNome] = useState(inicial?.nome ?? '');
+  const [sexo, setSexo] = useState(inicial?.sexo ?? '');
   const [email, setEmail] = useState(inicial?.email ?? '');
   const [telefone, setTelefone] = useState(inicial?.telefone ?? '');
   const [objetivo, setObjetivo] = useState(inicial?.objetivo ?? '');
@@ -88,6 +90,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
         cpf: cpf.trim() ? mascaraCpf(cpf) : null, endereco: enderecoParaEnvio(endereco),
       } : {}),
       versao: inicial?.versao ?? null,
+      sexo: sexoDoCampo(sexo),
       diasAtualizacao: diasDoCampo(dias),
       responsavelId:responsavelId||null,
     }).then(
@@ -104,6 +107,7 @@ export function FormAluno({ inicial, rotuloSalvar, aoSalvar, aoCancelar, diasPad
     <View style={estilos.form}>
       <Texto variante="secao">Cadastro</Texto>
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} autoComplete="off" maxLength={120} />
+      <Escolha rotulo="Sexo" valor={sexo} aoMudar={setSexo} opcoes={[{ valor: '', rotulo: 'Não informado' }, ...OPCOES_DE_SEXO]} />
       <Campo
         rotulo="E-mail (opcional)"
         valor={email}

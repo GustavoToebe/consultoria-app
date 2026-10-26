@@ -19,6 +19,7 @@ export interface InscricaoPublicaRequest {
   email: string | null;
   objetivo: string | null;
   observacao: string | null;
+  sexo?: string | null;
   cienciaPrivacidade: boolean;
   turnstileToken?: string;
 }
@@ -82,6 +83,7 @@ export interface InscricaoDetalhe {
   email: string | null;
   objetivo: string | null;
   observacao: string | null;
+  sexo?: string | null;
   cienciaEm: string | null;
   cienciaTexto: string | null;
   situacao: SituacaoInscricao;

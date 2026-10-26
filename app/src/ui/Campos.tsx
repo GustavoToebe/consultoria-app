@@ -79,6 +79,7 @@ export function CampoNumerico({
   ajuda,
   erro,
   mascara,
+  aoValidade,
 }: {
   rotulo: string;
   valor: number | null;
@@ -89,8 +90,10 @@ export function CampoNumerico({
   erro?: string | null;
   /** Ajusta o texto a cada digitação (ex.: `mascaraDeNumero`); sem ela, vale o que foi digitado. */
   mascara?: (texto: string) => string;
+  /** `false` quando o texto não é número (decimal num campo inteiro). Vazio conta como válido. */
+  aoValidade?: (valido: boolean) => void;
 }) {
-  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, undefined, mascara);
+  const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade, mascara);
   return (
     <Campo
       numerico

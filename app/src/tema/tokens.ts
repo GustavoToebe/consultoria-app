@@ -29,6 +29,11 @@ export interface Cores {
   perigoFundo: string;
   /** Anel de foco do teclado: a cor do texto (≥ 4,5:1 em qualquer superfície), nunca a da marca. */
   anelFoco: string;
+  /** Fases do ciclo (faixa e calendário). Não são a cor da marca nem o vermelho de erro. */
+  fase1: string;
+  fase2: string;
+  fase3: string;
+  fase4: string;
 }
 
 export const ESCURO: Cores = {
@@ -48,6 +53,10 @@ export const ESCURO: Cores = {
   neutro: '#9A9AA3',
   perigoFundo: '#C62828',
   anelFoco: '#F4F4F5',
+  fase1: '#E3A0B6',
+  fase2: '#7DCFC6',
+  fase3: '#E2C56A',
+  fase4: '#A9B6EA',
 };
 
 export const CLARO: Cores = {
@@ -67,6 +76,10 @@ export const CLARO: Cores = {
   neutro: '#616169',
   perigoFundo: '#B71C1C',
   anelFoco: '#111114',
+  fase1: '#C46B86',
+  fase2: '#5E8F8A',
+  fase3: '#A67C2E',
+  fase4: '#7A86C4',
 };
 
 /** Cor neutra para telas sem marca (entrar, cadastro). */

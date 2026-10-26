@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { baixarFotoDePerfil } from '../api/rotas';
+import { useCicloDaAluna } from './useCicloDaAluna';
+import { faseNaData, textoDaLeitura, type ConfigDoCiclo } from '../dominio/cicloMenstrual';
 import { dataPorExtenso, primeiroNome } from '../dominio/inicioDoAluno';
 import { useSessao } from '../sessao/SessaoProvider';
 import { ALVO_TOQUE, espaco } from '../tema/tokens';
@@ -34,7 +36,24 @@ export function CabecalhoDoInicio({ nome, hoje }: { nome: string | null; hoje: s
         <Texto variante="titulo" nivel={1} style={estilos.ola}>{primeiro ? `Olá, ${primeiro}.` : 'Olá.'}</Texto>
         <Texto variante="suave" numerico style={estilos.data}>{dataPorExtenso(hoje)}</Texto>
       </View>
+      <LinhaDoCiclo hoje={hoje} />
     </View>
+  );
+}
+
+function LinhaDoCiclo({ hoje }: { hoje: string }) {
+  const ciclo = useCicloDaAluna();
+  if (!ciclo.online || !ciclo.dados?.ativo) return null;
+  const config: ConfigDoCiclo = {
+    duracaoHabitual: ciclo.dados.duracaoHabitual ?? null,
+    mostrarFases: ciclo.dados.mostrarFases !== false,
+    hoje,
+  };
+  const leitura = faseNaData(ciclo.dados.registros ?? [], config, hoje);
+  return (
+    <Pressable accessibilityRole="link" {...propsDeLink('/aluno/ciclo', () => router.push('/aluno/ciclo'))}>
+      <Texto variante="pequeno">{textoDaLeitura(leitura)}</Texto>
+    </Pressable>
   );
 }
 

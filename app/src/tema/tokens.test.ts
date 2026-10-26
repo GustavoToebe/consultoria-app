@@ -14,6 +14,11 @@ it.each([CLARO, ESCURO])('status e neutro servem de texto em todas as superfíci
   }
   expect(contraste('#FFFFFF', cores.perigoFundo)).toBeGreaterThanOrEqual(4.5);
   expect(cores.anelFoco).toBe(cores.texto);
+  for (const fase of [cores.fase1, cores.fase2, cores.fase3, cores.fase4]) {
+    expect(contraste(fase, cores.superficie)).toBeGreaterThanOrEqual(3);
+    expect(contraste(fase, cores.perigo)).toBeGreaterThan(1.4);
+    expect(contraste('#FFFFFF', fase) >= 4.5 || contraste('#111114', fase) >= 4.5).toBe(true);
+  }
 });
 
 describe('marcaParaTexto', () => {

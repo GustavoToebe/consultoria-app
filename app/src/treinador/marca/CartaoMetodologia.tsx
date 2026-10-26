@@ -9,7 +9,8 @@ import { NOME_FIXO_DA_COMBINACAO, NOME_FIXO_DA_TECNICA, PAPEIS, tecnicaDescritiv
 import { BarraDesfazer, type Desfazer } from '../plano/BarraDesfazer';
 import { FolhaDoCatalogo, type ItemDoCatalogo } from './FolhaDoCatalogo';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
+import { FaixaDeChips } from '../../ui/FaixaDeChips';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
@@ -29,6 +30,12 @@ const ARREDONDAMENTOS = [0.25, 0.5, 1, 2.5].map((valor) => ({ valor, rotulo: `${
 const LIMITE_EXPLICACAO = 500;
 const MAXIMO_DE_TIPOS = 20;
 const chaveDoAlvo = (alvo: string) => `metodologia:${alvo}`;
+const SECOES = [
+  { alvo: 'tipos', rotulo: 'Tipos' },
+  { alvo: 'tecnicas', rotulo: 'Técnicas' },
+  { alvo: 'combinacoes', rotulo: 'Combinações' },
+  { alvo: 'geral', rotulo: 'Geral' },
+] as const;
 
 /**
  * A metodologia da consultoria, em seções: tipos de série, as técnicas e as combinações que ela usa, e o geral.
@@ -40,6 +47,7 @@ const chaveDoAlvo = (alvo: string) => `metodologia:${alvo}`;
  * nesta edição: séries e modelos já gravados com aquele código passariam a mostrar o nome e o papel do tipo novo.
  */
 export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = [] }: { configuracao: MetodologiaEmEdicao; aoMudar: (c: MetodologiaEmEdicao) => void; codigosSalvos?: readonly string[] }) {
+  const { cores } = useTema();
   const { rolarAte } = useRolagem();
   const [abertos, setAbertos] = useState<ReadonlySet<string>>(new Set());
   const [novo, setNovo] = useState<{ nome: string; papel: PapelDaSerie } | null>(null);
@@ -101,6 +109,11 @@ export function CartaoMetodologia({ configuracao: c, aoMudar, codigosSalvos = []
   const catalogoAberto = folha === 'tipos' ? itensDeTipo : folha === 'tecnicas' ? itensDeTecnica : folha === 'combinacoes' ? itensDeCombinacao : null;
   return <View style={estilos.lista}>
     <Texto variante="pequeno">Esta metodologia define nomes, explicações e padrões para montar novos treinos. Alterar este modelo não atualiza automaticamente as cópias já aplicadas.</Texto>
+    <FaixaDeChips quebrar accessibilityLabel="Seções da metodologia">
+      {SECOES.map((s) => <Pressable key={s.alvo} accessibilityRole="button" accessibilityLabel={`Ir para ${s.rotulo}`} onPress={() => rolarAte([chaveDoAlvo(s.alvo)])} style={({ pressed }) => [estilos.atalho, { borderColor: cores.borda, backgroundColor: pressed ? cores.superficie3 : cores.superficie2 }]}>
+        <Texto style={estilos.atalhoTexto}>{s.rotulo}</Texto>
+      </Pressable>)}
+    </FaixaDeChips>
     {desfazer ? <BarraDesfazer desfazer={desfazer} aoDesfazer={() => { aoMudar(desfazer.conteudo); setDesfazer(null); }} aoFechar={() => setDesfazer(null)} /> : null}
     <ListaDeProblemas linhas={linhas} aoIr={ir} />
 
@@ -228,6 +241,8 @@ function CartaoDaCombinacao({ combinacao: k, problemas: p, aberto, aoAlternar, a
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(1.5) },
+  atalho: { minHeight: ALVO_TOQUE, paddingHorizontal: espaco(1.5), borderRadius: RAIO, borderWidth: 1, justifyContent: 'center' },
+  atalhoTexto: { fontFamily: fontes.semi, fontSize: 14 },
   acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1) },
   problemas: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(0.75) },
   linhaDeProblema: { minHeight: ALVO_TOQUE, justifyContent: 'center' },

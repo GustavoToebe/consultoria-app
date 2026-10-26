@@ -164,7 +164,9 @@ class ArquiteturaTest {
                                 // Plano comercial e cobranças do próprio aluno (hasRole ALUNO, sempre o da sessão, só leitura).
                                 "AlunoFinanceiroController",
                                 // Demonstração dos exercícios do plano do próprio aluno (hasRole ALUNO, sempre o da sessão); a da equipe declara PERM_BIBLIOTECA_LER.
-                                "AlunoExercicioController").contains(c.getSimpleName())))
+                                "AlunoExercicioController",
+                                // Sexo e ciclo da própria aluna (hasRole ALUNO, sempre a da sessão). A leitura do treinador declara PERM_ALUNO_LER e PERM_ALUNO_SENSIVEL_LER.
+                                "SexoDoAlunoController", "CicloAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

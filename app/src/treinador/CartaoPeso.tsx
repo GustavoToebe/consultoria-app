@@ -9,10 +9,11 @@ import { dataCurta, dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '..
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
+import { SeloDaFase, useCicloNoPeso } from './ciclo/CicloNaFicha';
 import { Abas } from '../ui/Abas';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
-import { CampoData, CampoNumerico } from '../ui/Campos';
+import { CampoData, CampoNumerico, Interruptor } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
 import { MensagemErro } from '../ui/Estados';
@@ -36,7 +37,8 @@ const LINHAS_INICIAIS = 12;
 
 /** Registros de peso do aluno (dado sensível: só na tela, nunca em log). */
 export function CartaoPeso({ alunoId }: { alunoId: string }) {
-  const { cores, preferencias } = useTema();
+  const { cores, preferencias, escolherPreferencia } = useTema();
+  const ciclo = useCicloNoPeso(alunoId);
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar, definir } = useCarregar(`peso:${alunoId}`, () => pesosDoAluno(alunoId));
   const [data, setData] = useState(dataParaTela(hojeIso()));
@@ -96,11 +98,16 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
       {preferencias.graficos && dados && dados.length > 1 ? (
         <Abas abas={[{ valor: 'lista', rotulo: 'Lista' }, { valor: 'grafico', rotulo: 'Gráfico' }]} ativa={visao} aoMudar={setVisao} />
       ) : null}
+      {ciclo.ativo ? (
+        <Interruptor rotulo="Mostrar fases do ciclo" valor={preferencias.mostrarFasesDoCiclo}
+          aoMudar={(mostrarFasesDoCiclo) => escolherPreferencia({ mostrarFasesDoCiclo })} />
+      ) : null}
       {comGrafico ? (
         <GraficoLinha
-          pontos={cronologico.map((p) => ({ rotulo: dataCurta(p.data), valor: p.pesoKg }))}
+          pontos={cronologico.map((p) => ({ rotulo: dataCurta(p.data), valor: p.pesoKg, data: p.data }))}
           unidade="kg"
           descricao={`Gráfico de peso com ${dados.length} registros`}
+          faixas={ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.faixasDe(cronologico[0].data, cronologico[cronologico.length - 1].data) : undefined}
         />
       ) : null}
       {comTabela && lista.length > 0 ? (
@@ -109,7 +116,10 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
           linhas={visiveis}
           chave={(p) => p.id}
           colunas={[
-            { chave: 'data', titulo: 'Data', flex: 1.2, principal: true, render: (p) => <Texto numerico style={estilos.negrito}>{dataParaTela(p.data)}</Texto> },
+            { chave: 'data', titulo: 'Data', flex: 1.2, principal: true, render: (p) => {
+              const fase = ciclo.ativo && preferencias.mostrarFasesDoCiclo ? ciclo.selo(p.data) : null;
+              return <View style={{ gap: 4 }}><Texto numerico style={estilos.negrito}>{dataParaTela(p.data)}</Texto>{fase ? <SeloDaFase texto={fase} /> : null}</View>;
+            } },
             { chave: 'peso', titulo: 'Peso', render: (p) => <Texto numerico style={estilos.negrito}>{numeroParaTela(p.pesoKg)} kg</Texto> },
             {
               chave: 'variacao', titulo: 'Variação',

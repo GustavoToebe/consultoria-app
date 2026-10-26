@@ -521,4 +521,26 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         banco.update("update inscricao set criada_em = now() - interval '25 hours' where consultoria_id = ?", consultoria);
         inscrever(codigo, inscricao("Pessoa Fictícia do Dia Seguinte", null), 202);
     }
+
+    @Test
+    void sexoOpcionalCopiaParaOAlunoENaoLigaOCiclo() throws Exception {
+        String codigo = abrirLink(admin, usuarioId(admin), null).path("codigo").asString();
+        Map<String, Object> invalido = inscricao("Pessoa Fictícia", null);
+        invalido.put("sexo", "TALVEZ");
+        JsonNode erro = inscrever(codigo, invalido, 422);
+        assertThat(erro.path("codigo").asString()).isEqualTo("INSCRICAO_INVALIDA");
+        assertThat(erro.toString()).doesNotContain("TALVEZ");
+
+        Map<String, Object> corpo = inscricao("Aluna Fictícia Sexo", "sexo-" + UUID.randomUUID() + "@teste.local");
+        corpo.put("sexo", "FEMININO");
+        inscrever(codigo, corpo, 202);
+        JsonNode item = unica(admin);
+        JsonNode detalhe = api.get("/inscricoes/" + item.path("id").asString(), admin, 200);
+        assertThat(detalhe.path("sexo").asString()).isEqualTo("FEMININO");
+        JsonNode aceite = api.post("/inscricoes/" + item.path("id").asString() + "/aceitar", admin,
+                Map.of("convidar", false, "versao", detalhe.path("versao").asLong()), 200);
+        String alunoId = aceite.path("alunoId").asString();
+        assertThat(api.get("/alunos/" + alunoId, admin, 200).path("sexo").asString()).isEqualTo("FEMININO");
+        assertThat(banco.queryForObject("select ciclo_ativado_em from aluno where id = ?::uuid", String.class, alunoId)).isNull();
+    }
 }

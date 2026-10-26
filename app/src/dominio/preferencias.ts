@@ -36,6 +36,8 @@ export interface Preferencias {
   pdfDieta: PdfDietaPreferida;
   /** Folha "Gerar imagem": incluir a logo da consultoria. Sem logo, a caixinha fica desligada. */
   logoNaComparacao: boolean;
+  /** Gráfico de peso do treinador: faixas das fases atrás da linha. Ligado por padrão. */
+  mostrarFasesDoCiclo: boolean;
 }
 
 /** Valores que o cartão "Sem registro" oferece; a API aceita de 1 a 90. */
@@ -55,6 +57,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   diasSemRegistro: 7,
   pdfDieta: { modo: 'simples', periodo: 'semana', fatores: true },
   logoNaComparacao: true,
+  mostrarFasesDoCiclo: true,
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'SISTEMA'];
@@ -88,6 +91,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     diasSemRegistro: typeof o.diasSemRegistro === 'number' && OPCOES_DIAS_SEM_REGISTRO.includes(o.diasSemRegistro) ? o.diasSemRegistro : PREFERENCIAS_PADRAO.diasSemRegistro,
     pdfDieta: pdfDietaDe(o.pdfDieta),
     logoNaComparacao: typeof o.logoNaComparacao === 'boolean' ? o.logoNaComparacao : PREFERENCIAS_PADRAO.logoNaComparacao,
+    mostrarFasesDoCiclo: typeof o.mostrarFasesDoCiclo === 'boolean' ? o.mostrarFasesDoCiclo : PREFERENCIAS_PADRAO.mostrarFasesDoCiclo,
   };
 }
 

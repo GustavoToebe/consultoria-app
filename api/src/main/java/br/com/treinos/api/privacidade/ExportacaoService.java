@@ -56,6 +56,7 @@ public class ExportacaoService {
     private final InscricaoDoAluno inscricao;
     private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
     private final JsonMapper json;
+    private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -63,7 +64,8 @@ public class ExportacaoService {
                              PesoService pesos, LesaoService lesoes, AtualizacaoRepository atualizacoes,
                              FotoService fotos, FotoPerfilService fotoPerfil,
                              br.com.treinos.api.anamneses.AnamneseService anamneses, InscricaoDoAluno inscricao,
-                             br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos, JsonMapper json) {
+                             br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos, JsonMapper json,
+                             br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
         this.anamneses = anamneses;
         this.inscricao = inscricao;
         this.pagamentos = pagamentos;
@@ -80,6 +82,7 @@ public class ExportacaoService {
         this.fotos = fotos;
         this.fotoPerfil = fotoPerfil;
         this.json = json;
+        this.ciclo = ciclo;
     }
 
     // Não é readOnly: a auditoria grava na mesma transação.
@@ -114,8 +117,13 @@ public class ExportacaoService {
             omitidas.add("financeiro");
         }
         var fotoDePerfil = fotoPerfil.atualizadaEm(alunoId).map(PrivacidadeDtos.FotoPerfilExportada::new).orElse(null);
+        var cicloMenstrual = AcessoAtual.pode("ALUNO_SENSIVEL_LER") ? ciclo.exportar(alunoId) : null;
+        if (cicloMenstrual == null) {
+            omitidas.add("cicloMenstrual");
+        }
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
-                registros, mobilidadeFeita, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil);
+                registros, mobilidadeFeita, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
+                cicloMenstrual);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

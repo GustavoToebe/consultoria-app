@@ -53,6 +53,55 @@ export function resumoDosBlocos(blocos: readonly number[] | null | undefined): {
   return { repeticoes: somaDosBlocos(blocos)!, blocos: blocos!.length, pausas: blocos!.length - 1 };
 }
 
+/**
+ * O que pode ser gravado. Quantidade fora de 2 a 10, repetição fora de 1 a 50, vazio ou buraco devolvem `null`:
+ * o campo inválido não reaproveita a lista anterior.
+ */
+export function blocosGravados(blocos: readonly (number | null)[] | null | undefined): number[] | null {
+  if (!blocos || blocos.length === 0 || blocos.some((b) => b == null) || !blocosValidos(blocos as number[])) return null;
+  return [...(blocos as number[])];
+}
+
+/**
+ * Blocos iguais para gravar. Texto inválido (decimal, por exemplo) não pode reaproveitar o número que o campo
+ * ainda guarda por baixo: enquanto um dos campos está inválido, a lista é `null`. Vazio deliberado também é `null`,
+ * e continua sendo um padrão parcial válido.
+ */
+export function listaDeBlocosIguaisSeValidos(
+  quantidade: number | null,
+  reps: number | null,
+  quantidadeInvalida: boolean,
+  repsInvalidas: boolean,
+): number[] | null {
+  if (quantidadeInvalida || repsInvalidas) return null;
+  return listaDeBlocosIguais(quantidade, reps);
+}
+
+/** Lista individual. Um bloco com texto inválido impede gravar, mesmo que os outros números estejam bons. */
+export function blocosSeValidos(blocos: readonly (number | null)[] | null | undefined, algumInvalido: boolean): number[] | null {
+  if (algumInvalido) return null;
+  return blocosGravados(blocos);
+}
+
+/**
+ * Ao entrar em "Blocos diferentes", os campos mostram a lista gravada. Sem lista válida, fica o rascunho da edição
+ * (inclusive incompleto); uma conversão já gravada não reaparece como a distribuição anterior.
+ */
+export function rascunhoDoModoDiferente(
+  valor: readonly number[] | null | undefined,
+  rascunhoAtual: readonly (number | null)[],
+): (number | null)[] {
+  if (valor && blocosValidos(valor)) return [...valor];
+  return [...rascunhoAtual];
+}
+
+/** Blocos iguais só quando os dois números cabem no contrato; senão `null`. */
+export function listaDeBlocosIguais(quantidade: number | null, reps: number | null): number[] | null {
+  if (quantidade == null || reps == null || !Number.isInteger(quantidade) || !Number.isInteger(reps)) return null;
+  if (quantidade < MINIMO_DE_BLOCOS || quantidade > MAXIMO_DE_BLOCOS || reps < 1 || reps > MAXIMO_REPS_POR_BLOCO) return null;
+  return Array.from({ length: quantidade }, () => reps);
+}
+
 /** De 2 a 10 blocos, cada um com 1 a 50 repetições inteiras (os limites do servidor). */
 export function blocosValidos(blocos: readonly number[] | null | undefined): boolean {
   return (

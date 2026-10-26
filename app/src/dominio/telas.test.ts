@@ -228,7 +228,7 @@ describe('voltar e item aceso fora da barra inferior', () => {
     expect(voltarAutomatico('/treinador/atualizacoes/um-id', true)).toBeUndefined();
   });
   it('lista as telas que acendem cada origem', () => {
-    expect(telasDaOrigem('/aluno/conta')).toEqual(['/aluno/ajuda', '/aluno/termos']);
+    expect(telasDaOrigem('/aluno/conta')).toEqual(['/aluno/ciclo', '/aluno/ajuda', '/aluno/termos']);
     expect(telasDaOrigem('/treinador')).toEqual(['/treinador/atualizacoes', '/treinador/agenda', '/treinador/numeros']);
     expect(voltarAutomatico('/treinador/numeros', true)).toBe('/treinador');
     expect(voltarAutomatico('/treinador/agenda', true)).toBe('/treinador');

@@ -229,6 +229,20 @@ c('endereco_na_atualizacao', com(P('e', 'ENDERECO')), [`${pp(1)}.tipo`]);
 c('endereco_com_destino_na_atualizacao', com(DEND('e')), [`${pp(1)}.tipo`, `${pp(1)}.destino`]);
 c('destino_cpf_e_telefone_na_atualizacao', com(DCPF('a'), DTEL('b')), [`${pp(1)}.destino`, `${pp(2)}.destino`]);
 
+const opcoesDeSexo = [
+  { id: 'm', rotulo: 'Masculino', valorNoCadastro: 'MASCULINO' },
+  { id: 'f', rotulo: 'Feminino', valorNoCadastro: 'FEMININO' },
+  { id: 'n', rotulo: 'Prefiro não dizer' },
+];
+const DSEXO = (id = 'sexo', extra = {}) => P(id, 'ESCOLHA_UNICA', { destino: 'SEXO', opcoes: opcoesDeSexo, ...extra });
+ca('destino_sexo_ok', so(DSEXO()));
+ca('destino_sexo_sem_valor', so(DSEXO('sexo', { opcoes: [{ id: 'a', rotulo: 'A' }, { id: 'b', rotulo: 'B' }] })), ['secoes[0].perguntas[0].opcoes']);
+ca('destino_sexo_valor_invalido', so(DSEXO('sexo', { opcoes: [{ id: 'a', rotulo: 'A', valorNoCadastro: 'X' }, { id: 'b', rotulo: 'B' }] })),
+  ['secoes[0].perguntas[0].opcoes', 'secoes[0].perguntas[0].opcoes[0].valorNoCadastro']);
+ca('destino_sexo_repetido', so(DSEXO('a'), DSEXO('b')), ['secoes[0].perguntas[1].destino']);
+ca('destino_sexo_tipo_errado', so(P('t', 'TEXTO', { destino: 'SEXO' })), ['secoes[0].perguntas[0].destino', 'secoes[0].perguntas[0].opcoes']);
+c('destino_sexo_na_atualizacao', com(DSEXO()), [`${pp(1)}.destino`]);
+
 // Fábrica: o questionário de onde sai o Padrão de cada consultoria, como está no V001 (o teste de integração confere o banco).
 {
   const sql = readFileSync(`${RAIZ}/api/src/main/resources/db/migration/V001__inicial.sql`, 'utf8');

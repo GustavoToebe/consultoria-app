@@ -45,6 +45,21 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
   const [fonte, setFonte] = useState<Fonte>(inicial.fonteTitulo);
   const [tema, setTema] = useState<Tema>(inicial.temaPadrao);
   const [dias, setDias] = useState<number | null>(consultoria.diasAtualizacaoPadrao ?? null);
+  const textosIniciais = consultoria.textosFasesCiclo;
+  const [fases, setFases] = useState({
+    menstrual: textosIniciais?.menstrual ?? '',
+    folicular: textosIniciais?.folicular ?? '',
+    ovulatoria: textosIniciais?.ovulatoria ?? '',
+    lutea: textosIniciais?.lutea ?? '',
+  });
+  const texto = (s: string) => s.trim() || null;
+  const textosAtuais = { menstrual: texto(fases.menstrual), folicular: texto(fases.folicular), ovulatoria: texto(fases.ovulatoria), lutea: texto(fases.lutea) };
+  const textosSalvos = {
+    menstrual: textosIniciais?.menstrual?.trim() || null,
+    folicular: textosIniciais?.folicular?.trim() || null,
+    ovulatoria: textosIniciais?.ovulatoria?.trim() || null,
+    lutea: textosIniciais?.lutea?.trim() || null,
+  };
   const diasValidos = dias === null || (Number.isInteger(dias) && dias >= 1 && dias <= 365);
   const [logoUrl, setLogoUrl] = useState(inicial.logoUrl);
   const [salvando, setSalvando] = useState(false);
@@ -60,13 +75,14 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
     cor !== inicial.corPrimaria ||
     fonte !== inicial.fonteTitulo ||
     tema !== inicial.temaPadrao ||
-    dias !== (consultoria.diasAtualizacaoPadrao ?? null);
+    dias !== (consultoria.diasAtualizacaoPadrao ?? null) ||
+    JSON.stringify(textosAtuais) !== JSON.stringify(textosSalvos);
   const previa: Marca = { ...inicial, nome: nome || inicial.nome, corPrimaria: corValida ? cor : inicial.corPrimaria, fonteTitulo: fonte, temaPadrao: tema, logoUrl };
 
   const salvar = () => {
     setSalvando(true);
     setErro(null);
-    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao, diasAtualizacaoPadrao: dias }).then(
+    alterarMarca({ nome: nome.trim(), corPrimaria: cor, fonteTitulo: fonte, temaPadrao: tema, versao: consultoria.versao, diasAtualizacaoPadrao: dias, textosFasesCiclo: textosAtuais }).then(
       (c) => {
         setSalvando(false);
         aoSalvar(c);
@@ -244,6 +260,13 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
             ajuda="Preenche o início e o fim de cada pasta nova. Vazio = sem padrão."
           />
         </View>
+        <Cartao titulo="Ciclo menstrual: textos das fases" recolhivel recolhido
+          descricao="Aparece para a aluna e para a equipe junto da fase. O app não recomenda nada por conta própria: escreva só o que você orienta.">
+          {(['menstrual', 'folicular', 'ovulatoria', 'lutea'] as const).map((fase) => (
+            <Campo key={fase} rotulo={{ menstrual: 'Menstrual', folicular: 'Folicular', ovulatoria: 'Ovulatória', lutea: 'Lútea' }[fase]}
+              valor={fases[fase]} aoMudar={(valor) => setFases((atual) => ({ ...atual, [fase]: valor }))} maxLength={1000} linhas={3} />
+          ))}
+        </Cartao>
       </Cartao>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {alterado ? (
