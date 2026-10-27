@@ -64,6 +64,8 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     const descanso = d.concluida
       ? descansoAoMarcar({ sessao, exercicioUid: e.uid, serieUid, concluida: (uid) => !!registroDe(uid)?.concluida, metodologia: config.metodologia })
       : null;
+    // O descanso final só começa se, ao fim da gravação, nenhuma pausa ou descanso mais novo tiver sido iniciado.
+    const reserva = descanso ? aluno.reservarDescanso() : undefined;
     void aluno.registrar({
       planoVersaoId: treino.versaoId,
       sessaoUid: sessao.uid,
@@ -79,8 +81,11 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
       etapas: d.etapas ?? null,
       referenciaCarga: d.referenciaCarga ?? null,
       referenciaOrigem: d.referenciaOrigem ?? null,
-    }).then(() => { if (descanso) aluno.iniciarDescanso(descanso); }).catch(erro => avisar(textoDoErro(erro), 'perigo'));
+    }).then(() => { if (descanso) aluno.iniciarDescanso(descanso, undefined, { reserva }); }).catch(erro => avisar(textoDoErro(erro), 'perigo'));
   };
+
+  /** Versão do plano, série e data: com a posição da etapa, a identidade da pausa entre etapas (`origemDaPausa`). */
+  const chaveDaExecucao = (serieUid: string) => `${treino?.versaoId ?? ''}|${serieUid}|${data}`;
 
   return {
     carregado: !!aluno.pacote,
@@ -95,6 +100,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     treinouEm,
     ultimaCarga,
     registrar,
+    chaveDaExecucao,
     salvarCargaDoDia: (e: ExercicioPlano, carga: number | null) => void aluno.salvarCargaDeTrabalho(e.uid, data, carga),
   };
 }

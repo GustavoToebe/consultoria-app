@@ -2,10 +2,43 @@
  * Instante de término, nunca um contador que perde segundos em segundo plano. `rotulo` diferencia a pausa entre etapas
  * ("Pausa entre blocos") do descanso depois da série; sem ele, "Descanso".
  */
-export interface Descanso { terminaEm: number; duracaoMs: number; rotulo?: string }
-export function iniciarDescanso(segundos: number, agora: number, rotulo?: string): Descanso {
+export interface Descanso { terminaEm: number; duracaoMs: number; rotulo?: string; origem?: string }
+/**
+ * `origem` diz de onde a pausa nasceu (a etapa marcada, ver `origemDaPausa`); sem ela o cronômetro é do aluno ou do
+ * descanso da série e só "Pular" o encerra.
+ */
+export function iniciarDescanso(segundos: number, agora: number, rotulo?: string, origem?: string): Descanso {
  const duracaoMs = Math.max(0, segundos * 1000);
- return rotulo ? { terminaEm: agora + duracaoMs, duracaoMs, rotulo } : { terminaEm: agora + duracaoMs, duracaoMs };
+ return { terminaEm: agora + duracaoMs, duracaoMs, ...(rotulo ? { rotulo } : {}), ...(origem ? { origem } : {}) };
+}
+/**
+ * Ordem dos pedidos de cronômetro. Quem só começa depois de uma gravação (o descanso da série) reserva a vez antes; se
+ * outro cronômetro começou nesse meio-tempo (uma pausa de etapa mais nova), a reserva perdeu e o início é descartado.
+ * Cancelar e "Pular" não contam: só começar um cronômetro invalida as reservas abertas.
+ */
+export function criarPedidosDeDescanso() {
+ let ultimo = 0;
+ return {
+  reservar: (): number => ++ultimo,
+  /** `true` se o início vale; sem reserva sempre vale (e invalida as reservas abertas). */
+  admitir: (reserva?: number): boolean => {
+   if (reserva !== undefined) return reserva === ultimo;
+   ultimo += 1;
+   return true;
+  },
+ };
+}
+/**
+ * O cronômetro que passa a valer ao iniciar `novo`. Início automático (marcar a etapa) de uma origem que já está ativa
+ * mantém o atual: um segundo toque, antes de o registro recarregar, não reinicia a pausa. Pedido explícito (o botão
+ * "Pausa") e origem diferente sempre substituem.
+ */
+export function descansoAoIniciar(atual: Descanso | null, novo: Descanso, automatica: boolean): Descanso {
+ return automatica && novo.origem !== undefined && atual?.origem === novo.origem ? atual : novo;
+}
+/** Encerra o cronômetro só se ele nasceu desta origem; o de outra origem, o manual e o descanso da série ficam. */
+export function semDescansoDe(atual: Descanso | null, origem: string): Descanso | null {
+ return atual && atual.origem === origem ? null : atual;
 }
 export function restante(descanso: Descanso, agora: number): number { return Math.max(0, descanso.terminaEm - agora); }
 export function terminado(descanso: Descanso, agora: number): boolean { return restante(descanso, agora) === 0; }

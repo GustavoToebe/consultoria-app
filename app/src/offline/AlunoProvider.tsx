@@ -1,4 +1,4 @@
-import { iniciarDescanso as novoDescanso, ajustarDescanso as ajustar, terminado, type Descanso } from '../dominio/descanso';
+import { iniciarDescanso as novoDescanso, ajustarDescanso as ajustar, criarPedidosDeDescanso, descansoAoIniciar, semDescansoDe, terminado, type Descanso } from '../dominio/descanso';
 import { vibrar } from '../ui/vibrar';
 import { iniciarLembretesAtualizacao, reagendarLembretesAtualizacao } from '../aluno/atualizacao/lembretes';
 import NetInfo from '@react-native-community/netinfo';
@@ -40,8 +40,16 @@ interface ValorAluno {
   atualizacao: Atualizacao | null;
   atualizarAtualizacao: (atualizacao: Atualizacao) => Promise<void>;
   descanso: Descanso | null;
-  /** `rotulo` diferencia a pausa entre etapas do descanso depois da série (barra do cronômetro). */
-  iniciarDescanso: (segundos: number, rotulo?: string) => void;
+  /**
+   * `rotulo` diferencia a pausa entre etapas do descanso depois da série (barra do cronômetro). `origem` liga o cronômetro
+   * à etapa que o iniciou (`cancelarDescansoDe`); `reserva` (de `reservarDescanso`) só deixa o início valer se nenhum outro
+   * cronômetro foi iniciado desde a reserva, para uma gravação antiga não pisar numa pausa mais nova. `automatica` (a
+   * marcação da etapa) não reinicia a pausa da mesma origem que já está ativa; o botão "Pausa" não a usa e reinicia.
+   */
+  iniciarDescanso: (segundos: number, rotulo?: string, opcoes?: { origem?: string; reserva?: number; automatica?: boolean }) => void;
+  reservarDescanso: () => number;
+  /** Encerra o cronômetro só se ele nasceu desta origem; qualquer outro (manual, de outra etapa, da série) segue. */
+  cancelarDescansoDe: (origem: string) => void;
   ajustarDescanso: (segundos: number) => void;
   pularDescanso: () => void;
   repositorio: RepositorioLocal;
@@ -121,7 +129,15 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
 
   const [descanso, definirDescanso] = useState<Descanso | null>(null);
   const notificado = useRef<number | null>(null);
-  const iniciarDescanso = useCallback((segundos: number, rotulo?: string) => definirDescanso(novoDescanso(segundos, Date.now(), rotulo)), []);
+  // Estado mutável que precisa durar: `useState` com inicializador preguiçoso (o `useMemo` pode ser descartado).
+  const [pedidosDeDescanso] = useState(criarPedidosDeDescanso);
+  const reservarDescanso = pedidosDeDescanso.reservar;
+  const iniciarDescanso = useCallback((segundos: number, rotulo?: string, opcoes?: { origem?: string; reserva?: number; automatica?: boolean }) => {
+    if (!pedidosDeDescanso.admitir(opcoes?.reserva)) return;
+    const novo = novoDescanso(segundos, Date.now(), rotulo, opcoes?.origem);
+    definirDescanso(atual => descansoAoIniciar(atual, novo, !!opcoes?.automatica));
+  }, [pedidosDeDescanso]);
+  const cancelarDescansoDe = useCallback((origem: string) => definirDescanso(atual => semDescansoDe(atual, origem)), []);
   const ajustarDescanso = useCallback((segundos: number) => definirDescanso(atual => atual ? ajustar(atual, segundos, Date.now()) : null), []);
   const pularDescanso = useCallback(() => definirDescanso(null), []);
   useEffect(() => {
@@ -400,7 +416,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     const indice = new Map(todos.map((r) => [`${r.planoVersaoId}|${r.serieUid}|${r.data}`, r]));
     return {
       atualizacao,atualizarAtualizacao,
-      descanso, iniciarDescanso, ajustarDescanso, pularDescanso,
+      descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso,
       repositorio,
       escolhida,
       escolherPasta,
@@ -428,7 +444,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

@@ -34,7 +34,7 @@ export default function ExercicioDaSessao() {
   const { uid, exercicio: exercicioUid, data: dataDaRota } = useLocalSearchParams<{ uid: string; exercicio: string; data?: string }>();
   const dia = useSessaoDoDia(uid, dataDaRota);
   useTelaAcesa();
-  const { iniciarDescanso, demonstracoes } = useAluno();
+  const { iniciarDescanso, cancelarDescansoDe, demonstracoes } = useAluno();
   const { sessao, data } = dia;
   const voltar = caminhoDaSessao(uid ?? '', data);
 
@@ -110,6 +110,8 @@ export default function ExercicioDaSessao() {
         aoMudarCargaDoDia={(c) => dia.salvarCargaDoDia(e, c)}
         aoRegistrar={(serieUid, d) => dia.registrar(e, serieUid, d)}
         aoIniciarPausa={iniciarDescanso}
+        aoCancelarPausa={cancelarDescansoDe}
+        chaveDaExecucao={dia.chaveDaExecucao}
         descansoNaSerie={!noGrupo || noGrupo.descansoPorSerie}
         demonstracao={e.exercicioId ? demonstracoes.find((d) => d.exercicioId === e.exercicioId) ?? null : null}
       />

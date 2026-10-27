@@ -7,7 +7,7 @@ import { textoPausa } from '../dominio/agrupamento';
 import { modoComReferenciaExterna, sugestaoSobreReferencia, type SerieCalculada } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
 import {
-  aplicarAcao, etapasDaSerie, ligaPausaInterna, proximaPendente, resumoDaExecucao, sugestaoDaEtapa, textoDaCargaDaEtapa, textoDaReferenciaCongelada,
+  aplicarAcao, etapasDaSerie, origemDaPausa, pausaDaAcao, proximaPendente, resumoDaExecucao, sugestaoDaEtapa, textoDaCargaDaEtapa, textoDaReferenciaCongelada,
   todasComSituacao, type AcaoNaEtapa, type EtapaPrevista,
 } from '../dominio/etapas';
 import { numeroParaTela } from '../dominio/formatos';
@@ -25,12 +25,6 @@ import type { DadosSerie } from './ExercicioAluno';
 import { SeloComExplicacao } from './SeloComExplicacao';
 import { selosDaSerie } from './serieDoAluno';
 
-/**
- * Pausas entre etapas já ligadas nesta sessão do app (série + dia + posição). Desfazer e marcar de novo a mesma etapa
- * não liga o cronômetro outra vez; ao reabrir o app a lista começa vazia, e o domínio só liga na primeira marcação.
- */
-const pausasLigadas = new Set<string>();
-
 interface Props {
   calculada: SerieCalculada;
   numero: number;
@@ -42,15 +36,20 @@ interface Props {
   /** O descanso da série vale (falso no grupo cujo descanso é depois da volta). */
   descansoNaSerie: boolean;
   registro: RegistroLocal | undefined;
+  /** Versão do plano, série e data (`versaoId|serieUid|data`): com a posição da etapa, a identidade da pausa dela. */
+  execucao: string;
   aoRegistrar: (d: DadosSerie) => void;
-  aoIniciarPausa?: (segundos: number, rotulo?: string) => void;
+  aoIniciarPausa?: (segundos: number, rotulo?: string, opcoes?: { origem?: string; automatica?: boolean }) => void;
+  /** Encerra o cronômetro que nasceu da etapa desfeita; o de outra origem segue. */
+  aoCancelarPausa?: (origem: string) => void;
 }
 
 /**
  * Série com etapas (Cluster, Rest-pause): continua uma série só, com as etapas dentro dela (docs/series-etapas.md). Cada
  * etapa tem a meta, as repetições feitas, a carga e o ✓; "Não fiz" marca a etapa como não realizada. Toda mudança grava
  * no aparelho na hora (execução parcial salva), com o total e a carga calculados como no servidor; o descanso da série só
- * começa em "Concluir série", e a pausa entre etapas na primeira vez que uma etapa intermediária é marcada.
+ * começa em "Concluir série"; a pausa entre etapas começa a cada marcação de uma etapa que não é a última e acaba ao desfazer
+ * essa etapa (só a pausa dela). Editar, recarregar ou sincronizar não a reinicia.
  */
 export function CartaoSerieComEtapas(p: Props) {
   const { cores } = useTema();
@@ -83,8 +82,7 @@ export function CartaoSerieComEtapas(p: Props) {
   const agir = (acao: AcaoNaEtapa) => {
     const gravacao = aplicarAcao(registro, acao, quantas, p.calculada.referencia);
     if (!gravacao) return;
-    const chave = acao.tipo === 'FEITA' ? `${s.uid}|${p.data}|${acao.posicao}` : '';
-    const ligar = ligaPausaInterna(registro, acao, quantas) && !pausasLigadas.has(chave);
+    const pausaDeAgora = pausaDaAcao(registro, acao, quantas);
     p.aoRegistrar({
       carga: gravacao.carga,
       repeticoes: gravacao.repeticoes,
@@ -93,9 +91,11 @@ export function CartaoSerieComEtapas(p: Props) {
       referenciaCarga: gravacao.referenciaCarga,
       referenciaOrigem: gravacao.referenciaOrigem,
     });
-    if (ligar) {
-      pausasLigadas.add(chave);
-      if (pausa !== null && p.aoIniciarPausa) p.aoIniciarPausa(pausa, rotuloDaPausa);
+    if (!pausaDeAgora) return;
+    if ('iniciar' in pausaDeAgora) {
+      if (pausa !== null) p.aoIniciarPausa?.(pausa, rotuloDaPausa, { origem: origemDaPausa(p.execucao, pausaDeAgora.iniciar), automatica: true });
+    } else {
+      p.aoCancelarPausa?.(origemDaPausa(p.execucao, pausaDeAgora.cancelar));
     }
   };
 
@@ -116,7 +116,7 @@ export function CartaoSerieComEtapas(p: Props) {
           atual={atual === prevista.posicao && !feita} sugestao={sugestaoDe(prevista)} semCarga={p.semCarga} agir={agir}
           cargaPrevista={p.semCarga ? null : textoDaCargaDaEtapa(prevista.carga, ws)}
           pausaDepois={i < quantas - 1 && temPausa ? `${rotuloDaPausa}: ${textoPausa(s.tecnica!)}` : null}
-          aoIniciarPausa={pausa !== null && p.aoIniciarPausa ? () => p.aoIniciarPausa!(pausa, rotuloDaPausa) : undefined} />
+          aoIniciarPausa={pausa !== null && p.aoIniciarPausa ? () => p.aoIniciarPausa!(pausa, rotuloDaPausa, { origem: origemDaPausa(p.execucao, prevista.posicao) }) : undefined} />
       ))}
 
       <Texto numerico variante="pequeno" cor={cores.texto}>{resumoDaExecucao(etapas, quantas, cluster ? 'blocos' : 'etapas')}</Texto>

@@ -1,7 +1,8 @@
 import type { EtapaRegistrada } from '../api/tipos';
 import { serie, tecnica } from './exemplosDeTreino.apoioTeste';
+import { descansoAoIniciar, iniciarDescanso, semDescansoDe, type Descanso } from './descanso';
 import {
-  aplicarAcao, cargaComum, comEtapa, etapasDaSerie, ligaPausaInterna, proximaPendente, quantidadeDeEtapas, resumoDaExecucao,
+  aplicarAcao, cargaComum, comEtapa, etapasDaSerie, ligaPausaInterna, origemDaPausa, pausaDaAcao, proximaPendente, quantidadeDeEtapas, resumoDaExecucao,
   semEtapa, somarVolumes, todasComSituacao, totalDasEtapas, volumeDaSerie,
 } from './etapas';
 
@@ -100,13 +101,69 @@ describe('ações do aluno (T10, T14, T18)', () => {
     expect(r).toMatchObject({ etapas: [], referenciaCarga: null, referenciaOrigem: null });
   });
 
-  it('a pausa interna liga só na primeira marcação de uma etapa que não é a última', () => {
+  it('a pausa interna liga ao marcar uma etapa que não é a última e ainda não está feita', () => {
     const acao = { tipo: 'FEITA' as const, posicao: 1, repeticoes: 4, carga: 40 };
     expect(ligaPausaInterna(null, acao, 4)).toBe(true);
     expect(ligaPausaInterna({ etapas: [feita(1, 4)] }, acao, 4)).toBe(false);
     expect(ligaPausaInterna(null, { ...acao, posicao: 4 }, 4)).toBe(false);
     expect(ligaPausaInterna(null, { tipo: 'EDITAR', posicao: 1, repeticoes: 3 }, 4)).toBe(false);
     expect(ligaPausaInterna(null, { tipo: 'CONCLUIR' }, 4)).toBe(false);
+  });
+
+  it('marcar → desfazer → marcar de novo: inicia, cancela e inicia outra vez', () => {
+    const marcar = { tipo: 'FEITA' as const, posicao: 1, repeticoes: 4, carga: 40 };
+    const desfazer = { tipo: 'DESFAZER' as const, posicao: 1 };
+    expect(pausaDaAcao(null, marcar, 4)).toEqual({ iniciar: 1 });
+    const marcada = { etapas: [feita(1, 4)] };
+    expect(pausaDaAcao(marcada, desfazer, 4)).toEqual({ cancelar: 1 });
+    const aposDesfazer = { etapas: aplicarAcao(marcada, desfazer, 4, null)!.etapas };
+    expect(pausaDaAcao(aposDesfazer, marcar, 4)).toEqual({ iniciar: 1 });
+  });
+
+  it('Cluster de 3 blocos: desfazer o bloco 1 não cancela a pausa do bloco 2, que substituiu a dele', () => {
+    const execucao = 'v1|c3|2026-10-19';
+    const cronometro = { atual: null as Descanso | null };
+    const aplicar = (registro: { etapas: EtapaRegistrada[] }, acao: Parameters<typeof aplicarAcao>[1]) => {
+      const pausa = pausaDaAcao(registro, acao, 3);
+      if (pausa && 'iniciar' in pausa) {
+        cronometro.atual = descansoAoIniciar(cronometro.atual, iniciarDescanso(15, 0, 'Pausa entre blocos', origemDaPausa(execucao, pausa.iniciar)), true);
+      } else if (pausa) {
+        cronometro.atual = semDescansoDe(cronometro.atual, origemDaPausa(execucao, pausa.cancelar));
+      }
+      return { etapas: [...aplicarAcao(registro, acao, 3, null)!.etapas] };
+    };
+    let registro: { etapas: EtapaRegistrada[] } = { etapas: [] };
+    registro = aplicar(registro, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 });
+    expect(cronometro.atual?.origem).toBe(origemDaPausa(execucao, 1));
+    registro = aplicar(registro, { tipo: 'FEITA', posicao: 2, repeticoes: 4, carga: 40 });
+    expect(cronometro.atual?.origem).toBe(origemDaPausa(execucao, 2)); // a pausa 2 tomou o lugar da 1
+    registro = aplicar(registro, { tipo: 'DESFAZER', posicao: 1 });
+    expect(cronometro.atual?.origem).toBe(origemDaPausa(execucao, 2)); // desfazer o bloco 1 não toca na pausa 2
+    registro = aplicar(registro, { tipo: 'DESFAZER', posicao: 2 });
+    expect(cronometro.atual).toBeNull();
+    registro = aplicar(registro, { tipo: 'FEITA', posicao: 3, repeticoes: 4, carga: 40 }); // o último bloco não tem pausa
+    expect(cronometro.atual).toBeNull();
+    aplicar(registro, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 }); // marcar de novo o bloco 1: pausa nova
+    expect(cronometro.atual?.origem).toBe(origemDaPausa(execucao, 1));
+  });
+
+  it('a pausa só responde a marcar e desfazer, e a última etapa não inicia pausa', () => {
+    const marcada = { etapas: [feita(1, 4)] };
+    expect(pausaDaAcao(null, { tipo: 'FEITA', posicao: 4, repeticoes: 4, carga: 40 }, 4)).toBeNull();
+    expect(pausaDaAcao(marcada, { tipo: 'FEITA', posicao: 1, repeticoes: 4, carga: 40 }, 4)).toBeNull();
+    expect(pausaDaAcao(marcada, { tipo: 'EDITAR', posicao: 1, repeticoes: 3 }, 4)).toBeNull();
+    expect(pausaDaAcao(marcada, { tipo: 'NAO_REALIZADA', posicao: 2 }, 4)).toBeNull();
+    expect(pausaDaAcao(marcada, { tipo: 'CONCLUIR' }, 4)).toBeNull();
+    expect(pausaDaAcao(marcada, { tipo: 'REABRIR' }, 4)).toBeNull();
+  });
+
+  it('a origem da pausa distingue versão, série, data e posição', () => {
+    const base = origemDaPausa('v1|s1|2026-10-19', 1);
+    expect(origemDaPausa('v1|s1|2026-10-19', 1)).toBe(base);
+    expect(origemDaPausa('v2|s1|2026-10-19', 1)).not.toBe(base);
+    expect(origemDaPausa('v1|s2|2026-10-19', 1)).not.toBe(base);
+    expect(origemDaPausa('v1|s1|2026-10-20', 1)).not.toBe(base);
+    expect(origemDaPausa('v1|s1|2026-10-19', 2)).not.toBe(base);
   });
 
   it('lista por posição, sem duplicar', () => {

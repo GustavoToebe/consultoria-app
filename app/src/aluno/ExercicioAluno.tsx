@@ -53,8 +53,12 @@ interface Props {
   aoRegistrar: (serieUid: string, dados: DadosSerie) => void;
   /** Botão de descanso (ícone) na linha do "Como fazer", ao lado do vídeo. */
   acaoDescanso?: ReactNode;
-  /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. `rotulo` vai na barra. */
-  aoIniciarPausa?: (segundos: number, rotulo?: string) => void;
+  /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. `rotulo` vai na barra; `origem` liga o cronômetro à etapa. */
+  aoIniciarPausa?: (segundos: number, rotulo?: string, opcoes?: { origem?: string; automatica?: boolean }) => void;
+  /** Encerra a pausa que nasceu da etapa desfeita (só a dela). */
+  aoCancelarPausa?: (origem: string) => void;
+  /** Versão do plano, série e data da série (identidade da execução da pausa entre etapas). */
+  chaveDaExecucao: (serieUid: string) => string;
   /** Imagem ou GIF do exercício (própria ou do catálogo); nulo = nada para mostrar. */
   demonstracao?: DemonstracaoDoAluno | null;
   /**
@@ -188,8 +192,10 @@ export function ExercicioAluno(p: Props) {
             arredondamentoKg={p.config.arredondamentoKg}
             descansoNaSerie={p.descansoNaSerie ?? true}
             registro={p.registroDe(c.serie.uid)}
+            execucao={p.chaveDaExecucao(c.serie.uid)}
             aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
             aoIniciarPausa={p.aoIniciarPausa}
+            aoCancelarPausa={p.aoCancelarPausa}
           />
         ) : (
           <CartaoSerie

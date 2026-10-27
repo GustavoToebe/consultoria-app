@@ -36,8 +36,46 @@ for (const largura of [390, 1280]) test(`aluno: carga de trabalho editável, exp
   await expect(page.getByRole('textbox', { name: 'Peso, etapa inicial da série 2, em quilos', exact: true })).toHaveValue('40');
   await page.getByRole('textbox', { name: 'Peso, etapa inicial da série 2, em quilos', exact: true }).fill('42');
   await page.getByRole('textbox', { name: 'Repetições feitas, etapa inicial da série 2', exact: true }).fill('8');
-  await page.getByRole('checkbox', { name: 'Etapa inicial feita, série 2', exact: true }).click();
+  const etapaInicial = page.getByRole('checkbox', { name: 'Etapa inicial feita, série 2', exact: true });
+  const retomada = page.getByRole('checkbox', { name: 'Retomada feita, série 2', exact: true });
+  const pular = page.getByRole('button', { name: 'Pular o descanso', exact: true });
+  const faltam = (segundos: number) => page.getByLabel(`${segundos} segundos restantes`, { exact: true });
+  const passaram = (segundos: number) => page.clock.setFixedTime(new Date(`2026-10-19T12:00:${String(segundos).padStart(2, '0')}-03:00`));
+  await etapaInicial.click();
   await expect(page.getByText('Pausa antes da retomada', { exact: false }).first()).toBeVisible();
+  await expect(faltam(20)).toBeVisible();
+  await expect(page.getByText('Execução parcial: 8 reps em 1 de 2 etapas')).toBeVisible();
+
+  // Passam 5 s: editar as repetições, gravar e sincronizar não reiniciam a pausa (continua em 15 s).
+  await passaram(5);
+  await expect(faltam(15)).toBeVisible();
+  await page.getByRole('textbox', { name: 'Repetições feitas, etapa inicial da série 2', exact: true }).fill('9');
+  await expect.poll(() => ultimo('rest')?.etapas?.[0]?.repeticoes).toBe(9);
+  await expect(faltam(15)).toBeVisible();
+  await page.getByRole('textbox', { name: 'Repetições feitas, etapa inicial da série 2', exact: true }).fill('8');
+  await expect.poll(() => ultimo('rest')?.etapas?.[0]?.repeticoes).toBe(8);
+  await expect(faltam(15)).toBeVisible();
+
+  // Marcar e desfazer a retomada (a última etapa, sem pausa própria) não inicia nem cancela a pausa da etapa inicial.
+  await retomada.click();
+  await expect(retomada).toBeChecked();
+  await expect(faltam(15)).toBeVisible();
+  await retomada.click();
+  await expect(retomada).not.toBeChecked();
+  await expect(faltam(15)).toBeVisible();
+
+  // Desfazer a etapa que originou a pausa a cancela; marcar de novo inicia uma pausa nova (20 s a partir de agora).
+  await etapaInicial.click();
+  await expect(etapaInicial).not.toBeChecked();
+  await expect(pular).toHaveCount(0);
+  await etapaInicial.click();
+  await expect(etapaInicial).toBeChecked();
+  await expect(faltam(20)).toBeVisible();
+
+  // "Pular" encerra só o cronômetro: a etapa continua marcada.
+  await pular.click();
+  await expect(pular).toHaveCount(0);
+  await expect(etapaInicial).toBeChecked();
   await expect(page.getByText('Execução parcial: 8 reps em 1 de 2 etapas')).toBeVisible();
   await expect.poll(() => ultimo('rest')?.etapas?.length).toBe(1);
   expect(ultimo('rest')).toMatchObject({ concluida: false, repeticoes: null, carga: 42, referenciaCarga: 40, referenciaOrigem: 'BASE_DO_DIA' });

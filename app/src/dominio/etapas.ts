@@ -278,13 +278,32 @@ export function aplicarAcao(
 }
 
 /**
- * A ação liga a pausa entre etapas? Só ao marcar como feita, pela primeira vez, uma etapa que não é a última (depois da
- * última vale o descanso da série, ao concluir). Editar não religa; marcar de novo depois de desfazer, a tela barra (ela
- * lembra as pausas já ligadas na sessão).
+ * A ação liga a pausa entre etapas? Só ao marcar como feita uma etapa que não é a última e que ainda não está feita no
+ * registro (depois da última vale o descanso da série, ao concluir). Editar ou repetir o registro já feito não liga;
+ * desfazer e marcar de novo liga outra vez, porque o registro volta a não ter a etapa.
  */
 export function ligaPausaInterna(atual: RegistroAtual | null | undefined, acao: AcaoNaEtapa, quantas: number): boolean {
   if (acao.tipo !== 'FEITA' || acao.posicao >= quantas) return false;
   return !(atual?.etapas ?? []).some((e) => e.posicao === acao.posicao && e.situacao === 'FEITA');
+}
+
+/**
+ * Identifica a pausa nascida de uma etapa: `execucao` = versão do plano, série e data (`versaoId|serieUid|data`), então
+ * outra versão, série, dia ou posição nunca cancela esta pausa.
+ */
+export function origemDaPausa(execucao: string, posicao: number): string {
+  return `etapa:${execucao}|${posicao}`;
+}
+
+/**
+ * O que a ação do aluno faz com o cronômetro: marcar (de novo, depois de desfazer) uma etapa que não é a última inicia a
+ * pausa; desfazer cancela a pausa dessa etapa; o resto (editar, "não fiz", concluir, reabrir, repetir o mesmo registro)
+ * não mexe nele. Desfazer nunca inicia pausa.
+ */
+export type PausaDaAcao = { iniciar: number } | { cancelar: number } | null;
+export function pausaDaAcao(atual: RegistroAtual | null | undefined, acao: AcaoNaEtapa, quantas: number): PausaDaAcao {
+  if (acao.tipo === 'DESFAZER') return { cancelar: acao.posicao };
+  return ligaPausaInterna(atual, acao, quantas) && acao.tipo === 'FEITA' ? { iniciar: acao.posicao } : null;
 }
 
 /** "Referência: WS registrada antes, 42 kg" ou "Referência: base do dia, 40 kg"; `null` sem referência congelada. */
