@@ -57,6 +57,7 @@ O aluno vê o plano e registra carga e repetições no celular ou na web, inclus
 ## Manter este arquivo atualizado
 Arquivo de instruções compartilhado entre ferramentas de IA; o `CLAUDE.md` só importa este (`@AGENTS.md`).
 Edite **só aqui**. Mudança que invalida algo daqui atualiza este arquivo junto com a funcionalidade. Manter curto.
+Frentes e pendências: `docs/planos/` (o README é o índice e guarda as pendências soltas). Toda frente nova ganha arquivo lá, copiado do MODELO, antes do primeiro commit de código; a cada entrega, marque o passo com o commit e mova o que sobrou para Pendências soltas.
 
 Trabalhar direto na `main` (decisão do Gustavo); não criar branch nova sem ele pedir.
 **Minutos do GitHub Actions são contados (plano Pro, 3.000 por mês; em 19/10 chegaram a 90%):** rode os testes locais antes de
