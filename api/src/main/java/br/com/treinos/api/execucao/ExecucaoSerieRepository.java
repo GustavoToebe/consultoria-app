@@ -20,7 +20,8 @@ public interface ExecucaoSerieRepository extends JpaRepository<ExecucaoSerie, UU
             + "from ExecucaoSerie e where e.alunoId in :alunoIds group by e.alunoId")
     List<UltimoRegistro> ultimoRegistro(Collection<UUID> alunoIds);
 
-    List<ExecucaoSerie> findByAlunoIdAndExercicioIdAndSerieTrabalhoTrueAndCargaNotNullOrderByDataAsc(
+    /** Progresso: séries que contam como trabalho (papel na metodologia da versão), com carga comum registrada. */
+    List<ExecucaoSerie> findByAlunoIdAndExercicioIdAndContaNoProgressoTrueAndCargaNotNullOrderByDataAsc(
             UUID alunoId, UUID exercicioId);
 
     List<ExecucaoSerie> findByAlunoIdAndExercicioIdInAndSerieTrabalhoTrueAndCargaNotNullOrderByDataDesc(

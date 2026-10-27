@@ -12,7 +12,7 @@ const dia = (data: string, serieUid: string, concluida = true): DiaDeTreino => (
 const local: RegistroLocal = {
   id: 'loc', planoVersaoId: 'v1', sessaoUid: 'seg', exercicioUid: 'e1', serieUid: 's1', exercicioId: 'x1', trabalho: true,
   data: '2026-10-19', carga: 42, repeticoes: 6, concluida: false, observacao: null, alteradoEm: '2026-10-19T10:00:00.000Z',
-  situacao: 'LOCAL', motivo: null,
+  situacao: 'LOCAL', motivo: null, etapas: null, referenciaCarga: null, referenciaOrigem: null,
 };
 
 describe('execuções do servidor', () => {

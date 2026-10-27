@@ -76,6 +76,9 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
       repeticoes: d.repeticoes,
       concluida: d.concluida,
       observacao: null,
+      etapas: d.etapas ?? null,
+      referenciaCarga: d.referenciaCarga ?? null,
+      referenciaOrigem: d.referenciaOrigem ?? null,
     }).then(() => { if (descanso) aluno.iniciarDescanso(descanso); }).catch(erro => avisar(textoDoErro(erro), 'perigo'));
   };
 

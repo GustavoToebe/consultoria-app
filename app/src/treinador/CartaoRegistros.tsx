@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { execucoesDoAluno } from '../api/rotas';
 import type { DiaDeTreino, PastaResumo } from '../api/tipos';
 import { dataParaTela, hojeIso } from '../dominio/formatos';
-import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, textoSerie } from '../dominio/relatorio';
+import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, textoDoVolume, textoSerie, volumeDoExercicio } from '../dominio/relatorio';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
 import { Abas } from '../ui/Abas';
@@ -102,12 +102,16 @@ export function DiaRegistros({ dia }: { dia: DiaDeTreino }) {
       {!aberto ? null : dia.sessoes.map((s) => (
         <View key={`${s.planoVersaoId}:${s.sessaoUid}`} style={[estilos.sessao, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
           <Texto numerico variante="secao">{s.sessao}</Texto>
-          {s.exercicios.map((e) => (
-            <View key={e.exercicioUid} style={estilos.exercicio}>
-              <Texto numerico style={estilos.nomeExercicio}>{e.nome}</Texto>
-              <Texto numerico variante="suave">{e.series.map(textoSerie).join(' · ')}</Texto>
-            </View>
-          ))}
+          {s.exercicios.map((e) => {
+            const volume = textoDoVolume(volumeDoExercicio(e.series));
+            return (
+              <View key={e.exercicioUid} style={estilos.exercicio}>
+                <Texto numerico style={estilos.nomeExercicio}>{e.nome}</Texto>
+                <Texto numerico variante="suave">{e.series.map(textoSerie).join(' · ')}</Texto>
+                {volume ? <Texto numerico variante="suave" style={estilos.volume}>{volume}</Texto> : null}
+              </View>
+            );
+          })}
         </View>
       ))}
     </Cartao>
@@ -121,6 +125,7 @@ const estilos = StyleSheet.create({
   sessao: { gap: espaco(0.75), borderWidth: 1, borderRadius: 8, padding: espaco(1.5) },
   exercicio: { gap: 2 },
   nomeExercicio: { fontFamily: fontes.semi, fontSize: 14 },
+  volume: { fontSize: 13 },
   col: { flex: 1 },
   progresso: { gap: espaco(0.75) },
 });

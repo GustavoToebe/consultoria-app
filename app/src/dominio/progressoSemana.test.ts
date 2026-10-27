@@ -7,7 +7,7 @@ jest.mock('./uid',()=>({novoUid:()=>String(++mockUid)}));
 const segunda={...novaSessao(1),uid:'seg',exercicios:[{...novoExercicio(),series:[{...novaSerie(null),uid:'s'}]}]};
 const sexta={...novaSessao(5),uid:'sex',exercicios:segunda.exercicios};
 const plano:TreinoAtual={planoId:'p',versaoId:'v',numero:1,titulo:'Teste',inicio:null,fim:null,publicadoEm:'',conteudo:{...normalizarTreino(null),sessoes:[segunda,sexta,{...novaSessao(2),tipo:'DESCANSO'},{...novaSessao(3),tipo:'ACESSORIOS'}]}};
-const registro:RegistroLocal={id:'r',planoVersaoId:'v',sessaoUid:'seg',exercicioUid:'e',serieUid:'s',exercicioId:null,trabalho:true,data:'2026-10-05',carga:null,repeticoes:null,concluida:true,observacao:null,alteradoEm:'',situacao:'LOCAL',motivo:null};
+const registro:RegistroLocal={id:'r',planoVersaoId:'v',sessaoUid:'seg',exercicioUid:'e',serieUid:'s',exercicioId:null,trabalho:true,data:'2026-10-05',carga:null,repeticoes:null,concluida:true,observacao:null,etapas:null,referenciaCarga:null,referenciaOrigem:null,alteradoEm:'',situacao:'LOCAL',motivo:null};
 it('segunda a domingo: conta só treinos e a série da data correta',()=>{
  expect(periodoDaSemana('2026-10-11')).toEqual({inicio:'2026-10-05',fim:'2026-10-11'});
  expect(progressoSemana(plano,'2026-10-08',[registro,{...registro,id:'2',data:'2026-09-28'},{...registro,id:'3',planoVersaoId:'antiga'}])).toEqual({feitas:1,total:2});

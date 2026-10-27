@@ -233,6 +233,25 @@ public record ConteudoTreino(
             return tipo == null || tipo.isBlank();
         }
 
+        /**
+         * Quantas etapas o aluno registra dentro desta série (docs/series-etapas.md): os blocos do Cluster ou a etapa
+         * inicial mais as retomadas do Rest-pause ({@code pausas} vazio = 1). {@code null} = a série se registra inteira.
+         * Cluster sem blocos válidos (não passa na publicação) também fica {@code null}.
+         */
+        public Integer etapas() {
+            if (tecnica == null || tecnica.tipo() == null) {
+                return null;
+            }
+            if (CLUSTER.equals(tecnica.tipo())) {
+                Integer soma = tecnica.somaDosBlocos();
+                return soma == null || tecnica.problemas().containsKey("blocos") ? null : tecnica.blocos().size();
+            }
+            if (REST_PAUSE.equals(tecnica.tipo())) {
+                return (tecnica.pausas() == null || tecnica.pausas() < 1 ? 1 : tecnica.pausas()) + 1;
+            }
+            return null;
+        }
+
         public boolean amrapExplicito() {
             return Boolean.TRUE.equals(amrap);
         }

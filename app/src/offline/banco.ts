@@ -27,8 +27,12 @@ export interface FabricaBanco {
 /** Um banco por usuário: trocar de conta não mistura dados, e sair apaga o arquivo inteiro. */
 export const nomeDoBanco = (usuarioId: string) => `treinos-${usuarioId}.db`;
 
-/** 2: tabela `registro_mobilidade` (item de mobilidade marcado, na mesma fila de envio das séries). */
-export const VERSAO_ESQUEMA = 2;
+/**
+ * 2: tabela `registro_mobilidade` (item de mobilidade marcado, na mesma fila de envio das séries).
+ * 3: colunas `etapas`, `referencia_carga` e `referencia_origem` em `registro` (registro por etapa do Cluster e do
+ *    Rest-pause, docs/series-etapas.md).
+ */
+export const VERSAO_ESQUEMA = 3;
 
 /**
  * Esquema local. `kv` guarda documentos que só são lidos inteiros (pacote do plano, dieta);
@@ -58,6 +62,9 @@ const ESQUEMA = `
     alterado_em text not null,
     situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')),
     motivo text,
+    etapas text,
+    referencia_carga real,
+    referencia_origem text,
     unique (plano_versao_id, serie_uid, data)
   );
   create index if not exists ix_registro_situacao on registro (situacao, alterado_em);
@@ -82,12 +89,26 @@ const ESQUEMA = `
   );
 `;
 
-/** Cria o esquema na primeira abertura (marcado no `user_version` do SQLite). */
+/** Colunas que entraram depois da criação da tabela: banco antigo as ganha por `alter table`, sem perder linhas. */
+const COLUNAS_NOVAS: readonly { tabela: string; coluna: string; tipo: string }[] = [
+  { tabela: 'registro', coluna: 'etapas', tipo: 'text' },
+  { tabela: 'registro', coluna: 'referencia_carga', tipo: 'real' },
+  { tabela: 'registro', coluna: 'referencia_origem', tipo: 'text' },
+];
+
+/**
+ * Cria o esquema na primeira abertura e acrescenta o que falta num banco antigo (marcado no `user_version` do SQLite).
+ * `create ... if not exists` não muda uma tabela que já existe: coluna nova entra por `alter table`, conferida antes.
+ */
 export async function prepararEsquema(banco: BancoSql): Promise<void> {
   const linha = await banco.primeiro<{ user_version: number }>('pragma user_version');
   if ((linha?.user_version ?? 0) >= VERSAO_ESQUEMA) return;
   await banco.transacao(async (t) => {
     await t.executar(ESQUEMA);
+    for (const { tabela, coluna, tipo } of COLUNAS_NOVAS) {
+      const existentes = await t.todos<{ name: string }>(`pragma table_info(${tabela})`);
+      if (!existentes.some((c) => c.name === coluna)) await t.executar(`alter table ${tabela} add column ${coluna} ${tipo}`);
+    }
     await t.executar(`pragma user_version = ${VERSAO_ESQUEMA}`);
   });
 }

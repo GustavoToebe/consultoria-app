@@ -4,6 +4,7 @@ import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.DiaDeTreino;
+import br.com.treinos.api.execucao.dto.ExecucaoDtos.EtapaRegistrada;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.ExercicioFeito;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.ProgressoPonto;
 import br.com.treinos.api.execucao.dto.ExecucaoDtos.SerieFeita;
@@ -15,6 +16,7 @@ import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -26,11 +28,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Leituras dos registros: histórico agrupado (data → sessão → exercício → séries, na ordem do plano), progresso por
- * exercício (maior carga de trabalho do dia) e a última carga de trabalho de cada exercício, que vira a sugestão do
- * aluno. Só mostra o que foi registrado: nada é estimado.
+ * exercício (maior carga do dia entre as séries que contam como trabalho: papel {@code TRABALHO} na metodologia da
+ * versão, com técnica ou em percentual inclusive) e a última carga de trabalho de cada exercício, que vira a sugestão do
+ * aluno (só carga de trabalho: uma série em 80% não vira base). Só mostra o que foi registrado: nada é estimado; série
+ * com etapas de cargas diferentes fica sem carga comum e não entra no progresso.
  */
 @Service
 public class HistoricoService {
@@ -41,10 +46,12 @@ public class HistoricoService {
     private final IndicesDeVersao indices;
     private final AlunoRepository alunos;
     private final ExercicioRepository biblioteca;
+    private final JsonMapper json;
 
     public HistoricoService(ExecucaoSerieRepository execucoes, IndicesDeVersao indices, AlunoRepository alunos,
-                            ExercicioRepository biblioteca) {
+                            ExercicioRepository biblioteca, JsonMapper json) {
         this.biblioteca = biblioteca;
+        this.json = json;
         this.execucoes = execucoes;
         this.indices = indices;
         this.alunos = alunos;
@@ -88,7 +95,7 @@ public class HistoricoService {
         biblioteca.findAllById(lista.stream().map(ExecucaoSerie::getExercicioId).filter(java.util.Objects::nonNull).distinct().toList())
                 .forEach(e -> { if (e.getGrupoMuscular() != null) grupos.put(e.getId(), e.getGrupoMuscular()); });
         return agrupar(lista, indices.carregar(lista.stream().map(ExecucaoSerie::getPlanoVersaoId).distinct().toList()), grupos,
-                comObservacao);
+                comObservacao, this::lerEtapas);
     }
 
     @Transactional(readOnly = true)
@@ -96,7 +103,7 @@ public class HistoricoService {
         exigirAluno(alunoId);
         Map<LocalDate, ProgressoPonto> porDia = new LinkedHashMap<>();
         for (ExecucaoSerie e : execucoes
-                .findByAlunoIdAndExercicioIdAndSerieTrabalhoTrueAndCargaNotNullOrderByDataAsc(alunoId, exercicioId)) {
+                .findByAlunoIdAndExercicioIdAndContaNoProgressoTrueAndCargaNotNullOrderByDataAsc(alunoId, exercicioId)) {
             ProgressoPonto atual = porDia.get(e.getData());
             if (atual == null || e.getCarga().compareTo(atual.maiorCargaTrabalho()) > 0) {
                 porDia.put(e.getData(), new ProgressoPonto(e.getData(), e.getCarga(), e.getRepeticoes()));
@@ -125,7 +132,7 @@ public class HistoricoService {
     }
 
     static List<DiaDeTreino> agrupar(List<ExecucaoSerie> lista, Map<UUID, IndiceVersao> indices, Map<UUID, String> grupos,
-                                     boolean comObservacao) {
+                                     boolean comObservacao, Function<String, List<EtapaRegistrada>> lerEtapas) {
         Map<LocalDate, Map<UUID, List<ExecucaoSerie>>> porDia = new LinkedHashMap<>();
         for (ExecucaoSerie e : lista) {
             porDia.computeIfAbsent(e.getData(), d -> new LinkedHashMap<>())
@@ -145,7 +152,8 @@ public class HistoricoService {
                             .map(IndiceVersao.LocalSerie::tipo).orElse(null);
                     porExercicio.computeIfAbsent(e.getExercicioUid(), x -> new ArrayList<>())
                             .add(new SerieFeita(e.getId(), e.getSerieUid(), tipo, e.isSerieTrabalho(), e.getCarga(),
-                                    e.getUnidade(), e.getRepeticoes(), e.isConcluida(), comObservacao ? e.getObservacao() : null));
+                                    e.getUnidade(), e.getRepeticoes(), e.isConcluida(), comObservacao ? e.getObservacao() : null,
+                                    lerEtapas.apply(e.getEtapas()), e.getReferenciaCarga(), e.getReferenciaOrigem()));
                 }
                 List<ExercicioFeito> exercicios = new ArrayList<>();
                 porExercicio.forEach((exercicioUid, feitas2) -> exercicios.add(new ExercicioFeito(exercicioUid,
@@ -158,6 +166,11 @@ public class HistoricoService {
             dias.add(new DiaDeTreino(data, feitas));
         });
         return dias;
+    }
+
+    /** Etapas gravadas pelo upsert (já conferidas e em ordem); nulo = série registrada inteira. */
+    private List<EtapaRegistrada> lerEtapas(String etapas) {
+        return etapas == null ? null : List.of(json.readValue(etapas, EtapaRegistrada[].class));
     }
 
     private static int ordem(IndiceVersao indice, ExecucaoSerie e) {

@@ -1,4 +1,4 @@
-import type { AnamneseDetalhe, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, EtapaRegistrada, OrigemDaReferencia, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 import { pacoteNoFormatoAtual } from './formatoDoPacote';
 
@@ -30,6 +30,14 @@ export interface RegistroLocal {
   repeticoes: number | null;
   concluida: boolean;
   observacao: string | null;
+  /**
+   * Etapas da série (Cluster, Rest-pause; `dominio/etapas`), trocadas inteiras a cada gravação. Nulo nas séries sem
+   * etapas e no registro antigo, só com o total.
+   */
+  etapas: EtapaRegistrada[] | null;
+  /** Referência da carga congelada na primeira etapa registrada (não muda depois). */
+  referenciaCarga: number | null;
+  referenciaOrigem: OrigemDaReferencia | null;
   /** Instante da última mudança no aparelho (ISO); é o que decide o mais novo no servidor. */
   alteradoEm: string;
   situacao: SituacaoLocal;
@@ -585,6 +593,9 @@ export function paraEnvio(r: RegistroLocal): RegistroEnvio {
     concluida: r.concluida,
     observacao: r.observacao,
     alteradoNoAparelhoEm: r.alteradoEm,
+    etapas: r.etapas ?? null,
+    referenciaCarga: r.referenciaCarga ?? null,
+    referenciaOrigem: r.referenciaOrigem ?? null,
   };
 }
 

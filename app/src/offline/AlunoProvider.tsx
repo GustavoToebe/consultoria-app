@@ -40,7 +40,8 @@ interface ValorAluno {
   atualizacao: Atualizacao | null;
   atualizarAtualizacao: (atualizacao: Atualizacao) => Promise<void>;
   descanso: Descanso | null;
-  iniciarDescanso: (segundos: number) => void;
+  /** `rotulo` diferencia a pausa entre etapas do descanso depois da série (barra do cronômetro). */
+  iniciarDescanso: (segundos: number, rotulo?: string) => void;
   ajustarDescanso: (segundos: number) => void;
   pularDescanso: () => void;
   repositorio: RepositorioLocal;
@@ -120,7 +121,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
 
   const [descanso, definirDescanso] = useState<Descanso | null>(null);
   const notificado = useRef<number | null>(null);
-  const iniciarDescanso = useCallback((segundos: number) => definirDescanso(novoDescanso(segundos, Date.now())), []);
+  const iniciarDescanso = useCallback((segundos: number, rotulo?: string) => definirDescanso(novoDescanso(segundos, Date.now(), rotulo)), []);
   const ajustarDescanso = useCallback((segundos: number) => definirDescanso(atual => atual ? ajustar(atual, segundos, Date.now()) : null), []);
   const pularDescanso = useCallback(() => definirDescanso(null), []);
   useEffect(() => {

@@ -1,4 +1,5 @@
-import type { DiaDeTreino, SerieFeita, Sessao } from '../api/tipos';
+import type { DiaDeTreino, EtapaRegistrada, SerieFeita, Sessao } from '../api/tipos';
+import { cargaComum, somarVolumes, volumeDaSerie, type Volume } from './etapas';
 import { DIAS_SEMANA } from './editorTreino';
 import { diaDaSemanaIso, numeroParaTela, somarDias } from './formatos';
 import { nomeComDia } from './semana';
@@ -143,11 +144,55 @@ export function ultimoRegistroDaDivisao(d: DivisaoRelatorio): string | null {
 
 /**
  * "WS 32 kg × 5"; o que o aluno não informou aparece como "—" (nunca presumido). Série sem carga e sem repetições (cardio,
- * que o aluno só marca) sai "Cardio feito"; não marcada, "Cardio —".
+ * que o aluno só marca) sai "Cardio feito"; não marcada, "Cardio —". Série registrada por etapa (Cluster, Rest-pause) mostra
+ * cada etapa feita: "WS 40 kg × 4+4+4+2 = 14", com carga variável "WS 40 kg × 4 + 42,5 kg × 4 = 8"; o total só aparece
+ * quando o servidor o calculou (todas as etapas com situação), senão a linha diz "parcial".
  */
 export function textoSerie(s: SerieFeita): string {
   const tipo = s.tipo?.trim() || 'Série';
+  if (s.etapas) return `${tipo} ${textoDasEtapas(s, s.etapas)}`;
   if (s.unidade === 'nenhuma' && s.repeticoes == null && s.carga == null) return `${tipo} ${s.concluida ? 'feito' : '—'}`;
   const carga = s.unidade === 'nenhuma' ? '' : `${numeroParaTela(s.carga)} kg × `;
   return `${tipo} ${carga}${s.repeticoes ?? '—'}`;
+}
+
+function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): string {
+  const ordem = [...etapas].sort((a, b) => a.posicao - b.posicao);
+  const feitas = ordem.filter((e) => e.situacao === 'FEITA');
+  const naoFeitas = ordem.length - feitas.length;
+  const notas: string[] = [];
+  if (s.repeticoes == null) notas.push('parcial');
+  if (naoFeitas) notas.push(`${naoFeitas} ${naoFeitas === 1 ? 'etapa não feita' : 'etapas não feitas'}`);
+  const sufixo = notas.length ? ` (${notas.join(', ')})` : '';
+  if (!feitas.length) return `${ordem.length ? 'não feita' : '—'}${sufixo}`;
+  const reps = (e: EtapaRegistrada) => (e.repeticoes == null ? '—' : String(e.repeticoes));
+  let corpo: string;
+  if (s.unidade === 'nenhuma') corpo = feitas.map(reps).join('+');
+  else {
+    const comum = cargaComum(feitas);
+    corpo = comum != null
+      ? `${numeroParaTela(comum)} kg × ${feitas.map(reps).join('+')}`
+      : feitas.map((e) => `${numeroParaTela(e.carga)} kg × ${reps(e)}`).join(' + ');
+  }
+  const total = s.repeticoes != null && feitas.length > 1 ? ` = ${s.repeticoes}` : '';
+  return `${corpo}${total}${sufixo}`;
+}
+
+/**
+ * Volume de carga registrado num exercício (carga × repetições, etapa por etapa), para a linha do histórico. `null` quando
+ * o exercício é sem carga ou nada tem número; `completo: false` = faltou carga ou repetição em alguma parte feita, e o
+ * valor é só um subtotal.
+ */
+export function volumeDoExercicio(series: readonly SerieFeita[]): Volume | null {
+  const comCarga = series.filter((s) => s.unidade !== 'nenhuma');
+  const feitas = comCarga.filter((s) => (s.etapas ? s.etapas.some((e) => e.situacao === 'FEITA') : s.concluida));
+  if (!feitas.length) return null;
+  return somarVolumes(feitas.map((s) => volumeDaSerie(s, false)), feitas.length);
+}
+
+/** "Volume de carga: 1240 kg" ou "Volume de carga: subtotal de 800 kg (faltou carga ou repetição)". */
+export function textoDoVolume(v: Volume | null): string | null {
+  if (!v) return null;
+  const valor = `${numeroParaTela(v.valor)} kg`;
+  return v.completo ? `Volume de carga: ${valor}` : `Volume de carga: subtotal de ${valor} (faltou carga ou repetição)`;
 }

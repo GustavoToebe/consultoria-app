@@ -816,6 +816,10 @@ export interface SerieFeita {
   repeticoes: number | null;
   concluida: boolean;
   observacao: string | null;
+  /** Etapas registradas; nulo = registro da série inteira (ou antigo, sem detalhe). Com etapas, total e carga são do servidor. */
+  etapas?: EtapaRegistrada[] | null;
+  referenciaCarga?: number | null;
+  referenciaOrigem?: OrigemDaReferencia | null;
 }
 
 export interface DiaDeTreino {
@@ -935,6 +939,22 @@ export interface VersaoDetalhe<C> {
   conteudo: C;
 }
 
+/**
+ * Etapa de uma série registrada (bloco do Cluster, etapa inicial ou retomada do Rest-pause), pela posição na versão (1 a
+ * N). Etapa ausente = ainda não feita; `NAO_REALIZADA` é explícita e sem números; repetições vazias = não informadas.
+ */
+export type SituacaoDaEtapa = 'FEITA' | 'NAO_REALIZADA';
+
+export interface EtapaRegistrada {
+  posicao: number;
+  repeticoes: number | null;
+  carga: number | null;
+  situacao: SituacaoDaEtapa;
+}
+
+/** De onde veio a referência da carga congelada ao registrar a primeira etapa. */
+export type OrigemDaReferencia = 'WS_ANTERIOR' | 'BASE_DO_DIA';
+
 export interface RegistroEnvio {
   id: string;
   planoVersaoId: string;
@@ -947,6 +967,10 @@ export interface RegistroEnvio {
   concluida: boolean;
   observacao: string | null;
   alteradoNoAparelhoEm: string;
+  /** Obrigatória nas séries com etapas (Cluster, Rest-pause), vazia = nada feito; nula nas outras. */
+  etapas: EtapaRegistrada[] | null;
+  referenciaCarga: number | null;
+  referenciaOrigem: OrigemDaReferencia | null;
 }
 
 /** Item da mobilidade marcado (ou desmarcado) no aparelho; o `id` nasce no aparelho e torna o reenvio idempotente. */

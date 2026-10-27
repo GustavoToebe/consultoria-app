@@ -1,4 +1,4 @@
-import type { AnamneseDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, PainelAluno, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, EtapaRegistrada, OrigemDaReferencia, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
 import { pacoteNoFormatoAtual } from './formatoDoPacote';
 import {
@@ -34,11 +34,25 @@ interface LinhaRegistro {
   alterado_em: string;
   situacao: RegistroLocal['situacao'];
   motivo: string | null;
+  etapas: string | null;
+  referencia_carga: number | null;
+  referencia_origem: string | null;
 }
 
 const COLUNAS =
   'id, plano_versao_id, sessao_uid, exercicio_uid, serie_uid, exercicio_id, trabalho, data, carga, repeticoes, ' +
-  'concluida, observacao, alterado_em, situacao, motivo';
+  'concluida, observacao, alterado_em, situacao, motivo, etapas, referencia_carga, referencia_origem';
+
+/** Etapas guardadas como JSON numa coluna de texto; texto ilegível vira nulo (o registro continua, sem detalhe). */
+function lerEtapas(texto: string | null): EtapaRegistrada[] | null {
+  if (!texto) return null;
+  try {
+    const lidas: unknown = JSON.parse(texto);
+    return Array.isArray(lidas) ? (lidas as EtapaRegistrada[]) : null;
+  } catch {
+    return null;
+  }
+}
 
 const paraRegistro = (l: LinhaRegistro): RegistroLocal => ({
   id: l.id,
@@ -56,6 +70,9 @@ const paraRegistro = (l: LinhaRegistro): RegistroLocal => ({
   alteradoEm: l.alterado_em,
   situacao: l.situacao,
   motivo: l.motivo,
+  etapas: lerEtapas(l.etapas),
+  referenciaCarga: l.referencia_carga,
+  referenciaOrigem: (l.referencia_origem as OrigemDaReferencia | null) ?? null,
 });
 
 interface LinhaMobilidade {
@@ -100,9 +117,12 @@ const paraLinha = (r: RegistroLocal): ValorSql[] => [
   r.alteradoEm,
   r.situacao,
   r.motivo,
+  r.etapas ? JSON.stringify(r.etapas) : null,
+  r.referenciaCarga ?? null,
+  r.referenciaOrigem ?? null,
 ];
 
-const INSERIR_REGISTRO = `insert into registro (${COLUNAS}) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+const INSERIR_REGISTRO = `insert into registro (${COLUNAS}) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
 /**
  * Repositório do aluno no celular: um banco SQLite por usuário (`treinos-<usuarioId>.db`). Cada operação roda numa
@@ -300,8 +320,8 @@ export class RepositorioSqlite implements RepositorioLocal {
         if (anterior) {
           await t.rodar(
             'update registro set sessao_uid = ?, exercicio_uid = ?, exercicio_id = ?, trabalho = ?, carga = ?, ' +
-              "repeticoes = ?, concluida = ?, observacao = ?, alterado_em = ?, situacao = 'LOCAL', motivo = null " +
-              'where id = ?',
+              "repeticoes = ?, concluida = ?, observacao = ?, alterado_em = ?, situacao = 'LOCAL', motivo = null, " +
+              'etapas = ?, referencia_carga = ?, referencia_origem = ? where id = ?',
             [
               registro.sessaoUid,
               registro.exercicioUid,
@@ -312,6 +332,9 @@ export class RepositorioSqlite implements RepositorioLocal {
               registro.concluida ? 1 : 0,
               registro.observacao,
               registro.alteradoEm,
+              registro.etapas ? JSON.stringify(registro.etapas) : null,
+              registro.referenciaCarga ?? null,
+              registro.referenciaOrigem ?? null,
               registro.id,
             ],
           );

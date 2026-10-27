@@ -1,4 +1,4 @@
-import type { Configuracao, ExercicioPlano, Serie } from '../api/tipos';
+import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '../api/tipos';
 import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
 
 /**
@@ -14,6 +14,8 @@ export interface SerieCalculada {
   serie: Serie;
   /** Carga sugerida em kg; `null` quando não há base ou a série não é por carga. */
   sugestao: number | null;
+  /** A referência externa usada (WS anterior ou base do dia); `null` nos modos que não têm (ver `referenciaDaSerie`). */
+  referencia: ReferenciaDaCarga | null;
   /** Texto da meta: "Meta: 3 a 6 reps · 50% da WS", "Meta: AMRAP reps · 1 RIR". */
   meta: string;
 }
@@ -57,17 +59,57 @@ export function metaDaSerie(s: Serie, tipoTrabalho: string, semCarga = false, me
   return `Meta: ${partes.join(' · ')}`;
 }
 
+export interface ReferenciaDaCarga {
+  valor: number;
+  origem: OrigemDaReferencia;
+}
+
 /**
  * Referência do "% da WS" e da "mesma carga" da série `indice`: a carga registrada hoje na última série de trabalho
  * ANTERIOR a ela no exercício; sem ela (a FS vem antes da WS, ou a WS ainda não foi feita), a carga de trabalho do dia.
  */
-function referenciaDaWs(series: readonly Serie[], indice: number, cargaTrabalho: number | null, cargasDoDia: Record<string, number | null | undefined>): number | null {
+function referenciaDaWs(series: readonly Serie[], indice: number, cargaTrabalho: number | null, cargasDoDia: Record<string, number | null | undefined>): ReferenciaDaCarga | null {
   for (let i = indice - 1; i >= 0; i--) {
     if (!ehSerieDeTrabalho(series[i])) continue;
     const registrada = cargasDoDia[series[i].uid];
-    if (typeof registrada === 'number') return registrada;
+    if (typeof registrada === 'number') return { valor: registrada, origem: 'WS_ANTERIOR' };
   }
-  return cargaTrabalho;
+  return cargaTrabalho == null ? null : { valor: cargaTrabalho, origem: 'BASE_DO_DIA' };
+}
+
+/**
+ * A referência externa da série, a que as etapas congelam ao registrar a primeira (docs/series-etapas.md): carga de
+ * trabalho = a base do dia; "% da WS" e "mesma carga" = a referência da WS. Os modos que dependem de outra série do dia
+ * ("acima da anterior", "abaixo da referência") e "sem carga" não têm referência externa.
+ */
+export function referenciaDaSerie(series: readonly Serie[], indice: number, cargaTrabalho: number | null, cargasDoDia: Record<string, number | null | undefined>): ReferenciaDaCarga | null {
+  const s = series[indice];
+  if (!s || s.cardio) return null;
+  switch (modo(s)) {
+    case 'CARGA_TRABALHO':
+      return cargaTrabalho == null ? null : { valor: cargaTrabalho, origem: 'BASE_DO_DIA' };
+    case 'PERCENTUAL_WS':
+    case 'MESMA_CARGA':
+      return referenciaDaWs(series, indice, cargaTrabalho, cargasDoDia);
+    default:
+      return null;
+  }
+}
+
+/** Sugestão da série sobre uma referência externa (a calculada agora ou a congelada nas etapas). */
+export function sugestaoSobreReferencia(s: Serie, referencia: number | null, passo: number): number | null {
+  if (referencia == null) return null;
+  switch (modo(s)) {
+    case 'CARGA_TRABALHO':
+    case 'MESMA_CARGA':
+      return referencia;
+    case 'PERCENTUAL_WS': {
+      const percentual = s.carga?.percentualMin ?? null;
+      return percentual == null ? null : arredondar((referencia * percentual) / 100, passo);
+    }
+    default:
+      return null;
+  }
 }
 
 /**
@@ -93,19 +135,14 @@ export function calcularCargasDoExercicio(
     let sugestao: number | null = null;
     const carga = serie.carga;
     const percentual = carga?.percentualMin ?? null;
+    const referencia = semCarga ? null : referenciaDaSerie(series, indice, cargaTrabalho, cargasDoDia);
     if (!semCarga && !serie.cardio) {
       switch (modo(serie)) {
         case 'CARGA_TRABALHO':
-          sugestao = cargaTrabalho;
-          break;
         case 'MESMA_CARGA':
-          sugestao = referenciaDaWs(series, indice, cargaTrabalho, cargasDoDia);
+        case 'PERCENTUAL_WS':
+          sugestao = sugestaoSobreReferencia(serie, referencia?.valor ?? null, config.arredondamentoKg);
           break;
-        case 'PERCENTUAL_WS': {
-          const referencia = referenciaDaWs(series, indice, cargaTrabalho, cargasDoDia);
-          if (percentual != null && referencia != null) sugestao = arredondar((referencia * percentual) / 100, config.arredondamentoKg);
-          break;
-        }
         case 'ACIMA_DA_ANTERIOR': {
           const anterior = indice > 0 ? cargasDoDia[series[indice - 1].uid] : null;
           if (percentual != null && typeof anterior === 'number') sugestao = arredondar(anterior * (1 + percentual / 100), config.arredondamentoKg, 'cima');
@@ -121,7 +158,7 @@ export function calcularCargasDoExercicio(
           break;
       }
     }
-    return { serie, sugestao, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia, series) };
+    return { serie, sugestao, referencia, meta: metaDaSerie(serie, config.tipoTrabalho, semCarga, config.metodologia, series) };
   });
 }
 

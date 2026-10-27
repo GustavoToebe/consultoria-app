@@ -1,14 +1,17 @@
-/** Instante de término, nunca um contador que perde segundos em segundo plano. */
-export interface Descanso { terminaEm: number; duracaoMs: number }
-export function iniciarDescanso(segundos: number, agora: number): Descanso {
+/**
+ * Instante de término, nunca um contador que perde segundos em segundo plano. `rotulo` diferencia a pausa entre etapas
+ * ("Pausa entre blocos") do descanso depois da série; sem ele, "Descanso".
+ */
+export interface Descanso { terminaEm: number; duracaoMs: number; rotulo?: string }
+export function iniciarDescanso(segundos: number, agora: number, rotulo?: string): Descanso {
  const duracaoMs = Math.max(0, segundos * 1000);
- return { terminaEm: agora + duracaoMs, duracaoMs };
+ return rotulo ? { terminaEm: agora + duracaoMs, duracaoMs, rotulo } : { terminaEm: agora + duracaoMs, duracaoMs };
 }
 export function restante(descanso: Descanso, agora: number): number { return Math.max(0, descanso.terminaEm - agora); }
 export function terminado(descanso: Descanso, agora: number): boolean { return restante(descanso, agora) === 0; }
 export function ajustarDescanso(descanso: Descanso, segundos: number, agora: number): Descanso {
  const novo = Math.max(0, restante(descanso, agora) + segundos * 1000);
- return { terminaEm: agora + novo, duracaoMs: Math.max(descanso.duracaoMs, novo) };
+ return { ...descanso, terminaEm: agora + novo, duracaoMs: Math.max(descanso.duracaoMs, novo) };
 }
 /** Tempos prontos da folha de descanso, em segundos. */
 export const DESCANSOS_PRONTOS = [30, 45, 60, 90, 120, 150, 180, 240, 300];

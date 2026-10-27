@@ -31,7 +31,25 @@ public final class ExecucaoDtos {
      */
     public record RegistroExecucao(UUID id, UUID planoVersaoId, UUID sessaoUid, UUID exercicioUid, UUID serieUid,
                                    LocalDate data, BigDecimal carga, Integer repeticoes, Boolean concluida,
-                                   String observacao, Instant alteradoNoAparelhoEm) {
+                                   String observacao, Instant alteradoNoAparelhoEm,
+                                   List<EtapaRegistrada> etapas, BigDecimal referenciaCarga, String referenciaOrigem) {
+
+        /** Registro da série inteira, sem etapas nem referência (séries sem Cluster nem Rest-pause). */
+        public RegistroExecucao(UUID id, UUID planoVersaoId, UUID sessaoUid, UUID exercicioUid, UUID serieUid,
+                                LocalDate data, BigDecimal carga, Integer repeticoes, Boolean concluida,
+                                String observacao, Instant alteradoNoAparelhoEm) {
+            this(id, planoVersaoId, sessaoUid, exercicioUid, serieUid, data, carga, repeticoes, concluida, observacao,
+                    alteradoNoAparelhoEm, null, null, null);
+        }
+    }
+
+    /**
+     * Uma etapa da série registrada pelo aluno (bloco do Cluster, etapa inicial ou retomada do Rest-pause), pela posição
+     * na versão publicada (1 a N). {@code situacao}: {@code FEITA} ou {@code NAO_REALIZADA}; etapa ausente = ainda não
+     * feita. Repetições vazias = não informadas. Em texto (e não enum) para um valor estranho virar {@code RECUSADO} com
+     * motivo, sem derrubar o lote.
+     */
+    public record EtapaRegistrada(Integer posicao, Integer repeticoes, BigDecimal carga, String situacao) {
     }
 
     public record LoteRequest(@NotNull @Size(max = 300) List<@NotNull RegistroExecucao> registros) {
@@ -47,8 +65,14 @@ public final class ExecucaoDtos {
 
     // ---- Histórico (treinador e aluno) ----
 
+    /**
+     * Série registrada. {@code etapas} nulo = registro da série inteira (ou registro antigo, sem detalhe); com etapas,
+     * {@code repeticoes} e {@code carga} são o total e a carga comum calculados pelo servidor (nulos quando parcial ou
+     * com cargas diferentes). {@code referenciaCarga}/{@code referenciaOrigem}: a referência congelada pelo aparelho.
+     */
     public record SerieFeita(UUID id, UUID serieUid, String tipo, boolean trabalho, BigDecimal carga, String unidade,
-                             Integer repeticoes, boolean concluida, String observacao) {
+                             Integer repeticoes, boolean concluida, String observacao, List<EtapaRegistrada> etapas,
+                             BigDecimal referenciaCarga, String referenciaOrigem) {
     }
 
     /** {@code grupoMuscular} vem da biblioteca da consultoria; nulo quando o exercício não está nela. */

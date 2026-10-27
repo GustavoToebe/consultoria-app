@@ -5,7 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.Immutable;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.TenantId;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -70,6 +72,20 @@ public class ExecucaoSerie {
 
     @Column(name = "recebido_em", nullable = false)
     private Instant recebidoEm;
+
+    @Column(name = "conta_no_progresso", nullable = false)
+    private boolean contaNoProgresso;
+
+    /** Etapas registradas (JSON, lido pelo {@code HistoricoService}); nulo = a série registrada inteira. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private String etapas;
+
+    @Column(name = "referencia_carga")
+    private BigDecimal referenciaCarga;
+
+    @Column(name = "referencia_origem")
+    private String referenciaOrigem;
 
     protected ExecucaoSerie() {
     }
@@ -140,5 +156,21 @@ public class ExecucaoSerie {
 
     public Instant getRecebidoEm() {
         return recebidoEm;
+    }
+
+    public boolean isContaNoProgresso() {
+        return contaNoProgresso;
+    }
+
+    public String getEtapas() {
+        return etapas;
+    }
+
+    public BigDecimal getReferenciaCarga() {
+        return referenciaCarga;
+    }
+
+    public String getReferenciaOrigem() {
+        return referenciaOrigem;
     }
 }

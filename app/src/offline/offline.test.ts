@@ -1,5 +1,5 @@
 import { ErroApi } from '../api/cliente';
-import type { LoteResponse, RegistroEnvio, RegistroMobilidadeEnvio } from '../api/tipos';
+import type { EtapaRegistrada, LoteResponse, RegistroEnvio, RegistroMobilidadeEnvio } from '../api/tipos';
 import { chavePasseio } from '../dominio/passeio';
 import { chaveDasPreferencias } from '../dominio/preferencias';
 import { emMemoria } from './armazenamento';
@@ -34,6 +34,9 @@ function serie(serieUid: string, extra: Partial<DadosRegistro> = {}): DadosRegis
     repeticoes: 8,
     concluida: true,
     observacao: null,
+    etapas: null,
+    referenciaCarga: null,
+    referenciaOrigem: null,
     ...extra,
   };
 }
@@ -93,6 +96,35 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect(await repo.listar()).toHaveLength(1);
     await repo.salvarPacote(atual as never);
     expect((await repo.lerPacote())?.pacote).toEqual(atual);
+  });
+
+  it('etapas da série (Cluster, Rest-pause) persistem ao reabrir, são trocadas inteiras e vão no envio (T18)', async () => {
+    const etapas: EtapaRegistrada[] = [
+      { posicao: 1, repeticoes: 4, carga: 40, situacao: 'FEITA' },
+      { posicao: 2, repeticoes: null, carga: null, situacao: 'NAO_REALIZADA' },
+    ];
+    const repo = aparelho('u1');
+    await repo.registrar(serie('cl', { etapas, referenciaCarga: 40, referenciaOrigem: 'BASE_DO_DIA', concluida: false, carga: 40, repeticoes: null }));
+    await repo.fechar();
+    const reaberto = aparelho('u1');
+    expect((await reaberto.listar())[0]).toMatchObject({ etapas, referenciaCarga: 40, referenciaOrigem: 'BASE_DO_DIA', concluida: false, repeticoes: null });
+    // A lista é trocada inteira (desfazer uma etapa tira a etapa), sem fundir com a anterior e sem duplicar a série.
+    await reaberto.registrar(serie('cl', { etapas: [etapas[0]], referenciaCarga: 40, referenciaOrigem: 'BASE_DO_DIA', concluida: false }));
+    const lista = await reaberto.listar();
+    expect(lista).toHaveLength(1);
+    expect(lista[0].etapas).toEqual([etapas[0]]);
+    const enviados: RegistroEnvio[] = [];
+    const sync = sincronizadorDe(reaberto, async (r) => {
+      enviados.push(...r);
+      return aceitaTudo(r);
+    });
+    await sync.sincronizar();
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]).toMatchObject({ etapas: [etapas[0]], referenciaCarga: 40, referenciaOrigem: 'BASE_DO_DIA' });
+    // Série sem etapas vai com a lista nula.
+    await reaberto.registrar(serie('ws'));
+    await sync.sincronizar();
+    expect(enviados[1]).toMatchObject({ serieUid: 'ws', etapas: null, referenciaCarga: null, referenciaOrigem: null });
   });
 
   it('rascunho da atualização persiste por pasta, fica isolado e some ao enviar ou sair', async () => {
@@ -1025,7 +1057,36 @@ describe('mobilidade no SQLite do celular', () => {
     const marcado = await repo.registrarMobilidade(item('i1'));
     expect((await repo.listarMobilidade()).map((r) => r.id)).toEqual([marcado.id]);
     expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(VERSAO_ESQUEMA);
-    expect(VERSAO_ESQUEMA).toBe(2);
+    expect(VERSAO_ESQUEMA).toBe(3);
+  });
+
+  it('esquema 2 → 3: o banco antigo ganha as colunas das etapas e a série da fila continua, sem detalhe', async () => {
+    const antigo = fabrica.banco('treinos-u3.db');
+    await antigo.executar(`
+      create table kv (chave text primary key, valor text not null);
+      create table registro (
+        id text primary key, plano_versao_id text not null, sessao_uid text not null, exercicio_uid text not null,
+        serie_uid text not null, exercicio_id text, trabalho integer not null, data text not null, carga real,
+        repeticoes integer, concluida integer not null, observacao text, alterado_em text not null,
+        situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')), motivo text,
+        unique (plano_versao_id, serie_uid, data)
+      );
+      create table registro_mobilidade (
+        id text primary key, plano_versao_id text not null, secao_uid text not null, item_uid text not null, data text not null,
+        feito integer not null, alterado_em text not null, situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')),
+        motivo text, unique (plano_versao_id, item_uid, data)
+      );
+      create table carga_trabalho (exercicio_uid text not null, data text not null, carga real not null, primary key (exercicio_uid, data));
+      insert into registro values ('r-v2', 'v1', 's1', 'e1', 'x', 'x1', 0, '2026-10-07', 20, 8, 1, null, '2026-10-07T12:00:00.000Z', 'LOCAL', null);
+      pragma user_version = 2;
+    `);
+    const repo = new RepositorioSqlite(fabrica, 'u3', novoId, agora);
+    const [r] = await repo.pendentes();
+    expect(r).toMatchObject({ id: 'r-v2', etapas: null, referenciaCarga: null, referenciaOrigem: null });
+    const etapas: EtapaRegistrada[] = [{ posicao: 1, repeticoes: 5, carga: 20, situacao: 'FEITA' }];
+    await repo.registrar(serie('y', { etapas, referenciaCarga: 20, referenciaOrigem: 'WS_ANTERIOR', concluida: false }));
+    expect((await repo.listar()).find((x) => x.serieUid === 'y')?.etapas).toEqual(etapas);
+    expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(3);
   });
 });
 

@@ -3,8 +3,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import type { Configuracao, DemonstracaoDoAluno, ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
+import type { Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
 import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
+import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
@@ -23,6 +24,7 @@ import { IconeBotao } from '../ui/IconeBotao';
 import { sobre } from '../ui/sobre';
 import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
+import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
 import { SeloComExplicacao } from './SeloComExplicacao';
 import { dicaDaCarga, ehExercicioDeCardio, selosDaSerie, textosDaSerie } from './serieDoAluno';
@@ -31,6 +33,10 @@ export interface DadosSerie {
   carga: number | null;
   repeticoes: number | null;
   concluida: boolean;
+  /** Só nas séries com etapas (Cluster, Rest-pause): a lista inteira, trocada a cada gravação. */
+  etapas?: EtapaRegistrada[] | null;
+  referenciaCarga?: number | null;
+  referenciaOrigem?: OrigemDaReferencia | null;
 }
 
 interface Props {
@@ -47,8 +53,8 @@ interface Props {
   aoRegistrar: (serieUid: string, dados: DadosSerie) => void;
   /** Botão de descanso (ícone) na linha do "Como fazer", ao lado do vídeo. */
   acaoDescanso?: ReactNode;
-  /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. */
-  aoIniciarPausa?: (segundos: number) => void;
+  /** Inicia o cronômetro com a pausa da técnica (cluster, rest pause); sem ele, o botão não aparece. `rotulo` vai na barra. */
+  aoIniciarPausa?: (segundos: number, rotulo?: string) => void;
   /** Imagem ou GIF do exercício (própria ou do catálogo); nulo = nada para mostrar. */
   demonstracao?: DemonstracaoDoAluno | null;
   /**
@@ -170,6 +176,20 @@ export function ExercicioAluno(p: Props) {
             feita={!!p.registroDe(c.serie.uid)?.concluida}
             ultimaDoExercicio={feitas === e.series.length - 1}
             aoMarcar={(concluida) => p.aoRegistrar(c.serie.uid, { carga: null, repeticoes: null, concluida })}
+          />
+        ) : etapasDaSerie(c.serie) ? (
+          <CartaoSerieComEtapas
+            key={c.serie.uid}
+            calculada={c}
+            numero={i + 1}
+            data={p.data}
+            semCarga={semCarga}
+            metodologia={p.config.metodologia}
+            arredondamentoKg={p.config.arredondamentoKg}
+            descansoNaSerie={p.descansoNaSerie ?? true}
+            registro={p.registroDe(c.serie.uid)}
+            aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
+            aoIniciarPausa={p.aoIniciarPausa}
           />
         ) : (
           <CartaoSerie

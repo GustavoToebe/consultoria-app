@@ -414,6 +414,10 @@ public class SeedHistoricoDemo {
             boolean semCarga = SEM_CARGA.matcher(e.nome() == null ? "" : e.nome()).find();
             BigDecimal ws = semCarga ? null : cargaDe(e.nome(), d, idx, cargas);
             for (Serie x : e.seriesOuVazio()) {
+                if (x.etapas() != null) {
+                    // Cluster e Rest-pause se registram etapa por etapa: o histórico de demonstração não inventa etapas.
+                    continue;
+                }
                 BigDecimal carga = null;
                 if (ws != null) {
                     carga = "PERCENTUAL_WS".equals(x.modo()) && x.carga().percentualMin() != null
@@ -426,7 +430,7 @@ public class SeedHistoricoDemo {
                 boolean concluida = rnd.nextInt(50) != 0;
                 if (execucoes.gravar(new ExecucaoUpsert.Linha(UUID.randomUUID(), consultoria, aluno, versaoId, s.uid(),
                         e.uid(), x.uid(), e.exercicioId(), x.deTrabalho(), d, carga, carga == null ? "nenhuma" : "kg",
-                        reps, concluida, null, quando))) {
+                        reps, concluida, null, quando, x.deTrabalho(), null, null, null))) {
                     gravadas++;
                 }
             }

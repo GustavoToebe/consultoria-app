@@ -18,7 +18,8 @@ import java.util.UUID;
  * {@code @TenantId} não protege SQL nativo, então consultoria e aluno vão sempre explícitos, vindos da sessão.
  *
  * <p>Upsert pela chave {@code (aluno, versão, série, dia)}: mesmo registro reenviado não duplica; só atualiza se o
- * {@code alterado_no_aparelho_em} recebido for mais novo (o aparelho é o único autor).</p>
+ * {@code alterado_no_aparelho_em} recebido for mais novo (o aparelho é o único autor). As etapas da série (Cluster,
+ * Rest-pause) são trocadas inteiras junto com o resto da linha: nunca uma fusão parcial de duas listas.</p>
  *
  * <p>Não público: só o pacote {@code execucao} usa, inclusive o {@code SeedHistoricoDemo} (dados de demonstração com datas
  * passadas, que a API recusa); nenhuma rota usa.</p>
@@ -29,17 +30,21 @@ class ExecucaoUpsert {
     record Chave(UUID alunoId, UUID planoVersaoId, UUID serieUid, LocalDate data) {
     }
 
+    /**
+     * @param etapasJson etapas já conferidas e em ordem de posição, em JSON; nulo = série registrada inteira
+     */
     record Linha(UUID id, UUID consultoriaId, UUID alunoId, UUID planoVersaoId, UUID sessaoUid, UUID exercicioUid,
                  UUID serieUid, UUID exercicioId, boolean serieTrabalho, LocalDate data, BigDecimal carga,
                  String unidade, Integer repeticoes, boolean concluida, String observacao,
-                 Instant alteradoNoAparelhoEm) {
+                 Instant alteradoNoAparelhoEm, boolean contaNoProgresso, String etapasJson,
+                 BigDecimal referenciaCarga, String referenciaOrigem) {
     }
 
     private static final String SQL = """
             insert into execucao_serie (id, consultoria_id, aluno_id, plano_versao_id, sessao_uid, exercicio_uid,
               serie_uid, exercicio_id, serie_trabalho, data, carga, unidade, repeticoes, concluida, observacao,
-              alterado_no_aparelho_em)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              alterado_no_aparelho_em, conta_no_progresso, etapas, referencia_carga, referencia_origem)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), ?, ?)
             on conflict (aluno_id, plano_versao_id, serie_uid, data) do update set
               carga = excluded.carga,
               unidade = excluded.unidade,
@@ -47,6 +52,10 @@ class ExecucaoUpsert {
               concluida = excluded.concluida,
               observacao = excluded.observacao,
               alterado_no_aparelho_em = excluded.alterado_no_aparelho_em,
+              conta_no_progresso = excluded.conta_no_progresso,
+              etapas = excluded.etapas,
+              referencia_carga = excluded.referencia_carga,
+              referencia_origem = excluded.referencia_origem,
               recebido_em = now()
             where excluded.alterado_no_aparelho_em > execucao_serie.alterado_no_aparelho_em
               and execucao_serie.consultoria_id = excluded.consultoria_id
@@ -64,7 +73,8 @@ class ExecucaoUpsert {
         List<UUID> gravados = jdbc.query(SQL, (rs, n) -> rs.getObject(1, UUID.class),
                 l.id(), l.consultoriaId(), l.alunoId(), l.planoVersaoId(), l.sessaoUid(), l.exercicioUid(),
                 l.serieUid(), l.exercicioId(), l.serieTrabalho(), l.data(), l.carga(), l.unidade(), l.repeticoes(),
-                l.concluida(), l.observacao(), Timestamp.from(l.alteradoNoAparelhoEm()));
+                l.concluida(), l.observacao(), Timestamp.from(l.alteradoNoAparelhoEm()), l.contaNoProgresso(),
+                l.etapasJson(), l.referenciaCarga(), l.referenciaOrigem());
         return !gravados.isEmpty();
     }
 

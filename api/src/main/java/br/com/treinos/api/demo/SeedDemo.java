@@ -341,6 +341,10 @@ public class SeedDemo {
         List<RegistroExecucao> lista = new ArrayList<>();
         var quando = data.atTime(LocalTime.of(19, 0)).atZone(Fuso.BRASILIA).toInstant();
         for (Serie s : ex.series()) {
+            if (s.etapas() != null) {
+                // Cluster e Rest-pause se registram etapa por etapa: a demonstração não inventa as etapas.
+                continue;
+            }
             BigDecimal carga;
             Integer reps;
             switch (s.modo()) {
