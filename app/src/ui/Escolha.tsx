@@ -23,12 +23,14 @@ interface Props<T> {
   descricao?: string;
   /** Tocar na opção ativa desmarca e devolve `null` (resposta opcional). Sem isto, a opção ativa não muda. */
   limpavel?: boolean;
+  /** As opções dividem a largura da linha: numa linha só ocupam tudo, e ao quebrar nenhuma linha termina com sobra. */
+  distribuida?: boolean;
   /** Botões mais justos (vão e margem menores, fonte 13), para a GRADE do questionário caber em duas fileiras no celular. O alvo de toque continua de 44. */
   compacta?: boolean;
 }
 
 /** Escolha entre poucas opções (dia da semana, tipo de série, tema): botões lado a lado que quebram linha. */
-export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao, limpavel, compacta }: Props<T>) {
+export function Escolha<T extends string | number | null>({ opcoes, valor, aoMudar, rotulo, descricao, limpavel, compacta, distribuida }: Props<T>) {
   const { cores } = useTema();
   const motivos = opcoes.filter((o) => o.desabilitada && o.motivo).map((o) => o.motivo as string);
   return (
@@ -47,6 +49,7 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
               style={[
                 estilos.opcao,
                 compacta && estilos.opcaoCompacta,
+                distribuida && estilos.opcaoDistribuida,
                 {
                   backgroundColor: ativo ? cores.texto : cores.superficie2,
                   borderColor: ativo ? cores.texto : cores.borda,
@@ -84,5 +87,6 @@ const estilos = StyleSheet.create({
   texto: { fontFamily: fontes.semi, fontSize: 14, flexShrink: 1, paddingVertical: 4 },
   linhaCompacta: { gap: espaco(0.5) },
   opcaoCompacta: { paddingHorizontal: espaco(1) },
+  opcaoDistribuida: { flexGrow: 1 },
   textoCompacto: { fontSize: 13 },
 });

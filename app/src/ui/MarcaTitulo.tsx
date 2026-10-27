@@ -28,7 +28,7 @@ export function MarcaTitulo({ marca, tamanho = 'medio', nivel }: { marca: Marca 
           source={{ uri: urlDaApi(marca.logoUrl) }}
           style={grande ? estilos.logoGrande : pequeno ? estilos.logoPequena : estilos.logo}
           contentFit="contain"
-          contentPosition="left"
+          contentPosition={grande ? 'center' : 'left'}
         />
       </View>
     );
@@ -60,7 +60,9 @@ export const FAMILIAS: Record<string, string> = {
 const estilos = StyleSheet.create({
   // Logo em selo (quase quadrada, como a do Saraiva Team) precisa de altura para o nome ser legível.
   logo: { height: 64, width: 160 },
-  logoGrande: { height: 112, width: 260 },
+  // Topo das telas públicas: a logo centrada na largura da coluna (as logos têm margem transparente própria, e à
+  // esquerda ela ficava recuada e solta do título).
+  logoGrande: { height: 144, width: '100%' },
   // Linha de topo do início do aluno: a marca discreta ao lado da foto.
   logoPequena: { height: 44, width: 120 },
   nome: { fontSize: 22, lineHeight: 28 },

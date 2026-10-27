@@ -121,8 +121,8 @@ export default function Inscricao() {
         <Campo rotulo="E-mail (opcional)" valor={dados.email} aoMudar={mudar('email')} erro={campos.email}
           autoCapitalize="none" keyboardType="email-address" inputMode="email" autoComplete="email"
           maxLength={LIMITES_INSCRICAO.email} ajuda="Usado só para o convite de acesso ao app, se você virar aluno." />
-        <Escolha rotulo="Sexo (opcional)" valor={dados.sexo} aoMudar={mudar('sexo')}
-          opcoes={[{ valor: '', rotulo: 'Prefiro não informar' }, ...OPCOES_DE_SEXO]} />
+        <Escolha rotulo="Sexo (opcional)" valor={dados.sexo} aoMudar={mudar('sexo')} distribuida
+          opcoes={[{ valor: '', rotulo: 'Não informar' }, ...OPCOES_DE_SEXO]} />
         <Campo rotulo="Objetivo (opcional)" valor={dados.objetivo} aoMudar={mudar('objetivo')} erro={campos.objetivo}
           linhas={3} maxLength={LIMITES_INSCRICAO.objetivo}
           ajuda="Em poucas palavras. Informações de saúde ficam para depois, se a inscrição for aceita." />
