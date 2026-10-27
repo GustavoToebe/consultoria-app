@@ -8,6 +8,7 @@ import br.com.treinos.api.alunos.ConviteService;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoDetalhe;
 import br.com.treinos.api.alunos.dto.AlunoDtos.AlunoRequest;
 import br.com.treinos.api.alunos.dto.AlunoDtos.ConviteResponse;
+import br.com.treinos.api.anamneses.AnamneseService;
 import br.com.treinos.api.auditoria.Auditar;
 import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.equipe.AcessoAtual;
@@ -21,6 +22,7 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoResumo;
 import br.com.treinos.api.inscricoes.InscricaoDtos.Nota;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NotaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.PaginaInscricoes;
+import br.com.treinos.api.questionarios.QuestionarioService;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoComRecursoException;
 import br.com.treinos.api.web.Formatos;
@@ -68,12 +70,15 @@ public class InscricaoService {
     private final ResponsaveisDaInscricao responsaveis;
     private final AlunoService alunos;
     private final ConviteService convites;
+    private final AnamneseService anamneses;
+    private final QuestionarioService questionarios;
     private final Auditoria auditoria;
     private final int limiteDiario;
 
     public InscricaoService(InscricaoRepository inscricoes, InscricaoNotaRepository notas,
                             InscricaoConfiguracaoRepository configuracoes, ResponsaveisDaInscricao responsaveis,
-                            AlunoService alunos, ConviteService convites, Auditoria auditoria,
+                            AlunoService alunos, ConviteService convites, AnamneseService anamneses,
+                            QuestionarioService questionarios, Auditoria auditoria,
                             @Value("${treinos.limites.inscricao-consultoria-dia:200}") int limiteDiario) {
         if (limiteDiario < 1) {
             throw new IllegalArgumentException("Limite diário de inscrições inválido.");
@@ -85,6 +90,8 @@ public class InscricaoService {
         this.responsaveis = responsaveis;
         this.alunos = alunos;
         this.convites = convites;
+        this.anamneses = anamneses;
+        this.questionarios = questionarios;
         this.auditoria = auditoria;
     }
 
@@ -206,16 +213,35 @@ public class InscricaoService {
 
     /**
      * Cria o aluno com nome, e-mail e o responsável da inscrição (sem responsável ativo, quem aceitou), marca a inscrição
-     * como aceita e, com {@code convidar}, gera o convite de acesso (o link sai só nesta resposta). O objetivo vai para o
-     * cadastro só para quem pode escrever dados sensíveis e se couber no campo do aluno. Tudo numa transação: limite do
-     * plano, e-mail de aluno já existente ({@code ALUNO_JA_EXISTE}, com o id) ou aceite repetido ({@code INSCRICAO_JA_ACEITA})
-     * não deixam nada pela metade.
+     * como aceita, com {@code anamneseQuestionarioId} envia ao aluno a anamnese desse questionário (a versão publicada
+     * daquele momento, pendente, como em {@code POST /alunos/{id}/anamneses}) e, com {@code convidar}, gera o convite de
+     * acesso (o link sai só nesta resposta). O objetivo vai para o cadastro só para quem pode escrever dados sensíveis e
+     * se couber no campo do aluno.
+     *
+     * <p>Ordem das checagens, todas antes de qualquer efeito: permissão {@code ALUNO_CONVITE} (se {@code convidar});
+     * com anamnese, {@code ANAMNESE_LER}, {@code ANAMNESE_ALTERAR} e {@code ALUNO_SENSIVEL_LER} (as mesmas da rota de
+     * atribuir, pois o {@code AnamneseService} não confere permissão sozinho; 403) e depois o questionário (404 se for de
+     * outra consultoria, 409 {@code QUESTIONARIO_INDISPONIVEL} se não for de anamnese, estiver sem versão publicada ou
+     * arquivado). Só então a inscrição é travada e conferida (aceite repetido, versão, e-mail de aluno existente).
+     *
+     * <p>Efeitos, nesta ordem: aluno, aceite, anamnese, convite. Tudo numa transação: qualquer recusa (limite do plano,
+     * {@code ALUNO_JA_EXISTE} com o id, {@code INSCRICAO_JA_ACEITA}, falha ao atribuir a anamnese) desfaz também o aluno e
+     * o aceite, e nada fica pela metade. Todas as auditorias que o aceite grava (entre elas {@code ALUNO_CRIADO},
+     * {@code INSCRICAO_ACEITA} e, quando houver, {@code ANAMNESE_ATRIBUIDA} e {@code ALUNO_CONVIDADO}) saem nessa mesma
+     * transação: ou saem todas, ou nenhuma.
      */
     @Transactional
     @Auditar(acao = "INSCRICAO_ACEITA", entidade = "INSCRICAO", resumo = "Aceitou uma inscrição e cadastrou o aluno.")
-    public AceiteResponse aceitar(UUID id, AceitarRequest r) {
+    public AceiteResponse aceitar(UUID id, AceitarRequest r, UUID usuarioId) {
         boolean convidar = Boolean.TRUE.equals(r.convidar());
+        UUID questionarioId = r.anamneseQuestionarioId();
         if (convidar) AcessoAtual.exigir("ALUNO_CONVITE");
+        if (questionarioId != null) {
+            AcessoAtual.exigir("ANAMNESE_LER");
+            AcessoAtual.exigir("ANAMNESE_ALTERAR");
+            AcessoAtual.exigir("ALUNO_SENSIVEL_LER");
+            questionarios.exigirAnamneseUsavel(questionarioId);
+        }
         Inscricao i = inscricoes.buscarParaAlterar(id).orElseThrow(InscricaoService::naoEncontrada);
         exigirNaoAceita(i);
         exigirVersao(i, r.versao());
@@ -236,8 +262,9 @@ public class InscricaoService {
         }
         i.aceitar(aluno.id());
         inscricoes.saveAndFlush(i);
+        UUID anamneseId = questionarioId == null ? null : anamneses.atribuir(aluno.id(), questionarioId, usuarioId).id();
         ConviteResponse convite = convidar ? convites.gerar(aluno.id()) : null;
-        return new AceiteResponse(i.getId(), aluno.id(), convite);
+        return new AceiteResponse(i.getId(), aluno.id(), convite, anamneseId);
     }
 
     // ---- Auxiliares ----

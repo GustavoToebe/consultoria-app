@@ -101,8 +101,12 @@ public final class InscricaoDtos {
     public record VersaoRequest(@NotNull Long versao) {
     }
 
-    /** {@code convidar}: gera o convite de acesso ao app do aluno criado (o link sai só nesta resposta). */
-    public record AceitarRequest(@NotNull Boolean convidar, @NotNull Long versao) {
+    /**
+     * {@code convidar}: gera o convite de acesso ao app do aluno criado (o link sai só nesta resposta).
+     * {@code anamneseQuestionarioId}: opcional; com ele, o aluno criado já recebe a anamnese desse questionário
+     * (publicado, de anamnese e não arquivado), na versão publicada daquele momento. Nulo = não envia anamnese.
+     */
+    public record AceitarRequest(@NotNull Boolean convidar, @NotNull Long versao, UUID anamneseQuestionarioId) {
     }
 
     // ---- Privacidade ----
@@ -119,7 +123,10 @@ public final class InscricaoDtos {
     public record NotaExportada(Instant criadaEm, String texto) {
     }
 
-    /** {@code id} = a inscrição (a auditoria lê o id daqui); {@code convite} nulo sem convite. */
-    public record AceiteResponse(UUID id, UUID alunoId, ConviteResponse convite) {
+    /**
+     * {@code id} = a inscrição (a auditoria lê o id daqui); {@code convite} nulo sem convite; {@code anamneseId} = a
+     * anamnese pendente enviada ao aluno, nulo quando o aceite não pediu anamnese.
+     */
+    public record AceiteResponse(UUID id, UUID alunoId, ConviteResponse convite, UUID anamneseId) {
     }
 }

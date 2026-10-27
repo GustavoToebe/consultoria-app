@@ -4,16 +4,20 @@ import { Copy, MessageCircle } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
+import { ErroApi } from '../../api/cliente';
 import type { ResponsavelEquipe } from '../../api/equipeTipos';
 import type { AceiteInscricao, InscricaoDetalhe, PagamentoInscricao, SituacaoInscricao } from '../../api/inscricoesTipos';
-import { aceitarInscricao, alterarInscricao, inscricao, notaNaInscricao, recusarInscricao } from '../../api/rotas';
+import { aceitarInscricao, alterarInscricao, inscricao, notaNaInscricao, opcoesDeQuestionario, recusarInscricao } from '../../api/rotas';
+import type { OpcaoQuestionario } from '../../api/tipos';
 import { dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
 import { rotuloDoSexo } from '../../dominio/sexo';
 import {
   alunoDoConflito,
+  anamneseInicialDoAceite,
   LIMITES_INSCRICAO,
   linkDoWhatsApp,
   OPCOES_PAGAMENTO,
+  opcoesDeAnamneseDoAceite,
   podeAceitar,
   podeRecusar,
   seloDaSituacao,
@@ -81,7 +85,7 @@ export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
       {!dados && !detalhe.erro ? <Esqueleto /> : null}
       {dados ? (
         <Conteudo key={`${dados.id}:${dados.versao}`} dados={dados} responsaveis={responsaveis} aoFechar={fechar}
-          pedido={pedido} aoFecharPedido={() => setPedido(null)} aoDecidindo={setDecidindo} aoAceitar={() => setAceitaId(dados.id)}
+          pedido={pedido} aoFecharPedido={() => setPedido(null)} aoReabrirAceite={() => setPedido('aceitar')} aoDecidindo={setDecidindo} aoAceitar={() => setAceitaId(dados.id)}
           aoMudarLista={aoMudar} aoAtualizar={(d) => { detalhe.definir(d); aoMudar(); }}
           aoRecarregar={() => { detalhe.recarregar(); aoMudar(); }} />
       ) : null}
@@ -91,11 +95,13 @@ export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
 
 type Decisao = 'aceitar' | 'recusar';
 
-function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, aoRecarregar, pedido, aoFecharPedido, aoDecidindo, aoAceitar }: {
+function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, aoRecarregar, pedido, aoFecharPedido, aoDecidindo, aoAceitar, aoReabrirAceite }: {
   dados: InscricaoDetalhe;
   /** Botão do rodapé tocado: abre a confirmação correspondente. */
   pedido: Decisao | null;
   aoFecharPedido: () => void;
+  /** O aceite fecha o painel antes de ir à API; se a API pedir outra escolha (anamnese indisponível), ele volta. */
+  aoReabrirAceite: () => void;
   /** Mantém o rodapé em "carregando" enquanto a decisão vai à API. */
   aoDecidindo: (d: Decisao | null) => void;
   aoAceitar: () => void;
@@ -122,6 +128,12 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
   const [alunoExistente, setAlunoExistente] = useState<string | null>(null);
   const [convidar, setConvidar] = useState(podeConvidar);
   const [aceite, setAceite] = useState<AceiteInscricao | null>(null);
+  // Anamnese enviada junto com o aceite: `undefined` = a pessoa ainda não mexeu (vale a padrão publicada, sem efeito).
+  const [anamneseEscolhida, setAnamneseEscolhida] = useState<string | null | undefined>(undefined);
+  const podeEnviarAnamnese = pode('ANAMNESE_LER') && pode('ANAMNESE_ALTERAR') && pode('ALUNO_SENSIVEL_LER');
+  const opcoes = useCarregar(pedido === 'aceitar' && podeEnviarAnamnese ? 'aceite:anamneses' : null, () => opcoesDeQuestionario('ANAMNESE'));
+  const semAcessoAsAnamneses = opcoes.erro instanceof ErroApi && opcoes.erro.status === 403;
+  const anamneseDoAceite = anamneseEscolhida !== undefined ? anamneseEscolhida : anamneseInicialDoAceite(opcoes.dados ?? []);
 
   const mudouAndamento = situacao !== dados.situacao || pagamento !== dados.pagamento
     || responsavelId !== (dados.responsavelId ?? SEM_RESPONSAVEL);
@@ -138,6 +150,14 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
     if (aluno) {
       setAlunoExistente(aluno);
       setErro(e);
+      return;
+    }
+    if (codigoApi(e) === 'QUESTIONARIO_INDISPONIVEL') {
+      // Nada foi criado: a anamnese escolhida saiu do ar. Recarrega as opções e devolve o painel para a pessoa escolher outra.
+      avisar('Essa anamnese não está mais disponível. Escolha outra.', 'neutro');
+      opcoes.recarregar();
+      setAnamneseEscolhida(undefined);
+      aoReabrirAceite();
       return;
     }
     if (codigoApi(e) === 'CONFLITO_EDICAO') {
@@ -183,13 +203,17 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
     setOcupado('aceitar');
     setErro(null);
     setAlunoExistente(null);
-    aceitarInscricao(dados.id, convidar && podeConvidar, dados.versao).then((r) => {
+    aceitarInscricao(dados.id, {
+      convidar: convidar && podeConvidar,
+      anamneseQuestionarioId: podeEnviarAnamnese ? anamneseDoAceite : null,
+      versao: dados.versao,
+    }).then((r) => {
       setOcupado(null);
       aoDecidindo(null);
       aoAceitar();
       // O código do convite só existe nesta resposta: fica na folha até ela fechar (nada de recarregar o detalhe agora).
       setAceite(r);
-      avisar('Inscrição aceita: o aluno foi cadastrado.', 'sucesso');
+      avisar(`Inscrição aceita: o aluno foi cadastrado.${r.anamneseId ? ' Anamnese enviada.' : ''}`, 'sucesso');
       aoMudarLista();
     }, falhou);
   };
@@ -320,15 +344,49 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
 
       <PainelConfirmacao visivel={pedido === 'aceitar' && podeCadastrar} titulo="Aceitar inscrição?"
         mensagem={`${dados.nome} vira aluno da consultoria, com o nome${dados.email ? ' e o e-mail' : ''} da inscrição. O app não confere pagamento.`}
-        rotuloConfirmar="Aceitar e cadastrar" aoConfirmar={aceitar} aoCancelar={aoFecharPedido}>
+        rotuloConfirmar="Aceitar e cadastrar" aoConfirmar={aceitar} aoCancelar={aoFecharPedido}
+        desabilitado={podeEnviarAnamnese && opcoes.carregando} motivo="Aguarde a lista de anamneses.">
         {podeConvidar ? (
           <CaixaSelecao rotulo="Enviar convite de acesso ao app" marcado={convidar} aoMudar={setConvidar}
             ajuda="Gera o link para a pessoa criar a senha. Você copia e manda." />
+        ) : null}
+        {podeEnviarAnamnese && !semAcessoAsAnamneses ? (
+          <SeletorDaAnamnese opcoes={opcoes.dados} carregando={opcoes.carregando} erro={opcoes.erro} aoTentarDeNovo={opcoes.recarregar}
+            valor={anamneseDoAceite} aoMudar={setAnamneseEscolhida}
+            avisoDoAcesso={!(convidar && podeConvidar) && anamneseDoAceite !== null} />
         ) : null}
       </PainelConfirmacao>
       <PainelConfirmacao visivel={pedido === 'recusar' && podeAlterar} titulo="Recusar inscrição?" perigo
         mensagem="A inscrição sai da fila de atendimento. Recusadas e desistentes são apagadas sozinhas depois de 180 dias."
         rotuloConfirmar="Recusar" aoConfirmar={recusar} aoCancelar={aoFecharPedido} />
+    </View>
+  );
+}
+
+/**
+ * Campo "Enviar anamnese" do painel de aceite: "Não enviar agora" mais as anamneses publicadas, numa `Escolha` (os botões
+ * quebram linha). Não usa `EscolhaEmFolha` mesmo com muitas opções: o painel é um AlertDialog modal (Radix) e a folha de
+ * escolha abre num `Modal` fora dele, onde o toque não chega (testado no e2e). Também não usa o `SeletorDeQuestionario`
+ * (busca outra finalidade, grava na hora).
+ */
+function SeletorDaAnamnese({ opcoes, carregando, erro, aoTentarDeNovo, valor, aoMudar, avisoDoAcesso }: {
+  opcoes: readonly OpcaoQuestionario[] | undefined;
+  carregando: boolean;
+  erro: unknown;
+  aoTentarDeNovo: () => void;
+  valor: string | null;
+  aoMudar: (valor: string | null) => void;
+  /** Convite desmarcado e anamnese escolhida: lembra que o aluno só vê quando entrar no app. */
+  avisoDoAcesso: boolean;
+}) {
+  if (erro && !opcoes) return <MensagemErro texto="Não foi possível carregar as anamneses." tentarDeNovo={aoTentarDeNovo} erro={erro} />;
+  if (!opcoes) return carregando ? <Texto variante="suave">Carregando as anamneses.</Texto> : null;
+  if (opcoes.length === 0) return <Texto variante="suave">Nenhuma anamnese publicada.</Texto>;
+  const lista = opcoesDeAnamneseDoAceite(opcoes);
+  return (
+    <View style={estilos.anamnese}>
+      <Escolha rotulo="Enviar anamnese" valor={valor} opcoes={lista} aoMudar={aoMudar} />
+      {avisoDoAcesso ? <Texto variante="pequeno">O aluno responde quando entrar no app.</Texto> : null}
     </View>
   );
 }
@@ -374,6 +432,7 @@ function ResultadoDoAceite({ aceite, podeVerAluno, aoCopiar, aoAbrirFicha }: {
 const estilos = StyleSheet.create({
   corpo: { gap: espaco(2) },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap' },
+  anamnese: { gap: espaco(0.75) },
   nota: { gap: 2 },
   destaque: {
     flexDirection: 'row',

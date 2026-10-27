@@ -1,6 +1,6 @@
 import { requisicao } from './cliente';
 import {
-  aplicarAlteracaoDaAnamnese, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
+  aceitarInscricao, aplicarAlteracaoDaAnamnese, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento,
 } from './rotas';
 
@@ -31,6 +31,17 @@ describe('caminhos da API', () => {
     const corpo = { orderNsu: 'c0000000-0000-4000-8000-0000000000b1', transactionNsu: 'tx1', slug: 'abc', captureMethod: 'pix' };
     await retornoDoPagamento(corpo);
     expect(requisicao).toHaveBeenLastCalledWith('/aluno/financeiro/retorno-pagamento', { metodo: 'POST', corpo });
+  });
+
+  it('aceite da inscrição: o corpo leva sempre anamneseQuestionarioId (nulo quando não envia)', async () => {
+    await aceitarInscricao('a/b', { convidar: true, anamneseQuestionarioId: null, versao: 3 });
+    expect(requisicao).toHaveBeenLastCalledWith('/inscricoes/a%2Fb/aceitar', {
+      metodo: 'POST', corpo: { convidar: true, anamneseQuestionarioId: null, versao: 3 },
+    });
+    await aceitarInscricao('i', { convidar: false, anamneseQuestionarioId: 'q1', versao: 1 });
+    expect(requisicao).toHaveBeenLastCalledWith('/inscricoes/i/aceitar', {
+      metodo: 'POST', corpo: { convidar: false, anamneseQuestionarioId: 'q1', versao: 1 },
+    });
   });
 
   it('uuid comum passa igual', async () => {

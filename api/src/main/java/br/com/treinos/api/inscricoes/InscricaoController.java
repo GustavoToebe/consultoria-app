@@ -98,7 +98,8 @@ public class InscricaoController {
 
     @PreAuthorize("hasAuthority('PERM_INSCRICAO_ALTERAR') and hasAuthority('PERM_ALUNO_ALTERAR')")
     @PostMapping("/{id}/aceitar")
-    public AceiteResponse aceitar(@PathVariable UUID id, @RequestBody @Valid AceitarRequest request) {
-        return inscricoes.aceitar(id, request);
+    public AceiteResponse aceitar(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable UUID id,
+                                  @RequestBody @Valid AceitarRequest request) {
+        return inscricoes.aceitar(id, request, eu.usuarioId());
     }
 }

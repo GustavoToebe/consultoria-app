@@ -7,6 +7,7 @@ import type {
   PagamentoInscricao,
   SituacaoInscricao,
 } from '../api/inscricoesTipos';
+import type { OpcaoQuestionario } from '../api/tipos';
 import { SEM_DADO } from './formatos';
 
 /**
@@ -153,6 +154,28 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
   };
   if (token) corpo.turnstileToken = token;
   return corpo;
+}
+
+/** Rótulo de "não mandar anamnese junto com o aceite". */
+export const ROTULO_NAO_ENVIAR_ANAMNESE = 'Não enviar agora';
+
+/** Opção do seletor da anamnese no aceite (compatível com `Escolha` e `EscolhaEmFolha`). `null` = não enviar agora. */
+export interface OpcaoDeAnamneseDoAceite {
+  valor: string | null;
+  rotulo: string;
+}
+
+/** Anamnese que já vem marcada no aceite: a padrão publicada; sem padrão, `null` ("Não enviar agora"). */
+export function anamneseInicialDoAceite(opcoes: readonly OpcaoQuestionario[]): string | null {
+  return opcoes.find((o) => o.padrao)?.id ?? null;
+}
+
+/** Opções do seletor: "Não enviar agora" primeiro e depois cada anamnese publicada, a padrão com "(padrão)". */
+export function opcoesDeAnamneseDoAceite(opcoes: readonly OpcaoQuestionario[]): OpcaoDeAnamneseDoAceite[] {
+  return [
+    { valor: null, rotulo: ROTULO_NAO_ENVIAR_ANAMNESE },
+    ...opcoes.map((o) => ({ valor: o.id, rotulo: o.padrao ? `${o.nome} (padrão)` : o.nome })),
+  ];
 }
 
 /**

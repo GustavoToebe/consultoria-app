@@ -111,4 +111,6 @@ export interface AceiteInscricao {
   id: string;
   alunoId: string;
   convite: ConviteGerado | null;
+  /** Anamnese enviada junto com o aceite; `null` quando nenhuma foi enviada. */
+  anamneseId: string | null;
 }

@@ -397,9 +397,16 @@ export const notaNaInscricao = (id: string, texto: string) =>
 export const recusarInscricao = (id: string, versao: number) =>
   requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/recusar`, { metodo: 'POST', corpo: { versao } });
 
-/** Cria o aluno; com `convidar`, o convite de acesso vem na resposta (o código só aparece aqui). */
-export const aceitarInscricao = (id: string, convidar: boolean, versao: number) =>
-  requisicao<AceiteInscricao>(`/inscricoes/${seg(id)}/aceitar`, { metodo: 'POST', corpo: { convidar, versao } });
+/**
+ * Cria o aluno; com `convidar`, o convite de acesso vem na resposta (o código só aparece aqui). Com
+ * `anamneseQuestionarioId`, a API atribui essa anamnese ao aluno na mesma operação; o campo vai sempre no corpo
+ * (`null` = não enviar).
+ */
+export const aceitarInscricao = (id: string, dados: { convidar: boolean; anamneseQuestionarioId: string | null; versao: number }) =>
+  requisicao<AceiteInscricao>(`/inscricoes/${seg(id)}/aceitar`, {
+    metodo: 'POST',
+    corpo: { convidar: dados.convidar, anamneseQuestionarioId: dados.anamneseQuestionarioId, versao: dados.versao },
+  });
 
 // ---- Treinador: marca e configuração ----
 

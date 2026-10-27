@@ -393,6 +393,154 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/inscricoes/" + id, admin, 200).path("situacao").asString()).isEqualTo("NOVA");
     }
 
+    // ---- aceite com anamnese ----
+
+    /** Questionário de anamnese fictício e simples (uma pergunta de texto), publicado; sem peso, não pede confirmação. */
+    private String anamnesePublicada(JsonNode login, String nome) throws Exception {
+        JsonNode q = api.post("/questionarios", login, Map.of("nome", nome, "origem", "VAZIO", "finalidade", "ANAMNESE"), 200);
+        String id = q.path("id").asString();
+        Map<String, Object> pergunta = Map.of("id", "queixa", "tipo", "TEXTO", "rotulo", "Conte sobre você.", "obrigatoria", false);
+        Map<String, Object> conteudo = Map.of("instrucoes", List.of(),
+                "secoes", List.of(Map.of("uid", "s1", "titulo", "Geral", "perguntas", List.of(pergunta))));
+        Map<String, Object> corpo = new HashMap<>();
+        corpo.put("nome", nome);
+        corpo.put("conteudo", conteudo);
+        corpo.put("versao", q.path("versao").asLong());
+        JsonNode salvo = api.put("/questionarios/" + id, login, corpo, 200);
+        api.post("/questionarios/" + id + "/publicar", login,
+                Map.of("versao", salvo.path("versao").asLong(), "confirmarAvisos", false), 200);
+        return id;
+    }
+
+    /** Abre o link, recebe uma inscrição e devolve {id, versao}. */
+    private String[] inscricaoNova(JsonNode login) throws Exception {
+        String codigo = abrirLink(login, null, null).path("codigo").asString();
+        inscrever(codigo, inscricao("Pessoa Fictícia " + UUID.randomUUID(), null), 202);
+        String id = unica(login).path("id").asString();
+        return new String[] {id, String.valueOf(api.get("/inscricoes/" + id, login, 200).path("versao").asLong())};
+    }
+
+    private static Map<String, Object> aceiteCom(String versao, String questionarioId) {
+        Map<String, Object> corpo = new HashMap<>();
+        corpo.put("convidar", false);
+        corpo.put("versao", Long.parseLong(versao));
+        if (questionarioId != null) corpo.put("anamneseQuestionarioId", questionarioId);
+        return corpo;
+    }
+
+    private long auditorias(UUID consultoria, String acao) {
+        Long total = banco.queryForObject("select count(*) from auditoria where consultoria_id = ? and acao = ?", Long.class,
+                consultoria, acao);
+        return total == null ? 0 : total;
+    }
+
+    private void nadaFoiCriado(JsonNode login, UUID consultoria, String inscricaoId, long alunosAntes) throws Exception {
+        assertThat(alunos(consultoria)).isEqualTo(alunosAntes);
+        assertThat(api.get("/inscricoes/" + inscricaoId, login, 200).path("situacao").asString()).isEqualTo("NOVA");
+        Long anamneses = banco.queryForObject("select count(*) from anamnese where consultoria_id = ?", Long.class, consultoria);
+        assertThat(anamneses).isZero();
+        assertThat(auditorias(consultoria, "INSCRICAO_ACEITA")).isZero();
+        assertThat(auditorias(consultoria, "ANAMNESE_ATRIBUIDA")).isZero();
+        assertThat(auditorias(consultoria, "ALUNO_CRIADO")).isZero();
+        assertThat(auditorias(consultoria, "ALUNO_CONVIDADO")).isZero();
+    }
+
+    @Test
+    void aceitarComAnamneseEnviaAnamnesePendenteNaVersaoPublicadaEAudita() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String questionario = anamnesePublicada(admin, "Anamnese fictícia " + UUID.randomUUID());
+        String[] insc = inscricaoNova(admin);
+
+        JsonNode aceite = api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], questionario), 200);
+        String alunoId = aceite.path("alunoId").asString();
+        assertThat(aceite.path("anamneseId").asString()).isNotBlank();
+        assertThat(aceite.path("convite").isNull()).isTrue();
+
+        JsonNode lista = api.get("/alunos/" + alunoId + "/anamneses", admin, 200);
+        assertThat(lista).hasSize(1);
+        assertThat(lista.get(0).path("id").asString()).isEqualTo(aceite.path("anamneseId").asString());
+        assertThat(lista.get(0).path("situacao").asString()).isEqualTo("PENDENTE");
+        assertThat(lista.get(0).path("questionarioVersaoNumero").asInt()).isEqualTo(1);
+        Long daVersaoPublicada = banco.queryForObject("select count(*) from anamnese a join questionario_versao v "
+                + "on v.id = a.questionario_versao_id where a.aluno_id = ?::uuid and v.questionario_id = ?::uuid",
+                Long.class, alunoId, questionario);
+        assertThat(daVersaoPublicada).isEqualTo(1);
+        assertThat(api.get("/inscricoes/" + insc[0], admin, 200).path("situacao").asString()).isEqualTo("ACEITA");
+
+        assertThat(auditorias(consultoria, "INSCRICAO_ACEITA")).isEqualTo(1);
+        assertThat(auditorias(consultoria, "ANAMNESE_ATRIBUIDA")).isEqualTo(1);
+    }
+
+    @Test
+    void aceitarComAnamneseSemPermissaoDaAnamneseDa403ENaoCriaNada() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String questionario = anamnesePublicada(admin, "Anamnese fictícia " + UUID.randomUUID());
+        String[] insc = inscricaoNova(admin);
+        long antes = alunos(consultoria);
+
+        // O Assistente aceita inscrição e cadastra aluno, mas não tem ANAMNESE_* nem ALUNO_SENSIVEL_LER.
+        perfil(admin, "Assistente");
+        api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], questionario), 403);
+        nadaFoiCriado(admin, consultoria, insc[0], antes);
+        // Sem o campo, o mesmo perfil aceita normalmente.
+        api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], null), 200);
+        assertThat(alunos(consultoria)).isEqualTo(antes + 1);
+    }
+
+    @Test
+    void aceitarComQuestionarioIndisponivelDa409ENaoCriaNada() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String[] insc = inscricaoNova(admin);
+        long antes = alunos(consultoria);
+
+        // Questionário de atualização (o padrão da consultoria) não serve de anamnese.
+        String atualizacao = api.get("/questionarios/opcoes?finalidade=ATUALIZACAO", admin, 200).valueStream()
+                .filter(o -> o.path("padrao").asBoolean()).findFirst().orElseThrow().path("id").asString();
+        assertThat(api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], atualizacao), 409)
+                .path("codigo").asString()).isEqualTo("QUESTIONARIO_INDISPONIVEL");
+        nadaFoiCriado(admin, consultoria, insc[0], antes);
+
+        // Rascunho de anamnese nunca publicado.
+        String rascunho = api.post("/questionarios", admin,
+                Map.of("nome", "Rascunho fictício " + UUID.randomUUID(), "origem", "VAZIO", "finalidade", "ANAMNESE"), 200)
+                .path("id").asString();
+        assertThat(api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], rascunho), 409)
+                .path("codigo").asString()).isEqualTo("QUESTIONARIO_INDISPONIVEL");
+        nadaFoiCriado(admin, consultoria, insc[0], antes);
+
+        // Anamnese publicada e depois arquivada.
+        String arquivada = anamnesePublicada(admin, "Arquivada fictícia " + UUID.randomUUID());
+        api.post("/questionarios/" + arquivada + "/arquivar", admin, null, 200);
+        assertThat(api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], arquivada), 409)
+                .path("codigo").asString()).isEqualTo("QUESTIONARIO_INDISPONIVEL");
+        nadaFoiCriado(admin, consultoria, insc[0], antes);
+    }
+
+    @Test
+    void aceitarComAnamneseDeOutraConsultoriaDa404ENaoCriaNada() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        JsonNode outro = api.novoTreinador();
+        String deOutra = anamnesePublicada(outro, "Anamnese alheia fictícia " + UUID.randomUUID());
+        String[] insc = inscricaoNova(admin);
+        long antes = alunos(consultoria);
+
+        api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], deOutra), 404);
+        nadaFoiCriado(admin, consultoria, insc[0], antes);
+    }
+
+    @Test
+    void aceitarSemOCampoDaAnamneseSegueComoAntesESemAnamnese() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        anamnesePublicada(admin, "Anamnese fictícia " + UUID.randomUUID());
+        String[] insc = inscricaoNova(admin);
+
+        JsonNode aceite = api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], null), 200);
+        assertThat(aceite.path("anamneseId").isNull()).isTrue();
+        assertThat(api.get("/alunos/" + aceite.path("alunoId").asString() + "/anamneses", admin, 200)).isEmpty();
+        assertThat(auditorias(consultoria, "INSCRICAO_ACEITA")).isEqualTo(1);
+        assertThat(auditorias(consultoria, "ANAMNESE_ATRIBUIDA")).isZero();
+    }
+
     // ---- retenção e privacidade ----
 
     @Test

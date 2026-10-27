@@ -2,6 +2,8 @@ import { ErroApi } from '@plataforma/web';
 
 import {
   alunoDoConflito,
+  anamneseInicialDoAceite,
+  opcoesDeAnamneseDoAceite,
   corpoDaInscricao,
   errosDaInscricao,
   INSCRICAO_VAZIA,
@@ -121,6 +123,26 @@ describe('formulário público', () => {
       cienciaPrivacidade: true,
     });
     expect(corpoDaInscricao(ok, false, 'tok').turnstileToken).toBe('tok');
+  });
+});
+
+describe('anamnese no aceite', () => {
+  const geral = { id: 'q-geral', nome: 'Anamnese geral', padrao: true };
+  const esportiva = { id: 'q-esportiva', nome: 'Anamnese esportiva', padrao: false };
+
+  it('já vem marcada a padrão; sem padrão (ou sem nenhuma), não enviar agora', () => {
+    expect(anamneseInicialDoAceite([esportiva, geral])).toBe('q-geral');
+    expect(anamneseInicialDoAceite([esportiva])).toBeNull();
+    expect(anamneseInicialDoAceite([])).toBeNull();
+  });
+
+  it('opções: "Não enviar agora" primeiro e a padrão com o rótulo "(padrão)"', () => {
+    expect(opcoesDeAnamneseDoAceite([esportiva, geral])).toEqual([
+      { valor: null, rotulo: 'Não enviar agora' },
+      { valor: 'q-esportiva', rotulo: 'Anamnese esportiva' },
+      { valor: 'q-geral', rotulo: 'Anamnese geral (padrão)' },
+    ]);
+    expect(opcoesDeAnamneseDoAceite([])).toEqual([{ valor: null, rotulo: 'Não enviar agora' }]);
   });
 });
 
