@@ -20,6 +20,11 @@ spring:
     password: ${MIGRATION_DB_PASSWORD:${DB_SENHA}}
     placeholders:
       papelApp: ${PLATAFORMA_PAPEL_APP}
+    # Espera por trava limitada a 60 s, só nas conexões do Flyway (nunca no datasource da API): em 26/10 uma migration
+    # ficou horas atrás de uma sessão parada "idle in transaction" e a API não subia. Agora a subida falha com erro,
+    # a migration volta inteira e a próxima subida tenta de novo.
+    init-sqls:
+      - SET lock_timeout = '60s'
 
 plataforma:
   auth:

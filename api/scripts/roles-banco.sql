@@ -23,6 +23,9 @@ ALTER DATABASE {{banco}} OWNER TO {{migrador}};
 -- Só os dois papéis entram neste banco; o PUBLIC (padrão do Postgres) não.
 REVOKE CONNECT ON DATABASE {{banco}} FROM PUBLIC;
 GRANT CONNECT ON DATABASE {{banco}} TO {{migrador}}, {{app}};
+-- Sessão parada no meio de uma transação ("idle in transaction") cai em 10 min e solta as travas: em 26/10 uma, esquecida
+-- num psql, segurou uma migration por horas. Vale para toda sessão nova neste banco, superusuário inclusive.
+ALTER DATABASE {{banco}} SET idle_in_transaction_session_timeout = '10min';
 
 -- O módulo de autenticação cria o schema próprio plataforma (o dono do banco pode); a API só usa o public e o plataforma.
 REVOKE ALL ON SCHEMA public FROM PUBLIC;

@@ -3,10 +3,14 @@ package br.com.treinos.api.migration;
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.TreinosApiApplication;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.callback.Callback;
+import org.flywaydb.core.api.callback.Context;
+import org.flywaydb.core.api.callback.Event;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import java.nio.charset.StandardCharsets;
@@ -14,10 +18,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import javax.sql.DataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -77,15 +85,58 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
 
     /** A API de verdade, no perfil docker: DB_* do app, MIGRATION_DB_* do migrador e PLATAFORMA_PAPEL_APP. */
     private ConfigurableApplicationContext subirApi(String banco, String migrador, String app) {
+        return subirApi(banco, migrador, app, contexto -> { });
+    }
+
+    private ConfigurableApplicationContext subirApi(String banco, String migrador, String app,
+                                                    ApplicationContextInitializer<ConfigurableApplicationContext> inicializador) {
         return new SpringApplicationBuilder(TreinosApiApplication.class)
                 .web(WebApplicationType.SERVLET)
                 .profiles("test", "docker")
+                .initializers(inicializador)
                 .properties("server.port=0",
                         "DB_URL=" + urlDe(banco), "DB_USUARIO=" + app, "DB_SENHA=" + SENHA_APP,
                         "MIGRATION_DB_USER=" + migrador, "MIGRATION_DB_PASSWORD=" + SENHA_MIGRADOR,
                         "PLATAFORMA_PAPEL_APP=" + app)
                 // Argumento de linha de comando vence o application-test.yml: padrão de produção, fotos desligadas.
                 .run("--treinos.fotos.habilitado=false");
+    }
+
+    /** Valor em uso de um parâmetro do Postgres (em ms, nos de tempo), lido de pg_settings: o SHOW diria "1min". */
+    private static String parametro(Connection c, String nome) throws SQLException {
+        try (Statement st = c.createStatement(); ResultSet rs = st.executeQuery("SELECT setting FROM pg_settings WHERE name = '" + nome + "'")) {
+            rs.next();
+            return rs.getString(1);
+        }
+    }
+
+    /** Lê o lock_timeout da conexão que o próprio Flyway abriu, antes de cada migration (não fecha a conexão: é dele). */
+    private static Callback leitorDoLockTimeout(List<String> lidos) {
+        return new Callback() {
+            @Override
+            public boolean supports(Event evento, Context contexto) {
+                return evento == Event.BEFORE_EACH_MIGRATE;
+            }
+
+            @Override
+            public boolean canHandleInTransaction(Event evento, Context contexto) {
+                return true;
+            }
+
+            @Override
+            public void handle(Event evento, Context contexto) {
+                try {
+                    lidos.add(parametro(contexto.getConnection(), "lock_timeout"));
+                } catch (SQLException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+
+            @Override
+            public String getCallbackName() {
+                return "leitor-do-lock-timeout";
+            }
+        };
     }
 
     private void assertHistoricosFechadosParaOApp(String banco, String app) throws SQLException {
@@ -184,6 +235,37 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
         } finally {
             limpar(banco, migrador, app);
             limpar(outroBanco, outroMigrador, outroApp);
+        }
+    }
+
+    /**
+     * Travas contra sessão parada: o Flyway da API sai com lock_timeout de 60 s (init-sqls do perfil docker), a conexão da própria
+     * API continua sem limite de espera e o banco novo, criado pelo roles-banco.sql, derruba sessão parada em transação em 10 min.
+     */
+    @Test
+    void flywayTemLockTimeoutDeSessentaSegundosESoEleEOBancoDerrubaSessaoParada() throws Exception {
+        String sufixo = sufixo();
+        String banco = "travas_" + sufixo;
+        String migrador = "migrador_" + sufixo;
+        String app = "app_" + sufixo;
+        List<String> lockTimeoutDoFlyway = new CopyOnWriteArrayList<>();
+        try {
+            bancoNovoComPapeis(banco, migrador, app);
+            try (ConfigurableApplicationContext api = subirApi(banco, migrador, app,
+                    contexto -> contexto.getBeanFactory().registerSingleton("leitorDoLockTimeout", leitorDoLockTimeout(lockTimeoutDoFlyway)))) {
+                assertThat(api.isRunning()).isTrue();
+                // Prova que o leitor rodou (33 migrations) e que todas viram 60 s (60000 ms); lista vazia seria teste sem efeito.
+                assertThat(lockTimeoutDoFlyway).isNotEmpty().containsOnly("60000");
+                // O limite é só do Flyway: o datasource da API segue com o padrão do Postgres (0 = esperar).
+                try (Connection c = api.getBean(DataSource.class).getConnection()) {
+                    assertThat(parametro(c, "lock_timeout")).isEqualTo("0");
+                }
+            }
+            try (Connection c = como(banco, app, SENHA_APP)) {
+                assertThat(parametro(c, "idle_in_transaction_session_timeout")).isEqualTo("600000");
+            }
+        } finally {
+            limpar(banco, migrador, app);
         }
     }
 

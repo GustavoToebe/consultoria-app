@@ -28,6 +28,18 @@ O `ALTER DEFAULT PRIVILEGES` de `api/scripts/roles-banco.sql` dá DML ao app em 
 porta, sem passo manual. O `plataforma.historico_migracao` o próprio módulo deixa fora dos grants. Papel informado que não existe falha
 a subida.
 
+## Travas
+Em 26/10 a migration V033 ficou horas esperando a trava de uma sessão `psql` esquecida "idle in transaction", e a API não subia. Duas travas
+evitam a repetição:
+- **`lock_timeout` de 60 s no Flyway** (`spring.flyway.init-sqls` em `application-docker.yml`): o Flyway desiste de esperar uma trava depois
+  de 60 s e a subida falha com erro, em vez de ficar parada. Vale só nas conexões do Flyway, nunca no datasource da API (a API não ganha
+  limite de espera nenhum). A migration que bate no limite volta inteira (as nossas rodam em transação), não entra no histórico e a próxima
+  subida tenta de novo, sem `flyway repair`. Uma migration que precise esperar mais de 60 s por uma trava legítima falha a subida; o
+  módulo de autenticação migra o schema `plataforma` com um Flyway próprio, que esta propriedade não alcança.
+- **`idle_in_transaction_session_timeout` de 10 min no banco** (`ALTER DATABASE` em `roles-banco.sql`): o Postgres encerra a sessão parada
+  no meio de uma transação e solta as travas dela. Vale para toda sessão nova do banco, superusuário inclusive. Só chega ao banco criado
+  pelo script; num banco que já existe é preciso rodar o `ALTER DATABASE` uma vez, à mão.
+
 ## Criar o banco (VPS)
 `deploy/postgres/criar-banco-app.sh consultoria` no repositório `central-api-back`: gera as duas senhas na própria VPS, cria o banco, aplica
 uma cópia do `api/scripts/roles-banco.sql` (**mantenha as duas iguais**) e grava `DB_*`, `MIGRATION_DB_*` e `PLATAFORMA_PAPEL_APP` em
@@ -38,7 +50,8 @@ uma cópia do `api/scripts/roles-banco.sql` (**mantenha as duas iguais**) e grav
 migrador e o papel só de dados → o app é recusado nos dois históricos já na primeira subida e na segunda, lê, grava e apaga dados (inclusive
 numa tabela criada depois só pelo migrador, com sequência), é recusado em `CREATE`, `ALTER`, `DROP` e `TRUNCATE` nos dois schemas e não
 conecta no banco de outro aplicativo. Cobre também o callback: reabrir o histórico à mão é desfeito na subida seguinte; papel vazio ou
-igual ao do Flyway não faz nada; papel inexistente falha.
+igual ao do Flyway não faz nada; papel inexistente falha. Cobre também as travas: a conexão do Flyway sai com `lock_timeout` de 60 s, a da API
+fica sem limite de espera e o banco novo traz o `idle_in_transaction_session_timeout` de 10 min.
 
 ## Cuidados
 - Migration futura que cria função com `SECURITY DEFINER`, extensão ou objeto fora de `public`/`plataforma` precisa de revisão do grant.
