@@ -42,6 +42,19 @@ describe('formato do pacote salvo no aparelho', () => {
     expect(pacoteNoFormatoAtual(q)).toBe(true);
   });
 
+  it('aceita carga por bloco do Cluster e retomadas do Rest-pause e confere o formato delas', () => {
+    const p = salvo();
+    const t = p.pacote.treino.conteudo.sessoes[0].exercicios[0].series[2].tecnica;
+    t.cargasDosBlocos = [{ modo: 'DA_SERIE', percentual: null }, { modo: 'PERCENTUAL_WS', percentual: 90 }];
+    t.retomadas = [{ repsMin: 2, repsMax: 3, amrap: null, carga: { modo: 'DA_SERIE', percentual: null } }];
+    expect(pacoteNoFormatoAtual(p)).toBe(true);
+    t.cargasDosBlocos = [{ modo: 'ACIMA_DA_ANTERIOR', percentual: 5 }];
+    expect(pacoteNoFormatoAtual(p)).toBe(false);
+    t.cargasDosBlocos = null;
+    t.retomadas = [{ repsMin: '2', repsMax: 3, carga: null }];
+    expect(pacoteNoFormatoAtual(p)).toBe(false);
+  });
+
   it('recusa o que não é pacote', () => {
     for (const ruim of [null, 'x', [], {}, { salvoEm: 1, pacote: {} }, { salvoEm: 'x', pacote: { configuracao: {} } }]) expect(pacoteNoFormatoAtual(ruim)).toBe(false);
   });

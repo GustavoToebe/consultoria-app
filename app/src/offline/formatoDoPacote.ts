@@ -40,11 +40,23 @@ function esforco(v: unknown): boolean {
   return v == null || (objeto(v) && campos(v, ['rir', 'rpe']) && numero(v.rir) && numero(v.rpe));
 }
 
+/** Carga de uma etapa: da série ou % da WS (docs/series-etapas.md). */
+function cargaDaEtapa(v: unknown): boolean {
+  return objeto(v) && campos(v, ['modo', 'percentual']) && ['DA_SERIE', 'PERCENTUAL_WS'].includes(String(v.modo)) && numero(v.percentual);
+}
+
+function retomada(v: unknown): boolean {
+  return objeto(v) && campos(v, ['repsMin', 'repsMax', 'amrap', 'carga']) && numero(v.repsMin) && numero(v.repsMax)
+    && (v.amrap == null || typeof v.amrap === 'boolean') && (v.carga == null || cargaDaEtapa(v.carga));
+}
+
 function tecnica(v: unknown): boolean {
   if (v == null) return true;
   return (
     objeto(v) &&
-    campos(v, ['tipo', ...CAMPOS_NUMERICOS_DA_TECNICA, 'blocos', 'regiao']) &&
+    campos(v, ['tipo', ...CAMPOS_NUMERICOS_DA_TECNICA, 'blocos', 'regiao', 'cargasDosBlocos', 'retomadas']) &&
+    (v.cargasDosBlocos == null || lista(v.cargasDosBlocos, cargaDaEtapa)) &&
+    (v.retomadas == null || lista(v.retomadas, retomada)) &&
     TIPOS_DE_TECNICA.includes(String(v.tipo)) &&
     (v.blocos == null || lista(v.blocos, (b) => typeof b === 'number' && Number.isFinite(b))) &&
     (v.regiao == null || REGIOES.includes(String(v.regiao))) &&

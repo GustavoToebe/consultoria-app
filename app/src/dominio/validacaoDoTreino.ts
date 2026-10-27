@@ -1,7 +1,7 @@
 import type { Configuracao, ExercicioPlano, Problema, ResultadoValidacao, Serie, Sessao, TecnicaDeGrupo } from '../api/tipos';
 import { DESCANSO_MAXIMO_DO_GRUPO, grupoEmSequencia, MAXIMO_DE_VOLTAS, MAXIMO_POR_GRUPO, MINIMO_POR_GRUPO } from './combinacoes';
 import { TIPOS_DE_GRUPO, tipoPorCodigo } from './metodologia';
-import { problemasDaSerie } from './validacaoDeSerie';
+import { problemasDaSerie, temEtapaEmPercentual } from './validacaoDeSerie';
 import { videoValido } from './video';
 
 /**
@@ -99,6 +99,12 @@ function validarExercicioNoColetor(c: Coletor, e: ExercicioPlano, caminho: strin
       const referencia = s.carga?.referenciaUid;
       if (modo === 'ABAIXO_DA_REFERENCIA' && referencia && !anteriores.has(referencia)) {
         c.erro(junta(cs, 'carga.referenciaUid'), 'A referência precisa ser uma série anterior, no mesmo exercício.');
+      }
+      if (e.unidade === 'nenhuma' && s.tecnica?.tipo === 'CLUSTER' && s.tecnica.cargasDosBlocos != null) {
+        c.erro(junta(cs, 'tecnica.cargasDosBlocos'), 'Exercício sem carga não tem carga por bloco.');
+      }
+      if (e.unidade === 'nenhuma' && s.tecnica?.tipo === 'REST_PAUSE' && temEtapaEmPercentual(s.tecnica)) {
+        c.erro(junta(cs, 'tecnica.retomadas'), 'Exercício sem carga não tem retomada em percentual da WS.');
       }
       if (s.tecnica?.tipo === 'FORCED_REPS') c.aviso(junta(cs, 'tecnica'), 'Forced reps precisa de um parceiro para ajudar nas repetições.');
       avisoDaTecnica(c, s, cs, metodologia, tecnicasAvisadas);

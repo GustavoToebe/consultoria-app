@@ -1,8 +1,10 @@
-import type { Configuracao, Serie } from '../api/tipos';
+import type { CargaDaEtapa, Configuracao, Serie } from '../api/tipos';
 import { faixa, nomeDaReferencia, textoCardio, textoCarga, textoDaFaixaPercentual, textoEsforco, textoPausa, textoTecnica } from './agrupamento';
 import { blocosIguais, blocosValidos, somaDosBlocos } from './blocos';
 import { rotuloDescanso } from './descanso';
+import { metaDaRetomada, textoDaCargaDaEtapa } from './etapas';
 import { nomeDaSerieDeTrabalho } from './metodologia';
+import { temEtapaEmPercentual } from './validacaoDeSerie';
 
 /**
  * Leitura curta de uma série, a mesma no editor ("Para o aluno"), no PDF e na tela do aluno: o resultado final, sem
@@ -47,6 +49,30 @@ export function estruturaDaSerie(s: Serie, config?: Configuracao | null): string
   return [textoDasRepeticoesDaSerie(s), tecnica].filter(Boolean).join(' · ');
 }
 
+/**
+ * Meta e carga de cada etapa, só quando o treinador as escreveu (carga por bloco do Cluster, retomadas do Rest-pause):
+ * "Bloco 1: carga da série", "Bloco 2: 90% da WS", "Retomada 1: 2 a 3 reps, carga da série". Com algum percentual, uma
+ * linha diz sobre o que ele é calculado. Sem nada escrito, lista vazia (a estrutura já basta).
+ */
+export function linhasDasEtapas(s: Serie, config?: Configuracao | null): string[] {
+  const t = s.tecnica;
+  if (!t || s.cardio) return [];
+  const ws = nomeDaSerieDeTrabalho(config);
+  const carga = (c: CargaDaEtapa | null | undefined) => textoDaCargaDaEtapa(c, ws) ?? 'carga da série';
+  let linhas: string[] = [];
+  if (t.tipo === 'CLUSTER' && blocosValidos(t.blocos) && t.cargasDosBlocos?.length === t.blocos!.length) {
+    linhas = t.cargasDosBlocos.map((c, i) => `Bloco ${i + 1}: ${carga(c)}`);
+  } else if (t.tipo === 'REST_PAUSE' && t.retomadas?.length) {
+    const uma = t.retomadas.length === 1;
+    linhas = t.retomadas.map((r, i) => `${uma ? 'Retomada' : `Retomada ${i + 1}`}: ${metaDaRetomada(r)}, ${carga(r?.carga)}`);
+  }
+  if (!temEtapaEmPercentual(t)) return linhas;
+  const base = s.carga?.modo === 'CARGA_TRABALHO'
+    ? 'da carga de trabalho do dia'
+    : `da última ${ws || 'série de trabalho'} registrada antes no exercício (sem ela, da carga de trabalho do dia)`;
+  return [...linhas, `Percentuais ${base}, fixada ao registrar a primeira etapa.`];
+}
+
 export interface PreviaDoGrupo {
   /** "2 séries completas · 4 blocos de 4 reps · pausa de 15 s". */
   resumo: string;
@@ -87,6 +113,7 @@ export function previaDoGrupo(
     linhas.push(`Carga: ${carga}`);
     if (contexto.referencia) linhas.push(contexto.referencia);
   }
+  linhas.push(...(contexto.semCarga ? [] : linhasDasEtapas(primeira, config)));
   const esforco = textoEsforco(primeira.esforco);
   if (esforco) linhas.push(`Esforço: ${esforco}`);
   const comEtapas = primeira.tecnica?.tipo === 'CLUSTER' || primeira.tecnica?.tipo === 'REST_PAUSE';

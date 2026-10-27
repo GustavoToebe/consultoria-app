@@ -1,4 +1,4 @@
-import type { Cardio, Carga, Configuracao, Esforco, Serie, Tecnica } from '../api/tipos';
+import type { Cardio, Carga, CargaDaEtapa, Configuracao, Esforco, Serie, Tecnica } from '../api/tipos';
 import { blocosValidos, somaDosBlocos, textoDeBlocos } from './blocos';
 import { numeroParaTela } from './formatos';
 import { explicacaoDoCatalogo } from './catalogoMetodologia';
@@ -35,10 +35,14 @@ const chaveTecnica = (t: Tecnica | null | undefined) =>
         t.repsParciais,
         t.regiao,
         t.repsAssistidas,
+        t.cargasDosBlocos ? t.cargasDosBlocos.map(chaveCargaDaEtapa).join('+') : '',
+        t.retomadas ? t.retomadas.map((r) => [r?.repsMin ?? '', r?.repsMax ?? '', r?.amrap ? 'A' : '', chaveCargaDaEtapa(r?.carga)].join('/')).join('+') : '',
       ]
         .map((v) => v ?? '')
         .join(',')
     : '';
+
+const chaveCargaDaEtapa = (c: CargaDaEtapa | null | undefined) => (c ? `${c.modo}:${c.percentual ?? ''}` : '');
 
 const chave = (s: Serie) =>
   [

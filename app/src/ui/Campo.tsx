@@ -20,13 +20,15 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   linhas?: number;
   /** Botão dentro do campo, à direita (ex.: calendário). */
   acao?: ReactNode;
+  /** Nome para o leitor de tela quando o rótulo visível se repete na tela ("Reps mín." da série e da retomada). */
+  rotuloAcessivel?: string;
 }
 
 /**
  * Campo de digitar com rótulo, ajuda e erro. O erro vai ao leitor de tela: `aria-invalid` na web, região viva no
  * Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de foco (a cor da marca não contrasta no escuro).
  */
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const corBorda = erro ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
@@ -39,7 +41,7 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
       <View>
       <Input
         {...resto}
-        accessibilityLabel={rotulo}
+        accessibilityLabel={rotuloAcessivel ?? rotulo}
         accessibilityHint={erro ?? ajuda}
         aria-invalid={!!erro}
         value={valor}

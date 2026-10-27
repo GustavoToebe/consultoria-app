@@ -1,6 +1,7 @@
 package br.com.treinos.api.treino;
 
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -485,43 +486,58 @@ public record ConteudoTreino(
             Integer repsPorMiniSerie,
             Integer repsParciais,
             @Size(max = 20) String regiao,
-            Integer repsAssistidas) {
+            Integer repsAssistidas,
+            // Omitidos quando nulos: o app que ainda não os conhece não recusa o pacote salvo (formatoDoPacote).
+            @JsonInclude(JsonInclude.Include.NON_NULL) @Valid @Size(max = 10) List<CargaDaEtapa> cargasDosBlocos,
+            @JsonInclude(JsonInclude.Include.NON_NULL) @Valid @Size(max = 5) List<Retomada> retomadas) {
 
         public static Tecnica restPause(Integer segundos, Integer respiracoes, Integer pausas) {
             return new Tecnica(REST_PAUSE, segundos, respiracoes, pausas, null, null, null, null, null, null, null, null,
-                    null);
+                    null, null, null);
         }
 
         public static Tecnica cluster(List<Integer> blocos, Integer segundos, Integer respiracoes) {
             return new Tecnica(CLUSTER, segundos, respiracoes, null, blocos, null, null, null, null, null, null, null,
-                    null);
+                    null, null, null);
         }
 
         public static Tecnica dropSet(Integer quedas, Integer reducaoPercentual, Integer repsPorQueda,
                                       Integer pausaSegundos) {
             return new Tecnica(DROP_SET, pausaSegundos, null, null, null, quedas, reducaoPercentual, repsPorQueda, null,
-                    null, null, null, null);
+                    null, null, null, null, null, null);
         }
 
         public static Tecnica myoReps(Integer miniSeries, Integer repsPorMiniSerie, Integer segundos,
                                       Integer respiracoes) {
             return new Tecnica(MYO_REPS, segundos, respiracoes, null, null, null, null, null, miniSeries,
-                    repsPorMiniSerie, null, null, null);
+                    repsPorMiniSerie, null, null, null, null, null);
         }
 
         public static Tecnica partialReps(Integer repsParciais, String regiao) {
             return new Tecnica(PARTIAL_REPS, null, null, null, null, null, null, null, null, null, repsParciais, regiao,
-                    null);
+                    null, null, null);
         }
 
         public static Tecnica forcedReps(Integer repsAssistidas) {
             return new Tecnica(FORCED_REPS, null, null, null, null, null, null, null, null, null, null, null,
-                    repsAssistidas);
+                    repsAssistidas, null, null);
+        }
+
+        /** A mesma técnica com a carga de cada bloco do cluster. */
+        public Tecnica comCargasDosBlocos(List<CargaDaEtapa> cargas) {
+            return new Tecnica(tipo, pausaSegundos, pausaRespiracoes, pausas, blocos, quedas, reducaoPercentual,
+                    repsPorQueda, miniSeries, repsPorMiniSerie, repsParciais, regiao, repsAssistidas, cargas, retomadas);
+        }
+
+        /** A mesma técnica com a meta e a carga de cada retomada do rest pause. */
+        public Tecnica comRetomadas(List<Retomada> lista) {
+            return new Tecnica(tipo, pausaSegundos, pausaRespiracoes, pausas, blocos, quedas, reducaoPercentual,
+                    repsPorQueda, miniSeries, repsPorMiniSerie, repsParciais, regiao, repsAssistidas, cargasDosBlocos, lista);
         }
 
         /** Só o tipo, sem valor nenhum (o padrão vazio de uma técnica na metodologia). */
         public static Tecnica vazia(String tipo) {
-            return new Tecnica(tipo, null, null, null, null, null, null, null, null, null, null, null, null);
+            return new Tecnica(tipo, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         /** Problemas por campo de uma técnica completa, a da série (vazio = válida). */
@@ -547,6 +563,7 @@ public record ConteudoTreino(
                 case REST_PAUSE -> {
                     pausa(p, completa);
                     faixa(p, pausas, 1, 5, "pausas", "Pausas do rest pause entre 1 e 5.", false);
+                    retomadas(p, completa);
                 }
                 case CLUSTER -> {
                     pausa(p, completa);
@@ -554,6 +571,7 @@ public record ConteudoTreino(
                             || blocos.stream().anyMatch(b -> b == null || b < 1 || b > 50))) {
                         p.put("blocos", "Cluster: de 2 a 10 blocos, cada um com 1 a 50 repetições.");
                     }
+                    cargasDosBlocos(p, completa);
                 }
                 case DROP_SET -> {
                     faixa(p, quedas, 1, 5, "quedas", "Quedas do drop-set entre 1 e 5.", completa);
@@ -585,6 +603,71 @@ public record ConteudoTreino(
             return p;
         }
 
+        /**
+         * Carga de cada bloco do cluster (docs/series-etapas.md): uma por bloco, na mesma ordem. Fica fora do padrão da
+         * metodologia, porque depende dos blocos de cada série.
+         */
+        private void cargasDosBlocos(Map<String, String> p, boolean completa) {
+            if (cargasDosBlocos == null) {
+                return;
+            }
+            if (!completa) {
+                p.put("cargasDosBlocos", "A carga por bloco é da série, não do padrão da metodologia.");
+                return;
+            }
+            if (blocos == null || cargasDosBlocos.size() != blocos.size()) {
+                p.put("cargasDosBlocos", "Informe uma carga para cada bloco.");
+                return;
+            }
+            for (int i = 0; i < cargasDosBlocos.size(); i++) {
+                CargaDaEtapa carga = cargasDosBlocos.get(i);
+                String campo = "cargasDosBlocos[" + i + "]";
+                if (carga == null) {
+                    p.put(campo, "Informe a carga do bloco " + (i + 1) + ".");
+                } else {
+                    String bloco = "Bloco " + (i + 1) + ": ";
+                    carga.problemas().forEach((c, mensagem) -> p.put(campo + "." + c, bloco + mensagem));
+                }
+            }
+        }
+
+        /** Meta e carga de cada retomada do rest pause: uma por pausa, na mesma ordem. Fora do padrão da metodologia. */
+        private void retomadas(Map<String, String> p, boolean completa) {
+            if (retomadas == null) {
+                return;
+            }
+            if (!completa) {
+                p.put("retomadas", "As retomadas são da série, não do padrão da metodologia.");
+                return;
+            }
+            int quantas = pausas == null || pausas < 1 ? 1 : pausas;
+            if (retomadas.size() != quantas) {
+                p.put("retomadas", "Informe uma retomada para cada pausa.");
+                return;
+            }
+            for (int i = 0; i < retomadas.size(); i++) {
+                Retomada r = retomadas.get(i);
+                String campo = "retomadas[" + i + "]";
+                String nome = quantas == 1 ? "Retomada" : "Retomada " + (i + 1);
+                if (r == null) {
+                    p.put(campo, nome + ": informe a meta e a carga.");
+                } else {
+                    r.problemas().forEach((c, mensagem) -> p.put(campo + "." + c, nome + ": " + mensagem));
+                }
+            }
+        }
+
+        /** Há etapa (bloco ou retomada) com carga em percentual da WS? */
+        public boolean temEtapaEmPercentual() {
+            if (CLUSTER.equals(tipo) && cargasDosBlocos != null) {
+                return cargasDosBlocos.stream().anyMatch(c -> c != null && c.emPercentual());
+            }
+            if (REST_PAUSE.equals(tipo) && retomadas != null) {
+                return retomadas.stream().anyMatch(r -> r != null && r.carga() != null && r.carga().emPercentual());
+            }
+            return false;
+        }
+
         private void pausa(Map<String, String> p, boolean obrigatoria) {
             if (obrigatoria && pausaSegundos == null && pausaRespiracoes == null) {
                 p.put("pausaSegundos", "Informe a pausa em segundos ou em respirações.");
@@ -606,6 +689,69 @@ public record ConteudoTreino(
                 return null;
             }
             return blocos.stream().mapToInt(Integer::intValue).sum();
+        }
+    }
+
+    public static final String DA_SERIE = "DA_SERIE";
+
+    /**
+     * Carga de uma etapa (bloco do cluster ou retomada do rest pause): {@code DA_SERIE} segue a carga da série;
+     * {@code PERCENTUAL_WS} é um percentual (1 a 200) da referência externa da série, a mesma para todas as etapas e
+     * congelada quando o aluno registra a primeira. Nunca percentual sobre percentual; campo vazio no percentual é erro.
+     */
+    public record CargaDaEtapa(@Size(max = 20) String modo, Integer percentual) {
+
+        public boolean emPercentual() {
+            return PERCENTUAL_WS.equals(modo);
+        }
+
+        Map<String, String> problemas() {
+            Map<String, String> p = new LinkedHashMap<>();
+            if (DA_SERIE.equals(modo)) {
+                if (percentual != null) {
+                    p.put("percentual", "Carga da série não leva percentual.");
+                }
+            } else if (PERCENTUAL_WS.equals(modo)) {
+                if (percentual == null || percentual < 1 || percentual > 200) {
+                    p.put("percentual", "Percentual da WS entre 1 e 200.");
+                }
+            } else {
+                p.put("modo", "Carga da etapa: da série ou percentual da WS.");
+            }
+            return p;
+        }
+    }
+
+    /**
+     * Meta de uma retomada do rest pause: quantidade exata (mínimo = máximo), faixa ou AMRAP, sempre escolhida, e a carga
+     * (obrigatória: da série ou percentual da WS). A etapa inicial é a própria série.
+     */
+    public record Retomada(Integer repsMin, Integer repsMax, Boolean amrap, @Valid CargaDaEtapa carga) {
+
+        public boolean amrapExplicito() {
+            return Boolean.TRUE.equals(amrap);
+        }
+
+        Map<String, String> problemas() {
+            Map<String, String> p = new LinkedHashMap<>();
+            boolean temReps = repsMin != null || repsMax != null;
+            if (amrapExplicito()) {
+                if (temReps) {
+                    p.put("amrap", "AMRAP não leva repetições mínima e máxima.");
+                }
+            } else if (repsMin == null || repsMax == null) {
+                p.put("repsMin", "Informe as repetições (exatas ou faixa) ou AMRAP.");
+            } else if (repsMin < 1 || repsMax > 50) {
+                p.put("repsMin", "Repetições da retomada entre 1 e 50.");
+            } else if (repsMax < repsMin) {
+                p.put("repsMax", "Repetição máxima menor que a mínima.");
+            }
+            if (carga == null) {
+                p.put("carga", "Informe a carga: da série ou percentual da WS.");
+            } else {
+                carga.problemas().forEach((c, mensagem) -> p.put("carga." + c, mensagem));
+            }
+            return p;
         }
     }
 

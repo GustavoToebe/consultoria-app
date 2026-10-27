@@ -1,5 +1,6 @@
 import type { Configuracao, ExercicioPlano, OrigemDaReferencia, Serie } from '../api/tipos';
 import { nomeDaReferencia, textoCardio, textoCarga, textoDasRepeticoes, textoEsforco, textoTecnica } from './agrupamento';
+import { temEtapaEmPercentual } from './validacaoDeSerie';
 
 /**
  * Sugestão de carga do aluno. Só aplica o que o treinador escreveu no plano sobre a carga de
@@ -92,9 +93,13 @@ export function referenciaDaSerie(series: readonly Serie[], indice: number, carg
     case 'MESMA_CARGA':
       return referenciaDaWs(series, indice, cargaTrabalho, cargasDoDia);
     default:
-      return null;
+      // Sem referência externa própria, mas com etapa em % da WS (bloco ou retomada): a referência da WS.
+      return temEtapaEmPercentual(s.tecnica) ? referenciaDaWs(series, indice, cargaTrabalho, cargasDoDia) : null;
   }
 }
+
+/** O modo de carga da série parte da referência externa (e então segue a referência congelada nas etapas)? */
+export const modoComReferenciaExterna = (s: Serie): boolean => ['CARGA_TRABALHO', 'MESMA_CARGA', 'PERCENTUAL_WS'].includes(modo(s));
 
 /** Sugestão da série sobre uma referência externa (a calculada agora ou a congelada nas etapas). */
 export function sugestaoSobreReferencia(s: Serie, referencia: number | null, passo: number): number | null {

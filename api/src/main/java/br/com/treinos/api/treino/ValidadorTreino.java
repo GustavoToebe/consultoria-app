@@ -156,6 +156,9 @@ public class ValidadorTreino {
                     c.erro(cx + ".carga.referenciaUid",
                             "A referência precisa ser uma série anterior, no mesmo exercício.");
                 }
+                if ("nenhuma".equals(e.unidade()) && x.tecnica() != null) {
+                    etapasSemCarga(c, x.tecnica(), cx);
+                }
                 if (x.tecnica() != null && ConteudoTreino.FORCED_REPS.equals(x.tecnica().tipo())) {
                     c.aviso(cx + ".tecnica", "Forced reps precisa de um parceiro para ajudar nas repetições.");
                 }
@@ -270,6 +273,16 @@ public class ValidadorTreino {
     }
 
     /** Aviso, um por técnica no exercício: a série usa uma técnica que a metodologia do plano não tem. Plano sem metodologia não avisa. */
+    /** Exercício sem carga: nada de carga por bloco nem retomada em percentual (não há referência de carga). */
+    private static void etapasSemCarga(ResultadoValidacao.Coletor c, ConteudoTreino.Tecnica t, String cx) {
+        if (ConteudoTreino.CLUSTER.equals(t.tipo()) && t.cargasDosBlocos() != null) {
+            c.erro(cx + ".tecnica.cargasDosBlocos", "Exercício sem carga não tem carga por bloco.");
+        }
+        if (ConteudoTreino.REST_PAUSE.equals(t.tipo()) && t.temEtapaEmPercentual()) {
+            c.erro(cx + ".tecnica.retomadas", "Exercício sem carga não tem retomada em percentual da WS.");
+        }
+    }
+
     private static void tecnicaDaSerie(ResultadoValidacao.Coletor c, Serie x, String cx, ConfiguracaoConsultoria metodologia,
                                        Set<String> tecnicasAvisadas) {
         if (metodologia == null || x.tecnica() == null || x.tecnica().tipo() == null) {

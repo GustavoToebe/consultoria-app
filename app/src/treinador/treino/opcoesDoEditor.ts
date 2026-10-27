@@ -1,4 +1,4 @@
-import type { Configuracao, Esforco, ModoDeCarga, Problema, Serie, TecnicaDeGrupo, TipoDeTecnica } from '../../api/tipos';
+import type { CargaDaEtapa, Configuracao, Esforco, ModoDaCargaDaEtapa, ModoDeCarga, Problema, Retomada, Serie, TecnicaDeGrupo, TipoDeTecnica } from '../../api/tipos';
 import { metaDaSerie } from '../../dominio/cargas';
 import { leituraDaTecnica, type ContextoDaLeitura } from '../../dominio/agrupamento';
 import {
@@ -306,4 +306,40 @@ export function primeiroProblemaDeSerie(porSerie: readonly ProblemasDaSerie[]): 
     if (primeiro) return `Série ${i + 1}: ${primeiro}`;
   }
   return null;
+}
+
+// ---- Etapas: carga por bloco do Cluster e retomadas do Rest-pause (docs/series-etapas.md, lote C) ----
+
+/** Carga da etapa que herda a da série. */
+export const CARGA_DA_SERIE: CargaDaEtapa = { modo: 'DA_SERIE', percentual: null };
+
+/** Retomada nova: até a falha (AMRAP) com a carga da série, o mesmo que o Rest-pause sem retomadas escritas. */
+export const RETOMADA_PADRAO: Retomada = { repsMin: null, repsMax: null, amrap: true, carga: CARGA_DA_SERIE };
+
+/** "Da série" ou "% da WS". */
+export function opcoesDaCargaDaEtapa(ws: string): { valor: ModoDaCargaDaEtapa; rotulo: string }[] {
+  return [
+    { valor: 'DA_SERIE', rotulo: 'Carga da série' },
+    { valor: 'PERCENTUAL_WS', rotulo: `% da ${ws || 'série de trabalho'}` },
+  ];
+}
+
+/** A carga de cada bloco acompanha a quantidade de blocos: bloco novo herda a da série, bloco que sai leva a dele. */
+export function ajustarCargasDosBlocos(cargas: CargaDaEtapa[] | null | undefined, blocos: number[] | null | undefined): CargaDaEtapa[] | null {
+  if (!cargas) return null;
+  if (!blocos) return cargas;
+  return Array.from({ length: blocos.length }, (_, i) => cargas[i] ?? CARGA_DA_SERIE);
+}
+
+/** Uma retomada por pausa (vazio = 1): retomada nova nasce até a falha com a carga da série. */
+export function ajustarRetomadas(retomadas: Retomada[] | null | undefined, pausas: number | null | undefined): Retomada[] | null {
+  if (!retomadas) return null;
+  const quantas = pausas != null && pausas >= 1 ? Math.min(pausas, 5) : 1;
+  return Array.from({ length: quantas }, (_, i) => retomadas[i] ?? RETOMADA_PADRAO);
+}
+
+/** Trocar a forma da carga da etapa: "da série" limpa o percentual; o percentual começa vazio (nunca inventado). */
+export function cargaDaEtapaNoModo(modo: ModoDaCargaDaEtapa, atual: CargaDaEtapa | null | undefined): CargaDaEtapa {
+  if (modo === 'DA_SERIE') return CARGA_DA_SERIE;
+  return { modo, percentual: atual?.modo === 'PERCENTUAL_WS' ? atual.percentual ?? null : null };
 }

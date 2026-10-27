@@ -16,10 +16,10 @@ Os blocos A a F (formato de 22/10, com papéis, regras de faixas e técnicas por
 | Grupos de exercícios | `juntoComAnterior` e `combinacao` por exercício | `Sessao.grupos` com superset, agonista-antagonista, tri-set, giant set, circuito (com voltas), pré e pós-exaustão. Descanso depois do grupo, exceto pré e pós-exaustão, que mantêm o descanso por série. |
 | Cardio | Tipo "Cardio" e texto livre | Exercício de modalidade Cardio, com série de prescrição própria (duração, distância, ritmo, zona, intervalos). O aluno só marca "feito". |
 | Metodologia | Tipos com `intensidadePadrao`, três técnicas | Tipos com código, `cargaPadrao`, `esforcoPadrao` e variação por modalidade (peso livre e máquina); seis técnicas e sete combinações com nome e explicação editáveis. |
-| RIR 0 | "Até a falha" | "Até a falha técnica" no editor, na tela do aluno, no glossário do PDF e nos guias. Aviso na publicação quando aparece em aquecimento ou preparação. |
+| RIR 0 | "Até a falha" | "Até a falha" (desde 27/10) no editor, na tela do aluno, no glossário do PDF e nos guias. Aviso na publicação quando aparece em aquecimento ou preparação. |
 | Editor | Chips de tipo, "Só técnica" e campos de intensidade | Seções Tipo, Prescrição, Carga, Esforço, Técnica e Alvo extra; erro no próprio campo; prévia "Para o aluno" com a origem da carga. |
 | Histórico | Mostrava o texto gravado no tipo | Mostra o nome do tipo pela metodologia da versão executada, nunca o código. |
-| PDF | Glossário de tipos e técnicas usados | Glossário também com grupos, RIR e RPE usados ("RIR 0 = até a falha técnica"); grupos por extenso (ordem, voltas, descanso depois do grupo) e cardio com a prescrição. |
+| PDF | Glossário de tipos e técnicas usados | Glossário também com grupos, RIR e RPE usados ("RIR 0 = até a falha"); grupos por extenso (ordem, voltas, descanso depois do grupo) e cardio com a prescrição. |
 | Ajuda | Texto do formato de A–F | Guias do treinador e do aluno reescritos para o contrato novo (o PDF sai do mesmo `conteudo.ts`). |
 | Migrations | 23 (V022 e V023 já no `origin/main`) | 24: a V024 apaga os dados de treino e as receitas no formato anterior e recria as receitas padrão no contrato novo. |
 
@@ -36,7 +36,7 @@ A metodologia padrão continua com 5 tipos, 6 técnicas e 7 combinações. O cat
 ## Decisões e diferenças em relação ao plano
 
 - Tipo é sempre obrigatório (a técnica nunca o substitui). Rest pause, cluster e as demais entram na própria série WS, como nos exemplos do guia de métodos; some o "Só técnica" e a série `MESMA_CARGA` sem tipo.
-- RIR 0 significa até a falha técnica. RIR e RPE não aparecem juntos (erro na publicação). RIR 0 em aquecimento ou preparação só avisa.
+- RIR 0 significa até a falha. RIR e RPE não aparecem juntos (erro na publicação). RIR 0 em aquecimento ou preparação só avisa.
 - AMRAP é um marcador explícito da série. Cadência e isometria continuam por exercício; "alongada" é a região do Partial reps, não uma técnica à parte.
 - Top set usa carga "acima da anterior"; Back off vem no padrão com 85% da WS e aceita "abaixo da referência". A série de referência nasce apontando a última série de trabalho; sem registro dela, o aluno fica sem sugestão de carga.
 - Percentuais de preparação e de back off continuam sendo da WS. A referência da WS é a última série de trabalho registrada hoje; sem registro, a carga de trabalho informada para o dia. Faixa sugere pelo mínimo, com o arredondamento da metodologia.
@@ -52,7 +52,7 @@ A metodologia padrão continua com 5 tipos, 6 técnicas e 7 combinações. O cat
 1. Em Treino › Metodologias, crie um tipo (nome livre, papel Trabalho). Confira que o código é gerado do nome e aparece só para leitura. Renomeie o tipo e confirme que as séries já gravadas continuam com o nome novo.
 2. Confira os cartões de técnica (seis) e de combinação (sete): nome exibido, explicação e padrões. Salve pela barra do modelo e reabra.
 3. Em um modelo de séries, adicione WS com rest pause: tipo WS, carga de trabalho e a técnica na mesma série. Troque para cluster 4+2 e confira que as repetições são a soma. Repita com myo-reps, partial reps (região alongada) e forced reps (aviso de parceiro).
-4. Confira carga e esforço separados: tente RIR e RPE juntos (o editor troca de forma e a API recusa os dois) e RIR 0 (aparece "até a falha técnica"). Marque AMRAP e confira que as repetições somem. Escreva um alvo extra e veja a prévia "Para o aluno".
+4. Confira carga e esforço separados: tente RIR e RPE juntos (o editor troca de forma e a API recusa os dois) e RIR 0 (aparece "até a falha"). Marque AMRAP e confira que as repetições somem. Escreva um alvo extra e veja a prévia "Para o aluno".
 5. Monte Top set (acima da anterior) e Back off "abaixo da referência" apontando o Top set. No aluno demo, registre o Top set e confira a carga sugerida do Back off; sem registro, a sugestão fica vazia.
 6. Na sessão, crie um superset com dois exercícios e um circuito com 3 e voltas. Confira o descanso depois do grupo e que o descanso por série dos membros não aparece. Crie uma pré-exaustão: sem campo de descanso do grupo, cada série mantém o seu.
 7. Adicione um exercício de modalidade Cardio: só a prescrição de cardio. No aluno, a série mostra a prescrição e um único botão "feito".

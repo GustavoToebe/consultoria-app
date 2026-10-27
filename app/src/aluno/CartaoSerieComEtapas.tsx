@@ -4,11 +4,16 @@ import { StyleSheet, View } from 'react-native';
 
 import type { Configuracao, EtapaRegistrada } from '../api/tipos';
 import { textoPausa } from '../dominio/agrupamento';
-import { sugestaoSobreReferencia, type SerieCalculada } from '../dominio/cargas';
+import { modoComReferenciaExterna, sugestaoSobreReferencia, type SerieCalculada } from '../dominio/cargas';
 import { rotuloDescanso } from '../dominio/descanso';
-import { aplicarAcao, etapasDaSerie, ligaPausaInterna, proximaPendente, resumoDaExecucao, textoDaReferenciaCongelada, todasComSituacao, type AcaoNaEtapa, type EtapaPrevista } from '../dominio/etapas';
+import {
+  aplicarAcao, etapasDaSerie, ligaPausaInterna, proximaPendente, resumoDaExecucao, sugestaoDaEtapa, textoDaCargaDaEtapa, textoDaReferenciaCongelada,
+  todasComSituacao, type AcaoNaEtapa, type EtapaPrevista,
+} from '../dominio/etapas';
 import { numeroParaTela } from '../dominio/formatos';
+import { nomeDaSerieDeTrabalho } from '../dominio/metodologia';
 import { estruturaDaSerie } from '../dominio/resumoDaSerie';
+import { temEtapaEmPercentual } from '../dominio/validacaoDeSerie';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../tema/tokens';
@@ -59,12 +64,20 @@ export function CartaoSerieComEtapas(p: Props) {
   const pausa = s.tecnica?.pausaSegundos != null && s.tecnica.pausaSegundos > 0 ? s.tecnica.pausaSegundos : null;
   const temPausa = !!s.tecnica && (s.tecnica.pausaSegundos != null || s.tecnica.pausaRespiracoes != null);
   const rotuloDaPausa = cluster ? 'Pausa entre blocos' : 'Pausa antes da retomada';
-  // Sugestão de cada etapa sobre a referência congelada na primeira etapa (ou a de agora, antes dela).
+  // Sugestão de cada etapa sobre a referência congelada na primeira etapa (ou a de agora, antes dela). A da série segue a
+  // congelada só nos modos que partem dela; "acima da anterior" e "abaixo da referência" continuam com a conta do dia.
   const referencia = registro?.referenciaCarga ?? p.calculada.referencia?.valor ?? null;
-  const sugestao = p.semCarga ? null : registro?.referenciaCarga != null ? sugestaoSobreReferencia(s, referencia, p.arredondamentoKg) : p.calculada.sugestao;
+  const sugestaoDaSerie = p.semCarga ? null
+    : registro?.referenciaCarga != null && modoComReferenciaExterna(s) ? sugestaoSobreReferencia(s, referencia, p.arredondamentoKg) : p.calculada.sugestao;
+  const sugestaoDe = (prevista: EtapaPrevista) => (p.semCarga ? null : sugestaoDaEtapa(prevista, sugestaoDaSerie, referencia, p.arredondamentoKg));
+  const ws = nomeDaSerieDeTrabalho(p.metodologia);
+  const comPercentual = temEtapaEmPercentual(s.tecnica);
   const atual = proximaPendente(etapas, quantas);
   const selos = selosDaSerie(s, p.metodologia);
-  const referenciaCongelada = textoDaReferenciaCongelada(registro?.referenciaCarga, registro?.referenciaOrigem);
+  // Com etapa em %, a referência aparece antes da primeira etapa também (a de agora), para o aluno saber a base da conta.
+  const referenciaCongelada = registro?.referenciaCarga != null
+    ? textoDaReferenciaCongelada(registro.referenciaCarga, registro.referenciaOrigem)
+    : comPercentual ? textoDaReferenciaCongelada(p.calculada.referencia?.valor, p.calculada.referencia?.origem) : null;
   const semDetalhe = !!registro && !registro.etapas && (registro.repeticoes != null || registro.carga != null || registro.concluida);
 
   const agir = (acao: AcaoNaEtapa) => {
@@ -94,13 +107,14 @@ export function CartaoSerieComEtapas(p: Props) {
         {selos.tecnica ? <SeloComExplicacao nome={selos.tecnica.nome} explicacao={selos.tecnica.explicacao} rotuloAcessivel={`Explicação de ${selos.tecnica.nome}, série ${p.numero}`} /> : null}
       </View>
       <Texto numerico variante="pequeno">{estruturaDaSerie(s, p.metodologia)}</Texto>
-      {!p.semCarga && sugestao != null ? <Texto numerico variante="pequeno">Carga sugerida: {numeroParaTela(sugestao)} kg</Texto> : null}
+      {!p.semCarga && !comPercentual && sugestaoDaSerie != null ? <Texto numerico variante="pequeno">Carga sugerida: {numeroParaTela(sugestaoDaSerie)} kg</Texto> : null}
       {!p.semCarga && referenciaCongelada ? <Texto numerico variante="pequeno">{referenciaCongelada}</Texto> : null}
       {semDetalhe ? <Texto numerico variante="pequeno">Registro sem detalhe por {cluster ? 'bloco' : 'etapa'}: {registro!.repeticoes ?? '—'} reps{registro!.carga != null ? ` · ${numeroParaTela(registro!.carga)} kg` : ''}.</Texto> : null}
 
       {previstas.map((prevista, i) => (
         <LinhaDaEtapa key={prevista.posicao} prevista={prevista} numeroDaSerie={p.numero} registrada={etapas.find((e) => e.posicao === prevista.posicao)}
-          atual={atual === prevista.posicao && !feita} sugestao={sugestao} semCarga={p.semCarga} agir={agir}
+          atual={atual === prevista.posicao && !feita} sugestao={sugestaoDe(prevista)} semCarga={p.semCarga} agir={agir}
+          cargaPrevista={p.semCarga ? null : textoDaCargaDaEtapa(prevista.carga, ws)}
           pausaDepois={i < quantas - 1 && temPausa ? `${rotuloDaPausa}: ${textoPausa(s.tecnica!)}` : null}
           aoIniciarPausa={pausa !== null && p.aoIniciarPausa ? () => p.aoIniciarPausa!(pausa, rotuloDaPausa) : undefined} />
       ))}
@@ -123,13 +137,15 @@ export function CartaoSerieComEtapas(p: Props) {
   );
 }
 
-function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, sugestao, semCarga, agir, pausaDepois, aoIniciarPausa }: {
+function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, sugestao, cargaPrevista, semCarga, agir, pausaDepois, aoIniciarPausa }: {
   prevista: EtapaPrevista;
   numeroDaSerie: number;
   registrada: EtapaRegistrada | undefined;
   /** A próxima etapa a fazer: destaque discreto. */
   atual: boolean;
   sugestao: number | null;
+  /** "90% da WS" quando a etapa tem carga própria; `null` = a carga da série. */
+  cargaPrevista: string | null;
   semCarga: boolean;
   agir: (acao: AcaoNaEtapa) => void;
   /** Texto da pausa depois desta etapa (não há depois da última). */
@@ -148,15 +164,18 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, sugestao, se
   const reps = feita ? registrada!.repeticoes : repsDigitadas;
   const carga = feita ? registrada!.carga : cargaDigitada !== undefined ? cargaDigitada : sugestao;
   const nome = `${prevista.rotulo.toLowerCase()} da série ${numeroDaSerie}`;
+  // "Bloco 1 feito", "Etapa inicial feita", "Retomada feita".
+  const feito = prevista.rotulo.startsWith('Bloco') ? 'feito' : 'feita';
   const posicao = prevista.posicao;
 
   return (
     <View style={[estilos.etapa, { borderColor: atual ? cores.bordaCampo : cores.borda, backgroundColor: atual ? cores.superficie3 : 'transparent' }]}>
-      <Texto numerico style={estilos.rotuloEtapa}>{prevista.rotulo} · Meta {prevista.meta}</Texto>
+      <Texto numerico style={estilos.rotuloEtapa}>{prevista.rotulo} · Meta {prevista.meta}{cargaPrevista ? ` · ${cargaPrevista}` : ''}</Texto>
+      {!semCarga && cargaPrevista && !feita ? <Texto numerico variante="pequeno">{sugestao != null ? `Carga sugerida: ${numeroParaTela(sugestao)} kg` : 'Carga sugerida: — (informe a carga de trabalho)'}</Texto> : null}
       {naoRealizada ? (
         <View style={estilos.linhaAcoes}>
-          <Texto variante="pequeno">Não realizado.</Texto>
-          <Botao rotulo="Desfazer" rotuloAcessivel={`Desfazer: ${nome} não realizado`} tipo="fantasma" aoTocar={() => agir({ tipo: 'DESFAZER', posicao })} />
+          <Texto variante="pequeno">Não {feito}.</Texto>
+          <Botao rotulo="Desfazer" rotuloAcessivel={`Desfazer: ${nome} não ${feito}`} tipo="fantasma" aoTocar={() => agir({ tipo: 'DESFAZER', posicao })} />
         </View>
       ) : (
         <>
@@ -170,7 +189,7 @@ function LinhaDaEtapa({ prevista, numeroDaSerie, registrada, atual, sugestao, se
                 aoValidade={(ok) => setCargaInvalida(!ok)} />
             )}
             <BotaoMarcar feito={feita} desabilitado={invalido}
-              rotulo={invalido ? `${prevista.rotulo} feito: corrija o número antes de marcar` : `${prevista.rotulo} feito, série ${numeroDaSerie}`}
+              rotulo={invalido ? `${prevista.rotulo} ${feito}: corrija o número antes de marcar` : `${prevista.rotulo} ${feito}, série ${numeroDaSerie}`}
               aoTocar={() => (feita ? agir({ tipo: 'DESFAZER', posicao }) : agir({ tipo: 'FEITA', posicao, repeticoes: reps, carga: semCarga ? null : carga ?? null }))} />
           </View>
           {invalido ? <Texto variante="pequeno" cor={cores.perigo}>Corrija o número para marcar.</Texto> : null}

@@ -567,6 +567,28 @@ export interface Tecnica {
   repsParciais?: number | null;
   regiao?: RegiaoDasParciais | null;
   repsAssistidas?: number | null;
+  /** Só no Cluster: a carga de cada bloco, na ordem dos `blocos` (nulo = todos com a carga da série). */
+  cargasDosBlocos?: CargaDaEtapa[] | null;
+  /** Só no Rest-pause: meta e carga de cada retomada, uma por pausa (nulo = mesma carga até a falha). */
+  retomadas?: Retomada[] | null;
+}
+
+/**
+ * Carga de uma etapa (docs/series-etapas.md): `DA_SERIE` segue a carga da série; `PERCENTUAL_WS` é um percentual (1 a 200)
+ * da referência externa da série, a mesma para todas as etapas e congelada quando o aluno registra a primeira.
+ */
+export type ModoDaCargaDaEtapa = 'DA_SERIE' | 'PERCENTUAL_WS';
+export interface CargaDaEtapa {
+  modo: ModoDaCargaDaEtapa;
+  percentual?: number | null;
+}
+
+/** Meta de uma retomada do Rest-pause: exata (mínimo = máximo), faixa ou AMRAP, e a carga (obrigatória). */
+export interface Retomada {
+  repsMin?: number | null;
+  repsMax?: number | null;
+  amrap?: boolean | null;
+  carga: CargaDaEtapa | null;
 }
 
 /** Técnicas de grupo de exercícios da sessão. */

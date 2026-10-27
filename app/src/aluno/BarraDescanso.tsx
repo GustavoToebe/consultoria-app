@@ -25,7 +25,7 @@ export function BarraDescanso() {
  return <View style={[estilos.barra,{backgroundColor:cores.superficie,borderColor:cores.bordaCampo}]}>
   <View style={estilos.linha}>
    <AnelProgresso tamanho={40} proporcao={descanso.duracaoMs ? ms/descanso.duracaoMs : 0} rotulo="Tempo de descanso restante" duracao={250} />
-   <View style={estilos.tempo}><Texto variante="pequeno" numberOfLines={1}>{ms===0?'Terminou':descanso.rotulo??'Descanso'}</Texto><Texto variante="destaque" numerico accessibilityLabel={`${segundos} segundos restantes`}>{tempo}</Texto></View>
+   <View style={estilos.tempo}><Texto variante="pequeno" numberOfLines={2}>{ms===0?'Terminou':descanso.rotulo??'Descanso'}</Texto><Texto variante="destaque" numerico accessibilityLabel={`${segundos} segundos restantes`}>{tempo}</Texto></View>
    <Botao rotulo="−15" rotuloAcessivel="Diminuir 15 segundos" tipo="secundario" aoTocar={()=>ajustarDescanso(-15)} />
    <Botao rotulo="+15" rotuloAcessivel="Aumentar 15 segundos" tipo="secundario" aoTocar={()=>ajustarDescanso(15)} />
    <Botao rotulo="Pular" rotuloAcessivel="Pular o descanso" tipo="fantasma" aoTocar={pularDescanso} />

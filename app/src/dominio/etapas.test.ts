@@ -19,7 +19,7 @@ describe('etapas previstas (espelho de ConteudoTreino.Serie.etapas)', () => {
 
   it('Rest-pause: 1 pausa = 2 etapas, 2 pausas = 3; a etapa inicial pede as repetições da série', () => {
     const rp = serie('r', { repsMin: 6, repsMax: 8, tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20 }) });
-    expect(etapasDaSerie(rp)!.map((x) => `${x.rotulo}: ${x.meta}`)).toEqual(['Etapa inicial: 6 a 8 reps', 'Retomada: sem meta fixa']);
+    expect(etapasDaSerie(rp)!.map((x) => `${x.rotulo}: ${x.meta}`)).toEqual(['Etapa inicial: 6 a 8 reps', 'Retomada: até a falha']);
     const duas = { ...rp, tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20, pausas: 2 }) };
     expect(etapasDaSerie(duas)!.map((x) => x.rotulo)).toEqual(['Etapa inicial', 'Retomada 1', 'Retomada 2']);
   });

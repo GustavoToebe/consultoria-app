@@ -3,10 +3,12 @@ package br.com.treinos.api.treino;
 import br.com.treinos.api.consultoria.ConfiguracaoConsultoria;
 import br.com.treinos.api.planos.ResultadoValidacao;
 import br.com.treinos.api.treino.ConteudoTreino.Carga;
+import br.com.treinos.api.treino.ConteudoTreino.CargaDaEtapa;
 import br.com.treinos.api.treino.ConteudoTreino.Cardio;
 import br.com.treinos.api.treino.ConteudoTreino.Esforco;
 import br.com.treinos.api.treino.ConteudoTreino.ExercicioPlano;
 import br.com.treinos.api.treino.ConteudoTreino.Grupo;
+import br.com.treinos.api.treino.ConteudoTreino.Retomada;
 import br.com.treinos.api.treino.ConteudoTreino.Serie;
 import br.com.treinos.api.treino.ConteudoTreino.Sessao;
 import br.com.treinos.api.treino.ConteudoTreino.Tecnica;
@@ -245,7 +247,7 @@ class ValidadorTreinoTest {
 
         // Só as quedas são obrigatórias: sem redução fixada e até a falha. Campos de outra técnica são ignorados.
         List<String> boas = caminhosDeErro(conteudo(List.of(exercicio(serie(
-                new Tecnica("DROP_SET", null, 99, null, null, 2, null, null, null, null, null, null, null))))));
+                new Tecnica("DROP_SET", null, 99, null, null, 2, null, null, null, null, null, null, null, null, null))))));
         assertThat(boas).noneMatch(c -> c.contains("tecnica"));
         assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie(Tecnica.dropSet(5, 50, 50, null)))))))
                 .noneMatch(c -> c.contains("tecnica"));
@@ -580,7 +582,7 @@ class ValidadorTreinoTest {
     @Test
     void cadaTecnicaDescritivaPublicaSemErro() {
         for (String tipo : ConteudoTreino.DESCRITIVAS) {
-            Tecnica cheia = new Tecnica(tipo, 20, 5, 2, List.of(4, 2), 2, 20, 8, 3, 5, 4, "LIVRE", 2);
+            Tecnica cheia = new Tecnica(tipo, 20, 5, 2, List.of(4, 2), 2, 20, 8, 3, 5, 4, "LIVRE", 2, null, null);
             assertThat(cheia.problemas()).as(tipo).isEmpty();
             assertThat(caminhosDeErro(conteudo(List.of(exercicio(serie(Tecnica.vazia(tipo))))))).as(tipo).isEmpty();
         }
@@ -607,6 +609,86 @@ class ValidadorTreinoTest {
         assertThat(ValidadorTreino.problemasDaSerie(ws(), true)).containsKey("cardio");
         Map<String, String> p = ValidadorTreino.problemasDaSerie(serie("WORKING", 8, 6, CARGA, null), false);
         assertThat(p).containsOnlyKeys("repsMax");
+    }
+
+    // ---- Carga por bloco e retomadas (docs/series-etapas.md, lote C) ----
+
+    private static final CargaDaEtapa DA_SERIE = new CargaDaEtapa("DA_SERIE", null);
+
+    private static CargaDaEtapa pct(Integer p) {
+        return new CargaDaEtapa("PERCENTUAL_WS", p);
+    }
+
+    @Test
+    void cargaPorBlocoUmaParaCadaBlocoComPercentualDe1A200() {
+        Serie boa = serie("WORKING", 10, 10, CARGA, cluster(List.of(4, 4, 2), 15)
+                .comCargasDosBlocos(List.of(DA_SERIE, pct(90), pct(80))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(boa))))).isEmpty();
+
+        Serie curta = serie("WORKING", 10, 10, CARGA, cluster(List.of(4, 4, 2), 15).comCargasDosBlocos(List.of(DA_SERIE, pct(90))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(curta))))).containsExactly(SERIE0 + ".tecnica.cargasDosBlocos");
+
+        Serie semPercentual = serie("WORKING", 8, 8, CARGA, cluster(List.of(4, 4), 15).comCargasDosBlocos(List.of(DA_SERIE, pct(null))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(semPercentual)))))
+                .containsExactly(SERIE0 + ".tecnica.cargasDosBlocos[1].percentual");
+        assertThat(mensagemDeErro(conteudo(List.of(exercicio(semPercentual))), SERIE0 + ".tecnica.cargasDosBlocos[1].percentual"))
+                .isEqualTo("Bloco 2: Percentual da WS entre 1 e 200.");
+
+        Serie foraDaFaixa = serie("WORKING", 8, 8, CARGA, cluster(List.of(4, 4), 15).comCargasDosBlocos(List.of(pct(0), pct(201))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(foraDaFaixa))))).containsExactly(
+                SERIE0 + ".tecnica.cargasDosBlocos[0].percentual", SERIE0 + ".tecnica.cargasDosBlocos[1].percentual");
+
+        Serie modoErrado = serie("WORKING", 8, 8, CARGA, cluster(List.of(4, 4), 15)
+                .comCargasDosBlocos(List.of(new CargaDaEtapa("ACIMA_DA_ANTERIOR", 5), new CargaDaEtapa("DA_SERIE", 90))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(modoErrado))))).containsExactly(
+                SERIE0 + ".tecnica.cargasDosBlocos[0].modo", SERIE0 + ".tecnica.cargasDosBlocos[1].percentual");
+    }
+
+    @Test
+    void retomadasUmaPorPausaComMetaEscolhidaECargaObrigatoria() {
+        Serie boa = serie("WORKING", 6, 8, CARGA, restPause(20, null, 2)
+                .comRetomadas(List.of(new Retomada(2, 3, null, DA_SERIE), new Retomada(null, null, true, pct(90)))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(boa))))).isEmpty();
+        // Sem pausas informadas vale uma.
+        Serie umaPausa = serie("WORKING", 6, 8, CARGA, restPause(20, null, null).comRetomadas(List.of(new Retomada(2, 2, null, DA_SERIE))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(umaPausa))))).isEmpty();
+
+        Serie aMais = serie("WORKING", 6, 8, CARGA, restPause(20, null, 1)
+                .comRetomadas(List.of(new Retomada(2, 2, null, DA_SERIE), new Retomada(2, 2, null, DA_SERIE))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(aMais))))).containsExactly(SERIE0 + ".tecnica.retomadas");
+
+        Serie problemas = serie("WORKING", 6, 8, CARGA, restPause(20, null, 3).comRetomadas(List.of(
+                new Retomada(null, null, null, DA_SERIE),
+                new Retomada(3, 2, null, null),
+                new Retomada(2, 2, true, pct(250)))));
+        assertThat(caminhosDeErro(conteudo(List.of(exercicio(problemas))))).containsExactlyInAnyOrder(
+                SERIE0 + ".tecnica.retomadas[0].repsMin",
+                SERIE0 + ".tecnica.retomadas[1].repsMax",
+                SERIE0 + ".tecnica.retomadas[1].carga",
+                SERIE0 + ".tecnica.retomadas[2].amrap",
+                SERIE0 + ".tecnica.retomadas[2].carga.percentual");
+        assertThat(mensagemDeErro(conteudo(List.of(exercicio(problemas))), SERIE0 + ".tecnica.retomadas[0].repsMin"))
+                .isEqualTo("Retomada 1: Informe as repetições (exatas ou faixa) ou AMRAP.");
+    }
+
+    @Test
+    void exercicioSemCargaNaoTemCargaPorBlocoNemRetomadaEmPercentual() {
+        ExercicioPlano barra = new ExercicioPlano(UUID.randomUUID(), null, "Barra fixa", "LIVRE", null, null, true, "nenhuma",
+                List.of(serie("WORKING", 8, 8, null, cluster(List.of(4, 4), 15).comCargasDosBlocos(List.of(DA_SERIE, DA_SERIE))),
+                        serie("WORKING", 6, 8, null, restPause(20, null, 1).comRetomadas(List.of(new Retomada(2, 2, null, pct(90))))),
+                        serie("WORKING", 6, 8, null, restPause(20, null, 1).comRetomadas(List.of(new Retomada(2, 2, null, DA_SERIE))))));
+        assertThat(caminhosDeErro(conteudo(List.of(barra)))).containsExactly(
+                BASE + "0].series[0].tecnica.cargasDosBlocos", BASE + "0].series[1].tecnica.retomadas");
+    }
+
+    @Test
+    void cargaPorBlocoERetomadasNaoEntramNoPadraoDaMetodologia() {
+        assertThat(cluster(List.of(4, 4), 15).comCargasDosBlocos(List.of(DA_SERIE, pct(90))).problemasDosValores())
+                .containsKey("cargasDosBlocos");
+        assertThat(restPause(20, null, 1).comRetomadas(List.of(new Retomada(2, 2, null, DA_SERIE))).problemasDosValores())
+                .containsKey("retomadas");
+        // Campos de outra técnica são ignorados.
+        assertThat(Tecnica.dropSet(1, null, null, null).comCargasDosBlocos(List.of(pct(500))).problemas()).isEmpty();
     }
 
     // ---- Apoio ----

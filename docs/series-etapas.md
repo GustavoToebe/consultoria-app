@@ -41,12 +41,21 @@ impacto e o registro das decisões. O contrato geral de séries, tipos e técnic
 | Campo | Técnica | Regra |
 |---|---|---|
 | `cargasDosBlocos: CargaDaEtapa[]` | só `CLUSTER` | mesmo tamanho de `blocos`; nulo = todos os blocos seguem a carga da série |
-| `retomadas: Retomada[]` | só `REST_PAUSE` | mesmo tamanho de `pausas` (vazio = 1); nulo = texto antigo, "continue com a mesma carga até a falha" |
+| `retomadas: Retomada[]` | só `REST_PAUSE` | mesmo tamanho de `pausas` (vazio = 1); nulo = "continue com a mesma carga até a falha" (a etapa mostra "Meta até a falha") |
 
 - `CargaDaEtapa = { modo: 'DA_SERIE' | 'PERCENTUAL_WS', percentual }`. `DA_SERIE` herda a carga da série (o percentual
-  fica nulo); `PERCENTUAL_WS` exige percentual de 1 a 200, sobre a **referência da WS** da série (a última série de carga de
-  trabalho registrada antes no exercício hoje; sem ela, a base do dia). Nunca percentual sobre percentual. Campo vazio no
-  modo percentual é erro, nunca herança.
+  fica nulo); `PERCENTUAL_WS` exige percentual de 1 a 200, sobre a **referência externa da série** (`referenciaDaSerie` no
+  app): na série de carga de trabalho, a base do dia; em "% da WS" e "mesma carga", a última série de carga de trabalho
+  registrada antes no exercício hoje (sem ela, a base do dia); nos modos sem referência própria ("acima da anterior",
+  "abaixo da referência", sem carga), a mesma referência da WS, só quando há etapa em %. É a referência congelada na
+  primeira etapa. Nunca percentual sobre percentual. Campo vazio no modo percentual é erro, nunca herança.
+- Nenhuma das duas listas entra no padrão da metodologia (dependem dos blocos e das pausas de cada série): o padrão com
+  elas é recusado (`problemasDosValores`). Em outra técnica são ignoradas, como os demais campos de outra técnica.
+- Editor: "Personalizar carga por bloco" (Cluster) e "Definir a meta das retomadas" (Rest-pause). A lista acompanha a
+  quantidade de blocos ou de pausas (o item novo herda a carga da série; a retomada nova é AMRAP com a carga da série).
+- Aluno: cada etapa mostra a meta e a carga própria ("Bloco 3 · Meta 2 reps · 80% da WS") e a carga sugerida dela; a
+  referência aparece antes da primeira etapa quando há etapa em %. Prévia do editor e PDF trazem uma linha por etapa e a
+  linha "Percentuais da …, fixada ao registrar a primeira etapa".
 - `Retomada = { repsMin, repsMax, amrap, carga: CargaDaEtapa }`: quantidade exata (mínimo = máximo), faixa ou AMRAP,
   sempre escolhida; a carga é obrigatória (herdar ou percentual). A etapa inicial do Rest-pause é a própria série (as
   repetições e a carga da série).

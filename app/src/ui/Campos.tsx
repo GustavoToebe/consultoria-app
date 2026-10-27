@@ -80,10 +80,13 @@ export function CampoNumerico({
   erro,
   mascara,
   aoValidade,
+  rotuloAcessivel,
 }: {
   rotulo: string;
   valor: number | null;
   aoMudar: (valor: number | null) => void;
+  /** Nome para o leitor de tela quando o rótulo visível se repete na tela. */
+  rotuloAcessivel?: string;
   inteiro?: boolean;
   sufixo?: string;
   ajuda?: string;
@@ -98,6 +101,7 @@ export function CampoNumerico({
     <Campo
       numerico
       rotulo={sufixo ? `${rotulo} (${sufixo})` : rotulo}
+      rotuloAcessivel={rotuloAcessivel}
       valor={texto}
       aoMudar={mudar}
       keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}

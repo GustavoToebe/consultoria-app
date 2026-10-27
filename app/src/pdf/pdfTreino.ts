@@ -1,6 +1,6 @@
 import type { Configuracao, ConteudoTreino, ExercicioPlano, Marca, Serie, Sessao } from '../api/tipos';
 import { agrupar, descreverGrupo } from '../dominio/agrupamento';
-import { estruturaDaSerie } from '../dominio/resumoDaSerie';
+import { estruturaDaSerie, linhasDasEtapas } from '../dominio/resumoDaSerie';
 import { explicacaoDoCatalogo } from '../dominio/catalogoMetodologia';
 import { gruposDaSessao } from '../dominio/combinacoes';
 import { rotuloDescanso } from '../dominio/descanso';
@@ -63,7 +63,9 @@ export function seriesDoPdf(e: Pick<ExercicioPlano, 'series'>, config: Configura
   return agrupar(e.series).map((g) => {
     const primeira = g.series[0];
     const detalhes: string[] = [];
-    if (!primeira.cardio && (primeira.tecnica?.tipo === 'CLUSTER' || primeira.tecnica?.tipo === 'REST_PAUSE')) detalhes.push(estruturaDaSerie(primeira, config));
+    if (!primeira.cardio && (primeira.tecnica?.tipo === 'CLUSTER' || primeira.tecnica?.tipo === 'REST_PAUSE')) {
+      detalhes.push(estruturaDaSerie(primeira, config), ...linhasDasEtapas(primeira, config));
+    }
     const descanso = comDescanso ? textoDoDescansoDasSeries(g.series) : '';
     if (descanso) detalhes.push(`Descanso depois da série: ${descanso}`);
     return { linha: descreverGrupo(g, config, e.series, { etapasAParte: true }), detalhes };

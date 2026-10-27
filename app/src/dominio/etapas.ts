@@ -1,4 +1,6 @@
-import type { EtapaRegistrada, OrigemDaReferencia, Serie } from '../api/tipos';
+import type { CargaDaEtapa, EtapaRegistrada, OrigemDaReferencia, Retomada, Serie } from '../api/tipos';
+import { faixa } from './agrupamento';
+import { arredondar } from './cargas';
 import { blocosValidos } from './blocos';
 import { numeroParaTela } from './formatos';
 import { textoDasRepeticoesDaSerie } from './resumoDaSerie';
@@ -13,10 +15,45 @@ export interface EtapaPrevista {
   posicao: number;
   /** "Bloco 2", "Etapa inicial", "Retomada 1". */
   rotulo: string;
-  /** O que a etapa pede: "4 reps", "6 a 8 reps", "AMRAP", "sem meta fixa". */
+  /** O que a etapa pede: "4 reps", "6 a 8 reps", "AMRAP", "até a falha". */
   meta: string;
   /** Repetições previstas quando são um número só (bloco do Cluster); nulo em faixa, AMRAP ou sem meta. */
   repsExatas: number | null;
+  /** Carga prevista da etapa; `null` = a carga da série (sem carga própria). */
+  carga: CargaDaEtapa | null;
+}
+
+/**
+ * "2 reps", "2 a 3 reps" ou "AMRAP" de uma retomada; sem retomada escrita, "até a falha" (o Rest-pause de sempre: mesma
+ * carga até a falha). Retomada sem número nem AMRAP não passa na publicação; aqui vira "—".
+ */
+export function metaDaRetomada(r: Retomada | null | undefined): string {
+  if (!r) return 'até a falha';
+  if (r.amrap === true) return 'AMRAP';
+  const f = faixa({ repsMin: r.repsMin ?? null, repsMax: r.repsMax ?? null });
+  return f ? `${f} ${r.repsMin === 1 && r.repsMax === 1 ? 'rep' : 'reps'}` : '—';
+}
+
+/** A carga da etapa só conta quando é percentual; "da série" equivale a não ter carga própria. */
+const cargaPropria = (c: CargaDaEtapa | null | undefined): CargaDaEtapa | null => (c?.modo === 'PERCENTUAL_WS' ? c : null);
+
+/** "90% da WS" (carga própria da etapa) ou `null` (a carga da série). */
+export function textoDaCargaDaEtapa(c: CargaDaEtapa | null | undefined, ws: string | null | undefined): string | null {
+  const propria = cargaPropria(c);
+  if (!propria || propria.percentual == null) return null;
+  return `${propria.percentual}%${ws ? ` da ${ws}` : ''}`;
+}
+
+/**
+ * Carga sugerida de uma etapa: a da série quando a etapa não tem carga própria; com percentual, o percentual da
+ * referência externa da série (a congelada na primeira etapa ou, antes dela, a de agora), arredondado pelo passo.
+ * Nunca percentual sobre percentual: a referência é a mesma para todas as etapas.
+ */
+export function sugestaoDaEtapa(prevista: Pick<EtapaPrevista, 'carga'>, sugestaoDaSerie: number | null, referencia: number | null, passo: number): number | null {
+  const propria = cargaPropria(prevista.carga);
+  if (!propria) return sugestaoDaSerie;
+  if (referencia == null || propria.percentual == null) return null;
+  return arredondar((referencia * propria.percentual) / 100, passo);
 }
 
 /** Etapas previstas da série; `null` = a série se registra inteira (sem Cluster com blocos válidos nem Rest-pause). */
@@ -25,7 +62,13 @@ export function etapasDaSerie(s: Pick<Serie, 'tecnica' | 'cardio' | 'repsMin' | 
   if (!t || s.cardio) return null;
   if (t.tipo === 'CLUSTER') {
     if (!blocosValidos(t.blocos)) return null;
-    return t.blocos!.map((reps, i) => ({ posicao: i + 1, rotulo: `Bloco ${i + 1}`, meta: `${reps} ${reps === 1 ? 'rep' : 'reps'}`, repsExatas: reps }));
+    return t.blocos!.map((reps, i) => ({
+      posicao: i + 1,
+      rotulo: `Bloco ${i + 1}`,
+      meta: `${reps} ${reps === 1 ? 'rep' : 'reps'}`,
+      repsExatas: reps,
+      carga: cargaPropria(t.cargasDosBlocos?.[i]),
+    }));
   }
   if (t.tipo === 'REST_PAUSE') {
     const pausas = t.pausas != null && t.pausas > 0 ? t.pausas : 1;
@@ -34,13 +77,18 @@ export function etapasDaSerie(s: Pick<Serie, 'tecnica' | 'cardio' | 'repsMin' | 
       rotulo: 'Etapa inicial',
       meta: textoDasRepeticoesDaSerie(s),
       repsExatas: !s.amrap && s.repsMin != null && s.repsMin === s.repsMax ? s.repsMin : null,
+      carga: null,
     };
-    const retomadas = Array.from({ length: pausas }, (_, i): EtapaPrevista => ({
-      posicao: i + 2,
-      rotulo: pausas === 1 ? 'Retomada' : `Retomada ${i + 1}`,
-      meta: 'sem meta fixa',
-      repsExatas: null,
-    }));
+    const retomadas = Array.from({ length: pausas }, (_, i): EtapaPrevista => {
+      const r = t.retomadas?.[i] ?? null;
+      return {
+        posicao: i + 2,
+        rotulo: pausas === 1 ? 'Retomada' : `Retomada ${i + 1}`,
+        meta: metaDaRetomada(r),
+        repsExatas: r && r.amrap !== true && r.repsMin != null && r.repsMin === r.repsMax ? r.repsMin : null,
+        carga: cargaPropria(r?.carga),
+      };
+    });
     return [inicial, ...retomadas];
   }
   return null;

@@ -91,6 +91,10 @@ export async function fixarHoje(page: Page): Promise<void> {
 const SEM_TECNICA = { pausaSegundos: null, pausaRespiracoes: null, pausas: null, blocos: null, quedas: null, reducaoPercentual: null, repsPorQueda: null };
 
 /** Exercício fictício para conferir carga, pausas e explicações do formato atual: a técnica vai dentro da série WS. */
+/**
+ * WS, WS com Rest-pause (20 s, 1 pausa), WS com Cluster 4+2 (pausa em respirações; o bloco 2 a 90% da WS) e WS até a
+ * falha. O Rest-pause e o Cluster se registram por etapa.
+ */
 export function sessaoComTecnicas(): Sessao[] {
   const sessao = sessaoFalsa('tecnicas', 'Treino de técnicas', 1, 1);
   const base = { tipo: 'WORKING', repsMin: 6, repsMax: 8, descansoSegundos: null, carga: CARGA_DE_TRABALHO };
@@ -98,7 +102,8 @@ export function sessaoComTecnicas(): Sessao[] {
   sessao.exercicios[0] = { ...sessao.exercicios[0], uid: 'exemplo', nome: 'Remada de teste', series: [
     { ...base, uid: 'ws', esforco: { rir: 1 }, tecnica: null },
     { ...base, uid: 'rest', esforco: { rir: 0 }, tecnica: tecnica({ tipo: 'REST_PAUSE', pausaSegundos: 20, pausas: 1 }) },
-    { ...base, uid: 'cluster', repsMin: 6, repsMax: 6, esforco: null, tecnica: tecnica({ tipo: 'CLUSTER', blocos: [4, 2], pausaRespiracoes: 5 }) },
+    { ...base, uid: 'cluster', repsMin: 6, repsMax: 6, esforco: null,
+      tecnica: tecnica({ tipo: 'CLUSTER', blocos: [4, 2], pausaRespiracoes: 5, cargasDosBlocos: [{ modo: 'DA_SERIE', percentual: null }, { modo: 'PERCENTUAL_WS', percentual: 90 }] }) },
     { ...base, uid: 'falha', esforco: { rir: 0 }, tecnica: null },
   ] };
   return [sessao];

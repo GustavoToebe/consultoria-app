@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import type { Cardio, Carga, Configuracao, Esforco, ModoDeCarga, PapelDaSerie, RegiaoDasParciais, Tecnica } from '../../api/tipos';
+import type { Cardio, Carga, CargaDaEtapa, Configuracao, Esforco, ModoDeCarga, PapelDaSerie, RegiaoDasParciais, Retomada, Tecnica } from '../../api/tipos';
 import { blocosIguais, blocosSeValidos, blocosValidos, lerBlocos, listaDeBlocosIguaisSeValidos, rascunhoDoModoDiferente, resumoDosBlocos, textoDeBlocos } from '../../dominio/blocos';
 import { modosDeCarga } from '../../dominio/editorTreino';
 import { REGIOES_DAS_PARCIAIS } from '../../dominio/metodologia';
@@ -13,7 +13,7 @@ import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { Texto } from '../../ui/Texto';
 import {
-  ajudaDaCarga, formaDoEsforco, FORMAS_DAS_REPETICOES, FORMAS_DE_ESFORCO, formaVisivel, OPCOES_DE_RIR, repeticoesNaForma, rotulosDaFaixa,
+  ajudaDaCarga, ajustarCargasDosBlocos, ajustarRetomadas, CARGA_DA_SERIE, cargaDaEtapaNoModo, formaDoEsforco, FORMAS_DAS_REPETICOES, opcoesDaCargaDaEtapa, FORMAS_DE_ESFORCO, formaVisivel, OPCOES_DE_RIR, repeticoesNaForma, rotulosDaFaixa,
   type FormaDasRepeticoes, type FormaDeEsforco, type Repeticoes,
 } from './opcoesDoEditor';
 
@@ -94,16 +94,18 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
     if (f !== forma) aoMudar(repeticoesNaForma(f, valor));
   };
   const vazio = valor.repsMin == null && valor.repsMax == null && !valor.amrap;
+  // Com rótulo próprio (uma retomada), os campos ganham o nome dela no leitor de tela: "Retomada 1: reps mín.".
+  const proprio = rotulo !== 'Repetições';
   return <View style={estilos.bloco}>
     <Escolha rotulo={rotulo} opcoes={FORMAS_DAS_REPETICOES} valor={forma} aoMudar={mudarForma} />
     {forma === 'EXATA' ? <View style={estilos.campo}>
-      <CampoNumerico rotulo="Repetições" inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
+      <CampoNumerico rotulo="Repetições" rotuloAcessivel={proprio ? `${rotulo}: repetições` : undefined} inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
         aoMudar={(n) => aoMudar({ repsMin: n, repsMax: n, amrap: false })} erro={erros.repsMin ?? erros.repsMax} />
     </View> : null}
     {forma === 'FAIXA' ? <View style={estilos.linha}>
-      <View style={estilos.campo}><CampoNumerico rotulo="Reps mín." inteiro valor={valor.repsMin ?? null}
+      <View style={estilos.campo}><CampoNumerico rotulo="Reps mín." rotuloAcessivel={proprio ? `${rotulo}: reps mín.` : undefined} inteiro valor={valor.repsMin ?? null}
         aoMudar={(repsMin) => aoMudar({ repsMin, repsMax: valor.repsMax ?? null, amrap: false })} erro={erros.repsMin} /></View>
-      <View style={estilos.campo}><CampoNumerico rotulo="Reps máx." inteiro valor={valor.repsMax ?? null}
+      <View style={estilos.campo}><CampoNumerico rotulo="Reps máx." rotuloAcessivel={proprio ? `${rotulo}: reps máx.` : undefined} inteiro valor={valor.repsMax ?? null}
         aoMudar={(repsMax) => aoMudar({ repsMin: valor.repsMin ?? null, repsMax, amrap: false })} erro={erros.repsMax} /></View>
     </View> : null}
     {forma === 'AMRAP' ? <Texto variante="pequeno">O aluno faz o máximo de repetições que conseguir e anota quantas fez.</Texto> : null}
@@ -304,8 +306,13 @@ const OPCOES_DE_REGIAO: { valor: RegiaoDasParciais | null; rotulo: string }[] = 
  * Campos próprios de cada uma das seis técnicas. `completa` é a técnica da série (cobra o que falta); falso é o padrão
  * parcial da metodologia, em que só os valores presentes são conferidos. Sem `erros`, calcula os da própria técnica.
  */
-export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros }: {
-  tecnica: Tecnica; aoMudar: (t: Tecnica) => void; completa?: boolean; erros?: Problemas;
+/**
+ * Campos da técnica. Na série (`completa`), o Cluster pode ter a carga de cada bloco e o Rest-pause a meta e a carga de
+ * cada retomada; no padrão da metodologia, não (dependem dos blocos e das pausas de cada série). `semCarga` = exercício
+ * sem carga: sem carga por bloco nem retomada em %. `ws` é o nome da série de trabalho ("% da WS").
+ */
+export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros, semCarga = false, ws = 'WS' }: {
+  tecnica: Tecnica; aoMudar: (t: Tecnica) => void; completa?: boolean; erros?: Problemas; semCarga?: boolean; ws?: string;
 }) {
   const e = erros ?? problemasDaTecnica(t, completa);
   const mudar = (parte: Partial<Tecnica>) => aoMudar({ ...t, ...parte });
@@ -314,12 +321,15 @@ export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros }:
     case 'REST_PAUSE':
       return <View style={estilos.bloco}>
         {pausa}
-        <View style={estilos.campo}><CampoNumerico rotulo="Quantas pausas" inteiro valor={t.pausas ?? null} aoMudar={(pausas) => mudar({ pausas })} erro={e.pausas} ajuda="3 micro-séries = 2 pausas. Vazio = 1." /></View>
+        <View style={estilos.campo}><CampoNumerico rotulo="Quantas pausas" inteiro valor={t.pausas ?? null}
+          aoMudar={(pausas) => mudar({ pausas, retomadas: ajustarRetomadas(t.retomadas, pausas) })} erro={e.pausas} ajuda="3 micro-séries = 2 pausas. Vazio = 1." /></View>
+        {completa ? <CamposDasRetomadas t={t} mudar={mudar} e={e} semCarga={semCarga} ws={ws} /> : null}
       </View>;
     case 'CLUSTER':
       return <View style={estilos.bloco}>
-        <CampoBlocos valor={t.blocos} completa={completa} aoMudar={(blocos) => mudar({ blocos })} erro={e.blocos} />
+        <CampoBlocos valor={t.blocos} completa={completa} aoMudar={(blocos) => mudar({ blocos, cargasDosBlocos: ajustarCargasDosBlocos(t.cargasDosBlocos, blocos) })} erro={e.blocos} />
         <CamposDePausa t={t} mudar={mudar} e={e} rotulo="Pausa entre blocos" ajuda="Não entra depois do último bloco. O descanso da série fica no outro campo." />
+        {completa && !semCarga ? <CamposDasCargasDosBlocos t={t} mudar={mudar} e={e} ws={ws} /> : null}
       </View>;
     case 'DROP_SET':
       return <View style={estilos.linha}>
@@ -353,6 +363,77 @@ export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros }:
     default:
       return <ErroDoCampo mensagem={e.tipo} />;
   }
+}
+
+// ---- Etapas: carga por bloco e retomadas ----
+
+/**
+ * A carga de uma etapa numa linha só: o nome da etapa, "Carga da série" ou "% da WS" e, no %, o número. A lista de blocos
+ * fica curta mesmo com dez blocos no celular.
+ */
+function CampoDaCargaDaEtapa({ rotulo, carga, aoMudar, e, prefixo, ws }: {
+  rotulo: string; carga: CargaDaEtapa | null | undefined; aoMudar: (c: CargaDaEtapa) => void; e: Problemas; prefixo: string; ws: string;
+}) {
+  const modo = carga?.modo ?? 'DA_SERIE';
+  const erro = e[`${prefixo}.percentual`] ?? e[`${prefixo}.modo`] ?? e[prefixo];
+  return <View style={estilos.etapa}>
+    <Texto variante="rotulo">{rotulo}</Texto>
+    <View style={estilos.linhaDaEtapa}>
+      <Escolha descricao={rotulo} compacta opcoes={opcoesDaCargaDaEtapa(ws)} valor={modo} aoMudar={(m) => aoMudar(cargaDaEtapaNoModo(m, carga))} />
+      {modo === 'PERCENTUAL_WS' ? <View style={estilos.percentual}>
+        <CampoNumerico rotulo="%" rotuloAcessivel={`${rotulo}: % da ${ws}`} inteiro valor={carga?.percentual ?? null}
+          aoMudar={(percentual) => aoMudar({ modo: 'PERCENTUAL_WS', percentual })} erro={erro} />
+      </View> : null}
+    </View>
+    {modo !== 'PERCENTUAL_WS' ? <ErroDoCampo mensagem={erro} /> : null}
+  </View>;
+}
+
+/** Cluster: desligado, todos os blocos com a carga da série; ligado, a carga de cada bloco. */
+function CamposDasCargasDosBlocos({ t, mudar, e, ws }: { t: Tecnica; mudar: (p: Partial<Tecnica>) => void; e: Problemas; ws: string }) {
+  const blocos = blocosValidos(t.blocos) ? t.blocos! : null;
+  const cargas = t.cargasDosBlocos;
+  if (!blocos && !cargas) return null;
+  return <View style={estilos.bloco}>
+    <Interruptor rotulo="Personalizar carga por bloco" valor={!!cargas}
+      ajuda={cargas ? 'Os percentuais são da mesma referência da série, fixada quando o aluno registra o primeiro bloco.' : 'Desligado, todos os blocos usam a carga da série.'}
+      aoMudar={(ligado) => mudar({ cargasDosBlocos: ligado ? (blocos ?? []).map(() => CARGA_DA_SERIE) : null })} />
+    {cargas && !blocos ? <Texto variante="pequeno">Complete os blocos para escolher a carga de cada um.</Texto> : null}
+    {cargas && blocos ? blocos.map((reps, i) => (
+      <CampoDaCargaDaEtapa key={i} rotulo={`Bloco ${i + 1} (${reps} ${reps === 1 ? 'rep' : 'reps'})`} carga={cargas[i]} e={e} prefixo={`cargasDosBlocos[${i}]`} ws={ws}
+        aoMudar={(c) => mudar({ cargasDosBlocos: cargas.map((x, j) => (j === i ? c : x)) })} />
+    )) : null}
+    <ErroDoCampo mensagem={e.cargasDosBlocos} />
+  </View>;
+}
+
+/** Rest-pause: desligado, "continue com a mesma carga até a falha"; ligado, a meta e a carga de cada retomada. */
+function CamposDasRetomadas({ t, mudar, e, semCarga, ws }: { t: Tecnica; mudar: (p: Partial<Tecnica>) => void; e: Problemas; semCarga: boolean; ws: string }) {
+  const { cores } = useTema();
+  const retomadas = t.retomadas;
+  const quantas = t.pausas != null && t.pausas >= 1 ? t.pausas : 1;
+  const mudarRetomada = (i: number, parte: Partial<Retomada>) => mudar({ retomadas: (retomadas ?? []).map((r, j) => (j === i ? { ...r, ...parte } : r)) });
+  return <View style={estilos.bloco}>
+    <Interruptor rotulo="Definir a meta das retomadas" valor={!!retomadas}
+      ajuda={retomadas ? 'A etapa inicial é a própria série. Cada retomada tem a sua meta.' : 'Desligado, o aluno continua com a mesma carga até a falha, sem meta fixa.'}
+      aoMudar={(ligado) => mudar({ retomadas: ligado ? ajustarRetomadas([], quantas) : null })} />
+    {retomadas ? retomadas.map((r, i) => {
+      const nome = retomadas.length === 1 ? 'Retomada' : `Retomada ${i + 1}`;
+      const prefixo = `retomadas[${i}]`;
+      return <View key={i} style={[estilos.retomada, { borderColor: cores.borda }]}>
+        <CamposDasRepeticoes rotulo={nome} valor={r} erros={subProblemas(e, prefixo)} aoMudar={(reps) => mudarRetomada(i, reps)} />
+        {semCarga ? null : <CampoDaCargaDaEtapa rotulo={`Carga da ${nome.toLowerCase()}`} carga={r.carga} e={e} prefixo={`${prefixo}.carga`} ws={ws}
+          aoMudar={(carga) => mudarRetomada(i, { carga })} />}
+      </View>;
+    }) : null}
+    <ErroDoCampo mensagem={e.retomadas} />
+  </View>;
+}
+
+/** Os problemas de um trecho (`retomadas[0]`), com as chaves relativas a ele. */
+function subProblemas(p: Problemas, prefixo: string): Problemas {
+  const inicio = `${prefixo}.`;
+  return Object.fromEntries(Object.entries(p).filter(([k]) => k.startsWith(inicio)).map(([k, v]) => [k.slice(inicio.length), v]));
 }
 
 // ---- Cardio ----
@@ -389,4 +470,8 @@ const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   campo: { minWidth: 140, flexGrow: 1, flexBasis: 140, maxWidth: 260 },
+  etapa: { gap: espaco(0.5) },
+  linhaDaEtapa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5) },
+  percentual: { width: 104 },
+  retomada: { gap: espaco(1), borderLeftWidth: 2, paddingLeft: espaco(1.5) },
 });

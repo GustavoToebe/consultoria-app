@@ -6,7 +6,7 @@ import { agrupar, descreverGrupo, type GrupoDeSeries } from '../../dominio/agrup
 import { adicionarSerie, alterarGrupo, alterarPercentuais, DESCANSO_MAXIMO_SEGUNDOS, LIMITE_SERIES, moverGrupo, mudarQuantidade, novoExercicio, removerGrupo, tecnicaVazia, type AlteracaoDeGrupo } from '../../dominio/editorTreino';
 import { explicacaoDoCatalogo } from '../../dominio/catalogoMetodologia';
 import { acrescentarExemplo, assinaturaDoEsforco, marcaConfere, motivoDoExemploCluster, motivoDoRestPause, novaWsComRestPause, origemAposConteudo, origemAoTrocarTipo, restPauseNestaSerie, TEXTO_DO_EXEMPLO, textoDaContagemDeSeries, textoDaRevisaoDoEsforco, type MarcaDeOrigem } from '../../dominio/exemplosDePrescricao';
-import { codigoTrabalho, esforcoInicial, explicacaoDaTecnica, explicacaoDoTipo, nomeDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva, tecnicaNaMetodologia, tipoPorCodigo } from '../../dominio/metodologia';
+import { codigoTrabalho, esforcoInicial, explicacaoDaTecnica, explicacaoDoTipo, nomeDaSerieDeTrabalho, nomeDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva, tecnicaNaMetodologia, tipoPorCodigo } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { previaDoGrupo } from '../../dominio/resumoDaSerie';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
@@ -282,7 +282,7 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
         <Tecnicas rotulo="Técnica da série" opcoes={opcoesDeTecnica(config, s.tecnica?.tipo)} valor={s.tecnica?.tipo ?? 'NENHUMA'} aoMudar={aoTecnica} />
         {s.tecnica ? <>
           {tecnicaTexto ? <Texto variante="pequeno">{tecnicaTexto}</Texto> : null}
-          {descritiva ? null : <CamposDaTecnica tecnica={s.tecnica} erros={errosDaTecnica} aoMudar={(tecnica) => aoAlterar({ tecnica })} />}
+          {descritiva ? null : <CamposDaTecnica tecnica={s.tecnica} erros={errosDaTecnica} semCarga={semCarga} ws={nomeDaSerieDeTrabalho(config)} aoMudar={(tecnica) => aoAlterar({ tecnica })} />}
         </> : null}
       </Secao> : null}
 
@@ -298,7 +298,7 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
             ajuda="Vale depois da série inteira, não entre os blocos." /></View> : null}
         </View>
         {secoes.prescricao ? (cluster ? <>
-          <Texto variante="pequeno">Uma WS contínua antes é outra série, sem técnica. O registro é um só, ao terminar o último bloco.</Texto>
+          <Texto variante="pequeno">Uma WS contínua antes é outra série, sem técnica. O aluno registra bloco por bloco, dentro desta série.</Texto>
           <ErroDoCampo mensagem={erros.repsMin} />
         </> : <>
           <CamposDasRepeticoes valor={s} erros={erros} semRepeticoes="Sem repetições: o aluno lê a série por tempo."

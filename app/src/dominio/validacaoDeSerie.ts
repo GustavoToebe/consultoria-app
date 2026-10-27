@@ -1,4 +1,4 @@
-import type { Cardio, Carga, Esforco, ModoDeCarga, Serie, Tecnica } from '../api/tipos';
+import type { Cardio, Carga, CargaDaEtapa, Esforco, ModoDeCarga, Retomada, Serie, Tecnica } from '../api/tipos';
 import { somaDosBlocos } from './blocos';
 import { tecnicaDescritiva, TIPOS_DE_TECNICA } from './metodologia';
 
@@ -105,6 +105,7 @@ export function problemasDaTecnica(t: Tecnica | null | undefined, completa = tru
     case 'REST_PAUSE':
       pausa(completa);
       faixa('pausas', 1, 5, 'Pausas do rest pause entre 1 e 5.', false);
+      problemasDasRetomadas(p, t, completa);
       break;
     case 'CLUSTER': {
       pausa(completa);
@@ -112,6 +113,7 @@ export function problemasDaTecnica(t: Tecnica | null | undefined, completa = tru
       if ((completa || b != null) && (b == null || b.length < 2 || b.length > 10 || b.some((x) => !dentro(x, 1, 50)))) {
         p.blocos = 'Cluster: de 2 a 10 blocos, cada um com 1 a 50 repetições.';
       }
+      problemasDasCargasDosBlocos(p, t, completa);
       break;
     }
     case 'DROP_SET':
@@ -139,6 +141,70 @@ export function problemasDaTecnica(t: Tecnica | null | undefined, completa = tru
       return p;
   }
   return p;
+}
+
+/** Problemas da carga de uma etapa (`ConteudoTreino.CargaDaEtapa.problemas`). */
+export function problemasDaCargaDaEtapa(c: CargaDaEtapa): Problemas {
+  if (c.modo === 'DA_SERIE') return c.percentual != null ? { percentual: 'Carga da série não leva percentual.' } : {};
+  if (c.modo === 'PERCENTUAL_WS') return dentro(c.percentual, 1, 200) ? {} : { percentual: 'Percentual da WS entre 1 e 200.' };
+  return { modo: 'Carga da etapa: da série ou percentual da WS.' };
+}
+
+/** Problemas de uma retomada do Rest-pause (`ConteudoTreino.Retomada.problemas`). */
+export function problemasDaRetomada(r: Retomada): Problemas {
+  const p: Problemas = {};
+  const temReps = r.repsMin != null || r.repsMax != null;
+  if (r.amrap === true) {
+    if (temReps) p.amrap = 'AMRAP não leva repetições mínima e máxima.';
+  } else if (r.repsMin == null || r.repsMax == null) p.repsMin = 'Informe as repetições (exatas ou faixa) ou AMRAP.';
+  else if (!inteiro(r.repsMin) || !inteiro(r.repsMax) || r.repsMin < 1 || r.repsMax > 50) p.repsMin = 'Repetições da retomada entre 1 e 50.';
+  else if (r.repsMax < r.repsMin) p.repsMax = 'Repetição máxima menor que a mínima.';
+  if (!r.carga) p.carga = 'Informe a carga: da série ou percentual da WS.';
+  else for (const [campo, mensagem] of Object.entries(problemasDaCargaDaEtapa(r.carga))) p[`carga.${campo}`] = mensagem;
+  return p;
+}
+
+function problemasDasCargasDosBlocos(p: Problemas, t: Tecnica, completa: boolean): void {
+  const cargas = t.cargasDosBlocos;
+  if (cargas == null) return;
+  if (!completa) {
+    p.cargasDosBlocos = 'A carga por bloco é da série, não do padrão da metodologia.';
+    return;
+  }
+  if (!t.blocos || cargas.length !== t.blocos.length) {
+    p.cargasDosBlocos = 'Informe uma carga para cada bloco.';
+    return;
+  }
+  cargas.forEach((c, i) => {
+    if (!c) p[`cargasDosBlocos[${i}]`] = `Informe a carga do bloco ${i + 1}.`;
+    else for (const [campo, mensagem] of Object.entries(problemasDaCargaDaEtapa(c))) p[`cargasDosBlocos[${i}].${campo}`] = `Bloco ${i + 1}: ${mensagem}`;
+  });
+}
+
+function problemasDasRetomadas(p: Problemas, t: Tecnica, completa: boolean): void {
+  const retomadas = t.retomadas;
+  if (retomadas == null) return;
+  if (!completa) {
+    p.retomadas = 'As retomadas são da série, não do padrão da metodologia.';
+    return;
+  }
+  const quantas = t.pausas != null && t.pausas >= 1 ? t.pausas : 1;
+  if (retomadas.length !== quantas) {
+    p.retomadas = 'Informe uma retomada para cada pausa.';
+    return;
+  }
+  retomadas.forEach((r, i) => {
+    const nome = quantas === 1 ? 'Retomada' : `Retomada ${i + 1}`;
+    if (!r) p[`retomadas[${i}]`] = `${nome}: informe a meta e a carga.`;
+    else for (const [campo, mensagem] of Object.entries(problemasDaRetomada(r))) p[`retomadas[${i}].${campo}`] = `${nome}: ${mensagem}`;
+  });
+}
+
+/** Há etapa (bloco ou retomada) com carga em percentual da WS? (`Tecnica.temEtapaEmPercentual`) */
+export function temEtapaEmPercentual(t: Tecnica | null | undefined): boolean {
+  if (t?.tipo === 'CLUSTER') return !!t.cargasDosBlocos?.some((c) => c?.modo === 'PERCENTUAL_WS');
+  if (t?.tipo === 'REST_PAUSE') return !!t.retomadas?.some((r) => r?.carga?.modo === 'PERCENTUAL_WS');
+  return false;
 }
 
 function problemasDasRepeticoes(p: Problemas, s: Pick<Serie, 'repsMin' | 'repsMax' | 'amrap'>): void {
