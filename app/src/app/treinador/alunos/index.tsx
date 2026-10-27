@@ -1,11 +1,10 @@
 import { Permitido } from '../../../ui/Permitido';
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../ui/EntradaEmCascata';
-import { sobre } from '../../../ui/sobre';
 import { router } from 'expo-router';
-import { Check, ChevronRight, Plus } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { listarAlunos } from '../../../api/rotas';
 import type { AlunoResumo, SituacaoFiltro } from '../../../api/tipos';
@@ -14,7 +13,7 @@ import { dataRelativa } from '../../../dominio/datasRelativas';
 import { LIMITE_LOTE, textoDaSelecao } from '../../../dominio/loteDeAlunos';
 import { alternarComLimite, marcarVisiveis } from '../../../dominio/selecaoMultipla';
 import { useTema } from '../../../tema/TemaProvider';
-import { espaco, RAIO, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../../tema/tokens';
+import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL } from '../../../tema/tokens';
 import { EscolhaResponsabilidade, type Responsabilidade } from '../../../treinador/EscolhaResponsabilidade';
 import { Folha } from '../../../ui/Folha';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
@@ -28,12 +27,10 @@ import { Escolha } from '../../../ui/Escolha';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
-import { propsDeLink } from '../../../ui/propsDeLink';
-import { Selo } from '../../../ui/Selo';
+import { CaixaDaLinha, LinhaDaLista, ListaDeLinhas, type SeloDaLinha } from '../../../ui/LinhaDaLista';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
-import { Grade } from '../../../ui/Grade';
 
 const SITUACOES: { valor: SituacaoFiltro; rotulo: string }[] = [
   { valor: 'ATIVO', rotulo: 'Ativos' },
@@ -127,7 +124,7 @@ export default function Alunos() {
         />
       ) : null}
       <View style={[estilos.lista, carregando && dados ? estilos.esmaecido : null]}>
-        <Grade gap={espaco(1)}>{(dados?.itens ?? []).map((a, i) => <EntradaEmCascata key={a.id} indice={i} animar={animar} style={estilos.crescer}><LinhaAluno aluno={a} selecionando={selecionando} marcado={marcados.has(a.id)} aoMarcar={() => alternar(a.id)} /></EntradaEmCascata>)}</Grade>
+        <ListaDeLinhas>{(dados?.itens ?? []).map((a, i) => <EntradaEmCascata key={a.id} indice={i} animar={animar}><LinhaAluno aluno={a} selecionando={selecionando} marcado={marcados.has(a.id)} aoMarcar={() => alternar(a.id)} /></EntradaEmCascata>)}</ListaDeLinhas>
       </View>
       {dados && paginas > 1 ? (
         <View style={estilos.paginacao}>
@@ -166,46 +163,31 @@ export default function Alunos() {
 }
 
 /**
- * Uma linha da lista: nome, selos só para o que pede atenção (a atualização, que diz de quê, e as exceções "Inativo" e
- * "Sem acesso"; "Ativo"/"Com acesso" em toda linha não diziam nada) e uma linha com o plano ativo e o último registro.
+ * Uma linha da lista (`LinhaDaLista` com link para a ficha): nome, selos só para o que pede atenção (a atualização, que
+ * diz de quê, e as exceções "Inativo" e "Sem acesso"; "Ativo"/"Com acesso" em toda linha não diziam nada) e os
+ * metadados com o plano ativo e o último registro. No Selecionar a caixa entra no início, irmã do link: só ela marca, e
+ * tocar no nome continua abrindo a ficha.
  */
 function LinhaAluno({ aluno, selecionando, marcado, aoMarcar }: { aluno: AlunoResumo; selecionando: boolean; marcado: boolean; aoMarcar: () => void }) {
-  const { cores } = useTema();
   const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;
   const ultimo = aluno.ultimoRegistro ? `Último registro ${dataRelativa(aluno.ultimoRegistro)}` : 'Nunca registrou';
-  const temSelo = !!atualizacao || !aluno.ativo || !aluno.temAcesso;
+  const selos: SeloDaLinha[] = [
+    ...(atualizacao ? [{ texto: atualizacao.texto, tipo: atualizacao.tipo }] : []),
+    ...(!aluno.ativo ? [{ texto: 'Inativo', tipo: 'neutro' as const }] : []),
+    ...(aluno.ativo && !aluno.temAcesso ? [{ texto: 'Sem acesso', tipo: 'neutro' as const }] : []),
+  ];
+  const ficha = `/treinador/alunos/${aluno.id}` as const;
   return (
-    <Pressable
-      accessibilityRole={selecionando ? 'checkbox' : 'link'}
-      accessibilityLabel={selecionando ? aluno.nome : `Abrir ${aluno.nome}${atualizacao ? `. ${atualizacao.texto}` : ''}`}
-      accessibilityState={selecionando ? { checked: marcado } : undefined}
-      {...(selecionando
-        ? { onPress: aoMarcar }
-        : propsDeLink(`/treinador/alunos/${aluno.id}`, () => router.push(`/treinador/alunos/${aluno.id}`)))}
-      style={(estado) => [
-        estilos.linha,
-        { backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie2, borderColor: cores.borda },
-      ]}>
-      {selecionando ? (
-        <View style={[estilos.caixa, { backgroundColor: marcado ? cores.texto : cores.campo, borderColor: marcado ? cores.texto : cores.bordaCampo }]}>
-          {marcado ? <Check size={18} color={cores.fundo} /> : null}
-        </View>
-      ) : null}
-      <View style={estilos.dados}>
-        <Texto variante="bloco" numberOfLines={2}>{aluno.nome}</Texto>
-        {temSelo ? (
-          <View style={estilos.selos}>
-            {atualizacao ? <Selo texto={atualizacao.texto} tipo={atualizacao.tipo} /> : null}
-            {!aluno.ativo ? <Selo texto="Inativo" tipo="neutro" /> : null}
-            {aluno.ativo && !aluno.temAcesso ? <Selo texto="Sem acesso" tipo="neutro" /> : null}
-          </View>
-        ) : null}
-        <Texto variante="suave" numberOfLines={2} numerico>
-          {aluno.planoAtivo?.titulo ?? 'Sem plano ativo'} · {ultimo}
-        </Texto>
-      </View>
-      {selecionando ? null : <ChevronRight size={20} color={cores.textoSuave} />}
-    </Pressable>
+    <LinhaDaLista
+      titulo={aluno.nome}
+      metadados={`${aluno.planoAtivo?.titulo ?? 'Sem plano ativo'} · ${ultimo}`}
+      selos={selos}
+      href={ficha}
+      aoAbrir={() => router.push(ficha)}
+      rotulo={`Abrir ${aluno.nome}${atualizacao ? `. ${atualizacao.texto}` : ''}`}
+      marcado={selecionando && marcado}
+      inicio={selecionando ? <CaixaDaLinha rotulo={`Selecionar ${aluno.nome}`} marcado={marcado} aoMudar={aoMarcar} /> : undefined}
+    />
   );
 }
 
@@ -214,23 +196,9 @@ const estilos = StyleSheet.create({
   barraLote: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), borderTopWidth: 1, paddingHorizontal: espaco(2), paddingVertical: espaco(1.25) },
   textoLote: { flexShrink: 1 },
   acoesDoTopo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
-  caixa: { width: 24, height: 24, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   busca: { maxWidth: 480 },
   recortes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espaco(3), rowGap: espaco(1.5) },
   lista: { gap: espaco(1) },
-  crescer: { flexGrow: 1 },
   esmaecido: { opacity: 0.6 },
-  linha: {
-    flexGrow: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espaco(1),
-    borderWidth: 1,
-    borderRadius: RAIO,
-    padding: espaco(2),
-    minHeight: 56,
-  },
-  dados: { flex: 1, gap: espaco(0.75) },
-  selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap' },
   paginacao: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

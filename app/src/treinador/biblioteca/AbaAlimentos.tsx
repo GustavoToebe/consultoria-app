@@ -7,8 +7,7 @@ import { alterarAlimento, criarAlimento, inativarAlimento, listarAlimentos } fro
 import type { Alimento, AlimentoRequest, UnidadeAlimento } from '../../api/tipos';
 import { AJUDA_FC, AJUDA_FCC, erroDoFatorCoccao, erroDoFatorCorrecao, textoDosFatores } from '../../dominio/fatoresDoAlimento';
 import { numeroParaTela } from '../../dominio/formatos';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -22,11 +21,10 @@ import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
-import { Grade } from '../../ui/Grade';
+import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { normalizar } from '../treino/FolhaBiblioteca';
 
 export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
@@ -42,7 +40,6 @@ export function resumoAlimento(a: Pick<Alimento, 'baseQuantidade' | 'baseUnidade
 
 /** Alimentos da consultoria com os valores por quantidade-base (digitados pelo treinador ou importados). */
 export function AbaAlimentos() {
-  const { cores } = useTema();
   const { avisar } = useAviso();
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-alimentos', () => listarAlimentos());
@@ -83,16 +80,13 @@ export function AbaAlimentos() {
       {dados && lista.length === 0 ? (
         <Vazio titulo={dados.length ? 'Nenhum alimento encontrado' : 'Biblioteca de alimentos vazia'} texto={dados.length ? 'Tente outro termo de busca ou filtro.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um alimento.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar busca', aoTocar: () => { setBusca(''); setFatores('todos'); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar alimento', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
-      <Grade gap={espaco(2)}>{lista.map((a) => (
-        <View key={a.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-          <View style={estilos.dados}>
-            <Texto variante="bloco">{a.nome}</Texto>
-            <Texto variante="suave">{resumoAlimento(a)}</Texto>
-            {textoDosFatores(a) ? <Texto variante="suave" numerico>{textoDosFatores(a)}</Texto> : <View style={estilos.selo}><Selo texto="Sem fatores" tipo="neutro" /></View>}
-          </View>
-          <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>
-        </View>
-      ))}</Grade>
+      {lista.length ? <ListaDeLinhas>{lista.map((a) => {
+        const fatoresDoAlimento = textoDosFatores(a);
+        return <LinhaDaLista key={a.id} titulo={a.nome} metadados={resumoAlimento(a)} descricao={fatoresDoAlimento ?? undefined}
+          selos={fatoresDoAlimento ? undefined : [{ texto: 'Sem fatores', tipo: 'neutro' }]}
+          acoesAoLado
+          acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />;
+      })}</ListaDeLinhas> : null}
       {editando ? (
         <FolhaAlimento
           inicial={editando === 'novo' ? null : editando}
@@ -220,9 +214,6 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
 }
 
 const estilos = StyleSheet.create({
-  selo: { flexDirection: 'row' },
-  linha: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
-  dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },
   grade: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-end' },
   campo: { minWidth: 140, flex: 1 },
 });

@@ -30,8 +30,9 @@ interface Props {
 }
 
 /**
- * Item de lista em que o cartão inteiro é o toque: título, detalhe, selo e a seta à direita. É o mesmo padrão nas
- * listas de alunos, atualizações, atalhos do perfil e modelos (nada de link de texto solto dentro de cartão).
+ * Item em que o cartão inteiro é o toque: título, detalhe, selo e a seta à direita (atalhos do perfil, início, financeiro,
+ * área do aluno, folhas de ações; nada de link de texto solto dentro de cartão). Listas de registros (alunos,
+ * atualizações, modelos, biblioteca) usam `ui/LinhaDaLista`.
  */
 export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotulo, direita, perigo, children }: Props) {
   const { cores } = useTema();

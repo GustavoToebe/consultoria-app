@@ -13,8 +13,7 @@ import { Cartao } from '../../ui/Cartao';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Grade } from '../../ui/Grade';
-import { ItemDeLista } from '../../ui/ItemDeLista';
+import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
@@ -64,13 +63,13 @@ export default function AgendaDoTreinador() {
     {/* Um cartão por dia com a faixa do dia (nível 2); dia sem atualização fica só na faixa, sem corpo, para a semana caber na tela. */}
     {dias ? dias.map(dia => <Cartao key={dia.data ?? 'sem-data'}
       cabecalho={<CabecalhoDeGrupo titulo={dia.titulo} resumo={contagemDoDia(dia.itens.length)} />}>
-      {dia.itens.length ? <Grade gap={espaco(2)}>{dia.itens.map(a => {
+      {dia.itens.length ? <ListaDeLinhas>{dia.itens.map(a => {
         const selo = statusAtualizacaoTreinador(a, hoje);
         const nome = a.nomeAluno ?? 'Aluno';
         // O dia já está no título do cartão: o selo só entra quando diz algo a mais (adiada, atrasada).
-        return <ItemDeLista key={a.pastaId} titulo={nome} selo={selo.tipo === 'neutro' ? undefined : { texto: selo.curto, tipo: selo.tipo }}
+        return <LinhaDaLista key={a.pastaId} titulo={nome} selos={selo.tipo === 'neutro' ? undefined : [{ texto: selo.curto, tipo: selo.tipo }]}
           href={caminhoAtualizacaoTreinador(a, { situacao: 'PROXIMAS', meus })} rotulo={`Abrir atualização de ${nome}, ${dia.titulo}${selo.tipo === 'neutro' ? '' : `, ${selo.curto}`}`} />;
-      })}</Grade> : null}
+      })}</ListaDeLinhas> : null}
     </Cartao>) : null}
   </Tela>;
 }

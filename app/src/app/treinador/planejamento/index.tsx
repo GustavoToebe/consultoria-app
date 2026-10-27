@@ -1,11 +1,10 @@
 import { Permitido } from '../../../ui/Permitido';
 import { useSessao } from '../../../sessao/SessaoProvider';
-import { useTema } from '../../../tema/TemaProvider';
-import { espaco, LARGURA_LISTA, LARGURA_MENU_LATERAL, RAIO } from '../../../tema/tokens';
+import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Copy, Ellipsis, Library, Pencil, Trash2 } from 'lucide-react-native';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { alterarPastaModelo, alterarReceita, criarPastaModelo, criarReceita, duplicarReceita, excluirPastaModelo, excluirReceita, listarPastasModelos, listarReceitas } from '../../../api/rotas';
 import type { PastaModelo, Receita, TipoReceita } from '../../../api/tipos';
 import { agruparPorColecao, filtrarModelos, resumoDeModelos } from '../../../dominio/colecoes';
@@ -27,6 +26,7 @@ import { Esqueleto } from '../../../ui/Esqueleto';
 import { textoDoErro } from '../../../ui/erros';
 import { Folha } from '../../../ui/Folha';
 import { IconeBotao } from '../../../ui/IconeBotao';
+import { LinhaDaLista, ListaDeLinhas } from '../../../ui/LinhaDaLista';
 import { PainelConfirmacao } from '../../../ui/PainelConfirmacao';
 import { descricaoDoModelo, LIMITE_DESCRICAO_DO_MODELO, podeAplicarModelo } from '../../../dominio/modelos';
 import { Tela } from '../../../ui/Tela';
@@ -79,8 +79,6 @@ export default function Planejamento() {
   const [excluir, setExcluir] = useState<Receita | null>(null);
   const [aplicar, setAplicar] = useState<Receita | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
-  const { width } = useWindowDimensions();
-  const largo = width >= LARGURA_MENU_LATERAL;
   const atualizar = () => { modelos.recarregar(); colecoes.recarregar(); };
   // Grupo (Treino, Dieta, Pacotes, Mobilidade) são abas; os tipos do grupo, chips numa faixa que rola.
   const grupo = grupos.find((g) => g.rotulo === aba) ?? grupos[0];
@@ -130,9 +128,9 @@ export default function Planejamento() {
       const colecao = g.pastaId ? colecoes.dados?.find((c) => c.id === g.pastaId) : undefined;
       return <Cartao key={g.pastaId ?? ''} cabecalho={<CabecalhoDeGrupo titulo={g.rotulo} resumo={resumoDeModelos(g.itens.length)} aberto={aberto} aoAlternar={() => alternar(chave)} acoesJuntas
         acoes={colecao && pode('MODELO_ALTERAR') ? <IconeBotao Icone={Pencil} rotulo={`Renomear coleção ${g.rotulo}`} aoTocar={() => setOrganizar({ editar: colecao })} /> : undefined} />}>
-        {aberto ? g.itens.map((r) => <LinhaDeModelo key={r.id} modelo={r} largo={largo} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)}
+        {aberto ? <ListaDeLinhas>{g.itens.map((r) => <LinhaDeModelo key={r.id} modelo={r} aplicavel={uso.aplicavel && podeAplicarModelo(r.tipo, pode)}
           ocupado={ocupado === r.id} aoAplicar={() => setAplicar(r)} aoEditar={() => router.push(`/treinador/planejamento/modelo/${r.id}`)}
-          aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />) : null}
+          aoMenu={pode('MODELO_ALTERAR') ? () => setMenu(r) : undefined} />)}</ListaDeLinhas> : null}
       </Cartao>;
     })}
     {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
@@ -156,28 +154,20 @@ export default function Planejamento() {
 }
 
 /**
- * Linha do modelo dentro do cartão da coleção (como `LinhaDeErgogenico` na Biblioteca › Outros): nome, metadados
+ * Linha do modelo dentro do cartão da coleção (`ui/LinhaDaLista`, o padrão das listas): nome, metadados
  * ("6 sessões · 32 exercícios") e descrição; "Aplicar ao aluno" e "Editar" secundários (o primário da tela é "Nova …"
  * do tipo) e o resto no menu ⋯. No PC tudo numa linha; no celular, textos em cima e ações embaixo. Onde usar as
  * peças vai uma vez só, na descrição do cartão do tipo.
  */
-function LinhaDeModelo({ modelo: r, largo, aplicavel, ocupado, aoAplicar, aoEditar, aoMenu }: {
-  modelo: Receita; largo: boolean; aplicavel: boolean; ocupado: boolean;
+function LinhaDeModelo({ modelo: r, aplicavel, ocupado, aoAplicar, aoEditar, aoMenu }: {
+  modelo: Receita; aplicavel: boolean; ocupado: boolean;
   aoAplicar: () => void; aoEditar: () => void; aoMenu?: () => void;
 }) {
-  const { cores } = useTema();
-  return <View style={[estilos.linha, largo ? estilos.linhaLarga : null, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-    <View style={estilos.textosModelo}>
-      <Texto variante="bloco">{r.nome}</Texto>
-      <Texto variante="pequeno" numerico>{metadadosDoModelo(r.tipo, r.conteudo)}</Texto>
-      <Texto variante="suave" numberOfLines={2}>{descricaoDoModelo(r)}</Texto>
-    </View>
-    <View style={estilos.acoesModelo}>
-      {aplicavel ? <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Aplicar ao aluno" tipo="secundario" aoTocar={aoAplicar} /></Permitido> : null}
-      <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoEditar} /></Permitido>
-      {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${r.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
-    </View>
-  </View>;
+  return <LinhaDaLista titulo={r.nome} metadados={metadadosDoModelo(r.tipo, r.conteudo)} descricao={descricaoDoModelo(r)} acoes={<>
+    {aplicavel ? <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Aplicar ao aluno" tipo="secundario" aoTocar={aoAplicar} /></Permitido> : null}
+    <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoEditar} /></Permitido>
+    {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${r.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
+  </>} />;
 }
 
 function Formulario({ receita, tipo, colecoes, aoFechar, aoSalvar }: { receita: Receita | null; tipo: TipoReceita; colecoes: PastaModelo[]; aoFechar: () => void; aoSalvar: (nome: string, descricao: string | null, pastaId: string | null) => Promise<void> }) {
@@ -222,8 +212,4 @@ const estilos = StyleSheet.create({
   campoBusca: { flexGrow: 1, flexBasis: 240 },
   // O Botao se alinha ao topo por padrão; aqui fica na base, rente ao campo de busca.
   aoPeDoCampo: { alignSelf: 'flex-end' },
-  linha: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
-  linhaLarga: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(2) },
-  textosModelo: { flexShrink: 1, flexGrow: 1, gap: espaco(0.5) },
-  acoesModelo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
 });

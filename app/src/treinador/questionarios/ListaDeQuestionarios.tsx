@@ -9,8 +9,7 @@ import {
 } from '../../api/rotas';
 import type { FinalidadeQuestionario, OrigemQuestionario, QuestionarioResumo } from '../../api/tipos';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
@@ -22,11 +21,10 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
-import { Grade } from '../../ui/Grade';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { LinhaDaLista, ListaDeLinhas, type SeloDaLinha } from '../../ui/LinhaDaLista';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
@@ -97,8 +95,8 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
       {!lista.dados && lista.carregando ? <Esqueleto /> : null}
       {lista.dados?.length && filtrados?.length === 0 ? <Vazio texto="Nenhum questionário com essa busca." /> : null}
       {lista.dados?.length === 0 ? <Vazio texto={arquivados ? 'Nenhum questionário arquivado.' : anamnese ? 'Nenhuma anamnese ainda. Crie uma em branco e monte as seções.' : 'Nenhum questionário ainda.'} /> : null}
-      {filtrados?.length ? <Grade gap={espaco(2)}>{filtrados.map((q) =>
-        <CartaoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</Grade> : null}
+      {filtrados?.length ? <ListaDeLinhas>{filtrados.map((q) =>
+        <LinhaDoQuestionario key={q.id} q={q} ocupado={ocupado === q.id} podeAlterar={podeAlterar} aoAbrir={() => irParaEditor(q.id)} aoMenu={podeAlterar ? () => setMenu(q) : undefined} />)}</ListaDeLinhas> : null}
     </Cartao>
 
     {menu ? <Folha visivel titulo={menu.nome} aoFechar={() => setMenu(null)}>
@@ -125,29 +123,30 @@ export function ListaDeQuestionarios({ finalidade = 'ATUALIZACAO', pedirNovo, ao
   </>;
 }
 
-function CartaoQuestionario({ q, ocupado, podeAlterar, aoAbrir, aoMenu }: {
+/**
+ * Metadados da linha do questionário: "Publicado v3 · Padrão · Arquivado · 2 alunos · 5 envios", cada parte só quando
+ * vale. "Nunca publicado" não entra aqui: é selo, porque pede atenção.
+ */
+export function metadadosDoQuestionario(q: Pick<QuestionarioResumo, 'versaoPublicada' | 'padrao' | 'arquivado' | 'uso'>): string {
+  return [q.versaoPublicada ? `Publicado v${q.versaoPublicada}` : null, q.padrao ? 'Padrão' : null, q.arquivado ? 'Arquivado' : null, linhaDeUso(q)]
+    .filter(Boolean).join(' · ');
+}
+
+/** Selos só do que pede atenção: nunca publicado e alterado desde a publicação. */
+export function selosDoQuestionario(q: Pick<QuestionarioResumo, 'versaoPublicada' | 'alteradoDesdePublicacao'>): SeloDaLinha[] {
+  return [
+    ...(q.versaoPublicada ? [] : [{ texto: 'Nunca publicado', tipo: 'atencao' as const }]),
+    ...(q.alteradoDesdePublicacao ? [{ texto: 'Alterado desde a publicação', tipo: 'atencao' as const }] : []),
+  ];
+}
+
+function LinhaDoQuestionario({ q, ocupado, podeAlterar, aoAbrir, aoMenu }: {
   q: QuestionarioResumo; ocupado: boolean; podeAlterar: boolean; aoAbrir: () => void; aoMenu?: () => void;
 }) {
-  const { cores } = useTema();
-  return <View style={[estilos.cartao, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
-    <View style={estilos.topo}>
-      <View style={estilos.textos}>
-        <Texto variante="bloco">{q.nome}</Texto>
-        {q.descricao ? <Texto variante="suave">{q.descricao}</Texto> : null}
-        <View style={estilos.selos}>
-          {q.padrao ? <Selo texto="Padrão" tipo="sucesso" /> : null}
-          <Selo texto={q.versaoPublicada ? `Publicado v${q.versaoPublicada}` : 'Nunca publicado'} tipo={q.versaoPublicada ? 'neutro' : 'atencao'} />
-          {q.alteradoDesdePublicacao ? <Selo texto="Alterado desde a publicação" tipo="atencao" /> : null}
-          {q.arquivado ? <Selo texto="Arquivado" tipo="neutro" /> : null}
-        </View>
-        <Texto variante="pequeno">{linhaDeUso(q)}</Texto>
-      </View>
-      {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${q.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
-    </View>
-    <View style={estilos.acoes}>
-      <Botao rotulo={podeAlterar && !q.arquivado ? 'Editar' : 'Ver'} tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoAbrir} />
-    </View>
-  </View>;
+  return <LinhaDaLista titulo={q.nome} metadados={metadadosDoQuestionario(q)} descricao={q.descricao ?? undefined} selos={selosDoQuestionario(q)} acoes={<>
+    <Botao rotulo={podeAlterar && !q.arquivado ? 'Editar' : 'Ver'} tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoAbrir} />
+    {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${q.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
+  </>} />;
 }
 
 function FormularioNovo({ finalidade, aoFechar }: { finalidade: FinalidadeQuestionario; aoFechar: () => void }) {
@@ -176,9 +175,4 @@ const estilos = StyleSheet.create({
   busca: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1) },
   campoBusca: { flexGrow: 1, flexBasis: 240 },
   seletor: { alignSelf: 'flex-end' },
-  cartao: { borderWidth: 1, borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), minHeight: 56, flexGrow: 1 },
-  topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1) },
-  textos: { flex: 1, gap: espaco(0.5) },
-  selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
-  acoes: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1), marginTop: 'auto' },
 });

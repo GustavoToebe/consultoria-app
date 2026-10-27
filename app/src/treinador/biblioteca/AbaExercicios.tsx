@@ -5,8 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { alterarExercicio, criarExercicio, inativarExercicio, listarExercicios } from '../../api/rotas';
 import type { Exercicio, ExercicioRequest, Modalidade } from '../../api/tipos';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
+import { espaco } from '../../tema/tokens';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
@@ -21,7 +20,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
-import { Grade } from '../../ui/Grade';
+import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { gruposDosExercicios } from '../../dominio/catalogo';
 import { erroDoVideo } from '../../dominio/video';
 import { MODALIDADES } from '../../dominio/modalidades';
@@ -35,7 +34,6 @@ const OPCOES_MODALIDADE = Object.entries(MODALIDADES).map(([valor, rotulo]) => (
 
 /** Exercícios da consultoria: lista, novo/editar (com vídeo) e inativar (planos já montados guardam a cópia). */
 export function AbaExercicios() {
-  const { cores } = useTema();
   const { avisar } = useAviso();
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-exercicios', () => listarExercicios());
@@ -82,20 +80,13 @@ export function AbaExercicios() {
       {dados && lista.length === 0 ? (
         <Vazio titulo={dados.length ? 'Nenhum exercício encontrado' : 'Biblioteca de exercícios vazia'} texto={dados.length ? 'Tente outro termo de busca ou outro grupo muscular.' : pode('BIBLIOTECA_ALTERAR') ? 'Importe do catálogo ou cadastre um exercício.' : 'Ainda não há itens cadastrados.'} acao={dados.length ? { rotulo: 'Limpar filtros', aoTocar: () => { setBusca(''); setGruposMarcados(new Set()); } } : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar exercício', aoTocar: () => setEditando('novo') } : undefined} />
       ) : null}
-      <Grade gap={espaco(2)}>{lista.map((e) => (
-        <View key={e.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-          <View style={estilos.miniatura}>
-            <DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />
-          </View>
-          <View style={estilos.dados}>
-            <Texto variante="bloco">{e.nome}</Texto>
-            <Texto variante="suave">
-              {[MODALIDADES[e.modalidade], e.grupoMuscular, e.equipamento, e.videoUrl ? 'com vídeo' : null].filter(Boolean).join(' · ')}
-            </Texto>
-          </View>
-          <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>
-        </View>
-      ))}</Grade>
+      {lista.length ? <ListaDeLinhas>{lista.map((e) => (
+        <LinhaDaLista key={e.id} titulo={e.nome}
+          metadados={[MODALIDADES[e.modalidade], e.grupoMuscular, e.equipamento, e.videoUrl ? 'com vídeo' : null].filter(Boolean).join(' · ')}
+          inicio={<DemonstracaoDoExercicio exercicioId={e.id} nome={e.nome} imagens={e.imagens} imagemPropriaEm={e.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />}
+          acoesAoLado
+          acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${e.nome}`} aoTocar={() => setEditando(e)} /></Permitido>} />
+      ))}</ListaDeLinhas> : null}
       {editando ? (
         <FolhaExercicio
           inicial={editando === 'novo' ? null : editando}
@@ -192,7 +183,4 @@ const estilos = StyleSheet.create({
   filtros: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5) },
   aoPeDoCampo: { alignSelf: 'flex-end' },
   busca: { flexGrow: 1, flexBasis: 220, maxWidth: 480 },
-  linha: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
-  dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75) },
-  miniatura: { marginRight: espaco(1.5) },
 });

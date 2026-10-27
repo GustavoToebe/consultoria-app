@@ -1,5 +1,5 @@
 import { Permitido } from '../../ui/Permitido';
-import { Check, Download } from 'lucide-react-native';
+import { Download } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -7,12 +7,12 @@ import { catalogoAlimentos, catalogoExercicios, gruposDoCatalogo, importarDoCata
 import { CREDITOS_CATALOGO, passosDasInstrucoes, resumoNutrientes, textoMostrando } from '../../dominio/catalogo';
 import { textoDosFatores } from '../../dominio/fatoresDoAlimento';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Escolha } from '../../ui/Escolha';
-import { Grade } from '../../ui/Grade';
+import { CaixaDaLinha, LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
@@ -20,7 +20,6 @@ import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
 import { MODALIDADES } from '../../dominio/modalidades';
 import { normalizar } from '../treino/FolhaBiblioteca';
-import { Selo } from '../../ui/Selo';
 import { DemonstracaoDoExercicio } from '../../ui/DemonstracaoDoExercicio';
 import { marcadosExistentes } from '../../dominio/selecaoMultiplaSuspensa';
 import { SelecaoMultiplaSuspensa } from '../../ui/SelecaoMultiplaSuspensa';
@@ -47,7 +46,7 @@ interface ListaCatalogo {
 
 /** Catálogo público (só leitura): marcar vários e importar para a biblioteca da consultoria. */
 export function AbaCatalogo() {
-  const { cores, marcaTexto } = useTema();
+  const { marcaTexto } = useTema();
   const { avisar } = useAviso();
   const [tipo, setTipo] = useState<TipoBiblioteca>('exercicios');
   const [busca, setBusca] = useState('');
@@ -153,36 +152,22 @@ export function AbaCatalogo() {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.itens.length === 0 ? <Vazio titulo="Nenhum resultado no catálogo" texto="Tente outro nome ou ajuste o filtro de grupo." /> : null}
-      {dados && dados.itens.length > 0 ? <Grade>{dados.itens.map((item) => {
+      {dados && dados.itens.length > 0 ? <ListaDeLinhas>{dados.itens.map((item) => {
         const sel = marcados.has(item.id);
         const expandido = aberto === item.id;
         const jaTem = nomesNaBiblioteca.has(normalizar(item.nome.trim()));
+        const fatores = [item.fatores, item.fonteFatores].filter(Boolean).join(' · ');
         return (
-          <View key={item.id} style={[estilos.item, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: cores.superficie2 }]}>
-            {/* A foto é irmã (não filha) do toque que marca o item: tocar nela só amplia. */}
-            <View style={[estilos.linha, jaTem && { opacity: 0.6 }]}>
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: sel, disabled: jaTem }}
-                accessibilityLabel={jaTem ? `${item.nome}, já na biblioteca` : item.nome}
-                disabled={jaTem}
-                hitSlop={10}
-                onPress={() => alternar(item.id)}
-                style={[estilos.caixa, { borderColor: sel ? cores.texto : cores.borda, backgroundColor: sel ? cores.texto : 'transparent' }]}>
-                {sel ? <Check size={16} color={cores.fundo} strokeWidth={3} /> : null}
-              </Pressable>
+          <LinhaDaLista key={item.id} titulo={item.nome} metadados={item.detalhe} descricao={fatores || undefined}
+            selos={jaTem ? [{ texto: 'Já na biblioteca', tipo: 'neutro' }] : undefined}
+            marcado={sel} esmaecido={jaTem}
+            // A foto é irmã (não filha) da caixa e do toque que marca: tocar nela só amplia.
+            inicio={<View style={estilos.inicio}>
+              <CaixaDaLinha rotulo={jaTem ? `${item.nome}, já na biblioteca` : item.nome} marcado={sel} desabilitado={jaTem} aoMudar={() => alternar(item.id)} />
               {item.imagens.length ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={56} altura={56} preencher ampliavel /> : null}
-              <Pressable focusable={false} accessible={false} disabled={jaTem} onPress={() => alternar(item.id)} style={estilos.dadosToque}>
-                <View style={estilos.dados}>
-                  <Texto variante="bloco">{item.nome}</Texto>
-                  <Texto variante="suave">{item.detalhe}</Texto>
-                  {item.fatores ? <Texto variante="pequeno" numerico>{item.fatores}</Texto> : null}
-                  {item.fonteFatores ? <Texto variante="pequeno">{item.fonteFatores}</Texto> : null}
-                </View>
-                {jaTem ? <Selo texto="Já na biblioteca" tipo="neutro" /> : null}
-              </Pressable>
-            </View>
-            {item.passos.length ? (
+            </View>}
+            aoTocarTextos={jaTem ? undefined : () => alternar(item.id)}
+            acoes={item.passos.length ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: expandido }}
@@ -191,7 +176,7 @@ export function AbaCatalogo() {
                 style={estilos.verInstrucoes}>
                 <Texto variante="pequeno" cor={marcaTexto}>{expandido ? 'Esconder instruções' : 'Ver instruções'}</Texto>
               </Pressable>
-            ) : null}
+            ) : undefined}>
             {expandido ? (
               <View style={estilos.passos}>
                 {item.passos.map((p, i) => (
@@ -199,9 +184,9 @@ export function AbaCatalogo() {
                 ))}
               </View>
             ) : null}
-          </View>
+          </LinhaDaLista>
         );
-      })}</Grade> : null}
+      })}</ListaDeLinhas> : null}
       {dados && textoMostrando(dados.itens.length, dados.total) ? (
         <Texto variante="pequeno" accessibilityLiveRegion="polite">{textoMostrando(dados.itens.length, dados.total)}</Texto>
       ) : null}
@@ -213,14 +198,10 @@ export function AbaCatalogo() {
 }
 
 const estilos = StyleSheet.create({
-  item: { borderWidth: 1, borderRadius: RAIO },
-  linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), padding: espaco(1.25) },
-  verInstrucoes: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1.25) },
-  passos: { gap: espaco(0.5), paddingHorizontal: espaco(1.25), paddingBottom: espaco(1.25) },
+  inicio: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  verInstrucoes: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingHorizontal: espaco(1) },
+  passos: { gap: espaco(0.5), paddingHorizontal: espaco(1.5), paddingBottom: espaco(1.5) },
   creditos: { marginTop: espaco(2) },
-  caixa: { width: 22, height: 22, borderWidth: 2, borderRadius: 3, alignItems: 'center', justifyContent: 'center' },
-  dados: { flex: 1, gap: 2 },
-  dadosToque: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), minHeight: ALVO_TOQUE },
   /** O seletor nasce com alignSelf flex-start; na barra (alinhada pela base) ele subia e ficava fora do lugar. */
   aoPeDoCampo: { alignSelf: 'flex-end' },
 });

@@ -5,19 +5,18 @@ import type { SituacaoAtualizacao } from '../../../api/tipos';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
 import { EscolhaResponsabilidade } from '../../../treinador/EscolhaResponsabilidade';
-import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
+import { LARGURA_LISTA } from '../../../tema/tokens';
 import { Abas } from '../../../ui/Abas';
 import { Cabecalho } from '../../../ui/Cabecalho';
 import { Cartao } from '../../../ui/Cartao';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
-import { ItemDeLista } from '../../../ui/ItemDeLista';
+import { LinhaDaLista, ListaDeLinhas } from '../../../ui/LinhaDaLista';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useCarregar } from '../../../ui/useCarregar';
 import { useSessao } from '../../../sessao/SessaoProvider';
-import { Grade } from '../../../ui/Grade';
 
 const ABAS:{valor:SituacaoAtualizacao;rotulo:string}[]=[
   {valor:'PARA_REVISAR',rotulo:'Para revisar'},{valor:'ATRASADAS',rotulo:'Atrasadas'},
@@ -48,7 +47,7 @@ export default function ListaAtualizacoes() {
     {!lista.carregando && lista.dados?.length===0?<Vazio titulo="Nenhuma atualização nesta lista" texto="As atualizações aparecem conforme o período da pasta e o envio do aluno." />:null}
     {/* A aba já diz a lista: o cartão não repete o título. Mais antiga primeiro (é a que espera há mais tempo). */}
     {itens.length?<Cartao descricao={`${itens.length} ${itens.length===1?'atualização':'atualizações'}, da mais antiga para a mais nova.`}>
-      <Grade gap={espaco(2)}>{itens.map(a=>{const selo=statusAtualizacaoTreinador(a);const data=dataSemAnoCorrente(a.dataAtualizacao);return <ItemDeLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} detalhe={`Data: ${data}`} selo={{texto:selo.curto,tipo:selo.tipo}} href={caminhoAtualizacaoTreinador(a,{situacao:filtro,meus})} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${data}, ${selo.curto}`} />;})}</Grade>
+      <ListaDeLinhas>{itens.map(a=>{const selo=statusAtualizacaoTreinador(a);const data=dataSemAnoCorrente(a.dataAtualizacao);return <LinhaDaLista key={a.pastaId} titulo={a.nomeAluno??'Aluno'} metadados={`Data: ${data}`} selos={[{texto:selo.curto,tipo:selo.tipo}]} href={caminhoAtualizacaoTreinador(a,{situacao:filtro,meus})} rotulo={`Abrir atualização de ${a.nomeAluno??'aluno'}, ${data}, ${selo.curto}`} />;})}</ListaDeLinhas>
     </Cartao>:null}
   </Tela>;
 }

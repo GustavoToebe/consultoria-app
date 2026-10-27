@@ -1,6 +1,5 @@
 import { ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
 
 import { alterarSuplemento, criarSuplemento, inativarSuplemento, listarSuplementos } from '../../api/rotas';
 import type { SuplementoDaBiblioteca, SuplementoDaBibliotecaRequest } from '../../api/tipos';
@@ -14,8 +13,6 @@ import {
   saboresParaCampo,
   saboresParaTela,
 } from '../../dominio/suplementos';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, RAIO } from '../../tema/tokens';
 import { abrirLinkExterno } from '../../ui/abrirLinkExterno';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
@@ -26,17 +23,15 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { errosPorCampo, textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
-import { Grade } from '../../ui/Grade';
 import { IconeBotao } from '../../ui/IconeBotao';
+import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { Permitido } from '../../ui/Permitido';
-import { Texto } from '../../ui/Texto';
 import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
 
 /** Suplementos da consultoria: nome, marca, categoria, porção, sabores e link do produto. Não somam nada na dieta. */
 export function AbaSuplementos() {
-  const { cores } = useTema();
   const { avisar } = useAviso();
   const { pode } = useSessao();
   const { dados, erro, carregando, recarregar } = useCarregar('biblioteca-suplementos', () => listarSuplementos());
@@ -86,18 +81,15 @@ export function AbaSuplementos() {
             : pode('BIBLIOTECA_ALTERAR') ? { rotulo: 'Cadastrar suplemento', aoTocar: () => setEditando('novo') } : undefined}
         />
       ) : null}
-      <Grade gap={espaco(2)}>{lista.map((s) => (
-        <View key={s.id} style={[estilos.linha, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-          <View style={estilos.dados}>
-            <Texto variante="bloco">{s.nome}</Texto>
-            <Texto variante="suave">{marcaECategoria(s)}</Texto>
-            <Texto variante="suave" numerico>Porção: {descricaoDaPorcao(s)}</Texto>
-            {saboresParaTela(s) !== '—' ? <Texto variante="suave">Sabores: {saboresParaTela(s)}</Texto> : null}
-            {s.link ? <Botao rotulo="Ver produto" tipo="fantasma" Icone={ExternalLink} aoTocar={() => abrir(s)} /> : null}
-          </View>
-          <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${s.nome}`} aoTocar={() => setEditando(s)} /></Permitido>
-        </View>
-      ))}</Grade>
+      {lista.length ? <ListaDeLinhas>{lista.map((s) => (
+        <LinhaDaLista key={s.id} titulo={s.nome} metadados={marcaECategoria(s)}
+          descricao={[`Porção: ${descricaoDaPorcao(s)}`, saboresParaTela(s) !== '—' ? `Sabores: ${saboresParaTela(s)}` : null].filter(Boolean).join(' · ')}
+          acoesAoLado={!s.link}
+          acoes={<>
+            {s.link ? <Botao rotulo="Ver produto" tipo="secundario" Icone={ExternalLink} aoTocar={() => abrir(s)} /> : null}
+            <Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${s.nome}`} aoTocar={() => setEditando(s)} /></Permitido>
+          </>} />
+      ))}</ListaDeLinhas> : null}
       {editando ? (
         <FolhaSuplemento
           inicial={editando === 'novo' ? null : editando}
@@ -183,9 +175,3 @@ function FolhaSuplemento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: (
     </Folha>
   );
 }
-
-const estilos = StyleSheet.create({
-  busca: { flex: 1, minWidth: 220, maxWidth: 480 },
-  linha: { flexGrow: 1, flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderRadius: RAIO, paddingLeft: espaco(1.5), paddingVertical: 2 },
-  dados: { flex: 1, gap: 2, paddingVertical: espaco(0.75), alignItems: 'flex-start' },
-});
