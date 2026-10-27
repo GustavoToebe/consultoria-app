@@ -10,7 +10,9 @@ import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
-import { blocoGlossario, blocoInstrucoes, documentoTreino, linhasDeSeries, obsDoExercicio } from './pdfTreino';
+import { blocoGlossario, blocoInstrucoes, documentoTreino, obsDoExercicio, seriesDoPdf } from './pdfTreino';
+
+const linhasDeSeries = (e: Parameters<typeof seriesDoPdf>[0], config: Parameters<typeof seriesDoPdf>[1]) => seriesDoPdf(e, config).map((g) => g.linha);
 
 jest.mock('../dominio/uid', () => ({ novoUid: () => 'uid' }));
 
@@ -81,7 +83,7 @@ describe('PDF do treino', () => {
   }).corpo;
 
   it('escreve as séries em linguagem natural: faixa de percentual, esforço e tipo pelo nome', () => {
-    expect(html).toContain('3x3 - FS 50/70/85% da WS<br>1x3 a 6 - WS · 1 RIR<br>2x6 a 8 - Back off 85% da WS');
+    expect(html).toContain('<div class="serie">3x3 - FS 50/70/85% da WS</div><div class="serie">1x3 a 6 - WS · 1 RIR</div><div class="serie">2x6 a 8 - Back off 85% da WS</div>');
   });
 
   it('nunca mostra o código do tipo', () => {
@@ -112,7 +114,7 @@ describe('PDF do treino', () => {
     expect(html).toContain('<td class="termo">FS</td>');
     expect(html).toContain('<td class="termo">WS</td>');
     expect(html).toContain('<td class="termo">RIR</td>');
-    expect(html).toContain('RIR 0 = até a falha técnica');
+    expect(html).toContain('RIR 0 = até a falha');
     expect(html).not.toContain('<td class="termo">RPE</td>');
     expect(html).not.toContain('<td class="termo">Aquecimento</td>');
     expect(html).not.toContain('<td class="termo">Top set</td>');
@@ -132,9 +134,10 @@ describe('PDF do treino: técnica separada do tipo, descanso e alvos', () => {
   });
   const html = documentoTreino(dadosDoTreino(treinoCom(comDropSet))).corpo;
 
-  it('o tipo continua WS e a técnica aparece separada, por extenso, na coluna Obs', () => {
-    expect(html).toContain('1x6 a 8 - WS + Drop-set 2× −20% · Subir a carga se passar de 8 · descanso 1 min 30 s');
-    expect(html).toContain('Drop-set: ao terminar, reduza a carga cerca de 20% e continue até a falha, 2 vezes.');
+  it('o tipo continua WS, a técnica aparece separada e o descanso fica numa linha própria', () => {
+    expect(html).toContain('1x6 a 8 - WS + Drop-set 2× −20% · Subir a carga se passar de 8<div class="etapas">Descanso depois da série: 1 min 30 s</div>');
+    // A explicação por extenso não se repete na coluna Obs: está no glossário.
+    expect(html).not.toContain('Drop-set: ao terminar');
   });
 
   it('AMRAP explícito aparece como AMRAP', () => {
@@ -153,11 +156,11 @@ describe('PDF do treino: técnica separada do tipo, descanso e alvos', () => {
 });
 
 describe('PDF do treino: esforço (RIR e RPE)', () => {
-  it('RIR 0 vira "até a falha" e o glossário diz que RIR 0 é a falha técnica', () => {
+  it('RIR 0 vira "até a falha" no resumo e no glossário', () => {
     const html = documentoTreino(dadosDoTreino(treinoCom(exercicio('e', { series: [s('x', 'WORKING', 3, 6, carga('CARGA_TRABALHO'), rir(0))] })))).corpo;
-    expect(html).toContain('1x3 a 6 - WS · até a falha técnica');
+    expect(html).toContain('1x3 a 6 - WS · até a falha');
     expect(html).toContain('<td class="termo">RIR</td>');
-    expect(html).toContain('RIR 0 = até a falha técnica');
+    expect(html).toContain('RIR 0 = até a falha');
   });
 
   it('RPE aparece como RPE e só ele entra no glossário', () => {
@@ -208,9 +211,9 @@ describe('PDF do treino: grupos de exercícios', () => {
     expect(html).toContain('<strong>Superset</strong> · 2 exercícios, nesta ordem: Supino reto → Remada &lt;curvada&gt; · descanso de 1 min 30 s depois de cada volta do grupo');
     expect(html.indexOf('Superset')).toBeLessThan(html.indexOf('Supino reto'));
     const grupoHtml = html.slice(html.indexOf('Supino reto'), html.indexOf('Rosca direta'));
-    expect(grupoHtml).not.toContain('descanso 1 min');
+    expect(grupoHtml).not.toContain('Descanso depois da série');
     // O exercício solto depois do grupo mantém o descanso da própria série.
-    expect(html.slice(html.indexOf('Rosca direta'))).toContain('descanso 45 s');
+    expect(html.slice(html.indexOf('Rosca direta'))).toContain('Descanso depois da série: 45 s');
     expect(html.match(/nesta ordem/g)).toHaveLength(1);
   });
 
@@ -223,7 +226,7 @@ describe('PDF do treino: grupos de exercícios', () => {
   it('pré-exaustão: cada série mantém o seu descanso', () => {
     const html = documentoTreino(dadosDoTreino(dois('PRE_EXAUSTAO', {}))).corpo;
     expect(html).toContain('<strong>Pré-exaustão</strong> · 2 exercícios, nesta ordem: Supino reto → Remada &lt;curvada&gt; · cada série mantém o seu descanso');
-    expect(html.slice(html.indexOf('Supino reto'), html.indexOf('Rosca direta'))).toContain('descanso 1 min');
+    expect(html.slice(html.indexOf('Supino reto'), html.indexOf('Rosca direta'))).toContain('Descanso depois da série: 1 min');
   });
 
   it('circuito mostra as voltas', () => {
@@ -645,11 +648,12 @@ test('PDF: glossário só com o que o treino usa, com o nome da metodologia e to
   expect(glossario).not.toContain('Top set');
   expect(glossario).not.toContain('FEEDER');
   const e = conteudo.sessoes[0].exercicios[0];
-  expect(linhasDeSeries(e, config)[0]).toBe('1x6 (4+2) - FS com Muscle <Round> 15 s · mesma carga da WS · até a falha técnica');
-  expect(obsDoExercicio(e, config)[0]).toContain('FS com Muscle <Round>. Faça blocos de 4 e 2 repetições. São 6 repetições previstas no total e 1 pausa interna. Encerre ao terminar o 2º bloco. Pausa entre os blocos: 15 s. Descanso depois da série: não informado.');
+  expect(seriesDoPdf(e, config)).toEqual([{ linha: '1x6 - FS com Muscle <Round> · mesma carga da WS · até a falha', detalhes: ['blocos de 4 e 2 reps (6 no total) · pausa de 15 s'] }]);
+  // A explicação da técnica fica só no glossário: a coluna Obs não a repete.
+  expect(obsDoExercicio(e)).toEqual([]);
 });
 
-test('PDF: observação do Cluster omite descanso da série no grupo e a carga quando o exercício não tem', () => {
+test('PDF: Cluster com as etapas numa linha e o descanso depois da série em outra, sem repetir no grupo', () => {
   const cluster = serie('c', {
     tipo: 'WORKING',
     carga: carga('CARGA_TRABALHO'),
@@ -658,17 +662,18 @@ test('PDF: observação do Cluster omite descanso da série no grupo e a carga q
     repsMin: 8,
     repsMax: 8,
   });
-  const solto = exercicio('e', { series: [cluster], unidade: 'kg' });
-  const obsSolta = obsDoExercicio(solto, CONFIGURACAO_PADRAO).join(' ');
-  expect(obsSolta).toContain('Descanso depois da série: 90 s.');
-  expect(obsSolta).toContain('Ajuste a carga desta série.');
-  const noGrupo = obsDoExercicio(solto, CONFIGURACAO_PADRAO, false).join(' ');
-  expect(noGrupo).toContain('Pausa entre os blocos: 15 s.');
-  expect(noGrupo).not.toContain('Descanso depois da série');
-  expect(noGrupo).toContain('Ajuste a carga desta série.');
-  const semCarga = obsDoExercicio({ ...solto, unidade: 'nenhuma' }, CONFIGURACAO_PADRAO).join(' ');
-  expect(semCarga).toContain('Descanso depois da série: 90 s.');
-  expect(semCarga).not.toContain('Ajuste a carga');
+  const solto = exercicio('e', { series: [cluster], unidade: 'kg', observacao: 'Pegada fechada' });
+  expect(seriesDoPdf(solto, CONFIGURACAO_PADRAO)).toEqual([{ linha: '1x8 - WS com Cluster', detalhes: ['2 blocos de 4 reps · pausa de 15 s', 'Descanso depois da série: 1 min 30 s'] }]);
+  expect(seriesDoPdf(solto, CONFIGURACAO_PADRAO, false)[0].detalhes).toEqual(['2 blocos de 4 reps · pausa de 15 s']);
+  expect(obsDoExercicio(solto)).toEqual(['Pegada fechada']);
+  const html = documentoTreino(dadosDoTreino(treinoCom(solto))).corpo;
+  expect(html).toContain('<div class="serie">1x8 - WS com Cluster<div class="etapas">2 blocos de 4 reps · pausa de 15 s</div><div class="etapas">Descanso depois da série: 1 min 30 s</div></div>');
+  expect(html).not.toContain('Encerre ao terminar');
+});
+
+test('PDF: Rest-pause mostra a etapa inicial e as retomadas', () => {
+  const rp = serie('r', { repsMin: 6, repsMax: 8, tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20, pausas: 2 }) });
+  expect(seriesDoPdf(exercicio('e', { series: [rp] }), CONFIGURACAO_PADRAO)).toEqual([{ linha: '1x6 a 8 - WS + Rest pause', detalhes: ['6 a 8 reps + 2 retomadas · pausa de 20 s'] }]);
 });
 
 test('PDF: treino sem nenhum item com explicação não gera glossário', () => {

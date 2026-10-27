@@ -40,8 +40,8 @@ describe('esforço', () => {
     expect(problemasDoEsforco(null)).toEqual({});
     expect(problemasDoEsforco(rir(0))).toEqual({});
     expect(problemasDoEsforco(rpe(8.5))).toEqual({});
-    expect(problemasDoEsforco(rir(6))).toEqual({ rir: 'RIR entre 0 (até a falha técnica) e 5.' });
-    expect(problemasDoEsforco(rir(1.5))).toEqual({ rir: 'RIR entre 0 (até a falha técnica) e 5.' });
+    expect(problemasDoEsforco(rir(6))).toEqual({ rir: 'RIR entre 0 (até a falha) e 5.' });
+    expect(problemasDoEsforco(rir(1.5))).toEqual({ rir: 'RIR entre 0 (até a falha) e 5.' });
     expect(problemasDoEsforco(rpe(0.5))).toEqual({ rpe: 'RPE precisa ficar entre 1 e 10, de meio em meio.' });
     expect(problemasDoEsforco(rpe(8.3))).toEqual({ rpe: 'RPE precisa ficar entre 1 e 10, de meio em meio.' });
     expect(problemasDoEsforco({ rir: 1, rpe: 8 })).toEqual({ rpe: 'Use RIR ou RPE, não os dois.' });

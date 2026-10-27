@@ -34,9 +34,56 @@ export const FORMAS_DE_ESFORCO: { valor: FormaDeEsforco; rotulo: string }[] = [
   { valor: 'RPE', rotulo: 'RPE (esforço percebido)' },
 ];
 
+/**
+ * Como a série pede as repetições. Quantidade exata grava mínimo = máximo; faixa grava os dois; AMRAP limpa os dois e grava
+ * `amrap`. Nunca "só o máximo": um dos dois vazio na faixa é erro, não teto implícito.
+ */
+export type FormaDasRepeticoes = 'EXATA' | 'FAIXA' | 'AMRAP';
+
+export const FORMAS_DAS_REPETICOES: { valor: FormaDasRepeticoes; rotulo: string }[] = [
+  { valor: 'EXATA', rotulo: 'Quantidade exata' },
+  { valor: 'FAIXA', rotulo: 'Faixa' },
+  { valor: 'AMRAP', rotulo: 'AMRAP (o máximo)' },
+];
+
+export interface Repeticoes {
+  repsMin: number | null;
+  repsMax: number | null;
+  amrap: boolean;
+}
+
+/** A forma que o valor gravado mostra; `null` quando ainda não diz nada (sem repetições e sem AMRAP). */
+export function formaDasRepeticoes(r: { repsMin?: number | null; repsMax?: number | null; amrap?: boolean | null }): FormaDasRepeticoes | null {
+  if (r.amrap) return 'AMRAP';
+  if (r.repsMin != null && r.repsMin === r.repsMax) return 'EXATA';
+  if (r.repsMin != null || r.repsMax != null) return 'FAIXA';
+  return null;
+}
+
+/**
+ * A forma que a tela mostra: a do valor, salvo quando o treinador escolheu "Faixa" e digitou mínimo igual ao máximo (a
+ * escolha dele vale) ou quando o valor ainda está vazio (fica a escolha).
+ */
+export function formaVisivel(escolhida: FormaDasRepeticoes, r: { repsMin?: number | null; repsMax?: number | null; amrap?: boolean | null }): FormaDasRepeticoes {
+  const doValor = formaDasRepeticoes(r);
+  if (doValor === null) return escolhida;
+  if (doValor === 'EXATA' && escolhida === 'FAIXA') return 'FAIXA';
+  return doValor;
+}
+
+/** O valor ao trocar de forma, sem inventar número: exata parte do mínimo (ou do máximo); AMRAP limpa as repetições. */
+export function repeticoesNaForma(forma: FormaDasRepeticoes, r: { repsMin?: number | null; repsMax?: number | null }): Repeticoes {
+  if (forma === 'AMRAP') return { repsMin: null, repsMax: null, amrap: true };
+  if (forma === 'EXATA') {
+    const n = r.repsMin ?? r.repsMax ?? null;
+    return { repsMin: n, repsMax: n, amrap: false };
+  }
+  return { repsMin: r.repsMin ?? null, repsMax: r.repsMax ?? null, amrap: false };
+}
+
 /** RIR de 0 a 5; o 0 diz o que significa. */
 export const OPCOES_DE_RIR: { valor: number; rotulo: string }[] = [
-  { valor: 0, rotulo: '0 · até a falha técnica' },
+  { valor: 0, rotulo: '0 · até a falha' },
   ...[1, 2, 3, 4, 5].map((valor) => ({ valor, rotulo: String(valor) })),
 ];
 

@@ -57,7 +57,7 @@ describe('cargas do aluno', () => {
 
   it('AMRAP e alvo extra entram na meta', () => {
     const s = serie('a', 'WORKING', { repsMin: null, repsMax: null, amrap: true, carga: carga('CARGA_TRABALHO'), esforco: rir(0), alvoExtra: 'Sem pausa' });
-    expect(metaDaSerie(s, 'WS')).toBe('Meta: AMRAP · carga de trabalho · até a falha técnica · Sem pausa');
+    expect(metaDaSerie(s, 'WS')).toBe('Meta: AMRAP · carga de trabalho · até a falha · Sem pausa');
   });
 
   it('série de trabalho é a de carga de trabalho, não a de tipo com o nome do rótulo', () => {
@@ -165,7 +165,7 @@ describe('modos de carga do formato novo', () => {
   it('percentual em faixa usa o mínimo, arredonda e não inventa carga sem referência', () => {
     const faixa = serie('c', 'FEEDER', { carga: carga('PERCENTUAL_WS', 85, 90), esforco: rir(0) });
     expect(calcularCargasDoExercicio(exercicio([faixa]), 31, {}, CONFIG)[0].sugestao).toBe(26.5);
-    expect(metaDaSerie(faixa, 'WS')).toBe('Meta: 3 reps · 85 a 90% da WS · até a falha técnica');
+    expect(metaDaSerie(faixa, 'WS')).toBe('Meta: 3 reps · 85 a 90% da WS · até a falha');
     expect(calcularCargasDoExercicio(exercicio([faixa]), null, {}, CONFIG)[0].sugestao).toBeNull();
     expect(metaDaSerie(igual('c'), 'WS')).toContain('mesma carga da WS');
   });

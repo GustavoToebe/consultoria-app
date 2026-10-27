@@ -1,5 +1,6 @@
 import type { Configuracao, ConteudoTreino, ExercicioPlano, Marca, Serie, Sessao } from '../api/tipos';
-import { agrupar, descreverGrupo, textosDeTecnica } from '../dominio/agrupamento';
+import { agrupar, descreverGrupo } from '../dominio/agrupamento';
+import { estruturaDaSerie } from '../dominio/resumoDaSerie';
 import { explicacaoDoCatalogo } from '../dominio/catalogoMetodologia';
 import { gruposDaSessao } from '../dominio/combinacoes';
 import { rotuloDescanso } from '../dominio/descanso';
@@ -35,35 +36,47 @@ export interface DadosPdfTreino {
   emitidoEm: Date;
 }
 
-/** Descanso das séries do grupo: "descanso 1 min" ou "descanso 1 min a 1 min 30 s"; vazio quando nenhuma tem. */
+/** Descanso das séries do grupo: "1 min" ou "1 min a 1 min 30 s"; vazio quando nenhuma tem. */
 function textoDoDescansoDasSeries(series: readonly Serie[]): string {
   const valores = series.map((s) => s.descansoSegundos ?? 0).filter((d) => d > 0);
   if (!valores.length) return '';
   const menor = Math.min(...valores);
   const maior = Math.max(...valores);
-  return menor === maior ? `descanso ${rotuloDescanso(menor)}` : `descanso ${rotuloDescanso(menor)} a ${rotuloDescanso(maior)}`;
+  return menor === maior ? rotuloDescanso(menor) : `${rotuloDescanso(menor)} a ${rotuloDescanso(maior)}`;
+}
+
+export interface SerieDoPdf {
+  /** Linha do grupo, na língua da planilha: "3x3 - FS 50/70/85 a 90% da WS", "1x16 - WS com Cluster · 1 RIR". */
+  linha: string;
+  /** Embaixo dela: as etapas (blocos e pausa, ou etapa inicial e retomadas) e o descanso depois da série. */
+  detalhes: string[];
 }
 
 /**
- * Coluna "Séries": uma linha por grupo de séries iguais, com o nome do tipo da metodologia (nunca o código), as repetições
- * ("AMRAP" quando pedido), a carga em faixa de percentual, o esforço (RIR/RPE, "até a falha técnica" para RIR 0), a técnica, o alvo
- * extra, a prescrição de cardio e o descanso. `comDescanso` falso nos membros de grupo cujo descanso é o do grupo (a linha
- * do grupo o diz).
+ * Coluna "Séries": um bloco por grupo de séries iguais. A linha tem o nome do tipo da metodologia (nunca o código), as
+ * repetições ("AMRAP" quando pedido), a carga em faixa de percentual, o esforço (RIR/RPE, "até a falha" para RIR 0), a
+ * técnica, o alvo extra e a prescrição de cardio. Cluster e Rest-pause levam as etapas numa linha própria, e o descanso
+ * depois da série fica separado da pausa entre etapas. `comDescanso` falso nos membros de grupo cujo descanso é o do grupo
+ * (a linha do grupo o diz).
  */
-export function linhasDeSeries(e: Pick<ExercicioPlano, 'series'>, config: Configuracao, comDescanso = true): string[] {
+export function seriesDoPdf(e: Pick<ExercicioPlano, 'series'>, config: Configuracao, comDescanso = true): SerieDoPdf[] {
   return agrupar(e.series).map((g) => {
+    const primeira = g.series[0];
+    const detalhes: string[] = [];
+    if (!primeira.cardio && (primeira.tecnica?.tipo === 'CLUSTER' || primeira.tecnica?.tipo === 'REST_PAUSE')) detalhes.push(estruturaDaSerie(primeira, config));
     const descanso = comDescanso ? textoDoDescansoDasSeries(g.series) : '';
-    return `${descreverGrupo(g, config, e.series)}${descanso ? ` · ${descanso}` : ''}`;
+    if (descanso) detalhes.push(`Descanso depois da série: ${descanso}`);
+    return { linha: descreverGrupo(g, config, e.series, { etapasAParte: true }), detalhes };
   });
 }
 
-/** Coluna "Obs": a observação do exercício e cada técnica por extenso (uma vez). */
-export function obsDoExercicio(e: ExercicioPlano, config: Configuracao, comDescanso = true): string[] {
-  return [e.observacao, ...textosDeTecnica(e.series, config, { descansoPorSerie: comDescanso, semCarga: e.unidade === 'nenhuma' }), e.progressao ? null : 'Foco em controle, não em carga'].filter((x): x is string => !!x);
+/** Coluna "Obs": só a observação do exercício (a técnica fica nas séries e no glossário, sem repetir). */
+export function obsDoExercicio(e: ExercicioPlano): string[] {
+  return [e.observacao, e.progressao ? null : 'Foco em controle, não em carga'].filter((x): x is string => !!x);
 }
 
 const TEXTO_RIR =
-  'Repetições na reserva: quantas repetições você ainda conseguiria fazer ao terminar a série. 2 RIR = parar com 2 repetições sobrando.\nRIR 0 = até a falha técnica: faça até não conseguir mais repetir com boa técnica.';
+  'Repetições na reserva: quantas repetições você ainda conseguiria fazer ao terminar a série. 2 RIR = parar com 2 repetições sobrando.\nRIR 0 = até a falha: faça até não conseguir mais repetir com boa técnica.';
 const TEXTO_RPE = 'Percepção de esforço, de 1 a 10 (de meio em meio ponto). 10 é o esforço máximo, sem nenhuma repetição sobrando.';
 
 /** O treino usa RIR e/ou RPE em alguma série? Só então o glossário os explica. */
@@ -83,7 +96,7 @@ function esforcosUsados(conteudo: Pick<ConteudoTreino, 'sessoes'>): { rir: boole
 
 /**
  * "Como ler este treino": só o que o treino usa, na ordem tipos, técnicas, combinações de exercícios e, quando aparecem,
- * RIR (com "RIR 0 = até a falha técnica") e RPE. Nome e explicação vêm da metodologia da versão; sem explicação, o item
+ * RIR (com "RIR 0 = até a falha") e RPE. Nome e explicação vêm da metodologia da versão; sem explicação, o item
  * não entra.
  */
 export function blocoGlossario(conteudo: ConteudoTreino, config: Configuracao): string {
@@ -101,12 +114,18 @@ export function blocoGlossario(conteudo: ConteudoTreino, config: Configuracao): 
   return `<section><h2>Como ler este treino</h2><table class="instrucoes"><tbody>${linhas}</tbody></table></section>`;
 }
 
+function celulaDeSeries(e: ExercicioPlano, config: Configuracao, comDescanso: boolean): string {
+  const grupos = seriesDoPdf(e, config, comDescanso);
+  if (!grupos.length) return '—';
+  return grupos.map((g) => `<div class="serie">${esc(g.linha)}${g.detalhes.map((d) => `<div class="etapas">${esc(d)}</div>`).join('')}</div>`).join('');
+}
+
 function linhaExercicio(e: ExercicioPlano, config: Configuracao, comDescanso: boolean): string {
-  const obs = obsDoExercicio(e, config, comDescanso);
+  const obs = obsDoExercicio(e);
   const execucao = textoExecucao(e);
   return `<tr>
 <td><strong>${esc(e.nome)}</strong>${execucao ? `<div class="suave">${esc(execucao)}</div>` : ''}</td>
-<td>${linhasDeSeries(e, config, comDescanso).map(esc).join('<br>') || '—'}</td>
+<td>${celulaDeSeries(e, config, comDescanso)}</td>
 <td>${obs.map(esc).join('<br>') || '—'}</td>
 <td>${link(e.videoUrl, 'Vídeo')}</td>
 </tr>`;
@@ -145,6 +164,9 @@ function blocoSessao(s: Sessao, config: Configuracao): string {
 }
 
 const CSS_INSTRUCOES = `
+.doc .serie { border-left: 2pt solid #c8c8c8; padding: 1pt 0 1pt 5pt; margin: 0 0 4pt; break-inside: avoid; }
+.doc .serie:last-child { margin-bottom: 0; }
+.doc .serie .etapas { color: #444; font-size: 0.92em; }
 .doc table.instrucoes td { border-bottom: 1px solid #e3e3e3; padding: 5pt 6pt; }
 .doc table.instrucoes td.termo { width: 26%; font-weight: 700; white-space: nowrap; }
 .doc table.instrucoes .sub { color: #333; padding-left: 8pt; }

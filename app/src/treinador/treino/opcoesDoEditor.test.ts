@@ -9,7 +9,10 @@ import {
   opcoesDeReferencia,
   opcoesDeTecnica,
   opcoesDeTipo,
+  formaDasRepeticoes,
+  formaVisivel,
   previaDaSerie,
+  repeticoesNaForma,
   primeiroProblemaDeSerie,
   problemasDoExercicioSemSeries,
   problemasDoGrupoDeSeries,
@@ -35,9 +38,9 @@ describe('esforço', () => {
     expect(formaDoEsforco({ rir: 0 })).toBe('RIR');
     expect(formaDoEsforco({ rpe: 8.5 })).toBe('RPE');
   });
-  it('o RIR vai de 0 a 5 e o 0 diz até a falha técnica', () => {
+  it('o RIR vai de 0 a 5 e o 0 diz até a falha', () => {
     expect(OPCOES_DE_RIR.map((o) => o.valor)).toEqual([0, 1, 2, 3, 4, 5]);
-    expect(OPCOES_DE_RIR[0].rotulo).toBe('0 · até a falha técnica');
+    expect(OPCOES_DE_RIR[0].rotulo).toBe('0 · até a falha');
   });
 });
 
@@ -171,5 +174,28 @@ describe('problemas da validação por série', () => {
   it('subProblemas tira o prefixo e ignora os outros campos', () => {
     expect(subProblemas({ 'tecnica.blocos': 'x', 'tecnica.pausas': 'y', tipo: 'z' }, 'tecnica')).toEqual({ blocos: 'x', pausas: 'y' });
     expect(subProblemas(undefined, 'tecnica')).toEqual({});
+  });
+});
+
+describe('repetições: quantidade exata, faixa ou AMRAP (análise 2, A5)', () => {
+  it('a forma sai do valor; vazio não decide', () => {
+    expect(formaDasRepeticoes({ repsMin: 8, repsMax: 8, amrap: null })).toBe('EXATA');
+    expect(formaDasRepeticoes({ repsMin: 6, repsMax: 8, amrap: null })).toBe('FAIXA');
+    expect(formaDasRepeticoes({ repsMin: null, repsMax: 8, amrap: null })).toBe('FAIXA');
+    expect(formaDasRepeticoes({ repsMin: null, repsMax: null, amrap: true })).toBe('AMRAP');
+    expect(formaDasRepeticoes({ repsMin: null, repsMax: null, amrap: null })).toBeNull();
+  });
+
+  it('quem escolheu Faixa e digitou 8 a 8 continua em Faixa; vazio fica com a escolha', () => {
+    expect(formaVisivel('FAIXA', { repsMin: 8, repsMax: 8 })).toBe('FAIXA');
+    expect(formaVisivel('EXATA', { repsMin: 6, repsMax: 8 })).toBe('FAIXA');
+    expect(formaVisivel('AMRAP', { repsMin: null, repsMax: null, amrap: null })).toBe('AMRAP');
+  });
+
+  it('trocar de forma não inventa número: exata = mínimo = máximo; AMRAP limpa', () => {
+    expect(repeticoesNaForma('EXATA', { repsMin: 6, repsMax: 8 })).toEqual({ repsMin: 6, repsMax: 6, amrap: false });
+    expect(repeticoesNaForma('EXATA', { repsMin: null, repsMax: 8 })).toEqual({ repsMin: 8, repsMax: 8, amrap: false });
+    expect(repeticoesNaForma('FAIXA', { repsMin: 8, repsMax: 8 })).toEqual({ repsMin: 8, repsMax: 8, amrap: false });
+    expect(repeticoesNaForma('AMRAP', { repsMin: 6, repsMax: 8 })).toEqual({ repsMin: null, repsMax: null, amrap: true });
   });
 });

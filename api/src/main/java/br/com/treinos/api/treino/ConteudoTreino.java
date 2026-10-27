@@ -359,7 +359,7 @@ public record ConteudoTreino(
     }
 
     /**
-     * Esforço da série: {@code rir} (repetições na reserva, 0 a 5; 0 é "até a falha técnica") ou {@code rpe} (1 a 10, de
+     * Esforço da série: {@code rir} (repetições na reserva, 0 a 5; 0 é "até a falha") ou {@code rpe} (1 a 10, de
      * meio em meio), nunca os dois. Sem nenhum dos dois, a série não tem esforço prescrito.
      */
     public record Esforco(Integer rir, BigDecimal rpe) {
@@ -382,7 +382,7 @@ public record ConteudoTreino(
         public Map<String, String> problemas() {
             Map<String, String> p = new LinkedHashMap<>();
             if (rir != null && (rir < 0 || rir > 5)) {
-                p.put("rir", "RIR entre 0 (até a falha técnica) e 5.");
+                p.put("rir", "RIR entre 0 (até a falha) e 5.");
             }
             if (rpe != null && (rpe.compareTo(BigDecimal.ONE) < 0 || rpe.compareTo(BigDecimal.TEN) > 0
                     || rpe.remainder(MEIO).signum() != 0)) {

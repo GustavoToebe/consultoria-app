@@ -63,7 +63,7 @@ function avisosDoTipo(c: Coletor, s: Serie, caminho: string, metodologia: Config
     return;
   }
   if (s.esforco?.rir === 0 && (definicao.papel === 'AQUECIMENTO' || definicao.papel === 'PREPARACAO')) {
-    c.aviso(junta(caminho, 'esforco.rir'), 'RIR 0 (até a falha técnica) em série de aquecimento ou preparação: confira se é isso mesmo.');
+    c.aviso(junta(caminho, 'esforco.rir'), 'RIR 0 (até a falha) em série de aquecimento ou preparação: confira se é isso mesmo.');
   }
 }
 

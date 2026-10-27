@@ -478,7 +478,7 @@ export interface Carga {
   referenciaUid?: string | null;
 }
 
-/** Esforço da série: `rir` (0 a 5; 0 = até a falha técnica) ou `rpe` (1 a 10, de meio em meio), nunca os dois. */
+/** Esforço da série: `rir` (0 a 5; 0 = até a falha) ou `rpe` (1 a 10, de meio em meio), nunca os dois. */
 export interface Esforco {
   rir?: number | null;
   rpe?: number | null;

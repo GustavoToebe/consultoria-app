@@ -28,7 +28,7 @@ describe('textos da ajuda', () => {
       expect(itens).toContain(titulo);
     }
     const texto = textoDoGuia('treinador');
-    expect(texto).toContain('RIR 0 significa até a falha técnica');
+    expect(texto).toContain('RIR 0 significa até a falha');
     expect(texto).toContain('nunca os dois');
     expect(texto).toContain('abaixo da referência');
   });

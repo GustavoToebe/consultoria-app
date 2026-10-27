@@ -56,7 +56,7 @@ function textoDaCargaPadrao(c: Carga | null | undefined, nomeDaWs?: string | nul
 
 /** Esforço padrão já preenchido. Vazio sem RIR e sem RPE. */
 function textoDoEsforcoPadrao(e: Esforco | null | undefined): string {
-  if (e?.rir != null) return e.rir === 0 ? 'até a falha técnica' : `${e.rir} RIR`;
+  if (e?.rir != null) return e.rir === 0 ? 'até a falha' : `${e.rir} RIR`;
   return e?.rpe != null ? `RPE ${numeroParaTela(e.rpe)}` : '';
 }
 

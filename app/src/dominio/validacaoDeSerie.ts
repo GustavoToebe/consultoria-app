@@ -56,7 +56,7 @@ export function problemasDoEsforco(esforco: Esforco | null | undefined): Problem
   const p: Problemas = {};
   if (!esforco) return p;
   const { rir, rpe } = esforco;
-  if (rir != null && !dentro(rir, 0, 5)) p.rir = 'RIR entre 0 (até a falha técnica) e 5.';
+  if (rir != null && !dentro(rir, 0, 5)) p.rir = 'RIR entre 0 (até a falha) e 5.';
   if (rpe != null && (!numero(rpe) || rpe < 1 || rpe > 10 || !Number.isInteger(rpe * 2))) p.rpe = 'RPE precisa ficar entre 1 e 10, de meio em meio.';
   if (rir != null && rpe != null) p.rpe = 'Use RIR ou RPE, não os dois.';
   return p;

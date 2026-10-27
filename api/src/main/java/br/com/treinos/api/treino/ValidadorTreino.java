@@ -302,7 +302,7 @@ public class ValidadorTreino {
         }
         if (x.esforco() != null && Integer.valueOf(0).equals(x.esforco().rir())
                 && (definicao.papel() == Papel.AQUECIMENTO || definicao.papel() == Papel.PREPARACAO)) {
-            c.aviso(cx + ".esforco.rir", "RIR 0 (até a falha técnica) em série de aquecimento ou preparação: confira se é isso mesmo.");
+            c.aviso(cx + ".esforco.rir", "RIR 0 (até a falha) em série de aquecimento ou preparação: confira se é isso mesmo.");
         }
     }
 

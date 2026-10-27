@@ -41,7 +41,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('button', { name: 'Rest pause', exact: true }).click();
     await page.getByRole('button', { name: 'Adicionar série', exact: true }).click();
     await expect(page.getByRole('button', { name: /1x3 a 6 - WS \+ Rest pause.*aberto/ })).toBeVisible();
-    await expect(page.getByText(/Série 5 · WS · 3 a 6 reps · carga de trabalho · 1 RIR · Rest pause 20 s/)).toBeVisible();
+    await expect(page.getByText('1 série completa · 3 a 6 reps + 1 retomada · pausa de 20 s', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath('series-prescritas.png'), fullPage: true });
     await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();

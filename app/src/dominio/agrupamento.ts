@@ -89,7 +89,7 @@ export function textoDaFaixaPercentual(min: number | null | undefined, max: numb
 /** RIR em texto: 0 = "até a falha", 1 = "1 RIR"; vazio sem RIR. */
 export function textoRir(e: Esforco | null | undefined): string {
   if (e?.rir == null) return '';
-  return e.rir === 0 ? 'até a falha técnica' : `${e.rir} RIR`;
+  return e.rir === 0 ? 'até a falha' : `${e.rir} RIR`;
 }
 
 /** Esforço em texto: "1 RIR", "até a falha" (RIR 0) ou "RPE 8,5"; vazio sem esforço. */
@@ -287,14 +287,17 @@ export function leituraDaTecnica(serie: Serie, config?: Configuracao | null, con
  * Resumo do grupo, na língua da planilha: "3x3 - FS 50/70/85 a 90% da WS", "1x3 a 6 - WS · 1 RIR", "1x - Top set +1 a
  * 5% sobre a anterior", "2x6 a 8 - Back off 15% abaixo da referência (Top set)", "1x6 (4+2) - WS com Cluster 15 s". O tipo
  * sai pelo nome da metodologia (a série grava o código). `series` (as do exercício) dá o nome da série de referência.
- * Sem metodologia, o % sai sem "da WS" e a técnica com o nome fixo.
+ * Sem metodologia, o % sai sem "da WS" e a técnica com o nome fixo. `etapasAParte` (PDF): Cluster e Rest-pause ficam só com
+ * o nome da técnica, porque os blocos e a pausa vão numa linha própria logo abaixo.
  */
-export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | null, series: readonly Serie[] = []): string {
+export function descreverGrupo(grupo: GrupoDeSeries, config?: Configuracao | null, series: readonly Serie[] = [], opcoes: { etapasAParte?: boolean } = {}): string {
   const primeira = grupo.series[0];
   if (primeira.cardio) return `${grupo.series.length}x ${textoCardio(primeira.cardio)}`;
   const ws = tipoTrabalho(config);
-  const tecnica = textoTecnica(primeira.tecnica, config, false);
-  const blocos = primeira.tecnica?.tipo === 'CLUSTER' && primeira.tecnica.blocos?.length ? ` (${textoDeBlocos(primeira.tecnica.blocos)})` : '';
+  // No PDF as etapas (blocos do Cluster, retomadas do Rest-pause) têm linha própria: aqui fica só o nome da técnica.
+  const etapasAParte = !!opcoes.etapasAParte && (primeira.tecnica?.tipo === 'CLUSTER' || primeira.tecnica?.tipo === 'REST_PAUSE');
+  const tecnica = etapasAParte ? nomeDaTecnica(config, primeira.tecnica!.tipo) : textoTecnica(primeira.tecnica, config, false);
+  const blocos = !etapasAParte && primeira.tecnica?.tipo === 'CLUSTER' && primeira.tecnica.blocos?.length ? ` (${textoDeBlocos(primeira.tecnica.blocos)})` : '';
   const nome = nomeDoTipo(config, primeira.tipo);
   const ligacao = primeira.tecnica?.tipo === 'CLUSTER' ? ' com ' : ' + ';
   const quem = nome ? `${nome}${tecnica ? `${ligacao}${tecnica}` : ''}` : tecnica || 'Série';

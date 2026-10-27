@@ -39,7 +39,7 @@ test('o cartão fechado resume só o que o tipo já tem', () => {
     repeticoes: { min: 4, max: null },
     cargaPadrao: { modo: 'PERCENTUAL_WS', percentualMin: null, percentualMax: null, referenciaUid: null },
     esforcoPadrao: { rir: 0, rpe: null },
-  }, null)).toBe('Outro · até a falha técnica');
+  }, null)).toBe('Outro · até a falha');
 });
 
 test('o primeiro papel de trabalho dá nome à referência; o tipo é procurado pelo CÓDIGO', () => {
@@ -164,7 +164,7 @@ test('normalizar preserva a metodologia sem compartilhar; o glossário tem só o
 });
 
 test('texto da carga e do esforço: faixas, mesma carga, até a falha em qualquer forma e pausas por respirações', () => {
-  expect(textoCargaEEsforco({ carga: carga('PERCENTUAL_WS', 85, 90), esforco: rir(0) }, 'WS')).toBe('85 a 90% da WS · até a falha técnica');
+  expect(textoCargaEEsforco({ carga: carga('PERCENTUAL_WS', 85, 90), esforco: rir(0) }, 'WS')).toBe('85 a 90% da WS · até a falha');
   expect(textoCargaEEsforco({ carga: carga('MESMA_CARGA'), esforco: rir(2) }, 'WS')).toBe('mesma carga da WS · 2 RIR');
   expect(textoCarga(carga('ABAIXO_DA_REFERENCIA', 15), 'WS', 'Top set')).toBe('15% abaixo da referência (Top set)');
   expect(textoCarga(carga('CARGA_TRABALHO'), 'WS')).toBe('');

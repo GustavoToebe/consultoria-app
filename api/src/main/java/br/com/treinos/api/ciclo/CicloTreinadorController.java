@@ -9,6 +9,7 @@ import java.util.UUID;
 
 /** Leitura do treinador. Desligado ou sexo diferente de feminino não devolve o histórico. */
 @RestController
+@ExigeCiclo
 public class CicloTreinadorController {
 
     private final CicloMenstrualService ciclo;

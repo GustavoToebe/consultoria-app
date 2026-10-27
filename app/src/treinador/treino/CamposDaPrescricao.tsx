@@ -12,7 +12,10 @@ import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { Texto } from '../../ui/Texto';
-import { ajudaDaCarga, formaDoEsforco, FORMAS_DE_ESFORCO, OPCOES_DE_RIR, rotulosDaFaixa, type FormaDeEsforco } from './opcoesDoEditor';
+import {
+  ajudaDaCarga, formaDoEsforco, FORMAS_DAS_REPETICOES, FORMAS_DE_ESFORCO, formaVisivel, OPCOES_DE_RIR, repeticoesNaForma, rotulosDaFaixa,
+  type FormaDasRepeticoes, type FormaDeEsforco, type Repeticoes,
+} from './opcoesDoEditor';
 
 /**
  * Os campos de prescrição que a série e a metodologia dividem: forma de carga e faixa, esforço (RIR ou RPE), técnica e
@@ -74,6 +77,41 @@ export function ReferenciaDaCarga({ opcoes, valor, aoMudar, erro }: {
   </View>;
 }
 
+// ---- Repetições ----
+
+/**
+ * Quantidade exata, faixa ou AMRAP. A escolha fica com a tela enquanto o valor não a distingue (faixa 8 a 8, ou vazio).
+ * `semRepeticoes` explica o vazio quando ele vale (série por tempo); sem ele, o vazio é só incompleto.
+ */
+export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetições', semRepeticoes }: {
+  valor: { repsMin?: number | null; repsMax?: number | null; amrap?: boolean | null }; aoMudar: (r: Repeticoes) => void;
+  erros: Problemas; rotulo?: string; semRepeticoes?: string;
+}) {
+  const [escolhida, setEscolhida] = useState<FormaDasRepeticoes>(formaVisivel('EXATA', valor));
+  const forma = formaVisivel(escolhida, valor);
+  const mudarForma = (f: FormaDasRepeticoes) => {
+    setEscolhida(f);
+    if (f !== forma) aoMudar(repeticoesNaForma(f, valor));
+  };
+  const vazio = valor.repsMin == null && valor.repsMax == null && !valor.amrap;
+  return <View style={estilos.bloco}>
+    <Escolha rotulo={rotulo} opcoes={FORMAS_DAS_REPETICOES} valor={forma} aoMudar={mudarForma} />
+    {forma === 'EXATA' ? <View style={estilos.campo}>
+      <CampoNumerico rotulo="Repetições" inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
+        aoMudar={(n) => aoMudar({ repsMin: n, repsMax: n, amrap: false })} erro={erros.repsMin ?? erros.repsMax} />
+    </View> : null}
+    {forma === 'FAIXA' ? <View style={estilos.linha}>
+      <View style={estilos.campo}><CampoNumerico rotulo="Reps mín." inteiro valor={valor.repsMin ?? null}
+        aoMudar={(repsMin) => aoMudar({ repsMin, repsMax: valor.repsMax ?? null, amrap: false })} erro={erros.repsMin} /></View>
+      <View style={estilos.campo}><CampoNumerico rotulo="Reps máx." inteiro valor={valor.repsMax ?? null}
+        aoMudar={(repsMax) => aoMudar({ repsMin: valor.repsMin ?? null, repsMax, amrap: false })} erro={erros.repsMax} /></View>
+    </View> : null}
+    {forma === 'AMRAP' ? <Texto variante="pequeno">O aluno faz o máximo de repetições que conseguir e anota quantas fez.</Texto> : null}
+    <ErroDoCampo mensagem={forma === 'AMRAP' ? erros.amrap : null} />
+    {vazio && forma !== 'AMRAP' && semRepeticoes ? <Texto variante="pequeno">{semRepeticoes}</Texto> : null}
+  </View>;
+}
+
 // ---- Esforço ----
 
 /**
@@ -94,7 +132,7 @@ export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço' }
     <Escolha rotulo={rotulo} opcoes={FORMAS_DE_ESFORCO} valor={forma} aoMudar={mudarForma} />
     {forma === 'RIR' ? <>
       <Escolha rotulo="RIR (repetições na reserva)" opcoes={OPCOES_DE_RIR} valor={esforco?.rir ?? null} aoMudar={(rir) => aoMudar({ rir, rpe: null })} />
-      {esforco?.rir === 0 ? <Texto variante="pequeno">RIR 0: o aluno vai até a falha técnica.</Texto> : null}
+      {esforco?.rir === 0 ? <Texto variante="pequeno">RIR 0: o aluno vai até a falha.</Texto> : null}
       <ErroDoCampo mensagem={erros.rir} />
     </> : null}
     {forma === 'RPE' ? <View style={estilos.campo}>

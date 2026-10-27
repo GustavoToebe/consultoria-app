@@ -8,6 +8,7 @@ import { explicacaoDoCatalogo } from '../../dominio/catalogoMetodologia';
 import { acrescentarExemplo, assinaturaDoEsforco, marcaConfere, motivoDoExemploCluster, motivoDoRestPause, novaWsComRestPause, origemAposConteudo, origemAoTrocarTipo, restPauseNestaSerie, TEXTO_DO_EXEMPLO, textoDaContagemDeSeries, textoDaRevisaoDoEsforco, type MarcaDeOrigem } from '../../dominio/exemplosDePrescricao';
 import { codigoTrabalho, esforcoInicial, explicacaoDaTecnica, explicacaoDoTipo, nomeDoTipo, papelDe, padraoDaTecnica, tecnicaDescritiva, tecnicaNaMetodologia, tipoPorCodigo } from '../../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
+import { previaDoGrupo } from '../../dominio/resumoDaSerie';
 import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
@@ -20,19 +21,18 @@ import { EscolhaEmFolha, OPCOES_PARA_BUSCAR } from '../../ui/EscolhaEmFolha';
 import { IconeBotao } from '../../ui/IconeBotao';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Texto } from '../../ui/Texto';
-import { AvisoDoCampo, CamposDaTecnica, CamposDoCardio, CamposDoEsforco, ErroDoCampo, EscolhaDeCarga, FaixaDeCarga, ReferenciaDaCarga } from './CamposDaPrescricao';
+import { AvisoDoCampo, CamposDaTecnica, CamposDasRepeticoes, CamposDoCardio, CamposDoEsforco, ErroDoCampo, EscolhaDeCarga, FaixaDeCarga, ReferenciaDaCarga } from './CamposDaPrescricao';
 import {
   type EscolhaDeTecnica,
   opcoesDeReferencia,
   opcoesDeTecnica,
   opcoesDeTipo,
-  previaDaSerie,
+  referenciaDaCarga,
   problemasDoExercicioSemSeries,
   problemasDoGrupoDeSeries,
   problemasPorSerie,
   secoesDaSerie,
   subProblemas,
-  tecnicaParaOAluno,
 } from './opcoesDoEditor';
 
 interface Props {
@@ -46,11 +46,6 @@ interface Props {
   /** `false` no grupo cujo descanso é depois da volta: a leitura não repete o descanso da série. */
   descansoPorSerie?: boolean;
 }
-
-const MODOS_DE_REPETICAO = [
-  { valor: 'FAIXA', rotulo: 'Faixa de repetições' },
-  { valor: 'AMRAP', rotulo: 'AMRAP (o máximo de repetições)' },
-];
 
 /**
  * Séries do exercício, na ordem em que o treinador pensa: tipo, prescrição, carga, esforço, técnica e alvo extra. Séries
@@ -306,12 +301,8 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
           <Texto variante="pequeno">Uma WS contínua antes é outra série, sem técnica. O registro é um só, ao terminar o último bloco.</Texto>
           <ErroDoCampo mensagem={erros.repsMin} />
         </> : <>
-          <Escolha rotulo="Repetições" opcoes={MODOS_DE_REPETICAO} valor={s.amrap ? 'AMRAP' : 'FAIXA'} aoMudar={(v) => aoAlterar({ amrap: v === 'AMRAP' })} />
-          {!s.amrap ? <View style={estilos.linha}>
-            <View style={estilos.campo}><CampoNumerico rotulo="Reps mín." inteiro valor={s.repsMin} aoMudar={(repsMin) => aoAlterar({ repsMin })} erro={erros.repsMin} /></View>
-            <View style={estilos.campo}><CampoNumerico rotulo="Reps máx." inteiro valor={s.repsMax} aoMudar={(repsMax) => aoAlterar({ repsMax })} erro={erros.repsMax} /></View>
-          </View> : <ErroDoCampo mensagem={erros.amrap} />}
-          {!s.amrap && s.repsMin == null && s.repsMax == null ? <Texto variante="pequeno">Sem repetições: o aluno lê a série por tempo.</Texto> : null}
+          <CamposDasRepeticoes valor={s} erros={erros} semRepeticoes="Sem repetições: o aluno lê a série por tempo."
+            aoMudar={(r) => aoAlterar({ repsMin: r.repsMin, repsMax: r.repsMax, amrap: r.amrap })} />
         </>) : null}
       </Secao>
 
@@ -346,20 +337,17 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
   </View>;
 }
 
-/** "Para o aluno": a meta de cada série como ela chega à tela do aluno, a técnica por extenso e de onde sai a carga. */
+/**
+ * "Para o aluno": o resultado final em uma linha (quantas séries completas e a estrutura), e embaixo só o que está
+ * informado: carga e de onde ela sai, esforço, descanso e alvo extra. A leitura longa da técnica fica com o aluno.
+ */
 function PreviaDoAluno({ grupo: g, series, config, semCarga, descansoPorSerie }: { grupo: GrupoDeSeries; series: Serie[]; config: Configuracao; semCarga: boolean; descansoPorSerie: boolean }) {
   const { cores } = useTema();
-  const tecnica = tecnicaParaOAluno(g.series[0], config, { semCarga, descansoPorSerie });
+  const previa = previaDoGrupo(g, series, config, { semCarga, descansoPorSerie, referencia: semCarga ? null : referenciaDaCarga(series, g.inicio, config) });
   return <View style={[estilos.previa, { borderColor: cores.borda, backgroundColor: cores.superficie }]} accessibilityLabel="Para o aluno">
     <Texto variante="rotulo">Para o aluno</Texto>
-    {g.series.map((x, j) => {
-      const p = previaDaSerie(series, g.inicio + j, config, semCarga);
-      return <View key={x.uid}>
-        <Texto variante="pequeno" cor={cores.texto}>Série {g.inicio + j + 1} · {p.meta}</Texto>
-        {p.referencia ? <Texto variante="pequeno">{p.referencia}</Texto> : null}
-      </View>;
-    })}
-    {tecnica ? <Texto variante="pequeno">{tecnica}</Texto> : null}
+    <Texto numerico cor={cores.texto}>{previa.resumo}</Texto>
+    {previa.linhas.map((linha) => <Texto key={linha} numerico variante="pequeno">{linha}</Texto>)}
   </View>;
 }
 

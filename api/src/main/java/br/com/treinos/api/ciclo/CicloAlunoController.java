@@ -21,6 +21,7 @@ import static org.springframework.http.HttpStatus.NO_CONTENT;
 
 /** Ciclo da aluna da sessão. Nada é gravado pelo treinador. */
 @RestController
+@ExigeCiclo
 public class CicloAlunoController {
 
     private final CicloMenstrualService ciclo;
