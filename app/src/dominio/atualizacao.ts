@@ -1,5 +1,5 @@
 import type { Atualizacao, AtualizacaoDaLista, FaseAtualizacao, SituacaoAtualizacao } from '../api/tipos';
-import { comMaiuscula, dataRelativa } from './datasRelativas';
+import { comMaiuscula, dataSemAnoCorrente } from './datasRelativas';
 import { dataParaTela, hojeIso, somarDias } from './formatos';
 
 export const DIAS_MAXIMOS_DE_ATRASO = 15;
@@ -77,8 +77,18 @@ export function statusAtualizacaoTreinador(a:Pick<AtualizacaoDaLista,'fase'|'dia
   if(a.fase==='ENVIADA')return selo('Para revisar','atencao');
   if(a.fase==='REVISADA')return selo('Revisada','sucesso');
   if(a.fase==='ATRASADA')return selo(`Atrasada há ${a.diasDeAtraso} ${a.diasDeAtraso===1?'dia':'dias'}`,'perigo');
-  if(a.atrasoAte)return selo(`Adiada para ${dataRelativa(a.atrasoAte,hoje)}`,'atencao');
+  if(a.atrasoAte)return selo(`Adiada para ${paraQuando(a.atrasoAte,hoje)}`,'atencao');
   return selo(comMaiuscula(emDias(a.diasParaData)),'neutro');
+}
+/**
+ * Depois de "Adiada para": "hoje" ou "amanhã" (decididos pela diferença em dias) ou a data ("24/10", "02/01/2027" em outro ano).
+ * "em 5 dias" ficaria "Adiada para em 5 dias".
+ */
+function paraQuando(iso:string,hoje:string):string {
+  const dias=diasEntre(hoje,iso);
+  if(dias===0)return 'hoje';
+  if(dias===1)return 'amanhã';
+  return dataSemAnoCorrente(iso,hoje);
 }
 /** Distância em dias a partir de hoje: "hoje", "amanhã", "em 3 dias"; no passado, "há 2 dias". */
 export function emDias(dias:number):string {

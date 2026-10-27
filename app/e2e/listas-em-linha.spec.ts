@@ -5,7 +5,7 @@ import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa
 
 /**
  * Listas do treinador em linha (`ui/LinhaDaLista`): a linha que abre outra tela é um `<a href>` (botão direito e
- * Ctrl+clique) e, no "Selecionar" dos alunos, a caixa marca sem abrir a ficha. Só dados fictícios.
+ * Ctrl+clique) e, no "Selecionar" dos alunos, a linha inteira vira um checkbox que marca sem abrir a ficha. Só dados fictícios.
  */
 const ontem = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
 
@@ -34,30 +34,40 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
   test.describe(`${largura} px`, () => {
     test.use({ viewport: { width: largura, height: altura } });
 
-    test('alunos: a linha é um link para a ficha e, no Selecionar, a caixa marca sem abrir', async ({ page }) => {
+    test('alunos: a linha é um link para a ficha e, no Selecionar, a linha inteira marca sem abrir', async ({ page }) => {
       const { naoTratadas, errosDaPagina } = await abrir(page);
       await page.goto('/treinador/alunos');
 
-      const linha = page.getByRole('link', { name: /^Abrir Ana Fictícia/ });
-      await expect(linha).toHaveAttribute('href', `/treinador/alunos/${ALUNOS[0].id}`);
+      const linkAna = page.getByRole('link', { name: /^Abrir Ana Fictícia/ });
+      await expect(linkAna).toHaveAttribute('href', `/treinador/alunos/${ALUNOS[0].id}`);
       await expect(page.getByRole('link', { name: /^Abrir Bruno Exemplo/ })).toHaveAttribute('href', `/treinador/alunos/${ALUNOS[1].id}`);
-      // Fora do Selecionar não há caixa de marcar.
-      await expect(page.getByRole('checkbox', { name: 'Selecionar Ana Fictícia' })).toHaveCount(0);
+      // Fora do Selecionar a linha é o link, sem caixa de marcar.
+      await expect(page.getByRole('checkbox')).toHaveCount(0);
 
       await page.getByRole('button', { name: 'Selecionar', exact: true }).click();
-      const caixa = page.getByRole('checkbox', { name: 'Selecionar Ana Fictícia' });
-      await expect(caixa).toHaveAttribute('aria-checked', 'false');
-      await caixa.click();
-      await expect(caixa).toHaveAttribute('aria-checked', 'true');
-      await expect(page.getByText('1 aluno marcado', { exact: false })).toBeVisible();
-      // Marcar não abriu a ficha, e o link continua sendo link (a caixa é irmã dele, não fica dentro).
-      expect(new URL(page.url()).pathname).toBe('/treinador/alunos');
-      await expect(linha).toHaveAttribute('href', `/treinador/alunos/${ALUNOS[0].id}`);
-      await expect(linha.getByRole('checkbox')).toHaveCount(0);
+      // No Selecionar a linha da Ana é o checkbox (com o nome dela) e deixa de ser link: nunca os dois.
+      const linha = page.getByRole('checkbox', { name: 'Ana Fictícia', exact: true });
+      await expect(page.getByRole('link', { name: /Ana Fictícia/ })).toHaveCount(0);
+      await expect(page.locator(`a[href="/treinador/alunos/${ALUNOS[0].id}"]`)).toHaveCount(0);
+      await expect(linha).toHaveAttribute('aria-checked', 'false');
+      // Alvo de toque de pelo menos 44 px de altura.
+      expect((await linha.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-      await caixa.click();
-      await expect(caixa).toHaveAttribute('aria-checked', 'false');
+      // Tocar no nome marca; não abre a ficha.
+      await linha.getByText('Ana Fictícia', { exact: true }).click();
+      await expect(linha).toHaveAttribute('aria-checked', 'true');
+      await expect(page.getByText('1 aluno marcado', { exact: false })).toBeVisible();
       expect(new URL(page.url()).pathname).toBe('/treinador/alunos');
+
+      // Tocar de novo desmarca.
+      await linha.getByText('Ana Fictícia', { exact: true }).click();
+      await expect(linha).toHaveAttribute('aria-checked', 'false');
+      expect(new URL(page.url()).pathname).toBe('/treinador/alunos');
+
+      // Desligar o Selecionar devolve o link.
+      await page.getByRole('button', { name: 'Sair da seleção', exact: true }).click();
+      await expect(page.getByRole('checkbox')).toHaveCount(0);
+      await expect(page.getByRole('link', { name: /^Abrir Ana Fictícia/ })).toHaveAttribute('href', `/treinador/alunos/${ALUNOS[0].id}`);
 
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);

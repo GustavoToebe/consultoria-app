@@ -164,7 +164,8 @@ export function AbaCatalogo() {
             // A foto é irmã (não filha) da caixa e do toque que marca: tocar nela só amplia.
             inicio={<View style={estilos.inicio}>
               <CaixaDaLinha rotulo={jaTem ? `${item.nome}, já na biblioteca` : item.nome} marcado={sel} desabilitado={jaTem} aoMudar={() => alternar(item.id)} />
-              {item.imagens.length ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={56} altura={56} preencher ampliavel /> : null}
+              {/* Exercício sem foto reserva a caixa (ícone), para o título alinhar com os que têm; alimento não tem miniatura. */}
+              {tipo === 'exercicios' ? <DemonstracaoDoExercicio exercicioId={null} nome={item.nome} imagens={item.imagens} papel="EQUIPE" largura={56} altura={56} preencher ampliavel reservarEspaco /> : null}
             </View>}
             aoTocarTextos={jaTem ? undefined : () => alternar(item.id)}
             acoes={item.passos.length ? (

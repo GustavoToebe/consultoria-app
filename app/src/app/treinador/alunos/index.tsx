@@ -27,7 +27,7 @@ import { Escolha } from '../../../ui/Escolha';
 import { Esqueleto } from '../../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../../ui/Estados';
 import { textoDoErro } from '../../../ui/erros';
-import { CaixaDaLinha, LinhaDaLista, ListaDeLinhas, type SeloDaLinha } from '../../../ui/LinhaDaLista';
+import { LinhaDaLista, ListaDeLinhas, type SeloDaLinha } from '../../../ui/LinhaDaLista';
 import { Tela } from '../../../ui/Tela';
 import { Texto } from '../../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../../ui/useCarregar';
@@ -165,8 +165,8 @@ export default function Alunos() {
 /**
  * Uma linha da lista (`LinhaDaLista` com link para a ficha): nome, selos só para o que pede atenção (a atualização, que
  * diz de quê, e as exceções "Inativo" e "Sem acesso"; "Ativo"/"Com acesso" em toda linha não diziam nada) e os
- * metadados com o plano ativo e o último registro. No Selecionar a caixa entra no início, irmã do link: só ela marca, e
- * tocar no nome continua abrindo a ficha.
+ * metadados com o plano ativo e o último registro. No Selecionar a linha inteira vira a caixa de marcar (sem link, sem
+ * abrir a ficha); desligado, volta a ser o link.
  */
 function LinhaAluno({ aluno, selecionando, marcado, aoMarcar }: { aluno: AlunoResumo; selecionando: boolean; marcado: boolean; aoMarcar: () => void }) {
   const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;
@@ -176,17 +176,20 @@ function LinhaAluno({ aluno, selecionando, marcado, aoMarcar }: { aluno: AlunoRe
     ...(!aluno.ativo ? [{ texto: 'Inativo', tipo: 'neutro' as const }] : []),
     ...(aluno.ativo && !aluno.temAcesso ? [{ texto: 'Sem acesso', tipo: 'neutro' as const }] : []),
   ];
+  const metadados = `${aluno.planoAtivo?.titulo ?? 'Sem plano ativo'} · ${ultimo}`;
+  // No Selecionar a linha inteira marca (checkbox com o nome do aluno) e não é link; fora dele abre a ficha.
+  if (selecionando) {
+    return <LinhaDaLista titulo={aluno.nome} metadados={metadados} selos={selos} rotulo={aluno.nome} marcar={{ marcado, aoMudar: aoMarcar }} />;
+  }
   const ficha = `/treinador/alunos/${aluno.id}` as const;
   return (
     <LinhaDaLista
       titulo={aluno.nome}
-      metadados={`${aluno.planoAtivo?.titulo ?? 'Sem plano ativo'} · ${ultimo}`}
+      metadados={metadados}
       selos={selos}
       href={ficha}
       aoAbrir={() => router.push(ficha)}
       rotulo={`Abrir ${aluno.nome}${atualizacao ? `. ${atualizacao.texto}` : ''}`}
-      marcado={selecionando && marcado}
-      inicio={selecionando ? <CaixaDaLinha rotulo={`Selecionar ${aluno.nome}`} marcado={marcado} aoMudar={aoMarcar} /> : undefined}
     />
   );
 }

@@ -13,6 +13,11 @@ export const soAcoes: PropsDaLinha = { titulo: 'Semana', acoes: 'Editar', aoToca
 export const osDois: PropsDaLinha = { titulo: 'Ana', href: '/treinador/alunos/1', acoes: 'Editar' };
 // @ts-expect-error tocar nos textos é só da linha com ações
 export const linkQueMarca: PropsDaLinha = { titulo: 'Ana', href: '/treinador/alunos/1', aoTocarTextos: () => undefined };
+export const soMarcar: PropsDaLinha = { titulo: 'Ana', rotulo: 'Ana', marcar: { marcado: false, aoMudar: () => undefined } };
+// @ts-expect-error marcar e href juntos não compilam: nunca link e caixa na mesma linha
+export const marcarComLink: PropsDaLinha = { titulo: 'Ana', href: '/treinador/alunos/1', marcar: { marcado: false, aoMudar: () => undefined } };
+// @ts-expect-error marcar e acoes juntos não compilam
+export const marcarComAcoes: PropsDaLinha = { titulo: 'Ana', acoes: 'Editar', marcar: { marcado: false, aoMudar: () => undefined } };
 
 describe('rotuloDaLinha', () => {
   it('junta título, metadados e selos, sem partes vazias', () => {

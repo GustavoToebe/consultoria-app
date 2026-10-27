@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { Dumbbell } from 'lucide-react-native';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { baixarImagemDoExercicio, baixarImagemDoExercicioDoAluno } from '../api/rotas';
@@ -36,24 +37,29 @@ interface Props {
   ampliavel?: boolean;
   /** A miniatura preenche a caixa e corta a sobra (`cover`); sem isso a imagem aparece inteira, com sobra nas bordas. */
   preencher?: boolean;
+  /** Sem imagem, desenha uma caixa do mesmo tamanho com um ícone (decorativa, sem toque), para os títulos da lista alinharem. */
+  reservarEspaco?: boolean;
 }
 
 /**
  * Demonstração do exercício: a imagem ou GIF próprio do treinador, senão as fotos do catálogo (duas, que alternam a
- * cada 0,8 s; com movimento reduzido fica na primeira e o GIF não anima), senão nada (não reserva espaço). A imagem
+ * cada 0,8 s; com movimento reduzido fica na primeira e o GIF não anima), senão nada (ou, com `reservarEspaco`, uma caixa
+ * vazia do mesmo tamanho; sem a prop não reserva espaço). A imagem
  * própria só vem pela API, com o token, e nunca fica em cache; se não carregar (sem internet) cai nas fotos do
  * catálogo ou some, sem quebrar a tela. As fotos do catálogo são públicas, do próprio site, e usam o cache de disco.
  */
-export function DemonstracaoDoExercicio({ exercicioId, nome, imagens, imagemPropriaEm, papel, largura = 96, altura, ampliavel, preencher }: Props) {
+export function DemonstracaoDoExercicio({ exercicioId, nome, imagens, imagemPropriaEm, papel, largura = 96, altura, ampliavel, preencher, reservarEspaco }: Props) {
   const demo = demonstracaoDe({ imagens, imagemPropriaEm: exercicioId ? imagemPropriaEm : null });
   const [aberta, setAberta] = useState(false);
   const { width, height } = useWindowDimensions();
-  if (!demo) return null;
+  const alturaDaCaixa = altura ?? largura;
+  // Com `reservarEspaco`, quem não tem imagem (ou cuja imagem não carregou) ocupa a mesma caixa, com o ícone: o título da linha alinha.
+  const reserva = reservarEspaco ? <CaixaVazia largura={largura} altura={alturaDaCaixa} /> : null;
+  if (!demo) return reserva;
   const descricao = textoAlternativoDaDemonstracao(nome);
   const catalogo = caminhosValidosDoCatalogo(imagens);
-  const alturaDaCaixa = altura ?? largura;
   const miniatura = (
-    <Conteudo demo={demo} catalogo={catalogo} exercicioId={exercicioId} descricao={descricao} papel={papel} largura={largura} altura={alturaDaCaixa} preencher={preencher} />
+    <Conteudo demo={demo} catalogo={catalogo} exercicioId={exercicioId} descricao={descricao} papel={papel} largura={largura} altura={alturaDaCaixa} preencher={preencher} reserva={reserva} />
   );
   if (!ampliavel) return miniatura;
   // O lado cabe na janela (largura e altura, com o título da folha) e não passa de `LADO_AMPLIADO`.
@@ -85,21 +91,37 @@ interface ConteudoProps {
   largura: number;
   altura: number;
   preencher?: boolean;
+  /** O que aparece no lugar quando a imagem não carrega (a caixa reservada, ou nada). */
+  reserva?: ReactNode;
 }
 
-function Conteudo({ demo, catalogo, exercicioId, descricao, papel, largura, altura, preencher }: ConteudoProps) {
+function Conteudo({ demo, catalogo, exercicioId, descricao, papel, largura, altura, preencher, reserva = null }: ConteudoProps) {
   const { cores } = useTema();
   const caixa = [estilos.caixa, { width: largura, height: altura, maxWidth: '100%' as const, borderColor: cores.borda, backgroundColor: cores.superficie2 }];
   if (demo.tipo === 'PROPRIA' && exercicioId) {
-    return <ImagemPropria exercicioId={exercicioId} versao={demo.versao} descricao={descricao} papel={papel} caixa={caixa} caminhos={catalogo} preencher={preencher} />;
+    return <ImagemPropria exercicioId={exercicioId} versao={demo.versao} descricao={descricao} papel={papel} caixa={caixa} caminhos={catalogo} preencher={preencher} reserva={reserva} />;
   }
-  return demo.tipo === 'CATALOGO' ? <FotosDoCatalogo caminhos={demo.caminhos} descricao={descricao} caixa={caixa} preencher={preencher} /> : null;
+  return demo.tipo === 'CATALOGO' ? <FotosDoCatalogo caminhos={demo.caminhos} descricao={descricao} caixa={caixa} preencher={preencher} reserva={reserva} /> : reserva;
 }
 
 type Caixa = React.ComponentProps<typeof View>['style'];
 
-function ImagemPropria({ exercicioId, versao, descricao, papel, caixa, caminhos, preencher }: {
-  exercicioId: string; versao: string; descricao: string; papel: 'EQUIPE' | 'ALUNO'; caixa: Caixa; caminhos?: readonly string[]; preencher?: boolean;
+/** A caixa de quem não tem imagem: `superficie3`, borda e canto como a miniatura, com o haltere em `textoSuave`. Só enfeite. */
+function CaixaVazia({ largura, altura }: { largura: number; altura: number }) {
+  const { cores } = useTema();
+  return (
+    <View
+      accessible={false}
+      aria-hidden
+      importantForAccessibility="no-hide-descendants"
+      style={[estilos.caixa, estilos.caixaVazia, { width: largura, height: altura, maxWidth: '100%', borderColor: cores.borda, backgroundColor: cores.superficie3 }]}>
+      <Dumbbell size={Math.max(16, Math.round(Math.min(largura, altura) * 0.42))} color={cores.textoSuave} />
+    </View>
+  );
+}
+
+function ImagemPropria({ exercicioId, versao, descricao, papel, caixa, caminhos, preencher, reserva }: {
+  exercicioId: string; versao: string; descricao: string; papel: 'EQUIPE' | 'ALUNO'; caixa: Caixa; caminhos?: readonly string[]; preencher?: boolean; reserva: ReactNode;
 }) {
   const reduzido = useMovimentoReduzido();
   const baixar = papel === 'ALUNO' ? baixarImagemDoExercicioDoAluno : baixarImagemDoExercicio;
@@ -110,7 +132,7 @@ function ImagemPropria({ exercicioId, versao, descricao, papel, caixa, caminhos,
     },
     [endereco],
   );
-  if (erro) return caminhos?.length ? <FotosDoCatalogo caminhos={caminhos} descricao={descricao} caixa={caixa} preencher={preencher} /> : null;
+  if (erro) return caminhos?.length ? <FotosDoCatalogo caminhos={caminhos} descricao={descricao} caixa={caixa} preencher={preencher} reserva={reserva} /> : reserva;
   if (carregando || !endereco) return <View accessibilityRole="progressbar" accessibilityLabel={`Carregando: ${descricao}`} style={caixa} />;
   return (
     <View style={caixa}>
@@ -119,7 +141,7 @@ function ImagemPropria({ exercicioId, versao, descricao, papel, caixa, caminhos,
   );
 }
 
-function FotosDoCatalogo({ caminhos, descricao, caixa, preencher }: { caminhos: readonly string[]; descricao: string; caixa: Caixa; preencher?: boolean }) {
+function FotosDoCatalogo({ caminhos, descricao, caixa, preencher, reserva }: { caminhos: readonly string[]; descricao: string; caixa: Caixa; preencher?: boolean; reserva: ReactNode }) {
   const reduzido = useMovimentoReduzido();
   const [passo, setPasso] = useState(0);
   const [falhou, setFalhou] = useState(false);
@@ -131,7 +153,7 @@ function FotosDoCatalogo({ caminhos, descricao, caixa, preencher }: { caminhos: 
   }, [alterna]);
   const base = origemDoSite();
   const urls = caminhos.map((c) => urlDaFotoDoCatalogo(base, c)).filter((u): u is string => u !== null);
-  if (!urls.length || falhou) return null;
+  if (!urls.length || falhou) return reserva;
   const vez = fotoDaVez(urls.length, passo, reduzido);
   return (
     <View style={caixa}>
@@ -150,4 +172,5 @@ const LADO_AMPLIADO = 760;
 const estilos = StyleSheet.create({
   caixa: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
   imagem: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  caixaVazia: { alignItems: 'center', justifyContent: 'center' },
 });

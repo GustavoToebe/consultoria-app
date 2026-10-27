@@ -34,19 +34,27 @@ interface Base {
 }
 
 /** A linha inteira abre outra tela: na web é um `<a href>` e não tem botão dentro. */
-export type LinhaComLink = Base & { href: Href; aoAbrir?: () => void; acoes?: never; aoTocarTextos?: never; acoesAoLado?: never };
+export type LinhaComLink = Base & { href: Href; aoAbrir?: () => void; acoes?: never; aoTocarTextos?: never; acoesAoLado?: never; marcar?: never };
 /**
  * A linha tem botões à direita (no celular, embaixo); `aoTocarTextos` faz tocar no nome agir também (Catálogo).
  * `acoesAoLado`: ações só de ícone (o lápis) ficam à direita também no celular, em vez de sozinhas numa linha embaixo.
  */
-export type LinhaComAcoes = Base & { href?: never; aoAbrir?: never; acoes?: ReactNode; aoTocarTextos?: () => void; acoesAoLado?: boolean };
-export type PropsDaLinha = LinhaComLink | LinhaComAcoes;
+export type LinhaComAcoes = Base & { href?: never; aoAbrir?: never; acoes?: ReactNode; aoTocarTextos?: () => void; acoesAoLado?: boolean; marcar?: never };
+/**
+ * A linha inteira é a caixa de marcar (Selecionar dos alunos): um só alvo, role checkbox, com a caixa só desenhada à
+ * esquerda. Sem seta, sem `href`, sem `inicio` nem ações: nunca link e caixa juntos.
+ */
+export type LinhaDeMarcar = Base & {
+  href?: never; aoAbrir?: never; acoes?: never; aoTocarTextos?: never; acoesAoLado?: never; inicio?: never;
+  marcar: { marcado: boolean; aoMudar: () => void };
+};
+export type PropsDaLinha = LinhaComLink | LinhaComAcoes | LinhaDeMarcar;
 
 /**
  * Linha de largura total das listas de registros (o formato do Planejamento por coleção): título, metadados e descrição,
  * selos e, à direita, as ações ou a seta do link. No PC (a partir do menu lateral) tudo numa linha; no celular, os textos
- * em cima e as ações embaixo. Ou abre outra tela (`href`) ou tem ações (`acoes`), nunca as duas: botão dentro de link
- * quebra o leitor de tela e o Ctrl+clique.
+ * em cima e as ações embaixo. Ou abre outra tela (`href`), ou tem ações (`acoes`), ou a linha toda marca (`marcar`),
+ * nunca duas: botão dentro de link quebra o leitor de tela e o Ctrl+clique.
  */
 export function LinhaDaLista(p: PropsDaLinha) {
   const { cores } = useTema();
@@ -54,7 +62,7 @@ export function LinhaDaLista(p: PropsDaLinha) {
   const largo = width >= LARGURA_MENU_LATERAL;
   const [ativo, setAtivo] = useState(false);
   const selos = p.selos ?? [];
-  const borda = { borderColor: p.marcado ? cores.texto : cores.borda };
+  const borda = { borderColor: p.marcado || p.marcar?.marcado ? cores.texto : cores.borda };
   const apagado = p.esmaecido ? estilos.esmaecido : null;
 
   const textos = (
@@ -69,6 +77,32 @@ export function LinhaDaLista(p: PropsDaLinha) {
   const miolo = selos.length && largo
     ? <View style={estilos.mioloLargo}>{textos}<SelosDaLinha selos={selos} /></View>
     : textos;
+
+  if (p.marcar) {
+    const { marcado, aoMudar } = p.marcar;
+    // A linha toda é o alvo (checkbox); a caixa é só desenho. O realce do mouse sobe para o contêiner, como no link.
+    return (
+      <View style={[estilos.contorno, borda, { backgroundColor: ativo ? cores.superficie3 : cores.superficie2 }]}>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={p.rotulo ?? p.titulo}
+          accessibilityState={{ checked: marcado }}
+          aria-checked={marcado}
+          onPress={aoMudar}
+          onHoverIn={() => setAtivo(true)}
+          onHoverOut={() => setAtivo(false)}
+          onPressIn={() => setAtivo(true)}
+          onPressOut={() => setAtivo(false)}
+          style={estilos.link}>
+          <View style={[estilos.linkConteudo, apagado]}>
+            <View style={estilos.fixo}><DesenhoDaCaixa marcado={marcado} /></View>
+            {miolo}
+          </View>
+        </Pressable>
+        {p.children}
+      </View>
+    );
+  }
 
   if (p.href !== undefined) {
     const href = p.href;
@@ -145,10 +179,18 @@ export function CaixaDaLinha({ rotulo, marcado, aoMudar, desabilitado }: { rotul
       disabled={desabilitado}
       onPress={aoMudar}
       style={(estado) => [estilos.alvoDaCaixa, { backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : 'transparent' }]}>
-      <View style={[estilos.caixa, { backgroundColor: marcado ? cores.texto : cores.campo, borderColor: marcado ? cores.texto : cores.bordaCampo }]}>
-        {marcado ? <Check size={18} color={cores.fundo} strokeWidth={3} /> : null}
-      </View>
+      <DesenhoDaCaixa marcado={marcado} />
     </Pressable>
+  );
+}
+
+/** O quadrado da caixa de marcar (seleção invertida), sem toque: usado pela `CaixaDaLinha` e pela linha que marca. */
+function DesenhoDaCaixa({ marcado }: { marcado: boolean }) {
+  const { cores } = useTema();
+  return (
+    <View style={[estilos.caixa, { backgroundColor: marcado ? cores.texto : cores.campo, borderColor: marcado ? cores.texto : cores.bordaCampo }]}>
+      {marcado ? <Check size={18} color={cores.fundo} strokeWidth={3} /> : null}
+    </View>
   );
 }
 
