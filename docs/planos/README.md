@@ -19,7 +19,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | --- | --- | --- | --- | --- |
 | Teste com 5 alunos | [teste-5-alunos.md](teste-5-alunos.md) | produção | Preparando | 27/10/2026 |
 | Anamnese ao aceitar a inscrição | [anamnese-no-aceite.md](anamnese-no-aceite.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
-| Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Em andamento | 27/10/2026 |
+| Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
 | Engajamento (retorno, conquistas, mural) | [engajamento.md](engajamento.md) | branch `gamificacao` | Etapa 0 em andamento | 27/10/2026 |
 
 ## Pendências soltas
@@ -47,3 +47,4 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 
 - WS em "% da WS" fica fora da coluna de cargas por divisão (`docs/series-etapas.md`).
 - Exercício sem carga aparece como "Sem carga" no relatório de cargas.
+- Listas em linha (ver `listas-padronizadas.md`): rótulos acessíveis dos botões "Editar"/"Aplicar ao aluno"/"Ver produto" e do link do aluno, contraste do selo esmaecido no Catálogo, regra dos questionários para `dominio/` com teste, e2e do Catálogo/Questionários/Modelos.

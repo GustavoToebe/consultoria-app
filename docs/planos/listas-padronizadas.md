@@ -1,6 +1,6 @@
 # Listas padronizadas no treinador
 
-Situação: Em andamento · Onde: main · Atualizado: 27/10/2026
+Situação: Concluída · Onde: main · Atualizado: 27/10/2026
 
 ## Objetivo
 Toda lista de registros do treinador no formato de linha do Planejamento por coleção (uma linha por item, largura toda,
@@ -19,9 +19,15 @@ ações à direita), no lugar dos cartões em 2 ou 3 colunas.
 | D8 | `selos[]` no lugar de `selo?` | Alunos pode ter dois selos ao mesmo tempo | Claude |
 
 ## Passos
-- [ ] 1. Peça compartilhada + Planejamento e Outros sem mudança visual — commit: —
-- [ ] 2. Telas da lista (D3) e frase repetida das Receitas de séries — commit: —
-- [ ] 3. AGENTS.md (Grade só para blocos), e2e, capturas — commit: —
-- [ ] 4. Deploy verde — run: —
+- [x] 1. Peça compartilhada + Planejamento sem mudança visual (Outros fica, D5) — commit: 2eadf76
+- [x] 2. Telas da lista (D3) e frase repetida das Receitas de séries — commit: 2eadf76
+- [x] 3. AGENTS.md (Grade só para blocos), e2e `listas-em-linha`, capturas — commit: 2eadf76
+- [x] 4. Deploy verde — run: 40571872648
 
 ## O que ficou para trás
+- Rótulos dos botões "Editar", "Aplicar ao aluno" (Planejamento), "Editar"/"Ver" (questionários) e "Ver produto" não dizem de qual item são para o leitor de tela; já era assim. Padrão: `rotuloAcessivel` como em `UsuariosEquipe.tsx`.
+- Alunos: o `aria-label` do link ("Abrir {nome}. {atualização}") esconde Inativo, Sem acesso e o último registro; já era assim. Usar `rotuloDaLinha`.
+- Catálogo: `esmaecido` (0,6) também apaga o selo "Já na biblioteca" e o título (contraste); já era assim.
+- `metadadosDoQuestionario` e `selosDoQuestionario` são regra pura dentro de `ListaDeQuestionarios.tsx`, sem teste; mover para `dominio/` com teste.
+- Sem e2e para Catálogo (marcar pela caixa e pelo nome), Questionários e Modelos em linha.
+- Biblioteca › Outros e `ItemDeLista` ficaram como estão (D5, D6).
