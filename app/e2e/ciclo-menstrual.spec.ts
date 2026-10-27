@@ -18,10 +18,10 @@ function cicloInicial(): CicloDaAluna {
   };
 }
 
-async function rotasDaAluna(page: Page, sexo: 'FEMININO' | 'MASCULINO') {
+async function rotasDaAluna(page: Page, sexo: 'FEMININO' | 'MASCULINO', ligado = true) {
   const rotas = await sessaoDeAluno(page);
   const eu = (rotas['GET /eu'] as { corpo: EuResponse }).corpo;
-  rotas['GET /eu'] = { corpo: { ...eu, aluno: { id: ALUNO_ID, nome: ALUNO.nome, sexo } } };
+  rotas['GET /eu'] = { corpo: { ...eu, cicloHabilitado: ligado, aluno: { id: ALUNO_ID, nome: ALUNO.nome, sexo } } };
   return rotas;
 }
 
@@ -114,6 +114,22 @@ for (const largura of [390, 1280]) {
   });
 }
 
+// Padrão de produção desde 27/10: módulo desligado na plataforma. Nada do ciclo aparece nem é consultado.
+for (const largura of [390, 1280]) {
+  test(`ciclo desligado na plataforma: sem cartão, sem consulta e o endereço volta para a Conta (${largura})`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina } = await simularApi(page, { ...(await rotasDaAluna(page, 'FEMININO', false)) });
+    await page.goto('/aluno/conta');
+    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByText('Ativar acompanhamento')).toHaveCount(0);
+    await page.goto('/aluno/ciclo');
+    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ciclo menstrual', level: 1 })).toHaveCount(0);
+    expect(pedidos.filter((p) => p.caminho.includes('/ciclo'))).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
 const FICHA: AlunoDetalhe = {
   id: ALUNO_ID, nome: ALUNO.nome, email: ALUNO.email, telefone: null, objetivo: null, cpf: null,
   endereco: null, ativo: true, temAcesso: true, conviteExpiraEm: null, versao: 1, diasAtualizacao: null,
@@ -154,7 +170,7 @@ for (const largura of [390, 1280]) {
   test(`treinador vê a faixa, o gráfico e o dia só para ler (${largura})`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
     await simularApi(page, {
-      ...(await sessao(page, TREINADOR)),
+      ...(await sessao(page, TREINADOR, { cicloHabilitado: true })),
       'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
       'GET /consultoria': { corpo: { ...MARCA, textosFasesCiclo: { menstrual: 'Texto fictício da fase.', folicular: null, ovulatoria: null, lutea: null } } },
       [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
@@ -182,7 +198,7 @@ for (const largura of [390, 1280]) {
 
   test(`sem dados sensíveis o ciclo não aparece (${largura})`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 900 });
-    const rotas = await sessao(page, TREINADOR);
+    const rotas = await sessao(page, TREINADOR, { cicloHabilitado: true });
     const eu = (rotas['GET /eu'] as { corpo: EuResponse }).corpo;
     rotas['GET /eu'] = { corpo: { ...eu, permissoes: (eu.permissoes ?? []).filter((p) => p !== 'ALUNO_SENSIVEL_LER') } };
     await simularApi(page, {
@@ -231,7 +247,7 @@ test('anamnese mostra o sexo trazido para o cadastro', async ({ page }) => {
     }],
   };
   await simularApi(page, {
-    ...(await sessao(page, TREINADOR)),
+    ...(await sessao(page, TREINADOR, { cicloHabilitado: true })),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },
     [`GET /alunos/${ALUNO_ID}/anamneses`]: { corpo: [{ id: ANAMNESE_ID, situacao: 'ENVIADA', atribuidaEm: detalhe.atribuidaEm, enviadaEm: detalhe.enviadaEm, revisadaEm: null, dispensadaEm: null, dispensaMotivo: null, versao: 1, questionarioNome: 'Anamnese inicial', questionarioVersaoNumero: 1, alteracoesParaRevisar: 1 }] },
@@ -358,7 +374,7 @@ test('faixa do ciclo na pasta: a menstruação fica na data certa, depois dos di
   await page.setViewportSize({ width: 390, height: 900 });
   const pasta: PastaResumo = { ...PASTA, inicio: deslocar(INICIO_ANTERIOR, -10), fim: HOJE };
   await simularApi(page, {
-    ...(await sessao(page, TREINADOR)),
+    ...(await sessao(page, TREINADOR, { cicloHabilitado: true })),
     'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
     'GET /consultoria': { corpo: MARCA },
     [`GET /alunos/${ALUNO_ID}`]: { corpo: FICHA },

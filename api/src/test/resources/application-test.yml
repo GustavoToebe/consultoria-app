@@ -45,6 +45,9 @@ treinos:
   # classe (FotosDesligadasIntegrationTest), que sobrescreve esta chave.
   fotos:
     habilitado: true
+  # Ciclo ligado na suíte (o CicloMenstrualIntegrationTest testa o módulo); o modo desligado tem a sua classe.
+  ciclo:
+    habilitado: true
   # Pagamentos ligados em toda a suíte; o modo desligado tem a sua classe (PagamentosDesligadosIntegrationTest).
   pagamentos:
     habilitado: true

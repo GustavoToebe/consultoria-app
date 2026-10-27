@@ -35,7 +35,7 @@ interface Props {
 
 /** Nome, cor, fonte do título, tema padrão e logo, com prévia do topo do app do aluno nos dois temas. */
 export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
-  const { atualizarMarca } = useSessao();
+  const { atualizarMarca, cicloHabilitado } = useSessao();
   const { avisar } = useAviso();
   const { cores } = useTema();
   const inicial = consultoria.marca;
@@ -256,6 +256,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
             ajuda="Preenche o início e o fim de cada pasta nova. Vazio = sem padrão."
           />
         </View>
+        {cicloHabilitado ? (
         <Cartao titulo="Ciclo menstrual: textos das fases" recolhivel recolhido
           descricao="Aparece para a aluna e para a equipe junto da fase. O app não recomenda nada por conta própria: escreva só o que você orienta.">
           {(['menstrual', 'folicular', 'ovulatoria', 'lutea'] as const).map((fase) => (
@@ -263,6 +264,7 @@ export function FormMarca({ consultoria, aoSalvar, aoConflito }: Props) {
               valor={fases[fase]} aoMudar={(valor) => setFases((atual) => ({ ...atual, [fase]: valor }))} maxLength={1000} linhas={3} />
           ))}
         </Cartao>
+        ) : null}
       </Cartao>
       {erro && Object.keys(campos).length === 0 ? <MensagemErro texto={textoDoErro(erro)} /> : null}
       {alterado ? (

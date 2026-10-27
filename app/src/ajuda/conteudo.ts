@@ -91,7 +91,6 @@ const TREINADOR: Guia = {
         { titulo: 'Inativar', texto: 'Inativar tira o aluno do app na hora; planos e registros ficam guardados e dá para reativar.' },
         { titulo: 'Ações em lote', texto: 'Na lista de Alunos, toque em Selecionar, marque os alunos (ou Marcar visíveis) e escolha Trocar responsável, Trocar questionário ou Desativar. Vale para até 100 alunos por vez, tudo ou nada, e cada ação pede confirmação. Desativar encerra as sessões dos alunos marcados; dá para reativar um por um na ficha.' },
         { titulo: 'Lesões e peso', texto: 'Ficam na ficha, só para quem pode ver dados sensíveis. O app apenas guarda o que você registra.' },
-        { titulo: 'Ciclo menstrual', texto: 'Quando a aluna liga o acompanhamento, a ficha mostra a fase de hoje e "Ver ciclo" (só leitura). A pasta e os editores de treino e dieta do aluno mostram a faixa do período. O gráfico de peso pode mostrar as fases atrás da linha, e a atualização mostra a fase na data e a contagem dos sintomas. Sem o acompanhamento ligado, ou sem acesso a dados sensíveis, nada disso aparece. O app não muda o treino nem a dieta.' },
       ],
     },
     {
@@ -195,7 +194,6 @@ const TREINADOR: Guia = {
       itens: [
         { titulo: 'Marca', texto: 'Cor, fonte do nome, tema padrão dos alunos (nasce claro) e logo. Fica no menu do seu usuário e só o perfil Administrador altera.' },
         { titulo: 'Ciclo de atualização padrão', texto: 'Em Marca, no cartão Acompanhamento, "Nova atualização a cada (dias)" vale para os alunos sem ciclo próprio no cadastro: sugere o fim da pasta nova e da renovação. O ciclo escrito no aluno sempre vale mais.' },
-        { titulo: 'Textos das fases do ciclo', texto: 'No mesmo cartão, "Ciclo menstrual: textos das fases" guarda um texto opcional para Menstrual, Folicular, Ovulatória e Lútea. Aparece para a aluna e para a equipe junto da fase. O app não recomenda nada por conta própria: escreva só o que você orienta. Campo vazio mostra só o nome da fase. Quem altera a marca grava esses textos.' },
         { titulo: 'Equipe', texto: 'Cada membro tem um perfil com permissões. Ninguém concede mais do que tem.' },
         { titulo: 'Auditoria', texto: 'Lista ações importantes por pessoa e período, guardadas por um ano.' },
         { titulo: 'Tema claro/escuro', texto: 'Qualquer pessoa troca em Ajustes (menu do seu nome, no topo; no celular, em Perfil). Vale só para o seu usuário.' },
@@ -321,14 +319,6 @@ const ALUNO: Guia = {
         { titulo: 'Fotos', texto: 'Quando a atualização pede fotos, escolha da galeria ou tire na hora. Na galeria dá para marcar várias de uma vez, até o limite da pergunta (no máximo 6). No celular elas ficam guardadas só dentro do app, sem ir para a galeria, e sobem quando você envia a atualização; na web é preciso estar conectado para anexar. Toque no X para remover antes de enviar. Só você e seu treinador veem as fotos. No Histórico, o cartão Fotos compara de 2 a 4 datas da mesma posição, com a data e o peso. Quem gera a imagem para divulgação é o treinador, com as fotos que ele está comparando ou com o carrossel das duas datas.' },
         { titulo: 'Vou atrasar', texto: 'Se precisar de mais tempo, avise pelo botão. Isso só avisa o treinador.' },
         { titulo: 'Lembretes', texto: 'No celular, o app lembra 3 dias antes, no dia e 1 dia depois, às 9h. Na web, só aparece um cartão.' },
-      ],
-    },
-    {
-      titulo: 'Ciclo menstrual',
-      itens: [
-        { titulo: 'Ligar', texto: 'Em Conta, no cartão Ciclo menstrual, toque em Ativar acompanhamento. O cartão só aparece quando o sexo do cadastro é Feminino. O sexo se informa em Conta, em Meus dados. O acompanhamento é opcional: seu treinador e a equipe com acesso a dados sensíveis veem as datas para acompanhar o treino e a dieta. Dá para desligar quando quiser.' },
-        { titulo: 'Registrar', texto: 'Na tela do ciclo, "Minha menstruação começou hoje" e "Minha menstruação terminou hoje" marcam o período. "Registrar outra data" serve para um início ou fim que não é hoje. "Como estou hoje" guarda fluxo, cólica, sintomas e uma observação. Precisa de conexão: nada disso fica no aparelho.' },
-        { titulo: 'Apagar', texto: 'Em Configurações, "Apagar todos os registros" tira datas, sintomas e o acompanhamento. Excluir um ciclo da lista tira só aquele período. "Limpar dia" tira os sintomas daquele dia.' },
       ],
     },
     {

@@ -53,6 +53,8 @@ export interface EuResponse {
   /** Chaves da plataforma: o "Pagar" aparece no iOS / no Android só com a respectiva ligada (a web sempre tem). Ausente = desligada. */
   pagarNoIos?: boolean;
   pagarNoAndroid?: boolean;
+  /** Acompanhamento do ciclo menstrual ligado na plataforma; falso ou ausente = o app esconde tudo dele e não o consulta. */
+  cicloHabilitado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };

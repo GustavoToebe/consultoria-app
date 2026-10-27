@@ -1,3 +1,4 @@
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -37,8 +38,14 @@ const CHAVE: Record<FaseDoCiclo, keyof TextosDasFases> = {
   MENSTRUAL: 'menstrual', FOLICULAR: 'folicular', OVULATORIA: 'ovulatoria', LUTEA: 'lutea',
 };
 
+/** Com o módulo desligado na plataforma a tela não existe: o endereço digitado volta para a Conta. */
 export default function CicloDaAluna() {
   const ciclo = useCicloDaAluna();
+  if (!ciclo.habilitado) return <Redirect href="/aluno/conta" />;
+  return <CicloLigado ciclo={ciclo} />;
+}
+
+function CicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna> }) {
   const { avisar } = useAviso();
   const hoje = hojeDoCiclo();
   const [mes, setMes] = useState(`${hoje.slice(0, 8)}01`);

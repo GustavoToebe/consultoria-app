@@ -81,6 +81,10 @@ treinos:
     habilitado: ${TREINOS_CEP_HABILITADO:true}
     url-principal: ${TREINOS_CEP_URL_PRINCIPAL:}
     url-reserva: ${TREINOS_CEP_URL_RESERVA:}
+  # Acompanhamento do ciclo menstrual. Desligado por padrão (o módulo fica no código, sem uso, até ser retomado): as rotas
+  # respondem 503 CICLO_INDISPONIVEL_NO_APP e o app esconde tudo (GET /eu traz cicloHabilitado).
+  ciclo:
+    habilitado: ${TREINOS_CICLO_HABILITADO:false}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:

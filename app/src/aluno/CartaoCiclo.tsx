@@ -46,6 +46,11 @@ export function CartaoSexoDaAluna() {
 /** Cartão da Conta. Some quando o sexo não é Feminino. Ligar pede o consentimento. */
 export function CartaoCiclo() {
   const ciclo = useCicloDaAluna();
+  if (!ciclo.habilitado) return null;
+  return <CartaoCicloLigado ciclo={ciclo} />;
+}
+
+function CartaoCicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna> }) {
   const { avisar } = useAviso();
   const [ativar, setAtivar] = useState(false);
   const [duracao, setDuracao] = useState<number | null>(null);

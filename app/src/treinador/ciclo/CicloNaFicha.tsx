@@ -21,8 +21,9 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 export function useCicloDoTreinador(alunoId: string | null | undefined) {
-  const { pode } = useSessao();
-  const ver = !!alunoId && pode('ALUNO_LER') && pode('ALUNO_SENSIVEL_LER');
+  const { pode, cicloHabilitado } = useSessao();
+  // Módulo desligado na plataforma: nada é consultado e tudo o que depende do ciclo some.
+  const ver = cicloHabilitado && !!alunoId && pode('ALUNO_LER') && pode('ALUNO_SENSIVEL_LER');
   const carga = useCarregar(ver ? `ciclo-treinador:${alunoId}` : null, () => cicloDoAluno(alunoId!));
   return { ...carga, ver, ativo: carga.dados?.ativo === true };
 }

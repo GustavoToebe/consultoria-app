@@ -56,6 +56,7 @@ public class AuthService {
     private final Auditoria auditoria;
     private final br.com.treinos.api.pagamentos.PagamentosProperties pagamentos;
     private final br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay;
+    private final br.com.treinos.api.ciclo.CicloProperties ciclo;
     private final TransactionTemplate transacao;
     private final TransactionTemplate leitura;
 
@@ -66,8 +67,10 @@ public class AuthService {
                        TermosService termos, AberturaDeSessao abertura, PlatformTransactionManager transacoes,
                        br.com.treinos.api.conta.PlanoDaConsultoria plano, LimiteLogin limite, Auditoria auditoria,
                        br.com.treinos.api.pagamentos.PagamentosProperties pagamentos,
-                       br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay) {
+                       br.com.treinos.api.pagamentos.InfinitePayProperties infinitePay,
+                       br.com.treinos.api.ciclo.CicloProperties ciclo) {
         this.pagamentos = pagamentos;
+        this.ciclo = ciclo;
         this.infinitePay = infinitePay;
         this.plano = plano;
         this.limite = limite;
@@ -174,7 +177,8 @@ public class AuthService {
                 usuario.getPapel() == Papel.TREINADOR ? permissoes.codigos(usuario) : null,
                 termos.pendente(usuario.getId()), Termos.VERSAO,
                 plano.funcionalidadesLiberadas(usuario.getConsultoriaId()), pagamentos.habilitado(),
-                pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid());
+                pagamentos.habilitado() && infinitePay.habilitado(), pagamentos.pagarNoIos(), pagamentos.pagarNoAndroid(),
+                ciclo.habilitado());
     }
 
     /**
