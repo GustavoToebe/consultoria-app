@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Receitas criadas em toda consultoria nova: ponto de partida genérico, com nomes neutros (nada que
- * identifique outra consultoria). São só estrutura (séries, dias, refeições); nenhuma carga nem alimento é sugerido.
+ * Receitas criadas em toda consultoria nova (inclusive o catálogo de séries e os dois exemplos com Cluster): ponto de
+ * partida genérico, com nomes neutros (nada que identifique outra consultoria). São só estrutura (séries, dias, refeições); nenhuma carga nem alimento é sugerido.
  * As séries seguem a metodologia padrão, pelo código do tipo: FEEDER em % da WS pela regra 50/70/85–90, WORKING na carga
  * de trabalho sem RIR fixo (a metodologia explica: livre 1 RIR, máquina até a falha), BACK_OFF a 85% da WS. Rest pause é
  * técnica da própria série de trabalho, não um tipo. A receita do top set e a pirâmide decrescente têm uids (a referência aponta outra série).
@@ -51,6 +51,7 @@ public final class ReceitasPadrao {
         lista.add(series("WS + Top set + 2 Back off", "WS 1x3-6, Top set 1x1-3 (1 a 5% acima da WS) e 2 Back off de 6-8 "
                 + "com 15% a menos que o top set.", comTopSet()));
         lista.addAll(doCatalogo());
+        lista.addAll(exemplos());
 
         lista.add(new Padrao(Receita.Tipo.PLANO_TREINO, "Semana 5 treinos + 2 off ativos",
                 "Seg Costas, Ter Peito+Ombros, Qua Pernas, Qui Off ativo, Sex Upper, Sáb Pernas, Dom Off ativo.",
@@ -149,6 +150,33 @@ public final class ReceitasPadrao {
                 series("Dupla progressão", "Trabalhe dentro da faixa de repetições.", duplaProgressao()),
                 series("GVT 10×10", "10 séries de 10 repetições com a mesma carga e o mesmo descanso entre as séries.", gvt()),
                 series("FST-7", "No fim do treino do músculo, 7 séries do mesmo exercício com descanso curto entre elas.", fst7()));
+    }
+
+    /** Nomes das duas receitas de exemplo (FS, WS e Cluster). A V034 grava só estas nas consultorias que já existem. */
+    public static final List<String> NOMES_DOS_EXEMPLOS = List.of("Exemplo: FS, WS e Cluster", "Exemplo: FS e Cluster");
+
+    /** As duas receitas de exemplo, na ordem dos nomes. Só estrutura: sem esforço nem descanso. */
+    public static List<Padrao> exemplos() {
+        return List.of(
+                series("Exemplo: FS, WS e Cluster", "FS 1x10-15, WS 1x6-8 e WS com Cluster 4×4, pausa de 15 s.",
+                        List.of(fsDoExemplo(), wsDoExemplo(), wsComClusterDoExemplo())),
+                series("Exemplo: FS e Cluster", "FS 1x10-15 e WS com Cluster 4×4, pausa de 15 s.",
+                        List.of(fsDoExemplo(), wsComClusterDoExemplo())));
+    }
+
+    /** FS de 10 a 15 repetições, na carga em % da WS que a metodologia padrão dá à FS sozinha (85%). */
+    private static Serie fsDoExemplo() {
+        return serie("FEEDER", 10, 15, percentual(85, null));
+    }
+
+    private static Serie wsDoExemplo() {
+        return serie("WORKING", 6, 8, Carga.de(ConteudoTreino.CARGA_TRABALHO));
+    }
+
+    /** Cluster de 4 blocos de 4, pausa de 15 s: as repetições são a soma dos blocos (16). */
+    private static Serie wsComClusterDoExemplo() {
+        return serie("WORKING", 16, 16, Carga.de(ConteudoTreino.CARGA_TRABALHO))
+                .comTecnica(Tecnica.cluster(List.of(4, 4, 4, 4), 15, null));
     }
 
     /**

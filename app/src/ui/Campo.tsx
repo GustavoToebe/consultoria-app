@@ -22,13 +22,22 @@ interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'>
   acao?: ReactNode;
   /** Nome para o leitor de tela quando o rótulo visível se repete na tela ("Reps mín." da série e da retomada). */
   rotuloAcessivel?: string;
+  /** Sem o rótulo em cima: o que é o campo já está ao lado dele; o leitor de tela lê `rotuloAcessivel`. */
+  rotuloOculto?: boolean;
+  /** Unidade dentro da caixa, depois do número ("%"). */
+  sufixo?: string;
+  /**
+   * O erro marca a caixa e vai ao leitor de tela, mas o texto fica com quem usa (campo estreito numa linha, em que a
+   * frase do erro quebraria em várias linhas debaixo dele).
+   */
+  erroSemTexto?: boolean;
 }
 
 /**
  * Campo de digitar com rótulo, ajuda e erro. O erro vai ao leitor de tela: `aria-invalid` na web, região viva no
  * Android e anúncio no iOS. Foco = borda de 2 px na cor do anel de foco (a cor da marca não contrasta no escuro).
  */
-export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, ...resto }: Props) {
+export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, acao, rotuloAcessivel, rotuloOculto, sufixo, erroSemTexto, ...resto }: Props) {
   const { cores, fatorTexto } = useTema();
   const [foco, setFoco] = useState(false);
   const corBorda = erro ? cores.perigo : foco ? cores.anelFoco : cores.bordaCampo;
@@ -37,7 +46,7 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
   useAnunciarErro(erro, rotulo);
   return (
     <View style={estilos.campo}>
-      <Label style={[ESTILOS_TEXTO.rotulo, { color: cores.textoSuave }]}>{rotulo}</Label>
+      {rotuloOculto ? null : <Label style={[ESTILOS_TEXTO.rotulo, { color: cores.textoSuave }]}>{rotulo}</Label>}
       <View>
       <Input
         {...resto}
@@ -62,13 +71,18 @@ export function Campo({ rotulo, valor, aoMudar, erro, ajuda, linhas, numerico, a
           { borderWidth: 1 + destaque, paddingHorizontal: espaco(1.5) - destaque, paddingVertical: espaco(1) - destaque },
           numerico ? { fontVariant: ['tabular-nums'] } : null,
           linhas ? { minHeight: linhas * escalar(22, fatorTexto) + 20, textAlignVertical: 'top' } : null,
-          acao ? { paddingRight: ALVO_TOQUE } : null,
+          acao ? { paddingRight: ALVO_TOQUE } : sufixo ? { paddingRight: espaco(1.5) + escalar(16, fatorTexto) * sufixo.length } : null,
           { color: cores.texto, backgroundColor: cores.campo, borderColor: corBorda, fontSize: escalar(16, fatorTexto) },
         ]}
       />
       {acao ? <View style={estilos.acao}>{acao}</View> : null}
+      {!acao && sufixo ? (
+        <View pointerEvents="none" style={estilos.sufixo}>
+          <Texto variante="suave" style={{ fontFamily: fontes.semi }} aria-hidden>{sufixo}</Texto>
+        </View>
+      ) : null}
       </View>
-      {erro ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erro}</Texto> : null}
+      {erro && !erroSemTexto ? <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{erro}</Texto> : null}
       {!erro && ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
     </View>
   );
@@ -84,6 +98,7 @@ export function useAnunciarErro(erro: string | null | undefined, rotulo: string)
 const estilos = StyleSheet.create({
   campo: { gap: espaco(0.5) },
   acao: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center' },
+  sufixo: { position: 'absolute', right: espaco(1.5), top: 0, bottom: 0, justifyContent: 'center' },
   entrada: {
     minHeight: ALVO_TOQUE,
     borderRadius: RAIO,

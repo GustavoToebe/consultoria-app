@@ -70,6 +70,47 @@ class ReceitasPadraoTest {
     }
 
     @Test
+    void osDoisExemplosExistemNaListaDepoisDoCatalogoComConteudoEsperado() {
+        assertThat(ReceitasPadrao.NOMES_DOS_EXEMPLOS)
+                .containsExactly("Exemplo: FS, WS e Cluster", "Exemplo: FS e Cluster");
+        assertThat(ReceitasPadrao.exemplos()).extracting(ReceitasPadrao.Padrao::nome)
+                .containsExactlyElementsOf(ReceitasPadrao.NOMES_DOS_EXEMPLOS);
+        List<String> nomes = ReceitasPadrao.todas().stream().map(ReceitasPadrao.Padrao::nome).toList();
+        assertThat(nomes).containsAll(ReceitasPadrao.NOMES_DOS_EXEMPLOS);
+        assertThat(nomes.indexOf("Exemplo: FS, WS e Cluster")).isEqualTo(nomes.indexOf("FST-7") + 1);
+
+        List<Serie> completa = ((ReceitaSeries) ReceitasPadrao.exemplos().get(0).conteudo()).series();
+        assertThat(completa).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING", "WORKING");
+        assertThat(completa).extracting(Serie::repsMin).containsExactly(10, 6, 16);
+        assertThat(completa).extracting(Serie::repsMax).containsExactly(15, 8, 16);
+        List<Serie> curta = ((ReceitaSeries) ReceitasPadrao.exemplos().get(1).conteudo()).series();
+        assertThat(curta).extracting(Serie::tipo).containsExactly("FEEDER", "WORKING");
+        assertThat(curta.get(1)).isEqualTo(completa.get(2));
+
+        for (List<Serie> series : List.of(completa, curta)) {
+            Serie cluster = series.getLast();
+            assertThat(cluster.tecnica().tipo()).isEqualTo("CLUSTER");
+            assertThat(cluster.tecnica().blocos()).containsExactly(4, 4, 4, 4);
+            assertThat(cluster.tecnica().pausaSegundos()).isEqualTo(15);
+            assertThat(cluster.deTrabalho()).isTrue();
+            assertThat(series.getFirst().tecnica()).isNull();
+            assertThat(series).allSatisfy(s -> {
+                assertThat(s.esforco()).isNull();
+                assertThat(s.descansoSegundos()).isNull();
+            });
+        }
+    }
+
+    @Test
+    void descricoesDosExemplosSaoNeutras() {
+        for (ReceitasPadrao.Padrao p : ReceitasPadrao.exemplos()) {
+            for (String proibida : List.of("vídeo", "video", "reunião", "reuniao")) {
+                assertThat(p.descricao()).as(p.nome()).doesNotContainIgnoringCase(proibida);
+            }
+        }
+    }
+
+    @Test
     void metodologiaPadraoVemNaListaEPassaNaValidacaoDaReceita() {
         ReceitasPadrao.Padrao metodologia = ReceitasPadrao.todas().get(0);
         assertThat(metodologia.tipo()).isEqualTo(Receita.Tipo.METODOLOGIA);

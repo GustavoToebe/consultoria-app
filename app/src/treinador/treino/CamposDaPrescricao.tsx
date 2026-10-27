@@ -1,17 +1,21 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Plus } from 'lucide-react-native';
+import { Children, useState, type ReactNode } from 'react';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import type { Cardio, Carga, CargaDaEtapa, Configuracao, Esforco, ModoDeCarga, PapelDaSerie, RegiaoDasParciais, Retomada, Tecnica } from '../../api/tipos';
-import { blocosIguais, blocosSeValidos, blocosValidos, lerBlocos, listaDeBlocosIguaisSeValidos, rascunhoDoModoDiferente, resumoDosBlocos, textoDeBlocos } from '../../dominio/blocos';
+import { blocosIguais, blocosSeValidos, blocosValidos, lerBlocos, listaDeBlocosIguaisSeValidos, rascunhoDoModoDiferente, textoDeBlocos } from '../../dominio/blocos';
 import { modosDeCarga } from '../../dominio/editorTreino';
 import { REGIOES_DAS_PARCIAIS } from '../../dominio/metodologia';
+import { aoTrocarUnidade, outraUnidade, pausaEmDuasUnidades, unidadeVisivel, type UnidadeDaPausa } from '../../dominio/pausaDaTecnica';
 import { problemasDaTecnica, type Problemas } from '../../dominio/validacaoDeSerie';
+import { escalar } from '../../dominio/preferencias';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { CampoNumerico, Interruptor } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
 import { Texto } from '../../ui/Texto';
+import { BotaoDeAbrir, BotaoDeTexto } from './BotaoDeAbrir';
 import {
   ajudaDaCarga, ajustarCargasDosBlocos, ajustarRetomadas, CARGA_DA_SERIE, cargaDaEtapaNoModo, formaDoEsforco, FORMAS_DAS_REPETICOES, opcoesDaCargaDaEtapa, FORMAS_DE_ESFORCO, formaVisivel, OPCOES_DE_RIR, repeticoesNaForma, rotulosDaFaixa,
   type FormaDasRepeticoes, type FormaDeEsforco, type Repeticoes,
@@ -22,6 +26,25 @@ import {
  * cardio. Cada um recebe os problemas do próprio trecho (chaves relativas: `percentualMin`, `rir`, `blocos`...) e mostra o
  * erro no campo; quem decide o que bloqueia é a tela.
  */
+
+/** PC (a partir do menu lateral): campos curtos lado a lado. Celular: um embaixo do outro, na largura toda. */
+export function useCamposLadoALado(): boolean {
+  return useWindowDimensions().width >= LARGURA_MENU_LATERAL;
+}
+
+/** Campos curtos (números) numa linha que quebra no PC; empilhados no celular. Cada filho vira uma célula. */
+export function LinhaDeCampos({ children }: { children: ReactNode }) {
+  const largo = useCamposLadoALado();
+  return <View style={largo ? estilos.linha : estilos.bloco}>
+    {Children.toArray(children).map((filho, i) => <View key={i} style={largo ? estilos.campo : null}>{filho}</View>)}
+  </View>;
+}
+
+/** Um campo curto sozinho: no PC não estica além de uma célula; no celular, largura toda como os outros. */
+export function CampoSozinho({ children }: { children: ReactNode }) {
+  const largo = useCamposLadoALado();
+  return <View style={largo ? estilos.sozinho : null}>{children}</View>;
+}
 
 /** Erro de um campo que não é de digitar (escolha de chips). */
 export function ErroDoCampo({ mensagem }: { mensagem?: string | null }) {
@@ -38,14 +61,18 @@ export function AvisoDoCampo({ mensagem }: { mensagem?: string | null }) {
 // ---- Carga ----
 
 /** A forma de carga (carga de trabalho, % da WS, mesma carga, acima da anterior, abaixo da referência, sem carga). */
-export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo = 'Carga' }: {
+export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo = 'Carga', rotuloVisivel = true, ajuda: ajudaPropria }: {
   carga: Carga | null | undefined; config: Configuracao | null; papel?: PapelDaSerie | null;
   aoMudarModo: (modo: ModoDeCarga) => void; erro?: string | null; rotulo?: string;
+  /** Falso quando o título da seção já diz o mesmo: o rótulo fica só para o leitor de tela. */
+  rotuloVisivel?: boolean;
+  /** Ajuda no lugar da padrão da forma de carga (o Cluster junta a dele numa linha só). */
+  ajuda?: string;
 }) {
   const modo = carga?.modo ?? 'NENHUMA';
-  const ajuda = ajudaDaCarga(modo, config);
+  const ajuda = ajudaPropria ?? ajudaDaCarga(modo, config);
   return <View style={estilos.bloco}>
-    <Escolha rotulo={rotulo} opcoes={modosDeCarga(config, papel)} valor={modo} aoMudar={aoMudarModo} />
+    <Escolha rotulo={rotuloVisivel ? rotulo : undefined} descricao={rotulo} opcoes={modosDeCarga(config, papel)} valor={modo} aoMudar={aoMudarModo} />
     {ajuda ? <Texto variante="pequeno">{ajuda}</Texto> : null}
     <ErroDoCampo mensagem={erro} />
   </View>;
@@ -98,10 +125,10 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
   const proprio = rotulo !== 'Repetições';
   return <View style={estilos.bloco}>
     <Escolha rotulo={rotulo} opcoes={FORMAS_DAS_REPETICOES} valor={forma} aoMudar={mudarForma} />
-    {forma === 'EXATA' ? <View style={estilos.campo}>
+    {forma === 'EXATA' ? <CampoSozinho>
       <CampoNumerico rotulo="Repetições" rotuloAcessivel={proprio ? `${rotulo}: repetições` : undefined} inteiro valor={valor.repsMin ?? valor.repsMax ?? null}
         aoMudar={(n) => aoMudar({ repsMin: n, repsMax: n, amrap: false })} erro={erros.repsMin ?? erros.repsMax} />
-    </View> : null}
+    </CampoSozinho> : null}
     {forma === 'FAIXA' ? <View style={estilos.linha}>
       <View style={estilos.campo}><CampoNumerico rotulo="Reps mín." rotuloAcessivel={proprio ? `${rotulo}: reps mín.` : undefined} inteiro valor={valor.repsMin ?? null}
         aoMudar={(repsMin) => aoMudar({ repsMin, repsMax: valor.repsMax ?? null, amrap: false })} erro={erros.repsMin} /></View>
@@ -120,8 +147,10 @@ export function CamposDasRepeticoes({ valor, aoMudar, erros, rotulo = 'Repetiç�
  * Esforço percebido: RIR (0 a 5) ou RPE (1 a 10, de meio em meio), nunca os dois. A forma escolhida fica com a tela
  * enquanto o esforço ainda está vazio ("RIR" sem número não seria lembrado só pelo valor).
  */
-export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço' }: {
+export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço', rotuloVisivel = true }: {
   esforco: Esforco | null | undefined; aoMudar: (e: Esforco | null) => void; erros: Problemas; rotulo?: string;
+  /** Falso quando o título da seção já diz o mesmo: o rótulo fica só para o leitor de tela. */
+  rotuloVisivel?: boolean;
 }) {
   const [escolhida, setEscolhida] = useState<FormaDeEsforco>(formaDoEsforco(esforco));
   const doValor = formaDoEsforco(esforco);
@@ -131,24 +160,30 @@ export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço' }
     if (f !== forma || f === 'NENHUM') aoMudar(null);
   };
   return <View style={estilos.bloco}>
-    <Escolha rotulo={rotulo} opcoes={FORMAS_DE_ESFORCO} valor={forma} aoMudar={mudarForma} />
+    <Escolha rotulo={rotuloVisivel ? rotulo : undefined} descricao={rotulo} opcoes={FORMAS_DE_ESFORCO} valor={forma} aoMudar={mudarForma} />
     {forma === 'RIR' ? <>
       <Escolha rotulo="RIR (repetições na reserva)" opcoes={OPCOES_DE_RIR} valor={esforco?.rir ?? null} aoMudar={(rir) => aoMudar({ rir, rpe: null })} />
       {esforco?.rir === 0 ? <Texto variante="pequeno">RIR 0: o aluno vai até a falha.</Texto> : null}
       <ErroDoCampo mensagem={erros.rir} />
     </> : null}
-    {forma === 'RPE' ? <View style={estilos.campo}>
+    {forma === 'RPE' ? <CampoSozinho>
       <CampoNumerico rotulo="RPE (1 a 10, de meio em meio)" valor={esforco?.rpe ?? null} aoMudar={(rpe) => aoMudar({ rir: null, rpe })} erro={erros.rpe} ajuda="Ex.: 8 ou 8,5." />
-    </View> : null}
+    </CampoSozinho> : null}
   </View>;
 }
 
 // ---- Técnica ----
 
-function CampoBlocos({ valor, aoMudar, erro, completa }: {
-  valor: number[] | null | undefined; aoMudar: (v: number[] | null) => void; erro?: string | null; completa: boolean;
+/**
+ * Blocos do Cluster. "Blocos iguais" pede só os dois números; a notação compacta ("4+2", "4×4") fica em "Blocos
+ * diferentes", junto das células, ou atrás de "Digitar como 4+2". O campo da notação mora sempre no mesmo lugar da
+ * árvore: digitar troca o modo sem tirar o foco dele. O resumo vai para "Para o aluno", não aqui.
+ */
+function CampoBlocos({ valor, aoMudar, erro }: {
+  valor: number[] | null | undefined; aoMudar: (v: number[] | null) => void; erro?: string | null;
 }) {
   const [texto, setTexto] = useState(textoDeBlocos(valor ?? null));
+  const [notacao, setNotacao] = useState(false);
   const [modo, setModo] = useState<'iguais' | 'diferentes'>(blocosIguais(valor) || !valor?.length ? 'iguais' : 'diferentes');
   const [confirmar, setConfirmar] = useState(false);
   const [quantidade, setQuantidade] = useState<number | null>(blocosIguais(valor) ? valor!.length : null);
@@ -176,7 +211,6 @@ function CampoBlocos({ valor, aoMudar, erro, completa }: {
       if (JSON.stringify(lerBlocos(texto)) !== chave) setTexto(textoDeBlocos(valor));
     }
   }
-  const resumo = resumoDosBlocos(valor);
   const erroFaixa = quantidade != null && (quantidade < 2 || quantidade > 10) ? 'De 2 a 10 blocos.' : null;
   const erroReps = repsCada != null && (repsCada < 1 || repsCada > 50) ? 'De 1 a 50 repetições.' : null;
   const aplicarIguais = (q: number | null, reps: number | null, qInvalida: boolean, rInvalida: boolean) => {
@@ -230,7 +264,7 @@ function CampoBlocos({ valor, aoMudar, erro, completa }: {
   return <View style={estilos.bloco}>
     <Escolha rotulo="Distribuição dos blocos" opcoes={[{ valor: 'iguais', rotulo: 'Blocos iguais' }, { valor: 'diferentes', rotulo: 'Blocos diferentes' }]} valor={modo} aoMudar={escolher} />
     {confirmar ? <View style={estilos.bloco}>
-      <Texto variante="pequeno">Isso substitui os blocos diferentes por blocos iguais, usando as repetições do primeiro.</Texto>
+      <Texto variante="pequeno">Todos os blocos ficam com as repetições do primeiro.</Texto>
       <Botao tipo="secundario" rotulo="Converter para blocos iguais" aoTocar={() => {
         const primeiro = valor?.[0];
         if (valor && primeiro != null) {
@@ -247,27 +281,28 @@ function CampoBlocos({ valor, aoMudar, erro, completa }: {
         setConfirmar(false);
       }} />
     </View> : null}
-    {modo === 'iguais' && !confirmar ? <View style={estilos.linha}>
-      <View style={estilos.campo}><CampoNumerico rotulo="Quantos blocos" inteiro valor={quantidade} erro={erroFaixa}
-        aoMudar={(q) => { setQuantidade(q); setQuantidadeInvalida(false); aplicarIguais(q, repsCada, false, repsInvalidas); }} aoValidade={invalidarQuantidade} ajuda="De 2 a 10." /></View>
-      <View style={estilos.campo}><CampoNumerico rotulo="Repetições em cada bloco" inteiro valor={repsCada} erro={erroReps}
-        aoMudar={(reps) => { setRepsCada(reps); setRepsInvalidas(false); aplicarIguais(quantidade, reps, quantidadeInvalida, false); }} aoValidade={invalidarReps} ajuda="De 1 a 50." /></View>
-    </View> : null}
-    {modo === 'diferentes' && celulas.length < 2 ? <Texto variante="pequeno">Escreva a notação, como 4+2, para editar cada bloco.</Texto> : null}
+    {modo === 'iguais' && !confirmar ? <LinhaDeCampos>
+      <CampoNumerico rotulo="Quantos blocos" inteiro valor={quantidade} erro={erroFaixa}
+        aoMudar={(q) => { setQuantidade(q); setQuantidadeInvalida(false); aplicarIguais(q, repsCada, false, repsInvalidas); }} aoValidade={invalidarQuantidade} />
+      <CampoNumerico rotulo="Repetições em cada bloco" inteiro valor={repsCada} erro={erroReps}
+        aoMudar={(reps) => { setRepsCada(reps); setRepsInvalidas(false); aplicarIguais(quantidade, reps, quantidadeInvalida, false); }} aoValidade={invalidarReps} />
+    </LinhaDeCampos> : null}
     {modo === 'diferentes' && celulas.length >= 2 ? <View style={estilos.bloco}>
-      {celulas.map((reps, indice) => <View key={indice} style={estilos.campo}>
-        <CampoNumerico rotulo={`Bloco ${indice + 1}`} inteiro valor={reps} erro={reps != null && (reps < 1 || reps > 50) ? 'De 1 a 50 repetições.' : null}
-          aoMudar={(v) => alterarBloco(indice, v)} aoValidade={(ok) => invalidarBloco(indice, ok)} />
-      </View>)}
+      <LinhaDeCampos>
+        {celulas.map((reps, indice) => <CampoNumerico key={indice} rotulo={`Bloco ${indice + 1}`} inteiro valor={reps} erro={reps != null && (reps < 1 || reps > 50) ? 'De 1 a 50 repetições.' : null}
+          aoMudar={(v) => alterarBloco(indice, v)} aoValidade={(ok) => invalidarBloco(indice, ok)} />)}
+      </LinhaDeCampos>
       <View style={estilos.linha}>
-        <Botao tipo="secundario" rotulo="Mais um bloco" desabilitado={celulas.length >= 10 || invalidos.size > 0} motivo={invalidos.size > 0 ? 'Corrija o bloco com número inválido.' : undefined} aoTocar={() => publicarCelulas([...celulas, celulas[celulas.length - 1]], invalidos)} />
-        <Botao tipo="fantasma" rotulo="Menos um bloco" desabilitado={celulas.length <= 2 || invalidos.size > 0} motivo={invalidos.size > 0 ? 'Corrija o bloco com número inválido.' : undefined} aoTocar={() => publicarCelulas(celulas.slice(0, -1), invalidos)} />
+        <Botao tipo="secundario" rotulo="Mais um bloco" desabilitado={celulas.length >= 10 || invalidos.size > 0} motivo={invalidos.size > 0 ? 'Corrija o bloco com número inválido.' : celulas.length >= 10 ? 'Máximo de 10 blocos.' : undefined} aoTocar={() => publicarCelulas([...celulas, celulas[celulas.length - 1]], invalidos)} />
+        <Botao tipo="fantasma" rotulo="Menos um bloco" desabilitado={celulas.length <= 2 || invalidos.size > 0} motivo={invalidos.size > 0 ? 'Corrija o bloco com número inválido.' : celulas.length <= 2 ? 'Mínimo de 2 blocos.' : undefined} aoTocar={() => publicarCelulas(celulas.slice(0, -1), invalidos)} />
       </View>
     </View> : null}
-    <Campo rotulo="Blocos de repetições" valor={texto} maxLength={60} placeholder="4+2 ou 4×4"
-      ajuda="Notação compacta. Grava os mesmos blocos."
+    {modo === 'iguais' && !confirmar ? <BotaoDeAbrir texto="Digitar como 4+2" aberto={notacao} aoAlternar={() => setNotacao(!notacao)} /> : null}
+    {modo === 'diferentes' || notacao ? <Campo rotulo="Blocos de repetições" valor={texto} maxLength={60} placeholder="4+2 ou 4×4"
       erro={erro ?? (texto && !blocosValidos(lerBlocos(texto)) ? 'De 2 a 10 blocos, cada um com 1 a 50 repetições.' : null)}
       aoMudar={(t) => {
+        // Quem digitou aqui continua vendo o campo, mesmo que a notação faça o modo voltar para "Blocos iguais".
+        setNotacao(true);
         setTexto(t);
         const lidos = lerBlocos(t);
         const gravados = blocosSeValidos(lidos, false);
@@ -284,19 +319,70 @@ function CampoBlocos({ valor, aoMudar, erro, completa }: {
           setRepsCada(gravados[0]);
           setRascunho(gravados);
         }
-      }} />
-    {resumo ? <Texto variante="pequeno">{`${resumo.repeticoes} repetições por série · ${resumo.blocos} blocos · ${resumo.pausas} ${resumo.pausas === 1 ? 'pausa interna' : 'pausas internas'}`}</Texto> : null}
-    {completa && !resumo ? <Texto variante="pequeno">Complete os blocos para visualizar a prescrição.</Texto> : null}
+      }} /> : null}
+    {/* Sem o campo da notação na tela, o erro dos blocos (o da publicação) aparece aqui. */}
+    {modo === 'diferentes' || notacao ? null : <ErroDoCampo mensagem={erro} />}
   </View>;
 }
 
-function CamposDePausa({ t, mudar, e, rotulo = 'Pausa', ajuda }: {
-  t: Tecnica; mudar: (parte: Partial<Tecnica>) => void; e: Problemas; rotulo?: string; ajuda?: string;
+const UNIDADES_DA_PAUSA: { valor: UnidadeDaPausa; rotulo: string }[] = [{ valor: 'SEGUNDOS', rotulo: 'Segundos' }, { valor: 'RESPIRACOES', rotulo: 'Respirações' }];
+
+/**
+ * Pausa interna num controle só: o número e a unidade (segundos ou respirações). Trocar a unidade com um valor escrito
+ * limpa o valor (15 s não são 15 respirações). Com os dois valores gravados, ou depois de "Informar também em …", os
+ * dois campos. A falta de pausa chega em `pausaSegundos`: aparece no campo que estiver na tela. `antes` são os campos
+ * curtos da técnica que dividem a linha com a pausa no PC (no celular, empilhados acima dela).
+ */
+function CamposDePausa({ t, mudar, e, rotulo = 'Pausa', antes = [] }: {
+  t: Tecnica; mudar: (parte: Partial<Tecnica>) => void; e: Problemas; rotulo?: string; antes?: ReactNode[];
 }) {
-  return <View style={estilos.linha}>
-    <View style={estilos.campo}><CampoNumerico rotulo={rotulo} inteiro sufixo="s" valor={t.pausaSegundos ?? null} aoMudar={(pausaSegundos) => mudar({ pausaSegundos })} erro={e.pausaSegundos} ajuda={ajuda} /></View>
-    <View style={estilos.campo}><CampoNumerico rotulo="Pausa em respirações" inteiro valor={t.pausaRespiracoes ?? null} aoMudar={(pausaRespiracoes) => mudar({ pausaRespiracoes })}
-      erro={e.pausaRespiracoes} ajuda="Se preencher as duas, o aluno lê as duas." /></View>
+  const largo = useCamposLadoALado();
+  const [escolhida, setEscolhida] = useState<UnidadeDaPausa>(unidadeVisivel('SEGUNDOS', t));
+  const [pediuAsDuas, setPediuAsDuas] = useState(false);
+  // Depois de "Informar também em …", o campo novo recebe o foco (o botão some da tela).
+  const [focar, setFocar] = useState<UnidadeDaPausa | null>(null);
+  const unidade = unidadeVisivel(escolhida, t);
+  // O nome acessível sempre diz a unidade ("Pausa (s)", "Pausa em respirações"). O rótulo visível só a diz com os dois
+  // campos na tela; com um só, quem diz a unidade é a escolha Segundos | Respirações ao lado.
+  const segundos = (erro: string | null | undefined, aoMudar: (parte: Partial<Tecnica>) => void, comUnidade: boolean) => <CampoNumerico
+    rotulo={comUnidade ? `${rotulo} (s)` : rotulo} rotuloAcessivel={`${rotulo} (s)`} inteiro valor={t.pausaSegundos ?? null}
+    aoMudar={(pausaSegundos) => aoMudar({ pausaSegundos })} erro={erro} autoFocus={focar === 'SEGUNDOS'} />;
+  const respiracoes = (erro: string | null | undefined, aoMudar: (parte: Partial<Tecnica>) => void, comUnidade: boolean) => <CampoNumerico
+    rotulo={comUnidade ? `${rotulo} em respirações` : rotulo} rotuloAcessivel={`${rotulo} em respirações`} inteiro valor={t.pausaRespiracoes ?? null}
+    aoMudar={(pausaRespiracoes) => aoMudar({ pausaRespiracoes })} erro={erro} autoFocus={focar === 'RESPIRACOES'} />;
+  if (pausaEmDuasUnidades(t, pediuAsDuas)) {
+    // Com os dois campos na tela, eles ficam: apagar um deles não pode desmontar o campo em que a pessoa está digitando.
+    const nasDuas = (parte: Partial<Tecnica>) => { setPediuAsDuas(true); mudar(parte); };
+    return <LinhaDeCampos>
+      {antes}
+      {segundos(e.pausaSegundos, nasDuas, true)}
+      {respiracoes(e.pausaRespiracoes, nasDuas, true)}
+    </LinhaDeCampos>;
+  }
+  const trocar = (nova: UnidadeDaPausa) => {
+    const limpar = aoTrocarUnidade(t, unidade, nova);
+    setEscolhida(nova);
+    if (limpar) mudar(limpar);
+  };
+  const outra = outraUnidade(unidade) === 'SEGUNDOS' ? 'segundos' : 'respirações';
+  return <View style={estilos.bloco}>
+    <View style={largo ? estilos.linha : estilos.bloco}>
+      {Children.toArray(antes).map((filho, i) => <View key={i} style={largo ? estilos.campo : null}>{filho}</View>)}
+      {/* O número e a unidade andam juntos: se a linha quebrar no PC, os dois descem juntos. */}
+      <View style={largo ? estilos.pausaComUnidade : estilos.bloco}>
+        {/* A chave troca com a unidade: o texto digitado numa não passa para a outra. */}
+        <View key={unidade} style={largo ? estilos.campo : null}>
+          {unidade === 'SEGUNDOS' ? segundos(e.pausaSegundos, mudar, false) : respiracoes(e.pausaRespiracoes ?? e.pausaSegundos, mudar, false)}
+        </View>
+        {/* No PC a escolha fica à direita, na altura da caixa (descontado o rótulo do campo). */}
+        <View style={largo ? estilos.unidadeAoLado : null}>
+          <Escolha descricao={`Unidade da ${rotulo.toLowerCase()}`} compacta opcoes={UNIDADES_DA_PAUSA} valor={unidade} aoMudar={trocar} />
+        </View>
+      </View>
+    </View>
+    {/* O nome acessível começa pelo texto visível e diz de qual pausa é (a metodologia tem várias na mesma tela). */}
+    <BotaoDeTexto Icone={Plus} texto={`Informar também em ${outra}`} rotuloAcessivel={`Informar também em ${outra} (${rotulo.toLowerCase()})`}
+      aoTocar={() => { setFocar(outraUnidade(unidade)); setPediuAsDuas(true); }} />
   </View>;
 }
 
@@ -316,48 +402,48 @@ export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros, s
 }) {
   const e = erros ?? problemasDaTecnica(t, completa);
   const mudar = (parte: Partial<Tecnica>) => aoMudar({ ...t, ...parte });
-  const pausa = <CamposDePausa t={t} mudar={mudar} e={e} />;
   switch (t.tipo) {
     case 'REST_PAUSE':
       return <View style={estilos.bloco}>
-        {pausa}
-        <View style={estilos.campo}><CampoNumerico rotulo="Quantas pausas" inteiro valor={t.pausas ?? null}
-          aoMudar={(pausas) => mudar({ pausas, retomadas: ajustarRetomadas(t.retomadas, pausas) })} erro={e.pausas} ajuda="3 micro-séries = 2 pausas. Vazio = 1." /></View>
+        <CamposDePausa t={t} mudar={mudar} e={e} antes={[
+          <CampoNumerico key="pausas" rotulo="Quantas pausas" inteiro valor={t.pausas ?? null}
+            aoMudar={(pausas) => mudar({ pausas, retomadas: ajustarRetomadas(t.retomadas, pausas) })} erro={e.pausas} />,
+        ]} />
         {completa ? <CamposDasRetomadas t={t} mudar={mudar} e={e} semCarga={semCarga} ws={ws} /> : null}
       </View>;
     case 'CLUSTER':
       return <View style={estilos.bloco}>
-        <CampoBlocos valor={t.blocos} completa={completa} aoMudar={(blocos) => mudar({ blocos, cargasDosBlocos: ajustarCargasDosBlocos(t.cargasDosBlocos, blocos) })} erro={e.blocos} />
-        <CamposDePausa t={t} mudar={mudar} e={e} rotulo="Pausa entre blocos" ajuda="Não entra depois do último bloco. O descanso da série fica no outro campo." />
+        <CampoBlocos valor={t.blocos} aoMudar={(blocos) => mudar({ blocos, cargasDosBlocos: ajustarCargasDosBlocos(t.cargasDosBlocos, blocos) })} erro={e.blocos} />
+        <CamposDePausa t={t} mudar={mudar} e={e} rotulo="Pausa entre blocos" />
         {completa && !semCarga ? <CamposDasCargasDosBlocos t={t} mudar={mudar} e={e} ws={ws} /> : null}
       </View>;
     case 'DROP_SET':
-      return <View style={estilos.linha}>
-        <View style={estilos.campo}><CampoNumerico rotulo="Quedas" inteiro valor={t.quedas ?? null} aoMudar={(quedas) => mudar({ quedas })} erro={e.quedas} /></View>
-        <View style={estilos.campo}><CampoNumerico rotulo="Reduzir a carga" inteiro sufixo="%" valor={t.reducaoPercentual ?? null} aoMudar={(reducaoPercentual) => mudar({ reducaoPercentual })}
-          erro={e.reducaoPercentual} ajuda="Vazio = sem fixar." /></View>
-        <View style={estilos.campo}><CampoNumerico rotulo="Reps por queda" inteiro valor={t.repsPorQueda ?? null} aoMudar={(repsPorQueda) => mudar({ repsPorQueda })}
-          erro={e.repsPorQueda} ajuda="Vazio = até a falha." /></View>
-        <View style={estilos.campo}><CampoNumerico rotulo="Descanso entre quedas" inteiro sufixo="s" valor={t.pausaSegundos ?? null} aoMudar={(pausaSegundos) => mudar({ pausaSegundos })}
-          erro={e.pausaSegundos} ajuda="0 ou vazio = sem descanso." /></View>
-      </View>;
+      // O descanso entre quedas é o mesmo `pausaSegundos`, mas só em segundos e de 0 a 600: fica fora do controle da pausa.
+      return <LinhaDeCampos>
+        <CampoNumerico rotulo="Quedas" inteiro valor={t.quedas ?? null} aoMudar={(quedas) => mudar({ quedas })} erro={e.quedas} />
+        <CampoNumerico rotulo="Reduzir a carga" inteiro sufixo="%" valor={t.reducaoPercentual ?? null} aoMudar={(reducaoPercentual) => mudar({ reducaoPercentual })}
+          erro={e.reducaoPercentual} ajuda="Vazio = sem fixar." />
+        <CampoNumerico rotulo="Reps por queda" inteiro valor={t.repsPorQueda ?? null} aoMudar={(repsPorQueda) => mudar({ repsPorQueda })}
+          erro={e.repsPorQueda} ajuda="Vazio = até a falha." />
+        <CampoNumerico rotulo="Descanso entre quedas" inteiro sufixo="s" valor={t.pausaSegundos ?? null} aoMudar={(pausaSegundos) => mudar({ pausaSegundos })}
+          erro={e.pausaSegundos} ajuda="0 ou vazio = sem descanso." />
+      </LinhaDeCampos>;
     case 'MYO_REPS':
       return <View style={estilos.bloco}>
-        <View style={estilos.linha}>
-          <View style={estilos.campo}><CampoNumerico rotulo="Mini-séries" inteiro valor={t.miniSeries ?? null} aoMudar={(miniSeries) => mudar({ miniSeries })} erro={e.miniSeries} ajuda="De 2 a 10." /></View>
-          <View style={estilos.campo}><CampoNumerico rotulo="Reps por mini-série" inteiro valor={t.repsPorMiniSerie ?? null} aoMudar={(repsPorMiniSerie) => mudar({ repsPorMiniSerie })} erro={e.repsPorMiniSerie} /></View>
-        </View>
-        {pausa}
+        <CamposDePausa t={t} mudar={mudar} e={e} antes={[
+          <CampoNumerico key="mini" rotulo="Mini-séries" inteiro valor={t.miniSeries ?? null} aoMudar={(miniSeries) => mudar({ miniSeries })} erro={e.miniSeries} />,
+          <CampoNumerico key="reps" rotulo="Reps por mini-série" inteiro valor={t.repsPorMiniSerie ?? null} aoMudar={(repsPorMiniSerie) => mudar({ repsPorMiniSerie })} erro={e.repsPorMiniSerie} />,
+        ]} />
       </View>;
     case 'PARTIAL_REPS':
       return <View style={estilos.bloco}>
-        <View style={estilos.campo}><CampoNumerico rotulo="Repetições parciais" inteiro valor={t.repsParciais ?? null} aoMudar={(repsParciais) => mudar({ repsParciais })} erro={e.repsParciais} /></View>
+        <CampoSozinho><CampoNumerico rotulo="Repetições parciais" inteiro valor={t.repsParciais ?? null} aoMudar={(repsParciais) => mudar({ repsParciais })} erro={e.repsParciais} /></CampoSozinho>
         <Escolha rotulo="Região das parciais" opcoes={OPCOES_DE_REGIAO} valor={t.regiao ?? null} aoMudar={(regiao) => mudar({ regiao })} />
         <ErroDoCampo mensagem={e.regiao} />
       </View>;
     case 'FORCED_REPS':
       return <View style={estilos.bloco}>
-        <View style={estilos.campo}><CampoNumerico rotulo="Repetições assistidas" inteiro valor={t.repsAssistidas ?? null} aoMudar={(repsAssistidas) => mudar({ repsAssistidas })} erro={e.repsAssistidas} ajuda="De 1 a 5." /></View>
+        <CampoSozinho><CampoNumerico rotulo="Repetições assistidas" inteiro valor={t.repsAssistidas ?? null} aoMudar={(repsAssistidas) => mudar({ repsAssistidas })} erro={e.repsAssistidas} /></CampoSozinho>
         <AvisoDoCampo mensagem="Forced reps precisa de um parceiro para ajudar nas repetições." />
       </View>;
     default:
@@ -368,24 +454,32 @@ export function CamposDaTecnica({ tecnica: t, aoMudar, completa = true, erros, s
 // ---- Etapas: carga por bloco e retomadas ----
 
 /**
- * A carga de uma etapa numa linha só: o nome da etapa, "Carga da série" ou "% da WS" e, no %, o número. A lista de blocos
- * fica curta mesmo com dez blocos no celular.
+ * A carga de uma etapa numa linha só: o nome da etapa e, abaixo, "Carga da série" ou "% da WS" com o número logo ao lado
+ * (o "%" vem dentro da caixa, depois do número). A lista de blocos fica curta mesmo com dez blocos no celular. O erro
+ * fica embaixo da linha inteira: na caixa estreita a frase quebraria em várias linhas.
  */
-function CampoDaCargaDaEtapa({ rotulo, carga, aoMudar, e, prefixo, ws }: {
-  rotulo: string; carga: CargaDaEtapa | null | undefined; aoMudar: (c: CargaDaEtapa) => void; e: Problemas; prefixo: string; ws: string;
+/** Cabe "200" e o "%"; estreito o bastante para ficar ao lado dos dois chips no celular (390 px). */
+const LARGURA_DO_PERCENTUAL = 80;
+
+function CampoDaCargaDaEtapa({ rotulo, nomeDoPercentual, carga, aoMudar, e, prefixo, ws }: {
+  rotulo: string; nomeDoPercentual: string; carga: CargaDaEtapa | null | undefined; aoMudar: (c: CargaDaEtapa) => void; e: Problemas; prefixo: string; ws: string;
 }) {
+  const { fatorTexto } = useTema();
+  const [numeroValido, setNumeroValido] = useState(true);
   const modo = carga?.modo ?? 'DA_SERIE';
   const erro = e[`${prefixo}.percentual`] ?? e[`${prefixo}.modo`] ?? e[prefixo];
+  const percentual = modo === 'PERCENTUAL_WS';
   return <View style={estilos.etapa}>
     <Texto variante="rotulo">{rotulo}</Texto>
     <View style={estilos.linhaDaEtapa}>
-      <Escolha descricao={rotulo} compacta opcoes={opcoesDaCargaDaEtapa(ws)} valor={modo} aoMudar={(m) => aoMudar(cargaDaEtapaNoModo(m, carga))} />
-      {modo === 'PERCENTUAL_WS' ? <View style={estilos.percentual}>
-        <CampoNumerico rotulo="%" rotuloAcessivel={`${rotulo}: % da ${ws}`} inteiro valor={carga?.percentual ?? null}
-          aoMudar={(percentual) => aoMudar({ modo: 'PERCENTUAL_WS', percentual })} erro={erro} />
+      <Escolha descricao={rotulo} compacta opcoes={opcoesDaCargaDaEtapa(ws)} valor={modo} aoMudar={(m) => { setNumeroValido(true); aoMudar(cargaDaEtapaNoModo(m, carga)); }} />
+      {/* A largura acompanha o tamanho do texto da pessoa (o "%" dentro da caixa também cresce). */}
+      {percentual ? <View style={{ width: escalar(LARGURA_DO_PERCENTUAL, fatorTexto) }}>
+        <CampoNumerico rotulo={nomeDoPercentual} rotuloOculto sufixo="%" sufixoNaCaixa erroSemTexto inteiro valor={carga?.percentual ?? null}
+          aoMudar={(p) => aoMudar({ modo: 'PERCENTUAL_WS', percentual: p })} erro={erro} aoValidade={setNumeroValido} />
       </View> : null}
     </View>
-    {modo !== 'PERCENTUAL_WS' ? <ErroDoCampo mensagem={erro} /> : null}
+    <ErroDoCampo mensagem={erro ?? (percentual && !numeroValido ? 'Use só números inteiros.' : null)} />
   </View>;
 }
 
@@ -396,11 +490,11 @@ function CamposDasCargasDosBlocos({ t, mudar, e, ws }: { t: Tecnica; mudar: (p: 
   if (!blocos && !cargas) return null;
   return <View style={estilos.bloco}>
     <Interruptor rotulo="Personalizar carga por bloco" valor={!!cargas}
-      ajuda={cargas ? 'Os percentuais são da mesma referência da série, fixada quando o aluno registra o primeiro bloco.' : 'Desligado, todos os blocos usam a carga da série.'}
+      ajuda={cargas ? undefined : 'Desligado, todos usam a carga da série.'}
       aoMudar={(ligado) => mudar({ cargasDosBlocos: ligado ? (blocos ?? []).map(() => CARGA_DA_SERIE) : null })} />
     {cargas && !blocos ? <Texto variante="pequeno">Complete os blocos para escolher a carga de cada um.</Texto> : null}
     {cargas && blocos ? blocos.map((reps, i) => (
-      <CampoDaCargaDaEtapa key={i} rotulo={`Bloco ${i + 1} (${reps} ${reps === 1 ? 'rep' : 'reps'})`} carga={cargas[i]} e={e} prefixo={`cargasDosBlocos[${i}]`} ws={ws}
+      <CampoDaCargaDaEtapa key={i} rotulo={`Bloco ${i + 1} (${reps} ${reps === 1 ? 'rep' : 'reps'})`} nomeDoPercentual={`Percentual da ${ws}, bloco ${i + 1}`} carga={cargas[i]} e={e} prefixo={`cargasDosBlocos[${i}]`} ws={ws}
         aoMudar={(c) => mudar({ cargasDosBlocos: cargas.map((x, j) => (j === i ? c : x)) })} />
     )) : null}
     <ErroDoCampo mensagem={e.cargasDosBlocos} />
@@ -415,14 +509,14 @@ function CamposDasRetomadas({ t, mudar, e, semCarga, ws }: { t: Tecnica; mudar: 
   const mudarRetomada = (i: number, parte: Partial<Retomada>) => mudar({ retomadas: (retomadas ?? []).map((r, j) => (j === i ? { ...r, ...parte } : r)) });
   return <View style={estilos.bloco}>
     <Interruptor rotulo="Definir a meta das retomadas" valor={!!retomadas}
-      ajuda={retomadas ? 'A etapa inicial é a própria série. Cada retomada tem a sua meta.' : 'Desligado, o aluno continua com a mesma carga até a falha, sem meta fixa.'}
+      ajuda={retomadas ? 'A primeira etapa é a própria série.' : 'Desligado, mesma carga até a falha.'}
       aoMudar={(ligado) => mudar({ retomadas: ligado ? ajustarRetomadas([], quantas) : null })} />
     {retomadas ? retomadas.map((r, i) => {
       const nome = retomadas.length === 1 ? 'Retomada' : `Retomada ${i + 1}`;
       const prefixo = `retomadas[${i}]`;
       return <View key={i} style={[estilos.retomada, { borderColor: cores.borda }]}>
         <CamposDasRepeticoes rotulo={nome} valor={r} erros={subProblemas(e, prefixo)} aoMudar={(reps) => mudarRetomada(i, reps)} />
-        {semCarga ? null : <CampoDaCargaDaEtapa rotulo={`Carga da ${nome.toLowerCase()}`} carga={r.carga} e={e} prefixo={`${prefixo}.carga`} ws={ws}
+        {semCarga ? null : <CampoDaCargaDaEtapa rotulo={`Carga da ${nome.toLowerCase()}`} nomeDoPercentual={`Percentual da ${ws}, ${nome.toLowerCase()}`} carga={r.carga} e={e} prefixo={`${prefixo}.carga`} ws={ws}
           aoMudar={(carga) => mudarRetomada(i, { carga })} />}
       </View>;
     }) : null}
@@ -469,9 +563,12 @@ export function CamposDoCardio({ cardio, aoMudar, erros }: { cardio: Cardio | nu
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
-  campo: { minWidth: 140, flexGrow: 1, flexBasis: 140, maxWidth: 260 },
+  campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
+  sozinho: { width: '100%', maxWidth: 220 },
+  // Altura do rótulo do campo (13/18) mais o vão até a caixa: a escolha da unidade fica na linha da caixa.
+  unidadeAoLado: { paddingTop: 18 + espaco(0.5) },
+  pausaComUnidade: { flexDirection: 'row', gap: espaco(1.5), alignItems: 'flex-start', flexGrow: 1, flexBasis: 300, maxWidth: 440 },
   etapa: { gap: espaco(0.5) },
-  linhaDaEtapa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end', gap: espaco(1.5) },
-  percentual: { width: 104 },
+  linhaDaEtapa: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(0.75) },
   retomada: { gap: espaco(1), borderLeftWidth: 2, paddingLeft: espaco(1.5) },
 });

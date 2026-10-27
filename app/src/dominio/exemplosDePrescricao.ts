@@ -1,16 +1,7 @@
 import type { Configuracao, Esforco, Serie } from '../api/tipos';
-import { agrupar, type GrupoDeSeries } from './agrupamento';
-import { adicionarSerie, alterarGrupo, LIMITE_SERIES, novaSerie, tecnicaVazia } from './editorTreino';
-import { codigoTrabalho, padraoDaTecnica, papelDe, tecnicaNaMetodologia } from './metodologia';
-
-/** Quantidades do exemplo, só para mostrar a montagem. Não entram no padrão da metodologia. */
-export const REPS_FS_DO_EXEMPLO = { min: 10, max: 15 } as const;
-export const REPS_WS_DO_EXEMPLO = { min: 6, max: 8 } as const;
-export const BLOCOS_DO_EXEMPLO_CLUSTER = [4, 4, 4, 4] as const;
-export const PAUSA_DO_EXEMPLO_CLUSTER = 15;
-
-export const TEXTO_DO_EXEMPLO =
-  'Exemplo para ver a montagem. A pausa de 15 s é a do vídeo e continua editável. As quantidades não viram padrão dos alunos.';
+import type { GrupoDeSeries } from './agrupamento';
+import { tecnicaVazia } from './editorTreino';
+import { padraoDaTecnica, papelDe, tecnicaNaMetodologia } from './metodologia';
 
 export const TEXTO_SEQUENCIA_CLUSTER =
   'Exemplo editável: 1 série, 4 repetições, pausa, 4, pausa, 4, pausa, 4, fim.';
@@ -93,74 +84,18 @@ export function textoDaContagemDeSeries(quantidade: number): string {
   return `Este exercício fica com ${quantidade} séries.`;
 }
 
-/** Primeiro tipo de preparação (a FS da metodologia padrão). */
-export function codigoPreparacao(config: Configuracao | null | undefined): string | null {
-  const tipo = config?.tipos?.find((t) => t.papel === 'PREPARACAO' && t.codigo?.trim());
-  return tipo?.codigo.trim() || null;
-}
-
-export function quantidadeDoExemplo(exemplo: 'fs-ws-cluster' | 'fs-cluster'): number {
-  return exemplo === 'fs-ws-cluster' ? 3 : 2;
-}
-
-/** Por que o botão do exemplo fica desligado; `undefined` quando pode aplicar. */
-export function motivoDoExemploCluster(opcoes: {
-  config: Configuracao | null | undefined;
-  series: number;
-  exemplo: 'fs-ws-cluster' | 'fs-cluster';
-}): string | undefined {
-  if (!codigoPreparacao(opcoes.config) || !codigoTrabalho(opcoes.config)) return 'A metodologia precisa de um tipo de preparação e de um tipo de trabalho.';
-  if (!tecnicaNaMetodologia(opcoes.config, 'CLUSTER')) return 'Cluster não está na metodologia.';
-  const quantidade = quantidadeDoExemplo(opcoes.exemplo);
-  if (opcoes.series + quantidade > LIMITE_SERIES) return `O exemplo usa ${quantidade} séries e o exercício já tem ${opcoes.series}.`;
-  return undefined;
-}
-
 /**
- * Por que "Rest-pause na última série" fica desligado. Dois cartões de trabalho abertos não escolhem um alvo.
- * Técnica ausente da metodologia também não.
+ * O botão "Aplicar Rest-pause só na última série" do cartão do grupo. Só aparece em grupo de trabalho com 2 ou mais
+ * séries iguais e SEM técnica (com 1 só, o grupo já é a última; com Cluster, Drop-set ou outra técnica o botão não
+ * aparece), e com Rest-pause na metodologia.
  */
-export function motivoDoRestPause(opcoes: {
-  config: Configuracao | null | undefined;
-  cartoesDeTrabalhoAbertos: number;
-}): string | undefined {
-  if (!tecnicaNaMetodologia(opcoes.config, 'REST_PAUSE')) return 'Rest-pause não está na metodologia.';
-  if (opcoes.cartoesDeTrabalhoAbertos === 0) return 'Abra a série de trabalho.';
-  if (opcoes.cartoesDeTrabalhoAbertos > 1) return 'Feche os outros cartões de série de trabalho. O atalho vale para a última série de um cartão só.';
-  return undefined;
-}
-
-function serieAjustada(config: Configuracao | null | undefined, tipo: string, tecnica: 'CLUSTER' | null, reps: { min: number; max: number } | null, modalidade: string | null): Serie {
-  const criada = novaSerie(config, tipo, modalidade, tecnica);
-  const grupo = agrupar([criada])[0];
-  if (tecnica === 'CLUSTER') {
-    const padrao = padraoDaTecnica(config, 'CLUSTER');
-    return alterarGrupo([criada], grupo, {
-      tecnica: { ...tecnicaVazia('CLUSTER', padrao), blocos: [...BLOCOS_DO_EXEMPLO_CLUSTER], pausaSegundos: PAUSA_DO_EXEMPLO_CLUSTER },
-    }, config, modalidade)[0];
-  }
-  return alterarGrupo([criada], grupo, { repsMin: reps!.min, repsMax: reps!.max }, config, modalidade)[0];
-}
-
-/**
- * Soma o exemplo ao exercício, cada série num grupo próprio. Sem tipo de preparação ou de trabalho, ou sem vaga para
- * o exemplo inteiro, devolve a mesma lista.
- */
-export function acrescentarExemplo(
-  series: readonly Serie[],
-  config: Configuracao | null | undefined,
-  exemplo: 'fs-ws-cluster' | 'fs-cluster',
-  modalidade: string | null = null,
-): Serie[] {
-  const preparacao = codigoPreparacao(config);
-  const trabalho = codigoTrabalho(config);
-  if (!preparacao || !trabalho || !tecnicaNaMetodologia(config, 'CLUSTER') || series.length + quantidadeDoExemplo(exemplo) > LIMITE_SERIES) return [...series];
-  const fs = serieAjustada(config, preparacao, null, REPS_FS_DO_EXEMPLO, modalidade);
-  const cluster = serieAjustada(config, trabalho, 'CLUSTER', null, modalidade);
-  const novas = exemplo === 'fs-ws-cluster'
-    ? [fs, serieAjustada(config, trabalho, null, REPS_WS_DO_EXEMPLO, modalidade), cluster]
-    : [fs, cluster];
-  return [...series, ...novas];
+export function podeRestPauseNaUltima(grupo: GrupoDeSeries, config: Configuracao | null | undefined): boolean {
+  const primeira = grupo.series[0];
+  return !!primeira
+    && grupo.series.length >= 2
+    && papelDe(config, primeira.tipo) === 'TRABALHO'
+    && tecnicaNaMetodologia(config, 'REST_PAUSE')
+    && !primeira.tecnica;
 }
 
 /**
@@ -177,15 +112,4 @@ export function restPauseNestaSerie(
   if (!alvo || papelDe(config, alvo.tipo) !== 'TRABALHO') return [...series];
   const tecnica = tecnicaVazia('REST_PAUSE', padraoDaTecnica(config, 'REST_PAUSE'));
   return series.map((s) => (s.uid === alvo.uid ? { ...s, tecnica } : s));
-}
-
-/** Acrescenta uma WS nova com Rest-pause. A série anterior permanece como está. */
-export function novaWsComRestPause(
-  series: readonly Serie[],
-  config: Configuracao | null | undefined,
-  modalidade: string | null = null,
-): Serie[] {
-  const trabalho = codigoTrabalho(config);
-  if (!trabalho || !tecnicaNaMetodologia(config, 'REST_PAUSE')) return [...series];
-  return adicionarSerie([...series], config, trabalho, 'REST_PAUSE', modalidade);
 }

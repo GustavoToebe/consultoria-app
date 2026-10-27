@@ -80,7 +80,7 @@ for (const largura of [390, 1280]) {
     await page.getByRole('switch', { name: 'Personalizar carga por bloco' }).click();
     for (const bloco of [2, 3, 4]) {
       await page.getByRole('radiogroup', { name: `Bloco ${bloco} (4 reps)` }).getByRole('button', { name: '% da WS', exact: true }).click();
-      await campo(`Bloco ${bloco} (4 reps): % da WS`).fill('90');
+      await campo(`Percentual da WS, bloco ${bloco}`).fill('90');
     }
     await expect(page.getByText('Bloco 2: 90% da WS', { exact: true })).toBeVisible();
     await expect(page.getByText('Percentuais da carga de trabalho do dia, fixada ao registrar a primeira etapa.', { exact: true })).toBeVisible();
@@ -99,7 +99,7 @@ for (const largura of [390, 1280]) {
     await campo('Retomada 1: reps mín.').fill('2');
     await campo('Retomada 1: reps máx.').fill('3');
     await page.getByRole('radiogroup', { name: 'Carga da retomada 2' }).getByRole('button', { name: '% da WS', exact: true }).click();
-    await campo('Carga da retomada 2: % da WS').fill('85');
+    await campo('Percentual da WS, retomada 2').fill('85');
     await expect(page.getByText('Retomada 1: 2 a 3 reps, carga da série', { exact: true })).toBeVisible();
     await expect(page.getByText('Retomada 2: AMRAP, 85% da WS', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

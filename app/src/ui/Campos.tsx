@@ -81,6 +81,10 @@ export function CampoNumerico({
   mascara,
   aoValidade,
   rotuloAcessivel,
+  autoFocus,
+  rotuloOculto,
+  sufixoNaCaixa,
+  erroSemTexto,
 }: {
   rotulo: string;
   valor: number | null;
@@ -95,19 +99,31 @@ export function CampoNumerico({
   mascara?: (texto: string) => string;
   /** `false` quando o texto não é número (decimal num campo inteiro). Vazio conta como válido. */
   aoValidade?: (valido: boolean) => void;
+  /** Foco ao aparecer: para o campo que surge depois de um toque (o botão que o abriu some). */
+  autoFocus?: boolean;
+  /** Sem o rótulo em cima (o que o campo é já está ao lado dele): o nome vem de `rotuloAcessivel`. */
+  rotuloOculto?: boolean;
+  /** A unidade vai dentro da caixa, depois do número, em vez de entrar no rótulo ("Pausa (s)"). */
+  sufixoNaCaixa?: boolean;
+  /** O erro marca a caixa e vai ao leitor de tela; o texto fica com quem usa (campo estreito numa linha). */
+  erroSemTexto?: boolean;
 }) {
   const { texto, lido, mudar } = useNumeroDigitado(valor, aoMudar, inteiro, aoValidade, mascara);
   return (
     <Campo
       numerico
-      rotulo={sufixo ? `${rotulo} (${sufixo})` : rotulo}
+      rotulo={sufixo && !sufixoNaCaixa ? `${rotulo} (${sufixo})` : rotulo}
       rotuloAcessivel={rotuloAcessivel}
+      rotuloOculto={rotuloOculto}
+      sufixo={sufixoNaCaixa ? sufixo : undefined}
+      erroSemTexto={erroSemTexto}
       valor={texto}
       aoMudar={mudar}
       keyboardType={inteiro ? 'number-pad' : 'decimal-pad'}
       inputMode={inteiro ? 'numeric' : 'decimal'}
       ajuda={ajuda}
       erro={erro ?? (lido === undefined ? (inteiro ? 'Use só números inteiros.' : 'Número inválido.') : null)}
+      autoFocus={autoFocus}
     />
   );
 }
