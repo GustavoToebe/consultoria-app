@@ -18,7 +18,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Frente | Arquivo | Onde | Situação | Atualizado |
 | --- | --- | --- | --- | --- |
 | Teste com 5 alunos | [teste-5-alunos.md](teste-5-alunos.md) | produção | Preparando | 27/10/2026 |
-| Anamnese ao aceitar a inscrição | [anamnese-no-aceite.md](anamnese-no-aceite.md) | `main` | Em andamento | 27/10/2026 |
+| Anamnese ao aceitar a inscrição | [anamnese-no-aceite.md](anamnese-no-aceite.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
 | Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Aguardando a anterior | 27/10/2026 |
 | Engajamento (retorno, conquistas, mural) | [engajamento.md](engajamento.md) | branch `gamificacao` | Etapa 0 em andamento | 27/10/2026 |
 
@@ -40,6 +40,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Link de vídeo da técnica (Rest-pause, Cluster) quando houver vídeo aprovado do Saraiva | Gustavo | análise 2 (A8) |
 | `lock_timeout` no Flyway do módulo auth (exige mudar a biblioteca `plataforma`) | Claude | travas do banco |
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
+| `AnamneseService.atribuir`: conferir o nome da restrição antes de virar `ANAMNESE_PENDENTE` em `DataIntegrityViolationException` | Claude | anamnese no aceite (1f1aa20) |
+| Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
 
 ## Limitações aceitas (não são pendência)
 
