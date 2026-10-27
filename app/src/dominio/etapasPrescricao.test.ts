@@ -94,6 +94,14 @@ describe('sugestão por etapa: mesma referência para todas, nunca % sobre %', (
     expect(sugestaoDaEtapa(b2, null, null, 2.5)).toBeNull();
   });
 
+  it('T09: carga por bloco 100/80/80 sobre a referência 50, passo 0,5, dá 50/40/40', () => {
+    const cluster = serie('c', {
+      repsMin: 10, repsMax: 10, carga: carga('CARGA_TRABALHO'),
+      tecnica: tecnica('CLUSTER', { blocos: [4, 4, 2], pausaSegundos: 15, cargasDosBlocos: [pct(100), pct(80), pct(80)] }),
+    });
+    expect(etapasDaSerie(cluster)!.map((b) => sugestaoDaEtapa(b, 50, 50, 0.5))).toEqual([50, 40, 40]);
+  });
+
   it('série sem referência externa própria (acima da anterior) usa a referência da WS quando há etapa em %', () => {
     const ws = serie('ws', { carga: carga('CARGA_TRABALHO') });
     const top = serie('top', { repsMin: 2, repsMax: 2, carga: carga('ACIMA_DA_ANTERIOR', 5), tecnica: tecnica('REST_PAUSE', { pausaSegundos: 20, retomadas: [retomada({ amrap: true, carga: pct(90) })] }) });

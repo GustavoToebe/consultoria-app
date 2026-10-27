@@ -1,4 +1,5 @@
-import type { DiaDeTreino, SerieFeita, Sessao } from '../api/tipos';
+import type { DiaDeTreino, EtapaRegistrada, SerieFeita, Sessao } from '../api/tipos';
+import { textoCarga } from '../pdf/pdfCargas';
 import { dataCurta, diaDaSemanaIso } from './formatos';
 import { cargasPorDivisao, filtrarPorSessoes, intervaloDeRegistros, opcoesDeProgresso, partesDaDivisao, totalDeRegistros, ultimoRegistroDaDivisao } from './relatorio';
 import { marcasDoEixo } from './grafico';
@@ -111,6 +112,64 @@ describe('cargas por divisão', () => {
   });
 });
 
+describe('cargas por divisão com séries por etapa', () => {
+  const etapa = (posicao: number, repeticoes: number | null, carga: number | null): EtapaRegistrada => ({ posicao, repeticoes, carga, situacao: 'FEITA' });
+  const naoFeita = (posicao: number): EtapaRegistrada => ({ posicao, repeticoes: null, carga: null, situacao: 'NAO_REALIZADA' });
+  const linhaDe = (...series: SerieFeita[]) =>
+    cargasPorDivisao([dia('2026-10-07', 'Costas', 'c', [{ exercicioUid: 'e', exercicioId: 'remada', nome: 'Remada', series }])])[0].exercicios[0].linhas[0];
+
+  it('carga comum: a carga, os blocos com o total do servidor e o volume do histórico', () => {
+    const l = linhaDe(serie({ tipo: 'Cluster', carga: 40, repeticoes: 14, etapas: [etapa(1, 4, 40), etapa(2, 4, 40), etapa(3, 4, 40), etapa(4, 2, 40)] }));
+    expect(l).toMatchObject({ carga: 40, cargaVariavel: false, etapas: '4+4+4+2 = 14', repeticoes: 14, series: 1, volume: { valor: 560, completo: true } });
+  });
+
+  it('carga variável: sem carga única (nunca a maior nem a última) e com os blocos', () => {
+    const l = linhaDe(serie({ carga: null, repeticoes: 8, etapas: [etapa(1, 4, 40), etapa(2, 4, 42.5)] }));
+    expect(l).toMatchObject({ carga: null, cargaVariavel: true, etapas: '4+4 = 8', repeticoes: 8, volume: { valor: 330, completo: true } });
+  });
+
+  it('parcial: a execução incompleta entra, sem total e escrita como parcial', () => {
+    const l = linhaDe(serie({ carga: 40, repeticoes: null, concluida: false, etapas: [etapa(1, 4, 40), etapa(2, 4, 40)] }));
+    expect(l).toMatchObject({ carga: 40, cargaVariavel: false, etapas: '4+4 (parcial)', repeticoes: null, series: 1 });
+  });
+
+  it('etapa feita sem carga: a carga fica "—" (não é variável) e os blocos aparecem', () => {
+    const l = linhaDe(serie({ carga: null, repeticoes: 8, etapas: [etapa(1, 4, null), etapa(2, 4, null)] }));
+    expect(l).toMatchObject({ carga: null, cargaVariavel: false, etapas: '4+4 = 8', semCarga: false });
+  });
+
+  it('etapa não feita fica na nota e fora da soma', () => {
+    const l = linhaDe(serie({ carga: 40, repeticoes: 6, etapas: [etapa(1, 6, 40), naoFeita(2)] }));
+    expect(l).toMatchObject({ carga: 40, etapas: '6 (1 etapa não feita)' });
+  });
+
+  it('série com todas as etapas "não feita" não conta como registrada', () => {
+    const dias = [dia('2026-10-07', 'Costas', 'c', [{ exercicioUid: 'e', exercicioId: 'r', nome: 'Remada', series: [serie({ carga: null, repeticoes: null, concluida: true, etapas: [naoFeita(1), naoFeita(2)] })] }])];
+    expect(cargasPorDivisao(dias)).toEqual([]);
+  });
+
+  it('a série de carga única do dia vale mais que a variável', () => {
+    const l = linhaDe(serie({ carga: 75, repeticoes: 6 }), serie({ carga: null, repeticoes: 8, etapas: [etapa(1, 4, 40), etapa(2, 4, 42.5)] }));
+    expect(l).toMatchObject({ carga: 75, repeticoes: 6, etapas: null, cargaVariavel: false, series: 2 });
+  });
+
+  it('exercício sem carga (barra fixa) com Rest-pause: em carga de trabalho mostra os blocos; em outro modo, não', () => {
+    const rp = [etapa(1, 4, null), etapa(2, 4, null), etapa(3, 4, null), etapa(4, 2, null)];
+    const deTrabalho = linhaDe(serie({ tipo: 'Rest-pause', unidade: 'nenhuma', carga: null, repeticoes: 14, etapas: rp }));
+    expect(deTrabalho).toMatchObject({ carga: null, cargaVariavel: false, semCarga: true, etapas: '4+4+4+2 = 14', repeticoes: 14, volume: null });
+    expect(textoCarga(deTrabalho)).toBe('Sem carga');
+    const deOutroModo = linhaDe(serie({ trabalho: false, tipo: 'Rest-pause', unidade: 'nenhuma', carga: null, repeticoes: 14, etapas: rp }));
+    expect(deOutroModo).toMatchObject({ carga: null, cargaVariavel: false, semCarga: true, etapas: null, repeticoes: null, volume: null });
+    expect(textoCarga(deOutroModo)).toBe('Sem carga');
+  });
+
+  it('série sem etapas e registro antigo seguem como antes, com o volume do exercício', () => {
+    const l = linhaDe(serie({ carga: 75, repeticoes: 6 }));
+    expect(l).toMatchObject({ carga: 75, repeticoes: 6, etapas: null, cargaVariavel: false, volume: { valor: 450, completo: true } });
+    expect(linhaDe(serie({ trabalho: false, carga: null, unidade: 'nenhuma', repeticoes: null }))).toMatchObject({ etapas: null, volume: null, semCarga: true });
+  });
+});
+
 describe('nome com o dia', () => {
   it('não repete o dia quando o nome já começa com ele', () => {
     expect(nomeComDia(sessao('a', 'Quarta - Pernas', 3))).toBe('Quarta - Pernas');
@@ -175,7 +234,7 @@ describe('faixa da divisão', () => {
   });
 
   it('último registro é a data mais recente entre os exercícios', () => {
-    const linha = (data: string) => ({ data, carga: null, unidade: 'kg', repeticoes: null, series: 1, observacoes: [] });
+    const linha = (data: string) => ({ data, carga: null, repeticoes: null, etapas: null, cargaVariavel: false, volume: null, semCarga: false, series: 1, observacoes: [] });
     const d = { chave: 'a', nome: 'A', exercicios: [
       { chave: 'x', nome: 'X', linhas: [linha('2026-10-01'), linha('2026-10-07')] },
       { chave: 'y', nome: 'Y', linhas: [linha('2026-10-05')] },

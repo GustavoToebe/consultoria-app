@@ -87,7 +87,15 @@ O registro da série (`RegistroEnvio` / `ExecucaoDtos.RegistroExecucao`) ganha:
   trabalho). O progresso ("maior carga do dia") usa este campo. A **última carga** (base sugerida para o próximo treino)
   continua só com `serie_trabalho` (carga de trabalho): uma série em 80% não vira base.
 - Volume de carga registrado = soma de carga × repetições de cada etapa (ou da série sem etapas). Faltou carga em alguma
-  parte: o volume completo fica indisponível. Exercício sem carga não tem volume. Só no histórico, sem gamificação.
+  parte: o volume completo fica indisponível. Exercício sem carga não tem volume. Aparece no histórico e no relatório de cargas (tela e PDF), sem gamificação.
+- Cargas por divisão (tela e PDF de cargas): a linha do dia continua sendo a série de trabalho de maior carga única. A série
+  registrada por etapa mostra os blocos com o total do servidor ("4+4+4+2 = 14"), "parcial" quando faltou etapa e, com
+  cargas diferentes, "Carga variável" no lugar do "—" (nunca a maior nem a última). Etapa feita sem carga fica "—", com os
+  blocos. Toda linha traz o volume de carga do exercício no dia, o mesmo `volumeDoExercicio` do histórico. Série sem etapas
+  e registro antigo seguem como antes. "Séries" conta a série com ao menos uma etapa feita (a parcial entra).
+- Limitação conhecida, mantida de propósito: a coluna de carga das "Cargas por divisão" conta só a série de carga de
+  trabalho (`serie_trabalho`). A WS com técnica em "% da WS" entra no progresso (`conta_no_progresso`), mas não nessa
+  coluna.
 
 ## Mapa de impacto
 

@@ -100,6 +100,15 @@ describe('Top set + 2 back off (abaixo da referência)', () => {
   });
 });
 
+describe('números da análise de 26/10 (T07)', () => {
+  it('base do dia 40 e WS anterior 42, passo 0,5: a WS fica em 40, 100% da WS dá 42 e 80% dá 33,5', () => {
+    const e = exercicio([ws('w1'), fs('a', 100), fs('b', 80)]);
+    const r = calcularCargasDoExercicio(e, 40, { w1: 42 }, CONFIG);
+    expect(r.map((x) => x.sugestao)).toEqual([40, 42, 33.5]);
+    expect(r.map((x) => x.referencia?.origem)).toEqual(['BASE_DO_DIA', 'WS_ANTERIOR', 'WS_ANTERIOR']);
+  });
+});
+
 describe('cardio', () => {
   it('não sugere carga e a meta é a prescrição de cardio', () => {
     const c = serie('c', null, { repsMin: null, repsMax: null, cardio: { duracaoMin: 20, zona: 2 } });

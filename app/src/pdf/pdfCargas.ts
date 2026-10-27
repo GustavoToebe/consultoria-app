@@ -1,6 +1,6 @@
 import type { Marca } from '../api/tipos';
 import { dataHoraParaTela, dataParaTela, numeroParaTela } from '../dominio/formatos';
-import { totalDeRegistros, type DivisaoRelatorio, type LinhaCarga } from '../dominio/relatorio';
+import { textoDoVolume, totalDeRegistros, type DivisaoRelatorio, type LinhaCarga } from '../dominio/relatorio';
 import { corDaMarca, cssBase, esc, topo, type Documento } from './html';
 
 export interface DadosPdfCargas {
@@ -14,10 +14,30 @@ export interface DadosPdfCargas {
   emitidoEm: Date;
 }
 
-/** Carga da linha: "75 kg", "Sem carga" (peso corporal) ou "—" (sem série de trabalho registrada). */
+/**
+ * Carga da linha: "75 kg", "Sem carga" (peso corporal), "Carga variável" (etapas com cargas diferentes; nunca a maior nem a
+ * última) ou "—" (sem série de trabalho registrada).
+ */
 export function textoCarga(l: LinhaCarga): string {
   if (l.carga !== null) return `${numeroParaTela(l.carga)} kg`;
+  if (l.cargaVariavel) return 'Carga variável';
   return l.semCarga ? 'Sem carga' : '—';
+}
+
+/** Repetições da linha: os blocos da série por etapa ("4+4+4+2 = 14"), "6 reps" ou "—". */
+export function textoReps(l: LinhaCarga): string {
+  if (l.etapas !== null) return l.etapas;
+  return l.repeticoes === null ? '—' : `${l.repeticoes} reps`;
+}
+
+/** Última coluna: o volume do exercício no dia e, embaixo, as observações do aluno; "—" sem nenhum dos dois. */
+function celulaDeDetalhe(l: LinhaCarga): string {
+  const volume = textoDoVolume(l.volume);
+  const partes = [
+    volume ? `<span class="suave">${esc(volume)}</span>` : '',
+    l.observacoes.length ? `<span class="obs">${l.observacoes.map(esc).join(' · ')}</span>` : '',
+  ].filter(Boolean);
+  return partes.length ? partes.join('<br>') : '—';
 }
 
 /**
@@ -34,12 +54,12 @@ export function documentoCargas(d: DadosPdfCargas): Documento {
           const linhas = e.linhas
             .map(
               (l) => `<tr><td><strong>${esc(dataParaTela(l.data))}</strong></td><td class="carga">${esc(textoCarga(l))}</td>` +
-                `<td>${l.repeticoes === null ? '—' : `${esc(l.repeticoes)} reps`}</td><td>${esc(l.series)}</td>` +
-                `<td>${l.observacoes.length ? `<span class="obs">${l.observacoes.map(esc).join(' · ')}</span>` : '—'}</td></tr>`,
+                `<td>${esc(textoReps(l))}</td><td>${esc(l.series)}</td>` +
+                `<td>${celulaDeDetalhe(l)}</td></tr>`,
             )
             .join('');
           return `<div class="exercicio bloco"><div class="cab"><strong>${esc(e.nome)}</strong><span class="pequeno">${e.linhas.length} ${e.linhas.length === 1 ? 'sessão' : 'sessões'}</span></div>` +
-            `<table><thead><tr><th style="width:16%">Data</th><th style="width:20%">Carga de trabalho</th><th style="width:13%">Reps</th><th style="width:11%">Séries</th><th>Observação</th></tr></thead><tbody>${linhas}</tbody></table></div>`;
+            `<table><thead><tr><th style="width:14%">Data</th><th style="width:18%">Carga de trabalho</th><th style="width:22%">Reps</th><th style="width:9%">Séries</th><th>Volume e observação</th></tr></thead><tbody>${linhas}</tbody></table></div>`;
         })
         .join('');
       return `<div class="divisao"><div class="titulo-divisao"><span>${esc(div.nome)}</span><span class="pequeno">${div.exercicios.length} ${div.exercicios.length === 1 ? 'exercício' : 'exercícios'}</span></div>${exercicios}</div>`;

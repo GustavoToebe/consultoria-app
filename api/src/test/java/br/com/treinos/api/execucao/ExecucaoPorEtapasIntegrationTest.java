@@ -44,6 +44,7 @@ class ExecucaoPorEtapasIntegrationTest extends AbstractIntegrationTest {
     private JsonNode treinador;
     private JsonNode aluno;
     private UUID alunoId;
+    private JsonNode publicadaV1;
     private String versaoId;
     private final UUID sessao = UUID.randomUUID();
     private final UUID exercicio = UUID.randomUUID();
@@ -59,18 +60,22 @@ class ExecucaoPorEtapasIntegrationTest extends AbstractIntegrationTest {
         api = new ApiDeTeste(mvc, json);
         treinador = api.novoTreinador();
         alunoId = api.criarAluno(treinador, "Aluno Fictício Etapas");
+        publicadaV1 = api.publicarTreino(treinador, alunoId, conteudo(List.of(4, 4, 4, 4)));
+        aluno = api.convidarEEntrar(treinador, alunoId);
+        versaoId = api.get("/aluno/painel", aluno, 200).get("treino").get("versaoId").asString();
+    }
+
+    /** O mesmo treino (mesmos uids) com os blocos do Cluster de 16 repetições escolhidos pelo teste. */
+    private ConteudoTreino conteudo(List<Integer> blocosDoCluster) {
         List<Serie> series = List.of(
                 Serie.de(ws, "WORKING", 3, 6, Carga.de("CARGA_TRABALHO")),
-                Serie.de(cluster, "WORKING", 16, 16, Carga.de("CARGA_TRABALHO")).comTecnica(Tecnica.cluster(List.of(4, 4, 4, 4), 15, null)),
+                Serie.de(cluster, "WORKING", 16, 16, Carga.de("CARGA_TRABALHO")).comTecnica(Tecnica.cluster(blocosDoCluster, 15, null)),
                 Serie.de(clusterPercentual, "WORKING", 6, 6, Carga.percentual("PERCENTUAL_WS", 100, null))
                         .comTecnica(Tecnica.cluster(List.of(3, 3), 15, null)),
                 Serie.de(restPause, "WORKING", 6, 8, Carga.de("CARGA_TRABALHO")).comTecnica(Tecnica.restPause(20, null, 2)));
         ExercicioPlano ex = new ExercicioPlano(exercicio, exercicioId, "Supino fictício", "LIVRE", null, null, true, "kg", series);
-        ConteudoTreino conteudo = new ConteudoTreino(null, null,
+        return new ConteudoTreino(null, null,
                 List.of(new Sessao(sessao, "Segunda - Peito", 1, "TREINO", null, null, null, List.of(ex))));
-        api.publicarTreino(treinador, alunoId, conteudo);
-        aluno = api.convidarEEntrar(treinador, alunoId);
-        versaoId = api.get("/aluno/painel", aluno, 200).get("treino").get("versaoId").asString();
     }
 
     @Test
@@ -167,6 +172,63 @@ class ExecucaoPorEtapasIntegrationTest extends AbstractIntegrationTest {
                 "RECUSADO", "RECUSADO", "ACEITO");
         // Rest-pause com 2 pausas = 3 etapas de esforço na mesma série.
         assertThat(serieNoHistorico(restPause).get("repeticoes").asInt()).isEqualTo(13);
+    }
+
+    /** T19: com as etapas já gravadas, um envio mais novo sem a lista é recusado e não apaga nem troca nada. */
+    @Test
+    void envioSemEtapasDepoisDeGravadasERecusadoEAsEtapasGravadasContinuamIguais() throws Exception {
+        UUID id = UUID.randomUUID();
+        Instant quando = Instant.now();
+        assertThat(situacoes(enviar(registro(id, cluster, quando, true,
+                etapa(1, 4, "40", "FEITA"), etapa(2, 4, "40", "FEITA"), etapa(3, 4, "40", "FEITA"), etapa(4, 2, "40", "FEITA")))))
+                .containsExactly("ACEITO");
+        JsonNode antes = serieNoHistorico(cluster);
+        assertThat(antes.get("etapas")).hasSize(4);
+        assertThat(antes.get("repeticoes").asInt()).isEqualTo(14);
+
+        // Mais novo que o gravado: se a regra não valesse, este envio trocaria a linha (e as etapas) por um total solto.
+        Map<String, Object> semEtapas = registro(id, cluster, quando.plusSeconds(30), true);
+        semEtapas.remove("etapas");
+        semEtapas.put("repeticoes", 16);
+        semEtapas.put("carga", "99");
+        JsonNode resposta = enviar(semEtapas);
+        assertThat(situacoes(resposta)).containsExactly("RECUSADO");
+        assertThat(resposta.at("/resultados/0/motivo").asString()).contains("etapa por etapa");
+
+        assertThat(serieNoHistorico(cluster)).isEqualTo(antes);
+        Map<String, Object> linha = jdbc.queryForMap("select repeticoes, carga from execucao_serie where id = ?", id);
+        assertThat(linha.get("repeticoes")).isEqualTo(14);
+        assertThat(new java.math.BigDecimal(linha.get("carga").toString())).isEqualByComparingTo("40");
+    }
+
+    /** T21: publicar a v2 com outros blocos não muda o que a v1 registrou: o histórico segue com os blocos da v1. */
+    @Test
+    void historicoDaV1ContinuaComOsBlocosDaV1DepoisDePublicarAV2() throws Exception {
+        UUID id = UUID.randomUUID();
+        assertThat(situacoes(enviar(registro(id, cluster, Instant.now(), true,
+                etapa(1, 4, "40", "FEITA"), etapa(2, 4, "40", "FEITA"), etapa(3, 4, "40", "FEITA"), etapa(4, 2, "40", "FEITA")))))
+                .containsExactly("ACEITO");
+        JsonNode antes = serieNoHistorico(cluster);
+        assertThat(antes.get("etapas")).hasSize(4);
+
+        String planoId = publicadaV1.get("plano").get("id").asString();
+        JsonNode salvo = api.put("/planos-treino/" + planoId + "/rascunho", treinador,
+                ApiDeTeste.rascunho("Plano de teste", conteudo(List.of(8, 8)), publicadaV1.get("plano").get("versao").asLong()), 200);
+        JsonNode v2 = api.post("/planos-treino/" + planoId + "/publicar", treinador,
+                Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+
+        // A v2 existe de verdade e tem outros blocos (senão o teste passaria sem provar nada).
+        assertThat(v2.get("versoes")).hasSize(2);
+        JsonNode painel = api.get("/aluno/painel", aluno, 200);
+        assertThat(painel.get("treino").get("versaoId").asString()).isNotEqualTo(versaoId);
+        assertThat(painel.at("/treino/conteudo/sessoes/0/exercicios/0/series/1/tecnica/blocos")).hasSize(2);
+        assertThat(api.get("/planos-treino/" + planoId + "/versoes/1", treinador, 200)
+                .at("/conteudo/sessoes/0/exercicios/0/series/1/tecnica/blocos")).hasSize(4);
+
+        // O histórico continua preso à v1: mesma versão, as 4 etapas e o total 14.
+        assertThat(serieNoHistorico(cluster)).isEqualTo(antes);
+        JsonNode sessaoFeita = api.get("/alunos/" + alunoId + "/execucoes", treinador, 200).get(0).get("sessoes").get(0);
+        assertThat(sessaoFeita.get("planoVersaoId").asString()).isEqualTo(versaoId);
     }
 
     @Test

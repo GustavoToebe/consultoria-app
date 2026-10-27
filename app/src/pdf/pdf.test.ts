@@ -6,6 +6,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { carga, exercicio, grupo, rir, rpe, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import { esc, link, type Documento } from './html';
+import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
@@ -482,6 +483,51 @@ describe('html', () => {
 });
 
 describe('PDF de cargas', () => {
+  const LINHA: LinhaCarga = { data: '2026-10-07', carga: null, repeticoes: null, etapas: null, cargaVariavel: false, volume: null, series: 1, semCarga: false, observacoes: [] };
+  const pdfDe = (...linhas: LinhaCarga[]) => documentoCargas({
+    marca,
+    logoDataUri: null,
+    aluno: 'Aluno Demo',
+    de: '2026-10-01',
+    ate: '2026-10-14',
+    divisoes: [{ chave: 'a', nome: 'A', exercicios: [{ chave: 'x', nome: 'Remada', linhas }] }],
+    rodapePdf: null,
+    emitidoEm: new Date('2026-10-14T12:00:00Z'),
+  }).corpo;
+
+  it('série por etapa: os blocos com o total do servidor, a carga comum e o volume', () => {
+    const corpo = pdfDe({ ...LINHA, carga: 40, repeticoes: 14, etapas: '4+4+4+2 = 14', volume: { valor: 560, completo: true } });
+    expect(corpo).toContain('<td class="carga">40 kg</td>');
+    expect(corpo).toContain('<td>4+4+4+2 = 14</td>');
+    expect(corpo).toContain('Volume de carga: 560 kg');
+    expect(corpo).not.toContain('14 reps');
+  });
+
+  it('carga variável sai escrita, sem inventar uma carga; sem carga numa etapa fica "—"', () => {
+    const variavel = pdfDe({ ...LINHA, etapas: '4+4 = 8', repeticoes: 8, cargaVariavel: true });
+    expect(variavel).toContain('<td class="carga">Carga variável</td>');
+    expect(variavel).toContain('<td>4+4 = 8</td>');
+    const semCarga = pdfDe({ ...LINHA, etapas: '4+4 = 8', repeticoes: 8 });
+    expect(semCarga).toContain('<td class="carga">—</td>');
+    expect(semCarga).not.toContain('Carga variável');
+  });
+
+  it('execução parcial aparece como parcial', () => {
+    expect(pdfDe({ ...LINHA, carga: 40, etapas: '4+4 (parcial)' })).toContain('<td>4+4 (parcial)</td>');
+  });
+
+  it('série sem etapas segue como antes ("6 reps"), com o volume embaixo e a observação escapada', () => {
+    const corpo = pdfDe({ ...LINHA, carga: 75, repeticoes: 6, volume: { valor: 450, completo: true }, observacoes: ['<i>x</i>'] });
+    expect(corpo).toContain('<td>6 reps</td>');
+    expect(corpo).toContain('Volume de carga: 450 kg');
+    expect(corpo).toContain('&lt;i&gt;x&lt;/i&gt;');
+    expect(corpo).not.toContain('<i>x</i>');
+  });
+
+  it('sem volume nem observação a última coluna é "—"', () => {
+    expect(pdfDe({ ...LINHA, carga: 75, repeticoes: 6 })).toContain('<td>—</td></tr>');
+  });
+
   it('agrupa por divisão, escapa texto do aluno e mostra "—" para o que não foi registrado', () => {
     const d = documentoCargas({
       marca,
@@ -498,8 +544,8 @@ describe('PDF de cargas', () => {
               chave: 'mesa',
               nome: 'Mesa flexora',
               linhas: [
-                { data: '2026-10-07', carga: 90, repeticoes: 6, series: 5, semCarga: false, observacoes: ['<b>forte</b>'] },
-                { data: '2026-10-14', carga: null, repeticoes: null, series: 2, semCarga: false, observacoes: [] },
+                { ...LINHA, data: '2026-10-07', carga: 90, repeticoes: 6, series: 5, observacoes: ['<b>forte</b>'] },
+                { ...LINHA, data: '2026-10-14', series: 2 },
               ],
             },
           ],

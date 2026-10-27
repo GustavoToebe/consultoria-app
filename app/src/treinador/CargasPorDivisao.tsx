@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { dataParaTela } from '../dominio/formatos';
-import { partesDaDivisao, ultimoRegistroDaDivisao, type DivisaoRelatorio } from '../dominio/relatorio';
+import { partesDaDivisao, textoDoVolume, ultimoRegistroDaDivisao, type DivisaoRelatorio, type LinhaCarga } from '../dominio/relatorio';
 import { textoCarga } from '../pdf/pdfCargas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
@@ -25,7 +25,8 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
   const { cores, fatorTexto } = useTema();
   // "—" na carga quer dizer que não houve série de trabalho com carga naquele dia (só aquecimento ou preparação):
   // sem explicar, parecia que o registro sumiu.
-  const temSoPreparacao = divisoes.some((d) => d.exercicios.some((e) => e.linhas.some((l) => l.carga === null && !l.semCarga)));
+  // A série por etapa sem carga comum mostra os blocos ("carga variável" ou "—"): não é só preparação.
+  const temSoPreparacao = divisoes.some((d) => d.exercicios.some((e) => e.linhas.some((l) => l.carga === null && !l.semCarga && l.etapas === null)));
   const larguraData = larguraDaData(fatorTexto);
   const animar = usePrimeiraLista(divisoes.length > 0, divisoes.map((d) => d.chave).join('|'));
   const [recolhidas, setRecolhidas] = useState<ReadonlySet<string>>(new Set());
@@ -60,20 +61,32 @@ export function CargasPorDivisao({ divisoes }: { divisoes: DivisaoRelatorio[] })
                   colunas={[
                     { chave: 'data', titulo: 'Data', largura: larguraData, principal: true, render: (l) => <Texto numerico style={estilos.forte}>{dataParaTela(l.data)}</Texto> },
                     { chave: 'carga', titulo: 'Carga', flex: 1.8, alinhar: 'direita', render: (l) => <Texto numerico style={estilos.carga}>{textoCarga(l)}</Texto> },
-                    { chave: 'reps', titulo: 'Reps', flex: 0.7, alinhar: 'direita', render: (l) => <Texto numerico>{l.repeticoes ?? '—'}</Texto> },
-                    { chave: 'series', titulo: 'Séries', flex: 0.9, alinhar: 'direita', render: (l) => <Texto numerico variante="suave">{l.series}</Texto> },
+                    { chave: 'reps', titulo: 'Reps', flex: 1.3, alinhar: 'direita', render: (l) => <Texto numerico>{l.etapas ?? l.repeticoes ?? '—'}</Texto> },
+                    { chave: 'series', titulo: 'Séries', flex: 0.8, alinhar: 'direita', render: (l) => <Texto numerico variante="suave">{l.series}</Texto> },
                   ]}
-                  detalhe={(l) => l.observacoes.length ? (
-                    <View style={[estilos.obs, { borderLeftColor: cores.atencao }]}>
-                      <Texto numerico variante="suave" style={estilos.obsTexto}>{l.observacoes.join(' · ')}</Texto>
-                    </View>
-                  ) : null}
+                  detalhe={(l) => detalheDaLinha(l, cores.atencao)}
                 />
               </View>
             </View>
           ))}
         </EntradaEmCascata>
       ))}
+    </View>
+  );
+}
+
+/** Embaixo da linha: o volume de carga do exercício no dia (o do histórico) e a observação do aluno; sem nenhum, nada. */
+function detalheDaLinha(l: LinhaCarga, corDaObservacao: string) {
+  const volume = textoDoVolume(l.volume);
+  if (!volume && !l.observacoes.length) return null;
+  return (
+    <View style={estilos.detalhes}>
+      {volume ? <Texto numerico variante="suave">{volume}</Texto> : null}
+      {l.observacoes.length ? (
+        <View style={[estilos.obs, { borderLeftColor: corDaObservacao }]}>
+          <Texto numerico variante="suave" style={estilos.obsTexto}>{l.observacoes.join(' · ')}</Texto>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -137,6 +150,7 @@ const estilos = StyleSheet.create({
   tabela: { padding: espaco(1) },
   forte: { fontFamily: fontes.semi },
   carga: { fontFamily: fontes.negrito },
+  detalhes: { gap: espaco(0.5), width: '100%' },
   obs: { borderLeftWidth: 3, paddingLeft: espaco(1), width: '100%' },
   obsTexto: { fontStyle: 'italic' },
 });

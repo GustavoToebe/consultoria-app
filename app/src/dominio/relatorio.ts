@@ -15,7 +15,16 @@ export interface LinhaCarga {
   carga: number | null;
   /** Repetições da série de trabalho de maior carga. */
   repeticoes: number | null;
-  /** Séries registradas como feitas no dia. */
+  /**
+   * Série de trabalho registrada por etapa (Cluster, Rest-pause): as repetições de cada etapa, o total quando o servidor o
+   * calculou e "parcial" quando faltou etapa ("4+4+4+2 = 14"); `null` nas outras séries.
+   */
+  etapas: string | null;
+  /** As etapas feitas têm cargas diferentes: a carga fica `null` e a linha diz "carga variável" (nunca a maior nem a última). */
+  cargaVariavel: boolean;
+  /** Volume de carga do exercício no dia, o mesmo do histórico; `null` sem carga ou sem número. */
+  volume: Volume | null;
+  /** Séries com algo registrado no dia. */
   series: number;
   semCarga: boolean;
   observacoes: string[];
@@ -81,7 +90,7 @@ export function cargasPorDivisao(dias: DiaDeTreino[], sessoesDoPlano?: Map<strin
       divisoes.set(chave, divisao);
       divisao.ordem.push(doPlano?.diaSemana ?? diaDaSemanaIso(dia.data));
       for (const e of s.exercicios) {
-        const feitas = e.series.filter((x) => x.concluida);
+        const feitas = e.series.filter(registrada);
         if (!feitas.length) continue;
         const chaveEx = e.exercicioId ?? chaveDoNome(e.nome);
         let exercicio = divisao.exercicios.find((x) => x.chave === chaveEx);
@@ -89,13 +98,17 @@ export function cargasPorDivisao(dias: DiaDeTreino[], sessoesDoPlano?: Map<strin
           exercicio = { chave: chaveEx, nome: e.nome, linhas: [] };
           divisao.exercicios.push(exercicio);
         }
-        const trabalho = feitas
-          .filter((x) => x.trabalho && x.carga !== null)
-          .sort((a, b) => (b.carga ?? 0) - (a.carga ?? 0))[0];
+        const doTrabalho = feitas.filter((x) => x.trabalho);
+        const comCarga = doTrabalho.filter((x) => x.carga !== null).sort((a, b) => (b.carga ?? 0) - (a.carga ?? 0))[0];
+        // Sem série de trabalho de carga única, a por etapas sem carga comum ainda mostra os blocos; a carga fica de fora.
+        const trabalho = comCarga ?? doTrabalho.find((x) => x.etapas);
         exercicio.linhas.push({
           data: dia.data,
           carga: trabalho?.carga ?? null,
           repeticoes: trabalho ? trabalho.repeticoes : null,
+          etapas: trabalho?.etapas ? repeticoesDasEtapas(trabalho) : null,
+          cargaVariavel: !!trabalho && trabalho.carga === null && temCargasDiferentes(trabalho),
+          volume: volumeDoExercicio(e.series),
           series: feitas.length,
           semCarga: feitas.every((x) => x.unidade === 'nenhuma'),
           observacoes: feitas.map((x) => x.observacao?.trim()).filter((o): o is string => !!o),
@@ -156,7 +169,10 @@ export function textoSerie(s: SerieFeita): string {
   return `${tipo} ${carga}${s.repeticoes ?? '—'}`;
 }
 
-function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): string {
+const repsDaEtapa = (e: EtapaRegistrada) => (e.repeticoes == null ? '—' : String(e.repeticoes));
+
+/** As etapas em ordem, as feitas e o fecho do texto: total (só se o servidor o calculou) e "(parcial, N etapas não feitas)". */
+function partesDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]) {
   const ordem = [...etapas].sort((a, b) => a.posicao - b.posicao);
   const feitas = ordem.filter((e) => e.situacao === 'FEITA');
   const naoFeitas = ordem.length - feitas.length;
@@ -164,18 +180,45 @@ function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): stri
   if (s.repeticoes == null) notas.push('parcial');
   if (naoFeitas) notas.push(`${naoFeitas} ${naoFeitas === 1 ? 'etapa não feita' : 'etapas não feitas'}`);
   const sufixo = notas.length ? ` (${notas.join(', ')})` : '';
-  if (!feitas.length) return `${ordem.length ? 'não feita' : '—'}${sufixo}`;
-  const reps = (e: EtapaRegistrada) => (e.repeticoes == null ? '—' : String(e.repeticoes));
+  const total = s.repeticoes != null && feitas.length > 1 ? ` = ${s.repeticoes}` : '';
+  const semFeita = `${ordem.length ? 'não feita' : '—'}${sufixo}`;
+  return { feitas, sufixo, total, semFeita };
+}
+
+function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): string {
+  const { feitas, sufixo, total, semFeita } = partesDasEtapas(s, etapas);
+  if (!feitas.length) return semFeita;
   let corpo: string;
-  if (s.unidade === 'nenhuma') corpo = feitas.map(reps).join('+');
+  if (s.unidade === 'nenhuma') corpo = feitas.map(repsDaEtapa).join('+');
   else {
     const comum = cargaComum(feitas);
     corpo = comum != null
-      ? `${numeroParaTela(comum)} kg × ${feitas.map(reps).join('+')}`
-      : feitas.map((e) => `${numeroParaTela(e.carga)} kg × ${reps(e)}`).join(' + ');
+      ? `${numeroParaTela(comum)} kg × ${feitas.map(repsDaEtapa).join('+')}`
+      : feitas.map((e) => `${numeroParaTela(e.carga)} kg × ${repsDaEtapa(e)}`).join(' + ');
   }
-  const total = s.repeticoes != null && feitas.length > 1 ? ` = ${s.repeticoes}` : '';
   return `${corpo}${total}${sufixo}`;
+}
+
+/**
+ * Só as repetições da série registrada por etapa, sem a carga ("4+4+4+2 = 14", "4+4 (parcial)"), para a coluna de reps do
+ * relatório de cargas. Mesmo total e mesmas notas do `textoSerie`; sem etapas, o texto da série sem detalhe.
+ */
+export function repeticoesDasEtapas(s: SerieFeita): string {
+  const { feitas, sufixo, total, semFeita } = partesDasEtapas(s, s.etapas ?? []);
+  if (!feitas.length) return semFeita;
+  return `${feitas.map(repsDaEtapa).join('+')}${total}${sufixo}`;
+}
+
+/** Série com algo registrado: por etapa, ao menos uma etapa feita (a parcial entra); nas outras, a concluída. */
+function registrada(s: SerieFeita): boolean {
+  return s.etapas ? s.etapas.some((e) => e.situacao === 'FEITA') : s.concluida;
+}
+
+/** Toda etapa feita tem carga e não há carga comum: as cargas são diferentes ("carga variável"). */
+function temCargasDiferentes(s: SerieFeita): boolean {
+  if (!s.etapas || s.unidade === 'nenhuma') return false;
+  const feitas = s.etapas.filter((e) => e.situacao === 'FEITA');
+  return feitas.length > 0 && feitas.every((e) => e.carga != null) && cargaComum(feitas) == null;
 }
 
 /**
@@ -185,7 +228,7 @@ function textoDasEtapas(s: SerieFeita, etapas: readonly EtapaRegistrada[]): stri
  */
 export function volumeDoExercicio(series: readonly SerieFeita[]): Volume | null {
   const comCarga = series.filter((s) => s.unidade !== 'nenhuma');
-  const feitas = comCarga.filter((s) => (s.etapas ? s.etapas.some((e) => e.situacao === 'FEITA') : s.concluida));
+  const feitas = comCarga.filter(registrada);
   if (!feitas.length) return null;
   return somarVolumes(feitas.map((s) => volumeDaSerie(s, false)), feitas.length);
 }
