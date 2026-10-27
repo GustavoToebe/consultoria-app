@@ -19,7 +19,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | --- | --- | --- | --- | --- |
 | Teste com 5 alunos | [teste-5-alunos.md](teste-5-alunos.md) | produção | Preparando | 27/10/2026 |
 | Anamnese ao aceitar a inscrição | [anamnese-no-aceite.md](anamnese-no-aceite.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
-| Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Aguardando a anterior | 27/10/2026 |
+| Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Em andamento | 27/10/2026 |
 | Engajamento (retorno, conquistas, mural) | [engajamento.md](engajamento.md) | branch `gamificacao` | Etapa 0 em andamento | 27/10/2026 |
 
 ## Pendências soltas
