@@ -24,6 +24,18 @@ ações à direita), no lugar dos cartões em 2 ou 3 colunas.
 - [x] 3. AGENTS.md (Grade só para blocos), e2e `listas-em-linha`, capturas — commit: 2eadf76
 - [x] 4. Deploy verde — run: 40571872648
 
+## Ajustes depois das capturas
+Decisões do Gustavo ao revisar as capturas de `capturas-listas/depois`.
+
+| # | Decisão | Valor | Quem decidiu |
+| --- | --- | --- | --- |
+| D9 | Selecionar marca pela linha | Com o modo ligado, a linha deixa de ser link e vira o alvo da caixa (`marcar` na `LinhaDaLista`, role checkbox); desligado, continua `<a href>`. Substitui a parte "só a caixa marca" do D7 | Gustavo |
+| D10 | Miniatura vazia | Exercício sem imagem ocupa o mesmo `inicio` de 56 px, com caixa neutra e haltere (`reservarEspaco`), também quando a imagem falha | Gustavo |
+| D11 | Texto do adiado | "Adiada para hoje/amanhã" ou "Adiada para dd/mm" (antes saía "Adiada para em 5 dias") | Gustavo |
+
+- [x] Selecionar pela linha, miniatura vazia e texto do adiado — commit: 7e2f0b8
+- [x] Deploy verde — run: 40575334935
+
 ## O que ficou para trás
 - Rótulos dos botões "Editar", "Aplicar ao aluno" (Planejamento), "Editar"/"Ver" (questionários) e "Ver produto" não dizem de qual item são para o leitor de tela; já era assim. Padrão: `rotuloAcessivel` como em `UsuariosEquipe.tsx`.
 - Alunos: o `aria-label` do link ("Abrir {nome}. {atualização}") esconde Inativo, Sem acesso e o último registro; já era assim. Usar `rotuloDaLinha`.
