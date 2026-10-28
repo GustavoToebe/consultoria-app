@@ -24,6 +24,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Revisão de segurança de 28/10 | [revisao-seguranca-28-10.md](revisao-seguranca-28-10.md) | `main` | Publicada em 28/10/2026 (run 40719287212); falta provar o reenvio do Mercado Pago | 28/10/2026 |
 | PDFs menores e mais rápidos | [pdfs-otimizacao.md](pdfs-otimizacao.md) | `main` | Publicada em 28/10/2026 (run 40719287212); item 4 e conferência no APK pendentes | 28/10/2026 |
 | Proteção contra robôs (Cloudflare + Turnstile) | [cloudflare-turnstile.md](cloudflare-turnstile.md) | Cloudflare e VPS | Parte A feita; parte B espera o `publicar` verde | 28/10/2026 |
+| Central: lote de segurança de 28/10 | [central-seguranca-28-10.md](central-seguranca-28-10.md) | Central, branch `seguranca-lote-28-10` (um PR) | Em andamento | 28/10/2026 |
 
 ## Pendências soltas
 
@@ -47,9 +48,9 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
 
 | Mercado Pago: provar com um reenvio real se o `ts` muda; se repetir, rever a janela de 5 min do webhook da Central | Gustavo/Claude | revisão de segurança 28/10, item 1 |
-| Central: nota 4 (`ErroRecebido.status` 500–599) e nota 5 (`IntegracaoProperties.chaves()` avisar entrada malformada), no próximo lote da Central | Claude | revisão de segurança 28/10 |
+| Central: nota 4 (`ErroRecebido.status` 500–599) e nota 5 (`IntegracaoProperties.chaves()` avisar entrada malformada), no lote da Central: ver [central-seguranca-28-10.md](central-seguranca-28-10.md) (passo 5) | Claude | revisão de segurança 28/10 |
 | CI: Trivy reprovou a imagem da web por `go-jose` 4.1.5 (CVE-2026-116587) no `caddy:2-alpine`; exceção até 14/11 no `.trivyignore`. Até 14/11: ver se o Caddy já traz go-jose 4.1.6, Go 1.26.10 e x/net 0.60.0 e apagar as exceções | Gustavo | run 40714486714 |
-| Trivy, mesma exceção na Central (`central-api-front/.trivyignore`, `central-api-back/.trivyignore-terceiros`) no lote da Central; no Servirea, no próximo lote dele | Claude | run 40714486714 |
+| Trivy, mesma exceção na Central (`central-api-front/.trivyignore`, `central-api-back/.trivyignore-terceiros`) no lote da Central ([central-seguranca-28-10.md](central-seguranca-28-10.md), passo 6); no Servirea, no próximo lote dele | Claude | run 40714486714 |
 | PDF no celular: copiar o arquivo do `expo-print` em vez de passar o PDF todo em base64 (`pdf/imprimir.ts`). Só provando no APK, Android e iPhone | Gustavo (aparelho) | PDFs, item 4 |
 | Conferir no APK que a logo grande sai reduzida no PDF do aluno e do treinador | Gustavo | PDFs, item 2 |
 | `imprimir.web.ts` sem `innerHTML`: não recomendado agora (a trava de teste cobre); Gustavo pode reabrir | Gustavo decide | revisão de segurança 28/10, item 3 |
