@@ -85,6 +85,10 @@ treinos:
   # respondem 503 CICLO_INDISPONIVEL_NO_APP e o app esconde tudo (GET /eu traz cicloHabilitado).
   ciclo:
     habilitado: ${TREINOS_CICLO_HABILITADO:false}
+  # Concluir treino (retorno ao aluno: sessão concluída com resultado, duração e comentário). Desligado por padrão: as rotas
+  # respondem 503 RETORNO_INDISPONIVEL e o app esconde tudo (GET /eu traz retornoHabilitado).
+  retorno:
+    habilitado: ${TREINOS_RETORNO_HABILITADO:false}
   # Fotos da atualização do aluno (dado sensível, bucket privado S3/R2). Desligado por padrão: a pergunta FOTOS fica sem envio.
   # Ligado, a API só sobe com endpoint, bucket, chave e segredo; segredos só em variável de ambiente, sem valor padrão.
   fotos:

@@ -1,4 +1,4 @@
-import type { AnamneseDetalhe, EtapaRegistrada, OrigemDaReferencia, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, EtapaRegistrada, OrigemDaReferencia, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ChaveValor } from './armazenamento';
 import { pacoteNoFormatoAtual } from './formatoDoPacote';
 
@@ -65,6 +65,28 @@ export interface RegistroMobilidadeLocal {
 }
 
 export type DadosMobilidade = Omit<RegistroMobilidadeLocal, 'id' | 'alteradoEm' | 'situacao' | 'motivo'>;
+
+/**
+ * Treino concluído (ou reaberto) no aparelho. Mesma fila de envio, depósito próprio (como a mobilidade). Reabrir é o
+ * MESMO registro com `concluida = false`, `resultado` e `duracaoSegundos` nulos. A chave natural é versão + sessão + dia.
+ * O `comentario` é dado do aluno: nunca em log, mensagem de erro nem console.
+ */
+export interface RegistroSessaoConcluidaLocal {
+  id: string;
+  planoVersaoId: string;
+  sessaoUid: string;
+  data: string;
+  concluida: boolean;
+  resultado: 'COMPLETA' | 'PARCIAL' | null;
+  duracaoSegundos: number | null;
+  comentario: string | null;
+  /** Instante da última mudança no aparelho (ISO); decide o mais novo no servidor. */
+  alteradoEm: string;
+  situacao: SituacaoLocal;
+  motivo: string | null;
+}
+
+export type DadosSessaoConcluida = Omit<RegistroSessaoConcluidaLocal, 'id' | 'alteradoEm' | 'situacao' | 'motivo'>;
 
 export interface PacoteSalvo {
   pacote: PainelAluno;
@@ -164,7 +186,31 @@ export interface RepositorioLocal {
   ): Promise<void>;
   /** O servidor recusou a mobilidade inteira (fora do plano): os pendentes viram FALHOU com o motivo, para não repetir em laço. */
   recusarPendentesDaMobilidade(motivo: string): Promise<void>;
-  /** "Tentar de novo": os que falharam (séries e mobilidade) voltam para a fila de envio. Devolve quantos. */
+  /** Treinos concluídos (ou reabertos), na ordem em que foram criados. */
+  listarSessoesConcluidas(): Promise<RegistroSessaoConcluidaLocal[]>;
+  /**
+   * Grava a conclusão no aparelho na hora. O mesmo treino (versão, sessão e dia) mantém o mesmo id e só troca os valores:
+   * concluir, reabrir e reenviar não duplicam no servidor.
+   */
+  registrarSessaoConcluida(dados: DadosSessaoConcluida): Promise<RegistroSessaoConcluidaLocal>;
+  /** Até `limite` pendentes (LOCAL) das conclusões, os mais antigos primeiro. */
+  pendentesSessoesConcluidas(limite?: number): Promise<RegistroSessaoConcluidaLocal[]>;
+  /** Como `aplicarResultados`, para as conclusões. */
+  aplicarResultadosSessoesConcluidas(
+    enviados: Pick<RegistroSessaoConcluidaLocal, 'id' | 'alteradoEm'>[],
+    resultados: ResultadoEnvio[],
+  ): Promise<void>;
+  /** O servidor recusou as conclusões inteiras (recurso desligado): os pendentes viram FALHOU com o motivo, para não repetir em laço. */
+  recusarPendentesDasSessoesConcluidas(motivo: string): Promise<void>;
+  /**
+   * Instante da primeira série marcada como feita de cada treino (versão|sessão|dia, ver `chaveDoInicioDoTreino`). Só
+   * no aparelho: nunca vai ao servidor nem à fila retida.
+   */
+  lerIniciosDoTreino(): Promise<Record<string, string>>;
+  /** Grava o início uma única vez (insere se ausente, nunca sobrescreve). Devolve o instante que vale. */
+  marcarInicioDoTreino(chave: string, instanteIso: string): Promise<string>;
+  inicioDoTreino(chave: string): Promise<string | null>;
+  /** "Tentar de novo": os que falharam (séries, mobilidade e conclusões) voltam para a fila de envio. Devolve quantos. */
   reenviarFalhas(): Promise<number>;
   /** Ao sair da conta: apaga tudo deste usuário no aparelho. Depois disso o repositório não grava mais nada. */
   apagarTudo(): Promise<void>;
@@ -196,6 +242,17 @@ export function proximoInstante(agora: Date, anterior: string | null | undefined
 export function limiteGuardados(agora: Date): string {
   return new Date(agora.getTime() - DIAS_GUARDADOS * 86_400_000).toISOString().slice(0, 10);
 }
+
+/** Chave natural do servidor para a conclusão. */
+export const chaveDaSessaoConcluida = (r: Pick<RegistroSessaoConcluidaLocal, 'planoVersaoId' | 'sessaoUid' | 'data'>) =>
+  `${r.planoVersaoId}|${r.sessaoUid}|${r.data}`;
+
+/** Chave do início do treino: a mesma versão + sessão + dia da conclusão. */
+export const chaveDoInicioDoTreino = (planoVersaoId: string, sessaoUid: string, data: string) =>
+  `${planoVersaoId}|${sessaoUid}|${data}`;
+
+/** Data (último pedaço) de uma chave de início do treino. */
+const dataDaChaveDeInicio = (chave: string) => chave.slice(chave.lastIndexOf('|') + 1);
 
 const chaveDoRegistro = (r: Pick<RegistroLocal, 'planoVersaoId' | 'serieUid' | 'data'>) =>
   `${r.planoVersaoId}|${r.serieUid}|${r.data}`;
@@ -471,10 +528,109 @@ export class RepositorioChaveValor implements RepositorioLocal {
     });
   }
 
+  // ---- Conclusões do treino (depósito próprio, mesma fila de envio) ----
+
+  listarSessoesConcluidas(): Promise<RegistroSessaoConcluidaLocal[]> {
+    return this.emFila(() => this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', []));
+  }
+
+  registrarSessaoConcluida(dados: DadosSessaoConcluida): Promise<RegistroSessaoConcluidaLocal> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', []);
+      const chave = chaveDaSessaoConcluida(dados);
+      const i = lista.findIndex((r) => chaveDaSessaoConcluida(r) === chave);
+      const anterior = i >= 0 ? lista[i] : null;
+      const registro: RegistroSessaoConcluidaLocal = {
+        ...dados,
+        id: anterior?.id ?? this.novoId(),
+        alteradoEm: proximoInstante(this.agora(), anterior?.alteradoEm),
+        situacao: 'LOCAL',
+        motivo: null,
+      };
+      if (i >= 0) lista[i] = registro;
+      else lista.push(registro);
+      await this.gravarJson('sessoesConcluidas', lista);
+      return registro;
+    });
+  }
+
+  pendentesSessoesConcluidas(limite = 300): Promise<RegistroSessaoConcluidaLocal[]> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', []);
+      return lista
+        .filter((r) => r.situacao === 'LOCAL')
+        .sort((a, b) => a.alteradoEm.localeCompare(b.alteradoEm))
+        .slice(0, limite);
+    });
+  }
+
+  aplicarResultadosSessoesConcluidas(
+    enviados: Pick<RegistroSessaoConcluidaLocal, 'id' | 'alteradoEm'>[],
+    resultados: ResultadoEnvio[],
+  ): Promise<void> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', []);
+      const enviadoEm = new Map(enviados.map((e) => [e.id, e.alteradoEm]));
+      const porId = new Map(resultados.map((r) => [r.id, r]));
+      for (const r of lista) {
+        const resultado = porId.get(r.id);
+        if (!resultado || r.situacao !== 'LOCAL' || enviadoEm.get(r.id) !== r.alteradoEm) continue;
+        if (resultado.situacao === 'RECUSADO') {
+          r.situacao = 'FALHOU';
+          r.motivo = resultado.motivo ?? 'Recusado pelo servidor.';
+        } else {
+          r.situacao = 'ENVIADO';
+          r.motivo = null;
+        }
+      }
+      const limite = limiteGuardados(this.agora());
+      await this.gravarJson(
+        'sessoesConcluidas',
+        lista.filter((r) => r.situacao !== 'ENVIADO' || r.data >= limite),
+      );
+    });
+  }
+
+  recusarPendentesDasSessoesConcluidas(motivo: string): Promise<void> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', []);
+      for (const r of lista) {
+        if (r.situacao === 'LOCAL') {
+          r.situacao = 'FALHOU';
+          r.motivo = motivo;
+        }
+      }
+      await this.gravarJson('sessoesConcluidas', lista);
+    });
+  }
+
+  // ---- Início do treino (só no aparelho, fora da fila) ----
+
+  lerIniciosDoTreino(): Promise<Record<string, string>> {
+    return this.emFila(() => this.lerJson<Record<string, string>>('iniciosDeTreino', {}));
+  }
+
+  marcarInicioDoTreino(chave: string, instanteIso: string): Promise<string> {
+    return this.emFila(async () => {
+      const inicios = await this.lerJson<Record<string, string>>('iniciosDeTreino', {});
+      if (inicios[chave]) return inicios[chave];
+      // Aproveita para tirar os de mais de 60 dias, como as demais marcas do aparelho.
+      const limite = limiteGuardados(this.agora());
+      for (const k of Object.keys(inicios)) if (dataDaChaveDeInicio(k) < limite) delete inicios[k];
+      inicios[chave] = instanteIso;
+      await this.gravarJson('iniciosDeTreino', inicios);
+      return instanteIso;
+    });
+  }
+
+  inicioDoTreino(chave: string): Promise<string | null> {
+    return this.emFila(async () => (await this.lerJson<Record<string, string>>('iniciosDeTreino', {}))[chave] ?? null);
+  }
+
   reenviarFalhas(): Promise<number> {
     return this.emFila(async () => {
       let n = 0;
-      for (const nome of ['registros', 'registrosMobilidade']) {
+      for (const nome of ['registros', 'registrosMobilidade', 'sessoesConcluidas']) {
         const lista = await this.lerJson<{ situacao: SituacaoLocal; motivo: string | null }[]>(nome, []);
         let mudou = false;
         for (const r of lista) {
@@ -504,11 +660,15 @@ export class RepositorioChaveValor implements RepositorioLocal {
       const mobilidade = (await this.lerJson<RegistroMobilidadeLocal[]>('registrosMobilidade', [])).filter(
         (r) => r.situacao === 'LOCAL',
       );
-      const total = series.length + mobilidade.length;
-      // Grava a fila e a marca antes de apagar o resto: uma falha no meio não perde registro. Os dois depósitos ficam
+      const conclusoes = (await this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', [])).filter(
+        (r) => r.situacao === 'LOCAL',
+      );
+      const total = series.length + mobilidade.length + conclusoes.length;
+      // Grava a fila e a marca antes de apagar o resto: uma falha no meio não perde registro. Os três depósitos ficam
       // só com o que está LOCAL (um vazio sai de vez: a chave entra na lista do que fica e levaria os enviados junto).
+      // O início do treino (`iniciosDeTreino`) não é fila: sai junto com o resto.
       if (total) {
-        for (const [nome, lista] of [['registros', series], ['registrosMobilidade', mobilidade]] as const) {
+        for (const [nome, lista] of [['registros', series], ['registrosMobilidade', mobilidade], ['sessoesConcluidas', conclusoes]] as const) {
           if (lista.length) await this.kv.gravar(this.chave(nome), JSON.stringify(lista));
           else await this.kv.apagar([this.chave(nome)]);
         }
@@ -566,8 +726,8 @@ export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
  */
 export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'passeioVisto'];
 
-/** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados (séries e mobilidade) e a marca com a data. */
-export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'registrosMobilidade', 'filaRetida'];
+/** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados (séries, mobilidade e conclusões) e a marca com a data. */
+export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'registrosMobilidade', 'sessoesConcluidas', 'filaRetida'];
 
 /** `tambemFicam` = nomes (sem o prefixo do usuário) que `SOBREVIVEM_AO_SAIR` não cobre e que não devem sair. */
 export async function apagarChavesDoUsuario(
@@ -607,6 +767,20 @@ export function paraEnvioMobilidade(r: RegistroMobilidadeLocal): RegistroMobilid
     itemUid: r.itemUid,
     data: r.data,
     feito: r.feito,
+    alteradoNoAparelhoEm: r.alteradoEm,
+  };
+}
+
+export function paraEnvioSessaoConcluida(r: RegistroSessaoConcluidaLocal): RegistroSessaoConcluidaEnvio {
+  return {
+    id: r.id,
+    planoVersaoId: r.planoVersaoId,
+    sessaoUid: r.sessaoUid,
+    data: r.data,
+    concluida: r.concluida,
+    resultado: r.resultado,
+    duracaoSegundos: r.duracaoSegundos,
+    comentario: r.comentario,
     alteradoNoAparelhoEm: r.alteradoEm,
   };
 }

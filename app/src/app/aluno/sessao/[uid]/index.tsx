@@ -8,6 +8,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
 import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
+import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { DatasDaDivisao } from '../../../../aluno/DatasDaDivisao';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
@@ -60,6 +61,8 @@ export default function SessaoAluno() {
   const pendente = sessao.exercicios.find((e) => dia.feitas(e) < e.series.length);
   const datas = sessao.exercicios.length ? datasDaSessao(sessao, dia.treino.inicio, dia.treino.fim, hoje) : [];
   const abrir = (exercicioUid: string) => router.push(caminhoDaSessao(sessao.uid, data, exercicioUid));
+  // "Concluir treino" no topo e no rodapé (some com a chave desligada): os dois leem a mesma conclusão.
+  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
 
   return (
     <Tela bordas={['top']} largura={720}>
@@ -79,6 +82,7 @@ export default function SessaoAluno() {
         </View>
         <BarraProgresso feitas={feitas} total={total} />
         {data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
+        <ConcluirTreino {...conclusao} tipo="secundario" avisarDataFutura />
       </Cartao>
       {datas.length > 1 ? (
         <Cartao titulo="Outras datas">
@@ -135,6 +139,8 @@ export default function SessaoAluno() {
           <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>
         );
       })}
+      {/* Rodapé: primário só quando já não há o "Começar/Continuar" lá em cima (um primário por área). */}
+      <ConcluirTreino {...conclusao} tipo={pendente ? 'secundario' : 'primario'} cheio />
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>
   );

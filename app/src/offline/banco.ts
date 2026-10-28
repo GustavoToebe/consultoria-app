@@ -31,13 +31,16 @@ export const nomeDoBanco = (usuarioId: string) => `treinos-${usuarioId}.db`;
  * 2: tabela `registro_mobilidade` (item de mobilidade marcado, na mesma fila de envio das séries).
  * 3: colunas `etapas`, `referencia_carga` e `referencia_origem` em `registro` (registro por etapa do Cluster e do
  *    Rest-pause, docs/series-etapas.md).
+ * 4: tabelas `sessao_concluida` (treino concluído ou reaberto, na mesma fila de envio) e `inicio_do_treino` (instante da
+ *    primeira série feita de cada treino; só no aparelho, nunca enviado).
  */
-export const VERSAO_ESQUEMA = 3;
+export const VERSAO_ESQUEMA = 4;
 
 /**
  * Esquema local. `kv` guarda documentos que só são lidos inteiros (pacote do plano, dieta);
  * `registro` é a fila de envio, com a mesma chave única do servidor (versão, série, dia);
- * `registro_mobilidade` é a mesma fila para a mobilidade (versão, item, dia), em tabela própria.
+ * `registro_mobilidade` é a mesma fila para a mobilidade (versão, item, dia), em tabela própria;
+ * `sessao_concluida` é a mesma fila para o treino concluído (versão, sessão, dia); `inicio_do_treino` não é fila.
  * Tudo é `create ... if not exists`: subir a versão do esquema é só acrescentar o que falta (banco antigo ganha a
  * tabela nova na próxima abertura, sem perder o que já tinha).
  */
@@ -81,6 +84,26 @@ const ESQUEMA = `
     unique (plano_versao_id, item_uid, data)
   );
   create index if not exists ix_registro_mobilidade_situacao on registro_mobilidade (situacao, alterado_em);
+  create table if not exists sessao_concluida (
+    id text primary key,
+    plano_versao_id text not null,
+    sessao_uid text not null,
+    data text not null,
+    concluida integer not null,
+    resultado text check (resultado is null or resultado in ('COMPLETA', 'PARCIAL')),
+    duracao_segundos integer,
+    comentario text,
+    alterado_em text not null,
+    situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')),
+    motivo text,
+    unique (plano_versao_id, sessao_uid, data)
+  );
+  create index if not exists ix_sessao_concluida_situacao on sessao_concluida (situacao, alterado_em);
+  create table if not exists inicio_do_treino (
+    chave text primary key,
+    data text not null,
+    iniciado_em text not null
+  );
   create table if not exists carga_trabalho (
     exercicio_uid text not null,
     data text not null,

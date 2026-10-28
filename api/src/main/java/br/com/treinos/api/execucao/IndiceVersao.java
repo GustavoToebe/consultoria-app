@@ -83,6 +83,11 @@ public final class IndiceVersao {
         return Optional.ofNullable(series.get(serieUid));
     }
 
+    /** A sessão existe nesta versão do treino (qualquer tipo de dia, descanso inclusive). */
+    public boolean temSessao(UUID sessaoUid) {
+        return nomesSessao.containsKey(sessaoUid);
+    }
+
     public String nomeSessao(UUID sessaoUid) {
         return nomesSessao.getOrDefault(sessaoUid, "Sessão");
     }

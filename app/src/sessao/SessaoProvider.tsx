@@ -49,6 +49,8 @@ interface Perfil {
   pagarNoAndroid?: boolean;
   /** Ciclo menstrual ligado na plataforma; ausente (perfil antigo ou offline) = desligado. */
   cicloHabilitado?: boolean;
+  /** "Concluir treino" ligado na plataforma; ausente (perfil antigo ou offline) = desligado. */
+  retornoHabilitado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   /** Termo de uso e aviso de privacidade ainda sem aceite na versão vigente (guardado para abrir offline). */
@@ -74,6 +76,8 @@ interface ValorSessao {
   pagarNoAndroid: boolean;
   /** Ciclo menstrual ligado? Desligado ou desconhecido, o app esconde tudo dele e não o consulta. */
   cicloHabilitado: boolean;
+  /** "Concluir treino" ligado? Desligado ou desconhecido, o app esconde tudo e nunca consulta nem enfileira conclusões. */
+  retornoHabilitado: boolean;
   recarregarPerfil: () => Promise<void>;
   situacao: Situacao;
   usuario: UsuarioResumo | null;
@@ -140,7 +144,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const abrir = useCallback(async (resposta: LoginResponse) => {
     await guardarSessao(resposta);
     const eu = await rotas.eu();
-    const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,recebimentoOnlineHabilitado:eu.recebimentoOnlineHabilitado,pagarNoIos:eu.pagarNoIos,pagarNoAndroid:eu.pagarNoAndroid,cicloHabilitado:eu.cicloHabilitado,termosPendentes:eu.termosPendentes};
+    const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,recebimentoOnlineHabilitado:eu.recebimentoOnlineHabilitado,pagarNoIos:eu.pagarNoIos,pagarNoAndroid:eu.pagarNoAndroid,cicloHabilitado:eu.cicloHabilitado,retornoHabilitado:eu.retornoHabilitado,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;
     definirUsuarioDaSessao(eu.usuario.id);
     setPerfil(novo);
@@ -273,7 +277,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     const atual=perfilAtual.current;if(!atual || atual.usuario.papel!=='TREINADOR') return;
     const eu=await rotas.eu();
     if(perfilAtual.current?.usuario.id!==eu.usuario.id) return;
-    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,recebimentoOnlineHabilitado:eu.recebimentoOnlineHabilitado,pagarNoIos:eu.pagarNoIos,pagarNoAndroid:eu.pagarNoAndroid,cicloHabilitado:eu.cicloHabilitado,termosPendentes:eu.termosPendentes};
+    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,recebimentoOnlineHabilitado:eu.recebimentoOnlineHabilitado,pagarNoIos:eu.pagarNoIos,pagarNoAndroid:eu.pagarNoAndroid,cicloHabilitado:eu.cicloHabilitado,retornoHabilitado:eu.retornoHabilitado,termosPendentes:eu.termosPendentes};
     perfilAtual.current=novo;setPerfil(novo);
     await AsyncStorage.setItem(CHAVE_PERFIL,JSON.stringify(novo)).catch(()=>undefined);
   },[]);
@@ -311,6 +315,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       pagarNoIos:perfil?.pagarNoIos===true,
       pagarNoAndroid:perfil?.pagarNoAndroid===true,
       cicloHabilitado:perfil?.cicloHabilitado===true,
+      retornoHabilitado:perfil?.retornoHabilitado===true,
       recarregarPerfil,
       situacao,
       usuario: perfil?.usuario ?? null,

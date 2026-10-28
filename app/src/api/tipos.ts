@@ -55,6 +55,8 @@ export interface EuResponse {
   pagarNoAndroid?: boolean;
   /** Acompanhamento do ciclo menstrual ligado na plataforma; falso ou ausente = o app esconde tudo dele e não o consulta. */
   cicloHabilitado?: boolean;
+  /** "Concluir treino" (retorno ao aluno) ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta nem envia. */
+  retornoHabilitado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };
@@ -1013,6 +1015,39 @@ export interface RegistroMobilidadeFeito {
   itemUid: string;
   data: string;
   feito: boolean;
+}
+
+/** Treino concluído (ou reaberto) no aparelho; `id` nasce no aparelho e torna o reenvio idempotente. Reabrir é o mesmo registro com `concluida` falso. */
+export interface RegistroSessaoConcluidaEnvio {
+  id: string;
+  planoVersaoId: string;
+  sessaoUid: string;
+  data: string;
+  concluida: boolean;
+  /** Nulo quando `concluida` é falso. */
+  resultado: 'COMPLETA' | 'PARCIAL' | null;
+  /** Segundos (60 a 21600) ou nulo; sempre nulo quando `concluida` é falso. */
+  duracaoSegundos: number | null;
+  /** Dado do aluno: nunca em log. */
+  comentario: string | null;
+  alteradoNoAparelhoEm: string;
+}
+
+/** O que o servidor devolve de uma conclusão: sem id nem situação. */
+export interface SessaoConcluidaDoServidor {
+  planoVersaoId: string;
+  sessaoUid: string;
+  data: string;
+  concluida: boolean;
+  resultado: 'COMPLETA' | 'PARCIAL' | null;
+  duracaoSegundos: number | null;
+  comentario: string | null;
+}
+
+/** `totalConcluidos` = treinos concluídos do aluno em todo o histórico (não só na janela de `sessoes`). */
+export interface SessoesConcluidasResponse {
+  totalConcluidos: number;
+  sessoes: SessaoConcluidaDoServidor[];
 }
 
 export type SituacaoEnvio = 'ACEITO' | 'IGNORADO_ANTIGO' | 'RECUSADO';

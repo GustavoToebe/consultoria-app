@@ -27,6 +27,7 @@ class ExclusaoDeContaIntegrationTest extends AbstractIntegrationTest {
 
     private static final String NOME = "Joana Fictícia";
     private static final String OBSERVACAO_SERIE = "Observação fictícia da série";
+    private static final String COMENTARIO_SESSAO = "Comentário fictício da sessão";
 
     @Autowired
     private MockMvc mvc;
@@ -75,6 +76,7 @@ class ExclusaoDeContaIntegrationTest extends AbstractIntegrationTest {
         registro.put("observacao", OBSERVACAO_SERIE);
         registro.put("alteradoNoAparelhoEm", Instant.now().toString());
         api.post("/aluno/execucoes/lote", loginDoAluno, Map.of("registros", List.of(registro)), 200);
+        concluirSessao(loginDoAluno, versaoId, treino.sessaoUid().toString());
 
         api.post("/alunos/" + alunoId + "/pesos", admin, Map.of("data", hoje.minusDays(2), "pesoKg", "70.10"), 200);
         api.post("/alunos/" + alunoId + "/lesoes", admin,
@@ -87,6 +89,25 @@ class ExclusaoDeContaIntegrationTest extends AbstractIntegrationTest {
         outroAluno = api.criarAluno(admin, "Outro aluno fictício");
         api.post("/alunos/" + outroAluno + "/pesos", admin, Map.of("data", hoje.minusDays(1), "pesoKg", "80.00"), 200);
         loginDoOutro = api.convidarEEntrar(admin, outroAluno);
+        var treinoDoOutro = ApiDeTeste.treino();
+        api.publicarTreino(admin, outroAluno, treinoDoOutro.conteudo());
+        concluirSessao(loginDoOutro, api.get("/aluno/painel", loginDoOutro, 200).get("treino").get("versaoId").asString(),
+                treinoDoOutro.sessaoUid().toString());
+    }
+
+    /** O aluno conclui a sessão do dia com um comentário (dado sensível). */
+    private void concluirSessao(JsonNode login, String versaoId, String sessaoUid) throws Exception {
+        Map<String, Object> sessao = new LinkedHashMap<>();
+        sessao.put("id", UUID.randomUUID().toString());
+        sessao.put("planoVersaoId", versaoId);
+        sessao.put("sessaoUid", sessaoUid);
+        sessao.put("data", hoje.toString());
+        sessao.put("concluida", true);
+        sessao.put("resultado", "COMPLETA");
+        sessao.put("duracaoSegundos", 3000);
+        sessao.put("comentario", COMENTARIO_SESSAO);
+        sessao.put("alteradoNoAparelhoEm", Instant.now().toString());
+        api.post("/aluno/sessoes-concluidas", login, Map.of("registros", List.of(sessao)), 200);
     }
 
     private Map<String, Object> pedido(String senha, String confirmacao) {
@@ -143,6 +164,10 @@ class ExclusaoDeContaIntegrationTest extends AbstractIntegrationTest {
         assertThat(contar("select count(*) from execucao_serie where aluno_id = ? and observacao is not null", alunoId)).isZero();
         assertThat(contar("select count(*) from execucao_serie where aluno_id = ? and carga is not null", alunoId)).isEqualTo(series);
         assertThat(contar("select count(*) from pasta_plano where aluno_id = ? and titulo like '%Joana%'", alunoId)).isZero();
+        // A sessão concluída fica (resultado, duração e data não identificam ninguém); só o comentário sai.
+        assertThat(contar("select count(*) from sessao_concluida where aluno_id = ? and concluida and resultado = 'COMPLETA'",
+                alunoId)).isEqualTo(1);
+        assertThat(contar("select count(*) from sessao_concluida where aluno_id = ? and comentario is not null", alunoId)).isZero();
         // Foto fora do ar e na fila do bucket.
         assertThat(contar("select count(*) from atualizacao_foto where id = ? and removida_em is not null", fotoPendente)).isEqualTo(1);
         assertThat(contar("select count(*) from foto_remocao where objeto = ?", fotoPendente)).isEqualTo(1);
@@ -167,6 +192,8 @@ class ExclusaoDeContaIntegrationTest extends AbstractIntegrationTest {
 
         // O colega da mesma consultoria não foi tocado.
         assertThat(contar("select count(*) from registro_peso where aluno_id = ?", outroAluno)).isEqualTo(1);
+        assertThat(contar("select count(*) from sessao_concluida where aluno_id = ? and comentario = ?", outroAluno,
+                COMENTARIO_SESSAO)).isEqualTo(1);
         assertThat(contar("select count(*) from aluno where id = ? and ativo and anonimizado_em is null", outroAluno)).isEqualTo(1);
         api.get("/eu", loginDoOutro, 200);
     }

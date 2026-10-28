@@ -23,7 +23,7 @@ import { PainelConfirmacao } from '../ui/PainelConfirmacao';
  */
 export function CartaoExcluirConta() {
   const sessao = useSessao();
-  const { registros, mobilidadeNoAparelho } = useAluno();
+  const { registros, mobilidadeNoAparelho, sessoesConcluidasNoAparelho } = useAluno();
   const { avisar } = useAviso();
   const [aberto, setAberto] = useState(false);
   const [senha, setSenha] = useState('');
@@ -56,7 +56,7 @@ export function CartaoExcluirConta() {
   };
 
   const motivo = motivoParaNaoExcluir(senha, palavra);
-  const mensagem = [EXPLICACAO_DA_EXCLUSAO, avisoDeNaoEnviados(treinosNaoEnviados(registros), diasDeMobilidadeNaoEnviados(mobilidadeNoAparelho))].filter(Boolean).join(' ');
+  const mensagem = [EXPLICACAO_DA_EXCLUSAO, avisoDeNaoEnviados(treinosNaoEnviados(registros, sessoesConcluidasNoAparelho), diasDeMobilidadeNaoEnviados(mobilidadeNoAparelho))].filter(Boolean).join(' ');
 
   return (
     <Cartao titulo="Excluir minha conta" descricao="Apaga os seus dados pessoais desta consultoria. Não tem volta.">

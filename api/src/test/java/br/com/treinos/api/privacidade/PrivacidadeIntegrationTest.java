@@ -241,12 +241,55 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void exportarLevaAsSessoesConcluidasComOComentarioEAAnonimizacaoApagaSoOComentario() throws Exception {
+        String versao = api.get("/aluno/painel", loginDoAluno, 200).get("treino").get("versaoId").asString();
+        String sessaoUid = api.get("/aluno/painel", loginDoAluno, 200).get("treino").get("conteudo").get("sessoes").get(0)
+                .get("uid").asString();
+        Map<String, Object> sessao = new LinkedHashMap<>();
+        sessao.put("id", UUID.randomUUID().toString());
+        sessao.put("planoVersaoId", versao);
+        sessao.put("sessaoUid", sessaoUid);
+        sessao.put("data", hoje.toString());
+        sessao.put("concluida", true);
+        sessao.put("resultado", "PARCIAL");
+        sessao.put("duracaoSegundos", 2700);
+        sessao.put("comentario", "Comentário fictício da sessão");
+        sessao.put("alteradoNoAparelhoEm", Instant.now().toString());
+        api.post("/aluno/sessoes-concluidas", loginDoAluno, Map.of("registros", List.of(sessao)), 200);
+
+        // Com ALUNO_SENSIVEL_LER sai o comentário.
+        JsonNode dados = api.get("/alunos/" + alunoId + "/exportacao", admin, 200);
+        JsonNode item = dados.get("sessoesConcluidas").get("itens").get(0);
+        assertThat(dados.get("sessoesConcluidas").get("itens")).hasSize(1);
+        assertThat(item.get("resultado").asString()).isEqualTo("PARCIAL");
+        assertThat(item.get("duracaoSegundos").asInt()).isEqualTo(2700);
+        assertThat(item.get("comentario").asString()).isEqualTo("Comentário fictício da sessão");
+
+        // ALUNO_EXPORTAR depende de ALUNO_SENSIVEL_LER (o perfil sem ela é recusado), então quem exporta sempre lê o comentário;
+        // o serviço o deixa nulo sem a permissão por garantia (a rota do treinador, sim, tem o caso: SessaoConcluidaIntegrationTest).
+        // Sem REGISTRO_LER a seção fica de fora, listada como omitida.
+        JsonNode semRegistro = membro("Exportador sem registro de sessão", Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER", "ALUNO_EXPORTAR"));
+        JsonNode omitida = api.get("/alunos/" + alunoId + "/exportacao", semRegistro, 200);
+        assertThat(omitida.has("sessoesConcluidas")).isFalse();
+        assertThat(omitida.get("secoesOmitidas").valueStream().map(JsonNode::asString)).contains("sessoesConcluidas");
+
+        // A anonimização apaga o comentário e mantém a linha (resultado, duração e data).
+        api.patch("/alunos/" + alunoId + "/situacao", admin, Map.of("ativo", false), 200);
+        api.post("/alunos/" + alunoId + "/anonimizar", admin, Map.of("nomeConfirmado", NOME), 200);
+        assertThat(jdbc.queryForObject("select count(*) from sessao_concluida where aluno_id = ?::uuid and resultado = 'PARCIAL' "
+                + "and duracao_segundos = 2700", Integer.class, alunoId.toString())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from sessao_concluida where aluno_id = ?::uuid and comentario is not null",
+                Integer.class, alunoId.toString())).isZero();
+    }
+
+    @Test
     void exportarSoLeOQueAPermissaoDeCadaSecaoDeixa() throws Exception {
         // Só as três permissões que a dependência garante: nada de plano, registro, atualização, anamnese nem inscrição.
         JsonNode minimo = membro("Exportador mínimo", Set.of("ALUNO_LER", "ALUNO_SENSIVEL_LER", "ALUNO_EXPORTAR"));
         JsonNode dados = api.get("/alunos/" + alunoId + "/exportacao", minimo, 200);
         assertThat(dados.get("secoesOmitidas").valueStream().map(JsonNode::asString))
-                .containsExactlyInAnyOrder("treinos", "dietas", "mobilidades", "registros", "mobilidadeRegistros", "atualizacoes",
+                .containsExactlyInAnyOrder("treinos", "dietas", "mobilidades", "registros", "mobilidadeRegistros", "sessoesConcluidas",
+                        "atualizacoes",
                         "anamneses", "inscricao", "financeiro");
         assertThat(dados.has("treinos")).isFalse();
         assertThat(dados.has("anamneses")).isFalse();
