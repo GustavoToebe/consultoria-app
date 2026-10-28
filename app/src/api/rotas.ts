@@ -34,6 +34,7 @@ import type {
   InscricaoPublicaRequest,
   PaginaInscricoes,
 } from './inscricoesTipos';
+import type { Compromisso, CompromissoDoAluno, CompromissoRequest, FiltroCompromissos, SituacaoCompromisso } from './agendaTipos';
 import type {
   Atualizacao,
   AtualizacaoDaLista,
@@ -411,6 +412,22 @@ export const aceitarInscricao = (id: string, dados: { convidar: boolean; anamnes
     corpo: { convidar: dados.convidar, anamneseQuestionarioId: dados.anamneseQuestionarioId, versao: dados.versao },
   });
 
+// ---- Treinador: agenda presencial (AGENDA_LER / AGENDA_ALTERAR) ----
+
+/** Compromissos que tocam os dias `de`..`ate` (Brasília, até 62 dias). */
+export const listarCompromissos = (filtro: FiltroCompromissos) => {
+  const q = new URLSearchParams({ de: filtro.de, ate: filtro.ate });
+  if (filtro.responsavel) q.set('responsavel', filtro.responsavel);
+  if (filtro.situacao) q.set('situacao', filtro.situacao);
+  return requisicao<Compromisso[]>(`/agenda/compromissos?${q.toString()}`);
+};
+export const criarCompromisso = (corpo: CompromissoRequest) =>
+  requisicao<Compromisso>('/agenda/compromissos', { metodo: 'POST', corpo });
+export const alterarCompromisso = (id: string, corpo: CompromissoRequest) =>
+  requisicao<Compromisso>(`/agenda/compromissos/${seg(id)}`, { metodo: 'PUT', corpo });
+export const alterarSituacaoCompromisso = (id: string, situacao: SituacaoCompromisso, versao: number) =>
+  requisicao<Compromisso>(`/agenda/compromissos/${seg(id)}/situacao`, { metodo: 'POST', corpo: { situacao, versao } });
+
 // ---- Treinador: marca e configuração ----
 
 export const consultoria = () => requisicao<ConsultoriaResponse>('/consultoria');
@@ -668,6 +685,9 @@ export const salvarPlanoComoReceita =(tipo: TipoPlano, id: string, nome: string,
   requisicao<Receita>(`/${seg(prefixo(tipo))}/${seg(id)}/salvar-como-receita`, { metodo: 'POST', corpo: { nome, descricao } });
 
 // ---- Aluno (sempre o aluno do token) ----
+
+/** Próximos compromissos presenciais do aluno (só leitura; sem observação). */
+export const compromissosDoAluno = () => requisicao<CompromissoDoAluno[]>('/aluno/compromissos');
 
 export const painelAluno = () => requisicao<PainelAluno>('/aluno/painel');
 

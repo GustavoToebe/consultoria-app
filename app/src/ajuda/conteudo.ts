@@ -68,7 +68,8 @@ const TREINADOR: Guia = {
     { titulo: 'Interessados', texto: 'O link de inscrição da consultoria e a fila de quem se inscreveu por ele. Ligue o link, copie e divulgue; cada inscrição chega para o responsável escolhido. Abra a inscrição para conversar pelo WhatsApp, registrar o andamento e aceitar (o aluno é cadastrado na hora) ou recusar.', rota: '/treinador/interessados' },
     { titulo: 'Ficha do aluno', texto: 'Reúne dados, acesso ao app, lesões, pastas de plano, frequência, progresso por exercício, peso e a evolução das respostas das atualizações. Atualizações do aluno ficam dentro de cada pasta.', rota: '/treinador/alunos' },
     { titulo: 'Pastas de plano', texto: 'Cada pasta tem período e agrupa treino, dieta e mobilidade. Use o filtro Todas, Ativas ou Concluídas para achar uma pasta. Finalize a pasta ao fim do ciclo e replique para o próximo; em Mais ações (⋯), Renovar pasta faz isso de uma vez, com o próximo período e os planos em rascunho.', rota: '/treinador/alunos' },
-    { titulo: 'Atualizações', texto: 'As atualizações que os alunos enviam ao fim de cada período, separadas em para revisar, atrasadas e todas. Abra uma, leia as respostas e escreva o retorno; "Próxima" passa para a seguinte da fila. O ponto no menu avisa quando há alguma para revisar. A Agenda (no menu lateral, no contador "Atualizações em 7 dias" do Início e na busca de telas) mostra as dos próximos 7 dias dia a dia, com Hoje e Amanhã no topo e "Nenhuma atualização" nos dias vazios; vale o mesmo filtro Todos / Meus.', rota: '/treinador/atualizacoes' },
+    { titulo: 'Atualizações', texto: 'As atualizações que os alunos enviam ao fim de cada período, separadas em para revisar, atrasadas e todas. Abra uma, leia as respostas e escreva o retorno; "Próxima" passa para a seguinte da fila. O ponto no menu avisa quando há alguma para revisar. A Agenda (no menu lateral, no contador "Atualizações em 7 dias" do Início e na busca de telas) mostra as dos próximos 7 dias dia a dia, junto dos compromissos presenciais; vale o mesmo filtro Todos / Meus.', rota: '/treinador/atualizacoes' },
+    { titulo: 'Agenda', texto: 'Os compromissos presenciais com os alunos (consultas, retornos, avaliações) e as atualizações que vencem, dia a dia. Escolha Dia ou Semana e ande com as setas; "Novo compromisso" marca um horário. Tocar num compromisso mostra os detalhes, com Editar, Marcar realizado, Marcar falta e Cancelar.', rota: '/treinador/agenda' },
     { titulo: 'Números', texto: 'As contagens da consultoria nos últimos 6 meses, sem nomes: alunos ativos no fim de cada mês e atualizações do mês, no prazo e atrasadas. Fica tudo numa tabela, do mês atual para o mais antigo; o mês corrente vem marcado "até hoje". Onde aparece “—”, o número não está disponível (não é zero). Fica no menu lateral, no link ao lado de "Ver alunos" no Início e na busca de telas.', rota: '/treinador/numeros' },
     { titulo: 'Editores de plano', texto: 'Nada é salvo sozinho: toque em Salvar rascunho (Validar e Publicar também salvam antes). O selo do topo diz "Alterações não salvas" e, depois de salvar, "Salvo às HH:MM". Se sair com alterações não salvas, o app pergunta antes. Plano publicado é imutável.', rota: '/treinador/planejamento' },
     { titulo: 'Biblioteca', texto: 'Exercícios (com filtro por um ou vários grupos musculares), alimentos, suplementos e catálogo público. A aba Outros (medicação e ergogênicos) só aparece para quem tem a permissão; as categorias dela são você quem escreve. Planilha entra em Importação.', rota: '/treinador/biblioteca' },
@@ -125,6 +126,18 @@ const TREINADOR: Guia = {
         { titulo: 'Possível duplicidade', texto: 'A inscrição avisa quando há aluno com o mesmo e-mail ou outra inscrição em atendimento com o mesmo e-mail ou WhatsApp. É só um aviso: nada é juntado sozinho.' },
         { titulo: 'Recusar e por quanto tempo fica guardado', texto: 'Recusar tira a inscrição da fila. Inscrições recusadas ou de quem desistiu são apagadas sozinhas 180 dias depois da última mudança; a aceita segue as regras do aluno (ao anonimizar o aluno, a inscrição dele também é apagada).' },
         { titulo: 'Quem vê', texto: 'Interessados aparece para quem tem a permissão de interessados (nos perfis prontos, Administrador, Treinador e Assistente). Aceitar pede também a permissão de cadastrar alunos, e o convite, a de convidar. Enviar anamnese pede também as de anamnese (ler e alterar) e a de dados sensíveis.' },
+      ],
+    },
+    {
+      titulo: 'Agenda presencial',
+      itens: [
+        { titulo: 'Marcar um compromisso', texto: 'Na Agenda, toque em Novo compromisso e escolha o aluno (só alunos ativos), o responsável da equipe, a data, a hora, a duração (de 5 a 480 minutos) e, se quiser, o local. A hora é sempre a de Brasília. Só a equipe marca: o aluno não escolhe horário.' },
+        { titulo: 'Horário ocupado', texto: 'O mesmo responsável não pode ter dois compromissos ao mesmo tempo. Se o horário já estiver tomado, o app avisa e não salva; escolha outro horário ou outro responsável. Um compromisso que termina às 10:00 não impede outro que começa às 10:00. Cancelado libera o horário.' },
+        { titulo: 'Dia e Semana', texto: 'A visão Dia mostra um dia; a Semana mostra o dia escolhido e os 7 seguintes. Os filtros Todos / Meus e Membro mostram os compromissos de quem você escolher; Compromissos filtra por situação. As atualizações aparecem de hoje até 7 dias à frente.' },
+        { titulo: 'Depois do horário', texto: 'Abra o compromisso e toque em Marcar realizado ou Marcar falta (só depois do horário de início). Dá para corrigir depois ou voltar para agendado.' },
+        { titulo: 'Observação', texto: 'A observação é só da equipe: o aluno não vê. Ela aparece e se edita só para quem tem a permissão de dados sensíveis.' },
+        { titulo: 'O que o aluno vê', texto: 'No Início do app, em Seus compromissos, o aluno vê os próximos: dia, hora, local e com quem. Os cancelados aparecem marcados como Cancelado.' },
+        { titulo: 'Quem vê', texto: 'A agenda presencial aparece para quem tem as permissões da agenda (nos perfis prontos, Administrador, Treinador, Nutricionista e Assistente). Ao anonimizar um aluno, ou quando ele exclui a conta, os compromissos dele são apagados; a exportação dos dados do aluno leva os compromissos.' },
       ],
     },
     {
@@ -279,6 +292,7 @@ const ALUNO: Guia = {
     { titulo: 'Mobilidade', texto: 'Fica na aba Treino, só se o treinador publicou um plano de mobilidade. Toque no ✓ de cada item para marcar como feito no dia; no topo você vê "Hoje: N de M feitos" e pode escolher outro dia recente. Vídeos abrem fora do app.', rota: '/aluno/treino' },
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão, com o nome do tipo de cada série.', rota: '/aluno/historico' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, rota: '/aluno' },
+    { titulo: 'Compromissos', texto: 'Quando o treinador marca um horário presencial com você (consulta, retorno, avaliação), ele aparece no Início, em Seus compromissos, com dia, hora (de Brasília), local e com quem. Quem marca, remarca ou cancela é o treinador; o cancelado aparece marcado.', rota: '/aluno' },
     { titulo: 'Sem internet', texto: 'Pode treinar e marcar a mobilidade sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
     { titulo: 'Meus dados', texto: `Em Conta, logo depois da foto de perfil, o cartão "Meus dados" mostra o seu cadastro. Toque em Editar para mudar telefone, endereço (o CEP preenche o resto) e sexo; o CPF você só preenche se ainda estiver vazio. Nome e e-mail só o seu treinador muda. Salvar vale na hora e precisa de internet. ${FRASE_DO_CICLO}`, rota: '/aluno/conta' },
     { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam foto de perfil, seus dados, tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
@@ -292,6 +306,13 @@ const ALUNO: Guia = {
     { titulo: 'Conta', texto: 'Foto de perfil, tema, senha, sincronização e a Ajuda, onde "Conhecer o menu" mostra este passeio de novo.', alvo: 'menu:/aluno/conta' },
   ],
   secoes: [
+    {
+      titulo: 'Compromissos presenciais',
+      itens: [
+        { titulo: 'Onde aparecem', texto: 'No Início, em Seus compromissos, ficam os próximos horários que o treinador marcou com você: dia, hora (sempre a de Brasília), duração, local e com quem. Sem nenhum marcado, o bloco não aparece.' },
+        { titulo: 'Remarcar ou cancelar', texto: 'Só o treinador marca, remarca ou cancela. Precisa mudar? Fale com ele. O compromisso cancelado continua na lista com o selo Cancelado até o horário passar.' },
+      ],
+    },
     {
       titulo: 'Treino',
       itens: [

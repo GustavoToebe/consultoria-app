@@ -25,7 +25,9 @@ describe('navegação de membros da equipe', () => {
     expect(podeAcessarTela('/treinador/perfil', acesso([]))).toBe(true);
     expect(podeAcessarTela('/treinador/ajuda', acesso([]))).toBe(true);
   });
-  it('a Agenda pede o mesmo que as Atualizações (ATUALIZACAO_LER e ALUNO_SENSIVEL_LER)', () => {
+  it('a Agenda abre com as permissões das Atualizações ou com AGENDA_LER (compromissos presenciais)', () => {
+    expect(podeAcessarTela('/treinador/agenda', acesso(['AGENDA_LER','ALUNO_LER']))).toBe(true);
+    expect(podeAcessarTela('/treinador/atualizacoes', acesso(['AGENDA_LER','ALUNO_LER']))).toBe(false);
     expect(podeAcessarTela('/treinador/agenda', acesso(['ATUALIZACAO_LER']))).toBe(false);
     expect(podeAcessarTela('/treinador/agenda', acesso(['ALUNO_SENSIVEL_LER']))).toBe(false);
     expect(podeAcessarTela('/treinador/agenda', acesso(['PAINEL_VER','ALUNO_LER']))).toBe(false);

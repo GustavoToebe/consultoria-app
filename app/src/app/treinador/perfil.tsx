@@ -1,5 +1,5 @@
 import { router, type Href } from 'expo-router';
-import { FileText, FileUp, History, Inbox, LayoutGrid, LifeBuoy, UsersRound, Wallet } from 'lucide-react-native';
+import { CalendarDays, FileText, FileUp, History, Inbox, LayoutGrid, LifeBuoy, UsersRound, Wallet } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -23,7 +23,7 @@ import { useFavoritos } from '../../ui/useFavoritos';
 /**
  * Perfil: porta de entrada da conta no celular (no PC isso é o cartão do usuário na barra de topo). Mostra os mesmos
  * itens do menu do usuário (Marca só para o Administrador), a busca de telas (no celular não há barra de topo) e os
- * atalhos para ajuda, interessados, equipe, importação e auditoria. As telas abertas daqui voltam para cá pela seta.
+ * atalhos para agenda, ajuda, interessados, equipe, importação e auditoria. As telas abertas daqui voltam para cá pela seta.
  */
 export default function PerfilTreinador() {
   const { usuario, perfilEquipe, pode, funcionalidadesDoPlano, pagamentosHabilitados } = useSessao();
@@ -50,6 +50,7 @@ export default function PerfilTreinador() {
       </Cartao>
       <Cartao titulo="Atalhos" descricao="Páginas de apoio e de gestão da consultoria.">
         <View style={estilos.lista}>
+          <Permitido codigo="AGENDA_LER"><ItemDeLista href="/treinador/agenda" Icone={CalendarDays} titulo="Agenda" detalhe="Compromissos presenciais com os alunos, por dia ou semana" /></Permitido>
           <Permitido codigo="INSCRICAO_LER"><ItemDeLista href="/treinador/interessados" Icone={Inbox} titulo="Interessados" detalhe="Link de inscrição e a fila de quem quer ser aluno"
             selo={totalNovas > 0 ? { texto: totalNovas === 1 ? '1 nova' : `${totalNovas} novas`, tipo: 'atencao' } : undefined} /></Permitido>
           {pagamentosHabilitados ? (

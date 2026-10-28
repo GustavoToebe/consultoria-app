@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 
 import { CabecalhoDoInicio } from '../../aluno/CabecalhoDoInicio';
+import { CartaoCompromissos } from '../../aluno/CartaoCompromissos';
 import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
 import { ParaFazer } from '../../aluno/ParaFazer';
@@ -19,8 +20,8 @@ import { Tela } from '../../ui/Tela';
 
 /**
  * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, o cartão Hoje (o único primário),
- * as pendências e a faixa da semana. A lista de divisões, o PDF e a mobilidade ficam na aba Treino. Sempre o plano
- * em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
+ * as pendências, os próximos compromissos presenciais (só leitura) e a faixa da semana. A lista de divisões, o PDF e
+ * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
 export default function InicioAluno() {
   const { pacote, carregando, erroPacote, tentarDeNovo } = useAluno();
@@ -46,6 +47,7 @@ export default function InicioAluno() {
         erro={semPacote && erroPacote ? { texto: `${textoDoErro(erroPacote)} Conecte-se uma vez para baixar o treino; depois ele funciona sem internet.`, aoTentarDeNovo: () => void tentarDeNovo(), causa: erroPacote } : undefined}
       />
       {pacote ? <ParaFazer /> : null}
+      <CartaoCompromissos />
       {pacote ? <ProgressoSemana hoje={hoje} /> : null}
     </Tela>
   );
