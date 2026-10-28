@@ -48,6 +48,11 @@ public class ValidadorDieta {
             if (r.horario() != null && !r.horario().isBlank() && !r.horario().matches("([01]\\d|2[0-3]):[0-5]\\d")) {
                 c.erro(cr + ".horario", "Horário no formato HH:MM.");
             }
+            // Só o tamanho: o texto é do treinador e nunca vai a log nem à auditoria (nem na mensagem de erro).
+            if (r.modoDePreparo() != null && r.modoDePreparo().length() > ConteudoDieta.MODO_DE_PREPARO_MAXIMO) {
+                c.erro(cr + ".modoDePreparo", "Modo de preparo com até " + ConteudoDieta.MODO_DE_PREPARO_MAXIMO
+                        + " caracteres.");
+            }
             List<Opcao> opcoes = r.opcoesOuVazio();
             if (opcoes.isEmpty()) {
                 c.erro(cr + ".opcoes", "Refeição sem opção.");

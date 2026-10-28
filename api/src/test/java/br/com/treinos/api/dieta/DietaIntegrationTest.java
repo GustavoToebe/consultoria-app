@@ -8,11 +8,13 @@ import br.com.treinos.api.dieta.ConteudoDieta.Refeicao;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,6 +29,8 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
     private MockMvc mvc;
     @Autowired
     private JsonMapper json;
+    @Autowired
+    private JdbcTemplate banco;
 
     @Test
     void dietaDaReceitaValidaPublicaEChegaAoAluno() throws Exception {
@@ -157,6 +161,58 @@ class DietaIntegrationTest extends AbstractIntegrationTest {
         JsonNode suplementacao = api.get("/aluno/dieta", alunoLogado, 200).get("dieta").get("conteudo").get("suplementacao");
         assertThat(suplementacao.get(0).get("link").asString()).isEqualTo("https://exemplo.com/p");
         assertThat(suplementacao.get(1).get("link").isNull()).isTrue();
+    }
+
+    @Test
+    void modoDePreparoChegaAoAlunoVaiNaCopiaENoModeloENuncaNaAuditoria() throws Exception {
+        ApiDeTeste api = new ApiDeTeste(mvc, json);
+        JsonNode treinador = api.novoTreinador();
+        UUID aluno = api.criarAluno(treinador, "Aluno Fictício");
+        UUID outro = api.criarAluno(treinador, "Outro Aluno Fictício");
+        JsonNode alunoLogado = api.convidarEEntrar(treinador, aluno);
+        String marca = "Preparo-fictício-" + UUID.randomUUID();
+        String preparo = marca + "\nCozinhe o arroz.\n\nMisture o frango desfiado.";
+        Refeicao comPreparo = new Refeicao(UUID.randomUUID(), "Almoço", "12:00", null, List.of(
+                new Opcao(UUID.randomUUID(), "A", List.of(item("Arroz branco cozido", "150", "191.7")))), preparo);
+        ConteudoDieta conteudo = new ConteudoDieta(null, null, null, List.of(comPreparo), List.of(), null, List.of());
+
+        JsonNode plano = api.post("/alunos/" + aluno + "/planos-dieta", treinador, Map.of("titulo", "Dieta"), 200);
+        String id = plano.get("plano").get("id").asString();
+        JsonNode salvo = api.put("/planos-dieta/" + id + "/rascunho", treinador,
+                ApiDeTeste.rascunho("Dieta", conteudo, plano.get("plano").get("versao").asLong()), 200);
+        assertThat(api.post("/planos-dieta/" + id + "/validar", treinador, null, 200).get("erros")).isEmpty();
+        api.post("/planos-dieta/" + id + "/publicar", treinador,
+                Map.of("versao", salvo.get("plano").get("versao").asLong(), "confirmarAvisos", true), 200);
+
+        // O aluno lê o texto como foi escrito, com as quebras de linha.
+        JsonNode doAluno = api.get("/aluno/dieta", alunoLogado, 200).get("dieta").get("conteudo");
+        assertThat(doAluno.get("refeicoes").get(0).get("modoDePreparo").asString()).isEqualTo(preparo);
+
+        // Copiar para outro aluno leva o campo.
+        Map<String, Object> pedido = new LinkedHashMap<>();
+        pedido.put("alunoId", outro);
+        pedido.put("titulo", "Cópia fictícia");
+        pedido.put("inicio", "2026-11-02");
+        pedido.put("fim", "2026-11-29");
+        JsonNode copia = api.post("/planos-dieta/" + id + "/copiar-para-aluno", treinador, pedido, 200);
+        JsonNode rascunhoDaCopia = api.get("/planos-dieta/" + copia.get("planoId").asString(), treinador, 200).get("rascunho");
+        assertThat(rascunhoDaCopia.get("refeicoes").get(0).get("modoDePreparo").asString()).isEqualTo(preparo);
+
+        // A refeição pronta (modelo REFEICAO) guarda o campo.
+        JsonNode modelo = api.post("/receitas", treinador, Map.of("tipo", "REFEICAO", "nome", "Refeição fictícia " + marca,
+                "conteudo", conteudo), 200);
+        JsonNode lido = api.get("/receitas/" + modelo.get("id").asString(), treinador, 200);
+        assertThat(lido.get("conteudo").get("refeicoes").get(0).get("modoDePreparo").asString()).isEqualTo(preparo);
+
+        // Mais de 2000 caracteres é recusado ao salvar, sem repetir o texto na resposta.
+        Refeicao longa = new Refeicao(UUID.randomUUID(), "Jantar", null, null, List.of(), "x".repeat(2001));
+        JsonNode recusa = api.put("/planos-dieta/" + id + "/rascunho", treinador, ApiDeTeste.rascunho("Dieta",
+                new ConteudoDieta(null, null, null, List.of(longa), List.of(), null, List.of()),
+                api.get("/planos-dieta/" + id, treinador, 200).get("plano").get("versao").asLong()), 400);
+        assertThat(recusa.toString()).doesNotContain("x".repeat(100));
+
+        assertThat(banco.queryForObject("select count(*) from auditoria where resumo like ?", Integer.class,
+                "%" + marca + "%")).isZero();
     }
 
     private static Refeicao refeicao(String nome, String horario, List<Opcao> opcoes) {
