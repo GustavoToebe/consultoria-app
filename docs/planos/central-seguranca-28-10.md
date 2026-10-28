@@ -1,6 +1,6 @@
 # Central: lote de segurança de 28/10
 
-Situação: Em andamento (PR #26 mesclado e em produção; falta só o login do consultoria testado pelo Gustavo) · Onde: Central, branch `seguranca-lote-28-10` (um PR) · Atualizado: 28/10/2026
+Situação: Concluída (PR #26 em produção, VPS trocada, logins testados) · Onde: Central, branch `seguranca-lote-28-10` (um PR) · Atualizado: 28/10/2026
 
 ## Objetivo
 Fechar na Central os itens baixos da revisão do `main` 1008d11 (28/10) e as pendências das revisões anteriores: conferir o link da
@@ -43,4 +43,4 @@ que o aviso perdeu e apertar validações e a varredura de vulnerabilidades.
   contexto em cache). Corrigido só em `application-test.yml` (`minimum-idle: 1`, `idle-timeout: 10s`; pico local 25), commit 78607f5. Hipótese,
   não provado: a `main` já ficava perto do limite e a ordem de execução da CI expôs.
 - Exceção da 92392 entrou no PR #26 (commit 002a8ed) depois de aprovada pelo Gustavo; a linha acima sobre ela fica só como histórico.
-- Falta testar o login do consultoria (o Turnstile passa pelo túnel novo).
+- Login da Central e do consultoria testados pelo Gustavo depois da troca do túnel (28/10): funcionaram.
