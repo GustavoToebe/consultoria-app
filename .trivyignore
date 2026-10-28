@@ -8,3 +8,10 @@ CVE-2026-97031 exp:2026-11-14
 # CVE-2026-111943 (Go crypto/x509, corrigida no Go 1.26.10): mesmo binário do Caddy oficial. Este contêiner não termina TLS nem
 # valida certificado de cliente (só HTTP atrás do proxy da VPS), então crypto/x509 não é exercitado. Mesma validade.
 CVE-2026-111943 exp:2026-11-14
+# CVE-2026-116587 (go-jose v4.1.5, corrigida na 4.1.6; GHSA-mgcc-cww5-fp2q): negação de serviço ao ler uma chave RSA forjada
+# dentro de um JWK (jose.ParseSigned / leitura de JWK), só consumo de CPU (CVSS 7.5, disponibilidade). Vem dentro do mesmo
+# binário do Caddy oficial, que usa o go-jose nas partes de certificado e assinatura (ACME, PKI, módulos de JWT). Este contêiner
+# só serve arquivos estáticos (Caddyfile com `admin off` e `auto_https off`, sem `tls`, ACME, `pki`, `acme_server` nem
+# autenticação por JWT), então nunca lê JWK de fonte externa. Este arquivo vale também para a imagem da API, que é Java e
+# não tem go-jose: a exceção não muda nada nela. Mesma validade; até lá conferir se o caddy:2-alpine já traz go-jose 4.1.6.
+CVE-2026-116587 exp:2026-11-14

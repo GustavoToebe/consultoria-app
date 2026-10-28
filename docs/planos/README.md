@@ -48,7 +48,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 
 | Mercado Pago: provar com um reenvio real se o `ts` muda; se repetir, rever a janela de 5 min do webhook da Central | Gustavo/Claude | revisão de segurança 28/10, item 1 |
 | Central: nota 4 (`ErroRecebido.status` 500–599) e nota 5 (`IntegracaoProperties.chaves()` avisar entrada malformada), no próximo lote da Central | Claude | revisão de segurança 28/10 |
-| CI: Trivy reprova a imagem da web por `go-jose` 4.1.5 (CVE-2026-116587, HIGH, corrigido na 4.1.6) dentro do `caddy:2-alpine`; o `publicar` do run 40714486714 não rodou. Esperar imagem nova do Caddy ou ignorar o CVE de forma consciente | Gustavo decide | run 40714486714 |
+| CI: Trivy reprovou a imagem da web por `go-jose` 4.1.5 (CVE-2026-116587) no `caddy:2-alpine`; exceção até 14/11 no `.trivyignore`. Até 14/11: ver se o Caddy já traz go-jose 4.1.6, Go 1.26.10 e x/net 0.60.0 e apagar as exceções | Gustavo | run 40714486714 |
+| Trivy, mesma exceção na Central (`central-api-front/.trivyignore`, `central-api-back/.trivyignore-terceiros`) no lote da Central; no Servirea, no próximo lote dele | Claude | run 40714486714 |
 | PDF no celular: copiar o arquivo do `expo-print` em vez de passar o PDF todo em base64 (`pdf/imprimir.ts`). Só provando no APK, Android e iPhone | Gustavo (aparelho) | PDFs, item 4 |
 | Conferir no APK que a logo grande sai reduzida no PDF do aluno e do treinador | Gustavo | PDFs, item 2 |
 | `imprimir.web.ts` sem `innerHTML`: não recomendado agora (a trava de teste cobre); Gustavo pode reabrir | Gustavo decide | revisão de segurança 28/10, item 3 |

@@ -43,6 +43,22 @@ falhou (Central fora do ar ou 5xx por mais de 5 min). O botão "reconciliar" do 
 - [x] 2. Item 3: `app/src/pdf/injecao.test.ts` (47 casos: cada gerador em duas variações de entrada + cor da marca), com prova de que falha quando um `esc()` some — commit `afd5a76`; run 40714486714: testes verdes, **Trivy reprovou a imagem da web** (go-jose do `caddy:2-alpine`), `publicar` não rodou
 - [ ] 3. Prova de reenvio do Mercado Pago (item 1) — Gustavo/Claude
 
+## Trivy: go-jose do Caddy (CVE-2026-116587), 28/10/2026
+O run 40714486714 caiu no Trivy da imagem da web: `go-jose` v4.1.5 (HIGH, corrigido na 4.1.6) dentro do binário do `caddy:2-alpine`.
+- **O que o aviso diz** (GHSA-mgcc-cww5-fp2q, CVSS 7.5): ao ler um JWK, o go-jose não limita o módulo e os primos de uma chave
+  RSA antes de validá-los; no Go 1.24+ a validação é cúbica, então uma chave forjada consome CPU (só disponibilidade). Afeta quem
+  lê JWK de fonte não confiável (`jose.ParseSigned`, JWK no cabeçalho). Sem contorno; corrigido na 4.1.6.
+- **Conferência:** Caddyfile de produção da web (`central-api-back/deploy/apps/consultoria/web.Caddyfile`, montado no compose) e o
+  `deploy-local/Caddyfile`: só `:80` estático, `admin off`, `auto_https off`, sem `tls`, ACME, `pki`, `acme_server` nem JWT. O
+  proxy da VPS (`deploy/proxy/Caddyfile`) também não usa ACME, `tls internal`, PKI, `acme_server` nem JWT (TLS é da Cloudflare;
+  só `basic_auth` do WhatsApp). Observação: o proxy não tem `admin off` explícito (a API admin não é publicada e não lê JWK).
+- **Decisão (Gustavo):** exceção com justificativa e prazo no `.trivyignore` da raiz, `exp:2026-11-14`, a mesma data das outras
+  exceções do Caddy. O arquivo vale também para a imagem da API (Java, sem go-jose).
+- **Lembrete até 14/11/2026:** conferir se o `caddy:2-alpine` já traz go-jose 4.1.6, Go 1.26.10 e x/net 0.60.0. Se sim, apagar
+  todas as exceções do Caddy; se não, renovar com nova justificativa.
+- **Central e Servirea** (mesmo `caddy:2-alpine`): a mesma exceção entra no próximo lote de cada repositório
+  (`central-api-front/.trivyignore`, `central-api-back/.trivyignore-terceiros`; Servirea: repositório não está nesta máquina).
+
 ## Fora do escopo
 - **Montar o PDF da web sem `innerHTML`** (D3): mudaria como o documento chega à página e o CSS de impressão. Fica a decisão do Gustavo.
 - **Notas 4 e 5 da Central** (`ErroRecebido.status` 500–599; `IntegracaoProperties.chaves()` com entrada malformada): o pedido as
