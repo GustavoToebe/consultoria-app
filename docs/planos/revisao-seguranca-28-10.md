@@ -56,6 +56,7 @@ O run 40714486714 caiu no Trivy da imagem da web: `go-jose` v4.1.5 (HIGH, corrig
   exceções do Caddy. O arquivo vale também para a imagem da API (Java, sem go-jose).
 - **Lembrete até 14/11/2026:** conferir se o `caddy:2-alpine` já traz go-jose 4.1.6, Go 1.26.10 e x/net 0.60.0. Se sim, apagar
   todas as exceções do Caddy; se não, renovar com nova justificativa.
+- **Resultado:** commit `37a88d7`, run 40719287212 verde (`imagem-web` e `publicar`). O bundle no ar (`consultoria.servirea.com.br`) tem o código novo da logo reduzida.
 - **Central e Servirea** (mesmo `caddy:2-alpine`): a mesma exceção entra no próximo lote de cada repositório
   (`central-api-front/.trivyignore`, `central-api-back/.trivyignore-terceiros`; Servirea: repositório não está nesta máquina).
 

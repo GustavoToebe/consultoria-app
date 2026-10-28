@@ -1,6 +1,6 @@
 # PDFs menores e mais rápidos
 
-Situação: Em andamento · Onde: `main` · Atualizado: 28/10/2026
+Situação: Publicada em 28/10/2026 (run 40719287212); item 4 e conferência no APK pendentes · Onde: `main` · Atualizado: 28/10/2026
 
 ## Objetivo
 Os PDFs do app (treino, dieta, mobilidade, cargas e lista de compras, do aluno e do treinador) saem menores e abrem mais
