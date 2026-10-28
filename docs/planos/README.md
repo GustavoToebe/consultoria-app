@@ -26,6 +26,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Proteção contra robôs (Cloudflare + Turnstile) | [cloudflare-turnstile.md](cloudflare-turnstile.md) | Cloudflare e VPS | Concluída em 28/10/2026 (Turnstile ligado em produção; falta só o teste no iPhone nativo) | 28/10/2026 |
 | Central: lote de segurança de 28/10 | [central-seguranca-28-10.md](central-seguranca-28-10.md) | Central, branch `seguranca-lote-28-10` (um PR) | Concluída | 28/10/2026 |
 | Dependabot de 28/10 (Central, Servirea e consultoria) | [dependabot-28-10.md](dependabot-28-10.md) | lotes prontos no local; push da Central e do Servirea em 01/11 | Em andamento | 28/10/2026 |
+| Ciclo desligado: nada do ciclo na tela (J) | [ciclo-desligado-no-app.md](ciclo-desligado-no-app.md) | `main` (um push) | Em andamento | 28/10/2026 |
 | Meus dados do aluno (cartão na aba Conta) | [meus-dados-do-aluno.md](meus-dados-do-aluno.md) | `main` (um push, depois do publicar da correção do ciclo) | Planejando | 28/10/2026 |
 
 ## Pendências soltas
