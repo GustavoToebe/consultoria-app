@@ -57,6 +57,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
     private final JsonMapper json;
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
+    private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -65,7 +66,9 @@ public class ExportacaoService {
                              FotoService fotos, FotoPerfilService fotoPerfil,
                              br.com.treinos.api.anamneses.AnamneseService anamneses, InscricaoDoAluno inscricao,
                              br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos, JsonMapper json,
-                             br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
+                             br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
+                             br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas) {
+        this.avaliacoesFisicas = avaliacoesFisicas;
         this.anamneses = anamneses;
         this.inscricao = inscricao;
         this.pagamentos = pagamentos;
@@ -104,6 +107,9 @@ public class ExportacaoService {
                 () -> mobilidadeRegistros.completoDoAluno(alunoId));
         var peso = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "pesos", omitidas, () -> pesos.listar(alunoId));
         var lesao = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "lesoes", omitidas, () -> lesoes.listar(alunoId));
+        // Mesma permissão da rota que mostra as avaliações ao treinador (GET /alunos/{id}/avaliacoes-fisicas).
+        var avaliacaoFisica = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "avaliacoesFisicas", omitidas,
+                () -> avaliacoesFisicas.listar(alunoId));
         var atualizacao = secao(AcessoAtual.pode("ATUALIZACAO_LER") && AcessoAtual.pode("ALUNO_SENSIVEL_LER"),
                 "atualizacoes", omitidas, () -> atualizacoesExportadas(alunoId));
         var anamnese = secao(AcessoAtual.pode("ANAMNESE_LER") && AcessoAtual.pode("ALUNO_SENSIVEL_LER"),
@@ -123,7 +129,7 @@ public class ExportacaoService {
         }
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
-                cicloMenstrual);
+                cicloMenstrual, avaliacaoFisica);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {
