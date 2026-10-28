@@ -141,6 +141,19 @@ jobs:
         run: npm run lint
       - name: Testes
         run: npm test
+      # Cobre as bibliotecas JS do bundle, que a varredura da imagem não enxerga. O Trivy lê só as
+      # dependências de produção do lock (as de desenvolvimento ficam de fora); `uses` ignora o
+      # working-directory acima, então os caminhos partem da raiz do repositório.
+      - name: Vulnerabilidades das dependências (Trivy, package-lock.json)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: app/package-lock.json
+          scanners: vuln
+          trivyignores: .trivyignore
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
       - name: Registrar a árvore aprovada (pull request)
         id: arvore
         if: github.event_name == 'pull_request'
