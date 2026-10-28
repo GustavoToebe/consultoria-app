@@ -21,6 +21,7 @@ import { pode as conferirPermissao } from '../dominio/permissoes';
 import { varrerFilasRetidas } from '../offline/filasRetidas';
 import { limparDadosDoAluno } from '../offline/limparDadosDoAluno';
 import { apagarArquivosTemporarios } from '../offline/arquivosTemporarios';
+import { limparLogosEmMemoria } from '../pdf/logoEmMemoria';
 import { lerRefresh } from './armazenamentoSeguro';
 
 /**
@@ -169,6 +170,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
         try { apagarArquivosTemporarios(); } catch { /* sem a pasta, nada a apagar */ }
       } finally {
         // Mesmo se apagar falhar, a pessoa sai: manter a tela aberta com a sessão morta é pior.
+        limparLogosEmMemoria();
         definirUsuarioDaSessao(null);
         setPerfil(null);
         setOffline(false);

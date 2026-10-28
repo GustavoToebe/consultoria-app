@@ -22,6 +22,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
 | Engajamento (retorno, conquistas, mural) | [engajamento.md](engajamento.md) | branch `gamificacao` | Etapa 0 em andamento | 27/10/2026 |
 | Revisão de segurança de 28/10 | [revisao-seguranca-28-10.md](revisao-seguranca-28-10.md) | `main` | Em andamento | 28/10/2026 |
+| PDFs menores e mais rápidos | [pdfs-otimizacao.md](pdfs-otimizacao.md) | `main` | Em andamento | 28/10/2026 |
 
 ## Pendências soltas
 
@@ -46,6 +47,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 
 | Mercado Pago: provar com um reenvio real se o `ts` muda; se repetir, rever a janela de 5 min do webhook da Central | Gustavo/Claude | revisão de segurança 28/10, item 1 |
 | Central: nota 4 (`ErroRecebido.status` 500–599) e nota 5 (`IntegracaoProperties.chaves()` avisar entrada malformada), no próximo lote da Central | Claude | revisão de segurança 28/10 |
+| PDF no celular: copiar o arquivo do `expo-print` em vez de passar o PDF todo em base64 (`pdf/imprimir.ts`). Só provando no APK, Android e iPhone | Gustavo (aparelho) | PDFs, item 4 |
+| Conferir no APK que a logo grande sai reduzida no PDF do aluno e do treinador | Gustavo | PDFs, item 2 |
 | `imprimir.web.ts` sem `innerHTML`: não recomendado agora (a trava de teste cobre); Gustavo pode reabrir | Gustavo decide | revisão de segurança 28/10, item 3 |
 
 ## Limitações aceitas (não são pendência)

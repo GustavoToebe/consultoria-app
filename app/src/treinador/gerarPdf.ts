@@ -17,13 +17,18 @@ import { documentoTreino } from '../pdf/pdfTreino';
  * do rascunho, marcado como RASCUNHO.
  */
 export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascunho?: unknown, lista?: DadosPdfDieta['lista']): Promise<void> {
-  const [c, a] = await Promise.all([consultoria(), buscarAluno(plano.alunoId)]);
   const publicado = plano.versaoPublicada > 0;
-  const versao = publicado ? await versaoPlano<unknown>(tipo, plano.id, plano.versaoPublicada) : null;
+  // Tudo sai junto; a logo só espera a consultoria (de onde vem o `logoUrl`).
+  const [{ c, logoDataUri }, a, versao, pesos] = await Promise.all([
+    consultoria().then(async (c) => ({ c, logoDataUri: await logoComoDataUri(c.marca) })),
+    buscarAluno(plano.alunoId),
+    publicado ? versaoPlano<unknown>(tipo, plano.id, plano.versaoPublicada) : Promise.resolve(null),
+    tipo === 'dieta' ? pesosDoAluno(plano.alunoId).catch(() => []) : Promise.resolve([]),
+  ]);
   const conteudo = versao ? versao.conteudo : rascunho;
   const comum = {
     marca: c.marca,
-    logoDataUri: await logoComoDataUri(c.marca),
+    logoDataUri,
     aluno: a.nome,
     titulo: versao?.titulo ?? plano.titulo,
     versao: versao?.numero ?? null,
@@ -43,7 +48,6 @@ export async function gerarPdfDoPlano(tipo: TipoPlano, plano: PlanoResumo, rascu
   } else if (tipo === 'mobilidade') {
     await imprimir(documentoMobilidade({ ...comum, conteudo: normalizarMobilidade(conteudo) }));
   } else {
-    const pesos = await pesosDoAluno(plano.alunoId).catch(() => []);
     await imprimir(documentoDieta({ ...comum, conteudo: normalizarDieta(conteudo) as ConteudoDieta, pesos, lista }));
   }
 }
