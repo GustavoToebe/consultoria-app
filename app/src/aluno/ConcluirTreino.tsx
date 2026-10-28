@@ -182,6 +182,7 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, feita, tipo, chei
       <View style={estilos.textosConcluido}>
         <View style={estilos.selo}>
           <Selo texto="Treino concluído" tipo="sucesso" />
+          {conclusao.vistoEm ? <Selo texto="Visto pelo treinador" tipo="sucesso" /> : null}
         </View>
         {resumoDaConclusao(conclusao) ? (
           <Texto variante="suave" numerico>
@@ -290,7 +291,7 @@ const estilos = StyleSheet.create({
   bloco: { gap: espaco(0.75) },
   concluido: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1) },
   textosConcluido: { flexGrow: 1, flexShrink: 1, flexBasis: 180, gap: espaco(0.5) },
-  selo: { flexDirection: 'row' },
+  selo: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.75) },
   pergunta: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   contador: { alignSelf: 'flex-end' },
 });

@@ -127,6 +127,7 @@ export default function TreinoConcluido() {
         {frase ? <Texto style={estilos.frase}>{frase}</Texto> : null}
         <View style={estilos.linha}>
           <Selo texto="Treino concluído" tipo="sucesso" />
+          {conclusao.vistoEm ? <Selo texto="Visto pelo treinador" tipo="sucesso" /> : null}
           {resumoDaConclusao(conclusao) ? <Texto variante="suave" numerico>{resumoDaConclusao(conclusao)}</Texto> : null}
         </View>
         <FaixaDoTreino versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={hoje} feitas={feitas} total={total} registroDe={dia.registroDe} />

@@ -1115,13 +1115,45 @@ export interface RegistroSessaoConcluidaEnvio {
 
 /** O que o servidor devolve de uma conclusão: sem id nem situação. */
 export interface SessaoConcluidaDoServidor {
+  /** Id do aparelho (é o que o "Visto" usa); ausente na conclusão que ainda só existe no aparelho. */
+  id?: string;
   planoVersaoId: string;
   sessaoUid: string;
+  /** Nome da sessão na versão executada (o treinador lê); nulo se a versão não existe mais. */
+  sessaoNome?: string | null;
   data: string;
   concluida: boolean;
   resultado: 'COMPLETA' | 'PARCIAL' | null;
   duracaoSegundos: number | null;
   comentario: string | null;
+  /** Quando o treinador marcou "Visto" (Engajamento 0.5); nulo = não marcou. */
+  vistoEm?: string | null;
+}
+
+/** Um recorde batido (a mesma forma de `Recorde` de `dominio/recordesPessoais`). */
+export interface RecordeBatido {
+  tipo: 'MAIOR_CARGA' | 'MAIS_REPETICOES' | 'MAIOR_VOLUME';
+  carga: number;
+  repeticoes: number;
+  valor: number;
+}
+
+/** Uma série com recorde nos últimos 7 dias (Engajamento 0.5). */
+export interface SerieComRecorde {
+  alunoId: string;
+  alunoNome: string;
+  data: string;
+  exercicioId: string;
+  exercicioNome: string;
+  recordes: RecordeBatido[];
+}
+
+/** "Recordes da semana": período (`de` a `ate`), quantas séries bateram recorde e as mais recentes (até 50). */
+export interface RecordesDaSemana {
+  de: string;
+  ate: string;
+  total: number;
+  series: SerieComRecorde[];
 }
 
 /** `totalConcluidos` = treinos concluídos do aluno em todo o histórico (não só na janela de `sessoes`). */

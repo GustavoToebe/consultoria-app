@@ -55,4 +55,11 @@ class CatalogoPermissoesTest {
                 .containsExactlyInAnyOrder("FINANCEIRO_ALTERAR","FINANCEIRO_LER","ALUNO_LER");
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("FINANCEIRO_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
     }
+    @Test void reagirAoTreinoNaoESensivelEDependeDeLerRegistros() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().equals("REGISTRO_REAGIR"))
+                .extracting(CatalogoPermissoes.Permissao::sensivel).containsExactly(false);
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("REGISTRO_REAGIR"))))
+                .containsExactlyInAnyOrder("REGISTRO_REAGIR","REGISTRO_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("REGISTRO_REAGIR"))).isInstanceOf(BadRequestException.class);
+    }
 }

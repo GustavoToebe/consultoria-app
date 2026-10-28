@@ -13,6 +13,8 @@ export const chaveDaConclusao = (c: Pick<ConclusaoDoTreino, 'planoVersaoId' | 's
   `${c.planoVersaoId}|${c.sessaoUid}|${c.data}`;
 
 const paraConclusao = (c: ConclusaoDoTreino): ConclusaoDoTreino => ({
+  ...(c.id ? { id: c.id } : {}),
+  ...(c.vistoEm ? { vistoEm: c.vistoEm } : {}),
   planoVersaoId: c.planoVersaoId,
   sessaoUid: c.sessaoUid,
   data: c.data,
@@ -34,7 +36,13 @@ export function fundirConclusoes(
 ): ConclusaoDoTreino[] {
   const porChave = new Map<string, ConclusaoDoTreino>();
   for (const c of doServidor) porChave.set(chaveDaConclusao(c), paraConclusao(c));
-  for (const c of locais) if (c.situacao !== 'FALHOU') porChave.set(chaveDaConclusao(c), paraConclusao(c));
+  for (const c of locais) {
+    if (c.situacao === 'FALHOU') continue;
+    // O "Visto" do treinador (0.5) é do registro no servidor: continua com a conclusão do aparelho enquanto ela é concluída.
+    const doServidor = porChave.get(chaveDaConclusao(c));
+    const visto = c.concluida && doServidor?.vistoEm ? { vistoEm: doServidor.vistoEm } : {};
+    porChave.set(chaveDaConclusao(c), { ...paraConclusao(c), ...visto });
+  }
   return [...porChave.values()].sort(
     (a, b) => a.data.localeCompare(b.data) || a.sessaoUid.localeCompare(b.sessaoUid) || a.planoVersaoId.localeCompare(b.planoVersaoId),
   );

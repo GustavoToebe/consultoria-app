@@ -35,6 +35,13 @@ describe('fundirConclusoes', () => {
     expect(fundirConclusoes([c({ situacao: 'FALHOU' })], [])).toEqual([]);
   });
 
+  it('o "Visto" do treinador (0.5) vem do servidor e fica com a conclusão do aparelho; reaberta, some', () => {
+    const visto = '2026-10-28T15:00:00Z';
+    expect(fundirConclusoes([], [servidor({ id: 'x', vistoEm: visto })])[0]).toMatchObject({ id: 'x', vistoEm: visto });
+    expect(fundirConclusoes([c({ id: 'x', comentario: 'novo' })], [servidor({ id: 'x', vistoEm: visto })])[0]).toMatchObject({ comentario: 'novo', vistoEm: visto });
+    expect(fundirConclusoes([c({ concluida: false, resultado: null, duracaoSegundos: null })], [servidor({ vistoEm: visto })])[0].vistoEm).toBeUndefined();
+  });
+
   it('o resultado não carrega a situação do aparelho', () => {
     expect(Object.keys(fundirConclusoes([c({ situacao: 'ENVIADO' })], [])[0])).not.toContain('situacao');
   });

@@ -90,8 +90,10 @@ class SessaoConcluidaIntegrationTest extends AbstractIntegrationTest {
         assertThat(s.get("resultado").asString()).isEqualTo("COMPLETA");
         assertThat(s.get("duracaoSegundos").asInt()).isEqualTo(3600);
         assertThat(s.get("comentario").asString()).isEqualTo(COMENTARIO);
-        // O que o aluno lê não leva id nem situação.
-        assertThat(s.has("id")).isFalse();
+        // O que o aluno lê leva o id do aparelho (o do "Visto", 0.5) e o nome da sessão, nunca a situação; sem "Visto".
+        assertThat(s.get("id").asString()).isEqualTo(id.toString());
+        assertThat(s.get("sessaoNome").asString()).isEqualTo("Segunda - Costas");
+        assertThat(s.get("vistoEm").isNull()).isTrue();
         assertThat(s.has("situacao")).isFalse();
         // Chave ligada na suíte: o app mostra o recurso.
         assertThat(api.get("/eu", aluno, 200).get("retornoHabilitado").asBoolean()).isTrue();
@@ -373,7 +375,7 @@ class SessaoConcluidaIntegrationTest extends AbstractIntegrationTest {
     void toStringDosDtosNaoRepeteOComentarioNemADuracao() {
         UUID id = UUID.randomUUID();
         var registro = new RegistroSessaoConcluida(id, id, id, hoje, true, "COMPLETA", 4321L, COMENTARIO, Instant.now());
-        var linha = new SessaoConcluidaLinha(id, id, hoje, true, "COMPLETA", 4321, COMENTARIO);
+        var linha = new SessaoConcluidaLinha(id, id, id, "Treino A", hoje, true, "COMPLETA", 4321, COMENTARIO, null);
         var lote = new SessaoConcluidaDtos.LoteSessoesConcluidasRequest(List.of(registro));
         var resposta = new SessaoConcluidaDtos.SessoesConcluidasResponse(1, List.of(linha));
         for (Object o : List.of(registro, linha, lote, resposta)) {

@@ -17,6 +17,7 @@ import { podeAcessarTela } from '../../dominio/permissoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, RAIO, LARGURA_LISTA } from '../../tema/tokens';
+import { CartaoRecordesDaSemana } from '../../treinador/CartaoRecordesDaSemana';
 import { EscolhaResponsabilidade, type Responsabilidade } from '../../treinador/EscolhaResponsabilidade';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -40,7 +41,7 @@ const ULTIMOS_POR_ALUNO = 5;
  * há N dias (preferência pessoal; só informação, não inativa ninguém) e o último registro de cada aluno.
  */
 export default function InicioTreinador() {
-  const { usuario, perfilEquipe, pode, pagamentosHabilitados } = useSessao();
+  const { usuario, perfilEquipe, pode, pagamentosHabilitados, retornoHabilitado } = useSessao();
   const [escopo, setEscopo] = useState<Responsabilidade>(perfilEquipe?.acessoTotal ? 'todos' : 'meus');
   const { preferencias, escolherPreferencia } = useTema();
   const dias = preferencias.diasSemRegistro;
@@ -152,6 +153,8 @@ export default function InicioTreinador() {
                 href={`/treinador/alunos/${e.aluno.id}`} aoTocar={() => abrirAluno(e.aluno.id)} rotulo={`Abrir ${e.aluno.nome}`} />
             ))}
           </Cartao>
+          {/* Engajamento 0.5: só aparece com algum recorde nos últimos 7 dias (do filtro Todos/Meus). */}
+          {retornoHabilitado ? <CartaoRecordesDaSemana meus={escopo === 'meus'} style={estilos.metade} /> : null}
           </Permitido></Permitido>
         </View>
       ) : null}

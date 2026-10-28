@@ -1,6 +1,7 @@
 package br.com.treinos.api.sessoesconcluidas;
 
 import br.com.plataforma.comum.web.BadRequestException;
+import br.com.plataforma.comum.web.ConflictException;
 import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.execucao.IndiceVersao;
@@ -59,9 +60,11 @@ public class SessaoConcluidaService {
     private final SessaoConcluidaRepository registros;
     private final IndicesDeVersao indicesDeVersao;
     private final AlunoRepository alunos;
+    private final SessaoConcluidaVistoRepository vistos;
 
     public SessaoConcluidaService(SessaoConcluidaUpsert upsert, SessaoConcluidaRepository registros,
-                                  IndicesDeVersao indicesDeVersao, AlunoRepository alunos) {
+                                  IndicesDeVersao indicesDeVersao, AlunoRepository alunos, SessaoConcluidaVistoRepository vistos) {
+        this.vistos = vistos;
         this.upsert = upsert;
         this.registros = registros;
         this.indicesDeVersao = indicesDeVersao;
@@ -138,10 +141,49 @@ public class SessaoConcluidaService {
     }
 
     private List<SessaoConcluidaLinha> carregar(UUID alunoId, LocalDate inicio, LocalDate fim, boolean comComentario) {
-        return registros.findByAlunoIdAndSituacaoAndDataBetweenOrderByDataDescIdAsc(alunoId, ACEITO, inicio, fim).stream()
-                .map(r -> new SessaoConcluidaLinha(r.getPlanoVersaoId(), r.getSessaoUid(), r.getData(), r.isConcluida(),
-                        r.getResultado(), r.getDuracaoSegundos(), comComentario ? r.getComentario() : null))
+        List<SessaoConcluida> lista = registros.findByAlunoIdAndSituacaoAndDataBetweenOrderByDataDescIdAsc(alunoId, ACEITO, inicio, fim);
+        Map<UUID, IndiceVersao> indices = indicesDeVersao.carregar(lista.stream().map(SessaoConcluida::getPlanoVersaoId).distinct().toList());
+        Map<UUID, Instant> vistoEm = new java.util.HashMap<>();
+        if (!lista.isEmpty()) {
+            vistos.findBySessaoConcluidaIdIn(lista.stream().map(SessaoConcluida::getId).toList())
+                    .forEach(v -> vistoEm.put(v.getSessaoConcluidaId(), v.getVistoEm()));
+        }
+        return lista.stream()
+                .map(r -> new SessaoConcluidaLinha(r.getId(), r.getPlanoVersaoId(), r.getSessaoUid(),
+                        indices.containsKey(r.getPlanoVersaoId()) ? indices.get(r.getPlanoVersaoId()).nomeSessao(r.getSessaoUid()) : null,
+                        r.getData(), r.isConcluida(), r.getResultado(), r.getDuracaoSegundos(),
+                        comComentario ? r.getComentario() : null, vistoEm.get(r.getId())))
                 .toList();
+    }
+
+    /**
+     * Marca o "Visto" do treinador (Engajamento 0.5, P4). Idempotente: marcar de novo devolve o que já estava. Sessão de
+     * outro aluno ou consultoria = 404; reaberta = 409 {@code TREINO_NAO_CONCLUIDO}. A sessão fica travada até o fim,
+     * então duas marcações ao mesmo tempo não duplicam.
+     */
+    @Transactional
+    public SessaoConcluidaDtos.Visto marcarVisto(UUID alunoId, UUID sessaoConcluidaId, UUID usuarioId) {
+        SessaoConcluida s = sessaoDoAluno(alunoId, sessaoConcluidaId, true);
+        if (!s.isConcluida()) {
+            throw new ConflictException("Este treino foi reaberto pelo aluno.", "TREINO_NAO_CONCLUIDO");
+        }
+        SessaoConcluidaVisto visto = vistos.findById(s.getId())
+                .orElseGet(() -> vistos.save(new SessaoConcluidaVisto(s.getId(), alunoId, usuarioId, Instant.now())));
+        return new SessaoConcluidaDtos.Visto(visto.getVistoEm());
+    }
+
+    /** Desfaz o "Visto" (toque errado). Sem marca, nada muda; sessão de outro aluno ou consultoria = 404. */
+    @Transactional
+    public void desmarcarVisto(UUID alunoId, UUID sessaoConcluidaId) {
+        SessaoConcluida s = sessaoDoAluno(alunoId, sessaoConcluidaId, true);
+        vistos.findById(s.getId()).ifPresent(vistos::delete);
+    }
+
+    private SessaoConcluida sessaoDoAluno(UUID alunoId, UUID sessaoConcluidaId, boolean travar) {
+        exigirAluno(alunoId);
+        return (travar ? registros.travar(sessaoConcluidaId) : registros.findById(sessaoConcluidaId))
+                .filter(s -> s.getAlunoId().equals(alunoId) && ACEITO.equals(s.getSituacao()))
+                .orElseThrow(() -> new NaoEncontradoException("Treino concluído não encontrado."));
     }
 
     private void exigirAluno(UUID alunoId) {

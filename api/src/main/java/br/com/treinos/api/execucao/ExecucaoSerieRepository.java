@@ -37,6 +37,14 @@ public interface ExecucaoSerieRepository extends JpaRepository<ExecucaoSerie, UU
     List<ExecucaoSerie> findByAlunoIdAndExercicioIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBefore(
             UUID alunoId, Collection<UUID> exercicioIds, LocalDate ate);
 
+    /** Recordes da semana (Engajamento 0.5): as séries simples candidatas do período, de vários alunos. */
+    List<ExecucaoSerie> findByAlunoIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBetween(
+            Collection<UUID> alunoIds, LocalDate de, LocalDate ate);
+
+    /** Recordes da semana: as de antes do período, dos mesmos alunos e exercícios (quem chama casa aluno e exercício). */
+    List<ExecucaoSerie> findByAlunoIdInAndExercicioIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBefore(
+            Collection<UUID> alunoIds, Collection<UUID> exercicioIds, LocalDate ate);
+
     /** Coluna "Anterior" (Engajamento 0.3): a última data, antes de {@code ate}, com série feita de cada exercício. */
     @Query("select new br.com.treinos.api.execucao.ExecucaoSerieRepository$UltimaVez(e.exercicioId, max(e.data)) "
             + "from ExecucaoSerie e where e.alunoId = :alunoId and e.exercicioId in :exercicioIds and e.concluida = true "

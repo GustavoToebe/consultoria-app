@@ -15,6 +15,8 @@ import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
 import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
+import { CartaoRecordesDaSemana } from '../../../treinador/CartaoRecordesDaSemana';
+import { CartaoTreinosConcluidos } from '../../../treinador/CartaoTreinosConcluidos';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
 import { ResumoDoAluno } from '../../../treinador/ResumoDoAluno';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
@@ -51,7 +53,7 @@ import { useCarregar } from '../../../ui/useCarregar';
  */
 export default function FichaAluno() {
   const { id, pastaId } = useLocalSearchParams<{ id: string; pastaId?: string }>();
-  const { pode, pagamentosHabilitados } = useSessao();
+  const { pode, pagamentosHabilitados, retornoHabilitado } = useSessao();
   const { dados: aluno, erro, carregando, recarregar, definir } = useCarregar(id ?? null, (i) => buscarAluno(i));
   // Ciclo padrão da consultoria (V009). Quem não pode ler a consultoria fica só com o do aluno.
   const padrao = useCarregar('consultoria-ciclo', () => buscarConsultoria().then((c) => c.diasAtualizacaoPadrao ?? null, () => null)).dados ?? null;
@@ -86,6 +88,9 @@ export default function FichaAluno() {
               {pode('TREINO_LER') && !acompanhamento.erro ? <View style={estilos.contagem}><CartaoMobilidade alunoId={aluno.id} acompanhamento={acompanhamento} /></View> : null}
             </View>
           ) : null}
+          {/* Retorno ao aluno (Engajamento 0.5): treinos concluídos com o "Visto" e os recordes da semana. */}
+          {retornoHabilitado && pode('REGISTRO_LER') ? <CartaoTreinosConcluidos alunoId={aluno.id} /> : null}
+          {retornoHabilitado && pode('REGISTRO_LER') ? <CartaoRecordesDaSemana alunoId={aluno.id} /> : null}
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
           {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? (

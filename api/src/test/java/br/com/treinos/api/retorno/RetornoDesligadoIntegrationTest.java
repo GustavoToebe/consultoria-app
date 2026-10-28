@@ -45,6 +45,12 @@ class RetornoDesligadoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/aluno/sessoes-concluidas", login, 503).path("codigo").asString()).isEqualTo("RETORNO_INDISPONIVEL");
         assertThat(api.get("/alunos/" + aluno + "/sessoes-concluidas", treinador, 503).path("codigo").asString())
                 .isEqualTo("RETORNO_INDISPONIVEL");
+        // Engajamento 0.5: "Visto" e recordes da semana também.
+        assertThat(api.put("/alunos/" + aluno + "/sessoes-concluidas/" + UUID.randomUUID() + "/visto", treinador, Map.of(), 503)
+                .path("codigo").asString()).isEqualTo("RETORNO_INDISPONIVEL");
+        assertThat(api.get("/recordes/semana", treinador, 503).path("codigo").asString()).isEqualTo("RETORNO_INDISPONIVEL");
+        assertThat(api.get("/alunos/" + aluno + "/recordes/semana", treinador, 503).path("codigo").asString())
+                .isEqualTo("RETORNO_INDISPONIVEL");
 
         assertThat(api.get("/eu", login, 200).get("retornoHabilitado").asBoolean()).isFalse();
         assertThat(api.get("/eu", treinador, 200).get("retornoHabilitado").asBoolean()).isFalse();

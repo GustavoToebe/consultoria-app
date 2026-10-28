@@ -39,13 +39,22 @@ public final class SessaoConcluidaDtos {
         }
     }
 
-    /** O que o aluno, o treinador e a exportação leem: só o que foi aceito, sem id nem situação. */
-    public record SessaoConcluidaLinha(UUID planoVersaoId, UUID sessaoUid, LocalDate data, boolean concluida,
-                                       String resultado, Integer duracaoSegundos, String comentario) {
+    /**
+     * O que o aluno, o treinador e a exportação leem: só o que foi aceito, sem situação. {@code id} = o do aparelho (é o
+     * que o "Visto" usa); {@code sessaoNome} = o nome da sessão na versão executada; {@code vistoEm} = quando o treinador
+     * marcou "Visto" (Engajamento 0.5), nulo se não marcou.
+     */
+    public record SessaoConcluidaLinha(UUID id, UUID planoVersaoId, UUID sessaoUid, String sessaoNome, LocalDate data,
+                                       boolean concluida, String resultado, Integer duracaoSegundos, String comentario,
+                                       Instant vistoEm) {
         @Override
         public String toString() {
             return "SessaoConcluidaLinha[planoVersaoId=" + planoVersaoId + ", sessaoUid=" + sessaoUid + ", data=" + data + "]";
         }
+    }
+
+    /** Resposta do "Visto": quando ficou marcado. */
+    public record Visto(Instant vistoEm) {
     }
 
     /**
