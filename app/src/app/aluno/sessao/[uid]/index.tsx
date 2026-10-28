@@ -2,7 +2,7 @@ import Animated, { FadeInUp, ReduceMotion } from 'react-native-reanimated';
 import { useMovimentoReduzido } from '../../../../ui/useMovimentoReduzido';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Play } from 'lucide-react-native';
+import { Medal, Play } from 'lucide-react-native';
 import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -15,6 +15,7 @@ import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDi
 import { gruposDaSessao } from '../../../../dominio/combinacoes';
 import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
+import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { descansoSoDoGrupo } from '../../../../dominio/textoDoGrupo';
 import { datasDaSessao, nomeComDia, totalDeSeries } from '../../../../dominio/semana';
 import { useTema } from '../../../../tema/TemaProvider';
@@ -81,6 +82,12 @@ export default function SessaoAluno() {
           </Texto>
         </View>
         <BarraProgresso feitas={feitas} total={total} />
+        {dia.recordesNoDia ? (
+          <View style={estilos.recordes}>
+            <Medal size={18} color={cores.sucesso} />
+            <Texto numerico cor={cores.sucesso}>{textoDaContagem(dia.recordesNoDia)} neste treino</Texto>
+          </View>
+        ) : null}
         {data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
         <ConcluirTreino {...conclusao} tipo="secundario" avisarDataFutura />
       </Cartao>
@@ -149,5 +156,6 @@ export default function SessaoAluno() {
 const estilos = StyleSheet.create({
   // Moldura do bi-set/supersérie com `bordaCampo` (a `borda` de cartão quase sumia no tema escuro).
   grupo: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
+  recordes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

@@ -27,5 +27,12 @@ public interface ExecucaoSerieRepository extends JpaRepository<ExecucaoSerie, UU
     List<ExecucaoSerie> findByAlunoIdAndExercicioIdInAndSerieTrabalhoTrueAndCargaNotNullOrderByDataDesc(
             UUID alunoId, Collection<UUID> exercicioIds);
 
+    /**
+     * Recordes pessoais (Engajamento 0.2): séries feitas com carga e repetições e sem etapas, antes de {@code ate}, dos
+     * exercícios do plano. Quem chama ainda confere, pela versão, que a série é simples (sem técnica).
+     */
+    List<ExecucaoSerie> findByAlunoIdAndExercicioIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBefore(
+            UUID alunoId, Collection<UUID> exercicioIds, LocalDate ate);
+
     List<ExecucaoSerie> findTop300ByOrderByRecebidoEmDesc();
 }

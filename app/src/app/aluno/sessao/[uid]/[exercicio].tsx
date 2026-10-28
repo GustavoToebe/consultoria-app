@@ -1,7 +1,9 @@
+import { AvisoDeRecorde, type RecordeParaAvisar } from '../../../../aluno/AvisoDeRecorde';
 import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
 import { DescansoManual } from '../../../../aluno/DescansoManual';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, ArrowRight, Check, List } from 'lucide-react-native';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
@@ -12,6 +14,7 @@ import { useAluno } from '../../../../offline/AlunoProvider';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { posicaoNoGrupo } from '../../../../dominio/combinacoes';
 import { dataCurta } from '../../../../dominio/formatos';
+import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { MODALIDADES } from '../../../../dominio/modalidades';
 import { nomeComDia, totalDeSeries } from '../../../../dominio/semana';
 import { vezNoGrupo } from '../../../../dominio/vezNoGrupo';
@@ -40,6 +43,10 @@ export default function ExercicioDaSessao() {
   const { retornoHabilitado } = useSessao();
   const { sessao, data } = dia;
   const voltar = caminhoDaSessao(uid ?? '', data);
+  // Aviso de recorde pessoal no topo (Engajamento 0.2): aparece na hora em que a série é marcada, sem internet.
+  const [aviso, setAviso] = useState<RecordeParaAvisar | null>(null);
+  const contador = useRef(0);
+  const fecharAviso = useCallback(() => setAviso(null), []);
 
   if (!dia.carregado) {
     return (
@@ -78,8 +85,21 @@ export default function ExercicioDaSessao() {
       ? noGrupo.descansoAposSegundos
       : ((aFazer?.descansoSegundos || e.series.find((s) => s.descansoSegundos)?.descansoSegundos) ?? null);
   const modalidade = e.modalidade ? `${MODALIDADES[e.modalidade] ?? e.modalidade} · ` : '';
+  const demonstracao = e.exercicioId ? demonstracoes.find((d) => d.exercicioId === e.exercicioId) ?? null : null;
+  const recordesNoDia = textoDaContagem(dia.recordesNoDia);
+  const resumoDoDia = `${feitasNoDia} de ${totalNoDia} ${totalNoDia === 1 ? 'série feita' : 'séries feitas'} neste treino.${recordesNoDia ? ` ${recordesNoDia}.` : ''}`;
+  const registrarSerie = (serieUid: string, d: Parameters<typeof dia.registrar>[2]) => {
+    const jaFeita = !!dia.registroDe(serieUid)?.concluida;
+    const recordes = dia.registrar(e, serieUid, d);
+    // Só ao marcar como feita (editar uma série já feita não repete o aviso; a medalha continua na série).
+    if (recordes.length && !jaFeita) {
+      contador.current += 1;
+      setAviso({ chave: contador.current, exercicioId: e.exercicioId, nome: e.nome, numeroDaSerie: e.series.findIndex((x) => x.uid === serieUid) + 1, recordes, demonstracao });
+    }
+  };
 
   return (
+    <View style={estilos.raiz}>
     <Tela bordas={['top']} largura={720}>
       <Cabecalho
         titulo={e.nome}
@@ -114,21 +134,20 @@ export default function ExercicioDaSessao() {
         registroDe={dia.registroDe}
         config={dia.config}
         aoMudarCargaDoDia={(c) => dia.salvarCargaDoDia(e, c)}
-        aoRegistrar={(serieUid, d) => dia.registrar(e, serieUid, d)}
+        aoRegistrar={registrarSerie}
+        recordes={dia.recordesDe(e)}
         aoIniciarPausa={iniciarDescanso}
         aoCancelarPausa={cancelarDescansoDe}
         chaveDaExecucao={dia.chaveDaExecucao}
         descansoNaSerie={!noGrupo || noGrupo.descansoPorSerie}
-        demonstracao={e.exercicioId ? demonstracoes.find((d) => d.exercicioId === e.exercicioId) ?? null : null}
+        demonstracao={demonstracao}
       />
       <View style={estilos.fim}>
         {proximo ? (
           <Botao rotulo={`Próximo: ${proximo.nome}`} Icone={ArrowRight} cheio aoTocar={() => ir(proximo.uid)} />
         ) : retornoHabilitado ? (
           <>
-            <Texto numerico variante="suave">
-              {feitasNoDia} de {totalNoDia} {totalNoDia === 1 ? 'série feita' : 'séries feitas'} neste treino.
-            </Texto>
+            <Texto numerico variante="suave">{resumoDoDia}</Texto>
             <ConcluirTreino {...conclusao} tipo="primario" cheio avisarDataFutura />
           </>
         ) : (
@@ -151,10 +170,13 @@ export default function ExercicioDaSessao() {
       </View>
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>
+    <AvisoDeRecorde aviso={aviso} aoFechar={fecharAviso} />
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
+  raiz: { flex: 1 },
   fim: { marginTop: espaco(1), gap: espaco(1) },
   faixa: { fontFamily: fontes.semi },
   textosDoGrupo: { flex: 1, gap: espaco(0.5) },

@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, PlayCircle, Repeat, Timer } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Medal, PlayCircle, Repeat, Timer } from 'lucide-react-native';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -8,6 +8,7 @@ import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabal
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
 import { videoValido } from '../dominio/video';
 import type { RegistroLocal } from '../offline/repositorioLocal';
@@ -19,6 +20,7 @@ import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
+import { Selo } from '../ui/Selo';
 import { DemonstracaoDoExercicio } from '../ui/DemonstracaoDoExercicio';
 import { IconeBotao } from '../ui/IconeBotao';
 import { sobre } from '../ui/sobre';
@@ -66,6 +68,8 @@ interface Props {
    * agonista-antagonista: o descanso é o do grupo, depois da volta, e não aparece na série.
    */
   descansoNaSerie?: boolean;
+  /** Recordes pessoais de cada série nesta data (`serieUid` → recordes; Engajamento 0.2): a medalha no lugar do número. */
+  recordes?: Record<string, Recorde[]>;
 }
 
 /**
@@ -212,6 +216,7 @@ export function ExercicioAluno(p: Props) {
             registro={p.registroDe(c.serie.uid)}
             repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga) : null}
             ultimaDoExercicio={feitas === e.series.length - 1}
+            recordes={p.recordes?.[c.serie.uid] ?? null}
             aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
             aoIniciarPausa={p.aoIniciarPausa}
           />
@@ -236,6 +241,7 @@ function CartaoSerie({
   aoRegistrar,
   ultimaDoExercicio,
   aoIniciarPausa,
+  recordes,
 }: {
   calculada: SerieCalculada;
   indice: number;
@@ -256,6 +262,8 @@ function CartaoSerie({
   aoRegistrar: (d: DadosSerie) => void;
   ultimaDoExercicio: boolean;
   aoIniciarPausa?: (segundos: number) => void;
+  /** Recordes pessoais desta série na data (vazio ou nulo = nenhum). */
+  recordes: Recorde[] | null;
 }) {
   const { cores } = useTema();
   // Antes de gravar, a carga acompanha a sugestão até o aluno mexer; as repetições começam vazias.
@@ -294,13 +302,30 @@ function CartaoSerie({
   return (
     <Animated.View style={[estilos.serie, { borderColor: feita ? cores.sucesso : cores.borda }, fundo]}>
       <View style={estilos.cabecaSerie}>
-        <Texto style={estilos.nomeSerie}>Série {numero}</Texto>
+        {recordes?.length ? (
+          // Medalha no lugar do número (referência do Hevy); o número continua no que o leitor de tela lê.
+          <View
+            style={estilos.medalha}
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={`Série ${numero}, recorde pessoal: ${recordes.map(textoDoRecorde).join('; ')}`}>
+            <Medal size={20} color={cores.sucesso} />
+            <Selo texto="Recorde" tipo="sucesso" />
+          </View>
+        ) : (
+          <Texto style={estilos.nomeSerie}>Série {numero}</Texto>
+        )}
         {selos.tipo ? <SeloComExplicacao nome={selos.tipo.nome} explicacao={selos.tipo.explicacao} rotuloAcessivel={`Explicação de ${selos.tipo.nome}, série ${numero}`} /> : null}
         {selos.tecnica ? <SeloComExplicacao nome={selos.tecnica.nome} explicacao={selos.tecnica.explicacao} rotuloAcessivel={`Explicação de ${selos.tecnica.nome}, série ${numero}`} /> : null}
       </View>
       <Texto numerico variante="pequeno">
         {textos.descanso ? `${textos.meta} · ${textos.descanso}` : textos.meta}
       </Texto>
+      {recordes?.length ? (
+        <Texto numerico variante="pequeno" cor={cores.sucesso} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          {recordes.map(textoDoRecorde).join(' · ')}
+        </Texto>
+      ) : null}
       {textos.alvoExtra ? <Texto numerico variante="pequeno">Alvo extra: {textos.alvoExtra}</Texto> : null}
       {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}
       {textos.tecnica ? (
@@ -369,6 +394,7 @@ const estilos = StyleSheet.create({
   serie: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
   cabecaSerie: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   nomeSerie: { fontFamily: fontes.semi, fontSize: 16 },
+  medalha: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   tecnica: { gap: espaco(1), alignItems: 'flex-start' },
   tecnicaTexto: { fontFamily: fontes.semi },
   campos: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1), maxWidth: 480 },

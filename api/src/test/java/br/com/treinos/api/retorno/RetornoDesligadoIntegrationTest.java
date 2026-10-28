@@ -49,4 +49,18 @@ class RetornoDesligadoIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/eu", login, 200).get("retornoHabilitado").asBoolean()).isFalse();
         assertThat(api.get("/eu", treinador, 200).get("retornoHabilitado").asBoolean()).isFalse();
     }
+
+    /** Recordes pessoais (Engajamento 0.2): com a chave desligada o pacote do aluno não traz a lista (nem o campo). */
+    @Test
+    void pacoteDoAlunoSemRecordes() throws Exception {
+        ApiDeTeste api = new ApiDeTeste(mvc, json);
+        JsonNode treinador = api.novoTreinador();
+        UUID aluno = api.criarAluno(treinador, "Aluno Fictício Recordes Desligados");
+        api.publicarTreino(treinador, aluno, ApiDeTeste.treino().conteudo());
+        JsonNode login = api.convidarEEntrar(treinador, aluno);
+
+        JsonNode painel = api.get("/aluno/painel", login, 200);
+        assertThat(painel.get("treino").isNull()).isFalse();
+        assertThat(painel.has("recordes")).isFalse();
+    }
 }

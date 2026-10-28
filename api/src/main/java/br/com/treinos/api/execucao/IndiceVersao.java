@@ -26,9 +26,11 @@ public final class IndiceVersao {
      * @param trabalho          carga de trabalho: a base sugerida para o próximo treino ({@code serie_trabalho})
      * @param contaNoProgresso  entra no progresso: papel {@code TRABALHO} na metodologia da versão, ou carga de trabalho
      * @param etapas            quantas etapas o aluno registra dentro da série; {@code null} = a série inteira
+     * @param simples           conta para recorde pessoal (Engajamento 0.2): série sem técnica nenhuma (cluster, rest-pause,
+     *                          drop-set, descritivas...), sem etapas, de exercício com carga em kg e que não é cardio
      */
     public record LocalSerie(UUID sessaoUid, UUID exercicioUid, UUID exercicioId, boolean trabalho, String unidade,
-                             String tipo, int ordem, boolean contaNoProgresso, Integer etapas) {
+                             String tipo, int ordem, boolean contaNoProgresso, Integer etapas, boolean simples) {
     }
 
     private final UUID alunoId;
@@ -57,7 +59,9 @@ public final class IndiceVersao {
                         series.put(x.uid(), new LocalSerie(s.uid(), e.uid(), e.exercicioId(), x.deTrabalho(), unidade,
                                 cardio ? CARDIO : nomeDoTipo(metodologia, x.tipo()), ordem++,
                                 !cardio && (x.deTrabalho() || deTrabalhoNaMetodologia(metodologia, x.tipo())),
-                                cardio ? null : x.etapas()));
+                                cardio ? null : x.etapas(),
+                                !cardio && "kg".equals(unidade) && x.etapas() == null
+                                        && (x.tecnica() == null || x.tecnica().tipo() == null)));
                     }
                 }
             }

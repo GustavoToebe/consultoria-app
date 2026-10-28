@@ -3,14 +3,16 @@ import { textoDoErro } from '../ui/erros';
 import type { Href } from 'expo-router';
 import { useEffect } from 'react';
 
-import type { ExercicioPlano, UltimaCarga } from '../api/tipos';
+import type { ExercicioPlano, Serie, UltimaCarga } from '../api/tipos';
 import { ehSerieDeTrabalho } from '../dominio/cargas';
 import { tipoTrabalho as tipoTrabalhoDaMetodologia } from '../dominio/metodologia';
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { hojeIso } from '../dominio/formatos';
+import { recordesDoExercicio, seriesComRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { podeRegistrarEm } from '../dominio/semana';
 import { useAluno } from '../offline/AlunoProvider';
+import { useSessao } from '../sessao/SessaoProvider';
 import { descansoAoMarcar } from './descansoDoGrupo';
 import type { DadosSerie } from './ExercicioAluno';
 
@@ -22,6 +24,7 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
  */
 export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | undefined) {
   const aluno = useAluno();
+  const { retornoHabilitado } = useSessao();
   const { avisar } = useAviso();
   const hoje = hojeIso();
   const data = dataDaRota && ISO.test(dataDaRota) && podeRegistrarEm(dataDaRota, hoje) ? dataDaRota : hoje;
@@ -57,8 +60,32 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     return ultima;
   };
 
-  const registrar = (e: ExercicioPlano, serieUid: string, d: DadosSerie) => {
-    if (!treino || !sessao) return;
+  // Recordes pessoais (Engajamento 0.2): só com "Concluir treino" ligado e a lista no pacote (que a API só manda ligada).
+  const recordesDoPacote = retornoHabilitado ? aluno.pacote?.pacote.recordes : undefined;
+  const serieDaVersao = (planoVersaoId: string, serieUid: string): { exercicio: ExercicioPlano; serie: Serie } | null => {
+    if (!treino || planoVersaoId !== treino.versaoId) return null;
+    for (const ss of normalizarTreino(treino.conteudo).sessoes) {
+      for (const ex of ss.exercicios) {
+        const achada = ex.series.find((x) => x.uid === serieUid);
+        if (achada) return { exercicio: ex, serie: achada };
+      }
+    }
+    return null;
+  };
+  /** Recordes de cada série do exercício nesta data (por `serieUid`; só as que têm). `marcacao` = a que ainda vai ser gravada. */
+  const recordesDe = (e: ExercicioPlano, marcacao?: Parameters<typeof recordesDoExercicio>[0]['marcacao']): Record<string, Recorde[]> =>
+    treino
+      ? recordesDoExercicio({ recordes: recordesDoPacote, exercicio: e, versaoId: treino.versaoId, data, registros: aluno.registros, serieDaVersao, marcacao })
+      : {};
+  /** Séries com recorde no dia (a contagem do resumo). */
+  const recordesNoDia = sessao ? seriesComRecorde(sessao.exercicios.map((e) => recordesDe(e))) : 0;
+
+  /** Grava a série e devolve os recordes que ela bate (vazio se nenhum), para a tela avisar na hora. */
+  const registrar = (e: ExercicioPlano, serieUid: string, d: DadosSerie): Recorde[] => {
+    if (!treino || !sessao) return [];
+    const novos = d.concluida
+      ? recordesDe(e, { serieUid, carga: d.carga, repeticoes: d.repeticoes, concluida: true })[serieUid] ?? []
+      : [];
     const serie = e.series.find((s) => s.uid === serieUid);
     // Descanso da série, ou o do grupo quando a marcação fecha uma volta (superset, circuito...); ver `descansoAoMarcar`.
     const descanso = d.concluida
@@ -82,6 +109,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
       referenciaCarga: d.referenciaCarga ?? null,
       referenciaOrigem: d.referenciaOrigem ?? null,
     }).then(() => { if (descanso) aluno.iniciarDescanso(descanso, undefined, { reserva }); }).catch(erro => avisar(textoDoErro(erro), 'perigo'));
+    return novos;
   };
 
   /** Versão do plano, série e data: com a posição da etapa, a identidade da pausa entre etapas (`origemDaPausa`). */
@@ -100,6 +128,8 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     treinouEm,
     ultimaCarga,
     registrar,
+    recordesDe,
+    recordesNoDia,
     chaveDaExecucao,
     salvarCargaDoDia: (e: ExercicioPlano, carga: number | null) => void aluno.salvarCargaDeTrabalho(e.uid, data, carga),
   };

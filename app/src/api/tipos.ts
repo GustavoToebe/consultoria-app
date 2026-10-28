@@ -967,8 +967,33 @@ export interface ConfiguracaoAluno {
   instrucoesTreino?: string | null;
 }
 
+/** Mais repetições já feitas com uma carga (recordes pessoais). */
+export interface RepeticoesNaCarga {
+  carga: number;
+  repeticoes: number;
+}
+
+/** Os melhores valores de um exercício em séries simples (Engajamento 0.2, `dominio/recordesPessoais`). */
+export interface MelhoresDoExercicio {
+  maiorCarga: number;
+  maiorVolume: number;
+  /** Uma linha por carga, em ordem crescente. */
+  repeticoesPorCarga: RepeticoesNaCarga[];
+}
+
+/**
+ * Recordes no pacote: os melhores de antes de `ate` (hoje de Brasília quando o pacote foi gerado; exclusivo), por
+ * `exercicioId` da biblioteca. Exercício sem série simples antes de `ate` não aparece.
+ */
+export interface RecordesDoPacote {
+  ate: string;
+  exercicios: Record<string, MelhoresDoExercicio>;
+}
+
 /** Tudo o que o app guarda para o aluno treinar sem internet. `treino` nulo = sem plano publicado. */
 export interface PainelAluno {
+  /** Recordes pessoais (P10): ausente com "Concluir treino" desligado (`TREINOS_RETORNO_HABILITADO`). */
+  recordes?: RecordesDoPacote;
   /** Ausente nos pacotes anteriores ao check-in. */
   atualizacao?: Atualizacao | null;
   marca: Marca;

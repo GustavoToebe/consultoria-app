@@ -131,4 +131,23 @@ describe('formato do pacote salvo no aparelho', () => {
     q.pacote.configuracao.arredondamentoKg = '0.5';
     expect(pacoteNoFormatoAtual(q)).toBe(false);
   });
+
+  it('recordes pessoais (Engajamento 0.2): ausentes aceitos; presentes, conferidos', () => {
+    const p = salvo();
+    p.pacote.recordes = { ate: '2026-10-22', exercicios: { x1: { maiorCarga: 70, maiorVolume: 720, repeticoesPorCarga: [{ carga: 60, repeticoes: 12 }] } } };
+    expect(pacoteNoFormatoAtual(p)).toBe(true);
+    const vazio = salvo();
+    vazio.pacote.recordes = { ate: '2026-10-22', exercicios: {} };
+    expect(pacoteNoFormatoAtual(vazio)).toBe(true);
+    for (const ruim of [
+      { exercicios: {} },
+      { ate: '2026-10-22', exercicios: [] },
+      { ate: '2026-10-22', exercicios: { x1: { maiorCarga: '70', maiorVolume: 720, repeticoesPorCarga: [] } } },
+      { ate: '2026-10-22', exercicios: { x1: { maiorCarga: 70, maiorVolume: 720, repeticoesPorCarga: [{ carga: 60 }] } } },
+    ]) {
+      const q = salvo();
+      q.pacote.recordes = ruim;
+      expect(pacoteNoFormatoAtual(q)).toBe(false);
+    }
+  });
 });
