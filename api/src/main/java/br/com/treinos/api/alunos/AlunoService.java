@@ -166,8 +166,7 @@ public class AlunoService {
         Aluno aluno = buscar(id);
         exigirNaoAnonimizado(aluno);
         if (r.versao() == null || !r.versao().equals(aluno.getVersao())) {
-            throw new ConflictException("Outra pessoa ou aba alterou este aluno. Recarregue para ver a versão atual.",
-                    "CONFLITO_EDICAO");
+            throw conflitoDeEdicao();
         }
         exigirEscritaSensivel(r);
         boolean sensivel = br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR");
@@ -180,7 +179,7 @@ public class AlunoService {
             aluno.alterarEndereco(dados.endereco());
         }
         // O JSON sem "sexo" chega aqui como nulo (o DTO não distingue ausente de nulo): nulo não altera o sexo nem desliga o ciclo.
-        // Quem apaga o sexo é a própria aluna (PUT /aluno/sexo); texto em branco ainda limpa, como em aplicarSexo.
+        // Quem apaga o sexo é a própria aluna (PUT /aluno/meus-dados); texto em branco ainda limpa, como em aplicarSexo.
         if (r.sexo() != null) {
             aplicarSexo(aluno, r.sexo());
         }
@@ -242,15 +241,24 @@ public class AlunoService {
         aplicarSexo(aluno, informado);
     }
 
-    @Transactional // buscarParaAlterar trava a linha e exige transação (sem ela, PUT /aluno/sexo dava 500)
+    @Transactional // buscarParaAlterar trava a linha e exige transação
     public void definirSexo(UUID id, String informado) {
         definirSexo(alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado), informado);
     }
 
-    private void aplicarSexo(Aluno aluno, String informado) {
+    /** Mensagem fixa do sexo fora do enum (campo {@code sexo}); nunca repete o valor enviado. */
+    static final String SEXO_INVALIDO = "Escolha Masculino, Feminino ou Outro.";
+
+    /** O 409 do lock otimista do cadastro; o mesmo na ficha do treinador e em "Meus dados" do aluno. */
+    static ConflictException conflitoDeEdicao() {
+        return new ConflictException("Outra pessoa ou aba alterou este aluno. Recarregue para ver a versão atual.",
+                "CONFLITO_EDICAO");
+    }
+
+    void aplicarSexo(Aluno aluno, String informado) {
         if (informado != null && !informado.isBlank() && Sexo.ler(informado) == null) {
             throw new ValidacaoException("Confira os campos.", "ALUNO_INVALIDO",
-                    List.of(new ApiError.FieldError("sexo", "Escolha Masculino, Feminino ou Outro.")));
+                    List.of(new ApiError.FieldError("sexo", SEXO_INVALIDO)));
         }
         aluno.alterarSexo(Sexo.ler(informado));
         ciclo.desligarSeDeixouDeSerFeminino(aluno);
@@ -282,7 +290,7 @@ public class AlunoService {
      * {@code endereco.uf}, {@code endereco.logradouro}...) e uma mensagem fixa do {@code Formatos} ou da {@code RegrasDoEndereco}, nunca o valor enviado. CPF e endereço só são lidos
      * (e conferidos) com {@code ALUNO_SENSIVEL_ALTERAR}.
      */
-    private record Dados(String telefone, String cpf, Endereco endereco) {
+    record Dados(String telefone, String cpf, Endereco endereco) {
         static Dados de(AlunoRequest r, boolean sensivel) {
             var erros = new ArrayList<ApiError.FieldError>();
             String telefone = formato(erros, "telefone", Formatos::telefone, r.telefone());
@@ -295,13 +303,13 @@ public class AlunoService {
         }
 
         /** A regra única do endereço ({@link RegrasDoEndereco}); cada erro vira um campo {@code endereco.*}. */
-        private static Endereco endereco(List<ApiError.FieldError> erros, Endereco e) {
+        static Endereco endereco(List<ApiError.FieldError> erros, Endereco e) {
             RegrasDoEndereco.Resultado r = RegrasDoEndereco.normalizar(e);
             r.erros().forEach(x -> erros.add(new ApiError.FieldError("endereco." + x.campo(), x.mensagem())));
             return r.endereco();
         }
 
-        private static String formato(List<ApiError.FieldError> erros, String campo, UnaryOperator<String> formatar, String valor) {
+        static String formato(List<ApiError.FieldError> erros, String campo, UnaryOperator<String> formatar, String valor) {
             try {
                 return formatar.apply(valor);
             } catch (BadRequestException recusado) {
@@ -317,7 +325,7 @@ public class AlunoService {
     }
 
     /** Antes de gravar: o CPF não pode ser de outro aluno da consultoria ({@code @TenantId} filtra). Nunca repete o valor. */
-    private void exigirCpfLivre(String cpf, UUID alunoId) {
+    void exigirCpfLivre(String cpf, UUID alunoId) {
         if (cpf == null) return;
         if (alunoId == null ? alunos.existsByCpf(cpf) : alunos.existsByCpfAndIdNot(cpf, alunoId)) throw cpfEmUso();
     }
@@ -342,7 +350,7 @@ public class AlunoService {
     }
 
     /** Grava e traduz a corrida do CPF (a checagem prévia não pega duas gravações ao mesmo tempo) sem repetir o valor. */
-    private Aluno gravar(Aluno aluno) {
+    Aluno gravar(Aluno aluno) {
         try {
             return alunos.saveAndFlush(aluno);
         } catch (DataIntegrityViolationException e) {
@@ -355,7 +363,7 @@ public class AlunoService {
      * O telefone mora no usuário do aluno. Nulo no corpo = não mexe; em branco = apaga; preenchido = grava (já
      * normalizado). Preenchido para quem não tem acesso é 409 {@code ALUNO_SEM_ACESSO}; apagar o que não existe não é erro.
      */
-    private void trocarTelefone(Aluno aluno, String bruto, String normalizado) {
+    void trocarTelefone(Aluno aluno, String bruto, String normalizado) {
         if (bruto == null) return;
         if (aluno.getUsuarioId() == null) {
             if (normalizado != null) throw semAcesso();

@@ -1,7 +1,7 @@
 import { CONFIGURACAO_PADRAO } from '../src/dominio/metodologiaPadrao';
 import type { Page } from '@playwright/test';
 
-import type { Carga, ConteudoDieta, ExercicioPlano, PainelAluno, Serie, Sessao, Tecnica, TipoSessao } from '../src/api/tipos';
+import type { Carga, ConteudoDieta, ExercicioPlano, MeusDadosResponse, PainelAluno, Serie, Sessao, Tecnica, TipoSessao } from '../src/api/tipos';
 import { ALUNO, erroApi, MARCA, sessao, type RespostasApi } from './api-falsa';
 
 /**
@@ -80,8 +80,15 @@ export async function sessaoDeAlunoComTreino(page: Page, sessoes: Sessao[] | nul
     'GET /aluno/mobilidade': erroApi(404, 'Sem mobilidade publicada.'),
     'GET /aluno/pastas': { corpo: [] },
     'GET /aluno/fotos/configuracao': { corpo: { habilitado: false, maximoPorPergunta: 6, bytesMaximo: 1_000_000, porDia: 12 } },
+    // "Meus dados" na Conta: cadastro fictício só com nome e e-mail (o teste da tela troca).
+    'GET /aluno/meus-dados': { corpo: MEUS_DADOS_VAZIOS },
   };
 }
+
+/** Cadastro do aluno em "Meus dados" sem telefone, CPF, endereço nem sexo. Só dados fictícios. */
+export const MEUS_DADOS_VAZIOS: MeusDadosResponse = {
+  nome: ALUNO.nome, email: ALUNO.email, emailDeAcesso: ALUNO.email, telefone: null, cpf: null, endereco: null, sexo: null, versao: 0,
+};
 
 /** Segunda-feira, 19/10/2026, meio-dia em São Paulo: o "hoje" do aparelho. Os temporizadores seguem reais. */
 export async function fixarHoje(page: Page): Promise<void> {

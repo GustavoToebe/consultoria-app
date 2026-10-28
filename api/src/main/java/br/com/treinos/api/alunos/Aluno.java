@@ -320,6 +320,11 @@ public class Aluno {
         this.atualizadoEm = Instant.now();
     }
 
+    /** Marca o cadastro como alterado (sobe a versão) quando a mudança foi só fora desta linha, como o telefone no usuário. */
+    public void tocar() {
+        this.atualizadoEm = Instant.now();
+    }
+
     public Instant getUsoDeImagemAutorizadoEm() {
         return usoDeImagemAutorizadoEm;
     }

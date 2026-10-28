@@ -280,7 +280,8 @@ const ALUNO: Guia = {
     { titulo: 'Histórico', texto: 'Cargas e treinos que você já fez, por divisão, com o nome do tipo de cada série.', rota: '/aluno/historico' },
     { titulo: 'Atualização', texto: TEXTO_ATUALIZACAO, rota: '/aluno' },
     { titulo: 'Sem internet', texto: 'Pode treinar e marcar a mobilidade sem conexão. O aviso na parte de baixo de todas as telas mostra se está sem internet, enviando ou tudo enviado; se falhar, toque nele para tentar de novo. Em Conta você também vê o que está aguardando envio e toca em Sincronizar agora.', rota: '/aluno/conta' },
-    { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam foto de perfil, tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
+    { titulo: 'Meus dados', texto: `Em Conta, logo depois da foto de perfil, o cartão "Meus dados" mostra o seu cadastro. Toque em Editar para mudar telefone, endereço (o CEP preenche o resto) e sexo; o CPF você só preenche se ainda estiver vazio. Nome e e-mail só o seu treinador muda. Salvar vale na hora e precisa de internet. ${FRASE_DO_CICLO}`, rota: '/aluno/conta' },
+    { titulo: 'Conta e Ajuda', texto: 'Em Conta ficam foto de perfil, seus dados, tema, senha e sair. Esta Ajuda fica sempre à mão.', rota: '/aluno/conta' },
   ],
   passeio: [
     { titulo: 'Início', texto: TEXTO_TREINO_DE_HOJE, alvo: 'menu:/aluno' },

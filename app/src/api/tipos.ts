@@ -253,6 +253,35 @@ export interface EnderecoDoAluno {
   bairro: string | null; cidade: string | null; uf: string | null;
 }
 
+/**
+ * "Meus dados" do aluno (`GET`/`PUT /aluno/meus-dados`, sempre o aluno da sessão). Nome, e-mail do cadastro e e-mail de
+ * acesso são só leitura; `versao` vai de volta no `PUT` (409 `CONFLITO_EDICAO` se o treinador salvou antes). Dado
+ * pessoal: nunca em log nem em mensagem de erro, e nada fica no aparelho.
+ */
+export interface MeusDadosResponse {
+  nome: string;
+  email: string;
+  emailDeAcesso?: string | null;
+  telefone?: string | null;
+  cpf?: string | null;
+  endereco?: EnderecoDoAluno | null;
+  /** `MASCULINO`, `FEMININO` ou `OUTRO`. Ausente ou nulo = não informado. */
+  sexo?: string | null;
+  versao: number;
+}
+
+/**
+ * Corpo do `PUT /aluno/meus-dados`. Telefone, endereço e sexo SUBSTITUEM (telefone em branco e endereço vazio apagam;
+ * sexo nulo = não informado). `cpf` nulo = sem efeito (o aluno só preenche se estava vazio).
+ */
+export interface MeusDadosRequest {
+  telefone: string | null;
+  cpf: string | null;
+  endereco: EnderecoDoAluno | null;
+  sexo: string | null;
+  versao: number;
+}
+
 export interface AlunoDetalhe {
   id: string;
   nome: string;

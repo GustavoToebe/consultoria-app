@@ -28,6 +28,6 @@ via na Conta um cartão vermelho "O acompanhamento do ciclo não está disponív
 - Ligar o ciclo em produção.
 
 ## O que ficou para trás
-- O guia do usuário em PDF (`scripts/guias/gerar.mjs`, servido em `public/guias`) é estático e ainda traz a frase do ciclo na pergunta de sexo; regerar os PDFs com `textoDoItem(..., false)` fica para a próxima vez que os guias forem regerados.
+- O guia do usuário em PDF (`scripts/guias/gerar.mjs`, servido em `public/guias`) é estático e ainda traz a frase do ciclo na pergunta de sexo; **resolvido na frente K (28/10):** `scripts/guias/gerar.mjs` passa cada texto por `textoDoItem(..., false)` e os dois PDFs foram regerados sem a frase.
 - A origem exata do `cicloHabilitado` verdadeiro no aparelho do teste não foi confirmada; teste de campo no relatório.
 - (cada sobra também vai para "Pendências soltas" no README)

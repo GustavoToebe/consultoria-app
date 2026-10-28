@@ -27,7 +27,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Central: lote de segurança de 28/10 | [central-seguranca-28-10.md](central-seguranca-28-10.md) | Central, branch `seguranca-lote-28-10` (um PR) | Concluída | 28/10/2026 |
 | Dependabot de 28/10 (Central, Servirea e consultoria) | [dependabot-28-10.md](dependabot-28-10.md) | Central (#27) e Servirea (#16) mesclados, publicar verde; lote do consultoria publicado (aa81c38, run 40753524829); falta a revisão de 14/11 | Em andamento | 28/10/2026 |
 | Ciclo desligado: nada do ciclo na tela (J) | [ciclo-desligado-no-app.md](ciclo-desligado-no-app.md) | `main` (f72d173, run 40751695095) | Concluída em 28/10/2026 (web no ar; celular só num APK novo) | 28/10/2026 |
-| Meus dados do aluno (cartão na aba Conta) | [meus-dados-do-aluno.md](meus-dados-do-aluno.md) | `main` (um push, depois do publicar da correção do ciclo) | Planejando | 28/10/2026 |
+| Meus dados do aluno (cartão na aba Conta) | [meus-dados-do-aluno.md](meus-dados-do-aluno.md) | `main` (um push) | Em andamento (código pronto; falta o push) | 28/10/2026 |
 
 ## Pendências soltas
 
@@ -35,6 +35,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | --- | --- | --- |
 | Conferir que a "Anamnese Saraiva Team" está publicada em Planejamento › Anamnese | Gustavo | anamnese |
 | Ver no celular se os títulos das seções do editor de séries (caixa alta 12 px) ficaram bons | Gustavo | editor de séries (5d353d0) |
+| Meus dados do aluno: decidir se a rota `PUT /aluno/meus-dados` ganha limite de tentativas (`LimiteTentativas`, por usuário) contra teste de CPFs pelo 409 `ALUNO_CPF_EM_USO`; e se o aluno inativo deve dar 409 em vez do 401 que já recebe | Gustavo | meus-dados-do-aluno |
 | Gerar APK novo (`npx eas-cli build --profile preview --platform android`) e repetir o roteiro de `docs/build-celular.md` | Gustavo | etapas, cronômetro, editor |
 | Teste manual na web do roteiro de Cluster e Rest-pause com um aluno de teste | Gustavo | etapas |
 | Apagar a branch `etapas-por-bloco` (nada fora da `main`) | Gustavo | limpeza |
@@ -47,7 +48,6 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | `lock_timeout` no Flyway do módulo auth (exige mudar a biblioteca `plataforma`) | Claude | travas do banco |
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
 | O perfil do aluno não recarrega o `/eu` durante a sessão (`recarregarPerfil` sai cedo). `funcionalidadesDoPlano`, `pagarNoIos`/`pagarNoAndroid` e `pagamentosHabilitados` também só se atualizam ao reabrir o app. Avaliar antes de ligar pagamentos ou o plano aplicado | Claude | frente J (ciclo desligado) |
-| Guia do usuário em PDF (`public/guias`, gerado por `scripts/guias/gerar.mjs`) ainda traz a frase do ciclo na "Pergunta de sexo": regerar com `textoDoItem(..., false)` na próxima vez que os guias forem regerados | Claude | frente J (ciclo desligado) |
 | `AnamneseService.atribuir`: conferir o nome da restrição antes de virar `ANAMNESE_PENDENTE` em `DataIntegrityViolationException` | Claude | anamnese no aceite (1f1aa20) |
 | Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
 

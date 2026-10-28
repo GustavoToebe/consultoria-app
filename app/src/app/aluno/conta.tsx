@@ -4,8 +4,9 @@ import { StyleSheet, View } from 'react-native';
 
 import { CartaoExcluirConta } from '../../aluno/CartaoExcluirConta';
 import { CartaoUsoDeImagem } from '../../aluno/CartaoUsoDeImagem';
-import { CartaoCiclo, CartaoSexoDaAluna } from '../../aluno/CartaoCiclo';
+import { CartaoCiclo } from '../../aluno/CartaoCiclo';
 import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
+import { CartaoMeusDados } from '../../aluno/CartaoMeusDados';
 import { CartaoMeuPlano } from '../../aluno/financeiro/CartaoMeuPlano';
 import { useRetornoDoPagamento } from '../../aluno/financeiro/useRetornoDoPagamento';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
@@ -44,7 +45,7 @@ export default function ContaAluno() {
     <Tela bordas={['top']} largura={720}>
       <Cabecalho titulo="Conta" subtitulo={[sessao.usuario?.nome, sessao.usuario?.email].filter(Boolean).join(' · ') || undefined} />
       <CartaoFotoDePerfil />
-      <CartaoSexoDaAluna />
+      <CartaoMeusDados />
       <CartaoCiclo />
       <CartaoMeuPlano />
       <Cartao titulo="Sincronização" descricao="Os registros ficam salvos neste aparelho e vão para o seu treinador quando houver internet.">
