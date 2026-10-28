@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Platform } from 'react-native';
 
 import {
+  aoCicloDesligado,
   aoEncerrar,
   definirUsuarioDaSessao,
   ErroApi,
@@ -300,6 +301,21 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
       return novo;
     });
+  }, []);
+  // O servidor respondeu 503 `CICLO_INDISPONIVEL_NO_APP` (módulo desligado na plataforma) com o perfil ainda dizendo que
+  // estava ligado (ligado no `/eu` de uma sessão anterior): a chave vira falsa na sessão e no perfil salvo, e os cartões
+  // do ciclo somem. Sem efeito, nem regravação, se já está falsa.
+  useEffect(() => {
+    aoCicloDesligado(() => {
+      setPerfil((atual) => {
+        if (!atual || atual.cicloHabilitado !== true) return atual;
+        const novo = { ...atual, cicloHabilitado: false };
+        perfilAtual.current = novo;
+        AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+        return novo;
+      });
+    });
+    return () => aoCicloDesligado(null);
   }, []);
   const valor = useMemo<ValorSessao>(
     () => ({

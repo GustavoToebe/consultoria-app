@@ -25,7 +25,9 @@ export function useCicloDoTreinador(alunoId: string | null | undefined) {
   // Módulo desligado na plataforma: nada é consultado e tudo o que depende do ciclo some.
   const ver = cicloHabilitado && !!alunoId && pode('ALUNO_LER') && pode('ALUNO_SENSIVEL_LER');
   const carga = useCarregar(ver ? `ciclo-treinador:${alunoId}` : null, () => cicloDoAluno(alunoId!));
-  return { ...carga, ver, ativo: carga.dados?.ativo === true };
+  // Chave desligada (inclusive depois de um 503 do módulo desligado): o que foi carregado antes não vale mais.
+  const dados = ver ? carga.dados : undefined;
+  return { ...carga, dados, ver, ativo: dados?.ativo === true };
 }
 
 function configDe(dados: { duracaoHabitual: number | null; mostrarFases: boolean | null }): ConfigDoCiclo {

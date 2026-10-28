@@ -203,6 +203,63 @@ describe('cliente HTTP: refresh compartilhado', () => {
   });
 });
 
+describe('cliente HTTP: ciclo desligado na plataforma', () => {
+  let fetchSimulado: jest.Mock;
+
+  beforeEach(() => {
+    process.env.EXPO_PUBLIC_API_URL = API;
+    mockLerRefresh.mockResolvedValue('refresh-velho');
+    fetchSimulado = jest.fn();
+    global.fetch = fetchSimulado as unknown as typeof fetch;
+  });
+
+  it('503 CICLO_INDISPONIVEL_NO_APP avisa a sessão e relança o mesmo erro', async () => {
+    fetchSimulado.mockResolvedValue(json(503, { status: 503, message: 'O acompanhamento do ciclo não está disponível.', codigo: 'CICLO_INDISPONIVEL_NO_APP', fieldErrors: null }));
+    const { requisicao, aoCicloDesligado, ErroApi } = carregarCliente();
+    const desligado = jest.fn();
+    aoCicloDesligado(desligado);
+
+    const erro = await requisicao('/aluno/ciclo').catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(ErroApi);
+    expect(erro).toMatchObject({ status: 503, codigo: 'CICLO_INDISPONIVEL_NO_APP' });
+    expect(desligado).toHaveBeenCalledTimes(1);
+    expect(chamados(fetchSimulado)).toEqual(['/aluno/ciclo']);
+  });
+
+  it('vale também para gravação do ciclo', async () => {
+    fetchSimulado.mockResolvedValue(json(503, { status: 503, message: 'x', codigo: 'CICLO_INDISPONIVEL_NO_APP', fieldErrors: null }));
+    const { requisicao, aoCicloDesligado } = carregarCliente();
+    const desligado = jest.fn();
+    aoCicloDesligado(desligado);
+
+    await expect(requisicao('/aluno/ciclo/registros', { metodo: 'POST', corpo: {} })).rejects.toMatchObject({ status: 503 });
+    expect(desligado).toHaveBeenCalledTimes(1);
+  });
+
+  it('outros erros não avisam: 409 CICLO_INDISPONIVEL (sexo), 503 de outro código e 500', async () => {
+    const { requisicao, aoCicloDesligado } = carregarCliente();
+    const desligado = jest.fn();
+    aoCicloDesligado(desligado);
+    const casos: [number, string][] = [[409, 'CICLO_INDISPONIVEL'], [503, 'FINANCEIRO_INDISPONIVEL'], [500, 'CICLO_INDISPONIVEL_NO_APP']];
+    for (const [status, codigo] of casos) {
+      fetchSimulado.mockResolvedValue(json(status, { status, message: 'x', codigo, fieldErrors: null }));
+      await expect(requisicao('/aluno/ciclo')).rejects.toMatchObject({ status, codigo });
+    }
+    expect(desligado).not.toHaveBeenCalled();
+  });
+
+  it('sem callback registrado (ou removido) o erro só é relançado', async () => {
+    fetchSimulado.mockResolvedValue(json(503, { status: 503, message: 'x', codigo: 'CICLO_INDISPONIVEL_NO_APP', fieldErrors: null }));
+    const { requisicao, aoCicloDesligado } = carregarCliente();
+    const desligado = jest.fn();
+    aoCicloDesligado(desligado);
+    aoCicloDesligado(null);
+
+    await expect(requisicao('/aluno/ciclo')).rejects.toMatchObject({ codigo: 'CICLO_INDISPONIVEL_NO_APP' });
+    expect(desligado).not.toHaveBeenCalled();
+  });
+});
+
 describe('cliente HTTP: imagem protegida', () => {
   let fetchSimulado: jest.Mock;
 

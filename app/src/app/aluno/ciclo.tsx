@@ -6,6 +6,7 @@ import {
   AJUDA_MOSTRAR_FASES, diferencaEmDias, faseNaData, hojeDoCiclo, podeTerminarHoje, registroEmAndamento, ROTULO_DA_COLICA, ROTULO_DO_FLUXO,
   ROTULO_DO_SINTOMA, SINTOMAS, textoDaLeitura, textoDaPrevisao, VERSAO_CONSENTIMENTO, type ConfigDoCiclo, type FaseDoCiclo,
 } from '../../dominio/cicloMenstrual';
+import { ehCicloDesligado } from '../../dominio/cicloDesligado';
 import { dataDaTela, dataParaTela } from '../../dominio/formatos';
 import { novoUid } from '../../dominio/uid';
 import { useTema } from '../../tema/TemaProvider';
@@ -31,6 +32,11 @@ import {
 } from '../../api/rotas';
 import type { DiaDeCicloApi, RegistroDeCicloApi, TextosDasFases } from '../../api/tipos';
 import { useCicloDaAluna } from '../../aluno/useCicloDaAluna';
+
+/** O 503 do módulo desligado não vira aviso: o cliente já desligou a chave e a tela volta para a Conta. */
+function avisarErro(avisar: (texto: string, tipo: 'sucesso' | 'perigo') => void, e: unknown) {
+  if (!ehCicloDesligado(e)) avisar(textoDoErro(e), 'perigo');
+}
 
 const FLUXOS = Object.entries(ROTULO_DO_FLUXO).map(([valor, rotulo]) => ({ valor, rotulo }));
 const COLICAS = Object.entries(ROTULO_DA_COLICA).map(([valor, rotulo]) => ({ valor, rotulo }));
@@ -96,7 +102,7 @@ function Ativar({ aoAtivar }: { aoAtivar: (dados: NonNullable<ReturnType<typeof 
           setOcupado(true);
           ativarCiclo(VERSAO_CONSENTIMENTO, duracao).then(
             (d) => { setOcupado(false); setAberto(false); aoAtivar(d); },
-            (e: unknown) => { setOcupado(false); avisar(textoDoErro(e), 'perigo'); },
+            (e: unknown) => { setOcupado(false); avisarErro(avisar, e); },
           );
         }}>
         <CampoNumerico rotulo="Duração habitual do ciclo (opcional)" inteiro valor={duracao} aoMudar={setDuracao} sufixo="dias"
@@ -128,7 +134,7 @@ function Conteudo({ registros, dias, config, textos, mes, aoMes, aoRecarregar, a
   const textoFase = leitura.fase ? textos?.[CHAVE[leitura.fase]]?.trim() : '';
   const agir = (pedido: Promise<unknown>, ok: string) => pedido.then(
     () => { avisar(ok, 'sucesso'); aoRecarregar(); },
-    (e: unknown) => avisar(textoDoErro(e), 'perigo'),
+    (e: unknown) => avisarErro(avisar, e),
   );
   // Depois de 15 dias a API recusa o fim de hoje: a aluna informa o fim pela edição do período.
   const podeTerminar = aberto != null && podeTerminarHoje(aberto, config.hoje);
@@ -189,7 +195,7 @@ function Conteudo({ registros, dias, config, textos, mes, aoMes, aoRecarregar, a
             const pedido = id ? alterarRegistroDeCiclo(id, inicio, fim) : gravarRegistroDeCiclo(novoUid(), inicio, fim);
             pedido.then(
               () => { setOutraData(false); setEditando(null); avisar('Ciclo registrado.', 'sucesso'); aoRecarregar(); },
-              (e: unknown) => avisar(textoDoErro(e), 'perigo'),
+              (e: unknown) => avisarErro(avisar, e),
             );
           }}
         />
@@ -252,7 +258,7 @@ function FolhaDoDia({ data, dia, aoFechar, aoSalvar, avisar }: {
       observacao: observacao.trim() || null,
     }).then(
       () => { setOcupado(false); avisar('Dia salvo.', 'sucesso'); aoSalvar(); },
-      (e: unknown) => { setOcupado(false); avisar(textoDoErro(e), 'perigo'); },
+      (e: unknown) => { setOcupado(false); avisarErro(avisar, e); },
     );
   };
   return (
@@ -282,7 +288,7 @@ function FolhaDoDia({ data, dia, aoFechar, aoSalvar, avisar }: {
       {dia ? <Botao rotulo="Limpar dia" tipo="perigo" aoTocar={() => setLimpar(true)} /> : null}
       <PainelConfirmacao visivel={limpar} titulo="Limpar este dia?" rotuloConfirmar="Limpar" perigo
         aoCancelar={() => setLimpar(false)}
-        aoConfirmar={() => { setLimpar(false); apagarDiaDeCiclo(data).then(() => { avisar('Dia limpo.', 'sucesso'); aoSalvar(); }, (e: unknown) => avisar(textoDoErro(e), 'perigo')); }} />
+        aoConfirmar={() => { setLimpar(false); apagarDiaDeCiclo(data).then(() => { avisar('Dia limpo.', 'sucesso'); aoSalvar(); }, (e: unknown) => avisarErro(avisar, e)); }} />
     </Folha>
   );
 }

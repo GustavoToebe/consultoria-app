@@ -1,4 +1,4 @@
-import { GUIAS } from './conteudo';
+import { GUIAS, textoDoItem } from './conteudo';
 
 /** Todo o texto de um guia, num bloco só, para procurar termos. */
 const textoDoGuia = (publico: 'treinador' | 'aluno') => {
@@ -47,5 +47,21 @@ describe('textos da ajuda', () => {
     for (const g of Object.values(GUIAS)) {
       for (const s of g.secoes) for (const i of s.itens) expect(i.titulo.trim() && i.texto.trim()).toBeTruthy();
     }
+  });
+});
+
+describe('frase do ciclo no guia', () => {
+  const itemDoSexo = GUIAS.treinador.secoes.flatMap((s) => s.itens).find((i) => i.titulo === 'Pergunta de sexo');
+
+  it('o guia do treinador tem a frase, e a tela a tira com o ciclo desligado', () => {
+    expect(itemDoSexo?.texto).toContain('desliga o acompanhamento do ciclo');
+    expect(textoDoItem(itemDoSexo?.texto ?? '', true)).toBe(itemDoSexo?.texto);
+    const sem = textoDoItem(itemDoSexo?.texto ?? '', false);
+    expect(sem).not.toMatch(/ciclo/i);
+    expect(sem.endsWith('Aplicar pede a permissão de alterar o aluno.')).toBe(true);
+  });
+
+  it('texto sem a frase não muda', () => {
+    expect(textoDoItem('Outro texto.', false)).toBe('Outro texto.');
   });
 });

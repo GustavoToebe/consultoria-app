@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, FileDown, MousePointerClick, PlayCircle } from 
 import { useState, type ReactNode } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_EDITOR } from '../tema/tokens';
 import { Botao } from '../ui/Botao';
@@ -13,7 +14,7 @@ import { usePasseio } from '../ui/Passeio';
 import { sobre } from '../ui/sobre';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
-import { GUIAS, type Publico } from './conteudo';
+import { GUIAS, textoDoItem, type Publico } from './conteudo';
 import { TutorialGuiado } from './TutorialGuiado';
 
 /**
@@ -26,6 +27,7 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
   const guia = GUIAS[publico];
   const [tutorial, setTutorial] = useState(false);
   const { rever } = usePasseio();
+  const { cicloHabilitado } = useSessao();
   const passos = guia.primeirosPassos.filter((p) => !p.soNoPdf);
   return (
     <Tela bordas={['top']} largura={publico === 'aluno' ? 720 : LARGURA_EDITOR}>
@@ -62,7 +64,7 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
             {s.itens.map((item) => (
               <View key={item.titulo} style={estilos.item}>
                 <Texto variante="rotulo">{item.titulo}</Texto>
-                <Texto>{item.texto}</Texto>
+                <Texto>{textoDoItem(item.texto, cicloHabilitado)}</Texto>
               </View>
             ))}
           </LinhaRecolhivel>
