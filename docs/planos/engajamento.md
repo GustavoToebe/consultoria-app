@@ -42,7 +42,7 @@ Portões: 0→1 linha de base dos 5 alunos com a chave desligada e 2 semanas com
 confiáveis e números comparados · 2→3 moderação, push e adicional decididos · 3→4 mural em uso e moderação sustentável ·
 4→5 só se 3 e 4 provarem valor.
 
-- [ ] 0.1 Chave e "Concluir treino": botão no topo e no rodapé da tela do dia, duração (P9), "Como foi seu treino?" opcional (até 300, sensível, o treinador vê) — API V035, fila offline — commit: —
+- [x] 0.1 Chave e "Concluir treino": botão no topo e no rodapé da tela do dia, duração (P9), "Como foi seu treino?" opcional (até 300, sensível, o treinador vê) — API V035, fila offline — commit: `5de8d16` (branch `gamificacao`, 28/10/2026; `mvn verify` 1419 testes, app 2130 testes, e2e `concluir-treino` 8/8; falta só a tela do treinador, que é o 0.5)
 - [ ] 0.2 Recordes pessoais (P3, P10): baixados com o pacote, aviso no topo na hora em que a série é marcada (miniatura do exercício, "Maior carga · 70 kg"), medalha no lugar do número da série, contagem no resumo — commit: —
 - [ ] 0.3 Treino ao vivo: faixa no topo com duração, volume e séries feitas; coluna "Anterior" por série (a mesma série da última vez: "40 kg × 10") — commit: —
 - [ ] 0.4 Tela "Bom trabalho!": "Este é o seu 12º treino", resumo, recordes do dia e o cartão para compartilhar (P8: Stories, baixar, compartilhar) — commit: —
@@ -84,3 +84,13 @@ Treinos com registro e concluídos por semana, semanas seguidas no combinado, at
 retomadas depois de 2 semanas. Antes e depois nas mesmas pessoas, períodos iguais. Tempo de uso não conta.
 
 ## O que ficou para trás
+Do 0.1 (revisão de 28/10/2026), nada disso bloqueia a branch; confira antes de ligar `TREINOS_RETORNO_HABILITADO`:
+- Texto da Ajuda (`ajuda/conteudo.ts` + guias) e o item "Retorno imediato" do `AGENTS.md` (inclui `concluir-treino.spec.ts` na lista de testes de tela): ficam para o último passo da frente.
+- Capturas 390/1280, claro e escuro, da Folha "Concluir treino": o tema escuro não foi conferido na tela (só tokens) e o nativo (foco do "Ajustar duração", vibração, Folha) não foi testado no celular.
+- Duração: o início vem da primeira série marcada **neste aparelho**; treino marcado em outro aparelho ou só no servidor abre sem duração e o aluno digita (ou deixa em branco).
+- Chave ligada e depois desligada: a conclusão que já estava na fila vira "com falha" (503) e a linha na Conta continua aparecendo, porque a lista de falhas não olha a chave. Decidir se some.
+- Conclusão ou reabertura de um dia perto do limite de 60 dias, feita offline por mais de um dia: o servidor recusa por data e o item fica com falha (igual à mobilidade; o prazo de 60 dias só limpa o que já foi enviado).
+- Reabrir uma conclusão que só existe no servidor, com o relógio do aparelho atrasado: o servidor responde "antigo" e o app mostra reaberto enquanto o treinador vê concluído (o último vence, por desenho).
+- `api/rotas.ts` `sessoesConcluidasDoAlunoParaTreinador` ainda não tem tela: é do 0.5.
+- `AnonimizacaoService`/`receber` não conferem `aluno.anonimizado` (igual a execuções e mobilidade); só uma requisição que já passou do filtro poderia regravar um comentário depois da anonimização.
+- Ambiente: `app/node_modules` do worktree é uma junction para o checkout principal. O `npm run e2e` puro pode abrir em branco por causa do cache do Metro; usar `expo export --clear` antes. Nunca `rm -rf` na junction (usar `cmd /c rmdir`).
