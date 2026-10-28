@@ -30,7 +30,7 @@ presencial e lembretes de cobrança. As imagens são referência de funcionalida
 - [x] 4. Avaliação física (V035) — plano [avaliacao-fisica.md](avaliacao-fisica.md) — commit: 3f08d7c (o PDF passou a usar `cabecalhoDoPdf`)
 - [x] 5. Agenda presencial (V036) — plano [agenda-presencial.md](agenda-presencial.md) — commit: 399a0b3
 - [x] 6. Lembretes de cobrança (V037) — plano [lembretes-de-cobranca.md](lembretes-de-cobranca.md) — commit: c736432
-- [ ] 7. Juntar as frentes (feito), totais de migration em 38 e `AGENTS.md` (feitos), regerar os guias PDF, e2e completo no checkout principal, `mvn verify` (precisa de Docker: PC do Gustavo) e decidir PR/push com o Gustavo
+- [ ] 7. Frentes juntadas, migrations em 38, `AGENTS.md` e guias PDF regerados (Chromium do Linux; PDFs um pouco maiores que os gerados no Edge) — feitos. Verificado aqui em 28/10: app typecheck/lint limpos e jest 2173/2173; API testes sem Docker verdes (ArquiteturaTest 15, FonteDaContaCentral 15, ValidadorTreino 47, Metodologia 22, regras dos lembretes, agenda, avaliação, grupo, dieta); e2e completo no checkout principal 226 passaram + 1 falha de recarga em `comparacao-de-fotos` a 3440 px que passou 14/14 repetida. **Falta:** `mvn verify` com Docker no PC do Gustavo e decidir PR/push
 
 ## Fora do escopo
 - Chat aluno-treinador, IA de recuperação de vendas, pagamentos combinados e carteiras digitais (decisão 10).
