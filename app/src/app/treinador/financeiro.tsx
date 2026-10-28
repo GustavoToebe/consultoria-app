@@ -8,6 +8,7 @@ import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { type Responsabilidade } from '../../treinador/EscolhaResponsabilidade';
 import { AbaCobrancas } from '../../treinador/financeiro/AbaCobrancas';
 import { AbaLancamentos } from '../../treinador/financeiro/AbaLancamentos';
+import { AbaLembretes } from '../../treinador/financeiro/AbaLembretes';
 import { AbaPlanos } from '../../treinador/financeiro/AbaPlanos';
 import { AbaRecebimentoOnline } from '../../treinador/financeiro/AbaRecebimentoOnline';
 import { FolhaDeExportacao } from '../../treinador/financeiro/FolhaDeExportacao';
@@ -18,13 +19,14 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
-type Aba = 'visao' | 'cobrancas' | 'planos' | 'lancamentos' | 'recebimento';
+type Aba = 'visao' | 'cobrancas' | 'planos' | 'lancamentos' | 'lembretes' | 'recebimento';
 
 const ABAS: { valor: Aba; rotulo: string }[] = [
   { valor: 'visao', rotulo: 'Visão geral' },
   { valor: 'cobrancas', rotulo: 'Cobranças' },
   { valor: 'planos', rotulo: 'Planos' },
   { valor: 'lancamentos', rotulo: 'Lançamentos' },
+  { valor: 'lembretes', rotulo: 'Lembretes' },
 ];
 
 /** Só com o recebimento online (InfinitePay) ligado na consultoria; o `?aba=recebimento` sem isso cai na Visão geral. */
@@ -61,6 +63,7 @@ export default function FinanceiroDoTreinador() {
         {aba === 'cobrancas' ? <AbaCobrancas escopo={escopo} aoMudarEscopo={setEscopo} podeAlterar={podeAlterar} /> : null}
         {aba === 'planos' ? <AbaPlanos podeAlterar={podeAlterar} /> : null}
         {aba === 'lancamentos' ? <AbaLancamentos podeAlterar={podeAlterar} /> : null}
+        {aba === 'lembretes' ? <AbaLembretes podeAlterar={podeAlterar} /> : null}
         {aba === 'recebimento' ? <AbaRecebimentoOnline podeAlterar={podeAlterar} /> : null}
       </View>
       <FolhaDeExportacao visivel={exportando} aoFechar={() => setExportando(false)} />

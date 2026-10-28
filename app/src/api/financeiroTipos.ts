@@ -370,3 +370,50 @@ export interface ConferenciaDePagamento {
 export interface ConferenciasDePagamento {
   itens: ConferenciaDePagamento[];
 }
+
+// ---- Lembretes de cobrança por e-mail ----
+
+/**
+ * Configuração dos lembretes (`GET/PUT /financeiro/lembretes`). Sem configuração gravada vem desligada, com 3 dias antes, no
+ * dia e 3 dias depois, e `versao` nula. `emailDisponivel` falso = o e-mail do app está desligado e nenhum lembrete sai.
+ */
+export interface Lembretes {
+  ligado: boolean;
+  diasAntes: number;
+  noDia: boolean;
+  diasDepois: number;
+  versao: number | null;
+  emailDisponivel: boolean;
+}
+
+/** `diasAntes` de 0 a 15 e `diasDepois` de 0 a 30 (0 = aquele lembrete não sai). `versao` nula só ao criar. */
+export interface LembretesRequest {
+  ligado: boolean;
+  diasAntes: number;
+  noDia: boolean;
+  diasDepois: number;
+  versao: number | null;
+}
+
+export type TipoDeLembrete = 'ANTES' | 'NO_DIA' | 'DEPOIS';
+export type SituacaoDoLembrete = 'PENDENTE' | 'ENVIADO' | 'FALHOU' | 'CANCELADO';
+
+/** Um lembrete da cobrança. `motivo` só no cancelado (código fixo, ver `dominio/lembretesDeCobranca`). */
+export interface LembreteDaCobranca {
+  id: string;
+  tipo: TipoDeLembrete;
+  situacao: SituacaoDoLembrete;
+  motivo: string | null;
+  dataPrevista: string;
+  enviadoEm: string | null;
+  atualizadoEm: string;
+}
+
+/**
+ * Os lembretes de uma cobrança e a mensagem pronta para o WhatsApp (o mesmo texto do e-mail, para hoje). `whatsapp` nulo =
+ * cobrança que não está em aberto ou aluno inativo; `telefone` nulo = o aluno não tem telefone.
+ */
+export interface LembretesDaCobranca {
+  itens: LembreteDaCobranca[];
+  whatsapp: { telefone: string | null; mensagem: string } | null;
+}
