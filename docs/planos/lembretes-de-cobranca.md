@@ -19,7 +19,7 @@ atrasado continua sem bloquear nada do aluno: o lembrete só informa.
 | 7 | Contratação pausada ou encerrada | Não envia (`CANCELADO`, `CONTRATACAO_NAO_ATIVA`): pausar costuma ser combinado com o aluno | Claude |
 | 8 | Destino do e-mail | O e-mail do cadastro do aluno; sem ele, o e-mail de login; sem nenhum, `CANCELADO` (`SEM_EMAIL`), que a folha mostra ao treinador | Claude |
 | 9 | Texto | Fixo, sem saúde: "Olá, {primeiro nome}. A mensalidade de {consultoria} no valor de R$ X vence em DD/MM." (variações para hoje e atrasada) + `APP_URL/aluno/conta`; nada de link de checkout. Nunca em log | Gustavo |
-| 10 | Mensagem do WhatsApp | Montada pela API (`GET /cobrancas/{id}/lembretes`, campo `whatsapp`) com o mesmo `TextoDoLembrete` do e-mail, para ser igual; o app só monta o `wa.me` (`dominio/whatsappDaCobranca`) | Claude |
+| 10 | Mensagem do WhatsApp | Montada pela API (`GET /cobrancas/{id}/lembretes`, campo `whatsapp`) com o mesmo `TextoDoLembrete` do e-mail, para ser igual; o app só monta o `wa.me` (`dominio/lembretesDeCobranca`) | Claude |
 | 11 | Auditoria do envio | Nenhuma: a linha do lembrete é o registro. Só a configuração é auditada (`LEMBRETES_DE_COBRANCA_CONFIGURADOS`, resumo fixo, só quando muda) | Claude |
 | 12 | LGPD | A linha não guarda e-mail, nome, valor nem texto: só tipo, situação, datas e classe do erro. Exportação leva (seção `financeiro.lembretes`); a anonimização não precisa apagar nada. Aluno que sai: as cobranças abertas são canceladas e o job cancela os pendentes | Claude |
 
