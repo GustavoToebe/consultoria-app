@@ -1,50 +1,26 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 
-import { ativarCiclo, definirSexoDaAluna, eu } from '../api/rotas';
+import { ativarCiclo } from '../api/rotas';
 import {
   AJUDA_MOSTRAR_FASES, faseNaData, hojeDoCiclo, TEXTO_DO_CONSENTIMENTO, textoDaLeitura, VERSAO_CONSENTIMENTO, type ConfigDoCiclo,
 } from '../dominio/cicloMenstrual';
 import { ehCicloDesligado } from '../dominio/cicloDesligado';
-import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
-import { useSessao } from '../sessao/SessaoProvider';
 import { Botao } from '../ui/Botao';
 import { CampoNumerico } from '../ui/Campos';
 import { Cartao } from '../ui/Cartao';
-import { Escolha } from '../ui/Escolha';
 import { MensagemErro } from '../ui/Estados';
 import { textoDoErro } from '../ui/erros';
 import { PainelConfirmacao } from '../ui/PainelConfirmacao';
 import { Texto } from '../ui/Texto';
 import { useAviso } from '../ui/Aviso';
-import { useCarregar } from '../ui/useCarregar';
 import { useCicloDaAluna } from './useCicloDaAluna';
 
-/** Sexo da própria aluna, na Conta. A lista de alunos não mostra este campo. */
-export function CartaoSexoDaAluna() {
-  const { recarregarPerfil } = useSessao();
-  const { avisar } = useAviso();
-  const perfil = useCarregar('eu-sexo', () => eu());
-  const atual = sexoDoCampo(perfil.dados?.aluno?.sexo) ?? '';
-  const [sexo, setSexo] = useState<string | null>(null);
-  const valor = sexo ?? atual;
-  const salvar = (proximo: string) => {
-    setSexo(proximo);
-    definirSexoDaAluna(sexoDoCampo(proximo)).then(
-      () => recarregarPerfil().then(() => avisar('Sexo salvo.', 'sucesso')),
-      (e: unknown) => avisar(textoDoErro(e), 'perigo'),
-    );
-  };
-  if (!perfil.dados?.aluno) return null;
-  return (
-    <Cartao titulo="Meus dados">
-      <Escolha rotulo="Sexo" valor={valor} aoMudar={salvar}
-        opcoes={[{ valor: '', rotulo: 'Não informado' }, ...OPCOES_DE_SEXO]} />
-    </Cartao>
-  );
-}
-
-/** Cartão da Conta. Some quando o sexo não é Feminino. Ligar pede o consentimento. */
+/**
+ * Cartão da Conta. Some quando o sexo não é Feminino (o servidor decide em `disponivel`). O sexo mora em "Meus dados"
+ * (`CartaoMeusDados`); salvar um sexo diferente faz este cartão consultar de novo (`versaoDoSexo`). Ligar pede o
+ * consentimento.
+ */
 export function CartaoCiclo() {
   const ciclo = useCicloDaAluna();
   if (!ciclo.habilitado) return null;

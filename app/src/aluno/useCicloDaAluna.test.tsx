@@ -2,6 +2,7 @@ import { ErroApi } from '@plataforma/web';
 
 import type { CicloDaAluna } from '../api/tipos';
 import { useCicloDaAluna } from './useCicloDaAluna';
+import { avisarQueOSexoMudou } from './versaoDoSexo';
 
 /**
  * O hook sobre o `useCarregar` de verdade, com a API, a sessão e o provedor do aluno simulados. O que se confere: o 503 de
@@ -19,6 +20,14 @@ const Renderer = require('react-test-renderer') as typeof import('react-test-ren
 
 type Retorno = ReturnType<typeof useCicloDaAluna>;
 
+/** Desmontados a cada teste: o aviso de sexo salvo é global e acordaria as sondas dos testes anteriores. */
+const montados: import('react-test-renderer').ReactTestRenderer[] = [];
+afterEach(async () => {
+  await Renderer.act(async () => {
+    montados.splice(0).forEach((m) => m.unmount());
+  });
+});
+
 async function montar(): Promise<{ atual: () => Retorno; recarregar: () => Promise<void> }> {
   let ultimo!: Retorno;
   function Sonda() {
@@ -26,7 +35,7 @@ async function montar(): Promise<{ atual: () => Retorno; recarregar: () => Promi
     return null;
   }
   await Renderer.act(async () => {
-    Renderer.create(<Sonda />);
+    montados.push(Renderer.create(<Sonda />));
   });
   return {
     atual: () => ultimo,
@@ -75,6 +84,19 @@ describe('useCicloDaAluna', () => {
     const hook = await montar();
     expect(mockCicloDaAluna).not.toHaveBeenCalled();
     expect(hook.atual()).toMatchObject({ habilitado: false, dados: undefined, erro: undefined });
+  });
+
+  it('sexo salvo em "Meus dados": consulta o ciclo de novo', async () => {
+    mockCicloDaAluna.mockResolvedValue(DADOS);
+    const hook = await montar();
+    expect(mockCicloDaAluna).toHaveBeenCalledTimes(1);
+    const indisponivel = { ...DADOS, disponivel: false };
+    mockCicloDaAluna.mockResolvedValue(indisponivel);
+    await Renderer.act(async () => {
+      avisarQueOSexoMudou();
+    });
+    expect(mockCicloDaAluna).toHaveBeenCalledTimes(2);
+    expect(hook.atual().dados).toEqual(indisponivel);
   });
 
   it('carregou: devolve os dados', async () => {

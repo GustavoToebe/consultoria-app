@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 
 const raiz = resolve(import.meta.dirname, '..', '..');
 const saida = join(raiz, 'app', 'public', 'guias');
-const { GUIAS } = await import(pathToFileURL(join(raiz, 'app', 'src', 'ajuda', 'conteudo.ts')).href);
+const { GUIAS, textoDoItem } = await import(pathToFileURL(join(raiz, 'app', 'src', 'ajuda', 'conteudo.ts')).href);
 
 const NAVEGADORES = [
   process.env.NAVEGADOR_PDF,
@@ -23,14 +23,16 @@ const NAVEGADORES = [
 const navegador = NAVEGADORES.find((c) => existsSync(c));
 if (!navegador) throw new Error('Edge ou Chrome não encontrado. Defina NAVEGADOR_PDF com o caminho do executável.');
 
+// O ciclo está desligado em produção: o PDF não cita a frase dele (a tela de Ajuda faz o mesmo com cicloHabilitado).
+const semCiclo = (t) => textoDoItem(String(t), false);
 const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function html(guia) {
-  const passos = (lista) => lista.map((p, i) => `<li><b>${esc(p.titulo)}</b><br>${esc(p.texto)}</li>`).join('');
+  const passos = (lista) => lista.map((p, i) => `<li><b>${esc(p.titulo)}</b><br>${esc(semCiclo(p.texto))}</li>`).join('');
   const secoes = guia.secoes
-    .map((s) => `<h2>${esc(s.titulo)}</h2>${s.itens.map((i) => `<p><b>${esc(i.titulo)}.</b> ${esc(i.texto)}</p>`).join('')}`)
+    .map((s) => `<h2>${esc(s.titulo)}</h2>${s.itens.map((i) => `<p><b>${esc(i.titulo)}.</b> ${esc(semCiclo(i.texto))}</p>`).join('')}`)
     .join('');
-  const perguntas = guia.perguntas.map((p) => `<p><b>${esc(p.pergunta)}</b><br>${esc(p.resposta)}</p>`).join('');
+  const perguntas = guia.perguntas.map((p) => `<p><b>${esc(p.pergunta)}</b><br>${esc(semCiclo(p.resposta))}</p>`).join('');
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(guia.titulo)}</title><style>
 @page { size: A4; margin: 18mm 16mm; }
 body { font-family: "Segoe UI", Arial, sans-serif; color: #1a1a1a; font-size: 11pt; line-height: 1.45; }

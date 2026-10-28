@@ -109,7 +109,7 @@ for (const largura of [390, 1280]) {
       'GET /aluno/ciclo': { corpo: { disponivel: false } },
     });
     await page.goto('/aluno/conta');
-    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Meus dados', level: 2 })).toBeVisible();
     await expect(page.getByText('Ativar acompanhamento')).toHaveCount(0);
   });
 }
@@ -120,10 +120,10 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina } = await simularApi(page, { ...(await rotasDaAluna(page, 'FEMININO', false)) });
     await page.goto('/aluno/conta');
-    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Meus dados', level: 2 })).toBeVisible();
     await expect(page.getByText('Ativar acompanhamento')).toHaveCount(0);
     await page.goto('/aluno/ciclo');
-    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Meus dados', level: 2 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Ciclo menstrual', level: 1 })).toHaveCount(0);
     expect(pedidos.filter((p) => p.caminho.includes('/ciclo'))).toEqual([]);
     expect(errosDaPagina).toEqual([]);
@@ -143,7 +143,7 @@ for (const largura of [390, 1280]) {
     await page.setViewportSize({ width: largura, height: 900 });
     const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, { ...ROTAS_DA_CONTA, ...(await rotasDaAluna(page, 'MASCULINO', false)) });
     await page.goto('/aluno/conta');
-    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Meus dados', level: 2 })).toBeVisible();
     await expect(page.getByText('Ciclo menstrual', { exact: true })).toHaveCount(0);
     await expect(page.getByText(MENSAGEM_DESLIGADO)).toHaveCount(0);
     await expect(page.getByText('Tentar de novo')).toHaveCount(0);
@@ -161,7 +161,7 @@ for (const largura of [390, 1280]) {
       'GET /aluno/ciclo': erroApi(503, MENSAGEM_DESLIGADO, 'CICLO_INDISPONIVEL_NO_APP'),
     });
     await page.goto('/aluno/conta');
-    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Meus dados', level: 2 })).toBeVisible();
     await expect.poll(() => pedidos.filter((p) => p.caminho === '/aluno/ciclo').length).toBeGreaterThan(0);
     // O 503 desligou a chave também no perfil salvo (o salvo não pode manter o ciclo ligado). Esperar isso garante que a
     // resposta já foi processada antes das conferências de "não aparece".
@@ -173,7 +173,7 @@ for (const largura of [390, 1280]) {
     // Endereço digitado: o 503 desliga a chave e a tela volta para a Conta, sem mostrar o erro.
     await page.goto('/aluno/ciclo');
     await expect(page).toHaveURL(/\/aluno\/conta$/);
-    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Meus dados', level: 2 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Ciclo menstrual', level: 1 })).toHaveCount(0);
     await expect(page.getByText(MENSAGEM_DESLIGADO)).toHaveCount(0);
     await expect(page.getByText('Tentar de novo')).toHaveCount(0);

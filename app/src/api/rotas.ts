@@ -57,6 +57,8 @@ import type {
   FatoresDoAlimento,
   AlunoDetalhe,
   AlunoRequest,
+  MeusDadosRequest,
+  MeusDadosResponse,
   CatalogoAlimento,
   CatalogoExercicio,
   PaginaCatalogo,
@@ -244,8 +246,9 @@ export const trocarFotoDePerfil = (arquivo: FormData) =>
 
 export const removerFotoDePerfil = () => requisicao<void>('/aluno/foto-perfil', { metodo: 'DELETE' });
 
-export const definirSexoDaAluna = (sexo: string | null) =>
-  requisicao<void>('/aluno/sexo', { metodo: 'PUT', corpo: { sexo } });
+export const meusDados = () => requisicao<MeusDadosResponse>('/aluno/meus-dados');
+export const salvarMeusDados = (corpo: MeusDadosRequest) =>
+  requisicao<MeusDadosResponse>('/aluno/meus-dados', { metodo: 'PUT', corpo });
 
 export const cicloDaAluna = () => requisicao<import('./tipos').CicloDaAluna>('/aluno/ciclo');
 export const ativarCiclo = (consentimentoVersao: number, duracaoHabitual: number | null) =>

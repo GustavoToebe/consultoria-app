@@ -163,10 +163,11 @@ class CicloMenstrualIntegrationTest extends AbstractIntegrationTest {
     @Test
     void titularApagaTudoMesmoComOSexoRemovido() throws Exception {
         ligarComDados();
-        // sexo nulo: só a própria aluna apaga o sexo (PUT /aluno/sexo); o PUT do treinador com sexo nulo não altera.
+        // sexo nulo: só a própria aluna apaga o sexo (PUT /aluno/meus-dados); o PUT do treinador com sexo nulo não altera.
         Map<String, Object> semSexo = new HashMap<>();
         semSexo.put("sexo", null);
-        api.put("/aluno/sexo", alunoLogin, semSexo, 204);
+        semSexo.put("versao", api.get("/aluno/meus-dados", alunoLogin, 200).path("versao").asLong());
+        api.put("/aluno/meus-dados", alunoLogin, semSexo, 200);
         assertThat(banco.queryForObject("select sexo from aluno where id = ?", String.class, aluno)).isNull();
         apagarTudoEConferir();
     }
