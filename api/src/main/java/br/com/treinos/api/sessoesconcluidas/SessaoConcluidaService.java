@@ -167,8 +167,11 @@ public class SessaoConcluidaService {
         if (!s.isConcluida()) {
             throw new ConflictException("Este treino foi reaberto pelo aluno.", "TREINO_NAO_CONCLUIDO");
         }
+        // Microssegundos, a precisão do timestamptz: senão a primeira resposta (da memória) e a repetição (do banco)
+        // devolvem instantes diferentes para o mesmo "Visto" onde o relógio tem mais casas (o Windows tem 100 ns).
         SessaoConcluidaVisto visto = vistos.findById(s.getId())
-                .orElseGet(() -> vistos.save(new SessaoConcluidaVisto(s.getId(), alunoId, usuarioId, Instant.now())));
+                .orElseGet(() -> vistos.save(new SessaoConcluidaVisto(s.getId(), alunoId, usuarioId,
+                        Instant.now().truncatedTo(ChronoUnit.MICROS))));
         return new SessaoConcluidaDtos.Visto(visto.getVistoEm());
     }
 

@@ -123,8 +123,11 @@ class VistoERecordesDaSemanaIntegrationTest extends AbstractIntegrationTest {
         assertThat(r.get("recordes").valueStream().map(x -> x.get("tipo").asString())).containsExactly("MAIOR_CARGA", "MAIOR_VOLUME");
 
         assertThat(api.get("/alunos/" + alunoId + "/recordes/semana", treinador, 200).get("total").asInt()).isEqualTo(1);
-        // "Meus alunos": o aluno não tem o treinador como responsável.
-        assertThat(api.get("/recordes/semana?meus=true", treinador, 200).get("total").asInt()).isZero();
+        // "Meus alunos": quem cria o aluno vira o responsável, então o treinador o vê; outro membro, não.
+        assertThat(api.get("/recordes/semana?meus=true", treinador, 200).get("total").asInt()).isEqualTo(1);
+        JsonNode outroMembro = membro(Set.of("ALUNO_LER", "REGISTRO_LER"));
+        assertThat(api.get("/recordes/semana", outroMembro, 200).get("total").asInt()).isEqualTo(1);
+        assertThat(api.get("/recordes/semana?meus=true", outroMembro, 200).get("total").asInt()).isZero();
         // Outra consultoria não vê nada nem a ficha.
         JsonNode outra = api.novoTreinador();
         assertThat(api.get("/recordes/semana", outra, 200).get("total").asInt()).isZero();
