@@ -1,6 +1,6 @@
 # Central: lote de segurança de 28/10
 
-Situação: Em andamento (PR #26 com CI verde, aguardando merge) · Onde: Central, branch `seguranca-lote-28-10` (um PR) · Atualizado: 28/10/2026
+Situação: Em andamento (PR #26 mesclado e em produção; falta só o login do consultoria testado pelo Gustavo) · Onde: Central, branch `seguranca-lote-28-10` (um PR) · Atualizado: 28/10/2026
 
 ## Objetivo
 Fechar na Central os itens baixos da revisão do `main` 1008d11 (28/10) e as pendências das revisões anteriores: conferir o link da
@@ -25,7 +25,7 @@ que o aviso perdeu e apertar validações e a varredura de vulnerabilidades.
 - [x] 5. `ErroRecebido.status` 500–599 e `IntegracaoProperties.chaves()` estrito — commit de5a966 (PR #26, run 40730560272)
 - [x] 6. Trivy (116587, 111943, 111497), `admin off` no proxy, cloudflared 2026.10.5, `apk upgrade` no `central-web` — commits 5f415b8 e 761976f (PR #26, run 40730560272)
 - [x] 7. URL de integração do produto só `http`/`https` — commit de5a966 (PR #26, run 40730560272)
-- [ ] 8. Troca do Caddy e do cloudflared na VPS (Gustavo) — commit/run: —
+- [x] 8. Troca do Caddy e do cloudflared na VPS — feita em 28/10 (merge 8d2626a; publicar verde: back 40733021671, front 40733021666); `admin off` ativo, cloudflared 2026.10.5 healthy, sites 200
 
 ## Fora do escopo
 - Cloudflared e Caddy na VPS: o comando e a conferência vão no relatório; quem executa é o Gustavo.
@@ -42,4 +42,5 @@ que o aviso perdeu e apertar validações e a varredura de vulnerabilidades.
 - Fora dos 7 itens: o 1º run do PR falhou com `too many clients` no Postgres de teste (91 de 100 conexões ociosas, uma pilha de pools de 10 por
   contexto em cache). Corrigido só em `application-test.yml` (`minimum-idle: 1`, `idle-timeout: 10s`; pico local 25), commit 78607f5. Hipótese,
   não provado: a `main` já ficava perto do limite e a ordem de execução da CI expôs.
-- Passo 8 (VPS): troca do Caddy e do cloudflared 2026.10.5 é do Gustavo; só vale "em produção" com o deploy da Central verde.
+- Exceção da 92392 entrou no PR #26 (commit 002a8ed) depois de aprovada pelo Gustavo; a linha acima sobre ela fica só como histórico.
+- Falta testar o login do consultoria (o Turnstile passa pelo túnel novo).
