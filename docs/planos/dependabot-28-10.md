@@ -1,6 +1,6 @@
 # Dependabot de 28/10
 
-Situação: Em andamento (lotes montados no local; nenhum push antes de 01/11, pacote do Actions esgotado) · Onde: Central, Servirea e consultoria-app · Atualizado: 28/10/2026
+Situação: Em andamento (lotes da Central e do Servirea prontos e testados no local; push só a partir de 01/11, orçamento extra reservado para a J e a K) · Onde: Central, Servirea e consultoria-app · Atualizado: 28/10/2026
 
 ## Objetivo
 Zerar o que o Dependabot acusa nos três repositórios ativos sem gastar minutos do Actions à toa: atualizar só o lock quando o
@@ -16,14 +16,17 @@ Zerar o que o Dependabot acusa nos três repositórios ativos sem gastar minutos
 | 4 | `node-forge` e `uuid` | Aceitos (só build do Expo), mesmo registro, revisão em 14/11 | Gustavo, 28/10 |
 | 5 | `trivy fs` do front | `--scanners vuln --severity HIGH,CRITICAL --ignore-unfixed`, o mesmo `.trivyignore`, sem `--include-dev-deps`; roda local antes; achado com correção volta ao Gustavo antes de qualquer exceção | Gustavo, 28/10 |
 | 6 | Quill 2.0.3 (CVE-2025-15056) no Servirea | Achado fechado: há limpeza no servidor (jsoup `Safelist` ao gravar o layout; Renderizador escapa; front com DOMPurify). Nada a implementar | Claude, 28/10 (leitura) |
+| 8 | Patch do tooling do Angular (21.2.29, só lock; traz vite 7.3.7 e sdk 1.32.1 e ~70 pacotes de build) | **Mantém** nos dois repositórios | Gustavo, 28/10 |
+| 9 | Servirea: exceções do Caddy | 116587 e 111943 entram no `.trivyignore` (texto da Central, `exp:2026-11-14`). 111497 (brotli) e 92392 (curl) **não**: `RUN apk upgrade --no-cache brotli-libs curl libcurl` na imagem, como Central e consultoria; exceção dessas duas só no `.trivyignore-terceiros` da Central | Gustavo, 28/10 |
+| 10 | Push dos lotes | Central e Servirea sem push até 01/11. Em 01/11: `git merge origin/main` na branch (sem rebase), testes locais de novo, push, PR e avisar o Gustavo para revisar antes do merge | Gustavo, 28/10 |
 | 7 | `zod` 3.25.76 → 4.6.6 (CVE-2023-54404, HIGH, com correção) no `trivy fs` do consultoria | **Pendente: o Gustavo decide** antes de qualquer exceção | Gustavo decide |
 
 ## Passos
 - [x] 1. Dispensar o `braces` nos 3 repositórios — feito em 28/10 pela API do GitHub
 - [x] 2. Quill no Servirea: conferido, há limpeza no servidor
-- [ ] 3. **Central** (um PR, branch curta `deps-front-28-10`, worktree `central-deps-front`): `9f9f1e8` lock (dompurify 3.4.17, follow-redirects 1.16.2, hono 4.13.14, launch-editor 2.14.2; `package.json` igual); `1717810` patch do tooling do Angular 21.2.26 → 21.2.29 só no lock (traz vite 7.3.7 e sdk 1.32.1, mas também ~70 pacotes de build: **precisa do ok do Gustavo, senão sai do PR**); `20b0433` step `trivy fs` no job `front - testar`. Local: lint, test, e2e:tipos, build:prod e e2e (39) verdes; `trivy fs` 0 achados — PR/run: —
-- [ ] 4. **Servirea** (um PR, branch curta): locks equivalentes (sdk, follow-redirects, hono, vite; `dompurify` já na 3.4.17), `trivy fs` no front e `.trivyignore` do front com go-jose CVE-2026-116587 até 14/11 (conferir antes se a imagem dispara também 111943, 111497 e 92392: se sim, trazer ao Gustavo) — PR/run: —
-- [ ] 5. **Consultoria** (lote próprio, só depois do publicar da correção do ciclo e da K, sem misturar): este registro de aceite de `decode-uri-component`, `node-forge` e `uuid`, `trivy fs` sobre `app/package-lock.json` no job do app, e a decisão do `zod` — commit/run: —
+- [ ] 3. **Central** (um PR, branch curta `deps-front-28-10`, worktree `central-deps-front`): `9f9f1e8` lock (dompurify 3.4.17, follow-redirects 1.16.2, hono 4.13.14, launch-editor 2.14.2; `package.json` igual); `1717810` patch do tooling do Angular só no lock (mantido); `20b0433` step `trivy fs` no job `front - testar`. Local: lint, test, e2e:tipos, build:prod e e2e (39) verdes; `trivy fs` 0 achados. **Push em 01/11** (decisão 10) — PR/run: —
+- [ ] 4. **Servirea** (um PR, branch curta `deps-front-28-10`, worktree `servirea-deps-front`): `5d89106` lock (follow-redirects, hono, launch-editor); `52d19e5` patch do Angular só no lock (mantido); `224644a` `trivy fs` no workflow + go-jose 116587; `b447546` + `46ded0f` 111943 no `.trivyignore` e `apk upgrade` de brotli/curl na imagem (111497 e 92392 sem exceção). Local: lint, 737 testes, build:prod e e2e (20) verdes; `trivy fs` 0 achados; imagem construída e varrida com 0 achados. **Push em 01/11** (decisão 10) — PR/run: —
+- [ ] 5. **Consultoria** (lote próprio, só depois do publicar da correção do ciclo e da K, sem misturar): este registro de aceite de `decode-uri-component`, `node-forge` e `uuid`, `trivy fs` sobre `app/package-lock.json` no job do app, e a decisão do `zod` (antes de decidir: ler o aviso da CVE-2023-54404, versões afetadas e o que a falha faz, e ver de onde o zod vem com `npm ls zod`: app em produção ou só ferramenta do Expo; trazer isso ao Gustavo junto com o lote) — commit/run: —
 - [ ] 6. `/root/.ssh/authorized_keys.tmp-antes-eab` na VPS: apagar depois do primeiro publicar verde do consultoria e mandar o `ls -la /root/.ssh` ao Gustavo — feito em: —
 - [ ] 7. Revisão em 14/11: reabrir `decode-uri-component`, `node-forge`, `uuid` e as exceções do Caddy/go-jose nos `.trivyignore`
 
