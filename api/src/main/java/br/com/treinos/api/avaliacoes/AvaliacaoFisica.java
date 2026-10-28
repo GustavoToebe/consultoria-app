@@ -63,7 +63,7 @@ public class AvaliacaoFisica {
     @Version
     private Long versao;
 
-    @Column(name = "criado_em", insertable = false, updatable = false)
+    @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
     @Column(name = "criado_por", nullable = false, updatable = false)
@@ -81,6 +81,8 @@ public class AvaliacaoFisica {
     AvaliacaoFisica(UUID alunoId, UUID criadoPor) {
         this.alunoId = alunoId;
         this.criadoPor = criadoPor;
+        // Preenchido aqui (e não só pelo default do banco) para a resposta do POST já levar a data de criação.
+        this.criadoEm = Instant.now();
     }
 
     /** Valores já conferidos por {@link ValidacaoDaAvaliacao}. */
