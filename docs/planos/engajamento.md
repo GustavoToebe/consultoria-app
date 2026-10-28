@@ -1,6 +1,6 @@
 # Engajamento: retorno imediato, conquistas e mural
 
-Situação: Etapa 0 em andamento (0.1 e 0.2 feitos) · Onde: branch `gamificacao` (worktree `../consultoria-gamificacao`) · Atualizado: 28/10/2026
+Situação: Etapa 0 em andamento (0.1, 0.2 e 0.3 feitos) · Onde: branch `gamificacao` (worktree `../consultoria-gamificacao`) · Atualizado: 28/10/2026
 
 Explicação completa (opinião sobre a proposta, princípios, onde fica no app): documento "Consultoria: engajamento,
 conquistas e comunidade" no Claude (https://claude.ai/artifact/7NuC2i7ycFBvpYSZok3fCT). **Este arquivo é a fonte do status.**
@@ -44,7 +44,7 @@ confiáveis e números comparados · 2→3 moderação, push e adicional decidid
 
 - [x] 0.1 Chave e "Concluir treino": botão no topo e no rodapé da tela do dia, duração (P9), "Como foi seu treino?" opcional (até 300, sensível, o treinador vê) — API V035, fila offline — commit: `5de8d16` (branch `gamificacao`, 28/10/2026; `mvn verify` 1419 testes, app 2143 testes depois do merge da `main`, e2e `concluir-treino` 8/8; falta só a tela do treinador, que é o 0.5). Ajuste de 28/10 (chave desligada no meio do uso, padrão do ciclo, `f6f4749`): com o merge da `main` (`4a2f883`, que trouxe "Meus dados do aluno") `mvn verify` 1434 testes, app 2181 testes em 159 suítes, e2e 218 passando (inclui o caso do 503 em `concluir-treino`)
 - [x] 0.2 Recordes pessoais (P3, P10): baixados com o pacote, aviso no topo na hora em que a série é marcada (miniatura do exercício, "Maior carga · 70 kg"), medalha no lugar do número da série, contagem no resumo — commit: `4564f1c` (branch `gamificacao`, 28/10/2026, sem migration). Verificado aqui: app `typecheck` e `lint` limpos, `jest` 2205 testes em 161 suítes; API `compile`, `test-compile` e `ArquiteturaTest` (16) + `RecordesPessoaisTest` (6) verdes. **Não rodou aqui:** `mvn verify` (sem Docker: `RecordesNoPacoteIntegrationTest` e o caso novo do `RetornoDesligadoIntegrationTest` só foram compilados). E2E rodado depois pelo coordenador com `node_modules` próprio e cache do Metro isolado: `concluir-treino` + `recordes-pessoais` 13/13
-- [ ] 0.3 Treino ao vivo: faixa no topo com duração, volume e séries feitas; coluna "Anterior" por série (a mesma série da última vez: "40 kg × 10") — commit: —
+- [x] 0.3 Treino ao vivo: faixa no topo com duração, volume e séries feitas; coluna "Anterior" por série (a mesma série da última vez: "40 kg × 10") — commit: `2cd5e48` (branch `gamificacao`, 28/10/2026, sem migration). Verificado aqui: app `typecheck` e `lint` limpos, `jest` 2219 testes em 163 suítes; e2e `treino-ao-vivo` + `recordes-pessoais` + `concluir-treino` + `exercicio-aluno` 19/19; API `compile`, `test-compile` e `ArquiteturaTest` (16) + `SeriesAnterioresTest` (4) + `RecordesPessoaisTest` (6) verdes. **Não rodou aqui:** `mvn verify` (sem Docker: `AnterioresNoPacoteIntegrationTest` e a linha nova do `RetornoDesligadoIntegrationTest` só foram compilados)
 - [ ] 0.4 Tela "Bom trabalho!": "Este é o seu 12º treino", resumo, recordes do dia e o cartão para compartilhar (P8: Stories, baixar, compartilhar) — commit: —
 - [ ] 0.5 Treinador: reação "Visto" (V036, `REGISTRO_REAGIR`) e "Recordes da semana" no Início e na ficha — commit: —
 - [ ] 0.6 Semana completa no Início — commit: —
@@ -73,8 +73,23 @@ confiáveis e números comparados · 2→3 moderação, push e adicional decidid
 - `557c2ca` teste da retomada sem remontar o `AlunoProvider` (pendência do 0.1).
 - `4564f1c` recordes pessoais (0.2).
 
+## Passo 0.3: como ficou (28/10)
+- **Faixa (`aluno/FaixaDoTreino`):** Duração, Volume e Séries ("1/3") num cartão no topo de cada exercício e dentro do cartão de resumo da lista do dia (lá no lugar do "N de M séries feitas"). Só com `retornoHabilitado`. Regras puras em `dominio/treinoAoVivo.ts`.
+  - Duração (decisão): conta desde a primeira série marcada **neste aparelho** (o mesmo início do P9), só no dia de hoje e até concluir; concluído, mostra a duração declarada; outra data, sem início ou acima de 6 h (`duracaoDoTreino`), "—". Relógio "m:ss" / "h:mm:ss" atualizado a cada segundo só dentro da faixa (o resto da tela não redesenha); o leitor de tela ouve "Duração do treino: 5 minutos" e o relógio não é região viva (não anuncia cada segundo).
+  - Volume: carga × repetições do que foi marcado (etapas feitas, uma a uma), sem exercício sem carga e sem cardio, pelo mesmo `volumeDaSerie` do histórico; nada com número = "—". Milhar com ponto ("1.100 kg").
+  - Não ficou fixa ao rolar (sticky): o exercício cabe em poucas telas; fica para depois se o Saraiva pedir.
+- **Coluna "Anterior" (decisão: linha "Anterior 60 kg × 8" no cartão da série, abaixo da meta, e "Anterior: o que você fez em 16/10." sobre as séries):** no celular de 360 px não cabe uma quarta coluna ao lado de peso, reps e ✓. Também no cartão da série com etapas ("40 kg × 4+4+2", "4+4 (carga variável)"). Cardio não tem. Exercício nunca feito: sem a linha (não "—" em todas). Série que não casa ou não foi feita da última vez: "—". Só mostra; tocar não preenche os campos (o "Repetir" da série anterior do dia continua).
+  - **"A mesma série" (decisão):** mesmo código de tipo e mesma ordem dentro dele no exercício (a 2ª WS com a 2ª WS). Assim casa depois de o plano mudar de versão ou de pasta (uids novos) e não desalinha quando o treinador põe ou tira um aquecimento na frente.
+  - **"Última vez":** a data mais recente, antes do dia na tela, com série feita do exercício (pelo `exercicioId` da biblioteca; exercício fora dela, só a mesma linha do plano no aparelho); com o exercício em duas linhas no mesmo dia (duas sessões ou versões), vale a primeira na ordem do plano.
+  - **Pacote (como o P10):** `PainelAluno.anteriores` = `{ate, exercicios: {exercicioId: {data, series: [{tipo, ordem, carga, repeticoes, etapas}]}}}`, só com `TREINOS_RETORNO_HABILITADO` (`@JsonInclude(NON_NULL)`), só dos exercícios do plano e só de antes de hoje (Brasília). API: `anteriores/SeriesAnteriores` (regra pura) e `SeriesAnterioresService` (duas consultas JPQL fixas: `ExecucaoSerieRepository.ultimaVezDosExercicios` e `findByAlunoIdAndExercicioIdInAndConcluidaTrueAndDataIn`; a série é localizada pela versão executada, `IndiceVersao.LocalSerie` ganhou `codigo` e `ordemNoTipo`). App: `dominio/seriesAnteriores.ts` (`ultimaVez`, `anteriorDaSerie`, `textoDoAnterior`) junta o pacote com o que conhece da versão em uso (aparelho e servidor) e fica com o mais recente; registro de outra versão fora do pacote não entra (sem o conteúdo dela não dá para saber qual série era). `formatoDoPacote` confere a forma de `anteriores`.
+
+### Commits do 0.3
+- `aee3ed1` merge da `main` (só documentação).
+- `2cd5e48` treino ao vivo (0.3).
+
 ## Texto para o AGENTS.md (proposta; entra no último passo da frente, junto do item "Retorno imediato")
 - Recordes pessoais (`recordes/`, Engajamento 0.2, sem migration): só com `TREINOS_RETORNO_HABILITADO`; o `GET /aluno/painel` traz `recordes {ate, exercicios}` (`RecordesService.doPacote`, `@JsonInclude(NON_NULL)`: desligada, o campo não vai): os melhores (`maiorCarga`, `maiorVolume`, `repeticoesPorCarga`) de cada exercício do plano, só de séries **simples** (`IndiceVersao.LocalSerie.simples`: sem técnica nenhuma, sem etapas, kg, não cardio) feitas antes de hoje (Brasília). Regra pura `RecordesPessoais` espelhada em `dominio/recordesPessoais.ts` (maior carga, mais repetições com a mesma carga, maior volume da série; empate não conta; sem histórico, o primeiro dia não conta; séries do dia na ordem do plano). O app decide offline (`useSessaoDoDia.recordesDe`; registro de outra versão entra na base) e mostra `aluno/AvisoDeRecorde` no topo ao marcar, a medalha no lugar de "Série N" e a contagem no resumo do dia. Sem 1RM. Testes: `RecordesPessoaisTest`, `RecordesNoPacoteIntegrationTest`, `RetornoDesligadoIntegrationTest`, `recordesPessoais.test.ts`, `formatoDoPacote.test.ts`, `e2e/recordes-pessoais.spec.ts`.
+- Treino ao vivo (Engajamento 0.3, sem migration): só com `TREINOS_RETORNO_HABILITADO`. `aluno/FaixaDoTreino` (Duração desde a primeira série marcada neste aparelho, só hoje e até concluir, depois a declarada; Volume = carga × repetições marcadas pelo `volumeDaSerie`; Séries "N/M"; regras em `dominio/treinoAoVivo.ts`) no topo do exercício e no resumo da lista do dia. Coluna "Anterior" (`aluno/LinhaDoAnterior`, "Anterior 60 kg × 8"): o `GET /aluno/painel` traz `anteriores {ate, exercicios}` (`anteriores/SeriesAnterioresService`, `@JsonInclude(NON_NULL)`): a última vez antes de hoje (Brasília) de cada exercício do plano, série a série com o código do tipo e a ordem dentro dele (`IndiceVersao.LocalSerie.codigo/ordemNoTipo`); "a mesma série" = mesmo código e mesma ordem (casa entre versões e pastas). Regra pura `SeriesAnteriores` espelhada em `dominio/seriesAnteriores.ts` (o app junta o que conhece da versão em uso e fica com o mais recente). Testes: `SeriesAnterioresTest`, `AnterioresNoPacoteIntegrationTest`, `RetornoDesligadoIntegrationTest`, `seriesAnteriores.test.ts`, `treinoAoVivo.test.ts`, `formatoDoPacote.test.ts`, `e2e/treino-ao-vivo.spec.ts`.
 - Aluno offline (acréscimo): com a chave ligada, a abertura e a retomada descartam da fila as conclusões `LOCAL` com data anterior a hoje de Brasília - 60 (`descartarSessoesConcluidasAntesDe`, `inicioDaJanelaDeConclusao`); teste da retomada sem remontar: `offline/AlunoProvider.retomada.test.tsx`.
 
 ## Referência: Hevy (prints de 27/10)
@@ -116,6 +131,14 @@ Do 0.1 (revisão de 28/10/2026), nada disso bloqueia a branch; confira antes de 
 - Conclusão ou reabertura de um dia perto do limite de 60 dias, feita offline por mais de um dia: o servidor recusa por data e o item fica com falha (igual à mobilidade; o prazo de 60 dias só limpa o que já foi enviado).
 - Reabrir uma conclusão que só existe no servidor, com o relógio do aparelho atrasado: o servidor responde "antigo" e o app mostra reaberto enquanto o treinador vê concluído (o último vence, por desenho).
 - `api/rotas.ts` `sessoesConcluidasDoAlunoParaTreinador` ainda não tem tela: é do 0.5.
+
+Do 0.3 (28/10/2026):
+- `mvn verify` não rodou nesta máquina (sem Docker): `AnterioresNoPacoteIntegrationTest` e a linha nova do `RetornoDesligadoIntegrationTest` só foram compilados.
+- Duração só conta no aparelho em que a primeira série foi marcada (igual ao 0.1); trocar de aparelho no meio do treino mostra "—".
+- "Anterior" de um exercício fora da biblioteca (sem `exercicioId`) só usa o que o aparelho conhece da mesma linha do plano; o pacote não o traz.
+- Registrar um dia passado (data na tela antes do corte do pacote) usa só o que o app conhece da versão em uso; a última vez de outra versão antes daquele dia não aparece.
+- Não conferido no celular de verdade (Android/iOS) nem com leitor de tela; tema escuro só pelos tokens.
+- Tocar no "Anterior" para preencher peso e reps (o Hevy faz) ficou de fora: decidir com o Saraiva.
 
 Do 0.2 (28/10/2026):
 - `mvn verify` não rodou nesta máquina (sem Docker). Rodar antes do merge. (O e2e `concluir-treino` + `recordes-pessoais` passou 13/13 em 28/10.)
