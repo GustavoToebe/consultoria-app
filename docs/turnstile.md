@@ -1,7 +1,8 @@
 # Verificação humana (Cloudflare Turnstile)
 
 Cadastro de treinador, login e "esqueci a senha" exigem um token do Turnstile, conferido no servidor antes de qualquer outra
-coisa. **Desligada por padrão** (`TREINOS_TURNSTILE_HABILITADO=false`): desligada, nada é exigido e o app não mostra widget.
+coisa. **Ligada em produção desde 28/10/2026** (verificada: ver "Verificado em produção" abaixo). O padrão do código continua
+**desligado** (`TREINOS_TURNSTILE_HABILITADO=false`): desligada, nada é exigido e o app não mostra widget (dev, teste e compose local).
 O resumo das regras de código está no `AGENTS.md` (item "Verificação humana").
 
 ## Como funciona
@@ -54,8 +55,8 @@ Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none';
 ```
 
 O PDF na web não usa iframe (bloco só de impressão), então liberar `frame-src` só para a Cloudflare não muda nada nele. `connect-src`
-continua `'self'`: a documentação da Cloudflare consultada não pede essa origem para o widget; ao ligar em produção, abrir o console
-do navegador e, se aparecer bloqueio de `connect-src`, acrescentar `https://challenges.cloudflare.com` também nele.
+continua `'self'`: a documentação da Cloudflare consultada não pede essa origem para o widget. Conferido em produção (28/10/2026):
+login e "esqueci a senha" no PC sem nenhum erro no console, então `connect-src 'self'` basta; não acrescentar a origem da Cloudflare.
 
 ## Para ligar em produção (ordem)
 1. Criar o widget no painel da Cloudflare (domínio `consultoria.servirea.com.br`, modo Managed). Copiar a site key e o segredo.
@@ -63,7 +64,19 @@ do navegador e, se aparecer bloqueio de `connect-src`, acrescentar `https://chal
 3. Aplicar a CSP nova no proxy (`consultoria.caddy.modelo`, depois da Fase 5) e conferir no navegador que o cabeçalho saiu.
 4. Só então `TREINOS_TURNSTILE_HABILITADO=true` e recriar a API (o compose da VPS lê o `consultoria.env` inteiro por `env_file`, então as
    variáveis passam sem mudar o compose). Ligada e sem o segredo, a API **não sobe**: conferir a saúde e o log logo depois de recriar;
-   a volta é `HABILITADO=false` e recriar. Testar entrar, cadastrar e esqueci a senha no navegador e no celular (o WebView do celular
-   nunca foi visto num aparelho), e confirmar que uma tentativa ruim não dá 429 para outra rede (o limite por IP depende de o
-   `getRemoteAddr()` ser o IP real atrás do túnel, a mesma fonte do limite de login do módulo auth).
+   a volta é `HABILITADO=false` e recriar. Testar entrar, cadastrar e esqueci a senha no navegador e no celular, e confirmar que uma
+   tentativa ruim não dá 429 para outra rede (o limite por IP depende de o `getRemoteAddr()` ser o IP real atrás do túnel, a mesma
+   fonte do limite de login do módulo auth).
 5. Ordem de validação: o corpo inválido (422) é conferido antes da verificação humana; a verificação vem antes dos limites, do módulo auth e do BCrypt.
+
+Os passos 1 a 4 foram feitos em 28/10/2026 (widget Managed em `consultoria.servirea.com.br`; segredo gravado pelo Gustavo na VPS,
+nunca pelo agente nem pelo chat).
+
+## Verificado em produção (28/10/2026)
+- **PC e navegador:** login e "esqueci a senha" funcionam, sem erro no console.
+- **APK Android** (perfil `preview`): o widget aparece inteiro, passou sozinho (modo Managed, sem pedir clique) e o login entrou.
+  Isso cobre o `baseUrl` `https://consultoria.servirea.com.br` do WebView (o hostname foi aceito), o iframe de `challenges.cloudflare.com`
+  e a altura/transparência do WebView no Android.
+- Continuou funcionando depois da troca do túnel (`cloudflared` 2026.10.5) e das regras da Cloudflare (`docs/planos/cloudflare-turnstile.md`).
+- **Não verificado:** o app nativo do **iPhone** (WKWebView) nunca foi testado. Precisa ser testado antes do TestFlight
+  (roteiro em `docs/build-celular.md`, seção 5). Cadastro de treinador segue fechado em produção, sem teste com o widget.

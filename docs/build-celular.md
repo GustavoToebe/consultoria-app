@@ -62,9 +62,10 @@ Teste também num celular simples (pouca memória): abrir o app, trocar de aba e
 1. [ ] **Entrar, com e sem o Turnstile ligado.** O Turnstile é `TREINOS_TURNSTILE_HABILITADO` na API (`docs/turnstile.md`).
    - Desligado: entrar direto.
    - Ligado: o desafio aparece dentro do app (WebView), o botão só libera depois de resolver, e depois de cada envio o
-     desafio renova. É o ponto que **nunca foi visto num aparelho**: conferir se o widget aparece inteiro, se não fica
-     transparente nem cortado, se resolve de verdade e se o login passa. Se o widget não carregar, o login deve dar
-     erro claro, nunca ficar travado. Conferir também o "esqueci a senha".
+     desafio renova. Conferir se o widget aparece inteiro, se não fica transparente nem cortado, se resolve de verdade e se o
+     login passa. Se o widget não carregar, o login deve dar erro claro, nunca ficar travado. Conferir também o "esqueci a senha".
+   - **Verificado no Android em 28/10/2026** (APK `preview`, produção com o Turnstile ligado): widget inteiro, passou sozinho
+     (Managed) e o login entrou. **iPhone: não verificado**; ver a seção 5.
 2. [ ] **Esqueci a senha** (com `TREINOS_EMAIL_HABILITADO=true`): pedir o link, abrir o e-mail no celular, trocar a senha e
    entrar com a nova.
 3. [ ] **Passeio pelo menu** no primeiro acesso, logo depois de aceitar os termos: a tela escurece, cada item da barra de
@@ -111,7 +112,7 @@ Teste também num celular simples (pouca memória): abrir o app, trocar de aba e
     aparecer e sumir, anexar uma foto (câmera e galeria; a foto não vai para a galeria), sair no meio (o rascunho fica),
     voltar e enviar. Sem internet, o envio espera e avisa.
 20. [ ] **Inscrição por link:** abrir no navegador do celular o link `/inscricao/<código>` (ligado na web, em
-    Interessados) e enviar uma inscrição fictícia: o desafio do Turnstile (se ligado) e o teclado não cobrem os campos.
+    Interessados) e enviar uma inscrição fictícia: o desafio do Turnstile (ligado em produção desde 28/10/2026) e o teclado não cobrem os campos.
 21. [ ] **Excluir minha conta** (só com um aluno de teste descartável, que some de verdade; **nunca** o "teste" que serve
     para o resto): Conta › "Excluir minha conta". O botão final só libera com a senha e EXCLUIR; senha errada mostra o erro
     e nada muda. Ao confirmar, o app volta ao Entrar com "Conta excluída.", e o mesmo e-mail e senha não entram mais; na
@@ -261,8 +262,10 @@ npx eas-cli build --profile preview --platform ios     # pergunta quais aparelho
 Use o mesmo roteiro, com estas diferenças. Anote o modelo do iPhone e a versão do iOS (Ajustes › Geral › Sobre).
 
 - **Instalar**: pelo TestFlight (ou pelo link ad hoc), não por APK.
-- **Turnstile (item 1)**: no iPhone o desafio roda num WKWebView com um iframe de `challenges.cloudflare.com`, o ponto que
-  ainda não foi visto num aparelho. Conferir que o quadro aparece inteiro (nem transparente nem cortado), que resolve e
+- **Turnstile (item 1)**: no iPhone o desafio roda num WKWebView com um iframe de `challenges.cloudflare.com`. No Android o
+  mesmo desafio foi verificado em 28/10/2026 e funcionou; o **app nativo do iPhone continua sem teste e precisa ser testado
+  antes do TestFlight** (a produção já exige o Turnstile, então sem isso o login do app no iPhone pode não passar).
+  Conferir que o quadro aparece inteiro (nem transparente nem cortado), que resolve e
   que o botão libera; tocar em "Privacidade" ou "Termos" dentro do quadro não abre nada (bloqueado de propósito). Se ficar
   em "Verificando…" para sempre ou mostrar o erro com "Tentar de novo", anotar a versão do iOS e mandar print: sem Mac
   não dá para inspecionar o WebView.
