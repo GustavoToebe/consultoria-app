@@ -1,4 +1,5 @@
 import type { AnamneseDetalhe, EtapaRegistrada, OrigemDaReferencia, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, VersaoDetalhe } from '../api/tipos';
+import type { ListaDeComprasSalva } from '../dominio/listaDeComprasDoAluno';
 import type { ChaveValor } from './armazenamento';
 import { pacoteNoFormatoAtual } from './formatoDoPacote';
 
@@ -122,6 +123,12 @@ export interface RepositorioLocal {
   salvarPacote(pacote: PainelAluno): Promise<void>;
   lerDieta(): Promise<VersaoDetalhe<ConteudoDieta> | null>;
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void>;
+  /**
+   * Lista de compras do aluno (comprados, ajustes e itens dele), só deste aparelho; sai com a dieta no "Sair" e na
+   * sessão recusada. Devolve o que estiver guardado, sem conferir: quem lê passa por `normalizarListaSalva`.
+   */
+  lerListaDeCompras(): Promise<unknown>;
+  salvarListaDeCompras(lista: ListaDeComprasSalva | null): Promise<void>;
   /** Última mobilidade publicada vista online (só leitura); nulo = o aluno não tem. */
   lerMobilidade(): Promise<VersaoDetalhe<ConteudoMobilidadeApi> | null>;
   salvarMobilidade(mobilidade: VersaoDetalhe<ConteudoMobilidadeApi> | null): Promise<void>;
@@ -290,6 +297,14 @@ export class RepositorioChaveValor implements RepositorioLocal {
 
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void> {
     return this.emFila(() => this.gravarJson('dieta', dieta));
+  }
+
+  lerListaDeCompras(): Promise<unknown> {
+    return this.emFila(() => this.lerJson<unknown>('listaDeCompras', null));
+  }
+
+  salvarListaDeCompras(lista: ListaDeComprasSalva | null): Promise<void> {
+    return this.emFila(() => this.gravarJson('listaDeCompras', lista));
   }
 
   lerMobilidade(): Promise<VersaoDetalhe<ConteudoMobilidadeApi> | null> {

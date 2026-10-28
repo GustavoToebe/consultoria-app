@@ -9,6 +9,7 @@ import { esc, link, type Documento } from './html';
 import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
+import { ajustarQuantidade, alternarComprado, gravarAvulso, itensDoAluno, MARCACOES_VAZIAS } from '../dominio/listaDeComprasDoAluno';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
 import { blocoGlossario, blocoInstrucoes, documentoTreino, obsDoExercicio, seriesDoPdf } from './pdfTreino';
@@ -607,6 +608,22 @@ describe('PDF da lista de compras', () => {
     expect(d.corpo).toContain('Dieta &amp; ciclo (prévia, não publicada)');
     expect(d.corpo).toContain('Prévia com os fatores atuais da biblioteca');
     expect(documentoListaDeCompras({ ...base, periodo: 'semana', opcoes: [], linhas: [] }).corpo).not.toContain('Prévia com');
+  });
+
+  it('lista do aluno: ajuste e avulso marcados como dele, caixas vazias mesmo com item comprado; 14 dias no título', () => {
+    const linhas = [
+      { chave: 'a', nome: 'Arroz', unidade: 'g' as const, quantidade: 840, cru: true, bruto: false, semFator: false, naDieta: 2100, quantidadeCru: 840, fatorCorrecao: null, fatorCoccao: 2.5 },
+      { chave: 'b', nome: 'Ovo', unidade: 'un' as const, quantidade: 28, cru: false, bruto: false, semFator: true, naDieta: 28, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null },
+    ];
+    let m = ajustarQuantidade(MARCACOES_VAZIAS, 'b', { quantidade: '2', unidade: 'cartelas' });
+    m = gravarAvulso(m, { id: 'x', nome: 'Café <moído>', quantidade: null, unidade: null });
+    m = alternarComprado(m, 'a');
+    const d = documentoListaDeCompras({ ...base, periodo: 'duasSemanas', opcoes: [], linhas, itensDoAluno: itensDoAluno(linhas, m) });
+    expect(d.corpo).toContain('Lista de compras — 2 semanas (14 dias)');
+    expect(d.corpo).toContain('Arroz <span class="suave">(cru)</span></td><td class="qtd">840 g</td>');
+    expect(d.corpo).toContain('Ovo <span class="suave origem">(ajustado por você)</span></td><td class="qtd">2 cartelas <span class="suave">(calculado: 28 un)</span></td>');
+    expect(d.corpo).toContain('Café &lt;moído&gt; <span class="suave origem">(adicionado por você)</span></td><td class="qtd">—</td>');
+    expect(d.corpo.match(/<span class="caixa"><\/span>/g)).toHaveLength(3);
   });
 
   it('lista vazia vira "—"', () => {

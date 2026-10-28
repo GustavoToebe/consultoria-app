@@ -283,6 +283,20 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
     expect(await aparelho('ana').lerMobilidade()).toBeNull();
   });
 
+  it('lista de compras volta igual, não se mistura entre alunos e some quando o aluno sai da conta', async () => {
+    const lista = {
+      versaoId: 'd1', periodo: 'duasSemanas' as const, escolhas: { almoco: 'b' },
+      periodos: { duasSemanas: { comprados: ['a:arroz:g', 'avulso:x1'], ajustes: { 'a:arroz:g': { quantidade: '1', unidade: 'pacote' } }, avulsos: [{ id: 'x1', nome: 'Café', quantidade: null, unidade: null }] } },
+    };
+    const ana = aparelho('ana');
+    expect(await ana.lerListaDeCompras()).toBeNull();
+    await ana.salvarListaDeCompras(lista);
+    expect(await ana.lerListaDeCompras()).toEqual(lista);
+    expect(await aparelho('bia').lerListaDeCompras()).toBeNull();
+    await ana.apagarTudo();
+    expect(await aparelho('ana').lerListaDeCompras()).toBeNull();
+  });
+
   it('demonstrações voltam iguais, não se misturam entre alunos e somem quando o aluno sai da conta', async () => {
     const lista = [
       { exercicioId: 'e1', imagens: ['Air_Bike/0.jpg', 'Air_Bike/1.jpg'], imagemPropriaEm: null },
@@ -361,6 +375,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       await repo.salvarPacote({ aluno: { nome: 'Fictício' } } as never);
       await repo.salvarDieta({ id: 'd1' } as never);
       await repo.salvarMobilidade({ id: 'm1' } as never);
+      await repo.salvarListaDeCompras({ versaoId: 'd1', periodo: 'semana', escolhas: {}, periodos: {} });
       await repo.salvarDemonstracoes([{ exercicioId: 'e1', imagens: ['A/0.jpg'], imagemPropriaEm: null }]);
       await repo.salvarCargaDeTrabalho('e1', '2026-10-07', 30);
       await repo.salvarRascunhoAtualizacao('p1', { questionarioVersaoId: 'q1', respostas: { peso: 80 } });
@@ -377,6 +392,7 @@ describe.each(implementacoes)('offline do aluno – %s', (_nome, criarAparelho) 
       expect(await depois.lerPacote()).toBeNull();
       expect(await depois.lerDieta()).toBeNull();
       expect(await depois.lerMobilidade()).toBeNull();
+      expect(await depois.lerListaDeCompras()).toBeNull();
       expect(await depois.lerDemonstracoes()).toEqual([]);
       expect(await depois.lerAtualizacao()).toBeNull();
       expect(await depois.lerRascunhoAtualizacao('p1')).toBeNull();

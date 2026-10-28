@@ -1,4 +1,4 @@
-import type { PeriodoDaLista } from './listaDeCompras';
+import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
 import type { Cores } from '../tema/tokens';
 
 /**
@@ -96,13 +96,12 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
 }
 
 const MODOS_PDF: readonly ModoPdfDieta[] = ['simples', 'detalhado'];
-const PERIODOS_PDF: readonly PeriodoDaLista[] = ['semana', 'mes'];
 
 function pdfDietaDe(valor: unknown): PdfDietaPreferida {
   const o = valor && typeof valor === 'object' ? (valor as Record<string, unknown>) : {};
   return {
     modo: entre(o.modo, MODOS_PDF, PREFERENCIAS_PADRAO.pdfDieta.modo),
-    periodo: entre(o.periodo, PERIODOS_PDF, PREFERENCIAS_PADRAO.pdfDieta.periodo),
+    periodo: entre(o.periodo, PERIODOS_DA_LISTA, PREFERENCIAS_PADRAO.pdfDieta.periodo),
     fatores: typeof o.fatores === 'boolean' ? o.fatores : PREFERENCIAS_PADRAO.pdfDieta.fatores,
   };
 }

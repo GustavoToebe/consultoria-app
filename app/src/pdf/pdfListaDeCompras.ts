@@ -1,6 +1,7 @@
 import type { Marca } from '../api/tipos';
 import { dataHoraParaTela, numeroParaTela } from '../dominio/formatos';
 import { NOTA_DA_LISTA, NOTA_DA_PREVIA, quantidadeParaTela, textoDoPeriodo, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
+import { textoDaOrigem, type ItemDaListaDoAluno } from '../dominio/listaDeComprasDoAluno';
 import { cssBase, esc, topo, type Documento } from './html';
 
 export interface DadosPdfListaDeCompras {
@@ -16,6 +17,12 @@ export interface DadosPdfListaDeCompras {
   /** "Café da manhã: opção B" para cada refeição com mais de uma opção (a escolha do aluno). */
   opcoes: string[];
   linhas: LinhaDaLista[];
+  /**
+   * Só na lista do aluno: os itens como ele os vê (quantidade ajustada e itens que ele acrescentou, cada um marcado
+   * como tal). Ausente (prévia do treinador), a tabela sai das `linhas`. As caixas vão sempre vazias: o "comprado" da
+   * tela não entra no papel.
+   */
+  itensDoAluno?: ItemDaListaDoAluno[];
   emitidoEm: Date;
 }
 
@@ -23,6 +30,7 @@ const CSS_LISTA = `
 .doc td.qtd { width: 22%; white-space: nowrap; font-weight: 700; }
 .doc td.marca { width: 4%; }
 .doc .caixa { display: inline-block; width: 10pt; height: 10pt; border: 1px solid #555; }
+.doc .origem { font-style: italic; }
 `;
 
 const celula = (texto: string) => esc(texto);
@@ -51,6 +59,24 @@ export function corpoDaTabela(linhas: LinhaDaLista[], mostrarFatores: boolean): 
     .join('');
 }
 
+/**
+ * Corpo da tabela da lista do aluno (caixa, alimento, quantidade): o calculado como na tabela simples; o ajustado com a
+ * quantidade dele e o calculado ao lado; o avulso com o que ele escreveu ("—" sem quantidade). Ajuste e avulso levam a
+ * marca "ajustado por você" / "adicionado por você".
+ */
+export function corpoDoAluno(itens: readonly ItemDaListaDoAluno[]): string {
+  return itens
+    .map((i) => {
+      const origem = textoDaOrigem(i.origem);
+      const marca = origem ? ` <span class="suave origem">(${esc(origem.toLowerCase())})</span>` : '';
+      const cru = i.cru ? ' <span class="suave">(cru)</span>' : '';
+      const quantidade = i.origem === 'calculado' && i.linha ? quantidadeParaTela(i.linha.quantidade, i.linha.unidade) : i.quantidade;
+      const calculado = i.origem === 'ajustado' && i.linha ? ` <span class="suave">(calculado: ${esc(quantidadeParaTela(i.linha.quantidade, i.linha.unidade))})</span>` : '';
+      return `<tr><td class="marca"><span class="caixa"></span></td><td>${esc(i.nome)}${cru}${marca}</td><td class="qtd">${esc(quantidade)}${calculado}</td></tr>`;
+    })
+    .join('');
+}
+
 /** Cabeçalho correspondente a {@link corpoDaTabela}. */
 export function cabecalhoDaTabela(mostrarFatores: boolean): string {
   return mostrarFatores
@@ -63,7 +89,7 @@ export function cabecalhoDaTabela(mostrarFatores: boolean): string {
  * versão é a prévia do editor do treinador, que diz no topo e no rodapé que ainda não é o que o aluno vê.
  */
 export function documentoListaDeCompras(d: DadosPdfListaDeCompras): Documento {
-  const linhas = corpoDaTabela(d.linhas, false);
+  const linhas = d.itensDoAluno ? corpoDoAluno(d.itensDoAluno) : corpoDaTabela(d.linhas, false);
   const corpo = [
     topo(d.marca, d.logoDataUri, [
       ...(d.aluno ? [`Aluno: ${d.aluno}`] : []),

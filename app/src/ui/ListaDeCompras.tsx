@@ -8,9 +8,12 @@ import {
   marcaSemFator,
   NOTA_DA_LISTA_ALUNO,
   NOTA_DA_LISTA_TREINADOR,
+  PERIODOS_DA_LISTA,
   quantidadeParaTela,
   refeicoesComEscolha,
+  ROTULO_DO_PERIODO,
   textosDasOpcoes,
+  tituloDaLista,
   type EscolhasDeOpcao,
   type LinhaDaLista,
   type PeriodoDaLista,
@@ -27,10 +30,7 @@ import { Selo } from './Selo';
 import { Tabela, type ColunaDaTabela } from './Tabela';
 import { Texto } from './Texto';
 
-const PERIODOS: { valor: PeriodoDaLista; rotulo: string }[] = [
-  { valor: 'semana', rotulo: 'Semana' },
-  { valor: 'mes', rotulo: 'Mês' },
-];
+const PERIODOS = PERIODOS_DA_LISTA.map((valor) => ({ valor, rotulo: ROTULO_DO_PERIODO[valor] }));
 
 /** Período e, quando a refeição tem mais de uma opção, qual entra na lista. A folha do PDF da dieta usa o mesmo controle. */
 export function EscolhasDaLista({
@@ -136,7 +136,7 @@ export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { cont
       <Cartao titulo="Para quanto tempo">
         <EscolhasDaLista conteudo={conteudo} periodo={periodo} aoMudarPeriodo={setPeriodo} escolhas={escolhas} aoMudarEscolhas={setEscolhas} />
       </Cartao>
-      <Cartao titulo={periodo === 'semana' ? 'Lista da semana' : 'Lista do mês'}>
+      <Cartao titulo={tituloDaLista(periodo)}>
         {linhas.length ? (
           <Tabela rotulo="Lista de compras" colunas={colunas(papel)} linhas={linhas} chave={(l) => l.chave} />
         ) : (

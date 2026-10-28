@@ -14,10 +14,26 @@ import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, UnidadeAlimento } fro
  * Nada aqui opina sobre a dieta: só multiplica o que o treinador escreveu pelo número de dias.
  */
 
-export type PeriodoDaLista = 'semana' | 'mes';
+export type PeriodoDaLista = 'semana' | 'duasSemanas' | 'mes';
 
-/** Dias de cada período: semana = 7, mês = 30 (fixo, para a lista não mudar conforme o mês do calendário). */
-export const DIAS_DO_PERIODO: Record<PeriodoDaLista, number> = { semana: 7, mes: 30 };
+/** Os períodos na ordem da tela (7, 14 e 30 dias). */
+export const PERIODOS_DA_LISTA: readonly PeriodoDaLista[] = ['semana', 'duasSemanas', 'mes'];
+
+/**
+ * Dias de cada período: semana = 7, duas semanas = 14, mês = 30 (fixos, para a lista não mudar conforme o mês do
+ * calendário).
+ */
+export const DIAS_DO_PERIODO: Record<PeriodoDaLista, number> = { semana: 7, duasSemanas: 14, mes: 30 };
+
+/** Rótulo curto do período no seletor: "Semana", "2 semanas", "Mês". */
+export const ROTULO_DO_PERIODO: Record<PeriodoDaLista, string> = { semana: 'Semana', duasSemanas: '2 semanas', mes: 'Mês' };
+
+/** Título do cartão da lista: "Lista da semana", "Lista de 2 semanas", "Lista do mês". */
+export function tituloDaLista(periodo: PeriodoDaLista): string {
+  if (periodo === 'semana') return 'Lista da semana';
+  if (periodo === 'duasSemanas') return 'Lista de 2 semanas';
+  return 'Lista do mês';
+}
 
 /** Opção escolhida por refeição: `uid` da refeição → `uid` da opção. Sem escolha (ou escolha que sumiu), vale a primeira. */
 export type EscolhasDeOpcao = Readonly<Record<string, string>>;
@@ -183,7 +199,7 @@ export function marcaSemFator(papel: 'aluno' | 'treinador'): string {
 /** Aviso da prévia no editor do treinador (a lista do aluno sai dos fatores copiados na publicação). */
 export const NOTA_DA_PREVIA = 'Prévia com os fatores atuais da biblioteca; o aluno vê os fatores que estiverem na biblioteca quando você publicar.';
 
-/** "Semana (7 dias)" / "Mês (30 dias)" para o título do PDF. */
+/** "Semana (7 dias)" / "2 semanas (14 dias)" / "Mês (30 dias)" para o título do PDF. */
 export function textoDoPeriodo(periodo: PeriodoDaLista): string {
-  return periodo === 'semana' ? `Semana (${DIAS_DO_PERIODO.semana} dias)` : `Mês (${DIAS_DO_PERIODO.mes} dias)`;
+  return `${ROTULO_DO_PERIODO[periodo]} (${DIAS_DO_PERIODO[periodo]} dias)`;
 }
