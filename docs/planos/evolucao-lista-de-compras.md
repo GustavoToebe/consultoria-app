@@ -30,8 +30,8 @@ concorrente (7/14/30 dias, "2 de 6 comprados", "Limpar marcações", "Ajustar li
 - [x] 0. Esta frente registrada — commit: 13e8b34
 - [x] 1. Domínio: período `duasSemanas` (`PERIODOS_DA_LISTA`, `tituloDaLista`, `textoDoPeriodo`, preferência do PDF da dieta) e `dominio/listaDeComprasDoAluno.ts` (marcações, ajustes, avulsos, contagem, normalização), com testes — commit: 13e8b34
 - [x] 2. `RepositorioLocal.lerListaDeCompras/salvarListaDeCompras` (chave-valor e SQLite), teste no `offline.test.ts` (volta igual, não mistura usuários, sai no "Sair" e na sessão recusada) — commit: 13e8b34
-- [x] 3. Tela do aluno (`aluno/ListaDeComprasDoAluno`), PDF com ajustes/avulsos, Ajuda do aluno e do treinador — commit: (commit da tela)
-- [x] 4. e2e `lista-de-compras.spec.ts` (14 dias, marcar, limpar, ajustar, voltar ao calculado, avulso) e verificação (390 e 1280 px) — commit: (commit da tela)
+- [x] 3. Tela do aluno (`aluno/ListaDeComprasDoAluno`), PDF com ajustes/avulsos, Ajuda do aluno e do treinador — commit: b42c247
+- [x] 4. e2e `lista-de-compras.spec.ts` (14 dias, marcar, limpar, ajustar, voltar ao calculado, avulso) e verificação (390 e 1280 px) — commit: b42c247
 
 ## Verificação (28/10, nesta máquina)
 - `npm run typecheck` e `npm run lint` sem erro; `npm test`: 155 suítes, 2102 testes verdes (inclui `listaDeComprasDoAluno.test.ts`, `offline.test.ts` nas duas implementações, `pdf.test.ts` e `injecao.test.ts`).
