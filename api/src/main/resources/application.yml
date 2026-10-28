@@ -115,6 +115,10 @@ treinos:
       url-publica: ${TREINOS_PAGAMENTOS_URL_PUBLICA:}
       # Só os testes desligam o conciliador agendado (eles o chamam à mão).
       conciliacao-ativa: ${TREINOS_PAGAMENTOS_CONCILIACAO_ATIVA:true}
+    # Lembretes de cobrança por e-mail (a configuração é de cada consultoria, no Financeiro, e nasce desligada). Só os testes
+    # desligam o job agendado (eles o chamam à mão). Sem o e-mail do app ligado (TREINOS_EMAIL_HABILITADO) nada é enviado.
+    lembretes:
+      agendados: ${TREINOS_PAGAMENTOS_LEMBRETES_AGENDADOS:true}
 
 # Coleta de métricas (docs/biblioteca-comum.md): fechada sem um token de 32 a 128 caracteres [A-Za-z0-9_-].
 monitoramento:

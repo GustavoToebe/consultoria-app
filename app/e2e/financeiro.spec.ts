@@ -7,7 +7,7 @@ import { ALUNO, erroApi, sessao, simularApi, TREINADOR, type RespostasApi } from
 import { fixarHoje, sessaoDeAluno } from './aluno';
 import {
   ALUNO_FINANCEIRO_ID, COBRANCA_ATRASADA, CONFERENCIA_ESTORNO_INFORMADO, CONFERENCIA_SEM_COBRANCA, CONFERENCIA_VALOR_DIFERENTE, estadoFinanceiro, INADIMPLENTE,
-  LINK_DE_PAGAMENTO, PAINEL_COM_DADOS, PAINEL_VAZIO, RECEBIMENTO_CONFIGURADO, rotasDoFinanceiro, sessaoComFinanceiro,
+  LEMBRETES_PADRAO, LINK_DE_PAGAMENTO, PAINEL_COM_DADOS, PAINEL_VAZIO, RECEBIMENTO_CONFIGURADO, rotasDoFinanceiro, sessaoComFinanceiro,
 } from './financeiro-falso';
 
 /**
@@ -919,5 +919,95 @@ test('estorno informado pela InfinitePay: o texto manda conferir e ajustar à m�
   await expect(page.getByText('A InfinitePay informou estorno deste pagamento. Confira na sua conta e, se for o caso, ajuste a cobrança à mão.')).toBeVisible();
   await expect(page.getByText(TEXTO_NADA_E_BAIXADO)).toBeVisible();
   await expect(page.getByText(/foi estornad|estornamos|sistema estornou|baixa desfeita/i)).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('lembretes de cobrança: liga, muda os dias e salva com a versão; dia fora do limite é recusado na tela', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro();
+  const { pedidos, errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=lembretes');
+
+  await expect(page.getByRole('tab', { name: 'Lembretes', selected: true })).toBeVisible();
+  await expect(page.getByText('Desligados', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Só por e-mail e só com o e-mail do app ligado/)).toBeVisible();
+  await expect(page.getByText('E-mail do app desligado')).toHaveCount(0);
+
+  await page.getByLabel('Mandar lembretes por e-mail').click();
+  const antes = page.getByRole('textbox', { name: 'Dias antes do vencimento' });
+  await antes.fill('16');
+  await page.getByRole('button', { name: 'Salvar' }).click();
+  await expect(page.getByText('Use um número de 0 a 15.')).toBeVisible();
+  expect(pedidos.filter((x) => x.metodo === 'PUT')).toEqual([]);
+
+  await antes.fill('5');
+  await page.getByRole('button', { name: 'Salvar' }).click();
+  await expect(page.getByText('Lembretes salvos.')).toBeVisible();
+  const put = pedidos.find((x) => x.metodo === 'PUT' && x.caminho === '/financeiro/lembretes');
+  expect(put?.corpo).toEqual({ ligado: true, diasAntes: 5, noDia: true, diasDepois: 3, versao: null });
+  await expect(page.getByText('Ligados', { exact: true })).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('lembretes com o e-mail do app desligado: o cartão avisa que nenhum lembrete sai', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({ lembretes: { ...LEMBRETES_PADRAO, emailDisponivel: false } });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=lembretes');
+
+  await expect(page.getByText('E-mail do app desligado')).toBeVisible();
+  await expect(page.getByText(/O e-mail do app está desligado: enquanto ele não for ligado/)).toBeVisible();
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('folha da cobrança: lista os lembretes e abre o WhatsApp com a mensagem pronta, fora do app', async ({ page, context }) => {
+  await fixarHoje(page);
+  await context.route('https://wa.me/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'text/html', body: '<title>WhatsApp</title><p>WhatsApp de teste</p>' }));
+  const mensagem = 'Olá, Aluna.\n\nA mensalidade de Equipe Fictícia no valor de R$ 150,00 venceu em 05/10 e ainda está em aberto.';
+  const estado = estadoFinanceiro({
+    cobrancas: [{ ...COBRANCA_ATRASADA }],
+    lembretesDasCobrancas: {
+      [COBRANCA_ATRASADA.id]: {
+        itens: [
+          { id: 'l1', tipo: 'ANTES', situacao: 'ENVIADO', motivo: null, dataPrevista: '2026-10-02', enviadoEm: '2026-10-02T12:07:00Z', atualizadoEm: '2026-10-02T12:07:00Z' },
+          { id: 'l2', tipo: 'NO_DIA', situacao: 'CANCELADO', motivo: 'SEM_EMAIL', dataPrevista: '2026-10-05', enviadoEm: null, atualizadoEm: '2026-10-05T12:07:00Z' },
+        ],
+        whatsapp: { telefone: '(45) 99999-8888', mensagem },
+      },
+    },
+  });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=cobrancas');
+
+  await page.getByRole('button', { name: /^Abrir cobrança de/ }).click();
+  const folha = page.getByRole('dialog');
+  await expect(folha.getByRole('heading', { name: 'Lembretes por e-mail' })).toBeVisible();
+  await expect(folha.getByText('Enviado em 02/10/2026')).toBeVisible();
+  await expect(folha.getByText('Não enviado: o aluno não tem e-mail')).toBeVisible();
+
+  const [popup] = await Promise.all([page.waitForEvent('popup'),
+    folha.getByRole('button', { name: 'Abrir WhatsApp com a mensagem' }).click()]);
+  await popup.waitForLoadState();
+  const url = new URL(popup.url());
+  expect(url.origin + url.pathname).toBe('https://wa.me/5545999998888');
+  expect(url.searchParams.get('text')).toBe(mensagem);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('folha da cobrança sem telefone do aluno: o botão do WhatsApp fica desabilitado com o porquê', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({
+    cobrancas: [{ ...COBRANCA_ATRASADA }],
+    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: null, mensagem: 'Olá, Aluna.' } } },
+  });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=cobrancas');
+
+  await page.getByRole('button', { name: /^Abrir cobrança de/ }).click();
+  const folha = page.getByRole('dialog');
+  await expect(folha.getByRole('button', { name: 'Abrir WhatsApp com a mensagem' })).toBeDisabled();
+  await expect(folha.getByText('O aluno não tem telefone no cadastro.')).toBeVisible();
+  await expect(folha.getByRole('heading', { name: 'Lembretes por e-mail' })).toHaveCount(0);
   expect(errosDaPagina).toEqual([]);
 });

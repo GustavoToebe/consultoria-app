@@ -21,6 +21,9 @@ import type {
   PlanoResponse,
   RecebimentoOnline,
   RecebimentoOnlineRequest,
+  Lembretes,
+  LembretesDaCobranca,
+  LembretesRequest,
 } from './financeiroTipos';
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
@@ -818,6 +821,15 @@ export const salvarRecebimentoOnline = (corpo: RecebimentoOnlineRequest) =>
 /** A versão vai na query, não no corpo. */
 export const removerRecebimentoOnline = (versao?: number | null) =>
   requisicao<void>(`/financeiro/recebimento-online${consultaFinanceiro({ versao })}`, { metodo: 'DELETE' });
+
+// ---- Lembretes de cobrança por e-mail (atrás do financeiro: desligado, 503) ----
+
+/** Sem configuração gravada vem desligada com os padrões e `versao` nula. */
+export const buscarLembretes = () => requisicao<Lembretes>('/financeiro/lembretes');
+export const salvarLembretes = (corpo: LembretesRequest) =>
+  requisicao<Lembretes>('/financeiro/lembretes', { metodo: 'PUT', corpo });
+/** Os lembretes de uma cobrança e a mensagem pronta do WhatsApp (só em aberto). */
+export const lembretesDaCobranca = (id: string) => requisicao<LembretesDaCobranca>(`/cobrancas/${seg(id)}/lembretes`);
 
 /** Link de pagamento de uma cobrança em aberto, para o treinador copiar e mandar ao aluno. */
 export const linkDaCobranca = (id: string) =>

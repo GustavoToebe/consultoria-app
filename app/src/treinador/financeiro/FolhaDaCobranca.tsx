@@ -1,11 +1,12 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
+import { MessageCircle } from 'lucide-react-native';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
-import type { CobrancaResponse, FormaDePagamento, RecebimentoOnline } from '../../api/financeiroTipos';
+import type { CobrancaResponse, FormaDePagamento, LembretesDaCobranca, RecebimentoOnline } from '../../api/financeiroTipos';
 import {
-  buscarRecebimentoOnline, cancelarCobranca, contestarCobranca, desfazerBaixaDaCobranca, estornarCobranca, linkDaCobranca,
+  buscarRecebimentoOnline, cancelarCobranca, contestarCobranca, desfazerBaixaDaCobranca, estornarCobranca, lembretesDaCobranca, linkDaCobranca,
   manterCobrancaPaga, registrarPagamentoManual,
 } from '../../api/rotas';
 import {
@@ -14,6 +15,7 @@ import {
   temBaixaRegistrada, TEXTO_SEM_CONFIGURAR_O_RECEBIMENTO, validarBaixa,
 } from '../../dominio/financeiro';
 import { centavosParaTela, dataDaTela, dataParaTela } from '../../dominio/formatos';
+import { botaoDoWhatsApp, rotuloDoTipo, situacaoDoLembrete } from '../../dominio/lembretesDeCobranca';
 import { linkParaAbrir } from '../../dominio/links';
 import { rotuloDoMes } from '../../dominio/numeros';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -92,13 +94,18 @@ export function FolhaDaCobranca({ cobranca, podeAlterar, abrirEmBaixa, mostrarFi
   // ligada); fica aqui, fora do `Conteudo`, para não buscar de novo a cada versão da cobrança.
   const querLink = !!cobranca && cobranca.situacao === 'ABERTA' && podeAlterar && recebimentoOnlineHabilitado;
   const recebimento = useCarregar(querLink ? 'recebimento-online|folha' : null, () => buscarRecebimentoOnline());
+  // Os lembretes por e-mail desta cobrança e a mensagem pronta do WhatsApp; falha na busca só esconde o bloco.
+  // O id sai antes: o React Compiler lê as dependências da função na renderização, e `cobranca` pode ser nula aqui.
+  const cobrancaId = cobranca?.id ?? null;
+  const lembretes = useCarregar(cobrancaId ? `lembretes-da-cobranca|${cobrancaId}|${cobranca?.versao}` : null,
+    () => lembretesDaCobranca(cobrancaId ?? ''));
   if (!cobranca) return null;
   // A chave reinicia o formulário a cada cobrança aberta.
   return <Conteudo key={`${cobranca.id}:${cobranca.versao}:${abrirEmBaixa ? 'b' : 'd'}`} cobranca={cobranca} podeAlterar={podeAlterar}
-    abrirEmBaixa={!!abrirEmBaixa} mostrarFicha={!!mostrarFicha} querLink={querLink} recebimento={recebimento.dados} aoFechar={aoFechar} aoMudar={aoMudar} />;
+    abrirEmBaixa={!!abrirEmBaixa} mostrarFicha={!!mostrarFicha} querLink={querLink} recebimento={recebimento.dados} lembretes={lembretes.dados} aoFechar={aoFechar} aoMudar={aoMudar} />;
 }
 
-function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink, recebimento, aoFechar, aoMudar }: {
+function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink, recebimento, lembretes, aoFechar, aoMudar }: {
   cobranca: CobrancaResponse;
   podeAlterar: boolean;
   abrirEmBaixa: boolean;
@@ -107,6 +114,8 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
   querLink: boolean;
   /** Estado do recebimento online; `undefined` enquanto carrega ou se a busca falhou (então nada é oferecido). */
   recebimento: RecebimentoOnline | undefined;
+  /** Lembretes por e-mail e a mensagem do WhatsApp; `undefined` enquanto carrega ou se a busca falhou. */
+  lembretes: LembretesDaCobranca | undefined;
   aoFechar: () => void;
   aoMudar: () => void;
 }) {
@@ -209,6 +218,13 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
     router.push({ pathname: '/treinador/financeiro', params: { aba: 'recebimento' } });
   };
 
+  const whatsapp = botaoDoWhatsApp(lembretes);
+  // Abre fora do app, sem token; nada é registrado como enviado (é o treinador quem manda a mensagem).
+  const abrirWhatsApp = () => {
+    if (!whatsapp?.link) return;
+    Linking.openURL(whatsapp.link).catch(() => avisar('Não foi possível abrir o WhatsApp.', 'perigo'));
+  };
+
   const perguntar = (p: Exclude<Pergunta, null>) => { setMotivo(''); setErro(null); setUltimaPergunta(p); setPergunta(p); };
 
   const abrirFicha = () => {
@@ -274,6 +290,33 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
               </View>
             ) : null}
             {linkParaCopiarAMao ? <Texto selectable>{linkParaCopiarAMao}</Texto> : null}
+            {whatsapp ? (
+              <View style={estilos.aviso}>
+                <LinhaDeAcoes>
+                  <Botao rotulo="Abrir WhatsApp com a mensagem" tipo="secundario" Icone={MessageCircle} aoTocar={abrirWhatsApp}
+                    desabilitado={!whatsapp.link} motivo={whatsapp.motivo ?? undefined} />
+                </LinhaDeAcoes>
+                {/* Sem telefone, o botão desabilitado já mostra o porquê (`motivo`). */}
+                {whatsapp.link ? <Texto variante="suave">Abre o WhatsApp com o lembrete pronto; quem envia é você.</Texto> : null}
+              </View>
+            ) : null}
+            {lembretes && lembretes.itens.length > 0 ? (
+              <View style={estilos.lembretes}>
+                <Texto variante="secao" nivel={3}>Lembretes por e-mail</Texto>
+                {lembretes.itens.map((l) => {
+                  const s = situacaoDoLembrete(l);
+                  return (
+                    <View key={l.id} style={estilos.lembrete}>
+                      <View style={estilos.quem}>
+                        <Texto>{rotuloDoTipo(l.tipo)}</Texto>
+                        <Texto variante="suave">{s.texto}</Texto>
+                      </View>
+                      <Selo texto={s.selo} tipo={s.tom} />
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
             {mostrarFicha ? (
               <LinhaDeAcoes><Botao rotulo="Abrir ficha do aluno" tipo="secundario" rotuloAcessivel={`Abrir ficha de ${cobranca.alunoNome ?? 'aluno'}`} aoTocar={abrirFicha} /></LinhaDeAcoes>
             ) : null}
@@ -308,4 +351,6 @@ const estilos = StyleSheet.create({
   quem: { flex: 1, gap: 2 },
   selos: { alignItems: 'flex-end', gap: espaco(0.5) },
   aviso: { gap: espaco(0.5) },
+  lembretes: { gap: espaco(1) },
+  lembrete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
 });

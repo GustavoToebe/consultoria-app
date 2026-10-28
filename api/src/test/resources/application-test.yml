@@ -62,6 +62,9 @@ treinos:
       habilitado: true
       url-publica: https://api.teste.local
       conciliacao-ativa: false
+    # O job dos lembretes de cobrança também: os testes chamam LembretesDeCobranca.rodar à mão.
+    lembretes:
+      agendados: false
   # A suíte cria treinadores pelo cadastro público; o modo fechado (o de produção) tem a sua classe.
   cadastro:
     aberto: true

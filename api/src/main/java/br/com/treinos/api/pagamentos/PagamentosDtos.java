@@ -225,5 +225,35 @@ public final class PagamentosDtos {
                                     long valorCentavos, CobrancaAluno.Situacao situacao, FormaDePagamento forma,
                                     String provedor, LocalDate pagoEm, String observacao, String motivo) { }
 
-    public record FinanceiroExportado(List<ContratacaoExportada> contratacoes, List<CobrancaExportada> cobrancas) { }
+    /** Lembrete de cobrança na exportação: tipo, situação e datas (a linha não guarda endereço nem texto). */
+    public record LembreteExportado(UUID cobrancaId, TipoDeLembrete tipo, LembreteDeCobranca.Situacao situacao,
+                                    LocalDate dataPrevista, Instant enviadoEm) { }
+
+    public record FinanceiroExportado(List<ContratacaoExportada> contratacoes, List<CobrancaExportada> cobrancas,
+                                      List<LembreteExportado> lembretes) { }
+
+    // ---- Lembretes de cobrança por e-mail ----
+
+    /**
+     * Configuração dos lembretes. {@code versao} nula só na criação; o intervalo dos dias é conferido no serviço (422
+     * {@code LEMBRETES_INVALIDOS} com o campo), não aqui, para a mensagem sair igual à das outras telas do financeiro.
+     */
+    public record LembretesRequest(@NotNull Boolean ligado, @NotNull Integer diasAntes, @NotNull Boolean noDia,
+                                   @NotNull Integer diasDepois, Long versao) { }
+
+    /** {@code emailDisponivel}: o e-mail do app está ligado (sem ele nenhum lembrete sai, mesmo ligado aqui). */
+    public record LembretesResponse(boolean ligado, int diasAntes, boolean noDia, int diasDepois, Long versao,
+                                    boolean emailDisponivel) { }
+
+    /** Um lembrete da cobrança, para a folha dela. {@code motivo} só no cancelado. */
+    public record LembreteResponse(UUID id, TipoDeLembrete tipo, LembreteDeCobranca.Situacao situacao, String motivo,
+                                   LocalDate dataPrevista, Instant enviadoEm, Instant atualizadoEm) { }
+
+    /**
+     * A mensagem pronta para o treinador mandar à mão pelo WhatsApp (o mesmo texto do e-mail, para hoje). Só na cobrança em
+     * aberto de aluno ativo; {@code telefone} nulo = o aluno não tem telefone (o app explica e não oferece o botão).
+     */
+    public record WhatsAppDaCobranca(String telefone, String mensagem) { }
+
+    public record LembretesDaCobranca(List<LembreteResponse> itens, WhatsAppDaCobranca whatsapp) { }
 }
