@@ -8,6 +8,7 @@ import {
   errosDoAvulso,
   estadoDaVersao,
   gravarAvulso,
+  gruposDoAluno,
   itensDoAluno,
   LIMITE_AVULSOS,
   limparComprados,
@@ -29,7 +30,7 @@ import {
 /** Linhas fictícias, como a conta da lista devolve. */
 const linha = (chave: string, nome: string, quantidade: number, extra: Partial<LinhaDaLista> = {}): LinhaDaLista => ({
   chave, nome, unidade: 'g', quantidade, cru: false, bruto: false, semFator: true, naDieta: quantidade,
-  quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, ...extra,
+  quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: null, ...extra,
 });
 const ARROZ = linha('a:arroz:g', 'Arroz branco cozido', 420, { cru: true, semFator: false });
 const FRANGO = linha('a:frango:g', 'Frango grelhado', 700);
@@ -170,5 +171,26 @@ describe('normalizarListaSalva', () => {
       versaoId: 'v1', periodo: 'semana', escolhas: { s: 'b' },
       periodos: { semana: { comprados: ['a'], ajustes: { b: { quantidade: '2', unidade: null } }, avulsos: [{ id: 'y', nome: 'Café', quantidade: null, unidade: null }] } },
     });
+  });
+});
+
+describe('gruposDoAluno', () => {
+  it('ajustado fica no grupo do alimento, avulso vai para "Adicionados por você" no fim; a contagem não muda', () => {
+    const linhas = [
+      linha('a:arroz:g', 'Arroz', 420, { grupo: 'Cereais e derivados' }),
+      linha('a:frango:g', 'Frango', 700, { grupo: 'Carnes e derivados' }),
+      linha('n:sal:g', 'Sal', 35),
+    ];
+    let m = ajustarQuantidade(MARCACOES_VAZIAS, 'a:arroz:g', { quantidade: '1', unidade: 'pacote' });
+    m = gravarAvulso(m, { id: 'x', nome: 'Café', quantidade: null, unidade: null });
+    m = alternarComprado(m, 'avulso:x');
+    const itens = itensDoAluno(linhas, m);
+    expect(gruposDoAluno(itens).map((g) => [g.titulo, g.itens.map((i) => [i.nome, i.origem])])).toEqual([
+      ['Carnes e derivados', [['Frango', 'calculado']]],
+      ['Cereais e derivados', [['Arroz', 'ajustado']]],
+      ['Outros itens', [['Sal', 'calculado']]],
+      ['Adicionados por você', [['Café', 'avulso']]],
+    ]);
+    expect(contagemDeComprados(itens)).toEqual({ comprados: 1, total: 4 });
   });
 });

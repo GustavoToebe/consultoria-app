@@ -18,6 +18,7 @@ const pao: Alimento = {
   origem: 'MANUAL',
   fatorCorrecao: null,
   fatorCoccao: null,
+  grupo: null,
 };
 
 describe('dieta', () => {

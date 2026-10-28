@@ -131,6 +131,7 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
           manual: i.manual ?? i.alimentoId == null,
           fatorCorrecao: i.fatorCorrecao ?? null,
           fatorCoccao: i.fatorCoccao ?? null,
+          grupo: i.grupo ?? null,
         })),
       })),
     })),

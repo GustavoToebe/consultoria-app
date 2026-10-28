@@ -18,9 +18,11 @@ import {
   type LinhaDaLista,
   type PeriodoDaLista,
 } from '../dominio/listaDeCompras';
+import { agruparLista, contagemDoGrupo } from '../dominio/gruposDaLista';
 import { espaco, fontes } from '../tema/tokens';
 import { useAviso } from './Aviso';
 import { Botao } from './Botao';
+import { CabecalhoDeGrupo } from './CabecalhoDeGrupo';
 import { Cartao } from './Cartao';
 import { Escolha } from './Escolha';
 import { Vazio } from './Estados';
@@ -108,9 +110,10 @@ export interface EscolhaDaLista {
 }
 
 /**
- * Lista de compras de um conteúdo de dieta (o aluno na tela `aluno/lista-de-compras`, com a versão publicada; o
- * treinador na prévia do editor, com os fatores atuais da biblioteca já aplicados). Período e opção por refeição são
- * estado da tela, não ficam salvos. O botão de PDF só aparece com `aoGerarPdf` e com a funcionalidade `PDF` no plano.
+ * Lista de compras de um conteúdo de dieta (hoje a prévia do treinador no editor, com os fatores e o grupo atuais da
+ * biblioteca já aplicados; o aluno usa `aluno/ListaDeComprasDoAluno`). Um cartão por grupo do alimento
+ * (`agruparLista`: ordem alfabética, "Outros itens" por último), com a contagem na faixa. Período e opção por refeição
+ * são estado da tela, não ficam salvos. O botão de PDF só aparece com `aoGerarPdf` e com a funcionalidade `PDF` no plano.
  */
 export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { conteudo: ConteudoDieta; aoGerarPdf?: (escolha: EscolhaDaLista) => Promise<void>; papel?: 'aluno' | 'treinador' }) {
   const { avisar } = useAviso();
@@ -118,6 +121,7 @@ export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { cont
   const [escolhas, setEscolhas] = useState<EscolhasDeOpcao>({});
   const [gerando, setGerando] = useState(false);
   const linhas = listaDeCompras(conteudo, escolhas, periodo);
+  const grupos = agruparLista(linhas, (l) => l.grupo);
 
   const pdf = async () => {
     if (!aoGerarPdf) return;
@@ -137,13 +141,14 @@ export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { cont
         <EscolhasDaLista conteudo={conteudo} periodo={periodo} aoMudarPeriodo={setPeriodo} escolhas={escolhas} aoMudarEscolhas={setEscolhas} />
       </Cartao>
       <Cartao titulo={tituloDaLista(periodo)}>
-        {linhas.length ? (
-          <Tabela rotulo="Lista de compras" colunas={colunas(papel)} linhas={linhas} chave={(l) => l.chave} />
-        ) : (
-          <Vazio titulo="Nada para listar" texto="A dieta não tem itens com quantidade." />
-        )}
+        {linhas.length ? null : <Vazio titulo="Nada para listar" texto="A dieta não tem itens com quantidade." />}
         <Texto variante="suave">{papel === 'aluno' ? NOTA_DA_LISTA_ALUNO : NOTA_DA_LISTA_TREINADOR}</Texto>
       </Cartao>
+      {grupos.map((g) => (
+        <Cartao key={g.chave} cabecalho={<CabecalhoDeGrupo titulo={g.titulo} resumo={contagemDoGrupo(g.itens.length)} />}>
+          <Tabela rotulo={`Lista de compras: ${g.titulo}`} colunas={colunas(papel)} linhas={g.itens} chave={(l) => l.chave} />
+        </Cartao>
+      ))}
       {aoGerarPdf ? (
         <NoPlano funcionalidade="PDF">
           <Botao rotulo="Baixar PDF da lista" tipo="secundario" cheio Icone={FileDown} carregando={gerando} desabilitado={!linhas.length} motivo="A lista está vazia." aoTocar={() => void pdf()} />

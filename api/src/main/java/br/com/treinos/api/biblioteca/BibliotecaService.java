@@ -192,7 +192,7 @@ public class BibliotecaService {
     }
 
     /**
-     * Fatores de correção e de cocção atuais dos alimentos pedidos, para a prévia da lista de compras no editor da dieta
+     * Fatores de correção e de cocção e o grupo atuais dos alimentos pedidos, para a prévia da lista de compras no editor da dieta
      * (plano do aluno ou modelo). Mesma busca da publicação ({@code PlanoDietaService.paraPublicar}): inativos entram,
      * porque a publicação também os copia, e alimento de outra consultoria some pelo {@code @TenantId} (como se não
      * existisse). Id que não existe fica fora da resposta. No máximo {@value #LIMITE_MAXIMO} ids distintos por chamada.
@@ -252,32 +252,40 @@ public class BibliotecaService {
             }
             alimentos.save(new Alimento(new Alimento.Valores(c.getNome(), c.getBaseQuantidade(), c.getBaseUnidade(),
                     c.getKcal(), c.getProteina(), c.getCarboidrato(), c.getGordura(), c.getGramasPorUnidade(),
-                    c.getFonte(), c.getFatorCorrecao(), c.getFatorCoccao()), Exercicio.Origem.CATALOGO));
+                    c.getFonte(), c.getFatorCorrecao(), c.getFatorCoccao(), GrupoDoAlimento.doCatalogo(c.getGrupo())),
+                    Exercicio.Origem.CATALOGO));
             importados++;
         }
         return new ImportacaoResultado(importados, pedidos.size() - importados);
     }
 
     private static Alimento.Valores valores(AlimentoRequest r) {
-        exigirFatores(r);
+        String grupo = GrupoDoAlimento.normalizar(r.grupo());
+        exigirFatoresEGrupo(r, grupo);
         return new Alimento.Valores(r.nome().trim(), r.baseQuantidade(), r.baseUnidade(), r.kcal(), r.proteina(),
                 r.carboidrato(), r.gordura(), r.gramasPorUnidade(), Buscas.opcional(r.fonte()), r.fatorCorrecao(),
-                r.fatorCoccao());
+                r.fatorCoccao(), grupo);
     }
 
     /**
      * Faixas iguais às do CHECK da V011 e às do formulário do app ({@code dominio/fatoresDoAlimento.ts}). Conferidas
      * aqui, e não por anotação no DTO, para responder 422 com o campo e a mensagem em português, como as outras
-     * validações de conteúdo; mais de duas casas seriam arredondadas em silêncio pelo {@code numeric(5,2)}.
+     * validações de conteúdo; mais de duas casas seriam arredondadas em silêncio pelo {@code numeric(5,2)}. O grupo
+     * (já normalizado) passa pelo mesmo 422, com o campo {@code grupo}, acima de {@value GrupoDoAlimento#MAXIMO}
+     * caracteres.
      */
-    private static void exigirFatores(AlimentoRequest r) {
+    private static void exigirFatoresEGrupo(AlimentoRequest r, String grupo) {
         List<ApiError.FieldError> erros = new ArrayList<>();
         fatorForaDaFaixa(r.fatorCorrecao(), FC_MINIMO, FC_MAXIMO).ifPresent(m -> erros.add(
                 new ApiError.FieldError("fatorCorrecao", "O fator de correção " + m)));
         fatorForaDaFaixa(r.fatorCoccao(), FCC_MINIMO, FCC_MAXIMO).ifPresent(m -> erros.add(
                 new ApiError.FieldError("fatorCoccao", "O fator de cocção " + m)));
+        if (GrupoDoAlimento.longoDemais(grupo)) {
+            erros.add(new ApiError.FieldError("grupo", "O grupo aceita no máximo " + GrupoDoAlimento.MAXIMO
+                    + " caracteres."));
+        }
         if (!erros.isEmpty()) {
-            throw new ValidacaoException("Confira os fatores do alimento.", "ALIMENTO_INVALIDO", erros);
+            throw new ValidacaoException("Confira os dados do alimento.", "ALIMENTO_INVALIDO", erros);
         }
     }
 

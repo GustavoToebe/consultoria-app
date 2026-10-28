@@ -210,7 +210,7 @@ const mobilidade = normalizarMobilidade({
 
 const linhaDaLista = (chave: string, extra: Partial<LinhaDaLista> = {}): LinhaDaLista => ({
   chave, nome: 'Arroz', unidade: 'g', quantidade: 1225, cru: true, bruto: true, semFator: false,
-  naDieta: 1050, quantidadeCru: 420, fatorCorrecao: 1.1, fatorCoccao: 2.5, ...extra,
+  naDieta: 1050, quantidadeCru: 420, fatorCorrecao: 1.1, fatorCoccao: 2.5, grupo: 'Cereais e derivados', ...extra,
 });
 
 describe('PDF do treino não deixa texto virar HTML', () => {

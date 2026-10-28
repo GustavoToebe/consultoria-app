@@ -32,6 +32,9 @@ import java.util.function.UnaryOperator;
  * {@link #MODO_DE_PREPARO_MAXIMO} caracteres, com as quebras de linha que ele escreveu. Só se guarda e mostra (editor,
  * dieta do aluno e PDF): o sistema não calcula rendimento, porção nem conversão, e o texto nunca vai a log nem à
  * auditoria. Copiar, aplicar modelo e replicar levam o campo junto; a anonimização apaga a dieta inteira.
+ *
+ * {@code Item.grupo} (grupo do alimento, que agrupa a lista de compras) segue a mesma regra: copiado do alimento atual
+ * na publicação, nulo no item manual.
  */
 public record ConteudoDieta(
         @Size(max = 200) String objetivo,
@@ -100,17 +103,20 @@ public record ConteudoDieta(
             BigDecimal gordura,
             Boolean manual,
             BigDecimal fatorCorrecao,
-            BigDecimal fatorCoccao) {
+            BigDecimal fatorCoccao,
+            @Size(max = 60) String grupo) {
 
-        /** Sem os fatores (rascunho, modelo, seed e testes: só a publicação os preenche). */
+        /** Sem os dados da biblioteca (rascunho, modelo, seed e testes: só a publicação os preenche). */
         public Item(UUID uid, UUID alimentoId, String nome, BigDecimal quantidade, String unidade, BigDecimal kcal,
                     BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura, Boolean manual) {
-            this(uid, alimentoId, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, manual, null, null);
+            this(uid, alimentoId, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, manual, null, null,
+                    null);
         }
 
-        public Item comFatores(BigDecimal correcao, BigDecimal coccao) {
+        /** Cópia com os fatores e o grupo trocados (a publicação põe os do alimento atual; nulos sem alimento). */
+        public Item comDadosDaBiblioteca(BigDecimal correcao, BigDecimal coccao, String grupoDoAlimento) {
             return new Item(uid, alimentoId, nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, manual,
-                    correcao, coccao);
+                    correcao, coccao, grupoDoAlimento);
         }
     }
 
@@ -177,7 +183,7 @@ public record ConteudoDieta(
                 r.observacao(), r.opcoesOuVazio().stream().map(o -> new Opcao(novo.get(), o.rotulo(),
                         o.itensOuVazio().stream().map(i -> new Item(novo.get(), i.alimentoId(), i.nome(),
                                 i.quantidade(), i.unidade(), i.kcal(), i.proteina(), i.carboidrato(), i.gordura(),
-                                i.manual(), i.fatorCorrecao(), i.fatorCoccao())).toList())).toList(), r.modoDePreparo()))
+                                i.manual(), i.fatorCorrecao(), i.fatorCoccao(), i.grupo())).toList())).toList(), r.modoDePreparo()))
                 .toList();
         List<Suplemento> suplementos = suplementacaoOuVazio().stream().map(s -> new Suplemento(novo.get(), s.nome(),
                 s.dose(), s.horario(), s.observacao(), s.link())).toList();

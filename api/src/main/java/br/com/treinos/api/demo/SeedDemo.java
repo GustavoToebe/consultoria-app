@@ -96,19 +96,21 @@ public class SeedDemo {
             Map.entry("Abdução de quadril na polia", "https://youtu.be/nQwNcD7CKKY"));
 
     /** Valores por 100 g. Ovo e legumes ficam como itens manuais na dieta. */
-    private record AlimentoDemo(String nome, String kcal, String proteina, String carboidrato, String gordura) {
+    /** {@code grupo} com os nomes do catálogo público, para a lista de compras do aluno demo sair agrupada. */
+    private record AlimentoDemo(String nome, String kcal, String proteina, String carboidrato, String gordura,
+                                String grupo) {
     }
 
     private static final List<AlimentoDemo> ALIMENTOS = List.of(
-            new AlimentoDemo("Pão de forma branco", "266", "8.4", "49.6", "3.2"),
-            new AlimentoDemo("Semente de chia", "500", "16", "42", "30"),
-            new AlimentoDemo("Frutas (mamão, abacaxi, melão, morango, maçã ou kiwi)", "40", "0.53", "10", "0"),
-            new AlimentoDemo("Iogurte desnatado", "36", "3.53", "5", "0.13"),
-            new AlimentoDemo("Aveia em flocos", "393.3", "14", "66.67", "8.33"),
-            new AlimentoDemo("Banana prata", "98", "1.3", "25.7", "0.1"),
-            new AlimentoDemo("Arroz branco cozido", "127.8", "2.5", "28.1", "0.22"),
-            new AlimentoDemo("Peito de frango grelhado", "159", "32", "0", "2.7"),
-            new AlimentoDemo("Batata inglesa cozida", "80", "1.2", "20", "0.12"));
+            new AlimentoDemo("Pão de forma branco", "266", "8.4", "49.6", "3.2", "Cereais e derivados"),
+            new AlimentoDemo("Semente de chia", "500", "16", "42", "30", "Nozes e sementes"),
+            new AlimentoDemo("Frutas (mamão, abacaxi, melão, morango, maçã ou kiwi)", "40", "0.53", "10", "0", "Frutas e derivados"),
+            new AlimentoDemo("Iogurte desnatado", "36", "3.53", "5", "0.13", "Leite e derivados"),
+            new AlimentoDemo("Aveia em flocos", "393.3", "14", "66.67", "8.33", "Cereais e derivados"),
+            new AlimentoDemo("Banana prata", "98", "1.3", "25.7", "0.1", "Frutas e derivados"),
+            new AlimentoDemo("Arroz branco cozido", "127.8", "2.5", "28.1", "0.22", "Cereais e derivados"),
+            new AlimentoDemo("Peito de frango grelhado", "159", "32", "0", "2.7", "Carnes e derivados"),
+            new AlimentoDemo("Batata inglesa cozida", "80", "1.2", "20", "0.12", "Verduras, hortaliças e derivados"));
 
     private final CriacaoDeConta criacaoDeConta;
     private final ReceitaService receitas;
@@ -168,7 +170,7 @@ public class SeedDemo {
             for (AlimentoDemo a : ALIMENTOS) {
                 alimentos.put(a.nome(), biblioteca.criarAlimento(new AlimentoRequest(a.nome(), new BigDecimal("100"),
                         "g", new BigDecimal(a.kcal()), new BigDecimal(a.proteina()), new BigDecimal(a.carboidrato()),
-                        new BigDecimal(a.gordura()), null, FONTE_ALIMENTOS, null, null)).id());
+                        new BigDecimal(a.gordura()), null, FONTE_ALIMENTOS, null, null, a.grupo())).id());
             }
 
             UUID aluno = alunos.criar(new AlunoRequest("Aluno Demonstração", ALUNO, "Melhorar o físico (secar e crescer)",

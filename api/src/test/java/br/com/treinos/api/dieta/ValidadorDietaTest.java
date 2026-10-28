@@ -61,7 +61,7 @@ class ValidadorDietaTest {
         assertThat(comUidsNovos.refeicoes().getFirst().uid()).isNotEqualTo(original.refeicoes().getFirst().uid());
         assertThat(comUidsNovos.refeicoes().getFirst().modoDePreparo()).isEqualTo(receita);
 
-        assertThat(original.comItens(i -> i.comFatores(BigDecimal.ONE, BigDecimal.ONE)).refeicoes().getFirst()
+        assertThat(original.comItens(i -> i.comDadosDaBiblioteca(BigDecimal.ONE, BigDecimal.ONE, null)).refeicoes().getFirst()
                 .modoDePreparo()).isEqualTo(receita);
         assertThat(original.semErgogenicos().refeicoes().getFirst().modoDePreparo()).isEqualTo(receita);
     }
