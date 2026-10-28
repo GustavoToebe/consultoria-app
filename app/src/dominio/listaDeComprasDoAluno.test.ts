@@ -17,6 +17,8 @@ import {
   normalizarListaSalva,
   quantidadeParaAjustar,
   removerAvulso,
+  restaurarAvulso,
+  restaurarComprados,
   semErros,
   textoDaContagem,
   textoDaOrigem,
@@ -90,6 +92,19 @@ describe('itens do aluno', () => {
     m = removerAvulso(m, 'x1');
     expect(m.avulsos.map((a) => a.id)).toEqual(['x2']);
     expect(m.comprados).toEqual([]);
+  });
+
+  it('desfazer devolve o avulso no lugar e as marcas limpas, sem perder o que veio depois', () => {
+    let m = gravarAvulso(MARCACOES_VAZIAS, { id: 'x1', nome: 'Café', quantidade: null, unidade: null });
+    m = gravarAvulso(m, { id: 'x2', nome: 'Sabão', quantidade: null, unidade: null });
+    m = alternarComprado(m, 'avulso:x1');
+    const removido = removerAvulso(m, 'x1');
+    const volta = restaurarAvulso(removido, m.avulsos[0], 0, true);
+    expect(volta.avulsos.map((a) => a.id)).toEqual(['x1', 'x2']);
+    expect(volta.comprados).toEqual(['avulso:x1']);
+    expect(restaurarAvulso(volta, m.avulsos[0], 0, true)).toBe(volta);
+    const limpa = alternarComprado(limparComprados(volta), ARROZ.chave);
+    expect(restaurarComprados(limpa, volta.comprados).comprados).toEqual([ARROZ.chave, 'avulso:x1']);
   });
 
   it('a contagem só soma itens da lista atual (marca de item que saiu fica guardada, mas não conta)', () => {

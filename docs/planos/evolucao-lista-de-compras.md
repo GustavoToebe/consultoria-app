@@ -1,6 +1,6 @@
 # Evolução da lista de compras
 
-Situação: Em andamento · Onde: branch `evo-compras` (worktree, sem push) · Atualizado: 28/10/2026
+Situação: Pronta na branch (falta juntar na `main` e publicar) · Onde: branch `evo-compras` (worktree, sem push) · Atualizado: 28/10/2026
 
 ## Objetivo
 A lista de compras do aluno vira uma lista de mercado de verdade: além de Semana e Mês, o período de 14 dias; marcar o
@@ -27,11 +27,16 @@ concorrente (7/14/30 dias, "2 de 6 comprados", "Limpar marcações", "Ajustar li
 | 14 | Marcas de item que sumiu | Ficam guardadas (trocar a opção de volta as traz), mas a contagem só soma itens da lista atual | Claude, 28/10 |
 
 ## Passos
-- [x] 0. Esta frente registrada — commit: (primeiro commit da branch)
-- [ ] 1. Domínio: período `duasSemanas` (`PERIODOS_DA_LISTA`, `tituloDaLista`, `textoDoPeriodo`, preferência do PDF da dieta) e `dominio/listaDeComprasDoAluno.ts` (marcações, ajustes, avulsos, contagem, normalização), com testes — commit: —
-- [ ] 2. `RepositorioLocal.lerListaDeCompras/salvarListaDeCompras` (chave-valor e SQLite), teste no `offline.test.ts` (volta igual, não mistura usuários, sai no "Sair" e na sessão recusada) — commit: —
-- [ ] 3. Tela do aluno (`aluno/ListaDeComprasDoAluno`), PDF com ajustes/avulsos, Ajuda do aluno e do treinador — commit: —
-- [ ] 4. e2e `lista-de-compras.spec.ts` (14 dias, marcar, limpar, ajustar, voltar ao calculado, avulso) e verificação — commit: —
+- [x] 0. Esta frente registrada — commit: 13e8b34
+- [x] 1. Domínio: período `duasSemanas` (`PERIODOS_DA_LISTA`, `tituloDaLista`, `textoDoPeriodo`, preferência do PDF da dieta) e `dominio/listaDeComprasDoAluno.ts` (marcações, ajustes, avulsos, contagem, normalização), com testes — commit: 13e8b34
+- [x] 2. `RepositorioLocal.lerListaDeCompras/salvarListaDeCompras` (chave-valor e SQLite), teste no `offline.test.ts` (volta igual, não mistura usuários, sai no "Sair" e na sessão recusada) — commit: 13e8b34
+- [x] 3. Tela do aluno (`aluno/ListaDeComprasDoAluno`), PDF com ajustes/avulsos, Ajuda do aluno e do treinador — commit: (commit da tela)
+- [x] 4. e2e `lista-de-compras.spec.ts` (14 dias, marcar, limpar, ajustar, voltar ao calculado, avulso) e verificação (390 e 1280 px) — commit: (commit da tela)
+
+## Verificação (28/10, nesta máquina)
+- `npm run typecheck` e `npm run lint` sem erro; `npm test`: 155 suítes, 2102 testes verdes (inclui `listaDeComprasDoAluno.test.ts`, `offline.test.ts` nas duas implementações, `pdf.test.ts` e `injecao.test.ts`).
+- `npm run e2e -- e2e/lista-de-compras.spec.ts`: os casos antigos (5) passaram na primeira rodada; o caso novo, em 390 e 1280 px, passou depois de corrigir o seletor "Semana" (ambíguo com "2 semanas"), rodado contra o mesmo `dist-e2e`.
+- Não verificado: Android/iOS de verdade (SQLite do aparelho); a bateria do `offline.test.ts` cobre o SQLite pelo Node.
 
 ## Fora do escopo
 - Itens agrupados por categoria (como no concorrente): o item da dieta não traz grupo do alimento; precisaria levar o

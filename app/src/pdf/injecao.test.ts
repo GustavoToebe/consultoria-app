@@ -8,6 +8,7 @@ import type { LinhaDaLista } from '../dominio/listaDeCompras';
 import { documentoCompleto, type Documento } from './html';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
+import { ajustarQuantidade, gravarAvulso, itensDoAluno, MARCACOES_VAZIAS } from '../dominio/listaDeComprasDoAluno';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
 import { documentoTreino } from './pdfTreino';
@@ -239,6 +240,11 @@ describe('PDF da lista de compras não deixa texto virar HTML', () => {
   conferir('lista de compras', documentoListaDeCompras as never, {
     ...base, versao: 2, periodo: 'semana', opcoes: ['Café: opção B'],
     linhas: [linhaDaLista('a'), linhaDaLista('b', { semFator: true, cru: false, bruto: false, fatorCorrecao: null, fatorCoccao: null })],
+  });
+  const linhas = [linhaDaLista('a'), linhaDaLista('b')];
+  const marcacoes = gravarAvulso(ajustarQuantidade(MARCACOES_VAZIAS, 'a', { quantidade: '1', unidade: 'pacote' }), { id: 'x', nome: 'Café', quantidade: '2', unidade: 'kg' });
+  conferir('lista de compras do aluno (ajuste e avulso)', documentoListaDeCompras as never, {
+    ...base, versao: 2, periodo: 'duasSemanas', opcoes: [], linhas, itensDoAluno: itensDoAluno(linhas, marcacoes),
   });
   conferir('lista de compras (prévia, sem aluno)', documentoListaDeCompras as never, {
     ...base, aluno: null, versao: null, periodo: 'mes', opcoes: [], linhas: [linhaDaLista('a')],

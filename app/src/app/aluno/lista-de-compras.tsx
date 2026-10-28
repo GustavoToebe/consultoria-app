@@ -1,3 +1,4 @@
+import { ListaDeComprasDoAluno, type ListaParaPdf } from '../../aluno/ListaDeComprasDoAluno';
 import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { ErroApi } from '../../api/cliente';
 import type { ConteudoDieta, VersaoDetalhe } from '../../api/tipos';
@@ -10,15 +11,14 @@ import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { ListaDeCompras, type EscolhaDaLista } from '../../ui/ListaDeCompras';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
 import { Texto } from '../../ui/Texto';
 
 /**
  * Lista de compras da dieta que o aluno está vendo (a do plano escolhido no topo da Dieta, ou a vigente), calculada no
- * aparelho com os fatores que a versão publicada já traz: funciona sem internet com a dieta salva. Período e opções
- * são escolhas da tela, não ficam salvas.
+ * aparelho com os fatores que a versão publicada já traz: funciona sem internet com a dieta salva. Comprados, ajustes,
+ * itens do aluno, período e opções ficam só neste aparelho (`aluno/ListaDeComprasDoAluno`).
  */
 export default function ListaDeComprasAluno() {
   const { escolhida } = useAluno();
@@ -42,7 +42,7 @@ export default function ListaDeComprasAluno() {
 
 function Lista({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva: boolean }) {
   const { pacote } = useAluno();
-  const pdf = async ({ periodo, opcoes, linhas }: EscolhaDaLista) => {
+  const pdf = async ({ periodo, opcoes, linhas, itens }: ListaParaPdf) => {
     if (!pacote) return;
     const marca = pacote.pacote.marca;
     await imprimir(
@@ -55,6 +55,7 @@ function Lista({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
         periodo,
         opcoes,
         linhas,
+        itensDoAluno: itens,
         emitidoEm: new Date(),
       }),
     );
@@ -66,7 +67,7 @@ function Lista({ versao, salva }: { versao: VersaoDetalhe<ConteudoDieta>; salva:
       <Texto variante="suave">
         {versao.titulo}
       </Texto>
-      <ListaDeCompras conteudo={normalizarDieta(versao.conteudo)} aoGerarPdf={pdf} />
+      <ListaDeComprasDoAluno conteudo={normalizarDieta(versao.conteudo)} versaoId={versao.id} aoGerarPdf={pdf} />
     </>
   );
 }

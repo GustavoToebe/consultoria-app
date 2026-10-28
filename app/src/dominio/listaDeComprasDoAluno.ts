@@ -106,6 +106,20 @@ export function removerAvulso(m: MarcacoesDoPeriodo, id: string): MarcacoesDoPer
   return { ...m, avulsos: m.avulsos.filter((a) => a.id !== id), comprados: m.comprados.filter((c) => c !== chave) };
 }
 
+/** Desfazer da remoção: o avulso volta no mesmo lugar, com a marca de comprado se tinha. */
+export function restaurarAvulso(m: MarcacoesDoPeriodo, item: ItemAvulso, indice: number, comprado: boolean): MarcacoesDoPeriodo {
+  if (m.avulsos.some((a) => a.id === item.id)) return m;
+  const avulsos = [...m.avulsos];
+  avulsos.splice(Math.max(0, Math.min(indice, avulsos.length)), 0, item);
+  const chave = chaveDoAvulso(item.id);
+  return { ...m, avulsos, comprados: comprado && !m.comprados.includes(chave) ? [...m.comprados, chave] : m.comprados };
+}
+
+/** Desfazer do "Limpar marcações": as marcas voltam, somadas ao que foi marcado depois. */
+export function restaurarComprados(m: MarcacoesDoPeriodo, chaves: readonly string[]): MarcacoesDoPeriodo {
+  return { ...m, comprados: [...new Set([...m.comprados, ...chaves])] };
+}
+
 // ---- Validação dos campos livres ----
 
 const textoLimpo = (t: string | null | undefined): string | null => {
