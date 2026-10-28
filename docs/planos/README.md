@@ -23,6 +23,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Engajamento (retorno, conquistas, mural) | [engajamento.md](engajamento.md) | branch `gamificacao` | Etapa 0 em andamento | 27/10/2026 |
 | Revisão de segurança de 28/10 | [revisao-seguranca-28-10.md](revisao-seguranca-28-10.md) | `main` | Código na `main`; não publicado (Trivy) | 28/10/2026 |
 | PDFs menores e mais rápidos | [pdfs-otimizacao.md](pdfs-otimizacao.md) | `main` | Código na `main`; não publicado (Trivy) | 28/10/2026 |
+| Proteção contra robôs (Cloudflare + Turnstile) | [cloudflare-turnstile.md](cloudflare-turnstile.md) | Cloudflare e VPS | Parte A feita; parte B espera o `publicar` verde | 28/10/2026 |
 
 ## Pendências soltas
 
@@ -51,6 +52,9 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | PDF no celular: copiar o arquivo do `expo-print` em vez de passar o PDF todo em base64 (`pdf/imprimir.ts`). Só provando no APK, Android e iPhone | Gustavo (aparelho) | PDFs, item 4 |
 | Conferir no APK que a logo grande sai reduzida no PDF do aluno e do treinador | Gustavo | PDFs, item 2 |
 | `imprimir.web.ts` sem `innerHTML`: não recomendado agora (a trava de teste cobre); Gustavo pode reabrir | Gustavo decide | revisão de segurança 28/10, item 3 |
+| Cloudflare: a regra "Bloqueio por pais (Fase 6B)" (`adfb3957…`) bloqueia tudo fora do Brasil; manter ou tirar | Gustavo decide | cloudflare-turnstile |
+| Proxy: o `consultoria.servirea.com.br` responde em produção, mas não há bloco dele no Caddyfile vivo do repositório da Central (só o `.modelo`); conferir o arquivo da VPS antes de mexer no `connect-src` | Claude | cloudflare-turnstile |
+| Turnstile (parte B): widget, segredo e recriar a API só depois do `publicar` verde; testes no PC, celular e APK; iPhone nativo ainda sem teste, necessário antes do TestFlight | Gustavo/Claude | cloudflare-turnstile |
 
 ## Limitações aceitas (não são pendência)
 
