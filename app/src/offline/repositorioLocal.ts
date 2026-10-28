@@ -200,8 +200,6 @@ export interface RepositorioLocal {
     enviados: Pick<RegistroSessaoConcluidaLocal, 'id' | 'alteradoEm'>[],
     resultados: ResultadoEnvio[],
   ): Promise<void>;
-  /** O servidor recusou as conclusões inteiras (recurso desligado): os pendentes viram FALHOU com o motivo, para não repetir em laço. */
-  recusarPendentesDasSessoesConcluidas(motivo: string): Promise<void>;
   /**
    * Instante da primeira série marcada como feita de cada treino (versão|sessão|dia, ver `chaveDoInicioDoTreino`). Só
    * no aparelho: nunca vai ao servidor nem à fila retida.
@@ -588,19 +586,6 @@ export class RepositorioChaveValor implements RepositorioLocal {
         'sessoesConcluidas',
         lista.filter((r) => r.situacao !== 'ENVIADO' || r.data >= limite),
       );
-    });
-  }
-
-  recusarPendentesDasSessoesConcluidas(motivo: string): Promise<void> {
-    return this.emFila(async () => {
-      const lista = await this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', []);
-      for (const r of lista) {
-        if (r.situacao === 'LOCAL') {
-          r.situacao = 'FALHOU';
-          r.motivo = motivo;
-        }
-      }
-      await this.gravarJson('sessoesConcluidas', lista);
     });
   }
 

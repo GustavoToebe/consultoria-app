@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 
 import {
   aoCicloDesligado,
+  aoRetornoDesligado,
   aoEncerrar,
   definirUsuarioDaSessao,
   ErroApi,
@@ -316,6 +317,21 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       });
     });
     return () => aoCicloDesligado(null);
+  }, []);
+  // O servidor respondeu 503 `RETORNO_INDISPONIVEL` ("Concluir treino" desligado na plataforma) com o perfil ainda dizendo que
+  // estava ligado: a chave vira falsa na sessão e no perfil salvo. As conclusões na fila ficam como estão (LOCAL) e voltam
+  // a ser enviadas quando a abertura da sessão regravar o valor do `/eu`. Sem efeito, nem regravação, se já está falsa.
+  useEffect(() => {
+    aoRetornoDesligado(() => {
+      setPerfil((atual) => {
+        if (!atual || atual.retornoHabilitado !== true) return atual;
+        const novo = { ...atual, retornoHabilitado: false };
+        perfilAtual.current = novo;
+        AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
+        return novo;
+      });
+    });
+    return () => aoRetornoDesligado(null);
   }, []);
   const valor = useMemo<ValorSessao>(
     () => ({

@@ -21,6 +21,7 @@ import {
 import type { Atualizacao, ConteudoMobilidadeApi, DemonstracaoDoAluno, PastaDoAluno, PlanosDaPasta, RegistroMobilidadeFeito, SessaoConcluidaDoServidor, VersaoDetalhe } from '../api/tipos';
 import { hojeDoCiclo } from '../dominio/cicloMenstrual';
 import { validarConclusao, type ProblemasDaConclusao } from '../dominio/conclusaoDoTreino';
+import { filaVisivel } from '../dominio/filaVisivel';
 import { hojeIso, somarDias } from '../dominio/formatos';
 import { conclusaoDe, fundirConclusoes, totalDeConcluidos, type ConclusaoDoTreino } from '../dominio/sessoesConcluidas';
 import { periodoDaSemana } from '../dominio/progressoSemana';
@@ -149,11 +150,11 @@ interface ValorAluno {
   totalConcluidos: number | null;
   /** Instante (ISO) da primeira série marcada como feita daquele treino, só deste aparelho; `null` se não há. */
   inicioDoTreino: (planoVersaoId: string, sessaoUid: string, data: string) => string | null;
-  /** Conclusões gravadas no aparelho (inclui o que ainda não foi enviado). */
+  /** Conclusões gravadas no aparelho (inclui o que ainda não foi enviado). Vazio com "Concluir treino" desligado. */
   sessoesConcluidasNoAparelho: RegistroSessaoConcluidaLocal[];
-  /** Conclusões recusadas pelo servidor, esperando "tentar de novo". */
+  /** Conclusões recusadas pelo servidor, esperando "tentar de novo". Vazio com "Concluir treino" desligado. */
   falhasDeConclusao: RegistroSessaoConcluidaLocal[];
-  /** Séries, itens de mobilidade e conclusões ainda na fila (LOCAL). */
+  /** Séries, itens de mobilidade e conclusões ainda na fila (LOCAL); as conclusões só contam com "Concluir treino" ligado. */
   pendentes: number;
   /** Séries recusadas (a mobilidade recusada está em `falhasDeMobilidade`, a conclusão em `falhasDeConclusao`). */
   falhas: RegistroLocal[];
@@ -193,7 +194,6 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     setAtualizacao(atual);
     await reagendarLembretesAtualizacao(usuarioId,atual).catch(()=>undefined);
   },[repositorio,usuarioId]);
-  const sincronizador = useMemo(() => new Sincronizador(repositorio, enviarRegistros, enviarRegistrosMobilidade, enviarSessoesConcluidas), [repositorio]);
 
   const [descanso, definirDescanso] = useState<Descanso | null>(null);
   const notificado = useRef<number | null>(null);
@@ -239,6 +239,19 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const [inicios, setInicios] = useState<Record<string, string>>({});
   // A chave lida por ref: ela pode virar `true` depois da abertura (o /eu chega com o perfil) sem refazer a abertura inteira.
   const retornoRef = useRef(false);
+  // O Sincronizador lê a chave a cada ciclo (`ligada`); o 503 `RETORNO_INDISPONIVEL` em pleno envio a desliga na hora, sem
+  // esperar a sessão re-renderizar (senão o `baixarPacote` do mesmo ciclo ainda chamaria o GET das conclusões).
+  const sincronizador = useMemo(
+    () =>
+      new Sincronizador(repositorio, enviarRegistros, enviarRegistrosMobilidade, {
+        enviar: enviarSessoesConcluidas,
+        ligada: () => retornoRef.current,
+        aoDesligar: () => {
+          retornoRef.current = false;
+        },
+      }),
+    [repositorio],
+  );
   const [doServidor, setDoServidor] = useState<RegistroLocal[]>([]);
   const [semanaDoAparelho, setSemanaDoAparelho] = useState(false);
   const semanasPedidas = useRef(new Set<string>());
@@ -381,7 +394,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       const [series, mobilidade, conclusoes] = await Promise.all([
         repositorio.pendentes(1),
         repositorio.pendentesMobilidade(1),
-        repositorio.pendentesSessoesConcluidas(1),
+        // Chave desligada: a conclusão na fila não é pendência (não é enviada) e não pede nova tentativa.
+        retornoRef.current ? repositorio.pendentesSessoesConcluidas(1) : Promise.resolve([]),
       ]);
       if (series.length || mobilidade.length || conclusoes.length) {
         const ms = ESPERAS_MS[Math.min(falhasSeguidas.current, ESPERAS_MS.length - 1)];
@@ -395,14 +409,20 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   }, [sincronizador, repositorio, recarregarRegistros, baixarPacote]);
 
   // Liga/desliga a chave. Na abertura quem baixa as conclusões é o `baixarPacote`; aqui só quando a chave vira `true`
-  // depois (o /eu chegou com a sessão já aberta offline). Declarado antes do efeito da abertura para o ref já estar certo.
+  // depois (o /eu chegou com a sessão já aberta offline, ou voltou a ligar): baixa as conclusões do servidor e retoma o
+  // envio das que ficaram LOCAL enquanto estava desligada. Declarado antes do efeito da abertura para o ref já estar certo.
   const montou = useRef(false);
   useEffect(() => {
     const virouLigada = retornoHabilitado && !retornoRef.current;
     retornoRef.current = retornoHabilitado;
-    if (virouLigada && montou.current) void baixarSessoesConcluidas();
+    if (virouLigada && montou.current) {
+      void baixarSessoesConcluidas();
+      // Em callback de promessa (lint do React 19). Duas passadas: se já havia um envio em andamento, ele pulou as
+      // conclusões (chave desligada quando começou) e a primeira chamada só devolve esse; a segunda as envia.
+      void Promise.resolve().then(() => sincronizar()).then(() => sincronizar());
+    }
     montou.current = true;
-  }, [retornoHabilitado, baixarSessoesConcluidas]);
+  }, [retornoHabilitado, baixarSessoesConcluidas, sincronizar]);
 
   // Abertura: confere a fila que uma sessão recusada deixou (vencida = apagada; dentro do prazo = volta a ser a fila
   // normal deste usuário), lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
@@ -460,10 +480,11 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     }
   }, [sessaoOffline, sincronizar]);
 
-  const pendentes =
-    registros.filter((r) => r.situacao === 'LOCAL').length +
-    mobilidadeLocal.filter((r) => r.situacao === 'LOCAL').length +
-    conclusoesLocais.filter((r) => r.situacao === 'LOCAL').length;
+  // Chave desligada: as conclusões seguem no aparelho e na fila, mas ficam fora da conta (selo, Conta, "Sair", excluir conta).
+  const { pendentes, falhasDeConclusao, sessoesConcluidasNoAparelho } = useMemo(
+    () => filaVisivel(registros, mobilidadeLocal, conclusoesLocais, retornoHabilitado),
+    [registros, mobilidadeLocal, conclusoesLocais, retornoHabilitado],
+  );
 
   useEffect(() => {
     if (!pendentes) return;
@@ -613,8 +634,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sessaoConcluidaDe: (v, s, d) => conclusaoDe(conclusoesFundidas, v, s, d),
       totalConcluidos: retornoHabilitado ? totalDeConcluidos(totalDoServidor, conclusoesDoServidor, conclusoesLocais) : null,
       inicioDoTreino: (v, s, d) => inicios[chaveDoInicioDoTreino(v, s, d)] ?? null,
-      sessoesConcluidasNoAparelho: conclusoesLocais,
-      falhasDeConclusao: conclusoesLocais.filter((r) => r.situacao === 'FALHOU'),
+      sessoesConcluidasNoAparelho,
+      falhasDeConclusao,
       pendentes,
       falhas: registros.filter((r) => r.situacao === 'FALHOU'),
       falhasDeMobilidade: mobilidadeLocal.filter((r) => r.situacao === 'FALHOU'),
@@ -626,7 +647,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

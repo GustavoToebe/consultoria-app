@@ -594,12 +594,6 @@ export class RepositorioSqlite implements RepositorioLocal {
     );
   }
 
-  recusarPendentesDasSessoesConcluidas(motivo: string): Promise<void> {
-    return this.emFila(undefined, async (b) => {
-      await b.rodar("update sessao_concluida set situacao = 'FALHOU', motivo = ? where situacao = 'LOCAL'", [motivo]);
-    });
-  }
-
   // ---- Início do treino (só no aparelho, fora da fila) ----
 
   lerIniciosDoTreino(): Promise<Record<string, string>> {

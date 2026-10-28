@@ -8,7 +8,7 @@ import { CHAVE_FILAS_RETIDAS, registrarFilaRetida, varrerFilasRetidas } from './
 import { VERSAO_ESQUEMA } from './banco';
 import { chaveDoInicioDoTreino, DIAS_FILA_RETIDA, RepositorioChaveValor, type DadosMobilidade, type DadosRegistro, type DadosSessaoConcluida, type RepositorioLocal } from './repositorioLocal';
 import { RepositorioSqlite } from './repositorioSqlite';
-import { MOTIVO_CONCLUSAO_INDISPONIVEL, MOTIVO_MOBILIDADE_FORA_DO_PLANO, Sincronizador } from './sincronizacao';
+import { MOTIVO_MOBILIDADE_FORA_DO_PLANO, Sincronizador } from './sincronizacao';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   // O mock oficial só existe em CommonJS (fábrica do jest.mock não aceita import).
@@ -48,6 +48,9 @@ const aceitaTudoMobilidade = async (registros: RegistroMobilidadeEnvio[]): Promi
 const aceitaTudo = async (registros: RegistroEnvio[]): Promise<LoteResponse> => ({
   resultados: registros.map((r) => ({ id: r.id, situacao: 'ACEITO', motivo: null })),
 });
+
+/** As conclusões com a chave ligada (a maioria dos testes); a desligada tem teste próprio. */
+const conclusoesLigadas = (enviar: (registros: RegistroSessaoConcluidaEnvio[]) => Promise<LoteResponse>) => ({ enviar, ligada: () => true });
 
 /** Sincronizador que aceita toda a mobilidade: os testes das séries não mexem nela. */
 const sincronizadorDe = (repo: RepositorioLocal, enviar: (registros: RegistroEnvio[]) => Promise<LoteResponse>) =>
@@ -1256,11 +1259,11 @@ describe.each(implementacoes)('treino concluído na fila de envio – %s', (_nom
         ordem.push('mobilidade');
         return aceitaTudoMobilidade(r);
       },
-      async (r) => {
+      conclusoesLigadas(async (r) => {
         ordem.push('conclusoes');
         conclusoes.push(...r);
         return aceitaTudoConclusoes(r);
-      },
+      }),
     );
     expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 3 });
     expect(ordem).toEqual(['series', 'mobilidade', 'conclusoes']);
@@ -1286,10 +1289,10 @@ describe.each(implementacoes)('treino concluído na fila de envio – %s', (_nom
     const repo = aparelho('u1');
     const feito = await repo.registrarSessaoConcluida(treino('s1'));
     const enviados: RegistroSessaoConcluidaEnvio[] = [];
-    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, async (r) => {
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async (r) => {
       enviados.push(...r);
       return aceitaTudoConclusoes(r);
-    });
+    }));
     await sync.sincronizar();
     await repo.registrarSessaoConcluida(treino('s1', reaberto));
     expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
@@ -1299,41 +1302,106 @@ describe.each(implementacoes)('treino concluído na fila de envio – %s', (_nom
     ]);
   });
 
-  it('503 RETORNO_INDISPONIVEL falha só as conclusões, com texto neutro, sem derrubar séries nem mobilidade e sem laço', async () => {
+  it('503 RETORNO_INDISPONIVEL em pleno envio: a conclusão continua LOCAL, uma só chamada, séries e mobilidade intactas', async () => {
     const repo = aparelho('u1');
-    await repo.registrarSessaoConcluida(treino('s1'));
-    await repo.registrarSessaoConcluida(treino('s2'));
+    const s1 = await repo.registrarSessaoConcluida(treino('s1'));
+    const s2 = await repo.registrarSessaoConcluida(treino('s2'));
     await repo.registrarMobilidade(item('i1'));
     await repo.registrar(serie('x'));
     let tentativas = 0;
-    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, async () => {
-      tentativas++;
-      throw new ErroApi(503, 'RETORNO_INDISPONIVEL', 'Recurso indisponível.');
+    let aviso = 0;
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, {
+      enviar: async () => {
+        tentativas++;
+        throw new ErroApi(503, 'RETORNO_INDISPONIVEL', 'Recurso indisponível.');
+      },
+      ligada: () => true,
+      aoDesligar: () => {
+        aviso++;
+      },
     });
+    // Sem erro e sem encerrar a sessão: o ciclo termina "ok" e as séries e a mobilidade foram enviadas.
     expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
     expect(tentativas).toBe(1);
-    expect((await repo.listarSessoesConcluidas()).map((r) => [r.situacao, r.motivo])).toEqual([
-      ['FALHOU', MOTIVO_CONCLUSAO_INDISPONIVEL],
-      ['FALHOU', MOTIVO_CONCLUSAO_INDISPONIVEL],
-    ]);
+    expect(aviso).toBe(1);
+    // Não vira FALHOU: continua LOCAL, sem motivo, com o mesmo id e o mesmo instante.
+    expect(await repo.listarSessoesConcluidas()).toEqual([s1, s2]);
+    expect((await repo.listarSessoesConcluidas()).map((r) => [r.situacao, r.motivo])).toEqual([['LOCAL', null], ['LOCAL', null]]);
     expect((await repo.listar()).map((r) => r.situacao)).toEqual(['ENVIADO']);
     expect((await repo.listarMobilidade()).map((r) => r.situacao)).toEqual(['ENVIADO']);
-    // Não repete em laço: sem pendência, o próximo ciclo nem chama a rota.
+    expect((await repo.pendentesSessoesConcluidas()).map((r) => r.id)).toEqual([s1.id, s2.id]);
+  });
+
+  it('chave desligada: as conclusões não são enviadas nem tentadas, ficam LOCAL; ao ligar, o mesmo registro é enviado', async () => {
+    const repo = aparelho('u1');
+    const concluido = await repo.registrarSessaoConcluida(treino('s1'));
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrar(serie('x'));
+    let ligada = false;
+    const enviarConclusoes = jest.fn(aceitaTudoConclusoes);
+    const enviarSeries = jest.fn(aceitaTudo);
+    // Uma só instância: prova que a chave é lida a cada ciclo, não capturada na criação.
+    const sync = new Sincronizador(repo, enviarSeries, aceitaTudoMobilidade, { enviar: enviarConclusoes, ligada: () => ligada });
+
+    // Desligada: séries e mobilidade seguem normalmente; a conclusão fica como está.
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
+    expect(enviarSeries).toHaveBeenCalledTimes(1);
+    expect(enviarConclusoes).not.toHaveBeenCalled();
+    expect(await repo.listarSessoesConcluidas()).toEqual([concluido]);
+    expect(concluido.situacao).toBe('LOCAL');
     expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
-    expect(tentativas).toBe(1);
-    expect(MOTIVO_CONCLUSAO_INDISPONIVEL).not.toMatch(/503|RETORNO|chave|plano|API/i);
+    expect(enviarConclusoes).not.toHaveBeenCalled();
+
+    // A chave volta: o mesmo registro (mesmo id) é enviado e vira ENVIADO.
+    ligada = true;
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect(enviarConclusoes).toHaveBeenCalledTimes(1);
+    expect(enviarConclusoes.mock.calls[0][0].map((r) => [r.id, r.concluida, r.alteradoNoAparelhoEm])).toEqual([[concluido.id, true, concluido.alteradoEm]]);
+    expect((await repo.listarSessoesConcluidas()).map((r) => [r.id, r.situacao])).toEqual([[concluido.id, 'ENVIADO']]);
+  });
+
+  it('503 RETORNO_INDISPONIVEL e depois a chave volta: a conclusão que provocou o 503 é reenviada com o mesmo id', async () => {
+    const repo = aparelho('u1');
+    const concluido = await repo.registrarSessaoConcluida(treino('s1'));
+    let ligada = true;
+    let jaFalhou = false;
+    const enviados: string[] = [];
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, {
+      enviar: async (r) => {
+        if (!jaFalhou) {
+          jaFalhou = true;
+          throw new ErroApi(503, 'RETORNO_INDISPONIVEL', 'Recurso indisponível.');
+        }
+        enviados.push(...r.map((x) => x.id));
+        return aceitaTudoConclusoes(r);
+      },
+      ligada: () => ligada,
+      aoDesligar: () => {
+        ligada = false;
+      },
+    });
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(ligada).toBe(false);
+    // Enquanto a chave está desligada, o ciclo seguinte nem chama a rota (sem laço).
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(enviados).toEqual([]);
+    expect((await repo.listarSessoesConcluidas())[0].situacao).toBe('LOCAL');
+    ligada = true;
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect(enviados).toEqual([concluido.id]);
+    expect((await repo.listarSessoesConcluidas())[0].situacao).toBe('ENVIADO');
   });
 
   it('outro 503 é sem conexão (continua LOCAL); um 4xx é erro do lote', async () => {
     const repo = aparelho('u1');
     await repo.registrarSessaoConcluida(treino('s1'));
-    const fora = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, async () => {
+    const fora = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async () => {
       throw new ErroApi(503, 'INDISPONIVEL', 'Fora do ar.');
-    });
+    }));
     expect(await fora.sincronizar()).toEqual({ tipo: 'semConexao' });
-    const recusa = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, async () => {
+    const recusa = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async () => {
       throw new ErroApi(400, 'REQUISICAO_INVALIDA', 'Lote inválido.');
-    });
+    }));
     expect(await recusa.sincronizar()).toEqual({ tipo: 'erro', mensagem: 'Lote inválido.' });
     expect((await repo.listarSessoesConcluidas())[0].situacao).toBe('LOCAL');
   });
@@ -1349,7 +1417,7 @@ describe.each(implementacoes)('treino concluído na fila de envio – %s', (_nom
         throw new ErroApi(0, 'SEM_CONEXAO', 'Sem conexão');
       },
       aceitaTudoMobilidade,
-      enviarConclusoes,
+      conclusoesLigadas(enviarConclusoes),
     );
     expect(await sync.sincronizar()).toEqual({ tipo: 'semConexao' });
     expect(enviarConclusoes).not.toHaveBeenCalled();
@@ -1359,10 +1427,10 @@ describe.each(implementacoes)('treino concluído na fila de envio – %s', (_nom
     const repo = aparelho('u1');
     for (let i = 0; i < 305; i++) await repo.registrarSessaoConcluida(treino(`s${i}`));
     const tamanhos: number[] = [];
-    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, async (r) => {
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async (r) => {
       tamanhos.push(r.length);
       return aceitaTudoConclusoes(r);
-    });
+    }));
     expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 305 });
     expect(tamanhos).toEqual([300, 5]);
   });
@@ -1453,10 +1521,10 @@ describe.each(implementacoes)('treino concluído na fila de envio – %s', (_nom
       expect(await volta.retomarFilaRetida()).toBe(true);
 
       const enviados: RegistroSessaoConcluidaEnvio[] = [];
-      const sync = new Sincronizador(volta, aceitaTudo, aceitaTudoMobilidade, async (r) => {
+      const sync = new Sincronizador(volta, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async (r) => {
         enviados.push(...r);
         return aceitaTudoConclusoes(r);
-      });
+      }));
       expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
       expect(enviados.map((r) => [r.id, r.concluida])).toEqual([[fila1.id, true], [fila2.id, false]]);
     });

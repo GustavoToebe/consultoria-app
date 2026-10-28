@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { RegistroEnvio, RegistroSessaoConcluidaEnvio, SessoesConcluidasResponse } from '../src/api/tipos';
 import { fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa } from './aluno';
-import { ALUNO, json, sessao, simularApi } from './api-falsa';
+import { ALUNO, erroApi, json, sessao, simularApi } from './api-falsa';
 
 /**
  * "Concluir treino" (frente Engajamento, passo 0.1). Treino fictício de um exercício com três séries (o único
@@ -15,15 +15,19 @@ const ROTA = '/aluno/sessoes-concluidas';
 
 interface Opcoes {
   ligada?: boolean;
-  /** Como o POST das conclusões responde: aceita, sem internet (aborta) ou recusa. */
-  post?: 'aceita' | 'semInternet' | 'recusa';
+  /** Como o POST das conclusões responde: aceita, sem internet (aborta), recusa ou 503 de recurso desligado. */
+  post?: ModoDoPost;
 }
+
+type ModoDoPost = 'aceita' | 'semInternet' | 'recusa' | 'indisponivel';
 
 async function abrir(page: Page, { ligada = true, post = 'aceita' }: Opcoes = {}) {
   await fixarHoje(page);
   const conclusoes: RegistroSessaoConcluidaEnvio[] = [];
   const series: RegistroEnvio[] = [];
   const mensagens: string[] = [];
+  // Mutável: o teste do 503 troca a resposta do POST entre uma abertura e a outra.
+  const estado: { post: ModoDoPost } = { post };
   page.on('console', (m) => mensagens.push(m.text()));
   const api = await simularApi(page, {
     ...(await sessaoDeAlunoComTreino(page, [sessaoFalsa('sx', 'Treino curto', 1, 1)])),
@@ -37,12 +41,16 @@ async function abrir(page: Page, { ligada = true, post = 'aceita' }: Opcoes = {}
       ? {
           [`GET ${ROTA}`]: { corpo: { totalConcluidos: 4, sessoes: [] } satisfies SessoesConcluidasResponse },
           [`POST ${ROTA}`]: (p, route) => {
-            if (post === 'semInternet') return route.abort('internetdisconnected');
+            if (estado.post === 'semInternet') return route.abort('internetdisconnected');
             const lote = (p.corpo as { registros: RegistroSessaoConcluidaEnvio[] }).registros;
             conclusoes.push(...lote);
+            if (estado.post === 'indisponivel') {
+              const { status, corpo } = erroApi(503, 'Recurso indisponível.', 'RETORNO_INDISPONIVEL');
+              return json(route, corpo, status);
+            }
             return json(route, {
               resultados: lote.map((r) =>
-                post === 'recusa'
+                estado.post === 'recusa'
                   ? { id: r.id, situacao: 'RECUSADO', motivo: 'Treino fora do plano.' }
                   : { id: r.id, situacao: 'ACEITO', motivo: null },
               ),
@@ -50,8 +58,11 @@ async function abrir(page: Page, { ligada = true, post = 'aceita' }: Opcoes = {}
           },
         }
       : {}),
+    // A Conta do aluno (usada no teste do 503) consulta a foto de perfil e o uso de imagem.
+    'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
+    'GET /aluno/uso-de-imagem': { corpo: { autorizadoEm: null } },
   });
-  return { ...api, conclusoes, series, mensagens };
+  return { ...api, conclusoes, series, mensagens, estado };
 }
 
 const serie = (page: Page, n: number) => page.getByRole('checkbox', { name: `Série ${n} feita`, exact: true });
@@ -245,3 +256,49 @@ test('conclusão recusada pelo servidor acende a falha no selo', async ({ page }
   expect(api.errosDaPagina).toEqual([]);
 });
 
+test('503 RETORNO_INDISPONIVEL no envio: volta ao estado de chave desligada, sem falha, e a conclusão segue quando a chave volta', async ({ page }) => {
+  const api = await abrir(page, { post: 'indisponivel' });
+  const posts = () => api.pedidos.filter((p) => p.metodo === 'POST' && p.caminho === ROTA);
+  const leituras = () => api.pedidos.filter((p) => p.metodo === 'GET' && p.caminho === ROTA).length;
+  await page.goto(LISTA);
+  await botoesConcluir(page).first().click();
+  await minutos(page).fill('45');
+  await comentario(page).fill('Comentario-ficticio-do-503');
+  await confirmar(page).click();
+
+  // O POST é feito uma vez e a tela volta ao que era com a chave desligada: botão antigo, nada de concluído.
+  await expect.poll(() => posts().length, { timeout: 15_000 }).toBe(1);
+  await expect(page.getByRole('button', { name: 'Começar treino' })).toBeVisible();
+  await expect(botoesConcluir(page)).toHaveCount(0);
+  await expect(page.getByText('Treino concluído')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Reabrir o treino' })).toHaveCount(0);
+  await expect(page.getByText(/Fiz em parte|Fiz tudo/)).toHaveCount(0);
+  // Nada de falha: nem no selo, nem na Conta (o aviso de "Sair" também não conta a conclusão).
+  await expect(page.getByText(/Falha ao enviar|aguardando envio/)).toHaveCount(0);
+  const aposOErro = leituras();
+
+  // Pela navegação do app (sem recarregar a página, que reabriria a sessão): Conta e "Sincronizar agora".
+  await page.getByRole('link', { name: 'Conta', exact: true }).click();
+  await expect(page.getByText('Tudo o que você registrou já está com o seu treinador.')).toBeVisible();
+  await expect(page.getByText(/Conclusão do treino,/)).toHaveCount(0);
+  await expect(page.getByText(/Falha ao enviar|aguardando envio|com falha/)).toHaveCount(0);
+  await expect(page.getByText('Tentar de novo')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Sincronizar agora' }).click();
+  await expect(page.getByRole('button', { name: 'Sincronizar agora' })).toBeEnabled();
+  // Sem segunda chamada: nem o envio nem a leitura das conclusões do servidor.
+  expect(posts()).toHaveLength(1);
+  expect(leituras()).toBe(aposOErro);
+
+  // A chave volta (o /eu traz `retornoHabilitado: true` ao reabrir a sessão) e o servidor passa a aceitar.
+  api.estado.post = 'aceita';
+  await page.goto(LISTA);
+  await expect.poll(() => posts().length, { timeout: 15_000 }).toBe(2);
+  expect(posts()[1].corpo).toMatchObject({ registros: [{ id: api.conclusoes[0].id, concluida: true, resultado: 'PARCIAL', duracaoSegundos: 2700 }] });
+  expect(api.conclusoes[1].id).toBe(api.conclusoes[0].id);
+  await expect(page.getByText('Treino concluído', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/Falha ao enviar/)).toHaveCount(0);
+  expect(api.mensagens.filter((m) => m.includes('Comentario-ficticio'))).toEqual([]);
+
+  expect(api.naoTratadas).toEqual([]);
+  expect(api.errosDaPagina).toEqual([]);
+});
