@@ -15,6 +15,7 @@ import br.com.treinos.api.biblioteca.Ergogenico;
 import br.com.treinos.api.biblioteca.ErgogenicoRepository;
 import br.com.treinos.api.biblioteca.Exercicio;
 import br.com.treinos.api.biblioteca.ExercicioRepository;
+import br.com.treinos.api.biblioteca.GrupoDoAlimento;
 import br.com.treinos.api.biblioteca.Suplemento;
 import br.com.treinos.api.biblioteca.SuplementoRepository;
 import br.com.treinos.api.conta.PlanoDaConsultoria;
@@ -363,7 +364,7 @@ class GravadorDaImportacao {
         }
         for (Linha linha : dados) {
             conta.amostra(linha, config, List.of("nome", "quantidade", "unidade", "kcal", "proteina", "carboidrato",
-                    "gordura", "gramas", "fonte", "fc", "fcc"));
+                    "gordura", "gramas", "fonte", "fc", "fcc", "grupo"));
             try {
                 marcar(linha);
                 Alimento atual = porNome.get(Buscas.semAcento(obrigatoria(linha, config, "nome").texto()));
@@ -389,7 +390,8 @@ class GravadorDaImportacao {
                 String fonte = textoFinal(novo, atual == null ? null : atual.getFonte(), leitura(linha, config, "fonte"), "fonte", 200, false);
                 BigDecimal fc = fator(novo, atual == null ? null : atual.getFatorCorrecao(), leitura(linha, config, "fc"), linha.numero(), "fc", FC_MIN(), FC_MAX());
                 BigDecimal fcc = fator(novo, atual == null ? null : atual.getFatorCoccao(), leitura(linha, config, "fcc"), linha.numero(), "fcc", FCC_MIN(), FCC_MAX());
-                var valores = new Alimento.Valores(nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, gramas, fonte, fc, fcc);
+                String grupo = grupoDoAlimento(novo, atual == null ? null : atual.getGrupo(), leitura(linha, config, "grupo"));
+                var valores = new Alimento.Valores(nome, quantidade, unidade, kcal, proteina, carboidrato, gordura, gramas, fonte, fc, fcc, grupo);
                 if (novo) {
                     Alimento criado = new Alimento(valores, Exercicio.Origem.IMPORTACAO);
                     if (gravar) {
@@ -533,6 +535,22 @@ class GravadorDaImportacao {
     private static String variante(String nome, String concentracao, String apresentacao) {
         return Buscas.semAcento(nome) + '\0' + (concentracao == null ? "" : concentracao) + '\0'
                 + (apresentacao == null ? "" : apresentacao);
+    }
+
+    /**
+     * Grupo do alimento (opcional): o mesmo texto do cadastro ({@link GrupoDoAlimento#normalizar}) e o mesmo teto de
+     * {@value GrupoDoAlimento#MAXIMO} caracteres, com as regras de IGNORAR/COMPLETAR/ATUALIZAR do {@link #textoFinal}.
+     */
+    private String grupoDoAlimento(boolean novo, String atual, Leitura lida) {
+        String texto = textoFinal(novo, atual, lida, "grupo", Integer.MAX_VALUE, false);
+        if (texto == null || texto.equals(atual)) {
+            return texto;
+        }
+        String grupo = GrupoDoAlimento.normalizar(texto);
+        if (GrupoDoAlimento.longoDemais(grupo)) {
+            throw falhaCampo("grupo", "Use no máximo " + GrupoDoAlimento.MAXIMO + " caracteres.");
+        }
+        return grupo;
     }
 
     private String textoFinal(boolean novo, String atual, Leitura lida, String campo, int maximo, boolean obrigatorio) {

@@ -23,6 +23,9 @@ import java.util.UUID;
  * do aluno (reunião de 17/10, R13/R14/R32). São opcionais. O catálogo público traz fator em parte dos alimentos
  * (V027); a importação copia e o treinador pode mudar. Nulo quer dizer "não informado", nunca 1. A publicação da dieta copia os valores do
  * momento para os itens (ver {@code PlanoDietaService.paraPublicar}).
+ *
+ * <p>{@code grupo} ("Carnes e derivados"...) é texto livre opcional que agrupa a lista de compras do aluno; também é
+ * copiado na publicação. Ver {@link GrupoDoAlimento}.
  */
 @Entity
 @Table(name = "alimento")
@@ -70,6 +73,9 @@ public class Alimento {
     @Column(name = "fator_coccao")
     private BigDecimal fatorCoccao;
 
+    @Column(length = GrupoDoAlimento.MAXIMO)
+    private String grupo;
+
     @Column(nullable = false)
     private boolean ativo = true;
 
@@ -107,6 +113,7 @@ public class Alimento {
         this.fonte = v.fonte();
         this.fatorCorrecao = v.fatorCorrecao();
         this.fatorCoccao = v.fatorCoccao();
+        this.grupo = v.grupo();
     }
 
     public void inativar() {
@@ -165,6 +172,10 @@ public class Alimento {
         return fatorCoccao;
     }
 
+    public String getGrupo() {
+        return grupo;
+    }
+
     public boolean isAtivo() {
         return ativo;
     }
@@ -182,19 +193,12 @@ public class Alimento {
     }
 
     /**
-     * Valores editáveis do alimento, já validados pelo service. O construtor curto (sem fatores) é o das importações
-     * (catálogo e CSV), que não trazem fator: o treinador os digita depois, se quiser.
+     * Valores editáveis do alimento, já validados pelo service ({@code grupo} já normalizado por
+     * {@link GrupoDoAlimento}).
      */
     public record Valores(String nome, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
                           BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
                           BigDecimal gramasPorUnidade, String fonte, BigDecimal fatorCorrecao,
-                          BigDecimal fatorCoccao) {
-
-        public Valores(String nome, BigDecimal baseQuantidade, String baseUnidade, BigDecimal kcal,
-                       BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
-                       BigDecimal gramasPorUnidade, String fonte) {
-            this(nome, baseQuantidade, baseUnidade, kcal, proteina, carboidrato, gordura, gramasPorUnidade, fonte,
-                    null, null);
-        }
+                          BigDecimal fatorCoccao, String grupo) {
     }
 }

@@ -235,7 +235,7 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
 
     private static AlimentoRequest alimento(String nome, String fatorCorrecao, String fatorCoccao) {
         return new AlimentoRequest(nome, new BigDecimal("100"), "g", new BigDecimal("100"), BigDecimal.ONE,
-                BigDecimal.TEN, BigDecimal.ZERO, null, null, decimal(fatorCorrecao), decimal(fatorCoccao));
+                BigDecimal.TEN, BigDecimal.ZERO, null, null, decimal(fatorCorrecao), decimal(fatorCoccao), null);
     }
 
     private static BigDecimal decimal(String texto) {
@@ -244,6 +244,6 @@ class FatoresDosAlimentosIntegrationTest extends AbstractIntegrationTest {
 
     private static Item item(UUID alimentoId, String nome, BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
         return new Item(UUID.randomUUID(), alimentoId, nome, new BigDecimal("100"), "g", new BigDecimal("100"),
-                BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ZERO, alimentoId == null, fatorCorrecao, fatorCoccao);
+                BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ZERO, alimentoId == null, fatorCorrecao, fatorCoccao, null);
     }
 }
