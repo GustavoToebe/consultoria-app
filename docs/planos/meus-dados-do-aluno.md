@@ -1,6 +1,6 @@
 # Meus dados do aluno
 
-Situação: Em andamento (código pronto e verificado no local; falta o push e o publicar verde) · Onde: `main` (um push só) · Atualizado: 28/10/2026
+Situação: Concluída em 28/10/2026 (3c0c2cc; run 40760401698 verde; celular só num APK novo) · Onde: `main` (um push só) · Atualizado: 28/10/2026
 
 ## Objetivo
 Na aba Conta do aluno, logo depois da "Foto de perfil", o cartão "Meus dados": o aluno confere e corrige o próprio
@@ -31,13 +31,13 @@ cadastro (telefone, endereço, sexo e, se estiver vazio, CPF). Separado do ciclo
 ## Passos
 - [x] 0. Esta frente registrada (antes do primeiro commit de código) — commit: registro anterior; andamento atualizado em 28/10
 - [x] 1. Publicar verde da J (run 40751695095) e do lote do Dependabot (run 40753524829). Minutos do Actions: conferir de novo antes do push do passo 8 (acima de 90%: deixar pronto e subir a partir de 01/11) — run: 40751695095
-- [x] 2. API: `MeusDadosDoAlunoService` + controller, DTOs, `PUT /aluno/sexo` apagado, auditoria, `ArquiteturaTest` e `@PreAuthorize`; conferir que a exportação LGPD já cobre os campos — commit: —
-- [x] 3. `MeusDadosDoAlunoIntegrationTest` (15 testes): lê e altera só os próprios dados; outro aluno não muda; 422 por campo e endereço parcial; CPF vazio grava; CPF preenchido 409; CPF de outro aluno 409 `ALUNO_CPF_EM_USO`; `versao` velha 409; anonimizado 409 (inativo: ver "Divergências"); auditoria sem valores; treinador vê o valor novo em `GET /alunos/{id}` — commit: —
-- [x] 4. App: regras puras em `dominio/meusDados.ts` (o que é editável, corpo do `PUT`, mensagens) com testes unitários — commit: —
-- [x] 5. App: `aluno/CartaoMeusDados` (fora do `CartaoCiclo.tsx`), com `ui/CamposDeEndereco` (busca de CEP), máscaras de `dominio/cadastroDoAluno`, sexo com `Escolha`, leitura primeiro e "Editar", Salvar/Cancelar, erros por campo e `useAviso`; apagar o `CartaoSexoDaAluna` — commit: —
-- [x] 6. e2e (API falsa, 390 e 1280 px): `cicloHabilitado:false` vê "Meus dados" e nada do ciclo, edita telefone e endereço (CEP preenche), troca o sexo; CPF preenchido só leitura; `cicloHabilitado:true` e Feminino mantém o cartão do ciclo — commit: —
-- [x] 7. Ajuda: `ajuda/conteudo.ts` (guia do aluno) e regenerar os PDFs dos guias; `AGENTS.md` com o item novo "Meus dados" e o ajuste no item do ciclo (o sexo saiu do cartão do ciclo) — commit: —
-- [ ] 8. `mvn verify`, `npm run typecheck`, lint, test, o e2e novo e `npx expo export --platform android` verdes; um push na `main`; "em produção" só com o publicar verde — commit/run: —
+- [x] 2. API: `MeusDadosDoAlunoService` + controller, DTOs, `PUT /aluno/sexo` apagado, auditoria, `ArquiteturaTest` e `@PreAuthorize`; conferir que a exportação LGPD já cobre os campos — commit: 3c0c2cc
+- [x] 3. `MeusDadosDoAlunoIntegrationTest` (15 testes): lê e altera só os próprios dados; outro aluno não muda; 422 por campo e endereço parcial; CPF vazio grava; CPF preenchido 409; CPF de outro aluno 409 `ALUNO_CPF_EM_USO`; `versao` velha 409; anonimizado 409 (inativo: ver "Divergências"); auditoria sem valores; treinador vê o valor novo em `GET /alunos/{id}` — commit: 3c0c2cc
+- [x] 4. App: regras puras em `dominio/meusDados.ts` (o que é editável, corpo do `PUT`, mensagens) com testes unitários — commit: 3c0c2cc
+- [x] 5. App: `aluno/CartaoMeusDados` (fora do `CartaoCiclo.tsx`), com `ui/CamposDeEndereco` (busca de CEP), máscaras de `dominio/cadastroDoAluno`, sexo com `Escolha`, leitura primeiro e "Editar", Salvar/Cancelar, erros por campo e `useAviso`; apagar o `CartaoSexoDaAluna` — commit: 3c0c2cc
+- [x] 6. e2e (API falsa, 390 e 1280 px): `cicloHabilitado:false` vê "Meus dados" e nada do ciclo, edita telefone e endereço (CEP preenche), troca o sexo; CPF preenchido só leitura; `cicloHabilitado:true` e Feminino mantém o cartão do ciclo — commit: 3c0c2cc
+- [x] 7. Ajuda: `ajuda/conteudo.ts` (guia do aluno) e regenerar os PDFs dos guias; `AGENTS.md` com o item novo "Meus dados" e o ajuste no item do ciclo (o sexo saiu do cartão do ciclo) — commit: 3c0c2cc
+- [x] 8. `mvn verify`, `npm run typecheck`, lint, test, o e2e novo e `npx expo export --platform android` verdes; um push na `main`; "em produção" só com o publicar verde — commit: 3c0c2cc, run 40760401698 verde (web e API no ar; celular só num APK novo)
 
 ## Divergências e riscos (28/10): decisão do Gustavo pendente
 - **Conflito entre as decisões 3 e 7 (CPF):** a 3 existe para o aluno não testar CPFs pelo 409 `ALUNO_CPF_EM_USO`; a 7 exige esse 409 no `PUT`. Com o cadastro sem CPF (a maioria), o aluno vê 409 ou 200 a cada CPF enviado, e a rota não tem limite de tentativas. Mitigação que já existe: o primeiro CPF livre responde 200 e fica gravado para sempre (some a janela), então o que vaza é "este CPF é de um aluno desta consultoria?" até o primeiro negativo. Opções: manter, ou `LimiteTentativas` por usuário, ou trocar o 409 por resposta genérica. Está em "Pendências soltas".
