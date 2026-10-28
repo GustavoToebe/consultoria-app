@@ -8,6 +8,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { ExercicioAluno } from '../../../../aluno/ExercicioAluno';
+import { FaixaDoTreino } from '../../../../aluno/FaixaDoTreino';
 import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { useAluno } from '../../../../offline/AlunoProvider';
@@ -106,6 +107,12 @@ export default function ExercicioDaSessao() {
         subtitulo={`${modalidade}Exercício ${posicao + 1} de ${sessao.exercicios.length} · ${nomeDoDia} (${dataCurta(data)})`}
         voltar={voltar}
       />
+      {/* Treino ao vivo (Engajamento 0.3): duração, volume e séries do dia; some com "Concluir treino" desligado. */}
+      {retornoHabilitado ? (
+        <Cartao>
+          <FaixaDoTreino versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={dia.hoje} feitas={feitasNoDia} total={totalNoDia} registroDe={dia.registroDe} />
+        </Cartao>
+      ) : null}
       {/* Topo do último exercício: secundário (o primário é o do rodapé). Em data futura a linha fica só no rodapé. */}
       {!proximo ? <ConcluirTreino {...conclusao} tipo="secundario" /> : null}
       {noGrupo ? (
@@ -136,6 +143,7 @@ export default function ExercicioDaSessao() {
         aoMudarCargaDoDia={(c) => dia.salvarCargaDoDia(e, c)}
         aoRegistrar={registrarSerie}
         recordes={dia.recordesDe(e)}
+        ultimaVez={dia.ultimaVezDe(e)}
         aoIniciarPausa={iniciarDescanso}
         aoCancelarPausa={cancelarDescansoDe}
         chaveDaExecucao={dia.chaveDaExecucao}

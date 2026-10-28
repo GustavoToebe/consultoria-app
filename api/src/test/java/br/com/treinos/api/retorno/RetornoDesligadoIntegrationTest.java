@@ -62,5 +62,6 @@ class RetornoDesligadoIntegrationTest extends AbstractIntegrationTest {
         JsonNode painel = api.get("/aluno/painel", login, 200);
         assertThat(painel.get("treino").isNull()).isFalse();
         assertThat(painel.has("recordes")).isFalse();
+        assertThat(painel.has("anteriores")).isFalse();
     }
 }

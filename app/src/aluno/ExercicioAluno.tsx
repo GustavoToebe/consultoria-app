@@ -3,13 +3,14 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import type { Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
+import type { AnteriorDoExercicio, Configuracao, DemonstracaoDoAluno, EtapaRegistrada, ExercicioPlano, OrigemDaReferencia, Serie, UltimaCarga } from '../api/tipos';
 import { ajustarCarga, calcularCargasDoExercicio, passoDaCarga, usaCargaDeTrabalho, type SerieCalculada } from '../dominio/cargas';
 import { etapasDaSerie } from '../dominio/etapas';
 import { textosDeExecucao } from '../dominio/execucaoDoExercicio';
 import { dataCurta, dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { textoDoRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { repeticaoDaAnterior } from '../dominio/repetirSerie';
+import { anteriorDaSerie, textoDaUltimaVez, textoDoAnterior } from '../dominio/seriesAnteriores';
 import { videoValido } from '../dominio/video';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { useTema } from '../tema/TemaProvider';
@@ -28,6 +29,7 @@ import { Texto } from '../ui/Texto';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
 import { CartaoSerieComEtapas } from './CartaoSerieComEtapas';
 import { CartaoSerieDeCardio } from './CartaoSerieDeCardio';
+import { LinhaDoAnterior } from './LinhaDoAnterior';
 import { SeloComExplicacao } from './SeloComExplicacao';
 import { dicaDaCarga, ehExercicioDeCardio, selosDaSerie, textosDaSerie } from './serieDoAluno';
 
@@ -70,6 +72,8 @@ interface Props {
   descansoNaSerie?: boolean;
   /** Recordes pessoais de cada série nesta data (`serieUid` → recordes; Engajamento 0.2): a medalha no lugar do número. */
   recordes?: Record<string, Recorde[]>;
+  /** A última vez do exercício (coluna "Anterior", Engajamento 0.3); nulo = nunca feito ou chave desligada (sem a linha). */
+  ultimaVez?: AnteriorDoExercicio | null;
 }
 
 /**
@@ -98,6 +102,9 @@ export function ExercicioAluno(p: Props) {
     ...textosDeExecucao(e),
   ];
   const temComoFazer = !!e.observacao || comoFazer.length > 0;
+  const ultima = cardio ? null : (p.ultimaVez ?? null);
+  /** "60 kg × 8" da mesma série da última vez; `null` = sem a linha (nunca feito). */
+  const anterior = (i: number) => (ultima ? textoDoAnterior(anteriorDaSerie(ultima, e, i), semCarga) : null);
 
   const abrirVideo = () => {
     if (!e.videoUrl || !videoValido(e.videoUrl)) return;
@@ -175,6 +182,7 @@ export function ExercicioAluno(p: Props) {
           {feitas} de {e.series.length} feitas
         </Texto>
       </View>
+      {textoDaUltimaVez(ultima) ? <Texto numerico variante="pequeno">{textoDaUltimaVez(ultima)}</Texto> : null}
       {calculadas.map((c, i) =>
         cardio ? (
           <CartaoSerieDeCardio
@@ -197,6 +205,7 @@ export function ExercicioAluno(p: Props) {
             descansoNaSerie={p.descansoNaSerie ?? true}
             registro={p.registroDe(c.serie.uid)}
             execucao={p.chaveDaExecucao(c.serie.uid)}
+            anterior={anterior(i)}
             aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
             aoIniciarPausa={p.aoIniciarPausa}
             aoCancelarPausa={p.aoCancelarPausa}
@@ -217,6 +226,7 @@ export function ExercicioAluno(p: Props) {
             repetir={i > 0 ? repeticaoDaAnterior(e.series[i - 1], c.serie, p.registroDe(e.series[i - 1]!.uid), semCarga) : null}
             ultimaDoExercicio={feitas === e.series.length - 1}
             recordes={p.recordes?.[c.serie.uid] ?? null}
+            anterior={anterior(i)}
             aoRegistrar={(d) => p.aoRegistrar(c.serie.uid, d)}
             aoIniciarPausa={p.aoIniciarPausa}
           />
@@ -242,6 +252,7 @@ function CartaoSerie({
   ultimaDoExercicio,
   aoIniciarPausa,
   recordes,
+  anterior,
 }: {
   calculada: SerieCalculada;
   indice: number;
@@ -264,6 +275,8 @@ function CartaoSerie({
   aoIniciarPausa?: (segundos: number) => void;
   /** Recordes pessoais desta série na data (vazio ou nulo = nenhum). */
   recordes: Recorde[] | null;
+  /** O que foi feito nesta série da última vez ("60 kg × 8" ou "—"); nulo = sem a linha. */
+  anterior: string | null;
 }) {
   const { cores } = useTema();
   // Antes de gravar, a carga acompanha a sugestão até o aluno mexer; as repetições começam vazias.
@@ -326,6 +339,7 @@ function CartaoSerie({
           {recordes.map(textoDoRecorde).join(' · ')}
         </Texto>
       ) : null}
+      {anterior != null ? <LinhaDoAnterior texto={anterior} numero={numero} /> : null}
       {textos.alvoExtra ? <Texto numerico variante="pequeno">Alvo extra: {textos.alvoExtra}</Texto> : null}
       {textos.amrap ? <Texto numerico variante="pequeno">AMRAP: faça o máximo de repetições que conseguir e anote quantas fez.</Texto> : null}
       {textos.tecnica ? (

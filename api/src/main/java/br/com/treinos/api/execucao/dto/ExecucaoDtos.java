@@ -118,13 +118,16 @@ public final class ExecucaoDtos {
 
     /**
      * Tudo o que o app guarda para funcionar sem internet. {@code treino} nulo = sem plano publicado. {@code recordes}
-     * (Engajamento 0.2) só com {@code TREINOS_RETORNO_HABILITADO}: desligada, o campo nem vai no JSON.
+     * (Engajamento 0.2) e {@code anteriores} (coluna "Anterior", 0.3) só com {@code TREINOS_RETORNO_HABILITADO}:
+     * desligada, os campos nem vão no JSON.
      */
     public record PainelAluno(MarcaPublica marca, AlunoNome aluno, TreinoAtual treino,
                               Map<UUID, UltimaCarga> ultimasCargas, ConfiguracaoAluno configuracao, Instant geradoEm,
                               br.com.treinos.api.atualizacoes.AtualizacaoService.Detalhe atualizacao,
                               @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-                              br.com.treinos.api.recordes.RecordesService.RecordesDoPacote recordes) {
+                              br.com.treinos.api.recordes.RecordesService.RecordesDoPacote recordes,
+                              @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+                              br.com.treinos.api.anteriores.SeriesAnterioresService.AnterioresDoPacote anteriores) {
     }
 
     /**

@@ -990,10 +990,36 @@ export interface RecordesDoPacote {
   exercicios: Record<string, MelhoresDoExercicio>;
 }
 
+/** Uma série da última vez (coluna "Anterior", Engajamento 0.3): onde ela fica no exercício e o que foi registrado. */
+export interface SerieAnterior {
+  /** Código do tipo (`WORKING`...). */
+  tipo: string;
+  /** Ordem dentro do tipo no exercício (1 = a primeira série daquele tipo). */
+  ordem: number;
+  carga: number | null;
+  repeticoes: number | null;
+  /** Etapas (Cluster, Rest-pause); nulo = série registrada inteira. */
+  etapas: EtapaRegistrada[] | null;
+}
+
+/** A última vez de um exercício: a data e as séries feitas, na ordem do plano. */
+export interface AnteriorDoExercicio {
+  data: string;
+  series: SerieAnterior[];
+}
+
+/** A última vez de cada exercício da biblioteca antes de `ate` (hoje de Brasília quando o pacote foi gerado). */
+export interface AnterioresDoPacote {
+  ate: string;
+  exercicios: Record<string, AnteriorDoExercicio>;
+}
+
 /** Tudo o que o app guarda para o aluno treinar sem internet. `treino` nulo = sem plano publicado. */
 export interface PainelAluno {
   /** Recordes pessoais (P10): ausente com "Concluir treino" desligado (`TREINOS_RETORNO_HABILITADO`). */
   recordes?: RecordesDoPacote;
+  /** Coluna "Anterior" (Engajamento 0.3): ausente com "Concluir treino" desligado. */
+  anteriores?: AnterioresDoPacote;
   /** Ausente nos pacotes anteriores ao check-in. */
   atualizacao?: Atualizacao | null;
   marca: Marca;

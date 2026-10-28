@@ -28,9 +28,13 @@ public final class IndiceVersao {
      * @param etapas            quantas etapas o aluno registra dentro da série; {@code null} = a série inteira
      * @param simples           conta para recorde pessoal (Engajamento 0.2): série sem técnica nenhuma (cluster, rest-pause,
      *                          drop-set, descritivas...), sem etapas, de exercício com carga em kg e que não é cardio
+     * @param codigo            código do tipo da série ({@code WORKING}...); {@code null} no cardio (que não tem tipo)
+     * @param ordemNoTipo       quantas séries do mesmo código vêm até esta no mesmo exercício (1 = a primeira): é como a
+     *                          coluna "Anterior" (Engajamento 0.3) acha "a mesma série" em outra versão do plano
      */
     public record LocalSerie(UUID sessaoUid, UUID exercicioUid, UUID exercicioId, boolean trabalho, String unidade,
-                             String tipo, int ordem, boolean contaNoProgresso, Integer etapas, boolean simples) {
+                             String tipo, int ordem, boolean contaNoProgresso, Integer etapas, boolean simples,
+                             String codigo, int ordemNoTipo) {
     }
 
     private final UUID alunoId;
@@ -54,14 +58,18 @@ public final class IndiceVersao {
                 // Cardio não tem tipo nem carga: no histórico a série se chama "Cardio" e não leva "kg".
                 boolean cardio = e.deCardio();
                 String unidade = cardio || "nenhuma".equals(e.unidade()) ? "nenhuma" : "kg";
+                Map<String, Integer> porCodigo = new HashMap<>();
                 for (Serie x : e.seriesOuVazio()) {
+                    String codigo = cardio ? null : x.tipo();
+                    int ordemNoTipo = codigo == null ? 0 : porCodigo.merge(codigo, 1, Integer::sum);
                     if (x.uid() != null) {
                         series.put(x.uid(), new LocalSerie(s.uid(), e.uid(), e.exercicioId(), x.deTrabalho(), unidade,
                                 cardio ? CARDIO : nomeDoTipo(metodologia, x.tipo()), ordem++,
                                 !cardio && (x.deTrabalho() || deTrabalhoNaMetodologia(metodologia, x.tipo())),
                                 cardio ? null : x.etapas(),
                                 !cardio && "kg".equals(unidade) && x.etapas() == null
-                                        && (x.tecnica() == null || x.tecnica().tipo() == null)));
+                                        && (x.tecnica() == null || x.tecnica().tipo() == null),
+                                codigo, ordemNoTipo));
                     }
                 }
             }

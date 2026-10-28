@@ -150,4 +150,31 @@ describe('formato do pacote salvo no aparelho', () => {
       expect(pacoteNoFormatoAtual(q)).toBe(false);
     }
   });
+  it('coluna "Anterior" (Engajamento 0.3): ausente aceita; presente, conferida', () => {
+    const p = salvo();
+    p.pacote.anteriores = {
+      ate: '2026-10-22',
+      exercicios: {
+        x1: {
+          data: '2026-10-20',
+          series: [
+            { tipo: 'WORKING', ordem: 1, carga: 60, repeticoes: 8, etapas: null },
+            { tipo: 'WORKING', ordem: 2, carga: null, repeticoes: null, etapas: [{ posicao: 1, repeticoes: 4, carga: 40, situacao: 'FEITA' }] },
+          ],
+        },
+      },
+    };
+    expect(pacoteNoFormatoAtual(p)).toBe(true);
+    for (const ruim of [
+      { exercicios: {} },
+      { ate: '2026-10-22', exercicios: [] },
+      { ate: '2026-10-22', exercicios: { x1: { series: [] } } },
+      { ate: '2026-10-22', exercicios: { x1: { data: '2026-10-20', series: [{ tipo: 'WORKING', carga: 60, repeticoes: 8, etapas: null }] } } },
+      { ate: '2026-10-22', exercicios: { x1: { data: '2026-10-20', series: [{ tipo: 'WORKING', ordem: 1, carga: '60', repeticoes: 8, etapas: null }] } } },
+    ]) {
+      const q = salvo();
+      q.pacote.anteriores = ruim;
+      expect(pacoteNoFormatoAtual(q)).toBe(false);
+    }
+  });
 });

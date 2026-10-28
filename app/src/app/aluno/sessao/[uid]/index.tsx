@@ -10,6 +10,7 @@ import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
 import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
 import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { DatasDaDivisao } from '../../../../aluno/DatasDaDivisao';
+import { FaixaDoTreino } from '../../../../aluno/FaixaDoTreino';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { gruposDaSessao } from '../../../../dominio/combinacoes';
@@ -18,6 +19,7 @@ import { dataParaTela } from '../../../../dominio/formatos';
 import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { descansoSoDoGrupo } from '../../../../dominio/textoDoGrupo';
 import { datasDaSessao, nomeComDia, totalDeSeries } from '../../../../dominio/semana';
+import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTema } from '../../../../tema/TemaProvider';
 import { espaco, RAIO } from '../../../../tema/tokens';
 import { BarraProgresso } from '../../../../ui/BarraProgresso';
@@ -39,6 +41,7 @@ export default function SessaoAluno() {
   const animar = usePrimeiraLista(dia.carregado);
   const reduzido = useMovimentoReduzido();
   const { cores } = useTema();
+  const { retornoHabilitado } = useSessao();
 
   if (!dia.carregado) {
     return (
@@ -77,10 +80,14 @@ export default function SessaoAluno() {
       <Cartao>
         <View style={estilos.linhaResumo}>
           <Selo texto={data === hoje ? `Hoje · ${dataParaTela(data)}` : dataParaTela(data)} tipo="neutro" />
-          <Texto variante="suave" numerico>
-            {feitas} de {contagem(total, 'série feita', 'séries feitas')}
-          </Texto>
+          {/* Com a faixa do treino ao vivo (0.3) as séries feitas já estão nela. */}
+          {retornoHabilitado ? null : (
+            <Texto variante="suave" numerico>
+              {feitas} de {contagem(total, 'série feita', 'séries feitas')}
+            </Texto>
+          )}
         </View>
+        <FaixaDoTreino versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={hoje} feitas={feitas} total={total} registroDe={dia.registroDe} />
         <BarraProgresso feitas={feitas} total={total} />
         {dia.recordesNoDia ? (
           <View style={estilos.recordes}>

@@ -170,6 +170,25 @@ function recordesDoPacote(v: unknown): boolean {
   return v == null || (objeto(v) && typeof v.ate === 'string' && objeto(v.exercicios) && Object.values(v.exercicios).every(melhoresDoExercicio));
 }
 
+const numeroOuNulo = (v: unknown) => v === null || typeof v === 'number';
+
+/** Uma série da última vez: tipo, ordem, números (ou nulos) e as etapas (ou nulo). */
+function serieAnterior(v: unknown): boolean {
+  return (
+    objeto(v) && typeof v.tipo === 'string' && typeof v.ordem === 'number' && numeroOuNulo(v.carga) && numeroOuNulo(v.repeticoes) &&
+    (v.etapas == null || lista(v.etapas, (e) => objeto(e) && typeof e.posicao === 'number' && typeof e.situacao === 'string'))
+  );
+}
+
+/** Coluna "Anterior" do pacote (Engajamento 0.3): ausente com a chave desligada; presente, com o corte e um objeto por exercício. */
+function anterioresDoPacote(v: unknown): boolean {
+  return (
+    v == null ||
+    (objeto(v) && typeof v.ate === 'string' && objeto(v.exercicios) &&
+      Object.values(v.exercicios).every((a) => objeto(a) && typeof a.data === 'string' && lista(a.series, serieAnterior)))
+  );
+}
+
 /**
  * Aceita somente a estrutura atual (série com `carga`/`esforco`, `tipo` em código, grupos na sessão, combinações na
  * metodologia). Pacote ilegível é descartado e baixado de novo, sem conversão e sem apagar a fila.
@@ -178,7 +197,7 @@ export function pacoteNoFormatoAtual(v: unknown): v is PacoteSalvo {
   if (!objeto(v) || typeof v.salvoEm !== 'string' || !objeto(v.pacote)) return false;
   const p = v.pacote;
   if (!objeto(p.configuracao) || typeof p.configuracao.tipoTrabalho !== 'string' || typeof p.configuracao.arredondamentoKg !== 'number') return false;
-  if (!recordesDoPacote(p.recordes)) return false;
+  if (!recordesDoPacote(p.recordes) || !anterioresDoPacote(p.anteriores)) return false;
   if (p.treino === null) return true;
   if (!objeto(p.treino) || !objeto(p.treino.conteudo)) return false;
   const c = p.treino.conteudo;

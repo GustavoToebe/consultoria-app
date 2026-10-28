@@ -11,6 +11,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { hojeIso } from '../dominio/formatos';
 import { recordesDoExercicio, seriesComRecorde, type Recorde } from '../dominio/recordesPessoais';
 import { podeRegistrarEm } from '../dominio/semana';
+import { ultimaVez } from '../dominio/seriesAnteriores';
 import { useAluno } from '../offline/AlunoProvider';
 import { useSessao } from '../sessao/SessaoProvider';
 import { descansoAoMarcar } from './descansoDoGrupo';
@@ -80,6 +81,12 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
   /** Séries com recorde no dia (a contagem do resumo). */
   const recordesNoDia = sessao ? seriesComRecorde(sessao.exercicios.map((e) => recordesDe(e))) : 0;
 
+  // Coluna "Anterior" (Engajamento 0.3): a última vez de cada exercício, do pacote e do que o app conhece desta versão.
+  const anterioresDoPacote = retornoHabilitado ? aluno.pacote?.pacote.anteriores : undefined;
+  const exerciciosDaVersao = treino ? normalizarTreino(treino.conteudo).sessoes.flatMap((ss) => ss.exercicios) : [];
+  const ultimaVezDe = (e: ExercicioPlano) =>
+    treino ? ultimaVez({ anteriores: anterioresDoPacote, exercicio: e, versaoId: treino.versaoId, data, registros: aluno.registros, exerciciosDaVersao }) : null;
+
   /** Grava a série e devolve os recordes que ela bate (vazio se nenhum), para a tela avisar na hora. */
   const registrar = (e: ExercicioPlano, serieUid: string, d: DadosSerie): Recorde[] => {
     if (!treino || !sessao) return [];
@@ -130,6 +137,7 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
     registrar,
     recordesDe,
     recordesNoDia,
+    ultimaVezDe,
     chaveDaExecucao,
     salvarCargaDoDia: (e: ExercicioPlano, carga: number | null) => void aluno.salvarCargaDeTrabalho(e.uid, data, carga),
   };

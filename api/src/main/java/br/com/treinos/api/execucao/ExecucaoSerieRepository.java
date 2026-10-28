@@ -14,6 +14,9 @@ public interface ExecucaoSerieRepository extends JpaRepository<ExecucaoSerie, UU
     record UltimoRegistro(UUID alunoId, LocalDate data) {
     }
 
+    record UltimaVez(UUID exercicioId, LocalDate data) {
+    }
+
     List<ExecucaoSerie> findByAlunoIdAndDataBetweenOrderByDataDesc(UUID alunoId, LocalDate de, LocalDate ate);
 
     @Query("select new br.com.treinos.api.execucao.ExecucaoSerieRepository$UltimoRegistro(e.alunoId, max(e.data)) "
@@ -33,6 +36,16 @@ public interface ExecucaoSerieRepository extends JpaRepository<ExecucaoSerie, UU
      */
     List<ExecucaoSerie> findByAlunoIdAndExercicioIdInAndConcluidaTrueAndCargaNotNullAndRepeticoesNotNullAndEtapasIsNullAndDataBefore(
             UUID alunoId, Collection<UUID> exercicioIds, LocalDate ate);
+
+    /** Coluna "Anterior" (Engajamento 0.3): a última data, antes de {@code ate}, com série feita de cada exercício. */
+    @Query("select new br.com.treinos.api.execucao.ExecucaoSerieRepository$UltimaVez(e.exercicioId, max(e.data)) "
+            + "from ExecucaoSerie e where e.alunoId = :alunoId and e.exercicioId in :exercicioIds and e.concluida = true "
+            + "and e.data < :ate group by e.exercicioId")
+    List<UltimaVez> ultimaVezDosExercicios(UUID alunoId, Collection<UUID> exercicioIds, LocalDate ate);
+
+    /** As séries feitas desses exercícios nessas datas (quem chama casa exercício e data). */
+    List<ExecucaoSerie> findByAlunoIdAndExercicioIdInAndConcluidaTrueAndDataIn(
+            UUID alunoId, Collection<UUID> exercicioIds, Collection<LocalDate> datas);
 
     List<ExecucaoSerie> findTop300ByOrderByRecebidoEmDesc();
 }
