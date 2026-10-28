@@ -13,6 +13,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   INSCRICAO_ACEITA:'Inscrição aceita (aluno cadastrado)',INSCRICAO_RECUSADA:'Inscrição recusada',INSCRICAO_ALTERADA:'Andamento da inscrição alterado',
   INSCRICAO_PAGAMENTO_CONFIRMADO:'Pagamento da inscrição confirmado (manual)',INSCRICAO_NOTA_ADICIONADA:'Nota da inscrição',
   INSCRICAO_CONFIGURACAO_ALTERADA:'Link de inscrição alterado',INSCRICAO_LINK_RENOVADO:'Novo link de inscrição gerado',
+  COMPROMISSO_CRIADO:'Compromisso marcado na agenda',COMPROMISSO_ALTERADO:'Compromisso da agenda alterado',COMPROMISSO_SITUACAO_ALTERADA:'Situação de compromisso da agenda alterada',
   PASTA_CRIADA:'Pasta criada',PASTA_REPLICADA:'Pasta replicada',PASTA_FINALIZADA:'Pasta finalizada',PASTA_QUESTIONARIO_ALTERADO:'Questionário da pasta alterado',
   QUESTIONARIO_CRIADO:'Questionário criado',QUESTIONARIO_PUBLICADO:'Questionário publicado',QUESTIONARIO_DUPLICADO:'Questionário duplicado',
   QUESTIONARIO_PADRAO_ALTERADO:'Questionário padrão alterado',QUESTIONARIO_ARQUIVADO:'Questionário arquivado',QUESTIONARIO_DESARQUIVADO:'Questionário desarquivado',QUESTIONARIO_EXCLUIDO:'Questionário excluído',

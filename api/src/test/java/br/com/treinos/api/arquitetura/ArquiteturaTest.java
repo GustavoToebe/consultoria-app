@@ -171,7 +171,9 @@ class ArquiteturaTest {
                                 "AlunoExercicioController",
                                 // "Meus dados" (cadastro, telefone, endereço, sexo e CPF vazio) e ciclo da própria aluna (hasRole ALUNO, sempre a da sessão).
                                 // A leitura do treinador declara PERM_ALUNO_LER e PERM_ALUNO_SENSIVEL_LER.
-                                "MeusDadosDoAlunoController", "CicloAlunoController").contains(c.getSimpleName())))
+                                "MeusDadosDoAlunoController", "CicloAlunoController",
+                                // Próximos compromissos da agenda presencial do próprio aluno (hasRole ALUNO, sempre o da sessão, só leitura).
+                                "AlunoCompromissosController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

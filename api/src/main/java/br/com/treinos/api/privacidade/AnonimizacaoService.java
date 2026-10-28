@@ -58,6 +58,7 @@ public class AnonimizacaoService {
     private final br.com.treinos.api.anamneses.AnamneseService anamneses;
     private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
+    private final br.com.treinos.api.agenda.AgendaService agenda;
 
     public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
@@ -66,7 +67,9 @@ public class AnonimizacaoService {
                                FotoService fotos, FotoPerfilService fotoPerfil, InscricaoDoAluno inscricao,
                                br.com.treinos.api.anamneses.AnamneseService anamneses,
                                br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos,
-                               br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
+                               br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
+                               br.com.treinos.api.agenda.AgendaService agenda) {
+        this.agenda = agenda;
         this.anamneses = anamneses;
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
@@ -141,6 +144,8 @@ public class AnonimizacaoService {
         // A inscrição pelo link que virou este aluno (nome, contato, objetivo e notas) sai inteira.
         inscricao.apagarDoAluno(alunoId);
         ciclo.apagarNaAnonimizacao(alunoId);
+        // Compromissos da agenda presencial (data, local e a observação da equipe) saem todos.
+        agenda.apagarDoAluno(consultoriaId, alunoId);
         // Contratação encerrada, abertas canceladas e o texto livre do treinador sobre a cobrança apagado; valores ficam.
         pagamentos.encerrarPorSaida(alunoId);
         pagamentos.apagarDoAluno(alunoId);

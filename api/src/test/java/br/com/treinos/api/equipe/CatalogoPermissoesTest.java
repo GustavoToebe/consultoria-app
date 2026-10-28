@@ -55,4 +55,13 @@ class CatalogoPermissoesTest {
                 .containsExactlyInAnyOrder("FINANCEIRO_ALTERAR","FINANCEIRO_LER","ALUNO_LER");
         assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("FINANCEIRO_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
     }
+    @Test void agendaNaoESensivelEAlterarDependeDeLerQueDependeDeLerAluno() {
+        assertThat(CatalogoPermissoes.CATALOGO).filteredOn(p -> p.codigo().startsWith("AGENDA_"))
+                .extracting(CatalogoPermissoes.Permissao::codigo,CatalogoPermissoes.Permissao::sensivel)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("AGENDA_LER",false),org.assertj.core.groups.Tuple.tuple("AGENDA_ALTERAR",false));
+        assertThat(CatalogoPermissoes.validar(CatalogoPermissoes.comDependencias(Set.of("AGENDA_ALTERAR"))))
+                .containsExactlyInAnyOrder("AGENDA_ALTERAR","AGENDA_LER","ALUNO_LER");
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("AGENDA_ALTERAR","ALUNO_LER"))).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> CatalogoPermissoes.validar(Set.of("AGENDA_LER"))).isInstanceOf(BadRequestException.class);
+    }
 }
