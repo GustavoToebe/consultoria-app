@@ -5,6 +5,7 @@ import { ativarCiclo, definirSexoDaAluna, eu } from '../api/rotas';
 import {
   AJUDA_MOSTRAR_FASES, faseNaData, hojeDoCiclo, TEXTO_DO_CONSENTIMENTO, textoDaLeitura, VERSAO_CONSENTIMENTO, type ConfigDoCiclo,
 } from '../dominio/cicloMenstrual';
+import { ehCicloDesligado } from '../dominio/cicloDesligado';
 import { OPCOES_DE_SEXO, sexoDoCampo } from '../dominio/sexo';
 import { useSessao } from '../sessao/SessaoProvider';
 import { Botao } from '../ui/Botao';
@@ -76,7 +77,7 @@ function CartaoCicloLigado({ ciclo }: { ciclo: ReturnType<typeof useCicloDaAluna
     setOcupado(true);
     ativarCiclo(VERSAO_CONSENTIMENTO, duracao).then(
       (dados) => { setOcupado(false); setAtivar(false); ciclo.definir(dados); avisar('Acompanhamento ligado.', 'sucesso'); },
-      (e: unknown) => { setOcupado(false); avisar(textoDoErro(e), 'perigo'); },
+      (e: unknown) => { setOcupado(false); if (!ehCicloDesligado(e)) avisar(textoDoErro(e), 'perigo'); },
     );
   };
   return (
