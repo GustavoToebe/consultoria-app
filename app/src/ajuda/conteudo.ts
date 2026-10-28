@@ -3,6 +3,17 @@
  * Só dados, sem imports: o app e o `scripts/guias/gerar.mjs` leem o mesmo arquivo, então o PDF nunca diverge da tela.
  * Descreve o uso do app; não orienta nada sobre saúde, suplementos ou protocolos.
  */
+/**
+ * Frase do guia que só vale com o ciclo menstrual ligado na plataforma: a tela de Ajuda a tira quando está desligado
+ * (`textoDoItem`). O guia em PDF é estático e a mantém.
+ */
+export const FRASE_DO_CICLO = 'Sexo diferente de Feminino desliga o acompanhamento do ciclo.';
+
+/** Texto de um item do guia para a tela: sem a frase do ciclo quando o módulo está desligado. */
+export function textoDoItem(texto: string, cicloHabilitado: boolean): string {
+  return cicloHabilitado ? texto : texto.replace(` ${FRASE_DO_CICLO}`, '').replace(FRASE_DO_CICLO, '').trim();
+}
+
 export type Publico = 'treinador' | 'aluno';
 
 export interface PassoGuia {
@@ -185,7 +196,7 @@ const TREINADOR: Guia = {
         { titulo: 'Mostrar só em alguns casos', texto: 'Numa pergunta (ou numa seção), ligue "Mostrar só conforme uma resposta anterior" e escolha uma pergunta de escolha ou de sim ou não que vem antes, e as respostas que mostram esta. Pergunta escondida não é obrigatória e a resposta dela não é enviada; nas respostas aparece como "Não se aplica".' },
         { titulo: 'Imagens', texto: 'Uma pergunta pode ter uma imagem de referência, e cada opção de escolha também (escalas, aparelhos). Use só imagens suas ou com licença de uso: você responde pelo que envia. Elas ficam guardadas sem os dados de câmera e só aparecem para a sua equipe e para o aluno que responde.' },
         { titulo: 'Enviar ao aluno', texto: 'Na ficha do aluno, no cartão Anamnese, toque em Enviar anamnese e escolha uma publicada. O aluno vê "Responda sua anamnese" no início do app e responde logado, no celular ou na web, aos poucos (o rascunho fica no aparelho). A versão enviada não muda: se você publicar outra, ela vale para os próximos envios. Só uma pode estar aguardando o aluno de cada vez.' },
-        { titulo: 'Pergunta de sexo', texto: 'Na anamnese, numa pergunta de escolha única, ligue "Guardar no sexo do cadastro do aluno". Em cada opção, escolha No cadastro: Masculino, Feminino ou Outro. Uma opção sem valor, como "Prefiro não dizer", não muda o cadastro. Sexo vazio é preenchido no envio; se já houver outro, a mudança fica para revisar na ficha. Aplicar pede a permissão de alterar o aluno. Sexo diferente de Feminino desliga o acompanhamento do ciclo.' },
+        { titulo: 'Pergunta de sexo', texto: `Na anamnese, numa pergunta de escolha única, ligue "Guardar no sexo do cadastro do aluno". Em cada opção, escolha No cadastro: Masculino, Feminino ou Outro. Uma opção sem valor, como "Prefiro não dizer", não muda o cadastro. Sexo vazio é preenchido no envio; se já houver outro, a mudança fica para revisar na ficha. Aplicar pede a permissão de alterar o aluno. ${FRASE_DO_CICLO}` },
         { titulo: 'Respostas no cadastro do aluno', texto: 'Ligue o destino da pergunta: na de Peso, o registro de peso; na de Texto curto, o Objetivo ou o CPF do cadastro; na de Telefone, o telefone; na de Endereço (só na anamnese), o endereço (completo: CEP, rua, número, cidade e UF; em branco, se a pergunta não for obrigatória); na de escolha única, o Sexo. Cada destino vale uma vez por anamnese; nome e e-mail do aluno nunca mudam por aqui. No peso, escolha a data: a de uma pergunta de data com "Só hoje ou antes" ou a do envio; o aluno vê embaixo da pergunta qual data vale e para onde vai cada resposta. No envio, o que estava vazio no cadastro é preenchido; o que já era igual fica como está; o que é diferente não troca nada e aparece na ficha como "alterações do cadastro para revisar", com Aplicar e Descartar em cada uma. Telefone pede a permissão de alterar aluno; CPF, endereço, objetivo e peso pedem também acesso aos dados sensíveis do aluno. A resposta original continua na anamnese.' },
         { titulo: 'Ver, revisar e dispensar', texto: 'Toque na anamnese do cartão para ver todas as perguntas com as respostas ("—" quando ficou em branco). Depois de ler, toque em Marcar como revisada. Uma que o aluno ainda não respondeu pode ser dispensada, com o motivo; fica registrado quem dispensou. As respostas são dado sensível: só quem tem acesso à anamnese e aos dados sensíveis do aluno as vê. Exportar dados leva as anamneses, e anonimizar apaga as respostas.' },
       ],

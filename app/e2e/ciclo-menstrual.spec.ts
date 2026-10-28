@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 import type { AlunoDetalhe, AnamneseDetalhe, Atualizacao, CicloDaAluna, DiaDeCicloApi, EuResponse, PastaResumo, RegistroDeCicloApi, RegistroPeso } from '../src/api/tipos';
-import { ALUNO, json, MARCA, sessao, simularApi, TREINADOR } from './api-falsa';
+import { ALUNO, erroApi, json, MARCA, sessao, simularApi, TREINADOR } from './api-falsa';
 import { sessaoDeAluno } from './aluno';
 
 const ALUNO_ID = 'a0000000-0000-4000-8000-000000000002';
@@ -126,6 +126,58 @@ for (const largura of [390, 1280]) {
     await expect(page.getByText('Meus dados')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Ciclo menstrual', level: 1 })).toHaveCount(0);
     expect(pedidos.filter((p) => p.caminho.includes('/ciclo'))).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+const MENSAGEM_DESLIGADO = 'O acompanhamento do ciclo não está disponível.';
+
+/** Rotas da Conta do aluno que não são do ciclo, para `naoTratadas` ficar vazio. */
+const ROTAS_DA_CONTA = {
+  'GET /aluno/foto-perfil': erroApi(404, 'Sem foto.', 'NAO_ENCONTRADO'),
+  'GET /aluno/uso-de-imagem': { corpo: { autorizadoEm: null } },
+};
+
+for (const largura of [390, 1280]) {
+  test(`aluno masculino com o ciclo desligado: a Conta não mostra o ciclo nem erro (${largura})`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, { ...ROTAS_DA_CONTA, ...(await rotasDaAluna(page, 'MASCULINO', false)) });
+    await page.goto('/aluno/conta');
+    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByText('Ciclo menstrual', { exact: true })).toHaveCount(0);
+    await expect(page.getByText(MENSAGEM_DESLIGADO)).toHaveCount(0);
+    await expect(page.getByText('Tentar de novo')).toHaveCount(0);
+    expect(pedidos.filter((p) => p.caminho.includes('/ciclo'))).toEqual([]);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  // Causa de 28/10: o perfil dizia "ligado" (ligado em 26/10, desligado por chave em 27/10) e a rota respondia 503.
+  test(`/eu diz ligado mas o ciclo responde 503 de módulo desligado: sem cartão vermelho e a tela volta para a Conta (${largura})`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, errosDaPagina, naoTratadas } = await simularApi(page, {
+      ...ROTAS_DA_CONTA,
+      ...(await rotasDaAluna(page, 'MASCULINO', true)),
+      'GET /aluno/ciclo': erroApi(503, MENSAGEM_DESLIGADO, 'CICLO_INDISPONIVEL_NO_APP'),
+    });
+    await page.goto('/aluno/conta');
+    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect.poll(() => pedidos.filter((p) => p.caminho === '/aluno/ciclo').length).toBeGreaterThan(0);
+    // O 503 desligou a chave também no perfil salvo (o salvo não pode manter o ciclo ligado). Esperar isso garante que a
+    // resposta já foi processada antes das conferências de "não aparece".
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('treinos:perfil') ?? '{}').cicloHabilitado)).toBe(false);
+    await expect(page.getByText(MENSAGEM_DESLIGADO)).toHaveCount(0);
+    await expect(page.getByText('Tentar de novo')).toHaveCount(0);
+    await expect(page.getByText('Ciclo menstrual', { exact: true })).toHaveCount(0);
+
+    // Endereço digitado: o 503 desliga a chave e a tela volta para a Conta, sem mostrar o erro.
+    await page.goto('/aluno/ciclo');
+    await expect(page).toHaveURL(/\/aluno\/conta$/);
+    await expect(page.getByText('Meus dados')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ciclo menstrual', level: 1 })).toHaveCount(0);
+    await expect(page.getByText(MENSAGEM_DESLIGADO)).toHaveCount(0);
+    await expect(page.getByText('Tentar de novo')).toHaveCount(0);
+    expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });
 }

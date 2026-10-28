@@ -15,6 +15,7 @@ import {
   umaPorVez,
 } from '@plataforma/web';
 
+import { ehCicloDesligado } from '../dominio/cicloDesligado';
 import { apagarRefresh, lerRefresh, salvarRefresh } from '../sessao/armazenamentoSeguro';
 import type { LoginResponse } from './tipos';
 
@@ -60,6 +61,7 @@ function base(): string {
 
 let accessToken: string | null = null;
 let aoEncerrarSessao: (() => void) | null = null;
+let aoCicloDesligadoSessao: (() => void) | null = null;
 /** Quem está com a sessão aberta nesta aba; a renovação que devolve outra pessoa não é aceita. */
 let usuarioEsperado: string | null = null;
 let recusaPorTroca = false;
@@ -67,6 +69,14 @@ let recusaPorTroca = false;
 /** O SessaoProvider é avisado quando o refresh falha no meio do uso. */
 export function aoEncerrar(callback: (() => void) | null) {
   aoEncerrarSessao = callback;
+}
+
+/**
+ * O SessaoProvider é avisado quando uma rota do ciclo responde 503 `CICLO_INDISPONIVEL_NO_APP` (módulo desligado na
+ * plataforma, com o perfil salvo ainda dizendo que estava ligado). O erro continua sendo lançado para quem chamou.
+ */
+export function aoCicloDesligado(callback: (() => void) | null) {
+  aoCicloDesligadoSessao = callback;
 }
 
 export async function guardarSessao(resposta: LoginResponse): Promise<void> {
@@ -138,18 +148,25 @@ export interface Opcoes {
 
 export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promise<T> {
   // Também sem access em memória: a sessão pode ter aberto sem internet e ter refresh guardado.
-  const resposta = await comRenovacao(() => enviar(caminho, opcoes), {
-    deveRenovar: async (r) => {
-      if (r.status !== 401 || opcoes.semRenovar) {
-        return false;
-      }
-      const { codigo } = corpoDoErro(await lerCorpo(r.clone()), r.status);
-      return deveRenovar({ status: r.status, codigo }, { codigosSemRenovar: CODIGOS_SEM_REPETICAO });
-    },
-    renovar: async () => (await renovarSessao()) !== null,
-    aoEncerrar: () => aoEncerrarSessao?.(),
-  });
-  return tratar<T>(resposta, opcoes);
+  try {
+    const resposta = await comRenovacao(() => enviar(caminho, opcoes), {
+      deveRenovar: async (r) => {
+        if (r.status !== 401 || opcoes.semRenovar) {
+          return false;
+        }
+        const { codigo } = corpoDoErro(await lerCorpo(r.clone()), r.status);
+        return deveRenovar({ status: r.status, codigo }, { codigosSemRenovar: CODIGOS_SEM_REPETICAO });
+      },
+      renovar: async () => (await renovarSessao()) !== null,
+      aoEncerrar: () => aoEncerrarSessao?.(),
+    });
+    return await tratar<T>(resposta, opcoes);
+  } catch (erro) {
+    if (ehCicloDesligado(erro)) {
+      aoCicloDesligadoSessao?.();
+    }
+    throw erro;
+  }
 }
 
 const NOME_TRAVA_RENOVACAO = 'treinos:renovacao';
