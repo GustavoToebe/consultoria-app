@@ -57,6 +57,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
     private final JsonMapper json;
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
+    private final br.com.treinos.api.agenda.AgendaService agenda;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -65,7 +66,9 @@ public class ExportacaoService {
                              FotoService fotos, FotoPerfilService fotoPerfil,
                              br.com.treinos.api.anamneses.AnamneseService anamneses, InscricaoDoAluno inscricao,
                              br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos, JsonMapper json,
-                             br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
+                             br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
+                             br.com.treinos.api.agenda.AgendaService agenda) {
+        this.agenda = agenda;
         this.anamneses = anamneses;
         this.inscricao = inscricao;
         this.pagamentos = pagamentos;
@@ -121,9 +124,11 @@ public class ExportacaoService {
         if (cicloMenstrual == null) {
             omitidas.add("cicloMenstrual");
         }
+        // Compromissos da agenda presencial (com a observação da equipe), com quem lê a agenda (AGENDA_LER).
+        var compromissos = secao(AcessoAtual.pode("AGENDA_LER"), "compromissos", omitidas, () -> agenda.exportar(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
-                cicloMenstrual);
+                cicloMenstrual, compromissos);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {
