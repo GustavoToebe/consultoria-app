@@ -92,6 +92,7 @@ export const DESTINOS: readonly Destino[] = [
       campo('fonte', 'Fonte', false, []),
       campo('fc', 'FC', false, ['fator de correcao', 'fator correcao']),
       campo('fcc', 'FCc', false, ['fator de coccao', 'fator coccao']),
+      campo('grupo', 'Grupo', false, ['grupo do alimento', 'categoria']),
     ],
   },
   {

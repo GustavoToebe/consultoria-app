@@ -1,7 +1,8 @@
 import type { Marca } from '../api/tipos';
 import { dataHoraParaTela, numeroParaTela } from '../dominio/formatos';
 import { NOTA_DA_LISTA, NOTA_DA_PREVIA, quantidadeParaTela, textoDoPeriodo, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
-import { textoDaOrigem, type ItemDaListaDoAluno } from '../dominio/listaDeComprasDoAluno';
+import { agruparLista, tituloDoGrupoNoPdf, type GrupoDaLista } from '../dominio/gruposDaLista';
+import { gruposDoAluno, textoDaOrigem, type ItemDaListaDoAluno } from '../dominio/listaDeComprasDoAluno';
 import { cssBase, esc, topo, type Documento } from './html';
 
 export interface DadosPdfListaDeCompras {
@@ -38,43 +39,51 @@ const celula = (texto: string) => esc(texto);
 const fatorNaTabela = (n: number | null | undefined) => (n == null ? '—' : numeroParaTela(n, 2));
 
 /**
- * Corpo da tabela da lista. Sem colunas de fator, é a tabela de hoje (caixa, alimento, quantidade).
- * Com colunas, mostra o que a dieta pediu, o FCc, o cru, o FC e o que comprar. Fator ausente ou divergente é "—".
+ * Linhas da tabela com uma faixa por grupo do alimento ("Carnes e derivados (3)"), na ordem de `agruparLista` (grupos
+ * em ordem alfabética, "Outros itens" e "Adicionados por você" no fim). Estilo em linha para valer também no PDF da
+ * dieta, que tem o próprio CSS.
  */
-export function corpoDaTabela(linhas: LinhaDaLista[], mostrarFatores: boolean): string {
-  if (!mostrarFatores) {
-    return linhas
-      .map(
-        (l) => `<tr><td class="marca"><span class="caixa"></span></td><td>${esc(l.nome)}${l.cru ? ' <span class="suave">(cru)</span>' : ''}</td><td class="qtd">${esc(quantidadeParaTela(l.quantidade, l.unidade))}</td></tr>`,
-      )
-      .join('');
-  }
-  return linhas
-    .map((l) => {
-      const comprar = `${quantidadeParaTela(l.quantidade, l.unidade)}${l.semFator ? ' (como na dieta)' : ''}`;
-      const cru = l.quantidadeCru == null ? '—' : quantidadeParaTela(l.quantidadeCru, l.unidade);
-      const naDieta = l.naDieta == null ? '—' : quantidadeParaTela(l.naDieta, l.unidade);
-      return `<tr><td>${esc(l.nome)}</td><td class="qtd">${celula(naDieta)}</td><td>${celula(fatorNaTabela(l.fatorCoccao))}</td><td class="qtd">${celula(cru)}</td><td>${celula(fatorNaTabela(l.fatorCorrecao))}</td><td class="qtd">${celula(comprar)}</td><td class="marca"><span class="caixa"></span></td></tr>`;
-    })
+function emGrupos<T>(grupos: GrupoDaLista<T>[], colunas: number, linha: (item: T) => string): string {
+  return grupos
+    .map((g) => `<tr class="grupo"><td colspan="${colunas}" style="font-weight:700;background:#f2f2f2;">${esc(tituloDoGrupoNoPdf(g))}</td></tr>${g.itens.map(linha).join('')}`)
     .join('');
 }
 
 /**
- * Corpo da tabela da lista do aluno (caixa, alimento, quantidade): o calculado como na tabela simples; o ajustado com a
- * quantidade dele e o calculado ao lado; o avulso com o que ele escreveu ("—" sem quantidade). Ajuste e avulso levam a
- * marca "ajustado por você" / "adicionado por você".
+ * Corpo da tabela da lista, agrupado pelo grupo do alimento. Sem colunas de fator, é a tabela de hoje (caixa, alimento,
+ * quantidade). Com colunas, mostra o que a dieta pediu, o FCc, o cru, o FC e o que comprar. Fator ausente ou divergente
+ * é "—".
+ */
+export function corpoDaTabela(linhas: LinhaDaLista[], mostrarFatores: boolean): string {
+  const grupos = agruparLista(linhas, (l) => l.grupo);
+  if (!mostrarFatores) {
+    return emGrupos(grupos, 3,
+      (l) => `<tr><td class="marca"><span class="caixa"></span></td><td>${esc(l.nome)}${l.cru ? ' <span class="suave">(cru)</span>' : ''}</td><td class="qtd">${esc(quantidadeParaTela(l.quantidade, l.unidade))}</td></tr>`,
+    );
+  }
+  return emGrupos(grupos, 7, (l) => {
+    const comprar = `${quantidadeParaTela(l.quantidade, l.unidade)}${l.semFator ? ' (como na dieta)' : ''}`;
+    const cru = l.quantidadeCru == null ? '—' : quantidadeParaTela(l.quantidadeCru, l.unidade);
+    const naDieta = l.naDieta == null ? '—' : quantidadeParaTela(l.naDieta, l.unidade);
+    return `<tr><td>${esc(l.nome)}</td><td class="qtd">${celula(naDieta)}</td><td>${celula(fatorNaTabela(l.fatorCoccao))}</td><td class="qtd">${celula(cru)}</td><td>${celula(fatorNaTabela(l.fatorCorrecao))}</td><td class="qtd">${celula(comprar)}</td><td class="marca"><span class="caixa"></span></td></tr>`;
+  });
+}
+
+/**
+ * Corpo da tabela da lista do aluno (caixa, alimento, quantidade), agrupado como a tela (`gruposDoAluno`): o calculado
+ * como na tabela simples; o ajustado com a quantidade dele e o calculado ao lado; o avulso com o que ele escreveu ("—"
+ * sem quantidade), no grupo "Adicionados por você". Ajuste e avulso levam a marca "ajustado por você" / "adicionado por
+ * você".
  */
 export function corpoDoAluno(itens: readonly ItemDaListaDoAluno[]): string {
-  return itens
-    .map((i) => {
-      const origem = textoDaOrigem(i.origem);
-      const marca = origem ? ` <span class="suave origem">(${esc(origem.toLowerCase())})</span>` : '';
-      const cru = i.cru ? ' <span class="suave">(cru)</span>' : '';
-      const quantidade = i.origem === 'calculado' && i.linha ? quantidadeParaTela(i.linha.quantidade, i.linha.unidade) : i.quantidade;
-      const calculado = i.origem === 'ajustado' && i.linha ? ` <span class="suave">(calculado: ${esc(quantidadeParaTela(i.linha.quantidade, i.linha.unidade))})</span>` : '';
-      return `<tr><td class="marca"><span class="caixa"></span></td><td>${esc(i.nome)}${cru}${marca}</td><td class="qtd">${esc(quantidade)}${calculado}</td></tr>`;
-    })
-    .join('');
+  return emGrupos(gruposDoAluno(itens), 3, (i) => {
+    const origem = textoDaOrigem(i.origem);
+    const marca = origem ? ` <span class="suave origem">(${esc(origem.toLowerCase())})</span>` : '';
+    const cru = i.cru ? ' <span class="suave">(cru)</span>' : '';
+    const quantidade = i.origem === 'calculado' && i.linha ? quantidadeParaTela(i.linha.quantidade, i.linha.unidade) : i.quantidade;
+    const calculado = i.origem === 'ajustado' && i.linha ? ` <span class="suave">(calculado: ${esc(quantidadeParaTela(i.linha.quantidade, i.linha.unidade))})</span>` : '';
+    return `<tr><td class="marca"><span class="caixa"></span></td><td>${esc(i.nome)}${cru}${marca}</td><td class="qtd">${esc(quantidade)}${calculado}</td></tr>`;
+  });
 }
 
 /** Cabeçalho correspondente a {@link corpoDaTabela}. */

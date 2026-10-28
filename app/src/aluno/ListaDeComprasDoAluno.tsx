@@ -18,6 +18,7 @@ import {
   errosDoAjuste,
   errosDoAvulso,
   gravarAvulso,
+  gruposDoAluno,
   itensDoAluno,
   LIMITE_NOME_AVULSO,
   LIMITE_QUANTIDADE_LIVRE,
@@ -35,12 +36,14 @@ import {
   type ItemAvulso,
   type ItemDaListaDoAluno,
 } from '../dominio/listaDeComprasDoAluno';
+import { contagemDoGrupo } from '../dominio/gruposDaLista';
 import { novoUid } from '../dominio/uid';
 import { espaco, fontes } from '../tema/tokens';
 import { useAviso } from '../ui/Aviso';
 import { BarraProgresso } from '../ui/BarraProgresso';
 import { Botao } from '../ui/Botao';
 import { BotaoMarcar } from '../ui/BotaoMarcar';
+import { CabecalhoDeGrupo } from '../ui/CabecalhoDeGrupo';
 import { Campo } from '../ui/Campo';
 import { Cartao } from '../ui/Cartao';
 import { Esqueleto } from '../ui/Esqueleto';
@@ -69,7 +72,8 @@ type Edicao = { tipo: 'ajuste'; item: ItemDaListaDoAluno } | { tipo: 'avulso'; i
 /**
  * Lista de compras do aluno: a conta da dieta (`listaDeCompras`, a mesma da prévia do treinador) mais o que é dele, só
  * neste aparelho: marcar comprado, ajustar a quantidade de um item e acrescentar itens. Nada disso muda a dieta nem vai
- * ao treinador. Período e opções por refeição também ficam guardados, por versão da dieta.
+ * ao treinador. Período e opções por refeição também ficam guardados, por versão da dieta. Os itens vêm num cartão por
+ * grupo do alimento (`gruposDoAluno`); o "N de M comprados" conta a lista toda.
  */
 export function ListaDeComprasDoAluno({
   conteudo,
@@ -92,6 +96,7 @@ export function ListaDeComprasDoAluno({
   const linhas = listaDeCompras(conteudo, escolhas, periodo);
   const itens = itensDoAluno(linhas, marcacoes);
   const contagem = contagemDeComprados(itens);
+  const grupos = gruposDoAluno(itens);
 
   const limpar = () => {
     const antes = marcacoes.comprados;
@@ -128,24 +133,10 @@ export function ListaDeComprasDoAluno({
       </Cartao>
       <Cartao titulo={tituloDaLista(periodo)}>
         {itens.length ? (
-          <>
-            <View style={estilos.progresso}>
-              <Texto numerico style={estilos.forte} accessibilityLiveRegion="polite">{textoDaContagem(contagem)}</Texto>
-              <BarraProgresso feitas={contagem.comprados} total={contagem.total} />
-            </View>
-            <ListaDeLinhas>
-              {itens.map((item) => (
-                <LinhaDoItem
-                  key={item.chave}
-                  item={item}
-                  ajustando={ajustando}
-                  aoMarcar={() => lista.mudarMarcacoes((m) => alternarComprado(m, item.chave))}
-                  aoAjustar={() => setEdicao(item.avulso ? { tipo: 'avulso', item } : { tipo: 'ajuste', item })}
-                  aoRemover={() => remover(item)}
-                />
-              ))}
-            </ListaDeLinhas>
-          </>
+          <View style={estilos.progresso}>
+            <Texto numerico style={estilos.forte} accessibilityLiveRegion="polite">{textoDaContagem(contagem)}</Texto>
+            <BarraProgresso feitas={contagem.comprados} total={contagem.total} />
+          </View>
         ) : (
           <Vazio titulo="Nada para listar" texto="A dieta não tem itens com quantidade." />
         )}
@@ -159,6 +150,22 @@ export function ListaDeComprasDoAluno({
         <Texto variante="suave">{NOTA_DA_LISTA_ALUNO}</Texto>
         <Texto variante="suave">Marcações, ajustes e itens adicionados ficam só neste aparelho e não mudam a dieta.</Texto>
       </Cartao>
+      {grupos.map((g) => (
+        <Cartao key={g.chave} cabecalho={<CabecalhoDeGrupo titulo={g.titulo} resumo={contagemDoGrupo(g.itens.length)} />}>
+          <ListaDeLinhas>
+            {g.itens.map((item) => (
+              <LinhaDoItem
+                key={item.chave}
+                item={item}
+                ajustando={ajustando}
+                aoMarcar={() => lista.mudarMarcacoes((m) => alternarComprado(m, item.chave))}
+                aoAjustar={() => setEdicao(item.avulso ? { tipo: 'avulso', item } : { tipo: 'ajuste', item })}
+                aoRemover={() => remover(item)}
+              />
+            ))}
+          </ListaDeLinhas>
+        </Cartao>
+      ))}
       <NoPlano funcionalidade="PDF">
         <Botao rotulo="Baixar PDF da lista" tipo="secundario" cheio Icone={FileDown} carregando={gerando} desabilitado={!itens.length} motivo="A lista está vazia." aoTocar={() => void pdf()} />
       </NoPlano>

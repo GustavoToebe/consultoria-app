@@ -12,9 +12,21 @@ function item(uid: string, nome: string, quantidade: number, unidade: ItemDieta[
   };
 }
 
+/** Os títulos dos grupos aparecem de cima para baixo nesta ordem (os cartões ficam empilhados nas duas larguras). */
+async function emOrdemNaTela(page: Page, textos: string[]) {
+  const alturas: number[] = [];
+  for (const texto of textos) {
+    const caixa = await page.getByText(texto, { exact: true }).first().boundingBox();
+    expect(caixa, texto).not.toBeNull();
+    alturas.push(caixa?.y ?? 0);
+  }
+  expect(alturas).toEqual([...alturas].sort((a, b) => a - b));
+}
+
 /**
  * Almoço com duas opções (A: arroz cozido com fator de cocção 2,5 e frango sem fator; B: batata com fator de correção
- * 1,25) e café com opção única (ovos em unidade). Números fictícios, só para conferir a conta da tela.
+ * 1,25) e café com opção única (ovos em unidade). Arroz e frango têm grupo (copiado na publicação); ovo e batata não.
+ * Números fictícios, só para conferir a conta da tela.
  */
 const CONTEUDO: ConteudoDieta = {
   objetivo: null,
@@ -28,7 +40,7 @@ const CONTEUDO: ConteudoDieta = {
     {
       uid: 'almoco', nome: 'Almoço', horario: '12:00', observacao: null,
       opcoes: [
-        { uid: 'almoco-a', rotulo: 'A', itens: [item('arroz', 'Arroz branco cozido', 150, 'g', { fatorCoccao: 2.5 }), item('frango', 'Frango grelhado', 100, 'g')] },
+        { uid: 'almoco-a', rotulo: 'A', itens: [item('arroz', 'Arroz branco cozido', 150, 'g', { fatorCoccao: 2.5, grupo: 'Cereais e derivados' }), item('frango', 'Frango grelhado', 100, 'g', { grupo: 'Carnes e derivados' })] },
         { uid: 'almoco-b', rotulo: 'B', itens: [item('batata', 'Batata cozida', 200, 'g', { fatorCorrecao: 1.25 })] },
       ],
     },
@@ -66,6 +78,10 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await expect(page.getByText('700 g (como na dieta)', { exact: true })).toBeVisible();
   await expect(page.getByText('14 un')).toBeVisible();
 
+  // Agrupada pelo grupo do alimento: grupos em ordem alfabética, "Outros itens" (sem grupo) por último, com a contagem.
+  await emOrdemNaTela(page, ['Carnes e derivados', 'Frango grelhado', 'Cereais e derivados', 'Arroz branco cozido', 'Outros itens', 'Ovo']);
+  await expect(page.getByText('1 item')).toHaveCount(3);
+
   // Mês (30 dias): passa de 1.000 g vira kg, arredondado para cima.
   await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Mês' }).click();
   await expect(page.getByText('Lista do mês')).toBeVisible();
@@ -79,6 +95,10 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await expect(page.getByText('7,50 kg', { exact: true })).toBeVisible();
   await expect(page.getByText('Arroz branco cozido')).toHaveCount(0);
   await expect(page.getByText('cru')).toHaveCount(0);
+  // Sem arroz e frango, os grupos deles somem; batata e ovo ficam em "Outros itens".
+  await expect(page.getByText('Carnes e derivados')).toHaveCount(0);
+  await expect(page.getByText('Cereais e derivados')).toHaveCount(0);
+  await expect(page.getByText('2 itens')).toBeVisible();
 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
@@ -151,6 +171,8 @@ test(`lista de compras do aluno: 2 semanas, comprado, limpar, ajustar, voltar ao
   await expect(page.getByText('2 pacotes', { exact: true })).toBeVisible();
   await expect(page.getByText('Adicionado por você')).toBeVisible();
   await expect(page.getByText('1 de 4 comprados')).toBeVisible();
+  // O item avulso vai para o último grupo, "Adicionados por você", depois de "Outros itens".
+  await emOrdemNaTela(page, ['Cereais e derivados', 'Outros itens', 'Adicionados por você', 'Café']);
   await page.getByRole('button', { name: 'Remover Café' }).click();
   await expect(page.getByText('Adicionado por você')).toHaveCount(0);
   await expect(page.getByText('1 de 3 comprados')).toBeVisible();

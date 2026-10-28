@@ -72,11 +72,11 @@ const PLANILHAS = [
     titulo: 'Alimentos',
     chave: 'nome',
     existentes: 'Ignorar, Completar ou Atualizar',
-    cabecalho: ['Nome', 'Quantidade', 'Unidade', 'Kcal', 'Proteína', 'Carboidrato', 'Gordura', 'Gramas', 'Fonte', 'FC', 'FCc'],
+    cabecalho: ['Nome', 'Quantidade', 'Unidade', 'Kcal', 'Proteína', 'Carboidrato', 'Gordura', 'Gramas', 'Fonte', 'FC', 'FCc', 'Grupo'],
     linhas: [
-      ['Aveia fictícia', '100', 'g', '380', '13', '67', '7', '', 'Tabela fictícia', '', ''],
-      ['Iogurte fictício', '170', 'g', '100', '6', '12', '3', '', '', '', ''],
-      ['Suco fictício', '200', 'ml', '90', '1', '20', '0', '', '', '', ''],
+      ['Aveia fictícia', '100', 'g', '380', '13', '67', '7', '', 'Tabela fictícia', '', '', 'Cereais e derivados'],
+      ['Iogurte fictício', '170', 'g', '100', '6', '12', '3', '', '', '', '', 'Leite e derivados'],
+      ['Suco fictício', '200', 'ml', '90', '1', '20', '0', '', '', '', '', ''],
     ],
     instrucoes: [
       ['Nome', 'Sim', 'Até 160 letras', 'Aveia fictícia'],
@@ -87,6 +87,7 @@ const PLANILHAS = [
       ['Fonte', 'Não', 'Até 200 letras', 'Tabela fictícia'],
       ['FC', 'Não', 'Fator de correção, de 1 a 20. Vazio fica sem fator.', '1,75'],
       ['FCc', 'Não', 'Fator de cocção, de 0,1 a 10. Vazio fica sem fator.', '2,5'],
+      ['Grupo', 'Não', 'Até 60 letras. Agrupa a lista de compras do aluno. Vazio fica em "Outros itens".', 'Cereais e derivados'],
     ],
   },
   {

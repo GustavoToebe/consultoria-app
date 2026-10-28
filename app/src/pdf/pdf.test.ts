@@ -314,11 +314,11 @@ describe('PDF da dieta', () => {
   it('detalhado acrescenta a lista no fim, com colunas ou sem elas', () => {
     const linha = {
       chave: 'a', nome: 'Arroz <script>', unidade: 'g' as const, quantidade: 420, cru: true, bruto: false, semFator: false,
-      naDieta: 1050, quantidadeCru: 420, fatorCorrecao: null, fatorCoccao: 2.5,
+      naDieta: 1050, quantidadeCru: 420, fatorCorrecao: null, fatorCoccao: 2.5, grupo: null,
     };
     const semFator = {
       chave: 'b', nome: 'Frango', unidade: 'g' as const, quantidade: 700, cru: false, bruto: false, semFator: true,
-      naDieta: 700, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null,
+      naDieta: 700, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: null,
     };
     const com = documentoDieta({
       ...base, versao: 1, conteudo: dieta, pesos: [],
@@ -586,8 +586,8 @@ describe('PDF da lista de compras', () => {
       periodo: 'semana',
       opcoes: ['Café <da> manhã: opção B'],
       linhas: [
-        { chave: 'a', nome: 'Arroz <b>cozido</b>', unidade: 'g', quantidade: 1225, cru: true, bruto: false, semFator: false, naDieta: 1050, quantidadeCru: 420, fatorCorrecao: null, fatorCoccao: 2.5 },
-        { chave: 'b', nome: 'Ovo', unidade: 'un', quantidade: 20.5, cru: false, bruto: false, semFator: true, naDieta: 20.5, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null },
+        { chave: 'a', nome: 'Arroz <b>cozido</b>', unidade: 'g', quantidade: 1225, cru: true, bruto: false, semFator: false, naDieta: 1050, quantidadeCru: 420, fatorCorrecao: null, fatorCoccao: 2.5, grupo: null },
+        { chave: 'b', nome: 'Ovo', unidade: 'un', quantidade: 20.5, cru: false, bruto: false, semFator: true, naDieta: 20.5, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: null },
       ],
     });
     expect(d.titulo).toBe('Lista de compras - Aluno <Fictício> - Dieta & ciclo');
@@ -612,8 +612,8 @@ describe('PDF da lista de compras', () => {
 
   it('lista do aluno: ajuste e avulso marcados como dele, caixas vazias mesmo com item comprado; 14 dias no título', () => {
     const linhas = [
-      { chave: 'a', nome: 'Arroz', unidade: 'g' as const, quantidade: 840, cru: true, bruto: false, semFator: false, naDieta: 2100, quantidadeCru: 840, fatorCorrecao: null, fatorCoccao: 2.5 },
-      { chave: 'b', nome: 'Ovo', unidade: 'un' as const, quantidade: 28, cru: false, bruto: false, semFator: true, naDieta: 28, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null },
+      { chave: 'a', nome: 'Arroz', unidade: 'g' as const, quantidade: 840, cru: true, bruto: false, semFator: false, naDieta: 2100, quantidadeCru: 840, fatorCorrecao: null, fatorCoccao: 2.5, grupo: null },
+      { chave: 'b', nome: 'Ovo', unidade: 'un' as const, quantidade: 28, cru: false, bruto: false, semFator: true, naDieta: 28, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: null },
     ];
     let m = ajustarQuantidade(MARCACOES_VAZIAS, 'b', { quantidade: '2', unidade: 'cartelas' });
     m = gravarAvulso(m, { id: 'x', nome: 'Café <moído>', quantidade: null, unidade: null });
@@ -624,6 +624,25 @@ describe('PDF da lista de compras', () => {
     expect(d.corpo).toContain('Ovo <span class="suave origem">(ajustado por você)</span></td><td class="qtd">2 cartelas <span class="suave">(calculado: 28 un)</span></td>');
     expect(d.corpo).toContain('Café &lt;moído&gt; <span class="suave origem">(adicionado por você)</span></td><td class="qtd">—</td>');
     expect(d.corpo.match(/<span class="caixa"><\/span>/g)).toHaveLength(3);
+  });
+
+  it('agrupa pelo grupo do alimento: grupos em ordem alfabética, "Outros itens" e "Adicionados por você" no fim', () => {
+    const linhas = [
+      { chave: 'a', nome: 'Arroz', unidade: 'g' as const, quantidade: 840, cru: false, bruto: false, semFator: true, naDieta: 840, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: 'Cereais e derivados' },
+      { chave: 'b', nome: 'Frango', unidade: 'g' as const, quantidade: 700, cru: false, bruto: false, semFator: true, naDieta: 700, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: 'Carnes <e> derivados' },
+      { chave: 'c', nome: 'Sal', unidade: 'g' as const, quantidade: 35, cru: false, bruto: false, semFator: true, naDieta: 35, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: null },
+    ];
+    const posicoes = (corpo: string, textos: string[]) => textos.map((t) => corpo.indexOf(t));
+    const simples = documentoListaDeCompras({ ...base, periodo: 'semana', opcoes: [], linhas }).corpo;
+    expect(simples).toContain('Carnes &lt;e&gt; derivados (1)');
+    const ordem = posicoes(simples, ['Carnes &lt;e&gt; derivados (1)', 'Frango', 'Cereais e derivados (1)', 'Arroz', 'Outros itens (1)', 'Sal']);
+    expect(ordem.every((p, i) => p > (ordem[i - 1] ?? -1))).toBe(true);
+    expect(simples.match(/<span class="caixa"><\/span>/g)).toHaveLength(3);
+
+    const m = gravarAvulso(MARCACOES_VAZIAS, { id: 'x', nome: 'Café', quantidade: null, unidade: null });
+    const doAluno = documentoListaDeCompras({ ...base, periodo: 'semana', opcoes: [], linhas, itensDoAluno: itensDoAluno(linhas, m) }).corpo;
+    const ordemAluno = posicoes(doAluno, ['Cereais e derivados (1)', 'Outros itens (1)', 'Sal', 'Adicionados por você (1)', 'Café']);
+    expect(ordemAluno.every((p, i) => p > (ordemAluno[i - 1] ?? -1))).toBe(true);
   });
 
   it('lista vazia vira "—"', () => {

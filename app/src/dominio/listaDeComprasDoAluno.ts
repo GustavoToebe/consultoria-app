@@ -5,6 +5,7 @@ import {
   type LinhaDaLista,
   type PeriodoDaLista,
 } from './listaDeCompras';
+import { agruparLista, type GrupoDaLista } from './gruposDaLista';
 
 /**
  * O que o aluno faz na própria lista de compras (pedido do Gustavo em 28/10, com a lista de um concorrente como
@@ -197,6 +198,8 @@ export interface ItemDaListaDoAluno {
   calculado: string | null;
   /** O item calculado foi convertido para cru (vale também quando ajustado: a linha é a mesma). */
   cru: boolean;
+  /** Grupo do alimento (o da linha calculada); `null` sem grupo e no avulso, que vai para "Adicionados por você". */
+  grupo: string | null;
   comprado: boolean;
   /** Linha da conta (nula no avulso), para o formulário de ajuste. */
   linha: LinhaDaLista | null;
@@ -216,6 +219,7 @@ export function itensDoAluno(linhas: readonly LinhaDaLista[], m: MarcacoesDoPeri
       quantidade: ajuste ? textoDaQuantidadeLivre(ajuste) : calculado,
       calculado: ajuste ? calculado : null,
       cru: l.cru,
+      grupo: l.grupo,
       comprado: comprados.has(l.chave),
       linha: l,
       avulso: null,
@@ -228,11 +232,20 @@ export function itensDoAluno(linhas: readonly LinhaDaLista[], m: MarcacoesDoPeri
     quantidade: textoDaQuantidadeLivre(a),
     calculado: null,
     cru: false,
+    grupo: null,
     comprado: comprados.has(chaveDoAvulso(a.id)),
     linha: null,
     avulso: a,
   }));
   return [...calculados, ...avulsos];
+}
+
+/**
+ * Os itens da lista do aluno agrupados como na tela e no PDF (`agruparLista`): grupos do alimento, "Outros itens" e,
+ * por último, os avulsos em "Adicionados por você". O item ajustado continua no grupo do alimento.
+ */
+export function gruposDoAluno(itens: readonly ItemDaListaDoAluno[]): GrupoDaLista<ItemDaListaDoAluno>[] {
+  return agruparLista(itens, (i) => i.grupo, (i) => i.origem === 'avulso');
 }
 
 /** Marca de origem na tela e no PDF; o calculado não tem marca. */
