@@ -46,6 +46,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Link de vídeo da técnica (Rest-pause, Cluster) quando houver vídeo aprovado do Saraiva | Gustavo | análise 2 (A8) |
 | `lock_timeout` no Flyway do módulo auth (exige mudar a biblioteca `plataforma`) | Claude | travas do banco |
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
+| O perfil do aluno não recarrega o `/eu` durante a sessão (`recarregarPerfil` sai cedo). `funcionalidadesDoPlano`, `pagarNoIos`/`pagarNoAndroid` e `pagamentosHabilitados` também só se atualizam ao reabrir o app. Avaliar antes de ligar pagamentos ou o plano aplicado | Claude | frente J (ciclo desligado) |
 | Guia do usuário em PDF (`public/guias`, gerado por `scripts/guias/gerar.mjs`) ainda traz a frase do ciclo na "Pergunta de sexo": regerar com `textoDoItem(..., false)` na próxima vez que os guias forem regerados | Claude | frente J (ciclo desligado) |
 | `AnamneseService.atribuir`: conferir o nome da restrição antes de virar `ANAMNESE_PENDENTE` em `DataIntegrityViolationException` | Claude | anamnese no aceite (1f1aa20) |
 | Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
