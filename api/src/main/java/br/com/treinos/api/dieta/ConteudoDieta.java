@@ -27,6 +27,11 @@ import java.util.function.UnaryOperator;
  * <p>{@code Item.fatorCorrecao}/{@code Item.fatorCoccao} são os fatores do alimento da biblioteca, copiados pelo servidor
  * ao publicar ({@code PlanoDietaService.paraPublicar}) para a versão imutável levar o que o app do aluno precisa para a
  * lista de compras, inclusive sem internet. O que o cliente manda nesses campos não vale: a publicação regrava os dois.
+ *
+ * <p>{@code Refeicao.modoDePreparo} é a receita da refeição (pedido de 28/10): texto livre do treinador, até
+ * {@link #MODO_DE_PREPARO_MAXIMO} caracteres, com as quebras de linha que ele escreveu. Só se guarda e mostra (editor,
+ * dieta do aluno e PDF): o sistema não calcula rendimento, porção nem conversão, e o texto nunca vai a log nem à
+ * auditoria. Copiar, aplicar modelo e replicar levam o campo junto; a anonimização apaga a dieta inteira.
  */
 public record ConteudoDieta(
         @Size(max = 200) String objetivo,
@@ -38,6 +43,9 @@ public record ConteudoDieta(
         @Size(max = 40) List<@Valid @NotNull Suplemento> suplementacao,
         @Size(max = 40) List<@Valid @NotNull Ergogenico> ergogenicos,
         @DecimalMin("0") @DecimalMax("100") BigDecimal aguaLitros) {
+
+    /** Limite do modo de preparo da refeição (o mesmo do app, `MODO_DE_PREPARO_MAXIMO` em `dominio/dieta.ts`). */
+    public static final int MODO_DE_PREPARO_MAXIMO = 2000;
 
     /** Sem a água por dia. */
     public ConteudoDieta(String objetivo, String dataInicio, String profissional, List<Refeicao> refeicoes,
@@ -57,7 +65,13 @@ public record ConteudoDieta(
             @Size(max = 80) String nome,
             @Size(max = 5) String horario,
             @Size(max = 1000) String observacao,
-            @Size(max = 6) List<@Valid @NotNull Opcao> opcoes) {
+            @Size(max = 6) List<@Valid @NotNull Opcao> opcoes,
+            @Size(max = MODO_DE_PREPARO_MAXIMO) String modoDePreparo) {
+
+        /** Sem o modo de preparo (seed, receitas padrão e testes). */
+        public Refeicao(UUID uid, String nome, String horario, String observacao, List<Opcao> opcoes) {
+            this(uid, nome, horario, observacao, opcoes, null);
+        }
 
         public List<Opcao> opcoesOuVazio() {
             return opcoes == null ? List.of() : opcoes;
@@ -151,7 +165,7 @@ public record ConteudoDieta(
         List<Refeicao> novas = refeicoes == null ? null : refeicoes.stream().map(r -> new Refeicao(r.uid(), r.nome(),
                 r.horario(), r.observacao(), r.opcoes() == null ? null : r.opcoes().stream().map(o -> new Opcao(
                         o.uid(), o.rotulo(), o.itens() == null ? null : o.itens().stream().map(troca).toList()))
-                        .toList())).toList();
+                        .toList(), r.modoDePreparo())).toList();
         return new ConteudoDieta(objetivo, dataInicio, profissional, novas, orientacoes, observacoes, suplementacao,
                 ergogenicos, aguaLitros);
     }
@@ -163,7 +177,8 @@ public record ConteudoDieta(
                 r.observacao(), r.opcoesOuVazio().stream().map(o -> new Opcao(novo.get(), o.rotulo(),
                         o.itensOuVazio().stream().map(i -> new Item(novo.get(), i.alimentoId(), i.nome(),
                                 i.quantidade(), i.unidade(), i.kcal(), i.proteina(), i.carboidrato(), i.gordura(),
-                                i.manual(), i.fatorCorrecao(), i.fatorCoccao())).toList())).toList())).toList();
+                                i.manual(), i.fatorCorrecao(), i.fatorCoccao())).toList())).toList(), r.modoDePreparo()))
+                .toList();
         List<Suplemento> suplementos = suplementacaoOuVazio().stream().map(s -> new Suplemento(novo.get(), s.nome(),
                 s.dose(), s.horario(), s.observacao(), s.link())).toList();
         List<Ergogenico> medicacao = ergogenicos == null ? null : ergogenicos.stream().map(e -> new Ergogenico(novo.get(),

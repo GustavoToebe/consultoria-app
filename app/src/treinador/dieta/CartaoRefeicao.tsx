@@ -2,13 +2,22 @@ import { ArrowDown, ArrowUp, PencilLine, Plus, Trash2 } from 'lucide-react-nativ
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { Alimento, ItemDieta, Refeicao, UnidadeAlimento } from '../../api/tipos';
-import { novaOpcao, novoItem, recalcularItem, somar, type Totais } from '../../dominio/dieta';
+import type { Alimento, ItemDieta, OpcaoRefeicao, Refeicao, UnidadeAlimento } from '../../api/tipos';
+import {
+  colunasDasOpcoes,
+  ESPACO_ENTRE_OPCOES,
+  MODO_DE_PREPARO_MAXIMO,
+  modoDePreparoValido,
+  novaOpcao,
+  novoItem,
+  recalcularItem,
+  somar,
+  type Totais,
+} from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { numeroParaTela } from '../../dominio/formatos';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes, RAIO } from '../../tema/tokens';
-import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
 import { Cartao } from '../../ui/Cartao';
 import { Campo } from '../../ui/Campo';
@@ -44,18 +53,24 @@ interface Props {
   aoEscolherAlimento: (opcao: number) => void;
 }
 
-/** Refeição: nome, horário, observação e as opções (A, B...) com os itens e o total de cada opção. */
+/**
+ * Refeição: nome, horário, observação, modo de preparo e as opções (A, B...) com os itens e o total de cada opção.
+ * As opções são alternativas (o aluno escolhe uma; o total do dia usa só a A): ficam lado a lado quando o cartão é largo
+ * (`colunasDasOpcoes`, no PC) e empilhadas no celular, cada uma com o próprio total ("—" no que faltar). Nada é
+ * comparado nem calculado entre elas.
+ */
 export function CartaoRefeicao(p: Props) {
   const { cores } = useTema();
   const r = p.refeicao;
-  const [opcaoAtiva, setOpcaoAtiva] = useState(0);
-  const indice = Math.min(opcaoAtiva, Math.max(0, r.opcoes.length - 1));
-  const opcao = r.opcoes[indice];
+  const [largura, setLargura] = useState(0);
   const mudar = (parcial: Partial<Refeicao>) => p.aoMudar({ ...r, ...parcial });
   const totalA = somar(r.opcoes[0]?.itens ?? []);
   const nItens = r.opcoes[0]?.itens.length ?? 0;
-  const mudarItens = (fn: (itens: ItemDieta[]) => ItemDieta[]) =>
-    mudar({ opcoes: substituir(r.opcoes, indice, { ...opcao, itens: fn(opcao.itens) }) });
+  const colunas = colunasDasOpcoes(largura, r.opcoes.length);
+  const larguraDaColuna = colunas > 1 ? (largura - ESPACO_ENTRE_OPCOES * (colunas - 1)) / colunas : undefined;
+  const mudarItens = (indice: number, fn: (itens: ItemDieta[]) => ItemDieta[]) =>
+    mudar({ opcoes: substituir(r.opcoes, indice, { ...r.opcoes[indice], itens: fn(r.opcoes[indice].itens) }) });
+  const modoDePreparo = r.modoDePreparo ?? '';
 
   return (
     <AlvoDeRolagem chave={r.uid}><Cartao
@@ -85,52 +100,40 @@ export function CartaoRefeicao(p: Props) {
             </View>
           </View>
           <Campo rotulo="Observação (opcional)" valor={r.observacao ?? ''} aoMudar={(t) => mudar({ observacao: t || null })} linhas={2} maxLength={1000} />
-          <Abas
-            abas={r.opcoes.map((o, i) => ({ valor: String(i), rotulo: `Opção ${o.rotulo}` }))}
-            ativa={String(indice)}
-            aoMudar={(v) => setOpcaoAtiva(Number(v))}
+          <Campo
+            rotulo="Modo de preparo (opcional)"
+            valor={modoDePreparo}
+            aoMudar={(t) => mudar({ modoDePreparo: t || null })}
+            linhas={4}
+            maxLength={MODO_DE_PREPARO_MAXIMO}
+            ajuda={`O aluno vê como você escrever, com as quebras de linha. Até ${numeroParaTela(MODO_DE_PREPARO_MAXIMO)} caracteres.`}
+            erro={modoDePreparoValido(modoDePreparo) ? null : `Até ${numeroParaTela(MODO_DE_PREPARO_MAXIMO)} caracteres.`}
           />
-          {opcao ? (
-            <View style={estilos.opcao}>
-              {opcao.itens.length === 0 ? <Texto variante="suave">Nenhum item nesta opção.</Texto> : null}
-              {opcao.itens.map((item, ii) => (
-                <LinhaItem
-                  key={item.uid}
-                  item={item}
-                  comProblema={p.comProblema.has(item.uid)}
-                  aoMudar={(novo) => mudarItens((itens) => substituir(itens, ii, recalcularItem(novo, novo.alimentoId ? p.alimentos.get(novo.alimentoId) : undefined)))}
-                  aoRemover={() => mudarItens((itens) => remover(itens, ii))}
-                  aoMover={(d) => mudarItens((itens) => mover(itens, ii, d))}
-                />
-              ))}
-              <Texto style={estilos.total}>Total da opção {opcao.rotulo}: {textoTotais(somar(opcao.itens))}</Texto>
-              <View style={estilos.botoes}>
-                <Botao rotulo="Adicionar alimento" tipo="secundario" Icone={Plus} aoTocar={() => p.aoEscolherAlimento(indice)} />
-                <Botao rotulo="Item manual" tipo="secundario" Icone={PencilLine} aoTocar={() => mudarItens((itens) => [...itens, novoItem()])} />
-                {r.opcoes.length > 1 ? (
-                  <Botao
-                    rotulo={`Remover opção ${opcao.rotulo}`}
-                    tipo="perigoTexto"
-                    Icone={Trash2}
-                    aoTocar={() => {
-                      setOpcaoAtiva(0);
-                      mudar({ opcoes: remover(r.opcoes, indice) });
-                    }}
-                  />
-                ) : null}
-              </View>
-            </View>
+          {r.opcoes.length > 1 ? (
+            <Texto variante="suave">O aluno escolhe uma das opções. O total do dia usa só a opção {r.opcoes[0].rotulo}.</Texto>
           ) : null}
+          <View style={estilos.opcoes} onLayout={(e) => setLargura(e.nativeEvent.layout.width)}>
+            {r.opcoes.map((opcao, indice) => (
+              <OpcaoDaRefeicao
+                key={opcao.uid}
+                opcao={opcao}
+                largura={larguraDaColuna}
+                varias={r.opcoes.length > 1}
+                comProblema={p.comProblema}
+                alimentos={p.alimentos}
+                aoMudarItens={(fn) => mudarItens(indice, fn)}
+                aoEscolherAlimento={() => p.aoEscolherAlimento(indice)}
+                aoRemover={r.opcoes.length > 1 ? () => mudar({ opcoes: remover(r.opcoes, indice) }) : undefined}
+              />
+            ))}
+          </View>
           <View style={estilos.botoes}>
             {r.opcoes.length < 6 ? (
               <Botao
                 rotulo="Adicionar opção"
                 tipo="secundario"
                 Icone={Plus}
-                aoTocar={() => {
-                  setOpcaoAtiva(r.opcoes.length);
-                  mudar({ opcoes: [...r.opcoes, novaOpcao(r.opcoes)] });
-                }}
+                aoTocar={() => mudar({ opcoes: [...r.opcoes, novaOpcao(r.opcoes)] })}
               />
             ) : null}
             {p.aoSalvarModelo ? <Botao rotulo={rotuloSalvarComo('REFEICAO')} tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : null}
@@ -139,6 +142,53 @@ export function CartaoRefeicao(p: Props) {
         </View>
       ) : null}
     </Cartao></AlvoDeRolagem>
+  );
+}
+
+/** Uma opção da refeição: título, itens, total da opção ("—" no que faltar) e os botões dela. */
+function OpcaoDaRefeicao({
+  opcao,
+  largura,
+  varias,
+  comProblema,
+  alimentos,
+  aoMudarItens,
+  aoEscolherAlimento,
+  aoRemover,
+}: {
+  opcao: OpcaoRefeicao;
+  /** Largura da coluna no PC; sem ela, a opção ocupa a linha toda (celular). */
+  largura: number | undefined;
+  varias: boolean;
+  comProblema: Set<string>;
+  alimentos: Map<string, Alimento>;
+  aoMudarItens: (fn: (itens: ItemDieta[]) => ItemDieta[]) => void;
+  aoEscolherAlimento: () => void;
+  aoRemover?: () => void;
+}) {
+  const { cores } = useTema();
+  return (
+    <View
+      style={[estilos.opcao, varias ? [estilos.opcaoComBorda, { borderColor: cores.borda }] : null, largura ? { width: largura } : estilos.opcaoInteira]}>
+      {varias ? <Texto variante="secao" nivel={3}>Opção {opcao.rotulo}</Texto> : null}
+      {opcao.itens.length === 0 ? <Texto variante="suave">Nenhum item nesta opção.</Texto> : null}
+      {opcao.itens.map((item, ii) => (
+        <LinhaItem
+          key={item.uid}
+          item={item}
+          comProblema={comProblema.has(item.uid)}
+          aoMudar={(novo) => aoMudarItens((itens) => substituir(itens, ii, recalcularItem(novo, novo.alimentoId ? alimentos.get(novo.alimentoId) : undefined)))}
+          aoRemover={() => aoMudarItens((itens) => remover(itens, ii))}
+          aoMover={(d) => aoMudarItens((itens) => mover(itens, ii, d))}
+        />
+      ))}
+      <Texto numerico style={estilos.total}>Total da opção {opcao.rotulo}: {textoTotais(somar(opcao.itens))}</Texto>
+      <View style={estilos.botoes}>
+        <Botao rotulo="Adicionar alimento" tipo="secundario" Icone={Plus} aoTocar={aoEscolherAlimento} />
+        <Botao rotulo="Item manual" tipo="secundario" Icone={PencilLine} aoTocar={() => aoMudarItens((itens) => [...itens, novoItem()])} />
+        {aoRemover ? <Botao rotulo={`Remover opção ${opcao.rotulo}`} tipo="perigoTexto" Icone={Trash2} aoTocar={aoRemover} /> : null}
+      </View>
+    </View>
   );
 }
 
@@ -210,7 +260,10 @@ const estilos = StyleSheet.create({
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-end' },
   nome: { flex: 1, minWidth: 200 },
   horario: { width: 100 },
-  opcao: { gap: espaco(1) },
+  opcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: ESPACO_ENTRE_OPCOES, alignItems: 'flex-start' },
+  opcao: { gap: espaco(1), minWidth: 0 },
+  opcaoInteira: { width: '100%' },
+  opcaoComBorda: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.25) },
   item: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
   nomeItem: { fontFamily: fontes.semi },
   quantidade: { width: 120 },

@@ -1,8 +1,8 @@
 import type { Marca } from '../api/tipos';
-import { dataHoraParaTela, numeroParaTela } from '../dominio/formatos';
+import { numeroParaTela } from '../dominio/formatos';
 import { NOTA_DA_LISTA, NOTA_DA_PREVIA, quantidadeParaTela, textoDoPeriodo, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { textoDaOrigem, type ItemDaListaDoAluno } from '../dominio/listaDeComprasDoAluno';
-import { cssBase, esc, topo, type Documento } from './html';
+import { cabecalhoDoPdf, cssBase, esc, type Documento } from './html';
 
 export interface DadosPdfListaDeCompras {
   marca: Marca;
@@ -91,11 +91,16 @@ export function cabecalhoDaTabela(mostrarFatores: boolean): string {
 export function documentoListaDeCompras(d: DadosPdfListaDeCompras): Documento {
   const linhas = d.itensDoAluno ? corpoDoAluno(d.itensDoAluno) : corpoDaTabela(d.linhas, false);
   const corpo = [
-    topo(d.marca, d.logoDataUri, [
-      ...(d.aluno ? [`Aluno: ${d.aluno}`] : []),
-      d.versao ? `${d.titulo} (v${d.versao})` : `${d.titulo} (prévia, não publicada)`,
-      `Emitido em ${dataHoraParaTela(d.emitidoEm.toISOString())}`,
-    ]),
+    cabecalhoDoPdf({
+      marca: d.marca,
+      logoDataUri: d.logoDataUri,
+      documento: 'Lista de compras',
+      titulo: d.titulo,
+      versao: d.versao,
+      semVersao: 'prévia, não publicada',
+      aluno: d.aluno,
+      emitidoEm: d.emitidoEm,
+    }),
     `<h2>Lista de compras — ${esc(textoDoPeriodo(d.periodo))}</h2>`,
     d.opcoes.length ? `<div class="pequeno">${d.opcoes.map(esc).join(' · ')}</div>` : '',
     linhas

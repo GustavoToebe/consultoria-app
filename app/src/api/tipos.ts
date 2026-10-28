@@ -711,7 +711,14 @@ export interface Refeicao {
   nome: string;
   horario: string | null;
   observacao: string | null;
+  /** Alternativas da refeição: o aluno escolhe uma (o total do dia usa só a primeira). */
   opcoes: OpcaoRefeicao[];
+  /**
+   * Modo de preparo (receita) que o treinador escreveu: texto livre até 2000 caracteres, com as quebras de linha.
+   * Só se mostra; nada é calculado (sem rendimento, porção nem conversão). Nulo ou ausente = não aparece (opcional no
+   * tipo para as fixtures que não o têm; `normalizarDieta` sempre o preenche).
+   */
+  modoDePreparo?: string | null;
 }
 
 export interface Suplemento {

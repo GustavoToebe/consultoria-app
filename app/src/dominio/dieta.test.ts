@@ -1,5 +1,5 @@
 import type { Alimento, ConteudoDieta, ItemDieta } from '../api/tipos';
-import { aguaValida, itensSemValorNoTotal, normalizarDieta, novoItem, recalcularItem, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
+import { aguaValida, aplicarReceitaDeDieta, colunasDasOpcoes, itensSemValorNoTotal, MODO_DE_PREPARO_MAXIMO, modoDePreparoParaMostrar, modoDePreparoValido, novaRefeicao, textoEscolhaDasOpcoes, normalizarDieta, novoItem, recalcularItem, somar, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from './dieta';
 import { dataDaTela, dataParaTela, mascaraData, numeroDaTela, numeroParaTela } from './formatos';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
@@ -124,5 +124,50 @@ describe('total do dia incompleto', () => {
   it('valor ausente não leva unidade', () => {
     expect(textoDoMacro('Proteína', null, 'g')).toBe('Proteína —');
     expect(textoDoMacro('Proteína', 180.25, 'g')).toBe('Proteína 180,3 g');
+  });
+});
+
+describe('modo de preparo da refeição (28/10)', () => {
+  it('é opcional, vai até 2000 caracteres e o que só tem espaços não aparece', () => {
+    expect(MODO_DE_PREPARO_MAXIMO).toBe(2000);
+    expect(modoDePreparoValido(null)).toBe(true);
+    expect(modoDePreparoValido('x'.repeat(2000))).toBe(true);
+    expect(modoDePreparoValido('x'.repeat(2001))).toBe(false);
+    expect(modoDePreparoParaMostrar('  \n ')).toBeNull();
+    expect(modoDePreparoParaMostrar(undefined)).toBeNull();
+    expect(modoDePreparoParaMostrar('Cozinhe.\nSirva.')).toBe('Cozinhe.\nSirva.');
+  });
+
+  it('a normalização guarda o texto com as quebras e preenche nulo quando falta', () => {
+    const c = normalizarDieta({ refeicoes: [{ nome: 'Almoço', modoDePreparo: 'Linha 1\nLinha 2', opcoes: [] }, { nome: 'Jantar', opcoes: [] }] });
+    expect(c.refeicoes[0].modoDePreparo).toBe('Linha 1\nLinha 2');
+    expect(c.refeicoes[1].modoDePreparo).toBeNull();
+    expect(novaRefeicao('Ceia').modoDePreparo).toBeNull();
+  });
+
+  it('a refeição pronta (receita) leva o modo de preparo para o plano', () => {
+    const atual = normalizarDieta({ refeicoes: [] });
+    const receita = { refeicoes: [{ uid: 'r', nome: 'Almoço', modoDePreparo: 'Asse por 20 min.', opcoes: [{ uid: 'o', rotulo: 'A', itens: [] }] }] };
+    expect(aplicarReceitaDeDieta(atual, receita).refeicoes[0].modoDePreparo).toBe('Asse por 20 min.');
+  });
+});
+
+describe('opções da refeição: só apresentação (28/10)', () => {
+  it('lado a lado só com duas opções ou mais e espaço para colunas de 300 px', () => {
+    expect(colunasDasOpcoes(1200, 1)).toBe(1);
+    expect(colunasDasOpcoes(0, 3)).toBe(1);
+    expect(colunasDasOpcoes(358, 2)).toBe(1); // celular: empilhadas
+    expect(colunasDasOpcoes(612, 2)).toBe(2);
+    expect(colunasDasOpcoes(700, 3)).toBe(2); // a terceira desce
+    expect(colunasDasOpcoes(960, 3)).toBe(3);
+    expect(colunasDasOpcoes(2000, 2)).toBe(2); // nunca mais colunas que opções
+  });
+
+  it('o aluno lê que deve escolher uma, sem a palavra "equivalente"', () => {
+    expect(textoEscolhaDasOpcoes(['A'])).toBeNull();
+    expect(textoEscolhaDasOpcoes(['A', 'B'])).toBe('Escolha uma das opções: A ou B.');
+    expect(textoEscolhaDasOpcoes(['A', 'B', 'C'])).toBe('Escolha uma das opções: A, B ou C.');
+    expect(textoEscolhaDasOpcoes(['A', ' '])).toBe('Escolha uma das opções: A ou 2.');
+    expect(textoEscolhaDasOpcoes(['A', 'B', 'C']) ?? '').not.toMatch(/equivalent/i);
   });
 });

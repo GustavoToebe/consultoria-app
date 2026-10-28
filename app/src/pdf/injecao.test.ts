@@ -192,6 +192,7 @@ const dieta: ConteudoDieta = normalizarDieta({
       nome: 'Café',
       horario: '08:00',
       observacao: 'Observação da refeição',
+      modoDePreparo: 'Modo de preparo\nSegunda linha',
       opcoes: [
         { rotulo: 'A', itens: [{ nome: 'Pão', quantidade: 50, unidade: 'g', kcal: 133, proteina: 4, carboidrato: 24, gordura: 1 }] },
         { rotulo: 'B', itens: [{ nome: 'Aveia', quantidade: 40, unidade: 'g', kcal: 99, proteina: 1, carboidrato: 1, gordura: 1 }] },
