@@ -4,12 +4,13 @@ import { Droplet, ExternalLink, FileDown, ShoppingCart } from 'lucide-react-nati
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { ModoDePreparo } from '../../aluno/ModoDePreparo';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
 import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { ErroApi } from '../../api/cliente';
 import { pesosAluno } from '../../api/rotas';
 import type { ConteudoDieta, Refeicao, VersaoDetalhe } from '../../api/tipos';
-import { normalizarDieta, somar, textoDaAgua, totalDoDia } from '../../dominio/dieta';
+import { normalizarDieta, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia } from '../../dominio/dieta';
 import { ergogenicosPreenchidos } from '../../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../../dominio/formatos';
 import { linkParaAbrir } from '../../dominio/links';
@@ -187,12 +188,15 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
   const { cores } = useTema();
   const [ativa, setAtiva] = useState(0);
   const opcao = refeicao.opcoes[Math.min(ativa, refeicao.opcoes.length - 1)];
+  const escolha = textoEscolhaDasOpcoes(refeicao.opcoes.map((o) => o.rotulo));
   return (
     <Cartao
       cabecalho={
         <CabecalhoDeGrupo titulo={`${refeicao.horario ? `${refeicao.horario} · ` : ''}${refeicao.nome}`} />
       }>
       {refeicao.observacao ? <Texto numerico variante="suave">{refeicao.observacao}</Texto> : null}
+      {/* Opções são alternativas: o aluno escolhe uma, e os itens de opções diferentes não se somam. */}
+      {escolha ? <Texto numerico style={estilos.forte}>{escolha}</Texto> : null}
       {refeicao.opcoes.length > 1 ? (
         <Abas
           abas={refeicao.opcoes.map((o, i) => ({ valor: String(i), rotulo: `Opção ${o.rotulo}` }))}
@@ -208,7 +212,12 @@ function CartaoRefeicaoAluno({ refeicao }: { refeicao: Refeicao }) {
           <Texto numerico variante="suave">{textoTotais(somar([i]))}</Texto>
         </View>
       ))}
-      {opcao ? <Texto numerico style={estilos.forte}>Total: {textoTotais(somar(opcao.itens))}</Texto> : null}
+      {opcao ? (
+        <Texto numerico style={estilos.forte}>
+          {refeicao.opcoes.length > 1 ? `Total da opção ${opcao.rotulo}` : 'Total'}: {textoTotais(somar(opcao.itens))}
+        </Texto>
+      ) : null}
+      <ModoDePreparo texto={refeicao.modoDePreparo} />
     </Cartao>
   );
 }

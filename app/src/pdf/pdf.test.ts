@@ -5,7 +5,7 @@ import { agrupar } from '../dominio/agrupamento';
 import { normalizarTreino } from '../dominio/editorTreino';
 import { carga, exercicio, grupo, rir, rpe, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
 import { normalizarMobilidade } from '../dominio/mobilidade';
-import { esc, link, type Documento } from './html';
+import { cabecalhoDoPdf, cssBase, esc, link, type Documento } from './html';
 import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
@@ -292,6 +292,26 @@ describe('PDF da dieta', () => {
     expect(html).toContain('133 kcal');
     expect(html).toContain('Total do dia considerando a opção A de cada refeição.');
     expect(html).toContain('▸ OPÇÃO B');
+  });
+
+  it('refeição com várias opções diz para escolher uma, sem somar nem comparar', () => {
+    expect(html).toContain('<div class="escolha">Escolha uma das opções: A ou B.</div>');
+    expect(html.toLowerCase()).not.toContain('equivalente');
+  });
+
+  it('modo de preparo sai no fim da refeição, com as quebras de linha e escapado; sem ele, nada aparece', () => {
+    expect(html).not.toContain('Modo de preparo');
+    const comPreparo = normalizarDieta({
+      refeicoes: [{ nome: 'Almoço', modoDePreparo: 'Cozinhe <b>bem</b>.\nSirva.', opcoes: [{ rotulo: 'A', itens: [] }] }],
+    });
+    const corpo = documentoDieta({ ...base, versao: 1, conteudo: comPreparo, pesos: [] }).corpo;
+    expect(corpo).toContain('<div class="preparo"><strong>Modo de preparo</strong>Cozinhe &lt;b&gt;bem&lt;/b&gt;.<br>Sirva.</div>');
+    expect(corpo).not.toContain('<div class="escolha">');
+  });
+
+  it('o nome do aluno e a emissão ficam só no cabeçalho, não repetidos na identificação', () => {
+    expect(html.match(/Aluno Demonstração/g)).toHaveLength(1);
+    expect(html).not.toContain('<td>Nome</td>');
   });
 
   it('suplementação vazia e peso sem registro não aparecem', () => {
@@ -625,7 +645,7 @@ describe('faixa da marca no alto dos cinco PDFs', () => {
     cargas: (m) => documentoCargas({ ...dados(m), de: '2026-10-01', ate: '2026-10-14', divisoes: [] }),
     'lista de compras': (m) => documentoListaDeCompras({ ...dados(m), periodo: 'semana', opcoes: [], linhas: [], versao: 1 }),
   };
-  const faixa = (cor: string, texto: string) => `<div class="faixa-marca" style="background:${cor};color:${texto}">Consultoria &lt;Teste&gt;</div>`;
+  const faixa = (cor: string, texto: string) => `<div class="faixa-marca" style="background:${cor};color:${texto}"><span class="faixa-nome">Consultoria &lt;Teste&gt;</span></div>`;
 
   describe.each(Object.entries(geradores))('%s', (_nome, gerar) => {
     it('cor escura: faixa na cor da marca com texto branco, antes de qualquer outro bloco', () => {
@@ -661,10 +681,76 @@ describe('faixa da marca no alto dos cinco PDFs', () => {
     }
   });
 
-  it('o logo continua fora da faixa, sobre branco', () => {
-    const d = documentoMobilidade({ ...base, logoDataUri: 'data:image/png;base64,AAAA', versao: 1, conteudo: normalizarMobilidade({ secoes: [] }) });
-    expect(d.corpo.indexOf('faixa-marca')).toBeLessThan(d.corpo.indexOf('<img'));
-    expect(d.corpo).toMatch(/<\/div><div class="topo"><div><img src="data:image\/png;base64,AAAA"/);
+  describe.each(Object.keys(geradores))('%s com logo', (nome) => {
+    it('a logo entra na faixa, num quadro branco, antes do nome; o resto do cabeçalho segue sobre branco', () => {
+      const logo = 'data:image/png;base64,AAAA';
+      const html = documentoComLogo(nome, logo);
+      expect(html.startsWith(
+        `<div class="faixa-marca com-logo" style="background:#C62828;color:#FFFFFF"><span class="faixa-logo"><img src="${logo}" alt="Consultoria &lt;Teste&gt;"></span><span class="faixa-nome">Consultoria &lt;Teste&gt;</span></div><div class="topo">`,
+      )).toBe(true);
+      expect(html.match(/<img/g)).toHaveLength(1);
+    });
+  });
+
+  it('a logo é pequena e mantém a proporção (nunca esticada)', () => {
+    const css = geradores.treino(marca).css;
+    expect(css).toMatch(/\.faixa-logo img \{[^}]*max-height: 18pt; max-width: 90pt; width: auto; height: auto;/);
+    expect(css).toMatch(/\.faixa-logo \{[^}]*background: #fff;/);
+  });
+});
+
+/** O mesmo documento de `geradores`, com a logo. */
+function documentoComLogo(nome: string, logo: string): string {
+  const dados = { ...base, logoDataUri: logo };
+  switch (nome) {
+    case 'treino': return documentoTreino({ ...dados, inicio: null, fim: null, versao: 1, conteudo: treino, instrucoesTreino: null }).corpo;
+    case 'dieta': return documentoDieta({ ...dados, versao: 1, conteudo: normalizarDieta({ refeicoes: [] }), pesos: [] }).corpo;
+    case 'mobilidade': return documentoMobilidade({ ...dados, versao: 1, conteudo: normalizarMobilidade({ secoes: [] }) }).corpo;
+    case 'cargas': return documentoCargas({ ...dados, de: '2026-10-01', ate: '2026-10-14', divisoes: [] }).corpo;
+    default: return documentoListaDeCompras({ ...dados, periodo: 'semana', opcoes: [], linhas: [], versao: 1 }).corpo;
+  }
+}
+
+describe('cabeçalho uniforme dos PDFs', () => {
+  const emitidoEm = new Date('2026-10-11T19:30:00Z');
+  const comum = { marca, logoDataUri: null, emitidoEm };
+
+  it('tipo do documento grande; título com a versão; aluno, período e emissão à direita, tudo escapado', () => {
+    const html = cabecalhoDoPdf({ ...comum, documento: 'Treino <x>', titulo: 'Plano <16>', versao: 3, aluno: 'Aluno <A>', periodo: '05/10/2026 a 20/10/2026' });
+    expect(html).toContain('<div class="topo"><div class="topo-titulo"><h1>Treino &lt;x&gt;</h1><div class="doc-titulo">Plano &lt;16&gt; (v3)</div></div>');
+    expect(html).toContain('<div class="topo-dados pequeno">Aluno: Aluno &lt;A&gt;<br>Período: 05/10/2026 a 20/10/2026<br>Emitido em ');
+    expect(html).not.toContain('<x>');
+  });
+
+  it('versão: nula = rascunho (ou o texto pedido); ausente = documento sem versão', () => {
+    expect(cabecalhoDoPdf({ ...comum, documento: 'Dieta', titulo: 'Plano', versao: null })).toContain('Plano (RASCUNHO, não publicado)');
+    expect(cabecalhoDoPdf({ ...comum, documento: 'Lista', titulo: 'Plano', versao: null, semVersao: 'prévia, não publicada' })).toContain('Plano (prévia, não publicada)');
+    const semVersao = cabecalhoDoPdf({ ...comum, documento: 'Relatório de cargas', aluno: 'Aluno' });
+    expect(semVersao).not.toContain('doc-titulo');
+    expect(semVersao).not.toContain('(v');
+    expect(cabecalhoDoPdf({ ...comum, documento: 'Lista' })).not.toContain('Aluno:');
+  });
+
+  it('nomes longos quebram linha sem passar por cima da outra coluna', () => {
+    const css = cssBase('#C62828');
+    expect(css).toMatch(/\.topo-titulo \{[^}]*min-width: 0; overflow-wrap: anywhere;/);
+    expect(css).toMatch(/\.topo-dados \{[^}]*min-width: 0; text-align: right; overflow-wrap: anywhere;/);
+    expect(css).toMatch(/\.faixa-nome \{[^}]*overflow-wrap: anywhere;/);
+    expect(css).toMatch(/\.topo \{[^}]*align-items: flex-start;[^}]*break-inside: avoid;/);
+  });
+
+  it.each([
+    ['treino', 'Treino', 'Aluno: Aluno Demonstração'],
+    ['dieta', 'Sugestão de plano alimentar', 'Aluno: Aluno Demonstração'],
+    ['mobilidade', 'Mobilidade', 'Aluno: Aluno Demonstração'],
+    ['cargas', 'Relatório de cargas', 'Período: 01/10/2026 a 14/10/2026'],
+    ['lista de compras', 'Lista de compras', 'Aluno: Aluno Demonstração'],
+  ])('%s usa o mesmo cabeçalho', (nome, documento, linha) => {
+    const html = documentoComLogo(nome, '');
+    expect(html.match(/<div class="topo">/g)).toHaveLength(1);
+    expect(html).toContain(`<h1>${documento}</h1>`);
+    expect(html).toContain(linha);
+    expect(html).toContain('Emitido em ');
   });
 });
 
