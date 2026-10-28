@@ -26,6 +26,7 @@ ou deploy. Em `app/`, leia também o `app/AGENTS.md` antes de implementar.
   provisionamento, direitos, convites e pagamento. Deploy de produção vive em
   `../central/central-api-back/deploy/`; não executar scripts de produção como teste.
   Acesso ao outro repo não autoriza mudanças fora do escopo solicitado.
+- VPS (decisão do Gustavo, 28/10/2026): o Claude pode entrar na VPS para ajudar o Gustavo, sempre com o ok dele para cada mudança. Ler e listar pode; alterar, recriar contêiner ou apagar só depois que o Gustavo aprovar o comando. Nunca mostrar valor de segredo (nem com `cat` em `.env`: listar só nomes de variável ou tamanho e data), nunca copiar segredo para o chat, log ou git. Cópia de `.env` feita antes de uma mudança é apagada (`shred -u`) assim que a mudança é confirmada.
 - Verificações locais: `mvn verify` em `api/` (JDK 25, Docker/Testcontainers);
   `npm run typecheck`, `npm run lint` e `npm test` em `app/`. Dependências Expo
   seguem `npx expo install`; preservar a exceção documentada de `@plataforma/web`.

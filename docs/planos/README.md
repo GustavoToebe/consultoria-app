@@ -53,7 +53,9 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | PDF no celular: copiar o arquivo do `expo-print` em vez de passar o PDF todo em base64 (`pdf/imprimir.ts`). Só provando no APK, Android e iPhone | Gustavo (aparelho) | PDFs, item 4 |
 | Conferir no APK que a logo grande sai reduzida no PDF do aluno e do treinador | Gustavo | PDFs, item 2 |
 | `imprimir.web.ts` sem `innerHTML`: não recomendado agora (a trava de teste cobre); Gustavo pode reabrir | Gustavo decide | revisão de segurança 28/10, item 3 |
-| Cloudflare: a regra "Bloqueio por pais (Fase 6B)" (`adfb3957…`) bloqueia tudo fora do Brasil; manter ou tirar | Gustavo decide | cloudflare-turnstile |
+| Cloudflare: a regra "Bloqueio por pais (Fase 6B)" (`adfb3957…`) bloqueia tudo fora do Brasil. Decisão do Gustavo (28/10): por enquanto **fica**. O que ela libera e bloqueia hoje: `cloudflare-regras.md` na Central (PR #25) | Gustavo decide | cloudflare-turnstile |
+| **Exceção obrigatória da regra de país (a):** antes de mandar o app para revisão da Apple/Google (TestFlight ou Play Store), liberar a revisão na regra `adfb3957…`, porque os revisores acessam de fora do Brasil (login e API falhariam). Ver também se `/.well-known/` precisa ser liberado | Gustavo (Cloudflare) | cloudflare-turnstile |
+| **Exceção obrigatória da regra de país (b):** antes de ligar a InfinitePay no consultoria, liberar `/api/publico/pagamentos/` na regra `adfb3957…` (o webhook dele não fica em `/webhooks/`, que é o que a regra libera hoje) | Gustavo (Cloudflare) | cloudflare-turnstile |
 | Proxy: o `consultoria.servirea.com.br` responde em produção, mas não há bloco dele no Caddyfile vivo do repositório da Central (só o `.modelo`); conferir o arquivo da VPS antes de mexer no `connect-src` | Claude | cloudflare-turnstile |
 | Turnstile: testar o app nativo do iPhone (WKWebView) antes do TestFlight; roteiro em `docs/build-celular.md` seção 5 | Gustavo (aparelho) | cloudflare-turnstile |
 

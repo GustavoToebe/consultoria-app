@@ -19,10 +19,10 @@ Barrar robôs na borda sem afetar usuário real (alunos em IP compartilhado, app
 ## Passos
 - [x] A1. Regra de bloqueio de caminhos de robô (`/wp-*`, `.php`, `/.env`, `/.git` etc.; `/.well-known/` fora) — Cloudflare, regra `018982bdc1a04501ab8e1d3af50601b1`, 28/10/2026
 - [x] A2. Limite de requisições nos POST de autenticação (consultoria, Servirea, Central), sem refresh/logout/eu — Cloudflare, regra `bf0f21916668489aa0f9d19839014ead`, 28/10/2026
-- [x] A3. Expressões das regras e como desfazer documentados na Central (`central-api-back/deploy/cloudflare-regras.md`, PR próprio) — PR: —
+- [x] A3. Expressões das regras e como desfazer documentados na Central (`central-api-back/deploy/cloudflare-regras.md`, com a regra de país e linkado no `deploy/README.md`) — PR: [#25 da Central](https://github.com/GustavoToebe/central/pull/25)
 - [x] B0. APK de teste (build `03b08e96`, perfil preview) no Android do Gustavo e CSP no ar (a CSP já tem `challenges.cloudflare.com` em `script-src` e `frame-src`) — 28/10/2026
 - [x] B1. Gustavo criou o widget (Turnstile › Add widget › `consultoria.servirea.com.br`, Managed) — 28/10/2026
-- [x] B2. Gustavo na VPS: segredo, `TREINOS_TURNSTILE_SITE_KEY`, `TREINOS_TURNSTILE_HABILITADO=true`, API recriada depois do `publicar` verde — 28/10/2026
+- [x] B2. Gustavo na VPS: segredo, `TREINOS_TURNSTILE_SITE_KEY`, `TREINOS_TURNSTILE_HABILITADO=true`, API recriada (mudança de configuração na VPS, sem deploy nem run) — 28/10/2026
 - [x] B3. Testes pelo Gustavo: login e "esqueci a senha" no PC (sem erro no console) e no navegador; no APK Android o widget inteiro passou sozinho e o login entrou; também depois da troca do túnel (`cloudflared` 2026.10.5) — 28/10/2026
 - [x] B4. `docs/turnstile.md`, `docs/build-celular.md` e a frase do `AGENTS.md` atualizados — 28/10/2026
 - [ ] B5. Testar o app nativo do iPhone (WKWebView) antes do TestFlight; fica em Pendências soltas do README
