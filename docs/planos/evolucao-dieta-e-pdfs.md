@@ -24,10 +24,10 @@ os PDFs passam a ter o mesmo cabeçalho, com a logo da consultoria na faixa da m
 | D12 | Comparação de fotos | Não muda: a imagem é gerada no servidor (`ComparacaoDeFotosService`), sem texto; não é PDF do app | Claude |
 
 ## Passos
-- [x] 1. Modo de preparo na API (`ConteudoDieta.Refeicao.modoDePreparo`, `MODO_DE_PREPARO_MAXIMO`, `ValidadorDieta`, `comItens`/`comUidsNovos`) com `ValidadorDietaTest` (sem Docker) e o caso novo em `DietaIntegrationTest` (salvar → publicar → aluno, cópia para outro aluno, modelo REFEICAO, 400 acima de 2000 sem eco, nada na auditoria) — commit: ver abaixo
-- [x] 2. App: tipo, `normalizarDieta`, `novaRefeicao`, campo no editor (plano do aluno e modelo REFEICAO, o mesmo `CartaoRefeicao`), `aluno/ModoDePreparo` na dieta do aluno, PDF da dieta, ajuda — commit: ver abaixo
-- [x] 3. Opções lado a lado no editor (`colunasDasOpcoes`, `OpcaoDaRefeicao`) e "Escolha uma das opções" no aluno e no PDF (`textoEscolhaDasOpcoes`) — commit: ver abaixo
-- [x] 4. Cabeçalho uniforme dos PDFs com a logo na faixa (`cabecalhoDoPdf`, `faixaDaMarca(marca, logo)`) em treino, dieta, mobilidade, cargas e lista de compras — commit: ver abaixo
+- [x] 1. Modo de preparo na API (`ConteudoDieta.Refeicao.modoDePreparo`, `MODO_DE_PREPARO_MAXIMO`, `ValidadorDieta`, `comItens`/`comUidsNovos`) com `ValidadorDietaTest` (sem Docker) e o caso novo em `DietaIntegrationTest` (salvar → publicar → aluno, cópia para outro aluno, modelo REFEICAO, 400 acima de 2000 sem eco, nada na auditoria) — commit `05ce39e`
+- [x] 2. App: tipo, `normalizarDieta`, `novaRefeicao`, campo no editor (plano do aluno e modelo REFEICAO, o mesmo `CartaoRefeicao`), `aluno/ModoDePreparo` na dieta do aluno, PDF da dieta, ajuda — commit `a79bdd9`
+- [x] 3. Opções lado a lado no editor (`colunasDasOpcoes`, `OpcaoDaRefeicao`) e "Escolha uma das opções" no aluno e no PDF (`textoEscolhaDasOpcoes`) — commit `a79bdd9`
+- [x] 4. Cabeçalho uniforme dos PDFs com a logo na faixa (`cabecalhoDoPdf`, `faixaDaMarca(marca, logo)`) em treino, dieta, mobilidade, cargas e lista de compras — commit `a79bdd9`
 - [x] 5. PDF de exemplo pelo Chromium do Playwright (nomes longos, logo fictícia de 400×120, marca amarela sem logo): sem sobreposição, logo 80×24 px (proporção mantida) — ver "Conferência visual"
 - [ ] 6. `mvn verify` com Docker (o caso novo do `DietaIntegrationTest`) — Gustavo
 
@@ -37,6 +37,12 @@ os PDFs passam a ter o mesmo cabeçalho, com a logo da consultoria na faixa da m
 - Dieta: "Escolha uma das opções: A ou B." abaixo da faixa da refeição; "Modo de preparo" em caixa cinza no fim da refeição, com as quebras de linha.
 - Visto, fora do escopo: com marca amarela (`#FFEB3B`) o h1 e os títulos de seção na cor da marca ficam com pouco contraste sobre branco (já acontecia com o nome da consultoria no h1 e nos títulos de seção). Ficou nas pendências.
 - Lista de compras: o h1 "Lista de compras" do cabeçalho e o h2 "Lista de compras — Semana (7 dias)" do corpo repetem o nome; o corpo é da frente evo-compras, que pode trocar o h2 por só o período.
+
+## Verificação (28/10, nesta máquina)
+- API: `mvn -o -q test-compile` ok; `ArquiteturaTest` 15/15, `ValidadorDietaTest` 3/3, `ValidadorTreinoTest` 47/47. O `DietaIntegrationTest` (Testcontainers) **não rodou**: sem Docker aqui.
+- App: `npm run typecheck` e `npm run lint` sem erro; `npm test` 154 suítes, 2101 testes, todos verdes.
+- E2E: `e2e/dieta-opcoes-e-preparo.spec.ts` (4 casos) e `e2e/lista-de-compras.spec.ts` (5) = 9/9 verdes, em 390 e 1280 px.
+- **Armadilha do ambiente:** com `app/node_modules` como link simbólico para outro checkout, o `npx expo export` do e2e empacota o `src/app` do **outro** checkout (o `require.context` do `expo-router` é resolvido pelo caminho real do pacote), e o teste roda o código antigo sem avisar. Contornado copiando o `app/` para uma pasta de rascunho com `node_modules` feito de links por pacote e só o `expo-router` copiado de verdade, numa porta própria. No PC do Gustavo (node_modules real) não acontece.
 
 ## Permissões nos PDFs (item 3 do pedido)
 Conferido no código: nenhum PDF mostra campo que a tela esconde. Medicação e ergogênicos: a API manda `ergogenicos` nulo
