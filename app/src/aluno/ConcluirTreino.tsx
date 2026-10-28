@@ -1,4 +1,5 @@
-import { CheckCheck, RotateCcw } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { CheckCheck, RotateCcw, Trophy } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { StyleSheet, View, type TextInput } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
@@ -38,6 +39,7 @@ import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
 import { textoDoErro } from '../ui/erros';
 import { useMovimentoReduzido } from '../ui/useMovimentoReduzido';
+import { caminhoDaConclusao } from './useSessaoDoDia';
 import { vibrar } from '../ui/vibrar';
 
 interface Props {
@@ -120,6 +122,8 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, feita, tipo, chei
         vibrar.sucesso();
         setAberto(false);
         avisar('Treino concluído.', 'sucesso');
+        // "Bom trabalho!" (Engajamento 0.4): o voltar traz de volta a esta tela.
+        router.push(caminhoDaConclusao(sessao.uid, data));
         return;
       }
       setErros(r.problemas);
@@ -185,14 +189,23 @@ export function ConcluirTreino({ versaoId, sessao, data, hoje, feita, tipo, chei
           </Texto>
         ) : null}
       </View>
-      <Botao
-        rotulo="Reabrir"
-        rotuloAcessivel="Reabrir o treino"
-        tipo="secundario"
-        Icone={RotateCcw}
-        carregando={reabrindo}
-        aoTocar={() => void reabrir()}
-      />
+      <LinhaDeAcoes>
+        <Botao
+          rotulo="Ver resumo"
+          rotuloAcessivel="Ver o resumo do treino"
+          tipo="secundario"
+          Icone={Trophy}
+          aoTocar={() => router.push(caminhoDaConclusao(sessao.uid, data))}
+        />
+        <Botao
+          rotulo="Reabrir"
+          rotuloAcessivel="Reabrir o treino"
+          tipo="secundario"
+          Icone={RotateCcw}
+          carregando={reabrindo}
+          aoTocar={() => void reabrir()}
+        />
+      </LinhaDeAcoes>
     </Animated.View>
   ) : (
     <Botao rotulo="Concluir treino" tipo={tipo} cheio={cheio} Icone={CheckCheck} aoTocar={abrir} />

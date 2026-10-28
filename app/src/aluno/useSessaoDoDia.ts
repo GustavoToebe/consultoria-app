@@ -147,3 +147,8 @@ export function useSessaoDoDia(uid: string | undefined, dataDaRota: string | und
 export function caminhoDaSessao(sessaoUid: string, data: string, exercicioUid?: string): Href {
   return `/aluno/sessao/${sessaoUid}${exercicioUid ? `/${exercicioUid}` : ''}?data=${data}`;
 }
+
+/** Tela "Bom trabalho!" do treino concluído naquele dia (Engajamento 0.4). */
+export function caminhoDaConclusao(sessaoUid: string, data: string): Href {
+  return `/aluno/sessao/${sessaoUid}/concluido?data=${data}`;
+}

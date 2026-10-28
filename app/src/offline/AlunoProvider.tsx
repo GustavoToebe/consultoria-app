@@ -148,6 +148,8 @@ interface ValorAluno {
    * confirmou (ver `totalDeConcluidos`). `null` = nunca baixou (ou chave desligada): a tela não inventa número.
    */
   totalConcluidos: number | null;
+  /** Conclusões que a tela usa (aparelho e servidor fundidos, `fundirConclusoes`); vazio com "Concluir treino" desligado. */
+  conclusoes: ConclusaoDoTreino[];
   /** Instante (ISO) da primeira série marcada como feita daquele treino, só deste aparelho; `null` se não há. */
   inicioDoTreino: (planoVersaoId: string, sessaoUid: string, data: string) => string | null;
   /** Conclusões gravadas no aparelho (inclui o que ainda não foi enviado). Vazio com "Concluir treino" desligado. */
@@ -642,6 +644,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       reabrirTreino,
       sessaoConcluidaDe: (v, s, d) => conclusaoDe(conclusoesFundidas, v, s, d),
       totalConcluidos: retornoHabilitado ? totalDeConcluidos(totalDoServidor, conclusoesDoServidor, conclusoesLocais) : null,
+      conclusoes: conclusoesFundidas,
       inicioDoTreino: (v, s, d) => inicios[chaveDoInicioDoTreino(v, s, d)] ?? null,
       sessoesConcluidasNoAparelho,
       falhasDeConclusao,

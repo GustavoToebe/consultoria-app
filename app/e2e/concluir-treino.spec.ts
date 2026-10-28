@@ -129,6 +129,11 @@ for (const largura of [390, 1280]) {
 
     await expect(folha(page)).toHaveCount(0);
     await expect(page.getByText('Treino concluído.')).toBeVisible();
+    // Abre o "Bom trabalho!" (0.4): 4 no servidor + este = o 5º. A lista do dia volta pelo botão.
+    await expect(page).toHaveURL(/\/aluno\/sessao\/sx\/concluido\?data=2026-10-19$/);
+    await expect(page.getByText('Este é o seu 5º treino.', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Voltar à lista do dia' }).click();
+    await expect(page).toHaveURL(/\/aluno\/sessao\/sx\?data=2026-10-19$/);
     // Topo e rodapé mostram o mesmo estado.
     await expect(page.getByText('Treino concluído', { exact: true })).toHaveCount(2);
     await expect(page.getByText('Fiz tudo · 52 min')).toHaveCount(2);
@@ -250,7 +255,9 @@ test('conclusão recusada pelo servidor acende a falha no selo', async ({ page }
   await confirmar(page).click();
   await expect.poll(() => api.conclusoes.length, { timeout: 15_000 }).toBe(1);
   await expect(page.getByText('Falha ao enviar — tentar de novo')).toBeVisible({ timeout: 15_000 });
-  // A recusada não vale como concluída: o botão volta.
+  // A recusada não vale como concluída: o "Bom trabalho!" diz isso e, na lista, o botão volta.
+  await expect(page.getByText('Este treino não está concluído. Volte à lista do dia para concluir.')).toBeVisible();
+  await page.getByRole('button', { name: 'Voltar à lista do dia' }).click();
   await expect(botoesConcluir(page)).toHaveCount(2);
   expect(api.naoTratadas).toEqual([]);
   expect(api.errosDaPagina).toEqual([]);
@@ -268,6 +275,8 @@ test('503 RETORNO_INDISPONIVEL no envio: volta ao estado de chave desligada, sem
 
   // O POST é feito uma vez e a tela volta ao que era com a chave desligada: botão antigo, nada de concluído.
   await expect.poll(() => posts().length, { timeout: 15_000 }).toBe(1);
+  await expect(page.getByText('Este treino não está concluído. Volte à lista do dia para concluir.')).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Voltar à lista do dia' }).click();
   await expect(page.getByRole('button', { name: 'Começar treino' })).toBeVisible();
   await expect(botoesConcluir(page)).toHaveCount(0);
   await expect(page.getByText('Treino concluído')).toHaveCount(0, { timeout: 15_000 });
