@@ -21,6 +21,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Anamnese ao aceitar a inscrição | [anamnese-no-aceite.md](anamnese-no-aceite.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
 | Listas padronizadas no treinador | [listas-padronizadas.md](listas-padronizadas.md) | `main` | Concluída em 27/10/2026 | 27/10/2026 |
 | Engajamento (retorno, conquistas, mural) | [engajamento.md](engajamento.md) | branch `gamificacao` | Etapa 0 em andamento | 27/10/2026 |
+| Revisão de segurança de 28/10 | [revisao-seguranca-28-10.md](revisao-seguranca-28-10.md) | `main` | Em andamento | 28/10/2026 |
 
 ## Pendências soltas
 
@@ -42,6 +43,10 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
 | `AnamneseService.atribuir`: conferir o nome da restrição antes de virar `ANAMNESE_PENDENTE` em `DataIntegrityViolationException` | Claude | anamnese no aceite (1f1aa20) |
 | Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
+
+| Mercado Pago: provar com um reenvio real se o `ts` muda; se repetir, rever a janela de 5 min do webhook da Central | Gustavo/Claude | revisão de segurança 28/10, item 1 |
+| Central: nota 4 (`ErroRecebido.status` 500–599) e nota 5 (`IntegracaoProperties.chaves()` avisar entrada malformada), no próximo lote da Central | Claude | revisão de segurança 28/10 |
+| `imprimir.web.ts` sem `innerHTML`: não recomendado agora (a trava de teste cobre); Gustavo pode reabrir | Gustavo decide | revisão de segurança 28/10, item 3 |
 
 ## Limitações aceitas (não são pendência)
 
