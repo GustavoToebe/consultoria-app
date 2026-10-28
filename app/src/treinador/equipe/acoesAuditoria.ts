@@ -20,6 +20,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   ANAMNESE_CADASTRO_PREENCHIDO:'Anamnese preencheu campos vazios do cadastro',ANAMNESE_ALTERACAO_APLICADA:'Alteração da anamnese aplicada ao cadastro',ANAMNESE_ALTERACAO_DESCARTADA:'Alteração da anamnese descartada',
   ALUNO_QUESTIONARIO_ALTERADO:'Questionário do aluno alterado',
   LESAO_REGISTRADA:'Lesão registrada',LESAO_ALTERADA:'Lesão editada',PESO_REGISTRADO:'Peso registrado',
+  AVALIACAO_FISICA_REGISTRADA:'Avaliação física registrada',AVALIACAO_FISICA_ALTERADA:'Avaliação física editada',AVALIACAO_FISICA_EXCLUIDA:'Avaliação física excluída',
   ATUALIZACAO_FEEDBACK:'Feedback de atualização enviado ou editado',MARCA_ALTERADA:'Marca alterada',
   LOGO_ALTERADA:'Logo alterada',LOGO_REMOVIDA:'Logo removida',
   PLANO_COMERCIAL_CRIADO:'Plano comercial criado',PLANO_COMERCIAL_ALTERADO:'Plano comercial editado',PLANO_COMERCIAL_ARQUIVADO:'Plano comercial arquivado',

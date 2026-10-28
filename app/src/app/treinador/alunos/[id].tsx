@@ -18,6 +18,7 @@ import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
 import { FolhaDeAcoes } from '../../../treinador/FolhaDeAcoes';
 import { ResumoDoAluno } from '../../../treinador/ResumoDoAluno';
 import { CartaoPeso } from '../../../treinador/CartaoPeso';
+import { CartaoAvaliacaoFisica } from '../../../treinador/CartaoAvaliacaoFisica';
 import { CartaoFotos } from '../../../fotos/CartaoFotos';
 import { CartaoProgresso } from '../../../treinador/CartaoProgresso';
 import { CartaoLesoes } from '../../../treinador/CartaoLesoes';
@@ -88,6 +89,7 @@ export default function FichaAluno() {
           ) : null}
           <Permitido codigo="REGISTRO_LER"><CartaoProgresso alunoId={aluno.id} /></Permitido>
           <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoPeso key={geracaoPeso} alunoId={aluno.id} /></Permitido>
+          <Permitido codigo="ALUNO_SENSIVEL_LER"><CartaoAvaliacaoFisica alunoId={aluno.id} alunoNome={aluno.nome} anonimizado={aluno.anonimizado} /></Permitido>
           {pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER') ? (
             <CartaoFotos alunoId={aluno.id} autorizadoEm={aluno.usoDeImagemAutorizadoEm} aoRecarregar={recarregar} />
           ) : null}

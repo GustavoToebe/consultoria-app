@@ -20,6 +20,7 @@ import { documentoCargas } from '../../pdf/pdfCargas';
 import { useTema } from '../../tema/TemaProvider';
 import { espaco, fontes } from '../../tema/tokens';
 import { CargasPorDivisao } from '../../treinador/CargasPorDivisao';
+import { CartaoAvaliacaoFisica } from '../../treinador/CartaoAvaliacaoFisica';
 import { CartaoProgresso } from '../../treinador/CartaoProgresso';
 import { DiaRegistros, VISOES, type VisaoRegistros } from '../../treinador/CartaoRegistros';
 import { Abas } from '../../ui/Abas';
@@ -170,6 +171,8 @@ export default function HistoricoAluno() {
           <Texto numerico variante="suave">{pesos.erro ? 'Sem conexão.' : 'Nenhum registro de peso.'}</Texto>
         )}
       </Cartao>
+
+      <CartaoAvaliacaoFisica />
     </Tela>
   );
 }

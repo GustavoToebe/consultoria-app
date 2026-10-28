@@ -836,3 +836,17 @@ export const retornoDoPagamento = (corpo: import('./financeiroTipos').RetornoDoP
 export const listarConferencias = () => requisicao<ConferenciasDePagamento>('/financeiro/conferencias');
 export const marcarConferido = (id: string) =>
   requisicao<void>(`/financeiro/conferencias/${seg(id)}/conferido`, { metodo: 'POST' });
+
+/** Avaliação física (circunferências): a equipe lê com ALUNO_SENSIVEL_LER e grava com ela e ALUNO_SENSIVEL_ALTERAR. */
+export const avaliacoesFisicasDoAluno = (alunoId: string) =>
+  requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica[]>(`/alunos/${seg(alunoId)}/avaliacoes-fisicas`);
+export const registrarAvaliacaoFisica = (alunoId: string, corpo: import('./avaliacaoFisicaTipos').DadosAvaliacaoFisica) =>
+  requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica>(`/alunos/${seg(alunoId)}/avaliacoes-fisicas`, { metodo: 'POST', corpo });
+export const alterarAvaliacaoFisica = (id: string, corpo: import('./avaliacaoFisicaTipos').DadosAvaliacaoFisica) =>
+  requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica>(`/avaliacoes-fisicas/${seg(id)}`, { metodo: 'PUT', corpo });
+/** Com a versão que está na tela: outra aba que editou antes faz o excluir voltar 409. */
+export const excluirAvaliacaoFisica = (id: string, versao: number) =>
+  requisicao<void>(`/avaliacoes-fisicas/${seg(id)}?versao=${seg(versao)}`, { metodo: 'DELETE' });
+/** As do próprio aluno, só leitura. */
+export const minhasAvaliacoesFisicas = () =>
+  requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica[]>('/aluno/avaliacoes-fisicas');
