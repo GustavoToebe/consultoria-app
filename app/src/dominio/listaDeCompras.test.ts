@@ -1,6 +1,6 @@
 import type { ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
-import { alimentosDaDieta, comFatoresDaBiblioteca, DIAS_DO_PERIODO, listaDeCompras, marcaSemFator, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, textoDoPeriodo } from './listaDeCompras';
+import { alimentosDaDieta, comFatoresDaBiblioteca, DIAS_DO_PERIODO, listaDeCompras, marcaSemFator, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, tituloDaLista } from './listaDeCompras';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
 
@@ -37,7 +37,8 @@ describe('listaDeCompras', () => {
       ['Frango grelhado', expect.closeTo((140 / 0.7) * 1.1 * 7, 6), true, true, false],
     ]);
     expect(listaDeCompras(c, {}, 'mes')[1].quantidade).toBeCloseTo((150 / 2.5) * 30, 6);
-    expect(DIAS_DO_PERIODO).toEqual({ semana: 7, mes: 30 });
+    expect(listaDeCompras(c, {}, 'duasSemanas')[1].quantidade).toBeCloseTo((150 / 2.5) * 14, 6);
+    expect(DIAS_DO_PERIODO).toEqual({ semana: 7, duasSemanas: 14, mes: 30 });
   });
 
   it('sem fator, vale a quantidade da dieta (nada vira 1 nem é inventado)', () => {
@@ -156,7 +157,9 @@ describe('quantidadeParaTela', () => {
 
   it('texto do período', () => {
     expect(textoDoPeriodo('semana')).toBe('Semana (7 dias)');
+    expect(textoDoPeriodo('duasSemanas')).toBe('2 semanas (14 dias)');
     expect(textoDoPeriodo('mes')).toBe('Mês (30 dias)');
+    expect(PERIODOS_DA_LISTA.map(tituloDaLista)).toEqual(['Lista da semana', 'Lista de 2 semanas', 'Lista do mês']);
   });
 });
 

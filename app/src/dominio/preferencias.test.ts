@@ -31,6 +31,7 @@ describe('preferências pessoais', () => {
   it('pdf da dieta: valor inválido volta a simples, 7 dias e fatores ligados', () => {
     expect(normalizarPreferencias({ pdfDieta: { modo: 'pasta', periodo: 30, fatores: 'sim' } }).pdfDieta).toEqual(PREFERENCIAS_PADRAO.pdfDieta);
     expect(normalizarPreferencias({ pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false } }).pdfDieta).toEqual({ modo: 'detalhado', periodo: 'mes', fatores: false });
+    expect(normalizarPreferencias({ pdfDieta: { modo: 'simples', periodo: 'duasSemanas', fatores: true } }).pdfDieta.periodo).toBe('duasSemanas');
   });
 
   it('dias sem registro: só 3, 7, 14 ou 30; outro valor volta a 7', () => {
