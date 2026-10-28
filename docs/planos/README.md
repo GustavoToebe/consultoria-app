@@ -25,6 +25,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | PDFs menores e mais rápidos | [pdfs-otimizacao.md](pdfs-otimizacao.md) | `main` | Publicada em 28/10/2026 (run 40719287212); item 4 e conferência no APK pendentes | 28/10/2026 |
 | Proteção contra robôs (Cloudflare + Turnstile) | [cloudflare-turnstile.md](cloudflare-turnstile.md) | Cloudflare e VPS | Concluída em 28/10/2026 (Turnstile ligado em produção; falta só o teste no iPhone nativo) | 28/10/2026 |
 | Central: lote de segurança de 28/10 | [central-seguranca-28-10.md](central-seguranca-28-10.md) | Central, branch `seguranca-lote-28-10` (um PR) | Concluída | 28/10/2026 |
+| Dependabot de 28/10 (Central, Servirea e consultoria) | [dependabot-28-10.md](dependabot-28-10.md) | lotes locais; push a partir de 01/11 | Em andamento | 28/10/2026 |
 | Meus dados do aluno (cartão na aba Conta) | [meus-dados-do-aluno.md](meus-dados-do-aluno.md) | `main` (um push, depois do publicar da correção do ciclo) | Planejando | 28/10/2026 |
 
 ## Pendências soltas
@@ -35,13 +36,12 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Ver no celular se os títulos das seções do editor de séries (caixa alta 12 px) ficaram bons | Gustavo | editor de séries (5d353d0) |
 | Gerar APK novo (`npx eas-cli build --profile preview --platform android`) e repetir o roteiro de `docs/build-celular.md` | Gustavo | etapas, cronômetro, editor |
 | Teste manual na web do roteiro de Cluster e Rest-pause com um aluno de teste | Gustavo | etapas |
-| Dispensar o alerta do Dependabot do `braces` ("Inaccurate") | Gustavo | Dependabot |
 | Apagar a branch `etapas-por-bloco` (nada fora da `main`) | Gustavo | limpeza |
 | Lembrar o que era a alteração revertida no `psql` de 26/10 (~12:20, banco `consultoria`) | Gustavo | banco |
 | Central: copiar as 3 linhas novas do `roles-banco.sql` para `central-api-back/deploy/postgres/banco-app.sql.modelo` (CRLF), na próxima mudança da Central | Claude | travas do banco (865b9ca) |
 | Texto dos % no editor: "Os % usam a carga de trabalho do dia, fixada quando o aluno registra a primeira etapa." | Claude | editor de séries, junto da próxima mudança nele |
 | Os cinco e2e de `series-metodologia` rodarem também a 390 px | Claude | editor de séries |
-| Dependabot `node-forge`, `decode-uri-component`, `uuid`: esperar atualização do Expo; olhar ao gerar o próximo APK | Claude | Dependabot |
+| Dependabot `node-forge`, `decode-uri-component`, `uuid`: aceitos até 14/11 (só build do Expo / DoS no navegador), registro e revisão em [dependabot-28-10.md](dependabot-28-10.md); olhar ao gerar o próximo APK | Claude | Dependabot |
 | Link de vídeo da técnica (Rest-pause, Cluster) quando houver vídeo aprovado do Saraiva | Gustavo | análise 2 (A8) |
 | `lock_timeout` no Flyway do módulo auth (exige mudar a biblioteca `plataforma`) | Claude | travas do banco |
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
