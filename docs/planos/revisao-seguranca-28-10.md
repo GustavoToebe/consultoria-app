@@ -40,7 +40,7 @@ falhou (Central fora do ar ou 5xx por mais de 5 min). O botão "reconciliar" do 
 
 ## Passos
 - [x] 1. Conferir os itens no código atual — sem commit (conferência)
-- [x] 2. Item 3: `app/src/pdf/injecao.test.ts` (47 casos: cada gerador em duas variações de entrada + cor da marca), com prova de que falha quando um `esc()` some — commit/run: —
+- [x] 2. Item 3: `app/src/pdf/injecao.test.ts` (47 casos: cada gerador em duas variações de entrada + cor da marca), com prova de que falha quando um `esc()` some — commit `afd5a76`; run 40714486714: testes verdes, **Trivy reprovou a imagem da web** (go-jose do `caddy:2-alpine`), `publicar` não rodou
 - [ ] 3. Prova de reenvio do Mercado Pago (item 1) — Gustavo/Claude
 
 ## Fora do escopo

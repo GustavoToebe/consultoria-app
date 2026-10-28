@@ -25,9 +25,9 @@ Os quatro pontos do pedido ainda valiam:
 
 ## Passos
 - [x] 1. Medir o "antes" (tamanho com logo fictícia de 2048 px; idas à rede em fila do PDF do treinador) — números abaixo
-- [x] 2. Conta do tamanho da logo (`dominio/logoDoPdf`) + redução e cache (`pdf/logo`, `pdf/logoEmMemoria`), com testes — commit/run: —
-- [x] 3. Limpar o cache no "Sair" e na sessão recusada (`SessaoProvider`) — commit/run: —
-- [x] 4. Paralelizar `gerarPdfDoPlano` (`treinador/gerarPdf.test.ts` cobre a ordem e a regra rascunho × publicado) — commit/run: —
+- [x] 2. Conta do tamanho da logo (`dominio/logoDoPdf`) + redução e cache (`pdf/logo`, `pdf/logoEmMemoria`), com testes — commit `a35a9ae`; run 40714486714: testes verdes, **Trivy reprovou a imagem da web** (go-jose do `caddy:2-alpine`), `publicar` não rodou
+- [x] 3. Limpar o cache no "Sair" e na sessão recusada (`SessaoProvider`) — commit `a35a9ae`
+- [x] 4. Paralelizar `gerarPdfDoPlano` (`treinador/gerarPdf.test.ts` cobre a ordem e a regra rascunho × publicado) — commit `a35a9ae`
 - [x] 5. Medir o "depois" e registrar os números abaixo
 - [ ] 6. Item 4 do pedido (base64 no celular) — pendência: só se prova no aparelho (Android e iPhone, no APK)
 
