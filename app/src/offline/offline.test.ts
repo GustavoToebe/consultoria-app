@@ -1,5 +1,6 @@
 import { ErroApi } from '../api/cliente';
 import type { EtapaRegistrada, LoteResponse, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio } from '../api/tipos';
+import { inicioDaJanelaDeConclusao } from '../dominio/conclusaoDoTreino';
 import { chavePasseio } from '../dominio/passeio';
 import { chaveDasPreferencias } from '../dominio/preferencias';
 import { emMemoria } from './armazenamento';
@@ -1358,6 +1359,43 @@ describe.each(implementacoes)('treino concluído na fila de envio – %s', (_nom
     expect(enviarConclusoes).toHaveBeenCalledTimes(1);
     expect(enviarConclusoes.mock.calls[0][0].map((r) => [r.id, r.concluida, r.alteradoNoAparelhoEm])).toEqual([[concluido.id, true, concluido.alteradoEm]]);
     expect((await repo.listarSessoesConcluidas()).map((r) => [r.id, r.situacao])).toEqual([[concluido.id, 'ENVIADO']]);
+  });
+
+  it('retomada depois de mais de 60 dias: as conclusões LOCAL fora da janela saem sem envio; o resto fica', async () => {
+    const repo = aparelho('u1');
+    // Hoje (de Brasília) = 2026-10-07: a janela começa em 2026-08-08.
+    const limite = inicioDaJanelaDeConclusao('2026-10-07');
+    expect(limite).toBe('2026-08-08');
+    await repo.registrarSessaoConcluida(treino('velha', { data: '2026-08-07' }));
+    await repo.registrarSessaoConcluida(treino('reaberta', { ...reaberto, data: '2026-07-01' }));
+    const noLimite = await repo.registrarSessaoConcluida(treino('limite', { data: '2026-08-08' }));
+    const recente = await repo.registrarSessaoConcluida(treino('recente'));
+    const falhou = await repo.registrarSessaoConcluida(treino('falhou', { data: '2026-07-02' }));
+    const enviada = await repo.registrarSessaoConcluida(treino('enviada', { data: '2026-08-09' }));
+    await repo.aplicarResultadosSessoesConcluidas(
+      [falhou, enviada],
+      [
+        { id: falhou.id, situacao: 'RECUSADO', motivo: 'Data fora do prazo.' },
+        { id: enviada.id, situacao: 'ACEITO', motivo: null },
+      ],
+    );
+
+    expect(await repo.descartarSessoesConcluidasAntesDe(limite)).toBe(2);
+    // Saíram só as LOCAL antes do limite (concluída e reaberta); a FALHOU e a ENVIADA não são desta regra.
+    expect((await repo.listarSessoesConcluidas()).map((r) => [r.sessaoUid, r.situacao])).toEqual([
+      ['limite', 'LOCAL'],
+      ['recente', 'LOCAL'],
+      ['falhou', 'FALHOU'],
+      ['enviada', 'ENVIADO'],
+    ]);
+    // Repetir não muda nada; o envio leva só as que ficaram, com o mesmo id.
+    expect(await repo.descartarSessoesConcluidasAntesDe(limite)).toBe(0);
+    const enviar = jest.fn(aceitaTudoConclusoes);
+    await new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(enviar)).sincronizar();
+    expect(enviar.mock.calls.flatMap(([lote]) => lote.map((r) => r.id))).toEqual([noLimite.id, recente.id]);
+    // Persistiu: reaberto, o aparelho não as traz de volta.
+    await repo.fechar();
+    expect((await aparelho('u1').listarSessoesConcluidas()).map((r) => r.sessaoUid)).toEqual(['limite', 'recente', 'falhou', 'enviada']);
   });
 
   it('503 RETORNO_INDISPONIVEL e depois a chave volta: a conclusão que provocou o 503 é reenviada com o mesmo id', async () => {

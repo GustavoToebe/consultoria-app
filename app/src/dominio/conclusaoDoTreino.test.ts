@@ -1,9 +1,11 @@
 import type { Sessao } from '../api/tipos';
 import {
   COMENTARIO_MAXIMO,
+  conclusaoForaDaJanela,
   contagemDeSeries,
   duracaoDoTreino,
   duracaoValida,
+  inicioDaJanelaDeConclusao,
   minutosParaSegundos,
   normalizarComentario,
   podeConcluirEm,
@@ -31,6 +33,26 @@ describe('podeConcluirEm', () => {
   it('recusa data fora do formato', () => {
     expect(podeConcluirEm('28/10/2026', HOJE)).toBe(false);
     expect(podeConcluirEm('', HOJE)).toBe(false);
+  });
+});
+
+describe('conclusaoForaDaJanela (retomada da chave)', () => {
+  it('a janela começa em hoje - 60, o mesmo limite de podeConcluirEm', () => {
+    expect(inicioDaJanelaDeConclusao(HOJE)).toBe('2026-08-29');
+    expect(podeConcluirEm(inicioDaJanelaDeConclusao(HOJE), HOJE)).toBe(true);
+  });
+
+  it('só o que ficou antes da janela sai: hoje - 61 sim; hoje - 60, hoje e o futuro (relógio adiantado) não', () => {
+    expect(conclusaoForaDaJanela('2026-08-28', HOJE)).toBe(true);
+    expect(conclusaoForaDaJanela('2026-01-01', HOJE)).toBe(true);
+    expect(conclusaoForaDaJanela('2026-08-29', HOJE)).toBe(false);
+    expect(conclusaoForaDaJanela(HOJE, HOJE)).toBe(false);
+    expect(conclusaoForaDaJanela('2026-10-29', HOJE)).toBe(false);
+  });
+
+  it('data ilegível não é descartada por esta regra', () => {
+    expect(conclusaoForaDaJanela('28/08/2026', HOJE)).toBe(false);
+    expect(conclusaoForaDaJanela('', HOJE)).toBe(false);
   });
 });
 

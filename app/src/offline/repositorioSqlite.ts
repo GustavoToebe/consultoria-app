@@ -594,6 +594,12 @@ export class RepositorioSqlite implements RepositorioLocal {
     );
   }
 
+  descartarSessoesConcluidasAntesDe(limite: string): Promise<number> {
+    return this.emFila(0, async (b) =>
+      (await b.rodar("delete from sessao_concluida where situacao = 'LOCAL' and data < ?", [limite])).alteradas,
+    );
+  }
+
   // ---- Início do treino (só no aparelho, fora da fila) ----
 
   lerIniciosDoTreino(): Promise<Record<string, string>> {

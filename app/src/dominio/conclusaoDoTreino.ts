@@ -31,6 +31,23 @@ export function podeConcluirEm(data: string, hoje: string): boolean {
 }
 
 /**
+ * Primeiro dia que o servidor ainda aceita (`hoje` - 60). Uma conclusão da fila com data anterior a esta nunca mais
+ * será aceita: a retomada da chave "Concluir treino" a descarta (`RepositorioLocal.descartarSessoesConcluidasAntesDe`)
+ * em vez de deixá-la virar falha para sempre. `hoje` é o de Brasília (`hojeDoCiclo`), o do servidor.
+ */
+export function inicioDaJanelaDeConclusao(hoje: string): string {
+  return somarDias(hoje, -DIAS_PARA_TRAS_DA_CONCLUSAO);
+}
+
+/**
+ * A conclusão saiu da janela para sempre? Só o passado conta: uma data futura (relógio adiantado) ainda vira válida com
+ * o tempo, então fica na fila. Data ilegível também fica (não é desta regra descartá-la).
+ */
+export function conclusaoForaDaJanela(data: string, hoje: string): boolean {
+  return ISO.test(data) && data < inicioDaJanelaDeConclusao(hoje);
+}
+
+/**
  * Séries previstas na sessão e quantas estão feitas. `feita` diz se a série (pelo `uid`) está concluída na data da
  * tela (o `registroDe(uid)?.concluida` do `useSessaoDoDia`).
  */

@@ -201,6 +201,12 @@ export interface RepositorioLocal {
     resultados: ResultadoEnvio[],
   ): Promise<void>;
   /**
+   * Tira da fila, sem enviar, as conclusões ainda LOCAL com data anterior a `limite` (o primeiro dia que o servidor
+   * aceita, `inicioDaJanelaDeConclusao`): ficaram presas com a chave "Concluir treino" desligada por mais de 60 dias e o
+   * servidor as recusaria para sempre. ENVIADO e FALHOU não mudam. Devolve quantas saíram.
+   */
+  descartarSessoesConcluidasAntesDe(limite: string): Promise<number>;
+  /**
    * Instante da primeira série marcada como feita de cada treino (versão|sessão|dia, ver `chaveDoInicioDoTreino`). Só
    * no aparelho: nunca vai ao servidor nem à fila retida.
    */
@@ -586,6 +592,15 @@ export class RepositorioChaveValor implements RepositorioLocal {
         'sessoesConcluidas',
         lista.filter((r) => r.situacao !== 'ENVIADO' || r.data >= limite),
       );
+    });
+  }
+
+  descartarSessoesConcluidasAntesDe(limite: string): Promise<number> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', []);
+      const ficam = lista.filter((r) => r.situacao !== 'LOCAL' || r.data >= limite);
+      if (ficam.length !== lista.length) await this.gravarJson('sessoesConcluidas', ficam);
+      return lista.length - ficam.length;
     });
   }
 

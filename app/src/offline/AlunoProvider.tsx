@@ -20,7 +20,7 @@ import {
 } from '../api/rotas';
 import type { Atualizacao, ConteudoMobilidadeApi, DemonstracaoDoAluno, PastaDoAluno, PlanosDaPasta, RegistroMobilidadeFeito, SessaoConcluidaDoServidor, VersaoDetalhe } from '../api/tipos';
 import { hojeDoCiclo } from '../dominio/cicloMenstrual';
-import { validarConclusao, type ProblemasDaConclusao } from '../dominio/conclusaoDoTreino';
+import { inicioDaJanelaDeConclusao, validarConclusao, type ProblemasDaConclusao } from '../dominio/conclusaoDoTreino';
 import { filaVisivel } from '../dominio/filaVisivel';
 import { hojeIso, somarDias } from '../dominio/formatos';
 import { conclusaoDe, fundirConclusoes, totalDeConcluidos, type ConclusaoDoTreino } from '../dominio/sessoesConcluidas';
@@ -322,6 +322,14 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     }
   }, []);
 
+  // Chave ligada (abertura ou retomada): as conclusões LOCAL anteriores à janela que o servidor aceita (hoje de Brasília
+  // - 60) saem da fila sem envio. Ficaram presas com a chave desligada e virariam falha que "Tentar de novo" nunca resolve.
+  // Desligada, nada sai: elas ficam como estão até a chave voltar.
+  const descartarConclusoesForaDaJanela = useCallback(async () => {
+    if (!retornoRef.current) return;
+    await repositorio.descartarSessoesConcluidasAntesDe(inicioDaJanelaDeConclusao(hojeDoCiclo())).catch(() => 0);
+  }, [repositorio]);
+
   // Séries já no servidor, por semana (segunda a domingo). Só leitura: nada disso entra na fila nem no repositório, a não
   // ser a semana atual guardada para abrir sem internet (a mesma cópia que o "Sua semana" já usava). `desde` alarga a
   // busca para trás numa chamada só (o período do plano, para as datas das divisões).
@@ -417,18 +425,19 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     retornoRef.current = retornoHabilitado;
     if (virouLigada && montou.current) {
       void baixarSessoesConcluidas();
-      // Em callback de promessa (lint do React 19). Duas passadas: se já havia um envio em andamento, ele pulou as
-      // conclusões (chave desligada quando começou) e a primeira chamada só devolve esse; a segunda as envia.
-      void Promise.resolve().then(() => sincronizar()).then(() => sincronizar());
+      // Em callback de promessa (lint do React 19). Primeiro descarta o que saiu da janela de 60 dias; depois duas
+      // passadas: se já havia um envio em andamento, ele pulou as conclusões (chave desligada quando começou) e a
+      // primeira chamada só devolve esse; a segunda as envia.
+      void descartarConclusoesForaDaJanela().then(() => sincronizar()).then(() => sincronizar());
     }
     montou.current = true;
-  }, [retornoHabilitado, baixarSessoesConcluidas, sincronizar]);
+  }, [retornoHabilitado, baixarSessoesConcluidas, descartarConclusoesForaDaJanela, sincronizar]);
 
   // Abertura: confere a fila que uma sessão recusada deixou (vencida = apagada; dentro do prazo = volta a ser a fila
   // normal deste usuário), lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
   useEffect(() => {
     let vivo = true;
-    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade(),repositorio.listarMobilidade(),repositorio.lerDemonstracoes(),repositorio.listarSessoesConcluidas(),repositorio.lerIniciosDoTreino()])).then(
+    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => descartarConclusoesForaDaJanela()).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade(),repositorio.listarMobilidade(),repositorio.lerDemonstracoes(),repositorio.listarSessoesConcluidas(),repositorio.lerIniciosDoTreino()])).then(
       ([p, r, c, a, m, ml, dem, cl, ini]) => {
         if (!vivo) return;
         setConclusoesLocais(cl);
@@ -450,7 +459,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     return () => {
       vivo = false;
     };
-  }, [repositorio, baixarPacote, sincronizar,usuarioId]);
+  }, [repositorio, baixarPacote, sincronizar, descartarConclusoesForaDaJanela, usuarioId]);
 
   // Rede voltou, app voltou para a frente, sessão renovada depois de abrir sem internet.
   useEffect(() => {
