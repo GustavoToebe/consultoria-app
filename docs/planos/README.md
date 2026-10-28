@@ -35,7 +35,6 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | --- | --- | --- |
 | Conferir que a "Anamnese Saraiva Team" está publicada em Planejamento › Anamnese | Gustavo | anamnese |
 | Ver no celular se os títulos das seções do editor de séries (caixa alta 12 px) ficaram bons | Gustavo | editor de séries (5d353d0) |
-| Meus dados do aluno: decidir se a rota `PUT /aluno/meus-dados` ganha limite de tentativas (`LimiteTentativas`, por usuário) contra teste de CPFs pelo 409 `ALUNO_CPF_EM_USO`; e se o aluno inativo deve dar 409 em vez do 401 que já recebe | Gustavo | meus-dados-do-aluno |
 | Gerar APK novo (`npx eas-cli build --profile preview --platform android`) e repetir o roteiro de `docs/build-celular.md` | Gustavo | etapas, cronômetro, editor |
 | Teste manual na web do roteiro de Cluster e Rest-pause com um aluno de teste | Gustavo | etapas |
 | Apagar a branch `etapas-por-bloco` (nada fora da `main`) | Gustavo | limpeza |

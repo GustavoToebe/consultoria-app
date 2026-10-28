@@ -110,6 +110,19 @@ public class LimiteTentativas {
     }
 
     /**
+     * CPF enviado pelo próprio aluno em "Meus dados" ({@code PUT /aluno/meus-dados}): o CPF só preenche um cadastro vazio, e a
+     * resposta (200 ou 409 {@code ALUNO_CPF_EM_USO}) diria se um CPF já é de outro aluno da consultoria. Dez envios com CPF por
+     * usuário em 24 h fecham essa consulta; chamado fora da transação, então a tentativa recusada também conta.
+     */
+    public void cpfPeloAluno(java.util.UUID usuarioId) {
+        long agora = clock.millis();
+        var estado = contador.tentar(chave("cpf-aluno", usuarioId == null ? "" : usuarioId.toString()), agora, 86_400_000L);
+        if (estado.tentativas() > 10) {
+            throw new MuitasRequisicoesException(segundosAte(estado.ateMs(), agora));
+        }
+    }
+
+    /**
      * Verificação humana: antes de chamar a Cloudflare, recusa o IP que já gastou as falhas da janela (não conta nada, assim
      * quem está bloqueado também não gera chamada ao siteverify).
      */
