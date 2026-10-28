@@ -104,18 +104,27 @@ public class FonteDaContaCentral implements FonteDaConta {
             LOG.warn("Link de pagamento: resposta da central ilegível.");
             throw IntegracaoException.centralIndisponivel();
         }
-        if (!urlDoMercadoPago(url)) {
-            LOG.warn("Link de pagamento: a central devolveu um endereço fora do Mercado Pago.");
+        if (!urlDeCheckout(url)) {
+            LOG.warn("Link de pagamento: a central devolveu um endereço fora dos checkouts conhecidos.");
             throw IntegracaoException.centralIndisponivel();
         }
         return url;
     }
 
-    static boolean urlDoMercadoPago(String url) {
+    /**
+     * Hosts dos checkouts que a Central pode devolver (contrato 6.4: o provedor é escolhido pela Central, por
+     * {@code CENTRAL_PAGAMENTO_PROVEDOR}). Lista fechada e comparação exata do host: os da InfinitePay são os mesmos que a
+     * Central aceita do {@code /links} ({@code InfinitePayHttp.HOSTS_DO_LINK}). Antes de 28/10/2026 só o Mercado Pago passava,
+     * e a troca de provedor na Central derrubaria o "Pagar" da Minha conta com {@code CENTRAL_INDISPONIVEL}.
+     */
+    static final Set<String> HOSTS_DE_CHECKOUT = Set.of("www.mercadopago.com.br", "www.mercadopago.com",
+            "checkout.infinitepay.com.br", "checkout.infinitepay.io");
+
+    static boolean urlDeCheckout(String url) {
         try {
             URI uri = URI.create(url);
-            return "https".equals(uri.getScheme()) && uri.getUserInfo() == null
-                    && Set.of("www.mercadopago.com.br", "www.mercadopago.com").contains(uri.getHost());
+            return "https".equals(uri.getScheme()) && uri.getUserInfo() == null && uri.getPort() == -1
+                    && HOSTS_DE_CHECKOUT.contains(uri.getHost());
         } catch (IllegalArgumentException e) {
             return false;
         }
