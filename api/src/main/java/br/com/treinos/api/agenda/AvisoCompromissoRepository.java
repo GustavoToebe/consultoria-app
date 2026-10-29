@@ -26,6 +26,12 @@ public interface AvisoCompromissoRepository extends JpaRepository<AvisoCompromis
             + "and a.compromissoId in :compromissoIds and a.vistoEm is null")
     int apagarNaoVistos(UUID consultoriaId, UUID alunoId, Collection<UUID> compromissoIds);
 
+    /** Inativação do aluno (D12/D18): saem TODOS os avisos ainda não vistos dele, de qualquer compromisso; o visto fica. */
+    @Modifying(flushAutomatically = true)
+    @Query("delete from AvisoCompromisso a where a.consultoriaId = :consultoriaId and a.alunoId = :alunoId "
+            + "and a.vistoEm is null")
+    int apagarTodosNaoVistosDoAluno(UUID consultoriaId, UUID alunoId);
+
     /** Os não vistos do aluno, do mais novo ao mais antigo (no máximo 20). */
     List<AvisoCompromisso> findTop20ByConsultoriaIdAndAlunoIdAndVistoEmIsNullOrderByCriadoEmDescIdDesc(UUID consultoriaId,
                                                                                                     UUID alunoId);

@@ -489,6 +489,10 @@ public class AgendaService {
      * Devolve quantas participações cancelou; com pelo menos uma grava UMA auditoria
      * {@code ALUNO_COMPROMISSOS_CANCELADOS} de resumo fixo (a quantidade, sem nome nem data).
      *
+     * <p><b>Avisos (D12).</b> Antes de tudo, mesmo sem nada para cancelar, apaga TODOS os avisos ainda não vistos do aluno,
+     * de qualquer compromisso (inclusive de compromissos que já terminaram): quem foi inativado não deve achar, ao ser
+     * reativado, avisos velhos de uma agenda que deixou de valer. Aviso já visto fica (histórico e exportação).
+     *
      * <p><b>Trava.</b> Não trava a consultoria: quem chama já a travou, <b>antes</b> de travar o aluno
      * ({@code AlunoService.travarConsultoria}). A agenda trava a consultoria e depois insere participantes (FK para o
      * aluno), então travar o aluno primeiro e a consultoria depois, aqui dentro, poderia travar em círculo; com a ordem
@@ -496,6 +500,7 @@ public class AgendaService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public int cancelarFuturosDoAluno(UUID alunoId) {
+        avisos.apagarTodosNaoVistosDoAluno(TenantContext.get(), alunoId);
         List<CompromissoAluno> dele = participantes.futurasAgendadasDoAluno(TenantContext.get(), alunoId, Instant.now());
         if (dele.isEmpty()) {
             return 0;

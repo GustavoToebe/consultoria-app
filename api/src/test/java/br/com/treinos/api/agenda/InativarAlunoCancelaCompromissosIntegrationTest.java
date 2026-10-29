@@ -162,8 +162,9 @@ class InativarAlunoCancelaCompromissosIntegrationTest extends AbstractIntegratio
         // O compromisso do aluno único foi cancelado: o horário do responsável fica livre.
         horarioLivre(futuro1, true);
         horarioLivre(realizadoFuturo, false);
-        // Sem aviso para ele nem para os outros.
-        assertThat(avisos(aluno)).isEqualTo(avisosAntes);
+        // Sem aviso novo para ele nem para os outros; os não vistos dele saem (D12), os do outro aluno ficam.
+        assertThat(avisosAntes).isPositive(); // marcar gerou avisos NOVO, todos não vistos
+        assertThat(avisos(aluno)).isZero();
         assertThat(avisos(outroAluno)).isEqualTo(avisosDoOutroAntes);
         // Uma auditoria, com a quantidade e sem nome nem data.
         assertThat(auditorias(aluno)).isEqualTo(1);
@@ -262,7 +263,73 @@ class InativarAlunoCancelaCompromissosIntegrationTest extends AbstractIntegratio
                 Boolean.class, serie.path("serieId").asString())).containsExactly(false, true, true, true);
         assertThat(resumo(aluno)).isEqualTo("Cancelou 3 compromissos futuros do aluno ao inativá-lo.");
         assertThat(auditorias(aluno)).isEqualTo(1);
-        assertThat(avisos(aluno)).isEqualTo(avisosAntes);
+        assertThat(avisosAntes).isPositive();
+        assertThat(avisos(aluno)).isZero(); // os não vistos saem; a inativação não gera aviso de cancelamento
+    }
+
+    // ---- avisos não vistos (D12) ----
+
+    private long avisosNaoVistos(UUID alunoId) {
+        return banco.queryForObject("select count(*) from aviso_compromisso where aluno_id = ? and visto_em is null",
+                Long.class, alunoId);
+    }
+
+    private long avisosVistos(UUID alunoId) {
+        return banco.queryForObject("select count(*) from aviso_compromisso where aluno_id = ? and visto_em is not null",
+                Long.class, alunoId);
+    }
+
+    private JsonNode loginDoAlunoJaConvidado(UUID alunoId) throws Exception {
+        String email = banco.queryForObject("select u.email from usuario u join aluno a on a.usuario_id = u.id "
+                + "where a.id = ?", String.class, alunoId);
+        return api.post("/auth/login", null, Map.of("email", email, "senha", ApiDeTeste.SENHA), 200);
+    }
+
+    @Test
+    void inativarApagaTodosOsAvisosNaoVistosEMantemOVistoInclusiveDeCompromissoTerminado() throws Exception {
+        JsonNode loginDoAluno = api.convidarEEntrar(admin, aluno);
+        UUID bruna = api.criarAluno(admin, "Bruna Fictícia dos Avisos");
+        JsonNode visto = marcar(aluno, hoje().plusDays(3), "09:00");
+        JsonNode lista = api.get("/aluno/avisos-de-compromisso", loginDoAluno, 200);
+        assertThat(lista).hasSize(1);
+        api.post("/aluno/avisos-de-compromisso/" + lista.get(0).path("id").asString() + "/visto", loginDoAluno, null, 204);
+        marcar(aluno, hoje().plusDays(4), "09:00"); // NOVO não visto, compromisso futuro
+        JsonNode terminado = marcar(aluno, hoje().plusDays(5), "09:00"); // NOVO não visto...
+        banco.update("update compromisso set inicio = now() - interval '2 hours', fim = now() - interval '1 hour' "
+                + "where id = ?::uuid", terminado.path("id").asString()); // ...de um compromisso que já terminou
+        marcar(bruna, hoje().plusDays(3), "11:00");
+        assertThat(avisosNaoVistos(aluno)).isEqualTo(2);
+        assertThat(avisosVistos(aluno)).isEqualTo(1);
+        assertThat(avisos(bruna)).isEqualTo(1);
+
+        inativar(aluno);
+
+        assertThat(avisosNaoVistos(aluno)).isZero();
+        assertThat(avisosVistos(aluno)).isEqualTo(1); // o visto fica
+        assertThat(avisos(bruna)).isEqualTo(1); // o de outro aluno não é tocado
+        assertThat(situacao(visto, aluno)).isEqualTo("CANCELADO");
+
+        reativar(aluno);
+
+        // Quem volta não encontra aviso velho; o visto continua no banco e na exportação.
+        assertThat(api.get("/aluno/avisos-de-compromisso", loginDoAlunoJaConvidado(aluno), 200)).isEmpty();
+        assertThat(avisosVistos(aluno)).isEqualTo(1);
+        JsonNode exportacao = api.get("/alunos/" + aluno + "/exportacao", admin, 200);
+        assertThat(exportacao.path("avisosDeCompromisso").path("itens")).hasSize(1);
+    }
+
+    @Test
+    void inativarSemNadaParaCancelarApagaOsAvisosNaoVistosDeCompromissoTerminado() throws Exception {
+        JsonNode c = marcar(aluno, hoje().plusDays(3), "09:00");
+        banco.update("update compromisso set inicio = now() - interval '2 hours', fim = now() - interval '1 hour' "
+                + "where id = ?::uuid", c.path("id").asString());
+        assertThat(avisosNaoVistos(aluno)).isEqualTo(1);
+
+        inativar(aluno);
+
+        assertThat(avisos(aluno)).isZero();
+        assertThat(situacao(c, aluno)).isEqualTo("AGENDADO"); // terminado: nada a cancelar
+        assertThat(auditorias(aluno)).isZero();
     }
 
     // ---- lote ----
@@ -293,7 +360,8 @@ class InativarAlunoCancelaCompromissosIntegrationTest extends AbstractIntegratio
         assertThat(auditorias(semAgenda)).isZero();
         assertThat(resumo(aluno)).isEqualTo("Cancelou 2 compromissos futuros do aluno ao inativá-lo.");
         assertThat(resumo(bruna)).isEqualTo("Cancelou 2 compromissos futuros do aluno ao inativá-lo.");
-        assertThat(avisos(aluno) + avisos(bruna)).isEqualTo(avisosAntes);
+        assertThat(avisosAntes).isPositive();
+        assertThat(avisos(aluno) + avisos(bruna)).isZero(); // não vistos saem; nenhum aviso de cancelamento nasce
 
         // Repetir o lote: já estão inativos, nada muda e a auditoria não duplica.
         assertThat(api.post("/alunos/lote/desativar", admin, Map.of("alunoIds", List.of(aluno, bruna)), 200)
