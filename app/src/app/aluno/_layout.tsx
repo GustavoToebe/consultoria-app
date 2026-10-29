@@ -18,6 +18,8 @@ import { ContextoDeImagens } from '../../aluno/atualizacao/ImagemDaPergunta';
 import { baixarImagemDoAluno } from '../../api/rotas';
 import { useAnamnese } from '../../aluno/anamnese/useAnamnese';
 import { FinanceiroDoAlunoProvider, useFinanceiroDoAluno } from '../../aluno/financeiro/FinanceiroDoAlunoProvider';
+import { CompromissosDoAlunoProvider, useCompromissosDoAluno } from '../../aluno/compromissos/CompromissosDoAlunoProvider';
+import { temAvisoDeCompromisso } from '../../dominio/paraFazer';
 
 /** Aluno: barra inferior sempre (uso principal é no celular). */
 const ITENS: ItemMenu[] = [
@@ -43,7 +45,10 @@ export default function LayoutAluno() {
             <ContextoDeImagens.Provider value={baixarImagemDoAluno}>
               {/* O financeiro do aluno fica só em memória (nada no aparelho) e só é buscado com o módulo ligado e online. */}
               <FinanceiroDoAlunoProvider>
-                <MenuAluno />
+                {/* Compromissos e avisos também só em memória; alimentam o Início, o ponto e os lembretes locais. */}
+                <CompromissosDoAlunoProvider>
+                  <MenuAluno />
+                </CompromissosDoAlunoProvider>
               </FinanceiroDoAlunoProvider>
             </ContextoDeImagens.Provider>
           </ProvedorDoPasseio>
@@ -55,12 +60,14 @@ export default function LayoutAluno() {
 
 function MenuAluno() {
   const {atualizacao}=useAluno();
-  // O ponto no Início conta as pendências: a atualização a enviar, a anamnese a responder e o pagamento em aberto.
+  // O ponto no Início conta as pendências: a atualização a enviar, a anamnese a responder, o pagamento em aberto e o
+  // aviso de compromisso ainda não visto (D12).
   const anamnese=useAnamnese();
+  const avisoDeCompromisso=temAvisoDeCompromisso(useCompromissosDoAluno().avisos);
   const anamnesePendente=anamnese.dados?.situacao==='PENDENTE';
   const financeiro=useFinanceiroDoAluno();
   const pagamentoEmAberto=financeiro.habilitado&&pagamentoPendente(financeiro.dados?.abertas,hojeEmBrasilia()).length>0;
-  const ponto=pagamentoEmAberto || anamnesePendente || (!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)}));
+  const ponto=pagamentoEmAberto || anamnesePendente || avisoDeCompromisso || (!!atualizacao && temAcaoAtualizacao({...atualizacao,...faseAtualizacao(hojeIso(),atualizacao.dataAtualizacao,atualizacao.atrasoAte,atualizacao.fase)}));
   return <Navegacao itens={ITENS.map(item=>item.caminho==='/aluno'?{...item,ponto}:item)} sempreInferior larguraInferior={720} rodape={<RodapeAluno />} />;
 }
 

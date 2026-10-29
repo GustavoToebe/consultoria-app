@@ -38,6 +38,8 @@ export interface Preferencias {
   logoNaComparacao: boolean;
   /** Gráfico de peso do treinador: faixas das fases atrás da linha. Ligado por padrão. */
   mostrarFasesDoCiclo: boolean;
+  /** Só aluno, só no celular: notificações locais 1 dia e 2 horas antes de cada compromisso. Desligado por padrão. */
+  lembretesCompromisso: boolean;
 }
 
 /** Valores que o cartão "Sem registro" oferece; a API aceita de 1 a 90. */
@@ -58,6 +60,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   pdfDieta: { modo: 'simples', periodo: 'semana', fatores: true },
   logoNaComparacao: true,
   mostrarFasesDoCiclo: true,
+  lembretesCompromisso: false,
 };
 
 const TEMAS: readonly TemaEscolhido[] = ['CONSULTORIA', 'ESCURO', 'CLARO', 'SISTEMA'];
@@ -92,6 +95,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     pdfDieta: pdfDietaDe(o.pdfDieta),
     logoNaComparacao: typeof o.logoNaComparacao === 'boolean' ? o.logoNaComparacao : PREFERENCIAS_PADRAO.logoNaComparacao,
     mostrarFasesDoCiclo: typeof o.mostrarFasesDoCiclo === 'boolean' ? o.mostrarFasesDoCiclo : PREFERENCIAS_PADRAO.mostrarFasesDoCiclo,
+    lembretesCompromisso: typeof o.lembretesCompromisso === 'boolean' ? o.lembretesCompromisso : PREFERENCIAS_PADRAO.lembretesCompromisso,
   };
 }
 

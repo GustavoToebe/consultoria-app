@@ -15,7 +15,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -26,6 +26,12 @@ describe('preferências pessoais', () => {
     expect(normalizarPreferencias({ mostrarFasesDoCiclo: 'sim' }).mostrarFasesDoCiclo).toBe(true);
     expect(normalizarPreferencias({ mostrarFasesDoCiclo: false }).mostrarFasesDoCiclo).toBe(false);
     expect(normalizarPreferencias({ logoNaComparacao: false }).logoNaComparacao).toBe(false);
+  });
+
+  it('lembretes de compromisso: desligados por padrão; só um booleano os liga', () => {
+    expect(PREFERENCIAS_PADRAO.lembretesCompromisso).toBe(false);
+    expect(normalizarPreferencias({ lembretesCompromisso: true }).lembretesCompromisso).toBe(true);
+    for (const v of ['sim', 1, null]) expect(normalizarPreferencias({ lembretesCompromisso: v }).lembretesCompromisso).toBe(false);
   });
 
   it('pdf da dieta: valor inválido volta a simples, 7 dias e fatores ligados', () => {

@@ -84,6 +84,8 @@ export async function sessaoDeAlunoComTreino(page: Page, sessoes: Sessao[] | nul
     'GET /aluno/meus-dados': { corpo: MEUS_DADOS_VAZIOS },
     // Agenda presencial no Início: sem compromissos o bloco some (o teste da agenda troca).
     'GET /aluno/compromissos': { corpo: [] },
+    // Avisos de compromisso não vistos (ponto na aba e item nas pendências): nenhum, salvo no teste dos avisos.
+    'GET /aluno/avisos-de-compromisso': { corpo: [] },
   };
 }
 
