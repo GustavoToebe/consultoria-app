@@ -3,10 +3,11 @@ import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { alterarAlimento, criarAlimento, inativarAlimento, listarAlimentos } from '../../api/rotas';
+import { alterarAlimento, criarAlimento, gruposDoCatalogo, inativarAlimento, listarAlimentos } from '../../api/rotas';
 import type { Alimento, AlimentoRequest, UnidadeAlimento } from '../../api/tipos';
 import { AJUDA_FC, AJUDA_FCC, erroDoFatorCoccao, erroDoFatorCorrecao, textoDosFatores } from '../../dominio/fatoresDoAlimento';
 import { numeroParaTela } from '../../dominio/formatos';
+import { sugerirGrupos } from '../../dominio/gruposDaLista';
 import { espaco } from '../../tema/tokens';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useAviso } from '../../ui/Aviso';
@@ -25,6 +26,7 @@ import { Texto } from '../../ui/Texto';
 import { BarraDaBiblioteca, FiltroDaBiblioteca } from './BarraDaBiblioteca';
 import { useCarregar } from '../../ui/useCarregar';
 import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
+import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { normalizar } from '../treino/FolhaBiblioteca';
 
 export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
@@ -36,6 +38,16 @@ export const UNIDADES: { valor: UnidadeAlimento; rotulo: string }[] = [
 /** "100 g · 266 kcal · P 8,4 · C 49,6 · G 3,2" */
 export function resumoAlimento(a: Pick<Alimento, 'baseQuantidade' | 'baseUnidade' | 'kcal' | 'proteina' | 'carboidrato' | 'gordura'>) {
   return `${numeroParaTela(a.baseQuantidade)} ${a.baseUnidade} · ${numeroParaTela(a.kcal, 0)} kcal · P ${numeroParaTela(a.proteina, 1)} · C ${numeroParaTela(a.carboidrato, 1)} · G ${numeroParaTela(a.gordura, 1)}`;
+}
+
+/** Tamanho do grupo do alimento (`GrupoDoAlimento.MAXIMO` na API). */
+export const LIMITE_GRUPO_DO_ALIMENTO = 60;
+/** Quantas sugestões de grupo aparecem de uma vez embaixo do campo. */
+const SUGESTOES_DE_GRUPO = 8;
+
+/** "Cereais e derivados · FC 1,75 · FCc 2,5" na linha da biblioteca; sem grupo nem fator, nada. */
+export function descricaoDoAlimento(a: Pick<Alimento, 'grupo' | 'fatorCorrecao' | 'fatorCoccao'>): string | null {
+  return [a.grupo?.trim() || null, textoDosFatores(a)].filter(Boolean).join(' · ') || null;
 }
 
 /** Alimentos da consultoria com os valores por quantidade-base (digitados pelo treinador ou importados). */
@@ -82,7 +94,7 @@ export function AbaAlimentos() {
       ) : null}
       {lista.length ? <ListaDeLinhas>{lista.map((a) => {
         const fatoresDoAlimento = textoDosFatores(a);
-        return <LinhaDaLista key={a.id} titulo={a.nome} metadados={resumoAlimento(a)} descricao={fatoresDoAlimento ?? undefined}
+        return <LinhaDaLista key={a.id} titulo={a.nome} metadados={resumoAlimento(a)} descricao={descricaoDoAlimento(a) ?? undefined}
           selos={fatoresDoAlimento ? undefined : [{ texto: 'Sem fatores', tipo: 'neutro' }]}
           acoesAoLado
           acoes={<Permitido codigo="BIBLIOTECA_ALTERAR"><IconeBotao Icone={Pencil} rotulo={`Editar ${a.nome}`} aoTocar={() => setEditando(a)} /></Permitido>} />;
@@ -90,6 +102,7 @@ export function AbaAlimentos() {
       {editando ? (
         <FolhaAlimento
           inicial={editando === 'novo' ? null : editando}
+          gruposDaConsultoria={(dados ?? []).map((a) => a.grupo)}
           aoTirar={editando === 'novo' ? undefined : () => { const alvo = editando; setEditando(null); setInativar(alvo); }}
           aoFechar={() => setEditando(null)}
           aoSalvar={() => {
@@ -112,7 +125,14 @@ export function AbaAlimentos() {
   );
 }
 
-function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () => void; inicial: Alimento | null; aoFechar: () => void; aoSalvar: () => void }) {
+function FolhaAlimento({ inicial, gruposDaConsultoria, aoFechar, aoSalvar, aoTirar }: {
+  aoTirar?: () => void;
+  inicial: Alimento | null;
+  /** Grupos já usados na biblioteca, para as sugestões do campo Grupo. */
+  gruposDaConsultoria: (string | null)[];
+  aoFechar: () => void;
+  aoSalvar: () => void;
+}) {
   const [nome, setNome] = useState(inicial?.nome ?? '');
   const [base, setBase] = useState<number | null>(inicial?.baseQuantidade ?? 100);
   const [unidade, setUnidade] = useState<UnidadeAlimento>(inicial?.baseUnidade ?? 'g');
@@ -124,6 +144,10 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
   const [fonte, setFonte] = useState(inicial?.fonte ?? '');
   const [fc, setFc] = useState<number | null>(inicial?.fatorCorrecao ?? null);
   const [fcc, setFcc] = useState<number | null>(inicial?.fatorCoccao ?? null);
+  const [grupo, setGrupo] = useState(inicial?.grupo ?? '');
+  // Grupos do catálogo público como sugestão; sem eles (erro ou sem rede), sugere só os da consultoria.
+  const doCatalogo = useCarregar('grupos-catalogo-alimentos', () => gruposDoCatalogo('alimentos'));
+  const sugestoes = sugerirGrupos(gruposDaConsultoria, doCatalogo.dados ?? [], grupo).slice(0, SUGESTOES_DE_GRUPO);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const campos = errosPorCampo(erro);
@@ -145,6 +169,7 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
       fonte: fonte.trim() || null,
       fatorCorrecao: fc,
       fatorCoccao: fcc,
+      grupo: grupo.replace(/\s+/g, ' ').trim() || null,
     };
     setSalvando(true);
     setErro(null);
@@ -166,6 +191,21 @@ function FolhaAlimento({ inicial, aoFechar, aoSalvar, aoTirar }: { aoTirar?: () 
         </>
       }>
       <Campo rotulo="Nome" valor={nome} aoMudar={setNome} erro={campos.nome} maxLength={160} />
+      <Campo
+        rotulo="Grupo (opcional)"
+        valor={grupo}
+        aoMudar={setGrupo}
+        erro={campos.grupo}
+        maxLength={LIMITE_GRUPO_DO_ALIMENTO}
+        ajuda="Agrupa a lista de compras do aluno (ex.: Carnes e derivados). Escreva ou toque numa sugestão. Vazio fica em “Outros itens”."
+      />
+      {sugestoes.length ? (
+        <LinhaDeAcoes>
+          {sugestoes.map((g) => (
+            <Botao key={g} rotulo={g} tipo="secundario" aoTocar={() => setGrupo(g)} />
+          ))}
+        </LinhaDeAcoes>
+      ) : null}
       <View style={estilos.grade}>
         <View style={estilos.campo}>
           <CampoNumerico rotulo="Quantidade-base" valor={base} aoMudar={setBase} erro={campos.baseQuantidade} />

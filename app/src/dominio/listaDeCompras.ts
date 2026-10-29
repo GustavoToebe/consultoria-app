@@ -14,10 +14,26 @@ import type { ConteudoDieta, FatoresDoAlimento, ItemDieta, UnidadeAlimento } fro
  * Nada aqui opina sobre a dieta: só multiplica o que o treinador escreveu pelo número de dias.
  */
 
-export type PeriodoDaLista = 'semana' | 'mes';
+export type PeriodoDaLista = 'semana' | 'duasSemanas' | 'mes';
 
-/** Dias de cada período: semana = 7, mês = 30 (fixo, para a lista não mudar conforme o mês do calendário). */
-export const DIAS_DO_PERIODO: Record<PeriodoDaLista, number> = { semana: 7, mes: 30 };
+/** Os períodos na ordem da tela (7, 14 e 30 dias). */
+export const PERIODOS_DA_LISTA: readonly PeriodoDaLista[] = ['semana', 'duasSemanas', 'mes'];
+
+/**
+ * Dias de cada período: semana = 7, duas semanas = 14, mês = 30 (fixos, para a lista não mudar conforme o mês do
+ * calendário).
+ */
+export const DIAS_DO_PERIODO: Record<PeriodoDaLista, number> = { semana: 7, duasSemanas: 14, mes: 30 };
+
+/** Rótulo curto do período no seletor: "Semana", "2 semanas", "Mês". */
+export const ROTULO_DO_PERIODO: Record<PeriodoDaLista, string> = { semana: 'Semana', duasSemanas: '2 semanas', mes: 'Mês' };
+
+/** Título do cartão da lista: "Lista da semana", "Lista de 2 semanas", "Lista do mês". */
+export function tituloDaLista(periodo: PeriodoDaLista): string {
+  if (periodo === 'semana') return 'Lista da semana';
+  if (periodo === 'duasSemanas') return 'Lista de 2 semanas';
+  return 'Lista do mês';
+}
 
 /** Opção escolhida por refeição: `uid` da refeição → `uid` da opção. Sem escolha (ou escolha que sumiu), vale a primeira. */
 export type EscolhasDeOpcao = Readonly<Record<string, string>>;
@@ -43,6 +59,11 @@ export interface LinhaDaLista {
   fatorCorrecao: number | null;
   /** FCc comum do grupo; `null` se falta ou se as partes divergem. */
   fatorCoccao: number | null;
+  /**
+   * Grupo do alimento ("Carnes e derivados"), que a versão publicada traz em cada item (copiado da biblioteca, como os
+   * fatores); agrupa a tela e o PDF (`agruparLista`). `null` = sem grupo. Só muda a apresentação, nunca a conta.
+   */
+  grupo: string | null;
 }
 
 /** Opção que entra na lista para a refeição: a escolhida, se ainda existe; senão a primeira. */
@@ -83,8 +104,10 @@ export function listaDeCompras(conteudo: ConteudoDieta, escolhas: EscolhasDeOpca
       const fcc = item.unidade === 'g' && positivo(item.fatorCoccao) ? item.fatorCoccao : null;
       const cruQ = fcc ? (item.quantidade / fcc) * dias : null;
       const naDieta = item.quantidade * dias;
+      const grupo = item.grupo?.trim() || null;
       const atual = linhas.get(chave);
       if (atual) {
+        atual.grupo ??= grupo;
         atual.quantidade += dia.quantidade * dias;
         atual.naDieta += naDieta;
         atual.cru ||= dia.cru;
@@ -96,7 +119,7 @@ export function listaDeCompras(conteudo: ConteudoDieta, escolhas: EscolhasDeOpca
       } else {
         linhas.set(chave, {
           chave, nome, unidade: item.unidade, quantidade: dia.quantidade * dias, cru: dia.cru, bruto: dia.bruto,
-          semFator: !dia.cru && !dia.bruto, naDieta, quantidadeCru: cruQ, fatorCorrecao: fc, fatorCoccao: fcc,
+          semFator: !dia.cru && !dia.bruto, naDieta, quantidadeCru: cruQ, fatorCorrecao: fc, fatorCoccao: fcc, grupo,
         });
       }
     }
@@ -131,9 +154,10 @@ export function alimentosDaDieta(conteudo: ConteudoDieta): string[] {
 }
 
 /**
- * Conteúdo com os fatores da biblioteca nos itens, como a publicação faz no servidor (`PlanoDietaService.paraPublicar`):
- * item com alimento achado recebe os dois fatores atuais; item manual ou alimento não achado fica sem fator (nunca o
- * que estava no item, que no rascunho não vale). Não muda o conteúdo recebido.
+ * Conteúdo com os fatores e o grupo da biblioteca nos itens, como a publicação faz no servidor
+ * (`PlanoDietaService.paraPublicar`): item com alimento achado recebe os dois fatores e o grupo atuais; item manual ou
+ * alimento não achado fica sem fator e sem grupo (nunca o que estava no item, que no rascunho não vale). Não muda o
+ * conteúdo recebido.
  */
 export function comFatoresDaBiblioteca(conteudo: ConteudoDieta, fatores: readonly FatoresDoAlimento[]): ConteudoDieta {
   const porId = new Map(fatores.map((f) => [f.alimentoId, f]));
@@ -145,7 +169,7 @@ export function comFatoresDaBiblioteca(conteudo: ConteudoDieta, fatores: readonl
         ...o,
         itens: o.itens.map((i) => {
           const f = i.alimentoId ? porId.get(i.alimentoId) : undefined;
-          return { ...i, fatorCorrecao: f?.fatorCorrecao ?? null, fatorCoccao: f?.fatorCoccao ?? null };
+          return { ...i, fatorCorrecao: f?.fatorCorrecao ?? null, fatorCoccao: f?.fatorCoccao ?? null, grupo: f?.grupo ?? null };
         }),
       })),
     })),
@@ -183,7 +207,7 @@ export function marcaSemFator(papel: 'aluno' | 'treinador'): string {
 /** Aviso da prévia no editor do treinador (a lista do aluno sai dos fatores copiados na publicação). */
 export const NOTA_DA_PREVIA = 'Prévia com os fatores atuais da biblioteca; o aluno vê os fatores que estiverem na biblioteca quando você publicar.';
 
-/** "Semana (7 dias)" / "Mês (30 dias)" para o título do PDF. */
+/** "Semana (7 dias)" / "2 semanas (14 dias)" / "Mês (30 dias)" para o título do PDF. */
 export function textoDoPeriodo(periodo: PeriodoDaLista): string {
-  return periodo === 'semana' ? `Semana (${DIAS_DO_PERIODO.semana} dias)` : `Mês (${DIAS_DO_PERIODO.mes} dias)`;
+  return `${ROTULO_DO_PERIODO[periodo]} (${DIAS_DO_PERIODO[periodo]} dias)`;
 }

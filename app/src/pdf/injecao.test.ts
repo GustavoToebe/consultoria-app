@@ -8,6 +8,7 @@ import type { LinhaDaLista } from '../dominio/listaDeCompras';
 import { documentoCompleto, type Documento } from './html';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
+import { ajustarQuantidade, gravarAvulso, itensDoAluno, MARCACOES_VAZIAS } from '../dominio/listaDeComprasDoAluno';
 import { documentoListaDeCompras } from './pdfListaDeCompras';
 import { documentoMobilidade } from './pdfMobilidade';
 import { documentoTreino } from './pdfTreino';
@@ -191,6 +192,7 @@ const dieta: ConteudoDieta = normalizarDieta({
       nome: 'Café',
       horario: '08:00',
       observacao: 'Observação da refeição',
+      modoDePreparo: 'Modo de preparo\nSegunda linha',
       opcoes: [
         { rotulo: 'A', itens: [{ nome: 'Pão', quantidade: 50, unidade: 'g', kcal: 133, proteina: 4, carboidrato: 24, gordura: 1 }] },
         { rotulo: 'B', itens: [{ nome: 'Aveia', quantidade: 40, unidade: 'g', kcal: 99, proteina: 1, carboidrato: 1, gordura: 1 }] },
@@ -208,7 +210,7 @@ const mobilidade = normalizarMobilidade({
 
 const linhaDaLista = (chave: string, extra: Partial<LinhaDaLista> = {}): LinhaDaLista => ({
   chave, nome: 'Arroz', unidade: 'g', quantidade: 1225, cru: true, bruto: true, semFator: false,
-  naDieta: 1050, quantidadeCru: 420, fatorCorrecao: 1.1, fatorCoccao: 2.5, ...extra,
+  naDieta: 1050, quantidadeCru: 420, fatorCorrecao: 1.1, fatorCoccao: 2.5, grupo: 'Cereais e derivados', ...extra,
 });
 
 describe('PDF do treino não deixa texto virar HTML', () => {
@@ -239,6 +241,11 @@ describe('PDF da lista de compras não deixa texto virar HTML', () => {
   conferir('lista de compras', documentoListaDeCompras as never, {
     ...base, versao: 2, periodo: 'semana', opcoes: ['Café: opção B'],
     linhas: [linhaDaLista('a'), linhaDaLista('b', { semFator: true, cru: false, bruto: false, fatorCorrecao: null, fatorCoccao: null })],
+  });
+  const linhas = [linhaDaLista('a'), linhaDaLista('b')];
+  const marcacoes = gravarAvulso(ajustarQuantidade(MARCACOES_VAZIAS, 'a', { quantidade: '1', unidade: 'pacote' }), { id: 'x', nome: 'Café', quantidade: '2', unidade: 'kg' });
+  conferir('lista de compras do aluno (ajuste e avulso)', documentoListaDeCompras as never, {
+    ...base, versao: 2, periodo: 'duasSemanas', opcoes: [], linhas, itensDoAluno: itensDoAluno(linhas, marcacoes),
   });
   conferir('lista de compras (prévia, sem aluno)', documentoListaDeCompras as never, {
     ...base, aluno: null, versao: null, periodo: 'mes', opcoes: [], linhas: [linhaDaLista('a')],

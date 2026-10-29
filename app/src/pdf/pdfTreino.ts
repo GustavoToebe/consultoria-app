@@ -6,7 +6,7 @@ import { gruposDaSessao } from '../dominio/combinacoes';
 import { rotuloDescanso } from '../dominio/descanso';
 import { DIAS_SEMANA } from '../dominio/editorTreino';
 import { textoExecucao } from '../dominio/execucaoDoExercicio';
-import { dataHoraParaTela, dataParaTela } from '../dominio/formatos';
+import { dataParaTela } from '../dominio/formatos';
 import {
   explicacaoDaCombinacao,
   explicacaoDaTecnica,
@@ -19,7 +19,7 @@ import {
 import { CONFIGURACAO_PADRAO } from '../dominio/metodologiaPadrao';
 import { rotuloDoDia, rotuloDoTipo, sessoesDaSemana } from '../dominio/semana';
 import { descansoSoDoGrupo, detalheDoBloco } from '../dominio/textoDoGrupo';
-import { cssBase, esc, escLinhas, link, topo, type Documento } from './html';
+import { cabecalhoDoPdf, cssBase, esc, escLinhas, link, type Documento } from './html';
 
 export interface DadosPdfTreino {
   marca: Marca;
@@ -212,12 +212,16 @@ export function documentoTreino(d: DadosPdfTreino): Documento {
   }).join('');
   const semDia = c.sessoes.filter((s) => !s.diaSemana);
   const corpo = [
-    topo(d.marca, d.logoDataUri, [
-      `Aluno: ${d.aluno}`,
-      `${d.titulo}${d.versao ? ` (v${d.versao})` : ' (RASCUNHO, não publicado)'}`,
-      ...(periodo ? [`Período: ${periodo}`] : []),
-      `Emitido em ${dataHoraParaTela(d.emitidoEm.toISOString())}`,
-    ]),
+    cabecalhoDoPdf({
+      marca: d.marca,
+      logoDataUri: d.logoDataUri,
+      documento: 'Treino',
+      titulo: d.titulo,
+      versao: d.versao,
+      aluno: d.aluno,
+      periodo,
+      emitidoEm: d.emitidoEm,
+    }),
     c.objetivo ? `<div><strong>Objetivo:</strong> ${esc(c.objetivo)}</div>` : '',
     c.orientacoes ? `<div class="suave">${escLinhas(c.orientacoes)}</div>` : '',
     `<div class="bloco"><h2>Semana</h2><table><thead><tr><th style="width:25%">Dia</th><th>Treino</th></tr></thead><tbody>${semana}${semDia

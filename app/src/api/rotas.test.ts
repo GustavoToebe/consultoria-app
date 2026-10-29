@@ -1,6 +1,6 @@
 import { requisicao } from './cliente';
 import {
-  aceitarInscricao, aplicarAlteracaoDaAnamnese, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
+  aceitarInscricao, alterarCompromisso, alterarSituacaoCompromisso, aplicarAlteracaoDaAnamnese, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento,
 } from './rotas';
 
@@ -42,6 +42,20 @@ describe('caminhos da API', () => {
     expect(requisicao).toHaveBeenLastCalledWith('/inscricoes/i/aceitar', {
       metodo: 'POST', corpo: { convidar: false, anamneseQuestionarioId: 'q1', versao: 1 },
     });
+  });
+
+  it('agenda presencial: período e filtros na query, id codificado, corpo em JSON', async () => {
+    await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-09' })).resolves.toBe('/agenda/compromissos?de=2026-11-02&ate=2026-11-09');
+    await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-02', responsavel: 'u/1', situacao: 'CANCELADO' }))
+      .resolves.toBe('/agenda/compromissos?de=2026-11-02&ate=2026-11-02&responsavel=u%2F1&situacao=CANCELADO');
+    const corpo = { alunoId: 'a', responsavelId: 'r', data: '2026-11-02', hora: '09:00', duracaoMinutos: 60, local: null, observacao: null };
+    await criarCompromisso(corpo);
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos', { metodo: 'POST', corpo });
+    await alterarCompromisso('../x', { ...corpo, versao: 2 });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/..%2Fx', { metodo: 'PUT', corpo: { ...corpo, versao: 2 } });
+    await alterarSituacaoCompromisso('c1', 'REALIZADO', 3);
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/c1/situacao', { metodo: 'POST', corpo: { situacao: 'REALIZADO', versao: 3 } });
+    await expect(compromissosDoAluno()).resolves.toBe('/aluno/compromissos');
   });
 
   it('uuid comum passa igual', async () => {

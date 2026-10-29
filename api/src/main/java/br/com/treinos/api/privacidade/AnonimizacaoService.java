@@ -58,6 +58,8 @@ public class AnonimizacaoService {
     private final br.com.treinos.api.anamneses.AnamneseService anamneses;
     private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
+    private final br.com.treinos.api.agenda.AgendaService agenda;
+    private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
 
     public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
@@ -66,7 +68,11 @@ public class AnonimizacaoService {
                                FotoService fotos, FotoPerfilService fotoPerfil, InscricaoDoAluno inscricao,
                                br.com.treinos.api.anamneses.AnamneseService anamneses,
                                br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos,
-                               br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
+                               br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
+                               br.com.treinos.api.agenda.AgendaService agenda,
+                               br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas) {
+        this.agenda = agenda;
+        this.avaliacoesFisicas = avaliacoesFisicas;
         this.anamneses = anamneses;
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
@@ -127,6 +133,8 @@ public class AnonimizacaoService {
         // Dado sensível: apaga as linhas (entidades normais) e limpa o texto livre das imutáveis por SQL nativo.
         pesos.deleteAll(pesos.findByAlunoIdOrderByDataAsc(alunoId));
         lesoes.deleteAll(lesoes.findByAlunoIdOrderByDataInicioDescCriadoEmDesc(alunoId));
+        // Circunferências da avaliação física: saem inteiras (o peso de cada data já sai com os pesos, acima).
+        avaliacoesFisicas.apagarDoAluno(alunoId);
         atualizacoes.findByAlunoIdOrderByDataAtualizacaoDesc(alunoId).forEach(a -> a.limparDadosPessoais());
         anamneses.anonimizarDoAluno(alunoId);
         for (var plano : dietas.findByAlunoIdOrderByCriadoEmDesc(alunoId)) {
@@ -141,6 +149,8 @@ public class AnonimizacaoService {
         // A inscrição pelo link que virou este aluno (nome, contato, objetivo e notas) sai inteira.
         inscricao.apagarDoAluno(alunoId);
         ciclo.apagarNaAnonimizacao(alunoId);
+        // Compromissos da agenda presencial (data, local e a observação da equipe) saem todos.
+        agenda.apagarDoAluno(consultoriaId, alunoId);
         // Contratação encerrada, abertas canceladas e o texto livre do treinador sobre a cobrança apagado; valores ficam.
         pagamentos.encerrarPorSaida(alunoId);
         pagamentos.apagarDoAluno(alunoId);

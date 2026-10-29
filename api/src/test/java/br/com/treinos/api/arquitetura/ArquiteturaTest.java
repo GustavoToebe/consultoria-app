@@ -64,7 +64,10 @@ class ArquiteturaTest {
      * de todas as consultorias, para a API não subir sem a chave que decifra o que já está gravado; nunca lê o segredo);
      * {@code AvisoDePagamentoRepositorio} (caixa de entrada dos avisos da InfinitePay: a busca do token do webhook roda antes de
      * se saber a consultoria, e a fila do conciliador e a limpeza dos avisos antigos são globais, sem tenant; todo o resto
-     * leva {@code consultoria_id} explícito e nada guarda nem devolve o corpo do aviso, só ids, o hash e o andamento).
+     * leva {@code consultoria_id} explícito e nada guarda nem devolve o corpo do aviso, só ids, o hash e o andamento);
+     * {@code LembretesRepositorio} (fila dos lembretes de cobrança por e-mail: o job planeja e reserva de todas as consultorias,
+     * sem tenant; toda escrita depois da reserva leva {@code consultoria_id} explícito e confere a posse, e nada lê ou grava
+     * endereço, nome ou texto, só ids, datas, a configuração e o andamento).
      */
     private static final Set<String> SQL_NATIVO_PERMITIDO = Set.of(
             "br.com.treinos.api.auth.ContadorBanco",
@@ -81,7 +84,8 @@ class ArquiteturaTest {
             "br.com.treinos.api.fotos.FotoRemocaoRepositorio",
             "br.com.treinos.api.inscricoes.InscricaoBusca",
             "br.com.treinos.api.pagamentos.VerificacaoDasCredenciais",
-            "br.com.treinos.api.pagamentos.AvisoDePagamentoRepositorio");
+            "br.com.treinos.api.pagamentos.AvisoDePagamentoRepositorio",
+            "br.com.treinos.api.pagamentos.LembretesRepositorio");
 
     /**
      * Entidades sem {@code @TenantId}: {@code Consultoria} é a raiz do isolamento; {@code Usuario}
@@ -167,7 +171,11 @@ class ArquiteturaTest {
                                 "AlunoExercicioController",
                                 // "Meus dados" (cadastro, telefone, endereço, sexo e CPF vazio) e ciclo da própria aluna (hasRole ALUNO, sempre a da sessão).
                                 // A leitura do treinador declara PERM_ALUNO_LER e PERM_ALUNO_SENSIVEL_LER.
-                                "MeusDadosDoAlunoController", "CicloAlunoController").contains(c.getSimpleName())))
+                                "MeusDadosDoAlunoController", "CicloAlunoController",
+                                // Próximos compromissos da agenda presencial do próprio aluno (hasRole ALUNO, sempre o da sessão, só leitura).
+                                "AlunoCompromissosController",
+                                // Avaliações físicas do próprio aluno, só leitura (hasRole ALUNO, sempre o da sessão); a equipe declara PERM_ALUNO_SENSIVEL_LER.
+                                "AvaliacaoFisicaAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {
                     @Override public void check(JavaClass c, ConditionEvents eventos) {
                         c.getMethods().stream().filter(ArquiteturaTest::eRota).forEach(m -> {

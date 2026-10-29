@@ -227,6 +227,25 @@ class MeusDadosDoAlunoIntegrationTest extends AbstractIntegrationTest {
         assertThat(eventos()).isZero();
     }
 
+    @Test
+    void cpfTemLimiteDeDezEnviosPorDiaEARecusaTambemConta() throws Exception {
+        String cpf = Documentos.cpf();
+        UUID outro = api.criarAluno(treinador, "Aluno Fictício Do Limite");
+        JsonNode ficha = api.get("/alunos/" + outro, treinador, 200);
+        api.put("/alunos/" + outro, treinador, Map.of("nome", "Aluno Fictício Do Limite", "versao", ficha.path("versao").asLong(),
+                "cpf", cpf), 200);
+        long v = versao(loginAluno);
+        for (int i = 0; i < 10; i++) {
+            api.put(ROTA, loginAluno, corpo(null, cpf, null, null, v), 409);
+        }
+
+        JsonNode limitado = api.put(ROTA, loginAluno, corpo(null, Documentos.cpf(), null, null, v), 429);
+        assertThat(limitado.path("codigo").asString()).isEqualTo("LOGIN_LIMITADO");
+        assertThat(api.get(ROTA, loginAluno, 200).path("cpf").isNull()).isTrue();
+        // Sem CPF no corpo o limite não vale: telefone, endereço e sexo continuam editáveis.
+        api.put(ROTA, loginAluno, corpo(TELEFONE, null, null, null, v), 200);
+    }
+
     // ---- versão, estado e permissão ----
 
     @Test

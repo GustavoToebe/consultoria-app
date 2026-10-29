@@ -82,6 +82,8 @@ export async function sessaoDeAlunoComTreino(page: Page, sessoes: Sessao[] | nul
     'GET /aluno/fotos/configuracao': { corpo: { habilitado: false, maximoPorPergunta: 6, bytesMaximo: 1_000_000, porDia: 12 } },
     // "Meus dados" na Conta: cadastro fictício só com nome e e-mail (o teste da tela troca).
     'GET /aluno/meus-dados': { corpo: MEUS_DADOS_VAZIOS },
+    // Agenda presencial no Início: sem compromissos o bloco some (o teste da agenda troca).
+    'GET /aluno/compromissos': { corpo: [] },
   };
 }
 

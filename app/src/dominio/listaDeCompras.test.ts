@@ -1,6 +1,6 @@
 import type { ConteudoDieta, ItemDieta, OpcaoRefeicao, Refeicao } from '../api/tipos';
 import { normalizarDieta } from './dieta';
-import { alimentosDaDieta, comFatoresDaBiblioteca, DIAS_DO_PERIODO, listaDeCompras, marcaSemFator, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, textoDoPeriodo } from './listaDeCompras';
+import { alimentosDaDieta, comFatoresDaBiblioteca, DIAS_DO_PERIODO, listaDeCompras, marcaSemFator, NOTA_DA_LISTA_ALUNO, NOTA_DA_LISTA_TREINADOR, quantidadeParaTela, refeicoesComEscolha, PERIODOS_DA_LISTA, textoDoPeriodo, tituloDaLista } from './listaDeCompras';
 
 jest.mock('./uid', () => ({ novoUid: () => 'uid' }));
 
@@ -37,7 +37,8 @@ describe('listaDeCompras', () => {
       ['Frango grelhado', expect.closeTo((140 / 0.7) * 1.1 * 7, 6), true, true, false],
     ]);
     expect(listaDeCompras(c, {}, 'mes')[1].quantidade).toBeCloseTo((150 / 2.5) * 30, 6);
-    expect(DIAS_DO_PERIODO).toEqual({ semana: 7, mes: 30 });
+    expect(listaDeCompras(c, {}, 'duasSemanas')[1].quantidade).toBeCloseTo((150 / 2.5) * 14, 6);
+    expect(DIAS_DO_PERIODO).toEqual({ semana: 7, duasSemanas: 14, mes: 30 });
   });
 
   it('sem fator, vale a quantidade da dieta (nada vira 1 nem é inventado)', () => {
@@ -114,8 +115,8 @@ describe('prévia do editor com os fatores da biblioteca', () => {
 
   it('aplica os fatores achados e tira o que o rascunho tinha (manual ou não achado fica sem fator), como a publicação', () => {
     const fatores = [
-      { alimentoId: 'arroz', fatorCorrecao: null, fatorCoccao: 2.5 },
-      { alimentoId: 'feijao', fatorCorrecao: 1.1, fatorCoccao: null },
+      { alimentoId: 'arroz', fatorCorrecao: null, fatorCoccao: 2.5, grupo: 'Cereais e derivados' },
+      { alimentoId: 'feijao', fatorCorrecao: 1.1, fatorCoccao: null, grupo: null },
     ];
     const comFatores = comFatoresDaBiblioteca(c, fatores);
     const itens = comFatores.refeicoes.flatMap((r) => r.opcoes.flatMap((o) => o.itens));
@@ -126,12 +127,30 @@ describe('prévia do editor com os fatores da biblioteca', () => {
       ['Manual', null, null],
       ['Sumido', null, null],
     ]);
+    // O grupo segue a mesma regra: o da biblioteca, nulo no manual e no não achado.
+    expect(itens.map((i) => i.grupo)).toEqual(['Cereais e derivados', null, 'Cereais e derivados', null, null]);
     // O conteúdo da tela não muda.
     expect(c.refeicoes[0].opcoes[0].itens[1].fatorCoccao).toBe(9);
     expect(listaDeCompras(comFatores, {}, 'semana').map((l) => [l.nome, l.quantidade, l.semFator])).toEqual([
       ['Arroz cozido', (150 / 2.5) * 7, false],
       ['Feijão', expect.closeTo(100 * 1.1 * 7, 6), false],
       ['Sumido', 560, true],
+    ]);
+  });
+});
+
+describe('grupo do alimento na linha', () => {
+  it('a linha leva o grupo do item (sem espaços sobrando), sem mudar a conta; sem grupo = null', () => {
+    const c = dieta([
+      refeicao('almoco', [opcao('a', [
+        item('Arroz cozido', 150, { alimentoId: 'arroz', manual: false, grupo: ' Cereais e derivados ' }),
+        item('Sal', 5, { grupo: '   ' }),
+      ])]),
+      refeicao('jantar', [opcao('a', [item('Arroz cozido', 100, { alimentoId: 'arroz', manual: false, grupo: null })])]),
+    ]);
+    expect(listaDeCompras(c, {}, 'semana').map((l) => [l.nome, l.quantidade, l.grupo])).toEqual([
+      ['Arroz cozido', 250 * 7, 'Cereais e derivados'],
+      ['Sal', 35, null],
     ]);
   });
 });
@@ -156,7 +175,9 @@ describe('quantidadeParaTela', () => {
 
   it('texto do período', () => {
     expect(textoDoPeriodo('semana')).toBe('Semana (7 dias)');
+    expect(textoDoPeriodo('duasSemanas')).toBe('2 semanas (14 dias)');
     expect(textoDoPeriodo('mes')).toBe('Mês (30 dias)');
+    expect(PERIODOS_DA_LISTA.map(tituloDaLista)).toEqual(['Lista da semana', 'Lista de 2 semanas', 'Lista do mês']);
   });
 });
 

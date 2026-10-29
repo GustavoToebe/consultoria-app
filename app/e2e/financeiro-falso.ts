@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test';
 
 import type {
   CobrancaDoAluno, CobrancaResponse, ConferenciaDePagamento, ContratacaoResponse, FinanceiroDoAluno, Inadimplente, JurosDoParcelamento,
-  LancamentoResponse, Painel, PlanoResponse, RecebimentoOnline,
+  LancamentoResponse, Lembretes, LembretesDaCobranca, Painel, PlanoResponse, RecebimentoOnline,
 } from '../src/api/financeiroTipos';
 import { ALUNO, erroApi, json, PERMISSOES_TREINADOR, sessao, TREINADOR, type PedidoFalso, type RespostasApi } from './api-falsa';
 
@@ -141,12 +141,20 @@ export interface EstadoFinanceiro {
   pagamentoOnline: boolean;
   /** O que `POST /aluno/financeiro/retorno-pagamento` recebeu (a volta do navegador depois do pagamento). */
   retornos: unknown[];
+  /** Configuração dos lembretes de cobrança por e-mail (sem `versao` = nunca salva). */
+  lembretes: Lembretes;
+  /** O que `GET /cobrancas/{id}/lembretes` devolve por cobrança; sem entrada = nenhum lembrete e sem WhatsApp. */
+  lembretesDasCobrancas: Record<string, LembretesDaCobranca>;
 }
+
+/** Os lembretes como a API devolve numa consultoria que nunca os configurou. */
+export const LEMBRETES_PADRAO: Lembretes = { ligado: false, diasAntes: 3, noDia: true, diasDepois: 3, versao: null, emailDisponivel: true };
 
 export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): EstadoFinanceiro {
   return {
     planos: [], contratacoes: [], cobrancas: [], lancamentos: [], inadimplentes: [], painel: PAINEL_COM_DADOS,
-    recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [], ...parcial,
+    recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
+    lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, ...parcial,
   };
 }
 
@@ -357,6 +365,29 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       estado.retornos.push(p.corpo);
       if (!estado.cobrancas.some((x) => x.id === c.orderNsu)) return json(route, erroApi(404, 'Cobrança não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
       return route.fulfill({ status: 204 });
+    },
+    'GET /financeiro/lembretes': (_p, route) => json(route, estado.lembretes),
+    // Mesmas regras do servidor: versão nula só na criação; dias de 0 a 15 e de 0 a 30 (422 com o campo).
+    'PUT /financeiro/lembretes': (p, route) => {
+      const c = p.corpo as Omit<Lembretes, 'emailDisponivel'>;
+      if (c.versao !== estado.lembretes.versao) return conflito(route);
+      const erros = [
+        ...(c.diasAntes < 0 || c.diasAntes > 15 ? [{ field: 'diasAntes', message: 'Use de 0 a 15 dias.' }] : []),
+        ...(c.diasDepois < 0 || c.diasDepois > 30 ? [{ field: 'diasDepois', message: 'Use de 0 a 30 dias.' }] : []),
+      ];
+      if (erros.length) {
+        return json(route, { status: 422, message: 'Confira os lembretes de cobrança.', codigo: 'LEMBRETES_INVALIDOS', fieldErrors: erros }, 422);
+      }
+      estado.lembretes = {
+        ligado: c.ligado, diasAntes: c.diasAntes, noDia: c.noDia, diasDepois: c.diasDepois,
+        versao: estado.lembretes.versao === null ? 0 : estado.lembretes.versao + 1, emailDisponivel: estado.lembretes.emailDisponivel,
+      };
+      return json(route, estado.lembretes);
+    },
+    'GET /cobrancas/{id}/lembretes': (p, route) => {
+      const id = p.caminho.split('/')[2];
+      if (!estado.cobrancas.some((x) => x.id === id)) return json(route, erroApi(404, 'Cobrança não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
+      return json(route, estado.lembretesDasCobrancas[id] ?? { itens: [], whatsapp: null });
     },
     'GET /financeiro/conferencias': (_p, route) => json(route, { itens: estado.conferencias }),
     'POST /financeiro/conferencias/{id}/conferido': (p, route) => {

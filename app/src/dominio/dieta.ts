@@ -68,7 +68,7 @@ export function novaOpcao(existentes: OpcaoRefeicao[]): OpcaoRefeicao {
 }
 
 export function novaRefeicao(nome = ''): Refeicao {
-  return { uid: novoUid(), nome, horario: null, observacao: null, opcoes: [novaOpcao([])] };
+  return { uid: novoUid(), nome, horario: null, observacao: null, opcoes: [novaOpcao([])], modoDePreparo: null };
 }
 
 export function novoItem(alimento?: Alimento): ItemDieta {
@@ -114,6 +114,7 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
       nome: r.nome ?? '',
       horario: r.horario ?? null,
       observacao: r.observacao ?? null,
+      modoDePreparo: r.modoDePreparo ?? null,
       opcoes: (r.opcoes ?? []).map((o) => ({
         uid: o.uid ?? novoUid(),
         rotulo: o.rotulo ?? '',
@@ -130,6 +131,7 @@ export function normalizarDieta(conteudo: unknown): ConteudoDieta {
           manual: i.manual ?? i.alimentoId == null,
           fatorCorrecao: i.fatorCorrecao ?? null,
           fatorCoccao: i.fatorCoccao ?? null,
+          grupo: i.grupo ?? null,
         })),
       })),
     })),
@@ -173,6 +175,19 @@ export function aplicarReceitaDeDieta(atual: ConteudoDieta, receita: unknown): C
   };
 }
 
+/** Limite do modo de preparo da refeição (o mesmo de `ConteudoDieta.MODO_DE_PREPARO_MAXIMO` no servidor). */
+export const MODO_DE_PREPARO_MAXIMO = 2000;
+
+/** Vazio é válido (não aparece); preenchido, até {@link MODO_DE_PREPARO_MAXIMO} caracteres, como o `ValidadorDieta`. */
+export function modoDePreparoValido(texto: string | null | undefined): boolean {
+  return (texto ?? '').length <= MODO_DE_PREPARO_MAXIMO;
+}
+
+/** Texto do modo de preparo para mostrar, ou `null` quando só há espaços (nada aparece). Quebras de linha ficam. */
+export function modoDePreparoParaMostrar(texto: string | null | undefined): string | null {
+  return texto && texto.trim() ? texto : null;
+}
+
 /** Faixa da água por dia aceita pelo servidor (`ValidadorDieta`): de 0,1 a 20 L, no máximo uma casa decimal. */
 export const AGUA_MINIMA = 0.1;
 export const AGUA_MAXIMA = 20;
@@ -214,4 +229,30 @@ export function textoDoMacro(rotulo: string, valor: number | null, unidade: stri
 /** "1 item sem valor nutricional completo" / "3 itens …". */
 export function textoItensSemValor(n: number): string {
   return `${n} ${n === 1 ? 'item' : 'itens'} da opção A sem kcal, proteína, carboidrato ou gordura`;
+}
+
+/**
+ * Opções lado a lado no editor da refeição (pedido de 28/10): com duas opções ou mais e espaço para colunas de pelo
+ * menos {@link LARGURA_COLUNA_OPCAO} px, cada opção vira uma coluna (as que não cabem descem para a linha seguinte).
+ * A medida é a largura do próprio cartão: no PC, com o menu lateral, isso começa por volta de 1024 px de janela; no
+ * celular fica sempre uma coluna (empilhadas). Só apresentação: nada é somado nem comparado entre opções.
+ */
+export const LARGURA_COLUNA_OPCAO = 300;
+export const ESPACO_ENTRE_OPCOES = 12;
+
+export function colunasDasOpcoes(largura: number, quantidade: number): number {
+  if (quantidade < 2 || !(largura > 0)) return 1;
+  const cabem = Math.floor((largura + ESPACO_ENTRE_OPCOES) / (LARGURA_COLUNA_OPCAO + ESPACO_ENTRE_OPCOES));
+  return Math.max(1, Math.min(quantidade, cabem));
+}
+
+/**
+ * "Escolha uma das opções: A ou B." / "…: A, B ou C." para o aluno ver que são alternativas, não itens somados.
+ * Uma opção só não pede escolha (`null`). Nunca fala em "equivalente": o sistema não compara as opções.
+ */
+export function textoEscolhaDasOpcoes(rotulos: string[]): string | null {
+  const nomes = rotulos.map((r, i) => r.trim() || String(i + 1));
+  if (nomes.length < 2) return null;
+  const lista = `${nomes.slice(0, -1).join(', ')} ou ${nomes[nomes.length - 1]}`;
+  return `Escolha uma das opções: ${lista}.`;
 }

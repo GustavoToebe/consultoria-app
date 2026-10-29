@@ -1,7 +1,7 @@
 import type { Marca } from '../api/tipos';
-import { dataHoraParaTela, dataParaTela, numeroParaTela } from '../dominio/formatos';
+import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { textoDoVolume, totalDeRegistros, type DivisaoRelatorio, type LinhaCarga } from '../dominio/relatorio';
-import { corDaMarca, cssBase, esc, topo, type Documento } from './html';
+import { cabecalhoDoPdf, corDaMarca, cssBase, esc, type Documento } from './html';
 
 export interface DadosPdfCargas {
   marca: Marca;
@@ -67,11 +67,14 @@ export function documentoCargas(d: DadosPdfCargas): Documento {
     .join('');
 
   const corpo = [
-    topo(d.marca, d.logoDataUri, [
-      `Aluno: ${d.aluno}`,
-      `Relatório de cargas: ${dataParaTela(d.de)} a ${dataParaTela(d.ate)}`,
-      `Emitido em ${dataHoraParaTela(d.emitidoEm.toISOString())}`,
-    ]),
+    cabecalhoDoPdf({
+      marca: d.marca,
+      logoDataUri: d.logoDataUri,
+      documento: 'Relatório de cargas',
+      aluno: d.aluno,
+      periodo: `${dataParaTela(d.de)} a ${dataParaTela(d.ate)}`,
+      emitidoEm: d.emitidoEm,
+    }),
     `<div class="resumo"><span><strong>${esc(d.aluno)}</strong><br><span class="suave">Período: ${esc(dataParaTela(d.de))} a ${esc(dataParaTela(d.ate))}</span></span>` +
       `<span style="text-align:right"><strong style="color:${marca}">${total} ${total === 1 ? 'registro' : 'registros'}</strong><br><span class="pequeno">Agrupado por divisão do plano</span></span></div>`,
     divisoes || '<p class="suave">Nenhum registro no período.</p>',

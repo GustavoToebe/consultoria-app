@@ -13,6 +13,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   INSCRICAO_ACEITA:'Inscrição aceita (aluno cadastrado)',INSCRICAO_RECUSADA:'Inscrição recusada',INSCRICAO_ALTERADA:'Andamento da inscrição alterado',
   INSCRICAO_PAGAMENTO_CONFIRMADO:'Pagamento da inscrição confirmado (manual)',INSCRICAO_NOTA_ADICIONADA:'Nota da inscrição',
   INSCRICAO_CONFIGURACAO_ALTERADA:'Link de inscrição alterado',INSCRICAO_LINK_RENOVADO:'Novo link de inscrição gerado',
+  COMPROMISSO_CRIADO:'Compromisso marcado na agenda',COMPROMISSO_ALTERADO:'Compromisso da agenda alterado',COMPROMISSO_SITUACAO_ALTERADA:'Situação de compromisso da agenda alterada',
   PASTA_CRIADA:'Pasta criada',PASTA_REPLICADA:'Pasta replicada',PASTA_FINALIZADA:'Pasta finalizada',PASTA_QUESTIONARIO_ALTERADO:'Questionário da pasta alterado',
   QUESTIONARIO_CRIADO:'Questionário criado',QUESTIONARIO_PUBLICADO:'Questionário publicado',QUESTIONARIO_DUPLICADO:'Questionário duplicado',
   QUESTIONARIO_PADRAO_ALTERADO:'Questionário padrão alterado',QUESTIONARIO_ARQUIVADO:'Questionário arquivado',QUESTIONARIO_DESARQUIVADO:'Questionário desarquivado',QUESTIONARIO_EXCLUIDO:'Questionário excluído',
@@ -20,6 +21,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   ANAMNESE_CADASTRO_PREENCHIDO:'Anamnese preencheu campos vazios do cadastro',ANAMNESE_ALTERACAO_APLICADA:'Alteração da anamnese aplicada ao cadastro',ANAMNESE_ALTERACAO_DESCARTADA:'Alteração da anamnese descartada',
   ALUNO_QUESTIONARIO_ALTERADO:'Questionário do aluno alterado',
   LESAO_REGISTRADA:'Lesão registrada',LESAO_ALTERADA:'Lesão editada',PESO_REGISTRADO:'Peso registrado',
+  AVALIACAO_FISICA_REGISTRADA:'Avaliação física registrada',AVALIACAO_FISICA_ALTERADA:'Avaliação física editada',AVALIACAO_FISICA_EXCLUIDA:'Avaliação física excluída',
   ATUALIZACAO_FEEDBACK:'Feedback de atualização enviado ou editado',MARCA_ALTERADA:'Marca alterada',
   LOGO_ALTERADA:'Logo alterada',LOGO_REMOVIDA:'Logo removida',
   PLANO_COMERCIAL_CRIADO:'Plano comercial criado',PLANO_COMERCIAL_ALTERADO:'Plano comercial editado',PLANO_COMERCIAL_ARQUIVADO:'Plano comercial arquivado',
@@ -32,6 +34,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   RECEBIMENTO_ONLINE_CONFIGURADO:'Recebimento online configurado',RECEBIMENTO_ONLINE_REMOVIDO:'Recebimento online removido',
   LINK_DE_PAGAMENTO_GERADO:'Link de pagamento gerado',PAGAMENTO_ONLINE_CONFIRMADO:'Pagamento online confirmado',PAGAMENTO_ESTORNADO:'Estorno informado pela InfinitePay',
   PAGAMENTO_PARA_CONFERIR:'Pagamento enviado para conferir',PAGAMENTO_CONFERIDO:'Pagamento conferido',
+  LEMBRETES_DE_COBRANCA_CONFIGURADOS:'Lembretes de cobrança configurados',
   EXERCICIO_IMAGEM_ALTERADA:'Imagem do exercício enviada',EXERCICIO_IMAGEM_REMOVIDA:'Imagem do exercício removida',
   CSV_EXERCICIOS_IMPORTADO:'CSV de exercícios importado',CSV_ALIMENTOS_IMPORTADO:'CSV de alimentos importado',
 };

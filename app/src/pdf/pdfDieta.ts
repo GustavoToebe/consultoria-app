@@ -1,11 +1,11 @@
 import type { ConteudoDieta, ItemDieta, Marca, RegistroPeso, Suplemento } from '../api/tipos';
-import { somar, textoDaAgua, totalDoDia, type Totais } from '../dominio/dieta';
+import { modoDePreparoParaMostrar, somar, textoDaAgua, textoEscolhaDasOpcoes, totalDoDia, type Totais } from '../dominio/dieta';
 import { DIAS_DO_PERIODO, NOTA_DA_LISTA, NOTA_DA_PREVIA, type LinhaDaLista, type PeriodoDaLista } from '../dominio/listaDeCompras';
 import { cabecalhoDaTabela, corpoDaTabela } from './pdfListaDeCompras';
 import { ergogenicosPreenchidos } from '../dominio/ergogenicos';
 import { dataParaTela, numeroParaTela } from '../dominio/formatos';
 import { linkParaAbrir } from '../dominio/links';
-import { corDaMarca, cssBase, esc, escLinhas, faixaDaMarca, type Documento } from './html';
+import { cabecalhoDoPdf, corDaMarca, cssBase, esc, escLinhas, type Documento } from './html';
 
 export interface DadosPdfDieta {
   marca: Marca;
@@ -71,11 +71,6 @@ function variacao(v: number | null): string {
 }
 
 const CSS_DIETA = `
-.doc .capa { text-align: center; margin: 4pt 0 10pt; }
-.doc .capa img { max-height: 110pt; max-width: 280pt; }
-.doc .capa h1 { font-size: 26pt; }
-.doc .capa .titulo { font-size: 16pt; font-weight: 800; color: ${NAVY}; margin-top: 10pt; letter-spacing: .5px; }
-.doc .capa .sub { font-size: 9.5pt; color: #666; font-weight: 700; margin-top: 3pt; }
 .doc .barra { height: 12pt; margin: 14pt 0 10pt; }
 .doc h2.sec { border: 0; padding: 0; font-size: 11pt; text-transform: uppercase; margin: 8pt 0 6pt; }
 .doc table.id td { border: 0; padding: 4pt 8pt; }
@@ -90,6 +85,9 @@ const CSS_DIETA = `
 .doc .item { margin: 2pt 0; }
 .doc .item .macros { color: #777; font-size: 9pt; }
 .doc .total { font-size: 9pt; font-weight: 700; margin: 3pt 0 2pt; }
+.doc .escolha { font-size: 9pt; font-weight: 700; margin: 4pt 0 0; }
+.doc .preparo { margin: 6pt 0 2pt; padding: 5pt 8pt; border-left: 3px solid #bbb; background: #f7f7f7; break-inside: avoid; page-break-inside: avoid; }
+.doc .preparo strong { display: block; font-size: 9pt; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2pt; }
 .doc .orient { margin-bottom: 3pt; }
 .doc table.dark th { background: ${NAVY}; }
 .doc table.dark td { border: 1px solid #ddd; font-weight: 700; }
@@ -98,19 +96,22 @@ const CSS_DIETA = `
 .doc .lista-pdf { break-inside: avoid; page-break-inside: avoid; }
 `;
 
-/** PDF da dieta no layout do Saraiva Team (capa com logo, barras da marca, refeições em faixas escuras). */
+/**
+ * PDF da dieta no layout do Saraiva Team (barras da marca, refeições em faixas escuras), com o cabeçalho comum dos PDFs
+ * (logo na faixa da marca). Refeição com várias opções diz para escolher uma; o modo de preparo sai no fim da refeição,
+ * com as quebras de linha.
+ */
 export function documentoDieta(d: DadosPdfDieta): Documento {
   const c = d.conteudo;
   const cor = corDaMarca(d.marca.corPrimaria);
   const barra = `<div class="barra" style="background:${cor}"></div>`;
   const sec = (t: string) => `<h2 class="sec" style="color:${cor}">${esc(t)}</h2>`;
   const total = totalDoDia(c);
+  // Nome do aluno e data de emissão ficam no cabeçalho comum (`cabecalhoDoPdf`), sem repetir aqui.
   const identificacao = [
-    ['Nome', d.aluno],
     ['Objetivo', c.objetivo],
     ['Data Início', dataParaTela(c.dataInicio)],
     ...(textoDaAgua(c.aguaLitros) ? [['Água', textoDaAgua(c.aguaLitros)]] : []),
-    ['Emitido em', dataParaTela(d.emitidoEm.toISOString().slice(0, 10))],
   ]
     .map(([r, v]) => `<tr><td>${esc(r)}</td><td>${esc(v || '—')}</td></tr>`)
     .join('');
@@ -125,20 +126,29 @@ export function documentoDieta(d: DadosPdfDieta): Documento {
           return `<div class="opcao">${faixa}${itens}<div class="total">Total: ${esc(textoTotaisPdf(somar(o.itens)))}</div></div>`;
         })
         .join('');
+      // Opções são alternativas: o PDF diz para escolher uma (nada é somado nem comparado entre elas).
+      const escolha = textoEscolhaDasOpcoes(r.opcoes.map((o) => o.rotulo));
+      const preparo = modoDePreparoParaMostrar(r.modoDePreparo);
       return `<div class="refeicao">
 <div class="cab">Sugestão — Refeição ${ri + 1} — ${esc(r.nome.toUpperCase())}${r.horario ? ` (${esc(r.horario)})` : ''}</div>
-${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${opcoes}</div>`;
+${r.observacao ? `<div class="suave">${escLinhas(r.observacao)}</div>` : ''}${escolha ? `<div class="escolha">${esc(escolha)}</div>` : ''}${opcoes}${
+        preparo ? `<div class="preparo"><strong>Modo de preparo</strong>${escLinhas(preparo)}</div>` : ''
+      }</div>`;
     })
     .join('');
   const suplementos = c.suplementacao.filter((s) => s.nome || s.dose || s.horario || s.observacao);
   const ergogenicos = ergogenicosPreenchidos(c.ergogenicos);
   const comPrescricao = ergogenicos.some((e) => e.prescricao.trim() !== '');
-  const marcaOuLogo = d.logoDataUri ? `<img src="${esc(d.logoDataUri)}" alt="${esc(d.marca.nome)}">` : `<h1>${esc(d.marca.nome)}</h1>`;
   const partes = [
-    faixaDaMarca(d.marca),
-    `<div class="capa">${marcaOuLogo}
-<div class="titulo">SUGESTÃO DE PLANO ALIMENTAR</div>${d.versao ? '' : '\n<div class="sub">RASCUNHO, não publicado</div>'}</div>`,
-    barra,
+    cabecalhoDoPdf({
+      marca: d.marca,
+      logoDataUri: d.logoDataUri,
+      documento: 'Sugestão de plano alimentar',
+      titulo: d.titulo,
+      versao: d.versao,
+      aluno: d.aluno,
+      emitidoEm: d.emitidoEm,
+    }),
     `<div class="bloco">${sec('Identificação do aluno')}<table class="id"><tbody>${identificacao}</tbody></table></div>`,
     barra,
     `<div class="bloco">${sec('Distribuição diária de macronutrientes')}

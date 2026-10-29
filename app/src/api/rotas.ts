@@ -21,6 +21,9 @@ import type {
   PlanoResponse,
   RecebimentoOnline,
   RecebimentoOnlineRequest,
+  Lembretes,
+  LembretesDaCobranca,
+  LembretesRequest,
 } from './financeiroTipos';
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
@@ -34,6 +37,7 @@ import type {
   InscricaoPublicaRequest,
   PaginaInscricoes,
 } from './inscricoesTipos';
+import type { Compromisso, CompromissoDoAluno, CompromissoRequest, FiltroCompromissos, SituacaoCompromisso } from './agendaTipos';
 import type {
   Atualizacao,
   AtualizacaoDaLista,
@@ -411,6 +415,22 @@ export const aceitarInscricao = (id: string, dados: { convidar: boolean; anamnes
     corpo: { convidar: dados.convidar, anamneseQuestionarioId: dados.anamneseQuestionarioId, versao: dados.versao },
   });
 
+// ---- Treinador: agenda presencial (AGENDA_LER / AGENDA_ALTERAR) ----
+
+/** Compromissos que tocam os dias `de`..`ate` (Brasília, até 62 dias). */
+export const listarCompromissos = (filtro: FiltroCompromissos) => {
+  const q = new URLSearchParams({ de: filtro.de, ate: filtro.ate });
+  if (filtro.responsavel) q.set('responsavel', filtro.responsavel);
+  if (filtro.situacao) q.set('situacao', filtro.situacao);
+  return requisicao<Compromisso[]>(`/agenda/compromissos?${q.toString()}`);
+};
+export const criarCompromisso = (corpo: CompromissoRequest) =>
+  requisicao<Compromisso>('/agenda/compromissos', { metodo: 'POST', corpo });
+export const alterarCompromisso = (id: string, corpo: CompromissoRequest) =>
+  requisicao<Compromisso>(`/agenda/compromissos/${seg(id)}`, { metodo: 'PUT', corpo });
+export const alterarSituacaoCompromisso = (id: string, situacao: SituacaoCompromisso, versao: number) =>
+  requisicao<Compromisso>(`/agenda/compromissos/${seg(id)}/situacao`, { metodo: 'POST', corpo: { situacao, versao } });
+
 // ---- Treinador: marca e configuração ----
 
 export const consultoria = () => requisicao<ConsultoriaResponse>('/consultoria');
@@ -669,6 +689,9 @@ export const salvarPlanoComoReceita =(tipo: TipoPlano, id: string, nome: string,
 
 // ---- Aluno (sempre o aluno do token) ----
 
+/** Próximos compromissos presenciais do aluno (só leitura; sem observação). */
+export const compromissosDoAluno = () => requisicao<CompromissoDoAluno[]>('/aluno/compromissos');
+
 export const painelAluno = () => requisicao<PainelAluno>('/aluno/painel');
 
 export const pastasDoAluno = () => requisicao<PastaDoAluno[]>('/aluno/pastas');
@@ -819,6 +842,15 @@ export const salvarRecebimentoOnline = (corpo: RecebimentoOnlineRequest) =>
 export const removerRecebimentoOnline = (versao?: number | null) =>
   requisicao<void>(`/financeiro/recebimento-online${consultaFinanceiro({ versao })}`, { metodo: 'DELETE' });
 
+// ---- Lembretes de cobrança por e-mail (atrás do financeiro: desligado, 503) ----
+
+/** Sem configuração gravada vem desligada com os padrões e `versao` nula. */
+export const buscarLembretes = () => requisicao<Lembretes>('/financeiro/lembretes');
+export const salvarLembretes = (corpo: LembretesRequest) =>
+  requisicao<Lembretes>('/financeiro/lembretes', { metodo: 'PUT', corpo });
+/** Os lembretes de uma cobrança e a mensagem pronta do WhatsApp (só em aberto). */
+export const lembretesDaCobranca = (id: string) => requisicao<LembretesDaCobranca>(`/cobrancas/${seg(id)}/lembretes`);
+
 /** Link de pagamento de uma cobrança em aberto, para o treinador copiar e mandar ao aluno. */
 export const linkDaCobranca = (id: string) =>
   requisicao<LinkDePagamento>(`/cobrancas/${seg(id)}/link`, { metodo: 'POST' });
@@ -836,3 +868,17 @@ export const retornoDoPagamento = (corpo: import('./financeiroTipos').RetornoDoP
 export const listarConferencias = () => requisicao<ConferenciasDePagamento>('/financeiro/conferencias');
 export const marcarConferido = (id: string) =>
   requisicao<void>(`/financeiro/conferencias/${seg(id)}/conferido`, { metodo: 'POST' });
+
+/** Avaliação física (circunferências): a equipe lê com ALUNO_SENSIVEL_LER e grava com ela e ALUNO_SENSIVEL_ALTERAR. */
+export const avaliacoesFisicasDoAluno = (alunoId: string) =>
+  requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica[]>(`/alunos/${seg(alunoId)}/avaliacoes-fisicas`);
+export const registrarAvaliacaoFisica = (alunoId: string, corpo: import('./avaliacaoFisicaTipos').DadosAvaliacaoFisica) =>
+  requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica>(`/alunos/${seg(alunoId)}/avaliacoes-fisicas`, { metodo: 'POST', corpo });
+export const alterarAvaliacaoFisica = (id: string, corpo: import('./avaliacaoFisicaTipos').DadosAvaliacaoFisica) =>
+  requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica>(`/avaliacoes-fisicas/${seg(id)}`, { metodo: 'PUT', corpo });
+/** Com a versão que está na tela: outra aba que editou antes faz o excluir voltar 409. */
+export const excluirAvaliacaoFisica = (id: string, versao: number) =>
+  requisicao<void>(`/avaliacoes-fisicas/${seg(id)}?versao=${seg(versao)}`, { metodo: 'DELETE' });
+/** As do próprio aluno, só leitura. */
+export const minhasAvaliacoesFisicas = () =>
+  requisicao<import('./avaliacaoFisicaTipos').AvaliacaoFisica[]>('/aluno/avaliacoes-fisicas');
