@@ -36,7 +36,7 @@ import java.util.UUID;
  * próprio aluno ("Excluir minha conta"), com a senha dele. Apaga o que é pessoal
  * ou sensível (peso, lesões, respostas e feedback das atualizações, respostas das anamneses, observações das séries, dieta inteira, nome, e-mail,
  * senha, convite, sessões e a inscrição pelo link que virou o aluno) e mantém pastas, treinos e registros (carga e repetições, e os itens de mobilidade marcados, que
- * só dizem feito ou não feito) para as contagens. Sem volta:
+ * só dizem feito ou não feito; das sessões concluídas, sai só o comentário do aluno, e a linha, com o resultado e a data, fica) para as contagens. Sem volta:
  * o cadastro anonimizado não é editado nem reativado. Nada disso vai a log ou à auditoria, que grava um resumo fixo.
  */
 @Service
@@ -155,6 +155,7 @@ public class AnonimizacaoService {
         pagamentos.encerrarPorSaida(alunoId);
         pagamentos.apagarDoAluno(alunoId);
         nativo.apagarObservacoesDasExecucoes(consultoriaId, alunoId);
+        nativo.apagarComentariosDasSessoesConcluidas(consultoriaId, alunoId);
         nativo.apagarNomesDosTitulos(consultoriaId, alunoId);
         nativo.apagarTextoLivreDosPlanos(consultoriaId, alunoId);
 

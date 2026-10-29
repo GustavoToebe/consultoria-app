@@ -36,10 +36,10 @@ import { TrocarSenha } from '../../ui/TrocarSenha';
 export default function ContaAluno() {
   const sessao = useSessao();
   useRetornoDoPagamento();
-  const { pendentes, falhas, falhasDeMobilidade, mobilidadeNoAparelho, registros, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
+  const { pendentes, falhas, falhasDeMobilidade, falhasDeConclusao, mobilidadeNoAparelho, sessoesConcluidasNoAparelho, registros, envio, mensagemEnvio, sincronizarAgora, tentarDeNovo } = useAluno();
   const [preferencias, abrirPreferencias] = useState(false);
   const [confirmandoSaida, setConfirmandoSaida] = useState(false);
-  const totalDeFalhas = falhas.length + falhasDeMobilidade.length;
+  const totalDeFalhas = falhas.length + falhasDeMobilidade.length + falhasDeConclusao.length;
   const naoEnviados = pendentes + totalDeFalhas;
   return (
     <Tela bordas={['top']} largura={720}>
@@ -66,6 +66,11 @@ export default function ContaAluno() {
             Mobilidade, {dataParaTela(f.data)}: {f.motivo}
           </Texto>
         ))}
+        {falhasDeConclusao.map((f) => (
+          <Texto key={f.id} variante="suave">
+            Conclusão do treino, {dataParaTela(f.data)}: {f.motivo}
+          </Texto>
+        ))}
         <View style={estilos.botoes}>
           <Botao rotulo="Sincronizar agora" tipo="secundario" Icone={RefreshCw} carregando={envio === 'enviando'} aoTocar={() => void sincronizarAgora()} />
           {totalDeFalhas ? <Botao rotulo="Tentar de novo" aoTocar={() => void tentarDeNovo()} /> : null}
@@ -78,7 +83,7 @@ export default function ContaAluno() {
         <ItemDeLista titulo="Termos e privacidade" Icone={FileText} href="/aluno/termos" />
       </View>
       <Botao rotulo="Sair" tipo="secundario" Icone={LogOut} cheio aoTocar={() => setConfirmandoSaida(true)} />
-      <ConfirmarSaida visivel={confirmandoSaida} aoFechar={() => setConfirmandoSaida(false)} aviso={avisoAoSairComPendencias(treinosNaoEnviados(registros), diasDeMobilidadeNaoEnviados(mobilidadeNoAparelho))} />
+      <ConfirmarSaida visivel={confirmandoSaida} aoFechar={() => setConfirmandoSaida(false)} aviso={avisoAoSairComPendencias(treinosNaoEnviados(registros, sessoesConcluidasNoAparelho), diasDeMobilidadeNaoEnviados(mobilidadeNoAparelho))} />
       <CartaoUsoDeImagem />
       <CartaoExcluirConta />
       <Folha visivel={preferencias} titulo="Aparência e preferências" aoFechar={() => abrirPreferencias(false)}>

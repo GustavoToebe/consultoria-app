@@ -23,6 +23,9 @@ import br.com.treinos.api.planos.PlanoBase;
 import br.com.treinos.api.planos.PlanoServiceBase.VersaoAtiva;
 import br.com.treinos.api.planos.VersaoBase;
 import br.com.treinos.api.planos.dto.PlanoDtos.VersaoDetalhe;
+import br.com.treinos.api.anteriores.SeriesAnterioresService;
+import br.com.treinos.api.recordes.RecordesService;
+import br.com.treinos.api.retorno.RetornoProperties;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.treino.ConteudoTreino;
 import br.com.treinos.api.treino.PlanoTreinoService;
@@ -55,10 +58,17 @@ public class AlunoAppService {
     private final MarcaService marcas;
     private final PastaRepository pastas;
     private final AtualizacaoService atualizacoes;
+    private final RecordesService recordes;
+    private final SeriesAnterioresService anteriores;
+    private final RetornoProperties retorno;
 
     public AlunoAppService(AlunoRepository alunos, PlanoTreinoService treinos, PlanoDietaService dietas,
                            PlanoMobilidadeService mobilidades, HistoricoService historico, MarcaService marcas, PastaRepository pastas,
-                           AtualizacaoService atualizacoes) {
+                           AtualizacaoService atualizacoes, RecordesService recordes, SeriesAnterioresService anteriores,
+                           RetornoProperties retorno) {
+        this.recordes = recordes;
+        this.anteriores = anteriores;
+        this.retorno = retorno;
         this.alunos = alunos;
         this.treinos = treinos;
         this.dietas = dietas;
@@ -78,9 +88,16 @@ public class AlunoAppService {
                 : historico.ultimasCargas(alunoId, exerciciosDaBiblioteca(treino.conteudo()));
         ConfiguracaoConsultoria config = treino != null && treino.conteudo().metodologia() != null
                 ? treino.conteudo().metodologia().configuracao() : ConfiguracaoConsultoria.padrao();
+        // Recordes pessoais (Engajamento 0.2): só com a chave ligada e um treino publicado; desligada, o pacote não os traz.
+        boolean comRetorno = retorno.habilitado() && treino != null;
+        RecordesService.RecordesDoPacote melhores = comRetorno
+                ? recordes.doPacote(alunoId, exerciciosDaBiblioteca(treino.conteudo())) : null;
+        // Coluna "Anterior" (0.3): a última vez de cada exercício do plano, também só com a chave ligada.
+        SeriesAnterioresService.AnterioresDoPacote ultimaVez = comRetorno
+                ? anteriores.doPacote(alunoId, exerciciosDaBiblioteca(treino.conteudo())) : null;
         return new PainelAluno(marcas.marca(eu.consultoriaId()), new AlunoNome(aluno.getNome()), treino, ultimas,
                 new ConfiguracaoAluno(config.arredondamentoKg(), config.tipoTrabalho(), config.instrucoesTreino()), Instant.now(),
-                semNome(atualizacoes.atualDoAluno(alunoId)));
+                semNome(atualizacoes.atualDoAluno(alunoId)), melhores, ultimaVez);
     }
 
     @Transactional(readOnly = true)

@@ -35,6 +35,13 @@ export interface PassoPasseio {
 export interface SecaoGuia {
   titulo: string;
   itens: { titulo: string; texto: string }[];
+  /** Só com `TREINOS_RETORNO_HABILITADO` (Engajamento, Etapa 0): a tela tira a seção com a chave desligada e o PDF nunca a leva. */
+  soComRetorno?: boolean;
+}
+
+/** Seções do guia que valem agora: sem as do retorno imediato quando a chave está desligada. */
+export function secoesDoGuia(guia: Guia, retornoHabilitado: boolean): SecaoGuia[] {
+  return guia.secoes.filter((s) => retornoHabilitado || !s.soComRetorno);
 }
 
 export interface Guia {
@@ -196,6 +203,14 @@ const TREINADOR: Guia = {
       ],
     },
     {
+      titulo: 'Treinos concluídos e recordes',
+      soComRetorno: true,
+      itens: [
+        { titulo: 'Treinos concluídos', texto: 'Na ficha, o cartão Treinos concluídos mostra os treinos que o aluno concluiu nos últimos 14 dias, com o resultado ("Fiz tudo" ou "Fiz em parte"), a duração e o comentário dele (para quem vê dados sensíveis). Toque em "Marcar como visto" para o aluno ver "Visto pelo treinador"; tocar de novo desfaz. Sem a permissão de reagir, você só vê o selo Visto.' },
+        { titulo: 'Recordes da semana', texto: 'No Início e na ficha, o cartão Recordes da semana lista as séries dos últimos 7 dias em que o aluno bateu um recorde: maior carga, mais repetições com a mesma carga ou maior volume da série. Só contam séries sem técnica (sem cluster, rest pause ou outras); o primeiro registro de um exercício não conta. No Início, o filtro Todos / Meus vale aqui também, e o cartão some quando não há recorde.' },
+      ],
+    },
+    {
       titulo: 'Atualização do aluno',
       itens: [
         { titulo: 'Onde fica', texto: 'Dentro de cada pasta, ao fim do período. O aluno responde e envia; você revisa e escreve o retorno.' },
@@ -333,6 +348,17 @@ const ALUNO: Guia = {
         { titulo: 'Imagem do exercício', texto: 'Quando o treinador põe uma imagem ou GIF no exercício (ou ele veio do catálogo, com duas fotos que se alternam), ela aparece acima do "Como fazer". Toque para ampliar. Sem internet, a foto do catálogo que você já viu continua aparecendo; a imagem do treinador some até a conexão voltar, e o resto da tela funciona igual. Se o seu aparelho está com movimento reduzido, a foto não alterna.' },
         { titulo: 'Vídeos', texto: 'O link do vídeo abre fora do app, no navegador ou aplicativo de vídeo.' },
         { titulo: 'PDF do treino', texto: 'Na aba Treino, toque em "Baixar PDF do treino". O documento inclui o glossário "Como ler este treino", só com os tipos, as técnicas e os grupos de exercícios usados (e RIR e RPE, quando aparecem, com "RIR 0 = até a falha"), e as instruções do treinador. Série de cardio sai com a prescrição, sem carga nem repetições.' },
+      ],
+    },
+    {
+      titulo: 'Concluir treino e recordes',
+      soComRetorno: true,
+      itens: [
+        { titulo: 'Durante o treino', texto: 'No topo do exercício aparecem a duração (desde a primeira série marcada hoje neste aparelho), o volume (carga × repetições) e as séries feitas. Em cada série, "Anterior" mostra o que você fez na mesma série da última vez.' },
+        { titulo: 'Recordes', texto: 'Ao marcar uma série que bate um recorde seu (maior carga, mais repetições com a mesma carga ou maior volume da série), aparece um aviso e uma medalha no lugar do número da série. Só contam séries sem técnica, e o primeiro registro de um exercício não conta. Funciona sem internet.' },
+        { titulo: 'Concluir treino', texto: 'Na tela do dia, "Concluir treino" registra que você terminou: escolha "Fiz tudo" ou "Fiz em parte", confira a duração e, se quiser, conte como foi (até 300 caracteres, o treinador lê). Se concluiu por engano, "Reabrir treino" desfaz. Também funciona sem internet.' },
+        { titulo: 'Bom trabalho!', texto: 'Depois de concluir, a tela mostra o número do treino, o resumo e os recordes do dia, e monta um cartão com o calendário do mês para baixar ou compartilhar. O cartão nunca leva seu peso, foto, medidas ou dieta; o volume só entra se você ligar. Quando o treinador vê o treino, aparece "Visto pelo treinador".' },
+        { titulo: 'Semana completa', texto: 'Em "Sua semana", no Início, quando você fez todos os treinos com dia marcado da semana, aparece a comemoração. Plano sem dia fixo não mostra.' },
       ],
     },
     {

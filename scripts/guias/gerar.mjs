@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 
 const raiz = resolve(import.meta.dirname, '..', '..');
 const saida = join(raiz, 'app', 'public', 'guias');
-const { GUIAS, textoDoItem } = await import(pathToFileURL(join(raiz, 'app', 'src', 'ajuda', 'conteudo.ts')).href);
+const { GUIAS, textoDoItem, secoesDoGuia } = await import(pathToFileURL(join(raiz, 'app', 'src', 'ajuda', 'conteudo.ts')).href);
 
 const NAVEGADORES = [
   process.env.NAVEGADOR_PDF,
@@ -29,7 +29,8 @@ const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 function html(guia) {
   const passos = (lista) => lista.map((p, i) => `<li><b>${esc(p.titulo)}</b><br>${esc(semCiclo(p.texto))}</li>`).join('');
-  const secoes = guia.secoes
+  // O retorno imediato também está desligado em produção: as seções dele ficam só na tela, com a chave ligada.
+  const secoes = secoesDoGuia(guia, false)
     .map((s) => `<h2>${esc(s.titulo)}</h2>${s.itens.map((i) => `<p><b>${esc(i.titulo)}.</b> ${esc(semCiclo(i.texto))}</p>`).join('')}`)
     .join('');
   const perguntas = guia.perguntas.map((p) => `<p><b>${esc(p.pergunta)}</b><br>${esc(semCiclo(p.resposta))}</p>`).join('');

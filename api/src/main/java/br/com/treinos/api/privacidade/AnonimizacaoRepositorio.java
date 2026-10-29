@@ -32,6 +32,15 @@ class AnonimizacaoRepositorio {
     }
 
     /**
+     * O comentário que o aluno escreveu ao concluir um treino é texto livre (dado sensível). A linha fica (feito, resultado,
+     * duração e data não identificam ninguém e alimentam as contagens); só o texto sai. Roda com a chave do retorno ligada ou não.
+     */
+    void apagarComentariosDasSessoesConcluidas(UUID consultoriaId, UUID alunoId) {
+        jdbc.update("update sessao_concluida set comentario = null where aluno_id = ? and consultoria_id = ?",
+                alunoId, consultoriaId);
+    }
+
+    /**
      * O app sugere "Treino de nome" como título, então o nome da pessoa fica gravado nos títulos de planos, versões e
      * pastas. O conteúdo dos treinos (exercícios) e as datas ficam, para as contagens.
      */

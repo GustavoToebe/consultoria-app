@@ -260,6 +260,66 @@ describe('cliente HTTP: ciclo desligado na plataforma', () => {
   });
 });
 
+describe('cliente HTTP: "Concluir treino" desligado na plataforma', () => {
+  let fetchSimulado: jest.Mock;
+
+  beforeEach(() => {
+    process.env.EXPO_PUBLIC_API_URL = API;
+    mockLerRefresh.mockResolvedValue('refresh-velho');
+    fetchSimulado = jest.fn();
+    global.fetch = fetchSimulado as unknown as typeof fetch;
+  });
+
+  it('503 RETORNO_INDISPONIVEL no envio das conclusões avisa a sessão e relança o mesmo erro', async () => {
+    fetchSimulado.mockResolvedValue(json(503, { status: 503, message: 'Recurso indisponível.', codigo: 'RETORNO_INDISPONIVEL', fieldErrors: null }));
+    const { requisicao, aoRetornoDesligado, aoCicloDesligado, ErroApi } = carregarCliente();
+    const desligado = jest.fn();
+    const cicloDesligado = jest.fn();
+    aoRetornoDesligado(desligado);
+    aoCicloDesligado(cicloDesligado);
+
+    const erro = await requisicao('/aluno/sessoes-concluidas', { metodo: 'POST', corpo: { registros: [] } }).catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(ErroApi);
+    expect(erro).toMatchObject({ status: 503, codigo: 'RETORNO_INDISPONIVEL' });
+    expect(desligado).toHaveBeenCalledTimes(1);
+    expect(cicloDesligado).not.toHaveBeenCalled();
+    expect(chamados(fetchSimulado)).toEqual(['/aluno/sessoes-concluidas']);
+  });
+
+  it('vale para qualquer rota, também a de leitura', async () => {
+    fetchSimulado.mockResolvedValue(json(503, { status: 503, message: 'x', codigo: 'RETORNO_INDISPONIVEL', fieldErrors: null }));
+    const { requisicao, aoRetornoDesligado } = carregarCliente();
+    const desligado = jest.fn();
+    aoRetornoDesligado(desligado);
+
+    await expect(requisicao('/aluno/sessoes-concluidas?de=2026-10-01&ate=2026-10-31')).rejects.toMatchObject({ status: 503 });
+    expect(desligado).toHaveBeenCalledTimes(1);
+  });
+
+  it('outros erros não avisam: 503 do ciclo, 503 de outro código, 409 e 500', async () => {
+    const { requisicao, aoRetornoDesligado } = carregarCliente();
+    const desligado = jest.fn();
+    aoRetornoDesligado(desligado);
+    const casos: [number, string][] = [[503, 'CICLO_INDISPONIVEL_NO_APP'], [503, 'FINANCEIRO_INDISPONIVEL'], [409, 'RETORNO_INDISPONIVEL'], [500, 'RETORNO_INDISPONIVEL']];
+    for (const [status, codigo] of casos) {
+      fetchSimulado.mockResolvedValue(json(status, { status, message: 'x', codigo, fieldErrors: null }));
+      await expect(requisicao('/aluno/sessoes-concluidas')).rejects.toMatchObject({ status, codigo });
+    }
+    expect(desligado).not.toHaveBeenCalled();
+  });
+
+  it('sem callback registrado (ou removido) o erro só é relançado', async () => {
+    fetchSimulado.mockResolvedValue(json(503, { status: 503, message: 'x', codigo: 'RETORNO_INDISPONIVEL', fieldErrors: null }));
+    const { requisicao, aoRetornoDesligado } = carregarCliente();
+    const desligado = jest.fn();
+    aoRetornoDesligado(desligado);
+    aoRetornoDesligado(null);
+
+    await expect(requisicao('/aluno/sessoes-concluidas')).rejects.toMatchObject({ codigo: 'RETORNO_INDISPONIVEL' });
+    expect(desligado).not.toHaveBeenCalled();
+  });
+});
+
 describe('cliente HTTP: imagem protegida', () => {
   let fetchSimulado: jest.Mock;
 

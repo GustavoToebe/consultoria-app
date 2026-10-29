@@ -55,6 +55,8 @@ export interface EuResponse {
   pagarNoAndroid?: boolean;
   /** Acompanhamento do ciclo menstrual ligado na plataforma; falso ou ausente = o app esconde tudo dele e não o consulta. */
   cicloHabilitado?: boolean;
+  /** "Concluir treino" (retorno ao aluno) ligado na plataforma; falso ou ausente = o app esconde tudo e não consulta nem envia. */
+  retornoHabilitado?: boolean;
   usuario: UsuarioResumo;
   marca: Marca;
   aluno?: { id: string; nome: string; sexo?: string | null };
@@ -977,8 +979,59 @@ export interface ConfiguracaoAluno {
   instrucoesTreino?: string | null;
 }
 
+/** Mais repetições já feitas com uma carga (recordes pessoais). */
+export interface RepeticoesNaCarga {
+  carga: number;
+  repeticoes: number;
+}
+
+/** Os melhores valores de um exercício em séries simples (Engajamento 0.2, `dominio/recordesPessoais`). */
+export interface MelhoresDoExercicio {
+  maiorCarga: number;
+  maiorVolume: number;
+  /** Uma linha por carga, em ordem crescente. */
+  repeticoesPorCarga: RepeticoesNaCarga[];
+}
+
+/**
+ * Recordes no pacote: os melhores de antes de `ate` (hoje de Brasília quando o pacote foi gerado; exclusivo), por
+ * `exercicioId` da biblioteca. Exercício sem série simples antes de `ate` não aparece.
+ */
+export interface RecordesDoPacote {
+  ate: string;
+  exercicios: Record<string, MelhoresDoExercicio>;
+}
+
+/** Uma série da última vez (coluna "Anterior", Engajamento 0.3): onde ela fica no exercício e o que foi registrado. */
+export interface SerieAnterior {
+  /** Código do tipo (`WORKING`...). */
+  tipo: string;
+  /** Ordem dentro do tipo no exercício (1 = a primeira série daquele tipo). */
+  ordem: number;
+  carga: number | null;
+  repeticoes: number | null;
+  /** Etapas (Cluster, Rest-pause); nulo = série registrada inteira. */
+  etapas: EtapaRegistrada[] | null;
+}
+
+/** A última vez de um exercício: a data e as séries feitas, na ordem do plano. */
+export interface AnteriorDoExercicio {
+  data: string;
+  series: SerieAnterior[];
+}
+
+/** A última vez de cada exercício da biblioteca antes de `ate` (hoje de Brasília quando o pacote foi gerado). */
+export interface AnterioresDoPacote {
+  ate: string;
+  exercicios: Record<string, AnteriorDoExercicio>;
+}
+
 /** Tudo o que o app guarda para o aluno treinar sem internet. `treino` nulo = sem plano publicado. */
 export interface PainelAluno {
+  /** Recordes pessoais (P10): ausente com "Concluir treino" desligado (`TREINOS_RETORNO_HABILITADO`). */
+  recordes?: RecordesDoPacote;
+  /** Coluna "Anterior" (Engajamento 0.3): ausente com "Concluir treino" desligado. */
+  anteriores?: AnterioresDoPacote;
   /** Ausente nos pacotes anteriores ao check-in. */
   atualizacao?: Atualizacao | null;
   marca: Marca;
@@ -1054,6 +1107,71 @@ export interface RegistroMobilidadeFeito {
   itemUid: string;
   data: string;
   feito: boolean;
+}
+
+/** Treino concluído (ou reaberto) no aparelho; `id` nasce no aparelho e torna o reenvio idempotente. Reabrir é o mesmo registro com `concluida` falso. */
+export interface RegistroSessaoConcluidaEnvio {
+  id: string;
+  planoVersaoId: string;
+  sessaoUid: string;
+  data: string;
+  concluida: boolean;
+  /** Nulo quando `concluida` é falso. */
+  resultado: 'COMPLETA' | 'PARCIAL' | null;
+  /** Segundos (60 a 21600) ou nulo; sempre nulo quando `concluida` é falso. */
+  duracaoSegundos: number | null;
+  /** Dado do aluno: nunca em log. */
+  comentario: string | null;
+  alteradoNoAparelhoEm: string;
+}
+
+/** O que o servidor devolve de uma conclusão: sem id nem situação. */
+export interface SessaoConcluidaDoServidor {
+  /** Id do aparelho (é o que o "Visto" usa); ausente na conclusão que ainda só existe no aparelho. */
+  id?: string;
+  planoVersaoId: string;
+  sessaoUid: string;
+  /** Nome da sessão na versão executada (o treinador lê); nulo se a versão não existe mais. */
+  sessaoNome?: string | null;
+  data: string;
+  concluida: boolean;
+  resultado: 'COMPLETA' | 'PARCIAL' | null;
+  duracaoSegundos: number | null;
+  comentario: string | null;
+  /** Quando o treinador marcou "Visto" (Engajamento 0.5); nulo = não marcou. */
+  vistoEm?: string | null;
+}
+
+/** Um recorde batido (a mesma forma de `Recorde` de `dominio/recordesPessoais`). */
+export interface RecordeBatido {
+  tipo: 'MAIOR_CARGA' | 'MAIS_REPETICOES' | 'MAIOR_VOLUME';
+  carga: number;
+  repeticoes: number;
+  valor: number;
+}
+
+/** Uma série com recorde nos últimos 7 dias (Engajamento 0.5). */
+export interface SerieComRecorde {
+  alunoId: string;
+  alunoNome: string;
+  data: string;
+  exercicioId: string;
+  exercicioNome: string;
+  recordes: RecordeBatido[];
+}
+
+/** "Recordes da semana": período (`de` a `ate`), quantas séries bateram recorde e as mais recentes (até 50). */
+export interface RecordesDaSemana {
+  de: string;
+  ate: string;
+  total: number;
+  series: SerieComRecorde[];
+}
+
+/** `totalConcluidos` = treinos concluídos do aluno em todo o histórico (não só na janela de `sessoes`). */
+export interface SessoesConcluidasResponse {
+  totalConcluidos: number;
+  sessoes: SessaoConcluidaDoServidor[];
 }
 
 export type SituacaoEnvio = 'ACEITO' | 'IGNORADO_ANTIGO' | 'RECUSADO';

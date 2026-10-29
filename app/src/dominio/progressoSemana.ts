@@ -28,3 +28,11 @@ export function progressoSemana(treino: TreinoAtual | null, hoje: string, locais
  }
  return { feitas, total };
 }
+
+/**
+ * Semana completa (Engajamento 0.6, P5): todos os treinos com dia fixo desta semana têm registro. É a mesma conta do "Sua
+ * semana"; plano sem dia fixo (nada previsto) nunca comemora.
+ */
+export function semanaCompleta(p: { feitas: number; total: number } | null): boolean {
+ return !!p && p.total > 0 && p.feitas >= p.total;
+}

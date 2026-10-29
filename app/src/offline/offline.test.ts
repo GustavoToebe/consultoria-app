@@ -1,12 +1,13 @@
 import { ErroApi } from '../api/cliente';
-import type { EtapaRegistrada, LoteResponse, RegistroEnvio, RegistroMobilidadeEnvio } from '../api/tipos';
+import type { EtapaRegistrada, LoteResponse, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio } from '../api/tipos';
+import { inicioDaJanelaDeConclusao } from '../dominio/conclusaoDoTreino';
 import { chavePasseio } from '../dominio/passeio';
 import { chaveDasPreferencias } from '../dominio/preferencias';
 import { emMemoria } from './armazenamento';
 import { fabricaNode, type FabricaDeTeste } from './bancoNode.apoioTeste';
 import { CHAVE_FILAS_RETIDAS, registrarFilaRetida, varrerFilasRetidas } from './filasRetidas';
 import { VERSAO_ESQUEMA } from './banco';
-import { DIAS_FILA_RETIDA, RepositorioChaveValor, type DadosMobilidade, type DadosRegistro, type RepositorioLocal } from './repositorioLocal';
+import { chaveDoInicioDoTreino, DIAS_FILA_RETIDA, RepositorioChaveValor, type DadosMobilidade, type DadosRegistro, type DadosSessaoConcluida, type RepositorioLocal } from './repositorioLocal';
 import { RepositorioSqlite } from './repositorioSqlite';
 import { MOTIVO_MOBILIDADE_FORA_DO_PLANO, Sincronizador } from './sincronizacao';
 
@@ -48,6 +49,9 @@ const aceitaTudoMobilidade = async (registros: RegistroMobilidadeEnvio[]): Promi
 const aceitaTudo = async (registros: RegistroEnvio[]): Promise<LoteResponse> => ({
   resultados: registros.map((r) => ({ id: r.id, situacao: 'ACEITO', motivo: null })),
 });
+
+/** As conclusões com a chave ligada (a maioria dos testes); a desligada tem teste próprio. */
+const conclusoesLigadas = (enviar: (registros: RegistroSessaoConcluidaEnvio[]) => Promise<LoteResponse>) => ({ enviar, ligada: () => true });
 
 /** Sincronizador que aceita toda a mobilidade: os testes das séries não mexem nela. */
 const sincronizadorDe = (repo: RepositorioLocal, enviar: (registros: RegistroEnvio[]) => Promise<LoteResponse>) =>
@@ -1073,7 +1077,7 @@ describe('mobilidade no SQLite do celular', () => {
     const marcado = await repo.registrarMobilidade(item('i1'));
     expect((await repo.listarMobilidade()).map((r) => r.id)).toEqual([marcado.id]);
     expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(VERSAO_ESQUEMA);
-    expect(VERSAO_ESQUEMA).toBe(3);
+    expect(VERSAO_ESQUEMA).toBe(4);
   });
 
   it('esquema 2 → 3: o banco antigo ganha as colunas das etapas e a série da fila continua, sem detalhe', async () => {
@@ -1102,7 +1106,7 @@ describe('mobilidade no SQLite do celular', () => {
     const etapas: EtapaRegistrada[] = [{ posicao: 1, repeticoes: 5, carga: 20, situacao: 'FEITA' }];
     await repo.registrar(serie('y', { etapas, referenciaCarga: 20, referenciaOrigem: 'WS_ANTERIOR', concluida: false }));
     expect((await repo.listar()).find((x) => x.serieUid === 'y')?.etapas).toEqual(etapas);
-    expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(3);
+    expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(VERSAO_ESQUEMA);
   });
 });
 
@@ -1136,6 +1140,594 @@ describe('mobilidade na web (chave-valor)', () => {
     const kv = emMemoria();
     const ana = new RepositorioChaveValor(kv, 'ana', novoId, agora);
     await ana.registrarMobilidade(item('i1'));
+    await ana.apagarTudo();
+    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:'))).toEqual([]);
+  });
+});
+
+function treino(sessaoUid: string, extra: Partial<DadosSessaoConcluida> = {}): DadosSessaoConcluida {
+  return {
+    planoVersaoId: 'v1',
+    sessaoUid,
+    data: '2026-10-07',
+    concluida: true,
+    resultado: 'COMPLETA',
+    duracaoSegundos: 3600,
+    comentario: 'treino pesado',
+    ...extra,
+  };
+}
+
+const reaberto = { concluida: false, resultado: null, duracaoSegundos: null } as const;
+
+const aceitaTudoConclusoes = async (registros: RegistroSessaoConcluidaEnvio[]): Promise<LoteResponse> => ({
+  resultados: registros.map((r) => ({ id: r.id, situacao: 'ACEITO', motivo: null })),
+});
+
+/**
+ * Treino concluído (passo 0.1 do Engajamento): a mesma bateria nas duas implementações. Entra na mesma fila de envio das
+ * séries e da mobilidade (mesmo repositório, sincronizador, ciclo e retenção), em depósito próprio.
+ */
+describe.each(implementacoes)('treino concluído na fila de envio – %s', (_nome, criarAparelho) => {
+  let aparelho: Aparelho;
+  beforeEach(() => {
+    aparelho = criarAparelho();
+  });
+
+  const instante = (t0: number, ms: number) => () => new Date(t0 + ms);
+
+  it('concluir, reabrir e regravar o mesmo treino é o mesmo registro (mesma chave natural, uma linha)', async () => {
+    const repo = aparelho('u1');
+    const a = await repo.registrarSessaoConcluida(treino('s1'));
+    const b = await repo.registrarSessaoConcluida(treino('s1', reaberto));
+    expect(b.id).toBe(a.id);
+    expect(b.alteradoEm > a.alteradoEm).toBe(true);
+    expect(b).toMatchObject({ concluida: false, resultado: null, duracaoSegundos: null, comentario: 'treino pesado', situacao: 'LOCAL', motivo: null });
+    const c = await repo.registrarSessaoConcluida(treino('s1', { resultado: 'PARCIAL', duracaoSegundos: 1800, comentario: null }));
+    expect(c.id).toBe(a.id);
+    expect(await repo.listarSessoesConcluidas()).toHaveLength(1);
+    expect((await repo.listarSessoesConcluidas())[0]).toMatchObject({ concluida: true, resultado: 'PARCIAL', duracaoSegundos: 1800, comentario: null });
+    // Outro dia, outra sessão e outra versão são registros diferentes.
+    const outroDia = await repo.registrarSessaoConcluida(treino('s1', { data: '2026-10-08' }));
+    const outraSessao = await repo.registrarSessaoConcluida(treino('s2'));
+    const outraVersao = await repo.registrarSessaoConcluida(treino('s1', { planoVersaoId: 'v2' }));
+    expect(new Set([a.id, outroDia.id, outraSessao.id, outraVersao.id]).size).toBe(4);
+  });
+
+  it('é um depósito à parte: não aparece como série nem como mobilidade, e volta com os tipos certos ao reabrir', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarSessaoConcluida(treino('s1'));
+    await repo.registrarSessaoConcluida(treino('s2', { ...reaberto, comentario: null }));
+    await repo.registrar(serie('x'));
+    expect((await repo.listar()).map((r) => r.serieUid)).toEqual(['x']);
+    expect((await repo.pendentes()).map((r) => r.serieUid)).toEqual(['x']);
+    expect(await repo.listarMobilidade()).toEqual([]);
+    await repo.fechar();
+    const lista = await aparelho('u1').listarSessoesConcluidas();
+    expect(lista.map((r) => [r.sessaoUid, r.concluida, r.resultado, r.duracaoSegundos, r.comentario])).toEqual([
+      ['s1', true, 'COMPLETA', 3600, 'treino pesado'],
+      ['s2', false, null, null, null],
+    ]);
+  });
+
+  it('pendentes vêm do mais antigo para o mais novo, até o limite', async () => {
+    const repo = aparelho('u1');
+    for (const uid of ['a', 'b', 'c']) await repo.registrarSessaoConcluida(treino(uid));
+    await repo.registrarSessaoConcluida(treino('a', { comentario: 'de novo' }));
+    expect((await repo.pendentesSessoesConcluidas()).map((r) => r.sessaoUid)).toEqual(['b', 'c', 'a']);
+    expect((await repo.pendentesSessoesConcluidas(2)).map((r) => r.sessaoUid)).toEqual(['b', 'c']);
+  });
+
+  it('aplicar resultados: ACEITO vira ENVIADO, RECUSADO vira FALHOU com motivo, alterado no meio do envio continua LOCAL', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarSessaoConcluida(treino('ok'));
+    await repo.registrarSessaoConcluida(treino('ruim'));
+    await repo.registrarSessaoConcluida(treino('mudou'));
+    const [ok, ruim, mudou] = await repo.listarSessoesConcluidas();
+    await repo.registrarSessaoConcluida(treino('mudou', { resultado: 'PARCIAL' }));
+    await repo.aplicarResultadosSessoesConcluidas(
+      [ok, ruim, mudou],
+      [
+        { id: ok.id, situacao: 'ACEITO', motivo: null },
+        { id: ruim.id, situacao: 'RECUSADO', motivo: 'Data fora do prazo.' },
+        { id: mudou.id, situacao: 'ACEITO', motivo: null },
+      ],
+    );
+    expect((await repo.listarSessoesConcluidas()).map((r) => [r.sessaoUid, r.situacao, r.motivo])).toEqual([
+      ['ok', 'ENVIADO', null],
+      ['ruim', 'FALHOU', 'Data fora do prazo.'],
+      ['mudou', 'LOCAL', null],
+    ]);
+    expect(await repo.reenviarFalhas()).toBe(1);
+    expect((await repo.pendentesSessoesConcluidas()).map((r) => r.sessaoUid).sort()).toEqual(['mudou', 'ruim']);
+  });
+
+  it('enviados há mais de 60 dias saem do aparelho; pendentes antigos ficam', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarSessaoConcluida(treino('velho', { data: '2026-07-01' }));
+    await repo.registrarSessaoConcluida(treino('pendente', { data: '2026-07-01' }));
+    await repo.registrarSessaoConcluida(treino('novo'));
+    const [velho, , novo] = await repo.listarSessoesConcluidas();
+    await repo.aplicarResultadosSessoesConcluidas(
+      [velho, novo],
+      [velho, novo].map((r) => ({ id: r.id, situacao: 'ACEITO' as const, motivo: null })),
+    );
+    expect((await repo.listarSessoesConcluidas()).map((r) => [r.sessaoUid, r.situacao])).toEqual([
+      ['pendente', 'LOCAL'],
+      ['novo', 'ENVIADO'],
+    ]);
+  });
+
+  it('o ciclo envia séries, depois mobilidade, depois conclusões, e o envio não leva o início do treino', async () => {
+    const repo = aparelho('u1');
+    const concluido = await repo.registrarSessaoConcluida(treino('s1', { comentario: null }));
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrar(serie('x'));
+    await repo.marcarInicioDoTreino(chaveDoInicioDoTreino('v1', 's1', '2026-10-07'), '2026-10-07T12:00:00.000Z');
+    const ordem: string[] = [];
+    const conclusoes: RegistroSessaoConcluidaEnvio[] = [];
+    const sync = new Sincronizador(
+      repo,
+      async (r) => {
+        ordem.push('series');
+        return aceitaTudo(r);
+      },
+      async (r) => {
+        ordem.push('mobilidade');
+        return aceitaTudoMobilidade(r);
+      },
+      conclusoesLigadas(async (r) => {
+        ordem.push('conclusoes');
+        conclusoes.push(...r);
+        return aceitaTudoConclusoes(r);
+      }),
+    );
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 3 });
+    expect(ordem).toEqual(['series', 'mobilidade', 'conclusoes']);
+    expect(conclusoes).toEqual([
+      {
+        id: concluido.id,
+        planoVersaoId: 'v1',
+        sessaoUid: 's1',
+        data: '2026-10-07',
+        concluida: true,
+        resultado: 'COMPLETA',
+        duracaoSegundos: 3600,
+        comentario: null,
+        alteradoNoAparelhoEm: concluido.alteradoEm,
+      },
+    ]);
+    expect(JSON.stringify(conclusoes)).not.toMatch(/inicio|iniciado/i);
+    expect((await repo.listarSessoesConcluidas()).map((r) => r.situacao)).toEqual(['ENVIADO']);
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+  });
+
+  it('reabrir depois de enviado manda o mesmo id com concluida falso e resultado e duração nulos', async () => {
+    const repo = aparelho('u1');
+    const feito = await repo.registrarSessaoConcluida(treino('s1'));
+    const enviados: RegistroSessaoConcluidaEnvio[] = [];
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async (r) => {
+      enviados.push(...r);
+      return aceitaTudoConclusoes(r);
+    }));
+    await sync.sincronizar();
+    await repo.registrarSessaoConcluida(treino('s1', reaberto));
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect(enviados.map((r) => [r.id, r.concluida, r.resultado, r.duracaoSegundos, r.comentario])).toEqual([
+      [feito.id, true, 'COMPLETA', 3600, 'treino pesado'],
+      [feito.id, false, null, null, 'treino pesado'],
+    ]);
+  });
+
+  it('503 RETORNO_INDISPONIVEL em pleno envio: a conclusão continua LOCAL, uma só chamada, séries e mobilidade intactas', async () => {
+    const repo = aparelho('u1');
+    const s1 = await repo.registrarSessaoConcluida(treino('s1'));
+    const s2 = await repo.registrarSessaoConcluida(treino('s2'));
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrar(serie('x'));
+    let tentativas = 0;
+    let aviso = 0;
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, {
+      enviar: async () => {
+        tentativas++;
+        throw new ErroApi(503, 'RETORNO_INDISPONIVEL', 'Recurso indisponível.');
+      },
+      ligada: () => true,
+      aoDesligar: () => {
+        aviso++;
+      },
+    });
+    // Sem erro e sem encerrar a sessão: o ciclo termina "ok" e as séries e a mobilidade foram enviadas.
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
+    expect(tentativas).toBe(1);
+    expect(aviso).toBe(1);
+    // Não vira FALHOU: continua LOCAL, sem motivo, com o mesmo id e o mesmo instante.
+    expect(await repo.listarSessoesConcluidas()).toEqual([s1, s2]);
+    expect((await repo.listarSessoesConcluidas()).map((r) => [r.situacao, r.motivo])).toEqual([['LOCAL', null], ['LOCAL', null]]);
+    expect((await repo.listar()).map((r) => r.situacao)).toEqual(['ENVIADO']);
+    expect((await repo.listarMobilidade()).map((r) => r.situacao)).toEqual(['ENVIADO']);
+    expect((await repo.pendentesSessoesConcluidas()).map((r) => r.id)).toEqual([s1.id, s2.id]);
+  });
+
+  it('chave desligada: as conclusões não são enviadas nem tentadas, ficam LOCAL; ao ligar, o mesmo registro é enviado', async () => {
+    const repo = aparelho('u1');
+    const concluido = await repo.registrarSessaoConcluida(treino('s1'));
+    await repo.registrarMobilidade(item('i1'));
+    await repo.registrar(serie('x'));
+    let ligada = false;
+    const enviarConclusoes = jest.fn(aceitaTudoConclusoes);
+    const enviarSeries = jest.fn(aceitaTudo);
+    // Uma só instância: prova que a chave é lida a cada ciclo, não capturada na criação.
+    const sync = new Sincronizador(repo, enviarSeries, aceitaTudoMobilidade, { enviar: enviarConclusoes, ligada: () => ligada });
+
+    // Desligada: séries e mobilidade seguem normalmente; a conclusão fica como está.
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
+    expect(enviarSeries).toHaveBeenCalledTimes(1);
+    expect(enviarConclusoes).not.toHaveBeenCalled();
+    expect(await repo.listarSessoesConcluidas()).toEqual([concluido]);
+    expect(concluido.situacao).toBe('LOCAL');
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(enviarConclusoes).not.toHaveBeenCalled();
+
+    // A chave volta: o mesmo registro (mesmo id) é enviado e vira ENVIADO.
+    ligada = true;
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect(enviarConclusoes).toHaveBeenCalledTimes(1);
+    expect(enviarConclusoes.mock.calls[0][0].map((r) => [r.id, r.concluida, r.alteradoNoAparelhoEm])).toEqual([[concluido.id, true, concluido.alteradoEm]]);
+    expect((await repo.listarSessoesConcluidas()).map((r) => [r.id, r.situacao])).toEqual([[concluido.id, 'ENVIADO']]);
+  });
+
+  it('retomada depois de mais de 60 dias: as conclusões LOCAL fora da janela saem sem envio; o resto fica', async () => {
+    const repo = aparelho('u1');
+    // Hoje (de Brasília) = 2026-10-07: a janela começa em 2026-08-08.
+    const limite = inicioDaJanelaDeConclusao('2026-10-07');
+    expect(limite).toBe('2026-08-08');
+    await repo.registrarSessaoConcluida(treino('velha', { data: '2026-08-07' }));
+    await repo.registrarSessaoConcluida(treino('reaberta', { ...reaberto, data: '2026-07-01' }));
+    const noLimite = await repo.registrarSessaoConcluida(treino('limite', { data: '2026-08-08' }));
+    const recente = await repo.registrarSessaoConcluida(treino('recente'));
+    const falhou = await repo.registrarSessaoConcluida(treino('falhou', { data: '2026-07-02' }));
+    const enviada = await repo.registrarSessaoConcluida(treino('enviada', { data: '2026-08-09' }));
+    await repo.aplicarResultadosSessoesConcluidas(
+      [falhou, enviada],
+      [
+        { id: falhou.id, situacao: 'RECUSADO', motivo: 'Data fora do prazo.' },
+        { id: enviada.id, situacao: 'ACEITO', motivo: null },
+      ],
+    );
+
+    expect(await repo.descartarSessoesConcluidasAntesDe(limite)).toBe(2);
+    // Saíram só as LOCAL antes do limite (concluída e reaberta); a FALHOU e a ENVIADA não são desta regra.
+    expect((await repo.listarSessoesConcluidas()).map((r) => [r.sessaoUid, r.situacao])).toEqual([
+      ['limite', 'LOCAL'],
+      ['recente', 'LOCAL'],
+      ['falhou', 'FALHOU'],
+      ['enviada', 'ENVIADO'],
+    ]);
+    // Repetir não muda nada; o envio leva só as que ficaram, com o mesmo id.
+    expect(await repo.descartarSessoesConcluidasAntesDe(limite)).toBe(0);
+    const enviar = jest.fn(aceitaTudoConclusoes);
+    await new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(enviar)).sincronizar();
+    expect(enviar.mock.calls.flatMap(([lote]) => lote.map((r) => r.id))).toEqual([noLimite.id, recente.id]);
+    // Persistiu: reaberto, o aparelho não as traz de volta.
+    await repo.fechar();
+    expect((await aparelho('u1').listarSessoesConcluidas()).map((r) => r.sessaoUid)).toEqual(['limite', 'recente', 'falhou', 'enviada']);
+  });
+
+  it('503 RETORNO_INDISPONIVEL e depois a chave volta: a conclusão que provocou o 503 é reenviada com o mesmo id', async () => {
+    const repo = aparelho('u1');
+    const concluido = await repo.registrarSessaoConcluida(treino('s1'));
+    let ligada = true;
+    let jaFalhou = false;
+    const enviados: string[] = [];
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, {
+      enviar: async (r) => {
+        if (!jaFalhou) {
+          jaFalhou = true;
+          throw new ErroApi(503, 'RETORNO_INDISPONIVEL', 'Recurso indisponível.');
+        }
+        enviados.push(...r.map((x) => x.id));
+        return aceitaTudoConclusoes(r);
+      },
+      ligada: () => ligada,
+      aoDesligar: () => {
+        ligada = false;
+      },
+    });
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(ligada).toBe(false);
+    // Enquanto a chave está desligada, o ciclo seguinte nem chama a rota (sem laço).
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    expect(enviados).toEqual([]);
+    expect((await repo.listarSessoesConcluidas())[0].situacao).toBe('LOCAL');
+    ligada = true;
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect(enviados).toEqual([concluido.id]);
+    expect((await repo.listarSessoesConcluidas())[0].situacao).toBe('ENVIADO');
+  });
+
+  it('outro 503 é sem conexão (continua LOCAL); um 4xx é erro do lote', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarSessaoConcluida(treino('s1'));
+    const fora = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async () => {
+      throw new ErroApi(503, 'INDISPONIVEL', 'Fora do ar.');
+    }));
+    expect(await fora.sincronizar()).toEqual({ tipo: 'semConexao' });
+    const recusa = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async () => {
+      throw new ErroApi(400, 'REQUISICAO_INVALIDA', 'Lote inválido.');
+    }));
+    expect(await recusa.sincronizar()).toEqual({ tipo: 'erro', mensagem: 'Lote inválido.' });
+    expect((await repo.listarSessoesConcluidas())[0].situacao).toBe('LOCAL');
+  });
+
+  it('séries com falha de rede não deixam as conclusões passarem na frente', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarSessaoConcluida(treino('s1'));
+    await repo.registrar(serie('x'));
+    const enviarConclusoes = jest.fn(aceitaTudoConclusoes);
+    const sync = new Sincronizador(
+      repo,
+      async () => {
+        throw new ErroApi(0, 'SEM_CONEXAO', 'Sem conexão');
+      },
+      aceitaTudoMobilidade,
+      conclusoesLigadas(enviarConclusoes),
+    );
+    expect(await sync.sincronizar()).toEqual({ tipo: 'semConexao' });
+    expect(enviarConclusoes).not.toHaveBeenCalled();
+  });
+
+  it('lote de 300 por vez', async () => {
+    const repo = aparelho('u1');
+    for (let i = 0; i < 305; i++) await repo.registrarSessaoConcluida(treino(`s${i}`));
+    const tamanhos: number[] = [];
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async (r) => {
+      tamanhos.push(r.length);
+      return aceitaTudoConclusoes(r);
+    }));
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 305 });
+    expect(tamanhos).toEqual([300, 5]);
+  });
+
+  it('dois alunos no mesmo aparelho não se misturam, e "Sair" apaga as conclusões e o início de quem saiu', async () => {
+    const ana = aparelho('ana');
+    const bia = aparelho('bia');
+    const chave = chaveDoInicioDoTreino('v1', 's1', '2026-10-07');
+    await ana.registrarSessaoConcluida(treino('s1'));
+    await ana.marcarInicioDoTreino(chave, '2026-10-07T12:00:00.000Z');
+    expect(await bia.listarSessoesConcluidas()).toEqual([]);
+    expect(await bia.inicioDoTreino(chave)).toBeNull();
+    await bia.registrarSessaoConcluida(treino('s2'));
+    await ana.apagarTudo();
+    expect(await ana.listarSessoesConcluidas()).toEqual([]);
+    expect(await ana.inicioDoTreino(chave)).toBeNull();
+    expect((await bia.listarSessoesConcluidas()).map((r) => r.sessaoUid)).toEqual(['s2']);
+    // Depois de sair, o repositório antigo não grava mais nada.
+    await ana.registrarSessaoConcluida(treino('s3'));
+    await ana.marcarInicioDoTreino(chave, '2026-10-07T13:00:00.000Z');
+    const volta = aparelho('ana');
+    expect(await volta.listarSessoesConcluidas()).toEqual([]);
+    expect(await volta.lerIniciosDoTreino()).toEqual({});
+  });
+
+  describe('início do treino', () => {
+    const chave = chaveDoInicioDoTreino('v1', 's1', '2026-10-07');
+
+    it('grava uma única vez e nunca sobrescreve', async () => {
+      const repo = aparelho('u1');
+      expect(await repo.inicioDoTreino(chave)).toBeNull();
+      expect(await repo.marcarInicioDoTreino(chave, '2026-10-07T12:00:00.000Z')).toBe('2026-10-07T12:00:00.000Z');
+      expect(await repo.marcarInicioDoTreino(chave, '2026-10-07T12:30:00.000Z')).toBe('2026-10-07T12:00:00.000Z');
+      expect(await repo.inicioDoTreino(chave)).toBe('2026-10-07T12:00:00.000Z');
+      const outra = chaveDoInicioDoTreino('v1', 's2', '2026-10-07');
+      await repo.marcarInicioDoTreino(outra, '2026-10-07T13:00:00.000Z');
+      await repo.fechar();
+      expect(await aparelho('u1').lerIniciosDoTreino()).toEqual({
+        [chave]: '2026-10-07T12:00:00.000Z',
+        [outra]: '2026-10-07T13:00:00.000Z',
+      });
+    });
+
+    it('início com mais de 60 dias sai do aparelho na próxima marcação', async () => {
+      const repo = aparelho('u1');
+      await repo.marcarInicioDoTreino(chaveDoInicioDoTreino('v1', 's1', '2026-01-01'), '2026-01-01T10:00:00.000Z');
+      await repo.marcarInicioDoTreino(chave, '2026-10-07T12:00:00.000Z');
+      expect(Object.keys(await repo.lerIniciosDoTreino())).toEqual([chave]);
+    });
+
+    it('não vai na fila retida: a recusa da sessão guarda só as conclusões LOCAL e leva o início embora', async () => {
+      const repo = aparelho('u1');
+      await repo.registrarSessaoConcluida(treino('fila'));
+      await repo.marcarInicioDoTreino(chave, '2026-10-07T12:00:00.000Z');
+      expect(await repo.reterSoAFila()).toBe(1);
+      const volta = aparelho('u1');
+      expect(await volta.lerIniciosDoTreino()).toEqual({});
+      expect(await volta.inicioDoTreino(chave)).toBeNull();
+    });
+  });
+
+  describe('sessão recusada pelo servidor', () => {
+    it('retém só as conclusões LOCAL, apaga o resto e o mesmo usuário envia ao voltar com os mesmos ids', async () => {
+      const repo = aparelho('u1');
+      const fila1 = await repo.registrarSessaoConcluida(treino('fila-1'));
+      const fila2 = await repo.registrarSessaoConcluida(treino('fila-2', reaberto));
+      await repo.registrarSessaoConcluida(treino('enviada'));
+      await repo.registrarSessaoConcluida(treino('recusada'));
+      const [, , enviada, recusada] = await repo.listarSessoesConcluidas();
+      await repo.aplicarResultadosSessoesConcluidas(
+        [enviada, recusada],
+        [
+          { id: enviada.id, situacao: 'ACEITO', motivo: null },
+          { id: recusada.id, situacao: 'RECUSADO', motivo: 'Data fora do prazo.' },
+        ],
+      );
+      // Uma série já enviada não é fila: não pode ficar no aparelho.
+      await repo.registrar(serie('s-enviada'));
+      const [s] = await repo.listar();
+      await repo.aplicarResultados([s], [{ id: s.id, situacao: 'ACEITO', motivo: null }]);
+
+      expect(await repo.reterSoAFila()).toBe(2);
+
+      const volta = aparelho('u1');
+      expect(await volta.listar()).toEqual([]);
+      expect(await volta.listarSessoesConcluidas()).toEqual([fila1, fila2]);
+      expect(await volta.descartarFilaRetidaVencida()).toBe('retida');
+      expect(await volta.retomarFilaRetida()).toBe(true);
+
+      const enviados: RegistroSessaoConcluidaEnvio[] = [];
+      const sync = new Sincronizador(volta, aceitaTudo, aceitaTudoMobilidade, conclusoesLigadas(async (r) => {
+        enviados.push(...r);
+        return aceitaTudoConclusoes(r);
+      }));
+      expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
+      expect(enviados.map((r) => [r.id, r.concluida])).toEqual([[fila1.id, true], [fila2.id, false]]);
+    });
+
+    it('sem nenhuma fila apaga tudo, e a fila só de conclusão vence em 30 dias e some inteira', async () => {
+      const t0 = Date.parse('2026-10-07T12:00:00Z');
+      const vazio = aparelho('vazio');
+      await vazio.registrarSessaoConcluida(treino('s1'));
+      const [s1] = await vazio.listarSessoesConcluidas();
+      await vazio.aplicarResultadosSessoesConcluidas([s1], [{ id: s1.id, situacao: 'ACEITO', motivo: null }]);
+      expect(await vazio.reterSoAFila()).toBe(0);
+      expect(await aparelho('vazio').listarSessoesConcluidas()).toEqual([]);
+
+      const repo = aparelho('u1', instante(t0, 0));
+      await repo.registrarSessaoConcluida(treino('i1'));
+      await repo.reterSoAFila();
+      const quase = aparelho('u1', instante(t0, DIAS_FILA_RETIDA * DIA_MS - 1000));
+      expect(await quase.descartarFilaRetidaVencida()).toBe('retida');
+      expect(await quase.listarSessoesConcluidas()).toHaveLength(1);
+      const vencida = aparelho('u1', instante(t0, DIAS_FILA_RETIDA * DIA_MS));
+      expect(await vencida.descartarFilaRetidaVencida()).toBe('vencida');
+      expect(await vencida.listarSessoesConcluidas()).toEqual([]);
+      await vencida.registrarSessaoConcluida(treino('novo'));
+      expect((await vencida.listarSessoesConcluidas()).map((r) => r.sessaoUid)).toEqual(['novo']);
+    });
+
+    it('a varredura do aparelho apaga a fila de conclusões vencida sem enviar nada', async () => {
+      const listaDeFilas = emMemoria();
+      const t0 = Date.parse('2026-10-07T12:00:00Z');
+      const repo = aparelho('ana', instante(t0, 0));
+      await repo.registrarSessaoConcluida(treino('s1'));
+      await repo.reterSoAFila();
+      await registrarFilaRetida('ana', { kv: listaDeFilas });
+      const abrir = (id: string) => aparelho(id, instante(t0, DIAS_FILA_RETIDA * DIA_MS + 1000));
+      expect(await varrerFilasRetidas({ kv: listaDeFilas, abrir })).toBe(1);
+      expect(await aparelho('ana').listarSessoesConcluidas()).toEqual([]);
+    });
+  });
+});
+
+describe('treino concluído no SQLite do celular', () => {
+  let fabrica: FabricaDeTeste;
+  beforeEach(() => {
+    fabrica = fabricaNode();
+  });
+
+  it('o mesmo treino no mesmo dia é uma linha só (chave única: versão, sessão e dia)', async () => {
+    const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora);
+    await repo.registrarSessaoConcluida(treino('s1'));
+    await repo.registrarSessaoConcluida(treino('s1', reaberto));
+    await repo.registrarSessaoConcluida(treino('s1', { data: '2026-10-08' }));
+    const linhas = await fabrica.banco('treinos-u1.db').todos<{ data: string; concluida: number; resultado: string | null }>(
+      'select data, concluida, resultado from sessao_concluida order by data',
+    );
+    expect(linhas).toEqual([
+      { data: '2026-10-07', concluida: 0, resultado: null },
+      { data: '2026-10-08', concluida: 1, resultado: 'COMPLETA' },
+    ]);
+  });
+
+  it('sessão recusada: a tabela guarda só o que está na fila e o início do treino sai', async () => {
+    const repo = new RepositorioSqlite(fabrica, 'u1', novoId, agora);
+    await repo.registrarSessaoConcluida(treino('fila'));
+    await repo.registrarSessaoConcluida(treino('enviada'));
+    const [, enviada] = await repo.listarSessoesConcluidas();
+    await repo.aplicarResultadosSessoesConcluidas([enviada], [{ id: enviada.id, situacao: 'ACEITO', motivo: null }]);
+    await repo.marcarInicioDoTreino(chaveDoInicioDoTreino('v1', 'fila', '2026-10-07'), '2026-10-07T12:00:00.000Z');
+    await repo.reterSoAFila();
+    const banco = fabrica.banco('treinos-u1.db');
+    expect((await banco.todos<{ sessao_uid: string }>('select sessao_uid from sessao_concluida')).map((l) => l.sessao_uid)).toEqual(['fila']);
+    expect(await banco.todos('select * from inicio_do_treino')).toEqual([]);
+    expect(fabrica.abertas()).toBe(0);
+  });
+
+  it('fila vencida esvazia as tabelas novas sem apagar o arquivo', async () => {
+    const t0 = Date.parse('2026-10-07T12:00:00Z');
+    const com = new RepositorioSqlite(fabrica, 'com', novoId, () => new Date(t0));
+    await com.registrarSessaoConcluida(treino('s1'));
+    await com.reterSoAFila();
+    const tarde = new RepositorioSqlite(fabrica, 'com', novoId, () => new Date(t0 + DIAS_FILA_RETIDA * DIA_MS));
+    expect(await tarde.descartarFilaRetidaVencida()).toBe('vencida');
+    expect(await fabrica.banco('treinos-com.db').todos('select * from sessao_concluida')).toEqual([]);
+  });
+
+  it('esquema 3 → 4: o banco antigo ganha as tabelas novas e a série da fila continua', async () => {
+    const antigo = fabrica.banco('treinos-u4.db');
+    await antigo.executar(`
+      create table kv (chave text primary key, valor text not null);
+      create table registro (
+        id text primary key, plano_versao_id text not null, sessao_uid text not null, exercicio_uid text not null,
+        serie_uid text not null, exercicio_id text, trabalho integer not null, data text not null, carga real,
+        repeticoes integer, concluida integer not null, observacao text, alterado_em text not null,
+        situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')), motivo text,
+        etapas text, referencia_carga real, referencia_origem text,
+        unique (plano_versao_id, serie_uid, data)
+      );
+      create table registro_mobilidade (
+        id text primary key, plano_versao_id text not null, secao_uid text not null, item_uid text not null, data text not null,
+        feito integer not null, alterado_em text not null, situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')),
+        motivo text, unique (plano_versao_id, item_uid, data)
+      );
+      create table carga_trabalho (exercicio_uid text not null, data text not null, carga real not null, primary key (exercicio_uid, data));
+      insert into registro values ('r-v3', 'v1', 's1', 'e1', 'x', 'x1', 0, '2026-10-07', 20, 8, 1, null, '2026-10-07T12:00:00.000Z', 'LOCAL', null, null, null, null);
+      pragma user_version = 3;
+    `);
+    const repo = new RepositorioSqlite(fabrica, 'u4', novoId, agora);
+    expect((await repo.pendentes()).map((r) => r.id)).toEqual(['r-v3']);
+    expect(await repo.listarSessoesConcluidas()).toEqual([]);
+    const feito = await repo.registrarSessaoConcluida(treino('s1'));
+    expect((await repo.listarSessoesConcluidas()).map((r) => r.id)).toEqual([feito.id]);
+    const chave = chaveDoInicioDoTreino('v1', 's1', '2026-10-07');
+    await repo.marcarInicioDoTreino(chave, '2026-10-07T12:00:00.000Z');
+    expect(await repo.lerIniciosDoTreino()).toEqual({ [chave]: '2026-10-07T12:00:00.000Z' });
+    expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(VERSAO_ESQUEMA);
+  });
+});
+
+describe('treino concluído na web (chave-valor)', () => {
+  it('sessão recusada: a chave das conclusões fica junto com a marca e o início do treino não fica', async () => {
+    const kv = emMemoria();
+    const ana = new RepositorioChaveValor(kv, 'ana', novoId, agora);
+    await ana.registrarSessaoConcluida(treino('s1'));
+    await ana.registrarSessaoConcluida(treino('s2'));
+    const [, s2] = await ana.listarSessoesConcluidas();
+    await ana.aplicarResultadosSessoesConcluidas([s2], [{ id: s2.id, situacao: 'ACEITO', motivo: null }]);
+    await ana.marcarInicioDoTreino(chaveDoInicioDoTreino('v1', 's1', '2026-10-07'), '2026-10-07T12:00:00.000Z');
+    await ana.reterSoAFila();
+    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:')).sort()).toEqual(
+      ['treinos:ana:filaRetida', 'treinos:ana:sessoesConcluidas'].sort(),
+    );
+    expect(JSON.parse((await kv.ler('treinos:ana:sessoesConcluidas')) ?? '[]')).toHaveLength(1);
+
+    // Só série na fila: a chave das conclusões (com enviadas) não pode sobrar.
+    const bia = new RepositorioChaveValor(kv, 'bia', novoId, agora);
+    await bia.registrar(serie('s1'));
+    await bia.registrarSessaoConcluida(treino('s1'));
+    const [c1] = await bia.listarSessoesConcluidas();
+    await bia.aplicarResultadosSessoesConcluidas([c1], [{ id: c1.id, situacao: 'ACEITO', motivo: null }]);
+    await bia.reterSoAFila();
+    expect((await kv.chaves()).filter((c) => c.startsWith('treinos:bia:')).sort()).toEqual(
+      ['treinos:bia:filaRetida', 'treinos:bia:registros'].sort(),
+    );
+  });
+
+  it('"Sair" apaga as conclusões e o início do treino junto com o resto', async () => {
+    const kv = emMemoria();
+    const ana = new RepositorioChaveValor(kv, 'ana', novoId, agora);
+    await ana.registrarSessaoConcluida(treino('s1'));
+    await ana.marcarInicioDoTreino(chaveDoInicioDoTreino('v1', 's1', '2026-10-07'), '2026-10-07T12:00:00.000Z');
     await ana.apagarTudo();
     expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:'))).toEqual([]);
   });

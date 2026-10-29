@@ -131,4 +131,50 @@ describe('formato do pacote salvo no aparelho', () => {
     q.pacote.configuracao.arredondamentoKg = '0.5';
     expect(pacoteNoFormatoAtual(q)).toBe(false);
   });
+
+  it('recordes pessoais (Engajamento 0.2): ausentes aceitos; presentes, conferidos', () => {
+    const p = salvo();
+    p.pacote.recordes = { ate: '2026-10-22', exercicios: { x1: { maiorCarga: 70, maiorVolume: 720, repeticoesPorCarga: [{ carga: 60, repeticoes: 12 }] } } };
+    expect(pacoteNoFormatoAtual(p)).toBe(true);
+    const vazio = salvo();
+    vazio.pacote.recordes = { ate: '2026-10-22', exercicios: {} };
+    expect(pacoteNoFormatoAtual(vazio)).toBe(true);
+    for (const ruim of [
+      { exercicios: {} },
+      { ate: '2026-10-22', exercicios: [] },
+      { ate: '2026-10-22', exercicios: { x1: { maiorCarga: '70', maiorVolume: 720, repeticoesPorCarga: [] } } },
+      { ate: '2026-10-22', exercicios: { x1: { maiorCarga: 70, maiorVolume: 720, repeticoesPorCarga: [{ carga: 60 }] } } },
+    ]) {
+      const q = salvo();
+      q.pacote.recordes = ruim;
+      expect(pacoteNoFormatoAtual(q)).toBe(false);
+    }
+  });
+  it('coluna "Anterior" (Engajamento 0.3): ausente aceita; presente, conferida', () => {
+    const p = salvo();
+    p.pacote.anteriores = {
+      ate: '2026-10-22',
+      exercicios: {
+        x1: {
+          data: '2026-10-20',
+          series: [
+            { tipo: 'WORKING', ordem: 1, carga: 60, repeticoes: 8, etapas: null },
+            { tipo: 'WORKING', ordem: 2, carga: null, repeticoes: null, etapas: [{ posicao: 1, repeticoes: 4, carga: 40, situacao: 'FEITA' }] },
+          ],
+        },
+      },
+    };
+    expect(pacoteNoFormatoAtual(p)).toBe(true);
+    for (const ruim of [
+      { exercicios: {} },
+      { ate: '2026-10-22', exercicios: [] },
+      { ate: '2026-10-22', exercicios: { x1: { series: [] } } },
+      { ate: '2026-10-22', exercicios: { x1: { data: '2026-10-20', series: [{ tipo: 'WORKING', carga: 60, repeticoes: 8, etapas: null }] } } },
+      { ate: '2026-10-22', exercicios: { x1: { data: '2026-10-20', series: [{ tipo: 'WORKING', ordem: 1, carga: '60', repeticoes: 8, etapas: null }] } } },
+    ]) {
+      const q = salvo();
+      q.pacote.anteriores = ruim;
+      expect(pacoteNoFormatoAtual(q)).toBe(false);
+    }
+  });
 });

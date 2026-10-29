@@ -1,12 +1,17 @@
-import type { RegistroLocal, RegistroMobilidadeLocal } from '../offline/repositorioLocal';
+import type { RegistroLocal, RegistroMobilidadeLocal, RegistroSessaoConcluidaLocal } from '../offline/repositorioLocal';
 
 /**
  * Treinos (dia + sessão) com ao menos um registro ainda não enviado: LOCAL (na fila) ou FALHOU (recusado, esperando
  * "tentar de novo"). É o que "Sair" apagaria; o aviso fala em treinos porque é o que o aluno reconhece, não em séries.
+ * A conclusão do treino ainda não enviada conta no mesmo treino (dia + sessão): sem série pendente ela também é um
+ * treino não enviado, e com série pendente do mesmo dia e sessão não conta duas vezes.
  */
-export function treinosNaoEnviados(registros: readonly Pick<RegistroLocal, 'situacao' | 'data' | 'sessaoUid'>[]): number {
+export function treinosNaoEnviados(
+  registros: readonly Pick<RegistroLocal, 'situacao' | 'data' | 'sessaoUid'>[],
+  conclusoes: readonly Pick<RegistroSessaoConcluidaLocal, 'situacao' | 'data' | 'sessaoUid'>[] = [],
+): number {
   const treinos = new Set<string>();
-  for (const r of registros) {
+  for (const r of [...registros, ...conclusoes]) {
     if (r.situacao !== 'ENVIADO') treinos.add(`${r.data}|${r.sessaoUid}`);
   }
   return treinos.size;

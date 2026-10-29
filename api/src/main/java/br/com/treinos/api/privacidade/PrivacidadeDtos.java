@@ -47,6 +47,7 @@ public final class PrivacidadeDtos {
                              Secao<PlanoPublicado<ConteudoDieta>> dietas,
                              Secao<PlanoPublicado<ConteudoMobilidade>> mobilidades,
                              Secao<DiaDeTreino> registros, Secao<RegistroMobilidadeFeito> mobilidadeRegistros,
+                             Secao<br.com.treinos.api.sessoesconcluidas.SessaoConcluidaDtos.SessaoConcluidaLinha> sessoesConcluidas,
                              Secao<PesoResponse> pesos, Secao<LesaoResponse> lesoes,
                              Secao<AtualizacaoExportada> atualizacoes,
                              Secao<br.com.treinos.api.anamneses.AnamneseDtos.AnamneseExportada> anamneses,

@@ -109,8 +109,11 @@ import type {
   RegistroEnvio,
   RegistroMobilidadeEnvio,
   RegistroMobilidadeFeito,
+  RegistroSessaoConcluidaEnvio,
   RegistroPeso,
   ResultadoValidacao,
+  SessoesConcluidasResponse,
+  RecordesDaSemana,
   SituacaoFiltro,
   SuplementoDaBiblioteca,
   SuplementoDaBibliotecaRequest,
@@ -507,6 +510,21 @@ export const execucoesDoAluno = (id: string, de: string, ate: string) =>
 export const mobilidadeFeitaDoAluno = (id: string, de: string, ate: string) =>
   requisicao<RegistroMobilidadeFeito[]>(`/alunos/${seg(id)}/mobilidade/registros?de=${de}&ate=${ate}`);
 
+export const sessoesConcluidasDoAlunoParaTreinador = (id: string, de: string, ate: string) =>
+  requisicao<SessoesConcluidasResponse>(`/alunos/${seg(id)}/sessoes-concluidas?de=${de}&ate=${ate}`);
+
+/** "Visto" do treinador num treino concluído (Engajamento 0.5, `REGISTRO_REAGIR`); idempotente. */
+export const marcarTreinoVisto = (alunoId: string, sessaoConcluidaId: string) =>
+  requisicao<{ vistoEm: string }>(`/alunos/${seg(alunoId)}/sessoes-concluidas/${seg(sessaoConcluidaId)}/visto`, { metodo: 'PUT', corpo: {} });
+
+export const desmarcarTreinoVisto = (alunoId: string, sessaoConcluidaId: string) =>
+  requisicao<void>(`/alunos/${seg(alunoId)}/sessoes-concluidas/${seg(sessaoConcluidaId)}/visto`, { metodo: 'DELETE' });
+
+/** "Recordes da semana" no Início (`meus` = só os alunos do usuário) e na ficha. */
+export const recordesDaSemana = (meus: boolean) => requisicao<RecordesDaSemana>(`/recordes/semana${meus ? '?meus=true' : ''}`);
+
+export const recordesDaSemanaDoAluno = (id: string) => requisicao<RecordesDaSemana>(`/alunos/${seg(id)}/recordes/semana`);
+
 export const progressoDoAluno = (id: string, exercicioId: string) =>
   requisicao<ProgressoPonto[]>(`/alunos/${seg(id)}/progresso?exercicioId=${encodeURIComponent(exercicioId)}`);
 
@@ -710,6 +728,12 @@ export const enviarRegistrosMobilidade = (registros: RegistroMobilidadeEnvio[]) 
 
 export const registrosMobilidadeDoAluno = (de: string, ate: string) =>
   requisicao<RegistroMobilidadeFeito[]>(`/aluno/mobilidade/registros?de=${de}&ate=${ate}`);
+
+export const enviarSessoesConcluidas = (registros: RegistroSessaoConcluidaEnvio[]) =>
+  requisicao<LoteResponse>('/aluno/sessoes-concluidas', { metodo: 'POST', corpo: { registros } });
+
+export const sessoesConcluidasDoAluno = (de: string, ate: string) =>
+  requisicao<SessoesConcluidasResponse>(`/aluno/sessoes-concluidas?de=${de}&ate=${ate}`);
 
 export const historicoAluno = (de: string, ate: string) => requisicao<DiaDeTreino[]>(`/aluno/execucoes?de=${de}&ate=${ate}`);
 

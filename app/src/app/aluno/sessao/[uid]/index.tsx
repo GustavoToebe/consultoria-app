@@ -2,20 +2,24 @@ import Animated, { FadeInUp, ReduceMotion } from 'react-native-reanimated';
 import { useMovimentoReduzido } from '../../../../ui/useMovimentoReduzido';
 import { EntradaEmCascata, usePrimeiraLista } from '../../../../ui/EntradaEmCascata';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Play } from 'lucide-react-native';
+import { Medal, Play } from 'lucide-react-native';
 import { Fragment } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { CabecalhoDoGrupo } from '../../../../aluno/CabecalhoDoGrupo';
 import { CartaoExercicioDoDia } from '../../../../aluno/CartaoExercicioDoDia';
+import { ConcluirTreino } from '../../../../aluno/ConcluirTreino';
 import { DatasDaDivisao } from '../../../../aluno/DatasDaDivisao';
+import { FaixaDoTreino } from '../../../../aluno/FaixaDoTreino';
 import { useTelaAcesa } from '../../../../aluno/useTelaAcesa';
 import { caminhoDaSessao, useSessaoDoDia } from '../../../../aluno/useSessaoDoDia';
 import { gruposDaSessao } from '../../../../dominio/combinacoes';
 import { contagem } from '../../../../dominio/contagens';
 import { dataParaTela } from '../../../../dominio/formatos';
+import { textoDaContagem } from '../../../../dominio/recordesPessoais';
 import { descansoSoDoGrupo } from '../../../../dominio/textoDoGrupo';
 import { datasDaSessao, nomeComDia, totalDeSeries } from '../../../../dominio/semana';
+import { useSessao } from '../../../../sessao/SessaoProvider';
 import { useTema } from '../../../../tema/TemaProvider';
 import { espaco, RAIO } from '../../../../tema/tokens';
 import { BarraProgresso } from '../../../../ui/BarraProgresso';
@@ -37,6 +41,7 @@ export default function SessaoAluno() {
   const animar = usePrimeiraLista(dia.carregado);
   const reduzido = useMovimentoReduzido();
   const { cores } = useTema();
+  const { retornoHabilitado } = useSessao();
 
   if (!dia.carregado) {
     return (
@@ -60,6 +65,8 @@ export default function SessaoAluno() {
   const pendente = sessao.exercicios.find((e) => dia.feitas(e) < e.series.length);
   const datas = sessao.exercicios.length ? datasDaSessao(sessao, dia.treino.inicio, dia.treino.fim, hoje) : [];
   const abrir = (exercicioUid: string) => router.push(caminhoDaSessao(sessao.uid, data, exercicioUid));
+  // "Concluir treino" no topo e no rodapé (some com a chave desligada): os dois leem a mesma conclusão.
+  const conclusao = { versaoId: dia.treino.versaoId, sessao, data, hoje, feita: (serieUid: string) => !!dia.registroDe(serieUid)?.concluida };
 
   return (
     <Tela bordas={['top']} largura={720}>
@@ -73,12 +80,23 @@ export default function SessaoAluno() {
       <Cartao>
         <View style={estilos.linhaResumo}>
           <Selo texto={data === hoje ? `Hoje · ${dataParaTela(data)}` : dataParaTela(data)} tipo="neutro" />
-          <Texto variante="suave" numerico>
-            {feitas} de {contagem(total, 'série feita', 'séries feitas')}
-          </Texto>
+          {/* Com a faixa do treino ao vivo (0.3) as séries feitas já estão nela. */}
+          {retornoHabilitado ? null : (
+            <Texto variante="suave" numerico>
+              {feitas} de {contagem(total, 'série feita', 'séries feitas')}
+            </Texto>
+          )}
         </View>
+        <FaixaDoTreino versaoId={dia.treino.versaoId} sessao={sessao} data={data} hoje={hoje} feitas={feitas} total={total} registroDe={dia.registroDe} />
         <BarraProgresso feitas={feitas} total={total} />
+        {dia.recordesNoDia ? (
+          <View style={estilos.recordes}>
+            <Medal size={18} color={cores.sucesso} />
+            <Texto numerico cor={cores.sucesso}>{textoDaContagem(dia.recordesNoDia)} neste treino</Texto>
+          </View>
+        ) : null}
         {data !== hoje ? <Texto variante="suave">Você está registrando o treino de {dataParaTela(data)}.</Texto> : null}
+        <ConcluirTreino {...conclusao} tipo="secundario" avisarDataFutura />
       </Cartao>
       {datas.length > 1 ? (
         <Cartao titulo="Outras datas">
@@ -135,6 +153,8 @@ export default function SessaoAluno() {
           <Fragment key={g.exercicios[0].uid}>{cartoes}</Fragment>
         );
       })}
+      {/* Rodapé: primário só quando já não há o "Começar/Continuar" lá em cima (um primário por área). */}
+      <ConcluirTreino {...conclusao} tipo={pendente ? 'secundario' : 'primario'} cheio />
       <Texto variante="suave">Cada série marcada fica salva no aparelho na hora e é enviada quando houver internet.</Texto>
     </Tela>
   );
@@ -143,5 +163,6 @@ export default function SessaoAluno() {
 const estilos = StyleSheet.create({
   // Moldura do bi-set/supersérie com `bordaCampo` (a `borda` de cartão quase sumia no tema escuro).
   grupo: { borderWidth: 1, borderLeftWidth: 4, borderRadius: RAIO, padding: espaco(1.25), gap: espaco(1) },
+  recordes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   linhaResumo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
 });

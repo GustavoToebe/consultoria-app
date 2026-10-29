@@ -10,9 +10,11 @@ import {
   type HistoricoSemanaSalvo,
   type MarcaDaFilaRetida,
   type DadosMobilidade,
+  type DadosSessaoConcluida,
   type PacoteSalvo,
   type RegistroLocal,
   type RegistroMobilidadeLocal,
+  type RegistroSessaoConcluidaLocal,
   type RepositorioLocal,
   type RascunhoAtualizacao,
   type ResultadoEnvio,
@@ -97,6 +99,37 @@ const paraMobilidade = (l: LinhaMobilidade): RegistroMobilidadeLocal => ({
   itemUid: l.item_uid,
   data: l.data,
   feito: l.feito === 1,
+  alteradoEm: l.alterado_em,
+  situacao: l.situacao,
+  motivo: l.motivo,
+});
+
+interface LinhaSessaoConcluida {
+  id: string;
+  plano_versao_id: string;
+  sessao_uid: string;
+  data: string;
+  concluida: number;
+  resultado: RegistroSessaoConcluidaLocal['resultado'];
+  duracao_segundos: number | null;
+  comentario: string | null;
+  alterado_em: string;
+  situacao: RegistroSessaoConcluidaLocal['situacao'];
+  motivo: string | null;
+}
+
+const COLUNAS_CONCLUIDA =
+  'id, plano_versao_id, sessao_uid, data, concluida, resultado, duracao_segundos, comentario, alterado_em, situacao, motivo';
+
+const paraSessaoConcluida = (l: LinhaSessaoConcluida): RegistroSessaoConcluidaLocal => ({
+  id: l.id,
+  planoVersaoId: l.plano_versao_id,
+  sessaoUid: l.sessao_uid,
+  data: l.data,
+  concluida: l.concluida === 1,
+  resultado: l.resultado,
+  duracaoSegundos: l.duracao_segundos,
+  comentario: l.comentario,
   alteradoEm: l.alterado_em,
   situacao: l.situacao,
   motivo: l.motivo,
@@ -480,6 +513,137 @@ export class RepositorioSqlite implements RepositorioLocal {
     });
   }
 
+  // ---- Conclusões do treino (tabela própria, mesma fila de envio) ----
+
+  listarSessoesConcluidas(): Promise<RegistroSessaoConcluidaLocal[]> {
+    return this.emFila([], async (b) =>
+      (await b.todos<LinhaSessaoConcluida>(`select ${COLUNAS_CONCLUIDA} from sessao_concluida order by rowid`)).map(
+        paraSessaoConcluida,
+      ),
+    );
+  }
+
+  registrarSessaoConcluida(dados: DadosSessaoConcluida): Promise<RegistroSessaoConcluidaLocal> {
+    const semBanco: RegistroSessaoConcluidaLocal = { ...dados, id: '', alteradoEm: '', situacao: 'LOCAL', motivo: null };
+    return this.emFila(semBanco, (b) =>
+      b.transacao(async (t) => {
+        const anterior = await t.primeiro<{ id: string; alterado_em: string }>(
+          'select id, alterado_em from sessao_concluida where plano_versao_id = ? and sessao_uid = ? and data = ?',
+          [dados.planoVersaoId, dados.sessaoUid, dados.data],
+        );
+        const registro: RegistroSessaoConcluidaLocal = {
+          ...dados,
+          id: anterior?.id ?? this.novoId(),
+          alteradoEm: proximoInstante(this.agora(), anterior?.alterado_em),
+          situacao: 'LOCAL',
+          motivo: null,
+        };
+        if (anterior) {
+          await t.rodar(
+            'update sessao_concluida set concluida = ?, resultado = ?, duracao_segundos = ?, comentario = ?, ' +
+              "alterado_em = ?, situacao = 'LOCAL', motivo = null where id = ?",
+            [
+              registro.concluida ? 1 : 0,
+              registro.resultado,
+              registro.duracaoSegundos,
+              registro.comentario,
+              registro.alteradoEm,
+              registro.id,
+            ],
+          );
+        } else {
+          await t.rodar(`insert into sessao_concluida (${COLUNAS_CONCLUIDA}) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+            registro.id,
+            registro.planoVersaoId,
+            registro.sessaoUid,
+            registro.data,
+            registro.concluida ? 1 : 0,
+            registro.resultado,
+            registro.duracaoSegundos,
+            registro.comentario,
+            registro.alteradoEm,
+            registro.situacao,
+            registro.motivo,
+          ]);
+        }
+        return registro;
+      }),
+    );
+  }
+
+  pendentesSessoesConcluidas(limite = 300): Promise<RegistroSessaoConcluidaLocal[]> {
+    return this.emFila([], async (b) =>
+      (
+        await b.todos<LinhaSessaoConcluida>(
+          `select ${COLUNAS_CONCLUIDA} from sessao_concluida where situacao = 'LOCAL' order by alterado_em, rowid limit ?`,
+          [limite],
+        )
+      ).map(paraSessaoConcluida),
+    );
+  }
+
+  aplicarResultadosSessoesConcluidas(
+    enviados: Pick<RegistroSessaoConcluidaLocal, 'id' | 'alteradoEm'>[],
+    resultados: ResultadoEnvio[],
+  ): Promise<void> {
+    return this.emFila(undefined, (b) =>
+      b.transacao(async (t) => {
+        const enviadoEm = new Map(enviados.map((e) => [e.id, e.alteradoEm]));
+        for (const r of resultados) {
+          const alteradoEm = enviadoEm.get(r.id);
+          if (alteradoEm === undefined) continue;
+          const [situacao, motivo] =
+            r.situacao === 'RECUSADO' ? ['FALHOU', r.motivo ?? 'Recusado pelo servidor.'] : ['ENVIADO', null];
+          await t.rodar(
+            "update sessao_concluida set situacao = ?, motivo = ? where id = ? and situacao = 'LOCAL' and alterado_em = ?",
+            [situacao, motivo, r.id, alteradoEm],
+          );
+        }
+        await t.rodar("delete from sessao_concluida where situacao = 'ENVIADO' and data < ?", [limiteGuardados(this.agora())]);
+      }),
+    );
+  }
+
+  descartarSessoesConcluidasAntesDe(limite: string): Promise<number> {
+    return this.emFila(0, async (b) =>
+      (await b.rodar("delete from sessao_concluida where situacao = 'LOCAL' and data < ?", [limite])).alteradas,
+    );
+  }
+
+  // ---- Início do treino (só no aparelho, fora da fila) ----
+
+  lerIniciosDoTreino(): Promise<Record<string, string>> {
+    return this.emFila({}, async (b) =>
+      Object.fromEntries(
+        (await b.todos<{ chave: string; iniciado_em: string }>('select chave, iniciado_em from inicio_do_treino')).map((l) => [
+          l.chave,
+          l.iniciado_em,
+        ]),
+      ),
+    );
+  }
+
+  marcarInicioDoTreino(chave: string, instanteIso: string): Promise<string> {
+    return this.emFila(instanteIso, (b) =>
+      b.transacao(async (t) => {
+        // Insere só se ausente: o primeiro instante é o que vale, nunca é sobrescrito.
+        await t.rodar('insert into inicio_do_treino (chave, data, iniciado_em) values (?, ?, ?) on conflict (chave) do nothing', [
+          chave,
+          chave.slice(chave.lastIndexOf('|') + 1),
+          instanteIso,
+        ]);
+        await t.rodar('delete from inicio_do_treino where data < ?', [limiteGuardados(this.agora())]);
+        return (await t.primeiro<{ iniciado_em: string }>('select iniciado_em from inicio_do_treino where chave = ?', [chave]))?.iniciado_em ?? instanteIso;
+      }),
+    );
+  }
+
+  inicioDoTreino(chave: string): Promise<string | null> {
+    return this.emFila(null, async (b) =>
+      (await b.primeiro<{ iniciado_em: string }>('select iniciado_em from inicio_do_treino where chave = ?', [chave]))?.iniciado_em ?? null,
+    );
+  }
+
   reenviarFalhas(): Promise<number> {
     return this.emFila(0, (b) =>
       b.transacao(async (t) => {
@@ -487,7 +651,10 @@ export class RepositorioSqlite implements RepositorioLocal {
         const mobilidade = await t.rodar(
           "update registro_mobilidade set situacao = 'LOCAL', motivo = null where situacao = 'FALHOU'",
         );
-        return series.alteradas + mobilidade.alteradas;
+        const conclusoes = await t.rodar(
+          "update sessao_concluida set situacao = 'LOCAL', motivo = null where situacao = 'FALHOU'",
+        );
+        return series.alteradas + mobilidade.alteradas + conclusoes.alteradas;
       }),
     );
   }
@@ -511,6 +678,8 @@ export class RepositorioSqlite implements RepositorioLocal {
     await t.executar('pragma secure_delete = on');
     await t.rodar('delete from kv');
     await t.rodar('delete from carga_trabalho');
+    // O início do treino é só do aparelho e não é fila: sai com o resto dos dados da pessoa.
+    await t.rodar('delete from inicio_do_treino');
   }
 
   reterSoAFila(): Promise<number> {
@@ -521,8 +690,10 @@ export class RepositorioSqlite implements RepositorioLocal {
         await this.apagarDadosDaPessoa(t);
         await t.rodar("delete from registro where situacao <> 'LOCAL'");
         await t.rodar("delete from registro_mobilidade where situacao <> 'LOCAL'");
+        await t.rodar("delete from sessao_concluida where situacao <> 'LOCAL'");
         const { n } = (await t.primeiro<{ n: number }>(
-          'select (select count(*) from registro) + (select count(*) from registro_mobilidade) as n',
+          'select (select count(*) from registro) + (select count(*) from registro_mobilidade) + ' +
+            '(select count(*) from sessao_concluida) as n',
         )) ?? { n: 0 };
         if (n > 0) await this.gravarDocumento(t, 'filaRetida', { desde: this.agora().toISOString() });
         return n;
@@ -556,6 +727,7 @@ export class RepositorioSqlite implements RepositorioLocal {
         await this.apagarDadosDaPessoa(t);
         await t.rodar('delete from registro');
         await t.rodar('delete from registro_mobilidade');
+        await t.rodar('delete from sessao_concluida');
       });
       await banco.executar('vacuum').catch(() => undefined);
       return 'vencida';

@@ -1,7 +1,7 @@
 import type { DiaDeTreino, TreinoAtual } from '../api/tipos';
 import type { RegistroLocal } from '../offline/repositorioLocal';
 import { novaSessao, novoExercicio, novaSerie, normalizarTreino } from './editorTreino';
-import { periodoDaSemana, progressoSemana } from './progressoSemana';
+import { periodoDaSemana, progressoSemana, semanaCompleta } from './progressoSemana';
 let mockUid=0;
 jest.mock('./uid',()=>({novoUid:()=>String(++mockUid)}));
 const segunda={...novaSessao(1),uid:'seg',exercicios:[{...novoExercicio(),series:[{...novaSerie(null),uid:'s'}]}]};
@@ -23,4 +23,13 @@ it('junta histórico e locais, e desmarcar no aparelho prevalece',()=>{
  expect(progressoSemana(plano,'2026-10-08',[],historico)).toEqual({feitas:1,total:2});
  expect(progressoSemana(plano,'2026-10-08',[{...registro,concluida:false}],historico)).toEqual({feitas:0,total:2});
  expect(progressoSemana(plano,'2026-10-08',[registro,registro],historico)).toEqual({feitas:1,total:2});
+});
+
+describe('semana completa (Engajamento 0.6)', () => {
+ it('todos os treinos com dia fixo feitos; plano sem dia fixo (nada previsto) não comemora', () => {
+  expect(semanaCompleta({ feitas: 3, total: 3 })).toBe(true);
+  expect(semanaCompleta({ feitas: 2, total: 3 })).toBe(false);
+  expect(semanaCompleta({ feitas: 0, total: 0 })).toBe(false);
+  expect(semanaCompleta(null)).toBe(false);
+ });
 });

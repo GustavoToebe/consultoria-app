@@ -22,6 +22,7 @@ import { BotaoMarcar } from '../ui/BotaoMarcar';
 import { CampoNumericoGrande } from '../ui/Campos';
 import { Texto } from '../ui/Texto';
 import type { DadosSerie } from './ExercicioAluno';
+import { LinhaDoAnterior } from './LinhaDoAnterior';
 import { SeloComExplicacao } from './SeloComExplicacao';
 import { selosDaSerie } from './serieDoAluno';
 
@@ -42,6 +43,8 @@ interface Props {
   aoIniciarPausa?: (segundos: number, rotulo?: string, opcoes?: { origem?: string; automatica?: boolean }) => void;
   /** Encerra o cronômetro que nasceu da etapa desfeita; o de outra origem segue. */
   aoCancelarPausa?: (origem: string) => void;
+  /** O que foi feito nesta série da última vez ("40 kg × 4+4+2" ou "—"); nulo = sem a linha (Engajamento 0.3). */
+  anterior?: string | null;
 }
 
 /**
@@ -107,6 +110,7 @@ export function CartaoSerieComEtapas(p: Props) {
         {selos.tecnica ? <SeloComExplicacao nome={selos.tecnica.nome} explicacao={selos.tecnica.explicacao} rotuloAcessivel={`Explicação de ${selos.tecnica.nome}, série ${p.numero}`} /> : null}
       </View>
       <Texto numerico variante="pequeno">{estruturaDaSerie(s, p.metodologia)}</Texto>
+      {p.anterior != null ? <LinhaDoAnterior texto={p.anterior} numero={p.numero} /> : null}
       {!p.semCarga && !comPercentual && sugestaoDaSerie != null ? <Texto numerico variante="pequeno">Carga sugerida: {numeroParaTela(sugestaoDaSerie)} kg</Texto> : null}
       {!p.semCarga && referenciaCongelada ? <Texto numerico variante="pequeno">{referenciaCongelada}</Texto> : null}
       {semDetalhe ? <Texto numerico variante="pequeno">Registro sem detalhe por {cluster ? 'bloco' : 'etapa'}: {registro!.repeticoes ?? '—'} reps{registro!.carga != null ? ` · ${numeroParaTela(registro!.carga)} kg` : ''}.</Texto> : null}

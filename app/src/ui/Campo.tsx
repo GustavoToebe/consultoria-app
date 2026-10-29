@@ -1,8 +1,8 @@
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { ESTILOS_TEXTO } from './tipografia';
-import { useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Platform, StyleSheet, View, type TextInputProps } from 'react-native';
+import { useEffect, useState, type ReactNode, type Ref } from 'react';
+import { AccessibilityInfo, Platform, StyleSheet, View, type TextInput, type TextInputProps } from 'react-native';
 
 import { escalar } from '../dominio/preferencias';
 import { useTema } from '../tema/TemaProvider';
@@ -10,6 +10,8 @@ import { ALVO_TOQUE, espaco, fontes, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
 interface Props extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value'> {
+  /** Para levar o foco ao campo ("Ajustar duração"); no React 19 o ref chega como prop e segue pelo `resto`. */
+  ref?: Ref<TextInput>;
   numerico?: boolean;
   rotulo: string;
   valor: string;

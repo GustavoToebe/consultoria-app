@@ -47,6 +47,7 @@ public class ExportacaoService {
     private final PlanoMobilidadeService mobilidades;
     private final HistoricoService historico;
     private final br.com.treinos.api.mobilidade.MobilidadeRegistroService mobilidadeRegistros;
+    private final br.com.treinos.api.sessoesconcluidas.SessaoConcluidaService sessoesConcluidas;
     private final PesoService pesos;
     private final LesaoService lesoes;
     private final AtualizacaoRepository atualizacoes;
@@ -63,6 +64,7 @@ public class ExportacaoService {
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
                              br.com.treinos.api.mobilidade.MobilidadeRegistroService mobilidadeRegistros,
+                             br.com.treinos.api.sessoesconcluidas.SessaoConcluidaService sessoesConcluidas,
                              PesoService pesos, LesaoService lesoes, AtualizacaoRepository atualizacoes,
                              FotoService fotos, FotoPerfilService fotoPerfil,
                              br.com.treinos.api.anamneses.AnamneseService anamneses, InscricaoDoAluno inscricao,
@@ -82,6 +84,7 @@ public class ExportacaoService {
         this.mobilidades = mobilidades;
         this.historico = historico;
         this.mobilidadeRegistros = mobilidadeRegistros;
+        this.sessoesConcluidas = sessoesConcluidas;
         this.pesos = pesos;
         this.lesoes = lesoes;
         this.atualizacoes = atualizacoes;
@@ -108,6 +111,10 @@ public class ExportacaoService {
                 () -> historico.completoDoAluno(alunoId));
         var mobilidadeFeita = secao(AcessoAtual.pode("REGISTRO_LER"), "mobilidadeRegistros", omitidas,
                 () -> mobilidadeRegistros.completoDoAluno(alunoId));
+        // Sessões concluídas pelo aluno ("Concluir treino"): com REGISTRO_LER; o comentário só sai com ALUNO_SENSIVEL_LER
+        // (o serviço o deixa nulo sem ela). Roda com a chave do retorno ligada ou não.
+        var sessaoConcluida = secao(AcessoAtual.pode("REGISTRO_LER"), "sessoesConcluidas", omitidas,
+                () -> sessoesConcluidas.completoDoAluno(alunoId));
         var peso = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "pesos", omitidas, () -> pesos.listar(alunoId));
         var lesao = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "lesoes", omitidas, () -> lesoes.listar(alunoId));
         // Mesma permissão da rota que mostra as avaliações ao treinador (GET /alunos/{id}/avaliacoes-fisicas).
@@ -133,7 +140,7 @@ public class ExportacaoService {
         // Compromissos da agenda presencial (com a observação da equipe), com quem lê a agenda (AGENDA_LER).
         var compromissos = secao(AcessoAtual.pode("AGENDA_LER"), "compromissos", omitidas, () -> agenda.exportar(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
-                registros, mobilidadeFeita, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
+                registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
                 cicloMenstrual, compromissos, avaliacaoFisica);
     }
 

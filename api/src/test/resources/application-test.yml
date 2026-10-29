@@ -48,6 +48,9 @@ treinos:
   # Ciclo ligado na suíte (o CicloMenstrualIntegrationTest testa o módulo); o modo desligado tem a sua classe.
   ciclo:
     habilitado: true
+  # Concluir treino ligado na suíte; o modo desligado tem a sua classe (RetornoDesligadoIntegrationTest).
+  retorno:
+    habilitado: true
   # Pagamentos ligados em toda a suíte; o modo desligado tem a sua classe (PagamentosDesligadosIntegrationTest).
   pagamentos:
     habilitado: true

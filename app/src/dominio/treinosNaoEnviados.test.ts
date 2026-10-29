@@ -16,6 +16,19 @@ describe('treinosNaoEnviados', () => {
     ).toBe(3);
   });
 
+  it('conclusão não enviada de um dia e sessão sem série pendente também é um treino não enviado', () => {
+    expect(treinosNaoEnviados([r('ENVIADO', '2026-10-07', 'a')], [r('LOCAL', '2026-10-07', 'a')])).toBe(1);
+    expect(treinosNaoEnviados([], [r('FALHOU', '2026-10-08', 'b')])).toBe(1);
+  });
+
+  it('conclusão e série pendentes do mesmo dia e sessão contam um treino só', () => {
+    expect(treinosNaoEnviados([r('LOCAL', '2026-10-07', 'a')], [r('LOCAL', '2026-10-07', 'a'), r('LOCAL', '2026-10-07', 'b')])).toBe(2);
+  });
+
+  it('conclusão já enviada não conta', () => {
+    expect(treinosNaoEnviados([], [r('ENVIADO', '2026-10-07', 'a')])).toBe(0);
+  });
+
   it('sem registros pendentes é zero', () => {
     expect(treinosNaoEnviados([])).toBe(0);
     expect(treinosNaoEnviados([r('ENVIADO', '2026-10-07', 'a')])).toBe(0);

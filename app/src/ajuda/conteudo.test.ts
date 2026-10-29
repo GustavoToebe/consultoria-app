@@ -1,4 +1,4 @@
-import { GUIAS, textoDoItem } from './conteudo';
+import { GUIAS, secoesDoGuia, textoDoItem } from './conteudo';
 
 /** Todo o texto de um guia, num bloco só, para procurar termos. */
 const textoDoGuia = (publico: 'treinador' | 'aluno') => {
@@ -63,5 +63,19 @@ describe('frase do ciclo no guia', () => {
 
   it('texto sem a frase não muda', () => {
     expect(textoDoItem('Outro texto.', false)).toBe('Outro texto.');
+  });
+});
+
+describe('seções do retorno imediato', () => {
+  it('só aparecem com a chave ligada, nos dois guias', () => {
+    for (const guia of [GUIAS.treinador, GUIAS.aluno]) {
+      const ligada = secoesDoGuia(guia, true).map((s) => s.titulo);
+      const desligada = secoesDoGuia(guia, false).map((s) => s.titulo);
+      const doRetorno = guia.secoes.filter((s) => s.soComRetorno).map((s) => s.titulo);
+      expect(doRetorno).toHaveLength(1);
+      expect(ligada).toEqual(guia.secoes.map((s) => s.titulo));
+      expect(desligada).not.toContain(doRetorno[0]);
+      expect(desligada).toHaveLength(guia.secoes.length - 1);
+    }
   });
 });

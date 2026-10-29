@@ -16,6 +16,7 @@ import {
 } from '@plataforma/web';
 
 import { ehCicloDesligado } from '../dominio/cicloDesligado';
+import { ehRetornoDesligado } from '../dominio/retornoDesligado';
 import { apagarRefresh, lerRefresh, salvarRefresh } from '../sessao/armazenamentoSeguro';
 import type { LoginResponse } from './tipos';
 
@@ -62,6 +63,7 @@ function base(): string {
 let accessToken: string | null = null;
 let aoEncerrarSessao: (() => void) | null = null;
 let aoCicloDesligadoSessao: (() => void) | null = null;
+let aoRetornoDesligadoSessao: (() => void) | null = null;
 /** Quem está com a sessão aberta nesta aba; a renovação que devolve outra pessoa não é aceita. */
 let usuarioEsperado: string | null = null;
 let recusaPorTroca = false;
@@ -77,6 +79,14 @@ export function aoEncerrar(callback: (() => void) | null) {
  */
 export function aoCicloDesligado(callback: (() => void) | null) {
   aoCicloDesligadoSessao = callback;
+}
+
+/**
+ * O SessaoProvider é avisado quando qualquer rota responde 503 `RETORNO_INDISPONIVEL` ("Concluir treino" desligado na
+ * plataforma, com o perfil salvo ainda dizendo que estava ligado). O erro continua sendo lançado para quem chamou.
+ */
+export function aoRetornoDesligado(callback: (() => void) | null) {
+  aoRetornoDesligadoSessao = callback;
 }
 
 export async function guardarSessao(resposta: LoginResponse): Promise<void> {
@@ -164,6 +174,9 @@ export async function requisicao<T>(caminho: string, opcoes: Opcoes = {}): Promi
   } catch (erro) {
     if (ehCicloDesligado(erro)) {
       aoCicloDesligadoSessao?.();
+    }
+    if (ehRetornoDesligado(erro)) {
+      aoRetornoDesligadoSessao?.();
     }
     throw erro;
   }
