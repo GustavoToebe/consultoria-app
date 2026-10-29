@@ -1,6 +1,6 @@
 # Interessados: correções e CRM da consultoria
 
-Situação: Pronta na branch, falta a conferência do Gustavo · Onde: branch `claude/saraiva-api-direcionamento-treinos-dv10io` (sem PR, sem `main`) · Atualizado: 29/10/2026
+Situação: Junta com a agenda (5a25699), indo para a `main` num PR · Onde: branch `claude/saraiva-api-direcionamento-treinos-dv10io` (sem PR, sem `main`) · Atualizado: 29/10/2026
 
 ## Objetivo
 Corrigir os sete problemas da análise de 29/10 (`analise-interessados-2026-10-29.md`, fora do repositório) na tela
@@ -34,7 +34,8 @@ humano: nada é enviado, cobrado nem cadastrado sem um clique explícito.
 - [x] 2. Lotes 2 a 6, API (base comercial, atendimento diário, Kanban/busca/contagens, qualificação/reabertura/transição, origem/indicadores) — commit: 84b5022 (`mvn clean verify` 1564 testes, 0 falhas; `InscricoesCrmIntegrationTest`)
 - [x] 3. Lotes 2 a 6, app: visões Lista, Kanban (arrastar e "Mover para") e Indicadores, retornos, respostas prontas, proposta, histórico, encerrar/reabrir, mesma pessoa, qualificação e origem no formulário, "Conferir antes de aceitar" e "Próximos passos" — commit: o seguinte a 84b5022 (Jest 2355, lint, typecheck, e2e `inscricao`, `interessados-estabilidade` e `interessados-crm` 33 casos em 390 e 1280 px)
 - [x] 4. AGENTS.md, Ajuda e guias PDF regerados — commits acima
-- [ ] 5. Conferência do Gustavo na tela (web) e no celular; decidir o merge na `main` junto com a agenda (renumerar migrations)
+- [x] 5. Junção com a agenda (`agenda-calendario` ef7bd30) sem renumerar: V042/V043 da agenda e V044/V045 daqui, total 45 — commit: 5a25699 (Jest 2545, lint, typecheck, e2e de agenda, inscrição e Interessados 74/74)
+- [ ] 6. PR para a `main`, CI verde e merge (decisão do Gustavo de 29/10); depois, a conferência dele na tela e no celular
 
 ## Fora do escopo
 - Envio automático pelo WhatsApp ou confirmação de entrega (exige integração que não existe).
