@@ -20,3 +20,9 @@ CVE-2026-116587 exp:2026-11-14
 # nenhum arquivo do app importa zod, então ele não vai no bundle. Forçar o zod 4 pode quebrar o @expo/cli (exige ^3.25.76).
 # Rever em 14/11: se o Expo já trouxer zod 4.6.6, tirar a exceção.
 CVE-2023-54404 exp:2026-11-14
+# CVE-2026-118664 (decode-uri-component 0.2.2, corrigida na 0.5.1): negação de serviço por tempo quadrático ao decodificar
+# sequências longas de %XX. Vem do query-string 7, que o expo-router usa para ler a query do endereço do próprio app, no
+# aparelho de quem abre a tela; não roda no servidor. O pior caso é um link forjado travar a aba de quem o abriu. A 0.5.1 é só
+# ESM e o query-string 7 a carrega com require(), então forçar a versão quebra o roteador. Exceção aprovada pelo Gustavo em
+# 29/10. Mesma validade; rever em 14/11 se o expo-router já usa um query-string que traga a versão corrigida.
+CVE-2026-118664 exp:2026-11-14
