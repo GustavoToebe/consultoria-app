@@ -469,9 +469,10 @@ export function diasDaAgenda(de: string, ate: string, hoje: string, compromissos
 }
 
 /** Resumo na faixa do dia: "Nada marcado", "1 compromisso", "2 compromissos · 1 atualização". */
-export function resumoDoDia(compromissos: number, atualizacoes: number): string {
+export function resumoDoDia(compromissos: number, atualizacoes: number, eventos = 0): string {
   const partes: string[] = [];
   if (compromissos > 0) partes.push(`${compromissos} ${compromissos === 1 ? 'compromisso' : 'compromissos'}`);
+  if (eventos > 0) partes.push(`${eventos} ${eventos === 1 ? 'evento' : 'eventos'}`);
   if (atualizacoes > 0) partes.push(`${atualizacoes} ${atualizacoes === 1 ? 'atualização' : 'atualizações'}`);
   return partes.length ? partes.join(' · ') : 'Nada marcado';
 }

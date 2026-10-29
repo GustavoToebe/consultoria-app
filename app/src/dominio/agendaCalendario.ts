@@ -69,6 +69,26 @@ export const ROTULOS_DAS_VISOES: Record<VisaoDoCalendario, string> = { dia: 'Dia
 /** Atalhos de teclado da web (D1); a tela os ignora com foco em campo, `Folha` aberta ou Ctrl/Alt/Meta. */
 export const ATALHOS_DAS_VISOES: Record<string, VisaoDoCalendario> = { d: 'dia', w: 'semana', m: 'mes', y: 'ano' };
 
+export interface ContextoDoAtalho {
+  ctrl?: boolean;
+  alt?: boolean;
+  meta?: boolean;
+  /** O foco está num campo de digitar (input, textarea, select ou conteúdo editável). */
+  emCampo?: boolean;
+  /** Há uma `Folha` ou um menu aberto por cima da agenda. */
+  sobreposto?: boolean;
+}
+
+/**
+ * A visão de uma tecla de atalho (D1), ou `null` quando a tecla não é atalho ou não vale agora: com Ctrl, Alt ou Meta (o atalho
+ * do navegador vence), com o foco num campo ou com algo aberto por cima. Maiúscula vale igual (Caps Lock ligado).
+ */
+export function visaoDoAtalho(tecla: string, contexto: ContextoDoAtalho = {}): VisaoDoCalendario | null {
+  if (contexto.ctrl || contexto.alt || contexto.meta || contexto.emCampo || contexto.sobreposto) return null;
+  if (tecla.length !== 1) return null;
+  return ATALHOS_DAS_VISOES[tecla.toLowerCase()] ?? null;
+}
+
 /** Janelas da API: a listagem de compromissos e de eventos aceita até 62 dias; o resumo e as atualizações, até 366. */
 export const JANELA_DA_LISTAGEM = 62;
 export const JANELA_DO_RESUMO = 366;
@@ -451,6 +471,26 @@ export function agruparPorDia(itens: readonly ItemDoCalendario[], de: string, at
     for (const d of diasDoItem(item)) dias.get(d)?.push(item);
   }
   return [...dias].map(([data, lista]) => ({ data, itens: lista }));
+}
+
+/**
+ * Os itens que cabem na célula do Mês e quantos ficam para o "+N". Quando sobra exatamente um, ele aparece no lugar do
+ * "+1" (o "+1" ocuparia a mesma linha).
+ */
+export function itensDaCelula<T>(itens: readonly T[], limite: number): { visiveis: T[]; mais: number } {
+  if (itens.length <= limite) return { visiveis: [...itens], mais: 0 };
+  const cabem = Math.max(0, limite - 1);
+  return { visiveis: itens.slice(0, cabem), mais: itens.length - cabem };
+}
+
+/**
+ * A hora (HH:MM) de um ponto da grade, arredondada para baixo ao passo (30 min): o clique num horário vazio abre o evento
+ * novo já com ela. Fora da grade fica no primeiro ou no último passo do dia.
+ */
+export function horaDoPontoDaGrade(y: number, alturaPorHora: number, passo = 30): string {
+  const minuto = Math.floor(((y / alturaPorHora) * 60) / passo) * passo;
+  const limitado = Math.min(Math.max(0, minuto), MINUTOS_DO_DIA - passo);
+  return `${doisDigitos(Math.floor(limitado / 60))}:${doisDigitos(limitado % 60)}`;
 }
 
 /** Quantos itens tocam cada dia (dia sem item não aparece). */

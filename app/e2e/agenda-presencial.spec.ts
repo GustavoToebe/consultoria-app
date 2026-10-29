@@ -73,6 +73,7 @@ async function abrirComoTreinador(page: Page, lista: Compromisso[], opcoes: {
     'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
     'GET /atualizacoes': { corpo: [ATUALIZACAO] },
     'GET /agenda/compromissos': (_p, route) => json(route, lista),
+    'GET /agenda/agendas': { corpo: [] },
     'GET /agenda/compromissos/alunos-ocupados': (p, route) => json(route, opcoes.ocupados?.(p) ?? []),
     'POST /agenda/compromissos/{id}/alunos/{alunoId}/situacao': (p, route) => {
       const partes = p.caminho.split('/');
@@ -105,12 +106,21 @@ async function adicionarAluno(page: Page, folha: Locator, nome: string) {
   await expect(folha.getByRole('button', { name: `Remover ${nome}`, exact: true })).toBeVisible();
 }
 
+/** O compromisso novo sai do "Criar" (menu com "Compromisso com aluno" e "Evento"). */
+async function novoCompromisso(page: Page) {
+  await page.getByRole('button', { name: 'Criar', exact: true }).click();
+  await page.getByRole('menuitem', { name: /^Compromisso com aluno/ }).click();
+}
+
 const corposDe = (pedidos: PedidoFalso[], metodo: string, caminho: string) =>
   pedidos.filter((p) => p.metodo === metodo && p.caminho === caminho).map((p) => p.corpo);
 
 for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
   test.describe(`${largura} px`, () => {
     test.use({ viewport: { width: largura, height: altura } });
+    // No celular Dia e Semana são a lista por dia (metadados e resumo do dia); no PC, a grade de horários (os blocos têm o
+    // mesmo nome acessível, mas não os metadados da lista).
+    const naLista = largura < 760;
 
     test('lista com vários alunos e série; marcar com 2 alunos, aviso de aluno ocupado e 409 com a data', async ({ page }) => {
       const lista = [
@@ -135,22 +145,22 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await page.goto('/treinador/agenda');
 
       // Hoje: o compromisso (horário, local, responsável) e a atualização, cada um com o seu texto.
-      await expect(page.getByText('Hoje, 19/10')).toBeVisible();
-      await expect(page.getByText('Compromisso · 09:00–10:00 · Sala 2 · com Treinadora Teste')).toBeVisible();
+      if (naLista) await expect(page.getByText('Hoje, 19/10')).toBeVisible();
+      if (naLista) await expect(page.getByText('Compromisso · 09:00–10:00 · Sala 2 · com Treinadora Teste')).toBeVisible();
       await expect(page.getByRole('link', { name: /Abrir atualização de Bruno Exemplo/ })).toBeVisible();
-      await expect(page.getByText('1 compromisso · 1 atualização')).toBeVisible();
+      if (naLista) await expect(page.getByText('1 compromisso · 1 atualização')).toBeVisible();
       // Vários alunos: dois nomes e "+2"; o selo resume a situação; a série aparece nos metadados; o cancelado se diz.
-      await expect(page.getByText('Ana Fictícia, Bruno Exemplo +2')).toBeVisible();
-      await expect(page.getByText('4 agendados', { exact: true })).toBeVisible();
-      await expect(page.getByText('Compromisso · 15:00–16:00 · Sala 2 · com Treinadora Teste · Ocorrência 3 de 10')).toBeVisible();
+      if (naLista) await expect(page.getByText('Ana Fictícia, Bruno Exemplo +2')).toBeVisible();
+      if (naLista) await expect(page.getByText('4 agendados', { exact: true })).toBeVisible();
+      if (naLista) await expect(page.getByText('Compromisso · 15:00–16:00 · Sala 2 · com Treinadora Teste · Ocorrência 3 de 10')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, Bruno Exemplo e mais 2, 15:00', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Abrir compromisso de Bruno Exemplo, 11:00, cancelado', exact: true })).toBeVisible();
-      // O período pedido é o da semana (hoje e os 7 dias seguintes).
+      // O período pedido é o da semana (segunda a domingo).
       const consulta = pedidos.find((p) => p.metodo === 'GET' && p.caminho === '/agenda/compromissos');
       expect(consulta?.busca.get('de')).toBe('2026-10-19');
-      expect(consulta?.busca.get('ate')).toBe('2026-10-26');
+      expect(consulta?.busca.get('ate')).toBe('2026-10-25');
 
-      await page.getByRole('button', { name: 'Novo compromisso', exact: true }).click();
+      await novoCompromisso(page);
       const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
       await expect(folha).toBeVisible();
       await expect(folha.getByText('Alunos · 0 de 20')).toBeVisible();
@@ -187,7 +197,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await expect(folha.getByText(/Escolha outro horário/)).toHaveCount(0);
       await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
       await expect(folha).toBeHidden();
-      await expect(page.getByText('Bruno Exemplo e Carla Teste')).toBeVisible();
+      if (naLista) await expect(page.getByText('Bruno Exemplo e Carla Teste')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir compromisso de Bruno Exemplo e Carla Teste, 10:00', exact: true })).toBeVisible();
 
       expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
         { alunoIds: [BRUNO.id, CARLA.id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '09:30', duracaoMinutos: 60, local: null, observacao: null },
@@ -213,7 +224,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
         },
       });
       await page.goto('/treinador/agenda');
-      await page.getByRole('button', { name: 'Novo compromisso', exact: true }).click();
+      await novoCompromisso(page);
       const folha = page.getByRole('dialog', { name: 'Novo compromisso' });
       await adicionarAluno(page, folha, 'Ana Fictícia');
       await folha.getByLabel('Hora (Brasília)').fill('0800');
@@ -246,7 +257,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await folha.getByLabel('Hora (Brasília)').fill('0700');
       await folha.getByRole('button', { name: 'Marcar compromisso', exact: true }).click();
       await expect(folha).toBeHidden();
-      await expect(page.getByText('Compromisso · 07:00–08:00 · Sala 2 · com Treinadora Teste · Ocorrência 1 de 6')).toBeVisible();
+      if (naLista) await expect(page.getByText('Compromisso · 07:00–08:00 · Sala 2 · com Treinadora Teste · Ocorrência 1 de 6')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, 07:00', exact: true })).toBeVisible();
 
       const repeticao = { tipo: 'SEMANAL', diasDaSemana: ['MONDAY', 'WEDNESDAY'], vezes: 6 };
       expect(corposDe(pedidos, 'POST', '/agenda/compromissos')).toEqual([
@@ -349,7 +361,7 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       });
       await page.goto('/treinador/agenda');
       // Sem ATUALIZACAO_LER a tela abre só com os compromissos e não pede as atualizações.
-      await expect(page.getByText('Ana Fictícia, Bruno Exemplo +1')).toBeVisible();
+      if (naLista) await expect(page.getByText('Ana Fictícia, Bruno Exemplo +1')).toBeVisible();
       expect(pedidos.some((p) => p.caminho === '/atualizacoes')).toBe(false);
 
       await page.getByRole('button', { name: 'Abrir compromisso de Ana Fictícia, Bruno Exemplo e mais 1, 11:30', exact: true }).click();
@@ -410,11 +422,12 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       expect(errosDaPagina).toEqual([]);
     });
 
-    test('sem AGENDA_LER a tela segue só com as atualizações, sem "Novo compromisso"', async ({ page }) => {
+    test('sem AGENDA_LER a tela segue só com as atualizações, sem "Criar"', async ({ page }) => {
       const { naoTratadas, errosDaPagina, pedidos } = await abrirComoTreinador(page, [], { permissoes: ['ATUALIZACAO_LER'] });
       await page.goto('/treinador/agenda');
       await expect(page.getByRole('link', { name: /Abrir atualização de Bruno Exemplo/ })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Novo compromisso' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Criar', exact: true })).toHaveCount(0);
       expect(pedidos.some((p) => p.caminho.startsWith('/agenda'))).toBe(false);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);

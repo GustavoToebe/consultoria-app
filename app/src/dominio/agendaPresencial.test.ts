@@ -115,6 +115,8 @@ describe('visões Dia e Semana', () => {
     expect(resumoDoDia(1, 0)).toBe('1 compromisso');
     expect(resumoDoDia(2, 1)).toBe('2 compromissos · 1 atualização');
     expect(resumoDoDia(0, 3)).toBe('3 atualizações');
+    expect(resumoDoDia(1, 1, 2)).toBe('1 compromisso · 2 eventos · 1 atualização');
+    expect(resumoDoDia(0, 0, 1)).toBe('1 evento');
   });
 });
 

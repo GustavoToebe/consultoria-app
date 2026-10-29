@@ -34,6 +34,11 @@ export const PRIVACIDADE_DO_EVENTO = 'O evento é só seu e não faz parte do ca
 export const NOME_DA_AGENDA_PADRAO = 'Pessoal';
 export const COR_DA_AGENDA_PADRAO: CorDaAgenda = 'AZUL';
 
+/** O nome de cada cor da paleta, para a cor nunca ser só cor (o leitor de tela e quem não distingue o tom leem o nome). */
+export const ROTULOS_DAS_CORES_DA_AGENDA: Record<CorDaAgenda, string> = {
+  AZUL: 'Azul', INDIGO: 'Índigo', VIOLETA: 'Violeta', MAGENTA: 'Magenta', TURQUESA: 'Turquesa', ARDOSIA: 'Ardósia', TERRA: 'Terra', OLIVA: 'Oliva',
+};
+
 // ---- Repetição ----
 
 /** A repetição como o formulário a guarda (texto digitado). O fim é opcional: `NUNCA` não manda `ate` nem `vezes`. */
@@ -130,6 +135,27 @@ export function repeticaoDoEvento(f: FormularioDaRepeticaoDoEvento, primeira: st
   return Object.keys(erros).length ? { erros, repeticao: null } : { erros, repeticao };
 }
 
+const DIAS_NO_TEXTO: Record<DiaDaSemana, string> = {
+  MONDAY: 'segunda', TUESDAY: 'terça', WEDNESDAY: 'quarta', THURSDAY: 'quinta', FRIDAY: 'sexta', SATURDAY: 'sábado', SUNDAY: 'domingo',
+};
+const juntarComE = (itens: readonly string[]) => (itens.length <= 1 ? itens.join('') : `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`);
+
+/**
+ * A repetição gravada por extenso, para o detalhe do evento: "Não se repete", "Toda semana: segunda e quarta, até 30/11",
+ * "Todo dia, 10 vezes", "Dias úteis (segunda a sexta), sem fim".
+ */
+export function textoDaRepeticaoDoEvento(r: RepeticaoDeEvento | null | undefined, hoje: string): string {
+  if (!r || r.tipo === 'NENHUMA') return 'Não se repete';
+  const base: Record<Exclude<TipoDeRepeticaoDeEvento, 'NENHUMA'>, string> = {
+    DIARIA: 'Todo dia', DIAS_UTEIS: 'Dias úteis (segunda a sexta)', SEMANAL: 'Toda semana', MENSAL: 'Todo mês', ANUAL: 'Todo ano',
+  };
+  const dias = r.tipo === 'SEMANAL' ? DIAS_DA_SEMANA.filter((d) => r.diasDaSemana?.includes(d)).map((d) => DIAS_NO_TEXTO[d]) : [];
+  const inicio = dias.length ? `${base[r.tipo]}: ${juntarComE(dias)}` : base[r.tipo];
+  if (r.ate) return `${inicio}, até ${dataSemAnoCorrente(r.ate, hoje)}`;
+  if (r.vezes != null) return `${inicio}, ${r.vezes} vezes`;
+  return `${inicio}, sem fim`;
+}
+
 // ---- Escopo de série ----
 
 export const ROTULOS_DO_ESCOPO_DO_EVENTO: Record<EscopoDaSerie, string> = {
@@ -162,7 +188,7 @@ export const escoposParaExcluirEvento = (serie: boolean): EscopoDaSerie[] => (se
 
 /** O que cada escopo alcança, para a pergunta "só este, os seguintes ou todos". `data` é a da ocorrência aberta. */
 export function explicacaoDoEscopoDoEvento(escopo: EscopoDaSerie, data: string, hoje: string): string {
-  if (escopo === 'ESTA') return `Só o evento de ${dataSemAnoCorrente(data, hoje)}.`;
+  if (escopo === 'ESTA') return `Só o evento de ${dataSemAnoCorrente(data, hoje)}. A repetição da série não muda por aqui.`;
   if (escopo === 'SEGUINTES') return `O de ${dataSemAnoCorrente(data, hoje)} e todos os seguintes. Os anteriores não mudam.`;
   return 'Todos os eventos da série, inclusive os que já passaram.';
 }

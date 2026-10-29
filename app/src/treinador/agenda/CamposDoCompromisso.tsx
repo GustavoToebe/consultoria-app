@@ -177,7 +177,7 @@ function CamposDaRepeticao({ repeticao: r, data, erros, hoje, aoMudar }: {
 }
 
 /** Dias da semana do "Toda semana", de segunda a domingo (P1): caixas de marcar com o nome por extenso para o leitor. */
-function DiasDaSemana({ dias, aoMudar }: { dias: readonly DiaDaSemana[]; aoMudar: (dias: DiaDaSemana[]) => void }) {
+export function DiasDaSemana({ dias, aoMudar }: { dias: readonly DiaDaSemana[]; aoMudar: (dias: DiaDaSemana[]) => void }) {
   const { cores } = useTema();
   return (
     <View style={estilos.grupo}>
