@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -75,12 +76,12 @@ class CicloMenstrualIntegrationTest extends AbstractIntegrationTest {
         JsonNode futuro = api.post("/aluno/ciclo/registros", alunoLogin,
                 Map.of("id", UUID.randomUUID(), "inicio", hoje.plusDays(1).toString()), 422);
         assertThat(futuro.path("codigo").asString()).isEqualTo("CICLO_INVALIDO");
-        assertThat(futuro.toString()).doesNotContain(hoje.plusDays(1).toString());
+        assertThat(semHorario(futuro)).doesNotContain(hoje.plusDays(1).toString());
 
         JsonNode cruza = api.post("/aluno/ciclo/registros", alunoLogin,
                 Map.of("id", UUID.randomUUID(), "inicio", hoje.minusDays(3).toString(), "fim", hoje.toString()), 409);
         assertThat(cruza.path("codigo").asString()).isEqualTo("CICLO_SOBREPOSTO");
-        assertThat(cruza.toString()).doesNotContain(hoje.minusDays(3).toString());
+        assertThat(semHorario(cruza)).doesNotContain(hoje.minusDays(3).toString());
 
         JsonNode outro = api.novoTreinador();
         api.get("/alunos/" + aluno + "/ciclo", outro, 404);
@@ -320,6 +321,16 @@ class CicloMenstrualIntegrationTest extends AbstractIntegrationTest {
         } catch (jakarta.servlet.ServletException e) {
             return 500; // a exceção chegou ao MockMvc sem tradução: também é uma recusa, só não é bonita
         }
+    }
+
+    /**
+     * O erro sem o {@code timestamp}, que é UTC: entre 21h e meia-noite de Brasília ele já traz a data de amanhã e o
+     * {@code doesNotContain} da data enviada pegaria o próprio horário da resposta.
+     */
+    private static String semHorario(JsonNode erro) {
+        ObjectNode copia = (ObjectNode) erro.deepCopy();
+        copia.remove("timestamp");
+        return copia.toString();
     }
 
     private void definirSexo(String sexo) throws Exception {
