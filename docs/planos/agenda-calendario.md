@@ -135,7 +135,7 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - [x] 12. App, regra pura: `dominio/agendaCalendario.ts`, `dominio/agendaEvento.ts`, paleta em `tema/tokens.ts`, preferência de agendas ocultas (executor, com teste) — commit/run: cf79deb
 - [x] 13. App, telas: barra de calendário, grade de horários, Mês, Ano, mini calendário, painel de agendas, menu "Criar", `FolhaEvento`, atualizações filtradas por membro; ajustar `agenda.tsx` (executor-front, em cima do passo 12) — commit/run: 39a0b1b
 - [x] 14. E2E: `agenda-calendario.spec.ts` em 390 e 1280 (executor-front) — commit/run: 7d3b9c8
-- [ ] 15. Texto do `AGENTS.md`, ajuda, "Novo evento" na busca (`dominio/telas.ts`), espelhos de auditoria (`acoesAuditoria.ts`), este plano e o README (executor-rapido) — commit/run: —
+- [x] 15. Texto do `AGENTS.md`, ajuda, "Novo evento" na busca (`dominio/telas.ts`), espelhos de auditoria (`acoesAuditoria.ts`), este plano e o README (executor-rapido) — commit/run: eb09a34
 - [ ] 16. Revisão final de contratos e privacidade (advisor, esforço alto) e **um push por lote**, só na branch — commit/run: —
 
 ## Fora do escopo

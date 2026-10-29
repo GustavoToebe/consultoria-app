@@ -30,7 +30,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Meus dados do aluno (cartão na aba Conta) | [meus-dados-do-aluno.md](meus-dados-do-aluno.md) | `main` (um push) | Concluída em 28/10/2026 (run 40760401698 verde; celular só num APK novo) | 28/10/2026 |
 | Evolução (referências da Prime: lista de compras, receitas, PDFs, avaliação física, agenda, lembretes) | [evolucao-prime.md](evolucao-prime.md) | `main` (457c152) | Concluída em 28/10/2026; decisões abertas fechadas em 29/10 | 29/10/2026 |
 | Ajustes da evolução (lista na ordem do mercado, PDF do comparativo para o aluno, aluno desliga lembretes, contraste do PDF) | [ajustes-evolucao.md](ajustes-evolucao.md) | `main` (6becaa4, PR 15) | Concluída em 29/10/2026 (V041 na `main`) | 29/10/2026 |
-| Agenda no estilo do Google Agenda (Dia/Semana/Mês/Ano, agendas com cor, evento sem aluno, recorrência) e compromisso com vários alunos, aviso no app e lembrete no celular | [agenda-calendario.md](agenda-calendario.md) | branch `agenda-calendario` | Em andamento: decidida em 29/10, implementação por passos na branch `agenda-calendario` | 29/10/2026 |
+| Agenda no estilo do Google Agenda (Dia/Semana/Mês/Ano, agendas com cor, evento sem aluno, recorrência) e compromisso com vários alunos, aviso no app e lembrete no celular | [agenda-calendario.md](agenda-calendario.md) | branch `agenda-calendario` | Em andamento: lote 1 (passos 0-9) no GitHub; lote 2 (passos 10-15) pronto na branch, falta a revisão final e o push (passo 16) | 29/10/2026 |
 
 ## Pendências soltas
 
@@ -53,7 +53,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Evolução: `mvn verify` com Docker na branch `claude/saraiva-api-direcionamento-treinos-dv10io` antes de qualquer PR (testes de integração novos de avaliação, agenda, lembretes, grupo do alimento, dieta e limite do CPF não rodaram no ambiente sem Docker) | Gustavo (PC) | evolucao-prime |
 | `AnamneseService.atribuir`: conferir o nome da restrição antes de virar `ANAMNESE_PENDENTE` em `DataIntegrityViolationException` | Claude | anamnese no aceite (1f1aa20) |
 | Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
-| Agenda calendário: implementação por passos na branch `agenda-calendario` (decisões do Gustavo de 29/10 registradas) | Claude | [agenda-calendario.md](agenda-calendario.md) |
+| Agenda calendário: passo 16 (revisão final, `mvn clean verify` e push do lote 2) na branch `agenda-calendario` | Claude | [agenda-calendario.md](agenda-calendario.md) |
 | Agenda: push do servidor para compromisso marcado, remarcado ou cancelado (app fechado) fica com a decisão de push da frente de engajamento (item "Push do servidor", Etapa 3) | Gustavo decide | [agenda-calendario.md](agenda-calendario.md), [engajamento.md](engajamento.md) |
 
 | Mercado Pago: provar com um reenvio real se o `ts` muda; se repetir, rever a janela de 5 min do webhook da Central | Gustavo/Claude | revisão de segurança 28/10, item 1 |
