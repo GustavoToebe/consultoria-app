@@ -79,24 +79,31 @@ public class AgendaController {
         return agenda.criar(request, eu.usuarioId());
     }
 
+    /**
+     * {@code escopo} (padrão {@code ESTA}): numa série, {@code SEGUINTES} ou {@code TODAS} aplicam o pedido às outras
+     * ocorrências ainda não terminadas/começadas; num compromisso avulso só {@code ESTA} (senão 400).
+     */
     @PreAuthorize("hasAuthority('PERM_AGENDA_ALTERAR')")
     @PutMapping("/{id}")
-    public CompromissoResponse alterar(@PathVariable UUID id, @RequestBody @Valid CompromissoRequest request) {
-        return agenda.alterar(id, request);
+    public CompromissoResponse alterar(@PathVariable UUID id, @RequestBody @Valid CompromissoRequest request,
+                                       @RequestParam(defaultValue = "ESTA") EscopoDaSerie escopo) {
+        return agenda.alterar(id, request, escopo);
     }
 
-    /** Cancelar o compromisso inteiro ou reabri-lo ({@code {cancelado, versao}}). */
+    /** Cancelar o compromisso inteiro ou reabri-lo ({@code {cancelado, versao}}), com o {@code escopo} da série. */
     @PreAuthorize("hasAuthority('PERM_AGENDA_ALTERAR')")
     @PostMapping("/{id}/situacao")
-    public CompromissoResponse situacao(@PathVariable UUID id, @RequestBody @Valid CancelamentoRequest request) {
-        return agenda.alterarCancelamento(id, request.cancelado(), request.versao());
+    public CompromissoResponse situacao(@PathVariable UUID id, @RequestBody @Valid CancelamentoRequest request,
+                                        @RequestParam(defaultValue = "ESTA") EscopoDaSerie escopo) {
+        return agenda.alterarCancelamento(id, request.cancelado(), request.versao(), escopo);
     }
 
-    /** A situação de um aluno no compromisso ({@code {situacao, versao}}). */
+    /** A situação de um aluno no compromisso ({@code {situacao, versao}}), com o {@code escopo} da série. */
     @PreAuthorize("hasAuthority('PERM_AGENDA_ALTERAR')")
     @PostMapping("/{id}/alunos/{alunoId}/situacao")
     public CompromissoResponse situacaoDoAluno(@PathVariable UUID id, @PathVariable UUID alunoId,
-                                               @RequestBody @Valid SituacaoDoAlunoRequest request) {
-        return agenda.alterarSituacaoDoAluno(id, alunoId, request.situacao(), request.versao());
+                                               @RequestBody @Valid SituacaoDoAlunoRequest request,
+                                               @RequestParam(defaultValue = "ESTA") EscopoDaSerie escopo) {
+        return agenda.alterarSituacaoDoAluno(id, alunoId, request.situacao(), request.versao(), escopo);
     }
 }

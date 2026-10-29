@@ -19,6 +19,7 @@ import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
+import br.com.treinos.api.web.ConflitoComRecursoException;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -75,6 +77,8 @@ public class AgendaService {
     /** Quantos próximos compromissos o aluno vê. */
     static final int PROXIMOS_DO_ALUNO = 20;
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
+    /** Id que nunca existe, para a consulta de conflito quando não há nada a ignorar. */
+    private static final UUID NINGUEM = new UUID(0L, 0L);
 
     private final CompromissoRepository compromissos;
     private final CompromissoAlunoRepository participantes;
@@ -123,6 +127,13 @@ public class AgendaService {
         return respostas(List.of(buscar(id))).getFirst();
     }
 
+    /**
+     * Marca um compromisso ou, com {@code repeticao}, uma série: cada ocorrência é um compromisso de verdade (mesmo
+     * {@code serieId}, mesmos participantes e dados), até {@value AgendaDtos#OCORRENCIAS_MAXIMO}; a regra das datas está
+     * em {@link RepeticaoDeCompromisso}. O conflito do responsável é conferido em CADA ocorrência e, se alguma conflitar,
+     * a criação inteira é recusada (nada é gravado): 409 {@code HORARIO_OCUPADO} com as datas em {@code fieldErrors}
+     * ({@code datasEmConflito}). Responde com a primeira ocorrência.
+     */
     @Transactional
     @Auditar(acao = "COMPROMISSO_CRIADO", entidade = "COMPROMISSO", resumo = "Marcou um compromisso na agenda.")
     public CompromissoResponse criar(CompromissoRequest r, UUID quem) {
@@ -130,14 +141,32 @@ public class AgendaService {
         List<UUID> alunoIds = exigirAlunoIds(r.alunoIds());
         alunoIds.forEach(this::exigirAlunoParaMarcar);
         UUID responsavel = exigirResponsavel(r.responsavelId());
-        Instant inicio = inicioEmBrasilia(r.data(), r.hora());
-        exigirHorarioLivre(responsavel, inicio, r.duracaoMinutos(), null);
+        List<LocalDate> dias = r.repeticao() == null ? List.of(r.data())
+                : RepeticaoDeCompromisso.expandir(r.data(), r.repeticao());
+        List<Instant> inicios = dias.stream().map(d -> inicioEmBrasilia(d, r.hora())).toList();
+        exigirHorariosLivres(inicios.stream().map(i -> new Janela(responsavel, i, Compromisso.fimDe(i, r.duracaoMinutos())))
+                .toList(), List.of());
+        UUID serieId = r.repeticao() == null ? null : UUID.randomUUID();
         String observacao = AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR") ? Buscas.opcional(r.observacao()) : null;
-        Compromisso c = compromissos.saveAndFlush(new Compromisso(responsavel, inicio, r.duracaoMinutos(),
-                Buscas.opcional(r.local()), observacao, quem));
-        participantes.saveAll(alunoIds.stream()
-                .map(a -> new CompromissoAluno(c.getId(), a, SituacaoCompromisso.AGENDADO)).toList());
-        return respostas(List.of(c)).getFirst();
+        List<Compromisso> criados = new ArrayList<>();
+        List<CompromissoAluno> novosParticipantes = new ArrayList<>();
+        List<MudancaDoAluno> mudancas = new ArrayList<>();
+        for (Instant inicio : inicios) {
+            Compromisso c = new Compromisso(responsavel, inicio, r.duracaoMinutos(), Buscas.opcional(r.local()), observacao,
+                    quem);
+            c.pertencerASerie(serieId);
+            criados.add(compromissos.save(c));
+        }
+        compromissos.flush();
+        for (Compromisso c : criados) {
+            for (UUID a : alunoIds) {
+                novosParticipantes.add(new CompromissoAluno(c.getId(), a, SituacaoCompromisso.AGENDADO));
+                mudancas.add(new MudancaDoAluno(c, a, Mudanca.ENTROU));
+            }
+        }
+        participantes.saveAll(novosParticipantes);
+        registrarAvisos(mudancas);
+        return respostas(List.of(criados.getFirst())).getFirst();
     }
 
     /**
@@ -147,67 +176,123 @@ public class AgendaService {
      * e não anonimizados (409 {@code ALUNO_INATIVO}/{@code ALUNO_ANONIMIZADO}) para quem entra e para quem fica sem estar
      * cancelado, e passa pela mesma conferência de horário do responsável, menos quando o compromisso fica cancelado (que
      * não ocupa horário).
+     *
+     * <p><b>Série.</b> Com {@code escopo} {@code SEGUINTES} ou {@code TODAS} o mesmo pedido vale para várias ocorrências
+     * ({@link #ocorrenciasDoEscopo}); cada uma conserva o próprio dia e recebe a hora, duração, local, responsável,
+     * observação e alunos do pedido (a observação de quem não tem {@code ALUNO_SENSIVEL_ALTERAR} fica a de cada uma). A data
+     * só muda em {@code ESTA} (senão 400 {@code DATA_SO_NESTA_OCORRENCIA}). Cada ocorrência é conferida no conflito e, se
+     * alguma conflitar, nada muda (409 com as datas). A {@code versao} do pedido é a da ocorrência escolhida: as outras o
+     * cliente nunca viu, então cada uma é lida aqui, dentro da trava da consultoria que serializa toda escrita da agenda, e
+     * o {@code @Version} protege a gravação. Responde com a ocorrência escolhida, já com o estado novo.
      */
     @Transactional
     @Auditar(acao = "COMPROMISSO_ALTERADO", entidade = "COMPROMISSO", resumo = "Alterou um compromisso da agenda.")
-    public CompromissoResponse alterar(UUID id, CompromissoRequest r) {
+    public CompromissoResponse alterar(UUID id, CompromissoRequest r, EscopoDaSerie escopo) {
         travarConsultoria();
-        Compromisso c = buscar(id);
-        exigirVersao(c, r.versao());
+        if (r.repeticao() != null) {
+            throw new BadRequestException("A repetição só vale ao marcar um compromisso novo.", "REPETICAO_SO_AO_CRIAR");
+        }
+        Compromisso escolhida = buscar(id);
+        exigirVersao(escolhida, r.versao());
+        List<Compromisso> alvo = ocorrenciasDoEscopo(escolhida, escopo);
+        if (escopo != EscopoDaSerie.ESTA && !r.data().equals(data(escolhida.getInicio()))) {
+            throw new BadRequestException("A data só muda em \"somente esta ocorrência\".", "DATA_SO_NESTA_OCORRENCIA");
+        }
         List<UUID> alunoIds = exigirAlunoIds(r.alunoIds());
-        Map<UUID, CompromissoAluno> atuais = porAluno(participantes.findByCompromissoId(c.getId()));
-        List<UUID> entram = alunoIds.stream().filter(a -> !atuais.containsKey(a)).toList();
-        List<CompromissoAluno> ficam = atuais.values().stream().filter(p -> alunoIds.contains(p.getAlunoId())).toList();
-        // Sem ninguém novo e com todos os que ficam cancelados, o compromisso continua (ou passa a ser) cancelado.
-        boolean ficaCancelado = c.isCancelado()
-                || (entram.isEmpty() && ficam.stream().allMatch(p -> p.getSituacao() == SituacaoCompromisso.CANCELADO));
-        entram.forEach(this::exigirAlunoParaMarcar);
-        if (!ficaCancelado) {
-            ficam.stream().filter(p -> p.getSituacao() != SituacaoCompromisso.CANCELADO)
-                    .forEach(p -> exigirAlunoParaMarcar(p.getAlunoId()));
+        Map<UUID, List<CompromissoAluno>> doCompromisso = participantesPorCompromisso(alvo);
+        List<PlanoDeAlteracao> planos = new ArrayList<>();
+        for (Compromisso c : alvo) {
+            Map<UUID, CompromissoAluno> atuais = porAluno(doCompromisso.getOrDefault(c.getId(), List.of()));
+            List<UUID> entram = alunoIds.stream().filter(a -> !atuais.containsKey(a)).toList();
+            List<CompromissoAluno> ficam = atuais.values().stream().filter(p -> alunoIds.contains(p.getAlunoId())).toList();
+            // Sem ninguém novo e com todos os que ficam cancelados, o compromisso continua (ou passa a ser) cancelado.
+            boolean ficaCancelado = c.isCancelado()
+                    || (entram.isEmpty() && ficam.stream().allMatch(p -> p.getSituacao() == SituacaoCompromisso.CANCELADO));
+            entram.forEach(this::exigirAlunoParaMarcar);
+            if (!ficaCancelado) {
+                ficam.stream().filter(p -> p.getSituacao() != SituacaoCompromisso.CANCELADO)
+                        .forEach(p -> exigirAlunoParaMarcar(p.getAlunoId()));
+            }
+            LocalDate dia = escopo == EscopoDaSerie.ESTA ? r.data() : data(c.getInicio());
+            planos.add(new PlanoDeAlteracao(c, entram, ficam,
+                    atuais.values().stream().filter(p -> !alunoIds.contains(p.getAlunoId())).toList(), ficaCancelado,
+                    inicioEmBrasilia(dia, r.hora())));
         }
         UUID responsavel = exigirResponsavel(r.responsavelId());
-        Instant inicio = inicioEmBrasilia(r.data(), r.hora());
-        if (!ficaCancelado) {
-            exigirHorarioLivre(responsavel, inicio, r.duracaoMinutos(), c.getId());
+        // Todas as conferências antes de mexer em qualquer entidade (a consulta dispara o flush do que já mudou).
+        exigirHorariosLivres(planos.stream().filter(p -> !p.ficaCancelado())
+                .map(p -> new Janela(responsavel, p.novoInicio(), Compromisso.fimDe(p.novoInicio(), r.duracaoMinutos())))
+                .toList(), alvo.stream().map(Compromisso::getId).toList());
+        boolean pode = AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR");
+        List<MudancaDoAluno> mudancas = new ArrayList<>();
+        for (PlanoDeAlteracao p : planos) {
+            Compromisso c = p.compromisso();
+            boolean remarcou = !p.novoInicio().equals(c.getInicio()) || r.duracaoMinutos() != c.getDuracaoMinutos();
+            String observacao = pode ? Buscas.opcional(r.observacao()) : c.getObservacao();
+            c.alterar(responsavel, p.novoInicio(), r.duracaoMinutos(), Buscas.opcional(r.local()), observacao);
+            p.saem().forEach(participantes::delete);
+            SituacaoCompromisso nasce = c.isCancelado() ? SituacaoCompromisso.CANCELADO : SituacaoCompromisso.AGENDADO;
+            participantes.saveAll(p.entram().stream().map(a -> new CompromissoAluno(c.getId(), a, nasce)).toList());
+            if (c.isCancelado() != p.ficaCancelado()) {
+                c.definirCancelado(p.ficaCancelado());
+            }
+            p.entram().forEach(a -> mudancas.add(new MudancaDoAluno(c, a, Mudanca.ENTROU)));
+            p.saem().forEach(s -> mudancas.add(new MudancaDoAluno(c, s.getAlunoId(), Mudanca.SAIU)));
+            if (remarcou) {
+                p.ficam().stream().filter(f -> f.getSituacao() != SituacaoCompromisso.CANCELADO)
+                        .forEach(f -> mudancas.add(new MudancaDoAluno(c, f.getAlunoId(), Mudanca.REMARCADO)));
+            }
         }
-        String observacao = AcessoAtual.pode("ALUNO_SENSIVEL_ALTERAR") ? Buscas.opcional(r.observacao()) : c.getObservacao();
-        c.alterar(responsavel, inicio, r.duracaoMinutos(), Buscas.opcional(r.local()), observacao);
-        atuais.values().stream().filter(p -> !alunoIds.contains(p.getAlunoId())).forEach(participantes::delete);
-        SituacaoCompromisso nasce = c.isCancelado() ? SituacaoCompromisso.CANCELADO : SituacaoCompromisso.AGENDADO;
-        participantes.saveAll(entram.stream().map(a -> new CompromissoAluno(c.getId(), a, nasce)).toList());
-        if (c.isCancelado() != ficaCancelado) {
-            c.definirCancelado(ficaCancelado);
-        }
-        return respostas(List.of(compromissos.saveAndFlush(c))).getFirst();
+        compromissos.saveAllAndFlush(alvo);
+        registrarAvisos(mudancas);
+        return respostas(List.of(escolhida)).getFirst();
     }
 
     /**
      * Cancela o compromisso inteiro (todos os participantes ficam cancelados e o horário do responsável é liberado) ou o
      * reabre (todos voltam a agendado). A mesma situação não muda nada (nem audita). Reabrir volta a ocupar o horário:
      * exige alunos ativos, responsável ativo e o horário livre, como marcar de novo.
+     *
+     * <p><b>Série.</b> Com {@code escopo} {@code SEGUINTES} ou {@code TODAS} a mesma operação vale para as ocorrências do
+     * escopo; as que já estão na situação pedida ficam como estão. Reabrir confere o horário de cada uma e, se alguma
+     * conflitar, nada muda (409 {@code HORARIO_OCUPADO} com as datas). A {@code versao} é a da ocorrência escolhida (ver
+     * {@link #alterar}).
      */
     @Transactional
-    public CompromissoResponse alterarCancelamento(UUID id, boolean cancelar, Long versao) {
+    public CompromissoResponse alterarCancelamento(UUID id, boolean cancelar, Long versao, EscopoDaSerie escopo) {
         travarConsultoria();
         Compromisso c = buscar(id);
         exigirVersao(c, versao);
-        if (cancelar == c.isCancelado()) {
+        List<Compromisso> mudam = ocorrenciasDoEscopo(c, escopo).stream().filter(o -> o.isCancelado() != cancelar).toList();
+        if (mudam.isEmpty()) {
             return respostas(List.of(c)).getFirst();
         }
-        List<CompromissoAluno> todos = participantes.findByCompromissoId(c.getId());
-        if (cancelar) {
-            todos.forEach(p -> p.alterarSituacao(SituacaoCompromisso.CANCELADO));
-        } else {
-            todos.forEach(p -> exigirAlunoParaMarcar(p.getAlunoId()));
-            exigirResponsavel(c.getResponsavelId());
-            exigirHorarioLivre(c.getResponsavelId(), c.getInicio(), c.getDuracaoMinutos(), c.getId());
-            todos.forEach(p -> p.alterarSituacao(SituacaoCompromisso.AGENDADO));
+        Map<UUID, List<CompromissoAluno>> doCompromisso = participantesPorCompromisso(mudam);
+        if (!cancelar) {
+            List<Janela> janelas = new ArrayList<>();
+            for (Compromisso o : mudam) {
+                doCompromisso.getOrDefault(o.getId(), List.of()).forEach(p -> exigirAlunoParaMarcar(p.getAlunoId()));
+                exigirResponsavel(o.getResponsavelId());
+                janelas.add(new Janela(o.getResponsavelId(), o.getInicio(), o.getFim()));
+            }
+            exigirHorariosLivres(janelas, mudam.stream().map(Compromisso::getId).toList());
         }
-        c.definirCancelado(cancelar);
-        compromissos.saveAndFlush(c);
+        List<MudancaDoAluno> mudancas = new ArrayList<>();
+        for (Compromisso o : mudam) {
+            for (CompromissoAluno p : doCompromisso.getOrDefault(o.getId(), List.of())) {
+                if (cancelar && p.getSituacao() != SituacaoCompromisso.CANCELADO) {
+                    mudancas.add(new MudancaDoAluno(o, p.getAlunoId(), Mudanca.CANCELADO));
+                } else if (!cancelar) {
+                    mudancas.add(new MudancaDoAluno(o, p.getAlunoId(), Mudanca.REABERTO));
+                }
+                p.alterarSituacao(cancelar ? SituacaoCompromisso.CANCELADO : SituacaoCompromisso.AGENDADO);
+            }
+            o.definirCancelado(cancelar);
+        }
+        compromissos.saveAllAndFlush(mudam);
         auditoria.registrarEvento("COMPROMISSO_SITUACAO_ALTERADA", "COMPROMISSO", c.getId(),
                 "Alterou a situação de um compromisso da agenda.");
+        registrarAvisos(mudancas);
         return respostas(List.of(c)).getFirst();
     }
 
@@ -217,34 +302,76 @@ public class AgendaService {
      * cancelado confere o aluno ativo e, se o compromisso estava cancelado, reabre-o (responsável ativo e horário livre). O
      * último participante não cancelado que for cancelado cancela o compromisso, na mesma transação. Aluno que não está no
      * compromisso = 404. Sempre sobe a {@code versao} do compromisso.
+     *
+     * <p><b>Série.</b> Com {@code escopo} {@code SEGUINTES} ou {@code TODAS} a mesma situação vale para o aluno em cada
+     * ocorrência do escopo em que ele participa (as outras são puladas; ele precisa estar na escolhida, senão 404). Só
+     * cancelar e voltar a agendado: realizado e falta são sempre de uma ocorrência só (400
+     * {@code SITUACAO_SO_NESTA_OCORRENCIA}). Se alguma ocorrência reaberta conflitar no horário, nada muda (409 com as
+     * datas). A {@code versao} é a da escolhida (ver {@link #alterar}).
      */
     @Transactional
-    public CompromissoResponse alterarSituacaoDoAluno(UUID id, UUID alunoId, SituacaoCompromisso nova, Long versao) {
+    public CompromissoResponse alterarSituacaoDoAluno(UUID id, UUID alunoId, SituacaoCompromisso nova, Long versao,
+                                                      EscopoDaSerie escopo) {
         travarConsultoria();
         Compromisso c = buscar(id);
         exigirVersao(c, versao);
-        List<CompromissoAluno> todos = participantes.findByCompromissoId(c.getId());
-        CompromissoAluno alvo = todos.stream().filter(p -> p.getAlunoId().equals(alunoId)).findFirst()
-                .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado neste compromisso."));
-        if (nova == alvo.getSituacao()) {
+        Map<UUID, List<CompromissoAluno>> doCompromisso = participantesPorCompromisso(List.of(c));
+        boolean naEscolhida = doCompromisso.getOrDefault(c.getId(), List.of()).stream()
+                .anyMatch(p -> p.getAlunoId().equals(alunoId));
+        if (!naEscolhida) {
+            throw new NaoEncontradoException("Aluno não encontrado neste compromisso.");
+        }
+        if (escopo != EscopoDaSerie.ESTA && SituacaoCompromisso.DEPOIS_DO_INICIO.contains(nova)) {
+            throw new BadRequestException("Realizado e falta valem para uma ocorrência só.", "SITUACAO_SO_NESTA_OCORRENCIA");
+        }
+        List<Compromisso> alvo = ocorrenciasDoEscopo(c, escopo);
+        if (escopo != EscopoDaSerie.ESTA) {
+            doCompromisso = participantesPorCompromisso(alvo);
+        }
+        List<Compromisso> mudam = new ArrayList<>();
+        Map<UUID, CompromissoAluno> doAluno = new HashMap<>();
+        for (Compromisso o : alvo) {
+            List<CompromissoAluno> todos = doCompromisso.getOrDefault(o.getId(), List.of());
+            todos.stream().filter(p -> p.getAlunoId().equals(alunoId) && p.getSituacao() != nova).findFirst()
+                    .ifPresent(p -> {
+                        mudam.add(o);
+                        doAluno.put(o.getId(), p);
+                    });
+        }
+        if (mudam.isEmpty()) {
             return respostas(List.of(c)).getFirst();
         }
-        if (SituacaoCompromisso.DEPOIS_DO_INICIO.contains(nova) && c.getInicio().isAfter(Instant.now())) {
-            throw new ConflictException("Só dá para marcar como realizado ou falta depois do horário do compromisso.",
-                    "COMPROMISSO_NO_FUTURO");
-        }
-        if (alvo.getSituacao() == SituacaoCompromisso.CANCELADO) {
-            exigirAlunoParaMarcar(alunoId);
-            if (c.isCancelado()) {
-                exigirResponsavel(c.getResponsavelId());
-                exigirHorarioLivre(c.getResponsavelId(), c.getInicio(), c.getDuracaoMinutos(), c.getId());
+        List<Janela> reabertas = new ArrayList<>();
+        for (Compromisso o : mudam) {
+            CompromissoAluno p = doAluno.get(o.getId());
+            if (SituacaoCompromisso.DEPOIS_DO_INICIO.contains(nova) && o.getInicio().isAfter(Instant.now())) {
+                throw new ConflictException("Só dá para marcar como realizado ou falta depois do horário do compromisso.",
+                        "COMPROMISSO_NO_FUTURO");
+            }
+            if (p.getSituacao() == SituacaoCompromisso.CANCELADO) {
+                exigirAlunoParaMarcar(alunoId);
+                if (o.isCancelado()) {
+                    exigirResponsavel(o.getResponsavelId());
+                    reabertas.add(new Janela(o.getResponsavelId(), o.getInicio(), o.getFim()));
+                }
             }
         }
-        alvo.alterarSituacao(nova);
-        recalcularCancelado(c, todos);
-        compromissos.saveAndFlush(c);
+        exigirHorariosLivres(reabertas, mudam.stream().map(Compromisso::getId).toList());
+        List<MudancaDoAluno> mudancas = new ArrayList<>();
+        for (Compromisso o : mudam) {
+            CompromissoAluno p = doAluno.get(o.getId());
+            if (nova == SituacaoCompromisso.CANCELADO) {
+                mudancas.add(new MudancaDoAluno(o, alunoId, Mudanca.CANCELADO));
+            } else if (p.getSituacao() == SituacaoCompromisso.CANCELADO) {
+                mudancas.add(new MudancaDoAluno(o, alunoId, Mudanca.REABERTO));
+            }
+            p.alterarSituacao(nova);
+            recalcularCancelado(o, doCompromisso.get(o.getId()));
+        }
+        compromissos.saveAllAndFlush(mudam);
         auditoria.registrarEvento("COMPROMISSO_SITUACAO_ALTERADA", "COMPROMISSO", c.getId(),
                 "Alterou a situação de um compromisso da agenda.");
+        registrarAvisos(mudancas);
         return respostas(List.of(c)).getFirst();
     }
 
@@ -409,11 +536,96 @@ public class AgendaService {
         return id;
     }
 
-    private void exigirHorarioLivre(UUID responsavelId, Instant inicio, int duracaoMinutos, UUID ignorar) {
-        if (compromissos.sobrepostos(responsavelId, inicio, Compromisso.fimDe(inicio, duracaoMinutos), ignorar) > 0) {
-            throw new ConflictException("O responsável já tem um compromisso nesse horário. Escolha outro horário.",
-                    "HORARIO_OCUPADO");
+    /** Um horário que vai ocupar a agenda de um responsável. */
+    private record Janela(UUID responsavelId, Instant inicio, Instant fim) { }
+
+    /**
+     * Confere todos os horários e só então recusa: 409 {@code HORARIO_OCUPADO} com a data (de Brasília) de CADA um que
+     * conflita em {@code fieldErrors} ({@code datasEmConflito}), sem nada do compromisso que ocupa o horário. Além dos já
+     * gravados (menos os {@code ignorar}: o próprio ao remarcar, ou todas as ocorrências do escopo, para uma não conflitar
+     * com a posição antiga da outra), confere os horários entre si (na mesma série nunca se sobrepõem, mas uma ocorrência
+     * cancelada e movida antes pode ter ficado sobre outra).
+     */
+    private void exigirHorariosLivres(List<Janela> janelas, Collection<UUID> ignorar) {
+        Collection<UUID> ignorados = ignorar.isEmpty() ? List.of(NINGUEM) : ignorar;
+        Set<String> datas = new TreeSet<>();
+        for (int i = 0; i < janelas.size(); i++) {
+            Janela j = janelas.get(i);
+            boolean ocupado = compromissos.sobrepostos(j.responsavelId(), j.inicio(), j.fim(), ignorados) > 0;
+            for (int k = i + 1; k < janelas.size() && !ocupado; k++) {
+                Janela outra = janelas.get(k);
+                if (outra.responsavelId().equals(j.responsavelId()) && outra.inicio().isBefore(j.fim())
+                        && outra.fim().isAfter(j.inicio())) {
+                    ocupado = true;
+                    datas.add(data(outra.inicio()).toString());
+                }
+            }
+            if (ocupado) {
+                datas.add(data(j.inicio()).toString());
+            }
         }
+        if (!datas.isEmpty()) {
+            throw new ConflitoComRecursoException(datas.size() == 1
+                    ? "O responsável já tem um compromisso nesse horário. Escolha outro horário."
+                    : "O responsável já tem compromisso nesse horário em " + datas.size() + " datas. Escolha outro horário.",
+                    "HORARIO_OCUPADO", "datasEmConflito", List.copyOf(datas));
+        }
+    }
+
+    /**
+     * As ocorrências que a operação atinge. {@code ESTA}: só a escolhida. {@code SEGUINTES}: as da série que começam a partir
+     * da escolhida (inclusive) e ainda não terminaram. {@code TODAS}: as da série que ainda não começaram. As passadas nunca
+     * entram, então a escolhida pode ficar de fora (já terminou, ou já começou em {@code TODAS}). Escopo diferente de
+     * {@code ESTA} num compromisso avulso = 400 {@code COMPROMISSO_SEM_SERIE}; escopo sem nenhuma ocorrência a alterar = 409
+     * {@code SERIE_SEM_OCORRENCIAS}. Em ordem de início.
+     */
+    private List<Compromisso> ocorrenciasDoEscopo(Compromisso escolhida, EscopoDaSerie escopo) {
+        if (escopo == EscopoDaSerie.ESTA) {
+            return List.of(escolhida);
+        }
+        if (escolhida.getSerieId() == null) {
+            throw new BadRequestException("Este compromisso não faz parte de uma série. Use o escopo ESTA.",
+                    "COMPROMISSO_SEM_SERIE");
+        }
+        Instant agora = Instant.now();
+        List<Compromisso> alvo = compromissos.findBySerieIdOrderByInicioAscIdAsc(escolhida.getSerieId()).stream()
+                .filter(o -> escopo == EscopoDaSerie.TODAS ? o.getInicio().isAfter(agora)
+                        : !o.getInicio().isBefore(escolhida.getInicio()) && o.getFim().isAfter(agora))
+                .toList();
+        if (alvo.isEmpty()) {
+            throw new ConflictException("Nenhuma ocorrência desta série pode mais ser alterada: as que já passaram não mudam.",
+                    "SERIE_SEM_OCORRENCIAS");
+        }
+        return alvo;
+    }
+
+    private Map<UUID, List<CompromissoAluno>> participantesPorCompromisso(Collection<Compromisso> lista) {
+        Map<UUID, List<CompromissoAluno>> doCompromisso = new HashMap<>();
+        if (!lista.isEmpty()) {
+            participantes.findByCompromissoIdIn(lista.stream().map(Compromisso::getId).toList())
+                    .forEach(p -> doCompromisso.computeIfAbsent(p.getCompromissoId(), k -> new ArrayList<>()).add(p));
+        }
+        return doCompromisso;
+    }
+
+    /** O que mudou para um aluno num compromisso: a matéria-prima do aviso dentro do app (D12, passo 3). */
+    private enum Mudanca { ENTROU, SAIU, REMARCADO, CANCELADO, REABERTO }
+
+    private record MudancaDoAluno(Compromisso compromisso, UUID alunoId, Mudanca mudanca) { }
+
+    /** O que {@link #alterar} decidiu para uma ocorrência, antes de mexer em qualquer entidade. */
+    private record PlanoDeAlteracao(Compromisso compromisso, List<UUID> entram, List<CompromissoAluno> ficam,
+                                    List<CompromissoAluno> saem, boolean ficaCancelado, Instant novoInicio) { }
+
+    /**
+     * Ponto de extensão do passo 3 (aviso dentro do app, D12): chamado uma vez no fim de cada operação que muda
+     * compromissos (marcar, alterar, cancelar, mudar a situação de um aluno), na mesma transação, com TODAS as mudanças por
+     * aluno de TODAS as ocorrências tocadas, para gerar um aviso por aluno por operação. Hoje não faz nada (por
+     * isso o {@code UnusedVariable} do Error Prone é suprimido aqui; tire a supressão ao implementar).
+     */
+    @SuppressWarnings("UnusedVariable")
+    private void registrarAvisos(List<MudancaDoAluno> mudancas) {
+        // Passo 3: gerar o aviso de cada aluno a partir das mudanças (sem observação, local nem nome de outro aluno).
     }
 
     private static void exigirVersao(Compromisso c, Long versao) {
@@ -454,10 +666,13 @@ public class AgendaService {
 
     /** Respostas em lote: participantes dos compromissos numa consulta e nomes dos alunos e da equipe em outras duas. */
     private List<CompromissoResponse> respostas(List<Compromisso> lista) {
-        Map<UUID, List<CompromissoAluno>> doCompromisso = new HashMap<>();
-        if (!lista.isEmpty()) {
-            participantes.findByCompromissoIdIn(lista.stream().map(Compromisso::getId).toList())
-                    .forEach(p -> doCompromisso.computeIfAbsent(p.getCompromissoId(), k -> new ArrayList<>()).add(p));
+        Map<UUID, List<CompromissoAluno>> doCompromisso = participantesPorCompromisso(lista);
+        // Posição e total só dos que são de série (os avulsos não pesam).
+        Map<UUID, int[]> naSerie = new HashMap<>();
+        List<UUID> deSerie = lista.stream().filter(c -> c.getSerieId() != null).map(Compromisso::getId).toList();
+        if (!deSerie.isEmpty()) {
+            compromissos.posicoesNaSerie(deSerie).forEach(l ->
+                    naSerie.put((UUID) l[0], new int[] {((Long) l[1]).intValue(), ((Long) l[2]).intValue()}));
         }
         Map<UUID, String> nomesAlunos = new HashMap<>();
         List<UUID> idsAlunos = doCompromisso.values().stream().flatMap(List::stream).map(CompromissoAluno::getAlunoId)
@@ -474,7 +689,9 @@ public class AgendaService {
                         .map(p -> new Participante(p.getAlunoId(), nomesAlunos.get(p.getAlunoId()), p.getSituacao()))
                         .sorted(Comparator.comparing(Participante::nome, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
                                 .thenComparing(Participante::id)).toList(),
-                c.getVersao() == null ? 0 : c.getVersao())).toList();
+                c.getVersao() == null ? 0 : c.getVersao(), c.getSerieId(),
+                naSerie.containsKey(c.getId()) ? naSerie.get(c.getId())[0] : null,
+                naSerie.containsKey(c.getId()) ? naSerie.get(c.getId())[1] : null)).toList();
     }
 
     private Map<UUID, String> nomesDaEquipe(Collection<UUID> ids) {

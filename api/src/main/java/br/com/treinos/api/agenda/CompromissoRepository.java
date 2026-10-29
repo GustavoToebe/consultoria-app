@@ -27,12 +27,28 @@ public interface CompromissoRepository extends JpaRepository<Compromisso, UUID> 
     List<Compromisso> doPeriodo(Instant de, Instant ate, UUID responsavelId, Collection<SituacaoCompromisso> situacoes);
 
     /**
-     * Quantos compromissos não cancelados do responsável se sobrepõem a [{@code inicio}, {@code fim}), menos o
-     * {@code ignorar} (o próprio, ao remarcar). Encostar (um termina às 10:00, o outro começa às 10:00) não é conflito.
+     * Quantos compromissos não cancelados do responsável se sobrepõem a [{@code inicio}, {@code fim}), menos os
+     * {@code ignorar} (o próprio ao remarcar; todas as ocorrências do escopo ao mudar uma série, para uma não conflitar com
+     * a posição antiga da outra). Nunca vazio: sem ninguém para ignorar, passe um id que não existe. Encostar (um termina às
+     * 10:00, o outro começa às 10:00) não é conflito.
      */
     @Query("select count(c) from Compromisso c where c.responsavelId = :responsavelId and c.cancelado = false "
-            + "and c.inicio < :fim and c.fim > :inicio and (:ignorar is null or c.id <> :ignorar)")
-    long sobrepostos(UUID responsavelId, Instant inicio, Instant fim, UUID ignorar);
+            + "and c.inicio < :fim and c.fim > :inicio and c.id not in :ignorar")
+    long sobrepostos(UUID responsavelId, Instant inicio, Instant fim, Collection<UUID> ignorar);
+
+    /** As ocorrências de uma série, em ordem de início. */
+    List<Compromisso> findBySerieIdOrderByInicioAscIdAsc(UUID serieId);
+
+    /**
+     * Para cada compromisso de série entre os {@code ids}: {@code [id, posição (1 a N, por início), N]}, contando as
+     * canceladas. Os avulsos não aparecem.
+     */
+    @Query("select c.id, "
+            + "(select count(x) from Compromisso x where x.consultoriaId = c.consultoriaId and x.serieId = c.serieId "
+            + "and x.inicio <= c.inicio), "
+            + "(select count(y) from Compromisso y where y.consultoriaId = c.consultoriaId and y.serieId = c.serieId) "
+            + "from Compromisso c where c.id in :ids and c.serieId is not null")
+    List<Object[]> posicoesNaSerie(Collection<UUID> ids);
 
     /**
      * Os próximos do aluno (ainda não terminados) em que a situação DELE é uma das pedidas: cada linha é

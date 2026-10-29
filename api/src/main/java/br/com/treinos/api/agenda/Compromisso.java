@@ -90,6 +90,11 @@ public class Compromisso {
     public Instant getAtualizadoEm() { return atualizadoEm; }
     public Long getVersao() { return versao; }
 
+    /** Liga a ocorrência à série (só ao criar). */
+    void pertencerASerie(UUID serieId) {
+        this.serieId = serieId;
+    }
+
     /** Fim calculado sempre aqui, para nunca divergir do início e da duração. */
     static Instant fimDe(Instant inicio, int duracaoMinutos) {
         return inicio.plus(Duration.ofMinutes(duracaoMinutos));
