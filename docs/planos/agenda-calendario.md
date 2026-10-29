@@ -132,7 +132,7 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - [x] 9. Texto do `AGENTS.md` (item "Agenda presencial") e ajuda do treinador e do aluno para o lote 1 (executor-rapido); **lote 1 pronto para um push na branch** — commit/run: b57c440 (guias em PDF só no fim, passo 15)
 - [x] 10. API, V043: agendas pessoais, eventos sem aluno com recorrência (regra, exceções, escopos, expansão), rotas, 404 do dono, auditoria de resumo fixo, rota de resumo do Ano, atualizações por período e por responsável (D14, D19); totais 42 → 43 (executor) — commit/run: 854b7a5
 - [x] 11. Revisão da API do calendário: permissões, dono, tenant, privacidade e contrato (advisor ou revisor) — commit/run: advisor (29/10): sem achado de dono/tenant; decisões abaixo registradas
-- [x] 12. App, regra pura: `dominio/agendaCalendario.ts`, `dominio/agendaEvento.ts`, paleta em `tema/tokens.ts`, preferência de agendas ocultas (executor, com teste) — commit/run: HASH12
+- [x] 12. App, regra pura: `dominio/agendaCalendario.ts`, `dominio/agendaEvento.ts`, paleta em `tema/tokens.ts`, preferência de agendas ocultas (executor, com teste) — commit/run: cf79deb
 - [ ] 13. App, telas: barra de calendário, grade de horários, Mês, Ano, mini calendário, painel de agendas, menu "Criar", `FolhaEvento`, atualizações filtradas por membro; ajustar `agenda.tsx` (executor-front, em cima do passo 12) — commit/run: —
 - [ ] 14. E2E: `agenda-calendario.spec.ts` em 390 e 1280 (executor-front) — commit/run: —
 - [ ] 15. Texto do `AGENTS.md`, ajuda, "Novo evento" na busca (`dominio/telas.ts`), espelhos de auditoria (`acoesAuditoria.ts`), este plano e o README (executor-rapido) — commit/run: —
