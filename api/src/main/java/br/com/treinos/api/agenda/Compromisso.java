@@ -2,8 +2,6 @@ package br.com.treinos.api.agenda;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,10 +14,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Compromisso presencial da agenda do consultório (consulta, retorno, avaliação): marcado só pela equipe, com um aluno e
- * um responsável da equipe. O início é um instante; a API mostra e recebe sempre no horário de Brasília. {@code fim} é
- * guardado (início + duração) para a conferência de sobreposição. A observação é texto livre da equipe e pode ter dado de
- * saúde: nunca em log nem na auditoria.
+ * Compromisso presencial da agenda do consultório (consulta, retorno, avaliação): marcado só pela equipe, com de 1 a 20
+ * alunos (participantes em {@link CompromissoAluno}, cada um com a sua situação) e um responsável da equipe. O início é um
+ * instante; a API mostra e recebe sempre no horário de Brasília. {@code fim} é guardado (início + duração) para a
+ * conferência de sobreposição. {@code cancelado} é o compromisso inteiro (todos os participantes cancelados) e é o que
+ * libera o horário do responsável. {@code serieId} liga as ocorrências de uma série (passo 2 do plano). A observação é
+ * texto livre da equipe e pode ter dado de saúde: nunca em log nem na auditoria.
  */
 @Entity
 @Table(name = "compromisso")
@@ -32,9 +32,6 @@ public class Compromisso {
     @TenantId
     @Column(name = "consultoria_id", nullable = false, updatable = false)
     private UUID consultoriaId;
-
-    @Column(name = "aluno_id", nullable = false)
-    private UUID alunoId;
 
     @Column(name = "responsavel_id")
     private UUID responsavelId;
@@ -52,9 +49,11 @@ public class Compromisso {
 
     private String observacao;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SituacaoCompromisso situacao = SituacaoCompromisso.AGENDADO;
+    private boolean cancelado;
+
+    @Column(name = "serie_id")
+    private UUID serieId;
 
     @Column(name = "criado_por", updatable = false)
     private UUID criadoPor;
@@ -71,22 +70,21 @@ public class Compromisso {
     protected Compromisso() {
     }
 
-    Compromisso(UUID alunoId, UUID responsavelId, Instant inicio, int duracaoMinutos, String local, String observacao,
-                UUID criadoPor) {
+    Compromisso(UUID responsavelId, Instant inicio, int duracaoMinutos, String local, String observacao, UUID criadoPor) {
         this.criadoPor = criadoPor;
-        alterar(alunoId, responsavelId, inicio, duracaoMinutos, local, observacao);
+        alterar(responsavelId, inicio, duracaoMinutos, local, observacao);
     }
 
     public UUID getId() { return id; }
     public UUID getConsultoriaId() { return consultoriaId; }
-    public UUID getAlunoId() { return alunoId; }
     public UUID getResponsavelId() { return responsavelId; }
     public Instant getInicio() { return inicio; }
     public int getDuracaoMinutos() { return duracaoMinutos; }
     public Instant getFim() { return fim; }
     public String getLocal() { return local; }
     public String getObservacao() { return observacao; }
-    public SituacaoCompromisso getSituacao() { return situacao; }
+    public boolean isCancelado() { return cancelado; }
+    public UUID getSerieId() { return serieId; }
     public UUID getCriadoPor() { return criadoPor; }
     public Instant getCriadoEm() { return criadoEm; }
     public Instant getAtualizadoEm() { return atualizadoEm; }
@@ -97,19 +95,29 @@ public class Compromisso {
         return inicio.plus(Duration.ofMinutes(duracaoMinutos));
     }
 
-    final void alterar(UUID alunoId, UUID responsavelId, Instant inicio, int duracaoMinutos, String local, String observacao) {
-        this.alunoId = alunoId;
+    final void alterar(UUID responsavelId, Instant inicio, int duracaoMinutos, String local, String observacao) {
         this.responsavelId = responsavelId;
         this.inicio = inicio;
         this.duracaoMinutos = duracaoMinutos;
         this.fim = fimDe(inicio, duracaoMinutos);
         this.local = local;
         this.observacao = observacao;
-        this.atualizadoEm = Instant.now();
+        tocar();
     }
 
-    void alterarSituacao(SituacaoCompromisso nova) {
-        this.situacao = nova;
-        this.atualizadoEm = Instant.now();
+    /** O compromisso inteiro cancelado (ou reaberto). Quem decide é o serviço, pela situação dos participantes. */
+    void definirCancelado(boolean cancelado) {
+        this.cancelado = cancelado;
+        tocar();
+    }
+
+    /**
+     * Marca que algo do compromisso mudou sem mexer nas colunas dele (um participante entrou, saiu ou mudou de situação):
+     * sobe a {@code versao}, que protege também as mudanças por aluno.
+     */
+    final void tocar() {
+        Instant agora = Instant.now();
+        // Sempre diferente do valor anterior, senão o Hibernate não vê alteração e a versão não sobe.
+        this.atualizadoEm = agora.isAfter(atualizadoEm) ? agora : atualizadoEm.plusNanos(1_000);
     }
 }

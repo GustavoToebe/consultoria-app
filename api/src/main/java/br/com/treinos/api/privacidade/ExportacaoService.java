@@ -137,7 +137,8 @@ public class ExportacaoService {
         if (cicloMenstrual == null) {
             omitidas.add("cicloMenstrual");
         }
-        // Compromissos da agenda presencial (com a observação da equipe), com quem lê a agenda (AGENDA_LER).
+        // Compromissos da agenda presencial do aluno (situação dele, sem os nomes dos outros; observação só se ele é o
+        // único participante), com quem lê a agenda (AGENDA_LER).
         var compromissos = secao(AcessoAtual.pode("AGENDA_LER"), "compromissos", omitidas, () -> agenda.exportar(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,

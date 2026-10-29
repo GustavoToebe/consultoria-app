@@ -149,7 +149,7 @@ public class AnonimizacaoService {
         // A inscrição pelo link que virou este aluno (nome, contato, objetivo e notas) sai inteira.
         inscricao.apagarDoAluno(alunoId);
         ciclo.apagarNaAnonimizacao(alunoId);
-        // Compromissos da agenda presencial (data, local e a observação da equipe) saem todos.
+        // Agenda presencial: o aluno sai de todos os compromissos (o de aluno único é apagado) e os avisos dele também.
         agenda.apagarDoAluno(consultoriaId, alunoId);
         // Contratação encerrada, abertas canceladas e o texto livre do treinador sobre a cobrança apagado; valores ficam.
         pagamentos.encerrarPorSaida(alunoId);
