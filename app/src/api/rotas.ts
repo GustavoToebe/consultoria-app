@@ -38,7 +38,10 @@ import type {
   InscricaoPublicaRequest,
   PaginaInscricoes,
 } from './inscricoesTipos';
-import type { Compromisso, CompromissoDoAluno, CompromissoRequest, FiltroCompromissos, SituacaoCompromisso } from './agendaTipos';
+import type {
+  AlunoOcupado, AvisoDeCompromisso, CancelamentoRequest, Compromisso, CompromissoDoAluno, CompromissoRequest, EscopoDaSerie,
+  FiltroAlunosOcupados, FiltroCompromissos, SituacaoDoAlunoRequest,
+} from './agendaTipos';
 import type {
   Atualizacao,
   AtualizacaoDaLista,
@@ -428,12 +431,28 @@ export const listarCompromissos = (filtro: FiltroCompromissos) => {
   if (filtro.situacao) q.set('situacao', filtro.situacao);
   return requisicao<Compromisso[]>(`/agenda/compromissos?${q.toString()}`);
 };
+/** `?escopo=` só quando não é `ESTA` (o padrão da API); compromisso avulso aceita só `ESTA`. */
+const comEscopo = (caminho: string, escopo?: EscopoDaSerie) => (escopo && escopo !== 'ESTA' ? `${caminho}?escopo=${escopo}` : caminho);
+
+/** Marca o compromisso (com `repeticao`, a série inteira; responde com a primeira ocorrência). */
 export const criarCompromisso = (corpo: CompromissoRequest) =>
   requisicao<Compromisso>('/agenda/compromissos', { metodo: 'POST', corpo });
-export const alterarCompromisso = (id: string, corpo: CompromissoRequest) =>
-  requisicao<Compromisso>(`/agenda/compromissos/${seg(id)}`, { metodo: 'PUT', corpo });
-export const alterarSituacaoCompromisso = (id: string, situacao: SituacaoCompromisso, versao: number) =>
-  requisicao<Compromisso>(`/agenda/compromissos/${seg(id)}/situacao`, { metodo: 'POST', corpo: { situacao, versao } });
+/** Remarca: `alunoIds` troca a lista inteira; `repeticao` não vale aqui (400). */
+export const alterarCompromisso = (id: string, corpo: CompromissoRequest, escopo?: EscopoDaSerie) =>
+  requisicao<Compromisso>(comEscopo(`/agenda/compromissos/${seg(id)}`, escopo), { metodo: 'PUT', corpo });
+/** Cancela o compromisso inteiro (`cancelado: true`) ou o reabre (`false`). */
+export const alterarCancelamentoCompromisso = (id: string, corpo: CancelamentoRequest, escopo?: EscopoDaSerie) =>
+  requisicao<Compromisso>(comEscopo(`/agenda/compromissos/${seg(id)}/situacao`, escopo), { metodo: 'POST', corpo });
+/** A situação de um aluno no compromisso (realizado e falta só em `ESTA`, depois do início). */
+export const alterarSituacaoDoAluno = (id: string, alunoId: string, corpo: SituacaoDoAlunoRequest, escopo?: EscopoDaSerie) =>
+  requisicao<Compromisso>(comEscopo(`/agenda/compromissos/${seg(id)}/alunos/${seg(alunoId)}/situacao`, escopo), { metodo: 'POST', corpo });
+/** Quais alunos já têm outro compromisso que sobrepõe o horário (só aviso). */
+export const listarAlunosOcupados = (filtro: FiltroAlunosOcupados) => {
+  const q = new URLSearchParams({ data: filtro.data, hora: filtro.hora, duracaoMinutos: String(filtro.duracaoMinutos) });
+  for (const id of filtro.alunoIds) q.append('alunoIds', id);
+  if (filtro.ignorar) q.set('ignorar', filtro.ignorar);
+  return requisicao<AlunoOcupado[]>(`/agenda/compromissos/alunos-ocupados?${q.toString()}`);
+};
 
 // ---- Treinador: marca e configuração ----
 
@@ -710,6 +729,12 @@ export const salvarPlanoComoReceita =(tipo: TipoPlano, id: string, nome: string,
 
 /** Próximos compromissos presenciais do aluno (só leitura; sem observação). */
 export const compromissosDoAluno = () => requisicao<CompromissoDoAluno[]>('/aluno/compromissos');
+
+/** Avisos de compromisso não vistos do aluno (até 20, mais novos primeiro). */
+export const avisosDeCompromisso = () => requisicao<AvisoDeCompromisso[]>('/aluno/avisos-de-compromisso');
+/** Marca o aviso como visto (idempotente; 204). */
+export const marcarAvisoDeCompromissoVisto = (id: string) =>
+  requisicao<void>(`/aluno/avisos-de-compromisso/${seg(id)}/visto`, { metodo: 'POST' });
 
 export const painelAluno = () => requisicao<PainelAluno>('/aluno/painel');
 

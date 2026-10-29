@@ -1,6 +1,6 @@
 import { requisicao } from './cliente';
 import {
-  aceitarInscricao, alterarCompromisso, alterarSituacaoCompromisso, aplicarAlteracaoDaAnamnese, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
+  aceitarInscricao, alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, aplicarAlteracaoDaAnamnese, avisosDeCompromisso, listarAlunosOcupados, marcarAvisoDeCompromissoVisto, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
 } from './rotas';
 
@@ -60,14 +60,34 @@ describe('caminhos da API', () => {
     await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-09' })).resolves.toBe('/agenda/compromissos?de=2026-11-02&ate=2026-11-09');
     await expect(listarCompromissos({ de: '2026-11-02', ate: '2026-11-02', responsavel: 'u/1', situacao: 'CANCELADO' }))
       .resolves.toBe('/agenda/compromissos?de=2026-11-02&ate=2026-11-02&responsavel=u%2F1&situacao=CANCELADO');
-    const corpo = { alunoId: 'a', responsavelId: 'r', data: '2026-11-02', hora: '09:00', duracaoMinutos: 60, local: null, observacao: null };
+    const corpo = { alunoIds: ['a', 'b'], responsavelId: 'r', data: '2026-11-02', hora: '09:00', duracaoMinutos: 60, local: null, observacao: null };
     await criarCompromisso(corpo);
     expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos', { metodo: 'POST', corpo });
+    const serie = { ...corpo, repeticao: { tipo: 'SEMANAL' as const, diasDaSemana: ['MONDAY' as const], vezes: 4 } };
+    await criarCompromisso(serie);
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos', { metodo: 'POST', corpo: serie });
     await alterarCompromisso('../x', { ...corpo, versao: 2 });
     expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/..%2Fx', { metodo: 'PUT', corpo: { ...corpo, versao: 2 } });
-    await alterarSituacaoCompromisso('c1', 'REALIZADO', 3);
-    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/c1/situacao', { metodo: 'POST', corpo: { situacao: 'REALIZADO', versao: 3 } });
+    await alterarCompromisso('c1', { ...corpo, versao: 2 }, 'ESTA');
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/c1', { metodo: 'PUT', corpo: { ...corpo, versao: 2 } });
+    await alterarCompromisso('c1', { ...corpo, versao: 2 }, 'SEGUINTES');
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/c1?escopo=SEGUINTES', { metodo: 'PUT', corpo: { ...corpo, versao: 2 } });
+    await alterarCancelamentoCompromisso('c1', { cancelado: true, versao: 3 });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/c1/situacao', { metodo: 'POST', corpo: { cancelado: true, versao: 3 } });
+    await alterarCancelamentoCompromisso('c1', { cancelado: false, versao: 3 }, 'TODAS');
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/c1/situacao?escopo=TODAS', { metodo: 'POST', corpo: { cancelado: false, versao: 3 } });
+    await alterarSituacaoDoAluno('c1', 'a/1', { situacao: 'REALIZADO', versao: 3 });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/c1/alunos/a%2F1/situacao', { metodo: 'POST', corpo: { situacao: 'REALIZADO', versao: 3 } });
+    await alterarSituacaoDoAluno('c1', 'a1', { situacao: 'CANCELADO', versao: 3 }, 'SEGUINTES');
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/compromissos/c1/alunos/a1/situacao?escopo=SEGUINTES', { metodo: 'POST', corpo: { situacao: 'CANCELADO', versao: 3 } });
+    await expect(listarAlunosOcupados({ data: '2026-11-02', hora: '09:00', duracaoMinutos: 60, alunoIds: ['a', 'b'] }))
+      .resolves.toBe('/agenda/compromissos/alunos-ocupados?data=2026-11-02&hora=09%3A00&duracaoMinutos=60&alunoIds=a&alunoIds=b');
+    await expect(listarAlunosOcupados({ data: '2026-11-02', hora: '09:00', duracaoMinutos: 30, alunoIds: ['a'], ignorar: 'c/1' }))
+      .resolves.toBe('/agenda/compromissos/alunos-ocupados?data=2026-11-02&hora=09%3A00&duracaoMinutos=30&alunoIds=a&ignorar=c%2F1');
     await expect(compromissosDoAluno()).resolves.toBe('/aluno/compromissos');
+    await expect(avisosDeCompromisso()).resolves.toBe('/aluno/avisos-de-compromisso');
+    await marcarAvisoDeCompromissoVisto('av/1');
+    expect(requisicao).toHaveBeenLastCalledWith('/aluno/avisos-de-compromisso/av%2F1/visto', { metodo: 'POST' });
   });
 
   it('uuid comum passa igual', async () => {

@@ -24,9 +24,11 @@ function compromisso(id: string, alunoIdx: number, data: string, hora: string, e
   const fim = new Date(inicio.getTime() + 60 * 60_000);
   const horaFim = new Date(fim.getTime() - 3 * 3600_000).toISOString().slice(11, 16);
   return {
-    id, alunoId: ALUNOS[alunoIdx].id, alunoNome: ALUNOS[alunoIdx].nome, responsavelId: TREINADOR.id, responsavelNome: TREINADOR.nome,
+    id, responsavelId: TREINADOR.id, responsavelNome: TREINADOR.nome,
+    participantes: [{ id: ALUNOS[alunoIdx].id, nome: ALUNOS[alunoIdx].nome, situacao: 'AGENDADO' }], cancelado: false,
+    serieId: null, ocorrenciaDaSerie: null, totalDaSerie: null,
     inicio: inicio.toISOString(), fim: fim.toISOString(), data, hora, horaFim, duracaoMinutos: 60, local: 'Sala 2',
-    observacao: 'Observação fictícia', situacao: 'AGENDADO', versao: 0, ...extra,
+    observacao: 'Observação fictícia', versao: 0, ...extra,
   };
 }
 
@@ -110,8 +112,8 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 
       const envios = pedidos.filter((p) => p.metodo === 'POST' && p.caminho === '/agenda/compromissos');
       expect(envios.map((p) => p.corpo)).toEqual([
-        { alunoId: ALUNOS[1].id, responsavelId: TREINADOR.id, data: '2026-10-19', hora: '09:30', duracaoMinutos: 60, local: null, observacao: null },
-        { alunoId: ALUNOS[1].id, responsavelId: TREINADOR.id, data: '2026-10-19', hora: '10:00', duracaoMinutos: 60, local: null, observacao: null },
+        { alunoIds: [ALUNOS[1].id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '09:30', duracaoMinutos: 60, local: null, observacao: null },
+        { alunoIds: [ALUNOS[1].id], responsavelId: TREINADOR.id, data: '2026-10-19', hora: '10:00', duracaoMinutos: 60, local: null, observacao: null },
       ]);
       expect(naoTratadas).toEqual([]);
       expect(errosDaPagina).toEqual([]);
@@ -122,11 +124,14 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 test('detalhe: marcar realizado e cancelar com confirmação', async ({ page }) => {
   const lista = [compromisso('k1', 0, '2026-10-19', '09:00'), compromisso('k3', 1, '2026-10-20', '15:00')];
   const { naoTratadas, errosDaPagina, pedidos } = await abrirComoTreinador(page, lista, ['AGENDA_LER', 'AGENDA_ALTERAR'], {
-    'POST /agenda/compromissos/{id}/situacao': (p, route) => {
-      const id = p.caminho.split('/').at(-2) ?? '';
-      const { situacao } = p.corpo as { situacao: Compromisso['situacao'] };
+    'POST /agenda/compromissos/{id}/alunos/{alunoId}/situacao': (p, route) => {
+      const id = p.caminho.split('/').at(-4) ?? '';
+      const { situacao } = p.corpo as { situacao: Compromisso['participantes'][number]['situacao'] };
       const i = lista.findIndex((c) => c.id === id);
-      lista[i] = { ...lista[i], situacao, versao: lista[i].versao + 1 };
+      lista[i] = {
+        ...lista[i], cancelado: situacao === 'CANCELADO', participantes: lista[i].participantes.map((a) => ({ ...a, situacao })),
+        versao: lista[i].versao + 1,
+      };
       return json(route, lista[i]);
     },
   });
@@ -155,8 +160,8 @@ test('detalhe: marcar realizado e cancelar com confirmação', async ({ page }) 
 
   const situacoes = pedidos.filter((p) => p.caminho.endsWith('/situacao')).map((p) => [p.caminho, p.corpo]);
   expect(situacoes).toEqual([
-    ['/agenda/compromissos/k1/situacao', { situacao: 'REALIZADO', versao: 0 }],
-    ['/agenda/compromissos/k3/situacao', { situacao: 'CANCELADO', versao: 0 }],
+    [`/agenda/compromissos/k1/alunos/${ALUNOS[0].id}/situacao`, { situacao: 'REALIZADO', versao: 0 }],
+    [`/agenda/compromissos/k3/alunos/${ALUNOS[1].id}/situacao`, { situacao: 'CANCELADO', versao: 0 }],
   ]);
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);

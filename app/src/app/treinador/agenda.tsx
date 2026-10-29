@@ -5,8 +5,8 @@ import type { Compromisso } from '../../api/agendaTipos';
 import { listarAtualizacoes, listarCompromissos, painelTreinador, responsaveisEquipe } from '../../api/rotas';
 import { resumoDeAtrasadas } from '../../dominio/agenda';
 import {
-  deslocarReferencia, diasDaAgenda, hojeEmBrasilia, lerDataDeReferencia, lerSituacao, lerVisao, metadadosDoCompromisso, OPCOES_SITUACAO,
-  periodoDaVisao, resumoDoDia, seloDaSituacao, tituloDoPeriodo, type VisaoDaAgenda,
+  deslocarReferencia, diasDaAgenda, hojeEmBrasilia, lerDataDeReferencia, lerSituacao, lerVisao, metadadosDoCompromisso, nomesDosParticipantes,
+  OPCOES_SITUACAO, periodoDaVisao, resumoDoDia, seloDoCompromisso, tituloDoPeriodo, type VisaoDaAgenda,
 } from '../../dominio/agendaPresencial';
 import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, statusAtualizacaoTreinador } from '../../dominio/atualizacao';
 import { FolhaCompromisso } from '../../treinador/agenda/FolhaCompromisso';
@@ -150,10 +150,10 @@ export default function AgendaDoTreinador() {
       cabecalho={<CabecalhoDeGrupo titulo={dia.titulo} resumo={resumoDoDia(dia.compromissos.length, dia.atualizacoes.length)} />}>
       {dia.compromissos.length || dia.atualizacoes.length ? <ListaDeLinhas>
         {dia.compromissos.map((c) => {
-          const selo = seloDaSituacao(c.situacao);
-          const nome = c.alunoNome ?? 'Aluno';
+          const selo = seloDoCompromisso(c);
+          const nome = nomesDosParticipantes(c);
           return <LinhaDaLista key={`c:${c.id}`} titulo={nome} metadados={metadadosDoCompromisso(c)} selos={[selo]}
-            esmaecido={c.situacao === 'CANCELADO'} aoTocarTextos={() => setAberto(c)}
+            esmaecido={c.cancelado} aoTocarTextos={() => setAberto(c)}
             acoes={<Botao rotulo="Abrir" tipo="secundario" rotuloAcessivel={`Abrir compromisso de ${nome}, ${c.hora}`} aoTocar={() => setAberto(c)} />} />;
         })}
         {dia.atualizacoes.map((a) => {

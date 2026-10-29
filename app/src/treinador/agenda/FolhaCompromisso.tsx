@@ -4,10 +4,10 @@ import { StyleSheet, View } from 'react-native';
 
 import type { Compromisso, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ResponsavelEquipe } from '../../api/equipeTipos';
-import { alterarCompromisso, alterarSituacaoCompromisso, criarCompromisso, listarAlunos } from '../../api/rotas';
+import { alterarCompromisso, alterarSituacaoDoAluno, criarCompromisso, listarAlunos } from '../../api/rotas';
 import {
   acoesDeSituacao, conflitoNaLista, DURACOES_SUGERIDAS, type ErrosDoCompromisso, type FormularioDoCompromisso, formularioDoCompromisso,
-  formularioNovo, intervaloDoPedido, LIMITES_COMPROMISSO, mascaraHora, pedidoDoFormulario, seloDaSituacao, textoDaDuracao, textoDoHorario,
+  formularioNovo, intervaloDoPedido, LIMITES_COMPROMISSO, mascaraHora, nomesDosParticipantes, pedidoDoFormulario, seloDoCompromisso, textoDaDuracao, textoDoHorario,
   type AcaoDeSituacao,
 } from '../../dominio/agendaPresencial';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
@@ -78,13 +78,15 @@ function Detalhe({ compromisso: c, hoje, aoEditar, aoMudar }: { compromisso: Com
   const [confirmar, setConfirmar] = useState<AcaoDeSituacao | null>(null);
   const [enviando, setEnviando] = useState<SituacaoCompromisso | null>(null);
   const [erro, setErro] = useState<unknown>(null);
-  const selo = seloDaSituacao(c.situacao);
+  const selo = seloDoCompromisso(c);
+  // Provisório até a folha de vários alunos (passo 8): a situação é do aluno quando há um só.
+  const unico = c.participantes.length === 1 ? c.participantes[0] : null;
 
   const mudar = async (situacao: SituacaoCompromisso) => {
     setEnviando(situacao);
     setErro(null);
     try {
-      aoMudar(await alterarSituacaoCompromisso(c.id, situacao, c.versao));
+      if (unico) aoMudar(await alterarSituacaoDoAluno(c.id, unico.id, { situacao, versao: c.versao }));
       setConfirmar(null);
     } catch (e) {
       setErro(e);
@@ -97,7 +99,7 @@ function Detalhe({ compromisso: c, hoje, aoEditar, aoMudar }: { compromisso: Com
   return (
     <View style={estilos.coluna}>
       <View style={estilos.linhaSelo}>
-        <Texto variante="bloco">{c.alunoNome ?? 'Aluno'}</Texto>
+        <Texto variante="bloco">{nomesDosParticipantes(c)}</Texto>
         <Selo texto={selo.texto} tipo={selo.tipo} />
       </View>
       <CampoLeitura rotulo="Quando" valor={`${rotuloDoDia(c.data, hoje)}, ${dataSemAnoCorrente(c.data, hoje)} · ${textoDoHorario(c)}`} />
@@ -105,12 +107,12 @@ function Detalhe({ compromisso: c, hoje, aoEditar, aoMudar }: { compromisso: Com
       <CampoLeitura rotulo="Local" valor={c.local} />
       <CampoLeitura rotulo="Responsável" valor={c.responsavelNome ?? (c.responsavelId ? 'Membro inativo' : null)} />
       {pode('ALUNO_SENSIVEL_LER') ? <CampoLeitura rotulo="Observação" valor={c.observacao} /> : null}
-      {pode('ALUNO_LER') ? <LinkTexto texto="Abrir ficha do aluno" href={`/treinador/alunos/${c.alunoId}` as Href} /> : null}
+      {pode('ALUNO_LER') && unico ? <LinkTexto texto="Abrir ficha do aluno" href={`/treinador/alunos/${unico.id}` as Href} /> : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
       {podeAlterar ? (
         <LinhaDeAcoes>
           <Botao rotulo="Editar" tipo="secundario" aoTocar={aoEditar} />
-          {acoesDeSituacao(c).map((a) => (
+          {(unico ? acoesDeSituacao({ situacao: unico.situacao, inicio: c.inicio }) : []).map((a) => (
             <Botao key={a.situacao} rotulo={a.rotulo} tipo={a.perigo ? 'perigoTexto' : 'secundario'} desabilitado={!!a.motivo || enviando !== null}
               motivo={a.motivo ?? (enviando !== null ? 'Salvando.' : undefined)} carregando={enviando === a.situacao}
               aoTocar={() => (a.confirmar ? setConfirmar(a) : void mudar(a.situacao))} />
@@ -146,7 +148,7 @@ function Formulario({ compromisso, dataSugerida, responsaveis, carregados, aoCan
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
   const [pagina, setPagina] = useState(0);
-  const [nomeDoAluno, setNomeDoAluno] = useState<string | null>(compromisso?.alunoNome ?? null);
+  const [nomeDoAluno, setNomeDoAluno] = useState<string | null>(compromisso?.participantes[0]?.nome ?? null);
   const alunos = useCarregar(`agenda-alunos:${buscaAtrasada}:${pagina}`, () => listarAlunos({ busca: buscaAtrasada, pagina, situacao: 'ATIVO' }));
   const itens = alunos.dados?.itens ?? [];
   const temMais = !!alunos.dados && pagina * TAMANHO_PAGINA + itens.length < alunos.dados.total;
@@ -179,9 +181,9 @@ function Formulario({ compromisso, dataSugerida, responsaveis, carregados, aoCan
 
   return (
     <View style={estilos.coluna}>
-      <EscolhaEmFolha rotulo="Aluno" titulo="Escolher aluno" valor={form.alunoId} rotuloDoValor={nomeDoAluno ?? 'Escolher'}
+      <EscolhaEmFolha rotulo="Aluno" titulo="Escolher aluno" valor={form.alunoIds[0] ?? ''} rotuloDoValor={nomeDoAluno ?? 'Escolher'}
         opcoes={itens.map((a) => ({ valor: a.id, rotulo: a.nome }))}
-        aoMudar={(id) => { mudar('alunoId', id); setNomeDoAluno(itens.find((a) => a.id === id)?.nome ?? null); }}
+        aoMudar={(id) => { mudar('alunoIds', [id]); setNomeDoAluno(itens.find((a) => a.id === id)?.nome ?? null); }}
         busca={{ valor: busca, rotulo: 'Buscar aluno', aoMudar: (v) => { setBusca(v); setPagina(0); } }}
         textoVazio="Nenhum aluno ativo encontrado." carregando={alunos.carregando}
         rodape={<>
@@ -191,7 +193,7 @@ function Formulario({ compromisso, dataSugerida, responsaveis, carregados, aoCan
           </LinhaDeAcoes> : null}
           {alunos.erro ? <MensagemErro texto={textoDoErro(alunos.erro)} tentarDeNovo={alunos.recarregar} /> : null}
         </>} />
-      {erros.alunoId ? <ErroDoCampo texto={erros.alunoId} /> : null}
+      {erros.alunoIds ? <ErroDoCampo texto={erros.alunoIds} /> : null}
       <EscolhaEmFolha rotulo="Responsável" titulo="Escolher responsável" valor={form.responsavelId} opcoes={opcoesResponsavel}
         rotuloDoValor={compromisso?.responsavelNome ?? 'Escolher'} aoMudar={(id) => mudar('responsavelId', id)}
         textoVazio="Nenhum membro ativo na equipe." />
