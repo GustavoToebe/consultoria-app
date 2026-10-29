@@ -9,6 +9,8 @@ import br.com.treinos.api.atualizacoes.AtualizacaoRepository;
 import br.com.treinos.api.auditoria.Auditar;
 import br.com.plataforma.comum.auth.Autenticador;
 import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.dieta.PlanoDietaRepository;
 import br.com.treinos.api.dieta.PlanoDietaVersaoRepository;
 import br.com.treinos.api.execucao.RegistroPesoRepository;
@@ -43,6 +45,7 @@ import java.util.UUID;
 public class AnonimizacaoService {
 
     private final AlunoRepository alunos;
+    private final ConsultoriaRepository consultorias;
     private final UsuarioRepository usuarios;
     private final Autenticador autenticador;
     private final PasswordEncoder senhas;
@@ -61,7 +64,7 @@ public class AnonimizacaoService {
     private final br.com.treinos.api.agenda.AgendaService agenda;
     private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
 
-    public AnonimizacaoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
+    public AnonimizacaoService(AlunoRepository alunos, ConsultoriaRepository consultorias, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
                                LesaoRepository lesoes, AtualizacaoRepository atualizacoes, PlanoDietaRepository dietas,
                                PlanoDietaVersaoRepository versoesDeDieta, AnonimizacaoRepositorio nativo,
@@ -77,6 +80,7 @@ public class AnonimizacaoService {
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
         this.alunos = alunos;
+        this.consultorias = consultorias;
         this.usuarios = usuarios;
         this.autenticador = autenticador;
         this.senhas = senhas;
@@ -117,7 +121,16 @@ public class AnonimizacaoService {
         apagar(buscar(alunoId));
     }
 
+    /**
+     * Trava a consultoria e só então o aluno ({@code buscarParaAlterar}), a mesma ordem do {@code AlunoService}: a agenda
+     * trava a consultoria e depois insere participantes (FK para o aluno), e a anonimização escreve na agenda
+     * ({@code agenda.apagarDoAluno}); travar o aluno primeiro cruzaria as duas travas em círculo (D18). Vale para o
+     * treinador e para "Excluir minha conta", que passa por aqui.
+     */
     private Aluno buscar(UUID alunoId) {
+        if (consultorias.travar(TenantContext.get()).isEmpty()) {
+            throw new NaoEncontradoException("Consultoria não encontrada.");
+        }
         Aluno aluno = alunos.buscarParaAlterar(alunoId).orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
         if (aluno.isAnonimizado()) {
             throw new ConflictException("Este aluno já foi anonimizado.", "ALUNO_ANONIMIZADO");
@@ -149,7 +162,7 @@ public class AnonimizacaoService {
         // A inscrição pelo link que virou este aluno (nome, contato, objetivo e notas) sai inteira.
         inscricao.apagarDoAluno(alunoId);
         ciclo.apagarNaAnonimizacao(alunoId);
-        // Compromissos da agenda presencial (data, local e a observação da equipe) saem todos.
+        // Agenda presencial: o aluno sai de todos os compromissos (o de aluno único é apagado) e os avisos dele também.
         agenda.apagarDoAluno(consultoriaId, alunoId);
         // Contratação encerrada, abertas canceladas e o texto livre do treinador sobre a cobrança apagado; valores ficam.
         pagamentos.encerrarPorSaida(alunoId);

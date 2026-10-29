@@ -59,6 +59,7 @@ public class ExportacaoService {
     private final JsonMapper json;
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
     private final br.com.treinos.api.agenda.AgendaService agenda;
+    private final br.com.treinos.api.agenda.AvisosDeCompromissoService avisosDeCompromisso;
     private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
@@ -71,8 +72,10 @@ public class ExportacaoService {
                              br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos, JsonMapper json,
                              br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
                              br.com.treinos.api.agenda.AgendaService agenda,
+                             br.com.treinos.api.agenda.AvisosDeCompromissoService avisosDeCompromisso,
                              br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas) {
         this.agenda = agenda;
+        this.avisosDeCompromisso = avisosDeCompromisso;
         this.avaliacoesFisicas = avaliacoesFisicas;
         this.anamneses = anamneses;
         this.inscricao = inscricao;
@@ -137,11 +140,15 @@ public class ExportacaoService {
         if (cicloMenstrual == null) {
             omitidas.add("cicloMenstrual");
         }
-        // Compromissos da agenda presencial (com a observação da equipe), com quem lê a agenda (AGENDA_LER).
+        // Compromissos da agenda presencial do aluno (situação dele, sem os nomes dos outros; observação só se ele é o
+        // único participante), com quem lê a agenda (AGENDA_LER).
         var compromissos = secao(AcessoAtual.pode("AGENDA_LER"), "compromissos", omitidas, () -> agenda.exportar(alunoId));
+        // Os avisos de compromisso dele (só tipo, data do compromisso e datas de criação e de visto), com a mesma permissão.
+        var avisos = secao(AcessoAtual.pode("AGENDA_LER"), "avisosDeCompromisso", omitidas,
+                () -> avisosDeCompromisso.exportar(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
-                cicloMenstrual, compromissos, avaliacaoFisica);
+                cicloMenstrual, compromissos, avisos, avaliacaoFisica);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

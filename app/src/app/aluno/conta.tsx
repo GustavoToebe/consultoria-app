@@ -7,6 +7,7 @@ import { CartaoUsoDeImagem } from '../../aluno/CartaoUsoDeImagem';
 import { CartaoCiclo } from '../../aluno/CartaoCiclo';
 import { CartaoFotoDePerfil } from '../../aluno/CartaoFotoDePerfil';
 import { CartaoMeusDados } from '../../aluno/CartaoMeusDados';
+import { InterruptorDeLembretesDeCompromisso } from '../../aluno/compromissos/InterruptorDeLembretesDeCompromisso';
 import { CartaoMeuPlano } from '../../aluno/financeiro/CartaoMeuPlano';
 import { useRetornoDoPagamento } from '../../aluno/financeiro/useRetornoDoPagamento';
 import { SeloSincronizacao } from '../../aluno/SeloSincronizacao';
@@ -87,7 +88,7 @@ export default function ContaAluno() {
       <CartaoUsoDeImagem />
       <CartaoExcluirConta />
       <Folha visivel={preferencias} titulo="Aparência e preferências" aoFechar={() => abrirPreferencias(false)}>
-        <PreferenciasDoApp comTitulo={false} />
+        <PreferenciasDoApp comTitulo={false} extras={<InterruptorDeLembretesDeCompromisso />} />
       </Folha>
     </Tela>
   );

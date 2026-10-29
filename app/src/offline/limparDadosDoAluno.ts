@@ -1,6 +1,7 @@
 import { esquecerConfiguracaoDeFotos } from '../aluno/atualizacao/fotos/configuracaoSalva';
 import { apagarTodasAsFotosLocais } from '../aluno/atualizacao/fotos/fotosLocais';
 import { cancelarLembretesAtualizacao } from '../aluno/atualizacao/lembretes';
+import { encerrarLembretesDeCompromisso } from '../aluno/compromissos/lembretes';
 import type { MotivoDoEncerramento } from '../dominio/encerrarSessaoLocal';
 import { novoUid } from '../dominio/uid';
 import { abrirRepositorio } from './abrirRepositorio';
@@ -9,7 +10,7 @@ import type { RepositorioLocal } from './repositorioLocal';
 
 /**
  * Limpa do aparelho o que é do aluno quando a sessão acaba. Em `sair` não sobra nada. Em `recusada` (o servidor
- * derrubou a sessão) saem lembretes, fotos locais, configuração de fotos, plano, dieta, mobilidade e rascunhos, e fica só
+ * derrubou a sessão) saem lembretes (de atualização e de compromisso), fotos locais, configuração de fotos, plano, dieta, mobilidade e rascunhos, e fica só
  * a fila de registros ainda não enviados, para o mesmo aluno enviar ao entrar de novo (`DIAS_FILA_RETIDA`).
  * `repositorio` é o já aberto pelo `AlunoProvider`; sem ele (abertura do app com a sessão já recusada) abre o do usuário.
  */
@@ -19,6 +20,7 @@ export async function limparDadosDoAluno(
   repositorio?: RepositorioLocal,
 ): Promise<void> {
   await cancelarLembretesAtualizacao(usuarioId).catch(() => undefined);
+  await encerrarLembretesDeCompromisso(usuarioId).catch(() => undefined);
   await apagarTodasAsFotosLocais(usuarioId).catch(() => undefined);
   await esquecerConfiguracaoDeFotos(usuarioId);
   const alvo = repositorio ?? abrirRepositorio(usuarioId, novoUid);

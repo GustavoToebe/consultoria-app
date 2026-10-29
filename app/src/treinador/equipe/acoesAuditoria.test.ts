@@ -13,7 +13,7 @@ test('publicar e copiar plano para outro aluno têm rótulo no filtro da auditor
 });
 
 test('ações da inscrição por link têm rótulo no filtro da auditoria', () => {
-  for (const acao of ['INSCRICAO_ACEITA', 'INSCRICAO_RECUSADA', 'INSCRICAO_ALTERADA', 'INSCRICAO_PAGAMENTO_CONFIRMADO', 'INSCRICAO_NOTA_ADICIONADA', 'INSCRICAO_CONFIGURACAO_ALTERADA', 'INSCRICAO_LINK_RENOVADO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+  for (const acao of ['INSCRICAO_ACEITA', 'INSCRICAO_RECUSADA', 'INSCRICAO_ALTERADA', 'INSCRICAO_PAGAMENTO_CONFIRMADO', 'INSCRICAO_NOTA_ADICIONADA', 'INSCRICAO_CONFIGURACAO_ALTERADA', 'INSCRICAO_LINK_RENOVADO', 'INSCRICAO_ENCERRADA', 'INSCRICAO_REABERTA', 'INSCRICAO_PROPOSTA_ALTERADA', 'INSCRICAO_RELACIONADA', 'INSCRICAO_RELACAO_DESFEITA', 'INSCRICAO_ORIGEM_ALTERADA', 'INSCRICAO_MODELO_CRIADO', 'INSCRICAO_MODELO_ALTERADO', 'INSCRICAO_MODELO_EXCLUIDO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
 
 test('ações do financeiro têm rótulo no filtro da auditoria', () => {
@@ -26,4 +26,8 @@ test('ações do recebimento online (InfinitePay) têm rótulo no filtro da audi
 
 test('ações da avaliação física têm rótulo no filtro da auditoria', () => {
   for (const acao of ['AVALIACAO_FISICA_REGISTRADA', 'AVALIACAO_FISICA_ALTERADA', 'AVALIACAO_FISICA_EXCLUIDA']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});
+
+test('ações das agendas pessoais e dos eventos têm rótulo no filtro da auditoria', () => {
+  for (const acao of ['AGENDA_PESSOAL_CRIADA', 'AGENDA_PESSOAL_ALTERADA', 'AGENDA_PESSOAL_APAGADA', 'EVENTO_CRIADO', 'EVENTO_ALTERADO', 'EVENTO_EXCLUIDO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });

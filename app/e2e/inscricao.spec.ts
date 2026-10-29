@@ -2,12 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 
 import type { AceiteInscricao, InscricaoDetalhe, InscricaoResumo, PaginaInscricoes } from '../src/api/inscricoesTipos';
 import { erroApi, json, MARCA, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
-
-const CODIGO = 'codigo-de-teste-abcdefghijk';
+import { CODIGO, contagensFalsas, detalheFalso, resumoFalso, rotasDaTela } from './inscricoes-falsas';
 
 test('inscrição pública: confere os campos, exige a ciência do texto e mostra a mensagem neutra depois do envio', async ({ page }) => {
   const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
-    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: { consultoria: MARCA, texto: 'Usamos seus dados só para falar com você.', aberta: true } },
+    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: { consultoria: MARCA, texto: 'Usamos seus dados só para falar com você.', textoVersao: 'versao-1', aberta: true } },
     [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição. A equipe vai falar com você.' } },
   });
   await page.goto(`/inscricao/${CODIGO}`);
@@ -39,7 +38,13 @@ test('inscrição pública: confere os campos, exige a ciência do texto e mostr
     email: null,
     objetivo: 'Ganhar condicionamento.',
     observacao: null,
+    interesse: null,
+    modalidade: null,
+    previsaoInicio: null,
+    origem: null,
+    origemLink: null,
     cienciaPrivacidade: true,
+    textoVersao: 'versao-1',
   });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
@@ -57,32 +62,21 @@ test('inscrição pública: link desligado ou inexistente mostra o erro, sem for
 const INSCRICAO_ID = 'i0000000-0000-4000-8000-000000000001';
 const ALUNO_NOVO = 'a0000000-0000-4000-8000-000000000099';
 
-const resumo: InscricaoResumo = {
+const resumo: InscricaoResumo = resumoFalso(1, {
   id: INSCRICAO_ID,
   nome: 'Pessoa Interessada',
   objetivo: 'Hipertrofia',
-  whatsapp: '(11) 98765-4321',
   email: 'interessada@exemplo.test',
-  situacao: 'NOVA',
-  pagamento: 'NAO_CONTROLADO',
   responsavelId: TREINADOR.id,
   responsavelNome: TREINADOR.nome,
-  alunoId: null,
-  criadaEm: '2026-10-18T13:00:00Z',
-  duplicidade: { alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 1 },
-};
+  versao: 3,
+  duplicidade: { alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 1, outrasInscricoesAnteriores: 0 },
+});
 
-const detalhe: InscricaoDetalhe = {
-  ...resumo,
-  observacao: null,
+const detalhe: InscricaoDetalhe = detalheFalso(resumo, {
   cienciaEm: '2026-10-18T13:00:00Z',
   cienciaTexto: 'Texto da consultoria.',
-  pagamentoConfirmadoPorNome: null,
-  pagamentoConfirmadoEm: null,
-  atualizadaEm: '2026-10-18T13:00:00Z',
-  versao: 3,
-  notas: [],
-};
+});
 
 const Q_GERAL = 'q0000000-0000-4000-8000-000000000001';
 const Q_ESPORTIVA = 'q0000000-0000-4000-8000-000000000002';
@@ -92,11 +86,7 @@ async function abrirAceite(page: Page, aceite: AceiteInscricao, extras: Resposta
   const pagina: PaginaInscricoes = { itens: [resumo], total: 1 };
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR)),
-    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
-    'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
-    'GET /inscricoes/configuracao': {
-      corpo: { aberta: true, codigo: CODIGO, link: `https://consultoria.exemplo.test/inscricao/${CODIGO}`, responsavelId: TREINADOR.id, texto: null, versao: 2 },
-    },
+    ...rotasDaTela({ 'GET /inscricoes/contagens': { corpo: contagensFalsas({ NOVA: 1 }) } }),
     'GET /inscricoes': (p, route) => json(route, p.busca.get('situacao') === 'ABERTAS' ? pagina : { itens: [], total: 0 }),
     [`GET /inscricoes/${INSCRICAO_ID}`]: { corpo: detalhe },
     'GET /questionarios/opcoes': (p, route) => json(route, p.busca.get('finalidade') === 'ANAMNESE'

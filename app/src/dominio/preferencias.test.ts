@@ -1,5 +1,6 @@
 import { contraste, CLARO, ESCURO } from '../tema/tokens';
 import {
+  AGENDAS_OCULTAS_MAXIMO,
   coresComContraste,
   escalar,
   fatorDoTexto,
@@ -15,7 +16,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'] };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -26,6 +27,23 @@ describe('preferências pessoais', () => {
     expect(normalizarPreferencias({ mostrarFasesDoCiclo: 'sim' }).mostrarFasesDoCiclo).toBe(true);
     expect(normalizarPreferencias({ mostrarFasesDoCiclo: false }).mostrarFasesDoCiclo).toBe(false);
     expect(normalizarPreferencias({ logoNaComparacao: false }).logoNaComparacao).toBe(false);
+  });
+
+  it('lembretes de compromisso: desligados por padrão; só um booleano os liga', () => {
+    expect(PREFERENCIAS_PADRAO.lembretesCompromisso).toBe(false);
+    expect(normalizarPreferencias({ lembretesCompromisso: true }).lembretesCompromisso).toBe(true);
+    for (const v of ['sim', 1, null]) expect(normalizarPreferencias({ lembretesCompromisso: v }).lembretesCompromisso).toBe(false);
+  });
+
+  it('agendas ocultas: nenhuma por padrão; só lista de textos, sem repetir, vazio nem texto enorme; o resto volta a nenhuma', () => {
+    expect(PREFERENCIAS_PADRAO.agendasOcultas).toEqual([]);
+    expect(normalizarPreferencias({ agendasOcultas: ['atualizacoes', 'a1', 'a1', '', 7, null, 'x'.repeat(65), 'b2'] }).agendasOcultas)
+      .toEqual(['atualizacoes', 'a1', 'b2']);
+    for (const v of ['a1', 1, { a: 1 }, null, true]) expect(normalizarPreferencias({ agendasOcultas: v }).agendasOcultas).toEqual([]);
+    const muitas = Array.from({ length: 200 }, (_, i) => `a${i}`);
+    expect(normalizarPreferencias({ agendasOcultas: muitas }).agendasOcultas).toEqual(muitas.slice(0, AGENDAS_OCULTAS_MAXIMO));
+    // Não poda por existência: o id fica guardado até a lista de agendas dizer que sumiu (a leitura pode ter falhado).
+    expect(normalizarPreferencias(JSON.stringify({ agendasOcultas: ['id-que-nao-existe-mais'] })).agendasOcultas).toEqual(['id-que-nao-existe-mais']);
   });
 
   it('pdf da dieta: valor inválido volta a simples, 7 dias e fatores ligados', () => {

@@ -1,29 +1,59 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { Copy, MessageCircle } from 'lucide-react-native';
-import { useState } from 'react';
+import { Check, Copy, MessageCircle, MessageSquareText } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import type { ResponsavelEquipe } from '../../api/equipeTipos';
-import type { AceiteInscricao, InscricaoDetalhe, PagamentoInscricao, SituacaoInscricao } from '../../api/inscricoesTipos';
-import { aceitarInscricao, alterarInscricao, inscricao, notaNaInscricao, opcoesDeQuestionario, recusarInscricao } from '../../api/rotas';
+import type {
+  AceiteInscricao,
+  Encerramento,
+  InscricaoDetalhe,
+  MotivoEncerramento,
+  Origem,
+  PagamentoInscricao,
+  SituacaoInscricao,
+} from '../../api/inscricoesTipos';
+import {
+  aceitarInscricao,
+  alterarInscricao,
+  encerrarInscricao,
+  inscricao,
+  notaNaInscricao,
+  opcoesDeQuestionario,
+  origemDaInscricao,
+  reabrirInscricao,
+} from '../../api/rotas';
 import type { OpcaoQuestionario } from '../../api/tipos';
-import { dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
+import { centavosParaTela, dataHoraParaTela, SEM_DADO } from '../../dominio/formatos';
 import { rotuloDoSexo } from '../../dominio/sexo';
 import {
   alunoDoConflito,
   anamneseInicialDoAceite,
+  ENCERRAMENTOS,
+  estaEncerradaSemAluno,
+  INTERESSES,
   LIMITES_INSCRICAO,
   linkDoWhatsApp,
+  MODALIDADES_DESEJADAS,
+  OPCOES_MOTIVO,
+  OPCOES_ORIGEM,
   OPCOES_PAGAMENTO,
   opcoesDeAnamneseDoAceite,
+  ORIGENS_INFORMADAS,
+  PERIODICIDADES,
   podeAceitar,
-  podeRecusar,
+  podeEncerrar,
+  podeReabrir,
+  PREVISOES,
+  rotuloDaOrigem,
+  rotuloDoMotivo,
+  rotuloOpcional,
   seloDaSituacao,
   seloDoPagamento,
   situacoesDoAndamento,
-  textoDaDuplicidade,
+  temProposta,
 } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -46,37 +76,63 @@ import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAvisoDoPlano } from '../../ui/useAvisoDoPlano';
 import { useCarregar } from '../../ui/useCarregar';
+import type { Executar } from './executar';
+import { HistoricoDaInscricao } from './HistoricoDaInscricao';
+import { PropostaDaInscricao } from './PropostaDaInscricao';
+import { RespostaComModelo } from './RespostaComModelo';
+import { RetornosDaInscricao } from './RetornosDaInscricao';
+import { SemelhantesDaInscricao } from './SemelhantesDaInscricao';
 
 const SEM_RESPONSAVEL = '';
+const SEM_ORIGEM = '';
+
+/** O que abrir junto com a folha (Kanban): a confirmação do aceite, do encerramento (com a situação) ou da reabertura. */
+export type PedidoDaFolha = { tipo: 'aceitar' } | { tipo: 'encerrar'; situacao: Encerramento } | { tipo: 'reabrir' };
 
 /**
- * Uma inscrição aberta na fila: dados que a pessoa mandou, aviso de possível duplicidade, "Abrir WhatsApp" (sem texto
- * pré-preenchido: abrir não quer dizer que a mensagem foi enviada), andamento (situação, pagamento manual e
- * responsável), notas da equipe, Aceitar (cria o aluno e, se marcado, o convite de acesso) e Recusar. A API confere
- * permissão e versão em tudo; aqui só se escolhe o que mostrar.
+ * Uma inscrição aberta na fila: dados que a pessoa mandou, possível duplicidade e "mesma pessoa", contato pelo WhatsApp
+ * (com ou sem resposta pronta: o app só prepara, a pessoa envia), proposta negociada, andamento, retornos, histórico com
+ * as notas, Aceitar (cria o aluno e, se marcado, o convite e a anamnese), Encerrar (recusa ou desistência, com motivo) e
+ * Reabrir. A API confere permissão e versão em tudo; aqui só se escolhe o que mostrar.
  */
-export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
+export function FolhaDaInscricao({ id, pedidoInicial, responsaveis, aoFechar, aoMudar, aoAbrirOutra }: {
   id: string | null;
+  /** Confirmação que já abre com a folha (vem do Kanban). */
+  pedidoInicial?: PedidoDaFolha | null;
   responsaveis: readonly ResponsavelEquipe[];
   aoFechar: () => void;
   /** A lista recarrega depois de qualquer alteração. */
   aoMudar: () => void;
+  /** Abrir outra inscrição (semelhante ou relacionada) no lugar desta. */
+  aoAbrirOutra: (id: string) => void;
 }) {
   const { pode } = useSessao();
   const detalhe = useCarregar(id ? `inscricao:${id}` : null, () => inscricao(id ?? ''));
   const dados = detalhe.dados && detalhe.dados.id === id ? detalhe.dados : null;
-  // A decisão (Aceitar/Recusar) fica no rodapé fixo da folha, sempre ao alcance; a confirmação continua no conteúdo.
-  const [pedido, setPedido] = useState<Decisao | null>(null);
-  const [decidindo, setDecidindo] = useState<Decisao | null>(null);
+  // A decisão (Aceitar/Encerrar/Reabrir) fica no rodapé fixo da folha, sempre ao alcance; a confirmação, no conteúdo.
+  const [pedido, setPedido] = useState<PedidoDaFolha | null>(pedidoInicial ?? null);
+  const [decidindo, setDecidindo] = useState<PedidoDaFolha['tipo'] | null>(null);
   const [aceitaId, setAceitaId] = useState<string | null>(null);
+  // Outra inscrição aberta: a decisão em andamento era da anterior e não vale para esta (o Kanban pode mandar outra).
+  const [idVisto, setIdVisto] = useState(id);
+  if (idVisto !== id) {
+    setIdVisto(id);
+    setPedido(id ? pedidoInicial ?? null : null);
+    setDecidindo(null);
+  }
+  // Nota digitada e ainda não acrescentada, por inscrição: fechar e abrir de novo (ou salvar o andamento) não a perde.
+  // Só em memória, enquanto a tela está aberta.
+  const [rascunhos] = useState(() => new Map<string, string>());
   const fechar = () => { setPedido(null); aoFechar(); };
-  const decide = !!dados && aceitaId !== dados.id && dados.situacao !== 'ACEITA' && pode('INSCRICAO_ALTERAR');
+  const decide = !!dados && aceitaId !== dados.id && pode('INSCRICAO_ALTERAR');
   const podeAceitarAqui = decide && !!dados && pode('ALUNO_ALTERAR') && podeAceitar(dados.situacao);
-  const podeRecusarAqui = decide && !!dados && podeRecusar(dados.situacao);
-  const rodape = podeAceitarAqui || podeRecusarAqui ? (
+  const podeEncerrarAqui = decide && !!dados && podeEncerrar(dados.situacao);
+  const podeReabrirAqui = decide && !!dados && podeReabrir(dados.situacao);
+  const rodape = podeAceitarAqui || podeEncerrarAqui || podeReabrirAqui ? (
     <>
-      {podeRecusarAqui ? <Botao rotulo="Recusar" tipo="perigoTexto" aoTocar={() => setPedido('recusar')} carregando={decidindo === 'recusar'} desabilitado={!!decidindo} /> : null}
-      {podeAceitarAqui ? <Botao rotulo="Aceitar" aoTocar={() => setPedido('aceitar')} carregando={decidindo === 'aceitar'} desabilitado={!!decidindo} /> : null}
+      {podeEncerrarAqui ? <Botao rotulo="Encerrar" tipo="perigoTexto" aoTocar={() => setPedido({ tipo: 'encerrar', situacao: 'RECUSADA' })} carregando={decidindo === 'encerrar'} desabilitado={!!decidindo} /> : null}
+      {podeReabrirAqui ? <Botao rotulo="Reabrir atendimento" aoTocar={() => setPedido({ tipo: 'reabrir' })} carregando={decidindo === 'reabrir'} desabilitado={!!decidindo} /> : null}
+      {podeAceitarAqui ? <Botao rotulo="Aceitar" aoTocar={() => setPedido({ tipo: 'aceitar' })} carregando={decidindo === 'aceitar'} desabilitado={!!decidindo} /> : null}
     </>
   ) : undefined;
   return (
@@ -84,34 +140,35 @@ export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
       {detalhe.erro ? <MensagemErro texto={textoDoErro(detalhe.erro)} tentarDeNovo={detalhe.recarregar} erro={detalhe.erro} /> : null}
       {!dados && !detalhe.erro ? <Esqueleto /> : null}
       {dados ? (
-        <Conteudo key={`${dados.id}:${dados.versao}`} dados={dados} responsaveis={responsaveis} aoFechar={fechar}
-          pedido={pedido} aoFecharPedido={() => setPedido(null)} aoReabrirAceite={() => setPedido('aceitar')} aoDecidindo={setDecidindo} aoAceitar={() => setAceitaId(dados.id)}
-          aoMudarLista={aoMudar} aoAtualizar={(d) => { detalhe.definir(d); aoMudar(); }}
-          aoRecarregar={() => { detalhe.recarregar(); aoMudar(); }} />
+        <Conteudo key={dados.id} dados={dados} responsaveis={responsaveis} aoFechar={fechar} rascunhos={rascunhos}
+          pedido={pedido} aoFecharPedido={() => setPedido(null)} aoReabrirAceite={() => setPedido({ tipo: 'aceitar' })} aoDecidindo={setDecidindo} aoAceitar={() => setAceitaId(dados.id)}
+          aoMudarLista={aoMudar} aoAtualizar={(d) => { detalhe.definir(d, `inscricao:${d.id}`); aoMudar(); }}
+          aoRecarregar={() => { detalhe.recarregar(); aoMudar(); }} aoAbrirOutra={aoAbrirOutra} />
       ) : null}
     </Folha>
   );
 }
 
-type Decisao = 'aceitar' | 'recusar';
-
-function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, aoRecarregar, pedido, aoFecharPedido, aoDecidindo, aoAceitar, aoReabrirAceite }: {
+function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAtualizar, aoRecarregar, pedido, aoFecharPedido, aoDecidindo, aoAceitar, aoReabrirAceite, aoAbrirOutra }: {
   dados: InscricaoDetalhe;
-  /** Botão do rodapé tocado: abre a confirmação correspondente. */
-  pedido: Decisao | null;
+  /** Notas não enviadas, por inscrição (da folha, em memória). */
+  rascunhos: Map<string, string>;
+  /** Botão do rodapé tocado (ou pedido do Kanban): abre a confirmação correspondente. */
+  pedido: PedidoDaFolha | null;
   aoFecharPedido: () => void;
   /** O aceite fecha o painel antes de ir à API; se a API pedir outra escolha (anamnese indisponível), ele volta. */
   aoReabrirAceite: () => void;
   /** Mantém o rodapé em "carregando" enquanto a decisão vai à API. */
-  aoDecidindo: (d: Decisao | null) => void;
+  aoDecidindo: (d: PedidoDaFolha['tipo'] | null) => void;
   aoAceitar: () => void;
   responsaveis: readonly ResponsavelEquipe[];
   aoFechar: () => void;
   aoMudarLista: () => void;
   aoAtualizar: (d: InscricaoDetalhe) => void;
   aoRecarregar: () => void;
+  aoAbrirOutra: (id: string) => void;
 }) {
-  const { pode } = useSessao();
+  const { pode, marca, pagamentosHabilitados } = useSessao();
   const { avisar } = useAviso();
   const avisoDoPlano = useAvisoDoPlano(aoFechar);
   const podeAlterar = pode('INSCRICAO_ALTERAR');
@@ -122,28 +179,64 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
   const [situacao, setSituacao] = useState<SituacaoInscricao>(dados.situacao);
   const [pagamento, setPagamento] = useState<PagamentoInscricao>(dados.pagamento);
   const [responsavelId, setResponsavelId] = useState(dados.responsavelId ?? SEM_RESPONSAVEL);
-  const [nota, setNota] = useState('');
-  const [ocupado, setOcupado] = useState<'andamento' | 'nota' | 'aceitar' | 'recusar' | null>(null);
+  const [origem, setOrigem] = useState<Origem | ''>(dados.origem ?? SEM_ORIGEM);
+  // Versão nova (andamento salvo aqui ou recarregado): o andamento volta ao gravado, sem remontar a folha. Antes a
+  // folha era remontada pela versão e a nota ainda não acrescentada sumia (achado F2).
+  const [versaoVista, setVersaoVista] = useState(dados.versao);
+  if (versaoVista !== dados.versao) {
+    setVersaoVista(dados.versao);
+    setSituacao(dados.situacao);
+    setPagamento(dados.pagamento);
+    setResponsavelId(dados.responsavelId ?? SEM_RESPONSAVEL);
+    setOrigem(dados.origem ?? SEM_ORIGEM);
+  }
+  const [nota, setNotaNaTela] = useState(() => rascunhos.get(dados.id) ?? '');
+  const setNota = (texto: string) => {
+    setNotaNaTela(texto);
+    if (texto) rascunhos.set(dados.id, texto);
+    else rascunhos.delete(dados.id);
+  };
+  // Resposta que chega depois de a folha trocar de inscrição (ou fechar) não mexe na tela atual (achado F3): só a
+  // lista é atualizada.
+  const montado = useRef(true);
+  useEffect(() => {
+    montado.current = true;
+    return () => { montado.current = false; };
+  }, []);
+  const [ocupado, setOcupado] = useState<string | null>(null);
   const [erro, setErro] = useState<unknown>(null);
   const [alunoExistente, setAlunoExistente] = useState<string | null>(null);
   const [convidar, setConvidar] = useState(podeConvidar);
   const [aceite, setAceite] = useState<AceiteInscricao | null>(null);
+  const [respondendo, setRespondendo] = useState(false);
+  // Encerrar: a situação vem do pedido (Kanban) e pode ser trocada no painel; o motivo é obrigatório.
+  const [encerramento, setEncerramento] = useState<Encerramento>(pedido?.tipo === 'encerrar' ? pedido.situacao : 'RECUSADA');
+  const [pedidoVisto, setPedidoVisto] = useState(pedido);
+  if (pedidoVisto !== pedido) {
+    setPedidoVisto(pedido);
+    if (pedido?.tipo === 'encerrar') setEncerramento(pedido.situacao);
+  }
+  const [motivo, setMotivo] = useState<MotivoEncerramento | null>(null);
+  const [motivoDetalhe, setMotivoDetalhe] = useState('');
+  const [motivoReabertura, setMotivoReabertura] = useState('');
   // Anamnese enviada junto com o aceite: `undefined` = a pessoa ainda não mexeu (vale a padrão publicada, sem efeito).
   const [anamneseEscolhida, setAnamneseEscolhida] = useState<string | null | undefined>(undefined);
   const podeEnviarAnamnese = pode('ANAMNESE_LER') && pode('ANAMNESE_ALTERAR') && pode('ALUNO_SENSIVEL_LER');
-  const opcoes = useCarregar(pedido === 'aceitar' && podeEnviarAnamnese ? 'aceite:anamneses' : null, () => opcoesDeQuestionario('ANAMNESE'));
+  const opcoes = useCarregar(pedido?.tipo === 'aceitar' && podeEnviarAnamnese ? 'aceite:anamneses' : null, () => opcoesDeQuestionario('ANAMNESE'));
   const semAcessoAsAnamneses = opcoes.erro instanceof ErroApi && opcoes.erro.status === 403;
   const anamneseDoAceite = anamneseEscolhida !== undefined ? anamneseEscolhida : anamneseInicialDoAceite(opcoes.dados ?? []);
 
+  const mudouOrigem = origem !== (dados.origem ?? SEM_ORIGEM);
   const mudouAndamento = situacao !== dados.situacao || pagamento !== dados.pagamento
-    || responsavelId !== (dados.responsavelId ?? SEM_RESPONSAVEL);
+    || responsavelId !== (dados.responsavelId ?? SEM_RESPONSAVEL) || mudouOrigem;
   const whatsapp = linkDoWhatsApp(dados.whatsapp);
-  const duplicidade = textoDaDuplicidade(dados.duplicidade);
   const situacaoTela = seloDaSituacao(dados.situacao);
   const pagamentoTela = seloDoPagamento(dados.pagamento);
+  const encerrada = estaEncerradaSemAluno(dados.situacao);
 
   /** Erro comum: conflito de versão recarrega; limite do plano vai para o aviso do plano; o resto fica na folha. */
   const falhou = (e: unknown) => {
+    if (!montado.current) return;
     setOcupado(null);
     aoDecidindo(null);
     const aluno = alunoDoConflito(e);
@@ -169,32 +262,59 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
     setErro(e);
   };
 
-  const executar = (tipo: 'andamento' | 'nota' | 'recusar', acao: () => Promise<InscricaoDetalhe>, sucesso: string) => {
+  const executar: Executar = (tipo, acao, sucesso, depois) => {
     setOcupado(tipo);
     setErro(null);
     setAlunoExistente(null);
     acao().then((d) => {
+      if (!montado.current) {
+        aoMudarLista();
+        return;
+      }
       setOcupado(null);
       aoDecidindo(null);
       if (tipo === 'nota') setNota('');
       avisar(sucesso, 'sucesso');
+      depois?.();
       aoAtualizar(d);
     }, falhou);
   };
 
-  const salvarAndamento = () => executar('andamento', () => alterarInscricao(dados.id, {
-    situacao, pagamento, responsavelId: responsavelId || null, versao: dados.versao,
-  }), 'Andamento salvo.');
+  const salvarAndamento = () => {
+    const mudouLinha = situacao !== dados.situacao || pagamento !== dados.pagamento
+      || responsavelId !== (dados.responsavelId ?? SEM_RESPONSAVEL);
+    const novaOrigem = origem || null;
+    executar('andamento', async () => {
+      let atual = dados;
+      if (mudouLinha) {
+        atual = await alterarInscricao(dados.id, { situacao, pagamento, responsavelId: responsavelId || null, versao: dados.versao });
+      }
+      // A origem tem rota própria; vai com a versão que o andamento acabou de gravar.
+      if (mudouOrigem) atual = await origemDaInscricao(dados.id, novaOrigem, atual.versao);
+      return atual;
+    }, 'Andamento salvo.');
+  };
 
   const acrescentarNota = () => {
     if (!nota.trim()) return;
     executar('nota', () => notaNaInscricao(dados.id, nota.trim()), 'Nota acrescentada.');
   };
 
-  const recusar = () => {
+  const encerrar = () => {
+    if (!motivo) return;
     aoFecharPedido();
-    aoDecidindo('recusar');
-    executar('recusar', () => recusarInscricao(dados.id, dados.versao), 'Inscrição recusada.');
+    aoDecidindo('encerrar');
+    executar('encerrar', () => encerrarInscricao(dados.id, {
+      situacao: encerramento, motivo, detalhe: motivoDetalhe.trim() || null, versao: dados.versao,
+    }), encerramento === 'RECUSADA' ? 'Inscrição recusada.' : 'Desistência registrada.', () => { setMotivo(null); setMotivoDetalhe(''); });
+  };
+
+  const reabrir = () => {
+    if (!motivoReabertura.trim()) return;
+    aoFecharPedido();
+    aoDecidindo('reabrir');
+    executar('reabrir', () => reabrirInscricao(dados.id, motivoReabertura.trim(), dados.versao), 'Atendimento reaberto.',
+      () => setMotivoReabertura(''));
   };
 
   const aceitar = () => {
@@ -208,6 +328,10 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
       anamneseQuestionarioId: podeEnviarAnamnese ? anamneseDoAceite : null,
       versao: dados.versao,
     }).then((r) => {
+      if (!montado.current) {
+        aoMudarLista();
+        return;
+      }
       setOcupado(null);
       aoDecidindo(null);
       aoAceitar();
@@ -236,31 +360,33 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
   };
 
   if (aceite) {
-    return <ResultadoDoAceite aceite={aceite} podeVerAluno={podeVerAluno} aoCopiar={copiar} aoAbrirFicha={abrirFicha} />;
+    return <ResultadoDoAceite aceite={aceite} dados={dados} podeVerAluno={podeVerAluno} pagamentosHabilitados={pagamentosHabilitados}
+      aoCopiar={copiar} aoAbrirFicha={abrirFicha} />;
   }
+
+  const proposta = dados.proposta;
+  const resumoDaProposta = temProposta(proposta)
+    ? [proposta.planoNome, proposta.valorCentavos !== null ? centavosParaTela(proposta.valorCentavos) : null,
+        proposta.periodicidade ? PERIODICIDADES[proposta.periodicidade] : null].filter(Boolean).join(' · ')
+    : 'Sem proposta';
 
   return (
     <View style={estilos.corpo}>
       <View style={estilos.selos}>
         <Selo texto={situacaoTela.texto} tipo={situacaoTela.tipo} />
+        {dados.ciclo > 1 ? <Selo texto={`${dados.ciclo}º atendimento`} tipo="neutro" /> : null}
         {/* "Não controlado" é o padrão: o selo só aparece quando o pagamento está sendo acompanhado. */}
         {dados.pagamento !== 'NAO_CONTROLADO' ? <Selo texto={`Pagamento: ${pagamentoTela.texto}`} tipo={pagamentoTela.tipo} /> : null}
       </View>
-      {duplicidade ? (
-        <Cartao titulo="Possível duplicidade" descricao="Só um aviso: nada é juntado sozinho. Confira antes de aceitar.">
-          <Texto>{duplicidade}</Texto>
-          {dados.duplicidade.alunoId && podeVerAluno ? (
-            <LinhaDeAcoes>
-              <Botao rotulo="Abrir ficha do aluno" tipo="secundario" aoTocar={() => abrirFicha(dados.duplicidade.alunoId ?? '')} />
-            </LinhaDeAcoes>
-          ) : null}
-        </Cartao>
-      ) : null}
+
+      <SemelhantesDaInscricao dados={dados} podeAlterar={podeAlterar} podeVerAluno={podeVerAluno} executar={executar} ocupado={ocupado}
+        aoAbrirOutra={aoAbrirOutra} aoAbrirFicha={abrirFicha} />
 
       <Cartao titulo="Contato" descricao={`Inscrição em ${dataHoraParaTela(dados.criadaEm)}.`}>
         <CampoLeitura rotulo="WhatsApp" valor={dados.whatsapp} />
         <CampoLeitura rotulo="E-mail" valor={dados.email} />
         <LinhaDeAcoes>
+          {podeAlterar ? <Botao rotulo="Responder com modelo" Icone={MessageSquareText} tipo="secundario" aoTocar={() => setRespondendo(true)} /> : null}
           <Botao rotulo="Abrir WhatsApp" Icone={MessageCircle} tipo="secundario" aoTocar={abrirWhatsApp}
             desabilitado={!whatsapp} motivo="O número não tem DDD válido." />
           <Botao rotulo="Copiar WhatsApp" Icone={Copy} tipo="secundario" aoTocar={() => copiar(dados.whatsapp, 'WhatsApp')} />
@@ -272,13 +398,31 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
         <CampoLeitura rotulo="Sexo" valor={dados.sexo ? rotuloDoSexo(dados.sexo) : 'Prefiro não informar'} />
         <CampoLeitura rotulo="Objetivo" valor={dados.objetivo} />
         <CampoLeitura rotulo="Observação" valor={dados.observacao} />
+        <CampoLeitura rotulo="O que procura" valor={rotuloOpcional(INTERESSES, dados.interesse)} />
+        <CampoLeitura rotulo="Acompanhamento" valor={rotuloOpcional(MODALIDADES_DESEJADAS, dados.modalidadeDesejada)} />
+        <CampoLeitura rotulo="Quando quer começar" valor={rotuloOpcional(PREVISOES, dados.previsaoInicio)} />
+        <CampoLeitura rotulo="Como conheceu"
+          valor={`${rotuloOpcional(ORIGENS_INFORMADAS, dados.origemInformada)}${dados.origemLink ? ` · Link: ${dados.origemLink}` : ''}`} />
         <CampoLeitura rotulo="Ciência do texto da consultoria"
           valor={dados.cienciaEm ? `Marcada em ${dataHoraParaTela(dados.cienciaEm)}` : 'Não havia texto de privacidade'} />
       </Cartao>
 
+      {encerrada ? (
+        <Cartao titulo={dados.situacao === 'RECUSADA' ? 'Inscrição recusada' : 'A pessoa desistiu'}
+          descricao="Recusadas e desistentes sem atividade são apagadas sozinhas depois de 180 dias.">
+          <CampoLeitura rotulo="Motivo" valor={rotuloDoMotivo(dados.motivoEncerramento)} />
+          <CampoLeitura rotulo="Detalhe" valor={dados.motivoDetalhe} />
+          <Texto variante="pequeno">
+            {dados.encerradaEm ? `Encerrada por ${dados.encerradaPorNome ?? SEM_DADO} em ${dataHoraParaTela(dados.encerradaEm)}.` : 'Encerramento sem registro de quem e quando.'}
+          </Texto>
+        </Cartao>
+      ) : null}
+
+      <PropostaDaInscricao dados={dados} podeEditar={podeAlterar && dados.situacao !== 'ACEITA'} executar={executar} ocupado={ocupado} />
+
       <Cartao titulo="Andamento">
-        {podeAlterar && dados.situacao !== 'ACEITA' ? (
-          <Escolha rotulo="Situação" opcoes={situacoesDoAndamento(dados.situacao)} valor={situacao} aoMudar={setSituacao} />
+        {podeAlterar && podeAceitar(dados.situacao) ? (
+          <Escolha rotulo="Etapa" opcoes={situacoesDoAndamento(dados.situacao)} valor={situacao} aoMudar={setSituacao} />
         ) : (
           <CampoLeitura rotulo="Situação" valor={situacaoTela.texto} />
         )}
@@ -288,11 +432,14 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
             <EscolhaEmFolha rotulo="Responsável" valor={responsavelId} aoMudar={setResponsavelId}
               opcoes={[{ valor: SEM_RESPONSAVEL, rotulo: 'Sem responsável' }, ...responsaveis.map((r) => ({ valor: r.id, rotulo: r.nome }))]}
               rotuloDoValor={dados.responsavelNome ?? 'Membro inativo'} />
+            <Escolha rotulo="Origem" opcoes={[{ valor: SEM_ORIGEM as Origem | '', rotulo: 'Não informada' }, ...OPCOES_ORIGEM]}
+              valor={origem} aoMudar={setOrigem} />
           </>
         ) : (
           <>
             <CampoLeitura rotulo="Pagamento (registro manual)" valor={pagamentoTela.texto} />
             <CampoLeitura rotulo="Responsável" valor={dados.responsavelNome ?? (dados.responsavelId ? 'Membro inativo' : 'Sem responsável')} />
+            <CampoLeitura rotulo="Origem" valor={rotuloDaOrigem(dados.origem)} />
           </>
         )}
         {dados.pagamento === 'CONFIRMADO_MANUAL' ? (
@@ -308,24 +455,10 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
         ) : null}
       </Cartao>
 
-      <Cartao titulo="Notas da equipe" descricao="Só a equipe vê. Ficam guardadas junto com a inscrição.">
-        {dados.notas.length === 0 ? <Texto variante="suave">Nenhuma nota ainda.</Texto> : null}
-        {dados.notas.map((n) => (
-          <View key={n.id} style={estilos.nota}>
-            <Texto variante="pequeno">{n.autorNome ?? SEM_DADO} · {dataHoraParaTela(n.criadaEm)}</Texto>
-            <Texto selectable>{n.texto}</Texto>
-          </View>
-        ))}
-        {podeAlterar ? (
-          <>
-            <Campo rotulo="Nova nota" valor={nota} aoMudar={setNota} linhas={3} maxLength={LIMITES_INSCRICAO.nota} />
-            <LinhaDeAcoes>
-              <Botao rotulo="Acrescentar nota" tipo="secundario" aoTocar={acrescentarNota} carregando={ocupado === 'nota'}
-                desabilitado={!nota.trim()} motivo="Escreva a nota antes." />
-            </LinhaDeAcoes>
-          </>
-        ) : null}
-      </Cartao>
+      <RetornosDaInscricao dados={dados} podeAlterar={podeAlterar} responsaveis={responsaveis} executar={executar} ocupado={ocupado} />
+
+      <HistoricoDaInscricao dados={dados} podeAlterar={podeAlterar} nota={nota} aoMudarNota={setNota} aoAcrescentar={acrescentarNota}
+        acrescentando={ocupado === 'nota'} />
 
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
       {alunoExistente && podeVerAluno ? (
@@ -335,17 +468,28 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
       ) : null}
 
       {dados.situacao === 'ACEITA' ? (
-        <Cartao titulo="Aluno cadastrado" descricao="Esta inscrição já virou aluno.">
+        <Cartao titulo="Aluno cadastrado" descricao={`Esta inscrição já virou aluno${dados.aceitaEm ? ` em ${dataHoraParaTela(dados.aceitaEm)}` : ''}.`}>
           {dados.alunoId && podeVerAluno ? (
             <LinhaDeAcoes><Botao rotulo="Abrir ficha" aoTocar={() => abrirFicha(dados.alunoId ?? '')} /></LinhaDeAcoes>
           ) : null}
         </Cartao>
       ) : null}
 
-      <PainelConfirmacao visivel={pedido === 'aceitar' && podeCadastrar} titulo="Aceitar inscrição?"
+      <RespostaComModelo visivel={respondendo} dados={dados} consultoria={marca?.nome ?? null} aoFechar={() => setRespondendo(false)}
+        aoRegistrar={aoRecarregar} />
+
+      <PainelConfirmacao visivel={pedido?.tipo === 'aceitar' && podeCadastrar && podeAceitar(dados.situacao)} titulo="Aceitar inscrição?"
         mensagem={`${dados.nome} vira aluno da consultoria, com o nome${dados.email ? ' e o e-mail' : ''} da inscrição. O app não confere pagamento.`}
         rotuloConfirmar="Aceitar e cadastrar" aoConfirmar={aceitar} aoCancelar={aoFecharPedido}
         desabilitado={podeEnviarAnamnese && opcoes.carregando} motivo="Aguarde a lista de anamneses.">
+        <View style={estilos.conferir}>
+          <Texto variante="secao">Conferir antes de aceitar</Texto>
+          <Texto variante="pequeno">Nome: {dados.nome}</Texto>
+          <Texto variante="pequeno">E-mail: {dados.email ?? SEM_DADO}</Texto>
+          <Texto variante="pequeno">Responsável: {dados.responsavelNome ?? 'Sem responsável'}</Texto>
+          <Texto variante="pequeno">Proposta: {resumoDaProposta}</Texto>
+          <Texto variante="pequeno">Pagamento (registro manual): {pagamentoTela.texto}</Texto>
+        </View>
         {podeConvidar ? (
           <CaixaSelecao rotulo="Enviar convite de acesso ao app" marcado={convidar} aoMudar={setConvidar}
             ajuda="Gera o link para a pessoa criar a senha. Você copia e manda." />
@@ -356,9 +500,21 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
             avisoDoAcesso={!(convidar && podeConvidar) && anamneseDoAceite !== null} />
         ) : null}
       </PainelConfirmacao>
-      <PainelConfirmacao visivel={pedido === 'recusar' && podeAlterar} titulo="Recusar inscrição?" perigo
-        mensagem="A inscrição sai da fila de atendimento. Recusadas e desistentes são apagadas sozinhas depois de 180 dias."
-        rotuloConfirmar="Recusar" aoConfirmar={recusar} aoCancelar={aoFecharPedido} />
+      <PainelConfirmacao visivel={pedido?.tipo === 'encerrar' && podeAlterar && podeEncerrar(dados.situacao)} titulo="Encerrar atendimento?" perigo
+        mensagem="A inscrição sai da fila de atendimento. Recusadas e desistentes sem atividade são apagadas sozinhas depois de 180 dias; dá para reabrir antes disso."
+        rotuloConfirmar={encerramento === 'RECUSADA' ? 'Recusar' : 'Registrar desistência'} aoConfirmar={encerrar} aoCancelar={aoFecharPedido}
+        desabilitado={!motivo} motivo="Escolha o motivo.">
+        <Escolha rotulo="Como encerrar" opcoes={ENCERRAMENTOS} valor={encerramento} aoMudar={setEncerramento} />
+        <Escolha rotulo="Motivo" opcoes={OPCOES_MOTIVO} valor={motivo} aoMudar={setMotivo} />
+        <Campo rotulo="Detalhe (opcional)" valor={motivoDetalhe} aoMudar={setMotivoDetalhe} maxLength={LIMITES_INSCRICAO.motivoDetalhe} linhas={2} />
+      </PainelConfirmacao>
+      <PainelConfirmacao visivel={pedido?.tipo === 'reabrir' && podeAlterar && podeReabrir(dados.situacao)} titulo="Reabrir atendimento?"
+        mensagem="A inscrição volta para Em contato num novo ciclo. O encerramento anterior fica no histórico."
+        rotuloConfirmar="Reabrir" aoConfirmar={reabrir} aoCancelar={aoFecharPedido}
+        desabilitado={!motivoReabertura.trim()} motivo="Escreva por que está reabrindo.">
+        <Campo rotulo="Por que reabrir" valor={motivoReabertura} aoMudar={setMotivoReabertura} maxLength={LIMITES_INSCRICAO.motivoReabertura}
+          placeholder="Ex.: a pessoa voltou a procurar" />
+      </PainelConfirmacao>
     </View>
   );
 }
@@ -391,19 +547,26 @@ function SeletorDaAnamnese({ opcoes, carregando, erro, aoTentarDeNovo, valor, ao
   );
 }
 
-/** Depois do aceite: o link do convite aparece uma vez só (sai daqui ao fechar a folha). */
-function ResultadoDoAceite({ aceite, podeVerAluno, aoCopiar, aoAbrirFicha }: {
+/** Depois do aceite: os próximos passos e o link do convite, que aparece uma vez só (sai daqui ao fechar a folha). */
+function ResultadoDoAceite({ aceite, dados, podeVerAluno, pagamentosHabilitados, aoCopiar, aoAbrirFicha }: {
   aceite: AceiteInscricao;
+  dados: InscricaoDetalhe;
   podeVerAluno: boolean;
+  pagamentosHabilitados: boolean;
   aoCopiar: (texto: string, oque: string) => void;
   aoAbrirFicha: (alunoId: string) => void;
 }) {
   const { cores } = useTema();
   const convite = aceite.convite;
+  const proposta = dados.proposta;
+  const pagamento = dados.pagamento === 'CONFIRMADO_MANUAL' ? 'Confirmado manualmente'
+    : dados.pagamento === 'AGUARDANDO' ? 'Aguardando' : 'Não controlado';
   return (
     <View style={estilos.corpo}>
       <Selo texto="Aceita" tipo="sucesso" />
-      <Cartao titulo="Aluno cadastrado" descricao="A inscrição fica na lista como aceita, ligada ao aluno.">
+      <Cartao titulo="Próximos passos" descricao="A inscrição fica na lista como aceita, ligada ao aluno.">
+        <Passo feito texto="Aluno cadastrado" />
+        <Passo feito={!!convite} texto={convite ? 'Convite de acesso gerado' : 'Convite de acesso não gerado (dá para gerar na ficha do aluno)'} />
         {convite ? (
           <>
             <Texto variante="suave">
@@ -418,9 +581,15 @@ function ResultadoDoAceite({ aceite, podeVerAluno, aoCopiar, aoAbrirFicha }: {
               <Botao rotulo="Copiar" tipo="secundario" Icone={Copy} aoTocar={() => aoCopiar(convite.link, 'Link')} />
             </View>
           </>
-        ) : (
-          <Texto variante="suave">Sem convite agora. Quando quiser, gere o convite de acesso na ficha do aluno.</Texto>
-        )}
+        ) : null}
+        <Passo feito={!!aceite.anamneseId} texto={aceite.anamneseId ? 'Anamnese enviada' : 'Anamnese não enviada'} />
+        <Passo feito={dados.pagamento === 'CONFIRMADO_MANUAL'} texto={`Pagamento: ${pagamento}. O app não confere pagamento.`} />
+        <Passo feito={temProposta(proposta)} texto={temProposta(proposta)
+          ? `Proposta: ${[proposta.planoNome, centavosParaTela(proposta.valorCentavos)].filter((x) => x && x !== SEM_DADO).join(' · ') || 'registrada'}`
+          : 'Sem proposta registrada'} />
+        {pagamentosHabilitados ? (
+          <Texto variante="pequeno">Para cobrar pelo app, cadastre a contratação no Financeiro, na ficha do aluno.</Texto>
+        ) : null}
         {podeVerAluno ? (
           <LinhaDeAcoes><Botao rotulo="Abrir ficha" aoTocar={() => aoAbrirFicha(aceite.alunoId)} /></LinhaDeAcoes>
         ) : null}
@@ -429,11 +598,23 @@ function ResultadoDoAceite({ aceite, podeVerAluno, aoCopiar, aoAbrirFicha }: {
   );
 }
 
+function Passo({ feito, texto }: { feito: boolean; texto: string }) {
+  const { cores } = useTema();
+  return (
+    <View style={estilos.passo}>
+      <View style={[estilos.marca, { borderColor: feito ? cores.sucesso : cores.borda, backgroundColor: feito ? cores.sucesso : 'transparent' }]}>
+        {feito ? <Check size={14} color={cores.fundo} /> : null}
+      </View>
+      <Texto style={estilos.textoPasso}>{texto}</Texto>
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
   corpo: { gap: espaco(2) },
   selos: { flexDirection: 'row', gap: espaco(0.75), flexWrap: 'wrap' },
   anamnese: { gap: espaco(0.75) },
-  nota: { gap: 2 },
+  conferir: { gap: 2 },
   destaque: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -445,4 +626,7 @@ const estilos = StyleSheet.create({
   },
   textoDestaque: { flex: 1, minWidth: 180, gap: 2 },
   link: { fontFamily: fontes.normal, fontSize: 14 },
+  passo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1) },
+  marca: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  textoPasso: { flex: 1 },
 });

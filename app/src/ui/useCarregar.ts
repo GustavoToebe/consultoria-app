@@ -33,9 +33,15 @@ export function useCarregar<T>(chave: string | null, buscar: (chave: string) => 
   }, [chave, rodada]);
 
   const recarregar = useCallback(() => setRodada((r) => r + 1), []);
-  /** Troca os dados na tela depois de uma alteração (sem buscar de novo). */
+  /**
+   * Troca os dados na tela depois de uma alteração (sem buscar de novo). Com `paraChave`, só troca se a tela ainda está
+   * nessa chave: a resposta atrasada de um registro que já saiu da tela não cobre o que está aberto agora.
+   */
   const definir = useCallback(
-    (dados: T) => setEstado((atual) => (atual ? { ...atual, dados, erro: undefined } : atual)),
+    (dados: T, paraChave?: string) => setEstado((atual) => {
+      if (!atual || (paraChave !== undefined && atual.chave !== paraChave)) return atual;
+      return { ...atual, dados, erro: undefined };
+    }),
     [],
   );
 

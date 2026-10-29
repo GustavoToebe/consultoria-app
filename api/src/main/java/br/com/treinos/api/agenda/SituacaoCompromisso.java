@@ -4,8 +4,10 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Situação de um compromisso da agenda presencial. Só {@code CANCELADO} libera o horário do responsável; realizado e
- * falta continuam ocupando o horário (aconteceram, ou deveriam ter acontecido, naquele tempo).
+ * Situação de um aluno num compromisso da agenda presencial (cada participante tem a sua). Só {@code CANCELADO} libera o
+ * aluno; o horário do responsável só fica livre quando o compromisso inteiro está cancelado ({@code Compromisso.cancelado},
+ * todos os participantes cancelados). Realizado e falta continuam ocupando o horário (aconteceram, ou deveriam ter
+ * acontecido, naquele tempo).
  */
 public enum SituacaoCompromisso {
     AGENDADO, REALIZADO, CANCELADO, FALTOU;

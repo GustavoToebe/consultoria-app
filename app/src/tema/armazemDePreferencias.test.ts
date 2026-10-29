@@ -30,6 +30,22 @@ describe('armazém de preferências', () => {
     expect(gravadas).toEqual([{ ...SALVAS, contraste: 'ALTO' }]);
   });
 
+  it('diz quando a leitura terminou, com sucesso ou não', async () => {
+    const leitura = adiavel<Preferencias>();
+    const armazem = criarArmazemDePreferencias(() => leitura.promessa, async () => undefined);
+    expect(armazem.lidas()).toBe(false);
+    armazem.iniciar();
+    expect(armazem.lidas()).toBe(false);
+    leitura.resolver(SALVAS);
+    await esperar();
+    expect(armazem.lidas()).toBe(true);
+
+    const quebrado = criarArmazemDePreferencias(() => Promise.reject(new Error('sem disco')), async () => undefined);
+    quebrado.iniciar();
+    await esperar();
+    expect(quebrado.lidas()).toBe(true);
+  });
+
   it('duas escolhas seguidas somam, e a última de cada campo vence', async () => {
     const gravadas: Preferencias[] = [];
     const armazem = criarArmazemDePreferencias(async () => SALVAS, async (p) => void gravadas.push(p));

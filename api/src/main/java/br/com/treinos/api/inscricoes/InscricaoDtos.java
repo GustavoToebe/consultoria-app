@@ -2,13 +2,27 @@ package br.com.treinos.api.inscricoes;
 
 import br.com.treinos.api.alunos.dto.AlunoDtos.ConviteResponse;
 import br.com.treinos.api.consultoria.MarcaPublica;
+import br.com.treinos.api.inscricoes.Crm.AcaoDaMensagem;
+import br.com.treinos.api.inscricoes.Crm.Interesse;
+import br.com.treinos.api.inscricoes.Crm.Modalidade;
+import br.com.treinos.api.inscricoes.Crm.ModalidadeDesejada;
+import br.com.treinos.api.inscricoes.Crm.MotivoEncerramento;
+import br.com.treinos.api.inscricoes.Crm.Origem;
+import br.com.treinos.api.inscricoes.Crm.OrigemInformada;
+import br.com.treinos.api.inscricoes.Crm.Periodicidade;
+import br.com.treinos.api.inscricoes.Crm.PrevisaoInicio;
+import br.com.treinos.api.inscricoes.Crm.TipoEvento;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Contratos HTTP da inscrição por link (pública) e da fila de interessados (equipe). */
@@ -18,8 +32,12 @@ public final class InscricaoDtos {
 
     // ---- Público ----
 
-    /** O que a página pública mostra: a marca (com a URL pública da logo, se houver) e o texto da consultoria. */
-    public record InscricaoPublica(MarcaPublica consultoria, String texto, boolean aberta) {
+    /**
+     * O que a página pública mostra: a marca (com a URL pública da logo, se houver) e o texto da consultoria.
+     * {@code textoVersao} identifica o texto mostrado (sha256): o envio devolve o mesmo valor, e o servidor recusa a
+     * ciência de um texto que mudou enquanto a pessoa preenchia. Nulo sem texto.
+     */
+    public record InscricaoPublica(MarcaPublica consultoria, String texto, String textoVersao, boolean aberta) {
     }
 
     /**
@@ -33,9 +51,18 @@ public final class InscricaoDtos {
             @Size(max = 500) String objetivo,
             @Size(max = 1000) String observacao,
             Boolean cienciaPrivacidade,
+            /** {@code textoVersao} recebido na página: confere que a ciência é do texto atual. */
+            @Size(max = 64) String textoVersao,
             /** Token do Turnstile (uso único); só é exigido com a verificação humana ligada. */
             @Size(max = 2048) String turnstileToken,
-            @Size(max = 10) String sexo) {
+            @Size(max = 10) String sexo,
+            /** Qualificação e "como conheceu", todas opcionais. */
+            Interesse interesse,
+            ModalidadeDesejada modalidade,
+            PrevisaoInicio previsaoInicio,
+            OrigemInformada origem,
+            /** Parâmetro {@code ?origem=} do link; fora de {@code [a-z0-9_-]{1,40}} é ignorado (não recusa a inscrição). */
+            @Size(max = 200) String origemLink) {
     }
 
     /** Resposta neutra: não diz nada sobre a fila nem sobre outras inscrições. */
@@ -63,13 +90,25 @@ public final class InscricaoDtos {
      * Possível duplicidade, só como aviso: aluno da consultoria com o mesmo e-mail ({@code alunoId} só para quem pode ver
      * alunos) e outras inscrições ainda em atendimento com o mesmo e-mail ou WhatsApp. Nada é fundido sozinho.
      */
-    public record Duplicidade(boolean alunoExistente, UUID alunoId, int outrasInscricoesAbertas) {
-        public static final Duplicidade NENHUMA = new Duplicidade(false, null, 0);
+    public record Duplicidade(boolean alunoExistente, UUID alunoId, int outrasInscricoesAbertas,
+                              int outrasInscricoesAnteriores) {
+        public static final Duplicidade NENHUMA = new Duplicidade(false, null, 0, 0);
+    }
+
+    /** Próximo retorno pendente; {@code atrasado} = data antes de hoje (Brasília). */
+    public record ProximoRetorno(UUID id, LocalDate data, String descricao, boolean atrasado) {
     }
 
     public record InscricaoResumo(UUID id, String nome, String objetivo, String whatsapp, String email,
                                   SituacaoInscricao situacao, PagamentoInscricao pagamento, UUID responsavelId,
-                                  String responsavelNome, UUID alunoId, Instant criadaEm, Duplicidade duplicidade) {
+                                  String responsavelNome, UUID alunoId, Instant criadaEm, Instant ultimaAtividadeEm,
+                                  int ciclo, Origem origem, String propostaPlanoNome, ProximoRetorno proximoRetorno,
+                                  Long versao, Duplicidade duplicidade) {
+    }
+
+    /** Contagens no escopo dos filtros (sem a situação). */
+    public record Contagens(Map<SituacaoInscricao, Long> porSituacao, long abertas, long todas, long retornosAtrasados,
+                            long retornosHoje) {
     }
 
     public record PaginaInscricoes(List<InscricaoResumo> itens, long total) {
@@ -78,18 +117,47 @@ public final class InscricaoDtos {
     public record Nota(UUID id, String texto, UUID autorId, String autorNome, Instant criadaEm) {
     }
 
+    public record Retorno(UUID id, String descricao, LocalDate data, UUID responsavelId, String responsavelNome,
+                          Instant concluidoEm, String concluidoPorNome, Instant criadoEm, Long versao) {
+    }
+
+    /** Retorno pendente de uma inscrição em atendimento (lista "Retornos"). */
+    public record RetornoPendente(UUID id, String descricao, LocalDate data, UUID responsavelId, String responsavelNome,
+                                  Instant concluidoEm, String concluidoPorNome, Instant criadoEm, Long versao,
+                                  UUID inscricaoId, String inscricaoNome, SituacaoInscricao situacao, boolean atrasado) {
+    }
+
+    public record Evento(UUID id, TipoEvento tipo, int ciclo, String de, String para, MotivoEncerramento motivo,
+                         String detalhe, String autorNome, Instant criadoEm) {
+    }
+
+    /** Proposta negociada (cópia dos termos; valores em centavos). Tudo nulo = sem proposta. */
+    public record Proposta(UUID planoId, String planoNome, Modalidade modalidade, Periodicidade periodicidade,
+                           Long valorReferenciaCentavos, Long valorCentavos, String condicoes, Instant atualizadaEm,
+                           String atualizadaPorNome) {
+    }
+
+    public record Relacionada(UUID id, String nome, SituacaoInscricao situacao, Instant criadaEm) {
+    }
+
     public record InscricaoDetalhe(UUID id, String nome, String whatsapp, String email, String objetivo,
-                                   String observacao, Instant cienciaEm, String cienciaTexto,
-                                   SituacaoInscricao situacao, PagamentoInscricao pagamento,
+                                   String observacao, String sexo, Interesse interesse,
+                                   ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
+                                   OrigemInformada origemInformada, String origemLink, Origem origem,
+                                   Instant cienciaEm, String cienciaTexto, SituacaoInscricao situacao, int ciclo,
+                                   MotivoEncerramento motivoEncerramento, String motivoDetalhe, Instant encerradaEm,
+                                   String encerradaPorNome, PagamentoInscricao pagamento,
                                    String pagamentoConfirmadoPorNome, Instant pagamentoConfirmadoEm,
-                                   UUID responsavelId, String responsavelNome, UUID alunoId, Instant criadaEm,
-                                   Instant atualizadaEm, Long versao, Duplicidade duplicidade, List<Nota> notas,
-                                   String sexo) {
+                                   UUID responsavelId, String responsavelNome, UUID alunoId, Instant aceitaEm,
+                                   Relacionada relacionadaA, Proposta proposta, Instant criadaEm, Instant atualizadaEm,
+                                   Instant ultimaAtividadeEm, Long versao, Duplicidade duplicidade, List<Nota> notas,
+                                   List<Retorno> retornos, List<Evento> eventos) {
     }
 
     /**
-     * Andamento: situação (não aceita {@code ACEITA} nem {@code RECUSADA}, que têm rota própria), pagamento e
-     * responsável ({@code null} = sem responsável). Sempre os três, com a {@code versao} lida.
+     * Andamento: situação, pagamento e responsável ({@code null} = sem responsável), sempre os três, com a
+     * {@code versao} lida. Em atendimento, a situação só vai para outra etapa aberta (encerrar, aceitar e reabrir têm
+     * rota própria); encerrada ou aceita, a situação vem igual à atual.
      */
     public record AlterarInscricaoRequest(@NotNull SituacaoInscricao situacao, @NotNull PagamentoInscricao pagamento,
                                           UUID responsavelId, @NotNull Long versao) {
@@ -99,6 +167,80 @@ public final class InscricaoDtos {
     }
 
     public record VersaoRequest(@NotNull Long versao) {
+    }
+
+    /** Só entre etapas abertas (Kanban). */
+    public record EtapaRequest(@NotNull SituacaoInscricao situacao, @NotNull Long versao) {
+    }
+
+    /** Recusar ou "desistiu", sempre com motivo; detalhe opcional. */
+    public record EncerrarRequest(@NotNull SituacaoInscricao situacao, @NotNull MotivoEncerramento motivo,
+                                  @Size(max = 300) String detalhe, @NotNull Long versao) {
+    }
+
+    public record ReabrirRequest(@NotBlank @Size(max = 200) String motivo, @NotNull Long versao) {
+    }
+
+    public record OrigemRequest(Origem origem, @NotNull Long versao) {
+    }
+
+    /**
+     * Proposta. Com {@code planoId} (plano do Financeiro, só com ele ligado) a API copia nome, periodicidade e valor de
+     * referência do plano e ignora os do corpo. Tudo nulo apaga a proposta.
+     */
+    public record PropostaRequest(UUID planoId, @Size(max = 120) String planoNome, Modalidade modalidade,
+                                  Periodicidade periodicidade,
+                                  @Min(0) @Max(100_000_000) Long valorReferenciaCentavos,
+                                  @Min(0) @Max(100_000_000) Long valorCentavos,
+                                  @Size(max = 500) String condicoes, @NotNull Long versao) {
+    }
+
+    public record PlanoDeReferencia(UUID id, String nome, long valorCentavos, String periodicidade) {
+    }
+
+    /** {@code versao} só ao reagendar (PUT). */
+    public record RetornoRequest(@NotBlank @Size(max = 200) String descricao, @NotNull LocalDate data,
+                                 UUID responsavelId, Long versao) {
+    }
+
+    public record RelacaoRequest(@NotNull UUID outraId, @NotNull Long versao) {
+    }
+
+    public record MensagemRequest(UUID modeloId, @NotNull AcaoDaMensagem acao) {
+    }
+
+    public record Semelhante(UUID id, String nome, SituacaoInscricao situacao, Instant criadaEm, List<String> coincide,
+                             boolean relacionada) {
+    }
+
+    /** {@code aluno}: aluno com o mesmo e-mail ({@code id} só para quem vê alunos); nulo sem nenhum. */
+    public record Semelhantes(List<Semelhante> inscricoes, AlunoSemelhante aluno) {
+    }
+
+    public record AlunoSemelhante(UUID id, String nome) {
+    }
+
+    public record ModeloResponse(UUID id, String nome, String texto, int ordem, Long versao) {
+    }
+
+    /** {@code versao} nula só ao criar. */
+    public record ModeloRequest(@NotBlank @Size(max = 60) String nome, @NotBlank @Size(max = 1000) String texto,
+                                @Min(0) @Max(999) int ordem, Long versao) {
+    }
+
+    public record DiasAteAceite(Double mediana, Double media) {
+    }
+
+    public record PorMotivo(MotivoEncerramento motivo, long quantidade) {
+    }
+
+    public record PorOrigem(Origem origem, long entradas, long aceites) {
+    }
+
+    /** Indicadores do período (Brasília). {@code conversao} nula sem entradas; tempos nulos sem aceites. */
+    public record Indicadores(LocalDate de, LocalDate ate, long entradas, long pessoas, long aceites, long recusadas,
+                              long desistencias, long reaberturas, long aceitesDasEntradas, Double conversao,
+                              DiasAteAceite diasAteAceite, List<PorMotivo> porMotivo, List<PorOrigem> porOrigem) {
     }
 
     /**
@@ -117,7 +259,14 @@ public final class InscricaoDtos {
      */
     public record InscricaoExportada(Instant criadaEm, String nome, String whatsapp, String email, String objetivo,
                                      String observacao, Instant cienciaEm, String cienciaTexto,
-                                     List<NotaExportada> notas, String sexo) {
+                                     List<NotaExportada> notas, String sexo, Interesse interesse,
+                                     ModalidadeDesejada modalidadeDesejada, PrevisaoInicio previsaoInicio,
+                                     OrigemInformada origemInformada, PropostaExportada proposta) {
+    }
+
+    /** Os termos que a consultoria propôs à pessoa (nulo sem proposta). */
+    public record PropostaExportada(String planoNome, Modalidade modalidade, Periodicidade periodicidade,
+                                    Long valorCentavos, String condicoes) {
     }
 
     public record NotaExportada(Instant criadaEm, String texto) {

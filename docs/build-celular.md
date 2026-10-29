@@ -127,6 +127,13 @@ Do lado do treinador (web, uma vez, depois do teste do aluno):
 
 ### Fim
 22. [ ] Perfil › Preferências: tema claro/escuro, tamanho do texto e vibração.
+22a. [ ] **Agenda (treinador), teclado virtual:** Agenda › "Novo compromisso" › tocar em Observação (teclado abre) ›
+    "Salvar" (Marcar compromisso) e "Cancelar" continuam visíveis e tocáveis, sem o teclado cobrir; repetir com o campo
+    "Quantas vezes" (teclado numérico) aberto.
+22b. [ ] **Agenda (aluno):** com o aviso de compromisso novo do treinador, o ponto aparece no Início e o aviso mostra a
+    frase com o dia e a hora; em Conta › Aparência e preferências ligar "Lembrar dos meus compromissos" (aceitar a
+    permissão) e conferir que a notificação não mostra o horário; negar a permissão e conferir que o interruptor volta
+    a desligado.
 23. [ ] **Sair da conta** com treino não enviado: o painel avisa "Você tem N treinos ainda não enviados".
 24. [ ] Abrir o app sem internet depois de já ter entrado: o plano aparece (modo offline).
 

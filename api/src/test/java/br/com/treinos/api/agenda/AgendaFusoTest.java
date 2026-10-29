@@ -1,30 +1,23 @@
 package br.com.treinos.api.agenda;
 
-import br.com.treinos.api.agenda.AgendaDtos.CompromissoRequest;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.TimeZone;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Sem banco: data e hora são sempre de Brasília, qualquer que seja o fuso da JVM. */
 class AgendaFusoTest {
 
-    private static CompromissoRequest pedido(String data, String hora, int duracao) {
-        return new CompromissoRequest(UUID.randomUUID(), UUID.randomUUID(), LocalDate.parse(data), LocalTime.parse(hora),
-                duracao, null, null, null);
-    }
-
     @Test
     void horaDeBrasiliaViraOInstanteCertoMesmoComAJvmEmOutroFuso() {
         TimeZone anterior = TimeZone.getDefault();
         try {
             TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"));
-            Instant inicio = AgendaService.inicioEmBrasilia(pedido("2026-11-10", "23:30", 60));
+            Instant inicio = AgendaService.inicioEmBrasilia(LocalDate.parse("2026-11-10"), LocalTime.parse("23:30"));
             assertThat(inicio).isEqualTo(Instant.parse("2026-11-11T02:30:00Z"));
             assertThat(AgendaService.data(inicio)).isEqualTo(LocalDate.parse("2026-11-10"));
             assertThat(AgendaService.hora(inicio)).isEqualTo("23:30");
@@ -38,7 +31,7 @@ class AgendaFusoTest {
 
     @Test
     void segundosDaHoraSaoDescartados() {
-        assertThat(AgendaService.inicioEmBrasilia(pedido("2026-11-10", "09:15:42", 30)))
+        assertThat(AgendaService.inicioEmBrasilia(LocalDate.parse("2026-11-10"), LocalTime.parse("09:15:42")))
                 .isEqualTo(Instant.parse("2026-11-10T12:15:00Z"));
     }
 

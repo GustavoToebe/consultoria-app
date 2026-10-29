@@ -52,6 +52,10 @@ treinos:
   retorno:
     habilitado: true
   # Pagamentos ligados em toda a suíte; o modo desligado tem a sua classe (PagamentosDesligadosIntegrationTest).
+  # A limpeza diária dos avisos de compromisso fica desligada: o teste chama AvisosDeCompromissoRetencao.limpar à mão.
+  agenda:
+    avisos:
+      limpeza-agendada: false
   pagamentos:
     habilitado: true
     # Chaves só desta suíte (32 bytes cada; a segunda é a "antiga" que ainda decifra); não servem fora do teste.

@@ -76,9 +76,13 @@ public class AlunoLoteService {
         return new Resultado(selecionados.size(), alterados);
     }
 
-    /** Quem já está inativo (inclusive anonimizado) fica como está; os demais perdem o acesso e as sessões. */
+    /**
+     * Quem já está inativo (inclusive anonimizado) fica como está; os demais perdem o acesso e as sessões e têm os
+     * compromissos futuros cancelados (D18).
+     */
     @Transactional
     public Resultado desativar(List<UUID> ids) {
+        alunoService.travarConsultoria(); // antes de travar os alunos (D18: a agenda trava a consultoria primeiro)
         List<Aluno> selecionados = travar(ids);
         int alterados = 0;
         for (Aluno aluno : selecionados) {

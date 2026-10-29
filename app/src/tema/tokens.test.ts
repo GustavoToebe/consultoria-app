@@ -1,4 +1,4 @@
-import { CLARO, ESCURO, contraste, marcaParaTexto, textoSobre } from './tokens';
+import { CHAVES_DA_AGENDA, CLARO, ESCURO, PALETA_DA_AGENDA, contraste, corDaAgenda, marcaParaTexto, textoSobre } from './tokens';
 
 it.each([CLARO, ESCURO])('preserva contraste AA nos detalhes de todas as superfícies', (cores) => {
   for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
@@ -52,5 +52,69 @@ describe('contraste do texto sobre a cor da marca', () => {
   it('calcula o contraste WCAG', () => {
     expect(contraste('#000000', '#FFFFFF')).toBeCloseTo(21, 0);
     expect(contraste('#777777', '#777777')).toBeCloseTo(1, 5);
+  });
+});
+
+// ---- Paleta das agendas (D7) ----
+
+/** CIELAB (D65) de uma cor #RRGGBB, só para medir "parecida com" nos testes. */
+function lab(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+const distanciaDeCor = (a: string, b: string) => Math.hypot(...lab(a).map((v, i) => v - lab(b)[i]));
+
+/** Distâncias mínimas (ΔE CIE76): da cor de status e entre duas cores da paleta. */
+const DISTANCIA_DO_STATUS = 25;
+const DISTANCIA_ENTRE_AGENDAS = 15;
+
+describe.each([['claro', CLARO], ['escuro', ESCURO]] as const)('paleta das agendas (%s)', (tema, cores) => {
+  const paleta = PALETA_DA_AGENDA[tema];
+
+  it('tem as oito chaves da API, todas #RRGGBB', () => {
+    expect(Object.keys(paleta).sort()).toEqual([...CHAVES_DA_AGENDA].sort());
+    expect(CHAVES_DA_AGENDA).toHaveLength(8);
+    for (const hex of Object.values(paleta)) expect(hex).toMatch(/^#[0-9A-F]{6}$/);
+  });
+
+  it('o marcador tem ao menos 3:1 sobre o fundo e as três superfícies', () => {
+    for (const chave of CHAVES_DA_AGENDA) {
+      for (const fundo of [cores.fundo, cores.superficie, cores.superficie2, cores.superficie3]) {
+        expect(contraste(paleta[chave], fundo)).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('nenhuma é parecida com sucesso, atenção ou perigo', () => {
+    for (const chave of CHAVES_DA_AGENDA) {
+      for (const status of [cores.sucesso, cores.atencao, cores.perigo]) {
+        expect(distanciaDeCor(paleta[chave], status)).toBeGreaterThanOrEqual(DISTANCIA_DO_STATUS);
+      }
+    }
+  });
+
+  it('as oito se distinguem entre si (a cor identifica a agenda)', () => {
+    for (let i = 0; i < CHAVES_DA_AGENDA.length; i++) {
+      for (let j = i + 1; j < CHAVES_DA_AGENDA.length; j++) {
+        expect(distanciaDeCor(paleta[CHAVES_DA_AGENDA[i]], paleta[CHAVES_DA_AGENDA[j]])).toBeGreaterThanOrEqual(DISTANCIA_ENTRE_AGENDAS);
+      }
+    }
+  });
+});
+
+describe('corDaAgenda', () => {
+  it('escolhe o par pelo tema; chave desconhecida ou nula cai em ARDOSIA', () => {
+    expect(corDaAgenda('AZUL', false)).toBe(PALETA_DA_AGENDA.claro.AZUL);
+    expect(corDaAgenda('AZUL', true)).toBe(PALETA_DA_AGENDA.escuro.AZUL);
+    expect(corDaAgenda('ROSA', true)).toBe(PALETA_DA_AGENDA.escuro.ARDOSIA);
+    expect(corDaAgenda(null, false)).toBe(PALETA_DA_AGENDA.claro.ARDOSIA);
   });
 });

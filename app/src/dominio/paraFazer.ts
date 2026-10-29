@@ -1,6 +1,9 @@
+import type { AvisoDeCompromisso, TipoAvisoCompromisso } from '../api/agendaTipos';
 import type { CobrancaDoAluno } from '../api/financeiroTipos';
 import type { Atualizacao } from '../api/tipos';
 import type { TipoSelo } from '../ui/Selo';
+import { dataEmBrasilia, horaEmBrasilia } from './agendaPresencial';
+import { dataSemAnoCorrente } from './datasRelativas';
 import { informacaoDaCobranca, pagamentoPendente, type ComoPagar } from './financeiro';
 import { centavosParaTela, dataCurta } from './formatos';
 
@@ -82,3 +85,63 @@ export function itemDoPagamento(
   }
   return { titulo, detalhe: `${valor}${mais}, vence em ${quando}.`, selo: { texto: `Vence ${quando}`, tipo: 'neutro' }, responder: false };
 }
+
+// ---- Avisos de compromisso (D12) ----
+
+/** Quantos avisos aparecem de uma vez em "Suas pendências"; a API devolve até 20 (os mais novos primeiro). */
+export const AVISOS_VISIVEIS = 5;
+
+/** Item de aviso: `id` é o do aviso, para marcar como visto ao tocar. */
+export interface ItemDoAviso extends ItemParaFazer {
+  id: string;
+  tipo: TipoAvisoCompromisso;
+}
+
+const SELO_DO_AVISO: Record<TipoAvisoCompromisso, string> = { NOVO: 'Novo', REMARCADO: 'Remarcado', CANCELADO: 'Cancelado' };
+
+/**
+ * A frase do aviso (D12), com data e hora de Brasília do `inicio` copiado no momento do aviso e o ano só quando não é o
+ * corrente: "Novo compromisso: 05/11 às 09:00 com Ana", "Compromisso remarcado: agora 05/11 às 09:00 com Ana",
+ * "Compromisso cancelado: 05/11 às 09:00 com Ana". Sem responsável, "com a equipe". `hoje` é a data de Brasília.
+ */
+export function textoDoAviso(a: Pick<AvisoDeCompromisso, 'tipo' | 'inicio' | 'responsavelNome'>, hoje: string): string {
+  const quando = `${dataSemAnoCorrente(dataEmBrasilia(a.inicio), hoje)} às ${horaEmBrasilia(a.inicio)}`;
+  const quem = `com ${a.responsavelNome?.trim() || 'a equipe'}`;
+  if (a.tipo === 'REMARCADO') return `Compromisso remarcado: agora ${quando} ${quem}`;
+  return `${a.tipo === 'CANCELADO' ? 'Compromisso cancelado' : 'Novo compromisso'}: ${quando} ${quem}`;
+}
+
+/**
+ * Aviso de compromisso em "Suas pendências": a frase da D12 no título, selo neutro com o tipo (vermelho continua só da
+ * atualização atrasada). Só avisa: sem botão de confirmar presença; tocar marca como visto e leva ao cartão "Seus
+ * compromissos" do mesmo Início.
+ */
+export function itemDoAviso(a: AvisoDeCompromisso, hoje: string): ItemDoAviso {
+  return {
+    id: a.id, tipo: a.tipo, titulo: textoDoAviso(a, hoje), detalhe: 'Toque para ver seus compromissos.',
+    selo: { texto: SELO_DO_AVISO[a.tipo] ?? 'Aviso', tipo: 'neutro' }, responder: false,
+  };
+}
+
+/**
+ * Os avisos da lista da API (não vistos, mais novos primeiro: a ordem da API se mantém) como itens, sem repetir `id` e sem
+ * aviso de data inválida; no máximo {@link AVISOS_VISIVEIS} aparecem e `ocultos` conta os que ficam para depois (cada um
+ * some quando o aluno vê o anterior). `total` (com os ocultos) é o que o ponto da aba Início e a contagem das pendências
+ * usam.
+ */
+export function avisosDoInicio(avisos: readonly AvisoDeCompromisso[] | null | undefined, hoje: string):
+  { itens: ItemDoAviso[]; ocultos: number; total: number } {
+  const vistos = new Set<string>();
+  const validos: AvisoDeCompromisso[] = [];
+  for (const a of avisos ?? []) {
+    if (vistos.has(a.id) || Number.isNaN(Date.parse(a.inicio))) continue;
+    vistos.add(a.id);
+    validos.push(a);
+  }
+  const itens = validos.slice(0, AVISOS_VISIVEIS).map((a) => itemDoAviso(a, hoje));
+  return { itens, ocultos: validos.length - itens.length, total: validos.length };
+}
+
+/** Há aviso de compromisso não visto (o ponto na aba Início). */
+export const temAvisoDeCompromisso = (avisos: readonly AvisoDeCompromisso[] | null | undefined): boolean =>
+  !!avisos?.some((a) => !Number.isNaN(Date.parse(a.inicio)));
