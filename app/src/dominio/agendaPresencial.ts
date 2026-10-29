@@ -1,5 +1,5 @@
 import type {
-  AlunoOcupado, Compromisso, CompromissoDoAluno, CompromissoRequest, DiaDaSemana, EscopoDaSerie, Repeticao,
+  AlunoOcupado, Compromisso, CompromissoDoAluno, CompromissoRequest, DiaDaSemana, EscopoDaSerie, FiltroAlunosOcupados, Repeticao,
   SituacaoCompromisso, TipoDeRepeticao,
 } from '../api/agendaTipos';
 import type { AtualizacaoDaLista } from '../api/tipos';
@@ -108,12 +108,19 @@ export function adicionarParticipante(alunoIds: readonly string[], id: string): 
 
 export const removerParticipante = (alunoIds: readonly string[], id: string): string[] => alunoIds.filter((a) => a !== id);
 
-/** Nomes para o título da linha: "Ana", "Ana e Bruno", "Ana e mais 3" (sem nome, "Aluno"). */
+/** Nomes para o título da linha: "Ana", "Ana e Bruno", "Ana, Bruno +2" (sem nome, "Aluno"). */
 export function nomesDosParticipantes(c: Pick<Compromisso, 'participantes'>): string {
   const nomes = c.participantes.map(nomeDe);
   if (nomes.length === 0) return SEM_NOME;
   if (nomes.length <= 2) return nomes.join(' e ');
-  return `${nomes[0]} e mais ${nomes.length - 1}`;
+  return `${nomes[0]}, ${nomes[1]} +${nomes.length - 2}`;
+}
+
+/** Os mesmos nomes para o leitor de tela, sem o "+2": "Ana, Bruno e mais 2". */
+export function nomesPorExtenso(c: Pick<Compromisso, 'participantes'>): string {
+  const nomes = c.participantes.map(nomeDe);
+  if (nomes.length <= 2) return nomesDosParticipantes(c);
+  return `${nomes[0]}, ${nomes[1]} e mais ${nomes.length - 2}`;
 }
 
 /**
@@ -365,6 +372,19 @@ export function escoposPermitidos(c: Pick<Compromisso, 'serieId'>, restricoes: R
 export const escopoPermitido = (c: Pick<Compromisso, 'serieId'>, escopo: EscopoDaSerie, restricoes: RestricoesDoEscopo = {}): boolean =>
   escoposPermitidos(c, restricoes).includes(escopo);
 
+/**
+ * O que cada escopo alcança, para a pergunta "só este, os seguintes ou todos" (mesma regra da API, D4): os que já
+ * passaram nunca mudam. `data` é a da ocorrência aberta (AAAA-MM-DD).
+ */
+export function explicacaoDoEscopo(escopo: EscopoDaSerie, data: string, hoje: string): string {
+  if (escopo === 'ESTA') return `Só o compromisso de ${dataSemAnoCorrente(data, hoje)}.`;
+  if (escopo === 'SEGUINTES') return `O de ${dataSemAnoCorrente(data, hoje)} e os seguintes da série que ainda não terminaram.`;
+  return 'Todos os da série que ainda não começaram. Os que já passaram não mudam.';
+}
+
+/** A data do formulário é outra que a do compromisso gravado (numa série, só vale para esta ocorrência). */
+export const mudouAData = (f: Pick<FormularioDoCompromisso, 'data'>, c: Pick<Compromisso, 'data'>): boolean => dataDaTela(f.data) !== c.data;
+
 // ---- Visões Dia e Semana ----
 
 export type VisaoDaAgenda = 'dia' | 'semana';
@@ -493,11 +513,13 @@ export function textoDaDuracao(minutos: number): string {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-/** Linha de metadados na agenda: "Compromisso · 09:00–10:00 · Sala 2 · com Ana". */
+/** Linha de metadados na agenda: "Compromisso · 09:00–10:00 · Sala 2 · com Ana" e, numa série, "· Ocorrência 3 de 10". */
 export function metadadosDoCompromisso(c: Compromisso): string {
   const partes = ['Compromisso', textoDoHorario(c)];
   if (c.local) partes.push(c.local);
   if (c.responsavelNome) partes.push(`com ${c.responsavelNome}`);
+  const ocorrencia = textoDaOcorrencia(c);
+  if (ocorrencia) partes.push(ocorrencia);
   return partes.join(' · ');
 }
 
@@ -518,30 +540,102 @@ export interface AcaoDeSituacao {
   /** Pede confirmação (cancelar). */
   confirmar?: boolean;
   perigo?: boolean;
+  /** Rótulo para o leitor de tela, com o nome do aluno. */
+  rotuloAcessivel?: string;
+}
+
+interface OpcoesDasAcoes {
+  /** Nome do aluno, para o rótulo lido pelo leitor de tela ("Marcar realizado: Ana"). */
+  nome?: string | null;
+  /**
+   * Único participante: cancelar e reabrir a participação dele é o mesmo que cancelar e reabrir o compromisso inteiro,
+   * então essas duas ficam só com a ação do compromisso ({@link acaoDeCancelamento}), sem botão repetido.
+   */
+  sozinho?: boolean;
+  /** O compromisso inteiro está cancelado: nada por aluno; só "Reabrir compromisso". */
+  cancelado?: boolean;
 }
 
 /**
  * O que dá para fazer com um aluno do compromisso agora (`situacao` é a dele; mesmas regras da API): realizado e falta
- * só depois do início; cancelar
- * só o que está agendado; o que não está agendado pode voltar a agendado (o cancelado volta a ocupar o horário e a API
- * confere o conflito de novo).
+ * só depois do início; cancelar a participação só de quem está agendado; o que não está agendado pode voltar a agendado
+ * (o cancelado volta a ocupar o horário e a API confere o conflito de novo). Os rótulos falam da participação, nunca do
+ * "compromisso": cancelar um aluno não cancela os outros.
  */
-export function acoesDeSituacao(c: { situacao: SituacaoCompromisso; inicio: string }, agora: Date = new Date()): AcaoDeSituacao[] {
+export function acoesDeSituacao(c: { situacao: SituacaoCompromisso; inicio: string }, agora: Date = new Date(),
+  opcoes: OpcoesDasAcoes = {}): AcaoDeSituacao[] {
+  if (opcoes.cancelado) return [];
   const comecou = Date.parse(c.inicio) <= agora.getTime();
   const antes = comecou ? undefined : 'Disponível depois do horário do compromisso.';
   const acoes: AcaoDeSituacao[] = [];
   if (c.situacao !== 'REALIZADO' && c.situacao !== 'CANCELADO') acoes.push({ situacao: 'REALIZADO', rotulo: 'Marcar realizado', motivo: antes });
   if (c.situacao !== 'FALTOU' && c.situacao !== 'CANCELADO') acoes.push({ situacao: 'FALTOU', rotulo: 'Marcar falta', motivo: antes });
-  if (c.situacao === 'AGENDADO') acoes.push({ situacao: 'CANCELADO', rotulo: 'Cancelar compromisso', confirmar: true, perigo: true });
-  else acoes.push({ situacao: 'AGENDADO', rotulo: c.situacao === 'CANCELADO' ? 'Reativar compromisso' : 'Voltar para agendado' });
-  return acoes;
+  if (c.situacao === 'AGENDADO') {
+    if (!opcoes.sozinho) acoes.push({ situacao: 'CANCELADO', rotulo: 'Cancelar participação', confirmar: true, perigo: true });
+  } else if (c.situacao === 'CANCELADO') {
+    if (!opcoes.sozinho) acoes.push({ situacao: 'AGENDADO', rotulo: 'Reabrir participação' });
+  } else acoes.push({ situacao: 'AGENDADO', rotulo: 'Voltar para agendado' });
+  const nome = opcoes.nome?.trim();
+  return nome ? acoes.map((a) => ({ ...a, rotuloAcessivel: `${a.rotulo}: ${nome}` })) : acoes;
 }
 
-/** Cancelar o compromisso inteiro (todos os participantes) ou reabri-lo; o cancelamento pede confirmação. */
-export function acaoDeCancelamento(c: Pick<Compromisso, 'cancelado'>): { cancelado: boolean; rotulo: string; confirmar: boolean; perigo: boolean } {
-  return c.cancelado
-    ? { cancelado: false, rotulo: 'Reabrir compromisso', confirmar: false, perigo: false }
-    : { cancelado: true, rotulo: 'Cancelar compromisso', confirmar: true, perigo: true };
+/**
+ * Cancelar o compromisso inteiro (todos os participantes) ou reabri-lo; o cancelamento pede confirmação. Com vários
+ * alunos o rótulo diz "inteiro", para não se confundir com cancelar a participação de um.
+ */
+export function acaoDeCancelamento(c: Pick<Compromisso, 'cancelado'> & { participantes?: readonly unknown[] }):
+  { cancelado: boolean; rotulo: string; confirmar: boolean; perigo: boolean } {
+  if (c.cancelado) return { cancelado: false, rotulo: 'Reabrir compromisso', confirmar: false, perigo: false };
+  return { cancelado: true, rotulo: (c.participantes?.length ?? 0) > 1 ? 'Cancelar compromisso inteiro' : 'Cancelar compromisso', confirmar: true, perigo: true };
+}
+
+/**
+ * Quem recebe o aviso de cancelamento ao cancelar o compromisso inteiro (D12): os participantes que ainda não estavam
+ * cancelados; nenhum se o compromisso já terminou (a API não avisa compromisso terminado).
+ */
+export function avisadosAoCancelar(c: Pick<Compromisso, 'participantes' | 'fim'>, agora: Date = new Date()): number {
+  if (Date.parse(c.fim) <= agora.getTime()) return 0;
+  return c.participantes.filter((p) => p.situacao !== 'CANCELADO').length;
+}
+
+/** Texto da confirmação de cancelar o compromisso inteiro: quantos alunos serão avisados e que o horário fica livre. */
+export function textoDoCancelamentoInteiro(c: Pick<Compromisso, 'participantes' | 'fim'>, agora: Date = new Date()): string {
+  const avisados = avisadosAoCancelar(c, agora);
+  const aviso = avisados === 0 ? 'Nenhum aluno recebe aviso.'
+    : avisados === 1 ? '1 aluno recebe o aviso do cancelamento.' : `${avisados} alunos recebem o aviso do cancelamento.`;
+  return `Todos os alunos deste compromisso ficam cancelados. ${aviso} O horário do responsável fica livre.`;
+}
+
+/** Confirmação de cancelar só a participação de um aluno: ele sai, os outros continuam; avisado só se ainda não terminou. */
+export function textoDoCancelamentoDoAluno(nome: string | null, c: Pick<Compromisso, 'fim'>, agora: Date = new Date()): string {
+  const quem = nome?.trim() || SEM_NOME;
+  const avisa = Date.parse(c.fim) > agora.getTime();
+  return `${quem} deixa de participar${avisa ? ' e recebe o aviso do cancelamento' : ''}. Os outros alunos continuam marcados.`;
+}
+
+/**
+ * Texto próprio da agenda para um erro da API ao salvar ou mudar a situação; `null` = mostrar a mensagem da API. O 409
+ * `HORARIO_OCUPADO` lista as datas que conflitam ({@link textoDoConflitoPorData}); `CONFLITO_EDICAO` pede para reabrir.
+ */
+export function textoDoErroDaAgenda(erro: unknown, hoje: string): string | null {
+  const codigo = (erro as { codigo?: unknown } | null)?.codigo;
+  if (codigo === 'HORARIO_OCUPADO') return textoDoConflitoPorData(datasEmConflito(erro), hoje);
+  if (codigo === 'CONFLITO_EDICAO') return 'Outra pessoa alterou este compromisso. Feche e abra de novo para ver a versão atual.';
+  return null;
+}
+
+/**
+ * O filtro do aviso de aluno ocupado (D11), só com o que dá para conferir: alunos escolhidos, data, hora e duração
+ * válidas. Senão `null` (a API nunca é chamada com a lista vazia). `ignorar` é o próprio compromisso, ao remarcar.
+ */
+export function filtroDeAlunosOcupados(f: Pick<FormularioDoCompromisso, 'alunoIds' | 'data' | 'hora' | 'duracao'>, ignorar?: string | null):
+  FiltroAlunosOcupados | null {
+  if (f.alunoIds.length === 0) return null;
+  const data = dataDaTela(f.data);
+  const hora = f.hora.trim();
+  const duracao = /^\d+$/.test(f.duracao.trim()) ? Number(f.duracao.trim()) : NaN;
+  if (!data || !horaValida(hora) || !(duracao >= LIMITES_COMPROMISSO.duracaoMinima && duracao <= LIMITES_COMPROMISSO.duracaoMaxima)) return null;
+  return { data, hora, duracaoMinutos: duracao, alunoIds: [...f.alunoIds], ...(ignorar ? { ignorar } : {}) };
 }
 
 // ---- Formulário ----
@@ -560,6 +654,24 @@ export interface FormularioDaRepeticao {
 }
 
 export const SEM_REPETICAO: FormularioDaRepeticao = { tipo: 'NENHUMA', dias: [], fim: 'VEZES', ate: '', vezes: '' };
+
+/**
+ * Trocar o tipo da repetição: "Toda semana" já nasce com o dia da semana da data do compromisso marcado (a API exige que
+ * ele esteja entre os dias); os outros tipos não guardam dias.
+ */
+export function trocarTipoDaRepeticao(r: FormularioDaRepeticao, tipo: FormularioDaRepeticao['tipo'], dataDoFormulario: string): FormularioDaRepeticao {
+  if (tipo !== 'SEMANAL') return { ...r, tipo, dias: [] };
+  const data = dataDaTela(dataDoFormulario);
+  return { ...r, tipo, dias: r.dias.length ? r.dias : data ? [diaDaSemanaDaData(data)] : [] };
+}
+
+/** Marca ou desmarca um dia da semana, mantendo a ordem de segunda a domingo. */
+export function alternarDiaDaRepeticao(dias: readonly DiaDaSemana[], dia: DiaDaSemana): DiaDaSemana[] {
+  const conjunto = new Set(dias);
+  if (conjunto.has(dia)) conjunto.delete(dia);
+  else conjunto.add(dia);
+  return DIAS_DA_SEMANA.filter((d) => conjunto.has(d));
+}
 
 export interface FormularioDoCompromisso {
   /** Os participantes, na ordem em que foram escolhidos (1 a 20, sem repetir). */

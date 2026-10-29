@@ -8,6 +8,8 @@ import {
   formularioNovo, hojeEmBrasilia, horaEmBrasilia, horaValida, instanteDeBrasilia, intervaloDoPedido, lerDataDeReferencia, lerSituacao,
   lerVisao, mascaraHora, metadadosDoCompromisso, pedidoDoFormulario, periodoDaVisao, resumoDoDia, seloDaSituacao, sobrepoe,
   textoDaDuracao, textoDoHorario, textosDoCompromissoDoAluno, tituloDoPeriodo,
+  alternarDiaDaRepeticao, avisadosAoCancelar, explicacaoDoEscopo, filtroDeAlunosOcupados, mudouAData, nomesPorExtenso,
+  textoDoCancelamentoDoAluno, textoDoCancelamentoInteiro, textoDoErroDaAgenda, trocarTipoDaRepeticao,
 } from './agendaPresencial';
 
 function compromisso(parcial: Partial<Compromisso> & Pick<Compromisso, 'id' | 'inicio' | 'fim'>): Compromisso {
@@ -140,10 +142,10 @@ describe('textos', () => {
 
 describe('ações sobre a situação', () => {
   const agora = new Date('2026-11-10T12:00:00Z');
-  it('futuro: realizado e falta desabilitados com o porquê; cancelar pede confirmação', () => {
+  it('futuro: realizado e falta desabilitados com o porquê; cancelar a participação pede confirmação', () => {
     const acoes = acoesDeSituacao({ situacao: 'AGENDADO', inicio: '2026-11-11T12:00:00Z' }, agora);
     expect(acoes.map((a) => [a.situacao, !!a.motivo])).toEqual([['REALIZADO', true], ['FALTOU', true], ['CANCELADO', false]]);
-    expect(acoes[2].confirmar).toBe(true);
+    expect(acoes[2]).toMatchObject({ rotulo: 'Cancelar participação', confirmar: true, perigo: true });
   });
 
   it('passado: marca realizado ou falta; o que não está agendado volta a agendado', () => {
@@ -151,7 +153,24 @@ describe('ações sobre a situação', () => {
     expect(acoesDeSituacao({ situacao: 'REALIZADO', inicio: '2026-11-09T12:00:00Z' }, agora).map((a) => a.situacao))
       .toEqual(['FALTOU', 'AGENDADO']);
     expect(acoesDeSituacao({ situacao: 'CANCELADO', inicio: '2026-11-09T12:00:00Z' }, agora).map((a) => a.rotulo))
-      .toEqual(['Reativar compromisso']);
+      .toEqual(['Reabrir participação']);
+  });
+
+  it('nunca diz "Cancelar compromisso" por aluno; sozinho, cancelar e reabrir ficam só no compromisso', () => {
+    const todas = (['AGENDADO', 'REALIZADO', 'FALTOU', 'CANCELADO'] as const)
+      .flatMap((situacao) => acoesDeSituacao({ situacao, inicio: '2026-11-09T12:00:00Z' }, agora));
+    expect(todas.some((a) => /compromisso/i.test(a.rotulo))).toBe(false);
+    expect(acoesDeSituacao({ situacao: 'AGENDADO', inicio: '2026-11-09T12:00:00Z' }, agora, { sozinho: true }).map((a) => a.situacao))
+      .toEqual(['REALIZADO', 'FALTOU']);
+    expect(acoesDeSituacao({ situacao: 'CANCELADO', inicio: '2026-11-09T12:00:00Z' }, agora, { sozinho: true })).toEqual([]);
+    expect(acoesDeSituacao({ situacao: 'FALTOU', inicio: '2026-11-09T12:00:00Z' }, agora, { sozinho: true }).map((a) => a.rotulo))
+      .toEqual(['Marcar realizado', 'Voltar para agendado']);
+  });
+
+  it('compromisso inteiro cancelado: nada por aluno; o nome vai ao rótulo do leitor de tela', () => {
+    expect(acoesDeSituacao({ situacao: 'CANCELADO', inicio: '2026-11-09T12:00:00Z' }, agora, { cancelado: true })).toEqual([]);
+    expect(acoesDeSituacao({ situacao: 'AGENDADO', inicio: '2026-11-09T12:00:00Z' }, agora, { nome: 'Ana' })[0].rotuloAcessivel)
+      .toBe('Marcar realizado: Ana');
   });
 });
 
@@ -218,10 +237,13 @@ describe('participantes', () => {
     expect(removerParticipante(['a', 'b'], 'a')).toEqual(['b']);
   });
 
-  it('nomes para a linha: um, dois ou "e mais N"; sem nome vira "Aluno"', () => {
+  it('nomes para a linha: um, dois ou "Ana, Bruno +N"; por extenso para o leitor; sem nome vira "Aluno"', () => {
     expect(nomesDosParticipantes(comParticipantes([participante('1', 'AGENDADO', 'Ana')]))).toBe('Ana');
     expect(nomesDosParticipantes(comParticipantes([participante('1', 'AGENDADO', 'Ana'), participante('2', 'AGENDADO', 'Bruno')]))).toBe('Ana e Bruno');
-    expect(nomesDosParticipantes(comParticipantes(['1', '2', '3', '4'].map((i) => participante(i, 'AGENDADO', `N${i}`))))).toBe('N1 e mais 3');
+    const quatro = comParticipantes(['1', '2', '3', '4'].map((i) => participante(i, 'AGENDADO', `N${i}`)));
+    expect(nomesDosParticipantes(quatro)).toBe('N1, N2 +2');
+    expect(nomesPorExtenso(quatro)).toBe('N1, N2 e mais 2');
+    expect(nomesPorExtenso(comParticipantes([participante('1', 'AGENDADO', 'Ana')]))).toBe('Ana');
     expect(nomesDosParticipantes(comParticipantes([participante('1', 'AGENDADO', null)]))).toBe('Aluno');
     expect(nomesDosParticipantes(comParticipantes([]))).toBe('Aluno');
   });
@@ -250,13 +272,68 @@ describe('participantes', () => {
   });
 
   it('cancelar o compromisso inteiro pede confirmação; cancelado reabre sem confirmar', () => {
-    expect(acaoDeCancelamento({ cancelado: false })).toMatchObject({ cancelado: true, confirmar: true, perigo: true });
-    expect(acaoDeCancelamento({ cancelado: true })).toMatchObject({ cancelado: false, confirmar: false });
+    expect(acaoDeCancelamento({ cancelado: false })).toMatchObject({ cancelado: true, confirmar: true, perigo: true, rotulo: 'Cancelar compromisso' });
+    expect(acaoDeCancelamento({ cancelado: false, participantes: [1, 2] }).rotulo).toBe('Cancelar compromisso inteiro');
+    expect(acaoDeCancelamento({ cancelado: true })).toMatchObject({ cancelado: false, confirmar: false, rotulo: 'Reabrir compromisso' });
   });
 
-  it('texto da ocorrência na série', () => {
+  it('cancelar inteiro avisa os que ainda participam; compromisso terminado não avisa ninguém', () => {
+    const agora = new Date('2026-11-10T10:00:00Z');
+    const c = comParticipantes([participante('1'), participante('2', 'CANCELADO'), participante('3', 'REALIZADO')]);
+    expect(avisadosAoCancelar(c, agora)).toBe(2);
+    expect(textoDoCancelamentoInteiro(c, agora)).toBe('Todos os alunos deste compromisso ficam cancelados. 2 alunos recebem o aviso do cancelamento. O horário do responsável fica livre.');
+    expect(textoDoCancelamentoInteiro(comParticipantes([participante('1')]), agora)).toContain('1 aluno recebe o aviso');
+    expect(avisadosAoCancelar(c, new Date('2026-11-10T13:00:00Z'))).toBe(0);
+    expect(textoDoCancelamentoInteiro(c, new Date('2026-11-10T14:00:00Z'))).toContain('Nenhum aluno recebe aviso.');
+  });
+
+  it('texto da ocorrência na série, também nos metadados da linha', () => {
     expect(textoDaOcorrencia({ serieId: 's', ocorrenciaDaSerie: 3, totalDaSerie: 10 })).toBe('Ocorrência 3 de 10');
     expect(textoDaOcorrencia({ serieId: null, ocorrenciaDaSerie: null, totalDaSerie: null })).toBeNull();
+    expect(metadadosDoCompromisso(comParticipantes([participante('1')], { serieId: 's', ocorrenciaDaSerie: 3, totalDaSerie: 10 })))
+      .toBe('Compromisso · 09:00–10:00 · com Ana · Ocorrência 3 de 10');
+  });
+});
+
+describe('escopo, aviso de aluno ocupado e repetição no formulário', () => {
+  it('explica o alcance de cada escopo e percebe a data mudada', () => {
+    expect(explicacaoDoEscopo('ESTA', '2026-11-05', '2026-10-19')).toBe('Só o compromisso de 05/11.');
+    expect(explicacaoDoEscopo('SEGUINTES', '2026-11-05', '2026-10-19')).toBe('O de 05/11 e os seguintes da série que ainda não terminaram.');
+    expect(explicacaoDoEscopo('TODAS', '2026-11-05', '2026-10-19')).toContain('Os que já passaram não mudam.');
+    expect(mudouAData({ data: '05/11/2026' }, { data: '2026-11-05' })).toBe(false);
+    expect(mudouAData({ data: '06/11/2026' }, { data: '2026-11-05' })).toBe(true);
+  });
+
+  it('cancelar só um aluno e erros próprios da agenda', () => {
+    const c = comParticipantes([participante('1')]);
+    expect(textoDoCancelamentoDoAluno('Ana', c, new Date('2026-11-10T10:00:00Z')))
+      .toBe('Ana deixa de participar e recebe o aviso do cancelamento. Os outros alunos continuam marcados.');
+    expect(textoDoCancelamentoDoAluno(null, c, new Date('2026-11-10T14:00:00Z'))).toBe('Aluno deixa de participar. Os outros alunos continuam marcados.');
+    const ocupado = { codigo: 'HORARIO_OCUPADO', campos: [{ field: 'datasEmConflito', message: '2026-10-26' }] };
+    expect(textoDoErroDaAgenda(ocupado, '2026-10-19')).toBe('O responsável já tem compromisso nesse horário em 26/10. Escolha outro horário.');
+    expect(textoDoErroDaAgenda({ codigo: 'CONFLITO_EDICAO', campos: [] }, '2026-10-19')).toContain('Outra pessoa alterou');
+    expect(textoDoErroDaAgenda({ codigo: 'ALUNO_INATIVO', campos: [] }, '2026-10-19')).toBeNull();
+    expect(textoDoErroDaAgenda(new Error('x'), '2026-10-19')).toBeNull();
+  });
+
+  it('filtro de alunos ocupados só com alunos e horário válidos', () => {
+    const f = { alunoIds: ['a1', 'a2'], data: '05/11/2026', hora: '09:00', duracao: '60' };
+    expect(filtroDeAlunosOcupados(f)).toEqual({ data: '2026-11-05', hora: '09:00', duracaoMinutos: 60, alunoIds: ['a1', 'a2'] });
+    expect(filtroDeAlunosOcupados(f, 'k1')).toMatchObject({ ignorar: 'k1' });
+    expect(filtroDeAlunosOcupados({ ...f, alunoIds: [] })).toBeNull();
+    expect(filtroDeAlunosOcupados({ ...f, hora: '09:' })).toBeNull();
+    expect(filtroDeAlunosOcupados({ ...f, data: '31/02/2026' })).toBeNull();
+    expect(filtroDeAlunosOcupados({ ...f, duracao: '4' })).toBeNull();
+  });
+
+  it('"Toda semana" nasce com o dia da data; os dias ficam de segunda a domingo', () => {
+    // 05/11/2026 é quinta-feira.
+    expect(trocarTipoDaRepeticao(SEM_REPETICAO, 'SEMANAL', '05/11/2026').dias).toEqual(['THURSDAY']);
+    expect(trocarTipoDaRepeticao({ ...SEM_REPETICAO, dias: ['MONDAY'] }, 'SEMANAL', '05/11/2026').dias).toEqual(['MONDAY']);
+    expect(trocarTipoDaRepeticao({ ...SEM_REPETICAO, tipo: 'SEMANAL', dias: ['MONDAY'] }, 'DIARIA', '05/11/2026')).toMatchObject({ tipo: 'DIARIA', dias: [] });
+    expect(trocarTipoDaRepeticao(SEM_REPETICAO, 'SEMANAL', '').dias).toEqual([]);
+    expect(alternarDiaDaRepeticao(['FRIDAY'], 'MONDAY')).toEqual(['MONDAY', 'FRIDAY']);
+    expect(alternarDiaDaRepeticao(['MONDAY', 'FRIDAY'], 'MONDAY')).toEqual(['FRIDAY']);
   });
 });
 

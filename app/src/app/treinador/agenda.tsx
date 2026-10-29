@@ -6,7 +6,7 @@ import { listarAtualizacoes, listarCompromissos, painelTreinador, responsaveisEq
 import { resumoDeAtrasadas } from '../../dominio/agenda';
 import {
   deslocarReferencia, diasDaAgenda, hojeEmBrasilia, lerDataDeReferencia, lerSituacao, lerVisao, metadadosDoCompromisso, nomesDosParticipantes,
-  OPCOES_SITUACAO, periodoDaVisao, resumoDoDia, seloDoCompromisso, tituloDoPeriodo, type VisaoDaAgenda,
+  nomesPorExtenso, OPCOES_SITUACAO, periodoDaVisao, resumoDoDia, seloDoCompromisso, tituloDoPeriodo, type VisaoDaAgenda,
 } from '../../dominio/agendaPresencial';
 import { caminhoAtualizacaoTreinador, caminhoListaAtualizacoes, statusAtualizacaoTreinador } from '../../dominio/atualizacao';
 import { FolhaCompromisso } from '../../treinador/agenda/FolhaCompromisso';
@@ -141,6 +141,7 @@ export default function AgendaDoTreinador() {
       </View> : null}
     </View>
     {membro && verAtualizacoes ? <Texto variante="suave">As atualizações aparecem em “Todos” ou “Meus”.</Texto> : null}
+    {verCompromissos && situacao ? <Texto variante="suave">Com vários alunos, aparecem os compromissos em que algum aluno está nessa situação.</Texto> : null}
 
     {lista.erro ? <MensagemErro texto={textoDoErro(lista.erro)} erro={lista.erro} tentarDeNovo={recarregar} /> : null}
     {compromissos.erro ? <MensagemErro texto={textoDoErro(compromissos.erro)} erro={compromissos.erro} tentarDeNovo={recarregarCompromissos} /> : null}
@@ -151,10 +152,12 @@ export default function AgendaDoTreinador() {
       {dia.compromissos.length || dia.atualizacoes.length ? <ListaDeLinhas>
         {dia.compromissos.map((c) => {
           const selo = seloDoCompromisso(c);
+          // Vários alunos: "Ana, Bruno +2" na linha e os nomes por extenso para o leitor de tela.
           const nome = nomesDosParticipantes(c);
           return <LinhaDaLista key={`c:${c.id}`} titulo={nome} metadados={metadadosDoCompromisso(c)} selos={[selo]}
             esmaecido={c.cancelado} aoTocarTextos={() => setAberto(c)}
-            acoes={<Botao rotulo="Abrir" tipo="secundario" rotuloAcessivel={`Abrir compromisso de ${nome}, ${c.hora}`} aoTocar={() => setAberto(c)} />} />;
+            acoes={<Botao rotulo="Abrir" tipo="secundario" rotuloAcessivel={`Abrir compromisso de ${nomesPorExtenso(c)}, ${c.hora}${c.cancelado ? ', cancelado' : ''}`}
+              aoTocar={() => setAberto(c)} />} />;
         })}
         {dia.atualizacoes.map((a) => {
           const selo = statusAtualizacaoTreinador(a, hoje);
