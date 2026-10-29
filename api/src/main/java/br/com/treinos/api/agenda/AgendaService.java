@@ -743,7 +743,7 @@ public class AgendaService {
         return instante.atZone(Fuso.BRASILIA).format(HORA);
     }
 
-    private static Set<SituacaoCompromisso> filtro(Collection<String> situacoes) {
+    static Set<SituacaoCompromisso> filtro(Collection<String> situacoes) {
         if (situacoes == null || situacoes.stream().allMatch(s -> s == null || s.isBlank())) {
             return EnumSet.allOf(SituacaoCompromisso.class);
         }

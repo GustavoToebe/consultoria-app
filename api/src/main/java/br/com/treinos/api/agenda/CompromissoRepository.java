@@ -27,6 +27,16 @@ public interface CompromissoRepository extends JpaRepository<Compromisso, UUID> 
     List<Compromisso> doPeriodo(Instant de, Instant ate, UUID responsavelId, Collection<SituacaoCompromisso> situacoes);
 
     /**
+     * Só o horário ({@code [inicio, fim]}) dos compromissos que tocam [{@code de}, {@code ate}), com o mesmo filtro de
+     * responsável e situação de {@link #doPeriodo}: o resumo do Ano conta sem carregar compromisso, participante nem nome.
+     */
+    @Query("select c.inicio, c.fim from Compromisso c where c.inicio < :ate and c.fim > :de "
+            + "and (:responsavelId is null or c.responsavelId = :responsavelId) "
+            + "and exists (select 1 from CompromissoAluno ca where ca.consultoriaId = c.consultoriaId "
+            + "and ca.compromissoId = c.id and ca.situacao in :situacoes)")
+    List<Object[]> horariosDoPeriodo(Instant de, Instant ate, UUID responsavelId, Collection<SituacaoCompromisso> situacoes);
+
+    /**
      * Quantos compromissos não cancelados do responsável se sobrepõem a [{@code inicio}, {@code fim}), menos os
      * {@code ignorar} (o próprio ao remarcar; todas as ocorrências do escopo ao mudar uma série, para uma não conflitar com
      * a posição antiga da outra). Nunca vazio: sem ninguém para ignorar, passe um id que não existe. Encostar (um termina às

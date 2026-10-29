@@ -119,11 +119,11 @@ final class RepeticaoDeCompromisso {
         }
     }
 
-    private static boolean ehFimDeSemana(DayOfWeek dia) {
+    static boolean ehFimDeSemana(DayOfWeek dia) {
         return dia == DayOfWeek.SATURDAY || dia == DayOfWeek.SUNDAY;
     }
 
-    private static LocalDate diaUtilDepoisDe(LocalDate dia) {
+    static LocalDate diaUtilDepoisDe(LocalDate dia) {
         LocalDate proximo = dia.plusDays(1);
         while (ehFimDeSemana(proximo.getDayOfWeek())) {
             proximo = proximo.plusDays(1);
@@ -131,7 +131,7 @@ final class RepeticaoDeCompromisso {
         return proximo;
     }
 
-    private static LocalDate proximoDiaEscolhido(LocalDate dia, Set<DayOfWeek> dias) {
+    static LocalDate proximoDiaEscolhido(LocalDate dia, Set<DayOfWeek> dias) {
         LocalDate proximo = dia.plusDays(1);
         while (!dias.contains(proximo.getDayOfWeek())) {
             proximo = proximo.plusDays(1);
@@ -140,7 +140,7 @@ final class RepeticaoDeCompromisso {
     }
 
     /** O mesmo dia do mês seguinte, sem encostar o 31 no 30: o mês que não tem o dia é pulado. */
-    private static LocalDate mesmoDiaDoMes(LocalDate ultima) {
+    static LocalDate mesmoDiaDoMes(LocalDate ultima) {
         int dia = ultima.getDayOfMonth();
         YearMonth mes = YearMonth.from(ultima).plusMonths(1);
         // Cada dia do mês existe em pelo menos um mês de cada dois seguidos: o laço termina sempre.
@@ -151,7 +151,7 @@ final class RepeticaoDeCompromisso {
     }
 
     /** O mesmo dia e mês no ano seguinte; 29/02 pula para o próximo bissexto em vez de virar 28/02. */
-    private static LocalDate mesmoDiaDoAno(LocalDate ultima) {
+    static LocalDate mesmoDiaDoAno(LocalDate ultima) {
         MonthDay mesDia = MonthDay.from(ultima);
         int ano = ultima.getYear() + 1;
         while (!mesDia.isValidYear(ano)) {

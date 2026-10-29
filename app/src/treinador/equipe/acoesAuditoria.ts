@@ -37,4 +37,6 @@ export const ACOES_AUDITORIA:Record<string,string>={
   LEMBRETES_DE_COBRANCA_CONFIGURADOS:'Lembretes de cobrança configurados',LEMBRETES_DE_COBRANCA_DO_ALUNO_ALTERADOS:'Aluno alterou o recebimento dos lembretes de cobrança',
   EXERCICIO_IMAGEM_ALTERADA:'Imagem do exercício enviada',EXERCICIO_IMAGEM_REMOVIDA:'Imagem do exercício removida',
   CSV_EXERCICIOS_IMPORTADO:'CSV de exercícios importado',CSV_ALIMENTOS_IMPORTADO:'CSV de alimentos importado',
+  AGENDA_PESSOAL_CRIADA:'Agenda pessoal criada',AGENDA_PESSOAL_ALTERADA:'Agenda pessoal alterada',AGENDA_PESSOAL_APAGADA:'Agenda pessoal apagada (com os eventos dela)',
+  EVENTO_CRIADO:'Evento criado na agenda',EVENTO_ALTERADO:'Evento alterado na agenda',EVENTO_EXCLUIDO:'Evento excluído da agenda',
 };

@@ -193,8 +193,25 @@ public class AtualizacaoService {
      */
     @Transactional(readOnly = true)
     public List<ItemDaLista> listar(String situacao, UUID responsavelId) {
+        return listar(situacao, responsavelId, null, null);
+    }
+
+    /** Maior período de {@code de}/{@code ate} da lista, em dias (inclusive as pontas): o Ano da agenda do calendário. */
+    public static final int JANELA_MAXIMA_DIAS = 366;
+    /**
+     * Com {@code de} e {@code ate} (dias de Brasília, os dois ou nenhum; até {@value #JANELA_MAXIMA_DIAS} dias, 400
+     * {@code PERIODO_INVALIDO}) a lista fica só com as atualizações cuja data cai no período; em {@code PROXIMAS} o período
+     * substitui a janela de hoje a 7 dias de hoje e continua só com as ainda abertas (inclui as já atrasadas daquele dia).
+     * Sem período, nada muda. {@code responsavelId}: "Meus alunos" ou o membro escolhido (quem chama já conferiu).
+     */
+    @Transactional(readOnly = true)
+    public List<ItemDaLista> listar(String situacao, UUID responsavelId, LocalDate de, LocalDate ate) {
         if (!SITUACOES.contains(situacao)) throw new BadRequestException("Situação inválida.");
-        return classificar(responsavelId).stream().filter(c -> pertence(situacao, c)).map(c -> new ItemDaLista(
+        if ((de == null) != (ate == null)) throw new BadRequestException("Informe o período inteiro (de e ate).", "PERIODO_INVALIDO");
+        if (de != null && ate.isBefore(de)) throw new BadRequestException("A data final vem antes da inicial.", "PERIODO_INVALIDO");
+        if (de != null && java.time.temporal.ChronoUnit.DAYS.between(de, ate) + 1 > JANELA_MAXIMA_DIAS)
+            throw new BadRequestException("Escolha um período de até " + JANELA_MAXIMA_DIAS + " dias.", "PERIODO_INVALIDO");
+        return classificar(responsavelId).stream().filter(c -> pertence(situacao, c, de, ate)).map(c -> new ItemDaLista(
             c.linha().atualizacaoId(),c.linha().pastaId(),c.linha().alunoId(),c.linha().nomeAluno(),c.linha().data(),
             c.regras().fase(),c.regras().diasParaData(),c.regras().diasDeAtraso(),c.linha().atrasoAte())).toList();
     }
@@ -210,9 +227,24 @@ public class AtualizacaoService {
         return atualizacoes.linhasDoPainel(responsavelId).stream().map(l -> new Classificada(l,
             RegrasAtualizacao.calcular(hoje,l.data(),l.atrasoAte(),l.estado()))).toList();
     }
-    private static boolean pertence(String situacao, Classificada c) {
+    /** O membro escolhido como filtro "responsável" precisa ser da consultoria da sessão e da equipe (senão 404). */
+    @Transactional(readOnly = true)
+    public UUID exigirResponsavel(UUID id) {
+        return usuarios.findById(id)
+            .filter(u -> u.getConsultoriaId().equals(br.com.treinos.api.tenant.TenantContext.get())
+                && u.getPapel() == br.com.treinos.api.auth.Papel.TREINADOR)
+            .map(br.com.treinos.api.auth.Usuario::getId)
+            .orElseThrow(() -> new NaoEncontradoException("Responsável não encontrado."));
+    }
+    private static boolean pertence(String situacao, Classificada c) { return pertence(situacao, c, null, null); }
+    private static boolean pertence(String situacao, Classificada c, LocalDate de, LocalDate ate) {
         String fase = c.regras().fase();
         boolean aberta = !List.of("ENVIADA","REVISADA").contains(fase);
+        if (de != null) {
+            LocalDate data = c.linha().data();
+            if (data == null || data.isBefore(de) || data.isAfter(ate)) return false;
+            if ("PROXIMAS".equals(situacao)) return aberta;
+        }
         return switch (situacao) {
             case "PARA_REVISAR" -> "ENVIADA".equals(fase);
             case "ATRASADAS" -> "ATRASADA".equals(fase);
