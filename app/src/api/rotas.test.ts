@@ -1,7 +1,7 @@
 import { requisicao } from './cliente';
 import {
   aceitarInscricao, alterarCompromisso, alterarSituacaoCompromisso, aplicarAlteracaoDaAnamnese, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
-  retornoDoPagamento,
+  retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
 } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
@@ -25,6 +25,18 @@ describe('caminhos da API', () => {
   it('alteração do cadastro proposta pela anamnese: os dois ids codificados', async () => {
     await expect(aplicarAlteracaoDaAnamnese('a/b', '../c')).resolves.toBe('/anamneses/a%2Fb/alteracoes/..%2Fc/aplicar');
     await expect(descartarAlteracaoDaAnamnese('a', 'b')).resolves.toBe('/anamneses/a/alteracoes/b/descartar');
+  });
+
+  it('lembretes de pagamento do aluno: sem id (é sempre o da sessão), GET para ler e PUT com só o `receber`', async () => {
+    await expect(lembretesDoAluno()).resolves.toBe('/aluno/lembretes-de-cobranca');
+    await definirLembretesDoAluno(false);
+    expect(requisicao).toHaveBeenLastCalledWith('/aluno/lembretes-de-cobranca', { metodo: 'PUT', corpo: { receber: false } });
+    await definirLembretesDoAluno(true);
+    expect(requisicao).toHaveBeenLastCalledWith('/aluno/lembretes-de-cobranca', { metodo: 'PUT', corpo: { receber: true } });
+  });
+
+  it('lembretes de uma cobrança: o id vindo da tela é codificado', async () => {
+    await expect(lembretesDaCobranca('../x')).resolves.toBe('/cobrancas/..%2Fx/lembretes');
   });
 
   it('volta do pagamento: POST com o corpo em JSON (camelCase), sem nada no caminho', async () => {

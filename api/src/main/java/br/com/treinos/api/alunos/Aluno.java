@@ -81,6 +81,10 @@ public class Aluno {
     @Column(name = "uso_de_imagem_autorizado_em")
     private Instant usoDeImagemAutorizadoEm;
 
+    /** Quando o aluno desligou, só para ele, os lembretes de cobrança por e-mail. Nulo = recebe. */
+    @Column(name = "lembretes_cobranca_desligados_em")
+    private Instant lembretesCobrancaDesligadosEm;
+
     /** Nulo = não informado. Dado pessoal: nunca em log. */
     @Enumerated(EnumType.STRING)
     private Sexo sexo;
@@ -268,6 +272,7 @@ public class Aluno {
         if (this.inativadoEm == null) this.inativadoEm = quando;
         this.anonimizadoEm = quando;
         this.usoDeImagemAutorizadoEm = null;
+        this.lembretesCobrancaDesligadosEm = null;
         this.sexo = null;
         this.cicloAtivadoEm = null;
         this.cicloConsentimentoVersao = null;
@@ -332,6 +337,15 @@ public class Aluno {
     /** Grava o instante da autorização, ou nulo quando o aluno desliga. */
     public void definirUsoDeImagem(Instant quando) {
         this.usoDeImagemAutorizadoEm = quando;
+    }
+
+    public Instant getLembretesCobrancaDesligadosEm() {
+        return lembretesCobrancaDesligadosEm;
+    }
+
+    /** Grava o instante em que o aluno desligou os lembretes de cobrança, ou nulo quando volta a recebê-los. */
+    public void definirLembretesCobrancaDesligadosEm(Instant quando) {
+        this.lembretesCobrancaDesligadosEm = quando;
     }
 
     public void novoConvite(String hash, Instant expiraEm) {

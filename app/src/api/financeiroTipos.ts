@@ -416,4 +416,11 @@ export interface LembreteDaCobranca {
 export interface LembretesDaCobranca {
   itens: LembreteDaCobranca[];
   whatsapp: { telefone: string | null; mensagem: string } | null;
+  /** O aluno desligou os lembretes por e-mail para si (`PUT /aluno/lembretes-de-cobranca`); o WhatsApp manual segue valendo. */
+  alunoDesligou: boolean;
+}
+
+/** `GET/PUT /aluno/lembretes-de-cobranca`: se o aluno quer receber os lembretes de pagamento por e-mail (ligado por padrão). */
+export interface LembretesDoAluno {
+  receber: boolean;
 }

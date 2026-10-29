@@ -64,6 +64,10 @@ class PagamentosDesligadosIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode login = api.convidarEEntrar(admin, aluno);
         assertThat(api.get("/aluno/financeiro", login, 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
+        // A escolha do aluno sobre os lembretes de cobrança fica atrás do financeiro, como o resto do que é dele.
+        assertThat(api.get("/aluno/lembretes-de-cobranca", login, 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
+        assertThat(api.put("/aluno/lembretes-de-cobranca", login, Map.of("receber", false), 503).path("codigo").asString())
+                .isEqualTo("FINANCEIRO_INDISPONIVEL");
         assertThat(api.get("/eu", admin, 200).get("pagamentosHabilitados").asBoolean()).isFalse();
         assertThat(api.get("/eu", login, 200).get("pagamentosHabilitados").asBoolean()).isFalse();
         // Com os pagamentos desligados o recebimento online também some, mesmo com a InfinitePay ligada: vale o 503 do financeiro.

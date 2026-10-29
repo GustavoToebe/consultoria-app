@@ -26,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Lembretes de cobrança por e-mail: a configuração (versão, validação, auditoria), o job sem duplicidade, o cancelamento
  * quando a cobrança é paga entre o planejamento e o envio, o e-mail desligado, a falha do provedor (3 tentativas), o aluno sem
- * e-mail, a outra consultoria, a folha da cobrança com a mensagem do WhatsApp e a exportação. O job é chamado à mão
+ * e-mail, a outra consultoria, a folha da cobrança com a mensagem do WhatsApp e a exportação; e o aluno que desliga os
+ * lembretes só para ele (job, planejamento, auditoria, exportação, anonimização, exclusão da conta e isolamento). O job é chamado à mão
  * ({@code agendados: false} nos testes) com o "hoje" do cenário. Só dados fictícios; cada consulta filtra pelo id do teste.
  */
 @AutoConfigureMockMvc
@@ -122,6 +123,28 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
         Integer n = jdbc.queryForObject("select count(*) from auditoria where consultoria_id = ? "
                 + "and acao = 'LEMBRETES_DE_COBRANCA_CONFIGURADOS'", Integer.class, consultoria);
         return n == null ? 0 : n;
+    }
+
+    private static final String ROTA_DO_ALUNO = "/aluno/lembretes-de-cobranca";
+
+    /** Entra como o aluno dessa cobrança (convite aceito, cliente nativo). */
+    private JsonNode loginDoAluno(JsonNode cobranca) throws Exception {
+        return api.convidarEEntrar(admin, UUID.fromString(cobranca.get("alunoId").asString()));
+    }
+
+    private int auditoriasDoAluno(JsonNode cobranca) {
+        Integer n = jdbc.queryForObject("select count(*) from auditoria where acao = 'LEMBRETES_DE_COBRANCA_DO_ALUNO_ALTERADOS' "
+                + "and entidade_id = ?::uuid", Integer.class, cobranca.get("alunoId").asString());
+        return n == null ? 0 : n;
+    }
+
+    private Object desligadoEm(JsonNode cobranca) {
+        return jdbc.queryForObject("select lembretes_cobranca_desligados_em from aluno where id = ?::uuid", Object.class,
+                cobranca.get("alunoId").asString());
+    }
+
+    private static Map<String, Object> receber(boolean valor) {
+        return Map.of("receber", valor);
     }
 
     // ---- configuração ----
@@ -384,5 +407,161 @@ class LembretesDeCobrancaIntegrationTest extends AbstractIntegrationTest {
         api.patch("/alunos/" + aluno + "/situacao", admin, Map.of("ativo", false), 200);
         api.post("/alunos/" + aluno + "/anonimizar", admin, Map.of("nomeConfirmado", nome), 200);
         assertThat(linhas(cobranca)).hasSize(1);
+    }
+
+    // ---- o aluno desliga os lembretes só para ele ----
+
+    @Test
+    void alunoQueDesligaTemOPendenteCanceladoComOMotivoENaoRecebe() throws Exception {
+        String email = ApiDeTeste.emailUnico("lembrete-aluno-desligou");
+        JsonNode cobranca = cobrancaDe(admin, "Nina Fictícia Descadastrada", email, 9000);
+        ligar(admin);
+        JsonNode aluno = loginDoAluno(cobranca);
+        pendenteNaMao(admin, cobranca, "NO_DIA");
+
+        assertThat(api.get(ROTA_DO_ALUNO, aluno, 200).propertyNames()).containsExactly("receber");
+        assertThat(api.get(ROTA_DO_ALUNO, aluno, 200).get("receber").asBoolean()).isTrue();
+        assertThat(api.put(ROTA_DO_ALUNO, aluno, receber(false), 200).get("receber").asBoolean()).isFalse();
+        assertThat(api.get(ROTA_DO_ALUNO, aluno, 200).get("receber").asBoolean()).isFalse();
+
+        job.rodar(vencimento(cobranca), enviador);
+
+        assertThat(EmailDeTeste.para(email)).isEmpty();
+        assertThat(linhas(cobranca)).singleElement().satisfies(l -> {
+            assertThat(l.get("situacao")).isEqualTo("CANCELADO");
+            assertThat(l.get("motivo")).isEqualTo("ALUNO_DESLIGOU");
+        });
+        JsonNode folha = api.get("/cobrancas/" + cobranca.get("id").asString() + "/lembretes", admin, 200);
+        assertThat(folha.get("itens").get(0).get("motivo").asString()).isEqualTo("ALUNO_DESLIGOU");
+    }
+
+    @Test
+    void oPlanejamentoPulaOAlunoDesligadoEReativarVoltaAPlanejar() throws Exception {
+        String email = ApiDeTeste.emailUnico("lembrete-aluno-reativa");
+        JsonNode cobranca = cobrancaDe(admin, "Otávio Fictício Reativa", email, 9000);
+        ligar(admin);
+        JsonNode aluno = loginDoAluno(cobranca);
+        api.put(ROTA_DO_ALUNO, aluno, receber(false), 200);
+
+        job.rodar(vencimento(cobranca), enviador);
+
+        assertThat(linhas(cobranca)).as("nem a linha do lembrete nasce").isEmpty();
+        assertThat(EmailDeTeste.para(email)).isEmpty();
+
+        api.put(ROTA_DO_ALUNO, aluno, receber(true), 200);
+        assertThat(desligadoEm(cobranca)).isNull();
+        job.rodar(vencimento(cobranca), enviador);
+
+        assertThat(EmailDeTeste.para(email)).hasSize(1);
+        assertThat(linhas(cobranca)).singleElement().satisfies(l -> assertThat(l.get("situacao")).isEqualTo("ENVIADO"));
+    }
+
+    @Test
+    void aAuditoriaSoSaiQuandoOValorMudaECarregaResumoFixo() throws Exception {
+        JsonNode cobranca = cobrancaDe(admin, "Paulo Fictício Auditado", ApiDeTeste.emailUnico("lembrete-aluno-auditoria"), 9000);
+        JsonNode aluno = loginDoAluno(cobranca);
+
+        api.put(ROTA_DO_ALUNO, aluno, receber(true), 200);
+        assertThat(auditoriasDoAluno(cobranca)).as("já recebia: nada muda").isZero();
+        assertThat(desligadoEm(cobranca)).isNull();
+
+        api.put(ROTA_DO_ALUNO, aluno, receber(false), 200);
+        assertThat(auditoriasDoAluno(cobranca)).isEqualTo(1);
+        Object quando = desligadoEm(cobranca);
+        assertThat(quando).isNotNull();
+
+        api.put(ROTA_DO_ALUNO, aluno, receber(false), 200);
+        assertThat(auditoriasDoAluno(cobranca)).as("repetir não audita").isEqualTo(1);
+        assertThat(desligadoEm(cobranca)).as("e não regrava o instante").isEqualTo(quando);
+
+        api.put(ROTA_DO_ALUNO, aluno, receber(true), 200);
+        assertThat(auditoriasDoAluno(cobranca)).isEqualTo(2);
+        assertThat(desligadoEm(cobranca)).isNull();
+        assertThat(jdbc.queryForList("select distinct resumo from auditoria where acao = 'LEMBRETES_DE_COBRANCA_DO_ALUNO_ALTERADOS' "
+                + "and entidade_id = ?::uuid", String.class, cobranca.get("alunoId").asString()))
+                .containsExactly("Aluno alterou o recebimento dos lembretes de cobrança.");
+    }
+
+    @Test
+    void soOAlunoDaSessaoMudaEOutroAlunoOuConsultoriaSegueRecebendo() throws Exception {
+        String emailA = ApiDeTeste.emailUnico("lembrete-aluno-a");
+        String emailB = ApiDeTeste.emailUnico("lembrete-aluno-b");
+        JsonNode daA = cobrancaDe(admin, "Rita Fictícia A", emailA, 9000);
+        JsonNode daB = cobrancaDe(admin, "Saulo Fictício B", emailB, 9000);
+        JsonNode outro = api.novoTreinador();
+        String emailC = ApiDeTeste.emailUnico("lembrete-aluno-c");
+        JsonNode daC = cobrancaDe(outro, "Tânia Fictícia C", emailC, 9000);
+        ligar(admin);
+        ligar(outro);
+        JsonNode alunoA = loginDoAluno(daA);
+        JsonNode alunoB = loginDoAluno(daB);
+
+        // O corpo só leva "receber": quem muda é sempre o aluno da sessão.
+        api.put(ROTA_DO_ALUNO, alunoA, receber(false), 200);
+
+        assertThat(desligadoEm(daA)).isNotNull();
+        assertThat(desligadoEm(daB)).isNull();
+        assertThat(api.get(ROTA_DO_ALUNO, alunoB, 200).get("receber").asBoolean()).isTrue();
+        // A equipe não usa a rota do aluno, e sem login não há resposta.
+        api.get(ROTA_DO_ALUNO, admin, 403);
+        api.put(ROTA_DO_ALUNO, admin, receber(false), 403);
+        api.get(ROTA_DO_ALUNO, null, 401);
+
+        job.rodar(vencimento(daA), enviador);
+
+        assertThat(EmailDeTeste.para(emailA)).isEmpty();
+        assertThat(EmailDeTeste.para(emailB)).hasSize(1);
+        assertThat(EmailDeTeste.para(emailC)).as("o aluno de outra consultoria segue recebendo").hasSize(1);
+        assertThat(desligadoEm(daC)).isNull();
+    }
+
+    @Test
+    void aFolhaDaCobrancaDizQueOAlunoDesligouSemMexerNoWhatsApp() throws Exception {
+        JsonNode cobranca = cobrancaDe(admin, "Ubiratã Fictício Folha", ApiDeTeste.emailUnico("lembrete-aluno-folha"), 9000);
+        JsonNode aluno = loginDoAluno(cobranca);
+        String rota = "/cobrancas/" + cobranca.get("id").asString() + "/lembretes";
+
+        JsonNode antes = api.get(rota, admin, 200);
+        assertThat(antes.get("alunoDesligou").asBoolean()).isFalse();
+        assertThat(antes.get("whatsapp").isNull()).isFalse();
+
+        api.put(ROTA_DO_ALUNO, aluno, receber(false), 200);
+        JsonNode depois = api.get(rota, admin, 200);
+        assertThat(depois.get("alunoDesligou").asBoolean()).isTrue();
+        assertThat(depois.get("whatsapp").get("mensagem").asString()).as("o WhatsApp manual não muda")
+                .isEqualTo(antes.get("whatsapp").get("mensagem").asString());
+
+        api.put(ROTA_DO_ALUNO, aluno, receber(true), 200);
+        assertThat(api.get(rota, admin, 200).get("alunoDesligou").asBoolean()).isFalse();
+    }
+
+    @Test
+    void aExportacaoLevaAEscolhaEAnonimizarEExcluirAContaVoltamAReceber() throws Exception {
+        String nome = "Vera Fictícia Escolha";
+        JsonNode cobranca = cobrancaDe(admin, nome, ApiDeTeste.emailUnico("lembrete-aluno-exporta"), 9000);
+        JsonNode aluno = loginDoAluno(cobranca);
+        String id = cobranca.get("alunoId").asString();
+
+        JsonNode recebe = api.get("/alunos/" + id + "/exportacao", admin, 200).get("financeiro").get("escolhaDeLembretes");
+        assertThat(recebe.get("receber").asBoolean()).isTrue();
+        assertThat(recebe.get("desligadoEm").isNull()).isTrue();
+
+        api.put(ROTA_DO_ALUNO, aluno, receber(false), 200);
+        JsonNode desligou = api.get("/alunos/" + id + "/exportacao", admin, 200).get("financeiro").get("escolhaDeLembretes");
+        assertThat(desligou.get("receber").asBoolean()).isFalse();
+        assertThat(desligou.get("desligadoEm").isNull()).isFalse();
+
+        // Anonimizar pelo treinador zera a coluna.
+        api.patch("/alunos/" + id + "/situacao", admin, Map.of("ativo", false), 200);
+        api.post("/alunos/" + id + "/anonimizar", admin, Map.of("nomeConfirmado", nome), 200);
+        assertThat(desligadoEm(cobranca)).isNull();
+
+        // "Excluir minha conta" pelo próprio aluno também.
+        JsonNode outra = cobrancaDe(admin, "Wagner Fictício Exclui", ApiDeTeste.emailUnico("lembrete-aluno-exclui"), 9000);
+        JsonNode alunoQueSai = loginDoAluno(outra);
+        api.put(ROTA_DO_ALUNO, alunoQueSai, receber(false), 200);
+        assertThat(desligadoEm(outra)).isNotNull();
+        api.post("/aluno/conta/excluir", alunoQueSai, Map.of("senha", ApiDeTeste.SENHA, "confirmacao", "EXCLUIR"), 204);
+        assertThat(desligadoEm(outra)).isNull();
     }
 }

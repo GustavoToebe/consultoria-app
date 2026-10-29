@@ -78,7 +78,7 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await expect(page.getByText('700 g (como na dieta)', { exact: true })).toBeVisible();
   await expect(page.getByText('14 un')).toBeVisible();
 
-  // Agrupada pelo grupo do alimento: grupos em ordem alfabética, "Outros itens" (sem grupo) por último, com a contagem.
+  // Agrupada pelo grupo do alimento, na ordem do mercado (carnes antes de cereais), "Outros itens" (sem grupo) por último, com a contagem.
   await emOrdemNaTela(page, ['Carnes e derivados', 'Frango grelhado', 'Cereais e derivados', 'Arroz branco cozido', 'Outros itens', 'Ovo']);
   await expect(page.getByText('1 item')).toHaveCount(3);
 
@@ -99,6 +99,46 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await expect(page.getByText('Carnes e derivados')).toHaveCount(0);
   await expect(page.getByText('Cereais e derivados')).toHaveCount(0);
   await expect(page.getByText('2 itens')).toBeVisible();
+
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('lista de compras: grupos do catálogo na ordem do mercado, grupo do treinador depois e "Outros itens" no fim', async ({ page }) => {
+  // Em ordem alfabética sairia Carnes, Cereais, Frutas, Ovos, Verduras: a ordem do mercado é outra.
+  const conteudo: ConteudoDieta = {
+    ...CONTEUDO,
+    refeicoes: [{
+      uid: 'unica', nome: 'Refeição', horario: '12:00', observacao: null,
+      opcoes: [{
+        uid: 'unica-a', rotulo: 'A',
+        itens: [
+          item('arroz', 'Arroz branco cozido', 100, 'g', { grupo: 'Cereais e derivados' }),
+          item('whey', 'Proteína em pó', 30, 'g', { grupo: 'Suplementos' }),
+          item('frango', 'Frango grelhado', 100, 'g', { grupo: 'Carnes e derivados' }),
+          item('sal', 'Sal', 2, 'g'),
+          item('maca', 'Maçã', 100, 'g', { grupo: 'Frutas e derivados' }),
+          item('ovo', 'Ovo', 2, 'un', { grupo: 'Ovos e derivados' }),
+          item('alface', 'Alface', 50, 'g', { grupo: 'Verduras, hortaliças e derivados' }),
+        ],
+      }],
+    }],
+  };
+  const { naoTratadas, errosDaPagina } = await simularApi(page, {
+    ...(await sessaoDeAluno(page)),
+    'GET /aluno/dieta': { corpo: { dieta: { ...DIETA, conteudo } } },
+  });
+  await page.goto('/aluno/lista-de-compras');
+  await expect(page.getByRole('heading', { name: 'Lista de compras', level: 1 })).toBeVisible();
+  await emOrdemNaTela(page, [
+    'Verduras, hortaliças e derivados', 'Alface',
+    'Frutas e derivados', 'Maçã',
+    'Carnes e derivados', 'Frango grelhado',
+    'Ovos e derivados', 'Ovo',
+    'Cereais e derivados', 'Arroz branco cozido',
+    'Suplementos', 'Proteína em pó',
+    'Outros itens', 'Sal',
+  ]);
 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);

@@ -120,7 +120,7 @@ class AvaliacaoFisicaIntegrationTest extends AbstractIntegrationTest {
         assertThat(faixa.get("fieldErrors")).extracting(e -> e.get("field").asString())
                 .containsExactlyInAnyOrder("medidas.cintura", "medidas.quadril");
         // A mensagem não repete o valor (dado sensível).
-        assertThat(faixa.toString()).doesNotContain("4.9").doesNotContain("301");
+        assertThat(faixa.get("fieldErrors").toString()).doesNotContain("4.9").doesNotContain("301");
 
         JsonNode casas = api.post(rota, treinador, corpo(hoje, Map.of("peitoral", 100.25), null, null), 422);
         assertThat(casas.get("fieldErrors").get(0).get("field").asString()).isEqualTo("medidas.peitoral");

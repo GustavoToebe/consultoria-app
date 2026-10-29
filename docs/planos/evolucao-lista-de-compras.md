@@ -62,7 +62,7 @@ concorrente (7/14/30 dias, "2 de 6 comprados", "Limpar marcações", "Ajustar li
 - Sincronizar marcações entre aparelhos (decisão 2: só no aparelho).
 
 ## O que ficou para trás
-- Ordem própria dos grupos (como "hortifrúti primeiro", na ordem do mercado): hoje é alfabética. Fica para o Gustavo decidir.
+- (A ordem própria dos grupos foi decidida em 29/10: percurso de mercado, ver [ajustes-evolucao.md](ajustes-evolucao.md).)
 - Item manual da dieta (sem alimento) sempre cai em "Outros itens"; dar grupo a ele exigiria um campo no editor da dieta.
 - O aluno não escolhe o grupo do item avulso: todos vão para "Adicionados por você".
 

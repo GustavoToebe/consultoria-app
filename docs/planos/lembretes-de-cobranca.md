@@ -37,8 +37,9 @@ atrasado continua sem bloquear nada do aluno: o lembrete só informa.
   aqui). Rodar `mvn verify`.
 - Ligar em produção exige o e-mail do app ligado (`TREINOS_EMAIL_HABILITADO`, Resend); o plano grátis do Resend tem 100
   e-mails por dia, que os lembretes passam a dividir com convites e "esqueci a senha".
-- O aluno não tem como desligar os lembretes para si (descadastro). Hoje só o treinador desliga para a consultoria inteira.
-  Gustavo decide se precisa (e-mail transacional de cobrança costuma dispensar, mas vale a revisão jurídica).
+- O aluno desliga os lembretes para si em Conta › Meu plano (`GET/PUT /aluno/lembretes-de-cobranca`); a folha da cobrança
+  mostra "O aluno desligou os lembretes por e-mail". App feito; a API é de outro agente. Vale a revisão jurídica do e-mail
+  transacional de cobrança.
 - O texto não leva o nome do plano nem a competência; se o treinador pedir, entra em `TextoDoLembrete` (sem dado de saúde).
 
 ## Texto para o AGENTS.md

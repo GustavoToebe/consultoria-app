@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import type { AvaliacaoFisica } from '../src/api/avaliacaoFisicaTipos';
 import type { AlunoDetalhe } from '../src/api/tipos';
@@ -74,21 +74,62 @@ for (const largura of [390, 1280]) {
   });
 }
 
-test('aluno vê as avaliações no Histórico, só para consulta, e compara', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 900 });
-  const { errosDaPagina } = await simularApi(page, {
+/** Histórico do aluno com duas avaliações; `funcionalidades` é o que o plano da consultoria liga (nulo = tudo, como sem a lista). */
+async function abrirHistoricoDoAluno(page: Page, funcionalidades: string[] | null) {
+  const api = await simularApi(page, {
     ...(await sessaoDeAluno(page)),
+    ...(funcionalidades ? await sessao(page, ALUNO, { funcionalidadesDoPlano: funcionalidades }) : {}),
     'GET /aluno/pesos': { corpo: [] },
     'GET /aluno/fotos/linha-do-tempo': { corpo: [] },
     'GET /aluno/avaliacoes-fisicas': { corpo: [avaliacao('av2', '2026-09-01', 87, null, null), ANTIGA] },
   });
   await page.goto('/aluno/historico');
   await expect(page.getByText('Suas medidas registradas pelo seu treinador, em centímetros.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Nova avaliação' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Editar avaliação/ })).toHaveCount(0);
+  return api;
+}
+
+async function compararAsDuasDatas(page: Page) {
   await page.getByRole('checkbox', { name: 'Comparar 01/07/2026' }).click();
   await page.getByRole('checkbox', { name: 'Comparar 01/09/2026' }).click();
   await expect(page.getByText('−3,0 cm')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Baixar comparativo' })).toHaveCount(0);
-  expect(errosDaPagina).toEqual([]);
-});
+}
+
+for (const largura of [390, 1280]) {
+  test(`aluno vê as avaliações no Histórico, só para consulta, e compara em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrirHistoricoDoAluno(page, ['PDF', 'MOBILIDADE', 'EQUIPE']);
+    await expect(page.getByRole('button', { name: 'Nova avaliação' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Editar avaliação/ })).toHaveCount(0);
+    await compararAsDuasDatas(page);
+    // Com `PDF` no plano e conexão, o aluno baixa o mesmo comparativo da equipe.
+    await expect(page.getByRole('button', { name: 'Baixar comparativo' })).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`aluno: sem PDF no plano o "Baixar comparativo" não aparece em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrirHistoricoDoAluno(page, ['MOBILIDADE', 'EQUIPE']);
+    await compararAsDuasDatas(page);
+    await expect(page.getByRole('button', { name: 'Baixar comparativo' })).toHaveCount(0);
+    expect(errosDaPagina).toEqual([]);
+  });
+
+  test(`aluno: ao perder a internet o "Baixar comparativo" some e volta com ela em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { errosDaPagina } = await abrirHistoricoDoAluno(page, ['PDF']);
+    await compararAsDuasDatas(page);
+    await expect(page.getByRole('button', { name: 'Baixar comparativo' })).toBeVisible();
+    // A comparação já está na tela: sem rede, ela continua e só o PDF (que busca a logo) sai.
+    await page.context().setOffline(true);
+    await expect(page.getByRole('button', { name: 'Baixar comparativo' })).toHaveCount(0);
+    await expect(page.getByText('−3,0 cm')).toBeVisible();
+    await page.context().setOffline(false);
+    // O Chromium emulado não avisa o NetInfo (que ouve `navigator.connection`) quando a rede volta; o aviso é o mesmo que o navegador de verdade dá.
+    await page.evaluate(() => {
+      (navigator as Navigator & { connection?: EventTarget }).connection?.dispatchEvent(new Event('change'));
+      window.dispatchEvent(new Event('online'));
+    });
+    await expect(page.getByRole('button', { name: 'Baixar comparativo' })).toBeVisible();
+    expect(errosDaPagina).toEqual([]);
+  });
+}

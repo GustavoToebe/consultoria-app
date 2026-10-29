@@ -229,8 +229,11 @@ public final class PagamentosDtos {
     public record LembreteExportado(UUID cobrancaId, TipoDeLembrete tipo, LembreteDeCobranca.Situacao situacao,
                                     LocalDate dataPrevista, Instant enviadoEm) { }
 
+    /** A escolha do próprio aluno sobre os lembretes de cobrança: {@code desligadoEm} nulo = recebe. */
+    public record EscolhaDeLembretesExportada(boolean receber, Instant desligadoEm) { }
+
     public record FinanceiroExportado(List<ContratacaoExportada> contratacoes, List<CobrancaExportada> cobrancas,
-                                      List<LembreteExportado> lembretes) { }
+                                      List<LembreteExportado> lembretes, EscolhaDeLembretesExportada escolhaDeLembretes) { }
 
     // ---- Lembretes de cobrança por e-mail ----
 
@@ -255,5 +258,14 @@ public final class PagamentosDtos {
      */
     public record WhatsAppDaCobranca(String telefone, String mensagem) { }
 
-    public record LembretesDaCobranca(List<LembreteResponse> itens, WhatsAppDaCobranca whatsapp) { }
+    /**
+     * {@code alunoDesligou}: o aluno desligou os lembretes por e-mail só para ele (o job não manda mais). Só informa o
+     * treinador: o botão do WhatsApp manual não muda.
+     */
+    public record LembretesDaCobranca(List<LembreteResponse> itens, WhatsAppDaCobranca whatsapp, boolean alunoDesligou) { }
+
+    /** O pedido do aluno para receber ou não os lembretes de cobrança por e-mail; sempre vale para o aluno da sessão. */
+    public record LembretesDoAlunoRequest(@NotNull Boolean receber) { }
+
+    public record LembretesDoAlunoResponse(boolean receber) { }
 }

@@ -24,6 +24,7 @@ import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { codigoApi, textoDoErro } from '../../ui/erros';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
+import { InterruptorDeLembretes } from './InterruptorDeLembretes';
 import { useFinanceiroDoAluno, useRecarregarFinanceiroAoFocar } from './FinanceiroDoAlunoProvider';
 
 const HISTORICO_VISIVEL = 6;
@@ -97,6 +98,7 @@ export function CartaoMeuPlano() {
           {dados.plano && dados.abertas.length === 0 && historico.length === 0 ? <Texto variante="suave">Ainda não há cobranças.</Texto> : null}
         </>
       ) : null}
+      <InterruptorDeLembretes />
     </Cartao>
   );
 }

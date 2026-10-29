@@ -23,6 +23,7 @@ import type {
   RecebimentoOnlineRequest,
   Lembretes,
   LembretesDaCobranca,
+  LembretesDoAluno,
   LembretesRequest,
 } from './financeiroTipos';
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
@@ -874,6 +875,14 @@ export const salvarLembretes = (corpo: LembretesRequest) =>
   requisicao<Lembretes>('/financeiro/lembretes', { metodo: 'PUT', corpo });
 /** Os lembretes de uma cobrança e a mensagem pronta do WhatsApp (só em aberto). */
 export const lembretesDaCobranca = (id: string) => requisicao<LembretesDaCobranca>(`/cobrancas/${seg(id)}/lembretes`);
+
+/**
+ * O aluno liga ou desliga, só para si, os lembretes de pagamento por e-mail (sempre o da sessão; atrás do financeiro:
+ * desligado, 503 `FINANCEIRO_INDISPONIVEL`). Nada fica no aparelho.
+ */
+export const lembretesDoAluno = () => requisicao<LembretesDoAluno>('/aluno/lembretes-de-cobranca');
+export const definirLembretesDoAluno = (receber: boolean) =>
+  requisicao<LembretesDoAluno>('/aluno/lembretes-de-cobranca', { metodo: 'PUT', corpo: { receber } });
 
 /** Link de pagamento de uma cobrança em aberto, para o treinador copiar e mandar ao aluno. */
 export const linkDaCobranca = (id: string) =>

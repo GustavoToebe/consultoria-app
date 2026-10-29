@@ -1,7 +1,7 @@
 import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
 import {
   alternarEscolha, cmParaTela, comparar, corpoDaAvaliacao, diferenca, diferencaParaTela, MEDIDAS, medidasPreenchidas,
-  medidasVazias, pesoParaTela, podeComparar, problemasDaAvaliacao,
+  medidasVazias, pesoParaTela, podeBaixarComparativo, podeComparar, problemasDaAvaliacao,
 } from './avaliacaoFisica';
 
 const HOJE = '2026-10-28';
@@ -86,6 +86,13 @@ describe('comparação', () => {
     expect(podeComparar(['1'])).toBe(false);
     expect(podeComparar(['1', '2'])).toBe(true);
     expect(podeComparar(['1', '2', '3', '4', '5'])).toBe(false);
+  });
+
+  it('"Baixar comparativo": a equipe sempre; o aluno só com internet e com a marca da sessão', () => {
+    expect(podeBaixarComparativo({ daEquipe: true, online: false, temMarca: true })).toBe(true);
+    expect(podeBaixarComparativo({ daEquipe: false, online: true, temMarca: true })).toBe(true);
+    expect(podeBaixarComparativo({ daEquipe: false, online: false, temMarca: true })).toBe(false);
+    expect(podeBaixarComparativo({ daEquipe: false, online: true, temMarca: false })).toBe(false);
   });
 
   it('colunas em ordem cronológica e diferença entre a primeira e a última escolhida', () => {

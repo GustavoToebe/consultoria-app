@@ -1,7 +1,7 @@
 import type { Marca } from '../api/tipos';
 import { dataHoraParaTela } from '../dominio/formatos';
 import { videoValido } from '../dominio/video';
-import { textoSobre } from '../tema/tokens';
+import { marcaParaTexto, textoSobre } from '../tema/tokens';
 
 /**
  * Peças comuns dos PDFs: HTML + CSS de impressão gerados a partir dos dados (nunca imagem da tela). Fundo branco,
@@ -44,15 +44,24 @@ export function corDaMarca(cor: string | null | undefined): string {
   return typeof cor === 'string' && HEX.test(cor) ? cor : COR_NEUTRA;
 }
 
+/**
+ * A cor da marca como TEXTO sobre o papel branco: a mesma regra do app (`marcaParaTexto`, escurece até 4,5:1), para marca
+ * clara (amarelo, por exemplo) não gerar título ilegível. Fundo, linha e faixa continuam com a cor original (`corDaMarca`).
+ */
+export function corDeTextoDaMarca(cor: string | null | undefined): string {
+  return marcaParaTexto(corDaMarca(cor), '#FFFFFF');
+}
+
 export function cssBase(cor: string): string {
   const marca = corDaMarca(cor);
+  const marcaTexto = corDeTextoDaMarca(cor);
   return `
 @page { size: A4; margin: 14mm; }
 * { box-sizing: border-box; }
 html, body { background: #fff; color: #111; margin: 0; }
 .doc { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.35; }
-.doc h1 { font-size: 18pt; margin: 0; letter-spacing: 1px; text-transform: uppercase; color: ${marca}; }
-.doc h2 { font-size: 12.5pt; margin: 14pt 0 5pt; padding-bottom: 3pt; border-bottom: 2px solid ${marca}; break-after: avoid; page-break-after: avoid; }
+.doc h1 { font-size: 18pt; margin: 0; letter-spacing: 1px; text-transform: uppercase; color: ${marcaTexto}; }
+.doc h2 { font-size: 12.5pt; margin: 14pt 0 5pt; color: ${marcaTexto}; padding-bottom: 3pt; border-bottom: 2px solid ${marca}; break-after: avoid; page-break-after: avoid; }
 .doc h3 { font-size: 11pt; margin: 9pt 0 4pt; break-after: avoid; page-break-after: avoid; }
 .doc .faixa-marca { display: flex; align-items: center; gap: 6pt; padding: 2pt 8pt; margin-bottom: 8pt; font-size: 7.5pt; line-height: 1.2; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .doc .faixa-marca.com-logo { padding: 3pt 8pt; }
@@ -68,12 +77,12 @@ html, body { background: #fff; color: #111; margin: 0; }
 .doc .pequeno { font-size: 9pt; color: #555; }
 .doc table { width: 100%; border-collapse: collapse; margin: 4pt 0; }
 .doc thead { display: table-header-group; }
-.doc th { text-align: left; font-size: 9pt; text-transform: uppercase; letter-spacing: .4px; color: #fff; background: ${marca}; padding: 4pt 5pt; }
+.doc th { text-align: left; font-size: 9pt; text-transform: uppercase; letter-spacing: .4px; color: ${textoSobre(marca)}; background: ${marca}; padding: 4pt 5pt; }
 .doc td { border-bottom: 1px solid #ddd; padding: 4pt 5pt; vertical-align: top; }
 .doc tr { break-inside: avoid; page-break-inside: avoid; }
 .doc .bloco { break-inside: avoid; page-break-inside: avoid; }
 .doc .texto { white-space: normal; }
-.doc a { color: ${marca}; }
+.doc a { color: ${marcaTexto}; }
 .doc .rodape { margin-top: 14pt; font-size: 8.5pt; color: #666; border-top: 1px solid #ddd; padding-top: 4pt; }
 /* O fim (rodapé e nome) nunca vai sozinho para uma página nova: na reunião de 17/10 a dieta saiu com a 3ª página só
    com o nome da consultoria. Chromium respeita o avoid entre irmãos e leva junto as últimas linhas do bloco anterior. */
