@@ -5,6 +5,7 @@ import {
   anamneseInicialDoAceite,
   opcoesDeAnamneseDoAceite,
   corpoDaInscricao,
+  paginaQueSobra,
   errosDaInscricao,
   INSCRICAO_VAZIA,
   linkDoWhatsApp,
@@ -121,8 +122,10 @@ describe('formulário público', () => {
       objetivo: 'Força',
       observacao: null,
       cienciaPrivacidade: true,
+      textoVersao: null,
     });
     expect(corpoDaInscricao(ok, false, 'tok').turnstileToken).toBe('tok');
+    expect(corpoDaInscricao(ok, true, null, 'abc123').textoVersao).toBe('abc123');
   });
 });
 
@@ -154,5 +157,20 @@ describe('409 do aceite', () => {
     expect(alunoDoConflito(new ErroApi(409, 'LIMITE_DO_PLANO', 'Limite.', [{ field: 'alunos_ativos', message: 'x' }]))).toBeNull();
     expect(alunoDoConflito(new ErroApi(409, 'INSCRICAO_JA_ACEITA', 'Já aceita.'))).toBeNull();
     expect(alunoDoConflito(new Error('x'))).toBeNull();
+  });
+});
+
+describe('paginaQueSobra', () => {
+  it('a segunda página esvaziou com 30 restantes: volta para a primeira', () => {
+    expect(paginaQueSobra(1, { itens: [], total: 30 }, 30)).toBe(0);
+  });
+  it('fica onde está com itens, sem dados ou na primeira página', () => {
+    expect(paginaQueSobra(1, { itens: [1], total: 31 }, 30)).toBe(1);
+    expect(paginaQueSobra(2, undefined, 30)).toBe(2);
+    expect(paginaQueSobra(0, { itens: [], total: 0 }, 30)).toBe(0);
+  });
+  it('lista toda vazia volta para a primeira; total maior volta para a última que existe', () => {
+    expect(paginaQueSobra(3, { itens: [], total: 0 }, 30)).toBe(0);
+    expect(paginaQueSobra(4, { itens: [], total: 61 }, 30)).toBe(2);
   });
 });

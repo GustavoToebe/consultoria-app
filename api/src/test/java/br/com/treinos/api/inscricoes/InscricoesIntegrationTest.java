@@ -147,19 +147,24 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(pagina.path("texto").asString()).isEqualTo(texto);
         assertThat(pagina.path("consultoria").path("nome").asString()).startsWith("Consultoria ");
         // Só a marca e o texto: nada da fila nem da equipe.
-        assertThat(pagina.propertyNames()).containsExactlyInAnyOrder("consultoria", "texto", "aberta");
+        assertThat(pagina.propertyNames()).containsExactlyInAnyOrder("consultoria", "texto", "textoVersao", "aberta");
+        String versaoDoTexto = pagina.path("textoVersao").asString();
+        assertThat(versaoDoTexto).hasSize(64);
         assertThat(pagina.path("consultoria").propertyNames()).containsExactlyInAnyOrder("id", "nome", "corPrimaria",
                 "fonteTitulo", "temaPadrao", "logoUrl");
 
         // Com texto, a ciência é obrigatória; telefone sem DDD é recusado.
-        assertThat(inscrever(codigo, inscricao("Pessoa Fictícia", null), 400).path("codigo").asString())
-                .isEqualTo("CIENCIA_OBRIGATORIA");
+        Map<String, Object> semCiencia = inscricao("Pessoa Fictícia", null);
+        semCiencia.put("textoVersao", versaoDoTexto);
+        assertThat(inscrever(codigo, semCiencia, 400).path("codigo").asString()).isEqualTo("CIENCIA_OBRIGATORIA");
         Map<String, Object> semDdd = inscricao("Pessoa Fictícia", null);
         semDdd.put("cienciaPrivacidade", true);
+        semDdd.put("textoVersao", versaoDoTexto);
         semDdd.put("whatsapp", "98765-4321");
         inscrever(codigo, semDdd, 400);
         Map<String, Object> ok = inscricao("Pessoa Fictícia", null);
         ok.put("cienciaPrivacidade", true);
+        ok.put("textoVersao", versaoDoTexto);
         inscrever(codigo, ok, 202);
         JsonNode detalhe = api.get("/inscricoes/" + unica(admin).path("id").asString(), admin, 200);
         assertThat(detalhe.path("cienciaTexto").asString()).isEqualTo(texto);
@@ -559,8 +564,9 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         banco.update("update inscricao set situacao = 'DESISTIU' where id = ?::uuid", ids.get("Desistiu Velha"));
         api.post("/inscricoes/" + ids.get("Recusada Velha") + "/notas", admin, Map.of("texto", "Nota fictícia"), 200);
         Instant velho = Instant.now().minus(Duration.ofDays(181));
-        banco.update("update inscricao set atualizada_em = ? where id in (?::uuid, ?::uuid, ?::uuid)",
-                java.sql.Timestamp.from(velho), ids.get("Recusada Velha"), ids.get("Desistiu Velha"), ids.get("Aberta Velha"));
+        banco.update("update inscricao set atualizada_em = ?, ultima_atividade_em = ? where id in (?::uuid, ?::uuid, ?::uuid)",
+                java.sql.Timestamp.from(velho), java.sql.Timestamp.from(velho), ids.get("Recusada Velha"),
+                ids.get("Desistiu Velha"), ids.get("Aberta Velha"));
 
         assertThat(retencao.limpar(Instant.now().minus(InscricaoRetencao.PRAZO))).isGreaterThanOrEqualTo(2);
         List<String> restantes = banco.queryForList("select id::text from inscricao where consultoria_id = ?", String.class,
@@ -628,6 +634,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         String codigo = abrirLink(admin, null, "Texto fictício da consultoria.").path("codigo").asString();
         Map<String, Object> corpo = inscricao("Aluna Fictícia Exportada", null);
         corpo.put("cienciaPrivacidade", true);
+        corpo.put("textoVersao", api.get("/publico/inscricoes/" + codigo, null, 200).path("textoVersao").asString());
         inscrever(codigo, corpo, 202);
         String id = unica(admin).path("id").asString();
         api.post("/inscricoes/" + id + "/notas", admin, Map.of("texto", "Nota fictícia da equipe"), 200);
@@ -668,6 +675,128 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         // Passadas 24 h, o link volta a receber.
         banco.update("update inscricao set criada_em = now() - interval '25 hours' where consultoria_id = ?", consultoria);
         inscrever(codigo, inscricao("Pessoa Fictícia do Dia Seguinte", null), 202);
+    }
+
+    // ---- achados da análise de 29/10 ----
+
+    /** B2: a ciência vale só para o texto que a pessoa viu; texto trocado no meio = 409 e nada é gravado. */
+    @Test
+    void cienciaDeTextoQueMudouEnquantoAPessoaPreenchiaDa409() throws Exception {
+        String codigo = abrirLink(admin, null, "Texto fictício A.").path("codigo").asString();
+        String versaoA = api.get("/publico/inscricoes/" + codigo, null, 200).path("textoVersao").asString();
+        abrirLink(admin, null, "Texto fictício B.");
+        Map<String, Object> corpo = inscricao("Pessoa Fictícia Texto", null);
+        corpo.put("cienciaPrivacidade", true);
+        corpo.put("textoVersao", versaoA);
+        assertThat(inscrever(codigo, corpo, 409).path("codigo").asString()).isEqualTo("TEXTO_ALTERADO");
+        corpo.remove("textoVersao");
+        assertThat(inscrever(codigo, corpo, 409).path("codigo").asString()).isEqualTo("TEXTO_ALTERADO");
+        assertThat(api.get("/inscricoes?situacao=TODAS", admin, 200).path("total").asLong()).isZero();
+
+        JsonNode pagina = api.get("/publico/inscricoes/" + codigo, null, 200);
+        assertThat(pagina.path("texto").asString()).isEqualTo("Texto fictício B.");
+        corpo.put("textoVersao", pagina.path("textoVersao").asString());
+        inscrever(codigo, corpo, 202);
+        JsonNode detalhe = api.get("/inscricoes/" + unica(admin).path("id").asString(), admin, 200);
+        assertThat(detalhe.path("cienciaTexto").asString()).isEqualTo("Texto fictício B.");
+
+        // Sem texto, a versão não importa (o link sem texto nunca recusa por isso).
+        abrirLink(admin, null, null);
+        Map<String, Object> semTexto = inscricao("Pessoa Fictícia Sem Texto", null);
+        semTexto.put("textoVersao", versaoA);
+        inscrever(codigo, semTexto, 202);
+    }
+
+    /** B3: nota de agora numa recusada parada há mais de 180 dias segura a limpeza. */
+    @Test
+    void notaRecenteRenovaAAtividadeESeguraARetencao() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String codigo = abrirLink(admin, null, null).path("codigo").asString();
+        inscrever(codigo, inscricao("Pessoa Fictícia Antiga", null), 202);
+        String id = unica(admin).path("id").asString();
+        Instant velho = Instant.now().minus(Duration.ofDays(200));
+        banco.update("update inscricao set situacao = 'RECUSADA', atualizada_em = ?, ultima_atividade_em = ? where id = ?::uuid",
+                java.sql.Timestamp.from(velho), java.sql.Timestamp.from(velho), id);
+        long versao = api.get("/inscricoes/" + id, admin, 200).path("versao").asLong();
+
+        JsonNode comNota = api.post("/inscricoes/" + id + "/notas", admin, Map.of("texto", "Retomou o contato."), 200);
+        // A nota não sobe a versão: quem edita o andamento ao mesmo tempo não leva 409.
+        assertThat(comNota.path("versao").asLong()).isEqualTo(versao);
+        retencao.limpar(Instant.now().minus(InscricaoRetencao.PRAZO));
+        assertThat(banco.queryForObject("select count(*) from inscricao where id = ?::uuid", Long.class, id)).isEqualTo(1);
+        assertThat(banco.queryForObject("select count(*) from inscricao_nota where consultoria_id = ?", Long.class,
+                consultoria)).isEqualTo(1);
+        // Nota em inscrição de outra consultoria (ou já apagada): 404, sem nota solta.
+        api.post("/inscricoes/" + UUID.randomUUID() + "/notas", admin, Map.of("texto", "Nota fictícia"), 404);
+    }
+
+    /** B1: dois aceites simultâneos de inscrições diferentes com o mesmo e-mail criam um aluno só. */
+    @Test
+    void aceitesSimultaneosComOMesmoEmailCriamUmAlunoSo() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String email = "duplo-" + UUID.randomUUID() + "@teste.local";
+        String codigo = abrirLink(admin, null, null).path("codigo").asString();
+        inscrever(codigo, inscricao("Pessoa Fictícia Um", email), 202);
+        Map<String, Object> segunda = inscricao("Pessoa Fictícia Dois", email);
+        segunda.put("whatsapp", "11912345678");
+        inscrever(codigo, segunda, 202);
+        long antes = alunos(consultoria);
+        List<java.util.concurrent.Callable<String>> aceites = new java.util.ArrayList<>();
+        java.util.concurrent.CountDownLatch largada = new java.util.concurrent.CountDownLatch(1);
+        for (JsonNode i : api.get("/inscricoes", admin, 200).path("itens")) {
+            String id = i.path("id").asString();
+            long versao = api.get("/inscricoes/" + id, admin, 200).path("versao").asLong();
+            String corpo = json.writeValueAsString(Map.of("convidar", false, "versao", versao));
+            aceites.add(() -> {
+                largada.await();
+                var resposta = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .post("/inscricoes/" + id + "/aceitar").header("X-Treinos-Cliente", "nativo")
+                                .header(org.springframework.http.HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(admin))
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(corpo))
+                        .andReturn().getResponse();
+                String texto = resposta.getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+                return resposta.getStatus() == 200 ? "200" : resposta.getStatus() + ":" + json.readTree(texto).path("codigo").asString();
+            });
+        }
+        assertThat(aceites).hasSize(2);
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var a = executor.submit(aceites.get(0));
+            var b = executor.submit(aceites.get(1));
+            largada.countDown();
+            assertThat(List.of(a.get(30, java.util.concurrent.TimeUnit.SECONDS), b.get(30, java.util.concurrent.TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder("200", "409:ALUNO_JA_EXISTE");
+        }
+        assertThat(alunos(consultoria)).isEqualTo(antes + 1);
+    }
+
+    /** B4: no último lugar do teto, dois envios simultâneos: um entra, o outro leva 429. */
+    @Test
+    void tetoDiarioNaoPassaComEnviosSimultaneos() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String codigo = abrirLink(admin, null, null).path("codigo").asString();
+        banco.update("insert into inscricao (id, consultoria_id, nome, whatsapp) select gen_random_uuid(), ?, "
+                + "'Pessoa Fictícia ' || g, ? from generate_series(1, 199) g", consultoria, WHATSAPP);
+        java.util.concurrent.CountDownLatch largada = new java.util.concurrent.CountDownLatch(1);
+        List<java.util.concurrent.Callable<Integer>> envios = new java.util.ArrayList<>();
+        for (String nome : List.of("Pessoa Fictícia X", "Pessoa Fictícia Y")) {
+            String corpo = json.writeValueAsString(inscricao(nome, null));
+            envios.add(() -> {
+                largada.await();
+                return mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .post("/publico/inscricoes/" + codigo)
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(corpo))
+                        .andReturn().getResponse().getStatus();
+            });
+        }
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var a = executor.submit(envios.get(0));
+            var b = executor.submit(envios.get(1));
+            largada.countDown();
+            assertThat(List.of(a.get(30, java.util.concurrent.TimeUnit.SECONDS), b.get(30, java.util.concurrent.TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(202, 429);
+        }
+        assertThat(banco.queryForObject("select count(*) from inscricao where consultoria_id = ?", Long.class, consultoria))
+                .isEqualTo(200);
     }
 
     @Test

@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { Copy, MessageCircle } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
@@ -69,6 +69,16 @@ export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
   const [pedido, setPedido] = useState<Decisao | null>(null);
   const [decidindo, setDecidindo] = useState<Decisao | null>(null);
   const [aceitaId, setAceitaId] = useState<string | null>(null);
+  // Outra inscrição aberta: a decisão em andamento era da anterior e não vale para esta.
+  const [idVisto, setIdVisto] = useState(id);
+  if (idVisto !== id) {
+    setIdVisto(id);
+    setPedido(null);
+    setDecidindo(null);
+  }
+  // Nota digitada e ainda não acrescentada, por inscrição: fechar e abrir de novo (ou salvar o andamento) não a perde.
+  // Só em memória, enquanto a tela está aberta.
+  const [rascunhos] = useState(() => new Map<string, string>());
   const fechar = () => { setPedido(null); aoFechar(); };
   const decide = !!dados && aceitaId !== dados.id && dados.situacao !== 'ACEITA' && pode('INSCRICAO_ALTERAR');
   const podeAceitarAqui = decide && !!dados && pode('ALUNO_ALTERAR') && podeAceitar(dados.situacao);
@@ -84,9 +94,9 @@ export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
       {detalhe.erro ? <MensagemErro texto={textoDoErro(detalhe.erro)} tentarDeNovo={detalhe.recarregar} erro={detalhe.erro} /> : null}
       {!dados && !detalhe.erro ? <Esqueleto /> : null}
       {dados ? (
-        <Conteudo key={`${dados.id}:${dados.versao}`} dados={dados} responsaveis={responsaveis} aoFechar={fechar}
+        <Conteudo key={dados.id} dados={dados} responsaveis={responsaveis} aoFechar={fechar} rascunhos={rascunhos}
           pedido={pedido} aoFecharPedido={() => setPedido(null)} aoReabrirAceite={() => setPedido('aceitar')} aoDecidindo={setDecidindo} aoAceitar={() => setAceitaId(dados.id)}
-          aoMudarLista={aoMudar} aoAtualizar={(d) => { detalhe.definir(d); aoMudar(); }}
+          aoMudarLista={aoMudar} aoAtualizar={(d) => { detalhe.definir(d, `inscricao:${d.id}`); aoMudar(); }}
           aoRecarregar={() => { detalhe.recarregar(); aoMudar(); }} />
       ) : null}
     </Folha>
@@ -95,8 +105,10 @@ export function FolhaDaInscricao({ id, responsaveis, aoFechar, aoMudar }: {
 
 type Decisao = 'aceitar' | 'recusar';
 
-function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, aoRecarregar, pedido, aoFecharPedido, aoDecidindo, aoAceitar, aoReabrirAceite }: {
+function Conteudo({ dados, responsaveis, rascunhos, aoFechar, aoMudarLista, aoAtualizar, aoRecarregar, pedido, aoFecharPedido, aoDecidindo, aoAceitar, aoReabrirAceite }: {
   dados: InscricaoDetalhe;
+  /** Notas não enviadas, por inscrição (da folha, em memória). */
+  rascunhos: Map<string, string>;
   /** Botão do rodapé tocado: abre a confirmação correspondente. */
   pedido: Decisao | null;
   aoFecharPedido: () => void;
@@ -122,7 +134,28 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
   const [situacao, setSituacao] = useState<SituacaoInscricao>(dados.situacao);
   const [pagamento, setPagamento] = useState<PagamentoInscricao>(dados.pagamento);
   const [responsavelId, setResponsavelId] = useState(dados.responsavelId ?? SEM_RESPONSAVEL);
-  const [nota, setNota] = useState('');
+  // Versão nova (andamento salvo aqui ou recarregado): o andamento volta ao gravado, sem remontar a folha. Antes a
+  // folha era remontada pela versão e a nota ainda não acrescentada sumia (achado F2).
+  const [versaoVista, setVersaoVista] = useState(dados.versao);
+  if (versaoVista !== dados.versao) {
+    setVersaoVista(dados.versao);
+    setSituacao(dados.situacao);
+    setPagamento(dados.pagamento);
+    setResponsavelId(dados.responsavelId ?? SEM_RESPONSAVEL);
+  }
+  const [nota, setNotaNaTela] = useState(() => rascunhos.get(dados.id) ?? '');
+  const setNota = (texto: string) => {
+    setNotaNaTela(texto);
+    if (texto) rascunhos.set(dados.id, texto);
+    else rascunhos.delete(dados.id);
+  };
+  // Resposta que chega depois de a folha trocar de inscrição (ou fechar) não mexe na tela atual (achado F3): só a
+  // lista é atualizada.
+  const montado = useRef(true);
+  useEffect(() => {
+    montado.current = true;
+    return () => { montado.current = false; };
+  }, []);
   const [ocupado, setOcupado] = useState<'andamento' | 'nota' | 'aceitar' | 'recusar' | null>(null);
   const [erro, setErro] = useState<unknown>(null);
   const [alunoExistente, setAlunoExistente] = useState<string | null>(null);
@@ -144,6 +177,7 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
 
   /** Erro comum: conflito de versão recarrega; limite do plano vai para o aviso do plano; o resto fica na folha. */
   const falhou = (e: unknown) => {
+    if (!montado.current) return;
     setOcupado(null);
     aoDecidindo(null);
     const aluno = alunoDoConflito(e);
@@ -174,6 +208,10 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
     setErro(null);
     setAlunoExistente(null);
     acao().then((d) => {
+      if (!montado.current) {
+        aoMudarLista();
+        return;
+      }
       setOcupado(null);
       aoDecidindo(null);
       if (tipo === 'nota') setNota('');
@@ -208,6 +246,10 @@ function Conteudo({ dados, responsaveis, aoFechar, aoMudarLista, aoAtualizar, ao
       anamneseQuestionarioId: podeEnviarAnamnese ? anamneseDoAceite : null,
       versao: dados.versao,
     }).then((r) => {
+      if (!montado.current) {
+        aoMudarLista();
+        return;
+      }
       setOcupado(null);
       aoDecidindo(null);
       aoAceitar();

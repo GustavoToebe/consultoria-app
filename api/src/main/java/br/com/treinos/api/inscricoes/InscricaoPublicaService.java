@@ -31,7 +31,7 @@ public class InscricaoPublicaService {
     public InscricaoPublica consultar(String codigo) {
         UUID consultoriaId = busca.consultoriaDoLinkAberto(codigo).orElseThrow(InscricaoPublicaService::linkInvalido);
         String texto = TenantContext.executarComo(consultoriaId, () -> inscricoes.textoDoLink(codigo));
-        return new InscricaoPublica(marcas.marca(consultoriaId), texto, true);
+        return new InscricaoPublica(marcas.marca(consultoriaId), texto, TextoDaInscricao.versao(texto), true);
     }
 
     public void inscrever(String codigo, InscricaoPublicaRequest request) {

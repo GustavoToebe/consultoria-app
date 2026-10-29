@@ -21,7 +21,7 @@ import { Campo } from '../../ui/Campo';
 import { Escolha } from '../../ui/Escolha';
 import { Cartao } from '../../ui/Cartao';
 import { Carregando, MensagemErro } from '../../ui/Estados';
-import { errosPorCampo, textoDoErro } from '../../ui/erros';
+import { codigoApi, errosPorCampo, textoDoErro } from '../../ui/erros';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Tela } from '../../ui/Tela';
 import { BotaoPublico, LARGURA_PUBLICA, TelaPublica } from '../../ui/TelaPublica';
@@ -71,10 +71,20 @@ export default function Inscricao() {
     setErro(null);
     let falha: unknown;
     try {
-      const resposta = await enviarInscricao(codigo, corpoDaInscricao(dados, !!texto && ciencia, verificacao.token));
+      const resposta = await enviarInscricao(codigo,
+        corpoDaInscricao(dados, !!texto && ciencia, verificacao.token, pagina.dados?.textoVersao ?? null));
       setRecebida(resposta.mensagem);
     } catch (e) {
       falha = e;
+      if (codigoApi(e) === 'TEXTO_ALTERADO') {
+        // A consultoria trocou o texto enquanto a pessoa preenchia: mostra o novo e pede a ciência de novo.
+        // Os dados digitados ficam.
+        setCiencia(false);
+        pagina.recarregar();
+        setErro('O texto da consultoria mudou. Leia o texto novo, marque a ciência e envie de novo.');
+        setCampos({});
+        return;
+      }
       setErro(mensagemDaVerificacao(e) ?? textoDoErro(e));
       setCampos(errosPorCampo(e));
     } finally {

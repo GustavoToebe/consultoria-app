@@ -79,6 +79,13 @@ public class Inscricao {
     @Column(name = "atualizada_em", nullable = false)
     private Instant atualizadaEm = criadaEm;
 
+    /**
+     * Última atividade da equipe ou da pessoa (andamento, nota, retorno...): é dela que contam os 180 dias da retenção.
+     * Atividade que não muda a inscrição (nota) grava só esta coluna, por UPDATE, sem subir a versão.
+     */
+    @Column(name = "ultima_atividade_em", nullable = false)
+    private Instant ultimaAtividadeEm = criadaEm;
+
     @Version
     private Long versao;
 
@@ -119,16 +126,23 @@ public class Inscricao {
     public UUID getAlunoId() { return alunoId; }
     public Instant getCriadaEm() { return criadaEm; }
     public Instant getAtualizadaEm() { return atualizadaEm; }
+    public Instant getUltimaAtividadeEm() { return ultimaAtividadeEm; }
     public Long getVersao() { return versao; }
 
     void alterarSituacao(SituacaoInscricao nova) {
         this.situacao = nova;
-        this.atualizadaEm = Instant.now();
+        tocar();
     }
 
     void alterarResponsavel(UUID responsavelId) {
         this.responsavelId = responsavelId;
+        tocar();
+    }
+
+    /** Alteração da linha: conta também como atividade. */
+    void tocar() {
         this.atualizadaEm = Instant.now();
+        this.ultimaAtividadeEm = atualizadaEm;
     }
 
     /** Confirmar guarda quem e quando; sair do "confirmado" apaga os dois (a auditoria guarda o histórico). */
@@ -138,7 +152,7 @@ public class Inscricao {
         boolean confirmado = novo == PagamentoInscricao.CONFIRMADO_MANUAL;
         this.pagamentoConfirmadoPor = confirmado ? quem : null;
         this.pagamentoConfirmadoEm = confirmado ? Instant.now() : null;
-        this.atualizadaEm = Instant.now();
+        tocar();
     }
 
     void aceitar(UUID alunoId) {

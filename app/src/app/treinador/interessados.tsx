@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import type { FiltroInscricoes, InscricaoResumo } from '../../api/inscricoesTipos';
 import { listarInscricoes, responsaveisEquipe } from '../../api/rotas';
 import { instanteRelativo } from '../../dominio/datasRelativas';
-import { FILTROS_INSCRICOES, resumoDoObjetivo, seloDaSituacao } from '../../dominio/inscricoes';
+import { FILTROS_INSCRICOES, paginaQueSobra, resumoDoObjetivo, seloDaSituacao } from '../../dominio/inscricoes';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { CartaoLinkInscricao } from '../../treinador/interessados/CartaoLinkInscricao';
@@ -48,6 +48,10 @@ export default function Interessados() {
   const mudarFiltro = (aplicar: () => void) => { aplicar(); setPagina(0); };
   const dados = lista.dados;
   const paginas = dados ? Math.max(1, Math.ceil(dados.total / TAMANHO_PAGINA)) : 1;
+  // A última página esvaziou (aceitar ou recusar tira a inscrição do filtro): volta para a última que ainda tem itens,
+  // em vez de mostrar a lista vazia sem a paginação (achado F1).
+  const paginaValida = paginaQueSobra(pagina, dados, TAMANHO_PAGINA);
+  if (paginaValida !== pagina && !lista.carregando) setPagina(paginaValida);
   const rotuloDoFiltro = FILTROS_INSCRICOES.find((f) => f.valor === filtro)?.rotulo ?? 'Em atendimento';
 
   return (

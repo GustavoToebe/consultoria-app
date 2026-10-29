@@ -53,9 +53,22 @@ public interface InscricaoRepository extends JpaRepository<Inscricao, UUID> {
     /** Inscrições da consultoria recebidas desde {@code inicio} (teto diário do link público). */
     long countByCriadaEmAfter(Instant inicio);
 
-    /** Retenção: recusadas e desistentes paradas desde antes do limite. As notas saem pela FK em cascata. */
+    /**
+     * Retenção: recusadas e desistentes sem atividade desde antes do limite. As notas saem pela FK em cascata. Quem
+     * registra atividade grava {@code ultimaAtividadeEm} na mesma linha antes (ver {@link #registrarAtividade}): o
+     * {@code delete} espera a trava da linha e confere de novo o valor gravado, então uma nota de agora segura a limpeza.
+     */
     @Modifying
     @Query("delete from Inscricao i where i.consultoriaId = :consultoriaId and i.situacao in :situacoes "
-            + "and i.atualizadaEm < :limite")
+            + "and i.ultimaAtividadeEm < :limite")
     int apagarEncerradas(UUID consultoriaId, Collection<SituacaoInscricao> situacoes, Instant limite);
+
+    /**
+     * Atividade que não altera a inscrição (nota, retorno, mensagem preparada): só a coluna da atividade, sem subir a
+     * versão (quem está editando o andamento não leva 409 por uma nota). Trava a linha até o fim da transação;
+     * devolve 0 se a inscrição não existe mais (outra consultoria ou apagada pela retenção).
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = false)
+    @Query("update Inscricao i set i.ultimaAtividadeEm = :agora where i.consultoriaId = :consultoriaId and i.id = :id")
+    int registrarAtividade(UUID consultoriaId, UUID id, Instant agora);
 }

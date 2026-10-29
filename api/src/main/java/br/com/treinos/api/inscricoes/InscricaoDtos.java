@@ -18,8 +18,12 @@ public final class InscricaoDtos {
 
     // ---- Público ----
 
-    /** O que a página pública mostra: a marca (com a URL pública da logo, se houver) e o texto da consultoria. */
-    public record InscricaoPublica(MarcaPublica consultoria, String texto, boolean aberta) {
+    /**
+     * O que a página pública mostra: a marca (com a URL pública da logo, se houver) e o texto da consultoria.
+     * {@code textoVersao} identifica o texto mostrado (sha256): o envio devolve o mesmo valor, e o servidor recusa a
+     * ciência de um texto que mudou enquanto a pessoa preenchia. Nulo sem texto.
+     */
+    public record InscricaoPublica(MarcaPublica consultoria, String texto, String textoVersao, boolean aberta) {
     }
 
     /**
@@ -33,6 +37,8 @@ public final class InscricaoDtos {
             @Size(max = 500) String objetivo,
             @Size(max = 1000) String observacao,
             Boolean cienciaPrivacidade,
+            /** {@code textoVersao} recebido na página: confere que a ciência é do texto atual. */
+            @Size(max = 64) String textoVersao,
             /** Token do Turnstile (uso único); só é exigido com a verificação humana ligada. */
             @Size(max = 2048) String turnstileToken,
             @Size(max = 10) String sexo) {

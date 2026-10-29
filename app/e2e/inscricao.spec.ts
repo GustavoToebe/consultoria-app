@@ -7,7 +7,7 @@ const CODIGO = 'codigo-de-teste-abcdefghijk';
 
 test('inscrição pública: confere os campos, exige a ciência do texto e mostra a mensagem neutra depois do envio', async ({ page }) => {
   const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
-    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: { consultoria: MARCA, texto: 'Usamos seus dados só para falar com você.', aberta: true } },
+    [`GET /publico/inscricoes/${CODIGO}`]: { corpo: { consultoria: MARCA, texto: 'Usamos seus dados só para falar com você.', textoVersao: 'versao-1', aberta: true } },
     [`POST /publico/inscricoes/${CODIGO}`]: { status: 202, corpo: { mensagem: 'Recebemos sua inscrição. A equipe vai falar com você.' } },
   });
   await page.goto(`/inscricao/${CODIGO}`);
@@ -40,6 +40,7 @@ test('inscrição pública: confere os campos, exige a ciência do texto e mostr
     objetivo: 'Ganhar condicionamento.',
     observacao: null,
     cienciaPrivacidade: true,
+    textoVersao: 'versao-1',
   });
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);

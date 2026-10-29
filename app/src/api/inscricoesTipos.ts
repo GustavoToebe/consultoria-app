@@ -10,6 +10,8 @@ export interface InscricaoPublica {
   consultoria: Marca;
   /** Texto de apresentação e privacidade da consultoria; com texto, a ciência é obrigatória. */
   texto: string | null;
+  /** Identifica o texto mostrado; volta no envio para a API conferir que a ciência é do texto atual. */
+  textoVersao: string | null;
   aberta: boolean;
 }
 
@@ -21,6 +23,8 @@ export interface InscricaoPublicaRequest {
   observacao: string | null;
   sexo?: string | null;
   cienciaPrivacidade: boolean;
+  /** `textoVersao` da página que a pessoa leu (409 `TEXTO_ALTERADO` se a equipe trocou o texto nesse meio-tempo). */
+  textoVersao: string | null;
   turnstileToken?: string;
 }
 

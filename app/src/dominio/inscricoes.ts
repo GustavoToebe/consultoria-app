@@ -140,8 +140,12 @@ export function errosDaInscricao(d: DadosDaInscricao, exigeCiencia: boolean, cie
   return erros;
 }
 
-/** Corpo do envio: textos sem espaços nas pontas e vazio = nulo. O token só vai quando há. */
-export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: string | null): InscricaoPublicaRequest {
+/**
+ * Corpo do envio: textos sem espaços nas pontas e vazio = nulo. O token só vai quando há. `textoVersao` é a do texto que
+ * a página mostrou (a API recusa a ciência de um texto que mudou).
+ */
+export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: string | null,
+  textoVersao: string | null = null): InscricaoPublicaRequest {
   const opcional = (t: string) => (t.trim() ? t.trim() : null);
   const corpo: InscricaoPublicaRequest = {
     nome: d.nome.trim(),
@@ -151,6 +155,7 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
     observacao: opcional(d.observacao),
     ...(d.sexo ? { sexo: d.sexo } : {}),
     cienciaPrivacidade: ciencia,
+    textoVersao,
   };
   if (token) corpo.turnstileToken = token;
   return corpo;
@@ -186,4 +191,14 @@ export function alunoDoConflito(erro: unknown): string | null {
   const codigo = codigoApi(erro);
   if (codigo !== 'ALUNO_JA_EXISTE' && codigo !== 'INSCRICAO_JA_ACEITA') return null;
   return errosPorCampo(erro).alunoId ?? null;
+}
+
+/**
+ * Página da lista depois de uma mudança: a atual se ainda tem itens; vazia (a última inscrição dela saiu do filtro), a
+ * última página que existe para o total, nunca abaixo de zero.
+ */
+export function paginaQueSobra(pagina: number, dados: { itens: readonly unknown[]; total: number } | undefined,
+  tamanho: number): number {
+  if (!dados || dados.itens.length > 0 || pagina === 0) return pagina;
+  return Math.max(0, Math.ceil(dados.total / tamanho) - 1);
 }

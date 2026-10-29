@@ -11,6 +11,7 @@ import br.com.treinos.api.alunos.dto.AlunoDtos.ConviteResponse;
 import br.com.treinos.api.anamneses.AnamneseService;
 import br.com.treinos.api.auditoria.Auditar;
 import br.com.treinos.api.auditoria.Auditoria;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.equipe.AcessoAtual;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AceitarRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.AceiteResponse;
@@ -23,6 +24,7 @@ import br.com.treinos.api.inscricoes.InscricaoDtos.Nota;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NotaRequest;
 import br.com.treinos.api.inscricoes.InscricaoDtos.PaginaInscricoes;
 import br.com.treinos.api.questionarios.QuestionarioService;
+import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.ConflitoComRecursoException;
 import br.com.treinos.api.web.Formatos;
@@ -73,12 +75,13 @@ public class InscricaoService {
     private final AnamneseService anamneses;
     private final QuestionarioService questionarios;
     private final Auditoria auditoria;
+    private final ConsultoriaRepository consultorias;
     private final int limiteDiario;
 
     public InscricaoService(InscricaoRepository inscricoes, InscricaoNotaRepository notas,
                             InscricaoConfiguracaoRepository configuracoes, ResponsaveisDaInscricao responsaveis,
                             AlunoService alunos, ConviteService convites, AnamneseService anamneses,
-                            QuestionarioService questionarios, Auditoria auditoria,
+                            QuestionarioService questionarios, Auditoria auditoria, ConsultoriaRepository consultorias,
                             @Value("${treinos.limites.inscricao-consultoria-dia:200}") int limiteDiario) {
         if (limiteDiario < 1) {
             throw new IllegalArgumentException("Limite diário de inscrições inválido.");
@@ -93,6 +96,7 @@ public class InscricaoService {
         this.anamneses = anamneses;
         this.questionarios = questionarios;
         this.auditoria = auditoria;
+        this.consultorias = consultorias;
     }
 
     // ---- Público (com a consultoria do link no TenantContext) ----
@@ -109,15 +113,25 @@ public class InscricaoService {
      *
      * <p>Teto por consultoria em 24 h (revisão de segurança de 19/10): o limite por IP do controller não segura quem troca
      * de endereço (um bloco IPv6 tem endereços sem fim) e a verificação humana nasce desligada; sem o teto, o link
-     * público enchia a fila e o banco sem limite. Passou do teto: 429, a mesma resposta de quem tentou demais.
+     * público enchia a fila e o banco sem limite. Passou do teto: 429, a mesma resposta de quem tentou demais. O envio
+     * trava a linha do link antes de contar (achado B4): dois envios simultâneos no último lugar ficam em série e só um
+     * entra, mesmo com várias instâncias da API. A trava é do link, não da consultoria (não segura o resto do app).
+     *
+     * <p>Com texto, a ciência vale só para o texto que a pessoa viu (achado B2): o envio traz a {@code textoVersao} da
+     * página e, se a equipe trocou o texto nesse meio-tempo, é 409 {@code TEXTO_ALTERADO} e a página mostra o texto novo.
      */
     @Transactional
     public void registrarPublica(String codigo, InscricaoPublicaRequest r) {
-        InscricaoConfiguracao link = linkAberto(codigo);
+        InscricaoConfiguracao link = configuracoes.atualParaAlterar().filter(c -> c.isAberta() && c.getCodigo().equals(codigo))
+                .orElseThrow(InscricaoPublicaService::linkInvalido);
         if (inscricoes.countByCriadaEmAfter(Instant.now().minus(JANELA_DO_TETO)) >= limiteDiario) {
             throw new MuitasRequisicoesException(JANELA_DO_TETO.toSeconds());
         }
         String texto = link.getTexto();
+        if (!TextoDaInscricao.confere(texto, r.textoVersao())) {
+            throw new ConflictException("O texto da consultoria mudou enquanto você preenchia. Leia o texto novo e confirme.",
+                    "TEXTO_ALTERADO");
+        }
         if (texto != null && !Boolean.TRUE.equals(r.cienciaPrivacidade())) {
             throw new BadRequestException("Confirme que leu o texto da consultoria para enviar.", "CIENCIA_OBRIGATORIA");
         }
@@ -129,6 +143,13 @@ public class InscricaoService {
         }
         inscricoes.save(new Inscricao(r.nome().trim(), whatsapp, Buscas.opcional(r.email()), Buscas.opcional(r.objetivo()),
                 Buscas.opcional(r.observacao()), texto, responsavel, Sexo.ler(r.sexo())));
+    }
+
+    /** Atividade sem alterar a inscrição (sem subir a versão); 404 se ela não existe nesta consultoria. */
+    private void registrarAtividade(UUID id) {
+        if (inscricoes.registrarAtividade(TenantContext.get(), id, Instant.now()) == 0) {
+            throw naoEncontrada();
+        }
     }
 
     private InscricaoConfiguracao linkAberto(String codigo) {
@@ -196,6 +217,8 @@ public class InscricaoService {
     @Transactional
     @Auditar(acao = "INSCRICAO_NOTA_ADICIONADA", entidade = "INSCRICAO", resumo = "Acrescentou uma nota a uma inscrição.")
     public InscricaoDetalhe acrescentarNota(UUID id, NotaRequest r, UUID autor) {
+        // A nota renova a atividade antes de existir (achado B3): a retenção não apaga uma inscrição com nota de agora.
+        registrarAtividade(id);
         Inscricao i = buscar(id);
         notas.saveAndFlush(new InscricaoNota(i.getId(), autor, r.texto().trim()));
         return detalhe(i);
@@ -224,6 +247,11 @@ public class InscricaoService {
      * outra consultoria, 409 {@code QUESTIONARIO_INDISPONIVEL} se não for de anamnese, estiver sem versão publicada ou
      * arquivado). Só então a inscrição é travada e conferida (aceite repetido, versão, e-mail de aluno existente).
      *
+     * <p>Antes da inscrição, trava a consultoria (achado B1, a mesma trava e a mesma ordem do limite do plano): dois aceites
+     * simultâneos de inscrições diferentes com o mesmo e-mail ficam em série e o segundo vê o aluno do primeiro (409
+     * {@code ALUNO_JA_EXISTE}), em vez de criar dois alunos. O e-mail do aluno não tem índice único de propósito (o
+     * cadastro manual aceita e-mail repetido).
+     *
      * <p>Efeitos, nesta ordem: aluno, aceite, anamnese, convite. Tudo numa transação: qualquer recusa (limite do plano,
      * {@code ALUNO_JA_EXISTE} com o id, {@code INSCRICAO_JA_ACEITA}, falha ao atribuir a anamnese) desfaz também o aluno e
      * o aceite, e nada fica pela metade. Todas as auditorias que o aceite grava (entre elas {@code ALUNO_CRIADO},
@@ -242,6 +270,7 @@ public class InscricaoService {
             AcessoAtual.exigir("ALUNO_SENSIVEL_LER");
             questionarios.exigirAnamneseUsavel(questionarioId);
         }
+        consultorias.travar(TenantContext.get());
         Inscricao i = inscricoes.buscarParaAlterar(id).orElseThrow(InscricaoService::naoEncontrada);
         exigirNaoAceita(i);
         exigirVersao(i, r.versao());
