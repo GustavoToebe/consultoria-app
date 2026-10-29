@@ -134,7 +134,7 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - [x] 11. Revisão da API do calendário: permissões, dono, tenant, privacidade e contrato (advisor ou revisor) — commit/run: advisor (29/10): sem achado de dono/tenant; decisões abaixo registradas
 - [x] 12. App, regra pura: `dominio/agendaCalendario.ts`, `dominio/agendaEvento.ts`, paleta em `tema/tokens.ts`, preferência de agendas ocultas (executor, com teste) — commit/run: cf79deb
 - [x] 13. App, telas: barra de calendário, grade de horários, Mês, Ano, mini calendário, painel de agendas, menu "Criar", `FolhaEvento`, atualizações filtradas por membro; ajustar `agenda.tsx` (executor-front, em cima do passo 12) — commit/run: 39a0b1b
-- [ ] 14. E2E: `agenda-calendario.spec.ts` em 390 e 1280 (executor-front) — commit/run: —
+- [x] 14. E2E: `agenda-calendario.spec.ts` em 390 e 1280 (executor-front) — commit/run: 7d3b9c8
 - [ ] 15. Texto do `AGENTS.md`, ajuda, "Novo evento" na busca (`dominio/telas.ts`), espelhos de auditoria (`acoesAuditoria.ts`), este plano e o README (executor-rapido) — commit/run: —
 - [ ] 16. Revisão final de contratos e privacidade (advisor, esforço alto) e **um push por lote**, só na branch — commit/run: —
 
