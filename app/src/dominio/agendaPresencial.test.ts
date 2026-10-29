@@ -1,7 +1,7 @@
 import type { Compromisso, Participante, Repeticao } from '../api/agendaTipos';
 import type { AtualizacaoDaLista } from '../api/tipos';
 import {
-  acaoDeCancelamento, acoesDeSituacao, adicionarParticipante, ALUNOS_MAXIMO, datasEmConflito, erroDosParticipantes, escopoPermitido,
+  acaoDeCancelamento, acoesDeSituacao, adicionarParticipante, AJUDA_DIAS_UTEIS, ALUNOS_MAXIMO, datasEmConflito, erroDosParticipantes, escopoPermitido,
   escoposPermitidos, nomesDosParticipantes, OCORRENCIAS_MAXIMO, previsaoDaSerie, removerParticipante, repeticaoDoFormulario,
   resumoDosParticipantes, seloDoCompromisso, SEM_REPETICAO, situacaoDoCompromisso, textoDaOcorrencia, textoDaPrevisao,
   textoDeAlunosOcupados, textoDoConflitoPorData, vagasNoCompromisso, conflitoNaLista, dataEmBrasilia, deslocarReferencia, diasDaAgenda, diasDoCompromisso, formularioDoCompromisso,
@@ -504,5 +504,11 @@ describe('série: escopo permitido', () => {
     expect(escoposPermitidos({ serieId: 's1' }, { situacao: 'FALTOU' })).toEqual(['ESTA']);
     expect(escoposPermitidos({ serieId: 's1' }, { situacao: 'CANCELADO' })).toEqual(['ESTA', 'SEGUINTES', 'TODAS']);
     expect(escoposPermitidos({ serieId: 's1' }, { situacao: 'AGENDADO' })).toHaveLength(3);
+  });
+});
+
+describe('ajuda dos dias úteis', () => {
+  it('diz que feriado não é pulado e como resolver', () => {
+    expect(AJUDA_DIAS_UTEIS).toBe('Feriados não são pulados: cancele só a ocorrência do feriado.');
   });
 });

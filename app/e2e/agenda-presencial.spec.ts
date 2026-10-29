@@ -218,6 +218,9 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await adicionarAluno(page, folha, 'Ana Fictícia');
       await folha.getByLabel('Hora (Brasília)').fill('0800');
 
+      // Dias úteis não pulam feriado: a ajuda diz o que fazer, e some nos outros tipos.
+      await opcao(folha, 'Repetição', 'Dias úteis (segunda a sexta)').click();
+      await expect(folha.getByText('Feriados não são pulados: cancele só a ocorrência do feriado.')).toBeVisible();
       // Toda semana já vem com a segunda-feira (o dia da data); a semana começa na segunda.
       await opcao(folha, 'Repetição', 'Toda semana').click();
       const dias = folha.getByRole('group', { name: 'Dias da semana' }).getByRole('checkbox');

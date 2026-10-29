@@ -7,7 +7,7 @@ import type { ResponsavelEquipe } from '../../api/equipeTipos';
 import { listarAlunos } from '../../api/rotas';
 import {
   ALUNOS_MAXIMO, alternarDiaDaRepeticao, DURACOES_SUGERIDAS, type ErrosDaRepeticao, type ErrosDoCompromisso, type FormularioDaRepeticao,
-  type FormularioDoCompromisso, LIMITES_COMPROMISSO, mascaraHora, OCORRENCIAS_MAXIMO, OCORRENCIAS_MINIMO, OPCOES_DE_DIA_DA_SEMANA,
+  AJUDA_DIAS_UTEIS, type FormularioDoCompromisso, LIMITES_COMPROMISSO, mascaraHora, OCORRENCIAS_MAXIMO, OCORRENCIAS_MINIMO, OPCOES_DE_DIA_DA_SEMANA,
   OPCOES_DE_REPETICAO, repeticaoDoFormulario, textoDaDuracao, textoDaPrevisao, trocarTipoDaRepeticao,
 } from '../../dominio/agendaPresencial';
 import { dataDaTela } from '../../dominio/formatos';
@@ -155,6 +155,7 @@ function CamposDaRepeticao({ repeticao: r, data, erros, hoje, aoMudar }: {
     <View style={estilos.grupo}>
       <Escolha rotulo="Repetição" valor={r.tipo} opcoes={[...OPCOES_DE_REPETICAO]} aoMudar={(tipo) => aoMudar(trocarTipoDaRepeticao(r, tipo, data))} />
       {erros.tipo ? <ErroDoCampo texto={erros.tipo} /> : null}
+      {r.tipo === 'DIAS_UTEIS' ? <Texto variante="suave">{AJUDA_DIAS_UTEIS}</Texto> : null}
       {r.tipo === 'NENHUMA' ? null : <>
         {r.tipo === 'SEMANAL' ? <DiasDaSemana dias={r.dias} aoMudar={(dias) => aoMudar({ ...r, dias })} /> : null}
         {erros.dias ? <ErroDoCampo texto={erros.dias} /> : null}

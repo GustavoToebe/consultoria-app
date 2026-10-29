@@ -235,6 +235,9 @@ export const OPCOES_DE_REPETICAO: readonly { valor: TipoDeRepeticao | 'NENHUMA';
   { valor: 'ANUAL', rotulo: 'Todo ano' },
 ];
 
+/** Ajuda do "Dias úteis" (segunda a sexta, sem feriados): vale no compromisso e no evento. */
+export const AJUDA_DIAS_UTEIS = 'Feriados não são pulados: cancele só a ocorrência do feriado.';
+
 /** O dia da semana (nome de `DayOfWeek`) de uma data ISO. */
 export const diaDaSemanaDaData = (iso: string): DiaDaSemana => DIAS_DA_SEMANA[diaDaSemanaIso(iso) - 1];
 
