@@ -2,6 +2,8 @@ import { requisicao } from './cliente';
 import {
   aceitarInscricao, alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, aplicarAlteracaoDaAnamnese, avisosDeCompromisso, listarAlunosOcupados, marcarAvisoDeCompromissoVisto, compromissosDoAluno, criarCompromisso, listarCompromissos, buscarQuestionario, descartarAlteracaoDaAnamnese, fatoresDosAlimentos, inscricao, inscricaoPublica, listarPlanos,
   retornoDoPagamento, definirLembretesDoAluno, lembretesDaCobranca, lembretesDoAluno,
+  alterarAgendaPessoal, alterarEvento, apagarAgendaPessoal, contarEventosDaAgenda, criarAgendaPessoal, criarEvento,
+  detalheDoEvento, excluirEvento, listarAgendasPessoais, listarAtualizacoes, listarEventos, resumoDaAgenda,
 } from './rotas';
 
 jest.mock('./cliente', () => ({ requisicao: jest.fn((caminho: string) => Promise.resolve(caminho)) }));
@@ -88,6 +90,55 @@ describe('caminhos da API', () => {
     await expect(avisosDeCompromisso()).resolves.toBe('/aluno/avisos-de-compromisso');
     await marcarAvisoDeCompromissoVisto('av/1');
     expect(requisicao).toHaveBeenLastCalledWith('/aluno/avisos-de-compromisso/av%2F1/visto', { metodo: 'POST' });
+  });
+
+  it('calendário: agendas pessoais com id codificado e versão na query do DELETE', async () => {
+    await expect(listarAgendasPessoais()).resolves.toBe('/agenda/agendas');
+    await criarAgendaPessoal({ nome: 'Pessoal', cor: 'AZUL' });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/agendas', { metodo: 'POST', corpo: { nome: 'Pessoal', cor: 'AZUL' } });
+    await alterarAgendaPessoal('../a', { nome: 'Casa', cor: 'TERRA', versao: 2 });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/agendas/..%2Fa', { metodo: 'PUT', corpo: { nome: 'Casa', cor: 'TERRA', versao: 2 } });
+    await expect(contarEventosDaAgenda('a/1')).resolves.toBe('/agenda/agendas/a%2F1/contagem');
+    await apagarAgendaPessoal('a1', 3);
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/agendas/a1?versao=3', { metodo: 'DELETE' });
+  });
+
+  it('calendário: eventos (período, agendas repetidas, escopo e ocorrência só quando valem) e resumo do Ano', async () => {
+    await expect(listarEventos({ de: '2026-10-26', ate: '2026-12-06' })).resolves.toBe('/agenda/eventos?de=2026-10-26&ate=2026-12-06');
+    await expect(listarEventos({ de: '2026-10-26', ate: '2026-12-06', agendas: ['a', 'b/1'] }))
+      .resolves.toBe('/agenda/eventos?de=2026-10-26&ate=2026-12-06&agendas=a&agendas=b%2F1');
+    await expect(detalheDoEvento('e/1')).resolves.toBe('/agenda/eventos/e%2F1');
+    await expect(detalheDoEvento('e1', '2026-11-05')).resolves.toBe('/agenda/eventos/e1?ocorrencia=2026-11-05');
+    const corpo = {
+      agendaId: 'a', titulo: 'Reunião', local: null, descricao: null, data: '2026-11-05', diaInteiro: false, hora: '09:00',
+      duracaoMinutos: 60, repeticao: null,
+    };
+    await criarEvento(corpo);
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos', { metodo: 'POST', corpo });
+    await alterarEvento('e1', { ...corpo, versao: 4 });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/e1', { metodo: 'PUT', corpo: { ...corpo, versao: 4 } });
+    await alterarEvento('e1', { ...corpo, versao: 4 }, { escopo: 'ESTA', ocorrencia: '2026-11-05' });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/e1?ocorrencia=2026-11-05', { metodo: 'PUT', corpo: { ...corpo, versao: 4 } });
+    await alterarEvento('e1', { ...corpo, versao: 4 }, { escopo: 'SEGUINTES', ocorrencia: '2026-11-05' });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/e1?escopo=SEGUINTES&ocorrencia=2026-11-05', { metodo: 'PUT', corpo: { ...corpo, versao: 4 } });
+    await alterarEvento('e1', { ...corpo, versao: 4 }, { escopo: 'TODAS' });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/e1?escopo=TODAS', { metodo: 'PUT', corpo: { ...corpo, versao: 4 } });
+    await excluirEvento('e1', 4);
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/e1?versao=4', { metodo: 'DELETE' });
+    await excluirEvento('e/1', 4, { escopo: 'TODAS', ocorrencia: '2026-11-05' });
+    expect(requisicao).toHaveBeenLastCalledWith('/agenda/eventos/e%2F1?versao=4&escopo=TODAS&ocorrencia=2026-11-05', { metodo: 'DELETE' });
+    await expect(resumoDaAgenda({ de: '2026-01-01', ate: '2026-12-31' })).resolves.toBe('/agenda/resumo?de=2026-01-01&ate=2026-12-31');
+    await expect(resumoDaAgenda({ de: '2026-01-01', ate: '2026-12-31', responsavel: 'u/1', situacao: 'AGENDADO', agendas: ['a'] }))
+      .resolves.toBe('/agenda/resumo?de=2026-01-01&ate=2026-12-31&responsavel=u%2F1&situacao=AGENDADO&agendas=a');
+  });
+
+  it('atualizações: `meus` como sempre; `responsavel` troca o `meus`; de/ate só em par', async () => {
+    await expect(listarAtualizacoes('PROXIMAS')).resolves.toBe('/atualizacoes?situacao=PROXIMAS&meus=false');
+    await expect(listarAtualizacoes('PROXIMAS', true)).resolves.toBe('/atualizacoes?situacao=PROXIMAS&meus=true');
+    await expect(listarAtualizacoes('PROXIMAS', false, { responsavel: 'u/1', de: '2026-11-01', ate: '2026-11-30' }))
+      .resolves.toBe('/atualizacoes?situacao=PROXIMAS&responsavel=u%2F1&de=2026-11-01&ate=2026-11-30');
+    await expect(listarAtualizacoes('PROXIMAS', true, { responsavel: 'u1' })).resolves.toBe('/atualizacoes?situacao=PROXIMAS&responsavel=u1');
+    await expect(listarAtualizacoes('PROXIMAS', false, { de: '2026-11-01' })).resolves.toBe('/atualizacoes?situacao=PROXIMAS&meus=false');
   });
 
   it('uuid comum passa igual', async () => {

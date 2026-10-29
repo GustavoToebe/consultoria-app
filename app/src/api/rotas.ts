@@ -39,8 +39,9 @@ import type {
   PaginaInscricoes,
 } from './inscricoesTipos';
 import type {
-  AlunoOcupado, AvisoDeCompromisso, CancelamentoRequest, Compromisso, CompromissoDoAluno, CompromissoRequest, EscopoDaSerie,
-  FiltroAlunosOcupados, FiltroCompromissos, SituacaoDoAlunoRequest,
+  AgendaPessoal, AgendaPessoalRequest, AlunoOcupado, AlvoDoEvento, AvisoDeCompromisso, CancelamentoRequest, Compromisso,
+  CompromissoDoAluno, CompromissoRequest, ContagemDaAgenda, EscopoDaSerie, EventoDetalhe, EventoRequest, FiltroAlunosOcupados,
+  FiltroAtualizacoes, FiltroCompromissos, FiltroEventos, FiltroResumo, OcorrenciaDeEvento, ResumoDaAgenda, SituacaoDoAlunoRequest,
 } from './agendaTipos';
 import type {
   Atualizacao,
@@ -225,8 +226,20 @@ export const avisarAtrasoAtualizacao = (pastaId: string, novaData: string, motiv
   requisicao<Atualizacao>('/aluno/atualizacao/atraso', { metodo: 'POST', corpo: { pastaId, novaData, motivo } });
 export const marcarFeedbackVisto = (id: string) =>
   requisicao<void>(`/aluno/atualizacoes/${seg(id)}/feedback-visto`, { metodo: 'POST' });
-export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false) =>
-  requisicao<AtualizacaoDaLista[]>(`/atualizacoes?situacao=${situacao}&meus=${meus}`);
+/**
+ * `responsavel` (um membro da equipe) e `meus` juntos dão 400 `FILTRO_INVALIDO`, então com `responsavel` o `meus` não vai;
+ * `de`/`ate` vão só em par (até 366 dias).
+ */
+export const listarAtualizacoes = (situacao: SituacaoAtualizacao, meus = false, filtro: FiltroAtualizacoes = {}) => {
+  const q = new URLSearchParams({ situacao });
+  if (filtro.responsavel) q.set('responsavel', filtro.responsavel);
+  else q.set('meus', String(meus));
+  if (filtro.de && filtro.ate) {
+    q.set('de', filtro.de);
+    q.set('ate', filtro.ate);
+  }
+  return requisicao<AtualizacaoDaLista[]>(`/atualizacoes?${q.toString()}`);
+};
 export const atualizacoesDoAluno = (id: string) => requisicao<Atualizacao[]>(`/alunos/${seg(id)}/atualizacoes`);
 export const atualizacaoDoAluno = (id: string) => requisicao<Atualizacao>(`/alunos/${seg(id)}/atualizacao`);
 export const evolucaoRespostasDoAluno = (id: string) =>
@@ -452,6 +465,52 @@ export const listarAlunosOcupados = (filtro: FiltroAlunosOcupados) => {
   for (const id of filtro.alunoIds) q.append('alunoIds', id);
   if (filtro.ignorar) q.set('ignorar', filtro.ignorar);
   return requisicao<AlunoOcupado[]>(`/agenda/compromissos/alunos-ocupados?${q.toString()}`);
+};
+
+// ---- Treinador: calendário (agendas pessoais e eventos sem aluno; AGENDA_LER / AGENDA_ALTERAR) ----
+
+/** As minhas agendas pessoais, em ordem alfabética. */
+export const listarAgendasPessoais = () => requisicao<AgendaPessoal[]>('/agenda/agendas');
+export const criarAgendaPessoal = (corpo: AgendaPessoalRequest) =>
+  requisicao<AgendaPessoal>('/agenda/agendas', { metodo: 'POST', corpo });
+/** Renomeia ou recolore: `versao` é a da agenda lida (409 `CONFLITO_EDICAO`). */
+export const alterarAgendaPessoal = (id: string, corpo: AgendaPessoalRequest) =>
+  requisicao<AgendaPessoal>(`/agenda/agendas/${seg(id)}`, { metodo: 'PUT', corpo });
+/** Quantos eventos a agenda tem: o número da confirmação de apagar. */
+export const contarEventosDaAgenda = (id: string) => requisicao<ContagemDaAgenda>(`/agenda/agendas/${seg(id)}/contagem`);
+/** Apaga a agenda e os eventos dela. */
+export const apagarAgendaPessoal = (id: string, versao: number) =>
+  requisicao<void>(`/agenda/agendas/${seg(id)}?versao=${versao}`, { metodo: 'DELETE' });
+
+/** Ocorrências já expandidas dos meus eventos que tocam `de`..`ate` (até 62 dias). Sem `agendas`, todas as minhas. */
+export const listarEventos = (filtro: FiltroEventos) => {
+  const q = new URLSearchParams({ de: filtro.de, ate: filtro.ate });
+  for (const id of filtro.agendas ?? []) q.append('agendas', id);
+  return requisicao<OcorrenciaDeEvento[]>(`/agenda/eventos?${q.toString()}`);
+};
+/** O evento (a regra) e a ocorrência `ocorrencia` (`dataOriginal`, AAAA-MM-DD); sem ela, a primeira. */
+export const detalheDoEvento = (id: string, ocorrencia?: string | null) =>
+  requisicao<EventoDetalhe>(`/agenda/eventos/${seg(id)}${ocorrencia ? `?ocorrencia=${encodeURIComponent(ocorrencia)}` : ''}`);
+export const criarEvento = (corpo: EventoRequest) => requisicao<EventoDetalhe>('/agenda/eventos', { metodo: 'POST', corpo });
+/** `escopo` e `ocorrencia` só em série; num evento avulso vale só `ESTA` (o padrão da API, que não vai na rota). */
+const comAlvo = (caminho: string, alvo: AlvoDoEvento, extra: URLSearchParams = new URLSearchParams()) => {
+  if (alvo.escopo && alvo.escopo !== 'ESTA') extra.set('escopo', alvo.escopo);
+  if (alvo.ocorrencia) extra.set('ocorrencia', alvo.ocorrencia);
+  const texto = extra.toString();
+  return texto ? `${caminho}?${texto}` : caminho;
+};
+export const alterarEvento = (id: string, corpo: EventoRequest, alvo: AlvoDoEvento = {}) =>
+  requisicao<EventoDetalhe>(comAlvo(`/agenda/eventos/${seg(id)}`, alvo), { metodo: 'PUT', corpo });
+export const excluirEvento = (id: string, versao: number, alvo: AlvoDoEvento = {}) =>
+  requisicao<void>(comAlvo(`/agenda/eventos/${seg(id)}`, alvo, new URLSearchParams({ versao: String(versao) })), { metodo: 'DELETE' });
+
+/** Contagem por dia de compromissos e eventos (sem texto), até 366 dias: o Ano. */
+export const resumoDaAgenda = (filtro: FiltroResumo) => {
+  const q = new URLSearchParams({ de: filtro.de, ate: filtro.ate });
+  if (filtro.responsavel) q.set('responsavel', filtro.responsavel);
+  if (filtro.situacao) q.set('situacao', filtro.situacao);
+  for (const id of filtro.agendas ?? []) q.append('agendas', id);
+  return requisicao<ResumoDaAgenda>(`/agenda/resumo?${q.toString()}`);
 };
 
 // ---- Treinador: marca e configuração ----

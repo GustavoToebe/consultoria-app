@@ -144,3 +144,152 @@ export type CodigoDeErroDaAgenda =
   | 'DATA_SO_NESTA_OCORRENCIA' | 'SITUACAO_SO_NESTA_OCORRENCIA' | 'COMPROMISSO_SEM_SERIE' | 'PERIODO_INVALIDO'
   | 'HORARIO_OCUPADO' | 'COMPROMISSO_NO_FUTURO' | 'SERIE_SEM_OCORRENCIAS' | 'ALUNO_INATIVO' | 'ALUNO_ANONIMIZADO'
   | 'CONFLITO_EDICAO';
+
+// ---- Calendário: agendas pessoais e eventos sem aluno (`agenda/AgendaCalendarioDtos`) ----
+
+/** Chaves da paleta fixa das agendas (D7); o app tem o par claro e escuro de cada uma em `tema/tokens` (`PALETA_DA_AGENDA`). */
+export type CorDaAgenda = 'AZUL' | 'INDIGO' | 'VIOLETA' | 'MAGENTA' | 'TURQUESA' | 'ARDOSIA' | 'TERRA' | 'OLIVA';
+
+/** Uma agenda pessoal (só do dono). `versao` vai de volta ao renomear, recolorir e apagar. */
+export interface AgendaPessoal {
+  id: string;
+  nome: string;
+  cor: CorDaAgenda;
+  versao: number;
+}
+
+/** Criar (sem `versao`) ou renomear/recolorir (com `versao`). */
+export interface AgendaPessoalRequest {
+  nome: string;
+  cor: CorDaAgenda;
+  versao?: number;
+}
+
+/** Quantos eventos (séries) a agenda tem: o número da confirmação de apagar. */
+export interface ContagemDaAgenda {
+  eventos: number;
+}
+
+/** Como o evento se repete. `NENHUMA` = avulso. */
+export type TipoDeRepeticaoDeEvento = TipoDeRepeticao | 'NENHUMA';
+
+/**
+ * Repetição de um evento. Ao contrário do compromisso, o fim é opcional e no máximo um dos dois: `ate` (inclusive) ou
+ * `vezes` (2 a 999, a primeira conta); sem nenhum, nunca termina. `diasDaSemana` só em `SEMANAL`.
+ */
+export interface RepeticaoDeEvento {
+  tipo: TipoDeRepeticaoDeEvento;
+  diasDaSemana?: DiaDaSemana[] | null;
+  ate?: string | null;
+  vezes?: number | null;
+}
+
+/**
+ * Criar ou alterar um evento. Dia inteiro ignora `hora` e `duracaoMinutos`; senão os dois são obrigatórios (hora de
+ * Brasília, duração de 5 a 1440). `versao` só no PUT. Evento avulso: `repeticao` nula.
+ */
+export interface EventoRequest {
+  agendaId: string;
+  titulo: string;
+  local: string | null;
+  descricao: string | null;
+  /** AAAA-MM-DD. */
+  data: string;
+  diaInteiro: boolean;
+  /** HH:MM; nula no dia inteiro. */
+  hora: string | null;
+  duracaoMinutos: number | null;
+  repeticao: RepeticaoDeEvento | null;
+  versao?: number;
+}
+
+/**
+ * Uma ocorrência já expandida pela API (nunca o app). `dataOriginal` é o dia da regra (a chave de `?ocorrencia=`);
+ * `data` é onde ela cai hoje (difere se foi movida). Dia inteiro: `hora` e `horaFim` nulos e `inicio`/`fim` são o começo do
+ * dia e o do dia seguinte em Brasília.
+ */
+export interface OcorrenciaDeEvento {
+  eventoId: string;
+  agendaId: string;
+  dataOriginal: string;
+  data: string;
+  hora: string | null;
+  horaFim: string | null;
+  inicio: string;
+  fim: string;
+  diaInteiro: boolean;
+  titulo: string;
+  local: string | null;
+  descricao: string | null;
+  recorrente: boolean;
+}
+
+/** O evento (a regra) e, em `ocorrencia`, a pedida (ou a primeira); nula se essa foi cancelada. */
+export interface EventoDetalhe {
+  id: string;
+  agendaId: string;
+  titulo: string;
+  local: string | null;
+  descricao: string | null;
+  /** O primeiro dia da regra. */
+  data: string;
+  diaInteiro: boolean;
+  hora: string | null;
+  duracaoMinutos: number | null;
+  /** Nula no evento avulso. */
+  repeticao: RepeticaoDeEvento | null;
+  versao: number;
+  ocorrencia: OcorrenciaDeEvento | null;
+}
+
+/** Um dia do resumo do Ano: só contagens. Dias sem nada não aparecem. */
+export interface DiaDoResumo {
+  data: string;
+  compromissos: number;
+  eventos: number;
+}
+
+export interface ResumoDaAgenda {
+  dias: DiaDoResumo[];
+}
+
+/** Eventos do período: `agendas` filtra (vazio ou ausente = todas as minhas). */
+export interface FiltroEventos {
+  de: string;
+  ate: string;
+  agendas?: readonly string[] | null;
+}
+
+/** Resumo do Ano (até 366 dias): `responsavel`, `situacao` e `agendas` filtram como nas listagens. */
+export interface FiltroResumo {
+  de: string;
+  ate: string;
+  responsavel?: string | null;
+  situacao?: SituacaoCompromisso | null;
+  agendas?: readonly string[] | null;
+}
+
+/** Recortes novos de `GET /atualizacoes` (D14, D19): `de`/`ate` juntos (até 366 dias); `responsavel` não vale com `meus`. */
+export interface FiltroAtualizacoes {
+  responsavel?: string | null;
+  de?: string | null;
+  ate?: string | null;
+}
+
+/** Em qual ocorrência de uma série o PUT e o DELETE agem: o `escopo` e, em `ESTA`/`SEGUINTES`, o `dataOriginal`. */
+export interface AlvoDoEvento {
+  escopo?: EscopoDaSerie;
+  /** `dataOriginal` (AAAA-MM-DD) da ocorrência aberta. */
+  ocorrencia?: string | null;
+}
+
+/**
+ * Códigos de erro (`codigo`) das agendas pessoais e dos eventos. 400: `AGENDA_INVALIDA` (nome), `COR_INVALIDA`,
+ * `EVENTO_INVALIDO`, `REPETICAO_INVALIDA`, `EVENTO_SEM_SERIE`, `OCORRENCIA_OBRIGATORIA`, `DATA_SO_NESTA_OCORRENCIA`,
+ * `AGENDA_SO_NA_SERIE_TODA`, `PERIODO_INVALIDO`, `FILTRO_INVALIDO` (`meus` junto de `responsavel`). 409:
+ * `LIMITE_DE_AGENDAS`, `AGENDA_NOME_EM_USO`, `LIMITE_DE_EVENTOS`, `CONFLITO_EDICAO`.
+ */
+export type CodigoDeErroDoCalendario =
+  | 'AGENDA_INVALIDA' | 'COR_INVALIDA' | 'EVENTO_INVALIDO' | 'REPETICAO_INVALIDA' | 'EVENTO_SEM_SERIE'
+  | 'OCORRENCIA_OBRIGATORIA' | 'DATA_SO_NESTA_OCORRENCIA' | 'AGENDA_SO_NA_SERIE_TODA' | 'PERIODO_INVALIDO'
+  | 'FILTRO_INVALIDO' | 'LIMITE_DE_AGENDAS' | 'AGENDA_NOME_EM_USO' | 'LIMITE_DE_EVENTOS' | 'CONFLITO_EDICAO';
