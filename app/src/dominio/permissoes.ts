@@ -19,8 +19,10 @@ export function podeAcessarTela(caminho:string,tem:(codigo:string)=>boolean,paga
   if(['/treinador/perfil','/treinador/meus-dados','/treinador/seguranca','/treinador/ajustes','/treinador/ajuda','/treinador/termos'].includes(caminho)) return true;
   if(caminho==='/treinador/minha-conta') return tem('CONTA_LER');
   if(caminho==='/treinador') return tem('PAINEL_VER');
-  // A Agenda é a mesma informação das Atualizações (as próximas por dia): mesma permissão.
-  if(caminho==='/treinador/agenda'||caminho.startsWith('/treinador/atualizacoes')) return tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER');
+  // A Agenda junta as atualizações dos próximos dias (mesma permissão das Atualizações) e os compromissos presenciais
+  // (AGENDA_LER): abre com qualquer uma das duas, e cada parte aparece só para quem pode vê-la.
+  if(caminho==='/treinador/agenda') return (tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER'))||tem('AGENDA_LER');
+  if(caminho.startsWith('/treinador/atualizacoes')) return tem('ATUALIZACAO_LER')&&tem('ALUNO_SENSIVEL_LER');
   // Números é o relatório da consultoria (só contagens): a permissão de quem vê o painel.
   if(caminho==='/treinador/numeros') return tem('PAINEL_VER');
   // Financeiro: planos comerciais, cobranças e painel de recebimentos. Precisa da permissão E do módulo ligado.

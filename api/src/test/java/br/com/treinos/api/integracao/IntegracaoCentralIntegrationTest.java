@@ -731,7 +731,7 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void pagarPedeOLinkAssinadoNaCentralESoAceitaOMercadoPago() throws Exception {
+    void pagarPedeOLinkAssinadoNaCentralESoAceitaOsCheckoutsConhecidos() throws Exception {
         JsonNode login = loginDoAdministrador();
         UUID consultoria = jdbc.queryForObject("select consultoria_id from usuario where id = ?::uuid", UUID.class,
                 login.path("usuario").path("id").asString());
@@ -746,6 +746,10 @@ class IntegracaoCentralIntegrationTest extends AbstractIntegrationTest {
         assertThat(CENTRAL.ultimoMetodo.get()).isEqualTo("POST");
         assertThat(CENTRAL.ultimoCaminho.get()).isEqualTo(
                 "/integracao/v1/produtos/TREINOS/instancias/" + consultoria + "/cobrancas/" + cobranca + "/link-de-pagamento");
+
+        String infinitePay = "https://checkout.infinitepay.com.br/loja/abc123";
+        CENTRAL.link.set("{\"url\":\"" + infinitePay + "\"}");
+        assertThat(api.post(rota, login, null, 200).path("url").asString()).isEqualTo(infinitePay);
 
         CENTRAL.link.set("{\"url\":\"https://outro-site.example/pagar\"}");
         assertThat(api.post(rota, login, null, 502).path("codigo").asString()).isEqualTo("CENTRAL_INDISPONIVEL");

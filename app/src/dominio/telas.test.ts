@@ -61,6 +61,15 @@ describe('catálogo de telas', () => {
     expect(nomeDaTela('/treinador/agenda')).toBe('Agenda');
   });
 
+  it('Agenda também abre só com AGENDA_LER; "Novo compromisso" pede AGENDA_ALTERAR', () => {
+    const leitura = telasPermitidas(com(['ALUNO_LER', 'AGENDA_LER']));
+    expect(ids(leitura)).toContain('agenda');
+    expect(ids(buscarTelas('consultas', leitura))).toEqual(['agenda']);
+    expect(ids(buscarTelas('compromisso', leitura))).toEqual(['agenda']);
+    const marca = telasPermitidas(com(['ALUNO_LER', 'AGENDA_LER', 'AGENDA_ALTERAR']));
+    expect(ids(buscarTelas('marcar consulta', marca))).toEqual(['novo-compromisso']);
+  });
+
   it('Números pede só PAINEL_VER (como o Início) e a busca acha por "relatório" e "alunos ativos"', () => {
     expect(ids(telasPermitidas(com(['ALUNO_LER'])))).not.toContain('numeros');
     expect(ids(telasPermitidas(com(['ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER'])))).not.toContain('numeros');

@@ -12,9 +12,21 @@ function item(uid: string, nome: string, quantidade: number, unidade: ItemDieta[
   };
 }
 
+/** Os títulos dos grupos aparecem de cima para baixo nesta ordem (os cartões ficam empilhados nas duas larguras). */
+async function emOrdemNaTela(page: Page, textos: string[]) {
+  const alturas: number[] = [];
+  for (const texto of textos) {
+    const caixa = await page.getByText(texto, { exact: true }).first().boundingBox();
+    expect(caixa, texto).not.toBeNull();
+    alturas.push(caixa?.y ?? 0);
+  }
+  expect(alturas).toEqual([...alturas].sort((a, b) => a - b));
+}
+
 /**
  * Almoço com duas opções (A: arroz cozido com fator de cocção 2,5 e frango sem fator; B: batata com fator de correção
- * 1,25) e café com opção única (ovos em unidade). Números fictícios, só para conferir a conta da tela.
+ * 1,25) e café com opção única (ovos em unidade). Arroz e frango têm grupo (copiado na publicação); ovo e batata não.
+ * Números fictícios, só para conferir a conta da tela.
  */
 const CONTEUDO: ConteudoDieta = {
   objetivo: null,
@@ -28,7 +40,7 @@ const CONTEUDO: ConteudoDieta = {
     {
       uid: 'almoco', nome: 'Almoço', horario: '12:00', observacao: null,
       opcoes: [
-        { uid: 'almoco-a', rotulo: 'A', itens: [item('arroz', 'Arroz branco cozido', 150, 'g', { fatorCoccao: 2.5 }), item('frango', 'Frango grelhado', 100, 'g')] },
+        { uid: 'almoco-a', rotulo: 'A', itens: [item('arroz', 'Arroz branco cozido', 150, 'g', { fatorCoccao: 2.5, grupo: 'Cereais e derivados' }), item('frango', 'Frango grelhado', 100, 'g', { grupo: 'Carnes e derivados' })] },
         { uid: 'almoco-b', rotulo: 'B', itens: [item('batata', 'Batata cozida', 200, 'g', { fatorCorrecao: 1.25 })] },
       ],
     },
@@ -66,6 +78,10 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await expect(page.getByText('700 g (como na dieta)', { exact: true })).toBeVisible();
   await expect(page.getByText('14 un')).toBeVisible();
 
+  // Agrupada pelo grupo do alimento: grupos em ordem alfabética, "Outros itens" (sem grupo) por último, com a contagem.
+  await emOrdemNaTela(page, ['Carnes e derivados', 'Frango grelhado', 'Cereais e derivados', 'Arroz branco cozido', 'Outros itens', 'Ovo']);
+  await expect(page.getByText('1 item')).toHaveCount(3);
+
   // Mês (30 dias): passa de 1.000 g vira kg, arredondado para cima.
   await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Mês' }).click();
   await expect(page.getByText('Lista do mês')).toBeVisible();
@@ -79,10 +95,98 @@ test('lista de compras: semana e mês, quantidade crua pelo fator de cocção e 
   await expect(page.getByText('7,50 kg', { exact: true })).toBeVisible();
   await expect(page.getByText('Arroz branco cozido')).toHaveCount(0);
   await expect(page.getByText('cru')).toHaveCount(0);
+  // Sem arroz e frango, os grupos deles somem; batata e ovo ficam em "Outros itens".
+  await expect(page.getByText('Carnes e derivados')).toHaveCount(0);
+  await expect(page.getByText('Cereais e derivados')).toHaveCount(0);
+  await expect(page.getByText('2 itens')).toBeVisible();
 
   expect(naoTratadas).toEqual([]);
   expect(errosDaPagina).toEqual([]);
 });
+
+for (const largura of [390, 1280]) {
+test(`lista de compras do aluno: 2 semanas, comprado, limpar, ajustar, voltar ao calculado e item avulso, guardados no aparelho, em ${largura}px`, async ({ page }) => {
+  await page.setViewportSize({ width: largura, height: 900 });
+  const { naoTratadas, errosDaPagina } = await simularApi(page, {
+    ...(await sessaoDeAluno(page)),
+    'GET /aluno/dieta': { corpo: { dieta: DIETA } },
+  });
+  await page.goto('/aluno/lista-de-compras');
+  await expect(page.getByText('Lista da semana')).toBeVisible();
+
+  // 2 semanas (14 dias): arroz 60 g cru por dia = 840 g; frango 100 g = 1,40 kg; ovos 2 por dia = 28.
+  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: '2 semanas' }).click();
+  await expect(page.getByText('Lista de 2 semanas')).toBeVisible();
+  await expect(page.getByText('840 g cru', { exact: true })).toBeVisible();
+  await expect(page.getByText('1,40 kg (como na dieta)', { exact: true })).toBeVisible();
+  await expect(page.getByText('28 un (como na dieta)', { exact: true })).toBeVisible();
+  await expect(page.getByText('0 de 3 comprados')).toBeVisible();
+
+  // Comprado: o ✓ marca e a contagem sobe; fica no aparelho (recarregar mantém) e vale só para este período.
+  await page.getByRole('checkbox', { name: 'Ovo: não comprado' }).click();
+  await expect(page.getByText('1 de 3 comprados')).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Ovo: comprado' })).toBeChecked();
+  await page.reload();
+  await expect(page.getByText('Lista de 2 semanas')).toBeVisible();
+  await expect(page.getByText('1 de 3 comprados')).toBeVisible();
+  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Semana', exact: true }).click();
+  await expect(page.getByText('0 de 3 comprados')).toBeVisible();
+  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: '2 semanas' }).click();
+  await expect(page.getByText('1 de 3 comprados')).toBeVisible();
+
+  // Limpar marcações, com desfazer no aviso.
+  await page.getByRole('button', { name: 'Limpar marcações' }).click();
+  await expect(page.getByText('0 de 3 comprados')).toBeVisible();
+  await page.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(page.getByText('1 de 3 comprados')).toBeVisible();
+
+  // Ajustar a quantidade de um item calculado e voltar ao calculado.
+  await page.getByRole('button', { name: 'Ajustar lista' }).click();
+  await page.getByRole('button', { name: 'Ajustar Arroz branco cozido' }).click();
+  let folha = page.getByRole('dialog', { name: 'Ajustar quantidade' });
+  await expect(folha.getByLabel('Quantidade', { exact: true })).toHaveValue('840');
+  await folha.getByLabel('Quantidade', { exact: true }).fill('1');
+  await folha.getByLabel('Unidade (opcional)').fill('pacote de 1 kg');
+  await folha.getByRole('button', { name: 'Salvar' }).click();
+  await expect(folha).toHaveCount(0);
+  await expect(page.getByText('1 pacote de 1 kg', { exact: true })).toBeVisible();
+  await expect(page.getByText('Ajustado por você')).toBeVisible();
+  await expect(page.getByText('Calculado: 840 g cru')).toBeVisible();
+  await page.getByRole('button', { name: 'Ajustar Arroz branco cozido' }).click();
+  folha = page.getByRole('dialog', { name: 'Ajustar quantidade' });
+  await folha.getByRole('button', { name: 'Voltar ao calculado' }).click();
+  await expect(page.getByText('Ajustado por você')).toHaveCount(0);
+  await expect(page.getByText('840 g cru', { exact: true })).toBeVisible();
+
+  // Item avulso: entra no fim da lista, conta no total e sai com desfazer.
+  await page.getByRole('button', { name: 'Adicionar item' }).click();
+  folha = page.getByRole('dialog', { name: 'Adicionar item' });
+  await folha.getByRole('button', { name: 'Adicionar' }).click();
+  await expect(folha.getByText('Informe o nome do item.')).toBeVisible();
+  await folha.getByLabel('Nome').fill('Café');
+  await folha.getByLabel('Quantidade (opcional)').fill('2');
+  await folha.getByLabel('Unidade (opcional)').fill('pacotes');
+  await folha.getByRole('button', { name: 'Adicionar' }).click();
+  await expect(folha).toHaveCount(0);
+  await expect(page.getByText('2 pacotes', { exact: true })).toBeVisible();
+  await expect(page.getByText('Adicionado por você')).toBeVisible();
+  await expect(page.getByText('1 de 4 comprados')).toBeVisible();
+  // O item avulso vai para o último grupo, "Adicionados por você", depois de "Outros itens".
+  await emOrdemNaTela(page, ['Cereais e derivados', 'Outros itens', 'Adicionados por você', 'Café']);
+  await page.getByRole('button', { name: 'Remover Café' }).click();
+  await expect(page.getByText('Adicionado por você')).toHaveCount(0);
+  await expect(page.getByText('1 de 3 comprados')).toBeVisible();
+  await page.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(page.getByText('Adicionado por você')).toBeVisible();
+  await page.getByRole('button', { name: 'Concluir ajustes' }).click();
+  await page.getByRole('checkbox', { name: 'Café: não comprado' }).click();
+  await expect(page.getByText('2 de 4 comprados')).toBeVisible();
+  await page.screenshot({ path: `test-results-e2e/lista-de-compras-${largura}.png`, fullPage: true });
+
+  expect(naoTratadas).toEqual([]);
+  expect(errosDaPagina).toEqual([]);
+});
+}
 
 async function baixarDietaDetalhada(page: Page) {
   await page.addInitScript(() => { window.print = () => undefined; });

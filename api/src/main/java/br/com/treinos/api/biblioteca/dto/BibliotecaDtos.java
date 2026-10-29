@@ -48,7 +48,8 @@ public final class BibliotecaDtos {
 
     /**
      * {@code fatorCorrecao} e {@code fatorCoccao} são opcionais (nulo = não informado); faixa e casas decimais são
-     * conferidas no {@code BibliotecaService}, que responde 422 {@code ALIMENTO_INVALIDO} com o campo.
+     * conferidas no {@code BibliotecaService}, que responde 422 {@code ALIMENTO_INVALIDO} com o campo. {@code grupo} é
+     * texto livre opcional (até 60 depois de tirar os espaços sobrando; em branco = sem grupo), conferido lá também.
      */
     public record AlimentoRequest(
             @NotBlank @Size(max = 160) String nome,
@@ -61,27 +62,28 @@ public final class BibliotecaDtos {
             @DecimalMin(value = "0", inclusive = false) @Digits(integer = 6, fraction = 2) BigDecimal gramasPorUnidade,
             @Size(max = 200) String fonte,
             BigDecimal fatorCorrecao,
-            BigDecimal fatorCoccao) {
+            BigDecimal fatorCoccao,
+            String grupo) {
     }
 
     public record AlimentoResponse(UUID id, String nome, BigDecimal baseQuantidade, String baseUnidade,
                                    BigDecimal kcal, BigDecimal proteina, BigDecimal carboidrato, BigDecimal gordura,
                                    BigDecimal gramasPorUnidade, String fonte, String origem,
-                                   BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
+                                   BigDecimal fatorCorrecao, BigDecimal fatorCoccao, String grupo) {
         public static AlimentoResponse de(Alimento a) {
             return new AlimentoResponse(a.getId(), a.getNome(), a.getBaseQuantidade(), a.getBaseUnidade(),
                     a.getKcal(), a.getProteina(), a.getCarboidrato(), a.getGordura(), a.getGramasPorUnidade(),
-                    a.getFonte(), a.getOrigem().name(), a.getFatorCorrecao(), a.getFatorCoccao());
+                    a.getFonte(), a.getOrigem().name(), a.getFatorCorrecao(), a.getFatorCoccao(), a.getGrupo());
         }
     }
 
     /**
-     * Fatores atuais de um alimento da biblioteca, para a prévia da lista de compras no editor da dieta (o rascunho não
-     * os guarda: a publicação copia os do momento). Nulo = não informado.
+     * Fatores e grupo atuais de um alimento da biblioteca, para a prévia da lista de compras no editor da dieta (o
+     * rascunho não os guarda: a publicação copia os do momento). Nulo = não informado / sem grupo.
      */
-    public record FatoresDoAlimento(UUID alimentoId, BigDecimal fatorCorrecao, BigDecimal fatorCoccao) {
+    public record FatoresDoAlimento(UUID alimentoId, BigDecimal fatorCorrecao, BigDecimal fatorCoccao, String grupo) {
         public static FatoresDoAlimento de(Alimento a) {
-            return new FatoresDoAlimento(a.getId(), a.getFatorCorrecao(), a.getFatorCoccao());
+            return new FatoresDoAlimento(a.getId(), a.getFatorCorrecao(), a.getFatorCoccao(), a.getGrupo());
         }
     }
 

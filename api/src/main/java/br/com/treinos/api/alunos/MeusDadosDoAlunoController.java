@@ -2,6 +2,7 @@ package br.com.treinos.api.alunos;
 
 import br.com.treinos.api.alunos.dto.MeusDadosRequest;
 import br.com.treinos.api.alunos.dto.MeusDadosResponse;
+import br.com.treinos.api.auth.LimiteTentativas;
 import br.com.treinos.api.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class MeusDadosDoAlunoController {
 
     private final MeusDadosDoAlunoService meusDados;
+    private final LimiteTentativas limite;
 
-    public MeusDadosDoAlunoController(MeusDadosDoAlunoService meusDados) {
+    public MeusDadosDoAlunoController(MeusDadosDoAlunoService meusDados, LimiteTentativas limite) {
         this.meusDados = meusDados;
+        this.limite = limite;
     }
 
     @PreAuthorize("hasRole('ALUNO')")
@@ -30,6 +33,9 @@ public class MeusDadosDoAlunoController {
     @PreAuthorize("hasRole('ALUNO')")
     @PutMapping("/aluno/meus-dados")
     public MeusDadosResponse alterar(@AuthenticationPrincipal UsuarioAutenticado eu, @RequestBody @Valid MeusDadosRequest pedido) {
+        if (pedido.cpf() != null && !pedido.cpf().isBlank()) {
+            limite.cpfPeloAluno(eu.usuarioId());
+        }
         return meusDados.alterar(eu, pedido);
     }
 }

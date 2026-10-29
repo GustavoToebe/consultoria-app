@@ -201,10 +201,18 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         confirmar("exercicios", "ex.csv", exercicios.getBytes(StandardCharsets.UTF_8), configEx, hash("exercicios", "ex.csv", exercicios, configEx));
         assertThat(api.get("/exercicios", treinador, 200)).hasSize(1);
 
-        String alimentos = "nome;quantidade;unidade;kcal;proteina;carboidrato;gordura\nAveia fictícia;100;g;380;13;67;7\n";
-        String configAl = config("nome", "IGNORAR", Map.of("nome", 0, "quantidade", 1, "unidade", 2, "kcal", 3, "proteina", 4, "carboidrato", 5, "gordura", 6));
-        confirmar("alimentos", "al.csv", alimentos.getBytes(StandardCharsets.UTF_8), configAl, hash("alimentos", "al.csv", alimentos, configAl));
+        String alimentos = "nome;quantidade;unidade;kcal;proteina;carboidrato;gordura;grupo\n"
+                + "Aveia fictícia;100;g;380;13;67;7;  Cereais   e derivados \n"
+                + "Grupo longo fictício;100;g;1;1;1;1;" + "g".repeat(61) + "\n";
+        String configAl = config("nome", "IGNORAR", Map.of("nome", 0, "quantidade", 1, "unidade", 2, "kcal", 3, "proteina", 4,
+                "carboidrato", 5, "gordura", 6, "grupo", 7));
+        JsonNode feitoAlimentos = confirmar("alimentos", "al.csv", alimentos.getBytes(StandardCharsets.UTF_8), configAl,
+                hash("alimentos", "al.csv", alimentos, configAl));
+        // O grupo passa pela mesma regra do cadastro (espaços sobrando saem, até 60 caracteres).
+        assertThat(feitoAlimentos.path("comErro").asInt()).isEqualTo(1);
+        assertThat(feitoAlimentos.path("erros").get(0).path("campo").asString()).isEqualTo("grupo");
         assertThat(api.get("/alimentos", treinador, 200)).hasSize(1);
+        assertThat(api.get("/alimentos", treinador, 200).get(0).path("grupo").asString()).isEqualTo("Cereais e derivados");
 
         String suplementos = "nome;marca\nWhey fictício;Marca Fictícia\n";
         String configSu = config("nome_marca", "IGNORAR", Map.of("nome", 0, "marca", 1));

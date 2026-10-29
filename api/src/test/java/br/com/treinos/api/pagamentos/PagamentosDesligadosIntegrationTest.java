@@ -36,6 +36,7 @@ class PagamentosDesligadosIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private LembretesDeCobranca lembretes;
 
     private ApiDeTeste api;
     private JsonNode admin;
@@ -78,6 +79,38 @@ class PagamentosDesligadosIntegrationTest extends AbstractIntegrationTest {
                 .contentType("application/json").content("{}")).andReturn().getResponse();
         assertThat(aviso.getStatus()).isEqualTo(503);
         assertThat(json.readTree(aviso.getContentAsString()).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
+        // Os lembretes de cobrança também.
+        assertThat(api.get("/financeiro/lembretes", admin, 503).path("codigo").asString()).isEqualTo("FINANCEIRO_INDISPONIVEL");
+        api.put("/financeiro/lembretes", admin, Map.of("ligado", true, "diasAntes", 3, "noDia", true, "diasDepois", 3), 503);
+        assertThat(api.get("/cobrancas/" + UUID.randomUUID() + "/lembretes", admin, 503).path("codigo").asString())
+                .isEqualTo("FINANCEIRO_INDISPONIVEL");
+    }
+
+    @Test
+    void comOFinanceiroDesligadoNenhumLembreteEPlanejadoNemEnviado() throws Exception {
+        UUID aluno = api.criarAluno(admin, "Aluno Fictício Lembrete Desligado");
+        UUID consultoria = jdbc.queryForObject("select consultoria_id from aluno where id = ?::uuid", UUID.class, aluno.toString());
+        jdbc.update("update aluno set email = ? where id = ?::uuid", ApiDeTeste.emailUnico("lembrete-desligado"), aluno.toString());
+        UUID plano = UUID.randomUUID();
+        UUID contratacao = UUID.randomUUID();
+        UUID cobranca = UUID.randomUUID();
+        jdbc.update("insert into plano_comercial(id, consultoria_id, nome, valor_centavos, periodicidade) values (?::uuid, ?::uuid, ?, 10000, 'MENSAL')",
+                plano.toString(), consultoria.toString(), "Plano lembrete " + plano);
+        jdbc.update("insert into contratacao_aluno(id, consultoria_id, aluno_id, plano_comercial_id, periodicidade, valor_centavos, "
+                + "inicio, ancora, dia_vencimento, situacao) values (?::uuid, ?::uuid, ?::uuid, ?::uuid, 'MENSAL', 10000, "
+                + "?::date, ?::date, 10, 'ATIVA')", contratacao.toString(), consultoria.toString(), aluno.toString(), plano.toString(),
+                hoje.toString(), hoje.toString());
+        jdbc.update("insert into cobranca_aluno(id, consultoria_id, contratacao_id, aluno_id, competencia, valor_centavos, vencimento, "
+                + "situacao) values (?::uuid, ?::uuid, ?::uuid, ?::uuid, ?::date, 10000, ?::date, 'ABERTA')",
+                cobranca.toString(), consultoria.toString(), contratacao.toString(), aluno.toString(), hoje.toString(), hoje.toString());
+        jdbc.update("insert into lembrete_configuracao(id, consultoria_id, ligado) values (?::uuid, ?::uuid, true)",
+                UUID.randomUUID().toString(), consultoria.toString());
+
+        var resultado = lembretes.rodarSeLigado(hoje);
+
+        assertThat(resultado.executou()).isFalse();
+        assertThat(jdbc.queryForObject("select count(*) from lembrete_cobranca where cobranca_id = ?::uuid", Integer.class,
+                cobranca.toString())).isZero();
     }
 
     @Test

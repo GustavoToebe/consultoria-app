@@ -405,6 +405,8 @@ export interface Alimento {
   fatorCorrecao: number | null;
   /** Fator de cocção (peso pronto ÷ cru, 0,1 a 10) que o treinador digitou; nulo = não informado. */
   fatorCoccao: number | null;
+  /** Grupo do alimento ("Carnes e derivados"), texto livre até 60; agrupa a lista de compras. Nulo = sem grupo. */
+  grupo: string | null;
 }
 
 export type AlimentoRequest = Omit<Alimento, 'id' | 'origem'>;
@@ -676,11 +678,12 @@ export interface ConteudoTreino {
   sessoes: Sessao[];
 }
 
-/** Fatores atuais de um alimento da biblioteca (`GET /alimentos/fatores`), para a prévia da lista de compras. */
+/** Fatores e grupo atuais de um alimento da biblioteca (`GET /alimentos/fatores`), para a prévia da lista de compras. */
 export interface FatoresDoAlimento {
   alimentoId: string;
   fatorCorrecao: number | null;
   fatorCoccao: number | null;
+  grupo: string | null;
 }
 
 export interface ItemDieta {
@@ -700,6 +703,8 @@ export interface ItemDieta {
    */
   fatorCorrecao?: number | null;
   fatorCoccao?: number | null;
+  /** Grupo do alimento, copiado pelo servidor ao publicar, como os fatores; agrupa a lista de compras. Nulo = sem grupo. */
+  grupo?: string | null;
 }
 
 export interface OpcaoRefeicao {
@@ -713,7 +718,14 @@ export interface Refeicao {
   nome: string;
   horario: string | null;
   observacao: string | null;
+  /** Alternativas da refeição: o aluno escolhe uma (o total do dia usa só a primeira). */
   opcoes: OpcaoRefeicao[];
+  /**
+   * Modo de preparo (receita) que o treinador escreveu: texto livre até 2000 caracteres, com as quebras de linha.
+   * Só se mostra; nada é calculado (sem rendimento, porção nem conversão). Nulo ou ausente = não aparece (opcional no
+   * tipo para as fixtures que não o têm; `normalizarDieta` sempre o preenche).
+   */
+  modoDePreparo?: string | null;
 }
 
 export interface Suplemento {

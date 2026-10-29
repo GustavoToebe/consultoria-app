@@ -1,7 +1,6 @@
 import type { Marca } from '../api/tipos';
-import { dataHoraParaTela } from '../dominio/formatos';
 import type { ConteudoMobilidade, SecaoMobilidade } from '../dominio/mobilidade';
-import { cssBase, esc, escLinhas, link, topo, type Documento } from './html';
+import { cabecalhoDoPdf, cssBase, esc, escLinhas, link, type Documento } from './html';
 
 export interface DadosPdfMobilidade {
   marca: Marca;
@@ -37,11 +36,15 @@ function blocoSecao(s: SecaoMobilidade): string {
 export function documentoMobilidade(d: DadosPdfMobilidade): Documento {
   const c = d.conteudo;
   const corpo = [
-    topo(d.marca, d.logoDataUri, [
-      `Aluno: ${d.aluno}`,
-      `${d.titulo}${d.versao ? ` (v${d.versao})` : ' (RASCUNHO, não publicado)'}`,
-      `Emitido em ${dataHoraParaTela(d.emitidoEm.toISOString())}`,
-    ]),
+    cabecalhoDoPdf({
+      marca: d.marca,
+      logoDataUri: d.logoDataUri,
+      documento: 'Mobilidade',
+      titulo: d.titulo,
+      versao: d.versao,
+      aluno: d.aluno,
+      emitidoEm: d.emitidoEm,
+    }),
     c.orientacoes.trim() ? `<div class="suave">${escLinhas(c.orientacoes)}</div>` : '',
     ...c.secoes.filter((s) => s.itens.length).map(blocoSecao),
     d.rodapePdf?.trim() ? `<div class="rodape">${esc(d.rodapePdf)}</div>` : '',

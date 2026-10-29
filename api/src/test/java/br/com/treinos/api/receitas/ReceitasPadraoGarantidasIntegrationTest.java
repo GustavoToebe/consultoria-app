@@ -112,7 +112,7 @@ class ReceitasPadraoGarantidasIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void rodarV024() throws Exception {
-        // A V024 apaga as versões de treino do formato antigo; a V035 (sessao_concluida) nasceu depois e aponta para elas, então
+        // A V024 apaga as versões de treino do formato antigo; a V039 (sessao_concluida) nasceu depois e aponta para elas, então
         // numa base já cheia as sessões concluídas (de outros testes que dividem o banco) saem antes, como a V024 faz com execucao_serie.
         jdbc.update("delete from sessao_concluida");
         try (Connection conexao = dataSource.getConnection()) {

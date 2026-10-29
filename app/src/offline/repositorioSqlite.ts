@@ -1,5 +1,6 @@
 import type { AnamneseDetalhe, Atualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, EtapaRegistrada, OrigemDaReferencia, PainelAluno, VersaoDetalhe } from '../api/tipos';
 import { nomeDoBanco, prepararEsquema, type BancoSql, type ConexaoSql, type FabricaBanco, type ValorSql } from './banco';
+import type { ListaDeComprasSalva } from '../dominio/listaDeComprasDoAluno';
 import { pacoteNoFormatoAtual } from './formatoDoPacote';
 import {
   filaRetidaVenceu,
@@ -271,6 +272,15 @@ export class RepositorioSqlite implements RepositorioLocal {
 
   salvarDieta(dieta: VersaoDetalhe<ConteudoDieta> | null): Promise<void> {
     return this.emFila(undefined, (b) => this.gravarDocumento(b, 'dieta', dieta));
+  }
+
+  // Mesma tabela kv da dieta: sai com ela no "Sair" e na sessão recusada.
+  lerListaDeCompras(): Promise<unknown> {
+    return this.emFila(null, (b) => this.lerDocumento<unknown>(b, 'listaDeCompras'));
+  }
+
+  salvarListaDeCompras(lista: ListaDeComprasSalva | null): Promise<void> {
+    return this.emFila(undefined, (b) => this.gravarDocumento(b, 'listaDeCompras', lista));
   }
 
   // Mesma tabela kv da dieta: o documento da mobilidade vista (só leitura) não precisa de tabela própria.

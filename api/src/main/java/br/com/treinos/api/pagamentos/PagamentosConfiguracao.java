@@ -6,7 +6,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@EnableConfigurationProperties({PagamentosProperties.class, InfinitePayProperties.class})
+@EnableConfigurationProperties({PagamentosProperties.class, InfinitePayProperties.class, LembretesProperties.class})
 public class PagamentosConfiguracao implements WebMvcConfigurer {
 
     private final PagamentosInterceptor interceptor;

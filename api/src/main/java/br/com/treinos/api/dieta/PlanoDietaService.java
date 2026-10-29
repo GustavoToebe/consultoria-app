@@ -89,6 +89,9 @@ public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVe
      * (ou id que não existe) não é achado e o item fica sem fatores; item manual (sem {@code alimentoId}) também. O que o
      * cliente mandou nesses campos é sempre sobrescrito. Alimento inativado continua valendo: a dieta ainda o usa e os
      * fatores são os que o treinador digitou.
+     *
+     * <p>O grupo do alimento ({@code Alimento.grupo}, que agrupa a lista de compras, pedido do Gustavo em 28/10) segue
+     * exatamente a mesma regra: o do momento, sobrescrevendo o que o cliente mandou; nulo no item manual ou sem alimento.
      */
     @Override
     protected ConteudoDieta paraPublicar(ConteudoDieta conteudo) {
@@ -99,7 +102,8 @@ public class PlanoDietaService extends PlanoServiceBase<PlanoDieta, PlanoDietaVe
                 : alimentos.findAllById(ids).stream().collect(Collectors.toMap(Alimento::getId, Function.identity()));
         return conteudo.comItens(i -> {
             Alimento a = i.alimentoId() == null ? null : porId.get(i.alimentoId());
-            return a == null ? i.comFatores(null, null) : i.comFatores(a.getFatorCorrecao(), a.getFatorCoccao());
+            return a == null ? i.comDadosDaBiblioteca(null, null, null)
+                    : i.comDadosDaBiblioteca(a.getFatorCorrecao(), a.getFatorCoccao(), a.getGrupo());
         });
     }
 
