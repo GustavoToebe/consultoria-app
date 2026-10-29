@@ -305,6 +305,46 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(auditorias("IMPORTACAO_CONCLUIDA", UUID.fromString(feito.path("id").asString()))).isEqualTo(1);
     }
 
+    /** D18: inativar pela planilha cancela os compromissos futuros de quem já existe; quem fica e quem é criado não mudam. */
+    @Test
+    void inativarPelaPlanilhaCancelaOsCompromissosFuturos() throws Exception {
+        String emailSai = unico("agenda-sai");
+        String emailFica = unico("agenda-fica");
+        UUID sai = alunoComEmail("Agenda Sai Fictício", emailSai);
+        UUID fica = alunoComEmail("Agenda Fica Fictício", emailFica);
+        String responsavel = treinador.path("usuario").path("id").asString();
+        LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
+        String futuroDele = marcarCompromisso(sai, responsavel, hoje.plusDays(3), "09:00");
+        String futuroDoOutro = marcarCompromisso(fica, responsavel, hoje.plusDays(3), "11:00");
+        String passadoDele = marcarCompromisso(sai, responsavel, hoje.minusDays(3), "09:00");
+
+        String csv = "nome;email;situacao\nAgenda Sai Fictício;" + emailSai + ";inativo\nAgenda Fica Fictício;" + emailFica
+                + ";ativo\nAgenda Novo Fictício;" + unico("agenda-novo") + ";inativo\n";
+        String config = config("email", "ATUALIZAR", Map.of("nome", 0, "email", 1, "situacao", 2));
+        JsonNode previa = previa("alunos", "agenda.csv", csv, config);
+        assertThat(previa.path("comErro").asInt()).isZero();
+        assertThat(jdbc.queryForObject("select cancelado from compromisso where id = ?::uuid", Boolean.class, futuroDele)).isFalse();
+
+        confirmar("alunos", "agenda.csv", csv.getBytes(StandardCharsets.UTF_8), config, previa.path("hash").asString());
+
+        assertThat(jdbc.queryForObject("select cancelado from compromisso where id = ?::uuid", Boolean.class, futuroDele)).isTrue();
+        assertThat(situacaoDoAluno(futuroDele, sai)).isEqualTo("CANCELADO");
+        assertThat(situacaoDoAluno(passadoDele, sai)).isEqualTo("AGENDADO");
+        assertThat(situacaoDoAluno(futuroDoOutro, fica)).isEqualTo("AGENDADO");
+        assertThat(auditorias("ALUNO_COMPROMISSOS_CANCELADOS", sai)).isEqualTo(1);
+        assertThat(auditorias("ALUNO_COMPROMISSOS_CANCELADOS", fica)).isZero();
+    }
+
+    private String marcarCompromisso(UUID alunoId, String responsavelId, LocalDate data, String hora) throws Exception {
+        return api.post("/agenda/compromissos", treinador, Map.of("alunoIds", List.of(alunoId), "responsavelId", responsavelId,
+                "data", data.toString(), "hora", hora, "duracaoMinutos", 45), 200).path("id").asString();
+    }
+
+    private String situacaoDoAluno(String compromissoId, UUID alunoId) {
+        return jdbc.queryForObject("select situacao from compromisso_aluno where compromisso_id = ?::uuid and aluno_id = ?",
+                String.class, compromissoId, alunoId);
+    }
+
     @Test
     void reativarPelaPlanilhaReabreOLoginEAnonimizadoViraErroDaLinha() throws Exception {
         String emailVolta = unico("volta");

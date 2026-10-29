@@ -434,7 +434,8 @@ class AgendaPresencialIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.put("/agenda/compromissos/" + id, admin, troca, 409).path("codigo").asString()).isEqualTo("CONFLITO_EDICAO");
 
         // Remarcar exige participantes não cancelados ativos e não anonimizados; quem entra também.
-        api.patch("/alunos/" + daniela + "/situacao", admin, Map.of("ativo", false), 200);
+        // Por SQL: inativar pela rota cancelaria a participação dela (D18, InativarAlunoCancelaCompromissosIntegrationTest).
+        banco.update("update aluno set ativo = false, inativado_em = now() where id = ?", daniela);
         Map<String, Object> remarcar = pedido(List.of(aluno, daniela), usuarioId(admin), dia, "10:00", 60);
         remarcar.put("versao", trocado.path("versao").asLong());
         assertThat(api.put("/agenda/compromissos/" + id, admin, remarcar, 409).path("codigo").asString()).isEqualTo("ALUNO_INATIVO");

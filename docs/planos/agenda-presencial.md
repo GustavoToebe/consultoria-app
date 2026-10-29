@@ -42,7 +42,7 @@ Referência: "Minha Agenda" do concorrente (calendário com consultas, retornos 
   `links-do-menu`, `listas-em-linha`, `financeiro` e `anamnese` sem regressão) só com o cache do Metro isolado
   (`TMPDIR` próprio) e porta própria: sem isso o `expo export` do worktree empacota as telas de `Saraiva-api` (o
   `node_modules` é link para lá) e o resultado não vale.
-- Inativar o aluno não cancela os compromissos futuros dele (só anonimizar e "Excluir minha conta" apagam). Decidir se inativar deve cancelar.
+- ~~Inativar o aluno não cancela os compromissos futuros dele (só anonimizar e "Excluir minha conta" apagam). Decidir se inativar deve cancelar.~~ **Resolvido pela D18 de [agenda-calendario.md](agenda-calendario.md):** inativar (rota, lote e planilha) cancela, na mesma transação, a participação do aluno nos compromissos `AGENDADO` que começam depois de agora, com a auditoria `ALUNO_COMPROMISSOS_CANCELADOS`; reativar não devolve nada.
 - Com um membro escolhido no filtro, as atualizações somem da tela (a lista `PROXIMAS` só sabe filtrar "Meus").
 - Visão Mês, lembrete e recorrência: fora do escopo.
 - O app converte instante para Brasília com UTC−3 fixo (o Brasil não tem horário de verão desde 2019; o mesmo de

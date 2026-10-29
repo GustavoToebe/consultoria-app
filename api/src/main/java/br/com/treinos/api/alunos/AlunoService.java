@@ -12,6 +12,7 @@ import br.com.treinos.api.atualizacoes.RegrasAtualizacao;
 import br.com.plataforma.comum.auth.Autenticador;
 import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
+import br.com.treinos.api.consultoria.ConsultoriaRepository;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.treino.PlanoTreino;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
@@ -57,12 +58,17 @@ public class AlunoService {
     private final br.com.treinos.api.conta.PlanoDaConsultoria plano;
     private final br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos;
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
+    private final br.com.treinos.api.agenda.AgendaService agenda;
+    private final ConsultoriaRepository consultorias;
 
     public AlunoService(AlunoRepository alunos, UsuarioRepository usuarios, Autenticador autenticador,
                         PlanoTreinoRepository planos, ExecucaoSerieRepository execucoes,br.com.treinos.api.auditoria.Auditoria auditoria,
                         AtualizacaoRepository atualizacoes, br.com.treinos.api.conta.PlanoDaConsultoria plano,
                         br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos,
-                        br.com.treinos.api.ciclo.CicloMenstrualService ciclo) {
+                        br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
+                        br.com.treinos.api.agenda.AgendaService agenda, ConsultoriaRepository consultorias) {
+        this.agenda = agenda;
+        this.consultorias = consultorias;
         this.plano = plano;
         this.pagamentos = pagamentos;
         this.ciclo = ciclo;
@@ -198,6 +204,7 @@ public class AlunoService {
     @Transactional
     @br.com.treinos.api.auditoria.Auditar(acao="ALUNO_SITUACAO",entidade="ALUNO",resumo="Alterou a situação do aluno.")
     public AlunoDetalhe alterarSituacao(UUID id, boolean ativo) {
+        travarConsultoria(); // antes de travar o aluno: a ordem da agenda (D18) e a da vaga do plano
         Aluno aluno = alunos.buscarParaAlterar(id).orElseThrow(AlunoService::naoEncontrado);
         if (ativo) {
             exigirNaoAnonimizado(aluno);
@@ -207,9 +214,28 @@ public class AlunoService {
         return detalheDe(alunos.saveAndFlush(aluno));
     }
 
-    /** Muda a situação do aluno e do acesso dele; inativar encerra as sessões. Usado também pelo lote. */
+    /**
+     * Trava a linha da consultoria. Quem muda a situação do aluno chama isto ANTES de travar o aluno
+     * ({@code buscarParaAlterar}): a agenda trava a consultoria e depois insere participantes (FK para o aluno), e o
+     * cancelamento dos compromissos futuros (D18) escreve na agenda; consultoria e depois aluno é a única ordem sem
+     * travar em círculo. Reativar também entra aqui, onde a vaga do plano já trava a consultoria depois do aluno.
+     */
+    void travarConsultoria() {
+        if (consultorias.travar(br.com.treinos.api.tenant.TenantContext.get()).isEmpty()) {
+            throw new NaoEncontradoException("Consultoria não encontrada.");
+        }
+    }
+
+    /**
+     * Muda a situação do aluno e do acesso dele; inativar encerra as sessões e cancela os compromissos futuros (D18, na
+     * mesma transação; reativar não devolve nada). A consultoria já deve estar travada por quem chama ({@link #travarConsultoria}).
+     * Usado também pelo lote.
+     */
     void aplicarSituacao(Aluno aluno, boolean ativo) {
         aluno.alterarSituacao(ativo, Instant.now());
+        if (!ativo) {
+            agenda.cancelarFuturosDoAluno(aluno.getId()); // antes de encerrarSessoes, que não se desfaz
+        }
         if (aluno.getUsuarioId() != null) {
             usuarios.buscarParaAlterar(aluno.getUsuarioId()).ifPresent(u -> u.alterarAtivo(ativo));
             if (!ativo) {

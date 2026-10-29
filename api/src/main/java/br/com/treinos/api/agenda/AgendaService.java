@@ -480,6 +480,40 @@ public class AgendaService {
         }
     }
 
+    /**
+     * D18: o aluno foi inativado. Na transação de quem chama, a participação dele (só {@code AGENDADO}) em cada compromisso
+     * que começa depois de agora passa a {@code CANCELADO}; o compromisso só fica {@code cancelado} se ele era o último
+     * participante não cancelado (a mesma regra única de {@link #recalcularCancelado}, que libera o horário do
+     * responsável) e a {@code versao} sobe. Passados, em andamento, realizados, faltas e já cancelados não mudam. Numa
+     * série cada ocorrência futura é uma participação. Sem aviso (D12) para o aluno nem para os outros participantes.
+     * Devolve quantas participações cancelou; com pelo menos uma grava UMA auditoria
+     * {@code ALUNO_COMPROMISSOS_CANCELADOS} de resumo fixo (a quantidade, sem nome nem data).
+     *
+     * <p><b>Trava.</b> Não trava a consultoria: quem chama já a travou, <b>antes</b> de travar o aluno
+     * ({@code AlunoService.travarConsultoria}). A agenda trava a consultoria e depois insere participantes (FK para o
+     * aluno), então travar o aluno primeiro e a consultoria depois, aqui dentro, poderia travar em círculo; com a ordem
+     * consultoria, aluno, esta chamada serializa com as demais escritas da agenda e vê o que elas já gravaram.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int cancelarFuturosDoAluno(UUID alunoId) {
+        List<CompromissoAluno> dele = participantes.futurasAgendadasDoAluno(TenantContext.get(), alunoId, Instant.now());
+        if (dele.isEmpty()) {
+            return 0;
+        }
+        List<UUID> ids = dele.stream().map(CompromissoAluno::getCompromissoId).toList();
+        Map<UUID, List<CompromissoAluno>> todos = new HashMap<>();
+        participantes.findByCompromissoIdIn(ids)
+                .forEach(p -> todos.computeIfAbsent(p.getCompromissoId(), k -> new ArrayList<>()).add(p));
+        dele.forEach(p -> p.alterarSituacao(SituacaoCompromisso.CANCELADO));
+        List<Compromisso> afetados = compromissos.findAllById(ids);
+        afetados.forEach(c -> recalcularCancelado(c, todos.get(c.getId())));
+        compromissos.saveAllAndFlush(afetados);
+        int total = dele.size();
+        auditoria.registrarEvento("ALUNO_COMPROMISSOS_CANCELADOS", "ALUNO", alunoId, "Cancelou " + total
+                + (total == 1 ? " compromisso futuro" : " compromissos futuros") + " do aluno ao inativá-lo.");
+        return total;
+    }
+
     // ---- Auxiliares ----
 
     private void travarConsultoria() {
