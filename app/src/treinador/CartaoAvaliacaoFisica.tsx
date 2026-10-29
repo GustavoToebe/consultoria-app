@@ -4,13 +4,14 @@ import { StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import type { AvaliacaoFisica, MedidasCorporais } from '../api/avaliacaoFisicaTipos';
+import type { Marca } from '../api/tipos';
 import {
   alterarAvaliacaoFisica, avaliacoesFisicasDoAluno, consultoria, excluirAvaliacaoFisica, minhasAvaliacoesFisicas,
   registrarAvaliacaoFisica,
 } from '../api/rotas';
 import {
   alternarEscolha, cmParaTela, COMPARAR_MAXIMO, comparar, corpoDaAvaliacao, diferencaParaTela, MEDIDAS,
-  medidasPreenchidas, medidasVazias, OBSERVACAO_MAXIMA, pesoParaTela, podeComparar, problemasDaAvaliacao,
+  medidasPreenchidas, medidasVazias, OBSERVACAO_MAXIMA, pesoParaTela, podeBaixarComparativo, podeComparar, problemasDaAvaliacao,
   type LinhaDaComparacao,
 } from '../dominio/avaliacaoFisica';
 import { dataDaTela, dataParaTela, hojeIso, mascaraDeNumero } from '../dominio/formatos';
@@ -42,8 +43,11 @@ const LINHAS_INICIAIS = 6;
 type Props =
   /** Ficha do aluno (equipe): lista, nova, editar, excluir, comparar e baixar o comparativo. */
   | { alunoId: string; alunoNome: string; anonimizado?: boolean }
-  /** Histórico do próprio aluno: só leitura e a mesma comparação. */
-  | { alunoId?: undefined; alunoNome?: undefined; anonimizado?: undefined };
+  /**
+   * Histórico do próprio aluno: só leitura, a mesma comparação e o PDF dela (com a marca da sessão). `online` vem do
+   * `AlunoProvider` (que a ficha do treinador não tem): sem internet o botão do PDF não aparece.
+   */
+  | { alunoId?: undefined; alunoNome?: undefined; anonimizado?: undefined; online?: boolean };
 
 function metadados(a: AvaliacaoFisica): string {
   const n = medidasPreenchidas(a.medidas);
@@ -57,7 +61,7 @@ function metadados(a: AvaliacaoFisica): string {
  */
 export function CartaoAvaliacaoFisica(p: Props) {
   const { cores } = useTema();
-  const { pode } = useSessao();
+  const { pode, marca: marcaDaSessao, usuario } = useSessao();
   const { avisar } = useAviso();
   const daEquipe = p.alunoId !== undefined;
   const { dados, erro, carregando, recarregar } = useCarregar(daEquipe ? `avaliacoes:${p.alunoId}` : 'avaliacoes-aluno',
@@ -88,17 +92,23 @@ export function CartaoAvaliacaoFisica(p: Props) {
     });
   };
 
+  // O aluno usa a marca que a sessão já tem (a rota `/consultoria` é da equipe); a equipe a busca como sempre.
+  const online = p.alunoId === undefined ? p.online === true : true;
+  const mostrarBaixar = !!comparacao && podeBaixarComparativo({ daEquipe, online, temMarca: marcaDaSessao !== null });
+
   const baixar = () => {
-    if (!comparacao || !daEquipe) return;
+    if (!comparacao || (!daEquipe && !marcaDaSessao)) return;
     setGerando(true);
     const escolhidasEmOrdem = comparacao.colunas.map((c) => lista.find((a) => a.id === c.id)).filter((a): a is AvaliacaoFisica => !!a);
-    consultoria()
-      .then(async (c) =>
+    const nome = daEquipe ? p.alunoNome : (usuario?.nome ?? '');
+    const marcaDoPdf: Promise<Marca> = daEquipe ? consultoria().then((c) => c.marca) : Promise.resolve(marcaDaSessao as Marca);
+    marcaDoPdf
+      .then(async (marca) =>
         imprimir(
           documentoAvaliacaoFisica({
-            marca: c.marca,
-            logoDataUri: await logoComoDataUri(c.marca),
-            aluno: p.alunoNome,
+            marca,
+            logoDataUri: await logoComoDataUri(marca),
+            aluno: nome,
             comparacao,
             observacoes: escolhidasEmOrdem.map((a) => ({ data: a.data, texto: a.observacao ?? '' })),
             emitidoEm: new Date(),
@@ -166,7 +176,7 @@ export function CartaoAvaliacaoFisica(p: Props) {
             Diferença = {dataParaTela(comparacao.colunas[comparacao.colunas.length - 1].data)} menos {dataParaTela(comparacao.colunas[0].data)}.
             {' '}O peso é o registro de peso da mesma data.
           </Texto>
-          {daEquipe ? (
+          {mostrarBaixar ? (
             <NoPlano funcionalidade="PDF">
               <Botao rotulo="Baixar comparativo" tipo="secundario" Icone={FileDown} carregando={gerando} aoTocar={baixar} />
             </NoPlano>

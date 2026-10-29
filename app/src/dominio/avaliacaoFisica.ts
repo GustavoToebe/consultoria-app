@@ -113,6 +113,14 @@ export function podeComparar(escolhidas: readonly string[]): boolean {
   return escolhidas.length >= COMPARAR_MINIMO && escolhidas.length <= COMPARAR_MAXIMO;
 }
 
+/**
+ * Quando o "Baixar comparativo" aparece (a funcionalidade `PDF` do plano é conferida à parte, por `NoPlano`). A equipe
+ * sempre o tem. O aluno só com internet (o PDF baixa a logo e a rota não funciona sem rede) e com a marca da sessão.
+ */
+export function podeBaixarComparativo(o: { daEquipe: boolean; online: boolean; temMarca: boolean }): boolean {
+  return o.daEquipe || (o.online && o.temMarca);
+}
+
 export interface LinhaDaComparacao {
   chave: CampoDaMedida | 'peso';
   rotulo: string;
