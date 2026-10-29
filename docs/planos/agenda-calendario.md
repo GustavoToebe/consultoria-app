@@ -127,9 +127,9 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - [x] 4. API, D18: inativar o aluno (`AlunoService`, `AlunoLoteService`, planilha) cancela os compromissos futuros dele na mesma transação, com auditoria de resumo fixo (executor) — commit/run: 2e3f375 e 168e4a5 (avisos não vistos saem na inativação)
 - [x] 5. Revisão da migration que apaga colunas, do contrato do aluno (sem vazar participante), da exportação e da série (advisor ou revisor) — commit/run: revisor e advisor (29/10); ajustes em 168e4a5 e no V042 (índice redundante tirado)
 - [x] 6. App, regra pura: `dominio/agendaPresencial.ts` (participantes, situação por aluno, série), `dominio/paraFazer.ts` (aviso), `dominio/lembretesCompromisso.ts`, `api/` (executor, com teste) — commit/run: 842661d
-- [ ] 7. App do aluno: item de aviso e ponto no Início, `aluno/compromissos/lembretes.ts`, permissão e interruptor, limpeza ao sair (executor) — commit/run: —
-- [ ] 8. App do treinador: `FolhaCompromisso` com vários alunos, repetição e escopos, situação por aluno, e o acerto do `agenda-presencial.spec.ts` em 390 e 1280 (executor-front, em cima do passo 6) — commit/run: —
-- [ ] 9. Texto do `AGENTS.md` (item "Agenda presencial") e ajuda do treinador e do aluno para o lote 1 (executor-rapido); **lote 1 pronto para um push na branch** — commit/run: —
+- [x] 7. App do aluno: item de aviso e ponto no Início, `aluno/compromissos/lembretes.ts`, permissão e interruptor, limpeza ao sair (executor) — commit/run: 6ec04e7
+- [x] 8. App do treinador: `FolhaCompromisso` com vários alunos, repetição e escopos, situação por aluno, e o acerto do `agenda-presencial.spec.ts` em 390 e 1280 (executor-front, em cima do passo 6) — commit/run: 732b54d
+- [x] 9. Texto do `AGENTS.md` (item "Agenda presencial") e ajuda do treinador e do aluno para o lote 1 (executor-rapido); **lote 1 pronto para um push na branch** — commit/run: b57c440 (guias em PDF só no fim, passo 15)
 - [ ] 10. API, V043: agendas pessoais, eventos sem aluno com recorrência (regra, exceções, escopos, expansão), rotas, 404 do dono, auditoria de resumo fixo, rota de resumo do Ano, atualizações por período e por responsável (D14, D19); totais 42 → 43 (executor) — commit/run: —
 - [ ] 11. Revisão da API do calendário: permissões, dono, tenant, privacidade e contrato (advisor ou revisor) — commit/run: —
 - [ ] 12. App, regra pura: `dominio/agendaCalendario.ts`, `dominio/agendaEvento.ts`, paleta em `tema/tokens.ts`, preferência de agendas ocultas (executor, com teste) — commit/run: —
