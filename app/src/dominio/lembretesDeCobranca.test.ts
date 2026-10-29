@@ -63,9 +63,9 @@ describe('WhatsApp', () => {
 
   it('o botão some sem mensagem e fica desabilitado sem telefone', () => {
     expect(botaoDoWhatsApp(undefined)).toBeNull();
-    expect(botaoDoWhatsApp({ itens: [], whatsapp: null })).toBeNull();
-    expect(botaoDoWhatsApp({ itens: [], whatsapp: { telefone: null, mensagem: 'Oi' } })).toEqual({ link: null, motivo: MOTIVO_SEM_TELEFONE });
-    expect(botaoDoWhatsApp({ itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Oi' } }))
+    expect(botaoDoWhatsApp({ itens: [], whatsapp: null, alunoDesligou: false })).toBeNull();
+    expect(botaoDoWhatsApp({ itens: [], whatsapp: { telefone: null, mensagem: 'Oi' }, alunoDesligou: false })).toEqual({ link: null, motivo: MOTIVO_SEM_TELEFONE });
+    expect(botaoDoWhatsApp({ itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Oi' }, alunoDesligou: true }))
       .toEqual({ link: 'https://wa.me/5545999998888?text=Oi', motivo: null });
   });
 });

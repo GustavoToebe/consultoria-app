@@ -287,7 +287,7 @@ test('módulo desligado: o aluno não chama o financeiro nem vê "Meu plano"; o 
   await page.goto('/aluno/conta');
   await expect(page.getByRole('button', { name: 'Sair' })).toBeVisible();
   await expect(page.getByText('Meu plano')).toHaveCount(0);
-  expect(doAluno.pedidos.filter((p) => p.caminho.includes('financeiro'))).toEqual([]);
+  expect(doAluno.pedidos.filter((p) => p.caminho.includes('financeiro') || p.caminho.includes('lembretes-de-cobranca'))).toEqual([]);
 
   const treinador = await context.newPage();
   const doTreinador = await simularApi(treinador, {
@@ -974,6 +974,7 @@ test('folha da cobrança: lista os lembretes e abre o WhatsApp com a mensagem pr
           { id: 'l2', tipo: 'NO_DIA', situacao: 'CANCELADO', motivo: 'SEM_EMAIL', dataPrevista: '2026-10-05', enviadoEm: null, atualizadoEm: '2026-10-05T12:07:00Z' },
         ],
         whatsapp: { telefone: '(45) 99999-8888', mensagem },
+        alunoDesligou: false,
       },
     },
   });
@@ -999,7 +1000,7 @@ test('folha da cobrança sem telefone do aluno: o botão do WhatsApp fica desabi
   await fixarHoje(page);
   const estado = estadoFinanceiro({
     cobrancas: [{ ...COBRANCA_ATRASADA }],
-    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: null, mensagem: 'Olá, Aluna.' } } },
+    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: null, mensagem: 'Olá, Aluna.' }, alunoDesligou: false } },
   });
   const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
   await page.goto('/treinador/financeiro?aba=cobrancas');
@@ -1009,5 +1010,78 @@ test('folha da cobrança sem telefone do aluno: o botão do WhatsApp fica desabi
   await expect(folha.getByRole('button', { name: 'Abrir WhatsApp com a mensagem' })).toBeDisabled();
   await expect(folha.getByText('O aluno não tem telefone no cadastro.')).toBeVisible();
   await expect(folha.getByRole('heading', { name: 'Lembretes por e-mail' })).toHaveCount(0);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('folha da cobrança: o aluno que desligou os lembretes aparece em texto suave e o WhatsApp manual continua', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({
+    cobrancas: [{ ...COBRANCA_ATRASADA }],
+    lembretesDasCobrancas: { [COBRANCA_ATRASADA.id]: { itens: [], whatsapp: { telefone: '(45) 99999-8888', mensagem: 'Olá, Aluna.' }, alunoDesligou: true } },
+  });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/treinador/financeiro?aba=cobrancas');
+
+  await page.getByRole('button', { name: /^Abrir cobrança de/ }).click();
+  const folha = page.getByRole('dialog');
+  await expect(folha.getByRole('heading', { name: 'Lembretes por e-mail' })).toBeVisible();
+  await expect(folha.getByText('O aluno desligou os lembretes por e-mail')).toBeVisible();
+  await expect(folha.getByRole('button', { name: 'Abrir WhatsApp com a mensagem' })).toBeEnabled();
+  expect(errosDaPagina).toEqual([]);
+});
+
+const INTERRUPTOR_DE_LEMBRETES = 'Receber lembretes de pagamento por e-mail';
+
+for (const largura of [390, 1280]) {
+  test(`aluno desliga e liga de novo os lembretes de pagamento em Meu plano em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    await fixarHoje(page);
+    const estado = estadoFinanceiro({ contratacoes: [{ ...CONTRATACAO_ATIVA }], cobrancas: [aberta()] });
+    const { errosDaPagina } = await simularApi(page, { ...(await sessaoDoAlunoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+    await page.goto('/aluno/conta');
+
+    const interruptor = page.getByRole('switch', { name: INTERRUPTOR_DE_LEMBRETES });
+    await expect(interruptor).toBeChecked();
+    await interruptor.click();
+    await expect(interruptor).not.toBeChecked();
+    await expect.poll(() => estado.pedidosDeLembretesDoAluno).toEqual([{ receber: false }]);
+    expect(estado.alunoRecebeLembretes).toBe(false);
+    await interruptor.click();
+    await expect(interruptor).toBeChecked();
+    await expect.poll(() => estado.pedidosDeLembretesDoAluno).toEqual([{ receber: false }, { receber: true }]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}
+
+test('aluno: se a API recusa, o interruptor dos lembretes volta ao valor de antes e o aviso aparece', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({
+    contratacoes: [{ ...CONTRATACAO_ATIVA }], cobrancas: [aberta()],
+    falhaAoDefinirLembretesDoAluno: 'Não foi possível salvar agora. Tente de novo em instantes.',
+  });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoDoAlunoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/aluno/conta');
+
+  const interruptor = page.getByRole('switch', { name: INTERRUPTOR_DE_LEMBRETES });
+  await expect(interruptor).toBeChecked();
+  await interruptor.click();
+  await expect(page.getByText('Não foi possível salvar agora. Tente de novo em instantes.')).toBeVisible();
+  await expect(interruptor).toBeChecked();
+  expect(estado.alunoRecebeLembretes).toBe(true);
+  expect(errosDaPagina).toEqual([]);
+});
+
+test('aluno que já desligou os lembretes abre com o interruptor desligado; sem internet ele some com o resto de "Meu plano"', async ({ page }) => {
+  await fixarHoje(page);
+  const estado = estadoFinanceiro({ contratacoes: [{ ...CONTRATACAO_ATIVA }], cobrancas: [aberta()], alunoRecebeLembretes: false });
+  const { errosDaPagina } = await simularApi(page, { ...(await sessaoDoAlunoComFinanceiro(page)), ...rotasDoFinanceiro(estado) });
+  await page.goto('/aluno/conta');
+
+  const interruptor = page.getByRole('switch', { name: INTERRUPTOR_DE_LEMBRETES });
+  await expect(interruptor).not.toBeChecked();
+  await page.context().setOffline(true);
+  await expect(page.getByText('Os dados do seu plano aparecem quando você estiver conectado à internet.')).toBeVisible();
+  await expect(interruptor).toHaveCount(0);
+  await page.context().setOffline(false);
   expect(errosDaPagina).toEqual([]);
 });

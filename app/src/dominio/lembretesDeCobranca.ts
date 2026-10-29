@@ -54,6 +54,7 @@ export function rotuloDoTipo(tipo: TipoDeLembrete): string {
 const MOTIVOS: Record<string, string> = {
   COBRANCA_NAO_ABERTA: 'a cobrança não estava mais em aberto',
   NAO_E_MAIS_DEVIDO: 'os lembretes foram mudados ou desligados',
+  ALUNO_DESLIGOU: 'o aluno desligou os lembretes',
   CONTRATACAO_NAO_ATIVA: 'contratação pausada ou encerrada',
   ALUNO_INATIVO: 'aluno inativo',
   SEM_EMAIL: 'o aluno não tem e-mail',
