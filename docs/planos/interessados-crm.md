@@ -24,10 +24,13 @@ humano: nada é enviado, cobrado nem cadastrado sem um clique explícito.
 | D11 | Histórico | Tabela de eventos com resumo fixo (sem texto livre além do que a equipe já escreveu); as notas continuam na tabela delas; a tela junta os dois | Análise 9.10 |
 | D12 | Kanban | Colunas abertas (Novas, Em contato, Em negociação) e encerradas recolhidas; cada coluna pagina no servidor; arrastar e "Mover para" pelo menu; "Aceita" abre a confirmação do aceite | Análise 9.9 |
 | D13 | Origem | Pergunta opcional no formulário ("Como conheceu"), parâmetro `?origem=` do link (só `[a-z0-9_-]{1,40}`) e correção manual da equipe; as três ficam guardadas | Análise 9.10 |
-| D14 | Migrations | Começam na V044 (a agenda usa V042 e V043). Se a agenda mudar de número, renumerar na hora do merge | Claude |
+| D14 | Migrations | V044 (última atividade) e V045 (CRM). A agenda usa V042 e V043 na branch dela: quem mesclar por último na `main` renumera e acerta o total dos testes | Claude |
+| D15 | Planos do Financeiro na proposta | `GET /inscricoes/planos-de-referencia` com `INSCRICAO_ALTERAR` (só nome, valor e periodicidade; arquivados fora); vazio com o Financeiro desligado | Claude |
+| D16 | WhatsApp com texto | "Abrir WhatsApp" com o texto preparado vai em `wa.me/...?text=` (como os lembretes de cobrança); o "Abrir WhatsApp" sem modelo continua sem texto | Análise 9.5 |
+| D17 | Busca | Colunas geradas no banco: `nome_busca` (sem acento, letras do português) e `whatsapp_digitos` | Claude |
 
 ## Passos
-- [ ] 1. Lote 1, estabilidade: B1, B2, B3, B4, F1, F2, F3 com testes — commit: —
+- [x] 1. Lote 1, estabilidade: B1, B2, B3, B4, F1, F2, F3 com testes — commit: 3be90bf (`mvn clean verify` 1555 testes, Jest 2341, lint, e2e novos; os testes novos falham sem as correções)
 - [ ] 2. Lote 2, base comercial: duplicidades com histórico e relacionar, motivos de perda, proposta negociada — commit: —
 - [ ] 3. Lote 3, atendimento diário: respostas prontas, retornos, histórico unificado — commit: —
 - [ ] 4. Lote 4, organização visual: Kanban, busca, contagens e estados vazios — commit: —

@@ -216,7 +216,7 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         api.get("/inscricoes", admin, 403);
         api.get("/inscricoes/" + id, admin, 403);
         api.get("/inscricoes/configuracao", admin, 403);
-        api.post("/inscricoes/" + id + "/recusar", admin, Map.of("versao", 0), 403);
+        api.post("/inscricoes/" + id + "/encerrar", admin, Map.of("situacao", "RECUSADA", "motivo", "PRECO", "versao", 0), 403);
 
         perfil(admin, "Assistente");
         JsonNode detalhe = api.get("/inscricoes/" + id, admin, 200);
@@ -261,7 +261,9 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(comNota.path("notas")).hasSize(1);
         assertThat(comNota.path("notas").get(0).path("autorNome").asString()).isEqualTo("Treinador Teste");
 
-        JsonNode recusada = api.post("/inscricoes/" + id + "/recusar", admin, Map.of("versao", atual), 200);
+        JsonNode recusada = api.post("/inscricoes/" + id + "/encerrar", admin,
+                Map.of("situacao", "RECUSADA", "motivo", "PRECO", "versao", atual), 200);
+        assertThat(recusada.path("motivoEncerramento").asString()).isEqualTo("PRECO");
         assertThat(recusada.path("situacao").asString()).isEqualTo("RECUSADA");
         assertThat(api.get("/inscricoes", admin, 200).path("total").asLong()).isZero();
         assertThat(api.get("/inscricoes?situacao=RECUSADA", admin, 200).path("total").asLong()).isEqualTo(1);
@@ -325,8 +327,8 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
             assertThat(repetido.path("codigo").asString()).isEqualTo("INSCRICAO_JA_ACEITA");
             assertThat(repetido.path("fieldErrors").get(0).path("message").asString()).isEqualTo(alunoId);
         }
-        api.post("/inscricoes/" + item.path("id").asString() + "/recusar", admin,
-                Map.of("versao", detalhe.path("versao").asLong()), 409);
+        api.post("/inscricoes/" + item.path("id").asString() + "/encerrar", admin,
+                Map.of("situacao", "RECUSADA", "motivo", "PRECO", "versao", detalhe.path("versao").asLong()), 409);
         assertThat(alunos(consultoria)).isEqualTo(antes + 1);
     }
 

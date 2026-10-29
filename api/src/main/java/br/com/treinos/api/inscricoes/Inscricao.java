@@ -1,6 +1,14 @@
 package br.com.treinos.api.inscricoes;
 
 import br.com.treinos.api.alunos.Sexo;
+import br.com.treinos.api.inscricoes.Crm.Interesse;
+import br.com.treinos.api.inscricoes.Crm.Modalidade;
+import br.com.treinos.api.inscricoes.Crm.ModalidadeDesejada;
+import br.com.treinos.api.inscricoes.Crm.MotivoEncerramento;
+import br.com.treinos.api.inscricoes.Crm.Origem;
+import br.com.treinos.api.inscricoes.Crm.OrigemInformada;
+import br.com.treinos.api.inscricoes.Crm.Periodicidade;
+import br.com.treinos.api.inscricoes.Crm.PrevisaoInicio;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -73,6 +81,88 @@ public class Inscricao {
     @Column(name = "aluno_id")
     private UUID alunoId;
 
+    @Column(name = "aceita_em")
+    private Instant aceitaEm;
+
+    /** Reabrir começa um ciclo novo; o anterior fica nos eventos. */
+    @Column(nullable = false)
+    private int ciclo = 1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "motivo_encerramento")
+    private MotivoEncerramento motivoEncerramento;
+
+    @Column(name = "motivo_detalhe")
+    private String motivoDetalhe;
+
+    @Column(name = "encerrada_por")
+    private UUID encerradaPor;
+
+    @Column(name = "encerrada_em")
+    private Instant encerradaEm;
+
+    @Column(name = "proposta_plano_id")
+    private UUID propostaPlanoId;
+
+    @Column(name = "proposta_plano_nome")
+    private String propostaPlanoNome;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "proposta_modalidade")
+    private Modalidade propostaModalidade;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "proposta_periodicidade")
+    private Periodicidade propostaPeriodicidade;
+
+    @Column(name = "proposta_valor_referencia_centavos")
+    private Long propostaValorReferenciaCentavos;
+
+    @Column(name = "proposta_valor_centavos")
+    private Long propostaValorCentavos;
+
+    @Column(name = "proposta_condicoes")
+    private String propostaCondicoes;
+
+    @Column(name = "proposta_atualizada_em")
+    private Instant propostaAtualizadaEm;
+
+    @Column(name = "proposta_atualizada_por")
+    private UUID propostaAtualizadaPor;
+
+    @Enumerated(EnumType.STRING)
+    @Column(updatable = false)
+    private Interesse interesse;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "modalidade_desejada", updatable = false)
+    private ModalidadeDesejada modalidadeDesejada;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "previsao_inicio", updatable = false)
+    private PrevisaoInicio previsaoInicio;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "origem_informada", updatable = false)
+    private OrigemInformada origemInformada;
+
+    @Column(name = "origem_link", updatable = false)
+    private String origemLink;
+
+    @Enumerated(EnumType.STRING)
+    private Origem origem;
+
+    @Column(name = "relacionada_a")
+    private UUID relacionadaA;
+
+    /** Coluna gerada no banco (nome sem acento, em minúsculas), lida pela busca. */
+    @Column(name = "nome_busca", insertable = false, updatable = false)
+    private String nomeBusca;
+
+    /** Coluna gerada no banco (só dígitos do WhatsApp), lida pela busca. */
+    @Column(name = "whatsapp_digitos", insertable = false, updatable = false)
+    private String whatsappDigitos;
+
     @Column(name = "criada_em", nullable = false, updatable = false)
     private Instant criadaEm = Instant.now();
 
@@ -128,6 +218,87 @@ public class Inscricao {
     public Instant getAtualizadaEm() { return atualizadaEm; }
     public Instant getUltimaAtividadeEm() { return ultimaAtividadeEm; }
     public Long getVersao() { return versao; }
+    public Instant getAceitaEm() { return aceitaEm; }
+    public int getCiclo() { return ciclo; }
+    public MotivoEncerramento getMotivoEncerramento() { return motivoEncerramento; }
+    public String getMotivoDetalhe() { return motivoDetalhe; }
+    public UUID getEncerradaPor() { return encerradaPor; }
+    public Instant getEncerradaEm() { return encerradaEm; }
+    public UUID getPropostaPlanoId() { return propostaPlanoId; }
+    public String getPropostaPlanoNome() { return propostaPlanoNome; }
+    public Modalidade getPropostaModalidade() { return propostaModalidade; }
+    public Periodicidade getPropostaPeriodicidade() { return propostaPeriodicidade; }
+    public Long getPropostaValorReferenciaCentavos() { return propostaValorReferenciaCentavos; }
+    public Long getPropostaValorCentavos() { return propostaValorCentavos; }
+    public String getPropostaCondicoes() { return propostaCondicoes; }
+    public Instant getPropostaAtualizadaEm() { return propostaAtualizadaEm; }
+    public UUID getPropostaAtualizadaPor() { return propostaAtualizadaPor; }
+    public Interesse getInteresse() { return interesse; }
+    public ModalidadeDesejada getModalidadeDesejada() { return modalidadeDesejada; }
+    public PrevisaoInicio getPrevisaoInicio() { return previsaoInicio; }
+    public OrigemInformada getOrigemInformada() { return origemInformada; }
+    public String getOrigemLink() { return origemLink; }
+    public Origem getOrigem() { return origem; }
+    public UUID getRelacionadaA() { return relacionadaA; }
+
+    /** Qualificação e origem do formulário público (só na criação). A origem da equipe começa por elas. */
+    void qualificar(Interesse interesse, ModalidadeDesejada modalidade, PrevisaoInicio previsao,
+                    OrigemInformada informada, String link) {
+        this.interesse = interesse;
+        this.modalidadeDesejada = modalidade;
+        this.previsaoInicio = previsao;
+        this.origemInformada = informada;
+        this.origemLink = link;
+        this.origem = informada != null ? Origem.valueOf(informada.name()) : Crm.origemDoLink(link);
+    }
+
+    void encerrar(SituacaoInscricao situacao, MotivoEncerramento motivo, String detalhe, UUID quem) {
+        this.motivoEncerramento = motivo;
+        this.motivoDetalhe = detalhe;
+        this.encerradaPor = quem;
+        alterarSituacao(situacao);
+        this.encerradaEm = atualizadaEm;
+    }
+
+    /** Novo ciclo em atendimento: o encerramento anterior fica só nos eventos. */
+    void reabrir(UUID responsavel) {
+        this.ciclo++;
+        this.motivoEncerramento = null;
+        this.motivoDetalhe = null;
+        this.encerradaPor = null;
+        this.encerradaEm = null;
+        if (this.responsavelId == null) this.responsavelId = responsavel;
+        alterarSituacao(SituacaoInscricao.EM_CONTATO);
+    }
+
+    void definirProposta(UUID planoId, String planoNome, Modalidade modalidade, Periodicidade periodicidade,
+                         Long referencia, Long valor, String condicoes, UUID quem) {
+        this.propostaPlanoId = planoId;
+        this.propostaPlanoNome = planoNome;
+        this.propostaModalidade = modalidade;
+        this.propostaPeriodicidade = periodicidade;
+        this.propostaValorReferenciaCentavos = referencia;
+        this.propostaValorCentavos = valor;
+        this.propostaCondicoes = condicoes;
+        tocar();
+        this.propostaAtualizadaEm = atualizadaEm;
+        this.propostaAtualizadaPor = quem;
+    }
+
+    boolean temProposta() {
+        return propostaPlanoNome != null || propostaModalidade != null || propostaPeriodicidade != null
+                || propostaValorReferenciaCentavos != null || propostaValorCentavos != null || propostaCondicoes != null;
+    }
+
+    void alterarOrigem(Origem origem) {
+        this.origem = origem;
+        tocar();
+    }
+
+    void relacionar(UUID outra) {
+        this.relacionadaA = outra;
+        tocar();
+    }
 
     void alterarSituacao(SituacaoInscricao nova) {
         this.situacao = nova;
@@ -158,5 +329,6 @@ public class Inscricao {
     void aceitar(UUID alunoId) {
         this.alunoId = alunoId;
         alterarSituacao(SituacaoInscricao.ACEITA);
+        this.aceitaEm = atualizadaEm;
     }
 }

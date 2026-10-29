@@ -2,6 +2,7 @@ package br.com.treinos.api.inscricoes;
 
 import br.com.treinos.api.inscricoes.InscricaoDtos.InscricaoExportada;
 import br.com.treinos.api.inscricoes.InscricaoDtos.NotaExportada;
+import br.com.treinos.api.inscricoes.InscricaoDtos.PropostaExportada;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +33,10 @@ public class InscricaoDoAluno {
                 i.getWhatsapp(), i.getEmail(), i.getObjetivo(), i.getObservacao(), i.getCienciaEm(), i.getCienciaTexto(),
                 notas.findByInscricaoIdOrderByCriadaEmAsc(i.getId()).stream()
                         .map(n -> new NotaExportada(n.getCriadaEm(), n.getTexto())).toList(),
-                i.getSexo() == null ? null : i.getSexo().name()))).orElse(List.of());
+                i.getSexo() == null ? null : i.getSexo().name(), i.getInteresse(), i.getModalidadeDesejada(),
+                i.getPrevisaoInicio(), i.getOrigemInformada(), i.temProposta() ? new PropostaExportada(
+                        i.getPropostaPlanoNome(), i.getPropostaModalidade(), i.getPropostaPeriodicidade(),
+                        i.getPropostaValorCentavos(), i.getPropostaCondicoes()) : null))).orElse(List.of());
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
