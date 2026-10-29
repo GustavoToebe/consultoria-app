@@ -32,7 +32,7 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
-import { portalDaFolhaDoTopo } from '../../ui/historicoDasFolhas';
+import { depoisDeFecharAsFolhas, portalDaFolhaDoTopo } from '../../ui/historicoDasFolhas';
 import { LinkTexto } from '../../ui/LinkTexto';
 import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
@@ -75,7 +75,7 @@ function algoPorCima(menuAberto: boolean): boolean {
 export default function AgendaDoTreinador() {
   const p = useLocalSearchParams<Parametros>();
   const { pode, usuario, offline } = useSessao();
-  const { preferencias, escolherPreferencia } = useTema();
+  const { preferencias, preferenciasLidas, escolherPreferencia } = useTema();
   const permissoes = useMemo(() => ({
     agenda: pode('AGENDA_LER'),
     atualizacoes: pode('ATUALIZACAO_LER') && pode('ALUNO_SENSIVEL_LER'),
@@ -87,14 +87,18 @@ export default function AgendaDoTreinador() {
   const hoje = hojeEmBrasilia();
   const [largura, setLargura] = useState(0);
   const { visao, data } = lerEnderecoDoCalendario(p, hoje, largura);
-  const meus = p.meus === 'true';
-  const membro = !meus && permissoes.equipe && p.membro ? p.membro : null;
-  const situacao = permissoes.agenda ? lerSituacao(p.situacao) : null;
+  // Os filtros (responsável, situação) vão para o endereço, mas só depois de as Folhas fecharem: um `router.replace` com a
+  // Folha aberta cai na entrada de histórico dela e o fechar desfaz a escolha. Até lá o que foi escolhido vale daqui.
+  const [ajuste, setAjuste] = useState<Partial<Parametros> | null>(null);
+  const filtrosDoEndereco: Parametros = { ...p, ...ajuste };
+  const meus = filtrosDoEndereco.meus === 'true';
+  const membro = !meus && permissoes.equipe && filtrosDoEndereco.membro ? filtrosDoEndereco.membro : null;
+  const situacao = permissoes.agenda ? lerSituacao(filtrosDoEndereco.situacao) : null;
   const modo = modoDaVisao(visao, largura);
   const lateral = largura >= LARGURA_DO_PAINEL_LATERAL;
 
   const cal = useCalendario(permissoes, {
-    visao, data, meus, membro, situacao, usuarioId: usuario?.id ?? null, ocultasGravadas: preferencias.agendasOcultas,
+    visao, data, meus, membro, situacao, usuarioId: usuario?.id ?? null, ocultasGravadas: preferencias.agendasOcultas, preferenciasLidas,
   });
   const { recarregarTudo } = cal;
   useFocusEffect(useCallback(() => { recarregarTudo(); }, [recarregarTudo]));
@@ -140,6 +144,21 @@ export default function AgendaDoTreinador() {
   const [compromisso, setCompromisso] = useState<Compromisso | 'novo' | null>(null);
   const [evento, setEvento] = useState<EventoAberto | null>(null);
   const [painelAberto, setPainelAberto] = useState(false);
+  const aoMudarFiltro = (novos: Partial<Parametros>) => setAjuste((atual) => ({ ...atual, ...novos }));
+  useEffect(() => {
+    if (!ajuste || painelAberto) return;
+    const gravados = ajuste;
+    depoisDeFecharAsFolhas(() => { ir(gravados, 'replace'); });
+  // `ir` é recriada a cada render; o que decide é o ajuste e o painel terem fechado.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ajuste, painelAberto]);
+  useEffect(() => {
+    // O endereço já tem o que foi escolhido: o ajuste local cumpriu o papel.
+    if (!ajuste || !(Object.keys(ajuste) as (keyof Parametros)[]).every((k) => (p[k] ?? undefined) === (ajuste[k] ?? undefined))) return undefined;
+    let vivo = true;
+    void Promise.resolve().then(() => { if (vivo) setAjuste(null); });
+    return () => { vivo = false; };
+  }, [ajuste, p]);
   useEffect(() => {
     if (p.novo !== '1' || !podeAlterar) return;
     let vivo = true;
@@ -164,7 +183,7 @@ export default function AgendaDoTreinador() {
   const comSemData = cal.semData.length > 0 && de <= hoje && hoje <= ate;
 
   const filtros = <Filtros meus={meus} membro={membro} situacao={situacao} permissoes={permissoes} cal={cal} usuarioId={usuario?.id ?? null}
-    aoMudar={(novos) => ir(novos, 'replace')} />;
+    aoMudar={aoMudarFiltro} />;
   const painel = cal.painelDeAgendas.length ? <PainelDeAgendas agendas={cal.painelDeAgendas} pessoais={cal.agendas} carregando={cal.agendasCarregando}
     podeAlterar={podeAlterar} aoAlternar={alternar} aoMudar={() => { cal.recarregarAgendas(); cal.recarregarEventos(); }} /> : null;
 

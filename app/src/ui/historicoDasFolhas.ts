@@ -92,6 +92,8 @@ function acertar() {
     voltar(acerto.passos);
   }
   idAtual = idDoEstado();
+  // Nada a devolver (nenhuma volta saiu): quem espera o histórico assentar pode seguir.
+  if (!aguardando) executarAoChegar();
 }
 
 function agendar() {
@@ -221,6 +223,21 @@ export function devolverGuardaDoHistorico(depois: () => void) {
   nivelAoRemover = 0;
   aoChegar = depois;
   voltar(1);
+}
+
+/**
+ * Roda `depois` (uma navegação que troca a URL) quando as Folhas que estão fechando já devolveram a entrada delas. Quem
+ * escolhe algo numa Folha e grava a escolha no endereço chama isto: um `router.replace` feito com a Folha ainda aberta
+ * cairia na entrada dela e o fechar voltaria para a URL antiga. Só na web e com Folha aberta há o que esperar; sem isso
+ * (ou se o `popstate` não vier) `depois` corre na hora ou em até um segundo.
+ */
+export function depoisDeFecharAsFolhas(depois: () => void) {
+  if (!web() || !(abertas.some((a) => !a.guarda) || agendado || aguardando || voltaPendente !== null)) { depois(); return; }
+  let feito = false;
+  const uma = () => { if (!feito) { feito = true; depois(); } };
+  const anterior = aoChegar;
+  aoChegar = () => { anterior?.(); uma(); };
+  setTimeout(uma, 1000);
 }
 
 /**

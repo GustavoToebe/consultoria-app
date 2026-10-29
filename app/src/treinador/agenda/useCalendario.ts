@@ -37,6 +37,8 @@ export interface FiltrosDoCalendario {
   usuarioId: string | null;
   /** A preferência `agendasOcultas` como está gravada (pode ter id de agenda apagada). */
   ocultasGravadas: readonly string[];
+  /** A leitura das preferências terminou: antes disso `ocultasGravadas` é o padrão e nada que dependa dele é pedido. */
+  preferenciasLidas: boolean;
 }
 
 export interface ErroDaFonte {
@@ -71,25 +73,26 @@ export function useCalendario(permissoes: PermissoesDoCalendario, f: FiltrosDoCa
   const verCompromissos = permissoes.agenda && !escondida(AGENDA_COMPROMISSOS);
   const verAtualizacoes = permissoes.atualizacoes && !escondida(AGENDA_ATUALIZACOES);
 
-  const chaveCompromissos = verCompromissos && !ano ? `c:${de}:${ate}:${responsavel ?? ''}:${f.situacao ?? ''}` : null;
+  const lidas = f.preferenciasLidas;
+  const chaveCompromissos = lidas && verCompromissos && !ano ? `c:${de}:${ate}:${responsavel ?? ''}:${f.situacao ?? ''}` : null;
   const compromissos = useCarregar(chaveCompromissos, async (chave) => ({
     chave, itens: await listarCompromissos({ de, ate, responsavel, situacao: f.situacao }),
   }));
 
   // Eventos só depois de saber as agendas (sem nenhuma, ou todas escondidas, não pede).
-  const chaveEventos = permissoes.agenda && !ano && agendasLidas && !escolha.semEventos ? `e:${de}:${ate}:${idsDasAgendas}` : null;
+  const chaveEventos = lidas && permissoes.agenda && !ano && agendasLidas && !escolha.semEventos ? `e:${de}:${ate}:${idsDasAgendas}` : null;
   const eventos = useCarregar(chaveEventos, async (chave) => ({
     chave, itens: await listarEventos({ de, ate, agendas: escolha.ids }),
   }));
 
   // Atualizações do período (D14/D19): "Meus" vai como `meus`; um membro, como `responsavel`.
-  const chaveAtualizacoes = verAtualizacoes ? `a:${de}:${ate}:${f.meus}:${f.membro ?? ''}` : null;
+  const chaveAtualizacoes = lidas && verAtualizacoes ? `a:${de}:${ate}:${f.meus}:${f.membro ?? ''}` : null;
   const atualizacoes = useCarregar(chaveAtualizacoes, async (chave) => ({
     chave, itens: await listarAtualizacoes('PROXIMAS', f.meus, { responsavel: f.membro, de, ate }),
   }));
 
   // Ano: o resumo por dia (compromissos e eventos, só contagens). Com a leitura das agendas falhando, vai sem os eventos.
-  const resumoPronto = !permissoes.agenda ? false : agendasLidas || !!agendas.erro;
+  const resumoPronto = !permissoes.agenda || !lidas ? false : agendasLidas || !!agendas.erro;
   const chaveResumo = ano && resumoPronto ? `r:${de}:${responsavel ?? ''}:${f.situacao ?? ''}:${idsDasAgendas}` : null;
   const resumo = useCarregar(chaveResumo, async (chave) => ({
     chave, dias: (await resumoDaAgenda({ de, ate, responsavel, situacao: f.situacao, agendas: escolha.ids })).dias,
@@ -99,10 +102,10 @@ export function useCalendario(permissoes: PermissoesDoCalendario, f: FiltrosDoCa
   const painel = useCarregar(permissoes.atualizacoes && permissoes.painel && !f.membro ? `agenda-painel:${f.meus}` : null, () => painelTreinador(f.meus));
 
   // Só os dados da chave atual: enquanto o novo recorte chega, nada do anterior aparece como se fosse dele.
-  const listaCompromissos = !verCompromissos || ano ? NADA : compromissos.dados?.chave === chaveCompromissos ? compromissos.dados.itens : undefined;
-  const listaAtualizacoes: AtualizacaoDaLista[] | undefined = !verAtualizacoes ? NADA
+  const listaCompromissos = !lidas ? undefined : !verCompromissos || ano ? NADA : compromissos.dados?.chave === chaveCompromissos ? compromissos.dados.itens : undefined;
+  const listaAtualizacoes: AtualizacaoDaLista[] | undefined = !lidas ? undefined : !verAtualizacoes ? NADA
     : atualizacoes.dados?.chave === chaveAtualizacoes ? atualizacoes.dados.itens : undefined;
-  const listaEventos = !permissoes.agenda || ano ? NADA
+  const listaEventos = !permissoes.agenda || ano ? NADA : !lidas ? undefined
     : agendas.erro || (agendasLidas && escolha.semEventos) ? NADA
       : eventos.dados?.chave === chaveEventos && chaveEventos ? eventos.dados.itens : undefined;
   const diasDoResumo = !permissoes.agenda ? NADA : resumo.dados?.chave === chaveResumo && chaveResumo ? resumo.dados.dias : undefined;
