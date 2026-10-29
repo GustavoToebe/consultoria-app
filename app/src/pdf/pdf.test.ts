@@ -6,6 +6,7 @@ import { normalizarTreino } from '../dominio/editorTreino';
 import { carga, exercicio, grupo, rir, rpe, serie, sessao, tecnica } from '../dominio/exemplosDeTreino.apoioTeste';
 import { normalizarMobilidade } from '../dominio/mobilidade';
 import { cabecalhoDoPdf, cssBase, esc, link, type Documento } from './html';
+import { contraste, marcaParaTexto } from '../tema/tokens';
 import type { LinhaCarga } from '../dominio/relatorio';
 import { documentoCargas } from './pdfCargas';
 import { documentoDieta } from './pdfDieta';
@@ -646,8 +647,9 @@ describe('PDF da lista de compras', () => {
     expect(d.corpo.match(/<span class="caixa"><\/span>/g)).toHaveLength(3);
   });
 
-  it('agrupa pelo grupo do alimento: grupos em ordem alfabética, "Outros itens" e "Adicionados por você" no fim', () => {
+  it('agrupa pelo grupo do alimento: catálogo na ordem do mercado, grupo do treinador depois, "Outros itens" e "Adicionados por você" no fim', () => {
     const linhas = [
+      { chave: 'z', nome: 'Banana', unidade: 'g' as const, quantidade: 500, cru: false, bruto: false, semFator: true, naDieta: 500, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: 'Frutas e derivados' },
       { chave: 'a', nome: 'Arroz', unidade: 'g' as const, quantidade: 840, cru: false, bruto: false, semFator: true, naDieta: 840, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: 'Cereais e derivados' },
       { chave: 'b', nome: 'Frango', unidade: 'g' as const, quantidade: 700, cru: false, bruto: false, semFator: true, naDieta: 700, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: 'Carnes <e> derivados' },
       { chave: 'c', nome: 'Sal', unidade: 'g' as const, quantidade: 35, cru: false, bruto: false, semFator: true, naDieta: 35, quantidadeCru: null, fatorCorrecao: null, fatorCoccao: null, grupo: null },
@@ -655,9 +657,9 @@ describe('PDF da lista de compras', () => {
     const posicoes = (corpo: string, textos: string[]) => textos.map((t) => corpo.indexOf(t));
     const simples = documentoListaDeCompras({ ...base, periodo: 'semana', opcoes: [], linhas }).corpo;
     expect(simples).toContain('Carnes &lt;e&gt; derivados (1)');
-    const ordem = posicoes(simples, ['Carnes &lt;e&gt; derivados (1)', 'Frango', 'Cereais e derivados (1)', 'Arroz', 'Outros itens (1)', 'Sal']);
+    const ordem = posicoes(simples, ['Frutas e derivados (1)', 'Banana', 'Cereais e derivados (1)', 'Arroz', 'Carnes &lt;e&gt; derivados (1)', 'Frango', 'Outros itens (1)', 'Sal']);
     expect(ordem.every((p, i) => p > (ordem[i - 1] ?? -1))).toBe(true);
-    expect(simples.match(/<span class="caixa"><\/span>/g)).toHaveLength(3);
+    expect(simples.match(/<span class="caixa"><\/span>/g)).toHaveLength(4);
 
     const m = gravarAvulso(MARCACOES_VAZIAS, { id: 'x', nome: 'Café', quantidade: null, unidade: null });
     const doAluno = documentoListaDeCompras({ ...base, periodo: 'semana', opcoes: [], linhas, itensDoAluno: itensDoAluno(linhas, m) }).corpo;
@@ -707,6 +709,30 @@ describe('faixa da marca no alto dos cinco PDFs', () => {
       expect(d.corpo.startsWith(faixa('#333333', '#FFFFFF'))).toBe(true);
       const tudo = d.corpo + d.css;
       for (const trecho of ['display: none', 'javascript', 'GGGGGG', 'red;', 'background:red', '#FFF;']) expect(tudo).not.toContain(trecho);
+    });
+  });
+
+  describe.each(Object.entries(geradores))('%s: marca clara (amarelo)', (_nome, gerar) => {
+    const amarelo = '#F2C94C';
+    const corDe = (css: string, seletor: string) => new RegExp(String.raw`\.doc ${seletor} \{[^}]*?(?:^|[\s;])color: (#[0-9A-Fa-f]{6})`).exec(css)?.[1] ?? '';
+
+    it('título e títulos de seção escurecem até 4,5:1 sobre o branco, pela regra do app; linha e faixa mantêm a cor original', () => {
+      const d = gerar({ ...marca, corPrimaria: amarelo });
+      const titulo = corDe(d.css, 'h1');
+      const secao = corDe(d.css, 'h2');
+      expect(contraste(amarelo, '#FFFFFF')).toBeLessThan(4.5);
+      expect(titulo).toBe(marcaParaTexto(amarelo, '#FFFFFF'));
+      expect(titulo).not.toBe(amarelo);
+      expect(contraste(titulo, '#FFFFFF')).toBeGreaterThanOrEqual(4.5);
+      expect(secao).toBe(titulo);
+      expect(d.css).toMatch(new RegExp(String.raw`\.doc h2 \{[^}]*border-bottom: 2px solid ${amarelo};`));
+      expect(d.corpo.startsWith(faixa(amarelo, '#000000'))).toBe(true);
+    });
+
+    it('marca que já tem contraste fica como está', () => {
+      const d = gerar(marca);
+      expect(corDe(d.css, 'h1')).toBe('#C62828');
+      expect(corDe(d.css, 'h2')).toBe('#C62828');
     });
   });
 

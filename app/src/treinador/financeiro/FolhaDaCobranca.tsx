@@ -300,9 +300,10 @@ function Conteudo({ cobranca, podeAlterar, abrirEmBaixa, mostrarFicha, querLink,
                 {whatsapp.link ? <Texto variante="suave">Abre o WhatsApp com o lembrete pronto; quem envia é você.</Texto> : null}
               </View>
             ) : null}
-            {lembretes && lembretes.itens.length > 0 ? (
+            {lembretes && (lembretes.itens.length > 0 || lembretes.alunoDesligou) ? (
               <View style={estilos.lembretes}>
                 <Texto variante="secao" nivel={3}>Lembretes por e-mail</Texto>
+                {lembretes.alunoDesligou ? <Texto variante="suave">O aluno desligou os lembretes por e-mail</Texto> : null}
                 {lembretes.itens.map((l) => {
                   const s = situacaoDoLembrete(l);
                   return (

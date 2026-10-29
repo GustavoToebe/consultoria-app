@@ -28,7 +28,8 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Dependabot de 28/10 (Central, Servirea e consultoria) | [dependabot-28-10.md](dependabot-28-10.md) | Central (#27) e Servirea (#16) mesclados, publicar verde; lote do consultoria publicado (aa81c38, run 40753524829); falta a revisão de 14/11 | Em andamento | 28/10/2026 |
 | Ciclo desligado: nada do ciclo na tela (J) | [ciclo-desligado-no-app.md](ciclo-desligado-no-app.md) | `main` (f72d173, run 40751695095) | Concluída em 28/10/2026 (web no ar; celular só num APK novo) | 28/10/2026 |
 | Meus dados do aluno (cartão na aba Conta) | [meus-dados-do-aluno.md](meus-dados-do-aluno.md) | `main` (um push) | Concluída em 28/10/2026 (run 40760401698 verde; celular só num APK novo) | 28/10/2026 |
-| Evolução (referências da Prime: lista de compras, receitas, PDFs, avaliação física, agenda, lembretes) | [evolucao-prime.md](evolucao-prime.md) | branch `claude/saraiva-api-direcionamento-treinos-dv10io` | Em andamento | 28/10/2026 |
+| Evolução (referências da Prime: lista de compras, receitas, PDFs, avaliação física, agenda, lembretes) | [evolucao-prime.md](evolucao-prime.md) | `main` (457c152) | Concluída em 28/10/2026; decisões abertas fechadas em 29/10 | 29/10/2026 |
+| Ajustes da evolução (lista na ordem do mercado, PDF do comparativo para o aluno, aluno desliga lembretes, contraste do PDF) | [ajustes-evolucao.md](ajustes-evolucao.md) | `main` (6becaa4, PR 15) | Concluída em 29/10/2026 (V041 na `main`) | 29/10/2026 |
 | Agenda no estilo do Google Agenda (Dia/Semana/Mês/Ano, agendas com cor, evento sem aluno, recorrência) e compromisso com vários alunos, aviso no app e lembrete no celular | [agenda-calendario.md](agenda-calendario.md) | branch `agenda-calendario` | Em andamento: decidida em 29/10, implementação por passos na branch `agenda-calendario` | 29/10/2026 |
 
 ## Pendências soltas
@@ -49,9 +50,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | `lock_timeout` no Flyway do módulo auth (exige mudar a biblioteca `plataforma`) | Claude | travas do banco |
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
 | O perfil do aluno não recarrega o `/eu` durante a sessão (`recarregarPerfil` sai cedo). `funcionalidadesDoPlano`, `pagarNoIos`/`pagarNoAndroid` e `pagamentosHabilitados` também só se atualizam ao reabrir o app. Avaliar antes de ligar pagamentos ou o plano aplicado | Claude | frente J (ciclo desligado) |
-| Evolução: decisões abertas das frentes (ordem dos grupos da lista, PDF do comparativo para o aluno, agenda ao inativar o aluno e visão Mês, contraste da marca clara no PDF); lista em [evolucao-prime.md](evolucao-prime.md) | Gustavo decide | evolucao-prime |
 | Evolução: `mvn verify` com Docker na branch `claude/saraiva-api-direcionamento-treinos-dv10io` antes de qualquer PR (testes de integração novos de avaliação, agenda, lembretes, grupo do alimento, dieta e limite do CPF não rodaram no ambiente sem Docker) | Gustavo (PC) | evolucao-prime |
-| Lembretes de cobrança: decidir se o aluno precisa poder desligar os lembretes para si (hoje só o treinador desliga para a consultoria) | Gustavo decide | lembretes-de-cobranca |
 | `AnamneseService.atribuir`: conferir o nome da restrição antes de virar `ANAMNESE_PENDENTE` em `DataIntegrityViolationException` | Claude | anamnese no aceite (1f1aa20) |
 | Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
 | Agenda calendário: implementação por passos na branch `agenda-calendario` (decisões do Gustavo de 29/10 registradas) | Claude | [agenda-calendario.md](agenda-calendario.md) |

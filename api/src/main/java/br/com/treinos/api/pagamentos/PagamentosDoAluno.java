@@ -1,7 +1,10 @@
 package br.com.treinos.api.pagamentos;
 
+import br.com.treinos.api.alunos.Aluno;
+import br.com.treinos.api.alunos.AlunoRepository;
 import br.com.treinos.api.pagamentos.PagamentosDtos.CobrancaExportada;
 import br.com.treinos.api.pagamentos.PagamentosDtos.ContratacaoExportada;
+import br.com.treinos.api.pagamentos.PagamentosDtos.EscolhaDeLembretesExportada;
 import br.com.treinos.api.pagamentos.PagamentosDtos.FinanceiroExportado;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembreteExportado;
 import br.com.treinos.api.tenant.TenantContext;
@@ -33,15 +36,17 @@ public class PagamentosDoAluno {
     private final PlanoComercialRepository planos;
     private final AvisoDePagamentoRepositorio avisos;
     private final LembreteDeCobrancaRepository lembretes;
+    private final AlunoRepository alunos;
 
     PagamentosDoAluno(ContratacaoAlunoRepository contratacoes, CobrancaAlunoRepository cobrancas,
                       PlanoComercialRepository planos, AvisoDePagamentoRepositorio avisos,
-                      LembreteDeCobrancaRepository lembretes) {
+                      LembreteDeCobrancaRepository lembretes, AlunoRepository alunos) {
         this.contratacoes = contratacoes;
         this.cobrancas = cobrancas;
         this.planos = planos;
         this.avisos = avisos;
         this.lembretes = lembretes;
+        this.alunos = alunos;
     }
 
     @Transactional(readOnly = true)
@@ -50,6 +55,7 @@ public class PagamentosDoAluno {
         Map<UUID, String> nomes = new HashMap<>();
         doAluno.forEach(c -> nomes.computeIfAbsent(c.getPlanoComercialId(),
                 id -> planos.findById(id).map(PlanoComercial::getNome).orElse(null)));
+        Instant desligadoEm = alunos.findById(alunoId).map(Aluno::getLembretesCobrancaDesligadosEm).orElse(null);
         return new FinanceiroExportado(
                 doAluno.stream().map(c -> new ContratacaoExportada(c.getId(), nomes.get(c.getPlanoComercialId()),
                         c.getPeriodicidade(), c.getValorCentavos(), c.getMotivoValor(), c.getInicio(),
@@ -61,7 +67,8 @@ public class PagamentosDoAluno {
                                 c.getPagoEm(), c.getObservacao(), c.getMotivo())).toList(),
                 lembretes.doAluno(alunoId).stream()
                         .map(l -> new LembreteExportado(l.getCobrancaId(), l.getTipo(), l.getSituacao(), l.getDataPrevista(),
-                                l.getEnviadoEm())).toList());
+                                l.getEnviadoEm())).toList(),
+                new EscolhaDeLembretesExportada(desligadoEm == null, desligadoEm));
     }
 
     /**
@@ -84,7 +91,8 @@ public class PagamentosDoAluno {
      * Anonimização: observação, motivos (texto do treinador) e o link do pagador saem; valores, datas e situações ficam. Na
      * caixa de entrada da InfinitePay o slug do aviso é o do link do pagador e sai junto; a transação, a referência (id da
      * cobrança) e o hash do corpo são só identificadores e não dizem nada de ninguém, então ficam até a limpeza de 180 dias.
-     * Os lembretes de cobrança ficam: guardam só tipo, situação e datas (nem endereço, nem nome, nem texto).
+     * Os lembretes de cobrança ficam: guardam só tipo, situação e datas (nem endereço, nem nome, nem texto). A escolha do
+     * aluno de não recebê-los mora em {@code aluno} e é zerada por {@code Aluno.anonimizar}.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void apagarDoAluno(UUID alunoId) {

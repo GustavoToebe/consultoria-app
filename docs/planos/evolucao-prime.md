@@ -1,6 +1,6 @@
 # Evolução a partir das referências da Prime Coaching
 
-Situação: Em andamento · Onde: branch `claude/saraiva-api-direcionamento-treinos-dv10io` (frentes em branches locais `evo-*`, juntadas nela) · Atualizado: 28/10/2026 (frentes juntadas)
+Situação: Concluída em 28/10/2026 (em produção desde o merge 457c152; as decisões abertas foram fechadas em 29/10, ver [ajustes-evolucao.md](ajustes-evolucao.md) e [agenda-calendario.md](agenda-calendario.md)) · Onde: `main` · Atualizado: 29/10/2026
 
 ## Objetivo
 Aproveitar o que o app já tem e cobrir o que falta nas sete imagens da Prime Coaching (briefing "Evolução do
@@ -20,6 +20,11 @@ presencial e lembretes de cobrança. As imagens são referência de funcionalida
 | 8 | Agenda presencial | Só a equipe marca; um responsável, duração, local em texto, sem recorrência; sem dois atendimentos do mesmo responsável no mesmo horário (servidor); AGENDADO/REALIZADO/CANCELADO/FALTOU; junto da agenda de atualizações | Gustavo, 28/10 |
 | 9 | Lembretes de cobrança | Só e-mail (Resend do app), desligado por padrão, 3 dias antes / no dia / 3 depois configuráveis, param quando paga/cancela; WhatsApp só o botão manual com a mensagem pronta | Gustavo, 28/10 |
 | 10 | Fora | Chat, IA de recuperação de vendas e pagamentos combinados (dois cartões, Pix + cartão, Apple/Google Pay) | Gustavo, 28/10 |
+| 12 | Ordem da lista de compras | Ordem fixa de percurso de mercado, grupos do treinador depois em ordem alfabética; vale na tela, na prévia e nos PDFs. Item manual da dieta e avulso do aluno seguem sem grupo | Gustavo, 29/10 |
+| 13 | PDF do comparativo para o aluno | O aluno baixa; gráfico das medidas fica fora | Gustavo, 29/10 |
+| 14 | Lembretes de cobrança | O aluno pode desligar só para ele (V041) | Gustavo, 29/10 |
+| 15 | PDFs com marca clara | Título e seções com a cor da marca escurecida até 4,5:1 | Gustavo, 29/10 |
+| 16 | Agenda | Inativar o aluno cancela os compromissos futuros; visão Mês; filtro por membro vale para as atualizações (frente [agenda-calendario.md](agenda-calendario.md)) | Gustavo, 29/10 |
 | 11 | Migrations | V035 avaliação física, V036 agenda, V037 lembretes, V038 grupo do alimento. A branch `gamificacao` também usa V035: quem chegar à `main` depois renumera | Claude, 28/10 |
 
 ## Passos
@@ -37,10 +42,5 @@ presencial e lembretes de cobrança. As imagens são referência de funcionalida
 - Temas de documento e editor de PDF; autoagendamento pelo aluno; lembretes de consulta; envio automático por WhatsApp.
 
 ## O que ficou para trás
-- Decisões abertas, também em "Pendências soltas" do README:
-  - Lista de compras: ordem dos grupos (hoje alfabética; a do mercado?); grupo no item manual da dieta e no avulso do aluno.
-  - Avaliação física: o aluno também baixa o PDF do comparativo? Gráfico das medidas?
-  - Agenda: inativar o aluno cancela os compromissos futuros? Visão Mês? Filtro por membro esconde as atualizações (a API delas só filtra "Meus").
-  - Lembretes: o aluno pode desligar só para ele? Ligar em produção exige o e-mail do app (Resend, 100 por dia no plano grátis, divididos com convites e senha).
-  - PDFs: com marca clara (amarelo), título e seções na cor da marca ficam com pouco contraste (já era assim); resolver junto dos temas.
+- As decisões que estavam abertas (ordem dos grupos da lista, PDF do comparativo, inativar o aluno e visão Mês na agenda, filtro por membro, desligar lembretes, contraste da marca clara) foram decididas em 29/10 (decisões 12 a 16) e saíram daqui e das "Pendências soltas".
 - Sem Docker nesta máquina: os testes de integração das frentes foram escritos, mas só rodam no `mvn verify` do PC do Gustavo.

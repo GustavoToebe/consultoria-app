@@ -39,7 +39,7 @@ const celula = (texto: string) => esc(texto);
 const fatorNaTabela = (n: number | null | undefined) => (n == null ? '—' : numeroParaTela(n, 2));
 
 /**
- * Linhas da tabela com uma faixa por grupo do alimento ("Carnes e derivados (3)"), na ordem de `agruparLista` (grupos
+ * Linhas da tabela com uma faixa por grupo do alimento ("Carnes e derivados (3)"), na ordem de `agruparLista` (grupos do catálogo na ordem do mercado, depois os do treinador,
  * em ordem alfabética, "Outros itens" e "Adicionados por você" no fim). Estilo em linha para valer também no PDF da
  * dieta, que tem o próprio CSS.
  */

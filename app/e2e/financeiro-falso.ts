@@ -145,6 +145,11 @@ export interface EstadoFinanceiro {
   lembretes: Lembretes;
   /** O que `GET /cobrancas/{id}/lembretes` devolve por cobrança; sem entrada = nenhum lembrete e sem WhatsApp. */
   lembretesDasCobrancas: Record<string, LembretesDaCobranca>;
+  /** O que `GET /aluno/lembretes-de-cobranca` diz (o aluno quer receber os lembretes?) e os `PUT` recebidos. */
+  alunoRecebeLembretes: boolean;
+  /** Se preenchido, o `PUT /aluno/lembretes-de-cobranca` responde 503 com esta mensagem (o interruptor tem de voltar). */
+  falhaAoDefinirLembretesDoAluno: string | null;
+  pedidosDeLembretesDoAluno: unknown[];
 }
 
 /** Os lembretes como a API devolve numa consultoria que nunca os configurou. */
@@ -154,7 +159,8 @@ export function estadoFinanceiro(parcial: Partial<EstadoFinanceiro> = {}): Estad
   return {
     planos: [], contratacoes: [], cobrancas: [], lancamentos: [], inadimplentes: [], painel: PAINEL_COM_DADOS,
     recebimento: { ...RECEBIMENTO_NAO_CONFIGURADO }, chaveGuardada: null, conferencias: [], pagamentoOnline: false, retornos: [],
-    lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, ...parcial,
+    lembretes: { ...LEMBRETES_PADRAO }, lembretesDasCobrancas: {}, alunoRecebeLembretes: true, falhaAoDefinirLembretesDoAluno: null,
+    pedidosDeLembretesDoAluno: [], ...parcial,
   };
 }
 
@@ -384,10 +390,19 @@ export function rotasDoFinanceiro(estado: EstadoFinanceiro): RespostasApi {
       };
       return json(route, estado.lembretes);
     },
+    'GET /aluno/lembretes-de-cobranca': (_p, route) => json(route, { receber: estado.alunoRecebeLembretes }),
+    'PUT /aluno/lembretes-de-cobranca': (p, route) => {
+      estado.pedidosDeLembretesDoAluno.push(p.corpo);
+      if (estado.falhaAoDefinirLembretesDoAluno) {
+        return json(route, erroApi(503, estado.falhaAoDefinirLembretesDoAluno, 'PROVEDOR_INDISPONIVEL').corpo, 503);
+      }
+      estado.alunoRecebeLembretes = (p.corpo as { receber: boolean }).receber;
+      return json(route, { receber: estado.alunoRecebeLembretes });
+    },
     'GET /cobrancas/{id}/lembretes': (p, route) => {
       const id = p.caminho.split('/')[2];
       if (!estado.cobrancas.some((x) => x.id === id)) return json(route, erroApi(404, 'Cobrança não encontrada.', 'NAO_ENCONTRADO').corpo, 404);
-      return json(route, estado.lembretesDasCobrancas[id] ?? { itens: [], whatsapp: null });
+      return json(route, estado.lembretesDasCobrancas[id] ?? { itens: [], whatsapp: null, alunoDesligou: false });
     },
     'GET /financeiro/conferencias': (_p, route) => json(route, { itens: estado.conferencias }),
     'POST /financeiro/conferencias/{id}/conferido': (p, route) => {

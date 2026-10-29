@@ -112,7 +112,7 @@ export interface EscolhaDaLista {
 /**
  * Lista de compras de um conteúdo de dieta (hoje a prévia do treinador no editor, com os fatores e o grupo atuais da
  * biblioteca já aplicados; o aluno usa `aluno/ListaDeComprasDoAluno`). Um cartão por grupo do alimento
- * (`agruparLista`: ordem alfabética, "Outros itens" por último), com a contagem na faixa. Período e opção por refeição
+ * (`agruparLista`: catálogo na ordem do mercado, grupos do treinador depois, "Outros itens" por último), com a contagem na faixa. Período e opção por refeição
  * são estado da tela, não ficam salvos. O botão de PDF só aparece com `aoGerarPdf` e com a funcionalidade `PDF` no plano.
  */
 export function ListaDeCompras({ conteudo, aoGerarPdf, papel = 'aluno' }: { conteudo: ConteudoDieta; aoGerarPdf?: (escolha: EscolhaDaLista) => Promise<void>; papel?: 'aluno' | 'treinador' }) {

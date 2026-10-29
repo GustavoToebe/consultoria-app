@@ -44,7 +44,7 @@ const DIAS = 30;
  * os últimos 30 dias), o progresso por exercício e o peso.
  */
 export default function HistoricoAluno() {
-  const { registros, pacote, escolhida, falhas, tentarDeNovo } = useAluno();
+  const { registros, pacote, escolhida, falhas, tentarDeNovo, online } = useAluno();
   const { avisar } = useAviso();
   const animar = usePrimeiraLista(true);
   const [visao, setVisao] = useState<VisaoRegistros>('divisao');
@@ -172,7 +172,7 @@ export default function HistoricoAluno() {
         )}
       </Cartao>
 
-      <CartaoAvaliacaoFisica />
+      <CartaoAvaliacaoFisica online={online} />
     </Tela>
   );
 }

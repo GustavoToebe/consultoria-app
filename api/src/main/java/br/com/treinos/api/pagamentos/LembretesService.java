@@ -10,11 +10,14 @@ import br.com.treinos.api.auth.Usuario;
 import br.com.treinos.api.auth.UsuarioRepository;
 import br.com.treinos.api.consultoria.Consultoria;
 import br.com.treinos.api.consultoria.ConsultoriaRepository;
+import br.com.treinos.api.execucao.AlunoAppService;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembreteResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesDaCobranca;
+import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesDoAlunoResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesRequest;
 import br.com.treinos.api.pagamentos.PagamentosDtos.LembretesResponse;
 import br.com.treinos.api.pagamentos.PagamentosDtos.WhatsAppDaCobranca;
+import br.com.treinos.api.security.UsuarioAutenticado;
 import br.com.treinos.api.tenant.TenantContext;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
@@ -39,6 +42,8 @@ import java.util.UUID;
  */
 @Service
 public class LembretesService {
+
+    private static final String RESUMO_DO_ALUNO = "Aluno alterou o recebimento dos lembretes de cobrança.";
 
     private final ConfiguracaoDeLembretesRepository configuracoes;
     private final LembreteDeCobrancaRepository lembretes;
@@ -123,14 +128,44 @@ public class LembretesService {
                         l.getSituacao() == LembreteDeCobranca.Situacao.CANCELADO ? l.getMotivo() : null,
                         l.getDataPrevista(), l.getEnviadoEm(), l.getAtualizadoEm()))
                 .toList();
-        return new LembretesDaCobranca(itens, whatsapp(cobranca));
+        Optional<Aluno> aluno = alunos.findById(cobranca.getAlunoId());
+        boolean alunoDesligou = aluno.map(a -> a.getLembretesCobrancaDesligadosEm() != null).orElse(false);
+        return new LembretesDaCobranca(itens, whatsapp(cobranca, aluno), alunoDesligou);
     }
 
-    private WhatsAppDaCobranca whatsapp(CobrancaAluno cobranca) {
+    /** O aluno da sessão recebe os lembretes de cobrança por e-mail? (Sem escolha gravada, sim.) */
+    @Transactional(readOnly = true)
+    public LembretesDoAlunoResponse doAluno(UsuarioAutenticado eu) {
+        Aluno aluno = alunos.findById(AlunoAppService.alunoDaSessao(eu))
+                .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        return new LembretesDoAlunoResponse(aluno.getLembretesCobrancaDesligadosEm() == null);
+    }
+
+    /**
+     * O aluno liga ou desliga os lembretes só para ele (sempre o da sessão). Mesmo valor = nada muda: o instante de quando
+     * desligou não é regravado e não há auditoria. O botão do WhatsApp do treinador não é afetado. O lembrete já pendente é
+     * cancelado pelo job ({@code ALUNO_DESLIGOU}); o que já foi enviado não volta.
+     */
+    @Transactional
+    public LembretesDoAlunoResponse definirDoAluno(UsuarioAutenticado eu, boolean receber) {
+        Aluno aluno = alunos.buscarParaAlterar(AlunoAppService.alunoDaSessao(eu))
+                .orElseThrow(() -> new NaoEncontradoException("Aluno não encontrado."));
+        if (aluno.isAnonimizado()) {
+            throw new ConflictException("Este aluno foi anonimizado e não pode mais ser alterado.", "ALUNO_ANONIMIZADO");
+        }
+        boolean recebia = aluno.getLembretesCobrancaDesligadosEm() == null;
+        if (receber == recebia) {
+            return new LembretesDoAlunoResponse(recebia);
+        }
+        aluno.definirLembretesCobrancaDesligadosEm(receber ? null : Instant.now());
+        auditoria.registrarEvento("LEMBRETES_DE_COBRANCA_DO_ALUNO_ALTERADOS", "ALUNO", aluno.getId(), RESUMO_DO_ALUNO);
+        return new LembretesDoAlunoResponse(receber);
+    }
+
+    private WhatsAppDaCobranca whatsapp(CobrancaAluno cobranca, Optional<Aluno> aluno) {
         if (cobranca.getSituacao() != CobrancaAluno.Situacao.ABERTA) {
             return null;
         }
-        Optional<Aluno> aluno = alunos.findById(cobranca.getAlunoId());
         if (aluno.isEmpty() || !aluno.get().isAtivo() || aluno.get().isAnonimizado()) {
             return null;
         }

@@ -35,11 +35,15 @@ class LembretesRepositorio {
         this.jdbc = jdbc;
     }
 
-    /** Cobranças ABERTAS com vencimento no intervalo, só das consultorias com os lembretes ligados. */
+    /**
+     * Cobranças ABERTAS com vencimento no intervalo, só das consultorias com os lembretes ligados e de alunos que não os
+     * desligaram para si ({@code aluno.lembretes_cobranca_desligados_em} nulo).
+     */
     List<Candidata> candidatas(LocalDate de, LocalDate ate) {
         return jdbc.query("select c.consultoria_id, c.id, c.vencimento, l.dias_antes, l.no_dia, l.dias_depois "
                 + "from cobranca_aluno c join lembrete_configuracao l on l.consultoria_id = c.consultoria_id "
-                + "where l.ligado and c.situacao = 'ABERTA' and c.vencimento between ? and ?",
+                + "join aluno a on a.consultoria_id = c.consultoria_id and a.id = c.aluno_id "
+                + "where a.lembretes_cobranca_desligados_em is null and l.ligado and c.situacao = 'ABERTA' and c.vencimento between ? and ?",
                 (rs, n) -> new Candidata(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                         rs.getObject(3, LocalDate.class),
                         new RegraDosLembretes.Configuracao(true, rs.getInt(4), rs.getBoolean(5), rs.getInt(6))),
