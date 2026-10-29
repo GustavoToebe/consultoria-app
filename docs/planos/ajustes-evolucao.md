@@ -1,6 +1,6 @@
 # Ajustes da evolução
 
-Situação: Pronta na branch, conferida (passo 7); falta o Gustavo decidir o merge na `main` · Onde: branch `ajustes-evolucao` (saída da `main` 2ad9095, sem push na `main`) · Atualizado: 29/10/2026
+Situação: Concluída em 29/10/2026 (PR 15, merge 6becaa4, com a V041) · Onde: `main` · Atualizado: 29/10/2026
 
 ## Objetivo
 Fechar as decisões que ficaram abertas na frente "Evolução" ([evolucao-prime.md](evolucao-prime.md)), já em produção desde o merge
@@ -14,7 +14,7 @@ lembretes de cobrança só para ele e o PDF com marca clara fica legível.
 | 2 | PDF do comparativo para o aluno | "Baixar comparativo" no `CartaoAvaliacaoFisica` do Histórico do aluno, com o mesmo `pdf/pdfAvaliacaoFisica.ts`, só com `PDF` no plano (`NoPlano`), com os dados de `GET /aluno/avaliacoes-fisicas` e a marca/logo da sessão; sem internet o botão não aparece. Gráfico das medidas: **fora** | Gustavo, 29/10 |
 | 3 | Lembretes de cobrança desligados pelo aluno | Coluna `aluno.lembretes_cobranca_desligados_em` (V041; nulo = recebe), `GET`/`PUT /aluno/lembretes-de-cobranca {receber}`, job e planejamento pulam o aluno (motivo `ALUNO_DESLIGOU`), a folha da cobrança mostra "O aluno desligou os lembretes por e-mail" (WhatsApp manual segue), auditoria `LEMBRETES_DE_COBRANCA_DO_ALUNO_ALTERADOS` só quando muda, exportação em `financeiro`, anonimização zera, interruptor no cartão "Meu plano" (só com o financeiro ligado e com internet) | Gustavo, 29/10 |
 | 4 | PDF com marca clara | Título e títulos de seção na cor da marca escurecida até 4,5:1 sobre o branco, pela função `marcaParaTexto` do app (importada, não copiada); a faixa do topo mantém a cor original e o texto `textoSobre` | Gustavo, 29/10 |
-| 5 | Cabeçalho de tabela e links do PDF (extensão do item 4) | O `th` passa a usar `textoSobre(marca)` (era branco fixo, ilegível em amarelo) e os links usam a cor de texto escurecida. Mesmo defeito do item 4; fora do que foi pedido | Claude, 29/10 (a confirmar) |
+| 5 | Cabeçalho de tabela e links do PDF (extensão do item 4) | O `th` passa a usar `textoSobre(marca)` (era branco fixo, ilegível em amarelo) e os links usam a cor de texto escurecida. Mesmo defeito do item 4; fora do que foi pedido | Claude, 29/10; aprovada pelo Gustavo em 29/10 |
 | 6 | Migration | V041 (a agenda usa V042 e V043); total de migrations 41 nos dois testes | Gustavo, 29/10 |
 
 ### Ordem do mercado (grupos reais do catálogo: 14 do TACO e 13 do Batel Grill)
@@ -47,7 +47,5 @@ enquanto não entrar em `GRUPOS_DO_CATALOGO_NA_ORDEM_DO_MERCADO` (`dominio/grupo
 - Voltar ao plano de quem religar o lembrete já cancelado: o lembrete cancelado com `ALUNO_DESLIGOU` não é recriado (mesma regra do `NAO_E_MAIS_DEVIDO`); o que já foi enviado não volta.
 
 ## O que ficou para trás
-- Merge na `main`: não feito (não era o pedido). A agenda ([agenda-calendario.md](agenda-calendario.md)) precisa da V041 para numerar a V042: decidir se a `ajustes-evolucao` entra na `main` antes ou se a `agenda-calendario` sai dela.
-- Decisão 5 (cabeçalho de tabela e links do PDF) está "a confirmar": foi além do pedido.
 - Os pratos prontos do Batel (`Saladas`, `Sobremesas`, `Massas com molhos`, `Risotos`…) ficaram no fim da mercearia; se o Gustavo quiser, `Saladas` vai para hortifrúti, `Sobremesas` para doces e `Massas com molhos`/`Risotos` para cereais.
 - Mapeamento por nome dos grupos `Carnes`, `Queijos` e `Sucos…` do Batel (carnes e ovos, leite, bebidas): conferir.

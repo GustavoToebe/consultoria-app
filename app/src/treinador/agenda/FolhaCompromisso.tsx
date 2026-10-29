@@ -1,38 +1,29 @@
-import type { Href } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { Compromisso, SituacaoCompromisso } from '../../api/agendaTipos';
+import type { Compromisso, CompromissoRequest, EscopoDaSerie, FiltroAlunosOcupados, Participante, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ResponsavelEquipe } from '../../api/equipeTipos';
-import { alterarCompromisso, alterarSituacaoCompromisso, criarCompromisso, listarAlunos } from '../../api/rotas';
 import {
-  acoesDeSituacao, conflitoNaLista, DURACOES_SUGERIDAS, type ErrosDoCompromisso, type FormularioDoCompromisso, formularioDoCompromisso,
-  formularioNovo, intervaloDoPedido, LIMITES_COMPROMISSO, mascaraHora, pedidoDoFormulario, seloDaSituacao, textoDaDuracao, textoDoHorario,
-  type AcaoDeSituacao,
+  alterarCancelamentoCompromisso, alterarCompromisso, alterarSituacaoDoAluno, criarCompromisso, listarAlunosOcupados,
+} from '../../api/rotas';
+import {
+  type AcaoDeSituacao, acaoDeCancelamento, adicionarParticipante, conflitoNaLista, type ErrosDaRepeticao, type ErrosDoCompromisso,
+  escoposPermitidos, explicacaoDoEscopo, filtroDeAlunosOcupados, type FormularioDaRepeticao, type FormularioDoCompromisso,
+  formularioDoCompromisso, formularioNovo, intervaloDoPedido, mudouAData, pedidoDoFormulario, removerParticipante, ROTULOS_DO_ESCOPO,
+  textoDaOcorrencia, textoDeAlunosOcupados, textoDoCancelamentoDoAluno, textoDoCancelamentoInteiro, textoDoErroDaAgenda,
 } from '../../dominio/agendaPresencial';
-import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
-import { rotuloDoDia } from '../../dominio/agenda';
 import { useSessao } from '../../sessao/SessaoProvider';
-import { useTema } from '../../tema/TemaProvider';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
-import { Campo } from '../../ui/Campo';
-import { CampoLeitura } from '../../ui/CampoLeitura';
-import { CampoData } from '../../ui/Campos';
 import { Escolha } from '../../ui/Escolha';
-import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { MensagemErro } from '../../ui/Estados';
-import { codigoApi, textoDoErro } from '../../ui/erros';
+import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
-import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
-import { LinkTexto } from '../../ui/LinkTexto';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
-import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { useAtrasado, useCarregar } from '../../ui/useCarregar';
-
-/** Alunos por página de `GET /alunos` (igual à API). */
-const TAMANHO_PAGINA = 30;
+import { CamposDoCompromisso } from './CamposDoCompromisso';
+import { DetalheDoCompromisso } from './DetalheDoCompromisso';
 
 interface Props {
   /** `'novo'` abre o formulário vazio; um compromisso abre o detalhe; `null` fecha. */
@@ -41,7 +32,7 @@ interface Props {
   dataSugerida: string;
   hoje: string;
   responsaveis: readonly ResponsavelEquipe[];
-  /** Compromissos já na tela, só para avisar de sobreposição antes de salvar (quem decide é a API). */
+  /** Compromissos já na tela, só para avisar de sobreposição do responsável antes de salvar (quem decide é a API). */
   carregados: readonly Compromisso[];
   aoFechar: () => void;
   /** Depois de salvar ou mudar a situação: a tela recarrega a lista. */
@@ -49,185 +40,237 @@ interface Props {
 }
 
 /**
- * Folha do compromisso da agenda presencial: detalhe (com editar, realizado/falta, cancelar e reativar) ou formulário
- * (novo e editar). Só a equipe marca. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita
- * com `ALUNO_SENSIVEL_ALTERAR` (a API também ignora sem a permissão).
+ * Folha do compromisso com aluno: detalhe (participantes com a situação de cada um, editar, cancelar ou reabrir o
+ * compromisso inteiro) ou formulário (novo, com repetição; editar). Cada compromisso aberto é uma folha nova (a `key` é o
+ * id), então nada do anterior sobra. A observação é dado sensível: só aparece com `ALUNO_SENSIVEL_LER` e só se edita com
+ * `ALUNO_SENSIVEL_ALTERAR` (a API também ignora sem a permissão).
  */
-export function FolhaCompromisso({ aberto, dataSugerida, hoje, responsaveis, carregados, aoFechar, aoMudar }: Props) {
-  const [editando, setEditando] = useState(false);
-  const fechar = () => { setEditando(false); aoFechar(); };
-  const novo = aberto === 'novo';
-  const titulo = novo ? 'Novo compromisso' : editando ? 'Editar compromisso' : 'Compromisso';
-  return (
-    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={fechar}>
-      {aberto === null ? null : novo || editando ? (
-        <Formulario key={novo ? 'novo' : `${aberto.id}:${aberto.versao}`} compromisso={novo ? null : aberto} dataSugerida={dataSugerida}
-          responsaveis={responsaveis} carregados={carregados}
-          aoCancelar={novo ? fechar : () => setEditando(false)}
-          aoSalvo={(c) => { setEditando(false); aoMudar(c); if (novo) fechar(); }} />
-      ) : (
-        <Detalhe key={`${aberto.id}:${aberto.versao}`} compromisso={aberto} hoje={hoje} aoEditar={() => setEditando(true)} aoMudar={aoMudar} />
-      )}
-    </Folha>
-  );
+export function FolhaCompromisso(props: Props) {
+  const chave = props.aberto === null ? 'fechada' : props.aberto === 'novo' ? 'novo' : props.aberto.id;
+  return <FolhaAberta key={chave} {...props} />;
 }
 
-function Detalhe({ compromisso: c, hoje, aoEditar, aoMudar }: { compromisso: Compromisso; hoje: string; aoEditar: () => void; aoMudar: (c: Compromisso) => void }) {
-  const { pode } = useSessao();
-  const podeAlterar = pode('AGENDA_ALTERAR');
-  const [confirmar, setConfirmar] = useState<AcaoDeSituacao | null>(null);
-  const [enviando, setEnviando] = useState<SituacaoCompromisso | null>(null);
-  const [erro, setErro] = useState<unknown>(null);
-  const selo = seloDaSituacao(c.situacao);
+/** A pergunta antes de gravar: o escopo numa série e/ou a confirmação de cancelar. */
+type Pergunta =
+  | { tipo: 'salvar'; pedido: CompromissoRequest; escopos: EscopoDaSerie[] }
+  | { tipo: 'aluno'; aluno: Participante; acao: AcaoDeSituacao; escopos: EscopoDaSerie[] }
+  | { tipo: 'inteiro'; cancelado: boolean; escopos: EscopoDaSerie[] };
 
-  const mudar = async (situacao: SituacaoCompromisso) => {
-    setEnviando(situacao);
-    setErro(null);
-    try {
-      aoMudar(await alterarSituacaoCompromisso(c.id, situacao, c.versao));
-      setConfirmar(null);
-    } catch (e) {
-      setErro(e);
-      setConfirmar(null);
-    } finally {
-      setEnviando(null);
-    }
-  };
-
-  return (
-    <View style={estilos.coluna}>
-      <View style={estilos.linhaSelo}>
-        <Texto variante="bloco">{c.alunoNome ?? 'Aluno'}</Texto>
-        <Selo texto={selo.texto} tipo={selo.tipo} />
-      </View>
-      <CampoLeitura rotulo="Quando" valor={`${rotuloDoDia(c.data, hoje)}, ${dataSemAnoCorrente(c.data, hoje)} · ${textoDoHorario(c)}`} />
-      <CampoLeitura rotulo="Duração" valor={textoDaDuracao(c.duracaoMinutos)} />
-      <CampoLeitura rotulo="Local" valor={c.local} />
-      <CampoLeitura rotulo="Responsável" valor={c.responsavelNome ?? (c.responsavelId ? 'Membro inativo' : null)} />
-      {pode('ALUNO_SENSIVEL_LER') ? <CampoLeitura rotulo="Observação" valor={c.observacao} /> : null}
-      {pode('ALUNO_LER') ? <LinkTexto texto="Abrir ficha do aluno" href={`/treinador/alunos/${c.alunoId}` as Href} /> : null}
-      {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} /> : null}
-      {podeAlterar ? (
-        <LinhaDeAcoes>
-          <Botao rotulo="Editar" tipo="secundario" aoTocar={aoEditar} />
-          {acoesDeSituacao(c).map((a) => (
-            <Botao key={a.situacao} rotulo={a.rotulo} tipo={a.perigo ? 'perigoTexto' : 'secundario'} desabilitado={!!a.motivo || enviando !== null}
-              motivo={a.motivo ?? (enviando !== null ? 'Salvando.' : undefined)} carregando={enviando === a.situacao}
-              aoTocar={() => (a.confirmar ? setConfirmar(a) : void mudar(a.situacao))} />
-          ))}
-        </LinhaDeAcoes>
-      ) : null}
-      <PainelConfirmacao visivel={confirmar !== null} titulo="Cancelar este compromisso?" perigo
-        mensagem="O horário fica livre para outro compromisso. Dá para reativar depois, se o horário continuar livre."
-        rotuloConfirmar="Cancelar compromisso" rotuloCancelar="Voltar" carregando={enviando !== null}
-        aoConfirmar={() => confirmar && void mudar(confirmar.situacao)} aoCancelar={() => setConfirmar(null)} />
-    </View>
-  );
-}
-
-function Formulario({ compromisso, dataSugerida, responsaveis, carregados, aoCancelar, aoSalvo }: {
-  compromisso: Compromisso | null; dataSugerida: string; responsaveis: readonly ResponsavelEquipe[]; carregados: readonly Compromisso[];
-  aoCancelar: () => void; aoSalvo: (c: Compromisso) => void;
-}) {
+function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoFechar, aoMudar }: Props) {
   const { pode, usuario } = useSessao();
   const comObservacao = pode('ALUNO_SENSIVEL_ALTERAR');
-  const [form, setForm] = useState<FormularioDoCompromisso>(() => compromisso ? formularioDoCompromisso(compromisso)
+  const c = aberto && aberto !== 'novo' ? aberto : null;
+  const novo = aberto === 'novo';
+  const [modo, setModo] = useState<'detalhe' | 'formulario'>(novo ? 'formulario' : 'detalhe');
+
+  // Formulário (novo ou editar): o estado mora aqui para os botões irem ao rodapé fixo da folha.
+  const formInicial = (): FormularioDoCompromisso => (c ? formularioDoCompromisso(c)
     : formularioNovo(responsaveis.some((r) => r.id === usuario?.id) ? usuario?.id ?? '' : '', dataSugerida));
+  const nomesIniciais = () => Object.fromEntries((c?.participantes ?? []).map((p) => [p.id, p.nome ?? 'Aluno']));
+  const [form, setForm] = useState<FormularioDoCompromisso>(formInicial);
+  const [nomes, setNomes] = useState<Record<string, string>>(nomesIniciais);
   const [erros, setErros] = useState<ErrosDoCompromisso>({});
-  const [erroGeral, setErroGeral] = useState<string | null>(null);
+  const [errosDaRepeticao, setErrosDaRepeticao] = useState<ErrosDaRepeticao>({});
+  const [conferir, setConferir] = useState(false);
+  const [erro, setErro] = useState<unknown>(null);
   const [salvando, setSalvando] = useState(false);
+  // Detalhe: a ação em andamento e a pergunta aberta (escopo e/ou confirmação).
+  const [enviando, setEnviando] = useState<string | null>(null);
+  const [pergunta, setPergunta] = useState<Pergunta | null>(null);
+  const [escopo, setEscopo] = useState<EscopoDaSerie>('ESTA');
+  const agora = new Date();
+
+  const limparMensagens = () => { setErro(null); setConferir(false); };
   const mudar = <K extends keyof FormularioDoCompromisso>(campo: K, valor: FormularioDoCompromisso[K]) => {
     setForm((f) => ({ ...f, [campo]: valor }));
     setErros((e) => ({ ...e, [campo]: undefined }));
-    setErroGeral(null);
+    limparMensagens();
   };
+  const mudarRepeticao = (r: FormularioDaRepeticao) => {
+    setForm((f) => ({ ...f, repeticao: r }));
+    setErrosDaRepeticao({});
+    setErros((e) => ({ ...e, repeticao: undefined }));
+    limparMensagens();
+  };
+  const editar = () => {
+    setForm(formInicial());
+    setNomes(nomesIniciais());
+    setErros({});
+    setErrosDaRepeticao({});
+    limparMensagens();
+    setModo('formulario');
+  };
+  const voltarAoDetalhe = () => { limparMensagens(); setModo('detalhe'); };
 
-  // Alunos ativos, com busca na API e páginas (o nome do escolhido fica guardado: a lista muda com a busca).
-  const [busca, setBusca] = useState('');
-  const buscaAtrasada = useAtrasado(busca);
-  const [pagina, setPagina] = useState(0);
-  const [nomeDoAluno, setNomeDoAluno] = useState<string | null>(compromisso?.alunoNome ?? null);
-  const alunos = useCarregar(`agenda-alunos:${buscaAtrasada}:${pagina}`, () => listarAlunos({ busca: buscaAtrasada, pagina, situacao: 'ATIVO' }));
-  const itens = alunos.dados?.itens ?? [];
-  const temMais = !!alunos.dados && pagina * TAMANHO_PAGINA + itens.length < alunos.dados.total;
+  // Aviso de aluno ocupado (só aviso, D11/P5): com alunos, data, hora e duração válidas, depois de parar de digitar.
+  const filtro = modo === 'formulario' ? filtroDeAlunosOcupados(form, c?.id) : null;
+  const chaveOcupados = filtro ? JSON.stringify(filtro) : null;
+  const chaveAtrasada = useAtrasado(chaveOcupados, 400);
+  const ocupados = useCarregar(chaveAtrasada,
+    async (k) => ({ chave: k, itens: await listarAlunosOcupados(JSON.parse(k) as FiltroAlunosOcupados) }));
+  const ocupadosAtuais = ocupados.dados?.chave === chaveOcupados ? ocupados.dados.itens : null;
+  const textoOcupados = ocupadosAtuais ? textoDeAlunosOcupados(ocupadosAtuais) : null;
+  const falhouOcupados = !!ocupados.erro && chaveAtrasada === chaveOcupados && chaveOcupados !== null;
+  // Responsável com outro compromisso na lista desta tela (também só aviso; quem decide é a API, 409).
+  const previa = modo === 'formulario' ? pedidoDoFormulario(form, comObservacao).pedido : null;
+  const conflito = previa ? conflitoNaLista(carregados, { id: c?.id, responsavelId: previa.responsavelId, ...intervaloDoPedido(previa) }) : null;
 
-  // Aviso (não bloqueia): o responsável já tem, na lista desta tela, outro compromisso nesse horário.
-  const previa = pedidoDoFormulario(form, comObservacao).pedido;
-  const conflito = previa ? conflitoNaLista(carregados, { id: compromisso?.id, responsavelId: previa.responsavelId, ...intervaloDoPedido(previa) }) : null;
-  const opcoesResponsavel = responsaveis.map((r) => ({ valor: r.id, rotulo: r.nome }));
-  const duracaoSugerida = DURACOES_SUGERIDAS.find((d) => String(d) === form.duracao.trim()) ?? null;
-
-  const salvar = async () => {
-    const { erros: novos, pedido } = pedidoDoFormulario(form, comObservacao, compromisso ? compromisso.versao : undefined);
-    setErros(novos);
-    if (!pedido) {
-      setErroGeral('Confira os campos destacados.');
-      return;
-    }
+  const enviarFormulario = async (pedido: CompromissoRequest, escolhido: EscopoDaSerie) => {
     setSalvando(true);
-    setErroGeral(null);
+    setErro(null);
     try {
-      aoSalvo(compromisso ? await alterarCompromisso(compromisso.id, pedido) : await criarCompromisso(pedido));
+      const salvo = c ? await alterarCompromisso(c.id, pedido, escolhido) : await criarCompromisso(pedido);
+      setPergunta(null);
+      aoMudar(salvo);
+      if (novo) aoFechar();
+      else setModo('detalhe');
     } catch (e) {
-      // 409 HORARIO_OCUPADO, CONFLITO_EDICAO, ALUNO_INATIVO...: a mensagem da API, sem dado do outro compromisso.
-      setErroGeral(codigoApi(e) === 'CONFLITO_EDICAO'
-        ? 'Outra pessoa alterou este compromisso. Feche e abra de novo para ver a versão atual.' : textoDoErro(e));
+      // 409 HORARIO_OCUPADO (com as datas), ALUNO_INATIVO, CONFLITO_EDICAO...: o formulário fica como está.
+      setPergunta(null);
+      setErro(e);
     } finally {
       setSalvando(false);
     }
   };
+  const salvar = () => {
+    const r = pedidoDoFormulario(form, comObservacao, c ? c.versao : undefined);
+    setErros(r.erros);
+    setErrosDaRepeticao(r.errosDaRepeticao);
+    setErro(null);
+    if (!r.pedido) { setConferir(true); return; }
+    setConferir(false);
+    const escopos = c ? escoposPermitidos(c, { mudouData: mudouAData(form, c) }) : ['ESTA' as const];
+    if (escopos.length > 1) { setEscopo('ESTA'); setPergunta({ tipo: 'salvar', pedido: r.pedido, escopos }); return; }
+    void enviarFormulario(r.pedido, 'ESTA');
+  };
+
+  const mudarAluno = async (aluno: Participante, situacao: SituacaoCompromisso, escolhido: EscopoDaSerie) => {
+    if (!c) return;
+    setEnviando(`${aluno.id}:${situacao}`);
+    setErro(null);
+    try {
+      aoMudar(await alterarSituacaoDoAluno(c.id, aluno.id, { situacao, versao: c.versao }, escolhido));
+    } catch (e) {
+      setErro(e);
+    } finally {
+      setPergunta(null);
+      setEnviando(null);
+    }
+  };
+  const agirNoAluno = (aluno: Participante, acao: AcaoDeSituacao) => {
+    if (!c) return;
+    const escopos = escoposPermitidos(c, { situacao: acao.situacao });
+    if (acao.confirmar || escopos.length > 1) { setEscopo('ESTA'); setPergunta({ tipo: 'aluno', aluno, acao, escopos }); return; }
+    void mudarAluno(aluno, acao.situacao, 'ESTA');
+  };
+  const mudarInteiro = async (cancelado: boolean, escolhido: EscopoDaSerie) => {
+    if (!c) return;
+    setEnviando(`inteiro:${cancelado}`);
+    setErro(null);
+    try {
+      aoMudar(await alterarCancelamentoCompromisso(c.id, { cancelado, versao: c.versao }, escolhido));
+    } catch (e) {
+      // Reabrir com aluno inativo dá 409 ALUNO_INATIVO: a mensagem da API, e a folha segue usável.
+      setErro(e);
+    } finally {
+      setPergunta(null);
+      setEnviando(null);
+    }
+  };
+  const acaoInteiro = c ? acaoDeCancelamento(c) : null;
+  const pedirInteiro = () => {
+    if (!c || !acaoInteiro) return;
+    const escopos = escoposPermitidos(c);
+    if (acaoInteiro.confirmar || escopos.length > 1) { setEscopo('ESTA'); setPergunta({ tipo: 'inteiro', cancelado: acaoInteiro.cancelado, escopos }); return; }
+    void mudarInteiro(acaoInteiro.cancelado, 'ESTA');
+  };
+
+  const mensagem = erro ? textoDoErroDaAgenda(erro, hoje) ?? textoDoErro(erro) : conferir ? 'Confira os campos destacados.' : null;
+  const linhaDaMensagem = mensagem ? <View style={estilos.mensagem}><MensagemErro texto={mensagem} erro={erro ?? undefined} /></View> : null;
+  const ocupado = salvando || enviando !== null;
+
+  const titulo = novo ? 'Novo compromisso' : modo === 'formulario' ? 'Editar compromisso' : 'Compromisso';
+  const rodape = modo === 'formulario' ? <>
+    {linhaDaMensagem}
+    <Botao rotulo="Cancelar" tipo="secundario" aoTocar={novo ? aoFechar : voltarAoDetalhe} />
+    <Botao rotulo={c ? 'Salvar alterações' : 'Marcar compromisso'} aoTocar={salvar} carregando={salvando} desabilitado={salvando} motivo="Salvando." />
+  </> : c && pode('AGENDA_ALTERAR') && acaoInteiro ? <>
+    {linhaDaMensagem}
+    <Botao rotulo={acaoInteiro.rotulo} tipo={acaoInteiro.perigo ? 'perigoTexto' : 'secundario'} aoTocar={pedirInteiro}
+      carregando={enviando === `inteiro:${acaoInteiro.cancelado}`} desabilitado={ocupado} motivo="Salvando." />
+    <Botao rotulo="Editar" tipo="secundario" aoTocar={editar} desabilitado={ocupado} motivo="Salvando." />
+  </> : linhaDaMensagem ?? undefined;
+
+  const ocorrencia = c ? textoDaOcorrencia(c) : null;
+  const dataMudou = !!c && !!c.serieId && mudouAData(form, c);
+  const sobreASerie = c && ocorrencia ? <Texto variante="suave" accessibilityLiveRegion="polite">
+    {dataMudou ? `${ocorrencia}. Mudar a data vale só para este compromisso da série.`
+      : `${ocorrencia}. Ao salvar, você escolhe se vale só para este, para os seguintes ou para todos.`}
+  </Texto> : null;
+  const avisos = textoOcupados || conflito || falhouOcupados ? <View style={estilos.avisos} accessibilityLiveRegion="polite" aria-live="polite">
+    {conflito ? <Texto variante="suave">{`Atenção: este responsável já tem um compromisso das ${conflito.hora} às ${conflito.horaFim} nesse período.`}</Texto> : null}
+    {textoOcupados ? <Texto variante="suave">{`Atenção: ${textoOcupados}`}</Texto> : null}
+    {falhouOcupados ? <Texto variante="suave">Não deu para conferir se os alunos estão livres nesse horário.</Texto> : null}
+  </View> : null;
 
   return (
-    <View style={estilos.coluna}>
-      <EscolhaEmFolha rotulo="Aluno" titulo="Escolher aluno" valor={form.alunoId} rotuloDoValor={nomeDoAluno ?? 'Escolher'}
-        opcoes={itens.map((a) => ({ valor: a.id, rotulo: a.nome }))}
-        aoMudar={(id) => { mudar('alunoId', id); setNomeDoAluno(itens.find((a) => a.id === id)?.nome ?? null); }}
-        busca={{ valor: busca, rotulo: 'Buscar aluno', aoMudar: (v) => { setBusca(v); setPagina(0); } }}
-        textoVazio="Nenhum aluno ativo encontrado." carregando={alunos.carregando}
-        rodape={<>
-          {pagina > 0 || temMais ? <LinhaDeAcoes>
-            {pagina > 0 ? <Botao rotulo="Alunos anteriores" tipo="secundario" aoTocar={() => setPagina(pagina - 1)} /> : null}
-            {temMais ? <Botao rotulo="Próximos alunos" tipo="secundario" aoTocar={() => setPagina(pagina + 1)} /> : null}
-          </LinhaDeAcoes> : null}
-          {alunos.erro ? <MensagemErro texto={textoDoErro(alunos.erro)} tentarDeNovo={alunos.recarregar} /> : null}
-        </>} />
-      {erros.alunoId ? <ErroDoCampo texto={erros.alunoId} /> : null}
-      <EscolhaEmFolha rotulo="Responsável" titulo="Escolher responsável" valor={form.responsavelId} opcoes={opcoesResponsavel}
-        rotuloDoValor={compromisso?.responsavelNome ?? 'Escolher'} aoMudar={(id) => mudar('responsavelId', id)}
-        textoVazio="Nenhum membro ativo na equipe." />
-      {erros.responsavelId ? <ErroDoCampo texto={erros.responsavelId} /> : null}
-      <CampoData rotulo="Data" valor={form.data} aoMudar={(t) => mudar('data', t)} erro={erros.data} />
-      <Campo rotulo="Hora (Brasília)" valor={form.hora} aoMudar={(t) => mudar('hora', mascaraHora(t))} erro={erros.hora}
-        placeholder="HH:MM" keyboardType="number-pad" inputMode="numeric" maxLength={5} numerico />
-      <Escolha rotulo="Duração" valor={duracaoSugerida} opcoes={DURACOES_SUGERIDAS.map((d) => ({ valor: d, rotulo: textoDaDuracao(d) }))}
-        aoMudar={(d) => { if (d !== null) mudar('duracao', String(d)); }} />
-      <Campo rotulo="Duração em minutos" valor={form.duracao} aoMudar={(t) => mudar('duracao', t.replace(/\D/g, '').slice(0, 3))}
-        erro={erros.duracao} ajuda={`De ${LIMITES_COMPROMISSO.duracaoMinima} a ${LIMITES_COMPROMISSO.duracaoMaxima} minutos.`}
-        keyboardType="number-pad" inputMode="numeric" numerico />
-      <Campo rotulo="Local (opcional)" valor={form.local} aoMudar={(t) => mudar('local', t)} erro={erros.local}
-        maxLength={LIMITES_COMPROMISSO.local} placeholder="Ex.: Sala 2, academia, online" />
-      {comObservacao ? <Campo rotulo="Observação (opcional)" valor={form.observacao} aoMudar={(t) => mudar('observacao', t)}
-        erro={erros.observacao} linhas={3} maxLength={LIMITES_COMPROMISSO.observacao}
-        ajuda="Só a equipe vê. O aluno não vê a observação." /> : null}
-      {conflito ? <Texto variante="suave">
-        {`Atenção: este responsável já tem um compromisso das ${conflito.hora} às ${conflito.horaFim} nesse período.`}
-      </Texto> : null}
-      {erroGeral ? <MensagemErro texto={erroGeral} /> : null}
-      <LinhaDeAcoes>
-        <Botao rotulo="Cancelar" tipo="secundario" aoTocar={aoCancelar} />
-        <Botao rotulo={compromisso ? 'Salvar alterações' : 'Marcar compromisso'} aoTocar={() => void salvar()} carregando={salvando}
-          desabilitado={salvando} motivo="Salvando." />
-      </LinhaDeAcoes>
-    </View>
+    <Folha visivel={aberto !== null} titulo={titulo} aoFechar={aoFechar} rodape={rodape}>
+      {modo === 'formulario' ? (
+        <CamposDoCompromisso form={form} erros={erros} errosDaRepeticao={errosDaRepeticao} mudar={mudar} mudarRepeticao={mudarRepeticao}
+          nomes={nomes} responsaveis={responsaveis} nomeDoResponsavel={c?.responsavelNome ?? null} comObservacao={comObservacao}
+          comRepeticao={!c} hoje={hoje} avisos={avisos} sobreASerie={sobreASerie}
+          aoAdicionarAluno={(id, nome) => { setNomes((n) => ({ ...n, [id]: nome })); mudar('alunoIds', adicionarParticipante(form.alunoIds, id)); }}
+          aoRemoverAluno={(id) => mudar('alunoIds', removerParticipante(form.alunoIds, id))} />
+      ) : c ? (
+        <DetalheDoCompromisso compromisso={c} hoje={hoje} agora={agora} enviando={enviando} aoAgirNoAluno={agirNoAluno} />
+      ) : null}
+      {c && pergunta ? <Confirmacao pergunta={pergunta} compromisso={c} hoje={hoje} agora={agora} escopo={escopo} aoEscolherEscopo={setEscopo}
+        carregando={ocupado} aoCancelar={() => setPergunta(null)}
+        aoConfirmar={() => {
+          if (pergunta.tipo === 'salvar') void enviarFormulario(pergunta.pedido, escopo);
+          else if (pergunta.tipo === 'aluno') void mudarAluno(pergunta.aluno, pergunta.acao.situacao, escopo);
+          else void mudarInteiro(pergunta.cancelado, escopo);
+        }} /> : null}
+    </Folha>
   );
 }
 
-function ErroDoCampo({ texto }: { texto: string }) {
-  const { cores } = useTema();
-  return <Texto variante="pequeno" cor={cores.perigo} accessibilityLiveRegion="polite">{texto}</Texto>;
+/**
+ * Painel na própria folha (sem `confirm`): numa série pergunta o escopo (só este, este e os seguintes, todos), com o que
+ * cada um alcança; cancelar (um aluno ou o compromisso inteiro) diz quem recebe o aviso.
+ */
+function Confirmacao({ pergunta, compromisso: c, hoje, agora, escopo, aoEscolherEscopo, carregando, aoConfirmar, aoCancelar }: {
+  pergunta: Pergunta; compromisso: Compromisso; hoje: string; agora: Date; escopo: EscopoDaSerie;
+  aoEscolherEscopo: (e: EscopoDaSerie) => void; carregando: boolean; aoConfirmar: () => void; aoCancelar: () => void;
+}) {
+  const varios = c.participantes.length > 1;
+  const nome = pergunta.tipo === 'aluno' ? pergunta.aluno.nome ?? 'Aluno' : '';
+  const cancelandoAluno = pergunta.tipo === 'aluno' && pergunta.acao.situacao === 'CANCELADO';
+  const titulo = pergunta.tipo === 'salvar' ? 'Salvar em quais compromissos da série?'
+    : pergunta.tipo === 'aluno' ? (cancelandoAluno ? `Cancelar a participação de ${nome}?` : `${pergunta.acao.rotulo}: ${nome}`)
+      : pergunta.cancelado ? (varios ? 'Cancelar o compromisso inteiro?' : 'Cancelar este compromisso?') : 'Reabrir o compromisso?';
+  const mensagem = pergunta.tipo === 'aluno' ? (cancelandoAluno ? textoDoCancelamentoDoAluno(nome, c, agora) : undefined)
+    : pergunta.tipo === 'inteiro' ? (pergunta.cancelado ? textoDoCancelamentoInteiro(c, agora)
+      : 'O compromisso volta a ocupar o horário do responsável. Aluno inativo precisa sair da lista antes.')
+      : undefined;
+  const rotuloConfirmar = pergunta.tipo === 'salvar' ? 'Salvar alterações' : pergunta.tipo === 'aluno' ? pergunta.acao.rotulo
+    : acaoDeCancelamento(c).rotulo;
+  const perigo = cancelandoAluno || (pergunta.tipo === 'inteiro' && pergunta.cancelado);
+  return (
+    <PainelConfirmacao visivel titulo={titulo} mensagem={mensagem} perigo={perigo} rotuloConfirmar={rotuloConfirmar} rotuloCancelar="Voltar"
+      carregando={carregando} aoConfirmar={aoConfirmar} aoCancelar={aoCancelar}>
+      {pergunta.escopos.length > 1 ? <View style={estilos.escopo}>
+        <Escolha<EscopoDaSerie> rotulo="Aplicar a" valor={escopo} aoMudar={aoEscolherEscopo}
+          opcoes={pergunta.escopos.map((e) => ({ valor: e, rotulo: ROTULOS_DO_ESCOPO[e] }))} />
+        <Texto variante="suave" accessibilityLiveRegion="polite">{explicacaoDoEscopo(escopo, c.data, hoje)}</Texto>
+      </View> : null}
+    </PainelConfirmacao>
+  );
 }
 
 const estilos = StyleSheet.create({
-  coluna: { gap: espaco(2) },
-  linhaSelo: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1.5) },
+  // O rodapé é uma linha alinhada à direita: a mensagem ocupa a linha inteira, logo acima dos botões que acabaram de ser tocados.
+  mensagem: { flexBasis: '100%' },
+  avisos: { gap: espaco(0.5) },
+  escopo: { gap: espaco(1) },
 });

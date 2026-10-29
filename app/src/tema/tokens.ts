@@ -1,3 +1,5 @@
+import type { CorDaAgenda } from '../api/agendaTipos';
+
 /**
  * Design flat utilitário: cores sólidas, sem sombra nem gradiente, cantos de 8 px, bordas de
  * 1 px, grade de 8 px. A cor da marca só aparece em ação principal, menu e aba ativos, cartão "Hoje" e título da
@@ -81,6 +83,31 @@ export const CLARO: Cores = {
   fase3: '#A67C2E',
   fase4: '#7A86C4',
 };
+
+/**
+ * Paleta fixa das agendas pessoais (D7): a cor IDENTIFICA a agenda (ponto ou barra lateral), nunca diz status. Cada chave
+ * tem o par claro e escuro, longe dos tons de `sucesso`/`atencao`/`perigo`. Fica fora de `Cores` de propósito: não é token
+ * de superfície e não muda no contraste alto (o texto do evento usa `texto`). Cada cor chega a 3:1 sobre o fundo e as
+ * superfícies do tema (marcador, WCAG 1.4.11); `tokens.test.ts` confere isso e a distância das cores de status.
+ */
+export const CHAVES_DA_AGENDA: readonly CorDaAgenda[] = ['AZUL', 'INDIGO', 'VIOLETA', 'MAGENTA', 'TURQUESA', 'ARDOSIA', 'TERRA', 'OLIVA'];
+
+export const PALETA_DA_AGENDA: Record<'claro' | 'escuro', Record<CorDaAgenda, string>> = {
+  claro: {
+    AZUL: '#1B6FD6', INDIGO: '#4B3FBF', VIOLETA: '#9333B8', MAGENTA: '#C0306F',
+    TURQUESA: '#0B7F8A', ARDOSIA: '#51677E', TERRA: '#A64F43', OLIVA: '#758418',
+  },
+  escuro: {
+    AZUL: '#4A90F7', INDIGO: '#8B7CF0', VIOLETA: '#C07DE8', MAGENTA: '#E8579F',
+    TURQUESA: '#2BBFC9', ARDOSIA: '#8FA3B8', TERRA: '#BE8068', OLIVA: '#A8B53F',
+  },
+};
+
+/** Cor do marcador de uma agenda pela chave e pelo tema em uso; chave desconhecida cai em ARDOSIA, a mais neutra. */
+export function corDaAgenda(chave: string | null | undefined, escuro: boolean): string {
+  const paleta = PALETA_DA_AGENDA[escuro ? 'escuro' : 'claro'];
+  return (CHAVES_DA_AGENDA as readonly string[]).includes(chave ?? '') ? paleta[chave as CorDaAgenda] : paleta.ARDOSIA;
+}
 
 /** Cor neutra para telas sem marca (entrar, cadastro). */
 export const MARCA_NEUTRA = '#52525B';

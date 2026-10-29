@@ -37,6 +37,8 @@ interface ValorTema {
    */
   marcaTexto: string;
   preferencias: Preferencias;
+  /** A leitura das preferências gravadas terminou; antes disso `preferencias` é o padrão. */
+  preferenciasLidas: boolean;
   /** Multiplicador dos tamanhos de texto (1; 1,12; 1,25; 1,40). */
   fatorTexto: number;
   /** Grava e aplica na hora. */
@@ -71,6 +73,11 @@ export function TemaProvider({ children }: { children: ReactNode }) {
     () => armazem?.obter() ?? PREFERENCIAS_PADRAO,
     () => PREFERENCIAS_PADRAO,
   );
+  const preferenciasLidas = useSyncExternalStore(
+    useCallback((aviso: () => void) => armazem?.assinar(aviso) ?? (() => undefined), [armazem]),
+    () => armazem?.lidas() ?? true,
+    () => false,
+  );
   const gravar = useCallback((parcial: Partial<Preferencias>) => armazem?.escolher(parcial), [armazem]);
 
   const valor = useMemo<ValorTema>(() => {
@@ -93,11 +100,12 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       // Contra a superfície de pior contraste: `superficie3` é a mais clara no escuro e a mais escura no claro.
       marcaTexto: marcaParaTexto(marca, cores.superficie3),
       preferencias,
+      preferenciasLidas,
       fatorTexto: fatorDoTexto(preferencias.tamanhoTexto),
       escolherPreferencia: gravar,
       restaurarPadrao: () => gravar({ ...PREFERENCIAS_PADRAO }),
     };
-  }, [preferencias, sessao.marca, esquemaDoAparelho, gravar]);
+  }, [preferencias, preferenciasLidas, sessao.marca, esquemaDoAparelho, gravar]);
 
   useEffect(() => {
     const tema = valor.modo === 'CLARO' ? 'light' : 'dark';

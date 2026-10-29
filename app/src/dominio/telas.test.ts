@@ -70,6 +70,13 @@ describe('catálogo de telas', () => {
     expect(ids(buscarTelas('marcar consulta', marca))).toEqual(['novo-compromisso']);
   });
 
+  it('Novo evento pede AGENDA_ALTERAR e a busca acha por "criar evento"', () => {
+    const sem = telasPermitidas(com(['ALUNO_LER', 'AGENDA_LER']));
+    expect(ids(buscarTelas('criar evento', sem))).toEqual([]);
+    const marca = telasPermitidas(com(['ALUNO_LER', 'AGENDA_LER', 'AGENDA_ALTERAR']));
+    expect(ids(buscarTelas('criar evento', marca))).toEqual(['novo-evento']);
+  });
+
   it('Números pede só PAINEL_VER (como o Início) e a busca acha por "relatório" e "alunos ativos"', () => {
     expect(ids(telasPermitidas(com(['ALUNO_LER'])))).not.toContain('numeros');
     expect(ids(telasPermitidas(com(['ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER'])))).not.toContain('numeros');

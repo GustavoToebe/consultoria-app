@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import type { Preferencias, TamanhoTexto } from '../dominio/preferencias';
@@ -27,7 +27,7 @@ const TAMANHOS: { valor: TamanhoTexto; rotulo: string }[] = [
  * Preferências pessoais: tema, contraste, tamanho do texto, animações, vibração e restaurar o padrão. Valem só neste
  * aparelho. `comTitulo` mostra o título "Preferências" (o painel do aluno); a tela Ajustes do treinador já tem o seu.
  */
-export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean }) {
+export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: boolean; extras?: ReactNode }) {
   const sessao = useSessao();
   const { preferencias, escolherPreferencia, restaurarPadrao, fatorTexto, marca } = useTema();
   const { avisar } = useAviso();
@@ -150,11 +150,14 @@ export function PreferenciasDoApp({ comTitulo = true }: { comTitulo?: boolean })
         </Cartao>
       ) : null}
 
+      {/* Cartões de quem usa a tela (os lembretes do aluno), para o `ui/` não importar a área do aluno. */}
+      {extras}
+
       <Botao rotulo="Restaurar padrão" tipo="fantasma" aoTocar={() => setConfirmandoRestaurar(true)} />
       <PainelConfirmacao
         visivel={confirmandoRestaurar}
         titulo="Restaurar as preferências?"
-        mensagem="Tema, contraste, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão."
+        mensagem={`Tema, contraste, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão${aluno ? '; os lembretes de compromisso ficam desligados' : ''}.`}
         rotuloConfirmar="Restaurar"
         aoConfirmar={() => {
           restaurarPadrao();

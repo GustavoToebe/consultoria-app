@@ -9,6 +9,8 @@ import { aplicarEscolhas, PREFERENCIAS_PADRAO, type Preferencias } from '../domi
 export interface ArmazemDePreferencias {
   /** Valor atual; só muda de referência quando muda de fato (serve de `getSnapshot`). */
   obter: () => Preferencias;
+  /** `true` quando a leitura do que estava salvo terminou (com ou sem sucesso); antes, `obter` devolve o padrão. */
+  lidas: () => boolean;
   escolher: (parcial: Partial<Preferencias>) => void;
   assinar: (aviso: () => void) => () => void;
   /** Começa a leitura do que está salvo (não faz nada se já terminou ou já está lendo). */
@@ -36,6 +38,7 @@ export function criarArmazemDePreferencias(
 
   return {
     obter: () => atual,
+    lidas: () => lido,
     escolher: (parcial) => {
       atual = aplicarEscolhas(atual, [parcial]);
       if (lido) guardar(atual);

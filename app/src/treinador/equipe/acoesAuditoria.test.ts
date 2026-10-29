@@ -27,3 +27,7 @@ test('ações do recebimento online (InfinitePay) têm rótulo no filtro da audi
 test('ações da avaliação física têm rótulo no filtro da auditoria', () => {
   for (const acao of ['AVALIACAO_FISICA_REGISTRADA', 'AVALIACAO_FISICA_ALTERADA', 'AVALIACAO_FISICA_EXCLUIDA']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
 });
+
+test('ações das agendas pessoais e dos eventos têm rótulo no filtro da auditoria', () => {
+  for (const acao of ['AGENDA_PESSOAL_CRIADA', 'AGENDA_PESSOAL_ALTERADA', 'AGENDA_PESSOAL_APAGADA', 'EVENTO_CRIADO', 'EVENTO_ALTERADO', 'EVENTO_EXCLUIDO']) expect(ACOES_AUDITORIA[acao]).toBeTruthy();
+});

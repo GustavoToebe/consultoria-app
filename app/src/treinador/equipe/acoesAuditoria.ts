@@ -3,7 +3,7 @@ export const ACOES_AUDITORIA:Record<string,string>={
   USUARIO_CONVIDADO:'Convite de equipe criado',CONVITE_EQUIPE_ACEITO:'Convite de equipe aceito',CONVITE_EQUIPE_CANCELADO:'Convite de equipe cancelado',
   USUARIO_ALTERADO:'Membro editado',USUARIO_PERFIL_ALTERADO:'Perfil do membro alterado',USUARIO_DESATIVADO:'Membro desativado',
   PERFIL_CRIADO:'Perfil criado',PERFIL_ALTERADO:'Perfil editado',PERFIL_APAGADO:'Perfil excluído',PERFIL_DUPLICADO:'Perfil duplicado',
-  ALUNO_CRIADO:'Aluno cadastrado',ALUNO_ALTERADO:'Aluno editado',ALUNO_SITUACAO:'Situação do aluno alterada',ALUNO_CONVIDADO:'Convite de aluno criado',ALUNO_RESPONSAVEL_ALTERADO:'Responsável alterado no cadastro',
+  ALUNO_CRIADO:'Aluno cadastrado',ALUNO_ALTERADO:'Aluno editado',ALUNO_SITUACAO:'Situação do aluno alterada',ALUNO_COMPROMISSOS_CANCELADOS:'Compromissos futuros cancelados ao inativar o aluno',ALUNO_CONVIDADO:'Convite de aluno criado',ALUNO_RESPONSAVEL_ALTERADO:'Responsável alterado no cadastro',
   TREINO_PUBLICADO:'Treino publicado',DIETA_PUBLICADA:'Dieta publicada',MOBILIDADE_PUBLICADA:'Mobilidade publicada',
   TREINO_COPIADO:'Treino copiado para outro aluno',DIETA_COPIADA:'Dieta copiada para outro aluno',MOBILIDADE_COPIADA:'Mobilidade copiada para outro aluno',
   TERMOS_ACEITOS:'Termo de uso e aviso de privacidade aceitos',
@@ -37,4 +37,6 @@ export const ACOES_AUDITORIA:Record<string,string>={
   LEMBRETES_DE_COBRANCA_CONFIGURADOS:'Lembretes de cobrança configurados',LEMBRETES_DE_COBRANCA_DO_ALUNO_ALTERADOS:'Aluno alterou o recebimento dos lembretes de cobrança',
   EXERCICIO_IMAGEM_ALTERADA:'Imagem do exercício enviada',EXERCICIO_IMAGEM_REMOVIDA:'Imagem do exercício removida',
   CSV_EXERCICIOS_IMPORTADO:'CSV de exercícios importado',CSV_ALIMENTOS_IMPORTADO:'CSV de alimentos importado',
+  AGENDA_PESSOAL_CRIADA:'Agenda pessoal criada',AGENDA_PESSOAL_ALTERADA:'Agenda pessoal alterada',AGENDA_PESSOAL_APAGADA:'Agenda pessoal apagada (com os eventos dela)',
+  EVENTO_CRIADO:'Evento criado na agenda',EVENTO_ALTERADO:'Evento alterado na agenda',EVENTO_EXCLUIDO:'Evento excluído da agenda',
 };

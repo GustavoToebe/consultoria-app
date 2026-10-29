@@ -1,32 +1,34 @@
-import { useFocusEffect } from 'expo-router';
 import { CalendarDays } from 'lucide-react-native';
-import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { compromissosDoAluno } from '../api/rotas';
 import { hojeEmBrasilia, seloDaSituacao, textosDoCompromissoDoAluno } from '../dominio/agendaPresencial';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, RAIO } from '../tema/tokens';
+import { AlvoDeRolagem } from '../ui/AlvoDeRolagem';
 import { Cartao } from '../ui/Cartao';
 import { Selo } from '../ui/Selo';
 import { Texto } from '../ui/Texto';
-import { useCarregar } from '../ui/useCarregar';
+import { useCompromissosDoAluno, useRecarregarCompromissosAoFocar } from './compromissos/CompromissosDoAlunoProvider';
 import { SecaoDoInicio } from './SecaoDoInicio';
+
+/** Destino do toque num aviso de compromisso (`useRolagem().rolarAte`). */
+export const CHAVE_DOS_COMPROMISSOS = 'compromissos-do-aluno';
 
 /**
  * "Seus compromissos" no início do aluno: os próximos compromissos presenciais que a equipe marcou (só leitura; o
  * aluno não marca nem escolhe horário). Data e hora de Brasília, local e com quem; cancelado aparece com o selo, para o
- * aluno saber que não vai acontecer. Sem compromisso, sem internet ou com erro, o bloco some (nada fica no aparelho).
+ * aluno saber que não vai acontecer. Sem compromisso, sem internet ou com erro, o bloco some (nada fica no aparelho; a
+ * lista vem do `CompromissosDoAlunoProvider`, que também alimenta os avisos, o ponto e os lembretes).
  */
 export function CartaoCompromissos() {
   const { cores } = useTema();
-  const lista = useCarregar('aluno-compromissos', () => compromissosDoAluno());
-  const { recarregar } = lista;
-  useFocusEffect(useCallback(() => { recarregar(); }, [recarregar]));
-  const itens = lista.dados ?? [];
-  if (lista.erro || !itens.length) return null;
+  const { compromissos } = useCompromissosDoAluno();
+  useRecarregarCompromissosAoFocar();
+  const itens = compromissos ?? [];
+  if (!itens.length) return null;
   const hoje = hojeEmBrasilia();
   return (
+    <AlvoDeRolagem chave={CHAVE_DOS_COMPROMISSOS}>
     <SecaoDoInicio titulo="Seus compromissos">
       <Cartao>
         <View style={estilos.lista} accessibilityRole="list">
@@ -48,6 +50,7 @@ export function CartaoCompromissos() {
         </View>
       </Cartao>
     </SecaoDoInicio>
+    </AlvoDeRolagem>
   );
 }
 
