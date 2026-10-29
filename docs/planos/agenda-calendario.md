@@ -130,8 +130,8 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - [x] 7. App do aluno: item de aviso e ponto no Início, `aluno/compromissos/lembretes.ts`, permissão e interruptor, limpeza ao sair (executor) — commit/run: 6ec04e7
 - [x] 8. App do treinador: `FolhaCompromisso` com vários alunos, repetição e escopos, situação por aluno, e o acerto do `agenda-presencial.spec.ts` em 390 e 1280 (executor-front, em cima do passo 6) — commit/run: 732b54d
 - [x] 9. Texto do `AGENTS.md` (item "Agenda presencial") e ajuda do treinador e do aluno para o lote 1 (executor-rapido); **lote 1 pronto para um push na branch** — commit/run: b57c440 (guias em PDF só no fim, passo 15)
-- [ ] 10. API, V043: agendas pessoais, eventos sem aluno com recorrência (regra, exceções, escopos, expansão), rotas, 404 do dono, auditoria de resumo fixo, rota de resumo do Ano, atualizações por período e por responsável (D14, D19); totais 42 → 43 (executor) — commit/run: HASH
-- [ ] 11. Revisão da API do calendário: permissões, dono, tenant, privacidade e contrato (advisor ou revisor) — commit/run: —
+- [x] 10. API, V043: agendas pessoais, eventos sem aluno com recorrência (regra, exceções, escopos, expansão), rotas, 404 do dono, auditoria de resumo fixo, rota de resumo do Ano, atualizações por período e por responsável (D14, D19); totais 42 → 43 (executor) — commit/run: 854b7a5
+- [x] 11. Revisão da API do calendário: permissões, dono, tenant, privacidade e contrato (advisor ou revisor) — commit/run: advisor (29/10): sem achado de dono/tenant; decisões abaixo registradas
 - [ ] 12. App, regra pura: `dominio/agendaCalendario.ts`, `dominio/agendaEvento.ts`, paleta em `tema/tokens.ts`, preferência de agendas ocultas (executor, com teste) — commit/run: —
 - [ ] 13. App, telas: barra de calendário, grade de horários, Mês, Ano, mini calendário, painel de agendas, menu "Criar", `FolhaEvento`, atualizações filtradas por membro; ajustar `agenda.tsx` (executor-front, em cima do passo 12) — commit/run: —
 - [ ] 14. E2E: `agenda-calendario.spec.ts` em 390 e 1280 (executor-front) — commit/run: —
@@ -145,6 +145,12 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - Aniversários (D8); compartilhar agenda pessoal com outro membro; arrastar para remarcar na grade; fuso por pessoa (tudo em Brasília).
 
 ## O que ficou para trás
+- **Sem agenda padrão na API** (decidido no passo 11): `agendaId` é obrigatório. Quem ainda não tem agenda vê, na folha de evento, o campo Agenda já com o nome "Pessoal"; ao salvar, o app cria essa agenda (`POST /agenda/agendas`, cor AZUL) e depois o evento. Se a criação responder 409 `AGENDA_NOME_EM_USO` (outra aba criou), o app relê a lista e usa a existente. A API não cria agenda sozinha.
+- **Atualizações com janela de 366 dias** (e não 62): `GET /atualizacoes?de=&ate=` aceita até 366 dias porque o Ano conta as atualizações no app a partir dessa lista (pequena: só a pasta vigente de cada aluno); `/agenda/resumo` conta só compromissos e eventos. Semana e Mês pedem janelas curtas.
+- **`responsavel` em `/agenda/resumo` não é validado** (id desconhecido só zera os compromissos), igual à listagem de compromissos; em `/atualizacoes` um id de fora da equipe dá 404.
+- **Anonimização não limpa o texto livre dos eventos pessoais**: o evento não tem vínculo com aluno; se o membro escreveu o nome de um aluno no título, ele fica. O aviso fixo do formulário (P6) já diz isso; o teste da API fixa o comportamento.
+- **Evento avulso só aceita o escopo `ESTA`** (outro dá 400 `EVENTO_SEM_SERIE`): o app não manda `TODAS` nem `SEGUINTES` num avulso. SEGUINTES fora da primeira ocorrência cria série nova mas audita só `EVENTO_ALTERADO`.
+- **Descrições do `CatalogoPermissoes`** de `AGENDA_LER`/`AGENDA_ALTERAR` ainda dizem só "compromissos com alunos": acertar no passo 15.
 - **Dias úteis sem feriados** (segunda a sexta): decidido pelo Gustavo em 29/10; a ajuda do formulário diz "Feriados não são pulados: cancele só a ocorrência do feriado."
 - **Compromisso sem participante** se o aluno for apagado direto no banco (o CASCADE leva só o participante): nenhum caminho do app apaga aluno; aceito.
 - **Reabrir o compromisso inteiro** exige todos os participantes ativos: aluno inativado dá 409 até sair da lista (revisar na tela do passo 8).
