@@ -757,6 +757,14 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
 test.describe('filtros em Folha e preferências (1280 px)', () => {
   test.use({ viewport: { width: 1280, height: 900 } });
 
+  test('?novo=evento (atalho da busca) abre o evento novo e sai do endereço', async ({ page }) => {
+    const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [] };
+    await abrirAgenda(page, estado);
+    await page.goto('/treinador/agenda?novo=evento');
+    await expect(page.getByRole('dialog', { name: 'Novo evento', exact: true })).toBeVisible();
+    await expect.poll(() => endereco(page), { timeout: 3000 }).toBe('/treinador/agenda');
+  });
+
   test('escolher "Só os meus" na folha do Responsável grava ?meus=true e filtra', async ({ page }) => {
     const estado: Estado = { agendas: [agenda('g1', 'Pessoal', 'AZUL')], eventos: [], compromissos: [] };
     const { pedidos } = await abrirAgenda(page, estado);

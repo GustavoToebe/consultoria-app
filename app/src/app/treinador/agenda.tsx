@@ -70,7 +70,7 @@ function algoPorCima(menuAberto: boolean): boolean {
  * (`ATUALIZACAO_LER` + `ALUNO_SENSIVEL_LER`). No PC, Dia e Semana são a grade de horários e o mini calendário, as agendas e
  * os filtros ficam à esquerda; no celular, a lista por dia e o painel abre numa folha. Setas e "Hoje" trocam a data sem
  * empilhar passos; trocar de visão e abrir um dia empilham (o voltar desfaz). Atalhos D, W, M e Y (só web). Datas e horas
- * de Brasília. `?novo=1` (atalho da busca) abre o compromisso novo e sai do endereço.
+ * de Brasília. `?novo=1` (atalho da busca) abre o compromisso novo e `?novo=evento`, o evento novo; os dois saem do endereço.
  */
 export default function AgendaDoTreinador() {
   const p = useLocalSearchParams<Parametros>();
@@ -159,14 +159,18 @@ export default function AgendaDoTreinador() {
     void Promise.resolve().then(() => { if (vivo) setAjuste(null); });
     return () => { vivo = false; };
   }, [ajuste, p]);
-  useEffect(() => {
-    if (p.novo !== '1' || !podeAlterar) return;
-    let vivo = true;
-    void Promise.resolve().then(() => { if (!vivo) return; setCompromisso('novo'); router.setParams({ novo: undefined }); });
-    return () => { vivo = false; };
-  }, [p.novo, podeAlterar]);
-
   const diaSugerido = data < hoje ? hoje : data;
+  useEffect(() => {
+    if ((p.novo !== '1' && p.novo !== 'evento') || !podeAlterar) return;
+    let vivo = true;
+    const comoEvento = p.novo === 'evento';
+    void Promise.resolve().then(() => {
+      if (!vivo) return;
+      if (comoEvento) setEvento({ tipo: 'novo', data: diaSugerido }); else setCompromisso('novo');
+      router.setParams({ novo: undefined });
+    });
+    return () => { vivo = false; };
+  }, [p.novo, podeAlterar, diaSugerido]);
   const abrirItem = (item: ItemDoCalendario) => {
     const f = item.fonte;
     if (f.origem === 'COMPROMISSO') setCompromisso(f.compromisso);
