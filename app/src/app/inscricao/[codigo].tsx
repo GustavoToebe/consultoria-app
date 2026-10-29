@@ -8,8 +8,14 @@ import {
   corpoDaInscricao,
   errosDaInscricao,
   INSCRICAO_VAZIA,
+  INTERESSES,
   LIMITES_INSCRICAO,
   mascaraWhatsapp,
+  MODALIDADES_DESEJADAS,
+  opcoesOpcionais,
+  origemDoLink,
+  ORIGENS_INFORMADAS,
+  PREVISOES,
   type DadosDaInscricao,
 } from '../../dominio/inscricoes';
 import { mensagemDaVerificacao, MOTIVO_VERIFICANDO, rotuloDoEnvio } from '../../dominio/verificacaoHumana';
@@ -37,8 +43,10 @@ import { VerificacaoHumana } from '../../ui/VerificacaoHumana';
  * da consultoria. Depois do envio só a mensagem neutra; nada da fila nem de outras pessoas aparece.
  */
 export default function Inscricao() {
-  const { codigo: bruto } = useLocalSearchParams<{ codigo?: string }>();
+  const { codigo: bruto, origem } = useLocalSearchParams<{ codigo?: string; origem?: string }>();
   const codigo = typeof bruto === 'string' ? bruto : '';
+  // `?origem=instagram` no link divulgado: só letras, números, - e _ (outro valor é ignorado, nunca recusa a inscrição).
+  const origemLink = origemDoLink(origem);
   const pagina = useCarregar(codigo ? `inscricao-publica:${codigo}` : null, () => inscricaoPublica(codigo));
   const verificacao = useVerificacaoHumana();
   const [dados, setDados] = useState<DadosDaInscricao>(INSCRICAO_VAZIA);
@@ -50,6 +58,8 @@ export default function Inscricao() {
 
   const mudar = (campo: keyof DadosDaInscricao) => (valor: string) =>
     setDados((d) => ({ ...d, [campo]: campo === 'whatsapp' ? mascaraWhatsapp(valor) : valor }));
+  const escolher = <K extends 'interesse' | 'modalidade' | 'previsaoInicio' | 'origem'>(campo: K) => (valor: DadosDaInscricao[K]) =>
+    setDados((d) => ({ ...d, [campo]: valor }));
 
   const texto = pagina.dados?.texto ?? null;
   // Aba do navegador com o nome da consultoria (o layout raiz não a conhece: aqui não há sessão).
@@ -72,7 +82,7 @@ export default function Inscricao() {
     let falha: unknown;
     try {
       const resposta = await enviarInscricao(codigo,
-        corpoDaInscricao(dados, !!texto && ciencia, verificacao.token, pagina.dados?.textoVersao ?? null));
+        corpoDaInscricao(dados, !!texto && ciencia, verificacao.token, pagina.dados?.textoVersao ?? null, origemLink));
       setRecebida(resposta.mensagem);
     } catch (e) {
       falha = e;
@@ -138,6 +148,17 @@ export default function Inscricao() {
           ajuda="Em poucas palavras. Informações de saúde ficam para depois, se a inscrição for aceita." />
         <Campo rotulo="Observação (opcional)" valor={dados.observacao} aoMudar={mudar('observacao')} erro={campos.observacao}
           linhas={3} maxLength={LIMITES_INSCRICAO.observacao} />
+      </Cartao>
+      {/* Perguntas rápidas, todas opcionais: ajudam a equipe a direcionar o primeiro contato. */}
+      <Cartao titulo="Perguntas rápidas" descricao="Opcionais. Ajudam a equipe a falar com você sobre o que importa.">
+        <Escolha rotulo="O que você procura?" valor={dados.interesse} aoMudar={escolher('interesse')} distribuida
+          opcoes={opcoesOpcionais(INTERESSES)} />
+        <Escolha rotulo="Como prefere o acompanhamento?" valor={dados.modalidade} aoMudar={escolher('modalidade')} distribuida
+          opcoes={opcoesOpcionais(MODALIDADES_DESEJADAS)} />
+        <Escolha rotulo="Quando quer começar?" valor={dados.previsaoInicio} aoMudar={escolher('previsaoInicio')} distribuida
+          opcoes={opcoesOpcionais(PREVISOES)} />
+        <Escolha rotulo="Como conheceu a consultoria?" valor={dados.origem} aoMudar={escolher('origem')} distribuida
+          opcoes={opcoesOpcionais(ORIGENS_INFORMADAS)} />
       </Cartao>
       {texto ? (
         <Cartao titulo="Antes de enviar" descricao={`Texto de ${consultoria.nome}.`}>

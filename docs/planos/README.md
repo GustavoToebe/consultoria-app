@@ -30,12 +30,14 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Meus dados do aluno (cartão na aba Conta) | [meus-dados-do-aluno.md](meus-dados-do-aluno.md) | `main` (um push) | Concluída em 28/10/2026 (run 40760401698 verde; celular só num APK novo) | 28/10/2026 |
 | Evolução (referências da Prime: lista de compras, receitas, PDFs, avaliação física, agenda, lembretes) | [evolucao-prime.md](evolucao-prime.md) | `main` (457c152) | Concluída em 28/10/2026; decisões abertas fechadas em 29/10 | 29/10/2026 |
 | Ajustes da evolução (lista na ordem do mercado, PDF do comparativo para o aluno, aluno desliga lembretes, contraste do PDF) | [ajustes-evolucao.md](ajustes-evolucao.md) | branch `ajustes-evolucao` (c5e12d8) | Pronta e conferida; falta decidir o merge na `main` | 29/10/2026 |
-| Interessados: correções e CRM | [interessados-crm.md](interessados-crm.md) | branch `claude/saraiva-api-direcionamento-treinos-dv10io` | Em andamento | 29/10/2026 |
+| Interessados: correções e CRM | [interessados-crm.md](interessados-crm.md) | branch `claude/saraiva-api-direcionamento-treinos-dv10io` | Pronta na branch; falta conferir e decidir o merge | 29/10/2026 |
 
 ## Pendências soltas
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
+| Retornos atrasados de interessados no Início do treinador | Claude | interessados-crm |
+| Arrastar no Kanban de interessados: testar no celular (toque longo) | Gustavo | interessados-crm |
 | Conferir que a "Anamnese Saraiva Team" está publicada em Planejamento › Anamnese | Gustavo | anamnese |
 | Ver no celular se os títulos das seções do editor de séries (caixa alta 12 px) ficaram bons | Gustavo | editor de séries (5d353d0) |
 | Gerar APK novo (`npx eas-cli build --profile preview --platform android`) e repetir o roteiro de `docs/build-celular.md` | Gustavo | etapas, cronômetro, editor |

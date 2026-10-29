@@ -2,13 +2,26 @@ import { codigoApi, emailValido, errosPorCampo, formatarTelefone, somenteDigitos
 
 import type {
   DuplicidadeInscricao,
+  Encerramento,
+  EtapaAberta,
+  EventoInscricao,
   FiltroInscricoes,
+  IndicadoresInscricoes,
   InscricaoPublicaRequest,
+  Interesse,
+  Modalidade,
+  ModalidadeDesejada,
+  MotivoEncerramento,
+  Origem,
+  OrigemInformada,
   PagamentoInscricao,
+  Periodicidade,
+  PrevisaoInicio,
+  PropostaInscricao,
   SituacaoInscricao,
 } from '../api/inscricoesTipos';
 import type { OpcaoQuestionario } from '../api/tipos';
-import { SEM_DADO } from './formatos';
+import { centavosDaTela, SEM_DADO } from './formatos';
 
 /**
  * Regras puras da inscrição por link e da fila de interessados. As validações espelham a API (`InscricaoPublicaRequest`
@@ -19,7 +32,11 @@ import { SEM_DADO } from './formatos';
 export type TipoDeSelo = 'sucesso' | 'atencao' | 'perigo' | 'neutro';
 
 /** Limites dos campos (mesmos do `@Size` da API). */
-export const LIMITES_INSCRICAO = { nome: 120, email: 254, objetivo: 500, observacao: 1000, texto: 2000, nota: 2000 } as const;
+export const LIMITES_INSCRICAO = {
+  nome: 120, email: 254, objetivo: 500, observacao: 1000, texto: 2000, nota: 2000,
+  motivoDetalhe: 300, motivoReabertura: 200, condicoes: 500, planoNome: 120, retorno: 200,
+  modeloNome: 60, modeloTexto: 1000,
+} as const;
 
 const SITUACOES: Record<SituacaoInscricao, { texto: string; tipo: TipoDeSelo }> = {
   NOVA: { texto: 'Nova', tipo: 'atencao' },
@@ -63,19 +80,81 @@ export const OPCOES_PAGAMENTO: { valor: PagamentoInscricao; rotulo: string }[] =
   { valor: 'CONFIRMADO_MANUAL', rotulo: 'Confirmado' },
 ];
 
+/** Etapas abertas, na ordem do atendimento (as colunas do Kanban). */
+export const ETAPAS_ABERTAS: readonly EtapaAberta[] = ['NOVA', 'EM_CONTATO', 'EM_NEGOCIACAO'];
+/** Situações encerradas, mostradas à parte ("Mostrar encerradas"). */
+export const SITUACOES_ENCERRADAS: readonly SituacaoInscricao[] = ['ACEITA', 'RECUSADA', 'DESISTIU'];
+
+export const estaAberta = (s: SituacaoInscricao): s is EtapaAberta => (ETAPAS_ABERTAS as readonly string[]).includes(s);
+export const estaEncerradaSemAluno = (s: SituacaoInscricao): s is Encerramento => s === 'RECUSADA' || s === 'DESISTIU';
+
 /**
- * Situações que a pessoa pode escolher no andamento. Aceitar e recusar têm botão próprio (a API recusa as duas no
- * andamento); aceita não muda mais; recusada pode voltar ao atendimento.
+ * Situações que a pessoa pode escolher no andamento: de uma etapa aberta, só as abertas (encerrar e aceitar têm botão
+ * próprio, com motivo e conferência); encerrada ou aceita fica como está (só "Reabrir" volta ao atendimento).
  */
 export function situacoesDoAndamento(atual: SituacaoInscricao): { valor: SituacaoInscricao; rotulo: string }[] {
-  if (atual === 'ACEITA') return [{ valor: 'ACEITA', rotulo: SITUACOES.ACEITA.texto }];
-  const base: SituacaoInscricao[] = ['NOVA', 'EM_CONTATO', 'EM_NEGOCIACAO', 'DESISTIU'];
-  const lista = atual === 'RECUSADA' ? [...base, 'RECUSADA' as const] : base;
-  return lista.map((valor) => ({ valor, rotulo: SITUACOES[valor].texto }));
+  if (!estaAberta(atual)) return [{ valor: atual, rotulo: SITUACOES[atual].texto }];
+  return ETAPAS_ABERTAS.map((valor) => ({ valor, rotulo: SITUACOES[valor].texto }));
 }
 
-export const podeAceitar = (s: SituacaoInscricao) => s !== 'ACEITA';
-export const podeRecusar = (s: SituacaoInscricao) => s !== 'ACEITA' && s !== 'RECUSADA';
+/** Aceitar e encerrar só de uma etapa aberta; de encerrada, primeiro "Reabrir". */
+export const podeAceitar = (s: SituacaoInscricao) => estaAberta(s);
+export const podeEncerrar = (s: SituacaoInscricao) => estaAberta(s);
+export const podeReabrir = (s: SituacaoInscricao) => estaEncerradaSemAluno(s);
+
+// ---- Rótulos do CRM ----
+
+export const MOTIVOS: Record<MotivoEncerramento, string> = {
+  PRECO: 'Preço',
+  SEM_RETORNO: 'Sem retorno',
+  MOMENTO: 'Momento inadequado',
+  OUTRO_SERVICO: 'Escolheu outro serviço',
+  SERVICO_INCOMPATIVEL: 'Serviço incompatível',
+  OUTRO: 'Outro',
+};
+export const OPCOES_MOTIVO = (Object.keys(MOTIVOS) as MotivoEncerramento[]).map((valor) => ({ valor, rotulo: MOTIVOS[valor] }));
+/** Motivo do encerramento; registros antigos (nulo) = "Não informado". */
+export const rotuloDoMotivo = (m: MotivoEncerramento | null | undefined) => (m ? MOTIVOS[m] : 'Não informado');
+
+export const ENCERRAMENTOS: { valor: Encerramento; rotulo: string }[] = [
+  { valor: 'RECUSADA', rotulo: 'Recusada pela equipe' },
+  { valor: 'DESISTIU', rotulo: 'A pessoa desistiu' },
+];
+
+export const MODALIDADES: Record<Modalidade, string> = { ONLINE: 'Online', PRESENCIAL: 'Presencial', HIBRIDO: 'Híbrido' };
+export const OPCOES_MODALIDADE = (Object.keys(MODALIDADES) as Modalidade[]).map((valor) => ({ valor, rotulo: MODALIDADES[valor] }));
+
+export const PERIODICIDADES: Record<Periodicidade, string> = {
+  MENSAL: 'Mensal', TRIMESTRAL: 'Trimestral', SEMESTRAL: 'Semestral', ANUAL: 'Anual', PARCELA_UNICA: 'Parcela única',
+};
+export const OPCOES_PERIODICIDADE = (Object.keys(PERIODICIDADES) as Periodicidade[]).map((valor) => ({ valor, rotulo: PERIODICIDADES[valor] }));
+
+const NAO_SEI = 'Ainda não sei';
+export const INTERESSES: Record<Interesse, string> = { TREINO: 'Treino', DIETA: 'Dieta', TREINO_E_DIETA: 'Treino e dieta', NAO_SEI };
+export const MODALIDADES_DESEJADAS: Record<ModalidadeDesejada, string> = { ...MODALIDADES, NAO_SEI };
+export const PREVISOES: Record<PrevisaoInicio, string> = { AGORA: 'Agora', ESTE_MES: 'Este mês', PROXIMO_MES: 'Próximo mês', NAO_SEI };
+export const ORIGENS_INFORMADAS: Record<OrigemInformada, string> = { INDICACAO: 'Indicação', INSTAGRAM: 'Instagram', GOOGLE: 'Google', OUTRA: 'Outra' };
+export const ORIGENS: Record<Origem, string> = { INDICACAO: 'Indicação', INSTAGRAM: 'Instagram', GOOGLE: 'Google', CAMPANHA: 'Campanha', OUTRA: 'Outra' };
+export const OPCOES_ORIGEM = (Object.keys(ORIGENS) as Origem[]).map((valor) => ({ valor, rotulo: ORIGENS[valor] }));
+export const rotuloDaOrigem = (o: Origem | null | undefined) => (o ? ORIGENS[o] : 'Não informada');
+
+/** Opções de uma resposta opcional do formulário público: "Não informar" (vazio) e as do mapa. */
+export function opcoesOpcionais<T extends string>(rotulos: Record<T, string>): { valor: T | ''; rotulo: string }[] {
+  return [{ valor: '', rotulo: 'Não informar' }, ...(Object.keys(rotulos) as T[]).map((valor) => ({ valor, rotulo: rotulos[valor] }))];
+}
+
+/** Texto de uma resposta opcional do formulário (nulo = "—"). */
+export function rotuloOpcional<T extends string>(rotulos: Record<T, string>, valor: T | null | undefined): string {
+  return valor ? rotulos[valor] ?? SEM_DADO : SEM_DADO;
+}
+
+/** Parâmetro `?origem=` do link: só `[a-z0-9_-]{1,40}` (em minúsculas); qualquer outro valor é ignorado. */
+export function origemDoLink(param: string | string[] | null | undefined): string | null {
+  const bruto = Array.isArray(param) ? param[0] : param;
+  if (!bruto) return null;
+  const valor = bruto.trim().toLowerCase();
+  return /^[a-z0-9_-]{1,40}$/.test(valor) ? valor : null;
+}
 
 /**
  * Link do WhatsApp sem texto pré-preenchido (nada de dado da pessoa na URL): `https://wa.me/55<DDD+número>`. Telefone
@@ -104,8 +183,14 @@ export function textoDaDuplicidade(d: DuplicidadeInscricao | null | undefined): 
   if (d.outrasInscricoesAbertas > 1) {
     partes.push(`Há outras ${d.outrasInscricoesAbertas} inscrições em atendimento com o mesmo e-mail ou WhatsApp.`);
   }
+  const anteriores = d.outrasInscricoesAnteriores ?? 0;
+  if (anteriores === 1) partes.push('Há 1 inscrição anterior com o mesmo e-mail ou WhatsApp.');
+  if (anteriores > 1) partes.push(`Há ${anteriores} inscrições anteriores com o mesmo e-mail ou WhatsApp.`);
   return partes.length ? partes.join(' ') : null;
 }
+
+/** Há algo para avisar como possível duplicidade. */
+export const temDuplicidade = (d: DuplicidadeInscricao | null | undefined) => textoDaDuplicidade(d) !== null;
 
 /** Campos da página pública, como a pessoa digita. */
 export interface DadosDaInscricao {
@@ -115,9 +200,16 @@ export interface DadosDaInscricao {
   objetivo: string;
   observacao: string;
   sexo: string;
+  /** Qualificação rápida (opcional; vazio = não informado). */
+  interesse: Interesse | '';
+  modalidade: ModalidadeDesejada | '';
+  previsaoInicio: PrevisaoInicio | '';
+  origem: OrigemInformada | '';
 }
 
-export const INSCRICAO_VAZIA: DadosDaInscricao = { nome: '', whatsapp: '', email: '', objetivo: '', observacao: '', sexo: '' };
+export const INSCRICAO_VAZIA: DadosDaInscricao = {
+  nome: '', whatsapp: '', email: '', objetivo: '', observacao: '', sexo: '', interesse: '', modalidade: '', previsaoInicio: '', origem: '',
+};
 
 /** Máscara do WhatsApp enquanto digita: `(11) 98765-4321`. */
 export const mascaraWhatsapp = (texto: string) => formatarTelefone(texto);
@@ -145,7 +237,7 @@ export function errosDaInscricao(d: DadosDaInscricao, exigeCiencia: boolean, cie
  * a página mostrou (a API recusa a ciência de um texto que mudou).
  */
 export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: string | null,
-  textoVersao: string | null = null): InscricaoPublicaRequest {
+  textoVersao: string | null = null, origemLink: string | null = null): InscricaoPublicaRequest {
   const opcional = (t: string) => (t.trim() ? t.trim() : null);
   const corpo: InscricaoPublicaRequest = {
     nome: d.nome.trim(),
@@ -154,6 +246,11 @@ export function corpoDaInscricao(d: DadosDaInscricao, ciencia: boolean, token: s
     objetivo: opcional(d.objetivo),
     observacao: opcional(d.observacao),
     ...(d.sexo ? { sexo: d.sexo } : {}),
+    interesse: d.interesse || null,
+    modalidade: d.modalidade || null,
+    previsaoInicio: d.previsaoInicio || null,
+    origem: d.origem || null,
+    origemLink,
     cienciaPrivacidade: ciencia,
     textoVersao,
   };
@@ -201,4 +298,228 @@ export function paginaQueSobra(pagina: number, dados: { itens: readonly unknown[
   tamanho: number): number {
   if (!dados || dados.itens.length > 0 || pagina === 0) return pagina;
   return Math.max(0, Math.ceil(dados.total / tamanho) - 1);
+}
+
+// ---- Respostas prontas (WhatsApp) ----
+
+/** Variáveis aceitas nos modelos de mensagem, com o que cada uma vira. */
+export const VARIAVEIS_DA_MENSAGEM: { chave: string; descricao: string }[] = [
+  { chave: '{primeiro_nome}', descricao: 'primeiro nome da pessoa' },
+  { chave: '{consultoria}', descricao: 'nome da consultoria' },
+  { chave: '{plano}', descricao: 'plano da proposta' },
+];
+
+/**
+ * Troca as variáveis do modelo. Variável sem valor fica no texto e entra em `faltando` (assim como qualquer `{...}`
+ * desconhecido): a mensagem só pode ser copiada ou aberta no WhatsApp sem nada faltando.
+ */
+export function mensagemComVariaveis(texto: string, valores: { primeiroNome?: string | null; consultoria?: string | null; plano?: string | null }): { texto: string; faltando: string[] } {
+  const mapa: Record<string, string | null | undefined> = {
+    primeiro_nome: valores.primeiroNome?.trim(),
+    consultoria: valores.consultoria?.trim(),
+    plano: valores.plano?.trim(),
+  };
+  const trocado = texto.replace(/\{([^{}]*)\}/g, (inteiro, nome: string) => {
+    const valor = mapa[nome.trim()];
+    return valor ? valor : inteiro;
+  });
+  return { texto: trocado, faltando: variaveisQueFaltam(trocado) };
+}
+
+/** `{...}` que ainda estão no texto (sem repetir), na ordem em que aparecem. */
+export function variaveisQueFaltam(texto: string): string[] {
+  const vistas: string[] = [];
+  for (const m of texto.matchAll(/\{[^{}]*\}/g)) if (!vistas.includes(m[0])) vistas.push(m[0]);
+  return vistas;
+}
+
+/** Primeiro nome para a mensagem ("Ana Paula Souza" → "Ana"). */
+export function primeiroNome(nome: string | null | undefined): string {
+  return (nome ?? '').trim().split(/\s+/)[0] ?? '';
+}
+
+/**
+ * Link do WhatsApp com o texto preparado (`wa.me/55...?text=`). Só abre o aplicativo com o texto: quem envia é a pessoa,
+ * e abrir não quer dizer que a mensagem foi enviada. Sem número válido ou sem texto, `null`.
+ */
+export function linkDoWhatsAppComTexto(whatsapp: string | null | undefined, texto: string | null | undefined): string | null {
+  const base = linkDoWhatsApp(whatsapp);
+  if (!base || !texto?.trim()) return null;
+  return `${base}?text=${encodeURIComponent(texto)}`;
+}
+
+// ---- Histórico ----
+
+const rotuloDeCodigo = (codigo: string | null): string => {
+  if (!codigo) return SEM_DADO;
+  if (codigo in SITUACOES) return SITUACOES[codigo as SituacaoInscricao].texto;
+  if (codigo in PAGAMENTOS) return PAGAMENTOS[codigo as PagamentoInscricao].texto;
+  if (codigo in ORIGENS) return ORIGENS[codigo as Origem];
+  return codigo;
+};
+
+/** Uma linha do histórico, sem autor nem data (a tela põe). Nunca o texto de uma mensagem. */
+export function textoDoEvento(e: Pick<EventoInscricao, 'tipo' | 'de' | 'para' | 'motivo' | 'detalhe'>): string {
+  const comDetalhe = (base: string) => (e.detalhe ? `${base}: ${e.detalhe}` : base);
+  switch (e.tipo) {
+    case 'CRIADA': return 'Inscrição recebida';
+    case 'ETAPA': return `Etapa: ${rotuloDeCodigo(e.de)} → ${rotuloDeCodigo(e.para)}`;
+    case 'RESPONSAVEL': return `Responsável: ${e.detalhe ?? 'Sem responsável'}`;
+    case 'PAGAMENTO': return `Pagamento: ${rotuloDeCodigo(e.de)} → ${rotuloDeCodigo(e.para)}`;
+    case 'ENCERRADA': {
+      const base = `Encerrada: ${rotuloDeCodigo(e.para)} · ${rotuloDoMotivo(e.motivo)}`;
+      return e.detalhe ? `${base} (${e.detalhe})` : base;
+    }
+    case 'REABERTA': return comDetalhe('Reaberta');
+    case 'ACEITA': return 'Aceita: virou aluno';
+    case 'PROPOSTA': return comDetalhe('Proposta');
+    case 'MENSAGEM_PREPARADA': {
+      const acao = e.para === 'WHATSAPP_ABERTO' ? 'WhatsApp aberto' : 'copiada';
+      return `Mensagem preparada: ${e.detalhe ?? 'texto livre'} (${acao})`;
+    }
+    case 'RETORNO_MARCADO': return comDetalhe('Retorno marcado');
+    case 'RETORNO_ALTERADO': return comDetalhe('Retorno reagendado');
+    case 'RETORNO_CONCLUIDO': return comDetalhe('Retorno concluído');
+    case 'RELACIONADA': return 'Relacionada a outra inscrição';
+    case 'RELACAO_DESFEITA': return 'Relação com outra inscrição desfeita';
+    case 'ORIGEM': return `Origem: ${e.de ? rotuloDeCodigo(e.de) : 'Não informada'} → ${e.para ? rotuloDeCodigo(e.para) : 'Não informada'}`;
+    default: return e.detalhe ?? 'Atualização';
+  }
+}
+
+/** Item do histórico: evento ou nota, para a tela ordenar junto. */
+export type ItemDoHistorico =
+  | { tipo: 'evento'; id: string; quando: string; autor: string | null; texto: string }
+  | { tipo: 'nota'; id: string; quando: string; autor: string | null; texto: string };
+
+/** Eventos e notas juntos, do mais novo ao mais antigo (empate: nota depois do evento do mesmo instante). */
+export function historicoDaInscricao(
+  eventos: readonly EventoInscricao[],
+  notas: readonly { id: string; texto: string; autorNome: string | null; criadaEm: string }[],
+): ItemDoHistorico[] {
+  const itens: ItemDoHistorico[] = [
+    ...eventos.map((e) => ({ tipo: 'evento' as const, id: e.id, quando: e.criadoEm, autor: e.autorNome, texto: textoDoEvento(e) })),
+    ...notas.map((n) => ({ tipo: 'nota' as const, id: n.id, quando: n.criadaEm, autor: n.autorNome, texto: n.texto })),
+  ];
+  return itens.sort((a, b) => (a.quando === b.quando ? (a.tipo === b.tipo ? 0 : a.tipo === 'nota' ? -1 : 1) : a.quando < b.quando ? 1 : -1));
+}
+
+// ---- Kanban ----
+
+/** Destino de um cartão: outra etapa aberta (move direto), aceitar, encerrar ou reabrir (abrem a confirmação). */
+export type DestinoDoCartao =
+  | { tipo: 'etapa'; situacao: EtapaAberta; rotulo: string }
+  | { tipo: 'aceitar'; rotulo: string }
+  | { tipo: 'encerrar'; situacao: Encerramento; rotulo: string }
+  | { tipo: 'reabrir'; rotulo: string };
+
+/** Para onde o cartão pode ir: de aberta, as outras abertas, aceitar e os dois encerramentos; encerrada, reabrir. */
+export function destinosDoCartao(situacao: SituacaoInscricao): DestinoDoCartao[] {
+  if (estaAberta(situacao)) {
+    return [
+      ...ETAPAS_ABERTAS.filter((s) => s !== situacao).map((s) => ({ tipo: 'etapa' as const, situacao: s, rotulo: SITUACOES[s].texto })),
+      { tipo: 'aceitar', rotulo: 'Aceitar (cadastrar aluno)' },
+      { tipo: 'encerrar', situacao: 'RECUSADA', rotulo: 'Recusar' },
+      { tipo: 'encerrar', situacao: 'DESISTIU', rotulo: 'Desistiu' },
+    ];
+  }
+  if (estaEncerradaSemAluno(situacao)) return [{ tipo: 'reabrir', rotulo: 'Reabrir atendimento' }];
+  return [];
+}
+
+/** Destino ao soltar o cartão numa coluna (`null` = nada a fazer: mesma coluna ou transição que não existe). */
+export function destinoDaColuna(de: SituacaoInscricao, coluna: SituacaoInscricao): DestinoDoCartao | null {
+  if (de === coluna) return null;
+  return destinosDoCartao(de).find((d) => {
+    if (d.tipo === 'etapa' || d.tipo === 'encerrar') return d.situacao === coluna;
+    if (d.tipo === 'aceitar') return coluna === 'ACEITA';
+    return d.tipo === 'reabrir' && estaAberta(coluna);
+  }) ?? null;
+}
+
+/** Cabeçalho da coluna: o total da contagem e, se carregou menos, "Mostrando 20 de 34". */
+export function textoDaColuna(carregados: number, total: number | null | undefined): string | null {
+  if (total === null || total === undefined) return null;
+  return carregados < total ? `Mostrando ${carregados} de ${total}` : null;
+}
+
+// ---- Estados vazios ----
+
+export function estadoVazio(p: { filtro: FiltroInscricoes; meus: boolean; busca: string; temFiltros: boolean }): { titulo: string; texto: string } {
+  if (p.busca.trim()) return { titulo: 'Nada encontrado para esta busca.', texto: 'Confira o nome, o e-mail ou os dígitos do WhatsApp.' };
+  if (p.meus) return { titulo: 'Nenhuma inscrição atribuída a você nesta lista.', texto: 'Veja em "Todos" as inscrições da equipe.' };
+  if (p.temFiltros) return { titulo: 'Nenhuma inscrição com estes filtros.', texto: 'Tire um filtro para ver mais.' };
+  if (p.filtro === 'ABERTAS') return { titulo: 'Nenhuma inscrição nesta lista', texto: 'Divulgue o link de inscrição: quem se inscrever aparece aqui.' };
+  return { titulo: 'Nenhuma inscrição nesta lista', texto: 'Tente outra situação.' };
+}
+
+// ---- Retornos ----
+
+/** Selo do retorno pela data de Brasília: antes de hoje = atrasado (vermelho), hoje (âmbar), depois só a data. */
+export function seloDoRetorno(data: string, hoje: string): { texto: string; tipo: TipoDeSelo } | null {
+  if (data < hoje) return { texto: 'Atrasado', tipo: 'perigo' };
+  if (data === hoje) return { texto: 'Hoje', tipo: 'atencao' };
+  return null;
+}
+
+// ---- Proposta ----
+
+/** Desconto da proposta sobre a referência, em % inteiro; nulo sem os dois valores ou sem desconto. */
+export function descontoDaProposta(p: Pick<PropostaInscricao, 'valorReferenciaCentavos' | 'valorCentavos'>): number | null {
+  const ref = p.valorReferenciaCentavos;
+  const valor = p.valorCentavos;
+  if (ref === null || valor === null || ref <= 0 || valor >= ref) return null;
+  return Math.round(((ref - valor) / ref) * 100);
+}
+
+export const temProposta = (p: PropostaInscricao | null | undefined) =>
+  !!p && (p.planoNome !== null || p.valorCentavos !== null || p.modalidade !== null || p.periodicidade !== null || !!p.condicoes);
+
+/** Valor em reais digitado na proposta: vazio = nulo (sem valor), inválido = erro. Zero é aceito (cortesia). */
+export function valorDaProposta(texto: string): { valor: number | null; erro: string | null } {
+  const t = texto.trim();
+  if (!t) return { valor: null, erro: null };
+  if (/^(R\$\s*)?0+([,.]0{1,2})?$/i.test(t)) return { valor: 0, erro: null };
+  const centavos = centavosDaTela(t);
+  return centavos === null ? { valor: null, erro: 'Valor inválido. Use, por exemplo, 199,90.' } : { valor: centavos, erro: null };
+}
+
+// ---- Indicadores ----
+
+/** Conversão de 0 a 1 em "37%"; nulo = "—". */
+export function porcentagem(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return SEM_DADO;
+  return `${Math.round(valor * 100)}%`;
+}
+
+/** Dias com uma casa ("3,5 dias"); nulo = "—". */
+export function dias(valor: number | null | undefined): string {
+  if (valor === null || valor === undefined || !Number.isFinite(valor)) return SEM_DADO;
+  const arredondado = Math.round(valor * 10) / 10;
+  const texto = Number.isInteger(arredondado) ? String(arredondado) : arredondado.toFixed(1).replace('.', ',');
+  return `${texto} ${arredondado === 1 ? 'dia' : 'dias'}`;
+}
+
+/** Períodos prontos dos indicadores, em datas de Brasília. */
+export type PeriodoDosIndicadores = '30' | '90' | 'ano';
+export const PERIODOS_DOS_INDICADORES: { valor: PeriodoDosIndicadores; rotulo: string }[] = [
+  { valor: '30', rotulo: 'Últimos 30 dias' },
+  { valor: '90', rotulo: 'Últimos 90 dias' },
+  { valor: 'ano', rotulo: 'Este ano' },
+];
+
+export function intervaloDoPeriodo(periodo: PeriodoDosIndicadores, hoje: string): { de: string; ate: string } {
+  if (periodo === 'ano') return { de: `${hoje.slice(0, 4)}-01-01`, ate: hoje };
+  const [a, m, d] = hoje.split('-').map(Number);
+  const inicio = new Date(Date.UTC(a, m - 1, d - (Number(periodo) - 1)));
+  return { de: inicio.toISOString().slice(0, 10), ate: hoje };
+}
+
+/** Linhas da tabela "Por motivo", do maior ao menor (nulo = "Não informado"). */
+export function linhasPorMotivo(ind: Pick<IndicadoresInscricoes, 'porMotivo'>): { rotulo: string; quantidade: number }[] {
+  return [...ind.porMotivo].sort((a, b) => b.quantidade - a.quantidade).map((l) => ({ rotulo: rotuloDoMotivo(l.motivo), quantidade: l.quantidade }));
+}
+
+export function linhasPorOrigem(ind: Pick<IndicadoresInscricoes, 'porOrigem'>): { rotulo: string; entradas: number; aceites: number }[] {
+  return [...ind.porOrigem].sort((a, b) => b.entradas - a.entradas).map((l) => ({ rotulo: rotuloDaOrigem(l.origem), entradas: l.entradas, aceites: l.aceites }));
 }

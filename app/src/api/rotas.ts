@@ -29,14 +29,27 @@ import type {
 import type { PerfilEquipe, PerfilEquipeRequest, PermissaoEquipe, MembroEquipe, ConviteEquipe, ResponsavelEquipe, PaginaAuditoria } from './equipeTipos';
 import type {
   AceiteInscricao,
+  AcaoDaMensagem,
   AlterarInscricaoRequest,
   ConfiguracaoInscricao,
   ConfiguracaoInscricaoRequest,
-  FiltroInscricoes,
+  ContagensInscricoes,
+  EncerrarRequest,
+  EtapaAberta,
+  FiltroDaFila,
+  IndicadoresInscricoes,
   InscricaoDetalhe,
   InscricaoPublica,
   InscricaoPublicaRequest,
+  ModeloDeMensagem,
+  ModeloDeMensagemRequest,
+  Origem,
   PaginaInscricoes,
+  PlanoDeReferencia,
+  PropostaRequest,
+  RetornoPendente,
+  RetornoRequest,
+  Semelhantes,
 } from './inscricoesTipos';
 import type { Compromisso, CompromissoDoAluno, CompromissoRequest, FiltroCompromissos, SituacaoCompromisso } from './agendaTipos';
 import type {
@@ -389,13 +402,48 @@ export const alterarConfiguracaoInscricao = (corpo: ConfiguracaoInscricaoRequest
 export const novoLinkInscricao = (versao: number | null) =>
   requisicao<ConfiguracaoInscricao>('/inscricoes/configuracao/novo-link', { metodo: 'POST', corpo: { versao } });
 
-export const listarInscricoes = (filtro: { situacao: FiltroInscricoes; meus: boolean; pagina: number }) => {
+/** Parâmetros comuns da lista, das contagens e do Kanban (busca, responsável e origem). */
+function filtroDaFila(filtro: Omit<FiltroDaFila, 'situacao' | 'pagina'>): URLSearchParams {
   const q = new URLSearchParams();
-  q.set('situacao', filtro.situacao);
   q.set('meus', String(filtro.meus));
+  if (filtro.busca?.trim()) q.set('busca', filtro.busca.trim());
+  if (filtro.responsavel && !filtro.meus) q.set('responsavel', filtro.responsavel);
+  if (filtro.origem) q.set('origem', filtro.origem);
+  return q;
+}
+
+export const listarInscricoes = (filtro: FiltroDaFila) => {
+  const q = filtroDaFila(filtro);
+  q.set('situacao', filtro.situacao);
   q.set('pagina', String(filtro.pagina));
+  if (filtro.tamanho) q.set('tamanho', String(filtro.tamanho));
   return requisicao<PaginaInscricoes>(`/inscricoes?${q.toString()}`);
 };
+
+/** Quantas há em cada situação com os mesmos filtros da lista (sem a situação) e os retornos pendentes. */
+export const contagensInscricoes = (filtro: Omit<FiltroDaFila, 'situacao' | 'pagina'>) =>
+  requisicao<ContagensInscricoes>(`/inscricoes/contagens?${filtroDaFila(filtro).toString()}`);
+
+/** Retornos pendentes das inscrições em atendimento, do mais antigo ao mais novo. */
+export const retornosPendentes = (meus: boolean) => requisicao<RetornoPendente[]>(`/inscricoes/retornos?meus=${meus}`);
+
+/** Indicadores do período (`AAAA-MM-DD`, Brasília, até 366 dias). */
+export const indicadoresInscricoes = (de: string, ate: string) =>
+  requisicao<IndicadoresInscricoes>(`/inscricoes/indicadores?de=${seg(de)}&ate=${seg(ate)}`);
+
+/** Planos do Financeiro para a proposta; vazio com o Financeiro desligado. */
+export const planosDeReferencia = () => requisicao<PlanoDeReferencia[]>('/inscricoes/planos-de-referencia');
+
+export const modelosDeMensagem = () => requisicao<ModeloDeMensagem[]>('/inscricoes/modelos-de-mensagem');
+
+export const criarModeloDeMensagem = (corpo: ModeloDeMensagemRequest) =>
+  requisicao<ModeloDeMensagem>('/inscricoes/modelos-de-mensagem', { metodo: 'POST', corpo });
+
+export const alterarModeloDeMensagem = (id: string, corpo: ModeloDeMensagemRequest) =>
+  requisicao<ModeloDeMensagem>(`/inscricoes/modelos-de-mensagem/${seg(id)}`, { metodo: 'PUT', corpo });
+
+export const excluirModeloDeMensagem = (id: string, versao: number) =>
+  requisicao<void>(`/inscricoes/modelos-de-mensagem/${seg(id)}?versao=${seg(versao)}`, { metodo: 'DELETE' });
 
 export const inscricao = (id: string) => requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}`);
 
@@ -405,8 +453,45 @@ export const alterarInscricao = (id: string, corpo: AlterarInscricaoRequest) =>
 export const notaNaInscricao = (id: string, texto: string) =>
   requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/notas`, { metodo: 'POST', corpo: { texto } });
 
-export const recusarInscricao = (id: string, versao: number) =>
-  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/recusar`, { metodo: 'POST', corpo: { versao } });
+/** Só entre as etapas abertas (Kanban e "Mover para"). */
+export const etapaDaInscricao = (id: string, situacao: EtapaAberta, versao: number) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/etapa`, { metodo: 'PUT', corpo: { situacao, versao } });
+
+/** Recusar ou "desistiu", sempre com motivo. */
+export const encerrarInscricao = (id: string, corpo: EncerrarRequest) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/encerrar`, { metodo: 'POST', corpo });
+
+/** Volta ao atendimento um encerramento (novo ciclo; o anterior fica no histórico). */
+export const reabrirInscricao = (id: string, motivo: string, versao: number) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/reabrir`, { metodo: 'POST', corpo: { motivo, versao } });
+
+export const propostaDaInscricao = (id: string, corpo: PropostaRequest) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/proposta`, { metodo: 'PUT', corpo });
+
+export const origemDaInscricao = (id: string, origem: Origem | null, versao: number) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/origem`, { metodo: 'PUT', corpo: { origem, versao } });
+
+export const marcarRetorno = (id: string, corpo: RetornoRequest) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/retornos`, { metodo: 'POST', corpo });
+
+export const alterarRetorno = (retornoId: string, corpo: RetornoRequest & { versao: number }) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/retornos/${seg(retornoId)}`, { metodo: 'PUT', corpo });
+
+export const concluirRetorno = (retornoId: string, versao: number) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/retornos/${seg(retornoId)}/concluir`, { metodo: 'POST', corpo: { versao } });
+
+export const inscricoesSemelhantes = (id: string) => requisicao<Semelhantes>(`/inscricoes/${seg(id)}/semelhantes`);
+
+/** A equipe confirma que esta inscrição é da mesma pessoa de outra (anterior). Nada é juntado nem apagado. */
+export const relacionarInscricao = (id: string, outraId: string, versao: number) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/relacao`, { metodo: 'PUT', corpo: { outraId, versao } });
+
+export const desfazerRelacaoDaInscricao = (id: string, versao: number) =>
+  requisicao<InscricaoDetalhe>(`/inscricoes/${seg(id)}/relacao?versao=${seg(versao)}`, { metodo: 'DELETE' });
+
+/** Registra que a mensagem foi preparada (copiada ou WhatsApp aberto); nunca "enviada". O texto não vai à API. */
+export const mensagemPreparada = (id: string, modeloId: string | null, acao: AcaoDaMensagem) =>
+  requisicao<void>(`/inscricoes/${seg(id)}/mensagens`, { metodo: 'POST', corpo: { modeloId, acao } });
 
 /**
  * Cria o aluno; com `convidar`, o convite de acesso vem na resposta (o código só aparece aqui). Com

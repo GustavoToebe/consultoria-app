@@ -1,6 +1,6 @@
 # Interessados: correções e CRM da consultoria
 
-Situação: Em andamento · Onde: branch `claude/saraiva-api-direcionamento-treinos-dv10io` (sem PR, sem `main`) · Atualizado: 29/10/2026
+Situação: Pronta na branch, falta a conferência do Gustavo · Onde: branch `claude/saraiva-api-direcionamento-treinos-dv10io` (sem PR, sem `main`) · Atualizado: 29/10/2026
 
 ## Objetivo
 Corrigir os sete problemas da análise de 29/10 (`analise-interessados-2026-10-29.md`, fora do repositório) na tela
@@ -31,12 +31,10 @@ humano: nada é enviado, cobrado nem cadastrado sem um clique explícito.
 
 ## Passos
 - [x] 1. Lote 1, estabilidade: B1, B2, B3, B4, F1, F2, F3 com testes — commit: 3be90bf (`mvn clean verify` 1555 testes, Jest 2341, lint, e2e novos; os testes novos falham sem as correções)
-- [ ] 2. Lote 2, base comercial: duplicidades com histórico e relacionar, motivos de perda, proposta negociada — commit: —
-- [ ] 3. Lote 3, atendimento diário: respostas prontas, retornos, histórico unificado — commit: —
-- [ ] 4. Lote 4, organização visual: Kanban, busca, contagens e estados vazios — commit: —
-- [ ] 5. Lote 5, entrada e retomada: qualificação no formulário, reabertura, transição para aluno — commit: —
-- [ ] 6. Lote 6, gestão: origem e indicadores de conversão — commit: —
-- [ ] 7. AGENTS.md, Ajuda e guias PDF, e2e em 390 e 1280 px — commit: —
+- [x] 2. Lotes 2 a 6, API (base comercial, atendimento diário, Kanban/busca/contagens, qualificação/reabertura/transição, origem/indicadores) — commit: 84b5022 (`mvn clean verify` 1564 testes, 0 falhas; `InscricoesCrmIntegrationTest`)
+- [x] 3. Lotes 2 a 6, app: visões Lista, Kanban (arrastar e "Mover para") e Indicadores, retornos, respostas prontas, proposta, histórico, encerrar/reabrir, mesma pessoa, qualificação e origem no formulário, "Conferir antes de aceitar" e "Próximos passos" — commit: o seguinte a 84b5022 (Jest 2355, lint, typecheck, e2e `inscricao`, `interessados-estabilidade` e `interessados-crm` 33 casos em 390 e 1280 px)
+- [x] 4. AGENTS.md, Ajuda e guias PDF regerados — commits acima
+- [ ] 5. Conferência do Gustavo na tela (web) e no celular; decidir o merge na `main` junto com a agenda (renumerar migrations)
 
 ## Fora do escopo
 - Envio automático pelo WhatsApp ou confirmação de entrega (exige integração que não existe).
@@ -44,4 +42,8 @@ humano: nada é enviado, cobrado nem cadastrado sem um clique explícito.
 - Notificação push para retornos atrasados.
 
 ## O que ficou para trás
-- (preencher ao fim de cada lote)
+- Retornos atrasados no Início do treinador (hoje só na tela Interessados).
+- Kanban mostra até 100 cartões por coluna; acima disso, a tela pede busca ou a visão Lista.
+- O `Botao` desabilitado não junta o `motivo` ao nome acessível ("Copiar" e "Abrir WhatsApp" da resposta pronta); o motivo aparece escrito na tela.
+- Arrastar no Kanban testado na web (mouse); no celular (toque longo) ainda não.
+- Gerar os guias em PDF num ambiente root pede o Chromium com `--no-sandbox` (o script não passa a opção).

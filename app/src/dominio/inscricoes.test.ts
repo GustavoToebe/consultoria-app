@@ -11,12 +11,36 @@ import {
   linkDoWhatsApp,
   mascaraWhatsapp,
   podeAceitar,
-  podeRecusar,
+  podeEncerrar,
+  podeReabrir,
   resumoDoObjetivo,
   seloDaSituacao,
   seloDoPagamento,
   situacoesDoAndamento,
   textoDaDuplicidade,
+  destinoDaColuna,
+  destinosDoCartao,
+  descontoDaProposta,
+  dias,
+  estadoVazio,
+  historicoDaInscricao,
+  intervaloDoPeriodo,
+  INTERESSES,
+  linhasPorMotivo,
+  linkDoWhatsAppComTexto,
+  mensagemComVariaveis,
+  origemDoLink,
+  porcentagem,
+  PREVISOES,
+  primeiroNome,
+  rotuloDaOrigem,
+  rotuloDoMotivo,
+  rotuloOpcional,
+  seloDoRetorno,
+  temDuplicidade,
+  textoDaColuna,
+  textoDoEvento,
+  valorDaProposta,
 } from './inscricoes';
 
 describe('selos da inscrição', () => {
@@ -37,19 +61,23 @@ describe('selos da inscrição', () => {
 });
 
 describe('andamento', () => {
-  it('aceitar e recusar ficam fora da escolha; aceita não muda; recusada pode voltar', () => {
-    expect(situacoesDoAndamento('NOVA').map((o) => o.valor)).toEqual(['NOVA', 'EM_CONTATO', 'EM_NEGOCIACAO', 'DESISTIU']);
+  it('o andamento só move entre as etapas abertas; encerrada e aceita ficam como estão', () => {
+    expect(situacoesDoAndamento('NOVA').map((o) => o.valor)).toEqual(['NOVA', 'EM_CONTATO', 'EM_NEGOCIACAO']);
     expect(situacoesDoAndamento('ACEITA').map((o) => o.valor)).toEqual(['ACEITA']);
-    expect(situacoesDoAndamento('RECUSADA').map((o) => o.valor)).toContain('RECUSADA');
+    expect(situacoesDoAndamento('RECUSADA').map((o) => o.valor)).toEqual(['RECUSADA']);
+    expect(situacoesDoAndamento('DESISTIU').map((o) => o.valor)).toEqual(['DESISTIU']);
   });
 
-  it('aceitar só antes do aceite; recusar só enquanto não aceita nem recusada', () => {
+  it('aceitar e encerrar só de uma etapa aberta; reabrir só de encerrada sem aluno', () => {
     expect(podeAceitar('NOVA')).toBe(true);
-    expect(podeAceitar('RECUSADA')).toBe(true);
+    expect(podeAceitar('RECUSADA')).toBe(false);
     expect(podeAceitar('ACEITA')).toBe(false);
-    expect(podeRecusar('EM_CONTATO')).toBe(true);
-    expect(podeRecusar('RECUSADA')).toBe(false);
-    expect(podeRecusar('ACEITA')).toBe(false);
+    expect(podeEncerrar('EM_CONTATO')).toBe(true);
+    expect(podeEncerrar('DESISTIU')).toBe(false);
+    expect(podeReabrir('RECUSADA')).toBe(true);
+    expect(podeReabrir('DESISTIU')).toBe(true);
+    expect(podeReabrir('ACEITA')).toBe(false);
+    expect(podeReabrir('NOVA')).toBe(false);
   });
 });
 
@@ -85,10 +113,10 @@ describe('textos da fila', () => {
 
   it('duplicidade é só aviso, com o motivo', () => {
     expect(textoDaDuplicidade(null)).toBeNull();
-    expect(textoDaDuplicidade({ alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 0 })).toBeNull();
-    expect(textoDaDuplicidade({ alunoExistente: true, alunoId: 'x', outrasInscricoesAbertas: 0 })).toBe('Já existe um aluno com este e-mail.');
-    expect(textoDaDuplicidade({ alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 2 })).toContain('outras 2 inscrições');
-    expect(textoDaDuplicidade({ alunoExistente: true, alunoId: null, outrasInscricoesAbertas: 1 })).toContain('outra inscrição');
+    expect(textoDaDuplicidade({ alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 0, outrasInscricoesAnteriores: 0 })).toBeNull();
+    expect(textoDaDuplicidade({ alunoExistente: true, alunoId: 'x', outrasInscricoesAbertas: 0, outrasInscricoesAnteriores: 0 })).toBe('Já existe um aluno com este e-mail.');
+    expect(textoDaDuplicidade({ alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 2, outrasInscricoesAnteriores: 0 })).toContain('outras 2 inscrições');
+    expect(textoDaDuplicidade({ alunoExistente: true, alunoId: null, outrasInscricoesAbertas: 1, outrasInscricoesAnteriores: 0 })).toContain('outra inscrição');
   });
 });
 
@@ -121,9 +149,17 @@ describe('formulário público', () => {
       email: null,
       objetivo: 'Força',
       observacao: null,
+      interesse: null,
+      modalidade: null,
+      previsaoInicio: null,
+      origem: null,
+      origemLink: null,
       cienciaPrivacidade: true,
       textoVersao: null,
     });
+    const qualificada = corpoDaInscricao({ ...ok, interesse: 'TREINO', modalidade: 'NAO_SEI', previsaoInicio: 'ESTE_MES', origem: 'INSTAGRAM' },
+      false, null, null, 'instagram');
+    expect(qualificada).toMatchObject({ interesse: 'TREINO', modalidade: 'NAO_SEI', previsaoInicio: 'ESTE_MES', origem: 'INSTAGRAM', origemLink: 'instagram' });
     expect(corpoDaInscricao(ok, false, 'tok').turnstileToken).toBe('tok');
     expect(corpoDaInscricao(ok, true, null, 'abc123').textoVersao).toBe('abc123');
   });
@@ -172,5 +208,134 @@ describe('paginaQueSobra', () => {
   it('lista toda vazia volta para a primeira; total maior volta para a última que existe', () => {
     expect(paginaQueSobra(3, { itens: [], total: 0 }, 30)).toBe(0);
     expect(paginaQueSobra(4, { itens: [], total: 61 }, 30)).toBe(2);
+  });
+});
+
+describe('CRM: rótulos e duplicidade', () => {
+  it('motivo e origem nulos têm texto próprio', () => {
+    expect(rotuloDoMotivo(null)).toBe('Não informado');
+    expect(rotuloDoMotivo('OUTRO_SERVICO')).toBe('Escolheu outro serviço');
+    expect(rotuloDaOrigem(null)).toBe('Não informada');
+    expect(rotuloDaOrigem('CAMPANHA')).toBe('Campanha');
+    expect(rotuloOpcional(PREVISOES, null)).toBe('—');
+    expect(rotuloOpcional(INTERESSES, 'NAO_SEI')).toBe('Ainda não sei');
+  });
+
+  it('duplicidade cita as inscrições anteriores', () => {
+    expect(textoDaDuplicidade({ alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 0, outrasInscricoesAnteriores: 1 }))
+      .toBe('Há 1 inscrição anterior com o mesmo e-mail ou WhatsApp.');
+    expect(textoDaDuplicidade({ alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 0, outrasInscricoesAnteriores: 3 }))
+      .toBe('Há 3 inscrições anteriores com o mesmo e-mail ou WhatsApp.');
+    expect(temDuplicidade({ alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 0, outrasInscricoesAnteriores: 0 })).toBe(false);
+  });
+
+  it('origem do link: só letras minúsculas, números, hífen e sublinhado', () => {
+    expect(origemDoLink('Instagram')).toBe('instagram');
+    expect(origemDoLink(['campanha-novembro_1'])).toBe('campanha-novembro_1');
+    expect(origemDoLink('a b')).toBeNull();
+    expect(origemDoLink('<script>')).toBeNull();
+    expect(origemDoLink('x'.repeat(41))).toBeNull();
+    expect(origemDoLink(undefined)).toBeNull();
+  });
+});
+
+describe('CRM: respostas prontas', () => {
+  it('troca as variáveis e aponta o que falta', () => {
+    const r = mensagemComVariaveis('Oi, {primeiro_nome}! Aqui é da {consultoria}. Plano: {plano}.', { primeiroNome: 'Ana', consultoria: 'Equipe Teste', plano: null });
+    expect(r.texto).toBe('Oi, Ana! Aqui é da Equipe Teste. Plano: {plano}.');
+    expect(r.faltando).toEqual(['{plano}']);
+    expect(mensagemComVariaveis('{primeiro_nome}, {desconhecida}', { primeiroNome: 'Ana' }).faltando).toEqual(['{desconhecida}']);
+    expect(mensagemComVariaveis('Tudo certo, {primeiro_nome}.', { primeiroNome: 'Ana' }).faltando).toEqual([]);
+  });
+
+  it('primeiro nome e link do WhatsApp com texto', () => {
+    expect(primeiroNome('  Ana Paula Souza ')).toBe('Ana');
+    expect(linkDoWhatsAppComTexto('(11) 98765-4321', 'Oi & tudo?')).toBe('https://wa.me/5511987654321?text=Oi%20%26%20tudo%3F');
+    expect(linkDoWhatsAppComTexto('(11) 98765-4321', '  ')).toBeNull();
+    expect(linkDoWhatsAppComTexto('98765-4321', 'Oi')).toBeNull();
+  });
+});
+
+describe('CRM: histórico', () => {
+  const base = { de: null, para: null, motivo: null, detalhe: null };
+  it('texto de cada evento, sem o texto da mensagem', () => {
+    expect(textoDoEvento({ ...base, tipo: 'ETAPA', de: 'NOVA', para: 'EM_CONTATO' })).toBe('Etapa: Nova → Em contato');
+    expect(textoDoEvento({ ...base, tipo: 'ENCERRADA', para: 'RECUSADA', motivo: 'PRECO' })).toBe('Encerrada: Recusada · Preço');
+    expect(textoDoEvento({ ...base, tipo: 'ENCERRADA', para: 'DESISTIU', detalhe: 'Mudou de cidade' })).toBe('Encerrada: Desistiu · Não informado (Mudou de cidade)');
+    expect(textoDoEvento({ ...base, tipo: 'REABERTA', detalhe: 'Voltou a procurar' })).toBe('Reaberta: Voltou a procurar');
+    expect(textoDoEvento({ ...base, tipo: 'MENSAGEM_PREPARADA', para: 'WHATSAPP_ABERTO', detalhe: 'Apresentação' })).toBe('Mensagem preparada: Apresentação (WhatsApp aberto)');
+    expect(textoDoEvento({ ...base, tipo: 'MENSAGEM_PREPARADA', para: 'COPIADA', detalhe: 'Apresentação' })).toBe('Mensagem preparada: Apresentação (copiada)');
+    expect(textoDoEvento({ ...base, tipo: 'ORIGEM', de: null, para: 'INSTAGRAM' })).toBe('Origem: Não informada → Instagram');
+    expect(textoDoEvento({ ...base, tipo: 'CRIADA' })).toBe('Inscrição recebida');
+    expect(textoDoEvento({ ...base, tipo: 'ACEITA' })).toBe('Aceita: virou aluno');
+  });
+
+  it('eventos e notas juntos, do mais novo ao mais antigo', () => {
+    const itens = historicoDaInscricao(
+      [{ id: 'e1', tipo: 'CRIADA', ciclo: 1, de: null, para: null, motivo: null, detalhe: null, autorNome: null, criadoEm: '2026-10-01T10:00:00Z' }],
+      [{ id: 'n1', texto: 'Liguei', autorNome: 'Ana', criadaEm: '2026-10-02T10:00:00Z' }],
+    );
+    expect(itens.map((i) => i.id)).toEqual(['n1', 'e1']);
+  });
+});
+
+describe('CRM: Kanban', () => {
+  it('de aberta: as outras abertas, aceitar e encerrar; de encerrada: reabrir; aceita: nada', () => {
+    expect(destinosDoCartao('NOVA').map((d) => d.rotulo)).toEqual(['Em contato', 'Em negociação', 'Aceitar (cadastrar aluno)', 'Recusar', 'Desistiu']);
+    expect(destinosDoCartao('RECUSADA').map((d) => d.tipo)).toEqual(['reabrir']);
+    expect(destinosDoCartao('ACEITA')).toEqual([]);
+  });
+
+  it('soltar numa coluna escolhe o destino certo', () => {
+    expect(destinoDaColuna('NOVA', 'EM_NEGOCIACAO')).toEqual({ tipo: 'etapa', situacao: 'EM_NEGOCIACAO', rotulo: 'Em negociação' });
+    expect(destinoDaColuna('NOVA', 'ACEITA')?.tipo).toBe('aceitar');
+    expect(destinoDaColuna('EM_CONTATO', 'DESISTIU')).toMatchObject({ tipo: 'encerrar', situacao: 'DESISTIU' });
+    expect(destinoDaColuna('RECUSADA', 'NOVA')?.tipo).toBe('reabrir');
+    expect(destinoDaColuna('RECUSADA', 'ACEITA')).toBeNull();
+    expect(destinoDaColuna('NOVA', 'NOVA')).toBeNull();
+    expect(destinoDaColuna('ACEITA', 'NOVA')).toBeNull();
+  });
+
+  it('cabeçalho da coluna só avisa quando carregou menos que o total', () => {
+    expect(textoDaColuna(20, 34)).toBe('Mostrando 20 de 34');
+    expect(textoDaColuna(5, 5)).toBeNull();
+    expect(textoDaColuna(0, undefined)).toBeNull();
+  });
+});
+
+describe('CRM: estados vazios, retornos, proposta e indicadores', () => {
+  it('textos distintos para busca, Meus, filtros e a fila vazia', () => {
+    expect(estadoVazio({ filtro: 'ABERTAS', meus: false, busca: 'ana', temFiltros: false }).titulo).toBe('Nada encontrado para esta busca.');
+    expect(estadoVazio({ filtro: 'ABERTAS', meus: true, busca: '', temFiltros: false }).titulo).toBe('Nenhuma inscrição atribuída a você nesta lista.');
+    expect(estadoVazio({ filtro: 'ABERTAS', meus: false, busca: '', temFiltros: true }).titulo).toBe('Nenhuma inscrição com estes filtros.');
+    expect(estadoVazio({ filtro: 'ABERTAS', meus: false, busca: '', temFiltros: false }).texto).toContain('Divulgue o link');
+  });
+
+  it('retorno atrasado, de hoje ou futuro', () => {
+    expect(seloDoRetorno('2026-10-28', '2026-10-29')).toEqual({ texto: 'Atrasado', tipo: 'perigo' });
+    expect(seloDoRetorno('2026-10-29', '2026-10-29')).toEqual({ texto: 'Hoje', tipo: 'atencao' });
+    expect(seloDoRetorno('2026-10-30', '2026-10-29')).toBeNull();
+  });
+
+  it('valor da proposta: vazio é nulo, zero vale, inválido é erro; desconto só com os dois valores', () => {
+    expect(valorDaProposta('')).toEqual({ valor: null, erro: null });
+    expect(valorDaProposta('0')).toEqual({ valor: 0, erro: null });
+    expect(valorDaProposta('199,90')).toEqual({ valor: 19990, erro: null });
+    expect(valorDaProposta('abc').erro).toBeTruthy();
+    expect(descontoDaProposta({ valorReferenciaCentavos: 20000, valorCentavos: 15000 })).toBe(25);
+    expect(descontoDaProposta({ valorReferenciaCentavos: 20000, valorCentavos: 20000 })).toBeNull();
+    expect(descontoDaProposta({ valorReferenciaCentavos: null, valorCentavos: 15000 })).toBeNull();
+  });
+
+  it('indicadores: porcentagem, dias e períodos em datas de Brasília', () => {
+    expect(porcentagem(0.375)).toBe('38%');
+    expect(porcentagem(null)).toBe('—');
+    expect(dias(3.45)).toBe('3,5 dias');
+    expect(dias(1)).toBe('1 dia');
+    expect(dias(null)).toBe('—');
+    expect(intervaloDoPeriodo('30', '2026-10-29')).toEqual({ de: '2026-09-30', ate: '2026-10-29' });
+    expect(intervaloDoPeriodo('ano', '2026-10-29')).toEqual({ de: '2026-01-01', ate: '2026-10-29' });
+    expect(linhasPorMotivo({ porMotivo: [{ motivo: null, quantidade: 1 }, { motivo: 'PRECO', quantidade: 3 }] }))
+      .toEqual([{ rotulo: 'Preço', quantidade: 3 }, { rotulo: 'Não informado', quantidade: 1 }]);
   });
 });

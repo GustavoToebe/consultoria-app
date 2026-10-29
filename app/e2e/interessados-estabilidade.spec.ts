@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 
 import type { InscricaoDetalhe, InscricaoResumo } from '../src/api/inscricoesTipos';
 import { erroApi, json, MARCA, type RespostasApi, sessao, simularApi, TREINADOR } from './api-falsa';
+import { CODIGO, detalheFalso, resumoFalso, rotasDaTela } from './inscricoes-falsas';
 
 /**
  * Achados da análise de 29/10 na tela Interessados: texto da consultoria trocado no meio do preenchimento (B2), última
@@ -9,49 +10,13 @@ import { erroApi, json, MARCA, type RespostasApi, sessao, simularApi, TREINADOR 
  * que deixava a aberta carregando para sempre (F3). Só dados fictícios.
  */
 
-const CODIGO = 'codigo-de-teste-abcdefghijk';
-
-function resumo(n: number, extra: Partial<InscricaoResumo> = {}): InscricaoResumo {
-  return {
-    id: `i0000000-0000-4000-8000-${String(n).padStart(12, '0')}`,
-    nome: `Pessoa Fictícia ${n}`,
-    objetivo: null,
-    whatsapp: '(11) 98765-4321',
-    email: null,
-    situacao: 'NOVA',
-    pagamento: 'NAO_CONTROLADO',
-    responsavelId: null,
-    responsavelNome: null,
-    alunoId: null,
-    criadaEm: '2026-10-18T13:00:00Z',
-    duplicidade: { alunoExistente: false, alunoId: null, outrasInscricoesAbertas: 0 },
-    ...extra,
-  };
-}
-
-function detalheDe(r: InscricaoResumo, extra: Partial<InscricaoDetalhe> = {}): InscricaoDetalhe {
-  return {
-    ...r,
-    observacao: null,
-    cienciaEm: null,
-    cienciaTexto: null,
-    pagamentoConfirmadoPorNome: null,
-    pagamentoConfirmadoEm: null,
-    atualizadaEm: '2026-10-18T13:00:00Z',
-    versao: 1,
-    notas: [],
-    ...extra,
-  };
-}
+const resumo = resumoFalso;
+const detalheDe = (r: InscricaoResumo, extra: Partial<InscricaoDetalhe> = {}) => detalheFalso(r, extra);
 
 async function abrirTela(page: Page, respostas: RespostasApi) {
   const api = await simularApi(page, {
     ...(await sessao(page, TREINADOR)),
-    'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
-    'GET /responsaveis': { corpo: [{ id: TREINADOR.id, nome: TREINADOR.nome }] },
-    'GET /inscricoes/configuracao': {
-      corpo: { aberta: true, codigo: CODIGO, link: `https://consultoria.exemplo.test/inscricao/${CODIGO}`, responsavelId: null, texto: null, versao: 1 },
-    },
+    ...rotasDaTela(),
     ...respostas,
   });
   await page.goto('/treinador/interessados');
@@ -111,18 +76,15 @@ test('Interessados: a última página esvaziada volta sozinha para a página que
     [`GET /inscricoes/${ultima.id}`]: { corpo: detalheDe(ultima) },
     [`POST /inscricoes/${ultima.id}/encerrar`]: (_p, route) => {
       recusada = true;
-      return json(route, detalheDe(ultima, { situacao: 'RECUSADA', versao: 2 }));
-    },
-    [`POST /inscricoes/${ultima.id}/recusar`]: (_p, route) => {
-      recusada = true;
-      return json(route, detalheDe(ultima, { situacao: 'RECUSADA', versao: 2 }));
+      return json(route, detalheDe(ultima, { situacao: 'RECUSADA', motivoEncerramento: 'PRECO', versao: 2 }));
     },
   });
   await page.getByRole('button', { name: 'Próxima' }).click();
   await expect(page.getByText('Página 2 de 2')).toBeVisible();
   await page.getByRole('button', { name: 'Abrir inscrição de Pessoa Fictícia 31' }).click();
+  await page.getByRole('button', { name: 'Encerrar', exact: true }).click();
+  await page.getByRole('button', { name: 'Preço', exact: true }).click();
   await page.getByRole('button', { name: 'Recusar', exact: true }).click();
-  await page.getByRole('button', { name: 'Recusar', exact: true }).last().click();
   await page.getByRole('button', { name: 'Fechar' }).first().click();
 
   await expect(page.getByText('Pessoa Fictícia 30', { exact: true })).toBeVisible();
@@ -138,10 +100,6 @@ test('Interessados: salvar o andamento não apaga a nota ainda não acrescentada
     'GET /inscricoes': { corpo: { itens: [r], total: 1 } },
     [`GET /inscricoes/${r.id}`]: (_p, route) => json(route, atual),
     [`PUT /inscricoes/${r.id}`]: (_p, route) => {
-      atual = { ...atual, situacao: 'EM_CONTATO', versao: 4 };
-      return json(route, atual);
-    },
-    [`PUT /inscricoes/${r.id}/etapa`]: (_p, route) => {
       atual = { ...atual, situacao: 'EM_CONTATO', versao: 4 };
       return json(route, atual);
     },
