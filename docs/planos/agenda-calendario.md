@@ -136,7 +136,7 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - [x] 13. App, telas: barra de calendário, grade de horários, Mês, Ano, mini calendário, painel de agendas, menu "Criar", `FolhaEvento`, atualizações filtradas por membro; ajustar `agenda.tsx` (executor-front, em cima do passo 12) — commit/run: 39a0b1b
 - [x] 14. E2E: `agenda-calendario.spec.ts` em 390 e 1280 (executor-front) — commit/run: 7d3b9c8
 - [x] 15. Texto do `AGENTS.md`, ajuda, "Novo evento" na busca (`dominio/telas.ts`), espelhos de auditoria (`acoesAuditoria.ts`), este plano e o README (executor-rapido) — commit/run: eb09a34
-- [ ] 16. Revisão final de contratos e privacidade (advisor, esforço alto) e **um push por lote**, só na branch — commit/run: —
+- [x] 16. Revisão final de contratos e privacidade (advisor, esforço alto) e **um push por lote**, só na branch — commit/run: revisor (29/10): nada bloqueia; reforços em bd6b45b (testes de `agendas=` alheio, só leitura completo, `toString` sem texto livre); `mvn clean verify` 1674 testes, 0 falhas, JaCoCo 93,03%, 43 migrations; app: typecheck, lint, Jest (181 suítes, 2528 testes) e e2e dos 3 specs (41 testes) verdes; push do lote 2 em `agenda-calendario`
 
 ## Fora do escopo
 - **Push do servidor** (notificação na hora em que o treinador marca, remarca ou cancela, com o app fechado): fica para a decisão de push da frente de engajamento, [engajamento.md](engajamento.md) (item "Push do servidor" nos passos da Etapa 3, hoje em aberto). Até lá valem o aviso dentro do app (D12) e o lembrete local (D13, com a limitação da P7).
