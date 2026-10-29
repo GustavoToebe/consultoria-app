@@ -121,11 +121,11 @@ permissão nova, então sem gatilho de perfis.
 ## Passos
 Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromissos, avisos, lembrete, D18) vem antes do calendário (lote 2), porque muda a tabela que o calendário lê. A agenda sai da `main`, não da `ajustes-evolucao`: o lote dos ajustes está no PR 15 e a `agenda-calendario` só é recriada da `main` atualizada **depois que o Gustavo avisar que o PR 15 entrou (com a V041)**; só então a V042 e a V043 são criadas. Até esse aviso a agenda não começa (decisão do Gustavo, 29/10). Push só na branch `agenda-calendario`, um por lote; nada na `main`.
 - [x] 0. Gustavo responde P1 a P8, aceita as propostas e decide D18 e D19 (29/10) — este commit
-- [ ] 1. API, V042: `compromisso_aluno` e cópia dos compromissos de hoje, `serie_id`, DTOs com `alunoIds`/`participantes`, situação por aluno, aviso de aluno ocupado, exportação e anonimização por aluno; totais 41 → 42 (executor; `mvn verify` pelo executor-rapido) — commit/run: —
-- [ ] 2. API: série de compromissos com aluno (criar com fim obrigatório, 409 com as datas que conflitam, escopos só este / seguintes / todos para editar e cancelar) (executor) — commit/run: —
-- [ ] 3. API, V042: `aviso_compromisso`, geração (um aviso por aluno por operação), rotas do aluno e limpeza (executor) — commit/run: —
-- [ ] 4. API, D18: inativar o aluno (`AlunoService`, `AlunoLoteService`, planilha) cancela os compromissos futuros dele na mesma transação, com auditoria de resumo fixo (executor) — commit/run: —
-- [ ] 5. Revisão da migration que apaga colunas, do contrato do aluno (sem vazar participante), da exportação e da série (advisor ou revisor) — commit/run: —
+- [x] 1. API, V042: `compromisso_aluno` e cópia dos compromissos de hoje, `serie_id`, DTOs com `alunoIds`/`participantes`, situação por aluno, aviso de aluno ocupado, exportação e anonimização por aluno; totais 41 → 42 (executor; `mvn verify` pelo executor-rapido) — commit/run: 56d3b6c
+- [x] 2. API: série de compromissos com aluno (criar com fim obrigatório, 409 com as datas que conflitam, escopos só este / seguintes / todos para editar e cancelar) (executor) — commit/run: a034f88
+- [x] 3. API, V042: `aviso_compromisso`, geração (um aviso por aluno por operação), rotas do aluno e limpeza (executor) — commit/run: 9f54ec9
+- [x] 4. API, D18: inativar o aluno (`AlunoService`, `AlunoLoteService`, planilha) cancela os compromissos futuros dele na mesma transação, com auditoria de resumo fixo (executor) — commit/run: 2e3f375 e 168e4a5 (avisos não vistos saem na inativação)
+- [x] 5. Revisão da migration que apaga colunas, do contrato do aluno (sem vazar participante), da exportação e da série (advisor ou revisor) — commit/run: revisor e advisor (29/10); ajustes em 168e4a5 e no V042 (índice redundante tirado)
 - [ ] 6. App, regra pura: `dominio/agendaPresencial.ts` (participantes, situação por aluno, série), `dominio/paraFazer.ts` (aviso), `dominio/lembretesCompromisso.ts`, `api/` (executor, com teste) — commit/run: —
 - [ ] 7. App do aluno: item de aviso e ponto no Início, `aluno/compromissos/lembretes.ts`, permissão e interruptor, limpeza ao sair (executor) — commit/run: —
 - [ ] 8. App do treinador: `FolhaCompromisso` com vários alunos, repetição e escopos, situação por aluno, e o acerto do `agenda-presencial.spec.ts` em 390 e 1280 (executor-front, em cima do passo 6) — commit/run: —
@@ -145,4 +145,8 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - Aniversários (D8); compartilhar agenda pessoal com outro membro; arrastar para remarcar na grade; fuso por pessoa (tudo em Brasília).
 
 ## O que ficou para trás
-- (nada ainda)
+- **Dias úteis sem feriados** (repetição "dias úteis" = segunda a sexta): confirmar com o Gustavo.
+- **Anonimização e "Excluir minha conta"** travam o aluno e depois mexem na agenda sem travar a consultoria antes (ordem inversa à da D18): deadlock teórico e estreito, já existia; fechar com `travarConsultoria` no topo dos dois caminhos e teste.
+- **Compromisso sem participante** se o aluno for apagado direto no banco (o CASCADE leva só o participante): nenhum caminho do app apaga aluno; aceito.
+- **Reabrir o compromisso inteiro** exige todos os participantes ativos: aluno inativado dá 409 até sair da lista (revisar na tela do passo 8).
+- Espelhos do app ainda por fazer: `api/agendaTipos.ts`, `rotas.ts`, `ALUNOS_MAXIMO` em `agendaPresencial.ts` (passo 6).

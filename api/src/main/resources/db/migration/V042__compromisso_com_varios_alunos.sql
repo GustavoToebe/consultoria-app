@@ -22,9 +22,9 @@ CREATE TABLE compromisso_aluno (
     CONSTRAINT fk_compromisso_aluno_aluno FOREIGN KEY (consultoria_id, aluno_id)
         REFERENCES aluno (consultoria_id, id) ON DELETE CASCADE
 );
--- Compromissos de um aluno (lista do aluno, aluno ocupado, exportação) e participantes de um compromisso.
+-- Compromissos de um aluno (lista do aluno, aluno ocupado, exportação); os participantes de um compromisso já saem da
+-- UNIQUE compromisso_aluno_unico (consultoria_id, compromisso_id, aluno_id).
 CREATE INDEX ix_compromisso_aluno_do_aluno ON compromisso_aluno (consultoria_id, aluno_id, compromisso_id);
-CREATE INDEX ix_compromisso_aluno_do_compromisso ON compromisso_aluno (consultoria_id, compromisso_id);
 
 -- 2) Os compromissos de hoje passam para o formato novo aqui mesmo, sem código de transição: um participante por
 -- compromisso, com a mesma situação.
