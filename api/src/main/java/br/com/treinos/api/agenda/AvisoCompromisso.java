@@ -15,9 +15,10 @@ import java.util.UUID;
 
 /**
  * Aviso dentro do app para o aluno quando um compromisso é marcado, remarcado ou cancelado (D12, V042). Guarda uma cópia
- * do momento (início e nome do responsável); nunca a observação, o local nem o nome de outro aluno. A geração, as rotas do
- * aluno e a limpeza são do passo 3 do plano; por enquanto a entidade só existe para a limpeza do aluno que sai
- * ({@link AgendaService#apagarDoAluno}).
+ * do momento (início e nome do responsável, nulo = "a equipe"); nunca a observação, o local nem o nome de outro aluno.
+ * Gerado por {@link AgendaService} na mesma transação da mudança, lido e marcado como visto por
+ * {@link AvisosDeCompromissoService} e limpo por {@link AvisosDeCompromissoRetencao}; sai com o aluno em
+ * {@link AgendaService#apagarDoAluno}. Só {@code visto_em} muda depois de criado (e só pelo repositório, sem sobrescrever).
  */
 @Entity
 @Table(name = "aviso_compromisso")
@@ -54,6 +55,14 @@ public class AvisoCompromisso {
     private Instant vistoEm;
 
     protected AvisoCompromisso() {
+    }
+
+    AvisoCompromisso(UUID alunoId, UUID compromissoId, TipoAvisoCompromisso tipo, Instant inicio, String responsavelNome) {
+        this.alunoId = alunoId;
+        this.compromissoId = compromissoId;
+        this.tipo = tipo;
+        this.inicio = inicio;
+        this.responsavelNome = responsavelNome;
     }
 
     public UUID getId() { return id; }

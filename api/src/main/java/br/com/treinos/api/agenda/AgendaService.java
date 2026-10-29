@@ -161,7 +161,7 @@ public class AgendaService {
         for (Compromisso c : criados) {
             for (UUID a : alunoIds) {
                 novosParticipantes.add(new CompromissoAluno(c.getId(), a, SituacaoCompromisso.AGENDADO));
-                mudancas.add(new MudancaDoAluno(c, a, Mudanca.ENTROU));
+                mudancas.add(MudancaDoAluno.de(c, a, Mudanca.ENTROU));
             }
         }
         participantes.saveAll(novosParticipantes);
@@ -229,6 +229,8 @@ public class AgendaService {
             Compromisso c = p.compromisso();
             boolean remarcou = !p.novoInicio().equals(c.getInicio()) || r.duracaoMinutos() != c.getDuracaoMinutos();
             String observacao = pode ? Buscas.opcional(r.observacao()) : c.getObservacao();
+            // Quem sai é avisado do horário e do responsável que ele conhecia, não dos novos.
+            MudancaDoAluno.Retrato antes = MudancaDoAluno.Retrato.de(c);
             c.alterar(responsavel, p.novoInicio(), r.duracaoMinutos(), Buscas.opcional(r.local()), observacao);
             p.saem().forEach(participantes::delete);
             SituacaoCompromisso nasce = c.isCancelado() ? SituacaoCompromisso.CANCELADO : SituacaoCompromisso.AGENDADO;
@@ -236,11 +238,16 @@ public class AgendaService {
             if (c.isCancelado() != p.ficaCancelado()) {
                 c.definirCancelado(p.ficaCancelado());
             }
-            p.entram().forEach(a -> mudancas.add(new MudancaDoAluno(c, a, Mudanca.ENTROU)));
-            p.saem().forEach(s -> mudancas.add(new MudancaDoAluno(c, s.getAlunoId(), Mudanca.SAIU)));
+            // Quem entra num compromisso cancelado nasce cancelado: não há o que anunciar.
+            if (nasce == SituacaoCompromisso.AGENDADO) {
+                p.entram().forEach(a -> mudancas.add(MudancaDoAluno.de(c, a, Mudanca.ENTROU)));
+            }
+            // Quem já estava cancelado e sai não tem novidade: já foi avisado do cancelamento.
+            p.saem().stream().filter(s -> s.getSituacao() != SituacaoCompromisso.CANCELADO)
+                    .forEach(s -> mudancas.add(new MudancaDoAluno(c.getId(), s.getAlunoId(), Mudanca.SAIU, antes)));
             if (remarcou) {
                 p.ficam().stream().filter(f -> f.getSituacao() != SituacaoCompromisso.CANCELADO)
-                        .forEach(f -> mudancas.add(new MudancaDoAluno(c, f.getAlunoId(), Mudanca.REMARCADO)));
+                        .forEach(f -> mudancas.add(MudancaDoAluno.de(c, f.getAlunoId(), Mudanca.REMARCADO)));
             }
         }
         compromissos.saveAllAndFlush(alvo);
@@ -281,9 +288,9 @@ public class AgendaService {
         for (Compromisso o : mudam) {
             for (CompromissoAluno p : doCompromisso.getOrDefault(o.getId(), List.of())) {
                 if (cancelar && p.getSituacao() != SituacaoCompromisso.CANCELADO) {
-                    mudancas.add(new MudancaDoAluno(o, p.getAlunoId(), Mudanca.CANCELADO));
+                    mudancas.add(MudancaDoAluno.de(o, p.getAlunoId(), Mudanca.CANCELADO));
                 } else if (!cancelar) {
-                    mudancas.add(new MudancaDoAluno(o, p.getAlunoId(), Mudanca.REABERTO));
+                    mudancas.add(MudancaDoAluno.de(o, p.getAlunoId(), Mudanca.REABERTO));
                 }
                 p.alterarSituacao(cancelar ? SituacaoCompromisso.CANCELADO : SituacaoCompromisso.AGENDADO);
             }
@@ -361,9 +368,10 @@ public class AgendaService {
         for (Compromisso o : mudam) {
             CompromissoAluno p = doAluno.get(o.getId());
             if (nova == SituacaoCompromisso.CANCELADO) {
-                mudancas.add(new MudancaDoAluno(o, alunoId, Mudanca.CANCELADO));
-            } else if (p.getSituacao() == SituacaoCompromisso.CANCELADO) {
-                mudancas.add(new MudancaDoAluno(o, alunoId, Mudanca.REABERTO));
+                mudancas.add(MudancaDoAluno.de(o, alunoId, Mudanca.CANCELADO));
+            } else if (nova == SituacaoCompromisso.AGENDADO && p.getSituacao() == SituacaoCompromisso.CANCELADO) {
+                // Só voltar a agendado reabre (avisa); realizado e falta nunca avisam.
+                mudancas.add(MudancaDoAluno.de(o, alunoId, Mudanca.REABERTO));
             }
             p.alterarSituacao(nova);
             recalcularCancelado(o, doCompromisso.get(o.getId()));
@@ -608,24 +616,72 @@ public class AgendaService {
         return doCompromisso;
     }
 
-    /** O que mudou para um aluno num compromisso: a matéria-prima do aviso dentro do app (D12, passo 3). */
+    /** O que mudou para um aluno num compromisso: a matéria-prima do aviso dentro do app (D12). */
     private enum Mudanca { ENTROU, SAIU, REMARCADO, CANCELADO, REABERTO }
 
-    private record MudancaDoAluno(Compromisso compromisso, UUID alunoId, Mudanca mudanca) { }
+    /**
+     * Uma mudança por aluno e compromisso, com o retrato do horário que o aviso deve contar ({@code inicio}, {@code fim} e
+     * {@code responsavelId} do momento certo: o do estado novo, ou o de antes para quem sai).
+     */
+    private record MudancaDoAluno(UUID compromissoId, UUID alunoId, Mudanca mudanca, Retrato retrato) {
+
+        static MudancaDoAluno de(Compromisso c, UUID alunoId, Mudanca mudanca) {
+            return new MudancaDoAluno(c.getId(), alunoId, mudanca, Retrato.de(c));
+        }
+
+        record Retrato(Instant inicio, Instant fim, UUID responsavelId) {
+            static Retrato de(Compromisso c) {
+                return new Retrato(c.getInicio(), c.getFim(), c.getResponsavelId());
+            }
+        }
+    }
 
     /** O que {@link #alterar} decidiu para uma ocorrência, antes de mexer em qualquer entidade. */
     private record PlanoDeAlteracao(Compromisso compromisso, List<UUID> entram, List<CompromissoAluno> ficam,
                                     List<CompromissoAluno> saem, boolean ficaCancelado, Instant novoInicio) { }
 
     /**
-     * Ponto de extensão do passo 3 (aviso dentro do app, D12): chamado uma vez no fim de cada operação que muda
-     * compromissos (marcar, alterar, cancelar, mudar a situação de um aluno), na mesma transação, com TODAS as mudanças por
-     * aluno de TODAS as ocorrências tocadas, para gerar um aviso por aluno por operação. Hoje não faz nada (por
-     * isso o {@code UnusedVariable} do Error Prone é suprimido aqui; tire a supressão ao implementar).
+     * Aviso dentro do app (D12): chamado uma vez no fim de cada operação que muda compromissos, na mesma transação, com
+     * TODAS as mudanças por aluno de TODAS as ocorrências tocadas. Gera no máximo UM aviso por aluno por operação:
+     * descarta as mudanças de compromisso que já terminou (fim até agora), fica com a da primeira ocorrência ainda não
+     * terminada (menor início) e apaga os avisos ainda não vistos do aluno nos compromissos considerados (o novo
+     * substitui; o visto fica). O aviso copia o início e o nome do responsável do momento; nunca a observação, o local nem
+     * o nome de outro aluno. Entrar e reabrir viram {@code NOVO}; remarcar, {@code REMARCADO}; sair e cancelar,
+     * {@code CANCELADO}. Realizado e falta nunca chegam aqui.
      */
-    @SuppressWarnings("UnusedVariable")
     private void registrarAvisos(List<MudancaDoAluno> mudancas) {
-        // Passo 3: gerar o aviso de cada aluno a partir das mudanças (sem observação, local nem nome de outro aluno).
+        Instant agora = Instant.now();
+        Map<UUID, List<MudancaDoAluno>> porAluno = new LinkedHashMap<>();
+        for (MudancaDoAluno m : mudancas) {
+            if (m.retrato().fim().isAfter(agora)) {
+                porAluno.computeIfAbsent(m.alunoId(), k -> new ArrayList<>()).add(m);
+            }
+        }
+        if (porAluno.isEmpty()) {
+            return;
+        }
+        Map<UUID, MudancaDoAluno> primeiras = new LinkedHashMap<>();
+        porAluno.forEach((alunoId, dele) -> primeiras.put(alunoId, dele.stream()
+                .min(Comparator.comparing((MudancaDoAluno m) -> m.retrato().inicio()).thenComparing(MudancaDoAluno::compromissoId))
+                .orElseThrow()));
+        Map<UUID, String> nomes = nomesDaEquipe(primeiras.values().stream().map(m -> m.retrato().responsavelId()).toList());
+        List<AvisoCompromisso> novos = new ArrayList<>();
+        primeiras.forEach((alunoId, primeira) -> {
+            avisos.apagarNaoVistos(TenantContext.get(), alunoId,
+                    porAluno.get(alunoId).stream().map(MudancaDoAluno::compromissoId).distinct().toList());
+            String nome = nomes.get(primeira.retrato().responsavelId());
+            novos.add(new AvisoCompromisso(alunoId, primeira.compromissoId(), tipoDoAviso(primeira.mudanca()),
+                    primeira.retrato().inicio(), nome == null || nome.isBlank() ? null : nome));
+        });
+        avisos.saveAll(novos);
+    }
+
+    private static TipoAvisoCompromisso tipoDoAviso(Mudanca mudanca) {
+        return switch (mudanca) {
+            case ENTROU, REABERTO -> TipoAvisoCompromisso.NOVO;
+            case REMARCADO -> TipoAvisoCompromisso.REMARCADO;
+            case SAIU, CANCELADO -> TipoAvisoCompromisso.CANCELADO;
+        };
     }
 
     private static void exigirVersao(Compromisso c, Long versao) {

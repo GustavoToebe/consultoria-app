@@ -178,11 +178,6 @@ class AgendaPresencialIntegrationTest extends AbstractIntegrationTest {
         return Boolean.TRUE.equals(banco.queryForObject("select cancelado from compromisso where id = ?::uuid", Boolean.class, id));
     }
 
-    private void avisar(UUID consultoria, UUID alunoId, String compromissoId) {
-        banco.update("insert into aviso_compromisso (id, consultoria_id, aluno_id, compromisso_id, tipo, inicio) "
-                + "values (?, ?, ?, ?::uuid, 'NOVO', now())", UUID.randomUUID(), consultoria, alunoId, compromissoId);
-    }
-
     private long avisosDoAluno(UUID alunoId) {
         Long total = banco.queryForObject("select count(*) from aviso_compromisso where aluno_id = ?", Long.class, alunoId);
         return total == null ? 0 : total;
@@ -682,13 +677,12 @@ class AgendaPresencialIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void exportacaoSemNomesDosOutrosESemObservacaoEmGrupoEAnonimizarTiraSoAqueleAluno() throws Exception {
-        UUID consultoria = consultoriaDe(admin);
         UUID bruna = novoAluno("Bruna Fictícia");
         JsonNode unico = marcar(admin, hoje().plusDays(6), "18:00", 50, 200);
         JsonNode grupo = marcarGrupo(List.of(aluno, bruna), hoje().plusDays(7), "18:00", 50, 200);
-        avisar(consultoria, aluno, unico.path("id").asString());
-        avisar(consultoria, aluno, grupo.path("id").asString());
-        avisar(consultoria, bruna, grupo.path("id").asString());
+        // Marcar já gerou os avisos (um por compromisso e aluno): dois para o aluno, um para a Bruna.
+        assertThat(avisosDoAluno(aluno)).isEqualTo(2);
+        assertThat(avisosDoAluno(bruna)).isEqualTo(1);
 
         JsonNode exportacao = api.get("/alunos/" + aluno + "/exportacao", admin, 200);
         JsonNode itens = exportacao.path("compromissos").path("itens");
@@ -762,13 +756,12 @@ class AgendaPresencialIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void excluirMinhaContaTiraSoOAlunoEApagaOCompromissoDoAlunoUnico() throws Exception {
-        UUID consultoria = consultoriaDe(admin);
         UUID bruna = novoAluno("Bruna Fictícia");
         JsonNode loginDoAluno = api.convidarEEntrar(admin, aluno);
         JsonNode unico = marcar(admin, hoje().plusDays(8), "12:00", 30, 200);
         JsonNode grupo = marcarGrupo(List.of(aluno, bruna), hoje().plusDays(9), "12:00", 30, 200);
-        avisar(consultoria, aluno, grupo.path("id").asString());
         assertThat(participacoesDoAluno(aluno)).isEqualTo(2);
+        assertThat(avisosDoAluno(aluno)).isEqualTo(2);
 
         api.post("/aluno/conta/excluir", loginDoAluno, Map.of("senha", ApiDeTeste.SENHA, "confirmacao", "EXCLUIR"), 204);
         assertThat(participacoesDoAluno(aluno)).isZero();

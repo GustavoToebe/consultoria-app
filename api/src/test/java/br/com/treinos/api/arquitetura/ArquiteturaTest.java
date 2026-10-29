@@ -180,6 +180,8 @@ class ArquiteturaTest {
                                 "MeusDadosDoAlunoController", "CicloAlunoController",
                                 // Próximos compromissos da agenda presencial do próprio aluno (hasRole ALUNO, sempre o da sessão, só leitura).
                                 "AlunoCompromissosController",
+                                // Avisos de compromisso do próprio aluno (hasRole ALUNO, sempre o da sessão): os não vistos e marcar como visto.
+                                "AlunoAvisosDeCompromissoController",
                                 // Avaliações físicas do próprio aluno, só leitura (hasRole ALUNO, sempre o da sessão); a equipe declara PERM_ALUNO_SENSIVEL_LER.
                                 "AvaliacaoFisicaAlunoController").contains(c.getSimpleName())))
                 .should(new ArchCondition<>("usar hasAuthority(PERM_...) em toda rota") {

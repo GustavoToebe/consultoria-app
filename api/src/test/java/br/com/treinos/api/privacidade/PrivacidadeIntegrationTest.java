@@ -289,7 +289,7 @@ class PrivacidadeIntegrationTest extends AbstractIntegrationTest {
         JsonNode dados = api.get("/alunos/" + alunoId + "/exportacao", minimo, 200);
         assertThat(dados.get("secoesOmitidas").valueStream().map(JsonNode::asString))
                 .containsExactlyInAnyOrder("treinos", "dietas", "mobilidades", "registros", "mobilidadeRegistros", "sessoesConcluidas",
-                        "atualizacoes", "anamneses", "inscricao", "financeiro", "compromissos");
+                        "atualizacoes", "anamneses", "inscricao", "financeiro", "compromissos", "avisosDeCompromisso");
         assertThat(dados.has("treinos")).isFalse();
         assertThat(dados.has("anamneses")).isFalse();
         assertThat(dados.has("dietas")).isFalse();

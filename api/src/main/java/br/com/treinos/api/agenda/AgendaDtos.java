@@ -95,4 +95,17 @@ public final class AgendaDtos {
     public record CompromissoExportado(UUID id, Instant inicio, LocalDate data, String hora, int duracaoMinutos,
                                        String local, String observacao, SituacaoCompromisso situacao,
                                        String responsavelNome, Instant criadoEm) { }
+
+    /**
+     * Um aviso de compromisso para o aluno (D12): só o que o app precisa para montar o texto (tipo, quando e com quem). O
+     * {@code inicio} e o {@code responsavelNome} são a cópia do momento do aviso; {@code responsavelNome} nulo = "a equipe".
+     * Nunca traz observação, local, id de compromisso, de aluno ou da equipe, nem o nome de outro aluno.
+     */
+    public record AvisoDeCompromisso(UUID id, TipoAvisoCompromisso tipo, Instant inicio, String responsavelNome) { }
+
+    /**
+     * Seção {@code avisosDeCompromisso} da exportação do aluno (LGPD): o tipo, a data do compromisso no aviso e as datas de
+     * criação e de visto ({@code vistoEm} nulo = ainda não visto). Nada de ids, do responsável nem de outros alunos.
+     */
+    public record AvisoExportado(TipoAvisoCompromisso tipo, Instant inicio, Instant criadoEm, Instant vistoEm) { }
 }

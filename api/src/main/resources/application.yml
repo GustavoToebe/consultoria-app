@@ -98,6 +98,10 @@ treinos:
     chave: ${TREINOS_FOTOS_CHAVE:}
     segredo: ${TREINOS_FOTOS_SEGREDO:}
     regiao: ${TREINOS_FOTOS_REGIAO:auto}
+  # Agenda presencial: a limpeza diária dos avisos de compromisso (D12) roda sozinha; só os testes a desligam (eles a chamam à mão).
+  agenda:
+    avisos:
+      limpeza-agendada: ${TREINOS_AGENDA_AVISOS_LIMPEZA_AGENDADA:true}
   # Pagamentos do aluno ao treinador (planos comerciais, contratações, cobranças e painel financeiro). Desligado por padrão:
   # as rotas respondem 503 FINANCEIRO_INDISPONIVEL e o app esconde a área (GET /eu traz pagamentosHabilitados).
   pagamentos:
