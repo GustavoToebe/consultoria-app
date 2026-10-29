@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
  * A conferência de um lembrete reservado, logo antes do envio, numa transação curta somente leitura dentro da consultoria
  * dele (quem chama abre o {@code TenantContext}): a cobrança ainda está ABERTA, a regra ainda diz que este tipo é devido
  * hoje (configuração desligada, alterada ou vencimento reajustado cancelam), a contratação está ATIVA, o aluno está ativo e
- * não anonimizado e há um e-mail. Devolve a mensagem pronta ou o motivo do cancelamento. O envio fica fora daqui (e de
+ * não anonimizado, que não desligou os lembretes para si ({@code ALUNO_DESLIGOU}), e há um e-mail. Devolve a mensagem pronta ou o motivo do cancelamento. O envio fica fora daqui (e de
  * qualquer transação). Nada daqui vai a log.
  */
 @Service
@@ -28,6 +28,7 @@ class PreparoDoLembrete {
     static final String NAO_E_MAIS_DEVIDO = "NAO_E_MAIS_DEVIDO";
     static final String CONTRATACAO_NAO_ATIVA = "CONTRATACAO_NAO_ATIVA";
     static final String ALUNO_INATIVO = "ALUNO_INATIVO";
+    static final String ALUNO_DESLIGOU = "ALUNO_DESLIGOU";
     static final String SEM_EMAIL = "SEM_EMAIL";
 
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@<>\"(),;:]+@[^\\s@<>\"(),;:]+\\.[^\\s@<>\"(),;:]+$");
@@ -89,6 +90,9 @@ class PreparoDoLembrete {
         Optional<Aluno> aluno = alunos.findById(cobranca.getAlunoId());
         if (aluno.isEmpty() || !aluno.get().isAtivo() || aluno.get().isAnonimizado()) {
             return Preparo.cancelar(ALUNO_INATIVO);
+        }
+        if (aluno.get().getLembretesCobrancaDesligadosEm() != null) {
+            return Preparo.cancelar(ALUNO_DESLIGOU);
         }
         String para = destino(aluno.get());
         if (para == null) {
