@@ -97,8 +97,9 @@ class CompromissoComVariosAlunosMigracaoIntegrationTest extends AbstractIntegrat
                 compromisso(c, faltou, consultoria, aluno, "FALTOU", 15);
             }
 
+            // Só até a V042 (a que migra os compromissos antigos); as migrations seguintes não mexem nesses dados.
             Flyway tudo = Flyway.configure().dataSource(urlDe(banco), usuario, senha).locations("classpath:db/migration")
-                    .placeholders(java.util.Map.of("papelApp", "")).load();
+                    .placeholders(java.util.Map.of("papelApp", "")).target("42").load();
             assertThat(tudo.migrate().migrationsExecuted).isEqualTo(1);
 
             try (Connection c = conectar(banco); Statement st = c.createStatement()) {

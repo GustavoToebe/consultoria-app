@@ -54,6 +54,7 @@ function carregar(atrasoDoPopstate: number) {
   let raiz!: import('react-test-renderer').ReactTestRenderer;
   const passar = (ms: number) => Renderer.act(() => { jest.advanceTimersByTime(ms); });
   return {
+    historico,
     navegador,
     fechou,
     passar,
@@ -121,5 +122,42 @@ describe('Folha no histórico do navegador (web)', () => {
     montar(0);
     passar(5_000);
     expect(navegador.atual()).toEqual({ id: 'tela' });
+  });
+});
+
+describe('depoisDeFecharAsFolhas (navegar com o resultado de uma escolha feita na Folha)', () => {
+  it('com a Folha fechando, só roda depois que a entrada dela voltou', () => {
+    const { historico, navegador, montar, passar } = carregar(50);
+    montar(1);
+    passar(0);
+    montar(0);
+    const depois = jest.fn();
+    historico.depoisDeFecharAsFolhas(depois);
+    expect(depois).not.toHaveBeenCalled();
+    passar(0);
+    expect(depois).not.toHaveBeenCalled(); // a volta já foi pedida, o popstate ainda não chegou
+    passar(100);
+    expect(navegador.atual()).toEqual({ id: 'tela' });
+    expect(depois).toHaveBeenCalledTimes(1);
+    passar(5_000);
+    expect(depois).toHaveBeenCalledTimes(1);
+  });
+
+  it('sem Folha aberta nem volta a caminho, roda na hora', () => {
+    const { historico } = carregar(5);
+    const depois = jest.fn();
+    historico.depoisDeFecharAsFolhas(depois);
+    expect(depois).toHaveBeenCalledTimes(1);
+  });
+
+  it('fora da web não espera nada, mesmo com Folha aberta', () => {
+    const { historico, montar, passar } = carregar(5);
+    montar(1);
+    passar(0);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    jest.replaceProperty((require('react-native') as typeof import('react-native')).Platform, 'OS', 'ios');
+    const depois = jest.fn();
+    historico.depoisDeFecharAsFolhas(depois);
+    expect(depois).toHaveBeenCalledTimes(1);
   });
 });

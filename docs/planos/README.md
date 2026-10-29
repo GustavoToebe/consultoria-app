@@ -54,6 +54,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | `AnamneseService.atribuir`: conferir o nome da restrição antes de virar `ANAMNESE_PENDENTE` em `DataIntegrityViolationException` | Claude | anamnese no aceite (1f1aa20) |
 | Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
 | Agenda calendário: passo 16 (revisão final, `mvn clean verify` e push do lote 2) na branch `agenda-calendario` | Claude | [agenda-calendario.md](agenda-calendario.md) |
+| Agenda calendário, o que a tela do lote 2 não conferiu: setas do teclado dentro do menu "Criar"; janela de 1024 a 1100 px; teclado virtual em aparelho (roteiro 22a/22b de `docs/build-celular.md`); o aviso de sobreposição de evento ignora a repetição; se o `replace` do filtro não chegar ao endereço, o filtro escolhido numa Folha fica só na tela até recarregar | Claude | [agenda-calendario.md](agenda-calendario.md) |
 | Agenda: push do servidor para compromisso marcado, remarcado ou cancelado (app fechado) fica com a decisão de push da frente de engajamento (item "Push do servidor", Etapa 3) | Gustavo decide | [agenda-calendario.md](agenda-calendario.md), [engajamento.md](engajamento.md) |
 
 | Mercado Pago: provar com um reenvio real se o `ts` muda; se repetir, rever a janela de 5 min do webhook da Central | Gustavo/Claude | revisão de segurança 28/10, item 1 |
