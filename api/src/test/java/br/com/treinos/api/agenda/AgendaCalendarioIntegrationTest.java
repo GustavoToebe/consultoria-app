@@ -221,6 +221,10 @@ class AgendaCalendarioIntegrationTest extends AbstractIntegrationTest {
         for (JsonNode intruso : new JsonNode[]{colega, outraConsultoria}) {
             assertThat(api.get("/agenda/agendas", intruso, 200)).isEmpty();
             assertThat(eventos(intruso, DIA, DIA)).isEmpty();
+            // pedir a agenda do outro pelo filtro não revela nada: nem na lista, nem na contagem do resumo
+            assertThat(api.get("/agenda/eventos?de=" + DIA + "&ate=" + DIA + "&agendas=" + agendaId, intruso, 200)).isEmpty();
+            assertThat(api.get("/agenda/resumo?de=" + DIA + "&ate=" + DIA + "&agendas=" + agendaId, intruso, 200)
+                    .path("dias")).isEmpty();
             api.put("/agenda/agendas/" + agendaId, intruso, Map.of("nome", "Roubada", "cor", "AZUL", "versao", 0), 404);
             api.get("/agenda/agendas/" + agendaId + "/contagem", intruso, 404);
             api.delete("/agenda/agendas/" + agendaId + "?versao=0", intruso, 404);
@@ -259,6 +263,12 @@ class AgendaCalendarioIntegrationTest extends AbstractIntegrationTest {
         api.post("/agenda/agendas", soLeitura, Map.of("nome", "Nova", "cor", "AZUL"), 403);
         evento(soLeitura, agenda.path("id").asString(), "Evento", DIA, "10:00", 60, 403);
         api.delete("/agenda/agendas/" + agenda.path("id").asString() + "?versao=0", soLeitura, 403);
+        api.put("/agenda/agendas/" + agenda.path("id").asString(), soLeitura,
+                Map.of("nome", "Renomeada", "cor", "AZUL", "versao", 0), 403);
+        String eventoId = evento(agenda.path("id").asString(), "Do dono", DIA, "10:00", 60).path("id").asString();
+        api.put("/agenda/eventos/" + eventoId, soLeitura,
+                withVersao(corpo(agenda.path("id").asString(), "Alterado", DIA, "10:00", 60), 0), 403);
+        api.delete("/agenda/eventos/" + eventoId + "?versao=0", soLeitura, 403);
     }
 
     // ---- evento avulso ----

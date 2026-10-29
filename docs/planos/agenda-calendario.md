@@ -150,7 +150,7 @@ Ordem: API primeiro, depois o app; o lote 1 (vários alunos, série de compromis
 - **`responsavel` em `/agenda/resumo` não é validado** (id desconhecido só zera os compromissos), igual à listagem de compromissos; em `/atualizacoes` um id de fora da equipe dá 404.
 - **Anonimização não limpa o texto livre dos eventos pessoais**: o evento não tem vínculo com aluno; se o membro escreveu o nome de um aluno no título, ele fica. O aviso fixo do formulário (P6) já diz isso; o teste da API fixa o comportamento.
 - **Evento avulso só aceita o escopo `ESTA`** (outro dá 400 `EVENTO_SEM_SERIE`): o app não manda `TODAS` nem `SEGUINTES` num avulso. SEGUINTES fora da primeira ocorrência cria série nova mas audita só `EVENTO_ALTERADO`.
-- **Descrições do `CatalogoPermissoes`** de `AGENDA_LER`/`AGENDA_ALTERAR` ainda dizem só "compromissos com alunos": acertar no passo 15.
+- **Descrições do `CatalogoPermissoes`** de `AGENDA_LER`/`AGENDA_ALTERAR`: acertadas no passo 15 (eb09a34).
 - **Dias úteis sem feriados** (segunda a sexta): decidido pelo Gustavo em 29/10; a ajuda do formulário diz "Feriados não são pulados: cancele só a ocorrência do feriado."
 - **Compromisso sem participante** se o aluno for apagado direto no banco (o CASCADE leva só o participante): nenhum caminho do app apaga aluno; aceito.
 - **Reabrir o compromisso inteiro** exige todos os participantes ativos: aluno inativado dá 409 até sair da lista (revisar na tela do passo 8).

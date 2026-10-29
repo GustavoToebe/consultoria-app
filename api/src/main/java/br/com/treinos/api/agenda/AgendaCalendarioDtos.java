@@ -36,9 +36,19 @@ public final class AgendaCalendarioDtos {
 
     /** Criar ({@code versao} ignorada) ou renomear/recolorir ({@code versao} obrigatória). {@code cor} é uma de {@link #CORES}. */
     public record AgendaRequest(@NotBlank @Size(max = NOME_DA_AGENDA_MAXIMO) String nome, @NotBlank String cor,
-                                Long versao) { }
+                                Long versao) {
+        @Override
+        public String toString() {
+            return "AgendaRequest[cor=" + cor + ", versao=" + versao + "]";
+        }
+    }
 
-    public record AgendaResponse(UUID id, String nome, String cor, long versao) { }
+    public record AgendaResponse(UUID id, String nome, String cor, long versao) {
+        @Override
+        public String toString() {
+            return "AgendaResponse[id=" + id + ", versao=" + versao + "]";
+        }
+    }
 
     /** Quantos eventos (séries, não ocorrências) a agenda tem: o número da confirmação de apagar. */
     public record ContagemDaAgenda(long eventos) { }
@@ -61,7 +71,12 @@ public final class AgendaCalendarioDtos {
                                 @Size(max = LOCAL_MAXIMO) String local, @Size(max = DESCRICAO_MAXIMA) String descricao,
                                 @NotNull LocalDate data, boolean diaInteiro, LocalTime hora,
                                 @Min(EVENTO_DURACAO_MINIMA) @Max(EVENTO_DURACAO_MAXIMA) Integer duracaoMinutos,
-                                @Valid RepeticaoDeEvento repeticao, Long versao) { }
+                                @Valid RepeticaoDeEvento repeticao, Long versao) {
+        @Override
+        public String toString() {
+            return "EventoRequest[agendaId=" + agendaId + ", data=" + data + ", versao=" + versao + "]";
+        }
+    }
 
     /**
      * Uma ocorrência já expandida (com a exceção aplicada). {@code dataOriginal} é o dia da regra (a chave para editar ou
@@ -71,7 +86,12 @@ public final class AgendaCalendarioDtos {
      */
     public record OcorrenciaDeEvento(UUID eventoId, UUID agendaId, LocalDate dataOriginal, LocalDate data, String hora,
                                      String horaFim, Instant inicio, Instant fim, boolean diaInteiro, String titulo,
-                                     String local, String descricao, boolean recorrente) { }
+                                     String local, String descricao, boolean recorrente) {
+        @Override
+        public String toString() {
+            return "OcorrenciaDeEvento[eventoId=" + eventoId + ", agendaId=" + agendaId + ", data=" + data + "]";
+        }
+    }
 
     /**
      * O evento (a regra) e, em {@code ocorrencia}, a pedida em {@code ?ocorrencia=AAAA-MM-DD} ou, sem ela, a primeira;
@@ -79,7 +99,12 @@ public final class AgendaCalendarioDtos {
      */
     public record EventoResponse(UUID id, UUID agendaId, String titulo, String local, String descricao, LocalDate data,
                                  boolean diaInteiro, String hora, Integer duracaoMinutos, RepeticaoDeEvento repeticao,
-                                 long versao, OcorrenciaDeEvento ocorrencia) { }
+                                 long versao, OcorrenciaDeEvento ocorrencia) {
+        @Override
+        public String toString() {
+            return "EventoResponse[id=" + id + ", agendaId=" + agendaId + ", versao=" + versao + "]";
+        }
+    }
 
     /** Um dia do resumo do Ano: só contagens, sem título nem nome. Dias sem nada não aparecem. */
     public record DiaDoResumo(LocalDate data, int compromissos, int eventos) { }

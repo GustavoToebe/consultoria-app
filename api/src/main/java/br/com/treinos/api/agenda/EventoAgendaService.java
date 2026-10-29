@@ -335,6 +335,12 @@ public class EventoAgendaService {
     private record Efetiva(EventoAgenda evento, LocalDate dataOriginal, LocalDate data, LocalTime hora, Integer duracao,
                            String titulo, String descricao, String local) {
 
+        @Override
+        public String toString() {
+            return "Efetiva[eventoId=" + (evento == null ? null : evento.getId()) + ", dataOriginal=" + dataOriginal
+                    + ", data=" + data + "]";
+        }
+
         boolean diaInteiro() {
             return hora == null;
         }
@@ -490,7 +496,12 @@ public class EventoAgendaService {
 
     // ---- Validação ----
 
-    private record Conteudo(String titulo, String descricao, String local, LocalDate data, LocalTime hora, Integer duracao) { }
+    private record Conteudo(String titulo, String descricao, String local, LocalDate data, LocalTime hora, Integer duracao) {
+        @Override
+        public String toString() {
+            return "Conteudo[data=" + data + ", hora=" + hora + ", duracao=" + duracao + "]";
+        }
+    }
 
     private static Conteudo conteudo(EventoRequest r) {
         String titulo = r.titulo() == null ? "" : r.titulo().trim();
