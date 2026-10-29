@@ -14,7 +14,7 @@ import { usePasseio } from '../ui/Passeio';
 import { sobre } from '../ui/sobre';
 import { Tela } from '../ui/Tela';
 import { Texto } from '../ui/Texto';
-import { GUIAS, textoDoItem, type Publico } from './conteudo';
+import { GUIAS, secoesDoGuia, textoDoItem, type Publico } from './conteudo';
 import { TutorialGuiado } from './TutorialGuiado';
 
 /**
@@ -27,7 +27,7 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
   const guia = GUIAS[publico];
   const [tutorial, setTutorial] = useState(false);
   const { rever } = usePasseio();
-  const { cicloHabilitado } = useSessao();
+  const { cicloHabilitado, retornoHabilitado } = useSessao();
   const passos = guia.primeirosPassos.filter((p) => !p.soNoPdf);
   return (
     <Tela bordas={['top']} largura={publico === 'aluno' ? 720 : LARGURA_EDITOR}>
@@ -59,7 +59,7 @@ export function TelaAjuda({ publico }: { publico: Publico }) {
           acoes={<Botao rotulo="Abrir o guia" rotuloAcessivel={`Abrir ${guia.titulo.toLowerCase()}`} tipo="secundario" Icone={FileDown} aoTocar={() => void Linking.openURL(`/guias/${guia.arquivoPdf}`)} />}>{null}</Cartao>
       ) : null}
       <Cartao titulo="Como usar">
-        {guia.secoes.map((s) => (
+        {secoesDoGuia(guia, retornoHabilitado).map((s) => (
           <LinhaRecolhivel key={s.titulo} titulo={s.titulo}>
             {s.itens.map((item) => (
               <View key={item.titulo} style={estilos.item}>
