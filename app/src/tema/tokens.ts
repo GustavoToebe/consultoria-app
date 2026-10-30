@@ -1,12 +1,13 @@
 import type { CorDaAgenda } from '../api/agendaTipos';
 
 /**
- * Design flat utilitário: cores sólidas, sem sombra nem gradiente, cantos de 8 px, bordas de
- * 1 px, grade de 8 px. A cor da marca só aparece em ação principal, menu e aba ativos, cartão "Hoje" e título da
+ * Design flat utilitário: cores sólidas, sem sombra nem gradiente, cantos de 12 px, bordas de
+ * 1 px nos campos e 2 px nos blocos, grade de 8 px. A cor da marca só aparece em ação principal, menu e aba ativos, cartão "Hoje" e título da
  * marca; seleção (chips, escolhas) é invertida (fundo `texto`, letra `fundo`); status nunca usa a cor da marca (verde
  * ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto.
  *
- * Níveis: fundo → cartão (`superficie` + `borda`) → faixa de grupo (`superficie2`) → item (`superficie2` + `borda`).
+ * Níveis: fundo quase branco → cartão (`superficie` + `borda` de 2 px) → faixa do título (`superficie3`, ou `faixaForte` no
+ * exercício, com linha de 3 px embaixo) → item (`superficie2` + `borda`).
  * Bordas e divisores ficaram mais fortes em 30/10 (reunião de 29/10: o treinador não via onde um bloco terminava); a
  * borda do cartão não precisa de 3:1 (é decorativa), mas passa de 1,9:1 nos dois temas.
  * Campo de digitar = `campo` + `bordaCampo` (mais escuro que o cartão, um "buraco" onde se escreve).
@@ -18,6 +19,11 @@ export interface Cores {
   superficie3: string;
   divisor: string;
   borda: string;
+  /**
+   * Faixa de título do bloco principal de uma tela densa (o exercício no editor de treino): um tom mais forte que
+   * `superficie3`, para o exercício se destacar das faixas de dentro dele (protótipo de 30/10).
+   */
+  faixaForte: string;
   /** Fundo de campo de digitar. */
   campo: string;
   /** Borda de campo de digitar (≥ 3:1 sobre `campo`, WCAG 1.4.11). */
@@ -45,6 +51,7 @@ export const ESCURO: Cores = {
   superficie: '#18181B',
   superficie2: '#222226',
   superficie3: '#2C2C31',
+  faixaForte: '#34343B',
   divisor: '#36363C',
   borda: '#4C4C55',
   campo: '#0F0F12',
@@ -64,10 +71,11 @@ export const ESCURO: Cores = {
 };
 
 export const CLARO: Cores = {
-  fundo: '#EAEAED',
+  fundo: '#F7F7F8',
   superficie: '#FFFFFF',
   superficie2: '#F4F4F5',
   superficie3: '#E7E7EA',
+  faixaForte: '#DCDCE1',
   divisor: '#D4D4D8',
   borda: '#B9B9C0',
   campo: '#FFFFFF',
@@ -93,10 +101,11 @@ export const CLARO: Cores = {
  */
 export const AREIA: Cores = {
   ...CLARO,
-  fundo: '#F2F0EB',
+  fundo: '#FAF9F6',
   superficie: '#FFFFFF',
   superficie2: '#F7F5F0',
   superficie3: '#E7E3DB',
+  faixaForte: '#DDD6CA',
   divisor: '#DDD8CF',
   borda: '#B9B3A9',
   campo: '#FFFFFF',
@@ -132,7 +141,16 @@ export function corDaAgenda(chave: string | null | undefined, escuro: boolean): 
 export const MARCA_NEUTRA = '#52525B';
 
 export const espaco = (n: number) => n * 8;
-export const RAIO = 8;
+/** Cantos de 12 px (protótipo do editor, 30/10: o Gustavo escolheu 12 em vez de 8). */
+export const RAIO = 12;
+/**
+ * Espessuras escolhidas no protótipo do editor (30/10): borda do bloco (cartão, sessão, exercício) de 2 px, linha de
+ * 3 px embaixo da faixa do título e 2 px na borda de um item com cabeçalho próprio (o grupo de séries). Com o fundo
+ * quase branco, quem separa os blocos é a borda e a faixa, não o cinza da página.
+ */
+export const BORDA_BLOCO = 2;
+export const LINHA_DA_FAIXA = 3;
+export const BORDA_ITEM = 2;
 export const ALVO_TOQUE = 44;
 export const LARGURA_MAXIMA = 1800;
 /** Telas declaradas até esta largura são formulários curtos e não esticam. */
@@ -185,6 +203,15 @@ function misturar(cor: string, alvo: string, t: number): string {
   const b = parseInt(alvo.slice(1), 16);
   const canal = (desl: number) => Math.round(((a >> desl) & 255) * (1 - t) + ((b >> desl) & 255) * t);
   return `#${[16, 8, 0].map((d) => canal(d).toString(16).padStart(2, '0').toUpperCase()).join('')}`;
+}
+
+/**
+ * Fundo opaco de selo com ícone: `cor` com alfa 0x18 sobre `base` (a `superficie`). Opaco para o contraste não depender
+ * da faixa onde o selo está (sobre `faixaForte` um fundo translúcido ficava abaixo de 4,5:1).
+ */
+export function tingido(cor: string, base: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(cor) || !/^#[0-9a-f]{6}$/i.test(base)) return base;
+  return misturar(base, cor, 0x18 / 255);
 }
 
 /**

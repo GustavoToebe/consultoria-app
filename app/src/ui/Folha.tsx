@@ -9,7 +9,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindow
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { useFolhaNoHistorico } from './historicoDasFolhas';
 import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
@@ -132,7 +132,7 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
             { backgroundColor: cores.superficie, borderColor: cores.borda },
           ]}>
           {/* Faixa do título (reunião de 29/10): o topo da folha se separa do conteúdo, como nos cartões. */}
-          <View style={[estilos.topo, { backgroundColor: cores.superficie3, borderBottomColor: cores.borda }]}>
+          <View style={[estilos.topo, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo }]}>
             {/* A alça é só a área do título: arrastar a partir do X ou do menu ⋯ não move nem fecha a folha. */}
             <GestureDetector gesture={centralizado ? mover : gestoDeFechar}><View style={[estilos.alca, centralizado && estilos.topoArrastavel]}>
               <Texto variante="bloco" nivel={2}>{titulo}</Texto>
@@ -170,7 +170,7 @@ const estilos = StyleSheet.create({
     paddingLeft: espaco(2),
     paddingRight: espaco(1),
     paddingVertical: espaco(1),
-    borderBottomWidth: 1,
+    borderBottomWidth: LINHA_DA_FAIXA,
   },
   // Alça de arrastar no PC: cursor de mão e sem selecionar o título ao puxar.
   // Os tipos do RN só conhecem `auto` e `pointer` no cursor; o react-native-web aceita qualquer valor do CSS.

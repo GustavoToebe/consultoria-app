@@ -1,11 +1,11 @@
-import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Link2, Plus, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, ArrowRight, ChevronsDownUp, ChevronsUpDown, Link2, NotebookTabs, Plus, Trash2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Sessao } from '../../api/tipos';
 import { DIAS_CURTOS, resumoDaSessao, TIPOS_SESSAO } from '../../dominio/editorTreino';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL } from '../../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
 import { Campo } from '../../ui/Campo';
@@ -34,6 +34,8 @@ interface Props {
   removivel?: boolean;
   aoSalvarModelo?: () => void;
   aoNovoExercicio: () => void;
+  /** Abre a folha "Modelos" do editor (sessões e exercícios prontos). */
+  aoAbrirModelos?: () => void;
   /** "Criar grupo" (superset, circuito...): abre a escolha do tipo e dos exercícios. */
   aoCriarGrupo?: () => void;
   /** Por que não dá para criar grupo agora (poucos exercícios soltos); vazio = pode. */
@@ -51,7 +53,7 @@ interface Props {
  * exercício e criar grupo à esquerda e as ações da sessão à direita. O cardio é um exercício de modalidade Cardio.
  */
 export function CartaoSessao(p: Props) {
-  const { cores } = useTema();
+  const { cores, marca } = useTema();
   const { width } = useWindowDimensions();
   const largo = width >= LARGURA_MENU_LATERAL;
   const s = p.sessao;
@@ -63,7 +65,8 @@ export function CartaoSessao(p: Props) {
 
   return (
     <AlvoDeRolagem chave={s.uid}><Cartao
-      style={p.comProblema ? { borderColor: cores.perigo } : undefined}
+      // Barra de 4 px na cor da marca à esquerda: onde a sessão começa (protótipo de 30/10). É identidade, não status.
+      style={[{ borderLeftWidth: BARRA_DA_SESSAO, borderLeftColor: marca }, p.comProblema ? { borderColor: cores.perigo, borderLeftColor: marca } : null]}
       cabecalho={
         <CabecalhoDeGrupo
           titulo={s.nome || `Sessão ${p.posicao + 1}`}
@@ -72,8 +75,8 @@ export function CartaoSessao(p: Props) {
           acoesJuntas
           acoes={p.total > 1 ? (
             <>
-              <IconeBotao Icone={ArrowLeft} rotulo="Mover sessão para antes" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-              <IconeBotao Icone={ArrowRight} rotulo="Mover sessão para depois" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+              <IconeBotao moldura Icone={ArrowLeft} rotulo="Mover sessão para antes" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
+              <IconeBotao moldura Icone={ArrowRight} rotulo="Mover sessão para depois" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
             </>
           ) : undefined}
         />
@@ -120,12 +123,20 @@ export function CartaoSessao(p: Props) {
         ) : null}
       </View>
       <View style={estilos.exercicios}>{p.children}</View>
-      <LinhaDeAcoes alinhar="entre">
+      {/* "Adicionar próximo exercício" (protótipo de 30/10): o fim da lista é um bloco tracejado com as ações de acrescentar. */}
+      <View style={[estilos.proximo, { borderColor: cores.bordaCampo }]}>
+        <View style={estilos.textoDoProximo}>
+          <Texto variante="bloco" nivel={3}>Adicionar próximo exercício</Texto>
+          <Texto variante="suave">Escolha da biblioteca da consultoria ou use um modelo pronto.</Texto>
+        </View>
         <LinhaDeAcoes>
-          <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
+          {p.aoAbrirModelos ? <Botao rotulo="Modelos prontos" tipo="secundario" Icone={NotebookTabs} aoTocar={p.aoAbrirModelos} /> : null}
           {p.aoCriarGrupo ? <Botao rotulo="Criar grupo" tipo="secundario" Icone={Link2} aoTocar={p.aoCriarGrupo} desabilitado={!!p.motivoSemGrupo} motivo={p.motivoSemGrupo ?? undefined} /> : null}
-          {p.aoSalvarModelo ? <Botao rotulo={rotuloSalvarComo('SESSAO_TREINO')} rotuloAcessivel={`${rotuloSalvarComo('SESSAO_TREINO')} no Planejamento`} tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : null}
+          <Botao rotulo="Adicionar exercício" tipo="secundario" Icone={Plus} aoTocar={p.aoNovoExercicio} />
         </LinhaDeAcoes>
+      </View>
+      <LinhaDeAcoes alinhar="entre">
+        {p.aoSalvarModelo ? <Botao rotulo={rotuloSalvarComo('SESSAO_TREINO')} rotuloAcessivel={`${rotuloSalvarComo('SESSAO_TREINO')} no Planejamento`} tipo="fantasma" aoTocar={p.aoSalvarModelo} /> : <View />}
         {p.removivel !== false ? <Botao rotulo="Remover sessão" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} /> : null}
       </LinhaDeAcoes>
     </Cartao></AlvoDeRolagem>
@@ -138,7 +149,12 @@ function resumoDoMais(s: Sessao): string {
   return partes.length ? partes.join(' · ') : 'Nada preenchido';
 }
 
+/** Largura da barra na cor da marca à esquerda do cartão da sessão. */
+const BARRA_DA_SESSAO = 4;
+
 const estilos = StyleSheet.create({
+  proximo: { borderWidth: 1, borderStyle: 'dashed', borderRadius: RAIO, padding: espaco(2), gap: espaco(1.5), flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' },
+  textoDoProximo: { flexGrow: 1, flexShrink: 1, flexBasis: 240, gap: 2 },
   tituloExercicios: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   linhaSessao: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1.5) },
   coluna: { flexDirection: 'column', alignItems: 'stretch' },

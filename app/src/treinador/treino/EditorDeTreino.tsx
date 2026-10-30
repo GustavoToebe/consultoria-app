@@ -55,6 +55,7 @@ import { nomeDaCombinacao } from '../../dominio/metodologia';
 import { descansoSoDoGrupo } from '../../dominio/textoDoGrupo';
 import { CONFIGURACAO_PADRAO } from '../../dominio/metodologiaPadrao';
 import { ConfiguracaoDoPlano } from '../plano/ConfiguracaoDoPlano';
+import { ContadoresDoTreino } from './ContadoresDoTreino';
 import { SeletorDeSessoes } from './SeletorDeSessoes';
 import { Folha } from '../../ui/Folha';
 import { Botao } from '../../ui/Botao';
@@ -111,7 +112,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
   const [modelos, setModelos] = useState(false);
   // Miniatura da demonstração: vem da biblioteca, pelo vínculo `exercicioId`. Sem permissão ou sem internet, fica sem miniatura.
   const biblioteca = useCarregar('biblioteca-exercicios', () => listarExercicios());
-  const demonstracoes = new Map((biblioteca.dados ?? []).map((x) => [x.id, { imagens: x.imagens, imagemPropriaEm: x.imagemPropriaEm }]));
+  const demonstracoes = new Map((biblioteca.dados ?? []).map((x) => [x.id, { imagens: x.imagens, imagemPropriaEm: x.imagemPropriaEm, grupoMuscular: x.grupoMuscular }]));
 
   const conteudoDaTela = editor.estado?.conteudo ?? null;
   const validacaoLocal = useMemo(() => (verificando && conteudoDaTela ? validarTreino(conteudoDaTela) : null), [verificando, conteudoDaTela]);
@@ -219,6 +220,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       noGrupo={noGrupo}
       descansoPorSerie={descansoPorSerie}
       demonstracao={e.exercicioId ? demonstracoes.get(e.exercicioId) ?? null : null}
+      grupoMuscular={e.exercicioId ? demonstracoes.get(e.exercicioId)?.grupoMuscular ?? null : null}
       aoAbrir={() => alternar(e.uid)}
       aoMudar={(novo) => mudarExercicios(indiceSelecionado, (lista) => substituir(lista, ei, novo))}
       aoMudarApagandoSeries={(novo) => comDesfazer(`Modalidade de “${e.nome || ei + 1}” trocada; séries apagadas.`, (a) => trocarExercicioPorUid(a, sessao.uid, e.uid, novo))}
@@ -245,6 +247,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
       {modelo ? <FaixaDoModelo /> : <FaixaDoPlanoDoAluno tipo="treino" />}
       {modelo ? null : <CartaoCicloNoPeriodo alunoId={estado.plano.alunoId} inicio={estado.plano.inicio} fim={estado.plano.fim} />}
       {modelo ? <NomeDoModelo editor={editor} /> : null}
+      {unica ? null : <ContadoresDoTreino conteudo={c} aoIrAoPrimeiro={(uids) => { setVerificando(true); irAoPrimeiro(uids); }} />}
       <ProblemasDoPlano editor={editor} problemas={problemas ?? validacaoLocal} aoProblemas={fecharVerificacao} aoIrAoPrimeiro={irAoPrimeiro} />
       {desfazer ? (
         <BarraDesfazer
@@ -316,6 +319,7 @@ export default function EditorDeTreino({ modelo = false, unica = false, receita 
           }}
           aoSalvarModelo={() => setFolha({ tipo: 'salvarSessao', indice: indiceSelecionado })}
           aoNovoExercicio={() => adicionarExercicio(indiceSelecionado)}
+          aoAbrirModelos={unica ? undefined : () => setModelos(true)}
           aoCriarGrupo={() => setFolha({ tipo: 'grupo' })}
           motivoSemGrupo={motivoSemGrupo(sessaoAtual, config)}
           todosAbertos={sessaoAtual.exercicios.length > 0 && sessaoAtual.exercicios.every((e) => abertos.has(e.uid))}

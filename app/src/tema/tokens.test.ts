@@ -1,4 +1,4 @@
-import { AREIA, CHAVES_DA_AGENDA, CLARO, ESCURO, PALETA_DA_AGENDA, contraste, corDaAgenda, marcaParaTexto, textoSobre } from './tokens';
+import { AREIA, CHAVES_DA_AGENDA, CLARO, ESCURO, PALETA_DA_AGENDA, contraste, corDaAgenda, marcaParaTexto, textoSobre, tingido } from './tokens';
 
 it.each([CLARO, ESCURO, AREIA])('preserva contraste AA nos detalhes de todas as superfícies', (cores) => {
   for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
@@ -40,7 +40,10 @@ it.each([CLARO, ESCURO, AREIA])('campo, borda e cartão se distinguem do fundo e
   // Reunião de 29/10: a borda do cartão tem de aparecer (1,9:1 ou mais), também sobre a faixa do cabeçalho.
   expect(contraste(cores.borda, cores.superficie)).toBeGreaterThanOrEqual(1.9);
   expect(contraste(cores.borda, cores.superficie3)).toBeGreaterThanOrEqual(1.25);
-  expect(contraste(cores.fundo, cores.superficie)).toBeGreaterThanOrEqual(1.1);
+  // Fundo quase branco (30/10): o cartão branco quase some contra ele; quem marca o bloco é a borda e a faixa do título.
+  expect(contraste(cores.borda, cores.fundo)).toBeGreaterThanOrEqual(1.8);
+  expect(contraste(cores.superficie3, cores.fundo)).toBeGreaterThanOrEqual(1.1);
+  expect(contraste(cores.faixaForte, cores.superficie)).toBeGreaterThan(contraste(cores.superficie3, cores.superficie));
 });
 
 describe('contraste do texto sobre a cor da marca', () => {
@@ -135,6 +138,15 @@ test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
       for (const base of [cores.superficie, cores.fundo]) {
         expect(contraste(cores[tom], fundoDoAlerta(cores[tom], base))).toBeGreaterThanOrEqual(4.5);
       }
+    }
+  },
+);
+
+test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
+  'selo com ícone (Pronta, Atenção, Corrigir): texto legível sobre o fundo opaco, em qualquer faixa, no tema %s',
+  (_nome, cores) => {
+    for (const tom of ['perigo', 'atencao', 'sucesso'] as const) {
+      expect(contraste(cores[tom], tingido(cores[tom], cores.superficie))).toBeGreaterThanOrEqual(4.5);
     }
   },
 );

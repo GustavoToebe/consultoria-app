@@ -9,12 +9,12 @@
  --font-metal: 'MetalMania_400Regular';
  --font-esportiva: 'BebasNeue_400Regular';
  --font-condensada: 'Oswald_700Bold';
- --radius-md: 8px;
+ --radius-md: 12px;
 }
 @layer theme {
  :root {
   @variant light {
-   --color-background: #EAEAED;
+   --color-background: #F7F7F8;
    --color-foreground: #111114;
    --color-card: #FFFFFF;
    --color-card-foreground: #111114;

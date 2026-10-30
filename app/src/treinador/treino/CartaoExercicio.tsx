@@ -1,6 +1,6 @@
-import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, Save, Trash2, Unlink } from 'lucide-react-native';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ArrowDown, ArrowLeftRight, ArrowUp, ChevronDown, ChevronUp, CircleAlert, CircleCheck, Save, Trash2, TriangleAlert, Unlink } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { Configuracao, ExercicioPlano } from '../../api/tipos';
 import { descreverSeries } from '../../dominio/agrupamento';
@@ -8,9 +8,10 @@ import { comModalidade, trocaApagaSeries } from '../../dominio/editorTreino';
 import { erroDaCadencia, erroDaIsometria, normalizarCadencia, textoExecucao } from '../../dominio/execucaoDoExercicio';
 import { MODALIDADES } from '../../dominio/modalidades';
 import type { Problemas } from '../../dominio/validacaoDeSerie';
+import { validarExercicio } from '../../dominio/validacaoDoTreino';
 import { erroDoVideo } from '../../dominio/video';
 import { useTema } from '../../tema/TemaProvider';
-import { espaco, fontes, RAIO } from '../../tema/tokens';
+import { BORDA_BLOCO, espaco, fontes, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { AlvoDeRolagem } from '../../ui/AlvoDeRolagem';
 import { Botao } from '../../ui/Botao';
 import { CabecalhoDeGrupo } from '../../ui/CabecalhoDeGrupo';
@@ -53,6 +54,8 @@ interface Props {
   aoSalvarReceita: () => void;
   /** Imagem do exercício na biblioteca (nulo = fora dela ou sem imagem). */
   demonstracao?: { imagens: string[]; imagemPropriaEm: string | null } | null;
+  /** Grupo muscular do exercício na biblioteca (etiqueta ao lado do nome); nulo fora dela. */
+  grupoMuscular?: string | null;
 }
 
 const OPCOES_DE_MODALIDADE: { valor: string | null; rotulo: string }[] = [
@@ -63,6 +66,7 @@ const OPCOES_DE_MODALIDADE: { valor: string | null; rotulo: string }[] = [
 /** Exercício da sessão: fechado mostra o resumo das séries; aberto edita tudo. Cardio tem a prescrição própria. */
 export function CartaoExercicio(p: Props) {
   const { cores } = useTema();
+  const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
   const e = p.exercicio;
   const erros = p.erros ?? {};
   const avisos = p.avisos ?? {};
@@ -70,6 +74,9 @@ export function CartaoExercicio(p: Props) {
   const resumo = descreverSeries(e.series, p.config);
   const execucao = textoExecucao(e);
   const mudar = (parcial: Partial<ExercicioPlano>) => p.aoMudar({ ...e, ...parcial });
+  // Estado do exercício na faixa, pela mesma validação da publicação, ao vivo (protótipo de 30/10).
+  const estado = useMemo(() => estadoDoExercicio(e, p.config), [e, p.config]);
+  const comErro = p.comProblema || estado.tipo === 'perigo';
   // "Observação e vídeo" começa aberto quando algum dos dois já está preenchido.
   const [extrasAbertos, setExtrasAbertos] = useState(!!(e.observacao || e.videoUrl));
   // Modalidade pedida que apagaria as séries: espera a confirmação.
@@ -92,9 +99,10 @@ export function CartaoExercicio(p: Props) {
         estilos.cartao,
         // Reunião de 29/10: o exercício é o bloco principal (cartão branco) e os grupos de séries ficam dentro dele, em
         // `superficie2` com a faixa própria; aberto, o topo vira faixa para marcar onde o exercício começa.
-        { borderColor: p.comProblema ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
+        { borderColor: comErro ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
       ]}>
-      <View style={[estilos.topo, p.aberto && { backgroundColor: cores.superficie3, borderBottomWidth: 1, borderBottomColor: cores.borda }]}>
+      {/* A faixa do exercício é mais forte que as de dentro dele (`faixaForte`), aberto ou fechado. */}
+      <View style={[estilos.topo, { backgroundColor: cores.faixaForte }, p.aberto && { borderBottomWidth: LINHA_DA_FAIXA, borderBottomColor: cores.bordaCampo }]}>
         {p.demonstracao ? (
           <DemonstracaoDoExercicio exercicioId={e.exercicioId} nome={e.nome} imagens={p.demonstracao.imagens}
             imagemPropriaEm={p.demonstracao.imagemPropriaEm} papel="EQUIPE" largura={56} altura={56} preencher ampliavel />
@@ -105,9 +113,13 @@ export function CartaoExercicio(p: Props) {
           accessibilityState={{ expanded: p.aberto }}
           onPress={p.aoAbrir}
           style={estilos.titulo}>
-          <Texto style={estilos.nome}>
-            {p.posicao + 1}. {e.nome || 'Exercício sem nome'}
-          </Texto>
+          <View style={estilos.linhaDoNome}>
+            <Texto style={estilos.nome}>
+              {p.posicao + 1}. {e.nome || 'Exercício sem nome'}
+            </Texto>
+            {p.grupoMuscular ? <Selo texto={p.grupoMuscular} tipo="neutro" /> : null}
+            <Selo texto={estado.texto} tipo={estado.tipo} Icone={estado.Icone} />
+          </View>
           {!p.aberto ? (
             resumo.length ? (
               resumo.map((r, i) => (
@@ -121,26 +133,24 @@ export function CartaoExercicio(p: Props) {
           ) : null}
           {!p.aberto && execucao ? <Texto variante="suave">{execucao}</Texto> : null}
           <View style={estilos.selos}>
-            {p.comProblema ? <Selo texto="Corrigir" tipo="perigo" /> : null}
             {cardio ? <Selo texto="Cardio" tipo="neutro" /> : null}
             {!e.progressao && !cardio ? <Selo texto="Sem progressão" tipo="neutro" /> : null}
             {e.exercicioId === null && e.nome ? <Selo texto="Fora da biblioteca" tipo="neutro" /> : null}
           </View>
         </Pressable>
-        <View style={estilos.acoes}>
-          <IconeBotao Icone={ArrowUp} rotulo="Subir exercício" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
-          <IconeBotao Icone={ArrowDown} rotulo="Descer exercício" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
-          <IconeBotao Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} />
+        <View style={[estilos.acoes, largo ? null : estilos.acoesEstreitas]}>
+          {largo
+            ? <Botao rotulo="Trocar" rotuloAcessivel={`Trocar ${e.nome || 'o exercício'}`} tipo="secundario" Icone={ArrowLeftRight} aoTocar={p.aoEscolherDaBiblioteca} />
+            : <IconeBotao moldura Icone={ArrowLeftRight} rotulo={`Trocar ${e.nome || 'o exercício'}`} aoTocar={p.aoEscolherDaBiblioteca} />}
+          <IconeBotao moldura Icone={ArrowUp} rotulo="Subir exercício" desabilitado={p.posicao === 0} aoTocar={() => p.aoMover(-1)} />
+          <IconeBotao moldura Icone={ArrowDown} rotulo="Descer exercício" desabilitado={p.posicao === p.total - 1} aoTocar={() => p.aoMover(1)} />
+          <IconeBotao moldura Icone={Trash2} rotulo={`Remover ${e.nome || 'o exercício'}`} cor={cores.perigo} aoTocar={p.aoRemover} />
+          <IconeBotao moldura Icone={p.aberto ? ChevronUp : ChevronDown} rotulo={p.aberto ? 'Fechar exercício' : 'Editar exercício'} aoTocar={p.aoAbrir} />
         </View>
       </View>
       {p.aberto ? (
         <View style={estilos.corpo}>
-          <View style={estilos.linhaNome}>
-            <View style={estilos.campoNome}>
-              <Campo rotulo="Nome" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
-            </View>
-            <Botao rotulo="Trocar" tipo="secundario" Icone={ArrowLeftRight} style={estilos.trocar} aoTocar={p.aoEscolherDaBiblioteca} />
-          </View>
+          <Campo rotulo="Nome de exibição" valor={e.nome} aoMudar={(nome) => mudar({ nome })} maxLength={120} erro={erros.nome} />
           <Escolha rotulo="Modalidade" compacta opcoes={OPCOES_DE_MODALIDADE} valor={e.modalidade} aoMudar={trocarModalidade} />
           {!cardio ? (
             <Escolha
@@ -217,12 +227,11 @@ export function CartaoExercicio(p: Props) {
               />
             </>
           ) : null}
-          <View style={estilos.rodape}>
-            {e.series.length && !cardio ? (
+          {e.series.length && !cardio ? (
+            <View style={estilos.rodape}>
               <Botao rotulo={rotuloSalvarComo('SERIES')} tipo="fantasma" Icone={Save} aoTocar={p.aoSalvarReceita} />
-            ) : null}
-            <Botao rotulo="Remover exercício" tipo="perigoTexto" Icone={Trash2} aoTocar={p.aoRemover} />
-          </View>
+            </View>
+          ) : null}
         </View>
       ) : null}
       <PainelConfirmacao
@@ -238,18 +247,28 @@ export function CartaoExercicio(p: Props) {
   );
 }
 
+/**
+ * Selo da faixa: "Pronto" (verde), avisos (âmbar) ou problemas (vermelho), pela validação da publicação. Exercício sem
+ * série diz isso em vez de contar o problema.
+ */
+function estadoDoExercicio(e: ExercicioPlano, config: Configuracao | null) {
+  const r = validarExercicio(e, config);
+  if (e.series.length === 0) return { tipo: 'perigo' as const, texto: e.modalidade === 'CARDIO' ? 'Sem prescrição' : 'Sem séries', Icone: CircleAlert };
+  if (r.erros.length) return { tipo: 'perigo' as const, texto: r.erros.length === 1 ? '1 problema a corrigir' : `${r.erros.length} problemas a corrigir`, Icone: CircleAlert };
+  if (r.avisos.length) return { tipo: 'atencao' as const, texto: r.avisos.length === 1 ? '1 aviso' : `${r.avisos.length} avisos`, Icone: TriangleAlert };
+  return { tipo: 'sucesso' as const, texto: 'Pronto', Icone: CircleCheck };
+}
+
 const estilos = StyleSheet.create({
-  cartao: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
-  topo: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1), padding: espaco(1.5) },
-  titulo: { flex: 1, gap: 2, minHeight: 44, justifyContent: 'center' },
+  cartao: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, overflow: 'hidden' },
+  topo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), paddingVertical: espaco(1.25) },
+  linhaDoNome: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1) },
+  acoesEstreitas: { marginLeft: 'auto' },
+  titulo: { flexGrow: 1, flexShrink: 1, flexBasis: 220, gap: 2, minHeight: 44, justifyContent: 'center' },
   nome: { fontFamily: fontes.semi, fontSize: 16, lineHeight: 22 },
   selos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(0.5), marginTop: 2 },
-  acoes: { flexDirection: 'row' },
+  acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   corpo: { gap: espaco(1.5), padding: espaco(1.5), paddingTop: espaco(2) },
-  linhaNome: { flexDirection: 'row', alignItems: 'flex-end', gap: espaco(1) },
-  campoNome: { flex: 1 },
-  // O Botao se alinha ao topo por padrão; aqui fica na base, rente ao campo.
-  trocar: { alignSelf: 'flex-end' },
   rodape: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: espaco(1) },
   linhaExecucao: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
   cadencia: { flexGrow: 1, flexBasis: 220 },

@@ -14,10 +14,15 @@ interface Props {
   desabilitado?: boolean;
   /** Ícone menor (16 px) em linhas apertadas; o alvo continua com 44 px (o `hitSlop` completa o que falta). */
   compacto?: boolean;
+  /**
+   * Com moldura (borda fina e fundo da superfície), como os botões da faixa do exercício e da série no editor de
+   * treino (protótipo de 30/10): mostra que é botão mesmo sobre a faixa cinza. 40 px, e o `hitSlop` completa os 44.
+   */
+  moldura?: boolean;
 }
 
 /** Ícone linear (lucide, 20 px) com alvo de toque de 44 px. */
-export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto }: Props) {
+export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto, moldura }: Props) {
   const { cores } = useTema();
   return (
     <Pressable
@@ -26,8 +31,9 @@ export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto
       accessibilityState={{ disabled: !!desabilitado }}
       disabled={desabilitado}
       onPress={aoTocar}
-      hitSlop={compacto ? 6 : 0}
-      style={(estado) => [estilos.botao, compacto && estilos.compacto, { opacity: desabilitado ? 0.4 : 1, backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : 'transparent' }]}>
+      hitSlop={compacto ? 6 : moldura ? 2 : 0}
+      style={(estado) => [estilos.botao, compacto && estilos.compacto, moldura && [estilos.moldura, { borderColor: cores.borda }],
+        { opacity: desabilitado ? 0.4 : 1, backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : moldura ? cores.superficie : 'transparent' }]}>
       <Icone size={compacto ? 16 : 20} color={cor ?? cores.texto} strokeWidth={2} />
     </Pressable>
   );
@@ -36,4 +42,5 @@ export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto
 const estilos = StyleSheet.create({
   botao: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
   compacto: { width: 32, height: 32 },
+  moldura: { width: 40, height: 40, borderWidth: 1 },
 });

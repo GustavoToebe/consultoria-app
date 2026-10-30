@@ -10,7 +10,7 @@ it.each([['light', CLARO], ['dark', ESCURO]] as const)('espelha todos os tokens 
   expect(bloco).toContain(`${nome}: ${valor};`);
  }
  for (const fonte of Object.values(fontes)) expect(css).toContain(fonte);
- expect(css).toContain('--radius-md: 8px');
+ expect(css).toContain('--radius-md: 12px');
 });
 it('marca não altera cores de status e mantém contraste', () => {
  const a = variaveisDoTema(CLARO, '#ABCDEF');

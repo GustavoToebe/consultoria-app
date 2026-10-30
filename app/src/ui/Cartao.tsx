@@ -4,7 +4,7 @@ import { Children, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { BORDA_BLOCO, espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { Texto } from './Texto';
 
 interface Props {
@@ -33,7 +33,7 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Cartão flat: superfície, borda nos dois temas, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
+/** Cartão flat: superfície, borda de 2 px, cantos de 12 px, sem sombra; a faixa do título tem linha de 3 px embaixo. Separa seções, dias, exercícios. */
 export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, style }: Props) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
@@ -46,7 +46,7 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
     <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
       {cabecalho ?? null}
       {titulo || acoes ? (
-        <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.borda, paddingHorizontal: recuo }, fechado ? estilos.faixaFechada : null] : null]}>
+        <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo, paddingHorizontal: recuo }, fechado ? estilos.faixaFechada : null] : null]}>
           <View style={estilos.tituloEDescricao}>
             {titulo && recolhivel ? (
               <Pressable
@@ -71,13 +71,13 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
 }
 
 const estilos = StyleSheet.create({
-  cartao: { borderWidth: 1, borderRadius: RAIO, gap: espaco(2) },
+  cartao: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, gap: espaco(2) },
   comCabecalho: { overflow: 'hidden', gap: 0 },
   corpo: { gap: espaco(2) },
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   tituloEDescricao: { flexShrink: 1, flexGrow: 1, flexBasis: 200, gap: 2 },
   titulo: { flexShrink: 1 },
-  faixa: { paddingVertical: espaco(1.5), borderBottomWidth: 1 },
+  faixa: { paddingVertical: espaco(1.5), borderBottomWidth: LINHA_DA_FAIXA },
   faixaFechada: { borderBottomWidth: 0 },
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', maxWidth: '100%' },

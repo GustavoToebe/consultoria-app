@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { BORDA_BLOCO, espaco, RAIO } from '../tema/tokens';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 
@@ -129,7 +129,7 @@ function Toque<T>({ linha, aoTocar, rotulo, papel, style, children }: {
 }
 
 const estilos = StyleSheet.create({
-  tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  tabela: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, overflow: 'hidden' },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), minHeight: 48 },
   cabecalho: { borderBottomWidth: 1, minHeight: 40 },
   corpoLinha: { paddingVertical: espaco(0.25) },
