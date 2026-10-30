@@ -102,16 +102,17 @@ public final class LeitorDePlanilha {
         }
     }
 
-    /** Número serial do Excel (sistema 1900) para data. Abaixo de 61 recusa o dia inventado de 1900. */
+    /**
+     * Número serial do Excel (sistema 1900) para data. Abaixo de 61 recusa o dia inventado de 1900. A parte fracionária é a
+     * hora do dia e é descartada: planilha real (30/10) traz o histórico de pesos como "data e hora" e recusar a fração
+     * fazia toda a aba virar "Data inválida".
+     */
     public static LocalDate dataSerial(BigDecimal serial, boolean data1904) {
         if (serial == null) {
             return null;
         }
         BigDecimal n = data1904 ? serial.add(new BigDecimal("1462")) : serial;
-        if (n.stripTrailingZeros().scale() > 0) {
-            return null;
-        }
-        long dias = n.longValue();
+        long dias = n.setScale(0, java.math.RoundingMode.FLOOR).longValue();
         if (dias < 61 || dias > 80000) {
             return null;
         }

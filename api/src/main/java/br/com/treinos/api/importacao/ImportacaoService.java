@@ -98,13 +98,16 @@ public class ImportacaoService {
         this.json = json;
     }
 
-    public Colunas colunas(String destino, String nome, byte[] bytes, int aba, boolean cabecalho) {
+    public Colunas colunas(String destino, String nome, byte[] bytes, int aba, int linhaDoCabecalho) {
         exigir(destino);
+        conferirLinhaDoCabecalho(linhaDoCabecalho);
         var planilha = LeitorDePlanilha.ler(nome, bytes, aba);
         List<String> colunas = new ArrayList<>();
-        if (!planilha.linhas().isEmpty() && cabecalho) {
-            for (int i = 0; i < planilha.linhas().get(0).celulas().size(); i++) {
-                String texto = planilha.linhas().get(0).celulas().get(i).texto();
+        int posicaoDoCabecalho = ConfiguracaoDaImportacao.posicaoDoCabecalho(planilha, linhaDoCabecalho);
+        if (posicaoDoCabecalho >= 0) {
+            var celulasDoCabecalho = planilha.linhas().get(posicaoDoCabecalho).celulas();
+            for (int i = 0; i < celulasDoCabecalho.size(); i++) {
+                String texto = celulasDoCabecalho.get(i).texto();
                 colunas.add(texto == null || texto.isBlank() ? LeitorDePlanilha.letra(i) : texto);
             }
         } else {
@@ -113,7 +116,7 @@ public class ImportacaoService {
                 colunas.add(LeitorDePlanilha.letra(i));
             }
         }
-        int primeira = cabecalho && !planilha.linhas().isEmpty() ? 1 : 0;
+        int primeira = posicaoDoCabecalho + 1;
         int teto = Math.min(LINHAS_DA_AMOSTRA, colunas.isEmpty() ? LINHAS_DA_AMOSTRA : CELULAS_DA_AMOSTRA / colunas.size());
         List<List<String>> amostra = new ArrayList<>();
         List<Integer> numeros = new ArrayList<>();
@@ -141,7 +144,7 @@ public class ImportacaoService {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
         AjustesDaImportacao ajustes = ajustes(configuracao);
-        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.cabecalho());
+        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.linhaDoCabecalho());
         conferirTamanho(planilha, config);
         var resultado = gravador.processar(destino, planilha, config, null, false);
         int mostrados = Math.min(ERROS_NA_PREVIA, resultado.erros().size());
@@ -156,7 +159,7 @@ public class ImportacaoService {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
         AjustesDaImportacao ajustes = ajustes(configuracao);
-        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.cabecalho());
+        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.linhaDoCabecalho());
         conferirTamanho(planilha, config);
         String calculado = hash(bytes, destino, config, ajustes);
         if (hash == null || !MessageDigest.isEqual(calculado.getBytes(StandardCharsets.UTF_8),
@@ -269,7 +272,12 @@ public class ImportacaoService {
             throw new ValidacaoException("A configuração da importação é inválida.", "ARQUIVO_INVALIDO", List.of());
         }
         int aba = no.path("aba").asInt(0);
-        boolean cabecalho = !no.has("cabecalho") || no.path("cabecalho").asBoolean(true);
+        JsonNode linha = no.path("linhaDoCabecalho");
+        if (!linha.isIntegralNumber()) {
+            throw new ValidacaoException("Informe a linha do cabeçalho (0 se não houver).", "ARQUIVO_INVALIDO", List.of());
+        }
+        int linhaDoCabecalho = linha.asInt();
+        conferirLinhaDoCabecalho(linhaDoCabecalho);
         String chave = no.path("chave").asString("");
         String existentes = no.path("existentes").asString("");
         if (!chaves(destino).contains(chave)) {
@@ -308,7 +316,7 @@ public class ImportacaoService {
                 throw new ValidacaoException("Informe a coluna do campo obrigatório.", "ARQUIVO_INVALIDO", List.of());
             }
         }
-        return new ConfiguracaoDaImportacao(aba, cabecalho, chave, existentes, mapeamento);
+        return new ConfiguracaoDaImportacao(aba, linhaDoCabecalho, chave, existentes, mapeamento);
     }
 
     /** Os ajustes da tabela que vêm na mesma configuração (já conferida como JSON por `configuracao`). */
@@ -316,8 +324,16 @@ public class ImportacaoService {
         return AjustesDaImportacao.ler(json.readTree(texto == null ? "" : texto));
     }
 
+    /** 0 (sem cabeçalho) ou o número da linha no arquivo, até o teto; vale na leitura das colunas e na configuração. */
+    private static void conferirLinhaDoCabecalho(int linhaDoCabecalho) {
+        if (linhaDoCabecalho < 0 || linhaDoCabecalho > ConfiguracaoDaImportacao.LINHA_DO_CABECALHO_MAXIMA) {
+            throw new ValidacaoException("A linha do cabeçalho deve ser de 0 a "
+                    + ConfiguracaoDaImportacao.LINHA_DO_CABECALHO_MAXIMA + ".", "ARQUIVO_INVALIDO", List.of());
+        }
+    }
+
     private static void conferirTamanho(LeitorDePlanilha.Planilha planilha, ConfiguracaoDaImportacao config) {
-        int dados = planilha.linhas().size() - (config.cabecalho() && !planilha.linhas().isEmpty() ? 1 : 0);
+        int dados = planilha.linhas().size() - ConfiguracaoDaImportacao.primeiraDeDados(planilha, config.linhaDoCabecalho());
         if (dados <= 0) {
             throw new ValidacaoException("O arquivo não tem linhas para importar.", "ARQUIVO_INVALIDO", List.of());
         }
@@ -354,7 +370,7 @@ public class ImportacaoService {
 
     private static String canonico(String destino, ConfiguracaoDaImportacao config) {
         StringBuilder s = new StringBuilder();
-        s.append(destino).append('\n').append(config.aba()).append('\n').append(config.cabecalho()).append('\n')
+        s.append(destino).append('\n').append(config.aba()).append('\n').append(config.linhaDoCabecalho()).append('\n')
                 .append(config.chave()).append('\n').append(config.existentes()).append('\n');
         config.mapeamento().entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .forEach(e -> s.append(e.getKey()).append('=').append(e.getValue()).append('\n'));
@@ -364,7 +380,7 @@ public class ImportacaoService {
     private static Map<String, Object> configJson(ConfiguracaoDaImportacao config) {
         Map<String, Object> mapa = new LinkedHashMap<>();
         mapa.put("aba", config.aba());
-        mapa.put("cabecalho", config.cabecalho());
+        mapa.put("linhaDoCabecalho", config.linhaDoCabecalho());
         mapa.put("chave", config.chave());
         mapa.put("existentes", config.existentes());
         mapa.put("mapeamento", config.mapeamento());

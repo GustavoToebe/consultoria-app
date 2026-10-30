@@ -80,13 +80,13 @@ record AjustesDaImportacao(Map<Integer, Map<Integer, String>> celulas, Set<Integ
 
     /**
      * A planilha com os ajustes: linha removida some, célula ajustada troca de texto (vira texto, nunca número nativo).
-     * Ajuste numa linha que não é de dados (o cabeçalho ou fora do arquivo) recusa a importação inteira.
+     * Ajuste numa linha que não é de dados (o cabeçalho, as de cima dele ou fora do arquivo) recusa a importação inteira.
      */
-    LeitorDePlanilha.Planilha aplicar(LeitorDePlanilha.Planilha planilha, boolean cabecalho) {
+    LeitorDePlanilha.Planilha aplicar(LeitorDePlanilha.Planilha planilha, int linhaDoCabecalho) {
         if (vazio()) {
             return planilha;
         }
-        int primeira = cabecalho && !planilha.linhas().isEmpty() ? 1 : 0;
+        int primeira = ConfiguracaoDaImportacao.primeiraDeDados(planilha, linhaDoCabecalho);
         Set<Integer> deDados = new TreeSet<>();
         for (int i = primeira; i < planilha.linhas().size(); i++) {
             deDados.add(planilha.linhas().get(i).numero());

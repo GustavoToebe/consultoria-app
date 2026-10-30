@@ -222,6 +222,15 @@ public class AtualizacaoService {
         for (String situacao : SITUACOES) contagem.put(situacao, todas.stream().filter(c -> pertence(situacao, c)).count());
         return contagem;
     }
+    /**
+     * Alunos ativos do escopo que têm pasta vigente com período (mesma consulta da lista e dos contadores). Quem não está
+     * aqui é "sem pasta com período". Só ids, para o painel contar.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Set<UUID> alunosComPastaVigente(UUID responsavelId) {
+        return atualizacoes.linhasDoPainel(responsavelId).stream().map(LinhaAtualizacao::alunoId)
+            .collect(java.util.stream.Collectors.toSet());
+    }
     private List<Classificada> classificar(UUID responsavelId) {
         LocalDate hoje = LocalDate.now(Fuso.BRASILIA);
         return atualizacoes.linhasDoPainel(responsavelId).stream().map(l -> new Classificada(l,

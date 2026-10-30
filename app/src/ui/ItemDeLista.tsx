@@ -15,7 +15,8 @@ interface Props {
   /** Linha `suave` abaixo do título (data, resumo). */
   detalhe?: string;
   Icone?: LucideIcon;
-  selo?: { texto: string; tipo: TipoSelo };
+  /** `Icone` opcional: o selo vira a pílula com ícone ("Pronta", "Atrasada"), como na lista de alunos. */
+  selo?: { texto: string; tipo: TipoSelo; Icone?: LucideIcon };
   /** Abre esta rota (o item é um link; na web é um `<a href>`, que abre em nova guia pelo botão direito). */
   href?: Href;
   /** Ou executa esta ação (o item é um botão). Com `href`, é a navegação do clique simples (ex.: passa pela guarda). */
@@ -53,7 +54,7 @@ export function ItemDeLista({ titulo, detalhe, Icone, selo, href, aoTocar, rotul
         {detalhe ? <Texto variante="suave" numerico>{detalhe}</Texto> : null}
         {children}
       </View>
-      {selo ? <Selo texto={selo.texto} tipo={selo.tipo} /> : null}
+      {selo ? <Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /> : null}
       {direita ?? (perigo ? null : <ChevronRight size={20} color={cores.textoSuave} />)}
     </Pressable>
   );

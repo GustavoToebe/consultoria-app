@@ -123,7 +123,7 @@ for (const largura of [390, 1280]) {
 
     // Etapa 2: aba, cabeçalho, chave e regra com a frase de ajuda.
     await expect(folha.getByText('3 linhas de dados na aba “Dados”', { exact: false })).toBeVisible();
-    await expect(folha.getByText('A primeira linha é o cabeçalho')).toBeVisible();
+    await expect(folha.getByRole('button', { name: 'Linha do cabeçalho: Linha 1. Escolher.' })).toBeVisible();
     await expect(folha.getByText('Deixa o cadastro como está e não usa a linha.')).toBeVisible();
     await folha.getByRole('button', { name: 'Continuar' }).click();
 
@@ -160,7 +160,7 @@ for (const largura of [390, 1280]) {
     await expect(folha.getByText('Ao confirmar, a importação vai criar 1 registro e atualizar 1.')).toBeVisible();
     await expect(folha.getByText('Linha 4 · Nome (coluna “Aluno”): Informe o nome.')).toBeVisible();
     expect(pedidos.previa).toBe(1);
-    expect(pedidos.configuracao).toMatchObject({ aba: 0, cabecalho: true, chave: 'email', existentes: 'IGNORAR', mapeamento: { nome: 0, email: 1 } });
+    expect(pedidos.configuracao).toMatchObject({ aba: 0, linhaDoCabecalho: 1, chave: 'email', existentes: 'IGNORAR', mapeamento: { nome: 0, email: 1 } });
     expect(pedidos.configuracao?.ajustes).toBeUndefined();
 
     // Corrigir na tabela: só a linha com erro, o motivo na célula; corrigir e validar de novo zera os erros.
@@ -193,7 +193,7 @@ for (const largura of [390, 1280]) {
     await folha.getByRole('button', { name: 'Concluir' }).click();
     await expect(page.getByText('Importação registrada.')).toBeVisible();
 
-    expect(pedidos.colunas).toEqual(['aba=0&cabecalho=true']);
+    expect(pedidos.colunas).toEqual(['aba=0&linhaDoCabecalho=1']);
     expect(naoTratadas).toEqual([]);
     expect(errosDaPagina).toEqual([]);
   });

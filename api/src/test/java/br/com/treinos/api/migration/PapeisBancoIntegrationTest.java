@@ -1,5 +1,6 @@
 package br.com.treinos.api.migration;
 
+import br.com.plataforma.comum.auth.AuthProperties;
 import br.com.treinos.api.AbstractIntegrationTest;
 import br.com.treinos.api.TreinosApiApplication;
 import org.flywaydb.core.Flyway;
@@ -62,6 +63,13 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
         return urlPadrao.substring(0, barra + 1) + banco + resto;
     }
 
+    /** URL do compose de produção: host, porta e banco, sem parâmetros (o `?options=` do módulo auth é anexado pela configuração). */
+    private String urlSemParametros(String banco) {
+        String url = urlDe(banco);
+        int interrogacao = url.indexOf('?');
+        return interrogacao < 0 ? url : url.substring(0, interrogacao);
+    }
+
     /** Banco vazio e sem dono definido, como o `CREATE DATABASE` da VPS, e os papéis criados pelo roles-banco.sql. */
     private void bancoNovoComPapeis(String banco, String migrador, String app) throws Exception {
         admin("postgres", "CREATE DATABASE " + banco);
@@ -95,7 +103,7 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
                 .profiles("test", "docker")
                 .initializers(inicializador)
                 .properties("server.port=0",
-                        "DB_URL=" + urlDe(banco), "DB_USUARIO=" + app, "DB_SENHA=" + SENHA_APP,
+                        "DB_URL=" + urlSemParametros(banco), "DB_USUARIO=" + app, "DB_SENHA=" + SENHA_APP,
                         "MIGRATION_DB_USER=" + migrador, "MIGRATION_DB_PASSWORD=" + SENHA_MIGRADOR,
                         "PLATAFORMA_PAPEL_APP=" + app)
                 // Argumento de linha de comando vence o application-test.yml: padrão de produção, fotos desligadas.
@@ -239,8 +247,9 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Travas contra sessão parada: o Flyway da API sai com lock_timeout de 60 s (init-sqls do perfil docker), a conexão da própria
-     * API continua sem limite de espera e o banco novo, criado pelo roles-banco.sql, derruba sessão parada em transação em 10 min.
+     * Travas contra sessão parada: o Flyway da API sai com lock_timeout de 60 s (init-sqls do perfil docker) e o do módulo de
+     * autenticação também (`options` na URL de migração), a conexão da própria API continua sem limite de espera e o banco
+     * novo, criado pelo roles-banco.sql, derruba sessão parada em transação em 10 min.
      */
     @Test
     void flywayTemLockTimeoutDeSessentaSegundosESoEleEOBancoDerrubaSessaoParada() throws Exception {
@@ -254,11 +263,18 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
             try (ConfigurableApplicationContext api = subirApi(banco, migrador, app,
                     contexto -> contexto.getBeanFactory().registerSingleton("leitorDoLockTimeout", leitorDoLockTimeout(lockTimeoutDoFlyway)))) {
                 assertThat(api.isRunning()).isTrue();
-                // Prova que o leitor rodou (46 migrations) e que todas viram 60 s (60000 ms); lista vazia seria teste sem efeito.
+                // Prova que o leitor rodou (47 migrations) e que todas viram 60 s (60000 ms); lista vazia seria teste sem efeito.
                 assertThat(lockTimeoutDoFlyway).isNotEmpty().containsOnly("60000");
                 // O limite é só do Flyway: o datasource da API segue com o padrão do Postgres (0 = esperar).
                 try (Connection c = api.getBean(DataSource.class).getConnection()) {
                     assertThat(parametro(c, "lock_timeout")).isEqualTo("0");
+                }
+                // O módulo de autenticação migra o schema plataforma com um Flyway próprio, que não lê init-sqls: o limite vem do
+                // `options` na URL dele. Abre uma conexão com a URL que o módulo recebeu da configuração (não uma montada aqui).
+                String urlDoModulo = api.getBean(AuthProperties.class).migracao().url();
+                assertThat(urlDoModulo).isNotBlank().contains("options=");
+                try (Connection c = DriverManager.getConnection(urlDoModulo, migrador, SENHA_MIGRADOR)) {
+                    assertThat(parametro(c, "lock_timeout")).isEqualTo("60000");
                 }
             }
             try (Connection c = como(banco, app, SENHA_APP)) {
@@ -283,7 +299,7 @@ class PapeisBancoIntegrationTest extends AbstractIntegrationTest {
             var primeira = Flyway.configure().dataSource(urlDe(banco), migrador, SENHA_MIGRADOR).locations("classpath:db/migration")
                     .placeholders(papel).load().migrate();
             assertThat(primeira.success).isTrue();
-            assertThat(primeira.migrationsExecuted).isEqualTo(46);
+            assertThat(primeira.migrationsExecuted).isEqualTo(47);
             try (Connection c = como(banco, app, SENHA_APP); Statement st = c.createStatement()) {
                 assertThatThrownBy(() -> st.executeQuery("SELECT * FROM flyway_schema_history")).hasMessageContaining("permission denied");
             }

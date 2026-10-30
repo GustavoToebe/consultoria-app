@@ -5,7 +5,7 @@ import {
   itensDaCelula, semanasDoMes,
 } from '../../dominio/agendaCalendario';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes, RAIO } from '../../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA, RAIO } from '../../tema/tokens';
 import { sobre } from '../../ui/sobre';
 import { Texto } from '../../ui/Texto';
 import { horarioDoItem, useCorDaAgenda } from './itemDaAgenda';
@@ -30,20 +30,21 @@ const quantos = (n: number) => (n === 0 ? 'nada marcado' : n === 1 ? '1 item' : 
 /**
  * Mês em grade de 7 colunas (segunda a domingo, 6 semanas). No PC cada célula é um botão que abre o Dia, com até 4 itens
  * (marcador de cor + hora + título) e "+N"; no celular, o número do dia com até 3 pontos nas cores das agendas, e o toque
- * escolhe o dia. O nome do botão é a data por extenso com quantos itens há.
+ * escolhe o dia. O nome do botão é a data por extenso com quantos itens há. O mês é um bloco (borda do bloco) e a linha dos
+ * dias da semana é a faixa dele.
  */
 export function VisaoDoMes({ data, hoje, itens, compacta, aoTocarDia }: Props) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const semanas = semanasDoMes(data, hoje, { data: compacta ? data : undefined });
   const de = semanas[0][0].data;
   const ate = semanas[5][6].data;
   const porDia = new Map(agruparPorDia(itens, de, ate).map((d) => [d.data, d.itens]));
   return (
-    <View style={[estilos.moldura, { borderColor: cores.borda, backgroundColor: cores.superficie }]}>
-      <View style={[estilos.semana, { borderBottomColor: cores.divisor }]}>
+    <View style={[estilos.moldura, { borderWidth: bordas.bloco, borderColor: cores.borda, backgroundColor: cores.superficie }]}>
+      <View style={[estilos.semana, estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo }]}>
         {DIAS_DA_SEMANA_CURTOS.map((d) => (
           <View key={d} style={estilos.cabecalho} aria-hidden>
-            <Texto variante="pequeno" cor={cores.textoSuave}>{d}</Texto>
+            <Texto variante="pequeno" style={estilos.forte}>{d}</Texto>
           </View>
         ))}
       </View>
@@ -102,8 +103,9 @@ function Celula({ celula, itens, compacta, aoTocar }: { celula: CelulaDoDia; ite
 }
 
 const estilos = StyleSheet.create({
-  moldura: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  moldura: { borderRadius: RAIO, overflow: 'hidden' },
   semana: { flexDirection: 'row', borderBottomWidth: 1 },
+  faixa: { borderBottomWidth: LINHA_DA_FAIXA },
   cabecalho: { flex: 1, minWidth: 0, alignItems: 'center', paddingVertical: espaco(0.75) },
   celula: { flex: 1, minWidth: 0, minHeight: 124, padding: espaco(0.5), gap: 2, borderLeftWidth: 1 },
   celulaCompacta: { flex: 1, minWidth: 0, minHeight: ALVO_TOQUE + espaco(1.5), alignItems: 'center', justifyContent: 'center', paddingVertical: 2, gap: 2 },

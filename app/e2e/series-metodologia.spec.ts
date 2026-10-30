@@ -257,7 +257,7 @@ for (const largura of [390, 1280]) {
     const mensagem = 'RPE precisa ficar entre 1 e 10, de meio em meio.';
     const salvar = page.getByRole('button', { name: 'Salvar modelo', exact: true });
     await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
-    await page.getByRole('button', { name: 'RPE (esforço percebido)', exact: true }).click();
+    await page.getByRole('button', { name: 'RPE', exact: true }).click();
     // RPE escolhido e ainda sem valor equivale a "sem esforço": nenhum erro, nenhuma lista de problemas.
     await expect(rpe).toHaveValue('');
     await expect(page.getByText(mensagem)).toHaveCount(0);
@@ -277,7 +277,7 @@ for (const largura of [390, 1280]) {
     expect((api.salvo().conteudo as Configuracao).tipos[0]).toMatchObject({ codigo: 'WARM_UP', esforcoPadrao: null });
     // Valor válido, de meio em meio, é gravado como digitado. Salvar recarrega o editor: o cartão volta recolhido e sem esforço.
     await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
-    await page.getByRole('button', { name: 'RPE (esforço percebido)', exact: true }).click();
+    await page.getByRole('button', { name: 'RPE', exact: true }).click();
     await rpe.fill('8,5');
     await salvar.click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(2);
@@ -356,108 +356,106 @@ for (const largura of [390, 1280]) {
     expect(api.naoTratadas).toEqual([]);
   });
 
-  if (largura === 1280) {
-    test('séries: decimal nas repetições ou num bloco não regrava a lista anterior', async ({ page }) => {
-      await page.setViewportSize({ width: 1280, height: 900 });
-      const api = await modelo(page, 'SERIES');
-      const salvar = page.getByRole('button', { name: 'Salvar modelo', exact: true });
-      await adicionarWsComCluster(page);
-      await page.getByRole('textbox', { name: 'Repetições em cada bloco', exact: true }).fill('1.5');
-      await page.getByRole('textbox', { name: 'Quantos blocos', exact: true }).fill('3');
-      await expect(page.getByRole('textbox', { name: 'Repetições em cada bloco', exact: true })).toHaveValue('1.5');
-      await expect(page.getByText(/3 blocos de 4 reps/)).toHaveCount(0);
-      await expect(salvar).toBeDisabled();
-      await page.getByRole('textbox', { name: 'Repetições em cada bloco', exact: true }).fill('5');
-      await expect(page.getByText('1 série completa · 3 blocos de 5 reps · pausa de 15 s', { exact: true })).toBeVisible();
-      await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
-      await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
-      await page.getByRole('textbox', { name: 'Bloco 1', exact: true }).fill('1.5');
-      await page.getByRole('textbox', { name: 'Bloco 2', exact: true }).fill('9');
-      await expect(page.getByRole('button', { name: 'Mais um bloco', exact: true })).toBeDisabled();
-      await expect(salvar).toBeDisabled();
-      await page.getByRole('textbox', { name: 'Bloco 1', exact: true }).fill('6');
-      await expect(page.getByText('1 série completa · blocos de 6 e 9 reps (15 no total) · pausa de 15 s', { exact: true })).toBeVisible();
-      await salvar.click();
-      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
-      const cluster = (api.salvo().conteudo as { series: Serie[] }).series.find((s) => s.tecnica?.tipo === 'CLUSTER');
-      expect(cluster?.tecnica?.blocos).toEqual([6, 9]);
-    });
+  test(`séries: decimal nas repetições ou num bloco não regrava a lista anterior (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modelo(page, 'SERIES');
+    const salvar = page.getByRole('button', { name: 'Salvar modelo', exact: true });
+    await adicionarWsComCluster(page);
+    await page.getByRole('textbox', { name: 'Repetições em cada bloco', exact: true }).fill('1.5');
+    await page.getByRole('textbox', { name: 'Quantos blocos', exact: true }).fill('3');
+    await expect(page.getByRole('textbox', { name: 'Repetições em cada bloco', exact: true })).toHaveValue('1.5');
+    await expect(page.getByText(/3 blocos de 4 reps/)).toHaveCount(0);
+    await expect(salvar).toBeDisabled();
+    await page.getByRole('textbox', { name: 'Repetições em cada bloco', exact: true }).fill('5');
+    await expect(page.getByText('1 série completa · 3 blocos de 5 reps · pausa de 15 s', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
+    await page.getByRole('textbox', { name: 'Bloco 1', exact: true }).fill('1.5');
+    await page.getByRole('textbox', { name: 'Bloco 2', exact: true }).fill('9');
+    await expect(page.getByRole('button', { name: 'Mais um bloco', exact: true })).toBeDisabled();
+    await expect(salvar).toBeDisabled();
+    await page.getByRole('textbox', { name: 'Bloco 1', exact: true }).fill('6');
+    await expect(page.getByText('1 série completa · blocos de 6 e 9 reps (15 no total) · pausa de 15 s', { exact: true })).toBeVisible();
+    await salvar.click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    const cluster = (api.salvo().conteudo as { series: Serie[] }).series.find((s) => s.tecnica?.tipo === 'CLUSTER');
+    expect(cluster?.tecnica?.blocos).toEqual([6, 9]);
+  });
 
-    test('séries: notação igual e edição depois da conversão acompanham o valor gravado', async ({ page }) => {
-      await page.setViewportSize({ width: 1280, height: 900 });
-      const api = await modelo(page, 'SERIES');
-      await page.getByRole('button', { name: /1x3 a 6 - WS/ }).click();
-      await page.getByRole('button', { name: 'Cluster', exact: true }).click();
-      await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
-      await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
-      await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('2×3');
-      await page.getByRole('button', { name: 'Blocos diferentes', exact: true }).click();
-      await expect(page.getByRole('textbox', { name: 'Bloco 1', exact: true })).toHaveValue('3');
-      await expect(page.getByRole('textbox', { name: 'Bloco 2', exact: true })).toHaveValue('3');
-      await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
-      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
-      expect((api.salvo().conteudo as { series: Serie[] }).series[0].tecnica?.blocos).toEqual([3, 3]);
-    });
+  test(`séries: notação igual e edição depois da conversão acompanham o valor gravado (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modelo(page, 'SERIES');
+    await page.getByRole('button', { name: /1x3 a 6 - WS/ }).click();
+    await page.getByRole('button', { name: 'Cluster', exact: true }).click();
+    await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4+2');
+    await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('2×3');
+    await page.getByRole('button', { name: 'Blocos diferentes', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Bloco 1', exact: true })).toHaveValue('3');
+    await expect(page.getByRole('textbox', { name: 'Bloco 2', exact: true })).toHaveValue('3');
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    expect((api.salvo().conteudo as { series: Serie[] }).series[0].tecnica?.blocos).toEqual([3, 3]);
+  });
 
-    test('séries: tipo sem padrão não herda origem de esforço, e tipo com padrão continua afirmando', async ({ page }) => {
-      await page.setViewportSize({ width: 1280, height: 900 });
-      const api = await modeloDeSeries(page, [
-        { uid: 'ws', tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: cargaDeTrabalho, esforco: { rir: 2, rpe: null }, descansoSegundos: null, tecnica: null },
-        { uid: 'legado', tipo: 'LEGADO', repsMin: 8, repsMax: 8, carga: cargaDeTrabalho, esforco: null, descansoSegundos: null, tecnica: null },
-      ]);
-      await page.getByRole('button', { name: /1x3 a 6 - WS/ }).click();
-      await page.getByRole('button', { name: 'LEGADO', exact: true }).click();
-      await page.getByRole('button', { name: 'Cluster', exact: true }).click();
-      await expect(page.getByText('Revise o esforço desta série ao usar Cluster.')).toBeVisible();
-      await expect(page.getByText('Este esforço veio do padrão da LEGADO. Revise a prescrição ao usar Cluster.')).toHaveCount(0);
-      await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
-      await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4×4');
-      await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
-      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
-      const salvo = (api.salvo().conteudo as { series: Serie[] }).series;
-      expect(salvo.find((s) => s.tecnica?.tipo === 'CLUSTER')).toMatchObject({ tipo: 'LEGADO', repsMin: 16, repsMax: 16, esforco: { rir: 2, rpe: null }, tecnica: { tipo: 'CLUSTER', blocos: [4, 4, 4, 4] } });
-      expect(salvo.find((s) => s.tecnica == null)).toMatchObject({ tipo: 'LEGADO', repsMin: 8, esforco: null });
-    });
+  test(`séries: tipo sem padrão não herda origem de esforço, e tipo com padrão continua afirmando (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modeloDeSeries(page, [
+      { uid: 'ws', tipo: 'WORKING', repsMin: 3, repsMax: 6, carga: cargaDeTrabalho, esforco: { rir: 2, rpe: null }, descansoSegundos: null, tecnica: null },
+      { uid: 'legado', tipo: 'LEGADO', repsMin: 8, repsMax: 8, carga: cargaDeTrabalho, esforco: null, descansoSegundos: null, tecnica: null },
+    ]);
+    await page.getByRole('button', { name: /1x3 a 6 - WS/ }).click();
+    await page.getByRole('button', { name: 'LEGADO', exact: true }).click();
+    await page.getByRole('button', { name: 'Cluster', exact: true }).click();
+    await expect(page.getByText('Revise o esforço desta série ao usar Cluster.')).toBeVisible();
+    await expect(page.getByText('Este esforço veio do padrão da LEGADO. Revise a prescrição ao usar Cluster.')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4×4');
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    const salvo = (api.salvo().conteudo as { series: Serie[] }).series;
+    expect(salvo.find((s) => s.tecnica?.tipo === 'CLUSTER')).toMatchObject({ tipo: 'LEGADO', repsMin: 16, repsMax: 16, esforco: { rir: 2, rpe: null }, tecnica: { tipo: 'CLUSTER', blocos: [4, 4, 4, 4] } });
+    expect(salvo.find((s) => s.tecnica == null)).toMatchObject({ tipo: 'LEGADO', repsMin: 8, esforco: null });
+  });
 
-    test('séries: trocar para um tipo da metodologia afirma a origem do esforço que ele preencheu', async ({ page }) => {
-      await page.setViewportSize({ width: 1280, height: 900 });
-      const api = await modeloDeSeries(page, [
-        { uid: 'fs', tipo: 'FEEDER', repsMin: 3, repsMax: 3, carga: cargaDeTrabalho, esforco: { rir: 2, rpe: null }, descansoSegundos: null, tecnica: null },
-      ]);
-      await page.getByRole('button', { name: /1x3 - FS/ }).click();
-      await page.getByRole('button', { name: 'WS', exact: true }).click();
-      await page.getByRole('button', { name: 'Cluster', exact: true }).click();
-      await expect(page.getByText('Este esforço veio do padrão da WS. Revise a prescrição ao usar Cluster.')).toBeVisible();
-      await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
-      await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4×4');
-      await expect(page.getByText('Este esforço veio do padrão da WS. Revise a prescrição ao usar Cluster.')).toBeVisible();
-      await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
-      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
-      expect((api.salvo().conteudo as { series: Serie[] }).series[0]).toMatchObject({ tipo: 'WORKING', esforco: { rir: 1, rpe: null }, tecnica: { tipo: 'CLUSTER' } });
-    });
+  test(`séries: trocar para um tipo da metodologia afirma a origem do esforço que ele preencheu (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modeloDeSeries(page, [
+      { uid: 'fs', tipo: 'FEEDER', repsMin: 3, repsMax: 3, carga: cargaDeTrabalho, esforco: { rir: 2, rpe: null }, descansoSegundos: null, tecnica: null },
+    ]);
+    await page.getByRole('button', { name: /1x3 - FS/ }).click();
+    await page.getByRole('button', { name: 'WS', exact: true }).click();
+    await page.getByRole('button', { name: 'Cluster', exact: true }).click();
+    await expect(page.getByText('Este esforço veio do padrão da WS. Revise a prescrição ao usar Cluster.')).toBeVisible();
+    await page.getByRole('button', { name: 'Digitar como 4+2', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Blocos de repetições', exact: true }).fill('4×4');
+    await expect(page.getByText('Este esforço veio do padrão da WS. Revise a prescrição ao usar Cluster.')).toBeVisible();
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    expect((api.salvo().conteudo as { series: Serie[] }).series[0]).toMatchObject({ tipo: 'WORKING', esforco: { rir: 1, rpe: null }, tecnica: { tipo: 'CLUSTER' } });
+  });
 
-    test('séries: pausa gravada nas duas unidades mostra os dois campos, e apagar um não os junta', async ({ page }) => {
-      await page.setViewportSize({ width: 1280, height: 900 });
-      const api = await modeloDeSeries(page, [
-        { uid: 'ws', tipo: 'WORKING', repsMin: 16, repsMax: 16, carga: cargaDeTrabalho, esforco: { rir: 1, rpe: null }, descansoSegundos: null,
-          tecnica: { tipo: 'CLUSTER', blocos: [4, 4, 4, 4], pausaSegundos: 15, pausaRespiracoes: 3 } },
-      ]);
-      await page.getByRole('button', { name: /WS com Cluster/ }).click();
-      const segundos = page.getByRole('textbox', { name: 'Pausa entre blocos (s)', exact: true });
-      const respiracoes = page.getByRole('textbox', { name: 'Pausa entre blocos em respirações', exact: true });
-      await expect(segundos).toHaveValue('15');
-      await expect(respiracoes).toHaveValue('3');
-      await expect(page.getByRole('radiogroup', { name: 'Unidade da pausa entre blocos', exact: true })).toHaveCount(0);
-      // Apagar as respirações deixa só um valor, mas o campo em que a pessoa digita continua na tela e com o foco.
-      await respiracoes.fill('');
-      await expect(respiracoes).toBeVisible();
-      await expect(respiracoes).toBeFocused();
-      await respiracoes.pressSequentially('5');
-      await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
-      await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
-      expect((api.salvo().conteudo as { series: Serie[] }).series[0].tecnica).toMatchObject({ pausaSegundos: 15, pausaRespiracoes: 5 });
-      expect(api.errosDaPagina).toEqual([]);
-      expect(api.naoTratadas).toEqual([]);
-    });
-  }
+  test(`séries: pausa gravada nas duas unidades mostra os dois campos, e apagar um não os junta (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const api = await modeloDeSeries(page, [
+      { uid: 'ws', tipo: 'WORKING', repsMin: 16, repsMax: 16, carga: cargaDeTrabalho, esforco: { rir: 1, rpe: null }, descansoSegundos: null,
+        tecnica: { tipo: 'CLUSTER', blocos: [4, 4, 4, 4], pausaSegundos: 15, pausaRespiracoes: 3 } },
+    ]);
+    await page.getByRole('button', { name: /WS com Cluster/ }).click();
+    const segundos = page.getByRole('textbox', { name: 'Pausa entre blocos (s)', exact: true });
+    const respiracoes = page.getByRole('textbox', { name: 'Pausa entre blocos em respirações', exact: true });
+    await expect(segundos).toHaveValue('15');
+    await expect(respiracoes).toHaveValue('3');
+    await expect(page.getByRole('radiogroup', { name: 'Unidade da pausa entre blocos', exact: true })).toHaveCount(0);
+    // Apagar as respirações deixa só um valor, mas o campo em que a pessoa digita continua na tela e com o foco.
+    await respiracoes.fill('');
+    await expect(respiracoes).toBeVisible();
+    await expect(respiracoes).toBeFocused();
+    await respiracoes.pressSequentially('5');
+    await page.getByRole('button', { name: 'Salvar modelo', exact: true }).click();
+    await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(1);
+    expect((api.salvo().conteudo as { series: Serie[] }).series[0].tecnica).toMatchObject({ pausaSegundos: 15, pausaRespiracoes: 5 });
+    expect(api.errosDaPagina).toEqual([]);
+    expect(api.naoTratadas).toEqual([]);
+  });
 }

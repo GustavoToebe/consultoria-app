@@ -3,6 +3,8 @@ package br.com.treinos.api.agenda;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.AgendaRequest;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.AgendaResponse;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.ContagemDaAgenda;
+import br.com.treinos.api.agenda.AgendaCalendarioDtos.CruzamentoRequest;
+import br.com.treinos.api.agenda.AgendaCalendarioDtos.CruzamentoResponse;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.EventoRequest;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.EventoResponse;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.OcorrenciaDeEvento;
@@ -98,6 +100,18 @@ public class AgendaCalendarioController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate ate,
             @RequestParam(required = false) List<UUID> agendas) {
         return eventos.listar(eu.usuarioId(), de, ate, agendas);
+    }
+
+    /**
+     * Só leitura (POST por causa do corpo; não grava, não audita, não bloqueia): o evento que está sendo montado, com a
+     * repetição, cruza algum outro evento meu em até um ano? Resposta: a contagem e as primeiras datas, sem texto de outro
+     * evento. Evento de outro membro ou consultoria em {@code eventoId} = 404.
+     */
+    @PreAuthorize("hasAuthority('PERM_AGENDA_LER')")
+    @PostMapping("/eventos/cruzamentos")
+    public CruzamentoResponse cruzamentos(@AuthenticationPrincipal UsuarioAutenticado eu,
+                                          @RequestBody @Valid CruzamentoRequest request) {
+        return eventos.cruzamentos(eu.usuarioId(), request);
     }
 
     /** O evento (a regra) e a ocorrência de {@code ocorrencia} (padrão: a primeira). */

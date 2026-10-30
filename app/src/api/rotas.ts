@@ -53,7 +53,7 @@ import type {
 } from './inscricoesTipos';
 import type {
   AgendaPessoal, AgendaPessoalRequest, AlunoOcupado, AlvoDoEvento, AvisoDeCompromisso, CancelamentoRequest, Compromisso,
-  CompromissoDoAluno, CompromissoRequest, ContagemDaAgenda, EscopoDaSerie, EventoDetalhe, EventoRequest, FiltroAlunosOcupados,
+  CompromissoDoAluno, CompromissoRequest, ContagemDaAgenda, CruzamentoDeEvento, CruzamentoRequest, EscopoDaSerie, EventoDetalhe, EventoRequest, FiltroAlunosOcupados,
   FiltroAtualizacoes, FiltroCompromissos, FiltroEventos, FiltroResumo, OcorrenciaDeEvento, ResumoDaAgenda, SituacaoDoAlunoRequest,
 } from './agendaTipos';
 import type {
@@ -579,6 +579,9 @@ export const listarEventos = (filtro: FiltroEventos) => {
 export const detalheDoEvento = (id: string, ocorrencia?: string | null) =>
   requisicao<EventoDetalhe>(`/agenda/eventos/${seg(id)}${ocorrencia ? `?ocorrencia=${encodeURIComponent(ocorrencia)}` : ''}`);
 export const criarEvento = (corpo: EventoRequest) => requisicao<EventoDetalhe>('/agenda/eventos', { metodo: 'POST', corpo });
+/** Só leitura (POST por causa do corpo): o evento que está sendo montado cruza outro meu em até um ano? Nunca grava. */
+export const cruzamentosDoEvento = (corpo: CruzamentoRequest) =>
+  requisicao<CruzamentoDeEvento>('/agenda/eventos/cruzamentos', { metodo: 'POST', corpo });
 /** `escopo` e `ocorrencia` só em série; num evento avulso vale só `ESTA` (o padrão da API, que não vai na rota). */
 const comAlvo = (caminho: string, alvo: AlvoDoEvento, extra: URLSearchParams = new URLSearchParams()) => {
   if (alvo.escopo && alvo.escopo !== 'ESTA') extra.set('escopo', alvo.escopo);
@@ -784,8 +787,8 @@ export const listarImportacoes = (filtro: { destino?: string; situacao?: string;
 };
 export const detalheDaImportacao = (id: string) => requisicao<DetalheDeImportacao>(`/importacoes/${seg(id)}`);
 export const csvDeErrosDaImportacao = (id: string) => requisicao<string>(`/importacoes/${seg(id)}/erros.csv`, { aceita: 'text/csv' });
-export const colunasDaImportacao = (destino: string, arquivo: FormData, aba: number, cabecalho: boolean) =>
-  requisicao<ColunasDaImportacao>(`/importacoes/${seg(destino)}/colunas?aba=${aba}&cabecalho=${cabecalho}`, { metodo: 'POST', corpoBruto: arquivo });
+export const colunasDaImportacao = (destino: string, arquivo: FormData, aba: number, linhaDoCabecalho: number) =>
+  requisicao<ColunasDaImportacao>(`/importacoes/${seg(destino)}/colunas?aba=${aba}&linhaDoCabecalho=${linhaDoCabecalho}`, { metodo: 'POST', corpoBruto: arquivo });
 export const previaDaImportacao = (destino: string, arquivo: FormData) =>
   requisicao<PreviaDeImportacao>(`/importacoes/${seg(destino)}/previa`, { metodo: 'POST', corpoBruto: arquivo });
 export const confirmarImportacao = (destino: string, arquivo: FormData, hash: string) =>

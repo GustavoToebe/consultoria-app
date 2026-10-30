@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { BORDA_BLOCO, espaco, RAIO } from '../tema/tokens';
 import { sobre } from './sobre';
 import { Texto } from './Texto';
 
@@ -48,7 +48,7 @@ export const LARGURA_TABELA = 520;
  * coluna `principal` é o título do cartão e a coluna `acao` fica no canto dele.
  */
 export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABELA, detalhe, rotulo, aoTocarLinha, rotuloDaLinha }: Props<T>) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const [largura, setLargura] = useState<number | null>(null);
   const empilhada = largura !== null && largura < larguraMinima;
   const estiloColuna = (c: ColunaDaTabela<T>) => [
@@ -64,7 +64,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
       role={empilhada ? undefined : 'table'}
       accessibilityLabel={rotulo}
       onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
-      style={empilhada ? estilos.cartoes : [estilos.tabela, { borderColor: cores.borda }]}>
+      style={empilhada ? estilos.cartoes : [estilos.tabela, { borderWidth: bordas.bloco, borderColor: cores.borda }]}>
       {largura === null ? null : empilhada ? (
         linhas.map((l) => (
           <Toque key={chave(l)} linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha}
@@ -86,7 +86,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
         ))
       ) : (
         <>
-          <View role="row" style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie3, borderColor: cores.borda }]}>
+          <View role="row" style={[estilos.linha, estilos.cabecalho, { backgroundColor: cores.superficie3, borderColor: cores.bordaCampo }]}>
             {colunas.map((c) => (
               <View key={c.chave} role="columnheader" style={estiloColuna(c)}>
                 {c.acao && !c.tituloNaTabela ? null : (
@@ -129,7 +129,7 @@ function Toque<T>({ linha, aoTocar, rotulo, papel, style, children }: {
 }
 
 const estilos = StyleSheet.create({
-  tabela: { borderWidth: 1, borderRadius: RAIO, overflow: 'hidden' },
+  tabela: { borderWidth: BORDA_BLOCO, borderRadius: RAIO, overflow: 'hidden' },
   linha: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingHorizontal: espaco(1.5), minHeight: 48 },
   cabecalho: { borderBottomWidth: 1, minHeight: 40 },
   corpoLinha: { paddingVertical: espaco(0.25) },

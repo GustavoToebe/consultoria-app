@@ -1,8 +1,8 @@
 import { useSessao } from '../../../sessao/SessaoProvider';
 import { Permitido } from '../../../ui/Permitido';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ellipsis, Pencil, UserCheck, UserMinus } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { aluno as buscarAluno, alterarAluno, alterarSituacaoAluno, consultoria as buscarConsultoria, escolherQuestionarioDoAluno } from '../../../api/rotas';
@@ -73,7 +73,7 @@ export default function FichaAluno() {
   return (
     <Tela bordas={['top']} largura={LARGURA_LISTA}>
       <Cabecalho titulo={aluno?.nome ?? 'Aluno'} trilha={[{ rotulo: 'Alunos', href: '/treinador/alunos' }, { rotulo: aluno?.nome ?? 'Aluno' }]} voltar="/treinador/alunos"
-        acoes={temMenu ? <IconeBotao Icone={Ellipsis} rotulo="Mais ações do aluno" aoTocar={() => setMenu(true)} /> : undefined} />
+        acoes={temMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo="Mais ações do aluno" aoTocar={() => setMenu(true)} /> : undefined} />
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!aluno && carregando ? <Esqueleto /> : null}
       {aluno ? (
@@ -170,16 +170,26 @@ function ConfirmarSituacao({ aluno, visivel, aoFechar, aoAlterar }: { aluno: Alu
  * as mesmas seções do formulário) até "Editar", que abre o formulário ali mesmo. O acesso ao app fica nessa mesma
  * área, numa linha (situação, e-mail de acesso e senha). O questionário de atualização também se troca no modo de
  * edição (fora dele é um campo de leitura, como os outros).
+ * `?editar=1` (o lápis da lista de alunos) abre já editando, para quem pode editar, e sai do endereço na hora, como o
+ * `?novo=1` do Planejamento: o voltar do navegador não tem passo sobrando.
  */
 function DadosDoAluno({ aluno, padrao, aoAlterar }: { aluno: AlunoDetalhe; padrao: number | null; aoAlterar: (a: AlunoDetalhe) => void }) {
   const { pode } = useSessao();
   const { avisar } = useAviso();
   const [editando, setEditando] = useState(false);
+  const { editar } = useLocalSearchParams<{ editar?: string }>();
+  const podeEditar = !aluno.anonimizado && pode('ALUNO_ALTERAR');
+  useEffect(() => {
+    if (editar !== '1') return;
+    let vivo = true;
+    void Promise.resolve().then(() => { if (!vivo) return; if (podeEditar) setEditando(true); router.setParams({ editar: undefined }); });
+    return () => { vivo = false; };
+  }, [editar, podeEditar]);
   return (
     <View style={estilos.dados}>
       <View style={estilos.tituloDados}>
         <Texto variante="bloco" nivel={2} style={estilos.titulo}>Dados do aluno</Texto>
-        {editando || aluno.anonimizado || !pode('ALUNO_ALTERAR') ? null : <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />}
+        {editando || !podeEditar ? null : <Botao rotulo="Editar" tipo="secundario" Icone={Pencil} aoTocar={() => setEditando(true)} />}
       </View>
       {editando ? (
         <FormAluno

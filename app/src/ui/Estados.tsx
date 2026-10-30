@@ -1,10 +1,10 @@
-import { Inbox, Info, Lock, type LucideIcon } from 'lucide-react-native';
+import { CircleAlert, CircleCheck, Inbox, Info, Lock, TriangleAlert, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import { useTema } from '../tema/TemaProvider';
-import { espaco, RAIO } from '../tema/tokens';
+import { espaco, RAIO, tingido } from '../tema/tokens';
 import { Botao } from './Botao';
 import { Texto } from './Texto';
 
@@ -103,21 +103,30 @@ function valeTentarDeNovo(erro: unknown): boolean {
 
 export type TomDoAlerta = 'perigo' | 'atencao' | 'sucesso';
 
+/** Ícone de cada tom: a cor nunca fala sozinha (o texto diz o que houve e o ícone, o tipo). */
+const ICONE_DO_ALERTA: Record<TomDoAlerta, LucideIcon> = { perigo: CircleAlert, atencao: TriangleAlert, sucesso: CircleCheck };
+
 /**
  * Caixa de aviso: fundo claro e borda na cor do tom, texto na mesma cor (pedido do Gustavo em 30/10: "pode usar nos avisos
  * de atenção"). `perigo` é erro (região de alerta para o leitor de tela), `atencao` é o que pede cuidado mas não impede
- * (aluno ocupado, avisos da validação, prévia) e `sucesso` confirma. A cor diz o tipo; o texto sempre diz o que houve.
+ * (aluno ocupado, avisos da validação, prévia) e `sucesso` confirma. A cor diz o tipo, com o ícone do tom ao lado; o texto
+ * sempre diz o que houve. O fundo é opaco (`tingido`, o mesmo do `Selo` com ícone): o contraste do texto não depende de
+ * onde a caixa está (fundo da tela, cartão ou faixa), conferido em `ui/contrasteDasPecas.test.ts`.
  */
 export function Alerta({ tom, titulo, texto, children }: { tom: TomDoAlerta; titulo?: string; texto?: string; children?: ReactNode }) {
   const { cores } = useTema();
   const cor = cores[tom];
+  const Icone = ICONE_DO_ALERTA[tom];
   return (
     <View
       accessibilityRole={tom === 'perigo' ? 'alert' : 'summary'}
-      style={[estilos.erro, { borderColor: cor, backgroundColor: `${cor}18` }]}>
-      {titulo ? <Texto variante="subtitulo" cor={cor}>{titulo}</Texto> : null}
-      {texto ? <Texto cor={cor}>{texto}</Texto> : null}
-      {children}
+      style={[estilos.erro, { borderColor: cor, backgroundColor: tingido(cor, cores.superficie) }]}>
+      <View style={estilos.iconeDoAlerta}><Icone size={18} color={cor} strokeWidth={2.25} accessible={false} /></View>
+      <View style={estilos.textosDoAlerta}>
+        {titulo ? <Texto variante="subtitulo" cor={cor}>{titulo}</Texto> : null}
+        {texto ? <Texto cor={cor}>{texto}</Texto> : null}
+        {children}
+      </View>
     </View>
   );
 }
@@ -137,7 +146,10 @@ export function MensagemErro({ texto, tentarDeNovo, erro }: { texto: string; ten
 const estilos = StyleSheet.create({
   centro: { alignItems: 'center', justifyContent: 'center', gap: espaco(1.5), padding: espaco(4) },
   textoCentro: { textAlign: 'center' },
-  erro: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1) },
+  erro: { flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(1.25) },
+  // O ícone acompanha a primeira linha do texto (21 px do corpo, 22 do subtítulo).
+  iconeDoAlerta: { paddingTop: 2, flexShrink: 0 },
+  textosDoAlerta: { flex: 1, minWidth: 0, gap: espaco(1) },
   faixa: { flexDirection: 'row', alignItems: 'flex-start', gap: espaco(1.5), borderWidth: 1, borderRadius: RAIO, padding: espaco(2) },
   faixaTextos: { flex: 1, gap: espaco(0.5) },
   faixaAcao: { marginTop: espaco(1) },

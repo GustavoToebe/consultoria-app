@@ -2,6 +2,8 @@ package br.com.treinos.api.agenda;
 
 import br.com.plataforma.comum.web.BadRequestException;
 import br.com.plataforma.comum.web.ConflictException;
+import br.com.treinos.api.agenda.AgendaCalendarioDtos.CruzamentoRequest;
+import br.com.treinos.api.agenda.AgendaCalendarioDtos.CruzamentoResponse;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.EventoRequest;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.EventoResponse;
 import br.com.treinos.api.agenda.AgendaCalendarioDtos.OcorrenciaDeEvento;
@@ -11,6 +13,7 @@ import br.com.treinos.api.auditoria.Auditoria;
 import br.com.treinos.api.web.Buscas;
 import br.com.treinos.api.web.Fuso;
 import br.com.treinos.api.web.NaoEncontradoException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,17 +67,30 @@ public class EventoAgendaService {
     /** Maior período de uma listagem, em dias (inclusive as pontas), igual ao dos compromissos. */
     static final int JANELA_MAXIMA_DIAS = AgendaService.JANELA_MAXIMA_DIAS;
     private static final UUID NINGUEM = new UUID(0L, 0L);
+    /** Quantas datas a resposta de {@link #cruzamentos} traz. */
+    static final int CRUZAMENTOS_DATAS = 5;
+    /** Até onde {@link #cruzamentos} olha: este tanto de anos a partir do primeiro dia do evento (a ponta é inclusive). */
+    static final int CRUZAMENTOS_ALCANCE_EM_ANOS = 1;
+    /**
+     * Tetos de segurança de {@link #cruzamentos}. Nenhuma regra válida passa de 367 ocorrências em um ano (a diária), então
+     * 400 do evento pedido nunca é alcançado; 20.000 ocorrências dos outros eventos cobrem, por exemplo, 50 eventos
+     * diários. Estourado um deles, a resposta sai com {@code incompleto} e a conta pode ser maior.
+     */
+    static final int CRUZAMENTOS_OCORRENCIAS_MAXIMO = 400;
+    static final int CRUZAMENTOS_EXISTENTES_MAXIMO = 20_000;
 
     private final EventoAgendaRepository eventos;
     private final ExcecaoDeEventoRepository excecoes;
     private final AgendaPessoalService agendas;
+    private final CompromissoRepository compromissos;
     private final Auditoria auditoria;
 
     public EventoAgendaService(EventoAgendaRepository eventos, ExcecaoDeEventoRepository excecoes,
-                               AgendaPessoalService agendas, Auditoria auditoria) {
+                               AgendaPessoalService agendas, CompromissoRepository compromissos, Auditoria auditoria) {
         this.eventos = eventos;
         this.excecoes = excecoes;
         this.agendas = agendas;
+        this.compromissos = compromissos;
         this.auditoria = auditoria;
     }
 
@@ -112,6 +128,69 @@ public class EventoAgendaService {
             }
         }
         return dias;
+    }
+
+    /**
+     * O aviso "este evento cruza outro seu?" para o que está sendo montado, sem gravar nada (só leitura). Expande a
+     * repetição do pedido pela mesma {@link RecorrenciaDeEvento} do salvar, de seu primeiro dia até um ano depois (inclusive),
+     * e conta as ocorrências que cruzam alguma ocorrência de OUTRO evento do membro (todas as agendas; as exceções já
+     * aplicadas: cancelada não conta, movida vale onde caiu). Cruzar é {@code inicio < fim do outro e fim > inicio do outro}
+     * (encostar não cruza); dia inteiro não entra, em nenhum dos lados, como no aviso da tela. Os compromissos NÃO
+     * cancelados em que o membro é o responsável entram como segunda fonte, pelo mesmo critério do {@code HORARIO_OCUPADO}
+     * ({@link CompromissoRepository#horariosNaoCanceladosDoResponsavel}, par de {@code sobrepostos}), e contam no mesmo teto de
+     * {@link #CRUZAMENTOS_EXISTENTES_MAXIMO}; só o horário deles é lido (nunca aluno, local, observação ou id).
+     * {@code eventoId} (a edição) tira todas as ocorrências do próprio evento; evento de outro membro ou de outra
+     * consultoria = 404. Devolve só a contagem e as primeiras datas; nunca texto de outro evento.
+     */
+    @Transactional(readOnly = true)
+    public CruzamentoResponse cruzamentos(UUID dono, CruzamentoRequest r) {
+        Regra regra = regraDe(r.repeticao());
+        RecorrenciaDeEvento.validar(r.data(), regra);
+        if (r.eventoId() != null) {
+            buscar(dono, r.eventoId());
+        }
+        if (r.diaInteiro()) {
+            return new CruzamentoResponse(0, List.of(), false);
+        }
+        if (r.hora() == null || r.duracaoMinutos() == null) {
+            throw invalido("Informe a hora e a duração, ou marque o dia inteiro.");
+        }
+        LocalDate primeira = RecorrenciaDeEvento.primeira(r.data(), regra);
+        LocalDate limite = primeira.plusYears(CRUZAMENTOS_ALCANCE_EM_ANOS);
+        List<LocalDate> dias = RecorrenciaDeEvento.expandir(r.data(), regra, primeira, limite);
+        boolean incompleto = dias.size() > CRUZAMENTOS_OCORRENCIAS_MAXIMO;
+        if (incompleto) {
+            dias = dias.subList(0, CRUZAMENTOS_OCORRENCIAS_MAXIMO);
+        }
+        // Um dia a mais no fim: a última ocorrência pode atravessar a meia-noite e cruzar o que começa no dia seguinte.
+        List<Efetiva> existentes = efetivas(dono, primeira, limite.plusDays(1), null, CRUZAMENTOS_EXISTENTES_MAXIMO);
+        List<Instant[]> faixas = new ArrayList<>();
+        for (Efetiva f : existentes) {
+            if (!f.diaInteiro() && !f.evento().getId().equals(r.eventoId())) {
+                faixas.add(new Instant[]{f.inicio(), f.fim()});
+            }
+        }
+        // Segunda fonte: os compromissos do membro, no mesmo intervalo (de 00:00 de `primeira` até o fim de `limite + 1`).
+        Instant de = AgendaService.inicioEmBrasilia(primeira, LocalTime.MIDNIGHT);
+        Instant ate = AgendaService.inicioEmBrasilia(limite.plusDays(2), LocalTime.MIDNIGHT);
+        List<Object[]> deCompromissos = compromissos.horariosNaoCanceladosDoResponsavel(dono, de, ate,
+                PageRequest.of(0, CRUZAMENTOS_EXISTENTES_MAXIMO + 1));
+        for (Object[] h : deCompromissos) {
+            faixas.add(new Instant[]{(Instant) h[0], (Instant) h[1]});
+        }
+        incompleto = incompleto || existentes.size() + deCompromissos.size() > CRUZAMENTOS_EXISTENTES_MAXIMO;
+        List<LocalDate> cruzam = new ArrayList<>();
+        for (LocalDate dia : dias) {
+            Instant inicio = AgendaService.inicioEmBrasilia(dia, r.hora());
+            Instant fim = inicio.plus(r.duracaoMinutos(), ChronoUnit.MINUTES);
+            for (Instant[] outra : faixas) {
+                if (outra[0].isBefore(fim) && outra[1].isAfter(inicio)) {
+                    cruzam.add(dia);
+                    break;
+                }
+            }
+        }
+        return new CruzamentoResponse(cruzam.size(), cruzam.stream().limit(CRUZAMENTOS_DATAS).toList(), incompleto);
     }
 
     /** O evento (a regra) e a ocorrência pedida em {@code ocorrencia} (404 se não existe) ou, sem ela, a primeira. */
@@ -361,6 +440,11 @@ public class EventoAgendaService {
 
     /** As ocorrências que tocam os dias [{@code de}, {@code ate}] (já com o dia anterior, por causa da meia-noite). */
     private List<Efetiva> efetivas(UUID dono, LocalDate de, LocalDate ate, Collection<UUID> agendasPedidas) {
+        return efetivas(dono, de, ate, agendasPedidas, Integer.MAX_VALUE);
+    }
+
+    /** Para de expandir quando passa de {@code teto} ocorrências (a lista sai com mais que {@code teto}: sinal de corte). */
+    private List<Efetiva> efetivas(UUID dono, LocalDate de, LocalDate ate, Collection<UUID> agendasPedidas, int teto) {
         boolean todas = agendasPedidas == null || agendasPedidas.isEmpty();
         LocalDate deComFolga = de.minusDays(1);
         List<EventoAgenda> candidatos = eventos.candidatosDoPeriodo(dono, todas,
@@ -374,6 +458,9 @@ public class EventoAgendaService {
                 if (f.inicio().isBefore(limiteSuperior) && f.fim().isAfter(limiteInferior)) {
                     lista.add(f);
                 }
+            }
+            if (lista.size() > teto) {
+                break;
             }
         }
         return lista;

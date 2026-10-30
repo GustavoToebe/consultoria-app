@@ -1,5 +1,5 @@
 import { PERIODOS_DA_LISTA, type PeriodoDaLista } from './listaDeCompras';
-import type { Cores } from '../tema/tokens';
+import { BORDA_BLOCO, BORDA_ITEM, type Cores } from '../tema/tokens';
 
 /**
  * Preferências visuais de cada pessoa, só neste aparelho e para a conta dela (não vão para a API nem para log). A
@@ -28,6 +28,8 @@ export interface Preferencias {
   vibracao: boolean;
   /** Gráficos de progresso por exercício e de peso; desligado, só as listas. */
   graficos: boolean;
+  /** Bordas mais escuras e blocos com borda de 3 px, para quem quer separar melhor as partes da tela (30/10). */
+  bordasReforcadas: boolean;
   /** Só na web: barras de rolagem (e demais controles do navegador) no escuro quando o tema em uso é escuro. */
   barrasEscuras: boolean;
   /** Só treinador: "Sem registro há N dias" no Início. Informação, nunca inativa ninguém. */
@@ -65,6 +67,7 @@ export const PREFERENCIAS_PADRAO: Preferencias = {
   movimento: 'SISTEMA',
   vibracao: true,
   graficos: true,
+  bordasReforcadas: false,
   barrasEscuras: true,
   diasSemRegistro: 7,
   pdfDieta: { modo: 'simples', periodo: 'semana', fatores: true },
@@ -101,6 +104,7 @@ export function normalizarPreferencias(qualquer: unknown): Preferencias {
     movimento: entre(o.movimento, MOVIMENTOS, PREFERENCIAS_PADRAO.movimento),
     vibracao: typeof o.vibracao === 'boolean' ? o.vibracao : PREFERENCIAS_PADRAO.vibracao,
     graficos: typeof o.graficos === 'boolean' ? o.graficos : PREFERENCIAS_PADRAO.graficos,
+    bordasReforcadas: typeof o.bordasReforcadas === 'boolean' ? o.bordasReforcadas : PREFERENCIAS_PADRAO.bordasReforcadas,
     barrasEscuras: typeof o.barrasEscuras === 'boolean' ? o.barrasEscuras : PREFERENCIAS_PADRAO.barrasEscuras,
     diasSemRegistro: typeof o.diasSemRegistro === 'number' && OPCOES_DIAS_SEM_REGISTRO.includes(o.diasSemRegistro) ? o.diasSemRegistro : PREFERENCIAS_PADRAO.diasSemRegistro,
     pdfDieta: pdfDietaDe(o.pdfDieta),
@@ -157,4 +161,18 @@ export function coresComContraste(cores: Cores, contraste: Contraste, escuro: bo
     divisor: cores.borda,
     textoSuave: escuro ? '#C4C4CC' : '#3F3F46',
   };
+}
+
+/**
+ * "Bordas reforçadas" (Perfil › Preferências): a borda dos blocos passa a usar `bordaCampo` (a mais escura do tema) e
+ * o divisor, a `borda`; a espessura do bloco sobe de 2 para 3 px (`espessurasDasBordas`). Texto e status não mudam.
+ */
+export function coresComBordasReforcadas(cores: Cores, reforcadas: boolean): Cores {
+  if (!reforcadas) return cores;
+  return { ...cores, borda: cores.bordaCampo, divisor: cores.borda };
+}
+
+/** Espessura da borda do bloco (cartão, sessão, exercício, tabela) e do item com cabeçalho próprio (grupo de séries). */
+export function espessurasDasBordas(reforcadas: boolean): { bloco: number; item: number } {
+  return reforcadas ? { bloco: BORDA_BLOCO + 1, item: BORDA_ITEM } : { bloco: BORDA_BLOCO, item: BORDA_ITEM };
 }

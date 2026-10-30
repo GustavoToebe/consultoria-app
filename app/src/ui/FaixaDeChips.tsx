@@ -90,7 +90,8 @@ export function Esmaecido({ cor, lado }: { cor: string; lado: 'esquerda' | 'dire
 
 const estilos = StyleSheet.create({
   area: { position: 'relative', maxWidth: '100%' },
-  chips: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), paddingRight: espaco(1) },
+  // 8 px entre chips, a grade do protótipo de 30/10.
+  chips: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), paddingRight: espaco(1) },
   quebrada: { flexWrap: 'wrap', paddingRight: 0 },
   esmaecido: { position: 'absolute', top: 0, bottom: 0, width: LARGURA_ESMAECIDO, flexDirection: 'row' },
   direita: { right: 0 },

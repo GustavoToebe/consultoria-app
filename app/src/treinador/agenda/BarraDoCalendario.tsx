@@ -38,8 +38,8 @@ export function BarraDoCalendario({ visao, data, noPeriodoDeHoje, aoMudarVisao, 
       <View style={estilos.periodo}>
         <Botao rotulo="Hoje" tipo="secundario" aoTocar={aoHoje} desabilitado={noPeriodoDeHoje} motivo="Hoje já está na tela." />
         <View style={estilos.setas}>
-          <IconeBotao Icone={ChevronLeft} rotulo={ANTERIOR[visao]} aoTocar={() => aoDeslocar(-1)} />
-          <IconeBotao Icone={ChevronRight} rotulo={PROXIMO[visao]} aoTocar={() => aoDeslocar(1)} />
+          <IconeBotao Icone={ChevronLeft} rotulo={ANTERIOR[visao]} aoTocar={() => aoDeslocar(-1)} moldura />
+          <IconeBotao Icone={ChevronRight} rotulo={PROXIMO[visao]} aoTocar={() => aoDeslocar(1)} moldura />
         </View>
         <View style={estilos.titulo} accessibilityLiveRegion="polite" aria-live="polite">
           <Texto variante="titulo" nivel={2} numerico>{titulo}</Texto>
@@ -58,7 +58,7 @@ export function BarraDoCalendario({ visao, data, noPeriodoDeHoje, aoMudarVisao, 
 const estilos = StyleSheet.create({
   barra: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1.5) },
   periodo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), flexShrink: 1, minWidth: 0 },
-  setas: { flexDirection: 'row', alignItems: 'center' },
+  setas: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75) },
   titulo: { flexShrink: 1, minWidth: 0 },
   visoes: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: espaco(1), flexShrink: 1, minWidth: 0, maxWidth: '100%' },
 });

@@ -1,5 +1,5 @@
 import { Link, router, usePathname, type Href } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, WifiOff } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -63,6 +63,7 @@ export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, volt
             <IconeBotao
               Icone={ArrowLeft}
               rotulo="Voltar"
+              moldura
               aoTocar={() => confirmar(() => (router.canGoBack() ? router.back() : router.replace(voltar)))}
             />
           </View>
@@ -96,7 +97,8 @@ export function Cabecalho({ titulo, subtitulo, trilha, acoes, mostrarMarca, volt
           {titulo ? <Texto variante="titulo" nivel={1}>{titulo}</Texto> : null}
           {subtitulo ? <Texto variante="suave">{subtitulo}</Texto> : null}
           {/* O aluno já vê o selo de sincronização, que diz se está sem conexão. */}
-          {offline && usuario?.papel !== 'ALUNO' ? <Selo texto="Sem conexão" tipo="neutro" /> : null}
+          {/* A linha segura o selo à esquerda: a pílula com ícone se centra no eixo cruzado, e numa coluna iria ao meio. */}
+          {offline && usuario?.papel !== 'ALUNO' ? <View style={estilos.linhaDoSelo}><Selo texto="Sem conexão" tipo="neutro" Icone={WifiOff} /></View> : null}
         </View>
       </View>
       {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
@@ -113,11 +115,13 @@ const estilos = StyleSheet.create({
     gap: espaco(1),
   },
   inicio: { flexDirection: 'row', alignItems: 'flex-start', flexShrink: 1, gap: espaco(0.5) },
-  seta: { marginLeft: -espaco(1.5), marginTop: -espaco(1) + 2 },
+  // Com moldura (40 px) a seta encosta na coluna e fica centrada na primeira linha do título (30 px).
+  seta: { marginRight: espaco(0.5), marginTop: -5 },
   esquerda: { flexShrink: 1, gap: espaco(0.5) },
   // A trilha é a primeira linha: os passos têm 44 px de alvo, mas a margem negativa evita um buraco acima do título.
   trilha: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.5), marginTop: -espaco(1.5) },
   passo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
+  linhaDoSelo: { flexDirection: 'row' },
   alvoPasso: { minHeight: ALVO_TOQUE, justifyContent: 'center', paddingVertical: 12 },
   link: { textDecorationLine: 'underline' },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '100%' },

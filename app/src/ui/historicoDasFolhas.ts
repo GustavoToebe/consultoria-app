@@ -48,8 +48,15 @@ let guardaPedida: PedidoDeGuarda | null = null;
 let idAtual: string | undefined;
 /** Nível da entrada em que a última Folha foi removida; se a tela mudar antes do acerto, essa entrada ficou para trás. */
 let nivelAoRemover = 0;
-/** Navegação que espera o `popstate` da entrada da guarda devolvida (ver `sairDaGuardaAntes`). */
+/**
+ * Quem espera o histórico assentar (`depoisDeFecharAsFolhas`, `devolverGuardaDoHistorico`): corre quando não há volta a
+ * caminho (`voltaPendente === null`). Com o navegador lento o `popstate` passa das esperas curtas; soltar antes faria um
+ * `router.replace` cair na entrada da Folha e o `popstate` atrasado desfazê-lo (o filtro escolhido sumia).
+ */
 let aoChegar: (() => void) | null = null;
+/** Se o `popstate` nunca vier, quem espera segue mesmo assim depois disto (para nada ficar preso). */
+const ESPERA_MAXIMA_DA_VOLTA = 5000;
+let esperaDaVolta: ReturnType<typeof setTimeout> | null = null;
 
 const web = () => Platform.OS === 'web' && typeof window !== 'undefined';
 
@@ -62,14 +69,29 @@ const idDoEstado = () => (window.history.state as { id?: string } | null)?.id;
 function voltar(passos: number) {
   aguardando = true;
   voltaPendente = somarVolta(voltaPendente, nivelDoEstado(window.history.state), passos);
-  setTimeout(() => { if (aguardando) { aguardando = false; agendar(); executarAoChegar(); } }, 400);
+  // A espera curta só destrava o acerto; quem espera o histórico (`aoChegar`) continua esperando a volta chegar.
+  setTimeout(() => { if (aguardando) { aguardando = false; agendar(); } }, 400);
+  vigiarVolta();
   window.history.go(-passos);
+}
+
+/** Arma (ou rearma) a espera máxima da volta em curso: passado esse tempo sem `popstate`, solta quem espera. */
+function vigiarVolta() {
+  if (esperaDaVolta) clearTimeout(esperaDaVolta);
+  esperaDaVolta = setTimeout(() => { esperaDaVolta = null; executarAoChegar(); }, ESPERA_MAXIMA_DA_VOLTA);
 }
 
 function executarAoChegar() {
   const depois = aoChegar;
   aoChegar = null;
   if (depois) setTimeout(depois, 0);
+}
+
+/** Solta quem espera só quando nenhuma volta está a caminho. */
+function executarSeAssentou() {
+  if (voltaPendente !== null) return;
+  if (esperaDaVolta) { clearTimeout(esperaDaVolta); esperaDaVolta = null; }
+  executarAoChegar();
 }
 
 function registrarGuardaSePuder() {
@@ -92,8 +114,8 @@ function acertar() {
     voltar(acerto.passos);
   }
   idAtual = idDoEstado();
-  // Nada a devolver (nenhuma volta saiu): quem espera o histórico assentar pode seguir.
-  if (!aguardando) executarAoChegar();
+  // Nada a devolver (nenhuma volta saiu nem está a caminho): quem espera o histórico assentar pode seguir.
+  if (!aguardando) executarSeAssentou();
 }
 
 function agendar() {
@@ -126,7 +148,7 @@ function aoVoltarOuAvancar() {
   if (n > 0) abertas.slice(-n).reverse().forEach((a) => a.fechar());
   aguardando = false;
   agendar();
-  executarAoChegar();
+  executarSeAssentou();
 }
 
 /** `replaceState` de verdade, sem o embrulho de `preservarMarcaDaEntrada`: é por ele que a gente tira a marca de uma entrada. */
@@ -229,7 +251,8 @@ export function devolverGuardaDoHistorico(depois: () => void) {
  * Roda `depois` (uma navegação que troca a URL) quando as Folhas que estão fechando já devolveram a entrada delas. Quem
  * escolhe algo numa Folha e grava a escolha no endereço chama isto: um `router.replace` feito com a Folha ainda aberta
  * cairia na entrada dela e o fechar voltaria para a URL antiga. Só na web e com Folha aberta há o que esperar; sem isso
- * (ou se o `popstate` não vier) `depois` corre na hora ou em até um segundo.
+ * `depois` corre na hora. Com uma volta a caminho, espera o `popstate` dela, mesmo que demore (navegador lento), até a espera
+ * máxima da volta; sem volta a caminho (a Folha não fechou), corre em até um segundo.
  */
 export function depoisDeFecharAsFolhas(depois: () => void) {
   if (!web() || !(abertas.some((a) => !a.guarda) || agendado || aguardando || voltaPendente !== null)) { depois(); return; }
@@ -237,7 +260,9 @@ export function depoisDeFecharAsFolhas(depois: () => void) {
   const uma = () => { if (!feito) { feito = true; depois(); } };
   const anterior = aoChegar;
   aoChegar = () => { anterior?.(); uma(); };
-  setTimeout(uma, 1000);
+  // A espera de 1 s não passa por cima de uma volta ainda a caminho: essa solta `aoChegar` quando chega (ou na espera
+  // máxima). Se a espera máxima já passou (volta que nunca chegou), não há mais quem solte: segue aqui.
+  setTimeout(() => { if (voltaPendente === null || esperaDaVolta === null) uma(); }, 1000);
 }
 
 /**

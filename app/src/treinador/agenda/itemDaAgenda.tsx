@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
+import { Ban, CalendarClock, CircleAlert, CircleCheck, type LucideIcon, TriangleAlert, UserX } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
-import type { CorDaAgenda } from '../../api/agendaTipos';
+import type { CorDaAgenda, SituacaoCompromisso } from '../../api/agendaTipos';
 import type { ItemDoCalendario } from '../../dominio/agendaCalendario';
-import { nomesPorExtenso, seloDoCompromisso } from '../../dominio/agendaPresencial';
+import { nomesPorExtenso, seloDaSituacao, seloDoCompromisso, situacaoDoCompromisso } from '../../dominio/agendaPresencial';
 import { caminhoAtualizacaoTreinador, statusAtualizacaoTreinador } from '../../dominio/atualizacao';
 import { dataSemAnoCorrente } from '../../dominio/datasRelativas';
 import { useTema } from '../../tema/TemaProvider';
@@ -38,13 +39,36 @@ export function rotuloDoItem(item: ItemDoCalendario, hoje: string): string {
   return `Abrir atualização de ${item.titulo}, ${dataSemAnoCorrente(item.data, hoje)}${selo.tipo === 'neutro' ? '' : `, ${selo.curto}`}`;
 }
 
+/** Selo da agenda: o texto e o tom de sempre, com o ícone (status sempre com texto e ícone; a cor nunca fala sozinha). */
+export interface SeloDaAgenda { texto: string; tipo: TipoSelo; Icone: LucideIcon }
+
+/** Ícone de cada situação do compromisso (o mesmo em todas as visões e na folha). */
+const ICONE_DA_SITUACAO: Record<SituacaoCompromisso, LucideIcon> = {
+  AGENDADO: CalendarClock, REALIZADO: CircleCheck, FALTOU: UserX, CANCELADO: Ban,
+};
+/** Ícone pelo tom, para o selo da atualização (o mesmo da lista de alunos). */
+const ICONE_DO_TOM: Record<TipoSelo, LucideIcon> = { sucesso: CircleCheck, atencao: TriangleAlert, perigo: CircleAlert, neutro: CalendarClock };
+
+/** Ícone pelo tom do selo (atrasadas, atualização). */
+export const iconeDoTom = (tipo: TipoSelo): LucideIcon => ICONE_DO_TOM[tipo];
+
+/** Selo de um participante: a situação dele, com o ícone. */
+export function seloDoParticipante(situacao: SituacaoCompromisso): SeloDaAgenda {
+  return { ...seloDaSituacao(situacao), Icone: ICONE_DA_SITUACAO[situacao] ?? CalendarClock };
+}
+
+/** Selo do compromisso inteiro ("2 agendados · 1 de 3 realizados"), com o ícone da situação que manda no tom. */
+export function seloDoCompromissoComIcone(c: Parameters<typeof seloDoCompromisso>[0]): SeloDaAgenda {
+  return { ...seloDoCompromisso(c), Icone: ICONE_DA_SITUACAO[situacaoDoCompromisso(c)] ?? CalendarClock };
+}
+
 /** O selo de status do item: a situação do compromisso, ou o da atualização quando não é neutro. Evento não tem. */
-export function seloDoItem(item: ItemDoCalendario, hoje: string): { texto: string; tipo: TipoSelo } | null {
+export function seloDoItem(item: ItemDoCalendario, hoje: string): SeloDaAgenda | null {
   const f = item.fonte;
-  if (f.origem === 'COMPROMISSO') return seloDoCompromisso(f.compromisso);
+  if (f.origem === 'COMPROMISSO') return seloDoCompromissoComIcone(f.compromisso);
   if (f.origem === 'ATUALIZACAO') {
     const s = statusAtualizacaoTreinador(f.atualizacao, hoje);
-    return s.tipo === 'neutro' ? null : { texto: s.curto, tipo: s.tipo };
+    return s.tipo === 'neutro' ? null : { texto: s.curto, tipo: s.tipo, Icone: ICONE_DO_TOM[s.tipo] };
   }
   return null;
 }

@@ -12,6 +12,24 @@ export type EtapaDaImportacao = 1 | 2 | 3 | 4 | 5;
 /** Mapa campo → índice da coluna (nulo = não importar), como a API recebe. */
 export type MapaDaImportacao = Record<string, number | null>;
 
+/** A API aceita de 1 a 50 (número da linha no arquivo) ou 0, que é "nenhuma": a planilha começa direto nos dados. */
+export const LINHA_DO_CABECALHO_MAXIMA = 50;
+/** Quase toda planilha tem o cabeçalho na primeira linha. */
+export const LINHA_DO_CABECALHO_PADRAO = 1;
+
+/** Opções do controle "Linha do cabeçalho": Nenhuma e depois "Linha 1" … "Linha 50", com o número como valor. */
+export function opcoesDaLinhaDoCabecalho(): { valor: number; rotulo: string }[] {
+  return [
+    { valor: 0, rotulo: 'Nenhuma' },
+    ...Array.from({ length: LINHA_DO_CABECALHO_MAXIMA }, (_, i) => ({ valor: i + 1, rotulo: `Linha ${i + 1}` })),
+  ];
+}
+
+/** Número, no arquivo, da primeira linha de dados: a seguinte ao cabeçalho, ou a 1 sem cabeçalho. */
+export function primeiraLinhaDeDados(linhaDoCabecalho: number): number {
+  return linhaDoCabecalho + 1;
+}
+
 /** Tipo do arquivo pelo nome. Só .xlsx e .csv são aceitos; .xls antigo não. */
 export function tipoDoArquivo(nome: string): 'Excel' | 'CSV' | null {
   const minusculo = nome.trim().toLowerCase();
@@ -223,11 +241,11 @@ export function errosNaTabela(erros: readonly { linha: number; campo: string; mo
 /**
  * Linhas da amostra com o número de cada uma no arquivo, sem as tiradas, filtradas pela busca (sem acento, no texto
  * que a célula mostra ou pelo número da linha) e, com `somente`, só as dessas linhas (as que deram erro). Sem os
- * números da API, conta a partir da primeira linha de dados.
+ * números da API, conta a partir da primeira linha de dados (a seguinte à do cabeçalho).
  */
-export function linhasDaPlanilha(amostra: readonly string[][], numeros: readonly number[] | undefined, cabecalho: boolean,
+export function linhasDaPlanilha(amostra: readonly string[][], numeros: readonly number[] | undefined, linhaDoCabecalho: number,
   busca: string, ajustes: AjustesDaTabela = SEM_AJUSTES, somente?: ReadonlySet<number>): LinhaDaPlanilha[] {
-  const primeira = cabecalho ? 2 : 1;
+  const primeira = primeiraLinhaDeDados(linhaDoCabecalho);
   const termo = semAcento(busca.trim());
   const linhas: LinhaDaPlanilha[] = [];
   amostra.forEach((originais, i) => {

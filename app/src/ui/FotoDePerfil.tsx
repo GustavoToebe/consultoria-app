@@ -53,8 +53,18 @@ export function FotoDePerfil({ chave, carregar, nome, tamanho = 48, aoSaber }: P
         style={[circulo, { borderColor: cores.borda }, estilos.borda]} />
     );
   }
+  return <IniciaisDePerfil nome={nome} tamanho={tamanho} />;
+}
+
+/**
+ * Só o círculo com as iniciais, sem buscar foto nenhuma: a lista de alunos usa este (uma requisição por aluno pesaria) e
+ * a `FotoDePerfil` cai nele quando não há foto. Decorativo: o nome já está ao lado.
+ */
+export function IniciaisDePerfil({ nome, tamanho = 48 }: { nome: string | null | undefined; tamanho?: number }) {
+  const { cores } = useTema();
+  const circulo = { width: tamanho, height: tamanho, borderRadius: tamanho / 2 };
   return (
-    <View accessible={false} importantForAccessibility="no-hide-descendants"
+    <View accessible={false} importantForAccessibility="no-hide-descendants" aria-hidden
       style={[circulo, estilos.centro, estilos.borda, { backgroundColor: cores.superficie2, borderColor: cores.borda }]}>
       <Texto style={[estilos.iniciais, { fontSize: Math.max(12, Math.round(tamanho * 0.38)), color: cores.textoSuave }]}>{iniciais(nome)}</Texto>
     </View>

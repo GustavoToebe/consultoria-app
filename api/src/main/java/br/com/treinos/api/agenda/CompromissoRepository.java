@@ -1,5 +1,6 @@
 package br.com.treinos.api.agenda;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -45,6 +46,16 @@ public interface CompromissoRepository extends JpaRepository<Compromisso, UUID> 
     @Query("select count(c) from Compromisso c where c.responsavelId = :responsavelId and c.cancelado = false "
             + "and c.inicio < :fim and c.fim > :inicio and c.id not in :ignorar")
     long sobrepostos(UUID responsavelId, Instant inicio, Instant fim, Collection<UUID> ignorar);
+
+    /**
+     * Só o horário ({@code [inicio, fim]}) dos compromissos NÃO cancelados do responsável que se sobrepõem a [{@code de},
+     * {@code ate}): o MESMO critério de {@link #sobrepostos} (responsável, {@code cancelado = false}, {@code inicio < ate e
+     * fim > de}), em lista, para o aviso de cruzamento de um evento pessoal. Nenhum texto, aluno ou id sai daqui. Quem chama
+     * limita o tamanho pelo {@code limite}.
+     */
+    @Query("select c.inicio, c.fim from Compromisso c where c.responsavelId = :responsavelId and c.cancelado = false "
+            + "and c.inicio < :ate and c.fim > :de order by c.inicio, c.id")
+    List<Object[]> horariosNaoCanceladosDoResponsavel(UUID responsavelId, Instant de, Instant ate, Pageable limite);
 
     /** As ocorrências de uma série, em ordem de início. */
     List<Compromisso> findBySerieIdOrderByInicioAscIdAsc(UUID serieId);

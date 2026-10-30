@@ -1,6 +1,7 @@
 import { Children, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { useTema } from '../tema/TemaProvider';
 import { espaco } from '../tema/tokens';
 import { Texto } from './Texto';
 
@@ -13,11 +14,12 @@ interface Props {
 
 /** Grupo de opções (`radiogroup`): 1 coluna abaixo de 700 px e 2 colunas acima. */
 export function GradeDeOpcoes({ rotulo, descricao, children }: Props) {
+  const { cores } = useTema();
   const { width } = useWindowDimensions();
   const colunas = width >= 700 ? 2 : 1;
   return (
     <View style={estilos.grupo}>
-      <Texto variante="rotulo">{rotulo}</Texto>
+      <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>
       {descricao ? <Texto variante="pequeno">{descricao}</Texto> : null}
       <View accessibilityRole="radiogroup" accessibilityLabel={rotulo} style={estilos.grade}>
         {Children.toArray(children).map((filho, i) => (

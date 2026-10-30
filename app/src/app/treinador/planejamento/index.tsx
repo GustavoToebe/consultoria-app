@@ -166,7 +166,7 @@ function LinhaDeModelo({ modelo: r, aplicavel, ocupado, aoAplicar, aoEditar, aoM
   return <LinhaDaLista titulo={r.nome} metadados={metadadosDoModelo(r.tipo, r.conteudo)} descricao={descricaoDoModelo(r)} acoes={<>
     {aplicavel ? <Permitido codigo="MODELO_APLICAR"><Botao rotulo="Aplicar ao aluno" tipo="secundario" aoTocar={aoAplicar} /></Permitido> : null}
     <Permitido codigo="MODELO_ALTERAR"><Botao rotulo="Editar" tipo="secundario" Icone={Pencil} carregando={ocupado} aoTocar={aoEditar} /></Permitido>
-    {aoMenu ? <IconeBotao Icone={Ellipsis} rotulo={`Mais ações de ${r.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
+    {aoMenu ? <IconeBotao Icone={Ellipsis} moldura rotulo={`Mais ações de ${r.nome}`} desabilitado={ocupado} aoTocar={aoMenu} /> : null}
   </>} />;
 }
 

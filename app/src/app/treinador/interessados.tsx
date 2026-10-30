@@ -3,13 +3,14 @@ import { MessageSquareText } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { FiltroInscricoes, InscricaoResumo, Origem } from '../../api/inscricoesTipos';
+import type { EtapaAberta, FiltroInscricoes, InscricaoResumo, Origem } from '../../api/inscricoesTipos';
 import { contagensInscricoes, listarInscricoes, responsaveisEquipe, retornosPendentes } from '../../api/rotas';
 import { hojeEmBrasilia } from '../../dominio/agendaPresencial';
 import { instanteRelativo } from '../../dominio/datasRelativas';
 import { dataParaTela } from '../../dominio/formatos';
 import {
   estadoVazio,
+  ETAPAS_ABERTAS,
   FILTROS_INSCRICOES,
   OPCOES_ORIGEM,
   paginaQueSobra,
@@ -20,12 +21,13 @@ import {
 import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco, LARGURA_LISTA } from '../../tema/tokens';
 import { CartaoLinkInscricao } from '../../treinador/interessados/CartaoLinkInscricao';
-import { CartaoRetornos } from '../../treinador/interessados/CartaoRetornos';
+import { CartaoRetornos, retornosAteHoje } from '../../treinador/interessados/CartaoRetornos';
 import { FolhaDaInscricao, type PedidoDaFolha } from '../../treinador/interessados/FolhaDaInscricao';
 import { FolhaModelosDeMensagem } from '../../treinador/interessados/FolhaModelosDeMensagem';
 import { Indicadores } from '../../treinador/interessados/Indicadores';
 import { QuadroKanban, type FiltrosDoQuadro } from '../../treinador/interessados/QuadroKanban';
 import { EscolhaResponsabilidade, type Responsabilidade } from '../../treinador/EscolhaResponsabilidade';
+import { FiltroDoEndereco } from '../../treinador/FiltroDoEndereco';
 import { Abas } from '../../ui/Abas';
 import { Botao } from '../../ui/Botao';
 import { Cabecalho } from '../../ui/Cabecalho';
@@ -54,6 +56,27 @@ const VISOES: { valor: Visao; rotulo: string }[] = [
 ];
 
 type FiltroDeOrigem = '' | Origem | 'NAO_INFORMADA';
+/** `?retornos=ATE_HOJE`: só os retornos atrasados ou de hoje (o mini-cartão "Retornos" do Início). */
+const RETORNOS_ATE_HOJE = 'ATE_HOJE';
+
+/**
+ * `?etapas=EM_CONTATO,EM_NEGOCIACAO` (o mini-cartão "Em contato ou negociação" do Início) no Kanban: só as etapas abertas
+ * conhecidas, na ordem do quadro; valor desconhecido é ignorado e nenhuma conhecida = sem filtro.
+ */
+function etapasDoEndereco(valor: string | string[] | undefined): EtapaAberta[] | null {
+  const pedidas = (Array.isArray(valor) ? valor : [valor ?? '']).flatMap((v) => v.split(',')).map((v) => v.trim());
+  const etapas = ETAPAS_ABERTAS.filter((e) => pedidas.includes(e));
+  return etapas.length ? etapas : null;
+}
+
+/** "Em contato ou em negociação", com os rótulos das situações. */
+function rotuloDasEtapas(etapas: readonly EtapaAberta[]): string {
+  return etapas.map((e, i) => {
+    const r = FILTROS_INSCRICOES.find((f) => f.valor === e)?.rotulo ?? e;
+    return i === 0 ? r : r.charAt(0).toLowerCase() + r.slice(1);
+  }).join(' ou ');
+}
+
 const OPCOES_FILTRO_ORIGEM: { valor: FiltroDeOrigem; rotulo: string }[] = [
   { valor: '', rotulo: 'Todas' },
   ...OPCOES_ORIGEM,
@@ -68,9 +91,14 @@ const OPCOES_FILTRO_ORIGEM: { valor: FiltroDeOrigem; rotulo: string }[] = [
  */
 export default function Interessados() {
   const { pode } = useSessao();
-  // `?situacao=NOVA` vem do contador "Interessados novos" do Início; `?meus=true`, dos retornos com o filtro "Meus" de lá.
-  const { situacao: situacaoInicial, visao: visaoPedida, meus: meusPedido } = useLocalSearchParams<{ situacao?: string; visao?: string; meus?: string }>();
+  // `?situacao=NOVA` vem do contador "Interessados novos" do Início; `?meus=true`, do filtro "Meus" de lá. Os mini-cartões
+  // do painel trazem `?retornos=ATE_HOJE` (na Lista) e `?visao=kanban&etapas=EM_CONTATO,EM_NEGOCIACAO`; trocar de visão
+  // pelas abas leva só a `visao`, então o filtro do endereço sai junto.
+  const { situacao: situacaoInicial, visao: visaoPedida, meus: meusPedido, retornos: retornosPedidos, etapas: etapasPedidas } =
+    useLocalSearchParams<{ situacao?: string; visao?: string; meus?: string; retornos?: string; etapas?: string | string[] }>();
   const visao: Visao = VISOES.find((v) => v.valor === visaoPedida)?.valor ?? 'lista';
+  const soRetornos = visao === 'lista' && retornosPedidos === RETORNOS_ATE_HOJE;
+  const etapas = visao === 'kanban' ? etapasDoEndereco(etapasPedidas) : null;
   const setVisao = (valor: Visao) => { if (valor !== visao) router.push({ pathname: '/treinador/interessados', params: { visao: valor } }); };
   const [filtro, setFiltro] = useState<FiltroInscricoes>(FILTROS_INSCRICOES.find((f) => f.valor === situacaoInicial)?.valor ?? 'ABERTAS');
   const [escopo, setEscopo] = useState<Responsabilidade>(meusPedido === 'true' ? 'meus' : 'todos');
@@ -91,9 +119,9 @@ export default function Interessados() {
     origem: origem || undefined,
   };
   const chaveDosFiltros = `${meus}|${busca}|${filtros.responsavel ?? ''}|${origem}`;
-  const lista = useCarregar(visao === 'lista' ? `${filtro}|${chaveDosFiltros}|${pagina}|${rodada}` : null, () =>
+  const lista = useCarregar(visao === 'lista' && !soRetornos ? `${filtro}|${chaveDosFiltros}|${pagina}|${rodada}` : null, () =>
     listarInscricoes({ ...filtros, situacao: filtro, pagina }));
-  const contagens = useCarregar(visao !== 'indicadores' ? `contagens|${chaveDosFiltros}|${rodada}` : null, () => contagensInscricoes(filtros));
+  const contagens = useCarregar(visao !== 'indicadores' && !soRetornos ? `contagens|${chaveDosFiltros}|${rodada}` : null, () => contagensInscricoes(filtros));
   const retornos = useCarregar(visao !== 'indicadores' ? `retornos|${meus}|${rodada}` : null, () => retornosPendentes(meus));
   // Nomes para o responsável (padrão do link e de cada inscrição); falha deixa só "Sem responsável".
   const responsaveis = useCarregar('responsaveis-inscricao', () => responsaveisEquipe());
@@ -115,6 +143,11 @@ export default function Interessados() {
   const vazio = estadoVazio({ filtro, meus, busca, temFiltros: !!filtros.responsavel || !!origem });
   const abrir = (id: string, pedido?: PedidoDaFolha) => setAberta({ id, pedido });
   const hoje = hojeEmBrasilia();
+  const retornosDoFiltro = soRetornos && retornos.dados ? retornosAteHoje(retornos.dados, hoje) : undefined;
+  // Limpar o filtro do endereço fica na mesma visão e mantém o "Meus" de agora.
+  const manterEscopo = meus ? { meus: 'true' } : {};
+  const limparRetornos = () => router.replace({ pathname: '/treinador/interessados', params: manterEscopo });
+  const limparEtapas = () => router.replace({ pathname: '/treinador/interessados', params: { visao: 'kanban', ...manterEscopo } });
 
   return (
     <Tela largura={LARGURA_LISTA} bordas={['top']}>
@@ -127,8 +160,25 @@ export default function Interessados() {
       {/* A fila vem antes da configuração: o link é uma faixa compacta (copiar e situação) e "Configurar" abre a folha. */}
       <CartaoLinkInscricao podeAlterar={pode('INSCRICAO_ALTERAR')} responsaveis={responsaveis.dados ?? []} />
       <Abas abas={VISOES} ativa={visao} aoMudar={setVisao} />
-      {visao === 'indicadores' ? <Indicadores /> : (
+      {visao === 'indicadores' ? <Indicadores /> : soRetornos ? (
         <>
+          {/* Retornos do dia (mini-cartão do Início): a fila de retornos só tem o filtro Todos/Meus; busca, responsável,
+              origem e situação valem para as inscrições, então ficam de fora até limpar o filtro. */}
+          <FiltroDoEndereco rotulo="Retornos atrasados ou de hoje" aoLimpar={limparRetornos} />
+          <View style={estilos.filtros}>
+            <EscolhaResponsabilidade valor={escopo} aoMudar={setEscopo} />
+          </View>
+          {retornos.erro ? <MensagemErro texto={textoDoErro(retornos.erro)} erro={retornos.erro} tentarDeNovo={retornos.recarregar} /> : null}
+          {!retornos.dados && retornos.carregando ? <Esqueleto /> : null}
+          {retornosDoFiltro && retornosDoFiltro.length === 0 ? (
+            <Vazio titulo="Nenhum retorno para hoje"
+              texto={meus ? 'Nenhum retorno seu está atrasado ou marcado para hoje.' : 'Nenhum retorno está atrasado ou marcado para hoje.'} />
+          ) : null}
+          <CartaoRetornos retornos={retornosDoFiltro} todos aoAbrir={(id) => abrir(id)} />
+        </>
+      ) : (
+        <>
+          {etapas ? <FiltroDoEndereco rotulo={rotuloDasEtapas(etapas)} aoLimpar={limparEtapas} /> : null}
           <CartaoRetornos retornos={retornos.dados} aoAbrir={(id) => abrir(id)} />
           <View style={estilos.filtros}>
             <View style={estilos.busca}>
@@ -173,7 +223,7 @@ export default function Interessados() {
               ) : null}
             </>
           ) : (
-            <QuadroKanban filtros={filtros} contagens={c} rodada={rodada} aoAbrir={abrir} aoMudou={recarregar} />
+            <QuadroKanban filtros={filtros} contagens={c} rodada={rodada} etapas={etapas ?? undefined} aoAbrir={abrir} aoMudou={recarregar} />
           )}
         </>
       )}

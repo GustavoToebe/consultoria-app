@@ -1,6 +1,7 @@
 import {
   ajustarCelula, ajustesParaApi, alternarRemovida, avisoDoCorte, celulaAjustada, errosNaTabela, linhasDaPlanilha, opcoesDoCampoDaColuna,
   paginaDaPlanilha, rotuloNaLista, SEM_AJUSTES, totalDeAjustes, valorDaCelula,
+  LINHA_DO_CABECALHO_MAXIMA, LINHA_DO_CABECALHO_PADRAO, opcoesDaLinhaDoCabecalho, primeiraLinhaDeDados,
   campoDaColuna, camposPermitidos, escolherCampoDaColuna, explicacaoDosExistentes, juntar, motivoParaNaoContinuar,
   resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, tipoDoArquivo, type EstadoDoAssistente,
 } from './assistenteDaImportacao';
@@ -93,6 +94,23 @@ describe('assistente da importação', () => {
   });
 });
 
+describe('linha do cabeçalho', () => {
+  it('oferece Nenhuma e as linhas de 1 ao teto da API, com o número como valor', () => {
+    const opcoes = opcoesDaLinhaDoCabecalho();
+    expect(opcoes[0]).toEqual({ valor: 0, rotulo: 'Nenhuma' });
+    expect(opcoes[1]).toEqual({ valor: 1, rotulo: 'Linha 1' });
+    expect(opcoes).toHaveLength(LINHA_DO_CABECALHO_MAXIMA + 1);
+    expect(opcoes[opcoes.length - 1]).toEqual({ valor: 50, rotulo: 'Linha 50' });
+    expect(opcoes.map((o) => o.valor)).toContain(LINHA_DO_CABECALHO_PADRAO);
+  });
+
+  it('a primeira linha de dados é a seguinte ao cabeçalho, ou a 1 sem cabeçalho', () => {
+    expect(primeiraLinhaDeDados(0)).toBe(1);
+    expect(primeiraLinhaDeDados(1)).toBe(2);
+    expect(primeiraLinhaDeDados(4)).toBe(5);
+  });
+});
+
 describe('tabela do mapeamento', () => {
   const AMOSTRA = [['Ana Fictícia', 'ana@exemplo.test'], ['Bia Fictícia', 'nao-e-email'], ['Caio Fictício', 'caio@exemplo.test']];
 
@@ -109,14 +127,15 @@ describe('tabela do mapeamento', () => {
   });
 
   it('numera pelo arquivo, busca sem acento em qualquer célula ou pelo número e esconde as tiradas', () => {
-    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 5], true, '').map((l) => l.numero)).toEqual([2, 3, 5]);
-    expect(linhasDaPlanilha(AMOSTRA, undefined, true, '').map((l) => l.numero)).toEqual([2, 3, 4]);
-    expect(linhasDaPlanilha(AMOSTRA, undefined, false, '').map((l) => l.numero)).toEqual([1, 2, 3]);
-    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, 'ficticio').map((l) => l.numero)).toEqual([4]);
-    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, '3').map((l) => l.numero)).toEqual([3]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 5], 1, '').map((l) => l.numero)).toEqual([2, 3, 5]);
+    expect(linhasDaPlanilha(AMOSTRA, undefined, 1, '').map((l) => l.numero)).toEqual([2, 3, 4]);
+    expect(linhasDaPlanilha(AMOSTRA, undefined, 3, '').map((l) => l.numero)).toEqual([4, 5, 6]);
+    expect(linhasDaPlanilha(AMOSTRA, undefined, 0, '').map((l) => l.numero)).toEqual([1, 2, 3]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], 1, 'ficticio').map((l) => l.numero)).toEqual([4]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], 1, '3').map((l) => l.numero)).toEqual([3]);
     const tirada = alternarRemovida(SEM_AJUSTES, 3);
-    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, '', tirada).map((l) => l.numero)).toEqual([2, 4]);
-    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, '', SEM_AJUSTES, new Set([3])).map((l) => l.numero)).toEqual([3]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], 1, '', tirada).map((l) => l.numero)).toEqual([2, 4]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], 1, '', SEM_AJUSTES, new Set([3])).map((l) => l.numero)).toEqual([3]);
   });
 
   it('pagina de 50 em 50 e puxa a página para dentro quando a busca encolhe a lista', () => {
@@ -137,7 +156,7 @@ describe('tabela do mapeamento', () => {
     let ajustes = ajustarCelula(SEM_AJUSTES, 3, 1, 'bia@exemplo.test', 'nao-e-email');
     expect(valorDaCelula(ajustes, 3, 1, 'nao-e-email')).toBe('bia@exemplo.test');
     expect(celulaAjustada(ajustes, 3, 1)).toBe(true);
-    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, 'bia@exemplo', ajustes).map((l) => l.numero)).toEqual([3]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], 1, 'bia@exemplo', ajustes).map((l) => l.numero)).toEqual([3]);
     ajustes = ajustarCelula(ajustes, 3, 1, 'nao-e-email', 'nao-e-email');
     expect(celulaAjustada(ajustes, 3, 1)).toBe(false);
     expect(ajustes.celulas).toEqual({});

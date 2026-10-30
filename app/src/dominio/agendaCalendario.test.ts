@@ -18,8 +18,8 @@ import {
   itemDeAtualizacao,
   itemDeCompromisso,
   itemDeEvento,
-  itensQueSobrepoem,
   lerDataDoCalendario,
+  agendaNoCelular,
   lerEnderecoDoCalendario,
   lerVisaoDoCalendario,
   mesclarItens,
@@ -33,12 +33,10 @@ import {
   segundaDaSemana,
   somarAnos,
   somarMeses,
-  textoDoAvisoDeSobreposicao,
   tituloDoCalendario,
   visaoPadrao,
   AGENDA_ATUALIZACOES,
   AGENDA_COMPROMISSOS,
-  type ItemDoCalendario,
 } from './agendaCalendario';
 
 const HOJE = '2026-10-29'; // quinta-feira
@@ -111,15 +109,27 @@ describe('visões, endereço e período', () => {
     expect(lerEnderecoDoCalendario({ visao: 'ano', data: '2026-05-10' }, HOJE, 390)).toEqual({ visao: 'ano', data: '2026-05-10' });
   });
 
-  it('a visão padrão é Semana; o modo muda com a largura (corte de 760 px)', () => {
+  it('a visão padrão é Semana; o modo muda com a largura da janela (celular abaixo de 768 px, onde há a barra de baixo)', () => {
     expect(visaoPadrao(390)).toBe('semana');
     expect(visaoPadrao(1280)).toBe('semana');
-    expect(modoDaVisao('semana', 759)).toBe('lista');
-    expect(modoDaVisao('dia', 759)).toBe('lista');
-    expect(modoDaVisao('semana', 760)).toBe('grade');
+    expect(agendaNoCelular(767)).toBe(true);
+    expect(agendaNoCelular(768)).toBe(false);
+    expect(modoDaVisao('semana', 767)).toBe('lista');
+    expect(modoDaVisao('dia', 767)).toBe('lista');
+    expect(modoDaVisao('mes', 767)).toBe('mesCompacto');
+    expect(modoDaVisao('semana', 768)).toBe('grade');
+    expect(modoDaVisao('dia', 768)).toBe('grade');
+    expect(modoDaVisao('mes', 768)).toBe('mes');
+    // Com o menu lateral aberto (a partir de 1024) o conteúdo fica com menos de 760 px até 1031: continua sendo o PC.
+    for (const janela of [1024, 1025, 1028, 1031]) {
+      expect(modoDaVisao('semana', janela)).toBe('grade');
+      expect(modoDaVisao('mes', janela)).toBe('mes');
+    }
+    expect(modoDaVisao('semana', 1100)).toBe('grade');
+    expect(modoDaVisao('mes', 1100)).toBe('mes');
     expect(modoDaVisao('mes', 400)).toBe('mesCompacto');
-    expect(modoDaVisao('mes', 1200)).toBe('mes');
     expect(modoDaVisao('ano', 400)).toBe('ano');
+    expect(modoDaVisao('ano', 1280)).toBe('ano');
   });
 
   it('o período a buscar de cada visão', () => {
@@ -283,36 +293,6 @@ describe('itens do calendário', () => {
     expect(contagem.get(HOJE)).toBe(2);
     expect(contagem.get('2026-10-30')).toBe(1);
     expect(contagem.get('2026-10-31')).toBeUndefined();
-  });
-});
-
-describe('aviso de evento no mesmo horário (P5)', () => {
-  const intervalo = { inicio: em(HOJE, '10:00'), fim: em(HOJE, '11:00') };
-
-  it('só eventos contam por padrão; encostar não é sobrepor; dia inteiro e cancelado não contam', () => {
-    const itens: ItemDoCalendario[] = [
-      evento('e1', '10:30', '11:30'),
-      evento('e2', '11:00', '12:00'),
-      evento('e3', '09:00', '10:00'),
-      evento('e4', '00:00', '23:59', { diaInteiro: true }),
-      itemDeCompromisso(compromisso('c1', em(HOJE, '10:00'), em(HOJE, '11:00'))),
-      itemDeCompromisso(compromisso('c2', em(HOJE, '10:00'), em(HOJE, '11:00'), { cancelado: true })),
-    ];
-    expect(itensQueSobrepoem(itens, intervalo).map((i) => i.refId)).toEqual(['e1']);
-    expect(itensQueSobrepoem(itens, intervalo, { origens: ['EVENTO', 'COMPROMISSO'] }).map((i) => i.refId)).toEqual(['e1', 'c1']);
-  });
-
-  it('ao editar, o próprio evento (ou a própria ocorrência) fica de fora', () => {
-    const a = evento('e1', '10:00', '11:00');
-    const b = evento('e1', '10:30', '11:30', { dataOriginal: '2026-10-30' });
-    expect(itensQueSobrepoem([a, b], intervalo, { ignorarEventoId: 'e1' })).toEqual([]);
-    expect(itensQueSobrepoem([a, b], intervalo, { ignorarChave: a.chave }).map((i) => i.chave)).toEqual([b.chave]);
-  });
-
-  it('o texto do aviso nunca traz o título', () => {
-    expect(textoDoAvisoDeSobreposicao(0)).toBeNull();
-    expect(textoDoAvisoDeSobreposicao(1)).toBe('Você já tem um evento neste horário. Dá para salvar mesmo assim.');
-    expect(textoDoAvisoDeSobreposicao(3)).toBe('Você já tem 3 eventos neste horário. Dá para salvar mesmo assim.');
   });
 });
 

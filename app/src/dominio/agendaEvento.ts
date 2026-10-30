@@ -1,10 +1,9 @@
 import type {
-  AgendaPessoal, AgendaPessoalRequest, AlvoDoEvento, CorDaAgenda, DiaDaSemana, EscopoDaSerie, EventoDetalhe, EventoRequest,
-  OcorrenciaDeEvento, RepeticaoDeEvento, TipoDeRepeticaoDeEvento,
+  AgendaPessoal, AgendaPessoalRequest, AlvoDoEvento, CorDaAgenda, CruzamentoDeEvento, CruzamentoRequest, DiaDaSemana, EscopoDaSerie,
+  EventoDetalhe, EventoRequest, OcorrenciaDeEvento, RepeticaoDeEvento, TipoDeRepeticaoDeEvento,
 } from '../api/agendaTipos';
 import { CHAVES_DA_AGENDA } from '../tema/tokens';
-import { DIAS_DA_SEMANA, diaDaSemanaDaData, horaValida, instanteDeBrasilia } from './agendaPresencial';
-import type { Intervalo } from './agendaPresencial';
+import { DIAS_DA_SEMANA, diaDaSemanaDaData, horaValida } from './agendaPresencial';
 import { dataSemAnoCorrente } from './datasRelativas';
 import { dataDaTela, dataParaTela, diaDaSemanaIso, somarDias } from './formatos';
 
@@ -331,11 +330,43 @@ export function pedidoDoEvento(f: FormularioDoEvento, opcoes: OpcoesDoPedidoDoEv
   };
 }
 
-/** Intervalo do pedido, para o aviso de evento no mesmo horário; dia inteiro não entra (D5): `null`. */
-export function intervaloDoEvento(p: Pick<EventoRequest, 'data' | 'hora' | 'duracaoMinutos' | 'diaInteiro'>): Intervalo | null {
-  if (p.diaInteiro || !p.hora || p.duracaoMinutos == null) return null;
-  const inicio = instanteDeBrasilia(p.data, p.hora);
-  return { inicio, fim: new Date(Date.parse(inicio) + p.duracaoMinutos * 60_000).toISOString() };
+// ---- Aviso de cruzamento (P5) ----
+
+/**
+ * A pergunta do aviso "cruza com outro evento seu?" (`POST /agenda/eventos/cruzamentos`): os mesmos horário e repetição do
+ * salvar, conferidos pelas mesmas regras do `pedidoDoEvento`. Título, local, descrição e agenda não vão nem contam (o aviso
+ * aparece antes de o título ser digitado). Sem pergunta (`null`) com o horário ou a repetição incompletos e no dia inteiro
+ * (a API responderia zero). `eventoId`, na edição, para o evento não cruzar consigo.
+ */
+export function pedidoDeCruzamento(f: FormularioDoEvento, eventoId: string | null = null): CruzamentoRequest | null {
+  if (f.diaInteiro) return null;
+  const { pedido } = pedidoDoEvento({ ...f, agendaId: 'aviso', titulo: 'aviso', local: '', descricao: '' });
+  if (!pedido) return null;
+  return {
+    eventoId, data: pedido.data, diaInteiro: pedido.diaInteiro, hora: pedido.hora, duracaoMinutos: pedido.duracaoMinutos,
+    repeticao: pedido.repeticao,
+  };
+}
+
+const DATAS_NO_AVISO = 5;
+
+/**
+ * O aviso de cruzamento, só aviso (nunca impede salvar): "Cruza com 3 horários: 26/10, 27/10 e 28/10. Dá para salvar mesmo
+ * assim." Mais horários que datas na resposta: "… e mais 7"; `incompleto` (a API parou num teto): "pode haver mais" e
+ * "… e outros". Datas no formato curto da Agenda (o ano só fora do corrente). Zero: nenhum aviso. Nunca traz texto do outro evento.
+ */
+export function textoDoCruzamento(r: CruzamentoDeEvento | null | undefined, hoje: string): string | null {
+  if (!r || r.quantidade <= 0) return null;
+  const n = r.quantidade;
+  const cabeca = `Cruza com ${n} ${n === 1 ? 'horário' : 'horários'}${r.incompleto ? ', pode haver mais' : ''}`;
+  const fim = 'Dá para salvar mesmo assim.';
+  const datas = r.datas.slice(0, DATAS_NO_AVISO).map((d) => dataSemAnoCorrente(d, hoje));
+  if (datas.length === 0) return `${cabeca}. ${fim}`;
+  const resto = n - datas.length;
+  const lista = r.incompleto ? `${datas.join(', ')} e outros`
+    : resto > 0 ? `${datas.join(', ')} e mais ${resto}`
+      : datas.length === 1 ? datas[0] : `${datas.slice(0, -1).join(', ')} e ${datas[datas.length - 1]}`;
+  return `${cabeca}: ${lista}. ${fim}`;
 }
 
 // ---- Agendas pessoais ----

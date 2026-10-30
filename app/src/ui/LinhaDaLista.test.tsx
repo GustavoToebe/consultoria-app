@@ -18,6 +18,13 @@ export const soMarcar: PropsDaLinha = { titulo: 'Ana', rotulo: 'Ana', marcar: { 
 export const marcarComLink: PropsDaLinha = { titulo: 'Ana', href: '/treinador/alunos/1', marcar: { marcado: false, aoMudar: () => undefined } };
 // @ts-expect-error marcar e acoes juntos não compilam
 export const marcarComAcoes: PropsDaLinha = { titulo: 'Ana', acoes: 'Editar', marcar: { marcado: false, aoMudar: () => undefined } };
+// A ação ao lado (o lápis) fica fora do link, dentro da mesma borda: só a linha-link a aceita.
+export const linkComAoLado: PropsDaLinha = { titulo: 'Ana', href: '/treinador/alunos/1', aoLado: 'Editar' };
+// @ts-expect-error a ação ao lado não vale no Selecionar (nada de botão na linha que marca)
+export const marcarComAoLado: PropsDaLinha = { titulo: 'Ana', aoLado: 'Editar', marcar: { marcado: false, aoMudar: () => undefined } };
+// @ts-expect-error nem na linha com ações (essa já tem as próprias)
+export const acoesComAoLado: PropsDaLinha = { titulo: 'Ana', acoes: 'Editar', aoLado: 'Editar' };
+export const linkEmColunas: PropsDaLinha = { titulo: 'Ana', href: '/treinador/alunos/1', colunas: { definicao: [{ chave: 'aluno', rotulo: 'Aluno', peso: 2 }], celulas: { aluno: 'Ana' } } };
 
 describe('rotuloDaLinha', () => {
   it('junta título, metadados e selos, sem partes vazias', () => {

@@ -7,6 +7,11 @@ import br.com.treinos.api.execucao.ExecucaoSerie;
 import br.com.treinos.api.execucao.ExecucaoSerieRepository;
 import br.com.treinos.api.execucao.IndiceVersao;
 import br.com.treinos.api.execucao.IndicesDeVersao;
+import br.com.treinos.api.pastas.PastaPlano;
+import br.com.treinos.api.pastas.PastaRepository;
+import br.com.treinos.api.retorno.RetornoProperties;
+import br.com.treinos.api.sessoesconcluidas.SessaoConcluidaRepository;
+import br.com.treinos.api.recordes.RecordesDaSemanaService;
 import br.com.treinos.api.treino.PlanoTreino;
 import br.com.treinos.api.treino.PlanoTreinoRepository;
 import br.com.plataforma.comum.web.BadRequestException;
@@ -34,6 +39,8 @@ public class PainelService {
     public static final int DIAS_SEM_REGISTRO_PADRAO = 7;
     public static final int DIAS_SEM_REGISTRO_MAXIMO = 90;
     private static final int LIMITE_LISTA = 20;
+    /** "A renovar": pasta que termina em até 7 dias (ou já terminou); igual a {@code DIAS_PARA_RENOVAR} do app. */
+    private static final int DIAS_PARA_RENOVAR = 7;
     private static final int ULTIMAS_EXECUCOES = 10;
 
     public record AlunoRef(UUID id, String nome) {
@@ -51,10 +58,30 @@ public class PainelService {
     public record PlanoTerminando(PlanoRef plano, AlunoRef aluno, LocalDate fim) {
     }
 
+    public record PastaRef(UUID id, String titulo) {
+    }
+
+    /** Pasta que pede renovação (mesma forma do {@link PlanoTerminando}, mas de pasta). */
+    public record PastaARenovar(PastaRef pasta, AlunoRef aluno, LocalDate fim) {
+    }
+
+    /**
+     * {@code pastasParaRenovar} é lista (até 20, do fim mais antigo ao mais novo; vazia sem {@code TREINO_LER}, como a
+     * {@code planosTerminando}). Os outros quatro campos novos são só contagens (sem nome nem id) e {@code null} quando o
+     * treinador não pode ver (nunca zero): {@code pastasARenovar} (o total da lista, sem teto) e
+     * {@code alunosSemPastaComPeriodo} pedem {@code TREINO_LER}; {@code alunosSemRegistroTotal}, {@code REGISTRO_LER};
+     * {@code alunosSemAcesso} segue o {@code alunosAtivos} (sem permissão extra).
+     * {@code sessoesConcluidas7Dias}: sessões concluídas (completas e parciais) dos alunos do escopo nos últimos
+     * {@value RecordesDaSemanaService#DIAS} dias (hoje de Brasília incluído), só número; {@code null} (nunca zero) sem
+     * {@code REGISTRO_LER} ou com o retorno desligado ({@code treinos.retorno.habilitado}).
+     */
     public record PainelTreinador(long alunosAtivos, List<AlunoSemRegistro> alunosSemRegistro,
                                   List<ExecucaoRecente> ultimasExecucoes, List<PlanoTerminando> planosTerminando,
                                   long atualizacoesParaRevisar, long atualizacoesAtrasadas,
-                                  long atualizacoesAvisaramAtraso, long atualizacoesProximas) {
+                                  long atualizacoesAvisaramAtraso, long atualizacoesProximas,
+                                  Long pastasARenovar, List<PastaARenovar> pastasParaRenovar,
+                                  Long alunosSemPastaComPeriodo, Long alunosSemRegistroTotal, Long alunosSemAcesso,
+                                  Long sessoesConcluidas7Dias) {
     }
 
     private final AlunoRepository alunos;
@@ -62,14 +89,21 @@ public class PainelService {
     private final PlanoTreinoRepository planos;
     private final IndicesDeVersao indices;
     private final AtualizacaoService atualizacoes;
+    private final PastaRepository pastas;
+    private final SessaoConcluidaRepository sessoesConcluidas;
+    private final RetornoProperties retorno;
 
     public PainelService(AlunoRepository alunos, ExecucaoSerieRepository execucoes, PlanoTreinoRepository planos,
-                         IndicesDeVersao indices, AtualizacaoService atualizacoes) {
+                         IndicesDeVersao indices, AtualizacaoService atualizacoes, PastaRepository pastas,
+                         SessaoConcluidaRepository sessoesConcluidas, RetornoProperties retorno) {
         this.alunos = alunos;
         this.execucoes = execucoes;
         this.planos = planos;
         this.indices = indices;
         this.atualizacoes = atualizacoes;
+        this.pastas = pastas;
+        this.sessoesConcluidas = sessoesConcluidas;
+        this.retorno = retorno;
     }
 
     @Transactional(readOnly = true)
@@ -92,8 +126,10 @@ public class PainelService {
         if (!ativos.isEmpty()) {
             execucoes.ultimoRegistro(porId.keySet()).forEach(u -> ultimo.put(u.alunoId(), u.data()));
         }
-        List<AlunoSemRegistro> semRegistro = ativos.stream()
+        List<Aluno> paradosHaDias = ativos.stream()
                 .filter(a -> ultimo.get(a.getId()) == null || ultimo.get(a.getId()).isBefore(hoje.minusDays(diasSemRegistro)))
+                .toList();
+        List<AlunoSemRegistro> semRegistro = paradosHaDias.stream()
                 .limit(LIMITE_LISTA)
                 .map(a -> new AlunoSemRegistro(a.getId(), a.getNome(), ultimo.get(a.getId())))
                 .toList();
@@ -111,10 +147,48 @@ public class PainelService {
                 && br.com.treinos.api.equipe.AcessoAtual.pode("ALUNO_SENSIVEL_LER");
         // Uma leitura só para os quatro contadores; são os mesmos números das listas que a tela abre.
         Map<String,Long> contagem = checkin ? atualizacoes.contar(responsavelId) : Map.of();
+        boolean treinos = br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER");
+        // Pastas a renovar: a contagem (sem teto) e a lista (até 20) saem da mesma consulta, então a regra é uma só.
+        List<PastaPlano> aRenovar = treinos ? pastas.aRenovar(responsavelId, hoje.plusDays(DIAS_PARA_RENOVAR)) : List.of();
+        List<PastaARenovar> listaARenovar = new ArrayList<>();
+        for (PastaPlano p : aRenovar) {
+            Aluno a = porId.get(p.getAlunoId());
+            if (a != null && listaARenovar.size() < LIMITE_LISTA) {
+                listaARenovar.add(new PastaARenovar(new PastaRef(p.getId(), p.getTitulo()),
+                        new AlunoRef(a.getId(), a.getNome()), p.getFim()));
+            }
+        }
+        // Contagens novas: só números, sem teto; null (nunca 0) quando o treinador não pode ver.
+        Long semPasta = treinos ? semPastaComPeriodo(ativos, responsavelId) : null;
+        Long semAcesso = ativos.stream().filter(a -> a.getUsuarioId() == null).count();
+        // Mesma janela dos recordes da semana (hoje e os 6 dias antes); sem retorno ou sem REGISTRO_LER, null.
+        Long concluidas = registros && retorno.habilitado() ? concluidasNa7Dias(ativos, hoje) : null;
         return new PainelTreinador(ativos.size(), registros ? semRegistro : List.of(), registros ? ultimasExecucoes(porId) : List.of(),
-                br.com.treinos.api.equipe.AcessoAtual.pode("TREINO_LER") ? terminando : List.of(),
+                treinos ? terminando : List.of(),
                 contagem.getOrDefault("PARA_REVISAR",0L), contagem.getOrDefault("ATRASADAS",0L),
-                contagem.getOrDefault("AVISARAM_ATRASO",0L), contagem.getOrDefault("PROXIMAS",0L));
+                contagem.getOrDefault("AVISARAM_ATRASO",0L), contagem.getOrDefault("PROXIMAS",0L),
+                treinos ? Long.valueOf(aRenovar.size()) : null, listaARenovar, semPasta,
+                registros ? Long.valueOf(paradosHaDias.size()) : null, semAcesso, concluidas);
+    }
+
+    private long concluidasNa7Dias(List<Aluno> ativos, LocalDate hoje) {
+        if (ativos.isEmpty()) {
+            return 0L;
+        }
+        return sessoesConcluidas.contarConcluidasDosAlunos(ativos.stream().map(Aluno::getId).toList(),
+                hoje.minusDays(RecordesDaSemanaService.DIAS - 1L), hoje);
+    }
+
+    /**
+     * Alunos ativos do escopo sem pasta vigente com período: os que a lista de atualizações (mesma consulta) não alcança.
+     * É o grupo "Sem pasta com período" da lista de alunos do app.
+     */
+    private long semPastaComPeriodo(List<Aluno> ativos, UUID responsavelId) {
+        if (ativos.isEmpty()) {
+            return 0L;
+        }
+        java.util.Set<UUID> comPasta = atualizacoes.alunosComPastaVigente(responsavelId);
+        return ativos.stream().filter(a -> !comPasta.contains(a.getId())).count();
     }
 
     /** Agrupa os registros mais recentes por aluno, dia e sessão. Nomes de aluno só de alunos ativos. */

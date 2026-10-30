@@ -2,7 +2,7 @@ import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
-import { ALVO_TOQUE, espaco, fontes } from '../tema/tokens';
+import { ALVO_TOQUE, espaco, fontes, LINHA_DA_FAIXA } from '../tema/tokens';
 import { Esmaecido, useEsmaecimento } from './FaixaDeChips';
 import { Texto } from './Texto';
 
@@ -16,7 +16,7 @@ interface Props<T extends string> {
 }
 
 /**
- * Abas de texto com sublinhado na cor da marca; rolam na horizontal se não couberem no celular, com a borda esmaecida
+ * Abas de texto com sublinhado de 3 px na cor da marca (a mesma espessura da linha da faixa, `LINHA_DA_FAIXA`); rolam na horizontal se não couberem no celular, com a borda esmaecida
  * do lado em que há mais abas (sem isso "Atua…" parecia cortado). Alvo de 44 px.
  */
 export function Abas<T extends string>({ abas, ativa, aoMudar, fundo }: Props<T>) {
@@ -63,13 +63,13 @@ const estilos = StyleSheet.create({
   area: { position: 'relative' },
   linha: { flexDirection: 'row' },
   aba: {
-    // 44 px de alvo mais os 2 px do sublinhado, que entram na própria altura.
-    minHeight: ALVO_TOQUE + 2,
+    // 44 px de alvo mais o sublinhado, que entra na própria altura.
+    minHeight: ALVO_TOQUE + LINHA_DA_FAIXA,
     paddingHorizontal: espaco(1.5),
     justifyContent: 'center',
     // O gatilho do RNR traz borda nos quatro lados, cantos e fundo na aba ativa; aqui a aba ativa é só o sublinhado.
     borderWidth: 0,
-    borderBottomWidth: 2,
+    borderBottomWidth: LINHA_DA_FAIXA,
     borderRadius: 0,
     backgroundColor: 'transparent',
     marginBottom: -1,

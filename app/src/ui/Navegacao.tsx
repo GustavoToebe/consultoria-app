@@ -43,8 +43,8 @@ export interface ItemMenu {
 
 /**
  * Casca das áreas logadas: menu lateral fixo a partir de 768 px (só ícones, um trilho, até 1024; expandido a partir
- * daí, com "Minimizar" à escolha) e barra inferior no celular. Item ativo com a cor da marca em variante legível
- * (`marcaTexto`) e `aria-current="page"`. No trilho, o topo mostra a logo ou a inicial da consultoria e cada ícone diz o
+ * daí, com "Minimizar" à escolha) e barra inferior no celular. Item ativo preenchido com a cor da marca no menu lateral
+ * (texto `sobreMarca`; na barra inferior, `marcaTexto`) e `aria-current="page"`. No trilho, o topo mostra a logo ou a inicial da consultoria e cada ícone diz o
  * nome ao passar o mouse ou focar. `topo` é a barra de topo e só aparece com o menu lateral. Com `sempreInferior` (aluno) a barra
  * inferior vale em qualquer largura e, no PC, fica na mesma coluna do conteúdo (`larguraInferior`).
  */
@@ -128,14 +128,16 @@ export function Navegacao({ itens, sempreInferior, larguraInferior, rodape, cont
 
 function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?: boolean; recolhido?: boolean }) {
   const caminho = usePathname();
-  const { cores, marcaTexto } = useTema();
+  const { cores, marcaTexto, marca, sobreMarca } = useTema();
   const { confirmar } = useSaidaGuardada();
   const alvo = useAlvoDoPasseio(`menu:${item.caminho}`);
   const [dica, setDica] = useState(false);
   const casa = (base: string) => caminho === base || caminho.startsWith(`${base}/`);
   const ativo = (item.exato ? caminho === item.caminho : casa(item.caminho)) || !!item.tambem?.some(casa)
     || (!lateral && !!item.tambemNoCelular?.some(casa));
-  const cor = ativo ? marcaTexto : cores.textoSuave;
+  // Menu lateral: o item ativo é preenchido com a cor da marca (protótipo de 30/10); na barra inferior, só o ícone e o texto.
+  const preenchido = !!lateral && ativo;
+  const cor = preenchido ? sobreMarca : ativo ? marcaTexto : cores.textoSuave;
   const ponto = item.ponto === true || (item.ponto === 'inferior' && !lateral);
   const rotulo = !lateral && item.rotuloCurto ? item.rotuloCurto : item.rotulo;
   // No trilho (só ícones) o nome aparece ao passar o mouse ou ao focar pelo teclado: ícones parecidos se confundem.
@@ -156,8 +158,8 @@ function ItemNavegacao({ item, lateral, recolhido }: { item: ItemMenu; lateral?:
       style={(estado) => [
         lateral ? estilos.itemLateral : estilos.itemInferior,
         lateral && recolhido && estilos.itemRecolhido,
-        lateral && ativo && { backgroundColor: cores.superficie2 },
         lateral && sobre(estado) && { backgroundColor: cores.superficie3 },
+        preenchido && { backgroundColor: marca },
         !lateral && estado.pressed && { opacity: 0.7 },
       ]}>
       <View>

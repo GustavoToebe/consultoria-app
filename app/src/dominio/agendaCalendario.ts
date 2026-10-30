@@ -1,9 +1,8 @@
 import type { AgendaPessoal, Compromisso, CorDaAgenda, DiaDoResumo, OcorrenciaDeEvento } from '../api/agendaTipos';
 import type { AtualizacaoDaLista } from '../api/tipos';
-import { dataEmBrasilia, horaEmBrasilia, instanteDeBrasilia, situacaoDoCompromisso, sobrepoe, nomesDosParticipantes } from './agendaPresencial';
-import type { Intervalo } from './agendaPresencial';
+import { dataEmBrasilia, horaEmBrasilia, instanteDeBrasilia, situacaoDoCompromisso, nomesDosParticipantes } from './agendaPresencial';
 import { diaDaSemanaIso, somarDias } from './formatos';
-import { LARGURA_DUAS_COLUNAS } from './grade';
+import { LARGURA_MENU_LATERAL } from '../tema/tokens';
 import { AGENDAS_OCULTAS_MAXIMO } from './preferencias';
 
 /**
@@ -111,23 +110,33 @@ export function lerDataDoCalendario(valor: string | readonly string[] | null | u
 
 /** Visão e data do endereço, já validadas, com padrão seguro para qualquer valor inválido. */
 export function lerEnderecoDoCalendario(params: { visao?: string | readonly string[] | null; data?: string | readonly string[] | null }, hoje: string,
-  largura: number): { visao: VisaoDoCalendario; data: string } {
-  return { visao: lerVisaoDoCalendario(params.visao, visaoPadrao(largura)), data: lerDataDoCalendario(params.data, hoje) };
+  larguraDaJanela: number): { visao: VisaoDoCalendario; data: string } {
+  return { visao: lerVisaoDoCalendario(params.visao, visaoPadrao(larguraDaJanela)), data: lerDataDoCalendario(params.data, hoje) };
 }
 
 /**
- * Visão de quem abre a tela sem `visao` no endereço. No celular (< 760 px, o corte do `ui/Grade`) Dia e Semana são a lista
- * por dia de hoje; no PC são a grade de horários. A visão é a mesma (Semana) nos dois: o que muda é o modo ({@link modoDaVisao}).
+ * Visão de quem abre a tela sem `visao` no endereço. No celular (janela abaixo de 768 px, ver {@link agendaNoCelular}) Dia e
+ * Semana são a lista por dia de hoje; no PC são a grade de horários. A visão é a mesma (Semana) nos dois: o que muda é o
+ * modo ({@link modoDaVisao}).
  */
-export function visaoPadrao(_largura: number): VisaoDoCalendario {
+export function visaoPadrao(_larguraDaJanela: number): VisaoDoCalendario {
   return 'semana';
+}
+
+/**
+ * A Agenda está no "celular": a **janela** é mais estreita que `LARGURA_MENU_LATERAL` (768), onde o app usa a barra de baixo,
+ * como no resto do app. Até 30/10 o corte era 760 px de **conteúdo**: com o menu lateral aberto (janela de 1024 a 1031 px) o
+ * conteúdo ficava com 752 a 759 px e o PC caía na lista do celular, enquanto em 1023 (menu só de ícones) via a grade.
+ */
+export function agendaNoCelular(larguraDaJanela: number): boolean {
+  return larguraDaJanela < LARGURA_MENU_LATERAL;
 }
 
 export type ModoDaVisao = 'grade' | 'lista' | 'mes' | 'mesCompacto' | 'ano';
 
-/** Como a visão se desenha na largura dada: Dia e Semana em grade de horários no PC e em lista por dia no celular. */
-export function modoDaVisao(visao: VisaoDoCalendario, largura: number): ModoDaVisao {
-  const celular = largura < LARGURA_DUAS_COLUNAS;
+/** Como a visão se desenha na janela dada: Dia e Semana em grade de horários no PC e em lista por dia no celular. */
+export function modoDaVisao(visao: VisaoDoCalendario, larguraDaJanela: number): ModoDaVisao {
+  const celular = agendaNoCelular(larguraDaJanela);
   if (visao === 'ano') return 'ano';
   if (visao === 'mes') return celular ? 'mesCompacto' : 'mes';
   return celular ? 'lista' : 'grade';
@@ -498,32 +507,6 @@ export function contagemPorDia(itens: readonly ItemDoCalendario[]): Map<string, 
   const contagem = new Map<string, number>();
   for (const item of itens) for (const d of diasDoItem(item)) contagem.set(d, (contagem.get(d) ?? 0) + 1);
   return contagem;
-}
-
-interface OpcoesDaSobreposicao {
-  /** Quais fontes contam (padrão: só eventos pessoais, P5). */
-  origens?: readonly OrigemDoItem[];
-  /** Ao editar um evento: todas as ocorrências dele ficam fora (ele não conflita consigo). */
-  ignorarEventoId?: string | null;
-  /** Ou só uma ocorrência (`ESTA`): a `chave` do item. */
-  ignorarChave?: string | null;
-}
-
-/**
- * Os itens que sobrepõem o intervalo (aviso P5 "você já tem um evento neste horário": só aviso, nunca bloqueia). Dia inteiro
- * não entra (D5), nem compromisso cancelado; encostar (um termina às 10:00 e o outro começa às 10:00) não é sobrepor. Vale
- * para o que a tela carregou: pode estar velho ou filtrado, e quem decide é a API.
- */
-export function itensQueSobrepoem(itens: readonly ItemDoCalendario[], intervalo: Intervalo, opcoes: OpcoesDaSobreposicao = {}): ItemDoCalendario[] {
-  const origens = opcoes.origens ?? ['EVENTO'];
-  return itens.filter((i) => origens.includes(i.origem) && !i.diaInteiro && !i.cancelado && i.chave !== opcoes.ignorarChave
-    && !(opcoes.ignorarEventoId && i.origem === 'EVENTO' && i.refId === opcoes.ignorarEventoId) && sobrepoe(i, intervalo));
-}
-
-/** "Você já tem um evento neste horário." / "… 3 eventos …"; sem item, `null`. Nunca traz o título (texto livre). */
-export function textoDoAvisoDeSobreposicao(quantos: number): string | null {
-  if (quantos <= 0) return null;
-  return `Você já tem ${quantos === 1 ? 'um evento' : `${quantos} eventos`} neste horário. Dá para salvar mesmo assim.`;
 }
 
 // ---- Contagem do Ano ----

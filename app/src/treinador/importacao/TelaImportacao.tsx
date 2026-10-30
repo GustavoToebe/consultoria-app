@@ -6,9 +6,9 @@ import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, View }
 import { colunasDaImportacao, confirmarImportacao, csvDeErrosDaImportacao, detalheDaImportacao, listarImportacoes, previaDaImportacao } from '../../api/rotas';
 import type { ColunasDaImportacao, DetalheDeImportacao, PreviaDeImportacao } from '../../api/tipos';
 import {
-  ETAPAS_DA_IMPORTACAO, SEM_AJUSTES, ajustarCelula, ajustesParaApi, alternarRemovida, avisoDoCorte, campoDaColuna, camposPermitidos,
+  ETAPAS_DA_IMPORTACAO, LINHA_DO_CABECALHO_PADRAO, SEM_AJUSTES, ajustarCelula, ajustesParaApi, alternarRemovida, avisoDoCorte, campoDaColuna, camposPermitidos,
   celulaAjustada, errosNaTabela, escolherCampoDaColuna, explicacaoDosExistentes, linhasDaPlanilha, motivoParaNaoContinuar,
-  opcoesDoCampoDaColuna, paginaDaPlanilha, resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, tipoDoArquivo,
+  opcoesDaLinhaDoCabecalho, opcoesDoCampoDaColuna, paginaDaPlanilha, primeiraLinhaDeDados, resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, tipoDoArquivo,
   totalDeAjustes, type AjustesDaTabela, type EtapaDaImportacao, type MapaDaImportacao,
 } from '../../dominio/assistenteDaImportacao';
 import { DESTINOS, destinosPermitidos, faltandoColuna, sugerirMapeamento, type Destino, type DestinoDaImportacao } from '../../dominio/mapeamentoDaImportacao';
@@ -20,7 +20,6 @@ import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
-import { CaixaSelecao } from '../../ui/CaixaSelecao';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
 import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
@@ -221,7 +220,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
   const [arquivo, setArquivo] = useState<ArquivoEscolhido | null>(null);
   const [colunas, setColunas] = useState<ColunasDaImportacao | null>(null);
   const [aba, setAba] = useState(0);
-  const [cabecalho, setCabecalho] = useState(true);
+  const [linhaDoCabecalho, setLinhaDoCabecalho] = useState(LINHA_DO_CABECALHO_PADRAO);
   const [chave, setChave] = useState(destinos.length === 1 ? destinos[0].chaves[0].valor : 'email');
   const [existentes, setExistentes] = useState(destinos.length === 1 ? destinos[0].existentes[0].valor : 'IGNORAR');
   const [mapa, setMapa] = useState<MapaDaImportacao>({});
@@ -273,13 +272,13 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     descartarAjustes();
   };
 
-  const lerColunas = (proxAba: number, proxCabecalho: boolean) => {
+  const lerColunas = (proxAba: number, proximaLinhaDoCabecalho: number) => {
     if (!destino || !arquivo) return;
     const meu = ++pedido.current;
     setOcupado(true);
     setErro(null);
     setPrevia(null);
-    formulario(arquivo).then((dados) => colunasDaImportacao(destino.id, dados, proxAba, proxCabecalho)).then((c) => {
+    formulario(arquivo).then((dados) => colunasDaImportacao(destino.id, dados, proxAba, proximaLinhaDoCabecalho)).then((c) => {
       if (meu !== pedido.current) return;
       setColunas(c);
       setAba(c.aba);
@@ -302,7 +301,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
   const configuracao = () => {
     const { celulas, removidas } = ajustesParaApi(ajustes);
     return {
-      aba, cabecalho, chave, existentes,
+      aba, linhaDoCabecalho, chave, existentes,
       mapeamento: Object.fromEntries(Object.entries(mapa).filter(([, v]) => v !== null && v >= 0)),
       ...(celulas.length > 0 || removidas.length > 0 ? { ajustes: { celulas, removidas } } : {}),
     };
@@ -344,7 +343,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     setErro(null);
     if (etapa === 1) {
       setEtapa(2);
-      if (!colunas) lerColunas(aba, cabecalho);
+      if (!colunas) lerColunas(aba, linhaDoCabecalho);
     } else if (etapa === 2) {
       setEtapa(3);
     } else if (etapa === 3) {
@@ -408,13 +407,16 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
             <Cartao titulo="Leitura da planilha">
               {colunas && colunas.abas.length > 1 ? (
                 <View style={estilos.campo}>
-                  <EscolhaEmFolha rotulo="Aba" valor={String(aba)} aoMudar={(v) => lerColunas(Number(v), cabecalho)}
+                  <EscolhaEmFolha rotulo="Aba" valor={String(aba)} aoMudar={(v) => lerColunas(Number(v), linhaDoCabecalho)}
                     opcoes={colunas.abas.map((nome, i) => ({ valor: String(i), rotulo: nome }))} />
                   <Texto variante="pequeno">{`A planilha tem ${colunas.abas.length} abas; escolha a que tem os dados.`}</Texto>
                 </View>
               ) : null}
-              <CaixaSelecao rotulo="A primeira linha é o cabeçalho" ajuda="Desmarque se a planilha começa direto nos dados; as colunas viram A, B, C…"
-                marcado={cabecalho} aoMudar={(v) => { setCabecalho(v); lerColunas(aba, v); }} />
+              <View style={estilos.campo}>
+                <EscolhaEmFolha rotulo="Linha do cabeçalho" valor={linhaDoCabecalho} opcoes={opcoesDaLinhaDoCabecalho()}
+                  aoMudar={(v) => { setLinhaDoCabecalho(v); lerColunas(aba, v); }} />
+                <Texto variante="pequeno">Número da linha no arquivo com o nome das colunas. As linhas acima dela não entram nos dados. Escolha Nenhuma se a planilha começa direto nos dados; as colunas viram A, B, C…</Texto>
+              </View>
             </Cartao>
             <Cartao titulo="Quem já está cadastrado">
               <View style={estilos.campo}>
@@ -431,7 +433,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
         ) : null}
 
         {etapa === 3 && destino && colunas ? (
-          <Mapeamento destino={destino} colunas={colunas} cabecalho={cabecalho} chave={chave} mapa={mapa} estreita={estreita} podeSensivel={podeSensivel}
+          <Mapeamento destino={destino} colunas={colunas} linhaDoCabecalho={linhaDoCabecalho} chave={chave} mapa={mapa} estreita={estreita} podeSensivel={podeSensivel}
             aoMudar={(m) => { setMapa(m); setPrevia(null); }} ajustes={ajustes} aoAjustar={mudarAjustes}
             ultimaValidacao={ultimaValidacao} soComErro={soComErro} aoMudarSoComErro={setSoComErro} />
         ) : null}
@@ -506,8 +508,8 @@ function CartoesDeDestino({ destinos, valor, aoMudar }: { destinos: Destino[]; v
  * páginas de 50 linhas, células editáveis e a lixeira por linha (referência de 30/10). O que se corrige ou tira fica só
  * na memória da tela e vai junto na validação; a célula que veio cortada não se edita.
  */
-function Mapeamento({ destino, colunas, cabecalho, chave, mapa, estreita, podeSensivel, aoMudar, ajustes, aoAjustar, ultimaValidacao, soComErro, aoMudarSoComErro }: {
-  destino: Destino; colunas: ColunasDaImportacao; cabecalho: boolean; chave: string; mapa: MapaDaImportacao;
+function Mapeamento({ destino, colunas, linhaDoCabecalho, chave, mapa, estreita, podeSensivel, aoMudar, ajustes, aoAjustar, ultimaValidacao, soComErro, aoMudarSoComErro }: {
+  destino: Destino; colunas: ColunasDaImportacao; linhaDoCabecalho: number; chave: string; mapa: MapaDaImportacao;
   estreita: boolean; podeSensivel: boolean; aoMudar: (mapa: MapaDaImportacao) => void;
   ajustes: AjustesDaTabela; aoAjustar: (ajustes: AjustesDaTabela) => void;
   ultimaValidacao: { erros: PreviaDeImportacao['erros']; mapa: MapaDaImportacao } | null;
@@ -521,14 +523,14 @@ function Mapeamento({ destino, colunas, cabecalho, chave, mapa, estreita, podeSe
   const nomeDaColuna = (i: number) => colunas.colunas[i] || `Coluna ${i + 1}`;
   const erros = errosNaTabela(ultimaValidacao?.erros ?? [], ultimaValidacao?.mapa ?? {});
   const linhasComErro = erros.linhas.size;
-  const todas = linhasDaPlanilha(colunas.amostra, colunas.numerosDasLinhas, cabecalho, busca, ajustes, soComErro && linhasComErro > 0 ? erros.linhas : undefined);
+  const todas = linhasDaPlanilha(colunas.amostra, colunas.numerosDasLinhas, linhaDoCabecalho, busca, ajustes, soComErro && linhasComErro > 0 ? erros.linhas : undefined);
   const pag = paginaDaPlanilha(todas, pagina);
   const numeros = colunas.numerosDasLinhas;
   const cortadas = new Set((colunas.celulasCortadas ?? []).map(([posicao, coluna]) => `${numeros?.[posicao] ?? posicao}:${coluna}`));
   const aviso = avisoDoCorte(colunas);
   const total = totalDeAjustes(ajustes);
   const original = (linha: number, coluna: number) => {
-    const posicao = numeros ? numeros.indexOf(linha) : linha - (cabecalho ? 2 : 1);
+    const posicao = numeros ? numeros.indexOf(linha) : linha - primeiraLinhaDeDados(linhaDoCabecalho);
     return colunas.amostra[posicao]?.[coluna] ?? '';
   };
   const largura = estreita ? 200 : 230;

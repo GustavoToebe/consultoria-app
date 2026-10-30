@@ -2,6 +2,7 @@ package br.com.treinos.api.biblioteca;
 
 import br.com.treinos.api.AbstractIntegrationTest;
 import db.migration.V028__suplementos_heavy_suppz;
+import db.migration.V047__categorias_dos_suplementos;
 import br.com.treinos.api.ApiDeTeste;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import java.sql.Connection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -77,14 +79,14 @@ class SuplementoIntegrationTest extends AbstractIntegrationTest {
         var api = new ApiDeTeste(mvc, json);
         var login = api.novoTreinador();
         api.post("/suplementos", login, suplemento("Ômega Teste", "Vitaminas e minerais", null), 200);
-        api.post("/suplementos", login, suplemento("Creatina Teste", "Creatina", null), 200);
+        api.post("/suplementos", login, suplemento("Creatina Teste", "Rotulada", null), 200);
         api.post("/suplementos", login, suplemento("Sem categoria Teste", null, null), 200);
 
         assertThat(api.get("/suplementos?busca=omega", login, 200)).hasSize(2);
         assertThat(api.get("/suplementos?busca=TESTE", login, 200)).hasSize(3);
         assertThat(api.get("/suplementos?busca=%25", login, 200)).isEmpty();
-        assertThat(api.get("/suplementos?categoria=Creatina", login, 200)).hasSize(1);
-        assertThat(api.get("/suplementos?categoria=Creatina&busca=omega", login, 200)).isEmpty();
+        assertThat(api.get("/suplementos?categoria=Rotulada", login, 200)).hasSize(1);
+        assertThat(api.get("/suplementos?categoria=Rotulada&busca=omega", login, 200)).isEmpty();
     }
 
     @Test
@@ -146,7 +148,7 @@ class SuplementoIntegrationTest extends AbstractIntegrationTest {
         api.put("/suplementos/" + creatina.path("id").asString(), login, digitada, 200);
 
         String email = login.path("usuario").path("email").asString();
-        var consultoria = jdbc.queryForObject("select consultoria_id from usuario where email = ?", java.util.UUID.class, email);
+        var consultoria = jdbc.queryForObject("select consultoria_id from usuario where email = ?", UUID.class, email);
         try (Connection conexao = jdbc.getDataSource().getConnection()) {
             assertThat(V028__suplementos_heavy_suppz.gravarFaltantes(conexao, consultoria, json)).isZero();
         }
@@ -154,6 +156,61 @@ class SuplementoIntegrationTest extends AbstractIntegrationTest {
         assertThat(deNovo).hasSize(PADRAO);
         JsonNode mantida = deNovo.valueStream().filter(s -> s.path("id").asString().equals(creatina.path("id").asString())).findFirst().orElseThrow();
         assertThat(mantida.path("porcao").asString()).isEqualTo("porção digitada");
+    }
+
+    @Test
+    void consultoriaNovaJaVemSemOPrefixoDasCategorias() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        assertThat(api.get("/suplementos", login, 200).valueStream().map(s -> s.path("categoria").asString()))
+                .isNotEmpty().noneMatch(c -> c.startsWith("Suplementos / "));
+    }
+
+    @Test
+    void migrationTiraOPrefixoSoDaCategoriaQueAindaEADoCatalogo() throws Exception {
+        var api = new ApiDeTeste(mvc, json);
+        var login = api.novoTreinador();
+        String email = login.path("usuario").path("email").asString();
+        var consultoria = jdbc.queryForObject("select consultoria_id from usuario where email = ?", UUID.class, email);
+        var outraLogin = api.novoTreinador();
+        var outra = jdbc.queryForObject("select consultoria_id from usuario where email = ?", UUID.class,
+                outraLogin.path("usuario").path("email").asString());
+
+        String padraoIntacto = "Creatina Monohidratada - CREABLOOD 300g";
+        String padraoEditado = "Dose única - Killer Whey - Whey Protein Concentrado - 35g";
+        String padraoDeOutra = "Pré Sono - Rest In Peace 300g";
+        // Estado de antes da V047, nas duas consultorias.
+        for (var c : List.of(consultoria, outra)) {
+            jdbc.update("update suplemento set categoria = 'Suplementos / Creatina' where consultoria_id = ? and nome = ?", c, padraoIntacto);
+            jdbc.update("update suplemento set categoria = 'Suplementos / Sono' where consultoria_id = ? and nome = ?", c, padraoDeOutra);
+        }
+        // O treinador editou a categoria de um item padrão (inclusive para algo que parece o prefixo antigo).
+        jdbc.update("update suplemento set categoria = 'Suplementos / Whey do Saraiva' where consultoria_id = ? and nome = ?",
+                consultoria, padraoEditado);
+        // Item criado pelo treinador com outro nome e a categoria antiga do catálogo.
+        api.post("/suplementos", login, suplemento("Item de teste V047", "Suplementos / Whey", null), 200);
+
+        try (Connection conexao = jdbc.getDataSource().getConnection()) {
+            assertThat(V047__categorias_dos_suplementos.tirarPrefixo(conexao, consultoria)).isEqualTo(2);
+        }
+
+        assertThat(categoria(consultoria, padraoIntacto)).isEqualTo("Creatina");
+        assertThat(categoria(consultoria, padraoDeOutra)).isEqualTo("Sono");
+        assertThat(categoria(consultoria, padraoEditado)).isEqualTo("Suplementos / Whey do Saraiva");
+        assertThat(categoria(consultoria, "Item de teste V047")).isEqualTo("Suplementos / Whey");
+        // Quem tem as linhas "antigas" mas não foi migrado não é tocado: a migration age por consultoria.
+        assertThat(categoria(outra, padraoIntacto)).isEqualTo("Suplementos / Creatina");
+        assertThat(categoria(outra, padraoDeOutra)).isEqualTo("Suplementos / Sono");
+
+        // Rodar de novo não muda nada.
+        try (Connection conexao = jdbc.getDataSource().getConnection()) {
+            assertThat(V047__categorias_dos_suplementos.tirarPrefixo(conexao, consultoria)).isZero();
+        }
+    }
+
+    private String categoria(UUID consultoria, String nome) {
+        return jdbc.queryForObject("select categoria from suplemento where consultoria_id = ? and nome = ?",
+                String.class, consultoria, nome);
     }
 
     private static final int PADRAO = 22;

@@ -6,7 +6,7 @@
     {
       "nome": "Dose única - Killer Whey - Whey Protein Concentrado - 35g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Whey",
+      "categoria": "Whey",
       "porcao": null,
       "porcoesPorEmbalagem": null,
       "sabores": [
@@ -22,7 +22,7 @@
     {
       "nome": "Creatina Monohidratada - CREABLOOD 300g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Creatina",
+      "categoria": "Creatina",
       "porcao": null,
       "porcoesPorEmbalagem": null,
       "sabores": [],
@@ -43,7 +43,7 @@
     {
       "nome": "Intra Treino - Intensity Hunter 600g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Intra Treino",
+      "categoria": "Intra Treino",
       "porcao": "1 dosador (20g)",
       "porcoesPorEmbalagem": "30",
       "sabores": [
@@ -55,7 +55,7 @@
     {
       "nome": "Whey Protein Concentrado - Killer Whey (Limited Edition) 450g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Whey",
+      "categoria": "Whey",
       "porcao": "1 dosador (35g)",
       "porcoesPorEmbalagem": "13",
       "sabores": [
@@ -67,7 +67,7 @@
     {
       "nome": "Super Multivitamínico - 100 Caps",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Vitaminas",
+      "categoria": "Vitaminas",
       "porcao": "1 cápsula (500mg)",
       "porcoesPorEmbalagem": "100",
       "sabores": [],
@@ -76,7 +76,7 @@
     {
       "nome": "KIT - 6 Doses Únicas - Killer Whey - Whey Protein Concentrado - 35g(cada)",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Whey",
+      "categoria": "Whey",
       "porcao": null,
       "porcoesPorEmbalagem": null,
       "sabores": [
@@ -93,7 +93,7 @@
     {
       "nome": "Pré Sono - Rest In Peace 300g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Sono",
+      "categoria": "Sono",
       "porcao": "1 dosador (10g)",
       "porcoesPorEmbalagem": "30",
       "sabores": [
@@ -105,7 +105,7 @@
     {
       "nome": "Dose Única - Fofista Crusher - Pré Treino - 15g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Pré Treino",
+      "categoria": "Pré Treino",
       "porcao": null,
       "porcoesPorEmbalagem": null,
       "sabores": [
@@ -117,7 +117,7 @@
     {
       "nome": "Panqueca Proteica - Deadly Punkakes 600g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Whey",
+      "categoria": "Whey",
       "porcao": "2 dosadores (50g)",
       "porcoesPorEmbalagem": "12",
       "sabores": [
@@ -129,7 +129,7 @@
     {
       "nome": "Pré Treino - Fofista Beater 750g (30 doses)",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Pré Treino",
+      "categoria": "Pré Treino",
       "porcao": "1 dosador (25g)",
       "porcoesPorEmbalagem": "30",
       "sabores": [
@@ -141,7 +141,7 @@
     {
       "nome": "Vitamina D3 - 5.000UI - 100 cápsulas",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Vitaminas",
+      "categoria": "Vitaminas",
       "porcao": "1 cápsula (200mg)",
       "porcoesPorEmbalagem": "100",
       "sabores": [],
@@ -150,7 +150,7 @@
     {
       "nome": "Ômega 3 - 1.200mg - 100 cápsulas",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Vitaminas",
+      "categoria": "Vitaminas",
       "porcao": "3 cápsulas (4.35g)",
       "porcoesPorEmbalagem": "33",
       "sabores": [],
@@ -159,7 +159,7 @@
     {
       "nome": "Cafeína - 100mg - 100 cápsulas",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Vitaminas",
+      "categoria": "Vitaminas",
       "porcao": "1 cápsula (500mg)",
       "porcoesPorEmbalagem": "100",
       "sabores": [],
@@ -168,7 +168,7 @@
     {
       "nome": "Vitamina C - 500mg - 100 cápsulas",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Vitaminas",
+      "categoria": "Vitaminas",
       "porcao": "1 cápsula (620mg)",
       "porcoesPorEmbalagem": "100",
       "sabores": [],
@@ -189,7 +189,7 @@
     {
       "nome": "Dose única - Pré Sono - Rest In Peace - 10g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Sono",
+      "categoria": "Sono",
       "porcao": null,
       "porcoesPorEmbalagem": null,
       "sabores": [
@@ -201,7 +201,7 @@
     {
       "nome": "Dose única - Fofista Beater - 25g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Pré Treino",
+      "categoria": "Pré Treino",
       "porcao": null,
       "porcoesPorEmbalagem": null,
       "sabores": [
@@ -213,7 +213,7 @@
     {
       "nome": "Dose única - Intra Treino - Intensity Hunter - 20g",
       "marca": "Heavy Suppz",
-      "categoria": "Suplementos / Intra Treino",
+      "categoria": "Intra Treino",
       "porcao": null,
       "porcoesPorEmbalagem": null,
       "sabores": [

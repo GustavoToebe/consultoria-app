@@ -69,9 +69,9 @@ public class ImportacaoController {
     @PreAuthorize(PERMISSOES)
     public Colunas colunas(@AuthenticationPrincipal UsuarioAutenticado eu, @PathVariable String destino,
                            @RequestPart("arquivo") MultipartFile arquivo, @RequestParam(defaultValue = "0") int aba,
-                           @RequestParam(defaultValue = "true") boolean cabecalho) throws IOException {
+                           @RequestParam(defaultValue = "1") int linhaDoCabecalho) throws IOException {
         limites.previaDeImportacao(eu.usuarioId());
-        return service.colunas(destino, arquivo.getOriginalFilename(), arquivo.getBytes(), aba, cabecalho);
+        return service.colunas(destino, arquivo.getOriginalFilename(), arquivo.getBytes(), aba, linhaDoCabecalho);
     }
 
     @PostMapping(value = "/{destino}/previa", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

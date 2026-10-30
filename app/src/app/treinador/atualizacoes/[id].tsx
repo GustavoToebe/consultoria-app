@@ -13,6 +13,7 @@ import { dataSemAnoCorrente } from '../../../dominio/datasRelativas';
 import { dataParaTela } from '../../../dominio/formatos';
 import { espaco, LARGURA_EDITOR, LARGURA_LISTA } from '../../../tema/tokens';
 import { LinhaDeAcoes } from '../../../ui/LinhaDeAcoes';
+import { ICONE_DO_SELO } from '../../../treinador/iconesDosSelos';
 import { ResumoDaAtualizacao } from '../../../treinador/ResumoDaAtualizacao';
 import { useAviso } from '../../../ui/Aviso';
 import { Botao } from '../../../ui/Botao';
@@ -54,8 +55,8 @@ export default function AtualizacaoTreinador() {
     {fila?<ProximaDaFila fila={fila} pastaAtual={a.pastaId} />:null}
   </LinhaDeAcoes>:null;
   const resumo=a?.modelo?<>
-    {a.enviadaEm?<ResumoDaAtualizacao atualizacao={a} modelo={a.modelo} selo={selo?{texto:selo.curto,tipo:selo.tipo}:null} descricao={questionario} />
-      :<Cartao titulo="Aguardando envio" descricao={questionario} acoes={selo?<Selo texto={selo.curto} tipo={selo.tipo} />:undefined}><Texto>O aluno ainda não enviou suas respostas.</Texto></Cartao>}
+    {a.enviadaEm?<ResumoDaAtualizacao atualizacao={a} modelo={a.modelo} selo={selo?{texto:selo.curto,tipo:selo.tipo,Icone:ICONE_DO_SELO[selo.tipo]}:null} descricao={questionario} />
+      :<Cartao titulo="Aguardando envio" descricao={questionario} acoes={selo?<Selo texto={selo.curto} tipo={selo.tipo} Icone={ICONE_DO_SELO[selo.tipo]} />:undefined}><Texto>O aluno ainda não enviou suas respostas.</Texto></Cartao>}
     {a.atrasoAte?<Cartao titulo="Atraso avisado">
       <Texto>Nova data: {dataParaTela(a.atrasoAte)}</Texto>
       <Texto>{a.atrasoMotivo??'Sem motivo informado.'}</Texto>
@@ -83,7 +84,7 @@ export default function AtualizacaoTreinador() {
 const estilos=StyleSheet.create({
   colunas:{flexDirection:'row',alignItems:'flex-start',gap:espaco(3)},
   principal:{flex:3,minWidth:0,gap:espaco(3)},
-  lateral:{flex:2,minWidth:0,gap:espaco(2)},
+  lateral:{flex:2,minWidth:0,gap:espaco(3)},
 });
 
 function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
@@ -113,8 +114,11 @@ function EditorFeedback({atualizacao:a,aoSalvar,recarregar}: {
     <Campo rotulo="Seu feedback para o aluno" valor={texto} aoMudar={setTexto} linhas={7} maxLength={4000} editable={!ocupado}
       ajuda={`${texto.length}/4.000 caracteres`} />
     {conflito?<MensagemErro texto="Outra pessoa alterou; recarregue." tentarDeNovo={recarregar} />:null}
-    <Permitido codigo="ATUALIZACAO_RESPONDER"><Botao rotulo="Enviar feedback" carregando={ocupado} desabilitado={!texto.trim()||conflito} motivo={conflito?'Recarregue antes de enviar.':'Escreva o feedback.'} aoTocar={()=>void salvar()} /></Permitido>
-    {a.feedback?<Botao rotulo="Cancelar edição" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setEditando(false)} />:null}
+    {/* Enviar e cancelar lado a lado (quebram linha no celular), em vez de um embaixo do outro. */}
+    <LinhaDeAcoes>
+      <Permitido codigo="ATUALIZACAO_RESPONDER"><Botao rotulo="Enviar feedback" carregando={ocupado} desabilitado={!texto.trim()||conflito} motivo={conflito?'Recarregue antes de enviar.':'Escreva o feedback.'} aoTocar={()=>void salvar()} /></Permitido>
+      {a.feedback?<Botao rotulo="Cancelar edição" tipo="fantasma" desabilitado={ocupado} aoTocar={()=>setEditando(false)} />:null}
+    </LinhaDeAcoes>
   </Cartao>;
 }
 

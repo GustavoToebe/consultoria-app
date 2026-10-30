@@ -9,7 +9,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, useWindow
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTema } from '../tema/TemaProvider';
-import { espaco, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
+import { espaco, LARGURA_MENU_LATERAL, LINHA_DA_FAIXA, RAIO } from '../tema/tokens';
 import { useFolhaNoHistorico } from './historicoDasFolhas';
 import { IconeBotao } from './IconeBotao';
 import { RolagemComTopo } from './RolagemComTopo';
@@ -53,7 +53,7 @@ export function Folha({ visivel, titulo, aoFechar, children, rodape, largura, ac
 
 /** Arraste no cabeçalho para preservar a rolagem e os campos dentro do conteúdo: no PC move a folha, no celular fecha. */
 function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,'visivel'>) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const { width, height } = useWindowDimensions();
   // No Android o `Modal` já fica acima da barra do sistema; somar a margem de baixo do provider (que está fora dele)
   // deixava um vão sob o rodapé.
@@ -129,17 +129,18 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
             centralizado
               ? [estilos.painelCentral, largura ? { width: largura, height: '90%' as const } : null]
               : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }],
-            { backgroundColor: cores.superficie, borderColor: cores.borda },
+            { backgroundColor: cores.superficie, borderColor: cores.borda, borderWidth: bordas.bloco },
           ]}>
-          {/* Faixa do título (reunião de 29/10): o topo da folha se separa do conteúdo, como nos cartões. */}
-          <View style={[estilos.topo, { backgroundColor: cores.superficie3, borderBottomColor: cores.borda }]}>
+          {/* Faixa do título (reunião de 29/10): o topo da folha se separa do conteúdo, como nos cartões; o X tem moldura,
+              como as ações na faixa do exercício (protótipo de 30/10). */}
+          <View style={[estilos.topo, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo }]}>
             {/* A alça é só a área do título: arrastar a partir do X ou do menu ⋯ não move nem fecha a folha. */}
             <GestureDetector gesture={centralizado ? mover : gestoDeFechar}><View style={[estilos.alca, centralizado && estilos.topoArrastavel]}>
               <Texto variante="bloco" nivel={2}>{titulo}</Texto>
             </View></GestureDetector>
             <View style={estilos.acoesTopo}>
               {acaoNoTopo}
-              <View ref={fechar} collapsable={false}><IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} /></View>
+              <View ref={fechar} collapsable={false}><IconeBotao Icone={X} rotulo="Fechar" aoTocar={aoFechar} moldura /></View>
             </View>
           </View>
           <View ref={conteudo} collapsable={false} style={estilos.area}>
@@ -160,7 +161,7 @@ const estilos = StyleSheet.create({
   fundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' },
   fundoCentral: { alignItems: 'center', justifyContent: 'center', padding: espaco(2) },
   fundoInferior: { justifyContent: 'flex-end' },
-  painel: { borderWidth: 1, overflow: 'hidden' },
+  painel: { overflow: 'hidden' },
   painelCentral: { width: LARGURA_FOLHA, maxWidth: '100%', maxHeight: '90%', borderRadius: RAIO },
   painelInferior: { maxHeight: '88%', borderTopLeftRadius: RAIO, borderTopRightRadius: RAIO },
   topo: {
@@ -168,9 +169,9 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingLeft: espaco(2),
-    paddingRight: espaco(1),
+    paddingRight: espaco(1.5),
     paddingVertical: espaco(1),
-    borderBottomWidth: 1,
+    borderBottomWidth: LINHA_DA_FAIXA,
   },
   // Alça de arrastar no PC: cursor de mão e sem selecionar o título ao puxar.
   // Os tipos do RN só conhecem `auto` e `pointer` no cursor; o react-native-web aceita qualquer valor do CSS.

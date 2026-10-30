@@ -204,6 +204,34 @@ export interface EventoRequest {
 }
 
 /**
+ * Pergunta de leitura do aviso "este evento cruza outro seu?" (`POST /agenda/eventos/cruzamentos`): o horário e a repetição do
+ * formulário, sem título, local, descrição nem agenda. `eventoId` (na edição) é o próprio evento: nenhuma ocorrência dele conta.
+ * Dia inteiro responde zero. Nunca grava nem bloqueia o salvar.
+ */
+export interface CruzamentoRequest {
+  eventoId?: string | null;
+  /** AAAA-MM-DD. */
+  data: string;
+  diaInteiro: boolean;
+  /** HH:MM; nula no dia inteiro. */
+  hora: string | null;
+  duracaoMinutos: number | null;
+  repeticao: RepeticaoDeEvento | null;
+}
+
+/**
+ * Quantas ocorrências do evento pedido, do primeiro dia a um ano depois (inclusive), cruzam outro evento pessoal do membro ou um
+ * compromisso dele (não cancelado, em que ele é o responsável; só o horário conta), e as primeiras (até 5) datas (AAAA-MM-DD,
+ * em ordem). Nunca traz texto de outro evento nem dado de compromisso (aluno, local, observação, id). `incompleto`: a conta bateu
+ * num teto de segurança e pode ser maior.
+ */
+export interface CruzamentoDeEvento {
+  quantidade: number;
+  datas: string[];
+  incompleto: boolean;
+}
+
+/**
  * Uma ocorrência já expandida pela API (nunca o app). `dataOriginal` é o dia da regra (a chave de `?ocorrencia=`);
  * `data` é onde ela cai hoje (difere se foi movida). Dia inteiro: `hora` e `horaFim` nulos e `inicio`/`fim` são o começo do
  * dia e o do dia seguinte em Brasília.

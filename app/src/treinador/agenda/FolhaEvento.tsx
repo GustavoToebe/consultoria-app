@@ -3,13 +3,14 @@ import { StyleSheet, View } from 'react-native';
 
 import type { AgendaPessoal, EscopoDaSerie, EventoDetalhe, EventoRequest } from '../../api/agendaTipos';
 import { alterarEvento, criarAgendaPessoal, criarEvento, detalheDoEvento, excluirEvento, listarAgendasPessoais } from '../../api/rotas';
-import { dataComDiaDaSemana, type ItemDoCalendario, itensQueSobrepoem, textoDoAvisoDeSobreposicao } from '../../dominio/agendaCalendario';
+import { dataComDiaDaSemana } from '../../dominio/agendaCalendario';
 import {
   agendaDoFormulario, alvoDoEvento, ehSerieDeEventos, type ErrosDaRepeticaoDoEvento, type ErrosDoEvento, escoposDoEvento, escoposParaExcluirEvento,
   explicacaoDoEscopoDoEvento, type FormularioDaRepeticaoDoEvento, type FormularioDoEvento, formularioDeEventoNovo, formularioDoEvento,
-  garantirAgendaPadrao, intervaloDoEvento, mudouAAgendaDoEvento, mudouADataDoEvento, NOME_DA_AGENDA_PADRAO, pedidoDoEvento,
-  ROTULOS_DAS_CORES_DA_AGENDA, ROTULOS_DO_ESCOPO_DO_EVENTO, SEM_REPETICAO_DO_EVENTO, textoDaRepeticaoDoEvento, textoDeExcluirEvento, textoDoErroDoCalendario,
+  garantirAgendaPadrao, mudouAAgendaDoEvento, mudouADataDoEvento, NOME_DA_AGENDA_PADRAO, pedidoDeCruzamento, pedidoDoEvento,
+  ROTULOS_DAS_CORES_DA_AGENDA, ROTULOS_DO_ESCOPO_DO_EVENTO, textoDaRepeticaoDoEvento, textoDeExcluirEvento, textoDoCruzamento, textoDoErroDoCalendario,
 } from '../../dominio/agendaEvento';
+import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { CampoLeitura } from '../../ui/CampoLeitura';
@@ -23,6 +24,7 @@ import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 import { CamposDoEvento } from './CamposDoEvento';
 import { MarcadorDaAgenda } from './itemDaAgenda';
+import { useAvisoDeCruzamento } from './useAvisoDeCruzamento';
 
 /** Evento novo (com o dia e, se veio da grade, a hora) ou um evento da agenda (a regra e a ocorrência tocada). */
 export type EventoAberto =
@@ -38,8 +40,6 @@ interface Props {
   /** Lê as agendas de novo ("Tentar de novo" no lugar do formulário). */
   recarregarAgendas: () => void;
   hoje: string;
-  /** Itens já na tela, só para o aviso de outro evento no mesmo horário (P5; nunca impede salvar). */
-  itens: readonly ItemDoCalendario[];
   podeAlterar: boolean;
   aoFechar: () => void;
   /** Depois de criar, alterar ou excluir. `agendas` = criou a "Pessoal" (a tela relê a lista). */
@@ -61,7 +61,8 @@ type Pergunta =
   | { tipo: 'salvar'; escopos: EscopoDaSerie[] }
   | { tipo: 'excluir'; escopos: EscopoDaSerie[] };
 
-function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje, itens, podeAlterar, aoFechar, aoMudar }: Props) {
+function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje, podeAlterar, aoFechar, aoMudar }: Props) {
+  const { offline } = useSessao();
   const novo = aberto?.tipo === 'novo' ? aberto : null;
   const abrir = aberto?.tipo === 'abrir' ? aberto : null;
   const detalhe = useCarregar(abrir ? `evento:${abrir.eventoId}:${abrir.ocorrencia ?? ''}` : null,
@@ -116,12 +117,11 @@ function FolhaAberta({ aberto, agendas, erroDasAgendas, recarregarAgendas, hoje,
     serie: e && serie ? { escopo: escolhido, ocorrencia: ocorrencia?.dataOriginal ?? null, primeiroDia: e.data } : undefined,
   });
 
-  // Aviso de outro evento no mesmo horário (só aviso, P5): com o horário válido; o próprio evento não conta.
-  // Confere só o horário desta data (a repetição incompleta não esconde o aviso).
-  const previa = modo === 'formulario' ? pedidoDoEvento({ ...formParaConferir, repeticao: SEM_REPETICAO_DO_EVENTO }).pedido : null;
-  const intervalo = previa ? intervaloDoEvento(previa) : null;
-  const sobrepostos = intervalo ? itensQueSobrepoem(itens, intervalo, { ignorarEventoId: e?.id }) : [];
-  const textoDoAviso = textoDoAvisoDeSobreposicao(sobrepostos.length);
+  // Aviso de outro evento no mesmo horário (só aviso, P5): a API confere a repetição por um ano. Pergunta com o horário e a
+  // repetição completos; na edição o próprio evento não conta. Sem internet ou com falha, nenhum aviso (e nada trava o salvar).
+  const perguntaDoAviso = modo === 'formulario' && agendas !== null ? pedidoDeCruzamento(form, e?.id ?? null) : null;
+  const cruzamento = useAvisoDeCruzamento(perguntaDoAviso, offline);
+  const textoDoAviso = textoDoCruzamento(cruzamento, hoje);
 
   const enviar = async (escolhido: EscopoDaSerie) => {
     const r = pedidoDoEvento(formParaConferir, opcoesDoPedido(escolhido));
