@@ -95,7 +95,10 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
         assertThat(colunas.path("colunas").size()).isEqualTo(3);
         assertThat(colunas.path("linhas").asInt()).isEqualTo(7);
         JsonNode amostra = colunas.path("amostra");
-        assertThat(amostra.size()).isEqualTo(ImportacaoService.LINHAS_DA_AMOSTRA);
+        assertThat(amostra.size()).isEqualTo(7);
+        assertThat(colunas.path("amostraCortada").asBoolean()).isFalse();
+        assertThat(colunas.path("numerosDasLinhas").get(0).asInt()).isEqualTo(2);
+        assertThat(colunas.path("numerosDasLinhas").get(6).asInt()).isEqualTo(8);
         assertThat(amostra.get(0).get(0).asString()).isEqualTo("Aluno Fictício 1");
         assertThat(amostra.get(0).get(2).asString()).hasSize(ImportacaoService.TEXTO_DA_AMOSTRA + 1).endsWith("…");
         assertThat(amostra.get(1).get(2).asString()).isEmpty();
@@ -109,8 +112,98 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
                 .getResponse().getContentAsString(StandardCharsets.UTF_8));
         assertThat(sem.path("linhas").asInt()).isEqualTo(8);
         assertThat(sem.path("amostra").get(0).get(0).asString()).isEqualTo("Nome do aluno");
+        assertThat(sem.path("numerosDasLinhas").get(0).asInt()).isEqualTo(1);
 
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
+        assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();
+    }
+
+    @Test
+    void ajustesDaTabelaCorrigemERemovemLinhasECobremOHash() throws Exception {
+        String a = unico("ajuste-a");
+        String c = unico("ajuste-c");
+        String csv = "nome;email\nAna Fictícia;" + a + "\nBia Fictícia;nao-e-email\nCaio Fictício;" + c + "\n";
+        byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+        Map<String, Integer> mapa = Map.of("nome", 0, "email", 1);
+        JsonNode semAjuste = enviar("alunos/previa", "alunos.csv", bytes, config("email", "IGNORAR", mapa), 200);
+        assertThat(semAjuste.path("comErro").asInt()).isEqualTo(1);
+        assertThat(semAjuste.path("erros").get(0).path("linha").asInt()).isEqualTo(3);
+
+        String corrigido = unico("ajuste-b");
+        String comAjuste = configComAjustes(mapa, List.of(Map.of("linha", 3, "coluna", 1, "valor", corrigido)), List.of(4));
+        JsonNode previa = enviar("alunos/previa", "alunos.csv", bytes, comAjuste, 200);
+        assertThat(previa.path("comErro").asInt()).isZero();
+        assertThat(previa.path("linhas").asInt()).isEqualTo(2);
+        assertThat(previa.path("novos").asInt()).isEqualTo(2);
+        assertThat(previa.path("hash").asString()).isNotEqualTo(semAjuste.path("hash").asString());
+
+        // Ajustes diferentes dos da prévia: a confirmação recusa (o hash cobre os ajustes).
+        String outroAjuste = configComAjustes(mapa, List.of(Map.of("linha", 3, "coluna", 1, "valor", corrigido)), List.of());
+        JsonNode recusa = enviar("alunos", "alunos.csv", bytes, outroAjuste, previa.path("hash").asString(), 409);
+        assertThat(recusa.path("codigo").asString()).isEqualTo("PREVIA_DESATUALIZADA");
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
+
+        JsonNode feito = confirmar("alunos", "alunos.csv", bytes, comAjuste, previa.path("hash").asString());
+        assertThat(feito.path("novos").asInt()).isEqualTo(2);
+        assertThat(feito.path("configuracao").has("ajustes")).isFalse();
+        assertThat(api.get("/alunos?busca=Caio", treinador, 200).path("total").asInt()).isZero();
+        assertThat(api.get("/alunos?busca=Bia", treinador, 200).path("total").asInt()).isEqualTo(1);
+        String gravada = jdbc.queryForObject("select configuracao from importacao where id = ?::uuid", String.class,
+                feito.path("id").asString());
+        assertThat(gravada).doesNotContain(corrigido).doesNotContain("ajustes");
+    }
+
+    @Test
+    void ajustesForaDaPlanilhaOuAcimaDosLimitesSaoRecusadosSemEco() throws Exception {
+        byte[] bytes = ("nome;email\nAna Fictícia;" + unico("lim") + "\n").getBytes(StandardCharsets.UTF_8);
+        Map<String, Integer> mapa = Map.of("nome", 0, "email", 1);
+        String segredo = "valor-que-nao-pode-voltar";
+        List<String> recusados = List.of(
+                configComAjustes(mapa, List.of(Map.of("linha", 1, "coluna", 0, "valor", segredo)), List.of()),
+                configComAjustes(mapa, List.of(Map.of("linha", 99, "coluna", 0, "valor", segredo)), List.of()),
+                configComAjustes(mapa, List.of(), List.of(99)),
+                configComAjustes(mapa, List.of(Map.of("linha", 2, "coluna", 0, "valor", "x".repeat(AjustesDaImportacao.TEXTO_MAXIMO + 1))), List.of()),
+                configComAjustes(mapa, List.of(Map.of("linha", 2, "coluna", 0, "valor", segredo), Map.of("linha", 2, "coluna", 0, "valor", "b")), List.of()),
+                configComAjustes(mapa, List.of(Map.of("linha", 2, "coluna", 256, "valor", segredo)), List.of()),
+                configComAjustes(mapa, List.of(), java.util.stream.IntStream.rangeClosed(2, AjustesDaImportacao.REMOVIDAS_MAXIMO + 2).boxed().toList()));
+        for (String config : recusados) {
+            JsonNode erro = enviar("alunos/previa", "alunos.csv", bytes, config, 422);
+            assertThat(erro.path("codigo").asString()).isEqualTo("ARQUIVO_INVALIDO");
+            assertThat(erro.toString()).doesNotContain(segredo);
+        }
+        // Tirar a única linha deixa o arquivo sem nada para importar.
+        JsonNode vazio = enviar("alunos/previa", "alunos.csv", bytes, configComAjustes(mapa, List.of(), List.of(2)), 422);
+        assertThat(vazio.path("codigo").asString()).isEqualTo("ARQUIVO_INVALIDO");
+    }
+
+    @Test
+    void amostraDasColunasParaNoTetoDeLinhasEDeCelulas() throws Exception {
+        StringBuilder estreita = new StringBuilder("Nome;E-mail\n");
+        for (int i = 1; i <= ImportacaoService.LINHAS_DA_AMOSTRA + 5; i++) {
+            estreita.append("Aluno ").append(i).append(";a").append(i).append("@exemplo.test\n");
+        }
+        JsonNode porLinhas = enviar("alunos/colunas", "alunos.csv", estreita.toString().getBytes(StandardCharsets.UTF_8), "{}", 200);
+        assertThat(porLinhas.path("linhas").asInt()).isEqualTo(ImportacaoService.LINHAS_DA_AMOSTRA + 5);
+        assertThat(porLinhas.path("amostra").size()).isEqualTo(ImportacaoService.LINHAS_DA_AMOSTRA);
+        assertThat(porLinhas.path("numerosDasLinhas").size()).isEqualTo(ImportacaoService.LINHAS_DA_AMOSTRA);
+        assertThat(porLinhas.path("amostraCortada").asBoolean()).isTrue();
+
+        int largura = 100;
+        StringBuilder larga = new StringBuilder();
+        for (int c = 0; c < largura; c++) {
+            larga.append(c == 0 ? "" : ";").append("C").append(c);
+        }
+        larga.append('\n');
+        for (int l = 0; l < 250; l++) {
+            for (int c = 0; c < largura; c++) {
+                larga.append(c == 0 ? "" : ";").append(l);
+            }
+            larga.append('\n');
+        }
+        JsonNode porCelulas = enviar("alunos/colunas", "alunos.csv", larga.toString().getBytes(StandardCharsets.UTF_8), "{}", 200);
+        assertThat(porCelulas.path("linhas").asInt()).isEqualTo(250);
+        assertThat(porCelulas.path("amostra").size()).isEqualTo(ImportacaoService.CELULAS_DA_AMOSTRA / largura);
+        assertThat(porCelulas.path("amostraCortada").asBoolean()).isTrue();
         assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();
     }
 
@@ -831,6 +924,18 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
 
     private String config(String chave, String existentes, Map<String, Integer> mapeamento) throws Exception {
         return json.writeValueAsString(Map.of("aba", 0, "cabecalho", true, "chave", chave, "existentes", existentes, "mapeamento", mapeamento));
+    }
+
+    private String configComAjustes(Map<String, Integer> mapeamento, List<Map<String, Object>> celulas, List<Integer> removidas)
+            throws Exception {
+        Map<String, Object> config = new java.util.LinkedHashMap<>();
+        config.put("aba", 0);
+        config.put("cabecalho", true);
+        config.put("chave", "email");
+        config.put("existentes", "IGNORAR");
+        config.put("mapeamento", mapeamento);
+        config.put("ajustes", Map.of("celulas", celulas, "removidas", removidas));
+        return json.writeValueAsString(config);
     }
 
     private static String unico(String prefixo) {

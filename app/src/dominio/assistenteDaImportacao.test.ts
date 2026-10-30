@@ -1,4 +1,6 @@
 import {
+  ajustarCelula, ajustesParaApi, alternarRemovida, avisoDoCorte, celulaAjustada, errosNaTabela, linhasDaPlanilha, opcoesDoCampoDaColuna,
+  paginaDaPlanilha, rotuloNaLista, SEM_AJUSTES, totalDeAjustes, valorDaCelula,
   campoDaColuna, camposPermitidos, escolherCampoDaColuna, explicacaoDosExistentes, juntar, motivoParaNaoContinuar,
   resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, tipoDoArquivo, type EstadoDoAssistente,
 } from './assistenteDaImportacao';
@@ -88,5 +90,76 @@ describe('assistente da importação', () => {
     expect(textoDoErro({ linha: 5, campo: 'email', motivo: 'E-mail inválido.' }, ALUNOS, ['Aluno'], { email: null }))
       .toBe('Linha 5 · E-mail: E-mail inválido.');
     expect(textoDoErro({ linha: 6, campo: 'linha', motivo: 'Vaga do plano.' }, ALUNOS, [], {})).toBe('Linha 6 · linha: Vaga do plano.');
+  });
+});
+
+describe('tabela do mapeamento', () => {
+  const AMOSTRA = [['Ana Fictícia', 'ana@exemplo.test'], ['Bia Fictícia', 'nao-e-email'], ['Caio Fictício', 'caio@exemplo.test']];
+
+  it('rótulo com grupo e opções com "Não importar" primeiro, obrigatório e onde o campo já está', () => {
+    const nome = ALUNOS.campos.find((c) => c.id === 'nome')!;
+    const cep = ALUNOS.campos.find((c) => c.id === 'cep')!;
+    expect(rotuloNaLista(nome)).toBe('Cadastro > Nome');
+    expect(rotuloNaLista(cep)).toBe('Endereço > CEP');
+    expect(rotuloNaLista(EXERCICIOS.campos[0])).toBe('Nome');
+    const opcoes = opcoesDoCampoDaColuna(ALUNOS.campos, { email: 1 }, 0, (i) => ['Aluno', 'Contato'][i]);
+    expect(opcoes[0]).toEqual({ valor: null, rotulo: 'Não importar' });
+    expect(opcoes.find((o) => o.valor === 'nome')?.detalhe).toBe('Obrigatório');
+    expect(opcoes.find((o) => o.valor === 'email')?.detalhe).toBe('Hoje na coluna “Contato”');
+  });
+
+  it('numera pelo arquivo, busca sem acento em qualquer célula ou pelo número e esconde as tiradas', () => {
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 5], true, '').map((l) => l.numero)).toEqual([2, 3, 5]);
+    expect(linhasDaPlanilha(AMOSTRA, undefined, true, '').map((l) => l.numero)).toEqual([2, 3, 4]);
+    expect(linhasDaPlanilha(AMOSTRA, undefined, false, '').map((l) => l.numero)).toEqual([1, 2, 3]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, 'ficticio').map((l) => l.numero)).toEqual([4]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, '3').map((l) => l.numero)).toEqual([3]);
+    const tirada = alternarRemovida(SEM_AJUSTES, 3);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, '', tirada).map((l) => l.numero)).toEqual([2, 4]);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, '', SEM_AJUSTES, new Set([3])).map((l) => l.numero)).toEqual([3]);
+  });
+
+  it('pagina de 50 em 50 e puxa a página para dentro quando a busca encolhe a lista', () => {
+    const muitas = Array.from({ length: 120 }, (_, i) => ({ numero: i + 2, valores: [`L${i}`] }));
+    expect(paginaDaPlanilha(muitas, 0)).toMatchObject({ pagina: 0, total: 3 });
+    expect(paginaDaPlanilha(muitas, 2).linhas).toHaveLength(20);
+    expect(paginaDaPlanilha(muitas.slice(0, 10), 2)).toMatchObject({ pagina: 0, total: 1 });
+    expect(paginaDaPlanilha([], 0)).toMatchObject({ pagina: 0, total: 1, linhas: [] });
+  });
+
+  it('aviso só quando a amostra não trouxe todas as linhas', () => {
+    expect(avisoDoCorte({ linhas: 3, amostra: [1, 2, 3], amostraCortada: false })).toBeNull();
+    expect(avisoDoCorte({ linhas: 1500, amostra: new Array(1000), amostraCortada: true }))
+      .toBe('Mostrando as primeiras 1000 de 1500 linhas. A validação confere todas.');
+  });
+
+  it('ajuste de célula: troca o texto, volta ao original quando igual e entra na busca', () => {
+    let ajustes = ajustarCelula(SEM_AJUSTES, 3, 1, 'bia@exemplo.test', 'nao-e-email');
+    expect(valorDaCelula(ajustes, 3, 1, 'nao-e-email')).toBe('bia@exemplo.test');
+    expect(celulaAjustada(ajustes, 3, 1)).toBe(true);
+    expect(linhasDaPlanilha(AMOSTRA, [2, 3, 4], true, 'bia@exemplo', ajustes).map((l) => l.numero)).toEqual([3]);
+    ajustes = ajustarCelula(ajustes, 3, 1, 'nao-e-email', 'nao-e-email');
+    expect(celulaAjustada(ajustes, 3, 1)).toBe(false);
+    expect(ajustes.celulas).toEqual({});
+  });
+
+  it('para a API: listas ordenadas e célula de linha tirada não vai', () => {
+    let ajustes = ajustarCelula(SEM_AJUSTES, 4, 0, 'Caio', 'Caio Fictício');
+    ajustes = ajustarCelula(ajustes, 3, 1, 'x@exemplo.test', 'nao-e-email');
+    ajustes = alternarRemovida(alternarRemovida(ajustes, 9), 4);
+    expect(ajustesParaApi(ajustes)).toEqual({ celulas: [{ linha: 3, coluna: 1, valor: 'x@exemplo.test' }], removidas: [4, 9] });
+    expect(totalDeAjustes(ajustes)).toEqual({ celulas: 1, removidas: 2 });
+    expect(ajustesParaApi(alternarRemovida(ajustes, 4)).removidas).toEqual([9]);
+  });
+
+  it('erros da validação vão para a célula da coluna mapeada; sem coluna, para a linha', () => {
+    const t = errosNaTabela([
+      { linha: 3, campo: 'email', motivo: 'E-mail inválido.' },
+      { linha: 4, campo: 'cpf', motivo: 'CPF inválido.' },
+    ], { nome: 0, email: 1 });
+    expect(t.motivoDaCelula(3, 1)).toBe('E-mail inválido.');
+    expect(t.motivoDaCelula(3, 0)).toBeNull();
+    expect(t.motivosDaLinha(4)).toEqual(['CPF inválido.']);
+    expect([...t.linhas]).toEqual([3, 4]);
   });
 });
