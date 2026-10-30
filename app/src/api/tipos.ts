@@ -1110,6 +1110,20 @@ export interface RegistroMobilidadeFeito {
   feito: boolean;
 }
 
+/** Água de um dia, como está no aparelho (copos de 250 ml em mililitros); `id` nasce no aparelho e torna o reenvio idempotente. */
+export interface RegistroAguaEnvio {
+  id: string;
+  data: string;
+  aguaMl: number;
+  alteradoNoAparelhoEm: string;
+}
+
+/** O que o servidor devolve da água: o dia e os mililitros (dia sem linha = não registrou, nunca zero). */
+export interface AguaRegistrada {
+  data: string;
+  aguaMl: number;
+}
+
 /** Treino concluído (ou reaberto) no aparelho; `id` nasce no aparelho e torna o reenvio idempotente. Reabrir é o mesmo registro com `concluida` falso. */
 export interface RegistroSessaoConcluidaEnvio {
   id: string;

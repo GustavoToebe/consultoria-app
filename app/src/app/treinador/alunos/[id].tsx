@@ -14,6 +14,7 @@ import { espaco, LARGURA_LISTA } from '../../../tema/tokens';
 import { CartaoAcesso } from '../../../treinador/CartaoAcesso';
 import { CartaoEvolucaoRespostas } from '../../../treinador/CartaoEvolucaoRespostas';
 import { CartaoFrequencia, useAcompanhamentoDoAluno } from '../../../treinador/CartaoFrequencia';
+import { CartaoAgua } from '../../../treinador/CartaoAgua';
 import { CartaoMobilidade } from '../../../treinador/CartaoMobilidade';
 import { CartaoRecordesDaSemana } from '../../../treinador/CartaoRecordesDaSemana';
 import { CartaoTreinosConcluidos } from '../../../treinador/CartaoTreinosConcluidos';
@@ -82,11 +83,13 @@ export default function FichaAluno() {
           </ResumoDoAluno>
           <CartaoPastas key={`${aluno.id}:${pastaId??''}`} pastaInicialId={pastaId} alunoId={aluno.id} alunoNome={aluno.nome} diasAtualizacao={cicloDoAluno(aluno.diasAtualizacao, padrao)}
             geracao={geracaoPastas} aoMudar={mudouPastas} aoGravarPeso={() => setGeracaoPeso((g) => g + 1)} />
-          {/* Frequência e Mobilidade são o mesmo tipo de contagem (semana e pasta): lado a lado no PC, uma embaixo da outra no celular. */}
+          {/* Frequência, Mobilidade e Água são o mesmo tipo de contagem: lado a lado no PC, uma embaixo da outra no celular. */}
           {pode('REGISTRO_LER') ? (
             <View style={estilos.contagens}>
               <View style={estilos.contagem}><CartaoFrequencia acompanhamento={acompanhamento} /></View>
               {pode('TREINO_LER') && !acompanhamento.erro ? <View style={estilos.contagem}><CartaoMobilidade alunoId={aluno.id} acompanhamento={acompanhamento} /></View> : null}
+              {/* A água é dado de dieta: só com a permissão sensível (a rota pede as duas). */}
+              {pode('ALUNO_SENSIVEL_LER') ? <View style={estilos.contagem}><CartaoAgua alunoId={aluno.id} comDieta={pode('DIETA_LER')} /></View> : null}
             </View>
           ) : null}
           {/* Retorno ao aluno (Engajamento 0.5): treinos concluídos com o "Visto" e os recordes da semana. */}

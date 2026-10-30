@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { CabecalhoDoInicio } from '../../aluno/CabecalhoDoInicio';
 import { CartaoCompromissos } from '../../aluno/CartaoCompromissos';
+import { CartaoAguaDoDia } from '../../aluno/CartaoAguaDoDia';
 import { CartaoDietaDoInicio } from '../../aluno/CartaoDietaDoInicio';
 import { CartaoHoje } from '../../aluno/CartaoHoje';
 import { ParaFazer } from '../../aluno/ParaFazer';
@@ -19,7 +20,8 @@ import { Esqueleto } from '../../ui/Esqueleto';
 import { Tela } from '../../ui/Tela';
 
 /**
- * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, o cartão Hoje (o único primário),
+ * Início do aluno: o resumo do dia. Marca e "Olá", a dieta compacta com a água, a água do dia (só com meta na dieta),
+ * o cartão Hoje (o único primário),
  * as pendências, os próximos compromissos presenciais (só leitura) e a faixa da semana. A lista de divisões, o PDF e
  * a mobilidade ficam na aba Treino. Sempre o plano em uso. Em 390 o botão do treino de hoje precisa aparecer na primeira tela.
  */
@@ -40,6 +42,7 @@ export default function InicioAluno() {
     <Tela bordas={['top']} largura={720}>
       <CabecalhoDoInicio nome={nome} hoje={hoje} />
       <CartaoDietaDoInicio estado={estadoDaDieta} aoTentarDeNovo={dieta.recarregar} />
+      {dietaDoPlano?.conteudo.aguaLitros ? <CartaoAguaDoDia compacto metaLitros={dietaDoPlano.conteudo.aguaLitros} /> : null}
       <SecaoHojeDoInicio
         estado={estadoHoje}
         hoje={hoje}

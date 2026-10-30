@@ -1,5 +1,5 @@
 import { ErroApi } from '../api/cliente';
-import type { EtapaRegistrada, LoteResponse, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio } from '../api/tipos';
+import type { EtapaRegistrada, LoteResponse, RegistroAguaEnvio, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio } from '../api/tipos';
 import { inicioDaJanelaDeConclusao } from '../dominio/conclusaoDoTreino';
 import { chavePasseio } from '../dominio/passeio';
 import { chaveDasPreferencias } from '../dominio/preferencias';
@@ -1077,7 +1077,7 @@ describe('mobilidade no SQLite do celular', () => {
     const marcado = await repo.registrarMobilidade(item('i1'));
     expect((await repo.listarMobilidade()).map((r) => r.id)).toEqual([marcado.id]);
     expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(VERSAO_ESQUEMA);
-    expect(VERSAO_ESQUEMA).toBe(4);
+    expect(VERSAO_ESQUEMA).toBe(5);
   });
 
   it('esquema 2 → 3: o banco antigo ganha as colunas das etapas e a série da fila continua, sem detalhe', async () => {
@@ -1730,5 +1730,143 @@ describe('treino concluído na web (chave-valor)', () => {
     await ana.marcarInicioDoTreino(chaveDoInicioDoTreino('v1', 's1', '2026-10-07'), '2026-10-07T12:00:00.000Z');
     await ana.apagarTudo();
     expect((await kv.chaves()).filter((c) => c.startsWith('treinos:ana:'))).toEqual([]);
+  });
+});
+
+const aceitaTudoAgua = async (registros: RegistroAguaEnvio[]): Promise<LoteResponse> => ({
+  resultados: registros.map((r) => ({ id: r.id, situacao: 'ACEITO', motivo: null })),
+});
+
+/**
+ * Água do dia: a mesma bateria nas duas implementações. Mesma fila de envio (repositório, sincronizador, ciclo e
+ * retenção), depósito próprio; um registro por dia, e tirar um copo é o mesmo registro.
+ */
+describe.each(implementacoes)('água do dia na fila de envio – %s', (_nome, criarAparelho) => {
+  let aparelho: Aparelho;
+  beforeEach(() => {
+    aparelho = criarAparelho();
+  });
+
+  it('o mesmo dia é o mesmo registro (mesmo id, o último valor vale); zero é zero; volta igual depois de reabrir', async () => {
+    const repo = aparelho('u1');
+    const a = await repo.registrarAgua({ data: '2026-10-07', aguaMl: 250 });
+    const b = await repo.registrarAgua({ data: '2026-10-07', aguaMl: 0 });
+    expect(b.id).toBe(a.id);
+    expect(b.alteradoEm > a.alteradoEm).toBe(true);
+    expect(b).toMatchObject({ aguaMl: 0, situacao: 'LOCAL', motivo: null });
+    const outroDia = await repo.registrarAgua({ data: '2026-10-06', aguaMl: 1500 });
+    expect(outroDia.id).not.toBe(a.id);
+    await repo.fechar();
+    expect((await aparelho('u1').listarAgua()).map((r) => [r.data, r.aguaMl])).toEqual([['2026-10-07', 0], ['2026-10-06', 1500]]);
+    // Outro aluno no aparelho não vê.
+    expect(await aparelho('u2').listarAgua()).toEqual([]);
+  });
+
+  it('é um depósito à parte, vai no mesmo ciclo das séries e reenviar não manda de novo o aceito', async () => {
+    const repo = aparelho('u1');
+    const agua = await repo.registrarAgua({ data: '2026-10-07', aguaMl: 750 });
+    await repo.registrar(serie('s1'));
+    expect((await repo.pendentes()).map((r) => r.serieUid)).toEqual(['s1']);
+    const enviados: RegistroAguaEnvio[] = [];
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, undefined, async (r) => {
+      enviados.push(...r);
+      return aceitaTudoAgua(r);
+    });
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 2 });
+    expect(enviados).toEqual([{ id: agua.id, data: '2026-10-07', aguaMl: 750, alteradoNoAparelhoEm: agua.alteradoEm }]);
+    expect((await repo.listarAgua()).map((r) => r.situacao)).toEqual(['ENVIADO']);
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 0 });
+    // Tirar um copo depois de enviado manda o mesmo id com o valor novo.
+    await repo.registrarAgua({ data: '2026-10-07', aguaMl: 500 });
+    expect(await sync.sincronizar()).toEqual({ tipo: 'ok', enviados: 1 });
+    expect(enviados.map((r) => [r.id, r.aguaMl])).toEqual([[agua.id, 750], [agua.id, 500]]);
+  });
+
+  it('alterada durante o envio continua pendente; RECUSADO vira FALHOU e "tentar de novo" a devolve à fila', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarAgua({ data: '2026-10-07', aguaMl: 250 });
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, undefined, async (r) => {
+      await repo.registrarAgua({ data: '2026-10-07', aguaMl: 500 });
+      return aceitaTudoAgua(r);
+    });
+    await sync.sincronizar();
+    expect((await repo.pendentesAgua()).map((r) => r.aguaMl)).toEqual([500]);
+
+    const recusa = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, undefined, async (r) => ({
+      resultados: r.map((x) => ({ id: x.id, situacao: 'RECUSADO' as const, motivo: 'Dia que ainda não chegou.' })),
+    }));
+    await recusa.sincronizar();
+    expect((await repo.listarAgua())[0]).toMatchObject({ situacao: 'FALHOU', motivo: 'Dia que ainda não chegou.' });
+    expect(await repo.pendentesAgua()).toEqual([]);
+    expect(await repo.reenviarFalhas()).toBe(1);
+    expect(await repo.pendentesAgua()).toHaveLength(1);
+  });
+
+  it('falha de rede mantém LOCAL', async () => {
+    const repo = aparelho('u1');
+    await repo.registrarAgua({ data: '2026-10-07', aguaMl: 250 });
+    const sync = new Sincronizador(repo, aceitaTudo, aceitaTudoMobilidade, undefined, async () => {
+      throw new ErroApi(0, 'SEM_CONEXAO', 'Sem conexão');
+    });
+    expect(await sync.sincronizar()).toEqual({ tipo: 'semConexao' });
+    expect((await repo.listarAgua())[0].situacao).toBe('LOCAL');
+  });
+
+  it('sessão recusada: a água não enviada fica com a fila, a enviada sai; o mesmo aluno a envia ao voltar', async () => {
+    const repo = aparelho('u1');
+    const enviada = await repo.registrarAgua({ data: '2026-10-06', aguaMl: 1000 });
+    await repo.aplicarResultadosAgua([enviada], [{ id: enviada.id, situacao: 'ACEITO', motivo: null }]);
+    await repo.registrarAgua({ data: '2026-10-07', aguaMl: 250 });
+    await repo.salvarDieta({ id: 'd1' } as never);
+    expect(await repo.reterSoAFila()).toBe(1);
+    const depois = aparelho('u1');
+    expect(await depois.lerDieta()).toBeNull();
+    expect((await depois.listarAgua()).map((r) => [r.data, r.situacao])).toEqual([['2026-10-07', 'LOCAL']]);
+    expect(await depois.retomarFilaRetida()).toBe(true);
+    const enviados: RegistroAguaEnvio[] = [];
+    await new Sincronizador(depois, aceitaTudo, aceitaTudoMobilidade, undefined, async (r) => {
+      enviados.push(...r);
+      return aceitaTudoAgua(r);
+    }).sincronizar();
+    expect(enviados.map((r) => r.data)).toEqual(['2026-10-07']);
+    // "Sair" apaga tudo, a água também.
+    await depois.apagarTudo();
+    expect(await aparelho('u1').listarAgua()).toEqual([]);
+  });
+
+  it('enviada há mais de 60 dias sai do aparelho; pendente antiga fica', async () => {
+    const t0 = Date.parse('2026-10-07T12:00:00Z');
+    const repo = aparelho('u1', () => new Date(t0));
+    const antiga = await repo.registrarAgua({ data: '2026-07-01', aguaMl: 250 });
+    await repo.registrarAgua({ data: '2026-07-02', aguaMl: 250 });
+    await repo.aplicarResultadosAgua([antiga], [{ id: antiga.id, situacao: 'ACEITO', motivo: null }]);
+    expect((await repo.listarAgua()).map((r) => r.data)).toEqual(['2026-07-02']);
+  });
+});
+
+describe('água do dia no SQLite', () => {
+  it('esquema 4 → 5: o banco antigo ganha a tabela da água e a fila continua', async () => {
+    const fabrica = fabricaNode();
+    const antigo = fabrica.banco('treinos-u5.db');
+    await antigo.executar(`
+      create table kv (chave text primary key, valor text not null);
+      create table registro (
+        id text primary key, plano_versao_id text not null, sessao_uid text not null, exercicio_uid text not null,
+        serie_uid text not null, exercicio_id text, trabalho integer not null, data text not null, carga real,
+        repeticoes integer, concluida integer not null, observacao text, alterado_em text not null,
+        situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')), motivo text,
+        etapas text, referencia_carga real, referencia_origem text,
+        unique (plano_versao_id, serie_uid, data)
+      );
+      create table carga_trabalho (exercicio_uid text not null, data text not null, carga real not null, primary key (exercicio_uid, data));
+      insert into registro values ('r-v4', 'v1', 's1', 'e1', 'x', 'x1', 0, '2026-10-07', 20, 8, 1, null, '2026-10-07T12:00:00.000Z', 'LOCAL', null, null, null, null);
+      pragma user_version = 4;
+    `);
+    const repo = new RepositorioSqlite(fabrica, 'u5', novoId, agora);
+    expect((await repo.pendentes()).map((r) => r.id)).toEqual(['r-v4']);
+    expect(await repo.listarAgua()).toEqual([]);
+    const agua = await repo.registrarAgua({ data: '2026-10-07', aguaMl: 250 });
+    expect((await repo.listarAgua()).map((r) => r.id)).toEqual([agua.id]);
+    expect((await antigo.primeiro<{ user_version: number }>('pragma user_version'))?.user_version).toBe(VERSAO_ESQUEMA);
   });
 });

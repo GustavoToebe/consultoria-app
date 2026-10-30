@@ -33,14 +33,16 @@ export const nomeDoBanco = (usuarioId: string) => `treinos-${usuarioId}.db`;
  *    Rest-pause, docs/series-etapas.md).
  * 4: tabelas `sessao_concluida` (treino concluído ou reaberto, na mesma fila de envio) e `inicio_do_treino` (instante da
  *    primeira série feita de cada treino; só no aparelho, nunca enviado).
+ * 5: tabela `agua_do_dia` (água marcada no dia, na mesma fila de envio; um registro por dia).
  */
-export const VERSAO_ESQUEMA = 4;
+export const VERSAO_ESQUEMA = 5;
 
 /**
  * Esquema local. `kv` guarda documentos que só são lidos inteiros (pacote do plano, dieta);
  * `registro` é a fila de envio, com a mesma chave única do servidor (versão, série, dia);
  * `registro_mobilidade` é a mesma fila para a mobilidade (versão, item, dia), em tabela própria;
- * `sessao_concluida` é a mesma fila para o treino concluído (versão, sessão, dia); `inicio_do_treino` não é fila.
+ * `sessao_concluida` é a mesma fila para o treino concluído (versão, sessão, dia); `agua_do_dia`, para a água (dia);
+ * `inicio_do_treino` não é fila.
  * Tudo é `create ... if not exists`: subir a versão do esquema é só acrescentar o que falta (banco antigo ganha a
  * tabela nova na próxima abertura, sem perder o que já tinha).
  */
@@ -99,6 +101,15 @@ const ESQUEMA = `
     unique (plano_versao_id, sessao_uid, data)
   );
   create index if not exists ix_sessao_concluida_situacao on sessao_concluida (situacao, alterado_em);
+  create table if not exists agua_do_dia (
+    id text primary key,
+    data text not null unique,
+    agua_ml integer not null,
+    alterado_em text not null,
+    situacao text not null check (situacao in ('LOCAL', 'ENVIADO', 'FALHOU')),
+    motivo text
+  );
+  create index if not exists ix_agua_do_dia_situacao on agua_do_dia (situacao, alterado_em);
   create table if not exists inicio_do_treino (
     chave text primary key,
     data text not null,

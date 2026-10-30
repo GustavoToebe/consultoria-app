@@ -86,6 +86,8 @@ export async function sessaoDeAlunoComTreino(page: Page, sessoes: Sessao[] | nul
     'GET /aluno/compromissos': { corpo: [] },
     // Avisos de compromisso não vistos (ponto na aba e item nas pendências): nenhum, salvo no teste dos avisos.
     'GET /aluno/avisos-de-compromisso': { corpo: [] },
+    // Água marcada (só aparece com "Água por dia" na dieta): nenhuma, salvo no teste da água.
+    'GET /aluno/agua': { corpo: [] },
   };
 }
 

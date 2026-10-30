@@ -9,7 +9,8 @@ import { Texto } from '../ui/Texto';
 /**
  * Escolha do dia para marcar a mobilidade ("Hoje · 19/10", "18/10"...): é um seletor na própria tela, então o dia aberto
  * segue a seleção invertida do app (fundo `texto`, letra `fundo`), como as `Escolha`, e não tem seta de navegar (que os
- * chips do treino têm, porque lá cada data abre outra tela). O ✓ diz que o dia tem algum item feito.
+ * chips do treino têm, porque lá cada data abre outra tela). O ✓ diz que o dia tem algum item feito. A água do dia usa
+ * os mesmos chips (`assunto` "Água", ✓ = dia com registro).
  */
 export function DatasDaMobilidade({
   datas,
@@ -17,6 +18,8 @@ export function DatasDaMobilidade({
   atual,
   comAlgoFeito,
   aoAbrir,
+  assunto = 'Mobilidade',
+  textoDoMarcado = 'com algo feito',
 }: {
   datas: string[];
   hoje: string;
@@ -24,10 +27,14 @@ export function DatasDaMobilidade({
   atual: string;
   comAlgoFeito: (data: string) => boolean;
   aoAbrir: (data: string) => void;
+  /** Para o leitor de tela: "Mobilidade, 18/10" / "Dia da mobilidade". */
+  assunto?: string;
+  /** O que o ✓ quer dizer, para o leitor de tela. */
+  textoDoMarcado?: string;
 }) {
   const { cores } = useTema();
   return (
-    <View style={estilos.chips} accessibilityRole="radiogroup" accessibilityLabel="Dia da mobilidade">
+    <View style={estilos.chips} accessibilityRole="radiogroup" accessibilityLabel={`Dia da ${assunto.toLowerCase()}`}>
       {datas.map((d) => {
         const escolhido = d === atual;
         const feito = comAlgoFeito(d);
@@ -36,7 +43,7 @@ export function DatasDaMobilidade({
           <Pressable
             key={d}
             accessibilityRole="radio"
-            accessibilityLabel={`Mobilidade, ${dataCurta(d)}${d === hoje ? ', hoje' : ''}${feito ? ', com algo feito' : ''}`}
+            accessibilityLabel={`${assunto}, ${dataCurta(d)}${d === hoje ? ', hoje' : ''}${feito ? `, ${textoDoMarcado}` : ''}`}
             aria-checked={escolhido}
             accessibilityState={{ checked: escolhido }}
             onPress={() => { if (!escolhido) aoAbrir(d); }}
