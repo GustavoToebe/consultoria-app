@@ -42,6 +42,8 @@ const CONCLUSOES = (vistoEm: string | null): SessoesConcluidasResponse => ({
 const PAINEL: PainelTreinador = {
   atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0, alunosAtivos: 1,
   alunosSemRegistro: [], ultimasExecucoes: [], planosTerminando: [],
+  pastasARenovar: 0, pastasParaRenovar: [], alunosSemPastaComPeriodo: 0, alunosSemRegistroTotal: 0, alunosSemAcesso: 0,
+  sessoesConcluidas7Dias: 0,
 };
 
 async function treinador(page: Page, permissoes: string[], vistoEm: string | null = null) {

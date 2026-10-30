@@ -858,6 +858,18 @@ export interface PainelTreinador {
   alunosSemRegistro: { id: string; nome: string; ultimoRegistro: string | null }[];
   ultimasExecucoes: { aluno: { id: string; nome: string }; data: string; sessao: string; series: number }[];
   planosTerminando: { plano: { id: string; titulo: string }; aluno: { id: string; nome: string }; fim: string }[];
+  /** Pastas a renovar (termina em até 7 dias ou já terminou, sem a seguinte; `precisaRenovar`): total sem teto. `null` sem `TREINO_LER`. */
+  pastasARenovar: number | null;
+  /** As mesmas pastas, até 20, do fim mais antigo ao mais novo; vazia sem `TREINO_LER`. */
+  pastasParaRenovar: { pasta: { id: string; titulo: string }; aluno: { id: string; nome: string }; fim: string }[];
+  /** Alunos ativos sem pasta vigente com período (grupo "Sem pasta com período"). `null` sem `TREINO_LER`. */
+  alunosSemPastaComPeriodo: number | null;
+  /** Total de `alunosSemRegistro`, sem o teto de 20. `null` sem `REGISTRO_LER`. */
+  alunosSemRegistroTotal: number | null;
+  /** Alunos ativos sem conta de acesso (`!temAcesso`); subconjunto de `alunosAtivos`. */
+  alunosSemAcesso: number;
+  /** Treinos concluídos (completos e parciais) nos últimos 7 dias, dos mesmos alunos; só o número. `null` com o retorno desligado ou sem `REGISTRO_LER`; 0 com o retorno ligado e nenhum. */
+  sessoesConcluidas7Dias: number | null;
 }
 
 /**

@@ -10,6 +10,8 @@ import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa
 const PAINEL: PainelTreinador = {
   atualizacoesParaRevisar: 0, atualizacoesAtrasadas: 0, atualizacoesAvisaramAtraso: 0, atualizacoesProximas: 0, alunosAtivos: 3,
   alunosSemRegistro: [], ultimasExecucoes: [], planosTerminando: [],
+  pastasARenovar: 0, pastasParaRenovar: [], alunosSemPastaComPeriodo: 0, alunosSemRegistroTotal: 0, alunosSemAcesso: 0,
+  sessoesConcluidas7Dias: 0,
 };
 
 const contagens = (atrasados: number, hoje: number, novas = 0) => ({
