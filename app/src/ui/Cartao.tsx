@@ -26,14 +26,15 @@ interface Props {
   nivel?: 2 | 3;
   /**
    * Título e ações numa faixa (`superficie3`, linha embaixo) rente às bordas: marca onde a seção começa (reunião de
-   * 29/10, "não sei onde começa e termina"). Para as seções principais de uma tela, não para todo cartão.
+   * 29/10, "tudo parece uma coisa só, sem início e fim"). Ligada em todo cartão com título; `faixa={false}` só onde a
+   * faixa atrapalha (cartão de destaque com cor própria, por exemplo).
    */
   faixa?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Cartão flat: superfície, borda nos dois temas, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
-export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = false, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, style }: Props) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
