@@ -18,17 +18,17 @@ e as telas de aluno do treinador ([telas-do-aluno-visual.md](telas-do-aluno-visu
 | D5 | A02, importar plano de PDF ou Google Docs | Nesta rodada só o plano escrito (opções, riscos de LGPD, o que fica no servidor); sem código até o Gustavo decidir | Gustavo, 30/10 |
 
 ## Passos
-- [ ] 0. Renomear a branch (D1) e atualizar o "Onde" dos planos que citam a antiga — commit/run: —
+- [x] 0. Renomear a branch (D1) e atualizar o "Onde" dos planos que citam a antiga — commit/run: push da branch nova em 30/10 (os "Onde" vão no próximo commit)
 - [ ] 1. Peças comuns no estilo novo (`Cartao`, `Tabela`, `LinhaDaLista`, `ItemDeLista`, `Abas`, `FaixaDeChips`, `Campo`, `EscolhaEmFolha`, `Folha`, `PainelConfirmacao`, `Estados`, `Cabecalho`), com capturas antes e depois — commit/run: —
 - [ ] 2. Telas do treinador (lista na mensagem), em lotes paralelos — commit/run: —
 - [ ] 3. Telas do aluno e telas públicas, em lotes paralelos — commit/run: —
 - [ ] 4. A06: textos da dieta (modelo × plano do aluno, nome dos complementos) — commit/run: —
 - [ ] 5. Lista de compras: rótulos "Conforme a dieta" e "Estimativa para compra" (D7 de clareza-do-treinador, que ficou só nos selos) — commit/run: —
-- [ ] 6. A12: migration das categorias dos suplementos (D4), com teste de integração — commit/run: —
-- [ ] 7. Importação: escolher a linha do cabeçalho (API, tela e testes) — commit/run: —
+- [x] 6. A12: migration das categorias dos suplementos (D4), com teste de integração — commit/run: `faca6070` (V047)
+- [x] 7. Importação: escolher a linha do cabeçalho (API, tela e testes) — commit/run: `2d31c558` (só o formato novo `linhaDoCabecalho`, sem transição: app antigo que manda `cabecalho` recebe 422)
 - [ ] 8. Painel novo do Início do treinador (Próximo passo, Acompanhamento, Planejamento): protótipo, aprovação, código — commit/run: —
 - [ ] 9. A01: orientação guiada no primeiro uso: protótipo, aprovação, código — commit/run: —
-- [ ] 10. A02: plano escrito em `docs/planos/importar-plano-de-documento.md` (D5) — commit/run: —
+- [x] 10. A02: plano escrito em `docs/planos/importar-plano-de-documento.md` (D5) — commit/run: — (perguntas para o Gustavo no próprio plano)
 - [ ] 11. Ajuda, guias PDF, AGENTS.md, Jest, lint, typecheck, `mvn verify` (passos 6 e 7), e2e completo em 390 e 1280 — commit/run: —
 
 ## Fora do escopo

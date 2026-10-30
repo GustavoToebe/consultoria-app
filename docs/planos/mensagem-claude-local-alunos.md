@@ -17,7 +17,7 @@ de um protótipo que eu já aprovei. Tudo em português.
    `app/src/treinador/ResumoDoAluno.tsx`, `CartaoPastas.tsx` e os cartões da ficha.
 
 **Onde trabalhar**
-- Branch `claude/saraiva-api-direcionamento-treinos-dv10io` (`git fetch origin` e `git pull`). Não vá para a `main`:
+- Branch `atualizacao-visual-app-full` (`git fetch origin` e `git pull`). Não vá para a `main`:
   push na `main` publica em produção. Se ainda estivermos ajustando o editor de treino nesta branch, termine aquilo
   antes ou faça em commits separados.
 

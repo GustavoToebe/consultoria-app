@@ -36,6 +36,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Editor de treino: visual do protótipo de 30/10 (fundo quase branco, bordas, cantos, selos, numeração, uma série aberta) | [editor-de-treino-visual.md](editor-de-treino-visual.md) | branch (30/10) | Em andamento | 30/10/2026 |
 | Telas do aluno no estilo novo (lista em grupos, ficha, novo aluno) | [telas-do-aluno-visual.md](telas-do-aluno-visual.md) | branch (30/10), Claude local | Planejando: protótipo aprovado em `docs/prototipos/alunos.html` | 30/10/2026 |
 | Atualização visual do app inteiro e pendências da análise de 29/10 (painel novo, A01, A02, A06, A12, cabeçalho da importação, rótulos da lista de compras) | [atualizacao-visual-app-full.md](atualizacao-visual-app-full.md) | branch `atualizacao-visual-app-full`, Claude local | Planejando | 30/10/2026 |
+| Importar plano de treino (e dieta) de PDF ou Google Docs (A02) | [importar-plano-de-documento.md](importar-plano-de-documento.md) | branch `atualizacao-visual-app-full` | Planejando: só o plano escrito, sem código; perguntas para o Gustavo | 30/10/2026 |
 | Água do aluno (marcar os copos do dia contra a "Água por dia" da dieta) | [agua-do-aluno.md](agua-do-aluno.md) | PR para a `main` (30/10), junto da clareza | Pronta | 30/10/2026 |
 
 ## Pendências soltas
@@ -56,7 +57,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Link de vídeo da técnica (Rest-pause, Cluster) quando houver vídeo aprovado do Saraiva | Gustavo | análise 2 (A8) |
 | `lock_timeout` no Flyway do módulo auth (exige mudar a biblioteca `plataforma`) | Claude | travas do banco |
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
-| Evolução: `mvn verify` com Docker na branch `claude/saraiva-api-direcionamento-treinos-dv10io` antes de qualquer PR (testes de integração novos de avaliação, agenda, lembretes, grupo do alimento, dieta e limite do CPF não rodaram no ambiente sem Docker) | Gustavo (PC) | evolucao-prime |
+| Evolução: `mvn verify` com Docker na branch `atualizacao-visual-app-full` antes de qualquer PR (testes de integração novos de avaliação, agenda, lembretes, grupo do alimento, dieta e limite do CPF não rodaram no ambiente sem Docker) | Gustavo (PC) | evolucao-prime |
 | Agenda calendário, o que a tela do lote 2 não conferiu: setas do teclado dentro do menu "Criar"; janela de 1024 a 1100 px; teclado virtual em aparelho (roteiro 22a/22b de `docs/build-celular.md`); o aviso de sobreposição de evento ignora a repetição; se o `replace` do filtro não chegar ao endereço, o filtro escolhido numa Folha fica só na tela até recarregar | Claude | [agenda-calendario.md](agenda-calendario.md) |
 | Agenda: push do servidor para compromisso marcado, remarcado ou cancelado (app fechado) fica com a decisão de push da frente de engajamento (item "Push do servidor", Etapa 3) | Gustavo decide | [agenda-calendario.md](agenda-calendario.md), [engajamento.md](engajamento.md) |
 

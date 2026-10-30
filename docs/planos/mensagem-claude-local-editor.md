@@ -9,8 +9,8 @@ Vou testar no meu PC o novo visual do editor de treino e te pedir ajustes confor
 português.
 
 **Onde está o trabalho**
-- Branch `claude/saraiva-api-direcionamento-treinos-dv10io` (ainda não foi para a `main`). Rode `git fetch origin` e
-  `git switch claude/saraiva-api-direcionamento-treinos-dv10io` (ou `git pull` se já estiver nela). Não troque para a
+- Branch `atualizacao-visual-app-full` (ainda não foi para a `main`). Rode `git fetch origin` e
+  `git switch atualizacao-visual-app-full` (ou `git pull` se já estiver nela). Não troque para a
   `main` nem faça merge nela: push na `main` publica em produção.
 - O que mudou (só visual, nenhuma regra do plano, contrato da API, fila offline ou publicação):
   - App todo: fundo quase branco (`#F7F7F8`; areia `#FAF9F6`), cantos de 12 px (`RAIO`), borda de 2 px nos blocos

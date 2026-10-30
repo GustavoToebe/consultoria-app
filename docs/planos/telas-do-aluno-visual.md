@@ -21,7 +21,7 @@ ou regra da API.
 | D7 | Novo aluno e edição | Mesmo `FormAluno`, com cada seção num `Cartao` com faixa (Cadastro, Dados pessoais, Acompanhamento), campos em duas colunas no PC, Sexo em chips, CEP com "Buscar", e o rodapé fixo com Cancelar à esquerda e "Salvar aluno" à direita. Com erro: um `Alerta` de perigo no topo, "N campos precisam de correção", e o foco no primeiro campo com erro. Largura de formulário maior (cerca de 880 px no lugar de 640) | Gustavo, 30/10 (protótipo) |
 
 ## Passos
-- [x] 1. Lista em grupos e colunas (D1 a D3), com e2e em 390 e 1280 (`lista-alunos-grupos.spec.ts`) — commit/run: commit da lista nesta branch
+- [x] 1. Lista em grupos e colunas (D1 a D3), com e2e em 390 e 1280 (`lista-alunos-grupos.spec.ts`) — commit/run: `beba49a3`
 - [ ] 2. Ficha (D4 a D6), com e2e — commit/run: —
 - [ ] 3. Novo aluno e edição (D7), com e2e de `cadastro-aluno.spec.ts` — commit/run: —
 - [ ] 4. AGENTS.md, Ajuda (se o caminho mudar) e capturas para o Gustavo — commit/run: —
