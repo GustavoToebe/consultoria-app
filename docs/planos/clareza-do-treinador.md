@@ -23,7 +23,7 @@ mandou (fora do repositório: tem dado de pessoas reais e não entra no git).
 ## Passos
 - [x] 1. Lote A: fim automático da pasta, "Abertas", efeito de finalizar, destino explícito ao aplicar modelo e ao copiar plano, "Dose prescrita" (com a porção da embalagem só como referência), períodos "Semana (7 dias)"/"Mês (30 dias)" na lista de compras, aviso do gráfico de peso — commit/run: 79d9d3e (Jest 2552, lint, typecheck, e2e `pasta-periodo` e `lista-de-compras` em 390 e 1280)
 - [x] 2. Lote B: tokens dos dois temas e do contraste alto, opção "Claro areia", exercício × grupo de séries, pasta com Treino, Dieta e Mobilidade em blocos próprios; capturas antes e depois em 390 e 1280 — commit/run: f65c800; faixa de cabeçalho em todo cartão com título e no topo das folhas (D8): c114082 (Jest 2556, lint, typecheck, e2e completo 326 de 326)
-- [ ] 3. Lote C: importação em etapas (lista separada do assistente; destino e arquivo juntos; configuração com ajuda; amostra com a escolha do campo em cada coluna; resumo Total / Com erro / Corretas; "Voltar"; mudar arquivo, aba ou mapeamento invalida a prévia) — commit/run: —
+- [x] 3. Lote C: importação em etapas (lista separada do assistente; destino e arquivo juntos; configuração com ajuda; amostra com a escolha do campo em cada coluna; resumo Total / Com erro / Corretas; "Voltar"; mudar arquivo, aba ou mapeamento invalida a prévia) — commit/run: ea45e8b (`POST /importacoes/{destino}/colunas` traz `linhas` e `amostra` de até 5 linhas, só na resposta; `mvn verify` 1688, e2e `importacao` em 390 e 1280)
 - [ ] 4. Ajuda, guias PDF, AGENTS.md, testes (Jest, e2e em 390 e 1280, `mvn verify` se a API mudar), PR, CI verde e merge — commit/run: —
 
 ## Fora do escopo
