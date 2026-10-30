@@ -78,16 +78,20 @@ export function EscolhaDeCarga({ carga, config, papel, aoMudarModo, erro, rotulo
   </View>;
 }
 
-/** O percentual (mínimo e máximo opcional) das formas de carga que têm faixa; nada nas outras. */
-export function FaixaDeCarga({ carga, config, prefixo = '', aoMudar, erros }: {
+/**
+ * O percentual (mínimo e máximo opcional) das formas de carga que têm faixa; nada nas outras. Com várias séries, quem
+ * chama passa `semAjuda` e mostra a ajuda uma vez só, embaixo de todas (teste local de 30/10).
+ */
+export function FaixaDeCarga({ carga, config, prefixo = '', aoMudar, erros, semAjuda = false }: {
   carga: Carga | null | undefined; config: Configuracao | null; prefixo?: string;
-  aoMudar: (min: number | null, max: number | null) => void; erros: Problemas;
+  aoMudar: (min: number | null, max: number | null) => void; erros: Problemas; semAjuda?: boolean;
 }) {
   const rotulos = rotulosDaFaixa(carga?.modo, config);
   if (!rotulos) return null;
-  return <View style={estilos.linha}>
+  // Alinhados pela base: o rótulo do máximo quebra em duas linhas e os campos ficavam desencontrados.
+  return <View style={[estilos.linha, estilos.linhaPelaBase]}>
     <View style={estilos.campo}><CampoNumerico rotulo={`${prefixo}${rotulos.minimo}`} sufixo="%" valor={carga?.percentualMin ?? null}
-      aoMudar={(v) => aoMudar(v, carga?.percentualMax ?? null)} erro={erros.percentualMin} ajuda={rotulos.ajuda} /></View>
+      aoMudar={(v) => aoMudar(v, carga?.percentualMax ?? null)} erro={erros.percentualMin} ajuda={semAjuda ? undefined : rotulos.ajuda} /></View>
     <View style={estilos.campo}><CampoNumerico rotulo={`${prefixo}${rotulos.maximo}`} sufixo="%" valor={carga?.percentualMax ?? null}
       aoMudar={(v) => aoMudar(carga?.percentualMin ?? null, v)} erro={erros.percentualMax} /></View>
   </View>;
@@ -167,7 +171,7 @@ export function CamposDoEsforco({ esforco, aoMudar, erros, rotulo = 'Esforço', 
       <ErroDoCampo mensagem={erros.rir} />
     </> : null}
     {forma === 'RPE' ? <CampoSozinho>
-      <CampoNumerico rotulo="RPE (1 a 10, de meio em meio)" valor={esforco?.rpe ?? null} aoMudar={(rpe) => aoMudar({ rir: null, rpe })} erro={erros.rpe} ajuda="Ex.: 8 ou 8,5." />
+      <CampoNumerico rotulo="RPE (1 a 10, de meio em meio)" valor={esforco?.rpe ?? null} aoMudar={(rpe) => aoMudar({ rir: null, rpe })} erro={erros.rpe} ajuda="Esforço percebido. Ex.: 8 ou 8,5." />
     </CampoSozinho> : null}
   </View>;
 }
@@ -563,6 +567,7 @@ export function CamposDoCardio({ cardio, aoMudar, erros }: { cardio: Cardio | nu
 const estilos = StyleSheet.create({
   bloco: { gap: espaco(1) },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5), alignItems: 'flex-start' },
+  linhaPelaBase: { alignItems: 'flex-end' },
   campo: { minWidth: 130, flexGrow: 1, flexBasis: 130, maxWidth: 220 },
   sozinho: { width: '100%', maxWidth: 220 },
   // Altura do rótulo do campo (13/18) mais o vão até a caixa: a escolha da unidade fica na linha da caixa.

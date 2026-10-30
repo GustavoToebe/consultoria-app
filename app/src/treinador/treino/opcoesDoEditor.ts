@@ -28,10 +28,11 @@ export function formaDoEsforco(e: Esforco | null | undefined): FormaDeEsforco {
   return e?.rir != null ? 'RIR' : 'RPE';
 }
 
+// Rótulos curtos para caberem numa linha ao lado do Descanso; o que é RIR e RPE aparece ao escolher (teste local de 30/10).
 export const FORMAS_DE_ESFORCO: { valor: FormaDeEsforco; rotulo: string }[] = [
   { valor: 'NENHUM', rotulo: 'Sem esforço' },
-  { valor: 'RIR', rotulo: 'RIR (repetições na reserva)' },
-  { valor: 'RPE', rotulo: 'RPE (esforço percebido)' },
+  { valor: 'RIR', rotulo: 'RIR' },
+  { valor: 'RPE', rotulo: 'RPE' },
 ];
 
 /**

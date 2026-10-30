@@ -77,8 +77,9 @@ export function CartaoExercicio(p: Props) {
   // Estado do exercício na faixa, pela mesma validação da publicação, ao vivo (protótipo de 30/10).
   const estado = useMemo(() => estadoDoExercicio(e, p.config), [e, p.config]);
   const comErro = p.comProblema || estado.tipo === 'perigo';
-  // "Observação e vídeo" começa aberto quando algum dos dois já está preenchido.
-  const [extrasAbertos, setExtrasAbertos] = useState(!!(e.observacao || e.videoUrl));
+  // "Execução" e "Observação e vídeo" começam fechados (pedido do Gustavo de 30/10); só abrem sozinhos com erro dentro.
+  const [execucaoAberta, setExecucaoAberta] = useState(!!(erroDaCadencia(e.cadencia) ?? erros.cadencia ?? erroDaIsometria(e.isometriaSegundos) ?? erros.isometriaSegundos));
+  const [extrasAbertos, setExtrasAbertos] = useState(!!(erroDoVideo(e.videoUrl) ?? erros.videoUrl));
   // Modalidade pedida que apagaria as séries: espera a confirmação.
   const [modalidadePendente, setModalidadePendente] = useState<{ valor: string | null } | null>(null);
   const trocarModalidade = (valor: string | null) => {
@@ -161,13 +162,7 @@ export function CartaoExercicio(p: Props) {
               aoMudar={(unidade) => mudar({ unidade })}
             />
           ) : null}
-          {cardio ? <Texto variante="pequeno">Cardio tem prescrição própria: duração, distância, ritmo, zona e intervalos. Trocar de ou para cardio apaga as séries.</Texto> : null}
-          {p.noGrupo && p.aoTirarDoGrupo ? (
-            <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
-          ) : null}
-          <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
-          <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
-          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
+          {/* Progressão perto da carga: as duas são decisões de carga do exercício inteiro (teste local de 30/10). */}
           {!cardio ? (
             <Interruptor
               rotulo="Progressão de carga"
@@ -177,9 +172,16 @@ export function CartaoExercicio(p: Props) {
             />
           ) : null}
           {!cardio ? <AvisoDoCampo mensagem={avisos.progressao} /> : null}
+          {cardio ? <Texto variante="pequeno">Cardio tem prescrição própria: duração, distância, ritmo, zona e intervalos. Trocar de ou para cardio apaga as séries.</Texto> : null}
+          {p.noGrupo && p.aoTirarDoGrupo ? (
+            <Botao rotulo="Tirar do grupo" rotuloAcessivel={`Tirar ${e.nome || 'o exercício'} do grupo`} tipo="fantasma" Icone={Unlink} aoTocar={p.aoTirarDoGrupo} />
+          ) : null}
           <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
-          <Texto variante="secao">Execução (opcional)</Texto>
-          <View style={estilos.linhaExecucao}>
+          <Texto variante="secao">{cardio ? 'Cardio' : 'Séries'}</Texto>
+          <EditorSeries modalidade={e.modalidade} series={e.series} config={p.config} semCarga={e.unidade === 'nenhuma'} descansoPorSerie={p.descansoPorSerie !== false} aoMudar={(series) => mudar({ series })} aoUsarReceita={p.aoUsarReceita} />
+          <View style={[estilos.divisor, { backgroundColor: cores.borda }]} />
+          <CabecalhoDeGrupo titulo="Execução (opcional)" resumo={execucaoAberta ? undefined : resumoDaExecucao(e)} aberto={execucaoAberta} aoAlternar={() => setExecucaoAberta((v) => !v)} />
+          {execucaoAberta ? <View style={estilos.linhaExecucao}>
             <View style={estilos.cadencia}>
               <Campo
                 rotulo="Cadência"
@@ -203,8 +205,8 @@ export function CartaoExercicio(p: Props) {
                 ajuda="Segure N s; diga onde na observação."
               />
             </View>
-          </View>
-          <CabecalhoDeGrupo titulo="Observação e vídeo" aberto={extrasAbertos} aoAlternar={() => setExtrasAbertos((v) => !v)} />
+          </View> : null}
+          <CabecalhoDeGrupo titulo="Observação e vídeo" resumo={extrasAbertos ? undefined : resumoDosExtras(e)} aberto={extrasAbertos} aoAlternar={() => setExtrasAbertos((v) => !v)} />
           {extrasAbertos ? (
             <>
               <Campo
@@ -255,6 +257,18 @@ function estadoDoExercicio(e: ExercicioPlano, config: Configuracao | null) {
   if (r.erros.length) return { tipo: 'perigo' as const, texto: r.erros.length === 1 ? '1 problema a corrigir' : `${r.erros.length} problemas a corrigir`, Icone: CircleAlert };
   if (r.avisos.length) return { tipo: 'atencao' as const, texto: r.avisos.length === 1 ? '1 aviso' : `${r.avisos.length} avisos`, Icone: TriangleAlert };
   return { tipo: 'sucesso' as const, texto: 'Pronto', Icone: CircleCheck };
+}
+
+/** O que está preenchido na "Execução", para a faixa fechada não esconder: "Cadência 3-1-1-0 · isometria 2 s". */
+function resumoDaExecucao(e: ExercicioPlano): string {
+  const partes = [e.cadencia ? `Cadência ${e.cadencia}` : null, e.isometriaSegundos != null ? `isometria ${e.isometriaSegundos} s` : null].filter(Boolean);
+  return partes.length ? partes.join(' · ') : 'Nada preenchido';
+}
+
+/** O mesmo para "Observação e vídeo", no jeito do resumo da sessão. */
+function resumoDosExtras(e: ExercicioPlano): string {
+  const partes = [e.observacao ? 'com observação' : null, e.videoUrl ? 'com vídeo' : null].filter(Boolean);
+  return partes.length ? partes.join(' · ') : 'Nada preenchido';
 }
 
 const estilos = StyleSheet.create({

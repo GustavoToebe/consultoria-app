@@ -1,6 +1,6 @@
 # Editor de treino: visual do protótipo de 30/10
 
-Situação: Em andamento · Onde: branch `claude/saraiva-api-direcionamento-treinos-dv10io` · Atualizado: 30/10/2026
+Situação: Em andamento · Onde: branch `atualizacao-visual-app-full` · Atualizado: 30/10/2026
 
 ## Objetivo
 Deixar claro onde cada bloco do editor de treino começa e termina, e qual série está pronta, com aviso ou com erro,
@@ -22,6 +22,9 @@ que o Gustavo ajustou e devolveu com "Copiar meus ajustes".
 | D10 | Selo com ícone | Fundo opaco (`tingido`: a cor com alfa 0x18 sobre a `superficie`); translúcido, sobre a `faixaForte`, o texto ficava abaixo de 4,5:1 | Teste de contraste, 30/10 |
 | D11 | Painel de ajustes no app | Não entra: as escolhas valem para todos; o que é pessoal continua em Perfil › Preferências | Recomendação, 30/10 |
 | D12 | Bordas reforçadas | Só esta opção vai para Perfil › Preferências: borda mais escura (`bordaCampo`) e bloco com 3 px; desligada por padrão | Gustavo, 30/10 |
+| D13 | "Observação e vídeo" do exercício | Começa sempre fechado, mesmo preenchido; só abre sozinho com erro no link do vídeo, para o erro não ficar escondido | Gustavo, 30/10 (teste local) |
+| D14 | Fim do cartão do exercício | "Progressão de carga" sobe para logo abaixo de "Carga do exercício"; "Execução (opcional)" (cadência e isometria) e "Observação e vídeo" são duas faixas recolhíveis, fechadas, com resumo do que está preenchido ("Nada preenchido", "com observação · com vídeo"); abrem sozinhas só com erro dentro | Gustavo, 30/10 (teste local) |
+| D15 | Carga em % e Esforço | Ajuda do percentual uma vez só, embaixo das séries, e mínimo/máximo alinhados pela base; opções do esforço curtas ("Sem esforço", "RIR", "RPE"), o significado aparece ao escolher | Gustavo, 30/10 (teste local) |
 
 ## Passos
 - [x] 1. Cores e medidas comuns (fundo, `RAIO`, `BORDA_BLOCO`, `LINHA_DA_FAIXA`, `BORDA_ITEM`, `faixaForte`, `tingido`) com os testes de contraste — commit/run: —

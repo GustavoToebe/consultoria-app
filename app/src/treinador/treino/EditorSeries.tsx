@@ -34,6 +34,7 @@ import {
   problemasDoExercicioSemSeries,
   problemasDoGrupoDeSeries,
   problemasPorSerie,
+  rotulosDaFaixa,
   secoesDaSerie,
   subProblemas,
 } from './opcoesDoEditor';
@@ -316,7 +317,8 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
           ajuda={cluster && modo === 'CARGA_TRABALHO' && !semCarga ? AJUDA_DA_CARGA_DO_CLUSTER : undefined} />
         {modo === 'PERCENTUAL_WS' || modo === 'ACIMA_DA_ANTERIOR' || modo === 'ABAIXO_DA_REFERENCIA' ? <View style={estilos.bloco}>
           {g.series.map((x, j) => <FaixaDeCarga key={x.uid} carga={x.carga} config={config} prefixo={g.series.length > 1 ? `Série ${j + 1} · ` : ''}
-            aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} />)}
+            aoMudar={(min, max) => aoPercentuais(j, min, max)} erros={subProblemas(porSerie[g.inicio + j]?.erros, 'carga')} semAjuda={g.series.length > 1} />)}
+          {g.series.length > 1 && rotulosDaFaixa(modo, config)?.ajuda ? <Texto variante="pequeno">{rotulosDaFaixa(modo, config)?.ajuda}</Texto> : null}
         </View> : null}
         {modo === 'ABAIXO_DA_REFERENCIA' ? <ReferenciaDaCarga opcoes={referencias} valor={s.carga?.referenciaUid} aoMudar={(referenciaUid) => aoAlterar({ carga: { referenciaUid } })} erro={erros['carga.referenciaUid']} /> : null}
         <AvisoDoCampo mensagem={avisos['carga.modo']} />

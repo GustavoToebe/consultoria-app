@@ -257,7 +257,7 @@ for (const largura of [390, 1280]) {
     const mensagem = 'RPE precisa ficar entre 1 e 10, de meio em meio.';
     const salvar = page.getByRole('button', { name: 'Salvar modelo', exact: true });
     await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
-    await page.getByRole('button', { name: 'RPE (esforço percebido)', exact: true }).click();
+    await page.getByRole('button', { name: 'RPE', exact: true }).click();
     // RPE escolhido e ainda sem valor equivale a "sem esforço": nenhum erro, nenhuma lista de problemas.
     await expect(rpe).toHaveValue('');
     await expect(page.getByText(mensagem)).toHaveCount(0);
@@ -277,7 +277,7 @@ for (const largura of [390, 1280]) {
     expect((api.salvo().conteudo as Configuracao).tipos[0]).toMatchObject({ codigo: 'WARM_UP', esforcoPadrao: null });
     // Valor válido, de meio em meio, é gravado como digitado. Salvar recarrega o editor: o cartão volta recolhido e sem esforço.
     await page.getByRole('button', { name: 'Aquecimento, recolhido', exact: true }).click();
-    await page.getByRole('button', { name: 'RPE (esforço percebido)', exact: true }).click();
+    await page.getByRole('button', { name: 'RPE', exact: true }).click();
     await rpe.fill('8,5');
     await salvar.click();
     await expect.poll(() => api.pedidos.filter((p) => p.metodo === 'PUT').length).toBe(2);
