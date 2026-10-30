@@ -131,7 +131,8 @@ function Painel({titulo,aoFechar,children,rodape,largura,acaoNoTopo}:Omit<Props,
               : [estilos.painelInferior, { paddingBottom: Platform.OS === 'android' ? 0 : margem.bottom }],
             { backgroundColor: cores.superficie, borderColor: cores.borda },
           ]}>
-          <View style={estilos.topo}>
+          {/* Faixa do título (reunião de 29/10): o topo da folha se separa do conteúdo, como nos cartões. */}
+          <View style={[estilos.topo, { backgroundColor: cores.superficie3, borderBottomColor: cores.borda }]}>
             {/* A alça é só a área do título: arrastar a partir do X ou do menu ⋯ não move nem fecha a folha. */}
             <GestureDetector gesture={centralizado ? mover : gestoDeFechar}><View style={[estilos.alca, centralizado && estilos.topoArrastavel]}>
               <Texto variante="bloco" nivel={2}>{titulo}</Texto>
@@ -169,6 +170,7 @@ const estilos = StyleSheet.create({
     paddingLeft: espaco(2),
     paddingRight: espaco(1),
     paddingVertical: espaco(1),
+    borderBottomWidth: 1,
   },
   // Alça de arrastar no PC: cursor de mão e sem selecionar o título ao puxar.
   // Os tipos do RN só conhecem `auto` e `pointer` no cursor; o react-native-web aceita qualquer valor do CSS.
@@ -178,8 +180,8 @@ const estilos = StyleSheet.create({
   acoesTopo: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5) },
   // O botão "voltar ao início" do `RolagemComTopo` é absoluto dentro desta área, logo nunca sai do painel.
   area: { flexShrink: 1, minHeight: 0 },
-  // Folga de 6 px no topo: o anel de foco (2 px + recuo de 2 px) do primeiro controle não é cortado pela rolagem.
-  conteudo: { padding: espaco(2), paddingTop: espaco(0.75), gap: espaco(1.5) },
+  // A folga do topo (16 px) também deixa o anel de foco (2 px + recuo de 2 px) do primeiro controle inteiro.
+  conteudo: { padding: espaco(2), gap: espaco(1.5) },
   rodape: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

@@ -61,3 +61,14 @@ export function agruparPorGrupo<T extends { grupo: string }>(opcoes: T[]): { gru
     .sort(([a], [b]) => (a === SEM_GRUPO ? 1 : b === SEM_GRUPO ? -1 : a.localeCompare(b, 'pt-BR')))
     .map(([grupo, lista]) => ({ grupo, opcoes: lista }));
 }
+
+/**
+ * Por que o gráfico não aparece (reunião de 29/10: com um registro só, o treinador achou que o gráfico tinha sumido).
+ * Nulo quando o gráfico aparece ou não há registro nenhum.
+ */
+export function avisoDoGrafico(registros: number, graficosLigados: boolean): string | null {
+  if (registros === 0) return null;
+  if (!graficosLigados) return 'Os gráficos estão desligados nas suas preferências (Perfil › Preferências).';
+  if (registros < 2) return 'O gráfico aparece quando houver registros em pelo menos duas datas.';
+  return null;
+}

@@ -2,8 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 /**
  * Número que muda quando o aluno salva um sexo diferente em "Meus dados". O ciclo (`useCicloDaAluna`) usa na chave e
- * consulta de novo: o servidor decide se o acompanhamento está disponível pelo sexo, e a sessão não guarda o sexo (o
- * `recarregarPerfil` não vale para aluno). Só em memória.
+ * consulta de novo: o servidor decide se o acompanhamento está disponível pelo sexo, e a sessão não guarda o sexo (a
+ * recarga do perfil traz só as chaves do `/eu`). Só em memória.
  */
 let versao = 0;
 const ouvintes = new Set<() => void>();

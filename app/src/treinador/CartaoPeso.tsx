@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { excluirPeso, pesosDoAluno, registrarPeso } from '../api/rotas';
 import type { RegistroPeso } from '../api/tipos';
 import { dataCurta, dataDaTela, dataParaTela, hojeIso, numeroParaTela } from '../dominio/formatos';
+import { avisoDoGrafico } from '../dominio/progresso';
 import { useSessao } from '../sessao/SessaoProvider';
 import { useTema } from '../tema/TemaProvider';
 import { espaco, fontes } from '../tema/tokens';
@@ -95,6 +96,7 @@ export function CartaoPeso({ alunoId }: { alunoId: string }) {
       {erro ? <MensagemErro texto={textoDoErro(erro)} erro={erro} tentarDeNovo={recarregar} /> : null}
       {!dados && carregando ? <Esqueleto /> : null}
       {dados && dados.length === 0 ? <Texto variante="suave">Nenhum registro de peso.</Texto> : null}
+      {dados && avisoDoGrafico(dados.length, preferencias.graficos) ? <Texto variante="suave">{avisoDoGrafico(dados.length, preferencias.graficos)}</Texto> : null}
       {preferencias.graficos && dados && dados.length > 1 ? (
         <Abas abas={[{ valor: 'lista', rotulo: 'Lista' }, { valor: 'grafico', rotulo: 'Gráfico' }]} ativa={visao} aoMudar={setVisao} />
       ) : null}

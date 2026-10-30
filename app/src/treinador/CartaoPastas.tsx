@@ -15,7 +15,7 @@ import { atualizacaoDaPasta, caminhoAtualizacaoTreinador, statusAtualizacaoTrein
 import { dataDaTela, dataParaTela, hojeIso } from '../dominio/formatos';
 import { dataSemAnoCorrente, periodoCurto } from '../dominio/datasRelativas';
 import { precisaRenovar } from '../dominio/resumoDoAluno';
-import { dadosDaRenovacao, periodoInicial, proximoPeriodo } from '../dominio/periodo';
+import { dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo } from '../dominio/periodo';
 import { FILTROS_PASTAS, filtrarPastas, type FiltroPastas } from '../dominio/pastas';
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, fontes, LARGURA_EDITOR, RAIO } from '../tema/tokens';
@@ -145,7 +145,7 @@ export function CartaoPastas({ alunoId, alunoNome = '', diasAtualizacao = null, 
         ) : null}
         {dados && dados.length > 0 ? <Escolha descricao="Situação da pasta" opcoes={FILTROS_PASTAS} valor={filtro} aoMudar={setFiltro} /> : null}
         {dados && dados.length > 0 && visiveis.length === 0 ? (
-          <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'ativas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'} />
+          <Vazio titulo="Nenhuma pasta nesta situação" texto={filtro === 'abertas' ? 'Todas as pastas estão concluídas.' : 'Nenhuma pasta foi concluída ainda.'} />
         ) : null}
         {visiveis.map((p) => (
           <LinhaPasta key={p.id} pasta={p} atualizacao={daPasta(p.id)} aoAbrir={() => setAbertaId(p.id)} hoje={hoje}
@@ -264,11 +264,33 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
   const [titulo, setTitulo] = useState(modo.tipo === 'editar' && origem ? origem.titulo : '');
   const [inicio, setInicio] = useState(sugestao ? sugestao.inicio : origem && modo.tipo === 'editar' ? dataParaTela(origem.inicio) : '');
   const [fim, setFim] = useState(sugestao ? sugestao.fim : origem && modo.tipo === 'editar' ? dataParaTela(origem.fim) : '');
+  // Pasta nova ou réplica: o fim acompanha o início pela duração sugerida até o treinador mexer no fim (reunião de 29/10).
+  // Pasta salva abre com as datas gravadas e nada é recalculado.
+  const duracao = sugestao ? diasDoPeriodo(sugestao.inicio, sugestao.fim) : null;
+  const [fimManual, setFimManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
   const ini = dataDaTela(inicio);
   const fi = dataDaTela(fim);
-  const valido = titulo.trim() !== '' && ini !== undefined && fi !== undefined;
+  const fimAntes = !!ini && !!fi && fi < ini;
+  const valido = titulo.trim() !== '' && ini !== undefined && fi !== undefined && !fimAntes;
+  const dias = diasDoPeriodo(inicio, fim);
+
+  const mudarInicio = (texto: string) => {
+    setInicio(texto);
+    if (fimManual) return;
+    const novoFim = fimQueAcompanha(texto, duracao);
+    if (novoFim) setFim(novoFim);
+  };
+  const mudarFim = (texto: string) => {
+    setFim(texto);
+    if (duracao) setFimManual(true);
+  };
+  const usarDuracao = () => {
+    const novoFim = fimQueAcompanha(inicio, duracao);
+    if (novoFim) setFim(novoFim);
+    setFimManual(false);
+  };
 
   const salvar = () => {
     if (!valido) return;
@@ -308,7 +330,7 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
       ) : null}
       {modo.tipo === 'nova' && diasAtualizacao ? (
         <Texto variante="suave">
-          Início e fim já vêm preenchidos pelo ciclo de atualização ({diasAtualizacao} dias). Você pode mudar as datas.
+          Início e fim já vêm preenchidos pelo ciclo de atualização ({diasAtualizacao} dias). Ao mudar o início, o fim acompanha.
         </Texto>
       ) : null}
       {modo.tipo === 'editar' ? (
@@ -319,12 +341,19 @@ function FolhaPasta({ alunoId, modo, diasAtualizacao, aoFechar, aoSalvar }: { al
       <Campo rotulo="Título" valor={titulo} aoMudar={setTitulo} maxLength={120} placeholder="Ex.: Plano 17" />
       <View style={estilos.datas}>
         <View style={estilos.data}>
-          <CampoData rotulo="Início" valor={inicio} aoMudar={setInicio} />
+          <CampoData rotulo="Início" valor={inicio} aoMudar={mudarInicio} />
         </View>
         <View style={estilos.data}>
-          <CampoData rotulo="Fim" valor={fim} aoMudar={setFim} />
+          <CampoData rotulo="Fim" valor={fim} aoMudar={mudarFim} erro={fimAntes ? 'O fim vem antes do início.' : null} />
         </View>
       </View>
+      {dias ? <Texto variante="suave" numerico>Período: {inicio} a {fim} · {dias === 1 ? '1 dia' : `${dias} dias`}</Texto> : null}
+      {fimManual && duracao ? (
+        <View style={estilos.fimManual}>
+          <Texto variante="suave">Fim ajustado à mão.</Texto>
+          <Botao rotulo={`Usar a duração do ciclo (${duracao} ${duracao === 1 ? 'dia' : 'dias'})`} tipo="fantasma" aoTocar={usarDuracao} />
+        </View>
+      ) : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>
   );
@@ -372,6 +401,10 @@ function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; 
       <Texto variante="suave">
         Dá a pasta como concluída. Você pode reabrir a pasta depois.
       </Texto>
+      <Texto variante="suave">
+        Finalizar não troca o que o aluno vê: ele passa a usar a pasta nova quando você publica o treino, a dieta ou a
+        mobilidade dela.
+      </Texto>
       <Permitido codigo="ALUNO_SENSIVEL_ALTERAR">
       <Texto variante="suave">O peso opcional entra no registro do aluno com a data e a observação abaixo.</Texto>
       <CampoData rotulo="Data do peso" valor={data} aoMudar={setData} />
@@ -385,6 +418,7 @@ function FolhaFinalizar({ pasta, aoFechar, aoFinalizar }: { pasta: PastaResumo; 
 
 const estilos = StyleSheet.create({
   datas: { flexDirection: 'row', gap: espaco(1.5), flexWrap: 'wrap' },
+  fimManual: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(1) },
   data: { flex: 1, minWidth: 190 },
   resumo: { gap: espaco(0.75) },
   linhaAtualizacao: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: espaco(0.75), marginTop: espaco(0.5) },

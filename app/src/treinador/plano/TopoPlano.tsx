@@ -20,6 +20,7 @@ import { IconeBotao } from '../../ui/IconeBotao';
 import { textoDoErro } from '../../ui/erros';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
 import { useRolagem } from '../../ui/RolagemComTopo';
+import { Alerta } from '../../ui/Estados';
 import { Selo } from '../../ui/Selo';
 import { Texto } from '../../ui/Texto';
 import { gerarPdfDoPlano } from '../gerarPdf';
@@ -210,15 +211,24 @@ function ListaProblemas({ conteudo, resultado, aoFechar, irPara }: { conteudo: u
   return (
     <Cartao titulo="Resultado da validação" acoes={<Botao rotulo="Fechar" tipo="fantasma" aoTocar={aoFechar} />}>
       {limpo ? <Selo texto="Sem erros nem avisos" tipo="sucesso" /> : null}
-      {resultado.erros.length ? (irPara
-        ? <Botao rotulo={`${textoDosProblemas(resultado.erros.length)} · ir ao primeiro`} tipo="perigoTexto" aoTocar={() => irPara(resultado.erros)} />
-        : <Selo texto={textoDosProblemas(resultado.erros.length)} tipo="perigo" />) : null}
-      {resultado.erros.map((p, i) => (
-        <ItemProblema key={`e${i}`} conteudo={conteudo} problema={p} tipo="perigo" aoIr={irPara ? () => irPara([p]) : undefined} />
-      ))}
-      {resultado.avisos.map((p, i) => (
-        <ItemProblema key={`a${i}`} conteudo={conteudo} problema={p} tipo="atencao" aoIr={irPara ? () => irPara([p]) : undefined} />
-      ))}
+      {resultado.erros.length ? (
+        <Alerta tom="perigo">
+          {irPara
+            ? <Botao rotulo={`${textoDosProblemas(resultado.erros.length)} · ir ao primeiro`} tipo="perigoTexto" aoTocar={() => irPara(resultado.erros)} />
+            : <Selo texto={textoDosProblemas(resultado.erros.length)} tipo="perigo" />}
+          {resultado.erros.map((p, i) => (
+            <ItemProblema key={`e${i}`} conteudo={conteudo} problema={p} tipo="perigo" aoIr={irPara ? () => irPara([p]) : undefined} />
+          ))}
+        </Alerta>
+      ) : null}
+      {/* Avisos não impedem publicar: caixa de atenção, separada dos erros. */}
+      {resultado.avisos.length ? (
+        <Alerta tom="atencao" titulo={resultado.avisos.length === 1 ? '1 aviso' : `${resultado.avisos.length} avisos`}>
+          {resultado.avisos.map((p, i) => (
+            <ItemProblema key={`a${i}`} conteudo={conteudo} problema={p} tipo="atencao" aoIr={irPara ? () => irPara([p]) : undefined} />
+          ))}
+        </Alerta>
+      ) : null}
     </Cartao>
   );
 }

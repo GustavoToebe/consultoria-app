@@ -9,8 +9,8 @@ import { estadoSincronizacao } from './estadoSincronizacao';
  * — salvo no aparelho"; vermelho "Falha ao enviar — tentar de novo" (toque para reenviar).
  */
 export function SeloSincronizacao() {
-  const { pendentes, falhas, falhasDeMobilidade, falhasDeConclusao, envio, online, tentarDeNovo } = useAluno();
-  const estado = estadoSincronizacao({ pendentes, falhas: falhas.length + falhasDeMobilidade.length + falhasDeConclusao.length, envio, online });
+  const { pendentes, falhas, falhasDeMobilidade, falhasDeConclusao, falhasDeAgua, envio, online, tentarDeNovo } = useAluno();
+  const estado = estadoSincronizacao({ pendentes, falhas: falhas.length + falhasDeMobilidade.length + falhasDeConclusao.length + falhasDeAgua.length, envio, online });
   if (estado.tentar) {
     return (
       <Pressable accessibilityRole="button" accessibilityLabel="Falha ao enviar. Tentar de novo" onPress={() => void tentarDeNovo()}>

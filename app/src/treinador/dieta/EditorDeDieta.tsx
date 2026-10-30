@@ -6,11 +6,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { listarAlimentos, listarErgogenicos, listarSuplementos, salvarPlanoComoReceita, criarReceita } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, Receita, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
-import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, itensSemValorNoTotal, type ItemSemValor, novaRefeicao, novoItem, normalizarDieta, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
+import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, itensSemValorNoTotal, type ItemSemValor, novaRefeicao, novoItem, normalizarDieta, textoDoMacro, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
-import { dataDaTela, dataParaTela, numeroParaTela } from '../../dominio/formatos';
-import { linhaDeSuplementacao } from '../../dominio/suplementos';
+import { dataDaTela, dataParaTela, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
+import { descricaoDaPorcao, linhaDeSuplementacao } from '../../dominio/suplementos';
 import { novoUid } from '../../dominio/uid';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
@@ -79,6 +79,8 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
   const [folha, setFolha] = useState<FolhaAberta | null>(null);
   const [desfazer, setDesfazer] = useState<Desfazer<ConteudoDieta> | null>(null);
   const [modelos, setModelos] = useState(false);
+  // Porção da embalagem dos produtos escolhidos nesta abertura, só para referência ao escrever a dose (não é gravada).
+  const [porcoes, setPorcoes] = useState<Record<string, string>>({});
 
   const estado = editor.estado;
   if (!estado) {
@@ -133,12 +135,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           aoFechar={() => setDesfazer(null)}
         />
       ) : null}
-      <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} />
+      <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
       {unica ? null : <ConfiguracaoDoPlano
         editor={editor}
         modelo={modelo}
         recolhido={c.refeicoes.length > 0 && estado.titulo.trim() !== ''}
-        descricao="Título, período, objetivo, profissional e água da dieta.">
+        descricao="Título, período, objetivo e profissional da dieta.">
         <CamposDaDieta conteudo={c} aoMudar={mudar} />
       </ConfiguracaoDoPlano>}
       <View style={estilos.cabecalhoRefeicoes}>
@@ -194,7 +196,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         />
       ))}
       <Texto variante="bloco" nivel={2}>Complementos</Texto>
-      <Cartao titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." nivel={3} recolhivel recolhido={c.orientacoes.length === 0}>
+      <Cartao faixa titulo="Orientações" descricao="Títulos e textos que o aluno lê junto com a dieta." nivel={3} recolhivel recolhido={c.orientacoes.length === 0}>
         {c.orientacoes.map((o, oi) => (
           <View key={oi} style={[estilos.orientacao, { borderColor: cores.borda }]}>
             <View style={estilos.cresce}>
@@ -209,12 +211,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         </View>
       </Cartao>
 
-      <Cartao titulo="Observações" nivel={3} recolhivel recolhido={!c.observacoes}>
+      <Cartao faixa titulo="Observações" nivel={3} recolhivel recolhido={!c.observacoes}>
         <Campo rotulo="Observações (opcional)" valor={c.observacoes ?? ''} aoMudar={(t) => mudar({ observacoes: t || null })} linhas={4} maxLength={8000} />
       </Cartao>
 
-      <Cartao titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
-        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto.</Texto>
+      <Cartao faixa titulo="Suplementação" nivel={3} recolhivel recolhido={c.suplementacao.length === 0}>
+        <Texto variante="suave">Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só o nome e o link do produto. A dose é a que você prescreve, não a porção da embalagem.</Texto>
         {c.suplementacao.map((s, si) => {
           const mudarS = (parcial: Partial<typeof s>) => mudar({ suplementacao: substituir(c.suplementacao, si, { ...s, ...parcial }) });
           return (
@@ -224,7 +226,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                   <Campo rotulo="Nome" valor={s.nome} aoMudar={(nome) => mudarS({ nome })} maxLength={120} />
                 </View>
                 <View style={estilos.campoSup}>
-                  <Campo rotulo="Dose" valor={s.dose} aoMudar={(dose) => mudarS({ dose })} maxLength={120} />
+                  <Campo rotulo="Dose prescrita" valor={s.dose} aoMudar={(dose) => mudarS({ dose })} maxLength={120} ajuda={porcoes[s.uid] ? `Embalagem: ${porcoes[s.uid]} (só referência)` : undefined} />
                 </View>
                 <View style={estilos.campoSup}>
                   <Campo rotulo="Horário" valor={s.horario} aoMudar={(horario) => mudarS({ horario })} maxLength={120} />
@@ -254,7 +256,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
         </View>
       </Cartao>
       {veErgogenicos ? (
-        <Cartao titulo="Outros (medicação e ergogênicos)" nivel={3} recolhivel recolhido={(c.ergogenicos ?? []).length === 0}>
+        <Cartao faixa titulo="Outros (medicação e ergogênicos)" nivel={3} recolhivel recolhido={(c.ergogenicos ?? []).length === 0}>
           <Texto variante="suave">
             Campo livre do treinador. O sistema só guarda e mostra o que for escrito aqui; da biblioteca vêm só nome, princípio ativo e concentração.
             {editaErgogenicos ? '' : ' Seu perfil só pode ler esta lista.'}
@@ -275,7 +277,7 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
                     <Campo rotulo="Concentração" valor={e.concentracao} aoMudar={(concentracao) => mudarE({ concentracao })} maxLength={40} editable={editaErgogenicos} />
                   </View>
                   <View style={estilos.campoSup}>
-                    <Campo rotulo="Dose" valor={e.dose} aoMudar={(dose) => mudarE({ dose })} maxLength={120} editable={editaErgogenicos} />
+                    <Campo rotulo="Dose prescrita" valor={e.dose} aoMudar={(dose) => mudarE({ dose })} maxLength={120} editable={editaErgogenicos} />
                   </View>
                   <View style={estilos.campoSup}>
                     <Campo rotulo="Horário" valor={e.horario} aoMudar={(horario) => mudarE({ horario })} maxLength={120} editable={editaErgogenicos} />
@@ -347,7 +349,10 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           aoFechar={() => setFolha(null)}
           aoEscolher={(s) => {
             setFolha(null);
-            mudar({ suplementacao: [...c.suplementacao, linhaDeSuplementacao(s, novoUid())] });
+            const linha = linhaDeSuplementacao(s, novoUid());
+            const porcao = descricaoDaPorcao(s);
+            if (porcao !== SEM_DADO) setPorcoes((atual) => ({ ...atual, [linha.uid]: porcao }));
+            mudar({ suplementacao: [...c.suplementacao, linha] });
           }}
         />
       ) : null}
@@ -392,20 +397,35 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
 
 /**
  * "Total do dia" (opção A de cada refeição): kcal em destaque, macros com o nome por extenso ("Proteína —" sem
- * unidade quando falta valor), a água do plano e, se algum item deixa o total incompleto, quantos são e um atalho
- * para o primeiro (antes só aparecia "— g de proteína" sem dizer por quê).
+ * unidade quando falta valor), a água por dia e, se algum item deixa o total incompleto, quantos são e um atalho
+ * para o primeiro (antes só aparecia "— g de proteína" sem dizer por quê). A água é editada aqui, sempre à vista: dentro
+ * da "Configuração do plano", que fecha sozinha quando a dieta já tem refeições, o treinador não a encontrava (30/10).
+ * Modelo de uma refeição só não tem água.
  */
-function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao }: { conteudo: ConteudoDieta; semValor: ItemSemValor[]; aoAbrirRefeicao: (uid: string) => void }) {
+function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao, aoMudarAgua }: {
+  conteudo: ConteudoDieta; semValor: ItemSemValor[]; aoAbrirRefeicao: (uid: string) => void; aoMudarAgua?: (litros: number | null) => void;
+}) {
   const { rolarAte } = useRolagem();
   const t = totalDoDia(c);
   const primeiro = semValor[0];
   return (
-    <Cartao titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
+    <Cartao faixa titulo="Total do dia" descricao="Soma da opção A de cada refeição.">
       <Texto variante="destaque" numerico>{t.kcal === null ? 'kcal —' : `${numeroParaTela(t.kcal, 0)} kcal`}</Texto>
       <Texto numerico>
         {[textoDoMacro('Proteína', t.proteina, 'g'), textoDoMacro('Carboidrato', t.carboidrato, 'g'), textoDoMacro('Gordura', t.gordura, 'g')].join(' · ')}
       </Texto>
-      <Texto variante="suave" numerico>Água: {textoDaAgua(c.aguaLitros) ?? '—'}</Texto>
+      {aoMudarAgua ? (
+        <View style={estilos.campoSup}>
+          <CampoNumerico
+            rotulo="Água por dia (opcional)"
+            sufixo="L"
+            valor={c.aguaLitros ?? null}
+            aoMudar={aoMudarAgua}
+            erro={aguaValida(c.aguaLitros ?? null) ? null : `De ${numeroParaTela(AGUA_MINIMA)} a ${AGUA_MAXIMA} L, com uma casa decimal.`}
+            ajuda="Quantos litros o aluno deve tomar por dia. Aparece no início e na dieta dele. Vazio não aparece."
+          />
+        </View>
+      ) : null}
       {primeiro ? (
         <View style={estilos.semValor}>
           <Incompleto texto={textoItensSemValor(semValor.length)} />
@@ -417,7 +437,7 @@ function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao }: { conteudo: Cont
   );
 }
 
-/** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). */
+/** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). A água fica no "Total do dia". */
 function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar: (p: Partial<ConteudoDieta>) => void }) {
   const [inicio, setInicio] = useState(dataParaTela(conteudo.dataInicio));
   return (
@@ -438,16 +458,6 @@ function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar
         <View style={estilos.cresce}>
           <Campo rotulo="Profissional (opcional)" valor={conteudo.profissional ?? ''} aoMudar={(t) => aoMudar({ profissional: t || null })} maxLength={120} />
         </View>
-      </View>
-      <View style={estilos.campoSup}>
-        <CampoNumerico
-          rotulo="Água por dia (opcional)"
-          sufixo="L"
-          valor={conteudo.aguaLitros ?? null}
-          aoMudar={(v) => aoMudar({ aguaLitros: v })}
-          erro={aguaValida(conteudo.aguaLitros ?? null) ? null : `De ${numeroParaTela(AGUA_MINIMA)} a ${AGUA_MAXIMA} L, com uma casa decimal.`}
-          ajuda="Aparece para o aluno no início e na dieta. Vazio não aparece."
-        />
       </View>
     </>
   );

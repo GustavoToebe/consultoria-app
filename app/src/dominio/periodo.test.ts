@@ -1,4 +1,4 @@
-import { cicloDoAluno, dadosDaRenovacao, periodoInicial, proximoPeriodo, textoDoCiclo } from './periodo';
+import { cicloDoAluno, dadosDaRenovacao, diasDoPeriodo, fimQueAcompanha, periodoInicial, proximoPeriodo, textoDoCiclo } from './periodo';
 
 it('começa hoje e termina depois de N dias contando o primeiro', () => {
   expect(periodoInicial('2026-02-15', 30)).toEqual({ inicio: '15/02/2026', fim: '16/03/2026' });
@@ -49,5 +49,34 @@ describe('ciclo de atualização do aluno (reunião de 17/10)', () => {
     expect(textoDoCiclo(15, 30)).toBe('15 dias');
     expect(textoDoCiclo(null, 30)).toBe('30 dias (padrão da consultoria)');
     expect(textoDoCiclo(null, null)).toBeNull();
+  });
+});
+
+describe('fim que acompanha o início (pasta nova)', () => {
+  it('conta os dias do período incluindo o primeiro e o último', () => {
+    expect(diasDoPeriodo('01/11/2026', '15/11/2026')).toBe(15);
+    expect(diasDoPeriodo('08/10/2026', '08/10/2026')).toBe(1);
+    expect(diasDoPeriodo('30/12/2026', '05/01/2027')).toBe(7);
+  });
+
+  it('sem uma das datas ou com o fim antes do início não há duração', () => {
+    expect(diasDoPeriodo('', '15/11/2026')).toBeNull();
+    expect(diasDoPeriodo('01/11/2026', '')).toBeNull();
+    expect(diasDoPeriodo('15/11/2026', '01/11/2026')).toBeNull();
+    expect(diasDoPeriodo('31/02/2026', '15/11/2026')).toBeNull();
+  });
+
+  it('mudar o início leva o fim junto: início + dias - 1, inclusive na virada do mês e do ano', () => {
+    expect(fimQueAcompanha('01/11/2026', 15)).toBe('15/11/2026');
+    expect(fimQueAcompanha('25/11/2026', 15)).toBe('09/12/2026');
+    expect(fimQueAcompanha('20/12/2026', 15)).toBe('03/01/2027');
+    expect(fimQueAcompanha('08/10/2026', 1)).toBe('08/10/2026');
+  });
+
+  it('início incompleto ou sem duração não inventa data', () => {
+    expect(fimQueAcompanha('01/11/20', 15)).toBeNull();
+    expect(fimQueAcompanha('', 15)).toBeNull();
+    expect(fimQueAcompanha('01/11/2026', null)).toBeNull();
+    expect(fimQueAcompanha('01/11/2026', 0)).toBeNull();
   });
 });

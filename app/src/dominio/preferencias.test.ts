@@ -1,4 +1,4 @@
-import { contraste, CLARO, ESCURO } from '../tema/tokens';
+import { AREIA, contraste, CLARO, ESCURO } from '../tema/tokens';
 import {
   AGENDAS_OCULTAS_MAXIMO,
   coresComContraste,
@@ -20,6 +20,7 @@ describe('preferências pessoais', () => {
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
+    expect(normalizarPreferencias({ tema: 'AREIA' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'AREIA' });
   });
 
   it('logo na comparação: valor inválido volta ligada', () => {
@@ -66,6 +67,7 @@ describe('preferências pessoais', () => {
   it.each([
     ['escuro', ESCURO, true],
     ['claro', CLARO, false],
+    ['claro areia', AREIA, false],
   ])('contraste alto no tema %s: borda nítida e texto secundário ≥ 7:1 em todas as superfícies', (_nome, base, escuro) => {
     const alto = coresComContraste(base, 'ALTO', escuro);
     expect(alto.borda).toBe(base.bordaCampo);

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { copiarPlanoParaAluno } from '../api/rotas';
 import type { PlanoResumo, TipoPlano } from '../api/tipos';
 import { dataDaTela } from '../dominio/formatos';
+import { resumoDoDestino } from '../dominio/modelos';
 import { Botao } from '../ui/Botao';
 import { Campo } from '../ui/Campo';
 import { CampoData } from '../ui/Campos';
@@ -56,15 +57,20 @@ export function CopiarParaAluno({ tipo, plano, aoFechar, aoCopiar, aoNavegar }: 
         {tipo === 'dieta' ? ' Medicação e ergogênicos não são copiados.' : ''}
       </Texto>
       <EscolhaDeAlunoEPasta escolha={escolha} />
-      <Campo rotulo={destino ? 'Título do plano' : 'Título da nova pasta / plano'} valor={titulo} aoMudar={setTitulo} maxLength={120} />
-      {!destino ? (
+      {escolha.destinoEscolhido ? (
         <>
-          <CampoData rotulo="Início (opcional)" valor={inicio} aoMudar={setInicio} />
-          <CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} />
+          <Campo rotulo={destino ? 'Título do plano' : 'Título da nova pasta / plano'} valor={titulo} aoMudar={setTitulo} maxLength={120} />
+          {!destino ? (
+            <>
+              <CampoData rotulo="Início (opcional)" valor={inicio} aoMudar={setInicio} />
+              <CampoData rotulo="Fim (opcional)" valor={fim} aoMudar={setFim} />
+            </>
+          ) : (
+            <Texto variante="pequeno">O período será o da pasta selecionada.</Texto>
+          )}
+          <Texto>{resumoDoDestino(true, destino, escolha.destinos.opcoes, titulo)}</Texto>
         </>
-      ) : (
-        <Texto variante="pequeno">O período será o da pasta selecionada.</Texto>
-      )}
+      ) : null}
       {erro ? <MensagemErro texto={textoDoErro(erro)} /> : null}
     </Folha>
   );

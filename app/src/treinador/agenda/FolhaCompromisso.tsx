@@ -16,7 +16,7 @@ import { useSessao } from '../../sessao/SessaoProvider';
 import { espaco } from '../../tema/tokens';
 import { Botao } from '../../ui/Botao';
 import { Escolha } from '../../ui/Escolha';
-import { MensagemErro } from '../../ui/Estados';
+import { Alerta, MensagemErro } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
 import { Folha } from '../../ui/Folha';
 import { PainelConfirmacao } from '../../ui/PainelConfirmacao';
@@ -207,10 +207,11 @@ function FolhaAberta({ aberto, dataSugerida, hoje, responsaveis, carregados, aoF
     {dataMudou ? `${ocorrencia}. Mudar a data vale só para este compromisso da série.`
       : `${ocorrencia}. Ao salvar, você escolhe se vale só para este, para os seguintes ou para todos.`}
   </Texto> : null;
+  // Só avisos (não impedem salvar): caixa de atenção, como os outros avisos do app.
   const avisos = textoOcupados || conflito || falhouOcupados ? <View style={estilos.avisos} accessibilityLiveRegion="polite" aria-live="polite">
-    {conflito ? <Texto variante="suave">{`Atenção: este responsável já tem um compromisso das ${conflito.hora} às ${conflito.horaFim} nesse período.`}</Texto> : null}
-    {textoOcupados ? <Texto variante="suave">{`Atenção: ${textoOcupados}`}</Texto> : null}
-    {falhouOcupados ? <Texto variante="suave">Não deu para conferir se os alunos estão livres nesse horário.</Texto> : null}
+    {conflito ? <Alerta tom="atencao" texto={`Atenção: este responsável já tem um compromisso das ${conflito.hora} às ${conflito.horaFim} nesse período.`} /> : null}
+    {textoOcupados ? <Alerta tom="atencao" texto={`Atenção: ${textoOcupados}`} /> : null}
+    {falhouOcupados ? <Alerta tom="atencao" texto="Não deu para conferir se os alunos estão livres nesse horário." /> : null}
   </View> : null;
 
   return (

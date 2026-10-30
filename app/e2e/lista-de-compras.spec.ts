@@ -169,7 +169,7 @@ test(`lista de compras do aluno: 2 semanas, comprado, limpar, ajustar, voltar ao
   await page.reload();
   await expect(page.getByText('Lista de 2 semanas')).toBeVisible();
   await expect(page.getByText('1 de 3 comprados')).toBeVisible();
-  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Semana', exact: true }).click();
+  await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: 'Semana (7 dias)' }).click();
   await expect(page.getByText('0 de 3 comprados')).toBeVisible();
   await page.getByRole('radiogroup', { name: 'Período da lista' }).getByRole('button', { name: '2 semanas' }).click();
   await expect(page.getByText('1 de 3 comprados')).toBeVisible();

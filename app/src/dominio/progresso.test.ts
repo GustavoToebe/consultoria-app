@@ -1,5 +1,5 @@
 import type { ProgressoPonto } from '../api/tipos';
-import { agruparPorGrupo, linhasDaTabela, pontosDoGrafico, resumoDoProgresso, textoDoResumo } from './progresso';
+import { agruparPorGrupo, avisoDoGrafico, linhasDaTabela, pontosDoGrafico, resumoDoProgresso, textoDoResumo } from './progresso';
 
 const p = (data: string, maiorCargaTrabalho: number | null, repeticoes: number | null = null): ProgressoPonto => ({ data, maiorCargaTrabalho, repeticoes });
 
@@ -79,4 +79,11 @@ describe('agruparPorGrupo', () => {
   it('lista vazia: nenhum grupo', () => {
     expect(agruparPorGrupo([])).toEqual([]);
   });
+});
+
+test('aviso do gráfico explica por que ele não aparece', () => {
+  expect(avisoDoGrafico(0, true)).toBeNull();
+  expect(avisoDoGrafico(1, true)).toBe('O gráfico aparece quando houver registros em pelo menos duas datas.');
+  expect(avisoDoGrafico(2, true)).toBeNull();
+  expect(avisoDoGrafico(5, false)).toBe('Os gráficos estão desligados nas suas preferências (Perfil › Preferências).');
 });

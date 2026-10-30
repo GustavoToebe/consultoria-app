@@ -11,7 +11,7 @@ import {
   PERIODOS_DA_LISTA,
   quantidadeParaTela,
   refeicoesComEscolha,
-  ROTULO_DO_PERIODO,
+  textoDoPeriodo,
   textosDasOpcoes,
   tituloDaLista,
   type EscolhasDeOpcao,
@@ -32,7 +32,8 @@ import { Selo } from './Selo';
 import { Tabela, type ColunaDaTabela } from './Tabela';
 import { Texto } from './Texto';
 
-const PERIODOS = PERIODOS_DA_LISTA.map((valor) => ({ valor, rotulo: ROTULO_DO_PERIODO[valor] }));
+// "Mês (30 dias)": o rótulo diz a conta, para ninguém ler o mês do calendário (reunião de 29/10).
+const PERIODOS = PERIODOS_DA_LISTA.map((valor) => ({ valor, rotulo: textoDoPeriodo(valor) }));
 
 /** Período e, quando a refeição tem mais de uma opção, qual entra na lista. A folha do PDF da dieta usa o mesmo controle. */
 export function EscolhasDaLista({
@@ -55,7 +56,7 @@ export function EscolhasDaLista({
       <Escolha descricao="Período da lista" opcoes={PERIODOS} valor={periodo} aoMudar={aoMudarPeriodo} />
       {comEscolha.length ? (
         <View style={estilos.opcoes}>
-          <Texto variante="suave">Nas refeições com mais de uma opção, escolha a que vai comprar.</Texto>
+          <Texto variante="suave">Nas refeições com mais de uma opção, escolha a que vai comprar. A lista soma só a opção escolhida de cada refeição.</Texto>
           {comEscolha.map((r) => (
             <Escolha
               key={r.uid}

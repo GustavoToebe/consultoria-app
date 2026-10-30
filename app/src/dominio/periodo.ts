@@ -10,6 +10,24 @@ export function periodoInicial(hoje: string, dias: number | null | undefined): {
   return { inicio, fim: dataParaTela(somarDias(hoje, dias - 1)) };
 }
 
+/** Quantos dias o período tem, contando o primeiro e o último (01/11 a 15/11 = 15); nulo se faltar data ou o fim vier antes. */
+export function diasDoPeriodo(inicio: string, fim: string): number | null {
+  const ini = dataDaTela(inicio);
+  const fi = dataDaTela(fim);
+  if (!ini || !fi || fi < ini) return null;
+  return Math.round((Date.parse(fi) - Date.parse(ini)) / 86_400_000) + 1;
+}
+
+/**
+ * Fim que acompanha o início enquanto o treinador não editou o fim à mão (reunião de 29/10, A05): início + dias - 1.
+ * Início incompleto ou inválido devolve nulo, e o fim que já estava na tela fica.
+ */
+export function fimQueAcompanha(inicio: string, dias: number | null): string | null {
+  const ini = dataDaTela(inicio);
+  if (!ini || !dias || dias < 1) return null;
+  return dataParaTela(somarDias(ini, dias - 1));
+}
+
 /** Próximo ciclo: começa no dia seguinte ao fim do plano e dura o mesmo tanto (tudo editável). */
 export function proximoPeriodo(p: { inicio: string | null; fim: string | null }): { inicio: string; fim: string } {
   if (!p.fim) return { inicio: '', fim: '' };

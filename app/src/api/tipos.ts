@@ -467,7 +467,13 @@ export interface PreviaDeImportacao {
   hash: string; linhas: number; novos: number; atualizados: number; ignorados: number; comErro: number;
   erros: ErroDeImportacao[]; errosAlem: number; amostra: { linha: number; campos: Record<string, string> }[];
 }
-export interface ColunasDaImportacao { abas: string[]; aba: number; colunas: string[] }
+/** Colunas da aba, o total de linhas de dados e até 5 primeiras linhas (texto de cada célula, para a tela). */
+export interface ColunasDaImportacao {
+  abas: string[]; aba: number; colunas: string[]; linhas: number; amostra: string[][];
+  /** Número de cada linha da amostra no arquivo. */ numerosDasLinhas: number[];
+  /** O teto da amostra (1.000 linhas, 20.000 células) cortou o arquivo. */ amostraCortada: boolean;
+  /** Pares [posição na amostra, coluna] cujo texto veio cortado em 120 caracteres: não se editam na tela. */ celulasCortadas: number[][];
+}
 export interface DetalheDeImportacao extends ItemDeImportacao {
   configuracao: Record<string, unknown>; erros: ErroDeImportacao[];
 }
@@ -1107,6 +1113,20 @@ export interface RegistroMobilidadeFeito {
   itemUid: string;
   data: string;
   feito: boolean;
+}
+
+/** Água de um dia, como está no aparelho (copos de 250 ml em mililitros); `id` nasce no aparelho e torna o reenvio idempotente. */
+export interface RegistroAguaEnvio {
+  id: string;
+  data: string;
+  aguaMl: number;
+  alteradoNoAparelhoEm: string;
+}
+
+/** O que o servidor devolve da água: o dia e os mililitros (dia sem linha = não registrou, nunca zero). */
+export interface AguaRegistrada {
+  data: string;
+  aguaMl: number;
 }
 
 /** Treino concluído (ou reaberto) no aparelho; `id` nasce no aparelho e torna o reenvio idempotente. Reabrir é o mesmo registro com `concluida` falso. */

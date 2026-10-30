@@ -16,7 +16,7 @@ import {
 import { useSessao } from '../sessao/SessaoProvider';
 import { definirVibracaoLigada } from '../ui/vibrar';
 import { criarArmazemDePreferencias } from './armazemDePreferencias';
-import { CLARO, ESCURO, MARCA_NEUTRA, marcaParaTexto, textoSobre, type Cores } from './tokens';
+import { AREIA, CLARO, ESCURO, MARCA_NEUTRA, marcaParaTexto, textoSobre, type Cores } from './tokens';
 
 /**
  * Tema e preferências visuais de cada pessoa (tema, contraste, tamanho do texto, animações, vibração). Ficam no
@@ -84,14 +84,18 @@ export function TemaProvider({ children }: { children: ReactNode }) {
     const doAparelho: Tema = esquemaDoAparelho === 'light' ? 'CLARO' : 'ESCURO';
     // Tela pública (sem consultoria conhecida) segue o aparelho; logado, o padrão é o da marca do treinador.
     const doTreinador: Tema = sessao.marca?.temaPadrao ?? doAparelho;
+    // "Claro areia" é o modo claro com outra paleta (fundo e faixas em tom areia).
     const modo: Tema =
       preferencias.tema === 'ESCURO' || preferencias.tema === 'CLARO'
         ? preferencias.tema
-        : preferencias.tema === 'SISTEMA'
-          ? doAparelho
-          : doTreinador;
+        : preferencias.tema === 'AREIA'
+          ? 'CLARO'
+          : preferencias.tema === 'SISTEMA'
+            ? doAparelho
+            : doTreinador;
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
-    const cores = coresComContraste(modo === 'CLARO' ? CLARO : ESCURO, preferencias.contraste, modo !== 'CLARO');
+    const base = modo === 'CLARO' ? (preferencias.tema === 'AREIA' ? AREIA : CLARO) : ESCURO;
+    const cores = coresComContraste(base, preferencias.contraste, modo !== 'CLARO');
     return {
       modo,
       cores,

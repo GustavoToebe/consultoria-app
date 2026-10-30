@@ -9,7 +9,7 @@ describe('pastas: filtro por situação', () => {
   });
 
   it('ativas deixa só as sem data de conclusão', () => {
-    expect(filtrarPastas([ativa, concluida], 'ativas')).toEqual([ativa]);
+    expect(filtrarPastas([ativa, concluida], 'abertas')).toEqual([ativa]);
   });
 
   it('concluídas deixa só as com data de conclusão', () => {
@@ -17,6 +17,6 @@ describe('pastas: filtro por situação', () => {
   });
 
   it('lista vazia continua vazia', () => {
-    expect(filtrarPastas([], 'ativas')).toEqual([]);
+    expect(filtrarPastas([], 'abertas')).toEqual([]);
   });
 });

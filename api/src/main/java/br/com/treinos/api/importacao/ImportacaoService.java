@@ -42,6 +42,14 @@ public class ImportacaoService {
 
     static final int PAGINA = 30;
     private static final int ERROS_NA_PREVIA = 200;
+    /**
+     * Teto da amostra das colunas: a tela mostra a planilha inteira para o mapeamento (com busca), até 1.000 linhas e
+     * 20.000 células, o que vier primeiro; acima disso a resposta diz que cortou.
+     */
+    static final int LINHAS_DA_AMOSTRA = 1_000;
+    static final int CELULAS_DA_AMOSTRA = 20_000;
+    /** Texto de cada célula na amostra, cortado só para a tela (a prévia e a gravação leem o arquivo de novo). */
+    static final int TEXTO_DA_AMOSTRA = 120;
     private static final Set<String> SENSIVEIS = Set.of("objetivo", "observacoes", "cpf", "cep", "logradouro", "numero",
             "complemento", "bairro", "cidade", "uf");
     private static final Map<String, String> PERMISSAO = Map.of(
@@ -105,17 +113,39 @@ public class ImportacaoService {
                 colunas.add(LeitorDePlanilha.letra(i));
             }
         }
-        return new Colunas(planilha.abas(), planilha.aba(), colunas);
+        int primeira = cabecalho && !planilha.linhas().isEmpty() ? 1 : 0;
+        int teto = Math.min(LINHAS_DA_AMOSTRA, colunas.isEmpty() ? LINHAS_DA_AMOSTRA : CELULAS_DA_AMOSTRA / colunas.size());
+        List<List<String>> amostra = new ArrayList<>();
+        List<Integer> numeros = new ArrayList<>();
+        List<List<Integer>> cortadas = new ArrayList<>();
+        for (int l = primeira; l < planilha.linhas().size() && amostra.size() < teto; l++) {
+            numeros.add(planilha.linhas().get(l).numero());
+            var celulas = planilha.linhas().get(l).celulas();
+            List<String> valores = new ArrayList<>(colunas.size());
+            for (int i = 0; i < colunas.size(); i++) {
+                String texto = i < celulas.size() ? celulas.get(i).texto() : null;
+                if (texto != null && texto.length() > TEXTO_DA_AMOSTRA) {
+                    // Célula cortada na tela não se edita ali: o ajuste trocaria o texto inteiro pelo pedaço.
+                    cortadas.add(List.of(amostra.size(), i));
+                    texto = texto.substring(0, TEXTO_DA_AMOSTRA) + "…";
+                }
+                valores.add(texto == null ? "" : texto);
+            }
+            amostra.add(valores);
+        }
+        int linhas = planilha.linhas().size() - primeira;
+        return new Colunas(planilha.abas(), planilha.aba(), colunas, linhas, amostra, numeros, amostra.size() < linhas, cortadas);
     }
 
     public Previa previa(String destino, String nome, byte[] bytes, String configuracao) {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
-        var planilha = LeitorDePlanilha.ler(nome, bytes, config.aba());
+        AjustesDaImportacao ajustes = ajustes(configuracao);
+        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.cabecalho());
         conferirTamanho(planilha, config);
         var resultado = gravador.processar(destino, planilha, config, null, false);
         int mostrados = Math.min(ERROS_NA_PREVIA, resultado.erros().size());
-        return new Previa(hash(bytes, destino, config), resultado.linhas(), resultado.novos(), resultado.atualizados(),
+        return new Previa(hash(bytes, destino, config, ajustes), resultado.linhas(), resultado.novos(), resultado.atualizados(),
                 resultado.ignorados(), resultado.comErro(), resultado.erros().subList(0, mostrados),
                 Math.max(0, resultado.comErro() - mostrados), resultado.amostra());
     }
@@ -125,9 +155,10 @@ public class ImportacaoService {
                              String hash) {
         exigir(destino);
         ConfiguracaoDaImportacao config = configuracao(destino, configuracao);
-        var planilha = LeitorDePlanilha.ler(nome, bytes, config.aba());
+        AjustesDaImportacao ajustes = ajustes(configuracao);
+        var planilha = ajustes.aplicar(LeitorDePlanilha.ler(nome, bytes, config.aba()), config.cabecalho());
         conferirTamanho(planilha, config);
-        String calculado = hash(bytes, destino, config);
+        String calculado = hash(bytes, destino, config, ajustes);
         if (hash == null || !MessageDigest.isEqual(calculado.getBytes(StandardCharsets.UTF_8),
                 hash.getBytes(StandardCharsets.UTF_8))) {
             throw new ConflictException("Algo mudou desde a prévia. Gere a prévia de novo.", "PREVIA_DESATUALIZADA");
@@ -280,6 +311,11 @@ public class ImportacaoService {
         return new ConfiguracaoDaImportacao(aba, cabecalho, chave, existentes, mapeamento);
     }
 
+    /** Os ajustes da tabela que vêm na mesma configuração (já conferida como JSON por `configuracao`). */
+    private AjustesDaImportacao ajustes(String texto) {
+        return AjustesDaImportacao.ler(json.readTree(texto == null ? "" : texto));
+    }
+
     private static void conferirTamanho(LeitorDePlanilha.Planilha planilha, ConfiguracaoDaImportacao config) {
         int dados = planilha.linhas().size() - (config.cabecalho() && !planilha.linhas().isEmpty() ? 1 : 0);
         if (dados <= 0) {
@@ -302,11 +338,14 @@ public class ImportacaoService {
         return "pesos".equals(destino) ? Set.of("IGNORAR", "SUBSTITUIR") : Set.of("IGNORAR", "COMPLETAR", "ATUALIZAR");
     }
 
-    private static String hash(byte[] bytes, String destino, ConfiguracaoDaImportacao config) {
+    /** Arquivo, configuração e ajustes da tabela: mudar qualquer um invalida a prévia. */
+    private static String hash(byte[] bytes, String destino, ConfiguracaoDaImportacao config, AjustesDaImportacao ajustes) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             md.update(bytes);
             md.update(canonico(destino, config).getBytes(StandardCharsets.UTF_8));
+            md.update("ajustes\n".getBytes(StandardCharsets.UTF_8));
+            md.update(ajustes.canonico().getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(md.digest());
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 indisponível.", e);

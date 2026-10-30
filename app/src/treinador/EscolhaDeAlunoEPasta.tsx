@@ -26,7 +26,8 @@ export function useEscolhaDeAlunoEPasta({ alunoInicial, excluirAlunoId }: { alun
   const { pode } = useSessao();
   const [busca, setBusca] = useState('');
   const [alunoId, setAlunoId] = useState(alunoInicial ?? '');
-  const [pastaEscolhida, setPastaEscolhida] = useState('');
+  // Nulo = o treinador ainda não escolheu; vazio = criar pasta nova.
+  const [pastaEscolhida, setPastaEscolhida] = useState<string | null>(null);
   const [pagina, setPagina] = useState(0);
   // O nome do aluno escolhido fica guardado: a lista muda com a busca e a página.
   const [nomeEscolhido, setNomeEscolhido] = useState<string | null>(null);
@@ -37,19 +38,24 @@ export function useEscolhaDeAlunoEPasta({ alunoInicial, excluirAlunoId }: { alun
   const pastas = useCarregar(`pastas-destino:${alunoId}`, () => (alunoId ? listarPastas(alunoId) : Promise.resolve([])));
   const carregandoPastas = !!alunoId && pastas.carregando;
   const destinos = destinosParaAplicar(pode('PASTA_ALTERAR'), alunoId ? dadosEmDia(pastas.dados, pastas.carregando) ?? null : null);
-  const destino = pastaEscolhida || destinos.padrao;
+  const escolhido = pastaEscolhida ?? destinos.padrao;
+  const destino = escolhido ?? '';
   const motivo = !alunoId
     ? 'Escolha o aluno.'
     : carregandoPastas
       ? 'Carregando as pastas do aluno.'
-      : destinos.semDestino || (!destino && !pode('PASTA_ALTERAR'))
+      : destinos.semDestino
         ? 'Este aluno não tem pasta aberta para receber a cópia.'
-        : undefined;
+        : escolhido === null
+          ? 'Escolha a pasta onde a cópia entra.'
+          : undefined;
   return {
     alunoInicial,
     alunoId,
-    /** Pasta de destino; vazio = criar pasta nova (só com `PASTA_ALTERAR`). */
+    /** Pasta de destino; vazio = criar pasta nova (só com `PASTA_ALTERAR`). Só vale com `destinoEscolhido`. */
     destino,
+    /** O destino já foi escolhido (ou veio marcado porque não havia o que escolher). */
+    destinoEscolhido: escolhido !== null,
     destinos,
     motivo,
     nomeDoAluno: alunos.dados?.itens.find((a) => a.id === alunoId)?.nome ?? nomeEscolhido,
@@ -65,7 +71,7 @@ export function useEscolhaDeAlunoEPasta({ alunoInicial, excluirAlunoId }: { alun
     mudarPagina: setPagina,
     escolherAluno: (id: string) => {
       setAlunoId(id);
-      setPastaEscolhida('');
+      setPastaEscolhida(null);
       setNomeEscolhido(alunos.dados?.itens.find((a) => a.id === id)?.nome ?? null);
     },
     escolherPasta: setPastaEscolhida,
@@ -102,7 +108,7 @@ export function EscolhaDeAlunoEPasta({ escolha }: { escolha: ReturnType<typeof u
         />
       ) : null}
       {escolha.carregandoPastas ? <Esqueleto texto="Carregando pastas" cartoes={1} /> : null}
-      {escolha.alunoId && !escolha.carregandoPastas && !destinos.semDestino ? <Escolha rotulo="Destino" valor={escolha.destino} opcoes={destinos.opcoes} aoMudar={escolha.escolherPasta} /> : null}
+      {escolha.alunoId && !escolha.carregandoPastas && !destinos.semDestino ? <Escolha rotulo="Onde a cópia entra" valor={escolha.destinoEscolhido ? escolha.destino : null} opcoes={destinos.opcoes} aoMudar={escolha.escolherPasta} /> : null}
       {escolha.alunoId && !escolha.carregandoPastas && destinos.semDestino ? <Texto>{SEM_PASTA_PARA_APLICAR}</Texto> : null}
       {pastas.erro ? <MensagemErro texto={textoDoErro(pastas.erro)} tentarDeNovo={pastas.recarregar} /> : null}
     </>

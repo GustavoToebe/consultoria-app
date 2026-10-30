@@ -494,14 +494,31 @@ class AvisosDeCompromissoIntegrationTest extends AbstractIntegrationTest {
             ordem.add(c.path("id").asString());
         }
         marcar(bruna, hoje().plusDays(60), "08:00", 30);
+        // `criado_em` vem do relógio de parede do servidor, que pode voltar alguns milissegundos (ajuste do relógio da
+        // máquina): em 29/10 dois avisos criados em sequência saíram trocados. A ordem por criação é o contrato; o teste
+        // fixa os instantes (um segundo entre cada um, na ordem em que foram marcados) para provar a consulta sem depender
+        // do relógio. Os dois últimos ficam no mesmo instante: o desempate pelo id tem de ser estável.
+        Instant base = Instant.parse("2026-01-01T12:00:00Z");
+        for (int i = 0; i < ordem.size(); i++) {
+            Instant criado = base.plusSeconds(Math.min(i, 20));
+            banco.update("update aviso_compromisso set criado_em = ? where compromisso_id = ?::uuid",
+                    java.sql.Timestamp.from(criado), ordem.get(i));
+        }
 
         JsonNode lista = naoVistos(loginDoAluno);
         assertThat(lista).hasSize(20);
-        // Do mais novo ao mais antigo: o último marcado vem primeiro.
+        // Do mais novo ao mais antigo: o último marcado vem primeiro e os dois mais antigos ficam de fora (máximo de 20).
         List<Instant> inicios = new ArrayList<>();
         lista.forEach(a -> inicios.add(Instant.parse(a.path("inicio").asString())));
-        assertThat(inicios).isSortedAccordingTo(java.util.Comparator.reverseOrder());
-        assertThat(inicios.getFirst()).isEqualTo(instante(detalhe(ordem.get(21))));
+        List<Instant> esperados = new ArrayList<>();
+        for (int i = 21; i >= 2; i--) esperados.add(instante(detalhe(ordem.get(i))));
+        // Empate de criado_em entre os dois últimos: a ordem entre eles segue o id (decrescente), sempre a mesma.
+        List<String> ids = new ArrayList<>();
+        lista.forEach(a -> ids.add(a.path("id").asString()));
+        assertThat(ids.subList(0, 2)).isSortedAccordingTo(java.util.Comparator.reverseOrder());
+        assertThat(java.util.Set.copyOf(inicios.subList(0, 2))).isEqualTo(java.util.Set.copyOf(esperados.subList(0, 2)));
+        assertThat(inicios.subList(2, 20)).isEqualTo(esperados.subList(2, 20));
+        assertThat(naoVistos(loginDoAluno).toString()).isEqualTo(lista.toString());
 
         JsonNode daBruna = naoVistos(loginDaBruna);
         assertThat(daBruna).hasSize(1);

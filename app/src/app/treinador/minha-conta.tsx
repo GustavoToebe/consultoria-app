@@ -3,17 +3,14 @@ import { View } from 'react-native';
 
 import { ErroApi } from '../../api/cliente';
 import { consumoDoPlano, minhaConta } from '../../api/rotas';
-import { useTema } from '../../tema/TemaProvider';
-import { espaco, LARGURA_EDITOR, RAIO } from '../../tema/tokens';
+import { espaco, LARGURA_EDITOR } from '../../tema/tokens';
 import { AbaCadastro, AbaFinanceiro, AbaPlano, CartaoConsumo } from '../../treinador/conta/PartesDaConta';
 import { Abas } from '../../ui/Abas';
 import { Cabecalho } from '../../ui/Cabecalho';
 import { Esqueleto } from '../../ui/Esqueleto';
-import { MensagemErro, Vazio } from '../../ui/Estados';
+import { Alerta, MensagemErro, Vazio } from '../../ui/Estados';
 import { textoDoErro } from '../../ui/erros';
-import { Selo } from '../../ui/Selo';
 import { Tela } from '../../ui/Tela';
-import { Texto } from '../../ui/Texto';
 import { useCarregar } from '../../ui/useCarregar';
 
 type Aba = 'cadastro' | 'assinatura' | 'faturas';
@@ -29,7 +26,6 @@ const ABAS: { valor: Aba; rotulo: string }[] = [
  * a Central não está ligada, `previa` vem verdadeiro e a tela avisa que os dados são de demonstração.
  */
 export default function MinhaConta() {
-  const { cores } = useTema();
   // A aba mora no endereço (`?aba=`): tocar numa aba é um passo do histórico, então o voltar a desfaz.
   const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
   const aba: Aba = ABAS.find((a) => a.valor === abaPedida)?.valor ?? 'cadastro';
@@ -40,12 +36,7 @@ export default function MinhaConta() {
     <Tela bordas={['top']} largura={LARGURA_EDITOR}>
       <Cabecalho titulo="Minha conta" subtitulo="Assinatura da consultoria: cadastro, plano e faturas." />
       {conta.dados?.previa ? (
-        <View accessibilityRole="alert"
-          style={{ borderWidth: 1, borderRadius: RAIO, borderColor: cores.atencao, backgroundColor: `${cores.atencao}18`,
-            padding: espaco(1.5), gap: espaco(0.5) }}>
-          <Selo texto="Prévia" tipo="atencao" />
-          <Texto>Dados de demonstração. Os dados reais virão da central de contratação.</Texto>
-        </View>
+        <Alerta tom="atencao" titulo="Prévia" texto="Dados de demonstração. Os dados reais virão da central de contratação." />
       ) : null}
       {conta.carregando && !conta.dados ? <Esqueleto /> : null}
       {conta.erro ? (

@@ -8,6 +8,8 @@ export interface CampoDaImportacao {
   obrigatorio: boolean;
   sensivel?: boolean;
   sinonimos: string[];
+  /** Grupo do campo na lista do mapeamento ("Endereço > CEP"); sem grupo, só o rótulo. */
+  grupo?: string;
 }
 
 export interface Destino {
@@ -27,6 +29,7 @@ const REGRAS = [IGNORAR, COMPLETAR, ATUALIZAR];
 
 const campo = (id: string, rotulo: string, obrigatorio: boolean, sinonimos: string[], sensivel = false): CampoDaImportacao =>
   ({ id, rotulo, obrigatorio, sensivel, sinonimos });
+const noGrupo = (grupo: string, campos: CampoDaImportacao[]) => campos.map((c) => ({ ...c, grupo }));
 
 export const DESTINOS: readonly Destino[] = [
   {
@@ -34,22 +37,30 @@ export const DESTINOS: readonly Destino[] = [
     chaves: [{ valor: 'email', rotulo: 'E-mail' }, { valor: 'cpf', rotulo: 'CPF' }, { valor: 'nome', rotulo: 'Nome' }],
     existentes: REGRAS,
     campos: [
-      campo('nome', 'Nome', true, ['nome do aluno', 'aluno']),
-      campo('email', 'E-mail', false, ['email', 'e mail']),
-      campo('telefone', 'Telefone', false, ['telefone 1 (com ddd)', 'telefone 1', 'celular', 'fone']),
-      campo('cpf', 'CPF', false, ['documento'], true),
-      campo('objetivo', 'Objetivo', false, [], true),
-      campo('observacoes', 'Observações', false, ['observacao', 'obs'], true),
-      campo('cep', 'CEP', false, [], true),
-      campo('logradouro', 'Logradouro', false, ['rua', 'endereco'], true),
-      campo('numero', 'Número', false, ['numero'], true),
-      campo('complemento', 'Complemento', false, [], true),
-      campo('bairro', 'Bairro', false, [], true),
-      campo('cidade', 'Cidade', false, [], true),
-      campo('uf', 'UF', false, ['estado'], true),
-      campo('responsavel', 'Responsável', false, ['responsavel', 'e-mail do responsavel']),
-      campo('dias', 'Dias', false, ['dias de atualizacao', 'ciclo']),
-      campo('situacao', 'Situação', false, ['status', 'ativo']),
+      ...noGrupo('Cadastro', [
+        campo('nome', 'Nome', true, ['nome do aluno', 'aluno']),
+        campo('email', 'E-mail', false, ['email', 'e mail']),
+        campo('telefone', 'Telefone', false, ['telefone 1 (com ddd)', 'telefone 1', 'celular', 'fone']),
+        campo('cpf', 'CPF', false, ['documento'], true),
+      ]),
+      ...noGrupo('Acompanhamento', [
+        campo('objetivo', 'Objetivo', false, [], true),
+        campo('observacoes', 'Observações', false, ['observacao', 'obs'], true),
+      ]),
+      ...noGrupo('Endereço', [
+        campo('cep', 'CEP', false, [], true),
+        campo('logradouro', 'Logradouro', false, ['rua', 'endereco'], true),
+        campo('numero', 'Número', false, ['numero'], true),
+        campo('complemento', 'Complemento', false, [], true),
+        campo('bairro', 'Bairro', false, [], true),
+        campo('cidade', 'Cidade', false, [], true),
+        campo('uf', 'UF', false, ['estado'], true),
+      ]),
+      ...noGrupo('Acompanhamento', [
+        campo('responsavel', 'Responsável', false, ['responsavel', 'e-mail do responsavel']),
+        campo('dias', 'Dias', false, ['dias de atualizacao', 'ciclo']),
+        campo('situacao', 'Situação', false, ['status', 'ativo']),
+      ]),
     ],
   },
   {

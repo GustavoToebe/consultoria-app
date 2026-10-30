@@ -47,6 +47,9 @@ class ArquiteturaTest {
      * {@code SessaoConcluidaUpsert} (sessão do treino concluída pelo aluno, "Concluir treino": idempotente pelo id do aparelho e pela
      * chave natural, {@code ON CONFLICT ... WHERE} mais novo; consultoria e aluno vêm da sessão, como na mobilidade; guarda o
      * comentário do aluno, dado sensível, que a anonimização apaga);
+     * {@code AguaDoDiaUpsert} (água que o aluno marcou no dia, idempotente pelo id do aparelho e pela chave (aluno, dia),
+     * {@code ON CONFLICT ... WHERE} mais novo; consultoria e aluno vêm da sessão, como na mobilidade; apaga as linhas do
+     * aluno na anonimização, filtrando consultoria e aluno);
      * {@code LogoRepositorio} (bytes da logo fora da entidade, filtrado pelo id da consultoria);
      * {@code AuditoriaGravacao} (insert na transação global do login e limpeza diária, sempre com consultoria explícita);
      * {@code ImportacaoRetencao} (limpeza diária das importações com mais de um ano: um delete por consultoria, sempre com
@@ -77,6 +80,7 @@ class ArquiteturaTest {
             "br.com.treinos.api.execucao.ExecucaoUpsert",
             "br.com.treinos.api.mobilidade.MobilidadeRegistroUpsert",
             "br.com.treinos.api.sessoesconcluidas.SessaoConcluidaUpsert",
+            "br.com.treinos.api.agua.AguaDoDiaUpsert",
             "br.com.treinos.api.consultoria.LogoRepositorio",
             "br.com.treinos.api.alunos.ConviteBusca",
             "br.com.treinos.api.equipe.ConviteEquipeBusca",
@@ -169,6 +173,8 @@ class ArquiteturaTest {
                                 "AlunoMobilidadeRegistrosController",
                                 // Sessões que o próprio aluno conclui (hasRole ALUNO, sempre o da sessão); a leitura do treinador declara PERM_REGISTRO_LER.
                                 "AlunoSessoesConcluidasController",
+                                // Água que o próprio aluno marca no dia (hasRole ALUNO, sempre o da sessão); a leitura da equipe declara PERM_REGISTRO_LER e PERM_ALUNO_SENSIVEL_LER.
+                                "AlunoAguaController",
                                 // "Excluir minha conta" (hasRole ALUNO, sempre a conta da sessão, com a senha dela).
                                 "ExclusaoDeContaController",
                                 // Plano comercial e cobranças do próprio aluno (hasRole ALUNO, sempre o da sessão, só leitura).
@@ -256,6 +262,13 @@ class ArquiteturaTest {
     void gravacaoDeSessaoConcluidaNaoEPublica() {
         classes().that().haveSimpleName("SessaoConcluidaUpsert").should().notBePublic()
                 .because("grava sessao_concluida com consultoria e aluno explícitos; só o pacote sessoesconcluidas usa")
+                .check(codigo);
+    }
+
+    @Test
+    void gravacaoDaAguaNaoEPublica() {
+        classes().that().haveSimpleName("AguaDoDiaUpsert").should().notBePublic()
+                .because("grava e apaga agua_do_dia com consultoria e aluno explícitos; só o pacote agua usa")
                 .check(codigo);
     }
 

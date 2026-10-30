@@ -30,7 +30,7 @@ constância e esforço feito; nunca corpo, dieta restritiva ou tempo de uso.
 
 ## Decisões abertas
 - [ ] Plano sem dia fixo: "treinos por semana" na pasta? (Etapa 1)
-- [ ] Copo de 250 ml no Registro do dia? (Etapa 1)
+- [x] Copo de 250 ml no Registro do dia: sim (decidido em 27/10, feito em `agua-do-aluno.md`)
 - [ ] Medalhas e nomes (Etapa 2)
 - [ ] O Saraiva modera um mural? (Etapa 3)
 - [ ] Comunidade como adicional pago na Central? (Etapa 3)
@@ -49,7 +49,7 @@ confiáveis e números comparados · 2→3 moderação, push e adicional decidid
 - [x] 0.5 Treinador: reação "Visto" (V036, hoje V040, `REGISTRO_REAGIR`) e "Recordes da semana" no Início e na ficha — commit: `566cb1f` (branch `gamificacao`, 28/10/2026). Verificado aqui: app `typecheck`/`lint` limpos, `jest` 2227 em 165 suítes; e2e `visto-e-semana` + `bom-trabalho` + `concluir-treino` + `treino-ao-vivo` + `recordes-pessoais` + `inicio-aluno` + `cargas-por-divisao` + `acesso-aluno` 48/48; API `test-compile`, `ArquiteturaTest` (16), `CatalogoPermissoesTest` (7), `RecordesDaSemanaTest` (3), `RecordesPessoaisTest` (6), `SeriesAnterioresTest` (4). **Não rodou aqui:** `mvn verify` (sem Docker: `VistoERecordesDaSemanaIntegrationTest`, a V036 e as linhas novas de `SessaoConcluidaIntegrationTest`, `RetornoDesligadoIntegrationTest`, `FlywayMigrationIntegrationTest` e `PapeisBancoIntegrationTest` só foram compilados)
 - [x] 0.6 Semana completa no Início — commit: `566cb1f` (mesmo commit; só app)
 - [ ] 1.1 Meta semanal da pasta
-- [ ] 1.2 Registro do dia: água (copos de 250 ml) e "Como foi seguir o plano hoje?" (mensagem já escrita em 27/10)
+- [ ] 1.2 Registro do dia, dividido em 30/10: a água (copos de 250 ml) é a frente [agua-do-aluno.md](agua-do-aluno.md); "Como foi seguir o plano hoje?" continua pendente aqui
 - [ ] 1.3 Aba Progresso: Meu progresso, 28 dias contra os 28 anteriores
 - [ ] 1.4 Ficha: cartão "Acompanhamento" com abas
 - [ ] 2.1 Medalhas de constância e retomada

@@ -63,6 +63,7 @@ public class AnonimizacaoService {
     private final br.com.treinos.api.ciclo.CicloMenstrualService ciclo;
     private final br.com.treinos.api.agenda.AgendaService agenda;
     private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
+    private final br.com.treinos.api.agua.AguaDoDiaService agua;
 
     public AnonimizacaoService(AlunoRepository alunos, ConsultoriaRepository consultorias, UsuarioRepository usuarios, Autenticador autenticador,
                                PasswordEncoder senhas, RegistroPesoRepository pesos,
@@ -73,7 +74,9 @@ public class AnonimizacaoService {
                                br.com.treinos.api.pagamentos.PagamentosDoAluno pagamentos,
                                br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
                                br.com.treinos.api.agenda.AgendaService agenda,
-                               br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas) {
+                               br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas,
+                               br.com.treinos.api.agua.AguaDoDiaService agua) {
+        this.agua = agua;
         this.agenda = agenda;
         this.avaliacoesFisicas = avaliacoesFisicas;
         this.anamneses = anamneses;
@@ -148,6 +151,8 @@ public class AnonimizacaoService {
         lesoes.deleteAll(lesoes.findByAlunoIdOrderByDataInicioDescCriadoEmDesc(alunoId));
         // Circunferências da avaliação física: saem inteiras (o peso de cada data já sai com os pesos, acima).
         avaliacoesFisicas.apagarDoAluno(alunoId);
+        // Água marcada pelo aluno (dado de dieta): sai inteira, como a dieta.
+        agua.apagarDoAluno(consultoriaId, alunoId);
         atualizacoes.findByAlunoIdOrderByDataAtualizacaoDesc(alunoId).forEach(a -> a.limparDadosPessoais());
         anamneses.anonimizarDoAluno(alunoId);
         for (var plano : dietas.findByAlunoIdOrderByCriadoEmDesc(alunoId)) {

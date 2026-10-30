@@ -17,7 +17,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import br.com.treinos.api.tenant.TenantContext;
+import org.springframework.dao.DataIntegrityViolationException;
+
 import java.awt.Color;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +42,7 @@ class AnamneseIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mvc;
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate banco;
+    @Autowired private AnamneseRepository anamneses;
     private ApiDeTeste api;
     private JsonNode treinador;
     private UUID aluno;
@@ -118,6 +123,32 @@ class AnamneseIntegrationTest extends AbstractIntegrationTest {
     }
 
     // ---- testes ----
+
+    @Test
+    void soOIndiceDaPendenteViraAnamnesePendente() throws Exception {
+        JsonNode q = anamnesePublicada(treinador, "Anamnese fictícia " + UUID.randomUUID(), "Qual?");
+        UUID versaoId = UUID.fromString(atribuir(treinador, aluno, q, 200).path("questionarioVersaoId").asString());
+        UUID consultoria = banco.queryForObject("select consultoria_id from aluno where id = ?", UUID.class, aluno);
+
+        // Uma segunda pendente gravada direto (a corrida que passou pela conferência): é o índice da pendente, com o nome
+        // que o serviço procura (V013).
+        DataIntegrityViolationException corrida = falhaAoGravar(consultoria, versaoId);
+        assertThat(AnamneseService.violouPendente(corrida)).isTrue();
+
+        // Outra violação (versão de questionário que não existe, chave estrangeira) não pode virar "já há uma pendente".
+        banco.update("update anamnese set situacao = 'DISPENSADA', dispensada_em = now() where aluno_id = ?", aluno);
+        DataIntegrityViolationException outra = falhaAoGravar(consultoria, UUID.randomUUID());
+        assertThat(AnamneseService.violouPendente(outra)).isFalse();
+    }
+
+    private DataIntegrityViolationException falhaAoGravar(UUID consultoria, UUID versaoId) {
+        try {
+            TenantContext.executarComo(consultoria, () -> anamneses.saveAndFlush(new Anamnese(aluno, versaoId, null, Instant.now())));
+        } catch (DataIntegrityViolationException e) {
+            return e;
+        }
+        throw new AssertionError("A gravação deveria ter violado uma restrição.");
+    }
 
     @Test
     void finalidadeSeparaListasOpcoesEPadraoEAnamneseNaoVaiParaOAluno() throws Exception {

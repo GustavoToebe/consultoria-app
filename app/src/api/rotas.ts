@@ -124,6 +124,8 @@ import type {
   PreviaDeImportacao,
   ProgressoPonto,
   Receita,
+  AguaRegistrada,
+  RegistroAguaEnvio,
   RegistroEnvio,
   RegistroMobilidadeEnvio,
   RegistroMobilidadeFeito,
@@ -674,6 +676,10 @@ export const execucoesDoAluno = (id: string, de: string, ate: string) =>
 export const mobilidadeFeitaDoAluno = (id: string, de: string, ate: string) =>
   requisicao<RegistroMobilidadeFeito[]>(`/alunos/${seg(id)}/mobilidade/registros?de=${de}&ate=${ate}`);
 
+/** Água que o aluno marcou (dado de dieta: `REGISTRO_LER` + `ALUNO_SENSIVEL_LER`). */
+export const aguaDoAlunoParaTreinador = (id: string, de: string, ate: string) =>
+  requisicao<AguaRegistrada[]>(`/alunos/${seg(id)}/agua?de=${de}&ate=${ate}`);
+
 export const sessoesConcluidasDoAlunoParaTreinador = (id: string, de: string, ate: string) =>
   requisicao<SessoesConcluidasResponse>(`/alunos/${seg(id)}/sessoes-concluidas?de=${de}&ate=${ate}`);
 
@@ -898,6 +904,11 @@ export const enviarRegistrosMobilidade = (registros: RegistroMobilidadeEnvio[]) 
 
 export const registrosMobilidadeDoAluno = (de: string, ate: string) =>
   requisicao<RegistroMobilidadeFeito[]>(`/aluno/mobilidade/registros?de=${de}&ate=${ate}`);
+
+export const enviarAgua = (registros: RegistroAguaEnvio[]) =>
+  requisicao<LoteResponse>('/aluno/agua', { metodo: 'POST', corpo: { registros } });
+
+export const aguaDoAluno = (de: string, ate: string) => requisicao<AguaRegistrada[]>(`/aluno/agua?de=${de}&ate=${ate}`);
 
 export const enviarSessoesConcluidas = (registros: RegistroSessaoConcluidaEnvio[]) =>
   requisicao<LoteResponse>('/aluno/sessoes-concluidas', { metodo: 'POST', corpo: { registros } });

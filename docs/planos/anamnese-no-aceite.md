@@ -20,6 +20,6 @@ Ao aceitar uma inscrição em Interessados, o treinador já envia a anamnese ao 
 - [x] 4. Deploy verde — run: 40563980365 (success em 27/10/2026, `publicar` incluído)
 
 ## O que ficou para trás
-- `AnamneseService.atribuir` transforma qualquer `DataIntegrityViolationException` em 409 `ANAMNESE_PENDENTE` (no aceite, uma FK por questionário excluído no meio viria com a mensagem errada; o rollback continua total). Conferir o nome da restrição, como o `QuestionarioService.gravar` já faz.
-- Aceitar uma inscrição já aceita levando um questionário arquivado depois dá 409 `QUESTIONARIO_INDISPONIVEL` em vez de `INSCRICAO_JA_ACEITA` (só UX; a ordem das checagens está documentada no javadoc do `aceitar`).
+- ~~`AnamneseService.atribuir` transforma qualquer `DataIntegrityViolationException` em 409 `ANAMNESE_PENDENTE`~~ Resolvido em 30/10 (branch `ajustes-item3`): só a violação de `ux_anamnese_pendente` vira 409; outra restrição sobe como erro (`AnamneseIntegrationTest.soOIndiceDaPendenteViraAnamnesePendente`).
+- ~~Aceitar uma inscrição já aceita levando um questionário arquivado depois dá 409 `QUESTIONARIO_INDISPONIVEL`~~ Resolvido em 30/10 (branch `ajustes-item3`): o questionário é conferido depois do estado da inscrição (`InscricoesIntegrationTest.aceiteRepetidoComQuestionarioJaArquivadoDizQueJaFoiAceita`).
 - `EscolhaEmFolha` não recebe toque dentro de `PainelConfirmacao` (a folha abre num `Modal` fora do AlertDialog); o campo "Enviar anamnese" usa `Escolha`, também com muitas opções. Mexer em `Folha`/`PainelConfirmacao` só se aparecer outra tela com o mesmo caso.

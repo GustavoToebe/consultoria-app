@@ -7,6 +7,8 @@ import type { CorDaAgenda } from '../api/agendaTipos';
  * ok, âmbar pendente, vermelho erro, cinza inativo) e sempre vem com texto.
  *
  * Níveis: fundo → cartão (`superficie` + `borda`) → faixa de grupo (`superficie2`) → item (`superficie2` + `borda`).
+ * Bordas e divisores ficaram mais fortes em 30/10 (reunião de 29/10: o treinador não via onde um bloco terminava); a
+ * borda do cartão não precisa de 3:1 (é decorativa), mas passa de 1,9:1 nos dois temas.
  * Campo de digitar = `campo` + `bordaCampo` (mais escuro que o cartão, um "buraco" onde se escreve).
  */
 export interface Cores {
@@ -43,8 +45,8 @@ export const ESCURO: Cores = {
   superficie: '#18181B',
   superficie2: '#222226',
   superficie3: '#2C2C31',
-  divisor: '#2A2A2F',
-  borda: '#3A3A41',
+  divisor: '#36363C',
+  borda: '#4C4C55',
   campo: '#0F0F12',
   bordaCampo: '#63636B',
   texto: '#F4F4F5',
@@ -66,8 +68,8 @@ export const CLARO: Cores = {
   superficie: '#FFFFFF',
   superficie2: '#F4F4F5',
   superficie3: '#E7E7EA',
-  divisor: '#E4E4E7',
-  borda: '#D4D4D8',
+  divisor: '#D4D4D8',
+  borda: '#B9B9C0',
   campo: '#FFFFFF',
   bordaCampo: '#8A8A93',
   texto: '#111114',
@@ -82,6 +84,23 @@ export const CLARO: Cores = {
   fase2: '#5E8F8A',
   fase3: '#A67C2E',
   fase4: '#7A86C4',
+};
+
+/**
+ * "Claro areia" (D2 da frente "Clareza do treinador", 30/10): a mesma regra do claro, com fundo e faixas em tom areia,
+ * a pedido do Gustavo na reunião de 29/10. É só uma opção nas Preferências; o padrão continua o claro neutro. Status,
+ * fases, foco e texto são os do claro (conferidos sobre estas superfícies em `tokens.test.ts`).
+ */
+export const AREIA: Cores = {
+  ...CLARO,
+  fundo: '#F2F0EB',
+  superficie: '#FFFFFF',
+  superficie2: '#F7F5F0',
+  superficie3: '#E7E3DB',
+  divisor: '#DDD8CF',
+  borda: '#B9B3A9',
+  campo: '#FFFFFF',
+  bordaCampo: '#77736B',
 };
 
 /**

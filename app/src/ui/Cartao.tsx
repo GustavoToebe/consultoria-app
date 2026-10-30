@@ -24,21 +24,29 @@ interface Props {
   recolhido?: boolean;
   /** Nível do título para o leitor de tela; padrão h2 (o h1 é o `Cabecalho` da tela). */
   nivel?: 2 | 3;
+  /**
+   * Título e ações numa faixa (`superficie3`, linha embaixo) rente às bordas: marca onde a seção começa (reunião de
+   * 29/10, "tudo parece uma coisa só, sem início e fim"). Ligada em todo cartão com título; `faixa={false}` só onde a
+   * faixa atrapalha (cartão de destaque com cor própria, por exemplo).
+   */
+  faixa?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Cartão flat: superfície, borda nos dois temas, cantos de 8 px, sem sombra. Separa seções, dias, exercícios. */
-export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, style }: Props) {
+export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, style }: Props) {
   const { cores } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
   const Seta = fechado ? ChevronDown : ChevronUp;
   const recuo = espaco(width >= LARGURA_MENU_LATERAL ? 2.5 : 2);
+  const comFaixa = faixa && !cabecalho && !!(titulo || acoes);
+  const rente = !!cabecalho || comFaixa;
   return (
-    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: cabecalho ? 0 : recuo }, cabecalho ? estilos.comCabecalho : null, style]}>
+    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
       {cabecalho ?? null}
       {titulo || acoes ? (
-        <View style={estilos.topo}>
+        <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.borda, paddingHorizontal: recuo }, fechado ? estilos.faixaFechada : null] : null]}>
           <View style={estilos.tituloEDescricao}>
             {titulo && recolhivel ? (
               <Pressable
@@ -56,8 +64,8 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
           {acoes ? <View style={estilos.acoes}>{acoes}</View> : null}
         </View>
       ) : null}
-      {fechado || (cabecalho && Children.toArray(children).length === 0) ? null : cabecalho ? <View style={[estilos.corpo, { padding: recuo }]}>{children}</View> : children}
-      {rodape && !fechado ? <View style={[estilos.rodape, cabecalho ? { paddingHorizontal: recuo, paddingBottom: recuo } : null]}>{rodape}</View> : null}
+      {fechado || (rente && Children.toArray(children).length === 0) ? null : rente ? <View style={[estilos.corpo, { padding: recuo }]}>{children}</View> : children}
+      {rodape && !fechado ? <View style={[estilos.rodape, rente ? { paddingHorizontal: recuo, paddingBottom: recuo } : null]}>{rodape}</View> : null}
     </Card>
   );
 }
@@ -69,6 +77,8 @@ const estilos = StyleSheet.create({
   topo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espaco(1), flexWrap: 'wrap' },
   tituloEDescricao: { flexShrink: 1, flexGrow: 1, flexBasis: 200, gap: 2 },
   titulo: { flexShrink: 1 },
+  faixa: { paddingVertical: espaco(1.5), borderBottomWidth: 1 },
+  faixaFechada: { borderBottomWidth: 0 },
   tituloBotao: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.75), flexShrink: 1, minHeight: 44 },
   acoes: { flexDirection: 'row', gap: espaco(1), flexWrap: 'wrap', maxWidth: '100%' },
   // `marginTop: 'auto'` empurra o rodapé para a base quando o cartão é esticado pela grade.

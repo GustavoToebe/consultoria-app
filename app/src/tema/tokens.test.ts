@@ -1,12 +1,12 @@
-import { CHAVES_DA_AGENDA, CLARO, ESCURO, PALETA_DA_AGENDA, contraste, corDaAgenda, marcaParaTexto, textoSobre } from './tokens';
+import { AREIA, CHAVES_DA_AGENDA, CLARO, ESCURO, PALETA_DA_AGENDA, contraste, corDaAgenda, marcaParaTexto, textoSobre } from './tokens';
 
-it.each([CLARO, ESCURO])('preserva contraste AA nos detalhes de todas as superfícies', (cores) => {
+it.each([CLARO, ESCURO, AREIA])('preserva contraste AA nos detalhes de todas as superfícies', (cores) => {
   for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
     expect(contraste(cores.textoSuave, superficie)).toBeGreaterThanOrEqual(4.5);
   }
 });
 
-it.each([CLARO, ESCURO])('status e neutro servem de texto em todas as superfícies', (cores) => {
+it.each([CLARO, ESCURO, AREIA])('status e neutro servem de texto em todas as superfícies', (cores) => {
   for (const cor of [cores.sucesso, cores.atencao, cores.perigo, cores.neutro]) {
     for (const superficie of [cores.superficie, cores.superficie2, cores.superficie3]) {
       expect(contraste(cor, superficie)).toBeGreaterThanOrEqual(4.5);
@@ -35,9 +35,11 @@ describe('marcaParaTexto', () => {
   });
 });
 
-it.each([CLARO, ESCURO])('campo, borda e cartão se distinguem do fundo e entre si', (cores) => {
+it.each([CLARO, ESCURO, AREIA])('campo, borda e cartão se distinguem do fundo e entre si', (cores) => {
   expect(contraste(cores.bordaCampo, cores.campo)).toBeGreaterThanOrEqual(3);
-  expect(contraste(cores.borda, cores.superficie)).toBeGreaterThanOrEqual(1.4);
+  // Reunião de 29/10: a borda do cartão tem de aparecer (1,9:1 ou mais), também sobre a faixa do cabeçalho.
+  expect(contraste(cores.borda, cores.superficie)).toBeGreaterThanOrEqual(1.9);
+  expect(contraste(cores.borda, cores.superficie3)).toBeGreaterThanOrEqual(1.25);
   expect(contraste(cores.fundo, cores.superficie)).toBeGreaterThanOrEqual(1.1);
 });
 
@@ -118,3 +120,21 @@ describe('corDaAgenda', () => {
     expect(corDaAgenda(null, false)).toBe(PALETA_DA_AGENDA.claro.ARDOSIA);
   });
 });
+
+/** Mistura `cor` com alfa 0x18 sobre `fundo`, como o fundo da caixa `Alerta` (`${cor}18`). */
+function fundoDoAlerta(cor: string, fundo: string): string {
+  const a = 0x18 / 255;
+  const canal = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2].map((i) => Math.round(canal(cor, i) * a + canal(fundo, i) * (1 - a)).toString(16).padStart(2, '0')).join('')}`;
+}
+
+test.each([['claro', CLARO], ['escuro', ESCURO], ['areia', AREIA]] as const)(
+  'texto da caixa de aviso (perigo, atenção, sucesso) legível sobre o próprio fundo no tema %s',
+  (_nome, cores) => {
+    for (const tom of ['perigo', 'atencao', 'sucesso'] as const) {
+      for (const base of [cores.superficie, cores.fundo]) {
+        expect(contraste(cores[tom], fundoDoAlerta(cores[tom], base))).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  },
+);
