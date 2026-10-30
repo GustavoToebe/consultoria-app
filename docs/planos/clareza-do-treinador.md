@@ -21,8 +21,8 @@ mandou (fora do repositório: tem dado de pessoas reais e não entra no git).
 | D7 | Lista de compras | "Conforme a dieta" quando falta fator e "Estimativa para compra" quando a conta foi feita; "Mês (30 dias)"; uma opção por refeição | Análise do vídeo (A08) |
 
 ## Passos
-- [x] 1. Lote A: fim automático da pasta, "Abertas", efeito de finalizar, destino explícito ao aplicar modelo e ao copiar plano, "Dose prescrita" (com a porção da embalagem só como referência), períodos "Semana (7 dias)"/"Mês (30 dias)" na lista de compras, aviso do gráfico de peso — commit/run: este commit (Jest 2552, lint, typecheck, e2e `pasta-periodo` e `lista-de-compras` em 390 e 1280)
-- [ ] 2. Lote B: tokens dos dois temas e do contraste alto, opção "Claro areia", exercício × grupo de séries, pasta com Treino, Dieta e Mobilidade em blocos próprios; capturas antes e depois em 390 e 1280 — commit/run: —
+- [x] 1. Lote A: fim automático da pasta, "Abertas", efeito de finalizar, destino explícito ao aplicar modelo e ao copiar plano, "Dose prescrita" (com a porção da embalagem só como referência), períodos "Semana (7 dias)"/"Mês (30 dias)" na lista de compras, aviso do gráfico de peso — commit/run: 79d9d3e (Jest 2552, lint, typecheck, e2e `pasta-periodo` e `lista-de-compras` em 390 e 1280)
+- [x] 2. Lote B: tokens dos dois temas e do contraste alto, opção "Claro areia", exercício × grupo de séries, pasta com Treino, Dieta e Mobilidade em blocos próprios; capturas antes e depois em 390 e 1280 — commit/run: f65c800; faixa de cabeçalho em todo cartão com título e no topo das folhas (D8): c114082 (Jest 2556, lint, typecheck, e2e completo 326 de 326)
 - [ ] 3. Lote C: importação em etapas (lista separada do assistente; destino e arquivo juntos; configuração com ajuda; amostra com a escolha do campo em cada coluna; resumo Total / Com erro / Corretas; "Voltar"; mudar arquivo, aba ou mapeamento invalida a prévia) — commit/run: —
 - [ ] 4. Ajuda, guias PDF, AGENTS.md, testes (Jest, e2e em 390 e 1280, `mvn verify` se a API mudar), PR, CI verde e merge — commit/run: —
 
@@ -34,4 +34,5 @@ mandou (fora do repositório: tem dado de pessoas reais e não entra no git).
 - Comunidade, ranking e XP (proposta de 27/10; depois do piloto).
 
 ## O que ficou para trás
+- Itens da análise que não entram nesta frente: A01 (orientação no primeiro uso), A02 (importar plano de PDF ou Google Docs), A06 (dúvidas de modelo e complementos da dieta, só textos), A12 (categorias dos suplementos do catálogo) e o painel novo (seção 11).
 - A falha da planilha na reunião (A04) não foi reproduzida: precisa só dos nomes das colunas e das abas, sem dados.
