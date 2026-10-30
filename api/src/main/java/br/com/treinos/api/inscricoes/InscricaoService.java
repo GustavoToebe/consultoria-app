@@ -328,9 +328,11 @@ public class InscricaoService {
      *
      * <p>Ordem das checagens, todas antes de qualquer efeito: permissão {@code ALUNO_CONVITE} (se {@code convidar});
      * com anamnese, {@code ANAMNESE_LER}, {@code ANAMNESE_ALTERAR} e {@code ALUNO_SENSIVEL_LER} (as mesmas da rota de
-     * atribuir, pois o {@code AnamneseService} não confere permissão sozinho; 403) e depois o questionário (404 se for de
-     * outra consultoria, 409 {@code QUESTIONARIO_INDISPONIVEL} se não for de anamnese, estiver sem versão publicada ou
-     * arquivado). Só então a inscrição é travada e conferida (aceite repetido, versão, e-mail de aluno existente).
+     * atribuir, pois o {@code AnamneseService} não confere permissão sozinho; 403). Depois a inscrição é travada e conferida
+     * (aceite repetido, versão) e só então o questionário (404 se for de outra consultoria, 409
+     * {@code QUESTIONARIO_INDISPONIVEL} se não for de anamnese, estiver sem versão publicada ou arquivado): o aceite repetido
+     * responde {@code INSCRICAO_JA_ACEITA} com o aluno mesmo que o questionário tenha sido arquivado depois (30/10). Por
+     * último, o e-mail de aluno existente.
      *
      * <p>Antes da inscrição, trava a consultoria (achado B1, a mesma trava e a mesma ordem do limite do plano): dois aceites
      * simultâneos de inscrições diferentes com o mesmo e-mail ficam em série e o segundo vê o aluno do primeiro (409
@@ -353,12 +355,14 @@ public class InscricaoService {
             AcessoAtual.exigir("ANAMNESE_LER");
             AcessoAtual.exigir("ANAMNESE_ALTERAR");
             AcessoAtual.exigir("ALUNO_SENSIVEL_LER");
-            questionarios.exigirAnamneseUsavel(questionarioId);
         }
         consultorias.travar(TenantContext.get());
         Inscricao i = inscricoes.buscarParaAlterar(id).orElseThrow(InscricaoService::naoEncontrada);
         exigirNaoAceita(i);
         exigirVersao(i, r.versao());
+        // Depois do estado da inscrição: o aceite repetido diz "já aceita" (com o aluno), mesmo que o questionário escolhido
+        // tenha sido arquivado entretanto. Ainda antes de qualquer efeito.
+        if (questionarioId != null) questionarios.exigirAnamneseUsavel(questionarioId);
         if (i.getEmail() != null) {
             var mesmos = inscricoes.alunosComEmail(List.of(i.getEmail().toLowerCase(Locale.ROOT)));
             if (!mesmos.isEmpty()) {

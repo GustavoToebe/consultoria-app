@@ -141,5 +141,10 @@ export async function sessao(page: Page, usuario: UsuarioResumo, extra: Partial<
       : { aluno: { id: 'a0000000-0000-4000-8000-000000000002', nome: usuario.nome } }),
     ...extra,
   };
-  return { 'POST /auth/refresh': { corpo: login }, 'GET /eu': { corpo: eu } };
+  // O Início do treinador conta os interessados novos e os retornos pelas contagens da fila (zeradas aqui; o teste que
+  // precisa de outro número a substitui).
+  const contagens: RespostasApi = usuario.papel === 'TREINADOR'
+    ? { 'GET /inscricoes/contagens': { corpo: { porSituacao: {}, abertas: 0, todas: 0, retornosAtrasados: 0, retornosHoje: 0 } } }
+    : {};
+  return { 'POST /auth/refresh': { corpo: login }, 'GET /eu': { corpo: eu }, ...contagens };
 }

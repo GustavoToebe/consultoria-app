@@ -38,7 +38,6 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 
 | Pendência | Quem | Origem |
 | --- | --- | --- |
-| Retornos atrasados de interessados no Início do treinador | Claude | interessados-crm |
 | Arrastar no Kanban de interessados: testar no celular (toque longo) | Gustavo | interessados-crm |
 | Conferir que a "Anamnese Saraiva Team" está publicada em Planejamento › Anamnese | Gustavo | anamnese |
 | Ver no celular se os títulos das seções do editor de séries (caixa alta 12 px) ficaram bons | Gustavo | editor de séries (5d353d0) |
@@ -53,11 +52,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Link de vídeo da técnica (Rest-pause, Cluster) quando houver vídeo aprovado do Saraiva | Gustavo | análise 2 (A8) |
 | `lock_timeout` no Flyway do módulo auth (exige mudar a biblioteca `plataforma`) | Claude | travas do banco |
 | Ciclo menstrual: expansão como projeto separado | Gustavo decide | ciclo |
-| O perfil do aluno não recarrega o `/eu` durante a sessão (`recarregarPerfil` sai cedo). `funcionalidadesDoPlano`, `pagarNoIos`/`pagarNoAndroid` e `pagamentosHabilitados` também só se atualizam ao reabrir o app. Avaliar antes de ligar pagamentos ou o plano aplicado | Claude | frente J (ciclo desligado) |
 | Evolução: `mvn verify` com Docker na branch `claude/saraiva-api-direcionamento-treinos-dv10io` antes de qualquer PR (testes de integração novos de avaliação, agenda, lembretes, grupo do alimento, dieta e limite do CPF não rodaram no ambiente sem Docker) | Gustavo (PC) | evolucao-prime |
-| `AnamneseService.atribuir`: conferir o nome da restrição antes de virar `ANAMNESE_PENDENTE` em `DataIntegrityViolationException` | Claude | anamnese no aceite (1f1aa20) |
-| Aceite de inscrição já aceita com questionário arquivado: devolver `INSCRICAO_JA_ACEITA` antes de `QUESTIONARIO_INDISPONIVEL` (só UX) | Claude | anamnese no aceite (1f1aa20) |
-| Agenda: `AvisosDeCompromissoIntegrationTest.listaOsNaoVistosDoMaisNovoAoMaisAntigoAte20SoOsProprios` falhou uma vez num `mvn clean verify` completo (29/10): os avisos dos dias 07/12 e 08/12 (elementos 11 e 12) saíram trocados; a classe passou 3 vezes seguidas depois e o verify completo seguinte passou. Causa não provada (a consulta ordena por `criadoEm`, relógio de parede, e o teste confere a ordem pelo `inicio`). Se repetir, na CI ou local, investigar a ordenação antes de reexecutar | Claude | [agenda-calendario.md](agenda-calendario.md) |
 | Agenda calendário, o que a tela do lote 2 não conferiu: setas do teclado dentro do menu "Criar"; janela de 1024 a 1100 px; teclado virtual em aparelho (roteiro 22a/22b de `docs/build-celular.md`); o aviso de sobreposição de evento ignora a repetição; se o `replace` do filtro não chegar ao endereço, o filtro escolhido numa Folha fica só na tela até recarregar | Claude | [agenda-calendario.md](agenda-calendario.md) |
 | Agenda: push do servidor para compromisso marcado, remarcado ou cancelado (app fechado) fica com a decisão de push da frente de engajamento (item "Push do servidor", Etapa 3) | Gustavo decide | [agenda-calendario.md](agenda-calendario.md), [engajamento.md](engajamento.md) |
 

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import {
   aoCicloDesligado,
@@ -18,6 +18,7 @@ import * as rotas from '../api/rotas';
 import type { LoginResponse, Marca, UsuarioResumo, PerfilDaEquipe } from '../api/tipos';
 import { apagarDadosDaSessaoLocal, type MotivoDoEncerramento } from '../dominio/encerrarSessaoLocal';
 import { mesmaMarca } from '../dominio/marcaDaSessao';
+import { criarRecargaDoPerfil, perfilAtualizado, perfilDoEu, type PerfilDaSessao } from '../dominio/perfilDaSessao';
 import { temFuncionalidade as conferirFuncionalidade } from '../dominio/funcionalidadesDoPlano';
 import { pode as conferirPermissao } from '../dominio/permissoes';
 import { varrerFilasRetidas } from '../offline/filasRetidas';
@@ -37,27 +38,11 @@ import { lerRefresh } from './armazenamentoSeguro';
  */
 export type Situacao = 'carregando' | 'anonimo' | 'autenticado';
 
-interface Perfil {
-  perfil?: PerfilDaEquipe;
-  permissoes?: string[];
-  /** Funcionalidades ligadas no plano da consultoria; ausente (perfil antigo ou offline) = tudo liberado. */
-  funcionalidadesDoPlano?: string[];
-  /** Pagamentos do aluno ao treinador ligados para a consultoria; ausente (perfil antigo ou offline) = desligado. */
-  pagamentosHabilitados?: boolean;
-  /** Recebimento online (InfinitePay) ligado além dos pagamentos; ausente (perfil antigo ou offline) = desligado. */
-  recebimentoOnlineHabilitado?: boolean;
-  /** Chaves da plataforma do "Pagar" no celular; ausente (perfil antigo ou offline) = desligada. */
-  pagarNoIos?: boolean;
-  pagarNoAndroid?: boolean;
-  /** Ciclo menstrual ligado na plataforma; ausente (perfil antigo ou offline) = desligado. */
-  cicloHabilitado?: boolean;
-  /** "Concluir treino" ligado na plataforma; ausente (perfil antigo ou offline) = desligado. */
-  retornoHabilitado?: boolean;
-  usuario: UsuarioResumo;
-  marca: Marca;
-  /** Termo de uso e aviso de privacidade ainda sem aceite na versão vigente (guardado para abrir offline). */
-  termosPendentes?: boolean;
-}
+/**
+ * Perfil da sessão (`dominio/perfilDaSessao`): ausente (perfil antigo ou offline), cada chave da plataforma vale como
+ * desligada, menos `funcionalidadesDoPlano` (tudo liberado). `termosPendentes` é guardado para abrir offline.
+ */
+type Perfil = PerfilDaSessao;
 
 interface ValorSessao {
   /** Pendente de aceite: o app só mostra a tela dos termos até aceitar. */
@@ -143,11 +128,30 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     perfilAtual.current = perfil;
   }, [perfil]);
 
+  // Perfil de novo do servidor durante o uso (treinador e aluno). Antes só o treinador recarregava, e para o aluno as chaves
+  // do `/eu` (plano, pagamentos, ciclo, "Concluir treino") só mudavam ao reabrir o app. Sem mudança, nada é regravado nem
+  // redesenhado; a resposta de outra pessoa (troca de conta noutra aba) é ignorada.
+  const recarregarPerfil=useCallback(async()=>{
+    const atual=perfilAtual.current;if(!atual) return;
+    const eu=await rotas.eu();
+    const agora=perfilAtual.current;
+    if(!agora || agora.usuario.id!==eu.usuario.id) return;
+    const novo=perfilAtualizado(agora,perfilDoEu(eu));
+    if(!novo) return;
+    perfilAtual.current=novo;setPerfil(novo);
+    await AsyncStorage.setItem(CHAVE_PERFIL,JSON.stringify(novo)).catch(()=>undefined);
+  },[]);
+  // Busca automática: app de volta à tela ou internet de volta, no máximo uma a cada 5 min (efeito mais abaixo).
+  // Criada na primeira chamada (fora do render: a recarga lê a ref do perfil).
+  const recargaRef=useRef<ReturnType<typeof criarRecargaDoPerfil>|null>(null);
+  const recarga=useCallback(()=>(recargaRef.current??=criarRecargaDoPerfil(recarregarPerfil)),[recarregarPerfil]);
+
   const abrir = useCallback(async (resposta: LoginResponse) => {
     await guardarSessao(resposta);
     const eu = await rotas.eu();
-    const novo: Perfil = {usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,recebimentoOnlineHabilitado:eu.recebimentoOnlineHabilitado,pagarNoIos:eu.pagarNoIos,pagarNoAndroid:eu.pagarNoAndroid,cicloHabilitado:eu.cicloHabilitado,retornoHabilitado:eu.retornoHabilitado,termosPendentes:eu.termosPendentes};
+    const novo: Perfil = perfilDoEu(eu);
     perfilAtual.current=novo;
+    recarga().marcar();
     definirUsuarioDaSessao(eu.usuario.id);
     setPerfil(novo);
     setOffline(false);
@@ -155,7 +159,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem(CHAVE_PERFIL, JSON.stringify(novo)).catch(() => undefined);
     // Filas retidas de sessões recusadas: apaga as que passaram do prazo (de qualquer usuário; nunca envia nada).
     void varrerFilasRetidas({ exceto: eu.usuario.id }).catch(() => undefined);
-  }, []);
+  }, [recarga]);
 
   // Um encerramento por vez: "Sair" e o servidor recusando a sessão (várias requisições podem avisar juntas) dividem
   // a mesma execução. O id vem da ref na hora da chamada, não de uma cópia do registro do callback. Se a sessão já
@@ -275,14 +279,22 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     };
   }, [offline, abrir, encerrarLocal]);
 
-  const recarregarPerfil=useCallback(async()=>{
-    const atual=perfilAtual.current;if(!atual || atual.usuario.papel!=='TREINADOR') return;
-    const eu=await rotas.eu();
-    if(perfilAtual.current?.usuario.id!==eu.usuario.id) return;
-    const novo:Perfil={usuario:eu.usuario,marca:eu.marca,perfil:eu.perfil,permissoes:eu.permissoes,funcionalidadesDoPlano:eu.funcionalidadesDoPlano,pagamentosHabilitados:eu.pagamentosHabilitados,recebimentoOnlineHabilitado:eu.recebimentoOnlineHabilitado,pagarNoIos:eu.pagarNoIos,pagarNoAndroid:eu.pagarNoAndroid,cicloHabilitado:eu.cicloHabilitado,retornoHabilitado:eu.retornoHabilitado,termosPendentes:eu.termosPendentes};
-    perfilAtual.current=novo;setPerfil(novo);
-    await AsyncStorage.setItem(CHAVE_PERFIL,JSON.stringify(novo)).catch(()=>undefined);
-  },[]);
+  // Sessão aberta com o servidor: o perfil é buscado de novo quando o app volta à tela (no celular, ao sair do segundo
+  // plano; na web, ao voltar à aba) e quando a internet volta, no máximo uma vez a cada 5 min (`criarRecargaDoPerfil`).
+  // Offline, quem cuida é a renovação acima (ela abre a sessão com o `/eu` novo).
+  useEffect(() => {
+    if (situacao !== 'autenticado' || offline) return;
+    const app = AppState.addEventListener('change', (estado) => {
+      if (estado === 'active') void recarga().talvez();
+    });
+    const rede = NetInfo.addEventListener((estado) => {
+      if (estado.isConnected) void recarga().talvez();
+    });
+    return () => {
+      app.remove();
+      rede();
+    };
+  }, [situacao, offline, recarga]);
   const aceitarTermos = useCallback(async (versao: string) => {
     await rotas.aceitarTermos(versao);
     setPerfil((atual) => {

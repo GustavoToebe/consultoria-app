@@ -68,12 +68,12 @@ const OPCOES_FILTRO_ORIGEM: { valor: FiltroDeOrigem; rotulo: string }[] = [
  */
 export default function Interessados() {
   const { pode } = useSessao();
-  // `?situacao=NOVA` vem do contador "Interessados novos" do Início.
-  const { situacao: situacaoInicial, visao: visaoPedida } = useLocalSearchParams<{ situacao?: string; visao?: string }>();
+  // `?situacao=NOVA` vem do contador "Interessados novos" do Início; `?meus=true`, dos retornos com o filtro "Meus" de lá.
+  const { situacao: situacaoInicial, visao: visaoPedida, meus: meusPedido } = useLocalSearchParams<{ situacao?: string; visao?: string; meus?: string }>();
   const visao: Visao = VISOES.find((v) => v.valor === visaoPedida)?.valor ?? 'lista';
   const setVisao = (valor: Visao) => { if (valor !== visao) router.push({ pathname: '/treinador/interessados', params: { visao: valor } }); };
   const [filtro, setFiltro] = useState<FiltroInscricoes>(FILTROS_INSCRICOES.find((f) => f.valor === situacaoInicial)?.valor ?? 'ABERTAS');
-  const [escopo, setEscopo] = useState<Responsabilidade>('todos');
+  const [escopo, setEscopo] = useState<Responsabilidade>(meusPedido === 'true' ? 'meus' : 'todos');
   const [responsavel, setResponsavel] = useState<string>(TODOS);
   const [origem, setOrigem] = useState<FiltroDeOrigem>('');
   const [buscaDigitada, setBuscaDigitada] = useState('');

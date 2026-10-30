@@ -1,4 +1,4 @@
-import { proximoPassoDoInicio, tomDoContador, umPorAluno } from './inicioTreinador';
+import { contadorDeRetornos, proximoPassoDoInicio, tomDoContador, umPorAluno } from './inicioTreinador';
 
 const nada = { paraRevisar: 0, atrasadas: 0, interessadosNovos: 0, planosTerminando: 0, semRegistro: 0, diasSemRegistro: 7 };
 
@@ -9,6 +9,13 @@ describe('proximoPassoDoInicio', () => {
     expect(proximoPassoDoInicio({ ...nada, interessadosNovos: 1, planosTerminando: 2 })?.destino).toBe('INTERESSADOS');
     expect(proximoPassoDoInicio({ ...nada, planosTerminando: 1 })?.texto).toBe('1 plano termina nos próximos 7 dias.');
     expect(proximoPassoDoInicio({ ...nada, semRegistro: 3, diasSemRegistro: 14 })?.texto).toBe('3 alunos estão sem registro há 14 dias.');
+  });
+  it('retorno vencido vem depois das atualizações e antes dos interessados novos; o de hoje, depois deles', () => {
+    expect(proximoPassoDoInicio({ ...nada, atrasadas: 1, retornosAtrasados: 2 })?.destino).toBe('ATRASADAS');
+    expect(proximoPassoDoInicio({ ...nada, retornosAtrasados: 2, interessadosNovos: 1 })).toEqual({ texto: '2 retornos a interessados estão atrasados.', acao: 'Ver retornos', destino: 'RETORNOS' });
+    expect(proximoPassoDoInicio({ ...nada, retornosHoje: 1, interessadosNovos: 1 })?.destino).toBe('INTERESSADOS');
+    expect(proximoPassoDoInicio({ ...nada, retornosHoje: 1, planosTerminando: 3 })?.texto).toBe('1 retorno a interessado está marcado para hoje.');
+    expect(proximoPassoDoInicio({ ...nada, retornosAtrasados: null, retornosHoje: null })).toBeNull();
   });
   it('sem permissão (nulo) ou tudo zerado = nulo', () => {
     expect(proximoPassoDoInicio(nada)).toBeNull();
@@ -27,5 +34,14 @@ describe('umPorAluno', () => {
 describe('tomDoContador', () => {
   it('zerado suave; com algo, atenção ou perigo', () => {
     expect([tomDoContador(0), tomDoContador(2), tomDoContador(1, true)]).toEqual(['suave', 'atencao', 'perigo']);
+  });
+});
+
+describe('contadorDeRetornos', () => {
+  it('soma atrasados e de hoje; vermelho com atrasado, âmbar só com os de hoje, apagado sem nenhum', () => {
+    expect(contadorDeRetornos(0, 0)).toEqual({ numero: 0, tom: 'suave', detalhe: null });
+    expect(contadorDeRetornos(0, 2)).toEqual({ numero: 2, tom: 'atencao', detalhe: '2 para hoje' });
+    expect(contadorDeRetornos(1, 0)).toEqual({ numero: 1, tom: 'perigo', detalhe: '1 atrasado' });
+    expect(contadorDeRetornos(3, 1)).toEqual({ numero: 4, tom: 'perigo', detalhe: '3 atrasados · 1 para hoje' });
   });
 });
