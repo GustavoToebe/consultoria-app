@@ -35,7 +35,7 @@ interface Props {
 
 /** Cartão flat: superfície, borda de 2 px, cantos de 12 px, sem sombra; a faixa do título tem linha de 3 px embaixo. Separa seções, dias, exercícios. */
 export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, recolhivel, recolhido = false, nivel = 2, faixa = true, style }: Props) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const { width } = useWindowDimensions();
   const [fechado, setFechado] = useState(recolhivel ? recolhido : false);
   const Seta = fechado ? ChevronDown : ChevronUp;
@@ -43,7 +43,7 @@ export function Cartao({ children, cabecalho, titulo, descricao, acoes, rodape, 
   const comFaixa = faixa && !cabecalho && !!(titulo || acoes);
   const rente = !!cabecalho || comFaixa;
   return (
-    <Card style={[estilos.cartao, { backgroundColor: cores.superficie, borderColor: cores.borda, padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
+    <Card style={[estilos.cartao, { borderWidth: bordas.bloco, backgroundColor: cores.superficie, borderColor: cores.borda, padding: rente ? 0 : recuo }, rente ? estilos.comCabecalho : null, style]}>
       {cabecalho ?? null}
       {titulo || acoes ? (
         <View style={[estilos.topo, comFaixa ? [estilos.faixa, { backgroundColor: cores.superficie3, borderBottomColor: cores.bordaCampo, paddingHorizontal: recuo }, fechado ? estilos.faixaFechada : null] : null]}>

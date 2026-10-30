@@ -24,7 +24,7 @@ const TAMANHOS: { valor: TamanhoTexto; rotulo: string }[] = [
 ];
 
 /**
- * Preferências pessoais: tema, contraste, tamanho do texto, animações, vibração e restaurar o padrão. Valem só neste
+ * Preferências pessoais: tema, contraste, bordas reforçadas, tamanho do texto, animações, vibração e restaurar o padrão. Valem só neste
  * aparelho. `comTitulo` mostra o título "Preferências" (o painel do aluno); a tela Ajustes do treinador já tem o seu.
  */
 export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: boolean; extras?: ReactNode }) {
@@ -98,6 +98,15 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
         />
       </Cartao>
 
+      <Cartao titulo="Bordas" descricao="Para separar melhor cada parte da tela.">
+        <Interruptor
+          rotulo="Bordas reforçadas"
+          ajuda="Bordas mais escuras e mais grossas em volta dos blocos."
+          valor={preferencias.bordasReforcadas}
+          aoMudar={(bordasReforcadas) => mudar({ bordasReforcadas })}
+        />
+      </Cartao>
+
       <Cartao titulo="Tamanho do texto" descricao="Vale para todos os textos do app.">
         <GradeDeOpcoes rotulo="Tamanho do texto">
           {TAMANHOS.map((t) => (
@@ -164,7 +173,7 @@ export function PreferenciasDoApp({ comTitulo = true, extras }: { comTitulo?: bo
       <PainelConfirmacao
         visivel={confirmandoRestaurar}
         titulo="Restaurar as preferências?"
-        mensagem={`Tema, contraste, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão${aluno ? '; os lembretes de compromisso ficam desligados' : ''}.`}
+        mensagem={`Tema, contraste, bordas, tamanho do texto, animações, gráficos, barras de rolagem e vibração voltam ao padrão${aluno ? '; os lembretes de compromisso ficam desligados' : ''}.`}
         rotuloConfirmar="Restaurar"
         aoConfirmar={() => {
           restaurarPadrao();

@@ -65,7 +65,7 @@ const OPCOES_DE_MODALIDADE: { valor: string | null; rotulo: string }[] = [
 
 /** Exercício da sessão: fechado mostra o resumo das séries; aberto edita tudo. Cardio tem a prescrição própria. */
 export function CartaoExercicio(p: Props) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const largo = useWindowDimensions().width >= LARGURA_MENU_LATERAL;
   const e = p.exercicio;
   const erros = p.erros ?? {};
@@ -99,7 +99,7 @@ export function CartaoExercicio(p: Props) {
         estilos.cartao,
         // Reunião de 29/10: o exercício é o bloco principal (cartão branco) e os grupos de séries ficam dentro dele, em
         // `superficie2` com a faixa própria; aberto, o topo vira faixa para marcar onde o exercício começa.
-        { borderColor: comErro ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
+        { borderWidth: bordas.bloco, borderColor: comErro ? cores.perigo : cores.borda, backgroundColor: cores.superficie },
       ]}>
       {/* A faixa do exercício é mais forte que as de dentro dele (`faixaForte`), aberto ou fechado. */}
       <View style={[estilos.topo, { backgroundColor: cores.faixaForte }, p.aberto && { borderBottomWidth: LINHA_DA_FAIXA, borderBottomColor: cores.bordaCampo }]}>

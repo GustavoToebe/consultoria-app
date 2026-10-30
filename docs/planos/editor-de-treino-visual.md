@@ -21,12 +21,14 @@ que o Gustavo ajustou e devolveu com "Copiar meus ajustes".
 | D9 | Menu lateral | Item ativo preenchido com a cor da marca (texto `sobreMarca`) | Gustavo, 30/10 (protótipo) |
 | D10 | Selo com ícone | Fundo opaco (`tingido`: a cor com alfa 0x18 sobre a `superficie`); translúcido, sobre a `faixaForte`, o texto ficava abaixo de 4,5:1 | Teste de contraste, 30/10 |
 | D11 | Painel de ajustes no app | Não entra: as escolhas valem para todos; o que é pessoal continua em Perfil › Preferências | Recomendação, 30/10 |
+| D12 | Bordas reforçadas | Só esta opção vai para Perfil › Preferências: borda mais escura (`bordaCampo`) e bloco com 3 px; desligada por padrão | Gustavo, 30/10 |
 
 ## Passos
 - [x] 1. Cores e medidas comuns (fundo, `RAIO`, `BORDA_BLOCO`, `LINHA_DA_FAIXA`, `BORDA_ITEM`, `faixaForte`, `tingido`) com os testes de contraste — commit/run: —
 - [x] 2. Peças comuns: `Cartao`, `CabecalhoDeGrupo` (`linha`, `inicio`, selo com ícone), `Folha`, `Tabela`, `IconeBotao moldura`, `Selo` com ícone, menu lateral — commit/run: —
 - [x] 3. Editor: sessão, exercício, séries, contadores e "Adicionar próximo exercício" — commit/run: —
-- [ ] 4. Jest, lint, typecheck, e2e completo em 390 e 1280, capturas, AGENTS.md, PR e CI — commit/run: —
+- [x] 4. "Bordas reforçadas" em Perfil › Preferências (D12) — commit/run: —
+- [ ] 5. Jest, lint, typecheck, e2e completo em 390 e 1280, capturas, AGENTS.md, PR e CI — commit/run: e07bf45 (visual, sem o D12)
 
 ## Fora do escopo
 - O mesmo tratamento no editor de dieta, de mobilidade e de questionário (o fundo, as bordas, os cantos e o menu já mudam em todo o app; o resto fica para depois de o Gustavo usar o de treino).

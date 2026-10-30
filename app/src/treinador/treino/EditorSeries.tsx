@@ -243,7 +243,7 @@ interface PropsDoGrupo {
 }
 
 function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSerie, tipos, podeMais, primeiro, ultimo, numero, porSerie, aberto, esforcoVeioDoPadrao, aoAlternar, aoMover, aoAlterar, aoQuantidade, aoRestPauseNaUltima, aoPercentuais, aoRemover }: PropsDoGrupo) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const largo = useCamposLadoALado();
   // Explicações do tipo e da técnica começam recolhidas; o "O que é?" abre.
   const [explicarTipo, setExplicarTipo] = useState(false);
@@ -267,7 +267,7 @@ function EditorGrupo({ grupo: g, series, config, cardio, semCarga, descansoPorSe
   const nomeTecnica = s.tecnica ? opcoesTecnica.find((o) => o.valor === s.tecnica?.tipo)?.rotulo ?? null : null;
   const recuo = espaco(largo ? 2.5 : 2);
   const borda = nivel === 'perigo' ? cores.perigo : aberto ? cores.bordaCampo : cores.borda;
-  return <View style={[estilos.grupo, { borderColor: borda, backgroundColor: aberto ? cores.superficie : cores.superficie2 }]}>
+  return <View style={[estilos.grupo, { borderWidth: bordas.item, borderColor: borda, backgroundColor: aberto ? cores.superficie : cores.superficie2 }]}>
     <CabecalhoDeGrupo titulo={descreverGrupo(g, config, series)} selo={SELO_DO_NIVEL[nivel]} aberto={aberto} aoAlternar={aoAlternar} linha="fina"
       inicio={<NumeroDaSerie numero={numero} aberto={aberto} />} acoes={<>
       {aberto ? null : <Botao rotulo="Editar" rotuloAcessivel={`Editar a série ${numero}`} tipo="secundario" Icone={Pencil} aoTocar={aoAlternar} />}

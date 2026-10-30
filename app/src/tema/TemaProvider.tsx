@@ -7,7 +7,9 @@ import { useColorScheme } from 'react-native';
 import type { Tema } from '../api/tipos';
 import {
   chaveDasPreferencias,
+  coresComBordasReforcadas,
   coresComContraste,
+  espessurasDasBordas,
   fatorDoTexto,
   normalizarPreferencias,
   PREFERENCIAS_PADRAO,
@@ -28,6 +30,8 @@ interface ValorTema {
   /** Tema em uso agora (escuro ou claro), já resolvido: consultoria, escolha da pessoa ou aparelho. */
   modo: Tema;
   cores: Cores;
+  /** Espessura da borda do bloco e do item (2 px; 3 px no bloco com "Bordas reforçadas"). */
+  bordas: { bloco: number; item: number };
   marca: string;
   sobreMarca: string;
   /**
@@ -95,10 +99,11 @@ export function TemaProvider({ children }: { children: ReactNode }) {
             : doTreinador;
     const marca = sessao.marca?.corPrimaria ?? MARCA_NEUTRA;
     const base = modo === 'CLARO' ? (preferencias.tema === 'AREIA' ? AREIA : CLARO) : ESCURO;
-    const cores = coresComContraste(base, preferencias.contraste, modo !== 'CLARO');
+    const cores = coresComBordasReforcadas(coresComContraste(base, preferencias.contraste, modo !== 'CLARO'), preferencias.bordasReforcadas);
     return {
       modo,
       cores,
+      bordas: espessurasDasBordas(preferencias.bordasReforcadas),
       marca,
       sobreMarca: textoSobre(marca),
       // Contra a superfície de pior contraste: `superficie3` é a mais clara no escuro e a mais escura no claro.

@@ -48,7 +48,7 @@ export const LARGURA_TABELA = 520;
  * coluna `principal` é o título do cartão e a coluna `acao` fica no canto dele.
  */
 export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABELA, detalhe, rotulo, aoTocarLinha, rotuloDaLinha }: Props<T>) {
-  const { cores } = useTema();
+  const { cores, bordas } = useTema();
   const [largura, setLargura] = useState<number | null>(null);
   const empilhada = largura !== null && largura < larguraMinima;
   const estiloColuna = (c: ColunaDaTabela<T>) => [
@@ -64,7 +64,7 @@ export function Tabela<T>({ colunas, linhas, chave, larguraMinima = LARGURA_TABE
       role={empilhada ? undefined : 'table'}
       accessibilityLabel={rotulo}
       onLayout={(e) => setLargura(e.nativeEvent.layout.width)}
-      style={empilhada ? estilos.cartoes : [estilos.tabela, { borderColor: cores.borda }]}>
+      style={empilhada ? estilos.cartoes : [estilos.tabela, { borderWidth: bordas.bloco, borderColor: cores.borda }]}>
       {largura === null ? null : empilhada ? (
         linhas.map((l) => (
           <Toque key={chave(l)} linha={l} aoTocar={aoTocarLinha} rotulo={rotuloDaLinha}

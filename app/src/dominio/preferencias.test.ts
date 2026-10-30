@@ -1,8 +1,10 @@
 import { AREIA, contraste, CLARO, ESCURO } from '../tema/tokens';
 import {
   AGENDAS_OCULTAS_MAXIMO,
+  coresComBordasReforcadas,
   coresComContraste,
   escalar,
+  espessurasDasBordas,
   fatorDoTexto,
   normalizarPreferencias,
   PREFERENCIAS_PADRAO,
@@ -16,7 +18,7 @@ describe('preferências pessoais', () => {
   });
 
   it('aceita o objeto e o texto salvo, valor por valor', () => {
-    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'] };
+    const salvo = { tema: 'SISTEMA', contraste: 'ALTO', tamanhoTexto: 'EXTRA', movimento: 'REDUZIDO', vibracao: false, graficos: false, bordasReforcadas: true, barrasEscuras: false, diasSemRegistro: 14, mostrarFasesDoCiclo: true, pdfDieta: { modo: 'detalhado', periodo: 'mes', fatores: false }, logoNaComparacao: false, lembretesCompromisso: true, agendasOcultas: ['compromissos', 'a1'] };
     expect(normalizarPreferencias(salvo)).toEqual(salvo);
     expect(normalizarPreferencias(JSON.stringify(salvo))).toEqual(salvo);
     expect(normalizarPreferencias({ tema: 'CLARO' })).toEqual({ ...PREFERENCIAS_PADRAO, tema: 'CLARO' });
@@ -28,6 +30,21 @@ describe('preferências pessoais', () => {
     expect(normalizarPreferencias({ mostrarFasesDoCiclo: 'sim' }).mostrarFasesDoCiclo).toBe(true);
     expect(normalizarPreferencias({ mostrarFasesDoCiclo: false }).mostrarFasesDoCiclo).toBe(false);
     expect(normalizarPreferencias({ logoNaComparacao: false }).logoNaComparacao).toBe(false);
+  });
+
+  it('bordas reforçadas: desligadas por padrão; ligadas, borda mais escura e bloco de 3 px, sem mexer em texto nem status', () => {
+    expect(PREFERENCIAS_PADRAO.bordasReforcadas).toBe(false);
+    expect(normalizarPreferencias({ bordasReforcadas: 'sim' }).bordasReforcadas).toBe(false);
+    expect(normalizarPreferencias({ bordasReforcadas: true }).bordasReforcadas).toBe(true);
+    for (const base of [CLARO, ESCURO, AREIA]) {
+      expect(coresComBordasReforcadas(base, false)).toBe(base);
+      const r = coresComBordasReforcadas(base, true);
+      expect(r.borda).toBe(base.bordaCampo);
+      expect(contraste(r.borda, r.superficie)).toBeGreaterThan(contraste(base.borda, base.superficie));
+      expect({ ...r, borda: base.borda, divisor: base.divisor }).toEqual(base);
+    }
+    expect(espessurasDasBordas(false)).toEqual({ bloco: 2, item: 2 });
+    expect(espessurasDasBordas(true)).toEqual({ bloco: 3, item: 2 });
   });
 
   it('lembretes de compromisso: desligados por padrão; só um booleano os liga', () => {
