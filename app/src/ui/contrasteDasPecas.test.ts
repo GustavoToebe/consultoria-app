@@ -48,6 +48,10 @@ describe.each(VARIANTES)('peças comuns no tema %s', (_nome, cores) => {
     }
   });
 
+  it('IconeBotao moldura: borda `bordaCampo` ≥ 3:1 contra o cartão e contra a faixa onde fica (o ⋯ e o X da Folha)', () => {
+    for (const s of [cores.fundo, cores.superficie, cores.superficie3]) expect(contraste(cores.bordaCampo, s)).toBeGreaterThanOrEqual(3);
+  });
+
   it('Cabecalho: selo "Sem conexão" com ícone (neutro sobre `tingido`)', () => {
     expect(contraste(cores.neutro, tingido(cores.neutro, cores.superficie))).toBeGreaterThanOrEqual(4.5);
   });

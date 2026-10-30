@@ -78,7 +78,7 @@ export function EscalaDeNota({ rotulo, valor, aoMudar, minimo = 0, maximo = 10 }
   return (
     <View style={estilos.campo}>
       <View style={estilos.cabecalho}>
-        <Texto variante="rotulo" style={estilos.rotulo}>{rotulo}</Texto>
+        <Texto variante="rotulo" cor={cores.texto} style={estilos.rotulo}>{rotulo}</Texto>
         {/* Sem nota, o "—" e o trilho sem marcador pareciam controle desligado: diz o que fazer. */}
         {valor === null ? <Texto variante="pequeno">Toque para dar a nota</Texto> : <Texto variante="destaque">{String(valor)}</Texto>}
       </View>

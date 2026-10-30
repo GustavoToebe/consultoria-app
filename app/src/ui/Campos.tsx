@@ -189,7 +189,7 @@ export function CampoNumericoGrande({
   const destaqueBorda = foco || lido === undefined ? 1 : 0;
   return (
     <View style={estilos.grande}>
-      {rotuloOculto ? null : <Texto variante="rotulo">{rotulo}</Texto>}
+      {rotuloOculto ? null : <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto>}
       <View style={[estilos.caixa, destaque && estilos.caixaDestaque, { backgroundColor: cores.campo, borderColor: corBorda, borderWidth: 1 + destaqueBorda, paddingHorizontal: espaco(1.5) - destaqueBorda }]}>
         <TextInput
           accessibilityLabel={rotuloAcessivel ?? rotulo}

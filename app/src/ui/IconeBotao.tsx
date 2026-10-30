@@ -32,7 +32,7 @@ export function IconeBotao({ Icone, rotulo, aoTocar, cor, desabilitado, compacto
       disabled={desabilitado}
       onPress={aoTocar}
       hitSlop={compacto ? 6 : moldura ? 2 : 0}
-      style={(estado) => [estilos.botao, compacto && estilos.compacto, moldura && [estilos.moldura, { borderColor: cores.borda }],
+      style={(estado) => [estilos.botao, compacto && estilos.compacto, moldura && [estilos.moldura, { borderColor: cores.bordaCampo }],
         { opacity: desabilitado ? 0.4 : 1, backgroundColor: sobre(estado) && !desabilitado ? cores.superficie3 : moldura ? cores.superficie : 'transparent' }]}>
       <Icone size={compacto ? 16 : 20} color={cor ?? cores.texto} strokeWidth={2} />
     </Pressable>

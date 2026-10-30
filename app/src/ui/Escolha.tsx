@@ -35,7 +35,7 @@ export function Escolha<T extends string | number | null>({ opcoes, valor, aoMud
   const motivos = opcoes.filter((o) => o.desabilitada && o.motivo).map((o) => o.motivo as string);
   return (
     <View style={estilos.campo}>
-      {rotulo ? <Texto variante="rotulo">{rotulo}</Texto> : null}
+      {rotulo ? <Texto variante="rotulo" cor={cores.texto}>{rotulo}</Texto> : null}
       <ToggleGroup type="single" value={String(opcoes.findIndex((o) => o.valor === valor))} onValueChange={(v) => { if (v === undefined || v === '') { if (limpavel) aoMudar(null as T); return; } const opcao = opcoes[Number(v)]; if (opcao) aoMudar(opcao.valor); }} style={[estilos.linha, compacta && estilos.linhaCompacta]} accessibilityLabel={rotulo ?? descricao}>
         {opcoes.map((o, indice) => {
           const ativo = o.valor === valor;
