@@ -49,10 +49,13 @@ export type FiltrosDoQuadro = Omit<FiltroDaFila, 'situacao' | 'pagina' | 'tamanh
  * Kanban das inscrições: uma coluna por etapa aberta (e as encerradas, se pedidas), cada uma paginada no servidor.
  * Mover entre etapas abertas vai direto à API (com a versão do cartão); aceitar, encerrar e reabrir abrem a confirmação
  * na folha da inscrição. Arrastar (toque longo) e "Mover para" (botão, teclado) fazem o mesmo. O cartão só muda de
- * coluna quando as colunas recarregam depois da resposta: nunca fica num lugar falso.
+ * coluna quando as colunas recarregam depois da resposta: nunca fica num lugar falso. `etapas` (o filtro do endereço,
+ * `?etapas=`) limita o quadro a essas colunas, sem "Mostrar encerradas"; quem sai delas some do quadro.
  */
-export function QuadroKanban({ filtros, contagens, rodada, aoAbrir, aoMudou }: {
+export function QuadroKanban({ filtros, contagens, rodada, etapas, aoAbrir, aoMudou }: {
   filtros: FiltrosDoQuadro;
+  /** Só estas colunas, na ordem dada; ausente = as etapas abertas (e as encerradas, se pedidas). */
+  etapas?: readonly SituacaoInscricao[];
   contagens: ContagensInscricoes | undefined;
   /** Muda depois de qualquer alteração na tela: as colunas recarregam. */
   rodada: number;
@@ -68,8 +71,9 @@ export function QuadroKanban({ filtros, contagens, rodada, aoAbrir, aoMudou }: {
   const colunas = useRef(new Map<SituacaoInscricao, { x: number; y: number; w: number; h: number }>());
   const nos = useRef(new Map<SituacaoInscricao, View | null>());
   const ladoALado = largura >= LARGURA_LADO_A_LADO;
-  const situacoes: SituacaoInscricao[] = [...ETAPAS_ABERTAS, ...(encerradas ? SITUACOES_ENCERRADAS : [])];
-  const visiveis = ladoALado ? situacoes : situacoes.filter((s) => s === (situacoes.includes(ativa) ? ativa : 'NOVA'));
+  const situacoes: SituacaoInscricao[] = etapas?.length ? [...etapas] : [...ETAPAS_ABERTAS, ...(encerradas ? SITUACOES_ENCERRADAS : [])];
+  const colunaAtiva = situacoes.includes(ativa) ? ativa : situacoes[0];
+  const visiveis = ladoALado ? situacoes : situacoes.filter((s) => s === colunaAtiva);
   const rotulo = (s: SituacaoInscricao) => FILTROS_INSCRICOES.find((f) => f.valor === s)?.rotulo ?? seloDaSituacao(s).texto;
   const contagem = (s: SituacaoInscricao) => contagens?.porSituacao[s];
 
@@ -110,11 +114,11 @@ export function QuadroKanban({ filtros, contagens, rodada, aoAbrir, aoMudou }: {
       <View style={estilos.topo}>
         {!ladoALado ? (
           <View style={estilos.caber}>
-            <Escolha rotulo="Coluna" valor={situacoes.includes(ativa) ? ativa : 'NOVA'} aoMudar={setAtiva}
+            <Escolha rotulo="Coluna" valor={colunaAtiva} aoMudar={setAtiva}
               opcoes={situacoes.map((s) => ({ valor: s, rotulo: contagem(s) === undefined ? rotulo(s) : `${rotulo(s)} · ${contagem(s)}` }))} />
           </View>
         ) : null}
-        <CaixaSelecao rotulo="Mostrar encerradas" marcado={encerradas} aoMudar={setEncerradas} />
+        {etapas?.length ? null : <CaixaSelecao rotulo="Mostrar encerradas" marcado={encerradas} aoMudar={setEncerradas} />}
       </View>
       <Texto variante="pequeno">
         {Platform.OS === 'web' ? 'Segure o cartão para arrastar, ou use "Mover para".' : 'Toque e segure o cartão para arrastar, ou use "Mover para".'}

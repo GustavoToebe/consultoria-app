@@ -41,11 +41,13 @@ const ABA_RECEBIMENTO: { valor: Aba; rotulo: string } = { valor: 'recebimento', 
 export default function FinanceiroDoTreinador() {
   const { pode, recebimentoOnlineHabilitado } = useSessao();
   const abas = useMemo(() => (recebimentoOnlineHabilitado ? [...ABAS, ABA_RECEBIMENTO] : ABAS), [recebimentoOnlineHabilitado]);
-  // A aba mora no endereço (`?aba=`): tocar numa aba é um passo do histórico, então o voltar a desfaz.
-  const { aba: abaPedida } = useLocalSearchParams<{ aba?: string }>();
+  // A aba mora no endereço (`?aba=`): tocar numa aba é um passo do histórico, então o voltar a desfaz. Os mini-cartões
+  // do Início trazem também o ponto de partida das Cobranças (`?situacao=VENCIDA`, ou `ABERTA&vencimento=PROXIMOS_7_DIAS`)
+  // e o `?meus=true` do filtro de lá.
+  const { aba: abaPedida, situacao, vencimento, meus } = useLocalSearchParams<{ aba?: string; situacao?: string; vencimento?: string; meus?: string }>();
   const aba: Aba = abas.find((a) => a.valor === abaPedida)?.valor ?? 'visao';
   const setAba = (valor: Aba) => { if (valor !== aba) router.push({ pathname: '/treinador/financeiro', params: { aba: valor } }); };
-  const [escopo, setEscopo] = useState<Responsabilidade>('todos');
+  const [escopo, setEscopo] = useState<Responsabilidade>(meus === 'true' ? 'meus' : 'todos');
   const [exportando, setExportando] = useState(false);
   const podeAlterar = pode('FINANCEIRO_ALTERAR');
 
@@ -60,7 +62,8 @@ export default function FinanceiroDoTreinador() {
       <Abas abas={abas} ativa={aba} aoMudar={setAba} />
       <View style={{ gap: espaco(2) }}>
         {aba === 'visao' ? <VisaoGeral escopo={escopo} aoMudarEscopo={setEscopo} podeAlterar={podeAlterar} /> : null}
-        {aba === 'cobrancas' ? <AbaCobrancas escopo={escopo} aoMudarEscopo={setEscopo} podeAlterar={podeAlterar} /> : null}
+        {aba === 'cobrancas' ? <AbaCobrancas escopo={escopo} aoMudarEscopo={setEscopo} podeAlterar={podeAlterar}
+          situacaoInicial={situacao} vencimento={vencimento} /> : null}
         {aba === 'planos' ? <AbaPlanos podeAlterar={podeAlterar} /> : null}
         {aba === 'lancamentos' ? <AbaLancamentos podeAlterar={podeAlterar} /> : null}
         {aba === 'lembretes' ? <AbaLembretes podeAlterar={podeAlterar} /> : null}

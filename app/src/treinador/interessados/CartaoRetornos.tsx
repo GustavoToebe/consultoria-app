@@ -10,13 +10,25 @@ import { LinhaDaLista, ListaDeLinhas } from '../../ui/LinhaDaLista';
 const MAXIMO = 8;
 
 /**
- * Retornos pendentes das inscrições em atendimento, do mais antigo ao mais novo: atrasado em vermelho, hoje em âmbar.
- * Tocar abre a inscrição. Some quando não há nenhum.
+ * Só os retornos atrasados ou de hoje (os que levam selo), como os conta o Início: `?retornos=ATE_HOJE` na tela Interessados.
  */
-export function CartaoRetornos({ retornos, aoAbrir }: { retornos: readonly RetornoPendente[] | undefined; aoAbrir: (inscricaoId: string) => void }) {
+export function retornosAteHoje(retornos: readonly RetornoPendente[], hoje: string): RetornoPendente[] {
+  return retornos.filter((r) => seloDoRetorno(r.data, hoje) !== null);
+}
+
+/**
+ * Retornos pendentes das inscrições em atendimento, do mais antigo ao mais novo: atrasado em vermelho, hoje em âmbar.
+ * Tocar abre a inscrição. Some quando não há nenhum. `todos` tira o limite de {@link MAXIMO} (a lista filtrada pelo
+ * endereço é a própria fila do dia, então mostra todos os que vieram).
+ */
+export function CartaoRetornos({ retornos, todos = false, aoAbrir }: {
+  retornos: readonly RetornoPendente[] | undefined;
+  todos?: boolean;
+  aoAbrir: (inscricaoId: string) => void;
+}) {
   if (!retornos || retornos.length === 0) return null;
   const hoje = hojeEmBrasilia();
-  const visiveis = retornos.slice(0, MAXIMO);
+  const visiveis = todos ? retornos : retornos.slice(0, MAXIMO);
   const atrasados = retornos.filter((r) => r.data < hoje).length;
   return (
     <Cartao titulo="Retornos" descricao={`${retornos.length} ${retornos.length === 1 ? 'pendente' : 'pendentes'}${atrasados ? `, ${atrasados} ${atrasados === 1 ? 'atrasado' : 'atrasados'}` : ''}.`}>
