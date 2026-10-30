@@ -374,7 +374,6 @@ class AlunoCadastroIntegrationTest extends AbstractIntegrationTest {
         assertThat(api.get("/alunos/" + id, treinador, 200).path("telefone").asString()).isEqualTo("(45) 99999-6666");
 
         // Com acesso: grava no usuário do aluno, normalizado.
-        api.convidarEEntrar(treinador, UUID.fromString(id));
         Map<String, Object> digitado = corpo("Aluno Fictício", null, null);
         digitado.put("telefone", "+55 45 99999-8888");
         assertThat(alterar(treinador, id, digitado, 200).path("telefone").asString()).isEqualTo("(45) 99999-8888");
