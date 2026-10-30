@@ -8,10 +8,10 @@ import type { SituacaoAtualizacao } from '../../api/tipos';
 import { ChevronRight, Plus } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { listarInscricoes, painelTreinador } from '../../api/rotas';
+import { contagensInscricoes, painelTreinador } from '../../api/rotas';
 import { caminhoListaAtualizacoes } from '../../dominio/atualizacao';
 import { dataRelativa } from '../../dominio/datasRelativas';
-import { proximoPassoDoInicio, tomDoContador, umPorAluno } from '../../dominio/inicioTreinador';
+import { contadorDeRetornos, proximoPassoDoInicio, tomDoContador, umPorAluno } from '../../dominio/inicioTreinador';
 import { OPCOES_DIAS_SEM_REGISTRO } from '../../dominio/preferencias';
 import { podeAcessarTela } from '../../dominio/permissoes';
 import { useSessao } from '../../sessao/SessaoProvider';
@@ -46,11 +46,15 @@ export default function InicioTreinador() {
   const { preferencias, escolherPreferencia } = useTema();
   const dias = preferencias.diasSemRegistro;
   const { dados, erro, carregando, recarregar } = useCarregar(`painel:${escopo}:${dias}`, () => painelTreinador(escopo === 'meus', dias));
-  // Interessados novos (quem espera o primeiro contato), com o mesmo "Todos / Meus".
+  // Interessados novos (quem espera o primeiro contato) e retornos combinados (atrasados e de hoje), com o mesmo
+  // "Todos / Meus", numa consulta só (as contagens da tela Interessados). Falha = nada acende (nunca um zero inventado).
   const verInteressados = pode('INSCRICAO_LER');
-  const novos = useCarregar(verInteressados ? `inicio-interessados:${escopo}` : null, () =>
-    listarInscricoes({ situacao: 'NOVA', meus: escopo === 'meus', pagina: 0 }).then((p) => p.total, () => null));
-  const recarregarNovos = novos.recarregar;
+  const fila = useCarregar(verInteressados ? `inicio-interessados:${escopo}` : null, () =>
+    contagensInscricoes({ meus: escopo === 'meus' }).then((c) => c, () => null));
+  const novos = fila.dados ? fila.dados.porSituacao.NOVA ?? 0 : null;
+  const retornos = fila.dados ? contadorDeRetornos(fila.dados.retornosAtrasados, fila.dados.retornosHoje) : null;
+  const caminhoRetornos = (escopo === 'meus' ? '/treinador/interessados?meus=true' : '/treinador/interessados') as Href;
+  const recarregarNovos = fila.recarregar;
   useFocusEffect(useCallback(() => { recarregar(); recarregarNovos(); }, [recarregar, recarregarNovos]));
   const [todosRegistros, setTodosRegistros] = useState(false);
   const abrirAluno = (id: string) => router.push(`/treinador/alunos/${id}`);
@@ -59,7 +63,9 @@ export default function InicioTreinador() {
   const passo = dados ? proximoPassoDoInicio({
     paraRevisar: verAtualizacoes ? dados.atualizacoesParaRevisar : null,
     atrasadas: verAtualizacoes ? dados.atualizacoesAtrasadas : null,
-    interessadosNovos: verInteressados ? novos.dados ?? null : null,
+    interessadosNovos: verInteressados ? novos : null,
+    retornosAtrasados: verInteressados ? fila.dados?.retornosAtrasados ?? null : null,
+    retornosHoje: verInteressados ? fila.dados?.retornosHoje ?? null : null,
     planosTerminando: pode('TREINO_LER') ? dados.planosTerminando.length : null,
     semRegistro: pode('REGISTRO_LER') ? dados.alunosSemRegistro.length : null,
     diasSemRegistro: dias,
@@ -68,6 +74,7 @@ export default function InicioTreinador() {
     if (!dados) return;
     if (destino === 'PARA_REVISAR' || destino === 'ATRASADAS') router.push(caminhoListaAtualizacoes(destino, escopo === 'meus'));
     else if (destino === 'INTERESSADOS') router.push('/treinador/interessados?situacao=NOVA' as Href);
+    else if (destino === 'RETORNOS') router.push(caminhoRetornos);
     else if (destino === 'PLANOS_TERMINANDO' && dados.planosTerminando[0]) abrirAluno(dados.planosTerminando[0].aluno.id);
     else if (destino === 'SEM_REGISTRO' && dados.alunosSemRegistro[0]) abrirAluno(dados.alunosSemRegistro[0].id);
   };
@@ -115,9 +122,13 @@ export default function InicioTreinador() {
                     href={caminhoListaAtualizacoes(situacao, escopo === 'meus')}
                     aoTocar={() => router.push(caminhoListaAtualizacoes(situacao, escopo === 'meus'))} />
                 )) : null}
-                {verInteressados ? <Contador titulo="Interessados novos" numero={novos.dados ?? 0} tom={tomDoContador(novos.dados ?? 0)}
+                {verInteressados ? <Contador titulo="Interessados novos" numero={novos ?? 0} tom={tomDoContador(novos ?? 0)}
                   href={'/treinador/interessados?situacao=NOVA' as Href}
                   aoTocar={() => router.push('/treinador/interessados?situacao=NOVA' as Href)} /> : null}
+                {/* Retornos combinados com interessados: vermelho com algum vencido, âmbar só com os de hoje. */}
+                {verInteressados ? <Contador titulo="Retornos a interessados" numero={retornos?.numero ?? 0} tom={retornos?.tom ?? 'suave'}
+                  detalhe={retornos?.detalhe ?? null} destino="Ver retornos" href={caminhoRetornos}
+                  aoTocar={() => router.push(caminhoRetornos)} /> : null}
                 {/* Próximas é agenda, não pendência: nunca acende. Abre a Agenda, que mostra as mesmas dia a dia. */}
                 {verAtualizacoes ? <Contador titulo="Atualizações em 7 dias" numero={dados.atualizacoesProximas ?? 0} tom="suave" destino="Ver na agenda"
                   href={escopo === 'meus' ? '/treinador/agenda?meus=true' as Href : '/treinador/agenda'}
@@ -180,19 +191,22 @@ function ProximoPasso({ texto, rotulo, aoTocar }: { texto: string; rotulo: strin
 }
 
 /** Número do painel que leva à lista: o cartão inteiro é o toque. Acende só com algo (cor de status, nunca a marca). */
-function Contador({ titulo, numero, href, aoTocar, tom, destino = 'Ver lista' }: { titulo: string; numero: number; href?: Href; aoTocar: () => void; tom: 'perigo' | 'atencao' | 'suave'; destino?: string }) {
+function Contador({ titulo, numero, href, aoTocar, tom, destino = 'Ver lista', detalhe = null }: {
+  titulo: string; numero: number; href?: Href; aoTocar: () => void; tom: 'perigo' | 'atencao' | 'suave'; destino?: string; detalhe?: string | null;
+}) {
   const { cores } = useTema();
   const acesa = tom !== 'suave';
   const cor = tom === 'perigo' ? cores.perigo : tom === 'atencao' ? cores.atencao : cores.borda;
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`${titulo}: ${numero}. ${destino}.`}
+      accessibilityLabel={`${titulo}: ${numero}${detalhe ? ` (${detalhe})` : ''}. ${destino}.`}
       {...(href ? propsDeLink(href, aoTocar) : { onPress: aoTocar })}
       style={(estado) => [estilos.contador, { borderColor: acesa ? cor : cores.borda, borderLeftWidth: acesa ? 4 : 1, backgroundColor: sobre(estado) ? cores.superficie3 : cores.superficie }]}>
       <View style={estilos.contadorTextos}>
         <Texto variante={acesa ? 'corpo' : 'suave'}>{titulo}</Texto>
         <NumeroAnimado valor={numero} variante="destaque" style={acesa ? { color: cor } : { color: cores.textoSuave }} />
+        {detalhe ? <Texto variante="pequeno" numerico>{detalhe}</Texto> : null}
       </View>
       <ChevronRight size={20} color={cores.textoSuave} />
     </Pressable>

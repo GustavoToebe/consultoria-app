@@ -3,13 +3,16 @@
  * Só leitura do painel; nada é feito sozinho.
  */
 
-export type DestinoDoInicio = 'PARA_REVISAR' | 'ATRASADAS' | 'INTERESSADOS' | 'PLANOS_TERMINANDO' | 'SEM_REGISTRO';
+export type DestinoDoInicio = 'PARA_REVISAR' | 'ATRASADAS' | 'RETORNOS' | 'INTERESSADOS' | 'PLANOS_TERMINANDO' | 'SEM_REGISTRO';
 
 export interface PendenciasDoInicio {
   /** Nulo = sem permissão para ver (o item não entra na conta). */
   paraRevisar: number | null;
   atrasadas: number | null;
   interessadosNovos: number | null;
+  /** Retornos combinados com interessados (`GET /inscricoes/contagens`): vencidos e marcados para hoje. */
+  retornosAtrasados?: number | null;
+  retornosHoje?: number | null;
   planosTerminando: number | null;
   semRegistro: number | null;
   diasSemRegistro: number;
@@ -19,12 +22,15 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 
 /**
  * A primeira pendência, na ordem do trabalho do dia: atualização para revisar (o aluno espera o feedback), atrasadas,
- * interessados novos (quem espera contato), planos que terminam e alunos sem registro. Nada pendente = nulo.
+ * retorno a interessado já vencido (combinado e não cumprido), interessados novos (quem espera contato), retornos
+ * marcados para hoje, planos que terminam e alunos sem registro. Nada pendente = nulo.
  */
 export function proximoPassoDoInicio(p: PendenciasDoInicio): { texto: string; acao: string; destino: DestinoDoInicio } | null {
   if (p.paraRevisar) return { texto: `${plural(p.paraRevisar, 'atualização chegou', 'atualizações chegaram')} para revisar.`, acao: 'Revisar agora', destino: 'PARA_REVISAR' };
   if (p.atrasadas) return { texto: `${plural(p.atrasadas, 'atualização está atrasada', 'atualizações estão atrasadas')}.`, acao: 'Ver atrasadas', destino: 'ATRASADAS' };
+  if (p.retornosAtrasados) return { texto: `${plural(p.retornosAtrasados, 'retorno a interessado está atrasado', 'retornos a interessados estão atrasados')}.`, acao: 'Ver retornos', destino: 'RETORNOS' };
   if (p.interessadosNovos) return { texto: `${plural(p.interessadosNovos, 'interessado novo espera', 'interessados novos esperam')} contato.`, acao: 'Ver interessados', destino: 'INTERESSADOS' };
+  if (p.retornosHoje) return { texto: `${plural(p.retornosHoje, 'retorno a interessado está marcado', 'retornos a interessados estão marcados')} para hoje.`, acao: 'Ver retornos', destino: 'RETORNOS' };
   if (p.planosTerminando) return { texto: `${plural(p.planosTerminando, 'plano termina', 'planos terminam')} nos próximos 7 dias.`, acao: 'Ver planos', destino: 'PLANOS_TERMINANDO' };
   if (p.semRegistro) return { texto: `${plural(p.semRegistro, 'aluno está', 'alunos estão')} sem registro há ${p.diasSemRegistro} dias.`, acao: 'Ver alunos', destino: 'SEM_REGISTRO' };
   return null;
@@ -47,4 +53,14 @@ export function umPorAluno<T extends { aluno: { id: string }; data: string }>(it
 export function tomDoContador(numero: number, perigo = false): 'perigo' | 'atencao' | 'suave' {
   if (numero <= 0) return 'suave';
   return perigo ? 'perigo' : 'atencao';
+}
+
+/**
+ * Contador "Retornos" do Início (retornos combinados com interessados): soma os atrasados e os de hoje. Acende em vermelho
+ * com algum atrasado, em âmbar só com os de hoje, apagado sem nenhum; o detalhe diz quantos são de cada.
+ */
+export function contadorDeRetornos(atrasados: number, hoje: number): { numero: number; tom: 'perigo' | 'atencao' | 'suave'; detalhe: string | null } {
+  const numero = Math.max(0, atrasados) + Math.max(0, hoje);
+  const partes = [atrasados > 0 ? plural(atrasados, 'atrasado', 'atrasados') : null, hoje > 0 ? `${hoje} para hoje` : null].filter(Boolean);
+  return { numero, tom: atrasados > 0 ? 'perigo' : hoje > 0 ? 'atencao' : 'suave', detalhe: partes.length ? partes.join(' · ') : null };
 }

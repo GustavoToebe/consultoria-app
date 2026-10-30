@@ -548,6 +548,24 @@ class InscricoesIntegrationTest extends AbstractIntegrationTest {
         assertThat(auditorias(consultoria, "ANAMNESE_ATRIBUIDA")).isZero();
     }
 
+    @Test
+    void aceiteRepetidoComQuestionarioJaArquivadoDizQueJaFoiAceita() throws Exception {
+        UUID consultoria = consultoriaDe(admin);
+        String questionario = anamnesePublicada(admin, "Anamnese fictícia " + UUID.randomUUID());
+        String[] insc = inscricaoNova(admin);
+        JsonNode aceite = api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], questionario), 200);
+        long alunosDepois = alunos(consultoria);
+
+        // O questionário foi arquivado depois do aceite; repetir o aceite (outra aba, botão duplo) diz que já foi aceita,
+        // com o aluno, em vez de "questionário indisponível".
+        api.post("/questionarios/" + questionario + "/arquivar", admin, null, 200);
+        JsonNode repetido = api.post("/inscricoes/" + insc[0] + "/aceitar", admin, aceiteCom(insc[1], questionario), 409);
+        assertThat(repetido.path("codigo").asString()).isEqualTo("INSCRICAO_JA_ACEITA");
+        assertThat(repetido.path("fieldErrors").get(0).path("message").asString()).isEqualTo(aceite.path("alunoId").asString());
+        assertThat(alunos(consultoria)).isEqualTo(alunosDepois);
+        assertThat(auditorias(consultoria, "ANAMNESE_ATRIBUIDA")).isEqualTo(1);
+    }
+
     // ---- retenção e privacidade ----
 
     @Test

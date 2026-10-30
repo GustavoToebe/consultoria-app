@@ -104,9 +104,24 @@ public class AnamneseService {
         try {
             nova = anamneses.saveAndFlush(new Anamnese(alunoId, versao.versaoId(), usuarioId, Instant.now()));
         } catch (DataIntegrityViolationException corrida) {
-            throw pendente();
+            // Só a corrida com outra atribuição (o índice parcial da pendente) vira 409; qualquer outra violação é defeito e
+            // sobe como erro, em vez de se passar por "já há uma pendente".
+            if (violouPendente(corrida)) throw pendente();
+            throw corrida;
         }
         return detalhe(nova, aluno);
+    }
+
+    /** Índice único da anamnese pendente por aluno (V013). Só olha o nome da restrição, nunca a mensagem do banco. */
+    static final String INDICE_DA_PENDENTE = "ux_anamnese_pendente";
+
+    static boolean violouPendente(DataIntegrityViolationException e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof org.hibernate.exception.ConstraintViolationException c && INDICE_DA_PENDENTE.equals(c.getConstraintName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Transactional(readOnly = true)
