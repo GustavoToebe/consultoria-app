@@ -105,7 +105,7 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
 
         var semCabecalho = multipart("/importacoes/alunos/colunas")
                 .file(new MockMultipartFile("arquivo", "alunos.csv", "text/csv", bytes))
-                .param("cabecalho", "false")
+                .param("linhaDoCabecalho", "0")
                 .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador))
                 .header("X-Treinos-Cliente", "nativo");
         JsonNode sem = json.readTree(mvc.perform(semCabecalho).andExpect(status().isOk()).andReturn()
@@ -116,6 +116,80 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
         assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();
+    }
+
+    @Test
+    void linhaDoCabecalhoPulaOsTitulosDeCimaEOHashCobreAEscolha() throws Exception {
+        String a = unico("cab-a");
+        String b = unico("cab-b");
+        // Planilha com título e uma linha em branco em cima: o cabeçalho é a linha 4 (a 2 em branco não é lida).
+        String csv = "Relatório fictício de alunos\n\n\nnome;email\nAna Fictícia;" + a + "\nBia Fictícia;" + b + "\n";
+        byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
+        Map<String, Integer> mapa = Map.of("nome", 0, "email", 1);
+
+        var colunasDaLinha4 = multipart("/importacoes/alunos/colunas")
+                .file(new MockMultipartFile("arquivo", "alunos.csv", "text/csv", bytes))
+                .param("linhaDoCabecalho", "4")
+                .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador))
+                .header("X-Treinos-Cliente", "nativo");
+        JsonNode colunas = json.readTree(mvc.perform(colunasDaLinha4).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString(StandardCharsets.UTF_8));
+        assertThat(colunas.path("colunas").get(0).asString()).isEqualTo("nome");
+        assertThat(colunas.path("colunas").get(1).asString()).isEqualTo("email");
+        assertThat(colunas.path("linhas").asInt()).isEqualTo(2);
+        assertThat(colunas.path("numerosDasLinhas").get(0).asInt()).isEqualTo(5);
+
+        JsonNode previa = enviar("alunos/previa", "alunos.csv", bytes, configComLinha(4, mapa), 200);
+        assertThat(previa.path("linhas").asInt()).isEqualTo(2);
+        assertThat(previa.path("comErro").asInt()).isZero();
+        assertThat(previa.path("novos").asInt()).isEqualTo(2);
+
+        // A escolha da linha entra no hash: a confirmação com outra linha recusa.
+        JsonNode recusa = enviar("alunos", "alunos.csv", bytes, configComLinha(1, mapa), previa.path("hash").asString(), 409);
+        assertThat(recusa.path("codigo").asString()).isEqualTo("PREVIA_DESATUALIZADA");
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
+
+        // Ajuste numa linha de cima do cabeçalho recusa; na de dados vale, com o número da linha no arquivo.
+        enviar("alunos/previa", "alunos.csv", bytes, configComLinha(4, mapa, List.of(Map.of("linha", 1, "coluna", 0, "valor", "x"))), 422);
+        enviar("alunos/previa", "alunos.csv", bytes, configComLinha(4, mapa, List.of(Map.of("linha", 4, "coluna", 0, "valor", "x"))), 422);
+        enviar("alunos/previa", "alunos.csv", bytes, configComLinha(4, mapa, List.of(Map.of("linha", 5, "coluna", 0, "valor", "Ana Ajustada"))), 200);
+
+        JsonNode feito = confirmar("alunos", "alunos.csv", bytes, configComLinha(4, mapa), previa.path("hash").asString());
+        assertThat(feito.path("novos").asInt()).isEqualTo(2);
+        assertThat(feito.path("configuracao").path("linhaDoCabecalho").asInt()).isEqualTo(4);
+        assertThat(feito.path("configuracao").has("cabecalho")).isFalse();
+        assertThat(api.get("/alunos?busca=Relat", treinador, 200).path("total").asInt()).isZero();
+        assertThat(api.get("/alunos?busca=Bia", treinador, 200).path("total").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void linhaDoCabecalhoInvalidaOuFaltandoEhRecusadaComArquivoInvalido() throws Exception {
+        byte[] bytes = ("nome;email\nAna Fictícia;" + unico("cab-inv") + "\n").getBytes(StandardCharsets.UTF_8);
+        Map<String, Integer> mapa = Map.of("nome", 0, "email", 1);
+        List<String> recusadas = List.of(
+                configComLinha(3, mapa),                                  // a linha 3 não existe no arquivo
+                configComLinha(51, mapa),                                 // acima do teto
+                configComLinha(-1, mapa),
+                json.writeValueAsString(Map.of("aba", 0, "chave", "email", "existentes", "IGNORAR", "mapeamento", mapa)),
+                // Formato antigo: só `cabecalho` não vale.
+                json.writeValueAsString(Map.of("aba", 0, "cabecalho", true, "chave", "email", "existentes", "IGNORAR", "mapeamento", mapa)),
+                json.writeValueAsString(Map.of("aba", 0, "linhaDoCabecalho", "1", "chave", "email", "existentes", "IGNORAR", "mapeamento", mapa)),
+                json.writeValueAsString(Map.of("aba", 0, "linhaDoCabecalho", 1.5, "chave", "email", "existentes", "IGNORAR", "mapeamento", mapa)));
+        for (String config : recusadas) {
+            JsonNode erro = enviar("alunos/previa", "alunos.csv", bytes, config, 422);
+            assertThat(erro.path("codigo").asString()).as(config).isEqualTo("ARQUIVO_INVALIDO");
+        }
+        // Linha 2 é a de dados, sem nada depois dela: sobra zero linha para importar.
+        assertThat(enviar("alunos/previa", "alunos.csv", bytes, configComLinha(2, mapa), 422).path("codigo").asString())
+                .isEqualTo("ARQUIVO_INVALIDO");
+        for (String linha : List.of("51", "-1", "3")) {
+            var colunas = multipart("/importacoes/alunos/colunas")
+                    .file(new MockMultipartFile("arquivo", "alunos.csv", "text/csv", bytes))
+                    .param("linhaDoCabecalho", linha)
+                    .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador))
+                    .header("X-Treinos-Cliente", "nativo");
+            mvc.perform(colunas).andExpect(status().isUnprocessableEntity());
+        }
     }
 
     @Test
@@ -923,14 +997,32 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
     }
 
     private String config(String chave, String existentes, Map<String, Integer> mapeamento) throws Exception {
-        return json.writeValueAsString(Map.of("aba", 0, "cabecalho", true, "chave", chave, "existentes", existentes, "mapeamento", mapeamento));
+        return json.writeValueAsString(Map.of("aba", 0, "linhaDoCabecalho", 1, "chave", chave, "existentes", existentes, "mapeamento", mapeamento));
+    }
+
+    private String configComLinha(int linhaDoCabecalho, Map<String, Integer> mapeamento) throws Exception {
+        return configComLinha(linhaDoCabecalho, mapeamento, List.of());
+    }
+
+    private String configComLinha(int linhaDoCabecalho, Map<String, Integer> mapeamento, List<Map<String, Object>> celulas)
+            throws Exception {
+        Map<String, Object> config = new java.util.LinkedHashMap<>();
+        config.put("aba", 0);
+        config.put("linhaDoCabecalho", linhaDoCabecalho);
+        config.put("chave", "email");
+        config.put("existentes", "IGNORAR");
+        config.put("mapeamento", mapeamento);
+        if (!celulas.isEmpty()) {
+            config.put("ajustes", Map.of("celulas", celulas, "removidas", List.of()));
+        }
+        return json.writeValueAsString(config);
     }
 
     private String configComAjustes(Map<String, Integer> mapeamento, List<Map<String, Object>> celulas, List<Integer> removidas)
             throws Exception {
         Map<String, Object> config = new java.util.LinkedHashMap<>();
         config.put("aba", 0);
-        config.put("cabecalho", true);
+        config.put("linhaDoCabecalho", 1);
         config.put("chave", "email");
         config.put("existentes", "IGNORAR");
         config.put("mapeamento", mapeamento);

@@ -102,8 +102,8 @@ class GravadorDaImportacao {
 
     Resultado processar(String destino, LeitorDePlanilha.Planilha planilha, ConfiguracaoDaImportacao config,
                         UUID usuarioId, boolean gravar) {
-        List<Linha> dados = config.cabecalho() && !planilha.linhas().isEmpty()
-                ? planilha.linhas().subList(1, planilha.linhas().size()) : List.copyOf(planilha.linhas());
+        List<Linha> dados = List.copyOf(planilha.linhas().subList(
+                ConfiguracaoDaImportacao.primeiraDeDados(planilha, config.linhaDoCabecalho()), planilha.linhas().size()));
         Conta conta = new Conta();
         Ctx ctx = new Ctx();
         ctx.regra = config.existentes();

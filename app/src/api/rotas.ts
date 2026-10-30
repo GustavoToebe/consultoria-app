@@ -784,8 +784,8 @@ export const listarImportacoes = (filtro: { destino?: string; situacao?: string;
 };
 export const detalheDaImportacao = (id: string) => requisicao<DetalheDeImportacao>(`/importacoes/${seg(id)}`);
 export const csvDeErrosDaImportacao = (id: string) => requisicao<string>(`/importacoes/${seg(id)}/erros.csv`, { aceita: 'text/csv' });
-export const colunasDaImportacao = (destino: string, arquivo: FormData, aba: number, cabecalho: boolean) =>
-  requisicao<ColunasDaImportacao>(`/importacoes/${seg(destino)}/colunas?aba=${aba}&cabecalho=${cabecalho}`, { metodo: 'POST', corpoBruto: arquivo });
+export const colunasDaImportacao = (destino: string, arquivo: FormData, aba: number, linhaDoCabecalho: number) =>
+  requisicao<ColunasDaImportacao>(`/importacoes/${seg(destino)}/colunas?aba=${aba}&linhaDoCabecalho=${linhaDoCabecalho}`, { metodo: 'POST', corpoBruto: arquivo });
 export const previaDaImportacao = (destino: string, arquivo: FormData) =>
   requisicao<PreviaDeImportacao>(`/importacoes/${seg(destino)}/previa`, { metodo: 'POST', corpoBruto: arquivo });
 export const confirmarImportacao = (destino: string, arquivo: FormData, hash: string) =>

@@ -27,12 +27,12 @@ describe('formulario da importação no celular', () => {
   beforeEach(() => { jest.replaceProperty(Platform, 'OS', 'android'); });
 
   it('manda os bytes da planilha com o nome e o tipo do seletor e a configuração como texto', async () => {
-    const dados = await formulario(CSV, { aba: 0, cabecalho: true });
+    const dados = await formulario(CSV, { aba: 0, linhaDoCabecalho: 1 });
     const { texto } = await multipartDe(dados);
     expect(texto).toContain('content-disposition: form-data; name="arquivo"; filename="alunos.csv"');
     expect(texto).toContain('content-type: text/csv');
     expect(texto).toContain('aluno@exemplo.test');
-    expect(texto).toContain('name="configuracao"\r\n\r\n{"aba":0,"cabecalho":true}');
+    expect(texto).toContain('name="configuracao"\r\n\r\n{"aba":0,"linhaDoCabecalho":1}');
   });
 
   it('planilha sem tipo informado vai como application/octet-stream', async () => {
