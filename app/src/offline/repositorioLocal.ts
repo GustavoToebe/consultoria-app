@@ -1,4 +1,4 @@
-import type { AnamneseDetalhe, EtapaRegistrada, OrigemDaReferencia, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio, VersaoDetalhe } from '../api/tipos';
+import type { AnamneseDetalhe, EtapaRegistrada, OrigemDaReferencia, Atualizacao, RespostasAtualizacao, ConteudoDieta, ConteudoMobilidadeApi, DemonstracaoDoAluno, DiaDeTreino, PainelAluno, RegistroEnvio, RegistroAguaEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio, VersaoDetalhe } from '../api/tipos';
 import type { ListaDeComprasSalva } from '../dominio/listaDeComprasDoAluno';
 import type { ChaveValor } from './armazenamento';
 import { pacoteNoFormatoAtual } from './formatoDoPacote';
@@ -88,6 +88,22 @@ export interface RegistroSessaoConcluidaLocal {
 }
 
 export type DadosSessaoConcluida = Omit<RegistroSessaoConcluidaLocal, 'id' | 'alteradoEm' | 'situacao' | 'motivo'>;
+
+/**
+ * Água marcada no dia (copos de 250 ml, guardados em mililitros). Mesma fila de envio, depósito próprio (como a
+ * mobilidade). Um registro por dia: tirar um copo é o MESMO registro com menos mililitros, e zero é zero.
+ */
+export interface RegistroAguaLocal {
+  id: string;
+  data: string;
+  aguaMl: number;
+  /** Instante da última mudança no aparelho (ISO); decide o mais novo no servidor. */
+  alteradoEm: string;
+  situacao: SituacaoLocal;
+  motivo: string | null;
+}
+
+export type DadosAgua = Pick<RegistroAguaLocal, 'data' | 'aguaMl'>;
 
 export interface PacoteSalvo {
   pacote: PainelAluno;
@@ -193,6 +209,14 @@ export interface RepositorioLocal {
   ): Promise<void>;
   /** O servidor recusou a mobilidade inteira (fora do plano): os pendentes viram FALHOU com o motivo, para não repetir em laço. */
   recusarPendentesDaMobilidade(motivo: string): Promise<void>;
+  /** Água marcada, na ordem em que foi criada. */
+  listarAgua(): Promise<RegistroAguaLocal[]>;
+  /** Grava a água do dia no aparelho na hora. O mesmo dia mantém o mesmo id e só troca os mililitros. */
+  registrarAgua(dados: DadosAgua): Promise<RegistroAguaLocal>;
+  /** Até `limite` pendentes (LOCAL) da água, os mais antigos primeiro. */
+  pendentesAgua(limite?: number): Promise<RegistroAguaLocal[]>;
+  /** Como `aplicarResultados`, para a água. */
+  aplicarResultadosAgua(enviados: Pick<RegistroAguaLocal, 'id' | 'alteradoEm'>[], resultados: ResultadoEnvio[]): Promise<void>;
   /** Treinos concluídos (ou reabertos), na ordem em que foram criados. */
   listarSessoesConcluidas(): Promise<RegistroSessaoConcluidaLocal[]>;
   /**
@@ -221,7 +245,7 @@ export interface RepositorioLocal {
   /** Grava o início uma única vez (insere se ausente, nunca sobrescreve). Devolve o instante que vale. */
   marcarInicioDoTreino(chave: string, instanteIso: string): Promise<string>;
   inicioDoTreino(chave: string): Promise<string | null>;
-  /** "Tentar de novo": os que falharam (séries, mobilidade e conclusões) voltam para a fila de envio. Devolve quantos. */
+  /** "Tentar de novo": os que falharam (séries, mobilidade, conclusões e água) voltam para a fila de envio. Devolve quantos. */
   reenviarFalhas(): Promise<number>;
   /** Ao sair da conta: apaga tudo deste usuário no aparelho. Depois disso o repositório não grava mais nada. */
   apagarTudo(): Promise<void>;
@@ -547,6 +571,63 @@ export class RepositorioChaveValor implements RepositorioLocal {
     });
   }
 
+  // ---- Água do dia (depósito próprio, mesma fila de envio) ----
+
+  listarAgua(): Promise<RegistroAguaLocal[]> {
+    return this.emFila(() => this.lerJson<RegistroAguaLocal[]>('registrosAgua', []));
+  }
+
+  registrarAgua(dados: DadosAgua): Promise<RegistroAguaLocal> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroAguaLocal[]>('registrosAgua', []);
+      const i = lista.findIndex((r) => r.data === dados.data);
+      const anterior = i >= 0 ? lista[i] : null;
+      const registro: RegistroAguaLocal = {
+        data: dados.data,
+        aguaMl: dados.aguaMl,
+        id: anterior?.id ?? this.novoId(),
+        alteradoEm: proximoInstante(this.agora(), anterior?.alteradoEm),
+        situacao: 'LOCAL',
+        motivo: null,
+      };
+      if (i >= 0) lista[i] = registro;
+      else lista.push(registro);
+      await this.gravarJson('registrosAgua', lista);
+      return registro;
+    });
+  }
+
+  pendentesAgua(limite = 300): Promise<RegistroAguaLocal[]> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroAguaLocal[]>('registrosAgua', []);
+      return lista
+        .filter((r) => r.situacao === 'LOCAL')
+        .sort((a, b) => a.alteradoEm.localeCompare(b.alteradoEm))
+        .slice(0, limite);
+    });
+  }
+
+  aplicarResultadosAgua(enviados: Pick<RegistroAguaLocal, 'id' | 'alteradoEm'>[], resultados: ResultadoEnvio[]): Promise<void> {
+    return this.emFila(async () => {
+      const lista = await this.lerJson<RegistroAguaLocal[]>('registrosAgua', []);
+      const enviadoEm = new Map(enviados.map((e) => [e.id, e.alteradoEm]));
+      const porId = new Map(resultados.map((r) => [r.id, r]));
+      for (const r of lista) {
+        const resultado = porId.get(r.id);
+        if (!resultado || r.situacao !== 'LOCAL' || enviadoEm.get(r.id) !== r.alteradoEm) continue;
+        if (resultado.situacao === 'RECUSADO') {
+          r.situacao = 'FALHOU';
+          r.motivo = resultado.motivo ?? 'Recusado pelo servidor.';
+        } else {
+          r.situacao = 'ENVIADO';
+          r.motivo = null;
+        }
+      }
+      const limite = limiteGuardados(this.agora());
+      await this.gravarJson('registrosAgua', lista.filter((r) => r.situacao !== 'ENVIADO' || r.data >= limite));
+    });
+  }
+
   // ---- Conclusões do treino (depósito próprio, mesma fila de envio) ----
 
   listarSessoesConcluidas(): Promise<RegistroSessaoConcluidaLocal[]> {
@@ -645,7 +726,7 @@ export class RepositorioChaveValor implements RepositorioLocal {
   reenviarFalhas(): Promise<number> {
     return this.emFila(async () => {
       let n = 0;
-      for (const nome of ['registros', 'registrosMobilidade', 'sessoesConcluidas']) {
+      for (const nome of ['registros', 'registrosMobilidade', 'sessoesConcluidas', 'registrosAgua']) {
         const lista = await this.lerJson<{ situacao: SituacaoLocal; motivo: string | null }[]>(nome, []);
         let mudou = false;
         for (const r of lista) {
@@ -678,12 +759,15 @@ export class RepositorioChaveValor implements RepositorioLocal {
       const conclusoes = (await this.lerJson<RegistroSessaoConcluidaLocal[]>('sessoesConcluidas', [])).filter(
         (r) => r.situacao === 'LOCAL',
       );
-      const total = series.length + mobilidade.length + conclusoes.length;
-      // Grava a fila e a marca antes de apagar o resto: uma falha no meio não perde registro. Os três depósitos ficam
+      const agua = (await this.lerJson<RegistroAguaLocal[]>('registrosAgua', [])).filter((r) => r.situacao === 'LOCAL');
+      const total = series.length + mobilidade.length + conclusoes.length + agua.length;
+      // Grava a fila e a marca antes de apagar o resto: uma falha no meio não perde registro. Os quatro depósitos ficam
       // só com o que está LOCAL (um vazio sai de vez: a chave entra na lista do que fica e levaria os enviados junto).
       // O início do treino (`iniciosDeTreino`) não é fila: sai junto com o resto.
       if (total) {
-        for (const [nome, lista] of [['registros', series], ['registrosMobilidade', mobilidade], ['sessoesConcluidas', conclusoes]] as const) {
+        for (const [nome, lista] of [
+          ['registros', series], ['registrosMobilidade', mobilidade], ['sessoesConcluidas', conclusoes], ['registrosAgua', agua],
+        ] as const) {
           if (lista.length) await this.kv.gravar(this.chave(nome), JSON.stringify(lista));
           else await this.kv.apagar([this.chave(nome)]);
         }
@@ -741,8 +825,8 @@ export const prefixoDoUsuario = (usuarioId: string) => `treinos:${usuarioId}:`;
  */
 export const SOBREVIVEM_AO_SAIR: readonly string[] = ['preferencias', 'passeioVisto'];
 
-/** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados (séries, mobilidade e conclusões) e a marca com a data. */
-export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'registrosMobilidade', 'sessoesConcluidas', 'filaRetida'];
+/** O que fica no aparelho quando o servidor recusa a sessão: os registros não enviados (séries, mobilidade, conclusões e água) e a marca com a data. */
+export const CHAVES_DA_FILA_RETIDA: readonly string[] = ['registros', 'registrosMobilidade', 'sessoesConcluidas', 'registrosAgua', 'filaRetida'];
 
 /** `tambemFicam` = nomes (sem o prefixo do usuário) que `SOBREVIVEM_AO_SAIR` não cobre e que não devem sair. */
 export async function apagarChavesDoUsuario(
@@ -798,4 +882,8 @@ export function paraEnvioSessaoConcluida(r: RegistroSessaoConcluidaLocal): Regis
     comentario: r.comentario,
     alteradoNoAparelhoEm: r.alteradoEm,
   };
+}
+
+export function paraEnvioAgua(r: RegistroAguaLocal): RegistroAguaEnvio {
+  return { id: r.id, data: r.data, aguaMl: r.aguaMl, alteradoNoAparelhoEm: r.alteradoEm };
 }

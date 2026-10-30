@@ -61,6 +61,7 @@ public class ExportacaoService {
     private final br.com.treinos.api.agenda.AgendaService agenda;
     private final br.com.treinos.api.agenda.AvisosDeCompromissoService avisosDeCompromisso;
     private final br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas;
+    private final br.com.treinos.api.agua.AguaDoDiaService agua;
 
     public ExportacaoService(AlunoService alunos, PastaRepository pastas, PlanoTreinoService treinos,
                              PlanoDietaService dietas, PlanoMobilidadeService mobilidades, HistoricoService historico,
@@ -73,7 +74,9 @@ public class ExportacaoService {
                              br.com.treinos.api.ciclo.CicloMenstrualService ciclo,
                              br.com.treinos.api.agenda.AgendaService agenda,
                              br.com.treinos.api.agenda.AvisosDeCompromissoService avisosDeCompromisso,
-                             br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas) {
+                             br.com.treinos.api.avaliacoes.AvaliacaoFisicaService avaliacoesFisicas,
+                             br.com.treinos.api.agua.AguaDoDiaService agua) {
+        this.agua = agua;
         this.agenda = agenda;
         this.avisosDeCompromisso = avisosDeCompromisso;
         this.avaliacoesFisicas = avaliacoesFisicas;
@@ -118,6 +121,9 @@ public class ExportacaoService {
         // (o serviço o deixa nulo sem ela). Roda com a chave do retorno ligada ou não.
         var sessaoConcluida = secao(AcessoAtual.pode("REGISTRO_LER"), "sessoesConcluidas", omitidas,
                 () -> sessoesConcluidas.completoDoAluno(alunoId));
+        // Água marcada pelo aluno: dado de dieta, com a mesma permissão da rota da equipe (GET /alunos/{id}/agua).
+        var aguaDoDia = secao(AcessoAtual.pode("REGISTRO_LER") && AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "agua", omitidas,
+                () -> agua.completoDoAluno(alunoId));
         var peso = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "pesos", omitidas, () -> pesos.listar(alunoId));
         var lesao = secao(AcessoAtual.pode("ALUNO_SENSIVEL_LER"), "lesoes", omitidas, () -> lesoes.listar(alunoId));
         // Mesma permissão da rota que mostra as avaliações ao treinador (GET /alunos/{id}/avaliacoes-fisicas).
@@ -148,7 +154,7 @@ public class ExportacaoService {
                 () -> avisosDeCompromisso.exportar(alunoId));
         return new Exportacao(Instant.now(), List.copyOf(omitidas), cadastro, pastasDoAluno, treino, dieta, mobilidade,
                 registros, mobilidadeFeita, sessaoConcluida, peso, lesao, atualizacao, anamnese, inscricaoDoAluno, financeiro, fotoDePerfil,
-                cicloMenstrual, compromissos, avisos, avaliacaoFisica);
+                cicloMenstrual, compromissos, avisos, avaliacaoFisica, aguaDoDia);
     }
 
     private static <T> Secao<T> secao(boolean pode, String nome, List<String> omitidas, Supplier<List<T>> busca) {

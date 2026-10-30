@@ -1,7 +1,7 @@
 import { ErroApi } from '../api/cliente';
 import { ehRetornoDesligado } from '../dominio/retornoDesligado';
-import type { LoteResponse, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio } from '../api/tipos';
-import { paraEnvio, paraEnvioMobilidade, paraEnvioSessaoConcluida, type RepositorioLocal } from './repositorioLocal';
+import type { LoteResponse, RegistroAguaEnvio, RegistroEnvio, RegistroMobilidadeEnvio, RegistroSessaoConcluidaEnvio } from '../api/tipos';
+import { paraEnvio, paraEnvioAgua, paraEnvioMobilidade, paraEnvioSessaoConcluida, type RepositorioLocal } from './repositorioLocal';
 
 export type ResultadoSincronizacao =
   | { tipo: 'ok'; enviados: number }
@@ -34,8 +34,8 @@ export interface EnvioDeConclusoes {
  * Envia os registros LOCAL em lotes de até 300, os mais antigos primeiro, e aplica a resposta: ACEITO e
  * IGNORADO_ANTIGO viram ENVIADO; RECUSADO vira FALHOU com o motivo. Uma sincronização por vez.
  *
- * A fila é uma só: no mesmo ciclo vão primeiro as séries de treino, depois os itens de mobilidade marcados e por
- * último os treinos concluídos (cada um na sua rota, com o mesmo formato de resposta). Mobilidade fora do plano (403
+ * A fila é uma só: no mesmo ciclo vão primeiro as séries de treino, depois os itens de mobilidade marcados, a água do
+ * dia e por último os treinos concluídos (cada um na sua rota, com o mesmo formato de resposta). Mobilidade fora do plano (403
  * `FUNCIONALIDADE_FORA_DO_PLANO`) vira FALHOU com o motivo, em vez de tentar de novo em laço, e nunca encerra a sessão.
  *
  * "Concluir treino" desligado (chave `ligada()` falsa) não é falha da conclusão: as conclusões ficam LOCAL como estão e
@@ -52,6 +52,8 @@ export class Sincronizador {
     private readonly enviarMobilidade: (registros: RegistroMobilidadeEnvio[]) => Promise<LoteResponse>,
     /** Sem ela as conclusões ficam na fila (os testes das séries e da mobilidade não a usam). */
     private readonly conclusoes?: EnvioDeConclusoes,
+    /** Sem ela a água fica na fila (os testes que não a usam). */
+    private readonly enviarAgua?: (registros: RegistroAguaEnvio[]) => Promise<LoteResponse>,
   ) {}
 
   sincronizar(): Promise<ResultadoSincronizacao> {
@@ -79,6 +81,16 @@ export class Sincronizador {
           : Promise.resolve(false),
     );
     if (mobilidade.tipo !== 'ok') return mobilidade;
+    const enviarAgua = this.enviarAgua;
+    let agua: ResultadoSincronizacao = { tipo: 'ok', enviados: 0 };
+    if (enviarAgua) {
+      agua = await this.enviarEmLotes(
+        (limite) => this.repositorio.pendentesAgua(limite),
+        (lote) => enviarAgua(lote.map(paraEnvioAgua)),
+        (lote, resposta) => this.repositorio.aplicarResultadosAgua(lote, resposta.resultados),
+      );
+      if (agua.tipo !== 'ok') return agua;
+    }
     const envioDeConclusoes = this.conclusoes;
     let conclusoes: ResultadoSincronizacao = { tipo: 'ok', enviados: 0 };
     // A chave é lida aqui, a cada ciclo: desligada, as conclusões ficam LOCAL e a rota nem é chamada.
@@ -97,7 +109,7 @@ export class Sincronizador {
       );
       if (conclusoes.tipo !== 'ok') return conclusoes;
     }
-    return { tipo: 'ok', enviados: series.enviados + mobilidade.enviados + conclusoes.enviados };
+    return { tipo: 'ok', enviados: series.enviados + mobilidade.enviados + agua.enviados + conclusoes.enviados };
   }
 
   /**

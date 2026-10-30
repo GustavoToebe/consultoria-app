@@ -7,6 +7,8 @@ import { AppState } from 'react-native';
 
 import { ErroApi } from '../api/cliente';
 import {
+  aguaDoAluno,
+  enviarAgua,
   enviarRegistros,
   enviarRegistrosMobilidade,
   historicoAluno,
@@ -18,7 +20,8 @@ import {
   enviarSessoesConcluidas,
   sessoesConcluidasDoAluno,
 } from '../api/rotas';
-import type { Atualizacao, ConteudoMobilidadeApi, DemonstracaoDoAluno, PastaDoAluno, PlanosDaPasta, RegistroMobilidadeFeito, SessaoConcluidaDoServidor, VersaoDetalhe } from '../api/tipos';
+import type { AguaRegistrada, Atualizacao, ConteudoMobilidadeApi, DemonstracaoDoAluno, PastaDoAluno, PlanosDaPasta, RegistroMobilidadeFeito, SessaoConcluidaDoServidor, VersaoDetalhe } from '../api/tipos';
+import { fundirAgua } from '../dominio/aguaDoDia';
 import { hojeDoCiclo } from '../dominio/cicloMenstrual';
 import { inicioDaJanelaDeConclusao, validarConclusao, type ProblemasDaConclusao } from '../dominio/conclusaoDoTreino';
 import { filaVisivel } from '../dominio/filaVisivel';
@@ -31,7 +34,7 @@ import { useSessao } from '../sessao/SessaoProvider';
 import { abrirRepositorio } from './abrirRepositorio';
 import { fundirComServidor, registrosDoServidor, trocarPeriodo } from './execucoesDoServidor';
 import { limparDadosDoAluno } from './limparDadosDoAluno';
-import { chaveDoInicioDoTreino, type DadosMobilidade, type DadosRegistro, type PacoteSalvo, type RegistroLocal, type RegistroMobilidadeLocal, type RegistroSessaoConcluidaLocal, type RepositorioLocal } from './repositorioLocal';
+import { chaveDoInicioDoTreino, type DadosAgua, type DadosMobilidade, type DadosRegistro, type PacoteSalvo, type RegistroAguaLocal, type RegistroLocal, type RegistroMobilidadeLocal, type RegistroSessaoConcluidaLocal, type RepositorioLocal } from './repositorioLocal';
 import { ESPERAS_MS, Sincronizador } from './sincronizacao';
 
 /** Plano que o aluno escolheu só para consultar (não é o vigente). */
@@ -128,6 +131,17 @@ interface ValorAluno {
   /** Grava na hora e entra na mesma fila de envio das séries. Desmarcar é marcar com `feito: false`. */
   marcarMobilidade: (dados: DadosMobilidade) => Promise<void>;
   /**
+   * Água marcada por dia (mililitros): a do servidor (60 dias) e a do aparelho; no mesmo dia, a do aparelho ganha (a que
+   * falhou não vale). Dia ausente = não registrou.
+   */
+  aguaPorDia: ReadonlyMap<string, number>;
+  /** A água no aparelho (inclui o que ainda não foi enviado). */
+  aguaNoAparelho: RegistroAguaLocal[];
+  /** Água recusada pelo servidor, esperando "tentar de novo". */
+  falhasDeAgua: RegistroAguaLocal[];
+  /** Grava a água do dia na hora (mililitros) e entra na mesma fila de envio. Tirar um copo é gravar menos. */
+  marcarAgua: (dados: DadosAgua) => Promise<void>;
+  /**
    * Conclui o treino (versão, sessão e dia): valida (`validarConclusao`; data de hoje até 60 dias atrás no "hoje" do
    * aparelho e no de Brasília), grava no aparelho na hora e entra na mesma fila de envio. Concluir de novo o mesmo treino
    * regrava o mesmo registro. Com `retornoHabilitado` falso não grava nada e devolve `ok: false`.
@@ -156,7 +170,7 @@ interface ValorAluno {
   sessoesConcluidasNoAparelho: RegistroSessaoConcluidaLocal[];
   /** Conclusões recusadas pelo servidor, esperando "tentar de novo". Vazio com "Concluir treino" desligado. */
   falhasDeConclusao: RegistroSessaoConcluidaLocal[];
-  /** Séries, itens de mobilidade e conclusões ainda na fila (LOCAL); as conclusões só contam com "Concluir treino" ligado. */
+  /** Séries, itens de mobilidade, água e conclusões ainda na fila (LOCAL); as conclusões só contam com "Concluir treino" ligado. */
   pendentes: number;
   /** Séries recusadas (a mobilidade recusada está em `falhasDeMobilidade`, a conclusão em `falhasDeConclusao`). */
   falhas: RegistroLocal[];
@@ -236,6 +250,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const [mobilidadeLocal, setMobilidadeLocal] = useState<RegistroMobilidadeLocal[]>([]);
   const [marcasDoServidor, setMarcasDoServidor] = useState<RegistroMobilidadeFeito[]>([]);
   const [conclusoesLocais, setConclusoesLocais] = useState<RegistroSessaoConcluidaLocal[]>([]);
+  const [aguaLocal, setAguaLocal] = useState<RegistroAguaLocal[]>([]);
+  const [aguaDoServidor, setAguaDoServidor] = useState<AguaRegistrada[]>([]);
   const [conclusoesDoServidor, setConclusoesDoServidor] = useState<SessaoConcluidaDoServidor[]>([]);
   const [totalDoServidor, setTotalDoServidor] = useState<number | null>(null);
   const [inicios, setInicios] = useState<Record<string, string>>({});
@@ -245,13 +261,19 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   // esperar a sessão re-renderizar (senão o `baixarPacote` do mesmo ciclo ainda chamaria o GET das conclusões).
   const sincronizador = useMemo(
     () =>
-      new Sincronizador(repositorio, enviarRegistros, enviarRegistrosMobilidade, {
-        enviar: enviarSessoesConcluidas,
-        ligada: () => retornoRef.current,
-        aoDesligar: () => {
-          retornoRef.current = false;
+      new Sincronizador(
+        repositorio,
+        enviarRegistros,
+        enviarRegistrosMobilidade,
+        {
+          enviar: enviarSessoesConcluidas,
+          ligada: () => retornoRef.current,
+          aoDesligar: () => {
+            retornoRef.current = false;
+          },
         },
-      }),
+        enviarAgua,
+      ),
     [repositorio],
   );
   const [doServidor, setDoServidor] = useState<RegistroLocal[]>([]);
@@ -269,6 +291,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       repositorio.listar().then(setRegistros),
       repositorio.listarMobilidade().then(setMobilidadeLocal),
       repositorio.listarSessoesConcluidas().then(setConclusoesLocais),
+      repositorio.listarAgua().then(setAguaLocal),
     ]).then(() => undefined),
     [repositorio],
   );
@@ -305,6 +328,17 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
     try {
       const hoje = hojeIso();
       setMarcasDoServidor(await registrosMobilidadeDoAluno(somarDias(hoje, -60), somarDias(hoje, 60)));
+    } catch {
+      // Fica como está.
+    }
+  }, []);
+
+  // Água que o servidor já tem (os 60 dias que ele aceita, até hoje de Brasília): só leitura, em memória. Sem conexão ou
+  // erro, a tela segue com o que está no aparelho.
+  const baixarAgua = useCallback(async () => {
+    try {
+      const hoje = hojeDoCiclo();
+      setAguaDoServidor(await aguaDoAluno(somarDias(hoje, -60), hoje));
     } catch {
       // Fica como está.
     }
@@ -375,6 +409,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       await baixarMobilidade();
       await baixarDemonstracoes();
       await baixarMarcasDeMobilidade();
+      await baixarAgua();
       await baixarSessoesConcluidas();
       await carregarSemanaDoServidor(hojeIso(), true, desdeDoPlano(novo.treino?.inicio ?? null));
     } catch (erro) {
@@ -383,7 +418,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       else setErroPacote((atual: unknown) => atual ?? erro);
       await carregarSemanaDoServidor(hojeIso(), true);
     }
-  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, baixarDemonstracoes, baixarMarcasDeMobilidade, baixarSessoesConcluidas, carregarSemanaDoServidor]);
+  }, [repositorio, atualizarMarca, atualizarAtualizacao, baixarMobilidade, baixarDemonstracoes, baixarMarcasDeMobilidade, baixarAgua, baixarSessoesConcluidas, carregarSemanaDoServidor]);
 
   const sincronizar = useCallback(async () => {
     if (espera.current) {
@@ -401,13 +436,14 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       if (r.tipo === 'ok' && r.enviados > 0) void baixarPacote();
     } else if (r.tipo === 'semConexao') {
       setEnvio('semConexao');
-      const [series, mobilidade, conclusoes] = await Promise.all([
+      const [series, mobilidade, conclusoes, agua] = await Promise.all([
         repositorio.pendentes(1),
         repositorio.pendentesMobilidade(1),
         // Chave desligada: a conclusão na fila não é pendência (não é enviada) e não pede nova tentativa.
         retornoRef.current ? repositorio.pendentesSessoesConcluidas(1) : Promise.resolve([]),
+        repositorio.pendentesAgua(1),
       ]);
-      if (series.length || mobilidade.length || conclusoes.length) {
+      if (series.length || mobilidade.length || conclusoes.length || agua.length) {
         const ms = ESPERAS_MS[Math.min(falhasSeguidas.current, ESPERAS_MS.length - 1)];
         falhasSeguidas.current++;
         espera.current = setTimeout(() => void sincronizar(), ms);
@@ -439,9 +475,10 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   // normal deste usuário), lê o aparelho e depois tenta baixar o pacote e enviar o que ficou.
   useEffect(() => {
     let vivo = true;
-    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => descartarConclusoesForaDaJanela()).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade(),repositorio.listarMobilidade(),repositorio.lerDemonstracoes(),repositorio.listarSessoesConcluidas(),repositorio.lerIniciosDoTreino()])).then(
-      ([p, r, c, a, m, ml, dem, cl, ini]) => {
+    repositorio.descartarFilaRetidaVencida().then(() => repositorio.retomarFilaRetida()).catch(() => undefined).then(() => descartarConclusoesForaDaJanela()).then(() => Promise.all([repositorio.lerPacote(), repositorio.listar(), repositorio.lerCargasDeTrabalho(),repositorio.lerAtualizacao(),repositorio.lerMobilidade(),repositorio.listarMobilidade(),repositorio.lerDemonstracoes(),repositorio.listarSessoesConcluidas(),repositorio.lerIniciosDoTreino(),repositorio.listarAgua()])).then(
+      ([p, r, c, a, m, ml, dem, cl, ini, ag]) => {
         if (!vivo) return;
+        setAguaLocal(ag);
         setConclusoesLocais(cl);
         setInicios(ini);
         setPacote(p);
@@ -493,8 +530,8 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
 
   // Chave desligada: as conclusões seguem no aparelho e na fila, mas ficam fora da conta (selo, Conta, "Sair", excluir conta).
   const { pendentes, falhasDeConclusao, sessoesConcluidasNoAparelho } = useMemo(
-    () => filaVisivel(registros, mobilidadeLocal, conclusoesLocais, retornoHabilitado),
-    [registros, mobilidadeLocal, conclusoesLocais, retornoHabilitado],
+    () => filaVisivel(registros, mobilidadeLocal, conclusoesLocais, retornoHabilitado, aguaLocal),
+    [registros, mobilidadeLocal, conclusoesLocais, retornoHabilitado, aguaLocal],
   );
 
   useEffect(() => {
@@ -545,6 +582,16 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
   const marcarMobilidade = useCallback(
     async (dados: DadosMobilidade) => {
       await repositorio.registrarMobilidade(dados);
+      await recarregarRegistros();
+      if (envioAgendado.current) clearTimeout(envioAgendado.current);
+      envioAgendado.current = setTimeout(() => void sincronizar(), ESPERA_APOS_GRAVAR_MS);
+    },
+    [repositorio, recarregarRegistros, sincronizar],
+  );
+
+  const marcarAgua = useCallback(
+    async (dados: DadosAgua) => {
+      await repositorio.registrarAgua(dados);
       await recarregarRegistros();
       if (envioAgendado.current) clearTimeout(envioAgendado.current);
       envioAgendado.current = setTimeout(() => void sincronizar(), ESPERA_APOS_GRAVAR_MS);
@@ -640,6 +687,10 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       marcasDeMobilidade: fundirMarcas(mobilidadeLocal, marcasDoServidor),
       mobilidadeNoAparelho: mobilidadeLocal,
       marcarMobilidade,
+      aguaPorDia: fundirAgua(aguaLocal, aguaDoServidor),
+      aguaNoAparelho: aguaLocal,
+      falhasDeAgua: aguaLocal.filter((r) => r.situacao === 'FALHOU'),
+      marcarAgua,
       concluirTreino,
       reabrirTreino,
       sessaoConcluidaDe: (v, s, d) => conclusaoDe(conclusoesFundidas, v, s, d),
@@ -659,7 +710,7 @@ export function AlunoProvider({ usuarioId, children }: { usuarioId: string; chil
       sincronizarAgora: sincronizar,
       tentarDeNovo,
     };
-  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
+  }, [atualizacao,atualizarAtualizacao,descanso, iniciarDescanso, reservarDescanso, cancelarDescansoDe, ajustarDescanso, pularDescanso, repositorio, escolhida, escolherPasta, pacote, mobilidade, demonstracoes, carregando, erroPacote, registros, doServidor, mobilidadeLocal, marcasDoServidor, marcarMobilidade, aguaLocal, aguaDoServidor, marcarAgua, conclusoesLocais, conclusoesDoServidor, totalDoServidor, inicios, retornoHabilitado, sessoesConcluidasNoAparelho, falhasDeConclusao, concluirTreino, reabrirTreino, carregarSemanaDoServidor, semanaDoAparelho, cargas, pendentes, envio, mensagemEnvio, online, registrar, salvarCargaDeTrabalho, sincronizar, tentarDeNovo]);
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

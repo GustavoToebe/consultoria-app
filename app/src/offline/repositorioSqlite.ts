@@ -6,12 +6,14 @@ import {
   filaRetidaVenceu,
   limiteGuardados,
   proximoInstante,
+  type DadosAgua,
   type DadosRegistro,
   type HistoricoSemanaSalvo,
   type MarcaDaFilaRetida,
   type DadosMobilidade,
   type DadosSessaoConcluida,
   type PacoteSalvo,
+  type RegistroAguaLocal,
   type RegistroLocal,
   type RegistroMobilidadeLocal,
   type RegistroSessaoConcluidaLocal,
@@ -130,6 +132,26 @@ const paraSessaoConcluida = (l: LinhaSessaoConcluida): RegistroSessaoConcluidaLo
   resultado: l.resultado,
   duracaoSegundos: l.duracao_segundos,
   comentario: l.comentario,
+  alteradoEm: l.alterado_em,
+  situacao: l.situacao,
+  motivo: l.motivo,
+});
+
+interface LinhaAgua {
+  id: string;
+  data: string;
+  agua_ml: number;
+  alterado_em: string;
+  situacao: RegistroAguaLocal['situacao'];
+  motivo: string | null;
+}
+
+const COLUNAS_AGUA = 'id, data, agua_ml, alterado_em, situacao, motivo';
+
+const paraAgua = (l: LinhaAgua): RegistroAguaLocal => ({
+  id: l.id,
+  data: l.data,
+  aguaMl: l.agua_ml,
   alteradoEm: l.alterado_em,
   situacao: l.situacao,
   motivo: l.motivo,
@@ -513,6 +535,81 @@ export class RepositorioSqlite implements RepositorioLocal {
     });
   }
 
+  // ---- Água do dia (tabela própria, mesma fila de envio) ----
+
+  listarAgua(): Promise<RegistroAguaLocal[]> {
+    return this.emFila([], async (b) =>
+      (await b.todos<LinhaAgua>(`select ${COLUNAS_AGUA} from agua_do_dia order by rowid`)).map(paraAgua),
+    );
+  }
+
+  registrarAgua(dados: DadosAgua): Promise<RegistroAguaLocal> {
+    const semBanco: RegistroAguaLocal = { ...dados, id: '', alteradoEm: '', situacao: 'LOCAL', motivo: null };
+    return this.emFila(semBanco, (b) =>
+      b.transacao(async (t) => {
+        const anterior = await t.primeiro<{ id: string; alterado_em: string }>(
+          'select id, alterado_em from agua_do_dia where data = ?',
+          [dados.data],
+        );
+        const registro: RegistroAguaLocal = {
+          data: dados.data,
+          aguaMl: dados.aguaMl,
+          id: anterior?.id ?? this.novoId(),
+          alteradoEm: proximoInstante(this.agora(), anterior?.alterado_em),
+          situacao: 'LOCAL',
+          motivo: null,
+        };
+        if (anterior) {
+          await t.rodar("update agua_do_dia set agua_ml = ?, alterado_em = ?, situacao = 'LOCAL', motivo = null where id = ?", [
+            registro.aguaMl,
+            registro.alteradoEm,
+            registro.id,
+          ]);
+        } else {
+          await t.rodar(`insert into agua_do_dia (${COLUNAS_AGUA}) values (?, ?, ?, ?, ?, ?)`, [
+            registro.id,
+            registro.data,
+            registro.aguaMl,
+            registro.alteradoEm,
+            registro.situacao,
+            registro.motivo,
+          ]);
+        }
+        return registro;
+      }),
+    );
+  }
+
+  pendentesAgua(limite = 300): Promise<RegistroAguaLocal[]> {
+    return this.emFila([], async (b) =>
+      (
+        await b.todos<LinhaAgua>(
+          `select ${COLUNAS_AGUA} from agua_do_dia where situacao = 'LOCAL' order by alterado_em, rowid limit ?`,
+          [limite],
+        )
+      ).map(paraAgua),
+    );
+  }
+
+  aplicarResultadosAgua(enviados: Pick<RegistroAguaLocal, 'id' | 'alteradoEm'>[], resultados: ResultadoEnvio[]): Promise<void> {
+    return this.emFila(undefined, (b) =>
+      b.transacao(async (t) => {
+        const enviadoEm = new Map(enviados.map((e) => [e.id, e.alteradoEm]));
+        for (const r of resultados) {
+          const alteradoEm = enviadoEm.get(r.id);
+          if (alteradoEm === undefined) continue;
+          const [situacao, motivo] =
+            r.situacao === 'RECUSADO' ? ['FALHOU', r.motivo ?? 'Recusado pelo servidor.'] : ['ENVIADO', null];
+          await t.rodar(
+            "update agua_do_dia set situacao = ?, motivo = ? where id = ? and situacao = 'LOCAL' and alterado_em = ?",
+            [situacao, motivo, r.id, alteradoEm],
+          );
+        }
+        await t.rodar("delete from agua_do_dia where situacao = 'ENVIADO' and data < ?", [limiteGuardados(this.agora())]);
+      }),
+    );
+  }
+
   // ---- Conclusões do treino (tabela própria, mesma fila de envio) ----
 
   listarSessoesConcluidas(): Promise<RegistroSessaoConcluidaLocal[]> {
@@ -654,7 +751,8 @@ export class RepositorioSqlite implements RepositorioLocal {
         const conclusoes = await t.rodar(
           "update sessao_concluida set situacao = 'LOCAL', motivo = null where situacao = 'FALHOU'",
         );
-        return series.alteradas + mobilidade.alteradas + conclusoes.alteradas;
+        const agua = await t.rodar("update agua_do_dia set situacao = 'LOCAL', motivo = null where situacao = 'FALHOU'");
+        return series.alteradas + mobilidade.alteradas + conclusoes.alteradas + agua.alteradas;
       }),
     );
   }
@@ -691,9 +789,10 @@ export class RepositorioSqlite implements RepositorioLocal {
         await t.rodar("delete from registro where situacao <> 'LOCAL'");
         await t.rodar("delete from registro_mobilidade where situacao <> 'LOCAL'");
         await t.rodar("delete from sessao_concluida where situacao <> 'LOCAL'");
+        await t.rodar("delete from agua_do_dia where situacao <> 'LOCAL'");
         const { n } = (await t.primeiro<{ n: number }>(
           'select (select count(*) from registro) + (select count(*) from registro_mobilidade) + ' +
-            '(select count(*) from sessao_concluida) as n',
+            '(select count(*) from sessao_concluida) + (select count(*) from agua_do_dia) as n',
         )) ?? { n: 0 };
         if (n > 0) await this.gravarDocumento(t, 'filaRetida', { desde: this.agora().toISOString() });
         return n;
@@ -728,6 +827,7 @@ export class RepositorioSqlite implements RepositorioLocal {
         await t.rodar('delete from registro');
         await t.rodar('delete from registro_mobilidade');
         await t.rodar('delete from sessao_concluida');
+        await t.rodar('delete from agua_do_dia');
       });
       await banco.executar('vacuum').catch(() => undefined);
       return 'vencida';

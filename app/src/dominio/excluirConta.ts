@@ -27,8 +27,8 @@ export const EXPLICACAO_DA_EXCLUSAO =
   'com a consultoria, sem o seu nome. Você sai deste e de todos os aparelhos e não consegue mais entrar com este e-mail.';
 
 /** Registros deste aparelho que ainda não chegaram ao treinador também se perdem: avisa só quando existem. */
-export function avisoDeNaoEnviados(treinos: number, diasDeMobilidade = 0): string | null {
-  const d = descreverNaoEnviados(treinos, diasDeMobilidade);
+export function avisoDeNaoEnviados(treinos: number, diasDeMobilidade = 0, diasDeAgua = 0): string | null {
+  const d = descreverNaoEnviados(treinos, diasDeMobilidade, diasDeAgua);
   if (!d) return null;
   return `Você tem ${d.texto} ainda não ${d.enviado} neste aparelho; ${d.ele} também ${d.sera}.`;
 }

@@ -33,6 +33,7 @@ foi decidido e o que ficou para trás. Push só de `docs/` não roda a CI.
 | Agenda no estilo do Google Agenda (Dia/Semana/Mês/Ano, agendas com cor, evento sem aluno, recorrência) e compromisso com vários alunos, aviso no app e lembrete no celular | [agenda-calendario.md](agenda-calendario.md) | `main` (f95aacf, PR 16) | Concluída em 29/10/2026 | 29/10/2026 |
 | Interessados: correções e CRM | [interessados-crm.md](interessados-crm.md) | `main` (f95aacf, PR 16) | Concluída em 29/10/2026; falta a conferência do Gustavo | 29/10/2026 |
 | Clareza do treinador (reunião de 29/10: pasta, aplicar modelo, hierarquia visual, importação em etapas) | [clareza-do-treinador.md](clareza-do-treinador.md) | branch `claude/saraiva-api-direcionamento-treinos-dv10io` | Em andamento: lotes A, B e C | 30/10/2026 |
+| Água do aluno (marcar os copos do dia contra a "Água por dia" da dieta) | [agua-do-aluno.md](agua-do-aluno.md) | branch `agua-do-aluno` | Em andamento | 30/10/2026 |
 
 ## Pendências soltas
 

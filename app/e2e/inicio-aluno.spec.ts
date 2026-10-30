@@ -5,7 +5,7 @@ import { erroApi, simularApi, type RespostasApi } from './api-falsa';
 import { dietaFalsa, fixarHoje, sessaoDeAlunoComTreino, sessaoFalsa, SESSOES_COM_DIAS } from './aluno';
 
 /**
- * Início do aluno: Dieta compacta → Hoje → Suas pendências → Sua semana. As divisões ficam na aba Treino.
+ * Início do aluno: Dieta compacta → Água de hoje (com meta na dieta) → Hoje → Suas pendências → Sua semana. As divisões ficam na aba Treino.
  * O relógio fica em segunda-feira, 19/10/2026 (o treino de hoje é o A).
  */
 
@@ -98,7 +98,7 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta →
   await expect(dieta).toContainText('3,0 L');
 
   // Hoje: rótulo, nome, contagem, o botão primário e a nota.
-  await expect(page.getByRole('heading', { name: 'Hoje', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true })).toBeVisible();
   await expect(page.getByText('TREINO A')).toBeVisible();
   await expect(page.getByText('5 exercícios').first()).toBeVisible();
   await expect(page.getByText('Consulte a lista antes de começar.')).toBeVisible();
@@ -115,7 +115,9 @@ test('com dieta e água, anamnese e atualização atrasada: a ordem é Dieta →
 
   const y = [
     await topo(page, /^Dieta,/, 'link'),
-    await topo(page, 'Hoje'),
+    // A água do dia (a dieta tem 3 L) vem logo depois da dieta, antes do Hoje.
+    await topo(page, 'Água de hoje'),
+    await topo(page, /^Hoje$/),
     await topo(page, 'Suas pendências'),
     await topo(page, 'Sua semana'),
   ];
@@ -222,7 +224,7 @@ test('treino ainda não publicado: "Seu treino está sendo preparado" (não é e
 
 test('sem pendências o bloco "Suas pendências" some', async ({ page }) => {
   await abrirInicio(page);
-  await expect(page.getByRole('heading', { name: 'Hoje', level: 2 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Hoje', level: 2, exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Suas pendências' })).toHaveCount(0);
 });
 

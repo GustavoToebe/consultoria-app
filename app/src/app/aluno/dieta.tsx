@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ModoDePreparo } from '../../aluno/ModoDePreparo';
 import { SeletorPlano } from '../../aluno/SeletorPlano';
+import { CartaoAguaDoDia } from '../../aluno/CartaoAguaDoDia';
 import { useDietaDoAluno } from '../../aluno/useDietaDoAluno';
 import { ErroApi } from '../../api/cliente';
 import { pesosAluno } from '../../api/rotas';
@@ -50,6 +51,8 @@ export default function DietaAluno() {
       <Cabecalho titulo="Dieta" />
       <Texto variante="suave">A dieta que o seu treinador publicou, só para consulta.</Texto>
       <SeletorPlano rotulo={null} />
+      {/* A água marcada é por dia, contra a meta da dieta em uso (a pasta escolhida para consulta não muda o registro). */}
+      {dados?.dieta?.conteudo.aguaLitros ? <CartaoAguaDoDia metaLitros={dados.dieta.conteudo.aguaLitros} /> : null}
       {escolhida ? (
         escolhida.planos.dieta ? (
           <Dieta versao={escolhida.planos.dieta} salva={false} />

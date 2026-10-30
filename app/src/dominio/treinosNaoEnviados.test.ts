@@ -1,4 +1,4 @@
-import { avisoAoSairComPendencias, descreverNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from './treinosNaoEnviados';
+import { avisoAoSairComPendencias, descreverNaoEnviados, diasDeAguaNaoEnviados, diasDeMobilidadeNaoEnviados, treinosNaoEnviados } from './treinosNaoEnviados';
 
 const r = (situacao: 'LOCAL' | 'ENVIADO' | 'FALHOU', data: string, sessaoUid: string) => ({ situacao, data, sessaoUid });
 
@@ -76,5 +76,26 @@ describe('mobilidade não enviada', () => {
   it('sem nada pendente não há o que descrever', () => {
     expect(descreverNaoEnviados(0, 0)).toBeNull();
     expect(avisoAoSairComPendencias(0, 0)).toBeNull();
+  });
+});
+
+describe('água ainda não enviada', () => {
+  it('conta dias com água LOCAL ou FALHOU', () => {
+    expect(
+      diasDeAguaNaoEnviados([
+        { situacao: 'LOCAL', data: '2026-10-30' },
+        { situacao: 'FALHOU', data: '2026-10-29' },
+        { situacao: 'ENVIADO', data: '2026-10-28' },
+      ]),
+    ).toBe(2);
+  });
+
+  it('entra no aviso de sair com a concordância certa', () => {
+    expect(avisoAoSairComPendencias(0, 0, 1)).toBe(
+      'Você tem água de 1 dia ainda não enviada. Sair apaga esse registro. Conecte-se e sincronize antes, se puder.',
+    );
+    expect(descreverNaoEnviados(0, 1, 2)).toMatchObject({ texto: 'mobilidade de 1 dia e água de 2 dias', enviado: 'enviadas', ele: 'elas', sera: 'serão apagadas' });
+    expect(descreverNaoEnviados(2, 1, 1)).toMatchObject({ texto: '2 treinos, mobilidade de 1 dia e água de 1 dia', enviado: 'enviados' });
+    expect(descreverNaoEnviados(1, 0, 1)).toMatchObject({ texto: '1 treino e água de 1 dia', enviado: 'enviados', ele: 'eles' });
   });
 });
