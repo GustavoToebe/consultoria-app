@@ -28,7 +28,8 @@ que o Gustavo ajustou e devolveu com "Copiar meus ajustes".
 - [x] 2. Peças comuns: `Cartao`, `CabecalhoDeGrupo` (`linha`, `inicio`, selo com ícone), `Folha`, `Tabela`, `IconeBotao moldura`, `Selo` com ícone, menu lateral — commit/run: —
 - [x] 3. Editor: sessão, exercício, séries, contadores e "Adicionar próximo exercício" — commit/run: —
 - [x] 4. "Bordas reforçadas" em Perfil › Preferências (D12) — commit/run: —
-- [ ] 5. Jest, lint, typecheck, e2e completo em 390 e 1280, capturas, AGENTS.md, PR e CI — commit/run: e07bf45 (visual, sem o D12)
+- [x] 5. Jest (2618), lint, typecheck, e2e completo (344/344 em 390 e 1280), capturas do editor real e AGENTS.md — commit/run: e07bf45, fc67824 e o seguinte (selo logo depois do título)
+- [ ] 6. Teste do Gustavo no PC com o Claude local (`mensagem-claude-local-editor.md`), ajustes, PR e CI — commit/run: —
 
 ## Fora do escopo
 - O mesmo tratamento no editor de dieta, de mobilidade e de questionário (o fundo, as bordas, os cantos e o menu já mudam em todo o app; o resto fica para depois de o Gustavo usar o de treino).

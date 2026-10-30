@@ -40,6 +40,6 @@ const estilos = StyleSheet.create({
     paddingVertical: 2,
   },
   texto: { fontFamily: fontes.semi, fontSize: 12, lineHeight: 16, letterSpacing: 0.5, textTransform: 'uppercase' },
-  comIcone: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: espaco(1) },
+  comIcone: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 4, borderRadius: 999, paddingHorizontal: espaco(1) },
   textoComIcone: { textTransform: 'none', letterSpacing: 0 },
 });

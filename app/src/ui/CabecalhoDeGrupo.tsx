@@ -43,10 +43,13 @@ export function CabecalhoDeGrupo({ titulo, resumo, Icone, selo, inicio, acoes, a
       {inicio ?? null}
       {Icone ? <Icone size={18} color={cores.textoSuave} /> : null}
       <View style={estilos.textos}>
-        <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto>
+        {/* O selo fica logo depois do título (e quebra para baixo dele se faltar espaço), não solto no canto. */}
+        <View style={estilos.tituloESelo}>
+          <Texto variante="bloco" style={estilos.titulo}>{titulo}</Texto>
+          {selo ? <Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /> : null}
+        </View>
         {resumo ? <Texto variante="suave" numerico>{resumo}</Texto> : null}
       </View>
-      {selo ? <Selo texto={selo.texto} tipo={selo.tipo} Icone={selo.Icone} /> : null}
     </>
   );
   return (
@@ -82,7 +85,8 @@ const estilos = StyleSheet.create({
   faixaEstreita: { gap: espaco(0.5) },
   identificacao: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexShrink: 1, flexGrow: 1, minHeight: ALVO_TOQUE },
   textos: { flexShrink: 1, flexGrow: 1, gap: 1 },
-  titulo: { fontSize: 17, lineHeight: 22 },
+  tituloESelo: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: espaco(1), rowGap: 2 },
+  titulo: { fontSize: 17, lineHeight: 22, flexShrink: 1 },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: espaco(1), flexWrap: 'wrap', maxWidth: '100%' },
   acoesEstreitas: { paddingBottom: espaco(0.5) },
 });

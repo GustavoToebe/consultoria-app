@@ -127,9 +127,7 @@ export function CartaoExercicio(p: Props) {
                   {r}
                 </Texto>
               ))
-            ) : (
-              <Texto variante="suave">{cardio ? 'Sem prescrição de cardio' : 'Sem séries'}</Texto>
-            )
+            ) : null
           ) : null}
           {!p.aberto && execucao ? <Texto variante="suave">{execucao}</Texto> : null}
           <View style={estilos.selos}>
