@@ -76,7 +76,7 @@ h1 { font-size: 24px; line-height: 30px; margin: 0; letter-spacing: -.01em; disp
 .btn.fantasma:hover:not(:disabled) { background: var(--sup3); }
 .btn.perigo { color: var(--perigo); }
 .btn:disabled { opacity: .5; cursor: default; }
-.ib { width: 40px; height: 40px; display: inline-grid; place-items: center; border-radius: var(--raio); border: 1px solid var(--borda); background: var(--sup); color: var(--texto); flex-shrink: 0; }
+.ib { width: 44px; height: 44px; display: inline-grid; place-items: center; border-radius: var(--raio); border: 1px solid var(--borda); background: var(--sup); color: var(--texto); flex-shrink: 0; }
 .ib:hover:not(:disabled) { background: var(--sup3); }
 body.cel .btn, body.cel .link { min-height: 44px; } body.cel .ib { width: 44px; height: 44px; }
 
@@ -128,6 +128,20 @@ button.linha-reg:hover { background: var(--sup3); border-color: var(--bordaCampo
 .proximo .tx { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 2px; } .proximo .tx b { display: block; color: var(--texto); font-size: 16px; }
 
 /* contadores do Início */
+/* blocos do painel (iguais aos de painel.html) */
+h2.tit-bloco { font-size: 17px; line-height: 22px; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.faixa.faixa-painel { padding: 4px 0 4px 14px; min-height: 52px; flex-wrap: nowrap; gap: 4px; }
+.faixa-painel .tit { min-width: 0; } .faixa-painel h2.tit-bloco { font-size: 15px; }
+.faixa-painel .icones { display: flex; flex-shrink: 0; } .faixa-painel .ib { border-color: transparent; background: transparent; }
+.grade-painel { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.grade-painel .corpo { padding: 12px; }
+.minis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.mini { --c: var(--neutro); display: flex; flex-direction: column; gap: 4px; min-height: 76px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 9.4%, var(--sup)); color: var(--c); text-decoration: none; }
+.mini.atencao { --c: var(--atencao); } .mini.perigo { --c: var(--perigo); } .mini.sucesso { --c: var(--sucesso); }
+.mini .rot { font-size: 12px; line-height: 15px; font-weight: 700; min-height: 30px; } .mini .val { font-size: 24px; line-height: 28px; font-weight: 700; }
+.mini.largo { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; min-height: 52px; } .mini.largo .rot { min-height: 0; }
+.mini:focus-visible { outline: 3px solid var(--texto); outline-offset: 2px; }
+.cab-tela h1 .ic-h1 { color: var(--suave); }
 .contadores { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
 .contador { display: flex; align-items: center; gap: 8px; border: 1px solid var(--borda); border-radius: var(--raio); padding: 14px 16px; background: var(--sup); text-align: left; min-height: 56px; }
 .contador .tx { flex: 1; } .contador b { display: block; font-size: 22px; color: var(--suave); }
@@ -173,8 +187,6 @@ body.cel .faixa .acoes .prog { margin-right: auto; }
 .motivo { font-size: 12px; color: var(--suave); }
 body.cel .passo { grid-template-columns: 28px 1fr auto; gap: 10px; padding: 10px 12px; }
 body.cel .passo.aberto .acoes-p, body.cel .passo .acoes-p:has(.motivo) { grid-column: 2 / -1; justify-content: flex-start; }
-.faixa-guia { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px; background: var(--sup); border: var(--bwBloco) solid var(--borda); border-radius: var(--raio); }
-.faixa-guia .cresce { flex: 1; min-width: 180px; }
 
 /* interruptor (seleção invertida) */
 .interruptor { display: inline-flex; align-items: center; gap: 10px; border: 0; background: none; min-height: 44px; padding: 0; text-align: left; font-weight: 600; }
@@ -247,24 +259,23 @@ body.editando [data-t] { outline: 1px dashed #2563eb; outline-offset: 1px; curso
 'use strict';
 /* ====================== cores (as de app/src/tema/tokens.ts, com o fundo quase branco) ====================== */
 const TEMAS = {
-  claro: { fundo:'#F7F7F8', sup:'#FFFFFF', sup2:'#F4F4F5', sup3:'#E7E7EA', divisor:'#D4D4D8', borda:'#B9B9C0', campo:'#FFFFFF', bordaCampo:'#8A8A93', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C' },
-  areia: { fundo:'#FAF9F6', sup:'#FFFFFF', sup2:'#F7F5F0', sup3:'#E7E3DB', divisor:'#DDD8CF', borda:'#B9B3A9', campo:'#FFFFFF', bordaCampo:'#77736B', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C' },
-  escuro: { fundo:'#0A0A0C', sup:'#18181B', sup2:'#222226', sup3:'#2C2C31', divisor:'#36363C', borda:'#4C4C55', campo:'#0F0F12', bordaCampo:'#63636B', texto:'#F4F4F5', suave:'#A1A1AA', sucesso:'#2BB36A', atencao:'#D9962C', perigo:'#F0666B' },
+  claro: { fundo:'#F7F7F8', sup:'#FFFFFF', sup2:'#F4F4F5', sup3:'#E7E7EA', divisor:'#D4D4D8', borda:'#B9B9C0', campo:'#FFFFFF', bordaCampo:'#8A8A93', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
+  areia: { fundo:'#FAF9F6', sup:'#FFFFFF', sup2:'#F7F5F0', sup3:'#E7E3DB', divisor:'#DDD8CF', borda:'#B9B3A9', campo:'#FFFFFF', bordaCampo:'#77736B', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169' },
+  escuro: { fundo:'#0A0A0C', sup:'#18181B', sup2:'#222226', sup3:'#2C2C31', divisor:'#36363C', borda:'#4C4C55', campo:'#0F0F12', bordaCampo:'#707078', texto:'#F4F4F5', suave:'#A1A1AA', sucesso:'#2BB36A', atencao:'#D9962C', perigo:'#F0666B', neutro:'#9A9AA3' },
 };
 /* Cores da marca que seguram texto branco a 4,5:1 (como avaliarMarca de dominio/paletas.ts). */
 const CORES_MARCA = [['#B71C1C', 'Vermelho'], ['#1D4ED8', 'Azul'], ['#047857', 'Verde'], ['#6D28D9', 'Roxo']];
-const PADRAO = {
-  tema:'claro', bordasReforcadas:false,
-  onde:'inicio', proximo:'checklist', progresso:'fracao', dispensavel:true, aoConcluir:'recolhe',
-  passeio:'antes', manuais:'conferir', painelVazio:'enxuto',
-  perfil:'admin', estado:'normal', celular:false, editarTextos:false,
-};
-const CHAVE = 'prototipo-primeiro-uso';
+/* Respostas do Gustavo (30/10) às perguntas da primeira versão: fixas, não são mais ajustes. A chave do armazenamento mudou
+   para os ajustes da versão anterior (faixa, porcentagem, "some"...) não voltarem do navegador. */
+const DECIDIDO = { onde:'inicio', proximo:'substitui', progresso:'fracao', dispensavel:true, aoConcluir:'recolhe', passeio:'antes', manuais:'conferir', painelVazio:'enxuto' };
+const PADRAO = { tema:'claro', bordasReforcadas:false, perfil:'admin', estado:'normal', celular:false, editarTextos:false };
+const CHAVE = 'prototipo-primeiro-uso-v2';
 const consultoriaNova = () => ({ logo:false, cor:'#B71C1C', nome:'Consultoria Exemplo', metodologia:false, modelo:false, alunos:[], link:false, linkNaoAgora:false, passeioVisto:false, dispensado:false, concluidoFechado:false });
 const membroNovo = () => ({ ...consultoriaNova(), logo:true, link:true, passeioVisto:false,
   alunos:[{ id:'a1', nome:'Ana Souza', acesso:'ativo' }, { id:'a2', nome:'Bruno Costa', acesso:'ativo' }, { id:'a3', nome:'Carla Mendes', acesso:'nenhum' }] });
 let ajustes = { ...PADRAO }, textos = {}, dados = consultoriaNova();
 try { const s = JSON.parse(localStorage.getItem(CHAVE) || 'null'); if (s) { ajustes = { ...PADRAO, ...(s.ajustes || {}) }; textos = s.textos || {}; dados = { ...consultoriaNova(), ...(s.dados || {}) }; } } catch (e) {}
+Object.assign(ajustes, DECIDIDO);
 const guardar = () => { try { localStorage.setItem(CHAVE, JSON.stringify({ ajustes, textos, dados })); } catch (e) {} };
 
 /* ====================== ícones (desenho do lucide, o mesmo do app) ====================== */
@@ -291,6 +302,11 @@ const P = {
   perfil:'<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   copiar:'<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   paleta:'<circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.55-2.5 5.55-5.55C21.97 6.01 17.46 2 12 2z"/>',
+  abrir:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  atualizar:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  funil:'<path d="M10 20a1 1 0 0 0 .55.9l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .52-1.34L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.74 1.67l7.22 7.99A2 2 0 0 1 10 14z"/>',
+  lapis:'<path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/>',
+  grafico:'<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
   mapa:'<path d="M14.1 4.1 9.9 2 3 5v17l6.9-3 4.2 2 6.9-3V1z"/><path d="M9.9 2v17"/><path d="M14.1 4.1v17"/>',
 };
 const ic = (n, t = 16) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
@@ -314,27 +330,29 @@ function itens() {
     { id:'marca', titulo:'Marca e logo', texto:'Envie a logo e escolha a cor. É o que os seus alunos veem quando entram no app.', acao:'Abrir Marca', tela:'marca',
       feito: dados.logo, oculto: restrito() },
     { id:'metodologia', manual:true, titulo:'Conferir a metodologia', texto:'A consultoria já vem com uma metodologia padrão (tipos de série, técnicas e combinações). Confira se ela é a sua.', acao:'Abrir Metodologias', tela:'planejamento',
-      feito: dados.metodologia, oculto: restrito() || ajustes.manuais === 'esconder' },
+      feito: dados.metodologia, oculto: restrito() },
     { id:'modelo', manual:true, titulo:'Conferir os modelos de treino', texto:'Já existem 3 semanas de treino e 2 dietas de exemplo no Planejamento. Ajuste uma delas ou crie a sua.', acao:'Abrir Planejamento', tela:'planejamento',
-      feito: dados.modelo, oculto: restrito() || ajustes.manuais === 'esconder' },
+      feito: dados.modelo, oculto: restrito() },
     { id:'aluno', titulo:'Cadastrar o primeiro aluno', texto:'Só o nome é obrigatório. O treino e a dieta são montados na ficha dele, numa pasta por período.', acao:'Cadastrar aluno', tela:'novo',
       feito: temAluno },
     { id:'convite', titulo:'Dar acesso ao app ao aluno', texto:'Gere o convite (o aluno cria a própria senha) ou defina você o e-mail e uma senha provisória.', acao:'Abrir a ficha', tela:'ficha',
       feito: dados.alunos.some((a) => a.acesso !== 'nenhum'), bloqueado: temAluno ? null : 'Cadastre um aluno primeiro.' },
     { id:'link', opcional:true, titulo:'Ligar o link de inscrição', texto:'Quem se inscreve pelo link aparece em Interessados, para você atender e aceitar como aluno. Se não for usar agora, dá para deixar para depois.', acao:'Abrir Interessados', tela:'interessados',
-      feito: dados.link, pulado: dados.linkNaoAgora && !dados.link, desconhecido: ajustes.estado === 'parcial' && !dados.link },
+      // "Deixado para depois" fica no aparelho, então continua conhecido; se a consulta da configuração do link falhou,
+      // o item vira "Sem informação" mesmo que o link esteja ligado: nunca "Feito" sem ter conferido.
+      pulado: dados.linkNaoAgora && !dados.link, desconhecido: ajustes.estado === 'parcial' && !dados.linkNaoAgora, feito: dados.link && ajustes.estado !== 'parcial' },
   ];
-  if (ajustes.passeio === 'item') lista.push({ id:'passeio', titulo:'Conhecer o menu', texto:'Um passeio de menos de um minuto pelo menu, item por item. Dá para pular.', acao:'Começar o passeio', tela:null, feito: dados.passeioVisto });
   return lista.filter((i) => !i.oculto);
 }
-const resolvido = (i) => i.feito || i.pulado;
+/* Feito ou deixado para depois conta no "3 de 6"; "Sem informação" não conta e impede o "Concluídos". */
+const resolvido = (i) => (i.feito && !i.desconhecido) || i.pulado;
 function guia() {
   const lista = itens(), feitos = lista.filter(resolvido).length, total = lista.length, concluido = feitos === total;
   const proximo = lista.find((i) => !resolvido(i) && !i.bloqueado && !i.desconhecido) || lista.find((i) => !resolvido(i) && !i.bloqueado) || null;
-  const ativo = ajustes.onde !== 'vazios' && !dados.dispensado && !(concluido && dados.concluidoFechado);
+  const ativo = !dados.dispensado && !(concluido && dados.concluidoFechado);
   return { lista, feitos, total, concluido, proximo, ativo };
 }
-const textoProgresso = (g) => ajustes.progresso === 'porcentagem' ? `${Math.round((g.feitos / g.total) * 100)}%` : `${g.feitos} de ${g.total}`;
+const textoProgresso = (g) => `${g.feitos} de ${g.total}`;
 function progHtml(g) {
   const p = Math.round((g.feitos / g.total) * 100), de = ultimoProgresso === null ? p : ultimoProgresso;
   return `<span class="prog" role="img" aria-label="Primeiros passos: ${g.feitos} de ${g.total} feitos ou deixados para depois"><b class="num">${textoProgresso(g)}</b><span class="barra-prog"><i data-p="${p}" style="width:${de}%"></i></span></span>`;
@@ -342,15 +360,17 @@ function progHtml(g) {
 
 function linhaPasso(i, n, g, primarioNoItem) {
   const aberto = i === g.proximo, feito = resolvido(i);
-  const st = i.feito ? selo('sucesso', 'Feito', 'check') : i.pulado ? selo('neutro', 'Agora não', 'menos') : i.desconhecido ? selo('neutro', 'Sem informação', 'alerta')
+  const st = i.pulado ? selo('neutro', 'Deixado para depois', 'menos') : i.desconhecido ? selo('neutro', 'Sem informação', 'alerta') : i.feito ? selo('sucesso', 'Feito', 'check')
     : i.bloqueado ? selo('neutro', 'Depois do aluno', 'cadeado') : selo('neutro', 'A fazer', 'circulo');
   let acoes = '';
-  if (i.bloqueado && !feito) acoes = `<button class="btn" disabled aria-describedby="motivo-${i.id}">${esc(i.acao)}</button><span class="motivo" id="motivo-${i.id}">${esc(i.bloqueado)}</span>`;
+  if (i.pulado) acoes = `<button class="btn fantasma anima" data-acao="desfazer-nao-agora" aria-label="Desfazer: ${esc(i.titulo)}">Desfazer</button>`;
+  else if (i.bloqueado && !feito) acoes = `<button class="btn" disabled aria-describedby="motivo-${i.id}">${esc(i.acao)}</button><span class="motivo" id="motivo-${i.id}">${esc(i.bloqueado)}</span>`;
   else if (aberto) acoes = `<button class="btn ${primarioNoItem ? 'primario' : ''} anima" data-acao="item" data-id="${i.id}">${esc(i.acao)}</button>`
     + (i.manual ? `<button class="btn anima" data-acao="conferido" data-id="${i.id}">${ic('check')} Já conferi</button>` : '')
     + (i.opcional ? `<button class="btn fantasma anima" data-acao="nao-agora">Agora não</button>` : '');
   else if (!feito) acoes = `<button class="btn anima" data-acao="item" data-id="${i.id}" aria-label="${esc(i.acao)}: ${esc(i.titulo)}">Abrir</button>`;
-  const texto = aberto ? `<p>${esc(i.texto)}</p>` : i.desconhecido && !feito ? '<p>Não foi possível conferir agora. Abra a tela para ver.</p>' : '';
+  const texto = i.desconhecido && !feito ? '<p>Não foi possível conferir agora. Abra a tela para ver.</p>' : aberto ? `<p>${esc(i.texto)}</p>`
+    : i.pulado ? '<p>Conta como resolvido. Quando quiser, ligue em Interessados.</p>' : '';
   const anima = aberto && ultimoProximo !== i.id ? 'entra' : '';
   return `<li class="passo ${aberto ? 'aberto' : ''} ${i.feito ? 'feito' : ''} ${anima}">
     <span class="n num" aria-hidden="true">${i.feito ? ic('check', 14) : n}</span>
@@ -359,51 +379,31 @@ function linhaPasso(i, n, g, primarioNoItem) {
 }
 const listaPassos = (g, primarioNoItem) => `<ol class="passos" aria-label="Primeiros passos">${g.lista.map((i, k) => linhaPasso(i, k + 1, g, primarioNoItem)).join('')}</ol>`;
 
-/* Cartão "Primeiros passos" no Início (alternativa padrão). */
+/* Bloco "Primeiros passos": o primeiro bloco do painel do Início (painel.html), no topo, enquanto não for concluído ou
+   dispensado. Enquanto aberto, toma o lugar do "Próximo passo": o único primário é o do item aberto. */
 function guiaNoInicio() {
   const g = guia();
-  if (!g.ativo || ajustes.onde !== 'inicio') return '';
+  if (!g.ativo) return '';
   if (g.concluido) return blocoConcluido(g);
-  return `<section class="bloco" aria-labelledby="tit-guia"><div class="faixa ${estado.recolhido ? 'sem-linha' : ''}"><div class="tit"><b id="tit-guia">${T('guia.titulo', 'Primeiros passos')}</b>
+  return `<section class="bloco" aria-labelledby="tit-guia"><div class="faixa ${estado.recolhido ? 'sem-linha' : ''}" data-menu="guia"><div class="tit"><h2 class="tit-bloco" id="tit-guia">${T('guia.titulo', 'Primeiros passos')}</h2>
       <small>${T('guia.desc', 'O que falta para começar a atender pelo app. Cada item abre a tela certa.')}</small></div>
-    <div class="acoes">${progHtml(g)}${ajustes.dispensavel ? `<button class="btn fantasma anima" data-acao="dispensar">Dispensar</button>` : ''}
+    <div class="acoes">${progHtml(g)}<button class="btn fantasma anima" data-acao="dispensar">Dispensar</button>
       <button class="ib anima" data-acao="recolher" aria-expanded="${!estado.recolhido}" aria-label="${estado.recolhido ? 'Mostrar' : 'Recolher'} os primeiros passos">${ic(estado.recolhido ? 'baixo' : 'cima')}</button></div></div>
-    ${estado.recolhido ? '' : `<div class="corpo">${listaPassos(g, ajustes.proximo === 'substitui')}
-      ${ajustes.dispensavel ? '' : '<span class="pequeno">Fica no Início até tudo estar feito. O link de inscrição pode ficar para depois.</span>'}</div>`}</section>`;
+    ${estado.recolhido ? '' : `<div class="corpo">${listaPassos(g, true)}</div>`}</section>`;
 }
+/* Concluído: vira uma linha "Concluídos", que dá para abrir (Ver) ou tirar do Início (X). O Próximo passo volta. */
 function blocoConcluido(g) {
-  if (ajustes.aoConcluir === 'some') return `<div class="alerta sucesso entra" role="status">${ic('ok', 20)}<div class="tx"><b>Tudo pronto para começar</b><span>Os primeiros passos saem daqui. Se quiser rever, estão na Ajuda.</span></div>
-    <button class="btn anima" data-acao="fechar-concluido">Fechar</button></div>`;
-  return `<section class="bloco"><div class="faixa ${estado.verConcluidos ? '' : 'sem-linha'}"><div class="tit"><b>Primeiros passos ${selo('sucesso', 'Concluídos', 'check')}</b><small class="num">${textoProgresso(g)} · também na Ajuda</small></div>
+  return `<section class="bloco" aria-labelledby="tit-guia"><div class="faixa ${estado.verConcluidos ? '' : 'sem-linha'}" data-menu="guia"><div class="tit"><h2 class="tit-bloco" id="tit-guia">Primeiros passos ${selo('sucesso', 'Concluídos', 'check')}</h2><small class="num">${textoProgresso(g)} · também na Ajuda</small></div>
     <div class="acoes"><button class="btn fantasma anima" data-acao="ver-concluidos" aria-expanded="${estado.verConcluidos}">${estado.verConcluidos ? 'Esconder' : 'Ver'}</button>
-    ${ajustes.dispensavel ? `<button class="ib anima" data-acao="fechar-concluido" aria-label="Tirar do Início">${ic('fechar')}</button>` : ''}</div></div>
+    <button class="ib anima" data-acao="fechar-concluido" aria-label="Tirar os primeiros passos do Início">${ic('fechar')}</button></div></div>
     ${estado.verConcluidos ? `<div class="corpo">${listaPassos(g, false)}</div>` : ''}</section>`;
 }
 
-/* Faixa no topo de todas as telas (alternativa 2). No Início quem fala é o "Próximo passo". */
-function faixaGuia() {
-  const g = guia();
-  if (ajustes.onde !== 'faixa' || !g.ativo || estado.tela === 'inicio') return '';
-  if (g.concluido) return ajustes.aoConcluir === 'some' ? blocoConcluido(g)
-    : `<div class="faixa-guia"><b>Primeiros passos</b>${selo('sucesso', 'Concluídos', 'check')}<span class="cresce"></span>${ajustes.dispensavel ? `<button class="ib anima" data-acao="fechar-concluido" aria-label="Tirar a faixa">${ic('fechar')}</button>` : ''}</div>`;
-  const p = g.proximo, aqui = p && p.tela === estado.tela;
-  return `<section class="faixa-guia" aria-label="Primeiros passos"><b>Primeiros passos</b>${progHtml(g)}
-    <span class="cresce">${p ? `<span class="suave">Próximo:</span> ${esc(p.titulo)}` : ''}</span>
-    ${p ? (aqui ? `<span class="pequeno">${ic('mapa', 14)} Nesta tela</span>` : `<button class="btn anima" data-acao="item" data-id="${p.id}">${esc(p.acao)}</button>`) : ''}
-    <button class="btn fantasma anima" data-acao="ver-todos" aria-expanded="${estado.listaAberta}">${estado.listaAberta ? 'Esconder' : 'Ver todos'}</button>
-    ${ajustes.dispensavel ? `<button class="ib anima" data-acao="dispensar" aria-label="Dispensar os primeiros passos">${ic('fechar')}</button>` : ''}</section>
-    ${estado.listaAberta ? `<section class="bloco"><div class="corpo">${listaPassos(g, false)}</div></section>` : ''}`;
-}
-
 /* ====================== Próximo passo do Início ======================
-   Com os primeiros passos ativos, mostra o item seguinte (o único primário). Sem eles, a proposta troca o
-   "Tudo em dia por aqui" (que hoje aparece numa consultoria vazia) por uma frase com ação. */
+   Some enquanto a lista está aberta (sem repetir o item nem o botão). Dispensada ou concluída, volta. */
 function proximoDoInicio() {
   const g = guia();
-  if (g.ativo && !g.concluido) {
-    if (ajustes.onde === 'inicio' && ajustes.proximo === 'substitui') return null;
-    if (g.proximo) return { tom:'atencao', rotulo:'Primeiros passos', texto: g.proximo.titulo + '.', botao: g.proximo.acao, acao:'item', id: g.proximo.id };
-  }
+  if (g.ativo && !g.concluido) return null;
   if (!dados.alunos.length) return { tom:'atencao', rotulo:'Próximo passo', texto:'Nenhum aluno ainda. Cadastre o primeiro para começar.', botao:'Cadastrar aluno', acao:'ir-novo' };
   const semAcesso = dados.alunos.find((a) => a.acesso === 'nenhum');
   if (semAcesso) return { tom:'atencao', rotulo:'Próximo passo', texto:`${semAcesso.nome} ainda não entra no app. Gere o convite na ficha.`, botao:`Abrir ${semAcesso.nome.split(' ')[0]}`, acao:'abrir', id: semAcesso.id };
@@ -439,25 +439,27 @@ const topo = () => `<header class="topo"><div class="busca">${ic('busca')}<span>
 const inferior = () => `<nav class="inferior" aria-label="Menu">${[['casa', 'Início', 'inicio'], ['alunos', 'Alunos', 'alunos'], ['livro', 'Biblioteca', 'biblioteca'], ['camadas', 'Planos', 'planejamento'], ['perfil', 'Perfil', 'perfil']]
   .map(([i, n, t]) => `<button class="${telaDoMenu() === t || (t === 'perfil' && ['marca', 'interessados', 'ajuda'].includes(estado.tela)) ? 'ativo' : ''}" data-menu="${t}" data-acao="${NAVEGAVEIS.includes(t) ? 'ir' : 'nada'}" data-v="${t}">${ic(i, 20)}<span>${n}</span></button>`).join('')}</nav>`;
 
-/* ====================== tela: Início ====================== */
+/* ====================== tela: Início (o painel de painel.html, resumido) ====================== */
 function telaInicio() {
   const n = dados.alunos.length, pp = proximoDoInicio(), st = estadoGeral();
-  return `<div class="cab-tela"><div class="tx"><h1>${T('inicio.ola', 'Olá, Treinador Exemplo')}</h1></div>
-      <div class="acoes"><button class="btn anima" data-acao="ir-novo">${ic('mais')} Novo aluno</button></div></div>
-    <div class="linha" style="justify-content:space-between;align-items:center"><div class="chips" role="group" aria-label="Alunos"><button class="chip sel">Todos</button><button class="chip anima" data-acao="nada">Meus</button></div>
-      <div class="linha" style="align-items:center;gap:16px"><span class="num">${n} ${n === 1 ? 'aluno ativo' : 'alunos ativos'}</span><button class="link" data-acao="ir" data-v="alunos">Ver alunos</button><button class="link" data-acao="nada">Números</button></div></div>
+  return `<div class="cab-tela"><div class="tx"><h1>${ic('grafico', 22).replace('aria-hidden', 'class="ic-h1" aria-hidden')} ${T('inicio.titulo', 'Painel')}</h1><span class="suave">${T('inicio.ola', 'Olá, Treinador Exemplo. O que pede atenção na consultoria hoje.')}</span></div>
+      <div class="acoes"><button class="btn anima" data-acao="ir-novo">${ic('mais')} Novo aluno</button>
+        <button class="btn anima" data-acao="nada" ${n ? '' : 'aria-disabled="true" aria-describedby="m-editar"'}>${ic('lapis')} Editar</button>${n ? '' : '<span class="motivo" id="m-editar">Os blocos aparecem quando houver alunos.</span>'}</div></div>
     ${st || `${pp ? proximoHtml(pp) : ''}${guiaNoInicio()}${painelDoInicio()}`}`;
 }
+/* Sem alunos: só uma frase, sem contadores zerados. Com alunos: os blocos do painel (o completo está em painel.html). */
+const miniPU = (rot, nome, n, tom, largo) => `<a class="mini ${n > 0 ? tom : 'neutro'} ${largo ? 'largo' : ''} anima" href="#" data-acao="nada" aria-label="${nome}: ${n}"><span class="rot">${rot}</span><span class="val num">${n}</span></a>`;
+const blocoPU = (t, minis) => `<section class="bloco" aria-labelledby="h-${t}"><div class="faixa faixa-painel"><div class="tit"><h2 class="tit-bloco" id="h-${t}">${t}</h2></div>
+    <div class="icones"><a class="ib anima" href="#" data-acao="nada" aria-label="Abrir ${t}">${ic('abrir')}</a><button class="ib anima" data-acao="nada" aria-label="Atualizar ${t}">${ic('atualizar')}</button><button class="ib anima" data-acao="nada" aria-pressed="false" aria-label="${t}: mostrando todos os alunos. Mostrar só os meus">${ic('funil')}</button></div></div>
+    <div class="corpo"><div class="minis">${minis.join('')}</div></div></section>`;
 function painelDoInicio() {
-  if (!dados.alunos.length && ajustes.painelVazio === 'enxuto')
-    return `<p class="suave" style="margin:0">${T('inicio.semAlunos', 'Os contadores de atualizações, os planos que terminam e os últimos registros aparecem aqui quando houver alunos.')}</p>`;
-  const cont = ['Para revisar', 'Atrasadas', 'Avisaram atraso', 'Interessados novos', 'Retornos a interessados', 'Atualizações em 7 dias'];
-  return `<div style="display:flex;flex-direction:column;gap:8px"><span class="secao-titulo">Pede sua atenção</span><div class="contadores">${cont.map((c) => `<button class="contador anima" data-acao="nada"><span class="tx"><span class="suave">${c}</span><b class="num">0</b></span>${ic('seta', 18)}</button>`).join('')}</div></div>
-    <div class="dois">
-      <section class="bloco"><div class="faixa"><div class="tit"><b>Planos terminando em 7 dias</b><small>Abra o aluno para renovar a pasta no próximo ciclo.</small></div></div><div class="corpo"><span class="suave">Nenhum plano terminando.</span></div></section>
-      <section class="bloco"><div class="faixa"><div class="tit"><b>Sem registro há 7 dias</b><small>Pode ter treinado sem registrar no app.</small></div></div><div class="corpo">${dados.alunos.length ? `<div class="lista">${dados.alunos.map((a) => `<button class="linha-reg anima" data-acao="abrir" data-id="${a.id}"><span class="tx"><b>${esc(a.nome)}</b><small>Nunca registrou</small></span>${ic('seta')}</button>`).join('')}</div>` : '<span class="suave">Todos registraram nesse período.</span>'}</div></section>
-      <section class="bloco"><div class="faixa"><div class="tit"><b>Últimos registros</b><small>O registro mais recente de cada aluno.</small></div></div><div class="corpo">${vazio('livro', 'Sem registros ainda', 'Os treinos registrados pelos alunos aparecem aqui.')}</div></section>
-    </div>`;
+  const n = dados.alunos.length;
+  if (!n) return `<p class="suave" style="margin:0">${T('inicio.semAlunos', 'Os números da consultoria (atualizações, treinos, pastas e o resto) aparecem aqui quando houver alunos.')}</p>`;
+  const blocos = [];
+  if (!restrito()) blocos.push(blocoPU('Atualizações', [miniPU('Para revisar', 'Atualizações para revisar', 0, 'atencao'), miniPU('Atrasadas', 'Atualizações atrasadas', 0, 'perigo'), miniPU('Nos próximos 7 dias', 'Atualizações nos próximos 7 dias', 0, 'neutro', true)]));
+  blocos.push(blocoPU('Treinos', [miniPU('Sem registro há 7 dias', 'Alunos sem registro há 7 dias', n, 'atencao'), miniPU('Recordes da semana', 'Recordes da semana', 0, 'sucesso')]));
+  blocos.push(blocoPU('Pastas', [miniPU('A renovar em 7 dias', 'Pastas a renovar em 7 dias', 0, 'atencao'), miniPU('Sem pasta com período', 'Alunos sem pasta com período', n, 'neutro')]));
+  return `<div class="grade-painel">${blocos.join('')}</div><span class="pequeno">Resumo do painel. Os outros blocos, os gráficos e o "Editar" estão em painel.html.</span>`;
 }
 
 /* ====================== tela: Alunos ====================== */
@@ -500,7 +502,7 @@ function telaFicha() {
     <div class="cab-tela"><span class="avatar grande">${iniciais(a.nome)}</span><div class="tx"><h1>${esc(a.nome)} ${seloAcesso(a)}</h1><span class="suave">Sem plano ativo · Responsável: Treinador Exemplo</span></div></div>
     <section class="bloco"><div class="faixa"><div class="tit"><b>Resumo</b><small>O que acontece agora com ${esc(a.nome.split(' ')[0])}</small></div></div><div class="corpo">
       ${a.acesso === 'nenhum'
-        ? `<div class="proximo atencao"><div class="tx"><span class="secao-titulo">Próximo passo (proposta)</span><b>${esc(a.nome.split(' ')[0])} ainda não entra no app. Gere o convite.</b></div><button class="btn primario anima" data-acao="gerar-convite" data-id="${a.id}">Gerar convite</button></div>`
+        ? `<div class="proximo atencao"><div class="tx"><span class="secao-titulo">Próximo passo</span><b>${esc(a.nome.split(' ')[0])} ainda não entra no app. Gere o convite.</b></div><button class="btn primario anima" data-acao="gerar-convite" data-id="${a.id}">Gerar convite</button></div>`
         : `<div class="proximo atencao"><div class="tx"><span class="secao-titulo">Próximo passo</span><b>Sem pasta ainda. Crie a primeira com o treino e a dieta.</b></div><button class="btn primario anima" data-acao="nada">Nova pasta</button></div>`}</div></section>
     <section class="bloco"><div class="faixa"><div class="tit"><b>Pastas</b><small>Cada pasta reúne o treino, a dieta e a mobilidade de um período</small></div><div class="acoes"><button class="btn anima" data-acao="nada">${ic('mais')} Nova pasta</button></div></div>
       <div class="corpo">${vazio('pasta', 'Nenhuma pasta ainda', 'Crie a pasta do período. Dentro dela você monta o treino ou aplica um modelo do Planejamento.')}</div></section>
@@ -569,12 +571,12 @@ function telaInteressados() {
 
 /* ====================== tela: Ajuda (de onde se revê tudo) ====================== */
 function telaAjuda() {
-  const g = guia(), ativoSemDispensa = ajustes.onde !== 'vazios';
+  const g = guia();
   return `<div class="cab-tela"><div class="tx"><h1>Ajuda</h1><span class="suave">Aqui você cadastra os alunos, monta treino, dieta e mobilidade em pastas por período e acompanha as cargas que eles registram.</span></div></div>
     <section class="bloco"><div class="faixa"><div class="tit"><b>Conhecer o app</b></div></div><div class="corpo"><span class="suave">O tutorial passa pelas telas, na ordem em que você vai usá-las. "Conhecer o menu" destaca cada item do menu, como no primeiro acesso.</span>
       <div class="chips"><button class="btn primario anima" data-acao="nada">Tutorial passo a passo</button><button class="btn anima" data-acao="passeio">Conhecer o menu</button></div></div></section>
-    <section class="bloco"><div class="faixa"><div class="tit"><b>Primeiros passos</b><small>${ativoSemDispensa ? `${textoProgresso(g)} feitos ou deixados para depois` : 'O que fazer para começar'}</small></div>
-      ${ativoSemDispensa && (dados.dispensado || dados.concluidoFechado) ? `<div class="acoes"><button class="btn anima" data-acao="mostrar-de-novo">Mostrar ${ajustes.onde === 'faixa' ? 'a faixa' : 'no Início'} de novo</button></div>` : ''}</div>
+    <section class="bloco"><div class="faixa"><div class="tit"><b>Primeiros passos</b><small>${textoProgresso(g)} feitos ou deixados para depois</small></div>
+      ${dados.dispensado || dados.concluidoFechado ? `<div class="acoes"><button class="btn anima" data-acao="mostrar-de-novo">Mostrar no Início de novo</button></div>` : ''}</div>
       <div class="corpo">${listaPassos(g, false)}</div></section>
     <section class="bloco"><div class="faixa"><div class="tit"><b>Como usar</b></div></div><div class="corpo"><div class="lista">${['Alunos', 'Importar planilhas', 'Interessados (inscrição por link)', 'Planejamento'].map((s) => `<button class="linha-reg anima" data-acao="nada"><span class="tx"><b>${s}</b></span>${ic('baixo')}</button>`).join('')}</div></div></section>`;
 }
@@ -589,8 +591,8 @@ function telaPerfil() {
 
 /* ====================== passeio pelo menu (os textos de hoje, de ajuda/conteudo.ts) ====================== */
 function passosDoPasseio() {
-  const final = ajustes.onde === 'vazios' ? null : { titulo:'Primeiros passos', proposta:true,
-    texto: ajustes.onde === 'faixa' ? 'A faixa no topo das telas mostra o que falta para começar a atender pelo app. Cada item abre a tela certa.' : 'No Início, a lista de primeiros passos mostra o que falta para começar a atender pelo app. Cada item abre a tela certa.' };
+  // Passo novo no fim: aponta o bloco Primeiros passos (só no Início e enquanto ele está lá).
+  const final = { titulo:'Primeiros passos', novo:true, alvo:'guia', texto:'Este bloco do Início mostra o que falta para começar a atender pelo app. Cada item abre a tela certa; dá para dispensar e rever na Ajuda.' };
   const passos = [
     { titulo:'Boas-vindas', texto:'Um passeio rápido pelo menu, item por item. Leva menos de um minuto. Dá para pular agora e rever quando quiser em Ajuda.' },
     { titulo:'Início', texto:'O resumo da consultoria: atualizações para revisar e alunos sem registro há alguns dias.', alvo:'inicio' },
@@ -624,7 +626,7 @@ function desenharPasseio() {
       <div class="anel" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px"></div>`;
   }
   camada.innerHTML = `${veu}<div class="balao" role="dialog" aria-modal="true" aria-label="Passeio pelo menu: ${esc(p.titulo)}" style="visibility:hidden">
-    <span class="pequeno num">Passeio pelo menu · ${i + 1} de ${passos.length}${p.proposta ? ' · <b>passo novo (proposta)</b>' : ''}</span>
+    <span class="pequeno num">Passeio pelo menu · ${i + 1} de ${passos.length}${p.novo ? ' · <b>passo novo</b>' : ''}</span>
     <p class="tit">${esc(p.titulo)}</p><p>${esc(p.texto)}</p>
     <div class="botoes">${ultimo ? '' : '<button class="btn fantasma anima" data-acao="passeio-pular">Pular</button>'}<div class="dir">
       ${i === 0 ? '' : '<button class="btn anima" data-acao="passeio-anterior">Anterior</button>'}<button class="btn primario anima" data-acao="${ultimo ? 'passeio-pular' : 'passeio-proximo'}">${ultimo ? 'Começar' : 'Próximo'}</button></div></div></div>`;
@@ -644,7 +646,7 @@ function desenharModal() {
   const c = document.getElementById('camada-modal');
   if (!estado.confirmar) { c.innerHTML = ''; return; }
   c.innerHTML = `<div class="modal-fundo"><div class="painel" role="dialog" aria-modal="true" aria-labelledby="tit-conf"><div class="faixa"><div class="tit"><b id="tit-conf">Dispensar os primeiros passos?</b></div></div>
-    <div class="corpo"><p>${ajustes.onde === 'faixa' ? 'A faixa sai do topo das telas.' : 'Eles saem do Início.'} Continuam na Ajuda, em Primeiros passos, e dá para trazer de volta de lá.</p></div>
+    <div class="corpo"><p>Eles saem do Início e o Próximo passo volta. Continuam na Ajuda, em Primeiros passos, e dá para trazer de volta de lá.</p></div>
     <div class="rodape"><button class="btn anima" data-acao="conf-cancelar">Continuar com eles</button><button class="btn primario anima" data-acao="conf-dispensar">Dispensar</button></div></div></div>`;
   c.querySelector('[data-acao="conf-cancelar"]').focus();
 }
@@ -660,19 +662,25 @@ function painel() {
   c.innerHTML = `<aside class="ajustes" aria-label="Ajustes do protótipo"><header><b>Ajustes do protótipo</b><button class="fechar" data-acao="aj-fechar" aria-label="Fechar">${ic('fechar')}</button></header><div class="lista-aj">
     <h4>Ir para</h4><div class="opcoes" style="display:flex;gap:6px;flex-wrap:wrap">${irPara.map(([v, n]) => `<button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:${estado.tela === v ? '#111114;color:#fff' : '#fff'}" data-acao="aj-ir" data-v="${v}">${n}</button>`).join('')}</div>
     <h4>Simular</h4><div class="opcoes" style="display:flex;gap:6px;flex-wrap:wrap">
-      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="nova">Consultoria nova (recomeçar)</button>
+      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="nova">Lista aberta (consultoria nova)</button>
+      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="naoagora">Um item "Deixado para depois"</button>
+      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="dispensar">Dispensar (abre a confirmação)</button>
+      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="tudo">Concluído (linha "Concluídos")</button>
+      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="semalunos">Início sem alunos (lista dispensada)</button>
+      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="restrito">Membro novo com perfil restrito</button>
+      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="parcial">Uma consulta falhou ("Sem informação")</button>
       <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="membro">Membro novo numa consultoria que já funciona</button>
-      <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="cenario" data-v="tudo">Tudo feito</button>
       <button style="border:1px solid #B9B9C0;border-radius:8px;padding:6px 10px;font-weight:600;background:#fff" data-acao="passeio">Abrir o passeio</button></div>
-    <h4>A proposta</h4>
-    ${op('onde', 'Onde fica a orientação', [['inicio', 'Lista no Início'], ['faixa', 'Faixa no topo das telas'], ['vazios', 'Só estados vazios']], 'Lista: cartão "Primeiros passos" no Início. Faixa: uma linha em todas as telas menos o Início. Só vazios: sem lista; o "Próximo passo" e as telas vazias guiam.')}
-    ${op('proximo', 'Próximo passo × lista (lista no Início)', [['checklist', 'Próximo passo aponta o item'], ['substitui', 'Lista no lugar do Próximo passo']], 'Um primário só: ou no Próximo passo, ou no item aberto da lista.')}
-    ${op('progresso', 'Progresso', [['fracao', '"3 de 6"'], ['porcentagem', '"50%"']], '"3 de 6" é o mesmo jeito do passeio ("1 de 12").')}
-    ${op('dispensavel', 'Dá para dispensar', sim, 'Não: fica até tudo estar feito; o link de inscrição tem "Agora não".')}
-    ${op('aoConcluir', 'Ao concluir', [['recolhe', 'Vira uma linha "Concluídos"'], ['some', 'Avisa uma vez e some']])}
-    ${op('passeio', 'Passeio pelo menu', [['antes', 'Abre antes, sozinho'], ['item', 'Vira item da lista']], 'Antes: como hoje, com um passo novo no fim apontando a lista. Item: não abre sozinho; "Conhecer o menu" entra nos primeiros passos.')}
-    ${op('manuais', 'Metodologia e modelos', [['conferir', 'Itens com "Já conferi"'], ['esconder', 'Fora da lista']], 'A consultoria já nasce com eles; o app não tem como saber se foram conferidos (ver abaixo).')}
-    ${op('painelVazio', 'Início sem alunos', [['enxuto', 'Só uma frase'], ['completo', 'Painel zerado, como hoje']], 'Hoje aparecem seis contadores em zero e "Todos registraram nesse período" sem nenhum aluno.')}
+    <h4>Respondido pelo Gustavo (30/10)</h4>
+    <ul class="sinais">
+      <li>"Primeiros passos" é o primeiro bloco do painel do Início, enquanto não estiver concluído.</li>
+      <li>Aberto, toma o lugar do "Próximo passo" (sem repetir item nem botão). Dispensado ou concluído, o Próximo passo volta.</li>
+      <li>Progresso "3 de 6". Dispensar com painel de confirmação. Concluído vira a linha "Concluídos", que dá para fechar.</li>
+      <li>O passeio pelo menu abre antes, sozinho, como hoje, com um passo novo no fim apontando o bloco.</li>
+      <li>Metodologia e modelos ficam como itens com "Já conferi". Início sem alunos: só uma frase, sem contadores zerados.</li>
+      <li>"Agora não" do link conta como resolvido e mostra "Deixado para depois", com Desfazer.</li>
+      <li>Perfil restrito só vê os itens que pode fazer. Consulta que falhou: "Sem informação", nunca "Feito".</li>
+    </ul>
     <h4>Estados</h4>
     ${op('perfil', 'Perfil de quem entra', [['admin', 'Administrador'], ['restrito', 'Sem Marca e Modelos']], 'Item que o perfil não pode fazer some da lista (e a tela mostra "Sem permissão").')}
     ${op('estado', 'Dados', [['normal', 'Normal'], ['carregando', 'Carregando'], ['erro', 'Erro'], ['offline', 'Sem internet'], ['parcial', 'Uma consulta falhou']], '"Uma consulta falhou": o link de inscrição fica "Sem informação", nunca "Feito".')}
@@ -682,11 +690,11 @@ function painel() {
     <h4>O que cada item usa para saber que está feito</h4>
     <ul class="sinais">
       <li><b>Marca e logo</b>: a consultoria tem logo (<code>logoUrl</code> do <code>GET /consultoria</code>). <span class="ok">Existe.</span> Cor e nome já nascem preenchidos, então só a logo serve de sinal.</li>
-      <li><b>Metodologia</b> e <b>Modelos</b>: toda consultoria nasce com a "Metodologia da consultoria", 3 semanas de treino, 2 dietas e as receitas de série (ReceitasPadrao). <span class="dec">A decidir</span>: guardar o "Já conferi" no aparelho (como o passeio) ou no servidor, por pessoa ou por consultoria; ou tirar os dois itens.</li>
+      <li><b>Metodologia</b> e <b>Modelos</b>: toda consultoria nasce com a "Metodologia da consultoria", 3 semanas de treino, 2 dietas e as receitas de série (ReceitasPadrao). <span class="ok">Decidido</span>: o "Já conferi" fica no aparelho, por usuário, como o <code>passeioVisto</code> (sobrevive ao Sair; noutro computador a lista volta).</li>
       <li><b>Primeiro aluno</b>: <code>alunosAtivos</code> do painel. <span class="ok">Existe.</span></li>
       <li><b>Acesso ao app</b>: algum aluno com <code>temAcesso</code> ou <code>aguardandoPrimeiroAcesso</code>. <span class="ok">Existe.</span> Convite gerado e ainda não aceito: <span class="dec">a conferir</span> se a lista de alunos diz isso.</li>
-      <li><b>Link de inscrição</b>: a configuração do link ligada. <span class="ok">Existe</span> (cartão Link de inscrição). "Agora não": <span class="dec">a decidir</span> onde guardar.</li>
-      <li><b>Dispensar</b> e <b>concluído</b>: <span class="dec">a decidir</span> onde guardar (aparelho por usuário, como <code>passeioVisto</code>, ou servidor).</li>
+      <li><b>Link de inscrição</b>: a configuração do link ligada. <span class="ok">Existe</span> (cartão Link de inscrição). "Agora não": no aparelho, por usuário; conta como resolvido e dá para desfazer.</li>
+      <li><b>Dispensar</b> e <b>concluído</b>: no aparelho, por usuário, como o <code>passeioVisto</code>. Sem API nova.</li>
     </ul>
   </div><footer><button class="forte" data-acao="aj-copiar">Copiar meus ajustes</button>${exportado ? `<textarea readonly>${esc(exportado)}</textarea><small>Cole na conversa comigo.</small>` : ''}<button data-acao="aj-padrao">Voltar ao padrão</button></footer></aside>`;
 }
@@ -708,7 +716,7 @@ function render() {
   const foco = document.activeElement?.dataset?.k, ini = document.activeElement?.selectionStart;
   aplicar();
   const corpo = (TELAS[estado.tela] || telaInicio)();
-  document.getElementById('app').innerHTML = `${menu()}<div class="principal">${topo()}<main class="conteudo">${faixaGuia()}${corpo}</main>${inferior()}</div>`;
+  document.getElementById('app').innerHTML = `${menu()}<div class="principal">${topo()}<main class="conteudo">${corpo}</main>${inferior()}</div>`;
   painel(); desenharModal(); desenharPasseio();
   // Barra de progresso: anda do valor anterior ao novo (sem animação com movimento reduzido, pelo CSS).
   const barras = document.querySelectorAll('.barra-prog i');
@@ -765,7 +773,8 @@ document.addEventListener('click', (ev) => {
     case 'abrir': return ir('ficha', { id: d.id });
     case 'item': return abrirItem(d.id);
     case 'conferido': mudar(() => { dados[d.id] = true; }); break;
-    case 'nao-agora': mudar(() => { dados.linkNaoAgora = true; }); break;
+    case 'nao-agora': mudar(() => { dados.linkNaoAgora = true; }); render(); aviso('Link de inscrição deixado para depois.', ['Desfazer', 'desfazer-nao-agora']); return;
+    case 'desfazer-nao-agora': dados.linkNaoAgora = false; guardar(); render(); aviso('O link de inscrição voltou para a lista.'); return;
     case 'recolher': estado.recolhido = !estado.recolhido; break;
     case 'ver-todos': estado.listaAberta = !estado.listaAberta; break;
     case 'ver-concluidos': estado.verConcluidos = !estado.verConcluidos; break;
@@ -773,7 +782,7 @@ document.addEventListener('click', (ev) => {
     case 'conf-cancelar': estado.confirmar = false; break;
     case 'conf-dispensar': estado.confirmar = false; dados.dispensado = true; guardar(); render(); aviso('Primeiros passos dispensados. Eles continuam na Ajuda.', ['Abrir Ajuda', 'ir', 'ajuda']); return;
     case 'fechar-concluido': dados.concluidoFechado = true; guardar(); break;
-    case 'mostrar-de-novo': dados.dispensado = false; dados.concluidoFechado = false; guardar(); render(); aviso(ajustes.onde === 'faixa' ? 'A faixa voltou ao topo das telas.' : 'Os primeiros passos voltaram ao Início.', ['Ir ao Início', 'ir', 'inicio']); return;
+    case 'mostrar-de-novo': dados.dispensado = false; dados.concluidoFechado = false; guardar(); render(); aviso('Os primeiros passos voltaram ao Início.', ['Ir ao Início', 'ir', 'inicio']); return;
     case 'tentar': aviso('No app, busca de novo. Aqui, troque "Dados" no painel Ajustes.'); return;
     case 'menu-usuario': ev.stopPropagation(); estado.menuUsuario = !estado.menuUsuario; break;
     case 'salvar-aluno': {
@@ -800,7 +809,16 @@ document.addEventListener('click', (ev) => {
     case 'passeio-anterior': estado.passeio = Math.max(0, estado.passeio - 1); break;
     case 'passeio-pular': estado.passeio = null; mudar(() => { dados.passeioVisto = true; }); break;
     case 'cenario': dados = d.v === 'membro' ? membroNovo() : consultoriaNova();
-      if (d.v === 'tudo') Object.assign(dados, { logo: true, metodologia: true, modelo: true, link: true, passeioVisto: true, alunos: [{ id: 'a1', nome: 'Ana Souza', acesso: 'ativo' }] });
+      if (d.v !== 'nova') dados.passeioVisto = true;
+      if (['tudo', 'naoagora', 'dispensar', 'semalunos', 'parcial'].includes(d.v)) Object.assign(dados, { logo: true, metodologia: true, modelo: true });
+      if (['tudo', 'naoagora', 'dispensar', 'parcial'].includes(d.v)) dados.alunos = [{ id: 'a1', nome: 'Ana Souza', acesso: d.v === 'tudo' ? 'ativo' : 'convite' }];
+      if (d.v === 'tudo') dados.link = true;
+      if (d.v === 'parcial') dados.link = true;
+      if (d.v === 'naoagora') Object.assign(dados, { linkNaoAgora: true, modelo: false });
+      if (d.v === 'semalunos') dados.dispensado = true;
+      ajustes.estado = d.v === 'parcial' ? 'parcial' : 'normal';
+      ajustes.perfil = d.v === 'restrito' ? 'restrito' : 'admin';
+      estado.confirmar = d.v === 'dispensar';
       Object.assign(estado, { recolhido: false, verConcluidos: false, conviteDe: null, marcaForm: null, linkForm: null });
       ultimoProgresso = null; guardar(); ir('inicio'); return;
     case 'aj-abrir': ajAberto = true; break;
@@ -837,8 +855,8 @@ function abrirEditor(el) {
 }
 addEventListener('resize', () => { clearTimeout(window.__r); window.__r = setTimeout(render, 120); });
 render();
-/* Primeiro acesso: o passeio abre sozinho no Início (alternativa "Abre antes"), como hoje depois do aceite dos termos. */
-if (ajustes.passeio === 'antes' && !dados.passeioVisto && estado.tela === 'inicio') { estado.passeio = 0; render(); }
+/* Primeiro acesso: o passeio abre sozinho no Início, antes e sozinho, como hoje depois do aceite dos termos. */
+if (!dados.passeioVisto && estado.tela === 'inicio') { estado.passeio = 0; render(); }
 </script>
 </body>
 </html>

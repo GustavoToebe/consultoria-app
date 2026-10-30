@@ -1,6 +1,6 @@
 # Importar plano de treino (e dieta) de um PDF ou Google Docs
 
-Situação: Planejando · Onde: branch `atualizacao-visual-app-full` · Atualizado: 30/10/2026
+Situação: Decidido, esperando os exemplos fictícios do Gustavo · Onde: branch `atualizacao-visual-app-full` · Atualizado: 30/10/2026
 
 ## Objetivo
 O treinador já tem planos prontos em PDF ou em Google Docs. Hoje ele precisa digitar tudo de novo no editor. A ideia
@@ -12,7 +12,15 @@ nesta rodada** (decisão D5 de `atualizacao-visual-app-full.md`).
 | # | Decisão | Valor | Quem decidiu |
 | --- | --- | --- | --- |
 | 1 | Nesta rodada | Só o plano escrito (opções, riscos de LGPD, o que fica no servidor); sem código até o Gustavo decidir | Gustavo, 30/10 |
-| 2 | Tudo o mais | Aberto: ver "Perguntas para o Gustavo decidir" | — |
+| 2 | Por onde começar (pergunta 1) | Colar o texto do documento; o app reconhece por regras (opção a) | Gustavo, 30/10 |
+| 3 | O que importar primeiro (2) | Só treino | Gustavo, 30/10 |
+| 4 | Onde o resultado entra (3) | Como modelo no Planejamento; depois "Aplicar ao aluno" como hoje | Gustavo, 30/10 |
+| 5 | Formatos reais (4) | O Gustavo escreve 2 ou 3 exemplos fictícios no jeito real de escrever. **Até eles chegarem, o reconhecedor (passo 3) não começa** | Gustavo, 30/10 |
+| 6 | Texto livre (5) | Só entra se o treinador marcar na prévia | Gustavo, 30/10 |
+| 7 | Limite, se um dia houver envio de arquivo (6) | 3 MiB e 20 páginas, só nessa rota | Gustavo, 30/10 |
+| 8 | PDF escaneado (7) | Recusado, com mensagem | Gustavo, 30/10 |
+| 9 | Google Docs (8) | Sem integração: copiar o texto (ou, depois, baixar como DOCX/PDF) | Gustavo, 30/10 |
+| 10 | IA externa (9) | Não | Gustavo, 30/10 |
 
 ## Como é hoje
 
@@ -170,7 +178,7 @@ na pergunta 2), mobilidade, vários documentos de uma vez, publicar ou aplicar a
    contrato sem retenção e sem treino, aviso de privacidade).
 
 ## Passos propostos
-- [ ] 1. Gustavo: responder as perguntas acima e, se puder, escrever 2 ou 3 exemplos fictícios no formato real — commit/run: —
+- [ ] 1. Gustavo: responder as perguntas acima (feito em 30/10, decisões 2 a 10) e escrever 2 ou 3 exemplos fictícios no formato real (falta) — commit/run: —
 - [ ] 2. Listar os formatos que aparecem nos exemplos fictícios (quais jeitos de escrever sessão, exercício, séries e repetições) — commit/run: —
 - [ ] 3. Regra pura de reconhecimento de treino em `dominio/`, com teste e só dados fictícios ("—" no que não reconhecer) — commit/run: —
 - [ ] 4. Protótipo da tela "Importar de texto" (texto ao lado do plano reconhecido, correção, texto livre opcional) e aprovação, como foi com o editor — commit/run: —
@@ -185,4 +193,4 @@ na pergunta 2), mobilidade, vários documentos de uma vez, publicar ou aplicar a
 - Importação de planilha (alunos, pesos, exercícios, alimentos, suplementos): já existe; não muda.
 
 ## O que ficou para trás
-- Tudo acima está em aberto; nada foi implementado. Cada sobra futura vai também para "Pendências soltas" do README.
+- Decidido em 30/10; nada foi implementado. O passo 3 espera os exemplos fictícios do Gustavo. Cada sobra futura vai também para "Pendências soltas" do README.

@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protótipo · Painel do Início do treinador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* Protótipo do painel novo do Início do treinador (passo 8 de docs/planos/atualizacao-visual-app-full.md), 30/10/2026.
+   Dados fictícios, só contagens (nenhum nome de aluno). Nada aqui fala com a API.
+   Mesmo esqueleto de docs/prototipos/alunos.html e primeiro-uso.html: variáveis dos tokens, três temas, painel "Ajustes". */
+:root { --fonte: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; --raio: 12px; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--fonte); background: var(--fundo); color: var(--texto); font-size: 14px; line-height: 1.4; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--texto); outline-offset: 2px; }
+.so-leitor { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0 !important; }
+@media (prefers-reduced-motion: no-preference) {
+  .anima { transition: background-color .12s, border-color .12s, transform .08s; } .anima:active:not(:disabled):not([aria-disabled="true"]) { transform: scale(.97); }
+  .entra { animation: entra .2s ease-out; }
+  .esq { animation: pulsa 1.2s ease-in-out infinite; }
+  .barra-prog i { transition: width .45s ease-out; }
+}
+@keyframes entra { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes pulsa { 50% { opacity: .55; } }
+
+#app { display: flex; min-height: 100vh; }
+body.simula-cel #app { max-width: 390px; margin: 16px auto; min-height: calc(100vh - 32px); border: 1px solid var(--borda); border-radius: 20px; overflow: hidden; }
+@media (min-width: 900px) { body.com-ajustes #app { margin-right: 340px; } body.com-ajustes.simula-cel #app { margin-right: auto; transform: translateX(-170px); } }
+.principal { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* menu lateral, barra de topo e barra inferior (iguais às dos outros protótipos) */
+.menu { width: 240px; flex-shrink: 0; background: var(--sup); border-right: 1px solid var(--borda); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.menu .logo { height: 60px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--borda); }
+.menu .logo .q { width: 32px; height: 32px; border-radius: 8px; background: var(--marca); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.menu .logo b { display: block; font-size: 15px; } .menu .logo small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); }
+.menu nav { padding: 8px; display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; }
+.menu .grupo { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); padding: 12px 10px 4px; }
+.item-menu { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: var(--raio); color: var(--suave); border: 0; background: none; width: 100%; text-align: left; }
+.item-menu:hover { background: var(--sup3); color: var(--texto); }
+.item-menu.ativo { background: var(--marca); color: #fff; font-weight: 600; }
+.topo { height: 60px; display: flex; align-items: center; gap: 16px; padding: 0 24px; background: var(--sup); border-bottom: 1px solid var(--borda); }
+.busca { flex: 1; max-width: 520px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border: 1px solid var(--bordaCampo); border-radius: var(--raio); background: var(--campo); color: var(--suave); }
+.busca kbd { margin-left: auto; font-size: 11px; border: 1px solid var(--borda); border-radius: 4px; padding: 1px 6px; }
+.usuario { margin-left: auto; display: flex; align-items: center; gap: 10px; border: 1px solid var(--borda); border-radius: var(--raio); padding: 6px 12px; background: var(--sup); text-align: left; }
+.usuario b { display: block; font-size: 13px; } .usuario small { color: var(--suave); font-size: 12px; }
+.inferior { display: none; }
+body.cel .menu, body.cel .topo { display: none; }
+body.cel .inferior { display: flex; position: sticky; bottom: 0; background: var(--sup); border-top: 1px solid var(--borda); z-index: 10; }
+.inferior button { flex: 1; border: 0; background: none; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; color: var(--suave); }
+.inferior button.ativo { color: var(--marcaTexto); font-weight: 700; }
+
+.conteudo { width: 100%; max-width: 1800px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+body.cel .conteudo { padding: 16px 12px; gap: 12px; }
+.cab-tela { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.cab-tela .tx { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 2px; }
+.cab-tela .acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+h1 { font-size: 24px; line-height: 30px; margin: 0; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
+h1 .ic-tit { width: 32px; height: 32px; border-radius: 8px; display: inline-grid; place-items: center; background: var(--sup3); border: 1px solid var(--borda); }
+.suave { color: var(--suave); }
+.pequeno { font-size: 12px; color: var(--suave); }
+.motivo { font-size: 12px; color: var(--suave); }
+
+/* botões */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: var(--raio); border: 1px solid var(--borda); background: var(--sup); font-weight: 600; white-space: nowrap; }
+.btn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--sup3); }
+.btn.primario { background: var(--marca); border-color: var(--marca); color: #fff; }
+.btn.primario:hover:not(:disabled) { filter: brightness(.92); background: var(--marca); }
+.btn.fantasma { border-color: transparent; background: transparent; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: default; }
+.ib { width: 44px; height: 44px; display: inline-grid; place-items: center; border-radius: var(--raio); border: 1px solid transparent; background: transparent; color: var(--texto); flex-shrink: 0; padding: 0; }
+.ib:hover:not([aria-disabled="true"]) { background: var(--sup); border-color: var(--borda); }
+.ib.moldura { border-color: var(--borda); background: var(--sup); }
+.ib[aria-pressed="true"] { background: var(--texto); color: var(--fundo); border-color: var(--texto); }
+.ib[aria-disabled="true"] { opacity: .45; cursor: default; }
+a.ib { text-decoration: none; }
+
+/* selos e avisos */
+.selo { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; border: 1px solid var(--c); color: var(--c); background: color-mix(in srgb, var(--c) 9.4%, var(--sup)); }
+.selo.sucesso { --c: var(--sucesso); } .selo.atencao { --c: var(--atencao); } .selo.perigo { --c: var(--perigo); } .selo.neutro { --c: var(--neutro); }
+.etiqueta { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--borda); border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--suave); background: var(--sup); }
+.alerta { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--raio); border: 1px solid var(--c); color: var(--c); background: color-mix(in srgb, var(--c) 8%, var(--sup)); }
+.alerta.perigo { --c: var(--perigo); } .alerta.sucesso { --c: var(--sucesso); }
+.alerta .tx { flex: 1; min-width: 160px; } .alerta .tx b { display: block; }
+.alerta .btn { color: var(--texto); }
+.proximo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: var(--raio); border: var(--bwBloco) solid var(--borda); border-left: 5px solid var(--c); background: var(--sup); }
+.proximo.atencao { --c: var(--atencao); } .proximo.neutro { --c: var(--borda); }
+.proximo .tx { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px; } .proximo .tx b { font-size: 16px; }
+.secao-titulo { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--suave); }
+
+/* blocos (Cartao com faixa: superficie3, linha de 3 px, borda de 2 px, cantos de 12 px) */
+.bloco { background: var(--sup); border: var(--bwBloco) solid var(--borda); border-radius: var(--raio); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.faixa { background: var(--sup3); border-bottom: 3px solid var(--bordaCampo); padding: 4px 0 4px 12px; min-height: 52px; display: flex; align-items: center; gap: 4px; }
+.faixa.sem-linha { border-bottom: 0; }
+.faixa .tit { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.faixa h2 { font-size: 15px; line-height: 19px; margin: 0; hyphens: auto; -webkit-hyphens: auto; }
+.grade.estreita .faixa h2 { font-size: 14px; } .grade.estreita .faixa { padding-left: 10px; }
+.faixa .tit small { color: var(--suave); font-size: 12px; }
+.faixa .icones { display: flex; flex-shrink: 0; }
+.corpo { padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.rodape-bloco { display: flex; align-items: center; gap: 4px; padding: 0 6px 6px 12px; }
+.rodape-bloco .pequeno { flex: 1; }
+
+/* grade do painel: colunas calculadas pela largura (1 a 4); a linha que sobra estica os blocos dela */
+.grade { display: grid; gap: 16px; grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); align-items: stretch; }
+body.cel .grade { gap: 12px; }
+.grade .bloco.desligado { opacity: .5; }
+
+/* mini-cartões: rótulo pequeno na cor, número grande embaixo, fundo tingido (tingido() de tokens.ts: 0x18/255 da cor sobre a superfície) */
+.minis { display: grid; grid-template-columns: repeat(var(--por-linha, 2), minmax(0, 1fr)); gap: 8px; }
+.mini { --c: var(--neutro); display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; min-height: 76px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--c); background: color-mix(in srgb, var(--c) 9.4%, var(--sup)); color: var(--c); text-decoration: none; min-width: 0; }
+.mini:hover { background: color-mix(in srgb, var(--c) 16%, var(--sup)); }
+.mini.sucesso { --c: var(--sucesso); } .mini.atencao { --c: var(--atencao); } .mini.perigo { --c: var(--perigo); }
+.mini .rot { font-size: 12px; line-height: 15px; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 30px; }
+.mini .val { font-size: 24px; line-height: 28px; font-weight: 700; white-space: nowrap; }
+.mini .val .rs { font-size: 13px; margin-right: 2px; }
+.mini .det { font-size: 12px; font-weight: 600; }
+.mini.sem-api { border-style: dashed; border-width: 2px; }
+.mini.largo { grid-column: 1 / -1; flex-direction: row; align-items: center; min-height: 56px; }
+.mini.largo .rot { min-height: 0; flex: 1; }
+.linha7 { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--borda); background: color-mix(in srgb, var(--neutro) 9.4%, var(--sup)); color: var(--texto); text-decoration: none; }
+.linha7:hover { background: color-mix(in srgb, var(--neutro) 16%, var(--sup)); }
+.linha7 .rot { flex: 1; font-size: 13px; font-weight: 600; }
+.linha7 .val { font-size: 22px; font-weight: 700; }
+
+/* gráficos */
+.rosca { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.rosca svg { flex-shrink: 0; }
+.legenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; max-width: 320px; }
+.legenda li { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; }
+.legenda .bol { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legenda .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legenda b { font-variant-numeric: tabular-nums; }
+.leg-barras { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+.leg-barras span { display: inline-flex; align-items: center; gap: 6px; }
+.leg-barras i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.svg-barras text { font-size: 11px; fill: var(--suave); font-family: var(--fonte); }
+table.tab { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.tab th, table.tab td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--divisor); }
+table.tab th { color: var(--suave); font-weight: 600; } table.tab td.n, table.tab th.n { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* estados */
+.esq { background: var(--sup3); border-radius: 10px; }
+.vazio-frase { margin: 0; color: var(--suave); }
+
+/* modo Editar: lista dos blocos */
+.ordem { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ordem li { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 8px; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--sup2); min-height: 56px; }
+.ordem li.arrastando { opacity: .4; } .ordem li.alvo { border: 2px dashed var(--texto); }
+.ordem .pega { width: 28px; display: grid; place-items: center; color: var(--suave); cursor: grab; }
+.ordem .pos { width: 22px; text-align: right; color: var(--suave); font-weight: 700; }
+.ordem .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ordem .nm b { font-size: 14px; } .ordem .nm small { color: var(--suave); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ordem li.fora .nm b { color: var(--suave); }
+.interruptor { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; min-height: 44px; padding: 0 6px; font-weight: 600; font-size: 13px; }
+.interruptor .trilho { width: 44px; height: 26px; border-radius: 999px; border: 2px solid var(--bordaCampo); background: var(--campo); position: relative; flex-shrink: 0; }
+.interruptor .trilho::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--bordaCampo); }
+.interruptor[aria-checked="true"] .trilho { background: var(--texto); border-color: var(--texto); }
+.interruptor[aria-checked="true"] .trilho::after { left: 20px; background: var(--fundo); }
+@media (prefers-reduced-motion: no-preference) { .interruptor .trilho::after { transition: left .15s; } }
+body.cel .interruptor .rt { display: none; }
+
+/* primeiros passos (o mesmo desenho de primeiro-uso.html) */
+.prog { display: inline-flex; align-items: center; gap: 8px; margin-right: 4px; }
+.prog b { font-size: 14px; }
+.barra-prog { width: 96px; height: 8px; border-radius: 999px; background: var(--campo); border: 1px solid var(--bordaCampo); overflow: hidden; display: inline-block; }
+.barra-prog i { display: block; height: 100%; background: var(--texto); }
+body.cel .barra-prog { width: 56px; }
+.passos { display: flex; flex-direction: column; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.passo { display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--sup2); }
+.passo.aberto { border: var(--bwBloco) solid var(--texto); background: var(--sup); align-items: start; padding: 12px; }
+.passo .n { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--bordaCampo); font-weight: 700; font-size: 13px; background: var(--campo); }
+.passo.feito .n { border-color: var(--sucesso); color: var(--sucesso); background: color-mix(in srgb, var(--sucesso) 9.4%, var(--sup)); }
+.passo .tx { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.passo .tt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .passo .tt b { font-size: 15px; }
+.passo.feito .tt b { color: var(--suave); font-weight: 600; }
+.passo p { margin: 0; color: var(--suave); }
+.passo .acoes-p { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+.passo.aberto .acoes-p { grid-column: 2 / -1; justify-content: flex-start; }
+body.cel .passo .acoes-p { grid-column: 2 / -1; justify-content: flex-start; }
+.pp-largo { grid-column: 1 / -1; }
+
+/* painel de confirmação */
+.modal-fundo { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: grid; place-items: center; padding: 16px; }
+.painel { width: 440px; max-width: 100%; background: var(--sup); border: var(--bwBloco) solid var(--borda); border-radius: var(--raio); overflow: hidden; }
+.painel .corpo p { margin: 0; color: var(--suave); }
+.painel .rodape { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 4px 12px 12px; }
+
+/* painel de ajustes do protótipo (fora do tema de propósito) */
+.abrir-ajustes { position: fixed; right: 16px; bottom: 16px; z-index: 60; background: #111114; color: #fff; border: 0; border-radius: 999px; height: 48px; padding: 0 18px; font-weight: 700; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+body.cel .abrir-ajustes { bottom: auto; top: 10px; right: 10px; height: 36px; padding: 0 12px; font-size: 12px; }
+.ajustes { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; max-width: 100vw; z-index: 70; background: #fff; color: #111114; border-left: 1px solid #B9B9C0; display: flex; flex-direction: column; font-size: 13px; }
+.ajustes header { padding: 14px 16px; border-bottom: 1px solid #D4D4D8; display: flex; align-items: center; gap: 8px; background: #F4F4F5; }
+.ajustes header b { flex: 1; font-size: 15px; }
+.ajustes .lista-aj { overflow-y: auto; padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+.ajustes .op b { display: block; margin-bottom: 6px; font-size: 12px; } .ajustes .op small { display: block; color: #52525B; margin-top: 4px; }
+.ajustes .opcoes { display: flex; gap: 6px; flex-wrap: wrap; }
+.ajustes .opcoes button { border: 1px solid #B9B9C0; background: #fff; color: #111114; border-radius: 8px; padding: 6px 10px; font-weight: 600; font-size: 12px; }
+.ajustes .opcoes button.sel { background: #111114; color: #fff; border-color: #111114; }
+.ajustes footer { border-top: 1px solid #D4D4D8; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.ajustes footer button { border: 1px solid #B9B9C0; background: #fff; color: #111114; border-radius: 8px; min-height: 38px; font-weight: 700; }
+.ajustes footer button.forte { background: #111114; color: #fff; }
+.ajustes textarea { width: 100%; height: 110px; font-family: ui-monospace, monospace; font-size: 11px; }
+.ajustes .fechar { width: 36px; height: 36px; border: 1px solid #B9B9C0; border-radius: 8px; background: #fff; color: #111114; display: grid; place-items: center; }
+.ajustes h4 { margin: 8px 0 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #52525B; }
+.ajustes ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; color: #3F3F46; font-size: 12px; }
+body.editando [data-t], body.editando [data-n] { outline: 1px dashed #2563eb; outline-offset: 1px; cursor: text; border-radius: 3px; }
+.editor-texto { position: fixed; z-index: 90; background: #fff; color: #111114; border: 1px solid #2563eb; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; width: 320px; max-width: calc(100vw - 16px); box-shadow: 0 6px 24px rgba(0,0,0,.2); }
+.editor-texto input { height: 36px; border: 1px solid #8A8A93; border-radius: 6px; padding: 0 10px; }
+.editor-texto .lb { display: flex; gap: 6px; } .editor-texto button { border: 1px solid #B9B9C0; background: #fff; border-radius: 6px; padding: 6px 10px; font-weight: 700; } .editor-texto button.forte { background: #111114; color: #fff; }
+.aviso-flutuante { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 80; background: #111114; color: #fff; border-radius: 10px; padding: 10px 14px; font-size: 13px; max-width: calc(100vw - 32px); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.aviso-flutuante code { background: #2C2C31; padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="anuncio" class="so-leitor" aria-live="polite"></div>
+<div id="camada-modal"></div>
+<div id="camada-ajustes"></div>
+<div id="camada-aviso"></div>
+<script>
+'use strict';
+/* ====================== cores (as de app/src/tema/tokens.ts; agenda = PALETA_DA_AGENDA, só para identificar) ====================== */
+const TEMAS = {
+  claro: { fundo:'#F7F7F8', sup:'#FFFFFF', sup2:'#F4F4F5', sup3:'#E7E7EA', divisor:'#D4D4D8', borda:'#B9B9C0', campo:'#FFFFFF', bordaCampo:'#8A8A93', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169',
+    ag1:'#1B6FD6', ag2:'#9333B8', ag3:'#51677E' },
+  areia: { fundo:'#FAF9F6', sup:'#FFFFFF', sup2:'#F7F5F0', sup3:'#E7E3DB', divisor:'#DDD8CF', borda:'#B9B3A9', campo:'#FFFFFF', bordaCampo:'#77736B', texto:'#111114', suave:'#52525B', sucesso:'#176E3C', atencao:'#875710', perigo:'#B71C1C', neutro:'#616169',
+    ag1:'#1B6FD6', ag2:'#9333B8', ag3:'#51677E' },
+  escuro: { fundo:'#0A0A0C', sup:'#18181B', sup2:'#222226', sup3:'#2C2C31', divisor:'#36363C', borda:'#4C4C55', campo:'#0F0F12', bordaCampo:'#707078', texto:'#F4F4F5', suave:'#A1A1AA', sucesso:'#2BB36A', atencao:'#D9962C', perigo:'#F0666B', neutro:'#9A9AA3',
+    ag1:'#4A90F7', ag2:'#C07DE8', ag3:'#8FA3B8' },
+};
+const PADRAO = { tema:'claro', bordasReforcadas:false, cenario:'cheio', primeiros:'aberto', estado:'normal', perfil:'admin', financeiro:true, retorno:true, graficos:true, dias:'7', rotas:'marcar', celular:false, editarTextos:false };
+const ORDEM_PADRAO = ['atualizacoes', 'interessados', 'treinos', 'pastas', 'agenda', 'financeiro', 'recebido', 'alunos'];
+const CHAVE = 'prototipo-painel';
+/* "prefs" faz o papel das preferências do aparelho (dominio/preferencias.ts): ordem, blocos escondidos e Todos/Meus de cada bloco. */
+let ajustes = { ...PADRAO }, textos = {}, numeros = {}, prefs = { ordem: [...ORDEM_PADRAO], escondidos: [], meus: {} };
+try { const s = JSON.parse(localStorage.getItem(CHAVE) || 'null'); if (s) { ajustes = { ...PADRAO, ...(s.ajustes || {}) }; textos = s.textos || {}; numeros = s.numeros || {}; prefs = { ...prefs, ...(s.prefs || {}) }; } } catch (e) {}
+ORDEM_PADRAO.forEach((id) => { if (!prefs.ordem.includes(id)) prefs.ordem.push(id); });
+const guardar = () => { try { localStorage.setItem(CHAVE, JSON.stringify({ ajustes, textos, numeros, prefs })); } catch (e) {} };
+
+/* ====================== ícones (desenho do lucide, o mesmo do app) ====================== */
+const P = {
+  casa:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .71-1.53l7-6a2 2 0 0 1 2.58 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  alunos:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  sino:'<path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/>',
+  agenda:'<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  caixa:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  livro:'<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  camadas:'<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  carteira:'<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  equipe:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>',
+  ajuda:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  busca:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  mais:'<path d="M5 12h14"/><path d="M12 5v14"/>', perfil:'<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  seta:'<path d="m9 18 6-6-6-6"/>', esq:'<path d="m15 18-6-6 6-6"/>', cima:'<path d="m18 15-6-6-6 6"/>', baixo:'<path d="m6 9 6 6 6-6"/>',
+  abrir:'<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  atualizar:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  funil:'<path d="M10 20a1 1 0 0 0 .55.9l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .52-1.34L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.74 1.67l7.22 7.99A2 2 0 0 1 10 14z"/>',
+  grafico:'<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  lapis:'<path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/>',
+  pega:'<circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>',
+  ok:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>', alerta:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  circulo:'<circle cx="12" cy="12" r="9"/>', menos:'<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>', cadeado:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>', fechar:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  wifi:'<path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M2 2l20 20"/><path d="M5 12.86a10 10 0 0 1 5.17-2.69"/><path d="M19 12.86a10 10 0 0 0-2-1.54"/>',
+};
+const ic = (n, t = 18) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n] || ''}</svg>`;
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const PADROES = {};
+const T = (id, padrao) => { PADROES[id] = padrao; return `<span data-t="${id}">${esc(textos[id] ?? padrao)}</span>`; };
+const txt = (id, padrao) => textos[id] ?? padrao;
+const selo = (tipo, texto, icone) => `<span class="selo ${tipo}">${icone ? ic(icone, 12) : ''}${esc(texto)}</span>`;
+const fmtN = (n) => n.toLocaleString('pt-BR');
+const fmtRs = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtRsCurto = (n) => Math.round(n).toLocaleString('pt-BR');
+
+/* ====================== dados fictícios (só contagens) ======================
+   Cada número tem uma chave; com "Editar textos e números" ligado, clique no número para trocar. "Meus" tem números próprios. */
+const BASE = {
+  cheio: {
+    todos: { 'at.revisar':3, 'at.atrasadas':2, 'at.prox7':5, 'in.novos':4, 'in.retAtras':1, 'in.retHoje':1, 'in.contato':6, 'tr.concluidos':18, 'tr.recordes':7, 'tr.semRegistro':4,
+      'pa.renovar':3, 'pa.semPasta':2, 'ag.hoje':3, 'ag.prox7':9, 'fi.vencidas':1240, 'fi.vencidasN':4, 'fi.vencendo':960, 'fi.vencendoN':3, 'fi.recebido':4320,
+      'al.revisar':3, 'al.atrasados':2, 'al.emDia':17, 'al.semPasta':2, 'al.r1':14, 'al.r2':8, 'al.r3':2, 'al.ativos':24, 'al.inativos':3 },
+    meus: { 'at.revisar':1, 'at.atrasadas':1, 'at.prox7':2, 'in.novos':2, 'in.retAtras':0, 'in.retHoje':1, 'in.contato':3, 'tr.concluidos':9, 'tr.recordes':3, 'tr.semRegistro':2,
+      'pa.renovar':1, 'pa.semPasta':1, 'ag.hoje':2, 'ag.prox7':5, 'al.revisar':1, 'al.atrasados':1, 'al.emDia':11, 'al.semPasta':1, 'al.ativos':14, 'al.inativos':1 },
+  },
+  tranquilo: {
+    todos: { 'at.revisar':0, 'at.atrasadas':0, 'at.prox7':2, 'in.novos':0, 'in.retAtras':0, 'in.retHoje':0, 'in.contato':1, 'tr.concluidos':21, 'tr.recordes':0, 'tr.semRegistro':0,
+      'pa.renovar':0, 'pa.semPasta':0, 'ag.hoje':0, 'ag.prox7':4, 'fi.vencidas':0, 'fi.vencidasN':0, 'fi.vencendo':0, 'fi.vencendoN':0, 'fi.recebido':3900,
+      'al.revisar':0, 'al.atrasados':0, 'al.emDia':24, 'al.semPasta':0, 'al.r1':14, 'al.r2':8, 'al.r3':2, 'al.ativos':24, 'al.inativos':1 },
+  },
+};
+BASE.tranquilo.meus = BASE.tranquilo.todos;
+/* Recebido (bruto) × lançamentos avulsos, por mês. null = sem dado (vira "—", nunca zero). O mês corrente é parcial. */
+const MESES = ['05/2026', '06/2026', '07/2026', '08/2026', '09/2026', '10/2026'];
+const RECEBIDO = [3200, 3650, 3900, 4100, 4480, 4320];
+const LANCAMENTOS = [null, 600, 450, 800, 520, 300];
+
+const meus = (id) => prefs.meus[id] === true;
+function v(chave, bloco) {
+  const escopo = meus(bloco) ? 'meus' : 'todos', k = `${ajustes.cenario}.${escopo}.${chave}`;
+  if (numeros[k] !== undefined) return numeros[k];
+  const b = BASE[ajustes.cenario] || BASE.cheio;
+  return (b[escopo] && b[escopo][chave] !== undefined ? b[escopo][chave] : b.todos[chave]) ?? 0;
+}
+const chaveN = (chave, bloco) => `${ajustes.cenario}.${meus(bloco) ? 'meus' : 'todos'}.${chave}`;
+const N = (chave, bloco, texto) => `<span data-n="${chaveN(chave, bloco)}">${texto}</span>`;
+
+/* ====================== permissões e chaves (o que o perfil vê) ====================== */
+const PERFIS = {
+  admin: ['PAINEL_VER', 'ALUNO_LER', 'ALUNO_SENSIVEL_LER', 'ATUALIZACAO_LER', 'INSCRICAO_LER', 'REGISTRO_LER', 'TREINO_LER', 'AGENDA_LER', 'FINANCEIRO_LER'],
+  restrito: ['PAINEL_VER', 'ALUNO_LER', 'INSCRICAO_LER', 'REGISTRO_LER', 'TREINO_LER', 'AGENDA_LER'],
+};
+const pode = (...c) => c.every((x) => PERFIS[ajustes.perfil].includes(x));
+const veSituacao = () => pode('ATUALIZACAO_LER', 'ALUNO_SENSIVEL_LER');
+/* Contagem que a API ainda não tem (docs/planos/atualizacao-visual-app-full.md, "Rotas do painel"). */
+const soApi = () => ajustes.rotas === 'existentes', marcaApi = () => ajustes.rotas === 'marcar';
+const veFinanceiro = () => ajustes.financeiro && pode('FINANCEIRO_LER');
+
+/* ====================== estado da tela ====================== */
+let estado = { editando:false, copia:null, atualizando:{}, recuperado:{}, pagina:{ alunos:0 }, confirmar:false, ppRecolhido:false, ppVerConcluidos:false, arrastando:null };
+let cols = 4, larguraGrade = 1000;
+
+/* ====================== blocos ======================
+   pode: só aparece com a permissão. span: colunas que pede (a linha que sobra estica os blocos dela). filtro: tem Todos/Meus. */
+const BLOCOS = {
+  atualizacoes: { titulo:'Atualizações', desc:'Para revisar, atrasadas e próximos 7 dias', abrir:'/treinador/atualizacoes', filtro:true, pode:() => pode('PAINEL_VER') && veSituacao() },
+  interessados: { titulo:'Interessados', desc:'Novos, retornos e em contato ou negociação', abrir:'/treinador/interessados', filtro:true, pode:() => pode('INSCRICAO_LER') },
+  treinos: { titulo:'Treinos', desc:'Concluídos e recordes da semana, sem registro', abrir:'/treinador/alunos', filtro:true, pode:() => pode('REGISTRO_LER', 'ALUNO_LER') && !(soApi() && !ajustes.retorno) },
+  pastas: { titulo:'Pastas', desc:'A renovar em 7 dias e sem pasta com período', abrir:'/treinador/alunos', filtro:true, pode:() => pode('ALUNO_LER', 'TREINO_LER') && !soApi() },
+  agenda: { titulo:'Agenda', desc:'Compromissos hoje e nos próximos 7 dias', abrir:'/treinador/agenda', filtro:true, pode:() => pode('AGENDA_LER') },
+  financeiro: { titulo:'Financeiro', desc:'Vencidas, vencendo e recebido no mês', abrir:'/treinador/financeiro', filtro:false, pode:veFinanceiro },
+  recebido: { titulo:'Recebido e lançamentos', desc:'Gráfico de barras dos últimos 6 meses', abrir:'/treinador/financeiro?aba=lancamentos', filtro:false, span:3, pode:veFinanceiro },
+  alunos: { titulo:'Alunos', desc:'Rosca por situação e por responsável', abrir:'/treinador/alunos', filtro:true, pode:() => pode('ALUNO_LER') },
+};
+const permitidos = () => prefs.ordem.filter((id) => BLOCOS[id] && BLOCOS[id].pode());
+const visiveis = () => permitidos().filter((id) => !prefs.escondidos.includes(id));
+
+/* Ícones da faixa: abrir a tela (link), atualizar e filtro Todos/Meus. Alvo de 44 px, sem moldura. */
+function faixaDoBloco(id, extra = {}) {
+  const b = BLOCOS[id], t = txt('b.' + id, b.titulo), filtroOff = extra.filtroDesligado;
+  const filtro = b.filtro ? `<button class="ib anima" data-acao="filtro" data-id="${id}" data-foco="filtro:${id}" aria-pressed="${meus(id)}" ${filtroOff ? `aria-disabled="true" aria-describedby="mf-${id}"` : ''}
+      aria-label="${esc(t)}: ${meus(id) ? 'mostrando só os meus alunos' : 'mostrando todos os alunos'}. ${meus(id) ? 'Mostrar todos' : 'Mostrar só os meus'}" title="${meus(id) ? 'Só os meus' : 'Todos'}">${ic('funil')}</button>
+      ${filtroOff ? `<span class="so-leitor" id="mf-${id}">${esc(filtroOff)}</span>` : ''}` : '';
+  return `<div class="faixa"><div class="tit"><h2 id="h-${id}">${T('b.' + id, b.titulo)}</h2>${b.filtro && meus(id) && !filtroOff ? '<small>Só os meus alunos</small>' : ''}</div>
+    <div class="icones"><a class="ib anima" href="#${b.abrir}" data-acao="abrir" data-v="${b.abrir}" data-foco="abrir:${id}" aria-label="Abrir ${esc(t)}" title="Abrir a tela">${ic('abrir')}</a>
+      <button class="ib anima" data-acao="atualizar" data-id="${id}" data-foco="atualizar:${id}" aria-label="Atualizar ${esc(t)}" title="Atualizar">${ic('atualizar')}</button>${filtro}</div></div>`;
+}
+
+/* Mini-cartão: link para a lista já filtrada. Zero fica neutro (só acende com algo), como os contadores do Início de hoje. */
+function mini(o) {
+  if (o.semApi && soApi()) return '';
+  if (o.hrefHoje && soApi()) o = { ...o, href: o.hrefHoje };
+  if (o.semApi && marcaApi()) o = { ...o, detalheFalado: [o.detalheFalado, 'sem contagem na API hoje'].filter(Boolean).join(', ') };
+  const tom = o.valor > 0 ? o.tom : 'neutro';
+  const visto = o.rs ? `<span class="rs">R$</span>${fmtRsCurto(o.valor)}` : fmtN(o.valor);
+  const falado = o.rs ? fmtRs(o.valor) : fmtN(o.valor);
+  return `<a class="mini ${tom} ${o.largo ? 'largo' : ''} ${o.semApi && marcaApi() ? 'sem-api' : ''} anima" href="#${esc(o.href)}" data-acao="abrir" data-v="${esc(o.href)}" aria-label="${esc(o.nome)}: ${falado}${o.detalheFalado ? ', ' + esc(o.detalheFalado) : ''}">
+    <span class="rot">${esc(o.rotulo)}</span><span style="display:flex;flex-direction:column;${o.largo ? 'align-items:flex-end' : ''}"><span class="val num">${o.chave ? N(o.chave, o.bloco, visto) : visto}</span>${o.detalhe ? `<span class="det num">${o.detalhe}</span>` : ''}</span></a>`;
+}
+const linha7 = (o0) => { const o = o0.hrefHoje && soApi() ? { ...o0, href: o0.hrefHoje } : o0; return `<a class="linha7 anima" href="#${esc(o.href)}" data-acao="abrir" data-v="${esc(o.href)}" aria-label="${esc(o.nome)}: ${fmtN(o.valor)}"><span class="rot">${esc(o.rotulo)}</span><span class="val num">${N(o.chave, o.bloco, fmtN(o.valor))}</span></a>`; };
+const minis = (itens, porLinha = 2) => { const l = itens.filter(Boolean); return `<div class="minis" style="--por-linha:${l.length === 1 ? 1 : porLinha}">${l.join('')}</div>`; };
+const meusQ = (id) => (meus(id) ? 'meus=true' : '');
+const comQ = (base, ...q) => { const p = q.filter(Boolean).join('&'); return p ? `${base}${base.includes('?') ? '&' : '?'}${p}` : base; };
+
+const CONTEUDO = {
+  atualizacoes: () => minis([
+    mini({ bloco:'atualizacoes', chave:'at.revisar', rotulo:'Para revisar', nome:'Atualizações para revisar', valor:v('at.revisar', 'atualizacoes'), tom:'atencao', href:comQ('/treinador/atualizacoes?situacao=PARA_REVISAR', meusQ('atualizacoes')) }),
+    mini({ bloco:'atualizacoes', chave:'at.atrasadas', rotulo:'Atrasadas', nome:'Atualizações atrasadas', valor:v('at.atrasadas', 'atualizacoes'), tom:'perigo', href:comQ('/treinador/atualizacoes?situacao=ATRASADAS', meusQ('atualizacoes')) }),
+  ]) + linha7({ bloco:'atualizacoes', chave:'at.prox7', rotulo:'Nos próximos 7 dias', nome:'Atualizações nos próximos 7 dias', valor:v('at.prox7', 'atualizacoes'), href:comQ('/treinador/atualizacoes?situacao=PROXIMAS', meusQ('atualizacoes')) }),
+  interessados: () => {
+    const at = v('in.retAtras', 'interessados'), hj = v('in.retHoje', 'interessados'), partes = [];
+    if (at) partes.push(`${N('in.retAtras', 'interessados', at)} ${at === 1 ? 'atrasado' : 'atrasados'}`);
+    if (hj) partes.push(`${N('in.retHoje', 'interessados', hj)} de hoje`);
+    const falado = [at ? `${at} ${at === 1 ? 'atrasado' : 'atrasados'}` : '', hj ? `${hj} de hoje` : ''].filter(Boolean).join(' e ');
+    return minis([
+      mini({ bloco:'interessados', chave:'in.novos', rotulo:'Novos', nome:'Interessados novos', valor:v('in.novos', 'interessados'), tom:'atencao', href:comQ('/treinador/interessados?situacao=NOVA', meusQ('interessados')) }),
+      mini({ bloco:'interessados', rotulo:'Retornos', nome:'Retornos a interessados atrasados ou de hoje', valor:at + hj, tom: at ? 'perigo' : 'atencao', detalhe: partes.join(' · '), detalheFalado: falado, href:comQ('/treinador/interessados?retornos=pendentes', meusQ('interessados')), hrefHoje:comQ('/treinador/interessados', meusQ('interessados')) }),
+      mini({ bloco:'interessados', chave:'in.contato', largo:true, rotulo:'Em contato ou negociação', nome:'Interessados em contato ou negociação', valor:v('in.contato', 'interessados'), tom:'neutro', href:comQ('/treinador/interessados?situacao=EM_CONTATO,EM_NEGOCIACAO', meusQ('interessados')), hrefHoje:comQ('/treinador/interessados', meusQ('interessados')) }),
+    ]);
+  },
+  treinos: () => {
+    const d = ajustes.dias, sem = mini({ bloco:'treinos', chave:'tr.semRegistro', largo: ajustes.retorno, rotulo:`Sem registro há ${d} dias`, nome:`Alunos sem registro há ${d} dias`, valor:v('tr.semRegistro', 'treinos'), tom:'atencao', semApi:true, href:comQ(`/treinador/alunos?semRegistro=${d}`, meusQ('treinos')) });
+    if (!ajustes.retorno) return minis([sem], 1) + `<span class="pequeno">Concluídos e recordes aparecem com o "Concluir treino" ligado.</span>`;
+    return minis([
+      mini({ bloco:'treinos', chave:'tr.concluidos', rotulo:'Concluídos na semana', nome:'Treinos concluídos na semana', valor:v('tr.concluidos', 'treinos'), tom:'sucesso', semApi:true, href:comQ('/treinador/treinos-concluidos?periodo=semana', meusQ('treinos')) }),
+      mini({ bloco:'treinos', chave:'tr.recordes', rotulo:'Recordes da semana', nome:'Recordes da semana', valor:v('tr.recordes', 'treinos'), tom:'sucesso', href:comQ('/treinador/recordes?periodo=semana', meusQ('treinos')) }),
+      sem,
+    ]);
+  },
+  pastas: () => minis([
+    mini({ bloco:'pastas', chave:'pa.renovar', rotulo:'A renovar em 7 dias', nome:'Pastas a renovar em 7 dias', valor:v('pa.renovar', 'pastas'), tom:'atencao', semApi:true, href:comQ('/treinador/alunos?pasta=renovar', meusQ('pastas')) }),
+    mini({ bloco:'pastas', chave:'pa.semPasta', rotulo:'Sem pasta com período', nome:'Alunos sem pasta com período', valor:v('pa.semPasta', 'pastas'), tom:'neutro', semApi:true, href:comQ('/treinador/alunos?grupo=SEM_PASTA', meusQ('pastas')) }),
+  ]),
+  agenda: () => minis([
+    mini({ bloco:'agenda', chave:'ag.hoje', largo:true, rotulo:'Compromissos hoje', nome:'Compromissos hoje', valor:v('ag.hoje', 'agenda'), tom:'neutro', href:comQ('/treinador/agenda?visao=dia', meusQ('agenda')) }),
+  ], 1) + linha7({ bloco:'agenda', chave:'ag.prox7', rotulo:'Nos próximos 7 dias', nome:'Compromissos nos próximos 7 dias', valor:v('ag.prox7', 'agenda'), href:comQ('/treinador/agenda?visao=semana', meusQ('agenda')), hrefHoje:comQ('/treinador/agenda', meusQ('agenda')) }),
+  financeiro: () => {
+    const qv = v('fi.vencidasN', 'financeiro'), qe = v('fi.vencendoN', 'financeiro');
+    const det = (q, k) => q ? `${N(k, 'financeiro', q)} ${q === 1 ? 'cobrança' : 'cobranças'}` : '';
+    const detF = (q) => q ? `${q} ${q === 1 ? 'cobrança' : 'cobranças'}` : '';
+    return minis([
+      mini({ bloco:'financeiro', chave:'fi.vencidas', rs:true, rotulo:'Vencidas', nome:'Cobranças vencidas', valor:v('fi.vencidas', 'financeiro'), tom:'perigo', detalhe:det(qv, 'fi.vencidasN'), detalheFalado:detF(qv), href:'/treinador/financeiro?aba=cobrancas&situacao=VENCIDA', hrefHoje:'/treinador/financeiro?aba=cobrancas' }),
+      mini({ bloco:'financeiro', chave:'fi.vencendo', rs:true, rotulo:'Vencendo em 7 dias', nome:'Cobranças vencendo em 7 dias', valor:v('fi.vencendo', 'financeiro'), tom:'atencao', detalhe:det(qe, 'fi.vencendoN'), detalheFalado:detF(qe), href:'/treinador/financeiro?aba=cobrancas&vencendo=7', hrefHoje:'/treinador/financeiro?aba=cobrancas' }),
+      mini({ bloco:'financeiro', chave:'fi.recebido', rs:true, largo:true, rotulo:'Recebido no mês (bruto)', nome:'Recebido no mês, valor bruto', valor:v('fi.recebido', 'financeiro'), tom:'sucesso', href:'/treinador/financeiro?aba=visao' }),
+    ]);
+  },
+  recebido: () => barras(),
+  alunos: () => rosca(),
+};
+
+/* ====================== gráficos (SVG desenhado aqui; cores por variável, com tabela para leitor de tela) ====================== */
+function rosca() {
+  const situacao = veSituacao(), paginas = situacao ? ['situacao', 'responsavel'] : ['responsavel'];
+  const p = Math.min(estado.pagina.alunos, paginas.length - 1), qual = paginas[p], m = meus('alunos') && qual === 'situacao';
+  const fatias = qual === 'situacao' && soApi() ? [['Ativos', v('al.ativos', 'alunos'), 'sucesso'], ['Inativos', v('al.inativos', 'alunos'), 'neutro']]
+    : qual === 'situacao'
+    ? [['Para revisar', v('al.revisar', 'alunos'), 'atencao'], ['Atrasados', v('al.atrasados', 'alunos'), 'perigo'], ['Em dia', v('al.emDia', 'alunos'), 'sucesso'], ['Sem pasta com período', v('al.semPasta', 'alunos'), 'neutro']]
+    : [['Treinador Exemplo', v('al.r1', 'alunos'), 'ag1'], ['Assistente Exemplo', v('al.r2', 'alunos'), 'ag2'], ['Sem responsável', v('al.r3', 'alunos'), 'ag3']];
+  const chaves = qual === 'situacao' && soApi() ? ['al.ativos', 'al.inativos'] : qual === 'situacao' ? ['al.revisar', 'al.atrasados', 'al.emDia', 'al.semPasta'] : ['al.r1', 'al.r2', 'al.r3'];
+  const total = fatias.reduce((s, f) => s + f[1], 0), R = 38, C = 2 * Math.PI * R, tam = larguraBloco(1) < 300 ? 84 : 112;
+  let acc = 0;
+  const arcos = total ? fatias.filter((f) => f[1] > 0).map(([, n, cor]) => { const l = (n / total) * C, s = `<circle cx="50" cy="50" r="${R}" fill="none" style="stroke:var(--${cor})" stroke-width="18" stroke-dasharray="${l} ${C - l}" stroke-dashoffset="${-acc}" transform="rotate(-90 50 50)"/>`; acc += l; return s; }).join('') : '';
+  const titulo = qual === 'situacao' ? (soApi() ? 'Por situação do cadastro' : 'Por situação da atualização') : 'Por responsável';
+  const alt = `Alunos ${qual === 'situacao' && soApi() ? '' : 'ativos '}${qual === 'situacao' ? 'por situação' : 'por responsável'}: ${fatias.map(([n, q]) => `${n}, ${q}`).join('; ')}. Total ${total}.`;
+  const tabela = `<table class="tab ${ajustes.graficos ? 'so-leitor' : ''}"><caption class="so-leitor">${esc(titulo)}</caption><thead><tr><th scope="col">${qual === 'situacao' ? 'Situação' : 'Responsável'}</th><th scope="col" class="n">Alunos</th></tr></thead>
+    <tbody>${fatias.map(([n, q], i) => `<tr><td>${esc(n)}</td><td class="n">${N(chaves[i], 'alunos', q)}</td></tr>`).join('')}<tr><td><b>Total</b></td><td class="n"><b>${total}</b></td></tr></tbody></table>`;
+  const grafico = ajustes.graficos ? `<div class="rosca"><svg width="${tam}" height="${tam}" viewBox="0 0 100 100" role="img" aria-label="${esc(alt)}">
+      <circle cx="50" cy="50" r="${R}" fill="none" style="stroke:var(--sup3)" stroke-width="18"/>${arcos}
+      <text x="50" y="45" text-anchor="middle" style="fill:var(--suave);font:600 9px var(--fonte)">Resumo</text><text x="50" y="61" text-anchor="middle" style="fill:var(--texto);font:700 17px var(--fonte)">${total}</text></svg>
+    <ul class="legenda" aria-hidden="true">${fatias.map(([n, q, cor], i) => `<li title="${esc(n)}: ${q}"><span class="bol" style="background:var(--${cor})"></span><span class="nm">${esc(n)}</span><b>${N(chaves[i], 'alunos', q)}</b></li>`).join('')}</ul></div>` : '';
+  const aviso = qual === 'situacao' && marcaApi() ? '<span class="pequeno">Sem contagem na API hoje (só contando a lista inteira no app).</span>' : '';
+  return { corpo: `<span class="secao-titulo">${esc(titulo)}${m ? ' · só os meus' : ''}</span>${grafico}${tabela}${aviso}`,
+    rodape: paginas.length > 1 ? `<div class="rodape-bloco"><span class="pequeno num">Atualizado 09:41</span>
+      <button class="ib anima" data-acao="pagina" data-d="-1" data-foco="pag-ant" ${p === 0 ? 'aria-disabled="true" aria-describedby="mp-ant"' : ''} aria-label="${p > 0 ? 'Ver por situação' : 'Página anterior'} (agora na ${p + 1} de ${paginas.length})">${ic('esq')}</button>
+      <span class="pequeno num" aria-hidden="true">${p + 1}/${paginas.length}</span>
+      <button class="ib anima" data-acao="pagina" data-d="1" data-foco="pag-prox" ${p === paginas.length - 1 ? 'aria-disabled="true" aria-describedby="mp-prox"' : ''} aria-label="${p === 0 ? 'Ver por responsável' : 'Próxima página'} (agora na ${p + 1} de ${paginas.length})">${ic('seta')}</button>
+      <span class="so-leitor" id="mp-ant">Já é a primeira.</span><span class="so-leitor" id="mp-prox">Já é a última.</span></div>`
+      : `<div class="rodape-bloco"><span class="pequeno num">Atualizado 09:41</span></div>`,
+    filtroDesligado: qual === 'responsavel' ? 'Por responsável já separa por pessoa; o filtro vale para "Por situação".' : null };
+}
+
+function barras() {
+  const W = Math.max(260, Math.round(larguraBloco(BLOCOS.recebido.span) - 24)), H = 200, esq = 52, dir = 8, topo = 10, base = 26;
+  const max = Math.max(...RECEBIDO, ...LANCAMENTOS.filter((x) => x !== null)), teto = Math.ceil(max / 1000) * 1000;
+  const iw = W - esq - dir, ih = H - topo - base, g = iw / MESES.length, bw = Math.min(28, (g - 12) / 2);
+  const y = (val) => topo + ih - (val / teto) * ih, curto = W < 420;
+  let s = '';
+  for (let t = 0; t <= teto; t += teto / 4) s += `<line x1="${esq}" x2="${W - dir}" y1="${y(t)}" y2="${y(t)}" style="stroke:var(--divisor)" stroke-width="1"/><text x="${esq - 6}" y="${y(t) + 4}" text-anchor="end">${t === 0 ? '0' : (t / 1000).toLocaleString('pt-BR') + ' mil'}</text>`;
+  MESES.forEach((mes, i) => {
+    const cx = esq + g * i + g / 2, r = RECEBIDO[i], l = LANCAMENTOS[i], parcial = i === MESES.length - 1;
+    s += r === null ? `<text x="${cx - bw / 2 - 2}" y="${topo + ih - 4}" text-anchor="middle">—</text>` : `<rect x="${cx - bw - 2}" y="${y(r)}" width="${bw}" height="${topo + ih - y(r)}" rx="3" style="fill:var(--texto)"/>`;
+    s += l === null ? `<text x="${cx + bw / 2 + 2}" y="${topo + ih - 4}" text-anchor="middle">—</text>` : `<rect x="${cx + 2}" y="${y(l)}" width="${bw}" height="${topo + ih - y(l)}" rx="3" style="fill:var(--neutro)"/>`;
+    s += `<text x="${cx}" y="${H - 8}" text-anchor="middle" ${parcial ? 'style="font-weight:700"' : ''}>${curto ? mes.slice(0, 3) + mes.slice(5) : mes}${parcial ? '*' : ''}</text>`;
+  });
+  const alt = `Recebido (bruto) e lançamentos avulsos por mês, de ${MESES[0]} a ${MESES[5]}. ` + MESES.map((m, i) => `${m}: recebido ${RECEBIDO[i] === null ? 'sem dado' : fmtRs(RECEBIDO[i])}, lançamentos ${LANCAMENTOS[i] === null ? 'sem dado' : fmtRs(LANCAMENTOS[i])}`).join('; ') + '. O último mês é parcial.';
+  const tabela = `<table class="tab ${ajustes.graficos ? 'so-leitor' : ''}"><caption class="so-leitor">Recebido e lançamentos por mês</caption><thead><tr><th scope="col">Mês</th><th scope="col" class="n">Recebido (bruto)</th><th scope="col" class="n">Lançamentos</th></tr></thead>
+    <tbody>${MESES.map((m, i) => `<tr><td>${m}${i === 5 ? ' (parcial)' : ''}</td><td class="n">${RECEBIDO[i] === null ? '—' : fmtRs(RECEBIDO[i])}</td><td class="n">${LANCAMENTOS[i] === null ? '—' : fmtRs(LANCAMENTOS[i])}</td></tr>`).join('')}</tbody></table>`;
+  const grafico = ajustes.graficos ? `<div class="leg-barras" aria-hidden="true"><span><i style="background:var(--texto)"></i>Recebido (bruto)</span><span><i style="background:var(--neutro)"></i>Lançamentos avulsos</span></div>
+    <svg class="svg-barras" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(alt)}" style="max-width:100%">${s}</svg>
+    <span class="pequeno">* ${MESES[5]} ainda em andamento (parcial). "—" = sem dado no mês. Taxas e líquido não aparecem: a API não os informa.</span>` : '';
+  return grafico + tabela;
+}
+const larguraBloco = (span) => { const c = Math.min(span || 1, cols); return ((larguraGrade - 16 * (cols - 1)) / cols) * c + 16 * (c - 1); };
+
+/* ====================== estados de um bloco (carregando, erro numa consulta) ====================== */
+const erroNoBloco = (id) => ajustes.estado === 'erroConsulta' && id === 'interessados' && !estado.recuperado[id];
+function corpoDoBloco(id) {
+  if (ajustes.estado === 'carregando' || estado.atualizando[id]) return { corpo: `<div aria-busy="true" aria-label="Carregando ${esc(BLOCOS[id].titulo)}" style="display:flex;flex-direction:column;gap:8px">
+    <div class="minis"><div class="esq" style="height:76px"></div><div class="esq" style="height:76px"></div></div><div class="esq" style="height:52px"></div></div>` };
+  if (erroNoBloco(id)) return { corpo: `<div class="alerta perigo" role="alert">${ic('alerta', 20)}<div class="tx"><b>${T('erro.titulo', 'Não carregou.')}</b><span>${T('erro.texto', 'Os números deste bloco ficam de fora até carregar; nada aparece como zero.')}</span></div>
+    <button class="btn anima" data-acao="atualizar" data-id="${id}" data-foco="tentar:${id}">${ic('atualizar', 16)} Atualizar</button></div>` };
+  const c = CONTEUDO[id]();
+  return typeof c === 'string' ? { corpo: c } : c;
+}
+function bloco(id, span) {
+  const r = corpoDoBloco(id);
+  return `<section class="bloco" style="grid-column:span ${span}" aria-labelledby="h-${id}" data-bloco="${id}">${faixaDoBloco(id, r)}<div class="corpo">${r.corpo}</div>${r.rodape || ''}</section>`;
+}
+/* Arruma os blocos em linhas: cada um pede o seu span; o que sobra numa linha é dividido entre os blocos dela (sem buraco). */
+function arrumar(ids) {
+  const linhas = []; let linha = [], usado = 0;
+  const fechar = () => { let sobra = cols - usado, k = 0; while (sobra > 0 && linha.length) { linha[k % linha.length].span++; sobra--; k++; } linhas.push(linha); linha = []; usado = 0; };
+  ids.forEach((id) => { const s = Math.min(BLOCOS[id].span || 1, cols); if (usado + s > cols) fechar(); linha.push({ id, span: s }); usado += s; });
+  if (linha.length) fechar();
+  return linhas.flat();
+}
+
+/* ====================== Primeiros passos (o bloco do topo; a orientação inteira está em primeiro-uso.html) ====================== */
+const PP = [
+  { id:'marca', titulo:'Marca e logo', st:'feito', so:'admin' },
+  { id:'metodologia', titulo:'Conferir a metodologia', st:'feito', manual:true, so:'admin' },
+  { id:'modelo', titulo:'Conferir os modelos de treino', st:'afazer', manual:true, so:'admin' },
+  { id:'aluno', titulo:'Cadastrar o primeiro aluno', st:'feito' },
+  { id:'convite', titulo:'Dar acesso ao app ao aluno', st:'aberto', texto:'Gere o convite (o aluno cria a própria senha) ou defina você o e-mail e uma senha provisória.', acao:'Abrir a ficha' },
+  { id:'link', titulo:'Ligar o link de inscrição', st:'depois', opcional:true },
+];
+/* Perfil restrito só vê os itens que pode fazer (sem Marca nem Planejamento), como em primeiro-uso.html. */
+const ppLista = () => PP.filter((i) => !(i.so === 'admin' && ajustes.perfil === 'restrito'));
+function primeirosPassos() {
+  const L = ppLista();
+  if (ajustes.primeiros === 'sem' || ajustes.primeiros === 'dispensado') return '';
+  if (ajustes.estado === 'carregando') return `<div class="esq pp-largo" style="height:120px" aria-hidden="true"></div>`;
+  if (ajustes.primeiros === 'concluidos') return `<section class="bloco pp-largo" aria-labelledby="h-pp"><div class="faixa sem-linha"><div class="tit"><h2 id="h-pp">Primeiros passos ${selo('sucesso', 'Concluídos', 'check')}</h2><small class="num">${L.length} de ${L.length} · também na Ajuda</small></div>
+    <div class="icones"><button class="btn fantasma anima" data-acao="nada-pp">Ver</button><button class="ib anima" data-acao="pp-fechar" aria-label="Tirar os primeiros passos do Início">${ic('fechar')}</button></div></div></section>`;
+  const feitos = L.filter((i) => i.st === 'feito' || i.st === 'depois').length;
+  const linhaPP = (i, n) => {
+    const st = i.st === 'feito' ? selo('sucesso', 'Feito', 'check') : i.st === 'depois' ? selo('neutro', 'Deixado para depois', 'menos') : selo('neutro', 'A fazer', 'circulo');
+    const acoes = i.st === 'aberto' ? `<button class="btn primario anima" data-acao="nada-pp">${esc(i.acao)}</button>`
+      : i.st === 'depois' ? `<button class="btn fantasma anima" data-acao="nada-pp" aria-label="Desfazer: ${esc(i.titulo)}">Desfazer</button>`
+      : i.st === 'afazer' ? `<button class="btn anima" data-acao="nada-pp" aria-label="Abrir: ${esc(i.titulo)}">Abrir</button>${i.manual ? `<button class="btn anima" data-acao="nada-pp" aria-label="Já conferi: ${esc(i.titulo)}">${ic('check', 16)} Já conferi</button>` : ''}` : '';
+    return `<li class="passo ${i.st === 'aberto' ? 'aberto' : ''} ${i.st === 'feito' ? 'feito' : ''}"><span class="n num" aria-hidden="true">${i.st === 'feito' ? ic('check', 14) : n}</span>
+      <div class="tx"><div class="tt"><b>${esc(i.titulo)}</b>${i.opcional ? '<span class="etiqueta">Opcional</span>' : ''}${st}</div>${i.texto && i.st === 'aberto' ? `<p>${esc(i.texto)}</p>` : ''}</div>${acoes ? `<div class="acoes-p">${acoes}</div>` : ''}</li>`;
+  };
+  return `<section class="bloco pp-largo" aria-labelledby="h-pp"><div class="faixa ${estado.ppRecolhido ? 'sem-linha' : ''}"><div class="tit"><h2 id="h-pp">${T('pp.titulo', 'Primeiros passos')}</h2>${cols > 1 ? `<small>${T('pp.desc', 'O que falta para começar a atender pelo app.')}</small>` : ''}</div>
+    <div class="icones" style="align-items:center"><span class="prog" role="img" aria-label="Primeiros passos: ${feitos} de ${PP.length} feitos ou deixados para depois"><b class="num">${feitos} de ${L.length}</b><span class="barra-prog"><i style="width:${Math.round(feitos / L.length * 100)}%"></i></span></span>
+      <button class="btn fantasma anima" data-acao="pp-dispensar" data-foco="pp-dispensar">Dispensar</button>
+      <button class="ib anima" data-acao="pp-recolher" data-foco="pp-recolher" aria-expanded="${!estado.ppRecolhido}" aria-label="${estado.ppRecolhido ? 'Mostrar' : 'Recolher'} os primeiros passos">${ic(estado.ppRecolhido ? 'baixo' : 'cima')}</button></div></div>
+    ${estado.ppRecolhido ? '' : `<div class="corpo"><ol class="passos" aria-label="Primeiros passos">${L.map((i, k) => linhaPP(i, k + 1)).join('')}</ol></div>`}</section>`;
+}
+/* Próximo passo: só sem a lista aberta (a lista toma o lugar dele, com o único primário no item aberto). */
+function proximoPasso() {
+  if (ajustes.primeiros === 'aberto' || ajustes.estado === 'carregando') return '';
+  if (ajustes.cenario === 'nova') return `<div class="proximo atencao"><div class="tx"><span class="secao-titulo">Próximo passo</span><b>Nenhum aluno ainda. Cadastre o primeiro para começar.</b></div><button class="btn primario anima" data-acao="nada">Cadastrar aluno</button></div>`;
+  const r = veSituacao() ? v('at.revisar', 'atualizacoes') : 0;
+  if (r) return `<div class="proximo atencao"><div class="tx"><span class="secao-titulo">Próximo passo</span><b>${r} ${r === 1 ? 'atualização espera' : 'atualizações esperam'} o seu feedback.</b></div><button class="btn primario anima" data-acao="abrir" data-v="/treinador/atualizacoes?situacao=PARA_REVISAR">Revisar a primeira</button></div>`;
+  return `<div class="proximo neutro"><div class="tx"><span class="secao-titulo">Próximo passo</span><b>Tudo em dia por aqui. Nada pede sua atenção agora.</b></div></div>`;
+}
+
+/* ====================== modo Editar: escolher e ordenar os blocos ====================== */
+function editor() {
+  const ids = permitidos(), n = ids.length;
+  return `<section class="bloco" aria-labelledby="h-editar"><div class="faixa"><div class="tit"><h2 id="h-editar">${T('ed.titulo', 'Blocos do painel')}</h2><small>${T('ed.desc', 'Ligue, desligue e mude a ordem. Fica salvo neste aparelho, nas suas preferências.')}</small></div></div>
+    <div class="corpo"><ol class="ordem" aria-label="Ordem dos blocos">${ids.map((id, i) => {
+      const b = BLOCOS[id], on = !prefs.escondidos.includes(id), t = txt('b.' + id, b.titulo);
+      return `<li draggable="true" data-arrasta="${id}" class="${on ? '' : 'fora'}"><span class="pega" aria-hidden="true" title="Arrastar">${ic('pega')}</span><span class="pos num" aria-hidden="true">${i + 1}</span>
+        <span class="nm"><b>${esc(t)}</b><small>${on ? esc(b.desc) : 'Escondido do painel'}</small></span>
+        <button class="interruptor" role="switch" aria-checked="${on}" data-acao="ligar" data-id="${id}" data-foco="ligar:${id}" aria-label="Mostrar ${esc(t)} no painel"><span class="trilho"></span><span class="rt">${on ? 'Aparece' : 'Escondido'}</span></button>
+        <button class="ib moldura anima" data-acao="mover" data-d="-1" data-id="${id}" data-foco="sobe:${id}" data-foco-alt="desce:${id}" aria-label="Subir ${esc(t)}" ${i === 0 ? `aria-disabled="true" aria-describedby="ms-${id}"` : ''}>${ic('cima')}</button>
+        <button class="ib moldura anima" data-acao="mover" data-d="1" data-id="${id}" data-foco="desce:${id}" data-foco-alt="sobe:${id}" aria-label="Descer ${esc(t)}" ${i === n - 1 ? `aria-disabled="true" aria-describedby="md-${id}"` : ''}>${ic('baixo')}</button>
+        <span class="so-leitor" id="ms-${id}">Já é o primeiro.</span><span class="so-leitor" id="md-${id}">Já é o último.</span></li>`;
+    }).join('')}</ol>
+    <span class="pequeno">${T('ed.ajuda', 'Os blocos que o seu perfil não pode ver não aparecem aqui. Primeiros passos fica sempre no topo até ser concluído ou dispensado.')}</span></div></section>`;
+}
+
+/* ====================== tela ====================== */
+function tela() {
+  const ed = estado.editando, semAlunos = ajustes.cenario === 'nova';
+  const acoes = ed ? `<button class="btn anima" data-acao="ed-cancelar" data-foco="ed-cancelar">Cancelar</button><button class="btn fantasma anima" data-acao="ed-padrao" data-foco="ed-padrao">Voltar ao padrão</button><button class="btn primario anima" data-acao="ed-concluir" data-foco="ed-concluir">${ic('check', 16)} Concluir</button>`
+    : `<button class="btn anima" data-acao="nada">${ic('mais', 16)} Novo aluno</button>
+       <button class="btn anima" data-acao="editar" data-foco="editar" ${semAlunos || ajustes.estado === 'offline' ? 'aria-disabled="true" aria-describedby="m-editar"' : ''}>${ic('lapis', 16)} Editar</button>
+       ${semAlunos ? '<span class="motivo" id="m-editar">O painel aparece quando houver alunos.</span>' : ajustes.estado === 'offline' ? '<span class="motivo" id="m-editar">Precisa de internet.</span>' : ''}`;
+  const cab = `<div class="cab-tela"><div class="tx"><h1><span class="ic-tit" aria-hidden="true">${ic('grafico', 18)}</span>${T('tela.titulo', 'Painel')}</h1>
+    <span class="suave">${ed ? T('tela.subEd', 'Editando: escolha os blocos e a ordem. A prévia embaixo já mostra como fica.') : T('tela.sub', 'Olá, Treinador Exemplo. O que pede atenção na consultoria hoje.')}</span></div><div class="acoes">${acoes}</div></div>`;
+  if (ajustes.estado === 'offline') return cab + `<div class="alerta perigo" role="alert">${ic('wifi', 20)}<div class="tx"><b>Sem internet.</b><span>As telas do treinador precisam de conexão. Tente de novo quando ela voltar.</span></div><button class="btn anima" data-acao="nada">Tentar de novo</button></div>`;
+  if (semAlunos) return cab + (ed ? '' : proximoPasso()) + `<div class="grade" style="--cols:1">${primeirosPassos()}</div>
+    <p class="vazio-frase">${T('vazio.frase', 'Os números da consultoria (atualizações, treinos, pastas e o resto) aparecem aqui quando houver alunos.')}</p>`;
+  const ids = visiveis();
+  const grade = ids.length ? `<div class="grade ${larguraBloco(1) < 260 ? 'estreita' : ''}" style="--cols:${cols}">${ed ? '' : primeirosPassos()}${arrumar(ids).map(({ id, span }) => bloco(id, span)).join('')}</div>`
+    : `<section class="bloco"><div class="corpo"><p class="vazio-frase">Nenhum bloco ligado. Use "Editar" para escolher o que aparece aqui.</p></div></section>`;
+  const notaApi = marcaApi() ? `<span class="pequeno">Borda tracejada: número sem contagem na API hoje (ver o plano, "Rotas do painel").</span>` : '';
+  return cab + (ed ? editor() + `<span class="secao-titulo">Prévia</span>` : proximoPasso()) + notaApi + grade;
+}
+
+/* ====================== moldura ====================== */
+const ITENS_MENU = [['', [['casa', 'Início'], ['alunos', 'Alunos'], ['sino', 'Atualizações'], ['caixa', 'Interessados']]], ['Dia a dia', [['agenda', 'Agenda'], ['carteira', 'Financeiro']]],
+  ['Conteúdo', [['livro', 'Biblioteca'], ['camadas', 'Planejamento']]], ['Gestão', [['equipe', 'Equipe'], ['ajuda', 'Ajuda']]]];
+const menu = () => `<aside class="menu"><div class="logo"><span class="q">CE</span><div><b>Consultoria Exemplo</b><small>Consultoria</small></div></div>
+  <nav aria-label="Menu">${ITENS_MENU.map(([g, l]) => `${g ? `<div class="grupo">${g}</div>` : ''}${l.filter(([i]) => i !== 'carteira' || veFinanceiro()).map(([i, n]) => `<button class="item-menu anima ${n === 'Início' ? 'ativo' : ''}" ${n === 'Início' ? 'aria-current="page"' : ''} data-acao="nada">${ic(i)}<span>${n}</span></button>`).join('')}`).join('')}</nav></aside>`;
+const topo = () => `<header class="topo"><div class="busca">${ic('busca', 16)}<span>O que você deseja fazer?</span><kbd>Ctrl K</kbd></div>
+  <button class="usuario anima" data-acao="nada"><div><b>Treinador Exemplo</b><small>${ajustes.perfil === 'restrito' ? 'Assistente' : 'Administrador'}</small></div>${ic('baixo', 16)}</button></header>`;
+const inferior = () => `<nav class="inferior" aria-label="Menu">${[['casa', 'Início'], ['alunos', 'Alunos'], ['livro', 'Biblioteca'], ['camadas', 'Planos'], ['perfil', 'Perfil']].map(([i, n]) => `<button class="${n === 'Início' ? 'ativo' : ''}" data-acao="nada">${ic(i, 20)}<span>${n}</span></button>`).join('')}</nav>`;
+
+/* ====================== painel de confirmação (PainelConfirmacao) ====================== */
+function desenharModal() {
+  const c = document.getElementById('camada-modal');
+  if (!estado.confirmar) { c.innerHTML = ''; return; }
+  c.innerHTML = `<div class="modal-fundo"><div class="painel" role="dialog" aria-modal="true" aria-labelledby="tit-conf"><div class="faixa"><div class="tit"><h2 id="tit-conf">Dispensar os primeiros passos?</h2></div></div>
+    <div class="corpo"><p>Eles saem do Início e o Próximo passo volta. Continuam na Ajuda, em Primeiros passos, e dá para trazer de volta de lá.</p></div>
+    <div class="rodape"><button class="btn anima" data-acao="conf-cancelar">Continuar com eles</button><button class="btn primario anima" data-acao="conf-dispensar">Dispensar</button></div></div></div>`;
+  c.querySelector('[data-acao="conf-cancelar"]').focus();
+}
+
+/* ====================== painel de ajustes do protótipo ====================== */
+let ajAberto = false, exportado = '';
+const op = (k, t, ops, dica) => `<div class="op"><b>${t}</b><div class="opcoes">${ops.map(([val, n]) => `<button class="${String(ajustes[k]) === String(val) ? 'sel' : ''}" data-aj="${k}" data-v="${val}">${n}</button>`).join('')}</div>${dica ? `<small>${dica}</small>` : ''}</div>`;
+function painelAjustes() {
+  const c = document.getElementById('camada-ajustes'), sim = [['true', 'Sim'], ['false', 'Não']];
+  document.body.classList.toggle('com-ajustes', ajAberto);
+  if (!ajAberto) { c.innerHTML = `<button class="abrir-ajustes" data-acao="aj-abrir">Ajustes</button>`; return; }
+  c.innerHTML = `<aside class="ajustes" aria-label="Ajustes do protótipo"><header><b>Ajustes do protótipo</b><button class="fechar" data-acao="aj-fechar" aria-label="Fechar">${ic('fechar', 16)}</button></header><div class="lista-aj">
+    <h4>Dados</h4>
+    ${op('cenario', 'Cenário', [['cheio', 'Dia cheio'], ['tranquilo', 'Tudo em dia'], ['nova', 'Consultoria sem alunos']], '"Tudo em dia": os zeros ficam neutros. "Sem alunos": só uma frase, sem contadores zerados.')}
+    ${op('primeiros', 'Primeiros passos', [['aberto', 'Com a lista (3 de 6)'], ['concluidos', 'Concluídos'], ['sem', 'Sem (dispensado ou fechado)']], 'Com a lista, ela toma o lugar do Próximo passo. A orientação inteira, com todos os estados, está em primeiro-uso.html.')}
+    ${op('estado', 'Estado', [['normal', 'Normal'], ['carregando', 'Carregando'], ['erroConsulta', 'Erro numa consulta'], ['offline', 'Sem internet']], '"Erro numa consulta": o bloco Interessados diz que não carregou e oferece Atualizar (que aqui dá certo).')}
+    ${op('perfil', 'Perfil de quem entra', [['admin', 'Administrador'], ['restrito', 'Assistente (exemplo)']])}
+    <ul>${ajustes.perfil === 'restrito' ? '<li>Sem <code>ALUNO_SENSIVEL_LER</code>/<code>ATUALIZACAO_LER</code>: some o bloco Atualizações e a rosca fica só "por responsável".</li><li>Sem <code>FINANCEIRO_LER</code>: somem Financeiro e o gráfico de barras.</li>' : '<li>Com todas as permissões: todos os blocos.</li>'}</ul>
+    ${op('financeiro', 'Financeiro ligado na plataforma', sim, 'Desligado (TREINOS_PAGAMENTOS_HABILITADO), Financeiro e barras somem para todos.')}
+    ${op('retorno', '"Concluir treino" ligado (Retorno imediato)', sim, 'Desligado (o padrão na produção), o bloco Treinos fica só com "Sem registro há N dias".')}
+    ${op('dias', 'Sem registro há N dias (preferência pessoal)', [['3', '3'], ['7', '7'], ['14', '14'], ['30', '30']])}
+    ${op('rotas', 'Contagens e filtros que ainda não existem', [['marcar', 'Marcar (padrão)'], ['todas', 'Desenho completo'], ['existentes', 'Só o que já existe']], 'Do plano ("Rotas do painel"): concluídos na semana, pastas a renovar, sem pasta com período, sem registro há N dias (a lista para em 20) e a rosca por situação não têm contagem. Marcar: borda tracejada. Só o que já existe: some o bloco Pastas, saem os concluídos e o sem registro, e a rosca vira ativos × inativos; os cartões cujo filtro é novo (retornos, em contato, vencidas, vencendo, agenda dos próximos 7 dias) abrem a tela sem o filtro.')}
+    ${op('graficos', 'Gráficos (Perfil › Preferências)', sim, 'Não: a rosca e as barras viram tabela.')}
+    <h4>Aparência</h4>${op('tema', 'Tema', [['claro', 'Claro'], ['areia', 'Claro areia'], ['escuro', 'Escuro']])}
+    ${op('bordasReforcadas', 'Bordas reforçadas (Perfil › Preferências)', sim)}
+    <h4>Tela</h4>${op('celular', 'Ver como celular (390 px)', sim)}${op('editarTextos', 'Editar textos e números', sim, 'Ligado: clique num texto ou número com contorno azul para reescrever. Cada número vale para o cenário e o Todos/Meus em uso.')}
+    <h4>Para onde cada mini-cartão vai</h4><small style="color:#52525B">Clique num mini-cartão: o aviso mostra o endereço suposto.</small>
+  </div><footer><button class="forte" data-acao="aj-copiar">Copiar meus ajustes</button>${exportado ? `<textarea readonly>${esc(exportado)}</textarea><small>Cole na conversa comigo.</small>` : ''}<button data-acao="aj-padrao">Voltar ao padrão</button></footer></aside>`;
+}
+
+/* ====================== render ====================== */
+function aplicar() {
+  const t = TEMAS[ajustes.tema] || TEMAS.claro, r = document.documentElement.style;
+  for (const [k, val] of Object.entries(t)) r.setProperty('--' + k, val);
+  if (ajustes.bordasReforcadas) r.setProperty('--borda', t.bordaCampo);
+  r.setProperty('--bwBloco', ajustes.bordasReforcadas ? '3px' : '2px');
+  r.setProperty('--marca', '#B71C1C'); r.setProperty('--marcaTexto', ajustes.tema === 'escuro' ? '#F4F4F5' : '#B71C1C');
+  r.colorScheme = ajustes.tema === 'escuro' ? 'dark' : 'light';
+  const b = document.body.classList, cel = ajustes.celular || innerWidth < 768;
+  b.toggle('cel', cel); b.toggle('simula-cel', ajustes.celular && innerWidth >= 768); b.toggle('editando', ajustes.editarTextos);
+}
+/* Colunas pela largura da área (bloco de pelo menos 220 px): 4 no PC de 1280, 1 no celular. */
+const colunasPara = (w) => Math.max(1, Math.min(4, Math.floor((w + 16) / (220 + 16))));
+function render(opts = {}) {
+  const ativo = document.activeElement, foco = opts.foco || ativo?.dataset?.foco, alt = opts.focoAlt || ativo?.dataset?.focoAlt;
+  aplicar();
+  document.getElementById('app').innerHTML = `${menu()}<div class="principal">${topo()}<main class="conteudo">${tela()}</main>${inferior()}</div>`;
+  const m = document.querySelector('.conteudo'), w = m ? m.clientWidth - (document.body.classList.contains('cel') ? 24 : 48) : 1000;
+  if (Math.abs(w - larguraGrade) > 1 || colunasPara(w) !== cols) { larguraGrade = w; cols = colunasPara(w); document.querySelector('.conteudo').innerHTML = tela(); }
+  painelAjustes(); desenharModal();
+  // O render refaz o HTML: o foco volta ao mesmo controle (ou ao vizinho, se ele ficou desabilitado).
+  if (foco && !estado.confirmar) {
+    let el = document.querySelector(`[data-foco="${CSS.escape(foco)}"]`);
+    if ((!el || el.getAttribute('aria-disabled') === 'true') && alt) el = document.querySelector(`[data-foco="${CSS.escape(alt)}"]`) || el;
+    el?.focus({ preventScroll: true });
+  }
+}
+const anunciar = (t) => { const a = document.getElementById('anuncio'); a.textContent = ''; setTimeout(() => { a.textContent = t; }, 30); };
+function aviso(html) {
+  const c = document.getElementById('camada-aviso');
+  c.innerHTML = `<div class="aviso-flutuante" role="status">${html}</div>`;
+  clearTimeout(aviso.t); aviso.t = setTimeout(() => (c.innerHTML = ''), 5000);
+}
+function mover(id, d) {
+  const ids = permitidos(), i = ids.indexOf(id), j = i + d;
+  if (j < 0 || j >= ids.length) { anunciar(d < 0 ? 'Já é o primeiro.' : 'Já é o último.'); return false; }
+  const outro = ids[j], a = prefs.ordem.indexOf(id), b = prefs.ordem.indexOf(outro);
+  [prefs.ordem[a], prefs.ordem[b]] = [prefs.ordem[b], prefs.ordem[a]];
+  anunciar(`${txt('b.' + id, BLOCOS[id].titulo)}: posição ${j + 1} de ${ids.length}.`);
+  return true;
+}
+
+/* ====================== eventos ====================== */
+document.addEventListener('click', (ev) => {
+  const ed = ev.target.closest('[data-ed]');
+  if (ed) { if (ed.dataset.ed === 'salvar') salvarEdicao(); if (ed.dataset.ed === 'original') { if (editTipo === 't') delete textos[editId]; else delete numeros[editId]; } document.getElementById('camada-aviso').innerHTML = ''; guardar(); render(); return; }
+  if (ev.target.closest('.editor-texto')) return;
+  if (ajustes.editarTextos && !ev.target.closest('.ajustes')) {
+    const n = ev.target.closest('[data-n]'), t = ev.target.closest('[data-t]');
+    if (n || t) { ev.preventDefault(); abrirEditor(n || t, n ? 'n' : 't'); return; }
+  }
+  const aj = ev.target.closest('[data-aj]');
+  if (aj) { const val = aj.dataset.v; ajustes[aj.dataset.aj] = val === 'true' ? true : val === 'false' ? false : val; if (aj.dataset.aj === 'estado') estado.recuperado = {}; guardar(); render(); return; }
+  const el = ev.target.closest('[data-acao]');
+  if (!el) return;
+  const a = el.dataset.acao, d = el.dataset;
+  if (el.getAttribute('aria-disabled') === 'true') { ev.preventDefault(); const m = el.getAttribute('aria-describedby'); anunciar(m ? document.getElementById(m)?.textContent || '' : ''); return; }
+  switch (a) {
+    case 'nada': aviso('No protótipo só o painel funciona.'); return;
+    case 'nada-pp': aviso('Os itens funcionam em primeiro-uso.html, que tem todos os estados da orientação.'); return;
+    case 'abrir': ev.preventDefault(); aviso(`Abriria <code>${esc(d.v)}</code>`); return;
+    case 'atualizar': {
+      const id = d.id; estado.atualizando[id] = true; render({ foco: `atualizar:${id}` });
+      setTimeout(() => { estado.atualizando[id] = false; estado.recuperado[id] = true; render({ foco: document.activeElement?.dataset?.foco }); anunciar(`${txt('b.' + id, BLOCOS[id].titulo)} atualizado.`); }, 700);
+      return; }
+    case 'filtro': prefs.meus[d.id] = !meus(d.id); guardar(); anunciar(`${txt('b.' + d.id, BLOCOS[d.id].titulo)}: ${meus(d.id) ? 'só os meus alunos' : 'todos os alunos'}.`); break;
+    case 'pagina': estado.pagina.alunos = Math.max(0, estado.pagina.alunos + Number(d.d)); render({ foco: d.foco, focoAlt: d.foco === 'pag-ant' ? 'pag-prox' : 'pag-ant' }); anunciar(estado.pagina.alunos ? 'Alunos por responsável.' : 'Alunos por situação.'); return;
+    case 'editar': estado.editando = true; estado.copia = JSON.parse(JSON.stringify(prefs)); render(); document.querySelector('#h-editar')?.closest('section')?.querySelector('button')?.focus(); return;
+    case 'ed-cancelar': prefs = estado.copia; estado.editando = false; guardar(); render({ foco: 'editar' }); anunciar('Edição cancelada.'); return;
+    case 'ed-padrao': prefs.ordem = [...ORDEM_PADRAO]; prefs.escondidos = []; anunciar('Ordem e blocos do padrão.'); break;
+    case 'ed-concluir': estado.editando = false; guardar(); render({ foco: 'editar' }); aviso('Painel salvo neste aparelho.'); return;
+    case 'ligar': { const on = prefs.escondidos.includes(d.id); prefs.escondidos = on ? prefs.escondidos.filter((x) => x !== d.id) : [...prefs.escondidos, d.id]; anunciar(`${txt('b.' + d.id, BLOCOS[d.id].titulo)}: ${on ? 'aparece' : 'escondido'}.`); break; }
+    case 'mover': mover(d.id, Number(d.d)); break;
+    case 'pp-recolher': estado.ppRecolhido = !estado.ppRecolhido; break;
+    case 'pp-dispensar': estado.confirmar = true; break;
+    case 'conf-cancelar': estado.confirmar = false; render({ foco: 'pp-dispensar' }); return;
+    case 'conf-dispensar': estado.confirmar = false; ajustes.primeiros = 'sem'; guardar(); render(); aviso('Primeiros passos dispensados. Eles continuam na Ajuda.'); return;
+    case 'pp-fechar': ajustes.primeiros = 'sem'; guardar(); break;
+    case 'aj-abrir': ajAberto = true; break;
+    case 'aj-fechar': ajAberto = false; exportado = ''; break;
+    case 'aj-copiar': exportado = JSON.stringify({ tela: 'painel', ajustes: { ...ajustes, celular: undefined, editarTextos: undefined }, prefs, textos, numeros }, null, 1);
+      try { navigator.clipboard.writeText(exportado).catch(() => {}); } catch (e) {} break;
+    case 'aj-padrao': ajustes = { ...PADRAO }; textos = {}; numeros = {}; prefs = { ordem: [...ORDEM_PADRAO], escondidos: [], meus: {} }; estado.recuperado = {}; guardar(); break;
+    default: return;
+  }
+  render();
+});
+document.addEventListener('keydown', (ev) => {
+  if (ev.target.id === 'texto-novo' && ev.key === 'Enter') { document.querySelector('[data-ed="salvar"]').click(); return; }
+  if (ev.key !== 'Escape') return;
+  if (estado.confirmar) { estado.confirmar = false; render({ foco: 'pp-dispensar' }); }
+  else if (ajAberto) { ajAberto = false; render(); }
+});
+/* Arrastar (além dos botões Subir/Descer, que são o caminho acessível). */
+document.addEventListener('dragstart', (ev) => { const li = ev.target.closest?.('[data-arrasta]'); if (!li) return; estado.arrastando = li.dataset.arrasta; li.classList.add('arrastando'); ev.dataTransfer.effectAllowed = 'move'; });
+document.addEventListener('dragover', (ev) => { const li = ev.target.closest?.('[data-arrasta]'); if (!li || !estado.arrastando) return; ev.preventDefault(); document.querySelectorAll('.ordem li.alvo').forEach((x) => x.classList.remove('alvo')); li.classList.add('alvo'); });
+document.addEventListener('drop', (ev) => {
+  const li = ev.target.closest?.('[data-arrasta]'); if (!li || !estado.arrastando) return; ev.preventDefault();
+  const de = estado.arrastando, para = li.dataset.arrasta; estado.arrastando = null;
+  if (de !== para) { const o = prefs.ordem.filter((x) => x !== de); o.splice(o.indexOf(para) + (prefs.ordem.indexOf(de) < prefs.ordem.indexOf(para) ? 1 : 0), 0, de); prefs.ordem = o;
+    const ids = permitidos(); anunciar(`${txt('b.' + de, BLOCOS[de].titulo)}: posição ${ids.indexOf(de) + 1} de ${ids.length}.`); }
+  render();
+});
+document.addEventListener('dragend', () => { estado.arrastando = null; document.querySelectorAll('.ordem li').forEach((x) => x.classList.remove('alvo', 'arrastando')); });
+
+let editId = null, editTipo = 't';
+function abrirEditor(el, tipo) {
+  editTipo = tipo; editId = tipo === 'n' ? el.dataset.n : el.dataset.t; const r = el.getBoundingClientRect();
+  const atual = tipo === 'n' ? (numeros[editId] ?? el.textContent.replace(/[^\d,]/g, '').replace(',', '.')) : (textos[editId] ?? PADROES[editId] ?? el.textContent);
+  document.getElementById('camada-aviso').innerHTML = `<div class="editor-texto" style="top:${Math.min(r.bottom + 6, innerHeight - 150)}px;left:${Math.max(8, Math.min(r.left, innerWidth - 330))}px"><b>${tipo === 'n' ? 'Editar número' : 'Editar texto'}</b>
+    <input id="texto-novo" ${tipo === 'n' ? 'inputmode="decimal"' : ''} value="${esc(atual)}"><small style="color:#52525B">${tipo === 'n' ? 'Só para este cenário e este Todos/Meus.' : 'Original: ' + esc(PADROES[editId] || '')}</small>
+    <div class="lb"><button class="forte" data-ed="salvar">Salvar</button><button data-ed="original">Voltar ao original</button><button data-ed="cancelar">Cancelar</button></div></div>`;
+  const i = document.getElementById('texto-novo'); i.focus(); i.select();
+}
+function salvarEdicao() {
+  const val = document.getElementById('texto-novo').value;
+  if (editTipo === 't') { textos[editId] = val; return; }
+  const n = Number(String(val).replace(/\./g, '').replace(',', '.'));
+  if (Number.isFinite(n) && n >= 0) numeros[editId] = n;
+}
+addEventListener('resize', () => { clearTimeout(window.__r); window.__r = setTimeout(render, 120); });
+render();
+</script>
+</body>
+</html>
