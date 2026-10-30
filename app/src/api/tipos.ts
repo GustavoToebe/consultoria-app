@@ -467,7 +467,8 @@ export interface PreviaDeImportacao {
   hash: string; linhas: number; novos: number; atualizados: number; ignorados: number; comErro: number;
   erros: ErroDeImportacao[]; errosAlem: number; amostra: { linha: number; campos: Record<string, string> }[];
 }
-export interface ColunasDaImportacao { abas: string[]; aba: number; colunas: string[] }
+/** Colunas da aba, o total de linhas de dados e até 5 primeiras linhas (texto de cada célula, para a tela). */
+export interface ColunasDaImportacao { abas: string[]; aba: number; colunas: string[]; linhas: number; amostra: string[][] }
 export interface DetalheDeImportacao extends ItemDeImportacao {
   configuracao: Record<string, unknown>; erros: ErroDeImportacao[];
 }
