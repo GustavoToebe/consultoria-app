@@ -18,6 +18,7 @@ mandou (fora do repositório: tem dado de pessoas reais e não entra no git).
 | D5 | Pastas | O filtro "Ativas" passa a "Abertas"; pasta aberta/concluída, plano rascunho/publicado e plano em uso pelo aluno aparecem separados | Análise do vídeo (A10) |
 | D6 | Suplemento | O campo vira "Dose prescrita"; a porção da embalagem aparece só como informação; nada é preenchido sozinho | Análise do vídeo (A07) |
 | D8 | Início e fim de cada bloco | Todo cartão com título ganha a faixa de cabeçalho (título e ações em `superficie3`, linha embaixo) e o topo de toda Folha também; bordas mais fortes nos temas | Gustavo, 30/10 ("tudo parece uma coisa só, sem início e fim") |
+| D9 | Água por dia | O treinador escreve os litros no cartão "Total do dia" do editor da dieta, sempre à vista (estava dentro da "Configuração do plano", que abre fechada). O registro da água bebida pelo aluno segue como o passo 1.2 de `engajamento.md` | Gustavo, 30/10 |
 | D7 | Lista de compras | "Conforme a dieta" quando falta fator e "Estimativa para compra" quando a conta foi feita; "Mês (30 dias)"; uma opção por refeição | Análise do vídeo (A08) |
 
 ## Passos

@@ -110,3 +110,37 @@ for (const [largura, ladoALado] of [[390, false], [1280, true]] as const) {
     expect(errosDaPagina).toEqual([]);
   });
 }
+
+/**
+ * 30/10: "Água por dia" fica no cartão "Total do dia", à vista. Antes morava na "Configuração do plano", que já abre
+ * fechada quando a dieta tem refeições, e o treinador não a achava.
+ */
+for (const largura of [390, 1280]) {
+  test(`treinador: água por dia à vista no Total do dia e salva no rascunho (${largura}px)`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 900 });
+    const { pedidos, naoTratadas, errosDaPagina } = await simularApi(page, {
+      ...(await sessao(page, TREINADOR, { permissoes: [...PERMISSOES_TREINADOR, 'DIETA_LER', 'DIETA_ALTERAR'] })),
+      'GET /painel': { corpo: { atualizacoesParaRevisar: 0 } },
+      'GET /inscricoes': { corpo: { itens: [], total: 0 } },
+      'GET /alimentos': { corpo: [] },
+      'GET /consultoria': { corpo: { marca: MARCA, versao: 1, diasAtualizacaoPadrao: null } },
+      [`GET /alunos/${ALUNO_ID}`]: { corpo: { id: ALUNO_ID, nome: 'Aluno Teste' } },
+      [`GET /planos-dieta/${PLANO_ID}`]: { corpo: DETALHE },
+      [`PUT /planos-dieta/${PLANO_ID}/rascunho`]: { corpo: { ...DETALHE, rascunho: { ...CONTEUDO, aguaLitros: 2.5 }, plano: { ...DETALHE.plano, versao: 2 } } },
+    });
+    await page.goto(`/treinador/dietas/${PLANO_ID}`);
+    const total = page.getByRole('heading', { name: 'Total do dia' });
+    await expect(total).toBeVisible();
+    // A configuração do plano está fechada, e mesmo assim o campo da água aparece.
+    await expect(page.getByLabel('Objetivo (opcional)')).toHaveCount(0);
+    const agua = page.getByLabel('Água por dia (opcional)');
+    await expect(agua).toBeVisible();
+    await agua.fill('2,5');
+    await page.getByRole('button', { name: 'Salvar rascunho' }).click();
+    await expect.poll(() => pedidos.filter((p) => p.metodo === 'PUT' && p.caminho.endsWith('/rascunho')).length).toBe(1);
+    const put = pedidos.find((p) => p.metodo === 'PUT' && p.caminho.endsWith('/rascunho'));
+    expect((put?.corpo as { conteudo: ConteudoDieta }).conteudo.aguaLitros).toBe(2.5);
+    expect(naoTratadas).toEqual([]);
+    expect(errosDaPagina).toEqual([]);
+  });
+}

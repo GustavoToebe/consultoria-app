@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { listarAlimentos, listarErgogenicos, listarSuplementos, salvarPlanoComoReceita, criarReceita } from '../../api/rotas';
 import type { Alimento, ConteudoDieta, Receita, ResultadoValidacao } from '../../api/tipos';
 import { uidsComProblema } from '../../dominio/caminhos';
-import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, itensSemValorNoTotal, type ItemSemValor, novaRefeicao, novoItem, normalizarDieta, textoDaAgua, textoDoMacro, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
+import { AGUA_MAXIMA, AGUA_MINIMA, aguaValida, aplicarReceitaDeDieta, itensSemValorNoTotal, type ItemSemValor, novaRefeicao, novoItem, normalizarDieta, textoDoMacro, textoItensSemValor, totalDoDia } from '../../dominio/dieta';
 import { mover, remover, substituir } from '../../dominio/editorTreino';
 import { linhaDeErgogenico } from '../../dominio/ergogenicos';
 import { dataDaTela, dataParaTela, numeroParaTela, SEM_DADO } from '../../dominio/formatos';
@@ -135,12 +135,12 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
           aoFechar={() => setDesfazer(null)}
         />
       ) : null}
-      <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} />
+      <TotalDoDia conteudo={c} semValor={semValor} aoAbrirRefeicao={abrirRefeicao} aoMudarAgua={unica ? undefined : (aguaLitros) => mudar({ aguaLitros })} />
       {unica ? null : <ConfiguracaoDoPlano
         editor={editor}
         modelo={modelo}
         recolhido={c.refeicoes.length > 0 && estado.titulo.trim() !== ''}
-        descricao="Título, período, objetivo, profissional e água da dieta.">
+        descricao="Título, período, objetivo e profissional da dieta.">
         <CamposDaDieta conteudo={c} aoMudar={mudar} />
       </ConfiguracaoDoPlano>}
       <View style={estilos.cabecalhoRefeicoes}>
@@ -397,10 +397,14 @@ export default function EditorDeDieta({ modelo = false, unica = false, receita }
 
 /**
  * "Total do dia" (opção A de cada refeição): kcal em destaque, macros com o nome por extenso ("Proteína —" sem
- * unidade quando falta valor), a água do plano e, se algum item deixa o total incompleto, quantos são e um atalho
- * para o primeiro (antes só aparecia "— g de proteína" sem dizer por quê).
+ * unidade quando falta valor), a água por dia e, se algum item deixa o total incompleto, quantos são e um atalho
+ * para o primeiro (antes só aparecia "— g de proteína" sem dizer por quê). A água é editada aqui, sempre à vista: dentro
+ * da "Configuração do plano", que fecha sozinha quando a dieta já tem refeições, o treinador não a encontrava (30/10).
+ * Modelo de uma refeição só não tem água.
  */
-function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao }: { conteudo: ConteudoDieta; semValor: ItemSemValor[]; aoAbrirRefeicao: (uid: string) => void }) {
+function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao, aoMudarAgua }: {
+  conteudo: ConteudoDieta; semValor: ItemSemValor[]; aoAbrirRefeicao: (uid: string) => void; aoMudarAgua?: (litros: number | null) => void;
+}) {
   const { rolarAte } = useRolagem();
   const t = totalDoDia(c);
   const primeiro = semValor[0];
@@ -410,7 +414,18 @@ function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao }: { conteudo: Cont
       <Texto numerico>
         {[textoDoMacro('Proteína', t.proteina, 'g'), textoDoMacro('Carboidrato', t.carboidrato, 'g'), textoDoMacro('Gordura', t.gordura, 'g')].join(' · ')}
       </Texto>
-      <Texto variante="suave" numerico>Água: {textoDaAgua(c.aguaLitros) ?? '—'}</Texto>
+      {aoMudarAgua ? (
+        <View style={estilos.campoSup}>
+          <CampoNumerico
+            rotulo="Água por dia (opcional)"
+            sufixo="L"
+            valor={c.aguaLitros ?? null}
+            aoMudar={aoMudarAgua}
+            erro={aguaValida(c.aguaLitros ?? null) ? null : `De ${numeroParaTela(AGUA_MINIMA)} a ${AGUA_MAXIMA} L, com uma casa decimal.`}
+            ajuda="Quantos litros o aluno deve tomar por dia. Aparece no início e na dieta dele. Vazio não aparece."
+          />
+        </View>
+      ) : null}
       {primeiro ? (
         <View style={estilos.semValor}>
           <Incompleto texto={textoItensSemValor(semValor.length)} />
@@ -422,7 +437,7 @@ function TotalDoDia({ conteudo: c, semValor, aoAbrirRefeicao }: { conteudo: Cont
   );
 }
 
-/** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). */
+/** Objetivo, data de início e profissional (como no topo do PDF do Saraiva). A água fica no "Total do dia". */
 function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar: (p: Partial<ConteudoDieta>) => void }) {
   const [inicio, setInicio] = useState(dataParaTela(conteudo.dataInicio));
   return (
@@ -443,16 +458,6 @@ function CamposDaDieta({ conteudo, aoMudar }: { conteudo: ConteudoDieta; aoMudar
         <View style={estilos.cresce}>
           <Campo rotulo="Profissional (opcional)" valor={conteudo.profissional ?? ''} aoMudar={(t) => aoMudar({ profissional: t || null })} maxLength={120} />
         </View>
-      </View>
-      <View style={estilos.campoSup}>
-        <CampoNumerico
-          rotulo="Água por dia (opcional)"
-          sufixo="L"
-          valor={conteudo.aguaLitros ?? null}
-          aoMudar={(v) => aoMudar({ aguaLitros: v })}
-          erro={aguaValida(conteudo.aguaLitros ?? null) ? null : `De ${numeroParaTela(AGUA_MINIMA)} a ${AGUA_MAXIMA} L, com uma casa decimal.`}
-          ajuda="Aparece para o aluno no início e na dieta. Vazio não aparece."
-        />
       </View>
     </>
   );
