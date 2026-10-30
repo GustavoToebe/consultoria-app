@@ -161,3 +161,34 @@ describe('depoisDeFecharAsFolhas (navegar com o resultado de uma escolha feita n
     expect(depois).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('depoisDeFecharAsFolhas com o navegador lento (o popstate passa das esperas de 400 ms e de 1 s)', () => {
+  it('a escolha gravada no endereço fica: `depois` só corre quando a entrada da Folha já voltou', () => {
+    const { historico, navegador, montar, passar } = carregar(1_500);
+    montar(1);
+    passar(0);
+    montar(0);
+    // O que a Agenda faz: grava o filtro no endereço (um `router.replace`, que no navegador é `replaceState`).
+    const depois = jest.fn(() => { (globalThis as unknown as { window: Window }).window.history.replaceState({ id: 'tela', filtro: 'meus' }, ''); });
+    historico.depoisDeFecharAsFolhas(depois);
+    passar(1_200);
+    // Antes, a espera de 400 ms (e a de 1 s) soltava `depois` aqui, em cima da entrada da Folha, e o popstate atrasado o desfazia.
+    expect(depois).not.toHaveBeenCalled();
+    passar(5_000);
+    expect(depois).toHaveBeenCalledTimes(1);
+    expect(navegador.atual()).toEqual({ id: 'tela', filtro: 'meus' });
+  });
+
+  it('se o popstate nunca vier, `depois` corre na espera máxima (nada fica preso)', () => {
+    const { historico, montar, passar } = carregar(600_000);
+    montar(1);
+    passar(0);
+    montar(0);
+    const depois = jest.fn();
+    historico.depoisDeFecharAsFolhas(depois);
+    passar(4_000);
+    expect(depois).not.toHaveBeenCalled();
+    passar(2_000);
+    expect(depois).toHaveBeenCalledTimes(1);
+  });
+});
