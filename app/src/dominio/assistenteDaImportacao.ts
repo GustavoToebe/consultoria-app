@@ -3,6 +3,8 @@
  * mapeamento escolhido por coluna, motivos de não continuar e o resumo da validação. Sem React e sem API.
  */
 import { faltandoColuna, type CampoDaImportacao, type Destino } from './mapeamentoDaImportacao';
+import type { OpcaoSuspensa } from './escolhaSuspensa';
+import { semAcento } from './telas';
 
 export const ETAPAS_DA_IMPORTACAO = ['Destino e arquivo', 'Configuração', 'Mapeamento', 'Validação', 'Resultado'] as const;
 export type EtapaDaImportacao = 1 | 2 | 3 | 4 | 5;
@@ -120,4 +122,133 @@ export function textoDoErro(erro: { linha: number; campo: string; motivo: string
   const coluna = indice !== null && indice !== undefined && indice >= 0 ? colunas[indice] : undefined;
   const onde = campo ? `${campo.rotulo}${coluna ? ` (coluna “${coluna}”)` : ''}` : erro.campo;
   return `Linha ${erro.linha} · ${onde}: ${erro.motivo}`;
+}
+
+/** Rótulo do campo na lista do mapeamento: "Endereço > CEP" quando o campo tem grupo. */
+export function rotuloNaLista(campo: CampoDaImportacao): string {
+  return campo.grupo ? `${campo.grupo} > ${campo.rotulo}` : campo.rotulo;
+}
+
+/**
+ * Opções do campo de uma coluna: "Não importar" primeiro e cada campo com "Obrigatório" e, se já está em outra
+ * coluna, onde (escolher aqui tira de lá).
+ */
+export function opcoesDoCampoDaColuna(campos: readonly CampoDaImportacao[], mapa: MapaDaImportacao, coluna: number,
+  nomeDaColuna: (indice: number) => string): OpcaoSuspensa<string | null>[] {
+  return [
+    { valor: null, rotulo: 'Não importar' },
+    ...campos.map((c) => {
+      const onde = mapa[c.id];
+      const emOutra = onde !== null && onde !== undefined && onde !== coluna;
+      const detalhe = [c.obrigatorio ? 'Obrigatório' : null, emOutra ? `Hoje na coluna “${nomeDaColuna(onde)}”` : null].filter(Boolean).join(' · ');
+      return { valor: c.id as string | null, rotulo: rotuloNaLista(c), detalhe: detalhe || undefined };
+    }),
+  ];
+}
+
+export interface LinhaDaPlanilha { numero: number; valores: string[] }
+
+/** Linhas por página na tabela do mapeamento: a tela não desenha mil linhas de uma vez. */
+export const LINHAS_POR_PAGINA = 50;
+
+/**
+ * Correções feitas na tabela, só em memória (pedido do Gustavo em 30/10): texto novo por célula, com a chave
+ * "linha:coluna" (linha = número no arquivo), e as linhas tiradas. Vão junto da configuração na prévia e na
+ * confirmação; o hash da prévia os cobre.
+ */
+export interface AjustesDaTabela { celulas: Readonly<Record<string, string>>; removidas: readonly number[] }
+
+export const SEM_AJUSTES: AjustesDaTabela = { celulas: {}, removidas: [] };
+
+const chaveDaCelula = (linha: number, coluna: number) => `${linha}:${coluna}`;
+
+/** Texto que a célula mostra: o ajustado, senão o do arquivo. */
+export function valorDaCelula(ajustes: AjustesDaTabela, linha: number, coluna: number, original: string): string {
+  return ajustes.celulas[chaveDaCelula(linha, coluna)] ?? original;
+}
+
+export function celulaAjustada(ajustes: AjustesDaTabela, linha: number, coluna: number): boolean {
+  return chaveDaCelula(linha, coluna) in ajustes.celulas;
+}
+
+/** Grava o texto novo; igual ao do arquivo, o ajuste sai (a célula volta ao original). */
+export function ajustarCelula(ajustes: AjustesDaTabela, linha: number, coluna: number, valor: string, original: string): AjustesDaTabela {
+  const celulas = { ...ajustes.celulas };
+  if (valor === original) delete celulas[chaveDaCelula(linha, coluna)];
+  else celulas[chaveDaCelula(linha, coluna)] = valor;
+  return { ...ajustes, celulas };
+}
+
+/** Tira a linha (ou a devolve, se já estava tirada). */
+export function alternarRemovida(ajustes: AjustesDaTabela, linha: number): AjustesDaTabela {
+  const removidas = ajustes.removidas.includes(linha) ? ajustes.removidas.filter((l) => l !== linha) : [...ajustes.removidas, linha];
+  return { ...ajustes, removidas };
+}
+
+/** O que vai para a API: listas ordenadas, sem nada em branco. */
+export function ajustesParaApi(ajustes: AjustesDaTabela): { celulas: { linha: number; coluna: number; valor: string }[]; removidas: number[] } {
+  const celulas = Object.entries(ajustes.celulas).map(([chave, valor]) => {
+    const [linha, coluna] = chave.split(':').map(Number);
+    return { linha, coluna, valor };
+  }).filter((c) => !ajustes.removidas.includes(c.linha)).sort((a, b) => a.linha - b.linha || a.coluna - b.coluna);
+  return { celulas, removidas: [...ajustes.removidas].sort((a, b) => a - b) };
+}
+
+/** Quantos ajustes valem (célula de linha tirada não conta). */
+export function totalDeAjustes(ajustes: AjustesDaTabela): { celulas: number; removidas: number } {
+  const api = ajustesParaApi(ajustes);
+  return { celulas: api.celulas.length, removidas: api.removidas.length };
+}
+
+/**
+ * Erros da última validação pela tabela: o motivo de cada célula (o campo do erro na coluna mapeada) e, por linha,
+ * os motivos que não têm coluna (campo sem coluna, linha inteira).
+ */
+export function errosNaTabela(erros: readonly { linha: number; campo: string; motivo: string }[], mapa: MapaDaImportacao) {
+  const porCelula = new Map<string, string>();
+  const porLinha = new Map<number, string[]>();
+  for (const e of erros) {
+    const coluna = mapa[e.campo];
+    if (coluna !== null && coluna !== undefined && coluna >= 0) {
+      const chave = chaveDaCelula(e.linha, coluna);
+      porCelula.set(chave, porCelula.has(chave) ? `${porCelula.get(chave)} ${e.motivo}` : e.motivo);
+    } else {
+      porLinha.set(e.linha, [...(porLinha.get(e.linha) ?? []), e.motivo]);
+    }
+  }
+  const linhas = new Set<number>(erros.map((e) => e.linha));
+  return { motivoDaCelula: (linha: number, coluna: number) => porCelula.get(chaveDaCelula(linha, coluna)) ?? null, motivosDaLinha: (linha: number) => porLinha.get(linha) ?? [], linhas };
+}
+
+/**
+ * Linhas da amostra com o número de cada uma no arquivo, sem as tiradas, filtradas pela busca (sem acento, no texto
+ * que a célula mostra ou pelo número da linha) e, com `somente`, só as dessas linhas (as que deram erro). Sem os
+ * números da API, conta a partir da primeira linha de dados.
+ */
+export function linhasDaPlanilha(amostra: readonly string[][], numeros: readonly number[] | undefined, cabecalho: boolean,
+  busca: string, ajustes: AjustesDaTabela = SEM_AJUSTES, somente?: ReadonlySet<number>): LinhaDaPlanilha[] {
+  const primeira = cabecalho ? 2 : 1;
+  const termo = semAcento(busca.trim());
+  const linhas: LinhaDaPlanilha[] = [];
+  amostra.forEach((originais, i) => {
+    const numero = numeros?.[i] ?? primeira + i;
+    if (ajustes.removidas.includes(numero) || (somente && !somente.has(numero))) return;
+    const valores = originais.map((v, c) => valorDaCelula(ajustes, numero, c, v));
+    if (termo && String(numero) !== termo && !valores.some((v) => semAcento(v).includes(termo))) return;
+    linhas.push({ numero, valores });
+  });
+  return linhas;
+}
+
+/** A página pedida, ajustada para dentro do total (a busca encolhe a lista). */
+export function paginaDaPlanilha(linhas: readonly LinhaDaPlanilha[], pagina: number, porPagina = LINHAS_POR_PAGINA) {
+  const total = Math.max(1, Math.ceil(linhas.length / porPagina));
+  const atual = Math.min(Math.max(pagina, 0), total - 1);
+  return { linhas: linhas.slice(atual * porPagina, (atual + 1) * porPagina), pagina: atual, total };
+}
+
+/** Aviso quando a tela não recebeu o arquivo todo; a validação continua conferindo todas as linhas. */
+export function avisoDoCorte(colunas: { linhas: number; amostra: readonly unknown[]; amostraCortada?: boolean }): string | null {
+  if (!colunas.amostraCortada && colunas.amostra.length >= colunas.linhas) return null;
+  return `Mostrando as primeiras ${colunas.amostra.length} de ${colunas.linhas} linhas. A validação confere todas.`;
 }

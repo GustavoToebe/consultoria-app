@@ -468,7 +468,12 @@ export interface PreviaDeImportacao {
   erros: ErroDeImportacao[]; errosAlem: number; amostra: { linha: number; campos: Record<string, string> }[];
 }
 /** Colunas da aba, o total de linhas de dados e até 5 primeiras linhas (texto de cada célula, para a tela). */
-export interface ColunasDaImportacao { abas: string[]; aba: number; colunas: string[]; linhas: number; amostra: string[][] }
+export interface ColunasDaImportacao {
+  abas: string[]; aba: number; colunas: string[]; linhas: number; amostra: string[][];
+  /** Número de cada linha da amostra no arquivo. */ numerosDasLinhas: number[];
+  /** O teto da amostra (1.000 linhas, 20.000 células) cortou o arquivo. */ amostraCortada: boolean;
+  /** Pares [posição na amostra, coluna] cujo texto veio cortado em 120 caracteres: não se editam na tela. */ celulasCortadas: number[][];
+}
 export interface DetalheDeImportacao extends ItemDeImportacao {
   configuracao: Record<string, unknown>; erros: ErroDeImportacao[];
 }

@@ -1,31 +1,34 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Check, Download, FileSpreadsheet, FileUp } from 'lucide-react-native';
+import { Apple, Check, Download, Dumbbell, FileSpreadsheet, FileUp, FlaskConical, Pill, Scale, Trash2, Undo2, Users, type LucideIcon } from 'lucide-react-native';
 import { createElement, useId, useRef, useState } from 'react';
-import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { colunasDaImportacao, confirmarImportacao, csvDeErrosDaImportacao, detalheDaImportacao, listarImportacoes, previaDaImportacao } from '../../api/rotas';
 import type { ColunasDaImportacao, DetalheDeImportacao, PreviaDeImportacao } from '../../api/tipos';
 import {
-  ETAPAS_DA_IMPORTACAO, campoDaColuna, camposPermitidos, escolherCampoDaColuna, explicacaoDosExistentes, motivoParaNaoContinuar,
-  resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, tipoDoArquivo, type EtapaDaImportacao, type MapaDaImportacao,
+  ETAPAS_DA_IMPORTACAO, SEM_AJUSTES, ajustarCelula, ajustesParaApi, alternarRemovida, avisoDoCorte, campoDaColuna, camposPermitidos,
+  celulaAjustada, errosNaTabela, escolherCampoDaColuna, explicacaoDosExistentes, linhasDaPlanilha, motivoParaNaoContinuar,
+  opcoesDoCampoDaColuna, paginaDaPlanilha, resumoDaValidacao, tamanhoParaTela, textoDoErro, textoDoQueVaiAcontecer, tipoDoArquivo,
+  totalDeAjustes, type AjustesDaTabela, type EtapaDaImportacao, type MapaDaImportacao,
 } from '../../dominio/assistenteDaImportacao';
-import { DESTINOS, destinosPermitidos, faltandoColuna, sugerirMapeamento, type Destino } from '../../dominio/mapeamentoDaImportacao';
+import { DESTINOS, destinosPermitidos, faltandoColuna, sugerirMapeamento, type Destino, type DestinoDaImportacao } from '../../dominio/mapeamentoDaImportacao';
 import { dataHoraParaTela } from '../../dominio/formatos';
 import { useSessao } from '../../sessao/SessaoProvider';
 import { useTema } from '../../tema/TemaProvider';
-import { ALVO_TOQUE, LARGURA_EDITOR, RAIO, espaco } from '../../tema/tokens';
+import { ALVO_TOQUE, LARGURA_EDITOR, RAIO, espaco, fontes } from '../../tema/tokens';
 import { useAviso } from '../../ui/Aviso';
 import { Botao } from '../../ui/Botao';
 import { Campo } from '../../ui/Campo';
 import { Cartao } from '../../ui/Cartao';
 import { CaixaSelecao } from '../../ui/CaixaSelecao';
-import { Escolha } from '../../ui/Escolha';
 import { EscolhaEmFolha } from '../../ui/EscolhaEmFolha';
+import { EscolhaSuspensa } from '../../ui/EscolhaSuspensa';
 import { Esqueleto } from '../../ui/Esqueleto';
 import { MensagemErro, Vazio } from '../../ui/Estados';
 import { Folha } from '../../ui/Folha';
 import { LinhaDeAcoes } from '../../ui/LinhaDeAcoes';
 import { Selo, type TipoSelo } from '../../ui/Selo';
+import { sobre } from '../../ui/sobre';
 import { Tabela } from '../../ui/Tabela';
 import { Texto } from '../../ui/Texto';
 import { textoDoErro as textoDoErroDaApi } from '../../ui/erros';
@@ -40,7 +43,7 @@ const SITUACAO: Record<string, { texto: string; tipo: TipoSelo }> = {
 };
 
 const BASE_MODELO = 'https://consultoria.servirea.com.br/modelos/importacao';
-/** Abaixo desta largura o indicador de etapas vira "Etapa N de 5" e o mapeamento vira um cartão por coluna. */
+/** Abaixo desta largura o indicador de etapas vira "Etapa N de 5" e as colunas da tabela ficam mais estreitas. */
 const LARGURA_ESTREITA = 600;
 const ERROS_NA_TELA = 50;
 
@@ -226,9 +229,26 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
   const [resultado, setResultado] = useState<DetalheDeImportacao | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<unknown>(null);
+  /** Correções feitas na tabela, só em memória: fechar o assistente as descarta. */
+  const [ajustes, setAjustes] = useState<AjustesDaTabela>(SEM_AJUSTES);
+  /** Erros da última validação, com o mapeamento de então, para marcar as células na tabela. */
+  const [ultimaValidacao, setUltimaValidacao] = useState<{ erros: PreviaDeImportacao['erros']; mapa: MapaDaImportacao } | null>(null);
+  const [soComErro, setSoComErro] = useState(false);
   /** Só a resposta do último pedido vale: trocar a aba duas vezes depressa não deixa a primeira resposta vencer. */
   const pedido = useRef(0);
   const estreita = largura < LARGURA_ESTREITA;
+
+  const descartarAjustes = () => {
+    setAjustes(SEM_AJUSTES);
+    setUltimaValidacao(null);
+    setSoComErro(false);
+  };
+
+  /** Corrigir ou tirar linha descarta a prévia, como mudar o mapeamento: precisa validar de novo. */
+  const mudarAjustes = (novos: AjustesDaTabela) => {
+    setAjustes(novos);
+    setPrevia(null);
+  };
 
   const escolherDestino = (id: string | null) => {
     const d = destinos.find((x) => x.id === id) ?? null;
@@ -240,6 +260,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     setColunas(null);
     setMapa({});
     setPrevia(null);
+    descartarAjustes();
   };
 
   const escolherArquivo = (a: ArquivoEscolhido) => {
@@ -249,6 +270,7 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     setMapa({});
     setPrevia(null);
     setErro(null);
+    descartarAjustes();
   };
 
   const lerColunas = (proxAba: number, proxCabecalho: boolean) => {
@@ -261,6 +283,8 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
       if (meu !== pedido.current) return;
       setColunas(c);
       setAba(c.aba);
+      // Outra aba ou outro cabeçalho: as linhas mudam, e os ajustes e erros antigos não valem mais.
+      descartarAjustes();
       const sugerido = sugerirMapeamento(c.colunas, destino.campos);
       if (!podeSensivel) {
         for (const campo of destino.campos) if (campo.sensivel) sugerido[campo.id] = null;
@@ -275,10 +299,14 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     });
   };
 
-  const configuracao = () => ({
-    aba, cabecalho, chave, existentes,
-    mapeamento: Object.fromEntries(Object.entries(mapa).filter(([, v]) => v !== null && v >= 0)),
-  });
+  const configuracao = () => {
+    const { celulas, removidas } = ajustesParaApi(ajustes);
+    return {
+      aba, cabecalho, chave, existentes,
+      mapeamento: Object.fromEntries(Object.entries(mapa).filter(([, v]) => v !== null && v >= 0)),
+      ...(celulas.length > 0 || removidas.length > 0 ? { ajustes: { celulas, removidas } } : {}),
+    };
+  };
 
   const validar = () => {
     if (!destino || !arquivo) return;
@@ -288,6 +316,8 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
     formulario(arquivo, configuracao()).then((dados) => previaDaImportacao(destino.id, dados)).then((p) => {
       if (meu !== pedido.current) return;
       setPrevia(p);
+      setUltimaValidacao({ erros: p.erros, mapa });
+      setSoComErro(false);
       setOcupado(false);
     }, (e: unknown) => {
       if (meu !== pedido.current) return;
@@ -355,9 +385,8 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
 
         {etapa === 1 ? (
           <>
-            <Escolha rotulo="O que vai importar" opcoes={destinos.map((d) => ({ valor: d.id as string, rotulo: d.rotulo }))}
-              valor={destino?.id ?? null} aoMudar={escolherDestino} />
-            <Cartao titulo="Enviar planilha preenchida" descricao="Aceita .xlsx e .csv. Nada é gravado antes de você confirmar no fim.">
+            <CartoesDeDestino destinos={destinos} valor={destino?.id ?? null} aoMudar={escolherDestino} />
+            <Cartao titulo="Carregue seu arquivo de dados (.xlsx, .csv)" descricao="Nada é gravado antes de você confirmar no fim.">
               <ZonaDeArquivo arquivo={arquivo} aoEscolher={escolherArquivo} />
             </Cartao>
             {destino ? (
@@ -403,7 +432,8 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
 
         {etapa === 3 && destino && colunas ? (
           <Mapeamento destino={destino} colunas={colunas} cabecalho={cabecalho} chave={chave} mapa={mapa} estreita={estreita} podeSensivel={podeSensivel}
-            aoMudar={(m) => { setMapa(m); setPrevia(null); }} />
+            aoMudar={(m) => { setMapa(m); setPrevia(null); }} ajustes={ajustes} aoAjustar={mudarAjustes}
+            ultimaValidacao={ultimaValidacao} soComErro={soComErro} aoMudarSoComErro={setSoComErro} />
         ) : null}
 
         {etapa === 4 && destino && colunas ? (
@@ -418,7 +448,8 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
                 ]} />
                 <Texto>{textoDoQueVaiAcontecer(previa)}</Texto>
                 {previa.comErro > 0 ? (
-                  <Cartao titulo="Linhas com erro" descricao="Ficam de fora. Para corrigi-las, ajuste a planilha e envie de novo.">
+                  <Cartao titulo="Linhas com erro" descricao="Ficam de fora se você confirmar agora. Ajuste os valores diretamente na tabela e valide de novo."
+                    acoes={<Botao rotulo="Corrigir na tabela" tipo="secundario" aoTocar={() => { setSoComErro(true); setEtapa(3); }} />}>
                     {previa.erros.slice(0, ERROS_NA_TELA).map((e) => (
                       <Texto key={`${e.linha}-${e.campo}`}>{textoDoErro(e, destino, colunas.colunas, mapa)}</Texto>
                     ))}
@@ -439,29 +470,68 @@ function Assistente({ destinos, aoFechar, aoConcluir }: { destinos: Destino[]; a
   );
 }
 
-/** A planilha com a escolha do campo em cima de cada coluna; estreita, um cartão por coluna com exemplos. */
-function Mapeamento({ destino, colunas, cabecalho, chave, mapa, estreita, podeSensivel, aoMudar }: {
+const ICONES_DO_DESTINO: Record<DestinoDaImportacao, LucideIcon> = {
+  alunos: Users, pesos: Scale, exercicios: Dumbbell, alimentos: Apple, suplementos: Pill, outros: FlaskConical,
+};
+
+/** Um cartão grande com ícone por destino (como a referência de 30/10); o escolhido fica com a seleção invertida. */
+function CartoesDeDestino({ destinos, valor, aoMudar }: { destinos: Destino[]; valor: string | null; aoMudar: (id: string) => void }) {
+  const { cores } = useTema();
+  return (
+    <View style={estilos.campo}>
+      <Texto variante="rotulo">Escolha um destino para a importação</Texto>
+      <View accessibilityRole="radiogroup" accessibilityLabel="O que vai importar" style={estilos.destinos}>
+        {destinos.map((d) => {
+          const ativo = d.id === valor;
+          const Icone = ICONES_DO_DESTINO[d.id];
+          return (
+            <Pressable key={d.id} accessibilityRole="radio" accessibilityLabel={d.rotulo} accessibilityState={{ checked: ativo }} aria-checked={ativo}
+              onPress={() => aoMudar(d.id)}
+              style={(e) => [estilos.destino, {
+                borderColor: ativo ? cores.texto : cores.borda,
+                backgroundColor: ativo ? cores.texto : sobre(e) ? cores.superficie3 : cores.superficie2,
+              }]}>
+              <Icone size={26} color={ativo ? cores.fundo : cores.texto} strokeWidth={1.75} />
+              <Texto style={[estilos.rotuloDoDestino, { color: ativo ? cores.fundo : cores.texto }]} numberOfLines={2}>{d.rotulo}</Texto>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * A planilha como está no arquivo (até o teto da API), com a escolha do campo no cabeçalho de cada coluna, busca,
+ * páginas de 50 linhas, células editáveis e a lixeira por linha (referência de 30/10). O que se corrige ou tira fica só
+ * na memória da tela e vai junto na validação; a célula que veio cortada não se edita.
+ */
+function Mapeamento({ destino, colunas, cabecalho, chave, mapa, estreita, podeSensivel, aoMudar, ajustes, aoAjustar, ultimaValidacao, soComErro, aoMudarSoComErro }: {
   destino: Destino; colunas: ColunasDaImportacao; cabecalho: boolean; chave: string; mapa: MapaDaImportacao;
   estreita: boolean; podeSensivel: boolean; aoMudar: (mapa: MapaDaImportacao) => void;
+  ajustes: AjustesDaTabela; aoAjustar: (ajustes: AjustesDaTabela) => void;
+  ultimaValidacao: { erros: PreviaDeImportacao['erros']; mapa: MapaDaImportacao } | null;
+  soComErro: boolean; aoMudarSoComErro: (v: boolean) => void;
 }) {
   const { cores } = useTema();
+  const [busca, setBusca] = useState('');
+  const [pagina, setPagina] = useState(0);
   const campos = camposPermitidos(destino, podeSensivel);
   const faltando = faltandoColuna(destino, chave, mapa);
   const nomeDaColuna = (i: number) => colunas.colunas[i] || `Coluna ${i + 1}`;
-  const opcoes = (coluna: number) => [
-    { valor: null, rotulo: 'Não importar' },
-    ...campos.map((c) => {
-      const onde = mapa[c.id];
-      const emOutra = onde !== null && onde !== undefined && onde !== coluna;
-      const detalhe = [c.obrigatorio ? 'Obrigatório' : null, emOutra ? `Hoje na coluna “${nomeDaColuna(onde)}”` : null].filter(Boolean).join(' · ');
-      return { valor: c.id as string | null, rotulo: c.rotulo, detalhe: detalhe || undefined };
-    }),
-  ];
-  const seletor = (i: number) => (
-    <EscolhaEmFolha rotulo="Campo" titulo={`Campo da coluna “${nomeDaColuna(i)}”`} valor={campoDaColuna(mapa, i)} opcoes={opcoes(i)}
-      aoMudar={(campo) => aoMudar(escolherCampoDaColuna(mapa, i, campo))} style={estilos.seletor} />
-  );
-  const primeiraLinha = cabecalho ? 2 : 1;
+  const erros = errosNaTabela(ultimaValidacao?.erros ?? [], ultimaValidacao?.mapa ?? {});
+  const linhasComErro = erros.linhas.size;
+  const todas = linhasDaPlanilha(colunas.amostra, colunas.numerosDasLinhas, cabecalho, busca, ajustes, soComErro && linhasComErro > 0 ? erros.linhas : undefined);
+  const pag = paginaDaPlanilha(todas, pagina);
+  const numeros = colunas.numerosDasLinhas;
+  const cortadas = new Set((colunas.celulasCortadas ?? []).map(([posicao, coluna]) => `${numeros?.[posicao] ?? posicao}:${coluna}`));
+  const aviso = avisoDoCorte(colunas);
+  const total = totalDeAjustes(ajustes);
+  const original = (linha: number, coluna: number) => {
+    const posicao = numeros ? numeros.indexOf(linha) : linha - (cabecalho ? 2 : 1);
+    return colunas.amostra[posicao]?.[coluna] ?? '';
+  };
+  const largura = estreita ? 200 : 230;
 
   return (
     <>
@@ -472,55 +542,135 @@ function Mapeamento({ destino, colunas, cabecalho, chave, mapa, estreita, podeSe
       ) : null}
       <Texto variante="suave">
         {colunas.amostra.length > 0
-          ? 'Estas são as primeiras linhas do arquivo. Em cada coluna, escolha o campo do sistema; o que ficar em “Não importar” não entra.'
+          ? 'Em cada coluna, escolha o campo do sistema; o que ficar em “Não importar” não entra. Dá para corrigir um valor direto na tabela ou tirar uma linha: o arquivo não muda e a correção vai junto na validação.'
           : 'A aba não tem linhas de dados. Volte e confira a aba ou o cabeçalho.'}
       </Texto>
       {!podeSensivel && destino.campos.some((c) => c.sensivel) ? (
         <Texto variante="pequeno">CPF, endereço, objetivo e observações precisam da permissão de dados sensíveis e não aparecem na lista.</Texto>
       ) : null}
-      {estreita ? (
-        colunas.colunas.map((_, i) => (
-          <View key={i} style={[estilos.cartaoColuna, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
-            <Texto variante="bloco">{nomeDaColuna(i)}</Texto>
-            {colunas.amostra.length > 0 ? (
-              <Texto variante="suave" numberOfLines={2}>{`Ex.: ${colunas.amostra.map((l) => l[i]).filter((v) => v && v.trim() !== '').slice(0, 3).join(' · ') || '(vazio)'}`}</Texto>
-            ) : null}
-            {seletor(i)}
-          </View>
-        ))
-      ) : (
-        <ScrollView horizontal style={[estilos.tabela, { borderColor: cores.borda }]}>
-          <View>
-            <View style={[estilos.linhaDaTabela, { backgroundColor: cores.superficie3, borderBottomColor: cores.borda }]}>
-              <View style={estilos.celulaLinha}><Texto variante="rotulo">Linha</Texto></View>
-              {colunas.colunas.map((_, i) => (
-                <View key={i} style={estilos.celulaCabecalho}>
-                  <Texto variante="rotulo" numberOfLines={1}>{nomeDaColuna(i)}</Texto>
-                  {seletor(i)}
-                </View>
-              ))}
-            </View>
-            {colunas.amostra.map((linha, l) => (
-              <View key={l} style={[estilos.linhaDaTabela, { borderBottomColor: cores.divisor }]}>
-                <View style={estilos.celulaLinha}><Texto numerico variante="suave">{primeiraLinha + l}</Texto></View>
-                {colunas.colunas.map((_, i) => (
-                  <View key={i} style={estilos.celula}><Texto numberOfLines={1}>{linha[i] ?? ''}</Texto></View>
-                ))}
+      <View style={estilos.linha}>
+        <View style={estilos.busca}>
+          <Campo rotulo="Pesquisar na planilha" valor={busca} aoMudar={(v) => { setBusca(v); setPagina(0); }} autoCorrect={false} placeholder="Texto ou número da linha" />
+        </View>
+        {linhasComErro > 0 ? (
+          <Botao rotulo={soComErro ? 'Mostrar todas as linhas' : `Só as linhas com erro (${linhasComErro})`} tipo="secundario"
+            aoTocar={() => { aoMudarSoComErro(!soComErro); setPagina(0); }} />
+        ) : null}
+      </View>
+      {aviso ? <Texto variante="pequeno">{aviso}</Texto> : null}
+      {total.celulas > 0 || total.removidas > 0 ? (
+        <View style={[estilos.linha, estilos.resumoDosAjustes, { borderColor: cores.borda, backgroundColor: cores.superficie2 }]}>
+          <Texto>{[
+            total.celulas > 0 ? `${total.celulas} ${total.celulas === 1 ? 'célula corrigida' : 'células corrigidas'}` : null,
+            total.removidas > 0 ? `${total.removidas} ${total.removidas === 1 ? 'linha tirada' : 'linhas tiradas'} (${[...ajustes.removidas].sort((a, b) => a - b).join(', ')})` : null,
+          ].filter(Boolean).join(' · ')}</Texto>
+          {total.removidas > 0 ? (
+            <Botao rotulo="Desfazer a última" tipo="fantasma" Icone={Undo2}
+              aoTocar={() => aoAjustar(alternarRemovida(ajustes, ajustes.removidas[ajustes.removidas.length - 1]))} />
+          ) : null}
+          {total.removidas > 1 ? <Botao rotulo="Devolver todas" tipo="fantasma" aoTocar={() => aoAjustar({ ...ajustes, removidas: [] })} /> : null}
+        </View>
+      ) : null}
+      <ScrollView horizontal style={[estilos.tabela, { borderColor: cores.borda }]}>
+        <View>
+          <View style={[estilos.linhaDaTabela, { backgroundColor: cores.superficie3, borderBottomColor: cores.borda }]}>
+            <View style={estilos.celulaLinha}><Texto variante="rotulo">ID</Texto></View>
+            {colunas.colunas.map((_, i) => (
+              <View key={i} style={[estilos.celulaCabecalho, { width: largura }]}>
+                <Texto variante="pequeno" numberOfLines={1}>{`Coluna “${nomeDaColuna(i)}”`}</Texto>
+                <EscolhaSuspensa rotulo="Campo" titulo={`Campo da coluna “${nomeDaColuna(i)}”`} valor={campoDaColuna(mapa, i)}
+                  opcoes={opcoesDoCampoDaColuna(campos, mapa, i, nomeDaColuna)} aoMudar={(campo) => aoMudar(escolherCampoDaColuna(mapa, i, campo))} />
               </View>
             ))}
+            <View style={estilos.celulaAcao} />
           </View>
-        </ScrollView>
-      )}
-      {colunas.linhas > colunas.amostra.length ? (
-        <Texto variante="pequeno">{`Mostrando ${colunas.amostra.length} de ${colunas.linhas} linhas.`}</Texto>
+          {pag.linhas.length === 0 && colunas.amostra.length > 0 ? (
+            <Texto variante="suave" style={estilos.semLinhas}>Nenhuma linha com essa busca.</Texto>
+          ) : null}
+          {pag.linhas.map((linha) => {
+            const motivosDaLinha = erros.motivosDaLinha(linha.numero);
+            const temErro = erros.linhas.has(linha.numero);
+            return (
+              <View key={linha.numero} style={[estilos.linhaDaTabela, { borderBottomColor: cores.divisor }]}>
+                <View style={estilos.celulaLinha}>
+                  <Texto numerico variante={temErro ? 'rotulo' : 'suave'} cor={temErro ? cores.perigo : undefined}>{linha.numero}</Texto>
+                  {motivosDaLinha.length > 0 ? <Texto variante="pequeno" cor={cores.perigo} numberOfLines={3}>{motivosDaLinha.join(' ')}</Texto> : null}
+                </View>
+                {colunas.colunas.map((_, c) => (
+                  <CelulaDaPlanilha key={c} largura={largura} linha={linha.numero} coluna={nomeDaColuna(c)}
+                    valor={linha.valores[c] ?? ''} ajustada={celulaAjustada(ajustes, linha.numero, c)} cortada={cortadas.has(`${linha.numero}:${c}`)}
+                    erro={erros.motivoDaCelula(linha.numero, c)}
+                    aoMudar={(v) => aoAjustar(ajustarCelula(ajustes, linha.numero, c, v, original(linha.numero, c)))}
+                    aoVoltar={() => aoAjustar(ajustarCelula(ajustes, linha.numero, c, original(linha.numero, c), original(linha.numero, c)))} />
+                ))}
+                <View style={estilos.celulaAcao}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Tirar a linha ${linha.numero}`} onPress={() => aoAjustar(alternarRemovida(ajustes, linha.numero))}
+                    style={(e) => [estilos.lixeira, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
+                    <Trash2 size={18} color={cores.perigo} />
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+      {pag.total > 1 ? (
+        <View style={estilos.linha}>
+          <Botao rotulo="Anterior" tipo="secundario" desabilitado={pag.pagina === 0} motivo="Esta é a primeira página." aoTocar={() => setPagina(pag.pagina - 1)} />
+          <Texto numerico>{`Página ${pag.pagina + 1} de ${pag.total} · ${todas.length} ${todas.length === 1 ? 'linha' : 'linhas'}`}</Texto>
+          <Botao rotulo="Próxima" tipo="secundario" desabilitado={pag.pagina + 1 >= pag.total} motivo="Esta é a última página." aoTocar={() => setPagina(pag.pagina + 1)} />
+        </View>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Uma célula da tabela: campo que grava ao sair dele (ou com Enter), sem refazer a tabela a cada tecla. Corrigida,
+ * mostra "Corrigida · Voltar ao original"; com erro da última validação, a borda e o motivo em vermelho.
+ */
+function CelulaDaPlanilha({ largura, linha, coluna, valor, ajustada, cortada, erro, aoMudar, aoVoltar }: {
+  largura: number; linha: number; coluna: string; valor: string; ajustada: boolean; cortada: boolean; erro: string | null;
+  aoMudar: (valor: string) => void; aoVoltar: () => void;
+}) {
+  const { cores } = useTema();
+  const rotulo = `Linha ${linha}, coluna “${coluna}”`;
+  /** O que a pessoa digitou desde a última gravação (nulo = nada). */
+  const digitado = useRef<string | null>(null);
+  const gravar = () => {
+    const t = digitado.current;
+    digitado.current = null;
+    if (t !== null && t !== valor) aoMudar(t);
+  };
+  return (
+    <View style={[estilos.celula, { width: largura }]}>
+      {cortada ? (
+        <Texto numberOfLines={2} accessibilityLabel={`${rotulo}: ${valor}. Texto longo: corrija na planilha.`}>{valor}</Texto>
+      ) : (
+        <TextInput key={valor} defaultValue={valor} accessibilityLabel={rotulo} aria-invalid={!!erro}
+          onChangeText={(t) => { digitado.current = t; }} onBlur={gravar} onSubmitEditing={gravar}
+          style={[estilos.entrada, {
+            color: cores.texto, backgroundColor: cores.campo,
+            borderColor: erro ? cores.perigo : ajustada ? cores.texto : cores.bordaCampo, borderWidth: erro || ajustada ? 2 : 1,
+          }]} />
+      )}
+      {erro ? <Texto variante="pequeno" cor={cores.perigo} numberOfLines={3}>{erro}</Texto> : null}
+      {ajustada ? (
+        <View style={estilos.linhaPequena}>
+          <Texto variante="pequeno">Corrigida ·</Texto>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Voltar ao original: ${rotulo}`} onPress={aoVoltar} hitSlop={8}>
+            <Texto variante="pequeno" style={estilos.link}>Voltar ao original</Texto>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
 function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhido | null; aoEscolher: (arquivo: ArquivoEscolhido) => void }) {
   const { cores } = useTema();
   const idDaEntrada = `arquivo-da-planilha-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const [arrastando, setArrastando] = useState(false);
   const escolherNativo = () => {
     DocumentPicker.getDocumentAsync({ type: ['text/csv', 'text/comma-separated-values', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '*/*'], copyToCacheDirectory: true }).then((r) => {
       if (r.canceled || !r.assets[0]) return;
@@ -548,18 +698,22 @@ function ZonaDeArquivo({ arquivo, aoEscolher }: { arquivo: ArquivoEscolhido | nu
       <Botao rotulo="Trocar arquivo" tipo="secundario" aoTocar={escolher} />
     </View>
   ) : (
-    <View style={estilos.vazioDoArquivo}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Escolher arquivo" onPress={escolher}
+      style={(e) => [estilos.vazioDoArquivo, { backgroundColor: sobre(e) ? cores.superficie3 : 'transparent' }]}>
       <FileUp size={28} color={cores.textoSuave} />
-      <Texto variante="suave">{Platform.OS === 'web' ? 'Arraste o arquivo para cá ou escolha no computador.' : 'Escolha o arquivo no aparelho.'}</Texto>
-      <Botao rotulo="Escolher arquivo" tipo="secundario" aoTocar={escolher} />
-    </View>
+      <Texto variante="suave">{Platform.OS === 'web' ? 'Clique ou arraste o arquivo até aqui.' : 'Toque para escolher o arquivo no aparelho.'}</Texto>
+    </Pressable>
   );
 
   if (Platform.OS !== 'web') return <View style={[estilos.zona, { borderColor: cores.bordaCampo, backgroundColor: cores.campo }]}>{conteudo}</View>;
   return createElement('div', {
-    onDragOver: (e: DragEvent) => e.preventDefault(),
-    onDrop: (e: DragEvent) => { e.preventDefault(); receber(e.dataTransfer?.files?.[0]); },
-    style: { display: 'flex', flexDirection: 'column', border: `1px dashed ${cores.bordaCampo}`, borderRadius: RAIO, background: cores.campo, padding: 16 },
+    onDragOver: (e: DragEvent) => { e.preventDefault(); if (!arrastando) setArrastando(true); },
+    onDragLeave: () => setArrastando(false),
+    onDrop: (e: DragEvent) => { e.preventDefault(); setArrastando(false); receber(e.dataTransfer?.files?.[0]); },
+    style: {
+      display: 'flex', flexDirection: 'column', border: `${arrastando ? 2 : 1}px dashed ${arrastando ? cores.texto : cores.bordaCampo}`,
+      borderRadius: RAIO, background: arrastando ? cores.superficie3 : cores.campo, padding: 16, minHeight: 120, justifyContent: 'center',
+    },
   }, conteudo, createElement('input', {
     id: idDaEntrada,
     type: 'file',
@@ -586,10 +740,19 @@ const estilos = StyleSheet.create({
   arquivo: { flexDirection: 'row', alignItems: 'center', gap: espaco(1.5), flexWrap: 'wrap' },
   textosDoArquivo: { flex: 1, minWidth: 180, gap: 2 },
   tabela: { borderWidth: 1, borderRadius: RAIO },
+  destinos: { flexDirection: 'row', flexWrap: 'wrap', gap: espaco(1.5) },
+  destino: { flexGrow: 1, flexBasis: 150, minHeight: 96, borderWidth: 1, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center', gap: espaco(1), padding: espaco(1.5) },
+  rotuloDoDestino: { fontFamily: fontes.semi, textAlign: 'center' },
+  busca: { flexGrow: 1, flexBasis: 260 },
+  resumoDosAjustes: { borderWidth: 1, borderRadius: RAIO, paddingHorizontal: espaco(1.5), paddingVertical: espaco(0.5) },
+  celulaAcao: { width: 56, alignItems: 'center', justifyContent: 'center' },
+  lixeira: { width: ALVO_TOQUE, height: ALVO_TOQUE, alignItems: 'center', justifyContent: 'center', borderRadius: RAIO },
+  entrada: { minHeight: ALVO_TOQUE, borderRadius: RAIO, paddingHorizontal: espaco(1), fontFamily: fontes.normal, fontSize: 15 },
+  linhaPequena: { flexDirection: 'row', alignItems: 'center', gap: espaco(0.5), flexWrap: 'wrap' },
+  link: { textDecorationLine: 'underline', fontFamily: fontes.semi },
+  semLinhas: { padding: espaco(2) },
   linhaDaTabela: { flexDirection: 'row', borderBottomWidth: 1 },
-  celulaLinha: { width: 64, padding: espaco(1), justifyContent: 'center' },
-  celulaCabecalho: { width: 240, padding: espaco(1), gap: espaco(0.75) },
-  celula: { width: 240, padding: espaco(1), minHeight: ALVO_TOQUE, justifyContent: 'center' },
-  seletor: { alignSelf: 'stretch' },
-  cartaoColuna: { borderWidth: 1, borderRadius: RAIO, padding: espaco(1.5), gap: espaco(0.75) },
+  celulaLinha: { width: 72, padding: espaco(1), justifyContent: 'center', gap: 2 },
+  celulaCabecalho: { padding: espaco(1), gap: espaco(0.5) },
+  celula: { padding: espaco(0.75), justifyContent: 'center', gap: 2 },
 });
