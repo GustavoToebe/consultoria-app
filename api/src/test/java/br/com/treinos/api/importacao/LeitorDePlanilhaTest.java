@@ -43,6 +43,14 @@ class LeitorDePlanilhaTest {
     }
 
     @Test
+    void dataComHoraIgnoraAHora() {
+        // 45230 = 31/10/2023; 0,75 = 18:00.
+        assertThat(LeitorDePlanilha.dataSerial(new BigDecimal("45230.75"), false)).isEqualTo(LocalDate.of(2023, 10, 31));
+        assertThat(LeitorDePlanilha.dataSerial(new BigDecimal("45230.0"), false)).isEqualTo(LocalDate.of(2023, 10, 31));
+        assertThat(LeitorDePlanilha.dataSerial(new BigDecimal("60.5"), false)).isNull();
+    }
+
+    @Test
     void celulaDeErroNaoDevolveOTexto() {
         byte[] arquivo = xlsx(Map.of(
                 "xl/worksheets/sheet1.xml", """
