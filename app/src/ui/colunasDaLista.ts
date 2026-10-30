@@ -15,7 +15,10 @@ export interface ColunaDaLista {
   minima?: number;
 }
 
-/** Borda da linha (a `LinhaDaLista` usa 1 px no item). */
+/**
+ * Borda da linha (a `LinhaDaLista` usa 1 px no item). Na lista em colunas do PC a linha não tem caixa: a borda continua
+ * com 1 px, transparente dos lados e em cima, e a de baixo é a divisória; assim o cabeçalho fica alinhado nos dois modos.
+ */
 export const BORDA_DA_LINHA = 1;
 /** Recuo interno da linha e espaço entre as partes dela. */
 export const RECUO_DA_LINHA = espaco(1.5);
@@ -23,8 +26,15 @@ export const RECUO_DA_LINHA = espaco(1.5);
 export const ESPACO_ENTRE_COLUNAS = espaco(1.5);
 export const LARGURA_DA_SETA = 20;
 export const LARGURA_DA_CAIXA = 24;
-/** A ação ao lado do link: um `IconeBotao moldura` (40 px) e o recuo até a borda. */
-export const LARGURA_AO_LADO = 40 + RECUO_DA_LINHA;
+/** O botão ao lado do link: um `IconeBotao moldura` (o lápis de editar). */
+export const LARGURA_DO_BOTAO_AO_LADO = 40;
+/** O que a ação ao lado ocupa na linha: o botão e o espaço até a seta, que fica depois dele. */
+export const LARGURA_AO_LADO = LARGURA_DO_BOTAO_AO_LADO + RECUO_DA_LINHA;
+/**
+ * Distância do botão ao lado até a borda direita da linha: o recuo do link, a seta e o espaço entre os dois. O botão fica
+ * por cima do link (irmão dele, nunca dentro), no lugar que o link deixa vazio antes da seta.
+ */
+export const DIREITA_DO_BOTAO_AO_LADO = RECUO_DA_LINHA + LARGURA_DA_SETA + RECUO_DA_LINHA;
 
 export function estiloDaColuna(c: ColunaDaLista) {
   return { flexGrow: c.peso, flexShrink: 1, flexBasis: 0, minWidth: c.minima ?? 0 } as const;
@@ -32,7 +42,7 @@ export function estiloDaColuna(c: ColunaDaLista) {
 
 /**
  * Espaços fixos do cabeçalho, antes e depois das colunas, iguais aos da linha: no Selecionar a caixa fica à esquerda;
- * fora dele, a seta do link e, se houver, a ação ao lado ficam à direita.
+ * fora dele, a ação ao lado (se houver) e a seta do link, por último, ficam à direita.
  */
 export function margensDoCabecalho({ marcar, aoLado }: { marcar?: boolean; aoLado?: boolean }): { antes: number; depois: number } {
   if (marcar) return { antes: LARGURA_DA_CAIXA + RECUO_DA_LINHA, depois: 0 };

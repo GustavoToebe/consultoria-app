@@ -5,7 +5,10 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useTema } from '../tema/TemaProvider';
 import { ALVO_TOQUE, espaco, LARGURA_MENU_EXPANDIDO, LARGURA_MENU_LATERAL, RAIO } from '../tema/tokens';
-import { BORDA_DA_LINHA, ESPACO_ENTRE_COLUNAS, estiloDaColuna, LARGURA_AO_LADO, margensDoCabecalho, RECUO_DA_LINHA, type ColunaDaLista } from './colunasDaLista';
+import {
+  BORDA_DA_LINHA, DIREITA_DO_BOTAO_AO_LADO, ESPACO_ENTRE_COLUNAS, estiloDaColuna, LARGURA_DO_BOTAO_AO_LADO, margensDoCabecalho, RECUO_DA_LINHA,
+  type ColunaDaLista,
+} from './colunasDaLista';
 import { propsDeLink } from './propsDeLink';
 import { rotuloDaLinha, type SeloDaLinha } from './rotuloDaLinha';
 import { Selo } from './Selo';
@@ -36,9 +39,11 @@ interface Base {
   /** Conteúdo embaixo da linha, dentro da mesma borda (as instruções abertas do Catálogo). */
   children?: ReactNode;
   /**
-   * Linha em colunas (lista de alunos): no PC (a partir do menu lateral) as `celulas` ficam alinhadas ao
-   * `CabecalhoDasColunas` com a mesma `definicao`, no lugar de título, metadados e selos; no celular a linha continua
-   * empilhada, com a célula da primeira coluna no lugar do título e os metadados e selos embaixo dela.
+   * Linha em colunas (lista de alunos): no PC (a partir de `LARGURA_DAS_COLUNAS`) as `celulas` ficam alinhadas ao
+   * `CabecalhoDasColunas` com a mesma `definicao`, no lugar de título, metadados e selos, e a linha vira linha de tabela:
+   * sem caixa (borda e fundo), com divisória embaixo e realce no hover (a `ListaDeLinhas emColunas` tira o espaço entre
+   * elas). Abaixo disso a linha continua empilhada e na caixa, com a célula da primeira coluna no lugar do título e os
+   * metadados e selos embaixo dela.
    */
   colunas?: { definicao: readonly ColunaDaLista[]; celulas: CelulasDaLinha };
 }
@@ -47,8 +52,10 @@ interface Base {
 export type LinhaComLink = Base & {
   href: Href; aoAbrir?: () => void; acoes?: never; aoTocarTextos?: never; acoesAoLado?: never; marcar?: never;
   /**
-   * Uma ação só de ícone (`IconeBotao moldura`, o lápis de editar) depois do link, dentro da mesma borda e fora do `<a>`:
-   * linha-link nunca tem botão dentro. Ocupa `LARGURA_AO_LADO`, que o `CabecalhoDasColunas aoLado` desconta.
+   * Uma ação só de ícone (`IconeBotao moldura`, o lápis de editar) antes da seta, que fica por último. O botão é irmão do
+   * `<a>`, nunca filho (linha-link não tem botão dentro): fica por cima do link, no espaço que ele deixa vazio antes da
+   * seta. Assim a seta e quase toda a linha continuam sendo o link, e o leitor de tela lê o link e depois o botão, sem
+   * repetir nada. Ocupa `LARGURA_AO_LADO`, que o `CabecalhoDasColunas aoLado` desconta.
    */
   aoLado?: ReactNode;
 };
@@ -85,7 +92,16 @@ export function LinhaDaLista(p: PropsDaLinha) {
   const largo = width >= (p.colunas ? LARGURA_DAS_COLUNAS : LARGURA_MENU_LATERAL);
   const [ativo, setAtivo] = useState(false);
   const selos = p.selos ?? [];
-  const borda = { borderColor: p.marcado || p.marcar?.marcado ? cores.texto : cores.borda };
+  const escolhida = !!(p.marcado || p.marcar?.marcado);
+  // Em colunas no PC a linha é linha de tabela: sem caixa, só a divisória embaixo (a borda transparente mantém o 1 px
+  // que o cabeçalho desconta). A linha marcada no Selecionar continua com a borda na cor do texto, como na caixa.
+  const tabela = !!p.colunas && largo;
+  const caixa = tabela
+    ? [estilos.linhaDeTabela, escolhida
+      ? { borderColor: cores.texto }
+      : { borderTopColor: 'transparent', borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: cores.divisor }]
+    : { borderColor: escolhida ? cores.texto : cores.borda };
+  const fundo = (aceso: boolean) => ({ backgroundColor: aceso ? cores.superficie3 : tabela ? 'transparent' : cores.superficie2 });
   const apagado = p.esmaecido ? estilos.esmaecido : null;
 
   const colunas = p.colunas;
@@ -108,7 +124,7 @@ export function LinhaDaLista(p: PropsDaLinha) {
     const { marcado, aoMudar } = p.marcar;
     // A linha toda é o alvo (checkbox); a caixa é só desenho. O realce do mouse sobe para o contêiner, como no link.
     return (
-      <View style={[estilos.contorno, borda, { backgroundColor: ativo ? cores.superficie3 : cores.superficie2 }]}>
+      <View style={[estilos.contorno, caixa, fundo(ativo)]}>
         <Pressable
           accessibilityRole="checkbox"
           accessibilityLabel={p.rotulo ?? p.titulo}
@@ -145,14 +161,17 @@ export function LinhaDaLista(p: PropsDaLinha) {
         style={[estilos.link, p.inicio ? estilos.linkDepoisDoInicio : null]}>
         <View style={[estilos.linkConteudo, apagado]}>
           {miolo}
-          <View style={estilos.fixo}><ChevronRight size={20} color={cores.textoSuave} /></View>
+          {/* O lugar do botão ao lado: o link fica vazio ali e o botão fica por cima, antes da seta. */}
+          {p.aoLado ? <View style={estilos.lugarDoAoLado} /> : null}
+          <View testID="seta-da-linha" style={estilos.fixo}><ChevronRight size={20} color={cores.textoSuave} /></View>
         </View>
       </Pressable>
     );
-    // O `inicio` é irmão do link, dentro da mesma borda: a caixa do Selecionar marca sem abrir a ficha. O realce do
-    // mouse sobe para o contêiner, para a linha acender inteira (sem `overflow: hidden`, que cortaria o anel de foco).
+    // O `inicio` e o `aoLado` são irmãos do link, dentro da mesma borda: a caixa do Selecionar marca sem abrir a ficha e o
+    // lápis abre a edição. O realce do mouse sobe para o contêiner, para a linha acender inteira (sem `overflow: hidden`,
+    // que cortaria o anel de foco); com o mouse no lápis a linha apaga e acende o lápis, que é outro alvo.
     return (
-      <View style={[estilos.contorno, borda, { backgroundColor: ativo ? cores.superficie3 : cores.superficie2 }]}>
+      <View style={[estilos.contorno, caixa, fundo(ativo)]}>
         <View style={estilos.linhaDoLink}>
           {p.inicio ? <View style={[estilos.inicioDoLink, apagado]}>{p.inicio}</View> : null}
           {link}
@@ -171,7 +190,7 @@ export function LinhaDaLista(p: PropsDaLinha) {
     ? <View style={[estilos.comInicio, apagado]}><View style={estilos.fixo}>{p.inicio}</View>{conteudo}</View>
     : apagado ? <View style={[estilos.comInicio, apagado]}>{conteudo}</View> : conteudo;
   return (
-    <View style={[estilos.contorno, borda, { backgroundColor: cores.superficie2 }]}>
+    <View style={[estilos.contorno, caixa, fundo(false)]}>
       <View style={[estilos.linha, largo || p.acoesAoLado ? estilos.linhaLarga : null]}>
         {principal}
         {p.acoes ? <View style={[estilos.acoes, p.acoesAoLado ? estilos.fixo : null]}>{p.acoes}</View> : null}
@@ -196,7 +215,7 @@ function Celulas({ definicao, celulas }: { definicao: readonly ColunaDaLista[]; 
 /**
  * Cabeçalho das colunas de uma lista em colunas (texto `rotulo`, em `textoSuave`, com divisor embaixo), só no PC; no
  * celular não aparece, porque a linha fica empilhada. `marcar` e `aoLado` dizem como são as linhas embaixo (caixa à
- * esquerda no Selecionar; seta e ação ao lado fora dele), para as colunas caírem no mesmo lugar. É só visual: o nome
+ * esquerda no Selecionar; ação ao lado e seta fora dele), para as colunas caírem no mesmo lugar. É só visual: o nome
  * acessível de cada linha já diz o que ela mostra.
  */
 export function CabecalhoDasColunas({ colunas, marcar, aoLado }: { colunas: readonly ColunaDaLista[]; marcar?: boolean; aoLado?: boolean }) {
@@ -213,9 +232,14 @@ export function CabecalhoDasColunas({ colunas, marcar, aoLado }: { colunas: read
   );
 }
 
-/** Linhas de uma lista, uma embaixo da outra, com o mesmo espaço que as linhas têm dentro de um `Cartao`. */
-export function ListaDeLinhas({ children }: { children: ReactNode }) {
-  return <View style={estilos.lista}>{children}</View>;
+/**
+ * Linhas de uma lista, uma embaixo da outra, com o mesmo espaço que as linhas têm dentro de um `Cartao`. `emColunas`: as
+ * linhas usam `colunas`; no PC (a partir de `LARGURA_DAS_COLUNAS`) viram linhas de tabela, encostadas uma na outra e
+ * separadas só pela divisória de cada uma.
+ */
+export function ListaDeLinhas({ children, emColunas }: { children: ReactNode; emColunas?: boolean }) {
+  const { width } = useWindowDimensions();
+  return <View style={emColunas && width >= LARGURA_DAS_COLUNAS ? estilos.listaDeTabela : estilos.lista}>{children}</View>;
 }
 
 /**
@@ -251,7 +275,10 @@ function DesenhoDaCaixa({ marcado }: { marcado: boolean }) {
 
 const estilos = StyleSheet.create({
   lista: { gap: espaco(2) },
+  listaDeTabela: { gap: 0 },
   contorno: { borderWidth: BORDA_DA_LINHA, borderRadius: RAIO },
+  // Linha de tabela: cantos retos, para o realce encostar na divisória de cima e na de baixo.
+  linhaDeTabela: { borderRadius: 0 },
   esmaecido: { opacity: 0.6 },
   // Seta, caixa e miniatura nunca encolhem quando o nome é comprido.
   fixo: { flexShrink: 0 },
@@ -274,7 +301,10 @@ const estilos = StyleSheet.create({
   colunasDaLinha: { flex: 1, minWidth: 0 },
   celula: { justifyContent: 'center' },
   cabecalho: { paddingBottom: espaco(1.25), borderBottomWidth: 1 },
-  aoLado: { width: LARGURA_AO_LADO, flexShrink: 0, paddingRight: RECUO_DA_LINHA, alignItems: 'flex-end', justifyContent: 'center' },
+  // O lugar do botão ao lado, dentro do link e vazio; o botão fica por cima dele (`box-none`: o toque em volta do botão,
+  // acima e abaixo, continua chegando ao link).
+  lugarDoAoLado: { width: LARGURA_DO_BOTAO_AO_LADO, flexShrink: 0 },
+  aoLado: { position: 'absolute', top: 0, bottom: 0, right: DIREITA_DO_BOTAO_AO_LADO, justifyContent: 'center', pointerEvents: 'box-none' },
   alvoDaCaixa: { width: ALVO_TOQUE, height: ALVO_TOQUE, borderRadius: RAIO, alignItems: 'center', justifyContent: 'center' },
   caixa: { width: 24, height: 24, borderWidth: 1, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
 });

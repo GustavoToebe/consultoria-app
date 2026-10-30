@@ -161,7 +161,7 @@ export default function Alunos() {
         {grupos.map((g, gi) => (
           <Cartao key={g.chave} titulo={g.titulo} descricao={g.resumo} marcador={g.tom ? <Bolinha tom={g.tom} /> : undefined}>
             <CabecalhoDasColunas colunas={colunas} marcar={selecionando} aoLado={!selecionando && podeEditar} />
-            <ListaDeLinhas>
+            <ListaDeLinhas emColunas>
               {g.itens.map((a, i) => (
                 <EntradaEmCascata key={a.id} indice={inicios[gi] + i} animar={animar}>
                   <LinhaAluno aluno={a} colunas={colunas} responsavel={nomeDoResponsavel(a.responsavelId)} podeEditar={podeEditar}
@@ -228,8 +228,9 @@ interface PropsDaLinhaAluno {
 /**
  * Uma linha da lista (D2 e D3): no PC, colunas Aluno (iniciais, nome e só os selos de exceção, "Inativo" e "Sem
  * acesso"), Plano em uso, Atualização, Último registro e Responsável; no celular, o aluno em cima e uma linha com o plano
- * e o último registro, mais o selo da atualização. A linha é o link para a ficha e o lápis (editar cadastro) fica ao
- * lado, fora do link. No Selecionar a linha inteira vira a caixa de marcar (sem link, sem lápis).
+ * e o último registro, mais o selo da atualização. A linha é o link para a ficha e o lápis (editar cadastro) fica antes
+ * da seta, fora do link. No PC a linha é linha de tabela (divisória e realce, sem caixa). No Selecionar a linha inteira
+ * vira a caixa de marcar (sem link, sem lápis).
  */
 function LinhaAluno({ aluno, colunas, responsavel, podeEditar, selecionando, marcado, aoMarcar }: PropsDaLinhaAluno) {
   const atualizacao = aluno.atualizacao ? statusAtualizacaoTreinador(aluno.atualizacao) : null;

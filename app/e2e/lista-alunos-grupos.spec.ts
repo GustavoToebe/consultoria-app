@@ -5,8 +5,9 @@ import { PERMISSOES_TREINADOR, sessao, simularApi, TREINADOR } from './api-falsa
 
 /**
  * Lista de alunos em grupos e colunas (D1 a D3 de `docs/planos/telas-do-aluno-visual.md`): um cartão por grupo (Para
- * revisar, Atrasados, Em dia, Sem pasta com período), colunas alinhadas no PC e a linha empilhada no celular, a linha
- * continua link e o lápis abre a ficha já editando. Só dados fictícios, API simulada.
+ * revisar, Atrasados, Em dia, Sem pasta com período), colunas alinhadas no PC (linha de tabela, sem caixa) e a linha
+ * empilhada na caixa no celular, a linha continua link (com a seta, por último) e o lápis, antes da seta e fora do link,
+ * abre a ficha já editando. Só dados fictícios, API simulada.
  */
 const ontem = (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); })();
 
@@ -120,6 +121,77 @@ for (const [largura, altura] of [[390, 844], [1280, 900]] as const) {
       await page.goBack();
       await expect(page).toHaveURL(/\/treinador\/alunos$/);
       await expect(linkDe(page, 'Ana Fictícia')).toBeVisible();
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test('na ponta da linha o lápis vem antes e a seta por último; a seta continua dentro do link e abre a ficha', async ({ page }) => {
+      const { errosDaPagina } = await abrir(page);
+      await page.goto('/treinador/alunos');
+
+      const linkAna = linkDe(page, 'Ana Fictícia');
+      await expect(linkAna).toHaveCount(1);
+      const seta = linkAna.getByTestId('seta-da-linha');
+      await expect(seta).toHaveCount(1);
+      const lapis = page.getByRole('button', { name: 'Editar cadastro de Ana Fictícia', exact: true });
+      const caixaDoLapis = await lapis.boundingBox();
+      const caixaDaSeta = await seta.boundingBox();
+      expect(caixaDoLapis && caixaDaSeta).toBeTruthy();
+      expect(caixaDoLapis!.x + caixaDoLapis!.width).toBeLessThanOrEqual(caixaDaSeta!.x);
+      // O lápis é irmão do link (nunca filho), por cima do lugar que o link deixa vazio antes da seta.
+      await expect(linkAna.getByRole('button')).toHaveCount(0);
+      expect(await lapis.evaluate((b) => !!b.closest('a'))).toBe(false);
+
+      await seta.click();
+      await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(1)}$`));
+
+      // Acima do lápis (fora do botão) ainda é o link: a faixa do botão não deixa ponto morto.
+      await page.goBack();
+      await expect(linkAna).toBeVisible();
+      const doLink = await linkAna.boundingBox();
+      const lapisDeNovo = await lapis.boundingBox();
+      await page.mouse.click(lapisDeNovo!.x + lapisDeNovo!.width / 2, doLink!.y + 3);
+      await expect(page).toHaveURL(new RegExp(`/treinador/alunos/${id(1)}$`));
+      await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toHaveCount(0);
+      expect(errosDaPagina).toEqual([]);
+    });
+
+    test(largura >= 1024 ? 'no PC a linha é de tabela (divisória, sem caixa) e as colunas seguem o cabeçalho' : 'no celular a linha continua na caixa', async ({ page }) => {
+      const { errosDaPagina } = await abrir(page);
+      await page.goto('/treinador/alunos');
+
+      const linkAna = linkDe(page, 'Ana Fictícia');
+      await expect(linkAna).toBeVisible();
+      // O contorno da linha: o contêiner em volta do link e do lápis.
+      const contorno = linkAna.locator('xpath=../..');
+      const estilo = () => contorno.evaluate((e) => {
+        const s = getComputedStyle(e);
+        return { esquerda: s.borderLeftColor, baixo: s.borderBottomColor, raio: s.borderTopLeftRadius, fundo: s.backgroundColor };
+      });
+      const transparente = 'rgba(0, 0, 0, 0)';
+      const parado = await estilo();
+      if (largura >= 1024) {
+        expect(parado.esquerda).toBe(transparente);
+        expect(parado.baixo).not.toBe(transparente);
+        expect(parado.fundo).toBe(transparente);
+        expect(parado.raio).toBe('0px');
+        // Realce no hover, na linha inteira.
+        await linkAna.hover();
+        await expect.poll(async () => (await estilo()).fundo).not.toBe(transparente);
+
+        // O texto da coluna "Plano em uso" começa onde começa o rótulo dela, com o lápis e no Selecionar.
+        const alinhado = async () => {
+          const rotulo = await page.getByText('Plano em uso', { exact: true }).first().boundingBox();
+          const celula = await page.getByText('Treino de outubro', { exact: true }).first().boundingBox();
+          return Math.abs((rotulo?.x ?? 0) - (celula?.x ?? 1000));
+        };
+        expect(await alinhado()).toBeLessThanOrEqual(1);
+        await page.getByRole('button', { name: 'Selecionar', exact: true }).click();
+        await expect(page.getByRole('checkbox').first()).toBeVisible();
+        expect(await alinhado()).toBeLessThanOrEqual(1);
+      } else {
+        expect(parado.esquerda).not.toBe(transparente);
+        expect(parado.fundo).not.toBe(transparente);
+      }
       expect(errosDaPagina).toEqual([]);
     });
 
