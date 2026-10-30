@@ -249,7 +249,7 @@ fluidez, mas **dependeu de explicação para se achar**. O diagnóstico é de **
 | --- | --- |
 | Painel do treinador em blocos (Próximo passo → Acompanhamento → Planejamento), inspirado na referência | Não começou; é a próxima frente grande. |
 | Orientação no primeiro uso, além do passeio pelo menu | Não começou. |
-| Categorias de suplementos do catálogo ("Suplementos / Whey" → "Whey") | Não começou; exige migration sem apagar o que o treinador editou. |
+| Categorias de suplementos do catálogo ("Suplementos / Whey" → "Whey") | Feito na V047: tira o prefixo só do item com nome e categoria ainda iguais aos do catálogo padrão (o que o treinador editou fica); o `heavysuppz.json` e o do importador já vêm sem prefixo. |
 | Textos de modelo × plano do aluno e dos complementos da dieta | Ajuste pequeno, pendente. |
 | Escolher a linha do cabeçalho na importação | Pendente; muda a API e a tela. |
 | A planilha que falhou na reunião | Só dá para reproduzir com os nomes das abas e das colunas, sem dados. |
