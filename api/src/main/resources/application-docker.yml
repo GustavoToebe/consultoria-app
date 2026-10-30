@@ -22,14 +22,17 @@ spring:
       papelApp: ${PLATAFORMA_PAPEL_APP}
     # Espera por trava limitada a 60 s, só nas conexões do Flyway (nunca no datasource da API): em 26/10 uma migration
     # ficou horas atrás de uma sessão parada "idle in transaction" e a API não subia. Agora a subida falha com erro,
-    # a migration volta inteira e a próxima subida tenta de novo.
+    # a migration volta inteira e a próxima subida tenta de novo. O Flyway do módulo de autenticação (abaixo) não lê
+    # init-sqls: o mesmo limite vai como parâmetro `options` na URL dele.
     init-sqls:
       - SET lock_timeout = '60s'
 
 plataforma:
   auth:
     migracao:
-      url: ${MIGRATION_DB_URL:${DB_URL}}
+      # `options=-c lock_timeout=60s` (o pgjdbc decodifica %20 e %3D) é anexado com `?`: DB_URL e MIGRATION_DB_URL não podem
+      # trazer parâmetros (sem `?` na URL; o compose de produção só passa host, porta e banco).
+      url: ${MIGRATION_DB_URL:${DB_URL}}?options=-c%20lock_timeout%3D60s
       user: ${MIGRATION_DB_USER:${DB_USUARIO}}
       password: ${MIGRATION_DB_PASSWORD:${DB_SENHA}}
       papel-app: ${PLATAFORMA_PAPEL_APP}

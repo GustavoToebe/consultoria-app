@@ -43,8 +43,11 @@ class ConfiguracaoProducaoTest {
         assertThat(docker).isNotNull();
         assertSemPadrao(docker, "spring.flyway.placeholders.papelApp", "PLATAFORMA_PAPEL_APP");
         assertSemPadrao(docker, "plataforma.auth.migracao.papel-app", "PLATAFORMA_PAPEL_APP");
+        // O módulo de autenticação não lê init-sqls: o lock_timeout de 60 s vai como `options` na URL dele (PapeisBancoIntegrationTest).
+        assertThat(docker.getProperty("plataforma.auth.migracao.url")).as("plataforma.auth.migracao.url")
+                .isEqualTo("${MIGRATION_DB_URL:${DB_URL}}?options=-c%20lock_timeout%3D60s");
+        assertThat(docker.getProperty("spring.flyway.url")).as("spring.flyway.url").isEqualTo("${MIGRATION_DB_URL:${DB_URL}}");
         for (String prefixo : new String[] {"spring.flyway.", "plataforma.auth.migracao."}) {
-            assertThat(docker.getProperty(prefixo + "url")).as(prefixo + "url").isEqualTo("${MIGRATION_DB_URL:${DB_URL}}");
             assertThat(docker.getProperty(prefixo + "user")).as(prefixo + "user").isEqualTo("${MIGRATION_DB_USER:${DB_USUARIO}}");
             assertThat(docker.getProperty(prefixo + "password")).as(prefixo + "password").isEqualTo("${MIGRATION_DB_PASSWORD:${DB_SENHA}}");
         }
