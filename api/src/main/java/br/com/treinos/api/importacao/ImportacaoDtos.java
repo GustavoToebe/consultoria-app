@@ -17,7 +17,11 @@ public final class ImportacaoDtos {
     public record Amostra(int linha, Map<String, String> campos) {
     }
 
-    public record Colunas(List<String> abas, int aba, List<String> colunas) {
+    /**
+     * Colunas da aba escolhida, o total de linhas de dados e as primeiras linhas como estão no arquivo, para a tela mostrar
+     * a planilha antes do mapeamento. Vai só para quem enviou o arquivo, na hora; nada é guardado nem vai para log.
+     */
+    public record Colunas(List<String> abas, int aba, List<String> colunas, int linhas, List<List<String>> amostra) {
     }
 
     public record Previa(String hash, int linhas, int novos, int atualizados, int ignorados, int comErro,

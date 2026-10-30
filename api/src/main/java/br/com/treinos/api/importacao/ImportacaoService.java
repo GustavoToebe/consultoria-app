@@ -42,6 +42,10 @@ public class ImportacaoService {
 
     static final int PAGINA = 30;
     private static final int ERROS_NA_PREVIA = 200;
+    /** Linhas da amostra das colunas: o bastante para reconhecer cada coluna no mapeamento. */
+    static final int LINHAS_DA_AMOSTRA = 5;
+    /** Texto de cada célula na amostra, cortado só para a tela (a prévia e a gravação leem o arquivo de novo). */
+    static final int TEXTO_DA_AMOSTRA = 120;
     private static final Set<String> SENSIVEIS = Set.of("objetivo", "observacoes", "cpf", "cep", "logradouro", "numero",
             "complemento", "bairro", "cidade", "uf");
     private static final Map<String, String> PERMISSAO = Map.of(
@@ -105,7 +109,18 @@ public class ImportacaoService {
                 colunas.add(LeitorDePlanilha.letra(i));
             }
         }
-        return new Colunas(planilha.abas(), planilha.aba(), colunas);
+        int primeira = cabecalho && !planilha.linhas().isEmpty() ? 1 : 0;
+        List<List<String>> amostra = new ArrayList<>();
+        for (int l = primeira; l < planilha.linhas().size() && amostra.size() < LINHAS_DA_AMOSTRA; l++) {
+            var celulas = planilha.linhas().get(l).celulas();
+            List<String> valores = new ArrayList<>(colunas.size());
+            for (int i = 0; i < colunas.size(); i++) {
+                String texto = i < celulas.size() ? celulas.get(i).texto() : null;
+                valores.add(texto == null ? "" : texto.length() > TEXTO_DA_AMOSTRA ? texto.substring(0, TEXTO_DA_AMOSTRA) + "…" : texto);
+            }
+            amostra.add(valores);
+        }
+        return new Colunas(planilha.abas(), planilha.aba(), colunas, planilha.linhas().size() - primeira, amostra);
     }
 
     public Previa previa(String destino, String nome, byte[] bytes, String configuracao) {

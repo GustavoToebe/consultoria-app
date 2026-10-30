@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 
 import { anexarArquivoDoAparelho } from '../../api/anexarArquivoDoAparelho';
 
-export type ArquivoEscolhido = { nome: string; parte: Blob | { uri: string; name: string; type: string } };
+/** Arquivo escolhido na tela. `tamanho` em bytes, quando o aparelho informa. */
+export type ArquivoEscolhido = { nome: string; tamanho?: number; parte: Blob | { uri: string; name: string; type: string } };
 
 /** FormData da importação: o arquivo no campo `arquivo` e, quando há, a configuração como JSON em `configuracao`. */
 export async function formulario(arquivo: ArquivoEscolhido, configuracao?: unknown): Promise<FormData> {

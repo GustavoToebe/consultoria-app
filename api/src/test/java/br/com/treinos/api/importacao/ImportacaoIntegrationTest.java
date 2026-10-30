@@ -84,6 +84,37 @@ class ImportacaoIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void colunasTrazemAsPrimeirasLinhasSemGravarNada() throws Exception {
+        StringBuilder csv = new StringBuilder("Nome do aluno;E-mail;Obs\n");
+        for (int i = 1; i <= 7; i++) {
+            csv.append("Aluno Fictício ").append(i).append(';').append(unico("amostra" + i)).append(';')
+                    .append(i == 1 ? "x".repeat(300) : "").append('\n');
+        }
+        byte[] bytes = csv.toString().getBytes(StandardCharsets.UTF_8);
+        JsonNode colunas = enviar("alunos/colunas", "alunos.csv", bytes, "{}", 200);
+        assertThat(colunas.path("colunas").size()).isEqualTo(3);
+        assertThat(colunas.path("linhas").asInt()).isEqualTo(7);
+        JsonNode amostra = colunas.path("amostra");
+        assertThat(amostra.size()).isEqualTo(ImportacaoService.LINHAS_DA_AMOSTRA);
+        assertThat(amostra.get(0).get(0).asString()).isEqualTo("Aluno Fictício 1");
+        assertThat(amostra.get(0).get(2).asString()).hasSize(ImportacaoService.TEXTO_DA_AMOSTRA + 1).endsWith("…");
+        assertThat(amostra.get(1).get(2).asString()).isEmpty();
+
+        var semCabecalho = multipart("/importacoes/alunos/colunas")
+                .file(new MockMultipartFile("arquivo", "alunos.csv", "text/csv", bytes))
+                .param("cabecalho", "false")
+                .header(HttpHeaders.AUTHORIZATION, ApiDeTeste.bearer(treinador))
+                .header("X-Treinos-Cliente", "nativo");
+        JsonNode sem = json.readTree(mvc.perform(semCabecalho).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString(StandardCharsets.UTF_8));
+        assertThat(sem.path("linhas").asInt()).isEqualTo(8);
+        assertThat(sem.path("amostra").get(0).get(0).asString()).isEqualTo("Nome do aluno");
+
+        assertThat(api.get("/alunos", treinador, 200).path("total").asInt()).isZero();
+        assertThat(api.get("/importacoes", treinador, 200).path("total").asInt()).isZero();
+    }
+
+    @Test
     void tresRegrasECelulaVaziaNaoApaga() throws Exception {
         String email = unico("regra");
         String base = "nome;email;objetivo\nRegra Fictícia;" + email + ";\n";
